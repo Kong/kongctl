@@ -1,0 +1,69 @@
+name: Checks
+run-name: Checks, branch:${{ github.ref_name }}, triggered by @${{ github.actor }}
+
+concurrency:
+  # Run only for most recent commit in PRs but for all tags and commits on main
+  # Ref: https://docs.github.com/en/actions/using-jobs/using-concurrency
+  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches:
+      - '**'
+  push:
+    branches:
+      - 'main'
+      - 'release/[0-9]+.[0-9]+.x'
+    tags:
+      - '**'
+  workflow_dispatch: {}
+
+jobs:
+  up-to-date:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.up-to-date.outputs.status }}
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check if PR is up to date, if it is skip workflows for this ref
+        id: 'up-to-date'
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')
+        uses: Kong/public-shared-actions/pr-previews/up-to-date@v2.3.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+  # This job is used to check if the secrets are available. If they are not, we'll skip jobs that require them.
+  should-run-with-secrets:
+    runs-on: ubuntu-latest
+    needs:
+    - up-to-date
+    if: needs.up-to-date.outputs.status != 'true'
+    outputs:
+      result: ${{ steps.check.outputs.result }}
+    steps:
+      - name: Check if secrets are available
+        id: check
+        run: |
+          if [ "${{ secrets.PULP_PASSWORD }}" == "" ]; then
+            echo "result=false" >> $GITHUB_OUTPUT
+          else
+            echo "result=true" >> $GITHUB_OUTPUT
+          fi
+
+  # We need this step to fail the workflow if any of the previous steps failed or were cancelled.
+  # It allows to use this particular job as a required check for PRs.
+  # Ref: https://github.com/orgs/community/discussions/26822#discussioncomment-3305794
+  passed:
+    runs-on: ubuntu-latest
+    needs:
+      - up-to-date
+    if: always()
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "Some jobs failed or were cancelled."
+          exit 1
