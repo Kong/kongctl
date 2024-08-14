@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/kong/kong-cli/internal/build"
 	"github.com/kong/kong-cli/internal/cmd"
 	"github.com/kong/kong-cli/internal/cmd/common"
 	"github.com/kong/kong-cli/internal/cmd/root/verbs/create"
@@ -45,6 +46,8 @@ var (
 	streams      *iostreams.IOStreams
 	pMgr         profile.Manager
 	outputFormat = cmd.NewEnum([]string{"json", "yaml", "text"}, "text")
+
+	buildInfo *build.Info
 )
 
 func newRootCmd() *cobra.Command {
@@ -56,6 +59,7 @@ func newRootCmd() *cobra.Command {
 			ctx := context.WithValue(cmd.Context(), config.ConfigKey, currConfig)
 			ctx = context.WithValue(ctx, iostreams.StreamsKey, streams)
 			ctx = context.WithValue(ctx, profile.ProfileManagerKey, pMgr)
+			ctx = context.WithValue(ctx, build.InfoKey, buildInfo)
 			cmd.SetContext(ctx)
 		},
 		PersistentPostRunE: func(_ *cobra.Command, _ []string) error {
@@ -153,7 +157,8 @@ func initConfig() {
 	util.CheckError(config.BindFlag(common.OutputConfigPath, f))
 }
 
-func Execute(ctx context.Context, s *iostreams.IOStreams) {
+func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
+	buildInfo = bi
 	cobra.EnableTraverseRunHooks = true
 	streams = s
 	err := rootCmd.ExecuteContext(ctx)

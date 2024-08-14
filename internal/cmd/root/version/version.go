@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/kong/kong-cli/internal/build"
 	"github.com/kong/kong-cli/internal/cmd"
 	"github.com/kong/kong-cli/internal/meta"
 	"github.com/kong/kong-cli/internal/util"
@@ -14,16 +15,11 @@ import (
 )
 
 const (
-	ShowCommitFlagName   = "show-commit"
-	ShowCommitConfigPath = "version." + ShowCommitFlagName
+	ShowFullFlag       = "full"
+	ShowFullConfigPath = "version." + ShowFullFlag
 )
 
 var (
-	// VERSION may be overridden by the linker. See .goreleaser.yml
-	VERSION = "dev"
-	// COMMIT may be overridden by the linker. See .goreleaser.yml
-	COMMIT = "unknown"
-
 	versionUse   = "version"
 	versionShort = i18n.T("root.version.versionShort",
 		fmt.Sprintf("Print the %s version", meta.CLIName))
@@ -33,9 +29,10 @@ var (
 		fmt.Sprintf(`
 		# Print the simple version
 		%[1]s version
-		# Print the version and the git commit hash
-		%[1]s version --show-commit
+		# Print the full version info with commit and build date
+		%[1]s version --full
 		`, meta.CLIName)))
+	buildInfo *build.Info
 )
 
 // Build a new instance of the version command
@@ -46,6 +43,7 @@ func NewVersionCmd() *cobra.Command {
 		Long:    versionLong,
 		Example: versionExample,
 		PreRun: func(c *cobra.Command, args []string) {
+			buildInfo = c.Context().Value(build.InfoKey).(*build.Info)
 			bindFlags(c, args)
 		},
 		RunE: func(c *cobra.Command, args []string) error {
@@ -63,9 +61,9 @@ func NewVersionCmd() *cobra.Command {
 		},
 	}
 
-	rv.Flags().Bool(ShowCommitFlagName, false,
-		i18n.T(fmt.Sprintf("root.%s", ShowCommitConfigPath),
-			fmt.Sprintf("True to show the git commit hash when built.\n (config path = '%s')", ShowCommitConfigPath)))
+	rv.Flags().Bool(ShowFullFlag, false,
+		i18n.T(fmt.Sprintf("root.%s", ShowFullConfigPath),
+			fmt.Sprintf("True to show the full version information.\n (config path = '%s')", ShowFullConfigPath)))
 
 	return rv
 }
@@ -74,8 +72,8 @@ func bindFlags(c *cobra.Command, args []string) {
 	helper := cmd.BuildHelper(c, args)
 	cfg, e := helper.GetConfig()
 	util.CheckError(e)
-	f := c.Flags().Lookup(ShowCommitFlagName)
-	err := cfg.BindFlag(ShowCommitConfigPath, f)
+	f := c.Flags().Lookup(ShowFullFlag)
+	err := cfg.BindFlag(ShowFullConfigPath, f)
 	util.CheckError(err)
 }
 
@@ -88,7 +86,7 @@ func validate(_ cmd.Helper) error {
 func run(helper cmd.Helper) error {
 	// Printer functions take objects to print
 	result := map[string]interface{}{
-		"version": VERSION,
+		"version": buildInfo.Version,
 	}
 
 	cfg, err := helper.GetConfig()
@@ -96,8 +94,10 @@ func run(helper cmd.Helper) error {
 		return err
 	}
 
-	if cfg.GetBool(ShowCommitConfigPath) {
-		result["commit"] = COMMIT
+	full := cfg.GetBool(ShowFullConfigPath)
+	if full {
+		result["commit"] = buildInfo.Commit
+		result["date"] = buildInfo.Date
 	}
 
 	outType, err := helper.GetOutputFormat()
@@ -106,7 +106,7 @@ func run(helper cmd.Helper) error {
 	}
 
 	if outType == "text" {
-		return printText(result, helper.GetStreams().Out)
+		return printText(result, helper.GetStreams().Out, full)
 	}
 
 	p, err := cli.Format(outType, helper.GetStreams().Out)
@@ -121,19 +121,20 @@ func run(helper cmd.Helper) error {
 
 // printText is a custom print function for the version command. Not really necessary
 // but it shows how you can override the default printers per command.
-func printText(data map[string]interface{}, out io.Writer) error {
+func printText(data map[string]interface{}, out io.Writer, full bool) error {
 	if ver, ok := data["version"]; ok {
 		_, e := fmt.Fprintf(out, "%s", ver)
 		if e != nil {
 			return e
 		}
 	}
-	if commit, ok := data["commit"]; ok {
-		_, e := fmt.Fprintf(out, " (%s)", commit)
-		if e != nil {
-			return e
-		}
+
+	if full {
+		commit := data["commit"]
+		date := data["date"]
+		fmt.Fprintf(out, " (%s : %s)", commit.(string), date.(string))
 	}
+
 	_, err := fmt.Fprintf(out, "\n")
 	return err
 }

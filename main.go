@@ -7,8 +7,15 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/kong/kong-cli/internal/build"
 	"github.com/kong/kong-cli/internal/cmd/root"
 	"github.com/kong/kong-cli/internal/iostreams"
+)
+
+var (
+	version = "dev"
+	commit  = "unknown"
+	date    = "unknown"
 )
 
 func registerSignalHandler() context.Context {
@@ -27,5 +34,10 @@ func registerSignalHandler() context.Context {
 
 func main() {
 	ctx := registerSignalHandler()
-	root.Execute(ctx, iostreams.GetOSIOStreams())
+	bi := build.Info{
+		Version: version,
+		Commit:  commit,
+		Date:    date,
+	}
+	root.Execute(ctx, iostreams.GetOSIOStreams(), &bi)
 }

@@ -14,8 +14,6 @@ builds:
       - linux
       - windows
       - darwin
-    ldflags:
-      - "-s -w -X internal/cmd/root/version.VERSION={{.Version}} -X internal/cmd/root/version.COMMIT={{.Commit}}"
 archives:
   - name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     format: zip
