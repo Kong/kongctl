@@ -10,7 +10,7 @@ const (
 	TokenPathDefault  = "/v3/internal/oauth/device/token" // #nosec G101
 	TokenPathFlagName = "token-path"                      // #nosec G101
 
-	RefreshPathDefault  = "/refresh"
+	RefreshPathDefault  = "/kauth/api/v1/refresh"
 	RefreshPathFlagName = "refresh-path"
 
 	MachineClientIDDefault  = "344f59db-f401-4ce7-9407-00a0823fbacf"

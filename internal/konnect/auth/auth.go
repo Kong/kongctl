@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -110,67 +112,56 @@ func RequestDeviceCode(httpClient *http.Client,
 	return deviceCodeResponse, nil
 }
 
-//func RefreshAuthToken(refreshURL string, clientID string, refreshToken string) (*AccessToken, error) {
-//	jar, err := cookiejar.New(nil)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	cookieURL, err := url.Parse(refreshURL)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	// set the state as a cookie
-//	jar.SetCookies(cookieURL, []*http.Cookie{
-//		{
-//			Name:  "konnectrefreshtoken",
-//			Value: refreshToken,
-//		},
-//	})
-//
-//	httpClient := &http.Client{
-//		Jar: jar,
-//	}
-//
-//	res, err := httpClient.Post(refreshURL, "application/json", nil)
-//	if err != nil {
-//		return nil, err
-//	}
-//	if res.StatusCode != http.StatusOK {
-//		return nil, fmt.Errorf("failed to refresh token: %s", res.Status)
-//	}
-//
-//	refreshCookieFound := false
-//	for _, cookie := range res.Cookies() {
-//		if cookie.Name == "konnectrefreshtoken" &&
-//			cookie.Path == "/api/v1/refresh" && cookie.Value != "" {
-//			refreshCookieFound = true
-//
-//			if refreshCookieFound {
-//				fmt.Println(cookie.Value)
-//			}
-//			// claims, err := tokenService.ValidateToken(cookie.Value)
-//			// Expect(err).ShouldNot(HaveOccurred())
-//			// Expect(claims.Actor()).ShouldNot(BeNil())
-//
-//			// actorClaim := claims.Actor()
-//			// Expect(*actorClaim).Should(Equal(actor))
-//
-//			// Expect(*claims.OrgState()).Should(Equal("active"))
-//		}
-//	}
-//
-//	//requestBody := struct {
-//	//	GrantType  string    `form:"grant_type"`
-//	//	DeviceCode string    `form:"device_code"`
-//	//	ClientID   uuid.UUID `form:"client_id"`
-//	//}{
-//	//	GrantType:  RefreshGrantType,
-//	//	ClientID:   uuid.MustParse(clientID),
-//	//}
-//	return nil, nil
-//}
+func RefreshAuthToken(refreshURL string, clientID string, refreshToken string) (string, error) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return "", err
+	}
+
+	cookieURL, err := url.Parse(refreshURL)
+	if err != nil {
+		return "", err
+	}
+
+	// set the state as a cookie
+	jar.SetCookies(cookieURL, []*http.Cookie{
+		{
+			Name:  "konnectrefreshtoken",
+			Value: refreshToken,
+		},
+	})
+
+	httpClient := &http.Client{
+		Jar: jar,
+	}
+
+	res, err := httpClient.Post(refreshURL, "application/json", nil)
+	if err != nil {
+		return "", err
+	}
+	if res.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to refresh token: %s", res.Status)
+	}
+
+	for _, cookie := range res.Cookies() {
+		fmt.Println(cookie.Value)
+		//if cookie.Name == "konnectrefreshtoken" &&
+		//	cookie.Path == refreshURL &&
+		//	cookie.Value != "" {
+
+		//	// claims, err := tokenService.ValidateToken(cookie.Value)
+		//	// Expect(err).ShouldNot(HaveOccurred())
+		//	// Expect(claims.Actor()).ShouldNot(BeNil())
+
+		//	// actorClaim := claims.Actor()
+		//	// Expect(*actorClaim).Should(Equal(actor))
+
+		//	// Expect(*claims.OrgState()).Should(Equal("active"))
+		//}
+	}
+
+	return "", nil
+}
 
 func PollForToken(httpClient *http.Client, url string, clientID string, deviceCode string) (*AccessToken, error) {
 	requestBody := struct {
@@ -259,26 +250,24 @@ func SaveAccessToken(path string, token *AccessToken) error {
 }
 
 func GetAuthenticatedClient(
-	profile string, overridingPAT string, _ string /*clientId*/, _ string, /*refreshURL*/
-) (*kk.SDK, error) {
+	profile string, overridingPAT string, clientID string, refreshURL string) (*kk.SDK, error) {
 	token := overridingPAT
 	if token == "" {
-		// First, look for a credentials file in the well known location
 		credsPath := BuildDefaultCredentialFilePath(profile)
 		creds, _ := LoadAccessToken(credsPath)
-		// TODO: We may want to evaulate the errors here for unrecoverable states?
+		// TODO: We may want to evaulate the last error here for unrecoverable states?
 		if creds != nil {
 			// TODO: refresh
 			if creds.IsExpired() {
-				return nil, fmt.Errorf("token expired. Re-run login command or use a PAT")
-				//newToken, err := RefreshAuthToken(refreshURL, clientID, creds.Token.RefreshToken)
-				//if err != nil {
-				//	return nil, err
-				//}
-				//token = newToken.Token.AuthToken
+				//return nil, fmt.Errorf("token expired. Re-run login command or use a PAT")
+				newToken, err := RefreshAuthToken(refreshURL, clientID, creds.Token.RefreshToken)
+				if err != nil {
+					return nil, err
+				}
+				token = newToken
+			} else {
+				token = creds.Token.AuthToken
 			}
-
-			token = creds.Token.AuthToken
 		}
 	}
 
