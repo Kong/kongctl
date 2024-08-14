@@ -93,8 +93,8 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 		}
 
 		if pollResp != nil && pollResp.Token.AuthToken != "" {
-			fmt.Println("User Successfully Authorized")
-			err := auth.SaveAccessToken(
+			fmt.Println("User successfully authorized")
+			err := auth.SaveAccessTokenToDisk(
 				auth.BuildDefaultCredentialFilePath(cfg.GetProfile()),
 				pollResp)
 			if err != nil {

@@ -172,13 +172,14 @@ func (c *createControlPlaneCmd) run(helper cmd.Helper) error {
 		Labels:       labels,
 	}
 
-	kkClient, err := auth.GetAuthenticatedClient(
-		cfg.GetProfile(),
-		cfg.GetString(common.PATFlagName),
-		cfg.GetString(common.MachineClientIDConfigPath),
-		cfg.GetString(common.BaseURLConfigPath)+cfg.GetString(common.RefreshPathConfigPath))
-	if err != nil {
-		return err
+	token, e := common.GetAccessToken(cfg)
+	if e != nil {
+		return e
+	}
+
+	kkClient, e := auth.GetAuthenticatedClient(token)
+	if e != nil {
+		return e
 	}
 
 	ctx := context.Background()
@@ -192,13 +193,13 @@ func (c *createControlPlaneCmd) run(helper cmd.Helper) error {
 		}
 	}
 
-	outType, err := helper.GetOutputFormat()
-	if err != nil {
-		return err
+	outType, e := helper.GetOutputFormat()
+	if e != nil {
+		return e
 	}
-	printer, err := cli.Format(outType, helper.GetStreams().Out)
-	if err != nil {
-		return err
+	printer, e := cli.Format(outType, helper.GetStreams().Out)
+	if e != nil {
+		return e
 	}
 
 	defer printer.Flush()

@@ -1,5 +1,10 @@
 package common
 
+import (
+	"github.com/kong/kong-cli/internal/config"
+	"github.com/kong/kong-cli/internal/konnect/auth"
+)
+
 const (
 	BaseURLDefault  = "https://global.api.konghq.com"
 	BaseURLFlagName = "base-url"
@@ -32,3 +37,9 @@ var (
 
 	MachineClientIDConfigPath = "konnect." + MachineClientIDFlagName
 )
+
+func GetAccessToken(cfg config.Hook) (*auth.AccessToken, error) {
+	machineID := cfg.GetString(MachineClientIDConfigPath)
+	refreshURL := cfg.GetString(BaseURLConfigPath) + cfg.GetString(RefreshPathConfigPath)
+	return auth.LoadAccessToken(cfg.GetProfile(), refreshURL, machineID)
+}

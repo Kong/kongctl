@@ -112,15 +112,15 @@ func RequestDeviceCode(httpClient *http.Client,
 	return deviceCodeResponse, nil
 }
 
-func RefreshAuthToken(refreshURL string, clientID string, refreshToken string) (string, error) {
+func RefreshAccessToken(refreshURL string, clientID string, refreshToken string) (*AccessToken, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	cookieURL, err := url.Parse(refreshURL)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// set the state as a cookie
@@ -137,30 +137,31 @@ func RefreshAuthToken(refreshURL string, clientID string, refreshToken string) (
 
 	res, err := httpClient.Post(refreshURL, "application/json", nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if res.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to refresh token: %s", res.Status)
+		return nil, fmt.Errorf("failed to refresh token: %s", res.Status)
+	}
+
+	rv := AccessToken{
+		Token: &AccessTokenResponse{
+			TokenType: "Bearer",
+			ExpiresIn: 3600,
+			Scope:     "",
+		},
+		ReceivedAt: time.Now(),
 	}
 
 	for _, cookie := range res.Cookies() {
 		fmt.Println(cookie.Value)
-		//if cookie.Name == "konnectrefreshtoken" &&
-		//	cookie.Path == refreshURL &&
-		//	cookie.Value != "" {
-
-		//	// claims, err := tokenService.ValidateToken(cookie.Value)
-		//	// Expect(err).ShouldNot(HaveOccurred())
-		//	// Expect(claims.Actor()).ShouldNot(BeNil())
-
-		//	// actorClaim := claims.Actor()
-		//	// Expect(*actorClaim).Should(Equal(actor))
-
-		//	// Expect(*claims.OrgState()).Should(Equal("active"))
-		//}
+		if cookie.Name == "konnectrefreshtoken" && cookie.Path == refreshURL && cookie.Value != "" {
+			rv.Token.RefreshToken = cookie.Value
+		} else if cookie.Name == "konnectaccesstoken" && cookie.Value != "" {
+			rv.Token.AuthToken = cookie.Value
+		}
 	}
 
-	return "", nil
+	return &rv, nil
 }
 
 func PollForToken(httpClient *http.Client, url string, clientID string, deviceCode string) (*AccessToken, error) {
@@ -220,7 +221,30 @@ func PollForToken(httpClient *http.Client, url string, clientID string, deviceCo
 	return &rv, nil
 }
 
-func LoadAccessToken(path string) (*AccessToken, error) {
+// For a given profile, load a saved token from disk.
+// * If there is no file, return error.
+// * If it's not expired, return it.
+// * If it's expired, refresh it, then store it, then return it
+func LoadAccessToken(profile, refreshURL, clientID string) (*AccessToken, error) {
+	credsPath := BuildDefaultCredentialFilePath(profile)
+	creds, err := LoadAccessTokenFromDisk(credsPath)
+	if err != nil {
+		return nil, err
+	}
+	if creds.IsExpired() {
+		creds, err := RefreshAccessToken(refreshURL, clientID, creds.Token.RefreshToken)
+		if err != nil {
+			return nil, err
+		}
+		err = SaveAccessTokenToDisk(credsPath, creds)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return creds, nil
+}
+
+func LoadAccessTokenFromDisk(path string) (*AccessToken, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -235,7 +259,7 @@ func LoadAccessToken(path string) (*AccessToken, error) {
 	return &token, nil
 }
 
-func SaveAccessToken(path string, token *AccessToken) error {
+func SaveAccessTokenToDisk(path string, token *AccessToken) error {
 	data, err := json.Marshal(token)
 	if err != nil {
 		return err
@@ -249,35 +273,10 @@ func SaveAccessToken(path string, token *AccessToken) error {
 	return nil
 }
 
-func GetAuthenticatedClient(
-	profile string, overridingPAT string, clientID string, refreshURL string) (*kk.SDK, error) {
-	token := overridingPAT
-	if token == "" {
-		credsPath := BuildDefaultCredentialFilePath(profile)
-		creds, _ := LoadAccessToken(credsPath)
-		// TODO: We may want to evaulate the last error here for unrecoverable states?
-		if creds != nil {
-			// TODO: refresh
-			if creds.IsExpired() {
-				//return nil, fmt.Errorf("token expired. Re-run login command or use a PAT")
-				newToken, err := RefreshAuthToken(refreshURL, clientID, creds.Token.RefreshToken)
-				if err != nil {
-					return nil, err
-				}
-				token = newToken
-			} else {
-				token = creds.Token.AuthToken
-			}
-		}
-	}
-
-	if token == "" {
-		return nil, fmt.Errorf("could not load credentials for profile %s, and no PAT provided", profile)
-	}
-
+func GetAuthenticatedClient(token *AccessToken) (*kk.SDK, error) {
 	return kk.New(
 		kk.WithSecurity(kkComps.Security{
-			PersonalAccessToken: kk.String(token),
+			PersonalAccessToken: kk.String(token.Token.AuthToken),
 		}),
 	), nil
 }
