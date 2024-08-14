@@ -41,6 +41,6 @@ brews:
       email: rspurgeon@users.noreply.github.com
     homepage: "https://github.com/kong/kongctl"
     description: Developer CLI for Kong
-    skip_upload: true
+    skip_upload: auto
     test: |
         system "#{bin}/kongctl", "version"
