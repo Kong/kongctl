@@ -33,6 +33,7 @@ brews:
   - repository:
       owner: kong
       name: homebrew-kongctl
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
       branch: kongctl-go-releaser
       pull_request:
         enabled: true
