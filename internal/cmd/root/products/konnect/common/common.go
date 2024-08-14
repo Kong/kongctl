@@ -39,7 +39,6 @@ var (
 )
 
 func GetAccessToken(cfg config.Hook) (*auth.AccessToken, error) {
-	machineID := cfg.GetString(MachineClientIDConfigPath)
 	refreshURL := cfg.GetString(BaseURLConfigPath) + cfg.GetString(RefreshPathConfigPath)
-	return auth.LoadAccessToken(cfg.GetProfile(), refreshURL, machineID)
+	return auth.LoadAccessToken(cfg.GetProfile(), refreshURL)
 }

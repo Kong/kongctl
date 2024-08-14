@@ -112,7 +112,7 @@ func RequestDeviceCode(httpClient *http.Client,
 	return deviceCodeResponse, nil
 }
 
-func RefreshAccessToken(refreshURL string, clientID string, refreshToken string) (*AccessToken, error) {
+func RefreshAccessToken(refreshURL string, refreshToken string) (*AccessToken, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, err
@@ -225,14 +225,14 @@ func PollForToken(httpClient *http.Client, url string, clientID string, deviceCo
 // * If there is no file, return error.
 // * If it's not expired, return it.
 // * If it's expired, refresh it, then store it, then return it
-func LoadAccessToken(profile, refreshURL, clientID string) (*AccessToken, error) {
+func LoadAccessToken(profile, refreshURL string) (*AccessToken, error) {
 	credsPath := BuildDefaultCredentialFilePath(profile)
 	creds, err := LoadAccessTokenFromDisk(credsPath)
 	if err != nil {
 		return nil, err
 	}
 	if creds.IsExpired() {
-		creds, err := RefreshAccessToken(refreshURL, clientID, creds.Token.RefreshToken)
+		creds, err := RefreshAccessToken(refreshURL, creds.Token.RefreshToken)
 		if err != nil {
 			return nil, err
 		}
