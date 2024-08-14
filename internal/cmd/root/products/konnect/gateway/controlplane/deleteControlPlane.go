@@ -28,11 +28,12 @@ func (c *deleteControlPlaneCmd) run(helper cmd.Helper) error {
 		return e
 	}
 
-	kkClient, err := auth.GetAuthenticatedClient(
-		cfg.GetProfile(),
-		cfg.GetString(common.PATFlagName),
-		cfg.GetString(common.MachineClientIDConfigPath),
-		cfg.GetString(common.BaseURLConfigPath)+cfg.GetString(common.RefreshPathConfigPath))
+	token, e := common.GetAccessToken(cfg)
+	if e != nil {
+		return e
+	}
+
+	kkClient, err := auth.GetAuthenticatedClient(token)
 	if err != nil {
 		return err
 	}
