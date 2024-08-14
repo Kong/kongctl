@@ -206,8 +206,11 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 
 	token, e := common.GetAccessToken(cfg)
 	if e != nil {
-		return e
+		return fmt.Errorf(
+			`no access token available. Use "%s login konnect" to authenticate or provide a Konnect PAT using the --pat flag`,
+			meta.CLIName)
 	}
+
 	kkClient, err := auth.GetAuthenticatedClient(token)
 	if err != nil {
 		return err

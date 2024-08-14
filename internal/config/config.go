@@ -41,13 +41,12 @@ func GetConfig(path string, profile string) (*ProfiledConfig, error) {
 		} else {
 			err = e
 		}
-	} else if path == defaultConfigFilePath {
+	} else if path == os.ExpandEnv(defaultConfigFilePath) {
 		// TODO: There may be other cases where err != nil but we don't want to initialize the default
-		vip, e := viper.InitializeDefaultViper(getDefaultConfig(profile), path)
-		if e == nil {
+		var vip *v.Viper
+		vip, err = viper.InitializeDefaultViper(getDefaultConfig(profile), path)
+		if err == nil {
 			rv = BuildProfiledConfig(profile, vip)
-		} else {
-			err = e
 		}
 	} else {
 		err = fmt.Errorf("the provided config file path does not exist")

@@ -153,11 +153,11 @@ func RefreshAccessToken(refreshURL string, refreshToken string) (*AccessToken, e
 	}
 
 	for _, cookie := range res.Cookies() {
-		fmt.Println(cookie.Value)
 		if cookie.Name == "konnectrefreshtoken" && cookie.Path == refreshURL && cookie.Value != "" {
 			rv.Token.RefreshToken = cookie.Value
 		} else if cookie.Name == "konnectaccesstoken" && cookie.Value != "" {
 			rv.Token.AuthToken = cookie.Value
+			rv.Token.ExpiresIn = int(time.Until(cookie.Expires).Seconds())
 		}
 	}
 
