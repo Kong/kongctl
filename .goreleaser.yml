@@ -29,3 +29,18 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+brews:
+  - repository:
+      owner: kong
+      name: homebrew-kongctl
+      branch: kongctl-go-releaser
+      pull_request:
+        enabled: true
+    commit_author:
+      name: Rick Spurgeon 
+      email: rspurgeon@users.noreply.github.com
+    homepage: "https://github.com/kong/kongctl"
+    description: Developer CLI for Kong
+    skip_upload: true
+    test: |
+        system "#{bin}/kongctl", "version"
