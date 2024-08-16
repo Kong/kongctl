@@ -152,8 +152,9 @@ func RefreshAccessToken(refreshURL string, refreshToken string) (*AccessToken, e
 		ReceivedAt: time.Now(),
 	}
 
+	refreshPath := cookieURL.Path
 	for _, cookie := range res.Cookies() {
-		if cookie.Name == "konnectrefreshtoken" && cookie.Path == refreshURL && cookie.Value != "" {
+		if cookie.Name == "konnectrefreshtoken" && cookie.Path == refreshPath && cookie.Value != "" {
 			rv.Token.RefreshToken = cookie.Value
 		} else if cookie.Name == "konnectaccesstoken" && cookie.Value != "" {
 			rv.Token.AuthToken = cookie.Value
@@ -232,7 +233,7 @@ func LoadAccessToken(profile, refreshURL string) (*AccessToken, error) {
 		return nil, err
 	}
 	if creds.IsExpired() {
-		creds, err := RefreshAccessToken(refreshURL, creds.Token.RefreshToken)
+		creds, err = RefreshAccessToken(refreshURL, creds.Token.RefreshToken)
 		if err != nil {
 			return nil, err
 		}
