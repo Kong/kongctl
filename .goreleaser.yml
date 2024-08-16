@@ -32,9 +32,9 @@ brews:
       owner: kong
       name: homebrew-kongctl
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
-      branch: kongctl-go-releaser
+      branch: main 
       pull_request:
-        enabled: true
+        enabled: false
     commit_author:
       name: Rick Spurgeon 
       email: rspurgeon@users.noreply.github.com
