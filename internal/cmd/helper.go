@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/kong/kong-cli/internal/build"
 	"github.com/kong/kong-cli/internal/cmd/common"
 	"github.com/kong/kong-cli/internal/cmd/root/products"
 	"github.com/kong/kong-cli/internal/cmd/root/verbs"
@@ -29,6 +30,7 @@ type Helper interface {
 	GetConfig() (config.Hook, error)
 	GetOutputFormat() (string, error)
 	GetLogger() (*slog.Logger, error)
+	GetBuildInfo() (*build.Info, error)
 }
 
 type CommandHelper struct {
@@ -44,6 +46,10 @@ func (r *CommandHelper) GetCmd() *cobra.Command {
 
 func (r *CommandHelper) GetArgs() []string {
 	return r.Args
+}
+
+func (r *CommandHelper) GetBuildInfo() (*build.Info, error) {
+	return r.Cmd.Context().Value(build.InfoKey).(*build.Info), nil
 }
 
 func (r *CommandHelper) GetLogger() (*slog.Logger, error) {

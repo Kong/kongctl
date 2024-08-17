@@ -1,8 +1,11 @@
 package version
 
 import (
+	"io"
+	"log/slog"
 	"testing"
 
+	"github.com/kong/kong-cli/internal/build"
 	"github.com/kong/kong-cli/internal/config"
 	"github.com/kong/kong-cli/internal/iostreams"
 	"github.com/kong/kong-cli/test/cmd"
@@ -27,6 +30,16 @@ func Test_VersionCmd(t *testing.T) {
 		},
 		GetStreamsMock: func() *iostreams.IOStreams {
 			return &all
+		},
+		GetLoggerMock: func() (*slog.Logger, error) {
+			return slog.New(slog.NewTextHandler(io.Discard, nil)), nil
+		},
+		GetBuildInfoMock: func() (*build.Info, error) {
+			return &build.Info{
+				Version: "dev",
+				Commit:  "unknown",
+				Date:    "unknown",
+			}, nil
 		},
 	}
 

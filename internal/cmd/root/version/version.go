@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/kong/kong-cli/internal/build"
 	"github.com/kong/kong-cli/internal/cmd"
 	"github.com/kong/kong-cli/internal/meta"
 	"github.com/kong/kong-cli/internal/util"
@@ -32,7 +31,6 @@ var (
 		# Print the full version info with commit and build date
 		%[1]s version --full
 		`, meta.CLIName)))
-	buildInfo *build.Info
 )
 
 // Build a new instance of the version command
@@ -43,7 +41,6 @@ func NewVersionCmd() *cobra.Command {
 		Long:    versionLong,
 		Example: versionExample,
 		PreRun: func(c *cobra.Command, args []string) {
-			buildInfo = c.Context().Value(build.InfoKey).(*build.Info)
 			bindFlags(c, args)
 		},
 		RunE: func(c *cobra.Command, args []string) error {
@@ -84,9 +81,14 @@ func validate(_ cmd.Helper) error {
 
 // Run performs the actual version command logic
 func run(helper cmd.Helper) error {
+	bi, err := helper.GetBuildInfo()
+	if err != nil {
+		return err
+	}
+
 	// Printer functions take objects to print
 	result := map[string]interface{}{
-		"version": buildInfo.Version,
+		"version": bi.Version,
 	}
 
 	cfg, err := helper.GetConfig()
@@ -96,8 +98,8 @@ func run(helper cmd.Helper) error {
 
 	full := cfg.GetBool(ShowFullConfigPath)
 	if full {
-		result["commit"] = buildInfo.Commit
-		result["date"] = buildInfo.Date
+		result["commit"] = bi.Commit
+		result["date"] = bi.Date
 	}
 
 	outType, err := helper.GetOutputFormat()

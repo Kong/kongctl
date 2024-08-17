@@ -3,6 +3,7 @@ package cmd
 import (
 	"log/slog"
 
+	"github.com/kong/kong-cli/internal/build"
 	"github.com/kong/kong-cli/internal/cmd/root/products"
 	"github.com/kong/kong-cli/internal/cmd/root/verbs"
 	"github.com/kong/kong-cli/internal/config"
@@ -19,6 +20,7 @@ type MockHelper struct {
 	GetConfigMock       func() (config.Hook, error)
 	GetOutputFormatMock func() (string, error)
 	GetLoggerMock       func() (*slog.Logger, error)
+	GetBuildInfoMock    func() (*build.Info, error)
 }
 
 func (m *MockHelper) GetCmd() *cobra.Command {
@@ -51,4 +53,8 @@ func (m *MockHelper) GetOutputFormat() (string, error) {
 
 func (m *MockHelper) GetLogger() (*slog.Logger, error) {
 	return m.GetLoggerMock()
+}
+
+func (m *MockHelper) GetBuildInfo() (*build.Info, error) {
+	return m.GetBuildInfoMock()
 }
