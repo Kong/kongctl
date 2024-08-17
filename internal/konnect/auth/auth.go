@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -57,7 +58,7 @@ type AccessTokenResponse struct {
 	AuthToken    string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	TokenType    string `json:"token_type"`
-	ExpiresIn    int    `json:"expires_in"`
+	ExpiresAfter int    `json:"expires_in"`
 	Scope        string `json:"scope"`
 }
 
@@ -67,12 +68,13 @@ type AccessToken struct {
 }
 
 func (t *AccessToken) IsExpired() bool {
-	return time.Now().After(t.ReceivedAt.Add(time.Duration(t.Token.ExpiresIn) * time.Second))
+	return time.Now().After(t.ReceivedAt.Add(time.Duration(t.Token.ExpiresAfter) * time.Second))
 }
 
 func RequestDeviceCode(httpClient *http.Client,
-	url string, clientID string,
+	url string, clientID string, logger *slog.Logger,
 ) (DeviceCodeResponse, error) {
+	logger.Info("Requesting device code", "url", url, "client_id", clientID)
 	requestBody := struct {
 		ClientID uuid.UUID `form:"client_id"`
 	}{
@@ -95,6 +97,7 @@ func RequestDeviceCode(httpClient *http.Client,
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
+		logger.Error("Device code request failed", "error", err)
 		return DeviceCodeResponse{}, err
 	}
 
@@ -109,10 +112,11 @@ func RequestDeviceCode(httpClient *http.Client,
 		return DeviceCodeResponse{}, err
 	}
 
+	logger.Info("Device code request successful", "expires_in", deviceCodeResponse.ExpiresIn)
 	return deviceCodeResponse, nil
 }
 
-func RefreshAccessToken(refreshURL string, refreshToken string) (*AccessToken, error) {
+func RefreshAccessToken(refreshURL string, refreshToken string, logger *slog.Logger) (*AccessToken, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, err
@@ -145,9 +149,9 @@ func RefreshAccessToken(refreshURL string, refreshToken string) (*AccessToken, e
 
 	rv := AccessToken{
 		Token: &AccessTokenResponse{
-			TokenType: "Bearer",
-			ExpiresIn: 3600,
-			Scope:     "",
+			TokenType:    "Bearer",
+			ExpiresAfter: 3600,
+			Scope:        "",
 		},
 		ReceivedAt: time.Now(),
 	}
@@ -158,14 +162,17 @@ func RefreshAccessToken(refreshURL string, refreshToken string) (*AccessToken, e
 			rv.Token.RefreshToken = cookie.Value
 		} else if cookie.Name == "konnectaccesstoken" && cookie.Value != "" {
 			rv.Token.AuthToken = cookie.Value
-			rv.Token.ExpiresIn = int(time.Until(cookie.Expires).Seconds())
+			rv.Token.ExpiresAfter = int(time.Until(cookie.Expires).Seconds())
 		}
 	}
 
 	return &rv, nil
 }
 
-func PollForToken(httpClient *http.Client, url string, clientID string, deviceCode string) (*AccessToken, error) {
+func PollForToken(httpClient *http.Client,
+	url string, clientID string, deviceCode string, logger *slog.Logger,
+) (*AccessToken, error) {
+	logger.Info("Polling for token", "url", url, "client_id", clientID, "device_code", deviceCode)
 	requestBody := struct {
 		GrantType  string    `form:"grant_type"`
 		DeviceCode string    `form:"device_code"`
@@ -192,6 +199,7 @@ func PollForToken(httpClient *http.Client, url string, clientID string, deviceCo
 
 	response, err := httpClient.Do(request)
 	if err != nil {
+		logger.Error("Token request failed", "error", err)
 		return nil, err
 	}
 
@@ -219,6 +227,8 @@ func PollForToken(httpClient *http.Client, url string, clientID string, deviceCo
 		Token:      &pollForTokenResponse,
 		ReceivedAt: time.Now(),
 	}
+
+	logger.Info("Token received", "expires_after", pollForTokenResponse.ExpiresAfter)
 	return &rv, nil
 }
 
@@ -226,21 +236,31 @@ func PollForToken(httpClient *http.Client, url string, clientID string, deviceCo
 // * If there is no file, return error.
 // * If it's not expired, return it.
 // * If it's expired, refresh it, then store it, then return it
-func LoadAccessToken(profile, refreshURL string) (*AccessToken, error) {
+func LoadAccessToken(profile, refreshURL string, logger *slog.Logger) (*AccessToken, error) {
 	credsPath := BuildDefaultCredentialFilePath(profile)
 	creds, err := LoadAccessTokenFromDisk(credsPath)
 	if err != nil {
 		return nil, err
 	}
 	if creds.IsExpired() {
-		creds, err = RefreshAccessToken(refreshURL, creds.Token.RefreshToken)
+		logger.Info("Token expired, refreshing", "refresh_url", refreshURL)
+		creds, err = RefreshAccessToken(refreshURL, creds.Token.RefreshToken, logger)
 		if err != nil {
 			return nil, err
 		}
+		logger.Info("Token refreshed. Saving to disk",
+			"received_at", creds.ReceivedAt,
+			"expires_after", creds.Token.ExpiresAfter,
+			"creds_path", credsPath)
 		err = SaveAccessTokenToDisk(credsPath, creds)
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		logger.Info("Token loaded from disk",
+			"expires_after", creds.Token.ExpiresAfter,
+			"received_at", creds.ReceivedAt,
+			"creds_path", credsPath)
 	}
 	return creds, nil
 }

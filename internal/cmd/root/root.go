@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -18,12 +19,12 @@ import (
 	"github.com/kong/kong-cli/internal/cmd/root/version"
 	"github.com/kong/kong-cli/internal/config"
 	"github.com/kong/kong-cli/internal/iostreams"
+	"github.com/kong/kong-cli/internal/log"
 	"github.com/kong/kong-cli/internal/meta"
 	"github.com/kong/kong-cli/internal/profile"
 	"github.com/kong/kong-cli/internal/util"
 	"github.com/kong/kong-cli/internal/util/i18n"
 	"github.com/kong/kong-cli/internal/util/normalizers"
-	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
 
@@ -32,7 +33,7 @@ var (
   Kong CLI is the official command line tool for Kong projects and products.
 
   Find more information at:
-   https://docs.konghq.com/`))
+   https://github.com/Kong/kongctl`))
 
 	rootShort = i18n.T("root/rootShort", fmt.Sprintf("%s controls Kong", meta.CLIName))
 
@@ -46,8 +47,11 @@ var (
 	streams      *iostreams.IOStreams
 	pMgr         profile.Manager
 	outputFormat = cmd.NewEnum([]string{"json", "yaml", "text"}, "text")
+	logLevel     = cmd.NewEnum([]string{"debug", "info", "warn", "error"}, "error")
 
 	buildInfo *build.Info
+
+	logger *slog.Logger
 )
 
 func newRootCmd() *cobra.Command {
@@ -60,6 +64,7 @@ func newRootCmd() *cobra.Command {
 			ctx = context.WithValue(ctx, iostreams.StreamsKey, streams)
 			ctx = context.WithValue(ctx, profile.ProfileManagerKey, pMgr)
 			ctx = context.WithValue(ctx, build.InfoKey, buildInfo)
+			ctx = context.WithValue(ctx, log.LoggerKey, logger)
 			cmd.SetContext(ctx)
 		},
 		PersistentPostRunE: func(_ *cobra.Command, _ []string) error {
@@ -80,8 +85,7 @@ func newRootCmd() *cobra.Command {
 		"Specify the profile to use for this command.")
 
 	// -------------------------------------------------------------------------
-	// Add the output flag, which defines the text output format.
-	// This requires some extra gymnastics to ensure that the output flag is
+	// These require some extra gymnastics to ensure that the output flag is
 	// from a valid set of values. There may be a way to do this more elegantly
 	// in the pFlag library
 	rootCmd.PersistentFlags().VarP(outputFormat, common.OutputFlagName, common.OutputFlagShort,
@@ -89,6 +93,12 @@ func newRootCmd() *cobra.Command {
 - Config path: [ %s ]
 - Allowed    : [ %s ]`,
 			common.OutputConfigPath, strings.Join(outputFormat.Allowed, "|")))
+
+	rootCmd.PersistentFlags().Var(logLevel, common.LogLevelFlagName,
+		fmt.Sprintf(`Configures the logging level. Execution logs are written to STDERR.
+- Config path: [ %s ]
+- Allowed    : [ %s ]`,
+			common.LogLevelConfigPath, strings.Join(logLevel.Allowed, "|")))
 	// -------------------------------------------------------------------------
 
 	return rootCmd
@@ -146,6 +156,14 @@ func init() {
 	}
 }
 
+func bindFlags(config config.Hook) {
+	f := rootCmd.Flags().Lookup(common.OutputFlagName)
+	util.CheckError(config.BindFlag(common.OutputConfigPath, f))
+
+	f = rootCmd.Flags().Lookup(common.LogLevelFlagName)
+	util.CheckError(config.BindFlag(common.LogLevelConfigPath, f))
+}
+
 func initConfig() {
 	config, e1 := config.GetConfig(configFilePath, currProfile)
 	util.CheckError(e1)
@@ -153,8 +171,13 @@ func initConfig() {
 
 	pMgr = profile.NewManager(config.Viper)
 
-	f := rootCmd.Flags().Lookup(common.OutputFlagName)
-	util.CheckError(config.BindFlag(common.OutputConfigPath, f))
+	bindFlags(currConfig)
+
+	loggerOpts := &slog.HandlerOptions{
+		Level: log.ConfigLevelStringToSlogLevel(config.GetString(common.LogLevelConfigPath)),
+	}
+
+	logger = slog.New(slog.NewTextHandler(streams.ErrOut, loggerOpts))
 }
 
 func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
@@ -163,12 +186,17 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 	streams = s
 	err := rootCmd.ExecuteContext(ctx)
 	if err != nil {
+		// If there was an execution error, use the logger to write it out and exit
+		// If it was a configuration error, we want the cobra framework to also
+		// show the usage information, so we don't also print the error here
 		var executionError *cmd.ExecutionError
 		if errors.As(err, &executionError) {
-			printer, _ := cli.Format(outputFormat.String(), s.ErrOut)
-			// what if the printer build fails here?
-			printer.Print(err)
-			os.Exit(1)
+			if executionError.Msg != "" && executionError.Attrs != nil && len(executionError.Attrs) > 0 {
+				logger.Error(executionError.Msg, executionError.Attrs...)
+			} else {
+				logger.Error(executionError.Err.Error(), executionError.Attrs...)
+			}
 		}
+		os.Exit(1)
 	}
 }

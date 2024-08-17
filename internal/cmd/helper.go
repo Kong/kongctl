@@ -1,13 +1,16 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	"github.com/kong/kong-cli/internal/cmd/common"
 	"github.com/kong/kong-cli/internal/cmd/root/products"
 	"github.com/kong/kong-cli/internal/cmd/root/verbs"
 	"github.com/kong/kong-cli/internal/config"
 	"github.com/kong/kong-cli/internal/iostreams"
+	"github.com/kong/kong-cli/internal/log"
 	"github.com/spf13/cobra"
 )
 
@@ -25,6 +28,7 @@ type Helper interface {
 	GetStreams() *iostreams.IOStreams
 	GetConfig() (config.Hook, error)
 	GetOutputFormat() (string, error)
+	GetLogger() (*slog.Logger, error)
 }
 
 type CommandHelper struct {
@@ -40,6 +44,16 @@ func (r *CommandHelper) GetCmd() *cobra.Command {
 
 func (r *CommandHelper) GetArgs() []string {
 	return r.Args
+}
+
+func (r *CommandHelper) GetLogger() (*slog.Logger, error) {
+	rv := r.Cmd.Context().Value(log.LoggerKey).(*slog.Logger)
+	if rv == nil {
+		return nil, &ConfigurationError{
+			Err: fmt.Errorf("no logger configured"),
+		}
+	}
+	return rv, nil
 }
 
 func (r *CommandHelper) GetVerb() (verbs.VerbValue, error) {
@@ -102,7 +116,12 @@ type ConfigurationError struct {
 // unsuccessful result occurs.  Network errors, server side errors, invalid credentials or responses
 // are examples of RunttimeError types.
 type ExecutionError struct {
+	// friendly error message to display to the user
+	Msg string
+	// Err is the error that occurred during execution
 	Err error
+	// Optional attributes that can be used to provide additional context to the error
+	Attrs []interface{}
 }
 
 func (e *ConfigurationError) Error() string {
@@ -111,4 +130,31 @@ func (e *ConfigurationError) Error() string {
 
 func (e *ExecutionError) Error() string {
 	return e.Err.Error()
+}
+
+// Will try and json unmarshal an error string into a slice of interfaces
+// that match the slog algorithm for varadic parameters (alternating key value pairs)
+func TryConvertErrorToAttrs(err error) []interface{} {
+	var result map[string]interface{}
+	umError := json.Unmarshal([]byte(err.Error()), &result)
+	if umError != nil {
+		return nil
+	}
+	attrs := make([]interface{}, 0, len(result)*2)
+	for k, v := range result {
+		attrs = append(attrs, k, v)
+	}
+	return attrs
+}
+
+// This will construct an execution error AND turn off error and usage output for the command
+func PrepareExecutionError(msg string, err error, cmd *cobra.Command, attrs ...any) *ExecutionError {
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+
+	return &ExecutionError{
+		Msg:   msg,
+		Err:   err,
+		Attrs: attrs,
+	}
 }

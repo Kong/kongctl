@@ -1,6 +1,8 @@
 package common
 
 import (
+	"log/slog"
+
 	"github.com/kong/kong-cli/internal/config"
 	"github.com/kong/kong-cli/internal/konnect/auth"
 )
@@ -38,7 +40,7 @@ var (
 	MachineClientIDConfigPath = "konnect." + MachineClientIDFlagName
 )
 
-func GetAccessToken(cfg config.Hook) (*auth.AccessToken, error) {
+func GetAccessToken(cfg config.Hook, logger *slog.Logger) (*auth.AccessToken, error) {
 	refreshURL := cfg.GetString(BaseURLConfigPath) + cfg.GetString(RefreshPathConfigPath)
-	return auth.LoadAccessToken(cfg.GetProfile(), refreshURL)
+	return auth.LoadAccessToken(cfg.GetProfile(), refreshURL, logger)
 }

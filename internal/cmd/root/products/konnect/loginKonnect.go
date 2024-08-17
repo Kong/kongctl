@@ -47,6 +47,11 @@ func displayUserInstructions(resp auth.DeviceCodeResponse) {
 }
 
 func (c *loginKonnectCmd) run(helper cmd.Helper) error {
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return err
+	}
+
 	httpClient = &http.Client{Timeout: time.Second * 15}
 
 	cfg, err := helper.GetConfig()
@@ -63,7 +68,7 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 
 	clientID := cfg.GetString(common.MachineClientIDConfigPath)
 
-	resp, err := auth.RequestDeviceCode(httpClient, authURL, clientID)
+	resp, err := auth.RequestDeviceCode(httpClient, authURL, clientID, logger)
 	if err != nil {
 		return err
 	}
@@ -79,7 +84,7 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 	// poll for token while the user completes authorizing the request
 	for {
 		time.Sleep(time.Duration(resp.Interval) * time.Second)
-		pollResp, err := auth.PollForToken(httpClient, pollURL, clientID, resp.DeviceCode)
+		pollResp, err := auth.PollForToken(httpClient, pollURL, clientID, resp.DeviceCode, logger)
 		var dagError *auth.DAGError
 		if errors.As(err, &dagError) && dagError.ErrorCode == auth.AuthorizationPendingErrorCode {
 			continue

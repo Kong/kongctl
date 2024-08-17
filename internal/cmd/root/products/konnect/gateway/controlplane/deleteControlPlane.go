@@ -21,6 +21,11 @@ func (c *deleteControlPlaneCmd) validate(_ cmd.Helper) error {
 func (c *deleteControlPlaneCmd) run(helper cmd.Helper) error {
 	id := helper.GetArgs()[0]
 
+	logger, e := helper.GetLogger()
+	if e != nil {
+		return e
+	}
+
 	ctx := context.Background()
 
 	cfg, e := helper.GetConfig()
@@ -28,7 +33,7 @@ func (c *deleteControlPlaneCmd) run(helper cmd.Helper) error {
 		return e
 	}
 
-	token, e := common.GetAccessToken(cfg)
+	token, e := common.GetAccessToken(cfg, logger)
 	if e != nil {
 		return e
 	}
@@ -40,11 +45,8 @@ func (c *deleteControlPlaneCmd) run(helper cmd.Helper) error {
 
 	res, err := kkClient.ControlPlanes.DeleteControlPlane(ctx, id)
 	if err != nil {
-		helper.GetCmd().SilenceUsage = true
-		helper.GetCmd().SilenceErrors = true
-		return &cmd.ExecutionError{
-			Err: err,
-		}
+		attrs := cmd.TryConvertErrorToAttrs(e)
+		return cmd.PrepareExecutionError("Failed to delete Control Plane", e, helper.GetCmd(), attrs...)
 	}
 
 	outType, err := helper.GetOutputFormat()

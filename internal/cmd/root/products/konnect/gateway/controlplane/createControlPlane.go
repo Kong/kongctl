@@ -135,6 +135,11 @@ func convertProxyUrls(urls []string) ([]kkComps.ProxyURL, error) {
 func (c *createControlPlaneCmd) run(helper cmd.Helper) error {
 	name := helper.GetArgs()[0]
 
+	logger, e := helper.GetLogger()
+	if e != nil {
+		return e
+	}
+
 	cfg, e := helper.GetConfig()
 	if e != nil {
 		return e
@@ -162,6 +167,17 @@ func (c *createControlPlaneCmd) run(helper cmd.Helper) error {
 		return e
 	}
 
+	outType, e := helper.GetOutputFormat()
+	if e != nil {
+		return e
+	}
+
+	printer, e := cli.Format(outType, helper.GetStreams().Out)
+	if e != nil {
+		return e
+	}
+	defer printer.Flush()
+
 	req := kkComps.CreateControlPlaneRequest{
 		Name:         name,
 		Description:  kk.String(cfg.GetString(createCpDescriptionConfigPath)),
@@ -172,7 +188,7 @@ func (c *createControlPlaneCmd) run(helper cmd.Helper) error {
 		Labels:       labels,
 	}
 
-	token, e := common.GetAccessToken(cfg)
+	token, e := common.GetAccessToken(cfg, logger)
 	if e != nil {
 		return e
 	}
@@ -186,23 +202,9 @@ func (c *createControlPlaneCmd) run(helper cmd.Helper) error {
 
 	res, e := kkClient.ControlPlanes.CreateControlPlane(ctx, req)
 	if e != nil {
-		helper.GetCmd().SilenceUsage = true
-		helper.GetCmd().SilenceErrors = true
-		return &cmd.ExecutionError{
-			Err: e,
-		}
+		attrs := cmd.TryConvertErrorToAttrs(e)
+		return cmd.PrepareExecutionError("Failed to create Control Plane", e, helper.GetCmd(), attrs...)
 	}
-
-	outType, e := helper.GetOutputFormat()
-	if e != nil {
-		return e
-	}
-	printer, e := cli.Format(outType, helper.GetStreams().Out)
-	if e != nil {
-		return e
-	}
-
-	defer printer.Flush()
 
 	printer.Print(res.GetControlPlane())
 	return nil

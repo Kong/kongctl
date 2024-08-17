@@ -66,11 +66,8 @@ func (c *getControlPlaneCmd) runListByName(ctx context.Context, name string, kkC
 
 		res, err := kkClient.ControlPlanes.ListControlPlanes(ctx, req)
 		if err != nil {
-			helper.GetCmd().SilenceUsage = true
-			helper.GetCmd().SilenceErrors = true
-			return &cmd.ExecutionError{
-				Err: err,
-			}
+			attrs := cmd.TryConvertErrorToAttrs(err)
+			return cmd.PrepareExecutionError("Failed to list Control Planes", err, helper.GetCmd(), attrs...)
 		}
 
 		allData = append(allData, res.GetListControlPlanesResponse().Data...)
@@ -107,11 +104,8 @@ func (c *getControlPlaneCmd) runList(ctx context.Context, kkClient *kk.SDK, help
 
 		res, err := kkClient.ControlPlanes.ListControlPlanes(ctx, req)
 		if err != nil {
-			helper.GetCmd().SilenceUsage = true
-			helper.GetCmd().SilenceErrors = true
-			return &cmd.ExecutionError{
-				Err: err,
-			}
+			attrs := cmd.TryConvertErrorToAttrs(err)
+			return cmd.PrepareExecutionError("Failed to list Control Planes", err, helper.GetCmd(), attrs...)
 		}
 
 		allData = append(allData, res.GetListControlPlanesResponse().Data...)
@@ -134,14 +128,8 @@ func (c *getControlPlaneCmd) runGet(ctx context.Context, id string, kkClient *kk
 ) error {
 	res, err := kkClient.ControlPlanes.GetControlPlane(ctx, id)
 	if err != nil {
-		// TODO: This needs to be generalized in some way. When an execution error occurs,
-		//		don't show usage or let cobra print the error. Use the printer with it's configured
-		//		output format to print the error.  This is done at the root command
-		helper.GetCmd().SilenceUsage = true
-		helper.GetCmd().SilenceErrors = true
-		return &cmd.ExecutionError{
-			Err: err,
-		}
+		attrs := cmd.TryConvertErrorToAttrs(err)
+		return cmd.PrepareExecutionError("Failed to get Control Plane", err, helper.GetCmd(), attrs...)
 	}
 
 	printer.Print(res.GetControlPlane())
@@ -188,6 +176,11 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		return e
 	}
 
+	logger, e := helper.GetLogger()
+	if e != nil {
+		return e
+	}
+
 	outType, e := helper.GetOutputFormat()
 	if e != nil {
 		return e
@@ -204,7 +197,7 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 
 	defer printer.Flush()
 
-	token, e := common.GetAccessToken(cfg)
+	token, e := common.GetAccessToken(cfg, logger)
 	if e != nil {
 		return fmt.Errorf(
 			`no access token available. Use "%s login konnect" to authenticate or provide a Konnect PAT using the --pat flag`,

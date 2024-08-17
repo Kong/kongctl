@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"log/slog"
+
 	"github.com/kong/kong-cli/internal/cmd/root/products"
 	"github.com/kong/kong-cli/internal/cmd/root/verbs"
 	"github.com/kong/kong-cli/internal/config"
@@ -16,6 +18,7 @@ type MockHelper struct {
 	GetStreamsMock      func() *iostreams.IOStreams
 	GetConfigMock       func() (config.Hook, error)
 	GetOutputFormatMock func() (string, error)
+	GetLoggerMock       func() (*slog.Logger, error)
 }
 
 func (m *MockHelper) GetCmd() *cobra.Command {
@@ -44,4 +47,8 @@ func (m *MockHelper) GetConfig() (config.Hook, error) {
 
 func (m *MockHelper) GetOutputFormat() (string, error) {
 	return m.GetOutputFormatMock()
+}
+
+func (m *MockHelper) GetLogger() (*slog.Logger, error) {
+	return m.GetLoggerMock()
 }

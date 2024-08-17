@@ -13,4 +13,9 @@ const (
 
 	// related to the --config-file flag
 	ConfigFilePathFlagName = "config-file"
+
+	// related to the --log-level flag
+	LogLevelFlagName   = "log-level"
+	DefaultLogLevel    = "info"
+	LogLevelConfigPath = LogLevelFlagName
 )
