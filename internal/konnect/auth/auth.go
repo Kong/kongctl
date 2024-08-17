@@ -116,7 +116,7 @@ func RequestDeviceCode(httpClient *http.Client,
 	return deviceCodeResponse, nil
 }
 
-func RefreshAccessToken(refreshURL string, refreshToken string, logger *slog.Logger) (*AccessToken, error) {
+func RefreshAccessToken(refreshURL string, refreshToken string, _ *slog.Logger) (*AccessToken, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, err
