@@ -33,6 +33,9 @@ func NewConsumerCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		Long:    routeLong,
 		Example: routeExamples,
 		Aliases: []string{"consumer", "consumers"},
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return common.BindControlPlaneFlags(cmd, args)
+		},
 	}
 
 	common.AddControlPlaneFlags(&baseCmd)
