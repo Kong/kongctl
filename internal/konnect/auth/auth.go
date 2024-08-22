@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -169,7 +170,7 @@ func RefreshAccessToken(refreshURL string, refreshToken string, _ *slog.Logger) 
 	return &rv, nil
 }
 
-func PollForToken(httpClient *http.Client,
+func PollForToken(ctx context.Context, httpClient *http.Client,
 	url string, clientID string, deviceCode string, logger *slog.Logger,
 ) (*AccessToken, error) {
 	logger.Info("Polling for token", "url", url, "client_id", clientID, "device_code", deviceCode)
@@ -188,7 +189,7 @@ func PollForToken(httpClient *http.Client,
 		return nil, err
 	}
 
-	request, err := http.NewRequest(
+	request, err := http.NewRequestWithContext(ctx,
 		http.MethodPost,
 		url,
 		strings.NewReader(urlsValues.Encode()),
@@ -199,7 +200,6 @@ func PollForToken(httpClient *http.Client,
 
 	response, err := httpClient.Do(request)
 	if err != nil {
-		logger.Error("Token request failed", "error", err)
 		return nil, err
 	}
 

@@ -19,14 +19,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	RequestPageSizeFlagName = "page-size"
-	DefaultRequestPageSize  = 10
-)
-
 var (
-	requestPageSizeConfigPath = fmt.Sprintf("konnect.gateway.%s.%s", CommandName, RequestPageSizeFlagName)
-
 	getControlPlanesShort = i18n.T("root.products.konnect.gateway.controlplane.getControlPlanesShort",
 		"List or get Konnect Kong Gateway control planes")
 	getControlPlanesLong = i18n.T("root.products.konnect.gateway.controlplane.getControlPlanesLong",
@@ -53,7 +46,7 @@ func (c *getControlPlaneCmd) runListByName(ctx context.Context, name string, kkC
 	cfg config.Hook, printer cli.Printer,
 ) error {
 	var pageNumber int64 = 1
-	requestPageSize := int64(cfg.GetInt(requestPageSizeConfigPath))
+	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
 
 	var allData []kkComps.ControlPlane
 
@@ -92,7 +85,7 @@ func (c *getControlPlaneCmd) runList(ctx context.Context, kkClient *kk.SDK, help
 	cfg config.Hook, printer cli.Printer,
 ) error {
 	var pageNumber int64 = 1
-	requestPageSize := int64(cfg.GetInt(requestPageSizeConfigPath))
+	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
 
 	var allData []kkComps.ControlPlane
 
@@ -137,18 +130,6 @@ func (c *getControlPlaneCmd) runGet(ctx context.Context, id string, kkClient *kk
 	return nil
 }
 
-func (c *getControlPlaneCmd) preRunE(cobraCmd *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(cobraCmd, args)
-	cfg, e := helper.GetConfig()
-	if e != nil {
-		return e
-	}
-
-	f := c.Flags().Lookup(RequestPageSizeFlagName)
-	e = cfg.BindFlag(requestPageSizeConfigPath, f)
-	return e
-}
-
 func (c *getControlPlaneCmd) validate(helper cmd.Helper) error {
 	if len(helper.GetArgs()) > 1 {
 		return &cmd.ConfigurationError{
@@ -161,10 +142,10 @@ func (c *getControlPlaneCmd) validate(helper cmd.Helper) error {
 		return err
 	}
 
-	pageSize := config.GetInt(requestPageSizeConfigPath)
+	pageSize := config.GetInt(common.RequestPageSizeConfigPath)
 	if pageSize < 1 {
 		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("%s must be greater than 0", RequestPageSizeFlagName),
+			Err: fmt.Errorf("%s must be greater than 0", common.RequestPageSizeFlagName),
 		}
 	}
 	return nil
@@ -190,12 +171,12 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		return e
 	}
 
+	defer printer.Flush()
+
 	cfg, e := helper.GetConfig()
 	if e != nil {
 		return e
 	}
-
-	defer printer.Flush()
 
 	token, e := common.GetAccessToken(cfg, logger)
 	if e != nil {
@@ -218,8 +199,8 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 	if len(helper.GetArgs()) == 1 { // validate above checks that args is 0 or 1
 		id := helper.GetArgs()[0]
 
-		// TODO: Is capturing the following error necessary?
 		isUUID, _ := regexp.MatchString(`^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`, id)
+		// TODO: Is capturing the blanked error necessary?
 
 		if !isUUID {
 			// If the ID is not a UUID, then it is a name
@@ -234,13 +215,6 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 }
 
 func newGetControlPlaneCmd(baseCmd *cobra.Command) *getControlPlaneCmd {
-	baseCmd.Flags().Int(
-		RequestPageSizeFlagName,
-		DefaultRequestPageSize,
-		fmt.Sprintf(
-			"Max number of results to include per response page from Control Plane API requests.\n (config path = '%s')",
-			requestPageSizeConfigPath))
-
 	rv := getControlPlaneCmd{
 		Command: baseCmd,
 	}
@@ -248,7 +222,6 @@ func newGetControlPlaneCmd(baseCmd *cobra.Command) *getControlPlaneCmd {
 	baseCmd.Short = getControlPlanesShort
 	baseCmd.Long = getControlPlanesLong
 	baseCmd.Example = getControlPlanesExample
-	baseCmd.PreRunE = rv.preRunE
 	baseCmd.RunE = rv.runE
 
 	return &rv

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -31,6 +32,7 @@ type Helper interface {
 	GetOutputFormat() (string, error)
 	GetLogger() (*slog.Logger, error)
 	GetBuildInfo() (*build.Info, error)
+	GetContext() context.Context
 }
 
 type CommandHelper struct {
@@ -101,8 +103,12 @@ func (r *CommandHelper) GetOutputFormat() (string, error) {
 	if e != nil {
 		return "", e
 	}
-	rv := c.GetString(common.OutputFlagName)
+	rv := c.GetString(common.OutputConfigPath)
 	return rv, nil
+}
+
+func (r *CommandHelper) GetContext() context.Context {
+	return r.Cmd.Context()
 }
 
 func BuildHelper(cmd *cobra.Command, args []string) Helper {

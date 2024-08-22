@@ -24,6 +24,9 @@ const (
 	MachineClientIDFlagName = "machine-client-id"
 
 	PATFlagName = "pat"
+
+	RequestPageSizeFlagName = "page-size"
+	DefaultRequestPageSize  = 10
 )
 
 var (
@@ -38,6 +41,7 @@ var (
 	RefreshPathConfigPath         = "konnect." + RefreshPathFlagName
 
 	MachineClientIDConfigPath = "konnect." + MachineClientIDFlagName
+	RequestPageSizeConfigPath = "konnect." + RequestPageSizeFlagName
 )
 
 func GetAccessToken(cfg config.Hook, logger *slog.Logger) (*auth.AccessToken, error) {

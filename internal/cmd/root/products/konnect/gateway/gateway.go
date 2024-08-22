@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"github.com/kong/kong-cli/internal/cmd/root/products/konnect/gateway/controlplane"
+	"github.com/kong/kong-cli/internal/cmd/root/products/konnect/gateway/service"
 	"github.com/kong/kong-cli/internal/cmd/root/verbs"
 	"github.com/kong/kong-cli/internal/util/i18n"
 	"github.com/kong/kong-cli/internal/util/normalizers"
@@ -29,8 +30,11 @@ func NewGatewayCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	}
 	cmd.AddCommand(c)
 
-	// cmd.AddCommand(service.NewServiceCmd(streams, cfg, creds))
-	// cmd.AddCommand(route.NewRouteCmd(streams, cfg, creds))
+	c, e = service.NewServiceCmd(verb)
+	if e != nil {
+		return nil, e
+	}
+	cmd.AddCommand(c)
 
 	return cmd, nil
 }

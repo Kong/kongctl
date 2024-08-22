@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/kong/kong-cli/internal/build"
@@ -21,6 +22,7 @@ type MockHelper struct {
 	GetOutputFormatMock func() (string, error)
 	GetLoggerMock       func() (*slog.Logger, error)
 	GetBuildInfoMock    func() (*build.Info, error)
+	GetContextMock      func() context.Context
 }
 
 func (m *MockHelper) GetCmd() *cobra.Command {
@@ -57,4 +59,8 @@ func (m *MockHelper) GetLogger() (*slog.Logger, error) {
 
 func (m *MockHelper) GetBuildInfo() (*build.Info, error) {
 	return m.GetBuildInfoMock()
+}
+
+func (m *MockHelper) GetContext() context.Context {
+	return m.GetContextMock()
 }

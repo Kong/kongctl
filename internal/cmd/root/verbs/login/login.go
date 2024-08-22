@@ -19,7 +19,7 @@ const (
 var (
 	loginUse = Verb.String()
 
-	loginShort = i18n.T("root.verbs.login.loginShort", "Login to system")
+	loginShort = i18n.T("root.verbs.login.loginShort", "Login to a remote system")
 
 	loginLong = normalizers.LongDesc(i18n.T("root.verbs.login.loginLong",
 		`Use login to authenticate to a remote system.

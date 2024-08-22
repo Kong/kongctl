@@ -190,7 +190,9 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 		// If it was a configuration error, we want the cobra framework to also
 		// show the usage information, so we don't also print the error here
 		var executionError *cmd.ExecutionError
-		if errors.As(err, &executionError) {
+		if errors.Is(err, context.Canceled) {
+			fmt.Println("Canceled...")
+		} else if errors.As(err, &executionError) {
 			if executionError.Msg != "" && executionError.Attrs != nil && len(executionError.Attrs) > 0 {
 				logger.Error(executionError.Msg, executionError.Attrs...)
 			} else {

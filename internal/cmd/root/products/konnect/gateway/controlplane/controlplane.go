@@ -41,7 +41,6 @@ func NewControlPlaneCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		Aliases: []string{"control-planes", "controlplane", "controlplanes", "cp", "cps", "CP", "CPS"},
 	}
 
-	// If Verb == Get or List
 	if verb == verbs.Get || verb == verbs.List {
 		return newGetControlPlaneCmd(&baseCmd).Command, nil
 	} else if verb == verbs.Create {
@@ -50,5 +49,5 @@ func NewControlPlaneCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return newDeleteControlPlaneCmd(&baseCmd).Command, nil
 	}
 
-	return nil, fmt.Errorf("unsupported verb %s", verb)
+	return &baseCmd, nil
 }

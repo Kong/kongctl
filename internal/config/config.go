@@ -141,11 +141,18 @@ func (p *ProfiledConfig) Set(k string, v any) {
 	p.subViper.Set(k, v)
 }
 
-func BuildProfiledConfig(profile string, v *v.Viper) *ProfiledConfig {
+func BuildProfiledConfig(profile string, mainv *v.Viper) *ProfiledConfig {
+	subv := mainv.Sub(profile)
+	if subv == nil {
+		// in this case the main viper is valid, but there is no
+		// key or data under the key for this profile name
+		subv = v.New()
+	}
+
 	rv := &ProfiledConfig{
-		Viper:       v,
+		Viper:       mainv,
 		ProfileName: profile,
-		subViper:    v.Sub(profile),
+		subViper:    subv,
 	}
 	return rv
 }

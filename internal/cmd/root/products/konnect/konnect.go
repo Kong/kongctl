@@ -71,6 +71,14 @@ func bindFlags(c *cobra.Command, args []string) error {
 		return err
 	}
 
+	f = c.Flags().Lookup(common.RequestPageSizeFlagName)
+	if f != nil {
+		err = cfg.BindFlag(common.RequestPageSizeConfigPath, f)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -141,6 +149,15 @@ Setting this value overrides tokens obtained from the login command.
 	e = cmd.PersistentFlags().MarkHidden(common.TokenPathFlagName)
 	if e != nil {
 		return nil, e
+	}
+
+	if verb == verbs.Get || verb == verbs.List {
+		cmd.PersistentFlags().Int(
+			common.RequestPageSizeFlagName,
+			common.DefaultRequestPageSize,
+			fmt.Sprintf(
+				"Max number of results to include per response page for get and list operations.\n (config path = '%s')",
+				common.RequestPageSizeConfigPath))
 	}
 
 	if verb == verbs.Login {

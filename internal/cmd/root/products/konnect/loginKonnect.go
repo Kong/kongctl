@@ -37,11 +37,14 @@ func (c *loginKonnectCmd) validate(_ cmd.Helper) error {
 }
 
 func displayUserInstructions(resp auth.DeviceCodeResponse) {
-	userResp := fmt.Sprintf("Authenticating with Konnect in the browser...\n\n\n"+
-		" Either copy this one-time code: %s\n\n"+
-		" (Expires in %d seconds) \n\n And go to %s\n"+
-		" Or Click or go to %s \n\n\n waiting for user to Authenticate......",
-		resp.UserCode, resp.ExpiresIn, resp.VerificationURI, resp.VerificationURIComplete)
+	userResp := fmt.Sprintf("Logging your CLI into Kong Konnect with the browser...\n\n"+
+		" To login, go to the following URL in your browser:\n\n"+
+		"   %s\n\n"+
+		" Or copy this one-time code: %s\n\n"+
+		" And open your browser to %s\n\n"+
+		" (Code expires in %d seconds)\n\n"+
+		" Waiting for user to Login...",
+		resp.VerificationURIComplete, resp.UserCode, resp.VerificationURI, resp.ExpiresIn)
 
 	fmt.Println(userResp)
 }
@@ -83,8 +86,17 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 	expiresAt := time.Now().Add(time.Duration(resp.ExpiresIn) * time.Second)
 	// poll for token while the user completes authorizing the request
 	for {
-		time.Sleep(time.Duration(resp.Interval) * time.Second)
-		pollResp, err := auth.PollForToken(httpClient, pollURL, clientID, resp.DeviceCode, logger)
+		var err error
+		var pollResp *auth.AccessToken
+		select {
+		case <-helper.GetContext().Done():
+			c.SilenceUsage = true
+			c.SilenceErrors = true
+			return helper.GetContext().Err()
+		case <-time.After(time.Duration(resp.Interval) * time.Second):
+			pollResp, err = auth.PollForToken(
+				helper.GetContext(), httpClient, pollURL, clientID, resp.DeviceCode, logger)
+		}
 		var dagError *auth.DAGError
 		if errors.As(err, &dagError) && dagError.ErrorCode == auth.AuthorizationPendingErrorCode {
 			continue

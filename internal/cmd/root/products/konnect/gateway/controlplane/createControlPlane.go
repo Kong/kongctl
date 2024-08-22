@@ -285,7 +285,7 @@ func newCreateControlPlaneCmd(baseCmd *cobra.Command) *createControlPlaneCmd {
 		fmt.Sprintf(`Specifies the Kong Gateway cluster type attached to the new control plane.
 - Config path: [ %s ]
 - Allowed    : [ %s ]`,
-			createCpDescriptionConfigPath, strings.Join(rv.clusterType.Allowed, "|")))
+			createCpClusterTypeConfigPath, strings.Join(rv.clusterType.Allowed, "|")))
 
 	baseCmd.Flags().Var(rv.authType, CreateCpAuthTypeFlagName,
 		fmt.Sprintf(`Specifies the authentication type used to secure the control plane and data plane communication.
