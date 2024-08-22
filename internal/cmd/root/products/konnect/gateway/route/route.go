@@ -3,6 +3,7 @@ package route
 import (
 	"fmt"
 
+	"github.com/kong/kong-cli/internal/cmd/root/products/konnect/gateway/common"
 	"github.com/kong/kong-cli/internal/cmd/root/verbs"
 	"github.com/kong/kong-cli/internal/meta"
 	"github.com/kong/kong-cli/internal/util/i18n"
@@ -33,6 +34,8 @@ func NewRouteCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		Example: routeExamples,
 		Aliases: []string{"routes", "rt", "rts"},
 	}
+
+	common.AddControlPlaneFlags(&baseCmd)
 
 	if verb == verbs.Get || verb == verbs.List {
 		return newGetRouteCmd(&baseCmd).Command, nil

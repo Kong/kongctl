@@ -3,6 +3,7 @@ package consumer
 import (
 	"fmt"
 
+	"github.com/kong/kong-cli/internal/cmd/root/products/konnect/gateway/common"
 	"github.com/kong/kong-cli/internal/cmd/root/verbs"
 	"github.com/kong/kong-cli/internal/meta"
 	"github.com/kong/kong-cli/internal/util/i18n"
@@ -33,6 +34,8 @@ func NewConsumerCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		Example: routeExamples,
 		Aliases: []string{"consumer", "consumers"},
 	}
+
+	common.AddControlPlaneFlags(&baseCmd)
 
 	if verb == verbs.Get || verb == verbs.List {
 		return newGetConsumerCmd(&baseCmd).Command, nil
