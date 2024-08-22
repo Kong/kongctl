@@ -1,7 +1,6 @@
 package controlplane
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 
@@ -42,7 +41,7 @@ type getControlPlaneCmd struct {
 	*cobra.Command
 }
 
-func (c *getControlPlaneCmd) runListByName(ctx context.Context, name string, kkClient *kk.SDK, helper cmd.Helper,
+func (c *getControlPlaneCmd) runListByName(name string, kkClient *kk.SDK, helper cmd.Helper,
 	cfg config.Hook, printer cli.Printer,
 ) error {
 	var pageNumber int64 = 1
@@ -57,7 +56,7 @@ func (c *getControlPlaneCmd) runListByName(ctx context.Context, name string, kkC
 			FilterNameEq: kk.String(name),
 		}
 
-		res, err := kkClient.ControlPlanes.ListControlPlanes(ctx, req)
+		res, err := kkClient.ControlPlanes.ListControlPlanes(helper.GetContext(), req)
 		if err != nil {
 			attrs := cmd.TryConvertErrorToAttrs(err)
 			return cmd.PrepareExecutionError("Failed to list Control Planes", err, helper.GetCmd(), attrs...)
@@ -81,7 +80,7 @@ func (c *getControlPlaneCmd) runListByName(ctx context.Context, name string, kkC
 	return nil
 }
 
-func (c *getControlPlaneCmd) runList(ctx context.Context, kkClient *kk.SDK, helper cmd.Helper,
+func (c *getControlPlaneCmd) runList(kkClient *kk.SDK, helper cmd.Helper,
 	cfg config.Hook, printer cli.Printer,
 ) error {
 	var pageNumber int64 = 1
@@ -95,7 +94,7 @@ func (c *getControlPlaneCmd) runList(ctx context.Context, kkClient *kk.SDK, help
 			PageNumber: kk.Int64(pageNumber),
 		}
 
-		res, err := kkClient.ControlPlanes.ListControlPlanes(ctx, req)
+		res, err := kkClient.ControlPlanes.ListControlPlanes(helper.GetContext(), req)
 		if err != nil {
 			attrs := cmd.TryConvertErrorToAttrs(err)
 			return cmd.PrepareExecutionError("Failed to list Control Planes", err, helper.GetCmd(), attrs...)
@@ -116,10 +115,10 @@ func (c *getControlPlaneCmd) runList(ctx context.Context, kkClient *kk.SDK, help
 	return nil
 }
 
-func (c *getControlPlaneCmd) runGet(ctx context.Context, id string, kkClient *kk.SDK, helper cmd.Helper,
+func (c *getControlPlaneCmd) runGet(id string, kkClient *kk.SDK, helper cmd.Helper,
 	printer cli.Printer,
 ) error {
-	res, err := kkClient.ControlPlanes.GetControlPlane(ctx, id)
+	res, err := kkClient.ControlPlanes.GetControlPlane(helper.GetContext(), id)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
 		return cmd.PrepareExecutionError("Failed to get Control Plane", err, helper.GetCmd(), attrs...)
@@ -190,8 +189,6 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		return err
 	}
 
-	ctx := context.Background()
-
 	// 'get konnect gateway cps' can be run like various ways:
 	//	> get konnect gateway cps <id>    # Get by UUID
 	//  > get konnect gateway cps <name>	# Get by name
@@ -205,13 +202,13 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		if !isUUID {
 			// If the ID is not a UUID, then it is a name
 			// search for the control plane by name
-			return c.runListByName(ctx, id, kkClient, helper, cfg, printer)
+			return c.runListByName(id, kkClient, helper, cfg, printer)
 		}
 
-		return c.runGet(ctx, id, kkClient, helper, printer)
+		return c.runGet(id, kkClient, helper, printer)
 	}
 
-	return c.runList(ctx, kkClient, helper, cfg, printer)
+	return c.runList(kkClient, helper, cfg, printer)
 }
 
 func newGetControlPlaneCmd(baseCmd *cobra.Command) *getControlPlaneCmd {

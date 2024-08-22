@@ -1,4 +1,4 @@
-package service
+package consumer
 
 import (
 	"fmt"
@@ -18,90 +18,79 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type getServiceCmd struct {
+type getConsumerCmd struct {
 	*cobra.Command
 }
 
 var (
-	getServiceShort = i18n.T("root.products.konnect.gateway.service.getServiceShort",
-		"List or get Konnect Kong Gateway Services")
-	getServiceLong = i18n.T("root.products.konnect.gateway.service.getServiceLong",
-		`Use the get verb with the service command to query Konnect Kong Gateway Services.`)
-	getServiceExamples = normalizers.Examples(
-		i18n.T("root.products.konnect.gateway.service.getServiceExamples",
+	getConsumerShort = i18n.T("root.products.konnect.gateway.consumer.getConsumerShort",
+		"List or get Konnect Kong Gateway Consumers")
+	getConsumerLong = i18n.T("root.products.konnect.gateway.service.getServiceLong",
+		`Use the get verb with the consumer command to query Konnect Kong Gateway Consumers.`)
+	getConsumerExamples = normalizers.Examples(
+		i18n.T("root.products.konnect.gateway.consumer.getConsumerExamples",
 			fmt.Sprintf(`
-	# List all the Gateway Services for the a given control plane
-	%[1]s get konnect gateway service --control-plane-id <id>
-	# Get a specific Kong Gateway Services for the a given control plane
-	%[1]s get konnect gateway service --control-plane-id <id> <service-name>
+	# List all the Kong Gateway Consumers for the a given Control Plane (by ID)
+	%[1]s get konnect gateway consumers --control-plane-id <id>
+	# List all the Kong Gateway Consumers for the a given Control Plane (by name)
+	%[1]s get konnect gateway consumers --control-plane-name <name>
+	# Get a specific Kong Gateway Consumers located on the given Control Plane (by name)
+	%[1]s get konnect gateway consumer --control-plane-name <name> <consumer-name>
 	`, meta.CLIName)))
 )
 
-func (c *getServiceCmd) validate(helper cmd.Helper) error {
+func (c *getConsumerCmd) validate(helper cmd.Helper) error {
 	if len(helper.GetArgs()) > 1 {
 		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("too many arguments. Listing gateway services requires 0 or 1 arguments (name or ID)"),
+			Err: fmt.Errorf("too many arguments. Listing gateway consumers requires 0 or 1 arguments (name or ID)"),
 		}
 	}
-
-	config, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	pageSize := config.GetInt(kkCommon.RequestPageSizeConfigPath)
-	if pageSize < 1 {
-		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("%s must be greater than 0", kkCommon.RequestPageSizeFlagName),
-		}
-	}
-
 	return nil
 }
 
-func (c *getServiceCmd) runListByName(cpID string, name string,
+func (c *getConsumerCmd) runListByUsername(cpID string, username string,
 	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer,
 ) error {
 	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
 
-	allData, err := helpers.GetAllGatewayServices(helper.GetContext(), requestPageSize, cpID, kkClient)
+	allData, err := helpers.GetAllGatewayConsumers(helper.GetContext(), requestPageSize, cpID, kkClient)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to list Gateway Services", err, helper.GetCmd(), attrs...)
+		return cmd.PrepareExecutionError("Failed to list Gateway Consumers", err, helper.GetCmd(), attrs...)
 	}
 
-	for _, service := range allData {
-		if *service.GetName() == name {
-			printer.Print(service)
+	for _, consumer := range allData {
+		if *consumer.GetUsername() == username {
+			printer.Print(consumer)
 		}
 	}
 
 	return nil
 }
 
-func (c *getServiceCmd) runGet(cpID string, id string,
+func (c *getConsumerCmd) runGet(cpID string, id string,
 	kkClient *kk.SDK, helper cmd.Helper, printer cli.Printer,
 ) error {
-	res, err := kkClient.Services.GetService(helper.GetContext(), cpID, id)
+	res, err := kkClient.Consumers.GetConsumer(helper.GetContext(), cpID, id)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to get Gateway Service", err, helper.GetCmd(), attrs...)
+		return cmd.PrepareExecutionError("Failed to get Gateway Consumer", err, helper.GetCmd(), attrs...)
 	}
 
-	printer.Print(res.GetService())
+	printer.Print(res.GetConsumer())
 
 	return nil
 }
 
-func (c *getServiceCmd) runList(cpID string,
+func (c *getConsumerCmd) runList(cpID string,
 	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer,
 ) error {
 	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
 
-	allData, err := helpers.GetAllGatewayServices(helper.GetContext(), requestPageSize, cpID, kkClient)
+	allData, err := helpers.GetAllGatewayConsumers(helper.GetContext(), requestPageSize, cpID, kkClient)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to list Gateway Services", err, helper.GetCmd(), attrs...)
+		return cmd.PrepareExecutionError("Failed to list Gateway Consumers", err, helper.GetCmd(), attrs...)
 	}
 
 	printer.Print(allData)
@@ -109,7 +98,7 @@ func (c *getServiceCmd) runList(cpID string,
 	return nil
 }
 
-func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
+func (c *getConsumerCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	helper := cmd.BuildHelper(cobraCmd, args)
 	if e := c.validate(helper); e != nil {
 		return e
@@ -165,10 +154,10 @@ func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// 'get konnect gateway services' can be run like various ways:
-	//	> get konnect gateway services <id>    # Get by UUID
-	//  > get konnect gateway services <name>	# Get by name
-	//  > get konnect gateway services # List all
+	// 'get konnect gateway consumers ' can be run like various ways:
+	//	> get konnect gateway consumers <id>				# Get by UUID
+	//  > get konnect gateway consumers <username>	# Get by uname
+	//  > get konnect gateway consumers							# List all
 	if len(helper.GetArgs()) == 1 { // validate above checks that args is 0 or 1
 		id := helper.GetArgs()[0]
 
@@ -178,7 +167,7 @@ func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		if !isUUID {
 			// If the ID is not a UUID, then it is a name
 			// search for the control plane by name
-			return c.runListByName(cpID, id, kkClient, helper, cfg, printer)
+			return c.runListByUsername(cpID, id, kkClient, helper, cfg, printer)
 		}
 
 		return c.runGet(cpID, id, kkClient, helper, printer)
@@ -187,14 +176,14 @@ func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	return c.runList(cpID, kkClient, helper, cfg, printer)
 }
 
-func newGetServiceCmd(baseCmd *cobra.Command) *getServiceCmd {
-	rv := getServiceCmd{
+func newGetConsumerCmd(baseCmd *cobra.Command) *getConsumerCmd {
+	rv := getConsumerCmd{
 		Command: baseCmd,
 	}
 
-	baseCmd.Short = getServiceShort
-	baseCmd.Long = getServiceLong
-	baseCmd.Example = getServiceExamples
+	baseCmd.Short = getConsumerShort
+	baseCmd.Long = getConsumerLong
+	baseCmd.Example = getConsumerExamples
 	baseCmd.RunE = rv.runE
 
 	return &rv

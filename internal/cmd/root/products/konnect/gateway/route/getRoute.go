@@ -1,4 +1,4 @@
-package service
+package route
 
 import (
 	"fmt"
@@ -18,90 +18,79 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type getServiceCmd struct {
+type getRouteCmd struct {
 	*cobra.Command
 }
 
 var (
-	getServiceShort = i18n.T("root.products.konnect.gateway.service.getServiceShort",
-		"List or get Konnect Kong Gateway Services")
-	getServiceLong = i18n.T("root.products.konnect.gateway.service.getServiceLong",
-		`Use the get verb with the service command to query Konnect Kong Gateway Services.`)
-	getServiceExamples = normalizers.Examples(
-		i18n.T("root.products.konnect.gateway.service.getServiceExamples",
+	getRouteShort = i18n.T("root.products.konnect.gateway.route.getRouteShort",
+		"List or get Konnect Kong Gateway Routes")
+	getRouteLong = i18n.T("root.products.konnect.gateway.service.getServiceLong",
+		`Use the get verb with the route command to query Konnect Kong Gateway Routes.`)
+	getRouteExamples = normalizers.Examples(
+		i18n.T("root.products.konnect.gateway.route.getRouteExamples",
 			fmt.Sprintf(`
-	# List all the Gateway Services for the a given control plane
-	%[1]s get konnect gateway service --control-plane-id <id>
-	# Get a specific Kong Gateway Services for the a given control plane
-	%[1]s get konnect gateway service --control-plane-id <id> <service-name>
+	# List all the Kong Gateway Routes for the a given Control Plane (by ID)
+	%[1]s get konnect gateway routes --control-plane-id <id>
+	# List all the Kong Gateway Routes for the a given Control Plane (by name)
+	%[1]s get konnect gateway routes --control-plane-name <name>
+	# Get a specific Kong Gateway Routes located on the given Control Plane (by name)
+	%[1]s get konnect gateway route --control-plane-name <name> <route-name>
 	`, meta.CLIName)))
 )
 
-func (c *getServiceCmd) validate(helper cmd.Helper) error {
+func (c *getRouteCmd) validate(helper cmd.Helper) error {
 	if len(helper.GetArgs()) > 1 {
 		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("too many arguments. Listing gateway services requires 0 or 1 arguments (name or ID)"),
+			Err: fmt.Errorf("too many arguments. Listing gateway routes requires 0 or 1 arguments (name or ID)"),
 		}
 	}
-
-	config, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-
-	pageSize := config.GetInt(kkCommon.RequestPageSizeConfigPath)
-	if pageSize < 1 {
-		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("%s must be greater than 0", kkCommon.RequestPageSizeFlagName),
-		}
-	}
-
 	return nil
 }
 
-func (c *getServiceCmd) runListByName(cpID string, name string,
+func (c *getRouteCmd) runListByName(cpID string, name string,
 	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer,
 ) error {
 	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
 
-	allData, err := helpers.GetAllGatewayServices(helper.GetContext(), requestPageSize, cpID, kkClient)
+	allData, err := helpers.GetAllGatewayRoutes(helper.GetContext(), requestPageSize, cpID, kkClient)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to list Gateway Services", err, helper.GetCmd(), attrs...)
+		return cmd.PrepareExecutionError("Failed to list Gateway Routes", err, helper.GetCmd(), attrs...)
 	}
 
-	for _, service := range allData {
-		if *service.GetName() == name {
-			printer.Print(service)
+	for _, route := range allData {
+		if *route.GetName() == name {
+			printer.Print(route)
 		}
 	}
 
 	return nil
 }
 
-func (c *getServiceCmd) runGet(cpID string, id string,
+func (c *getRouteCmd) runGet(cpID string, id string,
 	kkClient *kk.SDK, helper cmd.Helper, printer cli.Printer,
 ) error {
-	res, err := kkClient.Services.GetService(helper.GetContext(), cpID, id)
+	res, err := kkClient.Routes.GetRoute(helper.GetContext(), cpID, id)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to get Gateway Service", err, helper.GetCmd(), attrs...)
+		return cmd.PrepareExecutionError("Failed to get Gateway Route", err, helper.GetCmd(), attrs...)
 	}
 
-	printer.Print(res.GetService())
+	printer.Print(res.GetRoute())
 
 	return nil
 }
 
-func (c *getServiceCmd) runList(cpID string,
+func (c *getRouteCmd) runList(cpID string,
 	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer,
 ) error {
 	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
 
-	allData, err := helpers.GetAllGatewayServices(helper.GetContext(), requestPageSize, cpID, kkClient)
+	allData, err := helpers.GetAllGatewayRoutes(helper.GetContext(), requestPageSize, cpID, kkClient)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to list Gateway Services", err, helper.GetCmd(), attrs...)
+		return cmd.PrepareExecutionError("Failed to list Gateway Routes", err, helper.GetCmd(), attrs...)
 	}
 
 	printer.Print(allData)
@@ -109,7 +98,7 @@ func (c *getServiceCmd) runList(cpID string,
 	return nil
 }
 
-func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
+func (c *getRouteCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	helper := cmd.BuildHelper(cobraCmd, args)
 	if e := c.validate(helper); e != nil {
 		return e
@@ -165,10 +154,10 @@ func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// 'get konnect gateway services' can be run like various ways:
-	//	> get konnect gateway services <id>    # Get by UUID
-	//  > get konnect gateway services <name>	# Get by name
-	//  > get konnect gateway services # List all
+	// 'get konnect gateway routes ' can be run like various ways:
+	//	> get konnect gateway routes <id>    # Get by UUID
+	//  > get konnect gateway routes <name>	# Get by name
+	//  > get konnect gateway routes # List all
 	if len(helper.GetArgs()) == 1 { // validate above checks that args is 0 or 1
 		id := helper.GetArgs()[0]
 
@@ -187,14 +176,14 @@ func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	return c.runList(cpID, kkClient, helper, cfg, printer)
 }
 
-func newGetServiceCmd(baseCmd *cobra.Command) *getServiceCmd {
-	rv := getServiceCmd{
+func newGetRouteCmd(baseCmd *cobra.Command) *getRouteCmd {
+	rv := getRouteCmd{
 		Command: baseCmd,
 	}
 
-	baseCmd.Short = getServiceShort
-	baseCmd.Long = getServiceLong
-	baseCmd.Example = getServiceExamples
+	baseCmd.Short = getRouteShort
+	baseCmd.Long = getRouteLong
+	baseCmd.Example = getRouteExamples
 	baseCmd.RunE = rv.runE
 
 	return &rv

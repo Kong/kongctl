@@ -8,19 +8,19 @@ import (
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 )
 
-func GetAllGatewayServices(ctx context.Context, requestPageSize int64, cpID string, kkClient *kk.SDK,
-) ([]kkComps.Service, error) {
-	var allData []kkComps.Service
+func GetAllGatewayConsumers(ctx context.Context, requestPageSize int64, cpID string, kkClient *kk.SDK,
+) ([]kkComps.Consumer, error) {
+	var allData []kkComps.Consumer
 
 	offset := ""
 	for {
-		req := kkOps.ListServiceRequest{
+		req := kkOps.ListConsumerRequest{
 			Size:           kk.Int64(requestPageSize),
 			ControlPlaneID: cpID,
 			Offset:         kk.String(offset),
 		}
 
-		res, err := kkClient.Services.ListService(ctx, req)
+		res, err := kkClient.Consumers.ListConsumer(ctx, req)
 		if err != nil {
 			return nil, err
 		}

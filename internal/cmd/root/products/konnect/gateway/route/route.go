@@ -3,6 +3,7 @@ package route
 import (
 	"fmt"
 
+	"github.com/kong/kong-cli/internal/cmd/root/verbs"
 	"github.com/kong/kong-cli/internal/meta"
 	"github.com/kong/kong-cli/internal/util/i18n"
 	"github.com/kong/kong-cli/internal/util/normalizers"
@@ -12,41 +13,30 @@ import (
 var (
 	routeUse   = "route"
 	routeShort = i18n.T("root.products.konnect.gateway.route.routeShort",
-		"Manage Konnect Routes")
+		"Manage Konnect Kong Gateway Routes")
 	routeLong = normalizers.LongDesc(i18n.T("root.products.konnect.gateway.route.routeLong",
-		`The route command allows you to manage Konect gateway route resources.`))
+		`The route command allows you to work with Konect Kong Gateway Route resources.`))
 	routeExamples = normalizers.Examples(i18n.T("root.products.konnect.gateway.route.routeExamples",
 		fmt.Sprintf(`
 	# List the Konnect routes 
-	%[1]s get konnect gateway routes 
+	%[1]s get konnect gateway routes --control-plane-id <id>
 	# Get a specific Konnect route
-	%[1]s get konnect gateway route <route-id>
+	%[1]s get konnect gateway route --control-plane-id <id> <id|name>
 	`, meta.CLIName)))
 )
 
-func NewRouteCmd() *cobra.Command {
-	cmd := &cobra.Command{
+func NewRouteCmd(verb verbs.VerbValue) (*cobra.Command, error) {
+	baseCmd := cobra.Command{
 		Use:     routeUse,
 		Short:   routeShort,
 		Long:    routeLong,
 		Example: routeExamples,
 		Aliases: []string{"routes", "rt", "rts"},
-		Run: func(_ *cobra.Command, _ []string) {
-			// rb := root.NewRunBucket(streams, cmd, args)
-			// util.CheckError(validate(rb))
-			// util.CheckError(run(rb))
-		},
 	}
 
-	// cmd.Flags().StringVar(&cpID, "cp-id", "", "The control plane ID to use")
+	if verb == verbs.Get || verb == verbs.List {
+		return newGetRouteCmd(&baseCmd).Command, nil
+	}
 
-	return cmd
+	return &baseCmd, nil
 }
-
-//func validate(rb *root.RunBucket) error {
-//	return nil
-//}
-//
-//func run(rb *root.RunBucket) error {
-//	return nil
-//}

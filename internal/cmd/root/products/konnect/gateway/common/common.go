@@ -42,6 +42,5 @@ func AddControlPlaneFlags(c *cobra.Command) {
 	c.Flags().String(ControlPlaneNameFlagName, "",
 		fmt.Sprintf(`The name of the control plane to use for a gateway service command.
 - Config path: [ %s ]`, ControlPlaneNameConfigPath))
-	c.MarkFlagsOneRequired(ControlPlaneIDFlagName, ControlPlaneNameFlagName)
 	c.MarkFlagsMutuallyExclusive(ControlPlaneIDFlagName, ControlPlaneNameFlagName)
 }
