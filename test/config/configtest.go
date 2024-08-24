@@ -15,6 +15,7 @@ type MockConfigHook struct {
 	SetStringMock      func(k string, v string)
 	SetMock            func(k string, v interface{})
 	GetMock            func(k string) interface{}
+	GetPathMock        func() string
 }
 
 func (m *MockConfigHook) Save() error {
@@ -55,4 +56,8 @@ func (m *MockConfigHook) Set(k string, v interface{}) {
 
 func (m *MockConfigHook) Get(k string) interface{} {
 	return m.GetMock(k)
+}
+
+func (m *MockConfigHook) GetPath() string {
+	return m.GetPathMock()
 }

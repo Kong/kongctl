@@ -46,5 +46,5 @@ var (
 
 func GetAccessToken(cfg config.Hook, logger *slog.Logger) (*auth.AccessToken, error) {
 	refreshURL := cfg.GetString(BaseURLConfigPath) + cfg.GetString(RefreshPathConfigPath)
-	return auth.LoadAccessToken(cfg.GetProfile(), refreshURL, logger)
+	return auth.LoadAccessToken(cfg, refreshURL, logger)
 }

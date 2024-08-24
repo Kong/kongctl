@@ -10,6 +10,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -18,22 +19,15 @@ import (
 	"github.com/ajg/form"
 	"github.com/google/uuid"
 	"github.com/kong/kong-cli/internal/config"
-	"github.com/kong/kong-cli/internal/meta"
 )
 
 var (
 	DAGGrantType                  = "urn:ietf:params:oauth:grant-type:device_code"
 	AuthorizationPendingErrorCode = "authorization_pending"
-
-	defaultCredPath = "$XDG_CONFIG_HOME/" + meta.CLIName
 )
 
-func ExpandDefaultCredPath() string {
-	return os.ExpandEnv(defaultCredPath)
-}
-
-func BuildDefaultCredentialFilePath(profile string) string {
-	return fmt.Sprintf("%s/.%s-konnect-token.json", config.ExpandDefaultConfigPath(), profile)
+func getCredentialFileName(profile string) string {
+	return fmt.Sprintf(".%s-konnect-token.json", profile)
 }
 
 type DeviceCodeResponse struct {
@@ -232,16 +226,20 @@ func PollForToken(ctx context.Context, httpClient *http.Client,
 	return &rv, nil
 }
 
-// For a given profile, load a saved token from disk.
+// For a given profile, load a saved token from disk in the same path as the config path.
 // * If there is no file, return error.
 // * If it's not expired, return it.
 // * If it's expired, refresh it, then store it, then return it
-func LoadAccessToken(profile, refreshURL string, logger *slog.Logger) (*AccessToken, error) {
-	credsPath := BuildDefaultCredentialFilePath(profile)
-	creds, err := LoadAccessTokenFromDisk(credsPath)
+func LoadAccessToken(cfg config.Hook, refreshURL string, logger *slog.Logger) (*AccessToken, error) {
+	profile := cfg.GetProfile()
+	cfgPath := filepath.Dir(cfg.GetPath())
+	credsPath := filepath.Join(cfgPath, getCredentialFileName(profile))
+
+	creds, err := loadAccessTokenFromDisk(credsPath)
 	if err != nil {
 		return nil, err
 	}
+
 	if creds.IsExpired() {
 		logger.Info("Token expired, refreshing", "refresh_url", refreshURL)
 		creds, err = RefreshAccessToken(refreshURL, creds.Token.RefreshToken, logger)
@@ -252,7 +250,7 @@ func LoadAccessToken(profile, refreshURL string, logger *slog.Logger) (*AccessTo
 			"received_at", creds.ReceivedAt,
 			"expires_after", creds.Token.ExpiresAfter,
 			"creds_path", credsPath)
-		err = SaveAccessTokenToDisk(credsPath, creds)
+		err = saveAccessTokenToDisk(credsPath, creds)
 		if err != nil {
 			return nil, err
 		}
@@ -265,7 +263,7 @@ func LoadAccessToken(profile, refreshURL string, logger *slog.Logger) (*AccessTo
 	return creds, nil
 }
 
-func LoadAccessTokenFromDisk(path string) (*AccessToken, error) {
+func loadAccessTokenFromDisk(path string) (*AccessToken, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -280,7 +278,15 @@ func LoadAccessTokenFromDisk(path string) (*AccessToken, error) {
 	return &token, nil
 }
 
-func SaveAccessTokenToDisk(path string, token *AccessToken) error {
+func SaveAccessToken(cfg config.Hook, token *AccessToken) error {
+	profile := cfg.GetProfile()
+	cfgPath := filepath.Dir(cfg.GetPath())
+	credsPath := filepath.Join(cfgPath, getCredentialFileName(profile))
+
+	return saveAccessTokenToDisk(credsPath, token)
+}
+
+func saveAccessTokenToDisk(path string, token *AccessToken) error {
 	data, err := json.Marshal(token)
 	if err != nil {
 		return err

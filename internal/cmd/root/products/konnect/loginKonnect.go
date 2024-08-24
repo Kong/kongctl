@@ -111,9 +111,7 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 
 		if pollResp != nil && pollResp.Token.AuthToken != "" {
 			fmt.Println("\nUser successfully authorized")
-			err := auth.SaveAccessTokenToDisk(
-				auth.BuildDefaultCredentialFilePath(cfg.GetProfile()),
-				pollResp)
+			err := auth.SaveAccessToken(cfg, pollResp)
 			if err != nil {
 				return fmt.Errorf("%s: %w", "failed to save tokens", err)
 			}

@@ -39,9 +39,12 @@ var (
 
 	rootCmd *cobra.Command
 
-	// Stores the global runtime value for the Configuration file path,
-	configFilePath = config.ExpandDefaultConfigFilePath()
-	currProfile    = profile.DefaultProfile
+	// Stores the default configuration file path, loaded on init
+	defaultConfigFilePath = ""
+	// Stores the global runtime value for the configured configuration file path,
+	configFilePath = ""
+	// Stores the global runtime value for the configured profile
+	currProfile = profile.DefaultProfile
 
 	currConfig   config.Hook
 	streams      *iostreams.IOStreams
@@ -67,17 +70,13 @@ func newRootCmd() *cobra.Command {
 			ctx = context.WithValue(ctx, log.LoggerKey, logger)
 			cmd.SetContext(ctx)
 		},
-		PersistentPostRunE: func(_ *cobra.Command, _ []string) error {
-			// return streams.ErrOut.Flush()
-			return nil
-		},
 	}
 
 	// parses all flags not just the target command
 	rootCmd.TraverseChildren = true
 
 	rootCmd.PersistentFlags().StringVar(&configFilePath, common.ConfigFilePathFlagName,
-		config.ExpandDefaultConfigFilePath(),
+		defaultConfigFilePath,
 		i18n.T("root."+common.ConfigFilePathFlagName, "Path to the configuration file to load."))
 
 	rootCmd.PersistentFlags().StringVarP(&currProfile, common.ProfileFlagName, common.ProfileFlagShort,
@@ -165,7 +164,10 @@ func bindFlags(config config.Hook) {
 }
 
 func initConfig() {
-	config, e1 := config.GetConfig(configFilePath, currProfile)
+	if configFilePath == "" {
+		configFilePath = defaultConfigFilePath
+	}
+	config, e1 := config.GetConfig(configFilePath, currProfile, defaultConfigFilePath)
 	util.CheckError(e1)
 	currConfig = config
 
@@ -181,10 +183,14 @@ func initConfig() {
 }
 
 func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
+	var err error
 	buildInfo = bi
 	cobra.EnableTraverseRunHooks = true
 	streams = s
-	err := rootCmd.ExecuteContext(ctx)
+	defaultConfigFilePath, err = config.GetDefaultConfigFilePath()
+	if err == nil {
+		err = rootCmd.ExecuteContext(ctx)
+	}
 	if err != nil {
 		// If there was an execution error, use the logger to write it out and exit
 		// If it was a configuration error, we want the cobra framework to also
