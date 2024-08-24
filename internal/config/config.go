@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/kong/kong-cli/internal/cmd/common"
 	"github.com/kong/kong-cli/internal/meta"
@@ -11,42 +12,60 @@ import (
 	v "github.com/spf13/viper"
 )
 
-var (
-	defaultConfigPath     = "$XDG_CONFIG_HOME/" + meta.CLIName
-	defaultConfigFilePath = defaultConfigPath + "/config.yaml"
-)
+var defaultConfigFileName = "config.yaml"
 
 var OuptutFormat = common.DefaultOutputFormat
 
-func ExpandDefaultConfigPath() string {
-	return os.ExpandEnv(defaultConfigPath)
+// Returns the expanded default config path depending on what
+// environment variables are set. If XDG_CONFIG_HOME is set,
+// the default is $XDG_CONFIG_HOME/kongctl,
+// otherwise the default is os.UserHomeDir()/.config/kongctl.
+// If these values are not set, an error is returned.
+func GetDefaultConfigPath() (string, error) {
+	val, set := os.LookupEnv("XDG_CONFIG_HOME")
+	if !set || val == "" {
+		var err error
+		val, err = os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		val = filepath.Join(val, ".config")
+	}
+	val = filepath.Join(val, meta.CLIName)
+	return os.ExpandEnv(val), nil
 }
 
-func ExpandDefaultConfigFilePath() string {
-	return os.ExpandEnv(defaultConfigFilePath)
+func GetDefaultConfigFilePath() (string, error) {
+	path, err := GetDefaultConfigPath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(path, defaultConfigFileName), nil
 }
 
 // GetConfig returns the configuration for this instance of the CLI
-func GetConfig(path string, profile string) (*ProfiledConfig, error) {
+func GetConfig(path string, profile string, defaultConfigFilePath string) (*ProfiledConfig, error) {
 	var rv *ProfiledConfig
 	var err error
 
 	path = os.ExpandEnv(path)
+
 	_, err = os.Stat(path)
 	if err == nil {
-		// If the user provides a file path, we should strictly load it or fail immediately
+		// If the user provides a valid file path, we should strictly load it or fail immediately
 		vip, e := viper.NewViperE(path)
 		if e == nil {
-			rv = BuildProfiledConfig(profile, vip)
+			rv = BuildProfiledConfig(profile, path, vip)
 		} else {
 			err = e
 		}
-	} else if path == os.ExpandEnv(defaultConfigFilePath) {
-		// TODO: There may be other cases where err != nil but we don't want to initialize the default
+	} else if path == defaultConfigFilePath {
+		// If the default given config file path does not exist, and it matches the defaultConfigFilePath
+		// then we should initialize the default configuration including creating the directory and file
 		var vip *v.Viper
 		vip, err = viper.InitializeDefaultViper(getDefaultConfig(profile), path)
 		if err == nil {
-			rv = BuildProfiledConfig(profile, vip)
+			rv = BuildProfiledConfig(profile, path, vip)
 		}
 	} else {
 		err = fmt.Errorf("the provided config file path does not exist")
@@ -88,6 +107,8 @@ type Hook interface {
 	BindFlag(configPath string, f *pflag.Flag) error
 	// The profile for this configuration
 	GetProfile() string
+	// The file path used to load this configuration
+	GetPath() string
 }
 
 // ProfiledConfig is a Viper but with an associated profile ProfileName
@@ -99,6 +120,7 @@ type ProfiledConfig struct {
 	*v.Viper
 	subViper    *v.Viper
 	ProfileName string
+	Path        string
 }
 
 func (p *ProfiledConfig) GetProfile() string {
@@ -141,7 +163,11 @@ func (p *ProfiledConfig) Set(k string, v any) {
 	p.subViper.Set(k, v)
 }
 
-func BuildProfiledConfig(profile string, mainv *v.Viper) *ProfiledConfig {
+func (p *ProfiledConfig) GetPath() string {
+	return p.Path
+}
+
+func BuildProfiledConfig(profile string, path string, mainv *v.Viper) *ProfiledConfig {
 	subv := mainv.Sub(profile)
 	if subv == nil {
 		// in this case the main viper is valid, but there is no
@@ -153,6 +179,7 @@ func BuildProfiledConfig(profile string, mainv *v.Viper) *ProfiledConfig {
 		Viper:       mainv,
 		ProfileName: profile,
 		subViper:    subv,
+		Path:        path,
 	}
 	return rv
 }
