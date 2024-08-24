@@ -19,14 +19,11 @@ import (
 	"github.com/ajg/form"
 	"github.com/google/uuid"
 	"github.com/kong/kong-cli/internal/config"
-	"github.com/kong/kong-cli/internal/meta"
 )
 
 var (
 	DAGGrantType                  = "urn:ietf:params:oauth:grant-type:device_code"
 	AuthorizationPendingErrorCode = "authorization_pending"
-
-	defaultCredPath = "$XDG_CONFIG_HOME/" + meta.CLIName
 )
 
 func getCredentialFileName(profile string) string {
