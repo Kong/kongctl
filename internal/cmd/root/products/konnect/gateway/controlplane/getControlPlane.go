@@ -165,7 +165,7 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 	if e != nil {
 		return e
 	}
-	printer, e := cli.Format(outType, helper.GetStreams().Out)
+	printer, e := cli.Format(outType.String(), helper.GetStreams().Out)
 	if e != nil {
 		return e
 	}

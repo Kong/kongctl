@@ -5,6 +5,7 @@ import (
 	"regexp"
 
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kong-cli/internal/cmd"
 	kkCommon "github.com/kong/kong-cli/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kong-cli/internal/cmd/root/products/konnect/gateway/common"
@@ -20,6 +21,18 @@ import (
 
 type getServiceCmd struct {
 	*cobra.Command
+}
+
+type textDisplayRecord struct {
+	Name string
+	ID   string
+}
+
+func serviceToDisplayRecord(s *kkComps.Service) textDisplayRecord {
+	return textDisplayRecord{
+		Name: *s.Name,
+		ID:   *s.ID,
+	}
 }
 
 var (
@@ -130,7 +143,7 @@ func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		return e
 	}
 
-	printer, e := cli.Format(outType, helper.GetStreams().Out)
+	printer, e := cli.Format(outType.String(), helper.GetStreams().Out)
 	if e != nil {
 		return e
 	}

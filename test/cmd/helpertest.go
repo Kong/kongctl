@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/kong/kong-cli/internal/build"
+	"github.com/kong/kong-cli/internal/cmd/common"
 	"github.com/kong/kong-cli/internal/cmd/root/products"
 	"github.com/kong/kong-cli/internal/cmd/root/verbs"
 	"github.com/kong/kong-cli/internal/config"
@@ -19,7 +20,7 @@ type MockHelper struct {
 	GetProductMock      func() (products.ProductValue, error)
 	GetStreamsMock      func() *iostreams.IOStreams
 	GetConfigMock       func() (config.Hook, error)
-	GetOutputFormatMock func() (string, error)
+	GetOutputFormatMock func() (common.OutputFormat, error)
 	GetLoggerMock       func() (*slog.Logger, error)
 	GetBuildInfoMock    func() (*build.Info, error)
 	GetContextMock      func() context.Context
@@ -49,7 +50,7 @@ func (m *MockHelper) GetConfig() (config.Hook, error) {
 	return m.GetConfigMock()
 }
 
-func (m *MockHelper) GetOutputFormat() (string, error) {
+func (m *MockHelper) GetOutputFormat() (common.OutputFormat, error) {
 	return m.GetOutputFormatMock()
 }
 

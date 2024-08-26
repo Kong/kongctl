@@ -46,11 +46,24 @@ var (
 	// Stores the global runtime value for the configured profile
 	currProfile = profile.DefaultProfile
 
-	currConfig   config.Hook
-	streams      *iostreams.IOStreams
-	pMgr         profile.Manager
-	outputFormat = cmd.NewEnum([]string{"json", "yaml", "text"}, "text")
-	logLevel     = cmd.NewEnum([]string{"debug", "info", "warn", "error"}, "error")
+	currConfig config.Hook
+	streams    *iostreams.IOStreams
+	pMgr       profile.Manager
+
+	outputFormat = cmd.NewEnum([]string{
+		common.JSON.String(),
+		common.YAML.String(),
+		common.TEXT.String(),
+	},
+		common.TEXT.String())
+
+	logLevel = cmd.NewEnum([]string{
+		common.DEBUG.String(),
+		common.INFO.String(),
+		common.WARN.String(),
+		common.ERROR.String(),
+	},
+		common.ERROR.String())
 
 	buildInfo *build.Info
 

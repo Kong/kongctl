@@ -29,7 +29,7 @@ type Helper interface {
 	GetProduct() (products.ProductValue, error)
 	GetStreams() *iostreams.IOStreams
 	GetConfig() (config.Hook, error)
-	GetOutputFormat() (string, error)
+	GetOutputFormat() (common.OutputFormat, error)
 	GetLogger() (*slog.Logger, error)
 	GetBuildInfo() (*build.Info, error)
 	GetContext() context.Context
@@ -98,12 +98,16 @@ func (r *CommandHelper) GetConfig() (config.Hook, error) {
 	return cfgVal.(config.Hook), nil
 }
 
-func (r *CommandHelper) GetOutputFormat() (string, error) {
+func (r *CommandHelper) GetOutputFormat() (common.OutputFormat, error) {
 	c, e := r.GetConfig()
 	if e != nil {
-		return "", e
+		return common.TEXT, e
 	}
-	rv := c.GetString(common.OutputConfigPath)
+	s := c.GetString(common.OutputConfigPath)
+	rv, e := common.OutputFormatStringToIota(s)
+	if e != nil {
+		return common.TEXT, e
+	}
 	return rv, nil
 }
 

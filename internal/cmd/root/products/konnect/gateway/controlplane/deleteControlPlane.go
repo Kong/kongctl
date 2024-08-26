@@ -53,7 +53,7 @@ func (c *deleteControlPlaneCmd) run(helper cmd.Helper) error {
 	if err != nil {
 		return err
 	}
-	printer, err := cli.Format(outType, helper.GetStreams().Out)
+	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
 	if err != nil {
 		return err
 	}

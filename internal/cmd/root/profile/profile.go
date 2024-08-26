@@ -79,7 +79,8 @@ func runGet(helper cmd.Helper) error {
 			Err: err,
 		}
 	}
-	p, err := cli.Format(outType, helper.GetStreams().Out)
+	p, err := cli.Format(outType.String(),
+		helper.GetStreams().Out)
 	if err != nil {
 		return err
 	}

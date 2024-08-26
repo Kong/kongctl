@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/kong/kong-cli/internal/build"
+	"github.com/kong/kong-cli/internal/cmd/common"
 	"github.com/kong/kong-cli/internal/config"
 	"github.com/kong/kong-cli/internal/iostreams"
 	"github.com/kong/kong-cli/test/cmd"
@@ -15,10 +16,10 @@ import (
 func Test_VersionCmd(t *testing.T) {
 	all, _, out, _ := iostreams.NewTestIOStreams()
 
-	outputFormat := "text"
+	outputFormat := common.TEXT
 
 	helper := cmd.MockHelper{
-		GetOutputFormatMock: func() (string, error) {
+		GetOutputFormatMock: func() (common.OutputFormat, error) {
 			return outputFormat, nil
 		},
 		GetConfigMock: func() (config.Hook, error) {

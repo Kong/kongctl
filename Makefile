@@ -5,9 +5,12 @@ test-all: lint test
 lint:
 	golangci-lint run -v ./...
 
+
 .PHONY: build
 build:
 	CGO_ENABLED=0 go build -o kongctl
+# Kept typing this wrong
+buld: build
 
 .PHONY: coverage
 coverage:
