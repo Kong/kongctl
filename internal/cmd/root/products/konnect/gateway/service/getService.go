@@ -132,7 +132,7 @@ func (c *getServiceCmd) validate(helper cmd.Helper) error {
 }
 
 func (c *getServiceCmd) runListByName(cpID string, name string,
-	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer,
+	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
 ) error {
 	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
 
@@ -144,7 +144,11 @@ func (c *getServiceCmd) runListByName(cpID string, name string,
 
 	for _, service := range allData {
 		if *service.GetName() == name {
-			printer.Print(service)
+			if outputFormat == cmdCommon.TEXT {
+				printer.Print(serviceToDisplayRecord(&service))
+			} else {
+				printer.Print(service)
+			}
 		}
 	}
 
@@ -152,7 +156,7 @@ func (c *getServiceCmd) runListByName(cpID string, name string,
 }
 
 func (c *getServiceCmd) runGet(cpID string, id string,
-	kkClient *kk.SDK, helper cmd.Helper, printer cli.Printer,
+	kkClient *kk.SDK, helper cmd.Helper, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
 ) error {
 	res, err := kkClient.Services.GetService(helper.GetContext(), cpID, id)
 	if err != nil {
@@ -160,7 +164,11 @@ func (c *getServiceCmd) runGet(cpID string, id string,
 		return cmd.PrepareExecutionError("Failed to get Gateway Service", err, helper.GetCmd(), attrs...)
 	}
 
-	printer.Print(res.GetService())
+	if outputFormat == cmdCommon.TEXT {
+		printer.Print(serviceToDisplayRecord(res.GetService()))
+	} else {
+		printer.Print(res.GetService())
+	}
 
 	return nil
 }
@@ -260,10 +268,10 @@ func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		if !isUUID {
 			// If the ID is not a UUID, then it is a name
 			// search for the control plane by name
-			return c.runListByName(cpID, id, kkClient, helper, cfg, printer)
+			return c.runListByName(cpID, id, kkClient, helper, cfg, printer, outType)
 		}
 
-		return c.runGet(cpID, id, kkClient, helper, printer)
+		return c.runGet(cpID, id, kkClient, helper, printer, outType)
 	}
 
 	return c.runList(cpID, kkClient, helper, cfg, printer, outType)
