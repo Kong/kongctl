@@ -2,18 +2,30 @@ package common
 
 import "fmt"
 
+// Represents an enum of valid values for the format of the output for this CLI execution
 type OutputFormat int
+
 type LogLevel int
 
 const (
-	// related to the --output flag
-	DefaultOutputFormat              = "text"
-	OutputFlagName                   = "output"
-	OutputFlagShort                  = "o"
-	OutputConfigPath                 = OutputFlagName
-	JSON                OutputFormat = iota
+	JSON OutputFormat = iota
 	YAML
 	TEXT
+)
+
+const (
+	DEBUG LogLevel = iota
+	INFO
+	WARN
+	ERROR
+)
+
+const (
+	// related to the --output flag
+	DefaultOutputFormat = "text"
+	OutputFlagName      = "output"
+	OutputFlagShort     = "o"
+	OutputConfigPath    = OutputFlagName
 
 	// related to the --profile flag
 	ProfileFlagName  = "profile"
@@ -23,13 +35,9 @@ const (
 	ConfigFilePathFlagName = "config-file"
 
 	// related to the --log-level flag
-	LogLevelFlagName            = "log-level"
-	DefaultLogLevel             = "info"
-	LogLevelConfigPath          = LogLevelFlagName
-	DEBUG              LogLevel = iota
-	INFO
-	WARN
-	ERROR
+	LogLevelFlagName   = "log-level"
+	DefaultLogLevel    = "info"
+	LogLevelConfigPath = LogLevelFlagName
 )
 
 func (of OutputFormat) String() string {
