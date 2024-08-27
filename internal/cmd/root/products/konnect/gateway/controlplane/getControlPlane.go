@@ -100,7 +100,8 @@ type getControlPlaneCmd struct {
 }
 
 func (c *getControlPlaneCmd) runListByName(name string, kkClient *kk.SDK, helper cmd.Helper,
-	cfg config.Hook, printer cli.Printer, outputFormat cmdCommon.OutputFormat) error {
+	cfg config.Hook, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
+) error {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
 
@@ -151,7 +152,8 @@ func (c *getControlPlaneCmd) runListByName(name string, kkClient *kk.SDK, helper
 }
 
 func (c *getControlPlaneCmd) runList(kkClient *kk.SDK, helper cmd.Helper,
-	cfg config.Hook, printer cli.Printer, outputFormat cmdCommon.OutputFormat) error {
+	cfg config.Hook, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
+) error {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
 
@@ -193,7 +195,8 @@ func (c *getControlPlaneCmd) runList(kkClient *kk.SDK, helper cmd.Helper,
 }
 
 func (c *getControlPlaneCmd) runGet(id string, kkClient *kk.SDK, helper cmd.Helper,
-	printer cli.Printer, outputFormat cmdCommon.OutputFormat) error {
+	printer cli.Printer, outputFormat cmdCommon.OutputFormat,
+) error {
 	res, err := kkClient.ControlPlanes.GetControlPlane(helper.GetContext(), id)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
