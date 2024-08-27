@@ -3,9 +3,13 @@ package service
 import (
 	"fmt"
 	"regexp"
+	"strconv"
+	"strings"
 
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kong-cli/internal/cmd"
+	cmdCommon "github.com/kong/kong-cli/internal/cmd/common"
 	kkCommon "github.com/kong/kong-cli/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kong-cli/internal/cmd/root/products/konnect/gateway/common"
 	"github.com/kong/kong-cli/internal/config"
@@ -20,6 +24,74 @@ import (
 
 type getServiceCmd struct {
 	*cobra.Command
+}
+
+// Represents a text display record for a Gateway Service
+//
+// Because the SDK provids pointers for optional value fields,
+// the segmentio/cli printer prints the address instead of the value.
+// This will require a decent amount of boilerplate code to convert
+// the types to a format that prints how we want.
+// TODO: Investigate if there is a way to handle this with less boilerplate
+type textDisplayRecord struct {
+	Name     string
+	Enabled  string
+	Host     string
+	Path     string
+	Port     string
+	Protocol string
+	Tags     string
+	ID       string
+}
+
+func serviceToDisplayRecord(s *kkComps.Service) textDisplayRecord {
+	missing := "n/a"
+
+	name := missing
+	if s.Name != nil {
+		name = *s.Name
+	}
+
+	id := missing
+	if s.ID != nil {
+		id = *s.ID
+	}
+
+	enabled := missing
+	if s.Enabled != nil {
+		enabled = strconv.FormatBool(*s.Enabled)
+	}
+
+	path := missing
+	if s.Path != nil {
+		path = *s.Path
+	}
+
+	port := missing
+	if s.Port != nil {
+		port = strconv.FormatInt(*s.Port, 10)
+	}
+
+	protocol := missing
+	if s.Protocol != nil {
+		protocol = string(*s.Protocol)
+	}
+
+	tags := missing
+	if s.Tags != nil {
+		tags = strings.Join(s.Tags, ", ")
+	}
+
+	return textDisplayRecord{
+		Name:     name,
+		ID:       id,
+		Enabled:  enabled,
+		Host:     s.Host,
+		Path:     path,
+		Port:     port,
+		Protocol: protocol,
+		Tags:     tags,
+	}
 }
 
 var (
@@ -60,7 +132,7 @@ func (c *getServiceCmd) validate(helper cmd.Helper) error {
 }
 
 func (c *getServiceCmd) runListByName(cpID string, name string,
-	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer,
+	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
 ) error {
 	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
 
@@ -72,7 +144,11 @@ func (c *getServiceCmd) runListByName(cpID string, name string,
 
 	for _, service := range allData {
 		if *service.GetName() == name {
-			printer.Print(service)
+			if outputFormat == cmdCommon.TEXT {
+				printer.Print(serviceToDisplayRecord(&service))
+			} else {
+				printer.Print(service)
+			}
 		}
 	}
 
@@ -80,7 +156,7 @@ func (c *getServiceCmd) runListByName(cpID string, name string,
 }
 
 func (c *getServiceCmd) runGet(cpID string, id string,
-	kkClient *kk.SDK, helper cmd.Helper, printer cli.Printer,
+	kkClient *kk.SDK, helper cmd.Helper, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
 ) error {
 	res, err := kkClient.Services.GetService(helper.GetContext(), cpID, id)
 	if err != nil {
@@ -88,23 +164,37 @@ func (c *getServiceCmd) runGet(cpID string, id string,
 		return cmd.PrepareExecutionError("Failed to get Gateway Service", err, helper.GetCmd(), attrs...)
 	}
 
-	printer.Print(res.GetService())
+	if outputFormat == cmdCommon.TEXT {
+		printer.Print(serviceToDisplayRecord(res.GetService()))
+	} else {
+		printer.Print(res.GetService())
+	}
 
 	return nil
 }
 
 func (c *getServiceCmd) runList(cpID string,
-	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer,
+	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
 ) error {
 	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
 
+	// TODO: Explore streaming of data. We can expect some large data sets, especially for GW entities.
+	//		   Right now these functions are loading all data into memory before printing.
 	allData, err := helpers.GetAllGatewayServices(helper.GetContext(), requestPageSize, cpID, kkClient)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
 		return cmd.PrepareExecutionError("Failed to list Gateway Services", err, helper.GetCmd(), attrs...)
 	}
 
-	printer.Print(allData)
+	if outputFormat == cmdCommon.TEXT {
+		var displayRecords []textDisplayRecord
+		for _, service := range allData {
+			displayRecords = append(displayRecords, serviceToDisplayRecord(&service))
+		}
+		printer.Print(displayRecords)
+	} else {
+		printer.Print(allData)
+	}
 
 	return nil
 }
@@ -130,7 +220,7 @@ func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		return e
 	}
 
-	printer, e := cli.Format(outType, helper.GetStreams().Out)
+	printer, e := cli.Format(outType.String(), helper.GetStreams().Out)
 	if e != nil {
 		return e
 	}
@@ -178,13 +268,13 @@ func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		if !isUUID {
 			// If the ID is not a UUID, then it is a name
 			// search for the control plane by name
-			return c.runListByName(cpID, id, kkClient, helper, cfg, printer)
+			return c.runListByName(cpID, id, kkClient, helper, cfg, printer, outType)
 		}
 
-		return c.runGet(cpID, id, kkClient, helper, printer)
+		return c.runGet(cpID, id, kkClient, helper, printer, outType)
 	}
 
-	return c.runList(cpID, kkClient, helper, cfg, printer)
+	return c.runList(cpID, kkClient, helper, cfg, printer, outType)
 }
 
 func newGetServiceCmd(baseCmd *cobra.Command) *getServiceCmd {

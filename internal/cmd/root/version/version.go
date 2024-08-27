@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/kong/kong-cli/internal/cmd"
+	"github.com/kong/kong-cli/internal/cmd/common"
 	"github.com/kong/kong-cli/internal/meta"
 	"github.com/kong/kong-cli/internal/util"
 	"github.com/kong/kong-cli/internal/util/i18n"
@@ -107,11 +108,11 @@ func run(helper cmd.Helper) error {
 		return err
 	}
 
-	if outType == "text" {
+	if outType == common.TEXT {
 		return printText(result, helper.GetStreams().Out, full)
 	}
 
-	p, err := cli.Format(outType, helper.GetStreams().Out)
+	p, err := cli.Format(outType.String(), helper.GetStreams().Out)
 	if err != nil {
 		return err
 	}

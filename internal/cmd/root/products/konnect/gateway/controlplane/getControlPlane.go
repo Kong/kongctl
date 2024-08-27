@@ -3,11 +3,14 @@ package controlplane
 import (
 	"fmt"
 	"regexp"
+	"strings"
+	"time"
 
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kong-cli/internal/cmd"
+	cmdCommon "github.com/kong/kong-cli/internal/cmd/common"
 	"github.com/kong/kong-cli/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kong-cli/internal/config"
 	"github.com/kong/kong-cli/internal/konnect/auth"
@@ -37,12 +40,67 @@ var (
 	`, meta.CLIName)))
 )
 
+// Represents a text display record for a Control Plane
+//
+// Because the SDK provides pointers for optional value fields,
+// the segmentio/cli printer prints the address instead of the value.
+// This will require a decent amount of boilerplate code to convert
+// the types to a format that prints how we want.
+type textDisplayRecord struct {
+	Name                 string
+	Description          string
+	Labels               string
+	ControlPlaneEndpoint string
+	LocalCreatedTime     string
+	LocalUpdatedTime     string
+	ID                   string
+}
+
+func controlPlaneToDisplayRecord(c *kkComps.ControlPlane) textDisplayRecord {
+	missing := "n/a"
+
+	id := c.ID
+	name := c.Name
+
+	description := missing
+	if c.Description != nil {
+		description = *c.Description
+	}
+
+	labels := missing
+	if c.Labels != nil {
+		labelPairs := make([]string, 0, len(c.Labels))
+		for k, v := range c.Labels {
+			labelPairs = append(labelPairs, fmt.Sprintf("%s: %s", k, v))
+		}
+		labels = strings.Join(labelPairs, ", ")
+	}
+
+	controlPlaneEndpoint := missing
+	if c.Config.ControlPlaneEndpoint != nil {
+		controlPlaneEndpoint = *c.Config.ControlPlaneEndpoint
+	}
+
+	createdAt := c.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+	updatedAt := c.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+
+	return textDisplayRecord{
+		ID:                   id,
+		Name:                 name,
+		Description:          description,
+		Labels:               labels,
+		ControlPlaneEndpoint: controlPlaneEndpoint,
+		LocalCreatedTime:     createdAt,
+		LocalUpdatedTime:     updatedAt,
+	}
+}
+
 type getControlPlaneCmd struct {
 	*cobra.Command
 }
 
 func (c *getControlPlaneCmd) runListByName(name string, kkClient *kk.SDK, helper cmd.Helper,
-	cfg config.Hook, printer cli.Printer,
+	cfg config.Hook, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
 ) error {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
@@ -72,16 +130,29 @@ func (c *getControlPlaneCmd) runListByName(name string, kkClient *kk.SDK, helper
 		pageNumber++
 	}
 
-	if len(allData) == 1 {
-		printer.Print(allData[0])
+	if outputFormat == cmdCommon.TEXT {
+		if len(allData) == 1 {
+			printer.Print(controlPlaneToDisplayRecord(&allData[0]))
+		} else {
+			var displayRecords []textDisplayRecord
+			for _, cp := range allData {
+				displayRecords = append(displayRecords, controlPlaneToDisplayRecord(&cp))
+			}
+			printer.Print(displayRecords)
+		}
 	} else {
-		printer.Print(allData)
+		if len(allData) == 1 {
+			printer.Print(allData[0])
+		} else {
+			printer.Print(allData)
+		}
 	}
+
 	return nil
 }
 
 func (c *getControlPlaneCmd) runList(kkClient *kk.SDK, helper cmd.Helper,
-	cfg config.Hook, printer cli.Printer,
+	cfg config.Hook, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
 ) error {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
@@ -110,13 +181,21 @@ func (c *getControlPlaneCmd) runList(kkClient *kk.SDK, helper cmd.Helper,
 		pageNumber++
 	}
 
-	printer.Print(allData)
+	if outputFormat == cmdCommon.TEXT {
+		var displayRecords []textDisplayRecord
+		for _, cp := range allData {
+			displayRecords = append(displayRecords, controlPlaneToDisplayRecord(&cp))
+		}
+		printer.Print(displayRecords)
+	} else {
+		printer.Print(allData)
+	}
 
 	return nil
 }
 
 func (c *getControlPlaneCmd) runGet(id string, kkClient *kk.SDK, helper cmd.Helper,
-	printer cli.Printer,
+	printer cli.Printer, outputFormat cmdCommon.OutputFormat,
 ) error {
 	res, err := kkClient.ControlPlanes.GetControlPlane(helper.GetContext(), id)
 	if err != nil {
@@ -124,7 +203,11 @@ func (c *getControlPlaneCmd) runGet(id string, kkClient *kk.SDK, helper cmd.Help
 		return cmd.PrepareExecutionError("Failed to get Control Plane", err, helper.GetCmd(), attrs...)
 	}
 
-	printer.Print(res.GetControlPlane())
+	if outputFormat == cmdCommon.TEXT {
+		printer.Print(controlPlaneToDisplayRecord(res.GetControlPlane()))
+	} else {
+		printer.Print(res.GetControlPlane())
+	}
 
 	return nil
 }
@@ -165,7 +248,7 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 	if e != nil {
 		return e
 	}
-	printer, e := cli.Format(outType, helper.GetStreams().Out)
+	printer, e := cli.Format(outType.String(), helper.GetStreams().Out)
 	if e != nil {
 		return e
 	}
@@ -202,13 +285,13 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		if !isUUID {
 			// If the ID is not a UUID, then it is a name
 			// search for the control plane by name
-			return c.runListByName(id, kkClient, helper, cfg, printer)
+			return c.runListByName(id, kkClient, helper, cfg, printer, outType)
 		}
 
-		return c.runGet(id, kkClient, helper, printer)
+		return c.runGet(id, kkClient, helper, printer, outType)
 	}
 
-	return c.runList(kkClient, helper, cfg, printer)
+	return c.runList(kkClient, helper, cfg, printer, outType)
 }
 
 func newGetControlPlaneCmd(baseCmd *cobra.Command) *getControlPlaneCmd {

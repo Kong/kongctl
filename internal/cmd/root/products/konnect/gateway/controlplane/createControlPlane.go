@@ -172,7 +172,7 @@ func (c *createControlPlaneCmd) run(helper cmd.Helper) error {
 		return e
 	}
 
-	printer, e := cli.Format(outType, helper.GetStreams().Out)
+	printer, e := cli.Format(outType.String(), helper.GetStreams().Out)
 	if e != nil {
 		return e
 	}
