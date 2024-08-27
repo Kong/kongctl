@@ -3,9 +3,13 @@ package route
 import (
 	"fmt"
 	"regexp"
+	"strings"
+	"time"
 
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kong-cli/internal/cmd"
+	cmdCommon "github.com/kong/kong-cli/internal/cmd/common"
 	kkCommon "github.com/kong/kong-cli/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kong-cli/internal/cmd/root/products/konnect/gateway/common"
 	"github.com/kong/kong-cli/internal/config"
@@ -17,6 +21,90 @@ import (
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
+
+type textDisplayRecord struct {
+	Name             string
+	Methods          string
+	Paths            string
+	Protocols        string
+	Tags             string
+	LocalCreatedTime string
+	LocalUpdatedTime string
+	ID               string
+
+	// Destinations          string
+	// Headers               string
+	// Hosts                 string
+	// HTTPSRedirectStatusCode string
+	// Service               string
+	// PathHandling      string
+	// PreserveHost      string
+	// RegexPriority     string
+	// RequestBuffering  string
+	// ResponseBuffering string
+	// Snis              string
+	// Sources           string
+	// StripPath         string
+}
+
+func routeToDisplayRecord(r *kkComps.Route) textDisplayRecord {
+	missing := "n/a"
+
+	name := missing
+	if r.Name != nil {
+		name = *r.Name
+	}
+
+	methods := missing
+	if r.Methods != nil {
+		methods = strings.Join(r.Methods, ", ")
+	}
+
+	paths := missing
+	if r.Paths != nil {
+		paths = strings.Join(r.Paths, ", ")
+	}
+
+	protocols := missing
+	if r.Protocols != nil {
+		protocolsArr := make([]string, len(r.Protocols))
+		for i, protocol := range r.Protocols {
+			protocolsArr[i] = string(protocol)
+		}
+		protocols = strings.Join(protocolsArr, ", ")
+	}
+
+	tags := missing
+	if r.Tags != nil {
+		tags = strings.Join(r.Tags, ", ")
+	}
+
+	createdAt := missing
+	if r.CreatedAt != nil {
+		createdAt = time.Unix(0, *r.CreatedAt*int64(time.Millisecond)).In(time.Local).Format("2006-01-02 15:04:05")
+	}
+
+	updatedAt := missing
+	if r.UpdatedAt != nil {
+		updatedAt = time.Unix(0, *r.UpdatedAt*int64(time.Millisecond)).In(time.Local).Format("2006-01-02 15:04:05")
+	}
+
+	id := missing
+	if r.ID != nil {
+		id = *r.ID
+	}
+
+	return textDisplayRecord{
+		Name:             name,
+		Methods:          methods,
+		Paths:            paths,
+		Protocols:        protocols,
+		Tags:             tags,
+		LocalCreatedTime: createdAt,
+		LocalUpdatedTime: updatedAt,
+		ID:               id,
+	}
+}
 
 type getRouteCmd struct {
 	*cobra.Command
@@ -49,7 +137,7 @@ func (c *getRouteCmd) validate(helper cmd.Helper) error {
 }
 
 func (c *getRouteCmd) runListByName(cpID string, name string,
-	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer,
+	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
 ) error {
 	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
 
@@ -61,7 +149,11 @@ func (c *getRouteCmd) runListByName(cpID string, name string,
 
 	for _, route := range allData {
 		if *route.GetName() == name {
-			printer.Print(route)
+			if outputFormat == cmdCommon.TEXT {
+				printer.Print(routeToDisplayRecord(&route))
+			} else {
+				printer.Print(route)
+			}
 		}
 	}
 
@@ -69,7 +161,7 @@ func (c *getRouteCmd) runListByName(cpID string, name string,
 }
 
 func (c *getRouteCmd) runGet(cpID string, id string,
-	kkClient *kk.SDK, helper cmd.Helper, printer cli.Printer,
+	kkClient *kk.SDK, helper cmd.Helper, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
 ) error {
 	res, err := kkClient.Routes.GetRoute(helper.GetContext(), cpID, id)
 	if err != nil {
@@ -77,13 +169,17 @@ func (c *getRouteCmd) runGet(cpID string, id string,
 		return cmd.PrepareExecutionError("Failed to get Gateway Route", err, helper.GetCmd(), attrs...)
 	}
 
-	printer.Print(res.GetRoute())
+	if outputFormat == cmdCommon.TEXT {
+		printer.Print(routeToDisplayRecord(res.GetRoute()))
+	} else {
+		printer.Print(res.GetRoute())
+	}
 
 	return nil
 }
 
 func (c *getRouteCmd) runList(cpID string,
-	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer,
+	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
 ) error {
 	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
 
@@ -93,7 +189,15 @@ func (c *getRouteCmd) runList(cpID string,
 		return cmd.PrepareExecutionError("Failed to list Gateway Routes", err, helper.GetCmd(), attrs...)
 	}
 
-	printer.Print(allData)
+	if outputFormat == cmdCommon.TEXT {
+		var displayRecords []textDisplayRecord
+		for _, route := range allData {
+			displayRecords = append(displayRecords, routeToDisplayRecord(&route))
+		}
+		printer.Print(displayRecords)
+	} else {
+		printer.Print(allData)
+	}
 
 	return nil
 }
@@ -167,13 +271,13 @@ func (c *getRouteCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		if !isUUID {
 			// If the ID is not a UUID, then it is a name
 			// search for the control plane by name
-			return c.runListByName(cpID, id, kkClient, helper, cfg, printer)
+			return c.runListByName(cpID, id, kkClient, helper, cfg, printer, outType)
 		}
 
-		return c.runGet(cpID, id, kkClient, helper, printer)
+		return c.runGet(cpID, id, kkClient, helper, printer, outType)
 	}
 
-	return c.runList(cpID, kkClient, helper, cfg, printer)
+	return c.runList(cpID, kkClient, helper, cfg, printer, outType)
 }
 
 func newGetRouteCmd(baseCmd *cobra.Command) *getRouteCmd {
