@@ -11,8 +11,10 @@ package controlplane
 // - Does a command return the proper exit code?
 
 import (
+	"bytes"
 	"context"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -271,10 +273,10 @@ func TestGetControlPlaneCmd(t *testing.T) {
 			},
 			Args:        []string{"4d9b3f3e-7b1b-4b6b-8b1b-4b6b7b1b4b6b"},
 			expectedErr: false,
-			assertions: func(t *testing.T, ctx context.Context) {
-				//out := ctx.Value(iostreams.StreamsKey).(*iostreams.IOStreams).Out
-				//buffer := out.(*bytes.Buffer)
-				//fmt.Println(buffer.String())
+			assertions: func(_ *testing.T, ctx context.Context) {
+				out := ctx.Value(iostreams.StreamsKey).(*iostreams.IOStreams).Out
+				result := out.(*bytes.Buffer).String()
+				assert.True(t, strings.Contains(result, "4d9b3f3e-7b1b-4b6b-8b1b-4b6b7b1b4b6b"))
 			},
 		},
 	}

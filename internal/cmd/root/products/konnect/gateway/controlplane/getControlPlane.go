@@ -144,9 +144,8 @@ func runListByName(name string, kkClient helpers.ControlPlaneAPI, helper cmd.Hel
 	//    It's possible this logic is flawed ?
 	if len(allData) > 0 {
 		return &allData[0], nil
-	} else {
-		return nil, fmt.Errorf("control plane with name %s not found", name)
 	}
+	return nil, fmt.Errorf("control plane with name %s not found", name)
 }
 
 func runList(kkClient helpers.ControlPlaneAPI, helper cmd.Helper,
