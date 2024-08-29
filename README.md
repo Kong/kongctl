@@ -42,6 +42,9 @@ The CLI supports profiles, which are used to isolate configurations. The profile
 Once the profile is determined, the CLI will read the configuration from the configuration file, using the sub-configuration 
 under the profile name.
 
+> :warning: **Note: Do not use `-` characters in profile names if you intend to use environment
+variables. The `-` character is not allowed in environment variable names.**
+
 ### Configuration Values
 
 With the exception of the `--config-file` and `--profile` flags, every flag for every command can be set via the configuration system.
