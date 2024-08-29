@@ -3,9 +3,8 @@ package controlplane
 import (
 	"context"
 
-	"github.com/kong/kong-cli/internal/cmd"
-	"github.com/kong/kong-cli/internal/cmd/root/products/konnect/common"
-	"github.com/kong/kong-cli/internal/konnect/auth"
+	"github.com/kong/kongctl/internal/cmd"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -38,12 +37,12 @@ func (c *deleteControlPlaneCmd) run(helper cmd.Helper) error {
 		return e
 	}
 
-	kkClient, err := auth.GetAuthenticatedClient(token)
+	sdk, err := helper.GetKonnectSDKFactory()(token)
 	if err != nil {
 		return err
 	}
 
-	res, err := kkClient.ControlPlanes.DeleteControlPlane(ctx, id)
+	res, err := sdk.GetControlPlaneAPI().DeleteControlPlane(ctx, id)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(e)
 		return cmd.PrepareExecutionError("Failed to delete Control Plane", e, helper.GetCmd(), attrs...)

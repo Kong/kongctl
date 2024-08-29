@@ -3,10 +3,10 @@ package route
 import (
 	"fmt"
 
-	"github.com/kong/kong-cli/internal/iostreams"
-	"github.com/kong/kong-cli/internal/meta"
-	"github.com/kong/kong-cli/internal/util/i18n"
-	"github.com/kong/kong-cli/internal/util/normalizers"
+	"github.com/kong/kongctl/internal/iostreams"
+	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util/i18n"
+	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
 )
 

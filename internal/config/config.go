@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/kong/kong-cli/internal/cmd/common"
-	"github.com/kong/kong-cli/internal/meta"
-	"github.com/kong/kong-cli/internal/util/viper"
+	"github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util/viper"
 	"github.com/spf13/pflag"
 	v "github.com/spf13/viper"
 )

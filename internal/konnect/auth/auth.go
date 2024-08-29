@@ -18,7 +18,7 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/ajg/form"
 	"github.com/google/uuid"
-	"github.com/kong/kong-cli/internal/config"
+	"github.com/kong/kongctl/internal/config"
 )
 
 var (
@@ -300,10 +300,12 @@ func saveAccessTokenToDisk(path string, token *AccessToken) error {
 	return nil
 }
 
-func GetAuthenticatedClient(token *AccessToken) (*kk.SDK, error) {
+type AuthenticatedClientFactory func(token string) (*kk.SDK, error)
+
+func GetAuthenticatedClient(token string) (*kk.SDK, error) {
 	return kk.New(
 		kk.WithSecurity(kkComps.Security{
-			PersonalAccessToken: kk.String(token.Token.AuthToken),
+			PersonalAccessToken: kk.String(token),
 		}),
 	), nil
 }

@@ -9,12 +9,11 @@ import (
 
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/kong/kong-cli/internal/cmd"
-	"github.com/kong/kong-cli/internal/cmd/root/products/konnect/common"
-	"github.com/kong/kong-cli/internal/konnect/auth"
-	"github.com/kong/kong-cli/internal/meta"
-	"github.com/kong/kong-cli/internal/util/i18n"
-	"github.com/kong/kong-cli/internal/util/normalizers"
+	"github.com/kong/kongctl/internal/cmd"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util/i18n"
+	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -193,14 +192,14 @@ func (c *createControlPlaneCmd) run(helper cmd.Helper) error {
 		return e
 	}
 
-	kkClient, e := auth.GetAuthenticatedClient(token)
+	sdk, e := helper.GetKonnectSDKFactory()(token)
 	if e != nil {
 		return e
 	}
 
 	ctx := context.Background()
 
-	res, e := kkClient.ControlPlanes.CreateControlPlane(ctx, req)
+	res, e := sdk.GetControlPlaneAPI().CreateControlPlane(ctx, req)
 	if e != nil {
 		attrs := cmd.TryConvertErrorToAttrs(e)
 		return cmd.PrepareExecutionError("Failed to create Control Plane", e, helper.GetCmd(), attrs...)

@@ -1,10 +1,10 @@
 package gateway
 
 import (
-	"github.com/kong/kong-cli/internal/cmd/root/products"
-	"github.com/kong/kong-cli/internal/iostreams"
-	"github.com/kong/kong-cli/internal/util/i18n"
-	"github.com/kong/kong-cli/internal/util/normalizers"
+	"github.com/kong/kongctl/internal/cmd/root/products"
+	"github.com/kong/kongctl/internal/iostreams"
+	"github.com/kong/kongctl/internal/util/i18n"
+	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
 )
 

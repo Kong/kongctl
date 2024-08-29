@@ -5,12 +5,12 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/kong/kong-cli/internal/build"
-	"github.com/kong/kong-cli/internal/cmd/common"
-	"github.com/kong/kong-cli/internal/config"
-	"github.com/kong/kong-cli/internal/iostreams"
-	"github.com/kong/kong-cli/test/cmd"
-	testConfig "github.com/kong/kong-cli/test/config"
+	"github.com/kong/kongctl/internal/build"
+	"github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/iostreams"
+	"github.com/kong/kongctl/test/cmd"
+	testConfig "github.com/kong/kongctl/test/config"
 )
 
 func Test_VersionCmd(t *testing.T) {
@@ -30,7 +30,7 @@ func Test_VersionCmd(t *testing.T) {
 			}, nil
 		},
 		GetStreamsMock: func() *iostreams.IOStreams {
-			return &all
+			return all
 		},
 		GetLoggerMock: func() (*slog.Logger, error) {
 			return slog.New(slog.NewTextHandler(io.Discard, nil)), nil
