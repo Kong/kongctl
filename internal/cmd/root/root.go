@@ -8,23 +8,24 @@ import (
 	"os"
 	"strings"
 
-	"github.com/kong/kong-cli/internal/build"
-	"github.com/kong/kong-cli/internal/cmd"
-	"github.com/kong/kong-cli/internal/cmd/common"
-	"github.com/kong/kong-cli/internal/cmd/root/verbs/create"
-	"github.com/kong/kong-cli/internal/cmd/root/verbs/del"
-	"github.com/kong/kong-cli/internal/cmd/root/verbs/get"
-	"github.com/kong/kong-cli/internal/cmd/root/verbs/list"
-	"github.com/kong/kong-cli/internal/cmd/root/verbs/login"
-	"github.com/kong/kong-cli/internal/cmd/root/version"
-	"github.com/kong/kong-cli/internal/config"
-	"github.com/kong/kong-cli/internal/iostreams"
-	"github.com/kong/kong-cli/internal/log"
-	"github.com/kong/kong-cli/internal/meta"
-	"github.com/kong/kong-cli/internal/profile"
-	"github.com/kong/kong-cli/internal/util"
-	"github.com/kong/kong-cli/internal/util/i18n"
-	"github.com/kong/kong-cli/internal/util/normalizers"
+	"github.com/kong/kongctl/internal/build"
+	"github.com/kong/kongctl/internal/cmd"
+	"github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/create"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/del"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/get"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/list"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/login"
+	"github.com/kong/kongctl/internal/cmd/root/version"
+	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/iostreams"
+	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/kong/kongctl/internal/log"
+	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/profile"
+	"github.com/kong/kongctl/internal/util"
+	"github.com/kong/kongctl/internal/util/i18n"
+	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
 )
 
@@ -81,6 +82,7 @@ func newRootCmd() *cobra.Command {
 			ctx = context.WithValue(ctx, profile.ProfileManagerKey, pMgr)
 			ctx = context.WithValue(ctx, build.InfoKey, buildInfo)
 			ctx = context.WithValue(ctx, log.LoggerKey, logger)
+			ctx = context.WithValue(ctx, helpers.SDKFactoryKey, helpers.SDKFactory(helpers.KonnectSDKFactory))
 			cmd.SetContext(ctx)
 		},
 	}

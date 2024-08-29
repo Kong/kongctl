@@ -3,7 +3,7 @@ package viper
 import (
 	"strings"
 
-	"github.com/kong/kong-cli/internal/util"
+	"github.com/kong/kongctl/internal/util"
 	v "github.com/spf13/viper"
 )
 

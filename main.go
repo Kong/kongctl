@@ -7,9 +7,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/kong/kong-cli/internal/build"
-	"github.com/kong/kong-cli/internal/cmd/root"
-	"github.com/kong/kong-cli/internal/iostreams"
+	"github.com/kong/kongctl/internal/build"
+	"github.com/kong/kongctl/internal/cmd/root"
+	"github.com/kong/kongctl/internal/iostreams"
 )
 
 var (

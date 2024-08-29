@@ -1,13 +1,13 @@
 package gateway
 
 import (
-	"github.com/kong/kong-cli/internal/cmd/root/products/konnect/gateway/consumer"
-	"github.com/kong/kong-cli/internal/cmd/root/products/konnect/gateway/controlplane"
-	"github.com/kong/kong-cli/internal/cmd/root/products/konnect/gateway/route"
-	"github.com/kong/kong-cli/internal/cmd/root/products/konnect/gateway/service"
-	"github.com/kong/kong-cli/internal/cmd/root/verbs"
-	"github.com/kong/kong-cli/internal/util/i18n"
-	"github.com/kong/kong-cli/internal/util/normalizers"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/consumer"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/controlplane"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/route"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/service"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/util/i18n"
+	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
 )
 

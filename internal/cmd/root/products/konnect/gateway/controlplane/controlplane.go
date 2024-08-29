@@ -3,10 +3,10 @@ package controlplane
 import (
 	"fmt"
 
-	"github.com/kong/kong-cli/internal/cmd/root/verbs"
-	"github.com/kong/kong-cli/internal/meta"
-	"github.com/kong/kong-cli/internal/util/i18n"
-	"github.com/kong/kong-cli/internal/util/normalizers"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util/i18n"
+	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
 )
 

@@ -1,0 +1,17 @@
+quiet: False
+inpackage: True
+disable-version-string: True
+with-expecter: True
+
+filename: "{{.InterfaceName | lower}}_mock.go"
+dir: "{{.InterfaceDir}}"
+mockname: "Mock{{.InterfaceName}}"
+outpkg: "{{.PackageName}}"
+
+packages:
+  github.com/kong/kongctl/internal/konnect/helpers:
+    interfaces:
+      ControlPlaneAPI:
+  github.com/kong/kongctl/internal/cmd:
+    interfaces:
+      Helper:

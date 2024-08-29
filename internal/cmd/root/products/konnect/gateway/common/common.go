@@ -3,7 +3,7 @@ package common
 import (
 	"fmt"
 
-	"github.com/kong/kong-cli/internal/cmd"
+	"github.com/kong/kongctl/internal/cmd"
 	"github.com/spf13/cobra"
 )
 

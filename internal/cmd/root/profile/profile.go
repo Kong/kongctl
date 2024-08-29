@@ -3,11 +3,11 @@ package profile
 import (
 	"fmt"
 
-	"github.com/kong/kong-cli/internal/cmd"
-	"github.com/kong/kong-cli/internal/cmd/root/verbs"
-	"github.com/kong/kong-cli/internal/profile"
-	"github.com/kong/kong-cli/internal/util/i18n"
-	"github.com/kong/kong-cli/internal/util/normalizers"
+	"github.com/kong/kongctl/internal/cmd"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/profile"
+	"github.com/kong/kongctl/internal/util/i18n"
+	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )

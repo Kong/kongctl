@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/kong/kong-cli/internal/build"
-	"github.com/kong/kong-cli/internal/cmd/common"
-	"github.com/kong/kong-cli/internal/cmd/root/products"
-	"github.com/kong/kong-cli/internal/cmd/root/verbs"
-	"github.com/kong/kong-cli/internal/config"
-	"github.com/kong/kong-cli/internal/iostreams"
-	"github.com/kong/kong-cli/internal/log"
+	"github.com/kong/kongctl/internal/build"
+	"github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/root/products"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/iostreams"
+	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/kong/kongctl/internal/log"
 	"github.com/spf13/cobra"
 )
 
@@ -33,6 +34,7 @@ type Helper interface {
 	GetLogger() (*slog.Logger, error)
 	GetBuildInfo() (*build.Info, error)
 	GetContext() context.Context
+	GetKonnectSDKFactory() helpers.SDKFactory
 }
 
 type CommandHelper struct {
@@ -113,6 +115,10 @@ func (r *CommandHelper) GetOutputFormat() (common.OutputFormat, error) {
 
 func (r *CommandHelper) GetContext() context.Context {
 	return r.Cmd.Context()
+}
+
+func (r *CommandHelper) GetKonnectSDKFactory() helpers.SDKFactory {
+	return r.Cmd.Context().Value(helpers.SDKFactoryKey).(helpers.SDKFactory)
 }
 
 func BuildHelper(cmd *cobra.Command, args []string) Helper {

@@ -4,7 +4,7 @@ package cmd
 //	"fmt"
 //	"strings"
 //
-//	//"github.com/kong/kong-cli/internal/meta"
+//	//"github.com/kong/kongctl/internal/meta"
 //	"github.com/spf13/cobra"
 //	"github.com/spf13/pflag"
 //)

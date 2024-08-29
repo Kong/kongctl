@@ -3,8 +3,8 @@ package common
 import (
 	"log/slog"
 
-	"github.com/kong/kong-cli/internal/config"
-	"github.com/kong/kong-cli/internal/konnect/auth"
+	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/konnect/auth"
 )
 
 const (
@@ -44,7 +44,16 @@ var (
 	RequestPageSizeConfigPath = "konnect." + RequestPageSizeFlagName
 )
 
-func GetAccessToken(cfg config.Hook, logger *slog.Logger) (*auth.AccessToken, error) {
+func GetAccessToken(cfg config.Hook, logger *slog.Logger) (string, error) {
+	pat := cfg.GetString(PATConfigPath)
+	if pat != "" {
+		return pat, nil
+	}
+
 	refreshURL := cfg.GetString(BaseURLConfigPath) + cfg.GetString(RefreshPathConfigPath)
-	return auth.LoadAccessToken(cfg, refreshURL, logger)
+	tok, err := auth.LoadAccessToken(cfg, refreshURL, logger)
+	if err != nil {
+		return "", err
+	}
+	return tok.Token.AuthToken, nil
 }
