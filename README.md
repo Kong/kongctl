@@ -80,7 +80,7 @@ dev:
 When invoking commands that interact with the Kong Konnect API, 
 the following logic is used to determine which access token to use for requests.
 
-First, the CLI profile is determined by the `--profile` flag or the `KONG_PROFILE` environment variable.
+First, the CLI profile is determined by the `--profile` flag or the `KONGCTL_PROFILE` environment variable.
 Once the profile is known, the CLI looks for the Konnect Personal Access Token (PAT) in the following order:
 
 1. The `--pat` flag is used to specify the Konnect Personal Access Token. For example:
@@ -89,10 +89,10 @@ Once the profile is known, the CLI looks for the Konnect Personal Access Token (
     kongctl get konnect gateway control-planes --pat kpat_Pfjifj...
     ```
 
-2. The `KONG_<PROFILE>_KONNECT_PAT` where `<PROFILE>` is the name of the profile you are specifying for this command. For example:
+2. The `KONGCTL_<PROFILE>_KONNECT_PAT` where `<PROFILE>` is the name of the profile you are specifying for this command. For example:
 
     ```shell
-    KONG_DEV_KONNECT_PAT=kpat_Pfjifj... kongctl get konnect gateway control-planes
+    KONGCTL_DEV_KONNECT_PAT=kpat_Pfjifj... kongctl get konnect gateway control-planes
     ```
 
 3. If a PAT is not found, the CLI moves to using a Device Grant Authorization flow. This authorization technique uses a browser based flow allowing you
