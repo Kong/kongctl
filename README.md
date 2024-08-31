@@ -5,6 +5,67 @@ A CLI for operating Kong Gateway and Kong Konnect
 > :warning: **WARNING: This is a work in progress CLI. Do not use in production. The CLI is under
 heavy development and the API and behavior are subject to change.**
 
+## Installation
+
+### macOS
+
+If you are on macOS, install `kongctl` using Homebrew.
+
+Add the `kongctl` tap to your local Homebrew installation:
+
+```shell
+brew tap kong/kongctl
+```
+
+Install `kongctl`:
+
+```shell
+brew install kongctl
+```
+
+Verify the installation:
+
+```shell
+kongctl version --full
+```
+
+Which should report the installed version:
+
+```text
+0.0.12 (100a56d2e877b3004d3753446a98001c5010b478 : 2024-08-29T21:59:04Z)
+```
+
+Upgrades can be applied using:
+
+```shell
+brew upgrade kongctl
+```
+
+### Linux
+
+To install on Linux download the proper release from the the GitHub 
+[release page](https://github.com/kong/kongctl/releases) and extract the binary to a location in your PATH.
+
+For example to install the `0.0.12` version of the x86-64 compatible binary:
+
+```shell
+curl -sL https://github.com/Kong/kongctl/releases/download/v0.0.12/kongctl_linux_amd64.zip -o kongctl_linux_amd64.zip
+unzip kongctl_linux_amd64.zip -d /tmp
+sudo cp /tmp/kongctl /usr/local/bin/
+```
+
+Verify the installation:
+
+```shell
+kongctl version --full
+```
+
+Which should report the installed version:
+
+```text
+0.0.12 (100a56d2e877b3004d3753446a98001c5010b478 : 2024-08-29T21:59:04Z)
+```
+
 ## Usage
 
 ### Configuration File
