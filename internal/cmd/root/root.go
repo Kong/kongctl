@@ -19,7 +19,6 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/version"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/iostreams"
-	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/profile"
@@ -82,7 +81,6 @@ func newRootCmd() *cobra.Command {
 			ctx = context.WithValue(ctx, profile.ProfileManagerKey, pMgr)
 			ctx = context.WithValue(ctx, build.InfoKey, buildInfo)
 			ctx = context.WithValue(ctx, log.LoggerKey, logger)
-			ctx = context.WithValue(ctx, helpers.SDKFactoryKey, helpers.SDKFactory(helpers.KonnectSDKFactory))
 			cmd.SetContext(ctx)
 		},
 	}

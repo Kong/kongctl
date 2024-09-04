@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/kong/kongctl/internal/cmd"
-	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -32,12 +31,7 @@ func (c *deleteControlPlaneCmd) run(helper cmd.Helper) error {
 		return e
 	}
 
-	token, e := common.GetAccessToken(cfg, logger)
-	if e != nil {
-		return e
-	}
-
-	sdk, err := helper.GetKonnectSDKFactory()(cfg, token)
+	sdk, err := helper.GetKonnectSDKFactory()(cfg, logger)
 	if err != nil {
 		return err
 	}

@@ -34,7 +34,7 @@ type Helper interface {
 	GetLogger() (*slog.Logger, error)
 	GetBuildInfo() (*build.Info, error)
 	GetContext() context.Context
-	GetKonnectSDKFactory() helpers.SDKFactory
+	GetKonnectSDKFactory() helpers.SDKAPIFactory
 }
 
 type CommandHelper struct {
@@ -117,8 +117,8 @@ func (r *CommandHelper) GetContext() context.Context {
 	return r.Cmd.Context()
 }
 
-func (r *CommandHelper) GetKonnectSDKFactory() helpers.SDKFactory {
-	return r.Cmd.Context().Value(helpers.SDKFactoryKey).(helpers.SDKFactory)
+func (r *CommandHelper) GetKonnectSDKFactory() helpers.SDKAPIFactory {
+	return r.Cmd.Context().Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
 }
 
 func BuildHelper(cmd *cobra.Command, args []string) Helper {

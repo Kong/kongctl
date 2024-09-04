@@ -294,19 +294,19 @@ func (_c *MockHelper_GetContext_Call) RunAndReturn(run func() context.Context) *
 }
 
 // GetKonnectSDKFactory provides a mock function with given fields:
-func (_m *MockHelper) GetKonnectSDKFactory() helpers.SDKFactory {
+func (_m *MockHelper) GetKonnectSDKFactory() helpers.SDKAPIFactory {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetKonnectSDKFactory")
 	}
 
-	var r0 helpers.SDKFactory
-	if rf, ok := ret.Get(0).(func() helpers.SDKFactory); ok {
+	var r0 helpers.SDKAPIFactory
+	if rf, ok := ret.Get(0).(func() helpers.SDKAPIFactory); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(helpers.SDKFactory)
+			r0 = ret.Get(0).(helpers.SDKAPIFactory)
 		}
 	}
 
@@ -330,12 +330,12 @@ func (_c *MockHelper_GetKonnectSDKFactory_Call) Run(run func()) *MockHelper_GetK
 	return _c
 }
 
-func (_c *MockHelper_GetKonnectSDKFactory_Call) Return(_a0 helpers.SDKFactory) *MockHelper_GetKonnectSDKFactory_Call {
+func (_c *MockHelper_GetKonnectSDKFactory_Call) Return(_a0 helpers.SDKAPIFactory) *MockHelper_GetKonnectSDKFactory_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockHelper_GetKonnectSDKFactory_Call) RunAndReturn(run func() helpers.SDKFactory) *MockHelper_GetKonnectSDKFactory_Call {
+func (_c *MockHelper_GetKonnectSDKFactory_Call) RunAndReturn(run func() helpers.SDKAPIFactory) *MockHelper_GetKonnectSDKFactory_Call {
 	_c.Call.Return(run)
 	return _c
 }

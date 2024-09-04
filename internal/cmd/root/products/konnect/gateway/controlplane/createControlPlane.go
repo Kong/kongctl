@@ -10,7 +10,6 @@ import (
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/cmd"
-	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -187,12 +186,7 @@ func (c *createControlPlaneCmd) run(helper cmd.Helper) error {
 		Labels:       labels,
 	}
 
-	token, e := common.GetAccessToken(cfg, logger)
-	if e != nil {
-		return e
-	}
-
-	sdk, e := helper.GetKonnectSDKFactory()(cfg, token)
+	sdk, e := helper.GetKonnectSDKFactory()(cfg, logger)
 	if e != nil {
 		return e
 	}

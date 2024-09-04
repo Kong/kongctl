@@ -1,10 +1,13 @@
 package common
 
 import (
+	"fmt"
 	"log/slog"
 
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/auth"
+	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/kong/kongctl/internal/meta"
 )
 
 const (
@@ -56,4 +59,26 @@ func GetAccessToken(cfg config.Hook, logger *slog.Logger) (string, error) {
 		return "", err
 	}
 	return tok.Token.AuthToken, nil
+}
+
+// This is the real implementation of the SDKAPIFactory,
+// which creates a real Konnect SDK instance
+func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
+	token, e := GetAccessToken(cfg, logger)
+	if e != nil {
+		return nil, fmt.Errorf(
+			`no access token available. Use "%s login konnect" to authenticate or provide a Konnect PAT using the --pat flag`,
+			meta.CLIName)
+	}
+
+	baseURL := cfg.GetString(BaseURLConfigPath)
+
+	sdk, err := auth.GetAuthenticatedClient(baseURL, token)
+	if err != nil {
+		return nil, err
+	}
+
+	return &helpers.KonnectSDK{
+		SDK: sdk,
+	}, nil
 }

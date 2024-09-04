@@ -25,7 +25,7 @@ type MockHelper struct {
 	GetLoggerMock            func() (*slog.Logger, error)
 	GetBuildInfoMock         func() (*build.Info, error)
 	GetContextMock           func() context.Context
-	GetKonnectSDKFactoryMock func() helpers.SDKFactory
+	GetKonnectSDKFactoryMock func() helpers.SDKAPIFactory
 }
 
 func (m *MockHelper) GetCmd() *cobra.Command {
@@ -52,7 +52,7 @@ func (m *MockHelper) GetConfig() (config.Hook, error) {
 	return m.GetConfigMock()
 }
 
-func (m *MockHelper) GetKonnectSDKFactory() helpers.SDKFactory {
+func (m *MockHelper) GetKonnectSDKFactory() helpers.SDKAPIFactory {
 	return m.GetKonnectSDKFactoryMock()
 }
 

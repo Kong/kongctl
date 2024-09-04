@@ -300,14 +300,9 @@ func saveAccessTokenToDisk(path string, token *AccessToken) error {
 	return nil
 }
 
-type AuthenticatedClientFactory func(token string) (*kk.SDK, error)
-
-func GetAuthenticatedClient(cfg config.Hook, token string) (*kk.SDK, error) {
-	// TODO: This is a temporary workaround to avoid circular dependencies
-	url := cfg.GetString("konnect.base-url")
-
+func GetAuthenticatedClient(baseURL string, token string) (*kk.SDK, error) {
 	return kk.New(
-		kk.WithServerURL(url),
+		kk.WithServerURL(baseURL),
 		kk.WithSecurity(kkComps.Security{
 			PersonalAccessToken: kk.String(token),
 		}),
