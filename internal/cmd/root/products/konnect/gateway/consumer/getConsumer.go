@@ -133,7 +133,7 @@ func (c *getConsumerCmd) runE(cobraCmd *cobra.Command, args []string) error {
 			meta.CLIName)
 	}
 
-	kkClient, err := auth.GetAuthenticatedClient(token)
+	kkClient, err := auth.GetAuthenticatedClient(cfg, token)
 	if err != nil {
 		return err
 	}

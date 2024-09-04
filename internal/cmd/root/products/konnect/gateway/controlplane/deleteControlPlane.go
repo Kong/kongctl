@@ -37,7 +37,7 @@ func (c *deleteControlPlaneCmd) run(helper cmd.Helper) error {
 		return e
 	}
 
-	sdk, err := helper.GetKonnectSDKFactory()(token)
+	sdk, err := helper.GetKonnectSDKFactory()(cfg, token)
 	if err != nil {
 		return err
 	}

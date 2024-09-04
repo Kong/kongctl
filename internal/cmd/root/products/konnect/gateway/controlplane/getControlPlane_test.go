@@ -265,7 +265,7 @@ func TestGetControlPlaneCmd(t *testing.T) {
 					},
 				}
 
-				ctx = context.WithValue(ctx, helpers.SDKFactoryKey, helpers.SDKFactory(func(string) (helpers.SDKAPI, error) {
+				ctx = context.WithValue(ctx, helpers.SDKFactoryKey, helpers.SDKFactory(func(config.Hook, string) (helpers.SDKAPI, error) {
 					return &mockSDK, nil
 				}))
 

@@ -2,6 +2,7 @@ package helpers
 
 import (
 	kkSDK "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
+	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/auth"
 )
 
@@ -26,7 +27,7 @@ func (k *KonnectSDK) GetControlPlaneAPI() ControlPlaneAPI {
 
 // A function that can build an SDKAPI with a given
 // authorization token
-type SDKFactory func(token string) (SDKAPI, error)
+type SDKFactory func(cfg config.Hook, token string) (SDKAPI, error)
 
 type Key struct{}
 
@@ -35,8 +36,8 @@ var SDKFactoryKey = Key{}
 
 // THis is the real implementation of the SDKFactory,
 // It creates an Authenticated SDK instance from the adjacent auth package
-func KonnectSDKFactory(token string) (SDKAPI, error) {
-	sdk, err := auth.GetAuthenticatedClient(token)
+func KonnectSDKFactory(cfg config.Hook, token string) (SDKAPI, error) {
+	sdk, err := auth.GetAuthenticatedClient(cfg, token)
 	if err != nil {
 		return nil, err
 	}

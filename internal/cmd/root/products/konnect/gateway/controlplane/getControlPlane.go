@@ -249,7 +249,7 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 			meta.CLIName)
 	}
 
-	sdk, e := helper.GetKonnectSDKFactory()(token)
+	sdk, e := helper.GetKonnectSDKFactory()(cfg, token)
 	if e != nil {
 		return e
 	}

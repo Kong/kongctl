@@ -192,7 +192,7 @@ func (c *createControlPlaneCmd) run(helper cmd.Helper) error {
 		return e
 	}
 
-	sdk, e := helper.GetKonnectSDKFactory()(token)
+	sdk, e := helper.GetKonnectSDKFactory()(cfg, token)
 	if e != nil {
 		return e
 	}
