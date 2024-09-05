@@ -12,6 +12,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -242,7 +243,7 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		return e
 	}
 
-	sdk, e := helper.GetKonnectSDKFactory()(cfg, logger)
+	sdk, e := helper.GetKonnectSDK(cfg, logger)
 	if e != nil {
 		return e
 	}
@@ -291,15 +292,26 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 	return e
 }
 
-func newGetControlPlaneCmd(baseCmd *cobra.Command) *getControlPlaneCmd {
+func newGetControlPlaneCmd(verb verbs.VerbValue,
+	baseCmd *cobra.Command,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) *getControlPlaneCmd {
 	rv := getControlPlaneCmd{
 		Command: baseCmd,
 	}
 
-	baseCmd.Short = getControlPlanesShort
-	baseCmd.Long = getControlPlanesLong
-	baseCmd.Example = getControlPlanesExample
-	baseCmd.RunE = rv.runE
+	rv.Short = getControlPlanesShort
+	rv.Long = getControlPlanesLong
+	rv.Example = getControlPlanesExample
+	if parentPreRun != nil {
+		rv.PreRunE = parentPreRun
+	}
+	rv.RunE = rv.runE
+
+	if addParentFlags != nil {
+		addParentFlags(verb, rv.Command)
+	}
 
 	return &rv
 }

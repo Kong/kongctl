@@ -12,6 +12,7 @@ import (
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	kkCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/common"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -226,8 +227,7 @@ func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
 
 	defer printer.Flush()
 
-	kkFactory := helper.GetKonnectSDKFactory()
-	kkClient, err := kkFactory(cfg, logger)
+	kkClient, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
 		return err
 	}
@@ -273,7 +273,11 @@ func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	return c.runList(cpID, kkClient.(*helpers.KonnectSDK).SDK, helper, cfg, printer, outType)
 }
 
-func newGetServiceCmd(baseCmd *cobra.Command) *getServiceCmd {
+func newGetServiceCmd(verb verbs.VerbValue,
+	baseCmd *cobra.Command,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) *getServiceCmd {
 	rv := getServiceCmd{
 		Command: baseCmd,
 	}
@@ -281,6 +285,14 @@ func newGetServiceCmd(baseCmd *cobra.Command) *getServiceCmd {
 	baseCmd.Short = getServiceShort
 	baseCmd.Long = getServiceLong
 	baseCmd.Example = getServiceExamples
+
+	if addParentFlags != nil {
+		addParentFlags(verb, baseCmd)
+	}
+
+	if parentPreRun != nil {
+		baseCmd.PreRunE = parentPreRun
+	}
 	baseCmd.RunE = rv.runE
 
 	return &rv

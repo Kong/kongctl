@@ -8,8 +8,10 @@ import (
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/auth"
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
@@ -122,6 +124,40 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 	return nil
 }
 
+func (c *loginKonnectCmd) preRunE(cobraCmd *cobra.Command, args []string) error {
+	helper := cmd.BuildHelper(cobraCmd, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	f := c.Flags().Lookup(common.AuthPathFlagName)
+	err = cfg.BindFlag(common.AuthPathConfigPath, f)
+	if err != nil {
+		return err
+	}
+
+	f = c.Flags().Lookup(common.RefreshPathFlagName)
+	err = cfg.BindFlag(common.RefreshPathConfigPath, f)
+	if err != nil {
+		return err
+	}
+
+	f = c.Flags().Lookup(common.TokenPathFlagName)
+	err = cfg.BindFlag(common.TokenURLPathConfigPath, f)
+	if err != nil {
+		return err
+	}
+
+	f = c.Flags().Lookup(common.MachineClientIDFlagName)
+	err = cfg.BindFlag(common.MachineClientIDConfigPath, f)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *loginKonnectCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	helper := cmd.BuildHelper(cobraCmd, args)
 	if e := c.validate(helper); e != nil {
@@ -131,15 +167,54 @@ func (c *loginKonnectCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	return c.run(helper)
 }
 
-func newLoginKonnectCmd(baseCmd *cobra.Command) *loginKonnectCmd {
+func newLoginKonnectCmd(verb verbs.VerbValue,
+	baseCmd *cobra.Command,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) *loginKonnectCmd {
 	rv := loginKonnectCmd{
 		Command: baseCmd,
 	}
 
-	baseCmd.Short = loginKonnectShort
-	baseCmd.Long = loginKonnectLong
-	baseCmd.Example = loginKonnectExample
-	baseCmd.RunE = rv.runE
+	rv.Short = loginKonnectShort
+	rv.Long = loginKonnectLong
+	rv.Example = loginKonnectExample
+
+	addParentFlags(verb, rv.Command)
+
+	rv.Flags().String(common.AuthPathFlagName, common.AuthPathDefault,
+		fmt.Sprintf(`URL path used to initiate Konnect Authorization.
+- Config path: [ %s ]
+-`, // (default ...)
+			common.AuthPathConfigPath))
+
+	rv.Flags().String(common.RefreshPathFlagName, common.RefreshPathDefault,
+		fmt.Sprintf(`URL path used to refresh the Konnect auth token.
+- Config path: [ %s ]
+-`, // (default ...)
+			common.RefreshPathConfigPath))
+
+	rv.Flags().String(common.MachineClientIDFlagName, common.MachineClientIDDefault,
+		fmt.Sprintf(`Machine Client ID used to identify the application for Konnect Authorization.
+- Config path: [ %s ]
+-`, // (default ...)
+			common.MachineClientIDConfigPath))
+	util.CheckError(rv.Flags().MarkHidden(common.MachineClientIDFlagName))
+
+	rv.Flags().String(common.TokenPathFlagName, common.TokenPathDefault,
+		fmt.Sprintf(`URL path used to poll for the Konnect Authorization response token.
+- Config path: [ %s ]
+-`, // (default ...)
+			common.TokenURLPathConfigPath))
+
+	rv.PersistentPreRunE = func(c *cobra.Command, args []string) error {
+		e := parentPreRun(c, args)
+		if e != nil {
+			return e
+		}
+		return rv.preRunE(c, args)
+	}
+	rv.RunE = rv.runE
 
 	return &rv
 }

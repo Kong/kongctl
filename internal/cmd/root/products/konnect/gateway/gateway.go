@@ -18,7 +18,10 @@ var (
 		`The gateway command allows you to manage Konnect Kong Gateway resources.`))
 )
 
-func NewGatewayCmd(verb verbs.VerbValue) (*cobra.Command, error) {
+func NewGatewayCmd(verb verbs.VerbValue,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) (*cobra.Command, error) {
 	cmd := &cobra.Command{
 		Use:     gatewayUse,
 		Short:   gatewayShort,
@@ -26,25 +29,25 @@ func NewGatewayCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		Aliases: []string{"gw", "GW"},
 	}
 
-	c, e := controlplane.NewControlPlaneCmd(verb)
+	c, e := controlplane.NewControlPlaneCmd(verb, addParentFlags, parentPreRun)
 	if e != nil {
 		return nil, e
 	}
 	cmd.AddCommand(c)
 
-	c, e = service.NewServiceCmd(verb)
+	c, e = service.NewServiceCmd(verb, addParentFlags, parentPreRun)
 	if e != nil {
 		return nil, e
 	}
 	cmd.AddCommand(c)
 
-	c, e = route.NewRouteCmd(verb)
+	c, e = route.NewRouteCmd(verb, addParentFlags, parentPreRun)
 	if e != nil {
 		return nil, e
 	}
 	cmd.AddCommand(c)
 
-	c, e = consumer.NewConsumerCmd(verb)
+	c, e = consumer.NewConsumerCmd(verb, addParentFlags, parentPreRun)
 	if e != nil {
 		return nil, e
 	}

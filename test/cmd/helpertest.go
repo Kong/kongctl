@@ -15,17 +15,17 @@ import (
 )
 
 type MockHelper struct {
-	GetCmdMock               func() *cobra.Command
-	GetArgsMock              func() []string
-	GetVerbMock              func() (verbs.VerbValue, error)
-	GetProductMock           func() (products.ProductValue, error)
-	GetStreamsMock           func() *iostreams.IOStreams
-	GetConfigMock            func() (config.Hook, error)
-	GetOutputFormatMock      func() (common.OutputFormat, error)
-	GetLoggerMock            func() (*slog.Logger, error)
-	GetBuildInfoMock         func() (*build.Info, error)
-	GetContextMock           func() context.Context
-	GetKonnectSDKFactoryMock func() helpers.SDKAPIFactory
+	GetCmdMock          func() *cobra.Command
+	GetArgsMock         func() []string
+	GetVerbMock         func() (verbs.VerbValue, error)
+	GetProductMock      func() (products.ProductValue, error)
+	GetStreamsMock      func() *iostreams.IOStreams
+	GetConfigMock       func() (config.Hook, error)
+	GetOutputFormatMock func() (common.OutputFormat, error)
+	GetLoggerMock       func() (*slog.Logger, error)
+	GetBuildInfoMock    func() (*build.Info, error)
+	GetContextMock      func() context.Context
+	GetKonnectSDKMock   func(config.Hook, *slog.Logger) (helpers.SDKAPI, error)
 }
 
 func (m *MockHelper) GetCmd() *cobra.Command {
@@ -52,8 +52,8 @@ func (m *MockHelper) GetConfig() (config.Hook, error) {
 	return m.GetConfigMock()
 }
 
-func (m *MockHelper) GetKonnectSDKFactory() helpers.SDKAPIFactory {
-	return m.GetKonnectSDKFactoryMock()
+func (m *MockHelper) GetKonnectSDK(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
+	return m.GetKonnectSDKMock(cfg, logger)
 }
 
 func (m *MockHelper) GetOutputFormat() (common.OutputFormat, error) {

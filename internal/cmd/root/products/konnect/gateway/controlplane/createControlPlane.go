@@ -10,6 +10,7 @@ import (
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/cmd"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -27,7 +28,7 @@ const (
 )
 
 var (
-	createControlPlanesUse   = fmt.Sprintf("%s [%s]", CommandName, "name")
+	createControlPlanesUse   = fmt.Sprintf("%s [%s]", CommandName, "new-cp-name")
 	createControlPlanesShort = i18n.T("root.products.konnect.gateway.controlplane.createControlPlanesShort",
 		"Create a new Konnect Kong Gateway control plane")
 	createControlPlanesLong = i18n.T("root.products.konnect.gateway.controlplane.createControlPlanesLong",
@@ -186,7 +187,7 @@ func (c *createControlPlaneCmd) run(helper cmd.Helper) error {
 		Labels:       labels,
 	}
 
-	sdk, e := helper.GetKonnectSDKFactory()(cfg, logger)
+	sdk, e := helper.GetKonnectSDK(cfg, logger)
 	if e != nil {
 		return e
 	}
@@ -262,11 +263,25 @@ func (c *createControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) err
 	return c.run(helper)
 }
 
-func newCreateControlPlaneCmd(baseCmd *cobra.Command) *createControlPlaneCmd {
+func newCreateControlPlaneCmd(verb verbs.VerbValue,
+	baseCmd *cobra.Command,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) *createControlPlaneCmd {
 	rv := createControlPlaneCmd{
 		Command:     baseCmd,
 		clusterType: cmd.NewEnum([]string{"hybrid", "kic", "group", "serverless"}, "hybrid"),
 		authType:    cmd.NewEnum([]string{"pinned", "pki"}, "pinned"),
+	}
+
+	baseCmd.Use = createControlPlanesUse
+	baseCmd.Args = cobra.ExactArgs(1) // new cp name
+	baseCmd.Short = createControlPlanesShort
+	baseCmd.Long = createControlPlanesLong
+	baseCmd.Example = createControlPlanesExample
+
+	if addParentFlags != nil {
+		addParentFlags(verb, rv.Command)
 	}
 
 	baseCmd.Flags().String(CreateCpDescriptionFlagName, "",
@@ -299,12 +314,15 @@ Provide multiple URLs as a comma-separated list. URLs must be in the format: <pr
 Labels are specified as [ key=value ] pairs and can be provided in a list.
 - Config path: [ %s ]`, createCpLabelsConfigPath))
 
-	baseCmd.Use = createControlPlanesUse
-	baseCmd.Args = cobra.ExactArgs(1) // new cp name
-	baseCmd.Short = createControlPlanesShort
-	baseCmd.Long = createControlPlanesLong
-	baseCmd.Example = createControlPlanesExample
-	baseCmd.PreRunE = rv.preRunE
+	baseCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		if parentPreRun != nil {
+			e := parentPreRun(cmd, args)
+			if e != nil {
+				return e
+			}
+		}
+		return rv.preRunE(cmd, args)
+	}
 	baseCmd.RunE = rv.runE
 
 	return &rv

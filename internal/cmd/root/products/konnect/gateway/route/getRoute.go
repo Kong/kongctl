@@ -12,6 +12,7 @@ import (
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	kkCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/common"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -229,8 +230,7 @@ func (c *getRouteCmd) runE(cobraCmd *cobra.Command, args []string) error {
 
 	defer printer.Flush()
 
-	kkFactory := helper.GetKonnectSDKFactory()
-	kkClient, err := kkFactory(cfg, logger)
+	kkClient, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
 		return err
 	}
@@ -276,7 +276,11 @@ func (c *getRouteCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	return c.runList(cpID, kkClient.(*helpers.KonnectSDK).SDK, helper, cfg, printer, outType)
 }
 
-func newGetRouteCmd(baseCmd *cobra.Command) *getRouteCmd {
+func newGetRouteCmd(verb verbs.VerbValue,
+	baseCmd *cobra.Command,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) *getRouteCmd {
 	rv := getRouteCmd{
 		Command: baseCmd,
 	}
@@ -284,7 +288,15 @@ func newGetRouteCmd(baseCmd *cobra.Command) *getRouteCmd {
 	baseCmd.Short = getRouteShort
 	baseCmd.Long = getRouteLong
 	baseCmd.Example = getRouteExamples
+
+	if addParentFlags != nil {
+		addParentFlags(verb, baseCmd)
+	}
+
 	baseCmd.RunE = rv.runE
+	if parentPreRun != nil {
+		baseCmd.PreRunE = parentPreRun
+	}
 
 	return &rv
 }

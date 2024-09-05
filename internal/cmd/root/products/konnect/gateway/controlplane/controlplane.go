@@ -32,7 +32,10 @@ var (
 	`, meta.CLIName)))
 )
 
-func NewControlPlaneCmd(verb verbs.VerbValue) (*cobra.Command, error) {
+func NewControlPlaneCmd(verb verbs.VerbValue,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) (*cobra.Command, error) {
 	baseCmd := cobra.Command{
 		Use:     controlPlanesUse,
 		Short:   controlPlanesShort,
@@ -42,11 +45,11 @@ func NewControlPlaneCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	}
 
 	if verb == verbs.Get || verb == verbs.List {
-		return newGetControlPlaneCmd(&baseCmd).Command, nil
+		return newGetControlPlaneCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
 	} else if verb == verbs.Create {
-		return newCreateControlPlaneCmd(&baseCmd).Command, nil
+		return newCreateControlPlaneCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
 	} else if verb == verbs.Delete {
-		return newDeleteControlPlaneCmd(&baseCmd).Command, nil
+		return newDeleteControlPlaneCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
 	}
 
 	return &baseCmd, nil
