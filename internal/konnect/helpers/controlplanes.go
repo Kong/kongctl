@@ -22,7 +22,7 @@ type ControlPlaneAPI interface {
 		opts ...kkOPS.Option) (*kkOPS.DeleteControlPlaneResponse, error)
 }
 
-func GetControlPlaneID(ctx context.Context, kkClient *kkSDK.SDK, cpName string) (string, error) {
+func GetControlPlaneID(ctx context.Context, kkClient ControlPlaneAPI, cpName string) (string, error) {
 	var pageNumber, requestPageSize int64 = 1, 1
 
 	req := kkOPS.ListControlPlanesRequest{
@@ -31,7 +31,7 @@ func GetControlPlaneID(ctx context.Context, kkClient *kkSDK.SDK, cpName string) 
 		FilterNameEq: kkSDK.String(cpName),
 	}
 
-	res, err := kkClient.ControlPlanes.ListControlPlanes(ctx, req)
+	res, err := kkClient.ListControlPlanes(ctx, req)
 	if err != nil {
 		return "", err
 	}

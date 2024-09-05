@@ -300,10 +300,9 @@ func saveAccessTokenToDisk(path string, token *AccessToken) error {
 	return nil
 }
 
-type AuthenticatedClientFactory func(token string) (*kk.SDK, error)
-
-func GetAuthenticatedClient(token string) (*kk.SDK, error) {
+func GetAuthenticatedClient(baseURL string, token string) (*kk.SDK, error) {
 	return kk.New(
+		kk.WithServerURL(baseURL),
 		kk.WithSecurity(kkComps.Security{
 			PersonalAccessToken: kk.String(token),
 		}),

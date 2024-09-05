@@ -12,8 +12,8 @@ import (
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	kkCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/common"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
-	"github.com/kong/kongctl/internal/konnect/auth"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -227,14 +227,7 @@ func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
 
 	defer printer.Flush()
 
-	token, e := kkCommon.GetAccessToken(cfg, logger)
-	if e != nil {
-		return fmt.Errorf(
-			`no access token available. Use "%s login konnect" to authenticate or provide a Konnect PAT using the --pat flag`,
-			meta.CLIName)
-	}
-
-	kkClient, err := auth.GetAuthenticatedClient(token)
+	kkClient, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
 		return err
 	}
@@ -248,12 +241,15 @@ func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
 			}
 		}
 		var err error
-		cpID, err = helpers.GetControlPlaneID(helper.GetContext(), kkClient, cpName)
+		cpID, err = helpers.GetControlPlaneID(helper.GetContext(), kkClient.GetControlPlaneAPI(), cpName)
 		if err != nil {
 			attrs := cmd.TryConvertErrorToAttrs(err)
 			return cmd.PrepareExecutionError("Failed to get Control Plane ID", err, helper.GetCmd(), attrs...)
 		}
 	}
+
+	// TODO!: Fix up the below casting to Konnect SDKs, as it will fail in testing once that is written.
+	//         A service API needs to be added to our internal SDK API interfaces
 
 	// 'get konnect gateway services' can be run like various ways:
 	//	> get konnect gateway services <id>    # Get by UUID
@@ -268,16 +264,20 @@ func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		if !isUUID {
 			// If the ID is not a UUID, then it is a name
 			// search for the control plane by name
-			return c.runListByName(cpID, id, kkClient, helper, cfg, printer, outType)
+			return c.runListByName(cpID, id, kkClient.(*helpers.KonnectSDK).SDK, helper, cfg, printer, outType)
 		}
 
-		return c.runGet(cpID, id, kkClient, helper, printer, outType)
+		return c.runGet(cpID, id, kkClient.(*helpers.KonnectSDK).SDK, helper, printer, outType)
 	}
 
-	return c.runList(cpID, kkClient, helper, cfg, printer, outType)
+	return c.runList(cpID, kkClient.(*helpers.KonnectSDK).SDK, helper, cfg, printer, outType)
 }
 
-func newGetServiceCmd(baseCmd *cobra.Command) *getServiceCmd {
+func newGetServiceCmd(verb verbs.VerbValue,
+	baseCmd *cobra.Command,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) *getServiceCmd {
 	rv := getServiceCmd{
 		Command: baseCmd,
 	}
@@ -285,6 +285,14 @@ func newGetServiceCmd(baseCmd *cobra.Command) *getServiceCmd {
 	baseCmd.Short = getServiceShort
 	baseCmd.Long = getServiceLong
 	baseCmd.Example = getServiceExamples
+
+	if addParentFlags != nil {
+		addParentFlags(verb, baseCmd)
+	}
+
+	if parentPreRun != nil {
+		baseCmd.PreRunE = parentPreRun
+	}
 	baseCmd.RunE = rv.runE
 
 	return &rv

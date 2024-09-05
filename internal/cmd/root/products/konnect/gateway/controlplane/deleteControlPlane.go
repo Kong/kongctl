@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/kong/kongctl/internal/cmd"
-	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -32,12 +32,7 @@ func (c *deleteControlPlaneCmd) run(helper cmd.Helper) error {
 		return e
 	}
 
-	token, e := common.GetAccessToken(cfg, logger)
-	if e != nil {
-		return e
-	}
-
-	sdk, err := helper.GetKonnectSDKFactory()(token)
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
 		return err
 	}
@@ -74,13 +69,28 @@ func (c *deleteControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) err
 	return c.run(helper)
 }
 
-func newDeleteControlPlaneCmd(baseCmd *cobra.Command) *deleteControlPlaneCmd {
+func newDeleteControlPlaneCmd(verb verbs.VerbValue,
+	baseCmd *cobra.Command,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) *deleteControlPlaneCmd {
 	rv := deleteControlPlaneCmd{
 		Command: baseCmd,
 	}
 
+	if addParentFlags != nil {
+		addParentFlags(verb, baseCmd)
+	}
+
 	baseCmd.RunE = rv.runE
-	baseCmd.PreRunE = rv.preRunE
+	baseCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		if parentPreRun != nil {
+			if e := parentPreRun(cmd, args); e != nil {
+				return e
+			}
+		}
+		return rv.preRunE(cmd, args)
+	}
 
 	return &rv
 }

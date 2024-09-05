@@ -26,7 +26,10 @@ var (
 	`, meta.CLIName)))
 )
 
-func NewRouteCmd(verb verbs.VerbValue) (*cobra.Command, error) {
+func NewRouteCmd(verb verbs.VerbValue,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) (*cobra.Command, error) {
 	baseCmd := cobra.Command{
 		Use:     routeUse,
 		Short:   routeShort,
@@ -38,10 +41,15 @@ func NewRouteCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		},
 	}
 
-	common.AddControlPlaneFlags(&baseCmd)
+	addFlagsFunc := func(verb verbs.VerbValue, cmd *cobra.Command) {
+		common.AddControlPlaneFlags(cmd)
+		if addParentFlags != nil {
+			addParentFlags(verb, cmd)
+		}
+	}
 
 	if verb == verbs.Get || verb == verbs.List {
-		return newGetRouteCmd(&baseCmd).Command, nil
+		return newGetRouteCmd(verb, &baseCmd, addFlagsFunc, parentPreRun).Command, nil
 	}
 
 	return &baseCmd, nil

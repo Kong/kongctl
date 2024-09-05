@@ -26,7 +26,10 @@ var (
 	`, meta.CLIName)))
 )
 
-func NewServiceCmd(verb verbs.VerbValue) (*cobra.Command, error) {
+func NewServiceCmd(verb verbs.VerbValue,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) (*cobra.Command, error) {
 	baseCmd := cobra.Command{
 		Use:     serviceUse,
 		Short:   serviceShort,
@@ -38,10 +41,15 @@ func NewServiceCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		Aliases: []string{"services", "svc", "svcs"},
 	}
 
-	common.AddControlPlaneFlags(&baseCmd)
+	addFlagsFunc := func(verb verbs.VerbValue, cmd *cobra.Command) {
+		common.AddControlPlaneFlags(cmd)
+		if addParentFlags != nil {
+			addParentFlags(verb, cmd)
+		}
+	}
 
 	if verb == verbs.Get || verb == verbs.List {
-		return newGetServiceCmd(&baseCmd).Command, nil
+		return newGetServiceCmd(verb, &baseCmd, addFlagsFunc, parentPreRun).Command, nil
 	}
 
 	return &baseCmd, nil

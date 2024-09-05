@@ -8,8 +8,8 @@ import (
 	"github.com/kong/kongctl/internal/cmd"
 	kkCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/common"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
-	"github.com/kong/kongctl/internal/konnect/auth"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -104,12 +104,12 @@ func (c *getConsumerCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		return e
 	}
 
-	cfg, e := helper.GetConfig()
+	logger, e := helper.GetLogger()
 	if e != nil {
 		return e
 	}
 
-	logger, e := helper.GetLogger()
+	cfg, e := helper.GetConfig()
 	if e != nil {
 		return e
 	}
@@ -126,14 +126,7 @@ func (c *getConsumerCmd) runE(cobraCmd *cobra.Command, args []string) error {
 
 	defer printer.Flush()
 
-	token, e := kkCommon.GetAccessToken(cfg, logger)
-	if e != nil {
-		return fmt.Errorf(
-			`no access token available. Use "%s login konnect" to authenticate or provide a Konnect PAT using the --pat flag`,
-			meta.CLIName)
-	}
-
-	kkClient, err := auth.GetAuthenticatedClient(token)
+	kkClient, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
 		return err
 	}
@@ -147,12 +140,15 @@ func (c *getConsumerCmd) runE(cobraCmd *cobra.Command, args []string) error {
 			}
 		}
 		var err error
-		cpID, err = helpers.GetControlPlaneID(helper.GetContext(), kkClient, cpName)
+		cpID, err = helpers.GetControlPlaneID(helper.GetContext(), kkClient.GetControlPlaneAPI(), cpName)
 		if err != nil {
 			attrs := cmd.TryConvertErrorToAttrs(err)
 			return cmd.PrepareExecutionError("Failed to get Control Plane ID", err, helper.GetCmd(), attrs...)
 		}
 	}
+
+	// TODO!: Fix up the below casting to Konnect SDKs, as it will fail in testing once that is written.
+	//         A service API needs to be added to our internal SDK API interfaces
 
 	// 'get konnect gateway consumers ' can be run like various ways:
 	//	> get konnect gateway consumers <id>				# Get by UUID
@@ -162,21 +158,25 @@ func (c *getConsumerCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		id := helper.GetArgs()[0]
 
 		isUUID, _ := regexp.MatchString(`^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`, id)
-		// TODO: Is capturing the blanked error necessary?
+		// TODO: Is capturing the previous blanked error advised?
 
 		if !isUUID {
 			// If the ID is not a UUID, then it is a name
 			// search for the control plane by name
-			return c.runListByUsername(cpID, id, kkClient, helper, cfg, printer)
+			return c.runListByUsername(cpID, id, kkClient.(*helpers.KonnectSDK).SDK, helper, cfg, printer)
 		}
 
-		return c.runGet(cpID, id, kkClient, helper, printer)
+		return c.runGet(cpID, id, kkClient.(*helpers.KonnectSDK).SDK, helper, printer)
 	}
 
-	return c.runList(cpID, kkClient, helper, cfg, printer)
+	return c.runList(cpID, kkClient.(*helpers.KonnectSDK).SDK, helper, cfg, printer)
 }
 
-func newGetConsumerCmd(baseCmd *cobra.Command) *getConsumerCmd {
+func newGetConsumerCmd(verb verbs.VerbValue,
+	baseCmd *cobra.Command,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) *getConsumerCmd {
 	rv := getConsumerCmd{
 		Command: baseCmd,
 	}
@@ -184,7 +184,15 @@ func newGetConsumerCmd(baseCmd *cobra.Command) *getConsumerCmd {
 	baseCmd.Short = getConsumerShort
 	baseCmd.Long = getConsumerLong
 	baseCmd.Example = getConsumerExamples
+
+	if addParentFlags != nil {
+		addParentFlags(verb, baseCmd)
+	}
+
 	baseCmd.RunE = rv.runE
+	if parentPreRun != nil {
+		baseCmd.PreRunE = parentPreRun
+	}
 
 	return &rv
 }

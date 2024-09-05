@@ -219,8 +219,8 @@ func TestGetControlPlaneCmd(t *testing.T) {
 		{
 			Name: "get-by-id",
 			Cmd: func() *cobra.Command {
-				baseCmd, _ := NewControlPlaneCmd(verbs.Get)
-				newGetControlPlaneCmd(baseCmd)
+				baseCmd, _ := NewControlPlaneCmd(verbs.Get, nil, nil)
+				newGetControlPlaneCmd(verbs.Get, baseCmd, nil, nil)
 				return baseCmd
 			}(),
 			Setup: func() (context.Context, *helpers.MockControlPlaneAPI) {
@@ -265,9 +265,11 @@ func TestGetControlPlaneCmd(t *testing.T) {
 					},
 				}
 
-				ctx = context.WithValue(ctx, helpers.SDKFactoryKey, helpers.SDKFactory(func(string) (helpers.SDKAPI, error) {
-					return &mockSDK, nil
-				}))
+				ctx = context.WithValue(ctx,
+					helpers.SDKAPIFactoryKey,
+					helpers.SDKAPIFactory(func(config.Hook, *slog.Logger) (helpers.SDKAPI, error) {
+						return &mockSDK, nil
+					}))
 
 				return ctx, mockCPAPI
 			},

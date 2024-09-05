@@ -293,49 +293,61 @@ func (_c *MockHelper_GetContext_Call) RunAndReturn(run func() context.Context) *
 	return _c
 }
 
-// GetKonnectSDKFactory provides a mock function with given fields:
-func (_m *MockHelper) GetKonnectSDKFactory() helpers.SDKFactory {
-	ret := _m.Called()
+// GetKonnectSDK provides a mock function with given fields: cfg, logger
+func (_m *MockHelper) GetKonnectSDK(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
+	ret := _m.Called(cfg, logger)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetKonnectSDKFactory")
+		panic("no return value specified for GetKonnectSDK")
 	}
 
-	var r0 helpers.SDKFactory
-	if rf, ok := ret.Get(0).(func() helpers.SDKFactory); ok {
-		r0 = rf()
+	var r0 helpers.SDKAPI
+	var r1 error
+	if rf, ok := ret.Get(0).(func(config.Hook, *slog.Logger) (helpers.SDKAPI, error)); ok {
+		return rf(cfg, logger)
+	}
+	if rf, ok := ret.Get(0).(func(config.Hook, *slog.Logger) helpers.SDKAPI); ok {
+		r0 = rf(cfg, logger)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(helpers.SDKFactory)
+			r0 = ret.Get(0).(helpers.SDKAPI)
 		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(config.Hook, *slog.Logger) error); ok {
+		r1 = rf(cfg, logger)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
-// MockHelper_GetKonnectSDKFactory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetKonnectSDKFactory'
-type MockHelper_GetKonnectSDKFactory_Call struct {
+// MockHelper_GetKonnectSDK_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetKonnectSDK'
+type MockHelper_GetKonnectSDK_Call struct {
 	*mock.Call
 }
 
-// GetKonnectSDKFactory is a helper method to define mock.On call
-func (_e *MockHelper_Expecter) GetKonnectSDKFactory() *MockHelper_GetKonnectSDKFactory_Call {
-	return &MockHelper_GetKonnectSDKFactory_Call{Call: _e.mock.On("GetKonnectSDKFactory")}
+// GetKonnectSDK is a helper method to define mock.On call
+//   - cfg config.Hook
+//   - logger *slog.Logger
+func (_e *MockHelper_Expecter) GetKonnectSDK(cfg interface{}, logger interface{}) *MockHelper_GetKonnectSDK_Call {
+	return &MockHelper_GetKonnectSDK_Call{Call: _e.mock.On("GetKonnectSDK", cfg, logger)}
 }
 
-func (_c *MockHelper_GetKonnectSDKFactory_Call) Run(run func()) *MockHelper_GetKonnectSDKFactory_Call {
+func (_c *MockHelper_GetKonnectSDK_Call) Run(run func(cfg config.Hook, logger *slog.Logger)) *MockHelper_GetKonnectSDK_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		run(args[0].(config.Hook), args[1].(*slog.Logger))
 	})
 	return _c
 }
 
-func (_c *MockHelper_GetKonnectSDKFactory_Call) Return(_a0 helpers.SDKFactory) *MockHelper_GetKonnectSDKFactory_Call {
-	_c.Call.Return(_a0)
+func (_c *MockHelper_GetKonnectSDK_Call) Return(_a0 helpers.SDKAPI, _a1 error) *MockHelper_GetKonnectSDK_Call {
+	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockHelper_GetKonnectSDKFactory_Call) RunAndReturn(run func() helpers.SDKFactory) *MockHelper_GetKonnectSDKFactory_Call {
+func (_c *MockHelper_GetKonnectSDK_Call) RunAndReturn(run func(config.Hook, *slog.Logger) (helpers.SDKAPI, error)) *MockHelper_GetKonnectSDK_Call {
 	_c.Call.Return(run)
 	return _c
 }
