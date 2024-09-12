@@ -5,6 +5,7 @@ import (
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/err"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -32,14 +33,14 @@ func (c *deleteControlPlaneCmd) run(helper cmd.Helper) error {
 		return e
 	}
 
-	sdk, err := helper.GetKonnectSDK(cfg, logger)
-	if err != nil {
-		return err
+	sdk, e := helper.GetKonnectSDK(cfg, logger)
+	if e != nil {
+		return e
 	}
 
-	res, err := sdk.GetControlPlaneAPI().DeleteControlPlane(ctx, id)
-	if err != nil {
-		attrs := cmd.TryConvertErrorToAttrs(e)
+	res, e := sdk.GetControlPlaneAPI().DeleteControlPlane(ctx, id)
+	if e != nil {
+		attrs := err.TryConvertErrorToAttrs(e)
 		return cmd.PrepareExecutionError("Failed to delete Control Plane", e, helper.GetCmd(), attrs...)
 	}
 

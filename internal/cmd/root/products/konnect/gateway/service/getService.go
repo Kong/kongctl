@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/err"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -111,19 +113,19 @@ var (
 
 func (c *getServiceCmd) validate(helper cmd.Helper) error {
 	if len(helper.GetArgs()) > 1 {
-		return &cmd.ConfigurationError{
+		return &err.ConfigurationError{
 			Err: fmt.Errorf("too many arguments. Listing gateway services requires 0 or 1 arguments (name or ID)"),
 		}
 	}
 
-	config, err := helper.GetConfig()
-	if err != nil {
-		return err
+	config, e := helper.GetConfig()
+	if e != nil {
+		return e
 	}
 
 	pageSize := config.GetInt(kkCommon.RequestPageSizeConfigPath)
 	if pageSize < 1 {
-		return &cmd.ConfigurationError{
+		return &err.ConfigurationError{
 			Err: fmt.Errorf("%s must be greater than 0", kkCommon.RequestPageSizeFlagName),
 		}
 	}
@@ -136,10 +138,10 @@ func (c *getServiceCmd) runListByName(cpID string, name string,
 ) error {
 	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
 
-	allData, err := helpers.GetAllGatewayServices(helper.GetContext(), requestPageSize, cpID, kkClient)
-	if err != nil {
-		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to list Gateway Services", err, helper.GetCmd(), attrs...)
+	allData, e := helpers.GetAllGatewayServices(helper.GetContext(), requestPageSize, cpID, kkClient)
+	if e != nil {
+		attrs := err.TryConvertErrorToAttrs(e)
+		return cmd.PrepareExecutionError("Failed to list Gateway Services", e, helper.GetCmd(), attrs...)
 	}
 
 	for _, service := range allData {
@@ -158,10 +160,10 @@ func (c *getServiceCmd) runListByName(cpID string, name string,
 func (c *getServiceCmd) runGet(cpID string, id string,
 	kkClient *kk.SDK, helper cmd.Helper, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
 ) error {
-	res, err := kkClient.Services.GetService(helper.GetContext(), cpID, id)
-	if err != nil {
-		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to get Gateway Service", err, helper.GetCmd(), attrs...)
+	res, e := kkClient.Services.GetService(helper.GetContext(), cpID, id)
+	if e != nil {
+		attrs := err.TryConvertErrorToAttrs(e)
+		return cmd.PrepareExecutionError("Failed to get Gateway Service", e, helper.GetCmd(), attrs...)
 	}
 
 	if outputFormat == cmdCommon.TEXT {
@@ -180,10 +182,10 @@ func (c *getServiceCmd) runList(cpID string,
 
 	// TODO: Explore streaming of data. We can expect some large data sets, especially for GW entities.
 	//		   Right now these functions are loading all data into memory before printing.
-	allData, err := helpers.GetAllGatewayServices(helper.GetContext(), requestPageSize, cpID, kkClient)
-	if err != nil {
-		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to list Gateway Services", err, helper.GetCmd(), attrs...)
+	allData, e := helpers.GetAllGatewayServices(helper.GetContext(), requestPageSize, cpID, kkClient)
+	if e != nil {
+		attrs := err.TryConvertErrorToAttrs(e)
+		return cmd.PrepareExecutionError("Failed to list Gateway Services", e, helper.GetCmd(), attrs...)
 	}
 
 	if outputFormat == cmdCommon.TEXT {
@@ -227,25 +229,21 @@ func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
 
 	defer printer.Flush()
 
-	kkClient, err := helper.GetKonnectSDK(cfg, logger)
-	if err != nil {
-		return err
+	kkClient, e := helper.GetKonnectSDK(cfg, logger)
+	if e != nil {
+		return e
 	}
 
-	cpID := cfg.GetString(common.ControlPlaneIDConfigPath)
-	if cpID == "" {
-		cpName := cfg.GetString(common.ControlPlaneNameConfigPath)
-		if cpName == "" {
-			return &cmd.ConfigurationError{
-				Err: fmt.Errorf("control plane ID or name is required"),
-			}
+	cpID, e := helpers.GetControlPlaneIDByNameIfNecessary(helper.GetContext(), kkClient.GetControlPlaneAPI(),
+		cfg.GetString(common.ControlPlaneIDConfigPath),
+		cfg.GetString(common.ControlPlaneNameConfigPath))
+
+	if e != nil {
+		var ee *err.ExecutionError
+		if errors.As(e, &ee) {
+			return cmd.PrepareExecutionError("Failed to get Control Plane ID", ee.Err, helper.GetCmd(), ee.Attrs)
 		}
-		var err error
-		cpID, err = helpers.GetControlPlaneID(helper.GetContext(), kkClient.GetControlPlaneAPI(), cpName)
-		if err != nil {
-			attrs := cmd.TryConvertErrorToAttrs(err)
-			return cmd.PrepareExecutionError("Failed to get Control Plane ID", err, helper.GetCmd(), attrs...)
-		}
+		return e
 	}
 
 	// TODO!: Fix up the below casting to Konnect SDKs, as it will fail in testing once that is written.
@@ -282,18 +280,18 @@ func newGetServiceCmd(verb verbs.VerbValue,
 		Command: baseCmd,
 	}
 
-	baseCmd.Short = getServiceShort
-	baseCmd.Long = getServiceLong
-	baseCmd.Example = getServiceExamples
+	rv.Short = getServiceShort
+	rv.Long = getServiceLong
+	rv.Example = getServiceExamples
 
 	if addParentFlags != nil {
 		addParentFlags(verb, baseCmd)
 	}
 
 	if parentPreRun != nil {
-		baseCmd.PreRunE = parentPreRun
+		rv.PreRunE = parentPreRun
 	}
-	baseCmd.RunE = rv.runE
+	rv.RunE = rv.runE
 
 	return &rv
 }

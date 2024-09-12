@@ -14,6 +14,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/err"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -125,10 +126,10 @@ func runListByName(name string, kkClient helpers.ControlPlaneAPI, helper cmd.Hel
 			FilterNameEq: kk.String(name),
 		}
 
-		res, err := kkClient.ListControlPlanes(helper.GetContext(), req)
-		if err != nil {
-			attrs := cmd.TryConvertErrorToAttrs(err)
-			return nil, cmd.PrepareExecutionError("Failed to list Control Planes", err, helper.GetCmd(), attrs...)
+		res, e := kkClient.ListControlPlanes(helper.GetContext(), req)
+		if e != nil {
+			attrs := err.TryConvertErrorToAttrs(e)
+			return nil, cmd.PrepareExecutionError("Failed to list Control Planes", e, helper.GetCmd(), attrs...)
 		}
 
 		allData = append(allData, res.GetListControlPlanesResponse().Data...)
@@ -163,10 +164,10 @@ func runList(kkClient helpers.ControlPlaneAPI, helper cmd.Helper,
 			PageNumber: kk.Int64(pageNumber),
 		}
 
-		res, err := kkClient.ListControlPlanes(helper.GetContext(), req)
-		if err != nil {
-			attrs := cmd.TryConvertErrorToAttrs(err)
-			return nil, cmd.PrepareExecutionError("Failed to list Control Planes", err, helper.GetCmd(), attrs...)
+		res, e := kkClient.ListControlPlanes(helper.GetContext(), req)
+		if e != nil {
+			attrs := err.TryConvertErrorToAttrs(e)
+			return nil, cmd.PrepareExecutionError("Failed to list Control Planes", e, helper.GetCmd(), attrs...)
 		}
 
 		allData = append(allData, res.GetListControlPlanesResponse().Data...)
@@ -184,10 +185,10 @@ func runList(kkClient helpers.ControlPlaneAPI, helper cmd.Helper,
 
 func runGet(id string, kkClient helpers.ControlPlaneAPI, helper cmd.Helper,
 ) (*kkComps.ControlPlane, error) {
-	res, err := kkClient.GetControlPlane(helper.GetContext(), id)
-	if err != nil {
-		attrs := cmd.TryConvertErrorToAttrs(err)
-		return nil, cmd.PrepareExecutionError("Failed to get Control Plane", err, helper.GetCmd(), attrs...)
+	res, e := kkClient.GetControlPlane(helper.GetContext(), id)
+	if e != nil {
+		attrs := err.TryConvertErrorToAttrs(e)
+		return nil, cmd.PrepareExecutionError("Failed to get Control Plane", e, helper.GetCmd(), attrs...)
 	}
 
 	return res.GetControlPlane(), nil
@@ -195,19 +196,19 @@ func runGet(id string, kkClient helpers.ControlPlaneAPI, helper cmd.Helper,
 
 func (c *getControlPlaneCmd) validate(helper cmd.Helper) error {
 	if len(helper.GetArgs()) > 1 {
-		return &cmd.ConfigurationError{
+		return &err.ConfigurationError{
 			Err: fmt.Errorf("too many arguments. Listing control planes requires 0 or 1 arguments (name or ID)"),
 		}
 	}
 
-	config, err := helper.GetConfig()
-	if err != nil {
-		return err
+	config, e := helper.GetConfig()
+	if e != nil {
+		return e
 	}
 
 	pageSize := config.GetInt(common.RequestPageSizeConfigPath)
 	if pageSize < 1 {
-		return &cmd.ConfigurationError{
+		return &err.ConfigurationError{
 			Err: fmt.Errorf("%s must be greater than 0", common.RequestPageSizeFlagName),
 		}
 	}

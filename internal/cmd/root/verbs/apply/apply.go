@@ -22,7 +22,7 @@ var (
 	applyShort = i18n.T("root.verbs.apply.applyShort", "Apply configurations")
 
 	applyLong = normalizers.LongDesc(i18n.T("root.verbs.apply.applyLong",
-		`Use apply to apply a configuration to a system.
+		`Use apply to apply a declarative configuration to a system.
 
 Further sub-commands are required to determine which remote system is contacted. 
 The command will apply a given configuration and report a result depending on further arguments.

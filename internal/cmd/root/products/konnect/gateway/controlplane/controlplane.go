@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	CommandName = "control-plane"
+	CommandName     = "control-plane"
+	ControlPlaneURL = "/v2/control-planes"
 )
 
 var (
