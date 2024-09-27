@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/kong/kongctl/internal/cmd/root/products/gateway"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
@@ -48,6 +49,13 @@ func NewApplyCmd() (*cobra.Command, error) {
 	}
 
 	c, e := konnect.NewKonnectCmd(Verb)
+	if e != nil {
+		return nil, e
+	}
+
+	cmd.AddCommand(c)
+
+	c, e = gateway.NewGatewayCmd(Verb)
 	if e != nil {
 		return nil, e
 	}

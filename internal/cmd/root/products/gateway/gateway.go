@@ -2,7 +2,7 @@ package gateway
 
 import (
 	"github.com/kong/kongctl/internal/cmd/root/products"
-	"github.com/kong/kongctl/internal/iostreams"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
@@ -19,16 +19,17 @@ var (
 		`The gateway command allows you to manage Kong Gateway resources.`))
 )
 
-func NewGatewayCmd(_ *iostreams.IOStreams) *cobra.Command {
+func NewGatewayCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	cmd := &cobra.Command{
-		Use:   gatewayUse,
-		Short: gatewayShort,
-		Long:  gatewayLong,
+		Use:     gatewayUse,
+		Short:   gatewayShort,
+		Long:    gatewayLong,
+		Aliases: []string{"g", "G"},
 	}
 
-	// TODO: Add service and route commands back in when they are implemented
-	// cmd.AddCommand(service.NewServiceCmd(streams))
-	// cmd.AddCommand(route.NewRouteCmd(streams))
+	if verb == verbs.Apply {
+		return newApplyGatewayCmd(verb, cmd).Command, nil
+	}
 
-	return cmd
+	return cmd, nil
 }
