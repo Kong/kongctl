@@ -11,6 +11,7 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/err"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -196,7 +197,7 @@ func (c *createControlPlaneCmd) run(helper cmd.Helper) error {
 
 	res, e := sdk.GetControlPlaneAPI().CreateControlPlane(ctx, req)
 	if e != nil {
-		attrs := cmd.TryConvertErrorToAttrs(e)
+		attrs := err.TryConvertErrorToAttrs(e)
 		return cmd.PrepareExecutionError("Failed to create Control Plane", e, helper.GetCmd(), attrs...)
 	}
 

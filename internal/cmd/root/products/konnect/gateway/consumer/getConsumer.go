@@ -1,6 +1,7 @@
 package consumer
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/err"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -41,7 +43,7 @@ var (
 
 func (c *getConsumerCmd) validate(helper cmd.Helper) error {
 	if len(helper.GetArgs()) > 1 {
-		return &cmd.ConfigurationError{
+		return &err.ConfigurationError{
 			Err: fmt.Errorf("too many arguments. Listing gateway consumers requires 0 or 1 arguments (name or ID)"),
 		}
 	}
@@ -53,10 +55,10 @@ func (c *getConsumerCmd) runListByUsername(cpID string, username string,
 ) error {
 	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
 
-	allData, err := helpers.GetAllGatewayConsumers(helper.GetContext(), requestPageSize, cpID, kkClient)
-	if err != nil {
-		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to list Gateway Consumers", err, helper.GetCmd(), attrs...)
+	allData, e := helpers.GetAllGatewayConsumers(helper.GetContext(), requestPageSize, cpID, kkClient)
+	if e != nil {
+		attrs := err.TryConvertErrorToAttrs(e)
+		return cmd.PrepareExecutionError("Failed to list Gateway Consumers", e, helper.GetCmd(), attrs...)
 	}
 
 	for _, consumer := range allData {
@@ -71,10 +73,10 @@ func (c *getConsumerCmd) runListByUsername(cpID string, username string,
 func (c *getConsumerCmd) runGet(cpID string, id string,
 	kkClient *kk.SDK, helper cmd.Helper, printer cli.Printer,
 ) error {
-	res, err := kkClient.Consumers.GetConsumer(helper.GetContext(), cpID, id)
-	if err != nil {
-		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to get Gateway Consumer", err, helper.GetCmd(), attrs...)
+	res, e := kkClient.Consumers.GetConsumer(helper.GetContext(), cpID, id)
+	if e != nil {
+		attrs := err.TryConvertErrorToAttrs(e)
+		return cmd.PrepareExecutionError("Failed to get Gateway Consumer", e, helper.GetCmd(), attrs...)
 	}
 
 	printer.Print(res.GetConsumer())
@@ -87,10 +89,10 @@ func (c *getConsumerCmd) runList(cpID string,
 ) error {
 	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
 
-	allData, err := helpers.GetAllGatewayConsumers(helper.GetContext(), requestPageSize, cpID, kkClient)
-	if err != nil {
-		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to list Gateway Consumers", err, helper.GetCmd(), attrs...)
+	allData, e := helpers.GetAllGatewayConsumers(helper.GetContext(), requestPageSize, cpID, kkClient)
+	if e != nil {
+		attrs := err.TryConvertErrorToAttrs(e)
+		return cmd.PrepareExecutionError("Failed to list Gateway Consumers", e, helper.GetCmd(), attrs...)
 	}
 
 	printer.Print(allData)
@@ -126,25 +128,21 @@ func (c *getConsumerCmd) runE(cobraCmd *cobra.Command, args []string) error {
 
 	defer printer.Flush()
 
-	kkClient, err := helper.GetKonnectSDK(cfg, logger)
-	if err != nil {
-		return err
+	kkClient, e := helper.GetKonnectSDK(cfg, logger)
+	if e != nil {
+		return e
 	}
 
-	cpID := cfg.GetString(common.ControlPlaneIDConfigPath)
-	if cpID == "" {
-		cpName := cfg.GetString(common.ControlPlaneNameConfigPath)
-		if cpName == "" {
-			return &cmd.ConfigurationError{
-				Err: fmt.Errorf("control plane ID or name is required"),
-			}
+	cpID, e := helpers.GetControlPlaneIDByNameIfNecessary(helper.GetContext(), kkClient.GetControlPlaneAPI(),
+		cfg.GetString(common.ControlPlaneIDConfigPath),
+		cfg.GetString(common.ControlPlaneNameConfigPath))
+
+	if e != nil {
+		var ee *err.ExecutionError
+		if errors.As(e, &ee) {
+			return cmd.PrepareExecutionError("Failed to get Control Plane ID", ee.Err, helper.GetCmd(), ee.Attrs)
 		}
-		var err error
-		cpID, err = helpers.GetControlPlaneID(helper.GetContext(), kkClient.GetControlPlaneAPI(), cpName)
-		if err != nil {
-			attrs := cmd.TryConvertErrorToAttrs(err)
-			return cmd.PrepareExecutionError("Failed to get Control Plane ID", err, helper.GetCmd(), attrs...)
-		}
+		return e
 	}
 
 	// TODO!: Fix up the below casting to Konnect SDKs, as it will fail in testing once that is written.
