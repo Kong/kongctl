@@ -38,6 +38,9 @@ const (
 	LogLevelFlagName   = "log-level"
 	DefaultLogLevel    = "info"
 	LogLevelConfigPath = LogLevelFlagName
+
+	AttachDebuggerFlagName   = "attach-debugger"
+	AttachDebuggerConfigPath = AttachDebuggerFlagName
 )
 
 func (of OutputFormat) String() string {

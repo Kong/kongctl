@@ -1,7 +1,11 @@
 package gateway
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/kong/go-database-reconciler/pkg/diff"
 	"github.com/kong/go-database-reconciler/pkg/dump"
@@ -55,6 +59,15 @@ func getKonnectKongVersion() string {
 	return "3.5.0.0"
 }
 
+func generateRandomFileName(prefix string, extension string) string {
+	randBytes := make([]byte, 16)
+	_, err := rand.Read(randBytes)
+	if err != nil {
+		panic(err)
+	}
+	return filepath.Join(os.TempDir(), fmt.Sprintf("%s-%s.%s", prefix, hex.EncodeToString(randBytes), extension))
+}
+
 func (c *applyGatewayCmd) run(helper cmd.Helper) error {
 	outType, e := helper.GetOutputFormat()
 	if e != nil {
@@ -65,14 +78,6 @@ func (c *applyGatewayCmd) run(helper cmd.Helper) error {
 	if e != nil {
 		return e
 	}
-
-	targetContent, e := file.GetContentFromFiles(helper.GetArgs(), false)
-	if e != nil {
-		return e
-	}
-	// TODO: Validate the file, for example:
-	// - Can't have a _workspace key
-	// - Some features are not supported in Konnect(?)
 
 	httpClient := utils.HTTPClient()
 
@@ -89,7 +94,13 @@ func (c *applyGatewayCmd) run(helper cmd.Helper) error {
 	if e != nil {
 		return e
 	}
-	currentState, e := state.Get(currentRawState)
+
+	currentKongState, e := state.Get(currentRawState)
+	if e != nil {
+		return e
+	}
+
+	inputFileContent, e := file.GetContentFromFiles(helper.GetArgs(), false)
 	if e != nil {
 		return e
 	}
@@ -99,11 +110,11 @@ func (c *applyGatewayCmd) run(helper cmd.Helper) error {
 		return e
 	}
 
-	rawState, e := file.Get(
+	targetRawState, e := file.Get(
 		helper.GetContext(),
-		targetContent,
+		inputFileContent,
 		file.RenderConfig{
-			CurrentState: currentState,
+			CurrentState: currentKongState,
 			KongVersion:  kongVersion,
 		},
 		dump.Config{},
@@ -112,15 +123,15 @@ func (c *applyGatewayCmd) run(helper cmd.Helper) error {
 		return e
 	}
 
-	targetState, e := state.Get(rawState)
+	targetKongState, e := state.Get(targetRawState)
 	if e != nil {
 		return e
 	}
 
 	syncer, e := diff.NewSyncer(diff.SyncerOpts{
 		EnableEntityActions: false,
-		CurrentState:        currentState,
-		TargetState:         targetState,
+		CurrentState:        currentKongState,
+		TargetState:         targetKongState,
 		KongClient:          kongClient,
 		StageDelaySec:       0,
 		NoMaskValues:        true,

@@ -26,7 +26,7 @@ func registerSignalHandler() context.Context {
 	go func() {
 		defer signal.Stop(sigs)
 		sig := <-sigs
-		fmt.Println("received", sig, ", terminating...")
+		fmt.Fprintln(os.Stderr, "received", sig, ", terminating...")
 		cancel()
 	}()
 	return ctx

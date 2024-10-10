@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/cmd"
@@ -47,6 +48,8 @@ var (
 	configFilePath = ""
 	// Stores the global runtime value for the configured profile
 	currProfile = profile.DefaultProfile
+
+	attachDebugger = false
 
 	currConfig config.Hook
 	streams    *iostreams.IOStreams
@@ -114,6 +117,11 @@ func newRootCmd() *cobra.Command {
 - Allowed    : [ %s ]`,
 			common.LogLevelConfigPath, strings.Join(logLevel.Allowed, "|")))
 	// -------------------------------------------------------------------------
+
+	rootCmd.PersistentFlags().BoolVar(&attachDebugger,
+		common.AttachDebuggerFlagName, false,
+		"Wait for a debugger to attach before continuing execution.")
+	_ = rootCmd.PersistentFlags().MarkHidden(common.AttachDebuggerFlagName)
 
 	return rootCmd
 }
@@ -201,6 +209,24 @@ func initConfig() {
 	}
 
 	logger = slog.New(slog.NewTextHandler(streams.ErrOut, loggerOpts))
+
+	if attachDebugger {
+		waitForDebugger()
+	}
+}
+
+func waitForDebugger() {
+	pid := os.Getpid()
+	fmt.Fprintln(os.Stderr, "Waiting for debugger to attach to PID", pid)
+	for {
+		_, err := os.Stat("debugger_ready")
+		if err == nil {
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	os.Remove("debugger_ready")
+	fmt.Fprintln(os.Stderr, "Debugger attached to PID", pid, ", continuing execution.")
 }
 
 func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
