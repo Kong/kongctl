@@ -36,6 +36,11 @@ func addFlags(verb verbs.VerbValue, cmd *cobra.Command) {
 - Config path: [ %s ]`,
 			common.BaseURLConfigPath))
 
+	cmd.Flags().String(common.RefreshPathFlagName, common.RefreshPathDefault,
+		fmt.Sprintf(`URL path used to refresh the Konnect auth token.
+- Config path: [ %s ]`,
+			common.RefreshPathConfigPath))
+
 	if verb != verbs.Login {
 		cmd.Flags().String(common.PATFlagName, "",
 			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
@@ -63,6 +68,12 @@ func bindFlags(c *cobra.Command, args []string) error {
 
 	f := c.Flags().Lookup(common.BaseURLFlagName)
 	err = cfg.BindFlag(common.BaseURLConfigPath, f)
+	if err != nil {
+		return err
+	}
+
+	f = c.Flags().Lookup(common.RefreshPathFlagName)
+	err = cfg.BindFlag(common.RefreshPathConfigPath, f)
 	if err != nil {
 		return err
 	}
@@ -101,19 +112,15 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		Long:    konnectLong,
 		Example: konnectExamples,
 		Aliases: []string{"k", "K"},
-		PersistentPreRunE: func(c *cobra.Command, args []string) error {
-			c.SetContext(context.WithValue(c.Context(),
-				products.Product, Product))
-			c.SetContext(context.WithValue(c.Context(),
-				helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(common.KonnectSDKFactory)))
-			return bindFlags(c, args)
-		},
 	}
 
 	if verb == verbs.Login {
-		return newLoginKonnectCmd(verb, cmd, addFlags, preRunE).Command, nil
+		return newLoginKonnectCmd(cmd, addFlags, preRunE).Command, nil
 	}
 
+	// TODO: Evaluate if these preRun functions are required, because the cobra
+	// library says the persistent pre runs will execute, but I observed an instance
+	// where it was not.  This may have to do with commands having, or not having, a declared run function
 	c, e := gateway.NewGatewayCmd(verb, addFlags, preRunE)
 	if e != nil {
 		return nil, e

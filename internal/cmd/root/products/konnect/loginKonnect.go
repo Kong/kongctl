@@ -137,12 +137,6 @@ func (c *loginKonnectCmd) preRunE(cobraCmd *cobra.Command, args []string) error 
 		return err
 	}
 
-	f = c.Flags().Lookup(common.RefreshPathFlagName)
-	err = cfg.BindFlag(common.RefreshPathConfigPath, f)
-	if err != nil {
-		return err
-	}
-
 	f = c.Flags().Lookup(common.TokenPathFlagName)
 	err = cfg.BindFlag(common.TokenURLPathConfigPath, f)
 	if err != nil {
@@ -167,8 +161,7 @@ func (c *loginKonnectCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	return c.run(helper)
 }
 
-func newLoginKonnectCmd(verb verbs.VerbValue,
-	baseCmd *cobra.Command,
+func newLoginKonnectCmd(baseCmd *cobra.Command,
 	addParentFlags func(verbs.VerbValue, *cobra.Command),
 	parentPreRun func(*cobra.Command, []string) error,
 ) *loginKonnectCmd {
@@ -180,19 +173,13 @@ func newLoginKonnectCmd(verb verbs.VerbValue,
 	rv.Long = loginKonnectLong
 	rv.Example = loginKonnectExample
 
-	addParentFlags(verb, rv.Command)
+	addParentFlags(verbs.Login, rv.Command)
 
 	rv.Flags().String(common.AuthPathFlagName, common.AuthPathDefault,
 		fmt.Sprintf(`URL path used to initiate Konnect Authorization.
 - Config path: [ %s ]
 -`, // (default ...)
 			common.AuthPathConfigPath))
-
-	rv.Flags().String(common.RefreshPathFlagName, common.RefreshPathDefault,
-		fmt.Sprintf(`URL path used to refresh the Konnect auth token.
-- Config path: [ %s ]
--`, // (default ...)
-			common.RefreshPathConfigPath))
 
 	rv.Flags().String(common.MachineClientIDFlagName, common.MachineClientIDDefault,
 		fmt.Sprintf(`Machine Client ID used to identify the application for Konnect Authorization.

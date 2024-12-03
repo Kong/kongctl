@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/err"
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
@@ -59,7 +59,7 @@ func (r *CommandHelper) GetBuildInfo() (*build.Info, error) {
 func (r *CommandHelper) GetLogger() (*slog.Logger, error) {
 	rv := r.Cmd.Context().Value(log.LoggerKey).(*slog.Logger)
 	if rv == nil {
-		return nil, &ConfigurationError{
+		return nil, &err.ConfigurationError{
 			Err: fmt.Errorf("no logger configured"),
 		}
 	}
@@ -69,7 +69,7 @@ func (r *CommandHelper) GetLogger() (*slog.Logger, error) {
 func (r *CommandHelper) GetVerb() (verbs.VerbValue, error) {
 	verbVal := r.Cmd.Context().Value(verbs.Verb)
 	if verbVal == nil {
-		return "", &ExecutionError{
+		return "", &err.ExecutionError{
 			Err: fmt.Errorf("no verb found in context"),
 		}
 	}
@@ -79,7 +79,7 @@ func (r *CommandHelper) GetVerb() (verbs.VerbValue, error) {
 func (r *CommandHelper) GetProduct() (products.ProductValue, error) {
 	prdVal := r.Cmd.Context().Value(products.Product)
 	if prdVal == nil {
-		return "", &ExecutionError{
+		return "", &err.ExecutionError{
 			Err: fmt.Errorf("no product found in context"),
 		}
 	}
@@ -93,7 +93,7 @@ func (r *CommandHelper) GetStreams() *iostreams.IOStreams {
 func (r *CommandHelper) GetConfig() (config.Hook, error) {
 	cfgVal := r.Cmd.Context().Value(config.ConfigKey)
 	if cfgVal == nil {
-		return nil, &ExecutionError{
+		return nil, &err.ExecutionError{
 			Err: fmt.Errorf("no config found in context"),
 		}
 	}
@@ -128,55 +128,14 @@ func BuildHelper(cmd *cobra.Command, args []string) Helper {
 	}
 }
 
-// ConfigurationError represents errors that are a result of bad flags, combinations of
-// flags, configuration settings, environment values, or other command usage issues.
-type ConfigurationError struct {
-	Err error
-}
-
-// ExecutionError represents errors that occur after a command has been validated and an
-// unsuccessful result occurs.  Network errors, server side errors, invalid credentials or responses
-// are examples of RunttimeError types.
-type ExecutionError struct {
-	// friendly error message to display to the user
-	Msg string
-	// Err is the error that occurred during execution
-	Err error
-	// Optional attributes that can be used to provide additional context to the error
-	Attrs []interface{}
-}
-
-func (e *ConfigurationError) Error() string {
-	return e.Err.Error()
-}
-
-func (e *ExecutionError) Error() string {
-	return e.Err.Error()
-}
-
-// Will try and json unmarshal an error string into a slice of interfaces
-// that match the slog algorithm for varadic parameters (alternating key value pairs)
-func TryConvertErrorToAttrs(err error) []interface{} {
-	var result map[string]interface{}
-	umError := json.Unmarshal([]byte(err.Error()), &result)
-	if umError != nil {
-		return nil
-	}
-	attrs := make([]interface{}, 0, len(result)*2)
-	for k, v := range result {
-		attrs = append(attrs, k, v)
-	}
-	return attrs
-}
-
 // This will construct an execution error AND turn off error and usage output for the command
-func PrepareExecutionError(msg string, err error, cmd *cobra.Command, attrs ...any) *ExecutionError {
+func PrepareExecutionError(msg string, e error, cmd *cobra.Command, attrs ...any) *err.ExecutionError {
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true
 
-	return &ExecutionError{
+	return &err.ExecutionError{
 		Msg:   msg,
-		Err:   err,
+		Err:   e,
 		Attrs: attrs,
 	}
 }

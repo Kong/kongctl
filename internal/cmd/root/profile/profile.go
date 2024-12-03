@@ -5,6 +5,7 @@ import (
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/err"
 	"github.com/kong/kongctl/internal/profile"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -73,16 +74,16 @@ func runGet(helper cmd.Helper) error {
 
 	// TODO: Parse arguments to determine if user is looking for all profiles or a specific profile
 
-	outType, err := helper.GetOutputFormat()
-	if err != nil {
-		return &cmd.ExecutionError{
-			Err: err,
+	outType, e := helper.GetOutputFormat()
+	if e != nil {
+		return &err.ExecutionError{
+			Err: e,
 		}
 	}
-	p, err := cli.Format(outType.String(),
+	p, e := cli.Format(outType.String(),
 		helper.GetStreams().Out)
-	if err != nil {
-		return err
+	if e != nil {
+		return e
 	}
 	defer p.Flush()
 

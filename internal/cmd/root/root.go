@@ -11,6 +11,7 @@ import (
 	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/apply"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/create"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/del"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/get"
@@ -18,6 +19,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs/login"
 	"github.com/kong/kongctl/internal/cmd/root/version"
 	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/err"
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/meta"
@@ -149,6 +151,12 @@ func addCommands() error {
 	}
 	rootCmd.AddCommand(c)
 
+	c, e = apply.NewApplyCmd()
+	if e != nil {
+		return e
+	}
+	rootCmd.AddCommand(c)
+
 	return nil
 }
 
@@ -196,22 +204,22 @@ func initConfig() {
 }
 
 func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
-	var err error
+	var e error
 	buildInfo = bi
 	cobra.EnableTraverseRunHooks = true
 	streams = s
-	defaultConfigFilePath, err = config.GetDefaultConfigFilePath()
-	if err == nil {
-		err = rootCmd.ExecuteContext(ctx)
+	defaultConfigFilePath, e = config.GetDefaultConfigFilePath()
+	if e == nil {
+		e = rootCmd.ExecuteContext(ctx)
 	}
-	if err != nil {
+	if e != nil {
 		// If there was an execution error, use the logger to write it out and exit
 		// If it was a configuration error, we want the cobra framework to also
 		// show the usage information, so we don't also print the error here
-		var executionError *cmd.ExecutionError
-		if errors.Is(err, context.Canceled) {
+		var executionError *err.ExecutionError
+		if errors.Is(e, context.Canceled) {
 			fmt.Println("Canceled...")
-		} else if errors.As(err, &executionError) {
+		} else if errors.As(e, &executionError) {
 			if executionError.Msg != "" && executionError.Attrs != nil && len(executionError.Attrs) > 0 {
 				logger.Error(executionError.Msg, executionError.Attrs...)
 			} else {

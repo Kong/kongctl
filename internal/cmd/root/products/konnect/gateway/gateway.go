@@ -29,6 +29,10 @@ func NewGatewayCmd(verb verbs.VerbValue,
 		Aliases: []string{"gw", "GW"},
 	}
 
+	if verb == verbs.Apply {
+		return newApplyGatewayCmd(verb, cmd, addParentFlags, parentPreRun).Command, nil
+	}
+
 	c, e := controlplane.NewControlPlaneCmd(verb, addParentFlags, parentPreRun)
 	if e != nil {
 		return nil, e
