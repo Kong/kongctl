@@ -120,9 +120,9 @@ func runListByName(name string, kkClient helpers.ControlPlaneAPI, helper cmd.Hel
 
 	for {
 		req := kkOps.ListControlPlanesRequest{
-			PageSize:     kk.Int64(requestPageSize),
-			PageNumber:   kk.Int64(pageNumber),
-			FilterNameEq: kk.String(name),
+			PageSize:   kk.Int64(requestPageSize),
+			PageNumber: kk.Int64(pageNumber),
+			//FilterNameEq: kk.String(name),
 		}
 
 		res, err := kkClient.ListControlPlanes(helper.GetContext(), req)
