@@ -13,6 +13,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/create"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/del"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/dump"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/get"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/list"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/login"
@@ -144,6 +145,12 @@ func addCommands() error {
 	rootCmd.AddCommand(c)
 
 	c, e = login.NewLoginCmd()
+	if e != nil {
+		return e
+	}
+	rootCmd.AddCommand(c)
+
+	c, e = dump.NewDumpCommand()
 	if e != nil {
 		return e
 	}

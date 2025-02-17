@@ -114,6 +114,13 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return newLoginKonnectCmd(verb, cmd, addFlags, preRunE).Command, nil
 	}
 
+	if verb == verbs.Dump {
+		cmd.Run = func(cmd *cobra.Command, _ []string) {
+			fmt.Println("DUMPING CONFIG")
+		}
+		return cmd, nil
+	}
+
 	c, e := gateway.NewGatewayCmd(verb, addFlags, preRunE)
 	if e != nil {
 		return nil, e

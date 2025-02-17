@@ -10,6 +10,7 @@ const (
 	Help   = VerbValue("help")
 	List   = VerbValue("list")
 	Login  = VerbValue("login")
+	Dump   = VerbValue("dump")
 )
 
 // Empty type to represent the _type_ Verb. Genesis is to support a key in a Context
