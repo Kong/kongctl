@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
@@ -115,9 +116,8 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	}
 
 	if verb == verbs.Dump {
-		cmd.Run = func(cmd *cobra.Command, _ []string) {
-			fmt.Println("DUMPING CONFIG")
-		}
+		addFlags(verbs.Dump, cmd)
+		cmd.Run = dumpAllKonnect
 		return cmd, nil
 	}
 
@@ -128,4 +128,33 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	cmd.AddCommand(c)
 
 	return cmd, e
+}
+
+func dumpAllKonnect(c *cobra.Command, args []string) {
+	// Dump portals
+
+	helper := cmd.BuildHelper(c, args)
+
+	logger, e := helper.GetLogger()
+	if e != nil {
+		panic(e)
+	}
+
+	cfg, e := helper.GetConfig()
+	if e != nil {
+		panic(e)
+	}
+
+	kkClient, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		panic(err)
+	}
+
+	cps, err := kkClient.GetControlPlaneAPI().ListControlPlanes(c.Context(), operations.ListControlPlanesRequest{}, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(cps)
+
 }
