@@ -23,4 +23,4 @@ jobs:
       - name: Setup go
         uses: actions/setup-go@v5
       - name: Setup golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
