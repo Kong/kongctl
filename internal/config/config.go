@@ -79,9 +79,8 @@ type Key struct{}
 // Config is a global instance of the Key type
 var ConfigKey = Key{}
 
-// Hook provides a generatlization of the Viper interface
-// but allows some control, specifically over the Save functionality
-// which we extend to provide safer file management handling
+// Hook provides a generalization of the Viper interface
+// but extended to include some flag bindings and other helper functions
 type Hook interface {
 	// Save writes the configuration to the file system
 	// TODO: Evaluate if writing the credentials is something we want to do at all
