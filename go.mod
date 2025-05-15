@@ -1,20 +1,19 @@
 module github.com/kong/kongctl
 
-go 1.22.2
+go 1.24.3
 
 require (
-	github.com/Kong/sdk-konnect-go v0.0.5
+	github.com/Kong/sdk-konnect-go v0.2.28
 	github.com/ajg/form v1.5.1
 	github.com/google/uuid v1.6.0
 	github.com/segmentio/cli v0.8.1
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.19.0
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 )
 
 require (
-	github.com/cenkalti/backoff/v4 v4.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/ericlagergren/decimal v0.0.0-20221120152707-495c53812d05 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect

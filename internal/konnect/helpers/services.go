@@ -9,8 +9,8 @@ import (
 )
 
 func GetAllGatewayServices(ctx context.Context, requestPageSize int64, cpID string, kkClient *kk.SDK,
-) ([]kkComps.Service, error) {
-	var allData []kkComps.Service
+) ([]kkComps.ServiceOutput, error) {
+	var allData []kkComps.ServiceOutput
 
 	offset := ""
 	for {

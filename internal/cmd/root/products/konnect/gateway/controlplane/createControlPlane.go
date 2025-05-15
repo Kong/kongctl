@@ -72,16 +72,16 @@ func (c *createControlPlaneCmd) validate(_ cmd.Helper) error {
 //	are less friendly.  This may be better served with some type of automation or generation
 //	out of the SDK / specification.
 
-func (c *createControlPlaneCmd) convertClusterType(cfgClusterType string) (kkComps.ClusterType, error) {
+func (c *createControlPlaneCmd) convertClusterType(cfgClusterType string) (kkComps.ControlPlaneClusterType, error) {
 	switch cfgClusterType {
 	case "hybrid":
-		return kkComps.ClusterTypeClusterTypeHybrid, nil
+		return kkComps.ControlPlaneClusterTypeClusterTypeControlPlane, nil
 	case "kic":
-		return kkComps.ClusterTypeClusterTypeK8SIngressController, nil
+		return kkComps.ControlPlaneClusterTypeClusterTypeK8SIngressController, nil
 	case "group":
-		return kkComps.ClusterTypeClusterTypeControlPlaneGroup, nil
+		return kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup, nil
 	case "serverless":
-		return kkComps.ClusterTypeClusterTypeServerless, nil
+		return kkComps.ControlPlaneClusterTypeClusterTypeServerless, nil
 	default:
 		return "", fmt.Errorf("invalid value for ClusterType: %v", cfgClusterType)
 	}
@@ -180,7 +180,7 @@ func (c *createControlPlaneCmd) run(helper cmd.Helper) error {
 	req := kkComps.CreateControlPlaneRequest{
 		Name:         name,
 		Description:  kk.String(cfg.GetString(createCpDescriptionConfigPath)),
-		ClusterType:  ct.ToPointer(),
+		ClusterType:  kkComps.CreateControlPlaneRequestClusterType(ct).ToPointer(),
 		AuthType:     at.ToPointer(),
 		CloudGateway: kk.Bool(isCGW),
 		ProxyUrls:    proxyUrls,
