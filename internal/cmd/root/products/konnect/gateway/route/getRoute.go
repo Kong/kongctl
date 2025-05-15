@@ -171,10 +171,17 @@ func (c *getRouteCmd) runGet(cpID string, id string,
 		return cmd.PrepareExecutionError("Failed to get Gateway Route", err, helper.GetCmd(), attrs...)
 	}
 
+	route := res.GetRoute()
+	if route == nil || route.RouteJSON == nil {
+		attrs := cmd.TryConvertErrorToAttrs(err)
+		err = fmt.Errorf("route not set")
+		return cmd.PrepareExecutionError("Failed to get Gateway Route", err, helper.GetCmd(), attrs...)
+	}
+
 	if outputFormat == cmdCommon.TEXT {
-		printer.Print(jsonRouteToDisplayRecord(res.GetRoute().RouteJSON))
+		printer.Print(jsonRouteToDisplayRecord(route.RouteJSON))
 	} else {
-		printer.Print(res.GetRoute())
+		printer.Print(route.RouteJSON)
 	}
 
 	return nil
