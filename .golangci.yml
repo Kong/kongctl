@@ -106,5 +106,3 @@ formatters:
       - builtin$
       - examples$
       - cmd/root.go
-      - cmd/root.go
-      - cmd/root.go
