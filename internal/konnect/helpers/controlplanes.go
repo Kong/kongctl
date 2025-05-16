@@ -26,9 +26,13 @@ func GetControlPlaneID(ctx context.Context, kkClient ControlPlaneAPI, cpName str
 	var pageNumber, requestPageSize int64 = 1, 1
 
 	req := kkOPS.ListControlPlanesRequest{
-		PageSize:     kkSDK.Int64(requestPageSize),
-		PageNumber:   kkSDK.Int64(pageNumber),
-		FilterNameEq: kkSDK.String(cpName),
+		PageSize:   kkSDK.Int64(requestPageSize),
+		PageNumber: kkSDK.Int64(pageNumber),
+		Filter: &kkCOM.ControlPlaneFilterParameters{
+			Name: &kkCOM.Name{
+				Eq: kkSDK.String(cpName),
+			},
+		},
 	}
 
 	res, err := kkClient.ListControlPlanes(ctx, req)

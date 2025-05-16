@@ -58,30 +58,32 @@ func TestTextDisplayConversion(t *testing.T) {
 		{
 			name: "simple",
 			input: kkComps.ControlPlane{
-				ID:          "foo",
-				Name:        "bar",
-				Description: kk.String("baz"),
+				ID:          "id-field",
+				Name:        "name-field",
+				Description: kk.String("description-field"),
 				Config: kkComps.Config{
-					ControlPlaneEndpoint: kk.String("qux"),
+					ControlPlaneEndpoint: "config-endpoint-field",
 				},
 				Labels: map[string]string{
-					"qux":   "quux",
-					"corge": "grault",
+					"label-1-key": "label-1-value",
+					"label-2-key": "label-2-value",
 				},
 				CreatedAt: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
 				UpdatedAt: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
 			},
 			expected: textDisplayRecord{
-				ID:                   "foo",
-				Name:                 "bar",
-				Description:          "baz",
-				Labels:               "qux: quux, corge: grault",
-				ControlPlaneEndpoint: "qux",
+				ID:                   "id-field",
+				Name:                 "name-field",
+				Description:          "description-field",
+				Labels:               "label-1-key: label-1-value, label-2-key: label-2-value",
+				ControlPlaneEndpoint: "config-endpoint-field",
 				LocalCreatedTime:     time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC).In(time.Local).Format("2006-01-02 15:04:05"),
 				LocalUpdatedTime:     time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC).In(time.Local).Format("2006-01-02 15:04:05"),
 			},
 		},
 	}
+	// {n/a n/a n/a n/a 0000-12-31 18:09:24 0000-12-31 18:09:24 n/a}
+	// {n/a n/a n/a  0000-12-31 18:09:24 0000-12-31 18:09:24 n/a}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -237,7 +239,7 @@ func TestGetControlPlaneCmd(t *testing.T) {
 									Name:        "foo",
 									Description: kk.String("blah"),
 									Config: kkComps.Config{
-										ControlPlaneEndpoint: kk.String("https://foo.bar"),
+										ControlPlaneEndpoint: "https://foo.bar",
 									},
 								},
 							},

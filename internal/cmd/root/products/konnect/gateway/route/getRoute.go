@@ -47,7 +47,7 @@ type textDisplayRecord struct {
 	// StripPath         string
 }
 
-func routeToDisplayRecord(r *kkComps.Route) textDisplayRecord {
+func jsonRouteToDisplayRecord(r *kkComps.RouteJSON) textDisplayRecord {
 	missing := "n/a"
 
 	name := missing
@@ -148,11 +148,13 @@ func (c *getRouteCmd) runListByName(cpID string, name string,
 	}
 
 	for _, route := range allData {
-		if *route.GetName() == name {
-			if outputFormat == cmdCommon.TEXT {
-				printer.Print(routeToDisplayRecord(&route))
-			} else {
-				printer.Print(route)
+		if route.RouteJSON != nil {
+			if *route.RouteJSON.GetName() == name {
+				if outputFormat == cmdCommon.TEXT {
+					printer.Print(jsonRouteToDisplayRecord(route.RouteJSON))
+				} else {
+					printer.Print(route)
+				}
 			}
 		}
 	}
@@ -169,10 +171,17 @@ func (c *getRouteCmd) runGet(cpID string, id string,
 		return cmd.PrepareExecutionError("Failed to get Gateway Route", err, helper.GetCmd(), attrs...)
 	}
 
+	route := res.GetRoute()
+	if route == nil || route.RouteJSON == nil {
+		attrs := cmd.TryConvertErrorToAttrs(err)
+		err = fmt.Errorf("route not set")
+		return cmd.PrepareExecutionError("Failed to get Gateway Route", err, helper.GetCmd(), attrs...)
+	}
+
 	if outputFormat == cmdCommon.TEXT {
-		printer.Print(routeToDisplayRecord(res.GetRoute()))
+		printer.Print(jsonRouteToDisplayRecord(route.RouteJSON))
 	} else {
-		printer.Print(res.GetRoute())
+		printer.Print(route.RouteJSON)
 	}
 
 	return nil
@@ -192,7 +201,7 @@ func (c *getRouteCmd) runList(cpID string,
 	if outputFormat == cmdCommon.TEXT {
 		var displayRecords []textDisplayRecord
 		for _, route := range allData {
-			displayRecords = append(displayRecords, routeToDisplayRecord(&route))
+			displayRecords = append(displayRecords, jsonRouteToDisplayRecord(route.RouteJSON))
 		}
 		printer.Print(displayRecords)
 	} else {

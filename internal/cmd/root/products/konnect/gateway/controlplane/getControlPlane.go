@@ -79,7 +79,7 @@ func controlPlaneToDisplayRecord(c *kkComps.ControlPlane) textDisplayRecord {
 	}
 
 	labels := missing
-	if c.Labels != nil {
+	if len(c.Labels) > 0 {
 		labelPairs := make([]string, 0, len(c.Labels))
 		for k, v := range c.Labels {
 			labelPairs = append(labelPairs, fmt.Sprintf("%s: %s", k, v))
@@ -88,8 +88,8 @@ func controlPlaneToDisplayRecord(c *kkComps.ControlPlane) textDisplayRecord {
 	}
 
 	controlPlaneEndpoint := missing
-	if c.Config.ControlPlaneEndpoint != nil {
-		controlPlaneEndpoint = *c.Config.ControlPlaneEndpoint
+	if c.Config.ControlPlaneEndpoint != "" {
+		controlPlaneEndpoint = c.Config.ControlPlaneEndpoint
 	}
 
 	createdAt := c.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
@@ -120,9 +120,13 @@ func runListByName(name string, kkClient helpers.ControlPlaneAPI, helper cmd.Hel
 
 	for {
 		req := kkOps.ListControlPlanesRequest{
-			PageSize:     kk.Int64(requestPageSize),
-			PageNumber:   kk.Int64(pageNumber),
-			FilterNameEq: kk.String(name),
+			PageSize:   kk.Int64(requestPageSize),
+			PageNumber: kk.Int64(pageNumber),
+			Filter: &kkComps.ControlPlaneFilterParameters{
+				Name: &kkComps.Name{
+					Eq: kk.String(name),
+				},
+			},
 		}
 
 		res, err := kkClient.ListControlPlanes(helper.GetContext(), req)

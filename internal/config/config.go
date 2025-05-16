@@ -132,7 +132,7 @@ func (p *ProfiledConfig) Save() error {
 	// file backups and better handling here to protect
 	// user data
 	// TODO: Improve / Evaluate writing of configs (if at all)
-	return p.Viper.WriteConfig()
+	return p.WriteConfig()
 }
 
 func (p *ProfiledConfig) GetString(key string) string {
