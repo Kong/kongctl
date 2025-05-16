@@ -44,12 +44,17 @@ func NewControlPlaneCmd(verb verbs.VerbValue,
 		Aliases: []string{"control-planes", "controlplane", "controlplanes", "cp", "cps", "CP", "CPS"},
 	}
 
-	if verb == verbs.Get || verb == verbs.List {
+	switch verb {
+	case verbs.Get:
 		return newGetControlPlaneCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
-	} else if verb == verbs.Create {
+	case verbs.List:
+		return newGetControlPlaneCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
+	case verbs.Create:
 		return newCreateControlPlaneCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
-	} else if verb == verbs.Delete {
+	case verbs.Delete:
 		return newDeleteControlPlaneCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
+	case verbs.Add, verbs.Apply, verbs.Update, verbs.Help, verbs.Login:
+		return &baseCmd, nil
 	}
 
 	return &baseCmd, nil
