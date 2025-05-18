@@ -14,6 +14,7 @@ require (
 )
 
 require (
+	github.com/Kong/sdk-konnect-go-internal v0.0.2-0.20250221174722-8c540a2d0b06 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/ericlagergren/decimal v0.0.0-20221120152707-495c53812d05 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
