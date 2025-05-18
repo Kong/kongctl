@@ -4,14 +4,23 @@ import "testing"
 
 // This is a mock implementation of the SDKAPI interface
 type MockKonnectSDK struct {
-	Token        string
-	T            *testing.T
-	CPAPIFactory func() ControlPlaneAPI
+	Token         string
+	T             *testing.T
+	CPAPIFactory  func() ControlPlaneAPI
+	PortalFactory func() PortalAPI
 }
 
 // Returns a mock instance of the ControlPlaneAPI
 func (m *MockKonnectSDK) GetControlPlaneAPI() ControlPlaneAPI {
 	return m.CPAPIFactory()
+}
+
+// Returns a mock instance of the PortalAPI
+func (m *MockKonnectSDK) GetPortalAPI() PortalAPI {
+	if m.PortalFactory != nil {
+		return m.PortalFactory()
+	}
+	return nil
 }
 
 // This is a mock implementation of the SDKFactory interface

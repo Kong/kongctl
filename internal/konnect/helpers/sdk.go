@@ -3,6 +3,7 @@ package helpers
 import (
 	"log/slog"
 
+	kkInternal "github.com/Kong/sdk-konnect-go-internal"
 	kkSDK "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	"github.com/kong/kongctl/internal/config"
 )
@@ -12,18 +13,32 @@ import (
 // allowing for easier testing and mocking
 type SDKAPI interface {
 	GetControlPlaneAPI() ControlPlaneAPI
+	GetPortalAPI() PortalAPI
 }
 
 // This is the real implementation of the SDKAPI
 // which wraps the actual SDK implmentation
 type KonnectSDK struct {
-	SDK *kkSDK.SDK
+	SDK            *kkSDK.SDK
+	InternalSDK    *kkInternal.SDK
+	internalPortal *InternalPortalAPI
 }
 
 // Returns the real implementation of the GetControlPlaneAPI
 // from the Konnect SDK
 func (k *KonnectSDK) GetControlPlaneAPI() ControlPlaneAPI {
 	return k.SDK.ControlPlanes
+}
+
+// Returns the implementation of the PortalAPI interface
+// for accessing the Developer Portal APIs using the internal SDK
+func (k *KonnectSDK) GetPortalAPI() PortalAPI {
+	if k.internalPortal == nil && k.InternalSDK != nil {
+		k.internalPortal = &InternalPortalAPI{
+			SDK: k.InternalSDK,
+		}
+	}
+	return k.internalPortal
 }
 
 // A function that can build an SDKAPI with a given configuration

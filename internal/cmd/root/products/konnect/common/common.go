@@ -77,8 +77,15 @@ func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, er
 	if err != nil {
 		return nil, err
 	}
+	
+	// Initialize the internal SDK for accessing APIs that aren't in the public SDK yet
+	internalSDK, err := auth.GetAuthenticatedInternalClient(baseURL, token)
+	if err != nil {
+		return nil, err
+	}
 
 	return &helpers.KonnectSDK{
-		SDK: sdk,
+		SDK:         sdk,
+		InternalSDK: internalSDK,
 	}, nil
 }
