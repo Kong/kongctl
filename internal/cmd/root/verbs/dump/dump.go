@@ -167,10 +167,11 @@ func (c *dumpCmd) validate(helper cmd.Helper) error {
 		return err
 	}
 	
+	// Check the page size
 	pageSize := config.GetInt(konnectCommon.RequestPageSizeConfigPath)
-	if pageSize < 1 {
+	if pageSize < 0 {
 		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("%s must be greater than 0", konnectCommon.RequestPageSizeFlagName),
+			Err: fmt.Errorf("%s must be greater than or equal to 0", konnectCommon.RequestPageSizeFlagName),
 		}
 	}
 	
@@ -221,7 +222,13 @@ func (c *dumpCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		
 		switch resource {
 		case "portal":
+			// Use the page size configured in the config system
+			// The system will use the default value (DefaultRequestPageSize) if not explicitly set
 			requestPageSize := int64(cfg.GetInt(konnectCommon.RequestPageSizeConfigPath))
+			if requestPageSize <= 0 {
+				// Fallback to the default if somehow we got an invalid value
+				requestPageSize = int64(konnectCommon.DefaultRequestPageSize)
+			}
 			if err := dumpPortals(helper.GetContext(), writer, sdk.GetPortalAPI(), requestPageSize); err != nil {
 				return err
 			}
@@ -268,6 +275,14 @@ func NewDumpCmd() (*cobra.Command, error) {
 		"",
 		"File to write the output to. If not specified, output is written to stdout.")
 	
+	// Add the page size flag with the same default as other commands
+	dumpCommand.Flags().Int(
+		konnectCommon.RequestPageSizeFlagName,
+		konnectCommon.DefaultRequestPageSize,
+		fmt.Sprintf(`Max number of results to include per response page.
+- Config path: [ %s ]`,
+			konnectCommon.RequestPageSizeConfigPath))
+	
 	// This shadows the global output flag
 	dumpCommand.Flags().VarP(dumpFormat, common.OutputFlagName, common.OutputFlagShort,
 		fmt.Sprintf(`Configures the format of data written to STDOUT.
@@ -278,6 +293,26 @@ func NewDumpCmd() (*cobra.Command, error) {
 	}
 	
 	rv.RunE = rv.runE
+	
+	// Bind the page-size flag to the config system
+	f := dumpCommand.Flags().Lookup(konnectCommon.RequestPageSizeFlagName)
+	dumpCommand.PersistentPreRunE = func(c *cobra.Command, args []string) error {
+		// Call the original PersistentPreRun
+		c.SetContext(context.WithValue(c.Context(), verbs.Verb, Verb))
+		
+		// Set the SDK factory in the context
+		c.SetContext(context.WithValue(c.Context(),
+			helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(konnectCommon.KonnectSDKFactory)))
+		
+		// Bind flags to config
+		helper := cmd.BuildHelper(c, args)
+		cfg, err := helper.GetConfig()
+		if err != nil {
+			return err
+		}
+		
+		return cfg.BindFlag(konnectCommon.RequestPageSizeConfigPath, f)
+	}
 	
 	return rv.Command, nil
 }
