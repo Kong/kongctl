@@ -37,8 +37,14 @@ var (
 		# Export all portals as Terraform import blocks to stdout
 		%[1]s dump --resources=portal 
 
+		# Export all portals and their child resources (documents, specifications, pages, settings)
+		%[1]s dump --resources=portal --include-child-resources
+
 		# Export all portals as Terraform import blocks to a file
 		%[1]s dump --resources=portal --output-file=portals.tf
+
+		# Export all portals with their child resources to a file
+		%[1]s dump --resources=portal --include-child-resources --output-file=portals.tf
 		`, meta.CLIName)))
 
 	resources             string
@@ -49,7 +55,21 @@ var (
 
 // Maps resource types to their corresponding Terraform resource types
 var resourceTypeMap = map[string]string{
-	"portal": "kong_portal",
+	"portal":              "kong_portal",
+	"portal_document":     "kong_portal_document",
+	"portal_specification":"kong_portal_specification",
+	"portal_page":         "kong_portal_page",
+	"portal_settings":     "kong_portal_settings",
+}
+
+// Maps parent resources to their child resource types
+var parentChildResourceMap = map[string][]string{
+	"portal": {
+		"portal_document",
+		"portal_specification",
+		"portal_page",
+		"portal_settings",
+	},
 }
 
 // sanitizeTerraformResourceName converts a resource name to a valid Terraform identifier
@@ -111,7 +131,7 @@ func Int64(v int64) *int64 {
 }
 
 // dumpPortals exports all portals as Terraform import blocks
-func dumpPortals(ctx context.Context, writer io.Writer, kkClient helpers.PortalAPI, requestPageSize int64) error {
+func dumpPortals(ctx context.Context, writer io.Writer, kkClient helpers.PortalAPI, requestPageSize int64, includeChildResources bool) error {
 	var pageNumber int64 = 1
 	
 	for {
@@ -130,13 +150,108 @@ func dumpPortals(ctx context.Context, writer io.Writer, kkClient helpers.PortalA
 		}
 		
 		for _, portal := range res.ListPortalsResponseV3.Data {
+			// Write the portal import block
 			importBlock := formatTerraformImport("portal", portal.Name, portal.ID)
 			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 				return fmt.Errorf("failed to write portal import block: %w", err)
 			}
+			
+			// If includeChildResources is true, dump the child resources as well
+			if includeChildResources {
+				if err := dumpPortalChildResources(ctx, writer, kkClient, portal.ID, portal.Name, requestPageSize); err != nil {
+					// Log error but continue with other portals
+					fmt.Fprintf(writer, "# Warning: Failed to dump child resources for portal %s: %v\n", portal.Name, err)
+				}
+			}
 		}
 		
 		pageNumber++
+	}
+	
+	return nil
+}
+
+// dumpPortalChildResources exports all child resources of a portal as Terraform import blocks
+func dumpPortalChildResources(
+	ctx context.Context, 
+	writer io.Writer, 
+	kkClient helpers.PortalAPI, 
+	portalID string, 
+	portalName string, 
+	requestPageSize int64,
+) error {
+	// Start with a header comment
+	if _, err := fmt.Fprintf(writer, "\n# Child resources for portal: %s\n", portalName); err != nil {
+		return fmt.Errorf("failed to write header: %w", err)
+	}
+	
+	// Try to dump each type of child resource, but continue if any fail
+	// Documents
+	docs, err := helpers.GetDocumentsForPortal(ctx, kkClient, portalID)
+	if err == nil && len(docs) > 0 {
+		if _, err := fmt.Fprintf(writer, "\n# Portal documents\n"); err != nil {
+			return fmt.Errorf("failed to write documents header: %w", err)
+		}
+		
+		for _, doc := range docs {
+			resourceName := fmt.Sprintf("%s_%s", portalName, doc.Slug)
+			resourceID := fmt.Sprintf("%s:%s", portalID, doc.ID)
+			importBlock := formatTerraformImport("portal_document", resourceName, resourceID)
+			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+				return fmt.Errorf("failed to write portal document import block: %w", err)
+			}
+		}
+	}
+	
+	// Specifications
+	specs, err := helpers.GetSpecificationsForPortal(ctx, kkClient, portalID)
+	if err == nil && len(specs) > 0 {
+		if _, err := fmt.Fprintf(writer, "\n# Portal specifications\n"); err != nil {
+			return fmt.Errorf("failed to write specifications header: %w", err)
+		}
+		
+		for _, spec := range specs {
+			resourceName := fmt.Sprintf("%s_%s", portalName, spec.Name)
+			resourceID := fmt.Sprintf("%s:%s", portalID, spec.ID)
+			importBlock := formatTerraformImport("portal_specification", resourceName, resourceID)
+			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+				return fmt.Errorf("failed to write portal specification import block: %w", err)
+			}
+		}
+	}
+	
+	// Pages
+	pages, err := helpers.GetPagesForPortal(ctx, kkClient, portalID)
+	if err == nil && len(pages) > 0 {
+		if _, err := fmt.Fprintf(writer, "\n# Portal pages\n"); err != nil {
+			return fmt.Errorf("failed to write pages header: %w", err)
+		}
+		
+		for _, page := range pages {
+			pageName := page.Name
+			if pageName == "" {
+				pageName = page.Slug
+			}
+			resourceName := fmt.Sprintf("%s_%s", portalName, pageName)
+			resourceID := fmt.Sprintf("%s:%s", portalID, page.ID)
+			importBlock := formatTerraformImport("portal_page", resourceName, resourceID)
+			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+				return fmt.Errorf("failed to write portal page import block: %w", err)
+			}
+		}
+	}
+	
+	// Settings
+	if helpers.HasPortalSettings(ctx, kkClient, portalID) {
+		if _, err := fmt.Fprintf(writer, "\n# Portal settings\n"); err != nil {
+			return fmt.Errorf("failed to write settings header: %w", err)
+		}
+		
+		resourceName := fmt.Sprintf("%s_settings", portalName)
+		importBlock := formatTerraformImport("portal_settings", resourceName, portalID)
+		if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+			return fmt.Errorf("failed to write portal settings import block: %w", err)
+		}
 	}
 	
 	return nil
@@ -154,10 +269,20 @@ func (c *dumpCmd) validate(helper cmd.Helper) error {
 			continue
 		}
 		
+		// For now, only portal is supported as a top-level resource for the dump command
+		// Child resources are handled automatically when --include-child-resources is true
+		if resource != "portal" {
+			return &cmd.ConfigurationError{
+				Err: fmt.Errorf("unsupported resource type: %s. Currently only 'portal' is supported as a top-level resource", resource),
+			}
+		}
+		
+		// Check if the resource type is known
 		if _, ok := resourceTypeMap[resource]; !ok {
+			supportedTypes := []string{"portal"}
 			return &cmd.ConfigurationError{
 				Err: fmt.Errorf("unsupported resource type: %s. Supported types: %s", 
-					resource, strings.Join(getMapKeys(resourceTypeMap), ", ")),
+					resource, strings.Join(supportedTypes, ", ")),
 			}
 		}
 	}
@@ -229,7 +354,7 @@ func (c *dumpCmd) runE(cobraCmd *cobra.Command, args []string) error {
 				// Fallback to the default if somehow we got an invalid value
 				requestPageSize = int64(konnectCommon.DefaultRequestPageSize)
 			}
-			if err := dumpPortals(helper.GetContext(), writer, sdk.GetPortalAPI(), requestPageSize); err != nil {
+			if err := dumpPortals(helper.GetContext(), writer, sdk.GetPortalAPI(), requestPageSize, includeChildResources); err != nil {
 				return err
 			}
 		}
