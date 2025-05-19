@@ -94,6 +94,8 @@ type Hook interface {
 	GetBool(key string) bool
 	// GetInt returns an integer value from the configuration
 	GetInt(key string) int
+	// GetIntOrElse returns an integer value from the configuration or a default
+	GetIntOrElse(key string, orElse int) int
 	// GetStringSlice returns a slice of strings from the configuration
 	GetStringSlice(key string) []string
 	// SetString sets an override for a given string
@@ -145,6 +147,13 @@ func (p *ProfiledConfig) GetBool(key string) bool {
 
 func (p *ProfiledConfig) GetInt(key string) int {
 	return p.subViper.GetInt(key)
+}
+
+func (p *ProfiledConfig) GetIntOrElse(key string, orElse int) int {
+	if p.subViper.IsSet(key) {
+		return p.subViper.GetInt(key)
+	}
+	return orElse
 }
 
 func (p *ProfiledConfig) GetStringSlice(key string) []string {
