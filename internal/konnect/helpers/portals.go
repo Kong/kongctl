@@ -211,3 +211,29 @@ func HasPortalSettings(ctx context.Context, portalAPI PortalAPI, portalID string
 	// For now, return false to indicate the feature is not yet implemented
 	return false
 }
+
+// HasCustomDomainForPortal checks if a portal has a custom domain configured
+func HasCustomDomainForPortal(ctx context.Context, portalAPI PortalAPI, portalID string) bool {
+	// Cast the portalAPI to InternalPortalAPI to access the SDK
+	internalAPI, ok := portalAPI.(*InternalPortalAPI)
+	if !ok || internalAPI == nil || internalAPI.SDK == nil {
+		return false
+	}
+
+	// Check if the SDK supports the V3PortalCustomDomains API
+	if internalAPI.SDK.V3PortalCustomDomains == nil {
+		return false
+	}
+
+	// Check if we can get the custom domain for the portal
+	// We don't need to actually fetch the data, just check if the API returns success
+	// which means that a custom domain exists
+	_, err := internalAPI.SDK.V3PortalCustomDomains.GetPortalCustomDomain(ctx, portalID)
+	if err != nil {
+		// If there's an error, the custom domain doesn't exist or couldn't be accessed
+		return false
+	}
+
+	// No error means the custom domain exists
+	return true
+}

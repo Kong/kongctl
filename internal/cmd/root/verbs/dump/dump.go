@@ -55,10 +55,11 @@ var (
 
 // Maps resource types to their corresponding Terraform resource types
 var resourceTypeMap = map[string]string{
-	"portal":           "konnect_portal",
-	"portal_page":      "konnect_portal_page",
-	"portal_settings":  "konnect_portal_settings",
-	"portal_snippet":   "konnect_portal_snippet",
+	"portal":             "konnect_portal",
+	"portal_page":        "konnect_portal_page",
+	"portal_settings":    "konnect_portal_settings",
+	"portal_snippet":     "konnect_portal_snippet",
+	"portal_custom_domain": "konnect_portal_custom_domain",
 }
 
 // Maps parent resources to their child resource types
@@ -67,6 +68,7 @@ var parentChildResourceMap = map[string][]string{
 		"portal_page",
 		"portal_snippet",
 		"portal_settings",
+		"portal_custom_domain",
 	},
 }
 
@@ -249,6 +251,17 @@ func dumpPortalChildResources(
 		importBlock := formatTerraformImport("portal_settings", resourceName, portalID)
 		if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 			return fmt.Errorf("failed to write portal settings import block: %w", err)
+		}
+	}
+
+	// Custom Domain
+	if helpers.HasCustomDomainForPortal(ctx, kkClient, portalID) {
+		// No custom domain header needed
+
+		resourceName := fmt.Sprintf("%s_custom_domain", portalName)
+		importBlock := formatTerraformImport("portal_custom_domain", resourceName, portalID)
+		if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+			return fmt.Errorf("failed to write portal custom domain import block: %w", err)
 		}
 	}
 
