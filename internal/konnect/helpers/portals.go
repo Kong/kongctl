@@ -235,6 +235,32 @@ func HasPortalAuthSettings(ctx context.Context, portalAPI PortalAPI, portalID st
 	return true
 }
 
+// HasPortalCustomization checks if a portal has customization settings configured
+func HasPortalCustomization(ctx context.Context, portalAPI PortalAPI, portalID string) bool {
+	// Cast the portalAPI to InternalPortalAPI to access the SDK
+	internalAPI, ok := portalAPI.(*InternalPortalAPI)
+	if !ok || internalAPI == nil || internalAPI.SDK == nil {
+		return false
+	}
+
+	// Check if the SDK supports the PortalCustomization API
+	if internalAPI.SDK.PortalCustomization == nil {
+		return false
+	}
+
+	// Check if we can get the customization settings for the portal
+	// We don't need to actually fetch the data, just check if the API returns success
+	// which means that customization settings exist
+	_, err := internalAPI.SDK.PortalCustomization.GetPortalCustomization(ctx, portalID)
+	if err != nil {
+		// If there's an error, the customization settings don't exist or couldn't be accessed
+		return false
+	}
+
+	// No error means the customization settings exist
+	return true
+}
+
 // HasCustomDomainForPortal checks if a portal has a custom domain configured
 func HasCustomDomainForPortal(ctx context.Context, portalAPI PortalAPI, portalID string) bool {
 	// Cast the portalAPI to InternalPortalAPI to access the SDK

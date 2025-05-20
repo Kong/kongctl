@@ -61,6 +61,7 @@ var resourceTypeMap = map[string]string{
 	"portal_snippet":       "konnect_portal_snippet",
 	"portal_custom_domain": "konnect_portal_custom_domain",
 	"portal_auth_settings": "konnect_portal_auth",
+	"portal_customization": "konnect_portal_customization",
 }
 
 // Maps parent resources to their child resource types
@@ -71,6 +72,7 @@ var parentChildResourceMap = map[string][]string{
 		"portal_settings",
 		"portal_custom_domain",
 		"portal_auth_settings",
+		"portal_customization",
 	},
 }
 
@@ -270,6 +272,17 @@ func dumpPortalChildResources(
 		importBlock := formatTerraformImport("portal_auth_settings", resourceName, portalID)
 		if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 			return fmt.Errorf("failed to write portal auth settings import block: %w", err)
+		}
+	}
+
+	// Customization
+	if helpers.HasPortalCustomization(ctx, kkClient, portalID) {
+		// No customization header needed
+
+		resourceName := fmt.Sprintf("%s_customization", portalName)
+		importBlock := formatTerraformImport("portal_customization", resourceName, portalID)
+		if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+			return fmt.Errorf("failed to write portal customization import block: %w", err)
 		}
 	}
 
