@@ -8,6 +8,7 @@ type MockConfigHook struct {
 	GetStringMock      func(key string) string
 	GetBoolMock        func(key string) bool
 	GetIntMock         func(key string) int
+	GetIntOrElseMock   func(key string, orElse int) int
 	SaveMock           func() error
 	BindFlagMock       func(string, *pflag.Flag) error
 	GetProfileMock     func() string
@@ -32,6 +33,13 @@ func (m *MockConfigHook) GetBool(key string) bool {
 
 func (m *MockConfigHook) GetInt(key string) int {
 	return m.GetIntMock(key)
+}
+
+func (m *MockConfigHook) GetIntOrElse(key string, orElse int) int {
+	if m.GetIntOrElseMock != nil {
+		return m.GetIntOrElseMock(key, orElse)
+	}
+	return orElse
 }
 
 func (m *MockConfigHook) BindFlag(configPath string, f *pflag.Flag) error {

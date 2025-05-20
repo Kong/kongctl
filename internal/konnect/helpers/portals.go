@@ -62,17 +62,6 @@ func GetAllPortals(ctx context.Context, requestPageSize int64, kkClient *kkInter
 	return allData, nil
 }
 
-// DocInfo represents a portal document with minimal info needed for Terraform import
-type DocInfo struct {
-	ID   string
-	Slug string
-}
-
-// SpecInfo represents a portal specification with minimal info needed for Terraform import
-type SpecInfo struct {
-	ID   string
-	Name string
-}
 
 // PageInfo represents a portal page with minimal info needed for Terraform import
 type PageInfo struct {
@@ -81,27 +70,17 @@ type PageInfo struct {
 	Slug string
 }
 
+// SnippetInfo represents a portal snippet with minimal info needed for Terraform import
+type SnippetInfo struct {
+	ID   string
+	Name string
+}
+
 // Int64 is a helper to convert int64 to *int64
 func Int64(v int64) *int64 {
 	return &v
 }
 
-// GetDocumentsForPortal returns a list of documents for a portal
-// Returns an empty slice if the operation isn't supported
-func GetDocumentsForPortal(ctx context.Context, portalAPI PortalAPI, portalID string) ([]DocInfo, error) {
-	// TODO: Implement with V3PortalDocuments API when available using the same pattern as GetPagesForPortal
-	// For now, return empty slice to indicate the feature is not yet implemented
-	return []DocInfo{}, fmt.Errorf("documents API not fully implemented yet")
-}
-
-// GetSpecificationsForPortal returns a list of specifications for a portal
-// Returns an empty slice if the operation isn't supported
-func GetSpecificationsForPortal(ctx context.Context, portalAPI PortalAPI, portalID string) ([]SpecInfo, error) {
-	// TODO: Implement with API Publications or similar API when available using the same pattern as GetPagesForPortal
-	// Can use the SDK's ListAPIPublications method from the apipublication.go file when available
-	// For now, return empty slice to indicate the feature is not yet implemented
-	return []SpecInfo{}, fmt.Errorf("specifications API not fully implemented yet")
-}
 
 // GetPagesForPortal returns a list of pages for a portal with pagination
 // This function is designed to be used with the dump command to export portal pages
@@ -163,6 +142,65 @@ func GetPagesForPortal(ctx context.Context, portalAPI PortalAPI, portalID string
 	}
 
 	return allPages, nil
+}
+
+// GetSnippetsForPortal returns a list of snippets for a portal with pagination
+func GetSnippetsForPortal(ctx context.Context, portalAPI PortalAPI, portalID string) ([]SnippetInfo, error) {
+	// Cast the portalAPI to InternalPortalAPI to access the SDK
+	internalAPI, ok := portalAPI.(*InternalPortalAPI)
+	if !ok || internalAPI == nil || internalAPI.SDK == nil {
+		return nil, fmt.Errorf("invalid portal API implementation")
+	}
+	
+	// Check if the SDK supports the V3PortalSnippets API
+	if internalAPI.SDK.V3PortalSnippets == nil {
+		return nil, fmt.Errorf("SDK does not support V3PortalSnippets API")
+	}
+	
+	var allSnippets []SnippetInfo
+	var pageNumber int64 = 1
+	const pageSize int64 = 100 // Default page size for pagination
+	
+	// Keep fetching snippets until there are no more
+	for {
+		// Create a request to list portal snippets for the specified portal
+		req := kkInternalOps.ListPortalSnippetsRequest{
+			PortalID:   portalID,
+			PageSize:   Int64(pageSize),
+			PageNumber: Int64(pageNumber),
+		}
+		
+		// Call the SDK's ListPortalSnippets method
+		res, err := internalAPI.SDK.V3PortalSnippets.ListPortalSnippets(ctx, req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list portal snippets: %w", err)
+		}
+		
+		// Check if we have data in the response
+		if res.ListPortalSnippetsResponse == nil || len(res.ListPortalSnippetsResponse.Data) == 0 {
+			break
+		}
+		
+		// Process the snippets in the current batch
+		for _, snippet := range res.ListPortalSnippetsResponse.Data {
+			snippetInfo := SnippetInfo{
+				ID:   snippet.ID,
+				Name: snippet.Name,
+			}
+			allSnippets = append(allSnippets, snippetInfo)
+		}
+		
+		// Increment the page number for the next request
+		pageNumber++
+		
+		// If there are no more pages, break out of the loop
+		// Check if we've received all pages based on the meta information
+		if res.ListPortalSnippetsResponse.Meta.Page.Total <= float64(pageSize*(pageNumber-1)) {
+			break
+		}
+	}
+	
+	return allSnippets, nil
 }
 
 // HasPortalSettings checks if the portal has settings that can be exported

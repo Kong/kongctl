@@ -55,19 +55,17 @@ var (
 
 // Maps resource types to their corresponding Terraform resource types
 var resourceTypeMap = map[string]string{
-	"portal":               "konnect_portal",
-	"portal_document":      "konnect_portal_document",
-	"portal_specification": "konnect_portal_specification",
-	"portal_page":          "konnect_portal_page",
-	"portal_settings":      "konnect_portal_settings",
+	"portal":           "konnect_portal",
+	"portal_page":      "konnect_portal_page",
+	"portal_settings":  "konnect_portal_settings",
+	"portal_snippet":   "konnect_portal_snippet",
 }
 
 // Maps parent resources to their child resource types
 var parentChildResourceMap = map[string][]string{
 	"portal": {
-		"portal_document",
-		"portal_specification",
 		"portal_page",
+		"portal_snippet",
 		"portal_settings",
 	},
 }
@@ -208,35 +206,6 @@ func dumpPortalChildResources(
 	// No header comment needed
 
 	// Try to dump each type of child resource, but continue if any fail
-	// Documents
-	docs, err := helpers.GetDocumentsForPortal(ctx, kkClient, portalID)
-	if err == nil && len(docs) > 0 {
-		// No documents header needed
-
-		for _, doc := range docs {
-			resourceName := fmt.Sprintf("%s_%s", portalName, doc.Slug)
-			resourceID := fmt.Sprintf("%s:%s", portalID, doc.ID)
-			importBlock := formatTerraformImport("portal_document", resourceName, resourceID)
-			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
-				return fmt.Errorf("failed to write portal document import block: %w", err)
-			}
-		}
-	}
-
-	// Specifications
-	specs, err := helpers.GetSpecificationsForPortal(ctx, kkClient, portalID)
-	if err == nil && len(specs) > 0 {
-		// No specifications header needed
-
-		for _, spec := range specs {
-			resourceName := fmt.Sprintf("%s_%s", portalName, spec.Name)
-			resourceID := fmt.Sprintf("%s:%s", portalID, spec.ID)
-			importBlock := formatTerraformImport("portal_specification", resourceName, resourceID)
-			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
-				return fmt.Errorf("failed to write portal specification import block: %w", err)
-			}
-		}
-	}
 
 	// Pages
 	pages, err := helpers.GetPagesForPortal(ctx, kkClient, portalID)
@@ -253,6 +222,21 @@ func dumpPortalChildResources(
 			importBlock := formatTerraformImport("portal_page", resourceName, resourceID)
 			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 				return fmt.Errorf("failed to write portal page import block: %w", err)
+			}
+		}
+	}
+	
+	// Snippets
+	snippets, err := helpers.GetSnippetsForPortal(ctx, kkClient, portalID)
+	if err == nil && len(snippets) > 0 {
+		// No snippets header needed
+		
+		for _, snippet := range snippets {
+			resourceName := fmt.Sprintf("%s_%s", portalName, snippet.Name)
+			resourceID := fmt.Sprintf("%s:%s", portalID, snippet.ID)
+			importBlock := formatTerraformImport("portal_snippet", resourceName, resourceID)
+			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+				return fmt.Errorf("failed to write portal snippet import block: %w", err)
 			}
 		}
 	}
