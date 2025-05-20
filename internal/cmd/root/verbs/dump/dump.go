@@ -184,7 +184,7 @@ func dumpPortals(
 			if includeChildResources {
 				if err := dumpPortalChildResources(ctx, writer, kkClient, portal.ID, portal.Name, requestPageSize); err != nil {
 					// Log error but continue with other portals
-					fmt.Fprintf(writer, "# Warning: Failed to dump child resources for portal %s: %v\n", portal.Name, err)
+					fmt.Fprintf(os.Stderr, "Warning: Failed to dump child resources for portal %s: %v\n", portal.Name, err)
 				}
 			}
 		}
@@ -205,17 +205,13 @@ func dumpPortalChildResources(
 	requestPageSize int64,
 ) error {
 	// Start with a header comment
-	if _, err := fmt.Fprintf(writer, "\n# Child resources for portal: %s\n", portalName); err != nil {
-		return fmt.Errorf("failed to write header: %w", err)
-	}
+	// No header comment needed
 
 	// Try to dump each type of child resource, but continue if any fail
 	// Documents
 	docs, err := helpers.GetDocumentsForPortal(ctx, kkClient, portalID)
 	if err == nil && len(docs) > 0 {
-		if _, err := fmt.Fprintf(writer, "\n# Portal documents\n"); err != nil {
-			return fmt.Errorf("failed to write documents header: %w", err)
-		}
+		// No documents header needed
 
 		for _, doc := range docs {
 			resourceName := fmt.Sprintf("%s_%s", portalName, doc.Slug)
@@ -230,9 +226,7 @@ func dumpPortalChildResources(
 	// Specifications
 	specs, err := helpers.GetSpecificationsForPortal(ctx, kkClient, portalID)
 	if err == nil && len(specs) > 0 {
-		if _, err := fmt.Fprintf(writer, "\n# Portal specifications\n"); err != nil {
-			return fmt.Errorf("failed to write specifications header: %w", err)
-		}
+		// No specifications header needed
 
 		for _, spec := range specs {
 			resourceName := fmt.Sprintf("%s_%s", portalName, spec.Name)
@@ -247,9 +241,7 @@ func dumpPortalChildResources(
 	// Pages
 	pages, err := helpers.GetPagesForPortal(ctx, kkClient, portalID)
 	if err == nil && len(pages) > 0 {
-		if _, err := fmt.Fprintf(writer, "\n# Portal pages\n"); err != nil {
-			return fmt.Errorf("failed to write pages header: %w", err)
-		}
+		// No pages header needed
 
 		for _, page := range pages {
 			pageName := page.Name
@@ -267,9 +259,7 @@ func dumpPortalChildResources(
 
 	// Settings
 	if helpers.HasPortalSettings(ctx, kkClient, portalID) {
-		if _, err := fmt.Fprintf(writer, "\n# Portal settings\n"); err != nil {
-			return fmt.Errorf("failed to write settings header: %w", err)
-		}
+		// No settings header needed
 
 		resourceName := fmt.Sprintf("%s_settings", portalName)
 		importBlock := formatTerraformImport("portal_settings", resourceName, portalID)
