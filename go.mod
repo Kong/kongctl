@@ -4,6 +4,7 @@ go 1.24.3
 
 require (
 	github.com/Kong/sdk-konnect-go v0.2.28
+	github.com/Kong/sdk-konnect-go-internal v0.0.2-0.20250520200308-3ef08f99a331
 	github.com/ajg/form v1.5.1
 	github.com/google/uuid v1.6.0
 	github.com/segmentio/cli v0.8.1
@@ -14,7 +15,6 @@ require (
 )
 
 require (
-	github.com/Kong/sdk-konnect-go-internal v0.0.2-0.20250221174722-8c540a2d0b06 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/ericlagergren/decimal v0.0.0-20221120152707-495c53812d05 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect

@@ -26,18 +26,18 @@ func (p *InternalPortalAPI) ListPortals(
 	ctx context.Context,
 	request kkInternalOps.ListPortalsRequest,
 ) (*kkInternalOps.ListPortalsResponse, error) {
-	return p.SDK.V3Portals.ListPortals(ctx, request)
+	return p.SDK.Portals.ListPortals(ctx, request)
 }
 
 // GetPortal implements the PortalAPI interface
 func (p *InternalPortalAPI) GetPortal(ctx context.Context, id string) (*kkInternalOps.GetPortalResponse, error) {
-	return p.SDK.V3Portals.GetPortal(ctx, id)
+	return p.SDK.Portals.GetPortal(ctx, id)
 }
 
 // GetAllPortals fetches all portals with pagination
 func GetAllPortals(ctx context.Context, requestPageSize int64, kkClient *kkInternal.SDK,
-) ([]kkInternalComps.PortalV3, error) {
-	var allData []kkInternalComps.PortalV3
+) ([]kkInternalComps.Portal, error) {
+	var allData []kkInternalComps.Portal
 
 	var pageNumber int64 = 1
 	for {
@@ -46,13 +46,13 @@ func GetAllPortals(ctx context.Context, requestPageSize int64, kkClient *kkInter
 			PageNumber: kkInternal.Int64(pageNumber),
 		}
 
-		res, err := kkClient.V3Portals.ListPortals(ctx, req)
+		res, err := kkClient.Portals.ListPortals(ctx, req)
 		if err != nil {
 			return nil, err
 		}
 
-		if res.ListPortalsResponseV3 != nil && len(res.ListPortalsResponseV3.Data) > 0 {
-			allData = append(allData, res.ListPortalsResponseV3.Data...)
+		if res.ListPortalsResponse != nil && len(res.ListPortalsResponse.Data) > 0 {
+			allData = append(allData, res.ListPortalsResponse.Data...)
 			pageNumber++
 		} else {
 			break
@@ -61,7 +61,6 @@ func GetAllPortals(ctx context.Context, requestPageSize int64, kkClient *kkInter
 
 	return allData, nil
 }
-
 
 // PageInfo represents a portal page with minimal info needed for Terraform import
 type PageInfo struct {
@@ -81,7 +80,6 @@ func Int64(v int64) *int64 {
 	return &v
 }
 
-
 // GetPagesForPortal returns a list of pages for a portal with pagination
 // This function is designed to be used with the dump command to export portal pages
 // as Terraform import blocks.
@@ -92,9 +90,8 @@ func GetPagesForPortal(ctx context.Context, portalAPI PortalAPI, portalID string
 		return nil, fmt.Errorf("invalid portal API implementation")
 	}
 
-	// Check if the SDK supports the V3PortalPages API
-	if internalAPI.SDK.V3PortalPages == nil {
-		return nil, fmt.Errorf("SDK does not support V3PortalPages API")
+	if internalAPI.SDK.Pages == nil {
+		return nil, fmt.Errorf("SDK does not support Pages API")
 	}
 
 	var allPages []PageInfo
@@ -111,7 +108,7 @@ func GetPagesForPortal(ctx context.Context, portalAPI PortalAPI, portalID string
 		}
 
 		// Call the SDK's ListPortalPages method
-		res, err := internalAPI.SDK.V3PortalPages.ListPortalPages(ctx, req)
+		res, err := internalAPI.SDK.Pages.ListPortalPages(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list portal pages: %w", err)
 		}
@@ -151,16 +148,16 @@ func GetSnippetsForPortal(ctx context.Context, portalAPI PortalAPI, portalID str
 	if !ok || internalAPI == nil || internalAPI.SDK == nil {
 		return nil, fmt.Errorf("invalid portal API implementation")
 	}
-	
+
 	// Check if the SDK supports the V3PortalSnippets API
-	if internalAPI.SDK.V3PortalSnippets == nil {
+	if internalAPI.SDK.Snippets == nil {
 		return nil, fmt.Errorf("SDK does not support V3PortalSnippets API")
 	}
-	
+
 	var allSnippets []SnippetInfo
 	var pageNumber int64 = 1
 	const pageSize int64 = 100 // Default page size for pagination
-	
+
 	// Keep fetching snippets until there are no more
 	for {
 		// Create a request to list portal snippets for the specified portal
@@ -169,18 +166,18 @@ func GetSnippetsForPortal(ctx context.Context, portalAPI PortalAPI, portalID str
 			PageSize:   Int64(pageSize),
 			PageNumber: Int64(pageNumber),
 		}
-		
+
 		// Call the SDK's ListPortalSnippets method
-		res, err := internalAPI.SDK.V3PortalSnippets.ListPortalSnippets(ctx, req)
+		res, err := internalAPI.SDK.Snippets.ListPortalSnippets(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list portal snippets: %w", err)
 		}
-		
+
 		// Check if we have data in the response
 		if res.ListPortalSnippetsResponse == nil || len(res.ListPortalSnippetsResponse.Data) == 0 {
 			break
 		}
-		
+
 		// Process the snippets in the current batch
 		for _, snippet := range res.ListPortalSnippetsResponse.Data {
 			snippetInfo := SnippetInfo{
@@ -189,17 +186,17 @@ func GetSnippetsForPortal(ctx context.Context, portalAPI PortalAPI, portalID str
 			}
 			allSnippets = append(allSnippets, snippetInfo)
 		}
-		
+
 		// Increment the page number for the next request
 		pageNumber++
-		
+
 		// If there are no more pages, break out of the loop
 		// Check if we've received all pages based on the meta information
 		if res.ListPortalSnippetsResponse.Meta.Page.Total <= float64(pageSize*(pageNumber-1)) {
 			break
 		}
 	}
-	
+
 	return allSnippets, nil
 }
 
@@ -212,6 +209,32 @@ func HasPortalSettings(ctx context.Context, portalAPI PortalAPI, portalID string
 	return false
 }
 
+// HasPortalAuthSettings checks if a portal has auth settings configured
+func HasPortalAuthSettings(ctx context.Context, portalAPI PortalAPI, portalID string) bool {
+	// Cast the portalAPI to InternalPortalAPI to access the SDK
+	internalAPI, ok := portalAPI.(*InternalPortalAPI)
+	if !ok || internalAPI == nil || internalAPI.SDK == nil {
+		return false
+	}
+
+	// Check if the SDK supports the PortalAuthSettings API
+	if internalAPI.SDK.PortalAuthSettings == nil {
+		return false
+	}
+
+	// Check if we can get the auth settings for the portal
+	// We don't need to actually fetch the data, just check if the API returns success
+	// which means that auth settings exist
+	_, err := internalAPI.SDK.PortalAuthSettings.GetPortalAuthenticationSettings(ctx, portalID)
+	if err != nil {
+		// If there's an error, the auth settings don't exist or couldn't be accessed
+		return false
+	}
+
+	// No error means the auth settings exist
+	return true
+}
+
 // HasCustomDomainForPortal checks if a portal has a custom domain configured
 func HasCustomDomainForPortal(ctx context.Context, portalAPI PortalAPI, portalID string) bool {
 	// Cast the portalAPI to InternalPortalAPI to access the SDK
@@ -221,14 +244,14 @@ func HasCustomDomainForPortal(ctx context.Context, portalAPI PortalAPI, portalID
 	}
 
 	// Check if the SDK supports the V3PortalCustomDomains API
-	if internalAPI.SDK.V3PortalCustomDomains == nil {
+	if internalAPI.SDK.PortalCustomDomains == nil {
 		return false
 	}
 
 	// Check if we can get the custom domain for the portal
 	// We don't need to actually fetch the data, just check if the API returns success
 	// which means that a custom domain exists
-	_, err := internalAPI.SDK.V3PortalCustomDomains.GetPortalCustomDomain(ctx, portalID)
+	_, err := internalAPI.SDK.PortalCustomDomains.GetPortalCustomDomain(ctx, portalID)
 	if err != nil {
 		// If there's an error, the custom domain doesn't exist or couldn't be accessed
 		return false

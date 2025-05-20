@@ -55,11 +55,12 @@ var (
 
 // Maps resource types to their corresponding Terraform resource types
 var resourceTypeMap = map[string]string{
-	"portal":             "konnect_portal",
-	"portal_page":        "konnect_portal_page",
-	"portal_settings":    "konnect_portal_settings",
-	"portal_snippet":     "konnect_portal_snippet",
+	"portal":               "konnect_portal",
+	"portal_page":          "konnect_portal_page",
+	"portal_settings":      "konnect_portal_settings",
+	"portal_snippet":       "konnect_portal_snippet",
 	"portal_custom_domain": "konnect_portal_custom_domain",
+	"portal_auth_settings": "konnect_portal_auth",
 }
 
 // Maps parent resources to their child resource types
@@ -69,6 +70,7 @@ var parentChildResourceMap = map[string][]string{
 		"portal_snippet",
 		"portal_settings",
 		"portal_custom_domain",
+		"portal_auth_settings",
 	},
 }
 
@@ -119,7 +121,7 @@ func formatTerraformImport(resourceType, resourceName, resourceID string) string
 	}
 
 	safeName := sanitizeTerraformResourceName(resourceName)
-	
+
 	// For the import block, we always add a provider reference
 	providerName := "konnect-beta"
 
@@ -130,7 +132,7 @@ func formatTerraformImport(resourceType, resourceName, resourceID string) string
 		if len(parts) == 2 {
 			portalID := parts[0]
 			resourceComponentID := parts[1]
-			
+
 			idBlock = fmt.Sprintf("  id = jsonencode({\n    id: \"%s\"\n    portal_id: \"%s\"\n  })",
 				resourceComponentID, portalID)
 		} else {
@@ -169,11 +171,11 @@ func dumpPortals(
 			return fmt.Errorf("failed to list portals: %w", err)
 		}
 
-		if res.ListPortalsResponseV3 == nil || len(res.ListPortalsResponseV3.Data) == 0 {
+		if res.ListPortalsResponse == nil || len(res.ListPortalsResponse.Data) == 0 {
 			break
 		}
 
-		for _, portal := range res.ListPortalsResponseV3.Data {
+		for _, portal := range res.ListPortalsResponse.Data {
 			// Write the portal import block
 			importBlock := formatTerraformImport("portal", portal.Name, portal.ID)
 			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
@@ -204,9 +206,6 @@ func dumpPortalChildResources(
 	portalName string,
 	requestPageSize int64,
 ) error {
-	// Start with a header comment
-	// No header comment needed
-
 	// Try to dump each type of child resource, but continue if any fail
 
 	// Pages
@@ -227,12 +226,10 @@ func dumpPortalChildResources(
 			}
 		}
 	}
-	
+
 	// Snippets
 	snippets, err := helpers.GetSnippetsForPortal(ctx, kkClient, portalID)
 	if err == nil && len(snippets) > 0 {
-		// No snippets header needed
-		
 		for _, snippet := range snippets {
 			resourceName := fmt.Sprintf("%s_%s", portalName, snippet.Name)
 			resourceID := fmt.Sprintf("%s:%s", portalID, snippet.ID)
@@ -262,6 +259,17 @@ func dumpPortalChildResources(
 		importBlock := formatTerraformImport("portal_custom_domain", resourceName, portalID)
 		if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 			return fmt.Errorf("failed to write portal custom domain import block: %w", err)
+		}
+	}
+
+	// Auth Settings
+	if helpers.HasPortalAuthSettings(ctx, kkClient, portalID) {
+		// No auth settings header needed
+
+		resourceName := fmt.Sprintf("%s_auth_settings", portalName)
+		importBlock := formatTerraformImport("portal_auth_settings", resourceName, portalID)
+		if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+			return fmt.Errorf("failed to write portal auth settings import block: %w", err)
 		}
 	}
 
