@@ -119,10 +119,29 @@ func formatTerraformImport(resourceType, resourceName, resourceID string) string
 	}
 
 	safeName := sanitizeTerraformResourceName(resourceName)
-	escapedID := escapeTerraformString(resourceID)
+	
+	// For the import block, we always add a provider reference
+	providerName := "konnect-beta"
 
-	return fmt.Sprintf("import {\n  to = %s.%s\n  id = \"%s\"\n}\n",
-		terraformType, safeName, escapedID)
+	// Format the ID based on the resource type
+	var idBlock string
+	if strings.HasPrefix(resourceType, "portal_") && resourceType != "portal" && strings.Contains(resourceID, ":") {
+		parts := strings.Split(resourceID, ":")
+		if len(parts) == 2 {
+			portalID := parts[0]
+			resourceComponentID := parts[1]
+			
+			idBlock = fmt.Sprintf("  id = jsonencode({\n    id: \"%s\"\n    portal_id: \"%s\"\n  })",
+				resourceComponentID, portalID)
+		} else {
+			idBlock = fmt.Sprintf("  id = \"%s\"", escapeTerraformString(resourceID))
+		}
+	} else {
+		idBlock = fmt.Sprintf("  id = \"%s\"", escapeTerraformString(resourceID))
+	}
+
+	return fmt.Sprintf("import {\n  to = %s.%s\n  provider = %s\n%s\n}\n",
+		terraformType, safeName, providerName, idBlock)
 }
 
 // Helper function for the internal SDK
