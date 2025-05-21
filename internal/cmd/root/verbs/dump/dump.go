@@ -72,6 +72,7 @@ var resourceTypeMap = map[string]string{
 	"api":                  "konnect_api",
 	"api_document":         "konnect_api_document",
 	"api_specification":    "konnect_api_specification",
+	"api_publication":      "konnect_api_publication",
 }
 
 // Maps parent resources to their child resource types
@@ -87,6 +88,7 @@ var parentChildResourceMap = map[string][]string{
 	"api": {
 		"api_document",
 		"api_specification",
+		"api_publication",
 	},
 }
 
@@ -157,6 +159,30 @@ func formatTerraformImport(resourceType, resourceName, resourceID string, parent
 		debugf("Formatted simple key import block for %s with ID %s", 
 			resourceType, resourceID)
 	}
+
+	return fmt.Sprintf("import {\n  to = %s.%s\n  provider = %s\n%s\n}\n",
+		terraformType, safeName, providerName, idBlock)
+}
+
+// formatTerraformImportForAPIPublication creates a Terraform import block specifically for API Publications
+// API Publications use a composite key with both api_id and portal_id
+func formatTerraformImportForAPIPublication(resourceType, resourceName, apiID, portalID string) string {
+	terraformType, ok := resourceTypeMap[resourceType]
+	if !ok {
+		terraformType = "unknown_" + resourceType
+	}
+
+	safeName := sanitizeTerraformResourceName(resourceName)
+
+	// For the import block, we always add a provider reference
+	providerName := "konnect-beta"
+
+	// API Publications use a different format for the ID with both api_id and portal_id
+	idBlock := fmt.Sprintf("  id = jsonencode({\n    \"api_id\": \"%s\",\n    \"portal_id\": \"%s\"\n  })",
+		escapeTerraformString(apiID), escapeTerraformString(portalID))
+	
+	debugf("Formatted API Publication import block with api_id=%s and portal_id=%s", 
+		apiID, portalID)
 
 	return fmt.Sprintf("import {\n  to = %s.%s\n  provider = %s\n%s\n}\n",
 		terraformType, safeName, providerName, idBlock)
@@ -606,6 +632,121 @@ func dumpAPIChildResources(
 				} else {
 					if logger != nil {
 						logger.Info("no API specifications found for API", "api_id", apiID, "api_name", apiName)
+					}
+				}
+			}
+		}
+	}
+	
+	// Process API Publications
+	// Let's check if the SDK has a valid APIPublication field
+	if sdk.SDK.APIPublication == nil {
+		debugf("InternalAPIAPI.SDK.APIPublication is nil")
+		if logger != nil {
+			logger.Warn("SDK.APIPublication is nil, skipping API publications")
+		}
+	} else {
+		// Create an API publication client using the existing SDK reference
+		debugf("Creating API publication client directly")
+		apiPubAPI := &helpers.InternalAPIPublicationAPI{SDK: sdk.SDK}
+		
+		if apiPubAPI == nil {
+			debugf("Failed to create APIPublicationAPI")
+			if logger != nil {
+				logger.Warn("failed to create API publication client, skipping API publications")
+			}
+		} else {
+			debugf("Successfully obtained API publication client")
+			
+			if logger != nil {
+				logger.Debug("created API publication client", "api_pub_api_nil", apiPubAPI == nil)
+			}
+
+			publications, err := helpers.GetPublicationsForAPI(ctx, apiPubAPI, apiID)
+			if err != nil {
+				if logger != nil {
+					logger.Warn("failed to get publications for API", "api_id", apiID, "error", err)
+				}
+				debugf("Error fetching API publications: %v", err)
+			} else {
+				if logger != nil {
+					logger.Debug("retrieved API publications", "api_id", apiID, "publication_count", len(publications))
+				}
+
+				if len(publications) > 0 {
+					for i, pubInterface := range publications {
+						if logger != nil {
+							logger.Debug("processing publication", "index", i, "pub_type", fmt.Sprintf("%T", pubInterface))
+						}
+
+						// Convert the interface{} to a map to access its properties
+						// The SDK returns API publication entries as generic objects
+						debugf("Processing publication %d, type: %T, value: %+v", i, pubInterface, pubInterface)
+						
+						// API Publications use a composite key of portal_id and api_id (no separate ID field)
+						portalID := ""
+						
+						// First try to access as a map
+						pub, ok := pubInterface.(map[string]interface{})
+						if ok {
+							debugf("Successfully converted publication to map")
+							portalID, _ = pub["portal_id"].(string)
+							debugf("From map - Portal ID: %s", portalID)
+						} else {
+							debugf("Could not convert publication to map, trying to decode it")
+							
+							// Try to serialize and deserialize the publication
+							pubBytes, err := json.Marshal(pubInterface)
+							if err == nil {
+								debugf("Successfully serialized publication: %s", string(pubBytes))
+								
+								// Try to unmarshal into a simple map
+								var pubMap map[string]interface{}
+								if err := json.Unmarshal(pubBytes, &pubMap); err == nil {
+									debugf("Successfully unmarshaled publication to map")
+									
+									// For publications, we need the portal_id 
+									portalID, _ = pubMap["portal_id"].(string)
+									if portalID != "" {
+										debugf("Found portal_id field: %s", portalID)
+									}
+								}
+							}
+						}
+						
+						if portalID == "" {
+							debugf("Could not extract portal_id from publication, pub type: %T", pubInterface)
+							if logger != nil {
+								logger.Warn("publication missing portal_id", "index", i, "pub_type", fmt.Sprintf("%T", pubInterface))
+							}
+							continue
+						}
+						
+						debugf("Successfully extracted portal ID: %s", portalID)
+
+						if logger != nil {
+							logger.Debug("publication details", "api_id", apiID, "portal_id", portalID)
+						}
+
+						// Create a resource name using the API ID and portal ID
+						resourceName := fmt.Sprintf("%s_pub_%s", apiName, portalID[:8]) // Use first 8 chars of portal ID as identifier
+
+						// For API publications, the import format is different - we need a composite key with both api_id and portal_id
+						importBlock := formatTerraformImportForAPIPublication("api_publication", resourceName, apiID, portalID)
+						if logger != nil {
+							logger.Debug("writing import block", "resource_name", resourceName, "portal_id", portalID, "api_id", apiID)
+						}
+						
+						if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+							if logger != nil {
+								logger.Error("failed to write API publication import block", "error", err)
+							}
+							return fmt.Errorf("failed to write API publication import block: %w", err)
+						}
+					}
+				} else {
+					if logger != nil {
+						logger.Info("no API publications found for API", "api_id", apiID, "api_name", apiName)
 					}
 				}
 			}

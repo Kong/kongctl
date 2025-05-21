@@ -19,17 +19,19 @@ type SDKAPI interface {
 	GetAPIAPI() APIAPI
 	GetAPIDocumentAPI() APIDocumentAPI
 	GetAPISpecificationAPI() APISpecificationAPI
+	GetAPIPublicationAPI() APIPublicationAPI
 }
 
 // This is the real implementation of the SDKAPI
 // which wraps the actual SDK implmentation
 type KonnectSDK struct {
-	SDK                     *kkSDK.SDK
-	InternalSDK             *kkInternal.SDK
-	internalPortal          *InternalPortalAPI
-	internalAPI             *InternalAPIAPI
-	internalAPIDocument     *InternalAPIDocumentAPI
+	SDK                      *kkSDK.SDK
+	InternalSDK              *kkInternal.SDK
+	internalPortal           *InternalPortalAPI
+	internalAPI              *InternalAPIAPI
+	internalAPIDocument      *InternalAPIDocumentAPI
 	internalAPISpecification *InternalAPISpecificationAPI
+	internalAPIPublication   *InternalAPIPublicationAPI
 }
 
 // Returns the real implementation of the GetControlPlaneAPI
@@ -157,6 +159,41 @@ func (k *KonnectSDK) GetAPISpecificationAPI() APISpecificationAPI {
 		}
 	}
 	return k.internalAPISpecification
+}
+
+// Returns the implementation of the APIPublicationAPI interface
+// for accessing the API Publication APIs using the internal SDK
+func (k *KonnectSDK) GetAPIPublicationAPI() APIPublicationAPI {
+	// Check if debug flag is set in environment
+	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	
+	// Helper function for debug logging
+	debugLog := func(format string, args ...interface{}) {
+		if debugEnabled {
+			fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
+		}
+	}
+	
+	debugLog("GetAPIPublicationAPI called")
+	
+	if k.InternalSDK == nil {
+		debugLog("KonnectSDK.InternalSDK is nil")
+		return nil
+	}
+	
+	if k.InternalSDK.APIPublication == nil {
+		debugLog("KonnectSDK.InternalSDK.APIPublication is nil")
+	} else {
+		debugLog("KonnectSDK.InternalSDK.APIPublication is NOT nil")
+	}
+	
+	if k.internalAPIPublication == nil && k.InternalSDK != nil {
+		debugLog("Creating new InternalAPIPublicationAPI")
+		k.internalAPIPublication = &InternalAPIPublicationAPI{
+			SDK: k.InternalSDK,
+		}
+	}
+	return k.internalAPIPublication
 }
 
 // A function that can build an SDKAPI with a given configuration
