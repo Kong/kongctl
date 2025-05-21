@@ -2,8 +2,10 @@ package dump
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"regexp"
 	"strings"
@@ -14,6 +16,7 @@ import (
 	konnectCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -45,11 +48,15 @@ var (
 
 		# Export all portals with their child resources to a file
 		%[1]s dump --resources=portal --include-child-resources --output-file=portals.tf
+
+		# Export with debug logging enabled
+		%[1]s dump --resources=api --include-child-resources --debug
 		`, meta.CLIName)))
 
 	resources             string
 	includeChildResources bool
 	outputFile            string
+	debug                 bool
 	dumpFormat            = cmd.NewEnum([]string{"tf-imports"}, "tf-imports")
 )
 
@@ -63,6 +70,7 @@ var resourceTypeMap = map[string]string{
 	"portal_auth_settings": "konnect_portal_auth",
 	"portal_customization": "konnect_portal_customization",
 	"api":                  "konnect_api",
+	"api_document":         "konnect_api_document",
 }
 
 // Maps parent resources to their child resource types
@@ -74,6 +82,9 @@ var parentChildResourceMap = map[string][]string{
 		"portal_custom_domain",
 		"portal_auth_settings",
 		"portal_customization",
+	},
+	"api": {
+		"api_document",
 	},
 }
 
@@ -117,7 +128,9 @@ func escapeTerraformString(s string) string {
 }
 
 // formatTerraformImport creates a Terraform import block
-func formatTerraformImport(resourceType, resourceName, resourceID string) string {
+// For child resources with composite keys, provide parentIDKey and parentID
+// For top-level resources, leave parentIDKey and parentID as empty strings
+func formatTerraformImport(resourceType, resourceName, resourceID string, parentIDKey string, parentID string) string {
 	terraformType, ok := resourceTypeMap[resourceType]
 	if !ok {
 		terraformType = "unknown_" + resourceType
@@ -128,21 +141,19 @@ func formatTerraformImport(resourceType, resourceName, resourceID string) string
 	// For the import block, we always add a provider reference
 	providerName := "konnect-beta"
 
-	// Format the ID based on the resource type
+	// Format the ID based on whether this is a child resource with a composite key
 	var idBlock string
-	if strings.HasPrefix(resourceType, "portal_") && resourceType != "portal" && strings.Contains(resourceID, ":") {
-		parts := strings.Split(resourceID, ":")
-		if len(parts) == 2 {
-			portalID := parts[0]
-			resourceComponentID := parts[1]
-
-			idBlock = fmt.Sprintf("  id = jsonencode({\n    id: \"%s\"\n    portal_id: \"%s\"\n  })",
-				resourceComponentID, portalID)
-		} else {
-			idBlock = fmt.Sprintf("  id = \"%s\"", escapeTerraformString(resourceID))
-		}
+	if parentIDKey != "" && parentID != "" {
+		// For child resources with composite keys
+		idBlock = fmt.Sprintf("  id = jsonencode({\n    \"id\": \"%s\",\n    \"%s\": \"%s\"\n  })",
+			escapeTerraformString(resourceID), parentIDKey, escapeTerraformString(parentID))
+		debugf("Formatted composite key import block for %s with ID %s and %s=%s", 
+			resourceType, resourceID, parentIDKey, parentID)
 	} else {
+		// For resources with simple keys
 		idBlock = fmt.Sprintf("  id = \"%s\"", escapeTerraformString(resourceID))
+		debugf("Formatted simple key import block for %s with ID %s", 
+			resourceType, resourceID)
 	}
 
 	return fmt.Sprintf("import {\n  to = %s.%s\n  provider = %s\n%s\n}\n",
@@ -152,6 +163,13 @@ func formatTerraformImport(resourceType, resourceName, resourceID string) string
 // Helper function for the internal SDK
 func Int64(v int64) *int64 {
 	return &v
+}
+
+// debugf prints a debug message if debug mode is enabled
+func debugf(format string, args ...interface{}) {
+	if debug {
+		fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
+	}
 }
 
 // dumpPortals exports all portals as Terraform import blocks
@@ -180,7 +198,7 @@ func dumpPortals(
 
 		for _, portal := range res.ListPortalsResponse.Data {
 			// Write the portal import block
-			importBlock := formatTerraformImport("portal", portal.Name, portal.ID)
+			importBlock := formatTerraformImport("portal", portal.Name, portal.ID, "", "")
 			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 				return fmt.Errorf("failed to write portal import block: %w", err)
 			}
@@ -207,6 +225,17 @@ func dumpAPIs(
 	kkClient helpers.APIAPI,
 	requestPageSize int64,
 	includeChildResources bool) error {
+	debugf("dumpAPIs called, includeChildResources=%v", includeChildResources)
+	
+	if kkClient == nil {
+		debugf("APIAPI client is nil")
+		return fmt.Errorf("APIAPI client is nil")
+	}
+	
+	// Check what kind of client we have
+	_, isInternalAPI := kkClient.(*helpers.InternalAPIAPI)
+	debugf("kkClient is InternalAPIAPI: %v", isInternalAPI)
+	
 	var pageNumber int64 = 1
 
 	for {
@@ -230,13 +259,18 @@ func dumpAPIs(
 		// Process each API in the response
 		for _, api := range res.ListAPIResponse.Data {
 			// Write the API import block
-			importBlock := formatTerraformImport("api", api.Name, api.ID)
+			importBlock := formatTerraformImport("api", api.Name, api.ID, "", "")
 			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 				return fmt.Errorf("failed to write API import block: %w", err)
 			}
 
-			// For now, we don't have child resources for APIs
-			// In the future, we can add support for child resources here
+			// If includeChildResources is true, dump the child resources as well
+			if includeChildResources {
+				if err := dumpAPIChildResources(ctx, writer, kkClient, api.ID, api.Name); err != nil {
+					// Log error but continue with other APIs
+					fmt.Fprintf(os.Stderr, "Warning: Failed to dump child resources for API %s: %v\n", api.Name, err)
+				}
+			}
 		}
 
 		// Increment the page number for the next request
@@ -245,6 +279,189 @@ func dumpAPIs(
 		// If we've fetched all the data, break out of the loop
 		if res.ListAPIResponse.Meta.Page.Total <= float64(requestPageSize*(pageNumber-1)) {
 			break
+		}
+	}
+
+	return nil
+}
+
+// dumpAPIChildResources exports all child resources of an API as Terraform import blocks
+func dumpAPIChildResources(
+	ctx context.Context,
+	writer io.Writer,
+	kkClient helpers.APIAPI,
+	apiID string,
+	apiName string,
+) error {
+	// Get logger from context if available
+	var logger *slog.Logger
+	loggerValue := ctx.Value(log.LoggerKey)
+	if loggerValue != nil {
+		logger = loggerValue.(*slog.Logger)
+	}
+
+	if logger != nil {
+		logger.Debug("dumping API child resources", "api_id", apiID, "api_name", apiName)
+	}
+
+	// Get the SDK
+	debugf("Attempting to get the API document client")
+	
+	// Try to convert to get the internal SDK
+	sdk, ok := kkClient.(*helpers.InternalAPIAPI)
+	if !ok {
+		err := fmt.Errorf("failed to convert API client to internal API client")
+		if logger != nil {
+			logger.Error("failed to convert API client", "error", err)
+		}
+		debugf("Could not convert kkClient to InternalAPIAPI")
+		return err
+	}
+
+	if logger != nil {
+		logger.Debug("successfully obtained InternalAPIAPI", "sdk_nil", sdk.SDK == nil)
+	}
+	
+	debugf("Successfully converted to InternalAPIAPI")
+	
+	// Check if SDK is nil
+	if sdk.SDK == nil {
+		debugf("InternalAPIAPI.SDK is nil")
+		return fmt.Errorf("internal SDK is nil")
+	}
+	
+	// Let's check if the SDK has a valid APIDocumentation field
+	if sdk.SDK.APIDocumentation == nil {
+		debugf("InternalAPIAPI.SDK.APIDocumentation is nil")
+		return fmt.Errorf("SDK.APIDocumentation is nil")
+	}
+
+	// Create an API document client using the existing SDK reference
+	debugf("Creating API document client directly")
+	apiDocAPI := &helpers.InternalAPIDocumentAPI{SDK: sdk.SDK}
+	
+	if apiDocAPI == nil {
+		debugf("Failed to create APIDocumentAPI")
+		return fmt.Errorf("failed to create API document client")
+	}
+	
+	debugf("Successfully obtained API document client")
+	
+	if logger != nil {
+		logger.Debug("created API document client", "api_doc_api_nil", apiDocAPI == nil)
+	}
+
+	documents, err := helpers.GetDocumentsForAPI(ctx, apiDocAPI, apiID)
+	if err != nil {
+		if logger != nil {
+			logger.Error("failed to get documents for API", "api_id", apiID, "error", err)
+		}
+		return fmt.Errorf("failed to get documents for API %s: %w", apiID, err)
+	}
+
+	if logger != nil {
+		logger.Debug("retrieved API documents", "api_id", apiID, "document_count", len(documents))
+	}
+
+	if len(documents) > 0 {
+		for i, docInterface := range documents {
+			if logger != nil {
+				logger.Debug("processing document", "index", i, "doc_type", fmt.Sprintf("%T", docInterface))
+			}
+
+			// Convert the interface{} to a map to access its properties
+			// The SDK returns API document entries as generic objects
+			debugf("Processing document %d, type: %T, value: %+v", i, docInterface, docInterface)
+			
+			// Try different approaches to access the document data
+			docID := ""
+			docName := ""
+			
+			// First try to access as a map
+			doc, ok := docInterface.(map[string]interface{})
+			if ok {
+				debugf("Successfully converted document to map")
+				docID, _ = doc["id"].(string)
+				docName, _ = doc["name"].(string)
+				debugf("From map - Document ID: %s, Name: %s", docID, docName)
+			} else {
+				debugf("Could not convert document to map, trying to decode it")
+				
+				// Try to serialize and deserialize the document
+				docBytes, err := json.Marshal(docInterface)
+				if err == nil {
+					debugf("Successfully serialized document: %s", string(docBytes))
+					
+					// Try to unmarshal into a simple map
+					var docMap map[string]interface{}
+					if err := json.Unmarshal(docBytes, &docMap); err == nil {
+						debugf("Successfully unmarshaled document to map")
+						
+						// Try to get the id/ID and name/Name fields
+						for k, v := range docMap {
+							lowercaseKey := strings.ToLower(k)
+							if lowercaseKey == "id" {
+								if strValue, ok := v.(string); ok {
+									docID = strValue
+									debugf("Found ID field: %s", docID)
+								}
+							} else if lowercaseKey == "name" {
+								if strValue, ok := v.(string); ok {
+									docName = strValue
+									debugf("Found Name field: %s", docName)
+								}
+							}
+						}
+					}
+				}
+				
+				if docID == "" {
+					debugf("Failed to extract ID from document, doc type: %T", docInterface)
+					if logger != nil {
+						logger.Warn("failed to extract document ID", "index", i, "doc_type", fmt.Sprintf("%T", docInterface))
+					}
+					continue
+				}
+			}
+			
+			if docID == "" {
+				debugf("Could not extract document ID")
+				if logger != nil {
+					logger.Warn("document missing ID", "index", i)
+				}
+				continue
+			}
+			
+			debugf("Successfully extracted document ID: %s, Name: %s", docID, docName)
+
+			if logger != nil {
+				logger.Debug("document details", "id", docID, "name", docName)
+			}
+
+			// Use the document name if available, otherwise use a generic name
+			resourceName := apiName
+			if docName != "" {
+				resourceName = fmt.Sprintf("%s_%s", apiName, docName)
+			} else {
+				resourceName = fmt.Sprintf("%s_doc_%s", apiName, docID[:8]) // Use first 8 chars of ID as identifier
+			}
+
+			// Format and write the import block with composite key
+			importBlock := formatTerraformImport("api_document", resourceName, docID, "api_id", apiID)
+			if logger != nil {
+				logger.Debug("writing import block", "resource_name", resourceName, "doc_id", docID, "api_id", apiID)
+			}
+			
+			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+				if logger != nil {
+					logger.Error("failed to write API document import block", "error", err)
+				}
+				return fmt.Errorf("failed to write API document import block: %w", err)
+			}
+		}
+	} else {
+		if logger != nil {
+			logger.Info("no API documents found for API", "api_id", apiID, "api_name", apiName)
 		}
 	}
 
@@ -273,8 +490,7 @@ func dumpPortalChildResources(
 				pageName = page.Slug
 			}
 			resourceName := fmt.Sprintf("%s_%s", portalName, pageName)
-			resourceID := fmt.Sprintf("%s:%s", portalID, page.ID)
-			importBlock := formatTerraformImport("portal_page", resourceName, resourceID)
+			importBlock := formatTerraformImport("portal_page", resourceName, page.ID, "portal_id", portalID)
 			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 				return fmt.Errorf("failed to write portal page import block: %w", err)
 			}
@@ -286,8 +502,7 @@ func dumpPortalChildResources(
 	if err == nil && len(snippets) > 0 {
 		for _, snippet := range snippets {
 			resourceName := fmt.Sprintf("%s_%s", portalName, snippet.Name)
-			resourceID := fmt.Sprintf("%s:%s", portalID, snippet.ID)
-			importBlock := formatTerraformImport("portal_snippet", resourceName, resourceID)
+			importBlock := formatTerraformImport("portal_snippet", resourceName, snippet.ID, "portal_id", portalID)
 			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 				return fmt.Errorf("failed to write portal snippet import block: %w", err)
 			}
@@ -299,7 +514,7 @@ func dumpPortalChildResources(
 		// No settings header needed
 
 		resourceName := fmt.Sprintf("%s_settings", portalName)
-		importBlock := formatTerraformImport("portal_settings", resourceName, portalID)
+		importBlock := formatTerraformImport("portal_settings", resourceName, portalID, "", "")
 		if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 			return fmt.Errorf("failed to write portal settings import block: %w", err)
 		}
@@ -310,7 +525,7 @@ func dumpPortalChildResources(
 		// No custom domain header needed
 
 		resourceName := fmt.Sprintf("%s_custom_domain", portalName)
-		importBlock := formatTerraformImport("portal_custom_domain", resourceName, portalID)
+		importBlock := formatTerraformImport("portal_custom_domain", resourceName, portalID, "", "")
 		if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 			return fmt.Errorf("failed to write portal custom domain import block: %w", err)
 		}
@@ -321,7 +536,7 @@ func dumpPortalChildResources(
 		// No auth settings header needed
 
 		resourceName := fmt.Sprintf("%s_auth_settings", portalName)
-		importBlock := formatTerraformImport("portal_auth_settings", resourceName, portalID)
+		importBlock := formatTerraformImport("portal_auth_settings", resourceName, portalID, "", "")
 		if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 			return fmt.Errorf("failed to write portal auth settings import block: %w", err)
 		}
@@ -332,7 +547,7 @@ func dumpPortalChildResources(
 		// No customization header needed
 
 		resourceName := fmt.Sprintf("%s_customization", portalName)
-		importBlock := formatTerraformImport("portal_customization", resourceName, portalID)
+		importBlock := formatTerraformImport("portal_customization", resourceName, portalID, "", "")
 		if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 			return fmt.Errorf("failed to write portal customization import block: %w", err)
 		}
@@ -388,6 +603,14 @@ func (c *dumpCmd) validate(helper cmd.Helper) error {
 }
 
 func (c *dumpCmd) runE(cobraCmd *cobra.Command, args []string) error {
+	// Set environment variable for debug mode if requested
+	if debug {
+		os.Setenv("KONGCTL_DEBUG", "true")
+		debugf("Debug mode enabled")
+	} else {
+		os.Setenv("KONGCTL_DEBUG", "false")
+	}
+	
 	helper := cmd.BuildHelper(cobraCmd, args)
 	if err := c.validate(helper); err != nil {
 		return err
@@ -497,6 +720,10 @@ func NewDumpCmd() (*cobra.Command, error) {
 	dumpCommand.Flags().StringVar(&outputFile, "output-file",
 		"",
 		"File to write the output to. If not specified, output is written to stdout.")
+		
+	dumpCommand.Flags().BoolVar(&debug, "debug",
+		false,
+		"Enable debug logging for troubleshooting.")
 
 	// Add the page size flag with the same default as other commands
 	dumpCommand.Flags().Int(

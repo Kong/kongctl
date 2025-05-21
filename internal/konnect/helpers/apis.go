@@ -22,3 +22,9 @@ type InternalAPIAPI struct {
 func (a *InternalAPIAPI) ListApis(ctx context.Context, request kkInternalOps.ListApisRequest, opts ...kkInternalOps.Option) (*kkInternalOps.ListApisResponse, error) {
 	return a.SDK.API.ListApis(ctx, request, opts...)
 }
+
+// GetDocumentationsForAPI is a deprecated function
+// Use GetDocumentsForAPI from the apidocumentation.go file instead
+func GetDocumentationsForAPI(ctx context.Context, kkClient APIAPI, apiID string) ([]interface{}, error) {
+	return []interface{}{}, nil
+}
