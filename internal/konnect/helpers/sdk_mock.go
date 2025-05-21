@@ -8,6 +8,7 @@ type MockKonnectSDK struct {
 	T             *testing.T
 	CPAPIFactory  func() ControlPlaneAPI
 	PortalFactory func() PortalAPI
+	APIFactory    func() APIAPI
 }
 
 // Returns a mock instance of the ControlPlaneAPI
@@ -19,6 +20,14 @@ func (m *MockKonnectSDK) GetControlPlaneAPI() ControlPlaneAPI {
 func (m *MockKonnectSDK) GetPortalAPI() PortalAPI {
 	if m.PortalFactory != nil {
 		return m.PortalFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the APIAPI
+func (m *MockKonnectSDK) GetAPIAPI() APIAPI {
+	if m.APIFactory != nil {
+		return m.APIFactory()
 	}
 	return nil
 }

@@ -62,6 +62,7 @@ var resourceTypeMap = map[string]string{
 	"portal_custom_domain": "konnect_portal_custom_domain",
 	"portal_auth_settings": "konnect_portal_auth",
 	"portal_customization": "konnect_portal_customization",
+	"api":                  "konnect_api",
 }
 
 // Maps parent resources to their child resource types
@@ -199,6 +200,57 @@ func dumpPortals(
 	return nil
 }
 
+// dumpAPIs exports all APIs as Terraform import blocks
+func dumpAPIs(
+	ctx context.Context,
+	writer io.Writer,
+	kkClient helpers.APIAPI,
+	requestPageSize int64,
+	includeChildResources bool) error {
+	var pageNumber int64 = 1
+
+	for {
+		// Create a request to list APIs with pagination
+		req := kkInternalOps.ListApisRequest{
+			PageSize:   Int64(requestPageSize),
+			PageNumber: Int64(pageNumber),
+		}
+
+		// Call the SDK's ListApis method
+		res, err := kkClient.ListApis(ctx, req)
+		if err != nil {
+			return fmt.Errorf("failed to list APIs: %w", err)
+		}
+
+		// Check if we have data in the response
+		if res == nil || res.ListAPIResponse == nil || len(res.ListAPIResponse.Data) == 0 {
+			break
+		}
+
+		// Process each API in the response
+		for _, api := range res.ListAPIResponse.Data {
+			// Write the API import block
+			importBlock := formatTerraformImport("api", api.Name, api.ID)
+			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+				return fmt.Errorf("failed to write API import block: %w", err)
+			}
+
+			// For now, we don't have child resources for APIs
+			// In the future, we can add support for child resources here
+		}
+
+		// Increment the page number for the next request
+		pageNumber++
+
+		// If we've fetched all the data, break out of the loop
+		if res.ListAPIResponse.Meta.Page.Total <= float64(requestPageSize*(pageNumber-1)) {
+			break
+		}
+	}
+
+	return nil
+}
+
 // dumpPortalChildResources exports all child resources of a portal as Terraform import blocks
 func dumpPortalChildResources(
 	ctx context.Context,
@@ -301,17 +353,17 @@ func (c *dumpCmd) validate(helper cmd.Helper) error {
 			continue
 		}
 
-		// For now, only portal is supported as a top-level resource for the dump command
+		// Only portal and api are supported as top-level resources for the dump command
 		// Child resources are handled automatically when --include-child-resources is true
-		if resource != "portal" {
+		if resource != "portal" && resource != "api" {
 			return &cmd.ConfigurationError{
-				Err: fmt.Errorf("unsupported resource type: %s. Currently only 'portal' is supported as a top-level resource", resource),
+				Err: fmt.Errorf("unsupported resource type: %s. Currently only 'portal' and 'api' are supported as top-level resources", resource),
 			}
 		}
 
 		// Check if the resource type is known
 		if _, ok := resourceTypeMap[resource]; !ok {
-			supportedTypes := []string{"portal"}
+			supportedTypes := []string{"portal", "api"}
 			return &cmd.ConfigurationError{
 				Err: fmt.Errorf("unsupported resource type: %s. Supported types: %s",
 					resource, strings.Join(supportedTypes, ", ")),
@@ -377,17 +429,28 @@ func (c *dumpCmd) runE(cobraCmd *cobra.Command, args []string) error {
 			continue
 		}
 
+		// Get the page size for all resources
+		requestPageSize := int64(cfg.GetIntOrElse(
+			konnectCommon.RequestPageSizeConfigPath,
+			konnectCommon.DefaultRequestPageSize))
+
 		switch resource {
 		case "portal":
-			// Use the page size configured in the config system
-			// The system will use the default value (DefaultRequestPageSize) if not explicitly set
-			requestPageSize := int64(cfg.GetIntOrElse(
-				konnectCommon.RequestPageSizeConfigPath,
-				konnectCommon.DefaultRequestPageSize))
+			// Handle portal resources
 			if err := dumpPortals(
 				helper.GetContext(),
 				writer,
 				sdk.GetPortalAPI(),
+				requestPageSize,
+				includeChildResources); err != nil {
+				return err
+			}
+		case "api":
+			// Handle API resources
+			if err := dumpAPIs(
+				helper.GetContext(),
+				writer,
+				sdk.GetAPIAPI(),
 				requestPageSize,
 				includeChildResources); err != nil {
 				return err

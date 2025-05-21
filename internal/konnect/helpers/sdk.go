@@ -14,6 +14,7 @@ import (
 type SDKAPI interface {
 	GetControlPlaneAPI() ControlPlaneAPI
 	GetPortalAPI() PortalAPI
+	GetAPIAPI() APIAPI
 }
 
 // This is the real implementation of the SDKAPI
@@ -22,6 +23,7 @@ type KonnectSDK struct {
 	SDK            *kkSDK.SDK
 	InternalSDK    *kkInternal.SDK
 	internalPortal *InternalPortalAPI
+	internalAPI    *InternalAPIAPI
 }
 
 // Returns the real implementation of the GetControlPlaneAPI
@@ -39,6 +41,17 @@ func (k *KonnectSDK) GetPortalAPI() PortalAPI {
 		}
 	}
 	return k.internalPortal
+}
+
+// Returns the implementation of the APIAPI interface
+// for accessing the API APIs using the internal SDK
+func (k *KonnectSDK) GetAPIAPI() APIAPI {
+	if k.internalAPI == nil && k.InternalSDK != nil {
+		k.internalAPI = &InternalAPIAPI{
+			SDK: k.InternalSDK,
+		}
+	}
+	return k.internalAPI
 }
 
 // A function that can build an SDKAPI with a given configuration
