@@ -71,6 +71,7 @@ var resourceTypeMap = map[string]string{
 	"portal_customization": "konnect_portal_customization",
 	"api":                  "konnect_api",
 	"api_document":         "konnect_api_document",
+	"api_specification":    "konnect_api_specification",
 }
 
 // Maps parent resources to their child resource types
@@ -85,6 +86,7 @@ var parentChildResourceMap = map[string][]string{
 	},
 	"api": {
 		"api_document",
+		"api_specification",
 	},
 }
 
@@ -305,7 +307,7 @@ func dumpAPIChildResources(
 	}
 
 	// Get the SDK
-	debugf("Attempting to get the API document client")
+	debugf("Attempting to get the API client services")
 	
 	// Try to convert to get the internal SDK
 	sdk, ok := kkClient.(*helpers.InternalAPIAPI)
@@ -330,138 +332,283 @@ func dumpAPIChildResources(
 		return fmt.Errorf("internal SDK is nil")
 	}
 	
+	// Process API Documents
 	// Let's check if the SDK has a valid APIDocumentation field
 	if sdk.SDK.APIDocumentation == nil {
 		debugf("InternalAPIAPI.SDK.APIDocumentation is nil")
-		return fmt.Errorf("SDK.APIDocumentation is nil")
-	}
-
-	// Create an API document client using the existing SDK reference
-	debugf("Creating API document client directly")
-	apiDocAPI := &helpers.InternalAPIDocumentAPI{SDK: sdk.SDK}
-	
-	if apiDocAPI == nil {
-		debugf("Failed to create APIDocumentAPI")
-		return fmt.Errorf("failed to create API document client")
-	}
-	
-	debugf("Successfully obtained API document client")
-	
-	if logger != nil {
-		logger.Debug("created API document client", "api_doc_api_nil", apiDocAPI == nil)
-	}
-
-	documents, err := helpers.GetDocumentsForAPI(ctx, apiDocAPI, apiID)
-	if err != nil {
 		if logger != nil {
-			logger.Error("failed to get documents for API", "api_id", apiID, "error", err)
-		}
-		return fmt.Errorf("failed to get documents for API %s: %w", apiID, err)
-	}
-
-	if logger != nil {
-		logger.Debug("retrieved API documents", "api_id", apiID, "document_count", len(documents))
-	}
-
-	if len(documents) > 0 {
-		for i, docInterface := range documents {
-			if logger != nil {
-				logger.Debug("processing document", "index", i, "doc_type", fmt.Sprintf("%T", docInterface))
-			}
-
-			// Convert the interface{} to a map to access its properties
-			// The SDK returns API document entries as generic objects
-			debugf("Processing document %d, type: %T, value: %+v", i, docInterface, docInterface)
-			
-			// Try different approaches to access the document data
-			docID := ""
-			docName := ""
-			
-			// First try to access as a map
-			doc, ok := docInterface.(map[string]interface{})
-			if ok {
-				debugf("Successfully converted document to map")
-				docID, _ = doc["id"].(string)
-				docName, _ = doc["name"].(string)
-				debugf("From map - Document ID: %s, Name: %s", docID, docName)
-			} else {
-				debugf("Could not convert document to map, trying to decode it")
-				
-				// Try to serialize and deserialize the document
-				docBytes, err := json.Marshal(docInterface)
-				if err == nil {
-					debugf("Successfully serialized document: %s", string(docBytes))
-					
-					// Try to unmarshal into a simple map
-					var docMap map[string]interface{}
-					if err := json.Unmarshal(docBytes, &docMap); err == nil {
-						debugf("Successfully unmarshaled document to map")
-						
-						// Try to get the id/ID and name/Name fields
-						for k, v := range docMap {
-							lowercaseKey := strings.ToLower(k)
-							if lowercaseKey == "id" {
-								if strValue, ok := v.(string); ok {
-									docID = strValue
-									debugf("Found ID field: %s", docID)
-								}
-							} else if lowercaseKey == "name" {
-								if strValue, ok := v.(string); ok {
-									docName = strValue
-									debugf("Found Name field: %s", docName)
-								}
-							}
-						}
-					}
-				}
-				
-				if docID == "" {
-					debugf("Failed to extract ID from document, doc type: %T", docInterface)
-					if logger != nil {
-						logger.Warn("failed to extract document ID", "index", i, "doc_type", fmt.Sprintf("%T", docInterface))
-					}
-					continue
-				}
-			}
-			
-			if docID == "" {
-				debugf("Could not extract document ID")
-				if logger != nil {
-					logger.Warn("document missing ID", "index", i)
-				}
-				continue
-			}
-			
-			debugf("Successfully extracted document ID: %s, Name: %s", docID, docName)
-
-			if logger != nil {
-				logger.Debug("document details", "id", docID, "name", docName)
-			}
-
-			// Use the document name if available, otherwise use a generic name
-			resourceName := apiName
-			if docName != "" {
-				resourceName = fmt.Sprintf("%s_%s", apiName, docName)
-			} else {
-				resourceName = fmt.Sprintf("%s_doc_%s", apiName, docID[:8]) // Use first 8 chars of ID as identifier
-			}
-
-			// Format and write the import block with composite key
-			importBlock := formatTerraformImport("api_document", resourceName, docID, "api_id", apiID)
-			if logger != nil {
-				logger.Debug("writing import block", "resource_name", resourceName, "doc_id", docID, "api_id", apiID)
-			}
-			
-			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
-				if logger != nil {
-					logger.Error("failed to write API document import block", "error", err)
-				}
-				return fmt.Errorf("failed to write API document import block: %w", err)
-			}
+			logger.Warn("SDK.APIDocumentation is nil, skipping API documents")
 		}
 	} else {
+		// Create an API document client using the existing SDK reference
+		debugf("Creating API document client directly")
+		apiDocAPI := &helpers.InternalAPIDocumentAPI{SDK: sdk.SDK}
+		
+		if apiDocAPI == nil {
+			debugf("Failed to create APIDocumentAPI")
+			if logger != nil {
+				logger.Warn("failed to create API document client, skipping API documents")
+			}
+		} else {
+			debugf("Successfully obtained API document client")
+			
+			if logger != nil {
+				logger.Debug("created API document client", "api_doc_api_nil", apiDocAPI == nil)
+			}
+
+			documents, err := helpers.GetDocumentsForAPI(ctx, apiDocAPI, apiID)
+			if err != nil {
+				if logger != nil {
+					logger.Warn("failed to get documents for API", "api_id", apiID, "error", err)
+				}
+				debugf("Error fetching API documents: %v", err)
+			} else {
+				if logger != nil {
+					logger.Debug("retrieved API documents", "api_id", apiID, "document_count", len(documents))
+				}
+
+				if len(documents) > 0 {
+					for i, docInterface := range documents {
+						if logger != nil {
+							logger.Debug("processing document", "index", i, "doc_type", fmt.Sprintf("%T", docInterface))
+						}
+
+						// Convert the interface{} to a map to access its properties
+						// The SDK returns API document entries as generic objects
+						debugf("Processing document %d, type: %T, value: %+v", i, docInterface, docInterface)
+						
+						// Try different approaches to access the document data
+						docID := ""
+						docName := ""
+						
+						// First try to access as a map
+						doc, ok := docInterface.(map[string]interface{})
+						if ok {
+							debugf("Successfully converted document to map")
+							docID, _ = doc["id"].(string)
+							docName, _ = doc["name"].(string)
+							debugf("From map - Document ID: %s, Name: %s", docID, docName)
+						} else {
+							debugf("Could not convert document to map, trying to decode it")
+							
+							// Try to serialize and deserialize the document
+							docBytes, err := json.Marshal(docInterface)
+							if err == nil {
+								debugf("Successfully serialized document: %s", string(docBytes))
+								
+								// Try to unmarshal into a simple map
+								var docMap map[string]interface{}
+								if err := json.Unmarshal(docBytes, &docMap); err == nil {
+									debugf("Successfully unmarshaled document to map")
+									
+									// Try to get the id/ID and name/Name fields
+									for k, v := range docMap {
+										lowercaseKey := strings.ToLower(k)
+										if lowercaseKey == "id" {
+											if strValue, ok := v.(string); ok {
+												docID = strValue
+												debugf("Found ID field: %s", docID)
+											}
+										} else if lowercaseKey == "name" {
+											if strValue, ok := v.(string); ok {
+												docName = strValue
+												debugf("Found Name field: %s", docName)
+											}
+										}
+									}
+								}
+							}
+							
+							if docID == "" {
+								debugf("Failed to extract ID from document, doc type: %T", docInterface)
+								if logger != nil {
+									logger.Warn("failed to extract document ID", "index", i, "doc_type", fmt.Sprintf("%T", docInterface))
+								}
+								continue
+							}
+						}
+						
+						if docID == "" {
+							debugf("Could not extract document ID")
+							if logger != nil {
+								logger.Warn("document missing ID", "index", i)
+							}
+							continue
+						}
+						
+						debugf("Successfully extracted document ID: %s, Name: %s", docID, docName)
+
+						if logger != nil {
+							logger.Debug("document details", "id", docID, "name", docName)
+						}
+
+						// Use the document name if available, otherwise use a generic name
+						resourceName := apiName
+						if docName != "" {
+							resourceName = fmt.Sprintf("%s_%s", apiName, docName)
+						} else {
+							resourceName = fmt.Sprintf("%s_doc_%s", apiName, docID[:8]) // Use first 8 chars of ID as identifier
+						}
+
+						// Format and write the import block with composite key
+						importBlock := formatTerraformImport("api_document", resourceName, docID, "api_id", apiID)
+						if logger != nil {
+							logger.Debug("writing import block", "resource_name", resourceName, "doc_id", docID, "api_id", apiID)
+						}
+						
+						if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+							if logger != nil {
+								logger.Error("failed to write API document import block", "error", err)
+							}
+							return fmt.Errorf("failed to write API document import block: %w", err)
+						}
+					}
+				} else {
+					if logger != nil {
+						logger.Info("no API documents found for API", "api_id", apiID, "api_name", apiName)
+					}
+				}
+			}
+		}
+	}
+	
+	// Process API Specifications
+	// Let's check if the SDK has a valid APISpecification field
+	if sdk.SDK.APISpecification == nil {
+		debugf("InternalAPIAPI.SDK.APISpecification is nil")
 		if logger != nil {
-			logger.Info("no API documents found for API", "api_id", apiID, "api_name", apiName)
+			logger.Warn("SDK.APISpecification is nil, skipping API specifications")
+		}
+	} else {
+		// Create an API specification client using the existing SDK reference
+		debugf("Creating API specification client directly")
+		apiSpecAPI := &helpers.InternalAPISpecificationAPI{SDK: sdk.SDK}
+		
+		if apiSpecAPI == nil {
+			debugf("Failed to create APISpecificationAPI")
+			if logger != nil {
+				logger.Warn("failed to create API specification client, skipping API specifications")
+			}
+		} else {
+			debugf("Successfully obtained API specification client")
+			
+			if logger != nil {
+				logger.Debug("created API specification client", "api_spec_api_nil", apiSpecAPI == nil)
+			}
+
+			specifications, err := helpers.GetSpecificationsForAPI(ctx, apiSpecAPI, apiID)
+			if err != nil {
+				if logger != nil {
+					logger.Warn("failed to get specifications for API", "api_id", apiID, "error", err)
+				}
+				debugf("Error fetching API specifications: %v", err)
+			} else {
+				if logger != nil {
+					logger.Debug("retrieved API specifications", "api_id", apiID, "specification_count", len(specifications))
+				}
+
+				if len(specifications) > 0 {
+					for i, specInterface := range specifications {
+						if logger != nil {
+							logger.Debug("processing specification", "index", i, "spec_type", fmt.Sprintf("%T", specInterface))
+						}
+
+						// Convert the interface{} to a map to access its properties
+						// The SDK returns API specification entries as generic objects
+						debugf("Processing specification %d, type: %T, value: %+v", i, specInterface, specInterface)
+						
+						// Try different approaches to access the specification data
+						specID := ""
+						specName := ""
+						
+						// First try to access as a map
+						spec, ok := specInterface.(map[string]interface{})
+						if ok {
+							debugf("Successfully converted specification to map")
+							specID, _ = spec["id"].(string)
+							specName, _ = spec["name"].(string)
+							debugf("From map - Specification ID: %s, Name: %s", specID, specName)
+						} else {
+							debugf("Could not convert specification to map, trying to decode it")
+							
+							// Try to serialize and deserialize the specification
+							specBytes, err := json.Marshal(specInterface)
+							if err == nil {
+								debugf("Successfully serialized specification: %s", string(specBytes))
+								
+								// Try to unmarshal into a simple map
+								var specMap map[string]interface{}
+								if err := json.Unmarshal(specBytes, &specMap); err == nil {
+									debugf("Successfully unmarshaled specification to map")
+									
+									// Try to get the id/ID and name/Name fields
+									for k, v := range specMap {
+										lowercaseKey := strings.ToLower(k)
+										if lowercaseKey == "id" {
+											if strValue, ok := v.(string); ok {
+												specID = strValue
+												debugf("Found ID field: %s", specID)
+											}
+										} else if lowercaseKey == "name" {
+											if strValue, ok := v.(string); ok {
+												specName = strValue
+												debugf("Found Name field: %s", specName)
+											}
+										}
+									}
+								}
+							}
+							
+							if specID == "" {
+								debugf("Failed to extract ID from specification, spec type: %T", specInterface)
+								if logger != nil {
+									logger.Warn("failed to extract specification ID", "index", i, "spec_type", fmt.Sprintf("%T", specInterface))
+								}
+								continue
+							}
+						}
+						
+						if specID == "" {
+							debugf("Could not extract specification ID")
+							if logger != nil {
+								logger.Warn("specification missing ID", "index", i)
+							}
+							continue
+						}
+						
+						debugf("Successfully extracted specification ID: %s, Name: %s", specID, specName)
+
+						if logger != nil {
+							logger.Debug("specification details", "id", specID, "name", specName)
+						}
+
+						// Use the specification name if available, otherwise use a generic name
+						resourceName := apiName
+						if specName != "" {
+							resourceName = fmt.Sprintf("%s_%s", apiName, specName)
+						} else {
+							resourceName = fmt.Sprintf("%s_spec_%s", apiName, specID[:8]) // Use first 8 chars of ID as identifier
+						}
+
+						// Format and write the import block with composite key
+						importBlock := formatTerraformImport("api_specification", resourceName, specID, "api_id", apiID)
+						if logger != nil {
+							logger.Debug("writing import block", "resource_name", resourceName, "spec_id", specID, "api_id", apiID)
+						}
+						
+						if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+							if logger != nil {
+								logger.Error("failed to write API specification import block", "error", err)
+							}
+							return fmt.Errorf("failed to write API specification import block: %w", err)
+						}
+					}
+				} else {
+					if logger != nil {
+						logger.Info("no API specifications found for API", "api_id", apiID, "api_name", apiName)
+					}
+				}
+			}
 		}
 	}
 
