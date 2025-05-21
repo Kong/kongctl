@@ -20,6 +20,7 @@ type SDKAPI interface {
 	GetAPIDocumentAPI() APIDocumentAPI
 	GetAPISpecificationAPI() APISpecificationAPI
 	GetAPIPublicationAPI() APIPublicationAPI
+	GetAPIImplementationAPI() APIImplementationAPI
 }
 
 // This is the real implementation of the SDKAPI
@@ -32,6 +33,7 @@ type KonnectSDK struct {
 	internalAPIDocument      *InternalAPIDocumentAPI
 	internalAPISpecification *InternalAPISpecificationAPI
 	internalAPIPublication   *InternalAPIPublicationAPI
+	internalAPIImplementation *InternalAPIImplementationAPI
 }
 
 // Returns the real implementation of the GetControlPlaneAPI
@@ -194,6 +196,41 @@ func (k *KonnectSDK) GetAPIPublicationAPI() APIPublicationAPI {
 		}
 	}
 	return k.internalAPIPublication
+}
+
+// Returns the implementation of the APIImplementationAPI interface
+// for accessing the API Implementation APIs using the internal SDK
+func (k *KonnectSDK) GetAPIImplementationAPI() APIImplementationAPI {
+	// Check if debug flag is set in environment
+	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	
+	// Helper function for debug logging
+	debugLog := func(format string, args ...interface{}) {
+		if debugEnabled {
+			fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
+		}
+	}
+	
+	debugLog("GetAPIImplementationAPI called")
+	
+	if k.InternalSDK == nil {
+		debugLog("KonnectSDK.InternalSDK is nil")
+		return nil
+	}
+	
+	if k.InternalSDK.APIImplementation == nil {
+		debugLog("KonnectSDK.InternalSDK.APIImplementation is nil")
+	} else {
+		debugLog("KonnectSDK.InternalSDK.APIImplementation is NOT nil")
+	}
+	
+	if k.internalAPIImplementation == nil && k.InternalSDK != nil {
+		debugLog("Creating new InternalAPIImplementationAPI")
+		k.internalAPIImplementation = &InternalAPIImplementationAPI{
+			SDK: k.InternalSDK,
+		}
+	}
+	return k.internalAPIImplementation
 }
 
 // A function that can build an SDKAPI with a given configuration

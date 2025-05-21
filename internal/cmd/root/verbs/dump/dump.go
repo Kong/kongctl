@@ -73,6 +73,7 @@ var resourceTypeMap = map[string]string{
 	"api_document":         "konnect_api_document",
 	"api_specification":    "konnect_api_specification",
 	"api_publication":      "konnect_api_publication",
+	"api_implementation":   "konnect_api_implementation",
 }
 
 // Maps parent resources to their child resource types
@@ -89,6 +90,7 @@ var parentChildResourceMap = map[string][]string{
 		"api_document",
 		"api_specification",
 		"api_publication",
+		"api_implementation",
 	},
 }
 
@@ -747,6 +749,141 @@ func dumpAPIChildResources(
 				} else {
 					if logger != nil {
 						logger.Info("no API publications found for API", "api_id", apiID, "api_name", apiName)
+					}
+				}
+			}
+		}
+	}
+	
+	// Process API Implementations
+	// Let's check if the SDK has a valid APIImplementation field
+	if sdk.SDK.APIImplementation == nil {
+		debugf("InternalAPIAPI.SDK.APIImplementation is nil")
+		if logger != nil {
+			logger.Warn("SDK.APIImplementation is nil, skipping API implementations")
+		}
+	} else {
+		// Create an API implementation client using the existing SDK reference
+		debugf("Creating API implementation client directly")
+		apiImplAPI := &helpers.InternalAPIImplementationAPI{SDK: sdk.SDK}
+		
+		if apiImplAPI == nil {
+			debugf("Failed to create APIImplementationAPI")
+			if logger != nil {
+				logger.Warn("failed to create API implementation client, skipping API implementations")
+			}
+		} else {
+			debugf("Successfully obtained API implementation client")
+			
+			if logger != nil {
+				logger.Debug("created API implementation client", "api_impl_api_nil", apiImplAPI == nil)
+			}
+
+			implementations, err := helpers.GetImplementationsForAPI(ctx, apiImplAPI, apiID)
+			if err != nil {
+				if logger != nil {
+					logger.Warn("failed to get implementations for API", "api_id", apiID, "error", err)
+				}
+				debugf("Error fetching API implementations: %v", err)
+			} else {
+				if logger != nil {
+					logger.Debug("retrieved API implementations", "api_id", apiID, "implementation_count", len(implementations))
+				}
+
+				if len(implementations) > 0 {
+					for i, implInterface := range implementations {
+						if logger != nil {
+							logger.Debug("processing implementation", "index", i, "impl_type", fmt.Sprintf("%T", implInterface))
+						}
+
+						// Convert the interface{} to a map to access its properties
+						// The SDK returns API implementation entries as generic objects
+						debugf("Processing implementation %d, type: %T, value: %+v", i, implInterface, implInterface)
+						
+						// Try different approaches to access the implementation data
+						implID := ""
+						implName := ""
+						
+						// First try to access as a map
+						impl, ok := implInterface.(map[string]interface{})
+						if ok {
+							debugf("Successfully converted implementation to map")
+							implID, _ = impl["id"].(string)
+							
+							// For implementations, we might get the name from the service field
+							if serviceMap, ok := impl["service"].(map[string]interface{}); ok {
+								implName, _ = serviceMap["name"].(string)
+							}
+							
+							debugf("From map - Implementation ID: %s, Name: %s", implID, implName)
+						} else {
+							debugf("Could not convert implementation to map, trying to decode it")
+							
+							// Try to serialize and deserialize the implementation
+							implBytes, err := json.Marshal(implInterface)
+							if err == nil {
+								debugf("Successfully serialized implementation: %s", string(implBytes))
+								
+								// Try to unmarshal into a simple map
+								var implMap map[string]interface{}
+								if err := json.Unmarshal(implBytes, &implMap); err == nil {
+									debugf("Successfully unmarshaled implementation to map")
+									
+									// Try to get the id field
+									implID, _ = implMap["id"].(string)
+									if implID != "" {
+										debugf("Found ID field: %s", implID)
+									}
+									
+									// For implementations, we might get the name from the service field
+									if serviceMap, ok := implMap["service"].(map[string]interface{}); ok {
+										implName, _ = serviceMap["name"].(string)
+										if implName != "" {
+											debugf("Found service.name field: %s", implName)
+										}
+									}
+								}
+							}
+						}
+						
+						if implID == "" {
+							debugf("Could not extract ID from implementation, impl type: %T", implInterface)
+							if logger != nil {
+								logger.Warn("implementation missing ID", "index", i, "impl_type", fmt.Sprintf("%T", implInterface))
+							}
+							continue
+						}
+						
+						debugf("Successfully extracted implementation ID: %s, Service Name: %s", implID, implName)
+
+						if logger != nil {
+							logger.Debug("implementation details", "id", implID, "service_name", implName, "api_id", apiID)
+						}
+
+						// Use the service name if available, otherwise use a generic name
+						resourceName := apiName
+						if implName != "" {
+							resourceName = fmt.Sprintf("%s_%s", apiName, sanitizeTerraformResourceName(implName))
+						} else {
+							resourceName = fmt.Sprintf("%s_impl_%s", apiName, implID[:8]) // Use first 8 chars of ID as identifier
+						}
+
+						// Format and write the import block with composite key
+						importBlock := formatTerraformImport("api_implementation", resourceName, implID, "api_id", apiID)
+						if logger != nil {
+							logger.Debug("writing import block", "resource_name", resourceName, "impl_id", implID, "api_id", apiID)
+						}
+						
+						if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+							if logger != nil {
+								logger.Error("failed to write API implementation import block", "error", err)
+							}
+							return fmt.Errorf("failed to write API implementation import block: %w", err)
+						}
+					}
+				} else {
+					if logger != nil {
+						logger.Info("no API implementations found for API", "api_id", apiID, "api_name", apiName)
 					}
 				}
 			}
