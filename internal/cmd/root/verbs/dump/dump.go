@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 
+	kkSDK "github.com/Kong/sdk-konnect-go"
+	kkOPS "github.com/Kong/sdk-konnect-go/models/operations"
 	kkInternalOps "github.com/Kong/sdk-konnect-go-internal/models/operations"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
@@ -74,6 +76,7 @@ var resourceTypeMap = map[string]string{
 	"api_specification":    "konnect_api_specification",
 	"api_publication":      "konnect_api_publication",
 	"api_implementation":   "konnect_api_implementation",
+	"app-auth-strategies":  "konnect_application_auth_strategy",
 }
 
 // Maps parent resources to their child resource types
@@ -981,6 +984,100 @@ func dumpPortalChildResources(
 	return nil
 }
 
+// dumpAppAuthStrategies exports all app auth strategies as Terraform import blocks
+func dumpAppAuthStrategies(
+	ctx context.Context,
+	writer io.Writer,
+	kkClient helpers.AppAuthStrategiesAPI,
+	requestPageSize int64) error {
+	debugf("dumpAppAuthStrategies called")
+	
+	if kkClient == nil {
+		debugf("AppAuthStrategiesAPI client is nil")
+		return fmt.Errorf("AppAuthStrategiesAPI client is nil")
+	}
+	
+	var pageNumber int64 = 1
+
+	for {
+		// Create a request to list app auth strategies with pagination
+		req := kkOPS.ListAppAuthStrategiesRequest{
+			PageSize:   kkSDK.Int64(requestPageSize),
+			PageNumber: kkSDK.Int64(pageNumber),
+		}
+
+		// Call the SDK's ListAppAuthStrategies method
+		res, err := kkClient.ListAppAuthStrategies(ctx, req)
+		if err != nil {
+			return fmt.Errorf("failed to list app auth strategies: %w", err)
+		}
+
+		// Check if we have data in the response
+		if res == nil || res.ListAppAuthStrategiesResponse == nil || 
+		   len(res.ListAppAuthStrategiesResponse.Data) == 0 {
+			break
+		}
+
+		// Process each app auth strategy in the response
+		for _, strategy := range res.ListAppAuthStrategiesResponse.Data {
+			// Extract the strategy details using a more generic approach
+			var strategyID string
+			var strategyName string
+			
+			// Try to convert the strategy to a map to access its fields generically
+			strategyBytes, err := json.Marshal(strategy)
+			if err != nil {
+				debugf("Failed to marshal strategy: %v", err)
+				continue
+			}
+			
+			var strategyMap map[string]interface{}
+			if err := json.Unmarshal(strategyBytes, &strategyMap); err != nil {
+				debugf("Failed to unmarshal strategy: %v", err)
+				continue
+			}
+			
+			// Extract ID and Name from the strategy data
+			if id, ok := strategyMap["id"].(string); ok {
+				strategyID = id
+			}
+			if name, ok := strategyMap["name"].(string); ok {
+				strategyName = name
+			}
+			
+			debugf("Found strategy: ID=%s, Name=%s, Type=%T", strategyID, strategyName, strategy)
+			
+			if strategyID == "" {
+				debugf("Strategy missing ID, skipping")
+				continue
+			}
+			
+			// Use the strategy name if available, otherwise use a generic name
+			resourceName := strategyName
+			if resourceName == "" {
+				resourceName = fmt.Sprintf("strategy_%s", strategyID[:8]) // Use first 8 chars of ID as identifier
+			}
+
+			// Write the app auth strategy import block
+			importBlock := formatTerraformImport("app-auth-strategies", resourceName, strategyID, "", "")
+			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+				return fmt.Errorf("failed to write app auth strategy import block: %w", err)
+			}
+		}
+
+		// Increment the page number for the next request
+		pageNumber++
+
+		// If we've fetched all the data, break out of the loop
+		if res.ListAppAuthStrategiesResponse.Meta.Page.Total <= 
+		   float64(requestPageSize*(pageNumber-1)) {
+			break
+		}
+	}
+
+	return nil
+}
+
 type dumpCmd struct {
 	*cobra.Command
 }
@@ -993,17 +1090,17 @@ func (c *dumpCmd) validate(helper cmd.Helper) error {
 			continue
 		}
 
-		// Only portal and api are supported as top-level resources for the dump command
+		// Only portal, api, and app-auth-strategies are supported as top-level resources for the dump command
 		// Child resources are handled automatically when --include-child-resources is true
-		if resource != "portal" && resource != "api" {
+		if resource != "portal" && resource != "api" && resource != "app-auth-strategies" {
 			return &cmd.ConfigurationError{
-				Err: fmt.Errorf("unsupported resource type: %s. Currently only 'portal' and 'api' are supported as top-level resources", resource),
+				Err: fmt.Errorf("unsupported resource type: %s. Currently 'portal', 'api', and 'app-auth-strategies' are supported as top-level resources", resource),
 			}
 		}
 
 		// Check if the resource type is known
 		if _, ok := resourceTypeMap[resource]; !ok {
-			supportedTypes := []string{"portal", "api"}
+			supportedTypes := []string{"portal", "api", "app-auth-strategies"}
 			return &cmd.ConfigurationError{
 				Err: fmt.Errorf("unsupported resource type: %s. Supported types: %s",
 					resource, strings.Join(supportedTypes, ", ")),
@@ -1101,6 +1198,15 @@ func (c *dumpCmd) runE(cobraCmd *cobra.Command, args []string) error {
 				sdk.GetAPIAPI(),
 				requestPageSize,
 				includeChildResources); err != nil {
+				return err
+			}
+		case "app-auth-strategies":
+			// Handle app auth strategy resources
+			if err := dumpAppAuthStrategies(
+				helper.GetContext(),
+				writer,
+				sdk.GetAppAuthStrategiesAPI(),
+				requestPageSize); err != nil {
 				return err
 			}
 		}

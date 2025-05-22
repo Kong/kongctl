@@ -21,6 +21,7 @@ type SDKAPI interface {
 	GetAPISpecificationAPI() APISpecificationAPI
 	GetAPIPublicationAPI() APIPublicationAPI
 	GetAPIImplementationAPI() APIImplementationAPI
+	GetAppAuthStrategiesAPI() AppAuthStrategiesAPI
 }
 
 // This is the real implementation of the SDKAPI
@@ -231,6 +232,30 @@ func (k *KonnectSDK) GetAPIImplementationAPI() APIImplementationAPI {
 		}
 	}
 	return k.internalAPIImplementation
+}
+
+// Returns the implementation of the AppAuthStrategiesAPI interface
+// for accessing the App Auth Strategies APIs using the public SDK
+func (k *KonnectSDK) GetAppAuthStrategiesAPI() AppAuthStrategiesAPI {
+	// Check if debug flag is set in environment
+	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	
+	// Helper function for debug logging
+	debugLog := func(format string, args ...interface{}) {
+		if debugEnabled {
+			fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
+		}
+	}
+	
+	debugLog("GetAppAuthStrategiesAPI called")
+	
+	if k.SDK == nil {
+		debugLog("KonnectSDK.SDK is nil")
+		return nil
+	}
+	
+	debugLog("Successfully returning AppAuthStrategies API")
+	return k.SDK.AppAuthStrategies
 }
 
 // A function that can build an SDKAPI with a given configuration

@@ -13,6 +13,7 @@ type MockKonnectSDK struct {
 	APISpecificationFactory   func() APISpecificationAPI
 	APIPublicationFactory     func() APIPublicationAPI
 	APIImplementationFactory  func() APIImplementationAPI
+	AppAuthStrategiesFactory  func() AppAuthStrategiesAPI
 }
 
 // Returns a mock instance of the ControlPlaneAPI
@@ -64,6 +65,14 @@ func (m *MockKonnectSDK) GetAPIPublicationAPI() APIPublicationAPI {
 func (m *MockKonnectSDK) GetAPIImplementationAPI() APIImplementationAPI {
 	if m.APIImplementationFactory != nil {
 		return m.APIImplementationFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the AppAuthStrategiesAPI
+func (m *MockKonnectSDK) GetAppAuthStrategiesAPI() AppAuthStrategiesAPI {
+	if m.AppAuthStrategiesFactory != nil {
+		return m.AppAuthStrategiesFactory()
 	}
 	return nil
 }
