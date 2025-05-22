@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	kkInternal "github.com/Kong/sdk-konnect-go-internal"
+	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/ajg/form"
@@ -305,6 +307,15 @@ func GetAuthenticatedClient(baseURL string, token string) (*kk.SDK, error) {
 		kk.WithServerURL(baseURL),
 		kk.WithSecurity(kkComps.Security{
 			PersonalAccessToken: kk.String(token),
+		}),
+	), nil
+}
+
+func GetAuthenticatedInternalClient(baseURL string, token string) (*kkInternal.SDK, error) {
+	return kkInternal.New(
+		kkInternal.WithServerURL(baseURL),
+		kkInternal.WithSecurity(kkInternalComps.Security{
+			PersonalAccessToken: kkInternal.String(token),
 		}),
 	), nil
 }

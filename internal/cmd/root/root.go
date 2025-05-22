@@ -13,6 +13,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/create"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/del"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/dump"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/get"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/list"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/login"
@@ -101,7 +102,7 @@ func newRootCmd() *cobra.Command {
 	// from a valid set of values. There may be a way to do this more elegantly
 	// in the pFlag library
 	rootCmd.PersistentFlags().VarP(outputFormat, common.OutputFlagName, common.OutputFlagShort,
-		fmt.Sprintf(`Configures the output format.
+		fmt.Sprintf(`Configures the format of data written to STDOUT.
 - Config path: [ %s ]
 - Allowed    : [ %s ]`,
 			common.OutputConfigPath, strings.Join(outputFormat.Allowed, "|")))
@@ -144,6 +145,12 @@ func addCommands() error {
 	rootCmd.AddCommand(c)
 
 	c, e = login.NewLoginCmd()
+	if e != nil {
+		return e
+	}
+	rootCmd.AddCommand(c)
+
+	c, e = dump.NewDumpCmd()
 	if e != nil {
 		return e
 	}
