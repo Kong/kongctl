@@ -147,8 +147,11 @@ func formatTerraformImport(resourceType, resourceName, resourceID string, parent
 
 	safeName := sanitizeTerraformResourceName(resourceName)
 
-	// For the import block, we always add a provider reference
+	// For the import block, determine the provider based on resource type
 	providerName := "konnect-beta"
+	if resourceType == "app-auth-strategies" {
+		providerName = "konnect"
+	}
 
 	// Format the ID based on whether this is a child resource with a composite key
 	var idBlock string
