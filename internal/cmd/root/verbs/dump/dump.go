@@ -147,11 +147,8 @@ func formatTerraformImport(resourceType, resourceName, resourceID string, parent
 
 	safeName := sanitizeTerraformResourceName(resourceName)
 
-	// For the import block, determine the provider based on resource type
+	// For the import block, we always add a provider reference except for app-auth-strategies
 	providerName := "konnect-beta"
-	if resourceType == "app-auth-strategies" {
-		providerName = "konnect"
-	}
 
 	// Format the ID based on whether this is a child resource with a composite key
 	var idBlock string
@@ -166,6 +163,12 @@ func formatTerraformImport(resourceType, resourceName, resourceID string, parent
 		idBlock = fmt.Sprintf("  id = \"%s\"", escapeTerraformString(resourceID))
 		debugf("Formatted simple key import block for %s with ID %s", 
 			resourceType, resourceID)
+	}
+
+	// For app-auth-strategies, don't include the provider field
+	if resourceType == "app-auth-strategies" {
+		return fmt.Sprintf("import {\n  to = %s.%s\n%s\n}\n",
+			terraformType, safeName, idBlock)
 	}
 
 	return fmt.Sprintf("import {\n  to = %s.%s\n  provider = %s\n%s\n}\n",
