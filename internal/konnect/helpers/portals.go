@@ -202,7 +202,7 @@ func GetSnippetsForPortal(ctx context.Context, portalAPI PortalAPI, portalID str
 
 // HasPortalSettings checks if the portal has settings that can be exported
 // Returns false if the operation isn't supported
-func HasPortalSettings(ctx context.Context, portalAPI PortalAPI, portalID string) bool {
+func HasPortalSettings(_ context.Context, portalAPI PortalAPI, portalID string) bool {
 	// TODO: Implement with V3PortalSettings API when available
 	// Follow the same pattern as GetPagesForPortal but check for existence instead of listing
 	// For now, return false to indicate the feature is not yet implemented

@@ -955,7 +955,7 @@ func dumpPortalChildResources(
 	kkClient helpers.PortalAPI,
 	portalID string,
 	portalName string,
-	requestPageSize int64,
+	_ int64, // requestPageSize - reserved for future use
 ) error {
 	// Try to dump each type of child resource, but continue if any fail
 
