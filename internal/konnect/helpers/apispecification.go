@@ -12,7 +12,8 @@ import (
 // APISpecificationAPI defines the interface for operations on API Specifications
 type APISpecificationAPI interface {
 	// API Specification operations
-	ListAPISpecs(ctx context.Context, request kkInternalOps.ListAPISpecsRequest, opts ...kkInternalOps.Option) (*kkInternalOps.ListAPISpecsResponse, error)
+	ListAPISpecs(ctx context.Context, request kkInternalOps.ListAPISpecsRequest,
+		opts ...kkInternalOps.Option) (*kkInternalOps.ListAPISpecsResponse, error)
 }
 
 // InternalAPISpecificationAPI provides an implementation of the APISpecificationAPI interface using the internal SDK
@@ -21,7 +22,9 @@ type InternalAPISpecificationAPI struct {
 }
 
 // ListAPISpecs implements the APISpecificationAPI interface
-func (a *InternalAPISpecificationAPI) ListAPISpecs(ctx context.Context, request kkInternalOps.ListAPISpecsRequest, opts ...kkInternalOps.Option) (*kkInternalOps.ListAPISpecsResponse, error) {
+func (a *InternalAPISpecificationAPI) ListAPISpecs(ctx context.Context,
+	request kkInternalOps.ListAPISpecsRequest,
+	opts ...kkInternalOps.Option) (*kkInternalOps.ListAPISpecsResponse, error) {
 	// Handle debugging based on environment variable
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 

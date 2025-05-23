@@ -1118,7 +1118,8 @@ func (c *dumpCmd) validate(helper cmd.Helper) error {
 		// Child resources are handled automatically when --include-child-resources is true
 		if resource != "portal" && resource != "api" && resource != "app-auth-strategies" {
 			return &cmd.ConfigurationError{
-				Err: fmt.Errorf("unsupported resource type: %s. Currently 'portal', 'api', and 'app-auth-strategies' are supported as top-level resources", resource),
+				Err: fmt.Errorf("unsupported resource type: %s. Currently 'portal', 'api', and "+
+					"'app-auth-strategies' are supported as top-level resources", resource),
 			}
 		}
 

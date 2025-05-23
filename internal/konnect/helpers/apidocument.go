@@ -12,7 +12,8 @@ import (
 // APIDocumentAPI defines the interface for operations on API Documents
 type APIDocumentAPI interface {
 	// API Document operations
-	ListAPIDocuments(ctx context.Context, request kkInternalOps.ListAPIDocumentsRequest, opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIDocumentsResponse, error)
+	ListAPIDocuments(ctx context.Context, request kkInternalOps.ListAPIDocumentsRequest,
+		opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIDocumentsResponse, error)
 }
 
 // InternalAPIDocumentAPI provides an implementation of the APIDocumentAPI interface using the internal SDK
@@ -21,7 +22,9 @@ type InternalAPIDocumentAPI struct {
 }
 
 // ListAPIDocuments implements the APIDocumentAPI interface
-func (a *InternalAPIDocumentAPI) ListAPIDocuments(ctx context.Context, request kkInternalOps.ListAPIDocumentsRequest, opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIDocumentsResponse, error) {
+func (a *InternalAPIDocumentAPI) ListAPIDocuments(ctx context.Context,
+	request kkInternalOps.ListAPIDocumentsRequest,
+	opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIDocumentsResponse, error) {
 	// Handle debugging based on environment variable
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 

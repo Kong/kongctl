@@ -13,7 +13,8 @@ import (
 // APIPublicationAPI defines the interface for operations on API Publications
 type APIPublicationAPI interface {
 	// API Publication operations
-	ListAPIPublications(ctx context.Context, request kkInternalOps.ListAPIPublicationsRequest, opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIPublicationsResponse, error)
+	ListAPIPublications(ctx context.Context, request kkInternalOps.ListAPIPublicationsRequest,
+		opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIPublicationsResponse, error)
 }
 
 // InternalAPIPublicationAPI provides an implementation of the APIPublicationAPI interface using the internal SDK
@@ -22,7 +23,9 @@ type InternalAPIPublicationAPI struct {
 }
 
 // ListAPIPublications implements the APIPublicationAPI interface
-func (a *InternalAPIPublicationAPI) ListAPIPublications(ctx context.Context, request kkInternalOps.ListAPIPublicationsRequest, opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIPublicationsResponse, error) {
+func (a *InternalAPIPublicationAPI) ListAPIPublications(ctx context.Context,
+	request kkInternalOps.ListAPIPublicationsRequest,
+	opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIPublicationsResponse, error) {
 	// Handle debugging based on environment variable
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 

@@ -13,7 +13,8 @@ import (
 // APIImplementationAPI defines the interface for operations on API Implementations
 type APIImplementationAPI interface {
 	// API Implementation operations
-	ListAPIImplementations(ctx context.Context, request kkInternalOps.ListAPIImplementationsRequest, opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIImplementationsResponse, error)
+	ListAPIImplementations(ctx context.Context, request kkInternalOps.ListAPIImplementationsRequest,
+		opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIImplementationsResponse, error)
 }
 
 // InternalAPIImplementationAPI provides an implementation of the APIImplementationAPI interface using the internal SDK
@@ -22,7 +23,9 @@ type InternalAPIImplementationAPI struct {
 }
 
 // ListAPIImplementations implements the APIImplementationAPI interface
-func (a *InternalAPIImplementationAPI) ListAPIImplementations(ctx context.Context, request kkInternalOps.ListAPIImplementationsRequest, opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIImplementationsResponse, error) {
+func (a *InternalAPIImplementationAPI) ListAPIImplementations(ctx context.Context,
+	request kkInternalOps.ListAPIImplementationsRequest,
+	opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIImplementationsResponse, error) {
 	// Handle debugging based on environment variable
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 
