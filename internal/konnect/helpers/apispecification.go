@@ -24,7 +24,7 @@ type InternalAPISpecificationAPI struct {
 func (a *InternalAPISpecificationAPI) ListAPISpecs(ctx context.Context, request kkInternalOps.ListAPISpecsRequest, opts ...kkInternalOps.Option) (*kkInternalOps.ListAPISpecsResponse, error) {
 	// Handle debugging based on environment variable
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
-	
+
 	// Helper function for debug logging
 	debugLog := func(format string, args ...interface{}) {
 		if debugEnabled {

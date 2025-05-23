@@ -29,8 +29,8 @@ func GetAllAppAuthStrategies(ctx context.Context, kkClient AppAuthStrategiesAPI)
 			return nil, err
 		}
 
-		if res.ListAppAuthStrategiesResponse == nil || 
-		   len(res.ListAppAuthStrategiesResponse.Data) == 0 {
+		if res.ListAppAuthStrategiesResponse == nil ||
+			len(res.ListAppAuthStrategiesResponse.Data) == 0 {
 			break
 		}
 
