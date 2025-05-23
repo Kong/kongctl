@@ -434,119 +434,119 @@ func dumpAPIChildResources(
 
 		documents, err := helpers.GetDocumentsForAPI(ctx, apiDocAPI, apiID)
 		if err != nil {
-				if logger != nil {
-					logger.Warn("failed to get documents for API", "api_id", apiID, "error", err)
-				}
-				debugf("Error fetching API documents: %v", err)
-			} else {
-				if logger != nil {
-					logger.Debug("retrieved API documents", "api_id", apiID, "document_count", len(documents))
-				}
+			if logger != nil {
+				logger.Warn("failed to get documents for API", "api_id", apiID, "error", err)
+			}
+			debugf("Error fetching API documents: %v", err)
+		} else {
+			if logger != nil {
+				logger.Debug("retrieved API documents", "api_id", apiID, "document_count", len(documents))
+			}
 
-				if len(documents) > 0 {
-					for i, docInterface := range documents {
-						if logger != nil {
-							logger.Debug("processing document", "index", i, "doc_type", fmt.Sprintf("%T", docInterface))
-						}
+			if len(documents) > 0 {
+				for i, docInterface := range documents {
+					if logger != nil {
+						logger.Debug("processing document", "index", i, "doc_type", fmt.Sprintf("%T", docInterface))
+					}
 
-						// Convert the interface{} to a map to access its properties
-						// The SDK returns API document entries as generic objects
-						debugf("Processing document %d, type: %T, value: %+v", i, docInterface, docInterface)
+					// Convert the interface{} to a map to access its properties
+					// The SDK returns API document entries as generic objects
+					debugf("Processing document %d, type: %T, value: %+v", i, docInterface, docInterface)
 
-						// Try different approaches to access the document data
-						docID := ""
-						docName := ""
+					// Try different approaches to access the document data
+					docID := ""
+					docName := ""
 
-						// First try to access as a map
-						doc, ok := docInterface.(map[string]interface{})
-						if ok {
-							debugf("Successfully converted document to map")
-							docID, _ = doc["id"].(string)
-							docName, _ = doc["name"].(string)
-							debugf("From map - Document ID: %s, Name: %s", docID, docName)
-						} else {
-							debugf("Could not convert document to map, trying to decode it")
+					// First try to access as a map
+					doc, ok := docInterface.(map[string]interface{})
+					if ok {
+						debugf("Successfully converted document to map")
+						docID, _ = doc["id"].(string)
+						docName, _ = doc["name"].(string)
+						debugf("From map - Document ID: %s, Name: %s", docID, docName)
+					} else {
+						debugf("Could not convert document to map, trying to decode it")
 
-							// Try to serialize and deserialize the document
-							docBytes, err := json.Marshal(docInterface)
-							if err == nil {
-								debugf("Successfully serialized document: %s", string(docBytes))
+						// Try to serialize and deserialize the document
+						docBytes, err := json.Marshal(docInterface)
+						if err == nil {
+							debugf("Successfully serialized document: %s", string(docBytes))
 
-								// Try to unmarshal into a simple map
-								var docMap map[string]interface{}
-								if err := json.Unmarshal(docBytes, &docMap); err == nil {
-									debugf("Successfully unmarshaled document to map")
+							// Try to unmarshal into a simple map
+							var docMap map[string]interface{}
+							if err := json.Unmarshal(docBytes, &docMap); err == nil {
+								debugf("Successfully unmarshaled document to map")
 
-									// Try to get the id/ID and name/Name fields
-									for k, v := range docMap {
-										lowercaseKey := strings.ToLower(k)
-										switch lowercaseKey {
-										case "id":
-											if strValue, ok := v.(string); ok {
-												docID = strValue
-												debugf("Found ID field: %s", docID)
-											}
-										case "name":
-											if strValue, ok := v.(string); ok {
-												docName = strValue
-												debugf("Found Name field: %s", docName)
-											}
+								// Try to get the id/ID and name/Name fields
+								for k, v := range docMap {
+									lowercaseKey := strings.ToLower(k)
+									switch lowercaseKey {
+									case "id":
+										if strValue, ok := v.(string); ok {
+											docID = strValue
+											debugf("Found ID field: %s", docID)
+										}
+									case "name":
+										if strValue, ok := v.(string); ok {
+											docName = strValue
+											debugf("Found Name field: %s", docName)
 										}
 									}
 								}
 							}
-
-							if docID == "" {
-								debugf("Failed to extract ID from document, doc type: %T", docInterface)
-								if logger != nil {
-									logger.Warn("failed to extract document ID", "index", i, "doc_type", fmt.Sprintf("%T", docInterface))
-								}
-								continue
-							}
 						}
 
 						if docID == "" {
-							debugf("Could not extract document ID")
+							debugf("Failed to extract ID from document, doc type: %T", docInterface)
 							if logger != nil {
-								logger.Warn("document missing ID", "index", i)
+								logger.Warn("failed to extract document ID", "index", i, "doc_type", fmt.Sprintf("%T", docInterface))
 							}
 							continue
 						}
-
-						debugf("Successfully extracted document ID: %s, Name: %s", docID, docName)
-
-						if logger != nil {
-							logger.Debug("document details", "id", docID, "name", docName)
-						}
-
-						// Use the document name if available, otherwise use a generic name
-						var resourceName string
-						if docName != "" {
-							resourceName = fmt.Sprintf("%s_%s", apiName, docName)
-						} else {
-							resourceName = fmt.Sprintf("%s_doc_%s", apiName, docID[:8]) // Use first 8 chars of ID as identifier
-						}
-
-						// Format and write the import block with composite key
-						importBlock := formatTerraformImport("api_document", resourceName, docID, "api_id", apiID)
-						if logger != nil {
-							logger.Debug("writing import block", "resource_name", resourceName, "doc_id", docID, "api_id", apiID)
-						}
-
-						if _, err := fmt.Fprintln(writer, importBlock); err != nil {
-							if logger != nil {
-								logger.Error("failed to write API document import block", "error", err)
-							}
-							return fmt.Errorf("failed to write API document import block: %w", err)
-						}
 					}
-				} else {
+
+					if docID == "" {
+						debugf("Could not extract document ID")
+						if logger != nil {
+							logger.Warn("document missing ID", "index", i)
+						}
+						continue
+					}
+
+					debugf("Successfully extracted document ID: %s, Name: %s", docID, docName)
+
 					if logger != nil {
-						logger.Info("no API documents found for API", "api_id", apiID, "api_name", apiName)
+						logger.Debug("document details", "id", docID, "name", docName)
 					}
+
+					// Use the document name if available, otherwise use a generic name
+					var resourceName string
+					if docName != "" {
+						resourceName = fmt.Sprintf("%s_%s", apiName, docName)
+					} else {
+						resourceName = fmt.Sprintf("%s_doc_%s", apiName, docID[:8]) // Use first 8 chars of ID as identifier
+					}
+
+					// Format and write the import block with composite key
+					importBlock := formatTerraformImport("api_document", resourceName, docID, "api_id", apiID)
+					if logger != nil {
+						logger.Debug("writing import block", "resource_name", resourceName, "doc_id", docID, "api_id", apiID)
+					}
+
+					if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+						if logger != nil {
+							logger.Error("failed to write API document import block", "error", err)
+						}
+						return fmt.Errorf("failed to write API document import block: %w", err)
+					}
+				}
+			} else {
+				if logger != nil {
+					logger.Info("no API documents found for API", "api_id", apiID, "api_name", apiName)
 				}
 			}
 		}
+	}
 
 	// Process API Specifications
 	// Let's check if the SDK has a valid APISpecification field
@@ -567,112 +567,112 @@ func dumpAPIChildResources(
 
 		specifications, err := helpers.GetSpecificationsForAPI(ctx, apiSpecAPI, apiID)
 		if err != nil {
-				if logger != nil {
-					logger.Warn("failed to get specifications for API", "api_id", apiID, "error", err)
-				}
-				debugf("Error fetching API specifications: %v", err)
-			} else {
-				if logger != nil {
-					logger.Debug("retrieved API specifications", "api_id", apiID, "specification_count", len(specifications))
-				}
+			if logger != nil {
+				logger.Warn("failed to get specifications for API", "api_id", apiID, "error", err)
+			}
+			debugf("Error fetching API specifications: %v", err)
+		} else {
+			if logger != nil {
+				logger.Debug("retrieved API specifications", "api_id", apiID, "specification_count", len(specifications))
+			}
 
-				if len(specifications) > 0 {
-					for i, specInterface := range specifications {
-						if logger != nil {
-							logger.Debug("processing specification", "index", i, "spec_type", fmt.Sprintf("%T", specInterface))
-						}
+			if len(specifications) > 0 {
+				for i, specInterface := range specifications {
+					if logger != nil {
+						logger.Debug("processing specification", "index", i, "spec_type", fmt.Sprintf("%T", specInterface))
+					}
 
-						// Convert the interface{} to a map to access its properties
-						// The SDK returns API specification entries as generic objects
-						debugf("Processing specification %d, type: %T, value: %+v", i, specInterface, specInterface)
+					// Convert the interface{} to a map to access its properties
+					// The SDK returns API specification entries as generic objects
+					debugf("Processing specification %d, type: %T, value: %+v", i, specInterface, specInterface)
 
-						// Try different approaches to access the specification data
-						specID := ""
-						specName := ""
+					// Try different approaches to access the specification data
+					specID := ""
+					specName := ""
 
-						// First try to access as a map
-						spec, ok := specInterface.(map[string]interface{})
-						if ok {
-							debugf("Successfully converted specification to map")
-							specID, _ = spec["id"].(string)
-							specName, _ = spec["name"].(string)
-							debugf("From map - Specification ID: %s, Name: %s", specID, specName)
-						} else {
-							debugf("Could not convert specification to map, trying to decode it")
+					// First try to access as a map
+					spec, ok := specInterface.(map[string]interface{})
+					if ok {
+						debugf("Successfully converted specification to map")
+						specID, _ = spec["id"].(string)
+						specName, _ = spec["name"].(string)
+						debugf("From map - Specification ID: %s, Name: %s", specID, specName)
+					} else {
+						debugf("Could not convert specification to map, trying to decode it")
 
-							// Try to serialize and deserialize the specification
-							specBytes, err := json.Marshal(specInterface)
-							if err == nil {
-								debugf("Successfully serialized specification: %s", string(specBytes))
+						// Try to serialize and deserialize the specification
+						specBytes, err := json.Marshal(specInterface)
+						if err == nil {
+							debugf("Successfully serialized specification: %s", string(specBytes))
 
-								// Try to unmarshal into a simple map
-								var specMap map[string]interface{}
-								if err := json.Unmarshal(specBytes, &specMap); err == nil {
-									debugf("Successfully unmarshaled specification to map")
+							// Try to unmarshal into a simple map
+							var specMap map[string]interface{}
+							if err := json.Unmarshal(specBytes, &specMap); err == nil {
+								debugf("Successfully unmarshaled specification to map")
 
-									// Try to get the id/ID and name/Name fields
-									for k, v := range specMap {
-										lowercaseKey := strings.ToLower(k)
-										switch lowercaseKey {
-										case "id":
-											if strValue, ok := v.(string); ok {
-												specID = strValue
-												debugf("Found ID field: %s", specID)
-											}
-										case "name":
-											if strValue, ok := v.(string); ok {
-												specName = strValue
-												debugf("Found Name field: %s", specName)
-											}
+								// Try to get the id/ID and name/Name fields
+								for k, v := range specMap {
+									lowercaseKey := strings.ToLower(k)
+									switch lowercaseKey {
+									case "id":
+										if strValue, ok := v.(string); ok {
+											specID = strValue
+											debugf("Found ID field: %s", specID)
+										}
+									case "name":
+										if strValue, ok := v.(string); ok {
+											specName = strValue
+											debugf("Found Name field: %s", specName)
 										}
 									}
 								}
 							}
-
-							if specID == "" {
-								debugf("Failed to extract ID from specification, spec type: %T", specInterface)
-								if logger != nil {
-									logger.Warn("failed to extract specification ID", "index", i, "spec_type", fmt.Sprintf("%T", specInterface))
-								}
-								continue
-							}
 						}
 
 						if specID == "" {
-							debugf("Could not extract specification ID")
+							debugf("Failed to extract ID from specification, spec type: %T", specInterface)
 							if logger != nil {
-								logger.Warn("specification missing ID", "index", i)
+								logger.Warn("failed to extract specification ID", "index", i, "spec_type", fmt.Sprintf("%T", specInterface))
 							}
 							continue
 						}
-
-						debugf("Successfully extracted specification ID: %s, Name: %s", specID, specName)
-
-						if logger != nil {
-							logger.Debug("specification details", "id", specID, "name", specName)
-						}
-
-						// Use the specification name if available, otherwise use a generic name
-						var resourceName string
-						if specName != "" {
-							resourceName = fmt.Sprintf("%s_%s", apiName, specName)
-						} else {
-							resourceName = fmt.Sprintf("%s_spec_%s", apiName, specID[:8]) // Use first 8 chars of ID as identifier
-						}
-
-						// Format and write the import block with composite key
-						importBlock := formatTerraformImport("api_specification", resourceName, specID, "api_id", apiID)
-						if logger != nil {
-							logger.Debug("writing import block", "resource_name", resourceName, "spec_id", specID, "api_id", apiID)
-						}
-
-						if _, err := fmt.Fprintln(writer, importBlock); err != nil {
-							if logger != nil {
-								logger.Error("failed to write API specification import block", "error", err)
-							}
-							return fmt.Errorf("failed to write API specification import block: %w", err)
-						}
 					}
+
+					if specID == "" {
+						debugf("Could not extract specification ID")
+						if logger != nil {
+							logger.Warn("specification missing ID", "index", i)
+						}
+						continue
+					}
+
+					debugf("Successfully extracted specification ID: %s, Name: %s", specID, specName)
+
+					if logger != nil {
+						logger.Debug("specification details", "id", specID, "name", specName)
+					}
+
+					// Use the specification name if available, otherwise use a generic name
+					var resourceName string
+					if specName != "" {
+						resourceName = fmt.Sprintf("%s_%s", apiName, specName)
+					} else {
+						resourceName = fmt.Sprintf("%s_spec_%s", apiName, specID[:8]) // Use first 8 chars of ID as identifier
+					}
+
+					// Format and write the import block with composite key
+					importBlock := formatTerraformImport("api_specification", resourceName, specID, "api_id", apiID)
+					if logger != nil {
+						logger.Debug("writing import block", "resource_name", resourceName, "spec_id", specID, "api_id", apiID)
+					}
+
+					if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+						if logger != nil {
+							logger.Error("failed to write API specification import block", "error", err)
+						}
+						return fmt.Errorf("failed to write API specification import block: %w", err)
+					}
+				}
 			} else {
 				if logger != nil {
 					logger.Info("no API specifications found for API", "api_id", apiID, "api_name", apiName)
@@ -710,76 +710,76 @@ func dumpAPIChildResources(
 			}
 
 			if len(publications) > 0 {
-					for i, pubInterface := range publications {
-						if logger != nil {
-							logger.Debug("processing publication", "index", i, "pub_type", fmt.Sprintf("%T", pubInterface))
-						}
+				for i, pubInterface := range publications {
+					if logger != nil {
+						logger.Debug("processing publication", "index", i, "pub_type", fmt.Sprintf("%T", pubInterface))
+					}
 
-						// Convert the interface{} to a map to access its properties
-						// The SDK returns API publication entries as generic objects
-						debugf("Processing publication %d, type: %T, value: %+v", i, pubInterface, pubInterface)
+					// Convert the interface{} to a map to access its properties
+					// The SDK returns API publication entries as generic objects
+					debugf("Processing publication %d, type: %T, value: %+v", i, pubInterface, pubInterface)
 
-						// API Publications use a composite key of portal_id and api_id (no separate ID field)
-						portalID := ""
+					// API Publications use a composite key of portal_id and api_id (no separate ID field)
+					portalID := ""
 
-						// First try to access as a map
-						pub, ok := pubInterface.(map[string]interface{})
-						if ok {
-							debugf("Successfully converted publication to map")
-							portalID, _ = pub["portal_id"].(string)
-							debugf("From map - Portal ID: %s", portalID)
-						} else {
-							debugf("Could not convert publication to map, trying to decode it")
+					// First try to access as a map
+					pub, ok := pubInterface.(map[string]interface{})
+					if ok {
+						debugf("Successfully converted publication to map")
+						portalID, _ = pub["portal_id"].(string)
+						debugf("From map - Portal ID: %s", portalID)
+					} else {
+						debugf("Could not convert publication to map, trying to decode it")
 
-							// Try to serialize and deserialize the publication
-							pubBytes, err := json.Marshal(pubInterface)
-							if err == nil {
-								debugf("Successfully serialized publication: %s", string(pubBytes))
+						// Try to serialize and deserialize the publication
+						pubBytes, err := json.Marshal(pubInterface)
+						if err == nil {
+							debugf("Successfully serialized publication: %s", string(pubBytes))
 
-								// Try to unmarshal into a simple map
-								var pubMap map[string]interface{}
-								if err := json.Unmarshal(pubBytes, &pubMap); err == nil {
-									debugf("Successfully unmarshaled publication to map")
+							// Try to unmarshal into a simple map
+							var pubMap map[string]interface{}
+							if err := json.Unmarshal(pubBytes, &pubMap); err == nil {
+								debugf("Successfully unmarshaled publication to map")
 
-									// For publications, we need the portal_id
-									portalID, _ = pubMap["portal_id"].(string)
-									if portalID != "" {
-										debugf("Found portal_id field: %s", portalID)
-									}
+								// For publications, we need the portal_id
+								portalID, _ = pubMap["portal_id"].(string)
+								if portalID != "" {
+									debugf("Found portal_id field: %s", portalID)
 								}
 							}
 						}
-
-						if portalID == "" {
-							debugf("Could not extract portal_id from publication, pub type: %T", pubInterface)
-							if logger != nil {
-								logger.Warn("publication missing portal_id", "index", i, "pub_type", fmt.Sprintf("%T", pubInterface))
-							}
-							continue
-						}
-
-						debugf("Successfully extracted portal ID: %s", portalID)
-
-						if logger != nil {
-							logger.Debug("publication details", "api_id", apiID, "portal_id", portalID)
-						}
-
-						// Create a resource name using the API ID and portal ID
-						resourceName := fmt.Sprintf("%s_pub_%s", apiName, portalID[:8]) // Use first 8 chars of portal ID as identifier
-
-						// For API publications, the import format is different - we need a composite key with both api_id and portal_id
-						importBlock := formatTerraformImportForAPIPublication("api_publication", resourceName, apiID, portalID)
-						if logger != nil {
-							logger.Debug("writing import block", "resource_name", resourceName, "portal_id", portalID, "api_id", apiID)
-						}
-
-						if _, err := fmt.Fprintln(writer, importBlock); err != nil {
-							if logger != nil {
-								logger.Error("failed to write API publication import block", "error", err)
-							}
-							return fmt.Errorf("failed to write API publication import block: %w", err)
-						}
 					}
+
+					if portalID == "" {
+						debugf("Could not extract portal_id from publication, pub type: %T", pubInterface)
+						if logger != nil {
+							logger.Warn("publication missing portal_id", "index", i, "pub_type", fmt.Sprintf("%T", pubInterface))
+						}
+						continue
+					}
+
+					debugf("Successfully extracted portal ID: %s", portalID)
+
+					if logger != nil {
+						logger.Debug("publication details", "api_id", apiID, "portal_id", portalID)
+					}
+
+					// Create a resource name using the API ID and portal ID
+					resourceName := fmt.Sprintf("%s_pub_%s", apiName, portalID[:8]) // Use first 8 chars of portal ID as identifier
+
+					// For API publications, the import format is different - we need a composite key with both api_id and portal_id
+					importBlock := formatTerraformImportForAPIPublication("api_publication", resourceName, apiID, portalID)
+					if logger != nil {
+						logger.Debug("writing import block", "resource_name", resourceName, "portal_id", portalID, "api_id", apiID)
+					}
+
+					if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+						if logger != nil {
+							logger.Error("failed to write API publication import block", "error", err)
+						}
+						return fmt.Errorf("failed to write API publication import block: %w", err)
+					}
+				}
 			} else {
 				if logger != nil {
 					logger.Info("no API publications found for API", "api_id", apiID, "api_name", apiName)
@@ -817,96 +817,96 @@ func dumpAPIChildResources(
 			}
 
 			if len(implementations) > 0 {
-					for i, implInterface := range implementations {
-						if logger != nil {
-							logger.Debug("processing implementation", "index", i, "impl_type", fmt.Sprintf("%T", implInterface))
+				for i, implInterface := range implementations {
+					if logger != nil {
+						logger.Debug("processing implementation", "index", i, "impl_type", fmt.Sprintf("%T", implInterface))
+					}
+
+					// Convert the interface{} to a map to access its properties
+					// The SDK returns API implementation entries as generic objects
+					debugf("Processing implementation %d, type: %T, value: %+v", i, implInterface, implInterface)
+
+					// Try different approaches to access the implementation data
+					implID := ""
+					implName := ""
+
+					// First try to access as a map
+					impl, ok := implInterface.(map[string]interface{})
+					if ok {
+						debugf("Successfully converted implementation to map")
+						implID, _ = impl["id"].(string)
+
+						// For implementations, we might get the name from the service field
+						if serviceMap, ok := impl["service"].(map[string]interface{}); ok {
+							implName, _ = serviceMap["name"].(string)
 						}
 
-						// Convert the interface{} to a map to access its properties
-						// The SDK returns API implementation entries as generic objects
-						debugf("Processing implementation %d, type: %T, value: %+v", i, implInterface, implInterface)
+						debugf("From map - Implementation ID: %s, Name: %s", implID, implName)
+					} else {
+						debugf("Could not convert implementation to map, trying to decode it")
 
-						// Try different approaches to access the implementation data
-						implID := ""
-						implName := ""
+						// Try to serialize and deserialize the implementation
+						implBytes, err := json.Marshal(implInterface)
+						if err == nil {
+							debugf("Successfully serialized implementation: %s", string(implBytes))
 
-						// First try to access as a map
-						impl, ok := implInterface.(map[string]interface{})
-						if ok {
-							debugf("Successfully converted implementation to map")
-							implID, _ = impl["id"].(string)
+							// Try to unmarshal into a simple map
+							var implMap map[string]interface{}
+							if err := json.Unmarshal(implBytes, &implMap); err == nil {
+								debugf("Successfully unmarshaled implementation to map")
 
-							// For implementations, we might get the name from the service field
-							if serviceMap, ok := impl["service"].(map[string]interface{}); ok {
-								implName, _ = serviceMap["name"].(string)
-							}
+								// Try to get the id field
+								implID, _ = implMap["id"].(string)
+								if implID != "" {
+									debugf("Found ID field: %s", implID)
+								}
 
-							debugf("From map - Implementation ID: %s, Name: %s", implID, implName)
-						} else {
-							debugf("Could not convert implementation to map, trying to decode it")
-
-							// Try to serialize and deserialize the implementation
-							implBytes, err := json.Marshal(implInterface)
-							if err == nil {
-								debugf("Successfully serialized implementation: %s", string(implBytes))
-
-								// Try to unmarshal into a simple map
-								var implMap map[string]interface{}
-								if err := json.Unmarshal(implBytes, &implMap); err == nil {
-									debugf("Successfully unmarshaled implementation to map")
-
-									// Try to get the id field
-									implID, _ = implMap["id"].(string)
-									if implID != "" {
-										debugf("Found ID field: %s", implID)
-									}
-
-									// For implementations, we might get the name from the service field
-									if serviceMap, ok := implMap["service"].(map[string]interface{}); ok {
-										implName, _ = serviceMap["name"].(string)
-										if implName != "" {
-											debugf("Found service.name field: %s", implName)
-										}
+								// For implementations, we might get the name from the service field
+								if serviceMap, ok := implMap["service"].(map[string]interface{}); ok {
+									implName, _ = serviceMap["name"].(string)
+									if implName != "" {
+										debugf("Found service.name field: %s", implName)
 									}
 								}
 							}
 						}
-
-						if implID == "" {
-							debugf("Could not extract ID from implementation, impl type: %T", implInterface)
-							if logger != nil {
-								logger.Warn("implementation missing ID", "index", i, "impl_type", fmt.Sprintf("%T", implInterface))
-							}
-							continue
-						}
-
-						debugf("Successfully extracted implementation ID: %s, Service Name: %s", implID, implName)
-
-						if logger != nil {
-							logger.Debug("implementation details", "id", implID, "service_name", implName, "api_id", apiID)
-						}
-
-						// Use the service name if available, otherwise use a generic name
-						var resourceName string
-						if implName != "" {
-							resourceName = fmt.Sprintf("%s_%s", apiName, sanitizeTerraformResourceName(implName))
-						} else {
-							resourceName = fmt.Sprintf("%s_impl_%s", apiName, implID[:8]) // Use first 8 chars of ID as identifier
-						}
-
-						// Format and write the import block with composite key
-						importBlock := formatTerraformImport("api_implementation", resourceName, implID, "api_id", apiID)
-						if logger != nil {
-							logger.Debug("writing import block", "resource_name", resourceName, "impl_id", implID, "api_id", apiID)
-						}
-
-						if _, err := fmt.Fprintln(writer, importBlock); err != nil {
-							if logger != nil {
-								logger.Error("failed to write API implementation import block", "error", err)
-							}
-							return fmt.Errorf("failed to write API implementation import block: %w", err)
-						}
 					}
+
+					if implID == "" {
+						debugf("Could not extract ID from implementation, impl type: %T", implInterface)
+						if logger != nil {
+							logger.Warn("implementation missing ID", "index", i, "impl_type", fmt.Sprintf("%T", implInterface))
+						}
+						continue
+					}
+
+					debugf("Successfully extracted implementation ID: %s, Service Name: %s", implID, implName)
+
+					if logger != nil {
+						logger.Debug("implementation details", "id", implID, "service_name", implName, "api_id", apiID)
+					}
+
+					// Use the service name if available, otherwise use a generic name
+					var resourceName string
+					if implName != "" {
+						resourceName = fmt.Sprintf("%s_%s", apiName, sanitizeTerraformResourceName(implName))
+					} else {
+						resourceName = fmt.Sprintf("%s_impl_%s", apiName, implID[:8]) // Use first 8 chars of ID as identifier
+					}
+
+					// Format and write the import block with composite key
+					importBlock := formatTerraformImport("api_implementation", resourceName, implID, "api_id", apiID)
+					if logger != nil {
+						logger.Debug("writing import block", "resource_name", resourceName, "impl_id", implID, "api_id", apiID)
+					}
+
+					if _, err := fmt.Fprintln(writer, importBlock); err != nil {
+						if logger != nil {
+							logger.Error("failed to write API implementation import block", "error", err)
+						}
+						return fmt.Errorf("failed to write API implementation import block: %w", err)
+					}
+				}
 			} else {
 				if logger != nil {
 					logger.Info("no API implementations found for API", "api_id", apiID, "api_name", apiName)
