@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"os"
 
-	kkInternal "github.com/Kong/sdk-konnect-go-internal"
 	kkSDK "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
+	kkInternal "github.com/Kong/sdk-konnect-go-internal"
 
 	"github.com/kong/kongctl/internal/config"
 )
@@ -33,13 +33,13 @@ type SDKAPI interface {
 // This is the real implementation of the SDKAPI
 // which wraps the actual SDK implmentation
 type KonnectSDK struct {
-	SDK                      *kkSDK.SDK
-	InternalSDK              *kkInternal.SDK
-	internalPortal           *InternalPortalAPI
-	internalAPI              *InternalAPIAPI
-	internalAPIDocument      *InternalAPIDocumentAPI
-	internalAPISpecification *InternalAPISpecificationAPI
-	internalAPIPublication   *InternalAPIPublicationAPI
+	SDK                       *kkSDK.SDK
+	InternalSDK               *kkInternal.SDK
+	internalPortal            *InternalPortalAPI
+	internalAPI               *InternalAPIAPI
+	internalAPIDocument       *InternalAPIDocumentAPI
+	internalAPISpecification  *InternalAPISpecificationAPI
+	internalAPIPublication    *InternalAPIPublicationAPI
 	internalAPIImplementation *InternalAPIImplementationAPI
 }
 
@@ -75,27 +75,27 @@ func debugLogger() func(string, ...interface{}) {
 func (k *KonnectSDK) GetAPIAPI() APIAPI {
 	// Check if debug flag is set in environment
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
-	
+
 	// Helper function for debug logging
 	debugLog := func(format string, args ...interface{}) {
 		if debugEnabled {
 			fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
 		}
 	}
-	
+
 	debugLog("GetAPIAPI called")
-	
+
 	if k.InternalSDK == nil {
 		debugLog("KonnectSDK.InternalSDK is nil in GetAPIAPI")
 		return nil
 	}
-	
+
 	if k.internalAPI == nil && k.InternalSDK != nil {
 		k.internalAPI = &InternalAPIAPI{
 			SDK: k.InternalSDK,
 		}
 	}
-	
+
 	// Check if we have an SDK and it has a valid API field
 	if k.internalAPI == nil {
 		debugLog("k.internalAPI is nil")
@@ -106,7 +106,7 @@ func (k *KonnectSDK) GetAPIAPI() APIAPI {
 	} else {
 		debugLog("Successfully created APIAPI implementation")
 	}
-	
+
 	return k.internalAPI
 }
 
@@ -114,20 +114,20 @@ func (k *KonnectSDK) GetAPIAPI() APIAPI {
 // for accessing the API Document APIs using the internal SDK
 func (k *KonnectSDK) GetAPIDocumentAPI() APIDocumentAPI {
 	debugLog := debugLogger()
-	
+
 	debugLog("GetAPIDocumentAPI called")
-	
+
 	if k.InternalSDK == nil {
 		debugLog("KonnectSDK.InternalSDK is nil")
 		return nil
 	}
-	
+
 	if k.InternalSDK.APIDocumentation == nil {
 		debugLog("KonnectSDK.InternalSDK.APIDocumentation is nil")
 	} else {
 		debugLog("KonnectSDK.InternalSDK.APIDocumentation is NOT nil")
 	}
-	
+
 	if k.internalAPIDocument == nil && k.InternalSDK != nil {
 		debugLog("Creating new InternalAPIDocumentAPI")
 		k.internalAPIDocument = &InternalAPIDocumentAPI{
@@ -141,20 +141,20 @@ func (k *KonnectSDK) GetAPIDocumentAPI() APIDocumentAPI {
 // for accessing the API Specification APIs using the internal SDK
 func (k *KonnectSDK) GetAPISpecificationAPI() APISpecificationAPI {
 	debugLog := debugLogger()
-	
+
 	debugLog("GetAPISpecificationAPI called")
-	
+
 	if k.InternalSDK == nil {
 		debugLog("KonnectSDK.InternalSDK is nil")
 		return nil
 	}
-	
+
 	if k.InternalSDK.APISpecification == nil {
 		debugLog("KonnectSDK.InternalSDK.APISpecification is nil")
 	} else {
 		debugLog("KonnectSDK.InternalSDK.APISpecification is NOT nil")
 	}
-	
+
 	if k.internalAPISpecification == nil && k.InternalSDK != nil {
 		debugLog("Creating new InternalAPISpecificationAPI")
 		k.internalAPISpecification = &InternalAPISpecificationAPI{
@@ -169,27 +169,27 @@ func (k *KonnectSDK) GetAPISpecificationAPI() APISpecificationAPI {
 func (k *KonnectSDK) GetAPIPublicationAPI() APIPublicationAPI {
 	// Check if debug flag is set in environment
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
-	
+
 	// Helper function for debug logging
 	debugLog := func(format string, args ...interface{}) {
 		if debugEnabled {
 			fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
 		}
 	}
-	
+
 	debugLog("GetAPIPublicationAPI called")
-	
+
 	if k.InternalSDK == nil {
 		debugLog("KonnectSDK.InternalSDK is nil")
 		return nil
 	}
-	
+
 	if k.InternalSDK.APIPublication == nil {
 		debugLog("KonnectSDK.InternalSDK.APIPublication is nil")
 	} else {
 		debugLog("KonnectSDK.InternalSDK.APIPublication is NOT nil")
 	}
-	
+
 	if k.internalAPIPublication == nil && k.InternalSDK != nil {
 		debugLog("Creating new InternalAPIPublicationAPI")
 		k.internalAPIPublication = &InternalAPIPublicationAPI{
@@ -204,27 +204,27 @@ func (k *KonnectSDK) GetAPIPublicationAPI() APIPublicationAPI {
 func (k *KonnectSDK) GetAPIImplementationAPI() APIImplementationAPI {
 	// Check if debug flag is set in environment
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
-	
+
 	// Helper function for debug logging
 	debugLog := func(format string, args ...interface{}) {
 		if debugEnabled {
 			fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
 		}
 	}
-	
+
 	debugLog("GetAPIImplementationAPI called")
-	
+
 	if k.InternalSDK == nil {
 		debugLog("KonnectSDK.InternalSDK is nil")
 		return nil
 	}
-	
+
 	if k.InternalSDK.APIImplementation == nil {
 		debugLog("KonnectSDK.InternalSDK.APIImplementation is nil")
 	} else {
 		debugLog("KonnectSDK.InternalSDK.APIImplementation is NOT nil")
 	}
-	
+
 	if k.internalAPIImplementation == nil && k.InternalSDK != nil {
 		debugLog("Creating new InternalAPIImplementationAPI")
 		k.internalAPIImplementation = &InternalAPIImplementationAPI{
@@ -238,14 +238,14 @@ func (k *KonnectSDK) GetAPIImplementationAPI() APIImplementationAPI {
 // for accessing the App Auth Strategies APIs using the public SDK
 func (k *KonnectSDK) GetAppAuthStrategiesAPI() AppAuthStrategiesAPI {
 	debugLog := debugLogger()
-	
+
 	debugLog("GetAppAuthStrategiesAPI called")
-	
+
 	if k.SDK == nil {
 		debugLog("KonnectSDK.SDK is nil")
 		return nil
 	}
-	
+
 	debugLog("Successfully returning AppAuthStrategies API")
 	return k.SDK.AppAuthStrategies
 }

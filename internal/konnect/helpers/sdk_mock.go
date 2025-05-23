@@ -4,16 +4,16 @@ import "testing"
 
 // This is a mock implementation of the SDKAPI interface
 type MockKonnectSDK struct {
-	Token                     string
-	T                         *testing.T
-	CPAPIFactory              func() ControlPlaneAPI
-	PortalFactory             func() PortalAPI
-	APIFactory                func() APIAPI
-	APIDocumentFactory        func() APIDocumentAPI
-	APISpecificationFactory   func() APISpecificationAPI
-	APIPublicationFactory     func() APIPublicationAPI
-	APIImplementationFactory  func() APIImplementationAPI
-	AppAuthStrategiesFactory  func() AppAuthStrategiesAPI
+	Token                    string
+	T                        *testing.T
+	CPAPIFactory             func() ControlPlaneAPI
+	PortalFactory            func() PortalAPI
+	APIFactory               func() APIAPI
+	APIDocumentFactory       func() APIDocumentAPI
+	APISpecificationFactory  func() APISpecificationAPI
+	APIPublicationFactory    func() APIPublicationAPI
+	APIImplementationFactory func() APIImplementationAPI
+	AppAuthStrategiesFactory func() AppAuthStrategiesAPI
 }
 
 // Returns a mock instance of the ControlPlaneAPI

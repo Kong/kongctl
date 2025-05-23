@@ -81,7 +81,6 @@ var resourceTypeMap = map[string]string{
 	"app-auth-strategies":  "konnect_application_auth_strategy",
 }
 
-
 // sanitizeTerraformResourceName converts a resource name to a valid Terraform identifier
 func sanitizeTerraformResourceName(name string) string {
 	// Convert to lowercase
@@ -139,20 +138,20 @@ func formatTerraformImport(resourceType, resourceName, resourceID string, parent
 
 	safeName := sanitizeTerraformResourceName(resourceName)
 	idBlock := formatIDBlock(resourceID, parentIDKey, parentID)
-	
+
 	// Build import block components
 	var importLines []string
 	importLines = append(importLines, "import {")
 	importLines = append(importLines, fmt.Sprintf("  to = %s.%s", terraformType, safeName))
-	
+
 	// Add provider for all resources except app-auth-strategies
 	if resourceType != "app-auth-strategies" {
 		importLines = append(importLines, "  provider = konnect-beta")
 	}
-	
+
 	importLines = append(importLines, idBlock)
 	importLines = append(importLines, "}")
-	
+
 	return strings.Join(importLines, "\n") + "\n"
 }
 
@@ -172,8 +171,8 @@ func formatTerraformImportForAPIPublication(resourceType, resourceName, apiID, p
 	// API Publications use a different format for the ID with both api_id and portal_id
 	idBlock := fmt.Sprintf("  id = jsonencode({\n    \"api_id\": \"%s\",\n    \"portal_id\": \"%s\"\n  })",
 		escapeTerraformString(apiID), escapeTerraformString(portalID))
-	
-	debugf("Formatted API Publication import block with api_id=%s and portal_id=%s", 
+
+	debugf("Formatted API Publication import block with api_id=%s and portal_id=%s",
 		apiID, portalID)
 
 	return fmt.Sprintf("import {\n  to = %s.%s\n  provider = %s\n%s\n}\n",
@@ -198,20 +197,20 @@ type paginationHandler func(pageNumber int64) (hasMoreData bool, err error)
 // processPaginatedRequests handles pagination logic for any paginated API
 func processPaginatedRequests(handler paginationHandler) error {
 	pageNumber := int64(1)
-	
+
 	for {
 		hasMore, err := handler(pageNumber)
 		if err != nil {
 			return err
 		}
-		
+
 		if !hasMore {
 			break
 		}
-		
+
 		pageNumber++
 	}
-	
+
 	return nil
 }
 
@@ -235,22 +234,22 @@ func extractResourceFields(resource interface{}, resourceType string) (id string
 		name, _ = resMap["name"].(string)
 		return id, name, true
 	}
-	
+
 	// Try JSON marshaling approach
 	resBytes, err := json.Marshal(resource)
 	if err != nil {
 		debugf("Failed to marshal %s: %v", resourceType, err)
 		return "", "", false
 	}
-	
+
 	debugf("Successfully serialized %s: %s", resourceType, string(resBytes))
-	
+
 	var resMap map[string]interface{}
 	if err := json.Unmarshal(resBytes, &resMap); err != nil {
 		debugf("Failed to unmarshal %s: %v", resourceType, err)
 		return "", "", false
 	}
-	
+
 	// Try to get ID and Name fields (case-insensitive)
 	for k, v := range resMap {
 		switch strings.ToLower(k) {
@@ -260,7 +259,7 @@ func extractResourceFields(resource interface{}, resourceType string) (id string
 			name, _ = v.(string)
 		}
 	}
-	
+
 	return id, name, id != ""
 }
 
@@ -270,8 +269,8 @@ func dumpPortals(
 	writer io.Writer,
 	kkClient helpers.PortalAPI,
 	requestPageSize int64,
-	includeChildResources bool) error {
-	
+	includeChildResources bool,
+) error {
 	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkInternalOps.ListPortalsRequest{
 			PageSize:   Int64(requestPageSize),
@@ -307,25 +306,25 @@ func dumpPortals(
 	})
 }
 
-
 // dumpAPIs exports all APIs as Terraform import blocks
 func dumpAPIs(
 	ctx context.Context,
 	writer io.Writer,
 	kkClient helpers.APIAPI,
 	requestPageSize int64,
-	includeChildResources bool) error {
+	includeChildResources bool,
+) error {
 	debugf("dumpAPIs called, includeChildResources=%v", includeChildResources)
-	
+
 	if kkClient == nil {
 		debugf("APIAPI client is nil")
 		return fmt.Errorf("APIAPI client is nil")
 	}
-	
+
 	// Check what kind of client we have
 	_, isInternalAPI := kkClient.(*helpers.InternalAPIAPI)
 	debugf("kkClient is InternalAPIAPI: %v", isInternalAPI)
-	
+
 	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		// Create a request to list APIs with pagination
 		req := kkInternalOps.ListApisRequest{
@@ -392,7 +391,7 @@ func dumpAPIChildResources(
 
 	// Get the SDK
 	debugf("Attempting to get the API client services")
-	
+
 	// Try to convert to get the internal SDK
 	sdk, ok := kkClient.(*helpers.InternalAPIAPI)
 	if !ok {
@@ -407,15 +406,15 @@ func dumpAPIChildResources(
 	if logger != nil {
 		logger.Debug("successfully obtained InternalAPIAPI", "sdk_nil", sdk.SDK == nil)
 	}
-	
+
 	debugf("Successfully converted to InternalAPIAPI")
-	
+
 	// Check if SDK is nil
 	if sdk.SDK == nil {
 		debugf("InternalAPIAPI.SDK is nil")
 		return fmt.Errorf("internal SDK is nil")
 	}
-	
+
 	// Process API Documents
 	// Let's check if the SDK has a valid APIDocumentation field
 	if sdk.SDK.APIDocumentation == nil {
@@ -427,7 +426,7 @@ func dumpAPIChildResources(
 		// Create an API document client using the existing SDK reference
 		debugf("Creating API document client directly")
 		apiDocAPI := &helpers.InternalAPIDocumentAPI{SDK: sdk.SDK}
-		
+
 		if apiDocAPI == nil {
 			debugf("Failed to create APIDocumentAPI")
 			if logger != nil {
@@ -435,7 +434,7 @@ func dumpAPIChildResources(
 			}
 		} else {
 			debugf("Successfully obtained API document client")
-			
+
 			if logger != nil {
 				logger.Debug("created API document client", "api_doc_api_nil", apiDocAPI == nil)
 			}
@@ -460,11 +459,11 @@ func dumpAPIChildResources(
 						// Convert the interface{} to a map to access its properties
 						// The SDK returns API document entries as generic objects
 						debugf("Processing document %d, type: %T, value: %+v", i, docInterface, docInterface)
-						
+
 						// Try different approaches to access the document data
 						docID := ""
 						docName := ""
-						
+
 						// First try to access as a map
 						doc, ok := docInterface.(map[string]interface{})
 						if ok {
@@ -474,17 +473,17 @@ func dumpAPIChildResources(
 							debugf("From map - Document ID: %s, Name: %s", docID, docName)
 						} else {
 							debugf("Could not convert document to map, trying to decode it")
-							
+
 							// Try to serialize and deserialize the document
 							docBytes, err := json.Marshal(docInterface)
 							if err == nil {
 								debugf("Successfully serialized document: %s", string(docBytes))
-								
+
 								// Try to unmarshal into a simple map
 								var docMap map[string]interface{}
 								if err := json.Unmarshal(docBytes, &docMap); err == nil {
 									debugf("Successfully unmarshaled document to map")
-									
+
 									// Try to get the id/ID and name/Name fields
 									for k, v := range docMap {
 										lowercaseKey := strings.ToLower(k)
@@ -502,7 +501,7 @@ func dumpAPIChildResources(
 									}
 								}
 							}
-							
+
 							if docID == "" {
 								debugf("Failed to extract ID from document, doc type: %T", docInterface)
 								if logger != nil {
@@ -511,7 +510,7 @@ func dumpAPIChildResources(
 								continue
 							}
 						}
-						
+
 						if docID == "" {
 							debugf("Could not extract document ID")
 							if logger != nil {
@@ -519,7 +518,7 @@ func dumpAPIChildResources(
 							}
 							continue
 						}
-						
+
 						debugf("Successfully extracted document ID: %s, Name: %s", docID, docName)
 
 						if logger != nil {
@@ -539,7 +538,7 @@ func dumpAPIChildResources(
 						if logger != nil {
 							logger.Debug("writing import block", "resource_name", resourceName, "doc_id", docID, "api_id", apiID)
 						}
-						
+
 						if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 							if logger != nil {
 								logger.Error("failed to write API document import block", "error", err)
@@ -555,7 +554,7 @@ func dumpAPIChildResources(
 			}
 		}
 	}
-	
+
 	// Process API Specifications
 	// Let's check if the SDK has a valid APISpecification field
 	if sdk.SDK.APISpecification == nil {
@@ -567,7 +566,7 @@ func dumpAPIChildResources(
 		// Create an API specification client using the existing SDK reference
 		debugf("Creating API specification client directly")
 		apiSpecAPI := &helpers.InternalAPISpecificationAPI{SDK: sdk.SDK}
-		
+
 		if apiSpecAPI == nil {
 			debugf("Failed to create APISpecificationAPI")
 			if logger != nil {
@@ -575,7 +574,7 @@ func dumpAPIChildResources(
 			}
 		} else {
 			debugf("Successfully obtained API specification client")
-			
+
 			if logger != nil {
 				logger.Debug("created API specification client", "api_spec_api_nil", apiSpecAPI == nil)
 			}
@@ -600,11 +599,11 @@ func dumpAPIChildResources(
 						// Convert the interface{} to a map to access its properties
 						// The SDK returns API specification entries as generic objects
 						debugf("Processing specification %d, type: %T, value: %+v", i, specInterface, specInterface)
-						
+
 						// Try different approaches to access the specification data
 						specID := ""
 						specName := ""
-						
+
 						// First try to access as a map
 						spec, ok := specInterface.(map[string]interface{})
 						if ok {
@@ -614,17 +613,17 @@ func dumpAPIChildResources(
 							debugf("From map - Specification ID: %s, Name: %s", specID, specName)
 						} else {
 							debugf("Could not convert specification to map, trying to decode it")
-							
+
 							// Try to serialize and deserialize the specification
 							specBytes, err := json.Marshal(specInterface)
 							if err == nil {
 								debugf("Successfully serialized specification: %s", string(specBytes))
-								
+
 								// Try to unmarshal into a simple map
 								var specMap map[string]interface{}
 								if err := json.Unmarshal(specBytes, &specMap); err == nil {
 									debugf("Successfully unmarshaled specification to map")
-									
+
 									// Try to get the id/ID and name/Name fields
 									for k, v := range specMap {
 										lowercaseKey := strings.ToLower(k)
@@ -642,7 +641,7 @@ func dumpAPIChildResources(
 									}
 								}
 							}
-							
+
 							if specID == "" {
 								debugf("Failed to extract ID from specification, spec type: %T", specInterface)
 								if logger != nil {
@@ -651,7 +650,7 @@ func dumpAPIChildResources(
 								continue
 							}
 						}
-						
+
 						if specID == "" {
 							debugf("Could not extract specification ID")
 							if logger != nil {
@@ -659,7 +658,7 @@ func dumpAPIChildResources(
 							}
 							continue
 						}
-						
+
 						debugf("Successfully extracted specification ID: %s, Name: %s", specID, specName)
 
 						if logger != nil {
@@ -679,7 +678,7 @@ func dumpAPIChildResources(
 						if logger != nil {
 							logger.Debug("writing import block", "resource_name", resourceName, "spec_id", specID, "api_id", apiID)
 						}
-						
+
 						if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 							if logger != nil {
 								logger.Error("failed to write API specification import block", "error", err)
@@ -695,7 +694,7 @@ func dumpAPIChildResources(
 			}
 		}
 	}
-	
+
 	// Process API Publications
 	// Let's check if the SDK has a valid APIPublication field
 	if sdk.SDK.APIPublication == nil {
@@ -707,7 +706,7 @@ func dumpAPIChildResources(
 		// Create an API publication client using the existing SDK reference
 		debugf("Creating API publication client directly")
 		apiPubAPI := &helpers.InternalAPIPublicationAPI{SDK: sdk.SDK}
-		
+
 		if apiPubAPI == nil {
 			debugf("Failed to create APIPublicationAPI")
 			if logger != nil {
@@ -715,7 +714,7 @@ func dumpAPIChildResources(
 			}
 		} else {
 			debugf("Successfully obtained API publication client")
-			
+
 			if logger != nil {
 				logger.Debug("created API publication client", "api_pub_api_nil", apiPubAPI == nil)
 			}
@@ -740,10 +739,10 @@ func dumpAPIChildResources(
 						// Convert the interface{} to a map to access its properties
 						// The SDK returns API publication entries as generic objects
 						debugf("Processing publication %d, type: %T, value: %+v", i, pubInterface, pubInterface)
-						
+
 						// API Publications use a composite key of portal_id and api_id (no separate ID field)
 						portalID := ""
-						
+
 						// First try to access as a map
 						pub, ok := pubInterface.(map[string]interface{})
 						if ok {
@@ -752,18 +751,18 @@ func dumpAPIChildResources(
 							debugf("From map - Portal ID: %s", portalID)
 						} else {
 							debugf("Could not convert publication to map, trying to decode it")
-							
+
 							// Try to serialize and deserialize the publication
 							pubBytes, err := json.Marshal(pubInterface)
 							if err == nil {
 								debugf("Successfully serialized publication: %s", string(pubBytes))
-								
+
 								// Try to unmarshal into a simple map
 								var pubMap map[string]interface{}
 								if err := json.Unmarshal(pubBytes, &pubMap); err == nil {
 									debugf("Successfully unmarshaled publication to map")
-									
-									// For publications, we need the portal_id 
+
+									// For publications, we need the portal_id
 									portalID, _ = pubMap["portal_id"].(string)
 									if portalID != "" {
 										debugf("Found portal_id field: %s", portalID)
@@ -771,7 +770,7 @@ func dumpAPIChildResources(
 								}
 							}
 						}
-						
+
 						if portalID == "" {
 							debugf("Could not extract portal_id from publication, pub type: %T", pubInterface)
 							if logger != nil {
@@ -779,7 +778,7 @@ func dumpAPIChildResources(
 							}
 							continue
 						}
-						
+
 						debugf("Successfully extracted portal ID: %s", portalID)
 
 						if logger != nil {
@@ -794,7 +793,7 @@ func dumpAPIChildResources(
 						if logger != nil {
 							logger.Debug("writing import block", "resource_name", resourceName, "portal_id", portalID, "api_id", apiID)
 						}
-						
+
 						if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 							if logger != nil {
 								logger.Error("failed to write API publication import block", "error", err)
@@ -810,7 +809,7 @@ func dumpAPIChildResources(
 			}
 		}
 	}
-	
+
 	// Process API Implementations
 	// Let's check if the SDK has a valid APIImplementation field
 	if sdk.SDK.APIImplementation == nil {
@@ -822,7 +821,7 @@ func dumpAPIChildResources(
 		// Create an API implementation client using the existing SDK reference
 		debugf("Creating API implementation client directly")
 		apiImplAPI := &helpers.InternalAPIImplementationAPI{SDK: sdk.SDK}
-		
+
 		if apiImplAPI == nil {
 			debugf("Failed to create APIImplementationAPI")
 			if logger != nil {
@@ -830,7 +829,7 @@ func dumpAPIChildResources(
 			}
 		} else {
 			debugf("Successfully obtained API implementation client")
-			
+
 			if logger != nil {
 				logger.Debug("created API implementation client", "api_impl_api_nil", apiImplAPI == nil)
 			}
@@ -855,42 +854,42 @@ func dumpAPIChildResources(
 						// Convert the interface{} to a map to access its properties
 						// The SDK returns API implementation entries as generic objects
 						debugf("Processing implementation %d, type: %T, value: %+v", i, implInterface, implInterface)
-						
+
 						// Try different approaches to access the implementation data
 						implID := ""
 						implName := ""
-						
+
 						// First try to access as a map
 						impl, ok := implInterface.(map[string]interface{})
 						if ok {
 							debugf("Successfully converted implementation to map")
 							implID, _ = impl["id"].(string)
-							
+
 							// For implementations, we might get the name from the service field
 							if serviceMap, ok := impl["service"].(map[string]interface{}); ok {
 								implName, _ = serviceMap["name"].(string)
 							}
-							
+
 							debugf("From map - Implementation ID: %s, Name: %s", implID, implName)
 						} else {
 							debugf("Could not convert implementation to map, trying to decode it")
-							
+
 							// Try to serialize and deserialize the implementation
 							implBytes, err := json.Marshal(implInterface)
 							if err == nil {
 								debugf("Successfully serialized implementation: %s", string(implBytes))
-								
+
 								// Try to unmarshal into a simple map
 								var implMap map[string]interface{}
 								if err := json.Unmarshal(implBytes, &implMap); err == nil {
 									debugf("Successfully unmarshaled implementation to map")
-									
+
 									// Try to get the id field
 									implID, _ = implMap["id"].(string)
 									if implID != "" {
 										debugf("Found ID field: %s", implID)
 									}
-									
+
 									// For implementations, we might get the name from the service field
 									if serviceMap, ok := implMap["service"].(map[string]interface{}); ok {
 										implName, _ = serviceMap["name"].(string)
@@ -901,7 +900,7 @@ func dumpAPIChildResources(
 								}
 							}
 						}
-						
+
 						if implID == "" {
 							debugf("Could not extract ID from implementation, impl type: %T", implInterface)
 							if logger != nil {
@@ -909,7 +908,7 @@ func dumpAPIChildResources(
 							}
 							continue
 						}
-						
+
 						debugf("Successfully extracted implementation ID: %s, Service Name: %s", implID, implName)
 
 						if logger != nil {
@@ -929,7 +928,7 @@ func dumpAPIChildResources(
 						if logger != nil {
 							logger.Debug("writing import block", "resource_name", resourceName, "impl_id", implID, "api_id", apiID)
 						}
-						
+
 						if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 							if logger != nil {
 								logger.Error("failed to write API implementation import block", "error", err)
@@ -1042,14 +1041,15 @@ func dumpAppAuthStrategies(
 	ctx context.Context,
 	writer io.Writer,
 	kkClient helpers.AppAuthStrategiesAPI,
-	requestPageSize int64) error {
+	requestPageSize int64,
+) error {
 	debugf("dumpAppAuthStrategies called")
-	
+
 	if kkClient == nil {
 		debugf("AppAuthStrategiesAPI client is nil")
 		return fmt.Errorf("AppAuthStrategiesAPI client is nil")
 	}
-	
+
 	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		// Create a request to list app auth strategies with pagination
 		req := kkOPS.ListAppAuthStrategiesRequest{
@@ -1064,8 +1064,8 @@ func dumpAppAuthStrategies(
 		}
 
 		// Check if we have data in the response
-		if res == nil || res.ListAppAuthStrategiesResponse == nil || 
-		   len(res.ListAppAuthStrategiesResponse.Data) == 0 {
+		if res == nil || res.ListAppAuthStrategiesResponse == nil ||
+			len(res.ListAppAuthStrategiesResponse.Data) == 0 {
 			return false, nil
 		}
 
@@ -1076,9 +1076,9 @@ func dumpAppAuthStrategies(
 				debugf("Failed to extract app-auth-strategy fields, skipping")
 				continue
 			}
-			
+
 			debugf("Found strategy: ID=%s, Name=%s", strategyID, strategyName)
-			
+
 			// Use the strategy name if available, otherwise use a generic name
 			resourceName := strategyName
 			if resourceName == "" {
@@ -1156,7 +1156,7 @@ func (c *dumpCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	} else {
 		os.Setenv("KONGCTL_DEBUG", "false")
 	}
-	
+
 	helper := cmd.BuildHelper(cobraCmd, args)
 	if err := c.validate(helper); err != nil {
 		return err
@@ -1239,7 +1239,6 @@ func (c *dumpCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	return nil
 }
 
-
 func NewDumpCmd() (*cobra.Command, error) {
 	dumpCommand := &cobra.Command{
 		Use:     dumpUse,
@@ -1267,7 +1266,7 @@ func NewDumpCmd() (*cobra.Command, error) {
 	dumpCommand.Flags().StringVar(&outputFile, "output-file",
 		"",
 		"File to write the output to. If not specified, output is written to stdout.")
-		
+
 	dumpCommand.Flags().BoolVar(&debug, "debug",
 		false,
 		"Enable debug logging for troubleshooting.")
