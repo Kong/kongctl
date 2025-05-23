@@ -7,6 +7,7 @@ import (
 
 	kkInternal "github.com/Kong/sdk-konnect-go-internal"
 	kkSDK "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
+
 	"github.com/kong/kongctl/internal/config"
 )
 
