@@ -480,12 +480,13 @@ func dumpAPIChildResources(
 									// Try to get the id/ID and name/Name fields
 									for k, v := range docMap {
 										lowercaseKey := strings.ToLower(k)
-										if lowercaseKey == "id" {
+										switch lowercaseKey {
+										case "id":
 											if strValue, ok := v.(string); ok {
 												docID = strValue
 												debugf("Found ID field: %s", docID)
 											}
-										} else if lowercaseKey == "name" {
+										case "name":
 											if strValue, ok := v.(string); ok {
 												docName = strValue
 												debugf("Found Name field: %s", docName)
@@ -619,12 +620,13 @@ func dumpAPIChildResources(
 									// Try to get the id/ID and name/Name fields
 									for k, v := range specMap {
 										lowercaseKey := strings.ToLower(k)
-										if lowercaseKey == "id" {
+										switch lowercaseKey {
+										case "id":
 											if strValue, ok := v.(string); ok {
 												specID = strValue
 												debugf("Found ID field: %s", specID)
 											}
-										} else if lowercaseKey == "name" {
+										case "name":
 											if strValue, ok := v.(string); ok {
 												specName = strValue
 												debugf("Found Name field: %s", specName)
