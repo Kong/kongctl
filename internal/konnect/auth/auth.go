@@ -14,12 +14,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ajg/form"
+	"github.com/google/uuid"
+
 	kkInternal "github.com/Kong/sdk-konnect-go-internal"
 	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/ajg/form"
-	"github.com/google/uuid"
+
 	"github.com/kong/kongctl/internal/config"
 )
 
