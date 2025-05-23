@@ -426,21 +426,14 @@ func dumpAPIChildResources(
 		// Create an API document client using the existing SDK reference
 		debugf("Creating API document client directly")
 		apiDocAPI := &helpers.InternalAPIDocumentAPI{SDK: sdk.SDK}
+		debugf("Successfully obtained API document client")
 
-		if apiDocAPI == nil {
-			debugf("Failed to create APIDocumentAPI")
-			if logger != nil {
-				logger.Warn("failed to create API document client, skipping API documents")
-			}
-		} else {
-			debugf("Successfully obtained API document client")
+		if logger != nil {
+			logger.Debug("created API document client", "api_doc_api_nil", apiDocAPI == nil)
+		}
 
-			if logger != nil {
-				logger.Debug("created API document client", "api_doc_api_nil", apiDocAPI == nil)
-			}
-
-			documents, err := helpers.GetDocumentsForAPI(ctx, apiDocAPI, apiID)
-			if err != nil {
+		documents, err := helpers.GetDocumentsForAPI(ctx, apiDocAPI, apiID)
+		if err != nil {
 				if logger != nil {
 					logger.Warn("failed to get documents for API", "api_id", apiID, "error", err)
 				}
@@ -553,7 +546,6 @@ func dumpAPIChildResources(
 				}
 			}
 		}
-	}
 
 	// Process API Specifications
 	// Let's check if the SDK has a valid APISpecification field
