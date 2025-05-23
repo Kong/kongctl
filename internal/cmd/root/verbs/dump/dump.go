@@ -559,21 +559,14 @@ func dumpAPIChildResources(
 		// Create an API specification client using the existing SDK reference
 		debugf("Creating API specification client directly")
 		apiSpecAPI := &helpers.InternalAPISpecificationAPI{SDK: sdk.SDK}
+		debugf("Successfully obtained API specification client")
 
-		if apiSpecAPI == nil {
-			debugf("Failed to create APISpecificationAPI")
-			if logger != nil {
-				logger.Warn("failed to create API specification client, skipping API specifications")
-			}
-		} else {
-			debugf("Successfully obtained API specification client")
+		if logger != nil {
+			logger.Debug("created API specification client", "api_spec_api_nil", apiSpecAPI == nil)
+		}
 
-			if logger != nil {
-				logger.Debug("created API specification client", "api_spec_api_nil", apiSpecAPI == nil)
-			}
-
-			specifications, err := helpers.GetSpecificationsForAPI(ctx, apiSpecAPI, apiID)
-			if err != nil {
+		specifications, err := helpers.GetSpecificationsForAPI(ctx, apiSpecAPI, apiID)
+		if err != nil {
 				if logger != nil {
 					logger.Warn("failed to get specifications for API", "api_id", apiID, "error", err)
 				}
@@ -680,10 +673,9 @@ func dumpAPIChildResources(
 							return fmt.Errorf("failed to write API specification import block: %w", err)
 						}
 					}
-				} else {
-					if logger != nil {
-						logger.Info("no API specifications found for API", "api_id", apiID, "api_name", apiName)
-					}
+			} else {
+				if logger != nil {
+					logger.Info("no API specifications found for API", "api_id", apiID, "api_name", apiName)
 				}
 			}
 		}
@@ -700,31 +692,24 @@ func dumpAPIChildResources(
 		// Create an API publication client using the existing SDK reference
 		debugf("Creating API publication client directly")
 		apiPubAPI := &helpers.InternalAPIPublicationAPI{SDK: sdk.SDK}
+		debugf("Successfully obtained API publication client")
 
-		if apiPubAPI == nil {
-			debugf("Failed to create APIPublicationAPI")
+		if logger != nil {
+			logger.Debug("created API publication client", "api_pub_api_nil", apiPubAPI == nil)
+		}
+
+		publications, err := helpers.GetPublicationsForAPI(ctx, apiPubAPI, apiID)
+		if err != nil {
 			if logger != nil {
-				logger.Warn("failed to create API publication client, skipping API publications")
+				logger.Warn("failed to get publications for API", "api_id", apiID, "error", err)
 			}
+			debugf("Error fetching API publications: %v", err)
 		} else {
-			debugf("Successfully obtained API publication client")
-
 			if logger != nil {
-				logger.Debug("created API publication client", "api_pub_api_nil", apiPubAPI == nil)
+				logger.Debug("retrieved API publications", "api_id", apiID, "publication_count", len(publications))
 			}
 
-			publications, err := helpers.GetPublicationsForAPI(ctx, apiPubAPI, apiID)
-			if err != nil {
-				if logger != nil {
-					logger.Warn("failed to get publications for API", "api_id", apiID, "error", err)
-				}
-				debugf("Error fetching API publications: %v", err)
-			} else {
-				if logger != nil {
-					logger.Debug("retrieved API publications", "api_id", apiID, "publication_count", len(publications))
-				}
-
-				if len(publications) > 0 {
+			if len(publications) > 0 {
 					for i, pubInterface := range publications {
 						if logger != nil {
 							logger.Debug("processing publication", "index", i, "pub_type", fmt.Sprintf("%T", pubInterface))
@@ -795,10 +780,9 @@ func dumpAPIChildResources(
 							return fmt.Errorf("failed to write API publication import block: %w", err)
 						}
 					}
-				} else {
-					if logger != nil {
-						logger.Info("no API publications found for API", "api_id", apiID, "api_name", apiName)
-					}
+			} else {
+				if logger != nil {
+					logger.Info("no API publications found for API", "api_id", apiID, "api_name", apiName)
 				}
 			}
 		}
@@ -815,31 +799,24 @@ func dumpAPIChildResources(
 		// Create an API implementation client using the existing SDK reference
 		debugf("Creating API implementation client directly")
 		apiImplAPI := &helpers.InternalAPIImplementationAPI{SDK: sdk.SDK}
+		debugf("Successfully obtained API implementation client")
 
-		if apiImplAPI == nil {
-			debugf("Failed to create APIImplementationAPI")
+		if logger != nil {
+			logger.Debug("created API implementation client", "api_impl_api_nil", apiImplAPI == nil)
+		}
+
+		implementations, err := helpers.GetImplementationsForAPI(ctx, apiImplAPI, apiID)
+		if err != nil {
 			if logger != nil {
-				logger.Warn("failed to create API implementation client, skipping API implementations")
+				logger.Warn("failed to get implementations for API", "api_id", apiID, "error", err)
 			}
+			debugf("Error fetching API implementations: %v", err)
 		} else {
-			debugf("Successfully obtained API implementation client")
-
 			if logger != nil {
-				logger.Debug("created API implementation client", "api_impl_api_nil", apiImplAPI == nil)
+				logger.Debug("retrieved API implementations", "api_id", apiID, "implementation_count", len(implementations))
 			}
 
-			implementations, err := helpers.GetImplementationsForAPI(ctx, apiImplAPI, apiID)
-			if err != nil {
-				if logger != nil {
-					logger.Warn("failed to get implementations for API", "api_id", apiID, "error", err)
-				}
-				debugf("Error fetching API implementations: %v", err)
-			} else {
-				if logger != nil {
-					logger.Debug("retrieved API implementations", "api_id", apiID, "implementation_count", len(implementations))
-				}
-
-				if len(implementations) > 0 {
+			if len(implementations) > 0 {
 					for i, implInterface := range implementations {
 						if logger != nil {
 							logger.Debug("processing implementation", "index", i, "impl_type", fmt.Sprintf("%T", implInterface))
@@ -930,10 +907,9 @@ func dumpAPIChildResources(
 							return fmt.Errorf("failed to write API implementation import block: %w", err)
 						}
 					}
-				} else {
-					if logger != nil {
-						logger.Info("no API implementations found for API", "api_id", apiID, "api_name", apiName)
-					}
+			} else {
+				if logger != nil {
+					logger.Info("no API implementations found for API", "api_id", apiID, "api_name", apiName)
 				}
 			}
 		}
