@@ -54,6 +54,16 @@ func (k *KonnectSDK) GetPortalAPI() PortalAPI {
 	return k.internalPortal
 }
 
+// debugLogger creates a debug logging function that checks KONGCTL_DEBUG env var
+func debugLogger() func(string, ...interface{}) {
+	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	return func(format string, args ...interface{}) {
+		if debugEnabled {
+			fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
+		}
+	}
+}
+
 // Returns the implementation of the APIAPI interface
 // for accessing the API APIs using the internal SDK
 func (k *KonnectSDK) GetAPIAPI() APIAPI {
@@ -97,15 +107,7 @@ func (k *KonnectSDK) GetAPIAPI() APIAPI {
 // Returns the implementation of the APIDocumentAPI interface
 // for accessing the API Document APIs using the internal SDK
 func (k *KonnectSDK) GetAPIDocumentAPI() APIDocumentAPI {
-	// Check if debug flag is set in environment
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
-	
-	// Helper function for debug logging
-	debugLog := func(format string, args ...interface{}) {
-		if debugEnabled {
-			fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
-		}
-	}
+	debugLog := debugLogger()
 	
 	debugLog("GetAPIDocumentAPI called")
 	
@@ -132,15 +134,7 @@ func (k *KonnectSDK) GetAPIDocumentAPI() APIDocumentAPI {
 // Returns the implementation of the APISpecificationAPI interface
 // for accessing the API Specification APIs using the internal SDK
 func (k *KonnectSDK) GetAPISpecificationAPI() APISpecificationAPI {
-	// Check if debug flag is set in environment
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
-	
-	// Helper function for debug logging
-	debugLog := func(format string, args ...interface{}) {
-		if debugEnabled {
-			fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
-		}
-	}
+	debugLog := debugLogger()
 	
 	debugLog("GetAPISpecificationAPI called")
 	
@@ -237,15 +231,7 @@ func (k *KonnectSDK) GetAPIImplementationAPI() APIImplementationAPI {
 // Returns the implementation of the AppAuthStrategiesAPI interface
 // for accessing the App Auth Strategies APIs using the public SDK
 func (k *KonnectSDK) GetAppAuthStrategiesAPI() AppAuthStrategiesAPI {
-	// Check if debug flag is set in environment
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
-	
-	// Helper function for debug logging
-	debugLog := func(format string, args ...interface{}) {
-		if debugEnabled {
-			fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
-		}
-	}
+	debugLog := debugLogger()
 	
 	debugLog("GetAppAuthStrategiesAPI called")
 	

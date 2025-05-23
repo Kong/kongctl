@@ -79,23 +79,6 @@ var resourceTypeMap = map[string]string{
 	"app-auth-strategies":  "konnect_application_auth_strategy",
 }
 
-// Maps parent resources to their child resource types
-var parentChildResourceMap = map[string][]string{
-	"portal": {
-		"portal_page",
-		"portal_snippet",
-		"portal_settings",
-		"portal_custom_domain",
-		"portal_auth_settings",
-		"portal_customization",
-	},
-	"api": {
-		"api_document",
-		"api_specification",
-		"api_publication",
-		"api_implementation",
-	},
-}
 
 // sanitizeTerraformResourceName converts a resource name to a valid Terraform identifier
 func sanitizeTerraformResourceName(name string) string {
@@ -136,9 +119,16 @@ func escapeTerraformString(s string) string {
 	return s
 }
 
+// formatIDBlock formats the ID block for import statements
+func formatIDBlock(resourceID, parentIDKey, parentID string) string {
+	if parentIDKey != "" && parentID != "" {
+		return fmt.Sprintf("  id = jsonencode({\n    \"id\": \"%s\",\n    \"%s\": \"%s\"\n  })",
+			escapeTerraformString(resourceID), parentIDKey, escapeTerraformString(parentID))
+	}
+	return fmt.Sprintf("  id = \"%s\"", escapeTerraformString(resourceID))
+}
+
 // formatTerraformImport creates a Terraform import block
-// For child resources with composite keys, provide parentIDKey and parentID
-// For top-level resources, leave parentIDKey and parentID as empty strings
 func formatTerraformImport(resourceType, resourceName, resourceID string, parentIDKey string, parentID string) string {
 	terraformType, ok := resourceTypeMap[resourceType]
 	if !ok {
@@ -146,33 +136,22 @@ func formatTerraformImport(resourceType, resourceName, resourceID string, parent
 	}
 
 	safeName := sanitizeTerraformResourceName(resourceName)
-
-	// For the import block, we always add a provider reference except for app-auth-strategies
-	providerName := "konnect-beta"
-
-	// Format the ID based on whether this is a child resource with a composite key
-	var idBlock string
-	if parentIDKey != "" && parentID != "" {
-		// For child resources with composite keys
-		idBlock = fmt.Sprintf("  id = jsonencode({\n    \"id\": \"%s\",\n    \"%s\": \"%s\"\n  })",
-			escapeTerraformString(resourceID), parentIDKey, escapeTerraformString(parentID))
-		debugf("Formatted composite key import block for %s with ID %s and %s=%s", 
-			resourceType, resourceID, parentIDKey, parentID)
-	} else {
-		// For resources with simple keys
-		idBlock = fmt.Sprintf("  id = \"%s\"", escapeTerraformString(resourceID))
-		debugf("Formatted simple key import block for %s with ID %s", 
-			resourceType, resourceID)
+	idBlock := formatIDBlock(resourceID, parentIDKey, parentID)
+	
+	// Build import block components
+	var importLines []string
+	importLines = append(importLines, "import {")
+	importLines = append(importLines, fmt.Sprintf("  to = %s.%s", terraformType, safeName))
+	
+	// Add provider for all resources except app-auth-strategies
+	if resourceType != "app-auth-strategies" {
+		importLines = append(importLines, "  provider = konnect-beta")
 	}
-
-	// For app-auth-strategies, don't include the provider field
-	if resourceType == "app-auth-strategies" {
-		return fmt.Sprintf("import {\n  to = %s.%s\n%s\n}\n",
-			terraformType, safeName, idBlock)
-	}
-
-	return fmt.Sprintf("import {\n  to = %s.%s\n  provider = %s\n%s\n}\n",
-		terraformType, safeName, providerName, idBlock)
+	
+	importLines = append(importLines, idBlock)
+	importLines = append(importLines, "}")
+	
+	return strings.Join(importLines, "\n") + "\n"
 }
 
 // formatTerraformImportForAPIPublication creates a Terraform import block specifically for API Publications
@@ -211,6 +190,78 @@ func debugf(format string, args ...interface{}) {
 	}
 }
 
+// paginationHandler defines a function that performs paginated requests
+type paginationHandler func(pageNumber int64) (hasMoreData bool, err error)
+
+// processPaginatedRequests handles pagination logic for any paginated API
+func processPaginatedRequests(handler paginationHandler) error {
+	pageNumber := int64(1)
+	
+	for {
+		hasMore, err := handler(pageNumber)
+		if err != nil {
+			return err
+		}
+		
+		if !hasMore {
+			break
+		}
+		
+		pageNumber++
+	}
+	
+	return nil
+}
+
+// paginationParams holds common pagination parameters
+type paginationParams struct {
+	pageSize   int64
+	pageNumber int64
+	totalItems float64
+}
+
+// hasMorePages checks if there are more pages to fetch
+func (p paginationParams) hasMorePages() bool {
+	return p.totalItems > float64(p.pageSize*p.pageNumber)
+}
+
+// extractResourceFields attempts to extract ID and Name fields from a generic resource interface
+func extractResourceFields(resource interface{}, resourceType string) (id string, name string, ok bool) {
+	// First try direct map access
+	if resMap, isMap := resource.(map[string]interface{}); isMap {
+		id, _ = resMap["id"].(string)
+		name, _ = resMap["name"].(string)
+		return id, name, true
+	}
+	
+	// Try JSON marshaling approach
+	resBytes, err := json.Marshal(resource)
+	if err != nil {
+		debugf("Failed to marshal %s: %v", resourceType, err)
+		return "", "", false
+	}
+	
+	debugf("Successfully serialized %s: %s", resourceType, string(resBytes))
+	
+	var resMap map[string]interface{}
+	if err := json.Unmarshal(resBytes, &resMap); err != nil {
+		debugf("Failed to unmarshal %s: %v", resourceType, err)
+		return "", "", false
+	}
+	
+	// Try to get ID and Name fields (case-insensitive)
+	for k, v := range resMap {
+		switch strings.ToLower(k) {
+		case "id":
+			id, _ = v.(string)
+		case "name":
+			name, _ = v.(string)
+		}
+	}
+	
+	return id, name, id != ""
+}
+
 // dumpPortals exports all portals as Terraform import blocks
 func dumpPortals(
 	ctx context.Context,
@@ -218,9 +269,8 @@ func dumpPortals(
 	kkClient helpers.PortalAPI,
 	requestPageSize int64,
 	includeChildResources bool) error {
-	var pageNumber int64 = 1
-
-	for {
+	
+	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkInternalOps.ListPortalsRequest{
 			PageSize:   Int64(requestPageSize),
 			PageNumber: Int64(pageNumber),
@@ -228,18 +278,18 @@ func dumpPortals(
 
 		res, err := kkClient.ListPortals(ctx, req)
 		if err != nil {
-			return fmt.Errorf("failed to list portals: %w", err)
+			return false, fmt.Errorf("failed to list portals: %w", err)
 		}
 
 		if res.ListPortalsResponse == nil || len(res.ListPortalsResponse.Data) == 0 {
-			break
+			return false, nil
 		}
 
 		for _, portal := range res.ListPortalsResponse.Data {
 			// Write the portal import block
 			importBlock := formatTerraformImport("portal", portal.Name, portal.ID, "", "")
 			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
-				return fmt.Errorf("failed to write portal import block: %w", err)
+				return false, fmt.Errorf("failed to write portal import block: %w", err)
 			}
 
 			// If includeChildResources is true, dump the child resources as well
@@ -251,11 +301,10 @@ func dumpPortals(
 			}
 		}
 
-		pageNumber++
-	}
-
-	return nil
+		return true, nil // Continue to next page
+	})
 }
+
 
 // dumpAPIs exports all APIs as Terraform import blocks
 func dumpAPIs(
@@ -275,9 +324,7 @@ func dumpAPIs(
 	_, isInternalAPI := kkClient.(*helpers.InternalAPIAPI)
 	debugf("kkClient is InternalAPIAPI: %v", isInternalAPI)
 	
-	var pageNumber int64 = 1
-
-	for {
+	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		// Create a request to list APIs with pagination
 		req := kkInternalOps.ListApisRequest{
 			PageSize:   Int64(requestPageSize),
@@ -287,12 +334,12 @@ func dumpAPIs(
 		// Call the SDK's ListApis method
 		res, err := kkClient.ListApis(ctx, req)
 		if err != nil {
-			return fmt.Errorf("failed to list APIs: %w", err)
+			return false, fmt.Errorf("failed to list APIs: %w", err)
 		}
 
 		// Check if we have data in the response
 		if res == nil || res.ListAPIResponse == nil || len(res.ListAPIResponse.Data) == 0 {
-			break
+			return false, nil
 		}
 
 		// Process each API in the response
@@ -300,7 +347,7 @@ func dumpAPIs(
 			// Write the API import block
 			importBlock := formatTerraformImport("api", api.Name, api.ID, "", "")
 			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
-				return fmt.Errorf("failed to write API import block: %w", err)
+				return false, fmt.Errorf("failed to write API import block: %w", err)
 			}
 
 			// If includeChildResources is true, dump the child resources as well
@@ -312,16 +359,14 @@ func dumpAPIs(
 			}
 		}
 
-		// Increment the page number for the next request
-		pageNumber++
-
-		// If we've fetched all the data, break out of the loop
-		if res.ListAPIResponse.Meta.Page.Total <= float64(requestPageSize*(pageNumber-1)) {
-			break
+		// If we've fetched all the data, stop
+		params := paginationParams{
+			pageSize:   requestPageSize,
+			pageNumber: pageNumber,
+			totalItems: res.ListAPIResponse.Meta.Page.Total,
 		}
-	}
-
-	return nil
+		return params.hasMorePages(), nil
+	})
 }
 
 // dumpAPIChildResources exports all child resources of an API as Terraform import blocks
@@ -1003,9 +1048,7 @@ func dumpAppAuthStrategies(
 		return fmt.Errorf("AppAuthStrategiesAPI client is nil")
 	}
 	
-	var pageNumber int64 = 1
-
-	for {
+	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		// Create a request to list app auth strategies with pagination
 		req := kkOPS.ListAppAuthStrategiesRequest{
 			PageSize:   kkSDK.Int64(requestPageSize),
@@ -1015,48 +1058,24 @@ func dumpAppAuthStrategies(
 		// Call the SDK's ListAppAuthStrategies method
 		res, err := kkClient.ListAppAuthStrategies(ctx, req)
 		if err != nil {
-			return fmt.Errorf("failed to list app auth strategies: %w", err)
+			return false, fmt.Errorf("failed to list app auth strategies: %w", err)
 		}
 
 		// Check if we have data in the response
 		if res == nil || res.ListAppAuthStrategiesResponse == nil || 
 		   len(res.ListAppAuthStrategiesResponse.Data) == 0 {
-			break
+			return false, nil
 		}
 
 		// Process each app auth strategy in the response
 		for _, strategy := range res.ListAppAuthStrategiesResponse.Data {
-			// Extract the strategy details using a more generic approach
-			var strategyID string
-			var strategyName string
-			
-			// Try to convert the strategy to a map to access its fields generically
-			strategyBytes, err := json.Marshal(strategy)
-			if err != nil {
-				debugf("Failed to marshal strategy: %v", err)
+			strategyID, strategyName, ok := extractResourceFields(strategy, "app-auth-strategy")
+			if !ok {
+				debugf("Failed to extract app-auth-strategy fields, skipping")
 				continue
 			}
 			
-			var strategyMap map[string]interface{}
-			if err := json.Unmarshal(strategyBytes, &strategyMap); err != nil {
-				debugf("Failed to unmarshal strategy: %v", err)
-				continue
-			}
-			
-			// Extract ID and Name from the strategy data
-			if id, ok := strategyMap["id"].(string); ok {
-				strategyID = id
-			}
-			if name, ok := strategyMap["name"].(string); ok {
-				strategyName = name
-			}
-			
-			debugf("Found strategy: ID=%s, Name=%s, Type=%T", strategyID, strategyName, strategy)
-			
-			if strategyID == "" {
-				debugf("Strategy missing ID, skipping")
-				continue
-			}
+			debugf("Found strategy: ID=%s, Name=%s", strategyID, strategyName)
 			
 			// Use the strategy name if available, otherwise use a generic name
 			resourceName := strategyName
@@ -1067,21 +1086,18 @@ func dumpAppAuthStrategies(
 			// Write the app auth strategy import block
 			importBlock := formatTerraformImport("app-auth-strategies", resourceName, strategyID, "", "")
 			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
-				return fmt.Errorf("failed to write app auth strategy import block: %w", err)
+				return false, fmt.Errorf("failed to write app auth strategy import block: %w", err)
 			}
 		}
 
-		// Increment the page number for the next request
-		pageNumber++
-
-		// If we've fetched all the data, break out of the loop
-		if res.ListAppAuthStrategiesResponse.Meta.Page.Total <= 
-		   float64(requestPageSize*(pageNumber-1)) {
-			break
+		// If we've fetched all the data, stop
+		params := paginationParams{
+			pageSize:   requestPageSize,
+			pageNumber: pageNumber,
+			totalItems: res.ListAppAuthStrategiesResponse.Meta.Page.Total,
 		}
-	}
-
-	return nil
+		return params.hasMorePages(), nil
+	})
 }
 
 type dumpCmd struct {
@@ -1221,14 +1237,6 @@ func (c *dumpCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Helper function to get map keys as a slice
-func getMapKeys(m map[string]string) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
-}
 
 func NewDumpCmd() (*cobra.Command, error) {
 	dumpCommand := &cobra.Command{
