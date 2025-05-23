@@ -526,7 +526,7 @@ func dumpAPIChildResources(
 						}
 
 						// Use the document name if available, otherwise use a generic name
-						resourceName := apiName
+						var resourceName string
 						if docName != "" {
 							resourceName = fmt.Sprintf("%s_%s", apiName, docName)
 						} else {
@@ -666,7 +666,7 @@ func dumpAPIChildResources(
 						}
 
 						// Use the specification name if available, otherwise use a generic name
-						resourceName := apiName
+						var resourceName string
 						if specName != "" {
 							resourceName = fmt.Sprintf("%s_%s", apiName, specName)
 						} else {
@@ -916,7 +916,7 @@ func dumpAPIChildResources(
 						}
 
 						// Use the service name if available, otherwise use a generic name
-						resourceName := apiName
+						var resourceName string
 						if implName != "" {
 							resourceName = fmt.Sprintf("%s_%s", apiName, sanitizeTerraformResourceName(implName))
 						} else {
