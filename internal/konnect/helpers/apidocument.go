@@ -23,7 +23,7 @@ type InternalAPIDocumentAPI struct {
 // ListAPIDocuments implements the APIDocumentAPI interface
 func (a *InternalAPIDocumentAPI) ListAPIDocuments(ctx context.Context, request kkInternalOps.ListAPIDocumentsRequest, opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIDocumentsResponse, error) {
 	// Handle debugging based on environment variable
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 
 	// Helper function for debug logging
 	debugLog := func(format string, args ...interface{}) {
@@ -50,7 +50,7 @@ func (a *InternalAPIDocumentAPI) ListAPIDocuments(ctx context.Context, request k
 func GetDocumentsForAPI(ctx context.Context, kkClient APIDocumentAPI, apiID string) ([]interface{}, error) {
 	// We need to handle debugging differently here because this is in a separate package
 	// Check if debug flag is set in environment
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 	
 	// Helper function for debug logging
 	debugLog := func(format string, args ...interface{}) {

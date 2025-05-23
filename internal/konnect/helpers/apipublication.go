@@ -24,7 +24,7 @@ type InternalAPIPublicationAPI struct {
 // ListAPIPublications implements the APIPublicationAPI interface
 func (a *InternalAPIPublicationAPI) ListAPIPublications(ctx context.Context, request kkInternalOps.ListAPIPublicationsRequest, opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIPublicationsResponse, error) {
 	// Handle debugging based on environment variable
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 
 	// Helper function for debug logging
 	debugLog := func(format string, args ...interface{}) {
@@ -51,7 +51,7 @@ func (a *InternalAPIPublicationAPI) ListAPIPublications(ctx context.Context, req
 func GetPublicationsForAPI(ctx context.Context, kkClient APIPublicationAPI, apiID string) ([]interface{}, error) {
 	// We need to handle debugging differently here because this is in a separate package
 	// Check if debug flag is set in environment
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 	
 	// Helper function for debug logging
 	debugLog := func(format string, args ...interface{}) {

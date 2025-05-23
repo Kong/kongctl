@@ -11,6 +11,11 @@ import (
 	"github.com/kong/kongctl/internal/config"
 )
 
+const (
+	// EnvTrue is the string value "true" used for environment variable checks
+	EnvTrue = "true"
+)
+
 // Provides an interface for the Konnect Go SDK
 // "github.com/Kong/sdk-konnect-go" SDK struct
 // allowing for easier testing and mocking
@@ -57,7 +62,7 @@ func (k *KonnectSDK) GetPortalAPI() PortalAPI {
 
 // debugLogger creates a debug logging function that checks KONGCTL_DEBUG env var
 func debugLogger() func(string, ...interface{}) {
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 	return func(format string, args ...interface{}) {
 		if debugEnabled {
 			fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
@@ -69,7 +74,7 @@ func debugLogger() func(string, ...interface{}) {
 // for accessing the API APIs using the internal SDK
 func (k *KonnectSDK) GetAPIAPI() APIAPI {
 	// Check if debug flag is set in environment
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 	
 	// Helper function for debug logging
 	debugLog := func(format string, args ...interface{}) {
@@ -198,7 +203,7 @@ func (k *KonnectSDK) GetAPIPublicationAPI() APIPublicationAPI {
 // for accessing the API Implementation APIs using the internal SDK
 func (k *KonnectSDK) GetAPIImplementationAPI() APIImplementationAPI {
 	// Check if debug flag is set in environment
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 	
 	// Helper function for debug logging
 	debugLog := func(format string, args ...interface{}) {

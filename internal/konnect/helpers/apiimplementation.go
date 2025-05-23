@@ -24,7 +24,7 @@ type InternalAPIImplementationAPI struct {
 // ListAPIImplementations implements the APIImplementationAPI interface
 func (a *InternalAPIImplementationAPI) ListAPIImplementations(ctx context.Context, request kkInternalOps.ListAPIImplementationsRequest, opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIImplementationsResponse, error) {
 	// Handle debugging based on environment variable
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 
 	// Helper function for debug logging
 	debugLog := func(format string, args ...interface{}) {
@@ -51,7 +51,7 @@ func (a *InternalAPIImplementationAPI) ListAPIImplementations(ctx context.Contex
 func GetImplementationsForAPI(ctx context.Context, kkClient APIImplementationAPI, apiID string) ([]interface{}, error) {
 	// We need to handle debugging differently here because this is in a separate package
 	// Check if debug flag is set in environment
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 	
 	// Helper function for debug logging
 	debugLog := func(format string, args ...interface{}) {
