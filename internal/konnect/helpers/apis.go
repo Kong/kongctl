@@ -21,7 +21,8 @@ type InternalAPIAPI struct {
 
 // ListApis implements the APIAPI interface
 func (a *InternalAPIAPI) ListApis(ctx context.Context, request kkInternalOps.ListApisRequest,
-	opts ...kkInternalOps.Option) (*kkInternalOps.ListApisResponse, error) {
+	opts ...kkInternalOps.Option,
+) (*kkInternalOps.ListApisResponse, error) {
 	return a.SDK.API.ListApis(ctx, request, opts...)
 }
 

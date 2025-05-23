@@ -24,7 +24,8 @@ type InternalAPIDocumentAPI struct {
 // ListAPIDocuments implements the APIDocumentAPI interface
 func (a *InternalAPIDocumentAPI) ListAPIDocuments(ctx context.Context,
 	request kkInternalOps.ListAPIDocumentsRequest,
-	opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIDocumentsResponse, error) {
+	opts ...kkInternalOps.Option,
+) (*kkInternalOps.ListAPIDocumentsResponse, error) {
 	// Handle debugging based on environment variable
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 
@@ -34,17 +35,17 @@ func (a *InternalAPIDocumentAPI) ListAPIDocuments(ctx context.Context,
 			fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
 		}
 	}
-	
+
 	if a.SDK == nil {
 		debugLog("InternalAPIDocumentAPI.SDK is nil")
 		return nil, fmt.Errorf("SDK is nil")
 	}
-	
+
 	if a.SDK.APIDocumentation == nil {
 		debugLog("InternalAPIDocumentAPI.SDK.APIDocumentation is nil")
 		return nil, fmt.Errorf("SDK.APIDocumentation is nil")
 	}
-	
+
 	debugLog("Calling a.SDK.APIDocumentation.ListAPIDocuments")
 	return a.SDK.APIDocumentation.ListAPIDocuments(ctx, request, opts...)
 }
@@ -54,21 +55,21 @@ func GetDocumentsForAPI(ctx context.Context, kkClient APIDocumentAPI, apiID stri
 	// We need to handle debugging differently here because this is in a separate package
 	// Check if debug flag is set in environment
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
-	
+
 	// Helper function for debug logging
 	debugLog := func(format string, args ...interface{}) {
 		if debugEnabled {
 			fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
 		}
 	}
-	
+
 	debugLog("GetDocumentsForAPI called with API ID: %s", apiID)
-	
+
 	if kkClient == nil {
 		debugLog("APIDocumentAPI client is nil")
 		return nil, fmt.Errorf("APIDocumentAPI client is nil")
 	}
-	
+
 	// Create a request to list API documents for this API
 	req := kkInternalOps.ListAPIDocumentsRequest{
 		APIID: apiID,
@@ -78,24 +79,23 @@ func GetDocumentsForAPI(ctx context.Context, kkClient APIDocumentAPI, apiID stri
 	// Call the SDK's ListAPIDocuments method
 	debugLog("Calling ListAPIDocuments...")
 	res, err := kkClient.ListAPIDocuments(ctx, req)
-	
 	if err != nil {
 		debugLog("Error from ListAPIDocuments: %v", err)
 		return nil, err
 	}
-	
+
 	debugLog("ListAPIDocuments returned successfully")
-	
+
 	if res == nil {
 		debugLog("Response is nil")
 		return []interface{}{}, nil
 	}
-	
+
 	if res.ListAPIDocumentResponse == nil {
 		debugLog("ListAPIDocumentResponse is nil")
 		return []interface{}{}, nil
 	}
-	
+
 	debugLog("ListAPIDocumentResponse has %d items", len(res.ListAPIDocumentResponse.Data))
 
 	// Check if we have data in the response
@@ -110,7 +110,7 @@ func GetDocumentsForAPI(ctx context.Context, kkClient APIDocumentAPI, apiID stri
 		result[i] = doc
 		debugLog("Added document %d to result", i)
 	}
-	
+
 	debugLog("Returning %d documents", len(result))
 	return result, nil
 }

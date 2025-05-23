@@ -24,7 +24,8 @@ type InternalAPISpecificationAPI struct {
 // ListAPISpecs implements the APISpecificationAPI interface
 func (a *InternalAPISpecificationAPI) ListAPISpecs(ctx context.Context,
 	request kkInternalOps.ListAPISpecsRequest,
-	opts ...kkInternalOps.Option) (*kkInternalOps.ListAPISpecsResponse, error) {
+	opts ...kkInternalOps.Option,
+) (*kkInternalOps.ListAPISpecsResponse, error) {
 	// Handle debugging based on environment variable
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 
@@ -34,17 +35,17 @@ func (a *InternalAPISpecificationAPI) ListAPISpecs(ctx context.Context,
 			fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
 		}
 	}
-	
+
 	if a.SDK == nil {
 		debugLog("InternalAPISpecificationAPI.SDK is nil")
 		return nil, fmt.Errorf("SDK is nil")
 	}
-	
+
 	if a.SDK.APISpecification == nil {
 		debugLog("InternalAPISpecificationAPI.SDK.APISpecification is nil")
 		return nil, fmt.Errorf("SDK.APISpecification is nil")
 	}
-	
+
 	debugLog("Calling a.SDK.APISpecification.ListAPISpecs")
 	return a.SDK.APISpecification.ListAPISpecs(ctx, request, opts...)
 }
@@ -54,21 +55,21 @@ func GetSpecificationsForAPI(ctx context.Context, kkClient APISpecificationAPI, 
 	// We need to handle debugging differently here because this is in a separate package
 	// Check if debug flag is set in environment
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
-	
+
 	// Helper function for debug logging
 	debugLog := func(format string, args ...interface{}) {
 		if debugEnabled {
 			fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
 		}
 	}
-	
+
 	debugLog("GetSpecificationsForAPI called with API ID: %s", apiID)
-	
+
 	if kkClient == nil {
 		debugLog("APISpecificationAPI client is nil")
 		return nil, fmt.Errorf("APISpecificationAPI client is nil")
 	}
-	
+
 	// Create a request to list API specifications for this API
 	req := kkInternalOps.ListAPISpecsRequest{
 		APIID: apiID,
@@ -78,24 +79,23 @@ func GetSpecificationsForAPI(ctx context.Context, kkClient APISpecificationAPI, 
 	// Call the SDK's ListAPISpecs method
 	debugLog("Calling ListAPISpecs...")
 	res, err := kkClient.ListAPISpecs(ctx, req)
-	
 	if err != nil {
 		debugLog("Error from ListAPISpecs: %v", err)
 		return nil, err
 	}
-	
+
 	debugLog("ListAPISpecs returned successfully")
-	
+
 	if res == nil {
 		debugLog("Response is nil")
 		return []interface{}{}, nil
 	}
-	
+
 	if res.ListAPISpecResponse == nil {
 		debugLog("ListAPISpecResponse is nil")
 		return []interface{}{}, nil
 	}
-	
+
 	debugLog("ListAPISpecResponse has %d items", len(res.ListAPISpecResponse.Data))
 
 	// Check if we have data in the response
@@ -110,7 +110,7 @@ func GetSpecificationsForAPI(ctx context.Context, kkClient APISpecificationAPI, 
 		result[i] = spec
 		debugLog("Added specification %d to result", i)
 	}
-	
+
 	debugLog("Returning %d specifications", len(result))
 	return result, nil
 }
