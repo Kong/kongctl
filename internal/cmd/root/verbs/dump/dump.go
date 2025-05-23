@@ -10,9 +10,12 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	kkSDK "github.com/Kong/sdk-konnect-go"
-	kkOPS "github.com/Kong/sdk-konnect-go/models/operations"
 	kkInternalOps "github.com/Kong/sdk-konnect-go-internal/models/operations"
+	kkOPS "github.com/Kong/sdk-konnect-go/models/operations"
+
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
 	konnectCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
@@ -22,7 +25,6 @@ import (
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
-	"github.com/spf13/cobra"
 )
 
 const (
