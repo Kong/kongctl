@@ -123,12 +123,19 @@ kongctl sync --plan my-plan.json
 
 ### diff
 
-`diff` prints a human friendly report of the difference between a plan and the current state of resources. If a `plan` file is not provided
-it will generate a plan from input configuration. 
+`diff` prints a human friendly report of the difference between a plan and the current state of resources. 
+If a `plan` file is not provided it will generate a plan from input configuration. 
 
 ```bash
-# Calculates a plan from configuration in the current directory and displays a human friendly report of the difference
+# Calculates a plan from configuration in the current directory and displays a human 
+# friendly report of the difference
 kongctl diff
+```
+
+```bash
+# Calculates an apply only plan from the configuration in the current directory and 
+# displays a human friendly report of the difference
+kongctl diff --apply-only
 ```
 
 ```bash
