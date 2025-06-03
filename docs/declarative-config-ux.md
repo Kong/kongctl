@@ -1,4 +1,4 @@
-# kongctl Declarative Config UX
+# `kongctl` Declarative Config UX
 
 Here we describe the user experience of using `kongctl` to manage declarative configuration 
 in Kong (and specifically Kong Konnect).
