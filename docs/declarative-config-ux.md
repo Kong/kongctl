@@ -74,23 +74,23 @@ kongctl plan --dir /path/to/configs --output-file my-plan.json
 kongctl plan --apply-only
 ```
 
-### dump
+### export
 
-The `dump` command is used to export existing resources into declarative configuration files. This is useful for
+The `export` command is used to export existing resources into declarative configuration files. This is useful for
 migrating existing resources into declarative configuration, or for generating a backup of existing resources.
 
 ```bash
 # Outputs all resources available into declarative configuration files in the current directory (file layout tbd)
-kongctl dump 
+kongctl export 
 ```
 
 ```bash
-# We need to support dumping a subset of resources, likely by a variety of filtering possibilities
-kongctl dump --filter <tbd>
+# We need to support exporting a subset of resources, likely by a variety of filtering possibilities
+kongctl export --filter <tbd>
 ```
 
 #### Notes
-* Consider how resource ownership metadata is handled when resources are dumped and subsequently applied.
+* Consider how resource ownership metadata is handled when resources are exported and subsequently applied.
 
 ### apply
 
