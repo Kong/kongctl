@@ -4,7 +4,7 @@ go 1.24.3
 
 require (
 	github.com/Kong/sdk-konnect-go v0.3.1
-	github.com/Kong/sdk-konnect-go-internal v0.0.2-0.20250520200308-3ef08f99a331
+	github.com/Kong/sdk-konnect-go-internal v0.0.2-0.20250617194626-b7fe1335db2f
 	github.com/ajg/form v1.5.1
 	github.com/google/uuid v1.6.0
 	github.com/segmentio/cli v0.8.1

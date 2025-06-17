@@ -2,6 +2,8 @@ github.com/Kong/sdk-konnect-go v0.3.1 h1:L5/6wQVUpCarBJePaZGGjm5doTKermtAWnIDqPv
 github.com/Kong/sdk-konnect-go v0.3.1/go.mod h1:xsmTIkBbmVyUh1nRFjQMOhxYIPDl+sMfmRmPuZHtwLE=
 github.com/Kong/sdk-konnect-go-internal v0.0.2-0.20250520200308-3ef08f99a331 h1:4ShVy9/US7V/CCE04fdZpeQhYbcf7bvfESdL4IhM3lc=
 github.com/Kong/sdk-konnect-go-internal v0.0.2-0.20250520200308-3ef08f99a331/go.mod h1:lx8mucNVez6RLpIupy+vvGontwB4nKSB+r9d5CX2E00=
+github.com/Kong/sdk-konnect-go-internal v0.0.2-0.20250617194626-b7fe1335db2f h1:6cbClpM4rr/UJG2V9TZVbFFN1hennwGFOl1Du3OLMPk=
+github.com/Kong/sdk-konnect-go-internal v0.0.2-0.20250617194626-b7fe1335db2f/go.mod h1:h5MKbihELb7NUtkSHGqbk2PsCB/9NPZPfLGRsqA0ffw=
 github.com/ajg/form v1.5.1 h1:t9c7v8JUKu/XxOGBU0yjNpaMloxGEJhUkqFRq0ibGeU=
 github.com/ajg/form v1.5.1/go.mod h1:uL1WgH+h2mgNtvBq0339dVnzXdBETtL2LeUXaIv25UY=
 github.com/cpuguy83/go-md2man/v2 v2.0.4/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
