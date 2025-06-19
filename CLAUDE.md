@@ -4,7 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-Kongctl is a command-line interface (CLI) tool for operating Kong Gateway and Kong Konnect. This tool is currently under heavy development and not recommended for production use.
+Kongctl is a command-line interface (CLI) tool for operating Kong Konnect and (eventually) Kong Gateway on-prem. 
+This tool is currently under heavy development and not recommended for production use.
 
 ## Development Commands
 
@@ -61,6 +62,7 @@ make build
 Kongctl is a Go-based CLI built with the following key components:
 
 1. **Command Structure**: Uses Cobra for command-line processing with a verb-noun command pattern (e.g., `get konnect gateway control-planes`).
+    - Ideally we will build these verb-noun commands following a "Konnect first" approach, meaning that the `konnect` product will be implied in the command structure where possible.
 
 2. **Configuration Management**:
    - Uses Viper for configuration handling
@@ -84,11 +86,12 @@ Kongctl is a Go-based CLI built with the following key components:
 ## Important Patterns
 
 1. **Profile-Based Configuration**: Operations are performed in the context of a profile, which determines which configuration values to use.
+   - Users can switch profiles using the `--profile` flag or environment variable `KONGCTL_PROFILE`.
 
 2. **Konnect Authentication Flow**:
-   - For login, the device code authorization flow is used
+   - For login (kongctl konnect login) , the device code authorization flow is used
    - PATs can be provided via flag or environment variable
-   - Auth tokens are stored in profile-specific files
+   - Auth tokens are stored in profile-specific files (not the config file)
 
 3. **Command Hierarchy**: Commands follow a hierarchical structure:
    - Verb (get, list, create, delete, login)
