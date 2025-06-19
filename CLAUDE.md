@@ -105,3 +105,7 @@ Kongctl is a Go-based CLI built with the following key components:
 - Unit tests for core functionality
 - Integration tests with the `-tags=integration` build tag
 - Test utilities in `test/` directory
+
+## Planning Documentation
+
+- [Declarative Config Technical](docs/declarative-config-ux.md)
