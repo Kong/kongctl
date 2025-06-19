@@ -1,229 +1,286 @@
-# kongctl Declarative Configuration - Technical Specification
+# KongCtl Declarative Configuration - Design Brief
 
 ## Overview
 
-kongctl will implement declarative configuration management for Kong Konnect resources using a plan-based workflow. Unlike Terraform, 
-it requires no state storage. Users define desired configuration in YAML files, generate execution plans, and apply changes.
+This brief outlines the design for declarative configuration management in `kongctl` for Kong Konnect resources. The feature provides a plan-based workflow for managing Konnect resources through YAML configuration files, similar to infrastructure-as-code tools but simplified for Konnect's specific needs.
 
-## Core Concepts
+## Core Design Principles
 
-### Plans
+### State-Free Management
+Unlike traditional IaC tools, kongctl operates without maintaining local state files. Instead:
+- Current state is queried directly from Konnect APIs
+- Resource ownership tracked via Konnect labels
+- Configuration drift detected through hash comparison
 
-A plan is a JSON artifact containing instructions to transform resources from current state to desired state. Plans can be:
-- Generated from YAML configuration files
-- Saved, transported, and reviewed before execution
-- Applied to make actual changes to Konnect resources
+### Plan-Based Operations
+All changes follow a plan/review/execute workflow:
+1. Analyze differences between desired (YAML) and current (API) state
+2. Generate an execution plan showing exact changes
+3. Review plan in human or machine-readable format
+4. Execute changes with safety controls
 
-### Operation Modes
-
-1. **Sync**: Full reconciliation including resource deletion
-   - Manages all resources in configuration set
-   - Deletes resources not present in desired configuration
-   - Reverts unspecified values to defaults
-   - Used for CI/CD workflows
-
-2. **Apply**: Partial reconciliation without deletion
-   - Only creates or updates specified resources
-   - Ignores resources not in configuration
-   - Only updates specified fields
-   - Used for incremental changes, onboarding, quickstarts
+### Resource Identity
+- Resources identified by user-defined names, not UUIDs
+- Names must be unique within resource type
+- Enables portable configurations across environments
+- Server-assigned IDs tracked internally but not exposed
 
 ## Command Interface
 
-### Plan Generation
+### Core Commands
+
 ```bash
-kongctl plan                                    # Generate plan from current directory
-kongctl plan --dir /path/to/configs            # Generate plan from specific directory
-kongctl plan --output-file my-plan.json        # Save plan to file
-kongctl plan --apply-only                      # Generate apply-only plan (no deletes)
+kongctl plan                    # Generate execution plan
+kongctl diff                    # Display pending changes
+kongctl apply                   # Execute changes (create/update only)
+kongctl sync                    # Full reconciliation (includes deletions)
+kongctl export                  # Export existing resources to YAML
 ```
 
-### Plan Execution
-```bash
-kongctl apply                                   # Generate and apply plan (apply-only mode)
-kongctl apply --plan my-plan.json              # Apply existing plan (must be apply-only)
-kongctl sync                                    # Generate and sync plan (with deletes)
-kongctl sync --plan my-plan.json               # Sync existing plan
-```
+### Command Options
 
-### Inspection Commands
-```bash
-kongctl diff                                    # Show pending changes
-kongctl diff --plan my-plan.json               # Show changes in existing plan
-kongctl diff --output yaml                     # Output in YAML format
-kongctl export                                  # Export existing resources to YAML
-kongctl export --filter <criteria>             # Export filtered resources
-```
+- `--dir <path>` - Specify configuration directory
+- `--output-file <file>` - Save plan to file
+- `--plan <file>` - Use existing plan file
+- `--output <format>` - Output format (human/json/yaml)
+- `--dry-run` - Preview without making changes
+- `--auto-approve` - Skip confirmation prompts
 
 ## Configuration Format
 
-### Resource Declaration
-
-Resources are declared as top-level YAML collections with string-based name references for dependencies:
+### YAML Structure
 
 ```yaml
-teams:
-  - name: flight-operations
-    description: Kong Airlines Flight Operations Team
-    labels:
-      department: operations
-      cost-center: fl-ops-001
-    kongctl:
-      protected: true
-
-auth_strategies:
-  - name: api-key-auth
-    display_name: Kong Airlines API Key Auth
-    strategy_type: key_auth
+# Top-level resources that can be referenced
+application_auth_strategies:
+  - name: key-auth-strategy
+    display_name: "API Key Authentication"
+    auth_type: key_auth
     configs:
-      key-auth:
-        key_names: [apikey, api-key, x-api-key]
+      key_names: ["api_key", "x-api-key"]
     labels:
-      security-level: basic
+      team: platform
 
-apis:
-  - name: flights-api
-    version: v1
-    slug: flights-api-v1
-    publications:
-      portal: kong-airlines-portal          # String reference to portal
-      visibility: public
-      auth_strategy_ids: [api-key-auth]     # String reference to auth strategy
+  - name: oidc-strategy
+    display_name: "OpenID Connect"
+    auth_type: openid_connect
+    configs:
+      issuer: "https://auth.example.com"
+      scopes: ["openid", "profile"]
+
+# Resources with nested children
+portals:
+  - name: developer-portal
+    display_name: "Kong Developer Portal"
+    description: "Main API portal"
+    auto_approve_developers: false
+    auto_approve_applications: true
+    # Reference by name - resolved to ID at execution time
+    default_application_auth_strategy: key-auth-strategy
     labels:
-      team: flight-operations               # String reference to team
+      department: engineering
+      cost-center: eng-001
+    kongctl:
+      protected: true  # Prevents accidental deletion
+    
+    # Nested resources for parent-child relationships
+    pages:
+      - name: getting-started
+        slug: /getting-started
+        title: "Getting Started Guide"
+        content: |
+          # Welcome
+          Documentation content here...
+        visibility: public
+        status: published
+      
+      - name: api-reference
+        slug: /api-reference
+        title: "API Reference"
+        content: "Full API documentation"
+    
+    specs:
+      - name: users-api-v1
+        spec_file: ./openapi/users-v1.yaml
+        title: "Users API v1"
+        description: "User management endpoints"
+
+# Other top-level resources
+teams:
+  - name: platform-team
+    description: "Platform engineering team"
+    labels:
+      department: engineering
 ```
 
-### Metadata Management
+### Key Characteristics
+- Simple YAML format (no DSL or HCL)
+- Parent-child resources are nested (following API structure)
+- Independent resources reference each other by name (not UUID)
+- Names are resolved to IDs during plan generation
+- Optional `kongctl` section for tool-specific settings
+- Labels support user metadata and tool tracking
 
-The `kongctl` section in resources is converted to special labels in Konnect:
+### Name Resolution
+References between resources use human-readable names:
+- Configuration: `default_application_auth_strategy: key-auth-strategy`
+- Resolves to: `default_application_auth_strategy_id: "uuid-123-456"`
+
+Future versions may support namespaced references for multi-team scenarios:
+- `default_application_auth_strategy: platform-team/key-auth-strategy`
+
+## Label Management
+
+Resources managed by kongctl are tracked using labels:
 
 ```yaml
-# In configuration:
-kongctl:
-  protected: true
-
-# Becomes labels in Konnect:
 labels:
+  # User-defined labels
+  team: platform
+  environment: production
+  
+  # kongctl-managed labels (added automatically)
   KONGCTL/managed: "true"
-  KONGCTL/protected: "true"
-  KONGCTL/config-hash: "sha256:abc123"
-  KONGCTL/last-updated: "2025-01-24T10:30:00Z"
+  KONGCTL/config-hash: "sha256:abc123..."
+  KONGCTL/last-updated: "2025-01-20T10:30:00Z"
+  KONGCTL/protected: "true"  # If protection enabled
 ```
 
-## Plan Structure
+### Label Functions
+- **KONGCTL/managed** - Identifies kongctl-managed resources
+- **KONGCTL/config-hash** - Enables fast drift detection
+- **KONGCTL/last-updated** - Tracks last modification
+- **KONGCTL/protected** - Prevents deletion (requires two-step removal)
 
-Plans are JSON documents with the following structure:
+## Plan Document Format
+
+Plans are JSON documents containing:
 
 ```json
 {
   "metadata": {
-    "generated_at": "2025-01-24T10:30:00Z",
-    "config_hash": "sha256:7a8f3b2c",
-    "plan_version": "1.0",
-    "generated_by": "kongctl v0.1.0",
-    "reference_mappings": {
-      "kong-airlines-portal": "portal-2c5e8a7f-9b3d-4f6e-a1c8-7d5b2a8f3c9e",
-      "api-key-auth": "auth-123e4567-e89b-12d3-a456-426614174000"
-    }
+    "generated_at": "2025-01-20T10:30:00Z",
+    "version": "1.0",
+    "config_hash": "sha256:def456..."
   },
   "summary": {
-    "total_changes": 3,
-    "by_action": {"CREATE": 2, "UPDATE": 1},
-    "by_resource": {"developer_portal": 1, "api": 1}
+    "total_changes": 4,
+    "by_action": {"CREATE": 3, "UPDATE": 1},
+    "by_resource": {"application_auth_strategy": 1, "portal": 1, "portal_page": 2}
   },
   "changes": [
     {
       "id": "change-001",
-      "resource_type": "developer_portal",
-      "resource_id": "portal-2c5e8a7f-9b3d-4f6e-a1c8-7d5b2a8f3c9e",
-      "resource_name": "kong-airlines-portal",
-      "action": "UPDATE",
-      "current_state": { /* full resource */ },
-      "field_changes": [
-        {
-          "field": "auto_approve_applications",
-          "current_value": true,
-          "desired_value": false
+      "resource_type": "application_auth_strategy",
+      "resource_name": "key-auth-strategy",
+      "action": "CREATE",
+      "desired_state": { /* resource config */ },
+      "depends_on": []
+    },
+    {
+      "id": "change-002",
+      "resource_type": "portal",
+      "resource_name": "developer-portal",
+      "action": "CREATE",
+      "desired_state": { 
+        /* includes resolved ID for auth strategy */
+        "default_application_auth_strategy_id": "uuid-123-456"
+      },
+      "depends_on": ["change-001"],
+      "references": {
+        "default_application_auth_strategy": {
+          "name": "key-auth-strategy",
+          "resolved_id": "uuid-123-456"
         }
-      ],
-      "depends_on": [],
-      "execution_context": {
-        "api_endpoint": "/v3/developer-portals/{id}",
-        "http_method": "PATCH"
       }
     }
   ],
-  "execution_order": ["change-001", "change-002", "change-003"]
+  "execution_order": ["change-001", "change-002", "change-003", "change-004"]
 }
 ```
 
-## Technical Implementation Details
+## Operational Modes
 
-### Resource Identity
+### Apply Mode
+- Creates new resources
+- Updates existing managed resources  
+- Ignores unmanaged resources
+- Never deletes resources
+- Use case: Incremental changes, onboarding, guides
 
-- Resources are identified by name, not UUID
-- Names must be unique within resource type
-- Server-assigned IDs are tracked in plan metadata for reference resolution
+### Sync Mode
+- Full reconciliation with desired state
+- Deletes managed resources not in configuration
+- Requires additional safety confirmations
+- Use case: CI/CD, full environment management
 
-### Dependency Resolution
+## Safety Features
 
-- Dependencies expressed via string-based names
-- Automatic ordering based on dependency graph
-- Creation happens in dependency order, deletion in reverse
+### Protected Resources
+Resources marked with `kongctl.protected: true`:
+- Cannot be deleted in single operation
+- Require removal of protection first
+- Designed for critical production resources
 
 ### Drift Detection
+- Configuration hash stored in labels
+- Plan validation checks for external changes
+- Warning if resources modified outside kongctl
 
-- Configuration hash stored in `KONGCTL/config-hash` label
-- Plan validation checks if resources have changed since plan generation
-- Resources without kongctl labels are considered unmanaged
-
-### Resource Protection
-
-Protected resources require two-step deletion:
-1. Remove `protected: true` from configuration and apply
-2. Delete the resource in subsequent operation
-
-### State Tracking Without State Files
-
-State information stored as Konnect resource labels:
-- `KONGCTL/managed`: Resource is managed by kongctl
-- `KONGCTL/config-hash`: Hash of declarative config for drift detection
-- `KONGCTL/last-updated`: Last modification timestamp
-- `KONGCTL/protected`: Requires explicit unprotection
-
-## Differences from decK
-
-1. **First-class resources only**: No nested resource declarations
-2. **Name-based references**: No UUID references between resources
-3. **Label-based metadata**: Instead of tags with special behaviors
-4. **Plan-based workflow**: Explicit plan generation before changes
-5. **Server-assigned IDs**: Cannot specify custom resource IDs
-6. **Protection mechanism**: Built-in two-step deletion for critical resources
-
-## Authentication
-
-Uses standard kongctl authentication:
-- Access token via flags, environment variables, or config files
-- `kongctl login` with device auth grant flow
-- Organization determined by access token
-
-## Error Handling
-
-- API errors during plan generation result in partial plans with clear error messages
-- Plan execution validates state hasn't drifted since generation
-- Dependency failures halt execution at safe points
-- Clear error messages indicate which resources failed and why
+### Dependency Management
+- Explicit dependency resolution
+- Resources created in dependency order
+- Deletion in reverse order (future)
+- Circular dependency detection
+- Name-to-ID resolution for cross-resource references
+- Field naming follows intuitive patterns:
+  - API field: `default_application_auth_strategy_id`
+  - YAML field: `default_application_auth_strategy` (name reference)
 
 ## File Organization
 
+```
+konnect-config/
+├── portals.yaml        # Portals with nested pages/specs
+├── teams.yaml          # Top-level teams
+└── openapi/           # Referenced spec files
+    ├── users-v1.yaml
+    └── orders-v1.yaml
+```
+
 - Arbitrary directory structure supported
-- All `.yaml` and `.yml` files in directory tree are processed
-- Resources can be split across multiple files
-- No special file naming requirements
+- All `.yaml` and `.yml` files processed
+- Resources can be split across files
+- Nested resources stay with their parent
+- Referenced files (like OpenAPI specs) can be organized separately
 
-## Future Considerations
+## Resource Types
 
-- Resource filtering for partial syncs
-- Plan comparison and merging
-- Rollback plan generation
-- Support for non-Konnect targets (`kongctl sync gateway`)
+Initial implementation focuses on Developer Portal resources:
+- `portals` - Developer portal instances
+  - `pages` - Nested documentation pages (`/portals/{id}/pages`)
+  - `specs` - Nested API specifications (`/portals/{id}/specs`)
+- `application_auth_strategies` - Authentication strategies (top-level)
+
+Future releases will add:
+- `teams` - Konnect teams (top-level)
+- `api_products` - API product definitions (top-level)
+- `applications` - Developer applications (context-dependent)
+- Additional Konnect resources
+
+Note: Resource structure (nested vs top-level) follows the Konnect API paths - resources with paths like `/parent/{id}/child/{id}` are nested, while resources with paths like `/resource/{id}` are top-level.
+
+## Comparison with Existing Tools
+
+### vs Terraform
+- No state file management required
+- Simple YAML instead of HCL
+- Konnect-specific with native understanding of resources
+- Lighter weight for Konnect-only workflows
+
+### vs deck
+- Designed for Konnect platform resources (not Gateway config)
+- Name-based references (not UUID-based)
+- Label-based metadata (not tags)
+- Plan-based workflow (explicit change preview)
+- Server-assigned IDs (not client-specified)
