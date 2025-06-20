@@ -14,8 +14,8 @@ All planning documents follow a stage-based naming pattern:
 
 Each stage of development has the following document types:
 
-#### 1. High-Level Planning (`XXX-dec-cfg-cfg-format-basic-cli.md`)
-- Product manager provided requirements
+#### 1. High-Level Planning (`XXX-description.md`)
+- Product manager provided requirements and specifications
 - High-level goals and deliverables
 - Initial technical direction
 - Success criteria
@@ -116,7 +116,7 @@ Architecture Decision Records use stage-specific numbering:
 
 ### For Implementers (Including Claude Code)
 
-1. **Start with stage requirements**: Read `XXX-dec-cfg-cfg-format-basic-cli.md`
+1. **Start with stage requirements**: Read `XXX-description.md`
 2. **Understand architecture**: Review `XXX-execution-plan-overview.md`
 3. **Follow implementation guide**: Use `XXX-execution-plan-steps.md` as primary guide
 4. **Reference decisions**: Consult `XXX-execution-plan-adrs.md` for context
@@ -173,7 +173,7 @@ Architecture Decision Records use stage-specific numbering:
 ## Quick Reference
 
 ### Current Stage 1 Status
-- **Requirements**: Defined in `001-dec-cfg-cfg-format-basic-cli.md`
+- **Requirements**: Defined in `001-description.md`
 - **Architecture**: Documented in `001-execution-plan-overview.md`
 - **Implementation**: Tracked in `001-execution-plan-steps.md`
 - **Decisions**: Recorded in `001-execution-plan-adrs.md`
