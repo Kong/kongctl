@@ -100,12 +100,20 @@ Kongctl is a Go-based CLI built with the following key components:
 
 4. **Error Handling**: Structured error handling with consistent logging.
 
+5. When writing markdown documentation, use the following conventions:
+    - Line width should be 80 characters or less 
+
 ## Testing Approach
 
-- Unit tests for core functionality
+- Unit tests for core budiness functionality but only when necessary. Don't test other libaries or SDKs. 
 - Integration tests with the `-tags=integration` build tag
 - Test utilities in `test/` directory
 
 ## Planning Documentation
 
-- [Declarative Config Technical](docs/declarative-config-ux.md)
+All planning and design decisions for Kongctl are documented in the `docs/` directory and the `docs/plan` subdirectory.
+ADRs and execution plans are provided and named based on an ordered sequence both the the file names and in the
+contents of the files themselves.  ADR-001-001 is the first ADR for the first stage, which is tied to the other documents named 001-other-doc.md.
+
+- [Declarative Config High Level](docs/declarative-config-ux.md)
+- [Planning](docs/plan/*.md)
