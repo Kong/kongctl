@@ -121,27 +121,26 @@ All planning and design decisions for Kongctl are documented in the `docs/plan/`
 - [Implementation Quick Start](docs/plan/claude-code-guide.md) - Specific guidance for Claude Code implementation workflow
 - [Planning Index](docs/plan/index.md) - Overview of all stages and current status
 
-**Current Stage 1 Implementation:**
-- [Implementation Steps](docs/plan/001-execution-plan-steps.md) - **Primary implementation guide with progress tracking**
-- [Architecture Decisions](docs/plan/001-execution-plan-adrs.md) - Technical decisions and rationale
-- [Technical Overview](docs/plan/001-execution-plan-overview.md) - High-level approach and examples
-- [Requirements](docs/plan/001-dec-cfg-cfg-format-basic-cli.md) - Product manager requirements
+**Current Implementation:**
+- [Planning Index](docs/plan/index.md) - **Master dashboard showing current active stage and implementation guide**
+- All stage-specific documents linked from the index
 
 ### Implementation Workflow for Claude Code
 
 **Quick Start:**
-1. Check current progress: Read Progress Summary in `docs/plan/001-execution-plan-steps.md`
-2. Find next task: Look for first "Not Started" step with resolved dependencies
-3. Update status: Mark step as "In Progress" before starting work
-4. Implement: Follow detailed step guidance with provided code examples
-5. Complete: Mark step as "Completed" and update Progress Summary table
+1. Check current stage: Read "Current Active Stage" section in `docs/plan/index.md`
+2. Use implementation guide: Follow the linked execution-plan-steps.md for current stage
+3. Find next task: Look for first "Not Started" step with resolved dependencies in current stage
+4. Update status: Mark step as "In Progress" before starting work
+5. Implement: Follow detailed step guidance with provided code examples
+6. Complete: Mark step as "Completed" and update Progress Summary table
 
 **Status Tracking:** Each step contains Status and Dependencies fields that MUST be maintained during implementation:
 - Not Started → In Progress → Completed
 - Update Progress Summary table to reflect current state
 - Add implementation notes to steps when making decisions
 
-**Key Reference:** The file `docs/plan/001-execution-plan-steps.md` serves as both implementation guide and progress tracker.
+**Key Reference:** Always start with `docs/plan/index.md` to find the current active stage and implementation guide.
 
 ### Declarative Configuration Feature Context
 

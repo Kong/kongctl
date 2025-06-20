@@ -2,15 +2,27 @@
 
 This folder contains the complete planning and implementation tracking for kongctl's declarative configuration feature.
 
+## 🎯 Current Active Stage: Stage 1 ⏳ In Progress
+
+**Stage 1: Configuration Format & Basic CLI**
+- **Implementation Guide**: [001-execution-plan-steps.md](001-execution-plan-steps.md) ← **Start here**
+- **Architecture Decisions**: [001-execution-plan-adrs.md](001-execution-plan-adrs.md)
+- **Technical Overview**: [001-execution-plan-overview.md](001-execution-plan-overview.md)
+- **Requirements**: [001-dec-cfg-cfg-format-basic-cli.md](001-dec-cfg-cfg-format-basic-cli.md)
+
+**Implementation Status**: 0/7 steps completed  
+**Next Step**: Step 1 - Add Verb Constants  
+**Progress Tracking**: See Progress Summary in implementation guide above
+
 ## Quick Start for Implementation
 
 1. **Read the process**: [process.md](process.md) - Understand the document structure
-2. **Check current progress**: See Progress Summary in [001-execution-plan-steps.md](001-execution-plan-steps.md)
+2. **Check current progress**: Use implementation guide linked above
 3. **Start implementing**: Follow the next "Not Started" step with resolved dependencies
 
 ## Stage Overview
 
-### Stage 1: Configuration Format & Basic CLI ⏳ In Planning
+### Stage 1: Configuration Format & Basic CLI ⏳ In Progress
 **Goal**: Establish YAML configuration format and integrate basic commands into kongctl
 
 | Document | Purpose | Status |
@@ -75,14 +87,31 @@ The immediate priority is completing Stage 1. All planning documents are ready f
 - **Integration tests** for command execution
 - **Comprehensive validation** for reference patterns
 
+## Stage Transition Process
+
+When moving between stages, update this file to reflect the new current active stage:
+
+1. **Complete current stage**: Mark all steps as "Completed" in current execution plan
+2. **Update Current Active Stage section**: Change stage number, links, and status
+3. **Update Stage Overview**: Move completed stage to show "✅ Completed" 
+4. **Create new stage documents**: Follow naming convention (002-*, 003-*, etc.)
+
+### Example Transition to Stage 2:
+```markdown
+## 🎯 Current Active Stage: Stage 2 ⏳ In Progress
+**Stage 2: Plan Generation & Execution**
+- **Implementation Guide**: [002-execution-plan-steps.md](002-execution-plan-steps.md) ← **Start here**
+```
+
 ## File Organization Best Practices
 
 - **Stage-specific files**: All documents numbered by stage (001-*, 002-*, etc.)
 - **Progress tracking**: Status fields maintained in execution plan steps
 - **Cross-references**: Documents link to each other for context
 - **Living documents**: Updated during implementation with notes and decisions
+- **Current stage indicator**: This index.md file always shows the active stage
 
 ---
 
 **📖 For detailed development process**: See [process.md](process.md)  
-**🚀 Ready to implement?** Start with [001-execution-plan-steps.md](001-execution-plan-steps.md)
+**🚀 Ready to implement?** Check the "Current Active Stage" section above for current implementation guide

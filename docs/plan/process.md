@@ -66,10 +66,43 @@ The `XXX-execution-plan-steps.md` files contain a **Progress Summary** table and
 
 ### Stage Status Overview
 
+**Current Active Stage**: See [index.md](index.md) for the current active stage and implementation guide.
+
+The index.md file serves as the **single source of truth** for:
+- Which stage is currently active
+- Direct links to current implementation documents
+- Progress status and next steps
+- Stage transition guidance
+
 | Stage | Description | Status | Key Documents |
 |-------|-------------|--------|---------------|
-| 001 | Configuration Format & Basic CLI | In Planning | 001-execution-plan-*.md |
+| 001 | Configuration Format & Basic CLI | In Progress | 001-execution-plan-*.md |
 | 002+ | Future stages | Not Started | TBD |
+
+### Stage Transition Process
+
+When completing a stage and moving to the next:
+
+1. **Complete current stage**:
+   - Mark all steps as "Completed" in current execution-plan-steps.md
+   - Ensure all deliverables are implemented and tested
+   - Create final commit for stage completion
+
+2. **Update index.md**:
+   - Change "Current Active Stage" section to next stage
+   - Update stage number, status, and document links
+   - Move completed stage to "✅ Completed" in Stage Overview
+   - Update implementation status and next steps
+
+3. **Create new stage documents**:
+   - Follow naming convention: XXX-execution-plan-*.md
+   - Create ADRs, steps, overview documents for new stage
+   - Set up Progress Summary table in new execution-plan-steps.md
+
+4. **Maintain continuity**:
+   - Reference completed stages in new planning documents
+   - Document dependencies between stages
+   - Preserve architectural decisions from previous stages
 
 ## ADR Numbering System
 

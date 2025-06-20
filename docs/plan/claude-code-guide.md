@@ -6,9 +6,9 @@
 
 ### 1. Check Current Status
 ```markdown
-Read: 001-execution-plan-steps.md → Progress Summary table
+Read: index.md → Current Active Stage section
 ```
-This shows you exactly what's implemented and what's next.
+This shows you the current stage and links to the implementation guide with progress tracking.
 
 ### 2. Find Your Next Task
 Look for the first step with:
@@ -28,10 +28,12 @@ Look for the first step with:
 
 ## 📋 Current Implementation Status
 
-**Stage 1: Configuration Format & Basic CLI**
-- **Status**: Ready for implementation 
-- **Next step**: Step 1 - Add Verb Constants
-- **Location**: [001-execution-plan-steps.md](001-execution-plan-steps.md)
+**Check Current Stage**: See [index.md](index.md) for current active stage, status, and implementation guide.
+
+The index.md file always shows:
+- Current active stage and status
+- Direct link to implementation guide
+- Progress summary and next steps
 
 ## 🎯 Implementation Workflow
 
@@ -47,17 +49,18 @@ Look for the first step with:
 
 | File | When to Use |
 |------|-------------|
-| `001-execution-plan-steps.md` | **Primary implementation guide** - start here |
-| `001-execution-plan-adrs.md` | When you need context for why decisions were made |
-| `001-execution-plan-overview.md` | When you need to understand overall architecture |
+| `index.md` | **Start here** - shows current stage and implementation guide |
+| `XXX-execution-plan-steps.md` | **Primary implementation guide** for current stage |
+| `XXX-execution-plan-adrs.md` | When you need context for why decisions were made |
 | `process.md` | When you need to understand the development process |
 
 ## ⚡ Quick Commands for Progress Tracking
 
 ### Check What's Next
-1. Open `001-execution-plan-steps.md`
-2. Look at Progress Summary table
-3. Find first "Not Started" step with no blocking dependencies
+1. Open `index.md` to see current active stage
+2. Follow link to current implementation guide (XXX-execution-plan-steps.md)
+3. Look at Progress Summary table
+4. Find first "Not Started" step with no blocking dependencies
 
 ### Update Step Status
 1. Find the step section (e.g., "## Step 1: Add Verb Constants")
@@ -66,7 +69,7 @@ Look for the first step with:
 
 ### Reference Architecture Decisions
 1. Look for ADR references in step descriptions (e.g., "see ADR-001-008")
-2. Open `001-execution-plan-adrs.md` 
+2. Open current stage's ADR file (XXX-execution-plan-adrs.md via index.md)
 3. Search for the specific ADR (e.g., "ADR-001-008")
 
 ## 🧪 Testing Approach
@@ -93,4 +96,4 @@ Look for the first step with:
 
 ---
 
-**Ready to start? → [001-execution-plan-steps.md](001-execution-plan-steps.md)**
+**Ready to start? → [index.md](index.md)**
