@@ -143,9 +143,9 @@ type ResourceValidator interface {
     Validate() error
 }
 
-// NamedResource interface for resources that have a declarative name
-type NamedResource interface {
-    GetName() string
+// ReferencedResource interface for resources that can be referenced
+type ReferencedResource interface {
+    GetRef() string
 }
 ```
 
@@ -181,27 +181,27 @@ type PortalResource struct {
     // Embed SDK type for API fields
     components.CreatePortal `yaml:",inline"`
     
-    // Declarative name for references (distinct from API Name field)
-    DeclarativeName string `yaml:"name"`
+    // Reference identifier for cross-resource references
+    Ref string `yaml:"ref"`
     
     // Tool-specific metadata
     Kongctl *KongctlMeta `yaml:"kongctl,omitempty"`
 }
 
-// GetName returns the declarative name used for references
-func (p PortalResource) GetName() string {
-    return p.DeclarativeName
+// GetRef returns the reference identifier used for cross-resource references
+func (p PortalResource) GetRef() string {
+    return p.Ref
 }
 
 // Validate ensures the portal resource is valid
 func (p PortalResource) Validate() error {
-    if p.DeclarativeName == "" {
-        return fmt.Errorf("portal name is required")
+    if p.Ref == "" {
+        return fmt.Errorf("portal ref is required")
     }
     
-    // If API Name is not set, use declarative name
+    // If API Name is not set, use ref as default
     if p.Name == "" {
-        p.Name = p.DeclarativeName
+        p.Name = p.Ref
     }
     
     return nil
@@ -209,25 +209,24 @@ func (p PortalResource) Validate() error {
 
 // SetDefaults applies default values to portal resource
 func (p *PortalResource) SetDefaults() {
-    // If API Name is not set, use declarative name
+    // If API Name is not set, use ref as default
     if p.Name == "" {
-        p.Name = p.DeclarativeName
+        p.Name = p.Ref
     }
 }
 ```
 
 ### Tests
-- Validation tests (missing name, etc.)
+- Validation tests (missing ref, etc.)
 - Default value tests
-- Name field handling tests
+- Ref field handling tests
 
 ### Commit Message
 ```
 feat(declarative): add portal resource definition
 
 Add PortalResource wrapper type that embeds SDK's CreatePortal
-and adds declarative-specific fields for name references and
-kongctl metadata
+and adds ref field for cross-resource references and kongctl metadata
 ```
 
 ---
@@ -292,10 +291,10 @@ func (l *Loader) parseYAML(r io.Reader) (*resources.ResourceSet, error) {
     return &rs, nil
 }
 
-// validateResourceSet validates all resources and checks for name uniqueness
+// validateResourceSet validates all resources and checks for ref uniqueness
 func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
-    // Check portal name uniqueness
-    portalNames := make(map[string]bool)
+    // Check portal ref uniqueness
+    portalRefs := make(map[string]bool)
     for i := range rs.Portals {
         portal := &rs.Portals[i]
         
@@ -304,14 +303,14 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
         
         // Validate
         if err := portal.Validate(); err != nil {
-            return fmt.Errorf("invalid portal %q: %w", portal.GetName(), err)
+            return fmt.Errorf("invalid portal %q: %w", portal.GetRef(), err)
         }
         
         // Check uniqueness
-        if portalNames[portal.GetName()] {
-            return fmt.Errorf("duplicate portal name: %s", portal.GetName())
+        if portalRefs[portal.GetRef()] {
+            return fmt.Errorf("duplicate portal ref: %s", portal.GetRef())
         }
-        portalNames[portal.GetName()] = true
+        portalRefs[portal.GetRef()] = true
     }
     
     return nil
@@ -321,7 +320,7 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 ### Tests
 - Valid YAML parsing
 - Invalid YAML error handling
-- Name uniqueness validation
+- Ref uniqueness validation
 - Missing required fields
 - File not found errors
 
@@ -338,32 +337,32 @@ func TestLoaderLoadFile(t *testing.T) {
             name: "valid portal",
             yaml: `
 portals:
-  - name: test-portal
-    display_name: "Test Portal"
+  - ref: test-portal
+    name: "Test Portal"
     description: "A test portal"
 `,
             wantErr: false,
         },
         {
-            name: "missing name",
+            name: "missing ref",
             yaml: `
 portals:
-  - display_name: "Test Portal"
+  - name: "Test Portal"
 `,
             wantErr: true,
-            errMsg:  "portal name is required",
+            errMsg:  "portal ref is required",
         },
         {
-            name: "duplicate names",
+            name: "duplicate refs",
             yaml: `
 portals:
-  - name: portal1
-    display_name: "Portal 1"
-  - name: portal1
-    display_name: "Portal 2"
+  - ref: portal1
+    name: "Portal 1"
+  - ref: portal1
+    name: "Portal 2"
 `,
             wantErr: true,
-            errMsg:  "duplicate portal name: portal1",
+            errMsg:  "duplicate portal ref: portal1",
         },
     }
     
@@ -528,7 +527,7 @@ func runPlan(cmd *cobra.Command, args []string) error {
     if len(resourceSet.Portals) > 0 {
         fmt.Fprintf(cmd.OutOrStdout(), "- %d portal(s) found:", len(resourceSet.Portals))
         for _, portal := range resourceSet.Portals {
-            fmt.Fprintf(cmd.OutOrStdout(), " %q", portal.GetName())
+            fmt.Fprintf(cmd.OutOrStdout(), " %q", portal.GetRef())
         }
         fmt.Fprintln(cmd.OutOrStdout())
     }

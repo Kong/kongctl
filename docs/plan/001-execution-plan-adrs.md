@@ -64,7 +64,7 @@ We will embed SDK types directly in our resource wrappers:
 ```go
 type PortalResource struct {
     components.CreatePortal `yaml:",inline"`  // Embed SDK type
-    DeclarativeName string `yaml:"name"`      // Add our fields
+    Ref string `yaml:"ref"`                   // Reference identifier
     Kongctl *KongctlMeta `yaml:"kongctl,omitempty"`
 }
 ```
@@ -83,31 +83,56 @@ type PortalResource struct {
 
 ---
 
-## ADR-003: Declarative Name vs API Name Field Handling
+## ADR-003: Resource Reference Identifiers
 
 ### Status
 Accepted
 
 ### Context
-The Kong SDK's Portal type already contains a `Name` field that represents the portal's name in the API. We need a way to identify resources in declarative configuration for cross-references. This creates a naming conflict.
+Most Konnect resources (portals, teams, auth strategies, etc.) have a `Name` field in the SDK that represents the resource's name in the API. However, Konnect resource names can contain spaces and special characters, making them problematic for cross-references in configuration files.
+
+Additionally, Konnect resources have UUID-based `ID` fields that are API-assigned. We need a way to identify resources in declarative configuration for cross-references that:
+1. Doesn't conflict with SDK's `Name` field (can have spaces)
+2. Doesn't conflict with SDK's `ID` field (UUID assigned by Konnect)
+3. Is computer-friendly for use in references
 
 ### Decision
-We will use separate fields:
-- `name` (yaml tag) / `DeclarativeName` (Go field): Used for references between resources
-- SDK's `Name` field: The actual portal name sent to the API
+We will use a separate `ref` field for resource references:
 
-If the SDK's Name field is not explicitly set, we'll default it to the declarative name.
+```yaml
+portals:
+  - ref: dev-portal                     # Computer-friendly reference identifier
+    name: "Developer Portal (Production)"  # Human-friendly Konnect name
+    # ID field will be populated by Konnect (UUID)
+    
+application_auth_strategies:
+  - ref: oauth-strategy
+    name: "My OAuth 2.0 Strategy"
+    
+# Cross-references use the ref field
+portals:
+  - ref: prod-portal
+    name: "Production Portal"
+    default_application_auth_strategy: oauth-strategy  # References the ref field
+```
+
+This creates three distinct identifiers:
+- **SDK's ID field**: UUID assigned by Konnect (never in declarative config)
+- **SDK's Name field**: Human-friendly display name (can have spaces)
+- **Our ref field**: Computer-friendly reference identifier (no spaces, used for cross-references)
 
 ### Rationale
-- **Clear separation**: Declarative identity vs API representation
-- **Flexibility**: Users can have different reference names vs display names
-- **Future-proof**: Supports namespaced references later (e.g., `team/resource-name`)
-- **User-friendly**: Simple `name` in YAML for references
+- **Unambiguous**: Clear distinction from both SDK `ID` and `Name` fields
+- **User-friendly**: Clean references without spaces or special characters
+- **Future-proof**: Works well with type prefixes, namespaces, etc.
+- **Flexible**: Users can use different values for display vs references
+- **Familiar**: Similar to Kubernetes and other declarative tools
 
 ### Consequences
-- Users must understand the distinction (mitigated by good defaults)
-- Documentation must clearly explain both fields
-- Validation must ensure both fields are properly set
+- Users must understand three different identifiers (mitigated by clear documentation)
+- Ref field must be unique within resource type
+- Documentation must clearly explain the distinction
+- Validation must ensure ref field is properly set
 
 ---
 
@@ -172,7 +197,7 @@ We need to decide what aspects of the code require testing and what can be safel
 
 ---
 
-## ADR-006: Command Structure - New Verbs vs Sub-commands
+## ADR-006: Command Structure - Konnect-First Approach
 
 ### Status
 Accepted
@@ -184,18 +209,21 @@ We need to add new commands for declarative configuration. Options:
 3. Add under existing verbs (e.g., `kongctl get plan`)
 
 ### Decision
-Add as top-level verbs following the existing pattern in kongctl.
+Add as top-level verbs following the existing pattern in kongctl, with these commands serving as aliases for Konnect operations.
 
 ### Rationale
-- **Consistency**: Matches existing verb-noun pattern
-- **Simplicity**: Direct commands are easier to use
+- **Konnect-first approach**: The broader project follows a "Konnect first" approach where commands default to Konnect operations
+- **Future extensibility**: Commands like `kongctl apply` are effectively aliases for `kongctl konnect apply`, allowing future expansion to `kongctl gateway apply` for on-prem configurations
+- **Consistency**: Matches existing verb-noun pattern in kongctl
+- **Simplicity**: Direct commands are easier to use for the primary use case (Konnect)
 - **Precedent**: Tools like Terraform use top-level commands
 - **Design alignment**: Planning documents show this approach
 
 ### Consequences
 - More top-level commands (acceptable for core functionality)
-- Clear, simple command structure
-- May need to carefully manage verb namespace in future
+- Clear, simple command structure for Konnect operations
+- Future flexibility to add product-specific namespaces (gateway, mesh) when needed
+- May need to carefully manage verb namespace as we add more products
 
 ---
 
@@ -210,17 +238,20 @@ Users need flexibility in organizing their declarative configuration files. We n
 ### Decision
 Support flexible file organization:
 - Process all `.yaml` and `.yml` files in specified directory
-- Allow arbitrary directory structure
+- Support nested folder structures with recursive traversal
+- Allow arbitrary directory structure and naming
 - Resources can be split across multiple files
 - No enforced naming convention
 
 ### Rationale
-- **User flexibility**: Teams can organize files as they prefer
-- **Simple implementation**: Just find and parse all YAML files
-- **Scalability**: Easy to split large configurations
+- **User flexibility**: Teams can organize files as they prefer (by environment, team, resource type, etc.)
+- **Simple implementation**: Use `filepath.Walk` to find and parse all YAML files
+- **Scalability**: Easy to split large configurations across nested directories
 - **Tool-agnostic**: Works with any file organization approach
+- **Real-world usage**: Teams often need hierarchical organization for complex deployments
 
 ### Consequences
-- Must handle resource merging across files
-- Name uniqueness validation across all files
+- Must handle resource merging across files and directories
+- Ref uniqueness validation across all files in the directory tree
 - Clear error messages must indicate which file has issues
+- Recursive directory traversal may be slower for very large directory trees

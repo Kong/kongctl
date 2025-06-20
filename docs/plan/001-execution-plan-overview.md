@@ -20,17 +20,18 @@ We wrap SDK types rather than duplicating them to:
 - Add declarative-specific fields (name for references, kongctl metadata)
 - Maintain clear separation between API representation and declarative configuration
 
-### 2. Name Field Handling
+### 2. Resource Reference Handling
 
-The SDK's Portal type already contains a `Name` field. Our approach:
-- Declarative configurations use a wrapper with its own `name` field for references
-- The SDK's `Name` field represents the actual portal name in Konnect
-- Users can set both independently:
+Most Konnect resources have both `ID` (UUID) and `Name` fields in the SDK. Our approach:
+- Use a separate `ref` field for cross-resource references
+- SDK's `ID` field: UUID assigned by Konnect (never in declarative config)
+- SDK's `Name` field: Human-friendly display name (can have spaces)
+- Our `ref` field: Computer-friendly reference identifier
   ```yaml
   portals:
-    - name: dev-portal         # Used for references
-      display_name: "Developer Portal"  # From SDK type
-      # The SDK Name field is set from our declarative name by default
+    - ref: dev-portal                    # Used for references
+      name: "Developer Portal (Production)"  # Display name in Konnect
+      # ID field populated by Konnect (UUID)
   ```
 
 ### 3. Package Structure
