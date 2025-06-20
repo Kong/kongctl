@@ -12,12 +12,7 @@
 | 6 | Add Multi-file Support | Not Started | Step 5 |
 | 7 | Integrate with Plan Command | Not Started | Step 6 |
 
-### Status Definitions
-- **Not Started** - Step has not been begun
-- **In Progress** - Step is currently being worked on  
-- **Completed** - Step has been fully implemented and tested
-- **Blocked** - Step cannot proceed due to dependencies or issues
-- **Skipped** - Step was intentionally skipped for this stage
+*See [process.md](process.md) for status definitions and development workflow.*
 
 ---
 

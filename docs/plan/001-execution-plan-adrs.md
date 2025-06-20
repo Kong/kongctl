@@ -1,6 +1,6 @@
 # Stage 1 Architecture Decision Records (ADRs)
 
-These ADRs document architectural decisions made specifically for Stage 1 implementation of the declarative configuration feature. Each ADR is numbered as ADR-001-XXX to indicate it applies to Stage 1.
+*See [process.md](process.md) for ADR numbering conventions and development process.*
 
 ## ADR-001-001: Type-Specific ResourceSet vs Generic Collection
 
