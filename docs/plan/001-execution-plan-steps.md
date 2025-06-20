@@ -1,6 +1,33 @@
 # Stage 1 Execution Plan: Detailed Steps
 
+## Progress Summary
+
+| Step | Description | Status | Dependencies |
+|------|-------------|--------|--------------|
+| 1 | Add Verb Constants | Not Started | None |
+| 2 | Create Command Stubs | Not Started | Step 1 |
+| 3 | Define Core Types | Not Started | None |
+| 4 | Define Portal Resource | Not Started | Step 3 |
+| 5 | Implement YAML Loader | Not Started | Step 4 |
+| 6 | Add Multi-file Support | Not Started | Step 5 |
+| 7 | Integrate with Plan Command | Not Started | Step 6 |
+
+### Status Definitions
+- **Not Started** - Step has not been begun
+- **In Progress** - Step is currently being worked on  
+- **Completed** - Step has been fully implemented and tested
+- **Blocked** - Step cannot proceed due to dependencies or issues
+- **Skipped** - Step was intentionally skipped for this stage
+
+---
+
 ## Step 1: Add Verb Constants
+
+### Status
+Not Started
+
+### Dependencies
+None
 
 ### Changes
 - **File**: `internal/cmd/root/verbs/verbs.go`
@@ -31,6 +58,12 @@ declarative configuration commands
 ---
 
 ## Step 2: Create Command Stubs
+
+### Status
+Not Started
+
+### Dependencies
+Step 1
 
 ### Changes
 Create new files:
@@ -118,6 +151,12 @@ registered with appropriate help text and flags.
 
 ## Step 3: Define Core Types
 
+### Status
+Not Started
+
+### Dependencies
+None
+
 ### Changes
 - Create directory: `internal/declarative/resources/`
 - Create file: `internal/declarative/resources/types.go`
@@ -173,6 +212,12 @@ and common interfaces for resource validation and naming
 ---
 
 ## Step 4: Define Portal Resource
+
+### Status
+Not Started
+
+### Dependencies
+Step 3
 
 ### Changes
 - Create file: `internal/declarative/resources/portal.go`
@@ -316,6 +361,12 @@ and adds ref field for cross-resource references and kongctl metadata
 ---
 
 ## Step 5: Implement YAML Loader
+
+### Status
+Not Started
+
+### Dependencies
+Step 4
 
 ### Changes
 - Create directory: `internal/declarative/loader/`
@@ -613,6 +664,12 @@ validate resources, and ensure name uniqueness
 
 ## Step 6: Add Multi-file Support
 
+### Status
+Not Started
+
+### Dependencies
+Step 5
+
 ### Changes
 - Extend `internal/declarative/loader/loader.go`
 
@@ -695,6 +752,12 @@ YAML files, and validate the combined result
 ---
 
 ## Step 7: Integrate with Plan Command
+
+### Status
+Not Started
+
+### Dependencies
+Step 6
 
 ### Changes
 - Update `internal/cmd/root/verbs/plan/plan.go`
