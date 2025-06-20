@@ -85,7 +85,7 @@ Kongctl is a Go-based CLI built with the following key components:
 
 ## Important Patterns
 
-1. **Profile-Based Configuration**: Operations are performed in the context of a profile, which determines which configuration values to use.
+1. **Profile-Based Configuration**: Commands are executed in the context of a profile, which determines which configuration values to use.
    - Users can switch profiles using the `--profile` flag or environment variable `KONGCTL_PROFILE`.
 
 2. **Konnect Authentication Flow**:
@@ -98,7 +98,8 @@ Kongctl is a Go-based CLI built with the following key components:
    - Product (konnect, gateway)
    - Resource type (control-planes, services, routes)
 
-4. **Error Handling**: Structured error handling with consistent logging.
+4. **Error Handling**: Structured error handling with consistent logging. In functions prefer to reeturn errors and defer 
+     handling to callers. Ideally errors are bubbled as high as possible in the call stack to provide context before reporting.
 
 5. When writing markdown documentation, use the following conventions:
     - Line width should be 80 characters or less 
@@ -109,7 +110,7 @@ Kongctl is a Go-based CLI built with the following key components:
 - Integration tests with the `-tags=integration` build tag
 - Test utilities in `test/` directory
 
-## Planning Documentation
+## Developement Process and Documentation 
 
 All planning and design decisions for Kongctl are documented in the `docs/` directory and the `docs/plan` subdirectory.
 ADRs and execution plans are provided and named based on an ordered sequence both the the file names and in the
@@ -117,3 +118,6 @@ contents of the files themselves.  ADR-001-001 is the first ADR for the first st
 
 - [Declarative Config High Level](docs/declarative-config-ux.md)
 - [Planning](docs/plan/*.md)
+
+Documents named "docs/plan/*-plan-steps.md" provide step-by-step implementation plans for each stage of development. Inside those documents
+are Status values. During coding the status should be maintained to track progress of the plan and implementation.
