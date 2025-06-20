@@ -128,8 +128,11 @@ package resources
 
 // ResourceSet contains all declarative resources from configuration files
 type ResourceSet struct {
-    Portals []PortalResource `yaml:"portals,omitempty"`
-    // Future resource types will be added here
+    Portals                   []PortalResource                    `yaml:"portals,omitempty"`
+    ApplicationAuthStrategies []ApplicationAuthStrategyResource   `yaml:"application_auth_strategies,omitempty"`
+    APIPublications          []APIPublicationResource            `yaml:"api_publications,omitempty"`
+    APIImplementations       []APIImplementationResource         `yaml:"api_implementations,omitempty"`
+    // Additional resource types will be added as support is implemented
 }
 
 // KongctlMeta contains tool-specific metadata for resources
@@ -146,6 +149,26 @@ type ResourceValidator interface {
 // ReferencedResource interface for resources that can be referenced
 type ReferencedResource interface {
     GetRef() string
+}
+
+// ReferenceValidator handles validation of cross-resource references
+type ReferenceValidator struct {
+    // Field pattern mapping for reference validation
+    fieldMappings map[string]string
+}
+
+// NewReferenceValidator creates a new reference validator with default mappings
+func NewReferenceValidator() *ReferenceValidator {
+    return &ReferenceValidator{
+        fieldMappings: map[string]string{
+            "*_control_plane_id":                   "control_plane",
+            "*_portal_id":                          "portal", 
+            "*_api_id":                            "api",
+            "auth_strategy_ids":                   "application_auth_strategy",
+            "default_application_auth_strategy_id": "application_auth_strategy",
+            // Additional mappings will be added as we support more resource types
+        },
+    }
 }
 ```
 
@@ -214,6 +237,45 @@ func (p *PortalResource) SetDefaults() {
         p.Name = p.Ref
     }
 }
+
+// Example of additional resource types for reference handling
+
+// ApplicationAuthStrategyResource represents an auth strategy in declarative configuration
+type ApplicationAuthStrategyResource struct {
+    // Embed SDK type
+    components.CreateApplicationAuthStrategy `yaml:",inline"`
+    
+    // Reference identifier
+    Ref string `yaml:"ref"`
+    
+    // Tool-specific metadata
+    Kongctl *KongctlMeta `yaml:"kongctl,omitempty"`
+}
+
+func (a ApplicationAuthStrategyResource) GetRef() string {
+    return a.Ref
+}
+
+// APIPublicationResource demonstrates complex reference patterns
+type APIPublicationResource struct {
+    // Embed SDK type
+    components.APIPublication `yaml:",inline"`
+    
+    // Reference identifier
+    Ref string `yaml:"ref"`
+    
+    // Tool-specific metadata
+    Kongctl *KongctlMeta `yaml:"kongctl,omitempty"`
+}
+
+func (a APIPublicationResource) GetRef() string {
+    return a.Ref
+}
+
+// Note: The embedded SDK types contain fields like:
+// - portal_id (expects portal ref)
+// - api_id (expects api ref)  
+// - auth_strategy_ids (expects array of auth strategy refs)
 ```
 
 ### Tests
@@ -293,8 +355,12 @@ func (l *Loader) parseYAML(r io.Reader) (*resources.ResourceSet, error) {
 
 // validateResourceSet validates all resources and checks for ref uniqueness
 func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
-    // Check portal ref uniqueness
+    // Build registry of all resources by type for reference validation
+    resourceRegistry := make(map[string]map[string]bool)
+    
+    // Check portal ref uniqueness and build registry
     portalRefs := make(map[string]bool)
+    resourceRegistry["portal"] = portalRefs
     for i := range rs.Portals {
         portal := &rs.Portals[i]
         
@@ -311,6 +377,64 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
             return fmt.Errorf("duplicate portal ref: %s", portal.GetRef())
         }
         portalRefs[portal.GetRef()] = true
+    }
+    
+    // Check auth strategy ref uniqueness and build registry
+    authStrategyRefs := make(map[string]bool)
+    resourceRegistry["application_auth_strategy"] = authStrategyRefs
+    for i := range rs.ApplicationAuthStrategies {
+        strategy := &rs.ApplicationAuthStrategies[i]
+        
+        // Apply defaults
+        strategy.SetDefaults()
+        
+        // Validate
+        if err := strategy.Validate(); err != nil {
+            return fmt.Errorf("invalid application_auth_strategy %q: %w", strategy.GetRef(), err)
+        }
+        
+        // Check uniqueness
+        if authStrategyRefs[strategy.GetRef()] {
+            return fmt.Errorf("duplicate application_auth_strategy ref: %s", strategy.GetRef())
+        }
+        authStrategyRefs[strategy.GetRef()] = true
+    }
+    
+    // Validate cross-resource references
+    if err := l.validateReferences(rs, resourceRegistry); err != nil {
+        return err
+    }
+    
+    return nil
+}
+
+// validateReferences validates that all cross-resource references are valid
+func (l *Loader) validateReferences(rs *resources.ResourceSet, registry map[string]map[string]bool) error {
+    // Validate portal references to auth strategies
+    for _, portal := range rs.Portals {
+        if portal.DefaultApplicationAuthStrategyID != nil && *portal.DefaultApplicationAuthStrategyID != "" {
+            ref := *portal.DefaultApplicationAuthStrategyID
+            if !registry["application_auth_strategy"][ref] {
+                return fmt.Errorf("portal %q references unknown application_auth_strategy: %s", portal.GetRef(), ref)
+            }
+        }
+    }
+    
+    // Validate API publication references
+    for _, publication := range rs.APIPublications {
+        // Validate portal reference
+        if publication.PortalID != "" {
+            if !registry["portal"][publication.PortalID] {
+                return fmt.Errorf("api_publication %q references unknown portal: %s", publication.GetRef(), publication.PortalID)
+            }
+        }
+        
+        // Validate auth strategy references (array)
+        for _, strategyRef := range publication.AuthStrategyIds {
+            if !registry["application_auth_strategy"][strategyRef] {
+                return fmt.Errorf("api_publication %q references unknown application_auth_strategy: %s", publication.GetRef(), strategyRef)
+            }
+        }
     }
     
     return nil
@@ -363,6 +487,32 @@ portals:
 `,
             wantErr: true,
             errMsg:  "duplicate portal ref: portal1",
+        },
+        {
+            name: "valid portal with auth strategy reference",
+            yaml: `
+application_auth_strategies:
+  - ref: oauth-strategy
+    name: "OAuth Strategy"
+    auth_type: openid_connect
+
+portals:
+  - ref: test-portal
+    name: "Test Portal"
+    default_application_auth_strategy_id: oauth-strategy
+`,
+            wantErr: false,
+        },
+        {
+            name: "invalid auth strategy reference",
+            yaml: `
+portals:
+  - ref: test-portal
+    name: "Test Portal"
+    default_application_auth_strategy_id: nonexistent-strategy
+`,
+            wantErr: true,
+            errMsg:  "references unknown application_auth_strategy: nonexistent-strategy",
         },
     }
     

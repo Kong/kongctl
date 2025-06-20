@@ -133,6 +133,7 @@ This creates three distinct identifiers:
 - Ref field must be unique within resource type
 - Documentation must clearly explain the distinction
 - Validation must ensure ref field is properly set
+- Cross-resource references use ref values (see ADR-008 for reference pattern details)
 
 ---
 
@@ -255,3 +256,101 @@ Support flexible file organization:
 - Ref uniqueness validation across all files in the directory tree
 - Clear error messages must indicate which file has issues
 - Recursive directory traversal may be slower for very large directory trees
+
+---
+
+## ADR-008: Resource Reference Pattern and Validation
+
+### Status
+Accepted
+
+### Context
+The Konnect API uses UUID-based references between resources, but these UUIDs are not user-friendly for declarative configuration. After analyzing the SDK, we discovered several patterns:
+
+1. **Inconsistent field naming**: `ControlPlaneID`, `control_plane_id`, `DefaultApplicationAuthStrategyID`, `auth_strategy_ids`
+2. **Nested references**: API Implementation requires both `control_plane_id` and `id` (service within control plane)
+3. **Array references**: API Publications can reference multiple auth strategies via `auth_strategy_ids`
+4. **Context-dependent fields**: Some fields like `id` depend on their context to determine the expected type
+
+Examples from the SDK:
+```go
+// API Implementation Service Input
+type APIImplementationServiceInput struct {
+    ControlPlaneID string  // References control plane
+    ID             string  // References service within that control plane
+}
+
+// API Publication
+type APIPublicationListItem struct {
+    APIID           string    // References API
+    PortalID        string    // References portal
+    AuthStrategyIds []string  // References multiple auth strategies
+}
+```
+
+### Decision
+Use **Smart Field Analysis with Pattern-Based Validation** (Option B):
+
+1. **Simple ref-based syntax**: Users provide `ref` values in all reference fields
+2. **Pattern-based field mapping**: Build mappings to determine expected types from field names
+3. **Validation at planning time**: Resolve and validate all references during plan generation
+4. **Clear error messages**: Guide users when references are invalid
+
+### Implementation
+```go
+// Field pattern mapping for reference validation
+var referenceFieldMappings = map[string]string{
+    "*_control_plane_id":                   "control_plane",
+    "*_portal_id":                          "portal", 
+    "*_api_id":                            "api",
+    "auth_strategy_ids":                   "auth_strategy",
+    "default_application_auth_strategy_id": "auth_strategy",
+    // Context-dependent cases handled separately
+}
+
+// Example declarative configuration
+api_implementations:
+  - ref: my-api-impl
+    service:
+      control_plane_id: my-cp        # Expects control_plane ref
+      id: my-service                 # Expects service ref (context: within control plane)
+
+api_publications:
+  - ref: my-publication
+    api_id: my-api                   # Expects api ref
+    portal_id: my-portal             # Expects portal ref
+    auth_strategy_ids: 
+      - oauth-strategy               # Expects auth_strategy refs
+      - key-auth-strategy
+```
+
+### Rationale
+- **Clean syntax**: No type prefixes needed (avoiding `application_auth_strategy.oauth-strategy`)
+- **Type safety**: Validation ensures references point to correct resource types
+- **Handles complexity**: Works with arrays, nested references, and inconsistent naming
+- **Future-proof**: Can add type prefixes later if needed
+- **Resolution timing**: All references resolved to UUIDs at planning time for safety
+
+### UX Concerns and Mitigations
+**Problem**: Field names contain `id` but expect `ref` values, potentially confusing users
+
+**Mitigations**:
+1. **Clear documentation** with extensive examples showing `ref` usage
+2. **Helpful error messages**:
+   ```
+   Error in api_publication "my-publication":
+     Field "portal_id" expects a portal reference (ref value), not a UUID
+     Found: "7710d5c4-d902-410b-992f-18b814155b53" 
+     Did you mean: "my-portal"?
+     
+   Available portal refs: my-portal, dev-portal, staging-portal
+   ```
+3. **UUID detection**: Warn when UUID-like values are used in reference fields
+4. **Consistent terminology**: Always refer to "`ref` values" in documentation
+
+### Consequences
+- **Simple user experience**: Clean YAML syntax without type prefixes
+- **Implementation complexity**: Need pattern matching and context-aware validation
+- **Documentation burden**: Must clearly explain ref vs UUID distinction
+- **Error handling**: Need excellent error messages to guide users
+- **Future flexibility**: Can add escape hatches (type prefixes) if simple refs become insufficient

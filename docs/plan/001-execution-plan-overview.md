@@ -67,12 +67,50 @@ Benefits:
 - Clear documentation of supported resources
 - Easy validation and processing
 
-### 5. Test Strategy
+### 5. Reference Pattern Examples
+
+Our reference system handles complex scenarios found in the Konnect API:
+
+```yaml
+# Simple references
+application_auth_strategies:
+  - ref: oauth-strategy
+    name: "OAuth 2.0 Strategy"
+    auth_type: openid_connect
+    configs:
+      issuer: "https://auth.example.com"
+
+# Portal referencing auth strategy
+portals:
+  - ref: dev-portal
+    name: "Developer Portal"
+    default_application_auth_strategy_id: oauth-strategy  # References auth strategy
+
+# API Publications with multiple references
+api_publications:
+  - ref: users-api-publication
+    api_id: users-api                    # References API
+    portal_id: dev-portal                # References portal
+    auth_strategy_ids:                   # Array of auth strategy references
+      - oauth-strategy
+      - key-auth-strategy
+    visibility: public
+
+# Complex nested references (API Implementation)
+api_implementations:
+  - ref: users-api-impl
+    service:
+      control_plane_id: prod-cp          # References control plane
+      id: users-service                  # References service within control plane
+```
+
+### 6. Test Strategy
 
 Following test-first approach for:
-- Business logic (validation, merging, name resolution)
+- Business logic (validation, merging, reference resolution)
 - Integration points (command execution, file loading)
 - Error handling and edge cases
+- Cross-resource reference validation
 
 Not testing:
 - SDK functionality (already tested)
