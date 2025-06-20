@@ -1,0 +1,142 @@
+# Stage 1 Execution Plan: Configuration Format & Basic CLI
+
+## Overview
+
+This document outlines the detailed execution plan for implementing Stage 1 of the declarative configuration feature for kongctl. The implementation follows the requirements in `001-dec-cfg-cfg-format-basic-cli.md` with careful attention to maintaining a compilable, testable codebase at each step.
+
+## Goals
+
+1. Establish YAML configuration format using SDK types
+2. Add declarative command stubs to kongctl
+3. Implement configuration loading and validation
+4. Create foundation for future stages
+
+## Key Design Decisions
+
+### 1. Resource Wrapper Pattern
+
+We wrap SDK types rather than duplicating them to:
+- Avoid maintenance burden of keeping types in sync
+- Add declarative-specific fields (name for references, kongctl metadata)
+- Maintain clear separation between API representation and declarative configuration
+
+### 2. Name Field Handling
+
+The SDK's Portal type already contains a `Name` field. Our approach:
+- Declarative configurations use a wrapper with its own `name` field for references
+- The SDK's `Name` field represents the actual portal name in Konnect
+- Users can set both independently:
+  ```yaml
+  portals:
+    - name: dev-portal         # Used for references
+      display_name: "Developer Portal"  # From SDK type
+      # The SDK Name field is set from our declarative name by default
+  ```
+
+### 3. Package Structure
+
+```
+internal/
+├── cmd/root/verbs/         # Command implementations
+│   ├── plan/
+│   ├── apply/
+│   ├── sync/
+│   ├── diff/
+│   └── export/
+└── declarative/
+    ├── resources/          # Resource type definitions
+    │   ├── types.go        # Core types (ResourceSet, KongctlMeta)
+    │   └── portal.go       # Portal resource wrapper
+    └── loader/             # Configuration loading
+        └── loader.go       # YAML file loading and parsing
+```
+
+### 4. Explicit ResourceSet
+
+Rather than a generic container, ResourceSet explicitly lists supported resource types:
+```go
+type ResourceSet struct {
+    Portals []PortalResource `yaml:"portals,omitempty"`
+    // Future: Teams, ApplicationAuthStrategies, etc.
+}
+```
+
+Benefits:
+- Type safety and IDE support
+- Clear documentation of supported resources
+- Easy validation and processing
+
+### 5. Test Strategy
+
+Following test-first approach for:
+- Business logic (validation, merging, name resolution)
+- Integration points (command execution, file loading)
+- Error handling and edge cases
+
+Not testing:
+- SDK functionality (already tested)
+- YAML marshaling/unmarshaling (library functionality)
+- Simple getters/setters
+
+## Implementation Steps
+
+Each step results in a working, compilable project with comprehensive tests where appropriate.
+
+### Step 1: Add Verb Constants
+**File**: `internal/cmd/root/verbs/verbs.go`
+- Add Plan, Sync, Diff, Export constants
+- Maintains consistency with existing verb pattern
+
+### Step 2: Create Command Stubs
+**Files**: New command files in `internal/cmd/root/verbs/`
+- Each command returns "not yet implemented"
+- Follows existing command structure pattern
+- Registered with root command
+
+### Step 3: Define Core Types
+**File**: `internal/declarative/resources/types.go`
+- ResourceSet struct (container for all resources)
+- KongctlMeta struct (tool-specific metadata)
+- Common interfaces if needed
+
+### Step 4: Define Portal Resource
+**File**: `internal/declarative/resources/portal.go`
+- PortalResource wrapper type
+- Embeds SDK's CreatePortal type
+- Adds declarative name and kongctl metadata
+
+### Step 5: Implement YAML Loader
+**File**: `internal/declarative/loader/loader.go`
+- Single file loading
+- YAML parsing with validation
+- Name uniqueness checking
+
+### Step 6: Add Multi-file Support
+**File**: `internal/declarative/loader/loader.go`
+- Directory traversal for .yaml/.yml files
+- Resource merging from multiple files
+- Conflict detection
+
+### Step 7: Integrate with Plan Command
+**File**: `internal/cmd/root/verbs/plan/plan.go`
+- Connect loader to plan command
+- Display summary of loaded resources
+- Error handling and user feedback
+
+## Success Criteria
+
+1. All commands are registered and accessible via CLI
+2. YAML configuration files can be loaded and validated
+3. Portal resources are properly parsed with SDK types
+4. Name uniqueness is enforced
+5. Multi-file configurations work correctly
+6. Clear error messages for common issues
+7. All tests pass and coverage is appropriate
+
+## Future Considerations
+
+This foundation supports:
+- Additional resource types (teams, auth strategies)
+- Reference resolution between resources
+- Plan generation and execution (Stage 2)
+- Label management and drift detection (Stage 3)
