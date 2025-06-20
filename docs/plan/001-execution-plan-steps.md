@@ -132,6 +132,8 @@ type ResourceSet struct {
     ApplicationAuthStrategies []ApplicationAuthStrategyResource   `yaml:"application_auth_strategies,omitempty"`
     APIPublications          []APIPublicationResource            `yaml:"api_publications,omitempty"`
     APIImplementations       []APIImplementationResource         `yaml:"api_implementations,omitempty"`
+    ControlPlanes            []ControlPlaneResource              `yaml:"control_planes,omitempty"`
+    Services                 []ServiceResource                   `yaml:"services,omitempty"`
     // Additional resource types will be added as support is implemented
 }
 
@@ -151,24 +153,9 @@ type ReferencedResource interface {
     GetRef() string
 }
 
-// ReferenceValidator handles validation of cross-resource references
-type ReferenceValidator struct {
-    // Field pattern mapping for reference validation
-    fieldMappings map[string]string
-}
-
-// NewReferenceValidator creates a new reference validator with default mappings
-func NewReferenceValidator() *ReferenceValidator {
-    return &ReferenceValidator{
-        fieldMappings: map[string]string{
-            "*_control_plane_id":                   "control_plane",
-            "*_portal_id":                          "portal", 
-            "*_api_id":                            "api",
-            "auth_strategy_ids":                   "application_auth_strategy",
-            "default_application_auth_strategy_id": "application_auth_strategy",
-            // Additional mappings will be added as we support more resource types
-        },
-    }
+// ReferenceMapping interface for resources that have reference fields
+type ReferenceMapping interface {
+    GetReferenceFieldMappings() map[string]string
 }
 ```
 
@@ -216,6 +203,13 @@ func (p PortalResource) GetRef() string {
     return p.Ref
 }
 
+// GetReferenceFieldMappings returns the field mappings for reference validation
+func (p PortalResource) GetReferenceFieldMappings() map[string]string {
+    return map[string]string{
+        "default_application_auth_strategy_id": "application_auth_strategy",
+    }
+}
+
 // Validate ensures the portal resource is valid
 func (p PortalResource) Validate() error {
     if p.Ref == "" {
@@ -256,6 +250,11 @@ func (a ApplicationAuthStrategyResource) GetRef() string {
     return a.Ref
 }
 
+// GetReferenceFieldMappings returns empty map as auth strategies don't reference other resources
+func (a ApplicationAuthStrategyResource) GetReferenceFieldMappings() map[string]string {
+    return map[string]string{} // No outbound references
+}
+
 // APIPublicationResource demonstrates complex reference patterns
 type APIPublicationResource struct {
     // Embed SDK type
@@ -272,10 +271,33 @@ func (a APIPublicationResource) GetRef() string {
     return a.Ref
 }
 
-// Note: The embedded SDK types contain fields like:
-// - portal_id (expects portal ref)
-// - api_id (expects api ref)  
-// - auth_strategy_ids (expects array of auth strategy refs)
+// GetReferenceFieldMappings defines which fields reference other resources
+func (a APIPublicationResource) GetReferenceFieldMappings() map[string]string {
+    return map[string]string{
+        "portal_id":         "portal",
+        "api_id":           "api",
+        "auth_strategy_ids": "application_auth_strategy",
+    }
+}
+
+// Add API Implementation example showing qualified field names
+type APIImplementationResource struct {
+    components.APIImplementation `yaml:",inline"`
+    Ref string `yaml:"ref"`
+    Kongctl *KongctlMeta `yaml:"kongctl,omitempty"`
+}
+
+func (a APIImplementationResource) GetRef() string {
+    return a.Ref
+}
+
+// GetReferenceFieldMappings uses qualified field names for nested references
+func (a APIImplementationResource) GetReferenceFieldMappings() map[string]string {
+    return map[string]string{
+        "service.control_plane_id": "control_plane",  // Qualified field name
+        "service.id":               "service",         // Context is clear
+    }
+}
 ```
 
 ### Tests
@@ -408,36 +430,73 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
     return nil
 }
 
-// validateReferences validates that all cross-resource references are valid
+// validateReferences validates that all cross-resource references are valid using per-resource mappings
 func (l *Loader) validateReferences(rs *resources.ResourceSet, registry map[string]map[string]bool) error {
-    // Validate portal references to auth strategies
-    for _, portal := range rs.Portals {
-        if portal.DefaultApplicationAuthStrategyID != nil && *portal.DefaultApplicationAuthStrategyID != "" {
-            ref := *portal.DefaultApplicationAuthStrategyID
-            if !registry["application_auth_strategy"][ref] {
-                return fmt.Errorf("portal %q references unknown application_auth_strategy: %s", portal.GetRef(), ref)
-            }
-        }
+    // Validate all resource types that implement ReferenceMapping
+    resourceSlices := []interface{}{
+        rs.Portals,
+        rs.ApplicationAuthStrategies, 
+        rs.APIPublications,
+        rs.APIImplementations,
+        rs.ControlPlanes,
+        rs.Services,
     }
     
-    // Validate API publication references
-    for _, publication := range rs.APIPublications {
-        // Validate portal reference
-        if publication.PortalID != "" {
-            if !registry["portal"][publication.PortalID] {
-                return fmt.Errorf("api_publication %q references unknown portal: %s", publication.GetRef(), publication.PortalID)
-            }
-        }
-        
-        // Validate auth strategy references (array)
-        for _, strategyRef := range publication.AuthStrategyIds {
-            if !registry["application_auth_strategy"][strategyRef] {
-                return fmt.Errorf("api_publication %q references unknown application_auth_strategy: %s", publication.GetRef(), strategyRef)
-            }
+    for _, slice := range resourceSlices {
+        if err := l.validateResourceSlice(slice, registry); err != nil {
+            return err
         }
     }
     
     return nil
+}
+
+// validateResourceSlice validates references for a slice of resources
+func (l *Loader) validateResourceSlice(slice interface{}, registry map[string]map[string]bool) error {
+    switch resources := slice.(type) {
+    case []resources.PortalResource:
+        for _, resource := range resources {
+            if err := l.validateResourceReferences(resource, registry); err != nil {
+                return err
+            }
+        }
+    case []resources.APIPublicationResource:
+        for _, resource := range resources {
+            if err := l.validateResourceReferences(resource, registry); err != nil {
+                return err
+            }
+        }
+    case []resources.APIImplementationResource:
+        for _, resource := range resources {
+            if err := l.validateResourceReferences(resource, registry); err != nil {
+                return err
+            }
+        }
+    // Add cases for other resource types as needed
+    }
+    return nil
+}
+
+// validateResourceReferences validates references for a single resource using its mapping
+func (l *Loader) validateResourceReferences(resource resources.ReferenceMapping, registry map[string]map[string]bool) error {
+    mappings := resource.GetReferenceFieldMappings()
+    
+    for fieldName, expectedType := range mappings {
+        fieldValue := l.getFieldValue(resource, fieldName)
+        if fieldValue != "" && !registry[expectedType][fieldValue] {
+            return fmt.Errorf("resource %q references unknown %s: %s", 
+                resource.(resources.ReferencedResource).GetRef(), expectedType, fieldValue)
+        }
+    }
+    return nil
+}
+
+// getFieldValue extracts field value using reflection, supporting qualified field names like "service.id"
+func (l *Loader) getFieldValue(resource interface{}, fieldName string) string {
+    // Implementation would use reflection to extract field values
+    // Supporting both simple fields ("portal_id") and qualified fields ("service.id")
+    // This is a placeholder - actual implementation would handle reflection
+    return ""
 }
 ```
 

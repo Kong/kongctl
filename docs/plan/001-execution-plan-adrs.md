@@ -267,46 +267,103 @@ type APIPublicationListItem struct {
 ```
 
 ### Decision
-Use **Smart Field Analysis with Pattern-Based Validation** (Option B):
+Use **Per-Resource Reference Mappings** with qualified field names:
 
 1. **Simple ref-based syntax**: Users provide `ref` values in all reference fields
-2. **Pattern-based field mapping**: Build mappings to determine expected types from field names
-3. **Validation at planning time**: Resolve and validate all references during plan generation
-4. **Clear error messages**: Guide users when references are invalid
+2. **Per-resource mapping interface**: Each resource type defines its own reference field mappings
+3. **Qualified field names**: Handle nested structures like `service.id` to resolve ambiguity
+4. **Validation at planning time**: Resolve and validate all references during plan generation
+5. **Clear error messages**: Guide users when references are invalid
 
 ### Implementation
 ```go
-// Field pattern mapping for reference validation
-var referenceFieldMappings = map[string]string{
-    "*_control_plane_id":                   "control_plane",
-    "*_portal_id":                          "portal", 
-    "*_api_id":                            "api",
-    "auth_strategy_ids":                   "auth_strategy",
-    "default_application_auth_strategy_id": "auth_strategy",
-    // Context-dependent cases handled separately
+// Interface for resources that have reference fields
+type ReferenceMapping interface {
+    GetReferenceFieldMappings() map[string]string
 }
 
-// Example declarative configuration
-api_implementations:
-  - ref: my-api-impl
-    service:
-      control_plane_id: my-cp        # Expects control_plane ref
-      id: my-service                 # Expects service ref (context: within control plane)
+// Portal resource with simple reference mapping
+type PortalResource struct {
+    components.CreatePortal `yaml:",inline"`
+    Ref string `yaml:"ref"`
+    Kongctl *KongctlMeta `yaml:"kongctl,omitempty"`
+}
 
+func (p PortalResource) GetReferenceFieldMappings() map[string]string {
+    return map[string]string{
+        "default_application_auth_strategy_id": "application_auth_strategy",
+    }
+}
+
+// API Implementation with qualified field names for nested references
+type APIImplementationResource struct {
+    components.APIImplementation `yaml:",inline"`
+    Ref string `yaml:"ref"`
+    Kongctl *KongctlMeta `yaml:"kongctl,omitempty"`
+}
+
+func (a APIImplementationResource) GetReferenceFieldMappings() map[string]string {
+    return map[string]string{
+        "service.control_plane_id": "control_plane",  // Qualified field name
+        "service.id":               "service",         // Context is clear
+    }
+}
+
+// API Publication with multiple reference types
+type APIPublicationResource struct {
+    components.APIPublication `yaml:",inline"`
+    Ref string `yaml:"ref"`
+    Kongctl *KongctlMeta `yaml:"kongctl,omitempty"`
+}
+
+func (a APIPublicationResource) GetReferenceFieldMappings() map[string]string {
+    return map[string]string{
+        "portal_id":         "portal",
+        "api_id":           "api",
+        "auth_strategy_ids": "application_auth_strategy",
+    }
+}
+```
+
+### Declarative Configuration Structure
+```yaml
+# Top-level control planes
+control_planes:
+  - ref: prod-cp
+    name: "Production Control Plane"
+    cluster_type: "cluster_type_hybrid"
+
+# Top-level services (with control plane reference)
+services:
+  - ref: users-service
+    control_plane_id: prod-cp      # References control plane
+    name: "Users Service"
+    url: "http://users.internal"
+
+# API implementations reference both control plane and service
+api_implementations:
+  - ref: users-api-impl
+    service:
+      control_plane_id: prod-cp    # References control plane
+      id: users-service            # References service (context clear via qualified field name)
+
+# API publications with multiple references
 api_publications:
   - ref: my-publication
-    api_id: my-api                   # Expects api ref
-    portal_id: my-portal             # Expects portal ref
-    auth_strategy_ids: 
-      - oauth-strategy               # Expects auth_strategy refs
+    api_id: my-api                 # References API
+    portal_id: my-portal           # References portal
+    auth_strategy_ids:             # References auth strategies
+      - oauth-strategy
       - key-auth-strategy
 ```
 
 ### Rationale
 - **Clean syntax**: No type prefixes needed (avoiding `application_auth_strategy.oauth-strategy`)
+- **No ambiguity**: Each resource type defines what its fields mean, eliminating context-dependent issues
+- **Self-documenting**: Looking at a resource type tells you its reference semantics
+- **Qualified field names**: Can handle nested structures like `service.id` with clear context
 - **Type safety**: Validation ensures references point to correct resource types
-- **Handles complexity**: Works with arrays, nested references, and inconsistent naming
-- **Future-proof**: Can add type prefixes later if needed
+- **Maintainable**: Adding new resources doesn't affect existing mappings
 - **Resolution timing**: All references resolved to UUIDs at planning time for safety
 
 ### UX Concerns and Mitigations
@@ -328,7 +385,8 @@ api_publications:
 
 ### Consequences
 - **Simple user experience**: Clean YAML syntax without type prefixes
-- **Implementation complexity**: Need pattern matching and context-aware validation
+- **Clear implementation**: Each resource type owns its reference validation logic
 - **Documentation burden**: Must clearly explain ref vs UUID distinction
 - **Error handling**: Need excellent error messages to guide users
-- **Future flexibility**: Can add escape hatches (type prefixes) if simple refs become insufficient
+- **Resource-specific complexity**: Each resource type must implement ReferenceMapping interface
+- **Extensibility**: Easy to add new resource types without affecting existing ones

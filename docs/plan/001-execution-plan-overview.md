@@ -69,9 +69,22 @@ Benefits:
 
 ### 5. Reference Pattern Examples
 
-Our reference system handles complex scenarios found in the Konnect API:
+Our per-resource reference system handles complex scenarios found in the Konnect API:
 
 ```yaml
+# Top-level control planes
+control_planes:
+  - ref: prod-cp
+    name: "Production Control Plane"
+    cluster_type: "cluster_type_hybrid"
+
+# Top-level services (with control plane reference)
+services:
+  - ref: users-service
+    control_plane_id: prod-cp      # References control plane
+    name: "Users Service"
+    url: "http://users.internal"
+
 # Simple references
 application_auth_strategies:
   - ref: oauth-strategy
@@ -96,13 +109,16 @@ api_publications:
       - key-auth-strategy
     visibility: public
 
-# Complex nested references (API Implementation)
+# Complex nested references (API Implementation) 
+# Uses qualified field names to resolve ambiguity
 api_implementations:
   - ref: users-api-impl
     service:
       control_plane_id: prod-cp          # References control plane
-      id: users-service                  # References service within control plane
+      id: users-service                  # References service (context clear via qualified name)
 ```
+
+Each resource type implements `ReferenceMapping` interface to define its own reference semantics, eliminating ambiguity and making validation self-contained.
 
 ### 6. Test Strategy
 
