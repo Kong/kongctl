@@ -4,9 +4,6 @@ These ADRs document architectural decisions made specifically for Stage 1 implem
 
 ## ADR-001-001: Type-Specific ResourceSet vs Generic Collection
 
-### Status
-Accepted
-
 ### Context
 We need to decide how to structure the ResourceSet that contains all declarative resources loaded from YAML files. Two main approaches were considered:
 
@@ -50,9 +47,6 @@ type ResourceSet struct {
 
 ## ADR-001-002: SDK Type Embedding vs Duplication
 
-### Status
-Accepted
-
 ### Context
 We need to decide how to handle the relationship between our declarative resource types and the Kong SDK types. Options considered:
 
@@ -86,9 +80,6 @@ type PortalResource struct {
 ---
 
 ## ADR-001-003: Resource Reference Identifiers
-
-### Status
-Accepted
 
 ### Context
 Most Konnect resources (portals, teams, auth strategies, etc.) have a `Name` field in the SDK that represents the resource's name in the API. However, Konnect resource names can contain spaces and special characters, making them problematic for cross-references in configuration files.
@@ -141,9 +132,6 @@ This creates three distinct identifiers:
 
 ## ADR-001-004: Package Structure - Avoiding "Config" Naming
 
-### Status
-Accepted
-
 ### Context
 The term "config" is already used extensively in kongctl for CLI configuration (profiles, settings, etc.). Using "config" for declarative resource management would create confusion.
 
@@ -167,9 +155,6 @@ Use `declarative` as the top-level package with sub-packages:
 ---
 
 ## ADR-001-005: Test Strategy - What to Test
-
-### Status
-Accepted
 
 ### Context
 We need to decide what aspects of the code require testing and what can be safely skipped to avoid testing third-party functionality.
@@ -202,9 +187,6 @@ We need to decide what aspects of the code require testing and what can be safel
 
 ## ADR-001-006: Command Structure - Konnect-First Approach
 
-### Status
-Accepted
-
 ### Context
 We need to add new commands for declarative configuration. Options:
 1. Add as top-level verbs (plan, apply, sync, diff, export)
@@ -231,9 +213,6 @@ Add as top-level verbs following the existing pattern in kongctl, with these com
 ---
 
 ## ADR-001-007: YAML File Organization
-
-### Status
-Accepted
 
 ### Context
 Users need flexibility in organizing their declarative configuration files. We need to decide how to handle file discovery and organization.
@@ -262,9 +241,6 @@ Support flexible file organization:
 ---
 
 ## ADR-001-008: Resource Reference Pattern and Validation
-
-### Status
-Accepted
 
 ### Context
 The Konnect API uses UUID-based references between resources, but these UUIDs are not user-friendly for declarative configuration. After analyzing the SDK, we discovered several patterns:
