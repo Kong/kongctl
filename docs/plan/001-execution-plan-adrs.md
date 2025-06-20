@@ -1,6 +1,8 @@
 # Stage 1 Architecture Decision Records (ADRs)
 
-## ADR-001: Type-Specific ResourceSet vs Generic Collection
+These ADRs document architectural decisions made specifically for Stage 1 implementation of the declarative configuration feature. Each ADR is numbered as ADR-001-XXX to indicate it applies to Stage 1.
+
+## ADR-001-001: Type-Specific ResourceSet vs Generic Collection
 
 ### Status
 Accepted
@@ -46,7 +48,7 @@ type ResourceSet struct {
 
 ---
 
-## ADR-002: SDK Type Embedding vs Duplication
+## ADR-001-002: SDK Type Embedding vs Duplication
 
 ### Status
 Accepted
@@ -83,7 +85,7 @@ type PortalResource struct {
 
 ---
 
-## ADR-003: Resource Reference Identifiers
+## ADR-001-003: Resource Reference Identifiers
 
 ### Status
 Accepted
@@ -133,11 +135,11 @@ This creates three distinct identifiers:
 - Ref field must be unique within resource type
 - Documentation must clearly explain the distinction
 - Validation must ensure ref field is properly set
-- Cross-resource references use ref values (see ADR-008 for reference pattern details)
+- Cross-resource references use ref values (see ADR-001-008 for reference pattern details)
 
 ---
 
-## ADR-004: Package Structure - Avoiding "Config" Naming
+## ADR-001-004: Package Structure - Avoiding "Config" Naming
 
 ### Status
 Accepted
@@ -164,7 +166,7 @@ Use `declarative` as the top-level package with sub-packages:
 
 ---
 
-## ADR-005: Test Strategy - What to Test
+## ADR-001-005: Test Strategy - What to Test
 
 ### Status
 Accepted
@@ -198,7 +200,7 @@ We need to decide what aspects of the code require testing and what can be safel
 
 ---
 
-## ADR-006: Command Structure - Konnect-First Approach
+## ADR-001-006: Command Structure - Konnect-First Approach
 
 ### Status
 Accepted
@@ -228,7 +230,7 @@ Add as top-level verbs following the existing pattern in kongctl, with these com
 
 ---
 
-## ADR-007: YAML File Organization
+## ADR-001-007: YAML File Organization
 
 ### Status
 Accepted
@@ -259,7 +261,7 @@ Support flexible file organization:
 
 ---
 
-## ADR-008: Resource Reference Pattern and Validation
+## ADR-001-008: Resource Reference Pattern and Validation
 
 ### Status
 Accepted
