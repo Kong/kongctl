@@ -2,19 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Session Quick Start Checklist
-
-For Claude Code sessions, start every session with these steps to establish context:
-
-1. **Check current state**: `git status` and `git log --oneline -5`
-2. **Verify build health**: `make build` (must succeed before starting work)
-3. **Check current stage**: Read "Current Active Stage" in `docs/plan/index.md`
-4. **Review recent progress**: Check Progress Summary in current stage's execution-plan-steps.md
-5. **Run baseline tests**: `make test` (verify starting state)
-6. **Check for lint issues**: `make lint` (resolve any existing issues first)
-
-This establishes a clean baseline and provides necessary context for productive development.
-
 ## Repository Overview
 
 Kongctl is a command-line interface (CLI) tool for operating Kong Konnect and (eventually) Kong Gateway on-prem. 
@@ -57,17 +44,6 @@ make coverage
 make lint
 # Or directly:
 golangci-lint run -v ./...
-```
-
-### Common Development Workflow
-
-```sh
-# Build and run the binary
-make build
-./kongctl <command>
-
-# Example: Check version
-./kongctl version --full
 ```
 
 ## Quality Verification Workflow
@@ -191,7 +167,8 @@ func runResourceCommand(cmd *cobra.Command, args []string) error {
 ```
 
 ### Error Handling Pattern
-Always return errors, don't log within functions:
+
+*Always* return errors, don't log or capture within functions. Bubble errors to the highest level possible and report to user on STDERR.
 
 ```go
 func doOperation() error {
@@ -276,6 +253,19 @@ All planning and design decisions for Kongctl are documented in the `docs/plan/`
 **Current Implementation:**
 - [Planning Index](docs/plan/index.md) - **Master dashboard showing current active stage and implementation guide**
 - All stage-specific documents linked from the index
+
+### Session Start Checklist
+
+For Claude Code sessions, start every session with these steps to establish context:
+
+1. **Check current state**: `git status` and `git log --oneline -5`
+2. **Verify build health**: `make build` (must succeed before starting work)
+3. **Check current stage**: Read "Current Active Stage" in `docs/plan/index.md`
+4. **Review recent progress**: Check Progress Summary in current stage's execution-plan-steps.md
+5. **Run baseline tests**: `make test` (verify starting state)
+6. **Check for lint issues**: `make lint` (resolve any existing issues first)
+
+This establishes a clean baseline and provides necessary context for productive development.
 
 ### Implementation Workflow for Claude Code
 
