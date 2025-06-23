@@ -4,29 +4,36 @@ This document explains how planning documents are organized in the `docs/plan/` 
 
 ## Document Organization
 
-### File Naming Convention
+### Folder Structure
 
-All planning documents follow a stage-based naming pattern:
-- `XXX-description.md` where XXX is the stage number (001, 002, etc.)
-- Example: `001-execution-plan-steps.md` for Stage 1 implementation steps
+Planning documents are organized in stage-specific folders:
+- Each development effort has its own folder named after the product manager's plan name
+- Example: `001-dec-cfg-cfg-format-basic-cli/` for declarative configuration Stage 1
+- All feature-specific documents live within that feature's folder
 
-### Document Types by Stage
+Top-level process documentation remains in the root `docs/plan/` directory:
+- `process.md` - This document explaining the planning structure
+- `index.md` - Master dashboard showing current active stage
+- `claude-code-guide.md` - Quick start guide for implementation
+- `user-guide.md` - Commands and workflows for users to direct Claude Code
 
-Each stage of development has the following document types:
+### Document Types by Feature
 
-#### 1. High-Level Planning (`XXX-description.md`)
+Each feature/development folder contains the following document types:
+
+#### 1. High-Level Planning (`description.md`)
 - Product manager provided requirements and specifications
 - High-level goals and deliverables
 - Initial technical direction
 - Success criteria
 
-#### 2. Execution Plan Overview (`XXX-execution-plan-overview.md`)
+#### 2. Execution Plan Overview (`execution-plan-overview.md`)
 - Technical approach and design decisions
 - Code examples and architecture
 - Package structure and patterns
 - References to detailed ADRs
 
-#### 3. Execution Plan Steps (`XXX-execution-plan-steps.md`)
+#### 3. Execution Plan Steps (`execution-plan-steps.md`)
 - **Primary implementation guide**
 - Step-by-step implementation plan
 - Code examples for each step
@@ -34,22 +41,17 @@ Each stage of development has the following document types:
 - Commit messages
 - **Status tracking for progress**
 
-#### 4. Architecture Decision Records (`XXX-execution-plan-adrs.md`)
+#### 4. Architecture Decision Records (`execution-plan-adrs.md`)
 - Stage-specific ADRs numbered as ADR-XXX-YYY
 - Technical decisions with context and rationale
 - Alternative approaches considered
 - Consequences of decisions
 
-#### 5. Process Documentation (`process.md`)
-- This document explaining the planning structure
-- Development process guidelines
-- Claude Code usage instructions
-
 ## Status Tracking System
 
 ### Execution Plan Progress
 
-The `XXX-execution-plan-steps.md` files contain a **Progress Summary** table and individual step status tracking:
+The `execution-plan-steps.md` files contain a **Progress Summary** table and individual step status tracking:
 
 #### Status Values
 - **Not Started** - Step has not been begun
@@ -74,30 +76,34 @@ The index.md file serves as the **single source of truth** for:
 - Progress status and next steps
 - Stage transition guidance
 
-| Stage | Description | Status | Key Documents |
-|-------|-------------|--------|---------------|
-| 001 | Configuration Format & Basic CLI | In Progress | 001-execution-plan-*.md |
-| 002+ | Future stages | Not Started | TBD |
+| Folder | Feature/Stage | Status |
+|--------|---------------|--------|
+| 001-dec-cfg-cfg-format-basic-cli/ | Declarative Config: Configuration Format & Basic CLI | In Progress |
+| 002-dec-cfg-plan-labels/ | Declarative Config: Plan Labels | Not Started |
+| 003-dec-cfg-plan-exec/ | Declarative Config: Plan Execution | Not Started |
+| 004-dec-cfg-multi-resource/ | Declarative Config: Multi-Resource | Not Started |
+| Future folders | Additional features as planned by PM | TBD |
 
-### Stage Transition Process
+### Development Transition Process
 
-When completing a stage and moving to the next:
+When completing a development effort and moving to the next:
 
-1. **Complete current stage**:
-   - Mark all steps as "Completed" in current execution-plan-steps.md
+1. **Complete current development**:
+   - Mark all steps as "Completed" in current feature's execution-plan-steps.md
    - Ensure all deliverables are implemented and tested
-   - Create final commit for stage completion
+   - Create final commit for feature completion
 
 2. **Update index.md**:
-   - Change "Current Active Stage" section to next stage
-   - Update stage number, status, and document links
-   - Move completed stage to "✅ Completed" in Stage Overview
+   - Change "Current Active Stage" section to next development effort
+   - Update feature name, status, and document links
+   - Move completed feature to "✅ Completed" in Feature Overview
    - Update implementation status and next steps
 
-3. **Create new stage documents**:
-   - Follow naming convention: XXX-execution-plan-*.md
-   - Create ADRs, steps, overview documents for new stage
-   - Set up Progress Summary table in new execution-plan-steps.md
+3. **Prepare new development folder**:
+   - Product manager provides plan document with name (e.g., `005-feature-name`)
+   - Create folder: `docs/plan/005-feature-name/`
+   - Add plan document as `description.md` in the folder
+   - Create execution-plan-*.md documents as implementation progresses
 
 4. **Maintain continuity**:
    - Reference completed stages in new planning documents
@@ -116,10 +122,10 @@ Architecture Decision Records use stage-specific numbering:
 
 ### For Implementers (Including Claude Code)
 
-1. **Start with stage requirements**: Read `XXX-description.md`
-2. **Understand architecture**: Review `XXX-execution-plan-overview.md`
-3. **Follow implementation guide**: Use `XXX-execution-plan-steps.md` as primary guide
-4. **Reference decisions**: Consult `XXX-execution-plan-adrs.md` for context
+1. **Start with stage requirements**: Read `{stage-folder}/description.md`
+2. **Understand architecture**: Review `{stage-folder}/execution-plan-overview.md`
+3. **Follow implementation guide**: Use `{stage-folder}/execution-plan-steps.md` as primary guide
+4. **Reference decisions**: Consult `{stage-folder}/execution-plan-adrs.md` for context
 5. **Track progress**: Update status fields in execution plan steps
 6. **Maintain quality**: Follow test requirements and commit message patterns
 
@@ -162,7 +168,7 @@ Architecture Decision Records use stage-specific numbering:
 - Clear separation between planning and execution
 - Comprehensive step-by-step guidance
 - Status tracking for progress visibility
-- Stage-based organization prevents confusion
+- Feature-based organization prevents confusion
 
 ### Future Enhancements
 1. **Template Structure**: Create templates for future stages
@@ -172,15 +178,17 @@ Architecture Decision Records use stage-specific numbering:
 
 ## Quick Reference
 
-### Current Stage 1 Status
-- **Requirements**: Defined in `001-description.md`
-- **Architecture**: Documented in `001-execution-plan-overview.md`
-- **Implementation**: Tracked in `001-execution-plan-steps.md`
-- **Decisions**: Recorded in `001-execution-plan-adrs.md`
+### Example: Current Active Development
+For the current active development effort (see [index.md](index.md)):
+- **Folder**: Named after the PM's plan (e.g., `001-dec-cfg-cfg-format-basic-cli/`)
+- **Requirements**: Defined in `{folder}/description.md`
+- **Architecture**: Documented in `{folder}/execution-plan-overview.md`
+- **Implementation**: Tracked in `{folder}/execution-plan-steps.md`
+- **Decisions**: Recorded in `{folder}/execution-plan-adrs.md`
 
 ### Key Entry Points for Implementation
-1. **Progress Summary** in `001-execution-plan-steps.md` - Shows what's done/todo
+1. **Progress Summary** in current development's `execution-plan-steps.md` - Shows what's done/todo
 2. **Step 1** onwards in same file - Detailed implementation guidance
 3. **ADR references** when context needed for understanding decisions
 
-This structure provides a complete roadmap for implementing declarative configuration features while maintaining clear documentation of decisions and progress.
+This structure provides a complete roadmap for implementing any feature in kongctl while maintaining clear documentation of decisions and progress.

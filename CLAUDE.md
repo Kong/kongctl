@@ -2,6 +2,51 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 📋 Quick Start Guide for New Claude Code Sessions
+
+### 🎯 Essential Commands for Development
+
+When starting a new Claude Code session, use these custom commands:
+
+1. **`/start-session`** - Initialize your session (checks git status, build health, current progress)
+2. **`/status`** - See current development progress and next steps  
+3. **`/implement-next`** - Implement the next step with automatic quality checks
+4. **`/verify-quality`** - Run all quality gates (build, lint, tests)
+
+### 🚀 Recommended Workflow
+
+```
+Start your session:
+/start-session
+
+Check what's ready to work on:
+/status
+
+Begin implementing:
+/implement-next
+
+Verify quality periodically:
+/verify-quality
+```
+
+### 📖 Full Documentation
+
+See **[docs/plan/user-guide.md](docs/plan/user-guide.md)** for complete details including:
+- All available commands with examples
+- Workflow patterns for different scenarios  
+- Best practices and troubleshooting
+- Session continuity guidance
+
+### 📁 Planning Structure
+
+- **Current work**: Check `docs/plan/index.md` for active development
+- **Process details**: See `docs/plan/process.md`
+- **Commands**: Implemented in `.claude/commands/` folder
+
+The custom commands automatically follow the established development process, maintain quality standards, and update progress tracking. Just use the commands and focus on the development work!
+
+**Ready to start?** Try `/start-session` to begin your development session.
+
 ## Repository Overview
 
 Kongctl is a command-line interface (CLI) tool for operating Kong Konnect and (eventually) Kong Gateway on-prem. 
@@ -245,14 +290,15 @@ func outputResult(data interface{}, format string) error {
 
 All planning and design decisions for Kongctl are documented in the `docs/plan/` directory using a structured, stage-based approach:
 
-**Essential Documents for Implementation:**
+**Top-Level Documents:**
 - [Planning Process Overview](docs/plan/process.md) - Central documentation of planning structure and development workflow
 - [Implementation Quick Start](docs/plan/claude-code-guide.md) - Specific guidance for Claude Code implementation workflow
-- [Planning Index](docs/plan/index.md) - Overview of all stages and current status
-
-**Current Implementation:**
 - [Planning Index](docs/plan/index.md) - **Master dashboard showing current active stage and implementation guide**
-- All stage-specific documents linked from the index
+
+**Stage Organization:**
+- Each stage has its own folder named after the product manager's plan name
+- Example: `docs/plan/001-dec-cfg-cfg-format-basic-cli/`
+- Within each folder: `description.md` (PM requirements), `execution-plan-*.md` (implementation docs)
 
 ### Session Start Checklist
 
@@ -261,22 +307,36 @@ For Claude Code sessions, start every session with these steps to establish cont
 1. **Check current state**: `git status` and `git log --oneline -5`
 2. **Verify build health**: `make build` (must succeed before starting work)
 3. **Check current stage**: Read "Current Active Stage" in `docs/plan/index.md`
-4. **Review recent progress**: Check Progress Summary in current stage's execution-plan-steps.md
+4. **Review recent progress**: Check Progress Summary in current stage folder's execution-plan-steps.md
 5. **Run baseline tests**: `make test` (verify starting state)
 6. **Check for lint issues**: `make lint` (resolve any existing issues first)
 
 This establishes a clean baseline and provides necessary context for productive development.
 
+### Custom Commands for Users
+
+Users can direct Claude Code using custom commands documented in [docs/plan/user-guide.md](docs/plan/user-guide.md). Key commands include:
+
+- `/start-session` - Initialize a new development session with full context
+- `/status` - Show current development progress and next steps
+- `/implement-next` - Implement the next available step with quality checks
+- `/verify-quality` - Run all quality gates (build, lint, tests)
+- `/show-plan` - Display the current feature plan and steps
+- `/complete-feature` - Finalize current feature and prepare for next
+
+See the full user guide for detailed command usage and workflows.
+
 ### Implementation Workflow for Claude Code
 
 **Quick Start:**
 1. Check current stage: Read "Current Active Stage" section in `docs/plan/index.md`
-2. Use implementation guide: Follow the linked execution-plan-steps.md for current stage
-3. Find next task: Look for first "Not Started" step in current stage
-4. Update status: Mark step as "In Progress" before starting work
-5. Implement: Follow detailed step guidance with provided code examples
-6. Verify: Run quality gates (build, lint, tests) before marking complete
-7. Complete: Mark step as "Completed" and update Progress Summary table
+2. Navigate to stage folder: Follow link to current stage's folder (e.g., `001-dec-cfg-cfg-format-basic-cli/`)
+3. Use implementation guide: Open `execution-plan-steps.md` in that folder
+4. Find next task: Look for first "Not Started" step in current stage
+5. Update status: Mark step as "In Progress" before starting work
+6. Implement: Follow detailed step guidance with provided code examples
+7. Verify: Run quality gates (build, lint, tests) before marking complete
+8. Complete: Mark step as "Completed" and update Progress Summary table
 
 **Status Tracking:** Each step contains Status fields that MUST be maintained during implementation:
 - Not Started → In Progress → Completed
@@ -292,12 +352,11 @@ This establishes a clean baseline and provides necessary context for productive 
 
 **Key Reference:** Always start with `docs/plan/index.md` to find the current active stage and implementation guide.
 
-### Declarative Configuration Feature Context
+### Current Development Context
 
-This project is implementing declarative configuration management for Kong Konnect resources:
-- **High-level design**: [Declarative Config UX Overview](docs/declarative-config-ux.md)
-- **Current stage**: Stage 1 - Configuration Format & Basic CLI
-- **Goal**: YAML-based resource management with plan/apply workflow (similar to Terraform)
-- **Key commands**: `kongctl plan`, `kongctl apply`, `kongctl sync`, `kongctl diff`, `kongctl export`
+The planning documents in `docs/plan/` track all development efforts for kongctl:
+- **Planning index**: [docs/plan/index.md](docs/plan/index.md) - Shows current active development
+- **Process guide**: [docs/plan/process.md](docs/plan/process.md) - Explains the planning structure
+- **Current feature**: Check index.md for the active development effort and its status
 
-When implementing, always refer to the planning documents for technical decisions and context.
+Each feature has its own folder with requirements, technical approach, and implementation steps. Always refer to the planning documents for technical decisions and context.

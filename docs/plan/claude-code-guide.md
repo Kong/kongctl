@@ -1,6 +1,6 @@
 # Claude Code Implementation Guide
 
-**Quick start guide for implementing declarative configuration features using these planning documents.**
+**Quick start guide for implementing kongctl features using the planning document structure.**
 
 ## 🚀 Getting Started
 
@@ -28,10 +28,10 @@ Look for the first step with:
 
 ## 📋 Current Implementation Status
 
-**Check Current Stage**: See [index.md](index.md) for current active stage, status, and implementation guide.
+**Check Current Development**: See [index.md](index.md) for current active development effort, status, and implementation guide.
 
 The index.md file always shows:
-- Current active stage and status
+- Current active feature/development and status
 - Direct link to implementation guide
 - Progress summary and next steps
 
@@ -45,22 +45,42 @@ The index.md file always shows:
 6. **Update status** → "Completed"
 7. **Move to next step**
 
+## 🔧 Folder Structure
+
+Each development effort has its own folder named after the PM's plan:
+```
+docs/plan/
+├── index.md                               # Current active development & overview
+├── process.md                             # Development process
+├── claude-code-guide.md                   # This guide
+├── 001-dec-cfg-cfg-format-basic-cli/     # Declarative Config Stage 1
+│   ├── description.md                    # PM requirements
+│   ├── execution-plan-overview.md        # Technical approach
+│   ├── execution-plan-steps.md           # Implementation guide
+│   └── execution-plan-adrs.md            # Architecture decisions
+├── 002-dec-cfg-plan-labels/              # Declarative Config Stage 2
+│   └── description.md                    # PM requirements
+├── [future-feature-folders]/             # New features as planned by PM
+└── ...
+```
+
 ## 🔧 Key Files for Implementation
 
 | File | When to Use |
 |------|-------------|
-| `index.md` | **Start here** - shows current stage and implementation guide |
-| `XXX-execution-plan-steps.md` | **Primary implementation guide** for current stage |
-| `XXX-execution-plan-adrs.md` | When you need context for why decisions were made |
+| `index.md` | **Start here** - shows current active development and implementation guide |
+| `{feature-folder}/execution-plan-steps.md` | **Primary implementation guide** for current feature |
+| `{feature-folder}/execution-plan-adrs.md` | When you need context for why decisions were made |
+| `{feature-folder}/description.md` | Product manager requirements for the feature |
 | `process.md` | When you need to understand the development process |
 
 ## ⚡ Quick Commands for Progress Tracking
 
 ### Check What's Next
-1. Open `index.md` to see current active stage
-2. Follow link to current implementation guide (XXX-execution-plan-steps.md)
-3. Look at Progress Summary table
-4. Find first "Not Started" step with no blocking dependencies
+1. Open `index.md` to see current active development effort
+2. Follow link to current implementation guide in feature folder
+3. Look at Progress Summary table in execution-plan-steps.md
+4. Find first "Not Started" step
 
 ### Update Step Status
 1. Find the step section (e.g., "## Step 1: Add Verb Constants")
@@ -69,7 +89,7 @@ The index.md file always shows:
 
 ### Reference Architecture Decisions
 1. Look for ADR references in step descriptions (e.g., "see ADR-001-008")
-2. Open current stage's ADR file (XXX-execution-plan-adrs.md via index.md)
+2. Open current feature's ADR file in feature folder (e.g., `001-dec-cfg-cfg-format-basic-cli/execution-plan-adrs.md`)
 3. Search for the specific ADR (e.g., "ADR-001-008")
 
 ## 🧪 Testing Approach
