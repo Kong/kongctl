@@ -4,29 +4,13 @@ Show the current development status, progress, and next steps.
 
 ## Steps
 
-1. Read the current active development from `docs/plan/index.md`:
-   - Find the "Current Active Stage" section
-   - Note the feature name and stage
-
-2. Navigate to the current feature folder and read `execution-plan-steps.md`:
-   - Find the Progress Summary table
-   - Count completed vs total steps
-   - Identify the next "Not Started" step
-
-3. Check for any work in progress:
-   - Look for steps marked as "In Progress"
-   - Note if any steps are blocked
-
-4. Run a quick git status to check for uncommitted changes:
-   - Run `git status --short`
-
-5. Display a comprehensive status report including:
-   - Current feature/stage name
-   - Overall progress (X/Y steps completed)
-   - Current step in progress (if any)
-   - Next step to implement
-   - Any blockers or issues
-   - Uncommitted changes (if any)
+1. Read current development from `docs/plan/index.md`
+2. Check Progress Summary in current execution-plan-steps.md
+3. Run `git status --short` for uncommitted changes
+4. Display report:
+   - Current feature/stage and progress (X/Y steps)
+   - Steps in progress or next to implement
+   - Any blockers or uncommitted changes
 
 ## Example Output
 

@@ -4,35 +4,19 @@ Run all quality gates to ensure code meets project standards.
 
 ## Steps
 
-1. Run the build check:
-   - Execute `make build`
-   - Report success or capture error output
+1. Run all quality gates:
+   - `make build` (must pass)
+   - `make lint` (zero issues required) 
+   - `make test` (all tests must pass)
+   - `make test-integration` (if CLI changes)
 
-2. Run the lint check:
-   - Execute `make lint`
-   - Report any lint issues found
-   - Provide suggestions for common lint fixes if issues found
+2. Check git status for uncommitted changes
 
-3. Run unit tests:
-   - Execute `make test`
-   - Report test results (passed/failed)
-   - Show failed test details if any
-
-4. Check if integration tests are needed:
-   - Look at recent changes with `git diff --name-only`
-   - If changes involve CLI commands or API interactions, run integration tests
-   - Execute `make test-integration` if needed
-   - Report results
-
-5. Check for uncommitted changes:
-   - Run `git status`
-   - List any modified or untracked files
-
-6. Provide a summary report with:
+3. Provide summary report:
    - Overall quality status (PASS/FAIL)
    - Individual check results
-   - Specific issues that need fixing
-   - Suggested next steps
+   - Issues requiring fixes
+   - Next steps
 
 ## Example Output
 

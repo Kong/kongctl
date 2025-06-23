@@ -4,53 +4,24 @@ Implement the next available step in the current development plan with full qual
 
 ## Steps
 
-1. First, identify the current feature and next step:
-   - Read `docs/plan/index.md` to find current active stage
-   - Navigate to the feature folder's `execution-plan-steps.md`
-   - Find the first step with status "Not Started"
-   - Verify all dependencies are met (if any)
+1. Identify next step:
+   - Read `docs/plan/index.md` → current active stage
+   - Find first "Not Started" step in execution-plan-steps.md
+   - Verify dependencies are met
 
-2. Update the step status to "In Progress":
-   - Edit the step's status field in `execution-plan-steps.md`
-   - Update the Progress Summary table
+2. Update status to "In Progress" and implement:
+   - Follow step guidance and code examples exactly
+   - Add required tests
 
-3. Read and understand the step requirements:
-   - Read the full step description
-   - Note any code examples provided
-   - Check for ADR references and read them if needed
-   - Understand test requirements
+3. Run quality gates:
+   - `make build && make lint && make test`
+   - `make test-integration` if CLI commands involved
 
-4. Implement the step following the guidance:
-   - Write the code as specified in the step
-   - Follow the exact patterns and examples provided
-   - Add any required tests
-
-5. Run quality gates:
-   - Run `make build` - must pass
-   - Run `make lint` - must have zero issues
-   - Run `make test` - all tests must pass
-   - If the step involves CLI commands, run `make test-integration`
-
-6. If all quality gates pass:
-   - Update step status to "Completed"
+4. Complete:
+   - Mark as "Completed" only if all checks pass
    - Update Progress Summary table
-   - Add any implementation notes to the step if decisions were made
-
-7. If quality gates fail:
-   - Fix the issues
-   - Re-run quality gates
-   - Only mark as completed when all checks pass
-
-8. Commit the work:
-   - Stage the changes
-   - Use the commit message template from the step (if provided)
-   - Or create a descriptive commit message following project conventions
-
-9. Report completion:
-   - Show what was implemented
-   - Confirm all quality checks passed
-   - Show the updated progress
-   - Identify the next step to work on
+   - Commit with provided message template
+   - Report progress and identify next step
 
 ## Example Output
 

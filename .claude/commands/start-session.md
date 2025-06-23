@@ -4,47 +4,24 @@ Initialize a new development session by establishing context and checking projec
 
 ## Steps
 
-1. First, establish clean git environment:
-   - Run `git status` to see current branch and changes
-   - If not on main branch, switch to main: `git checkout main`
-   - If on main with uncommitted changes, ask user how to handle them
-   - Update main branch: `git pull origin main`
-   - Run `git log --oneline -5` to see recent commits
+1. Establish git environment:
+   - Run `git status` and `git log --oneline -5`
+   - Switch to main if needed: `git checkout main && git pull origin main`
+   - Create/switch to feature branch based on current work in `docs/plan/index.md`
 
-2. Create feature branch (if starting new work):
-   - Identify current feature from `docs/plan/index.md`
-   - Create feature branch: `git checkout -b feature/[feature-name]` 
-   - Example: `git checkout -b feature/001-dec-cfg-cfg-format-basic-cli`
-   - Or continue on existing feature branch if work is in progress
+2. Verify project health:
+   - Run `make build` (must pass)
+   - Run `make test` and `make lint`
 
-3. Verify the project builds successfully:
-   - Run `make build`
-   - If build fails, report the error and suggest fixes
+3. Check current development:
+   - Read `docs/plan/index.md` for "Current Active Stage"
+   - Check Progress Summary in current execution-plan-steps.md
 
-4. Check the current development stage:
-   - Read `docs/plan/index.md` to find the "Current Active Stage" section
-   - Identify which feature/stage is currently being worked on
-
-5. Review recent progress:
-   - Navigate to the current stage folder (e.g., `docs/plan/001-dec-cfg-cfg-format-basic-cli/`)
-   - Open `execution-plan-steps.md` and check the Progress Summary table
-   - Note which steps are completed and which are pending
-
-6. Run baseline tests to verify starting state:
-   - Run `make test`
-   - Note any failing tests
-
-7. Check for lint issues:
-   - Run `make lint`
-   - Note any lint warnings or errors
-
-8. Summarize findings:
-   - Report current branch and any uncommitted changes
-   - Confirm build status
-   - Show current feature/stage being developed
-   - Display progress (X/Y steps completed)
-   - Identify the next step to work on
-   - Report any test failures or lint issues that need attention
+4. Report status:
+   - Branch status and build health
+   - Current feature and progress (X/Y steps)
+   - Next step to work on
+   - Any issues requiring attention
 
 ## Example Output
 

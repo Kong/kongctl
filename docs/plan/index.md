@@ -17,7 +17,7 @@ This folder contains the complete planning and implementation tracking for all k
 ## Quick Start for Implementation
 
 1. **For Users**: [user-guide.md](user-guide.md) - Commands to direct Claude Code effectively
-2. **Read the process**: [process.md](process.md) - Understand the document structure
+2. **For Claude Code**: [implementation-guide.md](implementation-guide.md) - Implementation workflow and document structure
 3. **Check current progress**: Use implementation guide linked above
 4. **Start implementing**: Follow the next "Not Started" step
 
@@ -151,5 +151,5 @@ As new features are planned, they will be added to this index with their own fol
 
 ---
 
-**📖 For detailed development process**: See [process.md](process.md)  
+**📖 For detailed development process**: See [implementation-guide.md](implementation-guide.md)  
 **🚀 Ready to implement?** Check the "Current Active Stage" section above for current implementation guide
