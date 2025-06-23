@@ -78,7 +78,16 @@ Claude Code custom commands are implemented in `.claude/commands/` and can be in
 2. Run final quality checks
 3. Create completion commit
 4. Update index.md to show feature as completed
-5. Provide instructions for next feature
+5. Create pull request for review
+6. Provide instructions for next feature
+
+#### `/create-pr`
+**Usage**: "Create a pull request with /create-pr"
+**What Claude Code will do**:
+1. Push current branch to remote
+2. Create GitHub PR with proper description
+3. Include testing checklist and planning references
+4. Provide PR URL and next steps
 
 #### `/start-feature FOLDER-NAME`
 **Usage**: "Start new feature with /start-feature 005-new-feature-name"
@@ -127,6 +136,29 @@ Claude: [Finalizes feature, updates tracking]
 User: Start new feature with /start-feature 005-auth-improvements
 Claude: [Sets up new feature development]
 ```
+
+## 🌿 Git Workflow
+
+Our development follows a feature branch workflow:
+
+### Branch Strategy
+- **main**: Production-ready code
+- **feature/[feature-name]**: Development branches for each feature
+- Example: `feature/001-dec-cfg-cfg-format-basic-cli`
+
+### Workflow Steps
+1. **Start**: `/start-session` creates/switches to feature branch from latest main
+2. **Develop**: Work on feature using `/implement-next` and other commands
+3. **Complete**: `/complete-feature` creates PR for review
+4. **Review**: Team reviews PR, provides feedback
+5. **Merge**: PR gets merged to main after approval
+6. **Next**: New `/start-session` starts fresh from updated main
+
+### PR Guidelines
+- Each feature gets its own PR
+- Include comprehensive testing checklist
+- Reference planning documents
+- Wait for review before starting next feature
 
 ## 🚨 Important User Guidelines
 
@@ -208,14 +240,15 @@ Show me all changes made for the current feature
 
 The custom commands are implemented as markdown files in `.claude/commands/`:
 
-- `start-session.md` - Session initialization workflow
+- `start-session.md` - Session initialization with git branch setup
 - `status.md` - Progress reporting and next steps
 - `implement-next.md` - Step-by-step implementation with quality gates
 - `implement-step.md` - Specific step implementation by number
 - `verify-quality.md` - Comprehensive quality checks
 - `show-plan.md` - Feature plan and step overview
 - `show-adrs.md` - Architecture decision summaries
-- `complete-feature.md` - Feature finalization workflow
+- `create-pr.md` - Pull request creation with proper formatting
+- `complete-feature.md` - Feature finalization and PR workflow
 
 Each command file contains detailed instructions for Claude Code to follow, ensuring consistent behavior and adherence to the development process.
 

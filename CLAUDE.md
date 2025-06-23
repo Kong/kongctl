@@ -8,10 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 When starting a new Claude Code session, use these custom commands:
 
-1. **`/start-session`** - Initialize your session (checks git status, build health, current progress)
+1. **`/start-session`** - Initialize your session (creates feature branch, checks build health, current progress)
 2. **`/status`** - See current development progress and next steps  
 3. **`/implement-next`** - Implement the next step with automatic quality checks
 4. **`/verify-quality`** - Run all quality gates (build, lint, tests)
+5. **`/complete-feature`** - Finalize feature and create pull request
 
 ### 🚀 Recommended Workflow
 
@@ -27,6 +28,9 @@ Begin implementing:
 
 Verify quality periodically:
 /verify-quality
+
+When feature is complete:
+/complete-feature
 ```
 
 ### 📖 Full Documentation

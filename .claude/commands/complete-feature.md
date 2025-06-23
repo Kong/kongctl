@@ -44,10 +44,15 @@ Finalize the current feature development and prepare for the next feature.
    - If no next feature:
      - Update to indicate no active development
 
-7. Provide transition guidance:
-   - If next feature exists: explain how to start it
+7. Create pull request for review:
+   - Push current branch to remote if not already pushed
+   - Use `/create-pr` command to create PR with proper description
+   - Or provide manual PR creation guidance
+
+8. Provide transition guidance:
+   - If next feature exists: explain how to start it after PR is merged
    - If no next feature: explain how to add a new feature
-   - Suggest creating a PR for the completed work
+   - Recommend waiting for PR review and merge before starting next work
 
 ## Example Output
 
@@ -82,16 +87,19 @@ Documentation updated:
 - Progress Summary shows 100% complete
 - index.md updated to show feature as completed
 
+Pull Request:
+- Branch pushed to origin
+- PR created: https://github.com/Kong/kongctl/pull/123
+- Title: "feat: implement declarative configuration stage 1"
+
 Next Steps:
 -----------
-No active feature currently set in index.md.
+1. Wait for PR review and approval
+2. Merge PR when approved
+3. After merge, start next feature:
+   - Use /start-session (will create new branch from updated main)
+   - Or if no next feature planned, wait for PM planning
 
-To start a new feature:
-1. Receive plan document from PM
-2. Create folder: docs/plan/XXX-feature-name/
-3. Add plan as description.md
-4. Update index.md to set as current active stage
-5. Use /start-session to begin development
-
-Recommended: Create a PR for this completed feature before starting the next one.
+Current branch remains active for any review feedback changes.
+Use /create-pr if you need to update the PR description or create additional PRs.
 ```
