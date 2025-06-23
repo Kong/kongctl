@@ -548,134 +548,136 @@ func dumpAPIChildResources(
 		}
 	}
 
-	// Process API Specifications
-	// Let's check if the SDK has a valid APISpecification field
-	if sdk.SDK.APISpecification == nil {
-		debugf("InternalAPIAPI.SDK.APISpecification is nil")
+	// Process API Versions (formerly Specifications)
+	// Let's check if the SDK has a valid APIVersion field
+	if sdk.SDK.APIVersion == nil {
+		debugf("InternalAPIAPI.SDK.APIVersion is nil")
 		if logger != nil {
-			logger.Warn("SDK.APISpecification is nil, skipping API specifications")
+			logger.Warn("SDK.APIVersion is nil, skipping API versions")
 		}
 	} else {
-		// Create an API specification client using the existing SDK reference
-		debugf("Creating API specification client directly")
-		apiSpecAPI := &helpers.InternalAPISpecificationAPI{SDK: sdk.SDK}
-		debugf("Successfully obtained API specification client")
+		// Create an API version client using the existing SDK reference
+		debugf("Creating API version client directly")
+		apiVersionAPI := &helpers.InternalAPIVersionAPI{SDK: sdk.SDK}
+		debugf("Successfully obtained API version client")
 
 		if logger != nil {
-			logger.Debug("created API specification client", "api_spec_api_nil", apiSpecAPI == nil)
+			logger.Debug("created API version client", "api_version_api_nil", apiVersionAPI == nil)
 		}
 
-		specifications, err := helpers.GetSpecificationsForAPI(ctx, apiSpecAPI, apiID)
+		versions, err := helpers.GetVersionsForAPI(ctx, apiVersionAPI, apiID)
 		if err != nil {
 			if logger != nil {
-				logger.Warn("failed to get specifications for API", "api_id", apiID, "error", err)
+				logger.Warn("failed to get versions for API", "api_id", apiID, "error", err)
 			}
-			debugf("Error fetching API specifications: %v", err)
+			debugf("Error fetching API versions: %v", err)
 		} else {
 			if logger != nil {
-				logger.Debug("retrieved API specifications", "api_id", apiID, "specification_count", len(specifications))
+				logger.Debug("retrieved API versions", "api_id", apiID, "version_count", len(versions))
 			}
 
-			if len(specifications) > 0 {
-				for i, specInterface := range specifications {
+			if len(versions) > 0 {
+				for i, versionInterface := range versions {
 					if logger != nil {
-						logger.Debug("processing specification", "index", i, "spec_type", fmt.Sprintf("%T", specInterface))
+						logger.Debug("processing version", "index", i, "version_type", fmt.Sprintf("%T", versionInterface))
 					}
 
 					// Convert the interface{} to a map to access its properties
-					// The SDK returns API specification entries as generic objects
-					debugf("Processing specification %d, type: %T, value: %+v", i, specInterface, specInterface)
+					// The SDK returns API version entries as generic objects
+					debugf("Processing version %d, type: %T, value: %+v", i, versionInterface, versionInterface)
 
-					// Try different approaches to access the specification data
-					specID := ""
-					specName := ""
+					// Try different approaches to access the version data
+					versionID := ""
+					versionName := ""
 
 					// First try to access as a map
-					spec, ok := specInterface.(map[string]interface{})
+					version, ok := versionInterface.(map[string]interface{})
 					if ok {
-						debugf("Successfully converted specification to map")
-						specID, _ = spec["id"].(string)
-						specName, _ = spec["name"].(string)
-						debugf("From map - Specification ID: %s, Name: %s", specID, specName)
+						debugf("Successfully converted version to map")
+						versionID, _ = version["id"].(string)
+						// For API versions, the name might be in the "version" field
+						versionName, _ = version["version"].(string)
+						debugf("From map - Version ID: %s, Version: %s", versionID, versionName)
 					} else {
-						debugf("Could not convert specification to map, trying to decode it")
+						debugf("Could not convert version to map, trying to decode it")
 
-						// Try to serialize and deserialize the specification
-						specBytes, err := json.Marshal(specInterface)
+						// Try to serialize and deserialize the version
+						versionBytes, err := json.Marshal(versionInterface)
 						if err == nil {
-							debugf("Successfully serialized specification: %s", string(specBytes))
+							debugf("Successfully serialized version: %s", string(versionBytes))
 
 							// Try to unmarshal into a simple map
-							var specMap map[string]interface{}
-							if err := json.Unmarshal(specBytes, &specMap); err == nil {
-								debugf("Successfully unmarshaled specification to map")
+							var versionMap map[string]interface{}
+							if err := json.Unmarshal(versionBytes, &versionMap); err == nil {
+								debugf("Successfully unmarshaled version to map")
 
-								// Try to get the id/ID and name/Name fields
-								for k, v := range specMap {
+								// Try to get the id/ID and version fields
+								for k, v := range versionMap {
 									lowercaseKey := strings.ToLower(k)
 									switch lowercaseKey {
 									case "id":
 										if strValue, ok := v.(string); ok {
-											specID = strValue
-											debugf("Found ID field: %s", specID)
+											versionID = strValue
+											debugf("Found ID field: %s", versionID)
 										}
-									case "name":
+									case "version":
 										if strValue, ok := v.(string); ok {
-											specName = strValue
-											debugf("Found Name field: %s", specName)
+											versionName = strValue
+											debugf("Found version field: %s", versionName)
 										}
 									}
 								}
 							}
 						}
 
-						if specID == "" {
-							debugf("Failed to extract ID from specification, spec type: %T", specInterface)
+						if versionID == "" {
+							debugf("Failed to extract ID from version, version type: %T", versionInterface)
 							if logger != nil {
-								logger.Warn("failed to extract specification ID", "index", i, "spec_type", fmt.Sprintf("%T", specInterface))
+								logger.Warn("failed to extract version ID", "index", i, "version_type", fmt.Sprintf("%T", versionInterface))
 							}
 							continue
 						}
 					}
 
-					if specID == "" {
-						debugf("Could not extract specification ID")
+					if versionID == "" {
+						debugf("Could not extract version ID")
 						if logger != nil {
-							logger.Warn("specification missing ID", "index", i)
+							logger.Warn("version missing ID", "index", i)
 						}
 						continue
 					}
 
-					debugf("Successfully extracted specification ID: %s, Name: %s", specID, specName)
+					debugf("Successfully extracted version ID: %s, Version: %s", versionID, versionName)
 
 					if logger != nil {
-						logger.Debug("specification details", "id", specID, "name", specName)
+						logger.Debug("version details", "id", versionID, "version", versionName)
 					}
 
-					// Use the specification name if available, otherwise use a generic name
+					// Use the version name if available, otherwise use a generic name
 					var resourceName string
-					if specName != "" {
-						resourceName = fmt.Sprintf("%s_%s", apiName, specName)
+					if versionName != "" {
+						resourceName = fmt.Sprintf("%s_%s", apiName, versionName)
 					} else {
-						resourceName = fmt.Sprintf("%s_spec_%s", apiName, specID[:8]) // Use first 8 chars of ID as identifier
+						resourceName = fmt.Sprintf("%s_spec_%s", apiName, versionID[:8]) // Use first 8 chars of ID as identifier
 					}
 
 					// Format and write the import block with composite key
-					importBlock := formatTerraformImport("api_specification", resourceName, specID, "api_id", apiID)
+					// Note: We still use "api_specification" as the resource type for backwards compatibility
+					importBlock := formatTerraformImport("api_specification", resourceName, versionID, "api_id", apiID)
 					if logger != nil {
-						logger.Debug("writing import block", "resource_name", resourceName, "spec_id", specID, "api_id", apiID)
+						logger.Debug("writing import block", "resource_name", resourceName, "version_id", versionID, "api_id", apiID)
 					}
 
 					if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 						if logger != nil {
-							logger.Error("failed to write API specification import block", "error", err)
+							logger.Error("failed to write API version import block", "error", err)
 						}
-						return fmt.Errorf("failed to write API specification import block: %w", err)
+						return fmt.Errorf("failed to write API version import block: %w", err)
 					}
 				}
 			} else {
 				if logger != nil {
-					logger.Info("no API specifications found for API", "api_id", apiID, "api_name", apiName)
+					logger.Info("no API versions found for API", "api_id", apiID, "api_name", apiName)
 				}
 			}
 		}

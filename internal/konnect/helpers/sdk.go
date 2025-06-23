@@ -24,7 +24,7 @@ type SDKAPI interface {
 	GetPortalAPI() PortalAPI
 	GetAPIAPI() APIAPI
 	GetAPIDocumentAPI() APIDocumentAPI
-	GetAPISpecificationAPI() APISpecificationAPI
+	GetAPIVersionAPI() APIVersionAPI
 	GetAPIPublicationAPI() APIPublicationAPI
 	GetAPIImplementationAPI() APIImplementationAPI
 	GetAppAuthStrategiesAPI() AppAuthStrategiesAPI
@@ -38,7 +38,7 @@ type KonnectSDK struct {
 	internalPortal            *InternalPortalAPI
 	internalAPI               *InternalAPIAPI
 	internalAPIDocument       *InternalAPIDocumentAPI
-	internalAPISpecification  *InternalAPISpecificationAPI
+	internalAPIVersion        *InternalAPIVersionAPI
 	internalAPIPublication    *InternalAPIPublicationAPI
 	internalAPIImplementation *InternalAPIImplementationAPI
 }
@@ -137,31 +137,31 @@ func (k *KonnectSDK) GetAPIDocumentAPI() APIDocumentAPI {
 	return k.internalAPIDocument
 }
 
-// Returns the implementation of the APISpecificationAPI interface
-// for accessing the API Specification APIs using the internal SDK
-func (k *KonnectSDK) GetAPISpecificationAPI() APISpecificationAPI {
+// Returns the implementation of the APIVersionAPI interface
+// for accessing the API Version APIs using the internal SDK
+func (k *KonnectSDK) GetAPIVersionAPI() APIVersionAPI {
 	debugLog := debugLogger()
 
-	debugLog("GetAPISpecificationAPI called")
+	debugLog("GetAPIVersionAPI called")
 
 	if k.InternalSDK == nil {
 		debugLog("KonnectSDK.InternalSDK is nil")
 		return nil
 	}
 
-	if k.InternalSDK.APISpecification == nil {
-		debugLog("KonnectSDK.InternalSDK.APISpecification is nil")
+	if k.InternalSDK.APIVersion == nil {
+		debugLog("KonnectSDK.InternalSDK.APIVersion is nil")
 	} else {
-		debugLog("KonnectSDK.InternalSDK.APISpecification is NOT nil")
+		debugLog("KonnectSDK.InternalSDK.APIVersion is NOT nil")
 	}
 
-	if k.internalAPISpecification == nil && k.InternalSDK != nil {
-		debugLog("Creating new InternalAPISpecificationAPI")
-		k.internalAPISpecification = &InternalAPISpecificationAPI{
+	if k.internalAPIVersion == nil && k.InternalSDK != nil {
+		debugLog("Creating new InternalAPIVersionAPI")
+		k.internalAPIVersion = &InternalAPIVersionAPI{
 			SDK: k.InternalSDK,
 		}
 	}
-	return k.internalAPISpecification
+	return k.internalAPIVersion
 }
 
 // Returns the implementation of the APIPublicationAPI interface
