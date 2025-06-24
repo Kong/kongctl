@@ -1,0 +1,435 @@
+package resources
+
+import (
+	"testing"
+
+	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestPortalResource_Validation(t *testing.T) {
+	tests := []struct {
+		name    string
+		portal  PortalResource
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "valid portal with ref",
+			portal: PortalResource{
+				Ref: "test-portal",
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing ref",
+			portal: PortalResource{
+				// No ref field
+			},
+			wantErr: true,
+			errMsg:  "portal ref is required",
+		},
+		{
+			name: "empty ref",
+			portal: PortalResource{
+				Ref: "",
+			},
+			wantErr: true,
+			errMsg:  "portal ref is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.portal.Validate()
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestPortalResource_SetDefaults(t *testing.T) {
+	tests := []struct {
+		name         string
+		portal       PortalResource
+		expectedName string
+	}{
+		{
+			name: "name from ref when name is empty",
+			portal: PortalResource{
+				Ref: "my-portal",
+			},
+			expectedName: "my-portal",
+		},
+		{
+			name: "existing name is preserved",
+			portal: PortalResource{
+				Ref: "my-portal",
+				CreatePortal: kkInternalComps.CreatePortal{
+					Name: "Existing Portal Name",
+				},
+			},
+			expectedName: "Existing Portal Name",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			portal := tt.portal
+			portal.SetDefaults()
+			assert.Equal(t, tt.expectedName, portal.Name)
+		})
+	}
+}
+
+func TestPortalResource_GetRef(t *testing.T) {
+	portal := PortalResource{
+		Ref: "test-portal-ref",
+	}
+	assert.Equal(t, "test-portal-ref", portal.GetRef())
+}
+
+func TestApplicationAuthStrategyResource_Validation(t *testing.T) {
+	tests := []struct {
+		name     string
+		strategy ApplicationAuthStrategyResource
+		wantErr  bool
+		errMsg   string
+	}{
+		{
+			name: "valid auth strategy",
+			strategy: ApplicationAuthStrategyResource{
+				Ref: "oauth-strategy",
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing ref",
+			strategy: ApplicationAuthStrategyResource{
+				// No ref field
+			},
+			wantErr: true,
+			errMsg:  "application auth strategy ref is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.strategy.Validate()
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestControlPlaneResource_Validation(t *testing.T) {
+	tests := []struct {
+		name    string
+		cp      ControlPlaneResource
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "valid control plane",
+			cp: ControlPlaneResource{
+				Ref: "test-cp",
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing ref",
+			cp: ControlPlaneResource{
+				// No ref field
+			},
+			wantErr: true,
+			errMsg:  "control plane ref is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.cp.Validate()
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestAPIResource_Validation(t *testing.T) {
+	tests := []struct {
+		name    string
+		api     APIResource
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "valid api",
+			api: APIResource{
+				Ref: "test-api",
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing ref",
+			api: APIResource{
+				// No ref field
+			},
+			wantErr: true,
+			errMsg:  "API ref is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.api.Validate()
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestAPIVersionResource_Validation(t *testing.T) {
+	tests := []struct {
+		name    string
+		version APIVersionResource
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "valid api version",
+			version: APIVersionResource{
+				Ref: "api-v1",
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing ref",
+			version: APIVersionResource{
+				// No ref field
+			},
+			wantErr: true,
+			errMsg:  "API version ref is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.version.Validate()
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestAPIPublicationResource_Validation(t *testing.T) {
+	tests := []struct {
+		name        string
+		publication APIPublicationResource
+		wantErr     bool
+		errMsg      string
+	}{
+		{
+			name: "valid api publication",
+			publication: APIPublicationResource{
+				Ref:      "api-pub-1",
+				PortalID: "portal-ref",
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing ref",
+			publication: APIPublicationResource{
+				PortalID: "portal-ref",
+			},
+			wantErr: true,
+			errMsg:  "API publication ref is required",
+		},
+		{
+			name: "missing portal_id",
+			publication: APIPublicationResource{
+				Ref: "api-pub-1",
+			},
+			wantErr: true,
+			errMsg:  "API publication portal_id is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.publication.Validate()
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestAPIImplementationResource_Validation(t *testing.T) {
+	tests := []struct {
+		name           string
+		implementation APIImplementationResource
+		wantErr        bool
+		errMsg         string
+	}{
+		{
+			name: "valid api implementation",
+			implementation: APIImplementationResource{
+				Ref: "api-impl-1",
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing ref",
+			implementation: APIImplementationResource{
+				// No ref field
+			},
+			wantErr: true,
+			errMsg:  "API implementation ref is required",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.implementation.Validate()
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestReferenceFieldMappings(t *testing.T) {
+	t.Run("PortalResource reference mappings", func(t *testing.T) {
+		portal := PortalResource{}
+		mappings := portal.GetReferenceFieldMappings()
+		
+		// Portal references auth strategies
+		expectedType, exists := mappings["default_application_auth_strategy_id"]
+		assert.True(t, exists, "Should have default_application_auth_strategy_id mapping")
+		assert.Equal(t, "application_auth_strategy", expectedType, "Should map to application_auth_strategy type")
+	})
+
+	t.Run("APIPublicationResource reference mappings", func(t *testing.T) {
+		publication := APIPublicationResource{}
+		mappings := publication.GetReferenceFieldMappings()
+		
+		// Check expected mappings
+		expectedMappings := map[string]string{
+			"portal_id":         "portal",
+			"auth_strategy_ids": "application_auth_strategy",
+		}
+		
+		for field, expectedType := range expectedMappings {
+			actualType, exists := mappings[field]
+			assert.True(t, exists, "Should have %s mapping", field)
+			assert.Equal(t, expectedType, actualType, "Field %s should map to %s", field, expectedType)
+		}
+	})
+
+	t.Run("APIImplementationResource reference mappings", func(t *testing.T) {
+		implementation := APIImplementationResource{}
+		mappings := implementation.GetReferenceFieldMappings()
+		
+		// Check expected mappings
+		expectedMappings := map[string]string{
+			"service.control_plane_id": "control_plane",
+		}
+		
+		for field, expectedType := range expectedMappings {
+			actualType, exists := mappings[field]
+			assert.True(t, exists, "Should have %s mapping", field)
+			assert.Equal(t, expectedType, actualType, "Field %s should map to %s", field, expectedType)
+		}
+	})
+
+	t.Run("Resources with no outbound references", func(t *testing.T) {
+		// Test resources that should have empty mappings
+		testCases := []struct {
+			name     string
+			resource ReferenceMapping
+		}{
+			{"ApplicationAuthStrategyResource", ApplicationAuthStrategyResource{}},
+			{"ControlPlaneResource", ControlPlaneResource{}},
+			{"APIResource", APIResource{}},
+			{"APIVersionResource", APIVersionResource{}},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				mappings := tc.resource.GetReferenceFieldMappings()
+				assert.Empty(t, mappings, "%s should have no outbound references", tc.name)
+			})
+		}
+	})
+}
+
+func TestKongctlMeta(t *testing.T) {
+	t.Run("KongctlMeta structure", func(t *testing.T) {
+		meta := &KongctlMeta{
+			Protected: true,
+		}
+		
+		assert.True(t, meta.Protected, "Protected field should be settable")
+		
+		// Test zero value
+		var zeroMeta KongctlMeta
+		assert.False(t, zeroMeta.Protected, "Default Protected should be false")
+	})
+}
+
+func TestResourceSet(t *testing.T) {
+	t.Run("ResourceSet structure", func(t *testing.T) {
+		rs := ResourceSet{
+			Portals: []PortalResource{
+				{Ref: "portal1"},
+				{Ref: "portal2"},
+			},
+			ApplicationAuthStrategies: []ApplicationAuthStrategyResource{
+				{Ref: "auth1"},
+			},
+			ControlPlanes: []ControlPlaneResource{
+				{Ref: "cp1"},
+			},
+			APIs: []APIResource{
+				{Ref: "api1"},
+			},
+		}
+		
+		assert.Len(t, rs.Portals, 2, "Should have 2 portals")
+		assert.Len(t, rs.ApplicationAuthStrategies, 1, "Should have 1 auth strategy")
+		assert.Len(t, rs.ControlPlanes, 1, "Should have 1 control plane")
+		assert.Len(t, rs.APIs, 1, "Should have 1 API")
+		
+		// Test that we can access refs
+		assert.Equal(t, "portal1", rs.Portals[0].GetRef())
+		assert.Equal(t, "auth1", rs.ApplicationAuthStrategies[0].GetRef())
+		assert.Equal(t, "cp1", rs.ControlPlanes[0].GetRef())
+		assert.Equal(t, "api1", rs.APIs[0].GetRef())
+	})
+}
