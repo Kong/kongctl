@@ -19,7 +19,7 @@
 ## Step 1: Add Verb Constants
 
 ### Status
-Not Started
+Completed
 
 ### Dependencies
 None
@@ -46,7 +46,7 @@ const (
 ```
 feat(verbs): add declarative config verb constants
 
-Add Plan, Sync, Diff, and Export verb constants to support
+Actual commit: 11a2aa9 - Add Plan, Sync, Diff, and Export verb constants to support
 declarative configuration commands
 ```
 
@@ -55,7 +55,7 @@ declarative configuration commands
 ## Step 2: Create Command Stubs
 
 ### Status
-Not Started
+Completed
 
 ### Dependencies
 Step 1
@@ -137,9 +137,8 @@ func NewPlanCmd() (*cobra.Command, error) {
 ```
 feat(commands): add declarative config command stubs
 
-Add plan, apply, sync, diff, and export command stubs that
-return "not yet implemented" errors. Commands are properly
-registered with appropriate help text and flags.
+Actual commit: 814dbd3 - Add plan, sync, diff, and export command stubs with
+Konnect-first aliasing pattern where verb commands redirect to konnect subcommands
 ```
 
 ---
@@ -147,7 +146,7 @@ registered with appropriate help text and flags.
 ## Step 3: Define Core Types
 
 ### Status
-Not Started
+Completed
 
 ### Dependencies
 None
@@ -200,8 +199,8 @@ type ReferenceMapping interface {
 ```
 feat(declarative): add core resource types
 
-Add ResourceSet container, KongctlMeta for tool-specific metadata,
-and common interfaces for resource validation and naming
+Actual commit: 73216dc - Add ResourceSet container, KongctlMeta for tool-specific metadata,
+and common interfaces for resource validation and cross-references
 ```
 
 ---
@@ -353,10 +352,11 @@ func (a APIImplementationResource) GetReferenceFieldMappings() map[string]string
 
 ### Commit Message
 ```
-feat(declarative): add portal resource definition
+feat(declarative): add portal resource definitions
 
-Add PortalResource wrapper type that embeds SDK's CreatePortal
-and adds ref field for cross-resource references and kongctl metadata
+Actual commits: 
+- dc4301a: Add portal, auth strategy, control plane, and API resource definitions
+- 0f5629b: Restructure API resources with parent-child relationships
 ```
 
 ---
