@@ -10,8 +10,8 @@ import (
 type APIVersionResource struct {
 	kkInternalComps.CreateAPIVersionRequest `yaml:",inline"`
 	Ref     string       `yaml:"ref"`
-	APIID   string       `yaml:"api_id"`
 	Kongctl *KongctlMeta `yaml:"kongctl,omitempty"`
+	// Note: api_id removed - implicit from parent API structure
 }
 
 // GetRef returns the reference identifier used for cross-resource references
@@ -21,9 +21,7 @@ func (v APIVersionResource) GetRef() string {
 
 // GetReferenceFieldMappings returns the field mappings for reference validation
 func (v APIVersionResource) GetReferenceFieldMappings() map[string]string {
-	return map[string]string{
-		"api_id": "api",
-	}
+	return map[string]string{} // No outbound references - parent API is implicit
 }
 
 // Validate ensures the API version resource is valid
@@ -31,9 +29,7 @@ func (v APIVersionResource) Validate() error {
 	if v.Ref == "" {
 		return fmt.Errorf("API version ref is required")
 	}
-	if v.APIID == "" {
-		return fmt.Errorf("API version api_id is required")
-	}
+	// Note: api_id validation removed - implicit from parent API structure
 	return nil
 }
 

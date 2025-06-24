@@ -99,23 +99,38 @@ portals:
     name: "Developer Portal"
     default_application_auth_strategy_id: oauth-strategy  # References auth strategy
 
-# API Publications with multiple references
-api_publications:
-  - ref: users-api-publication
-    api_id: users-api                    # References API
-    portal_id: dev-portal                # References portal
-    auth_strategy_ids:                   # Array of auth strategy references
-      - oauth-strategy
-      - key-auth-strategy
-    visibility: public
-
-# Complex nested references (API Implementation) 
-# Uses qualified field names to resolve ambiguity
-api_implementations:
-  - ref: users-api-impl
-    service:
-      control_plane_id: prod-cp          # References control plane
-      id: users-service                  # References service (context clear via qualified name)
+# APIs with nested child resources (following API endpoint structure)
+apis:
+  - ref: users-api
+    name: "Users API"
+    description: "User management API"
+    
+    # Nested API publications (child of API)
+    publications:
+      - ref: users-api-dev-publication
+        portal_id: dev-portal              # References portal
+        auth_strategy_ids:                 # Array of auth strategy references
+          - oauth-strategy
+          - key-auth-strategy
+        visibility: public
+        
+    # Nested API versions (child of API)
+    versions:
+      - ref: users-api-v1
+        version: "1.0.0"
+        spec_content: |
+          openapi: 3.0.0
+          info:
+            title: Users API
+            version: 1.0.0
+            
+    # Nested API implementations (child of API)
+    # Uses qualified field names to resolve ambiguity
+    implementations:
+      - ref: users-api-impl
+        service:
+          control_plane_id: prod-cp      # References control plane
+          id: users-service              # External UUID (managed by decK)
 ```
 
 Each resource type implements `ReferenceMapping` interface to define its own reference semantics, eliminating ambiguity and making validation self-contained.

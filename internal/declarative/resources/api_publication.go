@@ -11,8 +11,8 @@ type APIPublicationResource struct {
 	kkInternalComps.APIPublication `yaml:",inline"`
 	Ref      string       `yaml:"ref"`
 	PortalID string       `yaml:"portal_id"`
-	APIID    string       `yaml:"api_id"`
 	Kongctl  *KongctlMeta `yaml:"kongctl,omitempty"`
+	// Note: api_id removed - implicit from parent API structure
 }
 
 // GetRef returns the reference identifier used for cross-resource references
@@ -24,7 +24,7 @@ func (p APIPublicationResource) GetRef() string {
 func (p APIPublicationResource) GetReferenceFieldMappings() map[string]string {
 	return map[string]string{
 		"portal_id":         "portal",
-		"api_id":            "api",
+		// Note: api_id removed - implicit from parent API structure
 		"auth_strategy_ids": "application_auth_strategy",
 	}
 }
@@ -37,9 +37,7 @@ func (p APIPublicationResource) Validate() error {
 	if p.PortalID == "" {
 		return fmt.Errorf("API publication portal_id is required")
 	}
-	if p.APIID == "" {
-		return fmt.Errorf("API publication api_id is required")
-	}
+	// Note: api_id validation removed - implicit from parent API structure
 	return nil
 }
 

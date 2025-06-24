@@ -319,7 +319,7 @@ type APIPublicationResource struct {
 func (a APIPublicationResource) GetReferenceFieldMappings() map[string]string {
     return map[string]string{
         "portal_id":         "portal",
-        "api_id":           "api",
+        // Note: api_id removed - implicit from parent API structure
         "auth_strategy_ids": "application_auth_strategy",
     }
 }
@@ -340,21 +340,32 @@ services:
     name: "Users Service"
     url: "http://users.internal"
 
-# API implementations reference both control plane and service
-api_implementations:
-  - ref: users-api-impl
-    service:
-      control_plane_id: prod-cp    # References control plane
-      id: users-service            # References service (context clear via qualified field name)
-
-# API publications with multiple references
-api_publications:
-  - ref: my-publication
-    api_id: my-api                 # References API
-    portal_id: my-portal           # References portal
-    auth_strategy_ids:             # References auth strategies
-      - oauth-strategy
-      - key-auth-strategy
+# APIs with nested child resources (following API endpoint structure)
+apis:
+  - ref: my-api
+    name: "My API"
+    description: "Example API"
+    
+    # Nested API implementations (child of API)
+    implementations:
+      - ref: users-api-impl
+        service:
+          control_plane_id: prod-cp    # References control plane
+          id: users-service            # External UUID (managed by decK)
+    
+    # Nested API publications (child of API)
+    publications:
+      - ref: my-publication
+        portal_id: my-portal           # References portal
+        auth_strategy_ids:             # References auth strategies
+          - oauth-strategy
+          - key-auth-strategy
+          
+    # Nested API versions (child of API)
+    versions:
+      - ref: my-api-v1
+        version: "1.0.0"
+        spec_content: "..."
 ```
 
 ### Rationale

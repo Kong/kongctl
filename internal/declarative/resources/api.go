@@ -11,6 +11,11 @@ type APIResource struct {
 	kkInternalComps.CreateAPIRequest `yaml:",inline"`
 	Ref     string       `yaml:"ref"`
 	Kongctl *KongctlMeta `yaml:"kongctl,omitempty"`
+	
+	// Nested child resources
+	Versions        []APIVersionResource        `yaml:"versions,omitempty"`
+	Publications    []APIPublicationResource    `yaml:"publications,omitempty"`
+	Implementations []APIImplementationResource `yaml:"implementations,omitempty"`
 }
 
 // GetRef returns the reference identifier used for cross-resource references

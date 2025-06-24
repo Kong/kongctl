@@ -6,9 +6,7 @@ type ResourceSet struct {
 	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty"`
 	ControlPlanes             []ControlPlaneResource            `yaml:"control_planes,omitempty"`
 	APIs                      []APIResource                     `yaml:"apis,omitempty"`
-	APIVersions               []APIVersionResource              `yaml:"api_versions,omitempty"`
-	APIPublications           []APIPublicationResource          `yaml:"api_publications,omitempty"`
-	APIImplementations        []APIImplementationResource       `yaml:"api_implementations,omitempty"`
+	// Note: API child resources (versions, publications, implementations) are nested under APIs
 }
 
 // KongctlMeta contains tool-specific metadata for resources
