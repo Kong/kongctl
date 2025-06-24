@@ -1,0 +1,5 @@
+portals:
+  - ref: duplicate-portal
+    name: "First Portal"
+  - ref: duplicate-portal
+    name: "Second Portal"

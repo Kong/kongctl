@@ -1,0 +1,73 @@
+# Multi-resource configuration example
+# This demonstrates multiple resource types in a single file
+
+# Authentication strategies used by portals
+application_auth_strategies:
+  - ref: standard-oauth
+    name: "Standard OAuth 2.0"
+    auth_type: openid_connect
+    openid_connect:
+      issuer: "https://auth.company.com"
+      client_id: "portal-app"
+      client_secret: "${OAUTH_SECRET}"
+      scopes: ["openid", "profile", "email"]
+
+# Portals for different audiences
+portals:
+  - ref: public-developer-portal
+    name: "Public Developer Portal"
+    description: "Portal for external developers"
+    custom_domain: "developers.company.com"
+    is_public: true
+    default_application_auth_strategy_id: standard-oauth
+    theme:
+      catalog:
+        primary_header: "#0066CC"
+        
+  - ref: internal-api-portal
+    name: "Internal API Portal"
+    description: "Portal for internal teams"
+    custom_domain: "api.internal.company.com"
+    is_public: false
+    default_application_auth_strategy_id: standard-oauth
+    rbac_enabled: true
+
+# Control planes for different environments
+control_planes:
+  - ref: prod-us-west
+    name: "Production US West"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    labels:
+      environment: "production"
+      region: "us-west-2"
+      tier: "premium"
+    kongctl:
+      protected: true  # Prevent accidental deletion
+      
+  - ref: prod-eu-west
+    name: "Production EU West"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    labels:
+      environment: "production"
+      region: "eu-west-1"
+      tier: "premium"
+    kongctl:
+      protected: true
+
+# APIs with minimal child resources (more can be added later)
+apis:
+  - ref: user-service-api
+    name: "User Service API"
+    description: "API for user management operations"
+    
+    versions:
+      - ref: user-service-v1
+        name: "v1.0.0"
+        version: "v1"
+        publish_status: "published"
+        
+    publications:
+      - ref: user-service-public-pub
+        portal_id: public-developer-portal
+        publish_status: "published"
+        auth_strategy_ids: [standard-oauth]

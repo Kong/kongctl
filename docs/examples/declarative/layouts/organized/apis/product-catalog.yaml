@@ -1,0 +1,41 @@
+# Product Catalog API configuration
+
+apis:
+  - ref: product-catalog
+    name: "Product Catalog API"
+    description: "API for browsing and searching product inventory"
+    
+    versions:
+      - ref: product-catalog-v1
+        name: "v1.0.0"
+        version: "v1"
+        description: "REST API with basic search"
+        publish_status: "published"
+        
+      - ref: product-catalog-v2
+        name: "v2.0.0"
+        version: "v2"
+        description: "GraphQL API with advanced filtering"
+        publish_status: "published"
+        
+    publications:
+      - ref: product-catalog-public
+        portal_id: developer-portal
+        publish_status: "published"
+        auth_strategy_ids:
+          - oauth-public
+          - api-key-header
+        auto_approve_applications: true  # Read-only API
+        
+    implementations:
+      - ref: product-catalog-prod-primary
+        implementation_url: "https://api.example.com/products"
+        service:
+          id: "p123e456-7890-1234-5678-90abcdef1234"
+          control_plane_id: prod-us-east
+          
+      - ref: product-catalog-prod-secondary
+        implementation_url: "https://api-west.example.com/products"
+        service:
+          id: "p456f789-0123-4567-8901-234567890abc"
+          control_plane_id: prod-us-west

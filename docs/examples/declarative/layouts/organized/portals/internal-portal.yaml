@@ -1,0 +1,12 @@
+# Internal portal configuration
+
+portals:
+  - ref: internal-portal
+    name: "Internal API Portal"
+    description: "Portal for internal development teams"
+    custom_domain: "api.internal.example.com"
+    is_public: false
+    default_application_auth_strategy_id: sso-internal
+    rbac_enabled: true
+    auto_approve_developers: true
+    auto_approve_applications: true

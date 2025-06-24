@@ -1,0 +1,6 @@
+control_planes:
+  - ref: test-cp
+    name: "Test Control Plane"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    labels:
+      environment: "test"

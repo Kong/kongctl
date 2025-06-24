@@ -1,0 +1,21 @@
+apis:
+  - ref: test-api
+    name: "Test API"
+    description: "A test API"
+    
+    versions:
+      - ref: test-api-v1
+        name: "v1.0.0"
+        version: "v1"
+        publish_status: "published"
+        
+    publications:
+      - ref: test-api-pub
+        portal_id: test-portal
+        publish_status: "published"
+        auth_strategy_ids: ["oauth-strategy"]
+        
+    implementations:
+      - ref: test-api-impl
+        implementation_url: "https://api.example.com/v1"
+        service_id: "12345678-1234-1234-1234-123456789012"

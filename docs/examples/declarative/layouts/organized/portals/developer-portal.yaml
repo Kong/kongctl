@@ -1,0 +1,23 @@
+# Organized layout - Portal definitions
+# Each resource type in its own directory
+
+portals:
+  - ref: developer-portal
+    name: "Developer Portal"
+    description: "External developer portal"
+    custom_domain: "developers.example.com"
+    is_public: true
+    default_application_auth_strategy_id: oauth-public
+    theme:
+      catalog:
+        primary_header: "#0066CC"
+        welcome_message: "Welcome to our API ecosystem"
+      portal:
+        primary_header: "#0066CC"
+        text:
+          primary: "#0066CC"
+          secondary: "#666666"
+          base: "#000000"
+        button:
+          primary_fill: "#0066CC"
+          primary_text: "#FFFFFF"

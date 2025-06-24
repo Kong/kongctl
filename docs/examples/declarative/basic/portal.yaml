@@ -1,0 +1,21 @@
+# Basic portal configuration example
+# This demonstrates a simple portal resource definition
+
+portals:
+  - ref: developer-portal
+    name: "Developer Portal"
+    description: "Main developer portal for API documentation"
+    custom_domain: "developer.example.com"
+    is_public: true
+    theme:
+      catalog:
+        primary_header: "#1155CB"
+      portal:
+        primary_header: "#1155CB"
+        text:
+          primary: "#1155CB"
+          secondary: "#4D5766"
+          base: "#0B172D"
+        button:
+          primary_fill: "#1155CB"
+          primary_text: "#FFFFFF"

@@ -1,0 +1,32 @@
+# Production control planes
+
+control_planes:
+  - ref: prod-us-east
+    name: "Production US East"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    labels:
+      environment: "production"
+      region: "us-east-1"
+      datacenter: "primary"
+    kongctl:
+      protected: true
+      
+  - ref: prod-us-west
+    name: "Production US West"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    labels:
+      environment: "production"
+      region: "us-west-2"
+      datacenter: "secondary"
+    kongctl:
+      protected: true
+      
+  - ref: prod-eu-west
+    name: "Production EU West"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    labels:
+      environment: "production"
+      region: "eu-west-1"
+      datacenter: "europe"
+    kongctl:
+      protected: true

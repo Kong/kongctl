@@ -1,0 +1,25 @@
+# Non-production control planes
+
+control_planes:
+  - ref: staging-cp
+    name: "Staging Environment"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    labels:
+      environment: "staging"
+      region: "us-east-1"
+      
+  - ref: dev-cp
+    name: "Development Environment"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    labels:
+      environment: "development"
+      region: "us-east-1"
+    kongctl:
+      protected: false  # Allow deletion in dev
+      
+  - ref: qa-cp
+    name: "QA Environment"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    labels:
+      environment: "qa"
+      region: "us-east-1"

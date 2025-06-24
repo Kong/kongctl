@@ -1,0 +1,62 @@
+# API with nested child resources example
+# This demonstrates the parent-child relationship structure for APIs
+
+apis:
+  - ref: payment-api
+    name: "Payment Processing API"
+    description: "API for processing payments and transactions"
+    
+    # Nested API versions
+    versions:
+      - ref: payment-api-v1
+        name: "v1.0.0"
+        version: "v1"
+        description: "Initial version of payment API"
+        publish_status: "deprecated"
+        deprecated: true
+        
+      - ref: payment-api-v2
+        name: "v2.0.0"
+        version: "v2"
+        description: "Current stable version with enhanced features"
+        publish_status: "published"
+        
+      - ref: payment-api-v3
+        name: "v3.0.0-beta"
+        version: "v3-beta"
+        description: "Beta version with new webhook support"
+        publish_status: "unpublished"
+    
+    # Nested API publications
+    publications:
+      - ref: payment-api-pub-dev-portal
+        portal_id: developer-portal  # References portal by ref
+        publish_status: "published"
+        auth_strategy_ids:
+          - oauth-strategy
+          - key-auth-strategy
+        auto_approve_applications: true
+        auto_approve_registrations: false
+        
+      - ref: payment-api-pub-partner-portal
+        portal_id: partner-portal
+        publish_status: "published"
+        auth_strategy_ids:
+          - oauth-strategy
+        auto_approve_applications: false
+        auto_approve_registrations: false
+        application_registration_enabled: true
+        
+    # Nested API implementations
+    implementations:
+      - ref: payment-api-impl-prod
+        implementation_url: "https://api.example.com/payments/v2"
+        service:
+          id: "d125e0a1-b305-4ae2-9fa8-3a57f9df85e1"  # External UUID from decK
+          control_plane_id: production-cp  # References control plane by ref
+        
+      - ref: payment-api-impl-staging
+        implementation_url: "https://api-staging.example.com/payments/v2"
+        service:
+          id: "a8b7c6d5-4321-1234-5678-9abcdef01234"  # External UUID from decK
+          control_plane_id: staging-cp

@@ -1,0 +1,5 @@
+portals:
+  - ref: test-portal
+    name: "Test Portal"
+    description: "A test portal"
+    is_public: true

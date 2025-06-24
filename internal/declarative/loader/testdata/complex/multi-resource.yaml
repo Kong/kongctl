@@ -1,0 +1,47 @@
+application_auth_strategies:
+  - ref: oauth-strategy
+    name: "OAuth Strategy"
+    auth_type: openid_connect
+    openid_connect:
+      issuer: "https://auth.example.com"
+      client_id: "test-client"
+      client_secret: "test-secret"
+      scopes: ["openid", "profile"]
+
+portals:
+  - ref: test-portal
+    name: "Test Portal"
+    description: "A test portal"
+    is_public: true
+    default_application_auth_strategy_id: oauth-strategy
+
+control_planes:
+  - ref: test-cp
+    name: "Test Control Plane"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    labels:
+      environment: "test"
+
+apis:
+  - ref: test-api
+    name: "Test API"
+    description: "A test API"
+    
+    versions:
+      - ref: test-api-v1
+        name: "v1.0.0"
+        version: "v1"
+        publish_status: "published"
+        
+    publications:
+      - ref: test-api-pub
+        portal_id: test-portal
+        publish_status: "published"
+        auth_strategy_ids: ["oauth-strategy"]
+        
+    implementations:
+      - ref: test-api-impl
+        implementation_url: "https://api.example.com/v1"
+        service:
+          id: "12345678-1234-1234-1234-123456789012"
+          control_plane_id: test-cp

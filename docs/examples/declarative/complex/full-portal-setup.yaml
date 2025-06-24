@@ -1,0 +1,162 @@
+# Complete portal setup with all dependencies
+# This demonstrates a full portal configuration with auth, APIs, and publications
+
+# Step 1: Define authentication strategies
+application_auth_strategies:
+  - ref: enterprise-sso
+    name: "Enterprise SSO"
+    description: "OIDC integration with company SSO"
+    auth_type: openid_connect
+    openid_connect:
+      issuer: "https://sso.enterprise.com"
+      client_id: "developer-portal"
+      client_secret: "${SSO_CLIENT_SECRET}"
+      scopes: ["openid", "profile", "email", "groups"]
+      claim_mappings:
+        name: "name"
+        email: "email"
+        groups: "groups"
+  
+  - ref: api-key-auth
+    name: "API Key Authentication"
+    description: "Simple API key for testing"
+    auth_type: key_auth
+    key_auth:
+      key_names: ["x-api-key"]
+      key_source: "header"
+
+# Step 2: Define the portal
+portals:
+  - ref: enterprise-portal
+    name: "Enterprise API Portal"
+    description: "Central API portal for enterprise developers"
+    custom_domain: "api.enterprise.com"
+    is_public: false
+    default_application_auth_strategy_id: enterprise-sso
+    rbac_enabled: true
+    auto_approve_developers: false
+    auto_approve_applications: false
+    theme:
+      catalog:
+        primary_header: "#1E40AF"
+        welcome_message: "Welcome to Enterprise APIs"
+      portal:
+        primary_header: "#1E40AF"
+        text:
+          primary: "#1E40AF"
+          secondary: "#64748B"
+          base: "#0F172A"
+        button:
+          primary_fill: "#1E40AF"
+          primary_text: "#FFFFFF"
+          secondary_fill: "#E5E7EB"
+          secondary_text: "#1F2937"
+        section_colors:
+          hero_background: "#F3F4F6"
+          body_background: "#FFFFFF"
+          card_background: "#F9FAFB"
+    
+# Step 3: Define control planes
+control_planes:
+  - ref: enterprise-prod
+    name: "Enterprise Production"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    labels:
+      environment: "production"
+      datacenter: "primary"
+    kongctl:
+      protected: true
+
+# Step 4: Define APIs with full lifecycle
+apis:
+  - ref: customer-api
+    name: "Customer Management API"
+    description: "Core API for customer data and operations"
+    
+    versions:
+      - ref: customer-v1
+        name: "v1.0.0"
+        version: "v1"
+        description: "Initial release"
+        publish_status: "deprecated"
+        deprecated: true
+        
+      - ref: customer-v2
+        name: "v2.0.0"
+        version: "v2"
+        description: "Current stable version with GraphQL support"
+        publish_status: "published"
+        
+    publications:
+      - ref: customer-enterprise-pub
+        portal_id: enterprise-portal
+        publish_status: "published"
+        auth_strategy_ids:
+          - enterprise-sso
+          - api-key-auth
+        auto_approve_applications: false
+        auto_approve_registrations: false
+        application_registration_enabled: true
+        
+    implementations:
+      - ref: customer-prod-impl
+        implementation_url: "https://api.enterprise.com/customer/v2"
+        service:
+          id: "c123e456-7890-1234-5678-90abcdef1234"
+          control_plane_id: enterprise-prod
+          
+  - ref: billing-api
+    name: "Billing & Invoicing API"
+    description: "API for billing, invoicing, and payment processing"
+    
+    versions:
+      - ref: billing-v1
+        name: "v1.0.0"
+        version: "v1"
+        description: "Production ready billing API"
+        publish_status: "published"
+        
+    publications:
+      - ref: billing-enterprise-pub
+        portal_id: enterprise-portal
+        publish_status: "published"
+        auth_strategy_ids:
+          - enterprise-sso  # No API key auth for billing
+        auto_approve_applications: false
+        auto_approve_registrations: false
+        application_registration_enabled: true
+        
+    implementations:
+      - ref: billing-prod-impl
+        implementation_url: "https://api.enterprise.com/billing/v1"
+        service:
+          id: "b789d012-3456-7890-1234-567890abcdef"
+          control_plane_id: enterprise-prod
+  
+  - ref: analytics-api
+    name: "Analytics & Reporting API"
+    description: "Real-time analytics and reporting API"
+    
+    versions:
+      - ref: analytics-v1
+        name: "v1.0.0"
+        version: "v1"
+        description: "Analytics API with streaming support"
+        publish_status: "published"
+        
+    publications:
+      - ref: analytics-enterprise-pub
+        portal_id: enterprise-portal
+        publish_status: "published"
+        auth_strategy_ids:
+          - enterprise-sso
+        auto_approve_applications: true  # Auto-approve for read-only API
+        auto_approve_registrations: true
+        application_registration_enabled: true
+        
+    implementations:
+      - ref: analytics-prod-impl
+        implementation_url: "https://api.enterprise.com/analytics/v1"
+        service:
+          id: "a456b789-0123-4567-8901-234567890abc"
+          control_plane_id: enterprise-prod
