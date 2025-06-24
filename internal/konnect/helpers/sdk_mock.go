@@ -10,7 +10,7 @@ type MockKonnectSDK struct {
 	PortalFactory            func() PortalAPI
 	APIFactory               func() APIAPI
 	APIDocumentFactory       func() APIDocumentAPI
-	APISpecificationFactory  func() APISpecificationAPI
+	APIVersionFactory        func() APIVersionAPI
 	APIPublicationFactory    func() APIPublicationAPI
 	APIImplementationFactory func() APIImplementationAPI
 	AppAuthStrategiesFactory func() AppAuthStrategiesAPI
@@ -45,10 +45,10 @@ func (m *MockKonnectSDK) GetAPIDocumentAPI() APIDocumentAPI {
 	return nil
 }
 
-// Returns a mock instance of the APISpecificationAPI
-func (m *MockKonnectSDK) GetAPISpecificationAPI() APISpecificationAPI {
-	if m.APISpecificationFactory != nil {
-		return m.APISpecificationFactory()
+// Returns a mock instance of the APIVersionAPI
+func (m *MockKonnectSDK) GetAPIVersionAPI() APIVersionAPI {
+	if m.APIVersionFactory != nil {
+		return m.APIVersionFactory()
 	}
 	return nil
 }

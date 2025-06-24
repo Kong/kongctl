@@ -9,23 +9,23 @@ import (
 	kkInternalOps "github.com/Kong/sdk-konnect-go-internal/models/operations"
 )
 
-// APISpecificationAPI defines the interface for operations on API Specifications
-type APISpecificationAPI interface {
-	// API Specification operations
-	ListAPISpecs(ctx context.Context, request kkInternalOps.ListAPISpecsRequest,
-		opts ...kkInternalOps.Option) (*kkInternalOps.ListAPISpecsResponse, error)
+// APIVersionAPI defines the interface for operations on API Versions
+type APIVersionAPI interface {
+	// API Version operations
+	ListAPIVersions(ctx context.Context, request kkInternalOps.ListAPIVersionsRequest,
+		opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIVersionsResponse, error)
 }
 
-// InternalAPISpecificationAPI provides an implementation of the APISpecificationAPI interface using the internal SDK
-type InternalAPISpecificationAPI struct {
+// InternalAPIVersionAPI provides an implementation of the APIVersionAPI interface using the internal SDK
+type InternalAPIVersionAPI struct {
 	SDK *kkInternal.SDK
 }
 
-// ListAPISpecs implements the APISpecificationAPI interface
-func (a *InternalAPISpecificationAPI) ListAPISpecs(ctx context.Context,
-	request kkInternalOps.ListAPISpecsRequest,
+// ListAPIVersions implements the APIVersionAPI interface
+func (a *InternalAPIVersionAPI) ListAPIVersions(ctx context.Context,
+	request kkInternalOps.ListAPIVersionsRequest,
 	opts ...kkInternalOps.Option,
-) (*kkInternalOps.ListAPISpecsResponse, error) {
+) (*kkInternalOps.ListAPIVersionsResponse, error) {
 	// Handle debugging based on environment variable
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 
@@ -37,21 +37,21 @@ func (a *InternalAPISpecificationAPI) ListAPISpecs(ctx context.Context,
 	}
 
 	if a.SDK == nil {
-		debugLog("InternalAPISpecificationAPI.SDK is nil")
+		debugLog("InternalAPIVersionAPI.SDK is nil")
 		return nil, fmt.Errorf("SDK is nil")
 	}
 
-	if a.SDK.APISpecification == nil {
-		debugLog("InternalAPISpecificationAPI.SDK.APISpecification is nil")
-		return nil, fmt.Errorf("SDK.APISpecification is nil")
+	if a.SDK.APIVersion == nil {
+		debugLog("InternalAPIVersionAPI.SDK.APIVersion is nil")
+		return nil, fmt.Errorf("SDK.APIVersion is nil")
 	}
 
-	debugLog("Calling a.SDK.APISpecification.ListAPISpecs")
-	return a.SDK.APISpecification.ListAPISpecs(ctx, request, opts...)
+	debugLog("Calling a.SDK.APIVersion.ListAPIVersions")
+	return a.SDK.APIVersion.ListAPIVersions(ctx, request, opts...)
 }
 
-// GetSpecificationsForAPI fetches all specification objects for a specific API
-func GetSpecificationsForAPI(ctx context.Context, kkClient APISpecificationAPI, apiID string) ([]interface{}, error) {
+// GetVersionsForAPI fetches all version objects for a specific API
+func GetVersionsForAPI(ctx context.Context, kkClient APIVersionAPI, apiID string) ([]interface{}, error) {
 	// We need to handle debugging differently here because this is in a separate package
 	// Check if debug flag is set in environment
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
@@ -63,54 +63,54 @@ func GetSpecificationsForAPI(ctx context.Context, kkClient APISpecificationAPI, 
 		}
 	}
 
-	debugLog("GetSpecificationsForAPI called with API ID: %s", apiID)
+	debugLog("GetVersionsForAPI called with API ID: %s", apiID)
 
 	if kkClient == nil {
-		debugLog("APISpecificationAPI client is nil")
-		return nil, fmt.Errorf("APISpecificationAPI client is nil")
+		debugLog("APIVersionAPI client is nil")
+		return nil, fmt.Errorf("APIVersionAPI client is nil")
 	}
 
-	// Create a request to list API specifications for this API
-	req := kkInternalOps.ListAPISpecsRequest{
+	// Create a request to list API versions for this API
+	req := kkInternalOps.ListAPIVersionsRequest{
 		APIID: apiID,
 	}
-	debugLog("Created ListAPISpecsRequest with APIID: %s", apiID)
+	debugLog("Created ListAPIVersionsRequest with APIID: %s", apiID)
 
-	// Call the SDK's ListAPISpecs method
-	debugLog("Calling ListAPISpecs...")
-	res, err := kkClient.ListAPISpecs(ctx, req)
+	// Call the SDK's ListAPIVersions method
+	debugLog("Calling ListAPIVersions...")
+	res, err := kkClient.ListAPIVersions(ctx, req)
 	if err != nil {
-		debugLog("Error from ListAPISpecs: %v", err)
+		debugLog("Error from ListAPIVersions: %v", err)
 		return nil, err
 	}
 
-	debugLog("ListAPISpecs returned successfully")
+	debugLog("ListAPIVersions returned successfully")
 
 	if res == nil {
 		debugLog("Response is nil")
 		return []interface{}{}, nil
 	}
 
-	if res.ListAPISpecResponse == nil {
-		debugLog("ListAPISpecResponse is nil")
+	if res.ListAPIVersionResponse == nil {
+		debugLog("ListAPIVersionResponse is nil")
 		return []interface{}{}, nil
 	}
 
-	debugLog("ListAPISpecResponse has %d items", len(res.ListAPISpecResponse.Data))
+	debugLog("ListAPIVersionResponse has %d items", len(res.ListAPIVersionResponse.Data))
 
 	// Check if we have data in the response
-	if len(res.ListAPISpecResponse.Data) == 0 {
-		debugLog("No specifications found for API %s", apiID)
+	if len(res.ListAPIVersionResponse.Data) == 0 {
+		debugLog("No versions found for API %s", apiID)
 		return []interface{}{}, nil
 	}
 
 	// Convert to []interface{} and return
-	result := make([]interface{}, len(res.ListAPISpecResponse.Data))
-	for i, spec := range res.ListAPISpecResponse.Data {
-		result[i] = spec
-		debugLog("Added specification %d to result", i)
+	result := make([]interface{}, len(res.ListAPIVersionResponse.Data))
+	for i, version := range res.ListAPIVersionResponse.Data {
+		result[i] = version
+		debugLog("Added version %d to result", i)
 	}
 
-	debugLog("Returning %d specifications", len(result))
+	debugLog("Returning %d versions", len(result))
 	return result, nil
 }
