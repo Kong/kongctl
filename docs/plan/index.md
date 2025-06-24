@@ -10,8 +10,8 @@ This folder contains the complete planning and implementation tracking for all k
 - **Technical Overview**: [001-dec-cfg-cfg-format-basic-cli/execution-plan-overview.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-overview.md)
 - **Requirements**: [001-dec-cfg-cfg-format-basic-cli/description.md](001-dec-cfg-cfg-format-basic-cli/description.md)
 
-**Implementation Status**: 0/7 steps completed  
-**Next Step**: Step 1 - Add Verb Constants  
+**Implementation Status**: 4/7 steps completed (57%)  
+**Next Step**: Step 5 - Implement YAML Loader  
 **Progress Tracking**: See Progress Summary in implementation guide above
 
 ## Quick Start for Implementation
@@ -45,8 +45,8 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-steps.md) | **Implementation guide** | 📋 Ready for implementation |
 | [execution-plan-adrs.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: 0/7 steps completed
-- **Next step**: Step 1 - Add Verb Constants
+**Implementation Status**: 4/7 steps completed (57%)
+- **Next step**: Step 5 - Implement YAML Loader
 - **Estimated effort**: Small to medium implementation
 - **Key deliverables**: Command stubs, YAML loading, basic validation
 

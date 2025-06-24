@@ -4,10 +4,10 @@
 
 | Step | Description | Status | Dependencies |
 |------|-------------|--------|--------------|
-| 1 | Add Verb Constants | Not Started | None |
-| 2 | Create Command Stubs | Not Started | Step 1 |
-| 3 | Define Core Types | Not Started | None |
-| 4 | Define Portal Resource | Not Started | Step 3 |
+| 1 | Add Verb Constants | Completed | None |
+| 2 | Create Command Stubs | Completed | Step 1 |
+| 3 | Define Core Types | Completed | None |
+| 4 | Define Portal Resource | Completed | Step 3 |
 | 5 | Implement YAML Loader | Not Started | Step 4 |
 | 6 | Add Multi-file Support | Not Started | Step 5 |
 | 7 | Integrate with Plan Command | Not Started | Step 6 |
@@ -209,10 +209,16 @@ and common interfaces for resource validation and naming
 ## Step 4: Define Portal Resource
 
 ### Status
-Not Started
+Completed
 
 ### Dependencies
 Step 3
+
+### Implementation Notes
+- Completed portal, auth strategy, control plane, and API resource definitions
+- Implemented API resource restructuring from cross-reference pattern to parent-child nesting
+- API child resources (versions, publications, implementations) are now nested under API resources
+- All resource types use proper SDK embedding (internal SDK for portals/APIs, public SDK for auth strategies/control planes)
 
 ### Changes
 - Create file: `internal/declarative/resources/portal.go`
