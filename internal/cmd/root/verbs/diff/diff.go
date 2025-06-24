@@ -1,4 +1,4 @@
-package apply
+package diff
 
 import (
 	"context"
@@ -13,40 +13,41 @@ import (
 )
 
 const (
-	Verb = verbs.Apply
+	Verb = verbs.Diff
 )
 
 var (
-	applyUse = Verb.String()
+	diffUse = Verb.String()
 
-	applyShort = i18n.T("root.verbs.apply.applyShort", "Apply declarative configuration")
+	diffShort = i18n.T("root.verbs.diff.diffShort",
+		"Display differences between current and desired state")
 
-	applyLong = normalizers.LongDesc(i18n.T("root.verbs.apply.applyLong",
-		`Apply declarative configuration files to target environment.
+	diffLong = normalizers.LongDesc(i18n.T("root.verbs.diff.diffLong",
+		`Compare the current state with the desired state defined in declarative
+configuration files and display the differences.
 
-Apply reads the configuration files and makes the necessary API calls to create,
-update, or delete resources to match the desired state.`))
+The diff output shows what changes would be made without actually applying them,
+useful for reviewing changes before synchronization.`))
 
-	applyExamples = normalizers.Examples(i18n.T("root.verbs.apply.applyExamples",
+	diffExamples = normalizers.Examples(i18n.T("root.verbs.diff.diffExamples",
 		fmt.Sprintf(`
-		# Apply configuration from directory
-		%[1]s apply --dir ./config
+		# Show differences from configuration directory
+		%[1]s diff --dir ./config
 		
-		# Apply configuration with force flag
-		%[1]s apply --dir ./config --force
+		# Show differences with detailed output
+		%[1]s diff --dir ./config --detailed
 		
-		# Apply configuration for Konnect explicitly
-		%[1]s apply konnect --dir ./config
+		# Show differences for Konnect explicitly
+		%[1]s diff konnect --dir ./config
 		`, meta.CLIName)))
 )
 
-func NewApplyCmd() (*cobra.Command, error) {
+func NewDiffCmd() (*cobra.Command, error) {
 	cmd := &cobra.Command{
-		Use:     applyUse,
-		Short:   applyShort,
-		Long:    applyLong,
-		Example: applyExamples,
-		Aliases: []string{"a", "A"},
+		Use:     diffUse,
+		Short:   diffShort,
+		Long:    diffLong,
+		Example: diffExamples,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// When called directly without subcommand, redirect to konnect
 			if len(args) == 0 && cmd.Flags().NArg() == 0 {
@@ -68,11 +69,12 @@ func NewApplyCmd() (*cobra.Command, error) {
 		},
 	}
 
+	// Add konnect subcommand
 	c, e := konnect.NewKonnectCmd(Verb)
 	if e != nil {
 		return nil, e
 	}
-
 	cmd.AddCommand(c)
+
 	return cmd, nil
 }

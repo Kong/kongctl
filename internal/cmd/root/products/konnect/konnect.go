@@ -7,6 +7,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -112,6 +113,27 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 
 	if verb == verbs.Login {
 		return newLoginKonnectCmd(verb, cmd, addFlags, preRunE).Command, nil
+	}
+
+	// Handle declarative configuration verbs
+	switch verb {
+	case verbs.Plan, verbs.Sync, verbs.Diff, verbs.Export, verbs.Apply:
+		c, e := declarative.NewDeclarativeCmd(verb)
+		if e != nil {
+			return nil, e
+		}
+		// Replace the konnect command with the declarative command
+		cmd.Use = c.Use
+		cmd.Short = c.Short
+		cmd.Long = c.Long
+		cmd.RunE = c.RunE
+		// Copy flags from declarative command
+		cmd.Flags().AddFlagSet(c.Flags())
+		addFlags(verb, cmd)
+		return cmd, nil
+	case verbs.Add, verbs.Get, verbs.Create, verbs.Dump, verbs.Update,
+		verbs.Delete, verbs.Help, verbs.List, verbs.Login:
+		// These verbs don't use declarative configuration, continue below
 	}
 
 	c, e := gateway.NewGatewayCmd(verb, addFlags, preRunE)

@@ -1,4 +1,4 @@
-package apply
+package plan
 
 import (
 	"context"
@@ -13,40 +13,40 @@ import (
 )
 
 const (
-	Verb = verbs.Apply
+	Verb = verbs.Plan
 )
 
 var (
-	applyUse = Verb.String()
+	planUse = Verb.String()
 
-	applyShort = i18n.T("root.verbs.apply.applyShort", "Apply declarative configuration")
+	planShort = i18n.T("root.verbs.plan.planShort",
+		"Generate a declarative configuration plan artifact")
 
-	applyLong = normalizers.LongDesc(i18n.T("root.verbs.apply.applyLong",
-		`Apply declarative configuration files to target environment.
+	planLong = normalizers.LongDesc(i18n.T("root.verbs.plan.planLong",
+		`Generate a plan artifact from declarative configuration files.
 
-Apply reads the configuration files and makes the necessary API calls to create,
-update, or delete resources to match the desired state.`))
+The plan artifact represents the desired state and can be used for review,
+approval workflows, or as input to sync operations.`))
 
-	applyExamples = normalizers.Examples(i18n.T("root.verbs.apply.applyExamples",
+	planExamples = normalizers.Examples(i18n.T("root.verbs.plan.planExamples",
 		fmt.Sprintf(`
-		# Apply configuration from directory
-		%[1]s apply --dir ./config
+		# Generate a plan from configuration directory
+		%[1]s plan --dir ./config
 		
-		# Apply configuration with force flag
-		%[1]s apply --dir ./config --force
+		# Generate a plan and save to file
+		%[1]s plan --dir ./config --output-file plan.json
 		
-		# Apply configuration for Konnect explicitly
-		%[1]s apply konnect --dir ./config
+		# Generate a plan for Konnect explicitly
+		%[1]s plan konnect --dir ./config
 		`, meta.CLIName)))
 )
 
-func NewApplyCmd() (*cobra.Command, error) {
+func NewPlanCmd() (*cobra.Command, error) {
 	cmd := &cobra.Command{
-		Use:     applyUse,
-		Short:   applyShort,
-		Long:    applyLong,
-		Example: applyExamples,
-		Aliases: []string{"a", "A"},
+		Use:     planUse,
+		Short:   planShort,
+		Long:    planLong,
+		Example: planExamples,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// When called directly without subcommand, redirect to konnect
 			if len(args) == 0 && cmd.Flags().NArg() == 0 {
@@ -68,11 +68,12 @@ func NewApplyCmd() (*cobra.Command, error) {
 		},
 	}
 
+	// Add konnect subcommand
 	c, e := konnect.NewKonnectCmd(Verb)
 	if e != nil {
 		return nil, e
 	}
-
 	cmd.AddCommand(c)
+
 	return cmd, nil
 }

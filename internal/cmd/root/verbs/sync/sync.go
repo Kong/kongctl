@@ -1,4 +1,4 @@
-package apply
+package sync
 
 import (
 	"context"
@@ -13,40 +13,41 @@ import (
 )
 
 const (
-	Verb = verbs.Apply
+	Verb = verbs.Sync
 )
 
 var (
-	applyUse = Verb.String()
+	syncUse = Verb.String()
 
-	applyShort = i18n.T("root.verbs.apply.applyShort", "Apply declarative configuration")
+	syncShort = i18n.T("root.verbs.sync.syncShort",
+		"Synchronize declarative configuration to target environment")
 
-	applyLong = normalizers.LongDesc(i18n.T("root.verbs.apply.applyLong",
-		`Apply declarative configuration files to target environment.
+	syncLong = normalizers.LongDesc(i18n.T("root.verbs.sync.syncLong",
+		`Synchronize declarative configuration files to the target environment.
 
-Apply reads the configuration files and makes the necessary API calls to create,
-update, or delete resources to match the desired state.`))
+Sync analyzes the current state, compares it with the desired state defined
+in the configuration files, and applies the necessary changes to achieve
+the desired state.`))
 
-	applyExamples = normalizers.Examples(i18n.T("root.verbs.apply.applyExamples",
+	syncExamples = normalizers.Examples(i18n.T("root.verbs.sync.syncExamples",
 		fmt.Sprintf(`
-		# Apply configuration from directory
-		%[1]s apply --dir ./config
+		# Sync configuration from directory
+		%[1]s sync --dir ./config
 		
-		# Apply configuration with force flag
-		%[1]s apply --dir ./config --force
+		# Sync configuration with dry-run to preview changes
+		%[1]s sync --dir ./config --dry-run
 		
-		# Apply configuration for Konnect explicitly
-		%[1]s apply konnect --dir ./config
+		# Sync configuration for Konnect explicitly
+		%[1]s sync konnect --dir ./config
 		`, meta.CLIName)))
 )
 
-func NewApplyCmd() (*cobra.Command, error) {
+func NewSyncCmd() (*cobra.Command, error) {
 	cmd := &cobra.Command{
-		Use:     applyUse,
-		Short:   applyShort,
-		Long:    applyLong,
-		Example: applyExamples,
-		Aliases: []string{"a", "A"},
+		Use:     syncUse,
+		Short:   syncShort,
+		Long:    syncLong,
+		Example: syncExamples,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// When called directly without subcommand, redirect to konnect
 			if len(args) == 0 && cmd.Flags().NArg() == 0 {
@@ -68,11 +69,12 @@ func NewApplyCmd() (*cobra.Command, error) {
 		},
 	}
 
+	// Add konnect subcommand
 	c, e := konnect.NewKonnectCmd(Verb)
 	if e != nil {
 		return nil, e
 	}
-
 	cmd.AddCommand(c)
+
 	return cmd, nil
 }

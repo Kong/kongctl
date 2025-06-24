@@ -1,4 +1,4 @@
-package apply
+package export
 
 import (
 	"context"
@@ -13,40 +13,41 @@ import (
 )
 
 const (
-	Verb = verbs.Apply
+	Verb = verbs.Export
 )
 
 var (
-	applyUse = Verb.String()
+	exportUse = Verb.String()
 
-	applyShort = i18n.T("root.verbs.apply.applyShort", "Apply declarative configuration")
+	exportShort = i18n.T("root.verbs.export.exportShort",
+		"Export current state as declarative configuration")
 
-	applyLong = normalizers.LongDesc(i18n.T("root.verbs.apply.applyLong",
-		`Apply declarative configuration files to target environment.
+	exportLong = normalizers.LongDesc(i18n.T("root.verbs.export.exportLong",
+		`Export the current state of resources as declarative configuration files.
 
-Apply reads the configuration files and makes the necessary API calls to create,
-update, or delete resources to match the desired state.`))
+This command retrieves the current configuration from the target environment
+and generates declarative configuration files that can be version controlled,
+modified, and applied to other environments.`))
 
-	applyExamples = normalizers.Examples(i18n.T("root.verbs.apply.applyExamples",
+	exportExamples = normalizers.Examples(i18n.T("root.verbs.export.exportExamples",
 		fmt.Sprintf(`
-		# Apply configuration from directory
-		%[1]s apply --dir ./config
+		# Export all resources to directory
+		%[1]s export --dir ./exported-config
 		
-		# Apply configuration with force flag
-		%[1]s apply --dir ./config --force
+		# Export specific resource types
+		%[1]s export --dir ./exported-config --resources portals,services
 		
-		# Apply configuration for Konnect explicitly
-		%[1]s apply konnect --dir ./config
+		# Export resources for Konnect explicitly
+		%[1]s export konnect --dir ./exported-config
 		`, meta.CLIName)))
 )
 
-func NewApplyCmd() (*cobra.Command, error) {
+func NewExportCmd() (*cobra.Command, error) {
 	cmd := &cobra.Command{
-		Use:     applyUse,
-		Short:   applyShort,
-		Long:    applyLong,
-		Example: applyExamples,
-		Aliases: []string{"a", "A"},
+		Use:     exportUse,
+		Short:   exportShort,
+		Long:    exportLong,
+		Example: exportExamples,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// When called directly without subcommand, redirect to konnect
 			if len(args) == 0 && cmd.Flags().NArg() == 0 {
@@ -68,11 +69,12 @@ func NewApplyCmd() (*cobra.Command, error) {
 		},
 	}
 
+	// Add konnect subcommand
 	c, e := konnect.NewKonnectCmd(Verb)
 	if e != nil {
 		return nil, e
 	}
-
 	cmd.AddCommand(c)
+
 	return cmd, nil
 }
