@@ -4,6 +4,7 @@ package resources
 type ResourceSet struct {
 	Portals                   []PortalResource                  `yaml:"portals,omitempty"`
 	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty"`
+	ControlPlanes             []ControlPlaneResource            `yaml:"control_planes,omitempty"`
 	APIs                      []APIResource                     `yaml:"apis,omitempty"`
 	APIVersions               []APIVersionResource              `yaml:"api_versions,omitempty"`
 	APIPublications           []APIPublicationResource          `yaml:"api_publications,omitempty"`
@@ -31,10 +32,3 @@ type ReferenceMapping interface {
 	GetReferenceFieldMappings() map[string]string
 }
 
-// Placeholder resource types - will be implemented in subsequent steps
-type PortalResource struct{}
-type ApplicationAuthStrategyResource struct{}
-type APIResource struct{}
-type APIVersionResource struct{}
-type APIPublicationResource struct{}
-type APIImplementationResource struct{}
