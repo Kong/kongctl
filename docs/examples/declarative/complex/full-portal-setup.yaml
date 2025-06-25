@@ -5,25 +5,26 @@
 application_auth_strategies:
   - ref: enterprise-sso
     name: "Enterprise SSO"
-    description: "OIDC integration with company SSO"
-    auth_type: openid_connect
-    openid_connect:
-      issuer: "https://sso.enterprise.com"
-      client_id: "developer-portal"
-      client_secret: "${SSO_CLIENT_SECRET}"
-      scopes: ["openid", "profile", "email", "groups"]
-      claim_mappings:
-        name: "name"
-        email: "email"
-        groups: "groups"
+    display_name: "Enterprise SSO"
+    strategy_type: openid_connect
+    configs:
+      openid_connect:
+        issuer: "https://sso.enterprise.com"
+        client_id: "developer-portal"
+        client_secret: "${SSO_CLIENT_SECRET}"
+        scopes: ["openid", "profile", "email", "groups"]
+        claim_mappings:
+          name: "name"
+          email: "email"
+          groups: "groups"
   
   - ref: api-key-auth
     name: "API Key Authentication"
-    description: "Simple API key for testing"
-    auth_type: key_auth
-    key_auth:
-      key_names: ["x-api-key"]
-      key_source: "header"
+    display_name: "API Key Authentication"
+    strategy_type: key_auth
+    configs:
+      key_auth:
+        key_names: ["x-api-key"]
 
 # Step 2: Define the portal with proper parent-child structure
 portals:

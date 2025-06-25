@@ -4,39 +4,31 @@
 application_auth_strategies:
   - ref: oauth-strategy
     name: "OAuth 2.0 Strategy"
-    description: "OAuth 2.0 authentication for external applications"
-    auth_type: openid_connect
-    openid_connect:
-      issuer: "https://auth.example.com"
-      client_id: "portal-client"
-      client_secret: "${OAUTH_CLIENT_SECRET}"  # Use environment variable
-      scopes:
-        - "openid"
-        - "profile"
-        - "email"
-      claim_mappings:
-        name: "name"
-        email: "email"
-        groups: "groups"
+    display_name: "OAuth 2.0 Authentication"
+    strategy_type: openid_connect
+    configs:
+      openid_connect:
+        issuer: "https://auth.example.com"
+        client_id: "portal-client"
+        client_secret: "${OAUTH_CLIENT_SECRET}"  # Use environment variable
+        scopes:
+          - "openid"
+          - "profile"
+          - "email"
+        claim_mappings:
+          name: "name"
+          email: "email"
+          groups: "groups"
 
   - ref: key-auth-strategy
     name: "API Key Authentication"
-    description: "Simple API key authentication"
-    auth_type: key_auth
-    key_auth:
-      key_names:
-        - "api-key"
-        - "x-api-key"
-      key_source: "header"
+    display_name: "API Key Authentication"
+    strategy_type: key_auth
+    configs:
+      key_auth:
+        key_names:
+          - "api-key"
+          - "x-api-key"
 
-  - ref: basic-auth-strategy
-    name: "Basic Authentication"
-    description: "HTTP Basic authentication"
-    auth_type: basic_auth
-    basic_auth:
-      password_policy:
-        min_length: 12
-        requires_uppercase: true
-        requires_lowercase: true
-        requires_number: true
-        requires_special: true
+  # Note: Basic auth is typically implemented through key_auth strategy
+  # This is just an example of how it might be configured

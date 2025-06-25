@@ -5,12 +5,14 @@
 application_auth_strategies:
   - ref: default-oauth
     name: "Default OAuth"
-    auth_type: openid_connect
-    openid_connect:
-      issuer: "https://auth.example.com"
-      client_id: "api-portal"
-      client_secret: "${OAUTH_SECRET}"
-      scopes: ["openid", "profile", "email"]
+    display_name: "Default OAuth"
+    strategy_type: openid_connect
+    configs:
+      openid_connect:
+        issuer: "https://auth.example.com"
+        client_id: "api-portal"
+        client_secret: "${OAUTH_SECRET}"
+        scopes: ["openid", "profile", "email"]
 
 # Portals
 portals:

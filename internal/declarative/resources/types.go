@@ -2,10 +2,12 @@ package resources
 
 // ResourceSet contains all declarative resources from configuration files
 type ResourceSet struct {
-	Portals                   []PortalResource                  `yaml:"portals,omitempty" json:"portals,omitempty"`
-	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty" json:"application_auth_strategies,omitempty"`
-	ControlPlanes             []ControlPlaneResource            `yaml:"control_planes,omitempty" json:"control_planes,omitempty"`
-	APIs                      []APIResource                     `yaml:"apis,omitempty" json:"apis,omitempty"`
+	Portals []PortalResource `yaml:"portals,omitempty" json:"portals,omitempty"`
+	// ApplicationAuthStrategies contains auth strategy configurations
+	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty" json:"application_auth_strategies,omitempty"` //nolint:lll
+	// ControlPlanes contains control plane configurations
+	ControlPlanes []ControlPlaneResource `yaml:"control_planes,omitempty" json:"control_planes,omitempty"`
+	APIs          []APIResource          `yaml:"apis,omitempty" json:"apis,omitempty"`
 	// Note: API child resources (versions, publications, implementations) are nested under APIs
 }
 

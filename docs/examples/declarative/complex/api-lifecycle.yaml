@@ -111,37 +111,44 @@ apis:
 application_auth_strategies:
   - ref: public-oauth
     name: "Public OAuth"
-    auth_type: openid_connect
-    openid_connect:
-      issuer: "https://auth.company.com/public"
-      client_id: "public-api-client"
-      client_secret: "${PUBLIC_OAUTH_SECRET}"
-      scopes: ["openid", "profile", "email"]
+    display_name: "Public OAuth"
+    strategy_type: openid_connect
+    configs:
+      openid_connect:
+        issuer: "https://auth.company.com/public"
+        client_id: "public-api-client"
+        client_secret: "${PUBLIC_OAUTH_SECRET}"
+        scopes: ["openid", "profile", "email"]
       
   - ref: api-key-basic
     name: "Basic API Key"
-    auth_type: key_auth
-    key_auth:
-      key_names: ["x-api-key"]
-      key_source: "header"
+    display_name: "Basic API Key"
+    strategy_type: key_auth
+    configs:
+      key_auth:
+        key_names: ["x-api-key"]
       
   - ref: partner-oauth
     name: "Partner OAuth"
-    auth_type: openid_connect
-    openid_connect:
-      issuer: "https://auth.company.com/partners"
-      client_id: "partner-api-client"
-      client_secret: "${PARTNER_OAUTH_SECRET}"
-      scopes: ["openid", "profile", "email", "partner"]
+    display_name: "Partner OAuth"
+    strategy_type: openid_connect
+    configs:
+      openid_connect:
+        issuer: "https://auth.company.com/partners"
+        client_id: "partner-api-client"
+        client_secret: "${PARTNER_OAUTH_SECRET}"
+        scopes: ["openid", "profile", "email", "partner"]
       
   - ref: internal-sso
     name: "Internal SSO"
-    auth_type: openid_connect
-    openid_connect:
-      issuer: "https://sso.internal.company.com"
-      client_id: "internal-api-client"
-      client_secret: "${INTERNAL_SSO_SECRET}"
-      scopes: ["openid", "profile", "email", "groups"]
+    display_name: "Internal SSO"
+    strategy_type: openid_connect
+    configs:
+      openid_connect:
+        issuer: "https://sso.internal.company.com"
+        client_id: "internal-api-client"
+        client_secret: "${INTERNAL_SSO_SECRET}"
+        scopes: ["openid", "profile", "email", "groups"]
 
 portals:
   - ref: public-developer-portal

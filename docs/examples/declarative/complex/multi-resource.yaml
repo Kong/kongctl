@@ -5,12 +5,14 @@
 application_auth_strategies:
   - ref: standard-oauth
     name: "Standard OAuth 2.0"
-    auth_type: openid_connect
-    openid_connect:
-      issuer: "https://auth.company.com"
-      client_id: "portal-app"
-      client_secret: "${OAUTH_SECRET}"
-      scopes: ["openid", "profile", "email"]
+    display_name: "Standard OAuth 2.0"
+    strategy_type: openid_connect
+    configs:
+      openid_connect:
+        issuer: "https://auth.company.com"
+        client_id: "portal-app"
+        client_secret: "${OAUTH_SECRET}"
+        scopes: ["openid", "profile", "email"]
 
 # Portals for different audiences with proper parent-child structure
 portals:

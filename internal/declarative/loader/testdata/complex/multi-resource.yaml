@@ -1,12 +1,14 @@
 application_auth_strategies:
   - ref: oauth-strategy
     name: "OAuth Strategy"
-    auth_type: openid_connect
-    openid_connect:
-      issuer: "https://auth.example.com"
-      client_id: "test-client"
-      client_secret: "test-secret"
-      scopes: ["openid", "profile"]
+    display_name: "OAuth Strategy"
+    strategy_type: openid_connect
+    configs:
+      openid_connect:
+        issuer: "https://auth.example.com"
+        client_id: "test-client"
+        client_secret: "test-secret"
+        scopes: ["openid", "profile"]
 
 portals:
   - ref: test-portal

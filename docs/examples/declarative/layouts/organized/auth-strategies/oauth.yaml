@@ -3,24 +3,26 @@
 application_auth_strategies:
   - ref: oauth-public
     name: "Public OAuth"
-    description: "OAuth for external developers"
-    auth_type: openid_connect
-    openid_connect:
-      issuer: "https://auth.example.com/public"
-      client_id: "public-portal"
-      client_secret: "${PUBLIC_OAUTH_SECRET}"
-      scopes: ["openid", "profile", "email"]
+    display_name: "Public OAuth"
+    strategy_type: openid_connect
+    configs:
+      openid_connect:
+        issuer: "https://auth.example.com/public"
+        client_id: "public-portal"
+        client_secret: "${PUBLIC_OAUTH_SECRET}"
+        scopes: ["openid", "profile", "email"]
       
   - ref: sso-internal
     name: "Internal SSO"
-    description: "Corporate SSO integration"
-    auth_type: openid_connect
-    openid_connect:
-      issuer: "https://sso.corp.example.com"
-      client_id: "internal-portal"
-      client_secret: "${INTERNAL_SSO_SECRET}"
-      scopes: ["openid", "profile", "email", "groups"]
-      claim_mappings:
-        name: "name"
-        email: "email"
-        groups: "groups"
+    display_name: "Internal SSO"
+    strategy_type: openid_connect
+    configs:
+      openid_connect:
+        issuer: "https://sso.corp.example.com"
+        client_id: "internal-portal"
+        client_secret: "${INTERNAL_SSO_SECRET}"
+        scopes: ["openid", "profile", "email", "groups"]
+        claim_mappings:
+          name: "name"
+          email: "email"
+          groups: "groups"
