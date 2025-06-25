@@ -84,6 +84,16 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceS
 func (l *Loader) loadDirectory() (*resources.ResourceSet, error) {
 	var allResources resources.ResourceSet
 	
+	// Track refs and names for duplicate detection
+	portalRefs := make(map[string]string)      // ref -> file path
+	portalNames := make(map[string]string)     // name -> file path
+	authStratRefs := make(map[string]string)   // ref -> file path
+	authStratNames := make(map[string]string)  // name -> file path
+	cpRefs := make(map[string]string)          // ref -> file path
+	cpNames := make(map[string]string)         // name -> file path
+	apiRefs := make(map[string]string)         // ref -> file path
+	apiNames := make(map[string]string)        // name -> file path
+	
 	err := filepath.Walk(l.rootPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -112,14 +122,77 @@ func (l *Loader) loadDirectory() (*resources.ResourceSet, error) {
 			return fmt.Errorf("failed to parse %s: %w", path, err)
 		}
 		
-		// Merge resources
-		allResources.Portals = append(allResources.Portals, rs.Portals...)
-		allResources.ApplicationAuthStrategies = append(
-			allResources.ApplicationAuthStrategies, 
-			rs.ApplicationAuthStrategies...,
-		)
-		allResources.ControlPlanes = append(allResources.ControlPlanes, rs.ControlPlanes...)
-		allResources.APIs = append(allResources.APIs, rs.APIs...)
+		// Merge resources with duplicate detection
+		// Portals
+		for _, portal := range rs.Portals {
+			// Check ref uniqueness
+			if existingPath, exists := portalRefs[portal.Ref]; exists {
+				return fmt.Errorf("duplicate portal ref '%s' found in %s (already defined in %s)", 
+					portal.Ref, path, existingPath)
+			}
+			// Check name uniqueness
+			if existingPath, exists := portalNames[portal.Name]; exists {
+				return fmt.Errorf("duplicate portal name '%s' found in %s (already defined in %s with ref '%s')", 
+					portal.Name, path, existingPath, l.findRefByName(allResources.Portals, portal.Name))
+			}
+			portalRefs[portal.Ref] = path
+			portalNames[portal.Name] = path
+			allResources.Portals = append(allResources.Portals, portal)
+		}
+		
+		// Auth strategies
+		for _, authStrat := range rs.ApplicationAuthStrategies {
+			// Check ref uniqueness
+			if existingPath, exists := authStratRefs[authStrat.Ref]; exists {
+				return fmt.Errorf("duplicate application_auth_strategy ref '%s' found in %s (already defined in %s)", 
+					authStrat.Ref, path, existingPath)
+			}
+			// Check name uniqueness
+			authName := authStrat.GetName()
+			if existingPath, exists := authStratNames[authName]; exists {
+				existingRef := l.findRefByName(allResources.ApplicationAuthStrategies, authName)
+				return fmt.Errorf(
+					"duplicate application_auth_strategy name '%s' found in %s (already defined in %s with ref '%s')", 
+					authName, path, existingPath, existingRef)
+			}
+			authStratRefs[authStrat.Ref] = path
+			authStratNames[authName] = path
+			allResources.ApplicationAuthStrategies = append(allResources.ApplicationAuthStrategies, authStrat)
+		}
+		
+		// Control planes
+		for _, cp := range rs.ControlPlanes {
+			// Check ref uniqueness
+			if existingPath, exists := cpRefs[cp.Ref]; exists {
+				return fmt.Errorf("duplicate control_plane ref '%s' found in %s (already defined in %s)", 
+					cp.Ref, path, existingPath)
+			}
+			// Check name uniqueness
+			if existingPath, exists := cpNames[cp.Name]; exists {
+				return fmt.Errorf("duplicate control_plane name '%s' found in %s (already defined in %s with ref '%s')", 
+					cp.Name, path, existingPath, l.findRefByName(allResources.ControlPlanes, cp.Name))
+			}
+			cpRefs[cp.Ref] = path
+			cpNames[cp.Name] = path
+			allResources.ControlPlanes = append(allResources.ControlPlanes, cp)
+		}
+		
+		// APIs
+		for _, api := range rs.APIs {
+			// Check ref uniqueness
+			if existingPath, exists := apiRefs[api.Ref]; exists {
+				return fmt.Errorf("duplicate api ref '%s' found in %s (already defined in %s)", 
+					api.Ref, path, existingPath)
+			}
+			// Check name uniqueness
+			if existingPath, exists := apiNames[api.Name]; exists {
+				return fmt.Errorf("duplicate api name '%s' found in %s (already defined in %s with ref '%s')", 
+					api.Name, path, existingPath, l.findRefByName(allResources.APIs, api.Name))
+			}
+			apiRefs[api.Ref] = path
+			apiNames[api.Name] = path
+			allResources.APIs = append(allResources.APIs, api)
+		}
 		
 		return nil
 	})
@@ -137,6 +210,37 @@ func (l *Loader) loadDirectory() (*resources.ResourceSet, error) {
 	}
 	
 	return &allResources, nil
+}
+
+// findRefByName is a generic helper to find ref by name for any resource type
+func (l *Loader) findRefByName(resourceList interface{}, name string) string {
+	switch res := resourceList.(type) {
+	case []resources.PortalResource:
+		for _, r := range res {
+			if r.Name == name {
+				return r.Ref
+			}
+		}
+	case []resources.ApplicationAuthStrategyResource:
+		for _, r := range res {
+			if r.GetName() == name {
+				return r.Ref
+			}
+		}
+	case []resources.ControlPlaneResource:
+		for _, r := range res {
+			if r.Name == name {
+				return r.Ref
+			}
+		}
+	case []resources.APIResource:
+		for _, r := range res {
+			if r.Name == name {
+				return r.Ref
+			}
+		}
+	}
+	return ""
 }
 
 // applyDefaults applies default values to all resources in the set

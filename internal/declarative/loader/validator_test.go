@@ -6,6 +6,7 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,8 +31,18 @@ func TestLoader_validatePortals(t *testing.T) {
 		{
 			name: "valid portals",
 			portals: []resources.PortalResource{
-				{Ref: "portal1"},
-				{Ref: "portal2"},
+				{
+					Ref: "portal1",
+					CreatePortal: kkInternalComps.CreatePortal{
+						Name: "Portal One",
+					},
+				},
+				{
+					Ref: "portal2",
+					CreatePortal: kkInternalComps.CreatePortal{
+						Name: "Portal Two",
+					},
+				},
 			},
 			wantErr: false,
 		},
@@ -88,8 +99,24 @@ func TestLoader_validateAuthStrategies(t *testing.T) {
 		{
 			name: "valid strategies",
 			strategies: []resources.ApplicationAuthStrategyResource{
-				{Ref: "oauth1"},
-				{Ref: "oauth2"},
+				{
+					Ref: "oauth1",
+					CreateAppAuthStrategyRequest: kkComps.CreateAppAuthStrategyRequest{
+						Type: kkComps.CreateAppAuthStrategyRequestTypeKeyAuth,
+						AppAuthStrategyKeyAuthRequest: &kkComps.AppAuthStrategyKeyAuthRequest{
+							Name: "Key Auth One",
+						},
+					},
+				},
+				{
+					Ref: "oauth2",
+					CreateAppAuthStrategyRequest: kkComps.CreateAppAuthStrategyRequest{
+						Type: kkComps.CreateAppAuthStrategyRequestTypeKeyAuth,
+						AppAuthStrategyKeyAuthRequest: &kkComps.AppAuthStrategyKeyAuthRequest{
+							Name: "Key Auth Two",
+						},
+					},
+				},
 			},
 			wantErr: false,
 		},
@@ -133,8 +160,18 @@ func TestLoader_validateControlPlanes(t *testing.T) {
 		{
 			name: "valid control planes",
 			cps: []resources.ControlPlaneResource{
-				{Ref: "cp1"},
-				{Ref: "cp2"},
+				{
+					Ref: "cp1",
+					CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
+						Name: "Control Plane One",
+					},
+				},
+				{
+					Ref: "cp2",
+					CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
+						Name: "Control Plane Two",
+					},
+				},
 			},
 			wantErr: false,
 		},
@@ -178,8 +215,18 @@ func TestLoader_validateAPIs(t *testing.T) {
 		{
 			name: "valid APIs",
 			apis: []resources.APIResource{
-				{Ref: "api1"},
-				{Ref: "api2"},
+				{
+					Ref: "api1",
+					CreateAPIRequest: kkInternalComps.CreateAPIRequest{
+						Name: "API One",
+					},
+				},
+				{
+					Ref: "api2",
+					CreateAPIRequest: kkInternalComps.CreateAPIRequest{
+						Name: "API Two",
+					},
+				},
 			},
 			wantErr: false,
 		},

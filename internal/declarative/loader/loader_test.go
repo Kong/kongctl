@@ -294,7 +294,7 @@ func TestLoader_Load_DirectoryWithDuplicates(t *testing.T) {
 	rs, err := loader.Load()
 	assert.Error(t, err)
 	assert.Nil(t, rs)
-	assert.Contains(t, err.Error(), "duplicate portal ref: duplicate-portal")
+	assert.Contains(t, err.Error(), "duplicate portal ref 'duplicate-portal'")
 }
 
 func TestLoader_Load_DirectoryFiltering(t *testing.T) {
@@ -347,4 +347,79 @@ func TestLoader_Load_InvalidPath(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, rs)
 	assert.Contains(t, err.Error(), "failed to stat path")
+}
+
+func TestLoader_LoadFile_DuplicateNames(t *testing.T) {
+	// Test that duplicate names within a single file are detected
+	loader := New(".")
+	filePath := filepath.Join("testdata", "invalid", "duplicate-names.yaml")
+	
+	rs, err := loader.LoadFile(filePath)
+	assert.Error(t, err)
+	assert.Nil(t, rs)
+	assert.Contains(t, err.Error(), "duplicate portal name 'Same Portal Name'")
+	assert.Contains(t, err.Error(), "ref: portal2 conflicts with ref: portal1")
+}
+
+func TestLoader_Load_DirectoryWithNameDuplicates(t *testing.T) {
+	// Test that duplicate names across files are detected
+	loader := New(filepath.Join("testdata", "name-duplicates"))
+	
+	rs, err := loader.Load()
+	assert.Error(t, err)
+	assert.Nil(t, rs)
+	assert.Contains(t, err.Error(), "duplicate portal name 'Duplicate Portal Name'")
+	assert.Contains(t, err.Error(), "file2.yaml")
+	assert.Contains(t, err.Error(), "already defined in")
+	assert.Contains(t, err.Error(), "file1.yaml")
+}
+
+func TestLoader_Load_MixedDuplicateTypes(t *testing.T) {
+	// Create temp directory with mixed duplicate scenarios
+	tmpDir, err := os.MkdirTemp("", "mixed-duplicates-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+	
+	// File 1: Portal and auth strategy
+	file1 := filepath.Join(tmpDir, "file1.yaml")
+	if err := os.WriteFile(file1, []byte(`
+portals:
+  - ref: portal1
+    name: "Portal One"
+    
+application_auth_strategies:
+  - ref: auth1
+    name: "Auth Strategy One"
+    display_name: "Auth One"
+    strategy_type: key_auth
+`), 0600); err != nil {
+		t.Fatalf("Failed to write file1: %v", err)
+	}
+	
+	// File 2: Different refs but same names
+	file2 := filepath.Join(tmpDir, "file2.yaml")
+	if err := os.WriteFile(file2, []byte(`
+portals:
+  - ref: portal2
+    name: "Portal One"  # Same name as file1
+    
+application_auth_strategies:
+  - ref: auth2
+    name: "Auth Strategy One"  # Same name as file1
+    display_name: "Auth One Different"
+    strategy_type: key_auth
+`), 0600); err != nil {
+		t.Fatalf("Failed to write file2: %v", err)
+	}
+	
+	loader := New(tmpDir)
+	rs, err := loader.Load()
+	
+	// Should fail on first duplicate found (could be portal or auth strategy)
+	assert.Error(t, err)
+	assert.Nil(t, rs)
+	assert.Contains(t, err.Error(), "duplicate")
+	assert.Contains(t, err.Error(), "name")
 }

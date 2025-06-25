@@ -678,6 +678,15 @@ Step 5
 
 ### Changes
 - Extend `internal/declarative/loader/loader.go`
+- Enhanced with fail-fast duplicate detection for both `ref` and `name` fields
+
+### Implementation Notes
+- **Original implementation**: Basic multi-file loading with append merging
+- **Enhancement (completed)**: Added fail-fast duplicate detection during merge operation
+  - Checks both `ref` (local identifier) and `name` (Konnect identifier) uniqueness
+  - Fails immediately when duplicates are found with clear error messages
+  - Shows which files contain the conflicting resources
+  - Handles auth strategy union types with GetName() method
 
 ### Implementation
 ```go
@@ -754,7 +763,9 @@ feat(loader): add multi-file configuration support
 Extend loader to handle directories, merge resources from multiple
 YAML files, and validate the combined result
 
-Actual commit: d6472a4
+Actual commits:
+- d6472a4: Initial multi-file support
+- Enhancement: Fail-fast duplicate detection for ref and name fields
 ```
 
 ---

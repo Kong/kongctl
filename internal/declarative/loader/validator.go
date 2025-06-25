@@ -44,6 +44,7 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 // validatePortals validates portal resources
 func (l *Loader) validatePortals(portals []resources.PortalResource, registry map[string]map[string]bool) error {
 	refs := make(map[string]bool)
+	names := make(map[string]string) // name -> ref mapping
 	registry["portal"] = refs
 
 	for i := range portals {
@@ -54,11 +55,19 @@ func (l *Loader) validatePortals(portals []resources.PortalResource, registry ma
 			return fmt.Errorf("invalid portal %q: %w", portal.GetRef(), err)
 		}
 
-		// Check uniqueness
+		// Check ref uniqueness
 		if refs[portal.GetRef()] {
 			return fmt.Errorf("duplicate portal ref: %s", portal.GetRef())
 		}
+		
+		// Check name uniqueness
+		if existingRef, exists := names[portal.Name]; exists {
+			return fmt.Errorf("duplicate portal name '%s' (ref: %s conflicts with ref: %s)", 
+				portal.Name, portal.GetRef(), existingRef)
+		}
+		
 		refs[portal.GetRef()] = true
+		names[portal.Name] = portal.GetRef()
 	}
 
 	return nil
@@ -70,6 +79,7 @@ func (l *Loader) validateAuthStrategies(
 	registry map[string]map[string]bool,
 ) error {
 	refs := make(map[string]bool)
+	names := make(map[string]string) // name -> ref mapping
 	registry["application_auth_strategy"] = refs
 
 	for i := range strategies {
@@ -80,11 +90,20 @@ func (l *Loader) validateAuthStrategies(
 			return fmt.Errorf("invalid application_auth_strategy %q: %w", strategy.GetRef(), err)
 		}
 
-		// Check uniqueness
+		// Check ref uniqueness
 		if refs[strategy.GetRef()] {
 			return fmt.Errorf("duplicate application_auth_strategy ref: %s", strategy.GetRef())
 		}
+		
+		// Check name uniqueness
+		stratName := strategy.GetName()
+		if existingRef, exists := names[stratName]; exists {
+			return fmt.Errorf("duplicate application_auth_strategy name '%s' (ref: %s conflicts with ref: %s)", 
+				stratName, strategy.GetRef(), existingRef)
+		}
+		
 		refs[strategy.GetRef()] = true
+		names[stratName] = strategy.GetRef()
 	}
 
 	return nil
@@ -96,6 +115,7 @@ func (l *Loader) validateControlPlanes(
 	registry map[string]map[string]bool,
 ) error {
 	refs := make(map[string]bool)
+	names := make(map[string]string) // name -> ref mapping
 	registry["control_plane"] = refs
 
 	for i := range cps {
@@ -106,11 +126,19 @@ func (l *Loader) validateControlPlanes(
 			return fmt.Errorf("invalid control_plane %q: %w", cp.GetRef(), err)
 		}
 
-		// Check uniqueness
+		// Check ref uniqueness
 		if refs[cp.GetRef()] {
 			return fmt.Errorf("duplicate control_plane ref: %s", cp.GetRef())
 		}
+		
+		// Check name uniqueness
+		if existingRef, exists := names[cp.Name]; exists {
+			return fmt.Errorf("duplicate control_plane name '%s' (ref: %s conflicts with ref: %s)", 
+				cp.Name, cp.GetRef(), existingRef)
+		}
+		
 		refs[cp.GetRef()] = true
+		names[cp.Name] = cp.GetRef()
 	}
 
 	return nil
@@ -119,6 +147,7 @@ func (l *Loader) validateControlPlanes(
 // validateAPIs validates API resources and their children
 func (l *Loader) validateAPIs(apis []resources.APIResource, registry map[string]map[string]bool) error {
 	apiRefs := make(map[string]bool)
+	apiNames := make(map[string]string) // name -> ref mapping
 	registry["api"] = apiRefs
 
 	// Also create registries for child resources
@@ -139,11 +168,19 @@ func (l *Loader) validateAPIs(apis []resources.APIResource, registry map[string]
 			return fmt.Errorf("invalid api %q: %w", api.GetRef(), err)
 		}
 
-		// Check API uniqueness
+		// Check API ref uniqueness
 		if apiRefs[api.GetRef()] {
 			return fmt.Errorf("duplicate api ref: %s", api.GetRef())
 		}
+		
+		// Check API name uniqueness
+		if existingRef, exists := apiNames[api.Name]; exists {
+			return fmt.Errorf("duplicate api name '%s' (ref: %s conflicts with ref: %s)", 
+				api.Name, api.GetRef(), existingRef)
+		}
+		
 		apiRefs[api.GetRef()] = true
+		apiNames[api.Name] = api.GetRef()
 
 		// Validate nested versions
 		for j := range api.Versions {

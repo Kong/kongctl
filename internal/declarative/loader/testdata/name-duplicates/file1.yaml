@@ -1,0 +1,5 @@
+# First file with portal
+portals:
+  - ref: portal-ref-1
+    name: "Duplicate Portal Name"
+    description: "First portal with this name"

@@ -37,6 +37,21 @@ func (a *ApplicationAuthStrategyResource) SetDefaults() {
 	// No defaults to set for auth strategies
 }
 
+// GetName returns the name of the auth strategy from the union type
+func (a ApplicationAuthStrategyResource) GetName() string {
+	switch a.Type {
+	case kkComps.CreateAppAuthStrategyRequestTypeKeyAuth:
+		if a.AppAuthStrategyKeyAuthRequest != nil {
+			return a.AppAuthStrategyKeyAuthRequest.Name
+		}
+	case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
+		if a.AppAuthStrategyOpenIDConnectRequest != nil {
+			return a.AppAuthStrategyOpenIDConnectRequest.Name
+		}
+	}
+	return ""
+}
+
 // UnmarshalJSON implements custom JSON unmarshaling to handle SDK union types
 // (sigs.k8s.io/yaml uses JSON unmarshaling internally)
 func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
