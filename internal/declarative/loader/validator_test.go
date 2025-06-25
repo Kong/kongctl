@@ -212,8 +212,8 @@ func TestLoader_validateAPIs(t *testing.T) {
 				{
 					Ref: "api1",
 					Publications: []resources.APIPublicationResource{
-						{Ref: "pub1"},
-						{Ref: "pub1"},
+						{Ref: "pub1", PortalID: "portal1"},
+						{Ref: "pub1", PortalID: "portal1"},
 					},
 				},
 			},
@@ -226,8 +226,24 @@ func TestLoader_validateAPIs(t *testing.T) {
 				{
 					Ref: "api1",
 					Implementations: []resources.APIImplementationResource{
-						{Ref: "impl1"},
-						{Ref: "impl1"},
+						{
+							Ref: "impl1",
+							APIImplementation: kkInternalComps.APIImplementation{
+								Service: &kkInternalComps.APIImplementationServiceInput{
+									ID:             "12345678-1234-1234-1234-123456789012",
+									ControlPlaneID: "cp1",
+								},
+							},
+						},
+						{
+							Ref: "impl1",
+							APIImplementation: kkInternalComps.APIImplementation{
+								Service: &kkInternalComps.APIImplementationServiceInput{
+									ID:             "12345678-1234-1234-1234-123456789012",
+									ControlPlaneID: "cp1",
+								},
+							},
+						},
 					},
 				},
 			},

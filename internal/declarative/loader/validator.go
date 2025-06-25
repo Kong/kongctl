@@ -188,24 +188,25 @@ func (l *Loader) validateAPIs(apis []resources.APIResource, registry map[string]
 // validateCrossReferences validates that all cross-resource references are valid
 func (l *Loader) validateCrossReferences(rs *resources.ResourceSet, registry map[string]map[string]bool) error {
 	// Validate portal references
-	for _, portal := range rs.Portals {
-		if err := l.validateResourceReferences(&portal, registry); err != nil {
+	for i := range rs.Portals {
+		if err := l.validateResourceReferences(&rs.Portals[i], registry); err != nil {
 			return err
 		}
 	}
 
 	// Validate API child resource references
-	for _, api := range rs.APIs {
+	for i := range rs.APIs {
+		api := &rs.APIs[i]
 		// Validate publication references
-		for _, publication := range api.Publications {
-			if err := l.validateResourceReferences(&publication, registry); err != nil {
+		for j := range api.Publications {
+			if err := l.validateResourceReferences(&api.Publications[j], registry); err != nil {
 				return err
 			}
 		}
 
 		// Validate implementation references
-		for _, implementation := range api.Implementations {
-			if err := l.validateResourceReferences(&implementation, registry); err != nil {
+		for j := range api.Implementations {
+			if err := l.validateResourceReferences(&api.Implementations[j], registry); err != nil {
 				return err
 			}
 		}
@@ -216,6 +217,8 @@ func (l *Loader) validateCrossReferences(rs *resources.ResourceSet, registry map
 
 // validateResourceReferences validates references for a single resource using its mapping
 func (l *Loader) validateResourceReferences(resource interface{}, registry map[string]map[string]bool) error {
+	// fmt.Printf("DEBUG: validateResourceReferences called with resource type: %T\n", resource)
+	
 	// Check if resource implements ReferenceMapping
 	refMapper, ok := resource.(resources.ReferenceMapping)
 	if !ok {
@@ -229,8 +232,12 @@ func (l *Loader) validateResourceReferences(resource interface{}, registry map[s
 	}
 
 	mappings := refMapper.GetReferenceFieldMappings()
+	// fmt.Printf("DEBUG: Reference mappings: %v\n", mappings)
+	
 	for fieldPath, expectedType := range mappings {
 		fieldValue := l.getFieldValue(resource, fieldPath)
+		// fmt.Printf("DEBUG: Field %s = '%s' (expected type: %s)\n", fieldPath, fieldValue, expectedType)
+		
 		if fieldValue == "" {
 			continue // Empty references are allowed (optional fields)
 		}
@@ -257,6 +264,8 @@ func (l *Loader) getFieldValue(resource interface{}, fieldPath string) string {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
+	
+	// fmt.Printf("DEBUG: getFieldValue - type: %v, fieldPath: %s\n", v.Type(), fieldPath)
 
 	// Split field path for nested fields (e.g., "service.control_plane_id")
 	parts := strings.Split(fieldPath, ".")
@@ -272,6 +281,11 @@ func (l *Loader) getFieldValue(resource interface{}, fieldPath string) string {
 		if i == len(parts)-1 {
 			if field.Kind() == reflect.String {
 				return field.String()
+			} else if field.Kind() == reflect.Ptr && !field.IsNil() {
+				elem := field.Elem()
+				if elem.Kind() == reflect.String {
+					return elem.String()
+				}
 			}
 			return ""
 		}
@@ -327,6 +341,28 @@ func (l *Loader) findField(v reflect.Value, name string) reflect.Value {
 			}
 		}
 	}
+	
+	// Try converting snake_case to PascalCase for SDK field names
+	pascalCase := l.toPascalCase(name)
+	if pascalCase != name {
+		return l.findField(v, pascalCase)
+	}
 
 	return reflect.Value{}
+}
+
+// toPascalCase converts snake_case to PascalCase
+func (l *Loader) toPascalCase(s string) string {
+	parts := strings.Split(s, "_")
+	for i := range parts {
+		if len(parts[i]) > 0 {
+			// Special handling for common abbreviations
+			if parts[i] == "id" || parts[i] == "api" || parts[i] == "url" {
+				parts[i] = strings.ToUpper(parts[i])
+			} else {
+				parts[i] = strings.ToUpper(parts[i][:1]) + parts[i][1:]
+			}
+		}
+	}
+	return strings.Join(parts, "")
 }
