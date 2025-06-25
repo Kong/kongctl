@@ -8,7 +8,7 @@
 | 2 | Create Command Stubs | Completed | Step 1 |
 | 3 | Define Core Types | Completed | None |
 | 4 | Define Portal Resource | Completed | Step 3 |
-| 5 | Implement YAML Loader | Not Started | Step 4 |
+| 5 | Implement YAML Loader | Completed | Step 4 |
 | 6 | Add Multi-file Support | Not Started | Step 5 |
 | 7 | Integrate with Plan Command | Not Started | Step 6 |
 
@@ -364,7 +364,7 @@ Actual commits:
 ## Step 5: Implement YAML Loader
 
 ### Status
-Not Started
+Completed
 
 ### Dependencies
 Step 4
@@ -659,6 +659,11 @@ feat(loader): implement YAML configuration loader
 
 Add loader package that can parse YAML files into ResourceSet,
 validate resources, and ensure name uniqueness
+
+Actual commits:
+- 4623a0f: feat(loader): implement YAML loader with validation (WIP)
+- 1a8150d: fix(loader): fix loop variable issue in cross-reference validation
+- 980985f: fix(lint): fix variable naming for AuthStrategyIDs field
 ```
 
 ---
