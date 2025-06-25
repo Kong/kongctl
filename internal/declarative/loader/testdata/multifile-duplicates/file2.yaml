@@ -1,0 +1,4 @@
+portals:
+  - ref: duplicate-portal
+    name: "Portal 2"
+    description: "Second occurrence - should cause error"

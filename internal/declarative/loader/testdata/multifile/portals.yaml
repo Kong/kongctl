@@ -1,0 +1,9 @@
+# Test file for portals
+portals:
+  - ref: multifile-portal1
+    name: "Portal 1"
+    description: "First portal from multifile"
+  
+  - ref: multifile-portal2
+    name: "Portal 2"
+    description: "Second portal from multifile"

@@ -178,11 +178,13 @@ func TestLoader_Load_FileVsDirectory(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, rs2.Portals, 1)
 	
-	// Test Load method with directory path (should fail for now)
+	// Test Load method with directory path
+	// Note: The valid directory has files with duplicate refs, so it should fail
 	loader = New(filepath.Join("testdata", "valid"))
-	_, err = loader.Load()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "directory loading not yet implemented")
+	rs3, err := loader.Load()
+	assert.Error(t, err, "Should fail due to duplicate refs across files")
+	assert.Nil(t, rs3)
+	assert.Contains(t, err.Error(), "duplicate")
 }
 
 func TestLoader_ParseYAML_EmptyFile(t *testing.T) {
@@ -252,4 +254,97 @@ func TestLoader_LoadFile_LongFieldPath(t *testing.T) {
 	assert.NotNil(t, impl.Service)
 	assert.Equal(t, "12345678-1234-1234-1234-123456789012", impl.Service.ID)
 	assert.Equal(t, "test-cp", impl.Service.ControlPlaneID)
+}
+
+func TestLoader_Load_Directory(t *testing.T) {
+	// Test loading multiple files from a directory
+	loader := New(filepath.Join("testdata", "multifile"))
+	
+	rs, err := loader.Load()
+	assert.NoError(t, err)
+	assert.NotNil(t, rs)
+	
+	// Should have loaded resources from multiple files including subdirectory
+	assert.Len(t, rs.Portals, 3, "Should have 3 portals (2 from portals.yaml, 1 from subdirectory)")
+	assert.Len(t, rs.ApplicationAuthStrategies, 1, "Should have 1 auth strategy")
+	assert.Len(t, rs.ControlPlanes, 1, "Should have 1 control plane")
+	assert.Len(t, rs.APIs, 1, "Should have 1 API")
+	
+	// Verify specific resources
+	portalRefs := make([]string, len(rs.Portals))
+	for i, portal := range rs.Portals {
+		portalRefs[i] = portal.GetRef()
+	}
+	assert.Contains(t, portalRefs, "multifile-portal1")
+	assert.Contains(t, portalRefs, "multifile-portal2")
+	assert.Contains(t, portalRefs, "subdirectory-portal")
+	
+	// Verify API has nested resources
+	api := rs.APIs[0]
+	assert.Equal(t, "multifile-api", api.GetRef())
+	assert.Len(t, api.Versions, 1)
+	assert.Len(t, api.Publications, 1)
+	assert.Len(t, api.Implementations, 1)
+}
+
+func TestLoader_Load_DirectoryWithDuplicates(t *testing.T) {
+	// Test that duplicate refs across files are detected
+	loader := New(filepath.Join("testdata", "multifile-duplicates"))
+	
+	rs, err := loader.Load()
+	assert.Error(t, err)
+	assert.Nil(t, rs)
+	assert.Contains(t, err.Error(), "duplicate portal ref: duplicate-portal")
+}
+
+func TestLoader_Load_DirectoryFiltering(t *testing.T) {
+	// Test that non-YAML files are ignored
+	// The multifile directory contains README.txt which should be ignored
+	loader := New(filepath.Join("testdata", "multifile"))
+	
+	rs, err := loader.Load()
+	assert.NoError(t, err)
+	assert.NotNil(t, rs)
+	
+	// Should successfully load only YAML files
+	// The README.txt should be ignored
+}
+
+func TestLoader_Load_SingleFile(t *testing.T) {
+	// Test that Load() works with a single file path
+	loader := New(filepath.Join("testdata", "valid", "simple-portal.yaml"))
+	
+	rs, err := loader.Load()
+	assert.NoError(t, err)
+	assert.NotNil(t, rs)
+	assert.Len(t, rs.Portals, 1)
+}
+
+func TestLoader_Load_EmptyDirectory(t *testing.T) {
+	// Create empty temp directory
+	tmpDir, err := os.MkdirTemp("", "empty-loader-test-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+	
+	loader := New(tmpDir)
+	rs, err := loader.Load()
+	
+	// Should return empty ResourceSet without error
+	assert.NoError(t, err)
+	assert.NotNil(t, rs)
+	assert.Len(t, rs.Portals, 0)
+	assert.Len(t, rs.ApplicationAuthStrategies, 0)
+	assert.Len(t, rs.ControlPlanes, 0)
+	assert.Len(t, rs.APIs, 0)
+}
+
+func TestLoader_Load_InvalidPath(t *testing.T) {
+	loader := New("/nonexistent/path")
+	
+	rs, err := loader.Load()
+	assert.Error(t, err)
+	assert.Nil(t, rs)
+	assert.Contains(t, err.Error(), "failed to stat path")
 }

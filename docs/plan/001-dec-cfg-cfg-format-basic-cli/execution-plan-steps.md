@@ -671,7 +671,7 @@ Actual commits:
 ## Step 6: Add Multi-file Support
 
 ### Status
-Not Started
+In Progress
 
 ### Dependencies
 Step 5

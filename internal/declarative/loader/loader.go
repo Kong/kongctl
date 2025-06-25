@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"sigs.k8s.io/yaml"
@@ -43,7 +44,17 @@ func (l *Loader) LoadFile(path string) (*resources.ResourceSet, error) {
 	}
 	defer file.Close()
 
-	return l.parseYAML(file, path)
+	rs, err := l.parseYAML(file, path)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Validate when loading a single file
+	if err := l.validateResourceSet(rs); err != nil {
+		return nil, fmt.Errorf("validation failed for %s: %w", path, err)
+	}
+	
+	return rs, nil
 }
 
 // parseYAML parses YAML content into ResourceSet
@@ -62,18 +73,70 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceS
 	// Apply defaults to all resources
 	l.applyDefaults(&rs)
 
-	// Validate all resources
-	if err := l.validateResourceSet(&rs); err != nil {
-		return nil, fmt.Errorf("validation failed for %s: %w", sourcePath, err)
-	}
+	// Note: We don't validate here when called from loadDirectory
+	// because cross-references might be in other files.
+	// loadDirectory will validate the merged result.
 
 	return &rs, nil
 }
 
-// loadDirectory loads all YAML files from a directory (preparation for Step 6)
+// loadDirectory loads all YAML files from a directory
 func (l *Loader) loadDirectory() (*resources.ResourceSet, error) {
-	// For now, just return an error - will be implemented in Step 6
-	return nil, fmt.Errorf("directory loading not yet implemented (coming in Step 6)")
+	var allResources resources.ResourceSet
+	
+	err := filepath.Walk(l.rootPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		
+		// Skip directories
+		if info.IsDir() {
+			return nil
+		}
+		
+		// Only process .yaml and .yml files
+		ext := filepath.Ext(path)
+		if ext != ".yaml" && ext != ".yml" {
+			return nil
+		}
+		
+		// Load file without validation (will validate merged result later)
+		file, err := os.Open(path)
+		if err != nil {
+			return fmt.Errorf("failed to open %s: %w", path, err)
+		}
+		defer file.Close()
+		
+		rs, err := l.parseYAML(file, path)
+		if err != nil {
+			return fmt.Errorf("failed to parse %s: %w", path, err)
+		}
+		
+		// Merge resources
+		allResources.Portals = append(allResources.Portals, rs.Portals...)
+		allResources.ApplicationAuthStrategies = append(
+			allResources.ApplicationAuthStrategies, 
+			rs.ApplicationAuthStrategies...,
+		)
+		allResources.ControlPlanes = append(allResources.ControlPlanes, rs.ControlPlanes...)
+		allResources.APIs = append(allResources.APIs, rs.APIs...)
+		
+		return nil
+	})
+	
+	if err != nil {
+		return nil, err
+	}
+	
+	// Apply defaults to merged resources
+	l.applyDefaults(&allResources)
+	
+	// Validate merged resources
+	if err := l.validateResourceSet(&allResources); err != nil {
+		return nil, err
+	}
+	
+	return &allResources, nil
 }
 
 // applyDefaults applies default values to all resources in the set
