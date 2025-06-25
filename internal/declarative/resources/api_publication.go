@@ -54,7 +54,7 @@ func (p *APIPublicationResource) UnmarshalJSON(data []byte) error {
 		Ref                      string   `json:"ref"`
 		PortalID                 string   `json:"portal_id"`
 		PublishStatus            string   `json:"publish_status,omitempty"`
-		AuthStrategyIds          []string `json:"auth_strategy_ids,omitempty"`
+		AuthStrategyIDs          []string `json:"auth_strategy_ids,omitempty"`
 		AutoApproveRegistrations *bool    `json:"auto_approve_registrations,omitempty"`
 		Visibility               string   `json:"visibility,omitempty"`
 		Kongctl                  *KongctlMeta `json:"kongctl,omitempty"`
@@ -70,7 +70,7 @@ func (p *APIPublicationResource) UnmarshalJSON(data []byte) error {
 	p.Kongctl = temp.Kongctl
 	
 	// Map to SDK fields
-	p.AuthStrategyIds = temp.AuthStrategyIds
+	p.AuthStrategyIds = temp.AuthStrategyIDs
 	p.AutoApproveRegistrations = temp.AutoApproveRegistrations
 	
 	// Handle visibility enum if present
