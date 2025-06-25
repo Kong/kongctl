@@ -8,14 +8,14 @@ import (
 
 // APIResource represents an API in declarative configuration
 type APIResource struct {
-	kkInternalComps.CreateAPIRequest `yaml:",inline"`
-	Ref     string       `yaml:"ref"`
-	Kongctl *KongctlMeta `yaml:"kongctl,omitempty"`
+	kkInternalComps.CreateAPIRequest `yaml:",inline" json:",inline"`
+	Ref     string       `yaml:"ref" json:"ref"`
+	Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
 	
 	// Nested child resources
-	Versions        []APIVersionResource        `yaml:"versions,omitempty"`
-	Publications    []APIPublicationResource    `yaml:"publications,omitempty"`
-	Implementations []APIImplementationResource `yaml:"implementations,omitempty"`
+	Versions        []APIVersionResource        `yaml:"versions,omitempty" json:"versions,omitempty"`
+	Publications    []APIPublicationResource    `yaml:"publications,omitempty" json:"publications,omitempty"`
+	Implementations []APIImplementationResource `yaml:"implementations,omitempty" json:"implementations,omitempty"`
 }
 
 // GetRef returns the reference identifier used for cross-resource references

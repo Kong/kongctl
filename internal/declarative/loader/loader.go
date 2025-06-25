@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
-	"gopkg.in/yaml.v3"
+	"sigs.k8s.io/yaml"
 )
 
 // Loader handles loading declarative configuration from files
@@ -50,8 +50,12 @@ func (l *Loader) LoadFile(path string) (*resources.ResourceSet, error) {
 func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceSet, error) {
 	var rs resources.ResourceSet
 
-	decoder := yaml.NewDecoder(r)
-	if err := decoder.Decode(&rs); err != nil {
+	content, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read content from %s: %w", sourcePath, err)
+	}
+
+	if err := yaml.Unmarshal(content, &rs); err != nil {
 		return nil, fmt.Errorf("failed to parse YAML in %s: %w", sourcePath, err)
 	}
 

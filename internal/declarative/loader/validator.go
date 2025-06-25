@@ -65,7 +65,10 @@ func (l *Loader) validatePortals(portals []resources.PortalResource, registry ma
 }
 
 // validateAuthStrategies validates auth strategy resources
-func (l *Loader) validateAuthStrategies(strategies []resources.ApplicationAuthStrategyResource, registry map[string]map[string]bool) error {
+func (l *Loader) validateAuthStrategies(
+	strategies []resources.ApplicationAuthStrategyResource,
+	registry map[string]map[string]bool,
+) error {
 	refs := make(map[string]bool)
 	registry["application_auth_strategy"] = refs
 
@@ -88,7 +91,10 @@ func (l *Loader) validateAuthStrategies(strategies []resources.ApplicationAuthSt
 }
 
 // validateControlPlanes validates control plane resources
-func (l *Loader) validateControlPlanes(cps []resources.ControlPlaneResource, registry map[string]map[string]bool) error {
+func (l *Loader) validateControlPlanes(
+	cps []resources.ControlPlaneResource,
+	registry map[string]map[string]bool,
+) error {
 	refs := make(map[string]bool)
 	registry["control_plane"] = refs
 

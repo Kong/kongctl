@@ -25,36 +25,329 @@ application_auth_strategies:
       key_names: ["x-api-key"]
       key_source: "header"
 
-# Step 2: Define the portal
+# Step 2: Define the portal with proper parent-child structure
 portals:
   - ref: enterprise-portal
     name: "Enterprise API Portal"
     description: "Central API portal for enterprise developers"
-    custom_domain: "api.enterprise.com"
-    is_public: false
-    default_application_auth_strategy_id: enterprise-sso
+    authentication_enabled: true
     rbac_enabled: true
+    default_api_visibility: "private"
+    default_page_visibility: "private"
+    default_application_auth_strategy_id: enterprise-sso
     auto_approve_developers: false
     auto_approve_applications: false
-    theme:
-      catalog:
-        primary_header: "#1E40AF"
-        welcome_message: "Welcome to Enterprise APIs"
-      portal:
-        primary_header: "#1E40AF"
-        text:
+    
+    # Portal customization - child resource
+    customization:
+      theme:
+        name: "enterprise-theme"
+        mode: "system"  # Follows user's system preference
+        colors:
           primary: "#1E40AF"
-          secondary: "#64748B"
-          base: "#0F172A"
-        button:
-          primary_fill: "#1E40AF"
-          primary_text: "#FFFFFF"
-          secondary_fill: "#E5E7EB"
-          secondary_text: "#1F2937"
-        section_colors:
-          hero_background: "#F3F4F6"
-          body_background: "#FFFFFF"
-          card_background: "#F9FAFB"
+      layout: "enterprise"
+      css: |
+        /* Enterprise branding */
+        :root {
+          --primary-color: #1E40AF;
+          --secondary-color: #64748B;
+          --text-base: #0F172A;
+        }
+        
+        .header {
+          background-color: var(--primary-color);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .hero-section {
+          background-color: #F3F4F6;
+          padding: 60px 0;
+        }
+        
+        .card {
+          background-color: #F9FAFB;
+          border-radius: 8px;
+          padding: 24px;
+        }
+      
+      menu:
+        main:
+          - path: "/getting-started"
+            title: "Getting Started"
+            visibility: "public"
+            external: false
+          - path: "/api-reference"
+            title: "API Reference"
+            visibility: "public"
+            external: false
+          - path: "/support"
+            title: "Support"
+            visibility: "private"
+            external: false
+          - path: "https://enterprise.com"
+            title: "Corporate Site"
+            visibility: "public"
+            external: true
+        
+        footer_sections:
+          - title: "Documentation"
+            items:
+              - path: "/getting-started"
+                title: "Getting Started"
+                visibility: "public"
+                external: false
+              - path: "/api-reference"
+                title: "API Reference"
+                visibility: "public"
+                external: false
+              - path: "/tutorials"
+                title: "Tutorials"
+                visibility: "public"
+                external: false
+          
+          - title: "Resources"
+            items:
+              - path: "/support"
+                title: "Support Center"
+                visibility: "private"
+                external: false
+              - path: "/changelog"
+                title: "Changelog"
+                visibility: "public"
+                external: false
+              - path: "/status"
+                title: "API Status"
+                visibility: "public"
+                external: true
+          
+          - title: "Legal"
+            items:
+              - path: "/terms"
+                title: "Terms of Service"
+                visibility: "public"
+                external: false
+              - path: "/privacy"
+                title: "Privacy Policy"
+                visibility: "public"
+                external: false
+              - path: "/sla"
+                title: "SLA"
+                visibility: "private"
+                external: false
+        
+        footer_bottom:
+          - path: "/terms"
+            title: "Terms"
+            visibility: "public"
+            external: false
+          - path: "/privacy"
+            title: "Privacy"
+            visibility: "public"
+            external: false
+      
+      spec_renderer:
+        try_it_ui: true
+        try_it_insomnia: true
+        infinite_scroll: false
+        show_schemas: true
+    
+    # Custom domain configuration - child resource
+    custom_domain:
+      hostname: "api.enterprise.com"
+      enabled: true
+      ssl:
+        cert: "${ENTERPRISE_SSL_CERT}"
+        key: "${ENTERPRISE_SSL_KEY}"
+    
+    # Portal pages - child resources
+    pages:
+      - ref: home-page
+        title: "Enterprise API Portal"
+        path: "/"
+        content: |
+          # Welcome to Enterprise APIs
+          
+          Our API platform provides secure, scalable access to enterprise services.
+          
+          ## Getting Started
+          
+          1. **Authentication**: All APIs require authentication via our Enterprise SSO
+          2. **Register Your Application**: Create an application to obtain API credentials
+          3. **Subscribe to APIs**: Browse our catalog and subscribe to the APIs you need
+          4. **Start Building**: Use our comprehensive documentation and SDKs
+          
+          ## Featured APIs
+          
+          - **Customer API**: Core customer data and operations
+          - **Billing API**: Invoice and payment processing
+          - **Analytics API**: Real-time data and reporting
+          
+          ## Need Help?
+          
+          Visit our [Support Center](/support) or contact the API team.
+        visibility: "public"
+      
+      - ref: getting-started-page
+        title: "Getting Started"
+        path: "/getting-started"
+        content: |
+          # Getting Started with Enterprise APIs
+          
+          This guide will walk you through the process of integrating with our APIs.
+          
+          ## Prerequisites
+          
+          - Enterprise SSO account
+          - Basic understanding of REST APIs
+          - Development environment setup
+          
+          ## Step 1: Authentication
+          
+          All API requests must be authenticated using OAuth 2.0...
+          
+          ## Step 2: Create an Application
+          
+          Applications represent your integration with our APIs...
+          
+          ## Step 3: Make Your First Request
+          
+          Here's a simple example using curl...
+        visibility: "public"
+      
+      - ref: support-page
+        title: "Support Center"
+        path: "/support"
+        content: |
+          # Support Center
+          
+          ## Contact Information
+          
+          - **Email**: api-support@enterprise.com
+          - **Slack**: #api-support (internal)
+          - **Office Hours**: Monday-Friday, 9am-5pm EST
+          
+          ## Frequently Asked Questions
+          
+          ### How do I reset my API credentials?
+          ...
+          
+          ### What are the rate limits?
+          ...
+          
+          ### How do I report an issue?
+          ...
+        visibility: "private"  # Only visible to authenticated users
+      
+      - ref: terms-page
+        title: "Terms of Service"
+        path: "/terms"
+        content: |
+          # Terms of Service
+          
+          Last updated: January 1, 2024
+          
+          ## 1. Acceptance of Terms
+          
+          By accessing and using the Enterprise API Portal...
+          
+          ## 2. API Usage
+          
+          You agree to use the APIs in accordance with...
+        visibility: "public"
+      
+      - ref: privacy-page
+        title: "Privacy Policy"
+        path: "/privacy"
+        content: |
+          # Privacy Policy
+          
+          Your privacy is important to us...
+        visibility: "public"
+      
+      - ref: sla-page
+        title: "Service Level Agreement"
+        path: "/sla"
+        content: |
+          # Service Level Agreement
+          
+          ## Availability
+          
+          We guarantee 99.9% uptime for all production APIs...
+          
+          ## Support Response Times
+          
+          - Critical: 1 hour
+          - High: 4 hours
+          - Medium: 1 business day
+          - Low: 3 business days
+        visibility: "private"  # Only for authenticated users
+    
+    # Portal snippets - child resources
+    snippets:
+      - ref: header-snippet
+        name: "header"
+        content: |
+          <script>
+            // Analytics tracking code
+            (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+            })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+            ga('create', '${GA_TRACKING_ID}', 'auto');
+            ga('send', 'pageview');
+          </script>
+      
+      - ref: footer-snippet
+        name: "footer"
+        content: |
+          <div class="enterprise-footer">
+            <div class="footer-content">
+              <div class="footer-logo">
+                <img src="/assets/logo-white.svg" alt="Enterprise Corp" />
+              </div>
+              <div class="footer-text">
+                <p>&copy; 2024 Enterprise Corp. All rights reserved.</p>
+                <p>Need help? Contact <a href="mailto:api-support@enterprise.com">api-support@enterprise.com</a></p>
+              </div>
+              <div class="footer-social">
+                <a href="https://github.com/enterprise" target="_blank">GitHub</a>
+                <a href="https://twitter.com/enterprise" target="_blank">Twitter</a>
+                <a href="https://linkedin.com/company/enterprise" target="_blank">LinkedIn</a>
+              </div>
+            </div>
+          </div>
+      
+      - ref: custom-css-snippet
+        name: "custom-css"
+        content: |
+          <style>
+            /* Additional custom styling */
+            .enterprise-footer {
+              background-color: #0F172A;
+              color: #FFFFFF;
+              padding: 40px 0;
+              margin-top: 60px;
+            }
+            
+            .footer-content {
+              max-width: 1200px;
+              margin: 0 auto;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              padding: 0 20px;
+            }
+            
+            .footer-social a {
+              color: #FFFFFF;
+              margin-left: 20px;
+              text-decoration: none;
+            }
+            
+            .footer-social a:hover {
+              text-decoration: underline;
+            }
+          </style>
     
 # Step 3: Define control planes
 control_planes:

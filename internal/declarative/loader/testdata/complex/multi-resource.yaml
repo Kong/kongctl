@@ -12,8 +12,46 @@ portals:
   - ref: test-portal
     name: "Test Portal"
     description: "A test portal"
-    is_public: true
+    authentication_enabled: true
+    rbac_enabled: false
+    default_api_visibility: "public"
+    default_page_visibility: "public"
     default_application_auth_strategy_id: oauth-strategy
+    auto_approve_developers: true
+    auto_approve_applications: false
+    
+    # Portal customization
+    customization:
+      theme:
+        name: "test-theme"
+        mode: "light"
+        colors:
+          primary: "#0066CC"
+      menu:
+        main:
+          - path: "/docs"
+            title: "Documentation"
+            visibility: "public"
+            external: false
+    
+    # Custom domain
+    custom_domain:
+      hostname: "test.example.com"
+      enabled: true
+    
+    # Portal pages
+    pages:
+      - ref: test-home
+        title: "Home"
+        path: "/"
+        content: "# Welcome"
+        visibility: "public"
+    
+    # Portal snippets
+    snippets:
+      - ref: test-snippet
+        name: "footer"
+        content: "<div>Footer</div>"
 
 control_planes:
   - ref: test-cp

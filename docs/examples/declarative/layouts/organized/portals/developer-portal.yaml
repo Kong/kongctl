@@ -5,19 +5,94 @@ portals:
   - ref: developer-portal
     name: "Developer Portal"
     description: "External developer portal"
-    custom_domain: "developers.example.com"
-    is_public: true
+    authentication_enabled: true
+    rbac_enabled: false
+    default_api_visibility: "public"
+    default_page_visibility: "public"
     default_application_auth_strategy_id: oauth-public
-    theme:
-      catalog:
-        primary_header: "#0066CC"
-        welcome_message: "Welcome to our API ecosystem"
-      portal:
-        primary_header: "#0066CC"
-        text:
+    auto_approve_developers: true
+    auto_approve_applications: false
+    
+    # Portal customization
+    customization:
+      theme:
+        name: "developer-theme"
+        mode: "light"
+        colors:
           primary: "#0066CC"
-          secondary: "#666666"
-          base: "#000000"
-        button:
-          primary_fill: "#0066CC"
-          primary_text: "#FFFFFF"
+      layout: "default"
+      css: |
+        /* Developer portal branding */
+        .header {
+          background-color: #0066CC;
+        }
+        
+        .welcome-banner {
+          background: linear-gradient(135deg, #0066CC 0%, #004499 100%);
+          color: white;
+          padding: 60px 0;
+          text-align: center;
+        }
+      
+      menu:
+        main:
+          - path: "/getting-started"
+            title: "Getting Started"
+            visibility: "public"
+            external: false
+          - path: "/api-reference"
+            title: "API Reference"
+            visibility: "public"
+            external: false
+          - path: "/sdks"
+            title: "SDKs & Tools"
+            visibility: "public"
+            external: false
+          - path: "https://github.com/example"
+            title: "GitHub"
+            visibility: "public"
+            external: true
+    
+    # Custom domain
+    custom_domain:
+      hostname: "developers.example.com"
+      enabled: true
+      ssl:
+        cert: "${DEVELOPER_SSL_CERT}"
+        key: "${DEVELOPER_SSL_KEY}"
+    
+    # Portal pages
+    pages:
+      - ref: dev-home
+        title: "Welcome to Example APIs"
+        path: "/"
+        content: |
+          <div class="welcome-banner">
+            <h1>Welcome to our API ecosystem</h1>
+            <p>Build amazing applications with our powerful APIs</p>
+          </div>
+          
+          ## Get Started in Minutes
+          
+          1. Create your developer account
+          2. Register your application
+          3. Start making API calls
+          
+          ## Popular APIs
+          
+          Browse our most popular APIs and start building today.
+        visibility: "public"
+      
+      - ref: dev-sdks
+        title: "SDKs & Tools"
+        path: "/sdks"
+        content: |
+          # SDKs & Tools
+          
+          We provide official SDKs for popular languages:
+          
+          - [JavaScript/Node.js](https://github.com/example/js-sdk)
+          - [Python](https://github.com/example/python-sdk)
+          - [Go](https://github.com/example/go-sdk)
+          - [Java](https://github.com/example/java-sdk)
+        visibility: "public"

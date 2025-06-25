@@ -8,9 +8,9 @@ import (
 
 // ApplicationAuthStrategyResource represents an application auth strategy in declarative configuration
 type ApplicationAuthStrategyResource struct {
-	kkComps.CreateAppAuthStrategyRequest `yaml:",inline"`
-	Ref     string       `yaml:"ref"`
-	Kongctl *KongctlMeta `yaml:"kongctl,omitempty"`
+	kkComps.CreateAppAuthStrategyRequest `yaml:",inline" json:",inline"`
+	Ref     string       `yaml:"ref" json:"ref"`
+	Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
 }
 
 // GetRef returns the reference identifier used for cross-resource references

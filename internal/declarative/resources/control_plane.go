@@ -8,9 +8,9 @@ import (
 
 // ControlPlaneResource represents a control plane in declarative configuration
 type ControlPlaneResource struct {
-	kkComps.CreateControlPlaneRequest `yaml:",inline"`
-	Ref     string       `yaml:"ref"`
-	Kongctl *KongctlMeta `yaml:"kongctl,omitempty"`
+	kkComps.CreateControlPlaneRequest `yaml:",inline" json:",inline"`
+	Ref     string       `yaml:"ref" json:"ref"`
+	Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
 }
 
 // GetRef returns the reference identifier used for cross-resource references

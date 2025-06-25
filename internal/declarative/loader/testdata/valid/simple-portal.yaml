@@ -2,4 +2,9 @@ portals:
   - ref: test-portal
     name: "Test Portal"
     description: "A test portal"
-    is_public: true
+    authentication_enabled: true
+    rbac_enabled: false
+    default_api_visibility: "public"
+    default_page_visibility: "public"
+    auto_approve_developers: true
+    auto_approve_applications: false

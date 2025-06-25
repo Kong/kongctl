@@ -171,13 +171,13 @@ func TestLoader_Load_FileVsDirectory(t *testing.T) {
 	
 	// Test Load method with single file path
 	loader = New(filePath)
-	rs, err = loader.Load()
+	rs2, err := loader.Load()
 	assert.NoError(t, err)
-	assert.Len(t, rs.Portals, 1)
+	assert.Len(t, rs2.Portals, 1)
 	
 	// Test Load method with directory path (should fail for now)
 	loader = New(filepath.Join("testdata", "valid"))
-	rs, err = loader.Load()
+	_, err = loader.Load()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "directory loading not yet implemented")
 }
