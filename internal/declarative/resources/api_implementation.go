@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 
@@ -9,9 +10,9 @@ import (
 
 // APIImplementationResource represents an API implementation in declarative configuration
 type APIImplementationResource struct {
-	kkInternalComps.APIImplementation `yaml:",inline"`
-	Ref     string       `yaml:"ref"`
-	Kongctl *KongctlMeta `yaml:"kongctl,omitempty"`
+	kkInternalComps.APIImplementation `yaml:",inline" json:",inline"`
+	Ref     string       `yaml:"ref" json:"ref"`
+	Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
 }
 
 // GetRef returns the reference identifier used for cross-resource references
@@ -56,4 +57,52 @@ func (i APIImplementationResource) Validate() error {
 // SetDefaults applies default values to API implementation resource
 func (i *APIImplementationResource) SetDefaults() {
 	// API implementations typically don't need default values
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling to handle SDK types
+func (i *APIImplementationResource) UnmarshalJSON(data []byte) error {
+	// Temporary struct to capture all fields
+	var temp struct {
+		Ref                string `json:"ref"`
+		ImplementationURL  string `json:"implementation_url,omitempty"`
+		Service            *struct {
+			ID             string `json:"id"`
+			ControlPlaneID string `json:"control_plane_id"`
+		} `json:"service,omitempty"`
+		Kongctl *KongctlMeta `json:"kongctl,omitempty"`
+	}
+	
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+	
+	// Set our custom fields
+	i.Ref = temp.Ref
+	i.Kongctl = temp.Kongctl
+	
+	// Map to SDK fields embedded in APIImplementation
+	sdkData := map[string]interface{}{}
+	
+	if temp.ImplementationURL != "" {
+		sdkData["implementation_url"] = temp.ImplementationURL
+	}
+	
+	if temp.Service != nil {
+		sdkData["service"] = map[string]interface{}{
+			"id":               temp.Service.ID,
+			"control_plane_id": temp.Service.ControlPlaneID,
+		}
+	}
+	
+	sdkBytes, err := json.Marshal(sdkData)
+	if err != nil {
+		return err
+	}
+	
+	// Unmarshal into the embedded SDK type
+	if err := json.Unmarshal(sdkBytes, &i.APIImplementation); err != nil {
+		return err
+	}
+	
+	return nil
 }

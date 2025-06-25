@@ -39,9 +39,12 @@ func TestLoader_LoadFile_ValidConfigs(t *testing.T) {
 			expectedControlPlanes: 1,
 		},
 		{
-			name:         "api with children",
-			file:         "valid/api-with-children.yaml",
-			expectedAPIs: 1,
+			name:                  "api with children",
+			file:                  "valid/api-with-children.yaml",
+			expectedPortals:       1,
+			expectedAuthStrats:    1,
+			expectedControlPlanes: 1,
+			expectedAPIs:          1,
 		},
 		{
 			name:                  "multi resource",
