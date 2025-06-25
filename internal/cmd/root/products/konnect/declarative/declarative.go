@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/declarative/loader"
 	"github.com/spf13/cobra"
 )
 
@@ -35,9 +36,7 @@ func newDeclarativePlanCmd() *cobra.Command {
 
 The plan artifact represents the desired state of Konnect resources and can be used
 for review, approval workflows, or as input to sync operations.`,
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return fmt.Errorf("plan command not yet implemented")
-		},
+		RunE: runPlan,
 	}
 
 	// Add declarative config flags
@@ -45,6 +44,57 @@ for review, approval workflows, or as input to sync operations.`,
 	cmd.Flags().String("output-file", "", "Save plan artifact to file")
 
 	return cmd
+}
+
+func runPlan(cmd *cobra.Command, _ []string) error {
+	dir, _ := cmd.Flags().GetString("dir")
+	
+	// Load configuration
+	ldr := loader.New(dir)
+	resourceSet, err := ldr.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load configuration: %w", err)
+	}
+	
+	// Display summary
+	fmt.Fprintln(cmd.OutOrStdout(), "Configuration loaded successfully:")
+	
+	if len(resourceSet.Portals) > 0 {
+		fmt.Fprintf(cmd.OutOrStdout(), "- %d portal(s) found:", len(resourceSet.Portals))
+		for _, portal := range resourceSet.Portals {
+			fmt.Fprintf(cmd.OutOrStdout(), " %q", portal.GetRef())
+		}
+		fmt.Fprintln(cmd.OutOrStdout())
+	}
+	
+	if len(resourceSet.ApplicationAuthStrategies) > 0 {
+		fmt.Fprintf(cmd.OutOrStdout(), "- %d auth strategy(ies) found:", len(resourceSet.ApplicationAuthStrategies))
+		for _, authStrat := range resourceSet.ApplicationAuthStrategies {
+			fmt.Fprintf(cmd.OutOrStdout(), " %q", authStrat.GetRef())
+		}
+		fmt.Fprintln(cmd.OutOrStdout())
+	}
+	
+	if len(resourceSet.ControlPlanes) > 0 {
+		fmt.Fprintf(cmd.OutOrStdout(), "- %d control plane(s) found:", len(resourceSet.ControlPlanes))
+		for _, cp := range resourceSet.ControlPlanes {
+			fmt.Fprintf(cmd.OutOrStdout(), " %q", cp.GetRef())
+		}
+		fmt.Fprintln(cmd.OutOrStdout())
+	}
+	
+	if len(resourceSet.APIs) > 0 {
+		fmt.Fprintf(cmd.OutOrStdout(), "- %d API(s) found:", len(resourceSet.APIs))
+		for _, api := range resourceSet.APIs {
+			fmt.Fprintf(cmd.OutOrStdout(), " %q", api.GetRef())
+		}
+		fmt.Fprintln(cmd.OutOrStdout())
+	}
+	
+	// TODO: Generate actual plan in Stage 2
+	fmt.Fprintln(cmd.OutOrStdout(), "\nPlan generation not yet implemented")
+	
+	return nil
 }
 
 func newDeclarativeSyncCmd() *cobra.Command {

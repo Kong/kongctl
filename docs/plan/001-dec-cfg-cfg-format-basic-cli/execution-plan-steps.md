@@ -10,7 +10,7 @@
 | 4 | Define Portal Resource | Completed | Step 3 |
 | 5 | Implement YAML Loader | Completed | Step 4 |
 | 6 | Add Multi-file Support | Completed | Step 5 |
-| 7 | Integrate with Plan Command | Not Started | Step 6 |
+| 7 | Integrate with Plan Command | Completed | Step 6 |
 
 *See [process.md](process.md) for status definitions and development workflow.*
 
@@ -773,13 +773,20 @@ Actual commits:
 ## Step 7: Integrate with Plan Command
 
 ### Status
-Not Started
+Completed
 
 ### Dependencies
 Step 6
 
 ### Changes
 - Update `internal/cmd/root/verbs/plan/plan.go`
+- Update `internal/cmd/root/products/konnect/declarative/declarative.go`
+
+### Implementation Notes
+- Implemented Konnect-first pattern where `plan` command redirects to `plan konnect`
+- Added runPlan function to declarative.go that loads configuration and displays summary
+- Command now supports both `kongctl plan --dir ./config` and `kongctl plan konnect --dir ./config`
+- Added comprehensive integration tests for various scenarios
 
 ### Implementation
 ```go
@@ -841,4 +848,10 @@ feat(plan): integrate configuration loader with plan command
 
 Connect plan command to loader, display summary of loaded resources,
 and prepare for plan generation in Stage 2
+
+Actual implementation:
+- Implemented Konnect-first pattern with direct RunE delegation
+- Added runPlan function that loads configuration and displays summary
+- Added comprehensive integration tests
+- Fixed linting issues (unused parameter)
 ```

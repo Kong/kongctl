@@ -42,38 +42,29 @@ approval workflows, or as input to sync operations.`))
 )
 
 func NewPlanCmd() (*cobra.Command, error) {
+	// Create the konnect subcommand first to get its implementation
+	konnectCmd, err := konnect.NewKonnectCmd(Verb)
+	if err != nil {
+		return nil, err
+	}
+
 	cmd := &cobra.Command{
 		Use:     planUse,
 		Short:   planShort,
 		Long:    planLong,
 		Example: planExamples,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// When called directly without subcommand, redirect to konnect
-			if len(args) == 0 && cmd.Flags().NArg() == 0 {
-				// Find the konnect subcommand
-				for _, subcmd := range cmd.Commands() {
-					if subcmd.Name() == "konnect" {
-						// Copy parent flags to subcommand
-						subcmd.Flags().AddFlagSet(cmd.Flags())
-						// Execute konnect subcommand
-						return subcmd.RunE(subcmd, args)
-					}
-				}
-			}
-			// If we get here, show help
-			return cmd.Help()
-		},
+		// Use the konnect command's RunE directly for Konnect-first pattern
+		RunE: konnectCmd.RunE,
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))
 		},
 	}
 
-	// Add konnect subcommand
-	c, e := konnect.NewKonnectCmd(Verb)
-	if e != nil {
-		return nil, e
-	}
-	cmd.AddCommand(c)
+	// Copy flags from konnect command to parent
+	cmd.Flags().AddFlagSet(konnectCmd.Flags())
+
+	// Also add konnect as a subcommand for explicit usage
+	cmd.AddCommand(konnectCmd)
 
 	return cmd, nil
 }
