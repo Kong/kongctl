@@ -9,7 +9,7 @@
 | 3 | Define Core Types | Completed | None |
 | 4 | Define Portal Resource | Completed | Step 3 |
 | 5 | Implement YAML Loader | Completed | Step 4 |
-| 6 | Add Multi-file Support | Not Started | Step 5 |
+| 6 | Add Multi-file Support | Completed | Step 5 |
 | 7 | Integrate with Plan Command | Not Started | Step 6 |
 
 *See [process.md](process.md) for status definitions and development workflow.*
@@ -671,7 +671,7 @@ Actual commits:
 ## Step 6: Add Multi-file Support
 
 ### Status
-In Progress
+Completed
 
 ### Dependencies
 Step 5
@@ -753,6 +753,8 @@ feat(loader): add multi-file configuration support
 
 Extend loader to handle directories, merge resources from multiple
 YAML files, and validate the combined result
+
+Actual commit: d6472a4
 ```
 
 ---
