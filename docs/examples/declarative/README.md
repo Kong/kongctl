@@ -12,21 +12,20 @@ resources declaratively.
 
 ## Basic Examples
 
-Start here if you're new to declarative configuration:
+Start here if you're new to declarative configuration. Each example is in its own directory and can be run independently:
 
-- `portal.yaml` - Basic portal configuration
-- `auth-strategy.yaml` - Authentication strategy examples
-- `control-plane.yaml` - Control plane definitions
-- `api-with-children.yaml` - API with nested resources (versions, publications,
-  implementations)
+- `basic/portal-example/` - Basic portal configuration
+- `basic/auth-strategy-example/` - Authentication strategy examples  
+- `basic/control-plane-example/` - Control plane definitions
+- `basic/api-with-children-example/` - API with nested resources (versions, publications, implementations)
 
 ## Complex Examples
 
-Real-world scenarios and patterns:
+Real-world scenarios and patterns. Each example is in its own directory:
 
-- `multi-resource.yaml` - Multiple resource types in one file
-- `full-portal-setup.yaml` - Complete portal with all dependencies
-- `api-lifecycle.yaml` - API versioning and lifecycle management
+- `complex/multi-resource-example/` - Multiple resource types in one file
+- `complex/full-portal-setup-example/` - Complete portal with all dependencies
+- `complex/api-lifecycle-example/` - API versioning and lifecycle management
 
 ## Layout Examples
 
@@ -126,14 +125,17 @@ openid_connect:
 To validate these examples:
 
 ```bash
-# Validate a single file
-kongctl plan --dir examples/basic/portal.yaml
+# Validate basic examples
+kongctl plan --dir docs/examples/declarative/basic/portal-example
 
-# Validate a directory
-kongctl plan --dir examples/layouts/organized/
+# Validate complex examples 
+kongctl plan --dir docs/examples/declarative/complex/full-portal-setup-example
+
+# Validate layout examples (multi-file)
+kongctl plan --dir docs/examples/declarative/layouts/organized/
 
 # Generate a plan from examples
-kongctl plan --dir examples/complex/full-portal-setup.yaml --output-file plan.json
+kongctl plan --dir docs/examples/declarative/complex/api-lifecycle-example --output-file plan.json
 ```
 
 ## Best Practices

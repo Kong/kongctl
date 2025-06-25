@@ -1,6 +1,40 @@
 # API with nested child resources example
 # This demonstrates the parent-child relationship structure for APIs
 
+# Required portals for the API publications
+portals:
+  - ref: developer-portal
+    name: "Developer Portal"
+    description: "Public developer portal"
+    
+  - ref: partner-portal
+    name: "Partner Portal"
+    description: "Partner-only portal"
+
+# Required auth strategies for the API publications
+application_auth_strategies:
+  - ref: oauth-strategy
+    name: "OAuth Strategy"
+    display_name: "OAuth 2.0"
+    strategy_type: key_auth
+    configs:
+      key_auth:
+        key_names: ["api-key"]
+        
+  - ref: key-auth-strategy
+    name: "API Key Strategy"
+    display_name: "API Key Auth"
+    strategy_type: key_auth
+    configs:
+      key_auth:
+        key_names: ["x-api-key"]
+
+# Control plane for API implementations
+control_planes:
+  - ref: test-cp
+    name: "Test Control Plane"
+    description: "Test environment control plane"
+
 apis:
   - ref: payment-api
     name: "Payment Processing API"
@@ -53,10 +87,10 @@ apis:
         implementation_url: "https://api.example.com/payments/v2"
         service:
           id: "d125e0a1-b305-4ae2-9fa8-3a57f9df85e1"  # External UUID from decK
-          control_plane_id: production-cp  # References control plane by ref
+          control_plane_id: test-cp  # References control plane by ref
         
       - ref: payment-api-impl-staging
         implementation_url: "https://api-staging.example.com/payments/v2"
         service:
           id: "a8b7c6d5-4321-1234-5678-9abcdef01234"  # External UUID from decK
-          control_plane_id: staging-cp
+          control_plane_id: test-cp
