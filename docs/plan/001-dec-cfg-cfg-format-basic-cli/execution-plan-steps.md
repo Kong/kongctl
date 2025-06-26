@@ -671,7 +671,7 @@ Actual commits:
 ## Step 6: Add Multi-file Support
 
 ### Status
-Completed
+Completed (Enhanced with -f flag pattern and command parity)
 
 ### Dependencies
 Step 5
@@ -679,14 +679,27 @@ Step 5
 ### Changes
 - Extend `internal/declarative/loader/loader.go`
 - Enhanced with fail-fast duplicate detection for both `ref` and `name` fields
+- **Enhancement 1**: Replace `--dir` with `-f`/`--filename` flag pattern
+- **Enhancement 2**: Bring all declarative commands into parity
 
 ### Implementation Notes
 - **Original implementation**: Basic multi-file loading with append merging
-- **Enhancement (completed)**: Added fail-fast duplicate detection during merge operation
+- **Enhancement 1 (completed)**: Added fail-fast duplicate detection during merge operation
   - Checks both `ref` (local identifier) and `name` (Konnect identifier) uniqueness
   - Fails immediately when duplicates are found with clear error messages
   - Shows which files contain the conflicting resources
   - Handles auth strategy union types with GetName() method
+- **Enhancement 2 (completed)**: Implement `-f`/`--filename` flag pattern
+  - Support multiple file sources
+  - Non-recursive directory walking by default
+  - Explicit `-R` flag for recursive walking
+  - STDIN support with `-f -`
+  - Comma-separated file lists
+- **Enhancement 3 (completed)**: Command parity
+  - Updated all declarative commands (apply, sync, diff, export) to match plan
+  - All commands now expose `-f` and `-R` flags at top level
+  - Updated examples to show new patterns including comma-separated syntax
+  - Export command uses `-o` for output directory
 
 ### Implementation
 ```go

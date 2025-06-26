@@ -11,7 +11,7 @@ import (
 )
 
 func TestLoader_validateResourceSet_EmptyResourceSet(t *testing.T) {
-	loader := New(".")
+	loader := New()
 	rs := &resources.ResourceSet{}
 	
 	err := loader.validateResourceSet(rs)
@@ -19,7 +19,7 @@ func TestLoader_validateResourceSet_EmptyResourceSet(t *testing.T) {
 }
 
 func TestLoader_validatePortals(t *testing.T) {
-	loader := New(".")
+	loader := New()
 	registry := make(map[string]map[string]bool)
 	
 	tests := []struct {
@@ -87,7 +87,7 @@ func TestLoader_validatePortals(t *testing.T) {
 }
 
 func TestLoader_validateAuthStrategies(t *testing.T) {
-	loader := New(".")
+	loader := New()
 	registry := make(map[string]map[string]bool)
 	
 	tests := []struct {
@@ -148,7 +148,7 @@ func TestLoader_validateAuthStrategies(t *testing.T) {
 }
 
 func TestLoader_validateControlPlanes(t *testing.T) {
-	loader := New(".")
+	loader := New()
 	registry := make(map[string]map[string]bool)
 	
 	tests := []struct {
@@ -203,7 +203,7 @@ func TestLoader_validateControlPlanes(t *testing.T) {
 }
 
 func TestLoader_validateAPIs(t *testing.T) {
-	loader := New(".")
+	loader := New()
 	registry := make(map[string]map[string]bool)
 	
 	tests := []struct {
@@ -316,7 +316,7 @@ func TestLoader_validateAPIs(t *testing.T) {
 }
 
 func TestLoader_validateCrossReferences(t *testing.T) {
-	loader := New(".")
+	loader := New()
 	
 	// Create a registry with some resources
 	registry := map[string]map[string]bool{
@@ -388,7 +388,7 @@ func TestLoader_validateCrossReferences(t *testing.T) {
 }
 
 func TestLoader_getFieldValue(t *testing.T) {
-	loader := New(".")
+	loader := New()
 	
 	// Test with a mock struct that has various field types
 	type TestStruct struct {
@@ -439,7 +439,7 @@ func TestLoader_getFieldValue(t *testing.T) {
 }
 
 func TestLoader_findField(t *testing.T) {
-	loader := New(".")
+	loader := New()
 	
 	type TestStruct struct {
 		DirectField string `yaml:"direct_field"`

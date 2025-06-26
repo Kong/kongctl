@@ -2,6 +2,7 @@ package declarative
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/declarative/loader"
@@ -40,20 +41,46 @@ for review, approval workflows, or as input to sync operations.`,
 	}
 
 	// Add declarative config flags
-	cmd.Flags().StringP("dir", "d", ".", "Directory containing configuration files")
+	cmd.Flags().StringSliceP("filename", "f", []string{}, 
+		"Filename or directory to files to use to create the resource (can specify multiple)")
+	cmd.Flags().BoolP("recursive", "R", false, 
+		"Process the directory used in -f, --filename recursively")
 	cmd.Flags().String("output-file", "", "Save plan artifact to file")
 
 	return cmd
 }
 
 func runPlan(cmd *cobra.Command, _ []string) error {
-	dir, _ := cmd.Flags().GetString("dir")
+	filenames, _ := cmd.Flags().GetStringSlice("filename")
+	recursive, _ := cmd.Flags().GetBool("recursive")
+	
+	// Parse sources from filenames
+	sources, err := loader.ParseSources(filenames)
+	if err != nil {
+		return fmt.Errorf("failed to parse sources: %w", err)
+	}
 	
 	// Load configuration
-	ldr := loader.New(dir)
-	resourceSet, err := ldr.Load()
+	ldr := loader.New()
+	resourceSet, err := ldr.LoadFromSources(sources, recursive)
 	if err != nil {
+		// Provide more helpful error message for common cases
+		if len(filenames) == 0 && strings.Contains(err.Error(), "no YAML files found") {
+			return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
+		}
 		return fmt.Errorf("failed to load configuration: %w", err)
+	}
+	
+	// Check if configuration is empty
+	totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
+		len(resourceSet.ControlPlanes) + len(resourceSet.APIs)
+	
+	if totalResources == 0 {
+		// Check if we're using default directory (no explicit sources)
+		if len(filenames) == 0 {
+			return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
+		}
+		return fmt.Errorf("no resources found in configuration files")
 	}
 	
 	// Display summary
@@ -112,7 +139,10 @@ achieve the desired state.`,
 	}
 
 	// Add declarative config flags
-	cmd.Flags().StringP("dir", "d", ".", "Directory containing configuration files")
+	cmd.Flags().StringSliceP("filename", "f", []string{}, 
+		"Filename or directory to files to use to create the resource (can specify multiple)")
+	cmd.Flags().BoolP("recursive", "R", false, 
+		"Process the directory used in -f, --filename recursively")
 	cmd.Flags().Bool("dry-run", false, "Preview changes without applying them")
 
 	return cmd
@@ -133,7 +163,10 @@ useful for reviewing changes before synchronization.`,
 	}
 
 	// Add declarative config flags
-	cmd.Flags().StringP("dir", "d", ".", "Directory containing configuration files")
+	cmd.Flags().StringSliceP("filename", "f", []string{}, 
+		"Filename or directory to files to use to create the resource (can specify multiple)")
+	cmd.Flags().BoolP("recursive", "R", false, 
+		"Process the directory used in -f, --filename recursively")
 	cmd.Flags().Bool("detailed", false, "Show detailed diff output")
 
 	return cmd
@@ -154,7 +187,7 @@ and applied to other environments.`,
 	}
 
 	// Add declarative config flags
-	cmd.Flags().StringP("dir", "d", "./exported-config", "Directory to export configuration files")
+	cmd.Flags().StringP("output", "o", "./exported-config", "Directory to export configuration files")
 	cmd.Flags().String("resources", "", "Comma-separated list of resource types to export")
 
 	return cmd
@@ -174,7 +207,10 @@ update, or delete resources to match the desired state.`,
 	}
 
 	// Add declarative config flags
-	cmd.Flags().StringP("dir", "d", ".", "Directory containing configuration files")
+	cmd.Flags().StringSliceP("filename", "f", []string{}, 
+		"Filename or directory to files to use to create the resource (can specify multiple)")
+	cmd.Flags().BoolP("recursive", "R", false, 
+		"Process the directory used in -f, --filename recursively")
 	cmd.Flags().Bool("force", false, "Force apply without confirmation")
 
 	return cmd

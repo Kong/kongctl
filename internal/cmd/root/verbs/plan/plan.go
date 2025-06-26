@@ -30,14 +30,23 @@ approval workflows, or as input to sync operations.`))
 
 	planExamples = normalizers.Examples(i18n.T("root.verbs.plan.planExamples",
 		fmt.Sprintf(`
-		# Generate a plan from configuration directory
-		%[1]s plan --dir ./config
+		# Generate a plan from configuration files
+		%[1]s plan -f portal.yaml -f auth.yaml
+		
+		# Generate a plan from comma-separated files
+		%[1]s plan -f portal.yaml,auth.yaml,api.yaml
+		
+		# Generate a plan from a directory
+		%[1]s plan -f ./config
+		
+		# Generate a plan from directory recursively
+		%[1]s plan -f ./config -R
 		
 		# Generate a plan and save to file
-		%[1]s plan --dir ./config --output-file plan.json
+		%[1]s plan -f ./config --output-file plan.json
 		
-		# Generate a plan for Konnect explicitly
-		%[1]s plan konnect --dir ./config
+		# Generate a plan from stdin
+		cat portal.yaml | %[1]s plan -f -
 		`, meta.CLIName)))
 )
 

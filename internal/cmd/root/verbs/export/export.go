@@ -32,49 +32,43 @@ modified, and applied to other environments.`))
 	exportExamples = normalizers.Examples(i18n.T("root.verbs.export.exportExamples",
 		fmt.Sprintf(`
 		# Export all resources to directory
-		%[1]s export --dir ./exported-config
+		%[1]s export -o ./exported-config
 		
 		# Export specific resource types
-		%[1]s export --dir ./exported-config --resources portals,services
+		%[1]s export -o ./exported-config --resources portals,apis
 		
-		# Export resources for Konnect explicitly
-		%[1]s export konnect --dir ./exported-config
+		# Export to a specific structure
+		%[1]s export -o ./config --structure flat
+		
+		# Export with custom file naming
+		%[1]s export -o ./config --split-by-type
 		`, meta.CLIName)))
 )
 
 func NewExportCmd() (*cobra.Command, error) {
+	// Create the konnect subcommand first to get its implementation
+	konnectCmd, err := konnect.NewKonnectCmd(Verb)
+	if err != nil {
+		return nil, err
+	}
+
 	cmd := &cobra.Command{
 		Use:     exportUse,
 		Short:   exportShort,
 		Long:    exportLong,
 		Example: exportExamples,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// When called directly without subcommand, redirect to konnect
-			if len(args) == 0 && cmd.Flags().NArg() == 0 {
-				// Find the konnect subcommand
-				for _, subcmd := range cmd.Commands() {
-					if subcmd.Name() == "konnect" {
-						// Copy parent flags to subcommand
-						subcmd.Flags().AddFlagSet(cmd.Flags())
-						// Execute konnect subcommand
-						return subcmd.RunE(subcmd, args)
-					}
-				}
-			}
-			// If we get here, show help
-			return cmd.Help()
-		},
+		// Use the konnect command's RunE directly for Konnect-first pattern
+		RunE: konnectCmd.RunE,
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))
 		},
 	}
 
-	// Add konnect subcommand
-	c, e := konnect.NewKonnectCmd(Verb)
-	if e != nil {
-		return nil, e
-	}
-	cmd.AddCommand(c)
+	// Copy flags from konnect command to parent
+	cmd.Flags().AddFlagSet(konnectCmd.Flags())
+
+	// Also add konnect as a subcommand for explicit usage
+	cmd.AddCommand(konnectCmd)
 
 	return cmd, nil
 }

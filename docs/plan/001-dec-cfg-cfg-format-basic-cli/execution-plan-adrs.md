@@ -401,3 +401,110 @@ apis:
 - **Error handling**: Need excellent error messages to guide users
 - **Resource-specific complexity**: Each resource type must implement ReferenceMapping interface
 - **Extensibility**: Easy to add new resource types without affecting existing ones
+
+---
+
+## ADR-001-009: File Loading Patterns with -f/--filename Flag
+
+### Context
+The initial implementation used a `--dir` flag that recursively loaded all YAML files from a directory. This approach had several limitations:
+
+1. **Inflexibility**: Users could only specify a single directory
+2. **No file-level control**: Couldn't specify individual files
+3. **Always recursive**: No way to limit directory traversal
+4. **No STDIN support**: Couldn't pipe configurations
+5. **Unfamiliar pattern**: Differs from kubectl and similar tools
+
+User feedback highlighted issues when running commands in project root directories, accidentally loading unrelated YAML files.
+
+### Decision
+Replace the `--dir` flag with a `-f`/`--filename` flag pattern that supports:
+
+1. **Single file**: `kongctl plan -f portal.yaml`
+2. **Multiple files**: `kongctl plan -f portal.yaml -f auth.yaml`
+3. **Comma-separated**: `kongctl plan -f portal.yaml,auth.yaml`
+4. **Directory (non-recursive)**: `kongctl plan -f configs/`
+5. **Recursive directory**: `kongctl plan -f configs/ -R`
+6. **STDIN**: `cat portal.yaml | kongctl plan -f -`
+7. **Mixed sources**: `kongctl plan -f portal.yaml -f configs/`
+
+### Implementation Details
+
+**Flag Definition**:
+```go
+cmd.Flags().StringSliceP("filename", "f", []string{}, 
+    "Filename, directory, or URL to files to use to create the resource")
+cmd.Flags().BoolP("recursive", "R", false, 
+    "Process the directory used in -f, --filename recursively")
+```
+
+**Source Processing**:
+- Parse comma-separated values in each `-f` argument
+- Detect source type (file, directory, stdin)
+- Non-recursive directory walking by default
+- Recursive walking only with `-R` flag
+- Support `-` as stdin indicator
+
+### Rationale
+
+**Benefits**:
+- **Familiar pattern**: Matches kubectl, making it intuitive for Kubernetes users
+- **Flexible**: Supports various workflows and file organizations
+- **Explicit control**: Users choose recursive behavior
+- **Safer defaults**: Non-recursive prevents accidental loading
+- **Pipeline friendly**: STDIN support enables scripting
+- **Granular control**: Can mix files and directories
+
+**Why not keep --dir?**
+- Limited to directory-only workflows
+- Always recursive could load unintended files
+- No support for specific file selection
+- Inconsistent with ecosystem tools
+
+### Migration
+
+The change from `--dir` to `-f` is breaking but provides clear benefits:
+
+**Before**: 
+```bash
+kongctl plan --dir ./configs
+```
+
+**After**:
+```bash
+# Non-recursive (new default)
+kongctl plan -f ./configs
+
+# Recursive (explicit)
+kongctl plan -f ./configs -R
+
+# With specific files
+kongctl plan -f ./configs/portal.yaml -f ./configs/auth.yaml
+```
+
+### Error Handling
+
+Clear error messages guide users:
+- "No YAML files found in directory 'configs/'. Use -R to search subdirectories."
+- "Cannot read from stdin: no data provided"
+- "File not found: portal.yaml"
+- "configs/ is a directory. YAML files: 0. Subdirectories: 3. Use -R to include subdirectories."
+
+### Consequences
+
+**Positive**:
+- Better user control over file loading
+- Prevents accidental loading of entire codebases  
+- Enables CI/CD pipeline integration via STDIN
+- Consistent with cloud-native tooling patterns
+- Supports both simple and complex file organizations
+
+**Negative**:
+- Breaking change from `--dir` to `-f`
+- Slightly more complex implementation
+- Users must explicitly request recursive behavior
+
+**Mitigations**:
+- Clear documentation with migration examples
+- Helpful error messages suggesting `-R` when appropriate
+- Examples showing common patterns
