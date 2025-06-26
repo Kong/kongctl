@@ -2,16 +2,15 @@
 
 This folder contains the complete planning and implementation tracking for all kongctl features and development efforts.
 
-## 🎯 Current Active Stage: Stage 1 ⏳ In Progress
+## 🎯 Current Active Stage: Stage 2 ⏳ In Progress
 
-**Stage 1: Configuration Format & Basic CLI**
-- **Implementation Guide**: [001-dec-cfg-cfg-format-basic-cli/execution-plan-steps.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-steps.md) ← **Start here**
-- **Architecture Decisions**: [001-dec-cfg-cfg-format-basic-cli/execution-plan-adrs.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-adrs.md)
-- **Technical Overview**: [001-dec-cfg-cfg-format-basic-cli/execution-plan-overview.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-overview.md)
-- **Requirements**: [001-dec-cfg-cfg-format-basic-cli/description.md](001-dec-cfg-cfg-format-basic-cli/description.md)
+**Stage 2: Plan Generation with Label Management**
+- **Implementation Guide**: [002-dec-cfg-plan-labels/execution-plan-steps.md](002-dec-cfg-plan-labels/execution-plan-steps.md) ← **Start here**
+- **Architecture Decisions**: [002-dec-cfg-plan-labels/execution-plan-adrs.md](002-dec-cfg-plan-labels/execution-plan-adrs.md)
+- **Technical Overview**: [002-dec-cfg-plan-labels/execution-plan-overview.md](002-dec-cfg-plan-labels/execution-plan-overview.md)
+- **Requirements**: [002-dec-cfg-plan-labels/description.md](002-dec-cfg-plan-labels/description.md)
 
-**Implementation Status**: 7/7 steps completed (100%) ✅  
-**Stage 1 Complete!**  
+**Implementation Status**: 0/10 steps completed (0%) 🚀  
 **Progress Tracking**: See Progress Summary in implementation guide above
 
 ## Quick Start for Implementation
@@ -45,7 +44,7 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-steps.md) | **Implementation guide** | 📋 Ready for implementation |
 | [execution-plan-adrs.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: 7/7 steps completed (100%) ✅
+**Implementation Status**: 7/7 steps completed (100%) ✅ **COMPLETED**
 - **Completed**: All steps implemented and tested
 - **Key deliverables achieved**: 
   - Command stubs for plan, sync, diff, export
@@ -53,17 +52,24 @@ The first major feature being implemented is declarative configuration managemen
   - Basic validation with fail-fast duplicate detection
   - Plan command integration with loader
 
-#### Stage 2: Plan Labels 🔮 Future
-**Goal**: Implement plan label functionality
+#### Stage 2: Plan Generation with Label Management ⏳ In Progress
+**Goal**: Build the planner that compares current vs desired state and generates plans with CREATE/UPDATE operations
 
 | Document | Purpose | Status |
 |----------|---------|---------|
 | [description.md](002-dec-cfg-plan-labels/description.md) | Requirements from PM | ✅ Complete |
-| execution-plan-*.md | Implementation docs | 🔮 Not yet planned |
+| [execution-plan-overview.md](002-dec-cfg-plan-labels/execution-plan-overview.md) | Technical approach | ✅ Complete |
+| [execution-plan-steps.md](002-dec-cfg-plan-labels/execution-plan-steps.md) | **Implementation guide** | 📋 Ready for implementation |
+| [execution-plan-adrs.md](002-dec-cfg-plan-labels/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: Not started
-- **Dependencies**: Stage 1 completion
-- **Key deliverables**: Reference resolution, plan documents, apply/sync commands
+**Implementation Status**: 0/10 steps completed (0%) 🚀
+- **In Progress**: Just started implementation
+- **Key deliverables**: 
+  - Konnect API integration for fetching current portal state
+  - Label management system (KONGCTL/managed, KONGCTL/config-hash)
+  - Plan generation for CREATE and UPDATE operations
+  - Plan serialization to JSON format
+  - Basic diff command implementation
 
 #### Stage 3: Plan Execution 🔮 Future
 **Goal**: Implement plan execution functionality
@@ -91,10 +97,10 @@ The first major feature being implemented is declarative configuration managemen
 
 ## Current Implementation Priority
 
-### ⭐ Immediate Focus: Stage 1
-The immediate priority is completing Stage 1. All planning documents are ready for implementation.
+### ⭐ Immediate Focus: Stage 2
+Stage 1 is complete. The immediate priority is implementing Stage 2 - Plan Generation with Label Management.
 
-**Start here**: [001-dec-cfg-cfg-format-basic-cli/execution-plan-steps.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-steps.md) - Progress Summary
+**Start here**: [002-dec-cfg-plan-labels/execution-plan-steps.md](002-dec-cfg-plan-labels/execution-plan-steps.md) - Progress Summary
 
 ### 🎯 Entry Points for Claude Code
 
