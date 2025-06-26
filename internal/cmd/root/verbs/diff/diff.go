@@ -31,50 +31,50 @@ useful for reviewing changes before synchronization.`))
 
 	diffExamples = normalizers.Examples(i18n.T("root.verbs.diff.diffExamples",
 		fmt.Sprintf(`
+		# Show differences from configuration files
+		%[1]s diff -f portal.yaml -f auth.yaml
+		
+		# Show differences from comma-separated files
+		%[1]s diff -f portal.yaml,auth.yaml,api.yaml
+		
 		# Show differences from configuration directory
-		%[1]s diff --dir ./config
+		%[1]s diff -f ./config
+		
+		# Show differences from directory recursively
+		%[1]s diff -f ./config -R
 		
 		# Show differences with detailed output
-		%[1]s diff --dir ./config --detailed
+		%[1]s diff -f ./config --detailed
 		
-		# Show differences for Konnect explicitly
-		%[1]s diff konnect --dir ./config
+		# Show differences from stdin
+		cat portal.yaml | %[1]s diff -f -
 		`, meta.CLIName)))
 )
 
 func NewDiffCmd() (*cobra.Command, error) {
+	// Create the konnect subcommand first to get its implementation
+	konnectCmd, err := konnect.NewKonnectCmd(Verb)
+	if err != nil {
+		return nil, err
+	}
+
 	cmd := &cobra.Command{
 		Use:     diffUse,
 		Short:   diffShort,
 		Long:    diffLong,
 		Example: diffExamples,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// When called directly without subcommand, redirect to konnect
-			if len(args) == 0 && cmd.Flags().NArg() == 0 {
-				// Find the konnect subcommand
-				for _, subcmd := range cmd.Commands() {
-					if subcmd.Name() == "konnect" {
-						// Copy parent flags to subcommand
-						subcmd.Flags().AddFlagSet(cmd.Flags())
-						// Execute konnect subcommand
-						return subcmd.RunE(subcmd, args)
-					}
-				}
-			}
-			// If we get here, show help
-			return cmd.Help()
-		},
+		// Use the konnect command's RunE directly for Konnect-first pattern
+		RunE: konnectCmd.RunE,
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))
 		},
 	}
 
-	// Add konnect subcommand
-	c, e := konnect.NewKonnectCmd(Verb)
-	if e != nil {
-		return nil, e
-	}
-	cmd.AddCommand(c)
+	// Copy flags from konnect command to parent
+	cmd.Flags().AddFlagSet(konnectCmd.Flags())
+
+	// Also add konnect as a subcommand for explicit usage
+	cmd.AddCommand(konnectCmd)
 
 	return cmd, nil
 }

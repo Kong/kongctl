@@ -126,16 +126,22 @@ To validate these examples:
 
 ```bash
 # Validate basic examples
-kongctl plan --dir docs/examples/declarative/basic/portal-example
+kongctl plan -f docs/examples/declarative/basic/portal-example
 
 # Validate complex examples 
-kongctl plan --dir docs/examples/declarative/complex/full-portal-setup-example
+kongctl plan -f docs/examples/declarative/complex/full-portal-setup-example
 
-# Validate layout examples (multi-file)
-kongctl plan --dir docs/examples/declarative/layouts/organized/
+# Validate layout examples (multi-file with subdirectories)
+kongctl plan -f docs/examples/declarative/layouts/organized/ -R
 
 # Generate a plan from examples
-kongctl plan --dir docs/examples/declarative/complex/api-lifecycle-example --output-file plan.json
+kongctl plan -f docs/examples/declarative/complex/api-lifecycle-example --output-file plan.json
+
+# Validate multiple specific files
+kongctl plan -f portal.yaml -f auth.yaml
+
+# Validate from stdin
+cat portal.yaml | kongctl plan -f -
 ```
 
 ## Best Practices
