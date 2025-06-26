@@ -31,11 +31,11 @@ apis:
       - ref: product-catalog-prod-primary
         implementation_url: "https://api.example.com/products"
         service:
-          id: "p123e456-7890-1234-5678-90abcdef1234"
+          id: "1123e456-7890-1234-5678-90abcdef1234"
           control_plane_id: prod-us-east
           
       - ref: product-catalog-prod-secondary
         implementation_url: "https://api-west.example.com/products"
         service:
-          id: "p456f789-0123-4567-8901-234567890abc"
+          id: "2456f789-0123-4567-8901-234567890abc"
           control_plane_id: prod-us-west

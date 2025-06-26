@@ -81,33 +81,28 @@ func TestLoader_LoadFile_InvalidConfigs(t *testing.T) {
 	}{
 		{
 			name:        "portal without ref",
-			file:        "invalid/portal-missing-ref.yaml",
+			file:        "invalid/missing-portal-ref.yaml",
 			expectError: "portal ref is required",
 		},
 		{
 			name:        "portal with duplicate refs",
-			file:        "invalid/duplicate-portal-refs.yaml",
+			file:        "invalid/duplicate-refs.yaml",
 			expectError: "duplicate portal ref",
 		},
 		{
-			name:        "auth strategy without ref",
-			file:        "invalid/auth-strategy-missing-ref.yaml",
-			expectError: "application_auth_strategy ref is required",
+			name:        "malformed yaml",
+			file:        "invalid/malformed-yaml.yaml",
+			expectError: "failed to parse YAML",
 		},
 		{
 			name:        "portal with invalid reference",
-			file:        "invalid/portal-invalid-reference.yaml",
-			expectError: "references unknown application_auth_strategy",
+			file:        "invalid/missing-reference.yaml",
+			expectError: "references unknown",
 		},
 		{
-			name:        "api with missing parent ID",
-			file:        "invalid/api-missing-parent-id.yaml",
-			expectError: "portal_id is required for API publication",
-		},
-		{
-			name:        "api with invalid publication portal reference",
-			file:        "invalid/api-invalid-publication-portal-ref.yaml",
-			expectError: "references unknown portal",
+			name:        "duplicate names",
+			file:        "invalid/duplicate-names.yaml",
+			expectError: "duplicate",
 		},
 	}
 

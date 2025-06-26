@@ -22,10 +22,19 @@ func (i APIImplementationResource) GetRef() string {
 
 // GetReferenceFieldMappings returns the field mappings for reference validation
 func (i APIImplementationResource) GetReferenceFieldMappings() map[string]string {
-	return map[string]string{
-		"service.control_plane_id": "control_plane",
-		// Note: service.id is external UUID, not ref-based
+	// Only include control_plane_id mapping if it's not a UUID
+	mappings := make(map[string]string)
+	
+	if i.Service != nil && i.Service.ControlPlaneID != "" {
+		// Check if control_plane_id is a UUID - if so, it's an external reference
+		if !isValidUUID(i.Service.ControlPlaneID) {
+			// Not a UUID, so it's a reference to a declarative control plane
+			mappings["service.control_plane_id"] = "control_plane"
+		}
 	}
+	
+	// Note: service.id is always external UUID, not ref-based
+	return mappings
 }
 
 // Validate ensures the API implementation resource is valid
@@ -41,14 +50,16 @@ func (i APIImplementationResource) Validate() error {
 		}
 		
 		// Validate service.id is a UUID format (external system)
-		uuidRegex := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
-		if !uuidRegex.MatchString(i.Service.ID) {
+		if !isValidUUID(i.Service.ID) {
 			return fmt.Errorf("API implementation service.id must be a valid UUID (external service managed by decK)")
 		}
 		
 		if i.Service.ControlPlaneID == "" {
 			return fmt.Errorf("API implementation service.control_plane_id is required")
 		}
+		
+		// control_plane_id can be either a UUID (external) or a reference (declarative)
+		// Both are valid - no additional validation needed here
 	}
 	
 	return nil
@@ -105,4 +116,10 @@ func (i *APIImplementationResource) UnmarshalJSON(data []byte) error {
 	}
 	
 	return nil
+}
+
+// isValidUUID checks if a string is a valid UUID format
+func isValidUUID(s string) bool {
+	uuidRegex := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	return uuidRegex.MatchString(s)
 }

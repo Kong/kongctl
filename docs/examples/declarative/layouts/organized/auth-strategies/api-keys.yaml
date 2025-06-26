@@ -3,16 +3,16 @@
 application_auth_strategies:
   - ref: api-key-header
     name: "API Key (Header)"
-    description: "API key passed in header"
-    auth_type: key_auth
-    key_auth:
-      key_names: ["x-api-key", "api-key"]
-      key_source: "header"
+    display_name: "API key passed in header"
+    strategy_type: key_auth
+    configs:
+      key_auth:
+        key_names: ["x-api-key", "api-key"]
       
   - ref: api-key-query
     name: "API Key (Query)"
-    description: "API key passed as query parameter"
-    auth_type: key_auth
-    key_auth:
-      key_names: ["api_key", "apikey"]
-      key_source: "query"
+    display_name: "API key passed as query parameter"
+    strategy_type: key_auth
+    configs:
+      key_auth:
+        key_names: ["api_key", "apikey"]

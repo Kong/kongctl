@@ -96,7 +96,17 @@ func (l *Loader) Load() (*resources.ResourceSet, error) {
 
 // LoadFile loads configuration from a single YAML file (deprecated, for backward compatibility)
 func (l *Loader) LoadFile(path string) (*resources.ResourceSet, error) {
-	return l.loadSingleFile(path)
+	rs, err := l.loadSingleFile(path)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Validate for backward compatibility
+	if err := l.validateResourceSet(rs); err != nil {
+		return nil, fmt.Errorf("validation error: %w", err)
+	}
+	
+	return rs, nil
 }
 
 // loadSingleFile loads configuration from a single YAML file

@@ -295,9 +295,35 @@ func TestAPIImplementationResource_Validation(t *testing.T) {
 		errMsg         string
 	}{
 		{
-			name: "valid api implementation",
+			name: "valid api implementation without service",
 			implementation: APIImplementationResource{
 				Ref: "api-impl-1",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid api implementation with service and reference control_plane_id",
+			implementation: APIImplementationResource{
+				Ref: "api-impl-1",
+				APIImplementation: kkInternalComps.APIImplementation{
+					Service: &kkInternalComps.APIImplementationServiceInput{
+						ID:             "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+						ControlPlaneID: "prod-cp", // Reference to declarative control plane
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid api implementation with service and UUID control_plane_id",
+			implementation: APIImplementationResource{
+				Ref: "api-impl-1",
+				APIImplementation: kkInternalComps.APIImplementation{
+					Service: &kkInternalComps.APIImplementationServiceInput{
+						ID:             "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+						ControlPlaneID: "f9e8d7c6-b5a4-3210-9876-fedcba098765", // External UUID
+					},
+				},
 			},
 			wantErr: false,
 		},
@@ -308,6 +334,46 @@ func TestAPIImplementationResource_Validation(t *testing.T) {
 			},
 			wantErr: true,
 			errMsg:  "API implementation ref is required",
+		},
+		{
+			name: "service with missing id",
+			implementation: APIImplementationResource{
+				Ref: "api-impl-1",
+				APIImplementation: kkInternalComps.APIImplementation{
+					Service: &kkInternalComps.APIImplementationServiceInput{
+						ControlPlaneID: "prod-cp",
+					},
+				},
+			},
+			wantErr: true,
+			errMsg:  "API implementation service.id is required",
+		},
+		{
+			name: "service with invalid id (not UUID)",
+			implementation: APIImplementationResource{
+				Ref: "api-impl-1",
+				APIImplementation: kkInternalComps.APIImplementation{
+					Service: &kkInternalComps.APIImplementationServiceInput{
+						ID:             "not-a-uuid",
+						ControlPlaneID: "prod-cp",
+					},
+				},
+			},
+			wantErr: true,
+			errMsg:  "API implementation service.id must be a valid UUID",
+		},
+		{
+			name: "service with missing control_plane_id",
+			implementation: APIImplementationResource{
+				Ref: "api-impl-1",
+				APIImplementation: kkInternalComps.APIImplementation{
+					Service: &kkInternalComps.APIImplementationServiceInput{
+						ID: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+					},
+				},
+			},
+			wantErr: true,
+			errMsg:  "API implementation service.control_plane_id is required",
 		},
 	}
 
@@ -353,19 +419,62 @@ func TestReferenceFieldMappings(t *testing.T) {
 	})
 
 	t.Run("APIImplementationResource reference mappings", func(t *testing.T) {
-		implementation := APIImplementationResource{}
-		mappings := implementation.GetReferenceFieldMappings()
+		// Test with reference control_plane_id
+		t.Run("with reference control_plane_id", func(t *testing.T) {
+			implementation := APIImplementationResource{
+				APIImplementation: kkInternalComps.APIImplementation{
+					Service: &kkInternalComps.APIImplementationServiceInput{
+						ControlPlaneID: "prod-cp", // Not a UUID
+					},
+				},
+			}
+			mappings := implementation.GetReferenceFieldMappings()
+			
+			// Should include the mapping
+			actualType, exists := mappings["service.control_plane_id"]
+			assert.True(t, exists, "Should have service.control_plane_id mapping for reference")
+			assert.Equal(t, "control_plane", actualType)
+		})
 		
-		// Check expected mappings
-		expectedMappings := map[string]string{
-			"service.control_plane_id": "control_plane",
-		}
+		// Test with UUID control_plane_id
+		t.Run("with UUID control_plane_id", func(t *testing.T) {
+			implementation := APIImplementationResource{
+				APIImplementation: kkInternalComps.APIImplementation{
+					Service: &kkInternalComps.APIImplementationServiceInput{
+						ControlPlaneID: "f9e8d7c6-b5a4-3210-9876-fedcba098765", // UUID
+					},
+				},
+			}
+			mappings := implementation.GetReferenceFieldMappings()
+			
+			// Should NOT include the mapping
+			_, exists := mappings["service.control_plane_id"]
+			assert.False(t, exists, "Should not have service.control_plane_id mapping for UUID")
+		})
 		
-		for field, expectedType := range expectedMappings {
-			actualType, exists := mappings[field]
-			assert.True(t, exists, "Should have %s mapping", field)
-			assert.Equal(t, expectedType, actualType, "Field %s should map to %s", field, expectedType)
-		}
+		// Test with no service
+		t.Run("with no service", func(t *testing.T) {
+			implementation := APIImplementationResource{}
+			mappings := implementation.GetReferenceFieldMappings()
+			
+			// Should have empty mappings
+			assert.Empty(t, mappings, "Should have no mappings without service")
+		})
+		
+		// Test with empty control_plane_id
+		t.Run("with empty control_plane_id", func(t *testing.T) {
+			implementation := APIImplementationResource{
+				APIImplementation: kkInternalComps.APIImplementation{
+					Service: &kkInternalComps.APIImplementationServiceInput{
+						ControlPlaneID: "", // Empty
+					},
+				},
+			}
+			mappings := implementation.GetReferenceFieldMappings()
+			
+			// Should have empty mappings
+			assert.Empty(t, mappings, "Should have no mappings with empty control_plane_id")
+		})
 	})
 
 	t.Run("Resources with no outbound references", func(t *testing.T) {
@@ -432,4 +541,70 @@ func TestResourceSet(t *testing.T) {
 		assert.Equal(t, "cp1", rs.ControlPlanes[0].GetRef())
 		assert.Equal(t, "api1", rs.APIs[0].GetRef())
 	})
+}
+
+func TestIsValidUUID(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "valid UUID",
+			input:    "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+			expected: true,
+		},
+		{
+			name:     "valid UUID with all lowercase",
+			input:    "f9e8d7c6-b5a4-3210-9876-fedcba098765",
+			expected: true,
+		},
+		{
+			name:     "invalid UUID with uppercase letters",
+			input:    "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
+			expected: false,
+		},
+		{
+			name:     "invalid UUID - missing hyphens",
+			input:    "a1b2c3d4e5f67890abcdef1234567890",
+			expected: false,
+		},
+		{
+			name:     "invalid UUID - wrong format",
+			input:    "a1b2c3d4-e5f6-7890-abcd",
+			expected: false,
+		},
+		{
+			name:     "not a UUID - reference string",
+			input:    "prod-cp",
+			expected: false,
+		},
+		{
+			name:     "not a UUID - empty string",
+			input:    "",
+			expected: false,
+		},
+		{
+			name:     "not a UUID - spaces",
+			input:    "a1b2c3d4-e5f6-7890-abcd-ef1234567890 ",
+			expected: false,
+		},
+		{
+			name:     "invalid UUID - wrong segment lengths",
+			input:    "a1b2c3d-e5f6-7890-abcd-ef1234567890",
+			expected: false,
+		},
+		{
+			name:     "invalid UUID - contains invalid characters",
+			input:    "g1b2c3d4-e5f6-7890-abcd-ef1234567890",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isValidUUID(tt.input)
+			assert.Equal(t, tt.expected, result, "isValidUUID(%q) should return %v", tt.input, tt.expected)
+		})
+	}
 }
