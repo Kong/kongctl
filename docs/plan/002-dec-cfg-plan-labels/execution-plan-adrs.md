@@ -92,11 +92,12 @@ Declarative configs use references (e.g., `auth_strategy: "oauth-strategy"`). Th
 be resolved to Konnect IDs at some point.
 
 ### Decision
-Resolve references during plan generation (not execution):
-- Validate all references exist at plan time
-- Store ref → ID mappings in the plan
-- Detect if references change between plan and execution
-- Fail fast if references cannot be resolved
+Resolve references during plan generation where possible:
+- Validate existing references at plan time
+- Store both ref and resolved ID in the `references` field for debugging
+- Use `<unknown>` placeholder for resources being created in same plan
+- Support nested references with dot notation (e.g., `gateway_service.control_plane_id`)
+- Fail fast if existing references cannot be resolved
 
 ### Consequences
 - **Positive**: Early validation of configuration correctness
@@ -137,28 +138,47 @@ Use versioned JSON with semantic versioning:
 - **Negative**: Need migration strategy for version changes
 
 ### Plan Schema
-```yaml
-version: 1.0
-metadata:
-  version: "1.0"
-  generated_at: ISO8601 timestamp
-  generator: kongctl version
-reference_mappings:
-  resource_type:
-    ref: resolved_id
-changes:
-  - id: unique change ID
-    resource_type: portal|auth_strategy|etc
-    resource_ref: declarative ref
-    resource_name: display name
-    action: CREATE|UPDATE
-    current_state: (UPDATE only)
-    desired_state: full resource
-    field_changes: (UPDATE only)
-summary:
-  total_changes: number
-  by_action: map
-  by_resource: map
+```json
+{
+  "metadata": {
+    "version": "1.0",
+    "generated_at": "ISO8601 timestamp",
+    "generator": "kongctl version"
+  },
+  "changes": [
+    {
+      "id": "{number}-{action}-{ref}",
+      "resource_type": "portal|auth_strategy|etc",
+      "resource_ref": "declarative ref",
+      "resource_id": "UUID (UPDATE only)",
+      "action": "CREATE|UPDATE",
+      "fields": {
+        "field_name": "value (CREATE)",
+        "field_name": {"old": "x", "new": "y"} // UPDATE
+      },
+      "references": {
+        "field_name": {"ref": "name", "id": "UUID or <unknown>"}
+      },
+      "parent": {
+        "ref": "parent-ref",
+        "id": "UUID or <unknown>"
+      },
+      "protection": true | {"old": false, "new": true},
+      "config_hash": "sha256:...",
+      "depends_on": ["change-id", ...]
+    }
+  ],
+  "execution_order": ["ordered-change-ids"],
+  "summary": {
+    "total_changes": "number",
+    "by_action": {"CREATE": "n", "UPDATE": "m"},
+    "by_resource": {"portal": "x", "api": "y"},
+    "protection_changes": {"protecting": "n", "unprotecting": "m"}
+  },
+  "warnings": [
+    {"change_id": "id", "message": "warning text"}
+  ]
+}
 ```
 
 ---
@@ -228,3 +248,185 @@ YAML format was considered but JSON chosen for:
 - Simpler parsing
 - Better performance
 - Avoiding YAML type coercion issues
+
+---
+
+## ADR-002-007: Semantic Change IDs
+
+### Status
+Proposed
+
+### Context
+Change IDs need to be unique within a plan but also provide useful information for debugging
+and human readability.
+
+### Decision
+Use semantic IDs with format `{number}-{action}-{ref}`:
+- **Number**: Sequential ordering (1, 2, 3...)
+- **Action**: Single letter (c=create, u=update, d=delete)
+- **Ref**: Resource reference name
+
+Example: `1-c-oauth-strategy`, `2-u-developer-portal`
+
+### Consequences
+- **Positive**: Human-readable IDs show action and resource at a glance
+- **Positive**: Sequential numbers make execution order clear
+- **Positive**: Easier debugging and plan review
+- **Negative**: IDs are longer than simple numbers
+- **Negative**: Must parse ID to extract components
+
+### Alternative Considered
+- UUIDs: Rejected for lack of human readability
+- Simple numbers: Rejected for lack of context
+- Hash-based: Rejected for complexity
+
+---
+
+## ADR-002-008: No Global Reference Mappings
+
+### Status
+Proposed
+
+### Context
+Initial design included a global `reference_mappings` section at the plan root to store all
+ref → ID mappings. Analysis showed this was redundant with data in individual changes.
+
+### Decision
+Remove global reference mappings:
+- Each change stores its own reference data in the `references` field
+- Resolved IDs are stored directly in the `fields` section
+- No separate global mapping needed
+
+### Consequences
+- **Positive**: Eliminates redundancy (30-50% size reduction)
+- **Positive**: Single source of truth per change
+- **Positive**: Simpler plan structure
+- **Negative**: Must scan changes to build complete mapping if needed
+- **Negative**: No central lookup table
+
+### Rationale
+Every reference that needs resolution appears in some change. The change already stores:
+1. The resolved ID in its fields
+2. The original ref in its references field
+Global mappings added no value while increasing plan size.
+
+---
+
+## ADR-002-009: Protection Change Isolation
+
+### Status
+Proposed
+
+### Context
+Protected resources cannot be deleted. Changing protection status is a sensitive operation
+that should be explicit and deliberate.
+
+### Decision
+Protection changes must be isolated:
+- When changing protection status, no other fields can be modified
+- Requires separate change entry just for protection
+- Other field updates must be in a subsequent change with dependency
+
+Example:
+```json
+{
+  "id": "3-u-api-unprotect",
+  "action": "UPDATE",
+  "fields": {},  // Empty - no field changes allowed
+  "protection": {"old": true, "new": false}
+},
+{
+  "id": "4-u-api",
+  "action": "UPDATE",
+  "fields": {"deprecated": {"old": false, "new": true}},
+  "depends_on": ["3-u-api-unprotect"]
+}
+```
+
+### Consequences
+- **Positive**: Makes protection changes explicit and auditable
+- **Positive**: Prevents accidental protection removal
+- **Positive**: Clear separation of concerns
+- **Negative**: Requires two changes for protect+update scenarios
+- **Negative**: More complex plan generation logic
+
+---
+
+## ADR-002-010: Minimal Field Storage for Updates
+
+### Status
+Proposed
+
+### Context
+UPDATE operations could store complete current and desired states, but this creates large
+plans with mostly redundant data.
+
+### Decision
+Store only changed fields for UPDATE operations:
+- CREATE: Store all fields being set
+- UPDATE: Store only fields that differ with old/new values
+- Reduces plan size by 50-70% for typical updates
+
+### Consequences
+- **Positive**: Significantly smaller plan files
+- **Positive**: Easier to see what's actually changing
+- **Positive**: Less data to transmit and store
+- **Negative**: Cannot see full resource state in plan
+- **Negative**: Must fetch current state to apply updates
+
+### Implementation
+```json
+// CREATE - all fields
+"fields": {
+  "name": "API Gateway",
+  "description": "Main API Gateway",
+  "enabled": true
+}
+
+// UPDATE - only changes
+"fields": {
+  "description": {
+    "old": "Main API Gateway",
+    "new": "Primary API Gateway v2"
+  },
+  "enabled": {
+    "old": true,
+    "new": false
+  }
+}
+```
+
+---
+
+## ADR-002-011: Enhanced Reference Tracking
+
+### Status
+Proposed
+
+### Context
+When references are resolved to IDs, we lose the connection between the original reference
+name and the resolved ID, making debugging difficult.
+
+### Decision
+Store both reference name and resolved ID in the `references` field:
+```json
+"references": {
+  "default_application_auth_strategy_id": {
+    "ref": "oauth-strategy",
+    "id": "456e7890-1234-5678-9abc-def012345678"
+  }
+}
+```
+
+Use `<unknown>` for resources being created in the same plan.
+
+### Consequences
+- **Positive**: Complete audit trail of reference resolution
+- **Positive**: Easy debugging of reference issues
+- **Positive**: Can validate resolution was correct
+- **Negative**: Slight redundancy with field values
+- **Negative**: Additional data in plan
+
+### Rationale
+The redundancy is minimal and the debugging value is significant. Being able to trace
+"this UUID came from this reference" is valuable for troubleshooting.

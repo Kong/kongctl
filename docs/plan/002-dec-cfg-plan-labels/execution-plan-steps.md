@@ -4,20 +4,21 @@
 
 | Step | Description | Status | Dependencies |
 |------|-------------|--------|--------------|
-| 1 | Extend PortalAPI Interface | Not Started | None |
+| 1 | Extend API Interfaces | Not Started | None |
 | 2 | Implement Label Utilities | Not Started | None |
 | 3 | Create State Client Wrapper | Not Started | Step 1 |
 | 4 | Implement Config Hash | Not Started | Step 2 |
 | 5 | Define Plan Types | Not Started | None |
 | 6 | Implement Reference Resolver | Not Started | Step 3 |
-| 7 | Create Planner Core Logic | Not Started | Steps 4, 5, 6 |
-| 8 | Update Plan Command | Not Started | Step 7 |
-| 9 | Implement Diff Command | Not Started | Step 5 |
-| 10 | Add Integration Tests | Not Started | Steps 8, 9 |
+| 7 | Implement Dependency Resolution | Not Started | Step 5 |
+| 8 | Create Planner Core Logic | Not Started | Steps 4, 5, 6, 7 |
+| 9 | Update Plan Command | Not Started | Step 8 |
+| 10 | Implement Diff Command | Not Started | Step 5 |
+| 11 | Add Integration Tests | Not Started | Steps 9, 10 |
 
 ---
 
-## Step 1: Extend PortalAPI Interface
+## Step 1: Extend API Interfaces
 
 ### Status
 Not Started
@@ -26,11 +27,14 @@ Not Started
 None
 
 ### Changes
-- **File**: `internal/konnect/helpers/portals.go`
-- Add CreatePortal and UpdatePortal methods to PortalAPI interface
-- Implement methods in InternalPortalAPI
+- **Files**: 
+  - `internal/konnect/helpers/portals.go` - Extend PortalAPI
+  - `internal/konnect/helpers/auth.go` - Extend AppAuthStrategiesAPI
+  - Create additional helper files as needed for other APIs
 
 ### Implementation
+
+#### PortalAPI Extensions
 ```go
 // Add to PortalAPI interface
 CreatePortal(ctx context.Context, portal kkInternalComps.CreatePortal) (*kkInternalOps.CreatePortalResponse, error)
@@ -57,15 +61,27 @@ func (p *InternalPortalAPI) UpdatePortal(
 }
 ```
 
+#### AppAuthStrategiesAPI Extensions
+```go
+// Add to AppAuthStrategiesAPI interface
+GetAppAuthStrategy(ctx context.Context, id string) (*kkOps.GetAppAuthStrategyResponse, error)
+CreateAppAuthStrategy(ctx context.Context, strategy kkComps.CreateApplicationAuthStrategy) (*kkOps.CreateAppAuthStrategyResponse, error)
+UpdateAppAuthStrategy(ctx context.Context, id string, strategy kkComps.UpdateApplicationAuthStrategy) (*kkOps.UpdateAppAuthStrategyResponse, error)
+
+// Implement similar methods for InternalAppAuthStrategiesAPI
+```
+
 ### Tests
-- Mock SDK responses for create/update
-- Error handling scenarios
+- Mock SDK responses for all CRUD operations
+- Error handling for each interface
+- Verify correct SDK method delegation
 
 ### Commit Message
 ```
-feat(konnect): extend PortalAPI with create and update operations
+feat(konnect): extend API interfaces with CRUD operations
 
-Add CreatePortal and UpdatePortal methods to support plan execution
+Extend PortalAPI, AppAuthStrategiesAPI, and other interfaces to support
+full CRUD operations needed for plan generation and execution
 ```
 
 ---
@@ -522,10 +538,11 @@ import (
 
 // Plan represents a declarative configuration plan
 type Plan struct {
-    Metadata          PlanMetadata                `json:"metadata"`
-    ReferenceMappings map[string]map[string]string `json:"reference_mappings"`
-    Changes           []PlannedChange             `json:"changes"`
-    Summary           PlanSummary                 `json:"summary"`
+    Metadata       PlanMetadata    `json:"metadata"`
+    Changes        []PlannedChange `json:"changes"`
+    ExecutionOrder []string        `json:"execution_order"`
+    Summary        PlanSummary     `json:"summary"`
+    Warnings       []PlanWarning   `json:"warnings,omitempty"`
 }
 
 // PlanMetadata contains plan generation information
@@ -537,15 +554,41 @@ type PlanMetadata struct {
 
 // PlannedChange represents a single resource change
 type PlannedChange struct {
-    ID            string        `json:"id"`
-    ResourceType  string        `json:"resource_type"`
-    ResourceRef   string        `json:"resource_ref"`
-    ResourceName  string        `json:"resource_name"`
-    Action        ActionType    `json:"action"`
-    CurrentState  interface{}   `json:"current_state,omitempty"`
-    DesiredState  interface{}   `json:"desired_state"`
-    FieldChanges  []FieldChange `json:"field_changes,omitempty"`
-    ConfigHash    string        `json:"config_hash"`
+    ID           string                    `json:"id"`
+    ResourceType string                    `json:"resource_type"`
+    ResourceRef  string                    `json:"resource_ref"`
+    ResourceID   string                    `json:"resource_id,omitempty"` // Only for UPDATE/DELETE
+    Action       ActionType                `json:"action"`
+    Fields       map[string]interface{}    `json:"fields"`
+    References   map[string]ReferenceInfo  `json:"references,omitempty"`
+    Parent       *ParentInfo               `json:"parent,omitempty"`
+    Protection   interface{}               `json:"protection,omitempty"` // bool or ProtectionChange
+    ConfigHash   string                    `json:"config_hash"`
+    DependsOn    []string                  `json:"depends_on,omitempty"`
+}
+
+// ReferenceInfo tracks reference resolution
+type ReferenceInfo struct {
+    Ref string `json:"ref"`
+    ID  string `json:"id"` // May be "<unknown>" for resources in same plan
+}
+
+// ParentInfo tracks parent relationships
+type ParentInfo struct {
+    Ref string `json:"ref"`
+    ID  string `json:"id"` // May be "<unknown>" for parents in same plan
+}
+
+// ProtectionChange tracks protection status changes
+type ProtectionChange struct {
+    Old bool `json:"old"`
+    New bool `json:"new"`
+}
+
+// FieldChange represents a single field modification (for UPDATE)
+type FieldChange struct {
+    Old interface{} `json:"old"`
+    New interface{} `json:"new"`
 }
 
 // ActionType represents the type of change
@@ -557,18 +600,24 @@ const (
     ActionDelete ActionType = "DELETE" // Future
 )
 
-// FieldChange represents a single field modification
-type FieldChange struct {
-    Field    string      `json:"field"`
-    OldValue interface{} `json:"old_value"`
-    NewValue interface{} `json:"new_value"`
-}
-
 // PlanSummary provides overview statistics
 type PlanSummary struct {
-    TotalChanges int                       `json:"total_changes"`
-    ByAction     map[ActionType]int        `json:"by_action"`
-    ByResource   map[string]int            `json:"by_resource"`
+    TotalChanges      int                `json:"total_changes"`
+    ByAction          map[ActionType]int `json:"by_action"`
+    ByResource        map[string]int     `json:"by_resource"`
+    ProtectionChanges *ProtectionSummary `json:"protection_changes,omitempty"`
+}
+
+// ProtectionSummary tracks protection changes
+type ProtectionSummary struct {
+    Protecting   int `json:"protecting"`
+    Unprotecting int `json:"unprotecting"`
+}
+
+// PlanWarning represents a warning about the plan
+type PlanWarning struct {
+    ChangeID string `json:"change_id"`
+    Message  string `json:"message"`
 }
 
 // NewPlan creates a new plan with metadata
@@ -579,12 +628,13 @@ func NewPlan(version, generator string) *Plan {
             GeneratedAt: time.Now().UTC(),
             Generator:   generator,
         },
-        ReferenceMappings: make(map[string]map[string]string),
-        Changes:          []PlannedChange{},
+        Changes:        []PlannedChange{},
+        ExecutionOrder: []string{},
         Summary: PlanSummary{
             ByAction:   make(map[ActionType]int),
             ByResource: make(map[string]int),
         },
+        Warnings: []PlanWarning{},
     }
 }
 
@@ -594,6 +644,19 @@ func (p *Plan) AddChange(change PlannedChange) {
     p.updateSummary()
 }
 
+// SetExecutionOrder sets the calculated execution order
+func (p *Plan) SetExecutionOrder(order []string) {
+    p.ExecutionOrder = order
+}
+
+// AddWarning adds a warning to the plan
+func (p *Plan) AddWarning(changeID, message string) {
+    p.Warnings = append(p.Warnings, PlanWarning{
+        ChangeID: changeID,
+        Message:  message,
+    })
+}
+
 // updateSummary recalculates plan statistics
 func (p *Plan) updateSummary() {
     p.Summary.TotalChanges = len(p.Changes)
@@ -601,11 +664,30 @@ func (p *Plan) updateSummary() {
     // Reset counts
     p.Summary.ByAction = make(map[ActionType]int)
     p.Summary.ByResource = make(map[string]int)
+    protectionSummary := &ProtectionSummary{}
     
     // Count by action and resource type
     for _, change := range p.Changes {
         p.Summary.ByAction[change.Action]++
         p.Summary.ByResource[change.ResourceType]++
+        
+        // Track protection changes
+        switch v := change.Protection.(type) {
+        case bool:
+            if v && change.Action == ActionCreate {
+                protectionSummary.Protecting++
+            }
+        case ProtectionChange:
+            if !v.Old && v.New {
+                protectionSummary.Protecting++
+            } else if v.Old && !v.New {
+                protectionSummary.Unprotecting++
+            }
+        }
+    }
+    
+    if protectionSummary.Protecting > 0 || protectionSummary.Unprotecting > 0 {
+        p.Summary.ProtectionChanges = protectionSummary
     }
 }
 
@@ -666,100 +748,178 @@ func NewReferenceResolver(client *state.Client) *ReferenceResolver {
     }
 }
 
-// ResolveResult contains resolved reference mappings
+// ResolvedReference contains ref and resolved ID
+type ResolvedReference struct {
+    Ref string
+    ID  string
+}
+
+// ResolveResult contains resolved reference information
 type ResolveResult struct {
-    // Map of resource_type -> ref -> id
-    Mappings map[string]map[string]string
+    // Map of change_id -> field -> resolved reference
+    ChangeReferences map[string]map[string]ResolvedReference
     // Errors encountered during resolution
     Errors []error
 }
 
-// ResolveReferences resolves all references in a resource set
-func (r *ReferenceResolver) ResolveReferences(ctx context.Context, rs *resources.ResourceSet) (*ResolveResult, error) {
+// ResolveReferences resolves all references in planned changes
+func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []PlannedChange) (*ResolveResult, error) {
     result := &ResolveResult{
-        Mappings: make(map[string]map[string]string),
-        Errors:   []error{},
+        ChangeReferences: make(map[string]map[string]ResolvedReference),
+        Errors:           []error{},
     }
     
-    // For now, only auth strategies can be referenced
-    // Future: Add other resource types as needed
+    // Build a map of what's being created in this plan
+    createdResources := make(map[string]map[string]string) // resource_type -> ref -> change_id
+    for _, change := range changes {
+        if change.Action == ActionCreate {
+            if createdResources[change.ResourceType] == nil {
+                createdResources[change.ResourceType] = make(map[string]string)
+            }
+            createdResources[change.ResourceType][change.ResourceRef] = change.ID
+        }
+    }
     
-    // Resolve auth strategy references in portals
-    if err := r.resolvePortalReferences(ctx, rs.Portals, result); err != nil {
-        return nil, err
+    // Resolve references for each change
+    for _, change := range changes {
+        changeRefs := make(map[string]ResolvedReference)
+        
+        // Check fields that might contain references
+        for fieldName, fieldValue := range change.Fields {
+            if ref, isRef := r.extractReference(fieldName, fieldValue); isRef {
+                // Determine resource type from field name
+                resourceType := r.getResourceTypeForField(fieldName)
+                
+                // Check if this references something being created
+                if changeID, inPlan := createdResources[resourceType][ref]; inPlan {
+                    changeRefs[fieldName] = ResolvedReference{
+                        Ref: ref,
+                        ID:  "<unknown>", // Will be resolved at execution
+                    }
+                } else {
+                    // Resolve from existing resources
+                    id, err := r.resolveReference(ctx, resourceType, ref)
+                    if err != nil {
+                        result.Errors = append(result.Errors, fmt.Errorf(
+                            "change %s: failed to resolve %s reference %q: %w",
+                            change.ID, resourceType, ref, err))
+                        continue
+                    }
+                    changeRefs[fieldName] = ResolvedReference{
+                        Ref: ref,
+                        ID:  id,
+                    }
+                }
+            }
+        }
+        
+        if len(changeRefs) > 0 {
+            result.ChangeReferences[change.ID] = changeRefs
+        }
     }
     
     return result, nil
 }
 
-// resolvePortalReferences resolves references within portal resources
-func (r *ReferenceResolver) resolvePortalReferences(ctx context.Context, portals []resources.PortalResource, result *ResolveResult) error {
-    for _, portal := range portals {
-        mappings := portal.GetReferenceFieldMappings()
-        
-        for fieldName, resourceType := range mappings {
-            // For portals, only auth strategy field needs resolution
-            if fieldName == "default_application_auth_strategy_id" && portal.DefaultApplicationAuthStrategyID != nil {
-                ref := *portal.DefaultApplicationAuthStrategyID
-                
-                // Skip if already an ID (UUID format)
-                if isUUID(ref) {
-                    continue
-                }
-                
-                // Look up the auth strategy
-                // Note: This is placeholder - actual implementation would
-                // query auth strategies once that API is available
-                id, err := r.resolveAuthStrategyRef(ctx, ref)
-                if err != nil {
-                    result.Errors = append(result.Errors, fmt.Errorf(
-                        "portal %q: failed to resolve %s reference %q: %w",
-                        portal.GetRef(), resourceType, ref, err))
-                    continue
-                }
-                
-                // Store mapping
-                if result.Mappings[resourceType] == nil {
-                    result.Mappings[resourceType] = make(map[string]string)
-                }
-                result.Mappings[resourceType][ref] = id
-            }
+// extractReference checks if a field value is a reference
+func (r *ReferenceResolver) extractReference(fieldName string, value interface{}) (string, bool) {
+    // Check if field name suggests a reference
+    if !r.isReferenceField(fieldName) {
+        return "", false
+    }
+    
+    // Extract string value
+    switch v := value.(type) {
+    case string:
+        if !isUUID(v) {
+            return v, true
+        }
+    case FieldChange:
+        if newVal, ok := v.New.(string); ok && !isUUID(newVal) {
+            return newVal, true
         }
     }
     
-    return nil
+    return "", false
+}
+
+// isReferenceField checks if field name indicates a reference
+func (r *ReferenceResolver) isReferenceField(fieldName string) bool {
+    // Fields that contain references to other resources
+    referenceFields := []string{
+        "default_application_auth_strategy_id",
+        "control_plane_id",
+        "portal_id",
+        "auth_strategy_ids",
+        // Add more as needed
+    }
+    
+    for _, rf := range referenceFields {
+        if fieldName == rf || 
+           fieldName == "gateway_service."+rf ||
+           fieldName == "gateway_service.service_id" {
+            return true
+        }
+    }
+    return false
+}
+
+// getResourceTypeForField maps field names to resource types
+func (r *ReferenceResolver) getResourceTypeForField(fieldName string) string {
+    switch fieldName {
+    case "default_application_auth_strategy_id", "auth_strategy_ids":
+        return "application_auth_strategy"
+    case "control_plane_id", "gateway_service.control_plane_id":
+        return "control_plane"
+    case "portal_id":
+        return "portal"
+    default:
+        return ""
+    }
+}
+
+// resolveReference looks up a reference in existing resources
+func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, ref string) (string, error) {
+    switch resourceType {
+    case "application_auth_strategy":
+        return r.resolveAuthStrategyRef(ctx, ref)
+    case "control_plane":
+        return r.resolveControlPlaneRef(ctx, ref)
+    case "portal":
+        return r.resolvePortalRef(ctx, ref)
+    default:
+        return "", fmt.Errorf("unknown resource type: %s", resourceType)
+    }
 }
 
 // resolveAuthStrategyRef resolves auth strategy ref to ID
 func (r *ReferenceResolver) resolveAuthStrategyRef(ctx context.Context, ref string) (string, error) {
     // TODO: Implement when auth strategy API is available
-    // For now, return error
     return "", fmt.Errorf("auth strategy resolution not yet implemented")
+}
+
+// resolveControlPlaneRef resolves control plane ref to ID
+func (r *ReferenceResolver) resolveControlPlaneRef(ctx context.Context, ref string) (string, error) {
+    // TODO: Implement when control plane state client is available
+    return "", fmt.Errorf("control plane resolution not yet implemented")
+}
+
+// resolvePortalRef resolves portal ref to ID
+func (r *ReferenceResolver) resolvePortalRef(ctx context.Context, ref string) (string, error) {
+    portal, err := r.client.GetPortalByName(ctx, ref)
+    if err != nil {
+        return "", err
+    }
+    if portal == nil {
+        return "", fmt.Errorf("portal not found")
+    }
+    return portal.ID, nil
 }
 
 // isUUID checks if string is already a UUID
 func isUUID(s string) bool {
     // Simple check - actual implementation would use regex or uuid library
     return len(s) == 36 && s[8] == '-' && s[13] == '-' && s[18] == '-' && s[23] == '-'
-}
-
-// ApplyResolvedReferences updates resources with resolved IDs
-func ApplyResolvedReferences(rs *resources.ResourceSet, mappings map[string]map[string]string) {
-    // Update portal auth strategy references
-    for i := range rs.Portals {
-        portal := &rs.Portals[i]
-        
-        if portal.DefaultApplicationAuthStrategyID != nil {
-            ref := *portal.DefaultApplicationAuthStrategyID
-            if !isUUID(ref) {
-                if id, ok := mappings["application_auth_strategy"][ref]; ok {
-                    portal.DefaultApplicationAuthStrategyID = &id
-                }
-            }
-        }
-    }
-    
-    // Future: Update other resource references
 }
 ```
 
@@ -779,17 +939,195 @@ plan generation
 
 ---
 
-## Step 7: Create Planner Core Logic
+## Step 7: Implement Dependency Resolution
 
 ### Status
 Not Started
 
 ### Dependencies
-Steps 4, 5, 6
+Step 5
+
+### Changes
+- Create file: `internal/declarative/planner/dependencies.go`
+- Implement dependency graph and topological sort
+
+### Implementation
+```go
+package planner
+
+import (
+    "fmt"
+)
+
+// DependencyResolver calculates execution order for plan changes
+type DependencyResolver struct{}
+
+// NewDependencyResolver creates a new resolver
+func NewDependencyResolver() *DependencyResolver {
+    return &DependencyResolver{}
+}
+
+// ResolveDependencies builds dependency graph and calculates execution order
+func (d *DependencyResolver) ResolveDependencies(changes []PlannedChange) ([]string, error) {
+    // Build dependency graph
+    graph := make(map[string][]string)     // change_id -> list of dependencies
+    inDegree := make(map[string]int)       // change_id -> number of incoming edges
+    allChanges := make(map[string]bool)    // set of all change IDs
+    
+    // Initialize graph
+    for _, change := range changes {
+        changeID := change.ID
+        allChanges[changeID] = true
+        
+        if _, exists := graph[changeID]; !exists {
+            graph[changeID] = []string{}
+        }
+        if _, exists := inDegree[changeID]; !exists {
+            inDegree[changeID] = 0
+        }
+        
+        // Add explicit dependencies
+        for _, dep := range change.DependsOn {
+            graph[dep] = append(graph[dep], changeID)
+            inDegree[changeID]++
+        }
+        
+        // Add implicit dependencies based on references
+        deps := d.findImplicitDependencies(change, changes)
+        for _, dep := range deps {
+            if !contains(change.DependsOn, dep) { // Avoid duplicates
+                graph[dep] = append(graph[dep], changeID)
+                inDegree[changeID]++
+            }
+        }
+        
+        // Parent dependencies
+        if change.Parent != nil && change.Parent.ID == "<unknown>" {
+            parentDep := d.findParentChange(change.Parent.Ref, change.ResourceType, changes)
+            if parentDep != "" && !contains(change.DependsOn, parentDep) {
+                graph[parentDep] = append(graph[parentDep], changeID)
+                inDegree[changeID]++
+            }
+        }
+    }
+    
+    // Topological sort using Kahn's algorithm
+    queue := []string{}
+    for changeID := range allChanges {
+        if inDegree[changeID] == 0 {
+            queue = append(queue, changeID)
+        }
+    }
+    
+    executionOrder := []string{}
+    
+    for len(queue) > 0 {
+        current := queue[0]
+        queue = queue[1:]
+        executionOrder = append(executionOrder, current)
+        
+        for _, dependent := range graph[current] {
+            inDegree[dependent]--
+            if inDegree[dependent] == 0 {
+                queue = append(queue, dependent)
+            }
+        }
+    }
+    
+    // Check for cycles
+    if len(executionOrder) != len(allChanges) {
+        return nil, fmt.Errorf("circular dependency detected in plan")
+    }
+    
+    return executionOrder, nil
+}
+
+// findImplicitDependencies finds dependencies based on references
+func (d *DependencyResolver) findImplicitDependencies(change PlannedChange, allChanges []PlannedChange) []string {
+    var dependencies []string
+    
+    // Check references field
+    for _, refInfo := range change.References {
+        if refInfo.ID == "<unknown>" {
+            // Find the change that creates this resource
+            for _, other := range allChanges {
+                if other.ResourceRef == refInfo.Ref && other.Action == ActionCreate {
+                    dependencies = append(dependencies, other.ID)
+                    break
+                }
+            }
+        }
+    }
+    
+    return dependencies
+}
+
+// findParentChange finds the change that creates the parent resource
+func (d *DependencyResolver) findParentChange(parentRef, childResourceType string, changes []PlannedChange) string {
+    parentType := d.getParentType(childResourceType)
+    
+    for _, change := range changes {
+        if change.ResourceRef == parentRef && 
+           change.ResourceType == parentType && 
+           change.Action == ActionCreate {
+            return change.ID
+        }
+    }
+    
+    return ""
+}
+
+// getParentType determines parent resource type from child type
+func (d *DependencyResolver) getParentType(childType string) string {
+    switch childType {
+    case "api_version", "api_publication", "api_implementation":
+        return "api"
+    case "portal_page":
+        return "portal"
+    default:
+        return ""
+    }
+}
+
+// contains checks if string is in slice
+func contains(slice []string, item string) bool {
+    for _, s := range slice {
+        if s == item {
+            return true
+        }
+    }
+    return false
+}
+```
+
+### Tests
+- Simple dependency chains
+- Complex multi-level dependencies
+- Circular dependency detection
+- Parent-child relationships
+- Reference-based dependencies
+
+### Commit Message
+```
+feat(planner): implement dependency resolution
+
+Add dependency resolver with topological sort to calculate correct
+execution order for plan changes
+```
+
+---
+
+## Step 8: Create Planner Core Logic
+
+### Status
+Not Started
+
+### Dependencies
+Steps 4, 5, 6, 7
 
 ### Changes
 - Create file: `internal/declarative/planner/planner.go`
-- Implement plan generation logic
+- Implement plan generation logic with new plan structure
 
 ### Implementation
 ```go
@@ -804,20 +1142,23 @@ import (
     "github.com/kong/kongctl/internal/declarative/labels"
     "github.com/kong/kongctl/internal/declarative/resources"
     "github.com/kong/kongctl/internal/declarative/state"
-    kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
 )
 
 // Planner generates execution plans
 type Planner struct {
-    client   *state.Client
-    resolver *ReferenceResolver
+    client       *state.Client
+    resolver     *ReferenceResolver
+    depResolver  *DependencyResolver
+    changeCount  int
 }
 
 // NewPlanner creates a new planner
 func NewPlanner(client *state.Client) *Planner {
     return &Planner{
-        client:   client,
-        resolver: NewReferenceResolver(client),
+        client:      client,
+        resolver:    NewReferenceResolver(client),
+        depResolver: NewDependencyResolver(),
+        changeCount: 0,
     }
 }
 
@@ -825,26 +1166,73 @@ func NewPlanner(client *state.Client) *Planner {
 func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet) (*Plan, error) {
     plan := NewPlan("1.0", fmt.Sprintf("kongctl/%s", build.Version))
     
-    // Resolve references first
-    resolveResult, err := p.resolver.ResolveReferences(ctx, rs)
-    if err != nil {
-        return nil, fmt.Errorf("failed to resolve references: %w", err)
+    // Generate changes for each resource type
+    if err := p.planAuthStrategyChanges(ctx, rs.ApplicationAuthStrategies, plan); err != nil {
+        return nil, fmt.Errorf("failed to plan auth strategy changes: %w", err)
     }
     
-    // Store reference mappings in plan
-    plan.ReferenceMappings = resolveResult.Mappings
-    
-    // Apply resolved references to resources
-    ApplyResolvedReferences(rs, resolveResult.Mappings)
-    
-    // Generate changes for each resource type
     if err := p.planPortalChanges(ctx, rs.Portals, plan); err != nil {
         return nil, fmt.Errorf("failed to plan portal changes: %w", err)
     }
     
     // Future: Add other resource types
     
+    // Resolve references for all changes
+    resolveResult, err := p.resolver.ResolveReferences(ctx, plan.Changes)
+    if err != nil {
+        return nil, fmt.Errorf("failed to resolve references: %w", err)
+    }
+    
+    // Apply resolved references to changes
+    for changeID, refs := range resolveResult.ChangeReferences {
+        for i := range plan.Changes {
+            if plan.Changes[i].ID == changeID {
+                plan.Changes[i].References = make(map[string]ReferenceInfo)
+                for field, ref := range refs {
+                    plan.Changes[i].References[field] = ReferenceInfo{
+                        Ref: ref.Ref,
+                        ID:  ref.ID,
+                    }
+                }
+                break
+            }
+        }
+    }
+    
+    // Resolve dependencies and calculate execution order
+    executionOrder, err := p.depResolver.ResolveDependencies(plan.Changes)
+    if err != nil {
+        return nil, fmt.Errorf("failed to resolve dependencies: %w", err)
+    }
+    plan.SetExecutionOrder(executionOrder)
+    
+    // Add warnings for unresolved references
+    for _, change := range plan.Changes {
+        for field, ref := range change.References {
+            if ref.ID == "<unknown>" {
+                plan.AddWarning(change.ID, fmt.Sprintf(
+                    "Reference %s=%s will be resolved during execution",
+                    field, ref.Ref))
+            }
+        }
+    }
+    
     return plan, nil
+}
+
+// nextChangeID generates semantic change IDs
+func (p *Planner) nextChangeID(action ActionType, ref string) string {
+    p.changeCount++
+    actionChar := "?"
+    switch action {
+    case ActionCreate:
+        actionChar = "c"
+    case ActionUpdate:
+        actionChar = "u"
+    case ActionDelete:
+        actionChar = "d"
+    }
+    return fmt.Sprintf("%d-%s-%s", p.changeCount, actionChar, ref)
 }
 
 // planPortalChanges generates changes for portal resources
@@ -863,8 +1251,6 @@ func (p *Planner) planPortalChanges(ctx context.Context, desired []resources.Por
     
     // Compare each desired portal
     for _, desiredPortal := range desired {
-        changeID := fmt.Sprintf("change-%s-%s", "portal", desiredPortal.GetRef())
-        
         // Calculate config hash for desired state
         configHash, err := hash.CalculatePortalHash(desiredPortal.CreatePortal)
         if err != nil {
@@ -875,35 +1261,25 @@ func (p *Planner) planPortalChanges(ctx context.Context, desired []resources.Por
         
         if !exists {
             // CREATE action
-            change := PlannedChange{
-                ID:           changeID,
-                ResourceType: "portal",
-                ResourceRef:  desiredPortal.GetRef(),
-                ResourceName: desiredPortal.Name,
-                Action:       ActionCreate,
-                DesiredState: convertPortalToCreate(desiredPortal),
-                ConfigHash:   configHash,
-            }
-            plan.AddChange(change)
+            p.planPortalCreate(desiredPortal, configHash, plan)
         } else {
-            // Check if update needed by comparing hash
+            // Check if update needed
             currentHash := current.NormalizedLabels[labels.ConfigHashKey]
-            if currentHash != configHash {
-                // UPDATE action
-                fieldChanges := calculatePortalFieldChanges(current, desiredPortal)
-                
-                change := PlannedChange{
-                    ID:           changeID,
-                    ResourceType: "portal",
-                    ResourceRef:  desiredPortal.GetRef(),
-                    ResourceName: desiredPortal.Name,
-                    Action:       ActionUpdate,
-                    CurrentState: convertPortalToResponse(current),
-                    DesiredState: convertPortalToUpdate(desiredPortal, current.ID),
-                    FieldChanges: fieldChanges,
-                    ConfigHash:   configHash,
+            isProtected := current.NormalizedLabels[labels.ProtectedKey] == "true"
+            shouldProtect := desiredPortal.GetLabels()[labels.ProtectedKey] == "true"
+            
+            // Handle protection changes separately
+            if isProtected != shouldProtect {
+                p.planProtectionChange(current, isProtected, shouldProtect, plan)
+                // If unprotecting, we can then update
+                if isProtected && !shouldProtect {
+                    if currentHash != configHash {
+                        p.planPortalUpdate(current, desiredPortal, configHash, plan)
+                    }
                 }
-                plan.AddChange(change)
+            } else if currentHash != configHash {
+                // Regular update (no protection change)
+                p.planPortalUpdate(current, desiredPortal, configHash, plan)
             }
         }
     }
@@ -911,72 +1287,143 @@ func (p *Planner) planPortalChanges(ctx context.Context, desired []resources.Por
     return nil
 }
 
-// convertPortalToCreate converts resource to SDK create type
-func convertPortalToCreate(portal resources.PortalResource) kkInternalComps.CreatePortal {
-    return portal.CreatePortal
-}
-
-// convertPortalToUpdate converts resource to SDK update type
-func convertPortalToUpdate(portal resources.PortalResource, id string) map[string]interface{} {
-    // Return update structure
-    // Note: Actual implementation would use UpdatePortal type when available
-    return map[string]interface{}{
-        "id":                                id,
-        "name":                              portal.Name,
-        "display_name":                      portal.DisplayName,
-        "description":                       portal.Description,
-        "authentication_enabled":            portal.AuthenticationEnabled,
-        "rbac_enabled":                      portal.RbacEnabled,
-        "default_api_visibility":            portal.DefaultAPIVisibility,
-        "default_page_visibility":           portal.DefaultPageVisibility,
-        "default_application_auth_strategy_id": portal.DefaultApplicationAuthStrategyID,
-        "auto_approve_developers":           portal.AutoApproveDevelopers,
-        "auto_approve_applications":         portal.AutoApproveApplications,
+// planPortalCreate creates a CREATE change for a portal
+func (p *Planner) planPortalCreate(portal resources.PortalResource, configHash string, plan *Plan) {
+    fields := make(map[string]interface{})
+    fields["name"] = portal.Name
+    if portal.DisplayName != nil {
+        fields["display_name"] = *portal.DisplayName
     }
-}
-
-// convertPortalToResponse extracts response data
-func convertPortalToResponse(portal state.Portal) map[string]interface{} {
-    return map[string]interface{}{
-        "id":                                portal.ID,
-        "name":                              portal.Name,
-        "display_name":                      portal.DisplayName,
-        "description":                       portal.Description,
-        "authentication_enabled":            portal.AuthenticationEnabled,
-        "rbac_enabled":                      portal.RbacEnabled,
-        "default_api_visibility":            portal.DefaultAPIVisibility,
-        "default_page_visibility":           portal.DefaultPageVisibility,
-        "default_application_auth_strategy_id": portal.DefaultApplicationAuthStrategyID,
-        "auto_approve_developers":           portal.AutoApproveDevelopers,
-        "auto_approve_applications":         portal.AutoApproveApplications,
-        "labels":                           portal.NormalizedLabels,
+    if portal.Description != nil {
+        fields["description"] = *portal.Description
     }
-}
-
-// calculatePortalFieldChanges determines which fields changed
-func calculatePortalFieldChanges(current state.Portal, desired resources.PortalResource) []FieldChange {
-    var changes []FieldChange
+    // Add other fields...
     
-    // Compare each field
-    if current.Name != desired.Name {
-        changes = append(changes, FieldChange{
-            Field:    "name",
-            OldValue: current.Name,
-            NewValue: desired.Name,
-        })
+    change := PlannedChange{
+        ID:           p.nextChangeID(ActionCreate, portal.GetRef()),
+        ResourceType: "portal",
+        ResourceRef:  portal.GetRef(),
+        Action:       ActionCreate,
+        Fields:       fields,
+        ConfigHash:   configHash,
+        DependsOn:    []string{},
+    }
+    
+    // Check if protected
+    if portal.GetLabels()[labels.ProtectedKey] == "true" {
+        change.Protection = true
+    }
+    
+    plan.AddChange(change)
+}
+
+// planPortalUpdate creates an UPDATE change for a portal
+func (p *Planner) planPortalUpdate(current state.Portal, desired resources.PortalResource, configHash string, plan *Plan) {
+    fields := make(map[string]interface{})
+    dependencies := []string{}
+    
+    // Compare each field and store only changes
+    if current.Description != getString(desired.Description) {
+        fields["description"] = FieldChange{
+            Old: current.Description,
+            New: getString(desired.Description),
+        }
     }
     
     if current.DisplayName != getString(desired.DisplayName) {
-        changes = append(changes, FieldChange{
-            Field:    "display_name",
-            OldValue: current.DisplayName,
-            NewValue: getString(desired.DisplayName),
-        })
+        fields["display_name"] = FieldChange{
+            Old: current.DisplayName,
+            New: getString(desired.DisplayName),
+        }
+    }
+    
+    // Handle auth strategy reference
+    desiredAuthID := getString(desired.DefaultApplicationAuthStrategyID)
+    if current.DefaultApplicationAuthStrategyID != desiredAuthID {
+        fields["default_application_auth_strategy_id"] = FieldChange{
+            Old: current.DefaultApplicationAuthStrategyID,
+            New: desiredAuthID,
+        }
     }
     
     // Add other field comparisons...
     
-    return changes
+    // Only create change if there are actual field changes
+    if len(fields) > 0 {
+        change := PlannedChange{
+            ID:           p.nextChangeID(ActionUpdate, desired.GetRef()),
+            ResourceType: "portal",
+            ResourceRef:  desired.GetRef(),
+            ResourceID:   current.ID,
+            Action:       ActionUpdate,
+            Fields:       fields,
+            ConfigHash:   configHash,
+            DependsOn:    dependencies,
+        }
+        
+        // Check if already protected
+        if current.NormalizedLabels[labels.ProtectedKey] == "true" {
+            change.Protection = true
+        }
+        
+        plan.AddChange(change)
+    }
+}
+
+// planProtectionChange creates a separate UPDATE for protection status
+func (p *Planner) planProtectionChange(portal state.Portal, wasProtected, shouldProtect bool, plan *Plan) {
+    change := PlannedChange{
+        ID:           p.nextChangeID(ActionUpdate, portal.Name+"-protection"),
+        ResourceType: "portal",
+        ResourceRef:  portal.Name,
+        ResourceID:   portal.ID,
+        Action:       ActionUpdate,
+        Fields:       map[string]interface{}{}, // No field changes allowed
+        Protection: ProtectionChange{
+            Old: wasProtected,
+            New: shouldProtect,
+        },
+        ConfigHash: portal.NormalizedLabels[labels.ConfigHashKey],
+        DependsOn:  []string{},
+    }
+    
+    plan.AddChange(change)
+}
+
+// planAuthStrategyChanges generates changes for auth strategies
+func (p *Planner) planAuthStrategyChanges(ctx context.Context, desired []resources.ApplicationAuthStrategyResource, plan *Plan) error {
+    // Similar logic to portals but for auth strategies
+    // TODO: Implement when auth strategy state client is available
+    
+    // For now, just create all as new
+    for _, strategy := range desired {
+        configHash, err := hash.CalculateAuthStrategyHash(strategy.CreateApplicationAuthStrategy)
+        if err != nil {
+            return fmt.Errorf("failed to calculate hash for auth strategy %q: %w", strategy.GetRef(), err)
+        }
+        
+        fields := make(map[string]interface{})
+        fields["name"] = strategy.Name
+        if strategy.DisplayName != nil {
+            fields["display_name"] = *strategy.DisplayName
+        }
+        fields["strategy_type"] = strategy.StrategyType
+        fields["configs"] = strategy.Configs
+        
+        change := PlannedChange{
+            ID:           p.nextChangeID(ActionCreate, strategy.GetRef()),
+            ResourceType: "application_auth_strategy",
+            ResourceRef:  strategy.GetRef(),
+            Action:       ActionCreate,
+            Fields:       fields,
+            ConfigHash:   configHash,
+            DependsOn:    []string{},
+        }
+        
+        plan.AddChange(change)
+    }
+    
+    return nil
 }
 
 // getString dereferences string pointer or returns empty
@@ -991,26 +1438,29 @@ func getString(s *string) string {
 ### Tests
 - Plan generation with various scenarios
 - CREATE vs UPDATE detection
-- Hash comparison logic
-- Field change calculation
+- Protection change isolation
+- Semantic ID generation
+- Minimal field storage
+- Reference resolution integration
+- Dependency calculation
 
 ### Commit Message
 ```
 feat(planner): implement core plan generation logic
 
-Add planner that compares current and desired state to generate
-execution plans with CREATE/UPDATE actions
+Add planner that generates execution plans with semantic IDs, minimal
+field storage, protection handling, and dependency resolution
 ```
 
 ---
 
-## Step 8: Update Plan Command
+## Step 9: Update Plan Command
 
 ### Status
 Not Started
 
 ### Dependencies
-Step 7
+Step 8
 
 ### Changes
 - Update: `internal/cmd/root/products/konnect/declarative/declarative.go`
@@ -1102,7 +1552,7 @@ and save to specified output file
 
 ---
 
-## Step 9: Implement Diff Command
+## Step 10: Implement Diff Command
 
 ### Status
 Not Started
@@ -1161,28 +1611,73 @@ func runDiff(cmd *cobra.Command, _ []string) error {
         plan.Summary.ByAction[planner.ActionCreate],
         plan.Summary.ByAction[planner.ActionUpdate])
     
-    // Display each change
-    for _, change := range plan.Changes {
+    // Display each change in execution order
+    for _, changeID := range plan.ExecutionOrder {
+        // Find the change
+        var change *planner.PlannedChange
+        for i := range plan.Changes {
+            if plan.Changes[i].ID == changeID {
+                change = &plan.Changes[i]
+                break
+            }
+        }
+        if change == nil {
+            continue
+        }
+        
         switch change.Action {
         case planner.ActionCreate:
-            fmt.Fprintf(cmd.OutOrStdout(), "+ %s %q will be created\n",
-                change.ResourceType, change.ResourceName)
+            fmt.Fprintf(cmd.OutOrStdout(), "+ [%s] %s %q will be created\n",
+                change.ID, change.ResourceType, change.ResourceRef)
             
             // Show key fields
-            if desired, ok := change.DesiredState.(map[string]interface{}); ok {
-                if desc, ok := desired["description"].(string); ok && desc != "" {
-                    fmt.Fprintf(cmd.OutOrStdout(), "  description: %q\n", desc)
+            for field, value := range change.Fields {
+                if str, ok := value.(string); ok && str != "" {
+                    fmt.Fprintf(cmd.OutOrStdout(), "  %s: %q\n", field, str)
                 }
             }
             
+            // Show protection status
+            if prot, ok := change.Protection.(bool); ok && prot {
+                fmt.Fprintln(cmd.OutOrStdout(), "  protection: enabled")
+            }
+            
         case planner.ActionUpdate:
-            fmt.Fprintf(cmd.OutOrStdout(), "~ %s %q will be updated\n",
-                change.ResourceType, change.ResourceName)
+            fmt.Fprintf(cmd.OutOrStdout(), "~ [%s] %s %q will be updated\n",
+                change.ID, change.ResourceType, change.ResourceRef)
+            
+            // Check if this is a protection change
+            if pc, ok := change.Protection.(planner.ProtectionChange); ok {
+                if pc.Old && !pc.New {
+                    fmt.Fprintln(cmd.OutOrStdout(), "  protection: enabled → disabled")
+                } else if !pc.Old && pc.New {
+                    fmt.Fprintln(cmd.OutOrStdout(), "  protection: disabled → enabled")
+                }
+            }
             
             // Show field changes
-            for _, fc := range change.FieldChanges {
-                fmt.Fprintf(cmd.OutOrStdout(), "  %s: %v → %v\n",
-                    fc.Field, fc.OldValue, fc.NewValue)
+            for field, value := range change.Fields {
+                if fc, ok := value.(planner.FieldChange); ok {
+                    fmt.Fprintf(cmd.OutOrStdout(), "  %s: %v → %v\n",
+                        field, fc.Old, fc.New)
+                }
+            }
+        }
+        
+        // Show dependencies
+        if len(change.DependsOn) > 0 {
+            fmt.Fprintf(cmd.OutOrStdout(), "  depends on: %v\n", change.DependsOn)
+        }
+        
+        // Show references
+        if len(change.References) > 0 {
+            fmt.Fprintln(cmd.OutOrStdout(), "  references:")
+            for field, ref := range change.References {
+                if ref.ID == "<unknown>" {
+                    fmt.Fprintf(cmd.OutOrStdout(), "    %s: %s (to be resolved)\n", field, ref.Ref)
+                } else {
+                    fmt.Fprintf(cmd.OutOrStdout(), "    %s: %s → %s\n", field, ref.Ref, ref.ID)
+                }
             }
         }
         
@@ -1211,13 +1706,13 @@ Add diff command to display plan changes in human-readable or JSON format
 
 ---
 
-## Step 10: Add Integration Tests
+## Step 11: Add Integration Tests
 
 ### Status
 Not Started
 
 ### Dependencies
-Steps 8, 9
+Steps 9, 10
 
 ### Changes
 - Create directory: `test/integration/declarative/`
