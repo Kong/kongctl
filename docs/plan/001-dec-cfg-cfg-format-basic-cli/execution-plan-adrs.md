@@ -508,3 +508,66 @@ Clear error messages guide users:
 - Clear documentation with migration examples
 - Helpful error messages suggesting `-R` when appropriate
 - Examples showing common patterns
+
+---
+
+## ADR-001-010: Dual Support for control_plane_id Field
+
+### Context
+API implementations in Konnect reference Kong Gateway services through the `service` field. This field contains:
+- `id`: The UUID of the external Kong Gateway service (managed by decK)
+- `control_plane_id`: The identifier of the control plane where the service resides
+
+Initially, `control_plane_id` only supported declarative configuration references (e.g., `prod-cp`). However, this creates a limitation:
+
+**The Problem**: Gateway Services live on Control Planes. Until we determine how to support core Kong Gateway entities (services, routes, consumers, plugins) in kongctl's declarative configuration, we cannot manage Gateway services. If we can't manage Gateway services, we can't manage the control planes that host them.
+
+**Why we're not managing core entities yet**: The decK tool and format already exist for managing Kong Gateway configuration. We need to determine the relationship between decK and kongctl's declarative configuration before implementing core entity management.
+
+### Decision
+Support both declarative references AND external UUIDs for the `control_plane_id` field in API implementations:
+
+```yaml
+# Using declarative reference (control plane managed by kongctl)
+implementations:
+  - ref: my-impl-managed
+    service:
+      id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"  # External service UUID
+      control_plane_id: prod-cp                     # Reference to declarative control plane
+
+# Using external UUID (control plane NOT managed by kongctl)
+implementations:
+  - ref: my-impl-external
+    service:
+      id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"  # External service UUID
+      control_plane_id: "f9e8d7c6-b5a4-3210-9876-fedcba098765"  # External control plane UUID
+```
+
+### Implementation
+1. **UUID Detection**: Add logic to detect UUID format vs reference format
+2. **Conditional Validation**: 
+   - If UUID format: Accept as-is (external control plane)
+   - If reference format: Validate reference exists in declarative config
+3. **Reference Mapping**: Only include in reference mappings if NOT a UUID
+4. **Keep service.id UUID-only**: The service ID remains strictly UUID format
+
+### Rationale
+- **Flexibility**: Allows API implementations to reference both managed and unmanaged control planes
+- **Migration path**: Teams can gradually adopt declarative control plane management
+- **Real-world usage**: Many teams have existing control planes not managed by kongctl
+- **Temporary solution**: This flexibility can be removed once core entity management is implemented
+- **Backwards compatible**: Existing configurations continue to work
+
+### Consequences
+- **Documentation**: Must clearly explain when to use UUID vs reference
+- **Validation complexity**: Need to detect and handle both formats
+- **User understanding**: Users must know whether their control plane is managed by kongctl
+- **Future migration**: When core entities are supported, may need migration path
+
+### Future Considerations
+Once kongctl supports core Kong Gateway entities (services, routes, etc.), we can:
+1. Deprecate UUID support for control_plane_id
+2. Provide migration tooling to import existing services
+3. Require all control planes to be declaratively managed
+
+This ADR represents a pragmatic temporary solution that acknowledges current limitations while providing a path forward.

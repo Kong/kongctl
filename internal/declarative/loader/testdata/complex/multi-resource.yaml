@@ -9,6 +9,14 @@ application_auth_strategies:
         client_id: "test-client"
         client_secret: "test-secret"
         scopes: ["openid", "profile"]
+  
+  - ref: key-auth-strategy
+    name: "API Key Strategy"
+    display_name: "API Key Strategy"
+    strategy_type: key_auth
+    configs:
+      key_auth:
+        key_names: ["api-key", "x-api-key"]
 
 portals:
   - ref: test-portal
@@ -54,6 +62,17 @@ portals:
       - ref: test-snippet
         name: "footer"
         content: "<div>Footer</div>"
+  
+  - ref: prod-portal
+    name: "Production Portal"
+    description: "A production portal"
+    authentication_enabled: true
+    rbac_enabled: true
+    default_api_visibility: "private"
+    default_page_visibility: "public"
+    default_application_auth_strategy_id: key-auth-strategy
+    auto_approve_developers: false
+    auto_approve_applications: false
 
 control_planes:
   - ref: test-cp
@@ -61,6 +80,12 @@ control_planes:
     cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
     labels:
       environment: "test"
+  
+  - ref: prod-cp
+    name: "Production Control Plane"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    labels:
+      environment: "production"
 
 apis:
   - ref: test-api
@@ -85,3 +110,26 @@ apis:
         service:
           id: "12345678-1234-1234-1234-123456789012"
           control_plane_id: test-cp
+  
+  - ref: prod-api
+    name: "Production API"
+    description: "A production API"
+    
+    versions:
+      - ref: prod-api-v1
+        name: "v1.0.0"
+        version: "v1"
+        publish_status: "published"
+        
+    publications:
+      - ref: prod-api-pub
+        portal_id: prod-portal
+        publish_status: "published"
+        auth_strategy_ids: ["key-auth-strategy"]
+        
+    implementations:
+      - ref: prod-api-impl
+        implementation_url: "https://api.prod.example.com/v1"
+        service:
+          id: "87654321-4321-4321-4321-210987654321"
+          control_plane_id: prod-cp

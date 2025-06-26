@@ -39,11 +39,11 @@ apis:
       - ref: user-service-prod
         implementation_url: "https://api.example.com/users/v2"
         service:
-          id: "u123e456-7890-1234-5678-90abcdef1234"
+          id: "3123e456-7890-1234-5678-90abcdef1234"
           control_plane_id: prod-us-east
           
       - ref: user-service-staging
         implementation_url: "https://api-staging.example.com/users/v2"
         service:
-          id: "u456f789-0123-4567-8901-234567890abc"
+          id: "4456f789-0123-4567-8901-234567890abc"
           control_plane_id: staging-cp
