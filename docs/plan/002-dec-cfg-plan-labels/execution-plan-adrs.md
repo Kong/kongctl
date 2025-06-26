@@ -2,9 +2,6 @@
 
 ## ADR-002-001: Label Normalization Strategy
 
-### Status
-Proposed
-
 ### Context
 The SDK has inconsistent label representations:
 - `CreatePortal` uses `map[string]*string` (pointer values)
@@ -40,9 +37,6 @@ func normalizeLabels(labels map[string]*string) map[string]string {
 ---
 
 ## ADR-002-002: Configuration Hash Algorithm
-
-### Status
-Proposed
 
 ### Context
 We need to detect configuration drift efficiently without comparing every field. A hash
@@ -84,9 +78,6 @@ type HashablePortal struct {
 
 ## ADR-002-003: Reference Resolution Timing
 
-### Status
-Proposed
-
 ### Context
 Declarative configs use references (e.g., `auth_strategy: "oauth-strategy"`). These must
 be resolved to Konnect IDs at some point.
@@ -115,9 +106,6 @@ Late resolution during execution was considered but rejected because:
 ---
 
 ## ADR-002-004: Plan Structure and Versioning
-
-### Status
-Proposed
 
 ### Context
 Plans need a well-defined structure that can evolve over time while maintaining 
@@ -185,9 +173,6 @@ Use versioned JSON with semantic versioning:
 
 ## ADR-002-005: Client-Side Resource Filtering
 
-### Status
-Proposed
-
 ### Context
 SDK doesn't support server-side filtering by labels. We need to identify KONGCTL-managed
 resources among all resources in Konnect.
@@ -223,9 +208,6 @@ func filterManagedResources(portals []Portal) []Portal {
 
 ## ADR-002-006: Plan File Format
 
-### Status
-Proposed
-
 ### Context
 Plans need to be saved to files for later execution. Format must be readable and portable.
 
@@ -252,9 +234,6 @@ YAML format was considered but JSON chosen for:
 ---
 
 ## ADR-002-007: Semantic Change IDs
-
-### Status
-Proposed
 
 ### Context
 Change IDs need to be unique within a plan but also provide useful information for debugging
@@ -284,9 +263,6 @@ Example: `1-c-oauth-strategy`, `2-u-developer-portal`
 
 ## ADR-002-008: No Global Reference Mappings
 
-### Status
-Proposed
-
 ### Context
 Initial design included a global `reference_mappings` section at the plan root to store all
 ref → ID mappings. Analysis showed this was redundant with data in individual changes.
@@ -313,9 +289,6 @@ Global mappings added no value while increasing plan size.
 ---
 
 ## ADR-002-009: Protection Change Isolation
-
-### Status
-Proposed
 
 ### Context
 Protected resources cannot be deleted. Changing protection status is a sensitive operation
@@ -353,9 +326,6 @@ Example:
 ---
 
 ## ADR-002-010: Minimal Field Storage for Updates
-
-### Status
-Proposed
 
 ### Context
 UPDATE operations could store complete current and desired states, but this creates large
@@ -399,9 +369,6 @@ Store only changed fields for UPDATE operations:
 ---
 
 ## ADR-002-011: Enhanced Reference Tracking
-
-### Status
-Proposed
 
 ### Context
 When references are resolved to IDs, we lose the connection between the original reference
