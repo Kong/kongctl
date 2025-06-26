@@ -4,7 +4,7 @@
 
 | Step | Description | Status | Dependencies |
 |------|-------------|--------|--------------|
-| 1 | Extend API Interfaces | Not Started | None |
+| 1 | Extend API Interfaces | Completed | None |
 | 2 | Implement Label Utilities | Not Started | None |
 | 3 | Create State Client Wrapper | Not Started | Step 1 |
 | 4 | Implement Config Hash | Not Started | Step 2 |
@@ -21,7 +21,7 @@
 ## Step 1: Extend API Interfaces
 
 ### Status
-Not Started
+Completed
 
 ### Dependencies
 None

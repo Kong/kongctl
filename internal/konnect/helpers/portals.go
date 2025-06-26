@@ -14,6 +14,9 @@ type PortalAPI interface {
 	// Portal operations
 	ListPortals(ctx context.Context, request kkInternalOps.ListPortalsRequest) (*kkInternalOps.ListPortalsResponse, error)
 	GetPortal(ctx context.Context, id string) (*kkInternalOps.GetPortalResponse, error)
+	CreatePortal(ctx context.Context, portal kkInternalComps.CreatePortal) (*kkInternalOps.CreatePortalResponse, error)
+	UpdatePortal(ctx context.Context, id string,
+		portal kkInternalComps.UpdatePortal) (*kkInternalOps.UpdatePortalResponse, error)
 }
 
 // InternalPortalAPI provides an implementation of the PortalAPI interface using the internal SDK
@@ -32,6 +35,23 @@ func (p *InternalPortalAPI) ListPortals(
 // GetPortal implements the PortalAPI interface
 func (p *InternalPortalAPI) GetPortal(ctx context.Context, id string) (*kkInternalOps.GetPortalResponse, error) {
 	return p.SDK.Portals.GetPortal(ctx, id)
+}
+
+// CreatePortal implements the PortalAPI interface
+func (p *InternalPortalAPI) CreatePortal(
+	ctx context.Context,
+	portal kkInternalComps.CreatePortal,
+) (*kkInternalOps.CreatePortalResponse, error) {
+	return p.SDK.Portals.CreatePortal(ctx, portal)
+}
+
+// UpdatePortal implements the PortalAPI interface
+func (p *InternalPortalAPI) UpdatePortal(
+	ctx context.Context,
+	id string,
+	portal kkInternalComps.UpdatePortal,
+) (*kkInternalOps.UpdatePortalResponse, error) {
+	return p.SDK.Portals.UpdatePortal(ctx, id, portal)
 }
 
 // GetAllPortals fetches all portals with pagination
