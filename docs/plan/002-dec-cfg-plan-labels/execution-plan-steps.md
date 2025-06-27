@@ -13,7 +13,7 @@
 | 7 | Implement Dependency Resolution | Completed | Step 5 |
 | 8 | Create Planner Core Logic | Completed | Steps 4, 5, 6, 7 |
 | 9 | Update Plan Command | Completed | Step 8 |
-| 10 | Implement Diff Command | Not Started | Step 5 |
+| 10 | Implement Diff Command | Completed | Step 5 |
 | 11 | Add Integration Tests | Not Started | Steps 9, 10 |
 
 ---
@@ -1517,7 +1517,7 @@ and save to specified output file
 ## Step 10: Implement Diff Command
 
 ### Status
-Not Started
+Completed
 
 ### Dependencies
 Step 5

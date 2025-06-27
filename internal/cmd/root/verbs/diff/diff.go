@@ -65,8 +65,13 @@ func NewDiffCmd() (*cobra.Command, error) {
 		Example: diffExamples,
 		// Use the konnect command's RunE directly for Konnect-first pattern
 		RunE: konnectCmd.RunE,
-		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))
+			// Also run the konnect command's PersistentPreRunE to set up SDKAPIFactory
+			if konnectCmd.PersistentPreRunE != nil {
+				return konnectCmd.PersistentPreRunE(cmd, args)
+			}
+			return nil
 		},
 	}
 

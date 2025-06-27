@@ -10,7 +10,7 @@ This folder contains the complete planning and implementation tracking for all k
 - **Technical Overview**: [002-dec-cfg-plan-labels/execution-plan-overview.md](002-dec-cfg-plan-labels/execution-plan-overview.md)
 - **Requirements**: [002-dec-cfg-plan-labels/description.md](002-dec-cfg-plan-labels/description.md)
 
-**Implementation Status**: 9/11 steps completed (82%) 🚀  
+**Implementation Status**: 10/11 steps completed (91%) 🚀  
 **Progress Tracking**: See Progress Summary in implementation guide above
 
 ## Quick Start for Implementation
@@ -62,8 +62,8 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](002-dec-cfg-plan-labels/execution-plan-steps.md) | **Implementation guide** | 📋 Ready for implementation |
 | [execution-plan-adrs.md](002-dec-cfg-plan-labels/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: 9/11 steps completed (82%) 🚀
-- **In Progress**: Nearly complete, final steps remaining
+**Implementation Status**: 10/11 steps completed (91%) 🚀
+- **In Progress**: Nearly complete, final step remaining
 - **Key deliverables completed**: 
   - ✅ Konnect API integration for fetching current portal state
   - ✅ Label management system (KONGCTL/managed, KONGCTL/config-hash, KONGCTL/protected)
@@ -72,8 +72,8 @@ The first major feature being implemented is declarative configuration managemen
   - ✅ Reference resolution and dependency management
   - ✅ Protection status change handling
   - ✅ Plan command integration
+  - ✅ Diff command with text/JSON/YAML output formats
 - **Remaining deliverables**:
-  - Basic diff command implementation
   - Integration tests for new functionality
 
 #### Stage 3: Plan Execution 🔮 Future
