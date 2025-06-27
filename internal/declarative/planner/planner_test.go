@@ -71,7 +71,8 @@ func TestGeneratePlan_CreatePortal(t *testing.T) {
 		ApplicationAuthStrategies: []resources.ApplicationAuthStrategyResource{},
 	}
 
-	plan, err := planner.GeneratePlan(ctx, rs)
+	opts := Options{Mode: PlanModeSync}
+	plan, err := planner.GeneratePlan(ctx, rs, opts)
 	assert.NoError(t, err)
 	assert.NotNil(t, plan)
 
@@ -146,7 +147,8 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 		ApplicationAuthStrategies: []resources.ApplicationAuthStrategyResource{},
 	}
 
-	plan, err := planner.GeneratePlan(ctx, rs)
+	opts := Options{Mode: PlanModeSync}
+	plan, err := planner.GeneratePlan(ctx, rs, opts)
 	assert.NoError(t, err)
 	assert.NotNil(t, plan)
 
@@ -217,7 +219,8 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 		ApplicationAuthStrategies: []resources.ApplicationAuthStrategyResource{},
 	}
 
-	plan, err := planner.GeneratePlan(ctx, rs)
+	opts := Options{Mode: PlanModeSync}
+	plan, err := planner.GeneratePlan(ctx, rs, opts)
 	assert.NoError(t, err)
 	assert.NotNil(t, plan)
 
@@ -292,7 +295,8 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 		},
 	}
 
-	plan, err := planner.GeneratePlan(ctx, rs)
+	opts := Options{Mode: PlanModeSync}
+	plan, err := planner.GeneratePlan(ctx, rs, opts)
 	assert.NoError(t, err)
 	assert.NotNil(t, plan)
 
@@ -379,7 +383,8 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 		ApplicationAuthStrategies: []resources.ApplicationAuthStrategyResource{},
 	}
 
-	plan, err := planner.GeneratePlan(ctx, rs)
+	opts := Options{Mode: PlanModeSync}
+	plan, err := planner.GeneratePlan(ctx, rs, opts)
 	assert.NoError(t, err)
 	assert.NotNil(t, plan)
 
@@ -408,4 +413,295 @@ func TestNextChangeID(t *testing.T) {
 
 	// Check counter increments
 	assert.Equal(t, 3, planner.changeCount)
+}
+
+func TestGeneratePlan_ApplyModeNoDeletes(t *testing.T) {
+	ctx := context.Background()
+	mockAPI := new(MockPortalAPI)
+	client := state.NewClient(mockAPI)
+	planner := NewPlanner(client)
+
+	// Mock existing managed portals
+	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
+		ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
+			Data: []kkInternalComps.Portal{
+				{
+					ID:          "existing-id",
+					Name:        "existing-portal",
+					DisplayName: "Existing Portal",
+					Labels: map[string]string{
+						labels.ManagedKey:    trueStr,
+						labels.ConfigHashKey: hashStr,
+					},
+				},
+			},
+			Meta: kkInternalComps.PaginatedMeta{
+				Page: kkInternalComps.PageMeta{
+					Total: 1,
+				},
+			},
+		},
+	}, nil)
+
+	// Create resource set with only one portal (missing the existing one)
+	displayName := "New Portal"
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{
+			{
+				CreatePortal: kkInternalComps.CreatePortal{
+					Name:        "new-portal",
+					DisplayName: &displayName,
+					Labels:      map[string]*string{},
+				},
+				Ref: "new-portal",
+			},
+		},
+	}
+
+	// Generate plan in apply mode
+	opts := Options{Mode: PlanModeApply}
+	plan, err := planner.GeneratePlan(ctx, rs, opts)
+	assert.NoError(t, err)
+	assert.NotNil(t, plan)
+
+	// Should only have CREATE, no DELETE
+	assert.Equal(t, 1, plan.Summary.TotalChanges)
+	assert.Equal(t, 1, plan.Summary.ByAction[ActionCreate])
+	assert.Equal(t, 0, plan.Summary.ByAction[ActionDelete])
+	assert.False(t, plan.ContainsDeletes())
+
+	// Verify plan metadata
+	assert.Equal(t, PlanModeApply, plan.Metadata.Mode)
+
+	mockAPI.AssertExpectations(t)
+}
+
+func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
+	ctx := context.Background()
+	mockAPI := new(MockPortalAPI)
+	client := state.NewClient(mockAPI)
+	planner := NewPlanner(client)
+
+	// Mock existing managed portals
+	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
+		ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
+			Data: []kkInternalComps.Portal{
+				{
+					ID:          "existing-id",
+					Name:        "existing-portal",
+					DisplayName: "Existing Portal",
+					Labels: map[string]string{
+						labels.ManagedKey:    trueStr,
+						labels.ConfigHashKey: hashStr,
+					},
+				},
+			},
+			Meta: kkInternalComps.PaginatedMeta{
+				Page: kkInternalComps.PageMeta{
+					Total: 1,
+				},
+			},
+		},
+	}, nil)
+
+	// Create empty resource set (all managed resources should be deleted)
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{},
+	}
+
+	// Generate plan in sync mode
+	opts := Options{Mode: PlanModeSync}
+	plan, err := planner.GeneratePlan(ctx, rs, opts)
+	assert.NoError(t, err)
+	assert.NotNil(t, plan)
+
+	// Should have DELETE operation
+	assert.Equal(t, 1, plan.Summary.TotalChanges)
+	assert.Equal(t, 1, plan.Summary.ByAction[ActionDelete])
+	assert.True(t, plan.ContainsDeletes())
+
+	// Verify plan metadata
+	assert.Equal(t, PlanModeSync, plan.Metadata.Mode)
+
+	mockAPI.AssertExpectations(t)
+}
+
+func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
+	ctx := context.Background()
+	mockAPI := new(MockPortalAPI)
+	client := state.NewClient(mockAPI)
+	planner := NewPlanner(client)
+
+	// Mock existing protected portal
+	protectedStr := "true"
+	existingHash := "old-hash"
+	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
+		ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
+			Data: []kkInternalComps.Portal{
+				{
+					ID:          "protected-id",
+					Name:        "protected-portal",
+					DisplayName: "Protected Portal",
+					Description: ptrString("Old description"),
+					Labels: map[string]string{
+						labels.ManagedKey:    trueStr,
+						labels.ConfigHashKey: existingHash,
+						labels.ProtectedKey:  protectedStr,
+					},
+				},
+			},
+			Meta: kkInternalComps.PaginatedMeta{
+				Page: kkInternalComps.PageMeta{
+					Total: 1,
+				},
+			},
+		},
+	}, nil)
+
+	// Try to update the protected portal
+	displayName := "Protected Portal"
+	description := "New description"
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{
+			{
+				CreatePortal: kkInternalComps.CreatePortal{
+					Name:        "protected-portal",
+					DisplayName: &displayName,
+					Description: &description, // Changed field
+					Labels: map[string]*string{
+						labels.ProtectedKey: &protectedStr, // Keep it protected
+					},
+				},
+				Ref: "protected-portal",
+			},
+		},
+	}
+
+	// Generate plan should fail
+	opts := Options{Mode: PlanModeSync}
+	plan, err := planner.GeneratePlan(ctx, rs, opts)
+	assert.Error(t, err)
+	assert.Nil(t, plan)
+	assert.Contains(t, err.Error(), "Cannot generate plan due to protected resources")
+	assert.Contains(t, err.Error(), "portal \"protected-portal\" is protected and cannot be update")
+
+	mockAPI.AssertExpectations(t)
+}
+
+func TestGeneratePlan_ProtectedResourceFailsDelete(t *testing.T) {
+	ctx := context.Background()
+	mockAPI := new(MockPortalAPI)
+	client := state.NewClient(mockAPI)
+	planner := NewPlanner(client)
+
+	// Mock existing protected portal
+	protectedStr := "true"
+	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
+		ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
+			Data: []kkInternalComps.Portal{
+				{
+					ID:          "protected-id",
+					Name:        "protected-portal",
+					DisplayName: "Protected Portal",
+					Labels: map[string]string{
+						labels.ManagedKey:    trueStr,
+						labels.ConfigHashKey: hashStr,
+						labels.ProtectedKey:  protectedStr,
+					},
+				},
+			},
+			Meta: kkInternalComps.PaginatedMeta{
+				Page: kkInternalComps.PageMeta{
+					Total: 1,
+				},
+			},
+		},
+	}, nil)
+
+	// Empty resource set (would delete all)
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{},
+	}
+
+	// Generate plan in sync mode should fail
+	opts := Options{Mode: PlanModeSync}
+	plan, err := planner.GeneratePlan(ctx, rs, opts)
+	assert.Error(t, err)
+	assert.Nil(t, plan)
+	assert.Contains(t, err.Error(), "Cannot generate plan due to protected resources")
+	assert.Contains(t, err.Error(), "portal \"protected-portal\" is protected and cannot be delete")
+
+	mockAPI.AssertExpectations(t)
+}
+
+func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
+	ctx := context.Background()
+	mockAPI := new(MockPortalAPI)
+	client := state.NewClient(mockAPI)
+	planner := NewPlanner(client)
+
+	// Mock existing protected portal
+	protectedStr := "true"
+	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
+		ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
+			Data: []kkInternalComps.Portal{
+				{
+					ID:          "protected-id",
+					Name:        "protected-portal",
+					DisplayName: "Protected Portal",
+					Labels: map[string]string{
+						labels.ManagedKey:    trueStr,
+						labels.ConfigHashKey: hashStr,
+						labels.ProtectedKey:  protectedStr,
+					},
+				},
+			},
+			Meta: kkInternalComps.PaginatedMeta{
+				Page: kkInternalComps.PageMeta{
+					Total: 1,
+				},
+			},
+		},
+	}, nil)
+
+	// Change protection status only
+	displayName := "Protected Portal"
+	falseStr := "false"
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{
+			{
+				CreatePortal: kkInternalComps.CreatePortal{
+					Name:        "protected-portal",
+					DisplayName: &displayName,
+					Labels: map[string]*string{
+						labels.ProtectedKey: &falseStr,
+					},
+				},
+				Ref: "protected-portal",
+			},
+		},
+	}
+
+	// Generate plan should succeed
+	opts := Options{Mode: PlanModeSync}
+	plan, err := planner.GeneratePlan(ctx, rs, opts)
+	assert.NoError(t, err)
+	assert.NotNil(t, plan)
+
+	// Should have protection change
+	assert.Equal(t, 1, plan.Summary.TotalChanges)
+	assert.Equal(t, 1, plan.Summary.ByAction[ActionUpdate])
+	assert.Equal(t, 1, plan.Summary.ProtectionChanges.Unprotecting)
+
+	mockAPI.AssertExpectations(t)
+}
+
+// Test helpers
+var (
+	trueStr = "true"
+	hashStr = "test-hash"
+)
+
+func ptrString(s string) *string {
+	return &s
 }

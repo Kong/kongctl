@@ -53,6 +53,7 @@ for review, approval workflows, or as input to sync operations.`,
 	cmd.Flags().BoolP("recursive", "R", false, 
 		"Process the directory used in -f, --filename recursively")
 	cmd.Flags().String("output-file", "", "Save plan artifact to file")
+	cmd.Flags().String("mode", "sync", "Plan generation mode (sync|apply)")
 
 	return cmd
 }
@@ -61,6 +62,18 @@ func runPlan(command *cobra.Command, args []string) error {
 	ctx := command.Context()
 	filenames, _ := command.Flags().GetStringSlice("filename")
 	recursive, _ := command.Flags().GetBool("recursive")
+	mode, _ := command.Flags().GetString("mode")
+	
+	// Validate mode
+	var planMode planner.PlanMode
+	switch mode {
+	case "sync":
+		planMode = planner.PlanModeSync
+	case "apply":
+		planMode = planner.PlanModeApply
+	default:
+		return fmt.Errorf("invalid mode %q: must be 'sync' or 'apply'", mode)
+	}
 	
 	// Build helper
 	helper := cmd.BuildHelper(command, args)
@@ -118,7 +131,10 @@ func runPlan(command *cobra.Command, args []string) error {
 	p := planner.NewPlanner(stateClient)
 	
 	// Generate plan
-	plan, err := p.GeneratePlan(ctx, resourceSet)
+	opts := planner.Options{
+		Mode: planMode,
+	}
+	plan, err := p.GeneratePlan(ctx, resourceSet, opts)
 	if err != nil {
 		return fmt.Errorf("failed to generate plan: %w", err)
 	}
@@ -235,8 +251,11 @@ func runDiff(command *cobra.Command, args []string) error {
 		stateClient := state.NewClient(portalAPI)
 		p := planner.NewPlanner(stateClient)
 		
-		// Generate plan
-		plan, err = p.GeneratePlan(ctx, resourceSet)
+		// Generate plan (default to sync mode for diff)
+		opts := planner.Options{
+			Mode: planner.PlanModeSync,
+		}
+		plan, err = p.GeneratePlan(ctx, resourceSet, opts)
 		if err != nil {
 			return fmt.Errorf("failed to generate plan: %w", err)
 		}

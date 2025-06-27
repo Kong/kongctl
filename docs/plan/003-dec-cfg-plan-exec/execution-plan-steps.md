@@ -4,7 +4,7 @@
 
 | Step | Description | Status | Dependencies |
 |------|-------------|---------|--------------|
-| 1 | Enhance planner with mode support | Not Started | - |
+| 1 | Enhance planner with mode support | Completed ✅ | - |
 | 2 | Create base executor package | Not Started | Step 1 |
 | 3 | Implement progress reporter | Not Started | Step 2 |
 | 4 | Add portal operations to executor | Not Started | Step 2 |
@@ -22,7 +22,7 @@
 
 ## Step 1: Enhance Planner with Mode Support
 
-**Status**: Not Started
+**Status**: Completed ✅
 
 ### Goal
 Extend the Stage 2 planner to support mode-aware plan generation.
@@ -103,13 +103,13 @@ cmd.Flags().StringVar(&planMode, "mode", "sync", "Plan generation mode (sync|app
 - Protection only blocks modifications, not removal of protection itself
 
 ### Definition of Done
-- [ ] Planner supports mode parameter
-- [ ] Apply mode excludes DELETE operations
-- [ ] Sync mode includes all operations
-- [ ] Plan metadata indicates generation mode
-- [ ] Protected resources cause planning to fail
-- [ ] Clear error messages for protection violations
-- [ ] Tests pass for both modes and protection scenarios
+- [x] Planner supports mode parameter
+- [x] Apply mode excludes DELETE operations
+- [x] Sync mode includes all operations
+- [x] Plan metadata indicates generation mode
+- [x] Protected resources cause planning to fail
+- [x] Clear error messages for protection violations
+- [x] Tests pass for both modes and protection scenarios
 
 ---
 

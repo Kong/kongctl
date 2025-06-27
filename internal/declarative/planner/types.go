@@ -13,11 +13,21 @@ type Plan struct {
 	Warnings       []PlanWarning   `json:"warnings,omitempty"`
 }
 
+// PlanMode represents the mode of plan generation
+type PlanMode string
+
+const (
+	PlanModeSync  PlanMode = "sync"
+	PlanModeApply PlanMode = "apply"
+)
+
 // PlanMetadata contains plan generation information
 type PlanMetadata struct {
 	Version     string    `json:"version"`
 	GeneratedAt time.Time `json:"generated_at"`
 	Generator   string    `json:"generator"`
+	Mode        PlanMode  `json:"mode"`
+	ConfigHash  string    `json:"config_hash"`
 }
 
 // PlannedChange represents a single resource change
@@ -89,12 +99,14 @@ type PlanWarning struct {
 }
 
 // NewPlan creates a new plan with metadata
-func NewPlan(version, generator string) *Plan {
+func NewPlan(version, generator string, mode PlanMode, configHash string) *Plan {
 	return &Plan{
 		Metadata: PlanMetadata{
 			Version:     version,
 			GeneratedAt: time.Now().UTC(),
 			Generator:   generator,
+			Mode:        mode,
+			ConfigHash:  configHash,
 		},
 		Changes:        []PlannedChange{},
 		ExecutionOrder: []string{},
@@ -162,4 +174,14 @@ func (p *Plan) updateSummary() {
 // IsEmpty returns true if plan has no changes
 func (p *Plan) IsEmpty() bool {
 	return len(p.Changes) == 0
+}
+
+// ContainsDeletes returns true if plan contains any DELETE operations
+func (p *Plan) ContainsDeletes() bool {
+	for _, change := range p.Changes {
+		if change.Action == ActionDelete {
+			return true
+		}
+	}
+	return false
 }

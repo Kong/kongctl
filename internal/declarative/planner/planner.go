@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/hash"
 	"github.com/kong/kongctl/internal/declarative/labels"
@@ -10,6 +11,11 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
+
+// Options configures plan generation behavior
+type Options struct {
+	Mode PlanMode
+}
 
 // Planner generates execution plans
 type Planner struct {
@@ -30,8 +36,11 @@ func NewPlanner(client *state.Client) *Planner {
 }
 
 // GeneratePlan creates a plan from declarative configuration
-func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet) (*Plan, error) {
-	plan := NewPlan("1.0", "kongctl/dev")
+func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, opts Options) (*Plan, error) {
+	// Calculate overall config hash for the resource set
+	configHash := hash.CalculateResourceSetHash(rs)
+	
+	plan := NewPlan("1.0", "kongctl/dev", opts.Mode, configHash)
 
 	// Generate changes for each resource type
 	if err := p.planAuthStrategyChanges(ctx, rs.ApplicationAuthStrategies, plan); err != nil {
@@ -99,6 +108,21 @@ func (p *Planner) nextChangeID(action ActionType, ref string) string {
 	return fmt.Sprintf("%d-%s-%s", p.changeCount, actionChar, ref)
 }
 
+// validateProtection checks if a protected resource would be modified or deleted
+func (p *Planner) validateProtection(
+	resourceType, resourceName string, 
+	currentProtected bool, 
+	action ActionType,
+) error {
+	if action == ActionUpdate || action == ActionDelete {
+		if currentProtected {
+			return fmt.Errorf("%s %q is protected and cannot be %s", 
+				resourceType, resourceName, strings.ToLower(string(action)))
+		}
+	}
+	return nil
+}
+
 // planPortalChanges generates changes for portal resources
 func (p *Planner) planPortalChanges(ctx context.Context, desired []resources.PortalResource, plan *Plan) error {
 	// Fetch current managed portals
@@ -112,6 +136,9 @@ func (p *Planner) planPortalChanges(ctx context.Context, desired []resources.Por
 	for _, portal := range currentPortals {
 		currentByName[portal.Name] = portal
 	}
+
+	// Collect protection validation errors
+	var protectionErrors []error
 
 	// Compare each desired portal
 	for _, desiredPortal := range desired {
@@ -141,6 +168,7 @@ func (p *Planner) planPortalChanges(ctx context.Context, desired []resources.Por
 
 			// Handle protection changes separately
 			if isProtected != shouldProtect {
+				// Protection change is always allowed
 				p.planProtectionChange(current, isProtected, shouldProtect, plan)
 				// If unprotecting, we can then update
 				if isProtected && !shouldProtect {
@@ -149,10 +177,46 @@ func (p *Planner) planPortalChanges(ctx context.Context, desired []resources.Por
 					}
 				}
 			} else if currentHash != configHash {
-				// Regular update (no protection change)
-				p.planPortalUpdate(current, desiredPortal, configHash, plan)
+				// Regular update - check protection
+				if err := p.validateProtection("portal", desiredPortal.Name, isProtected, ActionUpdate); err != nil {
+					protectionErrors = append(protectionErrors, err)
+				} else {
+					p.planPortalUpdate(current, desiredPortal, configHash, plan)
+				}
 			}
 		}
+	}
+
+	// Check for managed resources to delete (sync mode only)
+	if plan.Metadata.Mode == PlanModeSync {
+		// Build set of desired portal names
+		desiredNames := make(map[string]bool)
+		for _, portal := range desired {
+			desiredNames[portal.Name] = true
+		}
+
+		// Find managed portals not in desired state
+		for name, current := range currentByName {
+			if !desiredNames[name] {
+				// Validate protection before adding DELETE
+				isProtected := current.NormalizedLabels[labels.ProtectedKey] == "true"
+				if err := p.validateProtection("portal", name, isProtected, ActionDelete); err != nil {
+					protectionErrors = append(protectionErrors, err)
+				} else {
+					p.planPortalDelete(current, plan)
+				}
+			}
+		}
+	}
+
+	// Fail fast if any protected resources would be modified
+	if len(protectionErrors) > 0 {
+		errMsg := "Cannot generate plan due to protected resources:\n"
+		for _, err := range protectionErrors {
+			errMsg += fmt.Sprintf("- %s\n", err.Error())
+		}
+		errMsg += "\nTo proceed, first update these resources to set protected: false"
+		return fmt.Errorf("%s", errMsg)
 	}
 
 	return nil
@@ -333,6 +397,22 @@ func (p *Planner) planAuthStrategyChanges(
 	}
 
 	return nil
+}
+
+// planPortalDelete creates a DELETE change for a portal
+func (p *Planner) planPortalDelete(portal state.Portal, plan *Plan) {
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionDelete, portal.Name),
+		ResourceType: "portal",
+		ResourceRef:  portal.Name,
+		ResourceID:   portal.ID,
+		Action:       ActionDelete,
+		Fields:       map[string]interface{}{}, // No fields for DELETE
+		ConfigHash:   portal.NormalizedLabels[labels.ConfigHashKey],
+		DependsOn:    []string{},
+	}
+
+	plan.AddChange(change)
 }
 
 // getString dereferences string pointer or returns empty

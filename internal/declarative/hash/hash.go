@@ -65,6 +65,19 @@ func CalculateAuthStrategyHash(strategy interface{}) (string, error) {
 	return CalculateResourceHash(strategy)
 }
 
+// CalculateResourceSetHash generates a hash for an entire resource set
+func CalculateResourceSetHash(rs interface{}) string {
+	// Create a simple deterministic representation
+	jsonBytes, err := json.Marshal(rs)
+	if err != nil {
+		// Fallback to empty string if marshaling fails
+		return ""
+	}
+	
+	hash := sha256.Sum256(jsonBytes)
+	return base64.StdEncoding.EncodeToString(hash[:])
+}
+
 
 // filterForHashing removes system fields and KONGCTL labels
 func filterForHashing(data map[string]interface{}) map[string]interface{} {
