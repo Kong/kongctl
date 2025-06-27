@@ -454,14 +454,14 @@ func TestResolveReferences_NetworkError(t *testing.T) {
 	}
 
 	// Error should mention network error
-	if !contains(result.Errors[0].Error(), "network error") {
+	if !containsSubstring(result.Errors[0].Error(), "network error") {
 		t.Errorf("Expected error to contain 'network error', got %q", result.Errors[0].Error())
 	}
 
 	mockAPI.AssertExpectations(t)
 }
 
-func contains(s, substr string) bool {
+func containsSubstring(s, substr string) bool {
 	return len(s) >= len(substr) && s[len(s)-len(substr):] == substr
 }
 
