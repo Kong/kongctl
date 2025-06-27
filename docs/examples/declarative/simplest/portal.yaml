@@ -1,0 +1,4 @@
+portals:
+  - ref: simplest-portal
+    name: "The Simplest Portal Of Them All"
+    description: "A minimal developer portal configuration"
