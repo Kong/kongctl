@@ -94,18 +94,19 @@ modified or deleted without explicit intent. Both UPDATE and DELETE operations
 on protected resources carry risk and should be prevented.
 
 ### Decision
-Implement comprehensive protection mechanisms:
+Implement fail-fast protection with execution-time validation:
 1. Protected resources cannot be updated or deleted
-2. Protection status detected during state retrieval
-3. Plan generation includes "blocked" changes with clear reasons
+2. Plan generation fails immediately when protected resources would be modified
+3. Clear error messages guide users to unprotect specific resources
 4. Two-phase process required for any modifications
-5. Execution skips blocked changes with appropriate reporting
+5. Protection status re-validated at execution time for safety
 
 ### Consequences
 - Complete immutability for protected resources
-- Clear visibility of blocked operations during planning
+- Immediate feedback during planning phase
+- No ambiguous "blocked" changes in plans
 - Explicit unprotection required before any changes
-- Reduced risk of accidental modifications to critical resources
+- Safe against protection changes between planning and execution
 
 ### Protection Modification Flow
 ```yaml
@@ -117,15 +118,20 @@ kongctl:
 # Resource can now be modified in subsequent operations
 ```
 
-### Blocked Change Handling
-```json
-{
-  "change_id": "portal-production-update",
-  "action": "UPDATE",
-  "resource_type": "portal",
-  "resource_name": "production-portal",
-  "blocked": true,
-  "block_reason": "Resource is protected. Remove protection before updating."
+### Planning Error Example
+```
+Error: Cannot generate plan due to protected resources:
+- portal "production-portal" is protected and cannot be updated
+- portal "staging-portal" is protected and cannot be deleted
+
+To proceed, first update these resources to set protected: false
+```
+
+### Execution-Time Validation
+```go
+// Before executing any UPDATE or DELETE operation
+if resource.IsProtected() {
+    return fmt.Errorf("resource %s became protected after plan generation", resource.Name)
 }
 ```
 

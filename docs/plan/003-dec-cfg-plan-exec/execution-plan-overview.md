@@ -16,29 +16,33 @@ Plans are generated differently based on the intended execution mode:
 - **Apply Mode**: Generates plans containing only CREATE and UPDATE operations
 - **Sync Mode**: Generates plans including CREATE, UPDATE, and DELETE operations
 
-Both modes detect protected resources during plan generation:
-- Protected resources that would be updated or deleted are marked as "blocked"
-- Blocked changes are included in the plan with clear explanations
-- Plans remain valid and executable despite containing blocked changes
-- Blocked changes are skipped during execution with appropriate reporting
+Both modes use fail-fast protection handling:
+- Plan generation fails immediately if protected resources would be modified/deleted
+- Clear error messages indicate which resources need unprotection
+- Users must explicitly unprotect resources before generating plans
+- No partial or blocked plans are created
 
-This distinction ensures plans are optimized for their intended use and prevents
-accidental deletions when using the safer `apply` command.
+This approach ensures clear intent and prevents accidental modifications while
+maintaining the distinction between incremental updates and full reconciliation.
 
 ### Command Separation
 
-Two distinct commands provide different levels of state management:
+Two distinct commands provide different approaches to configuration management:
 
-1. **`kongctl apply`**: Safe incremental updates
+1. **`kongctl apply`**: Incremental configuration changes
    - Creates new resources
    - Updates existing managed resources
    - Never deletes resources
-   - Ideal for production changes
+   - Enables iterative configuration building
+   - Supports partial configurations
+   - Useful for step-by-step deployments (e.g., control plane → API → portal)
 
 2. **`kongctl sync`**: Full state reconciliation
    - Creates new resources
    - Updates existing managed resources
    - Deletes managed resources not in configuration
+   - Requires complete configuration declaration
+   - Ensures exact state match
    - Ideal for CI/CD and environment replication
 
 ## Architecture Components
@@ -143,12 +147,12 @@ kongctl apply --plan apply-plan.json
 
 Resources marked with `kongctl.protected: true` are fully immutable:
 - Cannot be updated or deleted while protected
-- Changes are blocked during plan generation with clear explanations
+- Plan generation fails immediately if modifications are attempted
 - Require explicit two-phase modification process:
   1. First: Update resource to set `protected: false`
   2. Then: Apply desired changes (update or delete)
-- Blocked changes are included in plans but marked as non-executable
-- Execution reports show blocked changes separately from failures
+- Protection status is re-validated at execution time
+- Resources protected between planning and execution are skipped with warnings
 
 ### Confirmation Prompts
 
