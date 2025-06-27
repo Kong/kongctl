@@ -121,75 +121,23 @@ func runPlan(command *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to generate plan: %w", err)
 	}
 	
+	// Marshal plan to JSON
+	planJSON, err := json.MarshalIndent(plan, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal plan: %w", err)
+	}
+	
 	// Handle output
 	outputFile, _ := command.Flags().GetString("output-file")
 	
 	if outputFile != "" {
 		// Save to file
-		planJSON, err := json.MarshalIndent(plan, "", "  ")
-		if err != nil {
-			return fmt.Errorf("failed to marshal plan: %w", err)
-		}
-		
 		if err := os.WriteFile(outputFile, planJSON, 0600); err != nil {
 			return fmt.Errorf("failed to write plan file: %w", err)
 		}
-		
-		fmt.Fprintf(command.OutOrStdout(), "Plan saved to: %s\n", outputFile)
 	} else {
-		// Display plan to stdout
-		planJSON, err := json.MarshalIndent(plan, "", "  ")
-		if err != nil {
-			return fmt.Errorf("failed to marshal plan: %w", err)
-		}
+		// Output to stdout
 		fmt.Fprintln(command.OutOrStdout(), string(planJSON))
-	}
-	
-	// Display summary
-	fmt.Fprintf(command.OutOrStdout(), "\nPlan Summary:\n")
-	fmt.Fprintf(command.OutOrStdout(), "Total changes: %d\n", plan.Summary.TotalChanges)
-	
-	if plan.Summary.TotalChanges > 0 {
-		for action, count := range plan.Summary.ByAction {
-			if count > 0 {
-				fmt.Fprintf(command.OutOrStdout(), "  %s: %d\n", action, count)
-			}
-		}
-		
-		fmt.Fprintln(command.OutOrStdout(), "\nResources by type:")
-		for resourceType, count := range plan.Summary.ByResource {
-			if count > 0 {
-				fmt.Fprintf(command.OutOrStdout(), "  %s: %d\n", resourceType, count)
-			}
-		}
-		
-		if plan.Summary.ProtectionChanges != nil && 
-		   (plan.Summary.ProtectionChanges.Protecting > 0 || plan.Summary.ProtectionChanges.Unprotecting > 0) {
-			fmt.Fprintln(command.OutOrStdout(), "\nProtection changes:")
-			if plan.Summary.ProtectionChanges.Protecting > 0 {
-				fmt.Fprintf(command.OutOrStdout(), "  Protecting: %d\n", plan.Summary.ProtectionChanges.Protecting)
-			}
-			if plan.Summary.ProtectionChanges.Unprotecting > 0 {
-				fmt.Fprintf(command.OutOrStdout(), "  Unprotecting: %d\n", plan.Summary.ProtectionChanges.Unprotecting)
-			}
-		}
-		
-		if len(plan.Warnings) > 0 {
-			fmt.Fprintf(command.OutOrStdout(), "\nWarnings: %d\n", len(plan.Warnings))
-			for _, warning := range plan.Warnings {
-				fmt.Fprintf(command.OutOrStdout(), "  - [%s] %s\n", warning.ChangeID, warning.Message)
-			}
-		}
-	}
-	
-	if plan.IsEmpty() {
-		fmt.Fprintln(command.OutOrStdout(), "\nNo changes detected. Infrastructure is up to date.")
-	} else {
-		if outputFile != "" {
-			fmt.Fprintf(command.OutOrStdout(), "\nRun 'kongctl diff --plan %s' to review changes.\n", outputFile)
-		} else {
-			fmt.Fprintln(command.OutOrStdout(), "\nSave this plan with --output-file to review changes later.")
-		}
 	}
 	
 	return nil
