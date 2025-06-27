@@ -2,15 +2,21 @@
 
 This folder contains the complete planning and implementation tracking for all kongctl features and development efforts.
 
-## 🎯 Current Active Stage: None - Stage 2 Complete!
+## 🎯 Current Active Stage: Stage 3 (Ready for Planning)
 
-**Stage 2 Completed**: Plan Generation with Label Management ✅
-
-All planned stages for declarative configuration plan generation are now complete:
+**Previous Stages Completed**:
 - Stage 1: Configuration Format & Basic CLI ✅ 
 - Stage 2: Plan Generation with Label Management ✅
 
-Stage 3 (Plan Execution) is planned for future implementation.
+**Stage 3: Plan Execution** 🔮 Ready for Planning
+- **Requirements**: [003-dec-cfg-plan-exec/description.md](003-dec-cfg-plan-exec/description.md) ✅ Available
+- **Implementation Guide**: Not yet created - needs planning documents
+- **Goal**: Execute plans generated in Stage 2, applying changes to Konnect
+
+**Next Steps**: 
+1. Create execution-plan-overview.md for technical approach
+2. Create execution-plan-adrs.md for architecture decisions  
+3. Create execution-plan-steps.md for implementation guide
 
 ## Quick Start for Implementation
 
@@ -51,14 +57,14 @@ The first major feature being implemented is declarative configuration managemen
   - Basic validation with fail-fast duplicate detection
   - Plan command integration with loader
 
-#### Stage 2: Plan Generation with Label Management ⏳ In Progress
+#### Stage 2: Plan Generation with Label Management ✅ Completed
 **Goal**: Build the planner that compares current vs desired state and generates plans with CREATE/UPDATE operations
 
 | Document | Purpose | Status |
 |----------|---------|---------|
 | [description.md](002-dec-cfg-plan-labels/description.md) | Requirements from PM | ✅ Complete |
 | [execution-plan-overview.md](002-dec-cfg-plan-labels/execution-plan-overview.md) | Technical approach | ✅ Complete |
-| [execution-plan-steps.md](002-dec-cfg-plan-labels/execution-plan-steps.md) | **Implementation guide** | 📋 Ready for implementation |
+| [execution-plan-steps.md](002-dec-cfg-plan-labels/execution-plan-steps.md) | **Implementation guide** | ✅ Complete |
 | [execution-plan-adrs.md](002-dec-cfg-plan-labels/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
 **Implementation Status**: 11/11 steps completed (100%) ✅ **COMPLETED**
@@ -74,17 +80,24 @@ The first major feature being implemented is declarative configuration managemen
   - ✅ Diff command with text/JSON/YAML output formats
   - ✅ Integration tests with dual-mode SDK support (mock/real)
 
-#### Stage 3: Plan Execution 🔮 Future
+#### Stage 3: Plan Execution 📋 Ready for Planning
 **Goal**: Implement plan execution functionality
 
 | Document | Purpose | Status |
 |----------|---------|---------|
 | [description.md](003-dec-cfg-plan-exec/description.md) | Requirements from PM | ✅ Complete |
-| execution-plan-*.md | Implementation docs | 🔮 Not yet planned |
+| execution-plan-overview.md | Technical approach | 📝 To be created |
+| execution-plan-steps.md | **Implementation guide** | 📝 To be created |
+| execution-plan-adrs.md | Architecture decisions | 📝 To be created |
 
-**Implementation Status**: Not started
-- **Dependencies**: Stage 2 completion
-- **Key deliverables**: Plan execution, validation, error handling
+**Implementation Status**: Planning phase
+- **Dependencies**: Stage 2 completion ✅ Met
+- **Key deliverables**: 
+  - Plan validation and pre-execution checks
+  - Resource creation and update operations
+  - Error handling and rollback strategies
+  - Progress reporting during execution
+  - Dry-run mode support
 
 #### Stage 4: Multi-Resource 🔮 Future
 **Goal**: Support for multiple resources in plans
@@ -100,13 +113,17 @@ The first major feature being implemented is declarative configuration managemen
 
 ## Current Implementation Priority
 
-### ⭐ Immediate Focus: Stage 2 Complete!
-Both Stage 1 and Stage 2 are now complete. The declarative configuration plan generation feature is fully implemented.
+### ⭐ Immediate Focus: Stage 3 Planning
+Stages 1 and 2 are complete. Stage 3 is ready for planning and implementation.
 
+**Completed Stages**:
 - Stage 1: Configuration Format & Basic CLI ✅ **COMPLETED**
 - Stage 2: Plan Generation with Label Management ✅ **COMPLETED**
 
-Stage 3 (Plan Execution) is not yet scheduled for implementation.
+**Current Stage**:
+- Stage 3: Plan Execution 📋 **Ready for Planning**
+
+**To begin Stage 3**: Create the planning documents (overview, ADRs, and steps) based on the requirements in [003-dec-cfg-plan-exec/description.md](003-dec-cfg-plan-exec/description.md)
 
 ### 🎯 Entry Points for Claude Code
 
@@ -122,6 +139,13 @@ Stage 3 (Plan Execution) is not yet scheduled for implementation.
 - **Separate `ref` field** for cross-resource references (ADR-001-003) 
 - **SDK type embedding** to avoid duplication (ADR-001-002)
 - **Type-specific ResourceSet** for clarity and safety (ADR-001-001)
+
+### Plan Generation (Stage 2)
+- **Label-based resource management** with KONGCTL/managed, KONGCTL/config-hash, KONGCTL/protected
+- **Semantic change IDs** for human-readable plan identification
+- **Minimal field storage** to reduce plan size and focus on actual changes
+- **Protection status isolation** from regular field updates
+- **Dependency-ordered execution** for proper resource creation order
 
 ## General Testing Strategy
 
