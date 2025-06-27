@@ -60,6 +60,11 @@ func CalculateAPIDocumentHash(doc kkInternalComps.CreateAPIDocumentRequest) (str
 	return CalculateResourceHash(doc)
 }
 
+// CalculateAuthStrategyHash generates deterministic hash for auth strategy config
+func CalculateAuthStrategyHash(strategy interface{}) (string, error) {
+	return CalculateResourceHash(strategy)
+}
+
 
 // filterForHashing removes system fields and KONGCTL labels
 func filterForHashing(data map[string]interface{}) map[string]interface{} {
