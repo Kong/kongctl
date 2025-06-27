@@ -31,23 +31,26 @@ useful for reviewing changes before synchronization.`))
 
 	diffExamples = normalizers.Examples(i18n.T("root.verbs.diff.diffExamples",
 		fmt.Sprintf(`
-		# Show differences from configuration files
+		# Show differences from an existing plan file
+		%[1]s diff --plan plan.json
+		
+		# Show differences from a plan on stdin
+		cat plan.json | %[1]s diff --plan -
+		
+		# Generate plan and pipe to diff for immediate review
+		%[1]s plan -f portal.yaml | %[1]s diff --plan -
+		
+		# Show differences in JSON format
+		%[1]s diff --plan plan.json -o json
+		
+		# Show differences in YAML format
+		%[1]s diff --plan plan.json -o yaml
+		
+		# Generate and review plan from configuration files
 		%[1]s diff -f portal.yaml -f auth.yaml
 		
-		# Show differences from comma-separated files
-		%[1]s diff -f portal.yaml,auth.yaml,api.yaml
-		
-		# Show differences from configuration directory
-		%[1]s diff -f ./config
-		
-		# Show differences from directory recursively
+		# Generate and review plan from directory
 		%[1]s diff -f ./config -R
-		
-		# Show differences with detailed output
-		%[1]s diff -f ./config --detailed
-		
-		# Show differences from stdin
-		cat portal.yaml | %[1]s diff -f -
 		`, meta.CLIName)))
 )
 

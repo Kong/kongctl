@@ -154,14 +154,26 @@ func runDiff(command *cobra.Command, args []string) error {
 	
 	if planFile != "" {
 		// Load existing plan
-		planData, err := os.ReadFile(planFile)
-		if err != nil {
-			return fmt.Errorf("failed to read plan file: %w", err)
+		var planData []byte
+		var err error
+		
+		if planFile == "-" {
+			// Read from stdin
+			planData, err = io.ReadAll(os.Stdin)
+			if err != nil {
+				return fmt.Errorf("failed to read plan from stdin: %w", err)
+			}
+		} else {
+			// Read from file
+			planData, err = os.ReadFile(planFile)
+			if err != nil {
+				return fmt.Errorf("failed to read plan file: %w", err)
+			}
 		}
 		
 		plan = &planner.Plan{}
 		if err := json.Unmarshal(planData, plan); err != nil {
-			return fmt.Errorf("failed to parse plan file: %w", err)
+			return fmt.Errorf("failed to parse plan: %w", err)
 		}
 	} else {
 		// Generate new plan from configuration files
