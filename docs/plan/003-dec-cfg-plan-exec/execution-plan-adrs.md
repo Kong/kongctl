@@ -193,49 +193,60 @@ Migrate login to be Konnect-first:
 
 ---
 
-## ADR-003-007: Confirmation Prompt Patterns
+## ADR-003-007: Confirmation Prompt and Output Format Patterns
 
 ### Status
-Accepted
+Accepted (Updated)
 
 ### Context
-Both apply and sync commands need user confirmation before making changes,
-but the risk levels differ significantly.
+Both apply and sync commands need consistent user interfaces for confirmation
+and output formatting. Commands should work well in both interactive and
+automated contexts.
 
 ### Decision
-Implement tiered confirmation based on risk:
-- Apply with only CREATE: Simple confirmation
-- Apply with UPDATE: Show resources being modified
-- Sync with DELETE: Detailed list of deletions with extra confirmation
-- All modes: Support `--auto-approve` flag
+Implement consistent behavior across both commands:
+1. Unified confirmation prompt (type 'yes' to proceed)
+2. Clear plan summary before confirmation
+3. Support `--auto-approve` flag for automation
+4. Respect `--output` flag for structured output (json, yaml)
+5. Default to human-readable text format
 
 ### Consequences
-- Risk-appropriate confirmation flows
+- Consistent user experience across commands
+- Automation-friendly with structured output
 - Clear visibility of changes before execution
-- Automation-friendly with --auto-approve
+- Works well in CI/CD pipelines
 
-### Example Prompts
+### Example Interactive Flow
 ```
-# Apply (CREATE only)
-Plan will create 3 new resources. Continue? (y/n)
+# Both apply and sync show plan summary
+Plan Summary:
+- Create: 3 resources
+- Update: 2 resources  
+- Delete: 1 resource (sync only)
+- Blocked: 2 resources (protected)
 
-# Apply (with UPDATE)
-Plan will:
-- Create 2 resources
-- Update 1 resource (developer-portal)
-Continue? (y/n)
-
-# Sync (with DELETE)
-WARNING: Plan will DELETE the following resources:
+WARNING: This operation will DELETE resources:
 - portal: staging-portal
-- portal_page: old-documentation
 
-Plan will:
-- Create 1 resource
-- Update 2 resources
-- Delete 2 resources
+Do you want to continue? Type 'yes' to confirm: yes
+```
 
-Type 'yes' to confirm deletion:
+### Example Automated Flow
+```bash
+# With auto-approve and JSON output
+kongctl sync --auto-approve --output json
+
+# Output:
+{
+  "execution_result": {
+    "success_count": 5,
+    "failure_count": 0,
+    "skipped_count": 0,
+    "blocked_count": 2,
+    "errors": []
+  }
+}
 ```
 
 ---

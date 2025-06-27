@@ -355,6 +355,7 @@ func NewCommand() *cobra.Command {
     cmd.Flags().String("config", "", "Path to configuration directory")
     cmd.Flags().Bool("dry-run", false, "Preview changes without applying")
     cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
+    cmd.Flags().String("output", "text", "Output format (text|json|yaml)")
     
     return cmd
 }
@@ -376,18 +377,25 @@ func runApply(cmd *cobra.Command, args []string) error {
         return err
     }
     
-    // Show summary and confirm
-    displayPlanSummary(plan)
-    if !autoApprove && !confirmExecution(plan) {
-        return fmt.Errorf("apply cancelled")
+    // Show summary and confirm (only in text mode)
+    outputFormat := cmd.Flag("output").Value.String()
+    if outputFormat == "text" && !autoApprove {
+        if !confirmExecution(plan) {
+            return fmt.Errorf("apply cancelled")
+        }
     }
     
     // Execute
-    executor := executor.New(client, reporter, dryRun)
-    result, err := executor.Execute(ctx, plan)
+    var reporter executor.ProgressReporter
+    if outputFormat == "text" {
+        reporter = executor.NewConsoleReporter(os.Stderr)
+    }
     
-    // Report results
-    return reportResults(result, err)
+    exec := executor.New(client, reporter, dryRun)
+    result, err := exec.Execute(ctx, plan)
+    
+    // Output results based on format
+    return outputResults(result, err, outputFormat)
 }
 ```
 
@@ -405,6 +413,36 @@ func validateApplyPlan(plan *planner.Plan) error {
 }
 ```
 
+4. Add output formatting:
+```go
+func outputResults(result *executor.ExecutionResult, err error, format string) error {
+    switch format {
+    case "json":
+        output := map[string]interface{}{
+            "execution_result": result,
+        }
+        if err != nil {
+            output["error"] = err.Error()
+        }
+        return json.NewEncoder(os.Stdout).Encode(output)
+    case "yaml":
+        output := map[string]interface{}{
+            "execution_result": result,
+        }
+        if err != nil {
+            output["error"] = err.Error()
+        }
+        return yaml.NewEncoder(os.Stdout).Encode(output)
+    default: // text
+        if err != nil {
+            return err
+        }
+        // Human-readable output already handled by progress reporter
+        return nil
+    }
+}
+```
+
 ### Tests Required
 - Command creation and flag parsing
 - Plan file loading
@@ -412,6 +450,8 @@ func validateApplyPlan(plan *planner.Plan) error {
 - Validation rejects DELETE operations
 - Dry-run execution
 - Auto-approve flow
+- Output format handling (text, json, yaml)
+- Structured output in CI/CD contexts
 
 ### Definition of Done
 - [ ] Apply command implemented
@@ -419,6 +459,8 @@ func validateApplyPlan(plan *planner.Plan) error {
 - [ ] Confirmation prompt works
 - [ ] Integration with executor
 - [ ] Clear output and error messages
+- [ ] Output formats work correctly
+- [ ] Auto-approve enables automation
 
 ---
 
@@ -447,51 +489,66 @@ func NewCommand() *cobra.Command {
     cmd.Flags().String("config", "", "Path to configuration directory")
     cmd.Flags().Bool("dry-run", false, "Preview changes without applying")
     cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
+    cmd.Flags().String("output", "text", "Output format (text|json|yaml)")
     
     return cmd
 }
 ```
 
-2. Implement sync-specific confirmation:
+2. Implement command logic similar to apply:
 ```go
-func confirmSyncExecution(plan *planner.Plan) bool {
-    if !plan.ContainsDeletes() {
-        // Same as apply confirmation
-        return confirmExecution(plan)
+func runSync(cmd *cobra.Command, args []string) error {
+    // Load or generate plan
+    var plan *planner.Plan
+    if planFile != "" {
+        plan = loadPlanFromFile(planFile)
+    } else {
+        plan = generatePlan(configDir, planner.PlanModeSync)
     }
     
-    // Special handling for DELETEs
-    fmt.Println("WARNING: This will DELETE the following resources:")
-    for _, change := range plan.Changes {
-        if change.Action == planner.ActionDelete {
-            fmt.Printf("  - %s: %s\n", change.ResourceType, change.ResourceName)
+    // Show summary and confirm (only in text mode)
+    outputFormat := cmd.Flag("output").Value.String()
+    if outputFormat == "text" && !autoApprove {
+        if !confirmExecution(plan) {
+            return fmt.Errorf("sync cancelled")
         }
     }
-    fmt.Println()
     
-    fmt.Print("Type 'yes' to confirm deletion: ")
-    var response string
-    fmt.Scanln(&response)
-    return response == "yes"
+    // Execute
+    var reporter executor.ProgressReporter
+    if outputFormat == "text" {
+        reporter = executor.NewConsoleReporter(os.Stderr)
+    }
+    
+    exec := executor.New(client, reporter, dryRun)
+    result, err := exec.Execute(ctx, plan)
+    
+    // Output results based on format
+    return outputResults(result, err, outputFormat)
 }
 ```
 
-3. Implement command logic similar to apply but:
-- Generate plans in sync mode
-- Allow DELETE operations
-- Enhanced confirmation for destructive changes
+3. Key differences from apply:
+- Generate plans in sync mode (includes DELETE operations)
+- No special validation to reject DELETE operations
+- Uses same confirmation prompt (with DELETE warning in confirmExecution)
+- Same output format support for CI/CD integration
 
 ### Tests Required
 - Sync mode plan generation
 - DELETE operation handling
-- Enhanced confirmation flow
+- Confirmation flow with DELETE warnings
 - Protected resource warnings
+- Output format handling (text, json, yaml)
+- Auto-approve for automation
 
 ### Definition of Done
 - [ ] Sync command implemented
 - [ ] DELETE operations supported
-- [ ] Enhanced confirmation for DELETEs
+- [ ] Consistent confirmation with warnings
 - [ ] Clear warnings for destructive operations
+- [ ] Output formats work correctly
+- [ ] Auto-approve enables automation
 
 ---
 
@@ -637,47 +694,70 @@ if protectedResult.HasBlockedChanges {
 **Dependencies**: Steps 5, 6
 
 ### Goal
-Create user-friendly confirmation prompts with appropriate detail levels.
+Create consistent confirmation prompts for both apply and sync commands.
 
 ### Implementation
 
 1. Create `internal/cmd/common/prompts.go`:
 ```go
-func ConfirmApply(plan *planner.Plan) bool
-func ConfirmSync(plan *planner.Plan) bool
+func ConfirmExecution(plan *planner.Plan) bool
 func DisplayPlanSummary(plan *planner.Plan)
 ```
 
-2. Implement tiered prompts based on risk:
-- Simple prompt for CREATE only
-- Detailed prompt for UPDATE operations
-- Warning prompt for DELETE operations
+2. Implement unified confirmation:
+```go
+func ConfirmExecution(plan *planner.Plan) bool {
+    DisplayPlanSummary(plan)
+    
+    // Show DELETE warning if applicable
+    if plan.Summary.ByAction["DELETE"] > 0 {
+        fmt.Println("\nWARNING: This operation will DELETE resources:")
+        for _, change := range plan.Changes {
+            if change.Action == planner.ActionDelete && !change.Blocked {
+                fmt.Printf("- %s: %s\n", change.ResourceType, change.ResourceName)
+            }
+        }
+    }
+    
+    fmt.Print("\nDo you want to continue? Type 'yes' to confirm: ")
+    var response string
+    fmt.Scanln(&response)
+    return response == "yes"
+}
+```
 
-3. Add summary display:
+3. Add consistent summary display:
 ```go
 func DisplayPlanSummary(plan *planner.Plan) {
-    fmt.Printf("Plan Summary:\n")
-    fmt.Printf("  Mode: %s\n", plan.Metadata.Mode)
-    fmt.Printf("  Total changes: %d\n", plan.Summary.TotalChanges)
+    fmt.Println("Plan Summary:")
     
     if plan.Summary.ByAction["CREATE"] > 0 {
-        fmt.Printf("  Create: %d resources\n", plan.Summary.ByAction["CREATE"])
+        fmt.Printf("- Create: %d resources\n", plan.Summary.ByAction["CREATE"])
     }
-    // ... similar for UPDATE and DELETE
+    if plan.Summary.ByAction["UPDATE"] > 0 {
+        fmt.Printf("- Update: %d resources\n", plan.Summary.ByAction["UPDATE"])
+    }
+    if plan.Summary.ByAction["DELETE"] > 0 {
+        fmt.Printf("- Delete: %d resources\n", plan.Summary.ByAction["DELETE"])
+    }
+    if plan.Summary.BlockedCount > 0 {
+        fmt.Printf("- Blocked: %d resources (protected)\n", plan.Summary.BlockedCount)
+    }
 }
 ```
 
 ### Tests Required
-- Prompt formatting
-- User input handling
+- Unified confirmation flow
+- DELETE warning display
+- User input handling ('yes' required)
 - Auto-approve bypasses prompts
 - Summary display accuracy
 
 ### Definition of Done
-- [ ] Confirmation prompts implemented
-- [ ] Risk-appropriate detail levels
-- [ ] Clear summary display
-- [ ] Auto-approve support
+- [ ] Single confirmation function for both commands
+- [ ] Consistent prompt requiring 'yes'
+- [ ] DELETE operations show clear warning
+- [ ] Auto-approve support works
 
 ---
 
