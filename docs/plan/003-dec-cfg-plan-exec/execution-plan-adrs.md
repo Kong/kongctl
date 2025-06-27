@@ -2,9 +2,6 @@
 
 ## ADR-003-001: Mode-Aware Plan Generation
 
-### Status
-Accepted
-
 ### Context
 The plan generation phase needs to support two distinct execution modes:
 - Apply: Safe incremental updates (CREATE/UPDATE only)
@@ -39,9 +36,6 @@ type PlanMetadata struct {
 
 ## ADR-003-002: Separate Apply and Sync Commands
 
-### Status
-Accepted
-
 ### Context
 Users need both safe incremental updates and full state reconciliation, but
 these represent fundamentally different risk profiles and use cases.
@@ -65,9 +59,6 @@ and clearer intent.
 ---
 
 ## ADR-003-003: Plan Validation and Mode Compatibility
-
-### Status
-Accepted
 
 ### Context
 Commands need to validate that the plan they're executing matches their
@@ -96,9 +87,6 @@ func validatePlanCompatibility(plan *Plan, expectedMode PlanMode) error {
 ---
 
 ## ADR-003-004: Protected Resource Immutability
-
-### Status
-Accepted (Updated)
 
 ### Context
 Protected resources represent critical infrastructure that should not be
@@ -145,9 +133,6 @@ kongctl:
 
 ## ADR-003-005: Executor Error Handling Strategy
 
-### Status
-Accepted
-
 ### Context
 Plan execution can fail at any operation, and we need a consistent strategy
 for handling partial failures.
@@ -172,9 +157,6 @@ Clear error reporting allows users to make informed decisions about recovery.
 
 ## ADR-003-006: Konnect-First Login Command Migration
 
-### Status
-Accepted
-
 ### Context
 Current login command requires explicit "konnect" product specification:
 `kongctl login konnect`. This conflicts with our Konnect-first approach
@@ -194,9 +176,6 @@ Migrate login to be Konnect-first:
 ---
 
 ## ADR-003-007: Confirmation Prompt and Output Format Patterns
-
-### Status
-Accepted (Updated)
 
 ### Context
 Both apply and sync commands need consistent user interfaces for confirmation
@@ -253,9 +232,6 @@ kongctl sync --auto-approve --output json
 
 ## ADR-003-008: Executor Architecture
 
-### Status
-Accepted
-
 ### Context
 The executor needs to handle multiple operation types, provide progress
 feedback, and integrate with existing components.
@@ -289,9 +265,6 @@ func (e *Executor) Execute(ctx context.Context, plan *Plan) (*ExecutionResult, e
 
 ## ADR-003-009: Label Update Strategy
 
-### Status
-Accepted
-
 ### Context
 Successful operations need to update resource labels to maintain tracking,
 but the strategy differs between operations.
@@ -310,9 +283,6 @@ but the strategy differs between operations.
 ---
 
 ## ADR-003-010: Integration Test Approach
-
-### Status
-Accepted
 
 ### Context
 Stage 3 introduces complex command flows that need thorough testing without
