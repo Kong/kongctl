@@ -23,11 +23,11 @@ var (
 		"Display differences between current and desired state")
 
 	diffLong = normalizers.LongDesc(i18n.T("root.verbs.diff.diffLong",
-		`Compare the current state with the desired state defined in declarative
-configuration files and display the differences.
+		`Display the changes that would be made to achieve the desired state.
 
-The diff output shows what changes would be made without actually applying them,
-useful for reviewing changes before synchronization.`))
+Accepts a plan file via --plan, or generates a new plan from configuration files
+if no plan is provided. The output shows what changes would be made without
+actually applying them.`))
 
 	diffExamples = normalizers.Examples(i18n.T("root.verbs.diff.diffExamples",
 		fmt.Sprintf(`
