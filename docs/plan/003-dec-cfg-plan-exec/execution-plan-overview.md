@@ -16,6 +16,12 @@ Plans are generated differently based on the intended execution mode:
 - **Apply Mode**: Generates plans containing only CREATE and UPDATE operations
 - **Sync Mode**: Generates plans including CREATE, UPDATE, and DELETE operations
 
+Both modes detect protected resources during plan generation:
+- Protected resources that would be updated or deleted are marked as "blocked"
+- Blocked changes are included in the plan with clear explanations
+- Plans remain valid and executable despite containing blocked changes
+- Blocked changes are skipped during execution with appropriate reporting
+
 This distinction ensures plans are optimized for their intended use and prevents
 accidental deletions when using the safer `apply` command.
 
@@ -135,10 +141,14 @@ kongctl apply --plan apply-plan.json
 
 ### Protected Resources
 
-Resources marked with `kongctl.protected: true`:
-- Require two-phase removal in sync mode
-- Generate warnings during plan generation
-- Cannot be deleted without explicit unprotection
+Resources marked with `kongctl.protected: true` are fully immutable:
+- Cannot be updated or deleted while protected
+- Changes are blocked during plan generation with clear explanations
+- Require explicit two-phase modification process:
+  1. First: Update resource to set `protected: false`
+  2. Then: Apply desired changes (update or delete)
+- Blocked changes are included in plans but marked as non-executable
+- Execution reports show blocked changes separately from failures
 
 ### Confirmation Prompts
 

@@ -11,6 +11,7 @@
 | 5 | Implement apply command | Not Started | Steps 3, 4 |
 | 6 | Implement sync command | Not Started | Steps 3, 4 |
 | 7 | Add plan validation | Not Started | Steps 5, 6 |
+| 7.5 | Protected resource validation | Not Started | Step 7 |
 | 8 | Implement confirmation prompts | Not Started | Steps 5, 6 |
 | 9 | Migrate login to Konnect-first | Not Started | - |
 | 10 | Add integration tests | Not Started | Steps 5, 6, 9 |
@@ -60,7 +61,28 @@ func (p *Planner) GeneratePlan(ctx context.Context, resources *resources.Resourc
 - When mode is "apply": Skip DELETE operation generation
 - When mode is "sync": Include DELETE operations for managed resources not in config
 
-4. Update plan command to accept mode flag:
+4. Add protection detection and blocked change generation:
+```go
+// In PlannedChange struct
+type PlannedChange struct {
+    ChangeID     string          `json:"change_id"`
+    Action       ActionType      `json:"action"`
+    ResourceType string          `json:"resource_type"`
+    ResourceName string          `json:"resource_name"`
+    Blocked      bool            `json:"blocked,omitempty"`
+    BlockReason  string          `json:"block_reason,omitempty"`
+    Current      json.RawMessage `json:"current,omitempty"`
+    Desired      json.RawMessage `json:"desired,omitempty"`
+}
+
+// During plan generation
+if isProtected(currentResource) && (action == ActionUpdate || action == ActionDelete) {
+    change.Blocked = true
+    change.BlockReason = fmt.Sprintf("Resource is protected. Remove protection before %s.", strings.ToLower(string(action)))
+}
+```
+
+5. Update plan command to accept mode flag:
 ```go
 // In internal/cmd/root/verbs/plan/plan.go
 var planMode string
@@ -72,13 +94,18 @@ cmd.Flags().StringVar(&planMode, "mode", "sync", "Plan generation mode (sync|app
 - Planner generates sync-mode plans with DELETEs
 - Plan metadata includes correct mode
 - Plan command accepts and validates mode flag
+- Protected resources generate blocked changes for UPDATE/DELETE
+- Blocked changes include clear reason messages
+- Protection only blocks modifications, not removal of protection itself
 
 ### Definition of Done
 - [ ] Planner supports mode parameter
 - [ ] Apply mode excludes DELETE operations
 - [ ] Sync mode includes all operations
 - [ ] Plan metadata indicates generation mode
-- [ ] Tests pass for both modes
+- [ ] Protected resources generate blocked changes
+- [ ] Blocked changes have clear reasons
+- [ ] Tests pass for both modes and protection scenarios
 
 ---
 
@@ -106,6 +133,7 @@ type ExecutionResult struct {
     SuccessCount int
     FailureCount int
     SkippedCount int
+    BlockedCount int
     Errors       []ExecutionError
 }
 
@@ -130,6 +158,12 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) (*ExecutionR
 3. Create operation dispatcher:
 ```go
 func (e *Executor) executeChange(ctx context.Context, change planner.PlannedChange) error {
+    // Handle blocked changes first
+    if change.Blocked {
+        e.reporter.BlockedChange(change)
+        return nil // Not an error, just blocked
+    }
+    
     if e.dryRun {
         e.reporter.SkipChange(change, "dry-run mode")
         return nil
@@ -179,6 +213,7 @@ type ProgressReporter interface {
     StartChange(change planner.PlannedChange)
     CompleteChange(change planner.PlannedChange, err error)
     SkipChange(change planner.PlannedChange, reason string)
+    BlockedChange(change planner.PlannedChange)
     FinishExecution(result *ExecutionResult)
 }
 ```
@@ -203,13 +238,15 @@ func NewConsoleReporter(w io.Writer) *ConsoleReporter
 ```
 Executing plan...
 Creating portal: developer-portal... ✓
-Updating portal: staging-portal... ✓
+Updating portal: staging-portal... ⊘ Blocked: Resource is protected
 Deleting portal_page: old-docs... ✗ Error: not found
+Updating portal: production-portal... ⊘ Blocked: Resource is protected
 
 Execution complete:
-- Success: 2
+- Success: 1
 - Failed: 1
 - Skipped: 0
+- Blocked: 2
 ```
 
 ### Tests Required
@@ -250,16 +287,20 @@ func (e *Executor) deletePortal(ctx context.Context, change planner.PlannedChang
 - Handle errors appropriately
 
 3. Implement update operation:
-- Check protection status
-- Update labels with new hash
-- Call update API
-- Preserve certain fields if needed
+- Skip if change is blocked (protection check done during planning)
+- For unprotected resources:
+  - Update labels with new hash
+  - Call update API
+  - Preserve certain fields if needed
+- Report blocked changes to progress reporter
 
 4. Implement delete operation:
-- Verify resource is managed
-- Check protection status
-- Call delete API
-- Handle not-found gracefully
+- Skip if change is blocked (protection check done during planning)
+- For unprotected resources:
+  - Verify resource is managed
+  - Call delete API
+  - Handle not-found gracefully
+- Report blocked changes to progress reporter
 
 5. Update main executor to dispatch to portal operations
 
@@ -275,14 +316,16 @@ portal.Labels[labels.LabelLastUpdated] = time.Now().Format(time.RFC3339)
 
 ### Tests Required
 - Create portal with labels
-- Update portal preserves protection
-- Delete checks protection status
+- Executor skips blocked changes
+- Progress reporter shows blocked changes correctly
 - Error handling for each operation
+- Blocked changes don't affect execution result
 
 ### Definition of Done
 - [ ] Portal operations implemented
 - [ ] Label management integrated
-- [ ] Protection status respected
+- [ ] Blocked changes handled correctly
+- [ ] Progress reporter shows blocked status
 - [ ] Comprehensive error handling
 
 ---
@@ -498,6 +541,93 @@ func (v *PlanValidator) ValidateForSync(plan *planner.Plan) error
 - [ ] Apply-specific validation rules
 - [ ] Sync-specific validation rules
 - [ ] Integration with commands
+
+---
+
+## Step 7.5: Protected Resource Validation
+
+**Status**: Not Started
+**Dependencies**: Step 7
+
+### Goal
+Implement comprehensive validation and reporting for protected resources.
+
+### Implementation
+
+1. Add validation helpers in `internal/declarative/validator/protected.go`:
+```go
+type ProtectedResourceValidator struct {
+    client *state.KonnectClient
+}
+
+// ValidateProtectedChanges checks all blocked changes in a plan
+func (v *ProtectedResourceValidator) ValidateProtectedChanges(plan *planner.Plan) (*ProtectedValidationResult, error) {
+    result := &ProtectedValidationResult{
+        BlockedChanges: []BlockedChange{},
+    }
+    
+    for _, change := range plan.Changes {
+        if change.Blocked {
+            result.BlockedChanges = append(result.BlockedChanges, BlockedChange{
+                ResourceType: change.ResourceType,
+                ResourceName: change.ResourceName,
+                Action:       change.Action,
+                Reason:       change.BlockReason,
+            })
+        }
+    }
+    
+    return result, nil
+}
+```
+
+2. Create summary reporting for blocked changes:
+```go
+type ProtectedValidationResult struct {
+    BlockedChanges []BlockedChange
+    HasBlockedChanges bool
+}
+
+func (r *ProtectedValidationResult) Summary() string {
+    if !r.HasBlockedChanges {
+        return "No protected resources affected"
+    }
+    
+    var summary strings.Builder
+    summary.WriteString("Protected resources blocking changes:\n")
+    for _, blocked := range r.BlockedChanges {
+        summary.WriteString(fmt.Sprintf("  - %s %s: %s\n", 
+            blocked.Action, blocked.ResourceName, blocked.Reason))
+    }
+    return summary.String()
+}
+```
+
+3. Integrate with apply and sync commands:
+```go
+// In apply/sync command
+protectedValidator := validator.NewProtectedResourceValidator(client)
+protectedResult, err := protectedValidator.ValidateProtectedChanges(plan)
+if err != nil {
+    return err
+}
+
+if protectedResult.HasBlockedChanges {
+    fmt.Fprintf(os.Stderr, "\nWarning: %s\n", protectedResult.Summary())
+}
+```
+
+### Tests Required
+- Validation correctly identifies all blocked changes
+- Summary formatting is clear and actionable
+- Integration with commands shows warnings appropriately
+- No false positives for unprotected resources
+
+### Definition of Done
+- [ ] Protected resource validator implemented
+- [ ] Clear summary reporting of blocked changes
+- [ ] Integration with apply and sync commands
+- [ ] Users informed about protection before execution
 
 ---
 

@@ -95,35 +95,50 @@ func validatePlanCompatibility(plan *Plan, expectedMode PlanMode) error {
 
 ---
 
-## ADR-003-004: DELETE Operation Safety Mechanisms
+## ADR-003-004: Protected Resource Immutability
 
 ### Status
-Accepted
+Accepted (Updated)
 
 ### Context
-DELETE operations are inherently dangerous and need additional safety measures
-beyond basic confirmation prompts.
+Protected resources represent critical infrastructure that should not be
+modified or deleted without explicit intent. Both UPDATE and DELETE operations
+on protected resources carry risk and should be prevented.
 
 ### Decision
-Implement multiple safety layers:
-1. DELETE operations only in sync mode
-2. Protected resources require two-phase deletion
-3. Confirmation prompts highlight resources to be deleted
-4. Dry-run mode shows what would be deleted
+Implement comprehensive protection mechanisms:
+1. Protected resources cannot be updated or deleted
+2. Protection status detected during state retrieval
+3. Plan generation includes "blocked" changes with clear reasons
+4. Two-phase process required for any modifications
+5. Execution skips blocked changes with appropriate reporting
 
 ### Consequences
-- Increased safety for production environments
-- More complex deletion flow for protected resources
-- Clear audit trail of what will be deleted
+- Complete immutability for protected resources
+- Clear visibility of blocked operations during planning
+- Explicit unprotection required before any changes
+- Reduced risk of accidental modifications to critical resources
 
-### Protection Flow
+### Protection Modification Flow
 ```yaml
-# Phase 1: Remove protection
+# Phase 1: Remove protection (only change allowed)
 kongctl:
   protected: false  # Changed from true
 
-# Phase 2: Remove from configuration entirely
-# (Resource deleted on next sync)
+# Phase 2: Make desired changes (update or delete)
+# Resource can now be modified in subsequent operations
+```
+
+### Blocked Change Handling
+```json
+{
+  "change_id": "portal-production-update",
+  "action": "UPDATE",
+  "resource_type": "portal",
+  "resource_name": "production-portal",
+  "blocked": true,
+  "block_reason": "Resource is protected. Remove protection before updating."
+}
 ```
 
 ---
