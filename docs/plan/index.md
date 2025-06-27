@@ -2,7 +2,7 @@
 
 This folder contains the complete planning and implementation tracking for all kongctl features and development efforts.
 
-## 🎯 Current Active Stage: Stage 3 (In Progress - Step 2/11 Complete)
+## 🎯 Current Active Stage: Stage 3 (In Progress - Step 3/11 Complete)
 
 **Previous Stages Completed**:
 - Stage 1: Configuration Format & Basic CLI ✅ 
@@ -15,7 +15,7 @@ This folder contains the complete planning and implementation tracking for all k
 - **Architecture Decisions**: [003-dec-cfg-plan-exec/execution-plan-adrs.md](003-dec-cfg-plan-exec/execution-plan-adrs.md) ✅ Complete
 - **Goal**: Execute plans generated in Stage 2, applying changes to Konnect
 
-**Next Step**: Implement Step 3 - Implement Progress Reporter
+**Next Step**: Implement Step 4 - Add Portal Operations to Executor
 
 ## Quick Start for Implementation
 
@@ -89,7 +89,7 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](003-dec-cfg-plan-exec/execution-plan-steps.md) | **Implementation guide** | ✅ Complete |
 | [execution-plan-adrs.md](003-dec-cfg-plan-exec/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: 2/11 steps completed (18%) - In Progress
+**Implementation Status**: 3/11 steps completed (27%) - In Progress
 - **Dependencies**: Stage 2 completion ✅ Met
 - **Key deliverables**: 
   - Mode-aware plan generation (apply vs sync)
@@ -122,7 +122,7 @@ Stages 1 and 2 are complete. Stage 3 planning is complete and ready for implemen
 - Stage 2: Plan Generation with Label Management ✅ **COMPLETED**
 
 **Current Stage**:
-- Stage 3: Plan Execution ⏳ **In Progress** (1/11 steps)
+- Stage 3: Plan Execution ⏳ **In Progress** (3/11 steps)
 
 **To begin implementation**: Start with Step 1 in [003-dec-cfg-plan-exec/execution-plan-steps.md](003-dec-cfg-plan-exec/execution-plan-steps.md)
 
