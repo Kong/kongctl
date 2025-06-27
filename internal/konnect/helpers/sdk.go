@@ -247,7 +247,7 @@ func (k *KonnectSDK) GetAppAuthStrategiesAPI() AppAuthStrategiesAPI {
 	}
 
 	debugLog("Successfully returning AppAuthStrategies API")
-	return k.SDK.AppAuthStrategies
+	return &PublicAppAuthStrategiesAPI{SDK: k.SDK}
 }
 
 // A function that can build an SDKAPI with a given configuration

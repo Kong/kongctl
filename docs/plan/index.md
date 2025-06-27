@@ -2,17 +2,21 @@
 
 This folder contains the complete planning and implementation tracking for all kongctl features and development efforts.
 
-## 🎯 Current Active Stage: Stage 1 ⏳ In Progress
+## 🎯 Current Active Stage: Stage 3 (Ready for Planning)
 
-**Stage 1: Configuration Format & Basic CLI**
-- **Implementation Guide**: [001-dec-cfg-cfg-format-basic-cli/execution-plan-steps.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-steps.md) ← **Start here**
-- **Architecture Decisions**: [001-dec-cfg-cfg-format-basic-cli/execution-plan-adrs.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-adrs.md)
-- **Technical Overview**: [001-dec-cfg-cfg-format-basic-cli/execution-plan-overview.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-overview.md)
-- **Requirements**: [001-dec-cfg-cfg-format-basic-cli/description.md](001-dec-cfg-cfg-format-basic-cli/description.md)
+**Previous Stages Completed**:
+- Stage 1: Configuration Format & Basic CLI ✅ 
+- Stage 2: Plan Generation with Label Management ✅
 
-**Implementation Status**: 0/7 steps completed  
-**Next Step**: Step 1 - Add Verb Constants  
-**Progress Tracking**: See Progress Summary in implementation guide above
+**Stage 3: Plan Execution** 🔮 Ready for Planning
+- **Requirements**: [003-dec-cfg-plan-exec/description.md](003-dec-cfg-plan-exec/description.md) ✅ Available
+- **Implementation Guide**: Not yet created - needs planning documents
+- **Goal**: Execute plans generated in Stage 2, applying changes to Konnect
+
+**Next Steps**: 
+1. Create execution-plan-overview.md for technical approach
+2. Create execution-plan-adrs.md for architecture decisions  
+3. Create execution-plan-steps.md for implementation guide
 
 ## Quick Start for Implementation
 
@@ -35,7 +39,7 @@ Use custom commands to streamline development:
 
 The first major feature being implemented is declarative configuration management, broken into the following stages:
 
-#### Stage 1: Configuration Format & Basic CLI ⏳ In Progress
+#### Stage 1: Configuration Format & Basic CLI ✅ Completed
 **Goal**: Establish YAML configuration format and integrate basic commands into kongctl
 
 | Document | Purpose | Status |
@@ -45,34 +49,55 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-steps.md) | **Implementation guide** | 📋 Ready for implementation |
 | [execution-plan-adrs.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: 0/7 steps completed
-- **Next step**: Step 1 - Add Verb Constants
-- **Estimated effort**: Small to medium implementation
-- **Key deliverables**: Command stubs, YAML loading, basic validation
+**Implementation Status**: 7/7 steps completed (100%) ✅ **COMPLETED**
+- **Completed**: All steps implemented and tested
+- **Key deliverables achieved**: 
+  - Command stubs for plan, sync, diff, export
+  - YAML loading with multi-file support
+  - Basic validation with fail-fast duplicate detection
+  - Plan command integration with loader
 
-#### Stage 2: Plan Labels 🔮 Future
-**Goal**: Implement plan label functionality
+#### Stage 2: Plan Generation with Label Management ✅ Completed
+**Goal**: Build the planner that compares current vs desired state and generates plans with CREATE/UPDATE operations
 
 | Document | Purpose | Status |
 |----------|---------|---------|
 | [description.md](002-dec-cfg-plan-labels/description.md) | Requirements from PM | ✅ Complete |
-| execution-plan-*.md | Implementation docs | 🔮 Not yet planned |
+| [execution-plan-overview.md](002-dec-cfg-plan-labels/execution-plan-overview.md) | Technical approach | ✅ Complete |
+| [execution-plan-steps.md](002-dec-cfg-plan-labels/execution-plan-steps.md) | **Implementation guide** | ✅ Complete |
+| [execution-plan-adrs.md](002-dec-cfg-plan-labels/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: Not started
-- **Dependencies**: Stage 1 completion
-- **Key deliverables**: Reference resolution, plan documents, apply/sync commands
+**Implementation Status**: 11/11 steps completed (100%) ✅ **COMPLETED**
+- **Completed**: All steps implemented and tested
+- **Key deliverables achieved**: 
+  - ✅ Konnect API integration for fetching current portal state
+  - ✅ Label management system (KONGCTL/managed, KONGCTL/config-hash, KONGCTL/protected)
+  - ✅ Plan generation for CREATE and UPDATE operations
+  - ✅ Plan serialization to JSON format
+  - ✅ Reference resolution and dependency management
+  - ✅ Protection status change handling
+  - ✅ Plan command integration
+  - ✅ Diff command with text/JSON/YAML output formats
+  - ✅ Integration tests with dual-mode SDK support (mock/real)
 
-#### Stage 3: Plan Execution 🔮 Future
+#### Stage 3: Plan Execution 📋 Ready for Planning
 **Goal**: Implement plan execution functionality
 
 | Document | Purpose | Status |
 |----------|---------|---------|
 | [description.md](003-dec-cfg-plan-exec/description.md) | Requirements from PM | ✅ Complete |
-| execution-plan-*.md | Implementation docs | 🔮 Not yet planned |
+| execution-plan-overview.md | Technical approach | 📝 To be created |
+| execution-plan-steps.md | **Implementation guide** | 📝 To be created |
+| execution-plan-adrs.md | Architecture decisions | 📝 To be created |
 
-**Implementation Status**: Not started
-- **Dependencies**: Stage 2 completion
-- **Key deliverables**: Plan execution, validation, error handling
+**Implementation Status**: Planning phase
+- **Dependencies**: Stage 2 completion ✅ Met
+- **Key deliverables**: 
+  - Plan validation and pre-execution checks
+  - Resource creation and update operations
+  - Error handling and rollback strategies
+  - Progress reporting during execution
+  - Dry-run mode support
 
 #### Stage 4: Multi-Resource 🔮 Future
 **Goal**: Support for multiple resources in plans
@@ -88,10 +113,17 @@ The first major feature being implemented is declarative configuration managemen
 
 ## Current Implementation Priority
 
-### ⭐ Immediate Focus: Stage 1
-The immediate priority is completing Stage 1. All planning documents are ready for implementation.
+### ⭐ Immediate Focus: Stage 3 Planning
+Stages 1 and 2 are complete. Stage 3 is ready for planning and implementation.
 
-**Start here**: [001-dec-cfg-cfg-format-basic-cli/execution-plan-steps.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-steps.md) - Progress Summary
+**Completed Stages**:
+- Stage 1: Configuration Format & Basic CLI ✅ **COMPLETED**
+- Stage 2: Plan Generation with Label Management ✅ **COMPLETED**
+
+**Current Stage**:
+- Stage 3: Plan Execution 📋 **Ready for Planning**
+
+**To begin Stage 3**: Create the planning documents (overview, ADRs, and steps) based on the requirements in [003-dec-cfg-plan-exec/description.md](003-dec-cfg-plan-exec/description.md)
 
 ### 🎯 Entry Points for Claude Code
 
@@ -107,6 +139,13 @@ The immediate priority is completing Stage 1. All planning documents are ready f
 - **Separate `ref` field** for cross-resource references (ADR-001-003) 
 - **SDK type embedding** to avoid duplication (ADR-001-002)
 - **Type-specific ResourceSet** for clarity and safety (ADR-001-001)
+
+### Plan Generation (Stage 2)
+- **Label-based resource management** with KONGCTL/managed, KONGCTL/config-hash, KONGCTL/protected
+- **Semantic change IDs** for human-readable plan identification
+- **Minimal field storage** to reduce plan size and focus on actual changes
+- **Protection status isolation** from regular field updates
+- **Dependency-ordered execution** for proper resource creation order
 
 ## General Testing Strategy
 

@@ -19,39 +19,61 @@ const (
 var (
 	applyUse = Verb.String()
 
-	applyShort = i18n.T("root.verbs.apply.applyShort", "Apply configurations")
+	applyShort = i18n.T("root.verbs.apply.applyShort", "Apply declarative configuration")
 
 	applyLong = normalizers.LongDesc(i18n.T("root.verbs.apply.applyLong",
-		`Use apply to apply a configuration to a system.
+		`Apply declarative configuration files to target environment.
 
-Further sub-commands are required to determine which remote system is contacted. 
-The command will apply a given configuration and report a result depending on further arguments.
-Output can be formatted in multiple ways to aid in further processing.`))
+Apply reads the configuration files and makes the necessary API calls to create,
+update, or delete resources to match the desired state.`))
 
 	applyExamples = normalizers.Examples(i18n.T("root.verbs.apply.applyExamples",
 		fmt.Sprintf(`
-		# Apply a configuration to a Konnect Kong Gateway control plane
-		%[1]s apply konnect gateway --control-plane <cp-name> <path-to-config.yaml>
+		# Apply configuration from files
+		%[1]s apply -f portal.yaml -f auth.yaml
+		
+		# Apply configuration from comma-separated files
+		%[1]s apply -f portal.yaml,auth.yaml,api.yaml
+		
+		# Apply configuration from directory
+		%[1]s apply -f ./config
+		
+		# Apply configuration from directory recursively
+		%[1]s apply -f ./config -R
+		
+		# Apply configuration with force flag
+		%[1]s apply -f ./config --force
+		
+		# Apply configuration from stdin
+		cat portal.yaml | %[1]s apply -f -
 		`, meta.CLIName)))
 )
 
 func NewApplyCmd() (*cobra.Command, error) {
+	// Create the konnect subcommand first to get its implementation
+	konnectCmd, err := konnect.NewKonnectCmd(Verb)
+	if err != nil {
+		return nil, err
+	}
+
 	cmd := &cobra.Command{
 		Use:     applyUse,
 		Short:   applyShort,
 		Long:    applyLong,
 		Example: applyExamples,
 		Aliases: []string{"a", "A"},
+		// Use the konnect command's RunE directly for Konnect-first pattern
+		RunE: konnectCmd.RunE,
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))
 		},
 	}
 
-	c, e := konnect.NewKonnectCmd(Verb)
-	if e != nil {
-		return nil, e
-	}
+	// Copy flags from konnect command to parent
+	cmd.Flags().AddFlagSet(konnectCmd.Flags())
 
-	cmd.AddCommand(c)
+	// Also add konnect as a subcommand for explicit usage
+	cmd.AddCommand(konnectCmd)
+
 	return cmd, nil
 }

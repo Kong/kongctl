@@ -1,0 +1,54 @@
+# Example demonstrating API implementations with both declarative and external control planes
+# This shows the dual support for control_plane_id field
+
+# Control plane managed declaratively by kongctl
+control_planes:
+  - ref: managed-cp
+    name: "Managed Control Plane"
+    description: "Control plane managed by kongctl declarative configuration"
+    cluster_type: "cluster_type_hybrid"
+    auth_type: "pinned_client_certs"
+
+# API definition with implementations referencing both managed and external control planes
+apis:
+  - ref: hybrid-api
+    name: "Hybrid Deployment API"
+    description: "API deployed across managed and external control planes"
+    
+    implementations:
+      # Implementation on control plane managed by kongctl (using reference)
+      - ref: hybrid-api-managed
+        implementation_url: "https://managed.example.com/api/v1"
+        service:
+          id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"  # External service UUID (managed by decK)
+          control_plane_id: managed-cp                   # Reference to declarative control plane
+      
+      # Implementation on external control plane NOT managed by kongctl (using UUID)
+      - ref: hybrid-api-external
+        implementation_url: "https://external.example.com/api/v1"
+        service:
+          id: "b2c3d4e5-f6a7-8901-bcde-f01234567891"  # External service UUID (managed by decK)
+          control_plane_id: "f9e8d7c6-b5a4-3210-9876-fedcba098765"  # External control plane UUID
+      
+      # Another external control plane example
+      - ref: hybrid-api-legacy
+        implementation_url: "https://legacy.example.com/api/v1"
+        service:
+          id: "c3d4e5f6-a7b8-9012-cdef-012345678902"  # External service UUID (managed by decK)
+          control_plane_id: "e8d7c6b5-a493-2109-8765-edcba0987654"  # External control plane UUID
+    
+    versions:
+      - ref: hybrid-api-v1
+        name: "v1.0.0"
+        version: "v1"
+        description: "Initial version deployed across multiple control planes"
+        publish_status: "published"
+
+# Note about the dual support:
+# - control_plane_id can be a reference (like "managed-cp") when the control plane
+#   is managed by kongctl's declarative configuration
+# - control_plane_id can be a UUID when referencing external control planes that
+#   are NOT managed by kongctl (e.g., existing control planes, legacy systems)
+# 
+# This flexibility allows gradual migration to declarative configuration while
+# maintaining compatibility with existing infrastructure.

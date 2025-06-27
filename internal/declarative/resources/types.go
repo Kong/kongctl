@@ -1,0 +1,34 @@
+package resources
+
+// ResourceSet contains all declarative resources from configuration files
+type ResourceSet struct {
+	Portals []PortalResource `yaml:"portals,omitempty" json:"portals,omitempty"`
+	// ApplicationAuthStrategies contains auth strategy configurations
+	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty" json:"application_auth_strategies,omitempty"` //nolint:lll
+	// ControlPlanes contains control plane configurations
+	ControlPlanes []ControlPlaneResource `yaml:"control_planes,omitempty" json:"control_planes,omitempty"`
+	APIs          []APIResource          `yaml:"apis,omitempty" json:"apis,omitempty"`
+	// Note: API child resources (versions, publications, implementations) are nested under APIs
+}
+
+// KongctlMeta contains tool-specific metadata for resources
+type KongctlMeta struct {
+	// Protected prevents accidental deletion of critical resources
+	Protected bool `yaml:"protected,omitempty"`
+}
+
+// ResourceValidator interface for common validation behavior
+type ResourceValidator interface {
+	Validate() error
+}
+
+// ReferencedResource interface for resources that can be referenced
+type ReferencedResource interface {
+	GetRef() string
+}
+
+// ReferenceMapping interface for resources that have reference fields
+type ReferenceMapping interface {
+	GetReferenceFieldMappings() map[string]string
+}
+

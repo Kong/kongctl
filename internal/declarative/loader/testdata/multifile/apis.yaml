@@ -1,0 +1,25 @@
+# Test file for APIs with nested resources
+apis:
+  - ref: multifile-api
+    name: "Multi-file API"
+    description: "API from multifile test"
+    
+    versions:
+      - ref: multifile-api-v1
+        name: "v1.0.0"
+        version: "v1"
+        description: "Version from multifile"
+        
+    publications:
+      - ref: multifile-api-pub
+        portal_id: multifile-portal1
+        publish_status: "published"
+        auth_strategy_ids:
+          - multifile-oauth
+          
+    implementations:
+      - ref: multifile-api-impl
+        implementation_url: "https://api.multifile.com/v1"
+        service:
+          id: "a1234567-b890-1234-5678-901234567890"
+          control_plane_id: multifile-cp

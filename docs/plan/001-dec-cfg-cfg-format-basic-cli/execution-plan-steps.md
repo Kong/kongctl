@@ -4,13 +4,13 @@
 
 | Step | Description | Status | Dependencies |
 |------|-------------|--------|--------------|
-| 1 | Add Verb Constants | Not Started | None |
-| 2 | Create Command Stubs | Not Started | Step 1 |
-| 3 | Define Core Types | Not Started | None |
-| 4 | Define Portal Resource | Not Started | Step 3 |
-| 5 | Implement YAML Loader | Not Started | Step 4 |
-| 6 | Add Multi-file Support | Not Started | Step 5 |
-| 7 | Integrate with Plan Command | Not Started | Step 6 |
+| 1 | Add Verb Constants | Completed | None |
+| 2 | Create Command Stubs | Completed | Step 1 |
+| 3 | Define Core Types | Completed | None |
+| 4 | Define Portal Resource | Completed | Step 3 |
+| 5 | Implement YAML Loader | Completed | Step 4 |
+| 6 | Add Multi-file Support | Completed | Step 5 |
+| 7 | Integrate with Plan Command | Completed | Step 6 |
 
 *See [process.md](process.md) for status definitions and development workflow.*
 
@@ -19,7 +19,7 @@
 ## Step 1: Add Verb Constants
 
 ### Status
-Not Started
+Completed
 
 ### Dependencies
 None
@@ -46,7 +46,7 @@ const (
 ```
 feat(verbs): add declarative config verb constants
 
-Add Plan, Sync, Diff, and Export verb constants to support
+Actual commit: 11a2aa9 - Add Plan, Sync, Diff, and Export verb constants to support
 declarative configuration commands
 ```
 
@@ -55,7 +55,7 @@ declarative configuration commands
 ## Step 2: Create Command Stubs
 
 ### Status
-Not Started
+Completed
 
 ### Dependencies
 Step 1
@@ -137,9 +137,8 @@ func NewPlanCmd() (*cobra.Command, error) {
 ```
 feat(commands): add declarative config command stubs
 
-Add plan, apply, sync, diff, and export command stubs that
-return "not yet implemented" errors. Commands are properly
-registered with appropriate help text and flags.
+Actual commit: 814dbd3 - Add plan, sync, diff, and export command stubs with
+Konnect-first aliasing pattern where verb commands redirect to konnect subcommands
 ```
 
 ---
@@ -147,7 +146,7 @@ registered with appropriate help text and flags.
 ## Step 3: Define Core Types
 
 ### Status
-Not Started
+Completed
 
 ### Dependencies
 None
@@ -200,8 +199,8 @@ type ReferenceMapping interface {
 ```
 feat(declarative): add core resource types
 
-Add ResourceSet container, KongctlMeta for tool-specific metadata,
-and common interfaces for resource validation and naming
+Actual commit: 73216dc - Add ResourceSet container, KongctlMeta for tool-specific metadata,
+and common interfaces for resource validation and cross-references
 ```
 
 ---
@@ -209,10 +208,16 @@ and common interfaces for resource validation and naming
 ## Step 4: Define Portal Resource
 
 ### Status
-Not Started
+Completed
 
 ### Dependencies
 Step 3
+
+### Implementation Notes
+- Completed portal, auth strategy, control plane, and API resource definitions
+- Implemented API resource restructuring from cross-reference pattern to parent-child nesting
+- API child resources (versions, publications, implementations) are now nested under API resources
+- All resource types use proper SDK embedding (internal SDK for portals/APIs, public SDK for auth strategies/control planes)
 
 ### Changes
 - Create file: `internal/declarative/resources/portal.go`
@@ -347,10 +352,11 @@ func (a APIImplementationResource) GetReferenceFieldMappings() map[string]string
 
 ### Commit Message
 ```
-feat(declarative): add portal resource definition
+feat(declarative): add portal resource definitions
 
-Add PortalResource wrapper type that embeds SDK's CreatePortal
-and adds ref field for cross-resource references and kongctl metadata
+Actual commits: 
+- dc4301a: Add portal, auth strategy, control plane, and API resource definitions
+- 0f5629b: Restructure API resources with parent-child relationships
 ```
 
 ---
@@ -358,7 +364,7 @@ and adds ref field for cross-resource references and kongctl metadata
 ## Step 5: Implement YAML Loader
 
 ### Status
-Not Started
+Completed
 
 ### Dependencies
 Step 4
@@ -653,6 +659,11 @@ feat(loader): implement YAML configuration loader
 
 Add loader package that can parse YAML files into ResourceSet,
 validate resources, and ensure name uniqueness
+
+Actual commits:
+- 4623a0f: feat(loader): implement YAML loader with validation (WIP)
+- 1a8150d: fix(loader): fix loop variable issue in cross-reference validation
+- 980985f: fix(lint): fix variable naming for AuthStrategyIDs field
 ```
 
 ---
@@ -660,13 +671,35 @@ validate resources, and ensure name uniqueness
 ## Step 6: Add Multi-file Support
 
 ### Status
-Not Started
+Completed (Enhanced with -f flag pattern and command parity)
 
 ### Dependencies
 Step 5
 
 ### Changes
 - Extend `internal/declarative/loader/loader.go`
+- Enhanced with fail-fast duplicate detection for both `ref` and `name` fields
+- **Enhancement 1**: Replace `--dir` with `-f`/`--filename` flag pattern
+- **Enhancement 2**: Bring all declarative commands into parity
+
+### Implementation Notes
+- **Original implementation**: Basic multi-file loading with append merging
+- **Enhancement 1 (completed)**: Added fail-fast duplicate detection during merge operation
+  - Checks both `ref` (local identifier) and `name` (Konnect identifier) uniqueness
+  - Fails immediately when duplicates are found with clear error messages
+  - Shows which files contain the conflicting resources
+  - Handles auth strategy union types with GetName() method
+- **Enhancement 2 (completed)**: Implement `-f`/`--filename` flag pattern
+  - Support multiple file sources
+  - Non-recursive directory walking by default
+  - Explicit `-R` flag for recursive walking
+  - STDIN support with `-f -`
+  - Comma-separated file lists
+- **Enhancement 3 (completed)**: Command parity
+  - Updated all declarative commands (apply, sync, diff, export) to match plan
+  - All commands now expose `-f` and `-R` flags at top level
+  - Updated examples to show new patterns including comma-separated syntax
+  - Export command uses `-o` for output directory
 
 ### Implementation
 ```go
@@ -742,6 +775,10 @@ feat(loader): add multi-file configuration support
 
 Extend loader to handle directories, merge resources from multiple
 YAML files, and validate the combined result
+
+Actual commits:
+- d6472a4: Initial multi-file support
+- Enhancement: Fail-fast duplicate detection for ref and name fields
 ```
 
 ---
@@ -749,13 +786,20 @@ YAML files, and validate the combined result
 ## Step 7: Integrate with Plan Command
 
 ### Status
-Not Started
+Completed
 
 ### Dependencies
 Step 6
 
 ### Changes
 - Update `internal/cmd/root/verbs/plan/plan.go`
+- Update `internal/cmd/root/products/konnect/declarative/declarative.go`
+
+### Implementation Notes
+- Implemented Konnect-first pattern where `plan` command redirects to `plan konnect`
+- Added runPlan function to declarative.go that loads configuration and displays summary
+- Command now supports both `kongctl plan --dir ./config` and `kongctl plan konnect --dir ./config`
+- Added comprehensive integration tests for various scenarios
 
 ### Implementation
 ```go
@@ -817,4 +861,10 @@ feat(plan): integrate configuration loader with plan command
 
 Connect plan command to loader, display summary of loaded resources,
 and prepare for plan generation in Stage 2
+
+Actual implementation:
+- Implemented Konnect-first pattern with direct RunE delegation
+- Added runPlan function that loads configuration and displays summary
+- Added comprehensive integration tests
+- Fixed linting issues (unused parameter)
 ```

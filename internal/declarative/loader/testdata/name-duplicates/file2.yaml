@@ -1,0 +1,5 @@
+# Second file with different ref but same name
+portals:
+  - ref: portal-ref-2
+    name: "Duplicate Portal Name"
+    description: "Second portal with the same name - should cause error"

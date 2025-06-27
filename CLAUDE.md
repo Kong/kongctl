@@ -277,3 +277,19 @@ The planning documents in `docs/plan/` track all development efforts for kongctl
 - **User commands**: [docs/plan/user-guide.md](docs/plan/user-guide.md) - Human developer reference
 
 Each feature has its own folder with requirements, technical approach, and implementation steps.
+
+### External SDKs and Libraries
+
+In the docs-mcp-server, the SDKs are identified with the following names: 
+- For the internal SDK: sdk-konnect-go-internal_components, sdk-konnect-go-internal_operations, sdk-konnect-go-internal_sdkerrors,
+sdk-konnect-go-internal_sdks
+- For the public SDK: sdk-konnect-go_components, sdk-konnect-go_operations, sdk-konnect-go_sdkerrors, sdk-konnect-go_sdks
+
+When querying the docs-mcp-server, use those names for the Konnect SDK library queries.
+
+### Git process
+
+- Do not attribute claude code in git commits.
+
+## SDK Naming for Docs MCP Server
+

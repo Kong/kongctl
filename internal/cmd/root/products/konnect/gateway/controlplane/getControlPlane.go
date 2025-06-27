@@ -3,6 +3,7 @@ package controlplane
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -80,9 +81,17 @@ func controlPlaneToDisplayRecord(c *kkComps.ControlPlane) textDisplayRecord {
 
 	labels := missing
 	if len(c.Labels) > 0 {
+		// 1) pull out the keys…
+		keys := make([]string, 0, len(c.Labels))
+		for k := range c.Labels {
+			keys = append(keys, k)
+		}
+		// 2) sort them lexicographically
+		sort.Strings(keys)
+		// 3) build your pairs in that order
 		labelPairs := make([]string, 0, len(c.Labels))
-		for k, v := range c.Labels {
-			labelPairs = append(labelPairs, fmt.Sprintf("%s: %s", k, v))
+		for _, k := range keys {
+			labelPairs = append(labelPairs, fmt.Sprintf("%s: %s", k, c.Labels[k]))
 		}
 		labels = strings.Join(labelPairs, ", ")
 	}
