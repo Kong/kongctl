@@ -402,100 +402,55 @@ import (
     "encoding/base64"
     "encoding/json"
     "fmt"
-    "sort"
+    "strings"
     
-    "github.com/kong/kongctl/internal/declarative/labels"
     kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
 )
 
-// CalculatePortalHash generates deterministic hash for portal config
-func CalculatePortalHash(portal kkInternalComps.CreatePortal) (string, error) {
-    // Create hashable structure with sorted fields
-    hashable := map[string]interface{}{
-        "name":                               portal.Name,
-        "display_name":                       portal.DisplayName,
-        "description":                        portal.Description,
-        "authentication_enabled":             portal.AuthenticationEnabled,
-        "rbac_enabled":                      portal.RbacEnabled,
-        "default_api_visibility":            portal.DefaultAPIVisibility,
-        "default_page_visibility":           portal.DefaultPageVisibility,
-        "default_application_auth_strategy_id": portal.DefaultApplicationAuthStrategyID,
-        "auto_approve_developers":           portal.AutoApproveDevelopers,
-        "auto_approve_applications":         portal.AutoApproveApplications,
-    }
-    
-    // Add user labels only (exclude KONGCTL labels)
-    if portal.Labels != nil {
-        userLabels := make(map[string]string)
-        normalized := labels.NormalizeLabels(portal.Labels)
-        
-        for k, v := range normalized {
-            if !labels.IsKongctlLabel(k) {
-                userLabels[k] = v
-            }
-        }
-        
-        if len(userLabels) > 0 {
-            hashable["user_labels"] = sortedMap(userLabels)
-        }
-    }
-    
-    return calculateHash(hashable)
-}
-
-// sortedMap returns map with keys in sorted order for deterministic JSON
-func sortedMap(m map[string]string) map[string]string {
-    keys := make([]string, 0, len(m))
-    for k := range m {
-        keys = append(keys, k)
-    }
-    sort.Strings(keys)
-    
-    sorted := make(map[string]string)
-    for _, k := range keys {
-        sorted[k] = m[k]
-    }
-    return sorted
-}
-
-// calculateHash generates SHA256 hash from data structure
-func calculateHash(data interface{}) (string, error) {
-    // Marshal to JSON with sorted keys
-    jsonBytes, err := json.Marshal(data)
+// CalculateResourceHash computes a deterministic hash for any resource
+func CalculateResourceHash(resource interface{}) (string, error) {
+    // Step 1: Use json.Marshal for serialization
+    jsonBytes, err := json.Marshal(resource)
     if err != nil {
-        return "", fmt.Errorf("failed to marshal for hash: %w", err)
+        return "", fmt.Errorf("failed to marshal resource: %w", err)
     }
     
-    // Generate SHA256 hash
-    hash := sha256.Sum256(jsonBytes)
+    // Step 2: Parse into generic map to filter fields
+    var data map[string]interface{}
+    if err := json.Unmarshal(jsonBytes, &data); err != nil {
+        return "", fmt.Errorf("failed to unmarshal for filtering: %w", err)
+    }
     
-    // Return base64 encoded string
+    // Step 3: Filter out system fields and KONGCTL labels
+    filtered := filterForHashing(data)
+    
+    // Step 4: Re-marshal with deterministic ordering
+    // json.Marshal on maps already sorts keys alphabetically
+    canonicalJSON, err := json.Marshal(filtered)
+    if err != nil {
+        return "", fmt.Errorf("failed to marshal filtered data: %w", err)
+    }
+    
+    // Step 5: Calculate SHA256 hash
+    hash := sha256.Sum256(canonicalJSON)
     return base64.StdEncoding.EncodeToString(hash[:]), nil
 }
 
-// ComparePortalHash checks if portal config matches expected hash
-func ComparePortalHash(portal kkInternalComps.PortalResponse, expectedHash string) (bool, error) {
-    // Convert response to create structure for hashing
-    createPortal := kkInternalComps.CreatePortal{
-        Name:                            portal.Name,
-        DisplayName:                     &portal.DisplayName,
-        Description:                     portal.Description,
-        AuthenticationEnabled:           &portal.AuthenticationEnabled,
-        RbacEnabled:                    &portal.RbacEnabled,
-        DefaultAPIVisibility:           (*kkInternalComps.DefaultAPIVisibility)(&portal.DefaultAPIVisibility),
-        DefaultPageVisibility:          (*kkInternalComps.DefaultPageVisibility)(&portal.DefaultPageVisibility),
-        DefaultApplicationAuthStrategyID: portal.DefaultApplicationAuthStrategyID,
-        AutoApproveDevelopers:          &portal.AutoApproveDevelopers,
-        AutoApproveApplications:        &portal.AutoApproveApplications,
-        Labels:                         labels.DenormalizeLabels(portal.Labels),
-    }
-    
-    actualHash, err := CalculatePortalHash(createPortal)
-    if err != nil {
-        return false, err
-    }
-    
-    return actualHash == expectedHash, nil
+// Specific resource hash functions for type safety
+func CalculatePortalHash(portal kkInternalComps.CreatePortal) (string, error) {
+    return CalculateResourceHash(portal)
+}
+
+func CalculateAPIHash(api kkInternalComps.CreateAPIRequest) (string, error) {
+    return CalculateResourceHash(api)
+}
+
+func CalculateAPIVersionHash(version kkInternalComps.CreateAPIVersionRequest) (string, error) {
+    return CalculateResourceHash(version)
+}
+
+func CalculateAPIDocumentHash(doc kkInternalComps.CreateAPIDocumentRequest) (string, error) {
+    return CalculateResourceHash(doc)
 }
 ```
 
@@ -508,10 +463,17 @@ func ComparePortalHash(portal kkInternalComps.PortalResponse, expectedHash strin
 
 ### Commit Message
 ```
-feat(hash): implement configuration hash calculation
+feat(hash): implement generic configuration hash calculation
 
-Add SHA256-based hashing for detecting configuration drift with
-deterministic output and KONGCTL label exclusion
+Refactor hash implementation to use a generic approach that leverages
+Go's json.Marshal for consistent serialization. This eliminates the need
+for per-resource hash functions and automatically adapts to SDK changes.
+
+- Add CalculateResourceHash() as single generic function
+- Support all portal-related resources (Portal, API, APIVersion, APIDocument)
+- Filter system fields and KONGCTL labels
+- Ensure deterministic output with sorted JSON keys
+- Add comprehensive tests for determinism and filtering
 ```
 
 ---
