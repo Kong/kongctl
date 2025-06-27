@@ -159,7 +159,7 @@ func runDiff(command *cobra.Command, args []string) error {
 		
 		if planFile == "-" {
 			// Read from stdin
-			planData, err = io.ReadAll(os.Stdin)
+			planData, err = io.ReadAll(command.InOrStdin())
 			if err != nil {
 				return fmt.Errorf("failed to read plan from stdin: %w", err)
 			}
