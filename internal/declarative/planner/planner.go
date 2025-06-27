@@ -56,10 +56,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet) (
 			if plan.Changes[i].ID == changeID {
 				plan.Changes[i].References = make(map[string]ReferenceInfo)
 				for field, ref := range refs {
-					plan.Changes[i].References[field] = ReferenceInfo{
-						Ref: ref.Ref,
-						ID:  ref.ID,
-					}
+					plan.Changes[i].References[field] = ReferenceInfo(ref)
 				}
 				break
 			}
@@ -197,7 +194,12 @@ func (p *Planner) planPortalCreate(portal resources.PortalResource, configHash s
 }
 
 // planPortalUpdate creates an UPDATE change for a portal
-func (p *Planner) planPortalUpdate(current state.Portal, desired resources.PortalResource, configHash string, plan *Plan) {
+func (p *Planner) planPortalUpdate(
+	current state.Portal, 
+	desired resources.PortalResource, 
+	configHash string, 
+	plan *Plan,
+) {
 	fields := make(map[string]interface{})
 	dependencies := []string{}
 
@@ -273,7 +275,11 @@ func (p *Planner) planProtectionChange(portal state.Portal, wasProtected, should
 }
 
 // planAuthStrategyChanges generates changes for auth strategies
-func (p *Planner) planAuthStrategyChanges(_ context.Context, desired []resources.ApplicationAuthStrategyResource, plan *Plan) error {
+func (p *Planner) planAuthStrategyChanges(
+	_ context.Context, 
+	desired []resources.ApplicationAuthStrategyResource, 
+	plan *Plan,
+) error {
 	// Similar logic to portals but for auth strategies
 	// TODO: Implement when auth strategy state client is available
 
@@ -289,23 +295,23 @@ func (p *Planner) planAuthStrategyChanges(_ context.Context, desired []resources
 		var strategyType string
 		var configs map[string]interface{}
 
-		switch strategy.CreateAppAuthStrategyRequest.Type {
+		switch strategy.Type {
 		case kkComps.CreateAppAuthStrategyRequestTypeKeyAuth:
-			if strategy.CreateAppAuthStrategyRequest.AppAuthStrategyKeyAuthRequest != nil {
-				fields["name"] = strategy.CreateAppAuthStrategyRequest.AppAuthStrategyKeyAuthRequest.Name
-				fields["display_name"] = strategy.CreateAppAuthStrategyRequest.AppAuthStrategyKeyAuthRequest.DisplayName
+			if strategy.AppAuthStrategyKeyAuthRequest != nil {
+				fields["name"] = strategy.AppAuthStrategyKeyAuthRequest.Name
+				fields["display_name"] = strategy.AppAuthStrategyKeyAuthRequest.DisplayName
 				strategyType = "key_auth"
 				configs = map[string]interface{}{
-					"key_auth": strategy.CreateAppAuthStrategyRequest.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth,
+					"key_auth": strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth,
 				}
 			}
 		case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
-			if strategy.CreateAppAuthStrategyRequest.AppAuthStrategyOpenIDConnectRequest != nil {
-				fields["name"] = strategy.CreateAppAuthStrategyRequest.AppAuthStrategyOpenIDConnectRequest.Name
-				fields["display_name"] = strategy.CreateAppAuthStrategyRequest.AppAuthStrategyOpenIDConnectRequest.DisplayName
+			if strategy.AppAuthStrategyOpenIDConnectRequest != nil {
+				fields["name"] = strategy.AppAuthStrategyOpenIDConnectRequest.Name
+				fields["display_name"] = strategy.AppAuthStrategyOpenIDConnectRequest.DisplayName
 				strategyType = "openid_connect"
 				configs = map[string]interface{}{
-					"openid_connect": strategy.CreateAppAuthStrategyRequest.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect,
+					"openid_connect": strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect,
 				}
 			}
 		}

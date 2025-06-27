@@ -1,11 +1,16 @@
 package declarative
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/declarative/loader"
+	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/spf13/cobra"
 )
 
@@ -50,9 +55,31 @@ for review, approval workflows, or as input to sync operations.`,
 	return cmd
 }
 
-func runPlan(cmd *cobra.Command, _ []string) error {
-	filenames, _ := cmd.Flags().GetStringSlice("filename")
-	recursive, _ := cmd.Flags().GetBool("recursive")
+func runPlan(command *cobra.Command, args []string) error {
+	ctx := command.Context()
+	filenames, _ := command.Flags().GetStringSlice("filename")
+	recursive, _ := command.Flags().GetBool("recursive")
+	
+	// Build helper
+	helper := cmd.BuildHelper(command, args)
+	
+	// Get configuration
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+	
+	// Get logger
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return err
+	}
+	
+	// Get Konnect SDK
+	kkClient, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return fmt.Errorf("failed to initialize Konnect client: %w", err)
+	}
 	
 	// Parse sources from filenames
 	sources, err := loader.ParseSources(filenames)
@@ -83,43 +110,87 @@ func runPlan(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("no resources found in configuration files")
 	}
 	
+	// Create planner
+	portalAPI := kkClient.GetPortalAPI()
+	stateClient := state.NewClient(portalAPI)
+	p := planner.NewPlanner(stateClient)
+	
+	// Generate plan
+	plan, err := p.GeneratePlan(ctx, resourceSet)
+	if err != nil {
+		return fmt.Errorf("failed to generate plan: %w", err)
+	}
+	
+	// Handle output
+	outputFile, _ := command.Flags().GetString("output-file")
+	
+	if outputFile != "" {
+		// Save to file
+		planJSON, err := json.MarshalIndent(plan, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal plan: %w", err)
+		}
+		
+		if err := os.WriteFile(outputFile, planJSON, 0600); err != nil {
+			return fmt.Errorf("failed to write plan file: %w", err)
+		}
+		
+		fmt.Fprintf(command.OutOrStdout(), "Plan saved to: %s\n", outputFile)
+	} else {
+		// Display plan to stdout
+		planJSON, err := json.MarshalIndent(plan, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal plan: %w", err)
+		}
+		fmt.Fprintln(command.OutOrStdout(), string(planJSON))
+	}
+	
 	// Display summary
-	fmt.Fprintln(cmd.OutOrStdout(), "Configuration loaded successfully:")
+	fmt.Fprintf(command.OutOrStdout(), "\nPlan Summary:\n")
+	fmt.Fprintf(command.OutOrStdout(), "Total changes: %d\n", plan.Summary.TotalChanges)
 	
-	if len(resourceSet.Portals) > 0 {
-		fmt.Fprintf(cmd.OutOrStdout(), "- %d portal(s) found:", len(resourceSet.Portals))
-		for _, portal := range resourceSet.Portals {
-			fmt.Fprintf(cmd.OutOrStdout(), " %q", portal.GetRef())
+	if plan.Summary.TotalChanges > 0 {
+		for action, count := range plan.Summary.ByAction {
+			if count > 0 {
+				fmt.Fprintf(command.OutOrStdout(), "  %s: %d\n", action, count)
+			}
 		}
-		fmt.Fprintln(cmd.OutOrStdout())
+		
+		fmt.Fprintln(command.OutOrStdout(), "\nResources by type:")
+		for resourceType, count := range plan.Summary.ByResource {
+			if count > 0 {
+				fmt.Fprintf(command.OutOrStdout(), "  %s: %d\n", resourceType, count)
+			}
+		}
+		
+		if plan.Summary.ProtectionChanges != nil && 
+		   (plan.Summary.ProtectionChanges.Protecting > 0 || plan.Summary.ProtectionChanges.Unprotecting > 0) {
+			fmt.Fprintln(command.OutOrStdout(), "\nProtection changes:")
+			if plan.Summary.ProtectionChanges.Protecting > 0 {
+				fmt.Fprintf(command.OutOrStdout(), "  Protecting: %d\n", plan.Summary.ProtectionChanges.Protecting)
+			}
+			if plan.Summary.ProtectionChanges.Unprotecting > 0 {
+				fmt.Fprintf(command.OutOrStdout(), "  Unprotecting: %d\n", plan.Summary.ProtectionChanges.Unprotecting)
+			}
+		}
+		
+		if len(plan.Warnings) > 0 {
+			fmt.Fprintf(command.OutOrStdout(), "\nWarnings: %d\n", len(plan.Warnings))
+			for _, warning := range plan.Warnings {
+				fmt.Fprintf(command.OutOrStdout(), "  - [%s] %s\n", warning.ChangeID, warning.Message)
+			}
+		}
 	}
 	
-	if len(resourceSet.ApplicationAuthStrategies) > 0 {
-		fmt.Fprintf(cmd.OutOrStdout(), "- %d auth strategy(ies) found:", len(resourceSet.ApplicationAuthStrategies))
-		for _, authStrat := range resourceSet.ApplicationAuthStrategies {
-			fmt.Fprintf(cmd.OutOrStdout(), " %q", authStrat.GetRef())
+	if plan.IsEmpty() {
+		fmt.Fprintln(command.OutOrStdout(), "\nNo changes detected. Infrastructure is up to date.")
+	} else {
+		if outputFile != "" {
+			fmt.Fprintf(command.OutOrStdout(), "\nRun 'kongctl diff --plan %s' to review changes.\n", outputFile)
+		} else {
+			fmt.Fprintln(command.OutOrStdout(), "\nSave this plan with --output-file to review changes later.")
 		}
-		fmt.Fprintln(cmd.OutOrStdout())
 	}
-	
-	if len(resourceSet.ControlPlanes) > 0 {
-		fmt.Fprintf(cmd.OutOrStdout(), "- %d control plane(s) found:", len(resourceSet.ControlPlanes))
-		for _, cp := range resourceSet.ControlPlanes {
-			fmt.Fprintf(cmd.OutOrStdout(), " %q", cp.GetRef())
-		}
-		fmt.Fprintln(cmd.OutOrStdout())
-	}
-	
-	if len(resourceSet.APIs) > 0 {
-		fmt.Fprintf(cmd.OutOrStdout(), "- %d API(s) found:", len(resourceSet.APIs))
-		for _, api := range resourceSet.APIs {
-			fmt.Fprintf(cmd.OutOrStdout(), " %q", api.GetRef())
-		}
-		fmt.Fprintln(cmd.OutOrStdout())
-	}
-	
-	// TODO: Generate actual plan in Stage 2
-	fmt.Fprintln(cmd.OutOrStdout(), "\nPlan generation not yet implemented")
 	
 	return nil
 }
