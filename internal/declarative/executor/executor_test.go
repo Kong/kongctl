@@ -147,20 +147,20 @@ func TestExecutor_Execute_WithErrors(t *testing.T) {
 	
 	exec := New(nil, reporter, false)
 	
-	// Create a plan with a CREATE change (which will fail due to not implemented)
+	// Create a plan with a CREATE change for an unimplemented resource type
 	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply, "hash123")
 	change := planner.PlannedChange{
-		ID:           "1-c-portal",
-		ResourceType: "portal",
-		ResourceRef:  "dev-portal",
+		ID:           "1-c-service",
+		ResourceType: "service", // Not yet implemented
+		ResourceRef:  "test-service",
 		Action:       planner.ActionCreate,
 		Fields: map[string]interface{}{
-			"name": "Developer Portal",
+			"name": "Test Service",
 		},
 		ConfigHash: "hash123",
 	}
 	plan.AddChange(change)
-	plan.SetExecutionOrder([]string{"1-c-portal"})
+	plan.SetExecutionOrder([]string{"1-c-service"})
 	
 	result, err := exec.Execute(context.Background(), plan)
 	
@@ -173,9 +173,9 @@ func TestExecutor_Execute_WithErrors(t *testing.T) {
 	assert.Contains(t, result.Errors[0].Error, "not yet implemented")
 	
 	// Verify error details
-	assert.Equal(t, "1-c-portal", result.Errors[0].ChangeID)
-	assert.Equal(t, "portal", result.Errors[0].ResourceType)
-	assert.Equal(t, "Developer Portal", result.Errors[0].ResourceName)
+	assert.Equal(t, "1-c-service", result.Errors[0].ChangeID)
+	assert.Equal(t, "service", result.Errors[0].ResourceType)
+	assert.Equal(t, "Test Service", result.Errors[0].ResourceName)
 }
 
 func TestExecutor_Execute_NilReporter(t *testing.T) {
@@ -363,18 +363,18 @@ func TestExecutor_ContinuesOnError(t *testing.T) {
 	
 	for i := 1; i <= 3; i++ {
 		change := planner.PlannedChange{
-			ID:           fmt.Sprintf("%d-c-portal", i),
-			ResourceType: "portal",
-			ResourceRef:  fmt.Sprintf("portal-%d", i),
+			ID:           fmt.Sprintf("%d-c-route", i),
+			ResourceType: "route", // Not yet implemented
+			ResourceRef:  fmt.Sprintf("route-%d", i),
 			Action:       planner.ActionCreate,
 			Fields: map[string]interface{}{
-				"name": fmt.Sprintf("Portal %d", i),
+				"name": fmt.Sprintf("Route %d", i),
 			},
 			ConfigHash: "hash123",
 		}
 		plan.AddChange(change)
 	}
-	plan.SetExecutionOrder([]string{"1-c-portal", "2-c-portal", "3-c-portal"})
+	plan.SetExecutionOrder([]string{"1-c-route", "2-c-route", "3-c-route"})
 	
 	result, err := exec.Execute(context.Background(), plan)
 	

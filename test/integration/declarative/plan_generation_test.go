@@ -145,8 +145,8 @@ portals:
 						Description: &oldDesc,
 						DisplayName: oldDisplay,
 						Labels: map[string]string{
-							"KONGCTL/managed":     "true",
-							"KONGCTL/config-hash": "oldhash",
+							"kongctl-managed":     "true",
+							"kongctl-config-hash": "oldhash",
 						},
 					},
 				},
@@ -235,7 +235,7 @@ portals:
     name: "Protected Portal"
     description: "Portal with protection"
     labels:
-      KONGCTL/protected: "true"
+      kongctl-protected: "true"
 `
 	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
 	
@@ -260,8 +260,8 @@ portals:
 						Name:        existingName,
 						Description: &desc,
 						Labels: map[string]string{
-							"KONGCTL/managed":     "true",
-							"KONGCTL/config-hash": "samehash",
+							"kongctl-managed":     "true",
+							"kongctl-config-hash": "samehash",
 							// No protected label = unprotected
 						},
 					},

@@ -17,6 +17,7 @@ type PortalAPI interface {
 	CreatePortal(ctx context.Context, portal kkInternalComps.CreatePortal) (*kkInternalOps.CreatePortalResponse, error)
 	UpdatePortal(ctx context.Context, id string,
 		portal kkInternalComps.UpdatePortal) (*kkInternalOps.UpdatePortalResponse, error)
+	DeletePortal(ctx context.Context, id string, force bool) (*kkInternalOps.DeletePortalResponse, error)
 }
 
 // InternalPortalAPI provides an implementation of the PortalAPI interface using the internal SDK
@@ -52,6 +53,20 @@ func (p *InternalPortalAPI) UpdatePortal(
 	portal kkInternalComps.UpdatePortal,
 ) (*kkInternalOps.UpdatePortalResponse, error) {
 	return p.SDK.Portals.UpdatePortal(ctx, id, portal)
+}
+
+// DeletePortal implements the PortalAPI interface
+func (p *InternalPortalAPI) DeletePortal(
+	ctx context.Context,
+	id string,
+	force bool,
+) (*kkInternalOps.DeletePortalResponse, error) {
+	var forceParam *kkInternalOps.Force
+	if force {
+		forceTrue := kkInternalOps.ForceTrue
+		forceParam = &forceTrue
+	}
+	return p.SDK.Portals.DeletePortal(ctx, id, forceParam)
 }
 
 // GetAllPortals fetches all portals with pagination

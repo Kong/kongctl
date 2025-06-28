@@ -85,6 +85,18 @@ func (m *MockPortalAPI) UpdatePortal(
 	return args.Get(0).(*kkInternalOps.UpdatePortalResponse), args.Error(1)
 }
 
+func (m *MockPortalAPI) DeletePortal(
+	ctx context.Context,
+	id string,
+	force bool,
+) (*kkInternalOps.DeletePortalResponse, error) {
+	args := m.Called(ctx, id, force)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkInternalOps.DeletePortalResponse), args.Error(1)
+}
+
 // MockAppAuthStrategiesAPI implements helpers.AppAuthStrategiesAPI for testing
 type MockAppAuthStrategiesAPI struct {
 	mock.Mock

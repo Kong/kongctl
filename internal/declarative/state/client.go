@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -99,10 +100,25 @@ func (c *Client) CreatePortal(
 	portal kkInternalComps.CreatePortal,
 	configHash string,
 ) (*kkInternalComps.PortalResponse, error) {
+	// Debug logging
+	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	debugLog := func(format string, args ...interface{}) {
+		if debugEnabled {
+			fmt.Fprintf(os.Stderr, "DEBUG [state/client]: "+format+"\n", args...)
+		}
+	}
+	
+	debugLog("CreatePortal called with labels: %+v", portal.Labels)
+	
 	// Add management labels
 	normalized := labels.NormalizeLabels(portal.Labels)
+	debugLog("Normalized labels: %+v", normalized)
+	
 	normalized = labels.AddManagedLabels(normalized, configHash)
+	debugLog("After adding managed labels: %+v", normalized)
+	
 	portal.Labels = labels.DenormalizeLabels(normalized)
+	debugLog("Final denormalized labels: %+v", portal.Labels)
 
 	resp, err := c.portalAPI.CreatePortal(ctx, portal)
 	if err != nil {
@@ -138,4 +154,13 @@ func (c *Client) UpdatePortal(
 	}
 
 	return resp.PortalResponse, nil
+}
+
+// DeletePortal deletes a portal by ID
+func (c *Client) DeletePortal(ctx context.Context, id string, force bool) error {
+	_, err := c.portalAPI.DeletePortal(ctx, id, force)
+	if err != nil {
+		return fmt.Errorf("failed to delete portal: %w", err)
+	}
+	return nil
 }

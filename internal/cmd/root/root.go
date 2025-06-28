@@ -64,6 +64,7 @@ var (
 		common.TEXT.String())
 
 	logLevel = cmd.NewEnum([]string{
+		common.TRACE.String(),
 		common.DEBUG.String(),
 		common.INFO.String(),
 		common.WARN.String(),

@@ -9,6 +9,8 @@ import (
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/declarative/common"
+	"github.com/kong/kongctl/internal/declarative/executor"
 	"github.com/kong/kongctl/internal/declarative/loader"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -170,26 +172,10 @@ func runDiff(command *cobra.Command, args []string) error {
 	
 	if planFile != "" {
 		// Load existing plan
-		var planData []byte
 		var err error
-		
-		if planFile == "-" {
-			// Read from stdin
-			planData, err = io.ReadAll(command.InOrStdin())
-			if err != nil {
-				return fmt.Errorf("failed to read plan from stdin: %w", err)
-			}
-		} else {
-			// Read from file
-			planData, err = os.ReadFile(planFile)
-			if err != nil {
-				return fmt.Errorf("failed to read plan file: %w", err)
-			}
-		}
-		
-		plan = &planner.Plan{}
-		if err := json.Unmarshal(planData, plan); err != nil {
-			return fmt.Errorf("failed to parse plan: %w", err)
+		plan, err = common.LoadPlan(planFile, command.InOrStdin())
+		if err != nil {
+			return err
 		}
 	} else {
 		// Generate new plan from configuration files
@@ -527,17 +513,185 @@ and applied to other environments.`,
 	return cmd
 }
 
+func runApply(command *cobra.Command, args []string) error {
+	ctx := command.Context()
+	planFile, _ := command.Flags().GetString("plan")
+	dryRun, _ := command.Flags().GetBool("dry-run")
+	autoApprove, _ := command.Flags().GetBool("auto-approve")
+	outputFormat, _ := command.Flags().GetString("output")
+	
+	// Build helper
+	helper := cmd.BuildHelper(command, args)
+	
+	// Get configuration
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+	
+	// Get logger
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return err
+	}
+	
+	// Get Konnect SDK
+	kkClient, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return fmt.Errorf("failed to initialize Konnect client: %w", err)
+	}
+	
+	// Load or generate plan
+	var plan *planner.Plan
+	if planFile != "" {
+		// Load existing plan
+		plan, err = common.LoadPlan(planFile, command.InOrStdin())
+		if err != nil {
+			return err
+		}
+	} else {
+		// Generate plan from configuration files
+		filenames, _ := command.Flags().GetStringSlice("filename")
+		recursive, _ := command.Flags().GetBool("recursive")
+		
+		// Parse sources from filenames
+		sources, err := loader.ParseSources(filenames)
+		if err != nil {
+			return fmt.Errorf("failed to parse sources: %w", err)
+		}
+		
+		// Load configuration
+		ldr := loader.New()
+		resourceSet, err := ldr.LoadFromSources(sources, recursive)
+		if err != nil {
+			// Provide more helpful error message for common cases
+			if len(filenames) == 0 && strings.Contains(err.Error(), "no YAML files found") {
+				return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
+			}
+			return fmt.Errorf("failed to load configuration: %w", err)
+		}
+		
+		// Check if configuration is empty
+		totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
+			len(resourceSet.ControlPlanes) + len(resourceSet.APIs)
+		
+		if totalResources == 0 {
+			// Check if we're using default directory (no explicit sources)
+			if len(filenames) == 0 {
+				return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
+			}
+			return fmt.Errorf("no resources found in configuration files")
+		}
+		
+		// Create planner
+		portalAPI := kkClient.GetPortalAPI()
+		stateClient := state.NewClient(portalAPI)
+		p := planner.NewPlanner(stateClient)
+		
+		// Generate plan in apply mode
+		opts := planner.Options{
+			Mode: planner.PlanModeApply,
+		}
+		plan, err = p.GeneratePlan(ctx, resourceSet, opts)
+		if err != nil {
+			return fmt.Errorf("failed to generate plan: %w", err)
+		}
+	}
+	
+	// Validate plan for apply
+	if err := validateApplyPlan(plan); err != nil {
+		return err
+	}
+	
+	// Show summary and confirm (only in text mode)
+	if outputFormat == "text" && !dryRun && !autoApprove {
+		if !common.ConfirmExecution(plan, command.OutOrStdout(), command.OutOrStderr(), command.InOrStdin()) {
+			return fmt.Errorf("apply cancelled")
+		}
+	}
+	
+	// Create executor
+	portalAPI := kkClient.GetPortalAPI()
+	stateClient := state.NewClient(portalAPI)
+	
+	var reporter executor.ProgressReporter
+	if outputFormat == "text" {
+		reporter = executor.NewConsoleReporter(command.OutOrStderr())
+	}
+	
+	exec := executor.New(stateClient, reporter, dryRun)
+	
+	// Execute plan
+	result, err := exec.Execute(ctx, plan)
+	
+	// Output results based on format
+	return outputApplyResults(command, result, err, outputFormat)
+}
+
+func validateApplyPlan(plan *planner.Plan) error {
+	// Check if plan contains DELETE operations
+	for _, change := range plan.Changes {
+		if change.Action == planner.ActionDelete {
+			return fmt.Errorf("apply command cannot execute plans with DELETE operations. Use 'sync' command instead")
+		}
+	}
+	
+	// Warn if plan was generated in sync mode
+	if plan.Metadata.Mode == planner.PlanModeSync {
+		fmt.Fprintf(os.Stderr, "Warning: Plan was generated in sync mode but apply will skip DELETE operations\n")
+	}
+	
+	return nil
+}
+
+func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult, err error, format string) error {
+	switch format {
+	case "json":
+		output := map[string]interface{}{
+			"execution_result": result,
+		}
+		if err != nil {
+			output["error"] = err.Error()
+		}
+		return json.NewEncoder(command.OutOrStdout()).Encode(output)
+		
+	case "yaml":
+		output := map[string]interface{}{
+			"execution_result": result,
+		}
+		if err != nil {
+			output["error"] = err.Error()
+		}
+		yamlData, err := yaml.Marshal(output)
+		if err != nil {
+			return fmt.Errorf("failed to marshal result to YAML: %w", err)
+		}
+		fmt.Fprintln(command.OutOrStdout(), string(yamlData))
+		return nil
+		
+	default: // text
+		if err != nil {
+			return err
+		}
+		// Human-readable output already handled by progress reporter
+		// Just print a final summary if execution completed
+		if result != nil {
+			fmt.Fprintln(command.OutOrStdout(), result.Message())
+		}
+		return nil
+	}
+}
+
 func newDeclarativeApplyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "konnect",
-		Short: "Apply declarative configuration to Konnect",
-		Long: `Apply declarative configuration files to Konnect.
+		Short: "Apply configuration changes (create/update only)",
+		Long: `Execute a plan to create new resources and update existing ones. Never deletes resources.
 
-Apply reads the configuration files and makes the necessary API calls to create,
-update, or delete resources to match the desired state.`,
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return fmt.Errorf("apply command not yet implemented")
-		},
+The apply command provides a safe way to apply configuration changes by only
+performing CREATE and UPDATE operations. Use the sync command if you need to
+delete resources.`,
+		RunE: runApply,
 	}
 
 	// Add declarative config flags
@@ -545,7 +699,10 @@ update, or delete resources to match the desired state.`,
 		"Filename or directory to files to use to create the resource (can specify multiple)")
 	cmd.Flags().BoolP("recursive", "R", false, 
 		"Process the directory used in -f, --filename recursively")
-	cmd.Flags().Bool("force", false, "Force apply without confirmation")
+	cmd.Flags().String("plan", "", "Path to existing plan file")
+	cmd.Flags().Bool("dry-run", false, "Preview changes without applying")
+	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
+	cmd.Flags().StringP("output", "o", "text", "Output format (text|json|yaml)")
 
 	return cmd
 }

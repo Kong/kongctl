@@ -128,7 +128,7 @@ Kongctl is a Go-based CLI built with the following key components:
 
 5. **I/O Handling**:
    - Supports multiple output formats (text, json, yaml)
-   - Configurable logging levels (debug, info, warn, error)
+   - Configurable logging levels (trace, debug, info, warn, error)
 
 ## Important Patterns
 
@@ -292,4 +292,52 @@ When querying the docs-mcp-server, use those names for the Konnect SDK library q
 - Do not attribute claude code in git commits.
 
 ## SDK Naming for Docs MCP Server
+
+## Debugging HTTP Requests
+
+Kongctl provides trace-level logging for debugging HTTP requests made by the Konnect SDKs. This is useful for troubleshooting API issues.
+
+### Enabling Trace Logging
+
+There are three ways to enable trace logging:
+
+1. **Command-line flag**:
+   ```sh
+   ./kongctl apply --plan plan.json --log-level trace
+   ```
+
+2. **Configuration file** (in `~/.config/kongctl/config.yaml`):
+   ```yaml
+   log_level: trace
+   ```
+
+3. **Environment variable**:
+   ```sh
+   KONGCTL_LOG_LEVEL=trace ./kongctl apply --plan plan.json
+   ```
+
+### What Gets Logged
+
+When trace logging is enabled, the following information is logged:
+- **HTTP Requests**: Method, URL, headers (with sensitive data redacted), content length
+- **HTTP Responses**: Status code, headers, duration, content length
+- **Error Responses**: For 4xx/5xx responses, the response body is also logged (truncated if too large)
+
+### Security Considerations
+
+Sensitive information is automatically redacted:
+- Request headers: `Authorization`, `X-Api-Key`, and any header containing "token"
+- Response headers: `Set-Cookie` and any header containing "token"
+- These values are replaced with `[REDACTED]` in the logs
+
+### Example Output
+
+```
+time=2024-01-01T12:00:00.000Z level=TRACE msg="HTTP request" method=POST url=https://global.api.konghq.com/v3/portals host=global.api.konghq.com headers={"Authorization":"[REDACTED]","Content-Type":"application/json"} content_length=256
+time=2024-01-01T12:00:01.000Z level=TRACE msg="HTTP response" status=201 status_text="201 Created" duration=1s headers={"Content-Type":"application/json"} content_length=512
+```
+
+### Performance Impact
+
+Trace logging adds overhead to HTTP requests as it needs to read and restore request/response bodies. Only enable it when debugging issues.
 

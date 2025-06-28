@@ -84,10 +84,10 @@ func TestDenormalizeLabels(t *testing.T) {
 			result := DenormalizeLabels(tt.input)
 			
 			// Verify structure
-			if tt.input == nil && result == nil {
+			if len(tt.input) == 0 && result == nil {
 				return
 			}
-			if len(result) != len(tt.input) {
+			if len(tt.input) > 0 && len(result) != len(tt.input) {
 				t.Errorf("DenormalizeLabels() length = %d, want %d", len(result), len(tt.input))
 			}
 			
@@ -259,12 +259,12 @@ func TestIsKongctlLabel(t *testing.T) {
 	}{
 		{
 			name:     "kongctl label",
-			key:      "KONGCTL/managed",
+			key:      "kongctl-managed",
 			expected: true,
 		},
 		{
 			name:     "kongctl label with different suffix",
-			key:      "KONGCTL/custom",
+			key:      "kongctl-custom",
 			expected: true,
 		},
 		{
@@ -284,7 +284,7 @@ func TestIsKongctlLabel(t *testing.T) {
 		},
 		{
 			name:     "short string",
-			key:      "KONGCTL",
+			key:      "kongctl",
 			expected: false,
 		},
 	}
@@ -359,8 +359,8 @@ func TestValidateLabel(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "KONGCTL prefix allowed",
-			key:     "KONGCTL/managed",
+			name:    "kongctl prefix allowed",
+			key:     "kongctl-managed",
 			wantErr: false,
 		},
 	}

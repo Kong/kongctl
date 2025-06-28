@@ -7,8 +7,8 @@
 | 1 | Enhance planner with mode support | Completed ✅ | - |
 | 2 | Create base executor package | Completed ✅ | Step 1 |
 | 3 | Implement progress reporter | Completed ✅ | Step 2 |
-| 4 | Add portal operations to executor | Not Started | Step 2 |
-| 5 | Implement apply command | Not Started | Steps 3, 4 |
+| 4 | Add portal operations to executor | Completed ✅ | Step 2 |
+| 5 | Implement apply command | Completed ✅ | Steps 3, 4 |
 | 6 | Implement sync command | Not Started | Steps 3, 4 |
 | 7 | Add plan validation | Not Started | Steps 5, 6 |
 | 8 | Implement confirmation prompts | Not Started | Steps 5, 6 |
@@ -16,7 +16,7 @@
 | 10 | Add integration tests | Not Started | Steps 5, 6, 9 |
 | 11 | Update documentation | Not Started | All steps |
 
-**Current Stage**: Step 3 completed, ready for Step 4 (Portal Operations)
+**Current Stage**: Step 5 completed, ready for Step 6 (Sync Command)
 
 ---
 
@@ -316,17 +316,17 @@ portal.Labels[labels.LabelLastUpdated] = time.Now().Format(time.RFC3339)
 - Protection changes between planning and execution detected
 
 ### Definition of Done
-- [ ] Portal operations implemented
-- [ ] Label management integrated
-- [ ] Protection validated at execution time
-- [ ] Protection errors handled correctly
-- [ ] Comprehensive error handling
+- [x] Portal operations implemented
+- [x] Label management integrated
+- [x] Protection validated at execution time
+- [x] Protection errors handled correctly
+- [x] Comprehensive error handling
 
 ---
 
 ## Step 5: Implement Apply Command
 
-**Status**: Not Started
+**Status**: Completed ✅
 **Dependencies**: Steps 3, 4
 
 ### Goal
@@ -448,13 +448,13 @@ func outputResults(result *executor.ExecutionResult, err error, format string) e
 - Structured output in CI/CD contexts
 
 ### Definition of Done
-- [ ] Apply command implemented
-- [ ] Plan validation prevents DELETEs
-- [ ] Confirmation prompt works
-- [ ] Integration with executor
-- [ ] Clear output and error messages
-- [ ] Output formats work correctly
-- [ ] Auto-approve enables automation
+- [x] Apply command implemented
+- [x] Plan validation prevents DELETEs
+- [x] Confirmation prompt works
+- [x] Integration with executor
+- [x] Clear output and error messages
+- [x] Output formats work correctly
+- [x] Auto-approve enables automation
 
 ---
 

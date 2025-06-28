@@ -84,9 +84,9 @@ func TestCalculateResourceHash_LabelFiltering(t *testing.T) {
 		Name: "Test Portal",
 		Labels: map[string]*string{
 			"env":                     ptr("production"),
-			"KONGCTL/managed":         ptr("true"),
-			"KONGCTL/config-hash":     ptr("old-hash"),
-			"KONGCTL/last-updated":    ptr("2024-01-01"),
+			"kongctl-managed":         ptr("true"),
+			"kongctl-config-hash":     ptr("old-hash"),
+			"kongctl-last-updated":    ptr("2024-01-01"),
 		},
 	}
 

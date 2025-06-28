@@ -128,7 +128,7 @@ func filterKONGCTLLabels(labelMap map[string]interface{}) map[string]interface{}
 
 	for k, v := range labelMap {
 		// Skip KONGCTL-managed labels
-		if !strings.HasPrefix(k, "KONGCTL/") {
+		if !strings.HasPrefix(k, "KONGCTL-") {
 			userLabels[k] = v
 		}
 	}

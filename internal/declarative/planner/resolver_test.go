@@ -59,6 +59,18 @@ func (m *MockPortalAPI) GetPortal(ctx context.Context, id string) (*kkInternalOp
 	return args.Get(0).(*kkInternalOps.GetPortalResponse), args.Error(1)
 }
 
+func (m *MockPortalAPI) DeletePortal(
+	ctx context.Context,
+	id string,
+	force bool,
+) (*kkInternalOps.DeletePortalResponse, error) {
+	args := m.Called(ctx, id, force)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkInternalOps.DeletePortalResponse), args.Error(1)
+}
+
 func TestResolveReferences_PortalReference(t *testing.T) {
 	ctx := context.Background()
 	mockAPI := new(MockPortalAPI)
@@ -137,7 +149,7 @@ func TestResolveReferences_ExistingPortal(t *testing.T) {
 					ID:   "portal-existing-123",
 					Name: "existing-portal",
 					Labels: map[string]string{
-						"KONGCTL/managed": "true",
+						"KONGCTL.managed": "true",
 					},
 				},
 			},
@@ -292,7 +304,7 @@ func TestResolveReferences_FieldChange(t *testing.T) {
 					ID:   "portal-456",
 					Name: "new-portal",
 					Labels: map[string]string{
-						"KONGCTL/managed": "true",
+						"KONGCTL.managed": "true",
 					},
 				},
 			},

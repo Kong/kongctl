@@ -14,7 +14,8 @@ const (
 )
 
 const (
-	DEBUG LogLevel = iota
+	TRACE LogLevel = iota
+	DEBUG
 	INFO
 	WARN
 	ERROR
@@ -58,11 +59,13 @@ func OutputFormatStringToIota(format string) (OutputFormat, error) {
 }
 
 func (ll LogLevel) String() string {
-	return [...]string{"debug", "info", "warn", "error"}[ll]
+	return [...]string{"trace", "debug", "info", "warn", "error"}[ll]
 }
 
 func LogLevelStringToIota(level string) (LogLevel, error) {
 	switch level {
+	case "trace":
+		return TRACE, nil
 	case "debug":
 		return DEBUG, nil
 	case "info":
@@ -72,6 +75,6 @@ func LogLevelStringToIota(level string) (LogLevel, error) {
 	case "error":
 		return ERROR, nil
 	default:
-		return ERROR, fmt.Errorf("invalid log level %q, must be one of %v", level, []string{"debug", "info", "warn", "error"})
+		return ERROR, fmt.Errorf("invalid log level %q, must be one of %v", level, []string{"trace", "debug", "info", "warn", "error"})
 	}
 }

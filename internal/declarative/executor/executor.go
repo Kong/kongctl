@@ -223,21 +223,33 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 	return nil
 }
 
-// Resource operation stubs - to be implemented in Step 4
+// Resource operations
 
-func (e *Executor) createResource(_ context.Context, change planner.PlannedChange) (string, error) {
-	// TODO: Implement in Step 4 - Add portal operations to executor
-	return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
+func (e *Executor) createResource(ctx context.Context, change planner.PlannedChange) (string, error) {
+	switch change.ResourceType {
+	case "portal":
+		return e.createPortal(ctx, change)
+	default:
+		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
+	}
 }
 
-func (e *Executor) updateResource(_ context.Context, change planner.PlannedChange) (string, error) {
-	// TODO: Implement in Step 4 - Add portal operations to executor
-	return "", fmt.Errorf("update operation not yet implemented for %s", change.ResourceType)
+func (e *Executor) updateResource(ctx context.Context, change planner.PlannedChange) (string, error) {
+	switch change.ResourceType {
+	case "portal":
+		return e.updatePortal(ctx, change)
+	default:
+		return "", fmt.Errorf("update operation not yet implemented for %s", change.ResourceType)
+	}
 }
 
-func (e *Executor) deleteResource(_ context.Context, change planner.PlannedChange) error {
-	// TODO: Implement in Step 4 - Add portal operations to executor
-	return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)
+func (e *Executor) deleteResource(ctx context.Context, change planner.PlannedChange) error {
+	switch change.ResourceType {
+	case "portal":
+		return e.deletePortal(ctx, change)
+	default:
+		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)
+	}
 }
 
 // Helper functions

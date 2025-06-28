@@ -22,6 +22,8 @@ type mockPortalAPI struct {
 		kkInternalComps.UpdatePortal) (*kkInternalOps.UpdatePortalResponse, error)
 	// GetPortal behavior
 	getPortalFunc func(context.Context, string) (*kkInternalOps.GetPortalResponse, error)
+	// DeletePortal behavior
+	deletePortalFunc func(context.Context, string, bool) (*kkInternalOps.DeletePortalResponse, error)
 }
 
 func (m *mockPortalAPI) ListPortals(
@@ -63,6 +65,17 @@ func (m *mockPortalAPI) GetPortal(
 		return m.getPortalFunc(ctx, id)
 	}
 	return nil, fmt.Errorf("GetPortal not implemented")
+}
+
+func (m *mockPortalAPI) DeletePortal(
+	ctx context.Context,
+	id string,
+	force bool,
+) (*kkInternalOps.DeletePortalResponse, error) {
+	if m.deletePortalFunc != nil {
+		return m.deletePortalFunc(ctx, id, force)
+	}
+	return nil, fmt.Errorf("DeletePortal not implemented")
 }
 
 func TestListManagedPortals(t *testing.T) {
