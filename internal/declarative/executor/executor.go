@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
@@ -216,8 +217,28 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 		}
 		
 	case planner.ActionCreate:
-		// For create, could verify references still exist
-		// TODO: Implement in future steps
+		// For create, verify resource doesn't already exist
+		if change.ResourceType == "portal" && e.client != nil {
+			resourceName := getResourceName(change.Fields)
+			portal, err := e.client.GetPortalByName(ctx, resourceName)
+			if err != nil {
+				// API error is acceptable here - might mean not found
+				// Only fail if it's a real API error (not 404)
+				if !strings.Contains(err.Error(), "not found") {
+					return fmt.Errorf("failed to check existing portal: %w", err)
+				}
+			}
+			if portal != nil {
+				// Portal already exists - check if configuration matches
+				existingHash := portal.NormalizedLabels[labels.ConfigHashKey]
+				if change.ConfigHash != "" && existingHash == change.ConfigHash {
+					// Configuration matches - this is idempotent
+					return fmt.Errorf("portal '%s' already exists with matching configuration (idempotent)", resourceName)
+				}
+				// Configuration differs
+				return fmt.Errorf("portal '%s' already exists with different configuration", resourceName)
+			}
+		}
 	}
 	
 	return nil

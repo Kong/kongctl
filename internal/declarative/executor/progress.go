@@ -10,12 +10,22 @@ import (
 // ConsoleReporter provides console output for plan execution progress
 type ConsoleReporter struct {
 	writer io.Writer
+	dryRun bool
 }
 
 // NewConsoleReporter creates a new console reporter that writes to the provided writer
 func NewConsoleReporter(w io.Writer) *ConsoleReporter {
 	return &ConsoleReporter{
 		writer: w,
+		dryRun: false,
+	}
+}
+
+// NewConsoleReporterWithOptions creates a new console reporter with options
+func NewConsoleReporterWithOptions(w io.Writer, dryRun bool) *ConsoleReporter {
+	return &ConsoleReporter{
+		writer: w,
+		dryRun: dryRun,
 	}
 }
 
@@ -32,12 +42,16 @@ func (r *ConsoleReporter) StartExecution(plan *planner.Plan) {
 	mode := ""
 	switch plan.Metadata.Mode {
 	case planner.PlanModeApply:
-		mode = " (apply mode)"
+		mode = "apply mode"
 	case planner.PlanModeSync:
-		mode = " (sync mode)"
+		mode = "sync mode"
 	}
 	
-	fmt.Fprintf(r.writer, "Executing plan%s...\n", mode)
+	if r.dryRun {
+		fmt.Fprintf(r.writer, "Executing plan (%s, dry-run)...\n", mode)
+	} else {
+		fmt.Fprintf(r.writer, "Executing plan (%s)...\n", mode)
+	}
 }
 
 // StartChange is called before executing a change

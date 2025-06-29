@@ -1,4 +1,5 @@
 portals:
   - ref: simplest-portal
-    name: "The Simplest Portal Of Them All"
-    description: "A minimal developer portal configuration"
+    name: simple 
+    description: "Updated minimal developer portal configuration"
+    display_name: "Developer Portal"

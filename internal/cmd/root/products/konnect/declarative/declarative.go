@@ -61,6 +61,9 @@ for review, approval workflows, or as input to sync operations.`,
 }
 
 func runPlan(command *cobra.Command, args []string) error {
+	// Silence usage for all runtime errors (command syntax is already valid at this point)
+	command.SilenceUsage = true
+	
 	ctx := command.Context()
 	filenames, _ := command.Flags().GetStringSlice("filename")
 	recursive, _ := command.Flags().GetBool("recursive")
@@ -164,6 +167,9 @@ func runPlan(command *cobra.Command, args []string) error {
 }
 
 func runDiff(command *cobra.Command, args []string) error {
+	// Silence usage for all runtime errors (command syntax is already valid at this point)
+	command.SilenceUsage = true
+	
 	ctx := command.Context()
 	var plan *planner.Plan
 	
@@ -514,11 +520,25 @@ and applied to other environments.`,
 }
 
 func runApply(command *cobra.Command, args []string) error {
+	// Silence usage for all runtime errors (command syntax is already valid at this point)
+	command.SilenceUsage = true
+	
 	ctx := command.Context()
 	planFile, _ := command.Flags().GetString("plan")
 	dryRun, _ := command.Flags().GetBool("dry-run")
 	autoApprove, _ := command.Flags().GetBool("auto-approve")
 	outputFormat, _ := command.Flags().GetString("output")
+	filenames, _ := command.Flags().GetStringSlice("filename")
+	
+	// Early check for stdin usage without auto-approve
+	if !dryRun && !autoApprove && planFile == "" {
+		// Check if stdin will be used for configuration
+		for _, filename := range filenames {
+			if filename == "-" {
+				return fmt.Errorf("cannot use stdin for configuration input without --auto-approve flag (interactive confirmation not possible when stdin is piped)")
+			}
+		}
+	}
 	
 	// Build helper
 	helper := cmd.BuildHelper(command, args)
@@ -544,14 +564,27 @@ func runApply(command *cobra.Command, args []string) error {
 	// Load or generate plan
 	var plan *planner.Plan
 	if planFile != "" {
+		// Show plan source information early
+		if outputFormat == "text" {
+			if planFile == "-" {
+				fmt.Fprintf(command.OutOrStderr(), "Using plan from: stdin\n")
+			} else {
+				fmt.Fprintf(command.OutOrStderr(), "Using plan from: %s\n", planFile)
+			}
+		}
+		
 		// Load existing plan
 		plan, err = common.LoadPlan(planFile, command.InOrStdin())
 		if err != nil {
 			return err
 		}
 	} else {
+		// Show plan generation message early
+		if outputFormat == "text" {
+			fmt.Fprintf(command.OutOrStderr(), "Generating plan from configuration files...\n")
+		}
+		
 		// Generate plan from configuration files
-		filenames, _ := command.Flags().GetStringSlice("filename")
 		recursive, _ := command.Flags().GetBool("recursive")
 		
 		// Parse sources from filenames
@@ -616,7 +649,7 @@ func runApply(command *cobra.Command, args []string) error {
 	
 	var reporter executor.ProgressReporter
 	if outputFormat == "text" {
-		reporter = executor.NewConsoleReporter(command.OutOrStderr())
+		reporter = executor.NewConsoleReporterWithOptions(command.OutOrStderr(), dryRun)
 	}
 	
 	exec := executor.New(stateClient, reporter, dryRun)

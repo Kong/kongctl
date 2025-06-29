@@ -15,6 +15,7 @@ func TestConsoleReporter_StartExecution(t *testing.T) {
 	tests := []struct {
 		name         string
 		plan         *planner.Plan
+		dryRun       bool
 		expectedOut  string
 		shouldOutput bool
 	}{
@@ -28,7 +29,22 @@ func TestConsoleReporter_StartExecution(t *testing.T) {
 					TotalChanges: 3,
 				},
 			},
+			dryRun:       false,
 			expectedOut:  "Executing plan (apply mode)...\n",
+			shouldOutput: true,
+		},
+		{
+			name: "plan with changes in apply mode with dry-run",
+			plan: &planner.Plan{
+				Metadata: planner.PlanMetadata{
+					Mode: planner.PlanModeApply,
+				},
+				Summary: planner.PlanSummary{
+					TotalChanges: 3,
+				},
+			},
+			dryRun:       true,
+			expectedOut:  "Executing plan (apply mode, dry-run)...\n",
 			shouldOutput: true,
 		},
 		{
@@ -59,7 +75,7 @@ func TestConsoleReporter_StartExecution(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			reporter := NewConsoleReporter(&buf)
+			reporter := NewConsoleReporterWithOptions(&buf, tt.dryRun)
 			
 			reporter.StartExecution(tt.plan)
 			
