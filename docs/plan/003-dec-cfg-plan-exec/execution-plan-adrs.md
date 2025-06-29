@@ -305,3 +305,123 @@ Extend Stage 2's dual-mode SDK testing approach:
 - Fast test execution in CI
 - Ability to test error scenarios
 - Validation against real API when needed
+
+---
+
+## ADR-003-011: Configuration-Based Change Detection
+
+### Context
+The initial hash-based change detection approach failed to achieve idempotency 
+due to API servers adding default values to resources. When comparing desired 
+configuration (minimal) with current state (includes defaults), the system would 
+incorrectly detect changes on every apply.
+
+Example problem:
+- User config: `{name: "portal", description: "My portal"}`
+- API returns: `{name: "portal", description: "My portal", display_name: "Developer Portal", auth_enabled: true, ...}`
+- Second apply would try to "update" fields the user never specified
+
+### Decision
+Implement a "configuration-based" change detection approach:
+1. **Only manage fields present in user configuration** - if a field isn't in the config file, kongctl doesn't touch it
+2. **No external state storage** - the configuration file is the single source of truth
+3. **Field-level comparison** - compare only fields explicitly set by the user
+4. **Sparse updates** - only send changed fields to the API, not the entire resource
+
+### Consequences
+- **Positive:**
+  - True idempotency - same config always produces same result
+  - Simple mental model - "what's in config is what's managed"
+  - No state storage limitations or complexity
+  - Immune to API default changes
+  - Predictable behavior
+
+- **Negative:**
+  - Cannot "unmanage" fields - once set, must explicitly change
+  - No automatic drift detection for unmanaged fields
+  - Users must know default values to reset fields
+
+### Implementation Details
+```go
+// Old approach - hash everything
+oldHash := calculateHash(minimalConfig)
+currentHash := resource.Labels["config-hash"]
+if oldHash != currentHash { /* update needed */ }
+
+// New approach - compare only configured fields
+configuredFields := extractFields(userConfig)
+for field := range configuredFields {
+    if currentState[field] != desiredState[field] {
+        // update needed for this field only
+    }
+}
+```
+
+### Example Behavior
+```yaml
+# First apply - manages only these fields
+portals:
+  - name: "my-portal"
+    description: "Portal description"
+
+# API adds defaults, but kongctl ignores them
+
+# Second apply - no changes detected (idempotent)
+# Third apply with new field - only updates display_name
+portals:
+  - name: "my-portal"
+    description: "Portal description"
+    display_name: "Custom Portal"  # Now managing this field
+```
+
+---
+
+## ADR-003-012: Progressive Configuration Discovery
+
+### Context
+With configuration-based change detection, users need a way to discover what 
+fields are available but not yet managed. Without this visibility, users might 
+not know what configuration options exist or what values are currently set for 
+unmanaged fields.
+
+### Decision
+Implement a configuration discovery feature that shows unmanaged fields to users:
+1. **Identify unmanaged fields** - Compare user configuration against current API state
+2. **Surface this information** - Make unmanaged fields visible during apply/sync operations
+3. **Show current values** - Display what values are currently set for unmanaged fields
+4. **Progressive enhancement** - Allow users to gradually expand their configurations
+
+The exact implementation mechanism (command output, separate files, new commands) 
+will be determined based on user workflow patterns and technical constraints.
+
+### Consequences
+- Users can start with minimal configs and expand over time
+- Clear visibility into what's managed vs unmanaged
+- Natural learning path for API capabilities
+- Helps users make informed decisions about field management
+
+### Design Principles
+- **Non-intrusive** - Discovery should not interfere with normal operations
+- **Contextual** - Information provided when most relevant
+- **Actionable** - Users should understand how to manage discovered fields
+- **Scalable** - Solution must work with single files or complex multi-file configs
+
+### Example Concept
+```bash
+$ kongctl apply -f portal.yaml
+
+✓ Applied successfully
+
+Discovered unmanaged fields for portal "my-portal":
+  - display_name: "Developer Portal"
+  - authentication_enabled: true
+  - rbac_enabled: false
+
+To manage these fields, add them to your configuration.
+```
+
+### Future Considerations
+- How to handle discovery across multiple resources
+- Filtering or grouping of discovered fields
+- Integration with existing command output
+- Machine-readable discovery format for automation

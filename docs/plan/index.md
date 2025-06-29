@@ -2,7 +2,7 @@
 
 This folder contains the complete planning and implementation tracking for all kongctl features and development efforts.
 
-## 🎯 Current Active Stage: Stage 3 (In Progress - Step 5/11 Complete)
+## 🎯 Current Active Stage: Stage 3 (In Progress - Step 5/13 Complete)
 
 **Previous Stages Completed**:
 - Stage 1: Configuration Format & Basic CLI ✅ 
@@ -15,7 +15,9 @@ This folder contains the complete planning and implementation tracking for all k
 - **Architecture Decisions**: [003-dec-cfg-plan-exec/execution-plan-adrs.md](003-dec-cfg-plan-exec/execution-plan-adrs.md) ✅ Complete
 - **Goal**: Execute plans generated in Stage 2, applying changes to Konnect
 
-**Next Step**: Implement Step 6 - Implement Sync Command
+**Next Step**: Implement Step 5a - Fix Idempotency Issue
+
+**Important Decision**: Moving to configuration-based change detection to fix idempotency issues (ADR-003-011)
 
 ## Quick Start for Implementation
 
@@ -89,7 +91,7 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](003-dec-cfg-plan-exec/execution-plan-steps.md) | **Implementation guide** | ✅ Complete |
 | [execution-plan-adrs.md](003-dec-cfg-plan-exec/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: 5/11 steps completed (45%) - In Progress
+**Implementation Status**: 5/13 steps completed (38%) - In Progress
 - **Dependencies**: Stage 2 completion ✅ Met
 - **Key deliverables**: 
   - Mode-aware plan generation (apply vs sync)
@@ -99,6 +101,8 @@ The first major feature being implemented is declarative configuration managemen
   - Dry-run mode support
   - Output format support (text/json/yaml)
   - Konnect-first login migration
+  - **NEW**: Configuration-based change detection for idempotency
+  - **NEW**: Progressive configuration discovery
 
 #### Stage 4: Multi-Resource 🔮 Future
 **Goal**: Support for multiple resources in plans
@@ -122,9 +126,9 @@ Stages 1 and 2 are complete. Stage 3 planning is complete and ready for implemen
 - Stage 2: Plan Generation with Label Management ✅ **COMPLETED**
 
 **Current Stage**:
-- Stage 3: Plan Execution ⏳ **In Progress** (5/11 steps)
+- Stage 3: Plan Execution ⏳ **In Progress** (5/13 steps)
 
-**To begin implementation**: Start with Step 1 in [003-dec-cfg-plan-exec/execution-plan-steps.md](003-dec-cfg-plan-exec/execution-plan-steps.md)
+**To begin implementation**: Start with Step 5a in [003-dec-cfg-plan-exec/execution-plan-steps.md](003-dec-cfg-plan-exec/execution-plan-steps.md)
 
 ### 🎯 Entry Points for Claude Code
 
@@ -155,6 +159,8 @@ Stages 1 and 2 are complete. Stage 3 planning is complete and ready for implemen
 - **Consistent confirmation prompts** requiring 'yes' for both commands
 - **Output format support** (text/json/yaml) for CI/CD integration
 - **Konnect-first login** migration for consistency
+- **Configuration-based change detection** (ADR-003-011) - only manage fields in user config
+- **Progressive configuration discovery** (ADR-003-012) - show unmanaged fields to users
 
 ## General Testing Strategy
 

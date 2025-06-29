@@ -228,6 +228,30 @@ Where possible, independent operations execute in parallel:
 - Plan file loading and validation
 - Protected resource handling
 
+## Change Detection Strategy
+
+### Configuration-Based Approach
+
+Following ADR-003-011, the system uses a configuration-based change detection
+strategy that addresses idempotency issues:
+
+- **Only managed fields**: Compare only fields present in user configuration
+- **Ignore API defaults**: Fields not in config are not considered for changes
+- **Sparse updates**: Send only changed fields to the API
+- **No external state**: Configuration file is the single source of truth
+
+This ensures true idempotency where the same configuration always produces
+the same result, regardless of API-added default values.
+
+### Progressive Configuration Discovery
+
+To help users understand unmanaged fields (ADR-003-012):
+
+- **Visibility**: Show fields that exist in API but not in configuration
+- **Current values**: Display what values are set for unmanaged fields
+- **Progressive building**: Allow gradual expansion of configurations
+- **Contextual information**: Provide discovery data during operations
+
 ## Future Considerations
 
 ### Stage 4 Preparation
@@ -242,3 +266,4 @@ Where possible, independent operations execute in parallel:
 - Plan diff visualization
 - Execution history tracking
 - Partial execution resumption
+- Enhanced configuration discovery features

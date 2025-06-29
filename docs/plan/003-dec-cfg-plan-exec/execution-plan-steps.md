@@ -9,6 +9,8 @@
 | 3 | Implement progress reporter | Completed ✅ | Step 2 |
 | 4 | Add portal operations to executor | Completed ✅ | Step 2 |
 | 5 | Implement apply command | Completed ✅ | Steps 3, 4 |
+| 5a | Fix idempotency issue | Not Started | Step 5 |
+| 5b | Add configuration discovery | Not Started | Step 5a |
 | 6 | Implement sync command | Not Started | Steps 3, 4 |
 | 7 | Add plan validation | Not Started | Steps 5, 6 |
 | 8 | Implement confirmation prompts | Not Started | Steps 5, 6 |
@@ -16,7 +18,7 @@
 | 10 | Add integration tests | Not Started | Steps 5, 6, 9 |
 | 11 | Update documentation | Not Started | All steps |
 
-**Current Stage**: Step 5 completed, ready for Step 6 (Sync Command)
+**Current Stage**: Step 5 completed, ready for Step 5a (Fix Idempotency)
 
 ---
 
@@ -455,6 +457,222 @@ func outputResults(result *executor.ExecutionResult, err error, format string) e
 - [x] Clear output and error messages
 - [x] Output formats work correctly
 - [x] Auto-approve enables automation
+
+---
+
+## Step 5a: Fix Idempotency Issue
+
+**Status**: Not Started
+**Dependencies**: Step 5
+
+### Goal
+Fix the issue where consecutive apply commands detect changes when no actual changes exist due to API-added default values.
+
+### Context
+The current hash-based change detection fails to achieve idempotency because:
+- API adds default values not present in user configuration
+- Hash comparison includes these defaults, causing false positives
+- Every apply triggers unnecessary updates
+
+### Implementation
+
+1. **Remove hash-based comparison** from `internal/declarative/planner/planner.go`:
+```go
+// Remove or deprecate:
+// - CalculatePortalHash and hash comparison logic
+// - KONGCTL-config-hash label usage for comparison
+// - Keep hash calculation only if needed for backwards compatibility
+```
+
+2. **Implement configuration-based comparison**:
+```go
+// New approach in planPortalChanges
+func (p *Planner) shouldUpdatePortal(current state.Portal, desired resources.PortalResource) (bool, map[string]interface{}) {
+    updates := make(map[string]interface{})
+    
+    // Only compare fields present in desired configuration
+    if desired.Description != nil {
+        if current.Description == nil || *current.Description != *desired.Description {
+            updates["description"] = *desired.Description
+        }
+    }
+    
+    if desired.DisplayName != nil {
+        if current.DisplayName != *desired.DisplayName {
+            updates["display_name"] = *desired.DisplayName
+        }
+    }
+    
+    // Continue for all user-configurable fields...
+    
+    return len(updates) > 0, updates
+}
+```
+
+3. **Update plan generation logic**:
+```go
+// In planPortalChanges
+if exists {
+    needsUpdate, updates := p.shouldUpdatePortal(current, desired)
+    if needsUpdate {
+        p.planPortalUpdate(current, desired, updates, plan)
+    }
+    // Remove hash comparison entirely
+}
+```
+
+4. **Fix "no changes" confirmation**:
+```go
+// In apply command
+if len(plan.Changes) == 0 {
+    fmt.Println("No changes needed. Resources match configuration.")
+    return nil // Skip confirmation
+}
+```
+
+5. **Update portal operations** for sparse updates:
+```go
+// In updatePortal, only send fields that changed
+func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChange) (string, error) {
+    var updateRequest kkInternalComps.UpdatePortal
+    
+    // Only include fields from change.Fields that actually changed
+    for field, value := range change.Fields {
+        switch field {
+        case "description":
+            desc := value.(string)
+            updateRequest.Description = &desc
+        case "display_name":
+            name := value.(string)
+            updateRequest.DisplayName = &name
+        // ... other fields
+        }
+    }
+    
+    // Send sparse update
+    resp, err := e.client.UpdatePortal(ctx, change.ResourceID, updateRequest, "")
+}
+```
+
+### Tests Required
+- Consecutive applies with no changes show "No changes needed"
+- Minimal config ignores API defaults
+- Only user-specified fields trigger updates
+- Sparse updates send only changed fields
+- Adding new fields to config triggers appropriate updates
+
+### Definition of Done
+- [ ] Hash comparison removed/deprecated
+- [ ] Configuration-based comparison implemented
+- [ ] No confirmation prompt when no changes
+- [ ] Sparse updates working
+- [ ] Tests verify idempotency
+
+---
+
+## Step 5b: Add Configuration Discovery
+
+**Status**: Not Started
+**Dependencies**: Step 5a
+
+### Goal
+Implement a feature to help users discover unmanaged fields and progressively build their configurations.
+
+### Context
+With configuration-based change detection, users need visibility into:
+- What fields are available but not managed
+- Current values of unmanaged fields
+- How to add these fields to their configuration
+
+### Implementation
+
+1. **Add discovery logic** to planner:
+```go
+type UnmanagedFields struct {
+    ResourceType string
+    ResourceName string
+    Fields       map[string]interface{}
+}
+
+func (p *Planner) DiscoverUnmanagedFields(current state.Portal, desired resources.PortalResource) UnmanagedFields {
+    unmanaged := UnmanagedFields{
+        ResourceType: "portal",
+        ResourceName: current.Name,
+        Fields:       make(map[string]interface{}),
+    }
+    
+    // Check each field in current state
+    if desired.DisplayName == nil && current.DisplayName != "" {
+        unmanaged.Fields["display_name"] = current.DisplayName
+    }
+    
+    if desired.AuthenticationEnabled == nil {
+        unmanaged.Fields["authentication_enabled"] = current.AuthenticationEnabled
+    }
+    
+    // Continue for all fields...
+    
+    return unmanaged
+}
+```
+
+2. **Integrate with apply/sync commands**:
+```go
+// Add to command flags
+cmd.Flags().Bool("show-unmanaged", false, "Show unmanaged fields after execution")
+
+// After successful execution
+if showUnmanaged {
+    unmanaged := discoverAllUnmanagedFields(plan, currentState)
+    displayUnmanagedFields(unmanaged)
+}
+```
+
+3. **Create display formatting**:
+```go
+func displayUnmanagedFields(unmanaged []UnmanagedFields) {
+    if len(unmanaged) == 0 {
+        return
+    }
+    
+    fmt.Println("\nDiscovered unmanaged fields:")
+    fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    
+    for _, resource := range unmanaged {
+        if len(resource.Fields) > 0 {
+            fmt.Printf("\n%s: %s\n", resource.ResourceType, resource.ResourceName)
+            for field, value := range resource.Fields {
+                fmt.Printf("  %s: %v\n", field, value)
+            }
+        }
+    }
+    
+    fmt.Println("\nTo manage these fields, add them to your configuration.")
+}
+```
+
+4. **Add verbose discovery mode** (future enhancement):
+```go
+// With --verbose flag
+if verbose {
+    // Include field descriptions
+    // Show which fields are required vs optional
+    // Display allowed values for enums
+}
+```
+
+### Tests Required
+- Discovery correctly identifies unmanaged fields
+- No discovery output when all fields are managed
+- Discovery works across multiple resources
+- Output format is clear and actionable
+
+### Definition of Done
+- [ ] Discovery logic implemented
+- [ ] --show-unmanaged flag added to commands
+- [ ] Clear output format for discovered fields
+- [ ] Integration tests verify discovery
+- [ ] User documentation updated
 
 ---
 
