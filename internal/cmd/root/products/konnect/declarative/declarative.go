@@ -691,11 +691,11 @@ func validateApplyPlan(plan *planner.Plan) error {
 
 func outputNoChangesResult(command *cobra.Command, plan *planner.Plan, format string) error {
 	output := map[string]interface{}{
-		"status": "in_sync",
+		"status": "success",
 		"message": "No changes needed. All resources match the desired configuration.",
-		"result": map[string]interface{}{
-			"changes_needed": 0,
-			"resources_in_sync": true,
+		"summary": map[string]interface{}{
+			"changes_applied": 0,
+			"sync_status": "in_sync",
 			"plan_mode": plan.Metadata.Mode,
 		},
 		"plan_metadata": map[string]interface{}{
