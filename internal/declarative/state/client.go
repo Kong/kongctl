@@ -118,7 +118,17 @@ func (c *Client) CreatePortal(
 	debugLog("After adding managed labels: %+v", normalized)
 	
 	portal.Labels = labels.DenormalizeLabels(normalized)
-	debugLog("Final denormalized labels: %+v", portal.Labels)
+	// Log actual label values for debugging
+	if portal.Labels != nil {
+		debugLog("Final labels for portal:")
+		for k, v := range portal.Labels {
+			if v != nil {
+				debugLog("  %s = %s", k, *v)
+			} else {
+				debugLog("  %s = <nil>", k)
+			}
+		}
+	}
 
 	resp, err := c.portalAPI.CreatePortal(ctx, portal)
 	if err != nil {

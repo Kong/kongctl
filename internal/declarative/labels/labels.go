@@ -57,7 +57,9 @@ func AddManagedLabels(labels map[string]string, configHash string) map[string]st
 	// Add management labels
 	result[ManagedKey] = "true"
 	result[ConfigHashKey] = sanitizeLabelValue(configHash)
-	result[LastUpdatedKey] = time.Now().UTC().Format(time.RFC3339)
+	// Use a timestamp format that only contains allowed characters for labels
+	// Format: YYYYMMDD-HHMMSSZ (no colons allowed in label values)
+	result[LastUpdatedKey] = time.Now().UTC().Format("20060102-150405Z")
 	
 	return result
 }

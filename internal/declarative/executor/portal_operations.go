@@ -172,7 +172,7 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 	
 	// Update management labels with new hash and timestamp
 	allLabels := labels.AddManagedLabels(userLabels, change.ConfigHash)
-	allLabels[labels.LastUpdatedKey] = time.Now().UTC().Format(time.RFC3339)
+	allLabels[labels.LastUpdatedKey] = time.Now().UTC().Format("20060102-150405Z")
 	updatePortal.Labels = labels.DenormalizeLabels(allLabels)
 	
 	// Update the portal

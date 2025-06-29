@@ -404,9 +404,9 @@ func checkManagedLabels(t *testing.T, labels map[string]string, expectedHash str
 		t.Errorf("Expected %s=%s, got %s", ConfigHashKey, expectedHash, labels[ConfigHashKey])
 	}
 	
-	// Check timestamp format
+	// Check timestamp format - should be YYYYMMDD-HHMMSSZ
 	timestamp := labels[LastUpdatedKey]
-	if _, err := time.Parse(time.RFC3339, timestamp); err != nil {
+	if _, err := time.Parse("20060102-150405Z", timestamp); err != nil {
 		t.Errorf("Invalid timestamp format: %s, error: %v", timestamp, err)
 	}
 }
