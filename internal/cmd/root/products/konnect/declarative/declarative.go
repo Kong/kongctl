@@ -1,6 +1,7 @@
 package declarative
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -632,6 +633,10 @@ func runApply(command *cobra.Command, args []string) error {
 		}
 	}
 	
+	// Store plan in context for output formatting
+	ctx = context.WithValue(ctx, "current_plan", plan)
+	command.SetContext(ctx)
+	
 	// Validate plan for apply
 	if err := validateApplyPlan(plan); err != nil {
 		return err
@@ -641,11 +646,18 @@ func runApply(command *cobra.Command, args []string) error {
 	if plan.IsEmpty() {
 		if outputFormat == "text" {
 			fmt.Fprintln(command.OutOrStderr(), "No changes needed. Resources match configuration.")
+			return nil
 		} else {
-			// For JSON/YAML output, provide informative response
-			return outputNoChangesResult(command, plan, outputFormat)
+			// Use consistent output format with empty result
+			emptyResult := &executor.ExecutionResult{
+				SuccessCount: 0,
+				FailureCount: 0,
+				SkippedCount: 0,
+				DryRun:       dryRun,
+				ChangesApplied: []executor.AppliedChange{},
+			}
+			return outputApplyResults(command, emptyResult, nil, outputFormat)
 		}
-		return nil
 	}
 	
 	// Show summary and confirm (only in text mode)
@@ -689,20 +701,59 @@ func validateApplyPlan(plan *planner.Plan) error {
 	return nil
 }
 
-func outputNoChangesResult(command *cobra.Command, plan *planner.Plan, format string) error {
-	output := map[string]interface{}{
-		"status": "success",
-		"message": "No changes needed. All resources match the desired configuration.",
-		"summary": map[string]interface{}{
-			"changes_applied": 0,
-			"sync_status": "in_sync",
-			"plan_mode": plan.Metadata.Mode,
-		},
-		"plan_metadata": map[string]interface{}{
+
+func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult, err error, format string) error {
+	// Get plan metadata from context if available
+	var planMetadata map[string]interface{}
+	if plan, ok := command.Context().Value("current_plan").(*planner.Plan); ok && plan != nil {
+		planMetadata = map[string]interface{}{
 			"generated_at": plan.Metadata.GeneratedAt,
 			"version": plan.Metadata.Version,
 			"config_hash": plan.Metadata.ConfigHash,
+			"mode": plan.Metadata.Mode,
+		}
+	}
+	
+	// Build consistent output structure
+	output := map[string]interface{}{
+		"status": "success",
+		"summary": map[string]interface{}{
+			"changes_applied": result.SuccessCount,
+			"failures": result.FailureCount,
+			"skipped": result.SkippedCount,
+			"sync_status": "updated",
 		},
+	}
+	
+	// Add appropriate message and sync status
+	if result.FailureCount > 0 {
+		output["status"] = "partial_success"
+		output["message"] = fmt.Sprintf("Apply completed with %d errors", result.FailureCount)
+		output["summary"].(map[string]interface{})["sync_status"] = "partial_sync"
+	} else if result.SuccessCount > 0 {
+		output["message"] = fmt.Sprintf("Successfully applied %d changes", result.SuccessCount)
+		output["summary"].(map[string]interface{})["sync_status"] = "updated"
+	} else {
+		output["message"] = "No changes needed. All resources match the desired configuration."
+		output["summary"].(map[string]interface{})["sync_status"] = "in_sync"
+	}
+	
+	// Add plan metadata if available
+	if planMetadata != nil {
+		output["plan_metadata"] = planMetadata
+	}
+	
+	// Add execution details
+	output["execution_details"] = map[string]interface{}{
+		"dry_run": result.DryRun,
+		"changes": result.ChangesApplied,
+		"errors": result.Errors,
+	}
+	
+	// Add error if present
+	if err != nil {
+		output["status"] = "error"
+		output["error"] = err.Error()
 	}
 	
 	switch format {
@@ -712,36 +763,6 @@ func outputNoChangesResult(command *cobra.Command, plan *planner.Plan, format st
 		return encoder.Encode(output)
 		
 	case "yaml":
-		yamlData, err := yaml.Marshal(output)
-		if err != nil {
-			return fmt.Errorf("failed to marshal result to YAML: %w", err)
-		}
-		fmt.Fprintln(command.OutOrStdout(), string(yamlData))
-		return nil
-		
-	default:
-		return fmt.Errorf("unsupported format: %s", format)
-	}
-}
-
-func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult, err error, format string) error {
-	switch format {
-	case "json":
-		output := map[string]interface{}{
-			"execution_result": result,
-		}
-		if err != nil {
-			output["error"] = err.Error()
-		}
-		return json.NewEncoder(command.OutOrStdout()).Encode(output)
-		
-	case "yaml":
-		output := map[string]interface{}{
-			"execution_result": result,
-		}
-		if err != nil {
-			output["error"] = err.Error()
-		}
 		yamlData, err := yaml.Marshal(output)
 		if err != nil {
 			return fmt.Errorf("failed to marshal result to YAML: %w", err)
