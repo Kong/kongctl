@@ -642,12 +642,8 @@ func runApply(command *cobra.Command, args []string) error {
 		if outputFormat == "text" {
 			fmt.Fprintln(command.OutOrStderr(), "No changes needed. Resources match configuration.")
 		} else {
-			// For JSON/YAML output, still output an empty result
-			return outputApplyResults(command, &executor.ExecutionResult{
-				SuccessCount: 0,
-				FailureCount: 0,
-				SkippedCount: 0,
-			}, nil, outputFormat)
+			// For JSON/YAML output, provide informative response
+			return outputNoChangesResult(command, plan, outputFormat)
 		}
 		return nil
 	}
@@ -691,6 +687,41 @@ func validateApplyPlan(plan *planner.Plan) error {
 	}
 	
 	return nil
+}
+
+func outputNoChangesResult(command *cobra.Command, plan *planner.Plan, format string) error {
+	output := map[string]interface{}{
+		"status": "in_sync",
+		"message": "No changes needed. All resources match the desired configuration.",
+		"result": map[string]interface{}{
+			"changes_needed": 0,
+			"resources_in_sync": true,
+			"plan_mode": plan.Metadata.Mode,
+		},
+		"plan_metadata": map[string]interface{}{
+			"generated_at": plan.Metadata.GeneratedAt,
+			"version": plan.Metadata.Version,
+			"config_hash": plan.Metadata.ConfigHash,
+		},
+	}
+	
+	switch format {
+	case "json":
+		encoder := json.NewEncoder(command.OutOrStdout())
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(output)
+		
+	case "yaml":
+		yamlData, err := yaml.Marshal(output)
+		if err != nil {
+			return fmt.Errorf("failed to marshal result to YAML: %w", err)
+		}
+		fmt.Fprintln(command.OutOrStdout(), string(yamlData))
+		return nil
+		
+	default:
+		return fmt.Errorf("unsupported format: %s", format)
+	}
 }
 
 func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult, err error, format string) error {
