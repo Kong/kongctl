@@ -259,12 +259,12 @@ func TestIsKongctlLabel(t *testing.T) {
 	}{
 		{
 			name:     "kongctl label",
-			key:      "kongctl-managed",
+			key:      "KONGCTL-managed",
 			expected: true,
 		},
 		{
 			name:     "kongctl label with different suffix",
-			key:      "kongctl-custom",
+			key:      "KONGCTL-custom",
 			expected: true,
 		},
 		{

@@ -176,12 +176,16 @@ func (p *Planner) planPortalChanges(ctx context.Context, desired []resources.Por
 						p.planPortalUpdate(current, desiredPortal, configHash, plan)
 					}
 				}
-			} else if currentHash != configHash {
-				// Regular update - check protection
-				if err := p.validateProtection("portal", desiredPortal.Name, isProtected, ActionUpdate); err != nil {
-					protectionErrors = append(protectionErrors, err)
-				} else {
-					p.planPortalUpdate(current, desiredPortal, configHash, plan)
+			} else {
+				// Check if update needed based on configuration
+				needsUpdate, updateFields := p.shouldUpdatePortal(current, desiredPortal)
+				if needsUpdate {
+					// Regular update - check protection
+					if err := p.validateProtection("portal", desiredPortal.Name, isProtected, ActionUpdate); err != nil {
+						protectionErrors = append(protectionErrors, err)
+					} else {
+						p.planPortalUpdateWithFields(current, desiredPortal, updateFields, configHash, plan)
+					}
 				}
 			}
 		}
@@ -257,13 +261,72 @@ func (p *Planner) planPortalCreate(portal resources.PortalResource, configHash s
 	plan.AddChange(change)
 }
 
-// planPortalUpdate creates an UPDATE change for a portal
+// shouldUpdatePortal checks if portal needs update based on configured fields only
+func (p *Planner) shouldUpdatePortal(
+	current state.Portal, 
+	desired resources.PortalResource,
+) (bool, map[string]interface{}) {
+	updates := make(map[string]interface{})
+	
+	// Only compare fields present in desired configuration
+	if desired.Description != nil {
+		currentDesc := getString(current.Description)
+		if currentDesc != *desired.Description {
+			updates["description"] = *desired.Description
+		}
+	}
+	
+	if desired.DisplayName != nil {
+		if current.DisplayName != *desired.DisplayName {
+			updates["display_name"] = *desired.DisplayName
+		}
+	}
+	
+	if desired.DefaultApplicationAuthStrategyID != nil {
+		currentAuthID := getString(current.DefaultApplicationAuthStrategyID)
+		if currentAuthID != *desired.DefaultApplicationAuthStrategyID {
+			updates["default_application_auth_strategy_id"] = *desired.DefaultApplicationAuthStrategyID
+		}
+	}
+	
+	if desired.AuthenticationEnabled != nil {
+		if current.AuthenticationEnabled != *desired.AuthenticationEnabled {
+			updates["authentication_enabled"] = *desired.AuthenticationEnabled
+		}
+	}
+	
+	if desired.RbacEnabled != nil {
+		if current.RbacEnabled != *desired.RbacEnabled {
+			updates["rbac_enabled"] = *desired.RbacEnabled
+		}
+	}
+	
+	if desired.AutoApproveDevelopers != nil {
+		if current.AutoApproveDevelopers != *desired.AutoApproveDevelopers {
+			updates["auto_approve_developers"] = *desired.AutoApproveDevelopers
+		}
+	}
+	
+	if desired.AutoApproveApplications != nil {
+		if current.AutoApproveApplications != *desired.AutoApproveApplications {
+			updates["auto_approve_applications"] = *desired.AutoApproveApplications
+		}
+	}
+	
+	// Add other configurable fields as needed...
+	
+	return len(updates) > 0, updates
+}
+
+// planPortalUpdate creates an UPDATE change for a portal (legacy - for protection changes)
 func (p *Planner) planPortalUpdate(
 	current state.Portal, 
 	desired resources.PortalResource, 
 	configHash string, 
 	plan *Plan,
 ) {
+	// This is now only used for protection status changes
+	// For regular updates, use planPortalUpdateWithFields
 	fields := make(map[string]interface{})
 	dependencies := []string{}
 
@@ -316,6 +379,45 @@ func (p *Planner) planPortalUpdate(
 
 		plan.AddChange(change)
 	}
+}
+
+// planPortalUpdateWithFields creates an UPDATE change with specific fields
+func (p *Planner) planPortalUpdateWithFields(
+	current state.Portal,
+	desired resources.PortalResource,
+	updateFields map[string]interface{},
+	configHash string,
+	plan *Plan,
+) {
+	fields := make(map[string]interface{})
+	
+	// Store the fields that need updating
+	// Note: We store the new values directly, not FieldChange structs
+	// This simplifies the executor's job
+	for field, newValue := range updateFields {
+		fields[field] = newValue
+	}
+	
+	// Always include name for identification
+	fields["name"] = current.Name
+	
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionUpdate, desired.GetRef()),
+		ResourceType: "portal",
+		ResourceRef:  desired.GetRef(),
+		ResourceID:   current.ID,
+		Action:       ActionUpdate,
+		Fields:       fields,
+		ConfigHash:   configHash,
+		DependsOn:    []string{},
+	}
+	
+	// Check if already protected
+	if current.NormalizedLabels[labels.ProtectedKey] == "true" {
+		change.Protection = true
+	}
+	
+	plan.AddChange(change)
 }
 
 // planProtectionChange creates a separate UPDATE for protection status

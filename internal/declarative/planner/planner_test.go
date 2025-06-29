@@ -162,11 +162,10 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 	assert.Equal(t, "dev-portal", change.ResourceRef)
 	assert.Equal(t, "portal-123", change.ResourceID)
 
-	// Check only description field changed
-	assert.Len(t, change.Fields, 1)
-	descChange := change.Fields["description"].(FieldChange)
-	assert.Equal(t, oldDesc, descChange.Old)
-	assert.Equal(t, newDesc, descChange.New)
+	// Check fields - now storing raw values instead of FieldChange
+	assert.Len(t, change.Fields, 2) // name + description
+	assert.Equal(t, "dev-portal", change.Fields["name"])
+	assert.Equal(t, newDesc, change.Fields["description"])
 
 	mockAPI.AssertExpectations(t)
 }

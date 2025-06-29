@@ -27,13 +27,31 @@ func TestConfirmExecution(t *testing.T) {
 						planner.ActionUpdate: 1,
 					},
 				},
+				Changes: []planner.PlannedChange{
+					{
+						Action:       planner.ActionCreate,
+						ResourceType: "portal",
+						ResourceRef:  "new-portal-1",
+					},
+					{
+						Action:       planner.ActionCreate,
+						ResourceType: "portal",
+						ResourceRef:  "new-portal-2",
+					},
+					{
+						Action:       planner.ActionUpdate,
+						ResourceType: "api",
+						ResourceRef:  "existing-api",
+					},
+				},
 			},
 			input:    "yes\n",
 			expected: true,
 			checkStdout: func(t *testing.T, stdout string) {
 				assert.Contains(t, stdout, "Plan Summary:")
-				assert.Contains(t, stdout, "- Create: 2 resources")
-				assert.Contains(t, stdout, "- Update: 1 resources")
+				assert.Contains(t, stdout, "Resources to create")
+				assert.Contains(t, stdout, "portal (2)")
+				assert.Contains(t, stdout, "Resources to update")
 			},
 			checkStderr: func(t *testing.T, stderr string) {
 				assert.Contains(t, stderr, "Do you want to continue? Type 'yes' to confirm:")
@@ -101,6 +119,13 @@ func TestConfirmExecution(t *testing.T) {
 						planner.ActionCreate: 1,
 					},
 				},
+				Changes: []planner.PlannedChange{
+					{
+						Action:       planner.ActionCreate,
+						ResourceType: "portal",
+						ResourceRef:  "portal-with-warning",
+					},
+				},
 				Warnings: []planner.PlanWarning{
 					{Message: "Resource foo has unresolved references"},
 					{Message: "Resource bar may be protected"},
@@ -109,7 +134,7 @@ func TestConfirmExecution(t *testing.T) {
 			input:    "yes\n",
 			expected: true,
 			checkStdout: func(t *testing.T, stdout string) {
-				assert.Contains(t, stdout, "Warnings: 2")
+				assert.Contains(t, stdout, "Warnings (2):")
 				assert.Contains(t, stdout, "⚠ Resource foo has unresolved references")
 				assert.Contains(t, stdout, "⚠ Resource bar may be protected")
 			},
@@ -151,12 +176,22 @@ func TestDisplayPlanSummary(t *testing.T) {
 						planner.ActionDelete: 1,
 					},
 				},
+				Changes: []planner.PlannedChange{
+					{Action: planner.ActionCreate, ResourceType: "portal", ResourceRef: "p1"},
+					{Action: planner.ActionCreate, ResourceType: "portal", ResourceRef: "p2"},
+					{Action: planner.ActionCreate, ResourceType: "api", ResourceRef: "a1"},
+					{Action: planner.ActionUpdate, ResourceType: "portal", ResourceRef: "p3"},
+					{Action: planner.ActionUpdate, ResourceType: "api", ResourceRef: "a2"},
+					{Action: planner.ActionDelete, ResourceType: "portal", ResourceRef: "p4"},
+				},
 			},
 			expected: []string{
 				"Plan Summary:",
-				"- Create: 3 resources",
-				"- Update: 2 resources",
-				"- Delete: 1 resources",
+				"Resources to create",
+				"portal (2)",
+				"api (1)",
+				"Resources to update",
+				"Resources to delete",
 			},
 		},
 		{
@@ -167,10 +202,19 @@ func TestDisplayPlanSummary(t *testing.T) {
 						planner.ActionCreate: 5,
 					},
 				},
+				Changes: []planner.PlannedChange{
+					{Action: planner.ActionCreate, ResourceType: "portal", ResourceRef: "p1"},
+					{Action: planner.ActionCreate, ResourceType: "portal", ResourceRef: "p2"},
+					{Action: planner.ActionCreate, ResourceType: "portal", ResourceRef: "p3"},
+					{Action: planner.ActionCreate, ResourceType: "api", ResourceRef: "a1"},
+					{Action: planner.ActionCreate, ResourceType: "api", ResourceRef: "a2"},
+				},
 			},
 			expected: []string{
 				"Plan Summary:",
-				"- Create: 5 resources",
+				"Resources to create",
+				"portal (3)",
+				"api (2)",
 			},
 		},
 		{

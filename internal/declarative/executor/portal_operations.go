@@ -106,7 +106,7 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 		return "", fmt.Errorf("resource is protected and cannot be updated")
 	}
 	
-	// Build update request
+	// Build sparse update request - only include fields that changed
 	var updatePortal kkInternalComps.UpdatePortal
 	
 	// Name is always required for updates
@@ -116,33 +116,52 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 		return "", fmt.Errorf("portal name is required")
 	}
 	
-	// Optional fields
-	if desc, ok := change.Fields["description"].(string); ok {
-		updatePortal.Description = &desc
+	// Only include fields that are in the change.Fields map (excluding "name")
+	// These represent actual changes detected by the planner
+	for field, value := range change.Fields {
+		switch field {
+		case "description":
+			if desc, ok := value.(string); ok {
+				updatePortal.Description = &desc
+			}
+		case "display_name":
+			if displayName, ok := value.(string); ok {
+				updatePortal.DisplayName = &displayName
+			}
+		case "authentication_enabled":
+			if authEnabled, ok := value.(bool); ok {
+				updatePortal.AuthenticationEnabled = &authEnabled
+			}
+		case "rbac_enabled":
+			if rbacEnabled, ok := value.(bool); ok {
+				updatePortal.RbacEnabled = &rbacEnabled
+			}
+		case "auto_approve_developers":
+			if autoApproveDevelopers, ok := value.(bool); ok {
+				updatePortal.AutoApproveDevelopers = &autoApproveDevelopers
+			}
+		case "auto_approve_applications":
+			if autoApproveApplications, ok := value.(bool); ok {
+				updatePortal.AutoApproveApplications = &autoApproveApplications
+			}
+		case "default_application_auth_strategy_id":
+			if authID, ok := value.(string); ok {
+				updatePortal.DefaultApplicationAuthStrategyID = &authID
+			}
+		// Skip "name" as it's already handled above
+		// Skip "labels" as they're handled separately below
+		}
 	}
 	
-	if displayName, ok := change.Fields["display_name"].(string); ok {
-		updatePortal.DisplayName = &displayName
-	}
-	
-	if authEnabled, ok := change.Fields["authentication_enabled"].(bool); ok {
-		updatePortal.AuthenticationEnabled = &authEnabled
-	}
-	
-	if rbacEnabled, ok := change.Fields["rbac_enabled"].(bool); ok {
-		updatePortal.RbacEnabled = &rbacEnabled
-	}
-	
-	if autoApproveDevelopers, ok := change.Fields["auto_approve_developers"].(bool); ok {
-		updatePortal.AutoApproveDevelopers = &autoApproveDevelopers
-	}
-	
-	if autoApproveApplications, ok := change.Fields["auto_approve_applications"].(bool); ok {
-		updatePortal.AutoApproveApplications = &autoApproveApplications
-	}
-	
-	// Handle labels - preserve user labels and update management labels
+	// Handle labels - preserve existing user labels from the portal
 	userLabels := make(map[string]string)
+	for k, v := range portal.Labels {
+		if !labels.IsKongctlLabel(k) {
+			userLabels[k] = v
+		}
+	}
+	
+	// Apply any label updates from the change
 	if labelsField, ok := change.Fields["labels"].(map[string]interface{}); ok {
 		for k, v := range labelsField {
 			if strVal, ok := v.(string); ok && !labels.IsKongctlLabel(k) {

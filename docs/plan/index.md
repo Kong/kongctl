@@ -15,7 +15,7 @@ This folder contains the complete planning and implementation tracking for all k
 - **Architecture Decisions**: [003-dec-cfg-plan-exec/execution-plan-adrs.md](003-dec-cfg-plan-exec/execution-plan-adrs.md) ✅ Complete
 - **Goal**: Execute plans generated in Stage 2, applying changes to Konnect
 
-**Next Step**: Implement Step 5a - Fix Idempotency Issue
+**Next Step**: Implement Step 5b - Add Configuration Discovery
 
 **Important Decision**: Moving to configuration-based change detection to fix idempotency issues (ADR-003-011)
 
@@ -91,7 +91,7 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](003-dec-cfg-plan-exec/execution-plan-steps.md) | **Implementation guide** | ✅ Complete |
 | [execution-plan-adrs.md](003-dec-cfg-plan-exec/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: 5/13 steps completed (38%) - In Progress
+**Implementation Status**: 6/13 steps completed (46%) - In Progress
 - **Dependencies**: Stage 2 completion ✅ Met
 - **Key deliverables**: 
   - Mode-aware plan generation (apply vs sync)
@@ -126,7 +126,7 @@ Stages 1 and 2 are complete. Stage 3 planning is complete and ready for implemen
 - Stage 2: Plan Generation with Label Management ✅ **COMPLETED**
 
 **Current Stage**:
-- Stage 3: Plan Execution ⏳ **In Progress** (5/13 steps)
+- Stage 3: Plan Execution ⏳ **In Progress** (6/13 steps)
 
 **To begin implementation**: Start with Step 5a in [003-dec-cfg-plan-exec/execution-plan-steps.md](003-dec-cfg-plan-exec/execution-plan-steps.md)
 

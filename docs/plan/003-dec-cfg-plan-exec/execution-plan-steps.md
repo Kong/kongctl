@@ -9,7 +9,7 @@
 | 3 | Implement progress reporter | Completed ✅ | Step 2 |
 | 4 | Add portal operations to executor | Completed ✅ | Step 2 |
 | 5 | Implement apply command | Completed ✅ | Steps 3, 4 |
-| 5a | Fix idempotency issue | Not Started | Step 5 |
+| 5a | Fix idempotency issue | Completed ✅ | Step 5 |
 | 5b | Add configuration discovery | Not Started | Step 5a |
 | 6 | Implement sync command | Not Started | Steps 3, 4 |
 | 7 | Add plan validation | Not Started | Steps 5, 6 |
@@ -18,7 +18,7 @@
 | 10 | Add integration tests | Not Started | Steps 5, 6, 9 |
 | 11 | Update documentation | Not Started | All steps |
 
-**Current Stage**: Step 5 completed, ready for Step 5a (Fix Idempotency)
+**Current Stage**: Step 5a completed, ready for Step 5b (Configuration Discovery)
 
 ---
 
@@ -462,7 +462,7 @@ func outputResults(result *executor.ExecutionResult, err error, format string) e
 
 ## Step 5a: Fix Idempotency Issue
 
-**Status**: Not Started
+**Status**: Completed ✅
 **Dependencies**: Step 5
 
 ### Goal
@@ -562,11 +562,11 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 - Adding new fields to config triggers appropriate updates
 
 ### Definition of Done
-- [ ] Hash comparison removed/deprecated
-- [ ] Configuration-based comparison implemented
-- [ ] No confirmation prompt when no changes
-- [ ] Sparse updates working
-- [ ] Tests verify idempotency
+- [x] Hash comparison removed/deprecated
+- [x] Configuration-based comparison implemented
+- [x] No confirmation prompt when no changes
+- [x] Sparse updates working
+- [x] Tests verify idempotency
 
 ---
 

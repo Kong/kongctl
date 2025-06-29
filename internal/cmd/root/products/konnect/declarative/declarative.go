@@ -535,7 +535,8 @@ func runApply(command *cobra.Command, args []string) error {
 		// Check if stdin will be used for configuration
 		for _, filename := range filenames {
 			if filename == "-" {
-				return fmt.Errorf("cannot use stdin for configuration input without --auto-approve flag (interactive confirmation not possible when stdin is piped)")
+				return fmt.Errorf("cannot use stdin for configuration input without --auto-approve flag " +
+					"(interactive confirmation not possible when stdin is piped)")
 			}
 		}
 	}
@@ -634,6 +635,21 @@ func runApply(command *cobra.Command, args []string) error {
 	// Validate plan for apply
 	if err := validateApplyPlan(plan); err != nil {
 		return err
+	}
+	
+	// Check if plan is empty (no changes needed)
+	if plan.IsEmpty() {
+		if outputFormat == "text" {
+			fmt.Fprintln(command.OutOrStderr(), "No changes needed. Resources match configuration.")
+		} else {
+			// For JSON/YAML output, still output an empty result
+			return outputApplyResults(command, &executor.ExecutionResult{
+				SuccessCount: 0,
+				FailureCount: 0,
+				SkippedCount: 0,
+			}, nil, outputFormat)
+		}
+		return nil
 	}
 	
 	// Show summary and confirm (only in text mode)

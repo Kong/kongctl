@@ -57,7 +57,7 @@ func AddManagedLabels(labels map[string]string, configHash string) map[string]st
 	// Add management labels
 	result[ManagedKey] = "true"
 	result[ConfigHashKey] = sanitizeLabelValue(configHash)
-	result[LastUpdatedKey] = time.Now().UTC().Format("20060102T150405Z")
+	result[LastUpdatedKey] = time.Now().UTC().Format(time.RFC3339)
 	
 	return result
 }
@@ -87,6 +87,11 @@ func IsKongctlLabel(key string) bool {
 func ValidateLabel(key string) error {
 	if len(key) < 1 || len(key) > 63 {
 		return fmt.Errorf("label key must be 1-63 characters: %s", key)
+	}
+	
+	// Allow our KONGCTL labels
+	if strings.HasPrefix(key, "KONGCTL-") || strings.HasPrefix(key, "kongctl-") {
+		return nil
 	}
 	
 	// Check forbidden prefixes
