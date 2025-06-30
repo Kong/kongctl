@@ -1,5 +1,5 @@
 portals:
   - ref: simplest-portal
     name: simple 
-    description: "Updated minimal developer portal configuration"
-    # display_name: "Developer Portal"
+    description: "Minimal developer portal configuration"
+    # display_name: "Ye olde Portal"

@@ -48,9 +48,9 @@ func (r *ConsoleReporter) StartExecution(plan *planner.Plan) {
 	}
 	
 	if r.dryRun {
-		fmt.Fprintf(r.writer, "Executing plan (%s, dry-run)...\n", mode)
+		fmt.Fprintf(r.writer, "Executing plan (%s, dry-run):\n", mode)
 	} else {
-		fmt.Fprintf(r.writer, "Executing plan (%s)...\n", mode)
+		fmt.Fprintf(r.writer, "Executing plan (%s):\n", mode)
 	}
 }
 
@@ -65,7 +65,7 @@ func (r *ConsoleReporter) StartChange(change planner.PlannedChange) {
 		resourceName = fmt.Sprintf("%s/%s", change.ResourceType, change.ID)
 	}
 	
-	fmt.Fprintf(r.writer, "%s %s: %s... ", action, change.ResourceType, resourceName)
+	fmt.Fprintf(r.writer, "- %s %s: %s... ", action, change.ResourceType, resourceName)
 }
 
 // CompleteChange is called after a change is executed (success or failure)

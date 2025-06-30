@@ -703,71 +703,132 @@ func validateApplyPlan(plan *planner.Plan) error {
 
 
 func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult, err error, format string) error {
-	// Get plan metadata from context if available
-	var planMetadata map[string]interface{}
+	// Build the plan section first
+	var planSection map[string]interface{}
 	if plan, ok := command.Context().Value("current_plan").(*planner.Plan); ok && plan != nil {
-		planMetadata = map[string]interface{}{
-			"generated_at": plan.Metadata.GeneratedAt,
-			"version": plan.Metadata.Version,
-			"config_hash": plan.Metadata.ConfigHash,
-			"mode": plan.Metadata.Mode,
+		planSection = map[string]interface{}{
+			"metadata": map[string]interface{}{
+				"version": plan.Metadata.Version,
+				"generated_at": plan.Metadata.GeneratedAt,
+				"mode": plan.Metadata.Mode,
+				"config_hash": plan.Metadata.ConfigHash,
+			},
+		}
+		
+		// Extract planned changes from the plan
+		var plannedChanges []map[string]interface{}
+		for _, change := range plan.Changes {
+			plannedChanges = append(plannedChanges, map[string]interface{}{
+				"change_id": change.ID,
+				"resource_type": change.ResourceType,
+				"resource_ref": change.ResourceRef,
+				"action": change.Action,
+			})
+		}
+		if len(plannedChanges) > 0 {
+			planSection["planned_changes"] = plannedChanges
 		}
 	}
 	
-	// Build consistent output structure
-	output := map[string]interface{}{
-		"status": "success",
-		"summary": map[string]interface{}{
-			"changes_applied": result.SuccessCount,
-			"failures": result.FailureCount,
-			"skipped": result.SkippedCount,
-			"sync_status": "updated",
-		},
-	}
-	
-	// Add appropriate message and sync status
-	if result.FailureCount > 0 {
-		output["status"] = "partial_success"
-		output["message"] = fmt.Sprintf("Apply completed with %d errors", result.FailureCount)
-		output["summary"].(map[string]interface{})["sync_status"] = "partial_sync"
-	} else if result.SuccessCount > 0 {
-		output["message"] = fmt.Sprintf("Successfully applied %d changes", result.SuccessCount)
-		output["summary"].(map[string]interface{})["sync_status"] = "updated"
-	} else {
-		output["message"] = "No changes needed. All resources match the desired configuration."
-		output["summary"].(map[string]interface{})["sync_status"] = "in_sync"
-	}
-	
-	// Add plan metadata if available
-	if planMetadata != nil {
-		output["plan_metadata"] = planMetadata
-	}
-	
-	// Add execution details
-	output["execution_details"] = map[string]interface{}{
+	// Build the execution section
+	execution := map[string]interface{}{
 		"dry_run": result.DryRun,
-		"changes": result.ChangesApplied,
-		"errors": result.Errors,
 	}
 	
-	// Add error if present
+	// Add appropriate execution details based on mode
+	if result.DryRun {
+		if len(result.ValidationResults) > 0 {
+			execution["validation_results"] = result.ValidationResults
+		}
+	} else {
+		if len(result.ChangesApplied) > 0 {
+			execution["applied_changes"] = result.ChangesApplied
+		}
+	}
+	
+	// Always include errors if present
+	if len(result.Errors) > 0 {
+		execution["errors"] = result.Errors
+	}
+	
+	// Build the summary section
+	summary := map[string]interface{}{
+		"total_changes": result.TotalChanges(),
+		"applied": result.SuccessCount,
+		"failed": result.FailureCount,
+		"skipped": result.SkippedCount,
+		"status": "success",
+	}
+	
+	// Determine appropriate message and status
 	if err != nil {
-		output["status"] = "error"
-		output["error"] = err.Error()
+		summary["status"] = "error"
+		summary["message"] = fmt.Sprintf("Apply failed: %v", err)
+		summary["error"] = err.Error()
+	} else if result.FailureCount > 0 {
+		summary["status"] = "partial_success"
+		summary["message"] = fmt.Sprintf("Apply completed with %d errors", result.FailureCount)
+	} else if result.SuccessCount > 0 {
+		summary["message"] = fmt.Sprintf("Successfully applied %d changes", result.SuccessCount)
+	} else if result.SkippedCount > 0 && result.DryRun {
+		summary["message"] = fmt.Sprintf("Dry-run complete. %d changes would be applied.", result.SkippedCount)
+	} else {
+		summary["message"] = "No changes needed. All resources match the desired configuration."
 	}
 	
 	switch format {
 	case "json":
-		encoder := json.NewEncoder(command.OutOrStdout())
-		encoder.SetIndent("", "  ")
-		return encoder.Encode(output)
+		// Use custom JSON encoding to preserve field order
+		out := command.OutOrStdout()
+		fmt.Fprintln(out, "{")
+		
+		// Output plan first if present
+		if planSection != nil {
+			planJSON, _ := json.MarshalIndent(planSection, "  ", "  ")
+			fmt.Fprintf(out, "  \"plan\": %s,\n", planJSON)
+		}
+		
+		// Output execution second
+		execJSON, _ := json.MarshalIndent(execution, "  ", "  ")
+		fmt.Fprintf(out, "  \"execution\": %s,\n", execJSON)
+		
+		// Output summary last
+		summaryJSON, _ := json.MarshalIndent(summary, "  ", "  ")
+		fmt.Fprintf(out, "  \"summary\": %s\n", summaryJSON)
+		
+		fmt.Fprintln(out, "}")
+		return nil
 		
 	case "yaml":
-		yamlData, err := yaml.Marshal(output)
-		if err != nil {
-			return fmt.Errorf("failed to marshal result to YAML: %w", err)
+		// Build YAML content manually to preserve order
+		out := command.OutOrStdout()
+		
+		// Output plan first if present
+		if planSection != nil {
+			fmt.Fprintln(out, "plan:")
+			planYAML, _ := yaml.Marshal(planSection)
+			planLines := strings.Split(strings.TrimSpace(string(planYAML)), "\n")
+			for _, line := range planLines {
+				fmt.Fprintf(out, "  %s\n", line)
+			}
 		}
-		fmt.Fprintln(command.OutOrStdout(), string(yamlData))
+		
+		// Output execution second
+		fmt.Fprintln(out, "execution:")
+		execYAML, _ := yaml.Marshal(execution)
+		execLines := strings.Split(strings.TrimSpace(string(execYAML)), "\n")
+		for _, line := range execLines {
+			fmt.Fprintf(out, "  %s\n", line)
+		}
+		
+		// Output summary last
+		fmt.Fprintln(out, "summary:")
+		summaryYAML, _ := yaml.Marshal(summary)
+		summaryLines := strings.Split(strings.TrimSpace(string(summaryYAML)), "\n")
+		for _, line := range summaryLines {
+			fmt.Fprintf(out, "  %s\n", line)
+		}
+		
 		return nil
 		
 	default: // text
@@ -775,10 +836,7 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 			return err
 		}
 		// Human-readable output already handled by progress reporter
-		// Just print a final summary if execution completed
-		if result != nil {
-			fmt.Fprintln(command.OutOrStdout(), result.Message())
-		}
+		// Don't print additional messages as it would be redundant
 		return nil
 	}
 }
