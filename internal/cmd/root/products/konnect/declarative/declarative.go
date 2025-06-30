@@ -25,6 +25,8 @@ type contextKey string
 const (
 	// currentPlanKey is the context key for storing the current plan
 	currentPlanKey contextKey = "current_plan"
+	// planFileKey is the context key for storing the plan file path
+	planFileKey contextKey = "plan_file"
 )
 
 // NewDeclarativeCmd creates the appropriate declarative command based on the verb
@@ -645,6 +647,10 @@ func runApply(command *cobra.Command, args []string) error {
 	
 	// Store plan in context for output formatting
 	ctx = context.WithValue(ctx, currentPlanKey, plan)
+	// Store plan file path if provided
+	if planFile != "" {
+		ctx = context.WithValue(ctx, planFileKey, planFile)
+	}
 	command.SetContext(ctx)
 	
 	
@@ -728,12 +734,19 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 		// If context is nil, we can't get the plan
 		planSection = nil
 	} else if plan, ok := ctx.Value(currentPlanKey).(*planner.Plan); ok && plan != nil {
+		metadata := map[string]interface{}{
+			"version": plan.Metadata.Version,
+			"generated_at": plan.Metadata.GeneratedAt,
+			"mode": plan.Metadata.Mode,
+		}
+		
+		// Add plan file path if available
+		if planFile, ok := ctx.Value(planFileKey).(string); ok && planFile != "" {
+			metadata["plan_file"] = planFile
+		}
+		
 		planSection = map[string]interface{}{
-			"metadata": map[string]interface{}{
-				"version": plan.Metadata.Version,
-				"generated_at": plan.Metadata.GeneratedAt,
-				"mode": plan.Metadata.Mode,
-			},
+			"metadata": metadata,
 		}
 		
 		// Extract planned changes from the plan
