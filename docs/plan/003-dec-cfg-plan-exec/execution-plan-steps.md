@@ -13,12 +13,24 @@
 | 5b | Add configuration discovery | Not Started | Step 5a |
 | 6 | Implement sync command | Not Started | Steps 3, 4 |
 | 7 | Add plan validation | Not Started | Steps 5, 6 |
-| 8 | Implement confirmation prompts | Not Started | Steps 5, 6 |
+| 8 | Implement confirmation prompts | Partially Complete | Steps 5, 6 |
 | 9 | Migrate login to Konnect-first | Not Started | - |
 | 10 | Add integration tests | Not Started | Steps 5, 6, 9 |
 | 11 | Update documentation | Not Started | All steps |
 
 **Current Stage**: Step 5a completed, ready for Step 5b (Configuration Discovery)
+
+**Note**: Step 8 is marked as "Partially Complete" because confirmation prompts are implemented in apply command but sync command doesn't exist yet.
+
+## Recent Improvements (Beyond Original Plan)
+
+During implementation of Steps 1-5a, several improvements were made based on real-world usage:
+
+1. **Protection Label Enhancement**: Changed from adding/removing labels to always present with true/false value
+2. **Full Portal Field Support**: Added support for all portal fields (authentication_enabled, rbac_enabled, etc.)
+3. **Output Format Improvements**: Enhanced consistency and structure of JSON/YAML outputs
+4. **stdin Support**: Added ability to use stdin with interactive prompts via /dev/tty
+5. **User Experience**: Various fixes for edge cases and improved error messages
 
 ---
 
@@ -261,7 +273,7 @@ Execution complete:
 
 ## Step 4: Add Portal Operations to Executor
 
-**Status**: Not Started
+**Status**: Completed ✅
 **Dependencies**: Step 2
 
 ### Goal

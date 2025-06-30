@@ -2,7 +2,7 @@
 
 This folder contains the complete planning and implementation tracking for all kongctl features and development efforts.
 
-## 🎯 Current Active Stage: Stage 3 (In Progress - Step 5/13 Complete)
+## 🎯 Current Active Stage: Stage 3 (In Progress - Step 5a/11 Complete)
 
 **Previous Stages Completed**:
 - Stage 1: Configuration Format & Basic CLI ✅ 
@@ -17,7 +17,11 @@ This folder contains the complete planning and implementation tracking for all k
 
 **Next Step**: Implement Step 5b - Add Configuration Discovery
 
-**Important Decision**: Moving to configuration-based change detection to fix idempotency issues (ADR-003-011)
+**Recent Improvements** (beyond original plan):
+- ✅ Protection label always present with true/false value
+- ✅ Support for all portal fields in declarative management
+- ✅ Enhanced output formatting and consistency
+- ✅ stdin support with interactive prompts via /dev/tty
 
 ## Quick Start for Implementation
 
@@ -91,7 +95,7 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](003-dec-cfg-plan-exec/execution-plan-steps.md) | **Implementation guide** | ✅ Complete |
 | [execution-plan-adrs.md](003-dec-cfg-plan-exec/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: 6/13 steps completed (46%) - In Progress
+**Implementation Status**: 5a/11 steps completed (~50%) - In Progress
 - **Dependencies**: Stage 2 completion ✅ Met
 - **Key deliverables**: 
   - Mode-aware plan generation (apply vs sync)
@@ -126,7 +130,7 @@ Stages 1 and 2 are complete. Stage 3 planning is complete and ready for implemen
 - Stage 2: Plan Generation with Label Management ✅ **COMPLETED**
 
 **Current Stage**:
-- Stage 3: Plan Execution ⏳ **In Progress** (6/13 steps)
+- Stage 3: Plan Execution ⏳ **In Progress** (5a/11 steps)
 
 **To begin implementation**: Start with Step 5a in [003-dec-cfg-plan-exec/execution-plan-steps.md](003-dec-cfg-plan-exec/execution-plan-steps.md)
 
