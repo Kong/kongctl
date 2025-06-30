@@ -539,6 +539,12 @@ func runApply(command *cobra.Command, args []string) error {
 	outputFormat, _ := command.Flags().GetString("output")
 	filenames, _ := command.Flags().GetStringSlice("filename")
 	
+	// Early check for non-text output without auto-approve
+	if !dryRun && !autoApprove && outputFormat != "text" {
+		return fmt.Errorf("cannot use %s output format without --auto-approve flag " +
+			"(interactive confirmation not available with structured output)", outputFormat)
+	}
+	
 	// Early check for stdin usage without auto-approve
 	if !dryRun && !autoApprove && planFile == "" {
 		// Check if stdin will be used for configuration
