@@ -1,0 +1,35 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "generated_at": "2025-06-30T21:12:40.205998Z",
+    "generator": "kongctl/dev",
+    "mode": "sync"
+  },
+  "changes": [
+    {
+      "id": "1-c-second-portal",
+      "resource_type": "portal",
+      "resource_ref": "second-portal",
+      "action": "CREATE",
+      "fields": {
+        "description": "basic second portal...",
+        "labels": {
+          "KONGCTL-protected": "false"
+        },
+        "name": "second"
+      }
+    }
+  ],
+  "execution_order": [
+    "1-c-second-portal"
+  ],
+  "summary": {
+    "total_changes": 1,
+    "by_action": {
+      "CREATE": 1
+    },
+    "by_resource": {
+      "portal": 1
+    }
+  }
+}

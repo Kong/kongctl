@@ -1,6 +1,11 @@
 portals:
   - ref: simplest-portal
     name: simple 
-    description: "blah blah nice and simple portal..."
+    description: "basic simple portal...update"
+    kongctl:
+      protected: false
+  - ref: second-portal
+    name: second 
+    description: "this second portal..."
     kongctl:
       protected: false
