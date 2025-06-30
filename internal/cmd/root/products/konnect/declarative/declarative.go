@@ -548,12 +548,22 @@ func runApply(command *cobra.Command, args []string) error {
 	}
 	
 	// Early check for stdin usage without auto-approve
+	// Only fail if we can't access /dev/tty for interactive input
+	var usingStdinForConfig bool
 	if !dryRun && !autoApprove && planFile == "" {
 		// Check if stdin will be used for configuration
 		for _, filename := range filenames {
 			if filename == "-" {
-				return fmt.Errorf("cannot use stdin for configuration input without --auto-approve flag " +
-					"(interactive confirmation not possible when stdin is piped)")
+				usingStdinForConfig = true
+				// Try to open /dev/tty to see if we can get interactive input
+				tty, err := os.Open("/dev/tty")
+				if err != nil {
+					return fmt.Errorf("cannot use stdin for configuration input without --auto-approve flag " +
+						"(no terminal available for interactive confirmation)")
+				}
+				tty.Close()
+				// We can get interactive input, so continue
+				break
 			}
 		}
 	}
@@ -682,7 +692,19 @@ func runApply(command *cobra.Command, args []string) error {
 		
 		// Show confirmation prompt for non-dry-run, non-auto-approve
 		if !dryRun && !autoApprove {
-			if !common.ConfirmExecution(plan, command.OutOrStdout(), command.OutOrStderr(), command.InOrStdin()) {
+			// If we're using stdin for config, use /dev/tty for confirmation
+			inputReader := command.InOrStdin()
+			if usingStdinForConfig {
+				tty, err := os.Open("/dev/tty")
+				if err != nil {
+					// This shouldn't happen as we checked earlier
+					return fmt.Errorf("cannot open terminal for confirmation: %w", err)
+				}
+				defer tty.Close()
+				inputReader = tty
+			}
+			
+			if !common.ConfirmExecution(plan, command.OutOrStdout(), command.OutOrStderr(), inputReader) {
 				return fmt.Errorf("apply cancelled")
 			}
 		}

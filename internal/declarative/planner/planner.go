@@ -3,7 +3,6 @@ package planner
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -110,8 +109,17 @@ func (p *Planner) validateProtection(
 ) error {
 	if action == ActionUpdate || action == ActionDelete {
 		if currentProtected {
+			var actionVerb string
+			switch action { //nolint:exhaustive // ActionCreate is not possible here due to outer if condition
+			case ActionDelete:
+				actionVerb = "deleted"
+			case ActionUpdate:
+				actionVerb = "updated"
+			default:
+				actionVerb = "modified"
+			}
 			return fmt.Errorf("%s %q is protected and cannot be %s", 
-				resourceType, resourceName, strings.ToLower(string(action)))
+				resourceType, resourceName, actionVerb)
 		}
 	}
 	return nil
@@ -145,25 +153,17 @@ func (p *Planner) planPortalChanges(ctx context.Context, desired []resources.Por
 			// Check if update needed
 			isProtected := current.NormalizedLabels[labels.ProtectedKey] == "true"
 
-			// Get protection status from desired labels
+			// Get protection status from desired configuration
 			shouldProtect := false
-			if desiredPortal.Labels != nil {
-				if protVal, ok := desiredPortal.Labels[labels.ProtectedKey]; ok && protVal != nil && *protVal == "true" {
-					shouldProtect = true
-				}
+			if desiredPortal.Kongctl != nil && desiredPortal.Kongctl.Protected {
+				shouldProtect = true
 			}
 
-			// Handle protection changes separately
+			// Handle protection changes
 			if isProtected != shouldProtect {
-				// Protection change is always allowed
-				p.planProtectionChange(current, isProtected, shouldProtect, plan)
-				// If unprotecting, we can then also check for other updates
-				if isProtected && !shouldProtect {
-					needsUpdate, updateFields := p.shouldUpdatePortal(current, desiredPortal)
-					if needsUpdate {
-						p.planPortalUpdateWithFields(current, desiredPortal, updateFields, plan)
-					}
-				}
+				// When changing protection status, include any other field updates too
+				_, updateFields := p.shouldUpdatePortal(current, desiredPortal)
+				p.planProtectionChangeWithFields(current, desiredPortal, isProtected, shouldProtect, updateFields, plan)
 			} else {
 				// Check if update needed based on configuration
 				needsUpdate, updateFields := p.shouldUpdatePortal(current, desiredPortal)
@@ -224,10 +224,27 @@ func (p *Planner) planPortalCreate(portal resources.PortalResource, plan *Plan) 
 	if portal.Description != nil {
 		fields["description"] = *portal.Description
 	}
+	if portal.AuthenticationEnabled != nil {
+		fields["authentication_enabled"] = *portal.AuthenticationEnabled
+	}
+	if portal.RbacEnabled != nil {
+		fields["rbac_enabled"] = *portal.RbacEnabled
+	}
+	if portal.DefaultAPIVisibility != nil {
+		fields["default_api_visibility"] = string(*portal.DefaultAPIVisibility)
+	}
+	if portal.DefaultPageVisibility != nil {
+		fields["default_page_visibility"] = string(*portal.DefaultPageVisibility)
+	}
 	if portal.DefaultApplicationAuthStrategyID != nil {
 		fields["default_application_auth_strategy_id"] = *portal.DefaultApplicationAuthStrategyID
 	}
-	// Add other fields...
+	if portal.AutoApproveDevelopers != nil {
+		fields["auto_approve_developers"] = *portal.AutoApproveDevelopers
+	}
+	if portal.AutoApproveApplications != nil {
+		fields["auto_approve_applications"] = *portal.AutoApproveApplications
+	}
 
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, portal.GetRef()),
@@ -238,11 +255,18 @@ func (p *Planner) planPortalCreate(portal resources.PortalResource, plan *Plan) 
 		DependsOn:    []string{},
 	}
 
-	// Check if protected
-	if portal.Labels != nil {
-		if protVal, ok := portal.Labels[labels.ProtectedKey]; ok && protVal != nil && *protVal == "true" {
-			change.Protection = true
-		}
+	// Set protection label based on kongctl metadata
+	if fields["labels"] == nil {
+		fields["labels"] = make(map[string]interface{})
+	}
+	labelsMap := fields["labels"].(map[string]interface{})
+	
+	if portal.Kongctl != nil && portal.Kongctl.Protected {
+		change.Protection = true
+		labelsMap[labels.ProtectedKey] = "true"
+	} else {
+		// Explicitly set to false when not protected
+		labelsMap[labels.ProtectedKey] = "false"
 	}
 
 	plan.AddChange(change)
@@ -300,7 +324,21 @@ func (p *Planner) shouldUpdatePortal(
 		}
 	}
 	
-	// Add other configurable fields as needed...
+	if desired.DefaultAPIVisibility != nil {
+		currentVisibility := string(current.DefaultAPIVisibility)
+		desiredVisibility := string(*desired.DefaultAPIVisibility)
+		if currentVisibility != desiredVisibility {
+			updates["default_api_visibility"] = desiredVisibility
+		}
+	}
+	
+	if desired.DefaultPageVisibility != nil {
+		currentVisibility := string(current.DefaultPageVisibility)
+		desiredVisibility := string(*desired.DefaultPageVisibility)
+		if currentVisibility != desiredVisibility {
+			updates["default_page_visibility"] = desiredVisibility
+		}
+	}
 	
 	return len(updates) > 0, updates
 }
@@ -342,15 +380,44 @@ func (p *Planner) planPortalUpdateWithFields(
 	plan.AddChange(change)
 }
 
-// planProtectionChange creates a separate UPDATE for protection status
-func (p *Planner) planProtectionChange(portal state.Portal, wasProtected, shouldProtect bool, plan *Plan) {
+// planProtectionChangeWithFields creates an UPDATE for protection status with optional field updates
+func (p *Planner) planProtectionChangeWithFields(
+	current state.Portal, 
+	desired resources.PortalResource, 
+	wasProtected, shouldProtect bool, 
+	updateFields map[string]interface{},
+	plan *Plan,
+) {
+	fields := make(map[string]interface{})
+	
+	// Include any field updates if unprotecting
+	if wasProtected && !shouldProtect && len(updateFields) > 0 {
+		for field, newValue := range updateFields {
+			fields[field] = newValue
+		}
+	}
+	
+	// Always include name for identification
+	fields["name"] = current.Name
+	
+	// Add protection label change to fields
+	if fields["labels"] == nil {
+		fields["labels"] = make(map[string]interface{})
+	}
+	labelsMap := fields["labels"].(map[string]interface{})
+	if shouldProtect {
+		labelsMap[labels.ProtectedKey] = "true"
+	} else {
+		labelsMap[labels.ProtectedKey] = "false"
+	}
+	
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionUpdate, portal.Name+"-protection"),
+		ID:           p.nextChangeID(ActionUpdate, desired.GetRef()),
 		ResourceType: "portal",
-		ResourceRef:  portal.Name,
-		ResourceID:   portal.ID,
+		ResourceRef:  desired.GetRef(),
+		ResourceID:   current.ID,
 		Action:       ActionUpdate,
-		Fields:       map[string]interface{}{}, // No field changes allowed
+		Fields:       fields,
 		Protection: ProtectionChange{
 			Old: wasProtected,
 			New: shouldProtect,

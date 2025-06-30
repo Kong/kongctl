@@ -57,22 +57,39 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 		portal.AutoApproveApplications = &autoApproveApplications
 	}
 	
-	// Handle labels - preserve user labels only
-	// The state client will add management labels
+	if defaultAPIVisibility, ok := change.Fields["default_api_visibility"].(string); ok {
+		visibility := kkInternalComps.DefaultAPIVisibility(defaultAPIVisibility)
+		portal.DefaultAPIVisibility = &visibility
+	}
+	
+	if defaultPageVisibility, ok := change.Fields["default_page_visibility"].(string); ok {
+		visibility := kkInternalComps.DefaultPageVisibility(defaultPageVisibility)
+		portal.DefaultPageVisibility = &visibility
+	}
+	
+	if defaultAppAuthStrategyID, ok := change.Fields["default_application_auth_strategy_id"].(string); ok {
+		portal.DefaultApplicationAuthStrategyID = &defaultAppAuthStrategyID
+	}
+	
+	// Handle labels - preserve user labels and protected label
+	// The state client will add management labels (managed, last-updated)
 	if labelsField, ok := change.Fields["labels"].(map[string]interface{}); ok {
 		debugLog("Found labels in fields: %+v", labelsField)
-		userLabels := make(map[string]*string)
+		portalLabels := make(map[string]*string)
 		for k, v := range labelsField {
-			if strVal, ok := v.(string); ok && !labels.IsKongctlLabel(k) {
-				userLabels[k] = &strVal
-				debugLog("Adding user label: %s=%s", k, strVal)
+			if strVal, ok := v.(string); ok {
+				// Allow user labels and the protected label
+				if !labels.IsKongctlLabel(k) || k == labels.ProtectedKey {
+					portalLabels[k] = &strVal
+					debugLog("Adding label: %s=%s", k, strVal)
+				}
 			}
 		}
-		if len(userLabels) > 0 {
-			portal.Labels = userLabels
-			debugLog("Portal will have %d user labels", len(userLabels))
+		if len(portalLabels) > 0 {
+			portal.Labels = portalLabels
+			debugLog("Portal will have %d labels", len(portalLabels))
 		} else {
-			debugLog("No user labels to set on portal")
+			debugLog("No labels to set on portal")
 		}
 	} else {
 		debugLog("No labels field found in change")
@@ -100,8 +117,33 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 	}
 	
 	// Check if portal is protected
+	// Protection changes are always allowed (to unprotect a resource)
 	isProtected := portal.NormalizedLabels[labels.ProtectedKey] == "true"
-	if isProtected {
+	
+	// Check if this is a protection change
+	isProtectionChange := false
+	var protectionChange planner.ProtectionChange
+	
+	// Handle both direct struct and map from JSON deserialization
+	switch p := change.Protection.(type) {
+	case planner.ProtectionChange:
+		isProtectionChange = true
+		protectionChange = p
+	case map[string]interface{}:
+		// From JSON deserialization
+		if oldVal, hasOld := p["old"].(bool); hasOld {
+			if newVal, hasNew := p["new"].(bool); hasNew {
+				isProtectionChange = true
+				protectionChange = planner.ProtectionChange{
+					Old: oldVal,
+					New: newVal,
+				}
+			}
+		}
+	}
+	
+	if isProtected && !isProtectionChange {
+		// Regular update to a protected resource is not allowed
 		return "", fmt.Errorf("resource is protected and cannot be updated")
 	}
 	
@@ -147,6 +189,16 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 			if authID, ok := value.(string); ok {
 				updatePortal.DefaultApplicationAuthStrategyID = &authID
 			}
+		case "default_api_visibility":
+			if visibility, ok := value.(string); ok {
+				vis := kkInternalComps.UpdatePortalDefaultAPIVisibility(visibility)
+				updatePortal.DefaultAPIVisibility = &vis
+			}
+		case "default_page_visibility":
+			if visibility, ok := value.(string); ok {
+				vis := kkInternalComps.UpdatePortalDefaultPageVisibility(visibility)
+				updatePortal.DefaultPageVisibility = &vis
+			}
 		// Skip "name" as it's already handled above
 		// Skip "labels" as they're handled separately below
 		}
@@ -161,16 +213,40 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 	}
 	
 	// Apply any label updates from the change
+	protectionFromFields := ""
 	if labelsField, ok := change.Fields["labels"].(map[string]interface{}); ok {
 		for k, v := range labelsField {
-			if strVal, ok := v.(string); ok && !labels.IsKongctlLabel(k) {
-				userLabels[k] = strVal
+			if strVal, ok := v.(string); ok {
+				if k == labels.ProtectedKey {
+					// Track protection label from fields
+					protectionFromFields = strVal
+				} else if !labels.IsKongctlLabel(k) {
+					userLabels[k] = strVal
+				}
 			}
 		}
 	}
 	
 	// Update management labels with new timestamp
 	allLabels := labels.AddManagedLabels(userLabels)
+	
+	// Handle protection label changes
+	if isProtectionChange {
+		if protectionChange.New {
+			// Setting protection to true
+			allLabels[labels.ProtectedKey] = "true"
+		} else {
+			// Setting protection to false
+			allLabels[labels.ProtectedKey] = "false"
+		}
+	} else if protectionFromFields != "" {
+		// Use protection value from fields if provided
+		allLabels[labels.ProtectedKey] = protectionFromFields
+	} else if isProtected {
+		// Preserve existing protection
+		allLabels[labels.ProtectedKey] = "true"
+	}
+	
 	updatePortal.Labels = labels.DenormalizeLabels(allLabels)
 	
 	// Update the portal

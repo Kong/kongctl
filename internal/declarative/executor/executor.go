@@ -210,7 +210,27 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 			
 			// Check protection status
 			isProtected := portal.NormalizedLabels[labels.ProtectedKey] == "true"
-			if isProtected && (change.Action == planner.ActionUpdate || change.Action == planner.ActionDelete) {
+			
+			// For updates, check if this is a protection change (which is allowed)
+			isProtectionChange := false
+			if change.Action == planner.ActionUpdate {
+				// Check if this is a protection change
+				switch p := change.Protection.(type) {
+				case planner.ProtectionChange:
+					isProtectionChange = true
+				case map[string]interface{}:
+					// From JSON deserialization
+					if _, hasOld := p["old"].(bool); hasOld {
+						if _, hasNew := p["new"].(bool); hasNew {
+							isProtectionChange = true
+						}
+					}
+				}
+			}
+			
+			// Block protected resources unless it's a protection change
+			if isProtected && !isProtectionChange && 
+				(change.Action == planner.ActionUpdate || change.Action == planner.ActionDelete) {
 				return fmt.Errorf("resource is protected and cannot be %s", 
 					actionToVerb(change.Action))
 			}

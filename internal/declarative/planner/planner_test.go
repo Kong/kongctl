@@ -228,7 +228,8 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 	change := plan.Changes[0]
 
 	assert.Equal(t, ActionUpdate, change.Action)
-	assert.Contains(t, change.ID, "-protection")
+	// Protection changes no longer have special ID suffix
+	assert.Contains(t, change.ID, "u-dev-portal")
 
 	// Check protection change
 	protChange, ok := change.Protection.(ProtectionChange)
@@ -567,9 +568,9 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 					Name:        "protected-portal",
 					DisplayName: &displayName,
 					Description: &description, // Changed field
-					Labels: map[string]*string{
-						labels.ProtectedKey: &protectedStr, // Keep it protected
-					},
+				},
+				Kongctl: &resources.KongctlMeta{
+					Protected: true, // Keep it protected
 				},
 				Ref: "protected-portal",
 			},
@@ -582,7 +583,7 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, plan)
 	assert.Contains(t, err.Error(), "Cannot generate plan due to protected resources")
-	assert.Contains(t, err.Error(), "portal \"protected-portal\" is protected and cannot be update")
+	assert.Contains(t, err.Error(), "portal \"protected-portal\" is protected and cannot be updated")
 
 	mockAPI.AssertExpectations(t)
 }

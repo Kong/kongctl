@@ -113,8 +113,8 @@ func TestAddManagedLabels(t *testing.T) {
 			input: nil,
 			verify: func(t *testing.T, result map[string]string) {
 				checkManagedLabels(t, result, "")
-				if len(result) != 2 { // managed, timestamp
-					t.Errorf("Expected 2 labels, got %d", len(result))
+				if len(result) != 3 { // managed, timestamp, protected
+					t.Errorf("Expected 3 labels, got %d", len(result))
 				}
 			},
 		},
@@ -402,5 +402,10 @@ func checkManagedLabels(t *testing.T, labels map[string]string, _ string) {
 	timestamp := labels[LastUpdatedKey]
 	if _, err := time.Parse("20060102-150405Z", timestamp); err != nil {
 		t.Errorf("Invalid timestamp format: %s, error: %v", timestamp, err)
+	}
+	
+	// Check protected label exists with default value
+	if _, exists := labels[ProtectedKey]; !exists {
+		t.Errorf("Expected %s label to exist", ProtectedKey)
 	}
 }

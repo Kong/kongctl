@@ -1,0 +1,13 @@
+portals:
+  - ref: full-portal
+    name: "full"
+    display_name: "Our API Portal"
+    description: "Central hub for our APIs"
+    authentication_enabled: true
+    rbac_enabled: true
+    default_api_visibility: "private"
+    default_page_visibility: "public"
+    auto_approve_developers: false
+    auto_approve_applications: false
+    kongctl:
+      protected: true
