@@ -549,22 +549,30 @@ func runApply(command *cobra.Command, args []string) error {
 	
 	// Early check for stdin usage without auto-approve
 	// Only fail if we can't access /dev/tty for interactive input
-	var usingStdinForConfig bool
-	if !dryRun && !autoApprove && planFile == "" {
-		// Check if stdin will be used for configuration
-		for _, filename := range filenames {
-			if filename == "-" {
-				usingStdinForConfig = true
-				// Try to open /dev/tty to see if we can get interactive input
-				tty, err := os.Open("/dev/tty")
-				if err != nil {
-					return fmt.Errorf("cannot use stdin for configuration input without --auto-approve flag " +
-						"(no terminal available for interactive confirmation)")
+	var usingStdinForInput bool
+	if !dryRun && !autoApprove {
+		// Check if stdin will be used for plan or configuration
+		if planFile == "-" {
+			usingStdinForInput = true
+		} else if planFile == "" {
+			// Check if stdin will be used for configuration
+			for _, filename := range filenames {
+				if filename == "-" {
+					usingStdinForInput = true
+					break
 				}
-				tty.Close()
-				// We can get interactive input, so continue
-				break
 			}
+		}
+		
+		// If using stdin, ensure we can get interactive input via /dev/tty
+		if usingStdinForInput {
+			tty, err := os.Open("/dev/tty")
+			if err != nil {
+				return fmt.Errorf("cannot use stdin for input without --auto-approve flag " +
+					"(no terminal available for interactive confirmation). " +
+					"Use --auto-approve to skip confirmation when piping commands")
+			}
+			tty.Close()
 		}
 	}
 	
@@ -692,9 +700,9 @@ func runApply(command *cobra.Command, args []string) error {
 		
 		// Show confirmation prompt for non-dry-run, non-auto-approve
 		if !dryRun && !autoApprove {
-			// If we're using stdin for config, use /dev/tty for confirmation
+			// If we're using stdin for input, use /dev/tty for confirmation
 			inputReader := command.InOrStdin()
-			if usingStdinForConfig {
+			if usingStdinForInput {
 				tty, err := os.Open("/dev/tty")
 				if err != nil {
 					// This shouldn't happen as we checked earlier
