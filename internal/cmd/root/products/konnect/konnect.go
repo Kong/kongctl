@@ -88,10 +88,13 @@ func bindFlags(c *cobra.Command, args []string) error {
 }
 
 func preRunE(c *cobra.Command, args []string) error {
-	c.SetContext(context.WithValue(c.Context(),
-		products.Product, Product))
-	c.SetContext(context.WithValue(c.Context(),
-		helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(common.KonnectSDKFactory)))
+	ctx := c.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx = context.WithValue(ctx, products.Product, Product)
+	ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(common.KonnectSDKFactory))
+	c.SetContext(ctx)
 	return bindFlags(c, args)
 }
 
@@ -103,10 +106,13 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		Example: konnectExamples,
 		Aliases: []string{"k", "K"},
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
-			c.SetContext(context.WithValue(c.Context(),
-				products.Product, Product))
-			c.SetContext(context.WithValue(c.Context(),
-				helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(common.KonnectSDKFactory)))
+			ctx := c.Context()
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			ctx = context.WithValue(ctx, products.Product, Product)
+			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(common.KonnectSDKFactory))
+			c.SetContext(ctx)
 			return bindFlags(c, args)
 		},
 	}

@@ -19,6 +19,14 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// contextKey is used for storing values in context
+type contextKey string
+
+const (
+	// currentPlanKey is the context key for storing the current plan
+	currentPlanKey contextKey = "current_plan"
+)
+
 // NewDeclarativeCmd creates the appropriate declarative command based on the verb
 func NewDeclarativeCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	switch verb {
@@ -630,9 +638,9 @@ func runApply(command *cobra.Command, args []string) error {
 	}
 	
 	// Store plan in context for output formatting
-	type contextKey string
-	ctx = context.WithValue(ctx, contextKey("current_plan"), plan)
+	ctx = context.WithValue(ctx, currentPlanKey, plan)
 	command.SetContext(ctx)
+	
 	
 	// Validate plan for apply
 	if err := validateApplyPlan(plan); err != nil {
@@ -709,8 +717,11 @@ func validateApplyPlan(plan *planner.Plan) error {
 func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult, err error, format string) error {
 	// Build the plan section first
 	var planSection map[string]interface{}
-	type contextKey string
-	if plan, ok := command.Context().Value(contextKey("current_plan")).(*planner.Plan); ok && plan != nil {
+	ctx := command.Context()
+	if ctx == nil {
+		// If context is nil, we can't get the plan
+		planSection = nil
+	} else if plan, ok := ctx.Value(currentPlanKey).(*planner.Plan); ok && plan != nil {
 		planSection = map[string]interface{}{
 			"metadata": map[string]interface{}{
 				"version": plan.Metadata.Version,

@@ -68,11 +68,14 @@ func NewApplyCmd() (*cobra.Command, error) {
 		// Use the konnect command's RunE directly for Konnect-first pattern
 		RunE: konnectCmd.RunE,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))
-			cmd.SetContext(context.WithValue(cmd.Context(),
-				products.Product, konnect.Product))
-			cmd.SetContext(context.WithValue(cmd.Context(),
-				helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(common.KonnectSDKFactory)))
+			ctx := cmd.Context()
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			ctx = context.WithValue(ctx, verbs.Verb, Verb)
+			ctx = context.WithValue(ctx, products.Product, konnect.Product)
+			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(common.KonnectSDKFactory))
+			cmd.SetContext(ctx)
 			
 			// Also call the konnect command's PersistentPreRunE to set up binding
 			if konnectCmd.PersistentPreRunE != nil {
