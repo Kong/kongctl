@@ -172,7 +172,7 @@ func (m *MockAppAuthStrategiesAPI) IsMethodCallRegistered(method string) bool {
 }
 
 // CreateManagedPortal creates a portal with KONGCTL labels
-func CreateManagedPortal(name, id, description string, configHash string) kkInternalComps.Portal {
+func CreateManagedPortal(name, id, description string) kkInternalComps.Portal {
 	descPtr := &description
 	return kkInternalComps.Portal{
 		ID:          id,
@@ -180,7 +180,7 @@ func CreateManagedPortal(name, id, description string, configHash string) kkInte
 		Description: descPtr,
 		Labels: map[string]string{
 			labels.ManagedKey:    "true",
-			labels.ConfigHashKey: configHash,
+			labels.LastUpdatedKey: "20240101-120000Z",
 		},
 	}
 }

@@ -30,7 +30,7 @@ func TestConsoleReporter_StartExecution(t *testing.T) {
 				},
 			},
 			dryRun:       false,
-			expectedOut:  "Executing plan (apply mode)...\n",
+			expectedOut:  "Applying changes:\n",
 			shouldOutput: true,
 		},
 		{
@@ -44,7 +44,7 @@ func TestConsoleReporter_StartExecution(t *testing.T) {
 				},
 			},
 			dryRun:       true,
-			expectedOut:  "Executing plan (apply mode, dry-run)...\n",
+			expectedOut:  "Validating changes:\n",
 			shouldOutput: true,
 		},
 		{
@@ -57,7 +57,7 @@ func TestConsoleReporter_StartExecution(t *testing.T) {
 					TotalChanges: 2,
 				},
 			},
-			expectedOut:  "Executing plan (sync mode)...\n",
+			expectedOut:  "Applying changes:\n",
 			shouldOutput: true,
 		},
 		{
@@ -102,7 +102,7 @@ func TestConsoleReporter_StartChange(t *testing.T) {
 				ResourceType: "portal",
 				ResourceRef:  "developer-portal",
 			},
-			expectedOut: "Creating portal: developer-portal... ",
+			expectedOut: "- Creating portal: developer-portal... ",
 		},
 		{
 			name: "update with resource ref",
@@ -111,7 +111,7 @@ func TestConsoleReporter_StartChange(t *testing.T) {
 				ResourceType: "portal",
 				ResourceRef:  "staging-portal",
 			},
-			expectedOut: "Updating portal: staging-portal... ",
+			expectedOut: "- Updating portal: staging-portal... ",
 		},
 		{
 			name: "delete without resource ref",
@@ -120,7 +120,7 @@ func TestConsoleReporter_StartChange(t *testing.T) {
 				Action:       planner.ActionDelete,
 				ResourceType: "portal_page",
 			},
-			expectedOut: "Deleting portal_page: portal_page/change-123... ",
+			expectedOut: "- Deleting portal_page: portal_page/change-123... ",
 		},
 	}
 
@@ -202,8 +202,8 @@ func TestConsoleReporter_FinishExecution_Normal(t *testing.T) {
 				SkippedCount: 0,
 			},
 			containsStr: []string{
-				"Execution complete:",
-				"- Success: 3",
+				"Complete.",
+				"Applied 3 changes.",
 			},
 			notContains: []string{
 				"- Failed:",
@@ -227,11 +227,10 @@ func TestConsoleReporter_FinishExecution_Normal(t *testing.T) {
 				},
 			},
 			containsStr: []string{
-				"Execution complete:",
-				"- Success: 2",
-				"- Failed: 1",
+				"Complete.",
+				"Applied 2 changes.",
 				"Errors:",
-				"- CREATE portal (bad-portal): validation failed",
+				"- portal bad-portal: validation failed",
 			},
 		},
 		{
@@ -242,8 +241,8 @@ func TestConsoleReporter_FinishExecution_Normal(t *testing.T) {
 				SkippedCount: 2,
 			},
 			containsStr: []string{
-				"- Success: 1",
-				"- Skipped: 2",
+				"Complete.",
+				"Applied 1 changes.",
 			},
 		},
 	}
@@ -284,9 +283,8 @@ func TestConsoleReporter_FinishExecution_DryRun(t *testing.T) {
 				},
 			},
 			containsStr: []string{
-				"Dry-run complete:",
-				"- Validated: 3",
-				"- Skipped: 3",
+				"Dry run complete.",
+				"3 changes would be applied.",
 			},
 		},
 		{
@@ -314,10 +312,8 @@ func TestConsoleReporter_FinishExecution_DryRun(t *testing.T) {
 				},
 			},
 			containsStr: []string{
-				"Dry-run complete:",
-				"- Validated: 1",
-				"- Would fail: 2",
-				"- Skipped: 3",
+				"Dry run complete.",
+				"3 changes would be applied.",
 				"Validation errors:",
 				"- portal invalid-portal: name too long",
 				"- portal_page invalid-page: missing required field",
@@ -402,14 +398,14 @@ func TestConsoleReporter_CompleteWorkflow(t *testing.T) {
 	output := buf.String()
 	
 	// Verify the complete output
-	assert.Contains(t, output, "Executing plan (sync mode)...")
-	assert.Contains(t, output, "Creating portal: developer-portal... ✓")
-	assert.Contains(t, output, "Updating portal: staging-portal... ✓")
-	assert.Contains(t, output, "Deleting portal_page: old-docs... ✗ Error: not found")
-	assert.Contains(t, output, "Execution complete:")
-	assert.Contains(t, output, "- Success: 2")
-	assert.Contains(t, output, "- Failed: 1")
-	assert.Contains(t, output, "- DELETE portal_page (old-docs): not found")
+	assert.Contains(t, output, "Applying changes:")
+	assert.Contains(t, output, "- Creating portal: developer-portal... ✓")
+	assert.Contains(t, output, "- Updating portal: staging-portal... ✓")
+	assert.Contains(t, output, "- Deleting portal_page: old-docs... ✗ Error: not found")
+	assert.Contains(t, output, "Complete.")
+	assert.Contains(t, output, "Applied 2 changes.")
+	assert.Contains(t, output, "Errors:")
+	assert.Contains(t, output, "- portal_page old-docs: not found")
 }
 
 func TestGetActionVerb(t *testing.T) {
@@ -494,16 +490,19 @@ func TestConsoleReporter_MultilineOutput(t *testing.T) {
 	output := buf.String()
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	
-	// Verify structure and indentation
-	assert.Equal(t, "Dry-run complete:", lines[0])
-	assert.True(t, strings.HasPrefix(lines[1], "- "))  // Indented stats
+	// Verify structure
+	assert.Equal(t, "Dry run complete.", lines[0])
+	assert.Contains(t, lines[1], "5 changes would be applied.")  // Message about changes
 	
 	// Find validation errors section
+	foundErrors := false
 	for i, line := range lines {
 		if line == "Validation errors:" {
+			foundErrors = true
 			assert.True(t, i+1 < len(lines))
 			assert.True(t, strings.HasPrefix(lines[i+1], "- "))  // Indented error
 			break
 		}
 	}
+	assert.True(t, foundErrors, "Should find validation errors section")
 }

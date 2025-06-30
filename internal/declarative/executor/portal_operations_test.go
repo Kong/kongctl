@@ -88,7 +88,6 @@ func TestExecutor_createPortal(t *testing.T) {
 			change: planner.PlannedChange{
 				ResourceType: "portal",
 				Action:       planner.ActionCreate,
-				ConfigHash:   "hash123",
 				Fields: map[string]interface{}{
 					"name":                     "test-portal",
 					"description":              "Test description",
@@ -137,9 +136,6 @@ func TestExecutor_createPortal(t *testing.T) {
 					if p.Labels[labels.ManagedKey] == nil || *p.Labels[labels.ManagedKey] != "true" {
 						return false
 					}
-					if p.Labels[labels.ConfigHashKey] == nil || *p.Labels[labels.ConfigHashKey] != "hash123" {
-						return false
-					}
 					return true
 				})).Return(&kkInternalOps.CreatePortalResponse{
 					PortalResponse: &kkInternalComps.PortalResponse{
@@ -155,7 +151,6 @@ func TestExecutor_createPortal(t *testing.T) {
 			change: planner.PlannedChange{
 				ResourceType: "portal",
 				Action:       planner.ActionCreate,
-				ConfigHash:   "hash456",
 				Fields: map[string]interface{}{
 					"name": "minimal-portal",
 				},
@@ -179,7 +174,6 @@ func TestExecutor_createPortal(t *testing.T) {
 			change: planner.PlannedChange{
 				ResourceType: "portal",
 				Action:       planner.ActionCreate,
-				ConfigHash:   "hash789",
 				Fields: map[string]interface{}{
 					"description": "Missing name",
 				},
@@ -192,7 +186,6 @@ func TestExecutor_createPortal(t *testing.T) {
 			change: planner.PlannedChange{
 				ResourceType: "portal",
 				Action:       planner.ActionCreate,
-				ConfigHash:   "hash999",
 				Fields: map[string]interface{}{
 					"name": "error-portal",
 				},
@@ -245,7 +238,6 @@ func TestExecutor_updatePortal(t *testing.T) {
 				ResourceType: "portal",
 				ResourceID:   "portal-123",
 				Action:       planner.ActionUpdate,
-				ConfigHash:   "newhash123",
 				Fields: map[string]interface{}{
 					"name":        "updated-portal",
 					"description": "Updated description",
@@ -290,7 +282,6 @@ func TestExecutor_updatePortal(t *testing.T) {
 				ResourceType: "portal",
 				ResourceID:   "portal-456",
 				Action:       planner.ActionUpdate,
-				ConfigHash:   "newhash456",
 				Fields: map[string]interface{}{
 					"name": "protected-portal",
 				},
@@ -323,7 +314,6 @@ func TestExecutor_updatePortal(t *testing.T) {
 				ResourceType: "portal",
 				ResourceID:   "portal-789",
 				Action:       planner.ActionUpdate,
-				ConfigHash:   "newhash789",
 				Fields: map[string]interface{}{
 					"name": "missing-portal",
 				},
@@ -531,7 +521,6 @@ func TestExecutor_protectionChangeBetweenPlanAndExecution(t *testing.T) {
 		ResourceType: "portal",
 		ResourceID:   "portal-123",
 		Action:       planner.ActionUpdate,
-		ConfigHash:   "newhash",
 		Fields: map[string]interface{}{
 			"name": "test-portal",
 		},

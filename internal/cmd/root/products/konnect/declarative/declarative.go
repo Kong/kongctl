@@ -581,10 +581,6 @@ func runApply(command *cobra.Command, args []string) error {
 			return err
 		}
 	} else {
-		// Show plan generation message early
-		if outputFormat == "text" {
-			fmt.Fprintf(command.OutOrStderr(), "Generating plan from configuration files...\n")
-		}
 		
 		// Generate plan from configuration files
 		recursive, _ := command.Flags().GetBool("recursive")
@@ -634,7 +630,8 @@ func runApply(command *cobra.Command, args []string) error {
 	}
 	
 	// Store plan in context for output formatting
-	ctx = context.WithValue(ctx, "current_plan", plan)
+	type contextKey string
+	ctx = context.WithValue(ctx, contextKey("current_plan"), plan)
 	command.SetContext(ctx)
 	
 	// Validate plan for apply
@@ -647,24 +644,31 @@ func runApply(command *cobra.Command, args []string) error {
 		if outputFormat == "text" {
 			fmt.Fprintln(command.OutOrStderr(), "No changes needed. Resources match configuration.")
 			return nil
-		} else {
-			// Use consistent output format with empty result
-			emptyResult := &executor.ExecutionResult{
-				SuccessCount: 0,
-				FailureCount: 0,
-				SkippedCount: 0,
-				DryRun:       dryRun,
-				ChangesApplied: []executor.AppliedChange{},
-			}
-			return outputApplyResults(command, emptyResult, nil, outputFormat)
 		}
+		// Use consistent output format with empty result
+		emptyResult := &executor.ExecutionResult{
+			SuccessCount: 0,
+			FailureCount: 0,
+			SkippedCount: 0,
+			DryRun:       dryRun,
+			ChangesApplied: []executor.AppliedChange{},
+		}
+		return outputApplyResults(command, emptyResult, nil, outputFormat)
 	}
 	
-	// Show summary and confirm (only in text mode)
-	if outputFormat == "text" && !dryRun && !autoApprove {
-		if !common.ConfirmExecution(plan, command.OutOrStdout(), command.OutOrStderr(), command.InOrStdin()) {
-			return fmt.Errorf("apply cancelled")
+	// Show plan summary for text format (both regular and dry-run)
+	if outputFormat == "text" {
+		common.DisplayPlanSummary(plan, command.OutOrStderr())
+		
+		// Show confirmation prompt for non-dry-run, non-auto-approve
+		if !dryRun && !autoApprove {
+			if !common.ConfirmExecution(plan, command.OutOrStdout(), command.OutOrStderr(), command.InOrStdin()) {
+				return fmt.Errorf("apply cancelled")
+			}
 		}
+		
+		// Add spacing before execution output
+		fmt.Fprintln(command.OutOrStderr())
 	}
 	
 	// Create executor
@@ -705,13 +709,13 @@ func validateApplyPlan(plan *planner.Plan) error {
 func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult, err error, format string) error {
 	// Build the plan section first
 	var planSection map[string]interface{}
-	if plan, ok := command.Context().Value("current_plan").(*planner.Plan); ok && plan != nil {
+	type contextKey string
+	if plan, ok := command.Context().Value(contextKey("current_plan")).(*planner.Plan); ok && plan != nil {
 		planSection = map[string]interface{}{
 			"metadata": map[string]interface{}{
 				"version": plan.Metadata.Version,
 				"generated_at": plan.Metadata.GeneratedAt,
 				"mode": plan.Metadata.Mode,
-				"config_hash": plan.Metadata.ConfigHash,
 			},
 		}
 		

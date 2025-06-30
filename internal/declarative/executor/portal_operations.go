@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
@@ -81,7 +80,7 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 	
 	// Create the portal
 	debugLog("Final portal before creation: Name=%s, Labels=%+v", portal.Name, portal.Labels)
-	resp, err := e.client.CreatePortal(ctx, portal, change.ConfigHash)
+	resp, err := e.client.CreatePortal(ctx, portal)
 	if err != nil {
 		return "", err
 	}
@@ -170,13 +169,12 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 		}
 	}
 	
-	// Update management labels with new hash and timestamp
-	allLabels := labels.AddManagedLabels(userLabels, change.ConfigHash)
-	allLabels[labels.LastUpdatedKey] = time.Now().UTC().Format("20060102-150405Z")
+	// Update management labels with new timestamp
+	allLabels := labels.AddManagedLabels(userLabels)
 	updatePortal.Labels = labels.DenormalizeLabels(allLabels)
 	
 	// Update the portal
-	resp, err := e.client.UpdatePortal(ctx, change.ResourceID, updatePortal, change.ConfigHash)
+	resp, err := e.client.UpdatePortal(ctx, change.ResourceID, updatePortal)
 	if err != nil {
 		return "", err
 	}

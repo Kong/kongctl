@@ -102,7 +102,6 @@ func TestDenormalizeLabels(t *testing.T) {
 }
 
 func TestAddManagedLabels(t *testing.T) {
-	configHash := "abc123"
 	
 	tests := []struct {
 		name   string
@@ -113,9 +112,9 @@ func TestAddManagedLabels(t *testing.T) {
 			name:  "nil map",
 			input: nil,
 			verify: func(t *testing.T, result map[string]string) {
-				checkManagedLabels(t, result, configHash)
-				if len(result) != 3 { // managed, hash, timestamp
-					t.Errorf("Expected 3 labels, got %d", len(result))
+				checkManagedLabels(t, result, "")
+				if len(result) != 2 { // managed, timestamp
+					t.Errorf("Expected 2 labels, got %d", len(result))
 				}
 			},
 		},
@@ -126,7 +125,7 @@ func TestAddManagedLabels(t *testing.T) {
 				"team": "platform",
 			},
 			verify: func(t *testing.T, result map[string]string) {
-				checkManagedLabels(t, result, configHash)
+				checkManagedLabels(t, result, "")
 				if result["env"] != "production" {
 					t.Errorf("Expected env=production, got %s", result["env"])
 				}
@@ -139,7 +138,7 @@ func TestAddManagedLabels(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := AddManagedLabels(tt.input, configHash)
+			result := AddManagedLabels(tt.input)
 			tt.verify(t, result)
 		})
 	}
@@ -221,7 +220,6 @@ func TestGetUserLabels(t *testing.T) {
 			labels: map[string]string{
 				"env":          "production",
 				ManagedKey:     "true",
-				ConfigHashKey:  "abc123",
 				"team":         "platform",
 				LastUpdatedKey: "2024-01-01T00:00:00Z",
 			},
@@ -234,7 +232,6 @@ func TestGetUserLabels(t *testing.T) {
 			name: "only kongctl labels",
 			labels: map[string]string{
 				ManagedKey:     "true",
-				ConfigHashKey:  "abc123",
 				LastUpdatedKey: "2024-01-01T00:00:00Z",
 			},
 			expected: map[string]string{},
@@ -396,12 +393,9 @@ func mapsEqual(a, b map[string]string) bool {
 	return true
 }
 
-func checkManagedLabels(t *testing.T, labels map[string]string, expectedHash string) {
+func checkManagedLabels(t *testing.T, labels map[string]string, _ string) {
 	if labels[ManagedKey] != "true" {
 		t.Errorf("Expected %s=true, got %s", ManagedKey, labels[ManagedKey])
-	}
-	if labels[ConfigHashKey] != expectedHash {
-		t.Errorf("Expected %s=%s, got %s", ConfigHashKey, expectedHash, labels[ConfigHashKey])
 	}
 	
 	// Check timestamp format - should be YYYYMMDD-HHMMSSZ

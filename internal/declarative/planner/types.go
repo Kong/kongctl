@@ -27,7 +27,6 @@ type PlanMetadata struct {
 	GeneratedAt time.Time `json:"generated_at"`
 	Generator   string    `json:"generator"`
 	Mode        PlanMode  `json:"mode"`
-	ConfigHash  string    `json:"config_hash"`
 }
 
 // PlannedChange represents a single resource change
@@ -41,7 +40,6 @@ type PlannedChange struct {
 	References   map[string]ReferenceInfo  `json:"references,omitempty"`
 	Parent       *ParentInfo               `json:"parent,omitempty"`
 	Protection   interface{}               `json:"protection,omitempty"` // bool or ProtectionChange
-	ConfigHash   string                    `json:"config_hash"`
 	DependsOn    []string                  `json:"depends_on,omitempty"`
 }
 
@@ -99,14 +97,13 @@ type PlanWarning struct {
 }
 
 // NewPlan creates a new plan with metadata
-func NewPlan(version, generator string, mode PlanMode, configHash string) *Plan {
+func NewPlan(version, generator string, mode PlanMode) *Plan {
 	return &Plan{
 		Metadata: PlanMetadata{
 			Version:     version,
 			GeneratedAt: time.Now().UTC(),
 			Generator:   generator,
 			Mode:        mode,
-			ConfigHash:  configHash,
 		},
 		Changes:        []PlannedChange{},
 		ExecutionOrder: []string{},

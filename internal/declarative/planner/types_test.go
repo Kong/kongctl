@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewPlan(t *testing.T) {
-	plan := NewPlan("1.0", "kongctl/test", PlanModeSync, "test-hash")
+	plan := NewPlan("1.0", "kongctl/test", PlanModeSync)
 
 	if plan.Metadata.Version != "1.0" {
 		t.Errorf("Expected version 1.0, got %s", plan.Metadata.Version)
@@ -27,7 +27,7 @@ func TestNewPlan(t *testing.T) {
 }
 
 func TestPlanAddChange(t *testing.T) {
-	plan := NewPlan("1.0", "kongctl/test", PlanModeSync, "test-hash")
+	plan := NewPlan("1.0", "kongctl/test", PlanModeSync)
 
 	change1 := PlannedChange{
 		ID:           "1-c-portal1",
@@ -35,7 +35,6 @@ func TestPlanAddChange(t *testing.T) {
 		ResourceRef:  "portal1",
 		Action:       ActionCreate,
 		Fields:       map[string]interface{}{"name": "Portal 1"},
-		ConfigHash:   "hash1",
 	}
 
 	change2 := PlannedChange{
@@ -45,7 +44,6 @@ func TestPlanAddChange(t *testing.T) {
 		ResourceID:   "existing-id",
 		Action:       ActionUpdate,
 		Fields:       map[string]interface{}{"description": FieldChange{Old: "old", New: "new"}},
-		ConfigHash:   "hash2",
 	}
 
 	plan.AddChange(change1)
@@ -77,7 +75,7 @@ func TestPlanAddChange(t *testing.T) {
 }
 
 func TestPlanProtectionTracking(t *testing.T) {
-	plan := NewPlan("1.0", "kongctl/test", PlanModeSync, "test-hash")
+	plan := NewPlan("1.0", "kongctl/test", PlanModeSync)
 
 	// Test CREATE with protection
 	change1 := PlannedChange{
@@ -86,7 +84,6 @@ func TestPlanProtectionTracking(t *testing.T) {
 		ResourceRef:  "portal1",
 		Action:       ActionCreate,
 		Protection:   true,
-		ConfigHash:   "hash1",
 	}
 	plan.AddChange(change1)
 
@@ -104,7 +101,6 @@ func TestPlanProtectionTracking(t *testing.T) {
 		ResourceRef:  "portal2",
 		Action:       ActionUpdate,
 		Protection:   ProtectionChange{Old: false, New: true},
-		ConfigHash:   "hash2",
 	}
 	plan.AddChange(change2)
 
@@ -119,7 +115,6 @@ func TestPlanProtectionTracking(t *testing.T) {
 		ResourceRef:  "portal3",
 		Action:       ActionUpdate,
 		Protection:   ProtectionChange{Old: true, New: false},
-		ConfigHash:   "hash3",
 	}
 	plan.AddChange(change3)
 
@@ -129,7 +124,7 @@ func TestPlanProtectionTracking(t *testing.T) {
 }
 
 func TestPlanSetExecutionOrder(t *testing.T) {
-	plan := NewPlan("1.0", "kongctl/test", PlanModeSync, "test-hash")
+	plan := NewPlan("1.0", "kongctl/test", PlanModeSync)
 
 	order := []string{"1-c-auth", "2-c-portal"}
 	plan.SetExecutionOrder(order)
@@ -144,7 +139,7 @@ func TestPlanSetExecutionOrder(t *testing.T) {
 }
 
 func TestPlanAddWarning(t *testing.T) {
-	plan := NewPlan("1.0", "kongctl/test", PlanModeSync, "test-hash")
+	plan := NewPlan("1.0", "kongctl/test", PlanModeSync)
 
 	plan.AddWarning("1-c-portal", "Reference will be resolved during execution")
 
@@ -158,7 +153,7 @@ func TestPlanAddWarning(t *testing.T) {
 }
 
 func TestPlanJSONSerialization(t *testing.T) {
-	plan := NewPlan("1.0", "kongctl/test", PlanModeSync, "test-hash")
+	plan := NewPlan("1.0", "kongctl/test", PlanModeSync)
 
 	change := PlannedChange{
 		ID:           "1-c-portal",
@@ -175,7 +170,6 @@ func TestPlanJSONSerialization(t *testing.T) {
 				ID:  "auth-123",
 			},
 		},
-		ConfigHash: "hash123",
 		DependsOn:  []string{"0-c-auth"},
 	}
 
@@ -240,7 +234,7 @@ func TestFieldChange(t *testing.T) {
 
 func TestPlanMetadataTimestamp(t *testing.T) {
 	before := time.Now().UTC()
-	plan := NewPlan("1.0", "kongctl/test", PlanModeSync, "test-hash")
+	plan := NewPlan("1.0", "kongctl/test", PlanModeSync)
 	after := time.Now().UTC()
 
 	if plan.Metadata.GeneratedAt.Before(before) {
@@ -254,7 +248,7 @@ func TestPlanMetadataTimestamp(t *testing.T) {
 
 func TestPlan_ContainsDeletes(t *testing.T) {
 	// Plan with no changes
-	plan := NewPlan("1.0", "test", PlanModeSync, "hash123")
+	plan := NewPlan("1.0", "test", PlanModeSync)
 	if plan.ContainsDeletes() {
 		t.Error("Empty plan should not contain deletes")
 	}
@@ -289,20 +283,13 @@ func TestPlan_ContainsDeletes(t *testing.T) {
 
 func TestNewPlan_WithMode(t *testing.T) {
 	// Test sync mode
-	plan := NewPlan("1.0", "test", PlanModeSync, "hash123")
+	plan := NewPlan("1.0", "test", PlanModeSync)
 	if plan.Metadata.Mode != PlanModeSync {
 		t.Errorf("Expected mode %s, got %s", PlanModeSync, plan.Metadata.Mode)
 	}
-	if plan.Metadata.ConfigHash != "hash123" {
-		t.Errorf("Expected config hash 'hash123', got %s", plan.Metadata.ConfigHash)
-	}
-
 	// Test apply mode
-	plan = NewPlan("1.0", "test", PlanModeApply, "hash456")
+	plan = NewPlan("1.0", "test", PlanModeApply)
 	if plan.Metadata.Mode != PlanModeApply {
 		t.Errorf("Expected mode %s, got %s", PlanModeApply, plan.Metadata.Mode)
-	}
-	if plan.Metadata.ConfigHash != "hash456" {
-		t.Errorf("Expected config hash 'hash456', got %s", plan.Metadata.ConfigHash)
 	}
 }

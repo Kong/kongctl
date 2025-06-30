@@ -2,4 +2,8 @@ portals:
   - ref: simplest-portal
     name: simple 
     description: "Minimal developer portal configuration"
-    # display_name: "Ye olde Portal"
+  - ref: second-portal
+    name: second 
+    description: "A second portal with a different configuration"
+    display_name: "Our amazing developer portal"
+

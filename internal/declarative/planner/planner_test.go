@@ -117,7 +117,7 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 					Description: &oldDesc,
 					Labels: map[string]string{
 						labels.ManagedKey:    "true",
-						labels.ConfigHashKey: "old-hash",
+						labels.LastUpdatedKey: "20240101-120000Z",
 					},
 				},
 			},
@@ -186,7 +186,7 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 					DisplayName: "Development Portal",
 					Labels: map[string]string{
 						labels.ManagedKey:    "true",
-						labels.ConfigHashKey: "hash-123",
+						labels.LastUpdatedKey: "20240101-120000Z",
 						labels.ProtectedKey:  "true",
 					},
 				},
@@ -355,7 +355,7 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 					DisplayName: displayName,
 					Labels: map[string]string{
 						labels.ManagedKey:    "true",
-						labels.ConfigHashKey: "5fb5278f3fa3962b4fb9b20c42163fc54f3cea1bea76c9f8dd0c6c4b7c30fb76",
+						labels.LastUpdatedKey: "20240101-120000Z",
 					},
 				},
 			},
@@ -430,7 +430,7 @@ func TestGeneratePlan_ApplyModeNoDeletes(t *testing.T) {
 					DisplayName: "Existing Portal",
 					Labels: map[string]string{
 						labels.ManagedKey:    trueStr,
-						labels.ConfigHashKey: hashStr,
+						labels.LastUpdatedKey: "20240101-120000Z",
 					},
 				},
 			},
@@ -491,7 +491,7 @@ func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
 					DisplayName: "Existing Portal",
 					Labels: map[string]string{
 						labels.ManagedKey:    trueStr,
-						labels.ConfigHashKey: hashStr,
+						labels.LastUpdatedKey: "20240101-120000Z",
 					},
 				},
 			},
@@ -533,7 +533,7 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 
 	// Mock existing protected portal
 	protectedStr := "true"
-	existingHash := "old-hash"
+	existingTimestamp := "20240101-120000Z"
 	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
 		ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
 			Data: []kkInternalComps.Portal{
@@ -544,7 +544,7 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 					Description: ptrString("Old description"),
 					Labels: map[string]string{
 						labels.ManagedKey:    trueStr,
-						labels.ConfigHashKey: existingHash,
+						labels.LastUpdatedKey: existingTimestamp,
 						labels.ProtectedKey:  protectedStr,
 					},
 				},
@@ -604,7 +604,7 @@ func TestGeneratePlan_ProtectedResourceFailsDelete(t *testing.T) {
 					DisplayName: "Protected Portal",
 					Labels: map[string]string{
 						labels.ManagedKey:    trueStr,
-						labels.ConfigHashKey: hashStr,
+						labels.LastUpdatedKey: "20240101-120000Z",
 						labels.ProtectedKey:  protectedStr,
 					},
 				},
@@ -650,7 +650,7 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 					DisplayName: "Protected Portal",
 					Labels: map[string]string{
 						labels.ManagedKey:    trueStr,
-						labels.ConfigHashKey: hashStr,
+						labels.LastUpdatedKey: "20240101-120000Z",
 						labels.ProtectedKey:  protectedStr,
 					},
 				},
@@ -698,7 +698,6 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 // Test helpers
 var (
 	trueStr = "true"
-	hashStr = "test-hash"
 )
 
 func ptrString(s string) *string {

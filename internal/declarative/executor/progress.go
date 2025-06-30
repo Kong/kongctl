@@ -39,18 +39,11 @@ func (r *ConsoleReporter) StartExecution(plan *planner.Plan) {
 		return
 	}
 
-	mode := ""
-	switch plan.Metadata.Mode {
-	case planner.PlanModeApply:
-		mode = "apply mode"
-	case planner.PlanModeSync:
-		mode = "sync mode"
-	}
-	
+	// In dry-run mode, show a simple header
 	if r.dryRun {
-		fmt.Fprintf(r.writer, "Executing plan (%s, dry-run):\n", mode)
+		fmt.Fprintln(r.writer, "Validating changes:")
 	} else {
-		fmt.Fprintf(r.writer, "Executing plan (%s):\n", mode)
+		fmt.Fprintln(r.writer, "Applying changes:")
 	}
 }
 
@@ -96,24 +89,11 @@ func (r *ConsoleReporter) FinishExecution(result *ExecutionResult) {
 	fmt.Fprintln(r.writer, "")
 	
 	if result.DryRun {
-		fmt.Fprintln(r.writer, "Dry-run complete:")
-		if result.ValidationResults != nil {
-			validated := 0
-			wouldFail := 0
-			for _, v := range result.ValidationResults {
-				switch v.Status {
-				case "would_succeed":
-					validated++
-				case "would_fail":
-					wouldFail++
-				}
-			}
-			fmt.Fprintf(r.writer, "- Validated: %d\n", validated)
-			if wouldFail > 0 {
-				fmt.Fprintf(r.writer, "- Would fail: %d\n", wouldFail)
-			}
+		// For dry-run, show what would happen
+		fmt.Fprintln(r.writer, "\nDry run complete.")
+		if result.SkippedCount > 0 {
+			fmt.Fprintf(r.writer, "%d changes would be applied.\n", result.SkippedCount)
 		}
-		fmt.Fprintf(r.writer, "- Skipped: %d\n", result.SkippedCount)
 		
 		if result.FailureCount > 0 {
 			fmt.Fprintln(r.writer, "\nValidation errors:")
@@ -122,20 +102,17 @@ func (r *ConsoleReporter) FinishExecution(result *ExecutionResult) {
 			}
 		}
 	} else {
-		fmt.Fprintln(r.writer, "Execution complete:")
-		fmt.Fprintf(r.writer, "- Success: %d\n", result.SuccessCount)
-		if result.FailureCount > 0 {
-			fmt.Fprintf(r.writer, "- Failed: %d\n", result.FailureCount)
-		}
-		if result.SkippedCount > 0 {
-			fmt.Fprintf(r.writer, "- Skipped: %d\n", result.SkippedCount)
+		// For actual execution, show results
+		fmt.Fprintln(r.writer, "\nComplete.")
+		if result.SuccessCount > 0 {
+			fmt.Fprintf(r.writer, "Applied %d changes.\n", result.SuccessCount)
 		}
 		
 		if result.FailureCount > 0 && len(result.Errors) > 0 {
 			fmt.Fprintln(r.writer, "\nErrors:")
 			for _, err := range result.Errors {
-				fmt.Fprintf(r.writer, "- %s %s (%s): %s\n", 
-					err.Action, err.ResourceType, err.ResourceName, err.Error)
+				fmt.Fprintf(r.writer, "- %s %s: %s\n", 
+					err.ResourceType, err.ResourceName, err.Error)
 			}
 		}
 	}

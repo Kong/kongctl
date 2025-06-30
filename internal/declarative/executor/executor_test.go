@@ -71,7 +71,7 @@ func TestExecutor_Execute_EmptyPlan(t *testing.T) {
 	reporter.On("FinishExecution", mock.Anything).Return()
 	
 	exec := New(nil, reporter, false)
-	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply, "hash123")
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
 	
 	result, err := exec.Execute(context.Background(), plan)
 	
@@ -100,7 +100,7 @@ func TestExecutor_Execute_DryRun(t *testing.T) {
 	exec := New(nil, reporter, true) // dry-run enabled
 	
 	// Create a plan with a CREATE change
-	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply, "hash123")
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
 	change := planner.PlannedChange{
 		ID:           "1-c-portal",
 		ResourceType: "portal",
@@ -110,7 +110,6 @@ func TestExecutor_Execute_DryRun(t *testing.T) {
 			"name":        "Developer Portal",
 			"description": "Main developer portal",
 		},
-		ConfigHash: "hash123",
 	}
 	plan.AddChange(change)
 	plan.SetExecutionOrder([]string{"1-c-portal"})
@@ -148,7 +147,7 @@ func TestExecutor_Execute_WithErrors(t *testing.T) {
 	exec := New(nil, reporter, false)
 	
 	// Create a plan with a CREATE change for an unimplemented resource type
-	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply, "hash123")
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
 	change := planner.PlannedChange{
 		ID:           "1-c-service",
 		ResourceType: "service", // Not yet implemented
@@ -157,7 +156,6 @@ func TestExecutor_Execute_WithErrors(t *testing.T) {
 		Fields: map[string]interface{}{
 			"name": "Test Service",
 		},
-		ConfigHash: "hash123",
 	}
 	plan.AddChange(change)
 	plan.SetExecutionOrder([]string{"1-c-service"})
@@ -181,7 +179,7 @@ func TestExecutor_Execute_WithErrors(t *testing.T) {
 func TestExecutor_Execute_NilReporter(t *testing.T) {
 	// Execute with nil reporter should not panic
 	exec := New(nil, nil, false)
-	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply, "hash123")
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
 	
 	result, err := exec.Execute(context.Background(), plan)
 	
@@ -307,7 +305,7 @@ func TestExecutor_ExecutionOrder(t *testing.T) {
 	exec := New(nil, reporter, true) // dry-run
 	
 	// Create a plan with multiple changes
-	plan := planner.NewPlan("1.0", "test", planner.PlanModeSync, "hash123")
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeSync)
 	
 	// Add changes in one order
 	changes := []planner.PlannedChange{
@@ -359,7 +357,7 @@ func TestExecutor_ContinuesOnError(t *testing.T) {
 	exec := New(nil, reporter, false)
 	
 	// Create a plan with multiple changes (all will fail due to not implemented)
-	plan := planner.NewPlan("1.0", "test", planner.PlanModeSync, "hash123")
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeSync)
 	
 	for i := 1; i <= 3; i++ {
 		change := planner.PlannedChange{
@@ -370,7 +368,6 @@ func TestExecutor_ContinuesOnError(t *testing.T) {
 			Fields: map[string]interface{}{
 				"name": fmt.Sprintf("Route %d", i),
 			},
-			ConfigHash: "hash123",
 		}
 		plan.AddChange(change)
 	}

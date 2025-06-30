@@ -13,11 +13,9 @@ import (
 	"github.com/kong/kongctl/internal/declarative/planner"
 )
 
-// ConfirmExecution displays a plan summary and prompts for confirmation.
+// ConfirmExecution prompts for confirmation.
 // Returns true if the user confirms with 'yes', false otherwise.
-func ConfirmExecution(plan *planner.Plan, stdout, stderr io.Writer, stdin io.Reader) bool {
-	DisplayPlanSummary(plan, stdout)
-
+func ConfirmExecution(plan *planner.Plan, _, stderr io.Writer, stdin io.Reader) bool {
 	// Show DELETE warning if applicable
 	deleteCount := 0
 	if plan.Summary.ByAction != nil {
@@ -79,38 +77,31 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 	fmt.Fprintln(out, "Plan Summary:")
 
 	if plan.Summary.ByAction == nil || len(plan.Changes) == 0 {
-		fmt.Fprintln(out, "- No changes")
+		fmt.Fprintln(out, "  No changes")
 		return
 	}
 
-	// Group changes by action and resource type
-	changesByAction := make(map[planner.ActionType]map[string][]planner.PlannedChange)
+	// Group changes by resource type
+	changesByResource := make(map[string][]planner.PlannedChange)
 	for _, change := range plan.Changes {
-		if changesByAction[change.Action] == nil {
-			changesByAction[change.Action] = make(map[string][]planner.PlannedChange)
-		}
-		changesByAction[change.Action][change.ResourceType] = append(
-			changesByAction[change.Action][change.ResourceType], change)
+		changesByResource[change.ResourceType] = append(
+			changesByResource[change.ResourceType], change)
 	}
 
-	// Display changes organized by action
-	actionOrder := []planner.ActionType{planner.ActionCreate, planner.ActionUpdate, planner.ActionDelete}
-	for _, action := range actionOrder {
-		if resources, ok := changesByAction[action]; ok && len(resources) > 0 {
-			fmt.Fprintf(out, "\n%s:\n", getActionHeader(action))
-			for resourceType, changes := range resources {
-				fmt.Fprintf(out, "  %s (%d):\n", resourceType, len(changes))
-				for _, change := range changes {
-					resourceName := change.ResourceRef
-					if resourceName == "" {
-						// Try to get name from fields
-						if name, ok := change.Fields["name"].(string); ok {
-							resourceName = name
-						}
-					}
-					fmt.Fprintf(out, "    - %s\n", resourceName)
+	// Display changes organized by resource type
+	fmt.Fprintln(out, "")
+	for resourceType, changes := range changesByResource {
+		fmt.Fprintf(out, "  %s (%d):\n", resourceType, len(changes))
+		for _, change := range changes {
+			resourceName := change.ResourceRef
+			if resourceName == "" {
+				// Try to get name from fields
+				if name, ok := change.Fields["name"].(string); ok {
+					resourceName = name
 				}
 			}
+			actionPrefix := getActionPrefix(change.Action)
+			fmt.Fprintf(out, "    %s %s\n", actionPrefix, resourceName)
 		}
 	}
 
@@ -123,16 +114,16 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 	}
 }
 
-// getActionHeader returns a user-friendly header for the action type
-func getActionHeader(action planner.ActionType) string {
+// getActionPrefix returns a symbol prefix for the action type
+func getActionPrefix(action planner.ActionType) string {
 	switch action {
 	case planner.ActionCreate:
-		return "Resources to create"
+		return "+"
 	case planner.ActionUpdate:
-		return "Resources to update"
+		return "~"
 	case planner.ActionDelete:
-		return "Resources to delete"
+		return "-"
 	default:
-		return string(action)
+		return "?"
 	}
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs/plan"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/diff"
 	kongctlconfig "github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
@@ -145,8 +146,8 @@ portals:
 						Description: &oldDesc,
 						DisplayName: oldDisplay,
 						Labels: map[string]string{
-							"kongctl-managed":     "true",
-							"kongctl-config-hash": "oldhash",
+							labels.ManagedKey:     "true",
+							labels.LastUpdatedKey: "20240101-120000Z",
 						},
 					},
 				},
@@ -214,14 +215,9 @@ portals:
 	assert.Equal(t, "existing-portal", change.ResourceRef)
 	assert.Equal(t, "portal-123", change.ResourceID)
 	
-	// Verify field changes
-	descChange := change.Fields["description"].(map[string]interface{})
-	assert.Equal(t, "Old description", descChange["old"])
-	assert.Equal(t, "Updated description", descChange["new"])
-	
-	displayChange := change.Fields["display_name"].(map[string]interface{})
-	assert.Equal(t, "Old Display", displayChange["old"])
-	assert.Equal(t, "Updated Display", displayChange["new"])
+	// Verify field changes - we now store the new values directly
+	assert.Equal(t, "Updated description", change.Fields["description"])
+	assert.Equal(t, "Updated Display", change.Fields["display_name"])
 }
 
 func TestPlanGeneration_ProtectionChange(t *testing.T) {
@@ -235,7 +231,7 @@ portals:
     name: "Protected Portal"
     description: "Portal with protection"
     labels:
-      kongctl-protected: "true"
+      KONGCTL-protected: "true"
 `
 	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
 	
@@ -260,8 +256,8 @@ portals:
 						Name:        existingName,
 						Description: &desc,
 						Labels: map[string]string{
-							"kongctl-managed":     "true",
-							"kongctl-config-hash": "samehash",
+							labels.ManagedKey:     "true",
+							labels.LastUpdatedKey: "20240101-120000Z",
 							// No protected label = unprotected
 						},
 					},
@@ -353,7 +349,7 @@ portals:
 		mockPortal := NewMockPortalAPI(t)
 		
 		// Mock portal that matches desired state
-		portal := CreateManagedPortal("Existing Portal", "portal-789", "Same description", "will-match")
+		portal := CreateManagedPortal("Existing Portal", "portal-789", "Same description")
 		
 		mockPortal.On("ListPortals", mock.Anything, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
 			ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
@@ -419,6 +415,7 @@ func TestDiffCommand_TextOutput(t *testing.T) {
 			Version:     "1.0",
 			GeneratedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 			Generator:   "kongctl/test",
+			Mode:        planner.PlanModeSync,
 		},
 		Changes: []planner.PlannedChange{
 			{
@@ -478,6 +475,7 @@ func TestDiffCommand_JSONOutput(t *testing.T) {
 	plan := planner.Plan{
 		Metadata: planner.PlanMetadata{
 			Version: "1.0",
+			Mode: planner.PlanModeSync,
 		},
 		Changes: []planner.PlannedChange{
 			{
@@ -541,6 +539,7 @@ func TestDiffCommand_YAMLOutput(t *testing.T) {
 	plan := planner.Plan{
 		Metadata: planner.PlanMetadata{
 			Version: "1.0",
+			Mode: planner.PlanModeSync,
 		},
 		Changes:        []planner.PlannedChange{},
 		ExecutionOrder: []string{},

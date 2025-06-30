@@ -229,14 +229,8 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 				}
 			}
 			if portal != nil {
-				// Portal already exists - check if configuration matches
-				existingHash := portal.NormalizedLabels[labels.ConfigHashKey]
-				if change.ConfigHash != "" && existingHash == change.ConfigHash {
-					// Configuration matches - this is idempotent
-					return fmt.Errorf("portal '%s' already exists with matching configuration (idempotent)", resourceName)
-				}
-				// Configuration differs
-				return fmt.Errorf("portal '%s' already exists with different configuration", resourceName)
+				// Portal already exists - this is an error for CREATE
+				return fmt.Errorf("portal '%s' already exists", resourceName)
 			}
 		}
 	}

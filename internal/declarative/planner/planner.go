@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kong/kongctl/internal/declarative/hash"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -37,15 +36,10 @@ func NewPlanner(client *state.Client) *Planner {
 
 // GeneratePlan creates a plan from declarative configuration
 func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, opts Options) (*Plan, error) {
-	// Calculate overall config hash for the resource set
-	configHash := hash.CalculateResourceSetHash(rs)
-	
-	plan := NewPlan("1.0", "kongctl/dev", opts.Mode, configHash)
+	plan := NewPlan("1.0", "kongctl/dev", opts.Mode)
 
 	// Generate changes for each resource type
-	if err := p.planAuthStrategyChanges(ctx, rs.ApplicationAuthStrategies, plan); err != nil {
-		return nil, fmt.Errorf("failed to plan auth strategy changes: %w", err)
-	}
+	p.planAuthStrategyChanges(ctx, rs.ApplicationAuthStrategies, plan)
 
 	if err := p.planPortalChanges(ctx, rs.Portals, plan); err != nil {
 		return nil, fmt.Errorf("failed to plan portal changes: %w", err)
@@ -142,20 +136,13 @@ func (p *Planner) planPortalChanges(ctx context.Context, desired []resources.Por
 
 	// Compare each desired portal
 	for _, desiredPortal := range desired {
-		// Calculate config hash for desired state
-		configHash, err := hash.CalculatePortalHash(desiredPortal.CreatePortal)
-		if err != nil {
-			return fmt.Errorf("failed to calculate hash for portal %q: %w", desiredPortal.GetRef(), err)
-		}
-
 		current, exists := currentByName[desiredPortal.Name]
 
 		if !exists {
 			// CREATE action
-			p.planPortalCreate(desiredPortal, configHash, plan)
+			p.planPortalCreate(desiredPortal, plan)
 		} else {
 			// Check if update needed
-			currentHash := current.NormalizedLabels[labels.ConfigHashKey]
 			isProtected := current.NormalizedLabels[labels.ProtectedKey] == "true"
 
 			// Get protection status from desired labels
@@ -170,10 +157,11 @@ func (p *Planner) planPortalChanges(ctx context.Context, desired []resources.Por
 			if isProtected != shouldProtect {
 				// Protection change is always allowed
 				p.planProtectionChange(current, isProtected, shouldProtect, plan)
-				// If unprotecting, we can then update
+				// If unprotecting, we can then also check for other updates
 				if isProtected && !shouldProtect {
-					if currentHash != configHash {
-						p.planPortalUpdate(current, desiredPortal, configHash, plan)
+					needsUpdate, updateFields := p.shouldUpdatePortal(current, desiredPortal)
+					if needsUpdate {
+						p.planPortalUpdateWithFields(current, desiredPortal, updateFields, plan)
 					}
 				}
 			} else {
@@ -184,7 +172,7 @@ func (p *Planner) planPortalChanges(ctx context.Context, desired []resources.Por
 					if err := p.validateProtection("portal", desiredPortal.Name, isProtected, ActionUpdate); err != nil {
 						protectionErrors = append(protectionErrors, err)
 					} else {
-						p.planPortalUpdateWithFields(current, desiredPortal, updateFields, configHash, plan)
+						p.planPortalUpdateWithFields(current, desiredPortal, updateFields, plan)
 					}
 				}
 			}
@@ -227,7 +215,7 @@ func (p *Planner) planPortalChanges(ctx context.Context, desired []resources.Por
 }
 
 // planPortalCreate creates a CREATE change for a portal
-func (p *Planner) planPortalCreate(portal resources.PortalResource, configHash string, plan *Plan) {
+func (p *Planner) planPortalCreate(portal resources.PortalResource, plan *Plan) {
 	fields := make(map[string]interface{})
 	fields["name"] = portal.Name
 	if portal.DisplayName != nil {
@@ -247,7 +235,6 @@ func (p *Planner) planPortalCreate(portal resources.PortalResource, configHash s
 		ResourceRef:  portal.GetRef(),
 		Action:       ActionCreate,
 		Fields:       fields,
-		ConfigHash:   configHash,
 		DependsOn:    []string{},
 	}
 
@@ -318,75 +305,11 @@ func (p *Planner) shouldUpdatePortal(
 	return len(updates) > 0, updates
 }
 
-// planPortalUpdate creates an UPDATE change for a portal (legacy - for protection changes)
-func (p *Planner) planPortalUpdate(
-	current state.Portal, 
-	desired resources.PortalResource, 
-	configHash string, 
-	plan *Plan,
-) {
-	// This is now only used for protection status changes
-	// For regular updates, use planPortalUpdateWithFields
-	fields := make(map[string]interface{})
-	dependencies := []string{}
-
-	// Compare each field and store only changes
-	currentDesc := getString(current.Description)
-	desiredDesc := getString(desired.Description)
-	if currentDesc != desiredDesc {
-		fields["description"] = FieldChange{
-			Old: currentDesc,
-			New: desiredDesc,
-		}
-	}
-
-	if current.DisplayName != getString(desired.DisplayName) {
-		fields["display_name"] = FieldChange{
-			Old: current.DisplayName,
-			New: getString(desired.DisplayName),
-		}
-	}
-
-	// Handle auth strategy reference
-	desiredAuthID := getString(desired.DefaultApplicationAuthStrategyID)
-	currentAuthID := getString(current.DefaultApplicationAuthStrategyID)
-	if currentAuthID != desiredAuthID {
-		fields["default_application_auth_strategy_id"] = FieldChange{
-			Old: currentAuthID,
-			New: desiredAuthID,
-		}
-	}
-
-	// Add other field comparisons...
-
-	// Only create change if there are actual field changes
-	if len(fields) > 0 {
-		change := PlannedChange{
-			ID:           p.nextChangeID(ActionUpdate, desired.GetRef()),
-			ResourceType: "portal",
-			ResourceRef:  desired.GetRef(),
-			ResourceID:   current.ID,
-			Action:       ActionUpdate,
-			Fields:       fields,
-			ConfigHash:   configHash,
-			DependsOn:    dependencies,
-		}
-
-		// Check if already protected
-		if current.NormalizedLabels[labels.ProtectedKey] == "true" {
-			change.Protection = true
-		}
-
-		plan.AddChange(change)
-	}
-}
-
 // planPortalUpdateWithFields creates an UPDATE change with specific fields
 func (p *Planner) planPortalUpdateWithFields(
 	current state.Portal,
 	desired resources.PortalResource,
 	updateFields map[string]interface{},
-	configHash string,
 	plan *Plan,
 ) {
 	fields := make(map[string]interface{})
@@ -408,7 +331,6 @@ func (p *Planner) planPortalUpdateWithFields(
 		ResourceID:   current.ID,
 		Action:       ActionUpdate,
 		Fields:       fields,
-		ConfigHash:   configHash,
 		DependsOn:    []string{},
 	}
 	
@@ -433,7 +355,6 @@ func (p *Planner) planProtectionChange(portal state.Portal, wasProtected, should
 			Old: wasProtected,
 			New: shouldProtect,
 		},
-		ConfigHash: portal.NormalizedLabels[labels.ConfigHashKey],
 		DependsOn:  []string{},
 	}
 
@@ -445,17 +366,12 @@ func (p *Planner) planAuthStrategyChanges(
 	_ context.Context, 
 	desired []resources.ApplicationAuthStrategyResource, 
 	plan *Plan,
-) error {
+) {
 	// Similar logic to portals but for auth strategies
 	// TODO: Implement when auth strategy state client is available
 
 	// For now, just create all as new
 	for _, strategy := range desired {
-		configHash, err := hash.CalculateAuthStrategyHash(strategy.CreateAppAuthStrategyRequest)
-		if err != nil {
-			return fmt.Errorf("failed to calculate hash for auth strategy %q: %w", strategy.GetRef(), err)
-		}
-
 		// Extract fields based on strategy type
 		fields := make(map[string]interface{})
 		var strategyType string
@@ -491,14 +407,11 @@ func (p *Planner) planAuthStrategyChanges(
 			ResourceRef:  strategy.GetRef(),
 			Action:       ActionCreate,
 			Fields:       fields,
-			ConfigHash:   configHash,
 			DependsOn:    []string{},
 		}
 
 		plan.AddChange(change)
 	}
-
-	return nil
 }
 
 // planPortalDelete creates a DELETE change for a portal
@@ -510,7 +423,6 @@ func (p *Planner) planPortalDelete(portal state.Portal, plan *Plan) {
 		ResourceID:   portal.ID,
 		Action:       ActionDelete,
 		Fields:       map[string]interface{}{}, // No fields for DELETE
-		ConfigHash:   portal.NormalizedLabels[labels.ConfigHashKey],
 		DependsOn:    []string{},
 	}
 

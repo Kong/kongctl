@@ -9,7 +9,6 @@ import (
 // Label keys used by kongctl
 const (
 	ManagedKey     = "KONGCTL-managed"
-	ConfigHashKey  = "KONGCTL-config-hash"
 	LastUpdatedKey = "KONGCTL-last-updated"
 	ProtectedKey   = "KONGCTL-protected"
 )
@@ -43,7 +42,7 @@ func DenormalizeLabels(labels map[string]string) map[string]*string {
 }
 
 // AddManagedLabels adds kongctl management labels
-func AddManagedLabels(labels map[string]string, configHash string) map[string]string {
+func AddManagedLabels(labels map[string]string) map[string]string {
 	if labels == nil {
 		labels = make(map[string]string)
 	}
@@ -56,7 +55,6 @@ func AddManagedLabels(labels map[string]string, configHash string) map[string]st
 	
 	// Add management labels
 	result[ManagedKey] = "true"
-	result[ConfigHashKey] = sanitizeLabelValue(configHash)
 	// Use a timestamp format that only contains allowed characters for labels
 	// Format: YYYYMMDD-HHMMSSZ (no colons allowed in label values)
 	result[LastUpdatedKey] = time.Now().UTC().Format("20060102-150405Z")
@@ -107,29 +105,3 @@ func ValidateLabel(key string) error {
 	return nil
 }
 
-// sanitizeLabelValue converts a value to be compatible with Konnect label requirements
-// Pattern: ^[a-z0-9A-Z]{1}([a-z0-9A-Z-._]*[a-z0-9A-Z]+)?$
-func sanitizeLabelValue(value string) string {
-	// Replace invalid characters with hyphens
-	var result strings.Builder
-	for i, r := range value {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
-			result.WriteRune(r)
-		} else if i > 0 && i < len(value)-1 && (r == '-' || r == '.' || r == '_') {
-			result.WriteRune(r)
-		} else {
-			result.WriteRune('-')
-		}
-	}
-	
-	// Ensure it doesn't end with special characters
-	s := result.String()
-	s = strings.TrimRight(s, "-._")
-	
-	// Ensure it's not empty
-	if s == "" {
-		return "empty"
-	}
-	
-	return s
-}

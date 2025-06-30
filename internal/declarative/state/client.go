@@ -98,7 +98,6 @@ func (c *Client) GetPortalByName(ctx context.Context, name string) (*Portal, err
 func (c *Client) CreatePortal(
 	ctx context.Context,
 	portal kkInternalComps.CreatePortal,
-	configHash string,
 ) (*kkInternalComps.PortalResponse, error) {
 	// Debug logging
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
@@ -114,7 +113,7 @@ func (c *Client) CreatePortal(
 	normalized := labels.NormalizeLabels(portal.Labels)
 	debugLog("Normalized labels: %+v", normalized)
 	
-	normalized = labels.AddManagedLabels(normalized, configHash)
+	normalized = labels.AddManagedLabels(normalized)
 	debugLog("After adding managed labels: %+v", normalized)
 	
 	portal.Labels = labels.DenormalizeLabels(normalized)
@@ -147,11 +146,10 @@ func (c *Client) UpdatePortal(
 	ctx context.Context,
 	id string,
 	portal kkInternalComps.UpdatePortal,
-	configHash string,
 ) (*kkInternalComps.PortalResponse, error) {
 	// Add management labels
 	normalized := labels.NormalizeLabels(portal.Labels)
-	normalized = labels.AddManagedLabels(normalized, configHash)
+	normalized = labels.AddManagedLabels(normalized)
 	portal.Labels = labels.DenormalizeLabels(normalized)
 
 	resp, err := c.portalAPI.UpdatePortal(ctx, id, portal)

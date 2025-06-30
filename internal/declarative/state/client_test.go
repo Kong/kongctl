@@ -115,7 +115,7 @@ func TestListManagedPortals(t *testing.T) {
 											Name: "Another Managed",
 											Labels: map[string]string{
 												labels.ManagedKey:    "true",
-												labels.ConfigHashKey: "abc123",
+												labels.LastUpdatedKey: "abc123",
 											},
 										},
 									},
@@ -349,7 +349,6 @@ func TestCreatePortal(t *testing.T) {
 	tests := []struct {
 		name       string
 		portal     kkInternalComps.CreatePortal
-		configHash string
 		setupMock  func() helpers.PortalAPI
 		wantErr    bool
 		checkFunc  func(t *testing.T, resp *kkInternalComps.PortalResponse)
@@ -362,7 +361,6 @@ func TestCreatePortal(t *testing.T) {
 					"env": ptr("production"),
 				},
 			},
-			configHash: "hash123",
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
 					createPortalFunc: func(_ context.Context,
@@ -370,9 +368,6 @@ func TestCreatePortal(t *testing.T) {
 						// Verify labels were added
 						if portal.Labels[labels.ManagedKey] == nil || *portal.Labels[labels.ManagedKey] != "true" {
 							t.Errorf("Expected managed label to be true")
-						}
-						if portal.Labels[labels.ConfigHashKey] == nil || *portal.Labels[labels.ConfigHashKey] != "hash123" {
-							t.Errorf("Expected config hash label to be hash123")
 						}
 						if portal.Labels[labels.LastUpdatedKey] == nil {
 							t.Errorf("Expected last updated label to be set")
@@ -412,7 +407,6 @@ func TestCreatePortal(t *testing.T) {
 			portal: kkInternalComps.CreatePortal{
 				Name: "New Portal",
 			},
-			configHash: "hash123",
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
 					createPortalFunc: func(_ context.Context,
@@ -428,7 +422,6 @@ func TestCreatePortal(t *testing.T) {
 			portal: kkInternalComps.CreatePortal{
 				Name: "New Portal",
 			},
-			configHash: "hash123",
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
 					createPortalFunc: func(_ context.Context,
@@ -446,7 +439,7 @@ func TestCreatePortal(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := NewClient(tt.setupMock())
-			resp, err := client.CreatePortal(context.Background(), tt.portal, tt.configHash)
+			resp, err := client.CreatePortal(context.Background(), tt.portal)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreatePortal() error = %v, wantErr %v", err, tt.wantErr)
@@ -465,7 +458,6 @@ func TestUpdatePortal(t *testing.T) {
 		name       string
 		portalID   string
 		portal     kkInternalComps.UpdatePortal
-		configHash string
 		setupMock  func() helpers.PortalAPI
 		wantErr    bool
 		checkFunc  func(t *testing.T, resp *kkInternalComps.PortalResponse)
@@ -479,7 +471,6 @@ func TestUpdatePortal(t *testing.T) {
 					"env": ptr("staging"),
 				},
 			},
-			configHash: "newhash456",
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
 					updatePortalFunc: func(_ context.Context, id string,
@@ -492,7 +483,7 @@ func TestUpdatePortal(t *testing.T) {
 						if portal.Labels[labels.ManagedKey] == nil || *portal.Labels[labels.ManagedKey] != "true" {
 							t.Errorf("Expected managed label to be true")
 						}
-						if portal.Labels[labels.ConfigHashKey] == nil || *portal.Labels[labels.ConfigHashKey] != "newhash456" {
+						if portal.Labels[labels.LastUpdatedKey] == nil || *portal.Labels[labels.LastUpdatedKey] == "" {
 							t.Errorf("Expected config hash label to be newhash456")
 						}
 						if portal.Labels[labels.LastUpdatedKey] == nil {
@@ -537,7 +528,6 @@ func TestUpdatePortal(t *testing.T) {
 			portal: kkInternalComps.UpdatePortal{
 				Name: ptr("Updated Portal"),
 			},
-			configHash: "hash123",
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
 					updatePortalFunc: func(_ context.Context, _ string,
@@ -554,7 +544,6 @@ func TestUpdatePortal(t *testing.T) {
 			portal: kkInternalComps.UpdatePortal{
 				Name: ptr("Updated Portal"),
 			},
-			configHash: "hash123",
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
 					updatePortalFunc: func(_ context.Context, _ string,
@@ -572,7 +561,7 @@ func TestUpdatePortal(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := NewClient(tt.setupMock())
-			resp, err := client.UpdatePortal(context.Background(), tt.portalID, tt.portal, tt.configHash)
+			resp, err := client.UpdatePortal(context.Background(), tt.portalID, tt.portal)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdatePortal() error = %v, wantErr %v", err, tt.wantErr)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
@@ -149,7 +150,7 @@ func TestResolveReferences_ExistingPortal(t *testing.T) {
 					ID:   "portal-existing-123",
 					Name: "existing-portal",
 					Labels: map[string]string{
-						"KONGCTL.managed": "true",
+						labels.ManagedKey: "true",
 					},
 				},
 			},
@@ -304,7 +305,7 @@ func TestResolveReferences_FieldChange(t *testing.T) {
 					ID:   "portal-456",
 					Name: "new-portal",
 					Labels: map[string]string{
-						"KONGCTL.managed": "true",
+						labels.ManagedKey: "true",
 					},
 				},
 			},

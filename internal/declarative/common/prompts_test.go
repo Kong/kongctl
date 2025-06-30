@@ -48,10 +48,9 @@ func TestConfirmExecution(t *testing.T) {
 			input:    "yes\n",
 			expected: true,
 			checkStdout: func(t *testing.T, stdout string) {
-				assert.Contains(t, stdout, "Plan Summary:")
-				assert.Contains(t, stdout, "Resources to create")
-				assert.Contains(t, stdout, "portal (2)")
-				assert.Contains(t, stdout, "Resources to update")
+				// ConfirmExecution doesn't call DisplayPlanSummary,
+				// so stdout should be empty
+				assert.Empty(t, stdout)
 			},
 			checkStderr: func(t *testing.T, stderr string) {
 				assert.Contains(t, stderr, "Do you want to continue? Type 'yes' to confirm:")
@@ -134,9 +133,9 @@ func TestConfirmExecution(t *testing.T) {
 			input:    "yes\n",
 			expected: true,
 			checkStdout: func(t *testing.T, stdout string) {
-				assert.Contains(t, stdout, "Warnings (2):")
-				assert.Contains(t, stdout, "⚠ Resource foo has unresolved references")
-				assert.Contains(t, stdout, "⚠ Resource bar may be protected")
+				// ConfirmExecution doesn't call DisplayPlanSummary,
+				// so stdout should be empty
+				assert.Empty(t, stdout)
 			},
 		},
 	}
@@ -187,11 +186,14 @@ func TestDisplayPlanSummary(t *testing.T) {
 			},
 			expected: []string{
 				"Plan Summary:",
-				"Resources to create",
-				"portal (2)",
-				"api (1)",
-				"Resources to update",
-				"Resources to delete",
+				"portal (4):",
+				"+ p1",
+				"+ p2",
+				"~ p3",
+				"- p4",
+				"api (2):",
+				"+ a1",
+				"~ a2",
 			},
 		},
 		{
@@ -212,9 +214,13 @@ func TestDisplayPlanSummary(t *testing.T) {
 			},
 			expected: []string{
 				"Plan Summary:",
-				"Resources to create",
-				"portal (3)",
-				"api (2)",
+				"portal (3):",
+				"+ p1",
+				"+ p2",
+				"+ p3",
+				"api (2):",
+				"+ a1",
+				"+ a2",
 			},
 		},
 		{
@@ -224,7 +230,7 @@ func TestDisplayPlanSummary(t *testing.T) {
 			},
 			expected: []string{
 				"Plan Summary:",
-				"- No changes",
+				"No changes",
 			},
 		},
 	}
