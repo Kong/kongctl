@@ -91,7 +91,7 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 	// Display changes organized by resource type
 	fmt.Fprintln(out, "")
 	for resourceType, changes := range changesByResource {
-		fmt.Fprintf(out, "  %s (%d):\n", resourceType, len(changes))
+		fmt.Fprintf(out, "%s (%d):\n", resourceType, len(changes))
 		for _, change := range changes {
 			resourceName := change.ResourceRef
 			if resourceName == "" {
@@ -101,7 +101,7 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 				}
 			}
 			actionPrefix := getActionPrefix(change.Action)
-			fmt.Fprintf(out, "    %s %s\n", actionPrefix, resourceName)
+			fmt.Fprintf(out, "  %s %s\n", actionPrefix, resourceName)
 		}
 	}
 

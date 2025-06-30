@@ -102,7 +102,7 @@ func TestConsoleReporter_StartChange(t *testing.T) {
 				ResourceType: "portal",
 				ResourceRef:  "developer-portal",
 			},
-			expectedOut: "- Creating portal: developer-portal... ",
+			expectedOut: "• Creating portal: developer-portal... ",
 		},
 		{
 			name: "update with resource ref",
@@ -111,7 +111,7 @@ func TestConsoleReporter_StartChange(t *testing.T) {
 				ResourceType: "portal",
 				ResourceRef:  "staging-portal",
 			},
-			expectedOut: "- Updating portal: staging-portal... ",
+			expectedOut: "• Updating portal: staging-portal... ",
 		},
 		{
 			name: "delete without resource ref",
@@ -120,7 +120,7 @@ func TestConsoleReporter_StartChange(t *testing.T) {
 				Action:       planner.ActionDelete,
 				ResourceType: "portal_page",
 			},
-			expectedOut: "- Deleting portal_page: portal_page/change-123... ",
+			expectedOut: "• Deleting portal_page: portal_page/change-123... ",
 		},
 	}
 
@@ -230,7 +230,7 @@ func TestConsoleReporter_FinishExecution_Normal(t *testing.T) {
 				"Complete.",
 				"Applied 2 changes.",
 				"Errors:",
-				"- portal bad-portal: validation failed",
+				"  • portal bad-portal: validation failed",
 			},
 		},
 		{
@@ -315,8 +315,8 @@ func TestConsoleReporter_FinishExecution_DryRun(t *testing.T) {
 				"Dry run complete.",
 				"3 changes would be applied.",
 				"Validation errors:",
-				"- portal invalid-portal: name too long",
-				"- portal_page invalid-page: missing required field",
+				"  • portal invalid-portal: name too long",
+				"  • portal_page invalid-page: missing required field",
 			},
 		},
 	}
@@ -399,13 +399,13 @@ func TestConsoleReporter_CompleteWorkflow(t *testing.T) {
 	
 	// Verify the complete output
 	assert.Contains(t, output, "Applying changes:")
-	assert.Contains(t, output, "- Creating portal: developer-portal... ✓")
-	assert.Contains(t, output, "- Updating portal: staging-portal... ✓")
-	assert.Contains(t, output, "- Deleting portal_page: old-docs... ✗ Error: not found")
+	assert.Contains(t, output, "• Creating portal: developer-portal... ✓")
+	assert.Contains(t, output, "• Updating portal: staging-portal... ✓")
+	assert.Contains(t, output, "• Deleting portal_page: old-docs... ✗ Error: not found")
 	assert.Contains(t, output, "Complete.")
 	assert.Contains(t, output, "Applied 2 changes.")
 	assert.Contains(t, output, "Errors:")
-	assert.Contains(t, output, "- portal_page old-docs: not found")
+	assert.Contains(t, output, "  • portal_page old-docs: not found")
 }
 
 func TestGetActionVerb(t *testing.T) {
@@ -500,7 +500,7 @@ func TestConsoleReporter_MultilineOutput(t *testing.T) {
 		if line == "Validation errors:" {
 			foundErrors = true
 			assert.True(t, i+1 < len(lines))
-			assert.True(t, strings.HasPrefix(lines[i+1], "- "))  // Indented error
+			assert.True(t, strings.HasPrefix(lines[i+1], "  • "))  // Indented error
 			break
 		}
 	}

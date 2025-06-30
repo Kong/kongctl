@@ -58,7 +58,7 @@ func (r *ConsoleReporter) StartChange(change planner.PlannedChange) {
 		resourceName = fmt.Sprintf("%s/%s", change.ResourceType, change.ID)
 	}
 	
-	fmt.Fprintf(r.writer, "- %s %s: %s... ", action, change.ResourceType, resourceName)
+	fmt.Fprintf(r.writer, "• %s %s: %s... ", action, change.ResourceType, resourceName)
 }
 
 // CompleteChange is called after a change is executed (success or failure)
@@ -98,7 +98,7 @@ func (r *ConsoleReporter) FinishExecution(result *ExecutionResult) {
 		if result.FailureCount > 0 {
 			fmt.Fprintln(r.writer, "\nValidation errors:")
 			for _, err := range result.Errors {
-				fmt.Fprintf(r.writer, "- %s %s: %s\n", err.ResourceType, err.ResourceName, err.Error)
+				fmt.Fprintf(r.writer, "  • %s %s: %s\n", err.ResourceType, err.ResourceName, err.Error)
 			}
 		}
 	} else {
@@ -111,7 +111,7 @@ func (r *ConsoleReporter) FinishExecution(result *ExecutionResult) {
 		if result.FailureCount > 0 && len(result.Errors) > 0 {
 			fmt.Fprintln(r.writer, "\nErrors:")
 			for _, err := range result.Errors {
-				fmt.Fprintf(r.writer, "- %s %s: %s\n", 
+				fmt.Fprintf(r.writer, "  • %s %s: %s\n", 
 					err.ResourceType, err.ResourceName, err.Error)
 			}
 		}
