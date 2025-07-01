@@ -10,17 +10,19 @@
 | 4 | Add portal operations to executor | Completed ✅ | Step 2 |
 | 5 | Implement apply command | Completed ✅ | Steps 3, 4 |
 | 5a | Fix idempotency issue | Completed ✅ | Step 5 |
-| 5b | Add configuration discovery | Not Started | Step 5a |
-| 6 | Implement sync command | Not Started | Steps 3, 4 |
-| 7 | Add plan validation | Not Started | Steps 5, 6 |
-| 8 | Implement confirmation prompts | Partially Complete | Steps 5, 6 |
-| 9 | Migrate login to Konnect-first | Not Started | - |
-| 10 | Add integration tests | Not Started | Steps 5, 6, 9 |
-| 11 | Update documentation | Not Started | All steps |
+| 5b | Add configuration discovery | Moved to Stage 6 | - |
+| 6 | Implement sync command | Moved to Stage 5 | - |
+| 7 | Add plan validation | Moved to Stage 6 | - |
+| 8 | Implement confirmation prompts | Moved to Stage 6 | - |
+| 9 | Migrate login to Konnect-first | Moved to Stage 6 | - |
+| 10 | Add integration tests | Moved to Stage 6 | - |
+| 11 | Update documentation | Moved to Stage 6 | - |
 
-**Current Stage**: Step 5a completed, ready for Step 5b (Configuration Discovery)
+**Stage Status**: ✅ **COMPLETED**
 
-**Note**: Step 8 is marked as "Partially Complete" because confirmation prompts are implemented in apply command but sync command doesn't exist yet.
+**Note**: This stage has been completed with core apply command functionality fully implemented. Remaining items have been reorganized:
+- Sync command implementation → Stage 5 (dedicated stage)
+- Various improvements and testing → Stage 6 (cleanup and polish)
 
 ## Recent Improvements (Beyond Original Plan)
 

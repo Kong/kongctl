@@ -2,26 +2,21 @@
 
 This folder contains the complete planning and implementation tracking for all kongctl features and development efforts.
 
-## 🎯 Current Active Stage: Stage 3 (In Progress - Step 5a/11 Complete)
+## 🎯 Current Active Stage: Stage 4 (Not Started)
 
 **Previous Stages Completed**:
 - Stage 1: Configuration Format & Basic CLI ✅ 
 - Stage 2: Plan Generation with Label Management ✅
+- Stage 3: Plan Execution ✅
 
-**Stage 3: Plan Execution** 🚧 In Progress
-- **Requirements**: [003-dec-cfg-plan-exec/description.md](003-dec-cfg-plan-exec/description.md) ✅ Available
-- **Implementation Guide**: [003-dec-cfg-plan-exec/execution-plan-steps.md](003-dec-cfg-plan-exec/execution-plan-steps.md) ✅ **Start here**
-- **Technical Overview**: [003-dec-cfg-plan-exec/execution-plan-overview.md](003-dec-cfg-plan-exec/execution-plan-overview.md) ✅ Complete
-- **Architecture Decisions**: [003-dec-cfg-plan-exec/execution-plan-adrs.md](003-dec-cfg-plan-exec/execution-plan-adrs.md) ✅ Complete
-- **Goal**: Execute plans generated in Stage 2, applying changes to Konnect
+**Stage 4: API Resources and Multi-Resource Support** 🔮 Not Started
+- **Requirements**: [004-dec-cfg-multi-resource/description.md](004-dec-cfg-multi-resource/description.md) ✅ Available
+- **Implementation Guide**: Not yet created
+- **Technical Overview**: Not yet created
+- **Architecture Decisions**: Not yet created
+- **Goal**: Extend declarative configuration to support API resources and their child resources with dependency handling
 
-**Next Step**: Implement Step 5b - Add Configuration Discovery
-
-**Recent Improvements** (beyond original plan):
-- ✅ Protection label always present with true/false value
-- ✅ Support for all portal fields in declarative management
-- ✅ Enhanced output formatting and consistency
-- ✅ stdin support with interactive prompts via /dev/tty
+**Next Step**: Create implementation planning documents for Stage 4
 
 ## Quick Start for Implementation
 
@@ -51,7 +46,7 @@ The first major feature being implemented is declarative configuration managemen
 |----------|---------|---------|
 | [description.md](001-dec-cfg-cfg-format-basic-cli/description.md) | Requirements from PM | ✅ Complete |
 | [execution-plan-overview.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-overview.md) | Technical approach | ✅ Complete |
-| [execution-plan-steps.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-steps.md) | **Implementation guide** | 📋 Ready for implementation |
+| [execution-plan-steps.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-steps.md) | **Implementation guide** | ✅ Complete |
 | [execution-plan-adrs.md](001-dec-cfg-cfg-format-basic-cli/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
 **Implementation Status**: 7/7 steps completed (100%) ✅ **COMPLETED**
@@ -85,8 +80,8 @@ The first major feature being implemented is declarative configuration managemen
   - ✅ Diff command with text/JSON/YAML output formats
   - ✅ Integration tests with dual-mode SDK support (mock/real)
 
-#### Stage 3: Plan Execution ⏳ In Progress
-**Goal**: Implement plan execution functionality
+#### Stage 3: Plan Execution ✅ Completed
+**Goal**: Implement plan execution functionality for apply command
 
 | Document | Purpose | Status |
 |----------|---------|---------|
@@ -95,44 +90,87 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](003-dec-cfg-plan-exec/execution-plan-steps.md) | **Implementation guide** | ✅ Complete |
 | [execution-plan-adrs.md](003-dec-cfg-plan-exec/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: 5a/11 steps completed (~50%) - In Progress
+**Implementation Status**: 5a/11 original steps completed ✅ **COMPLETED**
 - **Dependencies**: Stage 2 completion ✅ Met
-- **Key deliverables**: 
-  - Mode-aware plan generation (apply vs sync)
-  - Separate apply and sync commands
-  - Plan execution with progress reporting
-  - Protected resource handling with fail-fast
-  - Dry-run mode support
-  - Output format support (text/json/yaml)
-  - Konnect-first login migration
-  - **NEW**: Configuration-based change detection for idempotency
-  - **NEW**: Progressive configuration discovery
+- **Key deliverables achieved**: 
+  - ✅ Mode-aware plan generation (apply vs sync modes)
+  - ✅ Base executor package with progress reporting
+  - ✅ Portal operations (CREATE/UPDATE)
+  - ✅ Apply command with dry-run support
+  - ✅ Protected resource handling with fail-fast
+  - ✅ Output format support (text/json/yaml)
+  - ✅ Configuration-based change detection for idempotency
+  - ✅ Support for all portal fields
+  - ✅ Protection label always present with true/false value
+  - ✅ stdin support with interactive prompts via /dev/tty
 
-#### Stage 4: Multi-Resource 🔮 Future
-**Goal**: Support for multiple resources in plans
+**Note**: Remaining steps from original Stage 3 have been reorganized into Stages 5 and 6 for better focus and deliverability.
+
+#### Stage 4: API Resources and Multi-Resource Support 🔮 Not Started
+**Goal**: Support for API resources and their child resources with dependency handling
 
 | Document | Purpose | Status |
 |----------|---------|---------|
-| [description.md](004-dec-cfg-multi-resource/description.md) | Requirements from PM | ✅ Complete |
-| execution-plan-*.md | Implementation docs | 🔮 Not yet planned |
+| [description.md](004-dec-cfg-multi-resource/description.md) | Requirements | ✅ Updated |
+| execution-plan-*.md | Implementation docs | 🔮 Not yet created |
 
 **Implementation Status**: Not started
-- **Dependencies**: Stage 3 completion
-- **Key deliverables**: Multi-resource support, dependency management
+- **Dependencies**: Stage 3 completion ✅ Met
+- **Key deliverables**: 
+  - API resource support (CREATE/UPDATE/DELETE)
+  - API child resources (versions, publications, implementations)
+  - Dependency resolution and ordering
+  - Cross-resource reference validation
+  - Nested and separate file configuration support
+
+#### Stage 5: Sync Command Implementation 🔮 Future
+**Goal**: Implement full state reconciliation with DELETE operations
+
+| Document | Purpose | Status |
+|----------|---------|---------|
+| [description.md](005-dec-cfg-sync/description.md) | Requirements | ✅ Created |
+| execution-plan-*.md | Implementation docs | 🔮 Not yet created |
+
+**Implementation Status**: Not started
+- **Dependencies**: Stage 3 completion ✅ Met
+- **Key deliverables**: 
+  - Sync command with DELETE support
+  - Managed resource detection
+  - Protected resource handling for deletions
+  - Clear warnings for destructive operations
+
+#### Stage 6: Various Improvements and Testing 🔮 Future
+**Goal**: Complete remaining improvements, UX enhancements, and comprehensive testing
+
+| Document | Purpose | Status |
+|----------|---------|---------|
+| [description.md](006-dec-cfg-various/description.md) | Requirements | ✅ Created |
+| execution-plan-*.md | Implementation docs | 🔮 Not yet created |
+
+**Implementation Status**: Not started
+- **Dependencies**: Stages 1-5 completion
+- **Key deliverables**: 
+  - Configuration discovery feature
+  - Plan validation framework
+  - Login command migration to Konnect-first
+  - Comprehensive integration tests
+  - Complete documentation updates
+  - Various UX improvements
 
 ## Current Implementation Priority
 
-### ⭐ Immediate Focus: Stage 3 Implementation
-Stages 1 and 2 are complete. Stage 3 planning is complete and ready for implementation.
+### ⭐ Immediate Focus: Stage 4 Planning and Implementation
+Stages 1-3 are complete. Stage 4 is the next implementation target.
 
 **Completed Stages**:
 - Stage 1: Configuration Format & Basic CLI ✅ **COMPLETED**
 - Stage 2: Plan Generation with Label Management ✅ **COMPLETED**
+- Stage 3: Plan Execution ✅ **COMPLETED**
 
 **Current Stage**:
-- Stage 3: Plan Execution ⏳ **In Progress** (5a/11 steps)
+- Stage 4: API Resources and Multi-Resource Support 🔮 **Not Started**
 
-**To begin implementation**: Start with Step 5a in [003-dec-cfg-plan-exec/execution-plan-steps.md](003-dec-cfg-plan-exec/execution-plan-steps.md)
+**To begin implementation**: Create execution plan documents for Stage 4 in [004-dec-cfg-multi-resource/](004-dec-cfg-multi-resource/)
 
 ### 🎯 Entry Points for Claude Code
 
@@ -160,11 +198,15 @@ Stages 1 and 2 are complete. Stage 3 planning is complete and ready for implemen
 - **Mode-aware plan generation** with separate apply and sync modes
 - **Fail-fast protection handling** - planning fails if protected resources would be modified
 - **Execution-time validation** for protection status changes
-- **Consistent confirmation prompts** requiring 'yes' for both commands
-- **Output format support** (text/json/yaml) for CI/CD integration
-- **Konnect-first login** migration for consistency
 - **Configuration-based change detection** (ADR-003-011) - only manage fields in user config
-- **Progressive configuration discovery** (ADR-003-012) - show unmanaged fields to users
+- **Protection label always present** with true/false value for consistency
+- **stdin support with TTY separation** for Unix-like systems
+
+### Multi-Resource Support (Stage 4)
+- **API-centric design** - APIs as primary resources with child resources
+- **Flexible configuration** - support both nested and separate file approaches
+- **Reference-based dependencies** - resources reference each other by ref field
+- **Topological ordering** - ensure correct creation/deletion order
 
 ## General Testing Strategy
 
@@ -182,12 +224,16 @@ When moving between stages, update this file to reflect the new current active s
 3. **Update Stage Overview**: Move completed stage to show "✅ Completed" 
 4. **Create new stage documents**: Follow naming convention (002-*, 003-*, etc.)
 
-### Example Transition to Stage 2:
-```markdown
-## 🎯 Current Active Stage: Stage 2 ⏳ In Progress
-**Stage 2: Plan Labels**
-- **Implementation Guide**: [002-dec-cfg-plan-labels/execution-plan-steps.md](002-dec-cfg-plan-labels/execution-plan-steps.md) ← **Start here**
-```
+## Planning Reorganization (2025-07-01)
+
+The planning structure has been reorganized to improve focus and deliverability:
+
+1. **Stage 3 marked complete** - Core apply command functionality is fully implemented
+2. **Stage 4 refocused** - Changed from portal pages/specs to API resources and their children
+3. **Stage 5 created** - Dedicated to sync command implementation
+4. **Stage 6 created** - Various improvements, UX enhancements, and comprehensive testing
+
+This reorganization better reflects the implementation priorities and natural grouping of features.
 
 ## Planning Organization
 
@@ -202,7 +248,7 @@ When moving between stages, update this file to reflect the new current active s
 
 As new features are planned, they will be added to this index with their own folders and tracking. Examples might include:
 - Authentication enhancements
-- New resource types support
+- Additional resource types (routes, services, consumers)
 - Performance optimizations
 - Plugin system implementation
 - CLI UX improvements
