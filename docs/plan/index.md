@@ -2,21 +2,22 @@
 
 This folder contains the complete planning and implementation tracking for all kongctl features and development efforts.
 
-## 🎯 Current Active Stage: Stage 4 (Not Started)
+## 🎯 Current Active Stage: Stage 4 (In Progress)
 
 **Previous Stages Completed**:
 - Stage 1: Configuration Format & Basic CLI ✅ 
 - Stage 2: Plan Generation with Label Management ✅
 - Stage 3: Plan Execution ✅
 
-**Stage 4: API Resources and Multi-Resource Support** 🔮 Not Started
+**Stage 4: API Resources and Multi-Resource Support** 🚧 In Progress
 - **Requirements**: [004-dec-cfg-multi-resource/description.md](004-dec-cfg-multi-resource/description.md) ✅ Available
 - **Implementation Guide**: [004-dec-cfg-multi-resource/execution-plan-steps.md](004-dec-cfg-multi-resource/execution-plan-steps.md) ✅ Created
 - **Technical Overview**: [004-dec-cfg-multi-resource/execution-plan-overview.md](004-dec-cfg-multi-resource/execution-plan-overview.md) ✅ Created
 - **Architecture Decisions**: [004-dec-cfg-multi-resource/execution-plan-adrs.md](004-dec-cfg-multi-resource/execution-plan-adrs.md) ✅ Created
 - **Goal**: Extend declarative configuration to support API resources with external content loading via YAML tags
 
-**Next Step**: Begin implementation with Step 1 - Create resource interfaces
+**Progress**: Step 1 Complete ✅ (SDK Migration)
+**Next Step**: Step 2 - Create resource interfaces and base types
 
 ## Quick Start for Implementation
 
@@ -106,7 +107,7 @@ The first major feature being implemented is declarative configuration managemen
 
 **Note**: Remaining steps from original Stage 3 have been reorganized into Stages 5 and 6 for better focus and deliverability.
 
-#### Stage 4: API Resources and Multi-Resource Support 🔮 Not Started
+#### Stage 4: API Resources and Multi-Resource Support 🚧 In Progress
 **Goal**: Support for API resources and their child resources with dependency handling
 
 | Document | Purpose | Status |
@@ -116,7 +117,7 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-overview.md](004-dec-cfg-multi-resource/execution-plan-overview.md) | Technical approach | ✅ Created |
 | [execution-plan-adrs.md](004-dec-cfg-multi-resource/execution-plan-adrs.md) | Architecture decisions | ✅ Created |
 
-**Implementation Status**: Not started (0/12 steps)
+**Implementation Status**: 1/13 steps completed (Step 1: SDK Migration ✅)
 - **Dependencies**: Stage 3 completion ✅ Met
 - **Key deliverables**: 
   - API resource support (CREATE/UPDATE/DELETE)
@@ -164,8 +165,8 @@ The first major feature being implemented is declarative configuration managemen
 
 ## Current Implementation Priority
 
-### ⭐ Immediate Focus: Stage 4 Planning and Implementation
-Stages 1-3 are complete. Stage 4 is the next implementation target.
+### ⭐ Immediate Focus: Stage 4 Implementation
+Stages 1-3 are complete. Stage 4 is in progress.
 
 **Completed Stages**:
 - Stage 1: Configuration Format & Basic CLI ✅ **COMPLETED**
@@ -173,9 +174,11 @@ Stages 1-3 are complete. Stage 4 is the next implementation target.
 - Stage 3: Plan Execution ✅ **COMPLETED**
 
 **Current Stage**:
-- Stage 4: API Resources and Multi-Resource Support 🔮 **Not Started**
+- Stage 4: API Resources and Multi-Resource Support 🚧 **IN PROGRESS**
+  - Step 1: Migrate to public Konnect SDK ✅ **COMPLETED**
+  - Step 2: Create resource interfaces and base types 🔮 **Next**
 
-**To begin implementation**: Start with Step 1 in [004-dec-cfg-multi-resource/execution-plan-steps.md](004-dec-cfg-multi-resource/execution-plan-steps.md)
+**To continue implementation**: Work on Step 2 in [004-dec-cfg-multi-resource/execution-plan-steps.md](004-dec-cfg-multi-resource/execution-plan-steps.md)
 
 ### 🎯 Entry Points for Claude Code
 

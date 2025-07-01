@@ -4,7 +4,7 @@
 
 | Step | Description | Status | Dependencies |
 |------|-------------|---------|--------------|
-| 1 | Migrate to public Konnect SDK | Partially Complete | - |
+| 1 | Migrate to public Konnect SDK | ✅ COMPLETE | - |
 | 2 | Create resource interfaces and base types | Not Started | Step 1 |
 | 3 | Implement API resource type | Not Started | Steps 1, 2 |
 | 4 | Implement API child resource types | Not Started | Steps 2, 3 |
@@ -18,7 +18,7 @@
 | 12 | Create comprehensive integration tests | Not Started | Steps 8, 9, 10 |
 | 13 | Add examples and documentation | Not Started | All steps |
 
-**Current Stage**: Not Started
+**Current Stage**: Step 1 Completed - Ready for Step 2
 
 ---
 
@@ -28,20 +28,23 @@
 
 ### Status Update (2025-01-01)
 
-**Completed**:
-- ✅ Updated SDK from v0.3.1 to v0.6.0
-- ✅ Migrated Portal operations to public SDK
-- ✅ Updated all portal-related helper functions
-- ✅ Fixed SDK compatibility issues in state client and executor
+**Completed** ✅:
+- Updated SDK from v0.3.1 to v0.6.0
+- Migrated Portal operations to public SDK
+- Updated all portal-related helper functions
+- Fixed SDK compatibility issues in state client and executor
+- Updated all unit and integration tests to use public SDK types
+- Fixed test mocks and assertions for SDK compatibility
 
-**Remaining**:
-- ❌ API operations (still using internal SDK)
-- ❌ API Document operations (still using internal SDK)
-- ❌ API Version operations (still using internal SDK)
-- ❌ API Publication operations (still using internal SDK)
-- ❌ API Implementation operations (still using internal SDK)
+**Key Changes**:
+- Changed DeletePortal to use new QueryParamForce type
+- Removed pagination from ListPortalPages and ListPortalSnippets (not supported in public SDK v0.6.0)
+- Updated all type imports from internal to public SDK
+- Fixed JSON unmarshaling behavior in integration tests
 
-**Note**: The API operations will be migrated as part of implementing the API resources in subsequent steps.
+**API Operations Status**:
+- API operations remain on internal SDK (to be migrated when implementing API resources)
+- This partial migration approach allows incremental adoption of public SDK
 
 ### Implementation
 
@@ -80,11 +83,11 @@ kkComps "github.com/Kong/sdk-konnect-go/models/components"
 - Check for any breaking changes
 
 ### Definition of Done
-- [ ] Public SDK dependency added
-- [ ] Portal operations migrated
-- [ ] API operations use public SDK
-- [ ] All tests pass with new SDK
-- [ ] Documentation updated
+- [x] Public SDK dependency added
+- [x] Portal operations migrated
+- [ ] API operations use public SDK (deferred to API resource implementation)
+- [x] All tests pass with new SDK
+- [x] Documentation updated
 
 ---
 
