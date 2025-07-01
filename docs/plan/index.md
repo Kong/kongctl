@@ -11,12 +11,12 @@ This folder contains the complete planning and implementation tracking for all k
 
 **Stage 4: API Resources and Multi-Resource Support** 🔮 Not Started
 - **Requirements**: [004-dec-cfg-multi-resource/description.md](004-dec-cfg-multi-resource/description.md) ✅ Available
-- **Implementation Guide**: Not yet created
-- **Technical Overview**: Not yet created
-- **Architecture Decisions**: Not yet created
-- **Goal**: Extend declarative configuration to support API resources and their child resources with dependency handling
+- **Implementation Guide**: [004-dec-cfg-multi-resource/execution-plan-steps.md](004-dec-cfg-multi-resource/execution-plan-steps.md) ✅ Created
+- **Technical Overview**: [004-dec-cfg-multi-resource/execution-plan-overview.md](004-dec-cfg-multi-resource/execution-plan-overview.md) ✅ Created
+- **Architecture Decisions**: [004-dec-cfg-multi-resource/execution-plan-adrs.md](004-dec-cfg-multi-resource/execution-plan-adrs.md) ✅ Created
+- **Goal**: Extend declarative configuration to support API resources with external content loading via YAML tags
 
-**Next Step**: Create implementation planning documents for Stage 4
+**Next Step**: Begin implementation with Step 1 - Create resource interfaces
 
 ## Quick Start for Implementation
 
@@ -112,13 +112,17 @@ The first major feature being implemented is declarative configuration managemen
 | Document | Purpose | Status |
 |----------|---------|---------|
 | [description.md](004-dec-cfg-multi-resource/description.md) | Requirements | ✅ Updated |
-| execution-plan-*.md | Implementation docs | 🔮 Not yet created |
+| [execution-plan-steps.md](004-dec-cfg-multi-resource/execution-plan-steps.md) | Implementation guide | ✅ Created |
+| [execution-plan-overview.md](004-dec-cfg-multi-resource/execution-plan-overview.md) | Technical approach | ✅ Created |
+| [execution-plan-adrs.md](004-dec-cfg-multi-resource/execution-plan-adrs.md) | Architecture decisions | ✅ Created |
 
-**Implementation Status**: Not started
+**Implementation Status**: Not started (0/11 steps)
 - **Dependencies**: Stage 3 completion ✅ Met
 - **Key deliverables**: 
   - API resource support (CREATE/UPDATE/DELETE)
   - API child resources (versions, publications, implementations)
+  - YAML tag system with value extraction (!file, !file.extract)
+  - External ID references for control planes and services
   - Dependency resolution and ordering
   - Cross-resource reference validation
   - Nested and separate file configuration support
@@ -171,7 +175,7 @@ Stages 1-3 are complete. Stage 4 is the next implementation target.
 **Current Stage**:
 - Stage 4: API Resources and Multi-Resource Support 🔮 **Not Started**
 
-**To begin implementation**: Create execution plan documents for Stage 4 in [004-dec-cfg-multi-resource/](004-dec-cfg-multi-resource/)
+**To begin implementation**: Start with Step 1 in [004-dec-cfg-multi-resource/execution-plan-steps.md](004-dec-cfg-multi-resource/execution-plan-steps.md)
 
 ### 🎯 Entry Points for Claude Code
 

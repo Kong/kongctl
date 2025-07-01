@@ -1,18 +1,22 @@
 # KongCtl Stage 4 - API Resources and Multi-Resource Support
 
 ## Goal
-Extend declarative configuration to support API resources and their child resources (versions, publications, implementations) with dependency handling.
+Extend declarative configuration to support API resources and their child resources (versions, publications, implementations) with dependency handling and external content loading.
 
 ## Deliverables
 - Support for API resource type and all child resources
+- YAML tag system for external content loading with value extraction
 - Dependency resolution between resources
 - Cross-file reference validation
 - Enhanced diff output showing dependencies
 - Nested resource configuration support
+- External ID references for control planes and services
 
 ## Implementation Details
 
 ### Extended Configuration Format
+
+#### Basic API Configuration
 ```yaml
 # apis.yaml
 apis:
@@ -23,40 +27,64 @@ apis:
       team: platform
     kongctl:
       protected: false
+```
+
+#### With External Content Loading (YAML Tags)
+```yaml
+apis:
+  - ref: users-api
+    # Load values from external OpenAPI spec
+    name: !file
+      path: ./specs/users-api.yaml
+      extract: info.title
+    description: !file
+      path: ./specs/users-api.yaml
+      extract: info.description
+    # Load entire spec content
+    spec_content: !file ./specs/users-api.yaml
+```
+
+#### Nested Child Resources
+```yaml
+apis:
+  - ref: users-api
+    name: "Users API"
+    spec_content: !file ./specs/users-api.yaml
     
     # Nested child resources
     versions:
       - ref: v1
-        name: "v1.0.0"
-        gateway_service: users-service-v1
+        version: !file.extract [./specs/users-api-v1.yaml, info.version]
+        spec:
+          content: !file ./specs/users-api-v1.yaml
         
       - ref: v2
-        name: "v2.0.0"
-        gateway_service: users-service-v2
-        deprecated: true
+        version: "2.0.0"
+        spec:
+          content: !file ./specs/users-api-v2.yaml
     
     publications:
       - ref: dev-portal-pub
         portal: developer-portal  # Reference to portal
         version: v2  # Reference to version
+        visibility: public
         
     implementations:
       - ref: users-impl
-        type: proxy
-        config:
-          upstream: "http://users.internal"
-          route_config:
-            paths:
-              - /users
-              - /users/*
+        service:
+          control_plane_id: "prod-cp"  # External ID reference
+          id: "users-service-v2"       # External service ID
+```
 
-# Alternative: separate files
+#### Alternative: Separate Files
+```yaml
 # api-versions.yaml
 api_versions:
   - ref: users-v1
     api: users-api  # Reference by name
-    name: "v1.0.0"
-    gateway_service: users-service-v1
+    version: "v1.0.0"
+    spec:
+      content: !file ./specs/users-v1.yaml
 
 # api-publications.yaml  
 api_publications:
@@ -64,7 +92,8 @@ api_publications:
     api: users-api
     portal: developer-portal
     version: users-v1
-    auto_publish: true
+    visibility: public
+    auto_approve_registrations: true
 ```
 
 ### Resource Types
