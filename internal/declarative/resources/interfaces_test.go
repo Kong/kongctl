@@ -11,6 +11,9 @@ var (
 	
 	_ Resource = (*ApplicationAuthStrategyResource)(nil)
 	_ ResourceWithLabels = (*ApplicationAuthStrategyResource)(nil)
+	
+	_ Resource = (*APIResource)(nil)
+	_ ResourceWithLabels = (*APIResource)(nil)
 )
 
 func TestPortalResourceInterface(t *testing.T) {

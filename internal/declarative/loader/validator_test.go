@@ -217,13 +217,13 @@ func TestLoader_validateAPIs(t *testing.T) {
 			apis: []resources.APIResource{
 				{
 					Ref: "api1",
-					CreateAPIRequest: kkInternalComps.CreateAPIRequest{
+					CreateAPIRequest: kkComps.CreateAPIRequest{
 						Name: "API One",
 					},
 				},
 				{
 					Ref: "api2",
-					CreateAPIRequest: kkInternalComps.CreateAPIRequest{
+					CreateAPIRequest: kkComps.CreateAPIRequest{
 						Name: "API Two",
 					},
 				},

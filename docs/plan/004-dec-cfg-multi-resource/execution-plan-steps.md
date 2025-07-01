@@ -6,7 +6,7 @@
 |------|-------------|---------|--------------|
 | 1 | Migrate to public Konnect SDK | ✅ COMPLETE | - |
 | 2 | Create resource interfaces and base types | ✅ COMPLETE | Step 1 |
-| 3 | Implement API resource type | Not Started | Steps 1, 2 |
+| 3 | Implement API resource type | ✅ COMPLETE | Steps 1, 2 |
 | 4 | Implement API child resource types | Not Started | Steps 2, 3 |
 | 5 | Create YAML tag system architecture | Not Started | Step 2 |
 | 6 | Implement file tag resolver with loading | Not Started | Step 5 |
@@ -18,7 +18,7 @@
 | 12 | Create comprehensive integration tests | Not Started | Steps 8, 9, 10 |
 | 13 | Add examples and documentation | Not Started | All steps |
 
-**Current Stage**: Step 2 Completed - Ready for Step 3
+**Current Stage**: Step 3 Completed - Ready for Step 4
 
 ---
 
@@ -151,6 +151,21 @@ type ResourceWithLabels interface {
 
 **Goal**: Create the API resource type using SDK models.
 
+### Status Update (2025-01-01)
+
+**Completed** ✅:
+- Migrated APIResource from internal to public SDK (`kkComps.CreateAPIRequest`)
+- Implemented Resource interface methods (GetKind, GetRef, GetName, GetDependencies)
+- Implemented ResourceWithLabels interface (GetLabels, SetLabels)
+- Updated validator test to use public SDK
+- Added interface compliance tests
+- Created comprehensive label handling tests
+
+**Key Changes**:
+- Public SDK uses `map[string]string` for labels (simpler than portal's pointer maps)
+- No type conversion needed for labels
+- Minimal test impact - only one import change needed in validator_test.go
+
 ### Implementation
 
 1. Update `internal/declarative/resources/api.go`:
@@ -190,10 +205,10 @@ type ResourceSet struct {
 - Nested resource handling
 
 ### Definition of Done
-- [ ] API resource type implemented
-- [ ] Resource interface satisfied
-- [ ] Validation logic complete
-- [ ] Tests pass
+- [x] API resource type implemented
+- [x] Resource interface satisfied
+- [x] Validation logic complete
+- [x] Tests pass
 
 ---
 

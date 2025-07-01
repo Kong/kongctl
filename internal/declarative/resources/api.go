@@ -3,12 +3,12 @@ package resources
 import (
 	"fmt"
 
-	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // APIResource represents an API in declarative configuration
 type APIResource struct {
-	kkInternalComps.CreateAPIRequest `yaml:",inline" json:",inline"`
+	kkComps.CreateAPIRequest `yaml:",inline" json:",inline"`
 	Ref     string       `yaml:"ref" json:"ref"`
 	Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
 	
@@ -18,9 +18,35 @@ type APIResource struct {
 	Implementations []APIImplementationResource `yaml:"implementations,omitempty" json:"implementations,omitempty"`
 }
 
+// GetKind returns the resource kind
+func (a APIResource) GetKind() string {
+	return "api"
+}
+
 // GetRef returns the reference identifier used for cross-resource references
 func (a APIResource) GetRef() string {
 	return a.Ref
+}
+
+// GetName returns the resource name
+func (a APIResource) GetName() string {
+	return a.Name
+}
+
+// GetDependencies returns references to other resources this API depends on
+func (a APIResource) GetDependencies() []ResourceRef {
+	// APIs don't depend on other resources
+	return []ResourceRef{}
+}
+
+// GetLabels returns the labels for this resource
+func (a APIResource) GetLabels() map[string]string {
+	return a.Labels
+}
+
+// SetLabels sets the labels for this resource
+func (a *APIResource) SetLabels(labels map[string]string) {
+	a.Labels = labels
 }
 
 // GetReferenceFieldMappings returns the field mappings for reference validation
