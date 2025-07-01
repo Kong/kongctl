@@ -1,0 +1,86 @@
+# API Configuration with YAML Tags (Stage 4 Preview)
+# This example demonstrates how YAML tags will work in Stage 4
+# to load content from external files
+
+# NOTE: This is a preview of Stage 4 functionality
+# YAML tags are not yet implemented
+
+apis:
+  # Example 1: Loading values from external OpenAPI spec
+  - ref: users-api
+    # Extract the title from the OpenAPI spec
+    name: !file
+      path: ./specs/users-api.yaml
+      extract: info.title
+    # Extract the description
+    description: !file
+      path: ./specs/users-api.yaml
+      extract: info.description
+    # Extract the version using compact syntax
+    version: !file.extract [./specs/users-api.yaml, info.version]
+    # Load the entire spec file
+    spec_content: !file ./specs/users-api.yaml
+    labels:
+      team: platform
+      api-type: rest
+    kongctl:
+      protected: true
+
+  # Example 2: Alternative compact syntax
+  - ref: products-api
+    name: !file.extract [./specs/products-api.yaml, info.title]
+    description: !file.extract [./specs/products-api.yaml, info.description]
+    version: !file.extract [./specs/products-api.yaml, info.version]
+    spec_content: !file ./specs/products-api.yaml
+    labels:
+      team: e-commerce
+      api-type: rest
+
+# Example 3: With nested child resources (Stage 4)
+# apis:
+#   - ref: payment-api
+#     name: "Payment API"
+#     description: "Secure payment processing"
+#     versions:
+#       - ref: v1
+#         version: !file.extract [./specs/payment-v1.yaml, info.version]
+#         spec:
+#           content: !file ./specs/payment-v1.yaml
+#       - ref: v2
+#         version: !file.extract [./specs/payment-v2.yaml, info.version]
+#         spec:
+#           content: !file ./specs/payment-v2.yaml
+#     publications:
+#       - ref: public-portal-pub
+#         portal: developer-portal
+#         version: v2  # Reference to the v2 version above
+#         visibility: public
+#         auto_approve_registrations: false
+
+# How YAML tags will work:
+# 
+# 1. Simple file loading:
+#    !file ./path/to/file.yaml
+#    - Loads the entire file content as a string
+#    - Relative paths are resolved from the config file location
+#    - File size limits apply for security
+#
+# 2. Value extraction (map format):
+#    !file
+#      path: ./path/to/file.yaml
+#      extract: info.title
+#    - Loads the file, parses it as YAML/JSON
+#    - Extracts the value at the specified path
+#    - Path uses dot notation (e.g., info.contact.email)
+#
+# 3. Value extraction (array format):
+#    !file.extract [./path/to/file.yaml, info.version]
+#    - Compact syntax for extraction
+#    - First element is the file path
+#    - Second element is the extraction path
+#
+# Security considerations:
+# - Files must be within the project directory
+# - Path traversal (../) is prevented
+# - File size limits enforced
+# - Only YAML and JSON files supported for extraction

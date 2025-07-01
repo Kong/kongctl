@@ -1,0 +1,41 @@
+# API with Multiple Versions Example
+# This example shows how to define an API with multiple versions
+# Note: In Stage 4, versions will be supported as child resources
+
+apis:
+  - ref: payment-api
+    name: "Payment Processing API"
+    description: "Secure payment processing service"
+    # Slug is optional - defaults to slugified name + version
+    slug: "payment-processing"
+    labels:
+      team: payments
+      compliance: pci-dss
+    attributes:
+      category: ["financial", "core"]
+      security: ["oauth2", "tls-required"]
+    kongctl:
+      protected: true  # Prevent accidental deletion
+
+# Future Stage 4 feature - nested versions:
+# apis:
+#   - ref: payment-api
+#     name: "Payment Processing API"
+#     description: "Secure payment processing service"
+#     versions:
+#       - ref: v1
+#         version: "1.0.0"
+#         spec:
+#           content: |
+#             openapi: 3.0.0
+#             info:
+#               title: Payment API v1
+#               version: 1.0.0
+#       - ref: v2
+#         version: "2.0.0"
+#         spec:
+#           content: |
+#             openapi: 3.0.0
+#             info:
+#               title: Payment API v2
+#               version: 2.0.0

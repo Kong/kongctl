@@ -1,0 +1,87 @@
+# Multi-Resource Example with APIs and Portals
+# This example shows how APIs will work with portals and publications in Stage 4
+
+# First, define the portal
+portals:
+  - ref: developer-portal
+    name: "developer-portal"
+    display_name: "Developer Portal"
+    description: "Public API portal for external developers"
+    authentication_enabled: true
+    rbac_enabled: false
+    default_api_visibility: private
+    auto_approve_developers: true
+    auto_approve_applications: false
+    labels:
+      purpose: external
+      environment: production
+
+# Define APIs
+apis:
+  - ref: users-api
+    name: "Users API"
+    description: "User management and authentication API"
+    version: "v3.0.0"
+    labels:
+      team: identity
+      visibility: public
+    spec_content: |
+      openapi: 3.0.0
+      info:
+        title: Users API
+        version: 3.0.0
+        description: API for user management and authentication
+      paths:
+        /users:
+          get:
+            summary: List users
+            operationId: listUsers
+        /users/{id}:
+          get:
+            summary: Get user by ID
+            operationId: getUser
+
+  - ref: orders-api
+    name: "Orders API"
+    description: "Order processing and management API"
+    version: "v1.5.0"
+    labels:
+      team: commerce
+      visibility: partner
+    spec_content: |
+      openapi: 3.0.0
+      info:
+        title: Orders API
+        version: 1.5.0
+        description: API for order processing
+      paths:
+        /orders:
+          post:
+            summary: Create order
+            operationId: createOrder
+
+# Future Stage 4 features - API publications
+# api_publications:
+#   - ref: users-api-publication
+#     api: users-api
+#     portal: developer-portal
+#     visibility: public
+#     auto_approve_registrations: true
+#     auth_strategy_ids: ["key-auth", "oauth2"]
+#   
+#   - ref: orders-api-publication
+#     api: orders-api
+#     portal: developer-portal
+#     visibility: private  # Requires authentication to view
+#     auto_approve_registrations: false
+
+# Future Stage 4 features - Nested configuration alternative
+# apis:
+#   - ref: users-api
+#     name: "Users API"
+#     description: "User management and authentication API"
+#     publications:
+#       - ref: dev-portal-pub
+#         portal: developer-portal
+#         visibility: public
+#         auto_approve_registrations: true

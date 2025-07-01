@@ -1,0 +1,20 @@
+# Basic API Configuration Example
+# This example shows the minimum required fields for creating an API
+
+apis:
+  - ref: users-api
+    name: "Users API"
+    description: "User management API for our platform"
+    # Version is optional - leave empty for unversioned APIs
+    version: "v1.0.0"
+    # Labels for organization and filtering
+    labels:
+      team: platform
+      environment: production
+    # Attributes for categorization
+    attributes:
+      category: ["core", "authentication"]
+      visibility: ["internal"]
+    # Protection status
+    kongctl:
+      protected: false

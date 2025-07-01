@@ -42,6 +42,8 @@ apis:
       extract: info.description
     # Load entire spec content
     spec_content: !file ./specs/users-api.yaml
+    labels:
+      team: platform
 ```
 
 #### Nested Child Resources
@@ -49,6 +51,7 @@ apis:
 apis:
   - ref: users-api
     name: "Users API"
+    description: "API for user management"
     spec_content: !file ./specs/users-api.yaml
     
     # Nested child resources
@@ -66,8 +69,10 @@ apis:
     publications:
       - ref: dev-portal-pub
         portal: developer-portal  # Reference to portal
-        version: v2  # Reference to version
+        version: v2  # Reference to API version
         visibility: public
+        auto_approve_registrations: true
+        auth_strategy_ids: []  # No auth required
         
     implementations:
       - ref: users-impl
@@ -81,8 +86,8 @@ apis:
 # api-versions.yaml
 api_versions:
   - ref: users-v1
-    api: users-api  # Reference by name
-    version: "v1.0.0"
+    api: users-api  # Reference to parent API
+    version: "1.0.0"
     spec:
       content: !file ./specs/users-v1.yaml
 
@@ -94,39 +99,56 @@ api_publications:
     version: users-v1
     visibility: public
     auto_approve_registrations: true
+    auth_strategy_ids: 
+      - "key-auth-strategy"
 ```
 
 ### Resource Types
 ```go
-// API resource already exists in internal/declarative/resources/api.go
-// Need to add child resources:
+// Using public SDK where available
+import kkComps "github.com/Kong/sdk-konnect-go/models/components"
+
+// internal/declarative/resources/api.go (already exists)
+type APIResource struct {
+    kkComps.CreateAPIRequest `yaml:",inline" json:",inline"`
+    Ref     string       `yaml:"ref" json:"ref"`
+    Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+    
+    // Nested child resources
+    Versions        []APIVersionResource        `yaml:"versions,omitempty"`
+    Publications    []APIPublicationResource    `yaml:"publications,omitempty"`
+    Implementations []APIImplementationResource `yaml:"implementations,omitempty"`
+}
 
 // internal/declarative/resources/api_version.go
 type APIVersionResource struct {
-    kkInternalComps.CreateAPIVersionRequest `yaml:",inline" json:",inline"`
-    Ref string `yaml:"ref" json:"ref"`
-    API string `yaml:"api,omitempty" json:"api,omitempty"` // Parent API reference
-    Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+    Ref     string  `yaml:"ref" json:"ref"`
+    API     string  `yaml:"api,omitempty"` // Parent API reference
+    Version *string `yaml:"version,omitempty"`
+    Spec    *struct {
+        Content *string `yaml:"content,omitempty"`
+    } `yaml:"spec,omitempty"`
 }
 
 // internal/declarative/resources/api_publication.go
 type APIPublicationResource struct {
-    kkInternalComps.CreateAPIPublicationRequest `yaml:",inline" json:",inline"`
-    Ref     string `yaml:"ref" json:"ref"`
-    API     string `yaml:"api,omitempty" json:"api,omitempty"`
-    Portal  string `yaml:"portal" json:"portal"` // Reference to portal
-    Version string `yaml:"version" json:"version"` // Reference to version
-    Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+    Ref                      string   `yaml:"ref" json:"ref"`
+    API                      string   `yaml:"api,omitempty"`
+    Portal                   string   `yaml:"portal"` // Reference to portal
+    Version                  string   `yaml:"version,omitempty"` // Reference to API version
+    AutoApproveRegistrations *bool    `yaml:"auto_approve_registrations,omitempty"`
+    AuthStrategyIds          []string `yaml:"auth_strategy_ids,omitempty"`
+    Visibility               *string  `yaml:"visibility,omitempty"` // "public" or "private"
 }
 
 // internal/declarative/resources/api_implementation.go
 type APIImplementationResource struct {
-    kkInternalComps.CreateAPIImplementationRequest `yaml:",inline" json:",inline"`
     Ref     string `yaml:"ref" json:"ref"`
-    API     string `yaml:"api,omitempty" json:"api,omitempty"`
-    Type    string `yaml:"type" json:"type"` // proxy, mock, etc.
-    Config  map[string]interface{} `yaml:"config" json:"config"`
-    Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+    API     string `yaml:"api,omitempty"`
+    Service struct {
+        ControlPlaneID string `yaml:"control_plane_id"`
+        ID             string `yaml:"id"`
+    } `yaml:"service"`
 }
 ```
 

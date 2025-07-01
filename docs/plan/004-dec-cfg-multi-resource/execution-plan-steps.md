@@ -4,24 +4,74 @@
 
 | Step | Description | Status | Dependencies |
 |------|-------------|---------|--------------|
-| 1 | Create resource interfaces and base types | Not Started | - |
-| 2 | Implement API resource type | Not Started | Step 1 |
-| 3 | Implement API child resource types | Not Started | Steps 1, 2 |
-| 4 | Create YAML tag system architecture | Not Started | Step 1 |
-| 5 | Implement file tag resolver with loading | Not Started | Step 4 |
-| 6 | Integrate tag system with resource loader | Not Started | Steps 3, 5 |
-| 7 | Extend planner for API resources | Not Started | Steps 3, 6 |
-| 8 | Add API operations to executor | Not Started | Steps 3, 6 |
-| 9 | Implement dependency graph enhancements | Not Started | Steps 3, 7 |
-| 10 | Add cross-resource reference validation | Not Started | Step 9 |
-| 11 | Create comprehensive integration tests | Not Started | Steps 7, 8, 9 |
-| 12 | Add examples and documentation | Not Started | All steps |
+| 1 | Migrate to public Konnect SDK | Not Started | - |
+| 2 | Create resource interfaces and base types | Not Started | Step 1 |
+| 3 | Implement API resource type | Not Started | Steps 1, 2 |
+| 4 | Implement API child resource types | Not Started | Steps 2, 3 |
+| 5 | Create YAML tag system architecture | Not Started | Step 2 |
+| 6 | Implement file tag resolver with loading | Not Started | Step 5 |
+| 7 | Integrate tag system with resource loader | Not Started | Steps 4, 6 |
+| 8 | Extend planner for API resources | Not Started | Steps 4, 7 |
+| 9 | Add API operations to executor | Not Started | Steps 4, 7 |
+| 10 | Implement dependency graph enhancements | Not Started | Steps 4, 8 |
+| 11 | Add cross-resource reference validation | Not Started | Step 10 |
+| 12 | Create comprehensive integration tests | Not Started | Steps 8, 9, 10 |
+| 13 | Add examples and documentation | Not Started | All steps |
 
 **Current Stage**: Not Started
 
 ---
 
-## Step 1: Create Resource Interfaces and Base Types
+## Step 1: Migrate to Public Konnect SDK
+
+**Goal**: Replace usage of internal SDK with the public Kong Konnect Go SDK where possible.
+
+### Implementation
+
+1. Add public SDK dependency:
+```bash
+go get github.com/Kong/sdk-konnect-go
+```
+
+2. Update imports in existing files:
+```go
+// Replace where possible:
+// kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
+// With:
+kkComps "github.com/Kong/sdk-konnect-go/models/components"
+```
+
+3. Update SDK client initialization:
+- Check which APIs are available in public SDK
+- Keep internal SDK for APIs not yet public
+- Update helpers package to use public SDK where possible
+
+4. Update existing portal operations:
+- Portal CRUD operations should use public SDK
+- Update type references in executor and planner
+- Ensure label handling remains compatible
+
+### Migration Scope
+- ✅ Portal operations (available in public SDK)
+- ✅ API operations (available in public SDK)
+- ❓ Check other operations for public SDK availability
+- Keep internal SDK as fallback for missing APIs
+
+### Tests Required
+- Verify all existing tests pass with new SDK
+- Ensure SDK behavior is consistent
+- Check for any breaking changes
+
+### Definition of Done
+- [ ] Public SDK dependency added
+- [ ] Portal operations migrated
+- [ ] API operations use public SDK
+- [ ] All tests pass with new SDK
+- [ ] Documentation updated
+
+---
+
+## Step 2: Create Resource Interfaces and Base Types
 
 **Goal**: Establish common interfaces for all resources to implement.
 

@@ -1,0 +1,77 @@
+# API with External Specification Example
+# This example shows how to include an API spec directly in the configuration
+# In Stage 4, this will support loading from external files using YAML tags
+
+apis:
+  - ref: products-api
+    name: "Product Catalog API"
+    description: "RESTful API for product catalog management"
+    version: "v2.1.0"
+    labels:
+      team: catalog
+      domain: e-commerce
+    # Include the API specification directly
+    spec_content: |
+      openapi: 3.0.0
+      info:
+        title: Product Catalog API
+        version: 2.1.0
+        description: RESTful API for managing product catalog
+      servers:
+        - url: https://api.example.com/v2
+      paths:
+        /products:
+          get:
+            summary: List all products
+            operationId: listProducts
+            responses:
+              '200':
+                description: Successful response
+                content:
+                  application/json:
+                    schema:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Product'
+        /products/{productId}:
+          get:
+            summary: Get a product by ID
+            operationId: getProduct
+            parameters:
+              - name: productId
+                in: path
+                required: true
+                schema:
+                  type: string
+            responses:
+              '200':
+                description: Successful response
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/Product'
+      components:
+        schemas:
+          Product:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              price:
+                type: number
+              description:
+                type: string
+
+# Future Stage 4 feature - loading from external files:
+# apis:
+#   - ref: products-api
+#     name: !file
+#       path: ./specs/products-api.yaml
+#       extract: info.title
+#     description: !file
+#       path: ./specs/products-api.yaml
+#       extract: info.description
+#     version: !file.extract [./specs/products-api.yaml, info.version]
+#     spec_content: !file ./specs/products-api.yaml
