@@ -5,16 +5,17 @@
 | Step | Description | Status | Dependencies |
 |------|-------------|---------|--------------|
 | 1 | Create resource interfaces and base types | Not Started | - |
-| 2 | Implement YAML tag system with value extraction | Not Started | - |
-| 3 | Implement API resource type | Not Started | Step 1 |
-| 4 | Implement API child resource types | Not Started | Steps 1, 3 |
-| 5 | Add file loading with tag resolvers | Not Started | Step 2 |
-| 6 | Extend planner for API resources | Not Started | Steps 3, 4 |
-| 7 | Add API operations to executor | Not Started | Steps 3, 4 |
-| 8 | Implement dependency graph enhancements | Not Started | Steps 3, 4 |
-| 9 | Add cross-resource reference validation | Not Started | Step 8 |
-| 10 | Create comprehensive integration tests | Not Started | Steps 5, 6, 7 |
-| 11 | Add examples and documentation | Not Started | All steps |
+| 2 | Implement API resource type | Not Started | Step 1 |
+| 3 | Implement API child resource types | Not Started | Steps 1, 2 |
+| 4 | Create YAML tag system architecture | Not Started | Step 1 |
+| 5 | Implement file tag resolver with loading | Not Started | Step 4 |
+| 6 | Integrate tag system with resource loader | Not Started | Steps 3, 5 |
+| 7 | Extend planner for API resources | Not Started | Steps 3, 6 |
+| 8 | Add API operations to executor | Not Started | Steps 3, 6 |
+| 9 | Implement dependency graph enhancements | Not Started | Steps 3, 7 |
+| 10 | Add cross-resource reference validation | Not Started | Step 9 |
+| 11 | Create comprehensive integration tests | Not Started | Steps 7, 8, 9 |
+| 12 | Add examples and documentation | Not Started | All steps |
 
 **Current Stage**: Not Started
 
@@ -76,90 +77,7 @@ type ResourceWithLabels interface {
 
 ---
 
-## Step 2: Implement YAML Tag System with Value Extraction
-
-**Goal**: Create the YAML tag processing system for external content loading.
-
-### Implementation
-
-1. Create `internal/declarative/tags/types.go`:
-```go
-package tags
-
-import "gopkg.in/yaml.v3"
-
-// TagResolver processes custom YAML tags
-type TagResolver interface {
-    Tag() string
-    Resolve(node *yaml.Node) (interface{}, error)
-}
-
-// FileRef represents a file reference with optional extraction
-type FileRef struct {
-    Path    string
-    Extract string // Optional: path to extract value
-}
-```
-
-2. Create `internal/declarative/tags/resolver.go`:
-```go
-// ResolverRegistry manages tag resolvers
-type ResolverRegistry struct {
-    resolvers map[string]TagResolver
-}
-
-func NewResolverRegistry() *ResolverRegistry
-func (r *ResolverRegistry) Register(resolver TagResolver)
-func (r *ResolverRegistry) Process(data []byte) ([]byte, error)
-```
-
-3. Create `internal/declarative/tags/file.go`:
-```go
-// FileTagResolver handles !file tags
-type FileTagResolver struct {
-    baseDir string
-}
-
-func (f *FileTagResolver) Tag() string { return "!file" }
-func (f *FileTagResolver) Resolve(node *yaml.Node) (interface{}, error)
-```
-
-4. Create `internal/declarative/tags/extractor.go`:
-```go
-// ExtractValue extracts a value from structured data using path notation
-func ExtractValue(data interface{}, path string) (interface{}, error)
-```
-
-### YAML Tag Formats
-```yaml
-# Simple file loading
-content: !file ./path/to/file.yaml
-
-# With extraction (map format)
-value: !file
-  path: ./path/to/file.yaml
-  extract: field.nested.value
-
-# With extraction (array format)
-value: !file.extract [./path/to/file.yaml, field.nested.value]
-```
-
-### Tests Required
-- File loading from various paths
-- Value extraction with different path formats
-- Error handling for missing files/paths
-- Security tests (path traversal prevention)
-
-### Definition of Done
-- [ ] Tag resolver system implemented
-- [ ] File tag with extraction working
-- [ ] Path-based value extraction functional
-- [ ] Security measures in place
-- [ ] Comprehensive tests pass
-
----
-
-## Step 3: Implement API Resource Type
+## Step 2: Implement API Resource Type
 
 **Goal**: Create the API resource type using SDK models.
 
@@ -209,7 +127,7 @@ type ResourceSet struct {
 
 ---
 
-## Step 4: Implement API Child Resource Types
+## Step 3: Implement API Child Resource Types
 
 **Goal**: Create API child resource types (versions, publications, implementations).
 
@@ -282,9 +200,140 @@ type APIImplementationResource struct {
 
 ---
 
-## Step 5: Add File Loading with Tag Resolvers
+## Step 4: Create YAML Tag System Architecture
 
-**Goal**: Integrate tag resolvers with resource loading.
+**Goal**: Create the YAML tag processing system architecture and interfaces.
+
+### Implementation
+
+1. Create `internal/declarative/tags/types.go`:
+```go
+package tags
+
+import "gopkg.in/yaml.v3"
+
+// TagResolver processes custom YAML tags
+type TagResolver interface {
+    Tag() string
+    Resolve(node *yaml.Node) (interface{}, error)
+}
+
+// FileRef represents a file reference with optional extraction
+type FileRef struct {
+    Path    string
+    Extract string // Optional: path to extract value
+}
+```
+
+2. Create `internal/declarative/tags/resolver.go`:
+```go
+// ResolverRegistry manages tag resolvers
+type ResolverRegistry struct {
+    resolvers map[string]TagResolver
+}
+
+func NewResolverRegistry() *ResolverRegistry
+func (r *ResolverRegistry) Register(resolver TagResolver)
+func (r *ResolverRegistry) Process(data []byte) ([]byte, error)
+```
+
+3. Create `internal/declarative/tags/extractor.go`:
+```go
+// ExtractValue extracts a value from structured data using path notation
+func ExtractValue(data interface{}, path string) (interface{}, error)
+```
+
+### YAML Tag Formats to Support
+```yaml
+# Simple file loading
+content: !file ./path/to/file.yaml
+
+# With extraction (map format)
+value: !file
+  path: ./path/to/file.yaml
+  extract: field.nested.value
+
+# With extraction (array format)
+value: !file.extract [./path/to/file.yaml, field.nested.value]
+```
+
+### Tests Required
+- Tag resolver registration
+- Tag processing in YAML
+- Value extraction logic
+- Error handling
+
+### Definition of Done
+- [ ] Tag system architecture defined
+- [ ] Resolver registry implemented
+- [ ] Value extractor implemented
+- [ ] Unit tests pass
+
+---
+
+## Step 5: Implement File Tag Resolver with Loading
+
+**Goal**: Implement the actual file loading and processing logic.
+
+### Implementation
+
+1. Create `internal/declarative/tags/file.go`:
+```go
+// FileTagResolver handles !file tags
+type FileTagResolver struct {
+    baseDir string
+    cache   map[string]interface{}
+}
+
+func NewFileTagResolver(baseDir string) *FileTagResolver
+func (f *FileTagResolver) Tag() string { return "!file" }
+func (f *FileTagResolver) Resolve(node *yaml.Node) (interface{}, error) {
+    // Handle both simple string and map formats
+    // Load file content
+    // Apply extraction if specified
+    // Cache results
+}
+```
+
+2. Implement file loading with security:
+```go
+func (f *FileTagResolver) loadFile(path string) ([]byte, error) {
+    // Validate path (no traversal)
+    // Resolve relative to baseDir
+    // Check file size limits
+    // Read file
+}
+```
+
+3. Implement caching for performance:
+```go
+func (f *FileTagResolver) getCached(path string) (interface{}, bool)
+func (f *FileTagResolver) setCached(path string, data interface{})
+```
+
+### Security Measures
+- Path traversal prevention
+- File size limits
+- Timeout on file operations
+- Restricted to project directory
+
+### Tests Required
+- File loading from various paths
+- Security validation tests
+- Caching behavior
+- Error scenarios
+
+### Definition of Done
+- [ ] File tag resolver implemented
+- [ ] Security measures in place
+- [ ] Caching working
+- [ ] Tests pass
+
+---
+
+## Step 6: Integrate Tag System with Resource Loader
+
+**Goal**: Connect the tag system with the resource loader.
 
 ### Implementation
 
@@ -320,17 +369,17 @@ func (l *Loader) loadFileWithTags(filename string, registry *tags.ResolverRegist
 - Loading files with tags
 - Tag resolution in various contexts
 - Error handling for invalid tags
-- Performance with large files
+- Integration with existing loader tests
 
 ### Definition of Done
 - [ ] Tag resolution integrated with loader
-- [ ] File loading with tags working
+- [ ] File loading with tags working end-to-end
 - [ ] Error handling comprehensive
-- [ ] Tests pass
+- [ ] Integration tests pass
 
 ---
 
-## Step 6: Extend Planner for API Resources
+## Step 7: Extend Planner for API Resources
 
 **Goal**: Add API resource planning logic.
 
@@ -373,7 +422,7 @@ func (p *Planner) planAPIImplementationChanges(ctx context.Context, apiID string
 
 ---
 
-## Step 7: Add API Operations to Executor
+## Step 8: Add API Operations to Executor
 
 **Goal**: Implement CRUD operations for API resources.
 
@@ -414,7 +463,7 @@ func (e *Executor) createAPIImplementation(ctx context.Context, change planner.P
 
 ---
 
-## Step 8: Implement Dependency Graph Enhancements
+## Step 9: Implement Dependency Graph Enhancements
 
 **Goal**: Extend dependency resolver for new resource types.
 
@@ -451,7 +500,7 @@ func (d *DependencyResolver) getParentType(childType string) string {
 
 ---
 
-## Step 9: Add Cross-Resource Reference Validation
+## Step 10: Add Cross-Resource Reference Validation
 
 **Goal**: Validate references between resources.
 
@@ -476,7 +525,7 @@ func (d *DependencyResolver) getParentType(childType string) string {
 
 ---
 
-## Step 10: Create Comprehensive Integration Tests
+## Step 11: Create Comprehensive Integration Tests
 
 **Goal**: Test complete multi-resource scenarios.
 
@@ -510,7 +559,7 @@ func TestYAMLTagProcessing(t *testing.T)
 
 ---
 
-## Step 11: Add Examples and Documentation
+## Step 12: Add Examples and Documentation
 
 **Goal**: Provide clear examples and documentation.
 

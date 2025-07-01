@@ -116,7 +116,7 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-overview.md](004-dec-cfg-multi-resource/execution-plan-overview.md) | Technical approach | ✅ Created |
 | [execution-plan-adrs.md](004-dec-cfg-multi-resource/execution-plan-adrs.md) | Architecture decisions | ✅ Created |
 
-**Implementation Status**: Not started (0/11 steps)
+**Implementation Status**: Not started (0/12 steps)
 - **Dependencies**: Stage 3 completion ✅ Met
 - **Key deliverables**: 
   - API resource support (CREATE/UPDATE/DELETE)
