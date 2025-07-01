@@ -180,8 +180,8 @@ Examples:
   # Apply configuration from current directory
   kongctl apply
 
-  # Apply with specific config directory
-  kongctl apply --config ./portals
+  # Apply with specific config files
+  kongctl apply --filename ./portals
 
   # Preview changes without applying (dry-run)
   kongctl apply --dry-run
@@ -189,20 +189,62 @@ Examples:
   # Apply from a pre-generated plan
   kongctl apply --plan plan.json
 
+  # Generate and save plan while applying
+  kongctl apply --filename ./portals --plan-output-file generated-plan.json
+
   # CI/CD automation with auto-approve
   kongctl apply --auto-approve --output json
 
 Flags:
-      --auto-approve    Skip confirmation prompt
-      --config string   Path to configuration directory (default ".")
-      --dry-run        Preview changes without applying
-  -h, --help           help for apply
-      --output string  Output format (text|json|yaml) (default "text")
-      --plan string    Path to existing plan file
-      --show-unmanaged Show unmanaged fields after execution
+      --auto-approve              Skip confirmation prompt
+      --dry-run                   Preview changes without applying
+  -f, --filename strings          Path to configuration files or directories
+  -h, --help                      help for apply
+      --output string             Output format (text|json|yaml) (default "text")
+      --plan string               Path to existing plan file (mutually exclusive with --filename)
+      --plan-output-file string   Save executed plan to file
+      --show-unmanaged            Show unmanaged fields after execution
 ```
 
 ### 6. Additional UX Improvements
+
+#### Plan Output File Flag
+Add `--plan-output-file` flag to apply and sync commands to save generated plans:
+```bash
+# Generate and apply plan from files, saving it for audit/review
+$ kongctl apply --filename ./portals --plan-output-file generated-plan.json
+✓ Plan generated and saved to generated-plan.json
+✓ Applied successfully
+
+# Use with sync command
+$ kongctl sync --filename ./portals --plan-output-file sync-plan.json
+
+# Also works when plan is provided via stdin
+$ cat plan.json | kongctl apply --plan - --plan-output-file executed-plan.json
+✓ Plan loaded from stdin
+✓ Plan saved to executed-plan.json
+✓ Applied successfully
+```
+
+The `--plan-output-file` flag is always available to save the plan being executed.
+
+#### Mutually Exclusive Arguments
+Ensure `--filename` and `--plan` are mutually exclusive for apply and sync commands:
+```go
+// Validation in command PreRunE
+if cmd.Flags().Changed("plan") && cmd.Flags().Changed("filename") {
+    return fmt.Errorf("cannot specify both --plan and --filename flags")
+}
+```
+
+Error message when both are specified:
+```bash
+$ kongctl apply --filename ./portals --plan existing-plan.json
+Error: cannot specify both --plan and --filename flags
+
+Use --filename to generate a new plan from configuration files, or
+use --plan to execute an existing plan file.
+```
 
 #### Enhanced Error Messages
 ```go
