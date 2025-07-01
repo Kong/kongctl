@@ -288,7 +288,60 @@ Protected Resources (1):
 Total: 5 resources (2 create, 1 update, 1 delete, 1 protected)
 ```
 
-### 7. Extensive Code Review and Refactoring
+### 7. Migrate Remaining Internal SDK Usage
+
+Complete the migration from internal to public Konnect SDK for all remaining commands.
+
+#### Dump Command Migration
+The `dump` command currently uses the internal SDK and needs to be migrated to the public SDK:
+
+```go
+// Current: internal/cmd/root/verbs/dump/dump.go uses internal SDK
+// Migrate to use public SDK APIs where available
+
+// Before (using internal SDK):
+import kkInternal "github.com/Kong/sdk-konnect-go-internal"
+
+// After (using public SDK):
+import kkSDK "github.com/Kong/sdk-konnect-go"
+```
+
+#### Migration Steps
+1. **Inventory remaining internal SDK usage**:
+   ```bash
+   # Find all files still importing internal SDK
+   grep -r "sdk-konnect-go-internal" --include="*.go" .
+   ```
+
+2. **Update dump command**:
+   - Check if all required APIs are available in public SDK
+   - Migrate API calls to use public SDK types
+   - Update error handling for new response types
+   - Maintain backward compatibility
+
+3. **Remove internal SDK dependency**:
+   - Once all commands are migrated
+   - Update go.mod to remove internal SDK
+   - Clean up any remaining references
+
+#### Expected Changes
+```go
+// Example migration in dump.go
+func dumpPortals(ctx context.Context, sdk *kkSDK.SDK) error {
+    // Use public SDK's portal API
+    resp, err := sdk.Portals.ListPortals(ctx, operations.ListPortalsRequest{})
+    if err != nil {
+        return fmt.Errorf("failed to list portals: %w", err)
+    }
+    
+    // Process with public SDK types
+    for _, portal := range resp.ListPortalsResponse.Data {
+        // Export portal data
+    }
+}
+```
+
+### 8. Extensive Code Review and Refactoring
 
 Conduct a comprehensive code review focusing on code quality, maintainability, and architectural improvements.
 
@@ -397,6 +450,8 @@ type Validator interface {
 - Integration tests cover all scenarios
 - Documentation is clear and complete
 - UX improvements enhance usability
+- Dump command works correctly with public SDK
+- All internal SDK usage is successfully migrated
 - Code review findings are addressed
 - Refactoring maintains functionality
 
@@ -434,11 +489,19 @@ $ golangci-lint run
 $ gocyclo -over 10 .
 ✓ All functions below complexity threshold
 
+# Internal SDK migration complete
+$ grep -r "sdk-konnect-go-internal" --include="*.go" .
+✓ No internal SDK usage found
+
+$ kongctl dump konnect
+✓ Successfully exported all resources using public SDK
+
 # Review complete
 ✓ Removed 300+ lines of duplicated code
 ✓ Extracted 5 common interfaces
 ✓ Improved error messages across codebase
 ✓ Test coverage increased to 85%
+✓ Migrated all commands to public SDK
 ```
 
 ## Dependencies
