@@ -6,7 +6,6 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -275,8 +274,8 @@ func TestLoader_validateAPIs(t *testing.T) {
 					Implementations: []resources.APIImplementationResource{
 						{
 							Ref: "impl1",
-							APIImplementation: kkInternalComps.APIImplementation{
-								Service: &kkInternalComps.APIImplementationServiceInput{
+							APIImplementation: kkComps.APIImplementation{
+								Service: &kkComps.APIImplementationService{
 									ID:             "12345678-1234-1234-1234-123456789012",
 									ControlPlaneID: "cp1",
 								},
@@ -284,8 +283,8 @@ func TestLoader_validateAPIs(t *testing.T) {
 						},
 						{
 							Ref: "impl1",
-							APIImplementation: kkInternalComps.APIImplementation{
-								Service: &kkInternalComps.APIImplementationServiceInput{
+							APIImplementation: kkComps.APIImplementation{
+								Service: &kkComps.APIImplementationService{
 									ID:             "12345678-1234-1234-1234-123456789012",
 									ControlPlaneID: "cp1",
 								},

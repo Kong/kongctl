@@ -6,7 +6,6 @@ import (
 	"os"
 
 	kkSDK "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
-	kkInternal "github.com/Kong/sdk-konnect-go-internal"
 
 	"github.com/kong/kongctl/internal/config"
 )
@@ -33,14 +32,8 @@ type SDKAPI interface {
 // This is the real implementation of the SDKAPI
 // which wraps the actual SDK implmentation
 type KonnectSDK struct {
-	SDK                       *kkSDK.SDK
-	InternalSDK               *kkInternal.SDK
-	publicPortal              *PublicPortalAPI
-	internalAPI               *InternalAPIAPI
-	internalAPIDocument       *InternalAPIDocumentAPI
-	internalAPIVersion        *InternalAPIVersionAPI
-	internalAPIPublication    *InternalAPIPublicationAPI
-	internalAPIImplementation *InternalAPIImplementationAPI
+	SDK          *kkSDK.SDK
+	publicPortal *PublicPortalAPI
 }
 
 // Returns the real implementation of the GetControlPlaneAPI
@@ -71,167 +64,78 @@ func debugLogger() func(string, ...interface{}) {
 }
 
 // Returns the implementation of the APIAPI interface
-// for accessing the API APIs using the internal SDK
+// for accessing the API APIs using the public SDK
 func (k *KonnectSDK) GetAPIAPI() APIAPI {
-	// Check if debug flag is set in environment
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
-
-	// Helper function for debug logging
-	debugLog := func(format string, args ...interface{}) {
-		if debugEnabled {
-			fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
-		}
-	}
-
+	debugLog := debugLogger()
 	debugLog("GetAPIAPI called")
 
-	if k.InternalSDK == nil {
-		debugLog("KonnectSDK.InternalSDK is nil in GetAPIAPI")
+	if k.SDK == nil {
+		debugLog("KonnectSDK.SDK is nil")
 		return nil
 	}
 
-	if k.internalAPI == nil && k.InternalSDK != nil {
-		k.internalAPI = &InternalAPIAPI{
-			SDK: k.InternalSDK,
-		}
-	}
-
-	// Check if we have an SDK and it has a valid API field
-	if k.internalAPI == nil {
-		debugLog("k.internalAPI is nil")
-	} else if k.internalAPI.SDK == nil {
-		debugLog("k.internalAPI.SDK is nil")
-	} else if k.internalAPI.SDK.API == nil {
-		debugLog("k.internalAPI.SDK.API is nil")
-	} else {
-		debugLog("Successfully created APIAPI implementation")
-	}
-
-	return k.internalAPI
+	debugLog("Successfully returning API API")
+	return &PublicAPIAPI{SDK: k.SDK}
 }
 
 // Returns the implementation of the APIDocumentAPI interface
-// for accessing the API Document APIs using the internal SDK
+// for accessing the API Document APIs using the public SDK
 func (k *KonnectSDK) GetAPIDocumentAPI() APIDocumentAPI {
 	debugLog := debugLogger()
-
 	debugLog("GetAPIDocumentAPI called")
 
-	if k.InternalSDK == nil {
-		debugLog("KonnectSDK.InternalSDK is nil")
+	if k.SDK == nil {
+		debugLog("KonnectSDK.SDK is nil")
 		return nil
 	}
 
-	if k.InternalSDK.APIDocumentation == nil {
-		debugLog("KonnectSDK.InternalSDK.APIDocumentation is nil")
-	} else {
-		debugLog("KonnectSDK.InternalSDK.APIDocumentation is NOT nil")
-	}
-
-	if k.internalAPIDocument == nil && k.InternalSDK != nil {
-		debugLog("Creating new InternalAPIDocumentAPI")
-		k.internalAPIDocument = &InternalAPIDocumentAPI{
-			SDK: k.InternalSDK,
-		}
-	}
-	return k.internalAPIDocument
+	debugLog("Successfully returning APIDocument API")
+	return &PublicAPIDocumentAPI{SDK: k.SDK}
 }
 
 // Returns the implementation of the APIVersionAPI interface
-// for accessing the API Version APIs using the internal SDK
+// for accessing the API Version APIs using the public SDK
 func (k *KonnectSDK) GetAPIVersionAPI() APIVersionAPI {
 	debugLog := debugLogger()
-
 	debugLog("GetAPIVersionAPI called")
 
-	if k.InternalSDK == nil {
-		debugLog("KonnectSDK.InternalSDK is nil")
+	if k.SDK == nil {
+		debugLog("KonnectSDK.SDK is nil")
 		return nil
 	}
 
-	if k.InternalSDK.APIVersion == nil {
-		debugLog("KonnectSDK.InternalSDK.APIVersion is nil")
-	} else {
-		debugLog("KonnectSDK.InternalSDK.APIVersion is NOT nil")
-	}
-
-	if k.internalAPIVersion == nil && k.InternalSDK != nil {
-		debugLog("Creating new InternalAPIVersionAPI")
-		k.internalAPIVersion = &InternalAPIVersionAPI{
-			SDK: k.InternalSDK,
-		}
-	}
-	return k.internalAPIVersion
+	debugLog("Successfully returning APIVersion API")
+	return &PublicAPIVersionAPI{SDK: k.SDK}
 }
 
 // Returns the implementation of the APIPublicationAPI interface
-// for accessing the API Publication APIs using the internal SDK
+// for accessing the API Publication APIs using the public SDK
 func (k *KonnectSDK) GetAPIPublicationAPI() APIPublicationAPI {
-	// Check if debug flag is set in environment
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
-
-	// Helper function for debug logging
-	debugLog := func(format string, args ...interface{}) {
-		if debugEnabled {
-			fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
-		}
-	}
-
+	debugLog := debugLogger()
 	debugLog("GetAPIPublicationAPI called")
 
-	if k.InternalSDK == nil {
-		debugLog("KonnectSDK.InternalSDK is nil")
+	if k.SDK == nil {
+		debugLog("KonnectSDK.SDK is nil")
 		return nil
 	}
 
-	if k.InternalSDK.APIPublication == nil {
-		debugLog("KonnectSDK.InternalSDK.APIPublication is nil")
-	} else {
-		debugLog("KonnectSDK.InternalSDK.APIPublication is NOT nil")
-	}
-
-	if k.internalAPIPublication == nil && k.InternalSDK != nil {
-		debugLog("Creating new InternalAPIPublicationAPI")
-		k.internalAPIPublication = &InternalAPIPublicationAPI{
-			SDK: k.InternalSDK,
-		}
-	}
-	return k.internalAPIPublication
+	debugLog("Successfully returning APIPublication API")
+	return &PublicAPIPublicationAPI{SDK: k.SDK}
 }
 
 // Returns the implementation of the APIImplementationAPI interface
-// for accessing the API Implementation APIs using the internal SDK
+// for accessing the API Implementation APIs using the public SDK
 func (k *KonnectSDK) GetAPIImplementationAPI() APIImplementationAPI {
-	// Check if debug flag is set in environment
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
-
-	// Helper function for debug logging
-	debugLog := func(format string, args ...interface{}) {
-		if debugEnabled {
-			fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
-		}
-	}
-
+	debugLog := debugLogger()
 	debugLog("GetAPIImplementationAPI called")
 
-	if k.InternalSDK == nil {
-		debugLog("KonnectSDK.InternalSDK is nil")
+	if k.SDK == nil {
+		debugLog("KonnectSDK.SDK is nil")
 		return nil
 	}
 
-	if k.InternalSDK.APIImplementation == nil {
-		debugLog("KonnectSDK.InternalSDK.APIImplementation is nil")
-	} else {
-		debugLog("KonnectSDK.InternalSDK.APIImplementation is NOT nil")
-	}
-
-	if k.internalAPIImplementation == nil && k.InternalSDK != nil {
-		debugLog("Creating new InternalAPIImplementationAPI")
-		k.internalAPIImplementation = &InternalAPIImplementationAPI{
-			SDK: k.InternalSDK,
-		}
-	}
-	return k.internalAPIImplementation
+	debugLog("Successfully returning APIImplementation API")
+	return &PublicAPIImplementationAPI{SDK: k.SDK}
 }
 
 // Returns the implementation of the AppAuthStrategiesAPI interface

@@ -5,28 +5,28 @@ import (
 	"fmt"
 	"os"
 
-	kkInternal "github.com/Kong/sdk-konnect-go-internal"
-	kkInternalComponents "github.com/Kong/sdk-konnect-go-internal/models/components"
-	kkInternalOps "github.com/Kong/sdk-konnect-go-internal/models/operations"
+	kkSDK "github.com/Kong/sdk-konnect-go"
+	kkComponents "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 )
 
 // APIImplementationAPI defines the interface for operations on API Implementations
 type APIImplementationAPI interface {
 	// API Implementation operations
-	ListAPIImplementations(ctx context.Context, request kkInternalOps.ListAPIImplementationsRequest,
-		opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIImplementationsResponse, error)
+	ListAPIImplementations(ctx context.Context, request kkOps.ListAPIImplementationsRequest,
+		opts ...kkOps.Option) (*kkOps.ListAPIImplementationsResponse, error)
 }
 
-// InternalAPIImplementationAPI provides an implementation of the APIImplementationAPI interface using the internal SDK
-type InternalAPIImplementationAPI struct {
-	SDK *kkInternal.SDK
+// PublicAPIImplementationAPI provides an implementation of the APIImplementationAPI interface using the public SDK
+type PublicAPIImplementationAPI struct {
+	SDK *kkSDK.SDK
 }
 
 // ListAPIImplementations implements the APIImplementationAPI interface
-func (a *InternalAPIImplementationAPI) ListAPIImplementations(ctx context.Context,
-	request kkInternalOps.ListAPIImplementationsRequest,
-	opts ...kkInternalOps.Option,
-) (*kkInternalOps.ListAPIImplementationsResponse, error) {
+func (a *PublicAPIImplementationAPI) ListAPIImplementations(ctx context.Context,
+	request kkOps.ListAPIImplementationsRequest,
+	opts ...kkOps.Option,
+) (*kkOps.ListAPIImplementationsResponse, error) {
 	// Handle debugging based on environment variable
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 
@@ -38,12 +38,12 @@ func (a *InternalAPIImplementationAPI) ListAPIImplementations(ctx context.Contex
 	}
 
 	if a.SDK == nil {
-		debugLog("InternalAPIImplementationAPI.SDK is nil")
+		debugLog("PublicAPIImplementationAPI.SDK is nil")
 		return nil, fmt.Errorf("SDK is nil")
 	}
 
 	if a.SDK.APIImplementation == nil {
-		debugLog("InternalAPIImplementationAPI.SDK.APIImplementation is nil")
+		debugLog("PublicAPIImplementationAPI.SDK.APIImplementation is nil")
 		return nil, fmt.Errorf("SDK.APIImplementation is nil")
 	}
 
@@ -72,13 +72,13 @@ func GetImplementationsForAPI(ctx context.Context, kkClient APIImplementationAPI
 	}
 
 	// Create a filter to filter implementations by API ID
-	apiIDFilter := &kkInternalComponents.UUIDFieldFilter{
+	apiIDFilter := &kkComponents.UUIDFieldFilter{
 		Eq: &apiID,
 	}
 
 	// Create a request to list API implementations for this API
-	req := kkInternalOps.ListAPIImplementationsRequest{
-		Filter: &kkInternalComponents.APIImplementationFilterParameters{
+	req := kkOps.ListAPIImplementationsRequest{
+		Filter: &kkComponents.APIImplementationFilterParameters{
 			APIID: apiIDFilter,
 		},
 	}

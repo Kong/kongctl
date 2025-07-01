@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // APIPublicationResource represents an API publication in declarative configuration
 type APIPublicationResource struct {
-	kkInternalComps.APIPublication `yaml:",inline" json:",inline"`
+	kkComps.APIPublication `yaml:",inline" json:",inline"`
 	Ref      string       `yaml:"ref" json:"ref"`
 	PortalID string       `yaml:"portal_id" json:"portal_id"`
 	Kongctl  *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
@@ -75,7 +75,7 @@ func (p *APIPublicationResource) UnmarshalJSON(data []byte) error {
 	
 	// Handle visibility enum if present
 	if temp.Visibility != "" {
-		visibility := kkInternalComps.APIPublicationVisibility(temp.Visibility)
+		visibility := kkComps.APIPublicationVisibility(temp.Visibility)
 		p.Visibility = &visibility
 	}
 	

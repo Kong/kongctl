@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -306,8 +305,8 @@ func TestAPIImplementationResource_Validation(t *testing.T) {
 			name: "valid api implementation with service and reference control_plane_id",
 			implementation: APIImplementationResource{
 				Ref: "api-impl-1",
-				APIImplementation: kkInternalComps.APIImplementation{
-					Service: &kkInternalComps.APIImplementationServiceInput{
+				APIImplementation: kkComps.APIImplementation{
+					Service: &kkComps.APIImplementationService{
 						ID:             "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
 						ControlPlaneID: "prod-cp", // Reference to declarative control plane
 					},
@@ -319,8 +318,8 @@ func TestAPIImplementationResource_Validation(t *testing.T) {
 			name: "valid api implementation with service and UUID control_plane_id",
 			implementation: APIImplementationResource{
 				Ref: "api-impl-1",
-				APIImplementation: kkInternalComps.APIImplementation{
-					Service: &kkInternalComps.APIImplementationServiceInput{
+				APIImplementation: kkComps.APIImplementation{
+					Service: &kkComps.APIImplementationService{
 						ID:             "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
 						ControlPlaneID: "f9e8d7c6-b5a4-3210-9876-fedcba098765", // External UUID
 					},
@@ -340,8 +339,8 @@ func TestAPIImplementationResource_Validation(t *testing.T) {
 			name: "service with missing id",
 			implementation: APIImplementationResource{
 				Ref: "api-impl-1",
-				APIImplementation: kkInternalComps.APIImplementation{
-					Service: &kkInternalComps.APIImplementationServiceInput{
+				APIImplementation: kkComps.APIImplementation{
+					Service: &kkComps.APIImplementationService{
 						ControlPlaneID: "prod-cp",
 					},
 				},
@@ -353,8 +352,8 @@ func TestAPIImplementationResource_Validation(t *testing.T) {
 			name: "service with invalid id (not UUID)",
 			implementation: APIImplementationResource{
 				Ref: "api-impl-1",
-				APIImplementation: kkInternalComps.APIImplementation{
-					Service: &kkInternalComps.APIImplementationServiceInput{
+				APIImplementation: kkComps.APIImplementation{
+					Service: &kkComps.APIImplementationService{
 						ID:             "not-a-uuid",
 						ControlPlaneID: "prod-cp",
 					},
@@ -367,8 +366,8 @@ func TestAPIImplementationResource_Validation(t *testing.T) {
 			name: "service with missing control_plane_id",
 			implementation: APIImplementationResource{
 				Ref: "api-impl-1",
-				APIImplementation: kkInternalComps.APIImplementation{
-					Service: &kkInternalComps.APIImplementationServiceInput{
+				APIImplementation: kkComps.APIImplementation{
+					Service: &kkComps.APIImplementationService{
 						ID: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
 					},
 				},
@@ -423,8 +422,8 @@ func TestReferenceFieldMappings(t *testing.T) {
 		// Test with reference control_plane_id
 		t.Run("with reference control_plane_id", func(t *testing.T) {
 			implementation := APIImplementationResource{
-				APIImplementation: kkInternalComps.APIImplementation{
-					Service: &kkInternalComps.APIImplementationServiceInput{
+				APIImplementation: kkComps.APIImplementation{
+					Service: &kkComps.APIImplementationService{
 						ControlPlaneID: "prod-cp", // Not a UUID
 					},
 				},
@@ -440,8 +439,8 @@ func TestReferenceFieldMappings(t *testing.T) {
 		// Test with UUID control_plane_id
 		t.Run("with UUID control_plane_id", func(t *testing.T) {
 			implementation := APIImplementationResource{
-				APIImplementation: kkInternalComps.APIImplementation{
-					Service: &kkInternalComps.APIImplementationServiceInput{
+				APIImplementation: kkComps.APIImplementation{
+					Service: &kkComps.APIImplementationService{
 						ControlPlaneID: "f9e8d7c6-b5a4-3210-9876-fedcba098765", // UUID
 					},
 				},
@@ -465,8 +464,8 @@ func TestReferenceFieldMappings(t *testing.T) {
 		// Test with empty control_plane_id
 		t.Run("with empty control_plane_id", func(t *testing.T) {
 			implementation := APIImplementationResource{
-				APIImplementation: kkInternalComps.APIImplementation{
-					Service: &kkInternalComps.APIImplementationServiceInput{
+				APIImplementation: kkComps.APIImplementation{
+					Service: &kkComps.APIImplementationService{
 						ControlPlaneID: "", // Empty
 					},
 				},

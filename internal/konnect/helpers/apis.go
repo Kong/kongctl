@@ -3,26 +3,26 @@ package helpers
 import (
 	"context"
 
-	kkInternal "github.com/Kong/sdk-konnect-go-internal"
-	kkInternalOps "github.com/Kong/sdk-konnect-go-internal/models/operations"
+	kkSDK "github.com/Kong/sdk-konnect-go"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 )
 
 // APIAPI defines the interface for operations on APIs
 type APIAPI interface {
 	// API operations
-	ListApis(ctx context.Context, request kkInternalOps.ListApisRequest,
-		opts ...kkInternalOps.Option) (*kkInternalOps.ListApisResponse, error)
+	ListApis(ctx context.Context, request kkOps.ListApisRequest,
+		opts ...kkOps.Option) (*kkOps.ListApisResponse, error)
 }
 
-// InternalAPIAPI provides an implementation of the APIAPI interface using the internal SDK
-type InternalAPIAPI struct {
-	SDK *kkInternal.SDK
+// PublicAPIAPI provides an implementation of the APIAPI interface using the public SDK
+type PublicAPIAPI struct {
+	SDK *kkSDK.SDK
 }
 
 // ListApis implements the APIAPI interface
-func (a *InternalAPIAPI) ListApis(ctx context.Context, request kkInternalOps.ListApisRequest,
-	opts ...kkInternalOps.Option,
-) (*kkInternalOps.ListApisResponse, error) {
+func (a *PublicAPIAPI) ListApis(ctx context.Context, request kkOps.ListApisRequest,
+	opts ...kkOps.Option,
+) (*kkOps.ListApisResponse, error) {
 	return a.SDK.API.ListApis(ctx, request, opts...)
 }
 

@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // APIVersionResource represents an API version in declarative configuration
 type APIVersionResource struct {
-	kkInternalComps.CreateAPIVersionRequest `yaml:",inline" json:",inline"`
+	kkComps.CreateAPIVersionRequest `yaml:",inline" json:",inline"`
 	Ref     string       `yaml:"ref" json:"ref"`
 	Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
 	// Note: api_id removed - implicit from parent API structure

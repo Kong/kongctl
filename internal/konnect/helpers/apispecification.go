@@ -5,27 +5,27 @@ import (
 	"fmt"
 	"os"
 
-	kkInternal "github.com/Kong/sdk-konnect-go-internal"
-	kkInternalOps "github.com/Kong/sdk-konnect-go-internal/models/operations"
+	kkSDK "github.com/Kong/sdk-konnect-go"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 )
 
 // APIVersionAPI defines the interface for operations on API Versions
 type APIVersionAPI interface {
 	// API Version operations
-	ListAPIVersions(ctx context.Context, request kkInternalOps.ListAPIVersionsRequest,
-		opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIVersionsResponse, error)
+	ListAPIVersions(ctx context.Context, request kkOps.ListAPIVersionsRequest,
+		opts ...kkOps.Option) (*kkOps.ListAPIVersionsResponse, error)
 }
 
-// InternalAPIVersionAPI provides an implementation of the APIVersionAPI interface using the internal SDK
-type InternalAPIVersionAPI struct {
-	SDK *kkInternal.SDK
+// PublicAPIVersionAPI provides an implementation of the APIVersionAPI interface using the public SDK
+type PublicAPIVersionAPI struct {
+	SDK *kkSDK.SDK
 }
 
 // ListAPIVersions implements the APIVersionAPI interface
-func (a *InternalAPIVersionAPI) ListAPIVersions(ctx context.Context,
-	request kkInternalOps.ListAPIVersionsRequest,
-	opts ...kkInternalOps.Option,
-) (*kkInternalOps.ListAPIVersionsResponse, error) {
+func (a *PublicAPIVersionAPI) ListAPIVersions(ctx context.Context,
+	request kkOps.ListAPIVersionsRequest,
+	opts ...kkOps.Option,
+) (*kkOps.ListAPIVersionsResponse, error) {
 	// Handle debugging based on environment variable
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 
@@ -37,12 +37,12 @@ func (a *InternalAPIVersionAPI) ListAPIVersions(ctx context.Context,
 	}
 
 	if a.SDK == nil {
-		debugLog("InternalAPIVersionAPI.SDK is nil")
+		debugLog("PublicAPIVersionAPI.SDK is nil")
 		return nil, fmt.Errorf("SDK is nil")
 	}
 
 	if a.SDK.APIVersion == nil {
-		debugLog("InternalAPIVersionAPI.SDK.APIVersion is nil")
+		debugLog("PublicAPIVersionAPI.SDK.APIVersion is nil")
 		return nil, fmt.Errorf("SDK.APIVersion is nil")
 	}
 
@@ -71,7 +71,7 @@ func GetVersionsForAPI(ctx context.Context, kkClient APIVersionAPI, apiID string
 	}
 
 	// Create a request to list API versions for this API
-	req := kkInternalOps.ListAPIVersionsRequest{
+	req := kkOps.ListAPIVersionsRequest{
 		APIID: apiID,
 	}
 	debugLog("Created ListAPIVersionsRequest with APIID: %s", apiID)

@@ -5,28 +5,28 @@ import (
 	"fmt"
 	"os"
 
-	kkInternal "github.com/Kong/sdk-konnect-go-internal"
-	kkInternalComponents "github.com/Kong/sdk-konnect-go-internal/models/components"
-	kkInternalOps "github.com/Kong/sdk-konnect-go-internal/models/operations"
+	kkSDK "github.com/Kong/sdk-konnect-go"
+	kkComponents "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 )
 
 // APIPublicationAPI defines the interface for operations on API Publications
 type APIPublicationAPI interface {
 	// API Publication operations
-	ListAPIPublications(ctx context.Context, request kkInternalOps.ListAPIPublicationsRequest,
-		opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIPublicationsResponse, error)
+	ListAPIPublications(ctx context.Context, request kkOps.ListAPIPublicationsRequest,
+		opts ...kkOps.Option) (*kkOps.ListAPIPublicationsResponse, error)
 }
 
-// InternalAPIPublicationAPI provides an implementation of the APIPublicationAPI interface using the internal SDK
-type InternalAPIPublicationAPI struct {
-	SDK *kkInternal.SDK
+// PublicAPIPublicationAPI provides an implementation of the APIPublicationAPI interface using the public SDK
+type PublicAPIPublicationAPI struct {
+	SDK *kkSDK.SDK
 }
 
 // ListAPIPublications implements the APIPublicationAPI interface
-func (a *InternalAPIPublicationAPI) ListAPIPublications(ctx context.Context,
-	request kkInternalOps.ListAPIPublicationsRequest,
-	opts ...kkInternalOps.Option,
-) (*kkInternalOps.ListAPIPublicationsResponse, error) {
+func (a *PublicAPIPublicationAPI) ListAPIPublications(ctx context.Context,
+	request kkOps.ListAPIPublicationsRequest,
+	opts ...kkOps.Option,
+) (*kkOps.ListAPIPublicationsResponse, error) {
 	// Handle debugging based on environment variable
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 
@@ -38,12 +38,12 @@ func (a *InternalAPIPublicationAPI) ListAPIPublications(ctx context.Context,
 	}
 
 	if a.SDK == nil {
-		debugLog("InternalAPIPublicationAPI.SDK is nil")
+		debugLog("PublicAPIPublicationAPI.SDK is nil")
 		return nil, fmt.Errorf("SDK is nil")
 	}
 
 	if a.SDK.APIPublication == nil {
-		debugLog("InternalAPIPublicationAPI.SDK.APIPublication is nil")
+		debugLog("PublicAPIPublicationAPI.SDK.APIPublication is nil")
 		return nil, fmt.Errorf("SDK.APIPublication is nil")
 	}
 
@@ -72,13 +72,13 @@ func GetPublicationsForAPI(ctx context.Context, kkClient APIPublicationAPI, apiI
 	}
 
 	// Create a filter to get publications for this API
-	apiIDFilter := &kkInternalComponents.UUIDFieldFilter{
+	apiIDFilter := &kkComponents.UUIDFieldFilter{
 		Eq: &apiID,
 	}
 
 	// Create a request to list API publications for this API
-	req := kkInternalOps.ListAPIPublicationsRequest{
-		Filter: &kkInternalComponents.APIPublicationFilterParameters{
+	req := kkOps.ListAPIPublicationsRequest{
+		Filter: &kkComponents.APIPublicationFilterParameters{
 			APIID: apiIDFilter,
 		},
 	}

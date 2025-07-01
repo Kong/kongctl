@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"regexp"
 
-	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // APIImplementationResource represents an API implementation in declarative configuration
 type APIImplementationResource struct {
-	kkInternalComps.APIImplementation `yaml:",inline" json:",inline"`
+	kkComps.APIImplementation `yaml:",inline" json:",inline"`
 	Ref     string       `yaml:"ref" json:"ref"`
 	Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
 }

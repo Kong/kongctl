@@ -5,27 +5,28 @@ import (
 	"fmt"
 	"os"
 
-	kkInternal "github.com/Kong/sdk-konnect-go-internal"
-	kkInternalOps "github.com/Kong/sdk-konnect-go-internal/models/operations"
+	kkSDK "github.com/Kong/sdk-konnect-go"
+	kkComponents "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 )
 
 // APIDocumentAPI defines the interface for operations on API Documents
 type APIDocumentAPI interface {
 	// API Document operations
-	ListAPIDocuments(ctx context.Context, request kkInternalOps.ListAPIDocumentsRequest,
-		opts ...kkInternalOps.Option) (*kkInternalOps.ListAPIDocumentsResponse, error)
+	ListAPIDocuments(ctx context.Context, apiID string, filter *kkComponents.APIDocumentFilterParameters,
+		opts ...kkOps.Option) (*kkOps.ListAPIDocumentsResponse, error)
 }
 
-// InternalAPIDocumentAPI provides an implementation of the APIDocumentAPI interface using the internal SDK
-type InternalAPIDocumentAPI struct {
-	SDK *kkInternal.SDK
+// PublicAPIDocumentAPI provides an implementation of the APIDocumentAPI interface using the public SDK
+type PublicAPIDocumentAPI struct {
+	SDK *kkSDK.SDK
 }
 
 // ListAPIDocuments implements the APIDocumentAPI interface
-func (a *InternalAPIDocumentAPI) ListAPIDocuments(ctx context.Context,
-	request kkInternalOps.ListAPIDocumentsRequest,
-	opts ...kkInternalOps.Option,
-) (*kkInternalOps.ListAPIDocumentsResponse, error) {
+func (a *PublicAPIDocumentAPI) ListAPIDocuments(ctx context.Context,
+	apiID string, filter *kkComponents.APIDocumentFilterParameters,
+	opts ...kkOps.Option,
+) (*kkOps.ListAPIDocumentsResponse, error) {
 	// Handle debugging based on environment variable
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == EnvTrue
 
@@ -37,17 +38,17 @@ func (a *InternalAPIDocumentAPI) ListAPIDocuments(ctx context.Context,
 	}
 
 	if a.SDK == nil {
-		debugLog("InternalAPIDocumentAPI.SDK is nil")
+		debugLog("PublicAPIDocumentAPI.SDK is nil")
 		return nil, fmt.Errorf("SDK is nil")
 	}
 
 	if a.SDK.APIDocumentation == nil {
-		debugLog("InternalAPIDocumentAPI.SDK.APIDocumentation is nil")
+		debugLog("PublicAPIDocumentAPI.SDK.APIDocumentation is nil")
 		return nil, fmt.Errorf("SDK.APIDocumentation is nil")
 	}
 
 	debugLog("Calling a.SDK.APIDocumentation.ListAPIDocuments")
-	return a.SDK.APIDocumentation.ListAPIDocuments(ctx, request, opts...)
+	return a.SDK.APIDocumentation.ListAPIDocuments(ctx, apiID, filter, opts...)
 }
 
 // GetDocumentsForAPI fetches all document objects for a specific API
@@ -70,15 +71,9 @@ func GetDocumentsForAPI(ctx context.Context, kkClient APIDocumentAPI, apiID stri
 		return nil, fmt.Errorf("APIDocumentAPI client is nil")
 	}
 
-	// Create a request to list API documents for this API
-	req := kkInternalOps.ListAPIDocumentsRequest{
-		APIID: apiID,
-	}
-	debugLog("Created ListAPIDocumentsRequest with APIID: %s", apiID)
-
 	// Call the SDK's ListAPIDocuments method
 	debugLog("Calling ListAPIDocuments...")
-	res, err := kkClient.ListAPIDocuments(ctx, req)
+	res, err := kkClient.ListAPIDocuments(ctx, apiID, nil)
 	if err != nil {
 		debugLog("Error from ListAPIDocuments: %v", err)
 		return nil, err
