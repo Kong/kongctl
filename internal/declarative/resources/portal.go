@@ -19,9 +19,65 @@ type PortalResource struct {
 	Snippets      []PortalSnippetResource      `yaml:"snippets,omitempty" json:"snippets,omitempty"`
 }
 
+// GetKind returns the resource kind
+func (p PortalResource) GetKind() string {
+	return "portal"
+}
+
 // GetRef returns the reference identifier used for cross-resource references
 func (p PortalResource) GetRef() string {
 	return p.Ref
+}
+
+// GetName returns the resource name
+func (p PortalResource) GetName() string {
+	return p.Name
+}
+
+// GetDependencies returns references to other resources this portal depends on
+func (p PortalResource) GetDependencies() []ResourceRef {
+	var deps []ResourceRef
+	
+	// Portal may depend on an auth strategy
+	if p.DefaultApplicationAuthStrategyID != nil && *p.DefaultApplicationAuthStrategyID != "" {
+		deps = append(deps, ResourceRef{
+			Kind: "application_auth_strategy",
+			Ref:  *p.DefaultApplicationAuthStrategyID,
+		})
+	}
+	
+	return deps
+}
+
+// GetLabels returns the labels for this resource
+func (p PortalResource) GetLabels() map[string]string {
+	if p.Labels == nil {
+		return nil
+	}
+	
+	// Convert from SDK's map[string]*string to map[string]string
+	result := make(map[string]string)
+	for k, v := range p.Labels {
+		if v != nil {
+			result[k] = *v
+		}
+	}
+	return result
+}
+
+// SetLabels sets the labels for this resource
+func (p *PortalResource) SetLabels(labels map[string]string) {
+	if labels == nil {
+		p.Labels = nil
+		return
+	}
+	
+	// Convert from map[string]string to SDK's map[string]*string
+	result := make(map[string]*string)
+	for k, v := range labels {
+		result[k] = &v
+	}
+	p.Labels = result
 }
 
 // GetReferenceFieldMappings returns the field mappings for reference validation

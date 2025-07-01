@@ -14,9 +14,49 @@ type ApplicationAuthStrategyResource struct {
 	Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
 }
 
+// GetKind returns the resource kind
+func (a ApplicationAuthStrategyResource) GetKind() string {
+	return "application_auth_strategy"
+}
+
 // GetRef returns the reference identifier used for cross-resource references
 func (a ApplicationAuthStrategyResource) GetRef() string {
 	return a.Ref
+}
+
+// GetDependencies returns references to other resources this auth strategy depends on
+func (a ApplicationAuthStrategyResource) GetDependencies() []ResourceRef {
+	// Auth strategies don't depend on other resources
+	return []ResourceRef{}
+}
+
+// GetLabels returns the labels for this resource
+func (a ApplicationAuthStrategyResource) GetLabels() map[string]string {
+	switch a.Type {
+	case kkComps.CreateAppAuthStrategyRequestTypeKeyAuth:
+		if a.AppAuthStrategyKeyAuthRequest != nil {
+			return a.AppAuthStrategyKeyAuthRequest.Labels
+		}
+	case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
+		if a.AppAuthStrategyOpenIDConnectRequest != nil {
+			return a.AppAuthStrategyOpenIDConnectRequest.Labels
+		}
+	}
+	return nil
+}
+
+// SetLabels sets the labels for this resource
+func (a *ApplicationAuthStrategyResource) SetLabels(labels map[string]string) {
+	switch a.Type {
+	case kkComps.CreateAppAuthStrategyRequestTypeKeyAuth:
+		if a.AppAuthStrategyKeyAuthRequest != nil {
+			a.AppAuthStrategyKeyAuthRequest.Labels = labels
+		}
+	case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
+		if a.AppAuthStrategyOpenIDConnectRequest != nil {
+			a.AppAuthStrategyOpenIDConnectRequest.Labels = labels
+		}
+	}
 }
 
 // GetReferenceFieldMappings returns the field mappings for reference validation

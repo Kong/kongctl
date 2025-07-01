@@ -5,7 +5,7 @@
 | Step | Description | Status | Dependencies |
 |------|-------------|---------|--------------|
 | 1 | Migrate to public Konnect SDK | ✅ COMPLETE | - |
-| 2 | Create resource interfaces and base types | Not Started | Step 1 |
+| 2 | Create resource interfaces and base types | ✅ COMPLETE | Step 1 |
 | 3 | Implement API resource type | Not Started | Steps 1, 2 |
 | 4 | Implement API child resource types | Not Started | Steps 2, 3 |
 | 5 | Create YAML tag system architecture | Not Started | Step 2 |
@@ -18,7 +18,7 @@
 | 12 | Create comprehensive integration tests | Not Started | Steps 8, 9, 10 |
 | 13 | Add examples and documentation | Not Started | All steps |
 
-**Current Stage**: Step 1 Completed - Ready for Step 2
+**Current Stage**: Step 2 Completed - Ready for Step 3
 
 ---
 
@@ -140,14 +140,14 @@ type ResourceWithLabels interface {
 - Verify existing resources implement interfaces correctly
 
 ### Definition of Done
-- [ ] Resource interfaces defined
-- [ ] Existing resources updated
-- [ ] Interface compliance verified
-- [ ] Tests pass
+- [x] Resource interfaces defined
+- [x] Existing resources updated
+- [x] Interface compliance verified
+- [x] Tests pass
 
 ---
 
-## Step 2: Implement API Resource Type
+## Step 3: Implement API Resource Type
 
 **Goal**: Create the API resource type using SDK models.
 
