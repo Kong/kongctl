@@ -3,12 +3,12 @@ package resources
 import (
 	"fmt"
 
-	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // PortalResource represents a portal in declarative configuration
 type PortalResource struct {
-	kkInternalComps.CreatePortal `yaml:",inline"`
+	kkComps.CreatePortal `yaml:",inline"`
 	Ref     string       `yaml:"ref" json:"ref"`
 	Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
 	

@@ -3,6 +3,7 @@ package resources
 import (
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
 	"github.com/stretchr/testify/assert"
 )
@@ -69,7 +70,7 @@ func TestPortalResource_SetDefaults(t *testing.T) {
 			name: "existing name is preserved",
 			portal: PortalResource{
 				Ref: "my-portal",
-				CreatePortal: kkInternalComps.CreatePortal{
+				CreatePortal: kkComps.CreatePortal{
 					Name: "Existing Portal Name",
 				},
 			},

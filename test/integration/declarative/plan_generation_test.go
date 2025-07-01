@@ -20,8 +20,8 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/konnect/helpers"
-	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
-	kkInternalOps "github.com/Kong/sdk-konnect-go-internal/models/operations"
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -137,9 +137,9 @@ portals:
 		oldDesc := "Old description"
 		oldDisplay := "Old Display"
 		
-		mockPortal.On("ListPortals", mock.Anything, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-			ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-				Data: []kkInternalComps.Portal{
+		mockPortal.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+			ListPortalsResponse: &kkComps.ListPortalsResponse{
+				Data: []kkComps.Portal{
 					{
 						ID:          existingID,
 						Name:        existingName,
@@ -151,8 +151,8 @@ portals:
 						},
 					},
 				},
-				Meta: kkInternalComps.PaginatedMeta{
-					Page: kkInternalComps.PageMeta{
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
 						Total: 1,
 					},
 				},
@@ -230,8 +230,8 @@ portals:
   - ref: protected-portal
     name: "Protected Portal"
     description: "Portal with protection"
-    labels:
-      KONGCTL-protected: "true"
+    kongctl:
+      protected: true
 `
 	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
 	
@@ -248,9 +248,9 @@ portals:
 		existingName := "Protected Portal"
 		desc := "Portal with protection"
 		
-		mockPortal.On("ListPortals", mock.Anything, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-			ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-				Data: []kkInternalComps.Portal{
+		mockPortal.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+			ListPortalsResponse: &kkComps.ListPortalsResponse{
+				Data: []kkComps.Portal{
 					{
 						ID:          existingID,
 						Name:        existingName,
@@ -262,8 +262,8 @@ portals:
 						},
 					},
 				},
-				Meta: kkInternalComps.PaginatedMeta{
-					Page: kkInternalComps.PageMeta{
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
 						Total: 1,
 					},
 				},
@@ -316,15 +316,22 @@ portals:
 	change := plan.Changes[0]
 	
 	assert.Equal(t, planner.ActionUpdate, change.Action)
-	assert.Contains(t, change.ID, "protection")
+	assert.Equal(t, "1-u-protected-portal", change.ID)
 	
-	// Verify protection change
-	protChange := change.Protection.(map[string]interface{})
+	// Verify protection change (marshaled as map from JSON)
+	protChange, ok := change.Protection.(map[string]interface{})
+	require.True(t, ok, "Protection should be a map after JSON unmarshaling")
 	assert.False(t, protChange["old"].(bool))
 	assert.True(t, protChange["new"].(bool))
 	
-	// No field changes in protection-only update
-	assert.Empty(t, change.Fields)
+	// Protection change includes name and labels fields
+	assert.NotEmpty(t, change.Fields)
+	assert.Equal(t, "Protected Portal", change.Fields["name"])
+	
+	// Verify labels field contains protection label
+	labelsField, ok := change.Fields["labels"].(map[string]interface{})
+	require.True(t, ok, "labels field should be a map")
+	assert.Equal(t, "true", labelsField["KONGCTL-protected"])
 }
 
 func TestPlanGeneration_EmptyPlan(t *testing.T) {
@@ -351,11 +358,11 @@ portals:
 		// Mock portal that matches desired state
 		portal := CreateManagedPortal("Existing Portal", "portal-789", "Same description")
 		
-		mockPortal.On("ListPortals", mock.Anything, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-			ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-				Data: []kkInternalComps.Portal{portal},
-				Meta: kkInternalComps.PaginatedMeta{
-					Page: kkInternalComps.PageMeta{
+		mockPortal.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+			ListPortalsResponse: &kkComps.ListPortalsResponse{
+				Data: []kkComps.Portal{portal},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
 						Total: 1,
 					},
 				},

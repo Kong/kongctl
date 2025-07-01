@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
-	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -33,13 +33,13 @@ func TestLoader_validatePortals(t *testing.T) {
 			portals: []resources.PortalResource{
 				{
 					Ref: "portal1",
-					CreatePortal: kkInternalComps.CreatePortal{
+					CreatePortal: kkComps.CreatePortal{
 						Name: "Portal One",
 					},
 				},
 				{
 					Ref: "portal2",
-					CreatePortal: kkInternalComps.CreatePortal{
+					CreatePortal: kkComps.CreatePortal{
 						Name: "Portal Two",
 					},
 				},
@@ -337,7 +337,7 @@ func TestLoader_validateCrossReferences(t *testing.T) {
 				Portals: []resources.PortalResource{
 					{
 						Ref: "portal1",
-						CreatePortal: kkInternalComps.CreatePortal{
+						CreatePortal: kkComps.CreatePortal{
 							DefaultApplicationAuthStrategyID: stringPtr("oauth1"),
 						},
 					},
@@ -351,7 +351,7 @@ func TestLoader_validateCrossReferences(t *testing.T) {
 				Portals: []resources.PortalResource{
 					{
 						Ref: "portal1",
-						CreatePortal: kkInternalComps.CreatePortal{
+						CreatePortal: kkComps.CreatePortal{
 							DefaultApplicationAuthStrategyID: stringPtr("nonexistent"),
 						},
 					},

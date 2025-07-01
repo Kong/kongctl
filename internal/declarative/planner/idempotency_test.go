@@ -7,8 +7,8 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
-	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
-	kkInternalOps "github.com/Kong/sdk-konnect-go-internal/models/operations"
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -27,7 +27,7 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 	autoApproveDev := true
 	autoApproveApp := false
 	
-	existingPortal := kkInternalComps.Portal{
+	existingPortal := kkComps.Portal{
 		ID:                      "portal-123",
 		Name:                    "test-portal",
 		DisplayName:             displayName,
@@ -43,11 +43,11 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 	}
 
 	// Mock list returns existing portal
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-		ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-			Data: []kkInternalComps.Portal{existingPortal},
-			Meta: kkInternalComps.PaginatedMeta{
-				Page: kkInternalComps.PageMeta{
+	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.Portal{existingPortal},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
 					Total: 1,
 				},
 			},
@@ -59,7 +59,7 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 		rs := &resources.ResourceSet{
 			Portals: []resources.PortalResource{
 				{
-					CreatePortal: kkInternalComps.CreatePortal{
+					CreatePortal: kkComps.CreatePortal{
 						Name:        "test-portal",
 						Description: &description, // Only configured field
 					},
@@ -84,7 +84,7 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 		rs := &resources.ResourceSet{
 			Portals: []resources.PortalResource{
 				{
-					CreatePortal: kkInternalComps.CreatePortal{
+					CreatePortal: kkComps.CreatePortal{
 						Name:        "test-portal",
 						Description: &newDesc, // Changed value
 					},
@@ -113,7 +113,7 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 		rs := &resources.ResourceSet{
 			Portals: []resources.PortalResource{
 				{
-					CreatePortal: kkInternalComps.CreatePortal{
+					CreatePortal: kkComps.CreatePortal{
 						Name:        "test-portal",
 						Description: &description,      // Existing field
 						DisplayName: &newDisplayName,   // New field
@@ -145,7 +145,7 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 		rs := &resources.ResourceSet{
 			Portals: []resources.PortalResource{
 				{
-					CreatePortal: kkInternalComps.CreatePortal{
+					CreatePortal: kkComps.CreatePortal{
 						Name:        "test-portal",
 						Description: &description,
 						// Not specifying: DisplayName, AuthenticationEnabled, RbacEnabled, etc.
@@ -172,7 +172,7 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 		rs := &resources.ResourceSet{
 			Portals: []resources.PortalResource{
 				{
-					CreatePortal: kkInternalComps.CreatePortal{
+					CreatePortal: kkComps.CreatePortal{
 						Name:                  "test-portal",
 						Description:           &description,       // Same
 						DisplayName:           &newDisplayName,    // Changed

@@ -8,8 +8,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
-	kkInternalOps "github.com/Kong/sdk-konnect-go-internal/models/operations"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -42,11 +41,11 @@ func TestGeneratePlan_CreatePortal(t *testing.T) {
 	planner := NewPlanner(client)
 
 	// Mock empty portals list (no existing portals)
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-		ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-			Data: []kkInternalComps.Portal{},
-			Meta: kkInternalComps.PaginatedMeta{
-				Page: kkInternalComps.PageMeta{
+	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.Portal{},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
 					Total: 0,
 				},
 			},
@@ -59,7 +58,7 @@ func TestGeneratePlan_CreatePortal(t *testing.T) {
 	rs := &resources.ResourceSet{
 		Portals: []resources.PortalResource{
 			{
-				CreatePortal: kkInternalComps.CreatePortal{
+				CreatePortal: kkComps.CreatePortal{
 					Name:        "dev-portal",
 					DisplayName: &displayName,
 					Description: &description,
@@ -107,9 +106,9 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 
 	// Mock existing portal with different description
 	oldDesc := "Old description"
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-		ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-			Data: []kkInternalComps.Portal{
+	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.Portal{
 				{
 					ID:          "portal-123",
 					Name:        "dev-portal",
@@ -121,8 +120,8 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 					},
 				},
 			},
-			Meta: kkInternalComps.PaginatedMeta{
-				Page: kkInternalComps.PageMeta{
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
 					Total: 1,
 				},
 			},
@@ -135,7 +134,7 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 	rs := &resources.ResourceSet{
 		Portals: []resources.PortalResource{
 			{
-				CreatePortal: kkInternalComps.CreatePortal{
+				CreatePortal: kkComps.CreatePortal{
 					Name:        "dev-portal",
 					DisplayName: &displayName,
 					Description: &newDesc,
@@ -177,9 +176,9 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 	planner := NewPlanner(client)
 
 	// Mock existing protected portal
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-		ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-			Data: []kkInternalComps.Portal{
+	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.Portal{
 				{
 					ID:          "portal-123",
 					Name:        "dev-portal",
@@ -191,8 +190,8 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 					},
 				},
 			},
-			Meta: kkInternalComps.PaginatedMeta{
-				Page: kkInternalComps.PageMeta{
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
 					Total: 1,
 				},
 			},
@@ -205,7 +204,7 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 	rs := &resources.ResourceSet{
 		Portals: []resources.PortalResource{
 			{
-				CreatePortal: kkInternalComps.CreatePortal{
+				CreatePortal: kkComps.CreatePortal{
 					Name:        "dev-portal",
 					DisplayName: &displayName,
 					Labels: map[string]*string{
@@ -252,11 +251,11 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 	planner := NewPlanner(client)
 
 	// Mock empty portals list
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-		ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-			Data: []kkInternalComps.Portal{},
-			Meta: kkInternalComps.PaginatedMeta{
-				Page: kkInternalComps.PageMeta{
+	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.Portal{},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
 					Total: 0,
 				},
 			},
@@ -284,7 +283,7 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 		},
 		Portals: []resources.PortalResource{
 			{
-				CreatePortal: kkInternalComps.CreatePortal{
+				CreatePortal: kkComps.CreatePortal{
 					Name:                             "dev-portal",
 					DisplayName:                      &displayName,
 					DefaultApplicationAuthStrategyID: &authRef,
@@ -347,9 +346,9 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 
 	// Mock existing portal with same hash
 	displayName := "Development Portal"
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-		ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-			Data: []kkInternalComps.Portal{
+	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.Portal{
 				{
 					ID:          "portal-123",
 					Name:        "dev-portal",
@@ -360,8 +359,8 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 					},
 				},
 			},
-			Meta: kkInternalComps.PaginatedMeta{
-				Page: kkInternalComps.PageMeta{
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
 					Total: 1,
 				},
 			},
@@ -372,7 +371,7 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 	rs := &resources.ResourceSet{
 		Portals: []resources.PortalResource{
 			{
-				CreatePortal: kkInternalComps.CreatePortal{
+				CreatePortal: kkComps.CreatePortal{
 					Name:        "dev-portal",
 					DisplayName: &displayName,
 					Labels:      map[string]*string{},
@@ -422,9 +421,9 @@ func TestGeneratePlan_ApplyModeNoDeletes(t *testing.T) {
 	planner := NewPlanner(client)
 
 	// Mock existing managed portals
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-		ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-			Data: []kkInternalComps.Portal{
+	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.Portal{
 				{
 					ID:          "existing-id",
 					Name:        "existing-portal",
@@ -435,8 +434,8 @@ func TestGeneratePlan_ApplyModeNoDeletes(t *testing.T) {
 					},
 				},
 			},
-			Meta: kkInternalComps.PaginatedMeta{
-				Page: kkInternalComps.PageMeta{
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
 					Total: 1,
 				},
 			},
@@ -448,7 +447,7 @@ func TestGeneratePlan_ApplyModeNoDeletes(t *testing.T) {
 	rs := &resources.ResourceSet{
 		Portals: []resources.PortalResource{
 			{
-				CreatePortal: kkInternalComps.CreatePortal{
+				CreatePortal: kkComps.CreatePortal{
 					Name:        "new-portal",
 					DisplayName: &displayName,
 					Labels:      map[string]*string{},
@@ -483,9 +482,9 @@ func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
 	planner := NewPlanner(client)
 
 	// Mock existing managed portals
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-		ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-			Data: []kkInternalComps.Portal{
+	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.Portal{
 				{
 					ID:          "existing-id",
 					Name:        "existing-portal",
@@ -496,8 +495,8 @@ func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
 					},
 				},
 			},
-			Meta: kkInternalComps.PaginatedMeta{
-				Page: kkInternalComps.PageMeta{
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
 					Total: 1,
 				},
 			},
@@ -535,9 +534,9 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 	// Mock existing protected portal
 	protectedStr := "true"
 	existingTimestamp := "20240101-120000Z"
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-		ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-			Data: []kkInternalComps.Portal{
+	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.Portal{
 				{
 					ID:          "protected-id",
 					Name:        "protected-portal",
@@ -550,8 +549,8 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 					},
 				},
 			},
-			Meta: kkInternalComps.PaginatedMeta{
-				Page: kkInternalComps.PageMeta{
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
 					Total: 1,
 				},
 			},
@@ -564,7 +563,7 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 	rs := &resources.ResourceSet{
 		Portals: []resources.PortalResource{
 			{
-				CreatePortal: kkInternalComps.CreatePortal{
+				CreatePortal: kkComps.CreatePortal{
 					Name:        "protected-portal",
 					DisplayName: &displayName,
 					Description: &description, // Changed field
@@ -596,9 +595,9 @@ func TestGeneratePlan_ProtectedResourceFailsDelete(t *testing.T) {
 
 	// Mock existing protected portal
 	protectedStr := "true"
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-		ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-			Data: []kkInternalComps.Portal{
+	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.Portal{
 				{
 					ID:          "protected-id",
 					Name:        "protected-portal",
@@ -610,8 +609,8 @@ func TestGeneratePlan_ProtectedResourceFailsDelete(t *testing.T) {
 					},
 				},
 			},
-			Meta: kkInternalComps.PaginatedMeta{
-				Page: kkInternalComps.PageMeta{
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
 					Total: 1,
 				},
 			},
@@ -642,9 +641,9 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 
 	// Mock existing protected portal
 	protectedStr := "true"
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-		ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-			Data: []kkInternalComps.Portal{
+	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.Portal{
 				{
 					ID:          "protected-id",
 					Name:        "protected-portal",
@@ -656,8 +655,8 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 					},
 				},
 			},
-			Meta: kkInternalComps.PaginatedMeta{
-				Page: kkInternalComps.PageMeta{
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
 					Total: 1,
 				},
 			},
@@ -670,7 +669,7 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 	rs := &resources.ResourceSet{
 		Portals: []resources.PortalResource{
 			{
-				CreatePortal: kkInternalComps.CreatePortal{
+				CreatePortal: kkComps.CreatePortal{
 					Name:        "protected-portal",
 					DisplayName: &displayName,
 					Labels: map[string]*string{

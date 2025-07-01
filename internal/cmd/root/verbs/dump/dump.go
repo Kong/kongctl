@@ -14,6 +14,7 @@ import (
 
 	kkSDK "github.com/Kong/sdk-konnect-go"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	kkInternalOps "github.com/Kong/sdk-konnect-go-internal/models/operations"
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
@@ -326,7 +327,7 @@ func dumpAPIs(
 
 	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		// Create a request to list APIs with pagination
-		req := kkOps.ListApisRequest{
+		req := kkInternalOps.ListApisRequest{
 			PageSize:   Int64(requestPageSize),
 			PageNumber: Int64(pageNumber),
 		}

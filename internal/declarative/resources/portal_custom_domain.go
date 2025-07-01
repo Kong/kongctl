@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"regexp"
 
-	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // PortalCustomDomainResource represents a portal custom domain configuration
 type PortalCustomDomainResource struct {
-	kkInternalComps.PortalCustomDomain `yaml:",inline" json:",inline"`
+	kkComps.PortalCustomDomain `yaml:",inline" json:",inline"`
 	Ref string `yaml:"ref,omitempty" json:"ref,omitempty"`
 }
 

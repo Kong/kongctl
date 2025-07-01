@@ -7,29 +7,29 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/konnect/helpers"
-	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
-	kkInternalOps "github.com/Kong/sdk-konnect-go-internal/models/operations"
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 )
 
 // mockPortalAPI implements helpers.PortalAPI for testing
 type mockPortalAPI struct {
 	// ListPortals behavior
-	listPortalsFunc func(context.Context, kkInternalOps.ListPortalsRequest) (*kkInternalOps.ListPortalsResponse, error)
+	listPortalsFunc func(context.Context, kkOps.ListPortalsRequest) (*kkOps.ListPortalsResponse, error)
 	// CreatePortal behavior
-	createPortalFunc func(context.Context, kkInternalComps.CreatePortal) (*kkInternalOps.CreatePortalResponse, error)
+	createPortalFunc func(context.Context, kkComps.CreatePortal) (*kkOps.CreatePortalResponse, error)
 	// UpdatePortal behavior
 	updatePortalFunc func(context.Context, string,
-		kkInternalComps.UpdatePortal) (*kkInternalOps.UpdatePortalResponse, error)
+		kkComps.UpdatePortal) (*kkOps.UpdatePortalResponse, error)
 	// GetPortal behavior
-	getPortalFunc func(context.Context, string) (*kkInternalOps.GetPortalResponse, error)
+	getPortalFunc func(context.Context, string) (*kkOps.GetPortalResponse, error)
 	// DeletePortal behavior
-	deletePortalFunc func(context.Context, string, bool) (*kkInternalOps.DeletePortalResponse, error)
+	deletePortalFunc func(context.Context, string, bool) (*kkOps.DeletePortalResponse, error)
 }
 
 func (m *mockPortalAPI) ListPortals(
 	ctx context.Context,
-	request kkInternalOps.ListPortalsRequest,
-) (*kkInternalOps.ListPortalsResponse, error) {
+	request kkOps.ListPortalsRequest,
+) (*kkOps.ListPortalsResponse, error) {
 	if m.listPortalsFunc != nil {
 		return m.listPortalsFunc(ctx, request)
 	}
@@ -38,8 +38,8 @@ func (m *mockPortalAPI) ListPortals(
 
 func (m *mockPortalAPI) CreatePortal(
 	ctx context.Context,
-	portal kkInternalComps.CreatePortal,
-) (*kkInternalOps.CreatePortalResponse, error) {
+	portal kkComps.CreatePortal,
+) (*kkOps.CreatePortalResponse, error) {
 	if m.createPortalFunc != nil {
 		return m.createPortalFunc(ctx, portal)
 	}
@@ -49,8 +49,8 @@ func (m *mockPortalAPI) CreatePortal(
 func (m *mockPortalAPI) UpdatePortal(
 	ctx context.Context,
 	id string,
-	portal kkInternalComps.UpdatePortal,
-) (*kkInternalOps.UpdatePortalResponse, error) {
+	portal kkComps.UpdatePortal,
+) (*kkOps.UpdatePortalResponse, error) {
 	if m.updatePortalFunc != nil {
 		return m.updatePortalFunc(ctx, id, portal)
 	}
@@ -60,7 +60,7 @@ func (m *mockPortalAPI) UpdatePortal(
 func (m *mockPortalAPI) GetPortal(
 	ctx context.Context,
 	id string,
-) (*kkInternalOps.GetPortalResponse, error) {
+) (*kkOps.GetPortalResponse, error) {
 	if m.getPortalFunc != nil {
 		return m.getPortalFunc(ctx, id)
 	}
@@ -71,7 +71,7 @@ func (m *mockPortalAPI) DeletePortal(
 	ctx context.Context,
 	id string,
 	force bool,
-) (*kkInternalOps.DeletePortalResponse, error) {
+) (*kkOps.DeletePortalResponse, error) {
 	if m.deletePortalFunc != nil {
 		return m.deletePortalFunc(ctx, id, force)
 	}
@@ -90,12 +90,12 @@ func TestListManagedPortals(t *testing.T) {
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
 					listPortalsFunc: func(_ context.Context,
-						req kkInternalOps.ListPortalsRequest) (*kkInternalOps.ListPortalsResponse, error) {
+						req kkOps.ListPortalsRequest) (*kkOps.ListPortalsResponse, error) {
 						// First call returns data
 						if *req.PageNumber == 1 {
-							return &kkInternalOps.ListPortalsResponse{
-								ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-									Data: []kkInternalComps.Portal{
+							return &kkOps.ListPortalsResponse{
+								ListPortalsResponse: &kkComps.ListPortalsResponse{
+									Data: []kkComps.Portal{
 										{
 											ID:   "portal-1",
 											Name: "Managed Portal",
@@ -119,8 +119,8 @@ func TestListManagedPortals(t *testing.T) {
 											},
 										},
 									},
-									Meta: kkInternalComps.PaginatedMeta{
-										Page: kkInternalComps.PageMeta{
+									Meta: kkComps.PaginatedMeta{
+										Page: kkComps.PageMeta{
 											Total: 3,
 										},
 									},
@@ -128,9 +128,9 @@ func TestListManagedPortals(t *testing.T) {
 							}, nil
 						}
 						// Subsequent calls return empty
-						return &kkInternalOps.ListPortalsResponse{
-							ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-								Data: []kkInternalComps.Portal{},
+						return &kkOps.ListPortalsResponse{
+							ListPortalsResponse: &kkComps.ListPortalsResponse{
+								Data: []kkComps.Portal{},
 							},
 						}, nil
 					},
@@ -144,12 +144,12 @@ func TestListManagedPortals(t *testing.T) {
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
 					listPortalsFunc: func(_ context.Context,
-						req kkInternalOps.ListPortalsRequest) (*kkInternalOps.ListPortalsResponse, error) {
+						req kkOps.ListPortalsRequest) (*kkOps.ListPortalsResponse, error) {
 						switch *req.PageNumber {
 						case 1:
-							return &kkInternalOps.ListPortalsResponse{
-								ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-									Data: []kkInternalComps.Portal{
+							return &kkOps.ListPortalsResponse{
+								ListPortalsResponse: &kkComps.ListPortalsResponse{
+									Data: []kkComps.Portal{
 										{
 											ID:   "portal-1",
 											Name: "Managed 1",
@@ -158,17 +158,17 @@ func TestListManagedPortals(t *testing.T) {
 											},
 										},
 									},
-									Meta: kkInternalComps.PaginatedMeta{
-										Page: kkInternalComps.PageMeta{
+									Meta: kkComps.PaginatedMeta{
+										Page: kkComps.PageMeta{
 											Total: 200, // More than pageSize
 										},
 									},
 								},
 							}, nil
 						case 2:
-							return &kkInternalOps.ListPortalsResponse{
-								ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-									Data: []kkInternalComps.Portal{
+							return &kkOps.ListPortalsResponse{
+								ListPortalsResponse: &kkComps.ListPortalsResponse{
+									Data: []kkComps.Portal{
 										{
 											ID:   "portal-2",
 											Name: "Managed 2",
@@ -177,17 +177,17 @@ func TestListManagedPortals(t *testing.T) {
 											},
 										},
 									},
-									Meta: kkInternalComps.PaginatedMeta{
-										Page: kkInternalComps.PageMeta{
+									Meta: kkComps.PaginatedMeta{
+										Page: kkComps.PageMeta{
 											Total: 200,
 										},
 									},
 								},
 							}, nil
 						default:
-							return &kkInternalOps.ListPortalsResponse{
-								ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-									Data: []kkInternalComps.Portal{},
+							return &kkOps.ListPortalsResponse{
+								ListPortalsResponse: &kkComps.ListPortalsResponse{
+									Data: []kkComps.Portal{},
 								},
 							}, nil
 						}
@@ -202,7 +202,7 @@ func TestListManagedPortals(t *testing.T) {
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
 					listPortalsFunc: func(_ context.Context,
-						_ kkInternalOps.ListPortalsRequest) (*kkInternalOps.ListPortalsResponse, error) {
+						_ kkOps.ListPortalsRequest) (*kkOps.ListPortalsResponse, error) {
 						return nil, fmt.Errorf("API error")
 					},
 				}
@@ -253,10 +253,10 @@ func TestGetPortalByName(t *testing.T) {
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
 					listPortalsFunc: func(_ context.Context,
-						_ kkInternalOps.ListPortalsRequest) (*kkInternalOps.ListPortalsResponse, error) {
-						return &kkInternalOps.ListPortalsResponse{
-							ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-								Data: []kkInternalComps.Portal{
+						_ kkOps.ListPortalsRequest) (*kkOps.ListPortalsResponse, error) {
+						return &kkOps.ListPortalsResponse{
+							ListPortalsResponse: &kkComps.ListPortalsResponse{
+								Data: []kkComps.Portal{
 									{
 										ID:   "portal-1",
 										Name: "Other Portal",
@@ -286,10 +286,10 @@ func TestGetPortalByName(t *testing.T) {
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
 					listPortalsFunc: func(_ context.Context,
-						_ kkInternalOps.ListPortalsRequest) (*kkInternalOps.ListPortalsResponse, error) {
-						return &kkInternalOps.ListPortalsResponse{
-							ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-								Data: []kkInternalComps.Portal{
+						_ kkOps.ListPortalsRequest) (*kkOps.ListPortalsResponse, error) {
+						return &kkOps.ListPortalsResponse{
+							ListPortalsResponse: &kkComps.ListPortalsResponse{
+								Data: []kkComps.Portal{
 									{
 										ID:   "portal-1",
 										Name: "Other Portal",
@@ -312,7 +312,7 @@ func TestGetPortalByName(t *testing.T) {
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
 					listPortalsFunc: func(_ context.Context,
-						_ kkInternalOps.ListPortalsRequest) (*kkInternalOps.ListPortalsResponse, error) {
+						_ kkOps.ListPortalsRequest) (*kkOps.ListPortalsResponse, error) {
 						return nil, fmt.Errorf("API error")
 					},
 				}
@@ -348,14 +348,14 @@ func TestGetPortalByName(t *testing.T) {
 func TestCreatePortal(t *testing.T) {
 	tests := []struct {
 		name       string
-		portal     kkInternalComps.CreatePortal
+		portal     kkComps.CreatePortal
 		setupMock  func() helpers.PortalAPI
 		wantErr    bool
-		checkFunc  func(t *testing.T, resp *kkInternalComps.PortalResponse)
+		checkFunc  func(t *testing.T, resp *kkComps.PortalResponse)
 	}{
 		{
 			name: "successful create with labels",
-			portal: kkInternalComps.CreatePortal{
+			portal: kkComps.CreatePortal{
 				Name: "New Portal",
 				Labels: map[string]*string{
 					"env": ptr("production"),
@@ -364,7 +364,7 @@ func TestCreatePortal(t *testing.T) {
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
 					createPortalFunc: func(_ context.Context,
-						portal kkInternalComps.CreatePortal) (*kkInternalOps.CreatePortalResponse, error) {
+						portal kkComps.CreatePortal) (*kkOps.CreatePortalResponse, error) {
 						// Verify labels were added
 						if portal.Labels[labels.ManagedKey] == nil || *portal.Labels[labels.ManagedKey] != "true" {
 							t.Errorf("Expected managed label to be true")
@@ -385,8 +385,8 @@ func TestCreatePortal(t *testing.T) {
 							}
 						}
 						
-						return &kkInternalOps.CreatePortalResponse{
-							PortalResponse: &kkInternalComps.PortalResponse{
+						return &kkOps.CreatePortalResponse{
+							PortalResponse: &kkComps.PortalResponse{
 								ID:     "portal-new",
 								Name:   portal.Name,
 								Labels: respLabels,
@@ -396,7 +396,7 @@ func TestCreatePortal(t *testing.T) {
 				}
 			},
 			wantErr: false,
-			checkFunc: func(t *testing.T, resp *kkInternalComps.PortalResponse) {
+			checkFunc: func(t *testing.T, resp *kkComps.PortalResponse) {
 				if resp.ID != "portal-new" {
 					t.Errorf("Expected portal ID portal-new, got %s", resp.ID)
 				}
@@ -404,13 +404,13 @@ func TestCreatePortal(t *testing.T) {
 		},
 		{
 			name: "API error",
-			portal: kkInternalComps.CreatePortal{
+			portal: kkComps.CreatePortal{
 				Name: "New Portal",
 			},
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
 					createPortalFunc: func(_ context.Context,
-						_ kkInternalComps.CreatePortal) (*kkInternalOps.CreatePortalResponse, error) {
+						_ kkComps.CreatePortal) (*kkOps.CreatePortalResponse, error) {
 						return nil, fmt.Errorf("API error")
 					},
 				}
@@ -419,14 +419,14 @@ func TestCreatePortal(t *testing.T) {
 		},
 		{
 			name: "nil response portal",
-			portal: kkInternalComps.CreatePortal{
+			portal: kkComps.CreatePortal{
 				Name: "New Portal",
 			},
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
 					createPortalFunc: func(_ context.Context,
-						_ kkInternalComps.CreatePortal) (*kkInternalOps.CreatePortalResponse, error) {
-						return &kkInternalOps.CreatePortalResponse{
+						_ kkComps.CreatePortal) (*kkOps.CreatePortalResponse, error) {
+						return &kkOps.CreatePortalResponse{
 							PortalResponse: nil,
 						}, nil
 					},
@@ -457,15 +457,15 @@ func TestUpdatePortal(t *testing.T) {
 	tests := []struct {
 		name       string
 		portalID   string
-		portal     kkInternalComps.UpdatePortal
+		portal     kkComps.UpdatePortal
 		setupMock  func() helpers.PortalAPI
 		wantErr    bool
-		checkFunc  func(t *testing.T, resp *kkInternalComps.PortalResponse)
+		checkFunc  func(t *testing.T, resp *kkComps.PortalResponse)
 	}{
 		{
 			name:     "successful update with labels",
 			portalID: "portal-123",
-			portal: kkInternalComps.UpdatePortal{
+			portal: kkComps.UpdatePortal{
 				Name: ptr("Updated Portal"),
 				Labels: map[string]*string{
 					"env": ptr("staging"),
@@ -474,7 +474,7 @@ func TestUpdatePortal(t *testing.T) {
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
 					updatePortalFunc: func(_ context.Context, id string,
-						portal kkInternalComps.UpdatePortal) (*kkInternalOps.UpdatePortalResponse, error) {
+						portal kkComps.UpdatePortal) (*kkOps.UpdatePortalResponse, error) {
 						// Verify ID is passed correctly
 						if id != "portal-123" {
 							t.Errorf("Expected portal ID portal-123, got %s", id)
@@ -502,8 +502,8 @@ func TestUpdatePortal(t *testing.T) {
 							}
 						}
 						
-						return &kkInternalOps.UpdatePortalResponse{
-							PortalResponse: &kkInternalComps.PortalResponse{
+						return &kkOps.UpdatePortalResponse{
+							PortalResponse: &kkComps.PortalResponse{
 								ID:     id,
 								Name:   *portal.Name,
 								Labels: respLabels,
@@ -513,7 +513,7 @@ func TestUpdatePortal(t *testing.T) {
 				}
 			},
 			wantErr: false,
-			checkFunc: func(t *testing.T, resp *kkInternalComps.PortalResponse) {
+			checkFunc: func(t *testing.T, resp *kkComps.PortalResponse) {
 				if resp.ID != "portal-123" {
 					t.Errorf("Expected portal ID portal-123, got %s", resp.ID)
 				}
@@ -525,13 +525,13 @@ func TestUpdatePortal(t *testing.T) {
 		{
 			name:     "API error",
 			portalID: "portal-123",
-			portal: kkInternalComps.UpdatePortal{
+			portal: kkComps.UpdatePortal{
 				Name: ptr("Updated Portal"),
 			},
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
 					updatePortalFunc: func(_ context.Context, _ string,
-						_ kkInternalComps.UpdatePortal) (*kkInternalOps.UpdatePortalResponse, error) {
+						_ kkComps.UpdatePortal) (*kkOps.UpdatePortalResponse, error) {
 						return nil, fmt.Errorf("API error")
 					},
 				}
@@ -541,14 +541,14 @@ func TestUpdatePortal(t *testing.T) {
 		{
 			name:     "nil response portal",
 			portalID: "portal-123",
-			portal: kkInternalComps.UpdatePortal{
+			portal: kkComps.UpdatePortal{
 				Name: ptr("Updated Portal"),
 			},
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
 					updatePortalFunc: func(_ context.Context, _ string,
-						_ kkInternalComps.UpdatePortal) (*kkInternalOps.UpdatePortalResponse, error) {
-						return &kkInternalOps.UpdatePortalResponse{
+						_ kkComps.UpdatePortal) (*kkOps.UpdatePortalResponse, error) {
+						return &kkOps.UpdatePortalResponse{
 							PortalResponse: nil,
 						}, nil
 					},

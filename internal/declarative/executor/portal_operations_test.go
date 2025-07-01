@@ -9,8 +9,8 @@ import (
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/helpers"
-	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
-	kkInternalOps "github.com/Kong/sdk-konnect-go-internal/models/operations"
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -22,56 +22,56 @@ type MockPortalAPI struct {
 
 func (m *MockPortalAPI) ListPortals(
 	ctx context.Context,
-	request kkInternalOps.ListPortalsRequest,
-) (*kkInternalOps.ListPortalsResponse, error) {
+	request kkOps.ListPortalsRequest,
+) (*kkOps.ListPortalsResponse, error) {
 	args := m.Called(ctx, request)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*kkInternalOps.ListPortalsResponse), args.Error(1)
+	return args.Get(0).(*kkOps.ListPortalsResponse), args.Error(1)
 }
 
-func (m *MockPortalAPI) GetPortal(ctx context.Context, id string) (*kkInternalOps.GetPortalResponse, error) {
+func (m *MockPortalAPI) GetPortal(ctx context.Context, id string) (*kkOps.GetPortalResponse, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*kkInternalOps.GetPortalResponse), args.Error(1)
+	return args.Get(0).(*kkOps.GetPortalResponse), args.Error(1)
 }
 
 func (m *MockPortalAPI) CreatePortal(
 	ctx context.Context,
-	portal kkInternalComps.CreatePortal,
-) (*kkInternalOps.CreatePortalResponse, error) {
+	portal kkComps.CreatePortal,
+) (*kkOps.CreatePortalResponse, error) {
 	args := m.Called(ctx, portal)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*kkInternalOps.CreatePortalResponse), args.Error(1)
+	return args.Get(0).(*kkOps.CreatePortalResponse), args.Error(1)
 }
 
 func (m *MockPortalAPI) UpdatePortal(
 	ctx context.Context,
 	id string,
-	portal kkInternalComps.UpdatePortal,
-) (*kkInternalOps.UpdatePortalResponse, error) {
+	portal kkComps.UpdatePortal,
+) (*kkOps.UpdatePortalResponse, error) {
 	args := m.Called(ctx, id, portal)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*kkInternalOps.UpdatePortalResponse), args.Error(1)
+	return args.Get(0).(*kkOps.UpdatePortalResponse), args.Error(1)
 }
 
 func (m *MockPortalAPI) DeletePortal(
 	ctx context.Context,
 	id string,
 	force bool,
-) (*kkInternalOps.DeletePortalResponse, error) {
+) (*kkOps.DeletePortalResponse, error) {
 	args := m.Called(ctx, id, force)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*kkInternalOps.DeletePortalResponse), args.Error(1)
+	return args.Get(0).(*kkOps.DeletePortalResponse), args.Error(1)
 }
 
 func TestExecutor_createPortal(t *testing.T) {
@@ -102,7 +102,7 @@ func TestExecutor_createPortal(t *testing.T) {
 				},
 			},
 			setupMock: func(m *MockPortalAPI) {
-				m.On("CreatePortal", mock.Anything, mock.MatchedBy(func(p kkInternalComps.CreatePortal) bool {
+				m.On("CreatePortal", mock.Anything, mock.MatchedBy(func(p kkComps.CreatePortal) bool {
 					// Verify fields
 					if p.Name != "test-portal" {
 						return false
@@ -137,8 +137,8 @@ func TestExecutor_createPortal(t *testing.T) {
 						return false
 					}
 					return true
-				})).Return(&kkInternalOps.CreatePortalResponse{
-					PortalResponse: &kkInternalComps.PortalResponse{
+				})).Return(&kkOps.CreatePortalResponse{
+					PortalResponse: &kkComps.PortalResponse{
 						ID: "portal-123",
 					},
 				}, nil)
@@ -156,12 +156,12 @@ func TestExecutor_createPortal(t *testing.T) {
 				},
 			},
 			setupMock: func(m *MockPortalAPI) {
-				m.On("CreatePortal", mock.Anything, mock.MatchedBy(func(p kkInternalComps.CreatePortal) bool {
+				m.On("CreatePortal", mock.Anything, mock.MatchedBy(func(p kkComps.CreatePortal) bool {
 					return p.Name == "minimal-portal" &&
 						p.Labels[labels.ManagedKey] != nil &&
 						*p.Labels[labels.ManagedKey] == "true"
-				})).Return(&kkInternalOps.CreatePortalResponse{
-					PortalResponse: &kkInternalComps.PortalResponse{
+				})).Return(&kkOps.CreatePortalResponse{
+					PortalResponse: &kkComps.PortalResponse{
 						ID: "portal-456",
 					},
 				}, nil)
@@ -245,9 +245,9 @@ func TestExecutor_updatePortal(t *testing.T) {
 			},
 			setupMock: func(m *MockPortalAPI) {
 				// Mock GetPortalByName for protection check
-				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-					ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-						Data: []kkInternalComps.Portal{
+				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+					ListPortalsResponse: &kkComps.ListPortalsResponse{
+						Data: []kkComps.Portal{
 							{
 								ID:   "portal-123",
 								Name: "updated-portal",
@@ -257,18 +257,18 @@ func TestExecutor_updatePortal(t *testing.T) {
 								},
 							},
 						},
-						Meta: kkInternalComps.PaginatedMeta{
-							Page: kkInternalComps.PageMeta{Total: 1},
+						Meta: kkComps.PaginatedMeta{
+							Page: kkComps.PageMeta{Total: 1},
 						},
 					},
 				}, nil)
 				
 				// Mock UpdatePortal
-				m.On("UpdatePortal", mock.Anything, "portal-123", mock.MatchedBy(func(p kkInternalComps.UpdatePortal) bool {
+				m.On("UpdatePortal", mock.Anything, "portal-123", mock.MatchedBy(func(p kkComps.UpdatePortal) bool {
 					return p.Name != nil && *p.Name == "updated-portal" &&
 						p.Description != nil && *p.Description == "Updated description"
-				})).Return(&kkInternalOps.UpdatePortalResponse{
-					PortalResponse: &kkInternalComps.PortalResponse{
+				})).Return(&kkOps.UpdatePortalResponse{
+					PortalResponse: &kkComps.PortalResponse{
 						ID: "portal-123",
 					},
 				}, nil)
@@ -287,9 +287,9 @@ func TestExecutor_updatePortal(t *testing.T) {
 				},
 			},
 			setupMock: func(m *MockPortalAPI) {
-				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-					ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-						Data: []kkInternalComps.Portal{
+				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+					ListPortalsResponse: &kkComps.ListPortalsResponse{
+						Data: []kkComps.Portal{
 							{
 								ID:   "portal-456",
 								Name: "protected-portal",
@@ -299,8 +299,8 @@ func TestExecutor_updatePortal(t *testing.T) {
 								},
 							},
 						},
-						Meta: kkInternalComps.PaginatedMeta{
-							Page: kkInternalComps.PageMeta{Total: 1},
+						Meta: kkComps.PaginatedMeta{
+							Page: kkComps.PageMeta{Total: 1},
 						},
 					},
 				}, nil)
@@ -319,11 +319,11 @@ func TestExecutor_updatePortal(t *testing.T) {
 				},
 			},
 			setupMock: func(m *MockPortalAPI) {
-				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-					ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-						Data: []kkInternalComps.Portal{},
-						Meta: kkInternalComps.PaginatedMeta{
-							Page: kkInternalComps.PageMeta{Total: 0},
+				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+					ListPortalsResponse: &kkComps.ListPortalsResponse{
+						Data: []kkComps.Portal{},
+						Meta: kkComps.PaginatedMeta{
+							Page: kkComps.PageMeta{Total: 0},
 						},
 					},
 				}, nil)
@@ -381,9 +381,9 @@ func TestExecutor_deletePortal(t *testing.T) {
 			},
 			setupMock: func(m *MockPortalAPI) {
 				// Mock GetPortalByName for protection check
-				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-					ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-						Data: []kkInternalComps.Portal{
+				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+					ListPortalsResponse: &kkComps.ListPortalsResponse{
+						Data: []kkComps.Portal{
 							{
 								ID:   "portal-123",
 								Name: "delete-portal",
@@ -392,15 +392,15 @@ func TestExecutor_deletePortal(t *testing.T) {
 								},
 							},
 						},
-						Meta: kkInternalComps.PaginatedMeta{
-							Page: kkInternalComps.PageMeta{Total: 1},
+						Meta: kkComps.PaginatedMeta{
+							Page: kkComps.PageMeta{Total: 1},
 						},
 					},
 				}, nil)
 				
 				// Mock DeletePortal with force=true
 				m.On("DeletePortal", mock.Anything, "portal-123", true).
-					Return(&kkInternalOps.DeletePortalResponse{}, nil)
+					Return(&kkOps.DeletePortalResponse{}, nil)
 			},
 			wantErr: false,
 		},
@@ -415,9 +415,9 @@ func TestExecutor_deletePortal(t *testing.T) {
 				},
 			},
 			setupMock: func(m *MockPortalAPI) {
-				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-					ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-						Data: []kkInternalComps.Portal{
+				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+					ListPortalsResponse: &kkComps.ListPortalsResponse{
+						Data: []kkComps.Portal{
 							{
 								ID:   "portal-456",
 								Name: "protected-portal",
@@ -427,8 +427,8 @@ func TestExecutor_deletePortal(t *testing.T) {
 								},
 							},
 						},
-						Meta: kkInternalComps.PaginatedMeta{
-							Page: kkInternalComps.PageMeta{Total: 1},
+						Meta: kkComps.PaginatedMeta{
+							Page: kkComps.PageMeta{Total: 1},
 						},
 					},
 				}, nil)
@@ -449,11 +449,11 @@ func TestExecutor_deletePortal(t *testing.T) {
 			setupMock: func(m *MockPortalAPI) {
 				// ListPortals will be called but won't return this portal
 				// because it's not managed (ListManagedPortals filters it out)
-				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-					ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-						Data: []kkInternalComps.Portal{}, // Empty - unmanaged portal filtered out
-						Meta: kkInternalComps.PaginatedMeta{
-							Page: kkInternalComps.PageMeta{Total: 0},
+				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+					ListPortalsResponse: &kkComps.ListPortalsResponse{
+						Data: []kkComps.Portal{}, // Empty - unmanaged portal filtered out
+						Meta: kkComps.PaginatedMeta{
+							Page: kkComps.PageMeta{Total: 0},
 						},
 					},
 				}, nil)
@@ -474,11 +474,11 @@ func TestExecutor_deletePortal(t *testing.T) {
 				},
 			},
 			setupMock: func(m *MockPortalAPI) {
-				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-					ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-						Data: []kkInternalComps.Portal{},
-						Meta: kkInternalComps.PaginatedMeta{
-							Page: kkInternalComps.PageMeta{Total: 0},
+				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+					ListPortalsResponse: &kkComps.ListPortalsResponse{
+						Data: []kkComps.Portal{},
+						Meta: kkComps.PaginatedMeta{
+							Page: kkComps.PageMeta{Total: 0},
 						},
 					},
 				}, nil)
@@ -529,9 +529,9 @@ func TestExecutor_protectionChangeBetweenPlanAndExecution(t *testing.T) {
 	mockAPI := new(MockPortalAPI)
 	
 	// Simulate portal becoming protected after plan was generated
-	mockAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkInternalOps.ListPortalsResponse{
-		ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-			Data: []kkInternalComps.Portal{
+	mockAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.Portal{
 				{
 					ID:   "portal-123",
 					Name: "test-portal",
@@ -541,8 +541,8 @@ func TestExecutor_protectionChangeBetweenPlanAndExecution(t *testing.T) {
 					},
 				},
 			},
-			Meta: kkInternalComps.PaginatedMeta{
-				Page: kkInternalComps.PageMeta{Total: 1},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{Total: 1},
 			},
 		},
 	}, nil)

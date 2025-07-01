@@ -11,8 +11,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
-	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
-	kkInternalOps "github.com/Kong/sdk-konnect-go-internal/models/operations"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -28,15 +26,15 @@ func NewMockPortalAPI(t *testing.T) *MockPortalAPI {
 
 func (m *MockPortalAPI) ListPortals(
 	ctx context.Context,
-	request kkInternalOps.ListPortalsRequest,
-) (*kkInternalOps.ListPortalsResponse, error) {
+	request kkOps.ListPortalsRequest,
+) (*kkOps.ListPortalsResponse, error) {
 	// Default behavior: return empty list
 	if !m.IsMethodCallRegistered("ListPortals") {
-		return &kkInternalOps.ListPortalsResponse{
-			ListPortalsResponse: &kkInternalComps.ListPortalsResponse{
-				Data: []kkInternalComps.Portal{},
-				Meta: kkInternalComps.PaginatedMeta{
-					Page: kkInternalComps.PageMeta{
+		return &kkOps.ListPortalsResponse{
+			ListPortalsResponse: &kkComps.ListPortalsResponse{
+				Data: []kkComps.Portal{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
 						Total: 0,
 					},
 				},
@@ -47,34 +45,34 @@ func (m *MockPortalAPI) ListPortals(
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*kkInternalOps.ListPortalsResponse), args.Error(1)
+	return args.Get(0).(*kkOps.ListPortalsResponse), args.Error(1)
 }
 
-func (m *MockPortalAPI) GetPortal(ctx context.Context, id string) (*kkInternalOps.GetPortalResponse, error) {
+func (m *MockPortalAPI) GetPortal(ctx context.Context, id string) (*kkOps.GetPortalResponse, error) {
 	args := m.Called(ctx, id)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*kkInternalOps.GetPortalResponse), args.Error(1)
+	return args.Get(0).(*kkOps.GetPortalResponse), args.Error(1)
 }
 
 func (m *MockPortalAPI) CreatePortal(
 	ctx context.Context,
-	portal kkInternalComps.CreatePortal,
-) (*kkInternalOps.CreatePortalResponse, error) {
+	portal kkComps.CreatePortal,
+) (*kkOps.CreatePortalResponse, error) {
 	args := m.Called(ctx, portal)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*kkInternalOps.CreatePortalResponse), args.Error(1)
+	return args.Get(0).(*kkOps.CreatePortalResponse), args.Error(1)
 }
 
 func (m *MockPortalAPI) UpdatePortal(
 	ctx context.Context,
 	id string,
-	portal kkInternalComps.UpdatePortal,
-) (*kkInternalOps.UpdatePortalResponse, error) {
-	req := kkInternalOps.UpdatePortalRequest{
+	portal kkComps.UpdatePortal,
+) (*kkOps.UpdatePortalResponse, error) {
+	req := kkOps.UpdatePortalRequest{
 		PortalID:     id,
 		UpdatePortal: portal,
 	}
@@ -82,19 +80,19 @@ func (m *MockPortalAPI) UpdatePortal(
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*kkInternalOps.UpdatePortalResponse), args.Error(1)
+	return args.Get(0).(*kkOps.UpdatePortalResponse), args.Error(1)
 }
 
 func (m *MockPortalAPI) DeletePortal(
 	ctx context.Context,
 	id string,
 	force bool,
-) (*kkInternalOps.DeletePortalResponse, error) {
+) (*kkOps.DeletePortalResponse, error) {
 	args := m.Called(ctx, id, force)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*kkInternalOps.DeletePortalResponse), args.Error(1)
+	return args.Get(0).(*kkOps.DeletePortalResponse), args.Error(1)
 }
 
 // MockAppAuthStrategiesAPI implements helpers.AppAuthStrategiesAPI for testing
@@ -172,9 +170,9 @@ func (m *MockAppAuthStrategiesAPI) IsMethodCallRegistered(method string) bool {
 }
 
 // CreateManagedPortal creates a portal with KONGCTL labels
-func CreateManagedPortal(name, id, description string) kkInternalComps.Portal {
+func CreateManagedPortal(name, id, description string) kkComps.Portal {
 	descPtr := &description
-	return kkInternalComps.Portal{
+	return kkComps.Portal{
 		ID:          id,
 		Name:        name,
 		Description: descPtr,
