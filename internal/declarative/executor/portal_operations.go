@@ -7,7 +7,7 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
-	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // createPortal handles CREATE operations for portals
@@ -23,7 +23,7 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 	debugLog("Creating portal with fields: %+v", change.Fields)
 	
 	// Extract portal fields
-	var portal kkInternalComps.CreatePortal
+	var portal kkComps.CreatePortal
 	
 	// Required fields
 	if name, ok := change.Fields["name"].(string); ok {
@@ -58,12 +58,12 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 	}
 	
 	if defaultAPIVisibility, ok := change.Fields["default_api_visibility"].(string); ok {
-		visibility := kkInternalComps.DefaultAPIVisibility(defaultAPIVisibility)
+		visibility := kkComps.DefaultAPIVisibility(defaultAPIVisibility)
 		portal.DefaultAPIVisibility = &visibility
 	}
 	
 	if defaultPageVisibility, ok := change.Fields["default_page_visibility"].(string); ok {
-		visibility := kkInternalComps.DefaultPageVisibility(defaultPageVisibility)
+		visibility := kkComps.DefaultPageVisibility(defaultPageVisibility)
 		portal.DefaultPageVisibility = &visibility
 	}
 	
@@ -148,7 +148,7 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 	}
 	
 	// Build sparse update request - only include fields that changed
-	var updatePortal kkInternalComps.UpdatePortal
+	var updatePortal kkComps.UpdatePortal
 	
 	// Name is always required for updates
 	if name, ok := change.Fields["name"].(string); ok {
@@ -191,12 +191,12 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 			}
 		case "default_api_visibility":
 			if visibility, ok := value.(string); ok {
-				vis := kkInternalComps.UpdatePortalDefaultAPIVisibility(visibility)
+				vis := kkComps.UpdatePortalDefaultAPIVisibility(visibility)
 				updatePortal.DefaultAPIVisibility = &vis
 			}
 		case "default_page_visibility":
 			if visibility, ok := value.(string); ok {
-				vis := kkInternalComps.UpdatePortalDefaultPageVisibility(visibility)
+				vis := kkComps.UpdatePortalDefaultPageVisibility(visibility)
 				updatePortal.DefaultPageVisibility = &vis
 			}
 		// Skip "name" as it's already handled above

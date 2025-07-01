@@ -4,7 +4,7 @@
 
 | Step | Description | Status | Dependencies |
 |------|-------------|---------|--------------|
-| 1 | Migrate to public Konnect SDK | Not Started | - |
+| 1 | Migrate to public Konnect SDK | Partially Complete | - |
 | 2 | Create resource interfaces and base types | Not Started | Step 1 |
 | 3 | Implement API resource type | Not Started | Steps 1, 2 |
 | 4 | Implement API child resource types | Not Started | Steps 2, 3 |
@@ -25,6 +25,23 @@
 ## Step 1: Migrate to Public Konnect SDK
 
 **Goal**: Replace usage of internal SDK with the public Kong Konnect Go SDK where possible.
+
+### Status Update (2025-01-01)
+
+**Completed**:
+- ✅ Updated SDK from v0.3.1 to v0.6.0
+- ✅ Migrated Portal operations to public SDK
+- ✅ Updated all portal-related helper functions
+- ✅ Fixed SDK compatibility issues in state client and executor
+
+**Remaining**:
+- ❌ API operations (still using internal SDK)
+- ❌ API Document operations (still using internal SDK)
+- ❌ API Version operations (still using internal SDK)
+- ❌ API Publication operations (still using internal SDK)
+- ❌ API Implementation operations (still using internal SDK)
+
+**Note**: The API operations will be migrated as part of implementing the API resources in subsequent steps.
 
 ### Implementation
 

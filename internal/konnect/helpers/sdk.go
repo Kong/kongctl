@@ -35,7 +35,7 @@ type SDKAPI interface {
 type KonnectSDK struct {
 	SDK                       *kkSDK.SDK
 	InternalSDK               *kkInternal.SDK
-	internalPortal            *InternalPortalAPI
+	publicPortal              *PublicPortalAPI
 	internalAPI               *InternalAPIAPI
 	internalAPIDocument       *InternalAPIDocumentAPI
 	internalAPIVersion        *InternalAPIVersionAPI
@@ -50,14 +50,14 @@ func (k *KonnectSDK) GetControlPlaneAPI() ControlPlaneAPI {
 }
 
 // Returns the implementation of the PortalAPI interface
-// for accessing the Developer Portal APIs using the internal SDK
+// for accessing the Developer Portal APIs using the public SDK
 func (k *KonnectSDK) GetPortalAPI() PortalAPI {
-	if k.internalPortal == nil && k.InternalSDK != nil {
-		k.internalPortal = &InternalPortalAPI{
-			SDK: k.InternalSDK,
+	if k.publicPortal == nil && k.SDK != nil {
+		k.publicPortal = &PublicPortalAPI{
+			SDK: k.SDK,
 		}
 	}
-	return k.internalPortal
+	return k.publicPortal
 }
 
 // debugLogger creates a debug logging function that checks KONGCTL_DEBUG env var

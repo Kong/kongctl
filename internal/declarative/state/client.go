@@ -7,8 +7,8 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/konnect/helpers"
-	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
-	kkInternalOps "github.com/Kong/sdk-konnect-go-internal/models/operations"
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 )
 
 // Client wraps Konnect SDK for state management
@@ -25,7 +25,7 @@ func NewClient(portalAPI helpers.PortalAPI) *Client {
 
 // Portal represents a normalized portal for internal use
 type Portal struct {
-	kkInternalComps.Portal
+	kkComps.Portal
 	NormalizedLabels map[string]string // Non-pointer labels
 }
 
@@ -36,7 +36,7 @@ func (c *Client) ListManagedPortals(ctx context.Context) ([]Portal, error) {
 	pageSize := int64(100)
 
 	for {
-		req := kkInternalOps.ListPortalsRequest{
+		req := kkOps.ListPortalsRequest{
 			PageSize:   &pageSize,
 			PageNumber: &pageNumber,
 		}
@@ -97,8 +97,8 @@ func (c *Client) GetPortalByName(ctx context.Context, name string) (*Portal, err
 // CreatePortal creates a new portal with management labels
 func (c *Client) CreatePortal(
 	ctx context.Context,
-	portal kkInternalComps.CreatePortal,
-) (*kkInternalComps.PortalResponse, error) {
+	portal kkComps.CreatePortal,
+) (*kkComps.PortalResponse, error) {
 	// Debug logging
 	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
 	debugLog := func(format string, args ...interface{}) {
@@ -145,8 +145,8 @@ func (c *Client) CreatePortal(
 func (c *Client) UpdatePortal(
 	ctx context.Context,
 	id string,
-	portal kkInternalComps.UpdatePortal,
-) (*kkInternalComps.PortalResponse, error) {
+	portal kkComps.UpdatePortal,
+) (*kkComps.PortalResponse, error) {
 	// Add management labels
 	normalized := labels.NormalizeLabels(portal.Labels)
 	normalized = labels.AddManagedLabels(normalized)

@@ -13,8 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	kkSDK "github.com/Kong/sdk-konnect-go"
-	kkInternalOps "github.com/Kong/sdk-konnect-go-internal/models/operations"
-	kkOPS "github.com/Kong/sdk-konnect-go/models/operations"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
@@ -272,7 +271,7 @@ func dumpPortals(
 	includeChildResources bool,
 ) error {
 	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
-		req := kkInternalOps.ListPortalsRequest{
+		req := kkOps.ListPortalsRequest{
 			PageSize:   Int64(requestPageSize),
 			PageNumber: Int64(pageNumber),
 		}
@@ -327,7 +326,7 @@ func dumpAPIs(
 
 	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		// Create a request to list APIs with pagination
-		req := kkInternalOps.ListApisRequest{
+		req := kkOps.ListApisRequest{
 			PageSize:   Int64(requestPageSize),
 			PageNumber: Int64(pageNumber),
 		}
@@ -1024,7 +1023,7 @@ func dumpAppAuthStrategies(
 
 	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		// Create a request to list app auth strategies with pagination
-		req := kkOPS.ListAppAuthStrategiesRequest{
+		req := kkOps.ListAppAuthStrategiesRequest{
 			PageSize:   kkSDK.Int64(requestPageSize),
 			PageNumber: kkSDK.Int64(pageNumber),
 		}
