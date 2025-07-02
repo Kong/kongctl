@@ -14,6 +14,7 @@ import (
 // Client wraps Konnect SDK for state management
 type Client struct {
 	portalAPI helpers.PortalAPI
+	apiAPI    helpers.APIAPI
 }
 
 // NewClient creates a new state client
@@ -23,9 +24,23 @@ func NewClient(portalAPI helpers.PortalAPI) *Client {
 	}
 }
 
+// NewClientWithAPIs creates a new state client with API support
+func NewClientWithAPIs(portalAPI helpers.PortalAPI, apiAPI helpers.APIAPI) *Client {
+	return &Client{
+		portalAPI: portalAPI,
+		apiAPI:    apiAPI,
+	}
+}
+
 // Portal represents a normalized portal for internal use
 type Portal struct {
 	kkComps.Portal
+	NormalizedLabels map[string]string // Non-pointer labels
+}
+
+// API represents a normalized API for internal use
+type API struct {
+	kkComps.APIResponseSchema
 	NormalizedLabels map[string]string // Non-pointer labels
 }
 
@@ -169,6 +184,162 @@ func (c *Client) DeletePortal(ctx context.Context, id string, force bool) error 
 	_, err := c.portalAPI.DeletePortal(ctx, id, force)
 	if err != nil {
 		return fmt.Errorf("failed to delete portal: %w", err)
+	}
+	return nil
+}
+
+// ListManagedAPIs returns all KONGCTL-managed APIs
+func (c *Client) ListManagedAPIs(ctx context.Context) ([]API, error) {
+	if c.apiAPI == nil {
+		return nil, fmt.Errorf("API client not configured")
+	}
+
+	var allAPIs []API
+	var pageNumber int64 = 1
+	pageSize := int64(100)
+
+	for {
+		req := kkOps.ListApisRequest{
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.apiAPI.ListApis(ctx, req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list APIs: %w", err)
+		}
+
+		if resp.ListAPIResponse == nil || len(resp.ListAPIResponse.Data) == 0 {
+			break
+		}
+
+		// Process and filter APIs
+		for _, a := range resp.ListAPIResponse.Data {
+			// Labels are already map[string]string in the SDK
+			normalized := a.Labels
+			if normalized == nil {
+				normalized = make(map[string]string)
+			}
+
+			if labels.IsManagedResource(normalized) {
+				api := API{
+					APIResponseSchema: a,
+					NormalizedLabels:  normalized,
+				}
+				allAPIs = append(allAPIs, api)
+			}
+		}
+
+		pageNumber++
+
+		// Check if we've fetched all pages
+		if resp.ListAPIResponse.Meta.Page.Total <= float64(pageSize*(pageNumber-1)) {
+			break
+		}
+	}
+
+	return allAPIs, nil
+}
+
+// GetAPIByName finds a managed API by name
+func (c *Client) GetAPIByName(ctx context.Context, name string) (*API, error) {
+	apis, err := c.ListManagedAPIs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, a := range apis {
+		if a.Name == name {
+			return &a, nil
+		}
+	}
+
+	return nil, nil // Not found
+}
+
+// CreateAPI creates a new API with management labels
+func (c *Client) CreateAPI(
+	ctx context.Context,
+	api kkComps.CreateAPIRequest,
+) (*kkComps.APIResponseSchema, error) {
+	if c.apiAPI == nil {
+		return nil, fmt.Errorf("API client not configured")
+	}
+
+	// Debug logging
+	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	debugLog := func(format string, args ...interface{}) {
+		if debugEnabled {
+			fmt.Fprintf(os.Stderr, "DEBUG [state/client]: "+format+"\n", args...)
+		}
+	}
+	
+	debugLog("CreateAPI called with labels: %+v", api.Labels)
+	
+	// Add management labels - API labels are already non-pointer strings
+	if api.Labels == nil {
+		api.Labels = make(map[string]string)
+	}
+	
+	api.Labels = labels.AddManagedLabels(api.Labels)
+	debugLog("After adding managed labels: %+v", api.Labels)
+	
+	// Log actual label values for debugging
+	if api.Labels != nil {
+		debugLog("Final labels for API:")
+		for k, v := range api.Labels {
+			debugLog("  %s = %s", k, v)
+		}
+	}
+
+	resp, err := c.apiAPI.CreateAPI(ctx, api)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create API: %w", err)
+	}
+
+	if resp.APIResponseSchema == nil {
+		return nil, fmt.Errorf("create API response missing API data")
+	}
+
+	return resp.APIResponseSchema, nil
+}
+
+// UpdateAPI updates an existing API with new management labels
+func (c *Client) UpdateAPI(
+	ctx context.Context,
+	id string,
+	api kkComps.UpdateAPIRequest,
+) (*kkComps.APIResponseSchema, error) {
+	if c.apiAPI == nil {
+		return nil, fmt.Errorf("API client not configured")
+	}
+
+	// Add management labels
+	normalized := labels.NormalizeLabels(api.Labels)
+	normalized = labels.AddManagedLabels(normalized)
+	api.Labels = labels.DenormalizeLabels(normalized)
+
+	resp, err := c.apiAPI.UpdateAPI(ctx, id, api)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update API: %w", err)
+	}
+
+	if resp.APIResponseSchema == nil {
+		return nil, fmt.Errorf("update API response missing API data")
+	}
+
+	return resp.APIResponseSchema, nil
+}
+
+// DeleteAPI deletes an API by ID
+func (c *Client) DeleteAPI(ctx context.Context, id string) error {
+	if c.apiAPI == nil {
+		return fmt.Errorf("API client not configured")
+	}
+
+	_, err := c.apiAPI.DeleteAPI(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete API: %w", err)
 	}
 	return nil
 }

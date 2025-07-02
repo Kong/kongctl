@@ -16,8 +16,8 @@ This folder contains the complete planning and implementation tracking for all k
 - **Architecture Decisions**: [004-dec-cfg-multi-resource/execution-plan-adrs.md](004-dec-cfg-multi-resource/execution-plan-adrs.md) ✅ Created
 - **Goal**: Extend declarative configuration to support API resources with external content loading via YAML tags
 
-**Progress**: Steps 1-7 Complete ✅ (SDK Migration, Resource Interfaces, API Resource, Child Resources, Tag System, File Resolver, Tag Integration)
-**Next Step**: Step 8 - Extend planner for API resources
+**Progress**: Steps 1-8 Complete ✅ (SDK Migration, Resource Interfaces, API Resource, Child Resources, Tag System, File Resolver, Tag Integration, API Planner)
+**Next Step**: Step 9 - Add API operations to executor (Note: Already completed as part of Step 8)
 
 ## Quick Start for Implementation
 

@@ -11,14 +11,14 @@
 | 5 | Create YAML tag system architecture | ✅ COMPLETE | Step 2 |
 | 6 | Implement file tag resolver with loading | ✅ COMPLETE | Step 5 |
 | 7 | Integrate tag system with resource loader | ✅ COMPLETE | Steps 4, 6 |
-| 8 | Extend planner for API resources | Not Started | Steps 4, 7 |
+| 8 | Extend planner for API resources | ✅ COMPLETE | Steps 4, 7 |
 | 9 | Add API operations to executor | Not Started | Steps 4, 7 |
 | 10 | Implement dependency graph enhancements | Not Started | Steps 4, 8 |
 | 11 | Add cross-resource reference validation | Not Started | Step 10 |
 | 12 | Create comprehensive integration tests | Not Started | Steps 8, 9, 10 |
 | 13 | Add examples and documentation | Not Started | All steps |
 
-**Current Stage**: Steps 1-7 Completed - Ready for Step 8
+**Current Stage**: Steps 1-8 Completed - Ready for Step 9
 
 ---
 
@@ -769,7 +769,65 @@ func TestYAMLTagProcessing(t *testing.T)
 
 ---
 
-## Testing Strategy
+## Step 8: Extend Planner for API Resources
+
+**Goal**: Add API resource planning logic to the planner to generate changes for API resources.
+
+### Status Update (2025-01-02)
+
+**Completed** ✅:
+- Extended APIAPI interface with CRUD operations (CreateAPI, UpdateAPI, DeleteAPI)
+- Created api_planner.go with comprehensive planning logic for APIs
+- Extended state client with API-related methods (ListManagedAPIs, GetAPIByName, CreateAPI, UpdateAPI, DeleteAPI)
+- Integrated API planning into main planner's GeneratePlan method
+- Added API operations to executor (createAPI, updateAPI, deleteAPI)
+- Added protection validation for APIs (same pattern as portals)
+- Fixed label type inconsistencies between SDK request/response types
+- Made planner resilient to missing API client for backward compatibility
+- All tests passing, linter clean
+
+**Implementation Details**:
+1. **API Helper Interface Extension** (`internal/konnect/helpers/apis.go`):
+   - Added CreateAPI, UpdateAPI, DeleteAPI methods to APIAPI interface
+   - Implemented methods in PublicAPIAPI using SDK v0.6.0
+
+2. **API Planner** (`internal/declarative/planner/api_planner.go`):
+   - Implemented planAPIChanges() for main API resource planning
+   - Supports CREATE, UPDATE, DELETE operations with protection checking
+   - Handles both apply and sync modes
+   - Child resource planning stubbed out (SDK field mapping needed)
+
+3. **State Client Extensions** (`internal/declarative/state/client.go`):
+   - Added API type with normalized labels
+   - Implemented ListManagedAPIs with pagination support
+   - Added GetAPIByName, CreateAPI, UpdateAPI, DeleteAPI methods
+   - Handles label normalization/denormalization for SDK compatibility
+
+4. **Executor API Operations** (`internal/declarative/executor/api_operations.go`):
+   - Implemented createAPI, updateAPI, deleteAPI operations
+   - Mirrors portal operations pattern for consistency
+   - Supports protection status validation and changes
+
+5. **Label Management**:
+   - Added TrueValue and FalseValue constants to reduce string literals
+   - Fixed SDK label type differences (map[string]string vs map[string]*string)
+   - APIs use map[string]string for labels (different from portals)
+
+**Key Decisions**:
+- API child resource planning deferred due to SDK field mapping issues
+- Made API planning optional when API client not configured (backward compatibility)
+- Used same protection patterns as portals for consistency
+- Followed existing planner architecture patterns
+
+### Definition of Done
+- [x] API planner methods created
+- [x] State client extended with API methods
+- [x] API planning integrated into main planner
+- [x] Executor supports API operations
+- [x] Protection validation for APIs
+- [x] All tests pass
+- [x] Linter clean
+
 
 ### Unit Tests
 - Resource type validation

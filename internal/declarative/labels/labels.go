@@ -11,6 +11,10 @@ const (
 	ManagedKey     = "KONGCTL-managed"
 	LastUpdatedKey = "KONGCTL-last-updated"
 	ProtectedKey   = "KONGCTL-protected"
+	
+	// Label values
+	TrueValue  = "true"
+	FalseValue = "false"
 )
 
 // NormalizeLabels converts pointer map to non-pointer map
@@ -54,14 +58,14 @@ func AddManagedLabels(labels map[string]string) map[string]string {
 	}
 	
 	// Add management labels
-	result[ManagedKey] = "true"
+	result[ManagedKey] = TrueValue
 	// Use a timestamp format that only contains allowed characters for labels
 	// Format: YYYYMMDD-HHMMSSZ (no colons allowed in label values)
 	result[LastUpdatedKey] = time.Now().UTC().Format("20060102-150405Z")
 	
 	// Always include protected label, default to false if not already set
 	if _, exists := result[ProtectedKey]; !exists {
-		result[ProtectedKey] = "false"
+		result[ProtectedKey] = FalseValue
 	}
 	
 	return result
@@ -69,7 +73,12 @@ func AddManagedLabels(labels map[string]string) map[string]string {
 
 // IsManagedResource checks if resource has managed label
 func IsManagedResource(labels map[string]string) bool {
-	return labels != nil && labels[ManagedKey] == "true"
+	return labels != nil && labels[ManagedKey] == TrueValue
+}
+
+// IsProtectedResource checks if resource has protected label set to true
+func IsProtectedResource(labels map[string]string) bool {
+	return labels != nil && labels[ProtectedKey] == TrueValue
 }
 
 // GetUserLabels returns labels without KONGCTL prefix

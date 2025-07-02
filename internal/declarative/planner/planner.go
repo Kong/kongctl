@@ -44,6 +44,11 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		return nil, fmt.Errorf("failed to plan portal changes: %w", err)
 	}
 
+	// Plan API changes
+	if err := p.planAPIChanges(ctx, rs.APIs, plan); err != nil {
+		return nil, fmt.Errorf("failed to plan API changes: %w", err)
+	}
+
 	// Future: Add other resource types
 
 	// Resolve references for all changes

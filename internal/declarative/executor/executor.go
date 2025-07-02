@@ -197,16 +197,17 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 			return fmt.Errorf("resource ID required for %s operation", change.Action)
 		}
 		
-		// TODO: In Step 4, implement resource-specific validation
-		// For now, perform basic validation for portal resources
-		if change.ResourceType == "portal" && e.client != nil {
-			portal, err := e.client.GetPortalByName(ctx, getResourceName(change.Fields))
-			if err != nil {
-				return fmt.Errorf("failed to fetch portal: %w", err)
-			}
-			if portal == nil {
-				return fmt.Errorf("portal no longer exists")
-			}
+		// Perform resource-specific validation
+		switch change.ResourceType {
+		case "portal":
+			if e.client != nil {
+				portal, err := e.client.GetPortalByName(ctx, getResourceName(change.Fields))
+				if err != nil {
+					return fmt.Errorf("failed to fetch portal: %w", err)
+				}
+				if portal == nil {
+					return fmt.Errorf("portal no longer exists")
+				}
 			
 			// Check protection status
 			isProtected := portal.NormalizedLabels[labels.ProtectedKey] == "true"
@@ -228,29 +229,86 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 				}
 			}
 			
-			// Block protected resources unless it's a protection change
-			if isProtected && !isProtectionChange && 
-				(change.Action == planner.ActionUpdate || change.Action == planner.ActionDelete) {
-				return fmt.Errorf("resource is protected and cannot be %s", 
-					actionToVerb(change.Action))
+				// Block protected resources unless it's a protection change
+				if isProtected && !isProtectionChange && 
+					(change.Action == planner.ActionUpdate || change.Action == planner.ActionDelete) {
+					return fmt.Errorf("resource is protected and cannot be %s", 
+						actionToVerb(change.Action))
+				}
+			}
+		case "api":
+			if e.client != nil {
+				api, err := e.client.GetAPIByName(ctx, getResourceName(change.Fields))
+				if err != nil {
+					return fmt.Errorf("failed to fetch API: %w", err)
+				}
+				if api == nil {
+					return fmt.Errorf("API no longer exists")
+				}
+			
+				// Check protection status
+				isProtected := api.NormalizedLabels[labels.ProtectedKey] == "true"
+				
+				// For updates, check if this is a protection change (which is allowed)
+				isProtectionChange := false
+				if change.Action == planner.ActionUpdate {
+					// Check if this is a protection change
+					switch p := change.Protection.(type) {
+					case planner.ProtectionChange:
+						isProtectionChange = true
+					case map[string]interface{}:
+						// From JSON deserialization
+						if _, hasOld := p["old"].(bool); hasOld {
+							if _, hasNew := p["new"].(bool); hasNew {
+								isProtectionChange = true
+							}
+						}
+					}
+				}
+				
+				// Block protected resources unless it's a protection change
+				if isProtected && !isProtectionChange && 
+					(change.Action == planner.ActionUpdate || change.Action == planner.ActionDelete) {
+					return fmt.Errorf("resource is protected and cannot be %s", 
+						actionToVerb(change.Action))
+				}
 			}
 		}
 		
 	case planner.ActionCreate:
 		// For create, verify resource doesn't already exist
-		if change.ResourceType == "portal" && e.client != nil {
-			resourceName := getResourceName(change.Fields)
-			portal, err := e.client.GetPortalByName(ctx, resourceName)
-			if err != nil {
-				// API error is acceptable here - might mean not found
-				// Only fail if it's a real API error (not 404)
-				if !strings.Contains(err.Error(), "not found") {
-					return fmt.Errorf("failed to check existing portal: %w", err)
+		switch change.ResourceType {
+		case "portal":
+			if e.client != nil {
+				resourceName := getResourceName(change.Fields)
+				portal, err := e.client.GetPortalByName(ctx, resourceName)
+				if err != nil {
+					// API error is acceptable here - might mean not found
+					// Only fail if it's a real API error (not 404)
+					if !strings.Contains(err.Error(), "not found") {
+						return fmt.Errorf("failed to check existing portal: %w", err)
+					}
+				}
+				if portal != nil {
+					// Portal already exists - this is an error for CREATE
+					return fmt.Errorf("portal '%s' already exists", resourceName)
 				}
 			}
-			if portal != nil {
-				// Portal already exists - this is an error for CREATE
-				return fmt.Errorf("portal '%s' already exists", resourceName)
+		case "api":
+			if e.client != nil {
+				resourceName := getResourceName(change.Fields)
+				api, err := e.client.GetAPIByName(ctx, resourceName)
+				if err != nil {
+					// API error is acceptable here - might mean not found
+					// Only fail if it's a real API error (not 404)
+					if !strings.Contains(err.Error(), "not found") {
+						return fmt.Errorf("failed to check existing API: %w", err)
+					}
+				}
+				if api != nil {
+					// API already exists - this is an error for CREATE
+					return fmt.Errorf("API '%s' already exists", resourceName)
+				}
 			}
 		}
 	}
@@ -264,6 +322,8 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 	switch change.ResourceType {
 	case "portal":
 		return e.createPortal(ctx, change)
+	case "api":
+		return e.createAPI(ctx, change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
 	}
@@ -273,6 +333,8 @@ func (e *Executor) updateResource(ctx context.Context, change planner.PlannedCha
 	switch change.ResourceType {
 	case "portal":
 		return e.updatePortal(ctx, change)
+	case "api":
+		return e.updateAPI(ctx, change)
 	default:
 		return "", fmt.Errorf("update operation not yet implemented for %s", change.ResourceType)
 	}
@@ -282,6 +344,8 @@ func (e *Executor) deleteResource(ctx context.Context, change planner.PlannedCha
 	switch change.ResourceType {
 	case "portal":
 		return e.deletePortal(ctx, change)
+	case "api":
+		return e.deleteAPI(ctx, change)
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)
 	}
