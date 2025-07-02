@@ -8,7 +8,7 @@
 | 2 | Create resource interfaces and base types | ✅ COMPLETE | Step 1 |
 | 3 | Implement API resource type | ✅ COMPLETE | Steps 1, 2 |
 | 4 | Implement API child resource types | ✅ COMPLETE | Steps 2, 3 |
-| 5 | Create YAML tag system architecture | Not Started | Step 2 |
+| 5 | Create YAML tag system architecture | ✅ COMPLETE | Step 2 |
 | 6 | Implement file tag resolver with loading | Not Started | Step 5 |
 | 7 | Integrate tag system with resource loader | Not Started | Steps 4, 6 |
 | 8 | Extend planner for API resources | Not Started | Steps 4, 7 |
@@ -18,7 +18,7 @@
 | 12 | Create comprehensive integration tests | Not Started | Steps 8, 9, 10 |
 | 13 | Add examples and documentation | Not Started | All steps |
 
-**Current Stage**: Steps 1-4 Completed - Ready for Step 5
+**Current Stage**: Steps 1-5 Completed - Ready for Step 6
 
 ---
 
@@ -321,9 +321,30 @@ type APIImplementationResource struct {
 
 ---
 
-## Step 4: Create YAML Tag System Architecture
+## Step 5: Create YAML Tag System Architecture
 
 **Goal**: Create the YAML tag processing system architecture and interfaces.
+
+### Status Update (2025-01-02)
+
+**Completed** ✅:
+- Created comprehensive tag system package (`internal/declarative/tags`)
+- Implemented TagResolver interface for extensible tag processing
+- Created ResolverRegistry for managing multiple tag resolvers
+- Implemented value extraction logic with dot notation support
+- Integrated tag processing into loader with yaml.v3
+- Added proper nolint directives for gomodguard (yaml.v3 required for tag support)
+- Created comprehensive unit tests for all components
+- Fixed all linter issues and test failures
+
+**Key Implementation Details**:
+- Switched from sigs.k8s.io/yaml to gopkg.in/yaml.v3 for custom tag support
+- Tag processing happens before YAML unmarshaling to ResourceSet
+- Base directory tracking for file resolution (to be used in Step 6)
+- Thread-safe resolver registry for concurrent access
+- Extensible architecture supports future tag types (!env, !vault, etc.)
+
+### Implementation
 
 ### Implementation
 
@@ -385,10 +406,10 @@ value: !file.extract [./path/to/file.yaml, field.nested.value]
 - Error handling
 
 ### Definition of Done
-- [ ] Tag system architecture defined
-- [ ] Resolver registry implemented
-- [ ] Value extractor implemented
-- [ ] Unit tests pass
+- [x] Tag system architecture defined
+- [x] Resolver registry implemented
+- [x] Value extractor implemented
+- [x] Unit tests pass
 
 ---
 

@@ -7,21 +7,39 @@ import (
 	"path/filepath"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"sigs.k8s.io/yaml"
 )
 
 // Loader handles loading declarative configuration from files
 type Loader struct {
+	// baseDir is the base directory for resolving relative file paths in tags
+	baseDir string
+	// tagRegistry is the registry of tag resolvers (created on demand)
+	tagRegistry *tags.ResolverRegistry
 }
 
 // New creates a new configuration loader
 func New() *Loader {
-	return &Loader{}
+	return &Loader{
+		baseDir: ".", // Default to current directory
+	}
 }
 
 // NewWithPath creates a new configuration loader with a root path (deprecated, for backward compatibility)
 func NewWithPath(_ string) *Loader {
-	return &Loader{}
+	return &Loader{
+		baseDir: ".",
+	}
+}
+
+// getTagRegistry returns the tag registry, creating it if needed
+func (l *Loader) getTagRegistry() *tags.ResolverRegistry {
+	if l.tagRegistry == nil {
+		l.tagRegistry = tags.NewResolverRegistry()
+		// Note: File tag resolver will be registered in Step 6
+	}
+	return l.tagRegistry
 }
 
 // LoadFromSources loads configuration from multiple sources
@@ -146,6 +164,21 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceS
 	content, err := io.ReadAll(r)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read content from %s: %w", sourcePath, err)
+	}
+
+	// Process custom tags if any resolvers are registered
+	registry := l.getTagRegistry()
+	if registry.HasResolvers() {
+		// Update base directory based on source file location
+		if sourcePath != "stdin" && sourcePath != "" {
+			l.baseDir = filepath.Dir(sourcePath)
+		}
+		
+		processedContent, err := registry.Process(content)
+		if err != nil {
+			return nil, fmt.Errorf("failed to process tags in %s: %w", sourcePath, err)
+		}
+		content = processedContent
 	}
 
 	if err := yaml.Unmarshal(content, &rs); err != nil {
