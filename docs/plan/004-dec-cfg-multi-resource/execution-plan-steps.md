@@ -10,7 +10,7 @@
 | 4 | Implement API child resource types | ✅ COMPLETE | Steps 2, 3 |
 | 5 | Create YAML tag system architecture | ✅ COMPLETE | Step 2 |
 | 6 | Implement file tag resolver with loading | ✅ COMPLETE | Step 5 |
-| 7 | Integrate tag system with resource loader | Not Started | Steps 4, 6 |
+| 7 | Integrate tag system with resource loader | ✅ COMPLETE | Steps 4, 6 |
 | 8 | Extend planner for API resources | Not Started | Steps 4, 7 |
 | 9 | Add API operations to executor | Not Started | Steps 4, 7 |
 | 10 | Implement dependency graph enhancements | Not Started | Steps 4, 8 |
@@ -18,7 +18,7 @@
 | 12 | Create comprehensive integration tests | Not Started | Steps 8, 9, 10 |
 | 13 | Add examples and documentation | Not Started | All steps |
 
-**Current Stage**: Steps 1-6 Completed - Ready for Step 7
+**Current Stage**: Steps 1-7 Completed - Ready for Step 8
 
 ---
 
@@ -504,6 +504,23 @@ func (f *FileTagResolver) setCached(path string, data interface{})
 
 **Goal**: Connect the tag system with the resource loader.
 
+### Status Update (2025-01-02)
+
+**Completed** ✅:
+- Tag registry is integrated into loader.go
+- FileTagResolver is automatically registered when parseYAML is called
+- Base directory is dynamically set based on source file location
+- Tag processing happens before YAML unmarshaling
+- Created comprehensive integration tests for file tag loading
+- All tests passing
+
+**Key Implementation Details**:
+- The loader creates a tag registry on demand via getTagRegistry()
+- When loading files, the base directory is set to the directory of the source file
+- The FileTagResolver is registered with the correct base directory for each file
+- This allows relative file paths in !file tags to work correctly
+- Integration tests verify loading files with tags, nested directories, and error handling
+
 ### Implementation
 
 1. Update `internal/declarative/loader/loader.go`:
@@ -541,14 +558,14 @@ func (l *Loader) loadFileWithTags(filename string, registry *tags.ResolverRegist
 - Integration with existing loader tests
 
 ### Definition of Done
-- [ ] Tag resolution integrated with loader
-- [ ] File loading with tags working end-to-end
-- [ ] Error handling comprehensive
-- [ ] Integration tests pass
+- [x] Tag resolution integrated with loader
+- [x] File loading with tags working end-to-end
+- [x] Error handling comprehensive
+- [x] Integration tests pass
 
 ---
 
-## Step 7: Extend Planner for API Resources
+## Step 8: Extend Planner for API Resources
 
 **Goal**: Add API resource planning logic.
 
@@ -591,7 +608,7 @@ func (p *Planner) planAPIImplementationChanges(ctx context.Context, apiID string
 
 ---
 
-## Step 8: Add API Operations to Executor
+## Step 9: Add API Operations to Executor
 
 **Goal**: Implement CRUD operations for API resources.
 
@@ -632,7 +649,7 @@ func (e *Executor) createAPIImplementation(ctx context.Context, change planner.P
 
 ---
 
-## Step 9: Implement Dependency Graph Enhancements
+## Step 10: Implement Dependency Graph Enhancements
 
 **Goal**: Extend dependency resolver for new resource types.
 
@@ -669,7 +686,7 @@ func (d *DependencyResolver) getParentType(childType string) string {
 
 ---
 
-## Step 10: Add Cross-Resource Reference Validation
+## Step 11: Add Cross-Resource Reference Validation
 
 **Goal**: Validate references between resources.
 
@@ -694,7 +711,7 @@ func (d *DependencyResolver) getParentType(childType string) string {
 
 ---
 
-## Step 11: Create Comprehensive Integration Tests
+## Step 12: Create Comprehensive Integration Tests
 
 **Goal**: Test complete multi-resource scenarios.
 
@@ -728,7 +745,7 @@ func TestYAMLTagProcessing(t *testing.T)
 
 ---
 
-## Step 12: Add Examples and Documentation
+## Step 13: Add Examples and Documentation
 
 **Goal**: Provide clear examples and documentation.
 
