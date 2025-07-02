@@ -1,0 +1,19 @@
+{
+  "application": {
+    "name": "Kong Control",
+    "version": "1.2.3",
+    "environment": "production"
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "name": "kongctl_db"
+  },
+  "features": {
+    "authentication": true,
+    "rateLimit": {
+      "enabled": true,
+      "requestsPerMinute": 100
+    }
+  }
+}

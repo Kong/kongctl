@@ -1,0 +1,10 @@
+This is a sample API for managing a pet store inventory.
+
+The API provides endpoints for:
+- Listing all available pets
+- Getting details about a specific pet
+- Adding new pets to the inventory
+- Updating pet information
+- Removing pets from the inventory
+
+For more information, please visit our documentation site.

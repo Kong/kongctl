@@ -1,0 +1,10 @@
+metadata:
+  name: nested-config
+  namespace: production
+  labels:
+    app: kongctl
+    version: v1
+settings:
+  debug: false
+  timeout: 30s
+  retries: 3

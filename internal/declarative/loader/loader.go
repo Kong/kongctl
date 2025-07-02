@@ -37,7 +37,6 @@ func NewWithPath(_ string) *Loader {
 func (l *Loader) getTagRegistry() *tags.ResolverRegistry {
 	if l.tagRegistry == nil {
 		l.tagRegistry = tags.NewResolverRegistry()
-		// Note: File tag resolver will be registered in Step 6
 	}
 	return l.tagRegistry
 }
@@ -166,14 +165,21 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceS
 		return nil, fmt.Errorf("failed to read content from %s: %w", sourcePath, err)
 	}
 
-	// Process custom tags if any resolvers are registered
+	// Process custom tags if needed
 	registry := l.getTagRegistry()
+	
+	// Update base directory based on source file location
+	baseDir := l.baseDir
+	if sourcePath != "stdin" && sourcePath != "" {
+		baseDir = filepath.Dir(sourcePath)
+	}
+	
+	// Register file resolver with correct base directory
+	if !registry.HasResolvers() {
+		registry.Register(tags.NewFileTagResolver(baseDir))
+	}
+	
 	if registry.HasResolvers() {
-		// Update base directory based on source file location
-		if sourcePath != "stdin" && sourcePath != "" {
-			l.baseDir = filepath.Dir(sourcePath)
-		}
-		
 		processedContent, err := registry.Process(content)
 		if err != nil {
 			return nil, fmt.Errorf("failed to process tags in %s: %w", sourcePath, err)
