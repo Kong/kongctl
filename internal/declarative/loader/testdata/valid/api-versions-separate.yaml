@@ -1,0 +1,22 @@
+# Separate file with API versions
+api_versions:
+  - ref: users-api-v1
+    api: users-api
+    version: "1.0.0"
+    spec:
+      content: |
+        openapi: 3.0.0
+        info:
+          title: Users API
+          version: 1.0.0
+  
+  - ref: users-api-v2
+    api: users-api
+    version: "2.0.0"
+    deprecated: true
+    spec:
+      content: |
+        openapi: 3.0.0
+        info:
+          title: Users API
+          version: 2.0.0

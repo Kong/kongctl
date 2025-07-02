@@ -7,7 +7,7 @@
 | 1 | Migrate to public Konnect SDK | ✅ COMPLETE | - |
 | 2 | Create resource interfaces and base types | ✅ COMPLETE | Step 1 |
 | 3 | Implement API resource type | ✅ COMPLETE | Steps 1, 2 |
-| 4 | Implement API child resource types | Not Started | Steps 2, 3 |
+| 4 | Implement API child resource types | ✅ COMPLETE | Steps 2, 3 |
 | 5 | Create YAML tag system architecture | Not Started | Step 2 |
 | 6 | Implement file tag resolver with loading | Not Started | Step 5 |
 | 7 | Integrate tag system with resource loader | Not Started | Steps 4, 6 |
@@ -18,7 +18,7 @@
 | 12 | Create comprehensive integration tests | Not Started | Steps 8, 9, 10 |
 | 13 | Add examples and documentation | Not Started | All steps |
 
-**Current Stage**: Steps 1-3 Completed - Ready for Step 4
+**Current Stage**: Steps 1-4 Completed - Ready for Step 5
 
 ---
 
@@ -234,6 +234,24 @@ type ResourceSet struct {
 
 **Goal**: Create API child resource types (versions, publications, implementations).
 
+### Status Update (2025-01-02)
+
+**Completed** ✅:
+- Implemented dual-mode configuration support (nested and separate files)
+- Added root-level arrays to ResourceSet for API child resources
+- Added parent API reference field to all child resource types
+- Implemented Resource interface for all child resources
+- Implemented ResourceWithParent interface where applicable
+- Added loader extraction logic to normalize nested resources to root level
+- Updated loader merging and duplicate detection
+- Created comprehensive tests for both configuration modes
+
+**Key Implementation Details**:
+- Child resources can be defined either nested within APIs or separately with parent references
+- Loader extracts nested children to root level with parent references for consistent processing
+- Supports team ownership model where different teams manage their resources independently
+- All child resources implement standard interfaces for consistent handling
+
 ### Implementation
 
 1. Create `internal/declarative/resources/api_version.go`:
@@ -296,10 +314,10 @@ type APIImplementationResource struct {
 - Reference validation
 
 ### Definition of Done
-- [ ] All child resource types implemented
-- [ ] Resource interfaces satisfied
-- [ ] Dependency logic correct
-- [ ] Tests pass
+- [x] All child resource types implemented
+- [x] Resource interfaces satisfied
+- [x] Dependency logic correct
+- [x] Tests pass
 
 ---
 

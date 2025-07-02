@@ -11,9 +11,14 @@ import (
 type APIPublicationResource struct {
 	kkComps.APIPublication `yaml:",inline" json:",inline"`
 	Ref      string       `yaml:"ref" json:"ref"`
+	API      string       `yaml:"api,omitempty" json:"api,omitempty"` // Parent API reference (for root-level definitions)
 	PortalID string       `yaml:"portal_id" json:"portal_id"`
 	Kongctl  *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
-	// Note: api_id removed - implicit from parent API structure
+}
+
+// GetKind returns the resource kind
+func (p APIPublicationResource) GetKind() string {
+	return "api_publication"
 }
 
 // GetRef returns the reference identifier used for cross-resource references
@@ -21,11 +26,27 @@ func (p APIPublicationResource) GetRef() string {
 	return p.Ref
 }
 
+// GetName returns the resource name
+func (p APIPublicationResource) GetName() string {
+	// API publications don't have a name field, use ref as identifier
+	return p.Ref
+}
+
+// GetDependencies returns references to other resources this API publication depends on
+func (p APIPublicationResource) GetDependencies() []ResourceRef {
+	deps := []ResourceRef{}
+	if p.API != "" {
+		// Dependency on parent API when defined at root level
+		deps = append(deps, ResourceRef{Kind: "api", Ref: p.API})
+	}
+	// Note: Portal dependency is handled through reference field mappings
+	return deps
+}
+
 // GetReferenceFieldMappings returns the field mappings for reference validation
 func (p APIPublicationResource) GetReferenceFieldMappings() map[string]string {
 	return map[string]string{
 		"portal_id":         "portal",
-		// Note: api_id removed - implicit from parent API structure
 		"auth_strategy_ids": "application_auth_strategy",
 	}
 }
@@ -38,7 +59,7 @@ func (p APIPublicationResource) Validate() error {
 	if p.PortalID == "" {
 		return fmt.Errorf("API publication portal_id is required")
 	}
-	// Note: api_id validation removed - implicit from parent API structure
+	// Parent API validation happens through dependency system
 	return nil
 }
 
@@ -47,11 +68,20 @@ func (p *APIPublicationResource) SetDefaults() {
 	// API publications typically don't need default values
 }
 
+// GetParentRef returns the parent API reference for ResourceWithParent interface
+func (p APIPublicationResource) GetParentRef() *ResourceRef {
+	if p.API != "" {
+		return &ResourceRef{Kind: "api", Ref: p.API}
+	}
+	return nil
+}
+
 // UnmarshalJSON implements custom JSON unmarshaling to handle SDK types
 func (p *APIPublicationResource) UnmarshalJSON(data []byte) error {
 	// Temporary struct to capture all fields
 	var temp struct {
 		Ref                      string   `json:"ref"`
+		API                      string   `json:"api,omitempty"`
 		PortalID                 string   `json:"portal_id"`
 		PublishStatus            string   `json:"publish_status,omitempty"`
 		AuthStrategyIDs          []string `json:"auth_strategy_ids,omitempty"`
@@ -66,6 +96,7 @@ func (p *APIPublicationResource) UnmarshalJSON(data []byte) error {
 	
 	// Set our custom fields
 	p.Ref = temp.Ref
+	p.API = temp.API
 	p.PortalID = temp.PortalID
 	p.Kongctl = temp.Kongctl
 	

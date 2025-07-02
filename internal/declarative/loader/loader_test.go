@@ -153,15 +153,64 @@ func TestLoader_LoadFile_APIWithChildren(t *testing.T) {
 	// Verify API structure
 	api := rs.APIs[0]
 	assert.Equal(t, "my-api", api.GetRef())
-	assert.Len(t, api.Versions, 2)
-	assert.Len(t, api.Publications, 1)
-	assert.Len(t, api.Implementations, 1)
+	// After extraction, nested resources should be cleared
+	assert.Len(t, api.Versions, 0)
+	assert.Len(t, api.Publications, 0)
+	assert.Len(t, api.Implementations, 0)
 	
-	// Verify child resources
-	assert.Equal(t, "my-api-v1", api.Versions[0].GetRef())
-	assert.Equal(t, "my-api-v2", api.Versions[1].GetRef())
-	assert.Equal(t, "my-api-pub", api.Publications[0].GetRef())
-	assert.Equal(t, "my-api-impl", api.Implementations[0].GetRef())
+	// Verify child resources are extracted to root level with parent references
+	assert.Len(t, rs.APIVersions, 2)
+	assert.Len(t, rs.APIPublications, 1)
+	assert.Len(t, rs.APIImplementations, 1)
+	
+	// Check versions
+	assert.Equal(t, "my-api-v1", rs.APIVersions[0].GetRef())
+	assert.Equal(t, "my-api", rs.APIVersions[0].API) // Parent reference
+	assert.Equal(t, "my-api-v2", rs.APIVersions[1].GetRef())
+	assert.Equal(t, "my-api", rs.APIVersions[1].API) // Parent reference
+	
+	// Check publication
+	assert.Equal(t, "my-api-pub", rs.APIPublications[0].GetRef())
+	assert.Equal(t, "my-api", rs.APIPublications[0].API) // Parent reference
+	
+	// Check implementation
+	assert.Equal(t, "my-api-impl", rs.APIImplementations[0].GetRef())
+	assert.Equal(t, "my-api", rs.APIImplementations[0].API) // Parent reference
+}
+
+func TestLoader_LoadFile_SeparateAPIChildResources(t *testing.T) {
+	loader := New()
+	
+	// Test loading multiple files with separate API child resources
+	dir := filepath.Join("testdata", "valid")
+	sources := []Source{
+		{Path: filepath.Join(dir, "api-only.yaml"), Type: SourceTypeFile},
+		{Path: filepath.Join(dir, "api-versions-separate.yaml"), Type: SourceTypeFile},
+		{Path: filepath.Join(dir, "api-publications-separate.yaml"), Type: SourceTypeFile},
+		{Path: filepath.Join(dir, "simple-portal.yaml"), Type: SourceTypeFile}, // For portal reference
+	}
+	
+	rs, err := loader.LoadFromSources(sources, false)
+	assert.NoError(t, err)
+	assert.NotNil(t, rs)
+	
+	// Verify API
+	assert.Len(t, rs.APIs, 1)
+	assert.Equal(t, "users-api", rs.APIs[0].GetRef())
+	
+	// Verify separately defined child resources
+	assert.Len(t, rs.APIVersions, 2)
+	assert.Equal(t, "users-api-v1", rs.APIVersions[0].GetRef())
+	assert.Equal(t, "users-api", rs.APIVersions[0].API) // Parent reference
+	assert.Equal(t, "users-api-v2", rs.APIVersions[1].GetRef())
+	assert.Equal(t, "users-api", rs.APIVersions[1].API) // Parent reference
+	
+	assert.Len(t, rs.APIPublications, 1)
+	assert.Equal(t, "users-api-public-pub", rs.APIPublications[0].GetRef())
+	assert.Equal(t, "users-api", rs.APIPublications[0].API) // Parent reference
+	
+	// Verify portal exists (for publication reference)
+	assert.Len(t, rs.Portals, 1)
 }
 
 func TestLoader_LoadFromSources_SingleFile(t *testing.T) {

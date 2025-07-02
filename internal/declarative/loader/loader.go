@@ -37,6 +37,9 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 	cpNames := make(map[string]string)         // name -> source path
 	apiRefs := make(map[string]string)         // ref -> source path
 	apiNames := make(map[string]string)        // name -> source path
+	apiVersionRefs := make(map[string]string)  // ref -> source path
+	apiPubRefs := make(map[string]string)      // ref -> source path
+	apiImplRefs := make(map[string]string)     // ref -> source path
 	
 	for _, source := range sources {
 		var rs *resources.ResourceSet
@@ -48,7 +51,8 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 		case SourceTypeDirectory:
 			rs, err = l.loadDirectorySource(source.Path, recursive, 
 				portalRefs, portalNames, authStratRefs, authStratNames,
-				cpRefs, cpNames, apiRefs, apiNames)
+				cpRefs, cpNames, apiRefs, apiNames,
+				apiVersionRefs, apiPubRefs, apiImplRefs)
 		case SourceTypeSTDIN:
 			rs, err = l.loadSTDIN()
 		default:
@@ -64,7 +68,8 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 		if source.Type != SourceTypeDirectory {
 			if err := l.mergeResourceSet(&allResources, rs, source.Path,
 				portalRefs, portalNames, authStratRefs, authStratNames,
-				cpRefs, cpNames, apiRefs, apiNames); err != nil {
+				cpRefs, cpNames, apiRefs, apiNames,
+				apiVersionRefs, apiPubRefs, apiImplRefs); err != nil {
 				return nil, err
 			}
 		} else {
@@ -74,6 +79,9 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 				rs.ApplicationAuthStrategies...)
 			allResources.ControlPlanes = append(allResources.ControlPlanes, rs.ControlPlanes...)
 			allResources.APIs = append(allResources.APIs, rs.APIs...)
+			allResources.APIVersions = append(allResources.APIVersions, rs.APIVersions...)
+			allResources.APIPublications = append(allResources.APIPublications, rs.APIPublications...)
+			allResources.APIImplementations = append(allResources.APIImplementations, rs.APIImplementations...)
 		}
 	}
 	
@@ -147,6 +155,9 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceS
 	// Apply defaults to all resources
 	l.applyDefaults(&rs)
 
+	// Extract nested child resources to root level
+	l.extractNestedResources(&rs)
+
 	// Note: We don't validate here when called from loadDirectory
 	// because cross-references might be in other files.
 	// loadDirectory will validate the merged result.
@@ -177,7 +188,8 @@ func (l *Loader) loadSTDIN() (*resources.ResourceSet, error) {
 // loadDirectorySource loads YAML files from a directory
 func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 	portalRefs, portalNames, authStratRefs, authStratNames,
-	cpRefs, cpNames, apiRefs, apiNames map[string]string) (*resources.ResourceSet, error) {
+	cpRefs, cpNames, apiRefs, apiNames,
+	apiVersionRefs, apiPubRefs, apiImplRefs map[string]string) (*resources.ResourceSet, error) {
 	
 	var allResources resources.ResourceSet
 	yamlCount := 0
@@ -198,7 +210,8 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 				// Recursively load subdirectory
 				subRS, err := l.loadDirectorySource(path, recursive,
 					portalRefs, portalNames, authStratRefs, authStratNames,
-					cpRefs, cpNames, apiRefs, apiNames)
+					cpRefs, cpNames, apiRefs, apiNames,
+					apiVersionRefs, apiPubRefs, apiImplRefs)
 				if err != nil {
 					return nil, err
 				}
@@ -292,6 +305,34 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 			apiNames[api.Name] = path
 			allResources.APIs = append(allResources.APIs, api)
 		}
+		
+		// Check duplicates for API child resources
+		for _, version := range rs.APIVersions {
+			if existingPath, exists := apiVersionRefs[version.Ref]; exists {
+				return nil, fmt.Errorf("duplicate api_version ref '%s' found in %s (already defined in %s)", 
+					version.Ref, path, existingPath)
+			}
+			apiVersionRefs[version.Ref] = path
+			allResources.APIVersions = append(allResources.APIVersions, version)
+		}
+		
+		for _, pub := range rs.APIPublications {
+			if existingPath, exists := apiPubRefs[pub.Ref]; exists {
+				return nil, fmt.Errorf("duplicate api_publication ref '%s' found in %s (already defined in %s)", 
+					pub.Ref, path, existingPath)
+			}
+			apiPubRefs[pub.Ref] = path
+			allResources.APIPublications = append(allResources.APIPublications, pub)
+		}
+		
+		for _, impl := range rs.APIImplementations {
+			if existingPath, exists := apiImplRefs[impl.Ref]; exists {
+				return nil, fmt.Errorf("duplicate api_implementation ref '%s' found in %s (already defined in %s)", 
+					impl.Ref, path, existingPath)
+			}
+			apiImplRefs[impl.Ref] = path
+			allResources.APIImplementations = append(allResources.APIImplementations, impl)
+		}
 	}
 	
 	// Provide helpful error if no YAML files found
@@ -300,7 +341,9 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 			"Use -R to search subdirectories", dirPath, subdirCount)
 	} else if yamlCount == 0 && len(allResources.Portals) == 0 && 
 		len(allResources.ApplicationAuthStrategies) == 0 &&
-		len(allResources.ControlPlanes) == 0 && len(allResources.APIs) == 0 {
+		len(allResources.ControlPlanes) == 0 && len(allResources.APIs) == 0 &&
+		len(allResources.APIVersions) == 0 && len(allResources.APIPublications) == 0 &&
+		len(allResources.APIImplementations) == 0 {
 		// Only error if no files were found at all (not just empty files)
 		return nil, fmt.Errorf("no YAML files found in directory '%s'", dirPath)
 	}
@@ -311,7 +354,8 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 // mergeResourceSet merges source resources into target with duplicate detection
 func (l *Loader) mergeResourceSet(target, source *resources.ResourceSet, sourcePath string,
 	portalRefs, portalNames, authStratRefs, authStratNames,
-	cpRefs, cpNames, apiRefs, apiNames map[string]string) error {
+	cpRefs, cpNames, apiRefs, apiNames,
+	apiVersionRefs, apiPubRefs, apiImplRefs map[string]string) error {
 	
 	// For single files and STDIN, we need to check duplicates
 	// For directories, duplicates are already checked during loading
@@ -377,6 +421,34 @@ func (l *Loader) mergeResourceSet(target, source *resources.ResourceSet, sourceP
 		apiRefs[api.Ref] = sourcePath
 		apiNames[api.Name] = sourcePath
 		target.APIs = append(target.APIs, api)
+	}
+	
+	// Merge API child resources
+	for _, version := range source.APIVersions {
+		if existingPath, exists := apiVersionRefs[version.Ref]; exists {
+			return fmt.Errorf("duplicate api_version ref '%s' found in %s (already defined in %s)", 
+				version.Ref, sourcePath, existingPath)
+		}
+		apiVersionRefs[version.Ref] = sourcePath
+		target.APIVersions = append(target.APIVersions, version)
+	}
+	
+	for _, pub := range source.APIPublications {
+		if existingPath, exists := apiPubRefs[pub.Ref]; exists {
+			return fmt.Errorf("duplicate api_publication ref '%s' found in %s (already defined in %s)", 
+				pub.Ref, sourcePath, existingPath)
+		}
+		apiPubRefs[pub.Ref] = sourcePath
+		target.APIPublications = append(target.APIPublications, pub)
+	}
+	
+	for _, impl := range source.APIImplementations {
+		if existingPath, exists := apiImplRefs[impl.Ref]; exists {
+			return fmt.Errorf("duplicate api_implementation ref '%s' found in %s (already defined in %s)", 
+				impl.Ref, sourcePath, existingPath)
+		}
+		apiImplRefs[impl.Ref] = sourcePath
+		target.APIImplementations = append(target.APIImplementations, impl)
 	}
 	
 	return nil
@@ -446,5 +518,50 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 		for j := range api.Implementations {
 			api.Implementations[j].SetDefaults()
 		}
+	}
+
+	// Apply defaults to root-level API child resources
+	for i := range rs.APIVersions {
+		rs.APIVersions[i].SetDefaults()
+	}
+	for i := range rs.APIPublications {
+		rs.APIPublications[i].SetDefaults()
+	}
+	for i := range rs.APIImplementations {
+		rs.APIImplementations[i].SetDefaults()
+	}
+}
+
+// extractNestedResources extracts nested child resources to root level with parent references
+func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
+	// Extract nested API child resources
+	for i := range rs.APIs {
+		api := &rs.APIs[i]
+		
+		// Extract versions
+		for j := range api.Versions {
+			version := api.Versions[j]
+			version.API = api.Ref // Set parent reference
+			rs.APIVersions = append(rs.APIVersions, version)
+		}
+		
+		// Extract publications
+		for j := range api.Publications {
+			publication := api.Publications[j]
+			publication.API = api.Ref // Set parent reference
+			rs.APIPublications = append(rs.APIPublications, publication)
+		}
+		
+		// Extract implementations
+		for j := range api.Implementations {
+			implementation := api.Implementations[j]
+			implementation.API = api.Ref // Set parent reference
+			rs.APIImplementations = append(rs.APIImplementations, implementation)
+		}
+		
+		// Clear nested resources from API
+		api.Versions = nil
+		api.Publications = nil
+		api.Implementations = nil
 	}
 }

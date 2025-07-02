@@ -8,7 +8,10 @@ type ResourceSet struct {
 	// ControlPlanes contains control plane configurations
 	ControlPlanes []ControlPlaneResource `yaml:"control_planes,omitempty" json:"control_planes,omitempty"`
 	APIs          []APIResource          `yaml:"apis,omitempty" json:"apis,omitempty"`
-	// Note: API child resources (versions, publications, implementations) are nested under APIs
+	// API child resources can be defined at root level (with parent reference) or nested under APIs
+	APIVersions        []APIVersionResource        `yaml:"api_versions,omitempty" json:"api_versions,omitempty"`
+	APIPublications    []APIPublicationResource    `yaml:"api_publications,omitempty" json:"api_publications,omitempty"`
+	APIImplementations []APIImplementationResource `yaml:"api_implementations,omitempty" json:"api_implementations,omitempty"` //nolint:lll
 }
 
 // KongctlMeta contains tool-specific metadata for resources

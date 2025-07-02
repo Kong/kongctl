@@ -16,8 +16,8 @@ This folder contains the complete planning and implementation tracking for all k
 - **Architecture Decisions**: [004-dec-cfg-multi-resource/execution-plan-adrs.md](004-dec-cfg-multi-resource/execution-plan-adrs.md) ✅ Created
 - **Goal**: Extend declarative configuration to support API resources with external content loading via YAML tags
 
-**Progress**: Steps 1-3 Complete ✅ (SDK Migration, Resource Interfaces, API Resource)
-**Next Step**: Step 4 - Implement API child resource types
+**Progress**: Steps 1-4 Complete ✅ (SDK Migration, Resource Interfaces, API Resource, Child Resources)
+**Next Step**: Step 5 - Create YAML tag system architecture
 
 ## Quick Start for Implementation
 
@@ -117,10 +117,11 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-overview.md](004-dec-cfg-multi-resource/execution-plan-overview.md) | Technical approach | ✅ Created |
 | [execution-plan-adrs.md](004-dec-cfg-multi-resource/execution-plan-adrs.md) | Architecture decisions | ✅ Created |
 
-**Implementation Status**: 3/13 steps completed
+**Implementation Status**: 4/13 steps completed (31%)
 - Step 1: SDK Migration ✅ (Complete removal of internal SDK)
 - Step 2: Resource Interfaces ✅
 - Step 3: API Resource Implementation ✅
+- Step 4: API Child Resource Types ✅ (Dual-mode configuration support)
 - **Dependencies**: Stage 3 completion ✅ Met
 - **Key deliverables**: 
   - API resource support (CREATE/UPDATE/DELETE)
@@ -181,9 +182,10 @@ Stages 1-3 are complete. Stage 4 is in progress.
   - Step 1: Migrate to public Konnect SDK ✅ **COMPLETED** (Complete internal SDK removal)
   - Step 2: Create resource interfaces and base types ✅ **COMPLETED**
   - Step 3: Implement API resource type ✅ **COMPLETED**
-  - Step 4: Implement API child resource types 🔮 **Next**
+  - Step 4: Implement API child resource types ✅ **COMPLETED** (Dual-mode configuration)
+  - Step 5: Create YAML tag system architecture 🔮 **Next**
 
-**To continue implementation**: Work on Step 2 in [004-dec-cfg-multi-resource/execution-plan-steps.md](004-dec-cfg-multi-resource/execution-plan-steps.md)
+**To continue implementation**: Work on Step 5 in [004-dec-cfg-multi-resource/execution-plan-steps.md](004-dec-cfg-multi-resource/execution-plan-steps.md)
 
 ### 🎯 Entry Points for Claude Code
 
