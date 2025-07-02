@@ -18,7 +18,7 @@
 | 12 | Create comprehensive integration tests | Not Started | Steps 8, 9, 10 |
 | 13 | Add examples and documentation | Not Started | All steps |
 
-**Current Stage**: Step 3 Completed - Ready for Step 4
+**Current Stage**: Steps 1-3 Completed - Ready for Step 4
 
 ---
 
@@ -26,25 +26,30 @@
 
 **Goal**: Replace usage of internal SDK with the public Kong Konnect Go SDK where possible.
 
-### Status Update (2025-01-01)
+### Status Update (2025-01-02)
 
 **Completed** ✅:
-- Updated SDK from v0.3.1 to v0.6.0
-- Migrated Portal operations to public SDK
-- Updated all portal-related helper functions
-- Fixed SDK compatibility issues in state client and executor
+- Completely removed internal SDK dependency from project
+- Updated SDK from v0.3.1 to v0.6.0 (public SDK only)
+- Migrated ALL operations to public SDK (Portal, API, and child resources)
+- Updated all helper functions and interfaces
+- Fixed SDK compatibility issues throughout codebase
 - Updated all unit and integration tests to use public SDK types
 - Fixed test mocks and assertions for SDK compatibility
+- Updated dump command to use public SDK
 
 **Key Changes**:
-- Changed DeletePortal to use new QueryParamForce type
-- Removed pagination from ListPortalPages and ListPortalSnippets (not supported in public SDK v0.6.0)
-- Updated all type imports from internal to public SDK
-- Fixed JSON unmarshaling behavior in integration tests
+- Removed `github.com/Kong/sdk-konnect-go-internal` from go.mod entirely
+- Changed all imports from internal to public SDK packages
+- Simplified SDK helper interfaces by removing redundant wrapper methods
+- Updated API document helper to match public SDK method signatures
+- Fixed all compilation errors from SDK migration
+- Net reduction of 132 lines of code due to simplified architecture
 
-**API Operations Status**:
-- API operations remain on internal SDK (to be migrated when implementing API resources)
-- This partial migration approach allows incremental adoption of public SDK
+**Migration Strategy**:
+- Public SDK is now the single source of truth for all API schemas and operations
+- This aligns with Kong's GA API versioning strategy
+- No internal SDK fallback needed - public SDK v0.6.0 has all required APIs
 
 ### Implementation
 
@@ -85,7 +90,8 @@ kkComps "github.com/Kong/sdk-konnect-go/models/components"
 ### Definition of Done
 - [x] Public SDK dependency added
 - [x] Portal operations migrated
-- [ ] API operations use public SDK (deferred to API resource implementation)
+- [x] API operations migrated to public SDK
+- [x] Internal SDK completely removed from project
 - [x] All tests pass with new SDK
 - [x] Documentation updated
 
@@ -94,6 +100,16 @@ kkComps "github.com/Kong/sdk-konnect-go/models/components"
 ## Step 2: Create Resource Interfaces and Base Types
 
 **Goal**: Establish common interfaces for all resources to implement.
+
+### Status Update (2025-01-02)
+
+**Completed** ✅:
+- Created comprehensive resource interfaces in `interfaces.go`
+- Defined Resource, ResourceWithParent, and ResourceWithLabels interfaces
+- Updated PortalResource to implement interfaces
+- Updated ApplicationAuthStrategyResource to implement interfaces
+- Added interface compliance tests
+- All tests passing
 
 ### Implementation
 
@@ -141,9 +157,9 @@ type ResourceWithLabels interface {
 
 ### Definition of Done
 - [x] Resource interfaces defined
-- [x] Existing resources updated
-- [x] Interface compliance verified
-- [x] Tests pass
+- [x] Existing resources updated (Portal, ApplicationAuthStrategy)
+- [x] Interface compliance verified with tests
+- [x] All tests pass
 
 ---
 
@@ -151,20 +167,22 @@ type ResourceWithLabels interface {
 
 **Goal**: Create the API resource type using SDK models.
 
-### Status Update (2025-01-01)
+### Status Update (2025-01-02)
 
 **Completed** ✅:
-- Migrated APIResource from internal to public SDK (`kkComps.CreateAPIRequest`)
+- Created APIResource type using public SDK (`kkComps.CreateAPIRequest`)
 - Implemented Resource interface methods (GetKind, GetRef, GetName, GetDependencies)
 - Implemented ResourceWithLabels interface (GetLabels, SetLabels)
+- Added APIResource to ResourceSet in types.go
 - Updated validator test to use public SDK
 - Added interface compliance tests
 - Created comprehensive label handling tests
 
-**Key Changes**:
+**Key Implementation Details**:
 - Public SDK uses `map[string]string` for labels (simpler than portal's pointer maps)
 - No type conversion needed for labels
 - Minimal test impact - only one import change needed in validator_test.go
+- API resource supports nested child resources structure
 
 ### Implementation
 
@@ -212,7 +230,7 @@ type ResourceSet struct {
 
 ---
 
-## Step 3: Implement API Child Resource Types
+## Step 4: Implement API Child Resource Types
 
 **Goal**: Create API child resource types (versions, publications, implementations).
 
