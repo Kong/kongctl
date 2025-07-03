@@ -75,16 +75,14 @@ func (v APIVersionResource) GetParentRef() *ResourceRef {
 func (v *APIVersionResource) UnmarshalJSON(data []byte) error {
 	// Temporary struct to capture all fields
 	var temp struct {
-		Ref           string `json:"ref"`
-		API           string `json:"api,omitempty"`
-		Version       string `json:"version"`
-		PublishStatus string `json:"publish_status,omitempty"`
-		Deprecated    bool   `json:"deprecated,omitempty"`
-		SunsetDate    string `json:"sunset_date,omitempty"`
+		Ref           string      `json:"ref"`
+		API           string      `json:"api,omitempty"`
+		Version       string      `json:"version"`
+		PublishStatus string      `json:"publish_status,omitempty"`
+		Deprecated    bool        `json:"deprecated,omitempty"`
+		SunsetDate    string      `json:"sunset_date,omitempty"`
 		Kongctl       *KongctlMeta `json:"kongctl,omitempty"`
-		Spec          *struct {
-			Content string `json:"content"`
-		} `json:"spec,omitempty"`
+		Spec          interface{} `json:"spec,omitempty"`
 	}
 	
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -111,9 +109,37 @@ func (v *APIVersionResource) UnmarshalJSON(data []byte) error {
 		sdkData["sunset_date"] = temp.SunsetDate
 	}
 	
+	// Handle spec field - it could be a string, a map, or a wrapped object
 	if temp.Spec != nil {
+		var specContent string
+		
+		// Check if it's already in the SDK format with content field
+		if specMap, ok := temp.Spec.(map[string]interface{}); ok {
+			if content, hasContent := specMap["content"].(string); hasContent {
+				// Already in correct format
+				specContent = content
+			} else {
+				// It's a raw OpenAPI spec object, convert to JSON string
+				specJSON, err := json.Marshal(temp.Spec)
+				if err != nil {
+					return fmt.Errorf("failed to marshal spec to JSON: %w", err)
+				}
+				specContent = string(specJSON)
+			}
+		} else if specStr, ok := temp.Spec.(string); ok {
+			// It's already a string
+			specContent = specStr
+		} else {
+			// Unknown format, try to marshal it
+			specJSON, err := json.Marshal(temp.Spec)
+			if err != nil {
+				return fmt.Errorf("failed to marshal spec to JSON: %w", err)
+			}
+			specContent = string(specJSON)
+		}
+		
 		sdkData["spec"] = map[string]interface{}{
-			"content": temp.Spec.Content,
+			"content": specContent,
 		}
 	}
 	

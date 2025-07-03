@@ -18,7 +18,7 @@ apis:
     # Nested API versions (child resources)
     versions:
       - ref: payment-api-v1
-        name: "v1.0.0"
+        version: "v1.0.0"
         gateway_service:
           # External control plane and service IDs
           control_plane_id: "550e8400-e29b-41d4-a716-446655440000"
@@ -39,7 +39,7 @@ apis:
                     description: "Payment processed"
 
       - ref: payment-api-v2
-        name: "v2.0.0"
+        version: "v2.0.0"
         gateway_service:
           control_plane_id: "550e8400-e29b-41d4-a716-446655440000"
           id: "550e8400-e29b-41d4-a716-446655440002"
@@ -69,7 +69,7 @@ apis:
 api_versions:
   - ref: payment-api-v3
     api: payment-api  # Reference to parent API
-    name: "v3.0.0"
+    version: "v3.0.0"
     gateway_service:
       control_plane_id: "550e8400-e29b-41d4-a716-446655440000"
       id: "550e8400-e29b-41d4-a716-446655440003"

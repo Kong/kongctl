@@ -1,22 +1,30 @@
-# Simple Test Configuration - No API Publications
-# This example tests basic API and portal functionality without publications
-
-portals:
-  - ref: test-portal
-    name: "test-portal"
-    display_name: "Test Portal"
-    description: "Portal for testing"
-    authentication_enabled: true
-    kongctl:
-      protected: true
-
+# Simple test to verify API version spec handling
 apis:
   - ref: test-api
     name: "Test API"
-    description: "Simple API for testing"
-    version: "1.0.0"
-    labels:
-      team: platform
-      environment: test
-    kongctl:
-      protected: false
+    description: "API to test version spec handling"
+    
+    versions:
+      - ref: test-api-v1
+        version: "1.0.0"
+        spec:
+          openapi: "3.0.3"
+          info:
+            title: "Test API"
+            version: "1.0.0"
+            description: "Test API with OpenAPI spec"
+          paths:
+            /test:
+              get:
+                summary: "Test endpoint"
+                operationId: "testGet"
+                responses:
+                  '200':
+                    description: "Success"
+                    content:
+                      application/json:
+                        schema:
+                          type: object
+                          properties:
+                            message:
+                              type: string

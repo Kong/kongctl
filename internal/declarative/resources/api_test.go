@@ -2,16 +2,12 @@ package resources
 
 import (
 	"testing"
-
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 func TestAPIResourceInterface(t *testing.T) {
 	api := &APIResource{
-		Ref: "test-api",
-		CreateAPIRequest: kkComps.CreateAPIRequest{
-			Name: "Test API",
-		},
+		Ref:  "test-api",
+		Name: "Test API",
 	}
 
 	// Test Resource interface methods
@@ -87,10 +83,8 @@ func TestAPIResourceSetDefaults(t *testing.T) {
 		{
 			name: "existing name is preserved",
 			api: APIResource{
-				Ref: "my-api",
-				CreateAPIRequest: kkComps.CreateAPIRequest{
-					Name: "Existing API Name",
-				},
+				Ref:  "my-api",
+				Name: "Existing API Name",
 			},
 			expectedName: "Existing API Name",
 		},

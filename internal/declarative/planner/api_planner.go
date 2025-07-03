@@ -355,8 +355,11 @@ func (p *Planner) planAPIVersionCreate(
 	if version.Version != nil {
 		fields["version"] = *version.Version
 	}
-	if version.Spec != nil {
-		fields["spec"] = version.Spec
+	if version.Spec != nil && version.Spec.Content != nil {
+		// Store spec as a map with content field for proper JSON serialization
+		fields["spec"] = map[string]interface{}{
+			"content": *version.Spec.Content,
+		}
 	}
 	// Note: PublishStatus, Deprecated, SunsetDate are not supported by the SDK create operation
 	
