@@ -42,7 +42,8 @@ func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIRes
 		if !exists {
 			// CREATE action
 			p.planAPICreate(desiredAPI, plan)
-			// TODO: Plan child resources after API creation when SDK field mappings are clarified
+			// Plan child resources after API creation
+			p.planAPIChildResourcesCreate(desiredAPI, plan)
 		} else {
 			// Check if update needed
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
@@ -71,10 +72,10 @@ func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIRes
 				}
 			}
 
-			// TODO: Plan child resource changes
-			// if err := p.planAPIChildResourceChanges(ctx, current, desiredAPI, plan); err != nil {
-			//	return err
-			// }
+			// Plan child resource changes
+			if err := p.planAPIChildResourceChanges(ctx, current, desiredAPI, plan); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -260,6 +261,453 @@ func (p *Planner) planAPIDelete(api state.API, plan *Plan) {
 		DependsOn:    []string{},
 	}
 
+	plan.AddChange(change)
+}
+
+// planAPIChildResourcesCreate plans creation of child resources for a new API
+func (p *Planner) planAPIChildResourcesCreate(api resources.APIResource, plan *Plan) {
+	// Get the ID of the API creation change to use as dependency
+	apiChangeID := fmt.Sprintf("%s_%s_%s", ActionCreate, "api", api.GetRef())
+	
+	// Plan version creation
+	for _, version := range api.Versions {
+		p.planAPIVersionCreate(api.GetRef(), version, []string{apiChangeID}, plan)
+	}
+	
+	// Plan publication creation
+	for _, publication := range api.Publications {
+		p.planAPIPublicationCreate(api.GetRef(), publication, []string{apiChangeID}, plan)
+	}
+	
+	// Plan implementation creation
+	for _, implementation := range api.Implementations {
+		p.planAPIImplementationCreate(api.GetRef(), implementation, []string{apiChangeID}, plan)
+	}
+	
+	// Plan document creation
+	for _, document := range api.Documents {
+		p.planAPIDocumentCreate(api.GetRef(), document, []string{apiChangeID}, plan)
+	}
+}
+
+// planAPIChildResourceChanges plans changes for child resources of an existing API
+func (p *Planner) planAPIChildResourceChanges(
+	ctx context.Context, current state.API, desired resources.APIResource, plan *Plan,
+) error {
+	// Plan version changes
+	if err := p.planAPIVersionChanges(ctx, current.ID, desired.GetRef(), desired.Versions, plan); err != nil {
+		return fmt.Errorf("failed to plan API version changes: %w", err)
+	}
+	
+	// Plan publication changes
+	if err := p.planAPIPublicationChanges(ctx, current.ID, desired.GetRef(), desired.Publications, plan); err != nil {
+		return fmt.Errorf("failed to plan API publication changes: %w", err)
+	}
+	
+	// Plan implementation changes
+	if err := p.planAPIImplementationChanges(
+		ctx, current.ID, desired.GetRef(), desired.Implementations, plan); err != nil {
+		return fmt.Errorf("failed to plan API implementation changes: %w", err)
+	}
+	
+	// Plan document changes
+	if err := p.planAPIDocumentChanges(ctx, current.ID, desired.GetRef(), desired.Documents, plan); err != nil {
+		return fmt.Errorf("failed to plan API document changes: %w", err)
+	}
+	
+	return nil
+}
+
+// API Version planning
+
+func (p *Planner) planAPIVersionChanges(
+	ctx context.Context, apiID string, apiRef string, desired []resources.APIVersionResource, plan *Plan,
+) error {
+	// List current versions
+	currentVersions, err := p.client.ListAPIVersions(ctx, apiID)
+	if err != nil {
+		return fmt.Errorf("failed to list current API versions: %w", err)
+	}
+	
+	// Index current versions by version string
+	currentByVersion := make(map[string]state.APIVersion)
+	for _, v := range currentVersions {
+		currentByVersion[v.Version] = v
+	}
+	
+	// Compare desired versions
+	for _, desiredVersion := range desired {
+		versionStr := ""
+		if desiredVersion.Version != nil {
+			versionStr = *desiredVersion.Version
+		}
+		
+		if _, exists := currentByVersion[versionStr]; !exists {
+			// CREATE - versions don't support update
+			p.planAPIVersionCreate(apiRef, desiredVersion, []string{}, plan)
+		}
+		// Note: API versions don't support update operations
+	}
+	
+	// Note: We don't delete versions in sync mode as they may be in use
+	
+	return nil
+}
+
+func (p *Planner) planAPIVersionCreate(
+	apiRef string, version resources.APIVersionResource, dependsOn []string, plan *Plan,
+) {
+	fields := make(map[string]interface{})
+	if version.Version != nil {
+		fields["version"] = *version.Version
+	}
+	if version.Spec != nil {
+		fields["spec"] = version.Spec
+	}
+	// Note: PublishStatus, Deprecated, SunsetDate are not supported by the SDK create operation
+	
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionCreate, version.GetRef()),
+		ResourceType: "api_version",
+		ResourceRef:  version.GetRef(),
+		Parent:       &ParentInfo{Ref: apiRef},
+		Action:       ActionCreate,
+		Fields:       fields,
+		DependsOn:    dependsOn,
+	}
+	
+	plan.AddChange(change)
+}
+
+// API Publication planning
+
+func (p *Planner) planAPIPublicationChanges(
+	ctx context.Context, apiID string, apiRef string, desired []resources.APIPublicationResource, plan *Plan,
+) error {
+	// List current publications
+	currentPublications, err := p.client.ListAPIPublications(ctx, apiID)
+	if err != nil {
+		return fmt.Errorf("failed to list current API publications: %w", err)
+	}
+	
+	// Index current publications by portal ID
+	currentByPortal := make(map[string]state.APIPublication)
+	for _, p := range currentPublications {
+		currentByPortal[p.PortalID] = p
+	}
+	
+	// Compare desired publications
+	for _, desiredPub := range desired {
+		_, exists := currentByPortal[desiredPub.PortalID]
+		
+		if !exists {
+			// CREATE - publications don't support update
+			p.planAPIPublicationCreate(apiRef, desiredPub, []string{}, plan)
+		}
+		// Note: Publications are identified by portal ID, not a separate ID
+	}
+	
+	// In sync mode, delete unmanaged publications
+	if plan.Metadata.Mode == PlanModeSync {
+		desiredPortals := make(map[string]bool)
+		for _, pub := range desired {
+			desiredPortals[pub.PortalID] = true
+		}
+		
+		for portalID := range currentByPortal {
+			if !desiredPortals[portalID] {
+				p.planAPIPublicationDelete(apiRef, portalID, plan)
+			}
+		}
+	}
+	
+	return nil
+}
+
+func (p *Planner) planAPIPublicationCreate(
+	apiRef string, publication resources.APIPublicationResource, dependsOn []string, plan *Plan,
+) {
+	fields := make(map[string]interface{})
+	fields["portal_id"] = publication.PortalID
+	if publication.AuthStrategyIds != nil {
+		fields["auth_strategy_ids"] = publication.AuthStrategyIds
+	}
+	if publication.AutoApproveRegistrations != nil {
+		fields["auto_approve_registrations"] = *publication.AutoApproveRegistrations
+	}
+	if publication.Visibility != nil {
+		fields["visibility"] = string(*publication.Visibility)
+	}
+	
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionCreate, publication.GetRef()),
+		ResourceType: "api_publication",
+		ResourceRef:  publication.GetRef(),
+		Parent:       &ParentInfo{Ref: apiRef},
+		Action:       ActionCreate,
+		Fields:       fields,
+		DependsOn:    dependsOn,
+	}
+	
+	plan.AddChange(change)
+}
+
+func (p *Planner) planAPIPublicationDelete(apiRef string, portalID string, plan *Plan) {
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionDelete, portalID),
+		ResourceType: "api_publication",
+		ResourceRef:  portalID,
+		ResourceID:   portalID,  // For publications, we use portal ID for deletion
+		Parent:       &ParentInfo{Ref: apiRef},
+		Action:       ActionDelete,
+		Fields:       map[string]interface{}{},
+		DependsOn:    []string{},
+	}
+	
+	plan.AddChange(change)
+}
+
+// API Implementation planning
+
+func (p *Planner) planAPIImplementationChanges(
+	ctx context.Context, apiID string, apiRef string, desired []resources.APIImplementationResource, plan *Plan,
+) error {
+	// List current implementations
+	currentImplementations, err := p.client.ListAPIImplementations(ctx, apiID)
+	if err != nil {
+		return fmt.Errorf("failed to list current API implementations: %w", err)
+	}
+	
+	// Index current implementations by service ID + control plane ID
+	currentByService := make(map[string]state.APIImplementation)
+	for _, i := range currentImplementations {
+		if i.Service != nil {
+			key := fmt.Sprintf("%s:%s", i.Service.ID, i.Service.ControlPlaneID)
+			currentByService[key] = i
+		}
+	}
+	
+	// Compare desired implementations
+	for _, desiredImpl := range desired {
+		if desiredImpl.Service != nil {
+			key := fmt.Sprintf("%s:%s", desiredImpl.Service.ID, desiredImpl.Service.ControlPlaneID)
+			_, exists := currentByService[key]
+			
+			if !exists {
+				// CREATE - implementations don't support update
+				p.planAPIImplementationCreate(apiRef, desiredImpl, []string{}, plan)
+			}
+			// Note: Implementation IDs are managed by the SDK
+		}
+	}
+	
+	// In sync mode, delete unmanaged implementations
+	if plan.Metadata.Mode == PlanModeSync {
+		desiredServices := make(map[string]bool)
+		for _, impl := range desired {
+			if impl.Service != nil {
+				key := fmt.Sprintf("%s:%s", impl.Service.ID, impl.Service.ControlPlaneID)
+				desiredServices[key] = true
+			}
+		}
+		
+		for serviceKey, current := range currentByService {
+			if !desiredServices[serviceKey] {
+				p.planAPIImplementationDelete(apiRef, current.ID, plan)
+			}
+		}
+	}
+	
+	return nil
+}
+
+func (p *Planner) planAPIImplementationCreate(
+	apiRef string, implementation resources.APIImplementationResource, dependsOn []string, plan *Plan,
+) {
+	fields := make(map[string]interface{})
+	// APIImplementation only has Service field in the SDK
+	if implementation.Service != nil {
+		fields["service"] = map[string]interface{}{
+			"id":               implementation.Service.ID,
+			"control_plane_id": implementation.Service.ControlPlaneID,
+		}
+	}
+	
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionCreate, implementation.GetRef()),
+		ResourceType: "api_implementation",
+		ResourceRef:  implementation.GetRef(),
+		Parent:       &ParentInfo{Ref: apiRef},
+		Action:       ActionCreate,
+		Fields:       fields,
+		DependsOn:    dependsOn,
+	}
+	
+	plan.AddChange(change)
+}
+
+func (p *Planner) planAPIImplementationDelete(apiRef string, implementationID string, plan *Plan) {
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionDelete, implementationID),
+		ResourceType: "api_implementation",
+		ResourceRef:  implementationID,
+		ResourceID:   implementationID,
+		Parent:       &ParentInfo{Ref: apiRef},
+		Action:       ActionDelete,
+		Fields:       map[string]interface{}{},
+		DependsOn:    []string{},
+	}
+	
+	plan.AddChange(change)
+}
+
+// API Document planning
+
+func (p *Planner) planAPIDocumentChanges(
+	ctx context.Context, apiID string, apiRef string, desired []resources.APIDocumentResource, plan *Plan,
+) error {
+	// List current documents
+	currentDocuments, err := p.client.ListAPIDocuments(ctx, apiID)
+	if err != nil {
+		return fmt.Errorf("failed to list current API documents: %w", err)
+	}
+	
+	// Index current documents by slug
+	currentBySlug := make(map[string]state.APIDocument)
+	for _, d := range currentDocuments {
+		currentBySlug[d.Slug] = d
+	}
+	
+	// Compare desired documents
+	for _, desiredDoc := range desired {
+		slug := ""
+		if desiredDoc.Slug != nil {
+			slug = *desiredDoc.Slug
+		}
+		
+		current, exists := currentBySlug[slug]
+		
+		if !exists {
+			// CREATE
+			p.planAPIDocumentCreate(apiRef, desiredDoc, []string{}, plan)
+		} else {
+			// UPDATE - documents support update
+			if p.shouldUpdateAPIDocument(current, desiredDoc) {
+				p.planAPIDocumentUpdate(apiRef, current.ID, desiredDoc, plan)
+			}
+		}
+	}
+	
+	// In sync mode, delete unmanaged documents
+	if plan.Metadata.Mode == PlanModeSync {
+		desiredSlugs := make(map[string]bool)
+		for _, doc := range desired {
+			if doc.Slug != nil {
+				desiredSlugs[*doc.Slug] = true
+			}
+		}
+		
+		for slug, current := range currentBySlug {
+			if !desiredSlugs[slug] {
+				p.planAPIDocumentDelete(apiRef, current.ID, plan)
+			}
+		}
+	}
+	
+	return nil
+}
+
+func (p *Planner) shouldUpdateAPIDocument(current state.APIDocument, desired resources.APIDocumentResource) bool {
+	if current.Content != desired.Content {
+		return true
+	}
+	if desired.Title != nil && current.Title != *desired.Title {
+		return true
+	}
+	if desired.Status != nil && current.Status != string(*desired.Status) {
+		return true
+	}
+	if desired.ParentDocumentID != "" && current.ParentDocumentID != desired.ParentDocumentID {
+		return true
+	}
+	return false
+}
+
+func (p *Planner) planAPIDocumentCreate(
+	apiRef string, document resources.APIDocumentResource, dependsOn []string, plan *Plan,
+) {
+	fields := make(map[string]interface{})
+	fields["content"] = document.Content
+	if document.Title != nil {
+		fields["title"] = *document.Title
+	}
+	if document.Slug != nil {
+		fields["slug"] = *document.Slug
+	}
+	if document.Status != nil {
+		fields["status"] = string(*document.Status)
+	}
+	if document.ParentDocumentID != "" {
+		fields["parent_document_id"] = document.ParentDocumentID
+	}
+	
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionCreate, document.GetRef()),
+		ResourceType: "api_document",
+		ResourceRef:  document.GetRef(),
+		Parent:       &ParentInfo{Ref: apiRef},
+		Action:       ActionCreate,
+		Fields:       fields,
+		DependsOn:    dependsOn,
+	}
+	
+	plan.AddChange(change)
+}
+
+func (p *Planner) planAPIDocumentUpdate(
+	apiRef string, documentID string, document resources.APIDocumentResource, plan *Plan,
+) {
+	fields := make(map[string]interface{})
+	fields["content"] = document.Content
+	if document.Title != nil {
+		fields["title"] = *document.Title
+	}
+	if document.Slug != nil {
+		fields["slug"] = *document.Slug
+	}
+	if document.Status != nil {
+		fields["status"] = string(*document.Status)
+	}
+	if document.ParentDocumentID != "" {
+		fields["parent_document_id"] = document.ParentDocumentID
+	}
+	
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionUpdate, document.GetRef()),
+		ResourceType: "api_document",
+		ResourceRef:  document.GetRef(),
+		ResourceID:   documentID,
+		Parent:       &ParentInfo{Ref: apiRef},
+		Action:       ActionUpdate,
+		Fields:       fields,
+		DependsOn:    []string{},
+	}
+	
+	plan.AddChange(change)
+}
+
+func (p *Planner) planAPIDocumentDelete(apiRef string, documentID string, plan *Plan) {
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionDelete, documentID),
+		ResourceType: "api_document",
+		ResourceRef:  documentID,
+		ResourceID:   documentID,
+		Parent:       &ParentInfo{Ref: apiRef},
+		Action:       ActionDelete,
+		Fields:       map[string]interface{}{},
+		DependsOn:    []string{},
+	}
+	
 	plan.AddChange(change)
 }
 

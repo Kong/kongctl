@@ -16,6 +16,7 @@ type APIResource struct {
 	Versions        []APIVersionResource        `yaml:"versions,omitempty" json:"versions,omitempty"`
 	Publications    []APIPublicationResource    `yaml:"publications,omitempty" json:"publications,omitempty"`
 	Implementations []APIImplementationResource `yaml:"implementations,omitempty" json:"implementations,omitempty"`
+	Documents       []APIDocumentResource       `yaml:"documents,omitempty" json:"documents,omitempty"`
 }
 
 // GetKind returns the resource kind

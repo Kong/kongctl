@@ -324,6 +324,14 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 		return e.createPortal(ctx, change)
 	case "api":
 		return e.createAPI(ctx, change)
+	case "api_version":
+		return e.createAPIVersion(ctx, change)
+	case "api_publication":
+		return e.createAPIPublication(ctx, change)
+	case "api_implementation":
+		return e.createAPIImplementation(ctx, change)
+	case "api_document":
+		return e.createAPIDocument(ctx, change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
 	}
@@ -335,6 +343,9 @@ func (e *Executor) updateResource(ctx context.Context, change planner.PlannedCha
 		return e.updatePortal(ctx, change)
 	case "api":
 		return e.updateAPI(ctx, change)
+	case "api_document":
+		return e.updateAPIDocument(ctx, change)
+	// Note: api_version, api_publication, and api_implementation don't support update
 	default:
 		return "", fmt.Errorf("update operation not yet implemented for %s", change.ResourceType)
 	}
@@ -346,6 +357,13 @@ func (e *Executor) deleteResource(ctx context.Context, change planner.PlannedCha
 		return e.deletePortal(ctx, change)
 	case "api":
 		return e.deleteAPI(ctx, change)
+	case "api_publication":
+		return e.deleteAPIPublication(ctx, change)
+	case "api_implementation":
+		return e.deleteAPIImplementation(ctx, change)
+	case "api_document":
+		return e.deleteAPIDocument(ctx, change)
+	// Note: api_version doesn't support delete
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)
 	}
