@@ -143,7 +143,8 @@ func runPlan(command *cobra.Command, args []string) error {
 	
 	// Create planner
 	portalAPI := kkClient.GetPortalAPI()
-	stateClient := state.NewClient(portalAPI)
+	apiAPI := kkClient.GetAPIAPI()
+	stateClient := state.NewClientWithAPIs(portalAPI, apiAPI)
 	p := planner.NewPlanner(stateClient)
 	
 	// Generate plan
@@ -251,7 +252,8 @@ func runDiff(command *cobra.Command, args []string) error {
 		
 		// Create planner
 		portalAPI := kkClient.GetPortalAPI()
-		stateClient := state.NewClient(portalAPI)
+		apiAPI := kkClient.GetAPIAPI()
+		stateClient := state.NewClientWithAPIs(portalAPI, apiAPI)
 		p := planner.NewPlanner(stateClient)
 		
 		// Generate plan (default to sync mode for diff)
@@ -650,7 +652,8 @@ func runApply(command *cobra.Command, args []string) error {
 		
 		// Create planner
 		portalAPI := kkClient.GetPortalAPI()
-		stateClient := state.NewClient(portalAPI)
+		apiAPI := kkClient.GetAPIAPI()
+		stateClient := state.NewClientWithAPIs(portalAPI, apiAPI)
 		p := planner.NewPlanner(stateClient)
 		
 		// Generate plan in apply mode
@@ -723,7 +726,8 @@ func runApply(command *cobra.Command, args []string) error {
 	
 	// Create executor
 	portalAPI := kkClient.GetPortalAPI()
-	stateClient := state.NewClient(portalAPI)
+	apiAPI := kkClient.GetAPIAPI()
+	stateClient := state.NewClientWithAPIs(portalAPI, apiAPI)
 	
 	var reporter executor.ProgressReporter
 	if outputFormat == "text" {
