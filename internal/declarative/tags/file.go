@@ -39,14 +39,24 @@ func (f *FileTagResolver) Tag() string {
 
 // Resolve processes a YAML node with the !file tag
 func (f *FileTagResolver) Resolve(node *yaml.Node) (interface{}, error) {
-	// Handle two formats:
+	// Handle three formats:
 	// 1. String scalar: !file ./path/to/file.yaml
-	// 2. Mapping: !file {path: ./file.yaml, extract: info.title}
+	// 2. String scalar with extraction: !file ./path/to/file.yaml#field.path
+	// 3. Mapping: !file {path: ./file.yaml, extract: info.title}
 	
 	switch node.Kind { //nolint:exhaustive // We only support scalar and mapping nodes
 	case yaml.ScalarNode:
-		// Simple string format
-		return f.loadFile(node.Value, "")
+		// String format - supports both simple path and path#extract syntax
+		path := node.Value
+		extractPath := ""
+		
+		// Check for extraction syntax (path#extract)
+		if idx := strings.Index(path, "#"); idx != -1 {
+			extractPath = path[idx+1:]
+			path = path[:idx]
+		}
+		
+		return f.loadFile(path, extractPath)
 		
 	case yaml.MappingNode:
 		// Map format with optional extraction
