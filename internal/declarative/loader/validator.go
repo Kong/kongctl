@@ -33,6 +33,11 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
+	// Validate separate API child resources (extracted from nested resources)
+	if err := l.validateSeparateAPIChildResources(rs, resourceRegistry); err != nil {
+		return err
+	}
+
 	// Validate cross-resource references
 	if err := l.validateCrossReferences(rs, resourceRegistry); err != nil {
 		return err
@@ -246,6 +251,50 @@ func (l *Loader) validateCrossReferences(rs *resources.ResourceSet, registry map
 			if err := l.validateResourceReferences(&api.Implementations[j], registry); err != nil {
 				return err
 			}
+		}
+	}
+
+	// Validate separate API child resources (extracted from nested resources)
+	for i := range rs.APIPublications {
+		if err := l.validateResourceReferences(&rs.APIPublications[i], registry); err != nil {
+			return err
+		}
+	}
+
+	for i := range rs.APIImplementations {
+		if err := l.validateResourceReferences(&rs.APIImplementations[i], registry); err != nil {
+			return err
+		}
+	}
+
+	// Note: API versions don't have outbound references, so no validation needed
+
+	return nil
+}
+
+// validateSeparateAPIChildResources validates individual API child resources that were extracted
+func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet, _ map[string]map[string]bool) error {
+	// Validate separate API versions
+	for i := range rs.APIVersions {
+		version := &rs.APIVersions[i]
+		if err := version.Validate(); err != nil {
+			return fmt.Errorf("invalid api_version %q: %w", version.GetRef(), err)
+		}
+	}
+
+	// Validate separate API publications  
+	for i := range rs.APIPublications {
+		publication := &rs.APIPublications[i]
+		if err := publication.Validate(); err != nil {
+			return fmt.Errorf("invalid api_publication %q: %w", publication.GetRef(), err)
+		}
+	}
+
+	// Validate separate API implementations
+	for i := range rs.APIImplementations {
+		implementation := &rs.APIImplementations[i]
+		if err := implementation.Validate(); err != nil {
+			return fmt.Errorf("invalid api_implementation %q: %w", implementation.GetRef(), err)
 		}
 	}
 

@@ -117,7 +117,7 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-overview.md](004-dec-cfg-multi-resource/execution-plan-overview.md) | Technical approach | ✅ Created |
 | [execution-plan-adrs.md](004-dec-cfg-multi-resource/execution-plan-adrs.md) | Architecture decisions | ✅ Created |
 
-**Implementation Status**: 10/13 steps completed (77%)
+**Implementation Status**: 11/13 steps completed (85%)
 - Step 1: SDK Migration ✅ (Complete removal of internal SDK)
 - Step 2: Resource Interfaces ✅
 - Step 3: API Resource Implementation ✅
@@ -128,6 +128,7 @@ The first major feature being implemented is declarative configuration managemen
 - Step 8: Extend planner for API resources ✅ (Full child resource support)
 - Step 9: Create Integration Tests for API Resources ✅
 - Step 10: Update plan command for file loading support ✅ (Enhanced extraction syntax)
+- Step 11: Add cross-resource reference validation ✅ (External ID support)
 - **Dependencies**: Stage 3 completion ✅ Met
 - **Key deliverables**: 
   - API resource support (CREATE/UPDATE/DELETE)
@@ -195,7 +196,7 @@ Stages 1-3 are complete. Stage 4 is in progress.
   - Step 8: Extend planner and executor for API resources ✅ **COMPLETED** (Full child resource support)
   - Step 9: Create Integration Tests for API Resources ✅ **COMPLETED**
 
-**To continue implementation**: Work on Step 11 in [004-dec-cfg-multi-resource/execution-plan-steps.md](004-dec-cfg-multi-resource/execution-plan-steps.md)
+**To continue implementation**: Work on Step 12 in [004-dec-cfg-multi-resource/execution-plan-steps.md](004-dec-cfg-multi-resource/execution-plan-steps.md)
 
 ### 🎯 Entry Points for Claude Code
 

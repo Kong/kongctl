@@ -128,7 +128,8 @@ func (r *ReferenceResolver) isReferenceField(fieldName string) bool {
 	for _, rf := range referenceFields {
 		if fieldName == rf ||
 			fieldName == "gateway_service."+rf ||
-			fieldName == "gateway_service.service_id" {
+			fieldName == "gateway_service.service_id" ||
+			fieldName == "service."+rf {
 			return true
 		}
 	}
@@ -140,7 +141,7 @@ func (r *ReferenceResolver) getResourceTypeForField(fieldName string) string {
 	switch fieldName {
 	case "default_application_auth_strategy_id", "auth_strategy_ids":
 		return "application_auth_strategy"
-	case "control_plane_id", "gateway_service.control_plane_id":
+	case "control_plane_id", "gateway_service.control_plane_id", "service.control_plane_id":
 		return "control_plane"
 	case "portal_id":
 		return "portal"

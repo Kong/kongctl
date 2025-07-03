@@ -2,6 +2,6 @@
 api_publications:
   - ref: users-api-public-pub
     api: users-api
-    portal_id: dev-portal
+    portal_id: test-portal
     visibility: public
     auto_approve_registrations: true

@@ -765,28 +765,66 @@ portals:
 
 ---
 
-## Step 11: Add Cross-Resource Reference Validation
+## Step 11: Add Cross-Resource Reference Validation ✅ **COMPLETED**
 
 **Goal**: Validate references between resources.
 
 ### Implementation
 
-1. Extend reference resolver for API resources
-2. Validate portal references from API publications
-3. Handle external ID references (control planes, services)
-4. Provide helpful error messages for invalid references
+Extended the cross-resource reference validation system to properly handle API resources and their child resources:
 
-### Tests Required
-- Valid reference scenarios
-- Invalid reference detection
-- External ID handling
-- Error message clarity
+1. **Enhanced reference resolver for API resources**:
+   - Updated `isReferenceField()` to include `service.control_plane_id` field patterns
+   - Extended `getResourceTypeForField()` to map API-specific fields correctly
+   - Added support for nested service field references
+
+2. **Fixed API Publication portal reference validation**:
+   - Added validation for separate API child resources (APIPublications, APIImplementations, APIVersions)
+   - Fixed missing validation in `validateCrossReferences()` for extracted child resources
+   - Added `validateSeparateAPIChildResources()` function for individual resource validation
+
+3. **External ID support working correctly**:
+   - API Implementation UUID detection properly bypasses reference validation
+   - Control plane IDs can be either UUIDs (external) or references (declarative)
+   - Service IDs must be UUIDs and are validated as such
+
+4. **Clear error messages**:
+   - Validation errors show specific resource, field, and reference information
+   - Format: `resource "ref" references unknown type: value (field: field_name)`
+
+### Key Changes Made
+
+**Reference Resolver (`internal/declarative/planner/resolver.go`)**:
+- Added `service.control_plane_id` to field pattern matching
+
+**Validation System (`internal/declarative/loader/validator.go`)**:
+- Added `validateSeparateAPIChildResources()` for individual resource validation
+- Enhanced `validateCrossReferences()` to validate extracted child resources
+- Fixed missing validation for API publications, implementations, and versions
+
+**Test Data (`internal/declarative/loader/testdata/`)**:
+- Fixed portal reference mismatch in `api-publications-separate.yaml`
+
+### Tests Created
+- **Comprehensive integration tests** (`test/integration/declarative/cross_reference_validation_test.go`):
+  - Valid API publication with portal reference
+  - Invalid API publication with nonexistent portal reference  
+  - Valid API implementation with external UUID control plane
+  - Valid API implementation with declarative control plane reference
+  - Invalid API implementation with nonexistent control plane reference
+  - Multiple API publications with mixed valid/invalid references
+  - Complex multi-resource scenarios
+  - Separate API child resources
+  - External ID validation for UUIDs
+  - Error message clarity tests
 
 ### Definition of Done
-- [ ] Reference validation complete
-- [ ] External IDs supported
-- [ ] Clear error messages
-- [ ] Tests pass
+- [x] Reference validation complete for API resources
+- [x] External ID support verified (UUIDs bypass validation)
+- [x] Clear error messages for invalid references
+- [x] Comprehensive test coverage
+- [x] All tests pass
+- [x] Linting clean
 
 ---
 
