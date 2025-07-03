@@ -277,9 +277,11 @@ func (p *Planner) planPortalCreate(portal resources.PortalResource, plan *Plan) 
 		DependsOn:    []string{},
 	}
 
-	// Set protection status based on kongctl metadata
+	// Always set protection status explicitly
 	if portal.Kongctl != nil && portal.Kongctl.Protected {
 		change.Protection = true
+	} else {
+		change.Protection = false
 	}
 	
 	// Copy user-defined labels only (protection label will be added during execution)

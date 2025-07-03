@@ -18,3 +18,5 @@ apis:
     labels:
       team: platform
       environment: test
+    kongctl:
+      protected: false

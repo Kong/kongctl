@@ -131,9 +131,11 @@ func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) {
 		DependsOn:    []string{},
 	}
 
-	// Set protection status based on kongctl metadata
+	// Always set protection status explicitly
 	if api.Kongctl != nil && api.Kongctl.Protected {
 		change.Protection = true
+	} else {
+		change.Protection = false
 	}
 	
 	// Copy user-defined labels only (protection label will be added during execution)

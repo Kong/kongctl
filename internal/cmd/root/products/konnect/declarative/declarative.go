@@ -350,8 +350,12 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan) error {
 			}
 			
 			// Show protection status
-			if prot, ok := change.Protection.(bool); ok && prot {
-				fmt.Fprintln(out, "  protection: enabled")
+			if prot, ok := change.Protection.(bool); ok {
+				if prot {
+					fmt.Fprintln(out, "  protection: enabled")
+				} else {
+					fmt.Fprintln(out, "  protection: disabled")
+				}
 			}
 			
 		case planner.ActionUpdate:
@@ -365,8 +369,12 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan) error {
 				} else if !pc.Old && pc.New {
 					fmt.Fprintln(out, "  protection: disabled → enabled")
 				}
-			} else if prot, ok := change.Protection.(bool); ok && prot {
-				fmt.Fprintln(out, "  protection: enabled (no change)")
+			} else if prot, ok := change.Protection.(bool); ok {
+				if prot {
+					fmt.Fprintln(out, "  protection: enabled (no change)")
+				} else {
+					fmt.Fprintln(out, "  protection: disabled (no change)")
+				}
 			}
 			
 			// Show field changes
