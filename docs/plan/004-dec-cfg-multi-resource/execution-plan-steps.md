@@ -565,86 +565,114 @@ func (l *Loader) loadFileWithTags(filename string, registry *tags.ResolverRegist
 
 ---
 
-## Step 8: Extend Planner for API Resources
+## Step 8: Extend Planner and Executor for API Resources
 
-**Goal**: Add API resource planning logic.
+**Goal**: Add comprehensive API resource planning and execution logic including full child resource support.
 
-### Implementation
+### Status Update (2025-01-03)
 
-1. Create `internal/declarative/planner/api_planner.go`:
-```go
-func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIResource, plan *Plan) error {
-    // Fetch current APIs
-    currentAPIs, err := p.client.ListAPIs(ctx)
-    
-    // For each desired API
-    for _, api := range desired {
-        // Check if exists
-        // Plan CREATE or UPDATE
-        // Handle nested resources
-    }
-    
-    // For sync mode, plan DELETE for unmanaged APIs
-}
+**Completed** ✅:
+- Created APIDocumentResource type with all required interfaces
+- Extended APIAPI helper interface with all child resource operations
+- Implemented state client methods for List/Create/Update/Delete operations on all child resources
+- Added comprehensive planner support for API and child resource changes
+- Created executor operations for all API and child resource types
+- Handled SDK limitations gracefully (e.g., implementation operations not fully supported)
+- Fixed all SDK type mismatches and field naming inconsistencies
+- All tests passing, linter clean
 
-func (p *Planner) planAPIVersionChanges(ctx context.Context, apiID string, desired []resources.APIVersionResource, plan *Plan) error
-func (p *Planner) planAPIPublicationChanges(ctx context.Context, apiID string, desired []resources.APIPublicationResource, plan *Plan) error
-func (p *Planner) planAPIImplementationChanges(ctx context.Context, apiID string, desired []resources.APIImplementationResource, plan *Plan) error
-```
+**Implementation Details**:
 
-2. Update main planner to call API planning functions
-3. Handle parent-child relationships
+1. **API Document Resource** (`internal/declarative/resources/api_document.go`):
+   - Created new resource type embedding SDK's CreateAPIDocumentRequest
+   - Implements all required interfaces (Resource, ResourceWithParent)
+   - Added to ResourceSet for root-level declarations
 
-### Tests Required
-- API plan generation
-- Nested resource handling
-- Mode-aware planning (apply vs sync)
+2. **Helper Interface Extensions** (`internal/konnect/helpers/apis.go`):
+   - Extended APIAPI interface with methods for all child resources
+   - Added CreateAPIVersion, ListAPIVersions
+   - Added PublishAPIToPortal, DeletePublication, ListAPIPublications
+   - Added ListAPIImplementations (create/delete not supported by SDK)
+   - Added CreateAPIDocument, UpdateAPIDocument, DeleteAPIDocument, ListAPIDocuments
+
+3. **State Client Extensions** (`internal/declarative/state/client.go`):
+   - Added internal types for APIVersion, APIPublication, APIImplementation, APIDocument
+   - Implemented List/Create/Update/Delete methods for each child type
+   - Handled pagination for list operations
+   - Managed SDK response variations (list vs full objects)
+
+4. **Planner Implementation** (`internal/declarative/planner/api_planner.go`):
+   - Completed planAPIChildResourcesCreate for new APIs
+   - Completed planAPIChildResourceChanges for existing APIs
+   - Added planning methods for each child resource type
+   - Handled resources that don't support update operations
+   - Proper parent-child dependency management
+
+5. **Executor Operations**:
+   - Created api_version_operations.go (create only)
+   - Created api_publication_operations.go (create/delete)
+   - Created api_implementation_operations.go (stubbed - SDK limitations)
+   - Created api_document_operations.go (full CRUD)
+   - Integrated all operations into main executor
+
+**Key Decisions**:
+- API child resources follow the same patterns as portal resources
+- Resources without update operations only support create/delete
+- SDK limitations are handled gracefully with appropriate error messages
+- Parent API resolution happens at execution time
+- Labels are only managed on parent resources (APIs), not children
+
+**Implementation Note**: A comprehensive implementation plan was created in [step-8-api-child-resources-plan.md](step-8-api-child-resources-plan.md) after discovering initial SDK alignment issues. The plan outlined a 7-phase approach that was successfully completed.
 
 ### Definition of Done
-- [ ] API planning logic implemented
-- [ ] Child resource planning working
-- [ ] Integration with main planner
-- [ ] Tests pass
+- [x] API planning logic implemented
+- [x] Child resource planning working
+- [x] Integration with main planner
+- [x] All executor operations implemented
+- [x] SDK limitations handled
+- [x] All tests pass
+- [x] Linter clean
 
 ---
 
-## Step 9: Add API Operations to Executor
+## Step 9: Create Integration Tests for API Resources
 
-**Goal**: Implement CRUD operations for API resources.
+**Goal**: Create comprehensive integration tests for API resources and their children.
 
 ### Implementation
 
-1. Create `internal/declarative/executor/api_operations.go`:
+1. Create `test/integration/api_test.go`:
 ```go
-func (e *Executor) createAPI(ctx context.Context, change planner.PlannedChange) (string, error) {
-    // Extract API from fields
-    // Add management labels
-    // Call SDK to create
-    // Return ID
-}
-
-func (e *Executor) updateAPI(ctx context.Context, change planner.PlannedChange) (string, error)
-func (e *Executor) deleteAPI(ctx context.Context, change planner.PlannedChange) error
-
-// Similar for child resources
-func (e *Executor) createAPIVersion(ctx context.Context, change planner.PlannedChange) (string, error)
-func (e *Executor) createAPIPublication(ctx context.Context, change planner.PlannedChange) (string, error)
-func (e *Executor) createAPIImplementation(ctx context.Context, change planner.PlannedChange) (string, error)
+func TestAPIResourceLifecycle(t *testing.T)
+func TestAPIWithChildResources(t *testing.T)
+func TestAPIPublicationToPortal(t *testing.T)
+func TestAPIVersionManagement(t *testing.T)
+func TestAPIDocumentHierarchy(t *testing.T)
 ```
 
-2. Update executor's resource switch statements
-3. Add proper error handling
+2. Test scenarios:
+- Basic API CRUD operations
+- API with nested child resources
+- Separate file child resource declarations
+- Cross-resource references (publication → portal)
+- Protection status for APIs
+- SDK limitation handling
+
+3. Mock vs Real SDK testing:
+- Ensure both modes work correctly
+- Handle SDK-specific behaviors
 
 ### Tests Required
-- API CRUD operations
-- Label management
-- Error handling
+- Full API lifecycle (create, update, delete)
+- Child resource management
+- Dependency ordering
+- Error scenarios
 - Protection validation
 
 ### Definition of Done
-- [ ] All API operations implemented
-- [ ] Integrated with executor
-- [ ] Error handling complete
+- [ ] Integration tests created
+- [ ] All scenarios covered
+- [ ] Mock and real SDK modes tested
 - [ ] Tests pass
 
 ---
@@ -769,77 +797,23 @@ func TestYAMLTagProcessing(t *testing.T)
 
 ---
 
-## Step 8: Extend Planner for API Resources
-
-**Goal**: Add API resource planning logic to the planner to generate changes for API resources.
-
-### Status Update (2025-01-02)
-
-**Completed** ✅:
-- Extended APIAPI interface with CRUD operations (CreateAPI, UpdateAPI, DeleteAPI)
-- Created api_planner.go with comprehensive planning logic for APIs
-- Extended state client with API-related methods (ListManagedAPIs, GetAPIByName, CreateAPI, UpdateAPI, DeleteAPI)
-- Integrated API planning into main planner's GeneratePlan method
-- Added API operations to executor (createAPI, updateAPI, deleteAPI)
-- Added protection validation for APIs (same pattern as portals)
-- Fixed label type inconsistencies between SDK request/response types
-- Made planner resilient to missing API client for backward compatibility
-- All tests passing, linter clean
-
-**Implementation Details**:
-1. **API Helper Interface Extension** (`internal/konnect/helpers/apis.go`):
-   - Added CreateAPI, UpdateAPI, DeleteAPI methods to APIAPI interface
-   - Implemented methods in PublicAPIAPI using SDK v0.6.0
-
-2. **API Planner** (`internal/declarative/planner/api_planner.go`):
-   - Implemented planAPIChanges() for main API resource planning
-   - Supports CREATE, UPDATE, DELETE operations with protection checking
-   - Handles both apply and sync modes
-   - Child resource planning stubbed out (SDK field mapping needed)
-
-3. **State Client Extensions** (`internal/declarative/state/client.go`):
-   - Added API type with normalized labels
-   - Implemented ListManagedAPIs with pagination support
-   - Added GetAPIByName, CreateAPI, UpdateAPI, DeleteAPI methods
-   - Handles label normalization/denormalization for SDK compatibility
-
-4. **Executor API Operations** (`internal/declarative/executor/api_operations.go`):
-   - Implemented createAPI, updateAPI, deleteAPI operations
-   - Mirrors portal operations pattern for consistency
-   - Supports protection status validation and changes
-
-5. **Label Management**:
-   - Added TrueValue and FalseValue constants to reduce string literals
-   - Fixed SDK label type differences (map[string]string vs map[string]*string)
-   - APIs use map[string]string for labels (different from portals)
-
-**Key Decisions**:
-- API child resource planning deferred due to SDK field mapping issues
-- Made API planning optional when API client not configured (backward compatibility)
-- Used same protection patterns as portals for consistency
-- Followed existing planner architecture patterns
-
-### Definition of Done
-- [x] API planner methods created
-- [x] State client extended with API methods
-- [x] API planning integrated into main planner
-- [x] Executor supports API operations
-- [x] Protection validation for APIs
-- [x] All tests pass
-- [x] Linter clean
-
+## Testing Strategy
 
 ### Unit Tests
 - Resource type validation
 - Tag resolver functionality
 - Dependency detection
 - Value extraction
+- Planner logic for each resource type
+- Executor operations
 
 ### Integration Tests
 - End-to-end resource management
 - File loading with tags
 - Complex dependency scenarios
 - Error handling flows
+- API with child resources
+- Cross-resource references
 
 ### Manual Testing
 ```bash
