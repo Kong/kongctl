@@ -1,6 +1,6 @@
 # API with External Specification Example
 # This example demonstrates loading API specifications and metadata from external files
-# using YAML tags - a powerful feature for managing large specs and promoting reusability
+# using YAML tags 
 
 # Method 1: Load API metadata and spec from external files using YAML tags
 apis:

@@ -257,7 +257,7 @@ kongctl apply --config my-api.yaml
 
 ### YAML Tags for External Content
 
-Kongctl supports powerful YAML tags for loading content from external files, enabling better organization and reusability:
+Kongctl supports YAML tags for loading content from external files, enabling better organization and reusability:
 
 #### Simple File Loading
 
