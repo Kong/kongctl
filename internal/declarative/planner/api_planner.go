@@ -131,18 +131,28 @@ func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) {
 		DependsOn:    []string{},
 	}
 
-	// Set protection label based on kongctl metadata
-	if fields["labels"] == nil {
-		fields["labels"] = make(map[string]interface{})
-	}
-	labelsMap := fields["labels"].(map[string]interface{})
+	// Merge user labels with KONGCTL labels
+	labelsMap := make(map[string]interface{})
 	
+	// First, copy user-defined labels
+	if api.Labels != nil {
+		for k, v := range api.Labels {
+			labelsMap[k] = v
+		}
+	}
+	
+	// Then set protection label based on kongctl metadata
 	if api.Kongctl != nil && api.Kongctl.Protected {
 		change.Protection = true
 		labelsMap[labels.ProtectedKey] = labels.TrueValue
 	} else {
 		// Explicitly set to false when not protected
 		labelsMap[labels.ProtectedKey] = labels.FalseValue
+	}
+	
+	// Only add labels field if there are any labels
+	if len(labelsMap) > 0 {
+		fields["labels"] = labelsMap
 	}
 
 	plan.AddChange(change)
