@@ -277,18 +277,22 @@ func (p *Planner) planPortalCreate(portal resources.PortalResource, plan *Plan) 
 		DependsOn:    []string{},
 	}
 
-	// Set protection label based on kongctl metadata
-	if fields["labels"] == nil {
-		fields["labels"] = make(map[string]interface{})
-	}
-	labelsMap := fields["labels"].(map[string]interface{})
-	
+	// Set protection status based on kongctl metadata
 	if portal.Kongctl != nil && portal.Kongctl.Protected {
 		change.Protection = true
-		labelsMap[labels.ProtectedKey] = "true"
-	} else {
-		// Explicitly set to false when not protected
-		labelsMap[labels.ProtectedKey] = "false"
+	}
+	
+	// Copy user-defined labels only (protection label will be added during execution)
+	if len(portal.Labels) > 0 {
+		if fields["labels"] == nil {
+			fields["labels"] = make(map[string]interface{})
+		}
+		labelsMap := fields["labels"].(map[string]interface{})
+		for k, v := range portal.Labels {
+			if v != nil {
+				labelsMap[k] = *v
+			}
+		}
 	}
 
 	plan.AddChange(change)
@@ -422,16 +426,8 @@ func (p *Planner) planProtectionChangeWithFields(
 	// Always include name for identification
 	fields["name"] = current.Name
 	
-	// Add protection label change to fields
-	if fields["labels"] == nil {
-		fields["labels"] = make(map[string]interface{})
-	}
-	labelsMap := fields["labels"].(map[string]interface{})
-	if shouldProtect {
-		labelsMap[labels.ProtectedKey] = "true"
-	} else {
-		labelsMap[labels.ProtectedKey] = "false"
-	}
+	// Don't add protection label here - it will be added during execution
+	// based on the Protection field
 	
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionUpdate, desired.GetRef()),

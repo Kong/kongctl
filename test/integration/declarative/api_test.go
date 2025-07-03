@@ -76,7 +76,6 @@ apis:
 			"environment":           "test",
 			"KONGCTL-managed":       "true",
 			"KONGCTL-last-updated":  "20240101-120000Z",
-			"KONGCTL-protected":     "false",
 		},
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -376,7 +375,6 @@ apis:
 		Labels: map[string]string{
 			"KONGCTL-managed":      "true",
 			"KONGCTL-last-updated": "20240101-120000Z",
-			"KONGCTL-protected":    "false",
 		},
 		CreatedAt: apiTime,
 		UpdatedAt: apiTime,
@@ -575,7 +573,6 @@ api_versions:
 		Labels: map[string]string{
 			"KONGCTL-managed":      "true",
 			"KONGCTL-last-updated": "20240101-120000Z",
-			"KONGCTL-protected":    "false",
 		},
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),

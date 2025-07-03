@@ -39,28 +39,37 @@ func (e *Executor) createAPI(ctx context.Context, change planner.PlannedChange) 
 		api.Description = &desc
 	}
 	
-	// Handle labels - preserve user labels and protected label
-	// The state client will add management labels (managed, last-updated)
+	// Handle labels - preserve user labels
+	// The state client will add management labels (managed, last-updated, protected)
+	apiLabels := make(map[string]string)
+	
+	// First, copy user-defined labels from the change
 	if labelsField, ok := change.Fields["labels"].(map[string]interface{}); ok {
-		debugLog("Found labels in fields: %+v", labelsField)
-		apiLabels := make(map[string]string)
+		debugLog("Found user labels in fields: %+v", labelsField)
 		for k, v := range labelsField {
 			if strVal, ok := v.(string); ok {
-				// Allow user labels and the protected label
-				if !labels.IsKongctlLabel(k) || k == labels.ProtectedKey {
+				// Only copy user labels (non-KONGCTL labels)
+				if !labels.IsKongctlLabel(k) {
 					apiLabels[k] = strVal
-					debugLog("Adding label: %s=%s", k, strVal)
+					debugLog("Adding user label: %s=%s", k, strVal)
 				}
 			}
 		}
-		if len(apiLabels) > 0 {
-			api.Labels = apiLabels
-			debugLog("API will have %d labels", len(apiLabels))
-		} else {
-			debugLog("No labels to set on API")
-		}
+	}
+	
+	// Add protection label based on change.Protection field
+	if prot, ok := change.Protection.(bool); ok && prot {
+		apiLabels[labels.ProtectedKey] = labels.TrueValue
+		debugLog("Setting protection label to true")
 	} else {
-		debugLog("No labels field found in change")
+		apiLabels[labels.ProtectedKey] = labels.FalseValue
+		debugLog("Setting protection label to false")
+	}
+	
+	// Set labels on API
+	if len(apiLabels) > 0 {
+		api.Labels = apiLabels
+		debugLog("API will have %d labels (including protection)", len(apiLabels))
 	}
 	
 	// Create the API
@@ -146,42 +155,44 @@ func (e *Executor) updateAPI(ctx context.Context, change planner.PlannedChange) 
 		}
 	}
 	
-	// Apply any label updates from the change
-	protectionFromFields := ""
+	// Apply any user label updates from the change (excluding KONGCTL labels)
 	if labelsField, ok := change.Fields["labels"].(map[string]interface{}); ok {
 		for k, v := range labelsField {
 			if strVal, ok := v.(string); ok {
-				if k == labels.ProtectedKey {
-					// Track protection label from fields
-					protectionFromFields = strVal
-				} else if !labels.IsKongctlLabel(k) {
+				if !labels.IsKongctlLabel(k) {
 					userLabels[k] = strVal
 				}
 			}
 		}
 	}
 	
-	// Update management labels with new timestamp
-	allLabels := labels.AddManagedLabels(userLabels)
-	
-	// Handle protection label changes
+	// Handle protection based on change.Protection field
 	if isProtectionChange {
+		// Protection is changing
 		if protectionChange.New {
-			// Setting protection to true
-			allLabels[labels.ProtectedKey] = labels.TrueValue
+			userLabels[labels.ProtectedKey] = labels.TrueValue
 		} else {
-			// Setting protection to false
-			allLabels[labels.ProtectedKey] = labels.FalseValue
+			userLabels[labels.ProtectedKey] = labels.FalseValue
 		}
-	} else if protectionFromFields != "" {
-		// Use protection value from fields if provided
-		allLabels[labels.ProtectedKey] = protectionFromFields
-	} else if isProtected {
-		// Preserve existing protection
-		allLabels[labels.ProtectedKey] = labels.TrueValue
+	} else {
+		// Not a protection change - preserve current protection status
+		if isProtected {
+			userLabels[labels.ProtectedKey] = labels.TrueValue
+		} else {
+			userLabels[labels.ProtectedKey] = labels.FalseValue
+		}
 	}
 	
-	updateAPI.Labels = labels.DenormalizeLabels(allLabels)
+	// Add management labels (will preserve the protection label we just set)
+	allLabels := labels.AddManagedLabels(userLabels)
+	
+	// Convert to pointer map
+	labelPtrs := make(map[string]*string)
+	for k, v := range allLabels {
+		val := v
+		labelPtrs[k] = &val
+	}
+	updateAPI.Labels = labelPtrs
 	
 	// Update the API
 	resp, err := e.client.UpdateAPI(ctx, change.ResourceID, updateAPI)

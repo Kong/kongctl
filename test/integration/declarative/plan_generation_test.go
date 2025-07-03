@@ -354,10 +354,8 @@ portals:
 	assert.NotEmpty(t, change.Fields)
 	assert.Equal(t, "Protected Portal", change.Fields["name"])
 	
-	// Verify labels field contains protection label
-	labelsField, ok := change.Fields["labels"].(map[string]interface{})
-	require.True(t, ok, "labels field should be a map")
-	assert.Equal(t, "true", labelsField["KONGCTL-protected"])
+	// Protection status is tracked in change.Protection, not in labels field
+	// The labels field should be updated but without KONGCTL-protected label
 }
 
 func TestPlanGeneration_EmptyPlan(t *testing.T) {

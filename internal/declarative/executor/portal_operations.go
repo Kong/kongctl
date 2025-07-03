@@ -71,28 +71,38 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 		portal.DefaultApplicationAuthStrategyID = &defaultAppAuthStrategyID
 	}
 	
-	// Handle labels - preserve user labels and protected label
-	// The state client will add management labels (managed, last-updated)
+	// Handle labels - preserve user labels
+	// The state client will add management labels (managed, last-updated, protected)
+	portalLabels := make(map[string]*string)
+	
+	// First, copy user-defined labels from the change
 	if labelsField, ok := change.Fields["labels"].(map[string]interface{}); ok {
-		debugLog("Found labels in fields: %+v", labelsField)
-		portalLabels := make(map[string]*string)
+		debugLog("Found user labels in fields: %+v", labelsField)
 		for k, v := range labelsField {
 			if strVal, ok := v.(string); ok {
-				// Allow user labels and the protected label
-				if !labels.IsKongctlLabel(k) || k == labels.ProtectedKey {
+				// Only copy user labels (non-KONGCTL labels)
+				if !labels.IsKongctlLabel(k) {
 					portalLabels[k] = &strVal
-					debugLog("Adding label: %s=%s", k, strVal)
+					debugLog("Adding user label: %s=%s", k, strVal)
 				}
 			}
 		}
-		if len(portalLabels) > 0 {
-			portal.Labels = portalLabels
-			debugLog("Portal will have %d labels", len(portalLabels))
-		} else {
-			debugLog("No labels to set on portal")
-		}
+	}
+	
+	// Add protection label based on change.Protection field
+	protectionValue := labels.FalseValue
+	if prot, ok := change.Protection.(bool); ok && prot {
+		protectionValue = labels.TrueValue
+		debugLog("Setting protection label to true")
 	} else {
-		debugLog("No labels field found in change")
+		debugLog("Setting protection label to false")
+	}
+	portalLabels[labels.ProtectedKey] = &protectionValue
+	
+	// Set labels on portal
+	if len(portalLabels) > 0 {
+		portal.Labels = portalLabels
+		debugLog("Portal will have %d labels (including protection)", len(portalLabels))
 	}
 	
 	// Create the portal
@@ -212,41 +222,36 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 		}
 	}
 	
-	// Apply any label updates from the change
-	protectionFromFields := ""
+	// Apply any user label updates from the change (excluding KONGCTL labels)
 	if labelsField, ok := change.Fields["labels"].(map[string]interface{}); ok {
 		for k, v := range labelsField {
 			if strVal, ok := v.(string); ok {
-				if k == labels.ProtectedKey {
-					// Track protection label from fields
-					protectionFromFields = strVal
-				} else if !labels.IsKongctlLabel(k) {
+				if !labels.IsKongctlLabel(k) {
 					userLabels[k] = strVal
 				}
 			}
 		}
 	}
 	
-	// Update management labels with new timestamp
-	allLabels := labels.AddManagedLabels(userLabels)
-	
-	// Handle protection label changes
+	// Handle protection based on change.Protection field
 	if isProtectionChange {
+		// Protection is changing
 		if protectionChange.New {
-			// Setting protection to true
-			allLabels[labels.ProtectedKey] = "true"
+			userLabels[labels.ProtectedKey] = labels.TrueValue
 		} else {
-			// Setting protection to false
-			allLabels[labels.ProtectedKey] = "false"
+			userLabels[labels.ProtectedKey] = labels.FalseValue
 		}
-	} else if protectionFromFields != "" {
-		// Use protection value from fields if provided
-		allLabels[labels.ProtectedKey] = protectionFromFields
-	} else if isProtected {
-		// Preserve existing protection
-		allLabels[labels.ProtectedKey] = "true"
+	} else {
+		// Not a protection change - preserve current protection status
+		if isProtected {
+			userLabels[labels.ProtectedKey] = labels.TrueValue
+		} else {
+			userLabels[labels.ProtectedKey] = labels.FalseValue
+		}
 	}
 	
+	// Add management labels (will preserve the protection label we just set)
+	allLabels := labels.AddManagedLabels(userLabels)
 	updatePortal.Labels = labels.DenormalizeLabels(allLabels)
 	
 	// Update the portal

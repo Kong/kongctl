@@ -63,7 +63,7 @@ func AddManagedLabels(labels map[string]string) map[string]string {
 	// Format: YYYYMMDD-HHMMSSZ (no colons allowed in label values)
 	result[LastUpdatedKey] = time.Now().UTC().Format("20060102-150405Z")
 	
-	// Always include protected label, default to false if not already set
+	// If protected label is not already set by the executor, default to false
 	if _, exists := result[ProtectedKey]; !exists {
 		result[ProtectedKey] = FalseValue
 	}

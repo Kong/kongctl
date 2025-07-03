@@ -501,7 +501,6 @@ apis:
 					Name: "Concurrent Portal",
 					Labels: map[string]string{
 						"KONGCTL-managed":      "true",
-						"KONGCTL-protected":    "false",
 						"KONGCTL-last-updated": "20240101-120000Z",
 					},
 				},
@@ -515,7 +514,6 @@ apis:
 					Name: "Concurrent CP",
 					Labels: map[string]string{
 						"KONGCTL-managed":      "true",
-						"KONGCTL-protected":    "false",
 						"KONGCTL-last-updated": "20240101-120000Z",
 					},
 				},
@@ -529,7 +527,6 @@ apis:
 					Name: "Concurrent API",
 					Labels: map[string]string{
 						"KONGCTL-managed":      "true",
-						"KONGCTL-protected":    "false",
 						"KONGCTL-last-updated": "20240101-120000Z",
 					},
 				},

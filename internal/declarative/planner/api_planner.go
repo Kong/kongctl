@@ -131,27 +131,17 @@ func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) {
 		DependsOn:    []string{},
 	}
 
-	// Merge user labels with KONGCTL labels
-	labelsMap := make(map[string]interface{})
+	// Set protection status based on kongctl metadata
+	if api.Kongctl != nil && api.Kongctl.Protected {
+		change.Protection = true
+	}
 	
-	// First, copy user-defined labels
-	if api.Labels != nil {
+	// Copy user-defined labels only (protection label will be added during execution)
+	if len(api.Labels) > 0 {
+		labelsMap := make(map[string]interface{})
 		for k, v := range api.Labels {
 			labelsMap[k] = v
 		}
-	}
-	
-	// Then set protection label based on kongctl metadata
-	if api.Kongctl != nil && api.Kongctl.Protected {
-		change.Protection = true
-		labelsMap[labels.ProtectedKey] = labels.TrueValue
-	} else {
-		// Explicitly set to false when not protected
-		labelsMap[labels.ProtectedKey] = labels.FalseValue
-	}
-	
-	// Only add labels field if there are any labels
-	if len(labelsMap) > 0 {
 		fields["labels"] = labelsMap
 	}
 
@@ -231,16 +221,8 @@ func (p *Planner) planAPIProtectionChangeWithFields(
 	// Always include name for identification
 	fields["name"] = current.Name
 	
-	// Add protection label change to fields
-	if fields["labels"] == nil {
-		fields["labels"] = make(map[string]interface{})
-	}
-	labelsMap := fields["labels"].(map[string]interface{})
-	if shouldProtect {
-		labelsMap[labels.ProtectedKey] = labels.TrueValue
-	} else {
-		labelsMap[labels.ProtectedKey] = labels.FalseValue
-	}
+	// Don't add protection label here - it will be added during execution
+	// based on the Protection field
 	
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionUpdate, desired.GetRef()),
