@@ -470,7 +470,7 @@ func (p *Planner) planAPIPublicationDelete(apiRef string, portalID string, plan 
 // API Implementation planning
 
 func (p *Planner) planAPIImplementationChanges(
-	ctx context.Context, apiID string, apiRef string, desired []resources.APIImplementationResource, plan *Plan,
+	ctx context.Context, apiID string, _ string, desired []resources.APIImplementationResource, plan *Plan,
 ) error {
 	// List current implementations
 	currentImplementations, err := p.client.ListAPIImplementations(ctx, apiID)
@@ -491,12 +491,11 @@ func (p *Planner) planAPIImplementationChanges(
 	for _, desiredImpl := range desired {
 		if desiredImpl.Service != nil {
 			key := fmt.Sprintf("%s:%s", desiredImpl.Service.ID, desiredImpl.Service.ControlPlaneID)
-			_, exists := currentByService[key]
-			
-			if !exists {
+			if _, exists := currentByService[key]; !exists {
 				// Skip CREATE - SDK doesn't support implementation creation yet
 				// TODO: Enable when SDK adds support
 				// p.planAPIImplementationCreate(apiRef, desiredImpl, []string{}, plan)
+				_ = desiredImpl // Acknowledge we'd process this when SDK supports it
 			}
 			// Note: Implementation IDs are managed by the SDK
 		}
@@ -545,21 +544,6 @@ func (p *Planner) planAPIImplementationCreate(
 		Action:       ActionCreate,
 		Fields:       fields,
 		DependsOn:    dependsOn,
-	}
-	
-	plan.AddChange(change)
-}
-
-func (p *Planner) planAPIImplementationDelete(apiRef string, implementationID string, plan *Plan) {
-	change := PlannedChange{
-		ID:           p.nextChangeID(ActionDelete, implementationID),
-		ResourceType: "api_implementation",
-		ResourceRef:  implementationID,
-		ResourceID:   implementationID,
-		Parent:       &ParentInfo{Ref: apiRef},
-		Action:       ActionDelete,
-		Fields:       map[string]interface{}{},
-		DependsOn:    []string{},
 	}
 	
 	plan.AddChange(change)
@@ -716,7 +700,9 @@ func (p *Planner) planAPIDocumentDelete(apiRef string, documentID string, plan *
 }
 
 // planAPIVersionsChanges plans changes for extracted API version resources
-func (p *Planner) planAPIVersionsChanges(ctx context.Context, desired []resources.APIVersionResource, plan *Plan) error {
+func (p *Planner) planAPIVersionsChanges(
+	ctx context.Context, desired []resources.APIVersionResource, plan *Plan,
+) error {
 	// Group versions by parent API
 	versionsByAPI := make(map[string][]resources.APIVersionResource)
 	for _, version := range desired {
@@ -735,10 +721,9 @@ func (p *Planner) planAPIVersionsChanges(ctx context.Context, desired []resource
 						p.planAPIVersionCreate(apiRef, v, []string{change.ID}, plan)
 					}
 					continue
-				} else {
-					apiID = change.ResourceID
-					break
 				}
+				apiID = change.ResourceID
+				break
 			}
 		}
 		
@@ -765,7 +750,9 @@ func (p *Planner) planAPIVersionsChanges(ctx context.Context, desired []resource
 }
 
 // planAPIPublicationsChanges plans changes for extracted API publication resources
-func (p *Planner) planAPIPublicationsChanges(ctx context.Context, desired []resources.APIPublicationResource, plan *Plan) error {
+func (p *Planner) planAPIPublicationsChanges(
+	ctx context.Context, desired []resources.APIPublicationResource, plan *Plan,
+) error {
 	// Group publications by parent API
 	publicationsByAPI := make(map[string][]resources.APIPublicationResource)
 	for _, pub := range desired {
@@ -784,10 +771,9 @@ func (p *Planner) planAPIPublicationsChanges(ctx context.Context, desired []reso
 						p.planAPIPublicationCreate(apiRef, pub, []string{change.ID}, plan)
 					}
 					continue
-				} else {
-					apiID = change.ResourceID
-					break
 				}
+				apiID = change.ResourceID
+				break
 			}
 		}
 		
@@ -814,7 +800,9 @@ func (p *Planner) planAPIPublicationsChanges(ctx context.Context, desired []reso
 }
 
 // planAPIImplementationsChanges plans changes for extracted API implementation resources
-func (p *Planner) planAPIImplementationsChanges(ctx context.Context, desired []resources.APIImplementationResource, plan *Plan) error {
+func (p *Planner) planAPIImplementationsChanges(
+	ctx context.Context, desired []resources.APIImplementationResource, plan *Plan,
+) error {
 	// Group implementations by parent API
 	implementationsByAPI := make(map[string][]resources.APIImplementationResource)
 	for _, impl := range desired {
@@ -834,10 +822,9 @@ func (p *Planner) planAPIImplementationsChanges(ctx context.Context, desired []r
 					//	p.planAPIImplementationCreate(apiRef, impl, []string{change.ID}, plan)
 					// }
 					continue
-				} else {
-					apiID = change.ResourceID
-					break
 				}
+				apiID = change.ResourceID
+				break
 			}
 		}
 		
@@ -864,7 +851,9 @@ func (p *Planner) planAPIImplementationsChanges(ctx context.Context, desired []r
 }
 
 // planAPIDocumentsChanges plans changes for extracted API document resources
-func (p *Planner) planAPIDocumentsChanges(ctx context.Context, desired []resources.APIDocumentResource, plan *Plan) error {
+func (p *Planner) planAPIDocumentsChanges(
+	ctx context.Context, desired []resources.APIDocumentResource, plan *Plan,
+) error {
 	// Group documents by parent API
 	documentsByAPI := make(map[string][]resources.APIDocumentResource)
 	for _, doc := range desired {
@@ -883,10 +872,9 @@ func (p *Planner) planAPIDocumentsChanges(ctx context.Context, desired []resourc
 						p.planAPIDocumentCreate(apiRef, doc, []string{change.ID}, plan)
 					}
 					continue
-				} else {
-					apiID = change.ResourceID
-					break
 				}
+				apiID = change.ResourceID
+				break
 			}
 		}
 		
