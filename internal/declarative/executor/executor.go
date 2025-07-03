@@ -15,6 +15,9 @@ type Executor struct {
 	client   *state.Client
 	reporter ProgressReporter
 	dryRun   bool
+	// Track created resources during execution
+	createdResources map[string]string // changeID -> resourceID
+
 }
 
 // New creates a new Executor instance
@@ -23,6 +26,7 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 		client:   client,
 		reporter: reporter,
 		dryRun:   dryRun,
+		createdResources: make(map[string]string),
 	}
 }
 
@@ -178,6 +182,11 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 			Action:       string(change.Action),
 			ResourceID:   resourceID,
 		})
+		
+		// Track created resources for dependencies
+		if change.Action == planner.ActionCreate && resourceID != "" {
+			e.createdResources[change.ID] = resourceID
+		}
 	}
 	
 	// Notify reporter
@@ -389,4 +398,29 @@ func actionToVerb(action planner.ActionType) string {
 	default:
 		return string(action)
 	}
+}
+
+// getParentAPIID resolves the parent API ID for child resources
+func (e *Executor) getParentAPIID(ctx context.Context, change planner.PlannedChange) (string, error) {
+	if change.Parent == nil {
+		return "", fmt.Errorf("parent API reference required")
+	}
+	
+	// Check if parent was created in this execution
+	for _, dep := range change.DependsOn {
+		if resourceID, ok := e.createdResources[dep]; ok {
+			return resourceID, nil
+		}
+	}
+	
+	// Otherwise look up by name
+	parentAPI, err := e.client.GetAPIByName(ctx, change.Parent.Ref)
+	if err != nil {
+		return "", fmt.Errorf("failed to get parent API: %w", err)
+	}
+	if parentAPI == nil {
+		return "", fmt.Errorf("parent API not found: %s", change.Parent.Ref)
+	}
+	
+	return parentAPI.ID, nil
 }

@@ -43,6 +43,9 @@ func GetSDKFactory(t *testing.T) helpers.SDKAPIFactory {
 			AppAuthStrategiesFactory: func() helpers.AppAuthStrategiesAPI {
 				return NewMockAppAuthStrategiesAPI(t)
 			},
+			APIFactory: func() helpers.APIAPI {
+				return NewMockAPIAPI(t)
+			},
 		}, nil
 	}
 }

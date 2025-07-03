@@ -1,0 +1,1040 @@
+//go:build integration
+// +build integration
+
+package declarative_test
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/kong/kongctl/internal/declarative/executor"
+	"github.com/kong/kongctl/internal/declarative/loader"
+	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/konnect/helpers"
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+)
+
+func TestAPIResourceLifecycle(t *testing.T) {
+	ctx := SetupTestContext(t)
+	
+	// Create test YAML
+	tempDir := t.TempDir()
+	configFile := filepath.Join(tempDir, "api.yaml")
+	
+	configContent := `
+apis:
+  - ref: my-api
+    name: "My Test API"
+    description: "Test API for integration testing"
+    version: "1.0.0"
+    labels:
+      environment: test
+`
+	
+	err := os.WriteFile(configFile, []byte(configContent), 0600)
+	require.NoError(t, err)
+	
+	// Load configuration
+	l := loader.New()
+	resourceSet, err := l.LoadFromSources([]loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}, false)
+	require.NoError(t, err)
+	require.Len(t, resourceSet.APIs, 1)
+	
+	// Set up mocks
+	mockAPIAPI := GetMockAPIAPI(ctx, t)
+	
+	// Mock ListApis to return empty (called multiple times during plan and execution)
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
+		Return(&kkOps.ListApisResponse{
+			StatusCode: 200,
+			ListAPIResponse: &kkComps.ListAPIResponse{
+				Data: []kkComps.APIResponseSchema{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
+				},
+			},
+		}, nil).Times(2)
+	
+	// Mock CreateAPI
+	createdAPI := kkComps.APIResponseSchema{
+		ID:          "api-123",
+		Name:        "My Test API",
+		Description: stringPtr("Test API for integration testing"),
+		Version:     stringPtr("1.0.0"),
+		Labels: map[string]string{
+			"environment":           "test",
+			"KONGCTL-managed":       "true",
+			"KONGCTL-last-updated":  "20240101-120000Z",
+			"KONGCTL-protected":     "false",
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		Slug:      stringPtr("my-test-api"),
+		APISpecIds: []string{},
+		Portals:    []kkComps.Portals{},
+		CurrentVersionSummary: &kkComps.APIVersionSummary{},
+	}
+	
+	mockAPIAPI.On("CreateAPI", mock.Anything, mock.Anything).
+		Return(&kkOps.CreateAPIResponse{
+			StatusCode: 201,
+			APIResponseSchema: &createdAPI,
+		}, nil)
+	
+	// Mock empty child resources for initial planning
+	mockAPIAPI.On("ListAPIVersions", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIVersionsResponse{
+			StatusCode: 200,
+			ListAPIVersionResponse: &kkComps.ListAPIVersionResponse{
+				Data: []kkComps.ListAPIVersionResponseAPIVersionSummary{},
+			},
+		}, nil)
+	mockAPIAPI.On("ListAPIPublications", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIPublicationsResponse{
+			StatusCode: 200,
+			ListAPIPublicationResponse: &kkComps.ListAPIPublicationResponse{
+				Data: []kkComps.APIPublicationListItem{},
+			},
+		}, nil)
+	mockAPIAPI.On("ListAPIImplementations", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIImplementationsResponse{
+			StatusCode: 200,
+			ListAPIImplementationsResponse: &kkComps.ListAPIImplementationsResponse{
+				Data: []kkComps.APIImplementationListItem{},
+			},
+		}, nil)
+	mockAPIAPI.On("ListAPIDocuments", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIDocumentsResponse{
+			StatusCode: 200,
+			ListAPIDocumentResponse: &kkComps.ListAPIDocumentResponse{
+				Data: []kkComps.APIDocumentSummaryWithChildren{},
+			},
+		}, nil)
+	
+	// Create state client and planner
+	mockPortalAPI := GetMockPortalAPI(ctx, t)
+	// Mock empty portals list
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
+		Return(&kkOps.ListPortalsResponse{
+			ListPortalsResponse: &kkComps.ListPortalsResponse{
+				Data: []kkComps.Portal{},
+			},
+		}, nil)
+	stateClient := state.NewClientWithAPIs(mockPortalAPI, mockAPIAPI)
+	p := planner.NewPlanner(stateClient)
+	
+	// Generate plan
+	plan, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+	require.Len(t, plan.Changes, 1)
+	
+	// Verify CREATE operation
+	assert.Equal(t, planner.ActionCreate, plan.Changes[0].Action)
+	assert.Equal(t, "api", plan.Changes[0].ResourceType)
+	assert.Equal(t, "my-api", plan.Changes[0].ResourceRef)
+	
+	// Execute plan
+	exec := executor.New(stateClient, nil, false)
+	report, err := exec.Execute(ctx, plan)
+	require.NoError(t, err)
+	require.NotNil(t, report)
+	assert.Equal(t, 1, report.SuccessCount)
+	assert.Equal(t, 0, report.FailureCount)
+	
+	// Test UPDATE operation
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
+		Return(&kkOps.ListApisResponse{
+			StatusCode: 200,
+			ListAPIResponse: &kkComps.ListAPIResponse{
+				Data: []kkComps.APIResponseSchema{createdAPI},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 1,
+					},
+				},
+			},
+		}, nil)
+	
+	// Update the config
+	updatedContent := `
+apis:
+  - ref: my-api
+    name: "My Test API"
+    description: "Updated Test API description"
+    version: "1.1.0"
+    labels:
+      environment: test
+      stage: production
+`
+	err = os.WriteFile(configFile, []byte(updatedContent), 0600)
+	require.NoError(t, err)
+	
+	// Reload and replan
+	updatedResourceSet, err := l.LoadFromSources([]loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}, false)
+	require.NoError(t, err)
+	
+	// Mock empty child resources for update planning
+	mockAPIAPI.On("ListAPIVersions", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIVersionsResponse{
+			StatusCode: 200,
+			ListAPIVersionResponse: &kkComps.ListAPIVersionResponse{
+				Data: []kkComps.ListAPIVersionResponseAPIVersionSummary{},
+			},
+		}, nil)
+	mockAPIAPI.On("ListAPIPublications", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIPublicationsResponse{
+			StatusCode: 200,
+			ListAPIPublicationResponse: &kkComps.ListAPIPublicationResponse{
+				Data: []kkComps.APIPublicationListItem{},
+			},
+		}, nil)
+	mockAPIAPI.On("ListAPIImplementations", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIImplementationsResponse{
+			StatusCode: 200,
+			ListAPIImplementationsResponse: &kkComps.ListAPIImplementationsResponse{
+				Data: []kkComps.APIImplementationListItem{},
+			},
+		}, nil)
+	mockAPIAPI.On("ListAPIDocuments", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIDocumentsResponse{
+			StatusCode: 200,
+			ListAPIDocumentResponse: &kkComps.ListAPIDocumentResponse{
+				Data: []kkComps.APIDocumentSummaryWithChildren{},
+			},
+		}, nil)
+	
+	// Mock UpdateAPI
+	updatedAPI := createdAPI
+	updatedAPI.Description = stringPtr("Updated Test API description")
+	updatedAPI.Version = stringPtr("1.1.0")
+	updatedAPI.Labels["stage"] = "production"
+	updatedAPI.Labels["KONGCTL-last-updated"] = "20240101-130000Z"
+	
+	mockAPIAPI.On("UpdateAPI", mock.Anything, "api-123", mock.Anything).
+		Return(&kkOps.UpdateAPIResponse{
+			StatusCode: 200,
+			APIResponseSchema: &updatedAPI,
+		}, nil)
+	
+	plan, err = p.GeneratePlan(ctx, updatedResourceSet, planner.Options{Mode: planner.PlanModeApply})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	
+	// Verify UPDATE operation
+	if len(plan.Changes) > 0 {
+		t.Logf("Plan action: %s, type: %s, ref: %s",
+			plan.Changes[0].Action, plan.Changes[0].ResourceType, plan.Changes[0].ResourceRef)
+	} else {
+		t.Log("No changes in plan")
+	}
+	assert.Equal(t, planner.ActionUpdate, plan.Changes[0].Action)
+	assert.Equal(t, "api", plan.Changes[0].ResourceType)
+	assert.Equal(t, "my-api", plan.Changes[0].ResourceRef)
+	
+	// Execute update
+	report, err = exec.Execute(ctx, plan)
+	require.NoError(t, err)
+	assert.Equal(t, 1, report.SuccessCount)
+	
+	mockAPIAPI.AssertExpectations(t)
+}
+
+func TestAPIWithChildResources(t *testing.T) {
+	ctx := SetupTestContext(t)
+	
+	// Create test YAML with nested child resources
+	tempDir := t.TempDir()
+	configFile := filepath.Join(tempDir, "api-with-children.yaml")
+	
+	configContent := `
+portals:
+  - ref: dev-portal
+    name: "Developer Portal"
+
+apis:
+  - ref: my-api
+    name: "My API"
+    description: "API with child resources"
+    version: "1.0.0"
+    versions:
+      - ref: v1
+        name: "v1.0.0"
+        deprecated: false
+        publish_status: "published"
+    publications:
+      - ref: my-api-pub
+        portal_id: dev-portal
+`
+	
+	err := os.WriteFile(configFile, []byte(configContent), 0600)
+	require.NoError(t, err)
+	
+	// Load configuration
+	l := loader.New()
+	resourceSet, err := l.LoadFromSources([]loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}, false)
+	require.NoError(t, err)
+	
+	// Verify extraction of nested resources
+	assert.Len(t, resourceSet.APIs, 1)
+	assert.Len(t, resourceSet.APIVersions, 1)
+	assert.Len(t, resourceSet.APIPublications, 1)
+	assert.Len(t, resourceSet.Portals, 1)
+	
+	// Debug log extracted resources
+	t.Logf("Extracted APIs: %+v", resourceSet.APIs)
+	t.Logf("Extracted APIVersions: %+v", resourceSet.APIVersions)
+	t.Logf("Extracted APIPublications: %+v", resourceSet.APIPublications)
+	
+	// Verify parent references were set
+	assert.Equal(t, "my-api", resourceSet.APIVersions[0].API)
+	assert.Equal(t, "my-api", resourceSet.APIPublications[0].API)
+	assert.Equal(t, "dev-portal", resourceSet.APIPublications[0].PortalID)
+	
+	// Set up mocks
+	mockPortalAPI := GetMockPortalAPI(ctx, t)
+	mockAPIAPI := GetMockAPIAPI(ctx, t)
+	
+	// Mock empty initial state for planning
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
+		Return(&kkOps.ListPortalsResponse{
+			ListPortalsResponse: &kkComps.ListPortalsResponse{
+				Data: []kkComps.Portal{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
+				},
+			},
+		}, nil)
+	
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
+		Return(&kkOps.ListApisResponse{
+			StatusCode: 200,
+			ListAPIResponse: &kkComps.ListAPIResponse{
+				Data: []kkComps.APIResponseSchema{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
+				},
+			},
+		}, nil)
+	
+	// Mock portal creation
+	portalTime := time.Now()
+	createdPortal := kkComps.Portal{
+		ID:        "portal-123",
+		Name:      "Developer Portal",
+		CreatedAt: portalTime,
+		UpdatedAt: portalTime,
+	}
+	
+	mockPortalAPI.On("CreatePortal", mock.Anything, mock.Anything).
+		Return(&kkOps.CreatePortalResponse{
+			StatusCode: 201,
+			PortalResponse: &kkComps.PortalResponse{
+				ID:        createdPortal.ID,
+				Name:      createdPortal.Name,
+				CreatedAt: createdPortal.CreatedAt,
+				UpdatedAt: createdPortal.UpdatedAt,
+			},
+		}, nil)
+	
+	// Mock portal lookup during execution (called when creating API publication)
+	// This will be called after the portal is created
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
+		Return(&kkOps.ListPortalsResponse{
+			ListPortalsResponse: &kkComps.ListPortalsResponse{
+				Data: []kkComps.Portal{createdPortal},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 1,
+					},
+				},
+			},
+		}, nil)
+	
+	// Mock API creation
+	apiTime := time.Now()
+	createdAPI := kkComps.APIResponseSchema{
+		ID:          "api-456",
+		Name:        "My API",
+		Description: stringPtr("API with child resources"),
+		Version:     stringPtr("1.0.0"),
+		Labels: map[string]string{
+			"KONGCTL-managed":      "true",
+			"KONGCTL-last-updated": "20240101-120000Z",
+			"KONGCTL-protected":    "false",
+		},
+		CreatedAt: apiTime,
+		UpdatedAt: apiTime,
+	}
+	
+	mockAPIAPI.On("CreateAPI", mock.Anything, mock.Anything).
+		Return(&kkOps.CreateAPIResponse{
+			StatusCode: 201,
+			APIResponseSchema: &createdAPI,
+		}, nil)
+	
+	// Mock API version creation
+	versionTime := time.Now()
+	createdVersion := kkComps.APIVersionResponse{
+		ID:        "version-789",
+		Version:   "v1.0.0",
+		CreatedAt: versionTime,
+		UpdatedAt: versionTime,
+	}
+	
+	mockAPIAPI.On("CreateAPIVersion", mock.Anything, "api-456", mock.Anything).
+		Return(&kkOps.CreateAPIVersionResponse{
+			APIVersionResponse: &createdVersion,
+		}, nil)
+	
+	// Mock API publication
+	pubTime := time.Now()
+	createdPublication := kkComps.APIPublicationResponse{
+		CreatedAt:  pubTime,
+		UpdatedAt:  pubTime,
+		AuthStrategyIds: []string{},
+	}
+	
+	mockAPIAPI.On("PublishAPIToPortal", mock.Anything, mock.Anything).
+		Return(&kkOps.PublishAPIToPortalResponse{
+			StatusCode: 201,
+			APIPublicationResponse: &createdPublication,
+		}, nil)
+	
+	// Mock empty child resources for planning (APIs are checked for child resources during planning)
+	mockAPIAPI.On("ListAPIVersions", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIVersionsResponse{
+			StatusCode: 200,
+			ListAPIVersionResponse: &kkComps.ListAPIVersionResponse{
+				Data: []kkComps.ListAPIVersionResponseAPIVersionSummary{},
+			},
+		}, nil)
+	mockAPIAPI.On("ListAPIPublications", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIPublicationsResponse{
+			StatusCode: 200,
+			ListAPIPublicationResponse: &kkComps.ListAPIPublicationResponse{
+				Data: []kkComps.APIPublicationListItem{},
+			},
+		}, nil)
+	mockAPIAPI.On("ListAPIImplementations", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIImplementationsResponse{
+			StatusCode: 200,
+			ListAPIImplementationsResponse: &kkComps.ListAPIImplementationsResponse{
+				Data: []kkComps.APIImplementationListItem{},
+			},
+		}, nil)
+	mockAPIAPI.On("ListAPIDocuments", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIDocumentsResponse{
+			StatusCode: 200,
+			ListAPIDocumentResponse: &kkComps.ListAPIDocumentResponse{
+				Data: []kkComps.APIDocumentSummaryWithChildren{},
+			},
+		}, nil)
+
+	// Create state client and planner
+	stateClient := state.NewClientWithAPIs(mockPortalAPI, mockAPIAPI)
+	p := planner.NewPlanner(stateClient)
+	
+	// Generate plan
+	plan, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+	
+	// Verify operations are in correct order (dependencies)
+	var resourceTypes []string
+	for _, change := range plan.Changes {
+		resourceTypes = append(resourceTypes, change.ResourceType)
+		t.Logf("Change %d: %s %s (ref: %s)", len(resourceTypes), change.Action, change.ResourceType, change.ResourceRef)
+	}
+	
+	// Portal should be created before API publication
+	portalIdx := -1
+	apiIdx := -1
+	pubIdx := -1
+	for i, rt := range resourceTypes {
+		switch rt {
+		case "portal":
+			portalIdx = i
+		case "api":
+			apiIdx = i
+		case "api_publication":
+			pubIdx = i
+		}
+	}
+	
+	assert.True(t, portalIdx < pubIdx, "Portal should be created before publication")
+	assert.True(t, apiIdx < pubIdx, "API should be created before publication")
+	
+	// Execute plan
+	exec := executor.New(stateClient, nil, false)
+	report, err := exec.Execute(ctx, plan)
+	require.NoError(t, err)
+	
+	// Debug output
+	t.Logf("Execution report: Success=%d, Failure=%d, Skipped=%d", 
+		report.SuccessCount, report.FailureCount, report.SkippedCount)
+	for _, change := range report.ChangesApplied {
+		t.Logf("Applied: %s %s %s", change.Action, change.ResourceType, change.ResourceRef)
+	}
+	for _, err := range report.Errors {
+		t.Logf("Error: %s %s %s: %s", err.Action, err.ResourceType, err.ResourceRef, err.Error)
+	}
+	
+	assert.Equal(t, 4, report.SuccessCount+report.FailureCount+report.SkippedCount)
+	assert.Equal(t, 4, report.SuccessCount)
+	
+	// Note: We don't assert all expectations because planning calls List* methods
+	// that aren't called during execution
+}
+
+func TestAPISeparateFileConfiguration(t *testing.T) {
+	ctx := SetupTestContext(t)
+	
+	// Create test YAML files - separate files for API and child resources
+	tempDir := t.TempDir()
+	
+	// API file
+	apiFile := filepath.Join(tempDir, "api.yaml")
+	apiContent := `
+apis:
+  - ref: my-api
+    name: "My API"
+    description: "API managed by team A"
+    version: "1.0.0"
+`
+	err := os.WriteFile(apiFile, []byte(apiContent), 0600)
+	require.NoError(t, err)
+	
+	// Version file (managed by different team)
+	versionFile := filepath.Join(tempDir, "versions.yaml")
+	versionContent := `
+api_versions:
+  - ref: v1
+    api: my-api
+    name: "v1.0.0"
+    deprecated: false
+  - ref: v2
+    api: my-api
+    name: "v2.0.0"
+    deprecated: false
+`
+	err = os.WriteFile(versionFile, []byte(versionContent), 0600)
+	require.NoError(t, err)
+	
+	// Load all files
+	l := loader.New()
+	resourceSet, err := l.LoadFromSources([]loader.Source{{Path: tempDir, Type: loader.SourceTypeDirectory}}, true)
+	require.NoError(t, err)
+	
+	// Verify resources loaded correctly
+	assert.Len(t, resourceSet.APIs, 1)
+	assert.Len(t, resourceSet.APIVersions, 2)
+	
+	// Verify parent references
+	for _, version := range resourceSet.APIVersions {
+		assert.Equal(t, "my-api", version.API)
+	}
+	
+	// Set up mocks
+	mockAPIAPI := GetMockAPIAPI(ctx, t)
+	
+	// Mock empty initial state - called multiple times during planning and execution
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
+		Return(&kkOps.ListApisResponse{
+			StatusCode: 200,
+			ListAPIResponse: &kkComps.ListAPIResponse{
+				Data: []kkComps.APIResponseSchema{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
+				},
+			},
+		}, nil)
+	
+	// Mock API creation
+	createdAPI := kkComps.APIResponseSchema{
+		ID:      "api-123",
+		Name:    "My API",
+		Version: stringPtr("1.0.0"),
+		Labels: map[string]string{
+			"KONGCTL-managed":      "true",
+			"KONGCTL-last-updated": "20240101-120000Z",
+			"KONGCTL-protected":    "false",
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	
+	mockAPIAPI.On("CreateAPI", mock.Anything, mock.Anything).
+		Return(&kkOps.CreateAPIResponse{
+			StatusCode: 201,
+			APIResponseSchema: &createdAPI,
+		}, nil)
+	
+	// Mock version creations
+	for i := 1; i <= 2; i++ {
+		versionName := fmt.Sprintf("v%d.0.0", i)
+		createdVersion := kkComps.APIVersionResponse{
+			ID:         fmt.Sprintf("version-%d", i),
+			Version:    versionName,
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
+		}
+		
+		mockAPIAPI.On("CreateAPIVersion", mock.Anything, "api-123", mock.Anything).
+			Return(&kkOps.CreateAPIVersionResponse{
+				APIVersionResponse: &createdVersion,
+			}, nil)
+	}
+	
+	// Mock empty child resources for planning (APIs are checked for child resources during planning)
+	mockAPIAPI.On("ListAPIVersions", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIVersionsResponse{
+			StatusCode: 200,
+			ListAPIVersionResponse: &kkComps.ListAPIVersionResponse{
+				Data: []kkComps.ListAPIVersionResponseAPIVersionSummary{},
+			},
+		}, nil)
+	mockAPIAPI.On("ListAPIPublications", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIPublicationsResponse{
+			StatusCode: 200,
+			ListAPIPublicationResponse: &kkComps.ListAPIPublicationResponse{
+				Data: []kkComps.APIPublicationListItem{},
+			},
+		}, nil)
+	mockAPIAPI.On("ListAPIImplementations", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIImplementationsResponse{
+			StatusCode: 200,
+			ListAPIImplementationsResponse: &kkComps.ListAPIImplementationsResponse{
+				Data: []kkComps.APIImplementationListItem{},
+			},
+		}, nil)
+	mockAPIAPI.On("ListAPIDocuments", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIDocumentsResponse{
+			StatusCode: 200,
+			ListAPIDocumentResponse: &kkComps.ListAPIDocumentResponse{
+				Data: []kkComps.APIDocumentSummaryWithChildren{},
+			},
+		}, nil)
+
+	// Create state client and planner
+	mockPortalAPI := GetMockPortalAPI(ctx, t)
+	// Mock empty portals list
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
+		Return(&kkOps.ListPortalsResponse{
+			ListPortalsResponse: &kkComps.ListPortalsResponse{
+				Data: []kkComps.Portal{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
+				},
+			},
+		}, nil)
+	stateClient := state.NewClientWithAPIs(mockPortalAPI, mockAPIAPI)
+	p := planner.NewPlanner(stateClient)
+	
+	// Generate plan
+	plan, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+	
+	// Verify API is created before versions
+	apiOpIdx := -1
+	firstVersionIdx := -1
+	for i, change := range plan.Changes {
+		if change.ResourceType == "api" {
+			apiOpIdx = i
+		} else if change.ResourceType == "api_version" && firstVersionIdx == -1 {
+			firstVersionIdx = i
+		}
+	}
+	
+	assert.True(t, apiOpIdx < firstVersionIdx, "API should be created before versions")
+	
+	// Execute plan
+	exec := executor.New(stateClient, nil, false)
+	report, err := exec.Execute(ctx, plan)
+	require.NoError(t, err)
+	assert.Equal(t, 3, report.SuccessCount + report.FailureCount + report.SkippedCount) // 1 API + 2 versions
+	assert.Equal(t, 3, report.SuccessCount)
+	
+	// Note: We don't assert all expectations because planning calls List* methods
+	// that aren't called during execution
+}
+
+func TestAPIProtectionHandling(t *testing.T) {
+	ctx := SetupTestContext(t)
+	
+	// Create test YAML with protected API
+	tempDir := t.TempDir()
+	configFile := filepath.Join(tempDir, "protected-api.yaml")
+	
+	configContent := `
+apis:
+  - ref: protected-api
+    name: "Protected API"
+    description: "This API should not be deleted"
+    version: "1.0.0"
+    kongctl:
+      protected: true
+`
+	
+	err := os.WriteFile(configFile, []byte(configContent), 0600)
+	require.NoError(t, err)
+	
+	// Load configuration
+	l := loader.New()
+	resourceSet, err := l.LoadFromSources([]loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}, false)
+	require.NoError(t, err)
+	
+	// Set up mocks
+	mockAPIAPI := GetMockAPIAPI(ctx, t)
+	
+	// Mock existing API (simulating sync mode where API exists but not in config)
+	existingAPI := kkComps.APIResponseSchema{
+		ID:      "api-999",
+		Name:    "Old API",
+		Version: stringPtr("0.1.0"),
+		Labels: map[string]string{
+			"KONGCTL-managed":   "true",
+			"KONGCTL-protected": "true",
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
+		Return(&kkOps.ListApisResponse{
+			StatusCode: 200,
+			ListAPIResponse: &kkComps.ListAPIResponse{
+				Data: []kkComps.APIResponseSchema{existingAPI},
+			},
+		}, nil)
+	
+	// Create state client and planner
+	mockPortalAPI := GetMockPortalAPI(ctx, t)
+	// Mock empty portals list
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
+		Return(&kkOps.ListPortalsResponse{
+			ListPortalsResponse: &kkComps.ListPortalsResponse{
+				Data: []kkComps.Portal{},
+			},
+		}, nil)
+	stateClient := state.NewClientWithAPIs(mockPortalAPI, mockAPIAPI)
+	p := planner.NewPlanner(stateClient)
+	
+	// Try to generate sync plan (which would delete the protected API)
+	_, err = p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeSync})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "protected")
+	
+	mockAPIAPI.AssertExpectations(t)
+}
+
+func TestAPIDocumentHierarchy(t *testing.T) {
+	ctx := SetupTestContext(t)
+	
+	// Create test YAML with API documents
+	tempDir := t.TempDir()
+	configFile := filepath.Join(tempDir, "api-docs.yaml")
+	
+	configContent := `
+apis:
+  - ref: documented-api
+    name: "Documented API"
+    description: "API with documentation"
+    version: "1.0.0"
+
+api_documents:
+  - ref: api-guide
+    api: documented-api
+    slug: "getting-started"
+    title: "Getting Started Guide"
+    content: |
+      # Getting Started
+      
+      This is the getting started guide for our API.
+      
+      ## Authentication
+      
+      Use API keys to authenticate...
+    status: "published"
+  - ref: api-ref
+    api: documented-api
+    parent_document_id: "{{api_documents.api-guide.id}}"
+    slug: "api-reference"
+    title: "API Reference"
+    content: |
+      ## API Reference
+      
+      Detailed API reference documentation.
+    status: "published"
+`
+	
+	err := os.WriteFile(configFile, []byte(configContent), 0600)
+	require.NoError(t, err)
+	
+	// Load configuration
+	l := loader.New()
+	
+	// Read the file content for debugging
+	fileContent, _ := os.ReadFile(configFile)
+	t.Logf("File content length: %d", len(fileContent))
+	
+	resourceSet, err := l.LoadFromSources([]loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}, false)
+	require.NoError(t, err)
+	
+	// Debug output
+	t.Logf("Loaded resources: APIs=%d, APIDocuments=%d", len(resourceSet.APIs), len(resourceSet.APIDocuments))
+	for i, api := range resourceSet.APIs {
+		t.Logf("API[%d]: ref=%s, name=%s", i, api.Ref, api.Name)
+	}
+	for i, doc := range resourceSet.APIDocuments {
+		title := ""
+		if doc.Title != nil {
+			title = *doc.Title
+		}
+		t.Logf("APIDocument[%d]: ref=%s, api=%s, title=%s", i, doc.Ref, doc.API, title)
+	}
+	
+	// Verify documents loaded with resolved content
+	require.Len(t, resourceSet.APIDocuments, 2)
+	assert.Equal(t, "documented-api", resourceSet.APIDocuments[0].API)
+	assert.Contains(t, resourceSet.APIDocuments[0].Content, "# Getting Started")
+	assert.Contains(t, resourceSet.APIDocuments[1].Content, "## API Reference")
+	
+	// Set up mocks
+	mockAPIAPI := GetMockAPIAPI(ctx, t)
+	
+	// Mock empty initial state
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
+		Return(&kkOps.ListApisResponse{
+			StatusCode: 200,
+			ListAPIResponse: &kkComps.ListAPIResponse{
+				Data: []kkComps.APIResponseSchema{},
+			},
+		}, nil)
+	
+	// Mock API creation
+	createdAPI := kkComps.APIResponseSchema{
+		ID:   "api-doc-123",
+		Name: "Documented API",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	
+	mockAPIAPI.On("CreateAPI", mock.Anything, mock.Anything).
+		Return(&kkOps.CreateAPIResponse{
+			StatusCode: 201,
+			APIResponseSchema: &createdAPI,
+		}, nil)
+	
+	// Mock ListAPIDocuments for planning phase
+	mockAPIAPI.On("ListAPIDocuments", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIDocumentsResponse{
+			StatusCode: 200,
+			ListAPIDocumentResponse: &kkComps.ListAPIDocumentResponse{
+				Data: []kkComps.APIDocumentSummaryWithChildren{},
+			},
+		}, nil).Maybe()
+	
+	// Mock empty child resources for created API
+	mockAPIAPI.On("ListAPIVersions", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIVersionsResponse{
+			StatusCode: 200,
+			ListAPIVersionResponse: &kkComps.ListAPIVersionResponse{
+				Data: []kkComps.ListAPIVersionResponseAPIVersionSummary{},
+			},
+		}, nil).Maybe()
+	mockAPIAPI.On("ListAPIPublications", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIPublicationsResponse{
+			StatusCode: 200,
+			ListAPIPublicationResponse: &kkComps.ListAPIPublicationResponse{
+				Data: []kkComps.APIPublicationListItem{},
+			},
+		}, nil).Maybe()
+	mockAPIAPI.On("ListAPIImplementations", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAPIImplementationsResponse{
+			StatusCode: 200,
+			ListAPIImplementationsResponse: &kkComps.ListAPIImplementationsResponse{
+				Data: []kkComps.APIImplementationListItem{},
+			},
+		}, nil).Maybe()
+	
+	// Mock document creations
+	createdDoc1 := kkComps.APIDocumentResponse{
+		ID:    "doc-1",
+		Slug:  "getting-started",
+		Title: "Getting Started Guide",
+	}
+	
+	mockAPIAPI.On("CreateAPIDocument", mock.Anything, "api-doc-123", mock.Anything).
+		Return(&kkOps.CreateAPIDocumentResponse{
+			APIDocumentResponse: &createdDoc1,
+		}, nil).Once()
+	
+	createdDoc2 := kkComps.APIDocumentResponse{
+		ID:               "doc-2",
+		Slug:             "api-reference",
+		Title:            "API Reference",
+		ParentDocumentID: stringPtr("doc-1"),
+	}
+	
+	mockAPIAPI.On("CreateAPIDocument", mock.Anything, "api-doc-123", mock.Anything).
+		Return(&kkOps.CreateAPIDocumentResponse{
+			APIDocumentResponse: &createdDoc2,
+		}, nil).Once()
+	
+	// Create state client and planner
+	mockPortalAPI := GetMockPortalAPI(ctx, t)
+	// Mock empty portals list
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
+		Return(&kkOps.ListPortalsResponse{
+			ListPortalsResponse: &kkComps.ListPortalsResponse{
+				Data: []kkComps.Portal{},
+			},
+		}, nil)
+	stateClient := state.NewClientWithAPIs(mockPortalAPI, mockAPIAPI)
+	p := planner.NewPlanner(stateClient)
+	
+	// Generate plan
+	plan, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+	
+	// Debug plan
+	t.Logf("Plan has %d changes", len(plan.Changes))
+	for i, change := range plan.Changes {
+		t.Logf("Change %d: %s %s %s", i, change.Action, change.ResourceType, change.ResourceRef)
+	}
+	
+	// Execute plan
+	exec := executor.New(stateClient, nil, false)
+	report, err := exec.Execute(ctx, plan)
+	require.NoError(t, err)
+	assert.Equal(t, 3, report.SuccessCount + report.FailureCount + report.SkippedCount) // API + 2 documents
+	assert.Equal(t, 3, report.SuccessCount)
+	
+	mockAPIAPI.AssertExpectations(t)
+}
+
+func TestAPIImplementationLimitations(t *testing.T) {
+	ctx := SetupTestContext(t)
+	
+	// Create test YAML with API implementation
+	tempDir := t.TempDir()
+	configFile := filepath.Join(tempDir, "api-impl.yaml")
+	
+	configContent := `
+apis:
+  - ref: impl-api
+    name: "API with Implementation"
+    version: "1.0.0"
+
+api_implementations:
+  - ref: kong-impl
+    api: impl-api
+    kong_gateway_service_name: "my-service"
+`
+	
+	err := os.WriteFile(configFile, []byte(configContent), 0600)
+	require.NoError(t, err)
+	
+	// Load configuration
+	l := loader.New()
+	resourceSet, err := l.LoadFromSources([]loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}, false)
+	require.NoError(t, err)
+	
+	// Set up mocks
+	mockAPIAPI := GetMockAPIAPI(ctx, t)
+	
+	// Mock empty initial state
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
+		Return(&kkOps.ListApisResponse{
+			StatusCode: 200,
+			ListAPIResponse: &kkComps.ListAPIResponse{
+				Data: []kkComps.APIResponseSchema{},
+			},
+		}, nil)
+	
+	// Mock API creation
+	createdAPI := kkComps.APIResponseSchema{
+		ID:   "api-impl-123",
+		Name: "API with Implementation",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	
+	mockAPIAPI.On("CreateAPI", mock.Anything, mock.Anything).
+		Return(&kkOps.CreateAPIResponse{
+			StatusCode: 201,
+			APIResponseSchema: &createdAPI,
+		}, nil)
+	
+	// Create state client and planner
+	mockPortalAPI := GetMockPortalAPI(ctx, t)
+	// Mock empty portals list
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
+		Return(&kkOps.ListPortalsResponse{
+			ListPortalsResponse: &kkComps.ListPortalsResponse{
+				Data: []kkComps.Portal{},
+			},
+		}, nil)
+	stateClient := state.NewClientWithAPIs(mockPortalAPI, mockAPIAPI)
+	p := planner.NewPlanner(stateClient)
+	
+	// Generate plan - should only create API, not implementation (SDK limitation)
+	plan, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+	
+	// Verify only API is created (implementation create not supported)
+	assert.Len(t, plan.Changes, 1)
+	assert.Equal(t, "api", plan.Changes[0].ResourceType)
+	
+	// Execute plan
+	exec := executor.New(stateClient, nil, false)
+	report, err := exec.Execute(ctx, plan)
+	require.NoError(t, err)
+	assert.Equal(t, 1, report.SuccessCount + report.FailureCount + report.SkippedCount)
+	assert.Equal(t, 1, report.SuccessCount)
+	
+	mockAPIAPI.AssertExpectations(t)
+}
+
+// Helper functions
+func GetMockPortalAPI(ctx context.Context, _ *testing.T) *MockPortalAPI {
+	sdk := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
+	konnectSDK, _ := sdk(GetTestConfig(), nil)
+	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
+	return mockSDK.GetPortalAPI().(*MockPortalAPI)
+}
+
+func GetMockAPIAPI(ctx context.Context, _ *testing.T) *MockAPIAPI {
+	sdk := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
+	konnectSDK, _ := sdk(GetTestConfig(), nil)
+	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
+	return mockSDK.GetAPIAPI().(*MockAPIAPI)
+}
+
+func stringPtr(s string) *string {
+	return &s
+}
+

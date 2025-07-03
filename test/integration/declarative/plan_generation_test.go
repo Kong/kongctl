@@ -50,6 +50,25 @@ portals:
 	// Set up test context with all necessary values
 	ctx := SetupTestContext(t)
 	
+	// Get the mock portal API and set up expectations
+	sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
+	konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
+	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
+	mockPortalAPI := mockSDK.GetPortalAPI().(*MockPortalAPI)
+	
+	// Mock empty portals list (no existing portals)
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
+		Return(&kkOps.ListPortalsResponse{
+			ListPortalsResponse: &kkComps.ListPortalsResponse{
+				Data: []kkComps.Portal{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
+				},
+			},
+		}, nil)
+	
 	// Override the PersistentPreRunE to preserve our test SDK factory
 	originalPreRun := planCmd.PersistentPreRunE
 	planCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
@@ -607,6 +626,25 @@ portals:
 	
 	// Set up test context with all necessary values
 	ctx := SetupTestContext(t)
+	
+	// Get the mock portal API and set up expectations
+	sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
+	konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
+	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
+	mockPortalAPI := mockSDK.GetPortalAPI().(*MockPortalAPI)
+	
+	// Mock empty portals list (no existing portals)
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
+		Return(&kkOps.ListPortalsResponse{
+			ListPortalsResponse: &kkComps.ListPortalsResponse{
+				Data: []kkComps.Portal{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
+				},
+			},
+		}, nil)
 	
 	// Override the PersistentPreRunE to preserve our test SDK factory
 	originalPreRun := planCmd.PersistentPreRunE

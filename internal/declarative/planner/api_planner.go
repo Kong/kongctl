@@ -494,8 +494,9 @@ func (p *Planner) planAPIImplementationChanges(
 			_, exists := currentByService[key]
 			
 			if !exists {
-				// CREATE - implementations don't support update
-				p.planAPIImplementationCreate(apiRef, desiredImpl, []string{}, plan)
+				// Skip CREATE - SDK doesn't support implementation creation yet
+				// TODO: Enable when SDK adds support
+				// p.planAPIImplementationCreate(apiRef, desiredImpl, []string{}, plan)
 			}
 			// Note: Implementation IDs are managed by the SDK
 		}
@@ -513,7 +514,10 @@ func (p *Planner) planAPIImplementationChanges(
 		
 		for serviceKey, current := range currentByService {
 			if !desiredServices[serviceKey] {
-				p.planAPIImplementationDelete(apiRef, current.ID, plan)
+				// Skip DELETE - SDK doesn't support implementation deletion yet
+				// TODO: Enable when SDK adds support
+				// p.planAPIImplementationDelete(apiRef, current.ID, plan)
+				_ = current // suppress unused variable warning
 			}
 		}
 	}
@@ -709,5 +713,202 @@ func (p *Planner) planAPIDocumentDelete(apiRef string, documentID string, plan *
 	}
 	
 	plan.AddChange(change)
+}
+
+// planAPIVersionsChanges plans changes for extracted API version resources
+func (p *Planner) planAPIVersionsChanges(ctx context.Context, desired []resources.APIVersionResource, plan *Plan) error {
+	// Group versions by parent API
+	versionsByAPI := make(map[string][]resources.APIVersionResource)
+	for _, version := range desired {
+		versionsByAPI[version.API] = append(versionsByAPI[version.API], version)
+	}
+	
+	// For each API, plan version changes
+	for apiRef, versions := range versionsByAPI {
+		// Find the API ID from existing changes or state
+		apiID := ""
+		for _, change := range plan.Changes {
+			if change.ResourceType == "api" && change.ResourceRef == apiRef {
+				if change.Action == ActionCreate {
+					// API is being created, use dependency
+					for _, v := range versions {
+						p.planAPIVersionCreate(apiRef, v, []string{change.ID}, plan)
+					}
+					continue
+				} else {
+					apiID = change.ResourceID
+					break
+				}
+			}
+		}
+		
+		// If API not in changes, look it up
+		if apiID == "" {
+			api, err := p.client.GetAPIByName(ctx, apiRef)
+			if err != nil {
+				return fmt.Errorf("failed to get API %s: %w", apiRef, err)
+			}
+			if api != nil {
+				apiID = api.ID
+			}
+		}
+		
+		if apiID != "" {
+			// Plan version changes for existing API
+			if err := p.planAPIVersionChanges(ctx, apiID, apiRef, versions, plan); err != nil {
+				return err
+			}
+		}
+	}
+	
+	return nil
+}
+
+// planAPIPublicationsChanges plans changes for extracted API publication resources
+func (p *Planner) planAPIPublicationsChanges(ctx context.Context, desired []resources.APIPublicationResource, plan *Plan) error {
+	// Group publications by parent API
+	publicationsByAPI := make(map[string][]resources.APIPublicationResource)
+	for _, pub := range desired {
+		publicationsByAPI[pub.API] = append(publicationsByAPI[pub.API], pub)
+	}
+	
+	// For each API, plan publication changes
+	for apiRef, publications := range publicationsByAPI {
+		// Find the API ID from existing changes or state
+		apiID := ""
+		for _, change := range plan.Changes {
+			if change.ResourceType == "api" && change.ResourceRef == apiRef {
+				if change.Action == ActionCreate {
+					// API is being created, use dependency
+					for _, pub := range publications {
+						p.planAPIPublicationCreate(apiRef, pub, []string{change.ID}, plan)
+					}
+					continue
+				} else {
+					apiID = change.ResourceID
+					break
+				}
+			}
+		}
+		
+		// If API not in changes, look it up
+		if apiID == "" {
+			api, err := p.client.GetAPIByName(ctx, apiRef)
+			if err != nil {
+				return fmt.Errorf("failed to get API %s: %w", apiRef, err)
+			}
+			if api != nil {
+				apiID = api.ID
+			}
+		}
+		
+		if apiID != "" {
+			// Plan publication changes for existing API
+			if err := p.planAPIPublicationChanges(ctx, apiID, apiRef, publications, plan); err != nil {
+				return err
+			}
+		}
+	}
+	
+	return nil
+}
+
+// planAPIImplementationsChanges plans changes for extracted API implementation resources
+func (p *Planner) planAPIImplementationsChanges(ctx context.Context, desired []resources.APIImplementationResource, plan *Plan) error {
+	// Group implementations by parent API
+	implementationsByAPI := make(map[string][]resources.APIImplementationResource)
+	for _, impl := range desired {
+		implementationsByAPI[impl.API] = append(implementationsByAPI[impl.API], impl)
+	}
+	
+	// For each API, plan implementation changes
+	for apiRef, implementations := range implementationsByAPI {
+		// Find the API ID from existing changes or state
+		apiID := ""
+		for _, change := range plan.Changes {
+			if change.ResourceType == "api" && change.ResourceRef == apiRef {
+				if change.Action == ActionCreate {
+					// Skip CREATE - SDK doesn't support implementation creation yet
+					// TODO: Enable when SDK adds support
+					// for _, impl := range implementations {
+					//	p.planAPIImplementationCreate(apiRef, impl, []string{change.ID}, plan)
+					// }
+					continue
+				} else {
+					apiID = change.ResourceID
+					break
+				}
+			}
+		}
+		
+		// If API not in changes, look it up
+		if apiID == "" {
+			api, err := p.client.GetAPIByName(ctx, apiRef)
+			if err != nil {
+				return fmt.Errorf("failed to get API %s: %w", apiRef, err)
+			}
+			if api != nil {
+				apiID = api.ID
+			}
+		}
+		
+		if apiID != "" {
+			// Plan implementation changes for existing API
+			if err := p.planAPIImplementationChanges(ctx, apiID, apiRef, implementations, plan); err != nil {
+				return err
+			}
+		}
+	}
+	
+	return nil
+}
+
+// planAPIDocumentsChanges plans changes for extracted API document resources
+func (p *Planner) planAPIDocumentsChanges(ctx context.Context, desired []resources.APIDocumentResource, plan *Plan) error {
+	// Group documents by parent API
+	documentsByAPI := make(map[string][]resources.APIDocumentResource)
+	for _, doc := range desired {
+		documentsByAPI[doc.API] = append(documentsByAPI[doc.API], doc)
+	}
+	
+	// For each API, plan document changes
+	for apiRef, documents := range documentsByAPI {
+		// Find the API ID from existing changes or state
+		apiID := ""
+		for _, change := range plan.Changes {
+			if change.ResourceType == "api" && change.ResourceRef == apiRef {
+				if change.Action == ActionCreate {
+					// API is being created, use dependency
+					for _, doc := range documents {
+						p.planAPIDocumentCreate(apiRef, doc, []string{change.ID}, plan)
+					}
+					continue
+				} else {
+					apiID = change.ResourceID
+					break
+				}
+			}
+		}
+		
+		// If API not in changes, look it up
+		if apiID == "" {
+			api, err := p.client.GetAPIByName(ctx, apiRef)
+			if err != nil {
+				return fmt.Errorf("failed to get API %s: %w", apiRef, err)
+			}
+			if api != nil {
+				apiID = api.ID
+			}
+		}
+		
+		if apiID != "" {
+			// Plan document changes for existing API
+			if err := p.planAPIDocumentChanges(ctx, apiID, apiRef, documents, plan); err != nil {
+				return err
+			}
+		}
+	}
+	
+	return nil
 }
 

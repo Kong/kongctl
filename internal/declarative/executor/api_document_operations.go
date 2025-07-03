@@ -15,17 +15,9 @@ func (e *Executor) createAPIDocument(ctx context.Context, change planner.Planned
 	}
 
 	// Get parent API ID
-	if change.Parent == nil {
-		return "", fmt.Errorf("parent API reference required for API document creation")
-	}
-
-	// Get the parent API by ref
-	parentAPI, err := e.client.GetAPIByName(ctx, change.Parent.Ref)
+	parentAPIID, err := e.getParentAPIID(ctx, change)
 	if err != nil {
-		return "", fmt.Errorf("failed to get parent API: %w", err)
-	}
-	if parentAPI == nil {
-		return "", fmt.Errorf("parent API not found: %s", change.Parent.Ref)
+		return "", err
 	}
 
 	// Build request
@@ -53,7 +45,7 @@ func (e *Executor) createAPIDocument(ctx context.Context, change planner.Planned
 	}
 
 	// Create the document
-	resp, err := e.client.CreateAPIDocument(ctx, parentAPI.ID, req)
+	resp, err := e.client.CreateAPIDocument(ctx, parentAPIID, req)
 	if err != nil {
 		return "", fmt.Errorf("failed to create API document: %w", err)
 	}
@@ -68,17 +60,9 @@ func (e *Executor) updateAPIDocument(ctx context.Context, change planner.Planned
 	}
 
 	// Get parent API ID
-	if change.Parent == nil {
-		return "", fmt.Errorf("parent API reference required for API document update")
-	}
-
-	// Get the parent API by ref
-	parentAPI, err := e.client.GetAPIByName(ctx, change.Parent.Ref)
+	parentAPIID, err := e.getParentAPIID(ctx, change)
 	if err != nil {
-		return "", fmt.Errorf("failed to get parent API: %w", err)
-	}
-	if parentAPI == nil {
-		return "", fmt.Errorf("parent API not found: %s", change.Parent.Ref)
+		return "", err
 	}
 
 	// Build request
@@ -103,7 +87,7 @@ func (e *Executor) updateAPIDocument(ctx context.Context, change planner.Planned
 	}
 
 	// Update the document
-	resp, err := e.client.UpdateAPIDocument(ctx, parentAPI.ID, change.ResourceID, req)
+	resp, err := e.client.UpdateAPIDocument(ctx, parentAPIID, change.ResourceID, req)
 	if err != nil {
 		return "", fmt.Errorf("failed to update API document: %w", err)
 	}
@@ -118,21 +102,13 @@ func (e *Executor) deleteAPIDocument(ctx context.Context, change planner.Planned
 	}
 
 	// Get parent API ID
-	if change.Parent == nil {
-		return fmt.Errorf("parent API reference required for API document deletion")
-	}
-
-	// Get the parent API by ref
-	parentAPI, err := e.client.GetAPIByName(ctx, change.Parent.Ref)
+	parentAPIID, err := e.getParentAPIID(ctx, change)
 	if err != nil {
-		return fmt.Errorf("failed to get parent API: %w", err)
-	}
-	if parentAPI == nil {
-		return fmt.Errorf("parent API not found: %s", change.Parent.Ref)
+		return err
 	}
 
 	// Delete the document
-	if err := e.client.DeleteAPIDocument(ctx, parentAPI.ID, change.ResourceID); err != nil {
+	if err := e.client.DeleteAPIDocument(ctx, parentAPIID, change.ResourceID); err != nil {
 		return fmt.Errorf("failed to delete API document: %w", err)
 	}
 

@@ -49,6 +49,23 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		return nil, fmt.Errorf("failed to plan API changes: %w", err)
 	}
 
+	// Plan API child resources (extracted from nested definitions)
+	if err := p.planAPIVersionsChanges(ctx, rs.APIVersions, plan); err != nil {
+		return nil, fmt.Errorf("failed to plan API version changes: %w", err)
+	}
+	
+	if err := p.planAPIPublicationsChanges(ctx, rs.APIPublications, plan); err != nil {
+		return nil, fmt.Errorf("failed to plan API publication changes: %w", err)
+	}
+	
+	if err := p.planAPIImplementationsChanges(ctx, rs.APIImplementations, plan); err != nil {
+		return nil, fmt.Errorf("failed to plan API implementation changes: %w", err)
+	}
+	
+	if err := p.planAPIDocumentsChanges(ctx, rs.APIDocuments, plan); err != nil {
+		return nil, fmt.Errorf("failed to plan API document changes: %w", err)
+	}
+
 	// Future: Add other resource types
 
 	// Resolve references for all changes

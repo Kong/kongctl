@@ -15,17 +15,9 @@ func (e *Executor) createAPIVersion(ctx context.Context, change planner.PlannedC
 	}
 
 	// Get parent API ID
-	if change.Parent == nil {
-		return "", fmt.Errorf("parent API reference required for API version creation")
-	}
-
-	// Get the parent API by ref
-	parentAPI, err := e.client.GetAPIByName(ctx, change.Parent.Ref)
+	parentAPIID, err := e.getParentAPIID(ctx, change)
 	if err != nil {
-		return "", fmt.Errorf("failed to get parent API: %w", err)
-	}
-	if parentAPI == nil {
-		return "", fmt.Errorf("parent API not found: %s", change.Parent.Ref)
+		return "", err
 	}
 
 	// Build request
@@ -45,7 +37,7 @@ func (e *Executor) createAPIVersion(ctx context.Context, change planner.PlannedC
 	}
 
 	// Create the version
-	resp, err := e.client.CreateAPIVersion(ctx, parentAPI.ID, req)
+	resp, err := e.client.CreateAPIVersion(ctx, parentAPIID, req)
 	if err != nil {
 		return "", fmt.Errorf("failed to create API version: %w", err)
 	}

@@ -57,6 +57,7 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 	apiVersionRefs := make(map[string]string)  // ref -> source path
 	apiPubRefs := make(map[string]string)      // ref -> source path
 	apiImplRefs := make(map[string]string)     // ref -> source path
+	apiDocRefs := make(map[string]string)      // ref -> source path
 	
 	for _, source := range sources {
 		var rs *resources.ResourceSet
@@ -69,7 +70,7 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 			rs, err = l.loadDirectorySource(source.Path, recursive, 
 				portalRefs, portalNames, authStratRefs, authStratNames,
 				cpRefs, cpNames, apiRefs, apiNames,
-				apiVersionRefs, apiPubRefs, apiImplRefs)
+				apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs)
 		case SourceTypeSTDIN:
 			rs, err = l.loadSTDIN()
 		default:
@@ -86,7 +87,7 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 			if err := l.mergeResourceSet(&allResources, rs, source.Path,
 				portalRefs, portalNames, authStratRefs, authStratNames,
 				cpRefs, cpNames, apiRefs, apiNames,
-				apiVersionRefs, apiPubRefs, apiImplRefs); err != nil {
+				apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs); err != nil {
 				return nil, err
 			}
 		} else {
@@ -99,6 +100,7 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 			allResources.APIVersions = append(allResources.APIVersions, rs.APIVersions...)
 			allResources.APIPublications = append(allResources.APIPublications, rs.APIPublications...)
 			allResources.APIImplementations = append(allResources.APIImplementations, rs.APIImplementations...)
+			allResources.APIDocuments = append(allResources.APIDocuments, rs.APIDocuments...)
 		}
 	}
 	
@@ -228,7 +230,7 @@ func (l *Loader) loadSTDIN() (*resources.ResourceSet, error) {
 func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 	portalRefs, portalNames, authStratRefs, authStratNames,
 	cpRefs, cpNames, apiRefs, apiNames,
-	apiVersionRefs, apiPubRefs, apiImplRefs map[string]string) (*resources.ResourceSet, error) {
+	apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs map[string]string) (*resources.ResourceSet, error) {
 	
 	var allResources resources.ResourceSet
 	yamlCount := 0
@@ -250,7 +252,7 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 				subRS, err := l.loadDirectorySource(path, recursive,
 					portalRefs, portalNames, authStratRefs, authStratNames,
 					cpRefs, cpNames, apiRefs, apiNames,
-					apiVersionRefs, apiPubRefs, apiImplRefs)
+					apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs)
 				if err != nil {
 					return nil, err
 				}
@@ -261,6 +263,10 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 					subRS.ApplicationAuthStrategies...)
 				allResources.ControlPlanes = append(allResources.ControlPlanes, subRS.ControlPlanes...)
 				allResources.APIs = append(allResources.APIs, subRS.APIs...)
+				allResources.APIVersions = append(allResources.APIVersions, subRS.APIVersions...)
+				allResources.APIPublications = append(allResources.APIPublications, subRS.APIPublications...)
+				allResources.APIImplementations = append(allResources.APIImplementations, subRS.APIImplementations...)
+				allResources.APIDocuments = append(allResources.APIDocuments, subRS.APIDocuments...)
 			}
 			continue
 		}
@@ -372,6 +378,15 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 			apiImplRefs[impl.Ref] = path
 			allResources.APIImplementations = append(allResources.APIImplementations, impl)
 		}
+		
+		for _, doc := range rs.APIDocuments {
+			if existingPath, exists := apiDocRefs[doc.Ref]; exists {
+				return nil, fmt.Errorf("duplicate api_document ref '%s' found in %s (already defined in %s)", 
+					doc.Ref, path, existingPath)
+			}
+			apiDocRefs[doc.Ref] = path
+			allResources.APIDocuments = append(allResources.APIDocuments, doc)
+		}
 	}
 	
 	// Provide helpful error if no YAML files found
@@ -382,7 +397,7 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 		len(allResources.ApplicationAuthStrategies) == 0 &&
 		len(allResources.ControlPlanes) == 0 && len(allResources.APIs) == 0 &&
 		len(allResources.APIVersions) == 0 && len(allResources.APIPublications) == 0 &&
-		len(allResources.APIImplementations) == 0 {
+		len(allResources.APIImplementations) == 0 && len(allResources.APIDocuments) == 0 {
 		// Only error if no files were found at all (not just empty files)
 		return nil, fmt.Errorf("no YAML files found in directory '%s'", dirPath)
 	}
@@ -394,7 +409,7 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 func (l *Loader) mergeResourceSet(target, source *resources.ResourceSet, sourcePath string,
 	portalRefs, portalNames, authStratRefs, authStratNames,
 	cpRefs, cpNames, apiRefs, apiNames,
-	apiVersionRefs, apiPubRefs, apiImplRefs map[string]string) error {
+	apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs map[string]string) error {
 	
 	// For single files and STDIN, we need to check duplicates
 	// For directories, duplicates are already checked during loading
@@ -488,6 +503,15 @@ func (l *Loader) mergeResourceSet(target, source *resources.ResourceSet, sourceP
 		}
 		apiImplRefs[impl.Ref] = sourcePath
 		target.APIImplementations = append(target.APIImplementations, impl)
+	}
+	
+	for _, doc := range source.APIDocuments {
+		if existingPath, exists := apiDocRefs[doc.Ref]; exists {
+			return fmt.Errorf("duplicate api_document ref '%s' found in %s (already defined in %s)", 
+				doc.Ref, sourcePath, existingPath)
+		}
+		apiDocRefs[doc.Ref] = sourcePath
+		target.APIDocuments = append(target.APIDocuments, doc)
 	}
 	
 	return nil

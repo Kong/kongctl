@@ -13,6 +13,8 @@ type APIAPI interface {
 	// API operations
 	ListApis(ctx context.Context, request kkOps.ListApisRequest,
 		opts ...kkOps.Option) (*kkOps.ListApisResponse, error)
+	FetchAPI(ctx context.Context, apiID string,
+		opts ...kkOps.Option) (*kkOps.FetchAPIResponse, error)
 	CreateAPI(ctx context.Context, request kkComps.CreateAPIRequest,
 		opts ...kkOps.Option) (*kkOps.CreateAPIResponse, error)
 	UpdateAPI(ctx context.Context, apiID string, request kkComps.UpdateAPIRequest,
@@ -25,6 +27,10 @@ type APIAPI interface {
 		opts ...kkOps.Option) (*kkOps.CreateAPIVersionResponse, error)
 	ListAPIVersions(ctx context.Context, request kkOps.ListAPIVersionsRequest,
 		opts ...kkOps.Option) (*kkOps.ListAPIVersionsResponse, error)
+	UpdateAPIVersion(ctx context.Context, request kkOps.UpdateAPIVersionRequest,
+		opts ...kkOps.Option) (*kkOps.UpdateAPIVersionResponse, error)
+	DeleteAPIVersion(ctx context.Context, request kkOps.DeleteAPIVersionRequest,
+		opts ...kkOps.Option) (*kkOps.DeleteAPIVersionResponse, error)
 	
 	// API Publication operations
 	PublishAPIToPortal(ctx context.Context, request kkOps.PublishAPIToPortalRequest,
@@ -34,8 +40,8 @@ type APIAPI interface {
 	ListAPIPublications(ctx context.Context, request kkOps.ListAPIPublicationsRequest,
 		opts ...kkOps.Option) (*kkOps.ListAPIPublicationsResponse, error)
 	
-	// API Implementation operations - Note: These don't exist in SDK yet
-	// TODO: Update when SDK adds implementation support
+	// API Implementation operations
+	// Note: SDK does not support create/update operations for implementations
 	ListAPIImplementations(ctx context.Context, request kkOps.ListAPIImplementationsRequest,
 		opts ...kkOps.Option) (*kkOps.ListAPIImplementationsResponse, error)
 	
@@ -60,6 +66,13 @@ func (a *PublicAPIAPI) ListApis(ctx context.Context, request kkOps.ListApisReque
 	opts ...kkOps.Option,
 ) (*kkOps.ListApisResponse, error) {
 	return a.SDK.API.ListApis(ctx, request, opts...)
+}
+
+// FetchAPI implements the APIAPI interface
+func (a *PublicAPIAPI) FetchAPI(ctx context.Context, apiID string,
+	opts ...kkOps.Option,
+) (*kkOps.FetchAPIResponse, error) {
+	return a.SDK.API.FetchAPI(ctx, apiID, opts...)
 }
 
 // CreateAPI implements the APIAPI interface
@@ -99,6 +112,20 @@ func (a *PublicAPIAPI) ListAPIVersions(ctx context.Context, request kkOps.ListAP
 	return a.SDK.APIVersion.ListAPIVersions(ctx, request, opts...)
 }
 
+// UpdateAPIVersion implements the APIAPI interface
+func (a *PublicAPIAPI) UpdateAPIVersion(ctx context.Context, request kkOps.UpdateAPIVersionRequest,
+	opts ...kkOps.Option,
+) (*kkOps.UpdateAPIVersionResponse, error) {
+	return a.SDK.APIVersion.UpdateAPIVersion(ctx, request, opts...)
+}
+
+// DeleteAPIVersion implements the APIAPI interface
+func (a *PublicAPIAPI) DeleteAPIVersion(ctx context.Context, request kkOps.DeleteAPIVersionRequest,
+	opts ...kkOps.Option,
+) (*kkOps.DeleteAPIVersionResponse, error) {
+	return a.SDK.APIVersion.DeleteAPIVersion(ctx, request.APIID, request.SpecID, opts...)
+}
+
 // API Publication operations
 
 // PublishAPIToPortal implements the APIAPI interface
@@ -132,6 +159,7 @@ func (a *PublicAPIAPI) ListAPIImplementations(ctx context.Context, request kkOps
 	// The implementation operations are already in the apiimplementation.go helper
 	return a.SDK.APIImplementation.ListAPIImplementations(ctx, request, opts...)
 }
+
 
 // API Document operations
 
