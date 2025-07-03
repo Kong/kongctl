@@ -1,0 +1,1 @@
+A comprehensive API platform demonstrating basic file loading functionality. This description is loaded from an external text file to show how simple string content can be managed separately from configuration files.

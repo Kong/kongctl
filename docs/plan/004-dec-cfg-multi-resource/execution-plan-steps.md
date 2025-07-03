@@ -16,9 +16,9 @@
 | 10 | Update plan command for file loading support | ✅ COMPLETE | Steps 6, 7 |
 | 11 | Add cross-resource reference validation | ✅ COMPLETE | Step 10 |
 | 12 | Create Comprehensive Integration Tests | ✅ COMPLETE | Step 11 |
-| 13 | Add examples and documentation | Not Started | All steps |
+| 13 | Add examples and documentation | ✅ COMPLETE | All steps |
 
-**Current Stage**: Steps 1-12 Completed - Ready for Step 13
+**Current Stage**: Steps 1-13 All Completed ✅ - **STAGE 4 COMPLETE**
 
 ---
 
@@ -915,11 +915,34 @@ Created comprehensive integration test suite to verify multi-resource scenarios,
 3. Document YAML tag usage
 4. Add troubleshooting guide
 
+### Status Update (2025-07-03)
+
+**Completed** ✅:
+- Created comprehensive examples for API resources
+- Updated README.md with API resource documentation
+- Created YAML Tags Reference documentation
+- Created Troubleshooting Guide
+- Fixed API publication field issues (portal -> portal_id)
+- Tested examples with real kongctl commands
+
+**Key Deliverables**:
+- `docs/examples/apis/basic-api.yaml` - Simple API configuration
+- `docs/examples/apis/api-with-versions.yaml` - Multiple API versions
+- `docs/examples/apis/api-with-external-spec.yaml` - External file loading
+- `docs/examples/apis/multi-resource.yaml` - Complex multi-resource example
+- `docs/examples/apis/api-with-yaml-tags.yaml` - YAML tag demonstrations
+- `docs/examples/apis/simple-test.yaml` - Simple test configuration
+- `docs/examples/apis/separate-files-example/` - Team ownership pattern
+- `docs/YAML-Tags-Reference.md` - Comprehensive YAML tags documentation
+- `docs/Troubleshooting-Guide.md` - Complete troubleshooting guide
+- Updated README.md with "Declarative Configuration" section
+
 ### Definition of Done
-- [ ] Examples cover common scenarios
-- [ ] Documentation clear and complete
-- [ ] YAML tag usage documented
-- [ ] Troubleshooting guide added
+- [x] Examples cover common scenarios
+- [x] Documentation clear and complete
+- [x] YAML tag usage documented
+- [x] Troubleshooting guide added
+- [x] API publication field fixed (portal_id)
 
 ---
 

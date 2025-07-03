@@ -1,0 +1,18 @@
+# Simple Test Configuration - No API Publications
+# This example tests basic API and portal functionality without publications
+
+portals:
+  - ref: test-portal
+    name: "test-portal"
+    display_name: "Test Portal"
+    description: "Portal for testing"
+    authentication_enabled: true
+
+apis:
+  - ref: test-api
+    name: "Test API"
+    description: "Simple API for testing"
+    version: "1.0.0"
+    labels:
+      team: platform
+      environment: test

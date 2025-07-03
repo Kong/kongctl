@@ -1,7 +1,8 @@
-# Multi-Resource Example with APIs and Portals
-# This example shows how APIs will work with portals and publications in Stage 4
+# Multi-Resource Example with APIs, Portals, and Publications
+# This example demonstrates a complete multi-resource configuration with APIs, 
+# portals, and publications working together for a comprehensive API platform
 
-# First, define the portal
+# Define the developer portal
 portals:
   - ref: developer-portal
     name: "developer-portal"
@@ -9,14 +10,28 @@ portals:
     description: "Public API portal for external developers"
     authentication_enabled: true
     rbac_enabled: false
-    default_api_visibility: private
     auto_approve_developers: true
     auto_approve_applications: false
     labels:
       purpose: external
       environment: production
+      owner_team: platform
 
-# Define APIs
+# Internal portal for partner APIs
+  - ref: partner-portal
+    name: "partner-portal"
+    display_name: "Partner API Portal"
+    description: "Private portal for trusted partners"
+    authentication_enabled: true
+    rbac_enabled: true
+    auto_approve_developers: false
+    auto_approve_applications: false
+    labels:
+      purpose: partner
+      environment: production
+      owner_team: business-dev
+
+# Define APIs with comprehensive child resources
 apis:
   - ref: users-api
     name: "Users API"
@@ -25,21 +40,53 @@ apis:
     labels:
       team: identity
       visibility: public
-    spec_content: |
-      openapi: 3.0.0
-      info:
-        title: Users API
-        version: 3.0.0
-        description: API for user management and authentication
-      paths:
-        /users:
-          get:
-            summary: List users
-            operationId: listUsers
-        /users/{id}:
-          get:
-            summary: Get user by ID
-            operationId: getUser
+      criticality: high
+    kongctl:
+      protected: true
+
+    # API versions with different purposes
+    versions:
+      - ref: users-api-v3
+        name: "v3.0.0"
+        gateway_service:
+          control_plane_id: "550e8400-e29b-41d4-a716-446655440000"
+          id: "550e8400-e29b-41d4-a716-446655440001"
+        spec:
+          openapi: "3.0.0"
+          info:
+            title: "Users API"
+            version: "3.0.0"
+            description: "Modern user management API with enhanced security"
+          paths:
+            /users:
+              get:
+                summary: "List users"
+                operationId: "listUsers"
+              post:
+                summary: "Create user"
+                operationId: "createUser"
+            /users/{id}:
+              get:
+                summary: "Get user by ID"
+                operationId: "getUser"
+              put:
+                summary: "Update user"
+                operationId: "updateUser"
+              delete:
+                summary: "Delete user"
+                operationId: "deleteUser"
+
+    # API publications (nested within API)
+    publications:
+      - ref: users-api-public
+        portal_id: developer-portal
+        visibility: public
+        auto_approve_registrations: true
+
+      - ref: users-api-partner
+        portal_id: partner-portal
+        visibility: private
+        auto_approve_registrations: false
 
   - ref: orders-api
     name: "Orders API"
@@ -48,40 +95,134 @@ apis:
     labels:
       team: commerce
       visibility: partner
-    spec_content: |
-      openapi: 3.0.0
-      info:
-        title: Orders API
-        version: 1.5.0
-        description: API for order processing
-      paths:
-        /orders:
-          post:
-            summary: Create order
-            operationId: createOrder
+      criticality: high
+    kongctl:
+      protected: false
 
-# Future Stage 4 features - API publications
-# api_publications:
-#   - ref: users-api-publication
-#     api: users-api
-#     portal: developer-portal
-#     visibility: public
-#     auto_approve_registrations: true
-#     auth_strategy_ids: ["key-auth", "oauth2"]
-#   
-#   - ref: orders-api-publication
-#     api: orders-api
-#     portal: developer-portal
-#     visibility: private  # Requires authentication to view
-#     auto_approve_registrations: false
+    versions:
+      - ref: orders-api-v1
+        name: "v1.5.0"
+        gateway_service:
+          control_plane_id: "550e8400-e29b-41d4-a716-446655440000"
+          id: "550e8400-e29b-41d4-a716-446655440002"
+        spec:
+          openapi: "3.0.0"
+          info:
+            title: "Orders API"
+            version: "1.5.0"
+            description: "Comprehensive order processing API"
+          paths:
+            /orders:
+              get:
+                summary: "List orders"
+                operationId: "listOrders"
+              post:
+                summary: "Create order"
+                operationId: "createOrder"
+            /orders/{id}:
+              get:
+                summary: "Get order details"
+                operationId: "getOrder"
+              patch:
+                summary: "Update order status"
+                operationId: "updateOrderStatus"
 
-# Future Stage 4 features - Nested configuration alternative
-# apis:
-#   - ref: users-api
-#     name: "Users API"
-#     description: "User management and authentication API"
-#     publications:
-#       - ref: dev-portal-pub
-#         portal: developer-portal
-#         visibility: public
-#         auto_approve_registrations: true
+    # Implementations linking to gateway services
+    implementations:
+      - ref: orders-api-prod-impl
+        service:
+          control_plane_id: "550e8400-e29b-41d4-a716-446655440000"
+          id: "550e8400-e29b-41d4-a716-446655440003"
+
+  - ref: notifications-api
+    name: "Notifications API"
+    description: "Email and SMS notification service API"
+    version: "v2.0.0"
+    labels:
+      team: communications
+      visibility: internal
+      criticality: medium
+
+    versions:
+      - ref: notifications-api-v2
+        name: "v2.0.0"
+        gateway_service:
+          control_plane_id: "550e8400-e29b-41d4-a716-446655440000"
+          id: "550e8400-e29b-41d4-a716-446655440004"
+        spec:
+          openapi: "3.0.0"
+          info:
+            title: "Notifications API"
+            version: "2.0.0"
+            description: "Send email and SMS notifications"
+          paths:
+            /notifications/email:
+              post:
+                summary: "Send email notification"
+                operationId: "sendEmail"
+            /notifications/sms:
+              post:
+                summary: "Send SMS notification"
+                operationId: "sendSMS"
+
+# Separate API Publications (alternative to nested approach)
+# Useful when different teams manage API vs portal configuration
+api_publications:
+  - ref: orders-api-public
+    api: orders-api
+    portal_id: developer-portal
+    visibility: public
+    auto_approve_registrations: false  # Requires approval for sensitive operations
+
+  - ref: notifications-api-partner
+    api: notifications-api
+    portal_id: partner-portal
+    visibility: private
+    auto_approve_registrations: false
+
+# API Documents for additional documentation
+api_documents:
+  - ref: users-api-guide
+    api: users-api
+    title: "User Management Guide"
+    content: |
+      # User Management API Guide
+      
+      This guide provides comprehensive documentation for the Users API,
+      including authentication requirements, rate limits, and best practices.
+      
+      ## Authentication
+      All endpoints require API key authentication via the X-API-Key header.
+      
+      ## Rate Limits
+      - Public users: 1000 requests/hour
+      - Authenticated users: 10000 requests/hour
+      
+      ## Best Practices
+      - Always validate user input
+      - Use pagination for list endpoints
+      - Implement proper error handling
+
+  - ref: orders-api-integration
+    api: orders-api
+    title: "Orders API Integration Guide"
+    content: |
+      # Orders API Integration Guide
+      
+      Step-by-step guide for integrating with the Orders API.
+      
+      ## Webhook Setup
+      Configure webhooks to receive order status updates.
+      
+      ## Testing
+      Use the sandbox environment for testing integrations.
+
+# This configuration demonstrates:
+# 1. Multiple APIs with different teams and visibility levels
+# 2. API versions with gateway service mappings
+# 3. Multiple portals (public and partner)
+# 4. Both nested and separate API publications
+# 5. API implementations for service mappings
+# 6. API documents for additional documentation
+# 7. Protection settings for critical APIs
+# 8. Comprehensive labeling for organization

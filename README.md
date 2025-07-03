@@ -199,3 +199,260 @@ See the usage text for any command:
 ```shell
 kongctl get konnect gateway control-planes --help
 ```
+
+## Declarative Configuration
+
+Kongctl supports declarative configuration management for Kong Konnect resources using YAML files. This allows you to define your API infrastructure as code and manage it through standard DevOps workflows.
+
+### Supported Resources
+
+- **APIs**: Define APIs with versions, publications, and implementations
+- **Portals**: Create developer portals for API documentation
+- **API Versions**: Manage different versions of your APIs
+- **API Publications**: Control which APIs are published to which portals
+- **API Implementations**: Link APIs to Kong Gateway services
+- **API Documents**: Additional documentation for your APIs
+
+### Quick Start
+
+1. **Create a basic API configuration**:
+
+```yaml
+# my-api.yaml
+apis:
+  - ref: users-api
+    name: "Users API"
+    description: "User management and authentication API"
+    version: "v1.0.0"
+    labels:
+      team: platform
+      environment: production
+
+portals:
+  - ref: developer-portal
+    name: "developer-portal"
+    display_name: "Developer Portal"
+    description: "API documentation for developers"
+    authentication_enabled: true
+
+api_publications:
+  - ref: users-api-publication
+    api: users-api
+    portal: developer-portal
+    visibility: public
+    auto_approve_registrations: false
+```
+
+2. **Generate and review a plan**:
+
+```shell
+kongctl plan --config my-api.yaml
+```
+
+3. **Apply the configuration**:
+
+```shell
+kongctl apply --config my-api.yaml
+```
+
+### YAML Tags for External Content
+
+Kongctl supports powerful YAML tags for loading content from external files, enabling better organization and reusability:
+
+#### Simple File Loading
+
+```yaml
+apis:
+  - ref: my-api
+    name: "My API"
+    # Load description from external text file
+    description: !file ./docs/api-description.txt
+```
+
+#### Value Extraction from OpenAPI Specs
+
+```yaml
+apis:
+  - ref: users-api
+    # Extract API metadata from OpenAPI specification
+    name: !file ./specs/users-api.yaml#info.title
+    description: !file ./specs/users-api.yaml#info.description
+    version: !file ./specs/users-api.yaml#info.version
+    
+    versions:
+      - ref: users-api-v1
+        name: !file ./specs/users-api.yaml#info.version
+        gateway_service:
+          control_plane_id: "your-control-plane-id"
+          id: "your-service-id"
+        # Load entire OpenAPI spec
+        spec: !file ./specs/users-api.yaml
+```
+
+#### Map Format for Complex Extraction
+
+```yaml
+apis:
+  - ref: products-api
+    name: !file
+      path: ./specs/products-api.yaml
+      extract: info.title
+    description: !file
+      path: ./specs/products-api.yaml
+      extract: info.description
+    labels:
+      contact_email: !file
+        path: ./specs/products-api.yaml
+        extract: info.contact.email
+```
+
+### Multi-Resource Configuration
+
+Define complex API platforms with multiple resources:
+
+```yaml
+# Complete API platform configuration
+portals:
+  - ref: public-portal
+    name: "public-portal"
+    display_name: "Public Developer Portal"
+    description: "APIs for external developers"
+    authentication_enabled: true
+
+  - ref: partner-portal
+    name: "partner-portal"
+    display_name: "Partner Portal"
+    description: "Private APIs for trusted partners"
+    authentication_enabled: true
+    rbac_enabled: true
+
+apis:
+  - ref: users-api
+    name: "Users API"
+    description: "User management API"
+    version: "v2.0.0"
+    labels:
+      team: identity
+      criticality: high
+    kongctl:
+      protected: true  # Prevent accidental deletion
+    
+    versions:
+      - ref: users-api-v2
+        name: "v2.0.0"
+        gateway_service:
+          control_plane_id: "your-control-plane-id"
+          id: "your-service-id"
+        spec: !file ./specs/users-api.yaml
+    
+    # Nested publications
+    publications:
+      - ref: users-public
+        portal: public-portal
+        visibility: public
+        auto_approve_registrations: false
+      
+      - ref: users-partner
+        portal: partner-portal
+        visibility: private
+        auto_approve_registrations: false
+
+# Separate API publications (alternative to nested)
+api_publications:
+  - ref: products-api-publication
+    api: products-api
+    portal: public-portal
+    visibility: public
+    auto_approve_registrations: true
+```
+
+### Configuration Patterns
+
+#### Team Ownership Pattern
+
+Organize configurations across multiple files for team ownership:
+
+```yaml
+# main-config.yaml (Platform team)
+portals:
+  - ref: main-portal
+    name: "main-portal"
+    display_name: "Developer Portal"
+    # Portal configuration...
+
+apis:
+  # Load team-specific API configurations
+  - !file ./teams/identity/users-api.yaml
+  - !file ./teams/ecommerce/products-api.yaml
+  - !file ./teams/payments/billing-api.yaml
+
+api_publications:
+  # Platform team manages publication policies
+  - ref: users-api-publication
+    api: users-api
+    portal: main-portal
+    visibility: public
+```
+
+```yaml
+# teams/identity/users-api.yaml (Identity team)
+ref: users-api
+name: "Users API"
+description: "User management and authentication"
+version: "v3.0.0"
+labels:
+  team: identity
+  owner: identity-team
+
+versions:
+  - ref: users-api-v3
+    name: "v3.0.0"
+    gateway_service:
+      control_plane_id: "control-plane-id"
+      id: "service-id"
+    spec: !file ./specs/users-v3.yaml
+```
+
+### Commands for Declarative Configuration
+
+- **`kongctl plan`**: Generate execution plan showing changes
+- **`kongctl apply`**: Apply configuration changes
+- **`kongctl diff`**: Show differences between current and desired state
+
+### Examples
+
+Complete examples are available in the [`docs/examples/apis/`](docs/examples/apis/) directory:
+
+- [`basic-api.yaml`](docs/examples/apis/basic-api.yaml) - Simple API definition
+- [`api-with-versions.yaml`](docs/examples/apis/api-with-versions.yaml) - API with multiple versions
+- [`api-with-external-spec.yaml`](docs/examples/apis/api-with-external-spec.yaml) - Using external OpenAPI specs
+- [`api-with-yaml-tags.yaml`](docs/examples/apis/api-with-yaml-tags.yaml) - YAML tag functionality
+- [`multi-resource.yaml`](docs/examples/apis/multi-resource.yaml) - Complete multi-resource platform
+- [`separate-files-example/`](docs/examples/apis/separate-files-example/) - Team ownership pattern
+
+### Troubleshooting
+
+#### Common Issues
+
+**File loading errors**:
+```
+Error: failed to process file tag: file not found: ./specs/api.yaml
+```
+- Verify file paths are relative to the configuration file
+- Ensure the referenced file exists
+- Check file permissions
+
+**Cross-resource reference errors**:
+```
+Error: resource "my-api" references unknown portal: unknown-portal
+```
+- Verify all referenced resources are defined in the configuration
+- Check resource `ref` values match exactly
+- Ensure proper resource ordering (dependencies before dependents)
+
+**Large file handling**:
+- File loading has a 10MB size limit for security
+- For large OpenAPI specs, consider splitting into smaller files
+- Use value extraction to load only needed portions
+
+For more detailed troubleshooting, see the [examples](docs/examples/apis/) and inline comments in the configuration files.

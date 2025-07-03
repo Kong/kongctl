@@ -1,14 +1,11 @@
-# API Configuration with YAML Tags (Stage 4 Preview)
-# This example demonstrates how YAML tags will work in Stage 4
-# to load content from external files
-
-# NOTE: This is a preview of Stage 4 functionality
-# YAML tags are not yet implemented
+# API Configuration with YAML Tags - Complete Implementation
+# This example demonstrates all YAML tag functionality implemented in Stage 4
+# Shows file loading, value extraction, and different tag syntax options
 
 apis:
-  # Example 1: Loading values from external OpenAPI spec
+  # Example 1: Map format for value extraction
   - ref: users-api
-    # Extract the title from the OpenAPI spec
+    # Extract the title from the OpenAPI spec using map format
     name: !file
       path: ./specs/users-api.yaml
       extract: info.title
@@ -16,71 +13,157 @@ apis:
     description: !file
       path: ./specs/users-api.yaml
       extract: info.description
-    # Extract the version using compact syntax
-    version: !file.extract [./specs/users-api.yaml, info.version]
-    # Load the entire spec file
-    spec_content: !file ./specs/users-api.yaml
+    # Extract nested contact information
     labels:
       team: platform
-      api-type: rest
+      api_type: rest
+      contact_email: !file
+        path: ./specs/users-api.yaml
+        extract: info.contact.email
+      contact_name: !file
+        path: ./specs/users-api.yaml
+        extract: info.contact.name
+      license: !file
+        path: ./specs/users-api.yaml
+        extract: info.license.name
     kongctl:
       protected: true
 
-  # Example 2: Alternative compact syntax
+    # Create API version with loaded spec
+    versions:
+      - ref: users-api-v3
+        name: !file
+          path: ./specs/users-api.yaml
+          extract: info.version
+        gateway_service:
+          control_plane_id: "550e8400-e29b-41d4-a716-446655440000"
+          id: "550e8400-e29b-41d4-a716-446655440001"
+        # Load the entire OpenAPI specification
+        spec: !file ./specs/users-api.yaml
+
+  # Example 2: Hash (#) syntax for compact extraction
   - ref: products-api
-    name: !file.extract [./specs/products-api.yaml, info.title]
-    description: !file.extract [./specs/products-api.yaml, info.description]
-    version: !file.extract [./specs/products-api.yaml, info.version]
-    spec_content: !file ./specs/products-api.yaml
+    name: !file ./specs/products-api.yaml#info.title
+    description: !file ./specs/products-api.yaml#info.description
+    version: !file ./specs/products-api.yaml#info.version
     labels:
-      team: e-commerce
-      api-type: rest
+      team: e_commerce
+      api_type: rest
+      contact_email: !file ./specs/products-api.yaml#info.contact.email
 
-# Example 3: With nested child resources (Stage 4)
-# apis:
-#   - ref: payment-api
-#     name: "Payment API"
-#     description: "Secure payment processing"
-#     versions:
-#       - ref: v1
-#         version: !file.extract [./specs/payment-v1.yaml, info.version]
-#         spec:
-#           content: !file ./specs/payment-v1.yaml
-#       - ref: v2
-#         version: !file.extract [./specs/payment-v2.yaml, info.version]
-#         spec:
-#           content: !file ./specs/payment-v2.yaml
-#     publications:
-#       - ref: public-portal-pub
-#         portal: developer-portal
-#         version: v2  # Reference to the v2 version above
-#         visibility: public
-#         auto_approve_registrations: false
+    versions:
+      - ref: products-api-v2
+        name: !file ./specs/products-api.yaml#info.version
+        gateway_service:
+          control_plane_id: "550e8400-e29b-41d4-a716-446655440000"
+          id: "550e8400-e29b-41d4-a716-446655440002"
+        spec: !file ./specs/products-api.yaml
 
-# How YAML tags will work:
+  # Example 3: Mixed file loading approaches in comprehensive setup
+  - ref: comprehensive-api
+    name: "Comprehensive File Loading API"
+    # Load description from plain text file (no extraction needed)
+    description: !file ./descriptions/comprehensive-api.txt
+    version: "1.0.0"
+    labels:
+      team: platform
+      # Mix of extraction methods
+      users_version: !file ./specs/users-api.yaml#info.version
+      products_version: !file
+        path: ./specs/products-api.yaml
+        extract: info.version
+    
+    versions:
+      - ref: comprehensive-api-v1
+        name: "v1.0.0"
+        gateway_service:
+          control_plane_id: "550e8400-e29b-41d4-a716-446655440000"
+          id: "550e8400-e29b-41d4-a716-446655440003"
+        # Use one of the existing specs
+        spec: !file ./specs/users-api.yaml
+
+    # Nested publications
+    publications:
+      - ref: comprehensive-public
+        portal_id: demo-portal
+        visibility: public
+        auto_approve_registrations: true
+
+# Define portal using file loading
+portals:
+  - ref: demo-portal
+    name: "demo-portal"
+    display_name: "Demo Developer Portal"
+    description: "Portal demonstrating file loading capabilities"
+    authentication_enabled: true
+    auto_approve_developers: true
+    labels:
+      purpose: demo
+      environment: development
+
+# Separate API child resources using file extraction
+api_versions:
+  - ref: external-users-version
+    api: users-api
+    name: !file ./specs/users-api.yaml#info.version
+    gateway_service:
+      control_plane_id: "550e8400-e29b-41d4-a716-446655440000"
+      id: "550e8400-e29b-41d4-a716-446655440004"
+    spec: !file ./specs/users-api.yaml
+
+api_publications:
+  - ref: products-api-publication
+    api: products-api
+    portal_id: demo-portal
+    visibility: public
+    auto_approve_registrations: true
+
+api_documents:
+  - ref: users-api-guide
+    api: users-api
+    title: !file ./specs/users-api.yaml#info.title
+    # Load documentation from external markdown file
+    content: !file ./docs/user-api-guide.md
+
+# Create the companion files that would be loaded:
 # 
-# 1. Simple file loading:
-#    !file ./path/to/file.yaml
-#    - Loads the entire file content as a string
-#    - Relative paths are resolved from the config file location
-#    - File size limits apply for security
+# ./descriptions/comprehensive-api.txt:
+# "This API demonstrates comprehensive file loading capabilities including
+# extraction from OpenAPI specs, plain text loading, and mixed approaches."
 #
-# 2. Value extraction (map format):
+# ./docs/user-api-guide.md:
+# "# User API Guide
+# 
+# This guide explains how to use the User Management API..."
+
+# YAML Tag Syntax Summary (all implemented and working):
+#
+# 1. Simple file loading:
+#    !file ./path/to/file.txt
+#    - Loads entire file content as string
+#    - Works with any text file (TXT, MD, YAML, JSON, etc.)
+#
+# 2. Hash syntax for extraction:
+#    !file ./path/to/file.yaml#key.nested.path
+#    - Loads file, parses as YAML/JSON, extracts value
+#    - Supports array access: array.0, array.1, etc.
+#    - Supports complex nested paths: info.contact.email
+#
+# 3. Map format for extraction:
 #    !file
 #      path: ./path/to/file.yaml
-#      extract: info.title
-#    - Loads the file, parses it as YAML/JSON
-#    - Extracts the value at the specified path
-#    - Path uses dot notation (e.g., info.contact.email)
+#      extract: key.nested.path
+#    - Same functionality as hash syntax
+#    - More verbose but clearer for complex extractions
 #
-# 3. Value extraction (array format):
-#    !file.extract [./path/to/file.yaml, info.version]
-#    - Compact syntax for extraction
-#    - First element is the file path
-#    - Second element is the extraction path
+# Security features (implemented):
+# - Path traversal prevention (no ../ allowed)
+# - File size limits (10MB maximum)
+# - Relative path resolution from config file location
+# - File caching during execution
+# - Clean error messages for invalid paths/extractions
 #
-# Security considerations:
-# - Files must be within the project directory
-# - Path traversal (../) is prevented
-# - File size limits enforced
-# - Only YAML and JSON files supported for extraction
+# Performance features:
+# - Files are cached during single execution
+# - Thread-safe file resolution
+# - Efficient parsing for multiple extractions from same file
