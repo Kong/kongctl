@@ -685,6 +685,7 @@ func TestAPIDocumentHierarchy(t *testing.T)
 - Fixed executor to use getParentAPIID for child resources (handles same-execution parent creation)
 - Disabled API implementation creation/deletion in planner due to SDK limitations
 - Added comprehensive test coverage for API lifecycle, child resources, separate files, protection, and document hierarchy
+- **Known Issue**: Some command-level integration tests in `plan_generation_test.go` are temporarily disabled due to mock injection issues. See [test-refactoring-todo.md](test-refactoring-todo.md) for details and proposed fixes.
 
 ---
 
