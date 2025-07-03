@@ -13,12 +13,12 @@
 | 7 | Integrate tag system with resource loader | ✅ COMPLETE | Steps 4, 6 |
 | 8 | Extend planner for API resources | ✅ COMPLETE | Steps 4, 7 |
 | 9 | Create Integration Tests for API Resources | ✅ COMPLETE | Step 8 |
-| 10 | Update plan command for file loading support | Not Started | Steps 6, 7 |
+| 10 | Update plan command for file loading support | ✅ COMPLETE | Steps 6, 7 |
 | 11 | Add cross-resource reference validation | Not Started | Step 10 |
 | 12 | Add resource limits and pagination | Not Started | Step 8 |
 | 13 | Add examples and documentation | Not Started | All steps |
 
-**Current Stage**: Steps 1-9 Completed - Ready for Step 10
+**Current Stage**: Steps 1-10 Completed - Ready for Step 11
 
 ---
 
@@ -689,40 +689,79 @@ func TestAPIDocumentHierarchy(t *testing.T)
 
 ---
 
-## Step 10: Implement Dependency Graph Enhancements
+## Step 10: Update plan command for file loading support
 
-**Goal**: Extend dependency resolver for new resource types.
+**Goal**: Enable the plan command to properly process YAML file tags for loading external content.
+
+### Status
+**Status**: Completed ✅  
+**Started**: 2025-01-03  
+**Completed**: 2025-01-03
 
 ### Implementation
 
-1. Update `internal/declarative/planner/dependencies.go`:
-```go
-func (d *DependencyResolver) getParentType(childType string) string {
-    switch childType {
-    case "api_version", "api_publication", "api_implementation":
-        return "api"
-    case "portal_page":
-        return "portal"
-    default:
-        return ""
-    }
-}
-```
+The plan command already had tag system integration through the loader, but needed fixes for proper base directory handling when loading files from different directories.
 
-2. Handle cross-resource dependencies (e.g., publication → portal)
-3. Ensure proper deletion order for sync mode
+**Key Changes Made**:
 
-### Tests Required
-- Complex dependency graphs
-- Cross-resource dependencies
-- Cycle detection
-- Deletion ordering
+1. **Fixed loader tag resolver registration** (`internal/declarative/loader/loader.go`):
+   - Removed conditional check that prevented resolver updates with new base directories
+   - Now always registers/updates file resolver with correct base directory per file
+   ```go
+   // Always register/update file resolver with correct base directory
+   // This ensures each file gets the correct base directory for relative paths
+   registry.Register(tags.NewFileTagResolver(baseDir))
+   ```
+
+2. **Enhanced file tag resolver** (`internal/declarative/tags/file.go`):
+   - Added support for convenient `#` syntax for value extraction
+   - Now supports three formats:
+     - Simple: `!file ./path/to/file.yaml`
+     - Extraction: `!file ./path/to/file.yaml#field.path`
+     - Map: `!file {path: ./file.yaml, extract: field.path}`
+
+3. **Created comprehensive integration tests** (`test/integration/declarative/file_tag_loader_test.go`):
+   - Basic file loading with extraction
+   - Nested directory loading with relative paths
+   - Recursive directory loading
+   - Complex nested value extraction
+   - Plain text file loading
+
+### Test Scenarios Covered
+- File loading from same directory
+- File loading from subdirectories with relative paths
+- Recursive directory loading with file tags
+- Complex nested YAML value extraction
+- Plain text file content loading
 
 ### Definition of Done
-- [ ] Dependency resolution extended
-- [ ] Cross-resource dependencies working
-- [ ] Deletion order correct
-- [ ] Tests pass
+- [x] Plan command processes file tags correctly
+- [x] Base directory handling works for files in different directories
+- [x] File tag resolver supports extraction syntax
+- [x] Integration tests cover all scenarios
+- [x] All tests pass
+- [x] Linter clean
+
+### Usage Examples
+
+Users can now use file tags in their declarative configuration:
+
+```yaml
+# Simple file loading
+apis:
+  - ref: my-api
+    name: "My API"
+    description: !file ./docs/api-description.txt
+
+# Value extraction from YAML files
+portals:
+  - ref: main-portal
+    name: !file ./config/portal-meta.yaml#portal.name
+    description: !file ./config/portal-meta.yaml#portal.description
+
+# Works with nested directories and recursive loading
+# Files resolve relative to their containing directory
+```
 
 ---
 
