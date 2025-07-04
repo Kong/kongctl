@@ -26,8 +26,8 @@ func NewAuthStrategyPlanner(base *BasePlanner) AuthStrategyPlanner {
 func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 	desired := p.GetDesiredAuthStrategies()
 	
-	// Skip if no auth strategies to plan
-	if len(desired) == 0 {
+	// Skip if no auth strategies to plan and not in sync mode
+	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
 		return nil
 	}
 

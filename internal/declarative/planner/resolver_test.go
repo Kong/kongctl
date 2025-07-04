@@ -72,6 +72,286 @@ func (m *MockPortalAPI) DeletePortal(
 	return args.Get(0).(*kkOps.DeletePortalResponse), args.Error(1)
 }
 
+// MockAPIAPI is a mock implementation of APIAPI
+type MockAPIAPI struct {
+	mock.Mock
+}
+
+func (m *MockAPIAPI) ListApis(
+	ctx context.Context,
+	req kkOps.ListApisRequest,
+	_ ...kkOps.Option,
+) (*kkOps.ListApisResponse, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.ListApisResponse), args.Error(1)
+}
+
+func (m *MockAPIAPI) FetchAPI(
+	ctx context.Context,
+	apiID string,
+	_ ...kkOps.Option,
+) (*kkOps.FetchAPIResponse, error) {
+	args := m.Called(ctx, apiID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.FetchAPIResponse), args.Error(1)
+}
+
+func (m *MockAPIAPI) CreateAPI(
+	ctx context.Context,
+	request kkComps.CreateAPIRequest,
+	_ ...kkOps.Option,
+) (*kkOps.CreateAPIResponse, error) {
+	args := m.Called(ctx, request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.CreateAPIResponse), args.Error(1)
+}
+
+func (m *MockAPIAPI) UpdateAPI(
+	ctx context.Context,
+	apiID string,
+	request kkComps.UpdateAPIRequest,
+	_ ...kkOps.Option,
+) (*kkOps.UpdateAPIResponse, error) {
+	args := m.Called(ctx, apiID, request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.UpdateAPIResponse), args.Error(1)
+}
+
+func (m *MockAPIAPI) DeleteAPI(
+	ctx context.Context,
+	apiID string,
+	_ ...kkOps.Option,
+) (*kkOps.DeleteAPIResponse, error) {
+	args := m.Called(ctx, apiID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.DeleteAPIResponse), args.Error(1)
+}
+
+func (m *MockAPIAPI) CreateAPIVersion(
+	ctx context.Context,
+	apiID string,
+	request kkComps.CreateAPIVersionRequest,
+	_ ...kkOps.Option,
+) (*kkOps.CreateAPIVersionResponse, error) {
+	args := m.Called(ctx, apiID, request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.CreateAPIVersionResponse), args.Error(1)
+}
+
+func (m *MockAPIAPI) ListAPIVersions(
+	ctx context.Context,
+	request kkOps.ListAPIVersionsRequest,
+	_ ...kkOps.Option,
+) (*kkOps.ListAPIVersionsResponse, error) {
+	args := m.Called(ctx, request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.ListAPIVersionsResponse), args.Error(1)
+}
+
+func (m *MockAPIAPI) UpdateAPIVersion(
+	ctx context.Context,
+	request kkOps.UpdateAPIVersionRequest,
+	_ ...kkOps.Option,
+) (*kkOps.UpdateAPIVersionResponse, error) {
+	args := m.Called(ctx, request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.UpdateAPIVersionResponse), args.Error(1)
+}
+
+func (m *MockAPIAPI) DeleteAPIVersion(
+	ctx context.Context,
+	request kkOps.DeleteAPIVersionRequest,
+	_ ...kkOps.Option,
+) (*kkOps.DeleteAPIVersionResponse, error) {
+	args := m.Called(ctx, request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.DeleteAPIVersionResponse), args.Error(1)
+}
+
+func (m *MockAPIAPI) PublishAPIToPortal(
+	ctx context.Context,
+	request kkOps.PublishAPIToPortalRequest,
+	_ ...kkOps.Option,
+) (*kkOps.PublishAPIToPortalResponse, error) {
+	args := m.Called(ctx, request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.PublishAPIToPortalResponse), args.Error(1)
+}
+
+func (m *MockAPIAPI) DeletePublication(
+	ctx context.Context,
+	apiID string,
+	portalID string,
+	_ ...kkOps.Option,
+) (*kkOps.DeletePublicationResponse, error) {
+	args := m.Called(ctx, apiID, portalID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.DeletePublicationResponse), args.Error(1)
+}
+
+func (m *MockAPIAPI) ListAPIPublications(
+	ctx context.Context,
+	request kkOps.ListAPIPublicationsRequest,
+	_ ...kkOps.Option,
+) (*kkOps.ListAPIPublicationsResponse, error) {
+	args := m.Called(ctx, request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.ListAPIPublicationsResponse), args.Error(1)
+}
+
+func (m *MockAPIAPI) ListAPIImplementations(
+	ctx context.Context,
+	request kkOps.ListAPIImplementationsRequest,
+	_ ...kkOps.Option,
+) (*kkOps.ListAPIImplementationsResponse, error) {
+	args := m.Called(ctx, request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.ListAPIImplementationsResponse), args.Error(1)
+}
+
+
+func (m *MockAPIAPI) ListAPIDocuments(
+	ctx context.Context,
+	request kkOps.ListAPIDocumentsRequest,
+	_ ...kkOps.Option,
+) (*kkOps.ListAPIDocumentsResponse, error) {
+	args := m.Called(ctx, request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.ListAPIDocumentsResponse), args.Error(1)
+}
+
+
+func (m *MockAPIAPI) CreateAPIDocument(
+	ctx context.Context,
+	apiID string,
+	request kkComps.CreateAPIDocumentRequest,
+	_ ...kkOps.Option,
+) (*kkOps.CreateAPIDocumentResponse, error) {
+	args := m.Called(ctx, apiID, request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.CreateAPIDocumentResponse), args.Error(1)
+}
+
+func (m *MockAPIAPI) UpdateAPIDocument(
+	ctx context.Context,
+	apiID string,
+	documentID string,
+	request kkComps.APIDocument,
+	_ ...kkOps.Option,
+) (*kkOps.UpdateAPIDocumentResponse, error) {
+	args := m.Called(ctx, apiID, documentID, request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.UpdateAPIDocumentResponse), args.Error(1)
+}
+
+func (m *MockAPIAPI) DeleteAPIDocument(
+	ctx context.Context,
+	apiID string,
+	documentID string,
+	_ ...kkOps.Option,
+) (*kkOps.DeleteAPIDocumentResponse, error) {
+	args := m.Called(ctx, apiID, documentID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.DeleteAPIDocumentResponse), args.Error(1)
+}
+
+// MockAppAuthStrategiesAPI is a mock implementation of AppAuthStrategiesAPI
+type MockAppAuthStrategiesAPI struct {
+	mock.Mock
+}
+
+func (m *MockAppAuthStrategiesAPI) ListAppAuthStrategies(
+	ctx context.Context,
+	req kkOps.ListAppAuthStrategiesRequest,
+	_ ...kkOps.Option,
+) (*kkOps.ListAppAuthStrategiesResponse, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.ListAppAuthStrategiesResponse), args.Error(1)
+}
+
+func (m *MockAppAuthStrategiesAPI) GetAppAuthStrategy(
+	ctx context.Context,
+	id string,
+) (*kkOps.GetAppAuthStrategyResponse, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.GetAppAuthStrategyResponse), args.Error(1)
+}
+
+func (m *MockAppAuthStrategiesAPI) CreateAppAuthStrategy(
+	ctx context.Context,
+	strategy kkComps.CreateAppAuthStrategyRequest,
+) (*kkOps.CreateAppAuthStrategyResponse, error) {
+	args := m.Called(ctx, strategy)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.CreateAppAuthStrategyResponse), args.Error(1)
+}
+
+func (m *MockAppAuthStrategiesAPI) UpdateAppAuthStrategy(
+	ctx context.Context,
+	id string,
+	strategy kkComps.UpdateAppAuthStrategyRequest,
+) (*kkOps.UpdateAppAuthStrategyResponse, error) {
+	args := m.Called(ctx, id, strategy)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.UpdateAppAuthStrategyResponse), args.Error(1)
+}
+
+func (m *MockAppAuthStrategiesAPI) DeleteAppAuthStrategy(
+	ctx context.Context,
+	id string,
+) (*kkOps.DeleteAppAuthStrategyResponse, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.DeleteAppAuthStrategyResponse), args.Error(1)
+}
+
 func TestResolveReferences_PortalReference(t *testing.T) {
 	ctx := context.Background()
 	mockAPI := new(MockPortalAPI)

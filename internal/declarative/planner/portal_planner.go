@@ -25,8 +25,8 @@ func NewPortalPlanner(base *BasePlanner) PortalPlanner {
 func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 	desired := p.GetDesiredPortals()
 	
-	// Skip if no portals to plan
-	if len(desired) == 0 {
+	// Skip if no portals to plan and not in sync mode
+	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
 		return nil
 	}
 
@@ -126,6 +126,27 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 	if portal.Description != nil {
 		fields["description"] = *portal.Description
 	}
+	if portal.AuthenticationEnabled != nil {
+		fields["authentication_enabled"] = *portal.AuthenticationEnabled
+	}
+	if portal.RbacEnabled != nil {
+		fields["rbac_enabled"] = *portal.RbacEnabled
+	}
+	if portal.DefaultAPIVisibility != nil {
+		fields["default_api_visibility"] = string(*portal.DefaultAPIVisibility)
+	}
+	if portal.DefaultPageVisibility != nil {
+		fields["default_page_visibility"] = string(*portal.DefaultPageVisibility)
+	}
+	if portal.DefaultApplicationAuthStrategyID != nil {
+		fields["default_application_auth_strategy_id"] = *portal.DefaultApplicationAuthStrategyID
+	}
+	if portal.AutoApproveDevelopers != nil {
+		fields["auto_approve_developers"] = *portal.AutoApproveDevelopers
+	}
+	if portal.AutoApproveApplications != nil {
+		fields["auto_approve_applications"] = *portal.AutoApproveApplications
+	}
 
 	change := PlannedChange{
 		ID:           p.NextChangeID(ActionCreate, portal.GetRef()),
@@ -174,6 +195,53 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 		currentDesc := p.GetString(current.Description)
 		if currentDesc != *desired.Description {
 			updates["description"] = *desired.Description
+		}
+	}
+	
+	if desired.DefaultApplicationAuthStrategyID != nil {
+		currentAuthID := p.GetString(current.DefaultApplicationAuthStrategyID)
+		if currentAuthID != *desired.DefaultApplicationAuthStrategyID {
+			updates["default_application_auth_strategy_id"] = *desired.DefaultApplicationAuthStrategyID
+		}
+	}
+	
+	if desired.AuthenticationEnabled != nil {
+		if current.AuthenticationEnabled != *desired.AuthenticationEnabled {
+			updates["authentication_enabled"] = *desired.AuthenticationEnabled
+		}
+	}
+	
+	if desired.RbacEnabled != nil {
+		if current.RbacEnabled != *desired.RbacEnabled {
+			updates["rbac_enabled"] = *desired.RbacEnabled
+		}
+	}
+	
+	if desired.AutoApproveDevelopers != nil {
+		if current.AutoApproveDevelopers != *desired.AutoApproveDevelopers {
+			updates["auto_approve_developers"] = *desired.AutoApproveDevelopers
+		}
+	}
+	
+	if desired.AutoApproveApplications != nil {
+		if current.AutoApproveApplications != *desired.AutoApproveApplications {
+			updates["auto_approve_applications"] = *desired.AutoApproveApplications
+		}
+	}
+	
+	if desired.DefaultAPIVisibility != nil {
+		currentVisibility := string(current.DefaultAPIVisibility)
+		desiredVisibility := string(*desired.DefaultAPIVisibility)
+		if currentVisibility != desiredVisibility {
+			updates["default_api_visibility"] = desiredVisibility
+		}
+	}
+	
+	if desired.DefaultPageVisibility != nil {
+		currentVisibility := string(current.DefaultPageVisibility)
+		desiredVisibility := string(*desired.DefaultPageVisibility)
+		if currentVisibility != desiredVisibility {
+			updates["default_page_visibility"] = desiredVisibility
 		}
 	}
 

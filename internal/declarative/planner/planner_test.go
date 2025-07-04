@@ -36,14 +36,28 @@ func (m *MockStateClient) GetPortalByName(ctx context.Context, name string) (*st
 
 func TestGeneratePlan_CreatePortal(t *testing.T) {
 	ctx := context.Background()
-	mockAPI := new(MockPortalAPI)
-	client := state.NewClient(mockAPI)
+	mockPortalAPI := new(MockPortalAPI)
+	mockAPIAPI := new(MockAPIAPI)
+	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
+	client := state.NewClientWithAllAPIs(mockPortalAPI, mockAPIAPI, mockAppAuthAPI)
 	planner := NewPlanner(client)
 
 	// Mock empty portals list (no existing portals)
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
+					Total: 0,
+				},
+			},
+		},
+	}, nil)
+	
+	// Mock empty auth strategies list
+	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+			Data: []kkComps.AppAuthStrategy{},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 0,
@@ -95,18 +109,21 @@ func TestGeneratePlan_CreatePortal(t *testing.T) {
 	assert.Equal(t, 1, plan.Summary.ByAction[ActionCreate])
 	assert.Equal(t, 1, plan.Summary.ByResource["portal"])
 
-	mockAPI.AssertExpectations(t)
+	mockPortalAPI.AssertExpectations(t)
+	mockAppAuthAPI.AssertExpectations(t)
 }
 
 func TestGeneratePlan_UpdatePortal(t *testing.T) {
 	ctx := context.Background()
-	mockAPI := new(MockPortalAPI)
-	client := state.NewClient(mockAPI)
+	mockPortalAPI := new(MockPortalAPI)
+	mockAPIAPI := new(MockAPIAPI)
+	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
+	client := state.NewClientWithAllAPIs(mockPortalAPI, mockAPIAPI, mockAppAuthAPI)
 	planner := NewPlanner(client)
 
 	// Mock existing portal with different description
 	oldDesc := "Old description"
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
 				{
@@ -123,6 +140,18 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 1,
+				},
+			},
+		},
+	}, nil)
+	
+	// Mock empty auth strategies list
+	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+			Data: []kkComps.AppAuthStrategy{},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
+					Total: 0,
 				},
 			},
 		},
@@ -166,17 +195,20 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 	assert.Equal(t, "dev-portal", change.Fields["name"])
 	assert.Equal(t, newDesc, change.Fields["description"])
 
-	mockAPI.AssertExpectations(t)
+	mockPortalAPI.AssertExpectations(t)
+	mockAppAuthAPI.AssertExpectations(t)
 }
 
 func TestGeneratePlan_ProtectionChange(t *testing.T) {
 	ctx := context.Background()
-	mockAPI := new(MockPortalAPI)
-	client := state.NewClient(mockAPI)
+	mockPortalAPI := new(MockPortalAPI)
+	mockAPIAPI := new(MockAPIAPI)
+	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
+	client := state.NewClientWithAllAPIs(mockPortalAPI, mockAPIAPI, mockAppAuthAPI)
 	planner := NewPlanner(client)
 
 	// Mock existing protected portal
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
 				{
@@ -193,6 +225,18 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 1,
+				},
+			},
+		},
+	}, nil)
+	
+	// Mock empty auth strategies list
+	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+			Data: []kkComps.AppAuthStrategy{},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
+					Total: 0,
 				},
 			},
 		},
@@ -241,19 +285,34 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 	assert.Equal(t, 1, plan.Summary.ProtectionChanges.Unprotecting)
 	assert.Equal(t, 0, plan.Summary.ProtectionChanges.Protecting)
 
-	mockAPI.AssertExpectations(t)
+	mockPortalAPI.AssertExpectations(t)
+	mockAppAuthAPI.AssertExpectations(t)
 }
 
 func TestGeneratePlan_WithReferences(t *testing.T) {
 	ctx := context.Background()
-	mockAPI := new(MockPortalAPI)
-	client := state.NewClient(mockAPI)
+	mockPortalAPI := new(MockPortalAPI)
+	mockPortalAPIAPI := new(MockAPIAPI)
+	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
+	client := state.NewClientWithAllAPIs(mockPortalAPI, mockPortalAPIAPI, mockAppAuthAPI)
 	planner := NewPlanner(client)
 
 	// Mock empty portals list
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
+					Total: 0,
+				},
+			},
+		},
+	}, nil)
+	
+	// Mock empty auth strategies list
+	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+			Data: []kkComps.AppAuthStrategy{},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 0,
@@ -326,7 +385,9 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 	// Check execution order - auth strategy should come first
 	if len(plan.ExecutionOrder) > 0 {
 		assert.Len(t, plan.ExecutionOrder, 2)
+		// Auth strategy is created first (due to processing order)
 		assert.Equal(t, "1-c-basic-auth", plan.ExecutionOrder[0])
+		// Portal depends on auth strategy, so comes second
 		assert.Equal(t, "2-c-dev-portal", plan.ExecutionOrder[1])
 	}
 
@@ -335,18 +396,21 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 		assert.Contains(t, plan.Warnings[0].Message, "will be resolved during execution")
 	}
 
-	mockAPI.AssertExpectations(t)
+	mockPortalAPI.AssertExpectations(t)
+	mockAppAuthAPI.AssertExpectations(t)
 }
 
 func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 	ctx := context.Background()
-	mockAPI := new(MockPortalAPI)
-	client := state.NewClient(mockAPI)
+	mockPortalAPI := new(MockPortalAPI)
+	mockAPIAPI := new(MockAPIAPI)
+	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
+	client := state.NewClientWithAllAPIs(mockPortalAPI, mockAPIAPI, mockAppAuthAPI)
 	planner := NewPlanner(client)
 
 	// Mock existing portal with same hash
 	displayName := "Development Portal"
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
 				{
@@ -362,6 +426,18 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 1,
+				},
+			},
+		},
+	}, nil)
+	
+	// Mock empty auth strategies list
+	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+			Data: []kkComps.AppAuthStrategy{},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
+					Total: 0,
 				},
 			},
 		},
@@ -392,7 +468,8 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 	assert.Len(t, plan.Changes, 0)
 	assert.Equal(t, 0, plan.Summary.TotalChanges)
 
-	mockAPI.AssertExpectations(t)
+	mockPortalAPI.AssertExpectations(t)
+	mockAppAuthAPI.AssertExpectations(t)
 }
 
 func TestNextChangeID(t *testing.T) {
@@ -416,12 +493,14 @@ func TestNextChangeID(t *testing.T) {
 
 func TestGeneratePlan_ApplyModeNoDeletes(t *testing.T) {
 	ctx := context.Background()
-	mockAPI := new(MockPortalAPI)
-	client := state.NewClient(mockAPI)
+	mockPortalAPI := new(MockPortalAPI)
+	mockAPIAPI := new(MockAPIAPI)
+	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
+	client := state.NewClientWithAllAPIs(mockPortalAPI, mockAPIAPI, mockAppAuthAPI)
 	planner := NewPlanner(client)
 
 	// Mock existing managed portals
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
 				{
@@ -472,17 +551,19 @@ func TestGeneratePlan_ApplyModeNoDeletes(t *testing.T) {
 	// Verify plan metadata
 	assert.Equal(t, PlanModeApply, plan.Metadata.Mode)
 
-	mockAPI.AssertExpectations(t)
+	mockPortalAPI.AssertExpectations(t)
 }
 
 func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
 	ctx := context.Background()
-	mockAPI := new(MockPortalAPI)
-	client := state.NewClient(mockAPI)
+	mockPortalAPI := new(MockPortalAPI)
+	mockPortalAPIAPI := new(MockAPIAPI)
+	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
+	client := state.NewClientWithAllAPIs(mockPortalAPI, mockPortalAPIAPI, mockAppAuthAPI)
 	planner := NewPlanner(client)
 
 	// Mock existing managed portals
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
 				{
@@ -498,6 +579,18 @@ func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 1,
+				},
+			},
+		},
+	}, nil)
+	
+	// Mock empty auth strategies list
+	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+			Data: []kkComps.AppAuthStrategy{},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
+					Total: 0,
 				},
 			},
 		},
@@ -522,19 +615,22 @@ func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
 	// Verify plan metadata
 	assert.Equal(t, PlanModeSync, plan.Metadata.Mode)
 
-	mockAPI.AssertExpectations(t)
+	mockPortalAPI.AssertExpectations(t)
+	mockAppAuthAPI.AssertExpectations(t)
 }
 
 func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 	ctx := context.Background()
-	mockAPI := new(MockPortalAPI)
-	client := state.NewClient(mockAPI)
+	mockPortalAPI := new(MockPortalAPI)
+	mockPortalAPIAPI := new(MockAPIAPI)
+	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
+	client := state.NewClientWithAllAPIs(mockPortalAPI, mockPortalAPIAPI, mockAppAuthAPI)
 	planner := NewPlanner(client)
 
 	// Mock existing protected portal
 	protectedStr := "true"
 	existingTimestamp := "20240101-120000Z"
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
 				{
@@ -552,6 +648,18 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 1,
+				},
+			},
+		},
+	}, nil)
+	
+	// Mock empty auth strategies list
+	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+			Data: []kkComps.AppAuthStrategy{},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
+					Total: 0,
 				},
 			},
 		},
@@ -584,18 +692,21 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 	assert.Contains(t, err.Error(), "Cannot generate plan due to protected resources")
 	assert.Contains(t, err.Error(), "portal \"protected-portal\" is protected and cannot be updated")
 
-	mockAPI.AssertExpectations(t)
+	mockPortalAPI.AssertExpectations(t)
+	mockAppAuthAPI.AssertExpectations(t)
 }
 
 func TestGeneratePlan_ProtectedResourceFailsDelete(t *testing.T) {
 	ctx := context.Background()
-	mockAPI := new(MockPortalAPI)
-	client := state.NewClient(mockAPI)
+	mockPortalAPI := new(MockPortalAPI)
+	mockPortalAPIAPI := new(MockAPIAPI)
+	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
+	client := state.NewClientWithAllAPIs(mockPortalAPI, mockPortalAPIAPI, mockAppAuthAPI)
 	planner := NewPlanner(client)
 
 	// Mock existing protected portal
 	protectedStr := "true"
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
 				{
@@ -616,6 +727,18 @@ func TestGeneratePlan_ProtectedResourceFailsDelete(t *testing.T) {
 			},
 		},
 	}, nil)
+	
+	// Mock empty auth strategies list
+	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+			Data: []kkComps.AppAuthStrategy{},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
+					Total: 0,
+				},
+			},
+		},
+	}, nil)
 
 	// Empty resource set (would delete all)
 	rs := &resources.ResourceSet{
@@ -630,18 +753,21 @@ func TestGeneratePlan_ProtectedResourceFailsDelete(t *testing.T) {
 	assert.Contains(t, err.Error(), "Cannot generate plan due to protected resources")
 	assert.Contains(t, err.Error(), "portal \"protected-portal\" is protected and cannot be delete")
 
-	mockAPI.AssertExpectations(t)
+	mockPortalAPI.AssertExpectations(t)
+	mockAppAuthAPI.AssertExpectations(t)
 }
 
 func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 	ctx := context.Background()
-	mockAPI := new(MockPortalAPI)
-	client := state.NewClient(mockAPI)
+	mockPortalAPI := new(MockPortalAPI)
+	mockAPIAPI := new(MockAPIAPI)
+	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
+	client := state.NewClientWithAllAPIs(mockPortalAPI, mockAPIAPI, mockAppAuthAPI)
 	planner := NewPlanner(client)
 
 	// Mock existing protected portal
 	protectedStr := "true"
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
 				{
@@ -658,6 +784,18 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 1,
+				},
+			},
+		},
+	}, nil)
+	
+	// Mock empty auth strategies list
+	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+			Data: []kkComps.AppAuthStrategy{},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
+					Total: 0,
 				},
 			},
 		},
@@ -692,7 +830,8 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 	assert.Equal(t, 1, plan.Summary.ByAction[ActionUpdate])
 	assert.Equal(t, 1, plan.Summary.ProtectionChanges.Unprotecting)
 
-	mockAPI.AssertExpectations(t)
+	mockPortalAPI.AssertExpectations(t)
+	mockAppAuthAPI.AssertExpectations(t)
 }
 
 // Test helpers

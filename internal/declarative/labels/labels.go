@@ -8,12 +8,13 @@ import (
 
 // Label keys used by kongctl
 const (
-	ManagedKey     = "KONGCTL-managed"
-	LastUpdatedKey = "KONGCTL-last-updated"
-	ProtectedKey   = "KONGCTL-protected"
-	
 	// Label prefix
 	KongctlPrefix = "KONGCTL-"
+	
+	// Label keys (using prefix to avoid repetition)
+	ManagedKey     = KongctlPrefix + "managed"
+	LastUpdatedKey = KongctlPrefix + "last-updated"
+	ProtectedKey   = KongctlPrefix + "protected"
 	
 	// Environment variables
 	DebugEnvVar = "KONGCTL_DEBUG"
