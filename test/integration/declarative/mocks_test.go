@@ -354,6 +354,17 @@ func (m *MockAppAuthStrategiesAPI) UpdateAppAuthStrategy(
 	return nil, fmt.Errorf("UpdateAppAuthStrategy not implemented in mock")
 }
 
+func (m *MockAppAuthStrategiesAPI) DeleteAppAuthStrategy(
+	ctx context.Context,
+	id string,
+) (*kkOps.DeleteAppAuthStrategyResponse, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.DeleteAppAuthStrategyResponse), args.Error(1)
+}
+
 // Helper method for MockAPIAPI to check if method has expectations
 func (m *MockAPIAPI) HasExpectations() bool {
 	return len(m.ExpectedCalls) > 0

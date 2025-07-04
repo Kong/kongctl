@@ -666,9 +666,9 @@ func (p *Planner) authStrategyNeedsUpdate(
 			if current.Configs != nil {
 				currentKeyAuth, _ := current.Configs["key_auth"].(map[string]interface{})
 				if currentKeyAuth != nil {
-					currentKeyNames, _ := currentKeyAuth["key_names"].([]interface{})
+					currentKeyNamesRaw := currentKeyAuth["key_names"]
 					desiredKeyNames := desired.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames
-					if !keyNamesEqual(currentKeyNames, desiredKeyNames) {
+					if !keyNamesEqualGeneric(currentKeyNamesRaw, desiredKeyNames) {
 						needsUpdate = true
 						keyAuthConfig := make(map[string]interface{})
 						keyAuthConfig["key_names"] = desiredKeyNames
@@ -716,8 +716,9 @@ func (p *Planner) authStrategyNeedsUpdate(
 						// Build full config for update
 						oidcConfig := make(map[string]interface{})
 						oidcConfig["issuer"] = desired.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Issuer
-						if len(desired.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.CredentialClaim) > 0 {
-							oidcConfig["credential_claim"] = desired.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.CredentialClaim
+						credClaim := desired.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.CredentialClaim
+						if len(credClaim) > 0 {
+							oidcConfig["credential_claim"] = credClaim
 						}
 						if len(desired.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Scopes) > 0 {
 							oidcConfig["scopes"] = desired.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Scopes
@@ -770,6 +771,39 @@ func keyNamesEqual(current []interface{}, desired []string) bool {
 	sort.Strings(desiredCopy)
 	
 	return reflect.DeepEqual(currentStrs, desiredCopy)
+}
+
+// keyNamesEqualGeneric compares key names handling both []string and []interface{} types
+func keyNamesEqualGeneric(current interface{}, desired []string) bool {
+	if current == nil {
+		return len(desired) == 0
+	}
+	
+	// Handle []string type (from API responses)
+	if currentStrings, ok := current.([]string); ok {
+		if len(currentStrings) != len(desired) {
+			return false
+		}
+		
+		// Sort both for comparison
+		currentCopy := make([]string, len(currentStrings))
+		copy(currentCopy, currentStrings)
+		sort.Strings(currentCopy)
+		
+		desiredCopy := make([]string, len(desired))
+		copy(desiredCopy, desired)
+		sort.Strings(desiredCopy)
+		
+		return reflect.DeepEqual(currentCopy, desiredCopy)
+	}
+	
+	// Handle []interface{} type (from other sources)
+	if currentInterfaces, ok := current.([]interface{}); ok {
+		return keyNamesEqual(currentInterfaces, desired)
+	}
+	
+	// Unknown type, not equal
+	return false
 }
 
 // planAuthStrategyUpdate creates an UPDATE change for an auth strategy
