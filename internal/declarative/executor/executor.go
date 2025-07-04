@@ -17,7 +17,8 @@ type Executor struct {
 	dryRun   bool
 	// Track created resources during execution
 	createdResources map[string]string // changeID -> resourceID
-
+	// Track resource refs to IDs for reference resolution
+	refToID map[string]map[string]string // resourceType -> ref -> resourceID
 }
 
 // New creates a new Executor instance
@@ -27,6 +28,7 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 		reporter: reporter,
 		dryRun:   dryRun,
 		createdResources: make(map[string]string),
+		refToID: make(map[string]map[string]string),
 	}
 }
 
@@ -186,6 +188,12 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		// Track created resources for dependencies
 		if change.Action == planner.ActionCreate && resourceID != "" {
 			e.createdResources[change.ID] = resourceID
+			
+			// Also track by resource type and ref for reference resolution
+			if e.refToID[change.ResourceType] == nil {
+				e.refToID[change.ResourceType] = make(map[string]string)
+			}
+			e.refToID[change.ResourceType][change.ResourceRef] = resourceID
 		}
 	}
 	
@@ -323,6 +331,21 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 	}
 	
 	return nil
+}
+
+// resolveAuthStrategyRef resolves an auth strategy reference to its ID
+func (e *Executor) resolveAuthStrategyRef(_ context.Context, ref string) (string, error) {
+	// First check if it was created in this execution
+	if authStrategies, ok := e.refToID["application_auth_strategy"]; ok {
+		if id, found := authStrategies[ref]; found {
+			return id, nil
+		}
+	}
+	
+	// If not found in current execution, try to look it up
+	// TODO: Implement lookup when auth strategy state client is available
+	// For now, return error
+	return "", fmt.Errorf("auth strategy reference %q not found", ref)
 }
 
 // Resource operations

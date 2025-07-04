@@ -31,10 +31,38 @@ func (e *Executor) createAPIPublication(ctx context.Context, change planner.Plan
 
 	// Map fields to SDK request
 	if authStrategyIDs, ok := change.Fields["auth_strategy_ids"].([]interface{}); ok {
-		ids := make([]string, len(authStrategyIDs))
-		for i, id := range authStrategyIDs {
+		ids := make([]string, 0, len(authStrategyIDs))
+		for _, id := range authStrategyIDs {
 			if strID, ok := id.(string); ok {
-				ids[i] = strID
+				// Check if this is a UUID or a reference
+				if isUUID(strID) {
+					ids = append(ids, strID)
+				} else {
+					// It's a reference, resolve it
+					resolvedID, err := e.resolveAuthStrategyRef(ctx, strID)
+					if err != nil {
+						return "", fmt.Errorf("failed to resolve auth strategy reference %q: %w", strID, err)
+					}
+					ids = append(ids, resolvedID)
+				}
+			}
+		}
+		publication.AuthStrategyIds = ids
+	}
+	// Also handle []string type (from planner)
+	if authStrategyIDs, ok := change.Fields["auth_strategy_ids"].([]string); ok {
+		ids := make([]string, 0, len(authStrategyIDs))
+		for _, strID := range authStrategyIDs {
+			// Check if this is a UUID or a reference
+			if isUUID(strID) {
+				ids = append(ids, strID)
+			} else {
+				// It's a reference, resolve it
+				resolvedID, err := e.resolveAuthStrategyRef(ctx, strID)
+				if err != nil {
+					return "", fmt.Errorf("failed to resolve auth strategy reference %q: %w", strID, err)
+				}
+				ids = append(ids, resolvedID)
 			}
 		}
 		publication.AuthStrategyIds = ids
@@ -87,3 +115,9 @@ func (e *Executor) deleteAPIPublication(ctx context.Context, change planner.Plan
 }
 
 // Note: API publications don't support update operations in the SDK
+
+// isUUID checks if a string is a UUID format
+func isUUID(s string) bool {
+	// Simple check - UUID format: 8-4-4-4-12 characters
+	return len(s) == 36 && s[8] == '-' && s[13] == '-' && s[18] == '-' && s[23] == '-'
+}
