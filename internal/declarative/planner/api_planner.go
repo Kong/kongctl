@@ -426,6 +426,13 @@ func (p *Planner) planAPIPublicationCreate(
 	fields["portal_id"] = publication.PortalID
 	if publication.AuthStrategyIds != nil {
 		fields["auth_strategy_ids"] = publication.AuthStrategyIds
+		// Warn if multiple auth strategies are specified (Kong limitation)
+		if len(publication.AuthStrategyIds) > 1 {
+			plan.AddWarning(
+				p.nextChangeID(ActionCreate, publication.GetRef()),
+				"Kong currently only supports 1 auth strategy per API publication. Only the first auth strategy will be used.",
+			)
+		}
 	}
 	if publication.AutoApproveRegistrations != nil {
 		fields["auto_approve_registrations"] = *publication.AutoApproveRegistrations

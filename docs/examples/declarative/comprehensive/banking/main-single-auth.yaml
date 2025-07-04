@@ -1,4 +1,5 @@
-# Comprehensive Banking API Example
+# Comprehensive Banking API Example (Single Auth Strategy)
+# This version uses only one auth strategy per publication due to Kong API limitations
 
 portals:
   - ref: securebank-portal
@@ -78,15 +79,12 @@ apis:
         spec: !file specs/openapi-v1.yaml
         
     publications:
-      # Public publication for external developers
+      # Public publication for external developers - OAuth2 only
       - ref: securebank-public-publication
         portal_id: securebank-portal
         visibility: public
         auth_strategy_ids:
-          # NOTE: Kong currently only supports 1 auth strategy per API publication
-          # See main-single-auth.yaml for a working example
-          - securebank-oauth2-strategy
-          # - securebank-apikey-strategy  # Commented out due to Kong limitation
+          - securebank-oauth2-strategy  # Only one auth strategy due to Kong limitation
         auto_approve_registrations: false
         auto_approve_applications: false
         application_registration_enabled: true
