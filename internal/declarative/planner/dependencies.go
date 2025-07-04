@@ -58,6 +58,8 @@ func (d *DependencyResolver) ResolveDependencies(changes []PlannedChange) ([]str
 				// Added parent dependency
 			} else if parentDep == "" && change.Parent.Ref != "" {
 				// Parent not found in changes - this might indicate a problem
+				// TODO: Consider adding a warning or error for missing parent
+				_ = parentDep // Suppress empty block warning
 			}
 		}
 	}
@@ -153,7 +155,12 @@ func contains(slice []string, item string) bool {
 }
 
 // findCycleDetails finds and returns detailed information about circular dependencies
-func (d *DependencyResolver) findCycleDetails(graph map[string][]string, inDegree map[string]int, allChanges map[string]bool, changeDetails map[string]string) string {
+func (d *DependencyResolver) findCycleDetails(
+	graph map[string][]string, 
+	inDegree map[string]int, 
+	allChanges map[string]bool, 
+	changeDetails map[string]string,
+) string {
 	// Find nodes that still have dependencies (part of cycle)
 	var cycleNodes []string
 	for changeID := range allChanges {
@@ -222,7 +229,12 @@ func (d *DependencyResolver) findCycleDetails(graph map[string][]string, inDegre
 }
 
 // findCyclePath uses DFS to find a cycle path starting from a given node
-func (d *DependencyResolver) findCyclePath(graph map[string][]string, start string, visited map[string]bool, path []string) []string {
+func (d *DependencyResolver) findCyclePath(
+	graph map[string][]string, 
+	start string, 
+	visited map[string]bool, 
+	path []string,
+) []string {
 	// Check if we've found a cycle
 	for i, node := range path {
 		if node == start && len(path) > 1 {
@@ -262,15 +274,3 @@ func (d *DependencyResolver) findCyclePath(graph map[string][]string, start stri
 	return nil
 }
 
-// formatCyclePath formats a cycle path for display
-func formatCyclePath(path []string) string {
-	if len(path) == 0 {
-		return ""
-	}
-	
-	result := path[0]
-	for i := 1; i < len(path); i++ {
-		result += " → " + path[i]
-	}
-	return result
-}

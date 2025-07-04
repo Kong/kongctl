@@ -13,8 +13,9 @@ import (
 
 // Client wraps Konnect SDK for state management
 type Client struct {
-	portalAPI helpers.PortalAPI
-	apiAPI    helpers.APIAPI
+	portalAPI       helpers.PortalAPI
+	apiAPI          helpers.APIAPI
+	appAuthAPI      helpers.AppAuthStrategiesAPI
 }
 
 // NewClient creates a new state client
@@ -29,6 +30,19 @@ func NewClientWithAPIs(portalAPI helpers.PortalAPI, apiAPI helpers.APIAPI) *Clie
 	return &Client{
 		portalAPI: portalAPI,
 		apiAPI:    apiAPI,
+	}
+}
+
+// NewClientWithAllAPIs creates a new state client with all API support
+func NewClientWithAllAPIs(
+	portalAPI helpers.PortalAPI, 
+	apiAPI helpers.APIAPI, 
+	appAuthAPI helpers.AppAuthStrategiesAPI,
+) *Client {
+	return &Client{
+		portalAPI:  portalAPI,
+		apiAPI:     apiAPI,
+		appAuthAPI: appAuthAPI,
 	}
 }
 
@@ -744,4 +758,63 @@ func (c *Client) DeleteAPIDocument(ctx context.Context, apiID, documentID string
 		return fmt.Errorf("failed to delete API document: %w", err)
 	}
 	return nil
+}
+
+// CreateApplicationAuthStrategy creates a new application auth strategy with management labels
+func (c *Client) CreateApplicationAuthStrategy(
+	ctx context.Context,
+	authStrategy kkComps.CreateAppAuthStrategyRequest,
+) (*kkOps.CreateAppAuthStrategyResponse, error) {
+	if c.appAuthAPI == nil {
+		return nil, fmt.Errorf("app auth API client not configured")
+	}
+
+	// Add management labels to the appropriate request type
+	switch {
+	case authStrategy.AppAuthStrategyKeyAuthRequest != nil:
+		// Convert map[string]string to map[string]*string for normalization
+		pointerLabels := make(map[string]*string)
+		for k, v := range authStrategy.AppAuthStrategyKeyAuthRequest.Labels {
+			val := v
+			pointerLabels[k] = &val
+		}
+		
+		normalized := labels.NormalizeLabels(pointerLabels)
+		normalized = labels.AddManagedLabels(normalized)
+		
+		// Convert back to map[string]string
+		stringLabels := make(map[string]string)
+		for k, v := range normalized {
+			stringLabels[k] = v
+		}
+		authStrategy.AppAuthStrategyKeyAuthRequest.Labels = stringLabels
+		
+	case authStrategy.AppAuthStrategyOpenIDConnectRequest != nil:
+		// Convert map[string]string to map[string]*string for normalization
+		pointerLabels := make(map[string]*string)
+		for k, v := range authStrategy.AppAuthStrategyOpenIDConnectRequest.Labels {
+			val := v
+			pointerLabels[k] = &val
+		}
+		
+		normalized := labels.NormalizeLabels(pointerLabels)
+		normalized = labels.AddManagedLabels(normalized)
+		
+		// Convert back to map[string]string
+		stringLabels := make(map[string]string)
+		for k, v := range normalized {
+			stringLabels[k] = v
+		}
+		authStrategy.AppAuthStrategyOpenIDConnectRequest.Labels = stringLabels
+		
+	default:
+		return nil, fmt.Errorf("unsupported auth strategy type")
+	}
+
+	resp, err := c.appAuthAPI.CreateAppAuthStrategy(ctx, authStrategy)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create application auth strategy: %w", err)
+	}
+
+	return resp, nil
 }

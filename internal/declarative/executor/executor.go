@@ -341,6 +341,8 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 		return e.createAPIImplementation(ctx, change)
 	case "api_document":
 		return e.createAPIDocument(ctx, change)
+	case "application_auth_strategy":
+		return e.createApplicationAuthStrategy(ctx, change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
 	}
