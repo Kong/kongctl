@@ -13,7 +13,7 @@ import (
 // createPortal handles CREATE operations for portals
 func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChange) (string, error) {
 	// Debug logging
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	debugEnabled := os.Getenv(labels.DebugEnvVar) == "true"
 	debugLog := func(format string, args ...interface{}) {
 		if debugEnabled {
 			fmt.Fprintf(os.Stderr, "DEBUG [portal_operations]: "+format+"\n", args...)

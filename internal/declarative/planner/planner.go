@@ -24,49 +24,65 @@ type Planner struct {
 	resolver    *ReferenceResolver
 	depResolver *DependencyResolver
 	changeCount int
+	
+	// Resource-specific planners
+	portalPlanner       PortalPlanner
+	authStrategyPlanner AuthStrategyPlanner
+	apiPlanner          APIPlanner
+	
+	// Desired resources (set during plan generation)
+	desiredPortals             []resources.PortalResource
+	desiredAuthStrategies      []resources.ApplicationAuthStrategyResource
+	desiredAPIs                []resources.APIResource
+	desiredAPIVersions         []resources.APIVersionResource
+	desiredAPIPublications     []resources.APIPublicationResource
+	desiredAPIImplementations  []resources.APIImplementationResource
+	desiredAPIDocuments        []resources.APIDocumentResource
 }
 
 // NewPlanner creates a new planner
 func NewPlanner(client *state.Client) *Planner {
-	return &Planner{
+	p := &Planner{
 		client:      client,
 		resolver:    NewReferenceResolver(client),
 		depResolver: NewDependencyResolver(),
 		changeCount: 0,
 	}
+	
+	// Initialize resource-specific planners
+	base := NewBasePlanner(p)
+	p.portalPlanner = NewPortalPlanner(base)
+	p.authStrategyPlanner = NewAuthStrategyPlanner(base)
+	p.apiPlanner = NewAPIPlanner(base)
+	
+	return p
 }
 
 // GeneratePlan creates a plan from declarative configuration
 func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, opts Options) (*Plan, error) {
 	plan := NewPlan("1.0", "kongctl/dev", opts.Mode)
 
-	// Generate changes for each resource type
-	p.planAuthStrategyChanges(ctx, rs.ApplicationAuthStrategies, opts.Mode, plan)
+	// Store desired resources for access by planners
+	p.desiredPortals = rs.Portals
+	p.desiredAuthStrategies = rs.ApplicationAuthStrategies
+	p.desiredAPIs = rs.APIs
+	p.desiredAPIVersions = rs.APIVersions
+	p.desiredAPIPublications = rs.APIPublications
+	p.desiredAPIImplementations = rs.APIImplementations
+	p.desiredAPIDocuments = rs.APIDocuments
 
-	if err := p.planPortalChanges(ctx, rs.Portals, plan); err != nil {
+	// Generate changes using interface-based planners
+	if err := p.authStrategyPlanner.PlanChanges(ctx, plan); err != nil {
+		return nil, fmt.Errorf("failed to plan auth strategy changes: %w", err)
+	}
+
+	if err := p.portalPlanner.PlanChanges(ctx, plan); err != nil {
 		return nil, fmt.Errorf("failed to plan portal changes: %w", err)
 	}
 
-	// Plan API changes
-	if err := p.planAPIChanges(ctx, rs.APIs, plan); err != nil {
+	// Plan API changes (includes child resources)
+	if err := p.apiPlanner.PlanChanges(ctx, plan); err != nil {
 		return nil, fmt.Errorf("failed to plan API changes: %w", err)
-	}
-
-	// Plan API child resources (extracted from nested definitions)
-	if err := p.planAPIVersionsChanges(ctx, rs.APIVersions, plan); err != nil {
-		return nil, fmt.Errorf("failed to plan API version changes: %w", err)
-	}
-	
-	if err := p.planAPIPublicationsChanges(ctx, rs.APIPublications, plan); err != nil {
-		return nil, fmt.Errorf("failed to plan API publication changes: %w", err)
-	}
-	
-	if err := p.planAPIImplementationsChanges(ctx, rs.APIImplementations, plan); err != nil {
-		return nil, fmt.Errorf("failed to plan API implementation changes: %w", err)
-	}
-	
-	if err := p.planAPIDocumentsChanges(ctx, rs.APIDocuments, plan); err != nil {
-		return nil, fmt.Errorf("failed to plan API document changes: %w", err)
 	}
 
 	// Future: Add other resource types
@@ -151,6 +167,7 @@ func (p *Planner) validateProtection(
 }
 
 // planPortalChanges generates changes for portal resources
+// DEPRECATED: Use PortalPlanner interface instead
 func (p *Planner) planPortalChanges(ctx context.Context, desired []resources.PortalResource, plan *Plan) error {
 	// Fetch current managed portals
 	currentPortals, err := p.client.ListManagedPortals(ctx)
@@ -372,7 +389,7 @@ func (p *Planner) shouldUpdatePortal(
 	}
 	
 	// Compare user labels if any are specified
-	if desired.Labels != nil && len(desired.Labels) > 0 {
+	if len(desired.Labels) > 0 {
 		if compareUserLabelsWithPointers(current.NormalizedLabels, desired.Labels) {
 			// Convert pointer map to regular map for the update
 			labelsMap := make(map[string]interface{})
@@ -532,7 +549,8 @@ func (p *Planner) planAuthStrategyChanges(
 				needsUpdate, updateFields := p.shouldUpdateAuthStrategy(currentStrategy, strategy)
 				if needsUpdate {
 					// Regular update - check protection
-					if err := p.validateProtection("application_auth_strategy", strategy.GetRef(), isProtected, ActionUpdate); err != nil {
+					err := p.validateProtection("application_auth_strategy", strategy.GetRef(), isProtected, ActionUpdate)
+					if err != nil {
 						protectionErrors = append(protectionErrors, err)
 					} else {
 						p.planAuthStrategyUpdate(currentStrategy, strategy, updateFields, plan)
@@ -699,7 +717,7 @@ func (p *Planner) shouldUpdateAuthStrategy(
 			}
 			
 			// Check labels - only compare user labels if any are specified
-			if desired.AppAuthStrategyKeyAuthRequest.Labels != nil && len(desired.AppAuthStrategyKeyAuthRequest.Labels) > 0 {
+			if len(desired.AppAuthStrategyKeyAuthRequest.Labels) > 0 {
 				if compareUserLabels(current.NormalizedLabels, desired.AppAuthStrategyKeyAuthRequest.Labels) {
 					updateFields["labels"] = desired.AppAuthStrategyKeyAuthRequest.Labels
 					needsUpdate = true
@@ -733,7 +751,7 @@ func (p *Planner) shouldUpdateAuthStrategy(
 			}
 			
 			// Check labels - only compare user labels if any are specified
-			if desired.AppAuthStrategyOpenIDConnectRequest.Labels != nil && len(desired.AppAuthStrategyOpenIDConnectRequest.Labels) > 0 {
+			if len(desired.AppAuthStrategyOpenIDConnectRequest.Labels) > 0 {
 				if compareUserLabels(current.NormalizedLabels, desired.AppAuthStrategyOpenIDConnectRequest.Labels) {
 					updateFields["labels"] = desired.AppAuthStrategyOpenIDConnectRequest.Labels
 					needsUpdate = true

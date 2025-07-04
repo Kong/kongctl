@@ -177,7 +177,7 @@ func (c *Client) CreatePortal(
 	portal kkComps.CreatePortal,
 ) (*kkComps.PortalResponse, error) {
 	// Debug logging
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	debugEnabled := os.Getenv(labels.DebugEnvVar) == "true"
 	debugLog := func(format string, args ...interface{}) {
 		if debugEnabled {
 			fmt.Fprintf(os.Stderr, "DEBUG [state/client]: "+format+"\n", args...)
@@ -329,7 +329,7 @@ func (c *Client) CreateAPI(
 	}
 
 	// Debug logging
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	debugEnabled := os.Getenv(labels.DebugEnvVar) == "true"
 	debugLog := func(format string, args ...interface{}) {
 		if debugEnabled {
 			fmt.Fprintf(os.Stderr, "DEBUG [state/client]: "+format+"\n", args...)

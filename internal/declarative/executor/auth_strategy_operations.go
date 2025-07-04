@@ -13,7 +13,7 @@ import (
 // createApplicationAuthStrategy handles CREATE operations for application auth strategies
 func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change planner.PlannedChange) (string, error) {
 	// Debug logging
-	debugEnabled := os.Getenv("KONGCTL_DEBUG") == "true"
+	debugEnabled := os.Getenv(labels.DebugEnvVar) == "true"
 	debugLog := func(format string, args ...interface{}) {
 		if debugEnabled {
 			fmt.Fprintf(os.Stderr, "DEBUG [auth_strategy_operations]: "+format+"\n", args...)

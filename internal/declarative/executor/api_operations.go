@@ -10,12 +10,12 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
-const debugEnvVar = "KONGCTL_DEBUG"
+// Use debug env var from labels package
 
 // createAPI handles CREATE operations for APIs
 func (e *Executor) createAPI(ctx context.Context, change planner.PlannedChange) (string, error) {
 	// Debug logging
-	debugEnabled := os.Getenv(debugEnvVar) == labels.TrueValue
+	debugEnabled := os.Getenv(labels.DebugEnvVar) == labels.TrueValue
 	debugLog := func(format string, args ...interface{}) {
 		if debugEnabled {
 			fmt.Fprintf(os.Stderr, "DEBUG [api_operations]: "+format+"\n", args...)

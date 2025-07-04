@@ -10,6 +10,45 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
+// apiPlannerImpl implements planning logic for API resources
+type apiPlannerImpl struct {
+	*BasePlanner
+}
+
+// NewAPIPlanner creates a new API planner
+func NewAPIPlanner(base *BasePlanner) APIPlanner {
+	return &apiPlannerImpl{
+		BasePlanner: base,
+	}
+}
+
+// PlanChanges generates changes for API resources and their child resources
+func (a *apiPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
+	// Plan API resources
+	if err := a.planner.planAPIChanges(ctx, a.GetDesiredAPIs(), plan); err != nil {
+		return err
+	}
+	
+	// Plan child resources that are defined separately
+	if err := a.planner.planAPIVersionsChanges(ctx, a.GetDesiredAPIVersions(), plan); err != nil {
+		return err
+	}
+	
+	if err := a.planner.planAPIPublicationsChanges(ctx, a.GetDesiredAPIPublications(), plan); err != nil {
+		return err
+	}
+	
+	if err := a.planner.planAPIImplementationsChanges(ctx, a.GetDesiredAPIImplementations(), plan); err != nil {
+		return err
+	}
+	
+	if err := a.planner.planAPIDocumentsChanges(ctx, a.GetDesiredAPIDocuments(), plan); err != nil {
+		return err
+	}
+	
+	return nil
+}
+
 // planAPIChanges generates changes for API resources and their child resources
 func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIResource, plan *Plan) error {
 	// Skip if no API resources to plan
@@ -168,7 +207,7 @@ func (p *Planner) shouldUpdateAPI(
 	}
 
 	// Compare user labels if any are specified
-	if desired.Labels != nil && len(desired.Labels) > 0 {
+	if len(desired.Labels) > 0 {
 		if compareUserLabels(current.NormalizedLabels, desired.Labels) {
 			// Convert to interface map for the update
 			labelsMap := make(map[string]interface{})

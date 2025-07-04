@@ -12,6 +12,12 @@ const (
 	LastUpdatedKey = "KONGCTL-last-updated"
 	ProtectedKey   = "KONGCTL-protected"
 	
+	// Label prefix
+	KongctlPrefix = "KONGCTL-"
+	
+	// Environment variables
+	DebugEnvVar = "KONGCTL_DEBUG"
+	
 	// Label values
 	TrueValue  = "true"
 	FalseValue = "false"
@@ -94,7 +100,7 @@ func GetUserLabels(labels map[string]string) map[string]string {
 
 // IsKongctlLabel checks if label key is kongctl-managed
 func IsKongctlLabel(key string) bool {
-	return len(key) >= 8 && key[:8] == "KONGCTL-"
+	return strings.HasPrefix(key, KongctlPrefix)
 }
 
 // ValidateLabel ensures label key follows Konnect rules
@@ -104,7 +110,7 @@ func ValidateLabel(key string) error {
 	}
 	
 	// Allow our KONGCTL labels
-	if strings.HasPrefix(key, "KONGCTL-") || strings.HasPrefix(key, "kongctl-") {
+	if strings.HasPrefix(key, KongctlPrefix) || strings.HasPrefix(key, "kongctl-") {
 		return nil
 	}
 	
