@@ -1,0 +1,89 @@
+# Patient API Configuration
+# This file is loaded by the main portal.yaml using !file tag
+
+ref: patient-api
+name: !file openapi.yaml#info.title
+description: !file openapi.yaml#info.description
+version: !file openapi.yaml#info.version
+labels:
+  team: patient-experience
+  compliance: hipaa
+  data_classification: phi
+  api_type: fhir
+  contact_email: !file openapi.yaml#info.contact.email
+kongctl:
+  protected: true  # Protect due to PHI data
+
+# API versions
+versions:
+  - ref: patient-api-v1
+    version: !file openapi.yaml#info.version
+    publish_status: published
+    deprecated: false
+    gateway_service:
+      control_plane_id: healthcare-cp
+      id: "p1a2t3i4-e5n6-t7a8-p9i0-123456789012"
+    spec: !file openapi.yaml
+
+# API publications
+publications:
+  - ref: patient-api-pub
+    portal_id: healthcare-portal
+    visibility: private  # Only visible to authenticated organizations
+    auth_strategy_ids:
+      - healthcare-oauth
+      - healthcare-api-key
+    auto_approve_registrations: false
+    auto_approve_applications: false
+    application_registration_enabled: true
+
+# API implementations
+implementations:
+  - ref: patient-api-impl
+    service:
+      id: "p2a3t4i5-e6n7-t8a9-p0i1-234567890123"
+      control_plane_id: healthcare-cp
+
+# API documentation
+documents:
+  - ref: patient-quickstart
+    title: Patient API Quick Start
+    slug: patient-quickstart
+    status: published
+    content: !file docs/quickstart.md
+    
+  - ref: patient-security
+    title: Security & Compliance Guide
+    slug: patient-security
+    status: published
+    content: !file docs/security.md
+    
+  - ref: patient-fhir-guide
+    title: FHIR Implementation Guide
+    slug: fhir-guide
+    status: published
+    content: |
+      # FHIR Implementation Guide
+      
+      This API implements FHIR R4 (4.0.1) standards for patient resources.
+      
+      ## Supported Resources
+      - Patient
+      - Appointment
+      - Observation
+      - MedicationRequest
+      - AllergyIntolerance
+      - Immunization
+      
+      ## FHIR Conformance
+      - All responses use `application/fhir+json` content type
+      - Resources include proper FHIR metadata
+      - Search parameters follow FHIR specifications
+      
+      ## Extensions
+      We support the following US Core extensions:
+      - US Core Race
+      - US Core Ethnicity
+      - US Core Birth Sex
+      
+      For full FHIR conformance statement, see `/metadata` endpoint.

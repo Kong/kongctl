@@ -1,0 +1,236 @@
+openapi: 3.0.3
+info:
+  title: Provider API
+  version: 2.1.0
+  description: Healthcare provider management API for practitioner data and scheduling
+  contact:
+    name: HealthConnect Provider API Team
+    email: provider-api@healthconnect.io
+  license:
+    name: Proprietary
+    url: https://healthconnect.io/licenses/api
+servers:
+  - url: https://api.healthconnect.io/provider/v2
+    description: Production server
+tags:
+  - name: providers
+    description: Provider management
+  - name: schedules
+    description: Schedule management
+  - name: locations
+    description: Practice locations
+paths:
+  /providers:
+    get:
+      summary: Search providers
+      operationId: searchProviders
+      tags:
+        - providers
+      parameters:
+        - name: specialty
+          in: query
+          schema:
+            type: string
+            example: cardiology
+        - name: location
+          in: query
+          schema:
+            type: string
+            example: "New York, NY"
+        - name: insurance
+          in: query
+          schema:
+            type: string
+        - name: accepting_new_patients
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: List of providers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Provider'
+                  total:
+                    type: integer
+  /providers/{providerId}:
+    get:
+      summary: Get provider details
+      operationId: getProvider
+      tags:
+        - providers
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^PRV[0-9]{10}$'
+      responses:
+        '200':
+          description: Provider information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Provider'
+  /providers/{providerId}/schedule:
+    get:
+      summary: Get provider availability
+      operationId: getProviderSchedule
+      tags:
+        - schedules
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Provider schedule
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  schedule:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ScheduleSlot'
+  /providers/{providerId}/locations:
+    get:
+      summary: Get provider practice locations
+      operationId: getProviderLocations
+      tags:
+        - locations
+      parameters:
+        - name: providerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Practice locations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  locations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Location'
+components:
+  schemas:
+    Provider:
+      type: object
+      properties:
+        id:
+          type: string
+          example: PRV1234567890
+        npi:
+          type: string
+          description: National Provider Identifier
+        name:
+          type: object
+          properties:
+            first:
+              type: string
+            last:
+              type: string
+            title:
+              type: string
+              example: MD
+        specialties:
+          type: array
+          items:
+            type: string
+        accepting_new_patients:
+          type: boolean
+        languages:
+          type: array
+          items:
+            type: string
+        education:
+          type: array
+          items:
+            type: object
+            properties:
+              institution:
+                type: string
+              degree:
+                type: string
+              year:
+                type: integer
+    ScheduleSlot:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        time:
+          type: string
+          format: time
+        duration_minutes:
+          type: integer
+        available:
+          type: boolean
+        location_id:
+          type: string
+        appointment_type:
+          type: string
+          enum: [in-person, telehealth]
+    Location:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        address:
+          type: object
+          properties:
+            street:
+              type: string
+            city:
+              type: string
+            state:
+              type: string
+            zip:
+              type: string
+        phone:
+          type: string
+        fax:
+          type: string
+        hours:
+          type: object
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.healthconnect.io/token
+          scopes:
+            provider:read: Read provider information
+            provider:write: Manage provider data
+            schedule:read: View schedules
+            schedule:write: Manage schedules

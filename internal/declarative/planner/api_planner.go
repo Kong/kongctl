@@ -41,9 +41,9 @@ func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIRes
 
 		if !exists {
 			// CREATE action
-			p.planAPICreate(desiredAPI, plan)
+			apiChangeID := p.planAPICreate(desiredAPI, plan)
 			// Plan child resources after API creation
-			p.planAPIChildResourcesCreate(desiredAPI, plan)
+			p.planAPIChildResourcesCreate(desiredAPI, apiChangeID, plan)
 		} else {
 			// Check if update needed
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
@@ -115,7 +115,7 @@ func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIRes
 }
 
 // planAPICreate creates a CREATE change for an API
-func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) {
+func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) string {
 	fields := make(map[string]interface{})
 	fields["name"] = api.Name
 	if api.Description != nil {
@@ -148,6 +148,7 @@ func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) {
 	}
 
 	plan.AddChange(change)
+	return change.ID
 }
 
 // shouldUpdateAPI checks if API needs update based on configured fields only
@@ -259,10 +260,7 @@ func (p *Planner) planAPIDelete(api state.API, plan *Plan) {
 }
 
 // planAPIChildResourcesCreate plans creation of child resources for a new API
-func (p *Planner) planAPIChildResourcesCreate(api resources.APIResource, plan *Plan) {
-	// Get the ID of the API creation change to use as dependency
-	apiChangeID := fmt.Sprintf("%s_%s_%s", ActionCreate, "api", api.GetRef())
-	
+func (p *Planner) planAPIChildResourcesCreate(api resources.APIResource, apiChangeID string, plan *Plan) {
 	// Plan version creation
 	for _, version := range api.Versions {
 		p.planAPIVersionCreate(api.GetRef(), version, []string{apiChangeID}, plan)

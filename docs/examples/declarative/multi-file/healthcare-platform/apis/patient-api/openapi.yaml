@@ -1,0 +1,154 @@
+openapi: 3.0.3
+info:
+  title: Patient API
+  version: 1.2.0
+  description: FHIR-compliant API for patient data management and access
+  contact:
+    name: HealthConnect Patient API Team
+    email: patient-api@healthconnect.io
+  license:
+    name: Proprietary
+    url: https://healthconnect.io/licenses/api
+  x-logo:
+    url: https://healthconnect.io/logos/patient-api.png
+servers:
+  - url: https://api.healthconnect.io/patient/v1
+    description: Production server
+tags:
+  - name: patients
+    description: Patient resource operations
+  - name: appointments
+    description: Appointment scheduling
+  - name: records
+    description: Medical records access
+paths:
+  /patients/{patientId}:
+    get:
+      summary: Get patient information
+      operationId: getPatient
+      tags:
+        - patients
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Z0-9]{10}$'
+      responses:
+        '200':
+          description: Patient information
+          content:
+            application/fhir+json:
+              schema:
+                $ref: '#/components/schemas/Patient'
+  /patients/{patientId}/appointments:
+    get:
+      summary: List patient appointments
+      operationId: listAppointments
+      tags:
+        - appointments
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [scheduled, completed, cancelled]
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: List of appointments
+          content:
+            application/fhir+json:
+              schema:
+                type: object
+                properties:
+                  appointments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Appointment'
+  /patients/{patientId}/records:
+    get:
+      summary: Access patient medical records
+      operationId: getRecords
+      tags:
+        - records
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [lab-results, medications, allergies, immunizations]
+      security:
+        - OAuth2: [patient/*.read]
+      responses:
+        '200':
+          description: Medical records
+          content:
+            application/fhir+json:
+              schema:
+                type: object
+components:
+  schemas:
+    Patient:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: object
+          properties:
+            given:
+              type: array
+              items:
+                type: string
+            family:
+              type: string
+        birthDate:
+          type: string
+          format: date
+        gender:
+          type: string
+          enum: [male, female, other, unknown]
+    Appointment:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+        participant:
+          type: array
+          items:
+            type: object
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.healthconnect.io/authorize
+          tokenUrl: https://auth.healthconnect.io/token
+          scopes:
+            patient/*.read: Read access to all patient data
+            patient/*.write: Write access to patient data
+            patient/demographics.read: Read patient demographics only

@@ -1,0 +1,148 @@
+# Provider API Configuration
+# This file is loaded by the main portal.yaml using !file tag
+
+ref: provider-api
+name: !file openapi.yaml#info.title
+description: !file openapi.yaml#info.description
+version: !file openapi.yaml#info.version
+labels:
+  team: provider-experience
+  compliance: hipaa
+  data_classification: pii
+  api_type: rest
+  contact_email: !file openapi.yaml#info.contact.email
+kongctl:
+  protected: false
+
+# API versions
+versions:
+  - ref: provider-api-v2
+    version: !file openapi.yaml#info.version
+    publish_status: published
+    deprecated: false
+    gateway_service:
+      control_plane_id: healthcare-cp
+      id: "p4r5o6v7-i8d9-e0r1-a2p3-456789012345"
+    spec: !file openapi.yaml
+    
+  - ref: provider-api-v1
+    version: "1.0.0"
+    publish_status: published
+    deprecated: true
+    sunset_date: "2024-06-30T23:59:59Z"
+    gateway_service:
+      control_plane_id: healthcare-cp
+      id: "p5r6o7v8-i9d0-e1r2-a3p4-567890123456"
+
+# API publications
+publications:
+  - ref: provider-api-pub
+    portal_id: healthcare-portal
+    visibility: private
+    auth_strategy_ids:
+      - healthcare-oauth
+      - healthcare-api-key
+    auto_approve_registrations: false
+    auto_approve_applications: false
+    application_registration_enabled: true
+
+# API implementations
+implementations:
+  - ref: provider-api-impl-prod
+    service:
+      id: "p6r7o8v9-i0d1-e2r3-a4p5-678901234567"
+      control_plane_id: healthcare-cp
+      
+  - ref: provider-api-impl-dr
+    service:
+      id: "p7r8o9v0-i1d2-e3r4-a5p6-789012345678"
+      control_plane_id: healthcare-cp
+
+# API documentation
+documents:
+  - ref: provider-integration
+    title: Provider Integration Guide
+    slug: provider-integration
+    status: published
+    content: !file docs/integration.md
+    
+  - ref: provider-data-standards
+    title: Provider Data Standards
+    slug: data-standards
+    status: published
+    content: |
+      # Provider Data Standards
+      
+      ## Required Fields
+      
+      All provider records must include:
+      - National Provider Identifier (NPI)
+      - Full legal name
+      - Primary specialty
+      - Practice location(s)
+      - Accepting new patients status
+      
+      ## Specialty Codes
+      
+      We use CMS specialty codes:
+      - 01: General Practice
+      - 06: Cardiology
+      - 08: Family Medicine
+      - 11: Internal Medicine
+      - 16: Pediatrics
+      - 20: Orthopedic Surgery
+      
+      ## Data Quality
+      
+      - Provider data updated daily from NPPES
+      - Board certifications verified quarterly
+      - Insurance participation updated weekly
+      - Patient reviews aggregated hourly
+      
+      ## Integration Requirements
+      
+      Partners must:
+      1. Validate NPI numbers
+      2. Maintain data accuracy >99%
+      3. Update availability in real-time
+      4. Support standard medical taxonomies
+    
+  - ref: provider-webhooks
+    title: Provider Webhooks Guide
+    slug: webhooks
+    status: published
+    content: |
+      # Provider Webhooks
+      
+      Subscribe to real-time provider updates.
+      
+      ## Available Events
+      
+      - `provider.created` - New provider added
+      - `provider.updated` - Provider information changed
+      - `provider.deactivated` - Provider no longer active
+      - `schedule.updated` - Availability changed
+      - `location.added` - New practice location
+      - `location.removed` - Location closed
+      
+      ## Webhook Payload
+      
+      ```json
+      {
+        "event": "provider.updated",
+        "timestamp": "2024-01-15T10:30:00Z",
+        "data": {
+          "provider_id": "PRV1234567890",
+          "changes": ["specialties", "locations"],
+          "previous_values": {...},
+          "current_values": {...}
+        }
+      }
+      ```
+      
+      ## Configuration
+      
+      1. Register webhook endpoint in developer portal
+      2. Verify webhook signatures
+      3. Acknowledge receipt within 5 seconds
+      4. Implement idempotency for retries

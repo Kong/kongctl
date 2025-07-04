@@ -1,1 +1,0 @@
-This API demonstrates comprehensive file loading capabilities including extraction from OpenAPI specs, plain text loading, and mixed approaches. It showcases the power of YAML tags for managing configuration data across multiple files and formats.

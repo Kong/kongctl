@@ -1,0 +1,572 @@
+openapi: 3.0.3
+info:
+  title: SecureBank API
+  version: 3.0.0-beta.1
+  description: Next-generation banking API with real-time features and AI capabilities (Beta)
+  contact:
+    name: SecureBank API Team
+    email: api-beta@securebank.com
+    url: https://developer.securebank.com/beta
+  license:
+    name: Commercial
+    url: https://securebank.com/api-license
+  x-beta-notice: |
+    This is a beta version with experimental features. APIs may change without notice.
+    Not recommended for production use. Provide feedback at api-beta@securebank.com
+servers:
+  - url: https://api-beta.securebank.com/v3
+    description: Beta server
+  - url: wss://realtime-beta.securebank.com/v3
+    description: WebSocket server for real-time features
+security:
+  - OAuth2: [read, write, admin]
+  - BiometricAuth: []
+tags:
+  - name: accounts
+    description: Enhanced account management with real-time updates
+  - name: transactions
+    description: Advanced transaction operations with batch support
+  - name: payments
+    description: Smart payment processing with fraud detection
+  - name: insights
+    description: AI-powered financial insights
+  - name: realtime
+    description: WebSocket endpoints for real-time data
+paths:
+  /accounts:
+    get:
+      summary: List accounts with field selection
+      operationId: listAccountsV3
+      tags:
+        - accounts
+      parameters:
+        - name: fields
+          in: query
+          description: Select specific fields (GraphQL-style)
+          schema:
+            type: string
+            example: "id,name,balance{amount,currency},type"
+        - name: filter
+          in: query
+          description: Advanced filtering with operators
+          schema:
+            type: string
+            example: "balance.amount > 1000 AND type = 'checking'"
+        - name: sort
+          in: query
+          description: Multi-field sorting
+          schema:
+            type: string
+            example: "-balance.amount,+name"
+        - name: expand
+          in: query
+          description: Expand related resources
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [recent_transactions, insights, predictions]
+      responses:
+        '200':
+          description: List of accounts with selected fields
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AccountV3'
+                  meta:
+                    $ref: '#/components/schemas/MetaInfo'
+                  included:
+                    type: array
+                    description: Expanded resources
+  /accounts/{accountId}:
+    get:
+      summary: Get account with real-time balance
+      operationId: getAccountV3
+      tags:
+        - accounts
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: include_predictions
+          in: query
+          description: Include AI balance predictions
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Account details with real-time data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountV3'
+  /accounts/{accountId}/stream:
+    get:
+      summary: WebSocket stream for real-time account updates
+      operationId: streamAccount
+      tags:
+        - realtime
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '101':
+          description: Switching Protocols - WebSocket connection established
+          headers:
+            Upgrade:
+              schema:
+                type: string
+                example: websocket
+            Connection:
+              schema:
+                type: string
+                example: Upgrade
+  /transactions/batch:
+    post:
+      summary: Process multiple transactions in batch
+      operationId: batchTransactions
+      tags:
+        - transactions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                transactions:
+                  type: array
+                  maxItems: 100
+                  items:
+                    $ref: '#/components/schemas/TransactionRequestV3'
+                processing_mode:
+                  type: string
+                  enum: [sequential, parallel, atomic]
+                  default: atomic
+      responses:
+        '202':
+          description: Batch accepted for processing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  batch_id:
+                    type: string
+                    format: uuid
+                  status_url:
+                    type: string
+                    format: uri
+                  estimated_completion:
+                    type: string
+                    format: date-time
+  /payments/smart-transfer:
+    post:
+      summary: AI-optimized payment transfer
+      operationId: smartTransfer
+      tags:
+        - payments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                from_account:
+                  type: string
+                  format: uuid
+                to_account:
+                  type: string
+                  format: uuid
+                amount:
+                  $ref: '#/components/schemas/Money'
+                optimize_for:
+                  type: string
+                  enum: [speed, cost, tax_efficiency]
+                  default: cost
+                fraud_check_level:
+                  type: string
+                  enum: [standard, enhanced, maximum]
+                  default: enhanced
+      responses:
+        '201':
+          description: Smart transfer initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transfer_id:
+                    type: string
+                    format: uuid
+                  optimization_applied:
+                    type: string
+                  fraud_score:
+                    type: number
+                    minimum: 0
+                    maximum: 100
+                  estimated_arrival:
+                    type: string
+                    format: date-time
+                  suggested_alternatives:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        method:
+                          type: string
+                        savings:
+                          $ref: '#/components/schemas/Money'
+                        arrival_time:
+                          type: string
+                          format: date-time
+  /insights/{accountId}/predictions:
+    get:
+      summary: AI-powered financial predictions
+      operationId: getFinancialPredictions
+      tags:
+        - insights
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: timeframe
+          in: query
+          description: Prediction timeframe
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 1y]
+            default: 30d
+        - name: include_recommendations
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Financial predictions and insights
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  predictions:
+                    type: object
+                    properties:
+                      balance_forecast:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                              format: date
+                            predicted_balance:
+                              $ref: '#/components/schemas/Money'
+                            confidence:
+                              type: number
+                              minimum: 0
+                              maximum: 1
+                      cash_flow_analysis:
+                        type: object
+                        properties:
+                          average_income:
+                            $ref: '#/components/schemas/Money'
+                          average_expenses:
+                            $ref: '#/components/schemas/Money'
+                          surplus_deficit:
+                            $ref: '#/components/schemas/Money'
+                  recommendations:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                          enum: [savings, investment, debt_reduction]
+                        description:
+                          type: string
+                        potential_benefit:
+                          $ref: '#/components/schemas/Money'
+                        confidence_score:
+                          type: number
+  /webhooks/subscriptions:
+    post:
+      summary: Subscribe to real-time events
+      operationId: createWebhookSubscription
+      tags:
+        - realtime
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url, events]
+              properties:
+                url:
+                  type: string
+                  format: uri
+                events:
+                  type: array
+                  items:
+                    type: string
+                    enum: 
+                      - account.balance.changed
+                      - transaction.created
+                      - transaction.completed
+                      - fraud.alert
+                      - insight.generated
+                      - payment.status.changed
+                secret:
+                  type: string
+                  description: HMAC secret for webhook signatures
+                filters:
+                  type: object
+                  description: Event-specific filters
+      responses:
+        '201':
+          description: Webhook subscription created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscription_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [active, pending_verification]
+                  verification_url:
+                    type: string
+                    format: uri
+components:
+  schemas:
+    AccountV3:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        account_number:
+          type: string
+          pattern: '^[A-Z]{2}[0-9]{10}$'
+        name:
+          type: string
+        type:
+          type: string
+          enum: [checking, savings, credit, investment]
+        status:
+          type: string
+          enum: [active, inactive, frozen, closed]
+        balance:
+          $ref: '#/components/schemas/Balance'
+        real_time_balance:
+          type: boolean
+          description: Whether balance is real-time or cached
+        features:
+          type: array
+          items:
+            type: string
+            enum: [overdraft_protection, rewards, interest_bearing, instant_transfers]
+        metadata:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Balance:
+      type: object
+      properties:
+        available:
+          $ref: '#/components/schemas/Money'
+        current:
+          $ref: '#/components/schemas/Money'
+        pending:
+          $ref: '#/components/schemas/Money'
+        projected_30d:
+          $ref: '#/components/schemas/Money'
+          description: AI-predicted balance in 30 days
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        formatted:
+          type: string
+          readOnly: true
+          example: "$1,234.56"
+    TransactionRequestV3:
+      type: object
+      required: [from_account, to_account, amount]
+      properties:
+        from_account:
+          type: string
+          format: uuid
+        to_account:
+          type: string
+          format: uuid
+        amount:
+          $ref: '#/components/schemas/Money'
+        type:
+          type: string
+          enum: [transfer, payment, withdrawal, deposit]
+        metadata:
+          type: object
+          additionalProperties: true
+        scheduled_for:
+          type: string
+          format: date-time
+          description: Schedule future transaction
+        recurrence:
+          type: object
+          properties:
+            frequency:
+              type: string
+              enum: [daily, weekly, monthly, yearly]
+            end_date:
+              type: string
+              format: date
+    MetaInfo:
+      type: object
+      properties:
+        total_count:
+          type: integer
+        page:
+          type: integer
+        per_page:
+          type: integer
+        has_more:
+          type: boolean
+        query_time_ms:
+          type: integer
+        cached:
+          type: boolean
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "INSUFFICIENT_FUNDS"
+        message:
+          type: string
+        details:
+          type: object
+        trace_id:
+          type: string
+          format: uuid
+        suggestion:
+          type: string
+          description: AI-generated suggestion to resolve the error
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.securebank.com/oauth/authorize
+          tokenUrl: https://auth.securebank.com/oauth/token
+          scopes:
+            read: Read access to accounts and transactions
+            write: Write access for payments and transfers
+            admin: Administrative access
+            realtime: Access to real-time features
+    BiometricAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Biometric token from mobile SDK
+      description: Biometric authentication for enhanced security
+webhooks:
+  accountBalanceChanged:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event_type:
+                  type: string
+                  enum: [account.balance.changed]
+                timestamp:
+                  type: string
+                  format: date-time
+                data:
+                  type: object
+                  properties:
+                    account_id:
+                      type: string
+                      format: uuid
+                    previous_balance:
+                      $ref: '#/components/schemas/Money'
+                    new_balance:
+                      $ref: '#/components/schemas/Money'
+                    change_amount:
+                      $ref: '#/components/schemas/Money'
+                    trigger:
+                      type: string
+                      enum: [transaction, interest, fee, adjustment]
+      responses:
+        '200':
+          description: Webhook processed successfully
+  fraudAlert:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event_type:
+                  type: string
+                  enum: [fraud.alert]
+                severity:
+                  type: string
+                  enum: [low, medium, high, critical]
+                data:
+                  type: object
+                  properties:
+                    transaction_id:
+                      type: string
+                      format: uuid
+                    risk_score:
+                      type: number
+                      minimum: 0
+                      maximum: 100
+                    indicators:
+                      type: array
+                      items:
+                        type: string
+                    recommended_action:
+                      type: string
+                      enum: [review, block, allow_with_verification]
+      responses:
+        '200':
+          description: Alert acknowledged

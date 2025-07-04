@@ -1,0 +1,76 @@
+# Healthcare Platform Portal Configuration
+# Main entry point that loads APIs from separate files
+
+# Healthcare developer portal
+portals:
+  - ref: healthcare-portal
+    name: healthcare-developer-portal
+    display_name: HealthConnect Developer Portal
+    description: Secure healthcare API portal for patient and provider integrations
+    authentication_enabled: true
+    rbac_enabled: true
+    auto_approve_developers: false
+    auto_approve_applications: false
+    is_public: false  # Private portal for verified healthcare organizations
+    labels:
+      industry: healthcare
+      compliance: hipaa
+      environment: production
+      platform: healthconnect
+
+# Authentication strategies for healthcare APIs
+application_auth_strategies:
+  - ref: healthcare-oauth
+    name: healthcare-oauth2
+    display_name: Healthcare OAuth 2.0
+    description: HIPAA-compliant OAuth 2.0 authentication for healthcare applications
+    strategy_type: openid_connect
+    configs:
+      openid_connect:
+        issuer: https://auth.healthconnect.io/
+        scopes:
+          - openid
+          - profile
+          - patient/*.read
+          - patient/*.write
+          - provider/*.read
+        auth_methods:
+          - authorization_code
+          - refresh_token
+    labels:
+      compliance: hipaa
+      auth_type: oauth2
+
+  - ref: healthcare-api-key
+    name: healthcare-api-key
+    display_name: Healthcare API Key
+    description: API key authentication for system integrations
+    strategy_type: key_auth
+    configs:
+      key_auth:
+        key_names:
+          - X-Healthcare-API-Key
+          - X-API-Key
+    labels:
+      compliance: hipaa
+      auth_type: api-key
+      use_case: b2b
+
+# Control plane for healthcare APIs
+control_planes:
+  - ref: healthcare-cp
+    name: healthcare-production
+    description: HIPAA-compliant production control plane
+    auth_type: pinned_client_certs
+    cloud_gateway: false
+    labels:
+      environment: production
+      compliance: hipaa
+      region: us-east-1
+      datacenter: primary
+
+# Load APIs from separate files
+# Each API is defined in its own directory with openapi.yaml and docs
+apis:
+  - !file apis/patient-api/api.yaml
+  - !file apis/provider-api/api.yaml

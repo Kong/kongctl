@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -233,8 +234,8 @@ func TestResolveDependencies_CircularDependency(t *testing.T) {
 	}
 
 	expectedErr := "circular dependency detected in plan"
-	if err.Error() != expectedErr {
-		t.Errorf("Expected error %q, got %q", expectedErr, err.Error())
+	if !strings.Contains(err.Error(), expectedErr) {
+		t.Errorf("Expected error to contain %q, got %q", expectedErr, err.Error())
 	}
 }
 

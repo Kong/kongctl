@@ -268,6 +268,7 @@ func runDiff(command *cobra.Command, args []string) error {
 	
 	// Display diff based on output format
 	outputFormat, _ := command.Flags().GetString("output")
+	fullContent, _ := command.Flags().GetBool("full-content")
 	
 	switch outputFormat {
 	case "json":
@@ -287,14 +288,14 @@ func runDiff(command *cobra.Command, args []string) error {
 		
 	case "text":
 		// Human-readable text output
-		return displayTextDiff(command, plan)
+		return displayTextDiff(command, plan, fullContent)
 		
 	default:
 		return fmt.Errorf("unsupported output format: %s (use text, json, or yaml)", outputFormat)
 	}
 }
 
-func displayTextDiff(command *cobra.Command, plan *planner.Plan) error {
+func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent bool) error {
 	out := command.OutOrStdout()
 	
 	// Handle empty plan
@@ -346,7 +347,7 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan) error {
 			
 			// Show key fields
 			for field, value := range change.Fields {
-				displayField(out, field, value, "  ")
+				displayField(out, field, value, "  ", fullContent)
 			}
 			
 			// Show protection status
@@ -390,9 +391,9 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan) error {
 						}
 					}
 					// Fallback for other map types
-					displayField(out, field, value, "  ")
+					displayField(out, field, value, "  ", fullContent)
 				} else {
-					displayField(out, field, value, "  ")
+					displayField(out, field, value, "  ", fullContent)
 				}
 			}
 			
@@ -437,11 +438,19 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan) error {
 	return nil
 }
 
-func displayField(out io.Writer, field string, value interface{}, indent string) {
+func displayField(out io.Writer, field string, value interface{}, indent string, fullContent bool) {
 	switch v := value.(type) {
 	case string:
 		if v != "" {
-			fmt.Fprintf(out, "%s%s: %q\n", indent, field, v)
+			// Check if string is large and should be summarized
+			const maxDisplayLength = 500
+			if !fullContent && len(v) > maxDisplayLength {
+				// Count lines in the string
+				lines := strings.Count(v, "\n") + 1
+				fmt.Fprintf(out, "%s%s: <%d bytes, %d lines>\n", indent, field, len(v), lines)
+			} else {
+				fmt.Fprintf(out, "%s%s: %q\n", indent, field, v)
+			}
 		}
 	case bool:
 		fmt.Fprintf(out, "%s%s: %t\n", indent, field, v)
@@ -454,7 +463,7 @@ func displayField(out io.Writer, field string, value interface{}, indent string)
 		}
 		fmt.Fprintf(out, "%s%s:\n", indent, field)
 		for k, val := range v {
-			displayField(out, k, val, indent+"  ")
+			displayField(out, k, val, indent+"  ", fullContent)
 		}
 	case []interface{}:
 		// Skip empty slices
@@ -463,7 +472,7 @@ func displayField(out io.Writer, field string, value interface{}, indent string)
 		}
 		fmt.Fprintf(out, "%s%s:\n", indent, field)
 		for i, item := range v {
-			displayField(out, fmt.Sprintf("[%d]", i), item, indent+"  ")
+			displayField(out, fmt.Sprintf("[%d]", i), item, indent+"  ", fullContent)
 		}
 	default:
 		if v != nil {
@@ -515,6 +524,7 @@ useful for reviewing changes before synchronization.`,
 		"Process the directory used in -f, --filename recursively")
 	cmd.Flags().String("plan", "", "Path to existing plan file to display")
 	cmd.Flags().StringP("output", "o", "text", "Output format (text, json, or yaml)")
+	cmd.Flags().Bool("full-content", false, "Display full content for large fields instead of summary")
 
 	return cmd
 }

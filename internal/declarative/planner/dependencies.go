@@ -2,6 +2,7 @@ package planner
 
 import (
 	"fmt"
+	"strings"
 )
 
 // DependencyResolver calculates execution order for plan changes
@@ -18,11 +19,13 @@ func (d *DependencyResolver) ResolveDependencies(changes []PlannedChange) ([]str
 	graph := make(map[string][]string)     // change_id -> list of dependencies
 	inDegree := make(map[string]int)       // change_id -> number of incoming edges
 	allChanges := make(map[string]bool)    // set of all change IDs
+	changeDetails := make(map[string]string) // change_id -> resource details for error reporting
 
 	// Initialize graph
 	for _, change := range changes {
 		changeID := change.ID
 		allChanges[changeID] = true
+		changeDetails[changeID] = fmt.Sprintf("%s:%s:%s", change.Action, change.ResourceType, change.ResourceRef)
 
 		if _, exists := graph[changeID]; !exists {
 			graph[changeID] = []string{}
@@ -52,6 +55,9 @@ func (d *DependencyResolver) ResolveDependencies(changes []PlannedChange) ([]str
 			if parentDep != "" && !contains(change.DependsOn, parentDep) {
 				graph[parentDep] = append(graph[parentDep], changeID)
 				inDegree[changeID]++
+				// Added parent dependency
+			} else if parentDep == "" && change.Parent.Ref != "" {
+				// Parent not found in changes - this might indicate a problem
 			}
 		}
 	}
@@ -81,7 +87,9 @@ func (d *DependencyResolver) ResolveDependencies(changes []PlannedChange) ([]str
 
 	// Check for cycles
 	if len(executionOrder) != len(allChanges) {
-		return nil, fmt.Errorf("circular dependency detected in plan")
+		// Find which resources are part of the cycle or have unresolved dependencies
+		cycleInfo := d.findCycleDetails(graph, inDegree, allChanges, changeDetails)
+		return nil, fmt.Errorf("circular dependency detected in plan: %s", cycleInfo)
 	}
 
 	return executionOrder, nil
@@ -125,7 +133,7 @@ func (d *DependencyResolver) findParentChange(parentRef, childResourceType strin
 // getParentType determines parent resource type from child type
 func (d *DependencyResolver) getParentType(childType string) string {
 	switch childType {
-	case "api_version", "api_publication", "api_implementation":
+	case "api_version", "api_publication", "api_implementation", "api_document":
 		return "api"
 	case "portal_page":
 		return "portal"
@@ -142,4 +150,127 @@ func contains(slice []string, item string) bool {
 		}
 	}
 	return false
+}
+
+// findCycleDetails finds and returns detailed information about circular dependencies
+func (d *DependencyResolver) findCycleDetails(graph map[string][]string, inDegree map[string]int, allChanges map[string]bool, changeDetails map[string]string) string {
+	// Find nodes that still have dependencies (part of cycle)
+	var cycleNodes []string
+	for changeID := range allChanges {
+		if inDegree[changeID] > 0 {
+			cycleNodes = append(cycleNodes, changeID)
+		}
+	}
+	
+	if len(cycleNodes) == 0 {
+		return "unable to determine cycle participants"
+	}
+	
+	// Build detailed message
+	details := fmt.Sprintf("The following resources form a circular dependency (%d resources):\n", len(cycleNodes))
+	for _, node := range cycleNodes {
+		resourceInfo := changeDetails[node]
+		
+		// Find what this node is waiting for (incoming edges)
+		var waitingFor []string
+		for dep, dependents := range graph {
+			for _, dependent := range dependents {
+				if dependent == node {
+					if depInfo, ok := changeDetails[dep]; ok {
+						waitingFor = append(waitingFor, fmt.Sprintf("%s (%s)", dep, depInfo))
+					} else {
+						waitingFor = append(waitingFor, dep)
+					}
+				}
+			}
+		}
+		
+		// Find what depends on this node (outgoing edges)
+		deps := graph[node]
+		if len(waitingFor) > 0 {
+			details += fmt.Sprintf("  - %s (%s) is waiting for: %v\n", node, resourceInfo, waitingFor)
+		} else if len(deps) > 0 {
+			var depDetails []string
+			for _, dep := range deps {
+				if depInfo, ok := changeDetails[dep]; ok {
+					depDetails = append(depDetails, depInfo)
+				} else {
+					depDetails = append(depDetails, dep)
+				}
+			}
+			details += fmt.Sprintf("  - %s (%s) has dependents: %v\n", node, resourceInfo, depDetails)
+		} else {
+			details += fmt.Sprintf("  - %s (%s) has %d unresolved incoming dependencies\n", node, resourceInfo, inDegree[node])
+		}
+	}
+	
+	// Try to find a specific cycle path using DFS
+	cyclePath := d.findCyclePath(graph, cycleNodes[0], make(map[string]bool), []string{})
+	if len(cyclePath) > 0 {
+		var pathDetails []string
+		for _, node := range cyclePath {
+			if info, ok := changeDetails[node]; ok {
+				pathDetails = append(pathDetails, fmt.Sprintf("%s (%s)", node, info))
+			} else {
+				pathDetails = append(pathDetails, node)
+			}
+		}
+		details += fmt.Sprintf("\nDetected cycle: %s", strings.Join(pathDetails, " → "))
+	}
+	
+	return details
+}
+
+// findCyclePath uses DFS to find a cycle path starting from a given node
+func (d *DependencyResolver) findCyclePath(graph map[string][]string, start string, visited map[string]bool, path []string) []string {
+	// Check if we've found a cycle
+	for i, node := range path {
+		if node == start && len(path) > 1 {
+			// Found cycle, return the cycle portion
+			return path[i:]
+		}
+	}
+	
+	// Mark as visited
+	visited[start] = true
+	path = append(path, start)
+	
+	// DFS on dependencies
+	for _, dep := range graph[start] {
+		if visited[dep] && contains(path, dep) {
+			// Found a cycle
+			cycleStart := -1
+			for i, node := range path {
+				if node == dep {
+					cycleStart = i
+					break
+				}
+			}
+			if cycleStart >= 0 {
+				cyclePath := append(path[cycleStart:], dep)
+				return cyclePath
+			}
+		}
+		
+		if !visited[dep] {
+			if cyclePath := d.findCyclePath(graph, dep, visited, path); len(cyclePath) > 0 {
+				return cyclePath
+			}
+		}
+	}
+	
+	return nil
+}
+
+// formatCyclePath formats a cycle path for display
+func formatCyclePath(path []string) string {
+	if len(path) == 0 {
+		return ""
+	}
+	
+	result := path[0]
+	for i := 1; i < len(path); i++ {
+		result += " → " + path[i]
+	}
+	return result
 }
