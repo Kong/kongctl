@@ -96,8 +96,11 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 			Labels: authLabels,
 		}
 		
-		// Extract key names
-		if keyNames, ok := keyAuthConfig["key_names"].([]interface{}); ok {
+		// Extract key names - handle both []string and []interface{}
+		switch keyNames := keyAuthConfig["key_names"].(type) {
+		case []string:
+			req.Configs.KeyAuth.KeyNames = keyNames
+		case []interface{}:
 			names := make([]string, 0, len(keyNames))
 			for _, kn := range keyNames {
 				if name, ok := kn.(string); ok {
@@ -166,8 +169,28 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 			return "", fmt.Errorf("issuer is required for openid_connect strategy")
 		}
 		
-		// Extract scopes
-		if scopes, ok := oidcConfig["scopes"].([]interface{}); ok {
+		// Extract credential_claim (required by API) - handle both []string and []interface{}
+		switch credentialClaim := oidcConfig["credential_claim"].(type) {
+		case []string:
+			req.Configs.OpenidConnect.CredentialClaim = credentialClaim
+		case []interface{}:
+			claims := make([]string, 0, len(credentialClaim))
+			for _, c := range credentialClaim {
+				if claim, ok := c.(string); ok {
+					claims = append(claims, claim)
+				}
+			}
+			req.Configs.OpenidConnect.CredentialClaim = claims
+		default:
+			// Default to "sub" if not provided
+			req.Configs.OpenidConnect.CredentialClaim = []string{"sub"}
+		}
+		
+		// Extract scopes - handle both []string and []interface{}
+		switch scopes := oidcConfig["scopes"].(type) {
+		case []string:
+			req.Configs.OpenidConnect.Scopes = scopes
+		case []interface{}:
 			scopeStrs := make([]string, 0, len(scopes))
 			for _, s := range scopes {
 				if scope, ok := s.(string); ok {
@@ -179,8 +202,11 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 			}
 		}
 		
-		// Extract auth methods
-		if authMethods, ok := oidcConfig["auth_methods"].([]interface{}); ok {
+		// Extract auth methods - handle both []string and []interface{}
+		switch authMethods := oidcConfig["auth_methods"].(type) {
+		case []string:
+			req.Configs.OpenidConnect.AuthMethods = authMethods
+		case []interface{}:
 			methods := make([]string, 0, len(authMethods))
 			for _, m := range authMethods {
 				if method, ok := m.(string); ok {
@@ -193,6 +219,11 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 		}
 		
 		debugLog("Creating openid_connect strategy: %+v", req)
+		debugLog("OpenID config details - Issuer: %s, Scopes: %v, AuthMethods: %v, CredentialClaim: %v", 
+			req.Configs.OpenidConnect.Issuer,
+			req.Configs.OpenidConnect.Scopes,
+			req.Configs.OpenidConnect.AuthMethods,
+			req.Configs.OpenidConnect.CredentialClaim)
 		
 		// Call API
 		if e.dryRun {

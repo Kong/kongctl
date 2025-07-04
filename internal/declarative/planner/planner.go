@@ -470,8 +470,20 @@ func (p *Planner) planAuthStrategyChanges(
 				fields["name"] = strategy.AppAuthStrategyKeyAuthRequest.Name
 				fields["display_name"] = strategy.AppAuthStrategyKeyAuthRequest.DisplayName
 				strategyType = "key_auth"
+				
+				// Convert SDK struct to simple map
+				keyAuthConfig := make(map[string]interface{})
+				if len(strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames) > 0 {
+					keyAuthConfig["key_names"] = strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames
+				}
+				
 				configs = map[string]interface{}{
-					"key_auth": strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth,
+					"key_auth": keyAuthConfig,
+				}
+				
+				// Add labels if present
+				if len(strategy.AppAuthStrategyKeyAuthRequest.Labels) > 0 {
+					fields["labels"] = strategy.AppAuthStrategyKeyAuthRequest.Labels
 				}
 			}
 		case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
@@ -479,8 +491,33 @@ func (p *Planner) planAuthStrategyChanges(
 				fields["name"] = strategy.AppAuthStrategyOpenIDConnectRequest.Name
 				fields["display_name"] = strategy.AppAuthStrategyOpenIDConnectRequest.DisplayName
 				strategyType = "openid_connect"
+				
+				// Convert SDK struct to simple map
+				oidcConfig := make(map[string]interface{})
+				oidcConfig["issuer"] = strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Issuer
+				
+				// credential_claim is required by the API
+				if len(strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.CredentialClaim) > 0 {
+					oidcConfig["credential_claim"] = strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.CredentialClaim
+				} else {
+					// Provide default if not specified
+					oidcConfig["credential_claim"] = []string{"sub"}
+				}
+				
+				if len(strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Scopes) > 0 {
+					oidcConfig["scopes"] = strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Scopes
+				}
+				if len(strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.AuthMethods) > 0 {
+					oidcConfig["auth_methods"] = strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.AuthMethods
+				}
+				
 				configs = map[string]interface{}{
-					"openid_connect": strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect,
+					"openid_connect": oidcConfig,
+				}
+				
+				// Add labels if present
+				if len(strategy.AppAuthStrategyOpenIDConnectRequest.Labels) > 0 {
+					fields["labels"] = strategy.AppAuthStrategyOpenIDConnectRequest.Labels
 				}
 			}
 		}
@@ -495,6 +532,13 @@ func (p *Planner) planAuthStrategyChanges(
 			Action:       ActionCreate,
 			Fields:       fields,
 			DependsOn:    []string{},
+		}
+
+		// Set protection status
+		if strategy.Kongctl != nil && strategy.Kongctl.Protected {
+			change.Protection = true
+		} else {
+			change.Protection = false
 		}
 
 		plan.AddChange(change)

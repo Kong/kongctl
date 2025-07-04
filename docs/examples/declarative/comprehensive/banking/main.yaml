@@ -1,8 +1,5 @@
 # Comprehensive Banking API Example
-# This example demonstrates ALL features of the declarative configuration
-# for a real-world banking API with extensive use of !file tags
 
-# Portal configuration for the banking developer portal
 portals:
   - ref: securebank-portal
     name: securebank-developer-portal
@@ -21,7 +18,6 @@ portals:
     kongctl:
       protected: true  # Prevent accidental deletion
 
-# Authentication strategies for API access
 application_auth_strategies:
   - ref: securebank-oauth2-strategy
     name: securebank-oauth2
@@ -76,24 +72,11 @@ apis:
     kongctl:
       protected: false  # Allow updates during development
 
-    # API Versions - showing different states and configurations
     versions:
       - ref: securebank-version-v1
         version: "1.0.0"
         spec: !file specs/openapi-v1.yaml
         
-      # Current stable version
-      - ref: securebank-version-v2
-        version: !file specs/openapi.yaml#info.version
-        # Load entire OpenAPI specification
-        spec: !file specs/openapi.yaml
-        
-      # Beta version for early access
-      - ref: securebank-version-v3-beta
-        version: "3.0.0-beta.1"
-        spec: !file specs/openapi-v3-beta.yaml
-
-    # API Publications - different visibility and auth requirements
     publications:
       # Public publication for external developers
       - ref: securebank-public-publication
