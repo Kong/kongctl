@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -15,7 +16,7 @@ func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIRes
 	if len(desired) == 0 {
 		return nil
 	}
-	
+
 	// Fetch current managed APIs
 	currentAPIs, err := p.client.ListManagedAPIs(ctx)
 	if err != nil {
@@ -137,7 +138,7 @@ func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) string {
 	} else {
 		change.Protection = false
 	}
-	
+
 	// Copy user-defined labels only (protection label will be added during execution)
 	if len(api.Labels) > 0 {
 		labelsMap := make(map[string]interface{})
@@ -153,11 +154,11 @@ func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) string {
 
 // shouldUpdateAPI checks if API needs update based on configured fields only
 func (p *Planner) shouldUpdateAPI(
-	current state.API, 
+	current state.API,
 	desired resources.APIResource,
 ) (bool, map[string]interface{}) {
 	updates := make(map[string]interface{})
-	
+
 	// Only compare fields present in desired configuration
 	if desired.Description != nil {
 		currentDesc := getString(current.Description)
@@ -165,7 +166,19 @@ func (p *Planner) shouldUpdateAPI(
 			updates["description"] = *desired.Description
 		}
 	}
-	
+
+	// Compare user labels if any are specified
+	if desired.Labels != nil && len(desired.Labels) > 0 {
+		if compareUserLabels(current.NormalizedLabels, desired.Labels) {
+			// Convert to interface map for the update
+			labelsMap := make(map[string]interface{})
+			for k, v := range desired.Labels {
+				labelsMap[k] = v
+			}
+			updates["labels"] = labelsMap
+		}
+	}
+
 	return len(updates) > 0, updates
 }
 
@@ -177,15 +190,15 @@ func (p *Planner) planAPIUpdateWithFields(
 	plan *Plan,
 ) {
 	fields := make(map[string]interface{})
-	
+
 	// Store the fields that need updating
 	for field, newValue := range updateFields {
 		fields[field] = newValue
 	}
-	
+
 	// Always include name for identification
 	fields["name"] = current.Name
-	
+
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionUpdate, desired.GetRef()),
 		ResourceType: "api",
@@ -195,38 +208,38 @@ func (p *Planner) planAPIUpdateWithFields(
 		Fields:       fields,
 		DependsOn:    []string{},
 	}
-	
+
 	// Check if already protected
 	if labels.IsProtectedResource(current.NormalizedLabels) {
 		change.Protection = true
 	}
-	
+
 	plan.AddChange(change)
 }
 
 // planAPIProtectionChangeWithFields creates an UPDATE for protection status with optional field updates
 func (p *Planner) planAPIProtectionChangeWithFields(
-	current state.API, 
-	desired resources.APIResource, 
-	wasProtected, shouldProtect bool, 
+	current state.API,
+	desired resources.APIResource,
+	wasProtected, shouldProtect bool,
 	updateFields map[string]interface{},
 	plan *Plan,
 ) {
 	fields := make(map[string]interface{})
-	
+
 	// Include any field updates if unprotecting
 	if wasProtected && !shouldProtect && len(updateFields) > 0 {
 		for field, newValue := range updateFields {
 			fields[field] = newValue
 		}
 	}
-	
+
 	// Always include name for identification
 	fields["name"] = current.Name
-	
+
 	// Don't add protection label here - it will be added during execution
 	// based on the Protection field
-	
+
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionUpdate, desired.GetRef()),
 		ResourceType: "api",
@@ -238,7 +251,7 @@ func (p *Planner) planAPIProtectionChangeWithFields(
 			Old: wasProtected,
 			New: shouldProtect,
 		},
-		DependsOn:  []string{},
+		DependsOn: []string{},
 	}
 
 	plan.AddChange(change)
@@ -265,17 +278,17 @@ func (p *Planner) planAPIChildResourcesCreate(api resources.APIResource, apiChan
 	for _, version := range api.Versions {
 		p.planAPIVersionCreate(api.GetRef(), version, []string{apiChangeID}, plan)
 	}
-	
+
 	// Plan publication creation
 	for _, publication := range api.Publications {
 		p.planAPIPublicationCreate(api.GetRef(), publication, []string{apiChangeID}, plan)
 	}
-	
+
 	// Plan implementation creation
 	for _, implementation := range api.Implementations {
 		p.planAPIImplementationCreate(api.GetRef(), implementation, []string{apiChangeID}, plan)
 	}
-	
+
 	// Plan document creation
 	for _, document := range api.Documents {
 		p.planAPIDocumentCreate(api.GetRef(), document, []string{apiChangeID}, plan)
@@ -290,23 +303,23 @@ func (p *Planner) planAPIChildResourceChanges(
 	if err := p.planAPIVersionChanges(ctx, current.ID, desired.GetRef(), desired.Versions, plan); err != nil {
 		return fmt.Errorf("failed to plan API version changes: %w", err)
 	}
-	
+
 	// Plan publication changes
 	if err := p.planAPIPublicationChanges(ctx, current.ID, desired.GetRef(), desired.Publications, plan); err != nil {
 		return fmt.Errorf("failed to plan API publication changes: %w", err)
 	}
-	
+
 	// Plan implementation changes
 	if err := p.planAPIImplementationChanges(
 		ctx, current.ID, desired.GetRef(), desired.Implementations, plan); err != nil {
 		return fmt.Errorf("failed to plan API implementation changes: %w", err)
 	}
-	
+
 	// Plan document changes
 	if err := p.planAPIDocumentChanges(ctx, current.ID, desired.GetRef(), desired.Documents, plan); err != nil {
 		return fmt.Errorf("failed to plan API document changes: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -320,29 +333,29 @@ func (p *Planner) planAPIVersionChanges(
 	if err != nil {
 		return fmt.Errorf("failed to list current API versions: %w", err)
 	}
-	
+
 	// Index current versions by version string
 	currentByVersion := make(map[string]state.APIVersion)
 	for _, v := range currentVersions {
 		currentByVersion[v.Version] = v
 	}
-	
+
 	// Compare desired versions
 	for _, desiredVersion := range desired {
 		versionStr := ""
 		if desiredVersion.Version != nil {
 			versionStr = *desiredVersion.Version
 		}
-		
+
 		if _, exists := currentByVersion[versionStr]; !exists {
 			// CREATE - versions don't support update
 			p.planAPIVersionCreate(apiRef, desiredVersion, []string{}, plan)
 		}
 		// Note: API versions don't support update operations
 	}
-	
+
 	// Note: We don't delete versions in sync mode as they may be in use
-	
+
 	return nil
 }
 
@@ -360,7 +373,7 @@ func (p *Planner) planAPIVersionCreate(
 		}
 	}
 	// Note: PublishStatus, Deprecated, SunsetDate are not supported by the SDK create operation
-	
+
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, version.GetRef()),
 		ResourceType: "api_version",
@@ -370,7 +383,7 @@ func (p *Planner) planAPIVersionCreate(
 		Fields:       fields,
 		DependsOn:    dependsOn,
 	}
-	
+
 	plan.AddChange(change)
 }
 
@@ -384,38 +397,38 @@ func (p *Planner) planAPIPublicationChanges(
 	if err != nil {
 		return fmt.Errorf("failed to list current API publications: %w", err)
 	}
-	
+
 	// Index current publications by portal ID
 	currentByPortal := make(map[string]state.APIPublication)
 	for _, p := range currentPublications {
 		currentByPortal[p.PortalID] = p
 	}
-	
+
 	// Compare desired publications
 	for _, desiredPub := range desired {
 		_, exists := currentByPortal[desiredPub.PortalID]
-		
+
 		if !exists {
 			// CREATE - publications don't support update
 			p.planAPIPublicationCreate(apiRef, desiredPub, []string{}, plan)
 		}
 		// Note: Publications are identified by portal ID, not a separate ID
 	}
-	
+
 	// In sync mode, delete unmanaged publications
 	if plan.Metadata.Mode == PlanModeSync {
 		desiredPortals := make(map[string]bool)
 		for _, pub := range desired {
 			desiredPortals[pub.PortalID] = true
 		}
-		
+
 		for portalID := range currentByPortal {
 			if !desiredPortals[portalID] {
 				p.planAPIPublicationDelete(apiRef, portalID, plan)
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -440,7 +453,7 @@ func (p *Planner) planAPIPublicationCreate(
 	if publication.Visibility != nil {
 		fields["visibility"] = string(*publication.Visibility)
 	}
-	
+
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, publication.GetRef()),
 		ResourceType: "api_publication",
@@ -450,7 +463,7 @@ func (p *Planner) planAPIPublicationCreate(
 		Fields:       fields,
 		DependsOn:    dependsOn,
 	}
-	
+
 	plan.AddChange(change)
 }
 
@@ -459,13 +472,13 @@ func (p *Planner) planAPIPublicationDelete(apiRef string, portalID string, plan 
 		ID:           p.nextChangeID(ActionDelete, portalID),
 		ResourceType: "api_publication",
 		ResourceRef:  portalID,
-		ResourceID:   portalID,  // For publications, we use portal ID for deletion
+		ResourceID:   portalID, // For publications, we use portal ID for deletion
 		Parent:       &ParentInfo{Ref: apiRef},
 		Action:       ActionDelete,
 		Fields:       map[string]interface{}{},
 		DependsOn:    []string{},
 	}
-	
+
 	plan.AddChange(change)
 }
 
@@ -479,7 +492,7 @@ func (p *Planner) planAPIImplementationChanges(
 	if err != nil {
 		return fmt.Errorf("failed to list current API implementations: %w", err)
 	}
-	
+
 	// Index current implementations by service ID + control plane ID
 	currentByService := make(map[string]state.APIImplementation)
 	for _, i := range currentImplementations {
@@ -488,7 +501,7 @@ func (p *Planner) planAPIImplementationChanges(
 			currentByService[key] = i
 		}
 	}
-	
+
 	// Compare desired implementations
 	for _, desiredImpl := range desired {
 		if desiredImpl.Service != nil {
@@ -502,7 +515,7 @@ func (p *Planner) planAPIImplementationChanges(
 			// Note: Implementation IDs are managed by the SDK
 		}
 	}
-	
+
 	// In sync mode, delete unmanaged implementations
 	if plan.Metadata.Mode == PlanModeSync {
 		desiredServices := make(map[string]bool)
@@ -512,7 +525,7 @@ func (p *Planner) planAPIImplementationChanges(
 				desiredServices[key] = true
 			}
 		}
-		
+
 		for serviceKey, current := range currentByService {
 			if !desiredServices[serviceKey] {
 				// Skip DELETE - SDK doesn't support implementation deletion yet
@@ -522,7 +535,7 @@ func (p *Planner) planAPIImplementationChanges(
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -537,7 +550,7 @@ func (p *Planner) planAPIImplementationCreate(
 			"control_plane_id": implementation.Service.ControlPlaneID,
 		}
 	}
-	
+
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, implementation.GetRef()),
 		ResourceType: "api_implementation",
@@ -547,7 +560,7 @@ func (p *Planner) planAPIImplementationCreate(
 		Fields:       fields,
 		DependsOn:    dependsOn,
 	}
-	
+
 	plan.AddChange(change)
 }
 
@@ -561,22 +574,22 @@ func (p *Planner) planAPIDocumentChanges(
 	if err != nil {
 		return fmt.Errorf("failed to list current API documents: %w", err)
 	}
-	
+
 	// Index current documents by slug
 	currentBySlug := make(map[string]state.APIDocument)
 	for _, d := range currentDocuments {
 		currentBySlug[d.Slug] = d
 	}
-	
+
 	// Compare desired documents
 	for _, desiredDoc := range desired {
 		slug := ""
 		if desiredDoc.Slug != nil {
 			slug = *desiredDoc.Slug
 		}
-		
+
 		current, exists := currentBySlug[slug]
-		
+
 		if !exists {
 			// CREATE
 			p.planAPIDocumentCreate(apiRef, desiredDoc, []string{}, plan)
@@ -587,7 +600,7 @@ func (p *Planner) planAPIDocumentChanges(
 			}
 		}
 	}
-	
+
 	// In sync mode, delete unmanaged documents
 	if plan.Metadata.Mode == PlanModeSync {
 		desiredSlugs := make(map[string]bool)
@@ -596,19 +609,22 @@ func (p *Planner) planAPIDocumentChanges(
 				desiredSlugs[*doc.Slug] = true
 			}
 		}
-		
+
 		for slug, current := range currentBySlug {
 			if !desiredSlugs[slug] {
 				p.planAPIDocumentDelete(apiRef, current.ID, plan)
 			}
 		}
 	}
-	
+
 	return nil
 }
 
 func (p *Planner) shouldUpdateAPIDocument(current state.APIDocument, desired resources.APIDocumentResource) bool {
-	if current.Content != desired.Content {
+	// Normalize content for comparison (trim whitespace)
+	currentContent := strings.TrimSpace(current.Content)
+	desiredContent := strings.TrimSpace(desired.Content)
+	if currentContent != desiredContent {
 		return true
 	}
 	if desired.Title != nil && current.Title != *desired.Title {
@@ -640,7 +656,7 @@ func (p *Planner) planAPIDocumentCreate(
 	if document.ParentDocumentID != "" {
 		fields["parent_document_id"] = document.ParentDocumentID
 	}
-	
+
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, document.GetRef()),
 		ResourceType: "api_document",
@@ -650,7 +666,7 @@ func (p *Planner) planAPIDocumentCreate(
 		Fields:       fields,
 		DependsOn:    dependsOn,
 	}
-	
+
 	plan.AddChange(change)
 }
 
@@ -671,7 +687,7 @@ func (p *Planner) planAPIDocumentUpdate(
 	if document.ParentDocumentID != "" {
 		fields["parent_document_id"] = document.ParentDocumentID
 	}
-	
+
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionUpdate, document.GetRef()),
 		ResourceType: "api_document",
@@ -682,7 +698,7 @@ func (p *Planner) planAPIDocumentUpdate(
 		Fields:       fields,
 		DependsOn:    []string{},
 	}
-	
+
 	plan.AddChange(change)
 }
 
@@ -697,7 +713,7 @@ func (p *Planner) planAPIDocumentDelete(apiRef string, documentID string, plan *
 		Fields:       map[string]interface{}{},
 		DependsOn:    []string{},
 	}
-	
+
 	plan.AddChange(change)
 }
 
@@ -710,7 +726,7 @@ func (p *Planner) planAPIVersionsChanges(
 	for _, version := range desired {
 		versionsByAPI[version.API] = append(versionsByAPI[version.API], version)
 	}
-	
+
 	// For each API, plan version changes
 	for apiRef, versions := range versionsByAPI {
 		// Find the API ID from existing changes or state
@@ -728,7 +744,7 @@ func (p *Planner) planAPIVersionsChanges(
 				break
 			}
 		}
-		
+
 		// If API not in changes, look it up
 		if apiID == "" {
 			api, err := p.client.GetAPIByName(ctx, apiRef)
@@ -739,7 +755,7 @@ func (p *Planner) planAPIVersionsChanges(
 				apiID = api.ID
 			}
 		}
-		
+
 		if apiID != "" {
 			// Plan version changes for existing API
 			if err := p.planAPIVersionChanges(ctx, apiID, apiRef, versions, plan); err != nil {
@@ -747,7 +763,7 @@ func (p *Planner) planAPIVersionsChanges(
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -760,7 +776,7 @@ func (p *Planner) planAPIPublicationsChanges(
 	for _, pub := range desired {
 		publicationsByAPI[pub.API] = append(publicationsByAPI[pub.API], pub)
 	}
-	
+
 	// For each API, plan publication changes
 	for apiRef, publications := range publicationsByAPI {
 		// Find the API ID from existing changes or state
@@ -778,7 +794,7 @@ func (p *Planner) planAPIPublicationsChanges(
 				break
 			}
 		}
-		
+
 		// If API not in changes, look it up
 		if apiID == "" {
 			api, err := p.client.GetAPIByName(ctx, apiRef)
@@ -789,7 +805,7 @@ func (p *Planner) planAPIPublicationsChanges(
 				apiID = api.ID
 			}
 		}
-		
+
 		if apiID != "" {
 			// Plan publication changes for existing API
 			if err := p.planAPIPublicationChanges(ctx, apiID, apiRef, publications, plan); err != nil {
@@ -797,7 +813,7 @@ func (p *Planner) planAPIPublicationsChanges(
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -810,7 +826,7 @@ func (p *Planner) planAPIImplementationsChanges(
 	for _, impl := range desired {
 		implementationsByAPI[impl.API] = append(implementationsByAPI[impl.API], impl)
 	}
-	
+
 	// For each API, plan implementation changes
 	for apiRef, implementations := range implementationsByAPI {
 		// Find the API ID from existing changes or state
@@ -829,7 +845,7 @@ func (p *Planner) planAPIImplementationsChanges(
 				break
 			}
 		}
-		
+
 		// If API not in changes, look it up
 		if apiID == "" {
 			api, err := p.client.GetAPIByName(ctx, apiRef)
@@ -840,7 +856,7 @@ func (p *Planner) planAPIImplementationsChanges(
 				apiID = api.ID
 			}
 		}
-		
+
 		if apiID != "" {
 			// Plan implementation changes for existing API
 			if err := p.planAPIImplementationChanges(ctx, apiID, apiRef, implementations, plan); err != nil {
@@ -848,7 +864,7 @@ func (p *Planner) planAPIImplementationsChanges(
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -861,7 +877,7 @@ func (p *Planner) planAPIDocumentsChanges(
 	for _, doc := range desired {
 		documentsByAPI[doc.API] = append(documentsByAPI[doc.API], doc)
 	}
-	
+
 	// For each API, plan document changes
 	for apiRef, documents := range documentsByAPI {
 		// Find the API ID from existing changes or state
@@ -879,7 +895,7 @@ func (p *Planner) planAPIDocumentsChanges(
 				break
 			}
 		}
-		
+
 		// If API not in changes, look it up
 		if apiID == "" {
 			api, err := p.client.GetAPIByName(ctx, apiRef)
@@ -890,7 +906,7 @@ func (p *Planner) planAPIDocumentsChanges(
 				apiID = api.ID
 			}
 		}
-		
+
 		if apiID != "" {
 			// Plan document changes for existing API
 			if err := p.planAPIDocumentChanges(ctx, apiID, apiRef, documents, plan); err != nil {
@@ -898,7 +914,6 @@ func (p *Planner) planAPIDocumentsChanges(
 			}
 		}
 	}
-	
+
 	return nil
 }
-

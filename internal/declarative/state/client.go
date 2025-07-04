@@ -508,7 +508,7 @@ func (c *Client) ListAPIPublications(ctx context.Context, apiID string) ([]APIPu
 
 		for _, p := range resp.ListAPIPublicationResponse.Data {
 			pub := APIPublication{
-				ID:              p.PortalID,  // Use portal ID as identifier
+				ID:              "",  // Publications don't have a separate ID
 				PortalID:        p.PortalID,
 				AuthStrategyIDs: p.AuthStrategyIds,
 			}

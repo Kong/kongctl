@@ -20,10 +20,34 @@ func (e *Executor) createAPIPublication(ctx context.Context, change planner.Plan
 		return "", err
 	}
 
-	// Get portal ID from fields
-	portalID, ok := change.Fields["portal_id"].(string)
-	if !ok {
-		return "", fmt.Errorf("portal_id is required for API publication")
+	// Get portal ID - check resolved reference first, then field value
+	var portalID string
+	
+	// First check if we have a resolved reference
+	if change.References != nil {
+		if ref, exists := change.References["portal_id"]; exists && ref.ID != "" && ref.ID != "<unknown>" {
+			portalID = ref.ID
+		}
+	}
+	
+	// If no resolved reference, check field value
+	if portalID == "" {
+		fieldValue, ok := change.Fields["portal_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("portal_id is required for API publication")
+		}
+		
+		// If it's a UUID, use it directly
+		if isUUID(fieldValue) {
+			portalID = fieldValue
+		} else {
+			// It's a reference that needs runtime resolution
+			resolvedID, err := e.resolvePortalRef(ctx, fieldValue)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference %q: %w", fieldValue, err)
+			}
+			portalID = resolvedID
+		}
 	}
 
 	// Build publication object

@@ -334,7 +334,7 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 }
 
 // resolveAuthStrategyRef resolves an auth strategy reference to its ID
-func (e *Executor) resolveAuthStrategyRef(_ context.Context, ref string) (string, error) {
+func (e *Executor) resolveAuthStrategyRef(ctx context.Context, ref string) (string, error) {
 	// First check if it was created in this execution
 	if authStrategies, ok := e.refToID["application_auth_strategy"]; ok {
 		if id, found := authStrategies[ref]; found {
@@ -342,10 +342,37 @@ func (e *Executor) resolveAuthStrategyRef(_ context.Context, ref string) (string
 		}
 	}
 	
-	// If not found in current execution, try to look it up
-	// TODO: Implement lookup when auth strategy state client is available
-	// For now, return error
-	return "", fmt.Errorf("auth strategy reference %q not found", ref)
+	// Otherwise, look it up from the API
+	strategy, err := e.client.GetAuthStrategyByName(ctx, ref)
+	if err != nil {
+		return "", fmt.Errorf("failed to get auth strategy by name: %w", err)
+	}
+	if strategy == nil {
+		return "", fmt.Errorf("auth strategy not found: %s", ref)
+	}
+	
+	return strategy.ID, nil
+}
+
+// resolvePortalRef resolves a portal reference to its ID
+func (e *Executor) resolvePortalRef(ctx context.Context, ref string) (string, error) {
+	// First check if it was created in this execution
+	if portals, ok := e.refToID["portal"]; ok {
+		if id, found := portals[ref]; found {
+			return id, nil
+		}
+	}
+	
+	// Otherwise, look it up from the API
+	portal, err := e.client.GetPortalByName(ctx, ref)
+	if err != nil {
+		return "", fmt.Errorf("failed to get portal by name: %w", err)
+	}
+	if portal == nil {
+		return "", fmt.Errorf("portal not found: %s", ref)
+	}
+	
+	return portal.ID, nil
 }
 
 // Resource operations
