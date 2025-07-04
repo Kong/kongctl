@@ -96,6 +96,16 @@ type APIDocument struct {
 	ParentDocumentID string
 }
 
+// ApplicationAuthStrategy represents a normalized auth strategy for internal use
+type ApplicationAuthStrategy struct {
+	ID               string
+	Name             string
+	DisplayName      string
+	StrategyType     string
+	Configs          map[string]interface{}
+	NormalizedLabels map[string]string // Non-pointer labels
+}
+
 // ListManagedPortals returns all KONGCTL-managed portals
 func (c *Client) ListManagedPortals(ctx context.Context) ([]Portal, error) {
 	var allPortals []Portal
@@ -817,4 +827,159 @@ func (c *Client) CreateApplicationAuthStrategy(
 	}
 
 	return resp, nil
+}
+
+// ListManagedAuthStrategies returns all KONGCTL-managed auth strategies
+func (c *Client) ListManagedAuthStrategies(ctx context.Context) ([]ApplicationAuthStrategy, error) {
+	if c.appAuthAPI == nil {
+		return nil, fmt.Errorf("app auth API client not configured")
+	}
+
+	var allStrategies []ApplicationAuthStrategy
+	var pageNumber int64 = 1
+	pageSize := int64(100)
+
+	for {
+		req := kkOps.ListAppAuthStrategiesRequest{
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.appAuthAPI.ListAppAuthStrategies(ctx, req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list application auth strategies: %w", err)
+		}
+
+		if resp.ListAppAuthStrategiesResponse == nil || len(resp.ListAppAuthStrategiesResponse.Data) == 0 {
+			break
+		}
+
+		// Process and filter auth strategies
+		for _, s := range resp.ListAppAuthStrategiesResponse.Data {
+			// Extract common fields based on strategy type
+			var strategy ApplicationAuthStrategy
+			var labelMap map[string]string
+
+			// The SDK returns AppAuthStrategy which is a union type
+			// We need to check which type it is by checking the embedded fields
+			if s.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse != nil {
+				keyAuthResp := s.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse
+				strategy.ID = keyAuthResp.ID
+				strategy.Name = keyAuthResp.Name
+				strategy.DisplayName = keyAuthResp.DisplayName
+				strategy.StrategyType = "key_auth"
+				
+				// Extract configs
+				configs := make(map[string]interface{})
+				keyAuthConfig := make(map[string]interface{})
+				if keyAuthResp.Configs.KeyAuth.KeyNames != nil {
+					keyAuthConfig["key_names"] = keyAuthResp.Configs.KeyAuth.KeyNames
+				}
+				configs["key_auth"] = keyAuthConfig
+				strategy.Configs = configs
+				
+				labelMap = keyAuthResp.Labels
+				
+			} else if s.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse != nil {
+				oidcResp := s.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse
+				strategy.ID = oidcResp.ID
+				strategy.Name = oidcResp.Name
+				strategy.DisplayName = oidcResp.DisplayName
+				strategy.StrategyType = "openid_connect"
+				
+				// Extract configs
+				configs := make(map[string]interface{})
+				oidcConfig := make(map[string]interface{})
+				oidcConfig["issuer"] = oidcResp.Configs.OpenidConnect.Issuer
+				if oidcResp.Configs.OpenidConnect.CredentialClaim != nil {
+					oidcConfig["credential_claim"] = oidcResp.Configs.OpenidConnect.CredentialClaim
+				}
+				if oidcResp.Configs.OpenidConnect.Scopes != nil {
+					oidcConfig["scopes"] = oidcResp.Configs.OpenidConnect.Scopes
+				}
+				if oidcResp.Configs.OpenidConnect.AuthMethods != nil {
+					oidcConfig["auth_methods"] = oidcResp.Configs.OpenidConnect.AuthMethods
+				}
+				configs["openid_connect"] = oidcConfig
+				strategy.Configs = configs
+				
+				labelMap = oidcResp.Labels
+			} else {
+				// Unknown type, skip
+				continue
+			}
+
+			// Normalize labels
+			if labelMap == nil {
+				labelMap = make(map[string]string)
+			}
+			strategy.NormalizedLabels = labelMap
+
+			// Only include if managed by kongctl
+			if labels.IsManagedResource(labelMap) {
+				allStrategies = append(allStrategies, strategy)
+			}
+		}
+
+		pageNumber++
+
+		// Check if we've fetched all pages
+		if resp.ListAppAuthStrategiesResponse.Meta.Page.Total <= float64(pageSize*(pageNumber-1)) {
+			break
+		}
+	}
+
+	return allStrategies, nil
+}
+
+// GetAuthStrategyByName finds a managed auth strategy by name
+func (c *Client) GetAuthStrategyByName(ctx context.Context, name string) (*ApplicationAuthStrategy, error) {
+	strategies, err := c.ListManagedAuthStrategies(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, s := range strategies {
+		if s.Name == name {
+			return &s, nil
+		}
+	}
+
+	return nil, nil // Not found
+}
+
+// UpdateApplicationAuthStrategy updates an existing auth strategy with new management labels
+func (c *Client) UpdateApplicationAuthStrategy(
+	ctx context.Context,
+	id string,
+	authStrategy kkComps.UpdateAppAuthStrategyRequest,
+) (*kkOps.UpdateAppAuthStrategyResponse, error) {
+	if c.appAuthAPI == nil {
+		return nil, fmt.Errorf("app auth API client not configured")
+	}
+
+	// Add management labels
+	normalized := labels.NormalizeLabels(authStrategy.Labels)
+	normalized = labels.AddManagedLabels(normalized)
+	authStrategy.Labels = labels.DenormalizeLabels(normalized)
+
+	resp, err := c.appAuthAPI.UpdateAppAuthStrategy(ctx, id, authStrategy)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update application auth strategy: %w", err)
+	}
+
+	return resp, nil
+}
+
+// DeleteApplicationAuthStrategy deletes an auth strategy by ID
+func (c *Client) DeleteApplicationAuthStrategy(ctx context.Context, id string) error {
+	if c.appAuthAPI == nil {
+		return fmt.Errorf("app auth API client not configured")
+	}
+
+	_, err := c.appAuthAPI.DeleteAppAuthStrategy(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete application auth strategy: %w", err)
+	}
+	return nil
 }

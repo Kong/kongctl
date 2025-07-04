@@ -3,6 +3,8 @@ package planner
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"sort"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -38,7 +40,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	plan := NewPlan("1.0", "kongctl/dev", opts.Mode)
 
 	// Generate changes for each resource type
-	p.planAuthStrategyChanges(ctx, rs.ApplicationAuthStrategies, plan)
+	p.planAuthStrategyChanges(ctx, rs.ApplicationAuthStrategies, opts.Mode, plan)
 
 	if err := p.planPortalChanges(ctx, rs.Portals, plan); err != nil {
 		return nil, fmt.Errorf("failed to plan portal changes: %w", err)
@@ -450,15 +452,72 @@ func (p *Planner) planProtectionChangeWithFields(
 
 // planAuthStrategyChanges generates changes for auth strategies
 func (p *Planner) planAuthStrategyChanges(
-	_ context.Context, 
+	ctx context.Context, 
 	desired []resources.ApplicationAuthStrategyResource, 
+	mode PlanMode,
 	plan *Plan,
 ) {
-	// Similar logic to portals but for auth strategies
-	// TODO: Implement when auth strategy state client is available
+	// Get current auth strategies from state
+	current, err := p.client.ListManagedAuthStrategies(ctx)
+	if err != nil {
+		// If we can't list, assume none exist and plan creates
+		// This handles the case where the API might not be available
+		current = []state.ApplicationAuthStrategy{}
+	}
 
-	// For now, just create all as new
-	for _, strategy := range desired {
+	// Build maps for comparison
+	currentByName := make(map[string]state.ApplicationAuthStrategy)
+	for _, s := range current {
+		currentByName[s.Name] = s
+	}
+
+	desiredByName := make(map[string]resources.ApplicationAuthStrategyResource)
+	for _, s := range desired {
+		var name string
+		switch s.Type {
+		case kkComps.CreateAppAuthStrategyRequestTypeKeyAuth:
+			if s.AppAuthStrategyKeyAuthRequest != nil {
+				name = s.AppAuthStrategyKeyAuthRequest.Name
+			}
+		case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
+			if s.AppAuthStrategyOpenIDConnectRequest != nil {
+				name = s.AppAuthStrategyOpenIDConnectRequest.Name
+			}
+		}
+		if name != "" {
+			desiredByName[name] = s
+		}
+	}
+
+	// Plan creates for new strategies
+	for name, strategy := range desiredByName {
+		if _, exists := currentByName[name]; !exists {
+			p.planAuthStrategyCreate(strategy, plan)
+		} else {
+			// Check if update is needed
+			currentStrategy := currentByName[name]
+			if needsUpdate, updateFields := p.authStrategyNeedsUpdate(currentStrategy, strategy); needsUpdate {
+				p.planAuthStrategyUpdate(currentStrategy, strategy, updateFields, plan)
+			}
+		}
+	}
+
+	// Plan deletes for strategies not in desired state
+	if mode == PlanModeSync {
+		for name, current := range currentByName {
+			if _, exists := desiredByName[name]; !exists {
+				// Check if protected
+				isProtected := current.NormalizedLabels[labels.ProtectedKey] == "true"
+				if !isProtected {
+					p.planAuthStrategyDelete(current, plan)
+				}
+			}
+		}
+	}
+}
+
+// planAuthStrategyCreate creates a CREATE change for an auth strategy
+func (p *Planner) planAuthStrategyCreate(strategy resources.ApplicationAuthStrategyResource, plan *Plan) {
 		// Extract fields based on strategy type
 		fields := make(map[string]interface{})
 		var strategyType string
@@ -542,7 +601,6 @@ func (p *Planner) planAuthStrategyChanges(
 		}
 
 		plan.AddChange(change)
-	}
 }
 
 // planPortalDelete creates a DELETE change for a portal
@@ -566,4 +624,210 @@ func getString(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+// authStrategyNeedsUpdate checks if auth strategy needs update
+func (p *Planner) authStrategyNeedsUpdate(
+	current state.ApplicationAuthStrategy, 
+	desired resources.ApplicationAuthStrategyResource,
+) (bool, map[string]interface{}) {
+	// Extract desired fields based on strategy type
+	updateFields := make(map[string]interface{})
+	needsUpdate := false
+	
+	switch desired.Type {
+	case kkComps.CreateAppAuthStrategyRequestTypeKeyAuth:
+		if desired.AppAuthStrategyKeyAuthRequest != nil {
+			// Check display name
+			if current.DisplayName != desired.AppAuthStrategyKeyAuthRequest.DisplayName {
+				updateFields["display_name"] = desired.AppAuthStrategyKeyAuthRequest.DisplayName
+				needsUpdate = true
+			}
+			
+			// Check labels (excluding protected label)
+			desiredLabels := make(map[string]string)
+			for k, v := range desired.AppAuthStrategyKeyAuthRequest.Labels {
+				if k != labels.ProtectedKey {
+					desiredLabels[k] = v
+				}
+			}
+			currentLabels := make(map[string]string)
+			for k, v := range current.NormalizedLabels {
+				if k != labels.ProtectedKey && k != labels.ManagedKey && k != labels.LastUpdatedKey {
+					currentLabels[k] = v
+				}
+			}
+			if !reflect.DeepEqual(currentLabels, desiredLabels) {
+				updateFields["labels"] = desired.AppAuthStrategyKeyAuthRequest.Labels
+				needsUpdate = true
+			}
+			
+			// Check configs
+			if current.Configs != nil {
+				currentKeyAuth, _ := current.Configs["key_auth"].(map[string]interface{})
+				if currentKeyAuth != nil {
+					currentKeyNames, _ := currentKeyAuth["key_names"].([]interface{})
+					desiredKeyNames := desired.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames
+					if !keyNamesEqual(currentKeyNames, desiredKeyNames) {
+						needsUpdate = true
+						keyAuthConfig := make(map[string]interface{})
+						keyAuthConfig["key_names"] = desiredKeyNames
+						updateFields["configs"] = map[string]interface{}{
+							"key_auth": keyAuthConfig,
+						}
+					}
+				}
+			}
+		}
+		
+	case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
+		if desired.AppAuthStrategyOpenIDConnectRequest != nil {
+			// Check display name
+			if current.DisplayName != desired.AppAuthStrategyOpenIDConnectRequest.DisplayName {
+				updateFields["display_name"] = desired.AppAuthStrategyOpenIDConnectRequest.DisplayName
+				needsUpdate = true
+			}
+			
+			// Check labels (excluding protected label)
+			desiredLabels := make(map[string]string)
+			for k, v := range desired.AppAuthStrategyOpenIDConnectRequest.Labels {
+				if k != labels.ProtectedKey {
+					desiredLabels[k] = v
+				}
+			}
+			currentLabels := make(map[string]string)
+			for k, v := range current.NormalizedLabels {
+				if k != labels.ProtectedKey && k != labels.ManagedKey && k != labels.LastUpdatedKey {
+					currentLabels[k] = v
+				}
+			}
+			if !reflect.DeepEqual(currentLabels, desiredLabels) {
+				updateFields["labels"] = desired.AppAuthStrategyOpenIDConnectRequest.Labels
+				needsUpdate = true
+			}
+			
+			// Check configs - for now just check if issuer changed
+			if current.Configs != nil {
+				currentOIDC, _ := current.Configs["openid_connect"].(map[string]interface{})
+				if currentOIDC != nil {
+					currentIssuer, _ := currentOIDC["issuer"].(string)
+					if currentIssuer != desired.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Issuer {
+						needsUpdate = true
+						// Build full config for update
+						oidcConfig := make(map[string]interface{})
+						oidcConfig["issuer"] = desired.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Issuer
+						if len(desired.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.CredentialClaim) > 0 {
+							oidcConfig["credential_claim"] = desired.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.CredentialClaim
+						}
+						if len(desired.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Scopes) > 0 {
+							oidcConfig["scopes"] = desired.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Scopes
+						}
+						if len(desired.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.AuthMethods) > 0 {
+							oidcConfig["auth_methods"] = desired.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.AuthMethods
+						}
+						updateFields["configs"] = map[string]interface{}{
+							"openid_connect": oidcConfig,
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	// Check protection status change
+	var shouldProtect bool
+	if desired.Kongctl != nil {
+		shouldProtect = desired.Kongctl.Protected
+	}
+	wasProtected := current.NormalizedLabels[labels.ProtectedKey] == "true"
+	
+	if wasProtected != shouldProtect {
+		needsUpdate = true
+		// Protection is handled separately in the change
+	}
+	
+	return needsUpdate, updateFields
+}
+
+// keyNamesEqual compares two key name slices
+func keyNamesEqual(current []interface{}, desired []string) bool {
+	if len(current) != len(desired) {
+		return false
+	}
+	
+	// Convert current to string slice
+	currentStrs := make([]string, len(current))
+	for i, v := range current {
+		if s, ok := v.(string); ok {
+			currentStrs[i] = s
+		}
+	}
+	
+	// Sort both for comparison
+	sort.Strings(currentStrs)
+	desiredCopy := make([]string, len(desired))
+	copy(desiredCopy, desired)
+	sort.Strings(desiredCopy)
+	
+	return reflect.DeepEqual(currentStrs, desiredCopy)
+}
+
+// planAuthStrategyUpdate creates an UPDATE change for an auth strategy
+func (p *Planner) planAuthStrategyUpdate(
+	current state.ApplicationAuthStrategy,
+	desired resources.ApplicationAuthStrategyResource, 
+	updateFields map[string]interface{},
+	plan *Plan,
+) {
+	// Check protection status
+	var shouldProtect bool
+	if desired.Kongctl != nil {
+		shouldProtect = desired.Kongctl.Protected
+	}
+	wasProtected := current.NormalizedLabels[labels.ProtectedKey] == "true"
+	
+	fields := make(map[string]interface{})
+	
+	// Include any field updates
+	for field, newValue := range updateFields {
+		fields[field] = newValue
+	}
+	
+	// Always include name for identification
+	fields["name"] = current.Name
+	
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionUpdate, desired.GetRef()),
+		ResourceType: "application_auth_strategy",
+		ResourceRef:  desired.GetRef(),
+		ResourceID:   current.ID,
+		Action:       ActionUpdate,
+		Fields:       fields,
+		Protection: ProtectionChange{
+			Old: wasProtected,
+			New: shouldProtect,
+		},
+		DependsOn:  []string{},
+	}
+
+	plan.AddChange(change)
+}
+
+// planAuthStrategyDelete creates a DELETE change for an auth strategy
+func (p *Planner) planAuthStrategyDelete(strategy state.ApplicationAuthStrategy, plan *Plan) {
+	fields := map[string]interface{}{
+		"name": strategy.Name,
+	}
+	
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionDelete, strategy.Name),
+		ResourceType: "application_auth_strategy",
+		ResourceRef:  strategy.Name,
+		ResourceID:   strategy.ID,
+		Action:       ActionDelete,
+		Fields:       fields,
+		DependsOn:    []string{},
+	}
+	
+	plan.AddChange(change)
 }
