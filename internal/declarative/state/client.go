@@ -958,10 +958,9 @@ func (c *Client) UpdateApplicationAuthStrategy(
 		return nil, fmt.Errorf("app auth API client not configured")
 	}
 
-	// Add management labels
-	normalized := labels.NormalizeLabels(authStrategy.Labels)
-	normalized = labels.AddManagedLabels(normalized)
-	authStrategy.Labels = labels.DenormalizeLabels(normalized)
+	// Add management labels directly to pointer map to preserve nil values
+	// This allows label removal (nil values) to work correctly
+	authStrategy.Labels = labels.AddManagedLabelsToPointerMap(authStrategy.Labels)
 
 	resp, err := c.appAuthAPI.UpdateAppAuthStrategy(ctx, id, authStrategy)
 	if err != nil {

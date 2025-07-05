@@ -126,3 +126,33 @@ func ValidateLabel(key string) error {
 	return nil
 }
 
+// AddManagedLabelsToPointerMap adds kongctl management labels to a pointer map
+// This function preserves nil values (for label removal) while adding KONGCTL labels
+func AddManagedLabelsToPointerMap(labels map[string]*string) map[string]*string {
+	if labels == nil {
+		labels = make(map[string]*string)
+	}
+	
+	// Create result map preserving all existing entries including nil values
+	result := make(map[string]*string)
+	for k, v := range labels {
+		result[k] = v
+	}
+	
+	// Add management labels as pointers
+	managedValue := TrueValue
+	result[ManagedKey] = &managedValue
+	
+	// Add timestamp
+	timestamp := time.Now().UTC().Format("20060102-150405Z")
+	result[LastUpdatedKey] = &timestamp
+	
+	// If protected label is not already set, default to false
+	if _, exists := result[ProtectedKey]; !exists {
+		protectedValue := FalseValue
+		result[ProtectedKey] = &protectedValue
+	}
+	
+	return result
+}
+
