@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
@@ -70,6 +71,9 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 	// Always add managed label
 	managedValue := labels.TrueValue
 	authLabels[labels.ManagedKey] = managedValue
+	
+	// Add last updated timestamp
+	authLabels[labels.LastUpdatedKey] = time.Now().UTC().Format("20060102-150405Z")
 	
 	// Build the request based on strategy type
 	switch strategyType {
@@ -337,6 +341,9 @@ func (e *Executor) updateApplicationAuthStrategy(ctx context.Context, change pla
 		
 		// Always add managed label
 		authLabels[labels.ManagedKey] = labels.TrueValue
+		
+		// Add last updated timestamp
+		authLabels[labels.LastUpdatedKey] = time.Now().UTC().Format("20060102-150405Z")
 		
 		// Convert to pointer map for SDK
 		pointerLabels := make(map[string]*string)
