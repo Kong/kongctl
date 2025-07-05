@@ -190,7 +190,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 
 	change := PlannedChange{
 		ID:           p.NextChangeID(ActionCreate, strategy.GetRef()),
-		ResourceType: "auth_strategy",
+		ResourceType: "application_auth_strategy",
 		ResourceRef:  strategy.GetRef(),
 		Action:       ActionCreate,
 		Fields:       fields,
@@ -316,7 +316,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyUpdateWithFields(
 
 	change := PlannedChange{
 		ID:           p.NextChangeID(ActionUpdate, desired.GetRef()),
-		ResourceType: "auth_strategy",
+		ResourceType: "application_auth_strategy",
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
 		Action:       ActionUpdate,
@@ -357,7 +357,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyProtectionChangeWithFields(
 
 	change := PlannedChange{
 		ID:           p.NextChangeID(ActionUpdate, desired.GetRef()),
-		ResourceType: "auth_strategy",
+		ResourceType: "application_auth_strategy",
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
 		Action:       ActionUpdate,
@@ -376,7 +376,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyProtectionChangeWithFields(
 func (p *authStrategyPlannerImpl) planAuthStrategyDelete(strategy state.ApplicationAuthStrategy, plan *Plan) {
 	change := PlannedChange{
 		ID:           p.NextChangeID(ActionDelete, strategy.Name),
-		ResourceType: "auth_strategy",
+		ResourceType: "application_auth_strategy",
 		ResourceRef:  strategy.Name,
 		ResourceID:   strategy.ID,
 		Action:       ActionDelete,
