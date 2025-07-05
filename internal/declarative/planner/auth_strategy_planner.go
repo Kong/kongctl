@@ -94,11 +94,16 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) e
 				// Check if update needed based on configuration
 				needsUpdate, updateFields := p.shouldUpdateAuthStrategy(current, desiredStrategy)
 				if needsUpdate {
-					// Regular update - check protection
-					err := p.ValidateProtection("auth_strategy", name, isProtected, ActionUpdate)
-					protectionErrors.Add(err)
-					if err == nil {
-						p.planAuthStrategyUpdateWithFields(current, desiredStrategy, updateFields, plan)
+					// Check for strategy type change error
+					if errMsg, hasError := updateFields["_error"].(string); hasError {
+						protectionErrors.Add(fmt.Errorf("%s", errMsg))
+					} else {
+						// Regular update - check protection
+						err := p.ValidateProtection("auth_strategy", name, isProtected, ActionUpdate)
+						protectionErrors.Add(err)
+						if err == nil {
+							p.planAuthStrategyUpdateWithFields(current, desiredStrategy, updateFields, plan)
+						}
 					}
 				}
 			}
@@ -252,21 +257,32 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 ) (bool, map[string]interface{}) {
 	updateFields := make(map[string]interface{})
 
+	// First, check if strategy type is changing - this is not supported
+	var desiredStrategyType string
+	switch desired.Type {
+	case kkComps.CreateAppAuthStrategyRequestTypeKeyAuth:
+		desiredStrategyType = "key_auth"
+	case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
+		desiredStrategyType = "openid_connect"
+	}
+
+	if current.StrategyType != desiredStrategyType {
+		// Return error via updateFields to be handled by caller
+		updateFields["_error"] = fmt.Sprintf(
+			"changing strategy_type from %s to %s is not supported. Please delete and recreate the auth strategy",
+			current.StrategyType, desiredStrategyType)
+		return true, updateFields
+	}
+
 	// Extract fields based on strategy type
 	var displayName string
 	var labels map[string]string
-	var keyNames []string
 	
 	switch desired.Type {
 	case kkComps.CreateAppAuthStrategyRequestTypeKeyAuth:
 		if desired.AppAuthStrategyKeyAuthRequest != nil {
 			displayName = desired.AppAuthStrategyKeyAuthRequest.DisplayName
 			labels = desired.AppAuthStrategyKeyAuthRequest.Labels
-			
-			// Extract key names if present
-			if desired.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames != nil {
-				keyNames = desired.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames
-			}
 		}
 	case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
 		if desired.AppAuthStrategyOpenIDConnectRequest != nil {
@@ -282,43 +298,109 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 		}
 	}
 
-	// Check key_names updates
-	if len(keyNames) > 0 {
-		// Convert current key names to a comparable format
-		currentKeyNames := make([]string, 0)
-		if current.Configs != nil {
-			if keyAuthConfig, ok := current.Configs["key-auth"].(map[string]interface{}); ok {
-				// Try different type assertions for key_names
-				switch kn := keyAuthConfig["key_names"].(type) {
-				case []interface{}:
-					for _, name := range kn {
-						if str, ok := name.(string); ok {
-							currentKeyNames = append(currentKeyNames, str)
+	// Check config updates based on strategy type
+	switch desired.Type {
+	case kkComps.CreateAppAuthStrategyRequestTypeKeyAuth:
+		if desired.AppAuthStrategyKeyAuthRequest != nil {
+			// Check key_names updates
+			if desired.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames != nil {
+				desiredKeyNames := desired.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames
+				
+				// Convert current key names to a comparable format
+				currentKeyNames := make([]string, 0)
+				if current.Configs != nil {
+					if keyAuthConfig, ok := current.Configs["key-auth"].(map[string]interface{}); ok {
+						// Try different type assertions for key_names
+						switch kn := keyAuthConfig["key_names"].(type) {
+						case []interface{}:
+							for _, name := range kn {
+								if str, ok := name.(string); ok {
+									currentKeyNames = append(currentKeyNames, str)
+								}
+							}
+						case []string:
+							currentKeyNames = kn
 						}
 					}
-				case []string:
-					currentKeyNames = kn
+				}
+				
+				// Compare lengths first
+				if len(currentKeyNames) != len(desiredKeyNames) {
+					updateFields["configs"] = map[string]interface{}{
+						"key-auth": map[string]interface{}{
+							"key_names": desiredKeyNames,
+						},
+					}
+				} else {
+					// Compare values
+					for i, desiredName := range desiredKeyNames {
+						if i < len(currentKeyNames) && currentKeyNames[i] != desiredName {
+							updateFields["configs"] = map[string]interface{}{
+								"key-auth": map[string]interface{}{
+									"key_names": desiredKeyNames,
+								},
+							}
+							break
+						}
+					}
 				}
 			}
 		}
 		
-		// Compare lengths first
-		if len(currentKeyNames) != len(keyNames) {
-			updateFields["configs"] = map[string]interface{}{
-				"key-auth": map[string]interface{}{
-					"key_names": keyNames,
-				},
+	case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
+		if desired.AppAuthStrategyOpenIDConnectRequest != nil {
+			oidcConfig := &desired.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect
+			
+			// Get current OIDC config
+			var currentOIDC map[string]interface{}
+			if current.Configs != nil {
+				if oidc, ok := current.Configs["openid-connect"].(map[string]interface{}); ok {
+					currentOIDC = oidc
+				}
 			}
-		} else {
-			// Compare values
-			for i, desiredName := range keyNames {
-				if i < len(currentKeyNames) && currentKeyNames[i] != desiredName {
-					updateFields["configs"] = map[string]interface{}{
-						"key-auth": map[string]interface{}{
-							"key_names": keyNames,
-						},
-					}
-					break
+			
+			oidcUpdates := make(map[string]interface{})
+			hasUpdates := false
+			
+			// Check issuer
+			if oidcConfig.Issuer != "" {
+				currentIssuer, _ := currentOIDC["issuer"].(string)
+				if currentIssuer != oidcConfig.Issuer {
+					oidcUpdates["issuer"] = oidcConfig.Issuer
+					hasUpdates = true
+				}
+			}
+			
+			// Check credential_claim
+			if oidcConfig.CredentialClaim != nil {
+				currentClaims := extractStringSlice(currentOIDC["credential_claim"])
+				if !stringSlicesEqual(currentClaims, oidcConfig.CredentialClaim) {
+					oidcUpdates["credential_claim"] = oidcConfig.CredentialClaim
+					hasUpdates = true
+				}
+			}
+			
+			// Check scopes
+			if oidcConfig.Scopes != nil {
+				currentScopes := extractStringSlice(currentOIDC["scopes"])
+				if !stringSlicesEqual(currentScopes, oidcConfig.Scopes) {
+					oidcUpdates["scopes"] = oidcConfig.Scopes
+					hasUpdates = true
+				}
+			}
+			
+			// Check auth_methods
+			if oidcConfig.AuthMethods != nil {
+				currentMethods := extractStringSlice(currentOIDC["auth_methods"])
+				if !stringSlicesEqual(currentMethods, oidcConfig.AuthMethods) {
+					oidcUpdates["auth_methods"] = oidcConfig.AuthMethods
+					hasUpdates = true
+				}
+			}
+			
+			if hasUpdates {
+				updateFields["configs"] = map[string]interface{}{
+					"openid-connect": oidcUpdates,
 				}
 			}
 		}
@@ -334,6 +416,35 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 	return len(updateFields) > 0, updateFields
 }
 
+// extractStringSlice converts interface{} to []string
+func extractStringSlice(val interface{}) []string {
+	result := make([]string, 0)
+	switch v := val.(type) {
+	case []interface{}:
+		for _, item := range v {
+			if str, ok := item.(string); ok {
+				result = append(result, str)
+			}
+		}
+	case []string:
+		result = v
+	}
+	return result
+}
+
+// stringSlicesEqual compares two string slices
+func stringSlicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // planAuthStrategyUpdateWithFields creates an UPDATE change with specific fields
 func (p *authStrategyPlannerImpl) planAuthStrategyUpdateWithFields(
 	current state.ApplicationAuthStrategy,
@@ -345,11 +456,17 @@ func (p *authStrategyPlannerImpl) planAuthStrategyUpdateWithFields(
 
 	// Store the fields that need updating
 	for field, newValue := range updateFields {
-		fields[field] = newValue
+		// Skip internal error field
+		if field != "_error" {
+			fields[field] = newValue
+		}
 	}
 
 	// Always include name for identification
 	fields["name"] = current.Name
+	
+	// Pass strategy type to executor
+	fields["_strategy_type"] = current.StrategyType
 
 	change := PlannedChange{
 		ID:           p.NextChangeID(ActionUpdate, desired.GetRef()),
