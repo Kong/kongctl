@@ -783,40 +783,12 @@ func validateApplyPlan(plan *planner.Plan) error {
 
 
 func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult, err error, format string) error {
-	// Build the plan section first
-	var planSection map[string]interface{}
+	// Get the full plan from context
+	var plan *planner.Plan
 	ctx := command.Context()
-	if ctx == nil {
-		// If context is nil, we can't get the plan
-		planSection = nil
-	} else if plan, ok := ctx.Value(currentPlanKey).(*planner.Plan); ok && plan != nil {
-		metadata := map[string]interface{}{
-			"version": plan.Metadata.Version,
-			"generated_at": plan.Metadata.GeneratedAt,
-			"mode": plan.Metadata.Mode,
-		}
-		
-		// Add plan file path if available
-		if planFile, ok := ctx.Value(planFileKey).(string); ok && planFile != "" {
-			metadata["plan_file"] = planFile
-		}
-		
-		planSection = map[string]interface{}{
-			"metadata": metadata,
-		}
-		
-		// Extract planned changes from the plan
-		var plannedChanges []map[string]interface{}
-		for _, change := range plan.Changes {
-			plannedChanges = append(plannedChanges, map[string]interface{}{
-				"change_id": change.ID,
-				"resource_type": change.ResourceType,
-				"resource_ref": change.ResourceRef,
-				"action": change.Action,
-			})
-		}
-		if len(plannedChanges) > 0 {
-			planSection["planned_changes"] = plannedChanges
+	if ctx != nil {
+		if p, ok := ctx.Value(currentPlanKey).(*planner.Plan); ok {
+			plan = p
 		}
 	}
 	
@@ -872,9 +844,9 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 		out := command.OutOrStdout()
 		fmt.Fprintln(out, "{")
 		
-		// Output plan first if present
-		if planSection != nil {
-			planJSON, _ := json.MarshalIndent(planSection, "  ", "  ")
+		// Output full plan first if present
+		if plan != nil {
+			planJSON, _ := json.MarshalIndent(plan, "  ", "  ")
 			fmt.Fprintf(out, "  \"plan\": %s,\n", planJSON)
 		}
 		
@@ -893,10 +865,10 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 		// Build YAML content manually to preserve order
 		out := command.OutOrStdout()
 		
-		// Output plan first if present
-		if planSection != nil {
+		// Output full plan first if present
+		if plan != nil {
 			fmt.Fprintln(out, "plan:")
-			planYAML, _ := yaml.Marshal(planSection)
+			planYAML, _ := yaml.Marshal(plan)
 			planLines := strings.Split(strings.TrimSpace(string(planYAML)), "\n")
 			for _, line := range planLines {
 				fmt.Fprintf(out, "  %s\n", line)
