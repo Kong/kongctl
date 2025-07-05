@@ -565,7 +565,7 @@ func runApply(command *cobra.Command, args []string) error {
 	
 	// Early check for non-text output without auto-approve
 	if !dryRun && !autoApprove && outputFormat != "text" {
-		return fmt.Errorf("cannot use %s output format without --auto-approve flag " +
+		return fmt.Errorf("cannot use %s output format without --auto-approve or --dry-run flag " +
 			"(interactive confirmation not available with structured output)", outputFormat)
 	}
 	
