@@ -280,16 +280,33 @@ func (e *Executor) updateApplicationAuthStrategy(ctx context.Context, change pla
 	}
 	
 	// Handle labels - preserve user labels and add management labels
+	// Try both type assertions since planner might send either type
+	var labelsToProcess map[string]string
 	if labelsField, ok := change.Fields["labels"].(map[string]interface{}); ok {
+		// Handle map[string]interface{} case
+		debugLog("Labels are type map[string]interface{}")
+		labelsToProcess = make(map[string]string)
+		for k, v := range labelsField {
+			if strVal, ok := v.(string); ok {
+				labelsToProcess[k] = strVal
+			}
+		}
+	} else if labelsField, ok := change.Fields["labels"].(map[string]string); ok {
+		// Handle map[string]string case (what planner actually sends)
+		debugLog("Labels are type map[string]string: %+v", labelsField)
+		labelsToProcess = labelsField
+	} else if change.Fields["labels"] != nil {
+		debugLog("Labels field exists but has unexpected type: %T", change.Fields["labels"])
+	}
+	
+	if labelsToProcess != nil {
 		authLabels := make(map[string]string)
 		
 		// Copy user-defined labels
-		for k, v := range labelsField {
-			if strVal, ok := v.(string); ok {
-				// Only copy user labels (non-KONGCTL labels)
-				if !labels.IsKongctlLabel(k) {
-					authLabels[k] = strVal
-				}
+		for k, v := range labelsToProcess {
+			// Only copy user labels (non-KONGCTL labels)
+			if !labels.IsKongctlLabel(k) {
+				authLabels[k] = v
 			}
 		}
 		
