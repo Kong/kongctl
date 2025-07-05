@@ -406,11 +406,12 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 		}
 	}
 
-	// Compare user labels if any are specified
-	if len(labels) > 0 {
-		if compareUserLabels(current.NormalizedLabels, labels) {
-			updateFields["labels"] = labels
-		}
+	// Check if labels are defined in the desired state
+	// If labels are defined (even if empty), we need to send them to ensure proper replacement
+	if labels != nil {
+		// Always include labels when they're defined in desired state
+		// This ensures labels not in desired state are removed from the API
+		updateFields["labels"] = labels
 	}
 
 	return len(updateFields) > 0, updateFields
