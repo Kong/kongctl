@@ -276,18 +276,18 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 
 	// Extract fields based on strategy type
 	var displayName string
-	var labels map[string]string
+	var desiredLabels map[string]string
 	
 	switch desired.Type {
 	case kkComps.CreateAppAuthStrategyRequestTypeKeyAuth:
 		if desired.AppAuthStrategyKeyAuthRequest != nil {
 			displayName = desired.AppAuthStrategyKeyAuthRequest.DisplayName
-			labels = desired.AppAuthStrategyKeyAuthRequest.Labels
+			desiredLabels = desired.AppAuthStrategyKeyAuthRequest.Labels
 		}
 	case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
 		if desired.AppAuthStrategyOpenIDConnectRequest != nil {
 			displayName = desired.AppAuthStrategyOpenIDConnectRequest.DisplayName
-			labels = desired.AppAuthStrategyOpenIDConnectRequest.Labels
+			desiredLabels = desired.AppAuthStrategyOpenIDConnectRequest.Labels
 		}
 	}
 
@@ -407,11 +407,12 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 	}
 
 	// Check if labels are defined in the desired state
-	// If labels are defined (even if empty), we need to send them to ensure proper replacement
-	if labels != nil {
-		// Always include labels when they're defined in desired state
-		// This ensures labels not in desired state are removed from the API
-		updateFields["labels"] = labels
+	if desiredLabels != nil {
+		// Compare only user labels to determine if update is needed
+		if labels.CompareUserLabels(current.NormalizedLabels, desiredLabels) {
+			// User labels differ, include all labels in update
+			updateFields["labels"] = desiredLabels
+		}
 	}
 
 	return len(updateFields) > 0, updateFields

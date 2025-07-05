@@ -248,15 +248,25 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 	// Check if labels are defined in the desired state
 	// If labels are defined (even if empty), we need to send them to ensure proper replacement
 	if desired.Labels != nil {
-		// Always include labels when they're defined in desired state
-		// This ensures labels not in desired state are removed from the API
-		labelsMap := make(map[string]interface{})
+		// Compare only user labels to determine if update is needed
+		// Convert portal's pointer map to string map for comparison
+		desiredLabels := make(map[string]string)
 		for k, v := range desired.Labels {
 			if v != nil {
-				labelsMap[k] = *v
+				desiredLabels[k] = *v
 			}
 		}
-		updates["labels"] = labelsMap
+		
+		if labels.CompareUserLabels(current.NormalizedLabels, desiredLabels) {
+			// User labels differ, include all labels in update
+			labelsMap := make(map[string]interface{})
+			for k, v := range desired.Labels {
+				if v != nil {
+					labelsMap[k] = *v
+				}
+			}
+			updates["labels"] = labelsMap
+		}
 	}
 
 	return len(updates) > 0, updates

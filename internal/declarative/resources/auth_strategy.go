@@ -95,20 +95,36 @@ func (a ApplicationAuthStrategyResource) GetName() string {
 // UnmarshalJSON implements custom JSON unmarshaling to handle SDK union types
 // (sigs.k8s.io/yaml uses JSON unmarshaling internally)
 func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
-	// Temporary struct to capture all fields
+	// Temporary struct to capture all fields including raw labels
 	var temp struct {
 		Ref          string                 `json:"ref"`
 		Name         string                 `json:"name"`
 		DisplayName  string                 `json:"display_name"`
 		StrategyType string                 `json:"strategy_type"`
 		Configs      map[string]interface{} `json:"configs"`
-		Labels       map[string]string      `json:"labels,omitempty"`
+		Labels       json.RawMessage        `json:"labels,omitempty"`
 		Kongctl      *KongctlMeta           `json:"kongctl,omitempty"`
 	}
 	
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
 	}
+	
+	// Handle labels to preserve empty map vs nil
+	var labels map[string]string
+	if len(temp.Labels) > 0 {
+		// Check if labels is null (happens when all values are commented out)
+		if string(temp.Labels) == "null" {
+			// Treat null as empty map - user wants to remove all labels
+			labels = make(map[string]string)
+		} else {
+			// Parse labels
+			if err := json.Unmarshal(temp.Labels, &labels); err != nil {
+				return fmt.Errorf("failed to unmarshal labels: %w", err)
+			}
+		}
+	}
+	// If labels field was not present, labels remains nil
 	
 	// Set our fields
 	a.Ref = temp.Ref
@@ -136,7 +152,7 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 			Configs: kkComps.AppAuthStrategyOpenIDConnectRequestConfigs{
 				OpenidConnect: oidcConfig,
 			},
-			Labels: temp.Labels,
+			Labels: labels,
 		}
 		
 		a.CreateAppAuthStrategyRequest = kkComps.CreateCreateAppAuthStrategyRequestOpenidConnect(oidcRequest)
@@ -161,7 +177,7 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 			Configs: kkComps.AppAuthStrategyKeyAuthRequestConfigs{
 				KeyAuth: keyAuthConfig,
 			},
-			Labels: temp.Labels,
+			Labels: labels,
 		}
 		
 		a.CreateAppAuthStrategyRequest = kkComps.CreateCreateAppAuthStrategyRequestKeyAuth(keyAuthRequest)

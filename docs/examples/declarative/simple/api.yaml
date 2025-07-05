@@ -7,4 +7,4 @@ apis:
     description: A basic API example
     labels:
       foo: bar
-      #bar: foo
+      bar: foo

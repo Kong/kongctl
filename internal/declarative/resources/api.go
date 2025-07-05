@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"encoding/json"
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -69,4 +70,63 @@ func (a *APIResource) SetDefaults() {
 	if a.Name == "" {
 		a.Name = a.Ref
 	}
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling to preserve empty labels
+func (a *APIResource) UnmarshalJSON(data []byte) error {
+	// Temporary struct to capture all fields including raw labels
+	var temp struct {
+		Ref              string                       `json:"ref"`
+		Name             string                       `json:"name"`
+		Description      *string                      `json:"description,omitempty"`
+		Version          *string                      `json:"version,omitempty"`
+		Slug             *string                      `json:"slug,omitempty"`
+		Labels           json.RawMessage              `json:"labels,omitempty"`
+		Attributes       any                          `json:"attributes,omitempty"`
+		SpecContent      *string                      `json:"spec_content,omitempty"`
+		Kongctl          *KongctlMeta                 `json:"kongctl,omitempty"`
+		Versions         []APIVersionResource         `json:"versions,omitempty"`
+		Publications     []APIPublicationResource     `json:"publications,omitempty"`
+		Implementations  []APIImplementationResource  `json:"implementations,omitempty"`
+		Documents        []APIDocumentResource        `json:"documents,omitempty"`
+	}
+	
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+	
+	// Set our fields
+	a.Ref = temp.Ref
+	a.Kongctl = temp.Kongctl
+	a.Name = temp.Name
+	a.Description = temp.Description
+	a.Version = temp.Version
+	a.Slug = temp.Slug
+	a.Attributes = temp.Attributes
+	a.SpecContent = temp.SpecContent
+	
+	// Handle nested resources
+	a.Versions = temp.Versions
+	a.Publications = temp.Publications
+	a.Implementations = temp.Implementations
+	a.Documents = temp.Documents
+	
+	// Handle labels specially to preserve empty map vs nil
+	if len(temp.Labels) > 0 {
+		// Check if labels is null (happens when all values are commented out)
+		if string(temp.Labels) == "null" {
+			// Treat null as empty map - user wants to remove all labels
+			a.Labels = make(map[string]string)
+		} else {
+			// Parse labels - if it's an empty object {}, we want to preserve that
+			var labels map[string]string
+			if err := json.Unmarshal(temp.Labels, &labels); err != nil {
+				return fmt.Errorf("failed to unmarshal labels: %w", err)
+			}
+			a.Labels = labels
+		}
+	}
+	// If labels field was not present in JSON, a.Labels remains nil
+	
+	return nil
 }

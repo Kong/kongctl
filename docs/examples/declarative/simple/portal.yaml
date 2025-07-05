@@ -6,6 +6,6 @@ portals:
     name: my-developer-portal
     display_name: My Foo Developer Portal
     description: A simple developer portal for API documentation
-    labels:
-      foo: bar
+    labels: {}
+      #foo: bar
       #bar: foo

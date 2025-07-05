@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"encoding/json"
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -144,4 +145,71 @@ func (p *PortalResource) SetDefaults() {
 	for i := range p.Pages {
 		p.Pages[i].SetDefaults()
 	}
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling to preserve empty labels
+func (p *PortalResource) UnmarshalJSON(data []byte) error {
+	// Temporary struct to capture all fields including raw labels
+	var temp struct {
+		Ref                               string                       `json:"ref"`
+		Name                              string                       `json:"name"`
+		DisplayName                       *string                      `json:"display_name,omitempty"`
+		Description                       *string                      `json:"description,omitempty"`
+		AuthenticationEnabled             *bool                        `json:"authentication_enabled,omitempty"`
+		RbacEnabled                       *bool                        `json:"rbac_enabled,omitempty"`
+		DefaultAPIVisibility              *kkComps.DefaultAPIVisibility        `json:"default_api_visibility,omitempty"`
+		DefaultPageVisibility             *kkComps.DefaultPageVisibility       `json:"default_page_visibility,omitempty"`
+		DefaultApplicationAuthStrategyID  *string                      `json:"default_application_auth_strategy_id,omitempty"`
+		AutoApproveDevelopers             *bool                        `json:"auto_approve_developers,omitempty"`
+		AutoApproveApplications           *bool                        `json:"auto_approve_applications,omitempty"`
+		Labels                            json.RawMessage              `json:"labels,omitempty"`
+		Kongctl                           *KongctlMeta                 `json:"kongctl,omitempty"`
+		Customization                     *PortalCustomizationResource `json:"customization,omitempty"`
+		CustomDomain                      *PortalCustomDomainResource  `json:"custom_domain,omitempty"`
+		Pages                             []PortalPageResource         `json:"pages,omitempty"`
+		Snippets                          []PortalSnippetResource      `json:"snippets,omitempty"`
+	}
+	
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+	
+	// Set our fields
+	p.Ref = temp.Ref
+	p.Kongctl = temp.Kongctl
+	p.Name = temp.Name
+	p.DisplayName = temp.DisplayName
+	p.Description = temp.Description
+	p.AuthenticationEnabled = temp.AuthenticationEnabled
+	p.RbacEnabled = temp.RbacEnabled
+	p.DefaultAPIVisibility = temp.DefaultAPIVisibility
+	p.DefaultPageVisibility = temp.DefaultPageVisibility
+	p.DefaultApplicationAuthStrategyID = temp.DefaultApplicationAuthStrategyID
+	p.AutoApproveDevelopers = temp.AutoApproveDevelopers
+	p.AutoApproveApplications = temp.AutoApproveApplications
+	
+	// Handle nested resources
+	p.Customization = temp.Customization
+	p.CustomDomain = temp.CustomDomain
+	p.Pages = temp.Pages
+	p.Snippets = temp.Snippets
+	
+	// Handle labels specially to preserve empty map vs nil
+	if len(temp.Labels) > 0 {
+		// Check if labels is null (happens when all values are commented out)
+		if string(temp.Labels) == "null" {
+			// Treat null as empty map - user wants to remove all labels
+			p.Labels = make(map[string]*string)
+		} else {
+			// Parse labels - if it's an empty object {}, we want to preserve that
+			var labels map[string]*string
+			if err := json.Unmarshal(temp.Labels, &labels); err != nil {
+				return fmt.Errorf("failed to unmarshal labels: %w", err)
+			}
+			p.Labels = labels
+		}
+	}
+	// If labels field was not present in JSON, p.Labels remains nil
+	
+	return nil
 }
