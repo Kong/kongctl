@@ -503,6 +503,7 @@ achieve the desired state.`,
 	cmd.Flags().BoolP("recursive", "R", false, 
 		"Process the directory used in -f, --filename recursively")
 	cmd.Flags().Bool("dry-run", false, "Preview changes without applying them")
+	cmd.Flags().String("plan-output-file", "", "Save plan to file for post-processing")
 
 	return cmd
 }
@@ -695,9 +696,24 @@ func runApply(command *cobra.Command, args []string) error {
 	}
 	command.SetContext(ctx)
 	
+	// Save plan to file if requested
+	planOutputFile, _ := command.Flags().GetString("plan-output-file")
+	if planOutputFile != "" {
+		planJSON, err := json.MarshalIndent(plan, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal plan: %w", err)
+		}
+		if err := os.WriteFile(planOutputFile, planJSON, 0600); err != nil {
+			return fmt.Errorf("failed to write plan file: %w", err)
+		}
+		// Only show message in text output mode
+		if outputFormat == "text" {
+			fmt.Fprintf(command.OutOrStderr(), "Plan saved to: %s\n\n", planOutputFile)
+		}
+	}
 	
 	// Validate plan for apply
-	if err := validateApplyPlan(plan); err != nil {
+	if err := validateApplyPlan(plan, command); err != nil {
 		return err
 	}
 	
@@ -765,7 +781,7 @@ func runApply(command *cobra.Command, args []string) error {
 	return outputApplyResults(command, result, err, outputFormat)
 }
 
-func validateApplyPlan(plan *planner.Plan) error {
+func validateApplyPlan(plan *planner.Plan, command *cobra.Command) error {
 	// Check if plan contains DELETE operations
 	for _, change := range plan.Changes {
 		if change.Action == planner.ActionDelete {
@@ -775,7 +791,7 @@ func validateApplyPlan(plan *planner.Plan) error {
 	
 	// Warn if plan was generated in sync mode
 	if plan.Metadata.Mode == planner.PlanModeSync {
-		fmt.Fprintf(os.Stderr, "Warning: Plan was generated in sync mode but apply will skip DELETE operations\n")
+		fmt.Fprintf(command.OutOrStderr(), "Warning: Plan was generated in sync mode but apply will skip DELETE operations\n")
 	}
 	
 	return nil
@@ -924,6 +940,7 @@ delete resources.`,
 	cmd.Flags().Bool("dry-run", false, "Preview changes without applying")
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", "text", "Output format (text|json|yaml)")
+	cmd.Flags().String("plan-output-file", "", "Save plan to file for post-processing")
 
 	return cmd
 }
