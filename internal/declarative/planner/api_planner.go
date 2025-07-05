@@ -206,16 +206,16 @@ func (p *Planner) shouldUpdateAPI(
 		}
 	}
 
-	// Compare user labels if any are specified
-	if len(desired.Labels) > 0 {
-		if compareUserLabels(current.NormalizedLabels, desired.Labels) {
-			// Convert to interface map for the update
-			labelsMap := make(map[string]interface{})
-			for k, v := range desired.Labels {
-				labelsMap[k] = v
-			}
-			updates["labels"] = labelsMap
+	// Check if labels are defined in the desired state
+	// If labels are defined (even if empty), we need to send them to ensure proper replacement
+	if desired.Labels != nil {
+		// Always include labels when they're defined in desired state
+		// This ensures labels not in desired state are removed from the API
+		labelsMap := make(map[string]interface{})
+		for k, v := range desired.Labels {
+			labelsMap[k] = v
 		}
+		updates["labels"] = labelsMap
 	}
 
 	return len(updates) > 0, updates
@@ -237,6 +237,11 @@ func (p *Planner) planAPIUpdateWithFields(
 
 	// Always include name for identification
 	fields["name"] = current.Name
+	
+	// Pass current labels so executor can properly handle removals
+	if _, hasLabels := updateFields["labels"]; hasLabels {
+		fields[FieldCurrentLabels] = current.NormalizedLabels
+	}
 
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionUpdate, desired.GetRef()),

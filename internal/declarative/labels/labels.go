@@ -2,6 +2,7 @@ package labels
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -153,6 +154,135 @@ func AddManagedLabelsToPointerMap(labels map[string]*string) map[string]*string 
 		result[ProtectedKey] = &protectedValue
 	}
 	
+	return result
+}
+
+// ExtractLabelsFromField extracts labels from a planner field that could be various types
+// Handles type assertions for map[string]interface{}, map[string]string, etc.
+func ExtractLabelsFromField(field interface{}) map[string]string {
+	if field == nil {
+		return nil
+	}
+
+	result := make(map[string]string)
+
+	switch labels := field.(type) {
+	case map[string]interface{}:
+		// Handle map[string]interface{} case from planner
+		for k, v := range labels {
+			if strVal, ok := v.(string); ok {
+				result[k] = strVal
+			}
+		}
+	case map[string]string:
+		// Handle map[string]string case
+		for k, v := range labels {
+			result[k] = v
+		}
+	}
+
+	return result
+}
+
+// BuildCreateLabels prepares labels for resource creation
+// Adds management labels and handles protection status
+func BuildCreateLabels(userLabels map[string]string, protection interface{}) map[string]string {
+	result := make(map[string]string)
+
+	// Copy user-defined labels (excluding KONGCTL labels)
+	for k, v := range userLabels {
+		if !IsKongctlLabel(k) {
+			result[k] = v
+		}
+	}
+
+	// Add protection label based on protection field
+	protectionValue := FalseValue
+	if prot, ok := protection.(bool); ok && prot {
+		protectionValue = TrueValue
+	}
+	result[ProtectedKey] = protectionValue
+
+	// Note: Managed and last-updated labels will be added by the client
+	// This is to ensure they're added after any normalization
+
+	return result
+}
+
+// BuildUpdateLabels prepares labels for resource update with removal support
+// Returns a pointer map to support nil values for label removal
+func BuildUpdateLabels(desiredLabels, currentLabels map[string]string, protection interface{}) map[string]*string {
+	result := make(map[string]*string)
+
+	// First, add all desired user labels
+	for k, v := range desiredLabels {
+		if !IsKongctlLabel(k) {
+			val := v
+			result[k] = &val
+		}
+	}
+
+	// Then, add nil values for current user labels that should be removed
+	for k := range currentLabels {
+		if !IsKongctlLabel(k) {
+			if _, exists := desiredLabels[k]; !exists {
+				result[k] = nil
+			}
+		}
+	}
+
+	// Handle protection label
+	protectionValue := FalseValue
+	
+	// Check if this is a protection change
+	// We check for a struct with Old and New bool fields using reflection
+	// to avoid circular dependency with planner package
+	if protection != nil {
+		v := fmt.Sprintf("%T", protection)
+		if v == "planner.ProtectionChange" {
+			// Use reflection to get the New field value
+			// This avoids importing planner package which would create circular dependency
+			if newVal := getProtectionNewValue(protection); newVal {
+				protectionValue = TrueValue
+			}
+		} else if prot, ok := protection.(bool); ok && prot {
+			protectionValue = TrueValue
+		}
+	}
+	
+	result[ProtectedKey] = &protectionValue
+
+	// Note: Managed and last-updated labels will be added by the client
+	// using AddManagedLabelsToPointerMap to preserve nil values
+
+	return result
+}
+
+// getProtectionNewValue uses reflection to get the New field from a ProtectionChange
+// This avoids circular dependency with the planner package
+func getProtectionNewValue(protection interface{}) bool {
+	// Try direct field access via reflection
+	v := reflect.ValueOf(protection)
+	if v.Kind() == reflect.Struct {
+		if newField := v.FieldByName("New"); newField.IsValid() && newField.Kind() == reflect.Bool {
+			return newField.Bool()
+		}
+	}
+	
+	return false
+}
+
+// ConvertStringMapToPointerMap converts map[string]string to map[string]*string
+func ConvertStringMapToPointerMap(labels map[string]string) map[string]*string {
+	if labels == nil {
+		return nil
+	}
+
+	result := make(map[string]*string)
+	for k, v := range labels {
+		val := v
+		result[k] = &val
+	}
 	return result
 }
 

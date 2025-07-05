@@ -41,39 +41,15 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 		return "", fmt.Errorf("display_name is required")
 	}
 	
-	// Handle labels - preserve user labels (auth strategies use map[string]string)
-	authLabels := make(map[string]string)
+	// Handle labels using centralized helper
+	userLabels := labels.ExtractLabelsFromField(change.Fields["labels"])
+	authLabels := labels.BuildCreateLabels(userLabels, change.Protection)
 	
-	// Copy user-defined labels from the change
-	if labelsField, ok := change.Fields["labels"].(map[string]interface{}); ok {
-		debugLog("Found user labels in fields: %+v", labelsField)
-		for k, v := range labelsField {
-			if strVal, ok := v.(string); ok {
-				// Only copy user labels (non-KONGCTL labels)
-				if !labels.IsKongctlLabel(k) {
-					authLabels[k] = strVal
-					debugLog("Adding user label: %s=%s", k, strVal)
-				}
-			}
-		}
-	}
-	
-	// Add protection label based on change.Protection field
-	protectionValue := labels.FalseValue
-	if prot, ok := change.Protection.(bool); ok && prot {
-		protectionValue = labels.TrueValue
-		debugLog("Setting protection label to true")
-	} else {
-		debugLog("Setting protection label to false")
-	}
-	authLabels[labels.ProtectedKey] = protectionValue
-	
-	// Always add managed label
-	managedValue := labels.TrueValue
-	authLabels[labels.ManagedKey] = managedValue
-	
-	// Add last updated timestamp
+	// Add managed and timestamp labels directly since auth strategies use map[string]string
+	authLabels[labels.ManagedKey] = labels.TrueValue
 	authLabels[labels.LastUpdatedKey] = time.Now().UTC().Format("20060102-150405Z")
+	
+	debugLog("Created labels for auth strategy: %+v", authLabels)
 	
 	// Build the request based on strategy type
 	switch strategyType {
@@ -283,98 +259,22 @@ func (e *Executor) updateApplicationAuthStrategy(ctx context.Context, change pla
 		updateReq.DisplayName = &displayName
 	}
 	
-	// Handle labels - preserve user labels and add management labels
-	// Try both type assertions since planner might send either type
-	var labelsToProcess map[string]string
-	if labelsField, ok := change.Fields["labels"].(map[string]interface{}); ok {
-		// Handle map[string]interface{} case
-		debugLog("Labels are type map[string]interface{}")
-		labelsToProcess = make(map[string]string)
-		for k, v := range labelsField {
-			if strVal, ok := v.(string); ok {
-				labelsToProcess[k] = strVal
-			}
-		}
-	} else if labelsField, ok := change.Fields["labels"].(map[string]string); ok {
-		// Handle map[string]string case (what planner actually sends)
-		debugLog("Labels are type map[string]string: %+v", labelsField)
-		labelsToProcess = labelsField
-	} else if change.Fields["labels"] != nil {
-		debugLog("Labels field exists but has unexpected type: %T", change.Fields["labels"])
-	}
-	
-	if labelsToProcess != nil {
-		authLabels := make(map[string]string)
-		
+	// Handle labels using centralized helper
+	desiredLabels := labels.ExtractLabelsFromField(change.Fields["labels"])
+	if desiredLabels != nil {
 		// Get current labels if passed from planner
-		currentLabels := make(map[string]string)
-		if currentLabelsField, ok := change.Fields["_current_labels"].(map[string]string); ok {
-			currentLabels = currentLabelsField
-		}
+		currentLabels := labels.ExtractLabelsFromField(change.Fields[planner.FieldCurrentLabels])
 		
-		// Copy user-defined labels
-		for k, v := range labelsToProcess {
-			// Only copy user labels (non-KONGCTL labels)
-			if !labels.IsKongctlLabel(k) {
-				authLabels[k] = v
-			}
-		}
+		// Build update labels with removal support
+		updateReq.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, change.Protection)
 		
-		// Add protection label based on change.Protection field
-		if protChange, ok := change.Protection.(planner.ProtectionChange); ok {
-			if protChange.New {
-				authLabels[labels.ProtectedKey] = labels.TrueValue
-			} else {
-				authLabels[labels.ProtectedKey] = labels.FalseValue
-			}
-		} else if prot, ok := change.Protection.(bool); ok {
-			// For regular updates, preserve the protection status
-			if prot {
-				authLabels[labels.ProtectedKey] = labels.TrueValue
-			} else {
-				authLabels[labels.ProtectedKey] = labels.FalseValue
-			}
-		} else {
-			// If no protection info provided, default to false
-			authLabels[labels.ProtectedKey] = labels.FalseValue
-		}
-		
-		// Always add managed label
-		authLabels[labels.ManagedKey] = labels.TrueValue
-		
-		// Add last updated timestamp
-		authLabels[labels.LastUpdatedKey] = time.Now().UTC().Format("20060102-150405Z")
-		
-		// Convert to pointer map for SDK
-		pointerLabels := make(map[string]*string)
-		
-		// First, add all labels we want to keep/update
-		for k, v := range authLabels {
-			val := v
-			pointerLabels[k] = &val
-		}
-		
-		// Then, add nil values for current user labels that should be removed
-		for k := range currentLabels {
-			// If it's a user label in current state but not in desired state, remove it
-			if !labels.IsKongctlLabel(k) {
-				if _, exists := authLabels[k]; !exists {
-					pointerLabels[k] = nil
-					debugLog("Marking label for removal: %s", k)
-				}
-			}
-		}
-		
-		updateReq.Labels = pointerLabels
-		
-		debugLog("Final labels for update: %+v", authLabels)
-		debugLog("Update request labels (pointers): %+v", pointerLabels)
+		debugLog("Update request labels (with removal support): %+v", updateReq.Labels)
 	}
 	
 	// Handle config updates if present
 	if configs, ok := change.Fields["configs"].(map[string]interface{}); ok {
 		// Get strategy type from fields (passed by planner)
-		strategyType, _ := change.Fields["_strategy_type"].(string)
+		strategyType, _ := change.Fields[planner.FieldStrategyType].(string)
 		
 		if strategyType == "" {
 			// Try to determine from current state

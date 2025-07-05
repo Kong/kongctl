@@ -8,3 +8,4 @@ portals:
     description: A simple developer portal for API documentation
     labels:
       foo: bar
+      #bar: foo

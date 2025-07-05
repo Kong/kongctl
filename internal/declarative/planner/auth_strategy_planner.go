@@ -95,7 +95,7 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) e
 				needsUpdate, updateFields := p.shouldUpdateAuthStrategy(current, desiredStrategy)
 				if needsUpdate {
 					// Check for strategy type change error
-					if errMsg, hasError := updateFields["_error"].(string); hasError {
+					if errMsg, hasError := updateFields[FieldError].(string); hasError {
 						protectionErrors.Add(fmt.Errorf("%s", errMsg))
 					} else {
 						// Regular update - check protection
@@ -268,7 +268,7 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 
 	if current.StrategyType != desiredStrategyType {
 		// Return error via updateFields to be handled by caller
-		updateFields["_error"] = fmt.Sprintf(
+		updateFields[FieldError] = fmt.Sprintf(
 			"changing strategy_type from %s to %s is not supported. Please delete and recreate the auth strategy",
 			current.StrategyType, desiredStrategyType)
 		return true, updateFields
@@ -458,7 +458,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyUpdateWithFields(
 	// Store the fields that need updating
 	for field, newValue := range updateFields {
 		// Skip internal error field
-		if field != "_error" {
+		if field != FieldError {
 			fields[field] = newValue
 		}
 	}
@@ -467,11 +467,11 @@ func (p *authStrategyPlannerImpl) planAuthStrategyUpdateWithFields(
 	fields["name"] = current.Name
 	
 	// Pass strategy type to executor
-	fields["_strategy_type"] = current.StrategyType
+	fields[FieldStrategyType] = current.StrategyType
 	
 	// Pass current labels so executor can properly handle removals
 	if _, hasLabels := updateFields["labels"]; hasLabels {
-		fields["_current_labels"] = current.NormalizedLabels
+		fields[FieldCurrentLabels] = current.NormalizedLabels
 	}
 
 	change := PlannedChange{

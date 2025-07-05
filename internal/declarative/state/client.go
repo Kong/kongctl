@@ -224,10 +224,9 @@ func (c *Client) UpdatePortal(
 	id string,
 	portal kkComps.UpdatePortal,
 ) (*kkComps.PortalResponse, error) {
-	// Add management labels
-	normalized := labels.NormalizeLabels(portal.Labels)
-	normalized = labels.AddManagedLabels(normalized)
-	portal.Labels = labels.DenormalizeLabels(normalized)
+	// Add management labels directly to pointer map to preserve nil values
+	// This allows label removal (nil values) to work correctly
+	portal.Labels = labels.AddManagedLabelsToPointerMap(portal.Labels)
 
 	resp, err := c.portalAPI.UpdatePortal(ctx, id, portal)
 	if err != nil {
@@ -376,10 +375,9 @@ func (c *Client) UpdateAPI(
 		return nil, fmt.Errorf("API client not configured")
 	}
 
-	// Add management labels
-	normalized := labels.NormalizeLabels(api.Labels)
-	normalized = labels.AddManagedLabels(normalized)
-	api.Labels = labels.DenormalizeLabels(normalized)
+	// Add management labels directly to pointer map to preserve nil values
+	// This allows label removal (nil values) to work correctly
+	api.Labels = labels.AddManagedLabelsToPointerMap(api.Labels)
 
 	resp, err := c.apiAPI.UpdateAPI(ctx, id, api)
 	if err != nil {
