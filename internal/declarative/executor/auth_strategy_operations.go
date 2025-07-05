@@ -257,6 +257,16 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 
 // updateApplicationAuthStrategy handles UPDATE operations for application auth strategies
 func (e *Executor) updateApplicationAuthStrategy(ctx context.Context, change planner.PlannedChange) (string, error) {
+	// Debug logging
+	debugEnabled := os.Getenv(labels.DebugEnvVar) == "true"
+	debugLog := func(format string, args ...interface{}) {
+		if debugEnabled {
+			fmt.Fprintf(os.Stderr, "DEBUG [auth_strategy_operations/update]: "+format+"\n", args...)
+		}
+	}
+	
+	debugLog("Updating auth strategy with change: %+v", change)
+	
 	if e.client == nil {
 		return "", fmt.Errorf("client not configured")
 	}
@@ -290,6 +300,16 @@ func (e *Executor) updateApplicationAuthStrategy(ctx context.Context, change pla
 			} else {
 				authLabels[labels.ProtectedKey] = labels.FalseValue
 			}
+		} else if prot, ok := change.Protection.(bool); ok {
+			// For regular updates, preserve the protection status
+			if prot {
+				authLabels[labels.ProtectedKey] = labels.TrueValue
+			} else {
+				authLabels[labels.ProtectedKey] = labels.FalseValue
+			}
+		} else {
+			// If no protection info provided, default to false
+			authLabels[labels.ProtectedKey] = labels.FalseValue
 		}
 		
 		// Always add managed label
@@ -302,6 +322,9 @@ func (e *Executor) updateApplicationAuthStrategy(ctx context.Context, change pla
 			pointerLabels[k] = &val
 		}
 		updateReq.Labels = pointerLabels
+		
+		debugLog("Final labels for update: %+v", authLabels)
+		debugLog("Update request labels (pointers): %+v", pointerLabels)
 	}
 	
 	// Note: Config updates are complex with the SDK

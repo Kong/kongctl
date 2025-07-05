@@ -361,10 +361,8 @@ func (p *authStrategyPlannerImpl) planAuthStrategyUpdateWithFields(
 		DependsOn:    []string{},
 	}
 
-	// Check if already protected
-	if labels.IsProtectedResource(current.NormalizedLabels) {
-		change.Protection = true
-	}
+	// Set protection status based on current state
+	change.Protection = labels.IsProtectedResource(current.NormalizedLabels)
 
 	plan.AddChange(change)
 }
