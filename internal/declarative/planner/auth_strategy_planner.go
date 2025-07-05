@@ -288,16 +288,20 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 		currentKeyNames := make([]string, 0)
 		if current.Configs != nil {
 			if keyAuthConfig, ok := current.Configs["key-auth"].(map[string]interface{}); ok {
-				if keyNamesInterface, ok := keyAuthConfig["key_names"].([]interface{}); ok {
-					for _, kn := range keyNamesInterface {
-						if knStr, ok := kn.(string); ok {
-							currentKeyNames = append(currentKeyNames, knStr)
+				// Try different type assertions for key_names
+				switch kn := keyAuthConfig["key_names"].(type) {
+				case []interface{}:
+					for _, name := range kn {
+						if str, ok := name.(string); ok {
+							currentKeyNames = append(currentKeyNames, str)
 						}
 					}
+				case []string:
+					currentKeyNames = kn
 				}
 			}
 		}
-
+		
 		// Compare lengths first
 		if len(currentKeyNames) != len(keyNames) {
 			updateFields["configs"] = map[string]interface{}{
