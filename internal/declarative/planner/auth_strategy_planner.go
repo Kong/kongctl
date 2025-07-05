@@ -172,7 +172,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 			// Set config under configs map
 			if strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames != nil {
 				fields["configs"] = map[string]interface{}{
-					"key_auth": map[string]interface{}{
+					"key-auth": map[string]interface{}{
 						"key_names": strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames,
 					},
 				}
@@ -204,7 +204,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 			
 			if len(oidcConfig) > 0 {
 				fields["configs"] = map[string]interface{}{
-					"openid_connect": oidcConfig,
+					"openid-connect": oidcConfig,
 				}
 			}
 		}
@@ -301,7 +301,7 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 		// Compare lengths first
 		if len(currentKeyNames) != len(keyNames) {
 			updateFields["configs"] = map[string]interface{}{
-				"key_auth": map[string]interface{}{
+				"key-auth": map[string]interface{}{
 					"key_names": keyNames,
 				},
 			}
@@ -310,7 +310,7 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 			for i, desiredName := range keyNames {
 				if i < len(currentKeyNames) && currentKeyNames[i] != desiredName {
 					updateFields["configs"] = map[string]interface{}{
-						"key_auth": map[string]interface{}{
+						"key-auth": map[string]interface{}{
 							"key_names": keyNames,
 						},
 					}

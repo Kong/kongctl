@@ -875,7 +875,7 @@ func (c *Client) ListManagedAuthStrategies(ctx context.Context) ([]ApplicationAu
 				if keyAuthResp.Configs.KeyAuth.KeyNames != nil {
 					keyAuthConfig["key_names"] = keyAuthResp.Configs.KeyAuth.KeyNames
 				}
-				configs["key_auth"] = keyAuthConfig
+				configs["key-auth"] = keyAuthConfig
 				strategy.Configs = configs
 				
 				labelMap = keyAuthResp.Labels
@@ -900,7 +900,7 @@ func (c *Client) ListManagedAuthStrategies(ctx context.Context) ([]ApplicationAu
 				if oidcResp.Configs.OpenidConnect.AuthMethods != nil {
 					oidcConfig["auth_methods"] = oidcResp.Configs.OpenidConnect.AuthMethods
 				}
-				configs["openid_connect"] = oidcConfig
+				configs["openid-connect"] = oidcConfig
 				strategy.Configs = configs
 				
 				labelMap = oidcResp.Labels

@@ -11,4 +11,4 @@ application_auth_strategies:
         key_names:
           - X-API-Key
     labels:
-      foo: bar
+      foo: abc

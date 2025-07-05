@@ -80,9 +80,9 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 			return "", fmt.Errorf("configs is required for key_auth strategy")
 		}
 		
-		keyAuthConfig, ok := configs["key_auth"].(map[string]interface{})
+		keyAuthConfig, ok := configs["key-auth"].(map[string]interface{})
 		if !ok {
-			return "", fmt.Errorf("configs.key_auth is required for key_auth strategy")
+			return "", fmt.Errorf("configs.key-auth is required for key_auth strategy")
 		}
 		
 		// Build key auth request
@@ -146,9 +146,9 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 			return "", fmt.Errorf("configs is required for openid_connect strategy")
 		}
 		
-		oidcConfig, ok := configs["openid_connect"].(map[string]interface{})
+		oidcConfig, ok := configs["openid-connect"].(map[string]interface{})
 		if !ok {
-			return "", fmt.Errorf("configs.openid_connect is required for openid_connect strategy")
+			return "", fmt.Errorf("configs.openid-connect is required for openid_connect strategy")
 		}
 		
 		// Build openid connect request
