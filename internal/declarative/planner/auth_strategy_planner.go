@@ -166,10 +166,15 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 			displayName = strategy.AppAuthStrategyKeyAuthRequest.DisplayName
 			labels = strategy.AppAuthStrategyKeyAuthRequest.Labels
 			
-			// Set key_names if provided
+			// Set strategy type
+			fields["strategy_type"] = "key_auth"
+			
+			// Set config under configs map
 			if strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames != nil {
-				fields["key_auth"] = map[string]interface{}{
-					"key_names": strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames,
+				fields["configs"] = map[string]interface{}{
+					"key_auth": map[string]interface{}{
+						"key_names": strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames,
+					},
 				}
 			}
 		}
@@ -178,6 +183,30 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 			name = strategy.AppAuthStrategyOpenIDConnectRequest.Name
 			displayName = strategy.AppAuthStrategyOpenIDConnectRequest.DisplayName
 			labels = strategy.AppAuthStrategyOpenIDConnectRequest.Labels
+			
+			// Set strategy type
+			fields["strategy_type"] = "openid_connect"
+			
+			// Set config under configs map
+			oidcConfig := make(map[string]interface{})
+			if strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Issuer != "" {
+				oidcConfig["issuer"] = strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Issuer
+			}
+			if strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.CredentialClaim != nil {
+				oidcConfig["credential_claim"] = strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.CredentialClaim
+			}
+			if strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Scopes != nil {
+				oidcConfig["scopes"] = strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Scopes
+			}
+			if strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.AuthMethods != nil {
+				oidcConfig["auth_methods"] = strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.AuthMethods
+			}
+			
+			if len(oidcConfig) > 0 {
+				fields["configs"] = map[string]interface{}{
+					"openid_connect": oidcConfig,
+				}
+			}
 		}
 	}
 	
@@ -271,15 +300,19 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 
 		// Compare lengths first
 		if len(currentKeyNames) != len(keyNames) {
-			updateFields["key_auth"] = map[string]interface{}{
-				"key_names": keyNames,
+			updateFields["configs"] = map[string]interface{}{
+				"key_auth": map[string]interface{}{
+					"key_names": keyNames,
+				},
 			}
 		} else {
 			// Compare values
 			for i, desiredName := range keyNames {
 				if i < len(currentKeyNames) && currentKeyNames[i] != desiredName {
-					updateFields["key_auth"] = map[string]interface{}{
-						"key_names": keyNames,
+					updateFields["configs"] = map[string]interface{}{
+						"key_auth": map[string]interface{}{
+							"key_names": keyNames,
+						},
 					}
 					break
 				}
