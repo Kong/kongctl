@@ -468,6 +468,11 @@ func (p *authStrategyPlannerImpl) planAuthStrategyUpdateWithFields(
 	
 	// Pass strategy type to executor
 	fields["_strategy_type"] = current.StrategyType
+	
+	// Pass current labels so executor can properly handle removals
+	if _, hasLabels := updateFields["labels"]; hasLabels {
+		fields["_current_labels"] = current.NormalizedLabels
+	}
 
 	change := PlannedChange{
 		ID:           p.NextChangeID(ActionUpdate, desired.GetRef()),

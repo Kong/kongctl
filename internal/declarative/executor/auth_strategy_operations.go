@@ -302,6 +302,12 @@ func (e *Executor) updateApplicationAuthStrategy(ctx context.Context, change pla
 	if labelsToProcess != nil {
 		authLabels := make(map[string]string)
 		
+		// Get current labels if passed from planner
+		currentLabels := make(map[string]string)
+		if currentLabelsField, ok := change.Fields["_current_labels"].(map[string]string); ok {
+			currentLabels = currentLabelsField
+		}
+		
 		// Copy user-defined labels
 		for k, v := range labelsToProcess {
 			// Only copy user labels (non-KONGCTL labels)
@@ -334,10 +340,24 @@ func (e *Executor) updateApplicationAuthStrategy(ctx context.Context, change pla
 		
 		// Convert to pointer map for SDK
 		pointerLabels := make(map[string]*string)
+		
+		// First, add all labels we want to keep/update
 		for k, v := range authLabels {
 			val := v
 			pointerLabels[k] = &val
 		}
+		
+		// Then, add nil values for current user labels that should be removed
+		for k := range currentLabels {
+			// If it's a user label in current state but not in desired state, remove it
+			if !labels.IsKongctlLabel(k) {
+				if _, exists := authLabels[k]; !exists {
+					pointerLabels[k] = nil
+					debugLog("Marking label for removal: %s", k)
+				}
+			}
+		}
+		
 		updateReq.Labels = pointerLabels
 		
 		debugLog("Final labels for update: %+v", authLabels)
