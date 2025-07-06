@@ -3,6 +3,7 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -18,6 +19,9 @@ type APIResource struct {
 	Publications    []APIPublicationResource    `yaml:"publications,omitempty" json:"publications,omitempty"`
 	Implementations []APIImplementationResource `yaml:"implementations,omitempty" json:"implementations,omitempty"`
 	Documents       []APIDocumentResource       `yaml:"documents,omitempty" json:"documents,omitempty"`
+	
+	// Resolved Konnect ID (not serialized)
+	konnectID string `yaml:"-" json:"-"`
 }
 
 // GetKind returns the resource kind
@@ -30,8 +34,8 @@ func (a APIResource) GetRef() string {
 	return a.Ref
 }
 
-// GetName returns the resource name
-func (a APIResource) GetName() string {
+// GetMoniker returns the resource moniker (for APIs, this is the name)
+func (a APIResource) GetMoniker() string {
 	return a.Name
 }
 
@@ -70,6 +74,60 @@ func (a *APIResource) SetDefaults() {
 	if a.Name == "" {
 		a.Name = a.Ref
 	}
+}
+
+// GetKonnectID returns the resolved Konnect ID if available
+func (a APIResource) GetKonnectID() string {
+	return a.konnectID
+}
+
+// GetKonnectMonikerFilter returns the filter string for Konnect API lookup
+func (a APIResource) GetKonnectMonikerFilter() string {
+	if a.Name == "" {
+		return ""
+	}
+	return fmt.Sprintf("name[eq]=%s", a.Name)
+}
+
+// TryMatchKonnectResource attempts to match this resource with a Konnect resource
+func (a *APIResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+	// For APIs, we match by name
+	// Use reflection to access fields from state.API
+	v := reflect.ValueOf(konnectResource)
+	
+	// Handle pointer types
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	
+	// Ensure we have a struct
+	if v.Kind() != reflect.Struct {
+		return false
+	}
+	
+	// Look for Name and ID fields
+	nameField := v.FieldByName("Name")
+	idField := v.FieldByName("ID")
+	
+	if !nameField.IsValid() || !idField.IsValid() {
+		// Try accessing embedded APIResponseSchema
+		apiField := v.FieldByName("APIResponseSchema")
+		if apiField.IsValid() && apiField.Kind() == reflect.Struct {
+			nameField = apiField.FieldByName("Name")
+			idField = apiField.FieldByName("ID")
+		}
+	}
+	
+	// Extract values if fields are valid
+	if nameField.IsValid() && idField.IsValid() && 
+	   nameField.Kind() == reflect.String && idField.Kind() == reflect.String {
+		if nameField.String() == a.Name {
+			a.konnectID = idField.String()
+			return true
+		}
+	}
+	
+	return false
 }
 
 // UnmarshalJSON implements custom JSON unmarshaling to preserve empty labels

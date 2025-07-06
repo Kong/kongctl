@@ -3,6 +3,7 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -13,6 +14,9 @@ type APIVersionResource struct {
 	Ref     string       `yaml:"ref" json:"ref"`
 	API     string       `yaml:"api,omitempty" json:"api,omitempty"` // Parent API reference (for root-level definitions)
 	Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+	
+	// Resolved Konnect ID (not serialized)
+	konnectID string `yaml:"-" json:"-"`
 }
 
 // GetKind returns the resource kind
@@ -25,9 +29,9 @@ func (v APIVersionResource) GetRef() string {
 	return v.Ref
 }
 
-// GetName returns the resource name
-func (v APIVersionResource) GetName() string {
-	// API versions use version field as name
+// GetMoniker returns the resource moniker (for versions, this is the version string)
+func (v APIVersionResource) GetMoniker() string {
+	// API versions use version field as moniker
 	if v.Version != nil {
 		return *v.Version
 	}
@@ -61,6 +65,50 @@ func (v APIVersionResource) Validate() error {
 // SetDefaults applies default values to API version resource
 func (v *APIVersionResource) SetDefaults() {
 	// API versions typically don't need default values
+}
+
+// GetKonnectID returns the resolved Konnect ID if available
+func (v APIVersionResource) GetKonnectID() string {
+	return v.konnectID
+}
+
+// GetKonnectMonikerFilter returns the filter string for Konnect API lookup
+func (v APIVersionResource) GetKonnectMonikerFilter() string {
+	// API versions don't support filtering directly
+	// They must be looked up through parent API
+	return ""
+}
+
+// TryMatchKonnectResource attempts to match this resource with a Konnect resource
+func (v *APIVersionResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+	// For API versions, we match by version string
+	// Use reflection to access fields from state.APIVersion
+	val := reflect.ValueOf(konnectResource)
+	
+	// Handle pointer types
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+	
+	// Ensure we have a struct
+	if val.Kind() != reflect.Struct {
+		return false
+	}
+	
+	// Look for Version and ID fields
+	versionField := val.FieldByName("Version")
+	idField := val.FieldByName("ID")
+	
+	// Extract values if fields are valid
+	if versionField.IsValid() && idField.IsValid() && 
+	   versionField.Kind() == reflect.String && idField.Kind() == reflect.String {
+		if v.Version != nil && versionField.String() == *v.Version {
+			v.konnectID = idField.String()
+			return true
+		}
+	}
+	
+	return false
 }
 
 // GetParentRef returns the parent API reference for ResourceWithParent interface

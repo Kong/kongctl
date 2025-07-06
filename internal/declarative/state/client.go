@@ -319,6 +319,7 @@ func (c *Client) GetAPIByName(ctx context.Context, name string) (*API, error) {
 }
 
 // GetAPIByRef finds a managed API by declarative ref (stored in labels)
+// TODO: This will be replaced by filtered lookup in Phase 2
 func (c *Client) GetAPIByRef(ctx context.Context, ref string) (*API, error) {
 	apis, err := c.ListManagedAPIs(ctx)
 	if err != nil {
@@ -326,8 +327,9 @@ func (c *Client) GetAPIByRef(ctx context.Context, ref string) (*API, error) {
 	}
 
 	for _, a := range apis {
-		// Check if the API has a ref label that matches
-		if apiRef, ok := a.NormalizedLabels[labels.RefLabel]; ok && apiRef == ref {
+		// For now, we'll search by name assuming ref == name
+		// This will be improved with proper identity resolution
+		if a.Name == ref {
 			return &a, nil
 		}
 	}

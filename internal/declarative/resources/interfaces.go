@@ -4,10 +4,15 @@ package resources
 type Resource interface {
 	GetKind() string
 	GetRef() string
-	GetName() string
+	GetMoniker() string // Generic identifier (name, username, version, etc.)
 	GetDependencies() []ResourceRef
 	Validate() error
 	SetDefaults()
+	
+	// Identity resolution methods
+	GetKonnectID() string // Returns the Konnect ID if resolved, empty otherwise
+	GetKonnectMonikerFilter() string // Returns filter string for Konnect API lookup
+	TryMatchKonnectResource(konnectResource interface{}) bool // Matches against Konnect resource
 }
 
 // ResourceRef represents a reference to another resource
