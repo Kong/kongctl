@@ -1496,7 +1496,7 @@ func runPlan(cmd *cobra.Command, _ []string) error {
     }
     
     if plan.IsEmpty() {
-        fmt.Fprintln(cmd.OutOrStdout(), "\nNo changes detected. Infrastructure is up to date.")
+        fmt.Fprintln(cmd.OutOrStdout(), "\nNo changes detected. Konnect is up to date.")
     } else {
         fmt.Fprintf(cmd.OutOrStdout(), "\nRun 'kongctl diff --plan %s' to review changes.\n", outputFile)
     }

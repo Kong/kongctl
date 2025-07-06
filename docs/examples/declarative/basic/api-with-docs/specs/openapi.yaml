@@ -1,0 +1,331 @@
+openapi: 3.0.3
+info:
+  title: SecureBank API
+  version: 1.0.0
+  description: Banking API for account management and transactions (Legacy Version)
+  contact:
+    name: SecureBank API Team
+    email: api-support@securebank.com
+    url: https://developer.securebank.com
+  license:
+    name: Commercial
+    url: https://securebank.com/api-license
+  x-deprecation-notice: |
+    This version is deprecated and will be sunset on 2024-12-31.
+    Please migrate to v2.0.0 for enhanced features and security.
+servers:
+  - url: https://api.securebank.com/v1
+    description: Production server (Legacy)
+  - url: https://sandbox.securebank.com/v1
+    description: Sandbox environment (Legacy)
+security:
+  - BasicAuth: []
+  - ApiKey: []
+tags:
+  - name: accounts
+    description: Account management operations
+  - name: transactions
+    description: Transaction operations
+paths:
+  /account:
+    get:
+      summary: List user accounts
+      operationId: listAccounts
+      deprecated: true
+      tags:
+        - accounts
+      parameters:
+        - name: type
+          in: query
+          description: Filter by account type
+          schema:
+            type: string
+            enum: [checking, savings]
+      responses:
+        '200':
+          description: List of accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /account/{accountNumber}:
+    get:
+      summary: Get account details
+      operationId: getAccount
+      deprecated: true
+      tags:
+        - accounts
+      parameters:
+        - name: accountNumber
+          in: path
+          required: true
+          description: Account number
+          schema:
+            type: string
+            pattern: '^[0-9]{10}$'
+      responses:
+        '200':
+          description: Account details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /account/balance:
+    get:
+      summary: Get account balance
+      operationId: getBalance
+      deprecated: true
+      x-removal-date: "2024-06-30"
+      x-alternative: "Use GET /account/{accountNumber} instead"
+      tags:
+        - accounts
+      parameters:
+        - name: account_number
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Account balance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  account_number:
+                    type: string
+                  balance:
+                    type: number
+                    format: double
+                  currency:
+                    type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /transaction/list:
+    get:
+      summary: List account transactions
+      operationId: listTransactions
+      deprecated: true
+      tags:
+        - transactions
+      parameters:
+        - name: account_number
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: from
+          in: query
+          description: Start date (YYYY-MM-DD)
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+        - name: to
+          in: query
+          description: End date (YYYY-MM-DD)
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+        - name: limit
+          in: query
+          description: Number of transactions to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+  /transfer:
+    post:
+      summary: Transfer funds between accounts
+      operationId: transferFunds
+      deprecated: true
+      tags:
+        - transactions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferRequest'
+      responses:
+        '200':
+          description: Transfer completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          description: Insufficient funds
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  error_code:
+                    type: integer
+components:
+  schemas:
+    Account:
+      type: object
+      required:
+        - account_number
+        - type
+        - balance
+        - currency
+      properties:
+        account_number:
+          type: string
+          description: 10-digit account number
+          example: "1234567890"
+        type:
+          type: string
+          enum: [checking, savings]
+        balance:
+          type: number
+          format: double
+          example: 5000.50
+        currency:
+          type: string
+          example: USD
+        created:
+          type: string
+          description: Creation date (YYYY-MM-DD HH:mm:ss)
+          example: "2023-01-15 10:30:00"
+        modified:
+          type: string
+          description: Last modified date (YYYY-MM-DD HH:mm:ss)
+          example: "2024-01-15 14:45:30"
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        date:
+          type: string
+          description: Transaction date (YYYY-MM-DD HH:mm:ss)
+          example: "2024-01-15 10:30:00"
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [debit, credit]
+        balance_after:
+          type: number
+          format: double
+          description: Account balance after transaction
+    TransferRequest:
+      type: object
+      required:
+        - from_account
+        - to_account
+        - amount
+      properties:
+        from_account:
+          type: string
+          description: Source account number
+        to_account:
+          type: string
+          description: Destination account number
+        amount:
+          type: number
+          format: double
+          minimum: 0.01
+        description:
+          type: string
+          maxLength: 100
+    TransferResponse:
+      type: object
+      properties:
+        transaction_id:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [completed, failed]
+        timestamp:
+          type: string
+          description: Completion time (YYYY-MM-DD HH:mm:ss)
+        from_balance:
+          type: number
+          format: double
+          description: Source account balance after transfer
+        to_balance:
+          type: number
+          format: double
+          description: Destination account balance after transfer
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                description: Error message
+              error_code:
+                type: integer
+                description: Internal error code
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Authentication required"
+              error_code:
+                type: integer
+                example: 401
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Account not found"
+              error_code:
+                type: integer
+                example: 404
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      description: HTTP Basic Authentication (deprecated)
+    ApiKey:
+      type: apiKey
+      in: header
+      name: API-Key
+      description: API key for legacy integrations

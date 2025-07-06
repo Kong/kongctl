@@ -249,6 +249,19 @@ func (m *MockAPIAPI) ListAPIDocuments(
 	return args.Get(0).(*kkOps.ListAPIDocumentsResponse), args.Error(1)
 }
 
+func (m *MockAPIAPI) FetchAPIDocument(
+	ctx context.Context,
+	apiID string,
+	documentID string,
+	_ ...kkOps.Option,
+) (*kkOps.FetchAPIDocumentResponse, error) {
+	args := m.Called(ctx, apiID, documentID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.FetchAPIDocumentResponse), args.Error(1)
+}
+
 
 func (m *MockAPIAPI) CreateAPIDocument(
 	ctx context.Context,

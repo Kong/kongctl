@@ -54,6 +54,8 @@ type APIAPI interface {
 		opts ...kkOps.Option) (*kkOps.DeleteAPIDocumentResponse, error)
 	ListAPIDocuments(ctx context.Context, request kkOps.ListAPIDocumentsRequest,
 		opts ...kkOps.Option) (*kkOps.ListAPIDocumentsResponse, error)
+	FetchAPIDocument(ctx context.Context, apiID string, documentID string,
+		opts ...kkOps.Option) (*kkOps.FetchAPIDocumentResponse, error)
 }
 
 // PublicAPIAPI provides an implementation of the APIAPI interface using the public SDK
@@ -196,6 +198,13 @@ func (a *PublicAPIAPI) ListAPIDocuments(ctx context.Context, request kkOps.ListA
 ) (*kkOps.ListAPIDocumentsResponse, error) {
 	// The SDK method has different signature
 	return a.SDK.APIDocumentation.ListAPIDocuments(ctx, request.APIID, nil, opts...)
+}
+
+// FetchAPIDocument implements the APIAPI interface
+func (a *PublicAPIAPI) FetchAPIDocument(ctx context.Context, apiID string, documentID string,
+	opts ...kkOps.Option,
+) (*kkOps.FetchAPIDocumentResponse, error) {
+	return a.SDK.APIDocumentation.FetchAPIDocument(ctx, apiID, documentID, opts...)
 }
 
 // GetDocumentationsForAPI is a deprecated function

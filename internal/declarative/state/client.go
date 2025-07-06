@@ -318,6 +318,23 @@ func (c *Client) GetAPIByName(ctx context.Context, name string) (*API, error) {
 	return nil, nil // Not found
 }
 
+// GetAPIByRef finds a managed API by declarative ref (stored in labels)
+func (c *Client) GetAPIByRef(ctx context.Context, ref string) (*API, error) {
+	apis, err := c.ListManagedAPIs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, a := range apis {
+		// Check if the API has a ref label that matches
+		if apiRef, ok := a.NormalizedLabels[labels.RefLabel]; ok && apiRef == ref {
+			return &a, nil
+		}
+	}
+
+	return nil, nil // Not found
+}
+
 // CreateAPI creates a new API with management labels
 func (c *Client) CreateAPI(
 	ctx context.Context,
@@ -766,6 +783,40 @@ func (c *Client) DeleteAPIDocument(ctx context.Context, apiID, documentID string
 		return fmt.Errorf("failed to delete API document: %w", err)
 	}
 	return nil
+}
+
+// GetAPIDocument retrieves a single API document with full content
+func (c *Client) GetAPIDocument(ctx context.Context, apiID, documentID string) (*APIDocument, error) {
+	if c.apiAPI == nil {
+		return nil, fmt.Errorf("API client not configured")
+	}
+
+	resp, err := c.apiAPI.FetchAPIDocument(ctx, apiID, documentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch API document: %w", err)
+	}
+
+	if resp.APIDocumentResponse == nil {
+		return nil, fmt.Errorf("fetch API document response missing data")
+	}
+
+	// Convert to our internal type with full content
+	doc := &APIDocument{
+		ID:      resp.APIDocumentResponse.ID,
+		Content: resp.APIDocumentResponse.Content,
+		Title:   resp.APIDocumentResponse.Title,
+		Slug:    resp.APIDocumentResponse.Slug,
+	}
+	
+	if resp.APIDocumentResponse.ParentDocumentID != nil {
+		doc.ParentDocumentID = *resp.APIDocumentResponse.ParentDocumentID
+	}
+	
+	if resp.APIDocumentResponse.Status != nil {
+		doc.Status = string(*resp.APIDocumentResponse.Status)
+	}
+
+	return doc, nil
 }
 
 // CreateApplicationAuthStrategy creates a new application auth strategy with management labels

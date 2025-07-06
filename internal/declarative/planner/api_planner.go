@@ -640,6 +640,16 @@ func (p *Planner) planAPIDocumentChanges(
 			p.planAPIDocumentCreate(apiRef, desiredDoc, []string{}, plan)
 		} else {
 			// UPDATE - documents support update
+			// Fetch full document to get content for comparison
+			fullDoc, err := p.client.GetAPIDocument(ctx, apiID, current.ID)
+			if err != nil {
+				return fmt.Errorf("failed to fetch document %s: %w", current.Slug, err)
+			}
+			if fullDoc != nil {
+				current = *fullDoc
+			}
+			
+			// Now compare with full content
 			if p.shouldUpdateAPIDocument(current, desiredDoc) {
 				p.planAPIDocumentUpdate(apiRef, current.ID, desiredDoc, plan)
 			}
@@ -766,12 +776,22 @@ func (p *Planner) planAPIDocumentDelete(apiRef string, documentID string, plan *
 func (p *Planner) planAPIVersionsChanges(
 	ctx context.Context, desired []resources.APIVersionResource, plan *Plan,
 ) error {
+	fmt.Printf("[DEBUG] planAPIVersionsChanges: Processing %d desired API versions\n", len(desired))
+	for _, v := range desired {
+		fmt.Printf("[DEBUG] Version ref=%s parent-api=%s\n", v.Ref, v.API)
+	}
+	
 	// Group versions by parent API
 	versionsByAPI := make(map[string][]resources.APIVersionResource)
 	for _, version := range desired {
 		versionsByAPI[version.API] = append(versionsByAPI[version.API], version)
 	}
 
+	fmt.Printf("[DEBUG] Versions grouped by API: %d groups\n", len(versionsByAPI))
+	for apiRef, versions := range versionsByAPI {
+		fmt.Printf("[DEBUG] API %s has %d versions\n", apiRef, len(versions))
+	}
+	
 	// For each API, plan version changes
 	for apiRef, versions := range versionsByAPI {
 		// Find the API ID from existing changes or state
@@ -792,12 +812,16 @@ func (p *Planner) planAPIVersionsChanges(
 
 		// If API not in changes, look it up
 		if apiID == "" {
+			fmt.Printf("[DEBUG] Looking up API by name: %s\n", apiRef)
 			api, err := p.client.GetAPIByName(ctx, apiRef)
 			if err != nil {
 				return fmt.Errorf("failed to get API %s: %w", apiRef, err)
 			}
 			if api != nil {
 				apiID = api.ID
+				fmt.Printf("[DEBUG] Found API with ID: %s\n", apiID)
+			} else {
+				fmt.Printf("[DEBUG] API not found: %s\n", apiRef)
 			}
 		}
 

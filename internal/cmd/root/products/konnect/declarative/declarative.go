@@ -61,9 +61,9 @@ for review, approval workflows, or as input to sync operations.`,
 	}
 
 	// Add declarative config flags
-	cmd.Flags().StringSliceP("filename", "f", []string{}, 
+	cmd.Flags().StringSliceP("filename", "f", []string{},
 		"Filename or directory to files to use to create the resource (can specify multiple)")
-	cmd.Flags().BoolP("recursive", "R", false, 
+	cmd.Flags().BoolP("recursive", "R", false,
 		"Process the directory used in -f, --filename recursively")
 	cmd.Flags().String("output-file", "", "Save plan artifact to file")
 	cmd.Flags().String("mode", "sync", "Plan generation mode (sync|apply)")
@@ -74,12 +74,12 @@ for review, approval workflows, or as input to sync operations.`,
 func runPlan(command *cobra.Command, args []string) error {
 	// Silence usage for all runtime errors (command syntax is already valid at this point)
 	command.SilenceUsage = true
-	
+
 	ctx := command.Context()
 	filenames, _ := command.Flags().GetStringSlice("filename")
 	recursive, _ := command.Flags().GetBool("recursive")
 	mode, _ := command.Flags().GetString("mode")
-	
+
 	// Validate mode
 	var planMode planner.PlanMode
 	switch mode {
@@ -90,34 +90,34 @@ func runPlan(command *cobra.Command, args []string) error {
 	default:
 		return fmt.Errorf("invalid mode %q: must be 'sync' or 'apply'", mode)
 	}
-	
+
 	// Build helper
 	helper := cmd.BuildHelper(command, args)
-	
+
 	// Get configuration
 	cfg, err := helper.GetConfig()
 	if err != nil {
 		return err
 	}
-	
+
 	// Get logger
 	logger, err := helper.GetLogger()
 	if err != nil {
 		return err
 	}
-	
+
 	// Get Konnect SDK
 	kkClient, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Konnect client: %w", err)
 	}
-	
+
 	// Parse sources from filenames
 	sources, err := loader.ParseSources(filenames)
 	if err != nil {
 		return fmt.Errorf("failed to parse sources: %w", err)
 	}
-	
+
 	// Load configuration
 	ldr := loader.New()
 	resourceSet, err := ldr.LoadFromSources(sources, recursive)
@@ -128,11 +128,11 @@ func runPlan(command *cobra.Command, args []string) error {
 		}
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
-	
+
 	// Check if configuration is empty
 	totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
 		len(resourceSet.ControlPlanes) + len(resourceSet.APIs)
-	
+
 	if totalResources == 0 {
 		// Check if we're using default directory (no explicit sources)
 		if len(filenames) == 0 {
@@ -140,14 +140,14 @@ func runPlan(command *cobra.Command, args []string) error {
 		}
 		return fmt.Errorf("no resources found in configuration files")
 	}
-	
+
 	// Create planner
 	portalAPI := kkClient.GetPortalAPI()
 	apiAPI := kkClient.GetAPIAPI()
 	appAuthAPI := kkClient.GetAppAuthStrategiesAPI()
 	stateClient := state.NewClientWithAllAPIs(portalAPI, apiAPI, appAuthAPI)
 	p := planner.NewPlanner(stateClient)
-	
+
 	// Generate plan
 	opts := planner.Options{
 		Mode: planMode,
@@ -156,16 +156,16 @@ func runPlan(command *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to generate plan: %w", err)
 	}
-	
+
 	// Marshal plan to JSON
 	planJSON, err := json.MarshalIndent(plan, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal plan: %w", err)
 	}
-	
+
 	// Handle output
 	outputFile, _ := command.Flags().GetString("output-file")
-	
+
 	if outputFile != "" {
 		// Save to file
 		if err := os.WriteFile(outputFile, planJSON, 0600); err != nil {
@@ -175,20 +175,20 @@ func runPlan(command *cobra.Command, args []string) error {
 		// Output to stdout
 		fmt.Fprintln(command.OutOrStdout(), string(planJSON))
 	}
-	
+
 	return nil
 }
 
 func runDiff(command *cobra.Command, args []string) error {
 	// Silence usage for all runtime errors (command syntax is already valid at this point)
 	command.SilenceUsage = true
-	
+
 	ctx := command.Context()
 	var plan *planner.Plan
-	
+
 	// Check if plan file is provided
 	planFile, _ := command.Flags().GetString("plan")
-	
+
 	if planFile != "" {
 		// Load existing plan
 		var err error
@@ -200,34 +200,34 @@ func runDiff(command *cobra.Command, args []string) error {
 		// Generate new plan from configuration files
 		filenames, _ := command.Flags().GetStringSlice("filename")
 		recursive, _ := command.Flags().GetBool("recursive")
-		
+
 		// Build helper
 		helper := cmd.BuildHelper(command, args)
-		
+
 		// Get configuration
 		cfg, err := helper.GetConfig()
 		if err != nil {
 			return err
 		}
-		
+
 		// Get logger
 		logger, err := helper.GetLogger()
 		if err != nil {
 			return err
 		}
-		
+
 		// Get Konnect SDK
 		kkClient, err := helper.GetKonnectSDK(cfg, logger)
 		if err != nil {
 			return fmt.Errorf("failed to initialize Konnect client: %w", err)
 		}
-		
+
 		// Parse sources from filenames
 		sources, err := loader.ParseSources(filenames)
 		if err != nil {
 			return fmt.Errorf("failed to parse sources: %w", err)
 		}
-		
+
 		// Load configuration
 		ldr := loader.New()
 		resourceSet, err := ldr.LoadFromSources(sources, recursive)
@@ -238,11 +238,11 @@ func runDiff(command *cobra.Command, args []string) error {
 			}
 			return fmt.Errorf("failed to load configuration: %w", err)
 		}
-		
+
 		// Check if configuration is empty
 		totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
 			len(resourceSet.ControlPlanes) + len(resourceSet.APIs)
-		
+
 		if totalResources == 0 {
 			// Check if we're using default directory (no explicit sources)
 			if len(filenames) == 0 {
@@ -250,14 +250,14 @@ func runDiff(command *cobra.Command, args []string) error {
 			}
 			return fmt.Errorf("no resources found in configuration files")
 		}
-		
+
 		// Create planner
 		portalAPI := kkClient.GetPortalAPI()
 		apiAPI := kkClient.GetAPIAPI()
 		appAuthAPI := kkClient.GetAppAuthStrategiesAPI()
 		stateClient := state.NewClientWithAllAPIs(portalAPI, apiAPI, appAuthAPI)
 		p := planner.NewPlanner(stateClient)
-		
+
 		// Generate plan (default to sync mode for diff)
 		opts := planner.Options{
 			Mode: planner.PlanModeSync,
@@ -267,18 +267,18 @@ func runDiff(command *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to generate plan: %w", err)
 		}
 	}
-	
+
 	// Display diff based on output format
 	outputFormat, _ := command.Flags().GetString("output")
 	fullContent, _ := command.Flags().GetBool("full-content")
-	
+
 	switch outputFormat {
 	case "json":
 		// JSON output
 		encoder := json.NewEncoder(command.OutOrStdout())
 		encoder.SetIndent("", "  ")
 		return encoder.Encode(plan)
-		
+
 	case "yaml":
 		// YAML output
 		yamlData, err := yaml.Marshal(plan)
@@ -287,11 +287,11 @@ func runDiff(command *cobra.Command, args []string) error {
 		}
 		fmt.Fprintln(command.OutOrStdout(), string(yamlData))
 		return nil
-		
+
 	case "text":
 		// Human-readable text output
 		return displayTextDiff(command, plan, fullContent)
-		
+
 	default:
 		return fmt.Errorf("unsupported output format: %s (use text, json, or yaml)", outputFormat)
 	}
@@ -299,18 +299,18 @@ func runDiff(command *cobra.Command, args []string) error {
 
 func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent bool) error {
 	out := command.OutOrStdout()
-	
+
 	// Handle empty plan
 	if plan.IsEmpty() {
-		fmt.Fprintln(out, "No changes detected. Infrastructure is up to date.")
+		fmt.Fprintln(out, "No changes detected. Konnect is up to date.")
 		return nil
 	}
-	
+
 	// Display summary
 	createCount := plan.Summary.ByAction[planner.ActionCreate]
 	updateCount := plan.Summary.ByAction[planner.ActionUpdate]
 	deleteCount := plan.Summary.ByAction[planner.ActionDelete]
-	
+
 	if deleteCount > 0 {
 		fmt.Fprintf(out, "Plan: %d to add, %d to change, %d to destroy\n\n",
 			createCount, updateCount, deleteCount)
@@ -318,7 +318,7 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 		fmt.Fprintf(out, "Plan: %d to add, %d to change\n\n",
 			createCount, updateCount)
 	}
-	
+
 	// Display warnings if any
 	if len(plan.Warnings) > 0 {
 		fmt.Fprintln(out, "Warnings:")
@@ -327,7 +327,7 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 		}
 		fmt.Fprintln(out)
 	}
-	
+
 	// Display each change in execution order
 	for _, changeID := range plan.ExecutionOrder {
 		// Find the change
@@ -341,17 +341,17 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 		if change == nil {
 			continue
 		}
-		
+
 		switch change.Action {
 		case planner.ActionCreate:
 			fmt.Fprintf(out, "+ [%s] %s %q will be created\n",
 				change.ID, change.ResourceType, change.ResourceRef)
-			
+
 			// Show key fields
 			for field, value := range change.Fields {
 				displayField(out, field, value, "  ", fullContent)
 			}
-			
+
 			// Show protection status
 			if prot, ok := change.Protection.(bool); ok {
 				if prot {
@@ -360,11 +360,11 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 					fmt.Fprintln(out, "  protection: disabled")
 				}
 			}
-			
+
 		case planner.ActionUpdate:
 			fmt.Fprintf(out, "~ [%s] %s %q will be updated\n",
 				change.ID, change.ResourceType, change.ResourceRef)
-			
+
 			// Check if this is a protection change
 			if pc, ok := change.Protection.(planner.ProtectionChange); ok {
 				if pc.Old && !pc.New {
@@ -379,7 +379,7 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 					fmt.Fprintln(out, "  protection: disabled (no change)")
 				}
 			}
-			
+
 			// Show field changes
 			for field, value := range change.Fields {
 				if fc, ok := value.(planner.FieldChange); ok {
@@ -398,18 +398,18 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 					displayField(out, field, value, "  ", fullContent)
 				}
 			}
-			
+
 		case planner.ActionDelete:
 			// DELETE action (future implementation)
 			fmt.Fprintf(out, "- [%s] %s %q will be deleted\n",
 				change.ID, change.ResourceType, change.ResourceRef)
 		}
-		
+
 		// Show dependencies
 		if len(change.DependsOn) > 0 {
 			fmt.Fprintf(out, "  depends on: %v\n", change.DependsOn)
 		}
-		
+
 		// Show references
 		if len(change.References) > 0 {
 			fmt.Fprintln(out, "  references:")
@@ -421,13 +421,13 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 				}
 			}
 		}
-		
+
 		fmt.Fprintln(out)
 	}
-	
+
 	// Display protection changes summary if any
-	if plan.Summary.ProtectionChanges != nil && 
-	   (plan.Summary.ProtectionChanges.Protecting > 0 || plan.Summary.ProtectionChanges.Unprotecting > 0) {
+	if plan.Summary.ProtectionChanges != nil &&
+		(plan.Summary.ProtectionChanges.Protecting > 0 || plan.Summary.ProtectionChanges.Unprotecting > 0) {
 		fmt.Fprintln(out, "Protection changes summary:")
 		if plan.Summary.ProtectionChanges.Protecting > 0 {
 			fmt.Fprintf(out, "  Resources being protected: %d\n", plan.Summary.ProtectionChanges.Protecting)
@@ -436,7 +436,7 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 			fmt.Fprintf(out, "  Resources being unprotected: %d\n", plan.Summary.ProtectionChanges.Unprotecting)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -498,12 +498,12 @@ achieve the desired state.`,
 	}
 
 	// Add declarative config flags
-	cmd.Flags().StringSliceP("filename", "f", []string{}, 
+	cmd.Flags().StringSliceP("filename", "f", []string{},
 		"Filename or directory to files to use to create the resource (can specify multiple)")
-	cmd.Flags().BoolP("recursive", "R", false, 
+	cmd.Flags().BoolP("recursive", "R", false,
 		"Process the directory used in -f, --filename recursively")
 	cmd.Flags().Bool("dry-run", false, "Preview changes without applying them")
-	cmd.Flags().String("plan-output-file", "", "Save plan to file for post-processing")
+	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
 
 	return cmd
 }
@@ -521,9 +521,9 @@ useful for reviewing changes before synchronization.`,
 	}
 
 	// Add declarative config flags
-	cmd.Flags().StringSliceP("filename", "f", []string{}, 
+	cmd.Flags().StringSliceP("filename", "f", []string{},
 		"Filename or directory to files to use to create the resource (can specify multiple)")
-	cmd.Flags().BoolP("recursive", "R", false, 
+	cmd.Flags().BoolP("recursive", "R", false,
 		"Process the directory used in -f, --filename recursively")
 	cmd.Flags().String("plan", "", "Path to existing plan file to display")
 	cmd.Flags().StringP("output", "o", "text", "Output format (text, json, or yaml)")
@@ -556,20 +556,20 @@ and applied to other environments.`,
 func runApply(command *cobra.Command, args []string) error {
 	// Silence usage for all runtime errors (command syntax is already valid at this point)
 	command.SilenceUsage = true
-	
+
 	ctx := command.Context()
 	planFile, _ := command.Flags().GetString("plan")
 	dryRun, _ := command.Flags().GetBool("dry-run")
 	autoApprove, _ := command.Flags().GetBool("auto-approve")
 	outputFormat, _ := command.Flags().GetString("output")
 	filenames, _ := command.Flags().GetStringSlice("filename")
-	
+
 	// Early check for non-text output without auto-approve
 	if !dryRun && !autoApprove && outputFormat != "text" {
-		return fmt.Errorf("cannot use %s output format without --auto-approve or --dry-run flag " +
+		return fmt.Errorf("cannot use %s output format without --auto-approve or --dry-run flag "+
 			"(interactive confirmation not available with structured output)", outputFormat)
 	}
-	
+
 	// Early check for stdin usage without auto-approve
 	// Only fail if we can't access /dev/tty for interactive input
 	var usingStdinForInput bool
@@ -586,7 +586,7 @@ func runApply(command *cobra.Command, args []string) error {
 				}
 			}
 		}
-		
+
 		// If using stdin, ensure we can get interactive input via /dev/tty
 		if usingStdinForInput {
 			tty, err := os.Open("/dev/tty")
@@ -598,28 +598,28 @@ func runApply(command *cobra.Command, args []string) error {
 			tty.Close()
 		}
 	}
-	
+
 	// Build helper
 	helper := cmd.BuildHelper(command, args)
-	
+
 	// Get configuration
 	cfg, err := helper.GetConfig()
 	if err != nil {
 		return err
 	}
-	
+
 	// Get logger
 	logger, err := helper.GetLogger()
 	if err != nil {
 		return err
 	}
-	
+
 	// Get Konnect SDK
 	kkClient, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Konnect client: %w", err)
 	}
-	
+
 	// Load or generate plan
 	var plan *planner.Plan
 	if planFile != "" {
@@ -631,23 +631,23 @@ func runApply(command *cobra.Command, args []string) error {
 				fmt.Fprintf(command.OutOrStderr(), "Using plan from: %s\n", planFile)
 			}
 		}
-		
+
 		// Load existing plan
 		plan, err = common.LoadPlan(planFile, command.InOrStdin())
 		if err != nil {
 			return err
 		}
 	} else {
-		
+
 		// Generate plan from configuration files
 		recursive, _ := command.Flags().GetBool("recursive")
-		
+
 		// Parse sources from filenames
 		sources, err := loader.ParseSources(filenames)
 		if err != nil {
 			return fmt.Errorf("failed to parse sources: %w", err)
 		}
-		
+
 		// Load configuration
 		ldr := loader.New()
 		resourceSet, err := ldr.LoadFromSources(sources, recursive)
@@ -658,11 +658,11 @@ func runApply(command *cobra.Command, args []string) error {
 			}
 			return fmt.Errorf("failed to load configuration: %w", err)
 		}
-		
+
 		// Check if configuration is empty
 		totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
 			len(resourceSet.ControlPlanes) + len(resourceSet.APIs)
-		
+
 		if totalResources == 0 {
 			// Check if we're using default directory (no explicit sources)
 			if len(filenames) == 0 {
@@ -670,14 +670,14 @@ func runApply(command *cobra.Command, args []string) error {
 			}
 			return fmt.Errorf("no resources found in configuration files")
 		}
-		
+
 		// Create planner
 		portalAPI := kkClient.GetPortalAPI()
 		apiAPI := kkClient.GetAPIAPI()
 		appAuthAPI := kkClient.GetAppAuthStrategiesAPI()
 		stateClient := state.NewClientWithAllAPIs(portalAPI, apiAPI, appAuthAPI)
 		p := planner.NewPlanner(stateClient)
-		
+
 		// Generate plan in apply mode
 		opts := planner.Options{
 			Mode: planner.PlanModeApply,
@@ -687,7 +687,7 @@ func runApply(command *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to generate plan: %w", err)
 		}
 	}
-	
+
 	// Store plan in context for output formatting
 	ctx = context.WithValue(ctx, currentPlanKey, plan)
 	// Store plan file path if provided
@@ -695,28 +695,12 @@ func runApply(command *cobra.Command, args []string) error {
 		ctx = context.WithValue(ctx, planFileKey, planFile)
 	}
 	command.SetContext(ctx)
-	
-	// Save plan to file if requested
-	planOutputFile, _ := command.Flags().GetString("plan-output-file")
-	if planOutputFile != "" {
-		planJSON, err := json.MarshalIndent(plan, "", "  ")
-		if err != nil {
-			return fmt.Errorf("failed to marshal plan: %w", err)
-		}
-		if err := os.WriteFile(planOutputFile, planJSON, 0600); err != nil {
-			return fmt.Errorf("failed to write plan file: %w", err)
-		}
-		// Only show message in text output mode
-		if outputFormat == "text" {
-			fmt.Fprintf(command.OutOrStderr(), "Plan saved to: %s\n\n", planOutputFile)
-		}
-	}
-	
+
 	// Validate plan for apply
 	if err := validateApplyPlan(plan, command); err != nil {
 		return err
 	}
-	
+
 	// Check if plan is empty (no changes needed)
 	if plan.IsEmpty() {
 		if outputFormat == "text" {
@@ -725,19 +709,19 @@ func runApply(command *cobra.Command, args []string) error {
 		}
 		// Use consistent output format with empty result
 		emptyResult := &executor.ExecutionResult{
-			SuccessCount: 0,
-			FailureCount: 0,
-			SkippedCount: 0,
-			DryRun:       dryRun,
+			SuccessCount:   0,
+			FailureCount:   0,
+			SkippedCount:   0,
+			DryRun:         dryRun,
 			ChangesApplied: []executor.AppliedChange{},
 		}
 		return outputApplyResults(command, emptyResult, nil, outputFormat)
 	}
-	
+
 	// Show plan summary for text format (both regular and dry-run)
 	if outputFormat == "text" {
 		common.DisplayPlanSummary(plan, command.OutOrStderr())
-		
+
 		// Show confirmation prompt for non-dry-run, non-auto-approve
 		if !dryRun && !autoApprove {
 			// If we're using stdin for input, use /dev/tty for confirmation
@@ -751,32 +735,32 @@ func runApply(command *cobra.Command, args []string) error {
 				defer tty.Close()
 				inputReader = tty
 			}
-			
+
 			if !common.ConfirmExecution(plan, command.OutOrStdout(), command.OutOrStderr(), inputReader) {
 				return fmt.Errorf("apply cancelled")
 			}
 		}
-		
+
 		// Add spacing before execution output
 		fmt.Fprintln(command.OutOrStderr())
 	}
-	
+
 	// Create executor
 	portalAPI := kkClient.GetPortalAPI()
 	apiAPI := kkClient.GetAPIAPI()
 	appAuthAPI := kkClient.GetAppAuthStrategiesAPI()
 	stateClient := state.NewClientWithAllAPIs(portalAPI, apiAPI, appAuthAPI)
-	
+
 	var reporter executor.ProgressReporter
 	if outputFormat == "text" {
 		reporter = executor.NewConsoleReporterWithOptions(command.OutOrStderr(), dryRun)
 	}
-	
+
 	exec := executor.New(stateClient, reporter, dryRun)
-	
+
 	// Execute plan
 	result, err := exec.Execute(ctx, plan)
-	
+
 	// Output results based on format
 	return outputApplyResults(command, result, err, outputFormat)
 }
@@ -788,15 +772,14 @@ func validateApplyPlan(plan *planner.Plan, command *cobra.Command) error {
 			return fmt.Errorf("apply command cannot execute plans with DELETE operations. Use 'sync' command instead")
 		}
 	}
-	
+
 	// Warn if plan was generated in sync mode
 	if plan.Metadata.Mode == planner.PlanModeSync {
 		fmt.Fprintf(command.OutOrStderr(), "Warning: Plan was generated in sync mode but apply will skip DELETE operations\n")
 	}
-	
+
 	return nil
 }
-
 
 func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult, err error, format string) error {
 	// Get the full plan from context
@@ -807,12 +790,12 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 			plan = p
 		}
 	}
-	
+
 	// Build the execution section
 	execution := map[string]interface{}{
 		"dry_run": result.DryRun,
 	}
-	
+
 	// Add appropriate execution details based on mode
 	if result.DryRun {
 		if len(result.ValidationResults) > 0 {
@@ -823,21 +806,21 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 			execution["applied_changes"] = result.ChangesApplied
 		}
 	}
-	
+
 	// Always include errors if present
 	if len(result.Errors) > 0 {
 		execution["errors"] = result.Errors
 	}
-	
+
 	// Build the summary section
 	summary := map[string]interface{}{
 		"total_changes": result.TotalChanges(),
-		"applied": result.SuccessCount,
-		"failed": result.FailureCount,
-		"skipped": result.SkippedCount,
-		"status": "success",
+		"applied":       result.SuccessCount,
+		"failed":        result.FailureCount,
+		"skipped":       result.SkippedCount,
+		"status":        "success",
 	}
-	
+
 	// Determine appropriate message and status
 	if err != nil {
 		summary["status"] = "error"
@@ -853,34 +836,57 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 	} else {
 		summary["message"] = "No changes needed. All resources match the desired configuration."
 	}
-	
+
+	// Check if we need to save execution report to file
+	executionReportFile, _ := command.Flags().GetString("execution-report-file")
+	if executionReportFile != "" {
+		// Build the complete execution report
+		report := make(map[string]interface{})
+		if plan != nil {
+			report["plan"] = plan
+		}
+		report["execution"] = execution
+		report["summary"] = summary
+
+		// Marshal to JSON with indentation
+		reportJSON, err := json.MarshalIndent(report, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal execution report: %w", err)
+		}
+
+		// Write to file
+		if err := os.WriteFile(executionReportFile, reportJSON, 0600); err != nil {
+			return fmt.Errorf("failed to write execution report file: %w", err)
+		}
+	}
+
 	switch format {
 	case "json":
 		// Use custom JSON encoding to preserve field order
 		out := command.OutOrStdout()
 		fmt.Fprintln(out, "{")
-		
+
 		// Output full plan first if present
 		if plan != nil {
 			planJSON, _ := json.MarshalIndent(plan, "  ", "  ")
 			fmt.Fprintf(out, "  \"plan\": %s,\n", planJSON)
 		}
-		
+
 		// Output execution second
 		execJSON, _ := json.MarshalIndent(execution, "  ", "  ")
 		fmt.Fprintf(out, "  \"execution\": %s,\n", execJSON)
-		
+
 		// Output summary last
 		summaryJSON, _ := json.MarshalIndent(summary, "  ", "  ")
 		fmt.Fprintf(out, "  \"summary\": %s\n", summaryJSON)
-		
+
 		fmt.Fprintln(out, "}")
 		return nil
-		
+
 	case "yaml":
 		// Build YAML content manually to preserve order
 		out := command.OutOrStdout()
-		
+
 		// Output full plan first if present
 		if plan != nil {
 			fmt.Fprintln(out, "plan:")
@@ -890,7 +896,7 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 				fmt.Fprintf(out, "  %s\n", line)
 			}
 		}
-		
+
 		// Output execution second
 		fmt.Fprintln(out, "execution:")
 		execYAML, _ := yaml.Marshal(execution)
@@ -898,7 +904,7 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 		for _, line := range execLines {
 			fmt.Fprintf(out, "  %s\n", line)
 		}
-		
+
 		// Output summary last
 		fmt.Fprintln(out, "summary:")
 		summaryYAML, _ := yaml.Marshal(summary)
@@ -906,9 +912,9 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 		for _, line := range summaryLines {
 			fmt.Fprintf(out, "  %s\n", line)
 		}
-		
+
 		return nil
-		
+
 	default: // text
 		if err != nil {
 			return err
@@ -932,15 +938,16 @@ delete resources.`,
 	}
 
 	// Add declarative config flags
-	cmd.Flags().StringSliceP("filename", "f", []string{}, 
+	cmd.Flags().StringSliceP("filename", "f", []string{},
 		"Filename or directory to files to use to create the resource (can specify multiple)")
-	cmd.Flags().BoolP("recursive", "R", false, 
+	cmd.Flags().BoolP("recursive", "R", false,
 		"Process the directory used in -f, --filename recursively")
 	cmd.Flags().String("plan", "", "Path to existing plan file")
 	cmd.Flags().Bool("dry-run", false, "Preview changes without applying")
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", "text", "Output format (text|json|yaml)")
-	cmd.Flags().String("plan-output-file", "", "Save plan to file for post-processing")
+	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
 
 	return cmd
 }
+
