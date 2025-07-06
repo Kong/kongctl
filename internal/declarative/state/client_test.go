@@ -3,13 +3,21 @@ package state
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/kong/kongctl/internal/log"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 )
+
+// testContextWithLogger returns a context with a test logger
+func testContextWithLogger() context.Context {
+	logger := slog.Default()
+	return context.WithValue(context.Background(), log.LoggerKey, logger)
+}
 
 // mockPortalAPI implements helpers.PortalAPI for testing
 type mockPortalAPI struct {
@@ -215,7 +223,7 @@ func TestListManagedPortals(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := NewClient(tt.setupMock())
-			portals, err := client.ListManagedPortals(context.Background())
+			portals, err := client.ListManagedPortals(testContextWithLogger())
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ListManagedPortals() error = %v, wantErr %v", err, tt.wantErr)
@@ -325,7 +333,7 @@ func TestGetPortalByName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := NewClient(tt.setupMock())
-			portal, err := client.GetPortalByName(context.Background(), tt.portalName)
+			portal, err := client.GetPortalByName(testContextWithLogger(), tt.portalName)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetPortalByName() error = %v, wantErr %v", err, tt.wantErr)
@@ -439,7 +447,7 @@ func TestCreatePortal(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := NewClient(tt.setupMock())
-			resp, err := client.CreatePortal(context.Background(), tt.portal)
+			resp, err := client.CreatePortal(testContextWithLogger(), tt.portal)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreatePortal() error = %v, wantErr %v", err, tt.wantErr)
@@ -561,7 +569,7 @@ func TestUpdatePortal(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := NewClient(tt.setupMock())
-			resp, err := client.UpdatePortal(context.Background(), tt.portalID, tt.portal)
+			resp, err := client.UpdatePortal(testContextWithLogger(), tt.portalID, tt.portal)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdatePortal() error = %v, wantErr %v", err, tt.wantErr)

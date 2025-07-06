@@ -3,10 +3,11 @@ package executor
 import (
 	"context"
 	"fmt"
-	"os"
+	"log/slog"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/log"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
@@ -14,15 +15,11 @@ import (
 
 // createAPI handles CREATE operations for APIs
 func (e *Executor) createAPI(ctx context.Context, change planner.PlannedChange) (string, error) {
-	// Debug logging
-	debugEnabled := os.Getenv(labels.DebugEnvVar) == labels.TrueValue
-	debugLog := func(format string, args ...interface{}) {
-		if debugEnabled {
-			fmt.Fprintf(os.Stderr, "DEBUG [api_operations]: "+format+"\n", args...)
-		}
-	}
+	// Get logger from context
+	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 	
-	debugLog("Creating API with fields: %+v", change.Fields)
+	logger.Debug("Creating API",
+		slog.Any("fields", change.Fields))
 	
 	// Extract API fields
 	var api kkComps.CreateAPIRequest
@@ -43,10 +40,13 @@ func (e *Executor) createAPI(ctx context.Context, change planner.PlannedChange) 
 	userLabels := labels.ExtractLabelsFromField(change.Fields["labels"])
 	api.Labels = labels.BuildCreateLabels(userLabels, change.Protection)
 	
-	debugLog("API will have labels: %+v", api.Labels)
+	logger.Debug("API will have labels",
+		slog.Any("labels", api.Labels))
 	
 	// Create the API
-	debugLog("Final API before creation: Name=%s, Labels=%+v", api.Name, api.Labels)
+	logger.Debug("Final API before creation",
+		slog.String("name", api.Name),
+		slog.Any("labels", api.Labels))
 	resp, err := e.client.CreateAPI(ctx, api)
 	if err != nil {
 		return "", err
@@ -57,13 +57,8 @@ func (e *Executor) createAPI(ctx context.Context, change planner.PlannedChange) 
 
 // updateAPI handles UPDATE operations for APIs
 func (e *Executor) updateAPI(ctx context.Context, change planner.PlannedChange) (string, error) {
-	// Debug logging
-	debugEnabled := os.Getenv(labels.DebugEnvVar) == labels.TrueValue
-	debugLog := func(format string, args ...interface{}) {
-		if debugEnabled {
-			fmt.Fprintf(os.Stderr, "DEBUG [api_operations]: "+format+"\n", args...)
-		}
-	}
+	// Get logger from context
+	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 	
 	// First, validate protection status at execution time
 	api, err := e.client.GetAPIByName(ctx, getResourceName(change.Fields))
@@ -131,7 +126,8 @@ func (e *Executor) updateAPI(ctx context.Context, change planner.PlannedChange) 
 		// Build update labels with removal support
 		updateAPI.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, change.Protection)
 		
-		debugLog("Update request labels (with removal support): %+v", updateAPI.Labels)
+		logger.Debug("Update request labels (with removal support)",
+			slog.Any("labels", updateAPI.Labels))
 	} else {
 		// If no labels in change, preserve existing labels with updated protection
 		currentLabels := make(map[string]string)

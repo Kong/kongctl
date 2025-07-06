@@ -263,7 +263,9 @@ func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resourc
 }
 
 // resolveAuthStrategyIdentities resolves Konnect IDs for Auth Strategy resources
-func (p *Planner) resolveAuthStrategyIdentities(ctx context.Context, strategies []resources.ApplicationAuthStrategyResource) error {
+func (p *Planner) resolveAuthStrategyIdentities(
+	ctx context.Context, strategies []resources.ApplicationAuthStrategyResource,
+) error {
 	for i := range strategies {
 		strategy := &strategies[i]
 		

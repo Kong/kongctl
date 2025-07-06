@@ -253,7 +253,7 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 		// show the usage information, so we don't also print the error here
 		var executionError *cmd.ExecutionError
 		if errors.Is(err, context.Canceled) {
-			fmt.Println("Canceled...")
+			logger.Info("Operation canceled")
 		} else if errors.As(err, &executionError) {
 			if executionError.Msg != "" && executionError.Attrs != nil && len(executionError.Attrs) > 0 {
 				logger.Error(executionError.Msg, executionError.Attrs...)

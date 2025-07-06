@@ -3,25 +3,22 @@ package executor
 import (
 	"context"
 	"fmt"
-	"os"
+	"log/slog"
 	"time"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/log"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // createApplicationAuthStrategy handles CREATE operations for application auth strategies
 func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change planner.PlannedChange) (string, error) {
-	// Debug logging
-	debugEnabled := os.Getenv(labels.DebugEnvVar) == "true"
-	debugLog := func(format string, args ...interface{}) {
-		if debugEnabled {
-			fmt.Fprintf(os.Stderr, "DEBUG [auth_strategy_operations]: "+format+"\n", args...)
-		}
-	}
+	// Get logger from context
+	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 	
-	debugLog("Creating application auth strategy with fields: %+v", change.Fields)
+	logger.Debug("Creating application auth strategy",
+		slog.Any("fields", change.Fields))
 	
 	// Get strategy type
 	strategyType, ok := change.Fields["strategy_type"].(string)
@@ -49,7 +46,8 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 	authLabels[labels.ManagedKey] = labels.TrueValue
 	authLabels[labels.LastUpdatedKey] = time.Now().UTC().Format("20060102-150405Z")
 	
-	debugLog("Created labels for auth strategy: %+v", authLabels)
+	logger.Debug("Created labels for auth strategy",
+		slog.Any("labels", authLabels))
 	
 	// Build the request based on strategy type
 	switch strategyType {
@@ -92,7 +90,8 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 			}
 		}
 		
-		debugLog("Creating key_auth strategy: %+v", req)
+		logger.Debug("Creating key_auth strategy",
+			slog.Any("request", req))
 		
 		// Call API
 		if e.dryRun {
@@ -198,12 +197,13 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 			}
 		}
 		
-		debugLog("Creating openid_connect strategy: %+v", req)
-		debugLog("OpenID config details - Issuer: %s, Scopes: %v, AuthMethods: %v, CredentialClaim: %v", 
-			req.Configs.OpenidConnect.Issuer,
-			req.Configs.OpenidConnect.Scopes,
-			req.Configs.OpenidConnect.AuthMethods,
-			req.Configs.OpenidConnect.CredentialClaim)
+		logger.Debug("Creating openid_connect strategy",
+			slog.Any("request", req))
+		logger.Debug("OpenID config details",
+			slog.String("issuer", req.Configs.OpenidConnect.Issuer),
+			slog.Any("scopes", req.Configs.OpenidConnect.Scopes),
+			slog.Any("auth_methods", req.Configs.OpenidConnect.AuthMethods),
+			slog.Any("credential_claim", req.Configs.OpenidConnect.CredentialClaim))
 		
 		// Call API
 		if e.dryRun {
@@ -237,15 +237,11 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 
 // updateApplicationAuthStrategy handles UPDATE operations for application auth strategies
 func (e *Executor) updateApplicationAuthStrategy(ctx context.Context, change planner.PlannedChange) (string, error) {
-	// Debug logging
-	debugEnabled := os.Getenv(labels.DebugEnvVar) == "true"
-	debugLog := func(format string, args ...interface{}) {
-		if debugEnabled {
-			fmt.Fprintf(os.Stderr, "DEBUG [auth_strategy_operations/update]: "+format+"\n", args...)
-		}
-	}
+	// Get logger from context
+	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 	
-	debugLog("Updating auth strategy with change: %+v", change)
+	logger.Debug("Updating auth strategy",
+		slog.Any("change", change))
 	
 	if e.client == nil {
 		return "", fmt.Errorf("client not configured")
@@ -268,7 +264,8 @@ func (e *Executor) updateApplicationAuthStrategy(ctx context.Context, change pla
 		// Build update labels with removal support
 		updateReq.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, change.Protection)
 		
-		debugLog("Update request labels (with removal support): %+v", updateReq.Labels)
+		logger.Debug("Update request labels (with removal support)",
+			slog.Any("labels", updateReq.Labels))
 	}
 	
 	// Handle config updates if present
@@ -288,7 +285,9 @@ func (e *Executor) updateApplicationAuthStrategy(ctx context.Context, change pla
 		}
 		updateReq.Configs = updateConfigs
 		
-		debugLog("Config update - strategy type: %s, configs: %+v", strategyType, updateConfigs)
+		logger.Debug("Config update",
+			slog.String("strategy_type", strategyType),
+			slog.Any("configs", updateConfigs))
 	}
 	
 	// Call update API

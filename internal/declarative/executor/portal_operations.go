@@ -3,24 +3,21 @@ package executor
 import (
 	"context"
 	"fmt"
-	"os"
+	"log/slog"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/log"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // createPortal handles CREATE operations for portals
 func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChange) (string, error) {
-	// Debug logging
-	debugEnabled := os.Getenv(labels.DebugEnvVar) == "true"
-	debugLog := func(format string, args ...interface{}) {
-		if debugEnabled {
-			fmt.Fprintf(os.Stderr, "DEBUG [portal_operations]: "+format+"\n", args...)
-		}
-	}
+	// Get logger from context
+	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 	
-	debugLog("Creating portal with fields: %+v", change.Fields)
+	logger.Debug("Creating portal",
+		slog.Any("fields", change.Fields))
 	
 	// Extract portal fields
 	var portal kkComps.CreatePortal
@@ -78,10 +75,13 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 	// Convert to pointer map since portals use map[string]*string
 	portal.Labels = labels.ConvertStringMapToPointerMap(portalLabels)
 	
-	debugLog("Portal will have labels: %+v", portal.Labels)
+	logger.Debug("Portal will have labels",
+		slog.Any("labels", portal.Labels))
 	
 	// Create the portal
-	debugLog("Final portal before creation: Name=%s, Labels=%+v", portal.Name, portal.Labels)
+	logger.Debug("Final portal before creation",
+		slog.String("name", portal.Name),
+		slog.Any("labels", portal.Labels))
 	resp, err := e.client.CreatePortal(ctx, portal)
 	if err != nil {
 		return "", err
@@ -92,13 +92,8 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 
 // updatePortal handles UPDATE operations for portals
 func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChange) (string, error) {
-	// Debug logging
-	debugEnabled := os.Getenv(labels.DebugEnvVar) == labels.TrueValue
-	debugLog := func(format string, args ...interface{}) {
-		if debugEnabled {
-			fmt.Fprintf(os.Stderr, "DEBUG [portal_operations]: "+format+"\n", args...)
-		}
-	}
+	// Get logger from context
+	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 	
 	// First, validate protection status at execution time
 	portal, err := e.client.GetPortalByName(ctx, getResourceName(change.Fields))
@@ -200,7 +195,8 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 		// Build update labels with removal support
 		updatePortal.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, change.Protection)
 		
-		debugLog("Update request labels (with removal support): %+v", updatePortal.Labels)
+		logger.Debug("Update request labels (with removal support)",
+			slog.Any("labels", updatePortal.Labels))
 	} else {
 		// If no labels in change, preserve existing labels with updated protection
 		currentLabels := make(map[string]string)

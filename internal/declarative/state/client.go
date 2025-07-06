@@ -3,10 +3,11 @@ package state
 import (
 	"context"
 	"fmt"
-	"os"
+	"log/slog"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
+	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
@@ -204,32 +205,33 @@ func (c *Client) CreatePortal(
 	ctx context.Context,
 	portal kkComps.CreatePortal,
 ) (*kkComps.PortalResponse, error) {
-	// Debug logging
-	debugEnabled := os.Getenv(labels.DebugEnvVar) == "true"
-	debugLog := func(format string, args ...interface{}) {
-		if debugEnabled {
-			fmt.Fprintf(os.Stderr, "DEBUG [state/client]: "+format+"\n", args...)
-		}
-	}
+	// Get logger from context
+	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 	
-	debugLog("CreatePortal called with labels: %+v", portal.Labels)
+	logger.Debug("CreatePortal called", 
+		slog.Any("labels", portal.Labels))
 	
 	// Add management labels
 	normalized := labels.NormalizeLabels(portal.Labels)
-	debugLog("Normalized labels: %+v", normalized)
+	logger.Debug("Normalized labels", 
+		slog.Any("labels", normalized))
 	
 	normalized = labels.AddManagedLabels(normalized)
-	debugLog("After adding managed labels: %+v", normalized)
+	logger.Debug("After adding managed labels", 
+		slog.Any("labels", normalized))
 	
 	portal.Labels = labels.DenormalizeLabels(normalized)
 	// Log actual label values for debugging
 	if portal.Labels != nil {
-		debugLog("Final labels for portal:")
 		for k, v := range portal.Labels {
 			if v != nil {
-				debugLog("  %s = %s", k, *v)
+				logger.Debug("Final portal label",
+					slog.String("key", k),
+					slog.String("value", *v))
 			} else {
-				debugLog("  %s = <nil>", k)
+				logger.Debug("Final portal label",
+					slog.String("key", k),
+					slog.String("value", "<nil>"))
 			}
 		}
 	}
@@ -401,15 +403,11 @@ func (c *Client) CreateAPI(
 		return nil, fmt.Errorf("API client not configured")
 	}
 
-	// Debug logging
-	debugEnabled := os.Getenv(labels.DebugEnvVar) == "true"
-	debugLog := func(format string, args ...interface{}) {
-		if debugEnabled {
-			fmt.Fprintf(os.Stderr, "DEBUG [state/client]: "+format+"\n", args...)
-		}
-	}
+	// Get logger from context
+	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 	
-	debugLog("CreateAPI called with labels: %+v", api.Labels)
+	logger.Debug("CreateAPI called", 
+		slog.Any("labels", api.Labels))
 	
 	// Add management labels - API labels are already non-pointer strings
 	if api.Labels == nil {
@@ -417,13 +415,15 @@ func (c *Client) CreateAPI(
 	}
 	
 	api.Labels = labels.AddManagedLabels(api.Labels)
-	debugLog("After adding managed labels: %+v", api.Labels)
+	logger.Debug("After adding managed labels", 
+		slog.Any("labels", api.Labels))
 	
 	// Log actual label values for debugging
 	if api.Labels != nil {
-		debugLog("Final labels for API:")
 		for k, v := range api.Labels {
-			debugLog("  %s = %s", k, v)
+			logger.Debug("Final API label",
+				slog.String("key", k),
+				slog.String("value", v))
 		}
 	}
 
@@ -1057,7 +1057,7 @@ func (c *Client) GetAuthStrategyByName(ctx context.Context, name string) (*Appli
 // GetAuthStrategyByFilter finds a managed auth strategy using a filter expression
 func (c *Client) GetAuthStrategyByFilter(ctx context.Context, filter string) (*ApplicationAuthStrategy, error) {
 	if c.appAuthAPI == nil {
-		return nil, fmt.Errorf("Application Auth API client not configured")
+		return nil, fmt.Errorf("application auth API client not configured")
 	}
 	
 	// Use the filter in the SDK list operation

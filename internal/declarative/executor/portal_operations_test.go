@@ -3,17 +3,25 @@ package executor
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/kong/kongctl/internal/log"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
+
+// testContextWithLogger returns a context with a test logger
+func testContextWithLogger() context.Context {
+	logger := slog.Default()
+	return context.WithValue(context.Background(), log.LoggerKey, logger)
+}
 
 // MockPortalAPI for testing
 type MockPortalAPI struct {
@@ -208,7 +216,7 @@ func TestExecutor_createPortal(t *testing.T) {
 			executor := New(client, nil, false)
 			
 			// Execute
-			gotID, err := executor.createPortal(context.Background(), tt.change)
+			gotID, err := executor.createPortal(testContextWithLogger(), tt.change)
 			
 			// Verify
 			if tt.wantErr {
@@ -343,7 +351,7 @@ func TestExecutor_updatePortal(t *testing.T) {
 			executor := New(client, nil, false)
 			
 			// Execute
-			gotID, err := executor.updatePortal(context.Background(), tt.change)
+			gotID, err := executor.updatePortal(testContextWithLogger(), tt.change)
 			
 			// Verify
 			if tt.wantErr {
@@ -497,7 +505,7 @@ func TestExecutor_deletePortal(t *testing.T) {
 			executor := New(client, nil, false)
 			
 			// Execute
-			err := executor.deletePortal(context.Background(), tt.change)
+			err := executor.deletePortal(testContextWithLogger(), tt.change)
 			
 			// Verify
 			if tt.wantErr {
@@ -551,7 +559,7 @@ func TestExecutor_protectionChangeBetweenPlanAndExecution(t *testing.T) {
 	executor := New(client, nil, false)
 	
 	// Execute update
-	_, err := executor.updatePortal(context.Background(), change)
+	_, err := executor.updatePortal(testContextWithLogger(), change)
 	
 	// Should fail due to protection
 	assert.Error(t, err)

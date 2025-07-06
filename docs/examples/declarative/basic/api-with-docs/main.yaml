@@ -10,10 +10,10 @@ apis:
     kongctl:
       protected: false  # Allow updates during development
     
-    versions:
-      - ref: foo-api-v1
-        version: "v1"
-        spec: !file specs/openapi.yaml
+    #versions:
+    #  - ref: foo-api-v1
+    #    version: "v1"
+    #    spec: !file specs/openapi.yaml
         
     #documents:
     #  - ref: api-changelog
