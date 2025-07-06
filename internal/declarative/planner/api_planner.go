@@ -810,18 +810,24 @@ func (p *Planner) planAPIVersionsChanges(
 			}
 		}
 
-		// If API not in changes, look it up
+		// If API not in changes, use the resolved ID from pre-resolution phase
 		if apiID == "" {
-			fmt.Printf("[DEBUG] Looking up API by name: %s\n", apiRef)
-			api, err := p.client.GetAPIByName(ctx, apiRef)
-			if err != nil {
-				return fmt.Errorf("failed to get API %s: %w", apiRef, err)
+			fmt.Printf("[DEBUG] Looking for resolved API ID for ref: %s\n", apiRef)
+			// Find the API resource by ref to get its resolved ID
+			for _, api := range p.GetDesiredAPIs() {
+				if api.GetRef() == apiRef {
+					resolvedID := api.GetKonnectID()
+					if resolvedID != "" {
+						apiID = resolvedID
+						fmt.Printf("[DEBUG] Found resolved API ID: %s\n", apiID)
+					}
+					break
+				}
 			}
-			if api != nil {
-				apiID = api.ID
-				fmt.Printf("[DEBUG] Found API with ID: %s\n", apiID)
-			} else {
-				fmt.Printf("[DEBUG] API not found: %s\n", apiRef)
+			
+			// If still not found, this API doesn't exist yet
+			if apiID == "" {
+				fmt.Printf("[DEBUG] API not found (not resolved): %s\n", apiRef)
 			}
 		}
 
@@ -864,14 +870,17 @@ func (p *Planner) planAPIPublicationsChanges(
 			}
 		}
 
-		// If API not in changes, look it up
+		// If API not in changes, use the resolved ID from pre-resolution phase
 		if apiID == "" {
-			api, err := p.client.GetAPIByName(ctx, apiRef)
-			if err != nil {
-				return fmt.Errorf("failed to get API %s: %w", apiRef, err)
-			}
-			if api != nil {
-				apiID = api.ID
+			// Find the API resource by ref to get its resolved ID
+			for _, api := range p.GetDesiredAPIs() {
+				if api.GetRef() == apiRef {
+					resolvedID := api.GetKonnectID()
+					if resolvedID != "" {
+						apiID = resolvedID
+					}
+					break
+				}
 			}
 		}
 
@@ -915,14 +924,17 @@ func (p *Planner) planAPIImplementationsChanges(
 			}
 		}
 
-		// If API not in changes, look it up
+		// If API not in changes, use the resolved ID from pre-resolution phase
 		if apiID == "" {
-			api, err := p.client.GetAPIByName(ctx, apiRef)
-			if err != nil {
-				return fmt.Errorf("failed to get API %s: %w", apiRef, err)
-			}
-			if api != nil {
-				apiID = api.ID
+			// Find the API resource by ref to get its resolved ID
+			for _, api := range p.GetDesiredAPIs() {
+				if api.GetRef() == apiRef {
+					resolvedID := api.GetKonnectID()
+					if resolvedID != "" {
+						apiID = resolvedID
+					}
+					break
+				}
 			}
 		}
 
@@ -965,14 +977,17 @@ func (p *Planner) planAPIDocumentsChanges(
 			}
 		}
 
-		// If API not in changes, look it up
+		// If API not in changes, use the resolved ID from pre-resolution phase
 		if apiID == "" {
-			api, err := p.client.GetAPIByName(ctx, apiRef)
-			if err != nil {
-				return fmt.Errorf("failed to get API %s: %w", apiRef, err)
-			}
-			if api != nil {
-				apiID = api.ID
+			// Find the API resource by ref to get its resolved ID
+			for _, api := range p.GetDesiredAPIs() {
+				if api.GetRef() == apiRef {
+					resolvedID := api.GetKonnectID()
+					if resolvedID != "" {
+						apiID = resolvedID
+					}
+					break
+				}
 			}
 		}
 

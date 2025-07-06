@@ -174,6 +174,11 @@ func getString(s *string) string {
 	return *s
 }
 
+// GetDesiredAPIs returns the desired API resources
+func (p *Planner) GetDesiredAPIs() []resources.APIResource {
+	return p.desiredAPIs
+}
+
 // resolveResourceIdentities pre-resolves Konnect IDs for all resources
 func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.ResourceSet) error {
 	// Resolve API identities
