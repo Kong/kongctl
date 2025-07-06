@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -171,6 +172,33 @@ func (c *Client) GetPortalByName(ctx context.Context, name string) (*Portal, err
 	return nil, nil // Not found
 }
 
+// GetPortalByFilter finds a managed portal using a filter expression
+func (c *Client) GetPortalByFilter(ctx context.Context, filter string) (*Portal, error) {
+	if c.portalAPI == nil {
+		return nil, fmt.Errorf("Portal API client not configured")
+	}
+	
+	// Use the filter in the SDK list operation
+	// For now, we'll use ListManagedPortals and filter locally
+	// TODO: Update when SDK supports server-side filtering
+	portals, err := c.ListManagedPortals(ctx)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Parse filter (e.g., "name[eq]=foo")
+	if strings.HasPrefix(filter, "name[eq]=") {
+		name := strings.TrimPrefix(filter, "name[eq]=")
+		for _, p := range portals {
+			if p.Name == name {
+				return &p, nil
+			}
+		}
+	}
+	
+	return nil, nil // Not found
+}
+
 // CreatePortal creates a new portal with management labels
 func (c *Client) CreatePortal(
 	ctx context.Context,
@@ -315,6 +343,33 @@ func (c *Client) GetAPIByName(ctx context.Context, name string) (*API, error) {
 		}
 	}
 
+	return nil, nil // Not found
+}
+
+// GetAPIByFilter finds a managed API using a filter expression
+func (c *Client) GetAPIByFilter(ctx context.Context, filter string) (*API, error) {
+	if c.apiAPI == nil {
+		return nil, fmt.Errorf("API client not configured")
+	}
+	
+	// Use the filter in the SDK list operation
+	// For now, we'll use ListManagedAPIs and filter locally
+	// TODO: Update when SDK supports server-side filtering
+	apis, err := c.ListManagedAPIs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Parse filter (e.g., "name[eq]=foo")
+	if strings.HasPrefix(filter, "name[eq]=") {
+		name := strings.TrimPrefix(filter, "name[eq]=")
+		for _, a := range apis {
+			if a.Name == name {
+				return &a, nil
+			}
+		}
+	}
+	
 	return nil, nil // Not found
 }
 
@@ -996,6 +1051,33 @@ func (c *Client) GetAuthStrategyByName(ctx context.Context, name string) (*Appli
 		}
 	}
 
+	return nil, nil // Not found
+}
+
+// GetAuthStrategyByFilter finds a managed auth strategy using a filter expression
+func (c *Client) GetAuthStrategyByFilter(ctx context.Context, filter string) (*ApplicationAuthStrategy, error) {
+	if c.appAuthAPI == nil {
+		return nil, fmt.Errorf("Application Auth API client not configured")
+	}
+	
+	// Use the filter in the SDK list operation
+	// For now, we'll use ListManagedAuthStrategies and filter locally
+	// TODO: Update when SDK supports server-side filtering
+	strategies, err := c.ListManagedAuthStrategies(ctx)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Parse filter (e.g., "name[eq]=foo")
+	if strings.HasPrefix(filter, "name[eq]=") {
+		name := strings.TrimPrefix(filter, "name[eq]=")
+		for _, s := range strategies {
+			if s.Name == name {
+				return &s, nil
+			}
+		}
+	}
+	
 	return nil, nil // Not found
 }
 
