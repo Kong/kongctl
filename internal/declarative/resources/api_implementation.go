@@ -3,6 +3,7 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"regexp"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -14,6 +15,9 @@ type APIImplementationResource struct {
 	Ref     string       `yaml:"ref" json:"ref"`
 	API     string       `yaml:"api,omitempty" json:"api,omitempty"` // Parent API reference (for root-level definitions)
 	Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+	
+	// Resolved Konnect ID (not serialized)
+	konnectID string `yaml:"-" json:"-"`
 }
 
 // GetKind returns the resource kind
@@ -26,10 +30,10 @@ func (i APIImplementationResource) GetRef() string {
 	return i.Ref
 }
 
-// GetName returns the resource name
-func (i APIImplementationResource) GetName() string {
-	// API implementations don't have a name field, use ref as identifier
-	return i.Ref
+// GetMoniker returns the resource moniker (for implementations, this is empty)
+func (i APIImplementationResource) GetMoniker() string {
+	// API implementations don't have a unique identifier
+	return ""
 }
 
 // GetDependencies returns references to other resources this API implementation depends on
@@ -91,6 +95,57 @@ func (i APIImplementationResource) Validate() error {
 // SetDefaults applies default values to API implementation resource
 func (i *APIImplementationResource) SetDefaults() {
 	// API implementations typically don't need default values
+}
+
+// GetKonnectID returns the resolved Konnect ID if available
+func (i APIImplementationResource) GetKonnectID() string {
+	return i.konnectID
+}
+
+// GetKonnectMonikerFilter returns the filter string for Konnect API lookup
+func (i APIImplementationResource) GetKonnectMonikerFilter() string {
+	// API implementations don't support filtering
+	return ""
+}
+
+// TryMatchKonnectResource attempts to match this resource with a Konnect resource
+func (i *APIImplementationResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+	// For API implementations, we match by service ID + control plane ID
+	// Use reflection to access fields from state.APIImplementation
+	v := reflect.ValueOf(konnectResource)
+	
+	// Handle pointer types
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	
+	// Ensure we have a struct
+	if v.Kind() != reflect.Struct {
+		return false
+	}
+	
+	// Look for Service and ID fields
+	serviceField := v.FieldByName("Service")
+	idField := v.FieldByName("ID")
+	
+	if serviceField.IsValid() && !serviceField.IsNil() && idField.IsValid() {
+		// Service is a pointer to struct
+		svc := serviceField.Elem()
+		if svc.Kind() == reflect.Struct {
+			svcIDField := svc.FieldByName("ID")
+			cpIDField := svc.FieldByName("ControlPlaneID")
+			
+			if svcIDField.IsValid() && cpIDField.IsValid() && i.Service != nil {
+				if svcIDField.String() == i.Service.ID && 
+				   cpIDField.String() == i.Service.ControlPlaneID {
+					i.konnectID = idField.String()
+					return true
+				}
+			}
+		}
+	}
+	
+	return false
 }
 
 // GetParentRef returns the parent API reference for ResourceWithParent interface

@@ -3,6 +3,7 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -18,6 +19,9 @@ type PortalResource struct {
 	CustomDomain  *PortalCustomDomainResource  `yaml:"custom_domain,omitempty" json:"custom_domain,omitempty"`
 	Pages         []PortalPageResource         `yaml:"pages,omitempty" json:"pages,omitempty"`
 	Snippets      []PortalSnippetResource      `yaml:"snippets,omitempty" json:"snippets,omitempty"`
+	
+	// Resolved Konnect ID (not serialized)
+	konnectID string `yaml:"-" json:"-"`
 }
 
 // GetKind returns the resource kind
@@ -30,8 +34,8 @@ func (p PortalResource) GetRef() string {
 	return p.Ref
 }
 
-// GetName returns the resource name
-func (p PortalResource) GetName() string {
+// GetMoniker returns the resource moniker (for portals, this is the name)
+func (p PortalResource) GetMoniker() string {
 	return p.Name
 }
 
@@ -145,6 +149,60 @@ func (p *PortalResource) SetDefaults() {
 	for i := range p.Pages {
 		p.Pages[i].SetDefaults()
 	}
+}
+
+// GetKonnectID returns the resolved Konnect ID if available
+func (p PortalResource) GetKonnectID() string {
+	return p.konnectID
+}
+
+// GetKonnectMonikerFilter returns the filter string for Konnect API lookup
+func (p PortalResource) GetKonnectMonikerFilter() string {
+	if p.Name == "" {
+		return ""
+	}
+	return fmt.Sprintf("name[eq]=%s", p.Name)
+}
+
+// TryMatchKonnectResource attempts to match this resource with a Konnect resource
+func (p *PortalResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+	// For portals, we match by name
+	// Use reflection to access fields from state.Portal
+	v := reflect.ValueOf(konnectResource)
+	
+	// Handle pointer types
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	
+	// Ensure we have a struct
+	if v.Kind() != reflect.Struct {
+		return false
+	}
+	
+	// Look for Name and ID fields
+	nameField := v.FieldByName("Name")
+	idField := v.FieldByName("ID")
+	
+	if !nameField.IsValid() || !idField.IsValid() {
+		// Try accessing embedded Portal
+		portalField := v.FieldByName("Portal")
+		if portalField.IsValid() && portalField.Kind() == reflect.Struct {
+			nameField = portalField.FieldByName("Name")
+			idField = portalField.FieldByName("ID")
+		}
+	}
+	
+	// Extract values if fields are valid
+	if nameField.IsValid() && idField.IsValid() && 
+	   nameField.Kind() == reflect.String && idField.Kind() == reflect.String {
+		if nameField.String() == p.Name {
+			p.konnectID = idField.String()
+			return true
+		}
+	}
+	
+	return false
 }
 
 // UnmarshalJSON implements custom JSON unmarshaling to preserve empty labels

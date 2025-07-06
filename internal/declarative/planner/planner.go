@@ -66,6 +66,11 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	p.desiredAPIImplementations = rs.APIImplementations
 	p.desiredAPIDocuments = rs.APIDocuments
 
+	// Pre-resolution phase: Resolve resource identities before planning
+	if err := p.resolveResourceIdentities(ctx, rs); err != nil {
+		return nil, fmt.Errorf("failed to resolve resource identities: %w", err)
+	}
+
 	// Generate changes using interface-based planners
 	if err := p.authStrategyPlanner.PlanChanges(ctx, plan); err != nil {
 		return nil, fmt.Errorf("failed to plan auth strategy changes: %w", err)
@@ -167,4 +172,117 @@ func getString(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+// resolveResourceIdentities pre-resolves Konnect IDs for all resources
+func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.ResourceSet) error {
+	// Resolve API identities
+	if err := p.resolveAPIIdentities(ctx, rs.APIs); err != nil {
+		return fmt.Errorf("failed to resolve API identities: %w", err)
+	}
+	
+	// Resolve Portal identities
+	if err := p.resolvePortalIdentities(ctx, rs.Portals); err != nil {
+		return fmt.Errorf("failed to resolve portal identities: %w", err)
+	}
+	
+	// Resolve Auth Strategy identities
+	if err := p.resolveAuthStrategyIdentities(ctx, rs.ApplicationAuthStrategies); err != nil {
+		return fmt.Errorf("failed to resolve auth strategy identities: %w", err)
+	}
+	
+	// API child resources are resolved through their parent APIs
+	// so we don't need to resolve them separately here
+	
+	return nil
+}
+
+// resolveAPIIdentities resolves Konnect IDs for API resources
+func (p *Planner) resolveAPIIdentities(ctx context.Context, apis []resources.APIResource) error {
+	for i := range apis {
+		api := &apis[i]
+		
+		// Skip if already resolved
+		if api.GetKonnectID() != "" {
+			continue
+		}
+		
+		// Try to find the API using filter
+		filter := api.GetKonnectMonikerFilter()
+		if filter == "" {
+			continue
+		}
+		
+		konnectAPI, err := p.client.GetAPIByFilter(ctx, filter)
+		if err != nil {
+			return fmt.Errorf("failed to lookup API %s: %w", api.GetRef(), err)
+		}
+		
+		if konnectAPI != nil {
+			// Match found, update the resource
+			api.TryMatchKonnectResource(konnectAPI)
+		}
+	}
+	
+	return nil
+}
+
+// resolvePortalIdentities resolves Konnect IDs for Portal resources
+func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resources.PortalResource) error {
+	for i := range portals {
+		portal := &portals[i]
+		
+		// Skip if already resolved
+		if portal.GetKonnectID() != "" {
+			continue
+		}
+		
+		// Try to find the portal using filter
+		filter := portal.GetKonnectMonikerFilter()
+		if filter == "" {
+			continue
+		}
+		
+		konnectPortal, err := p.client.GetPortalByFilter(ctx, filter)
+		if err != nil {
+			return fmt.Errorf("failed to lookup portal %s: %w", portal.GetRef(), err)
+		}
+		
+		if konnectPortal != nil {
+			// Match found, update the resource
+			portal.TryMatchKonnectResource(konnectPortal)
+		}
+	}
+	
+	return nil
+}
+
+// resolveAuthStrategyIdentities resolves Konnect IDs for Auth Strategy resources
+func (p *Planner) resolveAuthStrategyIdentities(ctx context.Context, strategies []resources.ApplicationAuthStrategyResource) error {
+	for i := range strategies {
+		strategy := &strategies[i]
+		
+		// Skip if already resolved
+		if strategy.GetKonnectID() != "" {
+			continue
+		}
+		
+		// Try to find the strategy using filter
+		filter := strategy.GetKonnectMonikerFilter()
+		if filter == "" {
+			continue
+		}
+		
+		konnectStrategy, err := p.client.GetAuthStrategyByFilter(ctx, filter)
+		if err != nil {
+			return fmt.Errorf("failed to lookup auth strategy %s: %w", strategy.GetRef(), err)
+		}
+		
+		if konnectStrategy != nil {
+			// Match found, update the resource
+			strategy.TryMatchKonnectResource(konnectStrategy)
+		}
+	}
+	
+	return nil
 }

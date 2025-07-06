@@ -310,7 +310,7 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 				return nil, fmt.Errorf("duplicate application_auth_strategy ref '%s' found in %s (already defined in %s)", 
 					authStrat.Ref, path, existingPath)
 			}
-			authName := authStrat.GetName()
+			authName := authStrat.GetMoniker()
 			if existingPath, exists := authStratNames[authName]; exists {
 				existingRef := l.findRefByName(allResources.ApplicationAuthStrategies, authName)
 				return nil, fmt.Errorf(
@@ -434,7 +434,7 @@ func (l *Loader) mergeResourceSet(target, source *resources.ResourceSet, sourceP
 			return fmt.Errorf("duplicate application_auth_strategy ref '%s' found in %s (already defined in %s)", 
 				authStrat.Ref, sourcePath, existingPath)
 		}
-		authName := authStrat.GetName()
+		authName := authStrat.GetMoniker()
 		if existingPath, exists := authStratNames[authName]; exists {
 			existingRef := l.findRefByName(target.ApplicationAuthStrategies, authName)
 			return fmt.Errorf(
@@ -528,7 +528,7 @@ func (l *Loader) findRefByName(resourceList interface{}, name string) string {
 		}
 	case []resources.ApplicationAuthStrategyResource:
 		for _, r := range res {
-			if r.GetName() == name {
+			if r.GetMoniker() == name {
 				return r.Ref
 			}
 		}

@@ -3,6 +3,7 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -14,6 +15,9 @@ type APIPublicationResource struct {
 	API      string       `yaml:"api,omitempty" json:"api,omitempty"` // Parent API reference (for root-level definitions)
 	PortalID string       `yaml:"portal_id" json:"portal_id"`
 	Kongctl  *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+	
+	// Resolved Konnect ID (not serialized)
+	konnectID string `yaml:"-" json:"-"`
 }
 
 // GetKind returns the resource kind
@@ -26,10 +30,10 @@ func (p APIPublicationResource) GetRef() string {
 	return p.Ref
 }
 
-// GetName returns the resource name
-func (p APIPublicationResource) GetName() string {
-	// API publications don't have a name field, use ref as identifier
-	return p.Ref
+// GetMoniker returns the resource moniker (for publications, this is the portal ID)
+func (p APIPublicationResource) GetMoniker() string {
+	// API publications use portal ID as their identifier
+	return p.PortalID
 }
 
 // GetDependencies returns references to other resources this API publication depends on
@@ -66,6 +70,52 @@ func (p APIPublicationResource) Validate() error {
 // SetDefaults applies default values to API publication resource
 func (p *APIPublicationResource) SetDefaults() {
 	// API publications typically don't need default values
+}
+
+// GetKonnectID returns the resolved Konnect ID if available
+func (p APIPublicationResource) GetKonnectID() string {
+	return p.konnectID
+}
+
+// GetKonnectMonikerFilter returns the filter string for Konnect API lookup
+func (p APIPublicationResource) GetKonnectMonikerFilter() string {
+	// API publications are filtered by portal_id
+	if p.PortalID == "" {
+		return ""
+	}
+	return fmt.Sprintf("portal_id[eq]=%s", p.PortalID)
+}
+
+// TryMatchKonnectResource attempts to match this resource with a Konnect resource
+func (p *APIPublicationResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+	// For API publications, we match by portal ID
+	// Use reflection to access fields from state.APIPublication
+	v := reflect.ValueOf(konnectResource)
+	
+	// Handle pointer types
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	
+	// Ensure we have a struct
+	if v.Kind() != reflect.Struct {
+		return false
+	}
+	
+	// Look for PortalID and ID fields
+	portalIDField := v.FieldByName("PortalID")
+	idField := v.FieldByName("ID")
+	
+	// Extract values if fields are valid
+	if portalIDField.IsValid() && idField.IsValid() && 
+	   portalIDField.Kind() == reflect.String && idField.Kind() == reflect.String {
+		if portalIDField.String() == p.PortalID {
+			p.konnectID = idField.String()
+			return true
+		}
+	}
+	
+	return false
 }
 
 // GetParentRef returns the parent API reference for ResourceWithParent interface

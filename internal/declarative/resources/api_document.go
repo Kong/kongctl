@@ -3,6 +3,7 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -15,6 +16,9 @@ type APIDocumentResource struct {
 	API string `yaml:"api,omitempty" json:"api,omitempty"`
 	ParentDocumentID string       `yaml:"parent_document_id,omitempty" json:"parent_document_id,omitempty"`
 	Kongctl          *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+	
+	// Resolved Konnect ID (not serialized)
+	konnectID string `yaml:"-" json:"-"`
 }
 
 // GetKind returns the resource kind
@@ -27,14 +31,13 @@ func (d APIDocumentResource) GetRef() string {
 	return d.Ref
 }
 
-// GetName returns the resource name
-func (d APIDocumentResource) GetName() string {
-	// Use title as name if available
-	if d.Title != nil && *d.Title != "" {
-		return *d.Title
+// GetMoniker returns the resource moniker (for documents, this is the slug)
+func (d APIDocumentResource) GetMoniker() string {
+	// API documents use slug as moniker
+	if d.Slug != nil {
+		return *d.Slug
 	}
-	// Fall back to ref
-	return d.Ref
+	return ""
 }
 
 // GetDependencies returns references to other resources this API document depends on
@@ -76,6 +79,50 @@ func (d *APIDocumentResource) SetDefaults() {
 		status := kkComps.APIDocumentStatusPublished
 		d.Status = &status
 	}
+}
+
+// GetKonnectID returns the resolved Konnect ID if available
+func (d APIDocumentResource) GetKonnectID() string {
+	return d.konnectID
+}
+
+// GetKonnectMonikerFilter returns the filter string for Konnect API lookup
+func (d APIDocumentResource) GetKonnectMonikerFilter() string {
+	// API documents don't support filtering directly
+	// They must be looked up through parent API
+	return ""
+}
+
+// TryMatchKonnectResource attempts to match this resource with a Konnect resource
+func (d *APIDocumentResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+	// For API documents, we match by slug
+	// Use reflection to access fields from state.APIDocument
+	v := reflect.ValueOf(konnectResource)
+	
+	// Handle pointer types
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	
+	// Ensure we have a struct
+	if v.Kind() != reflect.Struct {
+		return false
+	}
+	
+	// Look for Slug and ID fields
+	slugField := v.FieldByName("Slug")
+	idField := v.FieldByName("ID")
+	
+	// Extract values if fields are valid
+	if slugField.IsValid() && idField.IsValid() && 
+	   slugField.Kind() == reflect.String && idField.Kind() == reflect.String {
+		if d.Slug != nil && slugField.String() == *d.Slug {
+			d.konnectID = idField.String()
+			return true
+		}
+	}
+	
+	return false
 }
 
 // GetParentRef returns the parent API reference for ResourceWithParent interface

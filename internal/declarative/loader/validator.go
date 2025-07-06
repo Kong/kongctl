@@ -101,7 +101,7 @@ func (l *Loader) validateAuthStrategies(
 		}
 		
 		// Check name uniqueness
-		stratName := strategy.GetName()
+		stratName := strategy.GetMoniker()
 		if existingRef, exists := names[stratName]; exists {
 			return fmt.Errorf("duplicate application_auth_strategy name '%s' (ref: %s conflicts with ref: %s)", 
 				stratName, strategy.GetRef(), existingRef)

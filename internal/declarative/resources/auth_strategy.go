@@ -3,6 +3,7 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -12,6 +13,9 @@ type ApplicationAuthStrategyResource struct {
 	kkComps.CreateAppAuthStrategyRequest `yaml:",inline" json:",inline"`
 	Ref     string       `yaml:"ref" json:"ref"`
 	Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+	
+	// Resolved Konnect ID (not serialized)
+	konnectID string `yaml:"-" json:"-"`
 }
 
 // GetKind returns the resource kind
@@ -77,8 +81,8 @@ func (a *ApplicationAuthStrategyResource) SetDefaults() {
 	// No defaults to set for auth strategies
 }
 
-// GetName returns the name of the auth strategy from the union type
-func (a ApplicationAuthStrategyResource) GetName() string {
+// GetMoniker returns the moniker (name) of the auth strategy from the union type
+func (a ApplicationAuthStrategyResource) GetMoniker() string {
 	switch a.Type {
 	case kkComps.CreateAppAuthStrategyRequestTypeKeyAuth:
 		if a.AppAuthStrategyKeyAuthRequest != nil {
@@ -90,6 +94,52 @@ func (a ApplicationAuthStrategyResource) GetName() string {
 		}
 	}
 	return ""
+}
+
+// GetKonnectID returns the resolved Konnect ID if available
+func (a ApplicationAuthStrategyResource) GetKonnectID() string {
+	return a.konnectID
+}
+
+// GetKonnectMonikerFilter returns the filter string for Konnect API lookup
+func (a ApplicationAuthStrategyResource) GetKonnectMonikerFilter() string {
+	name := a.GetMoniker()
+	if name == "" {
+		return ""
+	}
+	return fmt.Sprintf("name[eq]=%s", name)
+}
+
+// TryMatchKonnectResource attempts to match this resource with a Konnect resource
+func (a *ApplicationAuthStrategyResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+	// For auth strategies, we match by name
+	// Use reflection to access fields from state.ApplicationAuthStrategy
+	v := reflect.ValueOf(konnectResource)
+	
+	// Handle pointer types
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	
+	// Ensure we have a struct
+	if v.Kind() != reflect.Struct {
+		return false
+	}
+	
+	// Look for Name and ID fields
+	nameField := v.FieldByName("Name")
+	idField := v.FieldByName("ID")
+	
+	// Extract values if fields are valid
+	if nameField.IsValid() && idField.IsValid() && 
+	   nameField.Kind() == reflect.String && idField.Kind() == reflect.String {
+		if nameField.String() == a.GetMoniker() {
+			a.konnectID = idField.String()
+			return true
+		}
+	}
+	
+	return false
 }
 
 // UnmarshalJSON implements custom JSON unmarshaling to handle SDK union types

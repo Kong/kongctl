@@ -16,7 +16,7 @@ func TestAPIVersionResource_Interfaces(t *testing.T) {
 	var _ Resource = version
 	assert.Equal(t, "api_version", version.GetKind())
 	assert.Equal(t, "v1", version.GetRef())
-	assert.Equal(t, "", version.GetName()) // No version set
+	assert.Equal(t, "", version.GetMoniker()) // No version set
 	
 	deps := version.GetDependencies()
 	assert.Len(t, deps, 1)
