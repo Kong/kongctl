@@ -1,0 +1,11 @@
+apis:
+  - ref: foo-api
+    name: foo 
+    description: "description of foo API" 
+    version: "1.0.0" 
+    labels:
+      team: platform-api
+      product: foo-a-boo
+      criticality: low
+    kongctl:
+      protected: false  # Allow updates during development

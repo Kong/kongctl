@@ -47,7 +47,7 @@ func TestAPIPublicationResource_Interfaces(t *testing.T) {
 	var _ Resource = pub
 	assert.Equal(t, "api_publication", pub.GetKind())
 	assert.Equal(t, "pub1", pub.GetRef())
-	assert.Equal(t, "pub1", pub.GetName()) // Uses ref as name
+	assert.Equal(t, "dev-portal", pub.GetMoniker()) // Uses portal_id as moniker
 	
 	deps := pub.GetDependencies()
 	assert.Len(t, deps, 1)
@@ -77,7 +77,7 @@ func TestAPIImplementationResource_Interfaces(t *testing.T) {
 	var _ Resource = impl
 	assert.Equal(t, "api_implementation", impl.GetKind())
 	assert.Equal(t, "impl1", impl.GetRef())
-	assert.Equal(t, "impl1", impl.GetName()) // Uses ref as name
+	assert.Equal(t, "", impl.GetMoniker()) // API implementations have no moniker
 	
 	deps := impl.GetDependencies()
 	assert.Len(t, deps, 1)

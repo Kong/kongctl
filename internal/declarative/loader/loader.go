@@ -604,7 +604,6 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		for j := range api.Versions {
 			version := api.Versions[j]
 			version.API = api.Ref // Set parent reference
-			fmt.Printf("[DEBUG] Extracting version %s from API %s\n", version.Ref, api.Ref)
 			rs.APIVersions = append(rs.APIVersions, version)
 		}
 		

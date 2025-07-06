@@ -776,22 +776,12 @@ func (p *Planner) planAPIDocumentDelete(apiRef string, documentID string, plan *
 func (p *Planner) planAPIVersionsChanges(
 	ctx context.Context, desired []resources.APIVersionResource, plan *Plan,
 ) error {
-	fmt.Printf("[DEBUG] planAPIVersionsChanges: Processing %d desired API versions\n", len(desired))
-	for _, v := range desired {
-		fmt.Printf("[DEBUG] Version ref=%s parent-api=%s\n", v.Ref, v.API)
-	}
-	
 	// Group versions by parent API
 	versionsByAPI := make(map[string][]resources.APIVersionResource)
 	for _, version := range desired {
 		versionsByAPI[version.API] = append(versionsByAPI[version.API], version)
 	}
 
-	fmt.Printf("[DEBUG] Versions grouped by API: %d groups\n", len(versionsByAPI))
-	for apiRef, versions := range versionsByAPI {
-		fmt.Printf("[DEBUG] API %s has %d versions\n", apiRef, len(versions))
-	}
-	
 	// For each API, plan version changes
 	for apiRef, versions := range versionsByAPI {
 		// Find the API ID from existing changes or state
@@ -812,22 +802,15 @@ func (p *Planner) planAPIVersionsChanges(
 
 		// If API not in changes, use the resolved ID from pre-resolution phase
 		if apiID == "" {
-			fmt.Printf("[DEBUG] Looking for resolved API ID for ref: %s\n", apiRef)
 			// Find the API resource by ref to get its resolved ID
 			for _, api := range p.GetDesiredAPIs() {
 				if api.GetRef() == apiRef {
 					resolvedID := api.GetKonnectID()
 					if resolvedID != "" {
 						apiID = resolvedID
-						fmt.Printf("[DEBUG] Found resolved API ID: %s\n", apiID)
 					}
 					break
 				}
-			}
-			
-			// If still not found, this API doesn't exist yet
-			if apiID == "" {
-				fmt.Printf("[DEBUG] API not found (not resolved): %s\n", apiRef)
 			}
 		}
 
