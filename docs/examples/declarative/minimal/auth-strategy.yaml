@@ -10,7 +10,3 @@ application_auth_strategies:
       key_auth:
         key_names:
           - X-API-Key
-    labels:
-      foo: bar
-      #abc: "123"
-      #tag: boo

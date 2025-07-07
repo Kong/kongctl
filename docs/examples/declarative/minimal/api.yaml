@@ -4,7 +4,4 @@
 apis:
   - ref: simple-api
     name: My Simple API
-    description: A basic API example
-    labels:
-      foo: bar
-      bar: foo
+    description: The simplest API example 

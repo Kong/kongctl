@@ -3,9 +3,6 @@
 
 portals:
   - ref: simple-portal
-    name: my-developer-portal
-    display_name: My Foo Developer Portal
+    name: My Simple Portal 
+    display_name: Simple Portal ©
     description: A simple developer portal for API documentation
-    labels: {}
-      #foo: bar
-      #bar: foo
