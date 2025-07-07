@@ -7,7 +7,7 @@ portals:
     description: Official developer portal for SecureBank API integration
     authentication_enabled: true
     rbac_enabled: true
-    auto_approve_developers: false
+    auto_approve_developers: true
     auto_approve_applications: false
     is_public: true
     labels:
@@ -56,21 +56,21 @@ application_auth_strategies:
       use_case: b2b 
 
 # Main API configuration with all features
-apis:
-  - ref: securebank-api
-    # Load metadata from OpenAPI spec using !file tags
-    name: !file specs/openapi.yaml#info.title
-    description: !file specs/openapi.yaml#info.description
-    version: !file specs/openapi.yaml#info.version
-    labels:
-      # Static labels
-      team: platform-api
-      product: core-banking
-      criticality: high
-      # Dynamic labels from OpenAPI spec
-      license: !file specs/openapi.yaml#info.license.name
-    kongctl:
-      protected: false  # Allow updates during development
+#apis:
+#  - ref: securebank-api
+#    # Load metadata from OpenAPI spec using !file tags
+#    name: !file specs/openapi.yaml#info.title
+#    description: !file specs/openapi.yaml#info.description
+#    version: !file specs/openapi.yaml#info.version
+#    labels:
+#      # Static labels
+#      team: platform-api
+#      product: core-banking
+#      criticality: high
+#      # Dynamic labels from OpenAPI spec
+#      license: !file specs/openapi.yaml#info.license.name
+#    kongctl:
+#      protected: false  # Allow updates during development
 
     #versions:
     #  - ref: securebank-version-v1

@@ -462,6 +462,11 @@ func (e *Executor) getParentAPIID(ctx context.Context, change planner.PlannedCha
 		return "", fmt.Errorf("parent API reference required")
 	}
 	
+	// Use the parent ID if it was already resolved
+	if change.Parent.ID != "" {
+		return change.Parent.ID, nil
+	}
+	
 	// Check if parent was created in this execution
 	for _, dep := range change.DependsOn {
 		if resourceID, ok := e.createdResources[dep]; ok {

@@ -319,24 +319,24 @@ func (p *Planner) planAPIDelete(api state.API, plan *Plan) {
 
 // planAPIChildResourcesCreate plans creation of child resources for a new API
 func (p *Planner) planAPIChildResourcesCreate(api resources.APIResource, apiChangeID string, plan *Plan) {
-	// Plan version creation
+	// Plan version creation - API ID is not yet known
 	for _, version := range api.Versions {
-		p.planAPIVersionCreate(api.GetRef(), version, []string{apiChangeID}, plan)
+		p.planAPIVersionCreate(api.GetRef(), "", version, []string{apiChangeID}, plan)
 	}
 
-	// Plan publication creation
+	// Plan publication creation - API ID is not yet known
 	for _, publication := range api.Publications {
-		p.planAPIPublicationCreate(api.GetRef(), publication, []string{apiChangeID}, plan)
+		p.planAPIPublicationCreate(api.GetRef(), "", publication, []string{apiChangeID}, plan)
 	}
 
-	// Plan implementation creation
+	// Plan implementation creation - API ID is not yet known
 	for _, implementation := range api.Implementations {
-		p.planAPIImplementationCreate(api.GetRef(), implementation, []string{apiChangeID}, plan)
+		p.planAPIImplementationCreate(api.GetRef(), "", implementation, []string{apiChangeID}, plan)
 	}
 
-	// Plan document creation
+	// Plan document creation - API ID is not yet known
 	for _, document := range api.Documents {
-		p.planAPIDocumentCreate(api.GetRef(), document, []string{apiChangeID}, plan)
+		p.planAPIDocumentCreate(api.GetRef(), "", document, []string{apiChangeID}, plan)
 	}
 }
 
@@ -394,7 +394,7 @@ func (p *Planner) planAPIVersionChanges(
 
 		if _, exists := currentByVersion[versionStr]; !exists {
 			// CREATE - versions don't support update
-			p.planAPIVersionCreate(apiRef, desiredVersion, []string{}, plan)
+			p.planAPIVersionCreate(apiRef, apiID, desiredVersion, []string{}, plan)
 		}
 		// Note: API versions don't support update operations
 	}
@@ -405,7 +405,7 @@ func (p *Planner) planAPIVersionChanges(
 }
 
 func (p *Planner) planAPIVersionCreate(
-	apiRef string, version resources.APIVersionResource, dependsOn []string, plan *Plan,
+	apiRef string, apiID string, version resources.APIVersionResource, dependsOn []string, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	if version.Version != nil {
@@ -419,11 +419,16 @@ func (p *Planner) planAPIVersionCreate(
 	}
 	// Note: PublishStatus, Deprecated, SunsetDate are not supported by the SDK create operation
 
+	parentInfo := &ParentInfo{Ref: apiRef}
+	if apiID != "" {
+		parentInfo.ID = apiID
+	}
+
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, version.GetRef()),
 		ResourceType: "api_version",
 		ResourceRef:  version.GetRef(),
-		Parent:       &ParentInfo{Ref: apiRef},
+		Parent:       parentInfo,
 		Action:       ActionCreate,
 		Fields:       fields,
 		DependsOn:    dependsOn,
@@ -455,7 +460,7 @@ func (p *Planner) planAPIPublicationChanges(
 
 		if !exists {
 			// CREATE - publications don't support update
-			p.planAPIPublicationCreate(apiRef, desiredPub, []string{}, plan)
+			p.planAPIPublicationCreate(apiRef, apiID, desiredPub, []string{}, plan)
 		}
 		// Note: Publications are identified by portal ID, not a separate ID
 	}
@@ -478,7 +483,7 @@ func (p *Planner) planAPIPublicationChanges(
 }
 
 func (p *Planner) planAPIPublicationCreate(
-	apiRef string, publication resources.APIPublicationResource, dependsOn []string, plan *Plan,
+	apiRef string, apiID string, publication resources.APIPublicationResource, dependsOn []string, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	fields["portal_id"] = publication.PortalID
@@ -499,11 +504,16 @@ func (p *Planner) planAPIPublicationCreate(
 		fields["visibility"] = string(*publication.Visibility)
 	}
 
+	parentInfo := &ParentInfo{Ref: apiRef}
+	if apiID != "" {
+		parentInfo.ID = apiID
+	}
+
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, publication.GetRef()),
 		ResourceType: "api_publication",
 		ResourceRef:  publication.GetRef(),
-		Parent:       &ParentInfo{Ref: apiRef},
+		Parent:       parentInfo,
 		Action:       ActionCreate,
 		Fields:       fields,
 		DependsOn:    dependsOn,
@@ -554,7 +564,7 @@ func (p *Planner) planAPIImplementationChanges(
 			if _, exists := currentByService[key]; !exists {
 				// Skip CREATE - SDK doesn't support implementation creation yet
 				// TODO: Enable when SDK adds support
-				// p.planAPIImplementationCreate(apiRef, desiredImpl, []string{}, plan)
+				// p.planAPIImplementationCreate(apiRef, apiID, desiredImpl, []string{}, plan)
 				_ = desiredImpl // Acknowledge we'd process this when SDK supports it
 			}
 			// Note: Implementation IDs are managed by the SDK
@@ -585,7 +595,7 @@ func (p *Planner) planAPIImplementationChanges(
 }
 
 func (p *Planner) planAPIImplementationCreate(
-	apiRef string, implementation resources.APIImplementationResource, dependsOn []string, plan *Plan,
+	apiRef string, apiID string, implementation resources.APIImplementationResource, dependsOn []string, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	// APIImplementation only has Service field in the SDK
@@ -596,11 +606,16 @@ func (p *Planner) planAPIImplementationCreate(
 		}
 	}
 
+	parentInfo := &ParentInfo{Ref: apiRef}
+	if apiID != "" {
+		parentInfo.ID = apiID
+	}
+
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, implementation.GetRef()),
 		ResourceType: "api_implementation",
 		ResourceRef:  implementation.GetRef(),
-		Parent:       &ParentInfo{Ref: apiRef},
+		Parent:       parentInfo,
 		Action:       ActionCreate,
 		Fields:       fields,
 		DependsOn:    dependsOn,
@@ -637,7 +652,7 @@ func (p *Planner) planAPIDocumentChanges(
 
 		if !exists {
 			// CREATE
-			p.planAPIDocumentCreate(apiRef, desiredDoc, []string{}, plan)
+			p.planAPIDocumentCreate(apiRef, apiID, desiredDoc, []string{}, plan)
 		} else {
 			// UPDATE - documents support update
 			// Fetch full document to get content for comparison
@@ -695,7 +710,7 @@ func (p *Planner) shouldUpdateAPIDocument(current state.APIDocument, desired res
 }
 
 func (p *Planner) planAPIDocumentCreate(
-	apiRef string, document resources.APIDocumentResource, dependsOn []string, plan *Plan,
+	apiRef string, apiID string, document resources.APIDocumentResource, dependsOn []string, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	fields["content"] = document.Content
@@ -712,11 +727,16 @@ func (p *Planner) planAPIDocumentCreate(
 		fields["parent_document_id"] = document.ParentDocumentID
 	}
 
+	parentInfo := &ParentInfo{Ref: apiRef}
+	if apiID != "" {
+		parentInfo.ID = apiID
+	}
+
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, document.GetRef()),
 		ResourceType: "api_document",
 		ResourceRef:  document.GetRef(),
-		Parent:       &ParentInfo{Ref: apiRef},
+		Parent:       parentInfo,
 		Action:       ActionCreate,
 		Fields:       fields,
 		DependsOn:    dependsOn,
@@ -791,7 +811,7 @@ func (p *Planner) planAPIVersionsChanges(
 				if change.Action == ActionCreate {
 					// API is being created, use dependency
 					for _, v := range versions {
-						p.planAPIVersionCreate(apiRef, v, []string{change.ID}, plan)
+						p.planAPIVersionCreate(apiRef, "", v, []string{change.ID}, plan)
 					}
 					continue
 				}
@@ -844,7 +864,7 @@ func (p *Planner) planAPIPublicationsChanges(
 				if change.Action == ActionCreate {
 					// API is being created, use dependency
 					for _, pub := range publications {
-						p.planAPIPublicationCreate(apiRef, pub, []string{change.ID}, plan)
+						p.planAPIPublicationCreate(apiRef, "", pub, []string{change.ID}, plan)
 					}
 					continue
 				}
@@ -898,7 +918,7 @@ func (p *Planner) planAPIImplementationsChanges(
 					// Skip CREATE - SDK doesn't support implementation creation yet
 					// TODO: Enable when SDK adds support
 					// for _, impl := range implementations {
-					//	p.planAPIImplementationCreate(apiRef, impl, []string{change.ID}, plan)
+					//	p.planAPIImplementationCreate(apiRef, "", impl, []string{change.ID}, plan)
 					// }
 					continue
 				}
@@ -951,7 +971,7 @@ func (p *Planner) planAPIDocumentsChanges(
 				if change.Action == ActionCreate {
 					// API is being created, use dependency
 					for _, doc := range documents {
-						p.planAPIDocumentCreate(apiRef, doc, []string{change.ID}, plan)
+						p.planAPIDocumentCreate(apiRef, "", doc, []string{change.ID}, plan)
 					}
 					continue
 				}
