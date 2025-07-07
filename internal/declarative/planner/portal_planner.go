@@ -285,9 +285,6 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 	for field, newValue := range updateFields {
 		fields[field] = newValue
 	}
-
-	// Always include name for identification
-	fields["name"] = current.Name
 	
 	// Pass current labels so executor can properly handle removals
 	if _, hasLabels := updateFields["labels"]; hasLabels {

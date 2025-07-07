@@ -26,17 +26,11 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 		return "", fmt.Errorf("strategy_type is required")
 	}
 	
-	// Get name (required for all types)
-	name, ok := change.Fields["name"].(string)
-	if !ok {
-		return "", fmt.Errorf("name is required")
-	}
+	// Get name
+	name, _ := change.Fields["name"].(string)
 	
-	// Get display name (required for all types)
-	displayName, ok := change.Fields["display_name"].(string)
-	if !ok {
-		return "", fmt.Errorf("display_name is required")
-	}
+	// Get display name
+	displayName, _ := change.Fields["display_name"].(string)
 	
 	// Handle labels using centralized helper
 	userLabels := labels.ExtractLabelsFromField(change.Fields["labels"])

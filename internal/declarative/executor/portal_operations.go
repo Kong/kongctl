@@ -22,11 +22,9 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 	// Extract portal fields
 	var portal kkComps.CreatePortal
 	
-	// Required fields
+	// Map fields
 	if name, ok := change.Fields["name"].(string); ok {
 		portal.Name = name
-	} else {
-		return "", fmt.Errorf("portal name is required")
 	}
 	
 	// Optional fields
@@ -132,17 +130,14 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 	// Build sparse update request - only include fields that changed
 	var updatePortal kkComps.UpdatePortal
 	
-	// Name is always required for updates
-	if name, ok := change.Fields["name"].(string); ok {
-		updatePortal.Name = &name
-	} else {
-		return "", fmt.Errorf("portal name is required")
-	}
-	
-	// Only include fields that are in the change.Fields map (excluding "name")
+	// Only include fields that are in the change.Fields map
 	// These represent actual changes detected by the planner
 	for field, value := range change.Fields {
 		switch field {
+		case "name":
+			if name, ok := value.(string); ok {
+				updatePortal.Name = &name
+			}
 		case "description":
 			if desc, ok := value.(string); ok {
 				updatePortal.Description = &desc
@@ -181,7 +176,6 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 				vis := kkComps.UpdatePortalDefaultPageVisibility(visibility)
 				updatePortal.DefaultPageVisibility = &vis
 			}
-		// Skip "name" as it's already handled above
 		// Skip "labels" as they're handled separately below
 		}
 	}

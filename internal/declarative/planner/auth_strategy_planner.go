@@ -463,9 +463,6 @@ func (p *authStrategyPlannerImpl) planAuthStrategyUpdateWithFields(
 			fields[field] = newValue
 		}
 	}
-
-	// Always include name for identification
-	fields["name"] = current.Name
 	
 	// Pass strategy type to executor
 	fields[FieldStrategyType] = current.StrategyType

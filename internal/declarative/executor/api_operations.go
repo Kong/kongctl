@@ -24,11 +24,9 @@ func (e *Executor) createAPI(ctx context.Context, change planner.PlannedChange) 
 	// Extract API fields
 	var api kkComps.CreateAPIRequest
 	
-	// Required fields
+	// Map fields
 	if name, ok := change.Fields["name"].(string); ok {
 		api.Name = name
-	} else {
-		return "", fmt.Errorf("API name is required")
 	}
 	
 	// Optional fields
@@ -97,22 +95,18 @@ func (e *Executor) updateAPI(ctx context.Context, change planner.PlannedChange) 
 	// Build sparse update request - only include fields that changed
 	var updateAPI kkComps.UpdateAPIRequest
 	
-	// Name is always required for updates
-	if name, ok := change.Fields["name"].(string); ok {
-		updateAPI.Name = &name
-	} else {
-		return "", fmt.Errorf("API name is required")
-	}
-	
-	// Only include fields that are in the change.Fields map (excluding "name")
+	// Only include fields that are in the change.Fields map
 	// These represent actual changes detected by the planner
 	for field, value := range change.Fields {
 		switch field {
+		case "name":
+			if name, ok := value.(string); ok {
+				updateAPI.Name = &name
+			}
 		case "description":
 			if desc, ok := value.(string); ok {
 				updateAPI.Description = &desc
 			}
-		// Skip "name" as it's already handled above
 		// Skip "labels" as they're handled separately below
 		}
 	}
