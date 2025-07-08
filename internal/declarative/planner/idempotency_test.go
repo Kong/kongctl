@@ -16,7 +16,9 @@ import (
 func TestGeneratePlan_Idempotency(t *testing.T) {
 	ctx := context.Background()
 	mockAPI := new(MockPortalAPI)
-	client := state.NewClient(mockAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI: mockAPI,
+	})
 	planner := NewPlanner(client)
 
 	// Create existing portal with API defaults

@@ -6,53 +6,73 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/kong/kongctl/internal/declarative/labels"
-	"github.com/kong/kongctl/internal/log"
-	"github.com/kong/kongctl/internal/konnect/helpers"
-	kkSDK "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/kong/kongctl/internal/declarative/labels"
+	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/kong/kongctl/internal/log"
 )
+
+// ClientConfig contains all the API interfaces needed by the state client
+type ClientConfig struct {
+	// Core APIs
+	PortalAPI  helpers.PortalAPI
+	APIAPI     helpers.APIAPI
+	AppAuthAPI helpers.AppAuthStrategiesAPI
+	
+	// Portal child resource APIs
+	PortalPageAPI          helpers.PortalPageAPI
+	PortalCustomizationAPI helpers.PortalCustomizationAPI
+	PortalCustomDomainAPI  helpers.PortalCustomDomainAPI
+	PortalSnippetAPI       helpers.PortalSnippetAPI
+	
+	// API child resource APIs
+	APIVersionAPI        helpers.APIVersionAPI
+	APIPublicationAPI    helpers.APIPublicationAPI
+	APIImplementationAPI helpers.APIImplementationAPI
+	APIDocumentAPI       helpers.APIDocumentAPI
+}
 
 // Client wraps Konnect SDK for state management
 type Client struct {
-	portalAPI       helpers.PortalAPI
-	apiAPI          helpers.APIFullAPI // TODO: Refactor to use separate interfaces for child resources
-	appAuthAPI      helpers.AppAuthStrategiesAPI
-	sdk             *kkSDK.SDK // Direct SDK access for portal child resources
+	// Core APIs
+	portalAPI  helpers.PortalAPI
+	apiAPI     helpers.APIAPI
+	appAuthAPI helpers.AppAuthStrategiesAPI
+	
+	// Portal child resource APIs
+	portalPageAPI          helpers.PortalPageAPI
+	portalCustomizationAPI helpers.PortalCustomizationAPI
+	portalCustomDomainAPI  helpers.PortalCustomDomainAPI
+	portalSnippetAPI       helpers.PortalSnippetAPI
+	
+	// API child resource APIs
+	apiVersionAPI        helpers.APIVersionAPI
+	apiPublicationAPI    helpers.APIPublicationAPI
+	apiImplementationAPI helpers.APIImplementationAPI
+	apiDocumentAPI       helpers.APIDocumentAPI
 }
 
-// NewClient creates a new state client
-func NewClient(portalAPI helpers.PortalAPI) *Client {
+// NewClient creates a new state client with the provided configuration
+func NewClient(config ClientConfig) *Client {
 	return &Client{
-		portalAPI: portalAPI,
+		// Core APIs
+		portalAPI:  config.PortalAPI,
+		apiAPI:     config.APIAPI,
+		appAuthAPI: config.AppAuthAPI,
+		
+		// Portal child resource APIs
+		portalPageAPI:          config.PortalPageAPI,
+		portalCustomizationAPI: config.PortalCustomizationAPI,
+		portalCustomDomainAPI:  config.PortalCustomDomainAPI,
+		portalSnippetAPI:       config.PortalSnippetAPI,
+		
+		// API child resource APIs
+		apiVersionAPI:        config.APIVersionAPI,
+		apiPublicationAPI:    config.APIPublicationAPI,
+		apiImplementationAPI: config.APIImplementationAPI,
+		apiDocumentAPI:       config.APIDocumentAPI,
 	}
-}
-
-// NewClientWithAPIs creates a new state client with API support
-func NewClientWithAPIs(portalAPI helpers.PortalAPI, apiAPI helpers.APIFullAPI) *Client {
-	return &Client{
-		portalAPI: portalAPI,
-		apiAPI:    apiAPI,
-	}
-}
-
-// NewClientWithAllAPIs creates a new state client with all API support
-func NewClientWithAllAPIs(
-	portalAPI helpers.PortalAPI, 
-	apiAPI helpers.APIFullAPI, 
-	appAuthAPI helpers.AppAuthStrategiesAPI,
-) *Client {
-	return &Client{
-		portalAPI:  portalAPI,
-		apiAPI:     apiAPI,
-		appAuthAPI: appAuthAPI,
-	}
-}
-
-// SetSDK sets the SDK instance for portal child resources
-func (c *Client) SetSDK(sdk *kkSDK.SDK) {
-	c.sdk = sdk
 }
 
 // Portal represents a normalized portal for internal use
@@ -185,7 +205,7 @@ func (c *Client) GetPortalByFilter(ctx context.Context, filter string) (*Portal,
 	if c.portalAPI == nil {
 		return nil, fmt.Errorf("Portal API client not configured")
 	}
-	
+
 	// Use the filter in the SDK list operation
 	// For now, we'll use ListManagedPortals and filter locally
 	// TODO: Update when SDK supports server-side filtering
@@ -193,7 +213,7 @@ func (c *Client) GetPortalByFilter(ctx context.Context, filter string) (*Portal,
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Parse filter (e.g., "name[eq]=foo")
 	if strings.HasPrefix(filter, "name[eq]=") {
 		name := strings.TrimPrefix(filter, "name[eq]=")
@@ -203,7 +223,7 @@ func (c *Client) GetPortalByFilter(ctx context.Context, filter string) (*Portal,
 			}
 		}
 	}
-	
+
 	return nil, nil // Not found
 }
 
@@ -214,19 +234,19 @@ func (c *Client) CreatePortal(
 ) (*kkComps.PortalResponse, error) {
 	// Get logger from context
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
-	
-	logger.Debug("CreatePortal called", 
+
+	logger.Debug("CreatePortal called",
 		slog.Any("labels", portal.Labels))
-	
+
 	// Add management labels
 	normalized := labels.NormalizeLabels(portal.Labels)
-	logger.Debug("Normalized labels", 
+	logger.Debug("Normalized labels",
 		slog.Any("labels", normalized))
-	
+
 	normalized = labels.AddManagedLabels(normalized)
-	logger.Debug("After adding managed labels", 
+	logger.Debug("After adding managed labels",
 		slog.Any("labels", normalized))
-	
+
 	portal.Labels = labels.DenormalizeLabels(normalized)
 	// Log actual label values for debugging
 	if portal.Labels != nil {
@@ -360,7 +380,7 @@ func (c *Client) GetAPIByFilter(ctx context.Context, filter string) (*API, error
 	if c.apiAPI == nil {
 		return nil, fmt.Errorf("API client not configured")
 	}
-	
+
 	// Use the filter in the SDK list operation
 	// For now, we'll use ListManagedAPIs and filter locally
 	// TODO: Update when SDK supports server-side filtering
@@ -368,7 +388,7 @@ func (c *Client) GetAPIByFilter(ctx context.Context, filter string) (*API, error
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Parse filter (e.g., "name[eq]=foo")
 	if strings.HasPrefix(filter, "name[eq]=") {
 		name := strings.TrimPrefix(filter, "name[eq]=")
@@ -378,7 +398,7 @@ func (c *Client) GetAPIByFilter(ctx context.Context, filter string) (*API, error
 			}
 		}
 	}
-	
+
 	return nil, nil // Not found
 }
 
@@ -412,19 +432,19 @@ func (c *Client) CreateAPI(
 
 	// Get logger from context
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
-	
-	logger.Debug("CreateAPI called", 
+
+	logger.Debug("CreateAPI called",
 		slog.Any("labels", api.Labels))
-	
+
 	// Add management labels - API labels are already non-pointer strings
 	if api.Labels == nil {
 		api.Labels = make(map[string]string)
 	}
-	
+
 	api.Labels = labels.AddManagedLabels(api.Labels)
-	logger.Debug("After adding managed labels", 
+	logger.Debug("After adding managed labels",
 		slog.Any("labels", api.Labels))
-	
+
 	// Log actual label values for debugging
 	if api.Labels != nil {
 		for k, v := range api.Labels {
@@ -489,8 +509,8 @@ func (c *Client) DeleteAPI(ctx context.Context, id string) error {
 
 // ListAPIVersions returns all versions for an API
 func (c *Client) ListAPIVersions(ctx context.Context, apiID string) ([]APIVersion, error) {
-	if c.apiAPI == nil {
-		return nil, fmt.Errorf("API client not configured")
+	if c.apiVersionAPI == nil {
+		return nil, fmt.Errorf("API version client not configured")
 	}
 
 	var allVersions []APIVersion
@@ -504,7 +524,7 @@ func (c *Client) ListAPIVersions(ctx context.Context, apiID string) ([]APIVersio
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.apiAPI.ListAPIVersions(ctx, req)
+		resp, err := c.apiVersionAPI.ListAPIVersions(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list API versions: %w", err)
 		}
@@ -523,7 +543,7 @@ func (c *Client) ListAPIVersions(ctx context.Context, apiID string) ([]APIVersio
 		}
 
 		pageNumber++
-		
+
 		// Check if we've fetched all pages
 		if resp.ListAPIVersionResponse.Meta.Page.Total <= float64(pageSize*(pageNumber-1)) {
 			break
@@ -537,11 +557,11 @@ func (c *Client) ListAPIVersions(ctx context.Context, apiID string) ([]APIVersio
 func (c *Client) CreateAPIVersion(
 	ctx context.Context, apiID string, version kkComps.CreateAPIVersionRequest,
 ) (*kkComps.APIVersionResponse, error) {
-	if c.apiAPI == nil {
-		return nil, fmt.Errorf("API client not configured")
+	if c.apiVersionAPI == nil {
+		return nil, fmt.Errorf("API version client not configured")
 	}
 
-	resp, err := c.apiAPI.CreateAPIVersion(ctx, apiID, version)
+	resp, err := c.apiVersionAPI.CreateAPIVersion(ctx, apiID, version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API version: %w", err)
 	}
@@ -557,8 +577,8 @@ func (c *Client) CreateAPIVersion(
 
 // ListAPIPublications returns all publications for an API
 func (c *Client) ListAPIPublications(ctx context.Context, apiID string) ([]APIPublication, error) {
-	if c.apiAPI == nil {
-		return nil, fmt.Errorf("API client not configured")
+	if c.apiPublicationAPI == nil {
+		return nil, fmt.Errorf("API publication client not configured")
 	}
 
 	var allPublications []APIPublication
@@ -576,7 +596,7 @@ func (c *Client) ListAPIPublications(ctx context.Context, apiID string) ([]APIPu
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.apiAPI.ListAPIPublications(ctx, req)
+		resp, err := c.apiPublicationAPI.ListAPIPublications(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list API publications: %w", err)
 		}
@@ -587,7 +607,7 @@ func (c *Client) ListAPIPublications(ctx context.Context, apiID string) ([]APIPu
 
 		for _, p := range resp.ListAPIPublicationResponse.Data {
 			pub := APIPublication{
-				ID:              "",  // Publications don't have a separate ID
+				ID:              "", // Publications don't have a separate ID
 				PortalID:        p.PortalID,
 				AuthStrategyIDs: p.AuthStrategyIds,
 			}
@@ -599,7 +619,7 @@ func (c *Client) ListAPIPublications(ctx context.Context, apiID string) ([]APIPu
 		}
 
 		pageNumber++
-		
+
 		// Check if we've fetched all pages
 		if resp.ListAPIPublicationResponse.Meta.Page.Total <= float64(pageSize*(pageNumber-1)) {
 			break
@@ -613,8 +633,8 @@ func (c *Client) ListAPIPublications(ctx context.Context, apiID string) ([]APIPu
 func (c *Client) CreateAPIPublication(
 	ctx context.Context, apiID string, portalID string, publication kkComps.APIPublication,
 ) (*kkComps.APIPublicationResponse, error) {
-	if c.apiAPI == nil {
-		return nil, fmt.Errorf("API client not configured")
+	if c.apiPublicationAPI == nil {
+		return nil, fmt.Errorf("API publication client not configured")
 	}
 
 	req := kkOps.PublishAPIToPortalRequest{
@@ -623,7 +643,7 @@ func (c *Client) CreateAPIPublication(
 		APIPublication: publication,
 	}
 
-	resp, err := c.apiAPI.PublishAPIToPortal(ctx, req)
+	resp, err := c.apiPublicationAPI.PublishAPIToPortal(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API publication: %w", err)
 	}
@@ -637,11 +657,11 @@ func (c *Client) CreateAPIPublication(
 
 // DeleteAPIPublication deletes an API publication
 func (c *Client) DeleteAPIPublication(ctx context.Context, apiID, portalID string) error {
-	if c.apiAPI == nil {
-		return fmt.Errorf("API client not configured")
+	if c.apiPublicationAPI == nil {
+		return fmt.Errorf("API publication client not configured")
 	}
 
-	_, err := c.apiAPI.DeletePublication(ctx, apiID, portalID)
+	_, err := c.apiPublicationAPI.DeletePublication(ctx, apiID, portalID)
 	if err != nil {
 		return fmt.Errorf("failed to delete API publication: %w", err)
 	}
@@ -653,8 +673,8 @@ func (c *Client) DeleteAPIPublication(ctx context.Context, apiID, portalID strin
 
 // ListAPIImplementations returns all implementations for an API
 func (c *Client) ListAPIImplementations(ctx context.Context, apiID string) ([]APIImplementation, error) {
-	if c.apiAPI == nil {
-		return nil, fmt.Errorf("API client not configured")
+	if c.apiImplementationAPI == nil {
+		return nil, fmt.Errorf("API implementation client not configured")
 	}
 
 	var allImplementations []APIImplementation
@@ -672,7 +692,7 @@ func (c *Client) ListAPIImplementations(ctx context.Context, apiID string) ([]AP
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.apiAPI.ListAPIImplementations(ctx, req)
+		resp, err := c.apiImplementationAPI.ListAPIImplementations(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list API implementations: %w", err)
 		}
@@ -699,7 +719,7 @@ func (c *Client) ListAPIImplementations(ctx context.Context, apiID string) ([]AP
 		}
 
 		pageNumber++
-		
+
 		// Check if we've fetched all pages
 		if resp.ListAPIImplementationsResponse.Meta.Page.Total <= float64(pageSize*(pageNumber-1)) {
 			break
@@ -727,18 +747,14 @@ func (c *Client) DeleteAPIImplementation(_ context.Context, _, _ string) error {
 
 // ListAPIDocuments returns all documents for an API
 func (c *Client) ListAPIDocuments(ctx context.Context, apiID string) ([]APIDocument, error) {
-	if c.apiAPI == nil {
-		return nil, fmt.Errorf("API client not configured")
+	if c.apiDocumentAPI == nil {
+		return nil, fmt.Errorf("API document client not configured")
 	}
 
 	var allDocuments []APIDocument
 
 	// API Documents don't support pagination in request
-	req := kkOps.ListAPIDocumentsRequest{
-		APIID: apiID,
-	}
-
-	resp, err := c.apiAPI.ListAPIDocuments(ctx, req)
+	resp, err := c.apiDocumentAPI.ListAPIDocuments(ctx, apiID, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list API documents: %w", err)
 	}
@@ -762,7 +778,7 @@ func (c *Client) ListAPIDocuments(ctx context.Context, apiID string) ([]APIDocum
 			doc.Status = string(*d.Status)
 		}
 		allDocuments = append(allDocuments, doc)
-		
+
 		// Recursively add children if any
 		if len(d.Children) > 0 {
 			c.addChildDocuments(&allDocuments, d.Children)
@@ -788,7 +804,7 @@ func (c *Client) addChildDocuments(allDocuments *[]APIDocument, children []kkCom
 			doc.Status = string(*child.Status)
 		}
 		*allDocuments = append(*allDocuments, doc)
-		
+
 		// Recursively add children
 		if len(child.Children) > 0 {
 			c.addChildDocuments(allDocuments, child.Children)
@@ -800,11 +816,11 @@ func (c *Client) addChildDocuments(allDocuments *[]APIDocument, children []kkCom
 func (c *Client) CreateAPIDocument(
 	ctx context.Context, apiID string, document kkComps.CreateAPIDocumentRequest,
 ) (*kkComps.APIDocumentResponse, error) {
-	if c.apiAPI == nil {
-		return nil, fmt.Errorf("API client not configured")
+	if c.apiDocumentAPI == nil {
+		return nil, fmt.Errorf("API document client not configured")
 	}
 
-	resp, err := c.apiAPI.CreateAPIDocument(ctx, apiID, document)
+	resp, err := c.apiDocumentAPI.CreateAPIDocument(ctx, apiID, document)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API document: %w", err)
 	}
@@ -820,11 +836,11 @@ func (c *Client) CreateAPIDocument(
 func (c *Client) UpdateAPIDocument(
 	ctx context.Context, apiID, documentID string, document kkComps.APIDocument,
 ) (*kkComps.APIDocumentResponse, error) {
-	if c.apiAPI == nil {
-		return nil, fmt.Errorf("API client not configured")
+	if c.apiDocumentAPI == nil {
+		return nil, fmt.Errorf("API document client not configured")
 	}
 
-	resp, err := c.apiAPI.UpdateAPIDocument(ctx, apiID, documentID, document)
+	resp, err := c.apiDocumentAPI.UpdateAPIDocument(ctx, apiID, documentID, document)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update API document: %w", err)
 	}
@@ -838,11 +854,11 @@ func (c *Client) UpdateAPIDocument(
 
 // DeleteAPIDocument deletes an API document
 func (c *Client) DeleteAPIDocument(ctx context.Context, apiID, documentID string) error {
-	if c.apiAPI == nil {
-		return fmt.Errorf("API client not configured")
+	if c.apiDocumentAPI == nil {
+		return fmt.Errorf("API document client not configured")
 	}
 
-	_, err := c.apiAPI.DeleteAPIDocument(ctx, apiID, documentID)
+	_, err := c.apiDocumentAPI.DeleteAPIDocument(ctx, apiID, documentID)
 	if err != nil {
 		return fmt.Errorf("failed to delete API document: %w", err)
 	}
@@ -851,11 +867,11 @@ func (c *Client) DeleteAPIDocument(ctx context.Context, apiID, documentID string
 
 // GetAPIDocument retrieves a single API document with full content
 func (c *Client) GetAPIDocument(ctx context.Context, apiID, documentID string) (*APIDocument, error) {
-	if c.apiAPI == nil {
-		return nil, fmt.Errorf("API client not configured")
+	if c.apiDocumentAPI == nil {
+		return nil, fmt.Errorf("API document client not configured")
 	}
 
-	resp, err := c.apiAPI.FetchAPIDocument(ctx, apiID, documentID)
+	resp, err := c.apiDocumentAPI.FetchAPIDocument(ctx, apiID, documentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch API document: %w", err)
 	}
@@ -871,11 +887,11 @@ func (c *Client) GetAPIDocument(ctx context.Context, apiID, documentID string) (
 		Title:   resp.APIDocumentResponse.Title,
 		Slug:    resp.APIDocumentResponse.Slug,
 	}
-	
+
 	if resp.APIDocumentResponse.ParentDocumentID != nil {
 		doc.ParentDocumentID = *resp.APIDocumentResponse.ParentDocumentID
 	}
-	
+
 	if resp.APIDocumentResponse.Status != nil {
 		doc.Status = string(*resp.APIDocumentResponse.Status)
 	}
@@ -901,17 +917,17 @@ func (c *Client) CreateApplicationAuthStrategy(
 			val := v
 			pointerLabels[k] = &val
 		}
-		
+
 		normalized := labels.NormalizeLabels(pointerLabels)
 		normalized = labels.AddManagedLabels(normalized)
-		
+
 		// Convert back to map[string]string
 		stringLabels := make(map[string]string)
 		for k, v := range normalized {
 			stringLabels[k] = v
 		}
 		authStrategy.AppAuthStrategyKeyAuthRequest.Labels = stringLabels
-		
+
 	case authStrategy.AppAuthStrategyOpenIDConnectRequest != nil:
 		// Convert map[string]string to map[string]*string for normalization
 		pointerLabels := make(map[string]*string)
@@ -919,17 +935,17 @@ func (c *Client) CreateApplicationAuthStrategy(
 			val := v
 			pointerLabels[k] = &val
 		}
-		
+
 		normalized := labels.NormalizeLabels(pointerLabels)
 		normalized = labels.AddManagedLabels(normalized)
-		
+
 		// Convert back to map[string]string
 		stringLabels := make(map[string]string)
 		for k, v := range normalized {
 			stringLabels[k] = v
 		}
 		authStrategy.AppAuthStrategyOpenIDConnectRequest.Labels = stringLabels
-		
+
 	default:
 		return nil, fmt.Errorf("unsupported auth strategy type")
 	}
@@ -981,7 +997,7 @@ func (c *Client) ListManagedAuthStrategies(ctx context.Context) ([]ApplicationAu
 				strategy.Name = keyAuthResp.Name
 				strategy.DisplayName = keyAuthResp.DisplayName
 				strategy.StrategyType = "key_auth"
-				
+
 				// Extract configs
 				configs := make(map[string]interface{})
 				keyAuthConfig := make(map[string]interface{})
@@ -990,16 +1006,16 @@ func (c *Client) ListManagedAuthStrategies(ctx context.Context) ([]ApplicationAu
 				}
 				configs["key-auth"] = keyAuthConfig
 				strategy.Configs = configs
-				
+
 				labelMap = keyAuthResp.Labels
-				
+
 			} else if s.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse != nil {
 				oidcResp := s.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse
 				strategy.ID = oidcResp.ID
 				strategy.Name = oidcResp.Name
 				strategy.DisplayName = oidcResp.DisplayName
 				strategy.StrategyType = "openid_connect"
-				
+
 				// Extract configs
 				configs := make(map[string]interface{})
 				oidcConfig := make(map[string]interface{})
@@ -1015,7 +1031,7 @@ func (c *Client) ListManagedAuthStrategies(ctx context.Context) ([]ApplicationAu
 				}
 				configs["openid-connect"] = oidcConfig
 				strategy.Configs = configs
-				
+
 				labelMap = oidcResp.Labels
 			} else {
 				// Unknown type, skip
@@ -1066,7 +1082,7 @@ func (c *Client) GetAuthStrategyByFilter(ctx context.Context, filter string) (*A
 	if c.appAuthAPI == nil {
 		return nil, fmt.Errorf("application auth API client not configured")
 	}
-	
+
 	// Use the filter in the SDK list operation
 	// For now, we'll use ListManagedAuthStrategies and filter locally
 	// TODO: Update when SDK supports server-side filtering
@@ -1074,7 +1090,7 @@ func (c *Client) GetAuthStrategyByFilter(ctx context.Context, filter string) (*A
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Parse filter (e.g., "name[eq]=foo")
 	if strings.HasPrefix(filter, "name[eq]=") {
 		name := strings.TrimPrefix(filter, "name[eq]=")
@@ -1084,7 +1100,7 @@ func (c *Client) GetAuthStrategyByFilter(ctx context.Context, filter string) (*A
 			}
 		}
 	}
-	
+
 	return nil, nil // Not found
 }
 
@@ -1131,11 +1147,11 @@ func (c *Client) UpdatePortalCustomization(
 	portalID string,
 	customization kkComps.PortalCustomization,
 ) error {
-	if c.sdk == nil {
-		return fmt.Errorf("SDK not configured for portal child resources")
+	if c.portalCustomizationAPI == nil {
+		return fmt.Errorf("portal customization API not configured")
 	}
 
-	_, err := c.sdk.PortalCustomization.UpdatePortalCustomization(ctx, portalID, &customization)
+	_, err := c.portalCustomizationAPI.UpdatePortalCustomization(ctx, portalID, &customization)
 	if err != nil {
 		return fmt.Errorf("failed to update portal customization: %w", err)
 	}
@@ -1148,11 +1164,11 @@ func (c *Client) CreatePortalCustomDomain(
 	portalID string,
 	req kkComps.CreatePortalCustomDomainRequest,
 ) error {
-	if c.sdk == nil {
-		return fmt.Errorf("SDK not configured for portal child resources")
+	if c.portalCustomDomainAPI == nil {
+		return fmt.Errorf("portal custom domain API not configured")
 	}
 
-	_, err := c.sdk.PortalCustomDomains.CreatePortalCustomDomain(ctx, portalID, req)
+	_, err := c.portalCustomDomainAPI.CreatePortalCustomDomain(ctx, portalID, req)
 	if err != nil {
 		return fmt.Errorf("failed to create portal custom domain: %w", err)
 	}
@@ -1165,11 +1181,11 @@ func (c *Client) UpdatePortalCustomDomain(
 	portalID string,
 	req kkComps.UpdatePortalCustomDomainRequest,
 ) error {
-	if c.sdk == nil {
-		return fmt.Errorf("SDK not configured for portal child resources")
+	if c.portalCustomDomainAPI == nil {
+		return fmt.Errorf("portal custom domain API not configured")
 	}
 
-	_, err := c.sdk.PortalCustomDomains.UpdatePortalCustomDomain(ctx, portalID, req)
+	_, err := c.portalCustomDomainAPI.UpdatePortalCustomDomain(ctx, portalID, req)
 	if err != nil {
 		return fmt.Errorf("failed to update portal custom domain: %w", err)
 	}
@@ -1178,11 +1194,11 @@ func (c *Client) UpdatePortalCustomDomain(
 
 // DeletePortalCustomDomain deletes a portal custom domain
 func (c *Client) DeletePortalCustomDomain(ctx context.Context, portalID string) error {
-	if c.sdk == nil {
-		return fmt.Errorf("SDK not configured for portal child resources")
+	if c.portalCustomDomainAPI == nil {
+		return fmt.Errorf("portal custom domain API not configured")
 	}
 
-	_, err := c.sdk.PortalCustomDomains.DeletePortalCustomDomain(ctx, portalID)
+	_, err := c.portalCustomDomainAPI.DeletePortalCustomDomain(ctx, portalID)
 	if err != nil {
 		return fmt.Errorf("failed to delete portal custom domain: %w", err)
 	}
@@ -1195,19 +1211,19 @@ func (c *Client) CreatePortalPage(
 	portalID string,
 	req kkComps.CreatePortalPageRequest,
 ) (string, error) {
-	if c.sdk == nil {
-		return "", fmt.Errorf("SDK not configured for portal child resources")
+	if c.portalPageAPI == nil {
+		return "", fmt.Errorf("portal page API not configured")
 	}
 
-	resp, err := c.sdk.Pages.CreatePortalPage(ctx, portalID, req)
+	resp, err := c.portalPageAPI.CreatePortalPage(ctx, portalID, req)
 	if err != nil {
 		return "", fmt.Errorf("failed to create portal page: %w", err)
 	}
-	
+
 	if resp.PortalPageResponse == nil {
 		return "", fmt.Errorf("no response data from create portal page")
 	}
-	
+
 	return resp.PortalPageResponse.ID, nil
 }
 
@@ -1218,8 +1234,8 @@ func (c *Client) UpdatePortalPage(
 	pageID string,
 	req kkComps.UpdatePortalPageRequest,
 ) error {
-	if c.sdk == nil {
-		return fmt.Errorf("SDK not configured for portal child resources")
+	if c.portalPageAPI == nil {
+		return fmt.Errorf("portal page API not configured")
 	}
 
 	updateReq := kkOps.UpdatePortalPageRequest{
@@ -1227,8 +1243,8 @@ func (c *Client) UpdatePortalPage(
 		PageID:                  pageID,
 		UpdatePortalPageRequest: req,
 	}
-	
-	_, err := c.sdk.Pages.UpdatePortalPage(ctx, updateReq)
+
+	_, err := c.portalPageAPI.UpdatePortalPage(ctx, updateReq)
 	if err != nil {
 		return fmt.Errorf("failed to update portal page: %w", err)
 	}
@@ -1237,13 +1253,14 @@ func (c *Client) UpdatePortalPage(
 
 // DeletePortalPage deletes a page from a portal
 func (c *Client) DeletePortalPage(ctx context.Context, portalID string, pageID string) error {
-	if c.sdk == nil {
-		return fmt.Errorf("SDK not configured for portal child resources")
+	if c.portalPageAPI == nil {
+		return fmt.Errorf("portal page API not configured")
 	}
 
-	_, err := c.sdk.Pages.DeletePortalPage(ctx, portalID, pageID)
+	_, err := c.portalPageAPI.DeletePortalPage(ctx, portalID, pageID)
 	if err != nil {
 		return fmt.Errorf("failed to delete portal page: %w", err)
 	}
 	return nil
 }
+

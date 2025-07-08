@@ -234,9 +234,21 @@ func (p *Planner) planPortalPageCreate(
 
 	// Store parent portal reference
 	if page.Portal != "" {
+		// Find the portal in desiredPortals to get its name
+		var portalName string
+		for _, portal := range p.desiredPortals {
+			if portal.Ref == page.Portal {
+				portalName = portal.Name
+				break
+			}
+		}
+		
 		change.References = map[string]ReferenceInfo{
 			"portal_id": {
 				Ref: page.Portal,
+				LookupFields: map[string]string{
+					"name": portalName,
+				},
 			},
 		}
 	}

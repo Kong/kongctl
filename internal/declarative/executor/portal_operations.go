@@ -25,6 +25,8 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 	// Map fields
 	if name, ok := change.Fields["name"].(string); ok {
 		portal.Name = name
+	} else {
+		return "", fmt.Errorf("portal name is required")
 	}
 	
 	// Optional fields

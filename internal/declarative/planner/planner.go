@@ -124,7 +124,10 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 			if plan.Changes[i].ID == changeID {
 				plan.Changes[i].References = make(map[string]ReferenceInfo)
 				for field, ref := range refs {
-					plan.Changes[i].References[field] = ReferenceInfo(ref)
+					plan.Changes[i].References[field] = ReferenceInfo{
+						Ref: ref.Ref,
+						ID:  ref.ID,
+					}
 				}
 				break
 			}

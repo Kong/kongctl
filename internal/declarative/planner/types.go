@@ -45,8 +45,9 @@ type PlannedChange struct {
 
 // ReferenceInfo tracks reference resolution
 type ReferenceInfo struct {
-	Ref string `json:"ref"`
-	ID  string `json:"id"` // May be "<unknown>" for resources in same plan
+	Ref          string            `json:"ref"`
+	ID           string            `json:"id"` // May be "<unknown>" for resources in same plan
+	LookupFields map[string]string `json:"lookup_fields,omitempty"` // Resource-specific identifying fields
 }
 
 // ParentInfo tracks parent relationships

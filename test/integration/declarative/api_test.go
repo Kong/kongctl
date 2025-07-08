@@ -130,7 +130,10 @@ apis:
 				Data: []kkComps.Portal{},
 			},
 		}, nil)
-	stateClient := state.NewClientWithAPIs(mockPortalAPI, mockAPIAPI)
+	stateClient := state.NewClient(state.ClientConfig{
+		PortalAPI: mockPortalAPI,
+		APIAPI:    mockAPIAPI,
+	})
 	p := planner.NewPlanner(stateClient)
 	
 	// Generate plan
@@ -445,7 +448,10 @@ apis:
 		}, nil)
 
 	// Create state client and planner
-	stateClient := state.NewClientWithAPIs(mockPortalAPI, mockAPIAPI)
+	stateClient := state.NewClient(state.ClientConfig{
+		PortalAPI: mockPortalAPI,
+		APIAPI:    mockAPIAPI,
+	})
 	p := planner.NewPlanner(stateClient)
 	
 	// Generate plan
@@ -644,7 +650,10 @@ api_versions:
 				},
 			},
 		}, nil)
-	stateClient := state.NewClientWithAPIs(mockPortalAPI, mockAPIAPI)
+	stateClient := state.NewClient(state.ClientConfig{
+		PortalAPI: mockPortalAPI,
+		APIAPI:    mockAPIAPI,
+	})
 	p := planner.NewPlanner(stateClient)
 	
 	// Generate plan
@@ -734,7 +743,10 @@ apis:
 				Data: []kkComps.Portal{},
 			},
 		}, nil)
-	stateClient := state.NewClientWithAPIs(mockPortalAPI, mockAPIAPI)
+	stateClient := state.NewClient(state.ClientConfig{
+		PortalAPI: mockPortalAPI,
+		APIAPI:    mockAPIAPI,
+	})
 	p := planner.NewPlanner(stateClient)
 	
 	// Try to generate sync plan (which would delete the protected API)
@@ -908,7 +920,10 @@ api_documents:
 				Data: []kkComps.Portal{},
 			},
 		}, nil)
-	stateClient := state.NewClientWithAPIs(mockPortalAPI, mockAPIAPI)
+	stateClient := state.NewClient(state.ClientConfig{
+		PortalAPI: mockPortalAPI,
+		APIAPI:    mockAPIAPI,
+	})
 	p := planner.NewPlanner(stateClient)
 	
 	// Generate plan
@@ -994,7 +1009,10 @@ api_implementations:
 				Data: []kkComps.Portal{},
 			},
 		}, nil)
-	stateClient := state.NewClientWithAPIs(mockPortalAPI, mockAPIAPI)
+	stateClient := state.NewClient(state.ClientConfig{
+		PortalAPI: mockPortalAPI,
+		APIAPI:    mockAPIAPI,
+	})
 	p := planner.NewPlanner(stateClient)
 	
 	// Generate plan - should only create API, not implementation (SDK limitation)

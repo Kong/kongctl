@@ -17,7 +17,11 @@ func TestGeneratePlan_PortalCustomDomain(t *testing.T) {
 	mockPortalAPI := new(MockPortalAPI)
 	mockAPIAPI := new(MockAPIAPI)
 	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
-	client := state.NewClientWithAllAPIs(mockPortalAPI, mockAPIAPI, mockAppAuthAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI:  mockPortalAPI,
+		APIAPI:     mockAPIAPI,
+		AppAuthAPI: mockAppAuthAPI,
+	})
 	planner := NewPlanner(client)
 
 	// Mock empty responses for existing resources

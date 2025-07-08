@@ -212,7 +212,9 @@ func TestExecutor_createPortal(t *testing.T) {
 			mockAPI := new(MockPortalAPI)
 			tt.setupMock(mockAPI)
 			
-			client := state.NewClient(mockAPI)
+			client := state.NewClient(state.ClientConfig{
+				PortalAPI: mockAPI,
+			})
 			executor := New(client, nil, false)
 			
 			// Execute
@@ -347,7 +349,9 @@ func TestExecutor_updatePortal(t *testing.T) {
 			mockAPI := new(MockPortalAPI)
 			tt.setupMock(mockAPI)
 			
-			client := state.NewClient(mockAPI)
+			client := state.NewClient(state.ClientConfig{
+				PortalAPI: mockAPI,
+			})
 			executor := New(client, nil, false)
 			
 			// Execute
@@ -501,7 +505,9 @@ func TestExecutor_deletePortal(t *testing.T) {
 			mockAPI := new(MockPortalAPI)
 			tt.setupMock(mockAPI)
 			
-			client := state.NewClient(mockAPI)
+			client := state.NewClient(state.ClientConfig{
+				PortalAPI: mockAPI,
+			})
 			executor := New(client, nil, false)
 			
 			// Execute
@@ -555,7 +561,9 @@ func TestExecutor_protectionChangeBetweenPlanAndExecution(t *testing.T) {
 		},
 	}, nil)
 	
-	client := state.NewClient(mockAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI: mockAPI,
+	})
 	executor := New(client, nil, false)
 	
 	// Execute update

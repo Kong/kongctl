@@ -25,6 +25,11 @@ type SDKAPI interface {
 	GetAPIPublicationAPI() APIPublicationAPI
 	GetAPIImplementationAPI() APIImplementationAPI
 	GetAppAuthStrategiesAPI() AppAuthStrategiesAPI
+	// Portal child resource APIs
+	GetPortalPageAPI() PortalPageAPI
+	GetPortalCustomizationAPI() PortalCustomizationAPI
+	GetPortalCustomDomainAPI() PortalCustomDomainAPI
+	GetPortalSnippetAPI() PortalSnippetAPI
 }
 
 // This is the real implementation of the SDKAPI
@@ -102,6 +107,42 @@ func (k *KonnectSDK) GetAppAuthStrategiesAPI() AppAuthStrategiesAPI {
 	}
 
 	return &AppAuthStrategiesAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the PortalPageAPI interface
+func (k *KonnectSDK) GetPortalPageAPI() PortalPageAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &PortalPageAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the PortalCustomizationAPI interface
+func (k *KonnectSDK) GetPortalCustomizationAPI() PortalCustomizationAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &PortalCustomizationAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the PortalCustomDomainAPI interface
+func (k *KonnectSDK) GetPortalCustomDomainAPI() PortalCustomDomainAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &PortalCustomDomainAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the PortalSnippetAPI interface
+func (k *KonnectSDK) GetPortalSnippetAPI() PortalSnippetAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &PortalSnippetAPIImpl{SDK: k.SDK}
 }
 
 // A function that can build an SDKAPI with a given configuration

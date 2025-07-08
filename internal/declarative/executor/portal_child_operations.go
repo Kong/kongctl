@@ -25,7 +25,7 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 			portalID = portalRef.ID
 		} else {
 			// Need to resolve portal reference
-			resolvedID, err := e.resolvePortalRef(ctx, portalRef.Ref)
+			resolvedID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
@@ -132,7 +132,7 @@ func (e *Executor) createPortalCustomDomain(ctx context.Context, change planner.
 			portalID = portalRef.ID
 		} else {
 			// Need to resolve portal reference
-			resolvedID, err := e.resolvePortalRef(ctx, portalRef.Ref)
+			resolvedID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
@@ -186,7 +186,7 @@ func (e *Executor) updatePortalCustomDomain(ctx context.Context, change planner.
 				portalID = portalRef.ID
 			} else {
 				// Need to resolve portal reference
-				resolvedID, err := e.resolvePortalRef(ctx, portalRef.Ref)
+				resolvedID, err := e.resolvePortalRef(ctx, portalRef)
 				if err != nil {
 					return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 				}
@@ -251,7 +251,7 @@ func (e *Executor) createPortalPage(ctx context.Context, change planner.PlannedC
 			portalID = portalRef.ID
 		} else {
 			// Need to resolve portal reference
-			resolvedID, err := e.resolvePortalRef(ctx, portalRef.Ref)
+			resolvedID, err := e.resolvePortalRef(ctx, portalRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 			}
@@ -325,7 +325,7 @@ func (e *Executor) updatePortalPage(ctx context.Context, change planner.PlannedC
 				portalID = portalRef.ID
 			} else {
 				// Need to resolve portal reference
-				resolvedID, err := e.resolvePortalRef(ctx, portalRef.Ref)
+				resolvedID, err := e.resolvePortalRef(ctx, portalRef)
 				if err != nil {
 					return "", fmt.Errorf("failed to resolve portal reference: %w", err)
 				}
@@ -403,7 +403,7 @@ func (e *Executor) deletePortalPage(ctx context.Context, change planner.PlannedC
 				portalID = portalRef.ID
 			} else {
 				// Need to resolve portal reference
-				resolvedID, err := e.resolvePortalRef(ctx, portalRef.Ref)
+				resolvedID, err := e.resolvePortalRef(ctx, portalRef)
 				if err != nil {
 					return fmt.Errorf("failed to resolve portal reference: %w", err)
 				}

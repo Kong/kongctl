@@ -14,6 +14,11 @@ type MockKonnectSDK struct {
 	APIPublicationFactory    func() APIPublicationAPI
 	APIImplementationFactory func() APIImplementationAPI
 	AppAuthStrategiesFactory func() AppAuthStrategiesAPI
+	// Portal child resource factories
+	PortalPageFactory          func() PortalPageAPI
+	PortalCustomizationFactory func() PortalCustomizationAPI
+	PortalCustomDomainFactory  func() PortalCustomDomainAPI
+	PortalSnippetFactory       func() PortalSnippetAPI
 }
 
 // Returns a mock instance of the ControlPlaneAPI
@@ -73,6 +78,38 @@ func (m *MockKonnectSDK) GetAPIImplementationAPI() APIImplementationAPI {
 func (m *MockKonnectSDK) GetAppAuthStrategiesAPI() AppAuthStrategiesAPI {
 	if m.AppAuthStrategiesFactory != nil {
 		return m.AppAuthStrategiesFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the PortalPageAPI
+func (m *MockKonnectSDK) GetPortalPageAPI() PortalPageAPI {
+	if m.PortalPageFactory != nil {
+		return m.PortalPageFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the PortalCustomizationAPI
+func (m *MockKonnectSDK) GetPortalCustomizationAPI() PortalCustomizationAPI {
+	if m.PortalCustomizationFactory != nil {
+		return m.PortalCustomizationFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the PortalCustomDomainAPI
+func (m *MockKonnectSDK) GetPortalCustomDomainAPI() PortalCustomDomainAPI {
+	if m.PortalCustomDomainFactory != nil {
+		return m.PortalCustomDomainFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the PortalSnippetAPI
+func (m *MockKonnectSDK) GetPortalSnippetAPI() PortalSnippetAPI {
+	if m.PortalSnippetFactory != nil {
+		return m.PortalSnippetFactory()
 	}
 	return nil
 }

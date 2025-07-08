@@ -222,7 +222,9 @@ func TestListManagedPortals(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := NewClient(tt.setupMock())
+			client := NewClient(ClientConfig{
+				PortalAPI: tt.setupMock(),
+			})
 			portals, err := client.ListManagedPortals(testContextWithLogger())
 
 			if (err != nil) != tt.wantErr {
@@ -332,7 +334,9 @@ func TestGetPortalByName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := NewClient(tt.setupMock())
+			client := NewClient(ClientConfig{
+				PortalAPI: tt.setupMock(),
+			})
 			portal, err := client.GetPortalByName(testContextWithLogger(), tt.portalName)
 
 			if (err != nil) != tt.wantErr {
@@ -446,7 +450,9 @@ func TestCreatePortal(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := NewClient(tt.setupMock())
+			client := NewClient(ClientConfig{
+				PortalAPI: tt.setupMock(),
+			})
 			resp, err := client.CreatePortal(testContextWithLogger(), tt.portal)
 
 			if (err != nil) != tt.wantErr {
@@ -568,7 +574,9 @@ func TestUpdatePortal(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := NewClient(tt.setupMock())
+			client := NewClient(ClientConfig{
+				PortalAPI: tt.setupMock(),
+			})
 			resp, err := client.UpdatePortal(testContextWithLogger(), tt.portalID, tt.portal)
 
 			if (err != nil) != tt.wantErr {

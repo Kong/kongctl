@@ -39,7 +39,11 @@ func TestGeneratePlan_CreatePortal(t *testing.T) {
 	mockPortalAPI := new(MockPortalAPI)
 	mockAPIAPI := new(MockAPIAPI)
 	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
-	client := state.NewClientWithAllAPIs(mockPortalAPI, mockAPIAPI, mockAppAuthAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI:  mockPortalAPI,
+		APIAPI:     mockAPIAPI,
+		AppAuthAPI: mockAppAuthAPI,
+	})
 	planner := NewPlanner(client)
 
 	// Mock empty portals list (no existing portals)
@@ -118,7 +122,11 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 	mockPortalAPI := new(MockPortalAPI)
 	mockAPIAPI := new(MockAPIAPI)
 	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
-	client := state.NewClientWithAllAPIs(mockPortalAPI, mockAPIAPI, mockAppAuthAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI:  mockPortalAPI,
+		APIAPI:     mockAPIAPI,
+		AppAuthAPI: mockAppAuthAPI,
+	})
 	planner := NewPlanner(client)
 
 	// Mock existing portal with different description
@@ -205,7 +213,11 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 	mockPortalAPI := new(MockPortalAPI)
 	mockAPIAPI := new(MockAPIAPI)
 	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
-	client := state.NewClientWithAllAPIs(mockPortalAPI, mockAPIAPI, mockAppAuthAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI:  mockPortalAPI,
+		APIAPI:     mockAPIAPI,
+		AppAuthAPI: mockAppAuthAPI,
+	})
 	planner := NewPlanner(client)
 
 	// Mock existing protected portal
@@ -295,7 +307,11 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 	mockPortalAPI := new(MockPortalAPI)
 	mockPortalAPIAPI := new(MockAPIAPI)
 	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
-	client := state.NewClientWithAllAPIs(mockPortalAPI, mockPortalAPIAPI, mockAppAuthAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI:  mockPortalAPI,
+		APIAPI:     mockPortalAPIAPI,
+		AppAuthAPI: mockAppAuthAPI,
+	})
 	planner := NewPlanner(client)
 
 	// Mock empty portals list
@@ -406,7 +422,11 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 	mockPortalAPI := new(MockPortalAPI)
 	mockAPIAPI := new(MockAPIAPI)
 	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
-	client := state.NewClientWithAllAPIs(mockPortalAPI, mockAPIAPI, mockAppAuthAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI:  mockPortalAPI,
+		APIAPI:     mockAPIAPI,
+		AppAuthAPI: mockAppAuthAPI,
+	})
 	planner := NewPlanner(client)
 
 	// Mock existing portal with same hash
@@ -498,7 +518,11 @@ func TestGeneratePlan_ApplyModeNoDeletes(t *testing.T) {
 	mockPortalAPI := new(MockPortalAPI)
 	mockAPIAPI := new(MockAPIAPI)
 	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
-	client := state.NewClientWithAllAPIs(mockPortalAPI, mockAPIAPI, mockAppAuthAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI:  mockPortalAPI,
+		APIAPI:     mockAPIAPI,
+		AppAuthAPI: mockAppAuthAPI,
+	})
 	planner := NewPlanner(client)
 
 	// Mock existing managed portals
@@ -561,7 +585,11 @@ func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
 	mockPortalAPI := new(MockPortalAPI)
 	mockPortalAPIAPI := new(MockAPIAPI)
 	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
-	client := state.NewClientWithAllAPIs(mockPortalAPI, mockPortalAPIAPI, mockAppAuthAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI:  mockPortalAPI,
+		APIAPI:     mockPortalAPIAPI,
+		AppAuthAPI: mockAppAuthAPI,
+	})
 	planner := NewPlanner(client)
 
 	// Mock existing managed portals
@@ -626,7 +654,11 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 	mockPortalAPI := new(MockPortalAPI)
 	mockPortalAPIAPI := new(MockAPIAPI)
 	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
-	client := state.NewClientWithAllAPIs(mockPortalAPI, mockPortalAPIAPI, mockAppAuthAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI:  mockPortalAPI,
+		APIAPI:     mockPortalAPIAPI,
+		AppAuthAPI: mockAppAuthAPI,
+	})
 	planner := NewPlanner(client)
 
 	// Mock existing protected portal
@@ -703,7 +735,11 @@ func TestGeneratePlan_ProtectedResourceFailsDelete(t *testing.T) {
 	mockPortalAPI := new(MockPortalAPI)
 	mockPortalAPIAPI := new(MockAPIAPI)
 	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
-	client := state.NewClientWithAllAPIs(mockPortalAPI, mockPortalAPIAPI, mockAppAuthAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI:  mockPortalAPI,
+		APIAPI:     mockPortalAPIAPI,
+		AppAuthAPI: mockAppAuthAPI,
+	})
 	planner := NewPlanner(client)
 
 	// Mock existing protected portal
@@ -764,7 +800,11 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 	mockPortalAPI := new(MockPortalAPI)
 	mockAPIAPI := new(MockAPIAPI)
 	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
-	client := state.NewClientWithAllAPIs(mockPortalAPI, mockAPIAPI, mockAppAuthAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI:  mockPortalAPI,
+		APIAPI:     mockAPIAPI,
+		AppAuthAPI: mockAppAuthAPI,
+	})
 	planner := NewPlanner(client)
 
 	// Mock existing protected portal

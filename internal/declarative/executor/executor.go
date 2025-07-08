@@ -355,21 +355,29 @@ func (e *Executor) resolveAuthStrategyRef(ctx context.Context, ref string) (stri
 }
 
 // resolvePortalRef resolves a portal reference to its ID
-func (e *Executor) resolvePortalRef(ctx context.Context, ref string) (string, error) {
+func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
 	// First check if it was created in this execution
 	if portals, ok := e.refToID["portal"]; ok {
-		if id, found := portals[ref]; found {
+		if id, found := portals[refInfo.Ref]; found {
 			return id, nil
 		}
 	}
 	
+	// Determine the lookup value - use name from lookup fields if available
+	lookupValue := refInfo.Ref
+	if refInfo.LookupFields != nil {
+		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
+			lookupValue = name
+		}
+	}
+	
 	// Otherwise, look it up from the API
-	portal, err := e.client.GetPortalByName(ctx, ref)
+	portal, err := e.client.GetPortalByName(ctx, lookupValue)
 	if err != nil {
 		return "", fmt.Errorf("failed to get portal by name: %w", err)
 	}
 	if portal == nil {
-		return "", fmt.Errorf("portal not found: %s", ref)
+		return "", fmt.Errorf("portal not found: ref=%s, looked up by name=%s", refInfo.Ref, lookupValue)
 	}
 	
 	return portal.ID, nil

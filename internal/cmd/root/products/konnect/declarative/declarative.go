@@ -15,6 +15,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/loader"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
 )
@@ -142,10 +143,7 @@ func runPlan(command *cobra.Command, args []string) error {
 	}
 
 	// Create planner
-	portalAPI := kkClient.GetPortalAPI()
-	apiAPI := kkClient.GetAPIAPI()
-	appAuthAPI := kkClient.GetAppAuthStrategiesAPI()
-	stateClient := state.NewClientWithAllAPIs(portalAPI, apiAPI, appAuthAPI)
+	stateClient := createStateClient(kkClient)
 	p := planner.NewPlanner(stateClient)
 
 	// Generate plan
@@ -252,10 +250,7 @@ func runDiff(command *cobra.Command, args []string) error {
 		}
 
 		// Create planner
-		portalAPI := kkClient.GetPortalAPI()
-		apiAPI := kkClient.GetAPIAPI()
-		appAuthAPI := kkClient.GetAppAuthStrategiesAPI()
-		stateClient := state.NewClientWithAllAPIs(portalAPI, apiAPI, appAuthAPI)
+		stateClient := createStateClient(kkClient)
 		p := planner.NewPlanner(stateClient)
 
 		// Generate plan (default to sync mode for diff)
@@ -672,10 +667,7 @@ func runApply(command *cobra.Command, args []string) error {
 		}
 
 		// Create planner
-		portalAPI := kkClient.GetPortalAPI()
-		apiAPI := kkClient.GetAPIAPI()
-		appAuthAPI := kkClient.GetAppAuthStrategiesAPI()
-		stateClient := state.NewClientWithAllAPIs(portalAPI, apiAPI, appAuthAPI)
+		stateClient := createStateClient(kkClient)
 		p := planner.NewPlanner(stateClient)
 
 		// Generate plan in apply mode
@@ -746,10 +738,7 @@ func runApply(command *cobra.Command, args []string) error {
 	}
 
 	// Create executor
-	portalAPI := kkClient.GetPortalAPI()
-	apiAPI := kkClient.GetAPIAPI()
-	appAuthAPI := kkClient.GetAppAuthStrategiesAPI()
-	stateClient := state.NewClientWithAllAPIs(portalAPI, apiAPI, appAuthAPI)
+	stateClient := createStateClient(kkClient)
 
 	var reporter executor.ProgressReporter
 	if outputFormat == "text" {
@@ -949,5 +938,27 @@ delete resources.`,
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
 
 	return cmd
+}
+
+// createStateClient creates a new state client with all necessary APIs
+func createStateClient(kkClient helpers.SDKAPI) *state.Client {
+	return state.NewClient(state.ClientConfig{
+		// Core APIs
+		PortalAPI:  kkClient.GetPortalAPI(),
+		APIAPI:     kkClient.GetAPIAPI(),
+		AppAuthAPI: kkClient.GetAppAuthStrategiesAPI(),
+		
+		// Portal child resource APIs
+		PortalPageAPI:          kkClient.GetPortalPageAPI(),
+		PortalCustomizationAPI: kkClient.GetPortalCustomizationAPI(),
+		PortalCustomDomainAPI:  kkClient.GetPortalCustomDomainAPI(),
+		PortalSnippetAPI:       kkClient.GetPortalSnippetAPI(),
+		
+		// API child resource APIs
+		APIVersionAPI:        kkClient.GetAPIVersionAPI(),
+		APIPublicationAPI:    kkClient.GetAPIPublicationAPI(),
+		APIImplementationAPI: kkClient.GetAPIImplementationAPI(),
+		APIDocumentAPI:       kkClient.GetAPIDocumentAPI(),
+	})
 }
 

@@ -368,7 +368,9 @@ func (m *MockAppAuthStrategiesAPI) DeleteAppAuthStrategy(
 func TestResolveReferences_PortalReference(t *testing.T) {
 	ctx := context.Background()
 	mockAPI := new(MockPortalAPI)
-	client := state.NewClient(mockAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI: mockAPI,
+	})
 	resolver := NewReferenceResolver(client)
 
 	// No mock needed - the auth strategy is being created in the same plan
@@ -432,7 +434,9 @@ func TestResolveReferences_PortalReference(t *testing.T) {
 func TestResolveReferences_ExistingPortal(t *testing.T) {
 	ctx := context.Background()
 	mockAPI := new(MockPortalAPI)
-	client := state.NewClient(mockAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI: mockAPI,
+	})
 	resolver := NewReferenceResolver(client)
 
 	// Mock the ListPortals call
@@ -502,7 +506,9 @@ func TestResolveReferences_ExistingPortal(t *testing.T) {
 func TestResolveReferences_MissingPortal(t *testing.T) {
 	ctx := context.Background()
 	mockAPI := new(MockPortalAPI)
-	client := state.NewClient(mockAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI: mockAPI,
+	})
 	resolver := NewReferenceResolver(client)
 
 	// Mock empty ListPortals response
@@ -550,7 +556,9 @@ func TestResolveReferences_MissingPortal(t *testing.T) {
 func TestResolveReferences_UUIDSkipped(t *testing.T) {
 	ctx := context.Background()
 	mockAPI := new(MockPortalAPI)
-	client := state.NewClient(mockAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI: mockAPI,
+	})
 	resolver := NewReferenceResolver(client)
 
 	changes := []PlannedChange{
@@ -587,7 +595,9 @@ func TestResolveReferences_UUIDSkipped(t *testing.T) {
 func TestResolveReferences_FieldChange(t *testing.T) {
 	ctx := context.Background()
 	mockAPI := new(MockPortalAPI)
-	client := state.NewClient(mockAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI: mockAPI,
+	})
 	resolver := NewReferenceResolver(client)
 
 	// Mock the ListPortals call
@@ -656,7 +666,9 @@ func TestResolveReferences_FieldChange(t *testing.T) {
 func TestResolveReferences_UnimplementedTypes(t *testing.T) {
 	ctx := context.Background()
 	mockAPI := new(MockPortalAPI)
-	client := state.NewClient(mockAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI: mockAPI,
+	})
 	resolver := NewReferenceResolver(client)
 
 	changes := []PlannedChange{
@@ -731,7 +743,9 @@ func TestIsUUID(t *testing.T) {
 func TestResolveReferences_NetworkError(t *testing.T) {
 	ctx := context.Background()
 	mockAPI := new(MockPortalAPI)
-	client := state.NewClient(mockAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI: mockAPI,
+	})
 	resolver := NewReferenceResolver(client)
 
 	// Mock network error
