@@ -88,9 +88,21 @@ func (p *Planner) planPortalCustomizationUpdate(
 
 	// Store parent portal reference
 	if customization.Portal != "" {
+		// Find the portal in desiredPortals to get its name
+		var portalName string
+		for _, portal := range p.desiredPortals {
+			if portal.Ref == customization.Portal {
+				portalName = portal.Name
+				break
+			}
+		}
+		
 		change.References = map[string]ReferenceInfo{
 			"portal_id": {
 				Ref: customization.Portal,
+				LookupFields: map[string]string{
+					"name": portalName,
+				},
 			},
 		}
 	}
@@ -156,9 +168,21 @@ func (p *Planner) planPortalCustomDomainCreate(
 
 	// Store parent portal reference
 	if domain.Portal != "" {
+		// Find the portal in desiredPortals to get its name
+		var portalName string
+		for _, portal := range p.desiredPortals {
+			if portal.Ref == domain.Portal {
+				portalName = portal.Name
+				break
+			}
+		}
+		
 		change.References = map[string]ReferenceInfo{
 			"portal_id": {
 				Ref: domain.Portal,
+				LookupFields: map[string]string{
+					"name": portalName,
+				},
 			},
 		}
 	}
@@ -552,9 +576,21 @@ func (p *Planner) planPortalSnippetCreate(
 
 	// Store parent portal reference
 	if snippet.Portal != "" {
+		// Find the portal in desiredPortals to get its name
+		var portalName string
+		for _, portal := range p.desiredPortals {
+			if portal.Ref == snippet.Portal {
+				portalName = portal.Name
+				break
+			}
+		}
+		
 		change.References = map[string]ReferenceInfo{
 			"portal_id": {
 				Ref: snippet.Portal,
+				LookupFields: map[string]string{
+					"name": portalName,
+				},
 			},
 		}
 	}
