@@ -19,7 +19,7 @@ const (
 type SDKAPI interface {
 	GetControlPlaneAPI() ControlPlaneAPI
 	GetPortalAPI() PortalAPI
-	GetAPIAPI() APIAPI
+	GetAPIAPI() APIFullAPI // TODO: Change to APIAPI once refactoring is complete
 	GetAPIDocumentAPI() APIDocumentAPI
 	GetAPIVersionAPI() APIVersionAPI
 	GetAPIPublicationAPI() APIPublicationAPI
@@ -31,7 +31,7 @@ type SDKAPI interface {
 // which wraps the actual SDK implmentation
 type KonnectSDK struct {
 	SDK          *kkSDK.SDK
-	publicPortal *PublicPortalAPI
+	portalImpl *PortalAPIImpl
 }
 
 // Returns the real implementation of the GetControlPlaneAPI
@@ -41,74 +41,67 @@ func (k *KonnectSDK) GetControlPlaneAPI() ControlPlaneAPI {
 }
 
 // Returns the implementation of the PortalAPI interface
-// for accessing the Developer Portal APIs using the public SDK
 func (k *KonnectSDK) GetPortalAPI() PortalAPI {
-	if k.publicPortal == nil && k.SDK != nil {
-		k.publicPortal = &PublicPortalAPI{
+	if k.portalImpl == nil && k.SDK != nil {
+		k.portalImpl = &PortalAPIImpl{
 			SDK: k.SDK,
 		}
 	}
-	return k.publicPortal
+	return k.portalImpl
 }
 
 // Returns the implementation of the APIAPI interface
-// for accessing the API APIs using the public SDK
-func (k *KonnectSDK) GetAPIAPI() APIAPI {
+func (k *KonnectSDK) GetAPIAPI() APIFullAPI {
 	if k.SDK == nil {
 		return nil
 	}
 
-	return &PublicAPIAPI{SDK: k.SDK}
+	return &APIAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the APIDocumentAPI interface
-// for accessing the API Document APIs using the public SDK
 func (k *KonnectSDK) GetAPIDocumentAPI() APIDocumentAPI {
 	if k.SDK == nil {
 		return nil
 	}
 
-	return &PublicAPIDocumentAPI{SDK: k.SDK}
+	return &APIDocumentAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the APIVersionAPI interface
-// for accessing the API Version APIs using the public SDK
 func (k *KonnectSDK) GetAPIVersionAPI() APIVersionAPI {
 	if k.SDK == nil {
 		return nil
 	}
 
-	return &PublicAPIVersionAPI{SDK: k.SDK}
+	return &APIVersionAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the APIPublicationAPI interface
-// for accessing the API Publication APIs using the public SDK
 func (k *KonnectSDK) GetAPIPublicationAPI() APIPublicationAPI {
 	if k.SDK == nil {
 		return nil
 	}
 
-	return &PublicAPIPublicationAPI{SDK: k.SDK}
+	return &APIPublicationAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the APIImplementationAPI interface
-// for accessing the API Implementation APIs using the public SDK
 func (k *KonnectSDK) GetAPIImplementationAPI() APIImplementationAPI {
 	if k.SDK == nil {
 		return nil
 	}
 
-	return &PublicAPIImplementationAPI{SDK: k.SDK}
+	return &APIImplementationAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the AppAuthStrategiesAPI interface
-// for accessing the App Auth Strategies APIs using the public SDK
 func (k *KonnectSDK) GetAppAuthStrategiesAPI() AppAuthStrategiesAPI {
 	if k.SDK == nil {
 		return nil
 	}
 
-	return &PublicAppAuthStrategiesAPI{SDK: k.SDK}
+	return &AppAuthStrategiesAPIImpl{SDK: k.SDK}
 }
 
 // A function that can build an SDKAPI with a given configuration

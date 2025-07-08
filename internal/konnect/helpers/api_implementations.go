@@ -16,13 +16,13 @@ type APIImplementationAPI interface {
 		opts ...kkOps.Option) (*kkOps.ListAPIImplementationsResponse, error)
 }
 
-// PublicAPIImplementationAPI provides an implementation of the APIImplementationAPI interface using the public SDK
-type PublicAPIImplementationAPI struct {
+// APIImplementationAPIImpl provides an implementation of the APIImplementationAPI interface
+type APIImplementationAPIImpl struct {
 	SDK *kkSDK.SDK
 }
 
 // ListAPIImplementations implements the APIImplementationAPI interface
-func (a *PublicAPIImplementationAPI) ListAPIImplementations(ctx context.Context,
+func (a *APIImplementationAPIImpl) ListAPIImplementations(ctx context.Context,
 	request kkOps.ListAPIImplementationsRequest,
 	opts ...kkOps.Option,
 ) (*kkOps.ListAPIImplementationsResponse, error) {

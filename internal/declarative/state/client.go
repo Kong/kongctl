@@ -9,6 +9,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/konnect/helpers"
+	kkSDK "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 )
@@ -16,8 +17,9 @@ import (
 // Client wraps Konnect SDK for state management
 type Client struct {
 	portalAPI       helpers.PortalAPI
-	apiAPI          helpers.APIAPI
+	apiAPI          helpers.APIFullAPI // TODO: Refactor to use separate interfaces for child resources
 	appAuthAPI      helpers.AppAuthStrategiesAPI
+	sdk             *kkSDK.SDK // Direct SDK access for portal child resources
 }
 
 // NewClient creates a new state client
@@ -28,7 +30,7 @@ func NewClient(portalAPI helpers.PortalAPI) *Client {
 }
 
 // NewClientWithAPIs creates a new state client with API support
-func NewClientWithAPIs(portalAPI helpers.PortalAPI, apiAPI helpers.APIAPI) *Client {
+func NewClientWithAPIs(portalAPI helpers.PortalAPI, apiAPI helpers.APIFullAPI) *Client {
 	return &Client{
 		portalAPI: portalAPI,
 		apiAPI:    apiAPI,
@@ -38,7 +40,7 @@ func NewClientWithAPIs(portalAPI helpers.PortalAPI, apiAPI helpers.APIAPI) *Clie
 // NewClientWithAllAPIs creates a new state client with all API support
 func NewClientWithAllAPIs(
 	portalAPI helpers.PortalAPI, 
-	apiAPI helpers.APIAPI, 
+	apiAPI helpers.APIFullAPI, 
 	appAuthAPI helpers.AppAuthStrategiesAPI,
 ) *Client {
 	return &Client{
@@ -46,6 +48,11 @@ func NewClientWithAllAPIs(
 		apiAPI:     apiAPI,
 		appAuthAPI: appAuthAPI,
 	}
+}
+
+// SetSDK sets the SDK instance for portal child resources
+func (c *Client) SetSDK(sdk *kkSDK.SDK) {
+	c.sdk = sdk
 }
 
 // Portal represents a normalized portal for internal use
@@ -1112,6 +1119,131 @@ func (c *Client) DeleteApplicationAuthStrategy(ctx context.Context, id string) e
 	_, err := c.appAuthAPI.DeleteAppAuthStrategy(ctx, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete application auth strategy: %w", err)
+	}
+	return nil
+}
+
+// Portal Child Resource Methods
+
+// UpdatePortalCustomization updates portal customization settings
+func (c *Client) UpdatePortalCustomization(
+	ctx context.Context,
+	portalID string,
+	customization kkComps.PortalCustomization,
+) error {
+	if c.sdk == nil {
+		return fmt.Errorf("SDK not configured for portal child resources")
+	}
+
+	_, err := c.sdk.PortalCustomization.UpdatePortalCustomization(ctx, portalID, &customization)
+	if err != nil {
+		return fmt.Errorf("failed to update portal customization: %w", err)
+	}
+	return nil
+}
+
+// CreatePortalCustomDomain creates a custom domain for a portal
+func (c *Client) CreatePortalCustomDomain(
+	ctx context.Context,
+	portalID string,
+	req kkComps.CreatePortalCustomDomainRequest,
+) error {
+	if c.sdk == nil {
+		return fmt.Errorf("SDK not configured for portal child resources")
+	}
+
+	_, err := c.sdk.PortalCustomDomains.CreatePortalCustomDomain(ctx, portalID, req)
+	if err != nil {
+		return fmt.Errorf("failed to create portal custom domain: %w", err)
+	}
+	return nil
+}
+
+// UpdatePortalCustomDomain updates a portal custom domain
+func (c *Client) UpdatePortalCustomDomain(
+	ctx context.Context,
+	portalID string,
+	req kkComps.UpdatePortalCustomDomainRequest,
+) error {
+	if c.sdk == nil {
+		return fmt.Errorf("SDK not configured for portal child resources")
+	}
+
+	_, err := c.sdk.PortalCustomDomains.UpdatePortalCustomDomain(ctx, portalID, req)
+	if err != nil {
+		return fmt.Errorf("failed to update portal custom domain: %w", err)
+	}
+	return nil
+}
+
+// DeletePortalCustomDomain deletes a portal custom domain
+func (c *Client) DeletePortalCustomDomain(ctx context.Context, portalID string) error {
+	if c.sdk == nil {
+		return fmt.Errorf("SDK not configured for portal child resources")
+	}
+
+	_, err := c.sdk.PortalCustomDomains.DeletePortalCustomDomain(ctx, portalID)
+	if err != nil {
+		return fmt.Errorf("failed to delete portal custom domain: %w", err)
+	}
+	return nil
+}
+
+// CreatePortalPage creates a new page in a portal
+func (c *Client) CreatePortalPage(
+	ctx context.Context,
+	portalID string,
+	req kkComps.CreatePortalPageRequest,
+) (string, error) {
+	if c.sdk == nil {
+		return "", fmt.Errorf("SDK not configured for portal child resources")
+	}
+
+	resp, err := c.sdk.Pages.CreatePortalPage(ctx, portalID, req)
+	if err != nil {
+		return "", fmt.Errorf("failed to create portal page: %w", err)
+	}
+	
+	if resp.PortalPageResponse == nil {
+		return "", fmt.Errorf("no response data from create portal page")
+	}
+	
+	return resp.PortalPageResponse.ID, nil
+}
+
+// UpdatePortalPage updates an existing page in a portal
+func (c *Client) UpdatePortalPage(
+	ctx context.Context,
+	portalID string,
+	pageID string,
+	req kkComps.UpdatePortalPageRequest,
+) error {
+	if c.sdk == nil {
+		return fmt.Errorf("SDK not configured for portal child resources")
+	}
+
+	updateReq := kkOps.UpdatePortalPageRequest{
+		PortalID:                portalID,
+		PageID:                  pageID,
+		UpdatePortalPageRequest: req,
+	}
+	
+	_, err := c.sdk.Pages.UpdatePortalPage(ctx, updateReq)
+	if err != nil {
+		return fmt.Errorf("failed to update portal page: %w", err)
+	}
+	return nil
+}
+
+// DeletePortalPage deletes a page from a portal
+func (c *Client) DeletePortalPage(ctx context.Context, portalID string, pageID string) error {
+	if c.sdk == nil {
+		return fmt.Errorf("SDK not configured for portal child resources")
+	}
+
+	_, err := c.sdk.Pages.DeletePortalPage(ctx, portalID, pageID)
+	if err != nil {
+		return fmt.Errorf("failed to delete portal page: %w", err)
 	}
 	return nil
 }

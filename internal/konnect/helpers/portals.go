@@ -20,13 +20,13 @@ type PortalAPI interface {
 	DeletePortal(ctx context.Context, id string, force bool) (*kkOps.DeletePortalResponse, error)
 }
 
-// PublicPortalAPI provides an implementation of the PortalAPI interface using the public SDK
-type PublicPortalAPI struct {
+// PortalAPIImpl provides an implementation of the PortalAPI interface
+type PortalAPIImpl struct {
 	SDK *kkSDK.SDK
 }
 
 // ListPortals implements the PortalAPI interface
-func (p *PublicPortalAPI) ListPortals(
+func (p *PortalAPIImpl) ListPortals(
 	ctx context.Context,
 	request kkOps.ListPortalsRequest,
 ) (*kkOps.ListPortalsResponse, error) {
@@ -34,12 +34,12 @@ func (p *PublicPortalAPI) ListPortals(
 }
 
 // GetPortal implements the PortalAPI interface
-func (p *PublicPortalAPI) GetPortal(ctx context.Context, id string) (*kkOps.GetPortalResponse, error) {
+func (p *PortalAPIImpl) GetPortal(ctx context.Context, id string) (*kkOps.GetPortalResponse, error) {
 	return p.SDK.Portals.GetPortal(ctx, id)
 }
 
 // CreatePortal implements the PortalAPI interface
-func (p *PublicPortalAPI) CreatePortal(
+func (p *PortalAPIImpl) CreatePortal(
 	ctx context.Context,
 	portal kkComps.CreatePortal,
 ) (*kkOps.CreatePortalResponse, error) {
@@ -47,7 +47,7 @@ func (p *PublicPortalAPI) CreatePortal(
 }
 
 // UpdatePortal implements the PortalAPI interface
-func (p *PublicPortalAPI) UpdatePortal(
+func (p *PortalAPIImpl) UpdatePortal(
 	ctx context.Context,
 	id string,
 	portal kkComps.UpdatePortal,
@@ -56,7 +56,7 @@ func (p *PublicPortalAPI) UpdatePortal(
 }
 
 // DeletePortal implements the PortalAPI interface
-func (p *PublicPortalAPI) DeletePortal(
+func (p *PortalAPIImpl) DeletePortal(
 	ctx context.Context,
 	id string,
 	force bool,
@@ -120,7 +120,7 @@ func Int64(v int64) *int64 {
 // as Terraform import blocks.
 func GetPagesForPortal(ctx context.Context, portalAPI PortalAPI, portalID string) ([]PageInfo, error) {
 	// Cast the portalAPI to PublicPortalAPI to access the SDK
-	publicAPI, ok := portalAPI.(*PublicPortalAPI)
+	publicAPI, ok := portalAPI.(*PortalAPIImpl)
 	if !ok || publicAPI == nil || publicAPI.SDK == nil {
 		return nil, fmt.Errorf("invalid portal API implementation")
 	}
@@ -165,7 +165,7 @@ func GetPagesForPortal(ctx context.Context, portalAPI PortalAPI, portalID string
 // GetSnippetsForPortal returns a list of snippets for a portal with pagination
 func GetSnippetsForPortal(ctx context.Context, portalAPI PortalAPI, portalID string) ([]SnippetInfo, error) {
 	// Cast the portalAPI to PublicPortalAPI to access the SDK
-	publicAPI, ok := portalAPI.(*PublicPortalAPI)
+	publicAPI, ok := portalAPI.(*PortalAPIImpl)
 	if !ok || publicAPI == nil || publicAPI.SDK == nil {
 		return nil, fmt.Errorf("invalid portal API implementation")
 	}
@@ -219,7 +219,7 @@ func HasPortalSettings(_ context.Context, _ PortalAPI, _ string) bool {
 // HasPortalAuthSettings checks if a portal has auth settings configured
 func HasPortalAuthSettings(ctx context.Context, portalAPI PortalAPI, portalID string) bool {
 	// Cast the portalAPI to PublicPortalAPI to access the SDK
-	publicAPI, ok := portalAPI.(*PublicPortalAPI)
+	publicAPI, ok := portalAPI.(*PortalAPIImpl)
 	if !ok || publicAPI == nil || publicAPI.SDK == nil {
 		return false
 	}
@@ -245,7 +245,7 @@ func HasPortalAuthSettings(ctx context.Context, portalAPI PortalAPI, portalID st
 // HasPortalCustomization checks if a portal has customization settings configured
 func HasPortalCustomization(ctx context.Context, portalAPI PortalAPI, portalID string) bool {
 	// Cast the portalAPI to PublicPortalAPI to access the SDK
-	publicAPI, ok := portalAPI.(*PublicPortalAPI)
+	publicAPI, ok := portalAPI.(*PortalAPIImpl)
 	if !ok || publicAPI == nil || publicAPI.SDK == nil {
 		return false
 	}
@@ -271,7 +271,7 @@ func HasPortalCustomization(ctx context.Context, portalAPI PortalAPI, portalID s
 // HasCustomDomainForPortal checks if a portal has a custom domain configured
 func HasCustomDomainForPortal(ctx context.Context, portalAPI PortalAPI, portalID string) bool {
 	// Cast the portalAPI to PublicPortalAPI to access the SDK
-	publicAPI, ok := portalAPI.(*PublicPortalAPI)
+	publicAPI, ok := portalAPI.(*PortalAPIImpl)
 	if !ok || publicAPI == nil || publicAPI.SDK == nil {
 		return false
 	}

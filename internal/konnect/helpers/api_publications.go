@@ -12,17 +12,49 @@ import (
 // APIPublicationAPI defines the interface for operations on API Publications
 type APIPublicationAPI interface {
 	// API Publication operations
+	PublishAPIToPortal(ctx context.Context, request kkOps.PublishAPIToPortalRequest,
+		opts ...kkOps.Option) (*kkOps.PublishAPIToPortalResponse, error)
+	DeletePublication(ctx context.Context, apiID string, portalID string,
+		opts ...kkOps.Option) (*kkOps.DeletePublicationResponse, error)
 	ListAPIPublications(ctx context.Context, request kkOps.ListAPIPublicationsRequest,
 		opts ...kkOps.Option) (*kkOps.ListAPIPublicationsResponse, error)
 }
 
-// PublicAPIPublicationAPI provides an implementation of the APIPublicationAPI interface using the public SDK
-type PublicAPIPublicationAPI struct {
+// APIPublicationAPIImpl provides an implementation of the APIPublicationAPI interface
+type APIPublicationAPIImpl struct {
 	SDK *kkSDK.SDK
 }
 
+// PublishAPIToPortal implements the APIPublicationAPI interface
+func (a *APIPublicationAPIImpl) PublishAPIToPortal(ctx context.Context, request kkOps.PublishAPIToPortalRequest,
+	opts ...kkOps.Option,
+) (*kkOps.PublishAPIToPortalResponse, error) {
+	if a.SDK == nil {
+		return nil, fmt.Errorf("SDK is nil")
+	}
+
+	if a.SDK.APIPublication == nil {
+		return nil, fmt.Errorf("SDK.APIPublication is nil")
+	}
+	return a.SDK.APIPublication.PublishAPIToPortal(ctx, request, opts...)
+}
+
+// DeletePublication implements the APIPublicationAPI interface
+func (a *APIPublicationAPIImpl) DeletePublication(ctx context.Context, apiID string, portalID string,
+	opts ...kkOps.Option,
+) (*kkOps.DeletePublicationResponse, error) {
+	if a.SDK == nil {
+		return nil, fmt.Errorf("SDK is nil")
+	}
+
+	if a.SDK.APIPublication == nil {
+		return nil, fmt.Errorf("SDK.APIPublication is nil")
+	}
+	return a.SDK.APIPublication.DeletePublication(ctx, apiID, portalID, opts...)
+}
+
 // ListAPIPublications implements the APIPublicationAPI interface
-func (a *PublicAPIPublicationAPI) ListAPIPublications(ctx context.Context,
+func (a *APIPublicationAPIImpl) ListAPIPublications(ctx context.Context,
 	request kkOps.ListAPIPublicationsRequest,
 	opts ...kkOps.Option,
 ) (*kkOps.ListAPIPublicationsResponse, error) {
