@@ -213,7 +213,8 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 	switch change.Action {
 	case planner.ActionUpdate, planner.ActionDelete:
 		// For update/delete, verify resource still exists and check protection
-		if change.ResourceID == "" {
+		// Special case: portal_customization is a singleton resource without its own ID
+		if change.ResourceID == "" && change.ResourceType != "portal_customization" {
 			return fmt.Errorf("resource ID required for %s operation", change.Action)
 		}
 		

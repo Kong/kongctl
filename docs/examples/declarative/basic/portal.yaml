@@ -4,7 +4,7 @@
 portals:
   - ref: developer-portal
     name: "Developer Portal"
-    description: "Developer portal for API documentation"
+    description: "THE Developer portal for API documentation"
     authentication_enabled: false
     rbac_enabled: false
     default_api_visibility: public
@@ -32,7 +32,7 @@ portals:
             content: |
               # Getting Started
               
-              HELLOOO! This guide will help you get started with our APIs in just a few minutes.
+              This guide will help you get started with our APIs in just a few minutes.
               
               ## Quick Start
               1. Register for an account
@@ -41,70 +41,84 @@ portals:
               4. Start making requests
             visibility: "public"
             status: "published"
-         
-    #      - ref: api-reference
-    #        slug: "api-reference"
-    #        title: "API Reference"
-    #        description: "Complete API endpoint documentation"
-    #        content: |
-    #          # API Reference
-    #          
-    #          Detailed documentation for all available API endpoints.
-    #        visibility: "public"
-    #        status: "published"
-    #        children:
-    #          - ref: authentication-guide
-    #            slug: "authentication"
-    #            title: "Authentication Guide"
-    #            description: "Learn how to authenticate API requests"
-    #            content: |
-    #              # Authentication
-    #              
-    #              Our APIs use OAuth 2.0 for secure authentication.
-    #              
-    #              ## Getting Started with OAuth
-    #              1. Register your application
-    #              2. Obtain client credentials
-    #              3. Request access tokens
-    #              4. Include tokens in API requests
-    #            visibility: "public"
-    #            status: "published"
-    #  
-    #  - ref: terms-of-service
-    #    slug: "terms"
-    #    title: "Terms of Service"
-    #    description: "Legal terms and conditions for API usage"
-    #    content: |
-    #      # Terms of Service
-    #      
-    #      By using our APIs, you agree to these terms...
-    #    visibility: "public"
-    #    status: "published"
+            children:
+              - ref: quick-start
+                slug: "quick-start"
+                title: "Quick Start Guide"
+                description: "A brief introduction to using our APIs"
+                content: |
+                  # Quick Start Guide
+                  
+                  Follow these steps to quickly integrate with our APIs:
+                  
+                  1. Sign up for an account
+                  2. Create your first application
+                  3. Obtain API keys
+                  4. Make your first API call
+                visibility: "public"
+                status: "published"
+          - ref: api-reference
+            slug: "api-reference"
+            title: "API Reference"
+            description: "Complete API endpoint documentation"
+            content: |
+              # API Reference
+              
+              Detailed documentation for all available API endpoints.
+            visibility: "public"
+            status: "published"
+            children:
+              - ref: authentication-guide
+                slug: "authentication"
+                title: "Authentication Guide"
+                description: "Learn how to authenticate API requests"
+                content: |
+                  # Authentication
+                  
+                  Our APIs use OAuth 2.0 for secure authentication.
+                  
+                  ## Getting Started with OAuth
+                  1. Register your application
+                  2. Obtain client credentials
+                  3. Request access tokens
+                  4. Include tokens in API requests
+                visibility: "public"
+                status: "published"
+      - ref: terms-of-service
+        slug: "terms"
+        title: "Terms of Service"
+        description: "Legal terms and conditions for API usage"
+        content: |
+          # Terms of Service
+          
+          By using our APIs, you agree to these terms...
+        visibility: "public"
+        status: "published"
     
     # Portal customization - separate API resource
-    #customization:
-    #  ref: portal-customization
-    #  theme:
-    #    name: "custom-theme"
-    #    mode: "light"
-    #    colors:
-    #      primary: "#1155CB"
-    #  layout: "default"
-    #  css: |
-    #    /* Custom CSS for portal branding */
-    #    .header { background-color: #1155CB; }
-    #    .footer { padding: 20px; }
-    #  menu:
-    #    main:
-    #      - path: "/docs"
-    #        title: "Documentation"
-    #        visibility: "public"
-    #        external: false
-    #      - path: "/support"
-    #        title: "Support"
-    #        visibility: "public"
-    #        external: true
-    #
+    customization:
+      ref: portal-customization
+      theme:
+        name: "custom-theme"
+        mode: "light"
+        colors:
+          primary: "#1155CB"
+      layout: "default"
+      css: |
+        /* Custom CSS for portal branding */
+        .header { background-color: #1155CB; }
+        .footer { padding: 20px; }
+      menu:
+        main:
+          - path: "/docs"
+            title: "Documentation"
+            visibility: "public"
+            external: true
+          - path: "/getting-started"
+            title: "Getting Started"
+            visibility: "public"
+            external: true
+
     ## Custom domain configuration - separate API resource
     #custom_domain:
     #  ref: portal-custom-domain
