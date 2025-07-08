@@ -298,6 +298,46 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet, _ 
 		}
 	}
 
+	// Validate separate API documents
+	for i := range rs.APIDocuments {
+		document := &rs.APIDocuments[i]
+		if err := document.Validate(); err != nil {
+			return fmt.Errorf("invalid api_document %q: %w", document.GetRef(), err)
+		}
+	}
+
+	// Validate portal pages
+	for i := range rs.PortalPages {
+		page := &rs.PortalPages[i]
+		if err := page.Validate(); err != nil {
+			return fmt.Errorf("invalid portal_page %q: %w", page.GetRef(), err)
+		}
+	}
+
+	// Validate portal snippets
+	for i := range rs.PortalSnippets {
+		snippet := &rs.PortalSnippets[i]
+		if err := snippet.Validate(); err != nil {
+			return fmt.Errorf("invalid portal_snippet %q: %w", snippet.GetRef(), err)
+		}
+	}
+
+	// Validate portal customizations
+	for i := range rs.PortalCustomizations {
+		customization := &rs.PortalCustomizations[i]
+		if err := customization.Validate(); err != nil {
+			return fmt.Errorf("invalid portal_customization %q: %w", customization.GetRef(), err)
+		}
+	}
+
+	// Validate portal custom domains
+	for i := range rs.PortalCustomDomains {
+		domain := &rs.PortalCustomDomains[i]
+		if err := domain.Validate(); err != nil {
+			return fmt.Errorf("invalid portal_custom_domain %q: %w", domain.GetRef(), err)
+		}
+	}
+
 	return nil
 }
 

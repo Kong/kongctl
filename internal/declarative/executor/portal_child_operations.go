@@ -292,7 +292,20 @@ func (e *Executor) createPortalPage(ctx context.Context, change planner.PlannedC
 		req.Description = &description
 	}
 	
-	if parentPageID, ok := change.Fields["parent_page_id"].(string); ok {
+	// Handle parent page reference
+	if parentPageRef, ok := change.References["parent_page_id"]; ok {
+		if parentPageRef.ID != "" {
+			req.ParentPageID = &parentPageRef.ID
+		} else {
+			// Need to resolve parent page reference
+			// Use the portal ID we already have to look up the parent page
+			parentPageID, err := e.resolvePortalPageRef(ctx, portalID, parentPageRef.Ref, parentPageRef.LookupFields)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve parent page reference %q: %w", parentPageRef.Ref, err)
+			}
+			req.ParentPageID = &parentPageID
+		}
+	} else if parentPageID, ok := change.Fields["parent_page_id"].(string); ok {
 		req.ParentPageID = &parentPageID
 	}
 	
@@ -373,7 +386,20 @@ func (e *Executor) updatePortalPage(ctx context.Context, change planner.PlannedC
 		req.Description = &description
 	}
 	
-	if parentPageID, ok := change.Fields["parent_page_id"].(string); ok {
+	// Handle parent page reference
+	if parentPageRef, ok := change.References["parent_page_id"]; ok {
+		if parentPageRef.ID != "" {
+			req.ParentPageID = &parentPageRef.ID
+		} else {
+			// Need to resolve parent page reference
+			// Use the portal ID we already have to look up the parent page
+			parentPageID, err := e.resolvePortalPageRef(ctx, portalID, parentPageRef.Ref, parentPageRef.LookupFields)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve parent page reference %q: %w", parentPageRef.Ref, err)
+			}
+			req.ParentPageID = &parentPageID
+		}
+	} else if parentPageID, ok := change.Fields["parent_page_id"].(string); ok {
 		req.ParentPageID = &parentPageID
 	}
 	

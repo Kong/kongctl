@@ -19,6 +19,8 @@ type Executor struct {
 	createdResources map[string]string // changeID -> resourceID
 	// Track resource refs to IDs for reference resolution
 	refToID map[string]map[string]string // resourceType -> ref -> resourceID
+	// Unified state cache
+	stateCache *state.Cache
 }
 
 // New creates a new Executor instance
@@ -29,6 +31,7 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 		dryRun:   dryRun,
 		createdResources: make(map[string]string),
 		refToID: make(map[string]map[string]string),
+		stateCache: state.NewCache(),
 	}
 }
 
@@ -333,6 +336,7 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 	return nil
 }
 
+
 // resolveAuthStrategyRef resolves an auth strategy reference to its ID
 func (e *Executor) resolveAuthStrategyRef(ctx context.Context, ref string) (string, error) {
 	// First check if it was created in this execution
@@ -381,6 +385,101 @@ func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.Referen
 	}
 	
 	return portal.ID, nil
+}
+
+// populatePortalPages fetches and caches all pages for a portal
+func (e *Executor) populatePortalPages(ctx context.Context, portalID string) error {
+	portal, exists := e.stateCache.Portals[portalID]
+	if !exists {
+		portal = &state.CachedPortal{
+			Pages: make(map[string]*state.CachedPortalPage),
+		}
+		e.stateCache.Portals[portalID] = portal
+	}
+	
+	// Fetch all pages
+	pages, err := e.client.ListManagedPortalPages(ctx, portalID)
+	if err != nil {
+		return fmt.Errorf("failed to list portal pages: %w", err)
+	}
+	
+	// First pass: create all pages
+	pageMap := make(map[string]*state.CachedPortalPage)
+	for _, page := range pages {
+		cachedPage := &state.CachedPortalPage{
+			PortalPage: page,
+			Children:   make(map[string]*state.CachedPortalPage),
+		}
+		pageMap[page.ID] = cachedPage
+	}
+	
+	// Second pass: establish parent-child relationships
+	for _, page := range pages {
+		cachedPage := pageMap[page.ID]
+		
+		if page.ParentPageID == "" {
+			// Root page
+			portal.Pages[page.ID] = cachedPage
+		} else if parent, ok := pageMap[page.ParentPageID]; ok {
+			// Child page
+			parent.Children[page.ID] = cachedPage
+		}
+	}
+	
+	return nil
+}
+
+// resolvePortalPageRef resolves a portal page reference to its ID
+func (e *Executor) resolvePortalPageRef(
+	ctx context.Context, portalID string, pageRef string, lookupFields map[string]string,
+) (string, error) {
+	// First check if it was created in this execution
+	if pages, ok := e.refToID["portal_page"]; ok {
+		if id, found := pages[pageRef]; found {
+			return id, nil
+		}
+	}
+	
+	// Ensure portal pages are cached
+	if _, exists := e.stateCache.Portals[portalID]; !exists || 
+		e.stateCache.Portals[portalID].Pages == nil {
+		if err := e.populatePortalPages(ctx, portalID); err != nil {
+			return "", err
+		}
+	}
+	
+	portal := e.stateCache.Portals[portalID]
+	
+	// If we have a parent path, use it for more accurate matching
+	if lookupFields != nil && lookupFields["parent_path"] != "" {
+		targetPath := lookupFields["parent_path"]
+		
+		if page := portal.FindPageBySlugPath(targetPath); page != nil {
+			return page.ID, nil
+		}
+	}
+	
+	// Fallback: search all pages for matching slug
+	var searchPages func(pages map[string]*state.CachedPortalPage) string
+	searchPages = func(pages map[string]*state.CachedPortalPage) string {
+		for _, page := range pages {
+			normalizedSlug := strings.TrimPrefix(page.Slug, "/")
+			if normalizedSlug == pageRef {
+				return page.ID
+			}
+			// Search children
+			if childID := searchPages(page.Children); childID != "" {
+				return childID
+			}
+		}
+		return ""
+	}
+	
+	if pageID := searchPages(portal.Pages); pageID != "" {
+		return pageID, nil
+	}
+	
+	return "", fmt.Errorf("portal page not found: ref=%s in portal=%s", pageRef, portalID)
 }
 
 // Resource operations

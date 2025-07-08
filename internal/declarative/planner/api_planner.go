@@ -633,9 +633,11 @@ func (p *Planner) planAPIDocumentChanges(
 	}
 
 	// Index current documents by slug
+	// Normalize slugs by stripping leading slash for consistent matching
 	currentBySlug := make(map[string]state.APIDocument)
 	for _, d := range currentDocuments {
-		currentBySlug[d.Slug] = d
+		normalizedSlug := strings.TrimPrefix(d.Slug, "/")
+		currentBySlug[normalizedSlug] = d
 	}
 
 	// Compare desired documents
@@ -645,7 +647,9 @@ func (p *Planner) planAPIDocumentChanges(
 			slug = *desiredDoc.Slug
 		}
 
-		current, exists := currentBySlug[slug]
+		// Normalize desired slug for matching
+		normalizedSlug := strings.TrimPrefix(slug, "/")
+		current, exists := currentBySlug[normalizedSlug]
 
 		if !exists {
 			// CREATE
@@ -673,7 +677,9 @@ func (p *Planner) planAPIDocumentChanges(
 		desiredSlugs := make(map[string]bool)
 		for _, doc := range desired {
 			if doc.Slug != nil {
-				desiredSlugs[*doc.Slug] = true
+				// Normalize desired slug
+				normalizedSlug := strings.TrimPrefix(*doc.Slug, "/")
+				desiredSlugs[normalizedSlug] = true
 			}
 		}
 

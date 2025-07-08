@@ -10,8 +10,13 @@ import (
 // PortalPageResource represents a portal page
 type PortalPageResource struct {
 	kkComps.CreatePortalPageRequest `yaml:",inline" json:",inline"`
-	Ref    string `yaml:"ref" json:"ref"`
-	Portal string `yaml:"portal,omitempty" json:"portal,omitempty"` // Parent portal reference
+	Ref           string                `yaml:"ref" json:"ref"`
+	// Parent portal reference
+	Portal        string                `yaml:"portal,omitempty" json:"portal,omitempty"`
+	// Reference to parent page
+	ParentPageRef string                `yaml:"parent_page_ref,omitempty" json:"parent_page_ref,omitempty"`
+	// Nested child pages
+	Children      []PortalPageResource  `yaml:"children,omitempty" json:"children,omitempty"`
 }
 
 // GetRef returns the reference identifier
@@ -29,10 +34,10 @@ func (p PortalPageResource) Validate() error {
 		return fmt.Errorf("page slug is required")
 	}
 	
-	// Validate slug format (no slashes, valid URL segment)
-	slugRegex := regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+	// Validate slug format using Konnect's regex pattern
+	slugRegex := regexp.MustCompile(`^[\w-]+$`)
 	if !slugRegex.MatchString(p.Slug) {
-		return fmt.Errorf("page slug must be lowercase alphanumeric with hyphens (e.g., 'getting-started')")
+		return fmt.Errorf("invalid slug %q: slugs must contain only letters, numbers, underscores, and hyphens", p.Slug)
 	}
 	
 	if p.Content == "" {
@@ -70,6 +75,17 @@ func (p PortalPageResource) Validate() error {
 		}
 		if !validStatus {
 			return fmt.Errorf("page status must be 'published' or 'unpublished'")
+		}
+	}
+	
+	// Validate children recursively
+	for i, child := range p.Children {
+		// Children should not redefine portal
+		if child.Portal != "" {
+			return fmt.Errorf("child page[%d] ref=%q should not define portal (inherited from parent)", i, child.Ref)
+		}
+		if err := child.Validate(); err != nil {
+			return fmt.Errorf("child page[%d] ref=%q validation failed: %w", i, child.Ref, err)
 		}
 	}
 	

@@ -102,8 +102,31 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		return nil, fmt.Errorf("failed to plan portal custom domain changes: %w", err)
 	}
 
-	if err := p.planPortalPagesChanges(ctx, p.desiredPortalPages, plan); err != nil {
-		return nil, fmt.Errorf("failed to plan portal page changes: %w", err)
+	// Plan portal pages grouped by portal
+	pagesByPortal := make(map[string][]resources.PortalPageResource)
+	for _, page := range p.desiredPortalPages {
+		pagesByPortal[page.Portal] = append(pagesByPortal[page.Portal], page)
+	}
+	
+	// Get existing portals for lookup
+	existingPortals, _ := p.client.ListManagedPortals(ctx)
+	portalRefToID := make(map[string]string)
+	for _, portal := range existingPortals {
+		// Find ref by matching name
+		for _, desired := range p.desiredPortals {
+			if desired.Name == portal.Name {
+				portalRefToID[desired.Ref] = portal.ID
+				break
+			}
+		}
+	}
+	
+	// Plan pages for each portal
+	for portalRef, pages := range pagesByPortal {
+		portalID := portalRefToID[portalRef]
+		if err := p.planPortalPagesChanges(ctx, portalID, portalRef, pages, plan); err != nil {
+			return nil, fmt.Errorf("failed to plan portal page changes for portal %s: %w", portalRef, err)
+		}
 	}
 
 	if err := p.planPortalSnippetsChanges(ctx, p.desiredPortalSnippets, plan); err != nil {

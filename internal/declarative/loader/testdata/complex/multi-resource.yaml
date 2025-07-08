@@ -32,6 +32,7 @@ portals:
     
     # Portal customization
     customization:
+      ref: test-portal-customization
       theme:
         name: "test-theme"
         mode: "light"
@@ -46,6 +47,7 @@ portals:
     
     # Custom domain
     custom_domain:
+      ref: test-portal-custom-domain
       hostname: "test.example.com"
       enabled: true
     
@@ -53,7 +55,7 @@ portals:
     pages:
       - ref: test-home
         title: "Home"
-        path: "/"
+        slug: "home"
         content: "# Welcome"
         visibility: "public"
     

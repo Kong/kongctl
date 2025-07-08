@@ -125,6 +125,19 @@ type APIDocument struct {
 	ParentDocumentID string
 }
 
+// PortalPage represents a portal page for internal use
+type PortalPage struct {
+	ID               string
+	Slug             string
+	Title            string
+	Content          string // Will be empty from list, populated from fetch
+	Description      string
+	Visibility       string
+	Status           string
+	ParentPageID     string
+	NormalizedLabels map[string]string
+}
+
 // ApplicationAuthStrategy represents a normalized auth strategy for internal use
 type ApplicationAuthStrategy struct {
 	ID               string
@@ -1203,6 +1216,109 @@ func (c *Client) DeletePortalCustomDomain(ctx context.Context, portalID string) 
 		return fmt.Errorf("failed to delete portal custom domain: %w", err)
 	}
 	return nil
+}
+
+// ListManagedPortalPages returns all KONGCTL-managed portal pages for a portal
+func (c *Client) ListManagedPortalPages(ctx context.Context, portalID string) ([]PortalPage, error) {
+	if c.portalPageAPI == nil {
+		return nil, fmt.Errorf("portal page API not configured")
+	}
+
+	var allPages []PortalPage
+
+	// List all pages for the portal (without pagination for now - portal pages typically don't have many entries)
+	req := kkOps.ListPortalPagesRequest{
+		PortalID: portalID,
+	}
+
+	resp, err := c.portalPageAPI.ListPortalPages(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list portal pages: %w", err)
+	}
+
+	if resp.ListPortalPagesResponse == nil {
+		return allPages, nil
+	}
+
+	// Process pages recursively to build flat list
+	c.processPortalPages(&allPages, resp.ListPortalPagesResponse.Data, "")
+
+	// Note: Portal pages don't have labels in the SDK, so we can't filter for managed pages
+	// For now, return all pages and let the planner handle matching
+	return allPages, nil
+}
+
+// processPortalPages recursively processes portal pages and their children
+func (c *Client) processPortalPages(allPages *[]PortalPage, pages []kkComps.PortalPageInfo, parentID string) {
+	for _, p := range pages {
+		page := PortalPage{
+			ID:           p.ID,
+			Slug:         p.Slug,
+			Title:        p.Title,
+			// Content not available in list response
+			Visibility:   string(p.Visibility),
+			Status:       string(p.Status),
+			ParentPageID: parentID,
+		}
+
+		// Normalize description
+		if p.Description != nil {
+			page.Description = *p.Description
+		}
+
+		// Note: Labels are not available in list response for portal pages
+		// We'll need to fetch individual pages to get labels for filtering
+		page.NormalizedLabels = make(map[string]string)
+
+		*allPages = append(*allPages, page)
+
+		// Recursively process children
+		if len(p.Children) > 0 {
+			c.processPortalPages(allPages, p.Children, p.ID)
+		}
+	}
+}
+
+// GetPortalPage fetches a single portal page with full details including content
+func (c *Client) GetPortalPage(ctx context.Context, portalID string, pageID string) (*PortalPage, error) {
+	if c.portalPageAPI == nil {
+		return nil, fmt.Errorf("portal page API not configured")
+	}
+
+	resp, err := c.portalPageAPI.GetPortalPage(ctx, portalID, pageID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get portal page: %w", err)
+	}
+
+	if resp.PortalPageResponse == nil {
+		return nil, fmt.Errorf("no response data from get portal page")
+	}
+
+	pageResp := resp.PortalPageResponse
+	page := &PortalPage{
+		ID:         pageResp.ID,
+		Slug:       pageResp.Slug,
+		Title:      pageResp.Title,
+		Content:    pageResp.Content,
+		Visibility: string(pageResp.Visibility),
+		Status:     string(pageResp.Status),
+	}
+	
+	// Handle nullable parent page ID
+	if pageResp.ParentPageID != nil {
+		page.ParentPageID = *pageResp.ParentPageID
+	}
+
+	// Normalize description
+	if pageResp.Description != nil {
+		page.Description = *pageResp.Description
+	}
+
+	// Note: Portal pages don't have labels in the SDK response
+	// We'll track managed status through a different mechanism if needed
+	page.NormalizedLabels = make(map[string]string)
+
+	return page, nil
 }
 
 // CreatePortalPage creates a new page in a portal

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"regexp"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -68,6 +69,15 @@ func (d APIDocumentResource) Validate() error {
 	if d.Content == "" {
 		return fmt.Errorf("API document content is required")
 	}
+	
+	// Validate slug format using Konnect's regex pattern
+	if d.Slug != nil && *d.Slug != "" {
+		slugRegex := regexp.MustCompile(`^[\w-]+$`)
+		if !slugRegex.MatchString(*d.Slug) {
+			return fmt.Errorf("invalid slug %q: slugs must contain only letters, numbers, underscores, and hyphens", *d.Slug)
+		}
+	}
+	
 	// Parent API validation happens through dependency system
 	return nil
 }

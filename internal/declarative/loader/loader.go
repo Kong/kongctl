@@ -685,6 +685,30 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 	}
 }
 
+// extractPortalPages recursively extracts and flattens nested portal pages
+func (l *Loader) extractPortalPages(
+	allPages *[]resources.PortalPageResource, 
+	page resources.PortalPageResource, 
+	portalRef string, 
+	parentPageRef string,
+) {
+	// Set portal and parent references
+	page.Portal = portalRef
+	page.ParentPageRef = parentPageRef
+	
+	// Process children before clearing them
+	children := page.Children
+	page.Children = nil // Clear children from the page before appending
+	
+	// Append current page
+	*allPages = append(*allPages, page)
+	
+	// Recursively process children
+	for _, child := range children {
+		l.extractPortalPages(allPages, child, portalRef, page.Ref)
+	}
+}
+
 // extractNestedResources extracts nested child resources to root level with parent references
 func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 	// Extract nested API child resources
@@ -733,14 +757,15 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		if portal.CustomDomain != nil {
 			customDomain := *portal.CustomDomain
 			customDomain.Portal = portal.Ref // Set parent reference
+			
 			rs.PortalCustomDomains = append(rs.PortalCustomDomains, customDomain)
 		}
 		
-		// Extract pages
+		// Extract pages (with recursive flattening)
 		for j := range portal.Pages {
 			page := portal.Pages[j]
 			page.Portal = portal.Ref // Set parent reference
-			rs.PortalPages = append(rs.PortalPages, page)
+			l.extractPortalPages(&rs.PortalPages, page, portal.Ref, "")
 		}
 		
 		// Extract snippets
