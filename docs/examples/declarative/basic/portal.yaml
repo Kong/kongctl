@@ -4,50 +4,52 @@
 portals:
   - ref: developer-portal
     name: "Developer Portal"
-    description: "Main developer portal for API documentation"
-    authentication_enabled: true
+    description: "Developer portal for API documentation"
+    authentication_enabled: false
     rbac_enabled: false
-    default_api_visibility: "public"
-    default_page_visibility: "public"
-    auto_approve_developers: true
+    default_api_visibility: public
+    default_page_visibility: public
+    auto_approve_developers: false
     auto_approve_applications: false
     
     # Portal customization - separate API resource
-    customization:
-      theme:
-        name: "custom-theme"
-        mode: "light"
-        colors:
-          primary: "#1155CB"
-      layout: "default"
-      css: |
-        /* Custom CSS for portal branding */
-        .header { background-color: #1155CB; }
-        .footer { padding: 20px; }
-      menu:
-        main:
-          - path: "/docs"
-            title: "Documentation"
-            visibility: "public"
-            external: false
-          - path: "/support"
-            title: "Support"
-            visibility: "public"
-            external: true
-    
-    # Custom domain configuration - separate API resource
-    custom_domain:
-      hostname: "developer.example.com"
-      enabled: true
-      ssl:
-        cert: "${PORTAL_SSL_CERT}"
-        key: "${PORTAL_SSL_KEY}"
-    
+    #customization:
+    #  ref: portal-customization
+    #  theme:
+    #    name: "custom-theme"
+    #    mode: "light"
+    #    colors:
+    #      primary: "#1155CB"
+    #  layout: "default"
+    #  css: |
+    #    /* Custom CSS for portal branding */
+    #    .header { background-color: #1155CB; }
+    #    .footer { padding: 20px; }
+    #  menu:
+    #    main:
+    #      - path: "/docs"
+    #        title: "Documentation"
+    #        visibility: "public"
+    #        external: false
+    #      - path: "/support"
+    #        title: "Support"
+    #        visibility: "public"
+    #        external: true
+    #
+    ## Custom domain configuration - separate API resource
+    #custom_domain:
+    #  ref: portal-custom-domain
+    #  hostname: "developer.example.com"
+    #  enabled: true
+    #  ssl:
+    #    domain_verification_method: http
+
+    #
     # Portal pages - separate API resources
     pages:
       - ref: getting-started
+        slug: "getting-started"
         title: "Getting Started"
-        path: "/getting-started"
         content: |
           # Getting Started
           
@@ -59,22 +61,24 @@ portals:
           3. Subscribe to APIs
           4. Start making requests
         visibility: "public"
+        status: "published"
       
-      - ref: terms-of-service
-        title: "Terms of Service"
-        path: "/terms"
-        content: |
-          # Terms of Service
-          
-          By using our APIs, you agree to these terms...
-        visibility: "public"
-    
-    # Portal snippets - separate API resources
-    snippets:
-      - ref: footer-snippet
-        name: "footer"
-        content: |
-          <div class="custom-footer">
-            <p>&copy; 2024 Example Corp. All rights reserved.</p>
-            <p>Contact: support@example.com</p>
-          </div>
+    #  - ref: terms-of-service
+    #    slug: "terms"
+    #    title: "Terms of Service"
+    #    content: |
+    #      # Terms of Service
+    #      
+    #      By using our APIs, you agree to these terms...
+    #    visibility: "public"
+    #    status: "published"
+    #
+    ## Portal snippets - separate API resources
+    #snippets:
+    #  - ref: footer-snippet
+    #    name: "footer"
+    #    content: |
+    #      <div class="custom-footer">
+    #        <p>&copy; 2024 Example Corp. All rights reserved.</p>
+    #        <p>Contact: support@example.com</p>
+    #      </div>

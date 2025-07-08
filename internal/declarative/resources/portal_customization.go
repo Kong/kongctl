@@ -9,11 +9,21 @@ import (
 // PortalCustomizationResource represents portal customization settings
 type PortalCustomizationResource struct {
 	kkComps.PortalCustomization `yaml:",inline" json:",inline"`
-	Ref string `yaml:"ref,omitempty" json:"ref,omitempty"`
+	Ref    string `yaml:"ref,omitempty" json:"ref,omitempty"`
+	Portal string `yaml:"portal,omitempty" json:"portal,omitempty"` // Parent portal reference
+}
+
+// GetRef returns the reference identifier
+func (c PortalCustomizationResource) GetRef() string {
+	return c.Ref
 }
 
 // Validate ensures the portal customization resource is valid
 func (c PortalCustomizationResource) Validate() error {
+	if c.Ref == "" {
+		return fmt.Errorf("customization ref is required")
+	}
+	
 	// Theme validation
 	if c.Theme != nil {
 		if c.Theme.Colors != nil && c.Theme.Colors.Primary != nil {

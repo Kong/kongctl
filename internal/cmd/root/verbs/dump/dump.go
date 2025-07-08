@@ -319,8 +319,8 @@ func dumpAPIs(
 	}
 
 	// Check what kind of client we have
-	_, isPublicAPI := kkClient.(*helpers.PublicAPIAPI)
-	debugf("kkClient is PublicAPIAPI: %v", isPublicAPI)
+	_, isPublicAPI := kkClient.(*helpers.APIAPIImpl)
+	debugf("kkClient is APIAPIImpl: %v", isPublicAPI)
 
 	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		// Create a request to list APIs with pagination
@@ -390,39 +390,39 @@ func dumpAPIChildResources(
 	debugf("Attempting to get the API client services")
 
 	// Try to convert to get the public SDK
-	sdk, ok := kkClient.(*helpers.PublicAPIAPI)
+	sdk, ok := kkClient.(*helpers.APIAPIImpl)
 	if !ok {
 		err := fmt.Errorf("failed to convert API client to public API client")
 		if logger != nil {
 			logger.Error("failed to convert API client", "error", err)
 		}
-		debugf("Could not convert kkClient to PublicAPIAPI")
+		debugf("Could not convert kkClient to APIAPIImpl")
 		return err
 	}
 
 	if logger != nil {
-		logger.Debug("successfully obtained PublicAPIAPI", "sdk_nil", sdk.SDK == nil)
+		logger.Debug("successfully obtained APIAPIImpl", "sdk_nil", sdk.SDK == nil)
 	}
 
-	debugf("Successfully converted to PublicAPIAPI")
+	debugf("Successfully converted to APIAPIImpl")
 
 	// Check if SDK is nil
 	if sdk.SDK == nil {
-		debugf("PublicAPIAPI.SDK is nil")
+		debugf("APIAPIImpl.SDK is nil")
 		return fmt.Errorf("public SDK is nil")
 	}
 
 	// Process API Documents
 	// Let's check if the SDK has a valid APIDocumentation field
 	if sdk.SDK.APIDocumentation == nil {
-		debugf("PublicAPIAPI.SDK.APIDocumentation is nil")
+		debugf("APIAPIImpl.SDK.APIDocumentation is nil")
 		if logger != nil {
 			logger.Warn("SDK.APIDocumentation is nil, skipping API documents")
 		}
 	} else {
 		// Create an API document client using the existing SDK reference
 		debugf("Creating API document client directly")
-		apiDocAPI := &helpers.PublicAPIDocumentAPI{SDK: sdk.SDK}
+		apiDocAPI := &helpers.APIDocumentAPIImpl{SDK: sdk.SDK}
 		debugf("Successfully obtained API document client")
 
 		if logger != nil {
@@ -548,14 +548,14 @@ func dumpAPIChildResources(
 	// Process API Versions (formerly Specifications)
 	// Let's check if the SDK has a valid APIVersion field
 	if sdk.SDK.APIVersion == nil {
-		debugf("PublicAPIAPI.SDK.APIVersion is nil")
+		debugf("APIAPIImpl.SDK.APIVersion is nil")
 		if logger != nil {
 			logger.Warn("SDK.APIVersion is nil, skipping API versions")
 		}
 	} else {
 		// Create an API version client using the existing SDK reference
 		debugf("Creating API version client directly")
-		apiVersionAPI := &helpers.PublicAPIVersionAPI{SDK: sdk.SDK}
+		apiVersionAPI := &helpers.APIVersionAPIImpl{SDK: sdk.SDK}
 		debugf("Successfully obtained API version client")
 
 		if logger != nil {
@@ -690,7 +690,7 @@ func dumpAPIChildResources(
 	} else {
 		// Create an API publication client using the existing SDK reference
 		debugf("Creating API publication client directly")
-		apiPubAPI := &helpers.PublicAPIPublicationAPI{SDK: sdk.SDK}
+		apiPubAPI := &helpers.APIPublicationAPIImpl{SDK: sdk.SDK}
 		debugf("Successfully obtained API publication client")
 
 		if logger != nil {
@@ -797,7 +797,7 @@ func dumpAPIChildResources(
 	} else {
 		// Create an API implementation client using the existing SDK reference
 		debugf("Creating API implementation client directly")
-		apiImplAPI := &helpers.PublicAPIImplementationAPI{SDK: sdk.SDK}
+		apiImplAPI := &helpers.APIImplementationAPIImpl{SDK: sdk.SDK}
 		debugf("Successfully obtained API implementation client")
 
 		if logger != nil {

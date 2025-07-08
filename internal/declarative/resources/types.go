@@ -13,6 +13,11 @@ type ResourceSet struct {
 	APIPublications    []APIPublicationResource    `yaml:"api_publications,omitempty" json:"api_publications,omitempty"`
 	APIImplementations []APIImplementationResource `yaml:"api_implementations,omitempty" json:"api_implementations,omitempty"` //nolint:lll
 	APIDocuments       []APIDocumentResource       `yaml:"api_documents,omitempty" json:"api_documents,omitempty"`
+	// Portal child resources can be defined at root level (with parent reference) or nested under Portals
+	PortalCustomizations []PortalCustomizationResource `yaml:"portal_customizations,omitempty" json:"portal_customizations,omitempty"` //nolint:lll
+	PortalCustomDomains  []PortalCustomDomainResource  `yaml:"portal_custom_domains,omitempty" json:"portal_custom_domains,omitempty"` //nolint:lll
+	PortalPages          []PortalPageResource          `yaml:"portal_pages,omitempty" json:"portal_pages,omitempty"`
+	PortalSnippets       []PortalSnippetResource       `yaml:"portal_snippets,omitempty" json:"portal_snippets,omitempty"`
 }
 
 // KongctlMeta contains tool-specific metadata for resources

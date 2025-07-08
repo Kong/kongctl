@@ -55,7 +55,9 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 
 		if !exists {
 			// CREATE action
-			p.planPortalCreate(desiredPortal, plan)
+			portalChangeID := p.planPortalCreate(desiredPortal, plan)
+			// Plan child resources after portal creation
+			p.planPortalChildResourcesCreate(desiredPortal, portalChangeID, plan)
 		} else {
 			// Check if update needed
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
@@ -82,6 +84,11 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 						p.planPortalUpdateWithFields(current, desiredPortal, updateFields, plan)
 					}
 				}
+			}
+
+			// Plan child resource changes for existing portal
+			if err := p.planPortalChildResourceChanges(ctx, current, desiredPortal, plan); err != nil {
+				return err
 			}
 		}
 	}
@@ -117,7 +124,7 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 }
 
 // planPortalCreate creates a CREATE change for a portal
-func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, plan *Plan) {
+func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, plan *Plan) string {
 	fields := make(map[string]interface{})
 	fields["name"] = portal.Name
 	if portal.DisplayName != nil {
@@ -176,6 +183,7 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 	}
 
 	plan.AddChange(change)
+	return change.ID
 }
 
 // shouldUpdatePortal checks if portal needs update based on configured fields only
@@ -281,6 +289,9 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 ) {
 	fields := make(map[string]interface{})
 
+	// Always include name for identification
+	fields["name"] = current.Name
+
 	// Store the fields that need updating
 	for field, newValue := range updateFields {
 		fields[field] = newValue
@@ -362,4 +373,19 @@ func (p *portalPlannerImpl) planPortalDelete(portal state.Portal, plan *Plan) {
 	}
 
 	plan.AddChange(change)
+}
+
+// planPortalChildResourcesCreate plans creation of child resources for a new portal
+func (p *portalPlannerImpl) planPortalChildResourcesCreate(_ resources.PortalResource, _ string, _ *Plan) {
+	// Portal ID is not yet known, will be resolved at execution time
+	// No need to process here as child resources are already extracted to root level
+}
+
+// planPortalChildResourceChanges plans changes for child resources of an existing portal
+func (p *portalPlannerImpl) planPortalChildResourceChanges(
+	_ context.Context, _ state.Portal, _ resources.PortalResource, _ *Plan,
+) error {
+	// Child resources are handled at root level after being extracted
+	// No need to process here as they are planned separately
+	return nil
 }

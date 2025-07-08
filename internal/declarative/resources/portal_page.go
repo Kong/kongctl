@@ -2,19 +2,16 @@ package resources
 
 import (
 	"fmt"
-	"strings"
+	"regexp"
+
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // PortalPageResource represents a portal page
 type PortalPageResource struct {
-	// Note: Using a simplified structure since the SDK type isn't clear
-	// In practice, this would embed the appropriate SDK type
-	Ref        string `yaml:"ref" json:"ref"`
-	Title      string `yaml:"title" json:"title"`
-	Path       string `yaml:"path" json:"path"`
-	Content    string `yaml:"content" json:"content"`
-	Visibility string `yaml:"visibility,omitempty" json:"visibility,omitempty"` // public or private
-	ParentID   string `yaml:"parent_id,omitempty" json:"parent_id,omitempty"`   // For nested pages
+	kkComps.CreatePortalPageRequest `yaml:",inline" json:",inline"`
+	Ref    string `yaml:"ref" json:"ref"`
+	Portal string `yaml:"portal,omitempty" json:"portal,omitempty"` // Parent portal reference
 }
 
 // GetRef returns the reference identifier
@@ -28,22 +25,52 @@ func (p PortalPageResource) Validate() error {
 		return fmt.Errorf("page ref is required")
 	}
 	
-	if p.Title == "" {
-		return fmt.Errorf("page title is required")
+	if p.Slug == "" {
+		return fmt.Errorf("page slug is required")
 	}
 	
-	if p.Path == "" {
-		return fmt.Errorf("page path is required")
+	// Validate slug format (no slashes, valid URL segment)
+	slugRegex := regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+	if !slugRegex.MatchString(p.Slug) {
+		return fmt.Errorf("page slug must be lowercase alphanumeric with hyphens (e.g., 'getting-started')")
 	}
 	
-	// Path must start with /
-	if !strings.HasPrefix(p.Path, "/") {
-		return fmt.Errorf("page path must start with /")
+	if p.Content == "" {
+		return fmt.Errorf("page content is required")
 	}
 	
-	// Validate visibility
-	if p.Visibility != "" && p.Visibility != "public" && p.Visibility != "private" {
-		return fmt.Errorf("page visibility must be 'public' or 'private'")
+	// Validate visibility if set
+	if p.Visibility != nil {
+		validVisibility := false
+		for _, v := range []kkComps.PageVisibilityStatus{
+			kkComps.PageVisibilityStatusPublic,
+			kkComps.PageVisibilityStatusPrivate,
+		} {
+			if *p.Visibility == v {
+				validVisibility = true
+				break
+			}
+		}
+		if !validVisibility {
+			return fmt.Errorf("page visibility must be 'public' or 'private'")
+		}
+	}
+	
+	// Validate status if set
+	if p.Status != nil {
+		validStatus := false
+		for _, s := range []kkComps.PublishedStatus{
+			kkComps.PublishedStatusPublished,
+			kkComps.PublishedStatusUnpublished,
+		} {
+			if *p.Status == s {
+				validStatus = true
+				break
+			}
+		}
+		if !validStatus {
+			return fmt.Errorf("page status must be 'published' or 'unpublished'")
+		}
 	}
 	
 	return nil
@@ -51,14 +78,29 @@ func (p PortalPageResource) Validate() error {
 
 // SetDefaults applies default values
 func (p *PortalPageResource) SetDefaults() {
-	if p.Visibility == "" {
-		p.Visibility = "public"
+	// Set default visibility to public if not specified
+	if p.Visibility == nil {
+		visibility := kkComps.PageVisibilityStatusPublic
+		p.Visibility = &visibility
+	}
+	
+	// Set default status to published if not specified
+	if p.Status == nil {
+		status := kkComps.PublishedStatusPublished
+		p.Status = &status
+	}
+	
+	// Set title from slug if not provided
+	if p.Title == nil && p.Slug != "" {
+		title := p.Slug
+		p.Title = &title
 	}
 }
 
 // PortalSnippetResource represents a portal snippet
 type PortalSnippetResource struct {
 	Ref     string `yaml:"ref" json:"ref"`
+	Portal  string `yaml:"portal,omitempty" json:"portal,omitempty"` // Parent portal reference
 	Name    string `yaml:"name" json:"name"`
 	Content string `yaml:"content" json:"content"`
 }
@@ -83,4 +125,9 @@ func (s PortalSnippetResource) Validate() error {
 	}
 	
 	return nil
+}
+
+// SetDefaults applies default values
+func (s *PortalSnippetResource) SetDefaults() {
+	// No defaults needed for snippets currently
 }

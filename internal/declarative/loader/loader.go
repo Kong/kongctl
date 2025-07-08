@@ -58,6 +58,10 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 	apiPubRefs := make(map[string]string)      // ref -> source path
 	apiImplRefs := make(map[string]string)     // ref -> source path
 	apiDocRefs := make(map[string]string)      // ref -> source path
+	portalCustomizationRefs := make(map[string]string) // ref -> source path
+	portalCustomDomainRefs := make(map[string]string)  // ref -> source path
+	portalPageRefs := make(map[string]string)          // ref -> source path
+	portalSnippetRefs := make(map[string]string)       // ref -> source path
 	
 	for _, source := range sources {
 		var rs *resources.ResourceSet
@@ -70,7 +74,8 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 			rs, err = l.loadDirectorySource(source.Path, recursive, 
 				portalRefs, portalNames, authStratRefs, authStratNames,
 				cpRefs, cpNames, apiRefs, apiNames,
-				apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs)
+				apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs,
+				portalCustomizationRefs, portalCustomDomainRefs, portalPageRefs, portalSnippetRefs)
 		case SourceTypeSTDIN:
 			rs, err = l.loadSTDIN()
 		default:
@@ -87,7 +92,8 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 			if err := l.mergeResourceSet(&allResources, rs, source.Path,
 				portalRefs, portalNames, authStratRefs, authStratNames,
 				cpRefs, cpNames, apiRefs, apiNames,
-				apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs); err != nil {
+				apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs,
+				portalCustomizationRefs, portalCustomDomainRefs, portalPageRefs, portalSnippetRefs); err != nil {
 				return nil, err
 			}
 		} else {
@@ -101,6 +107,10 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 			allResources.APIPublications = append(allResources.APIPublications, rs.APIPublications...)
 			allResources.APIImplementations = append(allResources.APIImplementations, rs.APIImplementations...)
 			allResources.APIDocuments = append(allResources.APIDocuments, rs.APIDocuments...)
+			allResources.PortalCustomizations = append(allResources.PortalCustomizations, rs.PortalCustomizations...)
+			allResources.PortalCustomDomains = append(allResources.PortalCustomDomains, rs.PortalCustomDomains...)
+			allResources.PortalPages = append(allResources.PortalPages, rs.PortalPages...)
+			allResources.PortalSnippets = append(allResources.PortalSnippets, rs.PortalSnippets...)
 		}
 	}
 	
@@ -229,7 +239,10 @@ func (l *Loader) loadSTDIN() (*resources.ResourceSet, error) {
 func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 	portalRefs, portalNames, authStratRefs, authStratNames,
 	cpRefs, cpNames, apiRefs, apiNames,
-	apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs map[string]string) (*resources.ResourceSet, error) {
+	apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs,
+	portalCustomizationRefs, portalCustomDomainRefs, 
+	portalPageRefs, portalSnippetRefs map[string]string,
+) (*resources.ResourceSet, error) {
 	
 	var allResources resources.ResourceSet
 	yamlCount := 0
@@ -251,7 +264,8 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 				subRS, err := l.loadDirectorySource(path, recursive,
 					portalRefs, portalNames, authStratRefs, authStratNames,
 					cpRefs, cpNames, apiRefs, apiNames,
-					apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs)
+					apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs,
+					portalCustomizationRefs, portalCustomDomainRefs, portalPageRefs, portalSnippetRefs)
 				if err != nil {
 					return nil, err
 				}
@@ -386,6 +400,43 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 			apiDocRefs[doc.Ref] = path
 			allResources.APIDocuments = append(allResources.APIDocuments, doc)
 		}
+		
+		// Check duplicates for Portal child resources
+		for _, customization := range rs.PortalCustomizations {
+			if existingPath, exists := portalCustomizationRefs[customization.Ref]; exists {
+				return nil, fmt.Errorf("duplicate portal_customization ref '%s' found in %s (already defined in %s)", 
+					customization.Ref, path, existingPath)
+			}
+			portalCustomizationRefs[customization.Ref] = path
+			allResources.PortalCustomizations = append(allResources.PortalCustomizations, customization)
+		}
+		
+		for _, domain := range rs.PortalCustomDomains {
+			if existingPath, exists := portalCustomDomainRefs[domain.Ref]; exists {
+				return nil, fmt.Errorf("duplicate portal_custom_domain ref '%s' found in %s (already defined in %s)", 
+					domain.Ref, path, existingPath)
+			}
+			portalCustomDomainRefs[domain.Ref] = path
+			allResources.PortalCustomDomains = append(allResources.PortalCustomDomains, domain)
+		}
+		
+		for _, page := range rs.PortalPages {
+			if existingPath, exists := portalPageRefs[page.Ref]; exists {
+				return nil, fmt.Errorf("duplicate portal_page ref '%s' found in %s (already defined in %s)", 
+					page.Ref, path, existingPath)
+			}
+			portalPageRefs[page.Ref] = path
+			allResources.PortalPages = append(allResources.PortalPages, page)
+		}
+		
+		for _, snippet := range rs.PortalSnippets {
+			if existingPath, exists := portalSnippetRefs[snippet.Ref]; exists {
+				return nil, fmt.Errorf("duplicate portal_snippet ref '%s' found in %s (already defined in %s)", 
+					snippet.Ref, path, existingPath)
+			}
+			portalSnippetRefs[snippet.Ref] = path
+			allResources.PortalSnippets = append(allResources.PortalSnippets, snippet)
+		}
 	}
 	
 	// Provide helpful error if no YAML files found
@@ -396,7 +447,9 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 		len(allResources.ApplicationAuthStrategies) == 0 &&
 		len(allResources.ControlPlanes) == 0 && len(allResources.APIs) == 0 &&
 		len(allResources.APIVersions) == 0 && len(allResources.APIPublications) == 0 &&
-		len(allResources.APIImplementations) == 0 && len(allResources.APIDocuments) == 0 {
+		len(allResources.APIImplementations) == 0 && len(allResources.APIDocuments) == 0 &&
+		len(allResources.PortalCustomizations) == 0 && len(allResources.PortalCustomDomains) == 0 &&
+		len(allResources.PortalPages) == 0 && len(allResources.PortalSnippets) == 0 {
 		// Only error if no files were found at all (not just empty files)
 		return nil, fmt.Errorf("no YAML files found in directory '%s'", dirPath)
 	}
@@ -408,7 +461,8 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 func (l *Loader) mergeResourceSet(target, source *resources.ResourceSet, sourcePath string,
 	portalRefs, portalNames, authStratRefs, authStratNames,
 	cpRefs, cpNames, apiRefs, apiNames,
-	apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs map[string]string) error {
+	apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs,
+	portalCustomizationRefs, portalCustomDomainRefs, portalPageRefs, portalSnippetRefs map[string]string) error {
 	
 	// For single files and STDIN, we need to check duplicates
 	// For directories, duplicates are already checked during loading
@@ -511,6 +565,43 @@ func (l *Loader) mergeResourceSet(target, source *resources.ResourceSet, sourceP
 		}
 		apiDocRefs[doc.Ref] = sourcePath
 		target.APIDocuments = append(target.APIDocuments, doc)
+	}
+	
+	// Merge Portal child resources
+	for _, customization := range source.PortalCustomizations {
+		if existingPath, exists := portalCustomizationRefs[customization.Ref]; exists {
+			return fmt.Errorf("duplicate portal_customization ref '%s' found in %s (already defined in %s)", 
+				customization.Ref, sourcePath, existingPath)
+		}
+		portalCustomizationRefs[customization.Ref] = sourcePath
+		target.PortalCustomizations = append(target.PortalCustomizations, customization)
+	}
+	
+	for _, domain := range source.PortalCustomDomains {
+		if existingPath, exists := portalCustomDomainRefs[domain.Ref]; exists {
+			return fmt.Errorf("duplicate portal_custom_domain ref '%s' found in %s (already defined in %s)", 
+				domain.Ref, sourcePath, existingPath)
+		}
+		portalCustomDomainRefs[domain.Ref] = sourcePath
+		target.PortalCustomDomains = append(target.PortalCustomDomains, domain)
+	}
+	
+	for _, page := range source.PortalPages {
+		if existingPath, exists := portalPageRefs[page.Ref]; exists {
+			return fmt.Errorf("duplicate portal_page ref '%s' found in %s (already defined in %s)", 
+				page.Ref, sourcePath, existingPath)
+		}
+		portalPageRefs[page.Ref] = sourcePath
+		target.PortalPages = append(target.PortalPages, page)
+	}
+	
+	for _, snippet := range source.PortalSnippets {
+		if existingPath, exists := portalSnippetRefs[snippet.Ref]; exists {
+			return fmt.Errorf("duplicate portal_snippet ref '%s' found in %s (already defined in %s)", 
+				snippet.Ref, sourcePath, existingPath)
+		}
+		portalSnippetRefs[snippet.Ref] = sourcePath
+		target.PortalSnippets = append(target.PortalSnippets, snippet)
 	}
 	
 	return nil
@@ -625,5 +716,44 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		api.Versions = nil
 		api.Publications = nil
 		api.Implementations = nil
+	}
+
+	// Extract nested Portal child resources
+	for i := range rs.Portals {
+		portal := &rs.Portals[i]
+		
+		// Extract customization (single resource)
+		if portal.Customization != nil {
+			customization := *portal.Customization
+			customization.Portal = portal.Ref // Set parent reference
+			rs.PortalCustomizations = append(rs.PortalCustomizations, customization)
+		}
+		
+		// Extract custom domain (single resource)
+		if portal.CustomDomain != nil {
+			customDomain := *portal.CustomDomain
+			customDomain.Portal = portal.Ref // Set parent reference
+			rs.PortalCustomDomains = append(rs.PortalCustomDomains, customDomain)
+		}
+		
+		// Extract pages
+		for j := range portal.Pages {
+			page := portal.Pages[j]
+			page.Portal = portal.Ref // Set parent reference
+			rs.PortalPages = append(rs.PortalPages, page)
+		}
+		
+		// Extract snippets
+		for j := range portal.Snippets {
+			snippet := portal.Snippets[j]
+			snippet.Portal = portal.Ref // Set parent reference
+			rs.PortalSnippets = append(rs.PortalSnippets, snippet)
+		}
+		
+		// Clear nested resources from Portal
+		portal.Customization = nil
+		portal.CustomDomain = nil
+		portal.Pages = nil
+		portal.Snippets = nil
 	}
 }

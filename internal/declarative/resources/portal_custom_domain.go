@@ -10,11 +10,21 @@ import (
 // PortalCustomDomainResource represents a portal custom domain configuration
 type PortalCustomDomainResource struct {
 	kkComps.PortalCustomDomain `yaml:",inline" json:",inline"`
-	Ref string `yaml:"ref,omitempty" json:"ref,omitempty"`
+	Ref    string `yaml:"ref,omitempty" json:"ref,omitempty"`
+	Portal string `yaml:"portal,omitempty" json:"portal,omitempty"` // Parent portal reference
+}
+
+// GetRef returns the reference identifier
+func (d PortalCustomDomainResource) GetRef() string {
+	return d.Ref
 }
 
 // Validate ensures the portal custom domain resource is valid
 func (d PortalCustomDomainResource) Validate() error {
+	if d.Ref == "" {
+		return fmt.Errorf("custom domain ref is required")
+	}
+	
 	if d.Hostname == "" {
 		return fmt.Errorf("custom domain hostname is required")
 	}

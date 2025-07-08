@@ -33,6 +33,10 @@ type Planner struct {
 	desiredAPIPublications     []resources.APIPublicationResource
 	desiredAPIImplementations  []resources.APIImplementationResource
 	desiredAPIDocuments        []resources.APIDocumentResource
+	desiredPortalCustomizations []resources.PortalCustomizationResource
+	desiredPortalCustomDomains  []resources.PortalCustomDomainResource
+	desiredPortalPages          []resources.PortalPageResource
+	desiredPortalSnippets       []resources.PortalSnippetResource
 }
 
 // NewPlanner creates a new planner
@@ -65,6 +69,10 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	p.desiredAPIPublications = rs.APIPublications
 	p.desiredAPIImplementations = rs.APIImplementations
 	p.desiredAPIDocuments = rs.APIDocuments
+	p.desiredPortalCustomizations = rs.PortalCustomizations
+	p.desiredPortalCustomDomains = rs.PortalCustomDomains
+	p.desiredPortalPages = rs.PortalPages
+	p.desiredPortalSnippets = rs.PortalSnippets
 
 	// Pre-resolution phase: Resolve resource identities before planning
 	if err := p.resolveResourceIdentities(ctx, rs); err != nil {
@@ -83,6 +91,23 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	// Plan API changes (includes child resources)
 	if err := p.apiPlanner.PlanChanges(ctx, plan); err != nil {
 		return nil, fmt.Errorf("failed to plan API changes: %w", err)
+	}
+
+	// Plan Portal child resources that are defined separately
+	if err := p.planPortalCustomizationsChanges(ctx, p.desiredPortalCustomizations, plan); err != nil {
+		return nil, fmt.Errorf("failed to plan portal customization changes: %w", err)
+	}
+
+	if err := p.planPortalCustomDomainsChanges(ctx, p.desiredPortalCustomDomains, plan); err != nil {
+		return nil, fmt.Errorf("failed to plan portal custom domain changes: %w", err)
+	}
+
+	if err := p.planPortalPagesChanges(ctx, p.desiredPortalPages, plan); err != nil {
+		return nil, fmt.Errorf("failed to plan portal page changes: %w", err)
+	}
+
+	if err := p.planPortalSnippetsChanges(ctx, p.desiredPortalSnippets, plan); err != nil {
+		return nil, fmt.Errorf("failed to plan portal snippet changes: %w", err)
 	}
 
 	// Future: Add other resource types
@@ -177,6 +202,26 @@ func getString(s *string) string {
 // GetDesiredAPIs returns the desired API resources
 func (p *Planner) GetDesiredAPIs() []resources.APIResource {
 	return p.desiredAPIs
+}
+
+// GetDesiredPortalCustomizations returns the desired portal customization resources
+func (p *Planner) GetDesiredPortalCustomizations() []resources.PortalCustomizationResource {
+	return p.desiredPortalCustomizations
+}
+
+// GetDesiredPortalCustomDomains returns the desired portal custom domain resources
+func (p *Planner) GetDesiredPortalCustomDomains() []resources.PortalCustomDomainResource {
+	return p.desiredPortalCustomDomains
+}
+
+// GetDesiredPortalPages returns the desired portal page resources
+func (p *Planner) GetDesiredPortalPages() []resources.PortalPageResource {
+	return p.desiredPortalPages
+}
+
+// GetDesiredPortalSnippets returns the desired portal snippet resources
+func (p *Planner) GetDesiredPortalSnippets() []resources.PortalSnippetResource {
+	return p.desiredPortalSnippets
 }
 
 // resolveResourceIdentities pre-resolves Konnect IDs for all resources

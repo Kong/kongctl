@@ -393,6 +393,15 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 		return e.createAPIDocument(ctx, change)
 	case "application_auth_strategy":
 		return e.createApplicationAuthStrategy(ctx, change)
+	case "portal_customization":
+		// Portal customization is a singleton resource - always exists, so we update instead
+		return e.updatePortalCustomization(ctx, change)
+	case "portal_custom_domain":
+		return e.createPortalCustomDomain(ctx, change)
+	case "portal_page":
+		return e.createPortalPage(ctx, change)
+	case "portal_snippet":
+		return e.createPortalSnippet(ctx, change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
 	}
@@ -408,6 +417,14 @@ func (e *Executor) updateResource(ctx context.Context, change planner.PlannedCha
 		return e.updateAPIDocument(ctx, change)
 	case "application_auth_strategy":
 		return e.updateApplicationAuthStrategy(ctx, change)
+	case "portal_customization":
+		return e.updatePortalCustomization(ctx, change)
+	case "portal_custom_domain":
+		return e.updatePortalCustomDomain(ctx, change)
+	case "portal_page":
+		return e.updatePortalPage(ctx, change)
+	case "portal_snippet":
+		return e.updatePortalSnippet(ctx, change)
 	// Note: api_version, api_publication, and api_implementation don't support update
 	default:
 		return "", fmt.Errorf("update operation not yet implemented for %s", change.ResourceType)
@@ -428,7 +445,14 @@ func (e *Executor) deleteResource(ctx context.Context, change planner.PlannedCha
 		return e.deleteAPIDocument(ctx, change)
 	case "application_auth_strategy":
 		return e.deleteApplicationAuthStrategy(ctx, change)
+	case "portal_custom_domain":
+		return e.deletePortalCustomDomain(ctx, change)
+	case "portal_page":
+		return e.deletePortalPage(ctx, change)
+	case "portal_snippet":
+		return e.deletePortalSnippet(ctx, change)
 	// Note: api_version doesn't support delete
+	// Note: portal_customization is a singleton resource and cannot be deleted
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)
 	}

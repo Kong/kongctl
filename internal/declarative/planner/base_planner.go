@@ -77,6 +77,26 @@ func (b *BasePlanner) GetDesiredAPIDocuments() []resources.APIDocumentResource {
 	return b.planner.desiredAPIDocuments
 }
 
+// GetDesiredPortalCustomizations returns desired portal customization resources
+func (b *BasePlanner) GetDesiredPortalCustomizations() []resources.PortalCustomizationResource {
+	return b.planner.desiredPortalCustomizations
+}
+
+// GetDesiredPortalCustomDomains returns desired portal custom domain resources
+func (b *BasePlanner) GetDesiredPortalCustomDomains() []resources.PortalCustomDomainResource {
+	return b.planner.desiredPortalCustomDomains
+}
+
+// GetDesiredPortalPages returns desired portal page resources
+func (b *BasePlanner) GetDesiredPortalPages() []resources.PortalPageResource {
+	return b.planner.desiredPortalPages
+}
+
+// GetDesiredPortalSnippets returns desired portal snippet resources
+func (b *BasePlanner) GetDesiredPortalSnippets() []resources.PortalSnippetResource {
+	return b.planner.desiredPortalSnippets
+}
+
 // CollectProtectionErrors collects protection validation errors for batch reporting
 type ProtectionErrorCollector struct {
 	errors []error

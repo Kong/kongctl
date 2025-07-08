@@ -217,7 +217,7 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 		RbacEnabled                      *bool                          `json:"rbac_enabled,omitempty"`
 		DefaultAPIVisibility             *kkComps.DefaultAPIVisibility  `json:"default_api_visibility,omitempty"`
 		DefaultPageVisibility            *kkComps.DefaultPageVisibility `json:"default_page_visibility,omitempty"`
-		DefaultApplicationAuthStrategyID *string                        `json:"default_application_auth_strategy_id,omitempty"`
+		DefaultApplicationAuthStrategyID *string                        `json:"default_application_auth_strategy_id,omitempty"` //nolint:lll
 		AutoApproveDevelopers            *bool                          `json:"auto_approve_developers,omitempty"`
 		AutoApproveApplications          *bool                          `json:"auto_approve_applications,omitempty"`
 		Labels                           json.RawMessage                `json:"labels,omitempty"`
