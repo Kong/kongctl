@@ -129,8 +129,18 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		}
 	}
 
-	if err := p.planPortalSnippetsChanges(ctx, p.desiredPortalSnippets, plan); err != nil {
-		return nil, fmt.Errorf("failed to plan portal snippet changes: %w", err)
+	// Plan portal snippets grouped by portal
+	snippetsByPortal := make(map[string][]resources.PortalSnippetResource)
+	for _, snippet := range p.desiredPortalSnippets {
+		snippetsByPortal[snippet.Portal] = append(snippetsByPortal[snippet.Portal], snippet)
+	}
+	
+	// Plan snippets for each portal
+	for portalRef, snippets := range snippetsByPortal {
+		portalID := portalRefToID[portalRef]
+		if err := p.planPortalSnippetsChanges(ctx, portalID, portalRef, snippets, plan); err != nil {
+			return nil, fmt.Errorf("failed to plan portal snippet changes for portal %s: %w", portalRef, err)
+		}
 	}
 
 	// Future: Add other resource types

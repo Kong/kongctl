@@ -144,7 +144,7 @@ func (r *ReferenceResolver) getResourceTypeForField(fieldName string) string {
 	case "control_plane_id", "gateway_service.control_plane_id", "service.control_plane_id":
 		return "control_plane"
 	case "portal_id":
-		return "portal"
+		return ResourceTypePortal
 	default:
 		return ""
 	}
@@ -157,7 +157,7 @@ func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, 
 		return r.resolveAuthStrategyRef(ctx, ref)
 	case "control_plane":
 		return r.resolveControlPlaneRef(ctx, ref)
-	case "portal":
+	case ResourceTypePortal:
 		return r.resolvePortalRef(ctx, ref)
 	default:
 		return "", fmt.Errorf("unknown resource type: %s", resourceType)

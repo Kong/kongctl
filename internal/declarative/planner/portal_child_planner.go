@@ -69,7 +69,7 @@ func (p *Planner) planPortalCustomizationUpdate(
 	if customization.Portal != "" {
 		// Find the change ID for the parent portal
 		for _, change := range plan.Changes {
-			if change.ResourceType == "portal" && change.ResourceRef == customization.Portal {
+			if change.ResourceType == ResourceTypePortal && change.ResourceRef == customization.Portal {
 				dependencies = append(dependencies, change.ID)
 				break
 			}
@@ -79,7 +79,7 @@ func (p *Planner) planPortalCustomizationUpdate(
 	// Portal customization is a singleton resource - always use UPDATE action
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionUpdate, customization.Ref),
-		ResourceType: "portal_customization",
+		ResourceType: ResourceTypePortalCustomization,
 		ResourceRef:  customization.Ref,
 		Action:       ActionUpdate,
 		Fields:       fields,
@@ -150,7 +150,7 @@ func (p *Planner) planPortalCustomDomainCreate(
 	if domain.Portal != "" {
 		// Find the change ID for the parent portal
 		for _, change := range plan.Changes {
-			if change.ResourceType == "portal" && change.ResourceRef == domain.Portal {
+			if change.ResourceType == ResourceTypePortal && change.ResourceRef == domain.Portal {
 				dependencies = append(dependencies, change.ID)
 				break
 			}
@@ -159,7 +159,7 @@ func (p *Planner) planPortalCustomDomainCreate(
 
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, domain.Ref),
-		ResourceType: "portal_custom_domain",
+		ResourceType: ResourceTypePortalCustomDomain,
 		ResourceRef:  domain.Ref,
 		Action:       ActionCreate,
 		Fields:       fields,
@@ -318,7 +318,7 @@ func (p *Planner) planPortalPageCreate(
 	if page.Portal != "" {
 		// Find the change ID for the parent portal
 		for _, change := range plan.Changes {
-			if change.ResourceType == "portal" && change.ResourceRef == page.Portal {
+			if change.ResourceType == ResourceTypePortal && change.ResourceRef == page.Portal {
 				dependencies = append(dependencies, change.ID)
 				break
 			}
@@ -327,7 +327,7 @@ func (p *Planner) planPortalPageCreate(
 
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, page.GetRef()),
-		ResourceType: "portal_page",
+		ResourceType: ResourceTypePortalPage,
 		ResourceRef:  page.GetRef(),
 		Action:       ActionCreate,
 		Fields:       fields,
@@ -359,7 +359,7 @@ func (p *Planner) planPortalPageCreate(
 	if page.ParentPageRef != "" {
 		// Add dependency on parent page
 		for _, depChange := range plan.Changes {
-			if depChange.ResourceType == "portal_page" && depChange.ResourceRef == page.ParentPageRef {
+			if depChange.ResourceType == ResourceTypePortalPage && depChange.ResourceRef == page.ParentPageRef {
 				change.DependsOn = append(change.DependsOn, depChange.ID)
 				break
 			}
@@ -460,7 +460,7 @@ func (p *Planner) planPortalPageUpdate(
 	if portalRef != "" {
 		// Find the change ID for the parent portal
 		for _, change := range plan.Changes {
-			if change.ResourceType == "portal" && change.ResourceRef == portalRef {
+			if change.ResourceType == ResourceTypePortal && change.ResourceRef == portalRef {
 				dependencies = append(dependencies, change.ID)
 				break
 			}
@@ -469,7 +469,7 @@ func (p *Planner) planPortalPageUpdate(
 
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionUpdate, desired.GetRef()),
-		ResourceType: "portal_page",
+		ResourceType: ResourceTypePortalPage,
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
 		Action:       ActionUpdate,
@@ -528,19 +528,50 @@ func (p *Planner) buildParentPath(pageRef string, allPages []resources.PortalPag
 // Portal Snippet planning
 
 func (p *Planner) planPortalSnippetsChanges(
-	_ context.Context, desired []resources.PortalSnippetResource, plan *Plan,
-) error { //nolint:unparam // Will return errors when state fetching is added
+	ctx context.Context, portalID string, portalRef string, desired []resources.PortalSnippetResource, plan *Plan,
+) error {
 	// Skip if no snippets to plan
 	if len(desired) == 0 {
 		return nil
 	}
 
-	// TODO: In the future, we should fetch current snippets and compare
-	// For now, just create all desired snippets
+	// Fetch existing snippets for this portal
+	existingSnippets := make(map[string]state.PortalSnippet)
+	if portalID != "" {
+		snippets, err := p.client.ListPortalSnippets(ctx, portalID)
+		if err != nil {
+			// If portal doesn't exist yet, that's ok - we'll create snippets after portal is created
+			if !strings.Contains(err.Error(), "not found") {
+				return fmt.Errorf("failed to list portal snippets: %w", err)
+			}
+		} else {
+			// Build map by name for matching
+			for _, snippet := range snippets {
+				existingSnippets[snippet.Name] = snippet
+			}
+		}
+	}
 
-	// For each desired snippet
+	// Process desired snippets
 	for _, desiredSnippet := range desired {
-		p.planPortalSnippetCreate(desiredSnippet, plan)
+		// Check if snippet exists by name
+		if existingSnippet, exists := existingSnippets[desiredSnippet.Name]; exists {
+			// Check if UPDATE is needed - must fetch full content first
+			if portalID != "" && existingSnippet.ID != "" {
+				fullSnippet, err := p.client.GetPortalSnippet(ctx, portalID, existingSnippet.ID)
+				if err != nil {
+					return fmt.Errorf("failed to fetch portal snippet %s for comparison: %w", existingSnippet.ID, err)
+				}
+				
+				needsUpdate, updateFields := p.shouldUpdatePortalSnippet(fullSnippet, desiredSnippet)
+				if needsUpdate {
+					p.planPortalSnippetUpdate(existingSnippet, desiredSnippet, portalRef, updateFields, plan)
+				}
+			}
+		} else {
+			// CREATE new snippet
+			p.planPortalSnippetCreate(desiredSnippet, plan)
+		}
 	}
 
 	return nil
@@ -572,7 +603,7 @@ func (p *Planner) planPortalSnippetCreate(
 	if snippet.Portal != "" {
 		// Find the change ID for the parent portal
 		for _, change := range plan.Changes {
-			if change.ResourceType == "portal" && change.ResourceRef == snippet.Portal {
+			if change.ResourceType == ResourceTypePortal && change.ResourceRef == snippet.Portal {
 				dependencies = append(dependencies, change.ID)
 				break
 			}
@@ -581,7 +612,7 @@ func (p *Planner) planPortalSnippetCreate(
 
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, snippet.GetRef()),
-		ResourceType: "portal_snippet",
+		ResourceType: ResourceTypePortalSnippet,
 		ResourceRef:  snippet.GetRef(),
 		Action:       ActionCreate,
 		Fields:       fields,
@@ -602,6 +633,111 @@ func (p *Planner) planPortalSnippetCreate(
 		change.References = map[string]ReferenceInfo{
 			"portal_id": {
 				Ref: snippet.Portal,
+				LookupFields: map[string]string{
+					"name": portalName,
+				},
+			},
+		}
+	}
+
+	plan.AddChange(change)
+}// shouldUpdatePortalSnippet checks if a portal snippet needs updating
+func (p *Planner) shouldUpdatePortalSnippet(
+	current *state.PortalSnippet,
+	desired resources.PortalSnippetResource,
+) (bool, map[string]interface{}) {
+	updates := make(map[string]interface{})
+
+	// Compare content (always present)
+	if current.Content != desired.Content {
+		updates["content"] = desired.Content
+	}
+
+	// Compare title if set
+	if desired.Title != nil && current.Title != *desired.Title {
+		updates["title"] = *desired.Title
+	}
+
+	// Compare description if set
+	if desired.Description != nil && current.Description != *desired.Description {
+		updates["description"] = *desired.Description
+	}
+
+	// Compare visibility if set
+	if desired.Visibility != nil {
+		desiredVis := string(*desired.Visibility)
+		if current.Visibility != desiredVis {
+			updates["visibility"] = desiredVis
+		}
+	}
+
+	// Compare status if set
+	if desired.Status != nil {
+		desiredStatus := string(*desired.Status)
+		if current.Status != desiredStatus {
+			updates["status"] = desiredStatus
+		}
+	}
+
+	// Note: We don't update name as that's the identifier
+
+	return len(updates) > 0, updates
+}
+
+// planPortalSnippetUpdate creates an UPDATE change for a portal snippet
+func (p *Planner) planPortalSnippetUpdate(
+	current state.PortalSnippet,
+	desired resources.PortalSnippetResource,
+	portalRef string,
+	updateFields map[string]interface{},
+	plan *Plan,
+) {
+	fields := make(map[string]interface{})
+
+	// Always include name for identification
+	fields["name"] = current.Name
+
+	// Add fields that need updating
+	for field, value := range updateFields {
+		fields[field] = value
+	}
+
+	// Determine dependencies - depends on parent portal
+	var dependencies []string
+	if portalRef != "" {
+		// Find the change ID for the parent portal
+		for _, change := range plan.Changes {
+			if change.ResourceType == ResourceTypePortal && change.ResourceRef == portalRef {
+				dependencies = append(dependencies, change.ID)
+				break
+			}
+		}
+	}
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionUpdate, desired.GetRef()),
+		ResourceType: ResourceTypePortalSnippet,
+		ResourceRef:  desired.GetRef(),
+		ResourceID:   current.ID,
+		Action:       ActionUpdate,
+		Fields:       fields,
+		DependsOn:    dependencies,
+	}
+
+	// Store parent portal reference
+	if portalRef != "" {
+		// Find the portal in desiredPortals to get its name
+		var portalName string
+		for _, portal := range p.desiredPortals {
+			if portal.Ref == portalRef {
+				portalName = portal.Name
+				break
+			}
+		}
+		
+		change.References = map[string]ReferenceInfo{
+			"portal_id": {
+				Ref: portalRef,
 				LookupFields: map[string]string{
 					"name": portalName,
 				},
