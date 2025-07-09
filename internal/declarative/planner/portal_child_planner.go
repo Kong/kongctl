@@ -215,56 +215,93 @@ func (p *Planner) planPortalPagesChanges(
 	}
 
 	// Build maps for matching
-	// Map parent page ref to list of existing child pages by slug
-	existingByParentAndSlug := make(map[string]map[string]state.PortalPage)
-	// Also build a map from slug to page for easy lookup
-	existingBySlug := make(map[string]state.PortalPage)
+	// Build map from full slug path to page
+	existingByPath := make(map[string]state.PortalPage)
+	existingByID := make(map[string]state.PortalPage)
 	
+	// First, index all pages by ID for easy lookup
 	for _, page := range existingPages {
-		parentKey := page.ParentPageID
-		if parentKey == "" {
-			parentKey = "root"
+		existingByID[page.ID] = page
+	}
+	
+	// Helper to build full path for a page
+	var getPagePath func(pageID string) string
+	pageIDToPath := make(map[string]string) // cache to avoid recalculation
+	
+	getPagePath = func(pageID string) string {
+		// Check cache first
+		if path, cached := pageIDToPath[pageID]; cached {
+			return path
 		}
 		
-		if existingByParentAndSlug[parentKey] == nil {
-			existingByParentAndSlug[parentKey] = make(map[string]state.PortalPage)
+		page, exists := existingByID[pageID]
+		if !exists {
+			return ""
 		}
 		
-		// Normalize slug by stripping leading slash for matching
-		normalizedSlug := strings.TrimPrefix(page.Slug, "/")
-		existingByParentAndSlug[parentKey][normalizedSlug] = page
-		existingBySlug[normalizedSlug] = page
+		// Special handling for root page with slug "/"
+		normalizedSlug := page.Slug
+		if page.Slug != "/" {
+			normalizedSlug = strings.TrimPrefix(page.Slug, "/")
+		}
+		
+		// Root page - path is just the slug
+		if page.ParentPageID == "" {
+			pageIDToPath[pageID] = normalizedSlug
+			return normalizedSlug
+		}
+		
+		// Child page - build full path recursively
+		parentPath := getPagePath(page.ParentPageID)
+		if parentPath == "" {
+			// Parent not found, use slug only
+			pageIDToPath[pageID] = normalizedSlug
+			return normalizedSlug
+		}
+		
+		fullPath := parentPath + "/" + normalizedSlug
+		pageIDToPath[pageID] = fullPath
+		return fullPath
+	}
+	
+	// Build the path map for all existing pages
+	for _, page := range existingPages {
+		path := getPagePath(page.ID)
+		if path != "" {
+			existingByPath[path] = page
+		}
 	}
 
-	// Note: We don't have refs for existing pages, so we match by structure (slug + parent)
+	// Note: We don't have refs for existing pages, so we match by full slug paths
 
 	// Process desired pages
 	for _, desiredPage := range desired {
-		// Determine parent key for matching
-		parentKey := "root"
-		if desiredPage.ParentPageRef != "" {
-			// Try to resolve parent ref to ID using existing pages
-			// The parent page should have a matching slug
-			if parentPage, found := existingBySlug[desiredPage.ParentPageRef]; found {
-				parentKey = parentPage.ID
+		// Build the full path for this desired page to check if it exists
+		var fullPath string
+		// Special handling for root page with slug "/"
+		normalizedDesiredSlug := desiredPage.Slug
+		if desiredPage.Slug != "/" {
+			normalizedDesiredSlug = strings.TrimPrefix(desiredPage.Slug, "/")
+		}
+		
+		if desiredPage.ParentPageRef == "" {
+			// Root page
+			fullPath = normalizedDesiredSlug
+		} else {
+			// Child page - build parent path first
+			parentPath := p.buildParentPath(desiredPage.ParentPageRef, desired)
+			if parentPath != "" {
+				fullPath = parentPath + "/" + normalizedDesiredSlug
 			} else {
-				// Parent doesn't exist yet - it might be created in this execution
-				// Use the ref as the key for now
-				parentKey = desiredPage.ParentPageRef
+				// Parent path couldn't be built, use slug only
+				fullPath = normalizedDesiredSlug
 			}
 		}
-
-		// Check if page exists at this level
-		// Normalize desired slug for matching (strip leading slash if present)
-		normalizedDesiredSlug := strings.TrimPrefix(desiredPage.Slug, "/")
-		var existingPage *state.PortalPage
-		if siblings, hasParent := existingByParentAndSlug[parentKey]; hasParent {
-			if existing, found := siblings[normalizedDesiredSlug]; found {
-				existingPage = &existing
-			}
-		}
-
-		if existingPage == nil {
+		
+		// Check if page exists by full path
+		existingPage, exists := existingByPath[fullPath]
+		
+		if !exists {
 			// CREATE new page
 			p.planPortalPageCreate(desiredPage, portalRef, plan)
 		} else {
@@ -277,7 +314,7 @@ func (p *Planner) planPortalPagesChanges(
 				
 				needsUpdate, updateFields := p.shouldUpdatePortalPage(fullPage, desiredPage)
 				if needsUpdate {
-					p.planPortalPageUpdate(*existingPage, desiredPage, portalRef, updateFields, plan)
+					p.planPortalPageUpdate(existingPage, desiredPage, portalRef, updateFields, plan)
 				}
 			}
 		}

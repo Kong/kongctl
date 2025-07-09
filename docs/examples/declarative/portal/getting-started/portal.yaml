@@ -24,15 +24,15 @@ portals:
       layout: "topnav"
       menu:
         main:
-          - path: "getting-started"
+          - path: "/getting-started"
             title: "Getting Started"
             external: false
             visibility: "public"
-          - path: "guides"
+          - path: "/guides"
             title: "Guides"
             external: false
             visibility: "public"
-          - path: "apis"
+          - path: "/apis"
             title: "APIs"
             external: false
             visibility: "public"
