@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
@@ -12,56 +13,70 @@ import (
 // Portal Customization planning
 
 func (p *Planner) planPortalCustomizationsChanges(
-	_ context.Context, desired []resources.PortalCustomizationResource, plan *Plan,
-) error { //nolint:unparam // Will return errors when state fetching is added
+	ctx context.Context, desired []resources.PortalCustomizationResource, plan *Plan,
+) error { //nolint:unparam // Will return errors in future enhancements
 	// Skip if no customizations to plan
 	if len(desired) == 0 {
 		return nil
 	}
 
+	// Get existing portals to check current customization
+	existingPortals, _ := p.client.ListManagedPortals(ctx)
+	portalNameToID := make(map[string]string)
+	for _, portal := range existingPortals {
+		portalNameToID[portal.Name] = portal.ID
+	}
+
 	// For each desired customization
 	for _, desiredCustomization := range desired {
-		// Portal customizations are singleton resources per portal
-		// Always update since it exists by default
-		p.planPortalCustomizationUpdate(desiredCustomization, plan)
+		// Find the portal ID
+		var portalID string
+		var portalName string
+		for _, portal := range p.desiredPortals {
+			if portal.Ref == desiredCustomization.Portal {
+				portalName = portal.Name
+				portalID = portalNameToID[portalName]
+				break
+			}
+		}
+
+		// If portal exists, fetch current customization and compare
+		if portalID != "" {
+			current, err := p.client.GetPortalCustomization(ctx, portalID)
+			if err != nil {
+				// If we can't fetch current state, plan the update anyway
+				p.planPortalCustomizationUpdate(desiredCustomization, portalName, plan)
+				continue
+			}
+
+			// Compare and only update if needed
+			needsUpdate, updateFields := p.shouldUpdatePortalCustomization(current, desiredCustomization)
+			if needsUpdate {
+				p.planPortalCustomizationUpdateWithFields(desiredCustomization, portalName, updateFields, plan)
+			}
+		} else {
+			// Portal doesn't exist yet, plan the update for after portal creation
+			p.planPortalCustomizationUpdate(desiredCustomization, portalName, plan)
+		}
 	}
 
 	return nil
 }
 
 func (p *Planner) planPortalCustomizationUpdate(
-	customization resources.PortalCustomizationResource, plan *Plan,
+	customization resources.PortalCustomizationResource, portalName string, plan *Plan,
 ) {
-	fields := make(map[string]interface{})
-	
-	// Add theme settings if present
-	if customization.Theme != nil {
-		themeFields := make(map[string]interface{})
-		if customization.Theme.Colors != nil {
-			colorsFields := make(map[string]interface{})
-			if customization.Theme.Colors.Primary != nil {
-				colorsFields["primary"] = *customization.Theme.Colors.Primary
-			}
-			themeFields["colors"] = colorsFields
-		}
-		fields["theme"] = themeFields
-	}
+	// Build all fields from the resource
+	fields := p.buildAllCustomizationFields(customization)
+	p.planPortalCustomizationUpdateWithFields(customization, portalName, fields, plan)
+}
 
-	// Add menu settings if present
-	if customization.Menu != nil {
-		menuFields := make(map[string]interface{})
-		if customization.Menu.Main != nil {
-			var mainMenuItems []map[string]interface{}
-			for _, item := range customization.Menu.Main {
-				menuItem := map[string]interface{}{
-					"path":  item.Path,
-					"title": item.Title,
-				}
-				mainMenuItems = append(mainMenuItems, menuItem)
-			}
-			menuFields["main"] = mainMenuItems
-		}
-		fields["menu"] = menuFields
+func (p *Planner) planPortalCustomizationUpdateWithFields(
+	customization resources.PortalCustomizationResource, portalName string, fields map[string]interface{}, plan *Plan,
+) {
+	// Only proceed if there are fields to update
+	if len(fields) == 0 {
+		return
 	}
 
 	// Determine dependencies - depends on parent portal
@@ -88,15 +103,6 @@ func (p *Planner) planPortalCustomizationUpdate(
 
 	// Store parent portal reference
 	if customization.Portal != "" {
-		// Find the portal in desiredPortals to get its name
-		var portalName string
-		for _, portal := range p.desiredPortals {
-			if portal.Ref == customization.Portal {
-				portalName = portal.Name
-				break
-			}
-		}
-		
 		change.References = map[string]ReferenceInfo{
 			"portal_id": {
 				Ref: customization.Portal,
@@ -108,6 +114,245 @@ func (p *Planner) planPortalCustomizationUpdate(
 	}
 
 	plan.AddChange(change)
+}
+
+// shouldUpdatePortalCustomization compares current and desired customization
+func (p *Planner) shouldUpdatePortalCustomization(
+	current *kkComps.PortalCustomization,
+	desired resources.PortalCustomizationResource,
+) (bool, map[string]interface{}) {
+	updates := make(map[string]interface{})
+
+	// Compare theme
+	if !p.compareTheme(current.Theme, desired.Theme) {
+		if desired.Theme != nil {
+			updates["theme"] = p.buildThemeFields(desired.Theme)
+		}
+	}
+
+	// Compare layout
+	if !p.compareStringPtr(current.Layout, desired.Layout) {
+		if desired.Layout != nil {
+			updates["layout"] = *desired.Layout
+		}
+	}
+
+	// Compare CSS
+	if !p.compareStringPtr(current.CSS, desired.CSS) {
+		if desired.CSS != nil {
+			updates["css"] = *desired.CSS
+		}
+	}
+
+	// Compare menu
+	if !p.compareMenu(current.Menu, desired.Menu) {
+		if desired.Menu != nil {
+			updates["menu"] = p.buildMenuFields(desired.Menu)
+		}
+	}
+
+	return len(updates) > 0, updates
+}
+
+// buildAllCustomizationFields builds all fields from the customization resource
+func (p *Planner) buildAllCustomizationFields(
+	customization resources.PortalCustomizationResource,
+) map[string]interface{} {
+	fields := make(map[string]interface{})
+
+	// Add theme settings if present
+	if customization.Theme != nil {
+		fields["theme"] = p.buildThemeFields(customization.Theme)
+	}
+
+	// Add layout if present
+	if customization.Layout != nil {
+		fields["layout"] = *customization.Layout
+	}
+
+	// Add CSS if present
+	if customization.CSS != nil {
+		fields["css"] = *customization.CSS
+	}
+
+	// Add menu settings if present
+	if customization.Menu != nil {
+		fields["menu"] = p.buildMenuFields(customization.Menu)
+	}
+
+	return fields
+}
+
+// buildThemeFields constructs theme fields map from theme object
+func (p *Planner) buildThemeFields(theme *kkComps.Theme) map[string]interface{} {
+	themeFields := make(map[string]interface{})
+	
+	// Add mode if present
+	if theme.Mode != nil {
+		themeFields["mode"] = string(*theme.Mode)
+	}
+	
+	// Add name if present
+	if theme.Name != nil {
+		themeFields["name"] = *theme.Name
+	}
+	
+	// Add colors if present
+	if theme.Colors != nil {
+		colorsFields := make(map[string]interface{})
+		if theme.Colors.Primary != nil {
+			colorsFields["primary"] = *theme.Colors.Primary
+		}
+		themeFields["colors"] = colorsFields
+	}
+	
+	return themeFields
+}
+
+// buildMenuFields constructs menu fields map from menu object
+func (p *Planner) buildMenuFields(menu *kkComps.Menu) map[string]interface{} {
+	menuFields := make(map[string]interface{})
+	
+	// Add main menu items
+	if menu.Main != nil {
+		var mainMenuItems []map[string]interface{}
+		for _, item := range menu.Main {
+			menuItem := map[string]interface{}{
+				"path":       item.Path,
+				"title":      item.Title,
+				"external":   item.External,
+				"visibility": string(item.Visibility),
+			}
+			mainMenuItems = append(mainMenuItems, menuItem)
+		}
+		menuFields["main"] = mainMenuItems
+	}
+	
+	// Add footer sections
+	if menu.FooterSections != nil {
+		var footerSections []map[string]interface{}
+		for _, section := range menu.FooterSections {
+			var items []map[string]interface{}
+			for _, item := range section.Items {
+				menuItem := map[string]interface{}{
+					"path":       item.Path,
+					"title":      item.Title,
+					"external":   item.External,
+					"visibility": string(item.Visibility),
+				}
+				items = append(items, menuItem)
+			}
+			sectionMap := map[string]interface{}{
+				"title": section.Title,
+				"items": items,
+			}
+			footerSections = append(footerSections, sectionMap)
+		}
+		menuFields["footer_sections"] = footerSections
+	}
+	
+	return menuFields
+}
+
+// compareTheme does deep comparison of theme objects
+func (p *Planner) compareTheme(current, desired *kkComps.Theme) bool {
+	if current == nil && desired == nil {
+		return true
+	}
+	if current == nil || desired == nil {
+		return false
+	}
+	
+	// Compare mode
+	if !p.compareModePtr(current.Mode, desired.Mode) {
+		return false
+	}
+	
+	// Compare name
+	if !p.compareStringPtr(current.Name, desired.Name) {
+		return false
+	}
+	
+	// Compare colors
+	if current.Colors == nil && desired.Colors == nil {
+		return true
+	}
+	if current.Colors == nil || desired.Colors == nil {
+		return false
+	}
+	
+	return p.compareStringPtr(current.Colors.Primary, desired.Colors.Primary)
+}
+
+// compareMenu does deep comparison of menu objects
+func (p *Planner) compareMenu(current, desired *kkComps.Menu) bool {
+	if current == nil && desired == nil {
+		return true
+	}
+	if current == nil || desired == nil {
+		return false
+	}
+	
+	// Compare main menu items
+	if len(current.Main) != len(desired.Main) {
+		return false
+	}
+	for i, currentItem := range current.Main {
+		desiredItem := desired.Main[i]
+		if currentItem.Path != desiredItem.Path ||
+			currentItem.Title != desiredItem.Title ||
+			currentItem.External != desiredItem.External ||
+			currentItem.Visibility != desiredItem.Visibility {
+			return false
+		}
+	}
+	
+	// Compare footer sections
+	if len(current.FooterSections) != len(desired.FooterSections) {
+		return false
+	}
+	for i, currentSection := range current.FooterSections {
+		desiredSection := desired.FooterSections[i]
+		if currentSection.Title != desiredSection.Title ||
+			len(currentSection.Items) != len(desiredSection.Items) {
+			return false
+		}
+		
+		// Compare items in section
+		for j, currentItem := range currentSection.Items {
+			desiredItem := desiredSection.Items[j]
+			if currentItem.Path != desiredItem.Path ||
+				currentItem.Title != desiredItem.Title ||
+				currentItem.External != desiredItem.External ||
+				currentItem.Visibility != desiredItem.Visibility {
+				return false
+			}
+		}
+	}
+	
+	return true
+}
+
+// compareStringPtr compares two string pointers
+func (p *Planner) compareStringPtr(current, desired *string) bool {
+	if current == nil && desired == nil {
+		return true
+	}
+	if current == nil || desired == nil {
+		return false
+	}
+	return *current == *desired
+}
+
+// compareModePtr compares two Mode pointers
+func (p *Planner) compareModePtr(current, desired *kkComps.Mode) bool {
+	if current == nil && desired == nil {
+		return true
+	}
+	if current == nil || desired == nil {
+		return false
+	}
+	return *current == *desired
 }
 
 // Portal Custom Domain planning

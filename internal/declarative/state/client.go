@@ -1154,6 +1154,27 @@ func (c *Client) DeleteApplicationAuthStrategy(ctx context.Context, id string) e
 
 // Portal Child Resource Methods
 
+// GetPortalCustomization fetches the current customization for a portal
+func (c *Client) GetPortalCustomization(
+	ctx context.Context,
+	portalID string,
+) (*kkComps.PortalCustomization, error) {
+	if c.portalCustomizationAPI == nil {
+		return nil, fmt.Errorf("portal customization API not configured")
+	}
+	
+	resp, err := c.portalCustomizationAPI.GetPortalCustomization(ctx, portalID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get portal customization: %w", err)
+	}
+	
+	if resp.PortalCustomization == nil {
+		return nil, fmt.Errorf("no customization data in response")
+	}
+	
+	return resp.PortalCustomization, nil
+}
+
 // UpdatePortalCustomization updates portal customization settings
 func (c *Client) UpdatePortalCustomization(
 	ctx context.Context,

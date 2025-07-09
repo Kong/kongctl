@@ -37,7 +37,7 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 		return "", fmt.Errorf("portal ID is required for customization")
 	}
 	
-	logger.Debug("Updating portal customization",
+	logger.LogAttrs(ctx, log.LevelTrace, "Updating portal customization",
 		slog.String("portal_id", portalID),
 		slog.Any("fields", change.Fields))
 	
@@ -79,35 +79,94 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 	}
 	
 	// Handle menu
+	logger.LogAttrs(ctx, log.LevelTrace, "Processing menu field",
+		slog.Any("menu_data", change.Fields["menu"]),
+		slog.String("menu_type", fmt.Sprintf("%T", change.Fields["menu"])))
+		
 	if menuData, ok := change.Fields["menu"].(map[string]interface{}); ok {
+		logger.LogAttrs(ctx, log.LevelTrace, "Menu data found",
+			slog.Any("main", menuData["main"]),
+			slog.String("main_type", fmt.Sprintf("%T", menuData["main"])),
+			slog.Any("footer_sections", menuData["footer_sections"]),
+			slog.String("footer_sections_type", fmt.Sprintf("%T", menuData["footer_sections"])))
+			
 		menu := &kkComps.Menu{}
 		
-		if mainItems, ok := menuData["main"].([]interface{}); ok {
+		if mainItems, ok := menuData["main"].([]map[string]interface{}); ok {
 			var mainMenu []kkComps.PortalMenuItem
-			for _, item := range mainItems {
-				if itemMap, ok := item.(map[string]interface{}); ok {
-					menuItem := kkComps.PortalMenuItem{
-						Path:  itemMap["path"].(string),
-						Title: itemMap["title"].(string),
-					}
-					
-					if visibility, ok := itemMap["visibility"].(string); ok {
-						visValue := kkComps.Visibility(visibility)
-						menuItem.Visibility = visValue
-					}
-					if external, ok := itemMap["external"].(bool); ok {
-						menuItem.External = external
-					}
-					
-					mainMenu = append(mainMenu, menuItem)
+			for _, itemMap := range mainItems {
+				menuItem := kkComps.PortalMenuItem{
+					Path:  itemMap["path"].(string),
+					Title: itemMap["title"].(string),
 				}
+				
+				if visibility, ok := itemMap["visibility"].(string); ok {
+					visValue := kkComps.Visibility(visibility)
+					menuItem.Visibility = visValue
+				}
+				if external, ok := itemMap["external"].(bool); ok {
+					menuItem.External = external
+				}
+				
+				mainMenu = append(mainMenu, menuItem)
 			}
 			menu.Main = mainMenu
 		}
 		
+		// Handle footer sections
+		if footerSections, ok := menuData["footer_sections"].([]map[string]interface{}); ok {
+			var footerSectionsList []kkComps.PortalFooterMenuSection
+			for _, sectionMap := range footerSections {
+				footerSection := kkComps.PortalFooterMenuSection{
+					Title: sectionMap["title"].(string),
+				}
+				
+				// Process items in the section
+				if items, ok := sectionMap["items"].([]map[string]interface{}); ok {
+					var sectionItems []kkComps.PortalMenuItem
+					for _, itemMap := range items {
+						footerItem := kkComps.PortalMenuItem{
+							Path:  itemMap["path"].(string),
+							Title: itemMap["title"].(string),
+						}
+						
+						if visibility, ok := itemMap["visibility"].(string); ok {
+							visValue := kkComps.Visibility(visibility)
+							footerItem.Visibility = visValue
+						}
+						if external, ok := itemMap["external"].(bool); ok {
+							footerItem.External = external
+						}
+						
+						sectionItems = append(sectionItems, footerItem)
+					}
+					footerSection.Items = sectionItems
+				}
+				
+				footerSectionsList = append(footerSectionsList, footerSection)
+			}
+			menu.FooterSections = footerSectionsList
+		}
+		
+		logger.LogAttrs(ctx, log.LevelTrace, "Built menu object",
+			slog.Int("main_items", len(menu.Main)),
+			slog.Int("footer_sections", len(menu.FooterSections)))
+		
 		customization.Menu = menu
+	} else {
+		logger.LogAttrs(ctx, log.LevelTrace, "Menu type assertion failed",
+			slog.String("actual_type", fmt.Sprintf("%T", change.Fields["menu"])),
+			slog.Any("actual_value", change.Fields["menu"]))
 	}
 	
+	// Log the final customization object before sending
+	logger.LogAttrs(ctx, log.LevelTrace, "Sending portal customization update",
+		slog.Any("customization", customization),
+		slog.Bool("has_menu", customization.Menu != nil),
+		slog.Bool("has_theme", customization.Theme != nil),
+		slog.Bool("has_layout", customization.Layout != nil),
+		slog.Bool("has_css", customization.CSS != nil))
+		
 	// Update the customization
 	err := e.client.UpdatePortalCustomization(ctx, portalID, customization)
 	if err != nil {
