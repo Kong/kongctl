@@ -100,9 +100,9 @@ portals:
       ref: portal-customization
       theme:
         name: "custom-theme"
-        mode: "light"
+        mode: "dark"
         colors:
-          primary: "#1155CB"
+          primary: "#FFFFFF"
       layout: "default"
       css: |
         /* Custom CSS for portal branding */

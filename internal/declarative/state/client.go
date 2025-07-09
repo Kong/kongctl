@@ -1380,3 +1380,163 @@ func (c *Client) DeletePortalPage(ctx context.Context, portalID string, pageID s
 	return nil
 }
 
+// Portal Snippet Methods
+
+// ListPortalSnippets returns all snippets for a portal
+func (c *Client) ListPortalSnippets(ctx context.Context, portalID string) ([]PortalSnippet, error) {
+	if c.portalSnippetAPI == nil {
+		return nil, fmt.Errorf("portal snippet API not configured")
+	}
+
+	var allSnippets []PortalSnippet
+	var pageNumber int64 = 1
+	pageSize := int64(100)
+
+	for {
+		req := kkOps.ListPortalSnippetsRequest{
+			PortalID:   portalID,
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.portalSnippetAPI.ListPortalSnippets(ctx, req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list portal snippets: %w", err)
+		}
+
+		if resp.ListPortalSnippetsResponse == nil || len(resp.ListPortalSnippetsResponse.Data) == 0 {
+			break
+		}
+
+		// Process snippets
+		for _, s := range resp.ListPortalSnippetsResponse.Data {
+			snippet := PortalSnippet{
+				ID:         s.ID,
+				Name:       s.Name,
+				Visibility: string(s.Visibility),
+				Status:     string(s.Status),
+			}
+
+			// Title is always present (not a pointer)
+			snippet.Title = s.Title
+			
+			// Handle optional fields
+			if s.Description != nil {
+				snippet.Description = *s.Description
+			}
+
+			// Note: Content not available in list response
+			// Note: Labels not available for portal snippets
+			snippet.NormalizedLabels = make(map[string]string)
+
+			allSnippets = append(allSnippets, snippet)
+		}
+
+		pageNumber++
+
+		// Check if we've fetched all pages
+		if resp.ListPortalSnippetsResponse.Meta.Page.Total <= float64(pageSize*(pageNumber-1)) {
+			break
+		}
+	}
+
+	return allSnippets, nil
+}
+
+// GetPortalSnippet fetches a single portal snippet with full details including content
+func (c *Client) GetPortalSnippet(ctx context.Context, portalID string, snippetID string) (*PortalSnippet, error) {
+	if c.portalSnippetAPI == nil {
+		return nil, fmt.Errorf("portal snippet API not configured")
+	}
+
+	resp, err := c.portalSnippetAPI.GetPortalSnippet(ctx, portalID, snippetID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get portal snippet: %w", err)
+	}
+
+	if resp.PortalSnippetResponse == nil {
+		return nil, fmt.Errorf("no response data from get portal snippet")
+	}
+
+	snippetResp := resp.PortalSnippetResponse
+	snippet := &PortalSnippet{
+		ID:         snippetResp.ID,
+		Name:       snippetResp.Name,
+		Content:    snippetResp.Content,
+		Visibility: string(snippetResp.Visibility),
+		Status:     string(snippetResp.Status),
+	}
+
+	// Handle optional fields
+	if snippetResp.Title != nil {
+		snippet.Title = *snippetResp.Title
+	}
+	if snippetResp.Description != nil {
+		snippet.Description = *snippetResp.Description
+	}
+
+	// Note: Portal snippets don't have labels in the SDK response
+	snippet.NormalizedLabels = make(map[string]string)
+
+	return snippet, nil
+}
+
+// CreatePortalSnippet creates a new snippet in a portal
+func (c *Client) CreatePortalSnippet(
+	ctx context.Context,
+	portalID string,
+	req kkComps.CreatePortalSnippetRequest,
+) (string, error) {
+	if c.portalSnippetAPI == nil {
+		return "", fmt.Errorf("portal snippet API not configured")
+	}
+
+	resp, err := c.portalSnippetAPI.CreatePortalSnippet(ctx, portalID, req)
+	if err != nil {
+		return "", fmt.Errorf("failed to create portal snippet: %w", err)
+	}
+
+	if resp.PortalSnippetResponse == nil {
+		return "", fmt.Errorf("no response data from create portal snippet")
+	}
+
+	return resp.PortalSnippetResponse.ID, nil
+}
+
+// UpdatePortalSnippet updates an existing snippet in a portal
+func (c *Client) UpdatePortalSnippet(
+	ctx context.Context,
+	portalID string,
+	snippetID string,
+	req kkComps.UpdatePortalSnippetRequest,
+) error {
+	if c.portalSnippetAPI == nil {
+		return fmt.Errorf("portal snippet API not configured")
+	}
+
+	updateReq := kkOps.UpdatePortalSnippetRequest{
+		PortalID:                   portalID,
+		SnippetID:                  snippetID,
+		UpdatePortalSnippetRequest: req,
+	}
+
+	_, err := c.portalSnippetAPI.UpdatePortalSnippet(ctx, updateReq)
+	if err != nil {
+		return fmt.Errorf("failed to update portal snippet: %w", err)
+	}
+	return nil
+}
+
+// DeletePortalSnippet deletes a snippet from a portal
+func (c *Client) DeletePortalSnippet(ctx context.Context, portalID string, snippetID string) error {
+	if c.portalSnippetAPI == nil {
+		return fmt.Errorf("portal snippet API not configured")
+	}
+
+	_, err := c.portalSnippetAPI.DeletePortalSnippet(ctx, portalID, snippetID)
+	if err != nil {
+		return fmt.Errorf("failed to delete portal snippet: %w", err)
+	}
+	return nil
+}
+

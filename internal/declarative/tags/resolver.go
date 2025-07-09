@@ -66,7 +66,8 @@ func (r *ResolverRegistry) processNode(node *yaml.Node) error {
 	}
 
 	// Check if this node has a custom tag
-	if node.Tag != "" && node.Tag != "!!" && node.Tag[0] == '!' {
+	// Custom tags start with ! but not !! (which are built-in YAML tags)
+	if node.Tag != "" && len(node.Tag) > 1 && node.Tag[0] == '!' && node.Tag[1] != '!' {
 		r.mu.RLock()
 		resolver, exists := r.resolvers[node.Tag]
 		r.mu.RUnlock()
@@ -87,6 +88,9 @@ func (r *ResolverRegistry) processNode(node *yaml.Node) error {
 			// to avoid processing the new content as if it had tags
 			return nil
 		}
+		
+		// Unknown tag - return an error
+		return fmt.Errorf("unsupported YAML tag: %s", node.Tag)
 	}
 
 	// Process child nodes based on node kind

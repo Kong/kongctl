@@ -140,7 +140,14 @@ type PortalCustomDomain struct {
 	// TODO: Add fields when implementing portal custom domain support
 }
 
-// PortalSnippet represents portal snippet (placeholder for missing type)
+// PortalSnippet represents portal snippet
 type PortalSnippet struct {
-	// TODO: Add fields when implementing portal snippet support
+	ID               string
+	Name             string
+	Title            string
+	Content          string // Will be empty from list, populated from fetch
+	Description      string
+	Visibility       string
+	Status           string
+	NormalizedLabels map[string]string
 }

@@ -145,9 +145,23 @@ func (p *PortalResource) SetDefaults() {
 		p.Name = p.Ref
 	}
 
+	// Apply defaults to child resources
+	if p.Customization != nil {
+		p.Customization.SetDefaults()
+	}
+	
+	if p.CustomDomain != nil {
+		p.CustomDomain.SetDefaults()
+	}
+	
 	// Apply defaults to pages
 	for i := range p.Pages {
 		p.Pages[i].SetDefaults()
+	}
+	
+	// Apply defaults to snippets
+	for i := range p.Snippets {
+		p.Snippets[i].SetDefaults()
 	}
 }
 

@@ -40,6 +40,29 @@ func (d PortalCustomDomainResource) Validate() error {
 	return nil
 }
 
+// SetDefaults applies default values
+func (d *PortalCustomDomainResource) SetDefaults() {
+	// No defaults needed for custom domains currently
+}
+
+// UnmarshalYAML implements custom YAML unmarshaling to handle the embedded type
+func (d *PortalCustomDomainResource) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	// Create a type alias to avoid recursion
+	type Alias PortalCustomDomainResource
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(d),
+	}
+	
+	// Unmarshal into the auxiliary struct
+	if err := unmarshal(aux); err != nil {
+		return err
+	}
+	
+	return nil
+}
+
 // isValidHostname validates hostname format
 func isValidHostname(hostname string) bool {
 	// Basic hostname validation regex

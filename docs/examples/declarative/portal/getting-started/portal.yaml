@@ -1,0 +1,205 @@
+# Getting Started Portal Example
+# This example demonstrates a complete developer portal setup with pages, customization, and snippets
+# Based on Kong's default getting started portal template
+
+portals:
+  - ref: getting-started-portal
+    name: "My First Portal"
+    display_name: "Getting Started Portal"
+    description: "A comprehensive developer portal with guides, API documentation, and getting started content"
+    authentication_enabled: false
+    rbac_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false
+    default_api_visibility: "public"
+    default_page_visibility: "public"
+    
+    # Portal customization with theme and navigation
+    customization:
+      ref: getting-started-customization
+      theme:
+        mode: "light"
+        colors:
+          primary: "#8250FF"
+      layout: "topnav"
+      menu:
+        main:
+          - path: "getting-started"
+            title: "Getting Started"
+            external: false
+            visibility: "public"
+          - path: "guides"
+            title: "Guides"
+            external: false
+            visibility: "public"
+          - path: "apis"
+            title: "APIs"
+            external: false
+            visibility: "public"
+        footer_sections:
+          - title: "Products"
+            items:
+              - path: "#"
+                title: "Pricing"
+                external: false
+                visibility: "public"
+              - path: "#"
+                title: "APIs"
+                external: false
+                visibility: "public"
+              - path: "#"
+                title: "Documentation"
+                external: false
+                visibility: "public"
+          - title: "Company"
+            items:
+              - path: "#"
+                title: "About"
+                external: false
+                visibility: "public"
+              - path: "#"
+                title: "Careers"
+                external: false
+                visibility: "public"
+              - path: "#"
+                title: "Press"
+                external: false
+                visibility: "public"
+              - path: "#"
+                title: "Events"
+                external: false
+                visibility: "public"
+              - path: "#"
+                title: "Investors"
+                external: false
+                visibility: "public"
+          - title: "Legal"
+            items:
+              - path: "#"
+                title: "Terms and conditions"
+                external: false
+                visibility: "public"
+              - path: "#"
+                title: "Data privacy"
+                external: false
+                visibility: "public"
+              - path: "#"
+                title: "Trust and compliance"
+                external: false
+                visibility: "public"
+    
+    # Portal pages hierarchy
+    pages:
+      # Home page
+      - ref: home
+        slug: ""
+        title: "Kong API"
+        description: "Start building and innovating with our APIs"
+        visibility: "public"
+        status: "published"
+        content: !file ./pages/home.md
+
+      # APIs page
+      - ref: apis
+        slug: "apis"
+        title: "APIs"
+        description: "API Products available in this Developer Portal."
+        visibility: "public"
+        status: "published"
+        content: !file ./pages/apis.md
+
+      # Getting Started page
+      - ref: getting-started
+        slug: "getting-started"
+        title: "Getting started"
+        description: "Get started with our new Developer Portal!"
+        visibility: "public"
+        status: "published"
+        content: !file ./pages/getting-started.md
+
+      # Guides page with children
+      - ref: guides
+        slug: "guides"
+        title: "Guides"
+        description: "Step-by-step guides to help you build, integrate, and optimize with our platform. Start coding faster with practical examples and best practices."
+        visibility: "public"
+        status: "published"
+        content: !file ./pages/guides.md
+        children:
+          # Document APIs guide
+          - ref: guides-document-apis
+            slug: "document-apis"
+            title: "Document APIs"
+            description: "Discover best practices, tools, and examples to help developers understand and use your APIs with confidence."
+            visibility: "public"
+            status: "published"
+            content: !file ./pages/guides/document-apis.md
+
+          # Publish APIs guide with children
+          - ref: guides-publish-apis
+            slug: "publish-apis"
+            title: "Publish APIs"
+            description: "Learn best practices for exposing, versioning, and managing your APIs to accelerate integration and developer adoption."
+            visibility: "public"
+            status: "published"
+            content: !file ./pages/guides/publish-apis.md
+            children:
+              # API Versioning guide
+              - ref: guides-versioning
+                slug: "versioning"
+                title: "API Versioning"
+                description: "Learn best practices for API versioning to manage changes, ensure stability, and support developers over time."
+                visibility: "public"
+                status: "published"
+                content: !file ./pages/guides/publish-apis/versioning.md
+    
+    # Portal snippets for reusable content
+    snippets:
+      - ref: example-guides-page-banner
+        name: "example-guides-page-banner"
+        title: "Example Page Banner"
+        description: "An example of a page banner reusable snippet."
+        visibility: "public"
+        status: "published"
+        content: !file ./snippets/example-guides-page-banner.md
+
+      - ref: example-guides-page-header
+        name: "example-guides-page-header"
+        title: "Example Guides Page Header"
+        description: "An example of a page header reusable snippet with dynamic data."
+        visibility: "public"
+        status: "published"
+        content: !file ./snippets/example-guides-page-header.md
+
+      - ref: example-guides-page-nav
+        name: "example-guides-page-nav"
+        title: "Guides"
+        description: "A snippet to display the page navigation starting with the /guides page. Ideally utilized in the 'page-layout.sidebar-left' page config."
+        visibility: "public"
+        status: "published"
+        content: !file ./snippets/example-guides-page-nav.md
+
+      - ref: example-hero-image
+        name: "example-hero-image"
+        title: "Hero Image Example"
+        description: "An example of a hero snippet containing a reusable SVG image."
+        visibility: "public"
+        status: "published"
+        content: !file ./snippets/example-hero-image.md
+
+      - ref: example-logo-bar
+        name: "example-logo-bar"
+        title: "Example Logo Bar"
+        description: "An example of a snippet containing a row of SVG logos."
+        visibility: "public"
+        status: "published"
+        content: !file ./snippets/example-logo-bar.md
+
+      - ref: example-page-toc
+        name: "example-page-toc"
+        title: "On this page"
+        description: "A snippet to display the table of contents for a page. Ideally utilized in the 'page-layout.sidebar-right' page config."
+        visibility: "public"
+        status: "published"
+        content: !file ./snippets/example-page-toc.md
+

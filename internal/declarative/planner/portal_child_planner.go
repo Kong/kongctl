@@ -552,6 +552,20 @@ func (p *Planner) planPortalSnippetCreate(
 	fields := make(map[string]interface{})
 	fields["name"] = snippet.Name
 	fields["content"] = snippet.Content
+	
+	// Include optional fields if present
+	if snippet.Title != nil {
+		fields["title"] = *snippet.Title
+	}
+	if snippet.Visibility != nil {
+		fields["visibility"] = string(*snippet.Visibility)
+	}
+	if snippet.Status != nil {
+		fields["status"] = string(*snippet.Status)
+	}
+	if snippet.Description != nil {
+		fields["description"] = *snippet.Description
+	}
 
 	// Determine dependencies - depends on parent portal
 	var dependencies []string

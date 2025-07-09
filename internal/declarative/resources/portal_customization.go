@@ -52,6 +52,11 @@ func (c PortalCustomizationResource) Validate() error {
 	return nil
 }
 
+// SetDefaults applies default values
+func (c *PortalCustomizationResource) SetDefaults() {
+	// No defaults needed for customizations currently
+}
+
 // isValidHexColor validates hex color format
 func isValidHexColor(color string) bool {
 	if len(color) != 7 && len(color) != 4 {

@@ -115,10 +115,15 @@ func (p *PortalPageResource) SetDefaults() {
 
 // PortalSnippetResource represents a portal snippet
 type PortalSnippetResource struct {
-	Ref     string `yaml:"ref" json:"ref"`
-	Portal  string `yaml:"portal,omitempty" json:"portal,omitempty"` // Parent portal reference
-	Name    string `yaml:"name" json:"name"`
-	Content string `yaml:"content" json:"content"`
+	Ref         string                            `yaml:"ref" json:"ref"`
+	// Parent portal reference
+	Portal      string                            `yaml:"portal,omitempty" json:"portal,omitempty"`
+	Name        string                            `yaml:"name" json:"name"`
+	Content     string                            `yaml:"content" json:"content"`
+	Title       *string                           `yaml:"title,omitempty" json:"title,omitempty"`
+	Visibility  *kkComps.SnippetVisibilityStatus  `yaml:"visibility,omitempty" json:"visibility,omitempty"`
+	Status      *kkComps.PublishedStatus          `yaml:"status,omitempty" json:"status,omitempty"`
+	Description *string                           `yaml:"description,omitempty" json:"description,omitempty"`
 }
 
 // GetRef returns the reference identifier
@@ -140,10 +145,60 @@ func (s PortalSnippetResource) Validate() error {
 		return fmt.Errorf("snippet content is required")
 	}
 	
+	// Validate visibility if set
+	if s.Visibility != nil {
+		validVisibility := false
+		for _, v := range []kkComps.SnippetVisibilityStatus{
+			kkComps.SnippetVisibilityStatusPublic,
+			kkComps.SnippetVisibilityStatusPrivate,
+		} {
+			if *s.Visibility == v {
+				validVisibility = true
+				break
+			}
+		}
+		if !validVisibility {
+			return fmt.Errorf("snippet visibility must be 'public' or 'private'")
+		}
+	}
+	
+	// Validate status if set
+	if s.Status != nil {
+		validStatus := false
+		for _, st := range []kkComps.PublishedStatus{
+			kkComps.PublishedStatusPublished,
+			kkComps.PublishedStatusUnpublished,
+		} {
+			if *s.Status == st {
+				validStatus = true
+				break
+			}
+		}
+		if !validStatus {
+			return fmt.Errorf("snippet status must be 'published' or 'unpublished'")
+		}
+	}
+	
 	return nil
 }
 
 // SetDefaults applies default values
 func (s *PortalSnippetResource) SetDefaults() {
-	// No defaults needed for snippets currently
+	// Set default visibility to public if not specified
+	if s.Visibility == nil {
+		visibility := kkComps.SnippetVisibilityStatusPublic
+		s.Visibility = &visibility
+	}
+	
+	// Set default status to published if not specified
+	if s.Status == nil {
+		status := kkComps.PublishedStatusPublished
+		s.Status = &status
+	}
+	
+	// Set title from name if not provided
+	if s.Title == nil && s.Name != "" {
+		title := s.Name
+		s.Title = &title
+	}
 }

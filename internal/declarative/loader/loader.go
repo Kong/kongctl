@@ -683,6 +683,20 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 	for i := range rs.APIImplementations {
 		rs.APIImplementations[i].SetDefaults()
 	}
+	
+	// Apply defaults to portal child resources
+	for i := range rs.PortalCustomizations {
+		rs.PortalCustomizations[i].SetDefaults()
+	}
+	for i := range rs.PortalCustomDomains {
+		rs.PortalCustomDomains[i].SetDefaults()
+	}
+	for i := range rs.PortalPages {
+		rs.PortalPages[i].SetDefaults()
+	}
+	for i := range rs.PortalSnippets {
+		rs.PortalSnippets[i].SetDefaults()
+	}
 }
 
 // extractPortalPages recursively extracts and flattens nested portal pages

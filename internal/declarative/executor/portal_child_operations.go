@@ -454,19 +454,179 @@ func (e *Executor) deletePortalPage(ctx context.Context, change planner.PlannedC
 // Portal Snippet operations
 
 // createPortalSnippet handles CREATE operations for portal snippets
-func (e *Executor) createPortalSnippet(_ context.Context, _ planner.PlannedChange) (string, error) {
-	// TODO: Implement when SDK supports portal snippets
-	return "", fmt.Errorf("portal snippet operations not yet implemented - SDK support pending")
+func (e *Executor) createPortalSnippet(ctx context.Context, change planner.PlannedChange) (string, error) {
+	// Get logger from context
+	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
+	
+	// Get portal ID from references
+	portalID := ""
+	if portalRef, ok := change.References["portal_id"]; ok {
+		if portalRef.ID != "" {
+			portalID = portalRef.ID
+		} else {
+			// Need to resolve portal reference
+			resolvedID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			portalID = resolvedID
+		}
+	}
+	
+	if portalID == "" {
+		return "", fmt.Errorf("portal ID is required for snippet creation")
+	}
+	
+	logger.Debug("Creating portal snippet",
+		slog.String("portal_id", portalID),
+		slog.Any("fields", change.Fields))
+	
+	// Build request
+	req := kkComps.CreatePortalSnippetRequest{
+		Name:    change.Fields["name"].(string),
+		Content: change.Fields["content"].(string),
+	}
+	
+	// Handle optional fields
+	if title, ok := change.Fields["title"].(string); ok {
+		req.Title = &title
+	}
+	
+	if visibilityStr, ok := change.Fields["visibility"].(string); ok {
+		visibility := kkComps.SnippetVisibilityStatus(visibilityStr)
+		req.Visibility = &visibility
+	}
+	
+	if statusStr, ok := change.Fields["status"].(string); ok {
+		status := kkComps.PublishedStatus(statusStr)
+		req.Status = &status
+	}
+	
+	if description, ok := change.Fields["description"].(string); ok {
+		req.Description = &description
+	}
+	
+	// Create the snippet
+	snippetID, err := e.client.CreatePortalSnippet(ctx, portalID, req)
+	if err != nil {
+		return "", fmt.Errorf("failed to create portal snippet: %w", err)
+	}
+	
+	return snippetID, nil
 }
 
 // updatePortalSnippet handles UPDATE operations for portal snippets
-func (e *Executor) updatePortalSnippet(_ context.Context, _ planner.PlannedChange) (string, error) {
-	// TODO: Implement when SDK supports portal snippets
-	return "", fmt.Errorf("portal snippet operations not yet implemented - SDK support pending")
+func (e *Executor) updatePortalSnippet(ctx context.Context, change planner.PlannedChange) (string, error) {
+	// Get logger from context
+	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
+	
+	// Get portal ID and snippet ID
+	portalID := ""
+	snippetID := change.ResourceID
+	
+	if snippetID == "" {
+		return "", fmt.Errorf("snippet ID is required for update operation")
+	}
+	
+	// Get portal ID from references or resource ID
+	if change.References != nil {
+		if portalRef, ok := change.References["portal_id"]; ok {
+			if portalRef.ID != "" {
+				portalID = portalRef.ID
+			} else {
+				// Need to resolve portal reference
+				resolvedID, err := e.resolvePortalRef(ctx, portalRef)
+				if err != nil {
+					return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+				}
+				portalID = resolvedID
+			}
+		}
+	}
+	
+	if portalID == "" {
+		return "", fmt.Errorf("portal ID is required for snippet update")
+	}
+	
+	logger.Debug("Updating portal snippet",
+		slog.String("portal_id", portalID),
+		slog.String("snippet_id", snippetID),
+		slog.Any("fields", change.Fields))
+	
+	// Build update request
+	var req kkComps.UpdatePortalSnippetRequest
+	
+	// Handle optional fields
+	if name, ok := change.Fields["name"].(string); ok {
+		req.Name = &name
+	}
+	
+	if content, ok := change.Fields["content"].(string); ok {
+		req.Content = &content
+	}
+	
+	if title, ok := change.Fields["title"].(string); ok {
+		req.Title = &title
+	}
+	
+	if visibilityStr, ok := change.Fields["visibility"].(string); ok {
+		visibility := kkComps.VisibilityStatus(visibilityStr)
+		req.Visibility = &visibility
+	}
+	
+	if statusStr, ok := change.Fields["status"].(string); ok {
+		status := kkComps.PublishedStatus(statusStr)
+		req.Status = &status
+	}
+	
+	if description, ok := change.Fields["description"].(string); ok {
+		req.Description = &description
+	}
+	
+	// Update the snippet
+	err := e.client.UpdatePortalSnippet(ctx, portalID, snippetID, req)
+	if err != nil {
+		return "", fmt.Errorf("failed to update portal snippet: %w", err)
+	}
+	
+	return snippetID, nil
 }
 
 // deletePortalSnippet handles DELETE operations for portal snippets
-func (e *Executor) deletePortalSnippet(_ context.Context, _ planner.PlannedChange) error {
-	// TODO: Implement when SDK supports portal snippets
-	return fmt.Errorf("portal snippet operations not yet implemented - SDK support pending")
+func (e *Executor) deletePortalSnippet(ctx context.Context, change planner.PlannedChange) error {
+	// Get portal ID and snippet ID
+	portalID := ""
+	snippetID := change.ResourceID
+	
+	if snippetID == "" {
+		return fmt.Errorf("snippet ID is required for deletion")
+	}
+	
+	// Get portal ID from references
+	if change.References != nil {
+		if portalRef, ok := change.References["portal_id"]; ok {
+			if portalRef.ID != "" {
+				portalID = portalRef.ID
+			} else {
+				// Need to resolve portal reference
+				resolvedID, err := e.resolvePortalRef(ctx, portalRef)
+				if err != nil {
+					return fmt.Errorf("failed to resolve portal reference: %w", err)
+				}
+				portalID = resolvedID
+			}
+		}
+	}
+	
+	if portalID == "" {
+		return fmt.Errorf("portal ID is required for snippet deletion")
+	}
+	
+	// Delete the snippet
+	err := e.client.DeletePortalSnippet(ctx, portalID, snippetID)
+	if err != nil {
+		return fmt.Errorf("failed to delete portal snippet: %w", err)
+	}
+	
+	return nil
 }
