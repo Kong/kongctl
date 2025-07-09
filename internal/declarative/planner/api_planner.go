@@ -451,9 +451,23 @@ func (p *Planner) planAPIPublicationChanges(
 		currentByPortal[p.PortalID] = p
 	}
 
+	// Build portal ref to ID mapping (following portal pages pattern)
+	portalRefToID := make(map[string]string)
+	for _, portal := range p.desiredPortals {
+		if resolvedID := portal.GetKonnectID(); resolvedID != "" {
+			portalRefToID[portal.Ref] = resolvedID
+		}
+	}
+
 	// Compare desired publications
 	for _, desiredPub := range desired {
-		_, exists := currentByPortal[desiredPub.PortalID]
+		// Resolve portal reference to ID before comparing
+		resolvedPortalID := desiredPub.PortalID
+		if id, ok := portalRefToID[desiredPub.PortalID]; ok {
+			resolvedPortalID = id
+		}
+
+		_, exists := currentByPortal[resolvedPortalID]
 
 		if !exists {
 			// CREATE - publications don't support update
@@ -466,7 +480,12 @@ func (p *Planner) planAPIPublicationChanges(
 	if plan.Metadata.Mode == PlanModeSync {
 		desiredPortals := make(map[string]bool)
 		for _, pub := range desired {
-			desiredPortals[pub.PortalID] = true
+			// Use resolved portal ID for sync mode comparison
+			resolvedPortalID := pub.PortalID
+			if id, ok := portalRefToID[pub.PortalID]; ok {
+				resolvedPortalID = id
+			}
+			desiredPortals[resolvedPortalID] = true
 		}
 
 		for portalID := range currentByPortal {
@@ -514,6 +533,27 @@ func (p *Planner) planAPIPublicationCreate(
 		Action:       ActionCreate,
 		Fields:       fields,
 		DependsOn:    dependsOn,
+	}
+
+	// Look up portal name for reference resolution
+	var portalName string
+	for _, portal := range p.desiredPortals {
+		if portal.Ref == publication.PortalID {
+			portalName = portal.Name
+			break
+		}
+	}
+
+	// Set up reference with lookup fields
+	if publication.PortalID != "" {
+		change.References = map[string]ReferenceInfo{
+			"portal_id": {
+				Ref: publication.PortalID,
+				LookupFields: map[string]string{
+					"name": portalName,
+				},
+			},
+		}
 	}
 
 	plan.AddChange(change)

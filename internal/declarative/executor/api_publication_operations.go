@@ -42,7 +42,12 @@ func (e *Executor) createAPIPublication(ctx context.Context, change planner.Plan
 			portalID = fieldValue
 		} else {
 			// It's a reference that needs runtime resolution
-			resolvedID, err := e.resolvePortalRef(ctx, planner.ReferenceInfo{Ref: fieldValue})
+			// Use the reference info from the change if available
+			refInfo := planner.ReferenceInfo{Ref: fieldValue}
+			if ref, exists := change.References["portal_id"]; exists {
+				refInfo = ref
+			}
+			resolvedID, err := e.resolvePortalRef(ctx, refInfo)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve portal reference %q: %w", fieldValue, err)
 			}
