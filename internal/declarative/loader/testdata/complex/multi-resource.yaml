@@ -45,12 +45,6 @@ portals:
             visibility: "public"
             external: false
     
-    # Custom domain
-    custom_domain:
-      ref: test-portal-custom-domain
-      hostname: "test.example.com"
-      enabled: true
-    
     # Portal pages
     pages:
       - ref: test-home

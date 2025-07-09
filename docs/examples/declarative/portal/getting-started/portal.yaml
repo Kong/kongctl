@@ -92,7 +92,7 @@ portals:
     pages:
       # Home page
       - ref: home
-        slug: ""
+        slug: "/"
         title: "Kong API"
         description: "Start building and innovating with our APIs"
         visibility: "public"

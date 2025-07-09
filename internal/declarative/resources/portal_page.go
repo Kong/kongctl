@@ -30,14 +30,22 @@ func (p PortalPageResource) Validate() error {
 		return fmt.Errorf("page ref is required")
 	}
 	
-	if p.Slug == "" {
+	// Validate slug
+	switch p.Slug {
+	case "/":
+		// Special case: allow "/" for root pages only
+		if p.ParentPageRef != "" {
+			return fmt.Errorf("slug '/' is only valid for root pages (pages without a parent)")
+		}
+		// "/" is valid for root pages, skip further validation
+	case "":
 		return fmt.Errorf("page slug is required")
-	}
-	
-	// Validate slug format using Konnect's regex pattern
-	slugRegex := regexp.MustCompile(`^[\w-]+$`)
-	if !slugRegex.MatchString(p.Slug) {
-		return fmt.Errorf("invalid slug %q: slugs must contain only letters, numbers, underscores, and hyphens", p.Slug)
+	default:
+		// Validate slug format using Konnect's regex pattern for non-root pages
+		slugRegex := regexp.MustCompile(`^[\w-]+$`)
+		if !slugRegex.MatchString(p.Slug) {
+			return fmt.Errorf("invalid slug %q: slugs must contain only letters, numbers, underscores, and hyphens", p.Slug)
+		}
 	}
 	
 	if p.Content == "" {
