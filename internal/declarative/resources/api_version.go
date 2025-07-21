@@ -55,8 +55,8 @@ func (v APIVersionResource) GetReferenceFieldMappings() map[string]string {
 
 // Validate ensures the API version resource is valid
 func (v APIVersionResource) Validate() error {
-	if v.Ref == "" {
-		return fmt.Errorf("API version ref is required")
+	if err := ValidateRef(v.Ref); err != nil {
+		return fmt.Errorf("invalid API version ref: %w", err)
 	}
 	// Parent API validation happens through dependency system
 	return nil

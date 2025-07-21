@@ -57,8 +57,8 @@ func (p APIPublicationResource) GetReferenceFieldMappings() map[string]string {
 
 // Validate ensures the API publication resource is valid
 func (p APIPublicationResource) Validate() error {
-	if p.Ref == "" {
-		return fmt.Errorf("API publication ref is required")
+	if err := ValidateRef(p.Ref); err != nil {
+		return fmt.Errorf("invalid API publication ref: %w", err)
 	}
 	if p.PortalID == "" {
 		return fmt.Errorf("API publication portal_id is required")

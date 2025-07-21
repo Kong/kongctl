@@ -156,7 +156,7 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 	}
 
 	change := PlannedChange{
-		ID:           p.NextChangeID(ActionCreate, portal.GetRef()),
+		ID:           p.NextChangeID(ActionCreate, "portal", portal.GetRef()),
 		ResourceType: "portal",
 		ResourceRef:  portal.GetRef(),
 		Action:       ActionCreate,
@@ -303,7 +303,7 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 	}
 
 	change := PlannedChange{
-		ID:           p.NextChangeID(ActionUpdate, desired.GetRef()),
+		ID:           p.NextChangeID(ActionUpdate, "portal", desired.GetRef()),
 		ResourceType: "portal",
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
@@ -344,7 +344,7 @@ func (p *portalPlannerImpl) planPortalProtectionChangeWithFields(
 	// based on the Protection field
 
 	change := PlannedChange{
-		ID:           p.NextChangeID(ActionUpdate, desired.GetRef()),
+		ID:           p.NextChangeID(ActionUpdate, "portal", desired.GetRef()),
 		ResourceType: "portal",
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
@@ -363,7 +363,7 @@ func (p *portalPlannerImpl) planPortalProtectionChangeWithFields(
 // planPortalDelete creates a DELETE change for a portal
 func (p *portalPlannerImpl) planPortalDelete(portal state.Portal, plan *Plan) {
 	change := PlannedChange{
-		ID:           p.NextChangeID(ActionDelete, portal.Name),
+		ID:           p.NextChangeID(ActionDelete, "portal", portal.Name),
 		ResourceType: "portal",
 		ResourceRef:  portal.Name,
 		ResourceID:   portal.ID,

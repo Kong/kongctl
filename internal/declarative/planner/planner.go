@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -173,6 +174,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		return nil, fmt.Errorf("failed to resolve dependencies: %w", err)
 	}
 	plan.SetExecutionOrder(executionOrder)
+	
+	// Reassign change IDs to match execution order
+	p.reassignChangeIDs(plan, executionOrder)
 
 	// Add warnings for unresolved references
 	for _, change := range plan.Changes {
@@ -188,8 +192,8 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	return plan, nil
 }
 
-// nextChangeID generates semantic change IDs
-func (p *Planner) nextChangeID(action ActionType, ref string) string {
+// nextChangeID generates temporary change IDs during planning phase
+func (p *Planner) nextChangeID(action ActionType, resourceType string, ref string) string {
 	p.changeCount++
 	actionChar := "?"
 	switch action {
@@ -200,7 +204,52 @@ func (p *Planner) nextChangeID(action ActionType, ref string) string {
 	case ActionDelete:
 		actionChar = "d"
 	}
-	return fmt.Sprintf("%d-%s-%s", p.changeCount, actionChar, ref)
+	// Use temporary IDs that will be reassigned based on execution order
+	return fmt.Sprintf("temp-%d:%s:%s:%s", p.changeCount, actionChar, resourceType, ref)
+}
+
+// reassignChangeIDs updates change IDs to match execution order
+func (p *Planner) reassignChangeIDs(plan *Plan, executionOrder []string) {
+	// Create mapping from old IDs to new IDs based on execution order
+	idMapping := make(map[string]string)
+	for newPos, oldID := range executionOrder {
+		// Extract components from old ID (format: "temp-N:action:type:ref")
+		// We need to parse out the action, type, and ref parts
+		parts := strings.SplitN(oldID, ":", 4)
+		if len(parts) == 4 && strings.HasPrefix(parts[0], "temp-") {
+			// Reconstruct with new position
+			newID := fmt.Sprintf("%d:%s:%s:%s", newPos+1, parts[1], parts[2], parts[3])
+			idMapping[oldID] = newID
+		}
+	}
+	
+	// Update change IDs
+	for i := range plan.Changes {
+		if newID, ok := idMapping[plan.Changes[i].ID]; ok {
+			plan.Changes[i].ID = newID
+		}
+		
+		// Update DependsOn references
+		for j := range plan.Changes[i].DependsOn {
+			if newID, ok := idMapping[plan.Changes[i].DependsOn[j]]; ok {
+				plan.Changes[i].DependsOn[j] = newID
+			}
+		}
+	}
+	
+	// Update execution order with new IDs
+	for i := range plan.ExecutionOrder {
+		if newID, ok := idMapping[plan.ExecutionOrder[i]]; ok {
+			plan.ExecutionOrder[i] = newID
+		}
+	}
+	
+	// Update warnings
+	for i := range plan.Warnings {
+		if newID, ok := idMapping[plan.Warnings[i].ChangeID]; ok {
+			plan.Warnings[i].ChangeID = newID
+		}
+	}
 }
 
 // validateProtection checks if a protected resource would be modified or deleted

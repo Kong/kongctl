@@ -9,23 +9,29 @@ import (
 
 // ConsoleReporter provides console output for plan execution progress
 type ConsoleReporter struct {
-	writer io.Writer
-	dryRun bool
+	writer       io.Writer
+	dryRun       bool
+	totalChanges int
+	currentIndex int
 }
 
 // NewConsoleReporter creates a new console reporter that writes to the provided writer
 func NewConsoleReporter(w io.Writer) *ConsoleReporter {
 	return &ConsoleReporter{
-		writer: w,
-		dryRun: false,
+		writer:       w,
+		dryRun:       false,
+		totalChanges: 0,
+		currentIndex: 0,
 	}
 }
 
 // NewConsoleReporterWithOptions creates a new console reporter with options
 func NewConsoleReporterWithOptions(w io.Writer, dryRun bool) *ConsoleReporter {
 	return &ConsoleReporter{
-		writer: w,
-		dryRun: dryRun,
+		writer:       w,
+		dryRun:       dryRun,
+		totalChanges: 0,
+		currentIndex: 0,
 	}
 }
 
@@ -34,6 +40,11 @@ func (r *ConsoleReporter) StartExecution(plan *planner.Plan) {
 	if r.writer == nil {
 		return
 	}
+	
+	// Store total changes and reset current index
+	r.totalChanges = plan.Summary.TotalChanges
+	r.currentIndex = 0
+	
 	if plan.Summary.TotalChanges == 0 {
 		fmt.Fprintln(r.writer, "No changes to execute.")
 		return
@@ -52,13 +63,23 @@ func (r *ConsoleReporter) StartChange(change planner.PlannedChange) {
 	if r.writer == nil {
 		return
 	}
+	
+	// Increment current index for this change
+	r.currentIndex++
+	
 	action := getActionVerb(change.Action)
 	resourceName := change.ResourceRef
 	if resourceName == "" {
 		resourceName = fmt.Sprintf("%s/%s", change.ResourceType, change.ID)
 	}
 	
-	fmt.Fprintf(r.writer, "• %s %s: %s... ", action, change.ResourceType, resourceName)
+	// Show progress counter if we have total changes
+	if r.totalChanges > 0 {
+		fmt.Fprintf(r.writer, "[%d/%d] %s %s: %s... ", 
+			r.currentIndex, r.totalChanges, action, change.ResourceType, resourceName)
+	} else {
+		fmt.Fprintf(r.writer, "• %s %s: %s... ", action, change.ResourceType, resourceName)
+	}
 }
 
 // CompleteChange is called after a change is executed (success or failure)

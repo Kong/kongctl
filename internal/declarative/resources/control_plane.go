@@ -25,8 +25,8 @@ func (c ControlPlaneResource) GetReferenceFieldMappings() map[string]string {
 
 // Validate ensures the control plane resource is valid
 func (c ControlPlaneResource) Validate() error {
-	if c.Ref == "" {
-		return fmt.Errorf("control plane ref is required")
+	if err := ValidateRef(c.Ref); err != nil {
+		return fmt.Errorf("invalid control plane ref: %w", err)
 	}
 	return nil
 }

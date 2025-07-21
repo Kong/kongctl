@@ -63,8 +63,8 @@ func (d APIDocumentResource) GetReferenceFieldMappings() map[string]string {
 
 // Validate ensures the API document resource is valid
 func (d APIDocumentResource) Validate() error {
-	if d.Ref == "" {
-		return fmt.Errorf("API document ref is required")
+	if err := ValidateRef(d.Ref); err != nil {
+		return fmt.Errorf("invalid API document ref: %w", err)
 	}
 	if d.Content == "" {
 		return fmt.Errorf("API document content is required")

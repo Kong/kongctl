@@ -97,7 +97,7 @@ func TestGeneratePlan_CreatePortal(t *testing.T) {
 	assert.Len(t, plan.Changes, 1)
 	change := plan.Changes[0]
 
-	assert.Equal(t, "1-c-dev-portal", change.ID)
+	assert.Equal(t, "1:c:portal:dev-portal", change.ID)
 	assert.Equal(t, ActionCreate, change.Action)
 	assert.Equal(t, "portal", change.ResourceType)
 	assert.Equal(t, "dev-portal", change.ResourceRef)
@@ -192,7 +192,7 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 	assert.Len(t, plan.Changes, 1)
 	change := plan.Changes[0]
 
-	assert.Equal(t, "1-u-dev-portal", change.ID)
+	assert.Equal(t, "1:u:portal:dev-portal", change.ID)
 	assert.Equal(t, ActionUpdate, change.Action)
 	assert.Equal(t, "portal", change.ResourceType)
 	assert.Equal(t, "dev-portal", change.ResourceRef)
@@ -285,7 +285,7 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 
 	assert.Equal(t, ActionUpdate, change.Action)
 	// Protection changes no longer have special ID suffix
-	assert.Contains(t, change.ID, "u-dev-portal")
+	assert.Contains(t, change.ID, "u:portal:dev-portal")
 
 	// Check protection change
 	protChange, ok := change.Protection.(ProtectionChange)
@@ -403,9 +403,9 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 	if len(plan.ExecutionOrder) > 0 {
 		assert.Len(t, plan.ExecutionOrder, 2)
 		// Auth strategy is created first (due to processing order)
-		assert.Equal(t, "1-c-basic-auth", plan.ExecutionOrder[0])
+		assert.Equal(t, "1:c:application_auth_strategy:basic-auth", plan.ExecutionOrder[0])
 		// Portal depends on auth strategy, so comes second
-		assert.Equal(t, "2-c-dev-portal", plan.ExecutionOrder[1])
+		assert.Equal(t, "2:c:portal:dev-portal", plan.ExecutionOrder[1])
 	}
 
 	// Should have warning about unresolved reference
@@ -497,20 +497,83 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 func TestNextChangeID(t *testing.T) {
 	planner := &Planner{changeCount: 0}
 
-	// Test CREATE
-	id := planner.nextChangeID(ActionCreate, "my-resource")
-	assert.Equal(t, "1-c-my-resource", id)
+	// Test CREATE - now generates temporary IDs
+	id := planner.nextChangeID(ActionCreate, "portal", "my-resource")
+	assert.Equal(t, "temp-1:c:portal:my-resource", id)
 
 	// Test UPDATE
-	id = planner.nextChangeID(ActionUpdate, "other-resource")
-	assert.Equal(t, "2-u-other-resource", id)
+	id = planner.nextChangeID(ActionUpdate, "api", "other-resource")
+	assert.Equal(t, "temp-2:u:api:other-resource", id)
 
 	// Test DELETE (future)
-	id = planner.nextChangeID(ActionDelete, "delete-me")
-	assert.Equal(t, "3-d-delete-me", id)
+	id = planner.nextChangeID(ActionDelete, "portal-page", "delete-me")
+	assert.Equal(t, "temp-3:d:portal-page:delete-me", id)
 
 	// Check counter increments
 	assert.Equal(t, 3, planner.changeCount)
+}
+
+func TestReassignChangeIDs(t *testing.T) {
+	planner := &Planner{changeCount: 0}
+	
+	// Create a plan with some changes
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	
+	// Add changes in one order
+	plan.AddChange(PlannedChange{
+		ID:           "temp-1:c:portal:portal-1",
+		ResourceType: "portal",
+		ResourceRef:  "portal-1",
+		Action:       ActionCreate,
+	})
+	plan.AddChange(PlannedChange{
+		ID:           "temp-2:c:api:api-1",
+		ResourceType: "api",
+		ResourceRef:  "api-1",
+		Action:       ActionCreate,
+		DependsOn:    []string{"temp-1:c:portal:portal-1"},
+	})
+	plan.AddChange(PlannedChange{
+		ID:           "temp-3:c:portal_page:page-1",
+		ResourceType: "portal_page",
+		ResourceRef:  "page-1",
+		Action:       ActionCreate,
+		DependsOn:    []string{"temp-1:c:portal:portal-1"},
+	})
+	
+	// Add a warning
+	plan.AddWarning("temp-2:c:api:api-1", "Test warning")
+	
+	// Define execution order (different from creation order)
+	executionOrder := []string{
+		"temp-1:c:portal:portal-1",
+		"temp-3:c:portal_page:page-1",
+		"temp-2:c:api:api-1",
+	}
+	plan.SetExecutionOrder(executionOrder)
+	
+	// Reassign IDs
+	planner.reassignChangeIDs(plan, executionOrder)
+	
+	// Check that IDs have been reassigned based on execution order
+	// Changes array order stays the same, but IDs are updated
+	assert.Equal(t, "1:c:portal:portal-1", plan.Changes[0].ID)
+	assert.Equal(t, "3:c:api:api-1", plan.Changes[1].ID) // This was 3rd in execution order
+	assert.Equal(t, "2:c:portal_page:page-1", plan.Changes[2].ID) // This was 2nd in execution order
+	
+	// Check that dependencies were updated
+	assert.Equal(t, []string{"1:c:portal:portal-1"}, plan.Changes[1].DependsOn)
+	assert.Equal(t, []string{"1:c:portal:portal-1"}, plan.Changes[2].DependsOn)
+	
+	// Check that execution order was updated
+	assert.Equal(t, []string{
+		"1:c:portal:portal-1",
+		"2:c:portal_page:page-1",
+		"3:c:api:api-1",
+	}, plan.ExecutionOrder)
+	
+	// Check that warning was updated
+	assert.Equal(t, "3:c:api:api-1", plan.Warnings[0].ChangeID)
 }
 
 func TestGeneratePlan_ApplyModeNoDeletes(t *testing.T) {

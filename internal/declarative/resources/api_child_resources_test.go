@@ -97,7 +97,7 @@ func TestAPIChildResources_Validation(t *testing.T) {
 	version := APIVersionResource{}
 	err := version.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "ref is required")
+	assert.Contains(t, err.Error(), "invalid API version ref: ref cannot be empty")
 
 	version.Ref = "v1"
 	err = version.Validate()
@@ -107,7 +107,7 @@ func TestAPIChildResources_Validation(t *testing.T) {
 	pub := APIPublicationResource{}
 	err = pub.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "ref is required")
+	assert.Contains(t, err.Error(), "invalid API publication ref: ref cannot be empty")
 
 	pub.Ref = "pub1"
 	err = pub.Validate()
@@ -122,7 +122,7 @@ func TestAPIChildResources_Validation(t *testing.T) {
 	impl := APIImplementationResource{}
 	err = impl.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "ref is required")
+	assert.Contains(t, err.Error(), "invalid API implementation ref: ref cannot be empty")
 
 	impl.Ref = "impl1"
 	err = impl.Validate()

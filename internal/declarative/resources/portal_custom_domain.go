@@ -21,8 +21,8 @@ func (d PortalCustomDomainResource) GetRef() string {
 
 // Validate ensures the portal custom domain resource is valid
 func (d PortalCustomDomainResource) Validate() error {
-	if d.Ref == "" {
-		return fmt.Errorf("custom domain ref is required")
+	if err := ValidateRef(d.Ref); err != nil {
+		return fmt.Errorf("invalid custom domain ref: %w", err)
 	}
 	
 	if d.Hostname == "" {

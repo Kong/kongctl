@@ -96,5 +96,5 @@ func TestGeneratePlan_PortalCustomDomain(t *testing.T) {
 	assert.Equal(t, "http", ssl["domain_verification_method"])
 	
 	// Verify dependencies
-	assert.Contains(t, customDomainChange.DependsOn, "1-c-dev-portal")
+	assert.Contains(t, customDomainChange.DependsOn, "1:c:portal:dev-portal")
 }

@@ -62,8 +62,8 @@ func (a APIResource) GetReferenceFieldMappings() map[string]string {
 
 // Validate ensures the API resource is valid
 func (a APIResource) Validate() error {
-	if a.Ref == "" {
-		return fmt.Errorf("API ref is required")
+	if err := ValidateRef(a.Ref); err != nil {
+		return fmt.Errorf("invalid API ref: %w", err)
 	}
 	return nil
 }

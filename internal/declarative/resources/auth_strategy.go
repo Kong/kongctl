@@ -70,8 +70,8 @@ func (a ApplicationAuthStrategyResource) GetReferenceFieldMappings() map[string]
 
 // Validate ensures the application auth strategy resource is valid
 func (a ApplicationAuthStrategyResource) Validate() error {
-	if a.Ref == "" {
-		return fmt.Errorf("application auth strategy ref is required")
+	if err := ValidateRef(a.Ref); err != nil {
+		return fmt.Errorf("invalid application auth strategy ref: %w", err)
 	}
 	return nil
 }

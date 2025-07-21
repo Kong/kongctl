@@ -3,7 +3,7 @@
 
 apis:
   # SMS API - Messaging service for sending and receiving SMS
-  - ref: sms-api
+  - ref: sms
     name: !file apis/sms/openapi.yaml#info.title
     description: !file apis/sms/openapi.yaml#info.description
     labels:
@@ -11,7 +11,7 @@ apis:
       protocol: rest
     
     versions:
-      - ref: sms-api-v1
+      - ref: sms-v1
         version: !file apis/sms/openapi.yaml#info.version
         spec: !file apis/sms/openapi.yaml
         
@@ -41,14 +41,14 @@ apis:
         content: !file apis/sms/docs/webhooks.md
         
     publications:
-      - ref: sms-api-publication
-        portal_id: getting-started-portal
+      - ref: sms-api-to-getting-started
+        portal_id: getting-started
         visibility: public
         auto_approve_registrations: true
         application_registration_enabled: false
 
   # Voice API - Programmable voice calls and audio streaming
-  - ref: voice-api
+  - ref: voice
     name: !file apis/voice/openapi.yaml#info.title
     description: !file apis/voice/openapi.yaml#info.description
     labels:
@@ -92,8 +92,8 @@ apis:
         content: !file apis/voice/docs/ncco.md
         
     publications:
-      - ref: voice-api-publication
-        portal_id: getting-started-portal
+      - ref: voice-api-to-getting-started
+        portal_id: getting-started
         visibility: public
         auto_approve_registrations: true
         application_registration_enabled: false

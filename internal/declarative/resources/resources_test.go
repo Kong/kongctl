@@ -27,7 +27,7 @@ func TestPortalResource_Validation(t *testing.T) {
 				// No ref field
 			},
 			wantErr: true,
-			errMsg:  "portal ref is required",
+			errMsg:  "invalid portal ref: ref cannot be empty",
 		},
 		{
 			name: "empty ref",
@@ -35,7 +35,7 @@ func TestPortalResource_Validation(t *testing.T) {
 				Ref: "",
 			},
 			wantErr: true,
-			errMsg:  "portal ref is required",
+			errMsg:  "invalid portal ref: ref cannot be empty",
 		},
 	}
 
@@ -113,7 +113,7 @@ func TestApplicationAuthStrategyResource_Validation(t *testing.T) {
 				// No ref field
 			},
 			wantErr: true,
-			errMsg:  "application auth strategy ref is required",
+			errMsg:  "invalid application auth strategy ref: ref cannot be empty",
 		},
 	}
 
@@ -150,7 +150,7 @@ func TestControlPlaneResource_Validation(t *testing.T) {
 				// No ref field
 			},
 			wantErr: true,
-			errMsg:  "control plane ref is required",
+			errMsg:  "invalid control plane ref: ref cannot be empty",
 		},
 	}
 
@@ -187,7 +187,7 @@ func TestAPIResource_Validation(t *testing.T) {
 				// No ref field
 			},
 			wantErr: true,
-			errMsg:  "API ref is required",
+			errMsg:  "invalid API ref: ref cannot be empty",
 		},
 	}
 
@@ -224,7 +224,7 @@ func TestAPIVersionResource_Validation(t *testing.T) {
 				// No ref field
 			},
 			wantErr: true,
-			errMsg:  "API version ref is required",
+			errMsg:  "invalid API version ref: ref cannot be empty",
 		},
 	}
 
@@ -262,7 +262,7 @@ func TestAPIPublicationResource_Validation(t *testing.T) {
 				PortalID: "portal-ref",
 			},
 			wantErr: true,
-			errMsg:  "API publication ref is required",
+			errMsg:  "invalid API publication ref: ref cannot be empty",
 		},
 		{
 			name: "missing portal_id",
@@ -333,7 +333,7 @@ func TestAPIImplementationResource_Validation(t *testing.T) {
 				// No ref field
 			},
 			wantErr: true,
-			errMsg:  "API implementation ref is required",
+			errMsg:  "invalid API implementation ref: ref cannot be empty",
 		},
 		{
 			name: "service with missing id",

@@ -93,7 +93,7 @@ func (p *Planner) planPortalCustomizationUpdateWithFields(
 
 	// Portal customization is a singleton resource - always use UPDATE action
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionUpdate, customization.Ref),
+		ID:           p.nextChangeID(ActionUpdate, ResourceTypePortalCustomization, customization.Ref),
 		ResourceType: ResourceTypePortalCustomization,
 		ResourceRef:  customization.Ref,
 		Action:       ActionUpdate,
@@ -403,7 +403,7 @@ func (p *Planner) planPortalCustomDomainCreate(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionCreate, domain.Ref),
+		ID:           p.nextChangeID(ActionCreate, ResourceTypePortalCustomDomain, domain.Ref),
 		ResourceType: ResourceTypePortalCustomDomain,
 		ResourceRef:  domain.Ref,
 		Action:       ActionCreate,
@@ -608,7 +608,7 @@ func (p *Planner) planPortalPageCreate(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionCreate, page.GetRef()),
+		ID:           p.nextChangeID(ActionCreate, ResourceTypePortalPage, page.GetRef()),
 		ResourceType: ResourceTypePortalPage,
 		ResourceRef:  page.GetRef(),
 		Action:       ActionCreate,
@@ -750,7 +750,7 @@ func (p *Planner) planPortalPageUpdate(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionUpdate, desired.GetRef()),
+		ID:           p.nextChangeID(ActionUpdate, ResourceTypePortalPage, desired.GetRef()),
 		ResourceType: ResourceTypePortalPage,
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
@@ -893,7 +893,7 @@ func (p *Planner) planPortalSnippetCreate(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionCreate, snippet.GetRef()),
+		ID:           p.nextChangeID(ActionCreate, ResourceTypePortalSnippet, snippet.GetRef()),
 		ResourceType: ResourceTypePortalSnippet,
 		ResourceRef:  snippet.GetRef(),
 		Action:       ActionCreate,
@@ -997,7 +997,7 @@ func (p *Planner) planPortalSnippetUpdate(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionUpdate, desired.GetRef()),
+		ID:           p.nextChangeID(ActionUpdate, ResourceTypePortalSnippet, desired.GetRef()),
 		ResourceType: ResourceTypePortalSnippet,
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,

@@ -121,7 +121,7 @@ portals:
 	assert.Len(t, plan.Changes, 1)
 	change := plan.Changes[0]
 	
-	assert.Equal(t, "1-c-test-portal", change.ID)
+	assert.Equal(t, "1:c:portal:test-portal", change.ID)
 	assert.Equal(t, planner.ActionCreate, change.Action)
 	assert.Equal(t, "portal", change.ResourceType)
 	assert.Equal(t, "test-portal", change.ResourceRef)
@@ -342,7 +342,7 @@ portals:
 	change := plan.Changes[0]
 	
 	assert.Equal(t, planner.ActionUpdate, change.Action)
-	assert.Equal(t, "1-u-protected-portal", change.ID)
+	assert.Equal(t, "1:u:portal:protected-portal", change.ID)
 	
 	// Verify protection change (marshaled as map from JSON)
 	protChange, ok := change.Protection.(map[string]interface{})
@@ -450,7 +450,7 @@ func TestDiffCommand_TextOutput(t *testing.T) {
 		},
 		Changes: []planner.PlannedChange{
 			{
-				ID:           "1-c-new-portal",
+				ID:           "1:c:portal:new-portal",
 				ResourceType: "portal",
 				ResourceRef:  "new-portal",
 				Action:       planner.ActionCreate,
@@ -460,7 +460,7 @@ func TestDiffCommand_TextOutput(t *testing.T) {
 				},
 			},
 		},
-		ExecutionOrder: []string{"1-c-new-portal"},
+		ExecutionOrder: []string{"1:c:portal:new-portal"},
 		Summary: planner.PlanSummary{
 			TotalChanges: 1,
 			ByAction:     map[planner.ActionType]int{planner.ActionCreate: 1},
@@ -496,7 +496,7 @@ func TestDiffCommand_TextOutput(t *testing.T) {
 	// Verify text output
 	outputStr := output.String()
 	assert.Contains(t, outputStr, "Plan: 1 to add, 0 to change")
-	assert.Contains(t, outputStr, `+ [1-c-new-portal] portal "new-portal" will be created`)
+	assert.Contains(t, outputStr, `+ [1:c:portal:new-portal] portal "new-portal" will be created`)
 	assert.Contains(t, outputStr, `name: "New Portal"`)
 	assert.Contains(t, outputStr, `description: "A new portal"`)
 }
@@ -510,7 +510,7 @@ func TestDiffCommand_JSONOutput(t *testing.T) {
 		},
 		Changes: []planner.PlannedChange{
 			{
-				ID:           "1-u-portal",
+				ID:           "1:u:portal:portal",
 				ResourceType: "portal",
 				ResourceRef:  "portal-1",
 				ResourceID:   "portal-123",

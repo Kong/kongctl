@@ -66,8 +66,8 @@ func (i APIImplementationResource) GetReferenceFieldMappings() map[string]string
 
 // Validate ensures the API implementation resource is valid
 func (i APIImplementationResource) Validate() error {
-	if i.Ref == "" {
-		return fmt.Errorf("API implementation ref is required")
+	if err := ValidateRef(i.Ref); err != nil {
+		return fmt.Errorf("invalid API implementation ref: %w", err)
 	}
 	
 	// Validate service information if present

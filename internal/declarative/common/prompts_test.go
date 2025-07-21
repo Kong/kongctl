@@ -233,6 +233,40 @@ func TestDisplayPlanSummary(t *testing.T) {
 				"No changes",
 			},
 		},
+		{
+			name: "plan with duplicate dependencies deduplicated",
+			plan: &planner.Plan{
+				Summary: planner.PlanSummary{
+					ByAction: map[planner.ActionType]int{
+						planner.ActionCreate: 2,
+					},
+					TotalChanges: 2,
+				},
+				Changes: []planner.PlannedChange{
+					{
+						ID:           "1:c:api:test-api",
+						Action:       planner.ActionCreate,
+						ResourceType: "api",
+						ResourceRef:  "test-api",
+					},
+					{
+						ID:           "2:c:api_document:test-doc",
+						Action:       planner.ActionCreate,
+						ResourceType: "api_document",
+						ResourceRef:  "test-doc",
+						Parent:       &planner.ParentInfo{Ref: "test-api"},
+						DependsOn:    []string{"1:c:api:test-api"},
+					},
+				},
+			},
+			expected: []string{
+				"Plan Summary (2 changes):",
+				"api (1):",
+				"  + test-api",
+				"api_document (1):",
+				"  + test-doc (depends on api:test-api)",
+			},
+		},
 	}
 
 	for _, tt := range tests {

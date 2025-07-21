@@ -23,8 +23,8 @@ func NewBasePlanner(p *Planner) *BasePlanner {
 }
 
 // NextChangeID generates a unique change ID
-func (b *BasePlanner) NextChangeID(action ActionType, resourceRef string) string {
-	return b.planner.nextChangeID(action, resourceRef)
+func (b *BasePlanner) NextChangeID(action ActionType, resourceType string, resourceRef string) string {
+	return b.planner.nextChangeID(action, resourceType, resourceRef)
 }
 
 // ValidateProtection validates protection status for an operation

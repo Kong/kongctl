@@ -399,9 +399,9 @@ func TestConsoleReporter_CompleteWorkflow(t *testing.T) {
 	
 	// Verify the complete output
 	assert.Contains(t, output, "Applying changes:")
-	assert.Contains(t, output, "• Creating portal: developer-portal... ✓")
-	assert.Contains(t, output, "• Updating portal: staging-portal... ✓")
-	assert.Contains(t, output, "• Deleting portal_page: old-docs... ✗ Error: not found")
+	assert.Contains(t, output, "[1/3] Creating portal: developer-portal... ✓")
+	assert.Contains(t, output, "[2/3] Updating portal: staging-portal... ✓")
+	assert.Contains(t, output, "[3/3] Deleting portal_page: old-docs... ✗ Error: not found")
 	assert.Contains(t, output, "Complete.")
 	assert.Contains(t, output, "Applied 2 changes.")
 	assert.Contains(t, output, "Errors:")

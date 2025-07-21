@@ -20,8 +20,8 @@ func (c PortalCustomizationResource) GetRef() string {
 
 // Validate ensures the portal customization resource is valid
 func (c PortalCustomizationResource) Validate() error {
-	if c.Ref == "" {
-		return fmt.Errorf("customization ref is required")
+	if err := ValidateRef(c.Ref); err != nil {
+		return fmt.Errorf("invalid customization ref: %w", err)
 	}
 	
 	// Theme validation

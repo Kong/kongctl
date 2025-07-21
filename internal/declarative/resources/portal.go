@@ -94,8 +94,8 @@ func (p PortalResource) GetReferenceFieldMappings() map[string]string {
 
 // Validate ensures the portal resource is valid
 func (p PortalResource) Validate() error {
-	if p.Ref == "" {
-		return fmt.Errorf("portal ref is required")
+	if err := ValidateRef(p.Ref); err != nil {
+		return fmt.Errorf("invalid portal ref: %w", err)
 	}
 
 	// Validate child resources

@@ -223,7 +223,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 	}
 
 	change := PlannedChange{
-		ID:           p.NextChangeID(ActionCreate, strategy.GetRef()),
+		ID:           p.NextChangeID(ActionCreate, "application_auth_strategy", strategy.GetRef()),
 		ResourceType: "application_auth_strategy",
 		ResourceRef:  strategy.GetRef(),
 		Action:       ActionCreate,
@@ -473,7 +473,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyUpdateWithFields(
 	}
 
 	change := PlannedChange{
-		ID:           p.NextChangeID(ActionUpdate, desired.GetRef()),
+		ID:           p.NextChangeID(ActionUpdate, "application_auth_strategy", desired.GetRef()),
 		ResourceType: "application_auth_strategy",
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
@@ -512,7 +512,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyProtectionChangeWithFields(
 	// based on the Protection field
 
 	change := PlannedChange{
-		ID:           p.NextChangeID(ActionUpdate, desired.GetRef()),
+		ID:           p.NextChangeID(ActionUpdate, "application_auth_strategy", desired.GetRef()),
 		ResourceType: "application_auth_strategy",
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
@@ -531,7 +531,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyProtectionChangeWithFields(
 // planAuthStrategyDelete creates a DELETE change for an auth strategy
 func (p *authStrategyPlannerImpl) planAuthStrategyDelete(strategy state.ApplicationAuthStrategy, plan *Plan) {
 	change := PlannedChange{
-		ID:           p.NextChangeID(ActionDelete, strategy.Name),
+		ID:           p.NextChangeID(ActionDelete, "application_auth_strategy", strategy.Name),
 		ResourceType: "application_auth_strategy",
 		ResourceRef:  strategy.Name,
 		ResourceID:   strategy.ID,

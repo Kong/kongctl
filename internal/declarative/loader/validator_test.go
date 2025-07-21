@@ -60,7 +60,7 @@ func TestLoader_validatePortals(t *testing.T) {
 				{Ref: ""},
 			},
 			wantErr:     true,
-			expectedErr: "portal ref is required",
+			expectedErr: "invalid portal ref: ref cannot be empty",
 		},
 	}
 	

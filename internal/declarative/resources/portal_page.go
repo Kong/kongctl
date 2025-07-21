@@ -26,8 +26,8 @@ func (p PortalPageResource) GetRef() string {
 
 // Validate ensures the portal page resource is valid
 func (p PortalPageResource) Validate() error {
-	if p.Ref == "" {
-		return fmt.Errorf("page ref is required")
+	if err := ValidateRef(p.Ref); err != nil {
+		return fmt.Errorf("invalid page ref: %w", err)
 	}
 	
 	// Validate slug
@@ -141,8 +141,8 @@ func (s PortalSnippetResource) GetRef() string {
 
 // Validate ensures the portal snippet resource is valid
 func (s PortalSnippetResource) Validate() error {
-	if s.Ref == "" {
-		return fmt.Errorf("snippet ref is required")
+	if err := ValidateRef(s.Ref); err != nil {
+		return fmt.Errorf("invalid snippet ref: %w", err)
 	}
 	
 	if s.Name == "" {

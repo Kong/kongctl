@@ -82,7 +82,7 @@ func TestLoader_LoadFile_InvalidConfigs(t *testing.T) {
 		{
 			name:        "portal without ref",
 			file:        "invalid/missing-portal-ref.yaml",
-			expectError: "portal ref is required",
+			expectError: "invalid portal ref: ref cannot be empty",
 		},
 		{
 			name:        "portal with duplicate refs",

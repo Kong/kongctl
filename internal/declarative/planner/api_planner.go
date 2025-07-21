@@ -163,7 +163,7 @@ func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) string {
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionCreate, api.GetRef()),
+		ID:           p.nextChangeID(ActionCreate, "api", api.GetRef()),
 		ResourceType: "api",
 		ResourceRef:  api.GetRef(),
 		Action:       ActionCreate,
@@ -242,7 +242,7 @@ func (p *Planner) planAPIUpdateWithFields(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionUpdate, desired.GetRef()),
+		ID:           p.nextChangeID(ActionUpdate, "api", desired.GetRef()),
 		ResourceType: "api",
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
@@ -283,7 +283,7 @@ func (p *Planner) planAPIProtectionChangeWithFields(
 	// based on the Protection field
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionUpdate, desired.GetRef()),
+		ID:           p.nextChangeID(ActionUpdate, "api", desired.GetRef()),
 		ResourceType: "api",
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
@@ -302,7 +302,7 @@ func (p *Planner) planAPIProtectionChangeWithFields(
 // planAPIDelete creates a DELETE change for an API
 func (p *Planner) planAPIDelete(api state.API, plan *Plan) {
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionDelete, api.Name),
+		ID:           p.nextChangeID(ActionDelete, "api", api.Name),
 		ResourceType: "api",
 		ResourceRef:  api.Name,
 		ResourceID:   api.ID,
@@ -422,7 +422,7 @@ func (p *Planner) planAPIVersionCreate(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionCreate, version.GetRef()),
+		ID:           p.nextChangeID(ActionCreate, "api_version", version.GetRef()),
 		ResourceType: "api_version",
 		ResourceRef:  version.GetRef(),
 		Parent:       parentInfo,
@@ -508,7 +508,7 @@ func (p *Planner) planAPIPublicationCreate(
 		// Warn if multiple auth strategies are specified (Kong limitation)
 		if len(publication.AuthStrategyIds) > 1 {
 			plan.AddWarning(
-				p.nextChangeID(ActionCreate, publication.GetRef()),
+				p.nextChangeID(ActionCreate, "api_publication", publication.GetRef()),
 				"Kong currently only supports 1 auth strategy per API publication. Only the first auth strategy will be used.",
 			)
 		}
@@ -526,7 +526,7 @@ func (p *Planner) planAPIPublicationCreate(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionCreate, publication.GetRef()),
+		ID:           p.nextChangeID(ActionCreate, "api_publication", publication.GetRef()),
 		ResourceType: "api_publication",
 		ResourceRef:  publication.GetRef(),
 		Parent:       parentInfo,
@@ -561,7 +561,7 @@ func (p *Planner) planAPIPublicationCreate(
 
 func (p *Planner) planAPIPublicationDelete(apiRef string, portalID string, plan *Plan) {
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionDelete, portalID),
+		ID:           p.nextChangeID(ActionDelete, "api_publication", portalID),
 		ResourceType: "api_publication",
 		ResourceRef:  portalID,
 		ResourceID:   portalID, // For publications, we use portal ID for deletion
@@ -649,7 +649,7 @@ func (p *Planner) planAPIImplementationCreate(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionCreate, implementation.GetRef()),
+		ID:           p.nextChangeID(ActionCreate, "api_implementation", implementation.GetRef()),
 		ResourceType: "api_implementation",
 		ResourceRef:  implementation.GetRef(),
 		Parent:       parentInfo,
@@ -776,7 +776,7 @@ func (p *Planner) planAPIDocumentCreate(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionCreate, document.GetRef()),
+		ID:           p.nextChangeID(ActionCreate, "api_document", document.GetRef()),
 		ResourceType: "api_document",
 		ResourceRef:  document.GetRef(),
 		Parent:       parentInfo,
@@ -807,7 +807,7 @@ func (p *Planner) planAPIDocumentUpdate(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionUpdate, document.GetRef()),
+		ID:           p.nextChangeID(ActionUpdate, "api_document", document.GetRef()),
 		ResourceType: "api_document",
 		ResourceRef:  document.GetRef(),
 		ResourceID:   documentID,
@@ -822,7 +822,7 @@ func (p *Planner) planAPIDocumentUpdate(
 
 func (p *Planner) planAPIDocumentDelete(apiRef string, documentID string, plan *Plan) {
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionDelete, documentID),
+		ID:           p.nextChangeID(ActionDelete, "api_document", documentID),
 		ResourceType: "api_document",
 		ResourceRef:  documentID,
 		ResourceID:   documentID,
