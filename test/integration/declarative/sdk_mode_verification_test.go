@@ -5,6 +5,7 @@ package declarative_test
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -85,7 +86,7 @@ portals:
 		
 		// Test planning with mock SDK
 		stateClient := state.NewClientWithAPIs(mockPortalAPI, nil)
-		p := planner.NewPlanner(stateClient)
+		p := planner.NewPlanner(stateClient, slog.Default())
 		
 		plan, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
 		require.NoError(t, err)
@@ -286,7 +287,7 @@ apis:
 		
 		// Test planning (core functionality should work regardless of SDK mode)
 		stateClient := state.NewClientWithAPIs(mockPortalAPI, mockAPIAPI)
-		p := planner.NewPlanner(stateClient)
+		p := planner.NewPlanner(stateClient, slog.Default())
 		
 		plan, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
 		require.NoError(t, err)

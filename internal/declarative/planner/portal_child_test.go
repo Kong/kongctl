@@ -2,6 +2,7 @@ package planner
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -22,7 +23,7 @@ func TestGeneratePlan_PortalCustomDomain(t *testing.T) {
 		APIAPI:     mockAPIAPI,
 		AppAuthAPI: mockAppAuthAPI,
 	})
-	planner := NewPlanner(client)
+	planner := NewPlanner(client, slog.Default())
 
 	// Mock empty responses for existing resources
 	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{

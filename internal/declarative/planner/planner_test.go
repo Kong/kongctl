@@ -2,6 +2,7 @@ package planner
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
@@ -44,7 +45,7 @@ func TestGeneratePlan_CreatePortal(t *testing.T) {
 		APIAPI:     mockAPIAPI,
 		AppAuthAPI: mockAppAuthAPI,
 	})
-	planner := NewPlanner(client)
+	planner := NewPlanner(client, slog.Default())
 
 	// Mock empty portals list (no existing portals)
 	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
@@ -127,7 +128,7 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 		APIAPI:     mockAPIAPI,
 		AppAuthAPI: mockAppAuthAPI,
 	})
-	planner := NewPlanner(client)
+	planner := NewPlanner(client, slog.Default())
 
 	// Mock existing portal with different description
 	oldDesc := "Old description"
@@ -218,7 +219,7 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 		APIAPI:     mockAPIAPI,
 		AppAuthAPI: mockAppAuthAPI,
 	})
-	planner := NewPlanner(client)
+	planner := NewPlanner(client, slog.Default())
 
 	// Mock existing protected portal
 	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
@@ -312,7 +313,7 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 		APIAPI:     mockPortalAPIAPI,
 		AppAuthAPI: mockAppAuthAPI,
 	})
-	planner := NewPlanner(client)
+	planner := NewPlanner(client, slog.Default())
 
 	// Mock empty portals list
 	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
@@ -427,7 +428,7 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 		APIAPI:     mockAPIAPI,
 		AppAuthAPI: mockAppAuthAPI,
 	})
-	planner := NewPlanner(client)
+	planner := NewPlanner(client, slog.Default())
 
 	// Mock existing portal with same hash
 	displayName := "Development Portal"
@@ -586,7 +587,7 @@ func TestGeneratePlan_ApplyModeNoDeletes(t *testing.T) {
 		APIAPI:     mockAPIAPI,
 		AppAuthAPI: mockAppAuthAPI,
 	})
-	planner := NewPlanner(client)
+	planner := NewPlanner(client, slog.Default())
 
 	// Mock existing managed portals
 	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
@@ -653,7 +654,7 @@ func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
 		APIAPI:     mockPortalAPIAPI,
 		AppAuthAPI: mockAppAuthAPI,
 	})
-	planner := NewPlanner(client)
+	planner := NewPlanner(client, slog.Default())
 
 	// Mock existing managed portals
 	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
@@ -722,7 +723,7 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 		APIAPI:     mockPortalAPIAPI,
 		AppAuthAPI: mockAppAuthAPI,
 	})
-	planner := NewPlanner(client)
+	planner := NewPlanner(client, slog.Default())
 
 	// Mock existing protected portal
 	protectedStr := "true"
@@ -803,7 +804,7 @@ func TestGeneratePlan_ProtectedResourceFailsDelete(t *testing.T) {
 		APIAPI:     mockPortalAPIAPI,
 		AppAuthAPI: mockAppAuthAPI,
 	})
-	planner := NewPlanner(client)
+	planner := NewPlanner(client, slog.Default())
 
 	// Mock existing protected portal
 	protectedStr := "true"
@@ -868,7 +869,7 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 		APIAPI:     mockAPIAPI,
 		AppAuthAPI: mockAppAuthAPI,
 	})
-	planner := NewPlanner(client)
+	planner := NewPlanner(client, slog.Default())
 
 	// Mock existing protected portal
 	protectedStr := "true"

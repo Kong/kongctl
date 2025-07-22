@@ -2,6 +2,7 @@ package planner
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
@@ -19,7 +20,7 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 	client := state.NewClient(state.ClientConfig{
 		PortalAPI: mockAPI,
 	})
-	planner := NewPlanner(client)
+	planner := NewPlanner(client, slog.Default())
 
 	// Create existing portal with API defaults
 	displayName := "Developer Portal"

@@ -146,7 +146,7 @@ func runPlan(command *cobra.Command, args []string) error {
 
 	// Create planner
 	stateClient := createStateClient(kkClient)
-	p := planner.NewPlanner(stateClient)
+	p := planner.NewPlanner(stateClient, logger)
 
 	// Generate plan
 	opts := planner.Options{
@@ -253,7 +253,7 @@ func runDiff(command *cobra.Command, args []string) error {
 
 		// Create planner
 		stateClient := createStateClient(kkClient)
-		p := planner.NewPlanner(stateClient)
+		p := planner.NewPlanner(stateClient, logger)
 
 		// Generate plan (default to sync mode for diff)
 		opts := planner.Options{
@@ -671,7 +671,7 @@ func runApply(command *cobra.Command, args []string) error {
 
 		// Create planner
 		stateClient := createStateClient(kkClient)
-		p := planner.NewPlanner(stateClient)
+		p := planner.NewPlanner(stateClient, logger)
 
 		// Generate plan in apply mode
 		opts := planner.Options{
@@ -1063,7 +1063,7 @@ func runSync(command *cobra.Command, args []string) error {
 
 		// Create planner
 		stateClient := createStateClient(kkClient)
-		p := planner.NewPlanner(stateClient)
+		p := planner.NewPlanner(stateClient, logger)
 
 		// Generate plan in sync mode
 		opts := planner.Options{

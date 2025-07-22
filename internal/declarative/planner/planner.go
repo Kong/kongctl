@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -17,6 +18,7 @@ type Options struct {
 // Planner generates execution plans
 type Planner struct {
 	client      *state.Client
+	logger      *slog.Logger
 	resolver    *ReferenceResolver
 	depResolver *DependencyResolver
 	changeCount int
@@ -41,9 +43,10 @@ type Planner struct {
 }
 
 // NewPlanner creates a new planner
-func NewPlanner(client *state.Client) *Planner {
+func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 	p := &Planner{
 		client:      client,
+		logger:      logger,
 		resolver:    NewReferenceResolver(client),
 		depResolver: NewDependencyResolver(),
 		changeCount: 0,

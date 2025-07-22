@@ -6,6 +6,7 @@ package declarative_test
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -241,7 +242,7 @@ portals:
 				tc.mockSetup()
 				
 				stateClient := state.NewClientWithAPIs(mockPortalAPI, nil)
-				p := planner.NewPlanner(stateClient)
+				p := planner.NewPlanner(stateClient, slog.Default())
 				
 				_, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
 				require.Error(t, err)
@@ -283,7 +284,7 @@ portals:
 		
 		// Create plan successfully
 		stateClient := state.NewClientWithAPIs(mockPortalAPI, nil)
-		p := planner.NewPlanner(stateClient)
+		p := planner.NewPlanner(stateClient, slog.Default())
 		plan, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
 		require.NoError(t, err)
 		
@@ -540,7 +541,7 @@ apis:
 		
 		// Test planning and execution with concurrent operations
 		stateClient := state.NewClientWithAPIs(mockPortalAPI, mockAPIAPI)
-		p := planner.NewPlanner(stateClient)
+		p := planner.NewPlanner(stateClient, slog.Default())
 		
 		plan, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
 		require.NoError(t, err)

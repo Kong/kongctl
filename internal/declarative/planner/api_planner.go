@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
@@ -455,11 +456,19 @@ func (p *Planner) planAPIPublicationChanges(
 	portalRefToID := make(map[string]string)
 	portalIDToRef := make(map[string]string) // Reverse mapping for deletion display
 	
+	p.logger.Debug("Building portal reference mapping",
+		slog.Int("desired_portals", len(p.desiredPortals)),
+	)
+	
 	// First, add desired portals to the mapping
 	for _, portal := range p.desiredPortals {
 		if resolvedID := portal.GetKonnectID(); resolvedID != "" {
 			portalRefToID[portal.Ref] = resolvedID
 			portalIDToRef[resolvedID] = portal.Ref
+			p.logger.Debug("Added desired portal to mapping",
+				slog.String("ref", portal.Ref),
+				slog.String("id", resolvedID),
+			)
 		}
 	}
 	
@@ -467,6 +476,9 @@ func (p *Planner) planAPIPublicationChanges(
 	// This handles cases where publications exist for portals not in current desired state
 	allPortals, err := p.client.ListManagedPortals(ctx)
 	if err == nil {
+		p.logger.Debug("Fetched all managed portals",
+			slog.Int("count", len(allPortals)),
+		)
 		// Add any portals not already in the mapping
 		for _, portal := range allPortals {
 			if _, exists := portalIDToRef[portal.ID]; !exists {
@@ -480,9 +492,21 @@ func (p *Planner) planAPIPublicationChanges(
 					}
 				}
 				portalIDToRef[portal.ID] = portalRef
-				// Don't add to portalRefToID as we might have ref conflicts
+				// Also add to portalRefToID if the ref isn't already mapped
+				if _, exists := portalRefToID[portalRef]; !exists {
+					portalRefToID[portalRef] = portal.ID
+				}
+				p.logger.Debug("Added existing portal to mapping",
+					slog.String("name", portal.Name),
+					slog.String("ref", portalRef),
+					slog.String("id", portal.ID),
+				)
 			}
 		}
+	} else {
+		p.logger.Debug("Failed to fetch managed portals",
+			slog.String("error", err.Error()),
+		)
 	}
 
 	// Compare desired publications
@@ -494,6 +518,13 @@ func (p *Planner) planAPIPublicationChanges(
 		}
 
 		_, exists := currentByPortal[resolvedPortalID]
+		
+		p.logger.Debug("Checking publication existence",
+			slog.String("api", apiRef),
+			slog.String("portal_ref", desiredPub.PortalID),
+			slog.String("resolved_portal_id", resolvedPortalID),
+			slog.Bool("exists", exists),
+		)
 
 		if !exists {
 			// CREATE - publications don't support update
@@ -512,10 +543,26 @@ func (p *Planner) planAPIPublicationChanges(
 				resolvedPortalID = id
 			}
 			desiredPortals[resolvedPortalID] = true
+			p.logger.Debug("Added to desired portals for sync",
+				slog.String("api", apiRef),
+				slog.String("portal_ref", pub.PortalID),
+				slog.String("resolved_portal_id", resolvedPortalID),
+			)
 		}
+
+		p.logger.Debug("Sync mode: checking for publications to delete",
+			slog.String("api", apiRef),
+			slog.Int("current_count", len(currentByPortal)),
+			slog.Int("desired_count", len(desiredPortals)),
+		)
 
 		for portalID := range currentByPortal {
 			if !desiredPortals[portalID] {
+				p.logger.Debug("Marking publication for deletion",
+					slog.String("api", apiRef),
+					slog.String("portal_id", portalID),
+					slog.Bool("in_desired", desiredPortals[portalID]),
+				)
 				// Get portal ref for better display
 				portalRef := portalIDToRef[portalID]
 				if portalRef == "" {

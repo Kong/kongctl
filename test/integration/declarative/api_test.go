@@ -6,6 +6,7 @@ package declarative_test
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -134,7 +135,7 @@ apis:
 		PortalAPI: mockPortalAPI,
 		APIAPI:    mockAPIAPI,
 	})
-	p := planner.NewPlanner(stateClient)
+	p := planner.NewPlanner(stateClient, slog.Default())
 	
 	// Generate plan
 	plan, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
@@ -452,7 +453,7 @@ apis:
 		PortalAPI: mockPortalAPI,
 		APIAPI:    mockAPIAPI,
 	})
-	p := planner.NewPlanner(stateClient)
+	p := planner.NewPlanner(stateClient, slog.Default())
 	
 	// Generate plan
 	plan, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
@@ -654,7 +655,7 @@ api_versions:
 		PortalAPI: mockPortalAPI,
 		APIAPI:    mockAPIAPI,
 	})
-	p := planner.NewPlanner(stateClient)
+	p := planner.NewPlanner(stateClient, slog.Default())
 	
 	// Generate plan
 	plan, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
@@ -747,7 +748,7 @@ apis:
 		PortalAPI: mockPortalAPI,
 		APIAPI:    mockAPIAPI,
 	})
-	p := planner.NewPlanner(stateClient)
+	p := planner.NewPlanner(stateClient, slog.Default())
 	
 	// Try to generate sync plan (which would delete the protected API)
 	_, err = p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeSync})
@@ -924,7 +925,7 @@ api_documents:
 		PortalAPI: mockPortalAPI,
 		APIAPI:    mockAPIAPI,
 	})
-	p := planner.NewPlanner(stateClient)
+	p := planner.NewPlanner(stateClient, slog.Default())
 	
 	// Generate plan
 	plan, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
@@ -1013,7 +1014,7 @@ api_implementations:
 		PortalAPI: mockPortalAPI,
 		APIAPI:    mockAPIAPI,
 	})
-	p := planner.NewPlanner(stateClient)
+	p := planner.NewPlanner(stateClient, slog.Default())
 	
 	// Generate plan - should only create API, not implementation (SDK limitation)
 	plan, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
