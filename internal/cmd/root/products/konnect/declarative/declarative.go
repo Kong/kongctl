@@ -492,12 +492,15 @@ achieve the desired state.`,
 		},
 	}
 
-	// Add declarative config flags
+	// Add declarative config flags (matching apply command pattern)
 	cmd.Flags().StringSliceP("filename", "f", []string{},
 		"Filename or directory to files to use to create the resource (can specify multiple)")
 	cmd.Flags().BoolP("recursive", "R", false,
 		"Process the directory used in -f, --filename recursively")
+	cmd.Flags().String("plan", "", "Path to existing plan file")
 	cmd.Flags().Bool("dry-run", false, "Preview changes without applying them")
+	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
+	cmd.Flags().StringP("output", "o", "text", "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
 
 	return cmd

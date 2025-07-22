@@ -24,12 +24,15 @@ func NewCommand() *cobra.Command {
     }
     
     // Similar flags to apply
+    cmd.Flags().StringSliceP("filename", "f", []string{},
+        "Filename or directory to files to use to create the resource (can specify multiple)")
+    cmd.Flags().BoolP("recursive", "R", false,
+        "Process the directory used in -f, --filename recursively")
     cmd.Flags().String("plan", "", "Path to existing plan file")
-    cmd.Flags().String("config", "", "Path to configuration directory")
     cmd.Flags().Bool("dry-run", false, "Preview changes without applying")
     cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
     cmd.Flags().String("output", "text", "Output format (text|json|yaml)")
-    cmd.Flags().Bool("show-unmanaged", false, "Show unmanaged fields after execution")
+    cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
     
     return cmd
 }
@@ -44,7 +47,7 @@ func runSync(cmd *cobra.Command, args []string) error {
         plan = loadPlanFromFile(planFile)
     } else {
         // Generate plan in sync mode (includes DELETE operations)
-        plan = generatePlan(configDir, planner.PlanModeSync)
+        plan = generatePlan(filenames, recursive, planner.PlanModeSync)
     }
     
     // Show summary and confirm (only in text mode)
@@ -134,8 +137,8 @@ func ConfirmExecution(plan *planner.Plan) bool {
 
 ## Proof of Success
 ```bash
-# Full synchronization
-$ kongctl sync
+# Full synchronization from configuration files
+$ kongctl sync -f ./config
 Plan Summary:
 - Create: 2 resources
 - Update: 1 resource
@@ -153,7 +156,7 @@ Executing plan...
 Plan applied successfully: 2 created, 1 updated, 1 deleted
 
 # Dry run to preview deletions
-$ kongctl sync --dry-run
+$ kongctl sync -f ./config --dry-run
 Plan Summary:
 - Create: 0 resources
 - Update: 0 resources
@@ -162,7 +165,7 @@ Plan Summary:
 Dry run mode - no changes will be made
 
 # CI/CD automation
-$ kongctl sync --auto-approve --output json
+$ kongctl sync -f ./config --auto-approve --output json
 {
   "execution_result": {
     "success_count": 4,
@@ -173,7 +176,7 @@ $ kongctl sync --auto-approve --output json
 }
 
 # Protected resources block deletion
-$ kongctl sync
+$ kongctl sync -f ./config
 Error: Cannot generate plan due to protected resources:
 - portal "production-portal" is protected and cannot be deleted
 

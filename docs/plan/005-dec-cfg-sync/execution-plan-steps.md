@@ -4,7 +4,7 @@
 
 | Step | Description | Status | Dependencies |
 |------|-------------|---------|--------------|
-| 1 | Create sync command structure | Not Started | None |
+| 1 | Create sync command structure | Completed | None |
 | 2 | Add sync mode to planner | Not Started | Step 1 |
 | 3 | Implement DELETE operation planning | Not Started | Step 2 |
 | 4 | Add portal DELETE execution | Not Started | Step 3 |
@@ -15,7 +15,9 @@
 ## Detailed Steps
 
 ### Step 1: Create sync command structure
-**Status**: Not Started
+**Status**: Completed
+
+**Note**: The sync command structure already existed as part of the verb-based CLI architecture. This step involved verifying the existing implementation and ensuring it follows the correct patterns.
 
 Create the basic sync command with flags and structure.
 
@@ -54,12 +56,15 @@ This is the only command that performs deletions. Protected resources cannot be 
         RunE: runSync,
     }
     
+    cmd.Flags().StringSliceP("filename", "f", []string{},
+        "Filename or directory to files to use to create the resource (can specify multiple)")
+    cmd.Flags().BoolP("recursive", "R", false,
+        "Process the directory used in -f, --filename recursively")
     cmd.Flags().StringP("plan", "p", "", "Path to existing plan file (JSON format)")
-    cmd.Flags().StringP("config", "c", "", "Path to configuration directory")
     cmd.Flags().Bool("dry-run", false, "Preview changes without applying them")
     cmd.Flags().Bool("auto-approve", false, "Skip interactive confirmation prompt")
     cmd.Flags().StringP("output", "o", "text", "Output format (text|json|yaml)")
-    cmd.Flags().Bool("show-unmanaged", false, "Show unmanaged fields after execution")
+    cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
     
     return cmd
 }
