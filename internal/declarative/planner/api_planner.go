@@ -454,10 +454,34 @@ func (p *Planner) planAPIPublicationChanges(
 	// Build portal ref to ID mapping (following portal pages pattern)
 	portalRefToID := make(map[string]string)
 	portalIDToRef := make(map[string]string) // Reverse mapping for deletion display
+	
+	// First, add desired portals to the mapping
 	for _, portal := range p.desiredPortals {
 		if resolvedID := portal.GetKonnectID(); resolvedID != "" {
 			portalRefToID[portal.Ref] = resolvedID
 			portalIDToRef[resolvedID] = portal.Ref
+		}
+	}
+	
+	// Also fetch ALL managed portals to ensure complete mapping
+	// This handles cases where publications exist for portals not in current desired state
+	allPortals, err := p.client.ListManagedPortals(ctx)
+	if err == nil {
+		// Add any portals not already in the mapping
+		for _, portal := range allPortals {
+			if _, exists := portalIDToRef[portal.ID]; !exists {
+				// Try to find the ref by matching name with desired portals
+				// If not found, use the portal name as a fallback ref
+				portalRef := portal.Name
+				for _, desiredPortal := range p.desiredPortals {
+					if desiredPortal.Name == portal.Name {
+						portalRef = desiredPortal.Ref
+						break
+					}
+				}
+				portalIDToRef[portal.ID] = portalRef
+				// Don't add to portalRefToID as we might have ref conflicts
+			}
 		}
 	}
 
