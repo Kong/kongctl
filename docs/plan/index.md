@@ -152,8 +152,11 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](005-dec-cfg-sync/execution-plan-steps.md) | **Implementation guide** | ✅ Created |
 | [execution-plan-adrs.md](005-dec-cfg-sync/execution-plan-adrs.md) | Architecture decisions | ✅ Created |
 
-**Implementation Status**: 1/7 steps completed (14%)
+**Implementation Status**: 4/7 steps completed (57%)
 - Step 1: Create sync command structure ✅ (command already existed)
+- Step 2: Add sync mode to planner ✅ (functionality already implemented)
+- Step 3: Implement DELETE operation planning ✅ (validation already inline)
+- Step 4: Add portal DELETE execution ✅ (implementation already complete)
 - **Dependencies**: Stage 3 completion ✅ Met
 - **Key deliverables**: 
   - Sync command with DELETE support

@@ -5,9 +5,9 @@
 | Step | Description | Status | Dependencies |
 |------|-------------|---------|--------------|
 | 1 | Create sync command structure | Completed | None |
-| 2 | Add sync mode to planner | Not Started | Step 1 |
-| 3 | Implement DELETE operation planning | Not Started | Step 2 |
-| 4 | Add portal DELETE execution | Not Started | Step 3 |
+| 2 | Add sync mode to planner | Completed | Step 1 |
+| 3 | Implement DELETE operation planning | Completed | Step 2 |
+| 4 | Add portal DELETE execution | Completed | Step 3 |
 | 5 | Add API resource DELETE execution | Not Started | Step 4 |
 | 6 | Implement confirmation prompts | Not Started | Step 5 |
 | 7 | Add integration tests | Not Started | Step 6 |
@@ -80,8 +80,10 @@ func runSync(cmd *cobra.Command, args []string) error {
 - Flag parsing test
 
 ### Step 2: Add sync mode to planner
-**Status**: Not Started
+**Status**: Completed
 **Dependencies**: Step 1
+
+**Note**: The sync mode functionality was already implemented in the planner. All resource planners (portal, API, auth strategy) already check for `plan.Metadata.Mode == PlanModeSync` and generate DELETE operations for managed resources not in the desired state.
 
 Extend the planner to support sync mode for DELETE operations.
 
@@ -133,14 +135,16 @@ func (p *Planner) BuildPlan(ctx context.Context, desired resources.ResourceSet, 
 - Only managed resources included in DELETE
 
 ### Step 3: Implement DELETE operation planning
-**Status**: Not Started
+**Status**: Completed
 **Dependencies**: Step 2
+
+**Note**: DELETE operation validation is already implemented within the planner. Protected resources are validated during plan generation in the resource-specific planners (portal_planner.go, api_planner.go, etc.). The validation happens inline rather than in separate validation files.
 
 Add DELETE operation support to plan generation and validation.
 
 **Files to modify**:
-- `internal/declarative/planner/validation.go`
-- `internal/declarative/planner/change.go`
+- `internal/declarative/planner/validation.go` (not needed - validation is inline)
+- `internal/declarative/planner/change.go` (not needed - using existing types)
 
 **Implementation**:
 ```go
@@ -183,8 +187,14 @@ func validatePlan(plan *Plan) error {
 - DELETE operations properly ordered
 
 ### Step 4: Add portal DELETE execution
-**Status**: Not Started
+**Status**: Completed
 **Dependencies**: Step 3
+
+**Note**: The portal DELETE execution was already implemented as part of the executor infrastructure. The implementation follows the established patterns from earlier stages rather than the exact specification in this planning document. Key differences:
+- Uses `portal.NormalizedLabels` for protection checking (consistent with UPDATE operations)
+- Reporter calls are handled by the parent `executeChange` method
+- Protection validation happens in both `validateChangePreExecution` and the operation itself
+- No `CurrentState` field in PlannedChange; uses Fields map instead
 
 Implement DELETE operation for portal resources in executor.
 
