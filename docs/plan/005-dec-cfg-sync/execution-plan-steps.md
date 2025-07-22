@@ -8,7 +8,7 @@
 | 2 | Add sync mode to planner | Completed | Step 1 |
 | 3 | Implement DELETE operation planning | Completed | Step 2 |
 | 4 | Add portal DELETE execution | Completed | Step 3 |
-| 5 | Add API resource DELETE execution | Not Started | Step 4 |
+| 5 | Add API resource DELETE execution | Completed | Step 4 |
 | 6 | Implement confirmation prompts | Not Started | Step 5 |
 | 7 | Add integration tests | Not Started | Step 6 |
 
@@ -279,8 +279,17 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) (*ExecutionR
 - Dry-run skips deletion
 
 ### Step 5: Add API resource DELETE execution
-**Status**: Not Started
+**Status**: Completed
 **Dependencies**: Step 4
+
+**Note**: The API DELETE execution was already implemented as part of the executor infrastructure. All DELETE methods for API resources were present:
+- `deleteAPI` - fully functional with protection and managed resource checks
+- `deleteAPIPublication` - implemented
+- `deleteAPIDocument` - implemented
+- `deleteAPIImplementation` - returns "not supported by SDK" error
+- API versions don't support deletion per the note in executor.go
+
+Tests were added for the `deleteAPI` method following the same pattern as portal operations tests.
 
 Implement DELETE operations for API resources and their children.
 
