@@ -9,7 +9,7 @@
 | 3 | Implement DELETE operation planning | Completed | Step 2 |
 | 4 | Add portal DELETE execution | Completed | Step 3 |
 | 5 | Add API resource DELETE execution | Completed | Step 4 |
-| 6 | Implement confirmation prompts | Not Started | Step 5 |
+| 6 | Implement confirmation prompts | Completed | Step 5 |
 | 7 | Add integration tests | Not Started | Step 6 |
 
 ## Detailed Steps
@@ -353,8 +353,15 @@ func (e *Executor) deleteAPI(ctx context.Context, change planner.PlannedChange) 
 - Deletion order validation
 
 ### Step 6: Implement confirmation prompts
-**Status**: Not Started
+**Status**: Completed
 **Dependencies**: Step 5
+
+**Note**: The sync command implementation was completed by reusing the existing confirmation prompt functionality from `internal/declarative/common/prompts.go`. The implementation:
+- Reuses the apply command's logic but generates plans in sync mode (PlanModeSync)
+- Uses the existing ConfirmExecution function which already displays DELETE warnings
+- Supports all the same flags as apply (--dry-run, --auto-approve, -o, etc.)
+- Handles stdin input appropriately by using /dev/tty for interactive prompts
+- No additional confirmation.go file was needed as originally planned
 
 Add interactive confirmation with DELETE warnings.
 

@@ -28,6 +28,8 @@ const (
 	currentPlanKey contextKey = "current_plan"
 	// planFileKey is the context key for storing the plan file path
 	planFileKey contextKey = "plan_file"
+	// textOutputFormat is the string constant for text output format
+	textOutputFormat = "text"
 )
 
 // NewDeclarativeCmd creates the appropriate declarative command based on the verb
@@ -283,7 +285,7 @@ func runDiff(command *cobra.Command, args []string) error {
 		fmt.Fprintln(command.OutOrStdout(), string(yamlData))
 		return nil
 
-	case "text":
+	case textOutputFormat:
 		// Human-readable text output
 		return displayTextDiff(command, plan, fullContent)
 
@@ -487,9 +489,7 @@ func newDeclarativeSyncCmd() *cobra.Command {
 Sync analyzes the current state of Konnect resources, compares it with the desired
 state defined in the configuration files, and applies the necessary changes to
 achieve the desired state.`,
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return fmt.Errorf("sync command not yet implemented")
-		},
+		RunE: runSync,
 	}
 
 	// Add declarative config flags (matching apply command pattern)
@@ -500,7 +500,7 @@ achieve the desired state.`,
 	cmd.Flags().String("plan", "", "Path to existing plan file")
 	cmd.Flags().Bool("dry-run", false, "Preview changes without applying them")
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
-	cmd.Flags().StringP("output", "o", "text", "Output format (text|json|yaml)")
+	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
 
 	return cmd
@@ -524,7 +524,7 @@ useful for reviewing changes before synchronization.`,
 	cmd.Flags().BoolP("recursive", "R", false,
 		"Process the directory used in -f, --filename recursively")
 	cmd.Flags().String("plan", "", "Path to existing plan file to display")
-	cmd.Flags().StringP("output", "o", "text", "Output format (text, json, or yaml)")
+	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text, json, or yaml)")
 	cmd.Flags().Bool("full-content", false, "Display full content for large fields instead of summary")
 
 	return cmd
@@ -563,7 +563,7 @@ func runApply(command *cobra.Command, args []string) error {
 	filenames, _ := command.Flags().GetStringSlice("filename")
 
 	// Early check for non-text output without auto-approve
-	if !dryRun && !autoApprove && outputFormat != "text" {
+	if !dryRun && !autoApprove && outputFormat != textOutputFormat {
 		return fmt.Errorf("cannot use %s output format without --auto-approve or --dry-run flag "+
 			"(interactive confirmation not available with structured output)", outputFormat)
 	}
@@ -622,7 +622,7 @@ func runApply(command *cobra.Command, args []string) error {
 	var plan *planner.Plan
 	if planFile != "" {
 		// Show plan source information early
-		if outputFormat == "text" {
+		if outputFormat == textOutputFormat {
 			if planFile == "-" {
 				fmt.Fprintf(command.OutOrStderr(), "Using plan from: stdin\n")
 			} else {
@@ -698,7 +698,7 @@ func runApply(command *cobra.Command, args []string) error {
 
 	// Check if plan is empty (no changes needed)
 	if plan.IsEmpty() {
-		if outputFormat == "text" {
+		if outputFormat == textOutputFormat {
 			fmt.Fprintln(command.OutOrStderr(), "No changes needed. Resources match configuration.")
 			return nil
 		}
@@ -714,7 +714,7 @@ func runApply(command *cobra.Command, args []string) error {
 	}
 
 	// Show plan summary for text format (both regular and dry-run)
-	if outputFormat == "text" {
+	if outputFormat == textOutputFormat {
 		common.DisplayPlanSummary(plan, command.OutOrStderr())
 
 		// Show confirmation prompt for non-dry-run, non-auto-approve
@@ -744,7 +744,7 @@ func runApply(command *cobra.Command, args []string) error {
 	stateClient := createStateClient(kkClient)
 
 	var reporter executor.ProgressReporter
-	if outputFormat == "text" {
+	if outputFormat == textOutputFormat {
 		reporter = executor.NewConsoleReporterWithOptions(command.OutOrStderr(), dryRun)
 	}
 
@@ -937,10 +937,211 @@ delete resources.`,
 	cmd.Flags().String("plan", "", "Path to existing plan file")
 	cmd.Flags().Bool("dry-run", false, "Preview changes without applying")
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
-	cmd.Flags().StringP("output", "o", "text", "Output format (text|json|yaml)")
+	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
 
 	return cmd
+}
+
+func runSync(command *cobra.Command, args []string) error {
+	// Silence usage for all runtime errors (command syntax is already valid at this point)
+	command.SilenceUsage = true
+
+	ctx := command.Context()
+	planFile, _ := command.Flags().GetString("plan")
+	dryRun, _ := command.Flags().GetBool("dry-run")
+	autoApprove, _ := command.Flags().GetBool("auto-approve")
+	outputFormat, _ := command.Flags().GetString("output")
+	filenames, _ := command.Flags().GetStringSlice("filename")
+
+	// Early check for non-text output without auto-approve
+	if !dryRun && !autoApprove && outputFormat != textOutputFormat {
+		return fmt.Errorf("cannot use %s output format without --auto-approve or --dry-run flag "+
+			"(interactive confirmation not available with structured output)", outputFormat)
+	}
+
+	// Early check for stdin usage without auto-approve
+	// Only fail if we can't access /dev/tty for interactive input
+	var usingStdinForInput bool
+	if !dryRun && !autoApprove {
+		// Check if stdin will be used for plan or configuration
+		if planFile == "-" {
+			usingStdinForInput = true
+		} else if planFile == "" {
+			// Check if stdin will be used for configuration
+			for _, filename := range filenames {
+				if filename == "-" {
+					usingStdinForInput = true
+					break
+				}
+			}
+		}
+
+		// If using stdin, ensure we can get interactive input via /dev/tty
+		if usingStdinForInput {
+			tty, err := os.Open("/dev/tty")
+			if err != nil {
+				return fmt.Errorf("cannot use stdin for input without --auto-approve flag " +
+					"(no terminal available for interactive confirmation). " +
+					"Use --auto-approve to skip confirmation when piping commands")
+			}
+			tty.Close()
+		}
+	}
+
+	// Build helper
+	helper := cmd.BuildHelper(command, args)
+
+	// Get configuration
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	// Get logger
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return err
+	}
+
+	// Get Konnect SDK
+	kkClient, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return fmt.Errorf("failed to initialize Konnect client: %w", err)
+	}
+
+	// Load or generate plan
+	var plan *planner.Plan
+	if planFile != "" {
+		// Show plan source information early
+		if outputFormat == textOutputFormat {
+			if planFile == "-" {
+				fmt.Fprintf(command.OutOrStderr(), "Using plan from: stdin\n")
+			} else {
+				fmt.Fprintf(command.OutOrStderr(), "Using plan from: %s\n", planFile)
+			}
+		}
+
+		// Load existing plan
+		plan, err = common.LoadPlan(planFile, command.InOrStdin())
+		if err != nil {
+			return err
+		}
+	} else {
+
+		// Generate plan from configuration files
+		recursive, _ := command.Flags().GetBool("recursive")
+
+		// Parse sources from filenames
+		sources, err := loader.ParseSources(filenames)
+		if err != nil {
+			return fmt.Errorf("failed to parse sources: %w", err)
+		}
+
+		// Load configuration
+		ldr := loader.New()
+		resourceSet, err := ldr.LoadFromSources(sources, recursive)
+		if err != nil {
+			// Provide more helpful error message for common cases
+			if len(filenames) == 0 && strings.Contains(err.Error(), "no YAML files found") {
+				return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
+			}
+			return fmt.Errorf("failed to load configuration: %w", err)
+		}
+
+		// Check if configuration is empty
+		totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
+			len(resourceSet.ControlPlanes) + len(resourceSet.APIs)
+
+		if totalResources == 0 {
+			// Check if we're using default directory (no explicit sources)
+			if len(filenames) == 0 {
+				return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
+			}
+			return fmt.Errorf("no resources found in configuration files")
+		}
+
+		// Create planner
+		stateClient := createStateClient(kkClient)
+		p := planner.NewPlanner(stateClient)
+
+		// Generate plan in sync mode
+		opts := planner.Options{
+			Mode: planner.PlanModeSync,
+		}
+		plan, err = p.GeneratePlan(ctx, resourceSet, opts)
+		if err != nil {
+			return fmt.Errorf("failed to generate plan: %w", err)
+		}
+	}
+
+	// Store plan in context for output formatting
+	ctx = context.WithValue(ctx, currentPlanKey, plan)
+	// Store plan file path if provided
+	if planFile != "" {
+		ctx = context.WithValue(ctx, planFileKey, planFile)
+	}
+	command.SetContext(ctx)
+
+	// Check if plan is empty (no changes needed)
+	if plan.IsEmpty() {
+		if outputFormat == textOutputFormat {
+			fmt.Fprintln(command.OutOrStderr(), "No changes needed. Resources match configuration.")
+			return nil
+		}
+		// Use consistent output format with empty result
+		emptyResult := &executor.ExecutionResult{
+			SuccessCount:   0,
+			FailureCount:   0,
+			SkippedCount:   0,
+			DryRun:         dryRun,
+			ChangesApplied: []executor.AppliedChange{},
+		}
+		return outputApplyResults(command, emptyResult, nil, outputFormat)
+	}
+
+	// Show plan summary for text format (both regular and dry-run)
+	if outputFormat == textOutputFormat {
+		common.DisplayPlanSummary(plan, command.OutOrStderr())
+
+		// Show confirmation prompt for non-dry-run, non-auto-approve
+		if !dryRun && !autoApprove {
+			// If we're using stdin for input, use /dev/tty for confirmation
+			inputReader := command.InOrStdin()
+			if usingStdinForInput {
+				tty, err := os.Open("/dev/tty")
+				if err != nil {
+					// This shouldn't happen as we checked earlier
+					return fmt.Errorf("cannot open terminal for confirmation: %w", err)
+				}
+				defer tty.Close()
+				inputReader = tty
+			}
+
+			if !common.ConfirmExecution(plan, command.OutOrStdout(), command.OutOrStderr(), inputReader) {
+				return fmt.Errorf("sync cancelled")
+			}
+		}
+
+		// Add spacing before execution output
+		fmt.Fprintln(command.OutOrStderr())
+	}
+
+	// Create executor
+	stateClient := createStateClient(kkClient)
+
+	var reporter executor.ProgressReporter
+	if outputFormat == textOutputFormat {
+		reporter = executor.NewConsoleReporterWithOptions(command.OutOrStderr(), dryRun)
+	}
+
+	exec := executor.New(stateClient, reporter, dryRun)
+
+	// Execute plan
+	result, err := exec.Execute(ctx, plan)
+
+	// Output results based on format
+	return outputApplyResults(command, result, err, outputFormat)
 }
 
 // createStateClient creates a new state client with all necessary APIs
