@@ -453,9 +453,11 @@ func (p *Planner) planAPIPublicationChanges(
 
 	// Build portal ref to ID mapping (following portal pages pattern)
 	portalRefToID := make(map[string]string)
+	portalIDToRef := make(map[string]string) // Reverse mapping for deletion display
 	for _, portal := range p.desiredPortals {
 		if resolvedID := portal.GetKonnectID(); resolvedID != "" {
 			portalRefToID[portal.Ref] = resolvedID
+			portalIDToRef[resolvedID] = portal.Ref
 		}
 	}
 
@@ -490,7 +492,12 @@ func (p *Planner) planAPIPublicationChanges(
 
 		for portalID := range currentByPortal {
 			if !desiredPortals[portalID] {
-				p.planAPIPublicationDelete(apiRef, portalID, plan)
+				// Get portal ref for better display
+				portalRef := portalIDToRef[portalID]
+				if portalRef == "" {
+					portalRef = portalID // Fallback to ID if ref not found
+				}
+				p.planAPIPublicationDelete(apiRef, apiID, portalID, portalRef, plan)
 			}
 		}
 	}
@@ -559,16 +566,22 @@ func (p *Planner) planAPIPublicationCreate(
 	plan.AddChange(change)
 }
 
-func (p *Planner) planAPIPublicationDelete(apiRef string, portalID string, plan *Plan) {
+func (p *Planner) planAPIPublicationDelete(apiRef string, apiID string, portalID string, portalRef string, plan *Plan) {
+	// Create a composite reference that includes both API and portal for clarity
+	compositeRef := fmt.Sprintf("%s-to-%s", apiRef, portalRef)
+	
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionDelete, "api_publication", portalID),
+		ID:           p.nextChangeID(ActionDelete, "api_publication", compositeRef),
 		ResourceType: "api_publication",
-		ResourceRef:  portalID,
-		ResourceID:   portalID, // For publications, we use portal ID for deletion
-		Parent:       &ParentInfo{Ref: apiRef},
+		ResourceRef:  compositeRef,
+		ResourceID:   fmt.Sprintf("%s:%s", apiID, portalID), // Composite ID for API publication
+		Parent:       &ParentInfo{Ref: apiRef, ID: apiID},
 		Action:       ActionDelete,
-		Fields:       map[string]interface{}{},
-		DependsOn:    []string{},
+		Fields: map[string]interface{}{
+			"api_id":    apiID,
+			"portal_id": portalID,
+		},
+		DependsOn: []string{},
 	}
 
 	plan.AddChange(change)

@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -134,9 +135,23 @@ func (e *Executor) deleteAPIPublication(ctx context.Context, change planner.Plan
 		return fmt.Errorf("parent API not found: %s", change.Parent.Ref)
 	}
 
-	// For delete, we need the portal ID, not publication ID
-	// The ResourceID should contain the portal ID for publications
-	if err := e.client.DeleteAPIPublication(ctx, parentAPI.ID, change.ResourceID); err != nil {
+	// Extract portal ID from fields or ResourceID
+	var portalID string
+	
+	// First try to get portal ID from fields (new format)
+	if pid, ok := change.Fields["portal_id"].(string); ok {
+		portalID = pid
+	} else {
+		// Fallback to ResourceID for backward compatibility
+		// ResourceID might be in format "api_id:portal_id" or just "portal_id"
+		if idx := strings.LastIndex(change.ResourceID, ":"); idx != -1 {
+			portalID = change.ResourceID[idx+1:]
+		} else {
+			portalID = change.ResourceID
+		}
+	}
+
+	if err := e.client.DeleteAPIPublication(ctx, parentAPI.ID, portalID); err != nil {
 		return fmt.Errorf("failed to delete API publication: %w", err)
 	}
 
