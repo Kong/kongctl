@@ -142,15 +142,17 @@ The first major feature being implemented is declarative configuration managemen
   - Cross-resource reference validation
   - Nested and separate file configuration support
 
-#### Stage 5: Sync Command Implementation 🔮 Future
+#### Stage 5: Sync Command Implementation 🚧 Ready to Start
 **Goal**: Implement full state reconciliation with DELETE operations
 
 | Document | Purpose | Status |
 |----------|---------|---------|
 | [description.md](005-dec-cfg-sync/description.md) | Requirements | ✅ Created |
-| execution-plan-*.md | Implementation docs | 🔮 Not yet created |
+| [execution-plan-overview.md](005-dec-cfg-sync/execution-plan-overview.md) | Technical approach | ✅ Created |
+| [execution-plan-steps.md](005-dec-cfg-sync/execution-plan-steps.md) | **Implementation guide** | ✅ Created |
+| [execution-plan-adrs.md](005-dec-cfg-sync/execution-plan-adrs.md) | Architecture decisions | ✅ Created |
 
-**Implementation Status**: Not started
+**Implementation Status**: 0/7 steps completed (0%)
 - **Dependencies**: Stage 3 completion ✅ Met
 - **Key deliverables**: 
   - Sync command with DELETE support
