@@ -535,6 +535,25 @@ func (p *Planner) planAPIPublicationChanges(
 
 	// In sync mode, delete unmanaged publications
 	if plan.Metadata.Mode == PlanModeSync {
+		// Check if there are extracted publications for this API that will be processed later
+		hasExtractedPublications := false
+		for _, pub := range p.desiredAPIPublications {
+			if pub.API == apiRef {
+				hasExtractedPublications = true
+				break
+			}
+		}
+		
+		// If there are extracted publications, skip deletion during child resource planning
+		// The extracted publications will handle deletion properly when they are processed
+		if hasExtractedPublications && len(desired) == 0 {
+			p.logger.Debug("Skipping publication deletion - extracted publications exist",
+				slog.String("api", apiRef),
+				slog.Int("current_count", len(currentByPortal)),
+			)
+			return nil
+		}
+		
 		desiredPortals := make(map[string]bool)
 		for _, pub := range desired {
 			// Use resolved portal ID for sync mode comparison
