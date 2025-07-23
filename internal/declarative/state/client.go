@@ -271,7 +271,7 @@ func (c *Client) CreatePortal(
 			} else {
 				logger.Debug("Final portal label",
 					slog.String("key", k),
-					slog.String("value", "<nil>"))
+					slog.String("value", "[nil]"))
 			}
 		}
 	}
@@ -584,6 +584,20 @@ func (c *Client) CreateAPIVersion(
 	}
 
 	return resp.APIVersionResponse, nil
+}
+
+// DeleteAPIVersion deletes an API version
+func (c *Client) DeleteAPIVersion(ctx context.Context, apiID string, versionID string) error {
+	if c.apiVersionAPI == nil {
+		return fmt.Errorf("API version client not configured")
+	}
+
+	_, err := c.apiVersionAPI.DeleteAPIVersion(ctx, apiID, versionID)
+	if err != nil {
+		return fmt.Errorf("failed to delete API version: %w", err)
+	}
+
+	return nil
 }
 
 // API Publication methods

@@ -31,29 +31,31 @@ type PlanMetadata struct {
 
 // PlannedChange represents a single resource change
 type PlannedChange struct {
-	ID           string                    `json:"id"`
-	ResourceType string                    `json:"resource_type"`
-	ResourceRef  string                    `json:"resource_ref"`
-	ResourceID   string                    `json:"resource_id,omitempty"` // Only for UPDATE/DELETE
-	Action       ActionType                `json:"action"`
-	Fields       map[string]interface{}    `json:"fields"`
-	References   map[string]ReferenceInfo  `json:"references,omitempty"`
-	Parent       *ParentInfo               `json:"parent,omitempty"`
-	Protection   interface{}               `json:"protection,omitempty"` // bool or ProtectionChange
-	DependsOn    []string                  `json:"depends_on,omitempty"`
+	ID               string                    `json:"id"`
+	ResourceType     string                    `json:"resource_type"`
+	ResourceRef      string                    `json:"resource_ref"`
+	ResourceID       string                    `json:"resource_id,omitempty"` // Only for UPDATE/DELETE
+	// Human-readable identifiers for resources without config refs
+	ResourceMonikers map[string]string         `json:"resource_monikers,omitempty"`
+	Action           ActionType                `json:"action"`
+	Fields           map[string]interface{}    `json:"fields"`
+	References       map[string]ReferenceInfo  `json:"references,omitempty"`
+	Parent           *ParentInfo               `json:"parent,omitempty"`
+	Protection       interface{}               `json:"protection,omitempty"` // bool or ProtectionChange
+	DependsOn        []string                  `json:"depends_on,omitempty"`
 }
 
 // ReferenceInfo tracks reference resolution
 type ReferenceInfo struct {
 	Ref          string            `json:"ref"`
-	ID           string            `json:"id"` // May be "<unknown>" for resources in same plan
+	ID           string            `json:"id"` // May be "[unknown]" for resources in same plan
 	LookupFields map[string]string `json:"lookup_fields,omitempty"` // Resource-specific identifying fields
 }
 
 // ParentInfo tracks parent relationships
 type ParentInfo struct {
 	Ref string `json:"ref"`
-	ID  string `json:"id"` // May be "<unknown>" for parents in same plan
+	ID  string `json:"id"` // May be "[unknown]" for parents in same plan
 }
 
 // ProtectionChange tracks protection status changes

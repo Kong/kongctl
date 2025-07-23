@@ -397,7 +397,50 @@ func (p *Planner) planAPIVersionChanges(
 		// Note: API versions don't support update operations
 	}
 
-	// Note: We don't delete versions in sync mode as they may be in use
+	// In sync mode, delete unmanaged versions
+	if plan.Metadata.Mode == PlanModeSync {
+		// Check if there are extracted versions for this API that will be processed later
+		hasExtractedVersions := false
+		for _, ver := range p.desiredAPIVersions {
+			if ver.API == apiRef {
+				hasExtractedVersions = true
+				break
+			}
+		}
+		
+		// If there are extracted versions, skip deletion during child resource planning
+		if hasExtractedVersions && len(desired) == 0 {
+			p.logger.Debug("Skipping version deletion - extracted versions exist",
+				slog.String("api", apiRef),
+				slog.Int("current_count", len(currentByVersion)),
+			)
+			return nil
+		}
+		
+		desiredVersions := make(map[string]bool)
+		for _, ver := range desired {
+			if ver.Version != nil {
+				desiredVersions[*ver.Version] = true
+			}
+		}
+
+		p.logger.Debug("Sync mode: checking for versions to delete",
+			slog.String("api", apiRef),
+			slog.Int("current_count", len(currentByVersion)),
+			slog.Int("desired_count", len(desiredVersions)),
+		)
+
+		for versionStr, current := range currentByVersion {
+			if !desiredVersions[versionStr] {
+				p.logger.Debug("Marking version for deletion",
+					slog.String("api", apiRef),
+					slog.String("version", versionStr),
+					slog.String("version_id", current.ID),
+				)
+				p.planAPIVersionDelete(apiRef, apiID, current.ID, versionStr, plan)
+			}
+		}
+	}
 
 	return nil
 }
@@ -430,6 +473,25 @@ func (p *Planner) planAPIVersionCreate(
 		Action:       ActionCreate,
 		Fields:       fields,
 		DependsOn:    dependsOn,
+	}
+
+	plan.AddChange(change)
+}
+
+func (p *Planner) planAPIVersionDelete(apiRef string, apiID string, versionID string, versionStr string, plan *Plan) {
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionDelete, "api_version", versionID),
+		ResourceType: "api_version",
+		ResourceRef:  "[unknown]",
+		ResourceID:   versionID,
+		ResourceMonikers: map[string]string{
+			"version":    versionStr,
+			"parent_api": apiRef,
+		},
+		Parent:    &ParentInfo{Ref: apiRef, ID: apiID},
+		Action:    ActionDelete,
+		Fields:    map[string]interface{}{"version": versionStr},
+		DependsOn: []string{},
 	}
 
 	plan.AddChange(change)
@@ -828,7 +890,7 @@ func (p *Planner) planAPIDocumentChanges(
 
 		for slug, current := range currentBySlug {
 			if !desiredSlugs[slug] {
-				p.planAPIDocumentDelete(apiRef, apiID, current.ID, plan)
+				p.planAPIDocumentDelete(apiRef, apiID, current.ID, slug, plan)
 			}
 		}
 	}
@@ -923,16 +985,20 @@ func (p *Planner) planAPIDocumentUpdate(
 	plan.AddChange(change)
 }
 
-func (p *Planner) planAPIDocumentDelete(apiRef string, apiID string, documentID string, plan *Plan) {
+func (p *Planner) planAPIDocumentDelete(apiRef string, apiID string, documentID string, slug string, plan *Plan) {
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionDelete, "api_document", documentID),
 		ResourceType: "api_document",
-		ResourceRef:  documentID,
+		ResourceRef:  "[unknown]",
 		ResourceID:   documentID,
-		Parent:       &ParentInfo{Ref: apiRef, ID: apiID},
-		Action:       ActionDelete,
-		Fields:       map[string]interface{}{},
-		DependsOn:    []string{},
+		ResourceMonikers: map[string]string{
+			"slug":       slug,
+			"parent_api": apiRef,
+		},
+		Parent:    &ParentInfo{Ref: apiRef, ID: apiID},
+		Action:    ActionDelete,
+		Fields:    map[string]interface{}{"slug": slug},
+		DependsOn: []string{},
 	}
 
 	plan.AddChange(change)

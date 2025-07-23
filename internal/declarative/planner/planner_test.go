@@ -397,7 +397,7 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 		ref, ok := portalChange.References["default_application_auth_strategy_id"]
 		assert.True(t, ok)
 		assert.Equal(t, "basic-auth", ref.Ref)
-		assert.Equal(t, "<unknown>", ref.ID) // Will be resolved at execution
+		assert.Equal(t, "[unknown]", ref.ID) // Will be resolved at execution
 	}
 
 	// Check execution order - auth strategy should come first

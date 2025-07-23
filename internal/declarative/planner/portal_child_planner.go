@@ -45,18 +45,18 @@ func (p *Planner) planPortalCustomizationsChanges(
 			current, err := p.client.GetPortalCustomization(ctx, portalID)
 			if err != nil {
 				// If we can't fetch current state, plan the update anyway
-				p.planPortalCustomizationUpdate(desiredCustomization, portalName, plan)
+				p.planPortalCustomizationUpdate(desiredCustomization, portalName, portalID, plan)
 				continue
 			}
 
 			// Compare and only update if needed
 			needsUpdate, updateFields := p.shouldUpdatePortalCustomization(current, desiredCustomization)
 			if needsUpdate {
-				p.planPortalCustomizationUpdateWithFields(desiredCustomization, portalName, updateFields, plan)
+				p.planPortalCustomizationUpdateWithFields(desiredCustomization, portalName, portalID, updateFields, plan)
 			}
 		} else {
 			// Portal doesn't exist yet, plan the update for after portal creation
-			p.planPortalCustomizationUpdate(desiredCustomization, portalName, plan)
+			p.planPortalCustomizationUpdate(desiredCustomization, portalName, "", plan)
 		}
 	}
 
@@ -64,15 +64,16 @@ func (p *Planner) planPortalCustomizationsChanges(
 }
 
 func (p *Planner) planPortalCustomizationUpdate(
-	customization resources.PortalCustomizationResource, portalName string, plan *Plan,
+	customization resources.PortalCustomizationResource, portalName string, portalID string, plan *Plan,
 ) {
 	// Build all fields from the resource
 	fields := p.buildAllCustomizationFields(customization)
-	p.planPortalCustomizationUpdateWithFields(customization, portalName, fields, plan)
+	p.planPortalCustomizationUpdateWithFields(customization, portalName, portalID, fields, plan)
 }
 
 func (p *Planner) planPortalCustomizationUpdateWithFields(
-	customization resources.PortalCustomizationResource, portalName string, fields map[string]interface{}, plan *Plan,
+	customization resources.PortalCustomizationResource, portalName string, portalID string,
+	fields map[string]interface{}, plan *Plan,
 ) {
 	// Only proceed if there are fields to update
 	if len(fields) == 0 {
@@ -103,6 +104,13 @@ func (p *Planner) planPortalCustomizationUpdateWithFields(
 
 	// Store parent portal reference
 	if customization.Portal != "" {
+		// Set Parent field for proper display and serialization
+		change.Parent = &ParentInfo{
+			Ref: customization.Portal,
+			ID:  portalID, // May be empty if portal doesn't exist yet
+		}
+		
+		// Also store in References for executor to use
 		change.References = map[string]ReferenceInfo{
 			"portal_id": {
 				Ref: customization.Portal,
@@ -422,6 +430,12 @@ func (p *Planner) planPortalCustomDomainCreate(
 			}
 		}
 		
+		// Set Parent field for proper display and serialization
+		change.Parent = &ParentInfo{
+			Ref: domain.Portal,
+			ID:  "", // Will be resolved during execution
+		}
+		
 		change.References = map[string]ReferenceInfo{
 			"portal_id": {
 				Ref: domain.Portal,
@@ -548,7 +562,7 @@ func (p *Planner) planPortalPagesChanges(
 		
 		if !exists {
 			// CREATE new page
-			p.planPortalPageCreate(desiredPage, portalRef, plan)
+			p.planPortalPageCreate(desiredPage, portalRef, portalID, plan)
 		} else {
 			// Check if UPDATE is needed - must fetch full content first
 			if portalID != "" && existingPage.ID != "" {
@@ -569,7 +583,7 @@ func (p *Planner) planPortalPagesChanges(
 }
 
 func (p *Planner) planPortalPageCreate(
-	page resources.PortalPageResource, _ string, plan *Plan,
+	page resources.PortalPageResource, _ string, portalID string, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	fields["slug"] = page.Slug
@@ -625,6 +639,12 @@ func (p *Planner) planPortalPageCreate(
 				portalName = portal.Name
 				break
 			}
+		}
+		
+		// Set Parent field for proper display and serialization
+		change.Parent = &ParentInfo{
+			Ref: page.Portal,
+			ID:  portalID, // May be empty if portal doesn't exist yet
 		}
 		
 		change.References = map[string]ReferenceInfo{
@@ -768,6 +788,12 @@ func (p *Planner) planPortalPageUpdate(
 				portalName = portal.Name
 				break
 			}
+		}
+		
+		// Set Parent field for proper display and serialization
+		change.Parent = &ParentInfo{
+			Ref: portalRef,
+			ID:  "", // Already known via ResourceID but not needed for display
 		}
 		
 		change.References = map[string]ReferenceInfo{

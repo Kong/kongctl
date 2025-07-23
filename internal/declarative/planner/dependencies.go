@@ -50,7 +50,7 @@ func (d *DependencyResolver) ResolveDependencies(changes []PlannedChange) ([]str
 		}
 
 		// Parent dependencies
-		if change.Parent != nil && change.Parent.ID == "<unknown>" {
+		if change.Parent != nil && change.Parent.ID == "[unknown]" {
 			parentDep := d.findParentChange(change.Parent.Ref, change.ResourceType, changes)
 			if parentDep != "" && !contains(change.DependsOn, parentDep) {
 				graph[parentDep] = append(graph[parentDep], changeID)
@@ -103,7 +103,7 @@ func (d *DependencyResolver) findImplicitDependencies(change PlannedChange, allC
 
 	// Check references field
 	for _, refInfo := range change.References {
-		if refInfo.ID == "<unknown>" {
+		if refInfo.ID == "[unknown]" {
 			// Find the change that creates this resource
 			for _, other := range allChanges {
 				if other.ResourceRef == refInfo.Ref && other.Action == ActionCreate {

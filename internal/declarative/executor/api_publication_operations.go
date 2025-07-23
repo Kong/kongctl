@@ -26,7 +26,7 @@ func (e *Executor) createAPIPublication(ctx context.Context, change planner.Plan
 	
 	// First check if we have a resolved reference
 	if change.References != nil {
-		if ref, exists := change.References["portal_id"]; exists && ref.ID != "" && ref.ID != "<unknown>" {
+		if ref, exists := change.References["portal_id"]; exists && ref.ID != "" && ref.ID != "[unknown]" {
 			portalID = ref.ID
 		}
 	}
@@ -122,17 +122,9 @@ func (e *Executor) deleteAPIPublication(ctx context.Context, change planner.Plan
 	}
 
 	// Get parent API ID
-	if change.Parent == nil {
-		return fmt.Errorf("parent API reference required for API publication deletion")
-	}
-
-	// Get the parent API by ref
-	parentAPI, err := e.client.GetAPIByName(ctx, change.Parent.Ref)
+	parentAPIID, err := e.getParentAPIID(ctx, change)
 	if err != nil {
-		return fmt.Errorf("failed to get parent API: %w", err)
-	}
-	if parentAPI == nil {
-		return fmt.Errorf("parent API not found: %s", change.Parent.Ref)
+		return err
 	}
 
 	// Extract portal ID from fields or ResourceID
@@ -151,7 +143,7 @@ func (e *Executor) deleteAPIPublication(ctx context.Context, change planner.Plan
 		}
 	}
 
-	if err := e.client.DeleteAPIPublication(ctx, parentAPI.ID, portalID); err != nil {
+	if err := e.client.DeleteAPIPublication(ctx, parentAPIID, portalID); err != nil {
 		return fmt.Errorf("failed to delete API publication: %w", err)
 	}
 

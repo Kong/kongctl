@@ -79,11 +79,11 @@ apis:
         status: published
         content: !file apis/voice/docs/errors.md
         
-      - ref: voice-webhooks
-        title: "Voice API: Webhooks and Events"
-        slug: voice-webhooks
-        status: published
-        content: !file apis/voice/docs/webhooks.md
+      #- ref: voice-webhooks
+      #  title: "Voice API: Webhooks and Events"
+      #  slug: voice-webhooks
+      #  status: published
+      #  content: !file apis/voice/docs/webhooks.md
         
       - ref: voice-ncco
         title: "Voice API: NCCO Reference"

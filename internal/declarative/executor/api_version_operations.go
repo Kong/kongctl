@@ -45,4 +45,24 @@ func (e *Executor) createAPIVersion(ctx context.Context, change planner.PlannedC
 	return resp.ID, nil
 }
 
-// Note: API versions don't support update or delete operations in the SDK
+// deleteAPIVersion deletes an API version
+func (e *Executor) deleteAPIVersion(ctx context.Context, change planner.PlannedChange) error {
+	if e.client == nil {
+		return fmt.Errorf("client not configured")
+	}
+
+	// Get parent API ID
+	parentAPIID, err := e.getParentAPIID(ctx, change)
+	if err != nil {
+		return err
+	}
+
+	// Delete the version
+	if err := e.client.DeleteAPIVersion(ctx, parentAPIID, change.ResourceID); err != nil {
+		return fmt.Errorf("failed to delete API version: %w", err)
+	}
+
+	return nil
+}
+
+// Note: API versions don't support update operations in the SDK

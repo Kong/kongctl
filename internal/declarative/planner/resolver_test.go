@@ -418,8 +418,8 @@ func TestResolveReferences_PortalReference(t *testing.T) {
 		t.Errorf("Expected ref 'basic-auth', got %s", authRef.Ref)
 	}
 
-	// Should be "<unknown>" since it's being created in this plan
-	if authRef.ID != "<unknown>" {
+	// Should be "[unknown]" since it's being created in this plan
+	if authRef.ID != "[unknown]" {
 		t.Errorf("Expected ID '<unknown>' for in-plan reference, got %s", authRef.ID)
 	}
 

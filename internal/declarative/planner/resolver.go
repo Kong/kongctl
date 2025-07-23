@@ -65,7 +65,7 @@ func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []Pla
 				if _, inPlan := createdResources[resourceType][ref]; inPlan {
 					changeRefs[fieldName] = ResolvedReference{
 						Ref: ref,
-						ID:  "<unknown>", // Will be resolved at execution
+						ID:  "[unknown]", // Will be resolved at execution
 					}
 				} else {
 					// Resolve from existing resources

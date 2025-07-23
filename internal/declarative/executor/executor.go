@@ -3,11 +3,13 @@ package executor
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/log"
 )
 
 // Executor handles the execution of declarative configuration plans
@@ -545,6 +547,8 @@ func (e *Executor) deleteResource(ctx context.Context, change planner.PlannedCha
 		return e.deletePortal(ctx, change)
 	case "api":
 		return e.deleteAPI(ctx, change)
+	case "api_version":
+		return e.deleteAPIVersion(ctx, change)
 	case "api_publication":
 		return e.deleteAPIPublication(ctx, change)
 	case "api_implementation":
@@ -559,7 +563,6 @@ func (e *Executor) deleteResource(ctx context.Context, change planner.PlannedCha
 		return e.deletePortalPage(ctx, change)
 	case "portal_snippet":
 		return e.deletePortalSnippet(ctx, change)
-	// Note: api_version doesn't support delete
 	// Note: portal_customization is a singleton resource and cannot be deleted
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)
@@ -572,7 +575,7 @@ func getResourceName(fields map[string]interface{}) string {
 	if name, ok := fields["name"].(string); ok {
 		return name
 	}
-	return "<unknown>"
+	return "[unknown]"
 }
 
 func actionToVerb(action planner.ActionType) string {
@@ -590,23 +593,47 @@ func actionToVerb(action planner.ActionType) string {
 
 // getParentAPIID resolves the parent API ID for child resources
 func (e *Executor) getParentAPIID(ctx context.Context, change planner.PlannedChange) (string, error) {
+	// Add debug logging
+	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
+	logger.Debug("getParentAPIID called",
+		slog.String("change_id", change.ID),
+		slog.String("resource_type", change.ResourceType),
+		slog.String("resource_ref", change.ResourceRef),
+		slog.Any("parent", change.Parent),
+	)
+	
 	if change.Parent == nil {
 		return "", fmt.Errorf("parent API reference required")
 	}
 	
+	// Log parent details
+	logger.Debug("Parent details",
+		slog.String("parent_ref", change.Parent.Ref),
+		slog.String("parent_id", change.Parent.ID),
+		slog.Bool("parent_id_empty", change.Parent.ID == ""),
+		slog.Int("parent_id_length", len(change.Parent.ID)),
+	)
+	
 	// Use the parent ID if it was already resolved
 	if change.Parent.ID != "" {
+		logger.Debug("Using resolved parent ID", slog.String("parent_id", change.Parent.ID))
 		return change.Parent.ID, nil
 	}
 	
 	// Check if parent was created in this execution
+	logger.Debug("Checking dependencies", slog.Int("dep_count", len(change.DependsOn)))
 	for _, dep := range change.DependsOn {
 		if resourceID, ok := e.createdResources[dep]; ok {
+			logger.Debug("Found parent in created resources",
+				slog.String("dependency", dep),
+				slog.String("resource_id", resourceID),
+			)
 			return resourceID, nil
 		}
 	}
 	
 	// Otherwise look up by name
+	logger.Debug("Falling back to API lookup by name", slog.String("api_ref", change.Parent.Ref))
 	parentAPI, err := e.client.GetAPIByName(ctx, change.Parent.Ref)
 	if err != nil {
 		return "", fmt.Errorf("failed to get parent API: %w", err)
@@ -614,6 +641,11 @@ func (e *Executor) getParentAPIID(ctx context.Context, change planner.PlannedCha
 	if parentAPI == nil {
 		return "", fmt.Errorf("parent API not found: %s", change.Parent.Ref)
 	}
+	
+	logger.Debug("Found parent API by name", 
+		slog.String("api_name", parentAPI.Name),
+		slog.String("api_id", parentAPI.ID),
+	)
 	
 	return parentAPI.ID, nil
 }

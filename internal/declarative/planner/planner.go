@@ -184,7 +184,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	// Add warnings for unresolved references
 	for _, change := range plan.Changes {
 		for field, ref := range change.References {
-			if ref.ID == "<unknown>" {
+			if ref.ID == "[unknown]" {
 				plan.AddWarning(change.ID, fmt.Sprintf(
 					"Reference %s=%s will be resolved during execution",
 					field, ref.Ref))
