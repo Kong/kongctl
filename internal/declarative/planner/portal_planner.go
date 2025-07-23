@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -376,16 +377,125 @@ func (p *portalPlannerImpl) planPortalDelete(portal state.Portal, plan *Plan) {
 }
 
 // planPortalChildResourcesCreate plans creation of child resources for a new portal
-func (p *portalPlannerImpl) planPortalChildResourcesCreate(_ resources.PortalResource, _ string, _ *Plan) {
+func (p *portalPlannerImpl) planPortalChildResourcesCreate(desired resources.PortalResource, _ string, plan *Plan) {
 	// Portal ID is not yet known, will be resolved at execution time
-	// No need to process here as child resources are already extracted to root level
+	// But we still need to plan child resources that depend on this portal
+	
+	// Get the main planner instance to access child resource planning methods
+	planner := p.planner
+	
+	// For new portals, we can't list existing resources, but we still need to plan
+	// creation of child resources. Pass empty portal ID - the executor will resolve it.
+	
+	// Plan pages
+	pages := make([]resources.PortalPageResource, 0)
+	for _, page := range planner.desiredPortalPages {
+		if page.Portal == desired.Ref {
+			pages = append(pages, page)
+		}
+	}
+	// Note: Passing empty portalID for new portal
+	if err := planner.planPortalPagesChanges(context.Background(), "", desired.Ref, pages, plan); err != nil {
+		// Log error but don't fail - portal creation should still proceed
+		planner.logger.Debug("Failed to plan portal pages for new portal", 
+			slog.String("portal", desired.Ref),
+			slog.String("error", err.Error()))
+	}
+	
+	// Plan snippets
+	snippets := make([]resources.PortalSnippetResource, 0)
+	for _, snippet := range planner.desiredPortalSnippets {
+		if snippet.Portal == desired.Ref {
+			snippets = append(snippets, snippet)
+		}
+	}
+	if err := planner.planPortalSnippetsChanges(context.Background(), "", desired.Ref, snippets, plan); err != nil {
+		planner.logger.Debug("Failed to plan portal snippets for new portal",
+			slog.String("portal", desired.Ref),
+			slog.String("error", err.Error()))
+	}
+	
+	// Plan customization
+	customizations := make([]resources.PortalCustomizationResource, 0)
+	for _, customization := range planner.desiredPortalCustomizations {
+		if customization.Portal == desired.Ref {
+			customizations = append(customizations, customization)
+		}
+	}
+	if err := planner.planPortalCustomizationsChanges(context.Background(), customizations, plan); err != nil {
+		planner.logger.Debug("Failed to plan portal customizations for new portal",
+			slog.String("portal", desired.Ref),
+			slog.String("error", err.Error()))
+	}
+	
+	// Plan custom domain
+	domains := make([]resources.PortalCustomDomainResource, 0)
+	for _, domain := range planner.desiredPortalCustomDomains {
+		if domain.Portal == desired.Ref {
+			domains = append(domains, domain)
+		}
+	}
+	if err := planner.planPortalCustomDomainsChanges(context.Background(), domains, plan); err != nil {
+		planner.logger.Debug("Failed to plan portal custom domains for new portal",
+			slog.String("portal", desired.Ref),
+			slog.String("error", err.Error()))
+	}
 }
 
 // planPortalChildResourceChanges plans changes for child resources of an existing portal
 func (p *portalPlannerImpl) planPortalChildResourceChanges(
-	_ context.Context, _ state.Portal, _ resources.PortalResource, _ *Plan,
+	ctx context.Context, current state.Portal, desired resources.PortalResource, plan *Plan,
 ) error {
-	// Child resources are handled at root level after being extracted
-	// No need to process here as they are planned separately
+	// Get the main planner instance to access child resource planning methods
+	planner := p.planner
+	
+	// Plan pages - pass empty array if no pages defined
+	pages := make([]resources.PortalPageResource, 0)
+	// Note: Pages have already been extracted to root level by loader
+	// We need to find pages that belong to this portal
+	for _, page := range planner.desiredPortalPages {
+		if page.Portal == desired.Ref {
+			pages = append(pages, page)
+		}
+	}
+	if err := planner.planPortalPagesChanges(ctx, current.ID, desired.Ref, pages, plan); err != nil {
+		return fmt.Errorf("failed to plan portal page changes: %w", err)
+	}
+	
+	// Plan snippets - pass empty array if no snippets defined
+	snippets := make([]resources.PortalSnippetResource, 0)
+	// Note: Snippets have already been extracted to root level by loader
+	// We need to find snippets that belong to this portal
+	for _, snippet := range planner.desiredPortalSnippets {
+		if snippet.Portal == desired.Ref {
+			snippets = append(snippets, snippet)
+		}
+	}
+	if err := planner.planPortalSnippetsChanges(ctx, current.ID, desired.Ref, snippets, plan); err != nil {
+		return fmt.Errorf("failed to plan portal snippet changes: %w", err)
+	}
+	
+	// Plan customization (singleton resource)
+	customizations := make([]resources.PortalCustomizationResource, 0)
+	for _, customization := range planner.desiredPortalCustomizations {
+		if customization.Portal == desired.Ref {
+			customizations = append(customizations, customization)
+		}
+	}
+	if err := planner.planPortalCustomizationsChanges(ctx, customizations, plan); err != nil {
+		return fmt.Errorf("failed to plan portal customization changes: %w", err)
+	}
+	
+	// Plan custom domain (singleton resource)
+	domains := make([]resources.PortalCustomDomainResource, 0)
+	for _, domain := range planner.desiredPortalCustomDomains {
+		if domain.Portal == desired.Ref {
+			domains = append(domains, domain)
+		}
+	}
+	if err := planner.planPortalCustomDomainsChanges(ctx, domains, plan); err != nil {
+		return fmt.Errorf("failed to plan portal custom domain changes: %w", err)
+	}
+	
 	return nil
 }

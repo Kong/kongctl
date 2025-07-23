@@ -97,53 +97,42 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		return nil, fmt.Errorf("failed to plan API changes: %w", err)
 	}
 
-	// Plan Portal child resources that are defined separately
-	if err := p.planPortalCustomizationsChanges(ctx, p.desiredPortalCustomizations, plan); err != nil {
-		return nil, fmt.Errorf("failed to plan portal customization changes: %w", err)
-	}
-
-	if err := p.planPortalCustomDomainsChanges(ctx, p.desiredPortalCustomDomains, plan); err != nil {
-		return nil, fmt.Errorf("failed to plan portal custom domain changes: %w", err)
-	}
-
-	// Plan portal pages grouped by portal
-	pagesByPortal := make(map[string][]resources.PortalPageResource)
-	for _, page := range p.desiredPortalPages {
-		pagesByPortal[page.Portal] = append(pagesByPortal[page.Portal], page)
+	// Portal child resources are now handled within portal planning
+	// This ensures all existing portals are checked for child resource deletions
+	
+	// However, we still need to handle portal child resources that are defined
+	// at root level without a matching portal (edge case)
+	// These would be resources defined separately that reference non-existent portals
+	
+	// Plan customizations for portals that don't exist yet
+	processedPortals := make(map[string]bool)
+	for _, portal := range p.desiredPortals {
+		processedPortals[portal.Ref] = true
 	}
 	
-	// Get existing portals for lookup
-	existingPortals, _ := p.client.ListManagedPortals(ctx)
-	portalRefToID := make(map[string]string)
-	for _, portal := range existingPortals {
-		// Find ref by matching name
-		for _, desired := range p.desiredPortals {
-			if desired.Name == portal.Name {
-				portalRefToID[desired.Ref] = portal.ID
-				break
-			}
+	// Find customizations for non-existent portals
+	orphanCustomizations := make([]resources.PortalCustomizationResource, 0)
+	for _, customization := range p.desiredPortalCustomizations {
+		if !processedPortals[customization.Portal] {
+			orphanCustomizations = append(orphanCustomizations, customization)
+		}
+	}
+	if len(orphanCustomizations) > 0 {
+		if err := p.planPortalCustomizationsChanges(ctx, orphanCustomizations, plan); err != nil {
+			return nil, fmt.Errorf("failed to plan orphan portal customization changes: %w", err)
 		}
 	}
 	
-	// Plan pages for each portal
-	for portalRef, pages := range pagesByPortal {
-		portalID := portalRefToID[portalRef]
-		if err := p.planPortalPagesChanges(ctx, portalID, portalRef, pages, plan); err != nil {
-			return nil, fmt.Errorf("failed to plan portal page changes for portal %s: %w", portalRef, err)
+	// Find custom domains for non-existent portals
+	orphanDomains := make([]resources.PortalCustomDomainResource, 0)
+	for _, domain := range p.desiredPortalCustomDomains {
+		if !processedPortals[domain.Portal] {
+			orphanDomains = append(orphanDomains, domain)
 		}
 	}
-
-	// Plan portal snippets grouped by portal
-	snippetsByPortal := make(map[string][]resources.PortalSnippetResource)
-	for _, snippet := range p.desiredPortalSnippets {
-		snippetsByPortal[snippet.Portal] = append(snippetsByPortal[snippet.Portal], snippet)
-	}
-	
-	// Plan snippets for each portal
-	for portalRef, snippets := range snippetsByPortal {
-		portalID := portalRefToID[portalRef]
-		if err := p.planPortalSnippetsChanges(ctx, portalID, portalRef, snippets, plan); err != nil {
-			return nil, fmt.Errorf("failed to plan portal snippet changes for portal %s: %w", portalRef, err)
+	if len(orphanDomains) > 0 {
+		if err := p.planPortalCustomDomainsChanges(ctx, orphanDomains, plan); err != nil {
+			return nil, fmt.Errorf("failed to plan orphan portal custom domain changes: %w", err)
 		}
 	}
 

@@ -15,11 +15,6 @@ import (
 func (p *Planner) planPortalCustomizationsChanges(
 	ctx context.Context, desired []resources.PortalCustomizationResource, plan *Plan,
 ) error { //nolint:unparam // Will return errors in future enhancements
-	// Skip if no customizations to plan
-	if len(desired) == 0 {
-		return nil
-	}
-
 	// Get existing portals to check current customization
 	existingPortals, _ := p.client.ListManagedPortals(ctx)
 	portalNameToID := make(map[string]string)
@@ -44,6 +39,10 @@ func (p *Planner) planPortalCustomizationsChanges(
 		if portalID != "" {
 			current, err := p.client.GetPortalCustomization(ctx, portalID)
 			if err != nil {
+				// If portal customization API is not configured, skip processing
+				if strings.Contains(err.Error(), "portal customization API not configured") {
+					continue
+				}
 				// If we can't fetch current state, plan the update anyway
 				p.planPortalCustomizationUpdate(desiredCustomization, portalName, portalID, plan)
 				continue
@@ -368,11 +367,6 @@ func (p *Planner) compareModePtr(current, desired *kkComps.Mode) bool {
 func (p *Planner) planPortalCustomDomainsChanges(
 	_ context.Context, desired []resources.PortalCustomDomainResource, plan *Plan,
 ) error { //nolint:unparam // Will return errors when state fetching is added
-	// Skip if no custom domains to plan
-	if len(desired) == 0 {
-		return nil
-	}
-
 	// For each desired custom domain
 	for _, desiredDomain := range desired {
 		// Portal custom domains are singleton resources per portal
@@ -454,16 +448,24 @@ func (p *Planner) planPortalCustomDomainCreate(
 func (p *Planner) planPortalPagesChanges(
 	ctx context.Context, portalID string, portalRef string, desired []resources.PortalPageResource, plan *Plan,
 ) error {
-	// Skip if no pages to plan
-	if len(desired) == 0 {
-		return nil
-	}
-
 	// Fetch existing pages for this portal
 	existingPages := make([]state.PortalPage, 0)
 	if portalID != "" {
 		pages, err := p.client.ListManagedPortalPages(ctx, portalID)
 		if err != nil {
+			// If portal page API is not configured, skip processing
+			// This happens in tests or when portal pages feature is not available
+			if strings.Contains(err.Error(), "portal page API not configured") {
+				// In sync mode with no desired pages, this is OK - nothing to delete
+				if plan.Metadata.Mode == PlanModeSync && len(desired) == 0 {
+					return nil
+				}
+				// But if there are desired pages, we need the API
+				if len(desired) > 0 {
+					return fmt.Errorf("failed to list portal pages: %w", err)
+				}
+				return nil
+			}
 			// If portal doesn't exist yet, that's ok - we'll create pages after portal is created
 			if !strings.Contains(err.Error(), "not found") {
 				return fmt.Errorf("failed to list portal pages: %w", err)
@@ -575,6 +577,44 @@ func (p *Planner) planPortalPagesChanges(
 				if needsUpdate {
 					p.planPortalPageUpdate(existingPage, desiredPage, portalRef, updateFields, plan)
 				}
+			}
+		}
+	}
+
+	// In sync mode, delete pages that exist but are not in desired state
+	if plan.Metadata.Mode == PlanModeSync {
+		// Build set of desired page paths
+		desiredPaths := make(map[string]bool)
+		for _, desiredPage := range desired {
+			// Build the full path for this desired page
+			var fullPath string
+			// Special handling for root page with slug "/"
+			normalizedDesiredSlug := desiredPage.Slug
+			if desiredPage.Slug != "/" {
+				normalizedDesiredSlug = strings.TrimPrefix(desiredPage.Slug, "/")
+			}
+			
+			if desiredPage.ParentPageRef == "" {
+				// Root page
+				fullPath = normalizedDesiredSlug
+			} else {
+				// Child page - build parent path first
+				parentPath := p.buildParentPath(desiredPage.ParentPageRef, desired)
+				if parentPath != "" {
+					fullPath = parentPath + "/" + normalizedDesiredSlug
+				} else {
+					// Parent path couldn't be built, use slug only
+					fullPath = normalizedDesiredSlug
+				}
+			}
+			
+			desiredPaths[fullPath] = true
+		}
+
+		// Find pages to delete
+		for path, existingPage := range existingByPath {
+			if !desiredPaths[path] {
+				p.planPortalPageDelete(portalRef, portalID, existingPage.ID, existingPage.Slug, plan)
 			}
 		}
 	}
@@ -809,6 +849,49 @@ func (p *Planner) planPortalPageUpdate(
 	plan.AddChange(change)
 }
 
+// planPortalPageDelete creates a DELETE change for a portal page
+func (p *Planner) planPortalPageDelete(
+	portalRef string, portalID string, pageID string, slug string, plan *Plan,
+) {
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionDelete, ResourceTypePortalPage, pageID),
+		ResourceType: ResourceTypePortalPage,
+		ResourceRef:  "[unknown]",
+		ResourceID:   pageID,
+		ResourceMonikers: map[string]string{
+			"slug":         slug,
+			"parent_portal": portalRef,
+		},
+		Parent:    &ParentInfo{Ref: portalRef, ID: portalID},
+		Action:    ActionDelete,
+		Fields:    map[string]interface{}{"slug": slug},
+		DependsOn: []string{},
+	}
+
+	// Store parent portal reference
+	if portalRef != "" {
+		// Find the portal in desiredPortals to get its name
+		var portalName string
+		for _, portal := range p.desiredPortals {
+			if portal.Ref == portalRef {
+				portalName = portal.Name
+				break
+			}
+		}
+		
+		change.References = map[string]ReferenceInfo{
+			"portal_id": {
+				Ref: portalRef,
+				LookupFields: map[string]string{
+					"name": portalName,
+				},
+			},
+		}
+	}
+
+	plan.AddChange(change)
+}
+
 // buildParentPath constructs the full slug path for a page ref
 func (p *Planner) buildParentPath(pageRef string, allPages []resources.PortalPageResource) string {
 	pathSegments := []string{}
@@ -838,16 +921,23 @@ func (p *Planner) buildParentPath(pageRef string, allPages []resources.PortalPag
 func (p *Planner) planPortalSnippetsChanges(
 	ctx context.Context, portalID string, portalRef string, desired []resources.PortalSnippetResource, plan *Plan,
 ) error {
-	// Skip if no snippets to plan
-	if len(desired) == 0 {
-		return nil
-	}
-
 	// Fetch existing snippets for this portal
 	existingSnippets := make(map[string]state.PortalSnippet)
 	if portalID != "" {
 		snippets, err := p.client.ListPortalSnippets(ctx, portalID)
 		if err != nil {
+			// If portal snippet API is not configured, skip processing
+			if strings.Contains(err.Error(), "portal snippet API not configured") {
+				// In sync mode with no desired snippets, this is OK - nothing to delete
+				if plan.Metadata.Mode == PlanModeSync && len(desired) == 0 {
+					return nil
+				}
+				// But if there are desired snippets, we need the API
+				if len(desired) > 0 {
+					return fmt.Errorf("failed to list portal snippets: %w", err)
+				}
+				return nil
+			}
 			// If portal doesn't exist yet, that's ok - we'll create snippets after portal is created
 			if !strings.Contains(err.Error(), "not found") {
 				return fmt.Errorf("failed to list portal snippets: %w", err)

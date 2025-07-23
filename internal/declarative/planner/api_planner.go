@@ -52,8 +52,8 @@ func (a *apiPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 
 // planAPIChanges generates changes for API resources and their child resources
 func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIResource, plan *Plan) error {
-	// Skip if no API resources to plan
-	if len(desired) == 0 {
+	// Skip if no API resources to plan and not in sync mode
+	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
 		return nil
 	}
 

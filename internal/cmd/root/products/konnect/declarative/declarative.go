@@ -141,7 +141,19 @@ func runPlan(command *cobra.Command, args []string) error {
 		if len(filenames) == 0 {
 			return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
 		}
-		return fmt.Errorf("no resources found in configuration files")
+		
+		// In sync mode, empty config is valid - it means delete all managed resources
+		// In apply mode, we need at least one resource to apply
+		if planMode == planner.PlanModeApply {
+			return fmt.Errorf("no resources found in configuration files")
+		}
+		
+		// For sync mode, log that we're checking for deletions
+		outputFile, _ := command.Flags().GetString("output-file")
+		if outputFile == "" {
+			fmt.Fprintln(command.OutOrStderr(), 
+				"No resources defined in configuration. Checking for managed resources to remove...")
+		}
 	}
 
 	// Create planner
@@ -1053,12 +1065,18 @@ func runSync(command *cobra.Command, args []string) error {
 		totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
 			len(resourceSet.ControlPlanes) + len(resourceSet.APIs)
 
+		// In sync mode, allow empty configuration to detect resources to delete
 		if totalResources == 0 {
 			// Check if we're using default directory (no explicit sources)
 			if len(filenames) == 0 {
 				return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
 			}
-			return fmt.Errorf("no resources found in configuration files")
+			
+			// In sync mode, empty config is valid - it means delete all managed resources
+			if outputFormat == textOutputFormat {
+				fmt.Fprintln(command.OutOrStderr(), 
+				"No resources defined in configuration. Checking for managed resources to remove...")
+			}
 		}
 
 		// Create planner

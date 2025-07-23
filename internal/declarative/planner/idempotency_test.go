@@ -17,6 +17,10 @@ import (
 func TestGeneratePlan_Idempotency(t *testing.T) {
 	ctx := context.Background()
 	mockAPI := new(MockPortalAPI)
+	
+	// Create a client with minimal configuration
+	// Portal child resources will return errors, but that's OK for this test
+	// which is focused on portal-level idempotency
 	client := state.NewClient(state.ClientConfig{
 		PortalAPI: mockAPI,
 	})

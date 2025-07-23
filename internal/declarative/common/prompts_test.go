@@ -7,6 +7,7 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConfirmExecution(t *testing.T) {
@@ -278,6 +279,201 @@ func TestDisplayPlanSummary(t *testing.T) {
 			for _, exp := range tt.expected {
 				assert.Contains(t, output, exp)
 			}
+		})
+	}
+}
+
+func TestDisplayPlanSummary_WithResourceMonikers(t *testing.T) {
+	plan := &planner.Plan{
+		Changes: []planner.PlannedChange{
+			{
+				ID:           "1:d:portal_page:page1",
+				ResourceType: "portal_page",
+				ResourceRef:  "[unknown]",
+				ResourceMonikers: map[string]string{
+					"slug":         "getting-started",
+					"parent_portal": "simple",
+				},
+				Action: planner.ActionDelete,
+				Parent: &planner.ParentInfo{
+					Ref: "simple",
+					ID:  "portal-123",
+				},
+			},
+			{
+				ID:           "2:d:portal_page:page2",
+				ResourceType: "portal_page",
+				ResourceRef:  "[unknown]",
+				ResourceMonikers: map[string]string{
+					"slug":         "api-guide",
+					"parent_portal": "simple",
+				},
+				Action: planner.ActionDelete,
+				Parent: &planner.ParentInfo{
+					Ref: "simple",
+					ID:  "portal-123",
+				},
+			},
+		},
+		Summary: planner.PlanSummary{
+			TotalChanges: 2,
+			ByAction: map[planner.ActionType]int{
+				planner.ActionDelete: 2,
+			},
+			ByResource: map[string]int{
+				"portal_page": 2,
+			},
+		},
+	}
+
+	var out bytes.Buffer
+	DisplayPlanSummary(plan, &out)
+
+	output := out.String()
+	t.Log("Plan Summary Output:\n", output)
+
+	// Check that monikers are properly displayed
+	assert.Contains(t, output, "page 'getting-started' in portal:simple")
+	assert.Contains(t, output, "page 'api-guide' in portal:simple")
+	assert.Contains(t, output, "(depends on portal:simple)")
+	
+	// Should not contain [unknown]
+	assert.NotContains(t, output, "[unknown]")
+}
+
+func TestConfirmExecution_WithResourceMonikers(t *testing.T) {
+	plan := &planner.Plan{
+		Changes: []planner.PlannedChange{
+			{
+				ID:           "1:d:portal_page:page1",
+				ResourceType: "portal_page",
+				ResourceRef:  "[unknown]",
+				ResourceMonikers: map[string]string{
+					"slug":         "getting-started",
+					"parent_portal": "simple",
+				},
+				Action: planner.ActionDelete,
+			},
+		},
+		Summary: planner.PlanSummary{
+			TotalChanges: 1,
+			ByAction: map[planner.ActionType]int{
+				planner.ActionDelete: 1,
+			},
+			ByResource: map[string]int{
+				"portal_page": 1,
+			},
+		},
+	}
+
+	var stderr bytes.Buffer
+	stdin := strings.NewReader("no\n")
+	
+	result := ConfirmExecution(plan, nil, &stderr, stdin)
+	require.False(t, result)
+
+	output := stderr.String()
+	t.Log("Confirmation Output:\n", output)
+
+	// Check that the DELETE warning shows monikers
+	assert.Contains(t, output, "WARNING: This operation will DELETE resources:")
+	assert.Contains(t, output, "- portal_page: page 'getting-started' in portal:simple")
+	
+	// Should not contain [unknown]
+	assert.NotContains(t, output, "[unknown]")
+}
+
+func TestFormatResourceName_AllResourceTypes(t *testing.T) {
+	testCases := []struct {
+		name     string
+		change   planner.PlannedChange
+		expected string
+	}{
+		{
+			name: "portal_page with monikers",
+			change: planner.PlannedChange{
+				ResourceRef: "[unknown]",
+				ResourceType: "portal_page",
+				ResourceMonikers: map[string]string{
+					"slug":         "getting-started",
+					"parent_portal": "dev-portal",
+				},
+			},
+			expected: "page 'getting-started' in portal:dev-portal",
+		},
+		{
+			name: "portal_snippet with monikers",
+			change: planner.PlannedChange{
+				ResourceRef: "[unknown]",
+				ResourceType: "portal_snippet",
+				ResourceMonikers: map[string]string{
+					"name":         "header-snippet",
+					"parent_portal": "dev-portal",
+				},
+			},
+			expected: "snippet 'header-snippet' in portal:dev-portal",
+		},
+		{
+			name: "api_document with monikers",
+			change: planner.PlannedChange{
+				ResourceRef: "[unknown]",
+				ResourceType: "api_document",
+				ResourceMonikers: map[string]string{
+					"slug":       "api-guide",
+					"parent_api": "my-api",
+				},
+			},
+			expected: "document 'api-guide' in api:my-api",
+		},
+		{
+			name: "api_publication with monikers",
+			change: planner.PlannedChange{
+				ResourceRef: "[unknown]",
+				ResourceType: "api_publication",
+				ResourceMonikers: map[string]string{
+					"portal_name": "dev-portal",
+					"api_ref":     "my-api",
+				},
+			},
+			expected: "api:my-api published to portal:dev-portal",
+		},
+		{
+			name: "generic resource with monikers",
+			change: planner.PlannedChange{
+				ResourceRef: "[unknown]",
+				ResourceType: "some_resource",
+				ResourceMonikers: map[string]string{
+					"name": "test",
+					"type": "custom",
+				},
+			},
+			expected: "name=test, type=custom",
+		},
+		{
+			name: "normal resource ref",
+			change: planner.PlannedChange{
+				ResourceRef:  "my-resource",
+				ResourceType: "api",
+			},
+			expected: "my-resource",
+		},
+		{
+			name: "empty ref with name in fields",
+			change: planner.PlannedChange{
+				ResourceRef:  "",
+				ResourceType: "api",
+				Fields: map[string]interface{}{
+					"name": "my-api",
+				},
+			},
+			expected: "my-api",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := formatResourceName(tc.change)
+			assert.Equal(t, tc.expected, result)
 		})
 	}
 }

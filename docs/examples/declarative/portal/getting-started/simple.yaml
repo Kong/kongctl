@@ -1,0 +1,37 @@
+#portals:
+#  - ref: simple
+#    name: "initial-portal"
+#    display_name: "Our Developer Portal"
+#    description: "A comprehensive developer portal with guides, API documentation, and getting started content"
+#    authentication_enabled: false
+#    rbac_enabled: false
+#    auto_approve_developers: false
+#    auto_approve_applications: false
+#    default_api_visibility: "public"
+#    default_page_visibility: "public"
+#    pages:
+#      - ref: home
+#        slug: "/"
+#        title: "Kong API"
+#        description: "Start building and innovating with our APIs"
+#        visibility: "public"
+#        status: "published"
+#        content: !file ./pages/home.md
+#
+#
+#apis:
+#  - ref: sms
+#    name: !file apis/sms/openapi.yaml#info.title
+#    description: !file apis/sms/openapi.yaml#info.description
+#    labels:
+#      category: messaging
+#      protocol: rest
+#    documents:
+#      #- ref: apis
+#      #  slug: "apis"
+#      #  title: "APIs"
+#      #  description: "API Products available in this Developer Portal."
+#      #  visibility: "public"
+#      #  status: "published"
+#      #  content: !file ./pages/apis.md
+#

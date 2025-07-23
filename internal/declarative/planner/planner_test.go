@@ -35,6 +35,21 @@ func (m *MockStateClient) GetPortalByName(ctx context.Context, name string) (*st
 	return args.Get(0).(*state.Portal), args.Error(1)
 }
 
+// mockEmptyAPIsList adds a mock for empty APIs list, needed in sync mode
+func mockEmptyAPIsList(mockAPIAPI *MockAPIAPI, ctx context.Context) {
+	mockAPIAPI.On("ListApis", ctx, mock.Anything).Return(&kkOps.ListApisResponse{
+		StatusCode: 200,
+		ListAPIResponse: &kkComps.ListAPIResponse{
+			Data: []kkComps.APIResponseSchema{},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
+					Total: 0,
+				},
+			},
+		},
+	}, nil)
+}
+
 func TestGeneratePlan_CreatePortal(t *testing.T) {
 	ctx := context.Background()
 	mockPortalAPI := new(MockPortalAPI)
@@ -70,6 +85,9 @@ func TestGeneratePlan_CreatePortal(t *testing.T) {
 			},
 		},
 	}, nil)
+	
+	// Mock empty APIs list (needed because we're in sync mode)
+	mockEmptyAPIsList(mockAPIAPI, ctx)
 
 	// Create a test portal resource
 	displayName := "Development Portal"
@@ -116,6 +134,7 @@ func TestGeneratePlan_CreatePortal(t *testing.T) {
 
 	mockPortalAPI.AssertExpectations(t)
 	mockAppAuthAPI.AssertExpectations(t)
+	mockAPIAPI.AssertExpectations(t)
 }
 
 func TestGeneratePlan_UpdatePortal(t *testing.T) {
@@ -165,6 +184,9 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 			},
 		},
 	}, nil)
+	
+	// Mock empty APIs list (needed because we're in sync mode)
+	mockEmptyAPIsList(mockAPIAPI, ctx)
 
 	// Create updated portal resource
 	newDesc := "Updated description"
@@ -207,6 +229,7 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 
 	mockPortalAPI.AssertExpectations(t)
 	mockAppAuthAPI.AssertExpectations(t)
+	mockAPIAPI.AssertExpectations(t)
 }
 
 func TestGeneratePlan_ProtectionChange(t *testing.T) {
@@ -255,6 +278,9 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 			},
 		},
 	}, nil)
+	
+	// Mock empty APIs list (needed because we're in sync mode)
+	mockEmptyAPIsList(mockAPIAPI, ctx)
 
 	// Create portal resource without protection
 	displayName := "Development Portal"
@@ -306,11 +332,11 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 func TestGeneratePlan_WithReferences(t *testing.T) {
 	ctx := context.Background()
 	mockPortalAPI := new(MockPortalAPI)
-	mockPortalAPIAPI := new(MockAPIAPI)
+	mockAPIAPI := new(MockAPIAPI)
 	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
 	client := state.NewClient(state.ClientConfig{
 		PortalAPI:  mockPortalAPI,
-		APIAPI:     mockPortalAPIAPI,
+		APIAPI:     mockAPIAPI,
 		AppAuthAPI: mockAppAuthAPI,
 	})
 	planner := NewPlanner(client, slog.Default())
@@ -338,6 +364,9 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 			},
 		},
 	}, nil)
+	
+	// Mock empty APIs list (needed because we're in sync mode)
+	mockEmptyAPIsList(mockAPIAPI, ctx)
 
 	// Create resources with reference
 	displayName := "Development Portal"
@@ -416,6 +445,7 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 
 	mockPortalAPI.AssertExpectations(t)
 	mockAppAuthAPI.AssertExpectations(t)
+	mockAPIAPI.AssertExpectations(t)
 }
 
 func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
@@ -464,6 +494,9 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 			},
 		},
 	}, nil)
+	
+	// Mock empty APIs list (needed because we're in sync mode)
+	mockEmptyAPIsList(mockAPIAPI, ctx)
 
 	// Create same portal resource
 	// Don't define labels at all to avoid triggering an update
@@ -493,6 +526,7 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 
 	mockPortalAPI.AssertExpectations(t)
 	mockAppAuthAPI.AssertExpectations(t)
+	mockAPIAPI.AssertExpectations(t)
 }
 
 func TestNextChangeID(t *testing.T) {
@@ -647,11 +681,11 @@ func TestGeneratePlan_ApplyModeNoDeletes(t *testing.T) {
 func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
 	ctx := context.Background()
 	mockPortalAPI := new(MockPortalAPI)
-	mockPortalAPIAPI := new(MockAPIAPI)
+	mockAPIAPI := new(MockAPIAPI)
 	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
 	client := state.NewClient(state.ClientConfig{
 		PortalAPI:  mockPortalAPI,
-		APIAPI:     mockPortalAPIAPI,
+		APIAPI:     mockAPIAPI,
 		AppAuthAPI: mockAppAuthAPI,
 	})
 	planner := NewPlanner(client, slog.Default())
@@ -689,6 +723,9 @@ func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
 			},
 		},
 	}, nil)
+	
+	// Mock empty APIs list (needed because we're in sync mode)
+	mockEmptyAPIsList(mockAPIAPI, ctx)
 
 	// Create empty resource set (all managed resources should be deleted)
 	rs := &resources.ResourceSet{
@@ -711,16 +748,17 @@ func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
 
 	mockPortalAPI.AssertExpectations(t)
 	mockAppAuthAPI.AssertExpectations(t)
+	mockAPIAPI.AssertExpectations(t)
 }
 
 func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 	ctx := context.Background()
 	mockPortalAPI := new(MockPortalAPI)
-	mockPortalAPIAPI := new(MockAPIAPI)
+	mockAPIAPI := new(MockAPIAPI)
 	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
 	client := state.NewClient(state.ClientConfig{
 		PortalAPI:  mockPortalAPI,
-		APIAPI:     mockPortalAPIAPI,
+		APIAPI:     mockAPIAPI,
 		AppAuthAPI: mockAppAuthAPI,
 	})
 	planner := NewPlanner(client, slog.Default())
@@ -762,6 +800,9 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 			},
 		},
 	}, nil)
+	
+	// Mock empty APIs list (needed because we're in sync mode)
+	mockEmptyAPIsList(mockAPIAPI, ctx)
 
 	// Try to update the protected portal
 	displayName := "Protected Portal"
@@ -906,6 +947,9 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 			},
 		},
 	}, nil)
+	
+	// Mock empty APIs list (needed because we're in sync mode)
+	mockEmptyAPIsList(mockAPIAPI, ctx)
 
 	// Change protection status only
 	displayName := "Protected Portal"
@@ -938,6 +982,7 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 
 	mockPortalAPI.AssertExpectations(t)
 	mockAppAuthAPI.AssertExpectations(t)
+	mockAPIAPI.AssertExpectations(t)
 }
 
 // Test helpers

@@ -27,13 +27,7 @@ func ConfirmExecution(plan *planner.Plan, _, stderr io.Writer, stdin io.Reader) 
 		fmt.Fprintln(stderr, "\nWARNING: This operation will DELETE resources:")
 		for _, change := range plan.Changes {
 			if change.Action == planner.ActionDelete {
-				resourceName := change.ResourceRef
-				if resourceName == "" && len(change.Fields) > 0 {
-					// Try to get name from fields
-					if name, ok := change.Fields["name"].(string); ok {
-						resourceName = name
-					}
-				}
+				resourceName := formatResourceName(change)
 				fmt.Fprintf(stderr, "- %s: %s\n", change.ResourceType, resourceName)
 			}
 		}
@@ -103,13 +97,7 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 		changes := changesByResource[resourceType]
 		fmt.Fprintf(out, "%s (%d):\n", resourceType, len(changes))
 		for _, change := range changes {
-			resourceName := change.ResourceRef
-			if resourceName == "" {
-				// Try to get name from fields
-				if name, ok := change.Fields["name"].(string); ok {
-					resourceName = name
-				}
-			}
+			resourceName := formatResourceName(change)
 			actionPrefix := getActionPrefix(change.Action)
 			
 			// Build dependency info
@@ -273,4 +261,62 @@ func getActionPrefix(action planner.ActionType) string {
 	default:
 		return "?"
 	}
+}
+
+// formatResourceName formats a resource name for display, using monikers when ref is unknown
+func formatResourceName(change planner.PlannedChange) string {
+	resourceName := change.ResourceRef
+	
+	// If resource ref is unknown, try to build a meaningful name from monikers
+	if resourceName == "[unknown]" && len(change.ResourceMonikers) > 0 {
+		switch change.ResourceType {
+		case "portal_page":
+			if slug, ok := change.ResourceMonikers["slug"]; ok {
+				if parent, ok := change.ResourceMonikers["parent_portal"]; ok {
+					return fmt.Sprintf("page '%s' in portal:%s", slug, parent)
+				}
+				return fmt.Sprintf("page '%s'", slug)
+			}
+		case "portal_snippet":
+			if name, ok := change.ResourceMonikers["name"]; ok {
+				if parent, ok := change.ResourceMonikers["parent_portal"]; ok {
+					return fmt.Sprintf("snippet '%s' in portal:%s", name, parent)
+				}
+				return fmt.Sprintf("snippet '%s'", name)
+			}
+		case "api_document":
+			if slug, ok := change.ResourceMonikers["slug"]; ok {
+				if parent, ok := change.ResourceMonikers["parent_api"]; ok {
+					return fmt.Sprintf("document '%s' in api:%s", slug, parent)
+				}
+				return fmt.Sprintf("document '%s'", slug)
+			}
+		case "api_publication":
+			if portal, ok := change.ResourceMonikers["portal_name"]; ok {
+				if api, ok := change.ResourceMonikers["api_ref"]; ok {
+					return fmt.Sprintf("api:%s published to portal:%s", api, portal)
+				}
+				return fmt.Sprintf("published to portal:%s", portal)
+			}
+		}
+		// Fallback: show available monikers in a generic format
+		var parts []string
+		for key, value := range change.ResourceMonikers {
+			parts = append(parts, fmt.Sprintf("%s=%s", key, value))
+		}
+		if len(parts) > 0 {
+			sort.Strings(parts) // Consistent ordering
+			return strings.Join(parts, ", ")
+		}
+	}
+	
+	// Fallback to normal behavior
+	if resourceName == "" {
+		// Try to get name from fields
+		if name, ok := change.Fields["name"].(string); ok {
+			resourceName = name
+		}
+	}
+	
+	return resourceName
 }

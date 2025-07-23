@@ -506,3 +506,110 @@ func TestConsoleReporter_MultilineOutput(t *testing.T) {
 	}
 	assert.True(t, foundErrors, "Should find validation errors section")
 }
+
+func TestConsoleReporter_WithResourceMonikers(t *testing.T) {
+	var buf bytes.Buffer
+	reporter := NewConsoleReporter(&buf)
+
+	// Create a plan with monikers
+	plan := &planner.Plan{
+		Summary: planner.PlanSummary{
+			TotalChanges: 2,
+		},
+	}
+
+	// Start execution
+	reporter.StartExecution(plan)
+
+	// Test DELETE operation with monikers
+	change1 := planner.PlannedChange{
+		ID:           "1:d:portal_page:page1",
+		ResourceType: "portal_page",
+		ResourceRef:  "[unknown]",
+		ResourceMonikers: map[string]string{
+			"slug":         "getting-started",
+			"parent_portal": "simple",
+		},
+		Action: planner.ActionDelete,
+	}
+	
+	reporter.StartChange(change1)
+	output := buf.String()
+	t.Log("Progress output for change 1:", output)
+	
+	// Should show meaningful name from monikers
+	assert.Contains(t, output, "Deleting portal_page: page 'getting-started' in portal:simple")
+	assert.NotContains(t, output, "[unknown]")
+	
+	// Complete the change
+	reporter.CompleteChange(change1, nil)
+	
+	// Test another resource type
+	buf.Reset()
+	reporter = NewConsoleReporter(&buf)
+	reporter.totalChanges = 2
+	reporter.currentIndex = 1
+	
+	change2 := planner.PlannedChange{
+		ID:           "2:d:api_document:doc1",
+		ResourceType: "api_document",
+		ResourceRef:  "[unknown]",
+		ResourceMonikers: map[string]string{
+			"slug":       "api-guide",
+			"parent_api": "my-api",
+		},
+		Action: planner.ActionDelete,
+	}
+	
+	reporter.StartChange(change2)
+	output = buf.String()
+	t.Log("Progress output for change 2:", output)
+	
+	assert.Contains(t, output, "Deleting api_document: document 'api-guide' in api:my-api")
+	assert.NotContains(t, output, "[unknown]")
+}
+
+func TestFormatResourceNameForProgress_AllTypes(t *testing.T) {
+	testCases := []struct {
+		name     string
+		change   planner.PlannedChange
+		expected string
+	}{
+		{
+			name: "portal_page with monikers",
+			change: planner.PlannedChange{
+				ResourceRef: "[unknown]",
+				ResourceType: "portal_page",
+				ResourceMonikers: map[string]string{
+					"slug":         "getting-started",
+					"parent_portal": "dev-portal",
+				},
+			},
+			expected: "page 'getting-started' in portal:dev-portal",
+		},
+		{
+			name: "normal resource ref",
+			change: planner.PlannedChange{
+				ResourceRef:  "my-resource",
+				ResourceType: "api",
+			},
+			expected: "my-resource",
+		},
+		{
+			name: "empty ref falls back to ID",
+			change: planner.PlannedChange{
+				ID:           "1:c:api:test",
+				ResourceRef:  "",
+				ResourceType: "api",
+			},
+			expected: "api/1:c:api:test",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := formatResourceNameForProgress(tc.change)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
