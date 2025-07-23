@@ -828,7 +828,7 @@ func (p *Planner) planAPIDocumentChanges(
 
 		for slug, current := range currentBySlug {
 			if !desiredSlugs[slug] {
-				p.planAPIDocumentDelete(apiRef, current.ID, plan)
+				p.planAPIDocumentDelete(apiRef, apiID, current.ID, plan)
 			}
 		}
 	}
@@ -923,13 +923,13 @@ func (p *Planner) planAPIDocumentUpdate(
 	plan.AddChange(change)
 }
 
-func (p *Planner) planAPIDocumentDelete(apiRef string, documentID string, plan *Plan) {
+func (p *Planner) planAPIDocumentDelete(apiRef string, apiID string, documentID string, plan *Plan) {
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionDelete, "api_document", documentID),
 		ResourceType: "api_document",
 		ResourceRef:  documentID,
 		ResourceID:   documentID,
-		Parent:       &ParentInfo{Ref: apiRef},
+		Parent:       &ParentInfo{Ref: apiRef, ID: apiID},
 		Action:       ActionDelete,
 		Fields:       map[string]interface{}{},
 		DependsOn:    []string{},
