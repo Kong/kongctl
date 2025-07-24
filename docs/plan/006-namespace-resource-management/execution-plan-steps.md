@@ -93,22 +93,27 @@ that don't explicitly specify a namespace.
 
 ---
 
-### Step 5: Add Namespace Label Constant
+### Step 5: Update Label Constants and Remove Deprecated Labels
 **Status**: Not Started
 
-Add the namespace label constant to the labels package, following the 
-existing naming convention.
+Add the namespace label constant and remove deprecated managed/last-updated 
+labels to stay within Konnect's 5-label limit.
 
 **Files to modify**:
 - `internal/declarative/labels/labels.go`
 
 **Changes**:
-- Add `LabelNamespace = "KONGCTL-namespace"` constant
-- Update any label-related documentation
+- Add `NamespaceKey = "KONGCTL-namespace"` constant
+- Remove or deprecate `ManagedKey` and `LastUpdatedKey` constants
+- Update `AddManagedLabels` to only add namespace and protected labels
+- Update `AddManagedLabelsToPointerMap` similarly
+- Replace `IsManagedResource` to check namespace presence instead
 
 **Acceptance criteria**:
-- Constant follows existing naming pattern
-- Available for use in label operations
+- Namespace constant follows existing naming pattern
+- No more KONGCTL-managed or KONGCTL-last-updated labels added
+- Resources identified by namespace presence
+- Total KONGCTL labels reduced from 3 to 2
 
 ---
 
@@ -136,48 +141,56 @@ through to planned changes.
 
 ---
 
-### Step 7: Convert Namespace to Label in Executors
+### Step 7: Update Label Handling in Executors
 **Status**: Not Started
 
-Update executors to convert the namespace field to a label during resource 
-creation and updates.
+Update executors to convert namespace field to label and remove deprecated 
+label handling.
 
 **Files to modify**:
 - `internal/declarative/executor/portal_executor.go`
 - `internal/declarative/executor/api_executor.go`
 - `internal/declarative/executor/auth_strategy_executor.go`
 - `internal/declarative/labels/labels.go`
+- `internal/declarative/state/client.go`
 
 **Changes**:
-- Modify BuildCreateLabels to accept namespace
-- Add namespace label during resource creation
-- Preserve namespace label during updates
+- Modify BuildCreateLabels to accept namespace parameter
+- Remove logic that adds KONGCTL-managed and KONGCTL-last-updated
+- Add KONGCTL-namespace label from namespace parameter
+- Keep KONGCTL-protected label handling unchanged
+- Update state client Create/Update methods to use new label functions
 
 **Acceptance criteria**:
-- Resources created with namespace label
-- Label format matches convention
-- Updates preserve namespace
+- Resources created with only namespace and protected labels
+- No more managed or last-updated labels
+- Namespace label properly set from kongctl.namespace field
+- Updates preserve namespace and protected status
 
 ---
 
-### Step 8: Enhance State Client with Namespace Filtering
+### Step 8: Update State Client for Namespace-Based Resource Management
 **Status**: Not Started
 
-Update the state client to filter resources by namespace when listing 
-managed resources.
+Update the state client to use namespace presence for resource management 
+instead of the deprecated KONGCTL-managed label.
 
 **Files to modify**:
 - `internal/declarative/state/client.go`
 
 **Changes**:
-- Add namespace parameter to ListManaged* methods
-- Implement filtering by namespace label
-- Handle multiple namespaces
+- Replace `IsManagedResource()` checks with namespace label presence
+- Add namespace parameter to ListManaged* methods  
+- Filter by KONGCTL-namespace label instead of KONGCTL-managed
+- Consider any resource with namespace label as managed
+- Handle multiple namespace filtering
 
 **Acceptance criteria**:
+- Resources identified by namespace presence, not managed label
 - Can filter by single namespace
 - Can filter by multiple namespaces
 - Empty namespace list returns no resources
+- Backwards compatibility for existing resources (temporary)
 
 ---
 

@@ -233,6 +233,53 @@ Use "namespace" as the term throughout:
 
 ---
 
+---
+
+## ADR-006-009: Remove KONGCTL-managed and KONGCTL-last-updated Labels
+
+### Status
+Accepted
+
+### Context
+Konnect has a strict limit of 5 labels per resource. Currently kongctl adds 3 
+labels:
+- `KONGCTL-managed: true` - Identifies resources managed by kongctl
+- `KONGCTL-last-updated: <timestamp>` - Tracks last update time
+- `KONGCTL-protected: true/false` - Prevents deletion of critical resources
+
+With the addition of `KONGCTL-namespace`, we would use 4 of 5 allowed labels, 
+leaving only 1 for user labels. Additionally:
+- Konnect resources already have native timestamp fields
+- The namespace label can serve as the management indicator
+
+### Decision
+Remove `KONGCTL-managed` and `KONGCTL-last-updated` labels:
+- Any resource with `KONGCTL-namespace` label is considered managed
+- Use Konnect's native timestamp fields instead of custom label
+- Keep only `KONGCTL-namespace` and `KONGCTL-protected` labels
+- This leaves 3 label slots for users
+
+### Consequences
+**Positive:**
+- Frees up 2 label slots for user use (60% of limit)
+- Simpler label management code
+- Namespace serves dual purpose (ownership + management)
+- No redundant timestamp tracking
+- Cleaner resource representation
+
+**Negative:**
+- Breaking change for existing deployments
+- Need migration path for existing resources
+- Loss of custom timestamp format
+- Temporary backwards compatibility complexity
+
+**Migration Strategy:**
+- During transition, check for either old `KONGCTL-managed` or new namespace
+- First sync will update resources to new label scheme
+- Document migration clearly in release notes
+
+---
+
 ## Summary of Decisions
 
 1. **Implementation**: Use existing label system
@@ -243,5 +290,6 @@ Use "namespace" as the term throughout:
 6. **Operations**: Process all namespaces in config
 7. **Mutability**: Namespaces cannot be changed
 8. **Terminology**: "namespace" over other terms
+9. **Label Optimization**: Remove managed/last-updated labels, use namespace as indicator
 
-These decisions balance safety and explicit configuration with ease of use, supporting both simple single-team use cases and complex multi-team scenarios.
+These decisions balance safety and explicit configuration with ease of use, while respecting Konnect's label limitations and supporting both simple single-team use cases and complex multi-team scenarios.

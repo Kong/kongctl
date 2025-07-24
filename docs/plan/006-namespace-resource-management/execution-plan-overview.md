@@ -90,9 +90,14 @@ type KongctlDefaults struct {
 
 ### Label Management
 
-- Add `LabelNamespace = "KONGCTL-namespace"` constant
-- Update `BuildCreateLabels` to include namespace
-- Enhance `ListManaged*` methods with namespace filter
+**Important**: To stay within Konnect's 5-label limit, we're removing the 
+`KONGCTL-managed` and `KONGCTL-last-updated` labels. The namespace label will 
+serve as both ownership and management indicator.
+
+- Add `NamespaceKey = "KONGCTL-namespace"` constant
+- Remove deprecated `ManagedKey` and `LastUpdatedKey` constants
+- Update `BuildCreateLabels` to only add namespace and protected labels
+- Replace managed resource checks with namespace presence
 
 ### Planning Changes
 
@@ -103,9 +108,10 @@ type KongctlDefaults struct {
 ### State Client Updates
 
 ```go
-// Enhanced filtering
+// Resources are managed if they have a namespace label
 func (c *StateClient) ListManagedAPIs(namespaces []string) ([]*API, error) {
-    // Filter by KONGCTL-managed AND KONGCTL-namespace IN namespaces
+    // Filter by KONGCTL-namespace IN namespaces
+    // Any resource with namespace label is considered managed
 }
 ```
 
