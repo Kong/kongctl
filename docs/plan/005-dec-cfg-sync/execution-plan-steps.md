@@ -555,3 +555,35 @@ Each step is complete when:
 
 **Related Commit**:
 - `bd96fb4` - feat(planner): add slog debug logging for API publication sync issues
+
+### Empty Configuration Deletion Fix (Fixed)
+**Issue**: When all resources were removed from configuration files (or all content was commented out), the sync command would error with "no resources found in configuration files" instead of detecting and deleting managed resources.
+
+**Root Cause**: The sync and plan commands had early returns when no resources were found in configuration, preventing the planner from running to detect existing managed resources.
+
+**Fix**: 
+1. Modified `runSync` and `runPlan` functions to allow empty ResourceSet in sync mode
+2. Fixed API planner to check for deletions even with empty desired state
+3. Added informative logging when configuration is empty in sync mode
+4. Updated all sync mode tests to mock the API list calls
+
+**Implementation Details**:
+- Portal planner and auth strategy planner already had correct empty config handling
+- API planner needed modification to skip early return in sync mode
+- Added helper function `mockEmptyAPIsList` for cleaner test setup
+- Fixed HTML escaping issue by replacing `<unknown>` with `[unknown]`
+
+**Related Commits**:
+- `4adc862` - fix(sync): enable deletion of all managed resources when config is empty
+- `748a207` - feat(declarative): add API version deletion and improve resource references
+- `49c3641` - fix(planner): include apiID in Parent field for API document delete operations
+
+### Resource Reference Improvements
+**Enhancement**: Added better resource identification for DELETE operations when configuration references are not available.
+
+**Implementation**:
+- Added `ResourceMonikers` field to PlannedChange for human-readable identifiers
+- Used `[unknown]` for ResourceRef when config ref isn't available (avoids HTML escaping)
+- Provides clear parent/child relationships in deletion output
+
+**Usage**: DELETE operations now show clear resource identifiers even when the resource has been removed from configuration.
