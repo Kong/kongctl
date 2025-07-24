@@ -2,7 +2,9 @@ package resources
 
 // ResourceSet contains all declarative resources from configuration files
 type ResourceSet struct {
-	Portals []PortalResource `yaml:"portals,omitempty" json:"portals,omitempty"`
+	// Defaults holds file-level defaults that apply to all resources in the file
+	Defaults *FileDefaults `yaml:"_defaults,omitempty" json:"_defaults,omitempty"`
+	Portals  []PortalResource `yaml:"portals,omitempty" json:"portals,omitempty"`
 	// ApplicationAuthStrategies contains auth strategy configurations
 	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty" json:"application_auth_strategies,omitempty"` //nolint:lll
 	// ControlPlanes contains control plane configurations
@@ -41,5 +43,15 @@ type ReferencedResource interface {
 // ReferenceMapping interface for resources that have reference fields
 type ReferenceMapping interface {
 	GetReferenceFieldMappings() map[string]string
+}
+
+// FileDefaults holds file-level defaults that apply to all resources in the file
+type FileDefaults struct {
+	Kongctl *KongctlDefaults `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+}
+
+// KongctlDefaults holds default values for kongctl metadata fields
+type KongctlDefaults struct {
+	Namespace string `yaml:"namespace,omitempty" json:"namespace,omitempty"`
 }
 

@@ -45,7 +45,7 @@ application_auth_strategies:
 
 Resources have two types of identifiers:
 
-- **id**: UUID assigned by Konnect (never appears in configuration files)
+- **id**: UUID assigned by Konnect (do not appear in configuration files, except in a small set of cases)
 - **ref**: User-defined reference identifier (used for cross-references in configuration)
 
 Additionally, resources may have a `name` field for display purposes:
@@ -101,7 +101,7 @@ portals:
   - name: production-portal
     display_name: "Production Portal"
     kongctl:
-      protected: true  # This portal cannot be deleted via sync
+      protected: true  # This portal cannot be deleted or updated until protected is changed to false
 ```
 
 #### namespace
