@@ -26,28 +26,31 @@ configurations portable across environments.
 ```yaml
 # Top-level resource types
 portals:
-  - ref: developer-portal            # Reference identifier
-    name: "Developer Portal"         # Display name
+  - ref: developer-portal            # Identifier for cross-references
+    name: "Developer Portal"         # Display field
     # ... portal configuration
 
 apis:
-  - ref: payments-api               # Reference identifier  
-    name: "Payments API"            # Display name
+  - ref: payments-api               # Identifier for cross-references  
+    name: "Payments API"            # Display field
     # ... API configuration
     
 application_auth_strategies:
-  - ref: oauth-strategy             # Reference identifier
-    name: "OAuth 2.0 Strategy"      # Display name
+  - ref: oauth-strategy             # Identifier for cross-references
+    name: "OAuth 2.0 Strategy"      # Display field
     # ... auth strategy configuration
 ```
 
-### Resource Identifiers
+### Resource Identifiers and Display Fields
 
-Each resource has three potential identifiers:
+Resources have two types of identifiers:
 
 - **id**: UUID assigned by Konnect (never appears in configuration files)
-- **name**: Human-friendly display name (can contain spaces)
-- **ref**: Computer-friendly reference identifier (used for cross-references)
+- **ref**: User-defined reference identifier (used for cross-references in configuration)
+
+Additionally, resources may have a `name` field for display purposes:
+- **name**: Display field that may or may not be unique depending on the resource type
+- The `name` field should not be used as an identifier
 
 ### Resource References
 
@@ -55,12 +58,12 @@ Resources reference each other by ref:
 
 ```yaml
 application_auth_strategies:
-  - ref: oauth-strategy              # Reference identifier
-    name: "OAuth 2.0 Strategy"       # Display name
+  - ref: oauth-strategy              # Identifier for cross-references
+    name: "OAuth 2.0 Strategy"       # Display field (not an identifier)
 
 portals:
   - ref: developer-portal
-    name: "Developer Portal"
+    name: "Developer Portal"         # Display field (not an identifier)
     default_application_auth_strategy: oauth-strategy  # References the ref
 ```
 
@@ -147,8 +150,8 @@ namespace. File-level defaults will be supported in a future release.
 
 ```yaml
 apis:
-  - ref: inventory-api              # Reference identifier
-    name: "Inventory Management API" # Display name
+  - ref: inventory-api              # Identifier for cross-references
+    name: "Inventory Management API" # Display field
     description: "Internal inventory tracking API"
     labels:
       team: logistics
@@ -180,8 +183,8 @@ apis:
 
 ```yaml
 portals:
-  - ref: partner-portal             # Reference identifier
-    name: "Partner API Portal"      # Display name
+  - ref: partner-portal             # Identifier for cross-references
+    name: "Partner API Portal"      # Display field
     kongctl:
       namespace: partnerships
       protected: true
