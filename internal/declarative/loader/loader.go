@@ -11,6 +11,13 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// temporaryParseResult holds the raw parsed YAML including defaults
+// This is used internally during parsing to capture both resources and file-level defaults
+type temporaryParseResult struct {
+	Defaults *resources.FileDefaults `yaml:"_defaults,omitempty"`
+	resources.ResourceSet         `yaml:",inline"`
+}
+
 // Loader handles loading declarative configuration from files
 type Loader struct {
 	// baseDir is the base directory for resolving relative file paths in tags
@@ -170,7 +177,7 @@ func (l *Loader) loadSingleFile(path string) (*resources.ResourceSet, error) {
 
 // parseYAML parses YAML content into ResourceSet
 func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceSet, error) {
-	var rs resources.ResourceSet
+	var temp temporaryParseResult
 
 	content, err := io.ReadAll(r)
 	if err != nil {
@@ -198,11 +205,19 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceS
 		content = processedContent
 	}
 
-	if err := yaml.Unmarshal(content, &rs); err != nil {
+	if err := yaml.Unmarshal(content, &temp); err != nil {
 		return nil, fmt.Errorf("failed to parse YAML in %s: %w", sourcePath, err)
 	}
 
+	// Extract the clean ResourceSet
+	rs := temp.ResourceSet
+	
+	// Store file defaults for use in applyDefaults (will be implemented in Step 6)
+	// For now, the defaults are parsed but not yet applied to resources
+	_ = temp.Defaults // TODO: Use in Step 6 to apply namespace defaults
+
 	// Apply defaults to all resources
+	// TODO: In Step 6, this will be updated to use fileDefaults
 	l.applyDefaults(&rs)
 
 	// Extract nested child resources to root level
