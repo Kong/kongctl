@@ -16,6 +16,7 @@ portals:
       environment: production
       team: platform-engineering
     kongctl:
+      namespace: platform-team  # Owned by platform engineering team
       protected: false 
 
 application_auth_strategies:
@@ -70,6 +71,7 @@ apis:
       # Dynamic labels from OpenAPI spec
       license: !file specs/openapi.yaml#info.license.name
     kongctl:
+      namespace: platform-team  # Owned by platform engineering team
       protected: false
 
     versions:

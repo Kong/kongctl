@@ -48,6 +48,13 @@ This example uses a nested configuration where all portal resources are defined 
 - `pages` - All portal pages with hierarchical relationships
 - `snippets` - Reusable content components
 
+### Kongctl Metadata
+The portal resource (parent) can include a `kongctl` section for tool-specific settings:
+- `protected` - Prevents accidental deletion via sync
+- `namespace` - Resource ownership for multi-team environments
+
+**Note**: Child resources (pages, customization, snippets) do not support kongctl metadata - they inherit settings from their parent portal.
+
 ### Theme Customization
 - **Primary color**: #8250FF
 - **Layout**: Top navigation (topnav)

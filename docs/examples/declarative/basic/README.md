@@ -5,6 +5,23 @@ This directory contains example declarative configuration files for kongctl.
 ## Files
 
 - `portal.yaml` - Example portal configuration with child resources including customization, custom domain, pages, and snippets
+- `api-with-files/` - Example API configuration using external file references
+
+## Kongctl Metadata
+
+The `kongctl` section provides tool-specific metadata and is **only supported on parent resources** (APIs, Portals, Auth Strategies). Child resources (versions, pages, etc.) inherit settings from their parent.
+
+```yaml
+apis:
+  - name: my-api
+    kongctl:
+      protected: true      # Prevent accidental deletion
+      namespace: team-a    # Multi-team resource ownership
+    
+    versions:
+      - name: v1
+        # No kongctl section - inherits from parent API
+```
 
 ## Portal Custom Domains
 

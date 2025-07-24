@@ -81,7 +81,8 @@ portals:
       department: engineering
       cost-center: eng-001
     kongctl:
-      protected: true  # Prevents accidental deletion
+      protected: true       # Prevents accidental deletion
+      namespace: platform   # Resource ownership for multi-team environments
     
     # Nested resources for parent-child relationships
     pages:
@@ -118,8 +119,9 @@ teams:
 - Parent-child resources are nested (following API structure)
 - Independent resources reference each other by name (not UUID)
 - Names are resolved to IDs during plan generation
-- Optional `kongctl` section for tool-specific settings
+- Optional `kongctl` section for tool-specific settings (parent resources only)
 - Labels support user metadata and tool tracking
+- Child resources inherit namespace from their parent
 
 ### Name Resolution
 References between resources use human-readable names:
