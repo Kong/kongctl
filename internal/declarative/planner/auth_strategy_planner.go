@@ -80,7 +80,7 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) e
 
 			// Get protection status from desired configuration
 			shouldProtect := false
-			if desiredStrategy.Kongctl != nil && desiredStrategy.Kongctl.Protected {
+			if desiredStrategy.Kongctl != nil && desiredStrategy.Kongctl.Protected != nil && *desiredStrategy.Kongctl.Protected {
 				shouldProtect = true
 			}
 
@@ -232,7 +232,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 	}
 
 	// Always set protection status explicitly
-	if kongctl != nil && kongctl.Protected {
+	if kongctl != nil && kongctl.Protected != nil && *kongctl.Protected {
 		change.Protection = true
 	} else {
 		change.Protection = false

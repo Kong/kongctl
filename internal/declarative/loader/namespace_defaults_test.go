@@ -35,14 +35,18 @@ apis:
 		// Check portal inherited namespace
 		require.Len(t, rs.Portals, 1)
 		assert.NotNil(t, rs.Portals[0].Kongctl)
-		assert.Equal(t, "team-alpha", rs.Portals[0].Kongctl.Namespace)
-		assert.False(t, rs.Portals[0].Kongctl.Protected)
+		assert.NotNil(t, rs.Portals[0].Kongctl.Namespace)
+		assert.Equal(t, "team-alpha", *rs.Portals[0].Kongctl.Namespace)
+		assert.NotNil(t, rs.Portals[0].Kongctl.Protected)
+		assert.False(t, *rs.Portals[0].Kongctl.Protected)
 
 		// Check API inherited namespace
 		require.Len(t, rs.APIs, 1)
 		assert.NotNil(t, rs.APIs[0].Kongctl)
-		assert.Equal(t, "team-alpha", rs.APIs[0].Kongctl.Namespace)
-		assert.False(t, rs.APIs[0].Kongctl.Protected)
+		assert.NotNil(t, rs.APIs[0].Kongctl.Namespace)
+		assert.Equal(t, "team-alpha", *rs.APIs[0].Kongctl.Namespace)
+		assert.NotNil(t, rs.APIs[0].Kongctl.Protected)
+		assert.False(t, *rs.APIs[0].Kongctl.Protected)
 	})
 
 	t.Run("protected defaults from _defaults section", func(t *testing.T) {
@@ -76,14 +80,18 @@ application_auth_strategies:
 		// Check portal inherited both namespace and protected
 		require.Len(t, rs.Portals, 1)
 		assert.NotNil(t, rs.Portals[0].Kongctl)
-		assert.Equal(t, "production", rs.Portals[0].Kongctl.Namespace)
-		assert.True(t, rs.Portals[0].Kongctl.Protected)
+		assert.NotNil(t, rs.Portals[0].Kongctl.Namespace)
+		assert.Equal(t, "production", *rs.Portals[0].Kongctl.Namespace)
+		assert.NotNil(t, rs.Portals[0].Kongctl.Protected)
+		assert.True(t, *rs.Portals[0].Kongctl.Protected)
 
 		// Check auth strategy inherited both namespace and protected
 		require.Len(t, rs.ApplicationAuthStrategies, 1)
 		assert.NotNil(t, rs.ApplicationAuthStrategies[0].Kongctl)
-		assert.Equal(t, "production", rs.ApplicationAuthStrategies[0].Kongctl.Namespace)
-		assert.True(t, rs.ApplicationAuthStrategies[0].Kongctl.Protected)
+		assert.NotNil(t, rs.ApplicationAuthStrategies[0].Kongctl.Namespace)
+		assert.Equal(t, "production", *rs.ApplicationAuthStrategies[0].Kongctl.Namespace)
+		assert.NotNil(t, rs.ApplicationAuthStrategies[0].Kongctl.Protected)
+		assert.True(t, *rs.ApplicationAuthStrategies[0].Kongctl.Protected)
 	})
 
 	t.Run("explicit values override defaults", func(t *testing.T) {
@@ -118,17 +126,19 @@ apis:
 		// Check portal has explicit values
 		require.Len(t, rs.Portals, 1)
 		assert.NotNil(t, rs.Portals[0].Kongctl)
-		assert.Equal(t, "team-beta", rs.Portals[0].Kongctl.Namespace)
-		// Note: Due to bool field limitation, we can't distinguish between
-		// "not set" and "explicitly false", so protected: false gets overridden
-		// by a true default. This is a known limitation.
-		assert.True(t, rs.Portals[0].Kongctl.Protected)
+		assert.NotNil(t, rs.Portals[0].Kongctl.Namespace)
+		assert.Equal(t, "team-beta", *rs.Portals[0].Kongctl.Namespace)
+		assert.NotNil(t, rs.Portals[0].Kongctl.Protected)
+		// Now with pointer types, explicit false is preserved
+		assert.False(t, *rs.Portals[0].Kongctl.Protected)
 
 		// Check API has explicit namespace but inherited protected
 		require.Len(t, rs.APIs, 1)
 		assert.NotNil(t, rs.APIs[0].Kongctl)
-		assert.Equal(t, "team-gamma", rs.APIs[0].Kongctl.Namespace)
-		assert.True(t, rs.APIs[0].Kongctl.Protected)
+		assert.NotNil(t, rs.APIs[0].Kongctl.Namespace)
+		assert.Equal(t, "team-gamma", *rs.APIs[0].Kongctl.Namespace)
+		assert.NotNil(t, rs.APIs[0].Kongctl.Protected)
+		assert.True(t, *rs.APIs[0].Kongctl.Protected)
 	})
 
 	t.Run("default namespace when no _defaults", func(t *testing.T) {
@@ -152,14 +162,18 @@ control_planes:
 		// Check portal gets default namespace
 		require.Len(t, rs.Portals, 1)
 		assert.NotNil(t, rs.Portals[0].Kongctl)
-		assert.Equal(t, "default", rs.Portals[0].Kongctl.Namespace)
-		assert.False(t, rs.Portals[0].Kongctl.Protected)
+		assert.NotNil(t, rs.Portals[0].Kongctl.Namespace)
+		assert.Equal(t, "default", *rs.Portals[0].Kongctl.Namespace)
+		assert.NotNil(t, rs.Portals[0].Kongctl.Protected)
+		assert.False(t, *rs.Portals[0].Kongctl.Protected)
 
 		// Check control plane gets default namespace
 		require.Len(t, rs.ControlPlanes, 1)
 		assert.NotNil(t, rs.ControlPlanes[0].Kongctl)
-		assert.Equal(t, "default", rs.ControlPlanes[0].Kongctl.Namespace)
-		assert.False(t, rs.ControlPlanes[0].Kongctl.Protected)
+		assert.NotNil(t, rs.ControlPlanes[0].Kongctl.Namespace)
+		assert.Equal(t, "default", *rs.ControlPlanes[0].Kongctl.Namespace)
+		assert.NotNil(t, rs.ControlPlanes[0].Kongctl.Protected)
+		assert.False(t, *rs.ControlPlanes[0].Kongctl.Protected)
 	})
 
 	t.Run("child resources do not get kongctl metadata", func(t *testing.T) {
@@ -194,8 +208,10 @@ apis:
 		// Check API has kongctl metadata
 		require.Len(t, rs.APIs, 1)
 		assert.NotNil(t, rs.APIs[0].Kongctl)
-		assert.Equal(t, "team-alpha", rs.APIs[0].Kongctl.Namespace)
-		assert.True(t, rs.APIs[0].Kongctl.Protected)
+		assert.NotNil(t, rs.APIs[0].Kongctl.Namespace)
+		assert.Equal(t, "team-alpha", *rs.APIs[0].Kongctl.Namespace)
+		assert.NotNil(t, rs.APIs[0].Kongctl.Protected)
+		assert.True(t, *rs.APIs[0].Kongctl.Protected)
 
 		// Check API version (child resource) extracted but no kongctl metadata
 		require.Len(t, rs.APIVersions, 1)
@@ -249,18 +265,24 @@ portals:
 		
 		// Portal 1 from team-alpha
 		assert.Equal(t, "portal1", rs.Portals[0].Ref)
-		assert.Equal(t, "team-alpha", rs.Portals[0].Kongctl.Namespace)
-		assert.False(t, rs.Portals[0].Kongctl.Protected)
+		assert.NotNil(t, rs.Portals[0].Kongctl.Namespace)
+		assert.Equal(t, "team-alpha", *rs.Portals[0].Kongctl.Namespace)
+		assert.NotNil(t, rs.Portals[0].Kongctl.Protected)
+		assert.False(t, *rs.Portals[0].Kongctl.Protected)
 
 		// Portal 2 from team-beta
 		assert.Equal(t, "portal2", rs.Portals[1].Ref)
-		assert.Equal(t, "team-beta", rs.Portals[1].Kongctl.Namespace)
-		assert.True(t, rs.Portals[1].Kongctl.Protected)
+		assert.NotNil(t, rs.Portals[1].Kongctl.Namespace)
+		assert.Equal(t, "team-beta", *rs.Portals[1].Kongctl.Namespace)
+		assert.NotNil(t, rs.Portals[1].Kongctl.Protected)
+		assert.True(t, *rs.Portals[1].Kongctl.Protected)
 
 		// Portal 3 with default namespace
 		assert.Equal(t, "portal3", rs.Portals[2].Ref)
-		assert.Equal(t, "default", rs.Portals[2].Kongctl.Namespace)
-		assert.False(t, rs.Portals[2].Kongctl.Protected)
+		assert.NotNil(t, rs.Portals[2].Kongctl.Namespace)
+		assert.Equal(t, "default", *rs.Portals[2].Kongctl.Namespace)
+		assert.NotNil(t, rs.Portals[2].Kongctl.Protected)
+		assert.False(t, *rs.Portals[2].Kongctl.Protected)
 	})
 
 	t.Run("protected false in defaults does not override explicit true", func(t *testing.T) {
@@ -287,7 +309,47 @@ portals:
 		// Check portal keeps its explicit protected=true
 		require.Len(t, rs.Portals, 1)
 		assert.NotNil(t, rs.Portals[0].Kongctl)
-		assert.Equal(t, "staging", rs.Portals[0].Kongctl.Namespace)
-		assert.True(t, rs.Portals[0].Kongctl.Protected) // Should remain true
+		assert.NotNil(t, rs.Portals[0].Kongctl.Namespace)
+		assert.Equal(t, "staging", *rs.Portals[0].Kongctl.Namespace)
+		assert.NotNil(t, rs.Portals[0].Kongctl.Protected)
+		assert.True(t, *rs.Portals[0].Kongctl.Protected) // Should remain true
+	})
+
+	t.Run("empty namespace in defaults is rejected", func(t *testing.T) {
+		yaml := `
+_defaults:
+  kongctl:
+    namespace: ""
+
+portals:
+  - ref: portal1
+    name: "Portal 1"
+`
+		dir := t.TempDir()
+		file := filepath.Join(dir, "test.yaml")
+		require.NoError(t, os.WriteFile(file, []byte(yaml), 0600))
+
+		l := New()
+		_, err := l.LoadFile(file)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "namespace in _defaults.kongctl cannot be empty")
+	})
+
+	t.Run("empty namespace on resource is rejected", func(t *testing.T) {
+		yaml := `
+portals:
+  - ref: portal1
+    name: "Portal 1"
+    kongctl:
+      namespace: ""
+`
+		dir := t.TempDir()
+		file := filepath.Join(dir, "test.yaml")
+		require.NoError(t, os.WriteFile(file, []byte(yaml), 0600))
+
+		l := New()
+		_, err := l.LoadFile(file)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "portal 'portal1' cannot have an empty namespace")
 	})
 }

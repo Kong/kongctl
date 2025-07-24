@@ -345,6 +345,114 @@ protected:
 
 ---
 
+## ADR-006-012: Use Pointer Types for KongctlMeta Fields
+
+### Status
+Accepted
+
+### Context
+The initial implementation mixed pointer and non-pointer types:
+- `KongctlDefaults` used `string` for Namespace and `*bool` for Protected
+- `KongctlMeta` used `string` for Namespace and `bool` for Protected
+
+This inconsistency caused issues:
+- Could not distinguish between "not set" and "explicitly set to false" for Protected
+- Explicit `protected: false` would be overridden by `protected: true` defaults
+- Different behavior patterns for the two fields
+
+### Decision
+Use pointer types consistently in both structs:
+```go
+type KongctlMetaDefaults struct {
+    Namespace *string `yaml:"namespace,omitempty" json:"namespace,omitempty"`
+    Protected *bool   `yaml:"protected,omitempty" json:"protected,omitempty"`
+}
+
+type KongctlMeta struct {
+    Protected *bool   `yaml:"protected,omitempty" json:"protected,omitempty"`
+    Namespace *string `yaml:"namespace,omitempty" json:"namespace,omitempty"`
+}
+```
+
+### Consequences
+**Positive:**
+- Consistent behavior between Namespace and Protected fields
+- Can distinguish: nil (not set), empty/false (explicit), value (explicit)
+- Proper override semantics - explicit values always win
+- More intuitive API - both fields work the same way
+- Fixes the protected override bug
+
+**Negative:**
+- Breaking change for existing code
+- Must handle nil checks throughout codebase
+- Slightly more complex code with pointer dereferencing
+- Potential nil pointer panics if not careful
+
+---
+
+## ADR-006-013: Rename KongctlDefaults to KongctlMetaDefaults
+
+### Status
+Accepted
+
+### Context
+The struct name `KongctlDefaults` was inconsistent with `KongctlMeta`. Since 
+these defaults are specifically for the metadata fields, the naming should 
+reflect this relationship.
+
+### Decision
+Rename the struct from `KongctlDefaults` to `KongctlMetaDefaults` to match 
+the `KongctlMeta` struct it provides defaults for.
+
+### Consequences
+**Positive:**
+- Clear naming relationship: `KongctlMeta` ← `KongctlMetaDefaults`
+- Better code clarity and intent
+- Consistent naming patterns
+- Self-documenting code
+
+**Negative:**
+- Breaking change for any code referencing the old name
+- Need to update all references
+
+---
+
+## ADR-006-014: Reject Empty Namespace Values
+
+### Status
+Accepted
+
+### Context
+With pointer types, we can now have:
+- `nil` - namespace not specified
+- `""` - empty string namespace
+- `"value"` - actual namespace value
+
+Empty namespaces could cause issues with resource management and filtering.
+
+### Decision
+Reject empty namespace values at all levels:
+- Empty namespace in `_defaults.kongctl.namespace` → Error
+- Empty namespace in resource `kongctl.namespace` → Error  
+- Every resource must have a non-empty namespace (default or explicit)
+
+Implementation validates during loading and returns clear error messages.
+
+### Consequences
+**Positive:**
+- Every resource guaranteed to have meaningful namespace
+- No ambiguity in resource ownership
+- Clear error messages guide users
+- Prevents accidental misconfigurations
+- Namespace labels always have meaningful values
+
+**Negative:**
+- Cannot use empty string as a namespace (unlikely use case)
+- Additional validation code required
+- Must handle validation errors in loader
+
+---
+
 ## Summary of Decisions
 
 1. **Implementation**: Use existing label system
@@ -358,5 +466,8 @@ protected:
 9. **Label Optimization**: Remove managed/last-updated labels, use namespace as indicator
 10. **Child Resources**: Remove KongctlMeta from child resource types
 11. **Protected Label**: Only add when resource is actually protected
+12. **Pointer Types**: Use pointers consistently for both Namespace and Protected fields
+13. **Struct Naming**: Rename KongctlDefaults to KongctlMetaDefaults for consistency
+14. **Empty Values**: Reject empty namespace values with clear error messages
 
-These decisions balance safety and explicit configuration with ease of use, while maximizing available labels for users within Konnect's strict 5-label limit.
+These decisions balance safety and explicit configuration with ease of use, while maximizing available labels for users within Konnect's strict 5-label limit. The pointer types enable proper nil detection and override semantics, while the validation ensures every resource has a meaningful namespace.

@@ -8,6 +8,12 @@ configuration with kongctl to manage Kong Konnect resources.
 - [Overview](#overview)
 - [Configuration Structure](#configuration-structure)
 - [Kongctl Metadata](#kongctl-metadata)
+  - [Parent vs Child Resources](#parent-vs-child-resources)
+  - [Kongctl Fields](#kongctl-fields)
+  - [Namespace Inheritance](#namespace-inheritance)
+  - [Default Namespace](#default-namespace)
+  - [File-Level Defaults](#file-level-defaults)
+  - [Namespace and Protected Field Behavior](#namespace-and-protected-field-behavior)
 - [Resource Types](#resource-types)
 - [Best Practices](#best-practices)
 - [Common Mistakes](#common-mistakes)
@@ -142,7 +148,61 @@ apis:
 ### Default Namespace
 
 When no namespace is specified, resources are assigned to the "default" 
-namespace. File-level defaults will be supported in a future release.
+namespace.
+
+### File-Level Defaults
+
+You can specify default values for namespace and protected fields at the file 
+level using the `_defaults` section:
+
+```yaml
+_defaults:
+  kongctl:
+    namespace: platform-team    # Default namespace for resources in this file
+    protected: true            # Default protection status
+
+portals:
+  - ref: api-portal
+    name: "API Portal"
+    # Inherits namespace: platform-team and protected: true
+    
+  - ref: test-portal
+    name: "Test Portal"
+    kongctl:
+      namespace: qa-team      # Overrides default namespace
+      protected: false        # Overrides default protected
+```
+
+### Namespace and Protected Field Behavior
+
+The following tables show how namespace and protected values are determined 
+based on file defaults and explicit resource values:
+
+#### Namespace Field Behavior
+
+| File Default | Resource Value | Final Result | Notes |
+|-------------|----------------|--------------|-------|
+| Not set | Not set | "default" | System default |
+| Not set | "team-a" | "team-a" | Resource explicit |
+| Not set | "" (empty) | ERROR | Empty namespace not allowed |
+| "team-b" | Not set | "team-b" | Inherits default |
+| "team-b" | "team-a" | "team-a" | Resource overrides |
+| "team-b" | "" (empty) | ERROR | Empty namespace not allowed |
+| "" (empty) | Any value | ERROR | Empty default not allowed |
+
+#### Protected Field Behavior
+
+| File Default | Resource Value | Final Result | Notes |
+|-------------|----------------|--------------|-------|
+| Not set | Not set | false | System default |
+| Not set | true | true | Resource explicit |
+| Not set | false | false | Explicit false |
+| true | Not set | true | Inherits default |
+| true | false | false | Resource overrides |
+| false | true | true | Resource overrides |
+
+**Important**: Empty namespace values are always rejected. Every resource must 
+have a non-empty namespace to ensure proper resource management and isolation.
 
 ## Resource Types
 

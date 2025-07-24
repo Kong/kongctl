@@ -91,7 +91,7 @@ func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIRes
 
 			// Get protection status from desired configuration
 			shouldProtect := false
-			if desiredAPI.Kongctl != nil && desiredAPI.Kongctl.Protected {
+			if desiredAPI.Kongctl != nil && desiredAPI.Kongctl.Protected != nil && *desiredAPI.Kongctl.Protected {
 				shouldProtect = true
 			}
 
@@ -173,7 +173,7 @@ func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) string {
 	}
 
 	// Always set protection status explicitly
-	if api.Kongctl != nil && api.Kongctl.Protected {
+	if api.Kongctl != nil && api.Kongctl.Protected != nil && *api.Kongctl.Protected {
 		change.Protection = true
 	} else {
 		change.Protection = false

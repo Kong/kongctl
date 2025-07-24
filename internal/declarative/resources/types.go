@@ -23,9 +23,9 @@ type ResourceSet struct {
 // KongctlMeta contains tool-specific metadata for resources
 type KongctlMeta struct {
 	// Protected prevents accidental deletion of critical resources
-	Protected bool `yaml:"protected,omitempty" json:"protected,omitempty"`
+	Protected *bool `yaml:"protected,omitempty" json:"protected,omitempty"`
 	// Namespace for resource isolation and multi-team management
-	Namespace string `yaml:"namespace,omitempty" json:"namespace,omitempty"`
+	Namespace *string `yaml:"namespace,omitempty" json:"namespace,omitempty"`
 }
 
 // ResourceValidator interface for common validation behavior
@@ -45,12 +45,12 @@ type ReferenceMapping interface {
 
 // FileDefaults holds file-level defaults that apply to all resources in the file
 type FileDefaults struct {
-	Kongctl *KongctlDefaults `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+	Kongctl *KongctlMetaDefaults `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
 }
 
-// KongctlDefaults holds default values for kongctl metadata fields
-type KongctlDefaults struct {
-	Namespace string `yaml:"namespace,omitempty" json:"namespace,omitempty"`
-	Protected *bool  `yaml:"protected,omitempty" json:"protected,omitempty"`
+// KongctlMetaDefaults holds default values for kongctl metadata fields
+type KongctlMetaDefaults struct {
+	Namespace *string `yaml:"namespace,omitempty" json:"namespace,omitempty"`
+	Protected *bool   `yaml:"protected,omitempty" json:"protected,omitempty"`
 }
 

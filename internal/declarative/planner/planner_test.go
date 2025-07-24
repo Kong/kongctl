@@ -816,7 +816,7 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 					Description: &description, // Changed field
 				},
 				Kongctl: &resources.KongctlMeta{
-					Protected: true, // Keep it protected
+					Protected: &[]bool{true}[0], // Keep it protected
 				},
 				Ref: "protected-portal",
 			},

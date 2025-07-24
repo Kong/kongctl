@@ -214,7 +214,9 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceS
 	rs := temp.ResourceSet
 	
 	// Apply file-level namespace and protected defaults
-	l.applyNamespaceDefaults(&rs, temp.Defaults)
+	if err := l.applyNamespaceDefaults(&rs, temp.Defaults); err != nil {
+		return nil, fmt.Errorf("failed to apply namespace defaults: %w", err)
+	}
 
 	// Apply SDK defaults to all resources
 	l.applyDefaults(&rs)
@@ -654,13 +656,18 @@ func (l *Loader) findRefByName(resourceList interface{}, name string) string {
 }
 
 // applyNamespaceDefaults applies file-level namespace and protected defaults to parent resources
-func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults *resources.FileDefaults) {
+func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults *resources.FileDefaults) error {
 	// Determine the effective namespace default
-	namespaceDefault := "default"
+	defaultNamespace := "default"
+	namespaceDefault := &defaultNamespace
 	var protectedDefault *bool
 	
 	if fileDefaults != nil && fileDefaults.Kongctl != nil {
-		if fileDefaults.Kongctl.Namespace != "" {
+		// Validate that namespace default is not empty
+		if fileDefaults.Kongctl.Namespace != nil && *fileDefaults.Kongctl.Namespace == "" {
+			return fmt.Errorf("namespace in _defaults.kongctl cannot be empty")
+		}
+		if fileDefaults.Kongctl.Namespace != nil {
 			namespaceDefault = fileDefaults.Kongctl.Namespace
 		}
 		protectedDefault = fileDefaults.Kongctl.Protected
@@ -671,13 +678,22 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		if rs.Portals[i].Kongctl == nil {
 			rs.Portals[i].Kongctl = &resources.KongctlMeta{}
 		}
-		if rs.Portals[i].Kongctl.Namespace == "" {
+		// Validate that explicit namespace is not empty
+		if rs.Portals[i].Kongctl.Namespace != nil && *rs.Portals[i].Kongctl.Namespace == "" {
+			return fmt.Errorf("portal '%s' cannot have an empty namespace", rs.Portals[i].Ref)
+		}
+		// Apply namespace default if not set
+		if rs.Portals[i].Kongctl.Namespace == nil {
 			rs.Portals[i].Kongctl.Namespace = namespaceDefault
 		}
-		// Apply protected default only if it's true and current value is false
-		// This handles the case where protected is not explicitly set
-		if protectedDefault != nil && *protectedDefault && !rs.Portals[i].Kongctl.Protected {
-			rs.Portals[i].Kongctl.Protected = true
+		// Apply protected default if not set
+		if rs.Portals[i].Kongctl.Protected == nil && protectedDefault != nil {
+			rs.Portals[i].Kongctl.Protected = protectedDefault
+		}
+		// Ensure protected has a value (false if still nil)
+		if rs.Portals[i].Kongctl.Protected == nil {
+			falseVal := false
+			rs.Portals[i].Kongctl.Protected = &falseVal
 		}
 	}
 	
@@ -686,13 +702,22 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		if rs.APIs[i].Kongctl == nil {
 			rs.APIs[i].Kongctl = &resources.KongctlMeta{}
 		}
-		if rs.APIs[i].Kongctl.Namespace == "" {
+		// Validate that explicit namespace is not empty
+		if rs.APIs[i].Kongctl.Namespace != nil && *rs.APIs[i].Kongctl.Namespace == "" {
+			return fmt.Errorf("api '%s' cannot have an empty namespace", rs.APIs[i].Ref)
+		}
+		// Apply namespace default if not set
+		if rs.APIs[i].Kongctl.Namespace == nil {
 			rs.APIs[i].Kongctl.Namespace = namespaceDefault
 		}
-		// Apply protected default only if it's true and current value is false
-		// This handles the case where protected is not explicitly set
-		if protectedDefault != nil && *protectedDefault && !rs.APIs[i].Kongctl.Protected {
-			rs.APIs[i].Kongctl.Protected = true
+		// Apply protected default if not set
+		if rs.APIs[i].Kongctl.Protected == nil && protectedDefault != nil {
+			rs.APIs[i].Kongctl.Protected = protectedDefault
+		}
+		// Ensure protected has a value (false if still nil)
+		if rs.APIs[i].Kongctl.Protected == nil {
+			falseVal := false
+			rs.APIs[i].Kongctl.Protected = &falseVal
 		}
 	}
 	
@@ -701,13 +726,24 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		if rs.ApplicationAuthStrategies[i].Kongctl == nil {
 			rs.ApplicationAuthStrategies[i].Kongctl = &resources.KongctlMeta{}
 		}
-		if rs.ApplicationAuthStrategies[i].Kongctl.Namespace == "" {
+		// Validate that explicit namespace is not empty
+		if rs.ApplicationAuthStrategies[i].Kongctl.Namespace != nil && 
+			*rs.ApplicationAuthStrategies[i].Kongctl.Namespace == "" {
+			return fmt.Errorf("application_auth_strategy '%s' cannot have an empty namespace", 
+				rs.ApplicationAuthStrategies[i].Ref)
+		}
+		// Apply namespace default if not set
+		if rs.ApplicationAuthStrategies[i].Kongctl.Namespace == nil {
 			rs.ApplicationAuthStrategies[i].Kongctl.Namespace = namespaceDefault
 		}
-		// Apply protected default only if it's true and current value is false
-		// This handles the case where protected is not explicitly set
-		if protectedDefault != nil && *protectedDefault && !rs.ApplicationAuthStrategies[i].Kongctl.Protected {
-			rs.ApplicationAuthStrategies[i].Kongctl.Protected = true
+		// Apply protected default if not set
+		if rs.ApplicationAuthStrategies[i].Kongctl.Protected == nil && protectedDefault != nil {
+			rs.ApplicationAuthStrategies[i].Kongctl.Protected = protectedDefault
+		}
+		// Ensure protected has a value (false if still nil)
+		if rs.ApplicationAuthStrategies[i].Kongctl.Protected == nil {
+			falseVal := false
+			rs.ApplicationAuthStrategies[i].Kongctl.Protected = &falseVal
 		}
 	}
 	
@@ -716,18 +752,28 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		if rs.ControlPlanes[i].Kongctl == nil {
 			rs.ControlPlanes[i].Kongctl = &resources.KongctlMeta{}
 		}
-		if rs.ControlPlanes[i].Kongctl.Namespace == "" {
+		// Validate that explicit namespace is not empty
+		if rs.ControlPlanes[i].Kongctl.Namespace != nil && *rs.ControlPlanes[i].Kongctl.Namespace == "" {
+			return fmt.Errorf("control_plane '%s' cannot have an empty namespace", rs.ControlPlanes[i].Ref)
+		}
+		// Apply namespace default if not set
+		if rs.ControlPlanes[i].Kongctl.Namespace == nil {
 			rs.ControlPlanes[i].Kongctl.Namespace = namespaceDefault
 		}
-		// Apply protected default only if it's true and current value is false
-		// This handles the case where protected is not explicitly set
-		if protectedDefault != nil && *protectedDefault && !rs.ControlPlanes[i].Kongctl.Protected {
-			rs.ControlPlanes[i].Kongctl.Protected = true
+		// Apply protected default if not set
+		if rs.ControlPlanes[i].Kongctl.Protected == nil && protectedDefault != nil {
+			rs.ControlPlanes[i].Kongctl.Protected = protectedDefault
+		}
+		// Ensure protected has a value (false if still nil)
+		if rs.ControlPlanes[i].Kongctl.Protected == nil {
+			falseVal := false
+			rs.ControlPlanes[i].Kongctl.Protected = &falseVal
 		}
 	}
 	
 	// Note: Child resources (API versions, publications, etc.) do not get kongctl metadata
 	// as Konnect doesn't support labels on child resources
+	return nil
 }
 
 // applyDefaults applies SDK default values to all resources in the set

@@ -501,25 +501,31 @@ func TestReferenceFieldMappings(t *testing.T) {
 
 func TestKongctlMeta(t *testing.T) {
 	t.Run("KongctlMeta structure", func(t *testing.T) {
+		trueVal := true
+		namespace := "team-a"
 		meta := &KongctlMeta{
-			Protected: true,
-			Namespace: "team-a",
+			Protected: &trueVal,
+			Namespace: &namespace,
 		}
 		
-		assert.True(t, meta.Protected, "Protected field should be settable")
-		assert.Equal(t, "team-a", meta.Namespace, "Namespace field should be settable")
+		assert.NotNil(t, meta.Protected)
+		assert.True(t, *meta.Protected, "Protected field should be settable")
+		assert.NotNil(t, meta.Namespace)
+		assert.Equal(t, "team-a", *meta.Namespace, "Namespace field should be settable")
 		
 		// Test zero value
 		var zeroMeta KongctlMeta
-		assert.False(t, zeroMeta.Protected, "Default Protected should be false")
-		assert.Equal(t, "", zeroMeta.Namespace, "Default Namespace should be empty string")
+		assert.Nil(t, zeroMeta.Protected, "Default Protected should be nil")
+		assert.Nil(t, zeroMeta.Namespace, "Default Namespace should be nil")
 	})
 	
 	t.Run("KongctlMeta YAML marshaling", func(t *testing.T) {
 		// Test marshaling with values
+		trueVal := true
+		namespace := "production"
 		meta := &KongctlMeta{
-			Protected: true,
-			Namespace: "production",
+			Protected: &trueVal,
+			Namespace: &namespace,
 		}
 		
 		data, err := yaml.Marshal(meta)
@@ -545,8 +551,9 @@ func TestKongctlMeta(t *testing.T) {
 		assert.Equal(t, "{}\n", string(data), "Should omit empty fields")
 		
 		// Test with only namespace set
+		namespace := "team-b"
 		meta = &KongctlMeta{
-			Namespace: "team-b",
+			Namespace: &namespace,
 		}
 		
 		data, err = yaml.Marshal(meta)

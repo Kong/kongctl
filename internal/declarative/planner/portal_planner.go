@@ -65,7 +65,7 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 
 			// Get protection status from desired configuration
 			shouldProtect := false
-			if desiredPortal.Kongctl != nil && desiredPortal.Kongctl.Protected {
+			if desiredPortal.Kongctl != nil && desiredPortal.Kongctl.Protected != nil && *desiredPortal.Kongctl.Protected {
 				shouldProtect = true
 			}
 
@@ -166,7 +166,7 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 	}
 
 	// Always set protection status explicitly
-	if portal.Kongctl != nil && portal.Kongctl.Protected {
+	if portal.Kongctl != nil && portal.Kongctl.Protected != nil && *portal.Kongctl.Protected {
 		change.Protection = true
 	} else {
 		change.Protection = false
