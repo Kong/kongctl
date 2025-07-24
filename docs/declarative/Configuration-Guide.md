@@ -16,7 +16,7 @@ configuration with kongctl to manage Kong Konnect resources.
 
 Kongctl's declarative configuration allows you to define Kong Konnect resources 
 in YAML files and manage them using a plan-based workflow. Resources are 
-identified by user-defined names rather than server-assigned IDs, making 
+identified by user-defined refs rather than server-assigned IDs, making 
 configurations portable across environments.
 
 ## Configuration Structure
@@ -26,29 +26,42 @@ configurations portable across environments.
 ```yaml
 # Top-level resource types
 portals:
-  - name: developer-portal
-    display_name: "Developer Portal"
+  - ref: developer-portal            # Reference identifier
+    name: "Developer Portal"         # Display name
     # ... portal configuration
 
 apis:
-  - name: payments-api
-    display_name: "Payments API"
+  - ref: payments-api               # Reference identifier  
+    name: "Payments API"            # Display name
     # ... API configuration
     
 application_auth_strategies:
-  - name: oauth-strategy
-    display_name: "OAuth 2.0"
+  - ref: oauth-strategy             # Reference identifier
+    name: "OAuth 2.0 Strategy"      # Display name
     # ... auth strategy configuration
 ```
 
+### Resource Identifiers
+
+Each resource has three potential identifiers:
+
+- **id**: UUID assigned by Konnect (never appears in configuration files)
+- **name**: Human-friendly display name (can contain spaces)
+- **ref**: Computer-friendly reference identifier (used for cross-references)
+
 ### Resource References
 
-Resources reference each other by name, not ID:
+Resources reference each other by ref:
 
 ```yaml
+application_auth_strategies:
+  - ref: oauth-strategy              # Reference identifier
+    name: "OAuth 2.0 Strategy"       # Display name
+
 portals:
-  - name: developer-portal
-    default_application_auth_strategy: oauth-strategy  # Reference by name
+  - ref: developer-portal
+    name: "Developer Portal"
+    default_application_auth_strategy: oauth-strategy  # References the ref
 ```
 
 ## Kongctl Metadata
@@ -134,8 +147,8 @@ namespace. File-level defaults will be supported in a future release.
 
 ```yaml
 apis:
-  - name: inventory-api
-    display_name: "Inventory Management API"
+  - ref: inventory-api              # Reference identifier
+    name: "Inventory Management API" # Display name
     description: "Internal inventory tracking API"
     labels:
       team: logistics
@@ -146,42 +159,42 @@ apis:
     
     # Child resources - no kongctl section
     versions:
-      - name: v2
+      - ref: inventory-v2           # Child ref
         version: "2.0.0"
         spec: !file ./specs/inventory-v2.yaml
         
     publications:
-      - name: internal-portal-pub
-        portal_id: internal-portal
-        auth_strategy_ids: ["key-auth"]
+      - ref: internal-portal-pub    # Child ref
+        portal_id: internal-portal  # References portal by ref
+        auth_strategy_ids: ["key-auth"]  # References auth strategy by ref
         
     implementations:
-      - name: prod-impl
+      - ref: prod-impl              # Child ref
         implementation_url: "https://api.internal.example.com/v2"
         service:
           id: "12345678-1234-1234-1234-123456789012"
-          control_plane_id: prod-cp
+          control_plane_id: prod-cp  # References control plane by ref
 ```
 
 ### Portals with Child Resources
 
 ```yaml
 portals:
-  - name: partner-portal
-    display_name: "Partner API Portal"
+  - ref: partner-portal             # Reference identifier
+    name: "Partner API Portal"      # Display name
     kongctl:
       namespace: partnerships
       protected: true
     
     # Child resources - no kongctl section
     pages:
-      - name: getting-started
+      - ref: getting-started        # Child ref
         slug: "/getting-started"
         title: "Getting Started"
         content: !file ./content/getting-started.md
         
     customization:
-      name: partner-theme
+      ref: partner-theme            # Child ref
       theme:
         mode: "light"
         colors:
@@ -203,12 +216,14 @@ portals:
 ```yaml
 # WRONG - This will cause an error
 apis:
-  - name: my-api
+  - ref: my-api
+    name: "My API"
     kongctl:
       namespace: team-a
     
     versions:
-      - name: v1
+      - ref: v1
+        version: "1.0.0"
         kongctl:  # ❌ ERROR: kongctl not supported on child resources
           protected: true
 ```
@@ -218,8 +233,8 @@ apis:
 ```yaml
 # RISKY - No namespace means "default" namespace
 apis:
-  - name: payment-api
-    display_name: "Payment API"
+  - ref: payment-api
+    name: "Payment API"
     # Missing kongctl.namespace - will go to "default"
 ```
 
@@ -228,14 +243,14 @@ apis:
 ```yaml
 # CORRECT - Namespace on parent only
 apis:
-  - name: payment-api
-    display_name: "Payment API"
+  - ref: payment-api
+    name: "Payment API"
     kongctl:
       namespace: payments-team
       protected: true
     
     versions:
-      - name: v1
+      - ref: v1
         version: "1.0.0"
         # No kongctl here - correctly inherits from parent
 ```
