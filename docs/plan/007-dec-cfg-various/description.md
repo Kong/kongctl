@@ -1,90 +1,63 @@
-# KongCtl Stage 6 - Various Improvements and Testing
+# KongCtl Stage 7 - Testing, Documentation, and Core Improvements
 
 ## Goal
-Complete remaining improvements, UX enhancements, and comprehensive testing for declarative configuration management.
+Complete essential testing, documentation, and core improvements for declarative configuration management, focusing on production readiness and user experience.
 
-## Deliverables
-- Configuration discovery feature
-- Plan validation framework
-- Login command migration to Konnect-first
-- Comprehensive integration tests
-- Complete documentation updates
-- Various UX improvements
-- Extensive code review and refactoring
+## Deliverables (in priority order)
 
-## Sub-Tasks
+### 1. Complete Documentation Updates
 
-### 1. Configuration Discovery Feature
+Create comprehensive documentation for the declarative configuration feature.
 
-Implement visibility into unmanaged fields to help users progressively build configurations.
+#### Main README.md Updates
+- Apply vs sync command comparison
+- Best practices for declarative configuration
+- Migration guide from imperative to declarative
+- CI/CD integration examples
 
-```go
-// Add to apply/sync commands
-cmd.Flags().Bool("show-unmanaged", false, "Show unmanaged fields after execution")
+#### New Documentation Files
+- `docs/declarative-configuration.md` - Complete guide
+- `docs/examples/ci-cd-integration.md` - Automation patterns
+- `docs/troubleshooting.md` - Common issues and solutions
 
-// Discovery logic
-type UnmanagedFields struct {
-    ResourceType string
-    ResourceName string
-    Fields       map[string]interface{}
-}
+#### Enhanced Command Help Text
+```bash
+$ kongctl apply --help
+Apply configuration changes (create/update only)
 
-func DiscoverUnmanagedFields(current state.Portal, desired resources.PortalResource) UnmanagedFields {
-    unmanaged := UnmanagedFields{
-        ResourceType: "portal",
-        ResourceName: current.Name,
-        Fields:       make(map[string]interface{}),
-    }
-    
-    // Check each field in current state
-    if desired.DisplayName == nil && current.DisplayName != "" {
-        unmanaged.Fields["display_name"] = current.DisplayName
-    }
-    
-    if desired.AuthenticationEnabled == nil {
-        unmanaged.Fields["authentication_enabled"] = current.AuthenticationEnabled
-    }
-    
-    // Continue for all fields...
-    return unmanaged
-}
+This command creates new resources and updates existing ones based on
+your configuration files. It never deletes resources, making it safe
+for incremental updates in production.
+
+Usage:
+  kongctl apply [flags]
+
+Examples:
+  # Apply configuration from current directory
+  kongctl apply
+
+  # Apply with specific config files
+  kongctl apply --filename ./portals
+
+  # Preview changes without applying (dry-run)
+  kongctl apply --dry-run
+
+  # Apply from a pre-generated plan
+  kongctl apply --plan plan.json
+
+  # CI/CD automation with auto-approve
+  kongctl apply --auto-approve --output json
+
+Flags:
+      --auto-approve              Skip confirmation prompt
+      --dry-run                   Preview changes without applying
+  -f, --filename strings          Path to configuration files or directories
+  -h, --help                      help for apply
+      --output string             Output format (text|json|yaml) (default "text")
+      --plan string               Path to existing plan file (mutually exclusive with --filename)
 ```
 
-Expected output:
-```
-Discovered unmanaged fields for portal "my-portal":
-  - display_name: "Developer Portal"
-  - authentication_enabled: true
-  - rbac_enabled: false
-
-To manage these fields, add them to your configuration.
-```
-
-### 2. Plan Validation Framework
-
-Implement comprehensive validation before plan execution.
-
-```go
-// internal/declarative/validator/validator.go
-type PlanValidator struct {
-    client *state.KonnectClient
-}
-
-func (v *PlanValidator) ValidateForApply(plan *planner.Plan) error {
-    // Verify no DELETE operations
-    // Check resource states haven't changed
-    // Validate protection status
-    // Ensure references are valid
-}
-
-func (v *PlanValidator) ValidateForSync(plan *planner.Plan) error {
-    // Check resource states
-    // Validate protection status
-    // Verify managed labels
-}
-```
-
-### 3. Login Command Migration
+### 2. Login Command Migration to Konnect-First
 
 Update login to be Konnect-first without requiring product specification.
 
@@ -110,7 +83,7 @@ if len(args) > 0 && args[0] == "konnect" {
 }
 ```
 
-### 4. Comprehensive Integration Tests
+### 3. Comprehensive Integration Tests
 
 Create thorough integration tests for all declarative configuration flows.
 
@@ -145,106 +118,12 @@ TestSyncDryRun
 // test/integration/error_scenarios_test.go
 TestExecutorAPIErrors
 TestExecutorPartialFailure
-TestPlanValidationErrors
 TestProtectionViolations
 TestNetworkFailures
 TestInvalidConfigurations
 ```
 
-### 5. Documentation Updates
-
-#### Main README.md Updates
-- Apply vs sync command comparison
-- Best practices for declarative configuration
-- Migration guide from imperative to declarative
-- CI/CD integration examples
-
-#### New Documentation Files
-- `docs/declarative-configuration.md` - Complete guide
-- `docs/examples/ci-cd-integration.md` - Automation patterns
-- `docs/troubleshooting.md` - Common issues and solutions
-
-#### Command Help Text
-```bash
-$ kongctl apply --help
-Apply configuration changes (create/update only)
-
-This command creates new resources and updates existing ones based on
-your configuration files. It never deletes resources, making it safe
-for incremental updates in production.
-
-Usage:
-  kongctl apply [flags]
-
-Examples:
-  # Apply configuration from current directory
-  kongctl apply
-
-  # Apply with specific config files
-  kongctl apply --filename ./portals
-
-  # Preview changes without applying (dry-run)
-  kongctl apply --dry-run
-
-  # Apply from a pre-generated plan
-  kongctl apply --plan plan.json
-
-  # Generate and save plan while applying
-  kongctl apply --filename ./portals --plan-output-file generated-plan.json
-
-  # CI/CD automation with auto-approve
-  kongctl apply --auto-approve --output json
-
-Flags:
-      --auto-approve              Skip confirmation prompt
-      --dry-run                   Preview changes without applying
-  -f, --filename strings          Path to configuration files or directories
-  -h, --help                      help for apply
-      --output string             Output format (text|json|yaml) (default "text")
-      --plan string               Path to existing plan file (mutually exclusive with --filename)
-      --plan-output-file string   Save executed plan to file
-      --show-unmanaged            Show unmanaged fields after execution
-```
-
-### 6. Additional UX Improvements
-
-#### Plan Output File Flag
-Add `--plan-output-file` flag to apply and sync commands to save generated plans:
-```bash
-# Generate and apply plan from files, saving it for audit/review
-$ kongctl apply --filename ./portals --plan-output-file generated-plan.json
-✓ Plan generated and saved to generated-plan.json
-✓ Applied successfully
-
-# Use with sync command
-$ kongctl sync --filename ./portals --plan-output-file sync-plan.json
-
-# Also works when plan is provided via stdin
-$ cat plan.json | kongctl apply --plan - --plan-output-file executed-plan.json
-✓ Plan loaded from stdin
-✓ Plan saved to executed-plan.json
-✓ Applied successfully
-```
-
-The `--plan-output-file` flag is always available to save the plan being executed.
-
-#### Mutually Exclusive Arguments
-Ensure `--filename` and `--plan` are mutually exclusive for apply and sync commands:
-```go
-// Validation in command PreRunE
-if cmd.Flags().Changed("plan") && cmd.Flags().Changed("filename") {
-    return fmt.Errorf("cannot specify both --plan and --filename flags")
-}
-```
-
-Error message when both are specified:
-```bash
-$ kongctl apply --filename ./portals --plan existing-plan.json
-Error: cannot specify both --plan and --filename flags
-
-Use --filename to generate a new plan from configuration files, or
-use --plan to execute an existing plan file.
-```
+### 4. Critical UX Improvements
 
 #### Enhanced Error Messages
 ```go
@@ -254,16 +133,6 @@ use --plan to execute an existing plan file.
 // Add context to all errors
 return fmt.Errorf("failed to %s %s %q: %w", 
     action, resourceType, resourceName, apiError)
-```
-
-#### Progress Indicators
-```go
-// For long-running operations
-type ProgressReporter interface {
-    StartChange(change PlannedChange)
-    UpdateProgress(percent int, message string)
-    CompleteChange(change PlannedChange, err error)
-}
 ```
 
 #### Improved Plan Summary Display
@@ -288,13 +157,21 @@ Protected Resources (1):
 Total: 5 resources (2 create, 1 update, 1 delete, 1 protected)
 ```
 
-### 7. Migrate Remaining Internal SDK Usage
+#### Progress Indicators for Long Operations
+```go
+// For long-running operations
+type ProgressReporter interface {
+    StartChange(change PlannedChange)
+    UpdateProgress(percent int, message string)
+    CompleteChange(change PlannedChange, err error)
+}
+```
+
+### 5. Migrate Remaining Internal SDK Usage
 
 Complete the migration from internal to public Konnect SDK for all remaining commands.
 
 #### Dump Command Migration
-The `dump` command currently uses the internal SDK and needs to be migrated to the public SDK:
-
 ```go
 // Current: internal/cmd/root/verbs/dump/dump.go uses internal SDK
 // Migrate to use public SDK APIs where available
@@ -306,167 +183,38 @@ import kkInternal "github.com/Kong/sdk-konnect-go-internal"
 import kkSDK "github.com/Kong/sdk-konnect-go"
 ```
 
-#### Migration Steps
-1. **Inventory remaining internal SDK usage**:
-   ```bash
-   # Find all files still importing internal SDK
-   grep -r "sdk-konnect-go-internal" --include="*.go" .
-   ```
+### 6. Code Quality and Refactoring
 
-2. **Update dump command**:
-   - Check if all required APIs are available in public SDK
-   - Migrate API calls to use public SDK types
-   - Update error handling for new response types
-   - Maintain backward compatibility
+Conduct focused code review and refactoring for maintainability.
 
-3. **Remove internal SDK dependency**:
-   - Once all commands are migrated
-   - Update go.mod to remove internal SDK
-   - Clean up any remaining references
-
-#### Expected Changes
-```go
-// Example migration in dump.go
-func dumpPortals(ctx context.Context, sdk *kkSDK.SDK) error {
-    // Use public SDK's portal API
-    resp, err := sdk.Portals.ListPortals(ctx, operations.ListPortalsRequest{})
-    if err != nil {
-        return fmt.Errorf("failed to list portals: %w", err)
-    }
-    
-    // Process with public SDK types
-    for _, portal := range resp.ListPortalsResponse.Data {
-        // Export portal data
-    }
-}
-```
-
-### 8. Extensive Code Review and Refactoring
-
-Conduct a comprehensive code review focusing on code quality, maintainability, and architectural improvements.
-
-#### Review Focus Areas
-
-1. **Code Duplication (DRY)**
-   - Identify repeated patterns across resource types
-   - Extract common functionality into shared utilities
-   - Create generic interfaces where appropriate
-
-2. **Type-Specific Functions**
-   - Review adapter functions for each resource type
-   - Evaluate generic solutions to reduce boilerplate
-   - Consider code generation for repetitive patterns
-
-3. **Error Handling**
-   - Ensure consistent error wrapping and context
-   - Verify error messages are user-friendly
-   - Check for proper error propagation
-
-4. **Code Organization**
-   - Review package structure and dependencies
-   - Identify circular dependencies
-   - Ensure clear separation of concerns
-
-5. **Testing Coverage**
-   - Identify untested code paths
-   - Review test quality and maintainability
-   - Ensure edge cases are covered
-
-#### Refactoring Targets
-
-```go
-// Example: Generic resource operations to reduce duplication
-type ResourceOperations[T any] interface {
-    Create(ctx context.Context, resource T) error
-    Update(ctx context.Context, id string, resource T) error
-    Delete(ctx context.Context, id string) error
-}
-
-// Example: Common field comparison logic
-func CompareFields(current, desired map[string]interface{}) (changes map[string]interface{})
-
-// Example: Shared validation patterns
-type Validator interface {
-    Validate() error
-}
-```
-
-#### Code Quality Improvements
-
-1. **Reduce Complexity**
+#### Priority Areas
+1. **Reduce Code Duplication**
+   - Extract common patterns across resource types
+   - Create shared utilities for repeated logic
+   
+2. **Improve Error Handling**
+   - Consistent error wrapping
+   - User-friendly error messages
+   
+3. **Simplify Complex Functions**
    - Break down large functions
-   - Simplify nested conditionals
-   - Extract complex logic into well-named functions
-
-2. **Improve Naming**
-   - Ensure consistent naming conventions
-   - Use descriptive variable and function names
-   - Align with Go idioms
-
-3. **Documentation**
-   - Add missing godoc comments
-   - Update outdated documentation
-   - Include examples where helpful
-
-4. **Performance**
-   - Review for unnecessary allocations
-   - Optimize hot paths
-   - Consider concurrent operations where safe
-
-#### Review Process
-
-1. **Static Analysis**
-   ```bash
-   # Run linters with strict settings
-   golangci-lint run --enable-all
+   - Extract complex logic
    
-   # Check for cyclomatic complexity
-   gocyclo -over 10 .
-   
-   # Review code coverage
-   go test -coverprofile=coverage.out ./...
-   go tool cover -html=coverage.out
-   ```
-
-2. **Manual Review Checklist**
-   - [ ] No code duplication across resource types
-   - [ ] Consistent error handling patterns
-   - [ ] Clear package boundaries
-   - [ ] Adequate test coverage (>80%)
-   - [ ] No TODO comments without issues
-   - [ ] All exported functions have godoc
-   - [ ] No magic numbers or strings
-
-3. **Architectural Review**
-   - [ ] Clear separation between layers
-   - [ ] Minimal coupling between packages
-   - [ ] Consistent patterns across codebase
-   - [ ] Future extensibility considered
+4. **Test Coverage**
+   - Target >80% coverage
+   - Focus on error paths and edge cases
 
 ## Tests Required
-- Configuration discovery accuracy
-- Plan validation catches all error cases
-- Login command migration works smoothly
-- Integration tests cover all scenarios
-- Documentation is clear and complete
-- UX improvements enhance usability
-- Dump command works correctly with public SDK
-- All internal SDK usage is successfully migrated
-- Code review findings are addressed
-- Refactoring maintains functionality
+- Login command works with both old and new syntax
+- Integration tests cover all major workflows
+- Documentation is accurate and helpful
+- Error messages provide actionable information
+- Internal SDK migration maintains functionality
+- Refactoring doesn't break existing features
 
 ## Proof of Success
 ```bash
-# Configuration discovery helps users
-$ kongctl apply --show-unmanaged
-✓ Applied successfully
-
-Discovered unmanaged fields:
-portal "my-portal":
-  - rbac_enabled: false
-  - auto_approve_developers: true
-
-# Login is simpler
+# Simpler login
 $ kongctl login
 Opening browser for authentication...
 ✓ Successfully authenticated to Kong Konnect
@@ -480,37 +228,20 @@ Hint: Use 'kongctl sync' to take ownership of existing resources.
 $ make test-integration
 Running integration tests...
 ✓ 45 tests passed
-Coverage: 92.3%
-
-# Code quality improvements
-$ golangci-lint run
-✓ No issues found
-
-$ gocyclo -over 10 .
-✓ All functions below complexity threshold
+Coverage: 85%
 
 # Internal SDK migration complete
 $ grep -r "sdk-konnect-go-internal" --include="*.go" .
 ✓ No internal SDK usage found
-
-$ kongctl dump konnect
-✓ Successfully exported all resources using public SDK
-
-# Review complete
-✓ Removed 300+ lines of duplicated code
-✓ Extracted 5 common interfaces
-✓ Improved error messages across codebase
-✓ Test coverage increased to 85%
-✓ Migrated all commands to public SDK
 ```
 
 ## Dependencies
-- Stages 1-5 completion
-- Understanding of user workflows
-- Feedback from early adopters
+- Stages 1-6 completion
+- User feedback on current implementation
+- Understanding of common user workflows
 
 ## Notes
-- Focus on developer experience and usability
-- Ensure all features are well-tested
-- Documentation should cover real-world scenarios
-- Consider future extensibility in all designs
+- Focus on production readiness and user experience
+- Prioritize documentation as it enables adoption
+- Keep scope focused on essential improvements
+- Consider maintenance burden in all decisions

@@ -194,24 +194,33 @@ The first major feature being implemented is declarative configuration managemen
   - Namespace isolation during sync
   - Clear namespace visibility in output
 
-#### Stage 7: Various Improvements and Testing 🔮 Future
-**Goal**: Complete remaining improvements, UX enhancements, and comprehensive testing
+#### Stage 7: Testing, Documentation, and Core Improvements 🔮 Future
+**Goal**: Complete essential testing, documentation, and core improvements for production readiness
 
 | Document | Purpose | Status |
 |----------|---------|---------|
-| [description.md](007-dec-cfg-various/description.md) | Requirements | ✅ Created |
+| [description.md](007-dec-cfg-various/description.md) | Requirements | ✅ Updated |
 | execution-plan-*.md | Implementation docs | 🔮 Not yet created |
 
 **Implementation Status**: Not started
 - **Dependencies**: Stages 1-6 completion
-- **Key deliverables**: 
-  - Configuration discovery feature
-  - Plan validation framework
+- **Key deliverables** (prioritized): 
+  - Complete documentation updates
   - Login command migration to Konnect-first
   - Comprehensive integration tests
-  - Complete documentation updates
-  - Various UX improvements
-  - Extensive code review and refactoring
+  - Critical UX improvements
+  - Migrate remaining internal SDK usage
+  - Code quality and refactoring
+
+#### Future Work 💭
+**Goal**: Capture ideas for future enhancements
+
+| Document | Purpose | Status |
+|----------|---------|---------|
+| [README.md](future/README.md) | Future work index | ✅ Created |
+| [configuration-discovery.md](future/configuration-discovery.md) | Show unmanaged fields | ✅ Created |
+
+**Note**: Features moved here are nice-to-have but not critical for core functionality
 
 ## Current Implementation Priority
 
