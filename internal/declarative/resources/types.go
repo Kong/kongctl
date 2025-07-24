@@ -23,7 +23,9 @@ type ResourceSet struct {
 // KongctlMeta contains tool-specific metadata for resources
 type KongctlMeta struct {
 	// Protected prevents accidental deletion of critical resources
-	Protected bool `yaml:"protected,omitempty"`
+	Protected bool `yaml:"protected,omitempty" json:"protected,omitempty"`
+	// Namespace for resource isolation and multi-team management
+	Namespace string `yaml:"namespace,omitempty" json:"namespace,omitempty"`
 }
 
 // ResourceValidator interface for common validation behavior

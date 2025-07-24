@@ -5,6 +5,7 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/stretchr/testify/assert"
+	"sigs.k8s.io/yaml"
 )
 
 func TestPortalResource_Validation(t *testing.T) {
@@ -502,13 +503,55 @@ func TestKongctlMeta(t *testing.T) {
 	t.Run("KongctlMeta structure", func(t *testing.T) {
 		meta := &KongctlMeta{
 			Protected: true,
+			Namespace: "team-a",
 		}
 		
 		assert.True(t, meta.Protected, "Protected field should be settable")
+		assert.Equal(t, "team-a", meta.Namespace, "Namespace field should be settable")
 		
 		// Test zero value
 		var zeroMeta KongctlMeta
 		assert.False(t, zeroMeta.Protected, "Default Protected should be false")
+		assert.Equal(t, "", zeroMeta.Namespace, "Default Namespace should be empty string")
+	})
+	
+	t.Run("KongctlMeta YAML marshaling", func(t *testing.T) {
+		// Test marshaling with values
+		meta := &KongctlMeta{
+			Protected: true,
+			Namespace: "production",
+		}
+		
+		data, err := yaml.Marshal(meta)
+		assert.NoError(t, err, "Should marshal without error")
+		
+		expected := "namespace: production\nprotected: true\n"
+		assert.Equal(t, expected, string(data), "Should marshal to expected YAML")
+		
+		// Test unmarshaling
+		var unmarshaledMeta KongctlMeta
+		err = yaml.Unmarshal(data, &unmarshaledMeta)
+		assert.NoError(t, err, "Should unmarshal without error")
+		assert.Equal(t, meta.Protected, unmarshaledMeta.Protected, "Protected should match after unmarshaling")
+		assert.Equal(t, meta.Namespace, unmarshaledMeta.Namespace, "Namespace should match after unmarshaling")
+	})
+	
+	t.Run("KongctlMeta omitempty behavior", func(t *testing.T) {
+		// Test with zero values (should omit fields)
+		meta := &KongctlMeta{}
+		
+		data, err := yaml.Marshal(meta)
+		assert.NoError(t, err, "Should marshal without error")
+		assert.Equal(t, "{}\n", string(data), "Should omit empty fields")
+		
+		// Test with only namespace set
+		meta = &KongctlMeta{
+			Namespace: "team-b",
+		}
+		
+		data, err = yaml.Marshal(meta)
+		assert.NoError(t, err, "Should marshal without error")
+		assert.Equal(t, "namespace: team-b\n", string(data), "Should only include namespace field")
 	})
 }
 
