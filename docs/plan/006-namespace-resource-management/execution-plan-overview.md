@@ -92,12 +92,14 @@ type KongctlDefaults struct {
 
 **Important**: To stay within Konnect's 5-label limit, we're removing the 
 `KONGCTL-managed` and `KONGCTL-last-updated` labels. The namespace label will 
-serve as both ownership and management indicator.
+serve as both ownership and management indicator. Additionally, the protected 
+label is only added when a resource is actually protected.
 
 - Add `NamespaceKey = "KONGCTL-namespace"` constant
 - Remove deprecated `ManagedKey` and `LastUpdatedKey` constants
-- Update `BuildCreateLabels` to only add namespace and protected labels
+- Update `BuildCreateLabels` to add namespace always, protected only when true
 - Replace managed resource checks with namespace presence
+- Default case: 1 label (namespace), Protected case: 2 labels (namespace + protected)
 
 ### Planning Changes
 

@@ -1,8 +1,8 @@
 # Stage 6: Namespace-Based Resource Management - Implementation Steps
 
 ## Progress Summary
-**Progress**: 1/13 steps completed (8%)  
-**Current Step**: Step 2 - Define _defaults Configuration Structure
+**Progress**: 1/15 steps completed (7%)  
+**Current Step**: Step 2 - Remove KongctlMeta from Child Resources
 
 ## Overview
 This document outlines the step-by-step implementation plan for adding 
@@ -30,7 +30,54 @@ same pattern as the protected field.
 
 ---
 
-### Step 2: Define _defaults Configuration Structure
+### Step 2: Remove KongctlMeta from Child Resources
+**Status**: Not Started
+
+Remove the kongctl metadata field from all child resource types since Konnect 
+doesn't support labels on child resources.
+
+**Files to modify**:
+- `internal/declarative/resources/api_version.go`
+- `internal/declarative/resources/api_publication.go`
+- `internal/declarative/resources/api_implementation.go`
+- `internal/declarative/resources/api_document.go`
+
+**Changes**:
+- Remove `Kongctl *KongctlMeta` field from all child resource structs
+- Add validation to reject kongctl sections in child resources
+- Update any tests that reference child resource kongctl fields
+
+**Acceptance criteria**:
+- Child resources cannot have kongctl metadata in configuration
+- Clear error message if user tries to add kongctl to child resources
+- All child resource types updated consistently
+- Tests pass without kongctl on child resources
+
+---
+
+### Step 3: Define Namespace Field for Parent Resources
+**Status**: Not Started
+
+Clarify that namespace field is only valid on parent resources by updating 
+configuration documentation and examples.
+
+**Files to modify**:
+- Configuration examples in docs
+- README sections about namespace usage
+
+**Changes**:
+- Document that only parent resources support kongctl.namespace
+- Update examples to show namespace only on APIs, Portals, Auth Strategies
+- Add note about child resource namespace inheritance
+
+**Acceptance criteria**:
+- Clear documentation about parent-only namespace support
+- Examples follow correct patterns
+- No misleading configurations
+
+---
+
+### Step 4: Define _defaults Configuration Structure
 **Status**: Not Started
 
 Create the configuration types for file-level defaults, starting with 
@@ -51,7 +98,7 @@ namespace support.
 
 ---
 
-### Step 3: Implement Defaults Parsing in Loader
+### Step 5: Implement Defaults Parsing in Loader
 **Status**: Not Started
 
 Update the configuration loader to parse and store the _defaults section 
@@ -72,7 +119,7 @@ from YAML files.
 
 ---
 
-### Step 4: Apply Namespace Defaults During Loading
+### Step 6: Apply Namespace Defaults During Loading
 **Status**: Not Started
 
 Implement the logic to apply file-level namespace defaults to resources 
@@ -93,7 +140,7 @@ that don't explicitly specify a namespace.
 
 ---
 
-### Step 5: Update Label Constants and Remove Deprecated Labels
+### Step 7: Update Label Constants and Remove Deprecated Labels
 **Status**: Not Started
 
 Add the namespace label constant and remove deprecated managed/last-updated 
@@ -105,19 +152,21 @@ labels to stay within Konnect's 5-label limit.
 **Changes**:
 - Add `NamespaceKey = "KONGCTL-namespace"` constant
 - Remove or deprecate `ManagedKey` and `LastUpdatedKey` constants
-- Update `AddManagedLabels` to only add namespace and protected labels
+- Update `AddManagedLabels` to only add namespace label (and protected when true)
 - Update `AddManagedLabelsToPointerMap` similarly
 - Replace `IsManagedResource` to check namespace presence instead
+- Only add `KONGCTL-protected: true` when resource is actually protected
 
 **Acceptance criteria**:
 - Namespace constant follows existing naming pattern
 - No more KONGCTL-managed or KONGCTL-last-updated labels added
+- Protected label only added when kongctl.protected is true
 - Resources identified by namespace presence
-- Total KONGCTL labels reduced from 3 to 2
+- Default case uses only 1 label (namespace)
 
 ---
 
-### Step 6: Update Planners for Namespace Handling
+### Step 8: Update Planners for Namespace Handling
 **Status**: Not Started
 
 Modify the resource planners to handle the namespace field and pass it 
@@ -141,7 +190,7 @@ through to planned changes.
 
 ---
 
-### Step 7: Update Label Handling in Executors
+### Step 9: Update Label Handling in Executors
 **Status**: Not Started
 
 Update executors to convert namespace field to label and remove deprecated 
@@ -169,7 +218,7 @@ label handling.
 
 ---
 
-### Step 8: Update State Client for Namespace-Based Resource Management
+### Step 10: Update State Client for Namespace-Based Resource Management
 **Status**: Not Started
 
 Update the state client to use namespace presence for resource management 
@@ -194,7 +243,7 @@ instead of the deprecated KONGCTL-managed label.
 
 ---
 
-### Step 9: Group Resources by Namespace in Planner
+### Step 11: Group Resources by Namespace in Planner
 **Status**: Not Started
 
 Implement namespace grouping logic in the main planner to process each 
@@ -215,7 +264,7 @@ namespace independently.
 
 ---
 
-### Step 10: Update Command Output for Namespace Visibility
+### Step 12: Update Command Output for Namespace Visibility
 **Status**: Not Started
 
 Enhance command output to clearly show namespace operations and provide 
@@ -239,7 +288,7 @@ better visibility.
 
 ---
 
-### Step 11: Add Namespace Validation
+### Step 13: Add Namespace Validation
 **Status**: Not Started
 
 Implement validation to ensure namespace consistency and prevent errors.
@@ -260,7 +309,7 @@ Implement validation to ensure namespace consistency and prevent errors.
 
 ---
 
-### Step 12: Create Integration Tests
+### Step 14: Create Integration Tests
 **Status**: Not Started
 
 Add comprehensive integration tests for namespace functionality.
@@ -282,7 +331,7 @@ Add comprehensive integration tests for namespace functionality.
 
 ---
 
-### Step 13: Update Documentation and Examples
+### Step 15: Update Documentation and Examples
 **Status**: Not Started
 
 Create documentation and examples showing namespace usage.
@@ -307,12 +356,12 @@ Create documentation and examples showing namespace usage.
 
 ## Summary
 
-Total steps: 13
+Total steps: 15
 
 Implementation order is designed to:
-1. Build core infrastructure (Steps 1-5)
-2. Integrate with existing systems (Steps 6-9)
-3. Enhance user experience (Steps 10-11)
-4. Ensure quality (Steps 12-13)
+1. Build core infrastructure (Steps 1-7)
+2. Integrate with existing systems (Steps 8-11)
+3. Enhance user experience (Steps 12-13)
+4. Ensure quality (Steps 14-15)
 
 Each step builds on previous work and can be tested independently.

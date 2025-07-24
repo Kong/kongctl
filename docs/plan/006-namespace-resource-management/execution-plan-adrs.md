@@ -280,6 +280,71 @@ Remove `KONGCTL-managed` and `KONGCTL-last-updated` labels:
 
 ---
 
+---
+
+## ADR-006-010: Remove KongctlMeta from Child Resources
+
+### Status
+Accepted
+
+### Context
+Child resources (API versions, publications, implementations, documents, portal 
+pages, customizations, domains, snippets) currently have a `Kongctl *KongctlMeta` 
+field in their structs. However, Konnect API doesn't support labels on child 
+resources, making this field misleading and useless.
+
+### Decision
+Remove the `Kongctl *KongctlMeta` field from all child resource types:
+- API child resources: versions, publications, implementations, documents
+- Portal child resources: pages, customizations, custom domains, snippets
+- Add validation to reject kongctl sections in child resource YAML
+- Child resources inherit namespace behavior from their parent
+
+### Consequences
+**Positive:**
+- Configuration matches reality (no false promises)
+- Simpler code and data model
+- Clear error messages prevent user confusion
+- Less memory usage and cleaner structs
+
+**Negative:**
+- Breaking change for any existing configs with child resource kongctl sections
+- Need to update examples and documentation
+- Slightly less flexibility if Konnect adds child labels in future
+
+---
+
+## ADR-006-011: Only Add Protected Label When True
+
+### Status
+Accepted
+
+### Context
+Currently we add `KONGCTL-protected: false` to all resources by default. With 
+Konnect's 5-label limit, every label counts. We can infer that a resource is 
+not protected if the label is absent.
+
+### Decision
+Only add the `KONGCTL-protected: true` label when a resource is explicitly 
+protected:
+- If `kongctl.protected: true` → Add label
+- If `kongctl.protected: false` or not specified → No label
+- Absence of label means not protected
+
+### Consequences
+**Positive:**
+- Saves a label slot in the common case (most resources aren't protected)
+- Default case uses only 1 label (namespace), leaving 4 for users (80%)
+- Protected resources use 2 labels, leaving 3 for users (60%)
+- Cleaner resource representation
+
+**Negative:**
+- Slight code change to check for label presence vs checking value
+- Cannot distinguish between "explicitly not protected" vs "default not protected"
+- Need to update existing protected checking logic
+
+---
+
 ## Summary of Decisions
 
 1. **Implementation**: Use existing label system
@@ -291,5 +356,7 @@ Remove `KONGCTL-managed` and `KONGCTL-last-updated` labels:
 7. **Mutability**: Namespaces cannot be changed
 8. **Terminology**: "namespace" over other terms
 9. **Label Optimization**: Remove managed/last-updated labels, use namespace as indicator
+10. **Child Resources**: Remove KongctlMeta from child resource types
+11. **Protected Label**: Only add when resource is actually protected
 
-These decisions balance safety and explicit configuration with ease of use, while respecting Konnect's label limitations and supporting both simple single-team use cases and complex multi-team scenarios.
+These decisions balance safety and explicit configuration with ease of use, while maximizing available labels for users within Konnect's strict 5-label limit.
