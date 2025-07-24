@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"time"
 )
 
 // Label keys used by kongctl
@@ -13,9 +12,13 @@ const (
 	KongctlPrefix = "KONGCTL-"
 	
 	// Label keys (using prefix to avoid repetition)
-	ManagedKey     = KongctlPrefix + "managed"
-	LastUpdatedKey = KongctlPrefix + "last-updated"
-	ProtectedKey   = KongctlPrefix + "protected"
+	NamespaceKey = KongctlPrefix + "namespace"
+	ProtectedKey = KongctlPrefix + "protected"
+	
+	// Deprecated label keys (kept for backward compatibility)
+	// TODO: Remove in future version after migration period
+	ManagedKey     = KongctlPrefix + "managed"     // Deprecated: use namespace presence instead
+	LastUpdatedKey = KongctlPrefix + "last-updated" // Deprecated: not needed
 	
 	// Environment variables
 	DebugEnvVar = "KONGCTL_DEBUG"
@@ -54,7 +57,8 @@ func DenormalizeLabels(labels map[string]string) map[string]*string {
 }
 
 // AddManagedLabels adds kongctl management labels
-func AddManagedLabels(labels map[string]string) map[string]string {
+// This now adds namespace label and optional protected label
+func AddManagedLabels(labels map[string]string, namespace string) map[string]string {
 	if labels == nil {
 		labels = make(map[string]string)
 	}
@@ -65,23 +69,23 @@ func AddManagedLabels(labels map[string]string) map[string]string {
 		result[k] = v
 	}
 	
-	// Add management labels
-	result[ManagedKey] = TrueValue
-	// Use a timestamp format that only contains allowed characters for labels
-	// Format: YYYYMMDD-HHMMSSZ (no colons allowed in label values)
-	result[LastUpdatedKey] = time.Now().UTC().Format("20060102-150405Z")
+	// Add namespace label (required)
+	result[NamespaceKey] = namespace
 	
-	// If protected label is not already set by the executor, default to false
-	if _, exists := result[ProtectedKey]; !exists {
-		result[ProtectedKey] = FalseValue
-	}
+	// Note: Protected label is handled separately by executors
+	// It's only added when explicitly set to true
 	
 	return result
 }
 
-// IsManagedResource checks if resource has managed label
+// IsManagedResource checks if resource has namespace label (new criteria for managed resources)
 func IsManagedResource(labels map[string]string) bool {
-	return labels != nil && labels[ManagedKey] == TrueValue
+	if labels == nil {
+		return false
+	}
+	// A resource is considered managed if it has a namespace label
+	_, hasNamespace := labels[NamespaceKey]
+	return hasNamespace
 }
 
 // IsProtectedResource checks if resource has protected label set to true
@@ -156,7 +160,7 @@ func ValidateLabel(key string) error {
 
 // AddManagedLabelsToPointerMap adds kongctl management labels to a pointer map
 // This function preserves nil values (for label removal) while adding KONGCTL labels
-func AddManagedLabelsToPointerMap(labels map[string]*string) map[string]*string {
+func AddManagedLabelsToPointerMap(labels map[string]*string, namespace string) map[string]*string {
 	if labels == nil {
 		labels = make(map[string]*string)
 	}
@@ -167,19 +171,11 @@ func AddManagedLabelsToPointerMap(labels map[string]*string) map[string]*string 
 		result[k] = v
 	}
 	
-	// Add management labels as pointers
-	managedValue := TrueValue
-	result[ManagedKey] = &managedValue
+	// Add namespace label as pointer
+	result[NamespaceKey] = &namespace
 	
-	// Add timestamp
-	timestamp := time.Now().UTC().Format("20060102-150405Z")
-	result[LastUpdatedKey] = &timestamp
-	
-	// If protected label is not already set, default to false
-	if _, exists := result[ProtectedKey]; !exists {
-		protectedValue := FalseValue
-		result[ProtectedKey] = &protectedValue
-	}
+	// Note: Protected label is handled separately by executors
+	// It's only added when explicitly set to true
 	
 	return result
 }
@@ -230,8 +226,8 @@ func BuildCreateLabels(userLabels map[string]string, protection interface{}) map
 	}
 	result[ProtectedKey] = protectionValue
 
-	// Note: Managed and last-updated labels will be added by the client
-	// This is to ensure they're added after any normalization
+	// Note: Namespace label will be added by the client
+	// This is to ensure it's added after any normalization
 
 	return result
 }
@@ -279,7 +275,7 @@ func BuildUpdateLabels(desiredLabels, currentLabels map[string]string, protectio
 	
 	result[ProtectedKey] = &protectionValue
 
-	// Note: Managed and last-updated labels will be added by the client
+	// Note: Namespace label will be added by the client
 	// using AddManagedLabelsToPointerMap to preserve nil values
 
 	return result

@@ -82,7 +82,9 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 	logger.Debug("Final portal before creation",
 		slog.String("name", portal.Name),
 		slog.Any("labels", portal.Labels))
-	resp, err := e.client.CreatePortal(ctx, portal)
+	// TODO: Get namespace from PlannedChange after Step 8
+	namespace := "default"
+	resp, err := e.client.CreatePortal(ctx, portal, namespace)
 	if err != nil {
 		return "", err
 	}
@@ -207,7 +209,9 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 	}
 	
 	// Update the portal
-	resp, err := e.client.UpdatePortal(ctx, change.ResourceID, updatePortal)
+	// TODO: Get namespace from PlannedChange after Step 8
+	namespace := "default"
+	resp, err := e.client.UpdatePortal(ctx, change.ResourceID, updatePortal, namespace)
 	if err != nil {
 		return "", err
 	}

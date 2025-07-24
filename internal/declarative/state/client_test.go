@@ -108,7 +108,7 @@ func TestListManagedPortals(t *testing.T) {
 											ID:   "portal-1",
 											Name: "Managed Portal",
 											Labels: map[string]string{
-												labels.ManagedKey: "true",
+												labels.NamespaceKey: "default",
 											},
 										},
 										{
@@ -122,8 +122,7 @@ func TestListManagedPortals(t *testing.T) {
 											ID:   "portal-3",
 											Name: "Another Managed",
 											Labels: map[string]string{
-												labels.ManagedKey:    "true",
-												labels.LastUpdatedKey: "abc123",
+												labels.NamespaceKey: "team-a",
 											},
 										},
 									},
@@ -162,7 +161,7 @@ func TestListManagedPortals(t *testing.T) {
 											ID:   "portal-1",
 											Name: "Managed 1",
 											Labels: map[string]string{
-												labels.ManagedKey: "true",
+												labels.NamespaceKey: "default",
 											},
 										},
 									},
@@ -181,7 +180,7 @@ func TestListManagedPortals(t *testing.T) {
 											ID:   "portal-2",
 											Name: "Managed 2",
 											Labels: map[string]string{
-												labels.ManagedKey: "true",
+												labels.NamespaceKey: "default",
 											},
 										},
 									},
@@ -271,14 +270,14 @@ func TestGetPortalByName(t *testing.T) {
 										ID:   "portal-1",
 										Name: "Other Portal",
 										Labels: map[string]string{
-											labels.ManagedKey: "true",
+											labels.NamespaceKey: "default",
 										},
 									},
 									{
 										ID:   "portal-2",
 										Name: "Target Portal",
 										Labels: map[string]string{
-											labels.ManagedKey: "true",
+											labels.NamespaceKey: "default",
 										},
 									},
 								},
@@ -304,7 +303,7 @@ func TestGetPortalByName(t *testing.T) {
 										ID:   "portal-1",
 										Name: "Other Portal",
 										Labels: map[string]string{
-											labels.ManagedKey: "true",
+											labels.NamespaceKey: "default",
 										},
 									},
 								},
@@ -378,11 +377,8 @@ func TestCreatePortal(t *testing.T) {
 					createPortalFunc: func(_ context.Context,
 						portal kkComps.CreatePortal) (*kkOps.CreatePortalResponse, error) {
 						// Verify labels were added
-						if portal.Labels[labels.ManagedKey] == nil || *portal.Labels[labels.ManagedKey] != "true" {
-							t.Errorf("Expected managed label to be true")
-						}
-						if portal.Labels[labels.LastUpdatedKey] == nil {
-							t.Errorf("Expected last updated label to be set")
+						if portal.Labels[labels.NamespaceKey] == nil || *portal.Labels[labels.NamespaceKey] != "default" {
+							t.Errorf("Expected namespace label to be default")
 						}
 						// User label should still exist
 						if portal.Labels["env"] == nil || *portal.Labels["env"] != "production" {
@@ -453,7 +449,7 @@ func TestCreatePortal(t *testing.T) {
 			client := NewClient(ClientConfig{
 				PortalAPI: tt.setupMock(),
 			})
-			resp, err := client.CreatePortal(testContextWithLogger(), tt.portal)
+			resp, err := client.CreatePortal(testContextWithLogger(), tt.portal, "default")
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreatePortal() error = %v, wantErr %v", err, tt.wantErr)
@@ -494,14 +490,11 @@ func TestUpdatePortal(t *testing.T) {
 							t.Errorf("Expected portal ID portal-123, got %s", id)
 						}
 						// Verify labels were added
-						if portal.Labels[labels.ManagedKey] == nil || *portal.Labels[labels.ManagedKey] != "true" {
-							t.Errorf("Expected managed label to be true")
+						if portal.Labels[labels.NamespaceKey] == nil || *portal.Labels[labels.NamespaceKey] != "default" {
+							t.Errorf("Expected namespace label to be default")
 						}
-						if portal.Labels[labels.LastUpdatedKey] == nil || *portal.Labels[labels.LastUpdatedKey] == "" {
+						if portal.Labels["config-hash"] == nil || *portal.Labels["config-hash"] != "newhash456" {
 							t.Errorf("Expected config hash label to be newhash456")
-						}
-						if portal.Labels[labels.LastUpdatedKey] == nil {
-							t.Errorf("Expected last updated label to be set")
 						}
 						// User label should still exist
 						if portal.Labels["env"] == nil || *portal.Labels["env"] != "staging" {
@@ -577,7 +570,7 @@ func TestUpdatePortal(t *testing.T) {
 			client := NewClient(ClientConfig{
 				PortalAPI: tt.setupMock(),
 			})
-			resp, err := client.UpdatePortal(testContextWithLogger(), tt.portalID, tt.portal)
+			resp, err := client.UpdatePortal(testContextWithLogger(), tt.portalID, tt.portal, "default")
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdatePortal() error = %v, wantErr %v", err, tt.wantErr)

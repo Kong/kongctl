@@ -244,6 +244,7 @@ func (c *Client) GetPortalByFilter(ctx context.Context, filter string) (*Portal,
 func (c *Client) CreatePortal(
 	ctx context.Context,
 	portal kkComps.CreatePortal,
+	namespace string,
 ) (*kkComps.PortalResponse, error) {
 	// Get logger from context
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
@@ -256,7 +257,7 @@ func (c *Client) CreatePortal(
 	logger.Debug("Normalized labels",
 		slog.Any("labels", normalized))
 
-	normalized = labels.AddManagedLabels(normalized)
+	normalized = labels.AddManagedLabels(normalized, namespace)
 	logger.Debug("After adding managed labels",
 		slog.Any("labels", normalized))
 
@@ -293,10 +294,11 @@ func (c *Client) UpdatePortal(
 	ctx context.Context,
 	id string,
 	portal kkComps.UpdatePortal,
+	namespace string,
 ) (*kkComps.PortalResponse, error) {
 	// Add management labels directly to pointer map to preserve nil values
 	// This allows label removal (nil values) to work correctly
-	portal.Labels = labels.AddManagedLabelsToPointerMap(portal.Labels)
+	portal.Labels = labels.AddManagedLabelsToPointerMap(portal.Labels, namespace)
 
 	resp, err := c.portalAPI.UpdatePortal(ctx, id, portal)
 	if err != nil {
@@ -438,6 +440,7 @@ func (c *Client) GetAPIByRef(ctx context.Context, ref string) (*API, error) {
 func (c *Client) CreateAPI(
 	ctx context.Context,
 	api kkComps.CreateAPIRequest,
+	namespace string,
 ) (*kkComps.APIResponseSchema, error) {
 	if c.apiAPI == nil {
 		return nil, fmt.Errorf("API client not configured")
@@ -454,7 +457,7 @@ func (c *Client) CreateAPI(
 		api.Labels = make(map[string]string)
 	}
 
-	api.Labels = labels.AddManagedLabels(api.Labels)
+	api.Labels = labels.AddManagedLabels(api.Labels, namespace)
 	logger.Debug("After adding managed labels",
 		slog.Any("labels", api.Labels))
 
@@ -484,6 +487,7 @@ func (c *Client) UpdateAPI(
 	ctx context.Context,
 	id string,
 	api kkComps.UpdateAPIRequest,
+	namespace string,
 ) (*kkComps.APIResponseSchema, error) {
 	if c.apiAPI == nil {
 		return nil, fmt.Errorf("API client not configured")
@@ -491,7 +495,7 @@ func (c *Client) UpdateAPI(
 
 	// Add management labels directly to pointer map to preserve nil values
 	// This allows label removal (nil values) to work correctly
-	api.Labels = labels.AddManagedLabelsToPointerMap(api.Labels)
+	api.Labels = labels.AddManagedLabelsToPointerMap(api.Labels, namespace)
 
 	resp, err := c.apiAPI.UpdateAPI(ctx, id, api)
 	if err != nil {
@@ -930,6 +934,7 @@ func (c *Client) GetAPIDocument(ctx context.Context, apiID, documentID string) (
 func (c *Client) CreateApplicationAuthStrategy(
 	ctx context.Context,
 	authStrategy kkComps.CreateAppAuthStrategyRequest,
+	namespace string,
 ) (*kkOps.CreateAppAuthStrategyResponse, error) {
 	if c.appAuthAPI == nil {
 		return nil, fmt.Errorf("app auth API client not configured")
@@ -946,7 +951,7 @@ func (c *Client) CreateApplicationAuthStrategy(
 		}
 
 		normalized := labels.NormalizeLabels(pointerLabels)
-		normalized = labels.AddManagedLabels(normalized)
+		normalized = labels.AddManagedLabels(normalized, namespace)
 
 		// Convert back to map[string]string
 		stringLabels := make(map[string]string)
@@ -964,7 +969,7 @@ func (c *Client) CreateApplicationAuthStrategy(
 		}
 
 		normalized := labels.NormalizeLabels(pointerLabels)
-		normalized = labels.AddManagedLabels(normalized)
+		normalized = labels.AddManagedLabels(normalized, namespace)
 
 		// Convert back to map[string]string
 		stringLabels := make(map[string]string)
@@ -1136,6 +1141,7 @@ func (c *Client) UpdateApplicationAuthStrategy(
 	ctx context.Context,
 	id string,
 	authStrategy kkComps.UpdateAppAuthStrategyRequest,
+	namespace string,
 ) (*kkOps.UpdateAppAuthStrategyResponse, error) {
 	if c.appAuthAPI == nil {
 		return nil, fmt.Errorf("app auth API client not configured")
@@ -1143,7 +1149,7 @@ func (c *Client) UpdateApplicationAuthStrategy(
 
 	// Add management labels directly to pointer map to preserve nil values
 	// This allows label removal (nil values) to work correctly
-	authStrategy.Labels = labels.AddManagedLabelsToPointerMap(authStrategy.Labels)
+	authStrategy.Labels = labels.AddManagedLabelsToPointerMap(authStrategy.Labels, namespace)
 
 	resp, err := c.appAuthAPI.UpdateAppAuthStrategy(ctx, id, authStrategy)
 	if err != nil {

@@ -45,7 +45,9 @@ func (e *Executor) createAPI(ctx context.Context, change planner.PlannedChange) 
 	logger.Debug("Final API before creation",
 		slog.String("name", api.Name),
 		slog.Any("labels", api.Labels))
-	resp, err := e.client.CreateAPI(ctx, api)
+	// TODO: Get namespace from PlannedChange after Step 8
+	namespace := "default"
+	resp, err := e.client.CreateAPI(ctx, api, namespace)
 	if err != nil {
 		return "", err
 	}
@@ -136,7 +138,9 @@ func (e *Executor) updateAPI(ctx context.Context, change planner.PlannedChange) 
 	}
 	
 	// Update the API
-	resp, err := e.client.UpdateAPI(ctx, change.ResourceID, updateAPI)
+	// TODO: Get namespace from PlannedChange after Step 8
+	namespace := "default"
+	resp, err := e.client.UpdateAPI(ctx, change.ResourceID, updateAPI, namespace)
 	if err != nil {
 		return "", err
 	}

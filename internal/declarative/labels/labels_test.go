@@ -3,7 +3,6 @@ package labels
 import (
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestNormalizeLabels(t *testing.T) {
@@ -113,8 +112,8 @@ func TestAddManagedLabels(t *testing.T) {
 			input: nil,
 			verify: func(t *testing.T, result map[string]string) {
 				checkManagedLabels(t, result, "")
-				if len(result) != 3 { // managed, timestamp, protected
-					t.Errorf("Expected 3 labels, got %d", len(result))
+				if len(result) != 1 { // only namespace
+					t.Errorf("Expected 1 label, got %d", len(result))
 				}
 			},
 		},
@@ -138,7 +137,7 @@ func TestAddManagedLabels(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := AddManagedLabels(tt.input)
+			result := AddManagedLabels(tt.input, "default")
 			tt.verify(t, result)
 		})
 	}
@@ -161,25 +160,25 @@ func TestIsManagedResource(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "managed resource",
+			name: "managed resource with namespace",
 			labels: map[string]string{
-				ManagedKey: "true",
+				NamespaceKey: "default",
 			},
 			expected: true,
 		},
 		{
-			name: "unmanaged resource",
+			name: "unmanaged resource without namespace",
 			labels: map[string]string{
 				"env": "production",
 			},
 			expected: false,
 		},
 		{
-			name: "managed label with wrong value",
+			name: "resource with namespace",
 			labels: map[string]string{
-				ManagedKey: "false",
+				NamespaceKey: "team-a",
 			},
-			expected: false,
+			expected: true,
 		},
 	}
 
@@ -394,18 +393,11 @@ func mapsEqual(a, b map[string]string) bool {
 }
 
 func checkManagedLabels(t *testing.T, labels map[string]string, _ string) {
-	if labels[ManagedKey] != "true" {
-		t.Errorf("Expected %s=true, got %s", ManagedKey, labels[ManagedKey])
+	// Check namespace label exists
+	if labels[NamespaceKey] != "default" {
+		t.Errorf("Expected %s=default, got %s", NamespaceKey, labels[NamespaceKey])
 	}
 	
-	// Check timestamp format - should be YYYYMMDD-HHMMSSZ
-	timestamp := labels[LastUpdatedKey]
-	if _, err := time.Parse("20060102-150405Z", timestamp); err != nil {
-		t.Errorf("Invalid timestamp format: %s, error: %v", timestamp, err)
-	}
-	
-	// Check protected label exists with default value
-	if _, exists := labels[ProtectedKey]; !exists {
-		t.Errorf("Expected %s label to exist", ProtectedKey)
-	}
+	// Protected label should not be added by AddManagedLabels anymore
+	// It's handled separately by executors
 }

@@ -96,7 +96,9 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 			AppAuthStrategyKeyAuthRequest: req,
 		}
 		
-		result, err := e.client.CreateApplicationAuthStrategy(ctx, createReq)
+		// TODO: Get namespace from PlannedChange after Step 8
+		namespace := "default"
+		result, err := e.client.CreateApplicationAuthStrategy(ctx, createReq, namespace)
 		if err != nil {
 			return "", fmt.Errorf("failed to create key_auth strategy: %w", err)
 		}
@@ -208,7 +210,9 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 			AppAuthStrategyOpenIDConnectRequest: req,
 		}
 		
-		result, err := e.client.CreateApplicationAuthStrategy(ctx, createReq)
+		// TODO: Get namespace from PlannedChange after Step 8
+		namespace := "default"
+		result, err := e.client.CreateApplicationAuthStrategy(ctx, createReq, namespace)
 		if err != nil {
 			return "", fmt.Errorf("failed to create openid_connect strategy: %w", err)
 		}
@@ -285,7 +289,9 @@ func (e *Executor) updateApplicationAuthStrategy(ctx context.Context, change pla
 	}
 	
 	// Call update API
-	_, err := e.client.UpdateApplicationAuthStrategy(ctx, change.ResourceID, updateReq)
+	// TODO: Get namespace from PlannedChange after Step 8
+	namespace := "default"
+	_, err := e.client.UpdateApplicationAuthStrategy(ctx, change.ResourceID, updateReq, namespace)
 	if err != nil {
 		return "", fmt.Errorf("failed to update application auth strategy: %w", err)
 	}

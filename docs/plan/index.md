@@ -17,8 +17,8 @@ This folder contains the complete planning and implementation tracking for all k
 - **Technical Overview**: [006-namespace-resource-management/execution-plan-overview.md](006-namespace-resource-management/execution-plan-overview.md) ✅ Created
 - **Goal**: Enable multiple teams to safely manage their own resources within a shared Konnect organization
 
-**Progress**: 6/15 steps completed (40%)
-**Next Step**: Step 7 - Update Label Constants and Remove Deprecated Labels
+**Progress**: 7/15 steps completed (47%)
+**Next Step**: Step 8 - Update Planners for Namespace Handling
 
 ## Quick Start for Implementation
 
@@ -184,7 +184,7 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](006-namespace-resource-management/execution-plan-steps.md) | **Implementation guide** | ✅ Created |
 | [execution-plan-adrs.md](006-namespace-resource-management/execution-plan-adrs.md) | Architecture decisions | ✅ Created |
 
-**Implementation Status**: 6/15 steps completed (40%)
+**Implementation Status**: 7/15 steps completed (47%)
 - **Dependencies**: Stage 5 completion ✅ Met
 - **Key deliverables**: 
   - Namespace field in kongctl section
@@ -234,8 +234,8 @@ The first major feature being implemented is declarative configuration managemen
 - Stage 5: Sync Command Implementation ✅ **COMPLETED**
 
 **Current Stage**: Stage 6 - Namespace-Based Resource Management
-- **Progress**: 6/15 steps completed (40%)
-- **Next Step**: Step 7 - Update Label Constants and Remove Deprecated Labels
+- **Progress**: 7/15 steps completed (47%)
+- **Next Step**: Step 8 - Update Planners for Namespace Handling
 - **Goal**: Enable multi-team resource management through namespaces
 
 **Key Changes in Stage 6**:

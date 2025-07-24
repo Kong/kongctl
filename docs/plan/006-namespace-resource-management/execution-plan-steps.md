@@ -1,8 +1,8 @@
 # Stage 6: Namespace-Based Resource Management - Implementation Steps
 
 ## Progress Summary
-**Progress**: 6/15 steps completed (40%)  
-**Current Step**: Step 7 - Update Label Constants and Remove Deprecated Labels
+**Progress**: 7/15 steps completed (47%)  
+**Current Step**: Step 8 - Update Planners for Namespace Handling
 
 ## Overview
 This document outlines the step-by-step implementation plan for adding 
@@ -149,7 +149,7 @@ that don't explicitly specify a namespace.
 ---
 
 ### Step 7: Update Label Constants and Remove Deprecated Labels
-**Status**: Not Started
+**Status**: Completed ✓
 
 Add the namespace label constant and remove deprecated managed/last-updated 
 labels to stay within Konnect's 5-label limit.
@@ -171,6 +171,15 @@ labels to stay within Konnect's 5-label limit.
 - Protected label only added when kongctl.protected is true
 - Resources identified by namespace presence
 - Default case uses only 1 label (namespace)
+
+**Implementation notes**:
+- Added NamespaceKey = "KONGCTL-namespace" constant
+- Deprecated ManagedKey and LastUpdatedKey (kept for backward compatibility)
+- Updated AddManagedLabels and AddManagedLabelsToPointerMap to accept namespace parameter
+- Updated IsManagedResource to check for namespace label presence
+- Updated all Create/Update methods in state client to accept namespace parameter
+- Temporarily passing "default" namespace from executors until Step 8 adds namespace to PlannedChange
+- Test failures are expected and will be resolved after Step 8 completes the namespace integration
 
 ---
 
