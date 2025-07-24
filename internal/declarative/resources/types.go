@@ -51,5 +51,6 @@ type FileDefaults struct {
 // KongctlDefaults holds default values for kongctl metadata fields
 type KongctlDefaults struct {
 	Namespace string `yaml:"namespace,omitempty" json:"namespace,omitempty"`
+	Protected *bool  `yaml:"protected,omitempty" json:"protected,omitempty"`
 }
 

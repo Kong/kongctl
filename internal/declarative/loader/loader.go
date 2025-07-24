@@ -14,7 +14,7 @@ import (
 // temporaryParseResult holds the raw parsed YAML including defaults
 // This is used internally during parsing to capture both resources and file-level defaults
 type temporaryParseResult struct {
-	Defaults *resources.FileDefaults `yaml:"_defaults,omitempty"`
+	Defaults *resources.FileDefaults `json:"_defaults,omitempty" yaml:"_defaults,omitempty"`
 	resources.ResourceSet         `yaml:",inline"`
 }
 
@@ -121,7 +121,8 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 		}
 	}
 	
-	// Apply defaults to merged resources
+	// Apply SDK defaults to merged resources
+	// Note: Namespace defaults were already applied per-file in parseYAML
 	l.applyDefaults(&allResources)
 	
 	// Validate merged resources
@@ -212,12 +213,10 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceS
 	// Extract the clean ResourceSet
 	rs := temp.ResourceSet
 	
-	// Store file defaults for use in applyDefaults (will be implemented in Step 6)
-	// For now, the defaults are parsed but not yet applied to resources
-	_ = temp.Defaults // TODO: Use in Step 6 to apply namespace defaults
+	// Apply file-level namespace and protected defaults
+	l.applyNamespaceDefaults(&rs, temp.Defaults)
 
-	// Apply defaults to all resources
-	// TODO: In Step 6, this will be updated to use fileDefaults
+	// Apply SDK defaults to all resources
 	l.applyDefaults(&rs)
 
 	// Extract nested child resources to root level
@@ -654,9 +653,86 @@ func (l *Loader) findRefByName(resourceList interface{}, name string) string {
 	return ""
 }
 
-// applyDefaults applies default values to all resources in the set
+// applyNamespaceDefaults applies file-level namespace and protected defaults to parent resources
+func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults *resources.FileDefaults) {
+	// Determine the effective namespace default
+	namespaceDefault := "default"
+	var protectedDefault *bool
+	
+	if fileDefaults != nil && fileDefaults.Kongctl != nil {
+		if fileDefaults.Kongctl.Namespace != "" {
+			namespaceDefault = fileDefaults.Kongctl.Namespace
+		}
+		protectedDefault = fileDefaults.Kongctl.Protected
+	}
+	
+	// Apply defaults to portals (parent resources)
+	for i := range rs.Portals {
+		if rs.Portals[i].Kongctl == nil {
+			rs.Portals[i].Kongctl = &resources.KongctlMeta{}
+		}
+		if rs.Portals[i].Kongctl.Namespace == "" {
+			rs.Portals[i].Kongctl.Namespace = namespaceDefault
+		}
+		// Apply protected default only if it's true and current value is false
+		// This handles the case where protected is not explicitly set
+		if protectedDefault != nil && *protectedDefault && !rs.Portals[i].Kongctl.Protected {
+			rs.Portals[i].Kongctl.Protected = true
+		}
+	}
+	
+	// Apply defaults to APIs (parent resources)
+	for i := range rs.APIs {
+		if rs.APIs[i].Kongctl == nil {
+			rs.APIs[i].Kongctl = &resources.KongctlMeta{}
+		}
+		if rs.APIs[i].Kongctl.Namespace == "" {
+			rs.APIs[i].Kongctl.Namespace = namespaceDefault
+		}
+		// Apply protected default only if it's true and current value is false
+		// This handles the case where protected is not explicitly set
+		if protectedDefault != nil && *protectedDefault && !rs.APIs[i].Kongctl.Protected {
+			rs.APIs[i].Kongctl.Protected = true
+		}
+	}
+	
+	// Apply defaults to ApplicationAuthStrategies (parent resources)
+	for i := range rs.ApplicationAuthStrategies {
+		if rs.ApplicationAuthStrategies[i].Kongctl == nil {
+			rs.ApplicationAuthStrategies[i].Kongctl = &resources.KongctlMeta{}
+		}
+		if rs.ApplicationAuthStrategies[i].Kongctl.Namespace == "" {
+			rs.ApplicationAuthStrategies[i].Kongctl.Namespace = namespaceDefault
+		}
+		// Apply protected default only if it's true and current value is false
+		// This handles the case where protected is not explicitly set
+		if protectedDefault != nil && *protectedDefault && !rs.ApplicationAuthStrategies[i].Kongctl.Protected {
+			rs.ApplicationAuthStrategies[i].Kongctl.Protected = true
+		}
+	}
+	
+	// Apply defaults to ControlPlanes (parent resources)
+	for i := range rs.ControlPlanes {
+		if rs.ControlPlanes[i].Kongctl == nil {
+			rs.ControlPlanes[i].Kongctl = &resources.KongctlMeta{}
+		}
+		if rs.ControlPlanes[i].Kongctl.Namespace == "" {
+			rs.ControlPlanes[i].Kongctl.Namespace = namespaceDefault
+		}
+		// Apply protected default only if it's true and current value is false
+		// This handles the case where protected is not explicitly set
+		if protectedDefault != nil && *protectedDefault && !rs.ControlPlanes[i].Kongctl.Protected {
+			rs.ControlPlanes[i].Kongctl.Protected = true
+		}
+	}
+	
+	// Note: Child resources (API versions, publications, etc.) do not get kongctl metadata
+	// as Konnect doesn't support labels on child resources
+}
+
+// applyDefaults applies SDK default values to all resources in the set
 func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
-	// Apply defaults to portals
+	// Apply SDK defaults to portals
 	for i := range rs.Portals {
 		rs.Portals[i].SetDefaults()
 	}
