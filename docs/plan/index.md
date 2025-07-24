@@ -2,24 +2,23 @@
 
 This folder contains the complete planning and implementation tracking for all kongctl features and development efforts.
 
-## 🎯 Current Active Stage: None - All Planned Stages Completed!
+## 🎯 Current Active Stage: Stage 6 - Namespace-Based Resource Management
 
-**All Stages Completed**:
+**Completed Stages**:
 - Stage 1: Configuration Format & Basic CLI ✅ 
 - Stage 2: Plan Generation with Label Management ✅
 - Stage 3: Plan Execution ✅
 - Stage 4: API Resources and Multi-Resource Support ✅
 - Stage 5: Sync Command Implementation ✅
 
-**Stage 4: API Resources and Multi-Resource Support** ✅ Completed
-- **Requirements**: [004-dec-cfg-multi-resource/description.md](004-dec-cfg-multi-resource/description.md) ✅ Available
-- **Implementation Guide**: [004-dec-cfg-multi-resource/execution-plan-steps.md](004-dec-cfg-multi-resource/execution-plan-steps.md) ✅ Created
-- **Technical Overview**: [004-dec-cfg-multi-resource/execution-plan-overview.md](004-dec-cfg-multi-resource/execution-plan-overview.md) ✅ Created
-- **Architecture Decisions**: [004-dec-cfg-multi-resource/execution-plan-adrs.md](004-dec-cfg-multi-resource/execution-plan-adrs.md) ✅ Created
-- **Goal**: Extend declarative configuration to support API resources with external content loading via YAML tags
+**Stage 6: Namespace-Based Resource Management** 🚧 Active
+- **Requirements**: [006-namespace-resource-management/description.md](006-namespace-resource-management/description.md) ✅ Available
+- **Implementation Guide**: [006-namespace-resource-management/execution-plan-steps.md](006-namespace-resource-management/execution-plan-steps.md) ✅ Created
+- **Technical Overview**: [006-namespace-resource-management/execution-plan-overview.md](006-namespace-resource-management/execution-plan-overview.md) ✅ Created
+- **Goal**: Enable multiple teams to safely manage their own resources within a shared Konnect organization
 
-**Progress**: All Steps 1-13 Complete ✅ **STAGE 4 COMPLETED**
-**Next Stage**: Stage 5 - Sync Command Implementation
+**Progress**: 0/13 steps completed (0%)
+**Next Step**: Step 1 - Add Namespace Field to KongctlMeta
 
 ## Quick Start for Implementation
 
@@ -175,16 +174,35 @@ The first major feature being implemented is declarative configuration managemen
   - ✅ Debug logging with --log-level debug flag
   - ✅ Consistent sync behavior across all resource types
 
-#### Stage 6: Various Improvements and Testing 🔮 Future
+#### Stage 6: Namespace-Based Resource Management 🚧 Active
+**Goal**: Enable multiple teams to safely manage their own resources within a shared Konnect organization
+
+| Document | Purpose | Status |
+|----------|---------|---------|
+| [description.md](006-namespace-resource-management/description.md) | Requirements | ✅ Created |
+| [execution-plan-overview.md](006-namespace-resource-management/execution-plan-overview.md) | Technical approach | ✅ Created |
+| [execution-plan-steps.md](006-namespace-resource-management/execution-plan-steps.md) | **Implementation guide** | ✅ Created |
+
+**Implementation Status**: 0/13 steps completed (0%)
+- **Dependencies**: Stage 5 completion ✅ Met
+- **Key deliverables**: 
+  - Namespace field in kongctl section
+  - File-level defaults via _defaults.kongctl.namespace
+  - Namespace-based resource filtering
+  - Multi-namespace operations in single command
+  - Namespace isolation during sync
+  - Clear namespace visibility in output
+
+#### Stage 7: Various Improvements and Testing 🔮 Future
 **Goal**: Complete remaining improvements, UX enhancements, and comprehensive testing
 
 | Document | Purpose | Status |
 |----------|---------|---------|
-| [description.md](006-dec-cfg-various/description.md) | Requirements | ✅ Created |
+| [description.md](007-dec-cfg-various/description.md) | Requirements | ✅ Created |
 | execution-plan-*.md | Implementation docs | 🔮 Not yet created |
 
 **Implementation Status**: Not started
-- **Dependencies**: Stages 1-5 completion
+- **Dependencies**: Stages 1-6 completion
 - **Key deliverables**: 
   - Configuration discovery feature
   - Plan validation framework
@@ -196,7 +214,7 @@ The first major feature being implemented is declarative configuration managemen
 
 ## Current Implementation Priority
 
-### ✅ All Planned Stages Complete!
+### 🚧 Stage 6: Namespace-Based Resource Management - Active
 
 **Completed Stages**:
 - Stage 1: Configuration Format & Basic CLI ✅ **COMPLETED**
@@ -205,15 +223,18 @@ The first major feature being implemented is declarative configuration managemen
 - Stage 4: API Resources and Multi-Resource Support ✅ **COMPLETED**
 - Stage 5: Sync Command Implementation ✅ **COMPLETED**
 
-**Recent Improvements and Bug Fixes**:
-- Fixed API publication deletion issue in sync mode
-- Added debug logging for troubleshooting sync operations
-- Improved handling of extracted vs nested resource configurations
-- Fixed empty configuration handling to properly delete all managed resources
-- Added resource monikers for better DELETE operation identification
-- Fixed HTML escaping in JSON output by using [unknown] instead of <unknown>
+**Current Stage**: Stage 6 - Namespace-Based Resource Management
+- **Progress**: 0/13 steps completed (0%)
+- **Next Step**: Step 1 - Add Namespace Field to KongctlMeta
+- **Goal**: Enable multi-team resource management through namespaces
 
-**Next Steps**: Stage 6 (Various Improvements and Testing) awaits prioritization
+**Key Changes in Stage 6**:
+- Introduces required `namespace` field in `kongctl` section
+- Adds `_defaults.kongctl.namespace` for file-level defaults
+- Implements namespace-based resource filtering
+- Ensures namespace isolation during operations
+
+**Next Steps**: Begin implementation with Step 1
 
 ### 🎯 Entry Points for Claude Code
 
@@ -277,6 +298,16 @@ The planning structure has been reorganized to improve focus and deliverability:
 4. **Stage 6 created** - Various improvements, UX enhancements, and comprehensive testing
 
 This reorganization better reflects the implementation priorities and natural grouping of features.
+
+## Planning Reorganization (2025-07-24)
+
+Additional reorganization to introduce namespace-based resource management:
+
+1. **Stage 6 redefined** - Changed from "Various Improvements" to "Namespace-Based Resource Management"
+2. **Stage 7 created** - Moved "Various Improvements and Testing" to Stage 7
+3. **Namespace feature prioritized** - Addresses critical multi-team use case
+
+This change reflects the importance of enabling multiple teams to safely manage resources within a shared Konnect organization.
 
 ## Planning Organization
 
