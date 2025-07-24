@@ -16,7 +16,6 @@ type APIDocumentResource struct {
 	// Parent API reference (for root-level definitions)
 	API string `yaml:"api,omitempty" json:"api,omitempty"`
 	ParentDocumentID string       `yaml:"parent_document_id,omitempty" json:"parent_document_id,omitempty"`
-	Kongctl          *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
 	
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
@@ -154,7 +153,7 @@ func (d *APIDocumentResource) UnmarshalJSON(data []byte) error {
 		Slug             *string `json:"slug,omitempty"`
 		Status           *string `json:"status,omitempty"`
 		ParentDocumentID string  `json:"parent_document_id,omitempty"`
-		Kongctl          *KongctlMeta `json:"kongctl,omitempty"`
+		Kongctl          interface{} `json:"kongctl,omitempty"`
 	}
 	
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -165,7 +164,11 @@ func (d *APIDocumentResource) UnmarshalJSON(data []byte) error {
 	d.Ref = temp.Ref
 	d.API = temp.API
 	d.ParentDocumentID = temp.ParentDocumentID
-	d.Kongctl = temp.Kongctl
+	
+	// Check if kongctl field was provided and reject it
+	if temp.Kongctl != nil {
+		return fmt.Errorf("kongctl metadata is not supported on child resources (API documents)")
+	}
 	
 	// Map to SDK fields embedded in CreateAPIDocumentRequest
 	d.Content = temp.Content

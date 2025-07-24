@@ -14,7 +14,6 @@ type APIPublicationResource struct {
 	Ref      string       `yaml:"ref" json:"ref"`
 	API      string       `yaml:"api,omitempty" json:"api,omitempty"` // Parent API reference (for root-level definitions)
 	PortalID string       `yaml:"portal_id" json:"portal_id"`
-	Kongctl  *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
 	
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
@@ -137,7 +136,7 @@ func (p *APIPublicationResource) UnmarshalJSON(data []byte) error {
 		AuthStrategyIDs          []string `json:"auth_strategy_ids,omitempty"`
 		AutoApproveRegistrations *bool    `json:"auto_approve_registrations,omitempty"`
 		Visibility               string   `json:"visibility,omitempty"`
-		Kongctl                  *KongctlMeta `json:"kongctl,omitempty"`
+		Kongctl                  interface{} `json:"kongctl,omitempty"`
 	}
 	
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -148,7 +147,11 @@ func (p *APIPublicationResource) UnmarshalJSON(data []byte) error {
 	p.Ref = temp.Ref
 	p.API = temp.API
 	p.PortalID = temp.PortalID
-	p.Kongctl = temp.Kongctl
+	
+	// Check if kongctl field was provided and reject it
+	if temp.Kongctl != nil {
+		return fmt.Errorf("kongctl metadata is not supported on child resources (API publications)")
+	}
 	
 	// Map to SDK fields
 	p.AuthStrategyIds = temp.AuthStrategyIDs

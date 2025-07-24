@@ -1,8 +1,8 @@
 # Stage 6: Namespace-Based Resource Management - Implementation Steps
 
 ## Progress Summary
-**Progress**: 1/15 steps completed (7%)  
-**Current Step**: Step 2 - Remove KongctlMeta from Child Resources
+**Progress**: 2/15 steps completed (13%)  
+**Current Step**: Step 3 - Define Namespace Field for Parent Resources
 
 ## Overview
 This document outlines the step-by-step implementation plan for adding 
@@ -31,7 +31,7 @@ same pattern as the protected field.
 ---
 
 ### Step 2: Remove KongctlMeta from Child Resources
-**Status**: Not Started
+**Status**: Completed
 
 Remove the kongctl metadata field from all child resource types since Konnect 
 doesn't support labels on child resources.

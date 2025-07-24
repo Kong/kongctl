@@ -14,7 +14,6 @@ type APIImplementationResource struct {
 	kkComps.APIImplementation `yaml:",inline" json:",inline"`
 	Ref     string       `yaml:"ref" json:"ref"`
 	API     string       `yaml:"api,omitempty" json:"api,omitempty"` // Parent API reference (for root-level definitions)
-	Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
 	
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
@@ -167,7 +166,7 @@ func (i *APIImplementationResource) UnmarshalJSON(data []byte) error {
 			ID             string `json:"id"`
 			ControlPlaneID string `json:"control_plane_id"`
 		} `json:"service,omitempty"`
-		Kongctl *KongctlMeta `json:"kongctl,omitempty"`
+		Kongctl interface{} `json:"kongctl,omitempty"`
 	}
 	
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -177,7 +176,11 @@ func (i *APIImplementationResource) UnmarshalJSON(data []byte) error {
 	// Set our custom fields
 	i.Ref = temp.Ref
 	i.API = temp.API
-	i.Kongctl = temp.Kongctl
+	
+	// Check if kongctl field was provided and reject it
+	if temp.Kongctl != nil {
+		return fmt.Errorf("kongctl metadata is not supported on child resources (API implementations)")
+	}
 	
 	// Map to SDK fields embedded in APIImplementation
 	sdkData := map[string]interface{}{}

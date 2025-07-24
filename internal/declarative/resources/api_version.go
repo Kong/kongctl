@@ -13,7 +13,6 @@ type APIVersionResource struct {
 	kkComps.CreateAPIVersionRequest `yaml:",inline" json:",inline"`
 	Ref     string       `yaml:"ref" json:"ref"`
 	API     string       `yaml:"api,omitempty" json:"api,omitempty"` // Parent API reference (for root-level definitions)
-	Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
 	
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
@@ -129,7 +128,7 @@ func (v *APIVersionResource) UnmarshalJSON(data []byte) error {
 		PublishStatus string      `json:"publish_status,omitempty"`
 		Deprecated    bool        `json:"deprecated,omitempty"`
 		SunsetDate    string      `json:"sunset_date,omitempty"`
-		Kongctl       *KongctlMeta `json:"kongctl,omitempty"`
+		Kongctl       interface{} `json:"kongctl,omitempty"`
 		Spec          interface{} `json:"spec,omitempty"`
 	}
 	
@@ -140,7 +139,11 @@ func (v *APIVersionResource) UnmarshalJSON(data []byte) error {
 	// Set our custom fields
 	v.Ref = temp.Ref
 	v.API = temp.API
-	v.Kongctl = temp.Kongctl
+	
+	// Check if kongctl field was provided and reject it
+	if temp.Kongctl != nil {
+		return fmt.Errorf("kongctl metadata is not supported on child resources (API versions)")
+	}
 	
 	// Map to SDK fields embedded in CreateAPIVersionRequest
 	sdkData := map[string]interface{}{
