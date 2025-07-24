@@ -25,7 +25,7 @@ Introduce a `namespace` field in the `kongctl` section of resources that:
 - Groups resources by ownership
 - Provides isolation during sync/apply operations
 - Can be set via file-level defaults
-- Is required on all resources (no default namespace)
+- Defaults to "default" when not specified
 
 ## Important Limitations
 
@@ -57,7 +57,7 @@ I can understand the scope of changes being made.
 
 1. **Namespace Field**
    - Add `namespace` field to `kongctl` section of top-level resources only
-   - Field is required (no default)
+   - Field defaults to "default" when not specified
    - Follows same pattern as `protected` field
    - Child resources inherit parent's namespace
 
@@ -86,12 +86,29 @@ I can understand the scope of changes being made.
 2. **User Experience**
    - Clear output showing namespace operations
    - Intuitive configuration syntax
-   - Helpful error messages when namespace is missing
+   - Minimal configuration works out of the box
    - Clear documentation about label limitations
 
 ## Example Usage
 
-### Configuration File
+### Minimal Configuration (Uses Default Namespace)
+```yaml
+# simple-api.yaml - no namespace specified
+apis:
+  - ref: basic-api
+    name: "Basic API"
+    description: "Simple API with default namespace"
+    # No kongctl section needed - defaults to namespace: "default"
+    
+portals:
+  - ref: dev-portal
+    name: "Developer Portal"
+    kongctl:
+      protected: true
+      # namespace defaults to "default" when not specified
+```
+
+### Multi-Team Configuration
 ```yaml
 # team-alpha/apis.yaml
 _defaults:
@@ -200,7 +217,7 @@ Proceed with sync? (y/N)
 3. Clear visibility of namespace operations in command output
 4. Child resources correctly managed based on parent namespace
 5. Documentation clearly explains label limitations
-6. Error messages when namespace is not specified
+6. Default namespace ("default") works for simple use cases
 
 ## Out of Scope
 
@@ -209,4 +226,3 @@ Proceed with sync? (y/N)
 - Labels on child resources (Konnect limitation)
 - Cross-namespace resource references
 - Migration from non-namespaced resources
-- Default namespace support

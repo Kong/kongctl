@@ -17,11 +17,11 @@ implemented as labels:
 - Label: `KONGCTL-namespace: team-alpha`
 - Consistent with existing label management
 
-### 2. Required Field with File Defaults
+### 2. Default Namespace with File Defaults
 
-- No implicit "default" namespace - must be explicitly set
+- Implicit "default" namespace when not specified
 - File-level defaults via `_defaults.kongctl.namespace`
-- Resources without namespace cause validation errors
+- Minimal configurations work without explicit namespace
 
 ### 3. Parent-Only Labeling
 
@@ -42,7 +42,7 @@ Due to Konnect API limitations:
 
 1. **Extend KongctlMeta struct** to include namespace field
 2. **Add _defaults parsing** to configuration loader
-3. **Implement namespace validation** during loading
+3. **Implement namespace defaulting** to "default" during loading
 
 ### Phase 2: Planning Integration
 
@@ -112,9 +112,9 @@ func (c *StateClient) ListManagedAPIs(namespaces []string) ([]*API, error) {
 ## Error Handling
 
 ### Validation Errors
-- Missing namespace when no default specified
 - Conflicting namespace in parent-child relationships
 - Invalid namespace values
+- Namespace change attempts on existing resources
 
 ### Runtime Errors
 - Resources found without expected namespace labels

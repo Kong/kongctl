@@ -182,6 +182,7 @@ The first major feature being implemented is declarative configuration managemen
 | [description.md](006-namespace-resource-management/description.md) | Requirements | ✅ Created |
 | [execution-plan-overview.md](006-namespace-resource-management/execution-plan-overview.md) | Technical approach | ✅ Created |
 | [execution-plan-steps.md](006-namespace-resource-management/execution-plan-steps.md) | **Implementation guide** | ✅ Created |
+| [execution-plan-adrs.md](006-namespace-resource-management/execution-plan-adrs.md) | Architecture decisions | ✅ Created |
 
 **Implementation Status**: 0/13 steps completed (0%)
 - **Dependencies**: Stage 5 completion ✅ Met

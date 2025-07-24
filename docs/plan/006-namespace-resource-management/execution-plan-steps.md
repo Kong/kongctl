@@ -80,12 +80,12 @@ that don't explicitly specify a namespace.
 **Changes**:
 - Add applyNamespaceDefaults function
 - Apply defaults after resource parsing
-- Validate namespace is set (no implicit default)
+- Use "default" as implicit default when no namespace specified
 
 **Acceptance criteria**:
 - Resources inherit namespace from _defaults
 - Explicit namespace overrides defaults
-- Error when namespace is missing
+- Resources get "default" namespace when none specified
 
 ---
 
@@ -233,11 +233,11 @@ Implement validation to ensure namespace consistency and prevent errors.
 
 **Changes**:
 - Create namespace validator
-- Validate namespace is set on all resources
+- Validate namespace values are valid
 - Check parent-child namespace consistency
 
 **Acceptance criteria**:
-- Missing namespace causes error
+- Invalid namespace values cause error
 - Clear error messages
 - Validation runs during loading
 
