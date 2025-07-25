@@ -1,8 +1,8 @@
 # Stage 6: Namespace-Based Resource Management - Implementation Steps
 
 ## Progress Summary
-**Progress**: 8/15 steps completed (53%)  
-**Current Step**: Step 9 - Update Label Handling in Executors
+**Progress**: 9/15 steps completed (60%)  
+**Current Step**: Step 10 - Update State Client for Namespace-Based Resource Management
 
 ## Overview
 This document outlines the step-by-step implementation plan for adding 
@@ -216,7 +216,7 @@ through to planned changes.
 ---
 
 ### Step 9: Update Label Handling in Executors
-**Status**: Not Started
+**Status**: Completed ✓
 
 Update executors to convert namespace field to label and remove deprecated 
 label handling.
@@ -240,6 +240,14 @@ label handling.
 - No more managed or last-updated labels
 - Namespace label properly set from kongctl.namespace field
 - Updates preserve namespace and protected status
+
+**Implementation notes**:
+- Updated BuildCreateLabels to accept namespace parameter
+- Updated BuildUpdateLabels to accept namespace parameter
+- Modified executors to use new label functions with namespace from PlannedChange
+- Removed AddManagedLabels logic from state client (deprecated but kept for compatibility)
+- State client now trusts that executors have already built labels correctly
+- Test failures are expected and will be resolved after remaining namespace integration steps
 
 ---
 

@@ -250,19 +250,11 @@ func (c *Client) CreatePortal(
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 
 	logger.Debug("CreatePortal called",
-		slog.Any("labels", portal.Labels))
+		slog.Any("labels", portal.Labels),
+		slog.String("namespace", namespace))
 
-	// Add management labels
-	normalized := labels.NormalizeLabels(portal.Labels)
-	logger.Debug("Normalized labels",
-		slog.Any("labels", normalized))
-
-	normalized = labels.AddManagedLabels(normalized, namespace)
-	logger.Debug("After adding managed labels",
-		slog.Any("labels", normalized))
-
-	portal.Labels = labels.DenormalizeLabels(normalized)
-	// Log actual label values for debugging
+	// Labels have already been built by the executor using BuildCreateLabels
+	// Just log for debugging
 	if portal.Labels != nil {
 		for k, v := range portal.Labels {
 			if v != nil {
@@ -294,11 +286,10 @@ func (c *Client) UpdatePortal(
 	ctx context.Context,
 	id string,
 	portal kkComps.UpdatePortal,
-	namespace string,
+	_ string, // namespace - labels already built by executor
 ) (*kkComps.PortalResponse, error) {
-	// Add management labels directly to pointer map to preserve nil values
-	// This allows label removal (nil values) to work correctly
-	portal.Labels = labels.AddManagedLabelsToPointerMap(portal.Labels, namespace)
+	// Labels have already been built by the executor using BuildUpdateLabels
+	// which includes namespace and protection labels with removal support
 
 	resp, err := c.portalAPI.UpdatePortal(ctx, id, portal)
 	if err != nil {
@@ -450,18 +441,11 @@ func (c *Client) CreateAPI(
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 
 	logger.Debug("CreateAPI called",
-		slog.Any("labels", api.Labels))
+		slog.Any("labels", api.Labels),
+		slog.String("namespace", namespace))
 
-	// Add management labels - API labels are already non-pointer strings
-	if api.Labels == nil {
-		api.Labels = make(map[string]string)
-	}
-
-	api.Labels = labels.AddManagedLabels(api.Labels, namespace)
-	logger.Debug("After adding managed labels",
-		slog.Any("labels", api.Labels))
-
-	// Log actual label values for debugging
+	// Labels have already been built by the executor using BuildCreateLabels
+	// Just log for debugging
 	if api.Labels != nil {
 		for k, v := range api.Labels {
 			logger.Debug("Final API label",
@@ -487,15 +471,14 @@ func (c *Client) UpdateAPI(
 	ctx context.Context,
 	id string,
 	api kkComps.UpdateAPIRequest,
-	namespace string,
+	_ string, // namespace - labels already built by executor
 ) (*kkComps.APIResponseSchema, error) {
 	if c.apiAPI == nil {
 		return nil, fmt.Errorf("API client not configured")
 	}
 
-	// Add management labels directly to pointer map to preserve nil values
-	// This allows label removal (nil values) to work correctly
-	api.Labels = labels.AddManagedLabelsToPointerMap(api.Labels, namespace)
+	// Labels have already been built by the executor using BuildUpdateLabels
+	// which includes namespace and protection labels with removal support
 
 	resp, err := c.apiAPI.UpdateAPI(ctx, id, api)
 	if err != nil {
@@ -934,53 +917,14 @@ func (c *Client) GetAPIDocument(ctx context.Context, apiID, documentID string) (
 func (c *Client) CreateApplicationAuthStrategy(
 	ctx context.Context,
 	authStrategy kkComps.CreateAppAuthStrategyRequest,
-	namespace string,
+	_ string, // namespace - labels already built by executor
 ) (*kkOps.CreateAppAuthStrategyResponse, error) {
 	if c.appAuthAPI == nil {
 		return nil, fmt.Errorf("app auth API client not configured")
 	}
 
-	// Add management labels to the appropriate request type
-	switch {
-	case authStrategy.AppAuthStrategyKeyAuthRequest != nil:
-		// Convert map[string]string to map[string]*string for normalization
-		pointerLabels := make(map[string]*string)
-		for k, v := range authStrategy.AppAuthStrategyKeyAuthRequest.Labels {
-			val := v
-			pointerLabels[k] = &val
-		}
-
-		normalized := labels.NormalizeLabels(pointerLabels)
-		normalized = labels.AddManagedLabels(normalized, namespace)
-
-		// Convert back to map[string]string
-		stringLabels := make(map[string]string)
-		for k, v := range normalized {
-			stringLabels[k] = v
-		}
-		authStrategy.AppAuthStrategyKeyAuthRequest.Labels = stringLabels
-
-	case authStrategy.AppAuthStrategyOpenIDConnectRequest != nil:
-		// Convert map[string]string to map[string]*string for normalization
-		pointerLabels := make(map[string]*string)
-		for k, v := range authStrategy.AppAuthStrategyOpenIDConnectRequest.Labels {
-			val := v
-			pointerLabels[k] = &val
-		}
-
-		normalized := labels.NormalizeLabels(pointerLabels)
-		normalized = labels.AddManagedLabels(normalized, namespace)
-
-		// Convert back to map[string]string
-		stringLabels := make(map[string]string)
-		for k, v := range normalized {
-			stringLabels[k] = v
-		}
-		authStrategy.AppAuthStrategyOpenIDConnectRequest.Labels = stringLabels
-
-	default:
-		return nil, fmt.Errorf("unsupported auth strategy type")
-	}
+	// Labels have already been built by the executor using BuildCreateLabels
+	// Just pass through to the API
 
 	resp, err := c.appAuthAPI.CreateAppAuthStrategy(ctx, authStrategy)
 	if err != nil {
@@ -1141,15 +1085,14 @@ func (c *Client) UpdateApplicationAuthStrategy(
 	ctx context.Context,
 	id string,
 	authStrategy kkComps.UpdateAppAuthStrategyRequest,
-	namespace string,
+	_ string, // namespace - labels already built by executor
 ) (*kkOps.UpdateAppAuthStrategyResponse, error) {
 	if c.appAuthAPI == nil {
 		return nil, fmt.Errorf("app auth API client not configured")
 	}
 
-	// Add management labels directly to pointer map to preserve nil values
-	// This allows label removal (nil values) to work correctly
-	authStrategy.Labels = labels.AddManagedLabelsToPointerMap(authStrategy.Labels, namespace)
+	// Labels have already been built by the executor using BuildUpdateLabels
+	// which includes namespace and protection labels with removal support
 
 	resp, err := c.appAuthAPI.UpdateAppAuthStrategy(ctx, id, authStrategy)
 	if err != nil {

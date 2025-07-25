@@ -70,7 +70,7 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 	
 	// Handle labels using centralized helper
 	userLabels := labels.ExtractLabelsFromField(change.Fields["labels"])
-	portalLabels := labels.BuildCreateLabels(userLabels, change.Protection)
+	portalLabels := labels.BuildCreateLabels(userLabels, change.Namespace, change.Protection)
 	
 	// Convert to pointer map since portals use map[string]*string
 	portal.Labels = labels.ConvertStringMapToPointerMap(portalLabels)
@@ -189,7 +189,7 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 		currentLabels := labels.ExtractLabelsFromField(change.Fields[planner.FieldCurrentLabels])
 		
 		// Build update labels with removal support
-		updatePortal.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, change.Protection)
+		updatePortal.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, change.Namespace, change.Protection)
 		
 		logger.Debug("Update request labels (with removal support)",
 			slog.Any("labels", updatePortal.Labels))
@@ -203,7 +203,7 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 		}
 		
 		// Build labels just for protection update
-		updatePortal.Labels = labels.BuildUpdateLabels(currentLabels, currentLabels, change.Protection)
+		updatePortal.Labels = labels.BuildUpdateLabels(currentLabels, currentLabels, change.Namespace, change.Protection)
 	}
 	
 	// Update the portal

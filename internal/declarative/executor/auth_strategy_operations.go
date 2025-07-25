@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
@@ -34,11 +33,7 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 	
 	// Handle labels using centralized helper
 	userLabels := labels.ExtractLabelsFromField(change.Fields["labels"])
-	authLabels := labels.BuildCreateLabels(userLabels, change.Protection)
-	
-	// Add managed and timestamp labels directly since auth strategies use map[string]string
-	authLabels[labels.ManagedKey] = labels.TrueValue
-	authLabels[labels.LastUpdatedKey] = time.Now().UTC().Format("20060102-150405Z")
+	authLabels := labels.BuildCreateLabels(userLabels, change.Namespace, change.Protection)
 	
 	logger.Debug("Created labels for auth strategy",
 		slog.Any("labels", authLabels))
@@ -256,7 +251,7 @@ func (e *Executor) updateApplicationAuthStrategy(ctx context.Context, change pla
 		currentLabels := labels.ExtractLabelsFromField(change.Fields[planner.FieldCurrentLabels])
 		
 		// Build update labels with removal support
-		updateReq.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, change.Protection)
+		updateReq.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, change.Namespace, change.Protection)
 		
 		logger.Debug("Update request labels (with removal support)",
 			slog.Any("labels", updateReq.Labels))

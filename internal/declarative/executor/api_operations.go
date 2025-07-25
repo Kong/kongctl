@@ -36,7 +36,7 @@ func (e *Executor) createAPI(ctx context.Context, change planner.PlannedChange) 
 	
 	// Handle labels using centralized helper
 	userLabels := labels.ExtractLabelsFromField(change.Fields["labels"])
-	api.Labels = labels.BuildCreateLabels(userLabels, change.Protection)
+	api.Labels = labels.BuildCreateLabels(userLabels, change.Namespace, change.Protection)
 	
 	logger.Debug("API will have labels",
 		slog.Any("labels", api.Labels))
@@ -118,7 +118,7 @@ func (e *Executor) updateAPI(ctx context.Context, change planner.PlannedChange) 
 		currentLabels := labels.ExtractLabelsFromField(change.Fields[planner.FieldCurrentLabels])
 		
 		// Build update labels with removal support
-		updateAPI.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, change.Protection)
+		updateAPI.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, change.Namespace, change.Protection)
 		
 		logger.Debug("Update request labels (with removal support)",
 			slog.Any("labels", updateAPI.Labels))
@@ -132,7 +132,7 @@ func (e *Executor) updateAPI(ctx context.Context, change planner.PlannedChange) 
 		}
 		
 		// Build labels just for protection update
-		updateAPI.Labels = labels.BuildUpdateLabels(currentLabels, currentLabels, change.Protection)
+		updateAPI.Labels = labels.BuildUpdateLabels(currentLabels, currentLabels, change.Namespace, change.Protection)
 	}
 	
 	// Update the API

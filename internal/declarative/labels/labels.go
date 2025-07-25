@@ -57,7 +57,7 @@ func DenormalizeLabels(labels map[string]string) map[string]*string {
 }
 
 // AddManagedLabels adds kongctl management labels
-// This now adds namespace label and optional protected label
+// Deprecated: Use BuildCreateLabels or BuildUpdateLabels instead
 func AddManagedLabels(labels map[string]string, namespace string) map[string]string {
 	if labels == nil {
 		labels = make(map[string]string)
@@ -159,7 +159,7 @@ func ValidateLabel(key string) error {
 }
 
 // AddManagedLabelsToPointerMap adds kongctl management labels to a pointer map
-// This function preserves nil values (for label removal) while adding KONGCTL labels
+// Deprecated: Use BuildCreateLabels or BuildUpdateLabels instead
 func AddManagedLabelsToPointerMap(labels map[string]*string, namespace string) map[string]*string {
 	if labels == nil {
 		labels = make(map[string]*string)
@@ -209,7 +209,7 @@ func ExtractLabelsFromField(field interface{}) map[string]string {
 
 // BuildCreateLabels prepares labels for resource creation
 // Adds management labels and handles protection status
-func BuildCreateLabels(userLabels map[string]string, protection interface{}) map[string]string {
+func BuildCreateLabels(userLabels map[string]string, namespace string, protection interface{}) map[string]string {
 	result := make(map[string]string)
 
 	// Copy user-defined labels (excluding KONGCTL labels)
@@ -219,6 +219,9 @@ func BuildCreateLabels(userLabels map[string]string, protection interface{}) map
 		}
 	}
 
+	// Add namespace label (required)
+	result[NamespaceKey] = namespace
+
 	// Add protection label based on protection field
 	protectionValue := FalseValue
 	if prot, ok := protection.(bool); ok && prot {
@@ -226,15 +229,16 @@ func BuildCreateLabels(userLabels map[string]string, protection interface{}) map
 	}
 	result[ProtectedKey] = protectionValue
 
-	// Note: Namespace label will be added by the client
-	// This is to ensure it's added after any normalization
-
 	return result
 }
 
 // BuildUpdateLabels prepares labels for resource update with removal support
 // Returns a pointer map to support nil values for label removal
-func BuildUpdateLabels(desiredLabels, currentLabels map[string]string, protection interface{}) map[string]*string {
+func BuildUpdateLabels(
+	desiredLabels, currentLabels map[string]string,
+	namespace string,
+	protection interface{},
+) map[string]*string {
 	result := make(map[string]*string)
 
 	// First, add all desired user labels
@@ -253,6 +257,9 @@ func BuildUpdateLabels(desiredLabels, currentLabels map[string]string, protectio
 			}
 		}
 	}
+
+	// Add namespace label (required)
+	result[NamespaceKey] = &namespace
 
 	// Handle protection label
 	protectionValue := FalseValue
@@ -274,9 +281,6 @@ func BuildUpdateLabels(desiredLabels, currentLabels map[string]string, protectio
 	}
 	
 	result[ProtectedKey] = &protectionValue
-
-	// Note: Namespace label will be added by the client
-	// using AddManagedLabelsToPointerMap to preserve nil values
 
 	return result
 }
