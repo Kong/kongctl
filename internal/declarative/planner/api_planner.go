@@ -25,8 +25,12 @@ func NewAPIPlanner(base *BasePlanner) APIPlanner {
 
 // PlanChanges generates changes for API resources and their child resources
 func (a *apiPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
+	// Debug logging
+	desiredAPIs := a.GetDesiredAPIs()
+	a.planner.logger.Debug("apiPlannerImpl.PlanChanges called", "desiredAPIs", len(desiredAPIs))
+	
 	// Plan API resources
-	if err := a.planner.planAPIChanges(ctx, a.GetDesiredAPIs(), plan); err != nil {
+	if err := a.planner.planAPIChanges(ctx, desiredAPIs, plan); err != nil {
 		return err
 	}
 	
@@ -52,8 +56,12 @@ func (a *apiPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 
 // planAPIChanges generates changes for API resources and their child resources
 func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIResource, plan *Plan) error {
+	// Debug logging
+	p.logger.Debug("planAPIChanges called", "desiredCount", len(desired))
+	
 	// Skip if no API resources to plan and not in sync mode
 	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
+		p.logger.Debug("Skipping API planning - no desired APIs")
 		return nil
 	}
 

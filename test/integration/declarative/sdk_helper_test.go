@@ -33,18 +33,24 @@ func GetSDKFactory(t *testing.T) helpers.SDKAPIFactory {
 	}
 	
 	t.Logf("Using mock Konnect SDK (set KONNECT_INTEGRATION_TOKEN to use real API)")
+	
+	// Create singleton instances of mocks to ensure consistency
+	portalAPI := NewMockPortalAPI(t)
+	authAPI := NewMockAppAuthStrategiesAPI(t)
+	apiAPI := NewMockAPIAPI(t)
+	
 	return func(_ kongctlconfig.Hook, _ *slog.Logger) (helpers.SDKAPI, error) {
-		// Return mock SDK with test-specific factories
+		// Return mock SDK with test-specific factories that return the same instances
 		return &helpers.MockKonnectSDK{
 			T:             t,
 			PortalFactory: func() helpers.PortalAPI {
-				return NewMockPortalAPI(t)
+				return portalAPI
 			},
 			AppAuthStrategiesFactory: func() helpers.AppAuthStrategiesAPI {
-				return NewMockAppAuthStrategiesAPI(t)
+				return authAPI
 			},
 			APIFactory: func() helpers.APIFullAPI {
-				return NewMockAPIAPI(t)
+				return apiAPI
 			},
 		}, nil
 	}

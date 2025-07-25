@@ -66,7 +66,7 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 			// CREATE action
 			portalChangeID := p.planPortalCreate(desiredPortal, plan)
 			// Plan child resources after portal creation
-			p.planPortalChildResourcesCreate(desiredPortal, portalChangeID, plan)
+			p.planPortalChildResourcesCreate(ctx, desiredPortal, portalChangeID, plan)
 		} else {
 			// Check if update needed
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
@@ -417,7 +417,9 @@ func (p *portalPlannerImpl) planPortalDelete(portal state.Portal, plan *Plan) {
 }
 
 // planPortalChildResourcesCreate plans creation of child resources for a new portal
-func (p *portalPlannerImpl) planPortalChildResourcesCreate(desired resources.PortalResource, _ string, plan *Plan) {
+func (p *portalPlannerImpl) planPortalChildResourcesCreate(
+	ctx context.Context, desired resources.PortalResource, _ string, plan *Plan,
+) {
 	// Portal ID is not yet known, will be resolved at execution time
 	// But we still need to plan child resources that depend on this portal
 	
@@ -435,7 +437,7 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(desired resources.Por
 		}
 	}
 	// Note: Passing empty portalID for new portal
-	if err := planner.planPortalPagesChanges(context.Background(), "", desired.Ref, pages, plan); err != nil {
+	if err := planner.planPortalPagesChanges(ctx, "", desired.Ref, pages, plan); err != nil {
 		// Log error but don't fail - portal creation should still proceed
 		planner.logger.Debug("Failed to plan portal pages for new portal", 
 			slog.String("portal", desired.Ref),
@@ -449,7 +451,7 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(desired resources.Por
 			snippets = append(snippets, snippet)
 		}
 	}
-	if err := planner.planPortalSnippetsChanges(context.Background(), "", desired.Ref, snippets, plan); err != nil {
+	if err := planner.planPortalSnippetsChanges(ctx, "", desired.Ref, snippets, plan); err != nil {
 		planner.logger.Debug("Failed to plan portal snippets for new portal",
 			slog.String("portal", desired.Ref),
 			slog.String("error", err.Error()))
@@ -462,7 +464,7 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(desired resources.Por
 			customizations = append(customizations, customization)
 		}
 	}
-	if err := planner.planPortalCustomizationsChanges(context.Background(), customizations, plan); err != nil {
+	if err := planner.planPortalCustomizationsChanges(ctx, customizations, plan); err != nil {
 		planner.logger.Debug("Failed to plan portal customizations for new portal",
 			slog.String("portal", desired.Ref),
 			slog.String("error", err.Error()))
@@ -475,7 +477,7 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(desired resources.Por
 			domains = append(domains, domain)
 		}
 	}
-	if err := planner.planPortalCustomDomainsChanges(context.Background(), domains, plan); err != nil {
+	if err := planner.planPortalCustomDomainsChanges(ctx, domains, plan); err != nil {
 		planner.logger.Debug("Failed to plan portal custom domains for new portal",
 			slog.String("portal", desired.Ref),
 			slog.String("error", err.Error()))

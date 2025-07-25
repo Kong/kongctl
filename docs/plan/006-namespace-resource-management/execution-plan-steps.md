@@ -375,24 +375,32 @@ Implement validation to ensure namespace consistency and prevent errors.
 ---
 
 ### Step 14: Create Integration Tests
-**Status**: Not Started
+**Status**: Completed ✓
 
 Add comprehensive integration tests for namespace functionality.
 
-**Files to create**:
-- `test/integration/namespace_test.go`
+**Files created**:
+- `test/integration/declarative/namespace_test.go`
 
 **Test scenarios**:
-- Single namespace operations
-- Multi-namespace operations
-- Namespace defaults
-- Namespace isolation
-- Error cases
+- Single namespace operations ✓
+- Multi-namespace operations ✓
+- Namespace defaults ✓
+- Namespace isolation ✓
+- Error cases ✓
+- Protected resources with namespaces ✓
 
 **Acceptance criteria**:
-- Tests cover all scenarios
-- Tests pass reliably
-- Good error case coverage
+- Tests cover all scenarios ✓
+- Tests pass reliably ✓
+- Good error case coverage ✓
+
+**Implementation notes**:
+- Created comprehensive namespace integration tests covering all major scenarios
+- Fixed planner architecture bug where namespace planners were reusing parent sub-planners
+- Updated portal planner to properly pass context to child resource planning methods
+- All namespace integration tests now passing
+- Note: Some unit tests in executor and state packages need updating for namespace context
 
 ---
 

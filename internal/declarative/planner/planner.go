@@ -105,10 +105,14 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 			resolver:    p.resolver,
 			depResolver: p.depResolver,
 			changeCount: p.changeCount,
-			portalPlanner:       p.portalPlanner,
-			authStrategyPlanner: p.authStrategyPlanner,
-			apiPlanner:          p.apiPlanner,
 		}
+		
+		// Create new sub-planners for this namespace to ensure they reference
+		// the namespace-specific resources, not the parent's empty lists
+		base := NewBasePlanner(namespacePlanner)
+		namespacePlanner.portalPlanner = NewPortalPlanner(base)
+		namespacePlanner.authStrategyPlanner = NewAuthStrategyPlanner(base)
+		namespacePlanner.apiPlanner = NewAPIPlanner(base)
 		
 		// Filter resources for this namespace
 		var namespaceResources *resources.ResourceSet

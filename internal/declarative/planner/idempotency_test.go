@@ -50,7 +50,7 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 	}
 
 	// Mock list returns existing portal
-	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{existingPortal},
 			Meta: kkComps.PaginatedMeta{

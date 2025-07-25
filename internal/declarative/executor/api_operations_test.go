@@ -287,7 +287,8 @@ func TestExecutor_createAPI(t *testing.T) {
 						*req.Description == "Test API" &&
 						req.Labels["env"] == "test" &&
 						req.Labels[labels.ManagedKey] == "true" &&
-						req.Labels[labels.ProtectedKey] == "false"
+						req.Labels[labels.ProtectedKey] == "false" &&
+						req.Labels[labels.NamespaceKey] == ""
 				}), mock.Anything).Return(&kkOps.CreateAPIResponse{
 					APIResponseSchema: &kkComps.APIResponseSchema{
 						ID:   "api-created-123",
