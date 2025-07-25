@@ -152,8 +152,15 @@ func runPlan(command *cobra.Command, args []string) error {
 		// For sync mode, log that we're checking for deletions
 		outputFile, _ := command.Flags().GetString("output-file")
 		if outputFile == "" {
-			fmt.Fprintln(command.OutOrStderr(), 
-				"No resources defined in configuration. Checking all namespaces for managed resources to remove...")
+			if resourceSet.DefaultNamespace != "" {
+				fmt.Fprintf(command.OutOrStderr(), 
+					"No resources defined in configuration. Using namespace '%s' from _defaults.\n"+
+					"Checking for managed resources to remove...\n",
+					resourceSet.DefaultNamespace)
+			} else {
+				fmt.Fprintln(command.OutOrStderr(), 
+					"No resources defined in configuration. Checking 'default' namespace for managed resources to remove...")
+			}
 		}
 	}
 
@@ -1142,8 +1149,15 @@ func runSync(command *cobra.Command, args []string) error {
 			
 			// In sync mode, empty config is valid - it means delete all managed resources
 			if outputFormat == textOutputFormat {
-				fmt.Fprintln(command.OutOrStderr(), 
-				"No resources defined in configuration. Checking all namespaces for managed resources to remove...")
+				if resourceSet.DefaultNamespace != "" {
+					fmt.Fprintf(command.OutOrStderr(), 
+						"No resources defined in configuration. Using namespace '%s' from _defaults.\n"+
+						"Checking for managed resources to remove...\n",
+						resourceSet.DefaultNamespace)
+				} else {
+					fmt.Fprintln(command.OutOrStderr(), 
+						"No resources defined in configuration. Checking 'default' namespace for managed resources to remove...")
+				}
 			}
 		}
 

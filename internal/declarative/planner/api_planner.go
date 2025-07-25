@@ -188,11 +188,9 @@ func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) string {
 		DependsOn:    []string{},
 	}
 
-	// Always set protection status explicitly
-	if api.Kongctl != nil && api.Kongctl.Protected != nil && *api.Kongctl.Protected {
-		change.Protection = true
-	} else {
-		change.Protection = false
+	// Only set protection if explicitly specified
+	if api.Kongctl != nil && api.Kongctl.Protected != nil {
+		change.Protection = *api.Kongctl.Protected
 	}
 
 	// Extract namespace

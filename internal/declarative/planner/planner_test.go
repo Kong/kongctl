@@ -36,8 +36,8 @@ func (m *MockStateClient) GetPortalByName(ctx context.Context, name string) (*st
 }
 
 // mockEmptyAPIsList adds a mock for empty APIs list, needed in sync mode
-func mockEmptyAPIsList(ctx context.Context, mockAPIAPI *MockAPIAPI) {
-	mockAPIAPI.On("ListApis", ctx, mock.Anything).Return(&kkOps.ListApisResponse{
+func mockEmptyAPIsList(_ context.Context, mockAPIAPI *MockAPIAPI) {
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).Return(&kkOps.ListApisResponse{
 		StatusCode: 200,
 		ListAPIResponse: &kkComps.ListAPIResponse{
 			Data: []kkComps.APIResponseSchema{},
@@ -63,7 +63,7 @@ func TestGeneratePlan_CreatePortal(t *testing.T) {
 	planner := NewPlanner(client, slog.Default())
 
 	// Mock empty portals list (no existing portals)
-	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{},
 			Meta: kkComps.PaginatedMeta{
@@ -75,7 +75,7 @@ func TestGeneratePlan_CreatePortal(t *testing.T) {
 	}, nil)
 	
 	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
 		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
 			Data: []kkComps.AppAuthStrategy{},
 			Meta: kkComps.PaginatedMeta{
@@ -102,6 +102,9 @@ func TestGeneratePlan_CreatePortal(t *testing.T) {
 					Labels:      map[string]*string{},
 				},
 				Ref: "dev-portal",
+				Kongctl: &resources.KongctlMeta{
+					Namespace: &[]string{"default"}[0],
+				},
 			},
 		},
 		ApplicationAuthStrategies: []resources.ApplicationAuthStrategyResource{},
@@ -151,7 +154,7 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 
 	// Mock existing portal with different description
 	oldDesc := "Old description"
-	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
 				{
@@ -160,8 +163,7 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 					DisplayName: "Development Portal",
 					Description: &oldDesc,
 					Labels: map[string]string{
-						labels.ManagedKey:    "true",
-						labels.LastUpdatedKey: "20240101-120000Z",
+						labels.NamespaceKey: "default",
 					},
 				},
 			},
@@ -174,7 +176,7 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 	}, nil)
 	
 	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
 		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
 			Data: []kkComps.AppAuthStrategy{},
 			Meta: kkComps.PaginatedMeta{
@@ -245,7 +247,7 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 	planner := NewPlanner(client, slog.Default())
 
 	// Mock existing protected portal
-	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
 				{
@@ -253,8 +255,7 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 					Name:        "dev-portal",
 					DisplayName: "Development Portal",
 					Labels: map[string]string{
-						labels.ManagedKey:    "true",
-						labels.LastUpdatedKey: "20240101-120000Z",
+						labels.NamespaceKey: "default",
 						labels.ProtectedKey:  "true",
 					},
 				},
@@ -268,7 +269,7 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 	}, nil)
 	
 	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
 		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
 			Data: []kkComps.AppAuthStrategy{},
 			Meta: kkComps.PaginatedMeta{
@@ -342,7 +343,7 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 	planner := NewPlanner(client, slog.Default())
 
 	// Mock empty portals list
-	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{},
 			Meta: kkComps.PaginatedMeta{
@@ -354,7 +355,7 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 	}, nil)
 	
 	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
 		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
 			Data: []kkComps.AppAuthStrategy{},
 			Meta: kkComps.PaginatedMeta{
@@ -462,7 +463,7 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 
 	// Mock existing portal with same hash
 	displayName := "Development Portal"
-	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
 				{
@@ -470,8 +471,7 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 					Name:        "dev-portal",
 					DisplayName: displayName,
 					Labels: map[string]string{
-						labels.ManagedKey:    "true",
-						labels.LastUpdatedKey: "20240101-120000Z",
+						labels.NamespaceKey: "default",
 					},
 				},
 			},
@@ -484,7 +484,7 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 	}, nil)
 	
 	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
 		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
 			Data: []kkComps.AppAuthStrategy{},
 			Meta: kkComps.PaginatedMeta{
@@ -624,7 +624,7 @@ func TestGeneratePlan_ApplyModeNoDeletes(t *testing.T) {
 	planner := NewPlanner(client, slog.Default())
 
 	// Mock existing managed portals
-	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
 				{
@@ -632,8 +632,7 @@ func TestGeneratePlan_ApplyModeNoDeletes(t *testing.T) {
 					Name:        "existing-portal",
 					DisplayName: "Existing Portal",
 					Labels: map[string]string{
-						labels.ManagedKey:    trueStr,
-						labels.LastUpdatedKey: "20240101-120000Z",
+						labels.NamespaceKey: "default",
 					},
 				},
 			},
@@ -691,7 +690,7 @@ func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
 	planner := NewPlanner(client, slog.Default())
 
 	// Mock existing managed portals
-	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
 				{
@@ -699,8 +698,7 @@ func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
 					Name:        "existing-portal",
 					DisplayName: "Existing Portal",
 					Labels: map[string]string{
-						labels.ManagedKey:    trueStr,
-						labels.LastUpdatedKey: "20240101-120000Z",
+						labels.NamespaceKey: "default",
 					},
 				},
 			},
@@ -713,7 +711,7 @@ func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
 	}, nil)
 	
 	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
 		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
 			Data: []kkComps.AppAuthStrategy{},
 			Meta: kkComps.PaginatedMeta{
@@ -766,7 +764,7 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 	// Mock existing protected portal
 	protectedStr := "true"
 	existingTimestamp := "20240101-120000Z"
-	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
 				{
@@ -790,7 +788,7 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 	}, nil)
 	
 	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
 		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
 			Data: []kkComps.AppAuthStrategy{},
 			Meta: kkComps.PaginatedMeta{
@@ -849,7 +847,7 @@ func TestGeneratePlan_ProtectedResourceFailsDelete(t *testing.T) {
 
 	// Mock existing protected portal
 	protectedStr := "true"
-	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
 				{
@@ -857,8 +855,7 @@ func TestGeneratePlan_ProtectedResourceFailsDelete(t *testing.T) {
 					Name:        "protected-portal",
 					DisplayName: "Protected Portal",
 					Labels: map[string]string{
-						labels.ManagedKey:    trueStr,
-						labels.LastUpdatedKey: "20240101-120000Z",
+						labels.NamespaceKey: "default",
 						labels.ProtectedKey:  protectedStr,
 					},
 				},
@@ -872,7 +869,7 @@ func TestGeneratePlan_ProtectedResourceFailsDelete(t *testing.T) {
 	}, nil)
 	
 	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
 		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
 			Data: []kkComps.AppAuthStrategy{},
 			Meta: kkComps.PaginatedMeta{
@@ -914,7 +911,7 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 
 	// Mock existing protected portal
 	protectedStr := "true"
-	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
 				{
@@ -922,8 +919,7 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 					Name:        "protected-portal",
 					DisplayName: "Protected Portal",
 					Labels: map[string]string{
-						labels.ManagedKey:    trueStr,
-						labels.LastUpdatedKey: "20240101-120000Z",
+						labels.NamespaceKey: "default",
 						labels.ProtectedKey:  protectedStr,
 					},
 				},
@@ -937,7 +933,7 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 	}, nil)
 	
 	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
 		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
 			Data: []kkComps.AppAuthStrategy{},
 			Meta: kkComps.PaginatedMeta{

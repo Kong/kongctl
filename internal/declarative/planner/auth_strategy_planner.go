@@ -239,11 +239,9 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 		DependsOn:    []string{},
 	}
 
-	// Always set protection status explicitly
-	if kongctl != nil && kongctl.Protected != nil && *kongctl.Protected {
-		change.Protection = true
-	} else {
-		change.Protection = false
+	// Only set protection if explicitly specified
+	if kongctl != nil && kongctl.Protected != nil {
+		change.Protection = *kongctl.Protected
 	}
 
 	// Extract namespace

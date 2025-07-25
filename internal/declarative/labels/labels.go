@@ -222,12 +222,10 @@ func BuildCreateLabels(userLabels map[string]string, namespace string, protectio
 	// Add namespace label (required)
 	result[NamespaceKey] = namespace
 
-	// Add protection label based on protection field
-	protectionValue := FalseValue
+	// Only add protection label if explicitly true
 	if prot, ok := protection.(bool); ok && prot {
-		protectionValue = TrueValue
+		result[ProtectedKey] = TrueValue
 	}
-	result[ProtectedKey] = protectionValue
 
 	return result
 }
@@ -262,25 +260,32 @@ func BuildUpdateLabels(
 	result[NamespaceKey] = &namespace
 
 	// Handle protection label
-	protectionValue := FalseValue
-	
-	// Check if this is a protection change
-	// We check for a struct with Old and New bool fields using reflection
-	// to avoid circular dependency with planner package
 	if protection != nil {
+		// Check if this is a protection change
+		// We check for a struct with Old and New bool fields using reflection
+		// to avoid circular dependency with planner package
 		v := fmt.Sprintf("%T", protection)
 		if v == "planner.ProtectionChange" {
 			// Use reflection to get the New field value
 			// This avoids importing planner package which would create circular dependency
 			if newVal := getProtectionNewValue(protection); newVal {
-				protectionValue = TrueValue
+				val := TrueValue
+				result[ProtectedKey] = &val
+			} else {
+				// Remove the label when changing from true to false
+				result[ProtectedKey] = nil
 			}
-		} else if prot, ok := protection.(bool); ok && prot {
-			protectionValue = TrueValue
+		} else if prot, ok := protection.(bool); ok {
+			if prot {
+				val := TrueValue
+				result[ProtectedKey] = &val
+			} else {
+				// Remove the label if false
+				result[ProtectedKey] = nil
+			}
 		}
 	}
-	
-	result[ProtectedKey] = &protectionValue
+	// If protection is nil, don't add or modify the label
 
 	return result
 }

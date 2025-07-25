@@ -86,9 +86,15 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	
 	// If no namespaces found and we're in sync mode, we need to check existing resources
 	if len(namespaces) == 0 && opts.Mode == PlanModeSync {
-		// For sync mode with empty config, we need to find all managed resources
-		// across all namespaces to delete them
-		namespaces = []string{"*"}
+		// Check if we have a namespace from _defaults
+		if rs.DefaultNamespace != "" {
+			// Use the namespace specified in _defaults
+			namespaces = []string{rs.DefaultNamespace}
+		} else {
+			// For sync mode with empty config, only check the default namespace
+			// to prevent accidental deletion of resources in other namespaces
+			namespaces = []string{DefaultNamespace}
+		}
 	}
 	
 	// Log namespace processing
@@ -170,6 +176,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		// Update change count
 		p.changeCount = namespacePlanner.changeCount
 	}
+	
+	// Update the base plan summary after merging all namespace changes
+	basePlan.UpdateSummary()
 
 	// Note: Orphan portal child resources (those referencing non-existent portals)
 	// are now handled within each namespace's processing. The filterResourcesByNamespace

@@ -620,6 +620,12 @@ func (l *Loader) mergeResourceSet(target, source *resources.ResourceSet, sourceP
 		target.PortalSnippets = append(target.PortalSnippets, snippet)
 	}
 	
+	// Preserve DefaultNamespace if set in source
+	// When merging multiple files, the last one with a default namespace wins
+	if source.DefaultNamespace != "" {
+		target.DefaultNamespace = source.DefaultNamespace
+	}
+	
 	return nil
 }
 
@@ -669,6 +675,9 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		}
 		if fileDefaults.Kongctl.Namespace != nil {
 			namespaceDefault = fileDefaults.Kongctl.Namespace
+			// Preserve the namespace from defaults in ResourceSet for planner to use
+			// when no resources are present
+			rs.DefaultNamespace = *namespaceDefault
 		}
 		protectedDefault = fileDefaults.Kongctl.Protected
 	}

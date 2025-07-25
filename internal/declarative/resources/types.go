@@ -18,6 +18,10 @@ type ResourceSet struct {
 	PortalCustomDomains  []PortalCustomDomainResource  `yaml:"portal_custom_domains,omitempty" json:"portal_custom_domains,omitempty"` //nolint:lll
 	PortalPages          []PortalPageResource          `yaml:"portal_pages,omitempty" json:"portal_pages,omitempty"`
 	PortalSnippets       []PortalSnippetResource       `yaml:"portal_snippets,omitempty" json:"portal_snippets,omitempty"`
+	
+	// DefaultNamespace tracks namespace from _defaults when no resources are present
+	// This is used by the planner to determine which namespace to check for deletions
+	DefaultNamespace string `yaml:"-" json:"-"`
 }
 
 // KongctlMeta contains tool-specific metadata for resources

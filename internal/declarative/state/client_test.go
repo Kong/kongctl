@@ -376,11 +376,8 @@ func TestCreatePortal(t *testing.T) {
 				return &mockPortalAPI{
 					createPortalFunc: func(_ context.Context,
 						portal kkComps.CreatePortal) (*kkOps.CreatePortalResponse, error) {
-						// Verify labels were added
-						if portal.Labels[labels.NamespaceKey] == nil || *portal.Labels[labels.NamespaceKey] != "default" {
-							t.Errorf("Expected namespace label to be default")
-						}
-						// User label should still exist
+						// State client no longer adds labels - executor handles it
+						// Just verify user labels are preserved
 						if portal.Labels["env"] == nil || *portal.Labels["env"] != "production" {
 							t.Errorf("Expected env label to be preserved")
 						}
@@ -489,10 +486,8 @@ func TestUpdatePortal(t *testing.T) {
 						if id != "portal-123" {
 							t.Errorf("Expected portal ID portal-123, got %s", id)
 						}
-						// Verify labels were added
-						if portal.Labels[labels.NamespaceKey] == nil || *portal.Labels[labels.NamespaceKey] != "default" {
-							t.Errorf("Expected namespace label to be default")
-						}
+						// State client no longer adds labels - executor handles it
+						// Just verify that labels are passed through
 						if portal.Labels["config-hash"] == nil || *portal.Labels["config-hash"] != "newhash456" {
 							t.Errorf("Expected config hash label to be newhash456")
 						}

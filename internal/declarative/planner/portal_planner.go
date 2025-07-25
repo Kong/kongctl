@@ -173,11 +173,9 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 		DependsOn:    []string{},
 	}
 
-	// Always set protection status explicitly
-	if portal.Kongctl != nil && portal.Kongctl.Protected != nil && *portal.Kongctl.Protected {
-		change.Protection = true
-	} else {
-		change.Protection = false
+	// Only set protection if explicitly specified
+	if portal.Kongctl != nil && portal.Kongctl.Protected != nil {
+		change.Protection = *portal.Kongctl.Protected
 	}
 
 	// Extract namespace

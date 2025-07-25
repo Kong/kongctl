@@ -122,7 +122,7 @@ func NewPlan(version, generator string, mode PlanMode) *Plan {
 // AddChange adds a change to the plan
 func (p *Plan) AddChange(change PlannedChange) {
 	p.Changes = append(p.Changes, change)
-	p.updateSummary()
+	p.UpdateSummary()
 }
 
 // SetExecutionOrder sets the calculated execution order
@@ -138,8 +138,8 @@ func (p *Plan) AddWarning(changeID, message string) {
 	})
 }
 
-// updateSummary recalculates plan statistics
-func (p *Plan) updateSummary() {
+// UpdateSummary recalculates plan statistics
+func (p *Plan) UpdateSummary() {
 	p.Summary.TotalChanges = len(p.Changes)
 	
 	// Reset counts

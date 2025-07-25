@@ -4,8 +4,8 @@
 portals:
   - ref: internal-portal
     name: "Internal Developer Portal"
-    custom_domain: "api.internal.example.com"
-    is_public: false
+    display_name: "Internal API Portal"
+    description: "A developer portal"
     labels:
       purpose: internal
       team: platform

@@ -18,7 +18,7 @@
 #        status: "published"
 #        content: !file ./pages/home.md
 #
-#
+
 #apis:
 #  - ref: sms
 #    name: !file apis/sms/openapi.yaml#info.title
