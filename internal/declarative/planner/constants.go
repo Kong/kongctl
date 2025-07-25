@@ -34,3 +34,9 @@ const (
 	// ResourceTypePortalCustomDomain is the resource type for portal custom domains
 	ResourceTypePortalCustomDomain = "portal_custom_domain"
 )
+
+// Default values
+const (
+	// DefaultNamespace is the default namespace when none is specified
+	DefaultNamespace = "default"
+)

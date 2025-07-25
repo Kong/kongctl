@@ -172,6 +172,14 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 		change.Protection = false
 	}
 
+	// Extract namespace
+	if portal.Kongctl != nil && portal.Kongctl.Namespace != nil {
+		change.Namespace = *portal.Kongctl.Namespace
+	} else {
+		// This should not happen as loader should have set default namespace
+		change.Namespace = DefaultNamespace
+	}
+
 	// Copy user-defined labels only (protection label will be added during execution)
 	if len(portal.Labels) > 0 {
 		labelsMap := make(map[string]interface{})
@@ -318,6 +326,14 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 		change.Protection = true
 	}
 
+	// Extract namespace
+	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
+		change.Namespace = *desired.Kongctl.Namespace
+	} else {
+		// This should not happen as loader should have set default namespace
+		change.Namespace = DefaultNamespace
+	}
+
 	plan.AddChange(change)
 }
 
@@ -358,6 +374,14 @@ func (p *portalPlannerImpl) planPortalProtectionChangeWithFields(
 		DependsOn: []string{},
 	}
 
+	// Extract namespace
+	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
+		change.Namespace = *desired.Kongctl.Namespace
+	} else {
+		// This should not happen as loader should have set default namespace
+		change.Namespace = DefaultNamespace
+	}
+
 	plan.AddChange(change)
 }
 
@@ -371,6 +395,14 @@ func (p *portalPlannerImpl) planPortalDelete(portal state.Portal, plan *Plan) {
 		Action:       ActionDelete,
 		Fields:       map[string]interface{}{"name": portal.Name},
 		DependsOn:    []string{},
+	}
+
+	// Extract namespace from labels (for existing resources being deleted)
+	if ns, ok := portal.NormalizedLabels[labels.NamespaceKey]; ok {
+		change.Namespace = ns
+	} else {
+		// Fallback to default
+		change.Namespace = DefaultNamespace
 	}
 
 	plan.AddChange(change)

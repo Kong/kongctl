@@ -238,6 +238,14 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 		change.Protection = false
 	}
 
+	// Extract namespace
+	if kongctl != nil && kongctl.Namespace != nil {
+		change.Namespace = *kongctl.Namespace
+	} else {
+		// This should not happen as loader should have set default namespace
+		change.Namespace = DefaultNamespace
+	}
+
 	// Copy user-defined labels only (protection label will be added during execution)
 	if len(labels) > 0 {
 		labelsMap := make(map[string]interface{})
@@ -485,6 +493,14 @@ func (p *authStrategyPlannerImpl) planAuthStrategyUpdateWithFields(
 	// Set protection status based on current state
 	change.Protection = labels.IsProtectedResource(current.NormalizedLabels)
 
+	// Extract namespace
+	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
+		change.Namespace = *desired.Kongctl.Namespace
+	} else {
+		// This should not happen as loader should have set default namespace
+		change.Namespace = DefaultNamespace
+	}
+
 	plan.AddChange(change)
 }
 
@@ -525,6 +541,14 @@ func (p *authStrategyPlannerImpl) planAuthStrategyProtectionChangeWithFields(
 		DependsOn: []string{},
 	}
 
+	// Extract namespace
+	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
+		change.Namespace = *desired.Kongctl.Namespace
+	} else {
+		// This should not happen as loader should have set default namespace
+		change.Namespace = DefaultNamespace
+	}
+
 	plan.AddChange(change)
 }
 
@@ -538,6 +562,14 @@ func (p *authStrategyPlannerImpl) planAuthStrategyDelete(strategy state.Applicat
 		Action:       ActionDelete,
 		Fields:       map[string]interface{}{"name": strategy.Name},
 		DependsOn:    []string{},
+	}
+
+	// Extract namespace from labels (for existing resources being deleted)
+	if ns, ok := strategy.NormalizedLabels[labels.NamespaceKey]; ok {
+		change.Namespace = ns
+	} else {
+		// Fallback to default
+		change.Namespace = DefaultNamespace
 	}
 
 	plan.AddChange(change)

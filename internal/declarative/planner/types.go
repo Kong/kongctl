@@ -42,6 +42,7 @@ type PlannedChange struct {
 	References       map[string]ReferenceInfo  `json:"references,omitempty"`
 	Parent           *ParentInfo               `json:"parent,omitempty"`
 	Protection       interface{}               `json:"protection,omitempty"` // bool or ProtectionChange
+	Namespace        string                    `json:"namespace"`
 	DependsOn        []string                  `json:"depends_on,omitempty"`
 }
 

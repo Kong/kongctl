@@ -1,8 +1,8 @@
 # Stage 6: Namespace-Based Resource Management - Implementation Steps
 
 ## Progress Summary
-**Progress**: 7/15 steps completed (47%)  
-**Current Step**: Step 8 - Update Planners for Namespace Handling
+**Progress**: 8/15 steps completed (53%)  
+**Current Step**: Step 9 - Update Label Handling in Executors
 
 ## Overview
 This document outlines the step-by-step implementation plan for adding 
@@ -184,7 +184,7 @@ labels to stay within Konnect's 5-label limit.
 ---
 
 ### Step 8: Update Planners for Namespace Handling
-**Status**: Not Started
+**Status**: Completed ✓
 
 Modify the resource planners to handle the namespace field and pass it 
 through to planned changes.
@@ -204,6 +204,14 @@ through to planned changes.
 - Planners correctly extract namespace
 - Namespace available in PlannedChange
 - Child resources handled appropriately
+
+**Implementation notes**:
+- Added Namespace field to PlannedChange struct
+- Updated all planner CREATE, UPDATE, and DELETE operations to extract namespace
+- For DELETE operations, namespace is extracted from existing resource labels
+- Used DefaultNamespace constant to avoid string literal repetition
+- Updated executors to use change.Namespace instead of hardcoded "default"
+- Test failures are expected until remaining namespace integration steps are completed
 
 ---
 

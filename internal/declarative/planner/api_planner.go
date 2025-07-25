@@ -179,6 +179,14 @@ func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) string {
 		change.Protection = false
 	}
 
+	// Extract namespace
+	if api.Kongctl != nil && api.Kongctl.Namespace != nil {
+		change.Namespace = *api.Kongctl.Namespace
+	} else {
+		// This should not happen as loader should have set default namespace
+		change.Namespace = DefaultNamespace
+	}
+
 	// Copy user-defined labels only (protection label will be added during execution)
 	if len(api.Labels) > 0 {
 		labelsMap := make(map[string]interface{})
@@ -257,6 +265,14 @@ func (p *Planner) planAPIUpdateWithFields(
 		change.Protection = true
 	}
 
+	// Extract namespace
+	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
+		change.Namespace = *desired.Kongctl.Namespace
+	} else {
+		// This should not happen as loader should have set default namespace
+		change.Namespace = DefaultNamespace
+	}
+
 	plan.AddChange(change)
 }
 
@@ -297,6 +313,14 @@ func (p *Planner) planAPIProtectionChangeWithFields(
 		DependsOn: []string{},
 	}
 
+	// Extract namespace
+	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
+		change.Namespace = *desired.Kongctl.Namespace
+	} else {
+		// This should not happen as loader should have set default namespace
+		change.Namespace = DefaultNamespace
+	}
+
 	plan.AddChange(change)
 }
 
@@ -310,6 +334,14 @@ func (p *Planner) planAPIDelete(api state.API, plan *Plan) {
 		Action:       ActionDelete,
 		Fields:       map[string]interface{}{"name": api.Name},
 		DependsOn:    []string{},
+	}
+
+	// Extract namespace from labels (for existing resources being deleted)
+	if ns, ok := api.NormalizedLabels[labels.NamespaceKey]; ok {
+		change.Namespace = ns
+	} else {
+		// Fallback to default
+		change.Namespace = DefaultNamespace
 	}
 
 	plan.AddChange(change)
