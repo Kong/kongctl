@@ -25,10 +25,38 @@ func ConfirmExecution(plan *planner.Plan, _, stderr io.Writer, stdin io.Reader) 
 
 	if deleteCount > 0 {
 		fmt.Fprintln(stderr, "\nWARNING: This operation will DELETE resources:")
+		
+		// Group deletes by namespace
+		deletesByNamespace := make(map[string][]planner.PlannedChange)
 		for _, change := range plan.Changes {
 			if change.Action == planner.ActionDelete {
+				namespace := change.Namespace
+				if namespace == "" {
+					namespace = "default"
+				}
+				deletesByNamespace[namespace] = append(deletesByNamespace[namespace], change)
+			}
+		}
+		
+		// Sort namespaces
+		namespaces := make([]string, 0, len(deletesByNamespace))
+		for ns := range deletesByNamespace {
+			namespaces = append(namespaces, ns)
+		}
+		sort.Strings(namespaces)
+		
+		// Display deletions by namespace
+		for _, namespace := range namespaces {
+			if len(namespaces) > 1 {
+				fmt.Fprintf(stderr, "  Namespace %s:\n", namespace)
+			}
+			for _, change := range deletesByNamespace[namespace] {
 				resourceName := formatResourceName(change)
-				fmt.Fprintf(stderr, "- %s: %s\n", change.ResourceType, resourceName)
+				prefix := "- "
+				if len(namespaces) > 1 {
+					prefix = "    - "
+				}
+				fmt.Fprintf(stderr, "%s%s: %s\n", prefix, change.ResourceType, resourceName)
 			}
 		}
 	}
@@ -81,64 +109,103 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 		return
 	}
 
-	// Group changes by resource type
-	changesByResource := make(map[string][]planner.PlannedChange)
+	// Group changes by namespace first, then by resource type
+	changesByNamespace := make(map[string]map[string][]planner.PlannedChange)
+	namespaces := make([]string, 0)
+	namespaceSeen := make(map[string]bool)
+	
 	for _, change := range plan.Changes {
-		changesByResource[change.ResourceType] = append(
-			changesByResource[change.ResourceType], change)
+		namespace := change.Namespace
+		if namespace == "" {
+			namespace = "default"
+		}
+		
+		if !namespaceSeen[namespace] {
+			namespaceSeen[namespace] = true
+			namespaces = append(namespaces, namespace)
+		}
+		
+		if changesByNamespace[namespace] == nil {
+			changesByNamespace[namespace] = make(map[string][]planner.PlannedChange)
+		}
+		
+		changesByNamespace[namespace][change.ResourceType] = append(
+			changesByNamespace[namespace][change.ResourceType], change)
 	}
+	
+	// Sort namespaces for consistent output
+	sort.Strings(namespaces)
 
-	// Sort resource types by dependency order
-	sortedTypes := sortResourceTypesByDependency(changesByResource, plan.Changes)
-
-	// Display changes organized by resource type
+	// Display changes organized by namespace, then by resource type
 	fmt.Fprintln(out, "")
-	for _, resourceType := range sortedTypes {
-		changes := changesByResource[resourceType]
-		fmt.Fprintf(out, "%s (%d):\n", resourceType, len(changes))
-		for _, change := range changes {
-			resourceName := formatResourceName(change)
-			actionPrefix := getActionPrefix(change.Action)
-			
-			// Build dependency info
-			var depInfo string
-			if len(change.DependsOn) > 0 || (change.Parent != nil && change.Parent.Ref != "") {
-				// Use a map to track unique dependencies
-				depMap := make(map[string]bool)
+	for _, namespace := range namespaces {
+		changesByResource := changesByNamespace[namespace]
+		
+		// Count total changes in this namespace
+		namespaceTotal := 0
+		for _, changes := range changesByResource {
+			namespaceTotal += len(changes)
+		}
+		
+		// Display namespace header
+		fmt.Fprintf(out, "Namespace: %s (%d changes)\n", namespace, namespaceTotal)
+		
+		// Sort resource types by dependency order
+		sortedTypes := sortResourceTypesByDependency(changesByResource, plan.Changes)
+		
+		// Display resources within namespace
+		for _, resourceType := range sortedTypes {
+			changes := changesByResource[resourceType]
+			fmt.Fprintf(out, "  %s (%d):\n", resourceType, len(changes))
+			for _, change := range changes {
+				resourceName := formatResourceName(change)
+				actionPrefix := getActionPrefix(change.Action)
 				
-				// Add parent dependency if exists
-				if change.Parent != nil && change.Parent.Ref != "" {
-					// Find parent resource type
-					parentType := getParentResourceType(change.ResourceType)
-					if parentType != "" {
-						depMap[fmt.Sprintf("%s:%s", parentType, change.Parent.Ref)] = true
-					}
-				}
-				
-				// Add explicit dependencies
-				for _, depID := range change.DependsOn {
-					// Find the dependent change to get its type and ref
-					for _, depChange := range plan.Changes {
-						if depChange.ID == depID {
-							depMap[fmt.Sprintf("%s:%s", depChange.ResourceType, depChange.ResourceRef)] = true
-							break
+				// Build dependency info
+				var depInfo string
+				if len(change.DependsOn) > 0 || (change.Parent != nil && change.Parent.Ref != "") {
+					// Use a map to track unique dependencies
+					depMap := make(map[string]bool)
+					
+					// Add parent dependency if exists
+					if change.Parent != nil && change.Parent.Ref != "" {
+						// Find parent resource type
+						parentType := getParentResourceType(change.ResourceType)
+						if parentType != "" {
+							depMap[fmt.Sprintf("%s:%s", parentType, change.Parent.Ref)] = true
 						}
 					}
+					
+					// Add explicit dependencies
+					for _, depID := range change.DependsOn {
+						// Find the dependent change to get its type and ref
+						for _, depChange := range plan.Changes {
+							if depChange.ID == depID {
+								depMap[fmt.Sprintf("%s:%s", depChange.ResourceType, depChange.ResourceRef)] = true
+								break
+							}
+						}
+					}
+					
+					// Convert map to sorted slice for consistent output
+					if len(depMap) > 0 {
+						deps := make([]string, 0, len(depMap))
+						for dep := range depMap {
+							deps = append(deps, dep)
+						}
+						// Sort for consistent output
+						sort.Strings(deps)
+						depInfo = fmt.Sprintf(" (depends on %s)", strings.Join(deps, ", "))
+					}
 				}
 				
-				// Convert map to sorted slice for consistent output
-				if len(depMap) > 0 {
-					deps := make([]string, 0, len(depMap))
-					for dep := range depMap {
-						deps = append(deps, dep)
-					}
-					// Sort for consistent output
-					sort.Strings(deps)
-					depInfo = fmt.Sprintf(" (depends on %s)", strings.Join(deps, ", "))
-				}
+				fmt.Fprintf(out, "    %s %s%s\n", actionPrefix, resourceName, depInfo)
 			}
-			
-			fmt.Fprintf(out, "  %s %s%s\n", actionPrefix, resourceName, depInfo)
+		}
+		
+		// Add spacing between namespaces
+		if namespace != namespaces[len(namespaces)-1] {
+			fmt.Fprintln(out, "")
 		}
 	}
 

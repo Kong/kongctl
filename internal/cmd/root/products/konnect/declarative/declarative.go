@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/kong/kongctl/internal/cmd"
@@ -152,13 +153,45 @@ func runPlan(command *cobra.Command, args []string) error {
 		outputFile, _ := command.Flags().GetString("output-file")
 		if outputFile == "" {
 			fmt.Fprintln(command.OutOrStderr(), 
-				"No resources defined in configuration. Checking for managed resources to remove...")
+				"No resources defined in configuration. Checking all namespaces for managed resources to remove...")
 		}
 	}
 
 	// Create planner
 	stateClient := createStateClient(kkClient)
 	p := planner.NewPlanner(stateClient, logger)
+
+	// Show namespace processing info if outputting to file
+	outputFile, _ := command.Flags().GetString("output-file")
+	if outputFile != "" && totalResources > 0 {
+		// Count namespaces in resources
+		namespaces := make(map[string]bool)
+		for _, portal := range resourceSet.Portals {
+			ns := "default"
+			if portal.Kongctl != nil && portal.Kongctl.Namespace != nil {
+				ns = *portal.Kongctl.Namespace
+			}
+			namespaces[ns] = true
+		}
+		for _, api := range resourceSet.APIs {
+			ns := "default"
+			if api.Kongctl != nil && api.Kongctl.Namespace != nil {
+				ns = *api.Kongctl.Namespace
+			}
+			namespaces[ns] = true
+		}
+		for _, authStrategy := range resourceSet.ApplicationAuthStrategies {
+			ns := "default"
+			if authStrategy.Kongctl != nil && authStrategy.Kongctl.Namespace != nil {
+				ns = *authStrategy.Kongctl.Namespace
+			}
+			namespaces[ns] = true
+		}
+		
+		if len(namespaces) > 1 {
+			fmt.Fprintf(command.OutOrStderr(), "Processing %d namespaces...\n", len(namespaces))
+		}
+	}
 
 	// Generate plan
 	opts := planner.Options{
@@ -176,7 +209,7 @@ func runPlan(command *cobra.Command, args []string) error {
 	}
 
 	// Handle output
-	outputFile, _ := command.Flags().GetString("output-file")
+	outputFile, _ = command.Flags().GetString("output-file")
 
 	if outputFile != "" {
 		// Save to file
@@ -337,7 +370,12 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 		fmt.Fprintln(out)
 	}
 
-	// Display each change in execution order
+	// Group changes by namespace
+	changesByNamespace := make(map[string][]*planner.PlannedChange)
+	namespaces := make([]string, 0)
+	namespaceSeen := make(map[string]bool)
+	
+	// Build namespace groups following execution order
 	for _, changeID := range plan.ExecutionOrder {
 		// Find the change
 		var change *planner.PlannedChange
@@ -350,6 +388,30 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 		if change == nil {
 			continue
 		}
+		
+		namespace := change.Namespace
+		if namespace == "" {
+			namespace = "default"
+		}
+		
+		if !namespaceSeen[namespace] {
+			namespaceSeen[namespace] = true
+			namespaces = append(namespaces, namespace)
+		}
+		
+		changesByNamespace[namespace] = append(changesByNamespace[namespace], change)
+	}
+	
+	// Sort namespaces for consistent output
+	sort.Strings(namespaces)
+
+	// Display changes grouped by namespace
+	for nsIdx, namespace := range namespaces {
+		// Show namespace header
+		fmt.Fprintf(out, "=== Namespace: %s ===\n", namespace)
+		
+		// Display each change in this namespace
+		for _, change := range changesByNamespace[namespace] {
 
 		switch change.Action {
 		case planner.ActionCreate:
@@ -414,24 +476,30 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 				change.ID, change.ResourceType, change.ResourceRef)
 		}
 
-		// Show dependencies
-		if len(change.DependsOn) > 0 {
-			fmt.Fprintf(out, "  depends on: %v\n", change.DependsOn)
-		}
+			// Show dependencies
+			if len(change.DependsOn) > 0 {
+				fmt.Fprintf(out, "  depends on: %v\n", change.DependsOn)
+			}
 
-		// Show references
-		if len(change.References) > 0 {
-			fmt.Fprintln(out, "  references:")
-			for field, ref := range change.References {
-				if ref.ID == "<unknown>" {
-					fmt.Fprintf(out, "    %s: %s (to be resolved)\n", field, ref.Ref)
-				} else {
-					fmt.Fprintf(out, "    %s: %s → %s\n", field, ref.Ref, ref.ID)
+			// Show references
+			if len(change.References) > 0 {
+				fmt.Fprintln(out, "  references:")
+				for field, ref := range change.References {
+					if ref.ID == "<unknown>" {
+						fmt.Fprintf(out, "    %s: %s (to be resolved)\n", field, ref.Ref)
+					} else {
+						fmt.Fprintf(out, "    %s: %s → %s\n", field, ref.Ref, ref.ID)
+					}
 				}
 			}
-		}
 
-		fmt.Fprintln(out)
+			fmt.Fprintln(out)
+		}
+		
+		// Add spacing between namespaces
+		if nsIdx < len(namespaces)-1 {
+			fmt.Fprintln(out)
+		}
 	}
 
 	// Display protection changes summary if any
@@ -1075,7 +1143,7 @@ func runSync(command *cobra.Command, args []string) error {
 			// In sync mode, empty config is valid - it means delete all managed resources
 			if outputFormat == textOutputFormat {
 				fmt.Fprintln(command.OutOrStderr(), 
-				"No resources defined in configuration. Checking for managed resources to remove...")
+				"No resources defined in configuration. Checking all namespaces for managed resources to remove...")
 			}
 		}
 

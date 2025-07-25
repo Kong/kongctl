@@ -15,25 +15,35 @@ type ConsoleReporter struct {
 	dryRun       bool
 	totalChanges int
 	currentIndex int
+	namespaceStats map[string]*namespaceStats
+}
+
+// namespaceStats tracks execution statistics per namespace
+type namespaceStats struct {
+	successCount int
+	failureCount int
+	skippedCount int
 }
 
 // NewConsoleReporter creates a new console reporter that writes to the provided writer
 func NewConsoleReporter(w io.Writer) *ConsoleReporter {
 	return &ConsoleReporter{
-		writer:       w,
-		dryRun:       false,
-		totalChanges: 0,
-		currentIndex: 0,
+		writer:         w,
+		dryRun:         false,
+		totalChanges:   0,
+		currentIndex:   0,
+		namespaceStats: make(map[string]*namespaceStats),
 	}
 }
 
 // NewConsoleReporterWithOptions creates a new console reporter with options
 func NewConsoleReporterWithOptions(w io.Writer, dryRun bool) *ConsoleReporter {
 	return &ConsoleReporter{
-		writer:       w,
-		dryRun:       dryRun,
-		totalChanges: 0,
-		currentIndex: 0,
+		writer:         w,
+		dryRun:         dryRun,
+		totalChanges:   0,
+		currentIndex:   0,
+		namespaceStats: make(map[string]*namespaceStats),
 	}
 }
 
@@ -69,35 +79,68 @@ func (r *ConsoleReporter) StartChange(change planner.PlannedChange) {
 	// Increment current index for this change
 	r.currentIndex++
 	
+	// Initialize namespace stats if needed
+	namespace := change.Namespace
+	if namespace == "" {
+		namespace = "default"
+	}
+	if r.namespaceStats[namespace] == nil {
+		r.namespaceStats[namespace] = &namespaceStats{}
+	}
+	
 	action := getActionVerb(change.Action)
 	resourceName := formatResourceNameForProgress(change)
 	
-	// Show progress counter if we have total changes
+	// Show progress counter with namespace if we have total changes
 	if r.totalChanges > 0 {
-		fmt.Fprintf(r.writer, "[%d/%d] %s %s: %s... ", 
-			r.currentIndex, r.totalChanges, action, change.ResourceType, resourceName)
+		fmt.Fprintf(r.writer, "[%d/%d] [namespace: %s] %s %s: %s... ", 
+			r.currentIndex, r.totalChanges, namespace, action, change.ResourceType, resourceName)
 	} else {
-		fmt.Fprintf(r.writer, "• %s %s: %s... ", action, change.ResourceType, resourceName)
+		fmt.Fprintf(r.writer, "• [namespace: %s] %s %s: %s... ", 
+			namespace, action, change.ResourceType, resourceName)
 	}
 }
 
 // CompleteChange is called after a change is executed (success or failure)
-func (r *ConsoleReporter) CompleteChange(_ planner.PlannedChange, err error) {
+func (r *ConsoleReporter) CompleteChange(change planner.PlannedChange, err error) {
 	if r.writer == nil {
 		return
 	}
+	
+	// Update namespace stats
+	namespace := change.Namespace
+	if namespace == "" {
+		namespace = "default"
+	}
+	
 	if err != nil {
 		fmt.Fprintf(r.writer, "✗ Error: %s\n", err.Error())
+		if stats := r.namespaceStats[namespace]; stats != nil {
+			stats.failureCount++
+		}
 	} else {
 		fmt.Fprintln(r.writer, "✓")
+		if stats := r.namespaceStats[namespace]; stats != nil {
+			stats.successCount++
+		}
 	}
 }
 
 // SkipChange is called when a change is skipped
-func (r *ConsoleReporter) SkipChange(_ planner.PlannedChange, reason string) {
+func (r *ConsoleReporter) SkipChange(change planner.PlannedChange, reason string) {
 	if r.writer == nil {
 		return
 	}
+	
+	// Update namespace stats
+	namespace := change.Namespace
+	if namespace == "" {
+		namespace = "default"
+	}
+	if stats := r.namespaceStats[namespace]; stats != nil {
+		stats.skippedCount++
+	}
+	
 	fmt.Fprintf(r.writer, "⚠ Skipped: %s\n", reason)
 }
 
@@ -108,9 +151,43 @@ func (r *ConsoleReporter) FinishExecution(result *ExecutionResult) {
 	}
 	fmt.Fprintln(r.writer, "")
 	
+	// Show namespace breakdown if we have multiple namespaces
+	if len(r.namespaceStats) > 1 {
+		fmt.Fprintln(r.writer, "\nNamespace Summary:")
+		
+		// Sort namespaces for consistent output
+		namespaces := make([]string, 0, len(r.namespaceStats))
+		for ns := range r.namespaceStats {
+			namespaces = append(namespaces, ns)
+		}
+		sort.Strings(namespaces)
+		
+		for _, ns := range namespaces {
+			stats := r.namespaceStats[ns]
+			total := stats.successCount + stats.failureCount + stats.skippedCount
+			if total > 0 {
+				fmt.Fprintf(r.writer, "  %s: ", ns)
+				
+				parts := []string{}
+				if stats.successCount > 0 {
+					parts = append(parts, fmt.Sprintf("%d succeeded", stats.successCount))
+				}
+				if stats.failureCount > 0 {
+					parts = append(parts, fmt.Sprintf("%d failed", stats.failureCount))
+				}
+				if stats.skippedCount > 0 && r.dryRun {
+					parts = append(parts, fmt.Sprintf("%d validated", stats.skippedCount))
+				}
+				
+				fmt.Fprintln(r.writer, strings.Join(parts, ", "))
+			}
+		}
+		fmt.Fprintln(r.writer, "")
+	}
+	
 	if result.DryRun {
 		// For dry-run, show what would happen
-		fmt.Fprintln(r.writer, "\nDry run complete.")
+		fmt.Fprintln(r.writer, "Dry run complete.")
 		if result.SkippedCount > 0 {
 			fmt.Fprintf(r.writer, "%d changes would be applied.\n", result.SkippedCount)
 		}
@@ -123,7 +200,7 @@ func (r *ConsoleReporter) FinishExecution(result *ExecutionResult) {
 		}
 	} else {
 		// For actual execution, show results
-		fmt.Fprintln(r.writer, "\nComplete.")
+		fmt.Fprintln(r.writer, "Complete.")
 		if result.SuccessCount > 0 {
 			fmt.Fprintf(r.writer, "Applied %d changes.\n", result.SuccessCount)
 		}
