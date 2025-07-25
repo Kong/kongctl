@@ -6,6 +6,13 @@ application_auth_strategies:
     name: "API Key Authentication"
     display_name: "API Key"
     description: "Simple API key authentication for internal services"
+    strategy_type: key_auth
+    configs:
+      key_names:
+        - "x-api-key"
+        - "apikey"
+      key_in_body: false
+      hide_credentials: true
     auth_methods:
       - name: key_auth
         display_name: "API Key"
@@ -21,9 +28,17 @@ application_auth_strategies:
     name: "OAuth 2.0 Authentication"
     display_name: "OAuth 2.0"
     description: "OAuth 2.0 authentication for partner integrations"
-    auth_methods:
-      - name: oauth2
-        display_name: "OAuth 2.0"
+    strategy_type: openid_connect
+    configs:
+      openid_connect:
+        issuer: "https://partners.example.com"
+        client_id: "logistics-partner-client"
+        client_secret: "logistics-partner-secret"
+        scopes:
+          - "openid"
+          - "profile"
+          - "read:shipments"
+          - "write:shipments"
     labels:
       type: oauth2
       usage: partners

@@ -85,9 +85,16 @@ application_auth_strategies:
   - ref: platform-oauth
     name: "Platform OAuth"
     display_name: "OAuth 2.0"
-    auth_methods:
-      - name: oauth2
-        display_name: "OAuth 2.0"
+    strategy_type: openid_connect
+    configs:
+      openid_connect:
+        issuer: "https://auth.example.com"
+        client_id: "platform-client-id"
+        client_secret: "platform-client-secret"
+        scopes:
+          - "openid"
+          - "profile"
+          - "email"
     # Inherits all defaults: namespace: platform-team, protected: false
 
 # Summary of namespace assignments:

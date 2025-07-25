@@ -84,9 +84,16 @@ application_auth_strategies:
   - ref: alpha-oauth
     name: "Team Alpha OAuth"
     display_name: "OAuth 2.0 (Alpha)"
-    auth_methods:
-      - name: oauth2
-        display_name: "OAuth 2.0"
+    strategy_type: openid_connect
+    configs:
+      openid_connect:
+        issuer: "https://auth.example.com"
+        client_id: "alpha-client-id"
+        client_secret: "alpha-client-secret"
+        scopes:
+          - "openid"
+          - "profile"
+          - "email"
     kongctl:
       namespace: team-alpha     # Team's auth strategy
       protected: false

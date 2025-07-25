@@ -107,9 +107,17 @@ application_auth_strategies:
     name: "Production OAuth"
     display_name: "OAuth 2.0"
     description: "Production OAuth 2.0 authentication"
-    auth_methods:
-      - name: oauth2
-        display_name: "OAuth 2.0"
+    strategy_type: openid_connect
+    configs:
+      openid_connect:
+        issuer: "https://auth.example.com"
+        client_id: "prod-client-id"
+        client_secret: "prod-client-secret"
+        scopes:
+          - "openid"
+          - "profile"
+          - "read"
+          - "write"
     labels:
       environment: production
     # Inherits namespace: prod, protected: true

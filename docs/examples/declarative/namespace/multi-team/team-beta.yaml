@@ -95,6 +95,14 @@ application_auth_strategies:
     name: "Team Beta API Keys"
     display_name: "API Key (Beta)"
     description: "Secure API key authentication for payment services"
+    strategy_type: key_auth
+    configs:
+      key_names:
+        - "x-api-key"
+        - "apikey"
+      key_in_body: false
+      hide_credentials: true
+      anonymous: null
     auth_methods:
       - name: key_auth
         display_name: "API Key"
