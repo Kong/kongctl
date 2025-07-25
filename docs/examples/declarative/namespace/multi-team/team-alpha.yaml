@@ -1,0 +1,92 @@
+# Team Alpha Configuration
+# All resources in this file belong to the 'team-alpha' namespace
+# Team Alpha manages user-facing services
+
+apis:
+  - ref: user-api
+    name: "User Management API"
+    description: "API for user registration, authentication, and profile management"
+    labels:
+      team: alpha
+      service: user-management
+    kongctl:
+      namespace: team-alpha     # Team Alpha's namespace
+      protected: false
+    
+    versions:
+      - ref: user-api-v3
+        version: "3.0.0"
+        spec:
+          document: |
+            openapi: 3.0.0
+            info:
+              title: User Management API
+              version: 3.0.0
+            paths:
+              /users:
+                get:
+                  summary: List users
+              /users/{id}:
+                get:
+                  summary: Get user by ID
+  
+  - ref: profile-api
+    name: "User Profile API"
+    description: "API for managing user profiles and preferences"
+    labels:
+      team: alpha
+      service: user-profile
+    kongctl:
+      namespace: team-alpha     # Same namespace
+      protected: false
+    
+    versions:
+      - ref: profile-api-v1
+        version: "1.0.0"
+        spec:
+          document: |
+            openapi: 3.0.0
+            info:
+              title: Profile API
+              version: 1.0.0
+
+portals:
+  - ref: alpha-developer-portal
+    name: "Alpha Team Developer Portal"
+    is_public: true
+    labels:
+      team: alpha
+    kongctl:
+      namespace: team-alpha     # Team's portal
+      protected: false
+    
+    customization:
+      ref: alpha-theme
+      welcome_message: "Welcome to Team Alpha's API Portal"
+      theme:
+        mode: dark
+        colors:
+          primary: "#4299E1"
+    
+    pages:
+      - ref: alpha-home
+        slug: "home"
+        title: "Team Alpha APIs"
+        content: |
+          # Team Alpha API Documentation
+          
+          We provide user-facing APIs for:
+          - User Management
+          - Profile Management
+          - Authentication Services
+
+application_auth_strategies:
+  - ref: alpha-oauth
+    name: "Team Alpha OAuth"
+    display_name: "OAuth 2.0 (Alpha)"
+    auth_methods:
+      - name: oauth2
+        display_name: "OAuth 2.0"
+    kongctl:
+      namespace: team-alpha     # Team's auth strategy
+      protected: false

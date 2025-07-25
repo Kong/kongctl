@@ -1,0 +1,32 @@
+# Single Team Auth Strategy Example
+# Shows how to set namespace on an Auth Strategy resource
+
+application_auth_strategies:
+  - ref: api-key-auth
+    name: "API Key Authentication"
+    display_name: "API Key"
+    description: "Simple API key authentication for internal services"
+    auth_methods:
+      - name: key_auth
+        display_name: "API Key"
+        # Auth config is defined by the specific auth method
+    labels:
+      type: key-auth
+      usage: internal
+    kongctl:
+      namespace: logistics-team  # Auth strategy managed by logistics team
+      protected: false          # Can be modified
+  
+  - ref: oauth2-auth
+    name: "OAuth 2.0 Authentication"
+    display_name: "OAuth 2.0"
+    description: "OAuth 2.0 authentication for partner integrations"
+    auth_methods:
+      - name: oauth2
+        display_name: "OAuth 2.0"
+    labels:
+      type: oauth2
+      usage: partners
+    kongctl:
+      namespace: logistics-team  # Same namespace as other resources
+      protected: true           # Protected from accidental deletion

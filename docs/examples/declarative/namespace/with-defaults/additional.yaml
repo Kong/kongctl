@@ -1,0 +1,61 @@
+# Additional Configuration with Different Defaults
+# Shows how each file can have its own _defaults section
+
+_defaults:
+  kongctl:
+    namespace: data-team       # Different default namespace
+    # No protected default - resources will default to false
+
+# These resources will all be in the data-team namespace
+
+apis:
+  - ref: analytics-api
+    name: "Analytics API"
+    description: "API for data analytics and reporting"
+    labels:
+      service: analytics
+      team: data
+    # Inherits namespace: data-team from this file's defaults
+    
+    versions:
+      - ref: analytics-v3
+        version: "3.0.0"
+        spec:
+          document: |
+            openapi: 3.0.0
+            info:
+              title: Analytics API
+              version: 3.0.0
+            paths:
+              /reports:
+                get:
+                  summary: List available reports
+              /reports/{id}/run:
+                post:
+                  summary: Execute report
+  
+  - ref: etl-api
+    name: "ETL Pipeline API"
+    description: "API for managing ETL pipelines and data flows"
+    labels:
+      service: etl
+      team: data
+    # Also inherits namespace: data-team
+    
+    versions:
+      - ref: etl-v1
+        version: "1.0.0"
+        spec:
+          document: |
+            openapi: 3.0.0
+            info:
+              title: ETL API
+              version: 1.0.0
+
+# When loading multiple files:
+# - main.yaml resources go to 'platform-team' namespace (except metrics-api)
+# - additional.yaml resources go to 'data-team' namespace
+# - Each file's _defaults only affects resources in that file
+
+# This allows teams to maintain their own files with their own defaults
+# without affecting other teams' configurations

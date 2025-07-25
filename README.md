@@ -456,3 +456,106 @@ Error: resource "my-api" references unknown portal: unknown-portal
 - Use value extraction to load only needed portions
 
 For more detailed troubleshooting, see the [examples](docs/examples/apis/) and inline comments in the configuration files.
+
+### Namespace Management
+
+Kongctl supports namespace-based resource management, allowing multiple teams to safely manage their own resources within a shared Kong Konnect organization. Namespaces provide isolation between different teams or environments.
+
+#### Key Concepts
+
+- **Namespace Label**: Resources are tagged with a `KONGCTL-namespace` label
+- **Default Namespace**: Resources without explicit namespace use "default"
+- **Parent Resources Only**: Only parent resources (APIs, Portals, Auth Strategies) can have namespaces
+- **Namespace Isolation**: Operations only affect resources in specified namespaces
+
+#### Setting Namespaces
+
+Add a namespace to any parent resource using the `kongctl` section:
+
+```yaml
+apis:
+  - ref: payment-api
+    name: "Payment Processing API"
+    description: "Handles payment transactions"
+    kongctl:
+      namespace: payments-team  # This API belongs to payments team
+      protected: false
+```
+
+#### File-Level Defaults
+
+Use `_defaults` to set a namespace for all resources in a file:
+
+```yaml
+_defaults:
+  kongctl:
+    namespace: platform-team    # Default for all resources in this file
+    protected: false
+
+apis:
+  - ref: users-api
+    name: "User API"
+    # Inherits namespace: platform-team from defaults
+  
+  - ref: admin-api
+    name: "Admin API"
+    kongctl:
+      namespace: admin-team     # Override the default namespace
+      protected: true           # Also override protection
+```
+
+#### Multi-Team Example
+
+Different teams can manage their own resources independently:
+
+```yaml
+# team-alpha.yaml
+apis:
+  - ref: frontend-api
+    name: "Frontend API"
+    kongctl:
+      namespace: team-alpha
+
+# team-beta.yaml  
+apis:
+  - ref: backend-api
+    name: "Backend API"
+    kongctl:
+      namespace: team-beta
+```
+
+When you run `kongctl sync -f team-alpha.yaml`, only resources in the `team-alpha` namespace are affected. Resources in other namespaces remain untouched.
+
+#### Namespace Visibility
+
+Commands show namespace operations clearly:
+
+```bash
+$ kongctl plan -f team-configs/
+Loading configurations...
+Found 2 namespace(s): team-alpha, team-beta
+
+Planning changes for namespace: team-alpha
+- CREATE api "frontend-api"
+
+Planning changes for namespace: team-beta
+- CREATE api "backend-api"
+```
+
+#### Best Practices
+
+1. **One namespace per team**: Each team should use their own namespace
+2. **Use descriptive names**: `payments-team`, `platform-team`, `prod`, `staging`
+3. **Document ownership**: Include comments about namespace ownership
+4. **Protect production**: Combine namespaces with `protected: true` for critical resources
+
+#### Examples
+
+Complete namespace examples are available in [`docs/examples/declarative/namespace/`](docs/examples/declarative/namespace/):
+
+- **Single team** - Basic namespace usage
+- **Multi-team** - Multiple teams in one organization  
+- **With defaults** - Using `_defaults` section
+- **Protected resources** - Production best practices
+
+For detailed namespace documentation, see the [Configuration Guide](docs/declarative/Configuration-Guide.md).

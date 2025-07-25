@@ -1,0 +1,122 @@
+# Production Resources with Namespace and Protection
+# Shows best practices for production environments
+
+_defaults:
+  kongctl:
+    namespace: prod            # Production namespace
+    protected: true            # All resources protected by default
+
+# Production resources are protected from accidental deletion/modification
+# To modify these resources, you must explicitly set protected: false first
+
+apis:
+  - ref: customer-api
+    name: "Customer API"
+    description: "Production API for customer data and operations"
+    labels:
+      environment: production
+      tier: critical
+      sla: 99.99
+    # Inherits namespace: prod, protected: true from defaults
+    
+    versions:
+      - ref: customer-v4
+        version: "4.0.0"
+        spec:
+          document: |
+            openapi: 3.0.0
+            info:
+              title: Customer API
+              version: 4.0.0
+            servers:
+              - url: https://api.example.com/v4
+            paths:
+              /customers:
+                get:
+                  summary: List customers
+              /customers/{id}:
+                get:
+                  summary: Get customer details
+    
+    implementations:
+      - ref: customer-prod-impl
+        implementation_url: "https://prod.internal.example.com/customer"
+        service:
+          id: "prod-customer-service-id"
+          control_plane_id: production-cp
+
+  - ref: order-api
+    name: "Order Management API"
+    description: "Production API for order processing"
+    labels:
+      environment: production
+      tier: critical
+      sla: 99.99
+    # Also inherits protection from defaults
+    
+    versions:
+      - ref: order-v2
+        version: "2.0.0"
+        spec:
+          document: |
+            openapi: 3.0.0
+            info:
+              title: Order API
+              version: 2.0.0
+
+  - ref: staging-test-api
+    name: "Staging Test API"
+    description: "Test API deployed to production for staging verification"
+    labels:
+      environment: production
+      purpose: staging-test
+    kongctl:
+      namespace: staging        # Override to different namespace
+      protected: false          # Not protected - can be modified for testing
+    
+    versions:
+      - ref: test-v1
+        version: "1.0.0"
+        spec:
+          document: |
+            openapi: 3.0.0
+            info:
+              title: Test API
+              version: 1.0.0
+
+portals:
+  - ref: prod-portal
+    name: "Production API Portal"
+    is_public: true
+    custom_domain: "api.example.com"
+    labels:
+      environment: production
+      tier: critical
+    # Inherits namespace: prod, protected: true
+    
+    customization:
+      ref: prod-theme
+      welcome_message: "Welcome to Our API Platform"
+      theme:
+        mode: light
+        colors:
+          primary: "#1A365D"
+
+application_auth_strategies:
+  - ref: prod-oauth
+    name: "Production OAuth"
+    display_name: "OAuth 2.0"
+    description: "Production OAuth 2.0 authentication"
+    auth_methods:
+      - name: oauth2
+        display_name: "OAuth 2.0"
+    labels:
+      environment: production
+    # Inherits namespace: prod, protected: true
+
+# Best Practices Demonstrated:
+# 1. Use namespace for environment separation (prod, staging, dev)
+# 2. Protect all production resources by default
+# 3. Use labels for additional metadata (tier, SLA, environment)
+# 4. Override protection only for specific test resources
+# 5. Keep production configs separate from other environments

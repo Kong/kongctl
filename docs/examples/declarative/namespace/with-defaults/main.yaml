@@ -1,0 +1,98 @@
+# Main Configuration with Namespace Defaults
+# The _defaults section sets default values for all resources in this file
+
+_defaults:
+  kongctl:
+    namespace: platform-team    # All resources default to this namespace
+    protected: false           # Resources are not protected by default
+
+# Resources below will inherit the defaults unless explicitly overridden
+
+apis:
+  - ref: core-api
+    name: "Core Platform API"
+    description: "Central API for platform services"
+    labels:
+      service: core
+    # No kongctl section - inherits namespace: platform-team, protected: false
+    
+    versions:
+      - ref: core-v2
+        version: "2.0.0"
+        spec:
+          document: |
+            openapi: 3.0.0
+            info:
+              title: Core Platform API
+              version: 2.0.0
+  
+  - ref: admin-api
+    name: "Platform Admin API"
+    description: "Administrative API for platform management"
+    labels:
+      service: admin
+      access: restricted
+    kongctl:
+      # Inherits namespace: platform-team from defaults
+      protected: true  # Override the default protection setting
+    
+    versions:
+      - ref: admin-v1
+        version: "1.0.0"
+        spec:
+          document: |
+            openapi: 3.0.0
+            info:
+              title: Admin API
+              version: 1.0.0
+
+  - ref: metrics-api
+    name: "Metrics Collection API"
+    description: "API for collecting and querying platform metrics"
+    labels:
+      service: metrics
+    kongctl:
+      namespace: monitoring-team  # Override the default namespace
+      # Inherits protected: false from defaults
+    
+    versions:
+      - ref: metrics-v1
+        version: "1.0.0"
+        spec:
+          document: |
+            openapi: 3.0.0
+            info:
+              title: Metrics API
+              version: 1.0.0
+
+portals:
+  - ref: platform-portal
+    name: "Platform Team Portal"
+    is_public: false
+    labels:
+      team: platform
+    # Inherits all defaults: namespace: platform-team, protected: false
+    
+    customization:
+      ref: platform-theme
+      welcome_message: "Platform Team Internal Documentation"
+      theme:
+        mode: dark
+        colors:
+          primary: "#805AD5"
+
+application_auth_strategies:
+  - ref: platform-oauth
+    name: "Platform OAuth"
+    display_name: "OAuth 2.0"
+    auth_methods:
+      - name: oauth2
+        display_name: "OAuth 2.0"
+    # Inherits all defaults: namespace: platform-team, protected: false
+
+# Summary of namespace assignments:
+# - core-api: platform-team (inherited from defaults)
+# - admin-api: platform-team (inherited from defaults)
+# - metrics-api: monitoring-team (explicitly overridden)
+# - platform-portal: platform-team (inherited from defaults)
+# - platform-oauth: platform-team (inherited from defaults)

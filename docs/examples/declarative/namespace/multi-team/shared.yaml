@@ -1,0 +1,91 @@
+# Shared Resources Configuration
+# Resources that are shared across teams use the 'default' namespace
+# These are typically common infrastructure or shared services
+
+apis:
+  - ref: health-check-api
+    name: "System Health Check API"
+    description: "Shared API for monitoring system health across all services"
+    labels:
+      type: infrastructure
+      shared: true
+    # No kongctl section means namespace defaults to 'default'
+    
+    versions:
+      - ref: health-v1
+        version: "1.0.0"
+        spec:
+          document: |
+            openapi: 3.0.0
+            info:
+              title: Health Check API
+              version: 1.0.0
+            paths:
+              /health:
+                get:
+                  summary: System health status
+              /health/detailed:
+                get:
+                  summary: Detailed health check
+
+portals:
+  - ref: public-portal
+    name: "Public API Portal"
+    is_public: true
+    custom_domain: "api.example.com"
+    labels:
+      access: public
+      type: shared
+    # Explicitly using default namespace for clarity
+    kongctl:
+      namespace: default
+      protected: true  # Shared infrastructure should be protected
+    
+    customization:
+      ref: public-theme
+      welcome_message: "Welcome to our API Platform"
+      theme:
+        mode: light
+        colors:
+          primary: "#319795"
+      catalog:
+        cover_image_url: "https://example.com/api-portal-cover.jpg"
+    
+    pages:
+      - ref: public-home
+        slug: "home"
+        title: "API Platform"
+        content: |
+          # Welcome to Our API Platform
+          
+          Our platform provides APIs from multiple teams:
+          
+          - **Team Alpha**: User management and profiles
+          - **Team Beta**: Payment and billing services
+          
+          ## Getting Started
+          
+          1. Register for an account
+          2. Obtain API credentials
+          3. Explore our API catalog
+          4. Start building!
+
+application_auth_strategies:
+  - ref: public-key-auth
+    name: "Public API Key"
+    display_name: "API Key"
+    description: "Standard API key authentication for public APIs"
+    auth_methods:
+      - name: key_auth
+        display_name: "API Key"
+    labels:
+      type: shared
+      access: public
+    kongctl:
+      namespace: default
+      protected: true  # Shared auth strategy
+
+# Note: When teams publish their APIs to the public portal,
+# they reference 'public-portal' in their publication configs.
+# The APIs remain in their team namespaces, but are published
+# to the shared portal.

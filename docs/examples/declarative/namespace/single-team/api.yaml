@@ -1,0 +1,55 @@
+# Single Team API Example
+# Shows how to set namespace on an API resource
+# Child resources (versions, publications) inherit the namespace
+
+apis:
+  - ref: inventory-api
+    name: "Inventory Management API"
+    description: "Internal API for inventory tracking and management"
+    labels:
+      team: logistics
+      environment: production
+    kongctl:
+      namespace: logistics-team  # This API belongs to logistics-team namespace
+      protected: false           # Can be modified/deleted
+    
+    # Child resources do not have kongctl section
+    # They automatically inherit the parent's namespace
+    versions:
+      - ref: inventory-v1
+        version: "1.0.0"
+        deprecated: true
+        spec:
+          document: |
+            openapi: 3.0.0
+            info:
+              title: Inventory API
+              version: 1.0.0
+            paths:
+              /items:
+                get:
+                  summary: List inventory items
+      
+      - ref: inventory-v2
+        version: "2.0.0"
+        spec:
+          document: |
+            openapi: 3.0.0
+            info:
+              title: Inventory API
+              version: 2.0.0
+            paths:
+              /items:
+                get:
+                  summary: List inventory items with pagination
+              /items/{id}:
+                get:
+                  summary: Get item by ID
+    
+    publications:
+      - ref: internal-portal-pub
+        portal_id: internal-portal  # References a portal (can be in any namespace)
+        auth_strategy_ids: 
+          - api-key-auth            # References auth strategy
+        auto_approve_registration: true
+        registration_enabled: true
