@@ -31,8 +31,9 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 		return nil
 	}
 
-	// Fetch current managed portals
-	currentPortals, err := p.GetClient().ListManagedPortals(ctx)
+	// Fetch current managed portals from all namespaces
+	// TODO: In Step 11, this will be updated to filter by specific namespaces
+	currentPortals, err := p.GetClient().ListManagedPortals(ctx, []string{"*"})
 	if err != nil {
 		// If portal client is not configured, skip portal planning
 		if err.Error() == "Portal client not configured" {

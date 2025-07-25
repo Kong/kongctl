@@ -148,8 +148,10 @@ type ApplicationAuthStrategy struct {
 	NormalizedLabels map[string]string // Non-pointer labels
 }
 
-// ListManagedPortals returns all KONGCTL-managed portals
-func (c *Client) ListManagedPortals(ctx context.Context) ([]Portal, error) {
+// ListManagedPortals returns all KONGCTL-managed portals in the specified namespaces
+// If namespaces is empty, no resources are returned (breaking change from previous behavior)
+// To get all managed resources across all namespaces, pass []string{"*"}
+func (c *Client) ListManagedPortals(ctx context.Context, namespaces []string) ([]Portal, error) {
 	var allPortals []Portal
 	var pageNumber int64 = 1
 	pageSize := int64(100)
@@ -177,12 +179,16 @@ func (c *Client) ListManagedPortals(ctx context.Context) ([]Portal, error) {
 				normalized = make(map[string]string)
 			}
 
+			// Check if resource has a namespace label (new criteria for managed resources)
 			if labels.IsManagedResource(normalized) {
-				portal := Portal{
-					Portal:           p,
-					NormalizedLabels: normalized,
+				// Filter by namespace if specified
+				if shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
+					portal := Portal{
+						Portal:           p,
+						NormalizedLabels: normalized,
+					}
+					allPortals = append(allPortals, portal)
 				}
-				allPortals = append(allPortals, portal)
 			}
 		}
 
@@ -199,7 +205,8 @@ func (c *Client) ListManagedPortals(ctx context.Context) ([]Portal, error) {
 
 // GetPortalByName finds a managed portal by name
 func (c *Client) GetPortalByName(ctx context.Context, name string) (*Portal, error) {
-	portals, err := c.ListManagedPortals(ctx)
+	// Search across all namespaces for backward compatibility
+	portals, err := c.ListManagedPortals(ctx, []string{"*"})
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +229,8 @@ func (c *Client) GetPortalByFilter(ctx context.Context, filter string) (*Portal,
 	// Use the filter in the SDK list operation
 	// For now, we'll use ListManagedPortals and filter locally
 	// TODO: Update when SDK supports server-side filtering
-	portals, err := c.ListManagedPortals(ctx)
+	// Search across all namespaces for backward compatibility
+	portals, err := c.ListManagedPortals(ctx, []string{"*"})
 	if err != nil {
 		return nil, err
 	}
@@ -312,8 +320,10 @@ func (c *Client) DeletePortal(ctx context.Context, id string, force bool) error 
 	return nil
 }
 
-// ListManagedAPIs returns all KONGCTL-managed APIs
-func (c *Client) ListManagedAPIs(ctx context.Context) ([]API, error) {
+// ListManagedAPIs returns all KONGCTL-managed APIs in the specified namespaces
+// If namespaces is empty, no resources are returned (breaking change from previous behavior)
+// To get all managed resources across all namespaces, pass []string{"*"}
+func (c *Client) ListManagedAPIs(ctx context.Context, namespaces []string) ([]API, error) {
 	if c.apiAPI == nil {
 		return nil, fmt.Errorf("API client not configured")
 	}
@@ -345,12 +355,16 @@ func (c *Client) ListManagedAPIs(ctx context.Context) ([]API, error) {
 				normalized = make(map[string]string)
 			}
 
+			// Check if resource has a namespace label (new criteria for managed resources)
 			if labels.IsManagedResource(normalized) {
-				api := API{
-					APIResponseSchema: a,
-					NormalizedLabels:  normalized,
+				// Filter by namespace if specified
+				if shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
+					api := API{
+						APIResponseSchema: a,
+						NormalizedLabels:  normalized,
+					}
+					allAPIs = append(allAPIs, api)
 				}
-				allAPIs = append(allAPIs, api)
 			}
 		}
 
@@ -367,7 +381,8 @@ func (c *Client) ListManagedAPIs(ctx context.Context) ([]API, error) {
 
 // GetAPIByName finds a managed API by name
 func (c *Client) GetAPIByName(ctx context.Context, name string) (*API, error) {
-	apis, err := c.ListManagedAPIs(ctx)
+	// Search across all namespaces for backward compatibility
+	apis, err := c.ListManagedAPIs(ctx, []string{"*"})
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +405,8 @@ func (c *Client) GetAPIByFilter(ctx context.Context, filter string) (*API, error
 	// Use the filter in the SDK list operation
 	// For now, we'll use ListManagedAPIs and filter locally
 	// TODO: Update when SDK supports server-side filtering
-	apis, err := c.ListManagedAPIs(ctx)
+	// Search across all namespaces for backward compatibility
+	apis, err := c.ListManagedAPIs(ctx, []string{"*"})
 	if err != nil {
 		return nil, err
 	}
@@ -411,7 +427,8 @@ func (c *Client) GetAPIByFilter(ctx context.Context, filter string) (*API, error
 // GetAPIByRef finds a managed API by declarative ref (stored in labels)
 // TODO: This will be replaced by filtered lookup in Phase 2
 func (c *Client) GetAPIByRef(ctx context.Context, ref string) (*API, error) {
-	apis, err := c.ListManagedAPIs(ctx)
+	// Search across all namespaces for backward compatibility
+	apis, err := c.ListManagedAPIs(ctx, []string{"*"})
 	if err != nil {
 		return nil, err
 	}
@@ -934,8 +951,12 @@ func (c *Client) CreateApplicationAuthStrategy(
 	return resp, nil
 }
 
-// ListManagedAuthStrategies returns all KONGCTL-managed auth strategies
-func (c *Client) ListManagedAuthStrategies(ctx context.Context) ([]ApplicationAuthStrategy, error) {
+// ListManagedAuthStrategies returns all KONGCTL-managed auth strategies in the specified namespaces
+// If namespaces is empty, no resources are returned (breaking change from previous behavior)
+// To get all managed resources across all namespaces, pass []string{"*"}
+func (c *Client) ListManagedAuthStrategies(
+	ctx context.Context, namespaces []string,
+) ([]ApplicationAuthStrategy, error) {
 	if c.appAuthAPI == nil {
 		return nil, fmt.Errorf("app auth API client not configured")
 	}
@@ -1020,9 +1041,12 @@ func (c *Client) ListManagedAuthStrategies(ctx context.Context) ([]ApplicationAu
 			}
 			strategy.NormalizedLabels = labelMap
 
-			// Only include if managed by kongctl
+			// Check if resource has a namespace label (new criteria for managed resources)
 			if labels.IsManagedResource(labelMap) {
-				allStrategies = append(allStrategies, strategy)
+				// Filter by namespace if specified
+				if shouldIncludeNamespace(labelMap[labels.NamespaceKey], namespaces) {
+					allStrategies = append(allStrategies, strategy)
+				}
 			}
 		}
 
@@ -1039,7 +1063,8 @@ func (c *Client) ListManagedAuthStrategies(ctx context.Context) ([]ApplicationAu
 
 // GetAuthStrategyByName finds a managed auth strategy by name
 func (c *Client) GetAuthStrategyByName(ctx context.Context, name string) (*ApplicationAuthStrategy, error) {
-	strategies, err := c.ListManagedAuthStrategies(ctx)
+	// Search across all namespaces for backward compatibility
+	strategies, err := c.ListManagedAuthStrategies(ctx, []string{"*"})
 	if err != nil {
 		return nil, err
 	}
@@ -1062,7 +1087,8 @@ func (c *Client) GetAuthStrategyByFilter(ctx context.Context, filter string) (*A
 	// Use the filter in the SDK list operation
 	// For now, we'll use ListManagedAuthStrategies and filter locally
 	// TODO: Update when SDK supports server-side filtering
-	strategies, err := c.ListManagedAuthStrategies(ctx)
+	// Search across all namespaces for backward compatibility
+	strategies, err := c.ListManagedAuthStrategies(ctx, []string{"*"})
 	if err != nil {
 		return nil, err
 	}
@@ -1522,5 +1548,29 @@ func (c *Client) DeletePortalSnippet(ctx context.Context, portalID string, snipp
 		return fmt.Errorf("failed to delete portal snippet: %w", err)
 	}
 	return nil
+}
+
+// shouldIncludeNamespace checks if a resource's namespace should be included based on filter
+func shouldIncludeNamespace(resourceNamespace string, namespaces []string) bool {
+	// Empty namespace list means no resources should be returned
+	if len(namespaces) == 0 {
+		return false
+	}
+	
+	// Check for wildcard (all namespaces)
+	for _, ns := range namespaces {
+		if ns == "*" {
+			return true
+		}
+	}
+	
+	// Check if resource's namespace is in the filter list
+	for _, ns := range namespaces {
+		if resourceNamespace == ns {
+			return true
+		}
+	}
+	
+	return false
 }
 

@@ -16,7 +16,8 @@ func (p *Planner) planPortalCustomizationsChanges(
 	ctx context.Context, desired []resources.PortalCustomizationResource, plan *Plan,
 ) error { //nolint:unparam // Will return errors in future enhancements
 	// Get existing portals to check current customization
-	existingPortals, _ := p.client.ListManagedPortals(ctx)
+	// TODO: In Step 11, this will be updated to filter by specific namespaces
+	existingPortals, _ := p.client.ListManagedPortals(ctx, []string{"*"})
 	portalNameToID := make(map[string]string)
 	for _, portal := range existingPortals {
 		portalNameToID[portal.Name] = portal.ID

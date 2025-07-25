@@ -224,7 +224,7 @@ func TestListManagedPortals(t *testing.T) {
 			client := NewClient(ClientConfig{
 				PortalAPI: tt.setupMock(),
 			})
-			portals, err := client.ListManagedPortals(testContextWithLogger())
+			portals, err := client.ListManagedPortals(testContextWithLogger(), []string{"*"})
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ListManagedPortals() error = %v, wantErr %v", err, tt.wantErr)

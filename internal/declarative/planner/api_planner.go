@@ -57,8 +57,9 @@ func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIRes
 		return nil
 	}
 
-	// Fetch current managed APIs
-	currentAPIs, err := p.client.ListManagedAPIs(ctx)
+	// Fetch current managed APIs from all namespaces
+	// TODO: In Step 11, this will be updated to filter by specific namespaces
+	currentAPIs, err := p.client.ListManagedAPIs(ctx, []string{"*"})
 	if err != nil {
 		// If API client is not configured, skip API planning
 		if err.Error() == "API client not configured" {
@@ -568,7 +569,8 @@ func (p *Planner) planAPIPublicationChanges(
 	
 	// Also fetch ALL managed portals to ensure complete mapping
 	// This handles cases where publications exist for portals not in current desired state
-	allPortals, err := p.client.ListManagedPortals(ctx)
+	// TODO: In Step 11, this will be updated to filter by specific namespaces
+	allPortals, err := p.client.ListManagedPortals(ctx, []string{"*"})
 	if err == nil {
 		p.logger.Debug("Fetched all managed portals",
 			slog.Int("count", len(allPortals)),
