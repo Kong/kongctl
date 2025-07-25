@@ -57,9 +57,16 @@ func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIRes
 		return nil
 	}
 
-	// Fetch current managed APIs from all namespaces
-	// TODO: In Step 11, this will be updated to filter by specific namespaces
-	currentAPIs, err := p.client.ListManagedAPIs(ctx, []string{"*"})
+	// Get namespace from context
+	namespace, ok := ctx.Value(NamespaceContextKey).(string)
+	if !ok {
+		// Default to all namespaces for backward compatibility
+		namespace = "*"
+	}
+	
+	// Fetch current managed APIs from the specific namespace
+	namespaceFilter := []string{namespace}
+	currentAPIs, err := p.client.ListManagedAPIs(ctx, namespaceFilter)
 	if err != nil {
 		// If API client is not configured, skip API planning
 		if err.Error() == "API client not configured" {
@@ -535,6 +542,14 @@ func (p *Planner) planAPIVersionDelete(apiRef string, apiID string, versionID st
 func (p *Planner) planAPIPublicationChanges(
 	ctx context.Context, apiID string, apiRef string, desired []resources.APIPublicationResource, plan *Plan,
 ) error {
+	// Get namespace from context
+	namespace, ok := ctx.Value(NamespaceContextKey).(string)
+	if !ok {
+		// Default to all namespaces for backward compatibility
+		namespace = "*"
+	}
+	namespaceFilter := []string{namespace}
+	
 	// List current publications
 	currentPublications, err := p.client.ListAPIPublications(ctx, apiID)
 	if err != nil {
@@ -567,10 +582,9 @@ func (p *Planner) planAPIPublicationChanges(
 		}
 	}
 	
-	// Also fetch ALL managed portals to ensure complete mapping
+	// Also fetch managed portals from the same namespace to ensure complete mapping
 	// This handles cases where publications exist for portals not in current desired state
-	// TODO: In Step 11, this will be updated to filter by specific namespaces
-	allPortals, err := p.client.ListManagedPortals(ctx, []string{"*"})
+	allPortals, err := p.client.ListManagedPortals(ctx, namespaceFilter)
 	if err == nil {
 		p.logger.Debug("Fetched all managed portals",
 			slog.Int("count", len(allPortals)),

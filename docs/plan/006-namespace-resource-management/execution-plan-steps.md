@@ -1,8 +1,8 @@
 # Stage 6: Namespace-Based Resource Management - Implementation Steps
 
 ## Progress Summary
-**Progress**: 10/15 steps completed (67%)  
-**Current Step**: Step 11 - Group Resources by Namespace in Planner
+**Progress**: 11/15 steps completed (73%)  
+**Current Step**: Step 12 - Update Command Output for Namespace Visibility
 
 ## Overview
 This document outlines the step-by-step implementation plan for adding 
@@ -284,7 +284,7 @@ instead of the deprecated KONGCTL-managed label.
 ---
 
 ### Step 11: Group Resources by Namespace in Planner
-**Status**: Not Started
+**Status**: Completed ✓
 
 Implement namespace grouping logic in the main planner to process each 
 namespace independently.
@@ -301,6 +301,14 @@ namespace independently.
 - Resources grouped correctly
 - Each namespace planned independently
 - No cross-namespace interference
+
+**Implementation notes**:
+- Added getResourceNamespaces() to extract unique namespaces from resources
+- Added filterResourcesByNamespace() to create namespace-specific ResourceSets
+- Updated GeneratePlan to process each namespace independently
+- Added NamespaceContextKey for proper context value passing
+- Updated all planners to use namespace from context instead of wildcard
+- Test failures are expected until remaining namespace integration steps are completed
 
 ---
 

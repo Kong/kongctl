@@ -31,9 +31,16 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) e
 		return nil
 	}
 
-	// Fetch current managed auth strategies from all namespaces
-	// TODO: In Step 11, this will be updated to filter by specific namespaces
-	currentStrategies, err := p.GetClient().ListManagedAuthStrategies(ctx, []string{"*"})
+	// Get namespace from context
+	namespace, ok := ctx.Value(NamespaceContextKey).(string)
+	if !ok {
+		// Default to all namespaces for backward compatibility
+		namespace = "*"
+	}
+	
+	// Fetch current managed auth strategies from the specific namespace
+	namespaceFilter := []string{namespace}
+	currentStrategies, err := p.GetClient().ListManagedAuthStrategies(ctx, namespaceFilter)
 	if err != nil {
 		// If app auth client is not configured, skip auth strategy planning
 		if err.Error() == "AppAuth client not configured" {

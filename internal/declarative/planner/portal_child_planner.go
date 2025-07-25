@@ -15,9 +15,16 @@ import (
 func (p *Planner) planPortalCustomizationsChanges(
 	ctx context.Context, desired []resources.PortalCustomizationResource, plan *Plan,
 ) error { //nolint:unparam // Will return errors in future enhancements
+	// Get namespace from context
+	namespace, ok := ctx.Value(NamespaceContextKey).(string)
+	if !ok {
+		// Default to all namespaces for backward compatibility
+		namespace = "*"
+	}
+	
 	// Get existing portals to check current customization
-	// TODO: In Step 11, this will be updated to filter by specific namespaces
-	existingPortals, _ := p.client.ListManagedPortals(ctx, []string{"*"})
+	namespaceFilter := []string{namespace}
+	existingPortals, _ := p.client.ListManagedPortals(ctx, namespaceFilter)
 	portalNameToID := make(map[string]string)
 	for _, portal := range existingPortals {
 		portalNameToID[portal.Name] = portal.ID

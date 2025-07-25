@@ -4,10 +4,20 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+)
+
+// ContextKey is the type for context keys
+type ContextKey int
+
+// Context keys for planner
+const (
+	// NamespaceContextKey is the context key for namespace
+	NamespaceContextKey ContextKey = iota
 )
 
 // Options configures plan generation behavior
@@ -63,94 +73,118 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 
 // GeneratePlan creates a plan from declarative configuration
 func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, opts Options) (*Plan, error) {
-	plan := NewPlan("1.0", "kongctl/dev", opts.Mode)
-
-	// Store desired resources for access by planners
-	p.desiredPortals = rs.Portals
-	p.desiredAuthStrategies = rs.ApplicationAuthStrategies
-	p.desiredAPIs = rs.APIs
-	p.desiredAPIVersions = rs.APIVersions
-	p.desiredAPIPublications = rs.APIPublications
-	p.desiredAPIImplementations = rs.APIImplementations
-	p.desiredAPIDocuments = rs.APIDocuments
-	p.desiredPortalCustomizations = rs.PortalCustomizations
-	p.desiredPortalCustomDomains = rs.PortalCustomDomains
-	p.desiredPortalPages = rs.PortalPages
-	p.desiredPortalSnippets = rs.PortalSnippets
-
+	// Create base plan
+	basePlan := NewPlan("1.0", "kongctl/dev", opts.Mode)
+	
 	// Pre-resolution phase: Resolve resource identities before planning
 	if err := p.resolveResourceIdentities(ctx, rs); err != nil {
 		return nil, fmt.Errorf("failed to resolve resource identities: %w", err)
 	}
-
-	// Generate changes using interface-based planners
-	if err := p.authStrategyPlanner.PlanChanges(ctx, plan); err != nil {
-		return nil, fmt.Errorf("failed to plan auth strategy changes: %w", err)
-	}
-
-	if err := p.portalPlanner.PlanChanges(ctx, plan); err != nil {
-		return nil, fmt.Errorf("failed to plan portal changes: %w", err)
-	}
-
-	// Plan API changes (includes child resources)
-	if err := p.apiPlanner.PlanChanges(ctx, plan); err != nil {
-		return nil, fmt.Errorf("failed to plan API changes: %w", err)
-	}
-
-	// Portal child resources are now handled within portal planning
-	// This ensures all existing portals are checked for child resource deletions
 	
-	// However, we still need to handle portal child resources that are defined
-	// at root level without a matching portal (edge case)
-	// These would be resources defined separately that reference non-existent portals
+	// Extract all unique namespaces from desired resources
+	namespaces := p.getResourceNamespaces(rs)
 	
-	// Plan customizations for portals that don't exist yet
-	processedPortals := make(map[string]bool)
-	for _, portal := range p.desiredPortals {
-		processedPortals[portal.Ref] = true
+	// If no namespaces found and we're in sync mode, we need to check existing resources
+	if len(namespaces) == 0 && opts.Mode == PlanModeSync {
+		// For sync mode with empty config, we need to find all managed resources
+		// across all namespaces to delete them
+		namespaces = []string{"*"}
 	}
 	
-	// Find customizations for non-existent portals
-	orphanCustomizations := make([]resources.PortalCustomizationResource, 0)
-	for _, customization := range p.desiredPortalCustomizations {
-		if !processedPortals[customization.Portal] {
-			orphanCustomizations = append(orphanCustomizations, customization)
-		}
-	}
-	if len(orphanCustomizations) > 0 {
-		if err := p.planPortalCustomizationsChanges(ctx, orphanCustomizations, plan); err != nil {
-			return nil, fmt.Errorf("failed to plan orphan portal customization changes: %w", err)
-		}
-	}
+	// Log namespace processing
+	p.logger.Debug("Processing namespaces", 
+		slog.Int("count", len(namespaces)),
+		slog.Any("namespaces", namespaces))
 	
-	// Find custom domains for non-existent portals
-	orphanDomains := make([]resources.PortalCustomDomainResource, 0)
-	for _, domain := range p.desiredPortalCustomDomains {
-		if !processedPortals[domain.Portal] {
-			orphanDomains = append(orphanDomains, domain)
+	// Process each namespace independently
+	for _, namespace := range namespaces {
+		// Create a namespace-specific planner context
+		namespacePlanner := &Planner{
+			client:      p.client,
+			logger:      p.logger,
+			resolver:    p.resolver,
+			depResolver: p.depResolver,
+			changeCount: p.changeCount,
+			portalPlanner:       p.portalPlanner,
+			authStrategyPlanner: p.authStrategyPlanner,
+			apiPlanner:          p.apiPlanner,
 		}
-	}
-	if len(orphanDomains) > 0 {
-		if err := p.planPortalCustomDomainsChanges(ctx, orphanDomains, plan); err != nil {
-			return nil, fmt.Errorf("failed to plan orphan portal custom domain changes: %w", err)
+		
+		// Filter resources for this namespace
+		var namespaceResources *resources.ResourceSet
+		if namespace == "*" {
+			// Special case for sync mode with empty config
+			namespaceResources = &resources.ResourceSet{}
+		} else {
+			namespaceResources = p.filterResourcesByNamespace(rs, namespace)
 		}
+		
+		// Store filtered resources for access by planners
+		namespacePlanner.desiredPortals = namespaceResources.Portals
+		namespacePlanner.desiredAuthStrategies = namespaceResources.ApplicationAuthStrategies
+		namespacePlanner.desiredAPIs = namespaceResources.APIs
+		namespacePlanner.desiredAPIVersions = namespaceResources.APIVersions
+		namespacePlanner.desiredAPIPublications = namespaceResources.APIPublications
+		namespacePlanner.desiredAPIImplementations = namespaceResources.APIImplementations
+		namespacePlanner.desiredAPIDocuments = namespaceResources.APIDocuments
+		namespacePlanner.desiredPortalCustomizations = namespaceResources.PortalCustomizations
+		namespacePlanner.desiredPortalCustomDomains = namespaceResources.PortalCustomDomains
+		namespacePlanner.desiredPortalPages = namespaceResources.PortalPages
+		namespacePlanner.desiredPortalSnippets = namespaceResources.PortalSnippets
+		
+		// Create a plan for this namespace
+		namespacePlan := NewPlan("1.0", "kongctl/dev", opts.Mode)
+		
+		// Generate changes using interface-based planners
+		// Pass the specific namespace to planners instead of wildcard
+		actualNamespace := namespace
+		if namespace == "*" {
+			// For sync mode with empty config, we still need to query all namespaces
+			actualNamespace = "*"
+		}
+		
+		// Update planner context to use specific namespace
+		plannerCtx := context.WithValue(ctx, NamespaceContextKey, actualNamespace)
+		
+		if err := namespacePlanner.authStrategyPlanner.PlanChanges(plannerCtx, namespacePlan); err != nil {
+			return nil, fmt.Errorf("failed to plan auth strategy changes for namespace %s: %w", namespace, err)
+		}
+
+		if err := namespacePlanner.portalPlanner.PlanChanges(plannerCtx, namespacePlan); err != nil {
+			return nil, fmt.Errorf("failed to plan portal changes for namespace %s: %w", namespace, err)
+		}
+
+		// Plan API changes (includes child resources)
+		if err := namespacePlanner.apiPlanner.PlanChanges(plannerCtx, namespacePlan); err != nil {
+			return nil, fmt.Errorf("failed to plan API changes for namespace %s: %w", namespace, err)
+		}
+		
+		// Merge namespace plan into base plan
+		basePlan.Changes = append(basePlan.Changes, namespacePlan.Changes...)
+		basePlan.Warnings = append(basePlan.Warnings, namespacePlan.Warnings...)
+		
+		// Update change count
+		p.changeCount = namespacePlanner.changeCount
 	}
 
-	// Future: Add other resource types
+	// Note: Orphan portal child resources (those referencing non-existent portals)
+	// are now handled within each namespace's processing. The filterResourcesByNamespace
+	// method ensures child resources are only included if their parent exists in the
+	// same namespace.
 
 	// Resolve references for all changes
-	resolveResult, err := p.resolver.ResolveReferences(ctx, plan.Changes)
+	resolveResult, err := p.resolver.ResolveReferences(ctx, basePlan.Changes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve references: %w", err)
 	}
 
 	// Apply resolved references to changes
 	for changeID, refs := range resolveResult.ChangeReferences {
-		for i := range plan.Changes {
-			if plan.Changes[i].ID == changeID {
-				plan.Changes[i].References = make(map[string]ReferenceInfo)
+		for i := range basePlan.Changes {
+			if basePlan.Changes[i].ID == changeID {
+				basePlan.Changes[i].References = make(map[string]ReferenceInfo)
 				for field, ref := range refs {
-					plan.Changes[i].References[field] = ReferenceInfo{
+					basePlan.Changes[i].References[field] = ReferenceInfo{
 						Ref: ref.Ref,
 						ID:  ref.ID,
 					}
@@ -161,27 +195,27 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	}
 
 	// Resolve dependencies and calculate execution order
-	executionOrder, err := p.depResolver.ResolveDependencies(plan.Changes)
+	executionOrder, err := p.depResolver.ResolveDependencies(basePlan.Changes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve dependencies: %w", err)
 	}
-	plan.SetExecutionOrder(executionOrder)
+	basePlan.SetExecutionOrder(executionOrder)
 	
 	// Reassign change IDs to match execution order
-	p.reassignChangeIDs(plan, executionOrder)
+	p.reassignChangeIDs(basePlan, executionOrder)
 
 	// Add warnings for unresolved references
-	for _, change := range plan.Changes {
+	for _, change := range basePlan.Changes {
 		for field, ref := range change.References {
 			if ref.ID == "[unknown]" {
-				plan.AddWarning(change.ID, fmt.Sprintf(
+				basePlan.AddWarning(change.ID, fmt.Sprintf(
 					"Reference %s=%s will be resolved during execution",
 					field, ref.Ref))
 			}
 		}
 	}
 
-	return plan, nil
+	return basePlan, nil
 }
 
 // nextChangeID generates temporary change IDs during planning phase
@@ -414,4 +448,131 @@ func (p *Planner) resolveAuthStrategyIdentities(
 	}
 	
 	return nil
+}
+
+// getResourceNamespaces extracts all unique namespaces from the desired resources
+func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
+	namespaceSet := make(map[string]bool)
+	
+	// Extract namespaces from parent resources
+	for _, portal := range rs.Portals {
+		ns := getNamespace(portal.Kongctl)
+		namespaceSet[ns] = true
+	}
+	
+	for _, api := range rs.APIs {
+		ns := getNamespace(api.Kongctl)
+		namespaceSet[ns] = true
+	}
+	
+	for _, strategy := range rs.ApplicationAuthStrategies {
+		ns := getNamespace(strategy.Kongctl)
+		namespaceSet[ns] = true
+	}
+	
+	// Convert set to sorted slice for consistent ordering
+	namespaces := make([]string, 0, len(namespaceSet))
+	for ns := range namespaceSet {
+		namespaces = append(namespaces, ns)
+	}
+	
+	// Sort for consistent processing order
+	sort.Strings(namespaces)
+	
+	return namespaces
+}
+
+// getNamespace safely extracts namespace from kongctl metadata
+func getNamespace(kongctl *resources.KongctlMeta) string {
+	if kongctl != nil && kongctl.Namespace != nil {
+		return *kongctl.Namespace
+	}
+	return DefaultNamespace
+}
+
+// filterResourcesByNamespace creates a filtered ResourceSet containing only resources from the specified namespace
+func (p *Planner) filterResourcesByNamespace(rs *resources.ResourceSet, namespace string) *resources.ResourceSet {
+	filtered := &resources.ResourceSet{}
+	
+	// Filter parent resources by namespace
+	for _, portal := range rs.Portals {
+		if getNamespace(portal.Kongctl) == namespace {
+			filtered.Portals = append(filtered.Portals, portal)
+		}
+	}
+	
+	for _, api := range rs.APIs {
+		if getNamespace(api.Kongctl) == namespace {
+			filtered.APIs = append(filtered.APIs, api)
+		}
+	}
+	
+	for _, strategy := range rs.ApplicationAuthStrategies {
+		if getNamespace(strategy.Kongctl) == namespace {
+			filtered.ApplicationAuthStrategies = append(filtered.ApplicationAuthStrategies, strategy)
+		}
+	}
+	
+	// For child resources, include them if their parent is in the filtered set
+	// This requires building parent resource name sets for efficient lookup
+	portalNames := make(map[string]bool)
+	for _, portal := range filtered.Portals {
+		portalNames[portal.Name] = true
+	}
+	
+	apiNames := make(map[string]bool)
+	for _, api := range filtered.APIs {
+		apiNames[api.Name] = true
+	}
+	
+	// Filter child resources based on parent presence
+	for _, version := range rs.APIVersions {
+		if apiNames[version.API] {
+			filtered.APIVersions = append(filtered.APIVersions, version)
+		}
+	}
+	
+	for _, pub := range rs.APIPublications {
+		if apiNames[pub.API] {
+			filtered.APIPublications = append(filtered.APIPublications, pub)
+		}
+	}
+	
+	for _, impl := range rs.APIImplementations {
+		if apiNames[impl.API] {
+			filtered.APIImplementations = append(filtered.APIImplementations, impl)
+		}
+	}
+	
+	for _, doc := range rs.APIDocuments {
+		if apiNames[doc.API] {
+			filtered.APIDocuments = append(filtered.APIDocuments, doc)
+		}
+	}
+	
+	for _, custom := range rs.PortalCustomizations {
+		if portalNames[custom.Portal] {
+			filtered.PortalCustomizations = append(filtered.PortalCustomizations, custom)
+		}
+	}
+	
+	for _, domain := range rs.PortalCustomDomains {
+		if portalNames[domain.Portal] {
+			filtered.PortalCustomDomains = append(filtered.PortalCustomDomains, domain)
+		}
+	}
+	
+	for _, page := range rs.PortalPages {
+		if portalNames[page.Portal] {
+			filtered.PortalPages = append(filtered.PortalPages, page)
+		}
+	}
+	
+	for _, snippet := range rs.PortalSnippets {
+		if portalNames[snippet.Portal] {
+			filtered.PortalSnippets = append(filtered.PortalSnippets, snippet)
+		}
+	}
+	
+	return filtered
 }
