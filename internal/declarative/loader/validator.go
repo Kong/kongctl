@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/validator"
 )
 
 // validateResourceSet validates all resources and checks for ref uniqueness
@@ -40,6 +41,11 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 
 	// Validate cross-resource references
 	if err := l.validateCrossReferences(rs, resourceRegistry); err != nil {
+		return err
+	}
+
+	// Validate namespaces
+	if err := l.validateNamespaces(rs); err != nil {
 		return err
 	}
 
@@ -491,4 +497,52 @@ func (l *Loader) toPascalCase(s string) string {
 		}
 	}
 	return strings.Join(parts, "")
+}
+
+// validateNamespaces validates all namespace values in the resource set
+func (l *Loader) validateNamespaces(rs *resources.ResourceSet) error {
+	nsValidator := validator.NewNamespaceValidator()
+	namespaces := make(map[string]bool)
+	
+	// Collect all unique namespaces from parent resources
+	// Portals
+	for _, portal := range rs.Portals {
+		if portal.Kongctl != nil && portal.Kongctl.Namespace != nil {
+			namespaces[*portal.Kongctl.Namespace] = true
+		}
+	}
+	
+	// APIs
+	for _, api := range rs.APIs {
+		if api.Kongctl != nil && api.Kongctl.Namespace != nil {
+			namespaces[*api.Kongctl.Namespace] = true
+		}
+	}
+	
+	// Application Auth Strategies
+	for _, strategy := range rs.ApplicationAuthStrategies {
+		if strategy.Kongctl != nil && strategy.Kongctl.Namespace != nil {
+			namespaces[*strategy.Kongctl.Namespace] = true
+		}
+	}
+	
+	// Control Planes
+	for _, cp := range rs.ControlPlanes {
+		if cp.Kongctl != nil && cp.Kongctl.Namespace != nil {
+			namespaces[*cp.Kongctl.Namespace] = true
+		}
+	}
+	
+	// Convert to slice for validation
+	namespaceList := make([]string, 0, len(namespaces))
+	for ns := range namespaces {
+		namespaceList = append(namespaceList, ns)
+	}
+	
+	// Validate all namespaces
+	if err := nsValidator.ValidateNamespaces(namespaceList); err != nil {
+		return fmt.Errorf("namespace validation failed: %w", err)
+	}
+	
+	return nil
 }

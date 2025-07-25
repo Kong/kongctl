@@ -17,8 +17,8 @@ This folder contains the complete planning and implementation tracking for all k
 - **Technical Overview**: [006-namespace-resource-management/execution-plan-overview.md](006-namespace-resource-management/execution-plan-overview.md) ✅ Created
 - **Goal**: Enable multiple teams to safely manage their own resources within a shared Konnect organization
 
-**Progress**: 12/15 steps completed (80%)
-**Next Step**: Step 13 - Add Namespace Validation
+**Progress**: 13/15 steps completed (87%)
+**Next Step**: Step 14 - Create Integration Tests
 
 ## Quick Start for Implementation
 
@@ -184,7 +184,7 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](006-namespace-resource-management/execution-plan-steps.md) | **Implementation guide** | ✅ Created |
 | [execution-plan-adrs.md](006-namespace-resource-management/execution-plan-adrs.md) | Architecture decisions | ✅ Created |
 
-**Implementation Status**: 12/15 steps completed (80%)
+**Implementation Status**: 13/15 steps completed (87%)
 - **Dependencies**: Stage 5 completion ✅ Met
 - **Completed deliverables**: 
   - ✅ Namespace field in kongctl section
@@ -193,8 +193,8 @@ The first major feature being implemented is declarative configuration managemen
   - ✅ Multi-namespace operations in single command
   - ✅ Namespace isolation during sync
   - ✅ Clear namespace visibility in output
+  - ✅ Namespace validation
 - **Remaining work**:
-  - Namespace validation
   - Integration tests
   - Documentation and examples
 
@@ -238,8 +238,8 @@ The first major feature being implemented is declarative configuration managemen
 - Stage 5: Sync Command Implementation ✅ **COMPLETED**
 
 **Current Stage**: Stage 6 - Namespace-Based Resource Management
-- **Progress**: 12/15 steps completed (80%)
-- **Next Step**: Step 13 - Add Namespace Validation
+- **Progress**: 13/15 steps completed (87%)
+- **Next Step**: Step 14 - Create Integration Tests
 - **Goal**: Enable multi-team resource management through namespaces
 
 **Key Changes in Stage 6**:
