@@ -5,8 +5,10 @@ import (
 	"fmt"
 
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
+	onprem "github.com/kong/kongctl/internal/cmd/root/products/on-prem"
 	profileCmd "github.com/kong/kongctl/internal/cmd/root/profile"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -33,8 +35,8 @@ Output can be formatted in multiple ways to aid in further processing.`))
 		fmt.Sprintf(`
 		# Retrieve Konnect control planes
 		%[1]s get konnect gateway controlplanes
-		# Retrieve Kong Gateway (on-prem) gateway services 
-		%[1]s get gateway services
+		# Retrieve on-premises Kong Gateway services 
+		%[1]s get on-prem services
 		`, meta.CLIName)))
 )
 
@@ -55,6 +57,10 @@ func NewGetCmd() (*cobra.Command, error) {
 		return nil, e
 	}
 	cmd.AddCommand(c)
+
+	// Add on-prem product command
+	streams := &iostreams.IOStreams{}
+	cmd.AddCommand(onprem.NewOnPremCmd(streams))
 
 	cmd.AddCommand(profileCmd.NewProfileCmd())
 

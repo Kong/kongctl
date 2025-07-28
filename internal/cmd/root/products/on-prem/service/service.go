@@ -12,14 +12,14 @@ import (
 
 var (
 	serviceUse   = "service"
-	serviceShort = i18n.T("root.products.gateway.service.serviceShort",
-		"Manage Kong Gateway Services")
-	serviceLong = normalizers.LongDesc(i18n.T("root.products.gateway.service.serviceLong",
-		`The service command allows you to manage Kong Gateway service resources.`))
-	serviceExamples = normalizers.Examples(i18n.T("root.products.gateway.service.serviceExamples",
+	serviceShort = i18n.T("root.products.on-prem.service.serviceShort",
+		"Manage on-premises Kong Gateway Services")
+	serviceLong = normalizers.LongDesc(i18n.T("root.products.on-prem.service.serviceLong",
+		`The service command allows you to manage on-premises Kong Gateway service resources.`))
+	serviceExamples = normalizers.Examples(i18n.T("root.products.on-prem.service.serviceExamples",
 		fmt.Sprintf(`
-	# List the Kong Gateway Services
-	%[1]s get gateway services 
+	# List the on-premises Kong Gateway Services
+	%[1]s get on-prem services 
 	`, meta.CLIName)))
 )
 

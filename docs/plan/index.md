@@ -11,8 +11,8 @@ This folder contains the complete planning and implementation tracking for all k
 - **Architecture Decisions**: [007-dec-cfg-various/execution-plan-adrs.md](007-dec-cfg-various/execution-plan-adrs.md) ✅ Created
 - **Goal**: Complete essential testing, documentation, and core improvements for production readiness
 
-**Progress**: 1/15 steps completed (7%)  
-**Current Step**: Step 2 - Rename Gateway Product to On-Prem
+**Progress**: 2/15 steps completed (13%)  
+**Current Step**: Step 3 - Implement Get Command for Portals
 
 ## Quick Start for Implementation
 
@@ -205,10 +205,14 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](007-dec-cfg-various/execution-plan-steps.md) | **Implementation guide** | ✅ Complete |
 | [execution-plan-adrs.md](007-dec-cfg-various/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: 0/10 steps completed (0%)
+**Implementation Status**: 2/15 steps completed (13%)
 - **Dependencies**: Stages 1-6 completion ✅ Met
-- **Key deliverables** (prioritized): 
-  - Login command migration to Konnect-first
+- **Completed deliverables**:
+  - ✅ Login command migration to Konnect-first
+  - ✅ Gateway product renamed to on-prem
+- **Remaining deliverables** (prioritized): 
+  - Imperative get commands for portals, APIs, auth strategies
+  - Complete Konnect-first for all verbs
   - Complete documentation updates
   - Comprehensive integration tests
   - Critical UX improvements
@@ -238,8 +242,8 @@ The first major feature being implemented is declarative configuration managemen
 - Stage 6: Namespace-Based Resource Management ✅ **COMPLETED**
 
 **Current Stage**: Stage 7 - Testing, Documentation, and Core Improvements
-- **Status**: 0/10 steps completed (0%)
-- **Current Step**: Step 1 - Login Command Migration to Konnect-First
+- **Status**: 2/15 steps completed (13%)
+- **Current Step**: Step 3 - Implement Get Command for Portals
 - **Goal**: Complete essential testing, documentation, and core improvements for production readiness
 
 **Key priorities in Stage 7**:

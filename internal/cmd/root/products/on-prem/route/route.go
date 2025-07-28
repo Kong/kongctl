@@ -12,14 +12,14 @@ import (
 
 var (
 	routeUse   = "route"
-	routeShort = i18n.T("root.products.gateway.route.routeShort",
-		"Manage Kong Gateway Services")
-	routeLong = normalizers.LongDesc(i18n.T("root.products.gateway.route.routeLong",
-		`The route command allows you to manage Kong Gateway route resources.`))
-	routeExamples = normalizers.Examples(i18n.T("root.products.gateway.route.routeExamples",
+	routeShort = i18n.T("root.products.on-prem.route.routeShort",
+		"Manage on-premises Kong Gateway Routes")
+	routeLong = normalizers.LongDesc(i18n.T("root.products.on-prem.route.routeLong",
+		`The route command allows you to manage on-premises Kong Gateway route resources.`))
+	routeExamples = normalizers.Examples(i18n.T("root.products.on-prem.route.routeExamples",
 		fmt.Sprintf(`
-	# List the Kong Gateway Routes 
-	%[1]s get gateway routes 
+	# List the on-premises Kong Gateway Routes 
+	%[1]s get on-prem routes 
 	`, meta.CLIName)))
 )
 
