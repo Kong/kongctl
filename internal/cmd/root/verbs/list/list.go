@@ -32,6 +32,8 @@ Output can be formatted in multiple ways to aid in further processing.`))
 
 	listExamples = normalizers.Examples(i18n.T("root.verbs.list.listExamples",
 		fmt.Sprintf(`
+		# Retrieve Konnect portals
+		%[1]s list portals
 		# Retrieve Konnect control planes
 		%[1]s list konnect gateway controlplanes
 		`, meta.CLIName)))

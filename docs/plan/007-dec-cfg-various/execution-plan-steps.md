@@ -1,8 +1,8 @@
 # Stage 7: Testing, Documentation, and Core Improvements - Implementation Steps
 
 ## Progress Summary
-**Progress**: 2/15 steps completed (13%)  
-**Current Step**: Step 3 - Implement Get Command for Portals
+**Progress**: 3/15 steps completed (20%)  
+**Current Step**: Step 4 - Implement Get Command for APIs
 
 ## Overview
 This document outlines the step-by-step implementation plan for completing 
@@ -65,7 +65,7 @@ Rename 'gateway' product to 'on-prem' to disambiguate from Konnect gateway.
 ---
 
 ### Step 3: Implement Get Command for Portals
-**Status**: Not Started
+**Status**: Completed
 
 Add imperative `get` support for portal resources.
 

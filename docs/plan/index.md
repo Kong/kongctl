@@ -205,11 +205,12 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](007-dec-cfg-various/execution-plan-steps.md) | **Implementation guide** | ✅ Complete |
 | [execution-plan-adrs.md](007-dec-cfg-various/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: 2/15 steps completed (13%)
+**Implementation Status**: 3/15 steps completed (20%)
 - **Dependencies**: Stages 1-6 completion ✅ Met
 - **Completed deliverables**:
   - ✅ Login command migration to Konnect-first
   - ✅ Gateway product renamed to on-prem
+  - ✅ Get command for portals with Konnect-first pattern
 - **Remaining deliverables** (prioritized): 
   - Imperative get commands for portals, APIs, auth strategies
   - Complete Konnect-first for all verbs
@@ -242,8 +243,8 @@ The first major feature being implemented is declarative configuration managemen
 - Stage 6: Namespace-Based Resource Management ✅ **COMPLETED**
 
 **Current Stage**: Stage 7 - Testing, Documentation, and Core Improvements
-- **Status**: 2/15 steps completed (13%)
-- **Current Step**: Step 3 - Implement Get Command for Portals
+- **Status**: 3/15 steps completed (20%)
+- **Current Step**: Step 4 - Implement Get Command for APIs
 - **Goal**: Complete essential testing, documentation, and core improvements for production readiness
 
 **Key priorities in Stage 7**:

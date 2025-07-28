@@ -33,6 +33,8 @@ Output can be formatted in multiple ways to aid in further processing.`))
 
 	getExamples = normalizers.Examples(i18n.T("root.verbs.get.getExamples",
 		fmt.Sprintf(`
+		# Retrieve Konnect portals
+		%[1]s get portals
 		# Retrieve Konnect control planes
 		%[1]s get konnect gateway controlplanes
 		# Retrieve on-premises Kong Gateway services 
