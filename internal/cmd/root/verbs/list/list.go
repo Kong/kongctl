@@ -34,6 +34,8 @@ Output can be formatted in multiple ways to aid in further processing.`))
 		fmt.Sprintf(`
 		# Retrieve Konnect portals
 		%[1]s list portals
+		# Retrieve Konnect APIs
+		%[1]s list apis
 		# Retrieve Konnect control planes
 		%[1]s list konnect gateway controlplanes
 		`, meta.CLIName)))
@@ -67,6 +69,13 @@ func NewListCmd() (*cobra.Command, error) {
 		return nil, err
 	}
 	cmd.AddCommand(portalCmd)
+
+	// Add API command directly for Konnect-first pattern
+	apiCmd, err := NewDirectAPICmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(apiCmd)
 
 	return cmd, nil
 }

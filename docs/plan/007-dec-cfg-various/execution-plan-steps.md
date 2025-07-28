@@ -1,8 +1,8 @@
 # Stage 7: Testing, Documentation, and Core Improvements - Implementation Steps
 
 ## Progress Summary
-**Progress**: 3/15 steps completed (20%)  
-**Current Step**: Step 4 - Implement Get Command for APIs
+**Progress**: 4/15 steps completed (27%)  
+**Current Step**: Step 5 - Implement Get Command for Auth Strategies
 
 ## Overview
 This document outlines the step-by-step implementation plan for completing 
@@ -91,7 +91,7 @@ Add imperative `get` support for portal resources.
 ---
 
 ### Step 4: Implement Get Command for APIs
-**Status**: Not Started
+**Status**: Completed
 
 Add imperative `get` support for API resources.
 
