@@ -64,5 +64,12 @@ func NewGetCmd() (*cobra.Command, error) {
 
 	cmd.AddCommand(profileCmd.NewProfileCmd())
 
+	// Add portal command directly for Konnect-first pattern
+	portalCmd, err := NewDirectPortalCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(portalCmd)
+
 	return cmd, nil
 }

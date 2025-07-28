@@ -59,5 +59,12 @@ func NewListCmd() (*cobra.Command, error) {
 	streams := &iostreams.IOStreams{}
 	cmd.AddCommand(onprem.NewOnPremCmd(streams))
 
+	// Add portal command directly for Konnect-first pattern
+	portalCmd, err := NewDirectPortalCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(portalCmd)
+
 	return cmd, nil
 }
