@@ -68,14 +68,12 @@ apis:
 portals:
   - ref: platform-portal
     name: "Platform Team Portal"
-    is_public: false
     labels:
       team: platform
     # Inherits all defaults: namespace: platform-team, protected: false
     
     customization:
       ref: platform-theme
-      welcome_message: "Platform Team Internal Documentation"
       theme:
         mode: dark
         colors:

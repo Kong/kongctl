@@ -2,22 +2,17 @@
 
 This folder contains the complete planning and implementation tracking for all kongctl features and development efforts.
 
-## 🎯 Current Active Stage: All Declarative Configuration Stages Complete!
+## 🎯 Current Active Stage: Stage 7 - Testing, Documentation, and Core Improvements
 
-**Completed Stages**:
-- Stage 1: Configuration Format & Basic CLI ✅ 
-- Stage 2: Plan Generation with Label Management ✅
-- Stage 3: Plan Execution ✅
-- Stage 4: API Resources and Multi-Resource Support ✅
-- Stage 5: Sync Command Implementation ✅
+**Stage 7: Testing, Documentation, and Core Improvements** 🚧 In Progress
+- **Requirements**: [007-dec-cfg-various/description.md](007-dec-cfg-various/description.md) ✅ Available
+- **Implementation Guide**: [007-dec-cfg-various/execution-plan-steps.md](007-dec-cfg-various/execution-plan-steps.md) ✅ Created
+- **Technical Overview**: [007-dec-cfg-various/execution-plan-overview.md](007-dec-cfg-various/execution-plan-overview.md) ✅ Created
+- **Architecture Decisions**: [007-dec-cfg-various/execution-plan-adrs.md](007-dec-cfg-various/execution-plan-adrs.md) ✅ Created
+- **Goal**: Complete essential testing, documentation, and core improvements for production readiness
 
-**Stage 6: Namespace-Based Resource Management** ✅ Completed
-- **Requirements**: [006-namespace-resource-management/description.md](006-namespace-resource-management/description.md) ✅ Available
-- **Implementation Guide**: [006-namespace-resource-management/execution-plan-steps.md](006-namespace-resource-management/execution-plan-steps.md) ✅ Created
-- **Technical Overview**: [006-namespace-resource-management/execution-plan-overview.md](006-namespace-resource-management/execution-plan-overview.md) ✅ Created
-- **Goal**: Enable multiple teams to safely manage their own resources within a shared Konnect organization
-
-**Progress**: 15/15 steps completed (100%) ✅ **COMPLETED**
+**Progress**: 1/10 steps completed (10%)  
+**Current Step**: Step 2 - Comprehensive Documentation Updates
 
 ## Quick Start for Implementation
 
@@ -200,19 +195,21 @@ The first major feature being implemented is declarative configuration managemen
   - Clear namespace visibility in all commands
   - Comprehensive examples for various use cases
 
-#### Stage 7: Testing, Documentation, and Core Improvements 🔮 Future
+#### Stage 7: Testing, Documentation, and Core Improvements 🚧 In Progress
 **Goal**: Complete essential testing, documentation, and core improvements for production readiness
 
 | Document | Purpose | Status |
 |----------|---------|---------|
-| [description.md](007-dec-cfg-various/description.md) | Requirements | ✅ Updated |
-| execution-plan-*.md | Implementation docs | 🔮 Not yet created |
+| [description.md](007-dec-cfg-various/description.md) | Requirements | ✅ Complete |
+| [execution-plan-overview.md](007-dec-cfg-various/execution-plan-overview.md) | Technical approach | ✅ Complete |
+| [execution-plan-steps.md](007-dec-cfg-various/execution-plan-steps.md) | **Implementation guide** | ✅ Complete |
+| [execution-plan-adrs.md](007-dec-cfg-various/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: Not started
-- **Dependencies**: Stages 1-6 completion
+**Implementation Status**: 0/10 steps completed (0%)
+- **Dependencies**: Stages 1-6 completion ✅ Met
 - **Key deliverables** (prioritized): 
-  - Complete documentation updates
   - Login command migration to Konnect-first
+  - Complete documentation updates
   - Comprehensive integration tests
   - Critical UX improvements
   - Migrate remaining internal SDK usage
@@ -240,17 +237,20 @@ The first major feature being implemented is declarative configuration managemen
 - Stage 5: Sync Command Implementation ✅ **COMPLETED**
 - Stage 6: Namespace-Based Resource Management ✅ **COMPLETED**
 
-**Next Stage**: Stage 7 - Testing, Documentation, and Core Improvements
-- **Status**: Not started
+**Current Stage**: Stage 7 - Testing, Documentation, and Core Improvements
+- **Status**: 0/10 steps completed (0%)
+- **Current Step**: Step 1 - Login Command Migration to Konnect-First
 - **Goal**: Complete essential testing, documentation, and core improvements for production readiness
 
-**Key Changes in Stage 6**:
-- Introduces required `namespace` field in `kongctl` section
-- Adds `_defaults.kongctl.namespace` for file-level defaults
-- Implements namespace-based resource filtering
-- Ensures namespace isolation during operations
+**Key priorities in Stage 7**:
+- Login command simplification (Konnect-first approach)
+- Comprehensive documentation creation
+- Full integration test coverage
+- Enhanced error messages and UX
+- Migration to public SDK
+- Code quality improvements
 
-**Next Steps**: Begin implementation with Step 1
+**Next Steps**: Begin implementation with Step 1 - Login Command Migration
 
 ### 🎯 Entry Points for Claude Code
 

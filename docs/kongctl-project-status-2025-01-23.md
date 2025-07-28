@@ -26,7 +26,7 @@ The CLI follows a "Konnect-first" approach where Konnect is the implied default 
 - **Declarative**: `kongctl apply` defers to `kongctl apply konnect`
 - **Imperative** (future): `kongctl get gateway control-planes` will defer to 
   `kongctl get konnect gateway control-planes`
-- **Authentication**: `kongctl login` will defer to `kongctl login konnect` in next iteration
+- **Authentication**: `kongctl login` now defers to `kongctl login konnect` (implemented)
 
 ## Current Capabilities
 
