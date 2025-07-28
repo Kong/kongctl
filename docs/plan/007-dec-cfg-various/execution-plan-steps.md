@@ -1,13 +1,15 @@
 # Stage 7: Testing, Documentation, and Core Improvements - Implementation Steps
 
 ## Progress Summary
-**Progress**: 1/10 steps completed (10%)  
-**Current Step**: Step 2 - Comprehensive Documentation Updates
+**Progress**: 1/15 steps completed (7%)  
+**Current Step**: Step 2 - Rename Gateway Product to On-Prem
 
 ## Overview
 This document outlines the step-by-step implementation plan for completing 
 essential testing, documentation, and core improvements for declarative 
 configuration management, focusing on production readiness and user experience.
+Additionally, it expands imperative command support and implements a complete
+"Konnect-First" approach across all commands.
 
 ## Implementation Steps
 
@@ -34,7 +36,140 @@ Update login to be Konnect-first without requiring product specification.
 
 ---
 
-### Step 2: Comprehensive Documentation Updates
+### Step 2: Rename Gateway Product to On-Prem
+**Status**: Not Started
+
+Rename 'gateway' product to 'on-prem' to disambiguate from Konnect gateway.
+
+**Files to modify**:
+- Rename directory: `/internal/cmd/root/products/gateway/` → `/internal/cmd/root/products/on-prem/`
+- `internal/cmd/root/products/on-prem/on-prem.go` (renamed from gateway.go)
+- `internal/cmd/root/products/on-prem/service/service.go`
+- `internal/cmd/root/products/on-prem/route/route.go`
+- Update all i18n keys from `root.gateway.*` to `root.on-prem.*`
+- Update verb commands to integrate on-prem product
+
+**Changes**:
+- Change product constant from `gateway` to `on-prem`
+- Update command use from "gateway" to "on-prem"
+- Add comment noting this naming may change in future
+- Integrate with verb commands (get, list, create, delete)
+- Update all examples and help text
+
+**Acceptance criteria**:
+- `kongctl get on-prem services` works correctly
+- Clear distinction between Konnect and on-prem resources
+- All i18n keys updated consistently
+- No breaking changes for existing gateway commands
+
+---
+
+### Step 3: Implement Get Command for Portals
+**Status**: Not Started
+
+Add imperative `get` support for portal resources.
+
+**Files to create**:
+- `internal/cmd/root/products/konnect/portal/portal.go`
+- `internal/cmd/root/products/konnect/portal/getPortal.go`
+- `internal/cmd/root/products/konnect/portal/listPortals.go`
+
+**Implementation**:
+- Follow pattern from existing resources (control-planes, services)
+- Support single portal retrieval and list all portals
+- Implement standard output formats (text, json, yaml)
+- Add proper pagination for list operation
+- Use public SDK for API calls
+
+**Acceptance criteria**:
+- `kongctl get portals` lists all portals
+- `kongctl get portal <name>` retrieves specific portal
+- All output formats work correctly
+- Pagination works for large lists
+- Consistent with existing command patterns
+
+---
+
+### Step 4: Implement Get Command for APIs
+**Status**: Not Started
+
+Add imperative `get` support for API resources.
+
+**Files to create**:
+- `internal/cmd/root/products/konnect/api/api.go`
+- `internal/cmd/root/products/konnect/api/getAPI.go`
+- `internal/cmd/root/products/konnect/api/listAPIs.go`
+
+**Implementation**:
+- Support single API retrieval and list all APIs
+- Add flags for including child resources (versions, publications)
+- Implement standard output formats
+- Handle nested resource display
+- Use public SDK for API calls
+
+**Acceptance criteria**:
+- `kongctl get apis` lists all APIs
+- `kongctl get api <name>` retrieves specific API
+- `--include-versions` flag works correctly
+- `--include-publications` flag works correctly
+- Output formats handle nested data properly
+
+---
+
+### Step 5: Implement Get Command for Auth Strategies
+**Status**: Not Started
+
+Add imperative `get` support for auth strategy resources.
+
+**Files to create**:
+- `internal/cmd/root/products/konnect/authstrategy/authstrategy.go`
+- `internal/cmd/root/products/konnect/authstrategy/getAuthStrategy.go`
+- `internal/cmd/root/products/konnect/authstrategy/listAuthStrategies.go`
+
+**Implementation**:
+- Support single auth strategy retrieval and list all
+- Add `--type` filter flag (oauth2, api-key, etc.)
+- Implement standard output formats
+- Handle strategy-specific fields properly
+- Use public SDK for API calls
+
+**Acceptance criteria**:
+- `kongctl get auth-strategies` lists all strategies
+- `kongctl get auth-strategy <name>` retrieves specific strategy
+- `--type` filter works correctly
+- All output formats work correctly
+- Consistent with existing command patterns
+
+---
+
+### Step 6: Make All Imperative Commands Konnect-First
+**Status**: Not Started
+
+Apply Konnect-first pattern to all verb commands.
+
+**Files to modify**:
+- `internal/cmd/root/verbs/get/get.go`
+- `internal/cmd/root/verbs/list/list.go`
+- `internal/cmd/root/verbs/create/create.go`
+- `internal/cmd/root/verbs/del/del.go`
+
+**Changes**:
+- Follow pattern from apply/sync/login commands
+- Create gateway subcommand instance
+- Use gateway command's RunE at parent level
+- Copy flags from gateway to parent
+- Update context values appropriately
+
+**Acceptance criteria**:
+- `kongctl get gateway control-planes` defaults to Konnect
+- `kongctl get konnect gateway control-planes` still works
+- `kongctl get on-prem services` works for on-premises
+- All verbs support Konnect-first pattern
+- Backward compatibility maintained
+
+---
+
+### Step 7: Comprehensive Documentation Updates
 **Status**: Not Started
 
 Create comprehensive documentation for the declarative configuration feature.
@@ -62,7 +197,7 @@ Create comprehensive documentation for the declarative configuration feature.
 
 ---
 
-### Step 3: Apply Command Integration Tests
+### Step 8: Apply Command Integration Tests
 **Status**: Not Started
 
 Create thorough integration tests for apply command flows.
@@ -89,7 +224,7 @@ Create thorough integration tests for apply command flows.
 
 ---
 
-### Step 4: Sync Command Integration Tests
+### Step 9: Sync Command Integration Tests
 **Status**: Not Started
 
 Create thorough integration tests for sync command flows.
@@ -114,7 +249,7 @@ Create thorough integration tests for sync command flows.
 
 ---
 
-### Step 5: Error Scenario Integration Tests
+### Step 10: Error Scenario Integration Tests
 **Status**: Not Started
 
 Create integration tests for error scenarios and edge cases.
@@ -137,7 +272,7 @@ Create integration tests for error scenarios and edge cases.
 
 ---
 
-### Step 6: Enhanced Error Messages
+### Step 11: Enhanced Error Messages
 **Status**: Not Started
 
 Improve error messages throughout the declarative configuration system.
@@ -162,7 +297,7 @@ Improve error messages throughout the declarative configuration system.
 
 ---
 
-### Step 7: Improved Plan Summary Display
+### Step 12: Improved Plan Summary Display
 **Status**: Not Started
 
 Enhance plan summary display for better readability and information.
@@ -187,7 +322,7 @@ Enhance plan summary display for better readability and information.
 
 ---
 
-### Step 8: Progress Indicators for Long Operations
+### Step 13: Progress Indicators for Long Operations
 **Status**: Not Started
 
 Add progress reporting for long-running operations.
@@ -212,7 +347,7 @@ Add progress reporting for long-running operations.
 
 ---
 
-### Step 9: Migrate Dump Command to Public SDK
+### Step 14: Migrate Dump Command to Public SDK
 **Status**: Not Started
 
 Complete the migration from internal to public Konnect SDK for dump command.
@@ -235,7 +370,7 @@ Complete the migration from internal to public Konnect SDK for dump command.
 
 ---
 
-### Step 10: Code Quality and Refactoring
+### Step 15: Code Quality and Refactoring
 **Status**: Not Started
 
 Conduct focused code review and refactoring for maintainability.
@@ -264,12 +399,15 @@ Conduct focused code review and refactoring for maintainability.
 
 ## Summary
 
-Total steps: 10
+Total steps: 15
 
 Implementation order is designed to:
-1. Start with user-facing improvements (Steps 1-2)
-2. Ensure quality through testing (Steps 3-5)
-3. Enhance user experience (Steps 6-8)
-4. Complete technical debt (Steps 9-10)
+1. Complete login migration (Step 1) ✓
+2. Establish clear product naming (Step 2)
+3. Expand imperative commands (Steps 3-5)
+4. Implement complete Konnect-first approach (Step 6)
+5. Ensure quality through documentation and testing (Steps 7-10)
+6. Enhance user experience (Steps 11-13)
+7. Complete technical debt (Steps 14-15)
 
 Each step can be implemented and tested independently, allowing for incremental progress.

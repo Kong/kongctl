@@ -1,11 +1,112 @@
 # KongCtl Stage 7 - Testing, Documentation, and Core Improvements
 
 ## Goal
-Complete essential testing, documentation, and core improvements for declarative configuration management, focusing on production readiness and user experience.
+Complete essential testing, documentation, and core improvements for declarative configuration management, focusing on production readiness and user experience. Expand imperative command support for resource parity with declarative commands and implement a complete "Konnect-First" approach across all commands.
 
 ## Deliverables (in priority order)
 
-### 1. Complete Documentation Updates
+### 1. Login Command Migration to Konnect-First (COMPLETED)
+
+Update login to be Konnect-first without requiring product specification.
+
+```bash
+# Before: kongctl login konnect
+# After: kongctl login
+```
+
+### 2. Rename Gateway Product to On-Prem
+
+Rename the 'gateway' product to 'on-prem' to disambiguate between Konnect gateway resources and on-premises Kong Gateway resources.
+
+```bash
+# Current (ambiguous):
+kongctl get konnect gateway control-planes  # Konnect-hosted
+kongctl get gateway services                # On-prem (but unclear)
+
+# After (clear):
+kongctl get konnect gateway control-planes  # Konnect-hosted
+kongctl get on-prem services                # On-premises
+```
+
+**Implementation**:
+- Rename `/internal/cmd/root/products/gateway/` to `/internal/cmd/root/products/on-prem/`
+- Update product constant from `gateway` to `on-prem`
+- Update all i18n keys and examples
+- Add comment noting this naming may change in the future
+- Integrate with verb commands (currently missing)
+
+### 3. Imperative Command Expansion
+
+Extend imperative `get` command support to achieve parity with declarative configuration resources.
+
+#### Get Command for Portals
+```bash
+# List all portals
+kongctl get portals
+
+# Get specific portal
+kongctl get portal developer-portal
+
+# Output formats
+kongctl get portals -o json
+kongctl get portals -o yaml
+```
+
+#### Get Command for APIs
+```bash
+# List all APIs
+kongctl get apis
+
+# Get specific API
+kongctl get api users-api
+
+# Include child resources
+kongctl get api users-api --include-versions
+kongctl get api users-api --include-publications
+```
+
+#### Get Command for Auth Strategies
+```bash
+# List all auth strategies
+kongctl get auth-strategies
+
+# Get specific auth strategy
+kongctl get auth-strategy oauth2-strategy
+
+# Filter by type
+kongctl get auth-strategies --type oauth2
+```
+
+**Implementation Guidelines**:
+- Follow existing patterns from control-planes, services, routes
+- Ensure consistent behavior and UI/UX
+- Support standard output formats (text, json, yaml)
+- Use same authentication and error handling patterns
+- Implement proper pagination for list operations
+
+### 4. Complete Konnect-First Migration
+
+Apply the Konnect-first pattern to ALL verb commands, making Konnect the default product.
+
+```bash
+# Examples of Konnect-first behavior:
+kongctl get gateway control-planes      # Defaults to Konnect
+kongctl list gateway services           # Defaults to Konnect
+kongctl create gateway route            # Defaults to Konnect
+kongctl delete gateway service          # Defaults to Konnect
+
+# Explicit product specification still works:
+kongctl get konnect gateway control-planes
+kongctl get on-prem services
+```
+
+**Implementation Pattern**:
+- Apply same pattern used for login and declarative commands
+- Maintain backward compatibility
+- Update help text and examples
+- Ensure consistent behavior across all verbs
+
+### 5. Complete Documentation Updates
 
 Create comprehensive documentation for the declarative configuration feature.
 
@@ -57,33 +158,7 @@ Flags:
       --plan string               Path to existing plan file (mutually exclusive with --filename)
 ```
 
-### 2. Login Command Migration to Konnect-First
-
-Update login to be Konnect-first without requiring product specification.
-
-```go
-// Before: kongctl login konnect
-// After: kongctl login
-
-func NewCommand() *cobra.Command {
-    cmd := &cobra.Command{
-        Use:   "login",
-        Short: "Authenticate with Kong Konnect",
-        Long:  "Authenticate with Kong Konnect using device authorization flow",
-        RunE:  runLogin,
-    }
-    
-    // Future: Add --product flag for other products
-    return cmd
-}
-
-// Add deprecation warning
-if len(args) > 0 && args[0] == "konnect" {
-    fmt.Fprintf(os.Stderr, "Warning: 'kongctl login konnect' is deprecated. Use 'kongctl login' instead.\n")
-}
-```
-
-### 3. Comprehensive Integration Tests
+### 6. Comprehensive Integration Tests
 
 Create thorough integration tests for all declarative configuration flows.
 
@@ -123,7 +198,7 @@ TestNetworkFailures
 TestInvalidConfigurations
 ```
 
-### 4. Critical UX Improvements
+### 7. Critical UX Improvements
 
 #### Enhanced Error Messages
 ```go
@@ -167,7 +242,7 @@ type ProgressReporter interface {
 }
 ```
 
-### 5. Migrate Remaining Internal SDK Usage
+### 8. Migrate Remaining Internal SDK Usage
 
 Complete the migration from internal to public Konnect SDK for all remaining commands.
 
@@ -183,7 +258,7 @@ import kkInternal "github.com/Kong/sdk-konnect-go-internal"
 import kkSDK "github.com/Kong/sdk-konnect-go"
 ```
 
-### 6. Code Quality and Refactoring
+### 9. Code Quality and Refactoring
 
 Conduct focused code review and refactoring for maintainability.
 
@@ -205,6 +280,10 @@ Conduct focused code review and refactoring for maintainability.
    - Focus on error paths and edge cases
 
 ## Tests Required
+- Gateway → on-prem rename works correctly
+- New imperative commands work for portals, APIs, auth strategies
+- All commands support Konnect-first behavior
+- Backward compatibility maintained
 - Login command works with both old and new syntax
 - Integration tests cover all major workflows
 - Documentation is accurate and helpful
@@ -214,25 +293,33 @@ Conduct focused code review and refactoring for maintainability.
 
 ## Proof of Success
 ```bash
-# Simpler login
-$ kongctl login
-Opening browser for authentication...
-✓ Successfully authenticated to Kong Konnect
+# Clear product distinction
+$ kongctl get on-prem services
+✓ Listed 5 services from on-premises Kong Gateway
 
-# Clear error messages
-$ kongctl apply
-Error: Cannot create portal "dev-portal": a portal with this name already exists.
-Hint: Use 'kongctl sync' to take ownership of existing resources.
+$ kongctl get gateway control-planes
+✓ Listed 3 control planes from Kong Konnect
+
+# New imperative commands working
+$ kongctl get portals
+NAME                DISPLAY NAME           AUTHENTICATION
+developer-portal    Developer Portal       enabled
+partner-portal      Partner Portal         enabled
+
+$ kongctl get apis
+NAME         VERSION    LABELS
+users-api    v2.0.0     team=identity
+products-api v1.5.0     team=ecommerce
+
+# Konnect-first behavior
+$ kongctl get gateway services
+✓ Defaulting to Konnect (use 'kongctl get on-prem services' for on-premises)
 
 # Comprehensive test coverage
 $ make test-integration
 Running integration tests...
-✓ 45 tests passed
+✓ 75 tests passed
 Coverage: 85%
-
-# Internal SDK migration complete
-$ grep -r "sdk-konnect-go-internal" --include="*.go" .
-✓ No internal SDK usage found
 ```
 
 ## Dependencies
@@ -245,3 +332,4 @@ $ grep -r "sdk-konnect-go-internal" --include="*.go" .
 - Prioritize documentation as it enables adoption
 - Keep scope focused on essential improvements
 - Consider maintenance burden in all decisions
+- The gateway → on-prem rename may change in future based on product decisions
