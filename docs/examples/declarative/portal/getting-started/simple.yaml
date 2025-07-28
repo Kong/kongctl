@@ -3,15 +3,18 @@ portals:
     name: "initial-portal"
     display_name: "Our Developer Portal"
     description: "A comprehensive developer portal with guides, API documentation, and getting started content"
-    lables:
+    labels:
       purpose: demo
     authentication_enabled: false
-    #rbac_enabled: false
-    #auto_approve_developers: false
-    #auto_approve_applications: false
-    #default_api_visibility: "public"
-    #default_page_visibility: "public"
-#    pages:
+    rbac_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false
+    default_api_visibility: "public"
+    default_page_visibility: "public"
+    kongctl:
+      namespace: foo
+      protected: false
+# #   pages:
 #      - ref: home
 #        slug: "/"
 #        title: "Kong API"
