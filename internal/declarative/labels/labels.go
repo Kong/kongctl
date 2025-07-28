@@ -31,7 +31,7 @@ const (
 // NormalizeLabels converts pointer map to non-pointer map
 func NormalizeLabels(labels map[string]*string) map[string]string {
 	if labels == nil {
-		return make(map[string]string)
+		return nil
 	}
 	
 	normalized := make(map[string]string)
@@ -40,6 +40,12 @@ func NormalizeLabels(labels map[string]*string) map[string]string {
 			normalized[k] = *v
 		}
 	}
+	
+	// Return nil for empty maps to be consistent
+	if len(normalized) == 0 {
+		return nil
+	}
+	
 	return normalized
 }
 
@@ -95,12 +101,22 @@ func IsProtectedResource(labels map[string]string) bool {
 
 // GetUserLabels returns labels without KONGCTL prefix
 func GetUserLabels(labels map[string]string) map[string]string {
+	if labels == nil {
+		return nil
+	}
+	
 	user := make(map[string]string)
 	for k, v := range labels {
 		if !IsKongctlLabel(k) {
 			user[k] = v
 		}
 	}
+	
+	// Return nil for empty maps to be consistent
+	if len(user) == 0 {
+		return nil
+	}
+	
 	return user
 }
 
@@ -202,6 +218,11 @@ func ExtractLabelsFromField(field interface{}) map[string]string {
 		for k, v := range labels {
 			result[k] = v
 		}
+	}
+
+	// Return nil for empty maps to be consistent
+	if len(result) == 0 {
+		return nil
 	}
 
 	return result
@@ -306,7 +327,7 @@ func getProtectionNewValue(protection interface{}) bool {
 
 // ConvertStringMapToPointerMap converts map[string]string to map[string]*string
 func ConvertStringMapToPointerMap(labels map[string]string) map[string]*string {
-	if labels == nil {
+	if len(labels) == 0 {
 		return nil
 	}
 

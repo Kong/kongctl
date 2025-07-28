@@ -172,8 +172,7 @@ portals:
 						Description: &oldDesc,
 						DisplayName: oldDisplay,
 						Labels: map[string]string{
-							labels.ManagedKey:     "true",
-							labels.LastUpdatedKey: "20240101-120000Z",
+							labels.NamespaceKey: "default",
 						},
 					},
 				},
@@ -282,8 +281,7 @@ portals:
 						Name:        existingName,
 						Description: &desc,
 						Labels: map[string]string{
-							labels.ManagedKey:     "true",
-							labels.LastUpdatedKey: "20240101-120000Z",
+							labels.NamespaceKey: "default",
 							// No protected label = unprotected
 						},
 					},

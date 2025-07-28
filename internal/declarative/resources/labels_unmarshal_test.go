@@ -8,7 +8,8 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func TestAPIResource_UnmarshalJSON_LabelsNull(t *testing.T) {
+// TestAPIResource_Labels tests the new label behavior after removing custom UnmarshalJSON
+func TestAPIResource_Labels(t *testing.T) {
 	tests := []struct {
 		name           string
 		yamlContent    string
@@ -38,7 +39,17 @@ labels: {}
 			expectLength: 0,
 		},
 		{
-			name: "labels with all values commented",
+			name: "labels null - now treated as nil",
+			yamlContent: `
+ref: test-api
+name: test-api
+labels: null
+`,
+			expectNil:    true,
+			expectLength: 0,
+		},
+		{
+			name: "labels with all values commented - treated as null/nil",
 			yamlContent: `
 ref: test-api
 name: test-api
@@ -46,7 +57,7 @@ labels:
   #foo: bar
   #baz: qux
 `,
-			expectNil:    false,
+			expectNil:    true,
 			expectLength: 0,
 		},
 		{
@@ -76,7 +87,8 @@ name: test-api
 	}
 }
 
-func TestPortalResource_UnmarshalJSON_LabelsNull(t *testing.T) {
+// TestPortalResource_Labels tests the new label behavior for portals
+func TestPortalResource_Labels(t *testing.T) {
 	tests := []struct {
 		name           string
 		yamlContent    string
@@ -106,7 +118,17 @@ labels: {}
 			expectLength: 0,
 		},
 		{
-			name: "labels with all values commented",
+			name: "labels null - now treated as nil",
+			yamlContent: `
+ref: test-portal
+name: test-portal
+labels: null
+`,
+			expectNil:    true,
+			expectLength: 0,
+		},
+		{
+			name: "labels with all values commented - treated as null/nil",
 			yamlContent: `
 ref: test-portal
 name: test-portal
@@ -114,7 +136,7 @@ labels:
   #foo: bar
   #baz: qux
 `,
-			expectNil:    false,
+			expectNil:    true,
 			expectLength: 0,
 		},
 		{
@@ -144,7 +166,8 @@ name: test-portal
 	}
 }
 
-func TestAuthStrategyResource_UnmarshalJSON_LabelsNull(t *testing.T) {
+// TestAuthStrategyResource_Labels tests the new label behavior for auth strategies
+func TestAuthStrategyResource_Labels(t *testing.T) {
 	tests := []struct {
 		name           string
 		yamlContent    string
@@ -186,7 +209,23 @@ labels: {}
 			expectLength: 0,
 		},
 		{
-			name: "labels with all values commented",
+			name: "labels null - now treated as nil",
+			yamlContent: `
+ref: test-auth
+name: test-auth
+display_name: Test Auth
+strategy_type: key_auth
+configs:
+  key_auth:
+    key_names:
+      - X-API-Key
+labels: null
+`,
+			expectNil:    true,
+			expectLength: 0,
+		},
+		{
+			name: "labels with all values commented - treated as null/nil",
 			yamlContent: `
 ref: test-auth
 name: test-auth
@@ -200,7 +239,7 @@ labels:
   #foo: bar
   #baz: qux
 `,
-			expectNil:    false,
+			expectNil:    true,
 			expectLength: 0,
 		},
 		{

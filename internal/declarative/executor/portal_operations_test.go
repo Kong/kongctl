@@ -96,6 +96,7 @@ func TestExecutor_createPortal(t *testing.T) {
 			change: planner.PlannedChange{
 				ResourceType: "portal",
 				Action:       planner.ActionCreate,
+				Namespace:    "default",
 				Fields: map[string]interface{}{
 					"name":                     "test-portal",
 					"description":              "Test description",
@@ -141,7 +142,7 @@ func TestExecutor_createPortal(t *testing.T) {
 					if p.Labels["team"] == nil || *p.Labels["team"] != "platform" {
 						return false
 					}
-					if p.Labels[labels.ManagedKey] == nil || *p.Labels[labels.ManagedKey] != "true" {
+					if p.Labels[labels.NamespaceKey] == nil || *p.Labels[labels.NamespaceKey] != "default" {
 						return false
 					}
 					return true
@@ -159,6 +160,7 @@ func TestExecutor_createPortal(t *testing.T) {
 			change: planner.PlannedChange{
 				ResourceType: "portal",
 				Action:       planner.ActionCreate,
+				Namespace:    "default",
 				Fields: map[string]interface{}{
 					"name": "minimal-portal",
 				},
@@ -166,8 +168,8 @@ func TestExecutor_createPortal(t *testing.T) {
 			setupMock: func(m *MockPortalAPI) {
 				m.On("CreatePortal", mock.Anything, mock.MatchedBy(func(p kkComps.CreatePortal) bool {
 					return p.Name == "minimal-portal" &&
-						p.Labels[labels.ManagedKey] != nil &&
-						*p.Labels[labels.ManagedKey] == "true"
+						p.Labels[labels.NamespaceKey] != nil &&
+						*p.Labels[labels.NamespaceKey] == "default"
 				})).Return(&kkOps.CreatePortalResponse{
 					PortalResponse: &kkComps.PortalResponse{
 						ID: "portal-456",
@@ -182,6 +184,7 @@ func TestExecutor_createPortal(t *testing.T) {
 			change: planner.PlannedChange{
 				ResourceType: "portal",
 				Action:       planner.ActionCreate,
+				Namespace:    "default",
 				Fields: map[string]interface{}{
 					"description": "Missing name",
 				},
@@ -194,6 +197,7 @@ func TestExecutor_createPortal(t *testing.T) {
 			change: planner.PlannedChange{
 				ResourceType: "portal",
 				Action:       planner.ActionCreate,
+				Namespace:    "default",
 				Fields: map[string]interface{}{
 					"name": "error-portal",
 				},
@@ -262,7 +266,7 @@ func TestExecutor_updatePortal(t *testing.T) {
 								ID:   "portal-123",
 								Name: "updated-portal",
 								Labels: map[string]string{
-									labels.ManagedKey: "true",
+									labels.NamespaceKey: "default",
 									// No protected label
 								},
 							},
@@ -304,7 +308,7 @@ func TestExecutor_updatePortal(t *testing.T) {
 								ID:   "portal-456",
 								Name: "protected-portal",
 								Labels: map[string]string{
-									labels.ManagedKey:   "true",
+									labels.NamespaceKey:   "default",
 									labels.ProtectedKey: "true",
 								},
 							},
@@ -400,7 +404,7 @@ func TestExecutor_deletePortal(t *testing.T) {
 								ID:   "portal-123",
 								Name: "delete-portal",
 								Labels: map[string]string{
-									labels.ManagedKey: "true",
+									labels.NamespaceKey: "default",
 								},
 							},
 						},
@@ -434,7 +438,7 @@ func TestExecutor_deletePortal(t *testing.T) {
 								ID:   "portal-456",
 								Name: "protected-portal",
 								Labels: map[string]string{
-									labels.ManagedKey:   "true",
+									labels.NamespaceKey:   "default",
 									labels.ProtectedKey: "true",
 								},
 							},
@@ -550,7 +554,7 @@ func TestExecutor_protectionChangeBetweenPlanAndExecution(t *testing.T) {
 					ID:   "portal-123",
 					Name: "test-portal",
 					Labels: map[string]string{
-						labels.ManagedKey:   "true",
+						labels.NamespaceKey:   "default",
 						labels.ProtectedKey: "true", // Protected after plan generation
 					},
 				},

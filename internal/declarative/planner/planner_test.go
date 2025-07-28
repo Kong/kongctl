@@ -763,7 +763,6 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 
 	// Mock existing protected portal
 	protectedStr := "true"
-	existingTimestamp := "20240101-120000Z"
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
@@ -773,8 +772,7 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 					DisplayName: "Protected Portal",
 					Description: ptrString("Old description"),
 					Labels: map[string]string{
-						labels.ManagedKey:    trueStr,
-						labels.LastUpdatedKey: existingTimestamp,
+						labels.NamespaceKey: "default",
 						labels.ProtectedKey:  protectedStr,
 					},
 				},

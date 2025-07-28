@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
@@ -206,7 +208,23 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceS
 		content = processedContent
 	}
 
-	if err := yaml.Unmarshal(content, &temp); err != nil {
+	if err := yaml.UnmarshalStrict(content, &temp); err != nil {
+		// Try to provide a more helpful error message for unknown fields
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "unknown field") {
+			// Extract field name from error
+			// Error format: "error unmarshaling JSON: while decoding JSON: json: unknown field \"fieldname\""
+			if match := regexp.MustCompile(`unknown field "(\w+)"`).FindStringSubmatch(errMsg); len(match) > 1 {
+				fieldName := match[1]
+				suggestion := l.suggestFieldName(fieldName)
+				if suggestion != "" {
+					return nil, fmt.Errorf("unknown field '%s' in %s. Did you mean '%s'?", 
+						fieldName, sourcePath, suggestion)
+				}
+				return nil, fmt.Errorf("unknown field '%s' in %s. Please check the field name against the schema", 
+					fieldName, sourcePath)
+			}
+		}
 		return nil, fmt.Errorf("failed to parse YAML in %s: %w", sourcePath, err)
 	}
 
@@ -941,4 +959,95 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		portal.Pages = nil
 		portal.Snippets = nil
 	}
+}
+
+// suggestFieldName suggests a correct field name for a misspelled field
+func (l *Loader) suggestFieldName(fieldName string) string {
+	// Common field names that users might misspell
+	knownFields := map[string][]string{
+		// Portal fields
+		"labels":       {"lables", "label", "labeles", "lablels"},
+		"name":         {"nam", "nme", "nmae"},
+		"description":  {"desc", "descripton", "descriptin", "descrption"},
+		"ref":          {"reference", "id", "key"},
+		"kongctl":      {"kong_ctl", "kong-ctl", "kongcontrol"},
+		"namespace":    {"namspace", "namesapce", "ns"},
+		"protected":    {"protect", "potected", "proteced"},
+		"is_public":    {"public", "ispublic", "is-public"},
+		"custom_domain": {"domain", "customdomain", "custom-domain"},
+		"customization": {"customize", "custom", "theme"},
+		"pages":        {"page", "content"},
+		"snippets":     {"snippet", "code"},
+		
+		// API fields
+		"versions":     {"version", "api_versions", "api-versions"},
+		"publications": {"publication", "publish", "published"},
+		"implementations": {"implementation", "impl", "service"},
+		
+		// Auth strategy fields
+		"strategy_type": {"type", "auth_type", "strategy-type", "strategytype"},
+		"configs":      {"config", "configuration", "settings"},
+		"display_name": {"displayname", "display-name", "title"},
+		
+		// Common across resources
+		"created_at":   {"created", "createdat", "created-at"},
+		"updated_at":   {"updated", "updatedat", "updated-at"},
+	}
+	
+	fieldLower := strings.ToLower(fieldName)
+	
+	// Check if the misspelled field matches any known misspellings
+	for correct, misspellings := range knownFields {
+		for _, misspelling := range misspellings {
+			if fieldLower == misspelling {
+				return correct
+			}
+		}
+	}
+	
+	// Simple Levenshtein distance check for close matches
+	// This is a simplified version - just check if it's very close
+	for correct := range knownFields {
+		if levenshteinClose(fieldLower, correct) {
+			return correct
+		}
+	}
+	
+	return ""
+}
+
+// levenshteinClose checks if two strings are close enough (simple heuristic)
+func levenshteinClose(s1, s2 string) bool {
+	// Very simple heuristic: if lengths differ by more than 2, not close
+	if abs(len(s1)-len(s2)) > 2 {
+		return false
+	}
+	
+	// Check if one is substring of the other
+	if strings.Contains(s1, s2) || strings.Contains(s2, s1) {
+		return true
+	}
+	
+	// Check if they share most characters
+	matches := 0
+	for i := 0; i < len(s1) && i < len(s2); i++ {
+		if s1[i] == s2[i] {
+			matches++
+		}
+	}
+	
+	// If more than 70% characters match in order, consider it close
+	minLen := len(s1)
+	if len(s2) < minLen {
+		minLen = len(s2)
+	}
+	return float64(matches)/float64(minLen) > 0.7
+}
+
+// abs returns absolute value of an integer
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }

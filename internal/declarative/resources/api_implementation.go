@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -155,6 +156,7 @@ func (i APIImplementationResource) GetParentRef() *ResourceRef {
 	return nil
 }
 
+
 // UnmarshalJSON implements custom JSON unmarshaling to handle SDK types
 func (i *APIImplementationResource) UnmarshalJSON(data []byte) error {
 	// Temporary struct to capture all fields
@@ -169,7 +171,11 @@ func (i *APIImplementationResource) UnmarshalJSON(data []byte) error {
 		Kongctl interface{} `json:"kongctl,omitempty"`
 	}
 	
-	if err := json.Unmarshal(data, &temp); err != nil {
+	// Use a decoder with DisallowUnknownFields to catch typos
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	
+	if err := decoder.Decode(&temp); err != nil {
 		return err
 	}
 	

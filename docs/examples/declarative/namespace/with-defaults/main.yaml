@@ -14,7 +14,7 @@ apis:
     description: "Central API for platform services"
     labels:
       service: core
-    # No kongctl section - inherits namespace: platform-team, protected: false
+      foo: bar
     
     versions:
       - ref: core-v2
@@ -88,13 +88,17 @@ application_auth_strategies:
     strategy_type: openid_connect
     configs:
       openid_connect:
-        issuer: "https://auth.example.com"
-        client_id: "platform-client-id"
-        client_secret: "platform-client-secret"
+        issuer: https://auth.securebank.com/
         scopes:
-          - "openid"
-          - "profile"
-          - "email"
+          - openid
+          - profile
+          - email
+          - read
+          - write
+        auth_methods:
+          - client_credentials
+          - authorization_code
+          - refresh_token
     # Inherits all defaults: namespace: platform-team, protected: false
 
 # Summary of namespace assignments:

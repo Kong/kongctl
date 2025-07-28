@@ -26,7 +26,7 @@ func TestGeneratePlan_PortalCustomDomain(t *testing.T) {
 	planner := NewPlanner(client, slog.Default())
 
 	// Mock empty responses for existing resources
-	mockPortalAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{},
 			Meta: kkComps.PaginatedMeta{
@@ -35,9 +35,20 @@ func TestGeneratePlan_PortalCustomDomain(t *testing.T) {
 		},
 	}, nil)
 	
-	mockAppAuthAPI.On("ListAppAuthStrategies", ctx, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
 		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
 			Data: []kkComps.AppAuthStrategy{},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{Total: 0},
+			},
+		},
+	}, nil)
+	
+	// Mock empty APIs list (needed for sync mode)
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).Return(&kkOps.ListApisResponse{
+		StatusCode: 200,
+		ListAPIResponse: &kkComps.ListAPIResponse{
+			Data: []kkComps.APIResponseSchema{},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{Total: 0},
 			},

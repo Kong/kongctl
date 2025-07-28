@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -156,7 +157,11 @@ func (d *APIDocumentResource) UnmarshalJSON(data []byte) error {
 		Kongctl          interface{} `json:"kongctl,omitempty"`
 	}
 	
-	if err := json.Unmarshal(data, &temp); err != nil {
+	// Use a decoder with DisallowUnknownFields to catch typos
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	
+	if err := decoder.Decode(&temp); err != nil {
 		return err
 	}
 	
@@ -188,3 +193,4 @@ func (d *APIDocumentResource) UnmarshalJSON(data []byte) error {
 	
 	return nil
 }
+

@@ -1,0 +1,8 @@
+application_auth_strategies:
+  - ref: test-auth
+    name: "Test Auth"
+    display_name: "Test Authentication"
+    strategytype: openid_connect  # Should be strategy_type
+    configs:
+      openid_connect:
+        issuer: "https://example.com"

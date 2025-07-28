@@ -44,8 +44,7 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 		AutoApproveDevelopers:   autoApproveDev,
 		AutoApproveApplications: autoApproveApp,
 		Labels: map[string]string{
-			labels.ManagedKey: "true",
-			labels.LastUpdatedKey: "20240101-120000Z",
+			labels.NamespaceKey: "default",
 		},
 	}
 

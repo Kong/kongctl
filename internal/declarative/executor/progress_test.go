@@ -101,8 +101,9 @@ func TestConsoleReporter_StartChange(t *testing.T) {
 				Action:       planner.ActionCreate,
 				ResourceType: "portal",
 				ResourceRef:  "developer-portal",
+				Namespace:    "default",
 			},
-			expectedOut: "• Creating portal: developer-portal... ",
+			expectedOut: "• [namespace: default] Creating portal: developer-portal... ",
 		},
 		{
 			name: "update with resource ref",
@@ -110,8 +111,9 @@ func TestConsoleReporter_StartChange(t *testing.T) {
 				Action:       planner.ActionUpdate,
 				ResourceType: "portal",
 				ResourceRef:  "staging-portal",
+				Namespace:    "default",
 			},
-			expectedOut: "• Updating portal: staging-portal... ",
+			expectedOut: "• [namespace: default] Updating portal: staging-portal... ",
 		},
 		{
 			name: "delete without resource ref",
@@ -119,8 +121,9 @@ func TestConsoleReporter_StartChange(t *testing.T) {
 				ID:           "change-123",
 				Action:       planner.ActionDelete,
 				ResourceType: "portal_page",
+				Namespace:    "default",
 			},
-			expectedOut: "• Deleting portal_page: portal_page/change-123... ",
+			expectedOut: "• [namespace: default] Deleting portal_page: portal_page/change-123... ",
 		},
 	}
 
@@ -358,6 +361,7 @@ func TestConsoleReporter_CompleteWorkflow(t *testing.T) {
 		Action:       planner.ActionCreate,
 		ResourceType: "portal",
 		ResourceRef:  "developer-portal",
+		Namespace:    "default",
 	}
 	reporter.StartChange(change1)
 	reporter.CompleteChange(change1, nil)
@@ -367,6 +371,7 @@ func TestConsoleReporter_CompleteWorkflow(t *testing.T) {
 		Action:       planner.ActionUpdate,
 		ResourceType: "portal",
 		ResourceRef:  "staging-portal",
+		Namespace:    "default",
 	}
 	reporter.StartChange(change2)
 	reporter.CompleteChange(change2, nil)
@@ -376,6 +381,7 @@ func TestConsoleReporter_CompleteWorkflow(t *testing.T) {
 		Action:       planner.ActionDelete,
 		ResourceType: "portal_page",
 		ResourceRef:  "old-docs",
+		Namespace:    "default",
 	}
 	reporter.StartChange(change3)
 	reporter.CompleteChange(change3, errors.New("not found"))
@@ -399,9 +405,9 @@ func TestConsoleReporter_CompleteWorkflow(t *testing.T) {
 	
 	// Verify the complete output
 	assert.Contains(t, output, "Applying changes:")
-	assert.Contains(t, output, "[1/3] Creating portal: developer-portal... ✓")
-	assert.Contains(t, output, "[2/3] Updating portal: staging-portal... ✓")
-	assert.Contains(t, output, "[3/3] Deleting portal_page: old-docs... ✗ Error: not found")
+	assert.Contains(t, output, "[1/3] [namespace: default] Creating portal: developer-portal... ✓")
+	assert.Contains(t, output, "[2/3] [namespace: default] Updating portal: staging-portal... ✓")
+	assert.Contains(t, output, "[3/3] [namespace: default] Deleting portal_page: old-docs... ✗ Error: not found")
 	assert.Contains(t, output, "Complete.")
 	assert.Contains(t, output, "Applied 2 changes.")
 	assert.Contains(t, output, "Errors:")

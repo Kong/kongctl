@@ -410,3 +410,38 @@ func TestLoader_LoadFile_NonYAMLExtension(t *testing.T) {
 	assert.Nil(t, rs)
 	assert.Contains(t, err.Error(), "does not have .yaml or .yml extension")
 }
+
+func TestLoader_LoadFile_UnknownFields(t *testing.T) {
+	tests := []struct {
+		name          string
+		file          string
+		expectedError string
+	}{
+		{
+			name:          "misspelled labels field with suggestion",
+			file:          "invalid/unknown-field-portal.yaml",
+			expectedError: "unknown field 'lables' in testdata/invalid/unknown-field-portal.yaml. Did you mean 'labels'?",
+		},
+		{
+			name:          "unknown field with no suggestion",
+			file:          "invalid/unknown-field-no-suggestion.yaml",
+			expectedError: "unknown field 'completely_unknown_field' in testdata/invalid/unknown-field-no-suggestion.yaml. Please check the field name against the schema",
+		},
+		{
+			name:          "misspelled strategy_type field",
+			file:          "invalid/unknown-field-auth.yaml",
+			expectedError: "unknown field 'strategytype' in testdata/invalid/unknown-field-auth.yaml. Did you mean 'strategy_type'?",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			loader := New()
+			rs, err := loader.LoadFile("testdata/" + tt.file)
+			
+			require.Error(t, err)
+			assert.Nil(t, rs)
+			assert.Contains(t, err.Error(), tt.expectedError)
+		})
+	}
+}

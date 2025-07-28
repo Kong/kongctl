@@ -447,7 +447,7 @@ func TestResolveReferences_ExistingPortal(t *testing.T) {
 					ID:   "portal-existing-123",
 					Name: "existing-portal",
 					Labels: map[string]string{
-						labels.ManagedKey: "true",
+						labels.NamespaceKey: "default",
 					},
 				},
 			},
@@ -608,7 +608,7 @@ func TestResolveReferences_FieldChange(t *testing.T) {
 					ID:   "portal-456",
 					Name: "new-portal",
 					Labels: map[string]string{
-						labels.ManagedKey: "true",
+						labels.NamespaceKey: "default",
 					},
 				},
 			},

@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -124,6 +125,8 @@ func (v *APIVersionResource) UnmarshalJSON(data []byte) error {
 	var temp struct {
 		Ref           string      `json:"ref"`
 		API           string      `json:"api,omitempty"`
+		Name          string      `json:"name,omitempty"`
+		Description   string      `json:"description,omitempty"`
 		Version       string      `json:"version"`
 		PublishStatus string      `json:"publish_status,omitempty"`
 		Deprecated    bool        `json:"deprecated,omitempty"`
@@ -132,7 +135,11 @@ func (v *APIVersionResource) UnmarshalJSON(data []byte) error {
 		Spec          interface{} `json:"spec,omitempty"`
 	}
 	
-	if err := json.Unmarshal(data, &temp); err != nil {
+	// Use a decoder with DisallowUnknownFields to catch typos
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	
+	if err := decoder.Decode(&temp); err != nil {
 		return err
 	}
 	

@@ -343,6 +343,37 @@ $ kongctl sync -f team-configs/
 # Resources in other namespaces are not touched
 ```
 
+## Field Validation
+
+### Strict Field Validation
+
+Kongctl uses strict YAML validation to help catch configuration errors early. 
+Unknown fields in your configuration will cause an error:
+
+```yaml
+# This will cause an error
+portals:
+  - ref: my-portal
+    name: "My Portal"
+    lables:  # ❌ ERROR: Unknown field 'lables'. Did you mean 'labels'?
+      team: platform
+```
+
+This helps catch common typos and ensures your configuration matches the 
+expected schema. If you encounter an unknown field error:
+
+1. Check for typos in field names
+2. Verify the field is valid for that resource type
+3. Consult the resource schema documentation
+
+### Common Field Name Errors
+
+- `lables` → `labels`
+- `descriptin` → `description`
+- `strategytype` → `strategy_type`
+- `displayname` → `display_name`
+- `ispublic` → `is_public`
+
 ## See Also
 
 - [YAML Tags Reference](./YAML-Tags-Reference.md) - Loading external files

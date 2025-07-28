@@ -488,10 +488,7 @@ func TestUpdatePortal(t *testing.T) {
 						}
 						// State client no longer adds labels - executor handles it
 						// Just verify that labels are passed through
-						if portal.Labels["config-hash"] == nil || *portal.Labels["config-hash"] != "newhash456" {
-							t.Errorf("Expected config hash label to be newhash456")
-						}
-						// User label should still exist
+						// User label should exist
 						if portal.Labels["env"] == nil || *portal.Labels["env"] != "staging" {
 							t.Errorf("Expected env label to be preserved")
 						}
