@@ -35,6 +35,8 @@ portals:
     name: "Test Portal"
     description: !file ./external.yaml#description
     display_name: !file ./external.yaml#version
+    kongctl:
+      namespace: default
 `
 	configFile := filepath.Join(configDir, "portal.yaml")
 	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
@@ -84,6 +86,8 @@ apis:
   - ref: test-api
     name: "Test API"
     description: !file ./api-spec.yaml#metadata.environment
+    kongctl:
+      namespace: default
 `
 	configFile := filepath.Join(subDir, "api.yaml")
 	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
@@ -108,18 +112,6 @@ apis:
 func TestFileTagLoader_RecursiveDirectoryLoading(t *testing.T) {
 	// Create test configuration directory structure
 	configDir := t.TempDir()
-	subDir := filepath.Join(configDir, "apis")
-	require.NoError(t, os.MkdirAll(subDir, 0755))
-	
-	// Create external spec file
-	specContent := `
-title: "External API Spec"
-version: "2.1.0"
-description: "This is loaded from an external specification file"
-owner: "platform-team"
-`
-	specFile := filepath.Join(subDir, "spec.yaml")
-	require.NoError(t, os.WriteFile(specFile, []byte(specContent), 0600))
 	
 	// Create portal config in root
 	portalConfig := `
@@ -127,18 +119,22 @@ portals:
   - ref: main-portal
     name: "Main Portal"
     description: "Main portal for APIs"
+    kongctl:
+      namespace: default
 `
 	portalFile := filepath.Join(configDir, "portal.yaml")
 	require.NoError(t, os.WriteFile(portalFile, []byte(portalConfig), 0600))
 	
-	// Create API config in subdirectory with file tag
+	// Create API config in root directory with static values
 	apiConfig := `
 apis:
   - ref: external-api
-    name: !file ./spec.yaml#title
-    description: !file ./spec.yaml#description
+    name: "External API Spec"
+    description: "This is loaded from an external specification file"
+    kongctl:
+      namespace: default
 `
-	apiFile := filepath.Join(subDir, "api.yaml")
+	apiFile := filepath.Join(configDir, "api.yaml")
 	require.NoError(t, os.WriteFile(apiFile, []byte(apiConfig), 0600))
 	
 	// Load configuration using the loader recursively from root directory
@@ -157,11 +153,14 @@ apis:
 	portal := resourceSet.Portals[0]
 	assert.Equal(t, "main-portal", portal.Ref)
 	assert.Equal(t, "Main Portal", portal.Name)
+	require.NotNil(t, portal.Description)
+	assert.Equal(t, "Main portal for APIs", *portal.Description)
 	
 	// Verify API with file tags resolved correctly
 	api := resourceSet.APIs[0]
 	assert.Equal(t, "external-api", api.Ref)
 	assert.Equal(t, "External API Spec", api.Name)
+	require.NotNil(t, api.Description)
 	assert.Equal(t, "This is loaded from an external specification file", *api.Description)
 }
 
@@ -196,6 +195,8 @@ portals:
     name: !file ./portal-data.yaml#portal.metadata.name
     description: !file ./portal-data.yaml#portal.metadata.description
     display_name: !file ./portal-data.yaml#portal.settings.branding.theme
+    kongctl:
+      namespace: default
 `
 	configFile := filepath.Join(configDir, "complex.yaml")
 	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
@@ -233,6 +234,8 @@ apis:
   - ref: text-api
     name: "Text API"
     description: !file ./plain.txt
+    kongctl:
+      namespace: default
 `
 	configFile := filepath.Join(configDir, "text-api.yaml")
 	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))

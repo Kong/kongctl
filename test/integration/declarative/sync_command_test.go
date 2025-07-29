@@ -5,15 +5,13 @@ package declarative_test
 
 import (
 	"bytes"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/kong/kongctl/internal/cmd/root/verbs/sync"
-	kongctlconfig "github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
@@ -24,103 +22,92 @@ import (
 
 func TestSyncCommand_WithDeletes(t *testing.T) {
 	// Create a test configuration file that will cause deletions
-	tempDir := t.TempDir()
-	configFile := filepath.Join(tempDir, "sync-config.yaml")
+	syncDir := t.TempDir()
+	syncConfigFile := filepath.Join(syncDir, "sync-config.yaml")
 	
 	// Empty config will delete all managed resources
-	configContent := `# Empty configuration - will delete all managed resources
+	syncConfigContent := `# Empty configuration - will delete all managed resources
 `
 	
-	err := os.WriteFile(configFile, []byte(configContent), 0600)
+	err := os.WriteFile(syncConfigFile, []byte(syncConfigContent), 0600)
 	require.NoError(t, err)
 	
-	// Set up mock SDK factory
-	cleanup := WithMockSDKFactory(t, func(t *testing.T) helpers.SDKAPIFactory {
-		return func(_ kongctlconfig.Hook, _ *slog.Logger) (helpers.SDKAPI, error) {
-			mockPortalAPI := NewMockPortalAPI(t)
-			mockAPIAPI := NewMockAPIAPI(t)
-			mockAppAuthAPI := NewMockAppAuthStrategiesAPI(t)
-			
-			// Mock listing existing managed portals
-			mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
-				Return(&kkOps.ListPortalsResponse{
-					StatusCode: 200,
-					ListPortalsResponse: &kkComps.ListPortalsResponse{
-						Data: []kkComps.Portal{
-							{
-								ID:          "portal-to-delete",
-								Name:        "Old Portal",
-								Description: stringPtr("This portal should be deleted"),
-								Labels: map[string]string{
-									"KONGCTL-managed": "true",
-								},
-								CreatedAt: time.Now().Add(-24 * time.Hour),
-								UpdatedAt: time.Now().Add(-24 * time.Hour),
-							},
-						},
-						Meta: kkComps.PaginatedMeta{
-							Page: kkComps.PageMeta{
-								Total: 1,
-							},
-						},
-					},
-				}, nil).Once()
-			
-			// Mock successful portal deletion
-			mockPortalAPI.On("DeletePortal", mock.Anything, 
-				kkOps.DeletePortalRequest{
-					PortalID: "portal-to-delete",
-				}).
-				Return(&kkOps.DeletePortalResponse{
-					StatusCode: 204,
-				}, nil).Once()
-			
-			// Mock empty APIs list
-			mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
-				Return(&kkOps.ListApisResponse{
-					StatusCode: 200,
-					ListAPIResponse: &kkComps.ListAPIResponse{
-						Data: []kkComps.APIResponseSchema{},
-						Meta: kkComps.PaginatedMeta{
-							Page: kkComps.PageMeta{
-								Total: 0,
-							},
-						},
-					},
-				}, nil)
-			
-			// Mock empty auth strategies list
-			mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
-				Return(&kkOps.ListAppAuthStrategiesResponse{
-					ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
-						Data: []kkComps.AppAuthStrategy{},
-						Meta: kkComps.PaginatedMeta{
-							Page: kkComps.PageMeta{
-								Total: 0,
-							},
-						},
-					},
-				}, nil)
-			
-			return &helpers.MockKonnectSDK{
-				T: t,
-				PortalFactory: func() helpers.PortalAPI {
-					return mockPortalAPI
-				},
-				APIFactory: func() helpers.APIFullAPI {
-					return mockAPIAPI
-				},
-				AppAuthStrategiesFactory: func() helpers.AppAuthStrategiesAPI {
-					return mockAppAuthAPI
-				},
-			}, nil
-		}
-	})
-	defer cleanup()
+	// Set up test context with mocks
+	ctx := SetupTestContext(t)
 	
-	// Create sync command
-	cmd, err := sync.NewSyncCmd()
+	// Get the mock SDK and set up expectations
+	sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
+	konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
+	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
+	mockPortalAPI := mockSDK.GetPortalAPI().(*MockPortalAPI)
+	mockAPIAPI := mockSDK.GetAPIAPI().(*MockAPIAPI)
+	mockAppAuthAPI := mockSDK.GetAppAuthStrategiesAPI().(*MockAppAuthStrategiesAPI)
+	
+	// Mock listing existing managed portals
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
+		Return(&kkOps.ListPortalsResponse{
+			StatusCode: 200,
+			ListPortalsResponse: &kkComps.ListPortalsResponse{
+				Data: []kkComps.Portal{
+					{
+						ID:          "portal-to-delete",
+						Name:        "Old Portal",
+						Description: stringPtr("This portal should be deleted"),
+						Labels: map[string]string{
+							"KONGCTL-managed": "true",
+							"KONGCTL-namespace": "default",
+						},
+						CreatedAt: time.Now().Add(-24 * time.Hour),
+						UpdatedAt: time.Now().Add(-24 * time.Hour),
+					},
+				},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 1,
+					},
+				},
+			},
+		}, nil)
+	
+	// Mock successful portal deletion
+	mockPortalAPI.On("DeletePortal", mock.Anything, "portal-to-delete", true).
+		Return(&kkOps.DeletePortalResponse{
+			StatusCode: 204,
+		}, nil).Once()
+	
+	// Mock empty APIs list
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
+		Return(&kkOps.ListApisResponse{
+			StatusCode: 200,
+			ListAPIResponse: &kkComps.ListAPIResponse{
+				Data: []kkComps.APIResponseSchema{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
+				},
+			},
+		}, nil)
+	
+	// Mock empty auth strategies list
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
+				},
+			},
+		}, nil)
+	
+	// Create sync command using declarative command
+	cmd, err := declarative.NewDeclarativeCmd("sync")
 	require.NoError(t, err)
+	
+	// Set context
+	cmd.SetContext(ctx)
 	
 	// Capture output
 	var output bytes.Buffer
@@ -130,8 +117,8 @@ func TestSyncCommand_WithDeletes(t *testing.T) {
 	// Mock stdin for confirmation (simulate user typing "yes")
 	cmd.SetIn(strings.NewReader("yes\n"))
 	
-	// Execute with config file - using konnect subcommand
-	cmd.SetArgs([]string{"konnect", "-f", configFile, "--pat", "test-token"})
+	// Execute with config file
+	cmd.SetArgs([]string{"-f", syncConfigFile, "--auto-approve"})
 	err = cmd.Execute()
 	
 	// Verify successful execution with deletions
@@ -140,13 +127,13 @@ func TestSyncCommand_WithDeletes(t *testing.T) {
 	
 	// Verify plan was generated
 	assert.Contains(t, outputStr, "Plan Summary")
-	assert.Contains(t, outputStr, "Delete: 1")
-	assert.Contains(t, outputStr, "portal: Old Portal")
+	assert.Contains(t, outputStr, "- Old Portal")
+	assert.Contains(t, outputStr, "portal (1):")
 	
-	// Verify confirmation prompt
-	assert.Contains(t, outputStr, "Do you want to proceed")
+	// Verify no confirmation prompt since we used --auto-approve
+	assert.NotContains(t, outputStr, "Do you want to proceed")
 	
 	// Verify execution completed
-	assert.Contains(t, outputStr, "Execution completed successfully")
-	assert.Contains(t, outputStr, "Deleted: 1")
+	assert.Contains(t, outputStr, "Complete.")
+	assert.Contains(t, outputStr, "Applied 1 changes.")
 }

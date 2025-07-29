@@ -5,24 +5,19 @@ package declarative_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/kong/kongctl/internal/cmd/root/verbs/plan"
-	"github.com/kong/kongctl/internal/cmd/root/verbs/diff"
-	kongctlconfig "github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -36,7 +31,6 @@ import (
 // Recommended fix: Mock at the SDK factory level by overriding helpers.DefaultSDKFactory
 // See docs/plan/004-dec-cfg-multi-resource/test-refactoring-todo.md for detailed proposal
 func TestPlanGeneration_CreatePortal(t *testing.T) {
-	t.Skip("Temporarily disabled - mock injection issue with command execution")
 	// Create test configuration
 	configDir := t.TempDir()
 	configFile := filepath.Join(configDir, "portal.yaml")
@@ -50,14 +44,10 @@ portals:
 `
 	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
 	
-	// Create plan command
-	planCmd, err := plan.NewPlanCmd()
-	require.NoError(t, err)
-	
-	// Set up test context with all necessary values
+	// Set up test context with mocks
 	ctx := SetupTestContext(t)
 	
-	// Get the mock portal API and set up expectations
+	// Get the mock SDK and set up expectations
 	sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
 	konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
 	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
@@ -76,20 +66,38 @@ portals:
 			},
 		}, nil)
 	
-	// Override the PersistentPreRunE to preserve our test SDK factory
-	originalPreRun := planCmd.PersistentPreRunE
-	planCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		// Run original pre-run first
-		if originalPreRun != nil {
-			if err := originalPreRun(cmd, args); err != nil {
-				return err
-			}
-		}
-		// Now restore our test SDK factory
-		cmd.SetContext(ctx)
-		return nil
-	}
+	// Get the mock auth strategies API and set up expectations
+	mockAuthAPI := mockSDK.GetAppAuthStrategiesAPI().(*MockAppAuthStrategiesAPI)
+	// Mock empty auth strategies list
+	mockAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			StatusCode: 200,
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+			},
+		}, nil).Maybe()
 	
+	// Get the mock API API and set up expectations
+	mockAPIAPI := mockSDK.GetAPIAPI().(*MockAPIAPI)
+	// Mock empty APIs list
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
+		Return(&kkOps.ListApisResponse{
+			StatusCode: 200,
+			ListAPIResponse: &kkComps.ListAPIResponse{
+				Data: []kkComps.APIResponseSchema{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
+				},
+			},
+		}, nil).Maybe()
+	
+	// Create plan command using declarative command
+	planCmd, err := declarative.NewDeclarativeCmd("plan")
+	require.NoError(t, err)
+	
+	// Set context
 	planCmd.SetContext(ctx)
 	
 	// Capture output
@@ -101,7 +109,7 @@ portals:
 	planFile := filepath.Join(t.TempDir(), "plan.json")
 	planCmd.SetArgs([]string{"-f", configFile, "--output-file", planFile})
 	
-	// Execute command
+	// Execute command  
 	err = planCmd.Execute()
 	require.NoError(t, err)
 	
@@ -149,66 +157,74 @@ portals:
 `
 	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
 	
-	// Create plan command
-	planCmd, err := plan.NewPlanCmd()
-	require.NoError(t, err)
+	// Set up test context with mocks
+	ctx := SetupTestContext(t)
 	
-	// Set up SDK factory with existing portal
-	sdkFactory := helpers.SDKAPIFactory(func(_ kongctlconfig.Hook, _ *slog.Logger) (helpers.SDKAPI, error) {
-		mockPortal := NewMockPortalAPI(t)
-		
-		// Mock existing portal with different values
-		existingID := "portal-123"
-		existingName := "Existing Portal"
-		oldDesc := "Old description"
-		oldDisplay := "Old Display"
-		
-		mockPortal.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
-			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{
-					{
-						ID:          existingID,
-						Name:        existingName,
-						Description: &oldDesc,
-						DisplayName: oldDisplay,
-						Labels: map[string]string{
-							labels.NamespaceKey: "default",
-						},
-					},
-				},
-				Meta: kkComps.PaginatedMeta{
-					Page: kkComps.PageMeta{
-						Total: 1,
+	// Get the mock SDK and set up expectations
+	sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
+	konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
+	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
+	mockPortalAPI := mockSDK.GetPortalAPI().(*MockPortalAPI)
+	
+	// Mock existing portal with different values
+	existingID := "portal-123"
+	existingName := "Existing Portal"
+	oldDesc := "Old description"
+	oldDisplay := "Old Display"
+	
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.Portal{
+				{
+					ID:          existingID,
+					Name:        existingName,
+					Description: &oldDesc,
+					DisplayName: oldDisplay,
+					Labels: map[string]string{
+						labels.NamespaceKey: "default",
 					},
 				},
 			},
-		}, nil)
-		
-		return &helpers.MockKonnectSDK{
-			T:             t,
-			PortalFactory: func() helpers.PortalAPI { return mockPortal },
-		}, nil
-	})
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
+					Total: 1,
+				},
+			},
+		},
+	}, nil)
 	
-	// Set up test context
-	ctx := SetupTestContext(t)
-	// Override SDK factory
-	ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, sdkFactory)
+	// Get the mock auth strategies API and set up expectations
+	mockAuthAPI := mockSDK.GetAppAuthStrategiesAPI().(*MockAppAuthStrategiesAPI)
+	// Mock empty auth strategies list
+	mockAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			StatusCode: 200,
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+			},
+		}, nil).Maybe()
 	
-	// Override the PersistentPreRunE to preserve our test SDK factory
-	originalPreRun := planCmd.PersistentPreRunE
-	planCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		// Run original pre-run first
-		if originalPreRun != nil {
-			if err := originalPreRun(cmd, args); err != nil {
-				return err
-			}
-		}
-		// Now restore our test SDK factory
-		cmd.SetContext(ctx)
-		return nil
-	}
+	// Get the mock API API and set up expectations
+	mockAPIAPI := mockSDK.GetAPIAPI().(*MockAPIAPI)
+	// Mock empty APIs list
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
+		Return(&kkOps.ListApisResponse{
+			StatusCode: 200,
+			ListAPIResponse: &kkComps.ListAPIResponse{
+				Data: []kkComps.APIResponseSchema{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
+				},
+			},
+		}, nil).Maybe()
 	
+	// Create plan command using declarative command
+	planCmd, err := declarative.NewDeclarativeCmd("plan")
+	require.NoError(t, err)
+	
+	// Set context
 	planCmd.SetContext(ctx)
 	
 	// Capture output
@@ -220,7 +236,7 @@ portals:
 	planFile := filepath.Join(t.TempDir(), "plan.json")
 	planCmd.SetArgs([]string{"-f", configFile, "--output-file", planFile})
 	
-	// Execute command
+	// Execute command  
 	err = planCmd.Execute()
 	require.NoError(t, err)
 	
@@ -260,65 +276,73 @@ portals:
 `
 	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
 	
-	// Create plan command
-	planCmd, err := plan.NewPlanCmd()
-	require.NoError(t, err)
+	// Set up test context with mocks
+	ctx := SetupTestContext(t)
 	
-	// Set up SDK factory with unprotected portal
-	sdkFactory := helpers.SDKAPIFactory(func(_ kongctlconfig.Hook, _ *slog.Logger) (helpers.SDKAPI, error) {
-		mockPortal := NewMockPortalAPI(t)
-		
-		// Mock existing unprotected portal
-		existingID := "portal-456"
-		existingName := "Protected Portal"
-		desc := "Portal with protection"
-		
-		mockPortal.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
-			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{
-					{
-						ID:          existingID,
-						Name:        existingName,
-						Description: &desc,
-						Labels: map[string]string{
-							labels.NamespaceKey: "default",
-							// No protected label = unprotected
-						},
-					},
-				},
-				Meta: kkComps.PaginatedMeta{
-					Page: kkComps.PageMeta{
-						Total: 1,
+	// Get the mock SDK and set up expectations
+	sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
+	konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
+	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
+	mockPortalAPI := mockSDK.GetPortalAPI().(*MockPortalAPI)
+	
+	// Mock existing unprotected portal
+	existingID := "portal-456"
+	existingName := "Protected Portal"
+	desc := "Portal with protection"
+	
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.Portal{
+				{
+					ID:          existingID,
+					Name:        existingName,
+					Description: &desc,
+					Labels: map[string]string{
+						labels.NamespaceKey: "default",
+						// No protected label = unprotected
 					},
 				},
 			},
-		}, nil)
-		
-		return &helpers.MockKonnectSDK{
-			T:             t,
-			PortalFactory: func() helpers.PortalAPI { return mockPortal },
-		}, nil
-	})
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
+					Total: 1,
+				},
+			},
+		},
+	}, nil)
 	
-	// Set up test context
-	ctx := SetupTestContext(t)
-	// Override SDK factory
-	ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, sdkFactory)
+	// Get the mock auth strategies API and set up expectations
+	mockAuthAPI := mockSDK.GetAppAuthStrategiesAPI().(*MockAppAuthStrategiesAPI)
+	// Mock empty auth strategies list
+	mockAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			StatusCode: 200,
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+			},
+		}, nil).Maybe()
 	
-	// Override the PersistentPreRunE to preserve our test SDK factory
-	originalPreRun := planCmd.PersistentPreRunE
-	planCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		// Run original pre-run first
-		if originalPreRun != nil {
-			if err := originalPreRun(cmd, args); err != nil {
-				return err
-			}
-		}
-		// Now restore our test SDK factory
-		cmd.SetContext(ctx)
-		return nil
-	}
+	// Get the mock API API and set up expectations
+	mockAPIAPI := mockSDK.GetAPIAPI().(*MockAPIAPI)
+	// Mock empty APIs list
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
+		Return(&kkOps.ListApisResponse{
+			StatusCode: 200,
+			ListAPIResponse: &kkComps.ListAPIResponse{
+				Data: []kkComps.APIResponseSchema{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
+				},
+			},
+		}, nil).Maybe()
 	
+	// Create plan command using declarative command
+	planCmd, err := declarative.NewDeclarativeCmd("plan")
+	require.NoError(t, err)
+	
+	// Set context
 	planCmd.SetContext(ctx)
 	
 	// Generate plan
@@ -369,53 +393,61 @@ portals:
 `
 	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
 	
-	// Create plan command
-	planCmd, err := plan.NewPlanCmd()
+	// Create plan command using declarative command
+	planCmd, err := declarative.NewDeclarativeCmd("plan")
 	require.NoError(t, err)
 	
-	// Set up SDK factory with matching portal
-	sdkFactory := helpers.SDKAPIFactory(func(_ kongctlconfig.Hook, _ *slog.Logger) (helpers.SDKAPI, error) {
-		mockPortal := NewMockPortalAPI(t)
-		
-		// Mock portal that matches desired state
-		portal := CreateManagedPortal("Existing Portal", "portal-789", "Same description")
-		
-		mockPortal.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
-			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{portal},
+	// Set up test context with mocks
+	ctx := SetupTestContext(t)
+	
+	// Get the mock SDK and set up expectations
+	sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
+	konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
+	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
+	mockPortalAPI := mockSDK.GetPortalAPI().(*MockPortalAPI)
+	
+	// Mock portal that matches desired state
+	portal := CreateManagedPortal("Existing Portal", "portal-789", "Same description")
+	
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.Portal{portal},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{
+					Total: 1,
+				},
+			},
+		},
+	}, nil)
+	
+	// Get the mock auth strategies API and set up expectations
+	mockAuthAPI := mockSDK.GetAppAuthStrategiesAPI().(*MockAppAuthStrategiesAPI)
+	// Mock empty auth strategies list
+	mockAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			StatusCode: 200,
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+			},
+		}, nil).Maybe()
+	
+	// Get the mock API API and set up expectations
+	mockAPIAPI := mockSDK.GetAPIAPI().(*MockAPIAPI)
+	// Mock empty APIs list
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
+		Return(&kkOps.ListApisResponse{
+			StatusCode: 200,
+			ListAPIResponse: &kkComps.ListAPIResponse{
+				Data: []kkComps.APIResponseSchema{},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
-						Total: 1,
+						Total: 0,
 					},
 				},
 			},
-		}, nil)
-		
-		return &helpers.MockKonnectSDK{
-			T:             t,
-			PortalFactory: func() helpers.PortalAPI { return mockPortal },
-		}, nil
-	})
-	
-	// Set up test context
-	ctx := SetupTestContext(t)
-	// Override SDK factory
-	ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, sdkFactory)
-	
-	// Override the PersistentPreRunE to preserve our test SDK factory
-	originalPreRun := planCmd.PersistentPreRunE
-	planCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		// Run original pre-run first
-		if originalPreRun != nil {
-			if err := originalPreRun(cmd, args); err != nil {
-				return err
-			}
-		}
-		// Now restore our test SDK factory
-		cmd.SetContext(ctx)
-		return nil
-	}
-	
+		}, nil).Maybe()
+
+	// Set context
 	planCmd.SetContext(ctx)
 	
 	// Generate plan
@@ -472,8 +504,8 @@ func TestDiffCommand_TextOutput(t *testing.T) {
 	planFile := filepath.Join(t.TempDir(), "test-plan.json")
 	require.NoError(t, os.WriteFile(planFile, planData, 0600))
 	
-	// Create diff command
-	diffCmd, err := diff.NewDiffCmd()
+	// Create diff command using declarative command
+	diffCmd, err := declarative.NewDeclarativeCmd("diff")
 	require.NoError(t, err)
 	
 	// Set up test context
@@ -534,8 +566,8 @@ func TestDiffCommand_JSONOutput(t *testing.T) {
 	planFile := filepath.Join(t.TempDir(), "update-plan.json")
 	require.NoError(t, os.WriteFile(planFile, planData, 0600))
 	
-	// Create diff command
-	diffCmd, err := diff.NewDiffCmd()
+	// Create diff command using declarative command
+	diffCmd, err := declarative.NewDeclarativeCmd("diff")
 	require.NoError(t, err)
 	
 	// Set up test context
@@ -583,8 +615,8 @@ func TestDiffCommand_YAMLOutput(t *testing.T) {
 	planFile := filepath.Join(t.TempDir(), "empty-plan.json")
 	require.NoError(t, os.WriteFile(planFile, planData, 0600))
 	
-	// Create diff command
-	diffCmd, err := diff.NewDiffCmd()
+	// Create diff command using declarative command
+	diffCmd, err := declarative.NewDeclarativeCmd("diff")
 	require.NoError(t, err)
 	
 	// Set up test context
@@ -613,7 +645,6 @@ func TestDiffCommand_YAMLOutput(t *testing.T) {
 // TODO: Fix mock injection for command-level tests (same issue as TestPlanGeneration_CreatePortal)
 // See docs/plan/004-dec-cfg-multi-resource/test-refactoring-todo.md for detailed proposal
 func TestPlanDiffPipeline(t *testing.T) {
-	t.Skip("Temporarily disabled - mock injection issue with command execution")
 	// Create test configuration
 	configDir := t.TempDir()
 	configFile := filepath.Join(configDir, "portal.yaml")
@@ -626,14 +657,10 @@ portals:
 `
 	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
 	
-	// Create plan command
-	planCmd, err := plan.NewPlanCmd()
-	require.NoError(t, err)
-	
-	// Set up test context with all necessary values
+	// Set up test context with mocks
 	ctx := SetupTestContext(t)
 	
-	// Get the mock portal API and set up expectations
+	// Get the mock SDK and set up expectations
 	sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
 	konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
 	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
@@ -652,20 +679,38 @@ portals:
 			},
 		}, nil)
 	
-	// Override the PersistentPreRunE to preserve our test SDK factory
-	originalPreRun := planCmd.PersistentPreRunE
-	planCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		// Run original pre-run first
-		if originalPreRun != nil {
-			if err := originalPreRun(cmd, args); err != nil {
-				return err
-			}
-		}
-		// Now restore our test SDK factory
-		cmd.SetContext(ctx)
-		return nil
-	}
+	// Get the mock auth strategies API and set up expectations
+	mockAuthAPI := mockSDK.GetAppAuthStrategiesAPI().(*MockAppAuthStrategiesAPI)
+	// Mock empty auth strategies list
+	mockAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			StatusCode: 200,
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+			},
+		}, nil).Maybe()
 	
+	// Get the mock API API and set up expectations
+	mockAPIAPI := mockSDK.GetAPIAPI().(*MockAPIAPI)
+	// Mock empty APIs list
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
+		Return(&kkOps.ListApisResponse{
+			StatusCode: 200,
+			ListAPIResponse: &kkComps.ListAPIResponse{
+				Data: []kkComps.APIResponseSchema{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
+				},
+			},
+		}, nil).Maybe()
+	
+	// Create plan command using declarative command
+	planCmd, err := declarative.NewDeclarativeCmd("plan")
+	require.NoError(t, err)
+	
+	// Set context
 	planCmd.SetContext(ctx)
 	
 	// Capture plan output
@@ -679,8 +724,8 @@ portals:
 	err = planCmd.Execute()
 	require.NoError(t, err)
 	
-	// Create diff command
-	diffCmd, err := diff.NewDiffCmd()
+	// Create diff command using declarative command
+	diffCmd, err := declarative.NewDeclarativeCmd("diff")
 	require.NoError(t, err)
 	
 	// Set context for diff command

@@ -52,6 +52,8 @@ func GetSDKFactory(t *testing.T) helpers.SDKAPIFactory {
 			APIFactory: func() helpers.APIFullAPI {
 				return apiAPI
 			},
+			// Note: APIVersionFactory and APIPublicationFactory are left nil
+			// The test expects to see errors for these child resources
 		}, nil
 	}
 }

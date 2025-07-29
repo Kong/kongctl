@@ -806,10 +806,12 @@ apis:
 	
 	// Mock Unprotected Alpha API creation
 	mockAPIAPI.On("CreateAPI", mock.Anything, mock.MatchedBy(func(api kkComps.CreateAPIRequest) bool {
+		// When protected is false, the label is not added (only namespace label is present)
+		_, hasProtected := api.Labels[labels.ProtectedKey]
 		return api.Name == "Unprotected Alpha API" &&
 			api.Labels != nil &&
 			api.Labels[labels.NamespaceKey] == "team-alpha" &&
-			api.Labels[labels.ProtectedKey] == "false"
+			!hasProtected
 	})).Return(&kkOps.CreateAPIResponse{
 		StatusCode: 201,
 		APIResponseSchema: &kkComps.APIResponseSchema{

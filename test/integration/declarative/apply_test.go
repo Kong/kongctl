@@ -6,14 +6,12 @@ package declarative_test
 import (
 	"bytes"
 	"encoding/json"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/kong/kongctl/internal/cmd/root/verbs/apply"
-	kongctlconfig "github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -24,21 +22,9 @@ import (
 )
 
 func TestApplyCommand_BasicWorkflow(t *testing.T) {
-	// Create a config directory and file to satisfy Viper requirements
-	configDir := t.TempDir()
-	configFile := filepath.Join(configDir, "config.yaml")
-	configContent := `
-profiles:
-  default:
-    konnect:
-      pat: test-token
-      base_url: https://global.api.konghq.com
-`
-	require.NoError(t, os.WriteFile(configFile, []byte(configContent), 0600))
-	
 	// Create a test plan file
-	tempDir := t.TempDir()
-	planFile := filepath.Join(tempDir, "test-plan.json")
+	planDir := t.TempDir()
+	planFile := filepath.Join(planDir, "test-plan.json")
 	
 	plan := planner.Plan{
 		Metadata: planner.PlanMetadata{
@@ -71,61 +57,72 @@ profiles:
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(planFile, planData, 0600))
 	
-	// Set up mock SDK factory
-	cleanup := WithMockSDKFactory(t, func(t *testing.T) helpers.SDKAPIFactory {
-		return func(_ kongctlconfig.Hook, _ *slog.Logger) (helpers.SDKAPI, error) {
-			mockPortalAPI := NewMockPortalAPI(t)
-			
-			// Mock successful portal creation
-			mockPortalAPI.On("CreatePortal", mock.Anything, mock.Anything).
-				Return(&kkOps.CreatePortalResponse{
-					StatusCode: 201,
-					PortalResponse: &kkComps.PortalResponse{
-						ID:          "portal-123",
-						Name:        "Test Portal",
-						Description: stringPtr("Test portal for integration testing"),
-						Labels: map[string]string{
-							"KONGCTL-managed":      "true",
-							"KONGCTL-last-updated": "20240101-120000Z",
-						},
-						CreatedAt: time.Now(),
-						UpdatedAt: time.Now(),
-					},
-				}, nil)
-			
-			return &helpers.MockKonnectSDK{
-				T: t,
-				PortalFactory: func() helpers.PortalAPI {
-					return mockPortalAPI
-				},
-			}, nil
-		}
-	})
-	defer cleanup()
+	// Set up test context with mocks
+	ctx := SetupTestContext(t)
 	
-	// Create apply command
-	cmd, err := apply.NewApplyCmd()
+	// Get the mock SDK and set up expectations
+	sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
+	konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
+	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
+	mockPortalAPI := mockSDK.GetPortalAPI().(*MockPortalAPI)
+	
+	// Mock checking for existing portal (not found)
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
+		Return(&kkOps.ListPortalsResponse{
+			StatusCode: 200,
+			ListPortalsResponse: &kkComps.ListPortalsResponse{
+				Data: []kkComps.Portal{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
+				},
+			},
+		}, nil).Maybe()
+	
+	// Mock successful portal creation
+	mockPortalAPI.On("CreatePortal", mock.Anything, mock.Anything).
+		Return(&kkOps.CreatePortalResponse{
+			StatusCode: 201,
+			PortalResponse: &kkComps.PortalResponse{
+				ID:          "portal-123",
+				Name:        "Test Portal",
+				Description: stringPtr("Test portal for integration testing"),
+				Labels: map[string]string{
+					"KONGCTL-managed":      "true",
+					"KONGCTL-last-updated": "20240101-120000Z",
+				},
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			},
+		}, nil)
+	
+	// Create apply command using declarative command
+	cmd, err := declarative.NewDeclarativeCmd("apply")
 	require.NoError(t, err)
+	
+	// Set context
+	cmd.SetContext(ctx)
 	
 	// Capture output
 	var output bytes.Buffer
 	cmd.SetOut(&output)
 	cmd.SetErr(&output)
 	
-	// Execute with plan file - using konnect subcommand
-	cmd.SetArgs([]string{"konnect", "--plan", planFile, "--pat", "test-token"})
+	// Execute with plan file
+	cmd.SetArgs([]string{"--plan", planFile, "--auto-approve"})
 	err = cmd.Execute()
 	
 	// Verify successful execution
 	assert.NoError(t, err)
-	assert.Contains(t, output.String(), "Execution completed successfully")
-	assert.Contains(t, output.String(), "Created: 1")
+	assert.Contains(t, output.String(), "Complete.")
+	assert.Contains(t, output.String(), "Applied 1 changes.")
 }
 
 func TestApplyCommand_RejectsDeletes(t *testing.T) {
 	// Create a plan with DELETE operation
-	tempDir := t.TempDir()
-	planFile := filepath.Join(tempDir, "test-plan.json")
+	planDir := t.TempDir()
+	planFile := filepath.Join(planDir, "test-plan.json")
 	
 	plan := planner.Plan{
 		Metadata: planner.PlanMetadata{
@@ -154,39 +151,35 @@ func TestApplyCommand_RejectsDeletes(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(planFile, planData, 0600))
 	
-	// Set up mock SDK factory (shouldn't be called)
-	cleanup := WithMockSDKFactory(t, func(t *testing.T) helpers.SDKAPIFactory {
-		return func(_ kongctlconfig.Hook, _ *slog.Logger) (helpers.SDKAPI, error) {
-			// Should not reach here - apply should reject DELETE operations
-			t.Fatal("SDK factory should not be called for plans with DELETE operations")
-			return nil, nil
-		}
-	})
-	defer cleanup()
+	// Set up test context with mocks (shouldn't be called)
+	ctx := SetupTestContext(t)
 	
-	// Create apply command
-	cmd, err := apply.NewApplyCmd()
+	// Create apply command using declarative command
+	cmd, err := declarative.NewDeclarativeCmd("apply")
 	require.NoError(t, err)
+	
+	// Set context
+	cmd.SetContext(ctx)
 	
 	// Capture output
 	var output bytes.Buffer
 	cmd.SetOut(&output)
 	cmd.SetErr(&output)
 	
-	// Execute with plan file - using konnect subcommand
-	cmd.SetArgs([]string{"konnect", "--plan", planFile, "--pat", "test-token"})
+	// Execute with plan file
+	cmd.SetArgs([]string{"--plan", planFile, "--auto-approve"})
 	err = cmd.Execute()
 	
 	// Verify rejection of DELETE operations
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "contains DELETE operations")
+	assert.Contains(t, err.Error(), "apply command cannot execute plans with DELETE operations")
 	assert.Contains(t, err.Error(), "Use 'sync' command")
 }
 
 func TestApplyCommand_DryRun(t *testing.T) {
 	// Create a test plan file
-	tempDir := t.TempDir()
-	planFile := filepath.Join(tempDir, "test-plan.json")
+	planDir := t.TempDir()
+	planFile := filepath.Join(planDir, "test-plan.json")
 	
 	plan := planner.Plan{
 		Metadata: planner.PlanMetadata{
@@ -219,40 +212,49 @@ func TestApplyCommand_DryRun(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(planFile, planData, 0600))
 	
-	// Set up mock SDK factory (should not make actual API calls in dry-run)
-	cleanup := WithMockSDKFactory(t, func(t *testing.T) helpers.SDKAPIFactory {
-		return func(_ kongctlconfig.Hook, _ *slog.Logger) (helpers.SDKAPI, error) {
-			mockPortalAPI := NewMockPortalAPI(t)
-			
-			// No API calls should be made in dry-run mode
-			
-			return &helpers.MockKonnectSDK{
-				T: t,
-				PortalFactory: func() helpers.PortalAPI {
-					return mockPortalAPI
-				},
-			}, nil
-		}
-	})
-	defer cleanup()
+	// Set up test context with mocks (should not make actual API calls in dry-run)
+	ctx := SetupTestContext(t)
 	
-	// Create apply command
-	cmd, err := apply.NewApplyCmd()
+	// Get the mock SDK and set up expectations
+	sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
+	konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
+	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
+	mockPortalAPI := mockSDK.GetPortalAPI().(*MockPortalAPI)
+	
+	// Mock checking for existing portal (not found) - needed even in dry-run
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
+		Return(&kkOps.ListPortalsResponse{
+			StatusCode: 200,
+			ListPortalsResponse: &kkComps.ListPortalsResponse{
+				Data: []kkComps.Portal{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
+				},
+			},
+		}, nil).Maybe()
+	
+	// Create apply command using declarative command
+	cmd, err := declarative.NewDeclarativeCmd("apply")
 	require.NoError(t, err)
+	
+	// Set context
+	cmd.SetContext(ctx)
 	
 	// Capture output
 	var output bytes.Buffer
 	cmd.SetOut(&output)
 	cmd.SetErr(&output)
 	
-	// Execute with plan file and dry-run flag - using konnect subcommand
-	cmd.SetArgs([]string{"konnect", "--plan", planFile, "--dry-run", "--pat", "test-token"})
+	// Execute with plan file and dry-run flag
+	cmd.SetArgs([]string{"--plan", planFile, "--dry-run"})
 	err = cmd.Execute()
 	
 	// Verify dry-run execution
 	assert.NoError(t, err)
-	assert.Contains(t, output.String(), "DRY-RUN MODE")
-	assert.Contains(t, output.String(), "Skipped: 1")
-	assert.NotContains(t, output.String(), "Created: 1")
+	assert.Contains(t, output.String(), "Validating changes:")
+	assert.Contains(t, output.String(), "Dry run complete.")
+	assert.NotContains(t, output.String(), "Applied")
 }
 

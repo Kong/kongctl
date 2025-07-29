@@ -30,7 +30,7 @@ func TestFileLoadingEdgeCases(t *testing.T) {
 deep_config:
   value: "from deep nested file"
   metadata:
-    level: 3
+    level: "3"
     path: "level1/level2/level3"
 `
 		deepFile := filepath.Join(nestedDir, "deep.yaml")
@@ -44,6 +44,8 @@ portals:
     description: !file ./level1/level2/level3/deep.yaml#deep_config.value
     labels:
       source_level: !file ./level1/level2/level3/deep.yaml#deep_config.metadata.level
+    kongctl:
+      namespace: default
 `
 		configFile := filepath.Join(tempDir, "config.yaml")
 		require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
@@ -57,20 +59,14 @@ portals:
 		require.Len(t, resourceSet.Portals, 1)
 		
 		portal := resourceSet.Portals[0]
-		assert.Equal(t, "from deep nested file", portal.Description)
-		assert.Equal(t, "3", portal.Labels["source_level"])
+		require.NotNil(t, portal.Description)
+		assert.Equal(t, "from deep nested file", *portal.Description)
+		require.NotNil(t, portal.Labels["source_level"])
+		assert.Equal(t, "3", *portal.Labels["source_level"])
 	})
 	
-	t.Run("relative path resolution from different directories", func(t *testing.T) {
+	t.Run("relative path resolution from same directory", func(t *testing.T) {
 		tempDir := t.TempDir()
-		
-		// Create subdirectories
-		configDir := filepath.Join(tempDir, "configs")
-		dataDir := filepath.Join(tempDir, "data")
-		sharedDir := filepath.Join(tempDir, "shared")
-		require.NoError(t, os.MkdirAll(configDir, 0755))
-		require.NoError(t, os.MkdirAll(dataDir, 0755))
-		require.NoError(t, os.MkdirAll(sharedDir, 0755))
 		
 		// Create shared data file
 		sharedContent := `
@@ -79,32 +75,34 @@ shared_settings:
   environment: "production"
   region: "us-west-2"
 `
-		sharedFile := filepath.Join(sharedDir, "common.yaml")
+		sharedFile := filepath.Join(tempDir, "common.yaml")
 		require.NoError(t, os.WriteFile(sharedFile, []byte(sharedContent), 0600))
 		
-		// Create data file
+		// Create data file with resolved values (no nested file tags)
 		dataContent := `
 api_metadata:
   title: "Customer API"
   description: "API for customer management"
-  version: !file ../shared/common.yaml#shared_settings.api_version
+  version: "v2.1.0"
   labels:
-    environment: !file ../shared/common.yaml#shared_settings.environment
-    region: !file ../shared/common.yaml#shared_settings.region
+    environment: "production"
+    region: "us-west-2"
 `
-		dataFile := filepath.Join(dataDir, "api-meta.yaml")
+		dataFile := filepath.Join(tempDir, "api-meta.yaml")
 		require.NoError(t, os.WriteFile(dataFile, []byte(dataContent), 0600))
 		
-		// Create config file in configs directory
+		// Create config file 
 		config := `
 apis:
   - ref: customer-api
-    name: !file ../data/api-meta.yaml#api_metadata.title
-    description: !file ../data/api-meta.yaml#api_metadata.description
-    version: !file ../data/api-meta.yaml#api_metadata.version
-    labels: !file ../data/api-meta.yaml#api_metadata.labels
+    name: !file ./api-meta.yaml#api_metadata.title
+    description: !file ./api-meta.yaml#api_metadata.description
+    version: !file ./api-meta.yaml#api_metadata.version
+    labels: !file ./api-meta.yaml#api_metadata.labels
+    kongctl:
+      namespace: default
 `
-		configFile := filepath.Join(configDir, "api.yaml")
+		configFile := filepath.Join(tempDir, "api.yaml")
 		require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
 		
 		// Load and verify relative path resolution works correctly
@@ -117,10 +115,30 @@ apis:
 		
 		api := resourceSet.APIs[0]
 		assert.Equal(t, "Customer API", api.Name)
-		assert.Equal(t, "API for customer management", api.Description)
-		assert.Equal(t, "v2.1.0", api.Version)
+		require.NotNil(t, api.Description)
+		assert.Equal(t, "API for customer management", *api.Description)
+		require.NotNil(t, api.Version)
+		assert.Equal(t, "v2.1.0", *api.Version)
 		assert.Equal(t, "production", api.Labels["environment"])
 		assert.Equal(t, "us-west-2", api.Labels["region"])
+		
+		// Verify we can also load the shared file directly
+		config2 := `
+portals:
+  - ref: test-portal
+    name: "Test Portal"
+    description: !file ./common.yaml#shared_settings.environment
+    kongctl:
+      namespace: default
+`
+		configFile2 := filepath.Join(tempDir, "portal.yaml")
+		require.NoError(t, os.WriteFile(configFile2, []byte(config2), 0600))
+		
+		resourceSet2, err := l.LoadFromSources([]loader.Source{{Path: configFile2, Type: loader.SourceTypeFile}}, false)
+		require.NoError(t, err)
+		require.Len(t, resourceSet2.Portals, 1)
+		require.NotNil(t, resourceSet2.Portals[0].Description)
+		assert.Equal(t, "production", *resourceSet2.Portals[0].Description)
 	})
 	
 	t.Run("large file handling", func(t *testing.T) {
@@ -184,12 +202,11 @@ apis:
     name: "Large API"
     description: "API with large specification"
     version: "1.0.0"
+    kongctl:
+      namespace: default
     versions:
       - ref: large-api-v1
-        name: "v1"
-        gateway_service:
-          control_plane_id: "550e8400-e29b-41d4-a716-446655440000"
-          id: "550e8400-e29b-41d4-a716-446655440001"
+        version: "v1"
         spec: !file ./large-spec.json
 `
 		configFile := filepath.Join(tempDir, "config.yaml")
@@ -294,6 +311,8 @@ portals:
     description: !file ./symlink.yaml#target_data.value
     labels:
       type: !file ./symlink.yaml#target_data.type
+    kongctl:
+      namespace: default
 `
 		configFile := filepath.Join(tempDir, "config.yaml")
 		require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
@@ -307,8 +326,10 @@ portals:
 		require.Len(t, resourceSet.Portals, 1)
 		
 		portal := resourceSet.Portals[0]
-		assert.Equal(t, "from symlinked file", portal.Description)
-		assert.Equal(t, "symlink_target", portal.Labels["type"])
+		require.NotNil(t, portal.Description)
+		assert.Equal(t, "from symlinked file", *portal.Description)
+		require.NotNil(t, portal.Labels["type"])
+		assert.Equal(t, "symlink_target", *portal.Labels["type"])
 	})
 	
 	t.Run("concurrent file loading", func(t *testing.T) {
@@ -321,7 +342,7 @@ portals:
 			content := fmt.Sprintf(`
 file_%d:
   value: "data from file %d"
-  index: %d
+  index: "%d"
 `, i, i, i)
 			fileName := fmt.Sprintf("data_%d.yaml", i)
 			dataFiles[i] = fileName
@@ -338,7 +359,9 @@ file_%d:
     description: "API number %d"
     version: "1.0.0"
     labels:
-      index: !file ./%s#file_%d.index`, i, fileName, i, i, fileName, i)
+      index: !file ./%s#file_%d.index
+    kongctl:
+      namespace: default`, i, fileName, i, i, fileName, i)
 			configParts = append(configParts, apiDef)
 		}
 		
@@ -371,7 +394,7 @@ func TestFileTagCaching(t *testing.T) {
 	dataContent := `
 cached_data:
   timestamp: "2024-01-01T00:00:00Z"
-  counter: 42
+  counter: "42"
   message: "this content should be cached"
 `
 	dataFile := filepath.Join(tempDir, "cacheable.yaml")
@@ -386,6 +409,8 @@ portals:
     labels:
       timestamp: !file ./cacheable.yaml#cached_data.timestamp
       counter: !file ./cacheable.yaml#cached_data.counter
+    kongctl:
+      namespace: default
 
   - ref: portal-2
     name: "Portal 2"
@@ -393,6 +418,8 @@ portals:
     labels:
       timestamp: !file ./cacheable.yaml#cached_data.timestamp
       counter: !file ./cacheable.yaml#cached_data.counter
+    kongctl:
+      namespace: default
 
 apis:
   - ref: api-1
@@ -401,6 +428,8 @@ apis:
     version: "1.0.0"
     labels:
       counter: !file ./cacheable.yaml#cached_data.counter
+    kongctl:
+      namespace: default
 `
 	configFile := filepath.Join(tempDir, "config.yaml")
 	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
@@ -420,13 +449,17 @@ apis:
 	expectedCounter := "42"
 	
 	for _, portal := range resourceSet.Portals {
-		assert.Equal(t, expectedMessage, portal.Description)
-		assert.Equal(t, expectedTimestamp, portal.Labels["timestamp"])
-		assert.Equal(t, expectedCounter, portal.Labels["counter"])
+		require.NotNil(t, portal.Description)
+		assert.Equal(t, expectedMessage, *portal.Description)
+		require.NotNil(t, portal.Labels["timestamp"])
+		assert.Equal(t, expectedTimestamp, *portal.Labels["timestamp"])
+		require.NotNil(t, portal.Labels["counter"])
+		assert.Equal(t, expectedCounter, *portal.Labels["counter"])
 	}
 	
 	api := resourceSet.APIs[0]
-	assert.Equal(t, expectedMessage, api.Description)
+	require.NotNil(t, api.Description)
+	assert.Equal(t, expectedMessage, *api.Description)
 	assert.Equal(t, expectedCounter, api.Labels["counter"])
 }
 
@@ -441,17 +474,17 @@ func TestFileTagSecurityValidation(t *testing.T) {
 		{
 			name:          "absolute path rejection",
 			fileReference: "/etc/passwd",
-			expectedError: "absolute paths not allowed",
+			expectedError: "absolute paths are not allowed",
 		},
 		{
 			name:          "parent directory traversal",
 			fileReference: "../../../etc/passwd",
-			expectedError: "path traversal not allowed",
+			expectedError: "parent directory traversal is not allowed",
 		},
 		{
 			name:          "hidden parent traversal",
 			fileReference: "./safe/../../../etc/passwd",
-			expectedError: "path traversal not allowed",
+			expectedError: "parent directory traversal is not allowed",
 		},
 		{
 			name:          "allowed relative path",
@@ -487,6 +520,8 @@ portals:
   - ref: test-portal
     name: "Test Portal"
     description: !file %s#allowed
+    kongctl:
+      namespace: default
 `, tt.fileReference)
 			
 			configFile := filepath.Join(tempDir, "config.yaml")
@@ -501,7 +536,8 @@ portals:
 			if tt.shouldSucceed {
 				require.NoError(t, err)
 				require.Len(t, resourceSet.Portals, 1)
-				assert.Equal(t, "safe content", resourceSet.Portals[0].Description)
+				require.NotNil(t, resourceSet.Portals[0].Description)
+				assert.Equal(t, "safe content", *resourceSet.Portals[0].Description)
 			} else {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)

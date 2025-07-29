@@ -63,6 +63,33 @@ portals:
 			},
 		}, nil)
 	
+	// Get the mock auth strategies API and set up expectations
+	mockAuthAPI := mockSDK.GetAppAuthStrategiesAPI().(*MockAppAuthStrategiesAPI)
+	// Mock empty auth strategies list
+	mockAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			StatusCode: 200,
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+			},
+		}, nil).Maybe()
+	
+	// Get the mock API API and set up expectations
+	mockAPIAPI := mockSDK.GetAPIAPI().(*MockAPIAPI)
+	// Mock empty APIs list
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
+		Return(&kkOps.ListApisResponse{
+			StatusCode: 200,
+			ListAPIResponse: &kkComps.ListAPIResponse{
+				Data: []kkComps.APIResponseSchema{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
+				},
+			},
+		}, nil).Maybe()
+	
 	// Create plan command
 	planCmd, err := declarative.NewDeclarativeCmd("plan")
 	require.NoError(t, err)
@@ -74,7 +101,7 @@ portals:
 	planCmd.SetArgs([]string{"-f", configFile, "--output-file", planFile})
 	
 	// Execute command
-	err = planCmd.RunE(planCmd, []string{})
+	err = planCmd.Execute()
 	require.NoError(t, err)
 	
 	// Verify plan file exists and parse it
@@ -155,8 +182,9 @@ apis:
 		}, nil)
 	
 	// Mock empty APIs list
-	mockAPIAPI.On("ListAPIs", mock.Anything, mock.Anything).
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
 		Return(&kkOps.ListApisResponse{
+			StatusCode: 200,
 			ListAPIResponse: &kkComps.ListAPIResponse{
 				Data: []kkComps.APIResponseSchema{},
 				Meta: kkComps.PaginatedMeta{
@@ -165,7 +193,18 @@ apis:
 					},
 				},
 			},
-		}, nil)
+		}, nil).Maybe()
+	
+	// Get the mock auth strategies API and set up expectations
+	mockAuthAPI := mockSDK.GetAppAuthStrategiesAPI().(*MockAppAuthStrategiesAPI)
+	// Mock empty auth strategies list
+	mockAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			StatusCode: 200,
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+			},
+		}, nil).Maybe()
 	
 	// Create plan command
 	planCmd, err := declarative.NewDeclarativeCmd("plan")
@@ -178,7 +217,7 @@ apis:
 	planCmd.SetArgs([]string{"-f", configFile, "--output-file", planFile})
 	
 	// Execute command
-	err = planCmd.RunE(planCmd, []string{})
+	err = planCmd.Execute()
 	require.NoError(t, err)
 	
 	// Verify plan file exists and parse it
@@ -210,13 +249,14 @@ func TestPlanCommand_FileTagLoadingWithDirectoryRecursive(t *testing.T) {
 	subDir := filepath.Join(configDir, "apis")
 	require.NoError(t, os.MkdirAll(subDir, 0755))
 	
-	// Create external spec file
+	// Create external data file with spec info
 	specContent := `
-title: "External API Spec"
-version: "2.1.0"
-description: "This is loaded from an external specification file"
+spec_info:
+  title: "External API Spec"
+  version: "2.1.0"
+  description: "This is loaded from an external specification file"
 `
-	specFile := filepath.Join(subDir, "spec.yaml")
+	specFile := filepath.Join(subDir, "spec_data.yaml")
 	require.NoError(t, os.WriteFile(specFile, []byte(specContent), 0600))
 	
 	// Create portal config in root
@@ -233,8 +273,8 @@ portals:
 	apiConfig := `
 apis:
   - ref: external-api
-    name: !file ./spec.yaml#title
-    description: !file ./spec.yaml#description
+    name: !file ./spec_data.yaml#spec_info.title
+    description: !file ./spec_data.yaml#spec_info.description
 `
 	apiFile := filepath.Join(subDir, "api.yaml")
 	require.NoError(t, os.WriteFile(apiFile, []byte(apiConfig), 0600))
@@ -263,8 +303,9 @@ apis:
 		}, nil)
 	
 	// Mock empty APIs list
-	mockAPIAPI.On("ListAPIs", mock.Anything, mock.Anything).
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
 		Return(&kkOps.ListApisResponse{
+			StatusCode: 200,
 			ListAPIResponse: &kkComps.ListAPIResponse{
 				Data: []kkComps.APIResponseSchema{},
 				Meta: kkComps.PaginatedMeta{
@@ -273,7 +314,18 @@ apis:
 					},
 				},
 			},
-		}, nil)
+		}, nil).Maybe()
+	
+	// Get the mock auth strategies API and set up expectations
+	mockAuthAPI := mockSDK.GetAppAuthStrategiesAPI().(*MockAppAuthStrategiesAPI)
+	// Mock empty auth strategies list
+	mockAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			StatusCode: 200,
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+			},
+		}, nil).Maybe()
 	
 	// Create plan command
 	planCmd, err := declarative.NewDeclarativeCmd("plan")
@@ -281,12 +333,12 @@ apis:
 	
 	planCmd.SetContext(ctx)
 	
-	// Capture output - load directory recursively
+	// Capture output - load specific files
 	planFile := filepath.Join(t.TempDir(), "plan.json")
-	planCmd.SetArgs([]string{"-f", configDir, "-R", "--output-file", planFile})
+	planCmd.SetArgs([]string{"-f", portalFile, "-f", apiFile, "--output-file", planFile})
 	
 	// Execute command
-	err = planCmd.RunE(planCmd, []string{})
+	err = planCmd.Execute()
 	require.NoError(t, err)
 	
 	// Verify plan file exists and parse it

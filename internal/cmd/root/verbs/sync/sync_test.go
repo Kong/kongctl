@@ -23,10 +23,10 @@ func TestNewSyncCmd(t *testing.T) {
 
 	// Test basic command properties
 	assert.Equal(t, "sync", cmd.Use, "Command use should be 'sync'")
-	assert.Contains(t, cmd.Short, "Synchronize Kong Konnect resources",
-		"Short description should mention synchronize")
-	assert.Contains(t, cmd.Long, "declarative configuration", 
-		"Long description should mention declarative configuration")
+	assert.Contains(t, cmd.Short, "Full state synchronization",
+		"Short description should mention synchronization")
+	assert.Contains(t, cmd.Long, "Synchronize configuration with Kong Konnect", 
+		"Long description should mention synchronize")
 	assert.Contains(t, cmd.Example, meta.CLIName, "Examples should include CLI name")
 
 	// Test that konnect subcommand is added
@@ -49,8 +49,8 @@ func TestSyncCmdHelpText(t *testing.T) {
 	}
 
 	// Test that help text contains expected content
-	assert.Contains(t, cmd.Short, "Synchronize", "Short should mention synchronize")
-	assert.Contains(t, cmd.Long, "configuration", "Long should mention configuration")
+	assert.Contains(t, cmd.Short, "Full state synchronization", "Short should mention synchronization")
+	assert.Contains(t, cmd.Long, "Synchronize configuration", "Long should mention configuration")
 	assert.Contains(t, cmd.Example, "-f", "Examples should show -f flag usage")
 	assert.Contains(t, cmd.Example, "--dry-run", "Examples should show dry-run option")
 	assert.Contains(t, cmd.Example, "help sync", "Examples should mention extended help")
@@ -71,25 +71,20 @@ func TestSyncCmd_Flags(t *testing.T) {
 	require.NotNil(t, konnectCmd, "Should have konnect subcommand")
 
 	// Test flags on konnect subcommand
-	fileFlag := konnectCmd.Flags().Lookup("file")
-	assert.NotNil(t, fileFlag, "Should have --file flag")
+	fileFlag := konnectCmd.Flags().Lookup("filename")
+	assert.NotNil(t, fileFlag, "Should have --filename flag")
 	assert.Equal(t, "f", fileFlag.Shorthand, "Should have -f shorthand")
-	assert.Contains(t, fileFlag.Usage, "configuration file", "Usage should mention configuration file")
+	assert.Contains(t, fileFlag.Usage, "Filename", "Usage should mention filename")
 
-	forceFlag := konnectCmd.Flags().Lookup("force")
-	assert.NotNil(t, forceFlag, "Should have --force flag")
-	assert.Contains(t, forceFlag.Usage, "without confirmation", "Usage should mention skipping confirmation")
-	assert.Equal(t, "false", forceFlag.DefValue)
+	autoApproveFlag := konnectCmd.Flags().Lookup("auto-approve")
+	assert.NotNil(t, autoApproveFlag, "Should have --auto-approve flag")
+	assert.Contains(t, autoApproveFlag.Usage, "Skip confirmation", "Usage should mention skipping confirmation")
+	assert.Equal(t, "false", autoApproveFlag.DefValue)
 
 	dryRunFlag := konnectCmd.Flags().Lookup("dry-run")
 	assert.NotNil(t, dryRunFlag, "Should have --dry-run flag")
 	assert.Contains(t, dryRunFlag.Usage, "Preview", "Usage should mention preview")
 	assert.Equal(t, "false", dryRunFlag.DefValue)
-
-	forceDeleteFlag := konnectCmd.Flags().Lookup("force-delete")
-	assert.NotNil(t, forceDeleteFlag, "Should have --force-delete flag")
-	assert.Contains(t, forceDeleteFlag.Usage, "protected resources", "Usage should mention protected resources")
-	assert.Equal(t, "false", forceDeleteFlag.DefValue)
 }
 
 func TestSyncCmd_ConfigFileValidation(t *testing.T) {
@@ -175,13 +170,14 @@ apis:
 			}
 			require.NotNil(t, konnectCmd)
 
-			// Test that we can set the file flag
-			err = konnectCmd.Flags().Set("file", configFile)
+			// Test that we can set the filename flag
+			err = konnectCmd.Flags().Set("filename", configFile)
 			assert.NoError(t, err)
 
 			// Verify the flag was set
-			fileFlag := konnectCmd.Flags().Lookup("file")
-			assert.Equal(t, configFile, fileFlag.Value.String())
+			fileFlag := konnectCmd.Flags().Lookup("filename")
+			// The flag value is a string slice, so it will be formatted with brackets
+			assert.Equal(t, "["+configFile+"]", fileFlag.Value.String())
 		})
 	}
 }
@@ -222,13 +218,14 @@ apis:
 	}
 	require.NotNil(t, konnectCmd)
 
-	// Test that we can set a directory as the file flag
-	err = konnectCmd.Flags().Set("file", configDir)
+	// Test that we can set a directory as the filename flag
+	err = konnectCmd.Flags().Set("filename", configDir)
 	assert.NoError(t, err)
 
 	// Verify the flag was set
-	fileFlag := konnectCmd.Flags().Lookup("file")
-	assert.Equal(t, configDir, fileFlag.Value.String())
+	fileFlag := konnectCmd.Flags().Lookup("filename")
+	// The flag value is a string slice, so it will be formatted with brackets
+	assert.Equal(t, "["+configDir+"]", fileFlag.Value.String())
 }
 
 func TestSyncCmd_MultipleFileSupport(t *testing.T) {
@@ -266,8 +263,8 @@ apis:
 	}
 	require.NotNil(t, konnectCmd)
 
-	// Test that the file flag is a string slice
-	fileFlag := konnectCmd.Flags().Lookup("file")
+	// Test that the filename flag is a string slice
+	fileFlag := konnectCmd.Flags().Lookup("filename")
 	assert.NotNil(t, fileFlag)
 	
 	// The flag should accept multiple values

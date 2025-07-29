@@ -29,9 +29,10 @@ func TestNewDiffCmd(t *testing.T) {
 
 	// Test basic command properties
 	assert.Equal(t, "diff", cmd.Use, "Command use should be 'diff'")
-	assert.Contains(t, cmd.Short, "Show changes in a plan",
-		"Short description should mention showing changes")
-	assert.Contains(t, cmd.Long, "planned changes", "Long description should mention planned changes")
+	assert.Contains(t, cmd.Short, "Show configuration differences",
+		"Short description should mention showing differences")
+	assert.Contains(t, cmd.Long, "differences between current and desired state",
+		"Long description should mention differences")
 	assert.Contains(t, cmd.Example, meta.CLIName, "Examples should include CLI name")
 
 	// Test that konnect subcommand is added
@@ -54,10 +55,10 @@ func TestDiffCmdHelpText(t *testing.T) {
 	}
 
 	// Test that help text contains expected content
-	assert.Contains(t, cmd.Short, "Show changes", "Short should mention showing changes")
-	assert.Contains(t, cmd.Long, "plan file", "Long should mention plan file")
+	assert.Contains(t, cmd.Short, "Show configuration", "Short should mention showing configuration")
+	assert.Contains(t, cmd.Long, "differences", "Long should mention differences")
 	assert.Contains(t, cmd.Example, "--plan", "Examples should show --plan flag usage")
-	assert.Contains(t, cmd.Example, "-o json", "Examples should show output format option")
+	assert.Contains(t, cmd.Example, "--format json", "Examples should show output format option")
 	assert.Contains(t, cmd.Example, "help diff", "Examples should mention extended help")
 }
 
@@ -78,7 +79,7 @@ func TestDiffCmd_Flags(t *testing.T) {
 	// Test flags on konnect subcommand
 	planFlag := konnectCmd.Flags().Lookup("plan")
 	assert.NotNil(t, planFlag, "Should have --plan flag")
-	assert.Contains(t, planFlag.Usage, "Path to the plan file", "Usage should mention plan file path")
+	assert.Contains(t, planFlag.Usage, "Path to existing plan file", "Usage should mention plan file path")
 	assert.Equal(t, "", planFlag.DefValue)
 
 	outputFlag := konnectCmd.Flags().Lookup("output")
