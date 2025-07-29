@@ -189,8 +189,8 @@ func TestDisplayPlanSummary(t *testing.T) {
 				"PLAN SUMMARY",
 				"📊 STATISTICS",
 				"📋 RESOURCE CHANGES",
-				"📁 Namespace: default",
-				"📝 <configuration changes detected>",
+				"Namespace: default",
+				"<configuration changes detected>",
 			},
 		},
 		{
@@ -213,12 +213,12 @@ func TestDisplayPlanSummary(t *testing.T) {
 				"PLAN SUMMARY",
 				"📊 STATISTICS",
 				"📋 RESOURCE CHANGES",
-				"📁 Namespace: default",
-				"🟢 + p1",
-				"🟢 + p2", 
-				"🟢 + p3",
-				"🟢 + a1",
-				"🟢 + a2",
+				"Namespace: default",
+				"+ p1",
+				"+ p2", 
+				"+ p3",
+				"+ a1",
+				"+ a2",
 			},
 		},
 		{
@@ -261,10 +261,10 @@ func TestDisplayPlanSummary(t *testing.T) {
 				"PLAN SUMMARY (2 changes)",
 				"📊 STATISTICS",
 				"📋 RESOURCE CHANGES", 
-				"📁 Namespace: default",
-				"🟢 + test-api",
-				"🟢 + test-doc",
-				"🔗 depends on: api:test-api",
+				"Namespace: default",
+				"+ test-api",
+				"+ test-doc",
+				"depends on: api:test-api",
 			},
 		},
 	}
@@ -334,7 +334,7 @@ func TestDisplayPlanSummary_WithResourceMonikers(t *testing.T) {
 	// Check that monikers are properly displayed
 	assert.Contains(t, output, "page 'getting-started' in portal:simple")
 	assert.Contains(t, output, "page 'api-guide' in portal:simple")
-	assert.Contains(t, output, "🔗 depends on: portal:simple")
+	assert.Contains(t, output, "depends on: portal:simple")
 	
 	// Should not contain [unknown]
 	assert.NotContains(t, output, "[unknown]")

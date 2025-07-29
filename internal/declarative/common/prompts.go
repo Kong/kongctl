@@ -186,7 +186,7 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 		}
 		
 		// Display namespace header with statistics
-		fmt.Fprintf(out, "\n📁 Namespace: %s (%d changes: ", namespace, namespaceTotal)
+		fmt.Fprintf(out, "\nNamespace: %s (%d changes: ", namespace, namespaceTotal)
 		actionSummary := []string{}
 		if createCount > 0 {
 			actionSummary = append(actionSummary, fmt.Sprintf("%d create", createCount))
@@ -205,12 +205,11 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 		// Display resources within namespace
 		for _, resourceType := range sortedTypes {
 			changes := changesByResource[resourceType]
-			fmt.Fprintf(out, "\n  🔧 %s (%d resources):\n", resourceType, len(changes))
+			fmt.Fprintf(out, "\n  %s (%d resources):\n", resourceType, len(changes))
 			
 			for _, change := range changes {
 				resourceName := formatResourceName(change)
 				actionPrefix := getActionPrefix(change.Action)
-				actionColor := getActionColor(change.Action)
 				
 				// Check if this resource is protected
 				protectedIndicator := ""
@@ -219,7 +218,7 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 				}
 				
 				// Display the resource change with enhanced formatting
-				fmt.Fprintf(out, "    %s %s %s%s\n", actionColor, actionPrefix, resourceName, protectedIndicator)
+				fmt.Fprintf(out, "    %s %s%s\n", actionPrefix, resourceName, protectedIndicator)
 				
 				// Show field-level changes for updates
 				if change.Action == planner.ActionUpdate {
@@ -436,10 +435,10 @@ func displayStatistics(plan *planner.Plan, out io.Writer) {
 		fmt.Fprintf(out, "  ➕ Resources to create: %d\n", createCount)
 	}
 	if updateCount > 0 {
-		fmt.Fprintf(out, "  🔄 Resources to update: %d\n", updateCount)
+		fmt.Fprintf(out, "  ~ Resources to update: %d\n", updateCount)
 	}
 	if deleteCount > 0 {
-		fmt.Fprintf(out, "  ❌ Resources to delete: %d\n", deleteCount)
+		fmt.Fprintf(out, "  - Resources to delete: %d\n", deleteCount)
 	}
 	
 	// Resource type breakdown
@@ -477,7 +476,7 @@ func displayStatistics(plan *planner.Plan, out io.Writer) {
 		}
 		namespaces[namespace] = true
 	}
-	fmt.Fprintf(out, "  📁 Namespaces affected: %d\n", len(namespaces))
+	fmt.Fprintf(out, "  Namespaces affected: %d\n", len(namespaces))
 	
 	fmt.Fprintln(out, strings.Repeat("-", 70))
 }
@@ -500,19 +499,6 @@ func isProtectedResource(change planner.PlannedChange) bool {
 	return false
 }
 
-// getActionColor returns a colored indicator for the action type
-func getActionColor(action planner.ActionType) string {
-	switch action {
-	case planner.ActionCreate:
-		return "🟢" // Green for create
-	case planner.ActionUpdate:
-		return "🟡" // Yellow for update
-	case planner.ActionDelete:
-		return "🔴" // Red for delete
-	default:
-		return "⚪" // White for unknown
-	}
-}
 
 // displayFieldChanges shows detailed field-level changes for update operations
 func displayFieldChanges(out io.Writer, change planner.PlannedChange, indent string) {
@@ -535,13 +521,13 @@ func displayFieldChanges(out io.Writer, change planner.PlannedChange, indent str
 		// Handle different field change formats
 		if fc, ok := value.(planner.FieldChange); ok {
 			hasFieldChanges = true
-			fmt.Fprintf(out, "%s📝 %s: %v → %v\n", indent, field, formatFieldValue(fc.Old), formatFieldValue(fc.New))
+			fmt.Fprintf(out, "%s%s: %v → %v\n", indent, field, formatFieldValue(fc.Old), formatFieldValue(fc.New))
 		} else if fc, ok := value.(map[string]interface{}); ok {
 			// Handle FieldChange that was unmarshaled from JSON
 			if oldVal, hasOld := fc["old"]; hasOld {
 				if newVal, hasNew := fc["new"]; hasNew {
 					hasFieldChanges = true
-					fmt.Fprintf(out, "%s📝 %s: %v → %v\n", indent, field, formatFieldValue(oldVal), formatFieldValue(newVal))
+					fmt.Fprintf(out, "%s%s: %v → %v\n", indent, field, formatFieldValue(oldVal), formatFieldValue(newVal))
 				}
 			}
 		}
@@ -574,7 +560,7 @@ func displayFieldChanges(out io.Writer, change planner.PlannedChange, indent str
 	}
 	
 	if !hasFieldChanges {
-		fmt.Fprintf(out, "%s📝 <configuration changes detected>\n", indent)
+		fmt.Fprintf(out, "%s<configuration changes detected>\n", indent)
 	}
 }
 
@@ -614,7 +600,7 @@ func displayDependencies(out io.Writer, change planner.PlannedChange,
 			deps = append(deps, dep)
 		}
 		sort.Strings(deps) // Consistent ordering
-		fmt.Fprintf(out, "%s🔗 depends on: %s\n", indent, strings.Join(deps, ", "))
+		fmt.Fprintf(out, "%sdepends on: %s\n", indent, strings.Join(deps, ", "))
 	}
 }
 
