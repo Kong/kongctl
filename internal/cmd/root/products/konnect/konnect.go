@@ -96,7 +96,7 @@ func preRunE(c *cobra.Command, args []string) error {
 		ctx = context.Background()
 	}
 	ctx = context.WithValue(ctx, products.Product, Product)
-	ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(common.KonnectSDKFactory))
+	ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
 	c.SetContext(ctx)
 	return bindFlags(c, args)
 }
@@ -114,7 +114,7 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 				ctx = context.Background()
 			}
 			ctx = context.WithValue(ctx, products.Product, Product)
-			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(common.KonnectSDKFactory))
+			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
 			c.SetContext(ctx)
 			return bindFlags(c, args)
 		},

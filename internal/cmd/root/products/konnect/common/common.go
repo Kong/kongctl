@@ -82,3 +82,11 @@ func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, er
 		SDK: sdk,
 	}, nil
 }
+
+// GetSDKFactory returns the SDK factory to use, checking for test overrides
+func GetSDKFactory() helpers.SDKAPIFactory {
+	if helpers.DefaultSDKFactory != nil {
+		return helpers.DefaultSDKFactory
+	}
+	return KonnectSDKFactory
+}

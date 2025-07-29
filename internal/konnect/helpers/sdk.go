@@ -148,6 +148,9 @@ func (k *KonnectSDK) GetPortalSnippetAPI() PortalSnippetAPI {
 // A function that can build an SDKAPI with a given configuration
 type SDKAPIFactory func(cfg config.Hook, logger *slog.Logger) (SDKAPI, error)
 
+// DefaultSDKFactory can be overridden for testing purposes
+var DefaultSDKFactory SDKAPIFactory
+
 type Key struct{}
 
 // A Key used to store the SDKFactory in a Context

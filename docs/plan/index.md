@@ -11,8 +11,8 @@ This folder contains the complete planning and implementation tracking for all k
 - **Architecture Decisions**: [007-dec-cfg-various/execution-plan-adrs.md](007-dec-cfg-various/execution-plan-adrs.md) ✅ Created
 - **Goal**: Complete essential testing, documentation, and core improvements for production readiness
 
-**Progress**: 7/15 steps completed (47%)  
-**Current Step**: Step 8 - Apply Command Integration Tests
+**Progress**: 8/15 steps completed (53%)  
+**Current Step**: Step 9 - Sync Command Integration Tests
 
 ## Quick Start for Implementation
 
@@ -205,7 +205,7 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](007-dec-cfg-various/execution-plan-steps.md) | **Implementation guide** | ✅ Complete |
 | [execution-plan-adrs.md](007-dec-cfg-various/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: 7/15 steps completed (47%)
+**Implementation Status**: 8/15 steps completed (53%)
 - **Dependencies**: Stages 1-6 completion ✅ Met
 - **Completed deliverables**:
   - ✅ Login command migration to Konnect-first
@@ -215,6 +215,7 @@ The first major feature being implemented is declarative configuration managemen
   - ✅ Get command for auth strategies with Konnect-first pattern
   - ✅ All imperative commands (get, list, create, del) support Konnect-first pattern
   - ✅ Comprehensive documentation with minimal help text and extended help system
+  - ✅ Apply command integration tests infrastructure (SDK factory mocking enabled)
 - **Remaining deliverables** (prioritized): 
   - Complete documentation updates
   - Comprehensive integration tests
@@ -245,8 +246,8 @@ The first major feature being implemented is declarative configuration managemen
 - Stage 6: Namespace-Based Resource Management ✅ **COMPLETED**
 
 **Current Stage**: Stage 7 - Testing, Documentation, and Core Improvements
-- **Status**: 7/15 steps completed (47%)
-- **Current Step**: Step 8 - Apply Command Integration Tests
+- **Status**: 8/15 steps completed (53%)
+- **Current Step**: Step 9 - Sync Command Integration Tests
 - **Goal**: Complete essential testing, documentation, and core improvements for production readiness
 
 **Key priorities in Stage 7**:

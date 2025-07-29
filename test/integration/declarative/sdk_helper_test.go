@@ -85,6 +85,23 @@ func SetupTestContext(t *testing.T) context.Context {
 	return ctx
 }
 
+// WithMockSDKFactory sets up a mock SDK factory for the duration of the test
+// and restores the original factory when done.
+func WithMockSDKFactory(t *testing.T, setupMocks func(*testing.T) helpers.SDKAPIFactory) func() {
+	t.Helper()
+	
+	// Save original factory
+	original := helpers.DefaultSDKFactory
+	
+	// Set test factory
+	helpers.DefaultSDKFactory = setupMocks(t)
+	
+	// Return cleanup function
+	return func() {
+		helpers.DefaultSDKFactory = original
+	}
+}
+
 // GetTestConfig returns a minimal test configuration
 func GetTestConfig() kongctlconfig.Hook {
 	// Create a simple mock config

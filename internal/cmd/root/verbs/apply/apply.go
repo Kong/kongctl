@@ -57,7 +57,7 @@ func NewApplyCmd() (*cobra.Command, error) {
 			}
 			ctx = context.WithValue(ctx, verbs.Verb, Verb)
 			ctx = context.WithValue(ctx, products.Product, konnect.Product)
-			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(common.KonnectSDKFactory))
+			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
 			cmd.SetContext(ctx)
 			
 			// Also call the konnect command's PersistentPreRunE to set up binding
