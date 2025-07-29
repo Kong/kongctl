@@ -32,8 +32,10 @@ Output can be formatted in multiple ways to aid in further processing.`))
 
 	createExamples = normalizers.Examples(i18n.T("root.verbs.create.createExamples",
 		fmt.Sprintf(`
-		# Create a new Konnect Kong Gateway control planes
-		%[1]s create konnect gateway controlplane <name>
+		# Create a new Konnect Kong Gateway control plane (Konnect-first)
+		%[1]s create gateway control-plane <name>
+		# Create a new Konnect Kong Gateway control plane (explicit)
+		%[1]s create konnect gateway control-plane <name>
 		`, meta.CLIName)))
 )
 
@@ -61,6 +63,13 @@ func NewCreateCmd() (*cobra.Command, error) {
 	// Add on-prem product command
 	streams := &iostreams.IOStreams{}
 	cmd.AddCommand(onprem.NewOnPremCmd(streams))
+
+	// Add gateway command directly for Konnect-first pattern
+	gatewayCmd, err := NewDirectGatewayCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(gatewayCmd)
 
 	return cmd, nil
 }

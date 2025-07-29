@@ -32,8 +32,10 @@ Output can be formatted in multiple ways to aid in further processing.`))
 
 	deleteExamples = normalizers.Examples(i18n.T("root.verbs.delete.deleteExamples",
 		fmt.Sprintf(`
-		# Delete a Konnect Kong Gateway control plane
-		%[1]s delete konnect gateway controlplane <id>
+		# Delete a Konnect Kong Gateway control plane (Konnect-first)
+		%[1]s delete gateway control-plane <id>
+		# Delete a Konnect Kong Gateway control plane (explicit)
+		%[1]s delete konnect gateway control-plane <id>
 		`, meta.CLIName)))
 )
 
@@ -58,6 +60,13 @@ func NewDeleteCmd() (*cobra.Command, error) {
 	// Add on-prem product command
 	streams := &iostreams.IOStreams{}
 	cmd.AddCommand(onprem.NewOnPremCmd(streams))
+
+	// Add gateway command directly for Konnect-first pattern
+	gatewayCmd, err := NewDirectGatewayCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(gatewayCmd)
 
 	return cmd, nil
 }

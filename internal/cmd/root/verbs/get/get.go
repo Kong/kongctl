@@ -39,8 +39,10 @@ Output can be formatted in multiple ways to aid in further processing.`))
 		%[1]s get apis
 		# Retrieve Konnect auth strategies
 		%[1]s get auth-strategies
-		# Retrieve Konnect control planes
-		%[1]s get konnect gateway controlplanes
+		# Retrieve Konnect control planes (Konnect-first)
+		%[1]s get gateway control-planes
+		# Retrieve Konnect control planes (explicit)
+		%[1]s get konnect gateway control-planes
 		# Retrieve on-premises Kong Gateway services 
 		%[1]s get on-prem services
 		`, meta.CLIName)))
@@ -90,6 +92,13 @@ func NewGetCmd() (*cobra.Command, error) {
 		return nil, err
 	}
 	cmd.AddCommand(authStrategyCmd)
+
+	// Add gateway command directly for Konnect-first pattern
+	gatewayCmd, err := NewDirectGatewayCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(gatewayCmd)
 
 	return cmd, nil
 }

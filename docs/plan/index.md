@@ -11,8 +11,8 @@ This folder contains the complete planning and implementation tracking for all k
 - **Architecture Decisions**: [007-dec-cfg-various/execution-plan-adrs.md](007-dec-cfg-various/execution-plan-adrs.md) ✅ Created
 - **Goal**: Complete essential testing, documentation, and core improvements for production readiness
 
-**Progress**: 2/15 steps completed (13%)  
-**Current Step**: Step 3 - Implement Get Command for Portals
+**Progress**: 6/15 steps completed (40%)  
+**Current Step**: Step 7 - Comprehensive Documentation Updates
 
 ## Quick Start for Implementation
 
@@ -205,15 +205,16 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](007-dec-cfg-various/execution-plan-steps.md) | **Implementation guide** | ✅ Complete |
 | [execution-plan-adrs.md](007-dec-cfg-various/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: 3/15 steps completed (20%)
+**Implementation Status**: 6/15 steps completed (40%)
 - **Dependencies**: Stages 1-6 completion ✅ Met
 - **Completed deliverables**:
   - ✅ Login command migration to Konnect-first
   - ✅ Gateway product renamed to on-prem
   - ✅ Get command for portals with Konnect-first pattern
+  - ✅ Get command for APIs with Konnect-first pattern
+  - ✅ Get command for auth strategies with Konnect-first pattern
+  - ✅ All imperative commands (get, list, create, del) support Konnect-first pattern
 - **Remaining deliverables** (prioritized): 
-  - Imperative get commands for portals, APIs, auth strategies
-  - Complete Konnect-first for all verbs
   - Complete documentation updates
   - Comprehensive integration tests
   - Critical UX improvements
@@ -243,19 +244,20 @@ The first major feature being implemented is declarative configuration managemen
 - Stage 6: Namespace-Based Resource Management ✅ **COMPLETED**
 
 **Current Stage**: Stage 7 - Testing, Documentation, and Core Improvements
-- **Status**: 3/15 steps completed (20%)
-- **Current Step**: Step 4 - Implement Get Command for APIs
+- **Status**: 6/15 steps completed (40%)
+- **Current Step**: Step 7 - Comprehensive Documentation Updates
 - **Goal**: Complete essential testing, documentation, and core improvements for production readiness
 
 **Key priorities in Stage 7**:
-- Login command simplification (Konnect-first approach)
+- Login command simplification (Konnect-first approach) ✅
+- Make all imperative commands Konnect-first ✅
 - Comprehensive documentation creation
 - Full integration test coverage
 - Enhanced error messages and UX
 - Migration to public SDK
 - Code quality improvements
 
-**Next Steps**: Begin implementation with Step 1 - Login Command Migration
+**Next Steps**: Continue with Step 7 - Comprehensive Documentation Updates
 
 ### 🎯 Entry Points for Claude Code
 
