@@ -45,7 +45,6 @@ apis:
         portal_id: getting-started
         visibility: public
         auto_approve_registrations: true
-        application_registration_enabled: false
 
   # Voice API - Programmable voice calls and audio streaming
   - ref: voice
@@ -96,4 +95,3 @@ apis:
         portal_id: getting-started
         visibility: public
         auto_approve_registrations: true
-        application_registration_enabled: false

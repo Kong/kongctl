@@ -1,8 +1,8 @@
 # Stage 7: Testing, Documentation, and Core Improvements - Implementation Steps
 
 ## Progress Summary
-**Progress**: 11/15 steps completed (73%)  
-**Current Step**: Step 12 - Improved Plan Summary Display
+**Progress**: 13/15 steps completed (87%)  
+**Current Step**: Step 14 - Migrate Dump Command to Public SDK
 
 ## Overview
 This document outlines the step-by-step implementation plan for completing 
@@ -337,7 +337,7 @@ Enhance plan summary display for better readability and information.
 ---
 
 ### Step 13: Progress Indicators for Long Operations
-**Status**: Not Started
+**Status**: Completed
 
 Add progress reporting for long-running operations.
 
@@ -354,10 +354,15 @@ Add progress reporting for long-running operations.
 - Show progress during apply/sync operations
 
 **Acceptance criteria**:
-- Progress shown for operations taking >2 seconds
-- Clear indication of current operation
-- Non-intrusive for fast operations
-- Works with different output formats
+- ✅ Progress shown for operations taking >2 seconds
+- ✅ Clear indication of current operation
+- ✅ Non-intrusive for fast operations
+- ✅ Works with different output formats
+
+**Implementation note**: This step was already completed during earlier development. The progress reporting infrastructure was fully implemented including:
+- `ProgressReporter` interface in `types.go`
+- `ConsoleReporter` implementation in `progress.go` with rich features (progress counters, namespace info, action verbs, success/failure indicators)
+- Full integration in apply and sync commands for text output format
 
 ---
 
