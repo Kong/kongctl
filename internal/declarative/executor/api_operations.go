@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/log"
@@ -24,15 +25,14 @@ func (e *Executor) createAPI(ctx context.Context, change planner.PlannedChange) 
 	// Extract API fields
 	var api kkComps.CreateAPIRequest
 	
-	// Map fields
-	if name, ok := change.Fields["name"].(string); ok {
-		api.Name = name
+	// Map required fields
+	if err := common.ValidateRequiredFields(change.Fields, []string{"name"}); err != nil {
+		return "", common.WrapWithResourceContext(err, "api", "")
 	}
+	api.Name = common.ExtractResourceName(change.Fields)
 	
-	// Optional fields
-	if desc, ok := change.Fields["description"].(string); ok {
-		api.Description = &desc
-	}
+	// Map optional fields using utilities (SDK uses double pointers)
+	common.MapOptionalStringFieldToPtr(&api.Description, change.Fields, "description")
 	
 	// Handle labels using centralized helper
 	userLabels := labels.ExtractLabelsFromField(change.Fields["labels"])
@@ -47,7 +47,7 @@ func (e *Executor) createAPI(ctx context.Context, change planner.PlannedChange) 
 		slog.Any("labels", api.Labels))
 	resp, err := e.client.CreateAPI(ctx, api, change.Namespace)
 	if err != nil {
-		return "", err
+		return "", common.FormatAPIError("api", api.Name, "create", err)
 	}
 	
 	return resp.ID, nil

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -232,31 +233,16 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 					return fmt.Errorf("portal no longer exists")
 				}
 			
-			// Check protection status
-			isProtected := portal.NormalizedLabels[labels.ProtectedKey] == "true"
+			// Check protection status using common utility
+			isProtected := common.GetProtectionStatus(portal.NormalizedLabels)
+			isProtectionChange := common.IsProtectionChange(change.Protection)
 			
-			// For updates, check if this is a protection change (which is allowed)
-			isProtectionChange := false
-			if change.Action == planner.ActionUpdate {
-				// Check if this is a protection change
-				switch p := change.Protection.(type) {
-				case planner.ProtectionChange:
-					isProtectionChange = true
-				case map[string]interface{}:
-					// From JSON deserialization
-					if _, hasOld := p["old"].(bool); hasOld {
-						if _, hasNew := p["new"].(bool); hasNew {
-							isProtectionChange = true
-						}
-					}
-				}
-			}
-			
-				// Block protected resources unless it's a protection change
-				if isProtected && !isProtectionChange && 
-					(change.Action == planner.ActionUpdate || change.Action == planner.ActionDelete) {
-					return fmt.Errorf("resource is protected and cannot be %s", 
-						actionToVerb(change.Action))
+				// Validate protection using common utility
+				resourceName := common.ExtractResourceName(change.Fields)
+				if err := common.ValidateResourceProtection(
+					"portal", resourceName, isProtected, change, isProtectionChange,
+				); err != nil {
+					return err
 				}
 			}
 		case "api":
@@ -319,18 +305,18 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 			}
 		case "api":
 			if e.client != nil {
-				resourceName := getResourceName(change.Fields)
+				resourceName := common.ExtractResourceName(change.Fields)
 				api, err := e.client.GetAPIByName(ctx, resourceName)
 				if err != nil {
 					// API error is acceptable here - might mean not found
 					// Only fail if it's a real API error (not 404)
 					if !strings.Contains(err.Error(), "not found") {
-						return fmt.Errorf("failed to check existing API: %w", err)
+						return common.FormatAPIError("api", resourceName, "check existence", err)
 					}
 				}
 				if api != nil {
 					// API already exists - this is an error for CREATE
-					return fmt.Errorf("API '%s' already exists", resourceName)
+					return common.FormatResourceExistsError("api", resourceName)
 				}
 			}
 		}
@@ -571,13 +557,14 @@ func (e *Executor) deleteResource(ctx context.Context, change planner.PlannedCha
 
 // Helper functions
 
+// getResourceName is deprecated, use common.ExtractResourceName instead
+// Kept for backward compatibility with existing code
 func getResourceName(fields map[string]interface{}) string {
-	if name, ok := fields["name"].(string); ok {
-		return name
-	}
-	return "[unknown]"
+	return common.ExtractResourceName(fields)
 }
 
+// actionToVerb is deprecated, use common utilities instead
+// Kept for backward compatibility with existing code
 func actionToVerb(action planner.ActionType) string {
 	switch action {
 	case planner.ActionCreate:

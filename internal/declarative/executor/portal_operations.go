@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/errors"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
@@ -23,37 +24,19 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 	// Extract portal fields
 	var portal kkComps.CreatePortal
 	
-	// Map fields
-	if name, ok := change.Fields["name"].(string); ok {
-		portal.Name = name
-	} else {
-		return "", errors.FormatValidationError("portal", "", "name", "is required")
+	// Map required fields
+	if err := common.ValidateRequiredFields(change.Fields, []string{"name"}); err != nil {
+		return "", common.WrapWithResourceContext(err, "portal", "")
 	}
+	portal.Name = common.ExtractResourceName(change.Fields)
 	
-	// Optional fields
-	if desc, ok := change.Fields["description"].(string); ok {
-		portal.Description = &desc
-	}
-	
-	if displayName, ok := change.Fields["display_name"].(string); ok {
-		portal.DisplayName = &displayName
-	}
-	
-	if authEnabled, ok := change.Fields["authentication_enabled"].(bool); ok {
-		portal.AuthenticationEnabled = &authEnabled
-	}
-	
-	if rbacEnabled, ok := change.Fields["rbac_enabled"].(bool); ok {
-		portal.RbacEnabled = &rbacEnabled
-	}
-	
-	if autoApproveDevelopers, ok := change.Fields["auto_approve_developers"].(bool); ok {
-		portal.AutoApproveDevelopers = &autoApproveDevelopers
-	}
-	
-	if autoApproveApplications, ok := change.Fields["auto_approve_applications"].(bool); ok {
-		portal.AutoApproveApplications = &autoApproveApplications
-	}
+	// Map optional fields using utilities (SDK uses double pointers)
+	common.MapOptionalStringFieldToPtr(&portal.Description, change.Fields, "description")
+	common.MapOptionalStringFieldToPtr(&portal.DisplayName, change.Fields, "display_name")
+	common.MapOptionalBoolFieldToPtr(&portal.AuthenticationEnabled, change.Fields, "authentication_enabled")
+	common.MapOptionalBoolFieldToPtr(&portal.RbacEnabled, change.Fields, "rbac_enabled")
+	common.MapOptionalBoolFieldToPtr(&portal.AutoApproveDevelopers, change.Fields, "auto_approve_developers")
+	common.MapOptionalBoolFieldToPtr(&portal.AutoApproveApplications, change.Fields, "auto_approve_applications")
 	
 	if defaultAPIVisibility, ok := change.Fields["default_api_visibility"].(string); ok {
 		visibility := kkComps.DefaultAPIVisibility(defaultAPIVisibility)
@@ -85,7 +68,7 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 		slog.Any("labels", portal.Labels))
 	resp, err := e.client.CreatePortal(ctx, portal, change.Namespace)
 	if err != nil {
-		return "", err
+		return "", common.FormatAPIError("portal", portal.Name, "create", err)
 	}
 	
 	return resp.ID, nil

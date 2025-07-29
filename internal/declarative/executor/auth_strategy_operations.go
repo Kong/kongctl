@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/log"
@@ -19,17 +20,16 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 	logger.Debug("Creating application auth strategy",
 		slog.Any("fields", change.Fields))
 	
-	// Get strategy type
-	strategyType, ok := change.Fields["strategy_type"].(string)
-	if !ok {
-		return "", fmt.Errorf("strategy_type is required")
+	// Validate required fields
+	if err := common.ValidateRequiredFields(change.Fields, []string{"strategy_type"}); err != nil {
+		return "", common.WrapWithResourceContext(err, "auth_strategy", "")
 	}
 	
-	// Get name
-	name, _ := change.Fields["name"].(string)
+	strategyType, _ := change.Fields["strategy_type"].(string)
+	name := common.ExtractResourceName(change.Fields)
 	
-	// Get display name
-	displayName, _ := change.Fields["display_name"].(string)
+	var displayName string
+	common.MapOptionalStringField(&displayName, change.Fields, "display_name")
 	
 	// Handle labels using centralized helper
 	userLabels := labels.ExtractLabelsFromField(change.Fields["labels"])
