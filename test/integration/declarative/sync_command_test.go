@@ -125,10 +125,10 @@ func TestSyncCommand_WithDeletes(t *testing.T) {
 	assert.NoError(t, err)
 	outputStr := output.String()
 	
-	// Verify plan was generated
-	assert.Contains(t, outputStr, "Plan Summary")
-	assert.Contains(t, outputStr, "- Old Portal")
-	assert.Contains(t, outputStr, "portal (1):")
+	// Verify plan was generated with new enhanced format
+	assert.Contains(t, outputStr, "PLAN SUMMARY")
+	assert.Contains(t, outputStr, "🔴 - Old Portal")
+	assert.Contains(t, outputStr, "🔧 portal (1 resources):")
 	
 	// Verify no confirmation prompt since we used --auto-approve
 	assert.NotContains(t, outputStr, "Do you want to proceed")

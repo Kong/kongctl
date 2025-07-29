@@ -95,24 +95,34 @@ func ConfirmExecution(plan *planner.Plan, _, stderr io.Writer, stdin io.Reader) 
 	}
 }
 
-// DisplayPlanSummary shows a concise summary of the plan.
+// DisplayPlanSummary shows an enhanced summary of the plan with better formatting,
+// field-level changes, protected resource warnings, and comprehensive statistics.
 func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 	totalChanges := plan.Summary.TotalChanges
+	
+	// Header with visual separator
+	fmt.Fprintln(out, strings.Repeat("=", 70))
 	if totalChanges > 0 {
-		fmt.Fprintf(out, "Plan Summary (%d changes):\n", totalChanges)
+		fmt.Fprintf(out, "PLAN SUMMARY (%d changes)\n", totalChanges)
 	} else {
-		fmt.Fprintln(out, "Plan Summary:")
+		fmt.Fprintln(out, "PLAN SUMMARY")
 	}
+	fmt.Fprintln(out, strings.Repeat("=", 70))
 
 	if plan.Summary.ByAction == nil || len(plan.Changes) == 0 {
-		fmt.Fprintln(out, "  No changes")
+		fmt.Fprintln(out, "  No changes detected. Configuration matches current state.")
+		fmt.Fprintln(out, strings.Repeat("=", 70))
 		return
 	}
 
+	// Display comprehensive statistics section
+	displayStatistics(plan, out)
+	
 	// Group changes by namespace first, then by resource type
 	changesByNamespace := make(map[string]map[string][]planner.PlannedChange)
 	namespaces := make([]string, 0)
 	namespaceSeen := make(map[string]bool)
+	protectedResourceCount := 0
 	
 	for _, change := range plan.Changes {
 		namespace := change.Namespace
@@ -131,24 +141,63 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 		
 		changesByNamespace[namespace][change.ResourceType] = append(
 			changesByNamespace[namespace][change.ResourceType], change)
+		
+		// Count protected resources
+		if isProtectedResource(change) {
+			protectedResourceCount++
+		}
 	}
 	
 	// Sort namespaces for consistent output
 	sort.Strings(namespaces)
 
+	// Display protected resource warning if any
+	if protectedResourceCount > 0 {
+		fmt.Fprintf(out, "\n🔒 PROTECTED RESOURCES WARNING\n")
+		fmt.Fprintln(out, strings.Repeat("-", 70))
+		fmt.Fprintf(out, "Found %d protected resource(s) in this plan.\n", protectedResourceCount)
+		fmt.Fprintln(out, "Protected resources cannot be modified through declarative configuration.")
+		fmt.Fprintln(out, "These changes will fail unless protection is removed first.")
+		fmt.Fprintln(out, strings.Repeat("-", 70))
+	}
+
 	// Display changes organized by namespace, then by resource type
-	fmt.Fprintln(out, "")
-	for _, namespace := range namespaces {
+	fmt.Fprintln(out, "\n📋 RESOURCE CHANGES")
+	fmt.Fprintln(out, strings.Repeat("-", 70))
+	
+	for nsIdx, namespace := range namespaces {
 		changesByResource := changesByNamespace[namespace]
 		
 		// Count total changes in this namespace
 		namespaceTotal := 0
+		createCount, updateCount, deleteCount := 0, 0, 0
 		for _, changes := range changesByResource {
 			namespaceTotal += len(changes)
+			for _, change := range changes {
+				switch change.Action {
+				case planner.ActionCreate:
+					createCount++
+				case planner.ActionUpdate:
+					updateCount++
+				case planner.ActionDelete:
+					deleteCount++
+				}
+			}
 		}
 		
-		// Display namespace header
-		fmt.Fprintf(out, "Namespace: %s (%d changes)\n", namespace, namespaceTotal)
+		// Display namespace header with statistics
+		fmt.Fprintf(out, "\n📁 Namespace: %s (%d changes: ", namespace, namespaceTotal)
+		actionSummary := []string{}
+		if createCount > 0 {
+			actionSummary = append(actionSummary, fmt.Sprintf("%d create", createCount))
+		}
+		if updateCount > 0 {
+			actionSummary = append(actionSummary, fmt.Sprintf("%d update", updateCount))
+		}
+		if deleteCount > 0 {
+			actionSummary = append(actionSummary, fmt.Sprintf("%d delete", deleteCount))
+		}
+		fmt.Fprintf(out, "%s)\n", strings.Join(actionSummary, ", "))
 		
 		// Sort resource types by dependency order
 		sortedTypes := sortResourceTypesByDependency(changesByResource, plan.Changes)
@@ -156,62 +205,42 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 		// Display resources within namespace
 		for _, resourceType := range sortedTypes {
 			changes := changesByResource[resourceType]
-			fmt.Fprintf(out, "  %s (%d):\n", resourceType, len(changes))
+			fmt.Fprintf(out, "\n  🔧 %s (%d resources):\n", resourceType, len(changes))
+			
 			for _, change := range changes {
 				resourceName := formatResourceName(change)
 				actionPrefix := getActionPrefix(change.Action)
+				actionColor := getActionColor(change.Action)
 				
-				// Build dependency info
-				var depInfo string
-				if len(change.DependsOn) > 0 || (change.Parent != nil && change.Parent.Ref != "") {
-					// Use a map to track unique dependencies
-					depMap := make(map[string]bool)
-					
-					// Add parent dependency if exists
-					if change.Parent != nil && change.Parent.Ref != "" {
-						// Find parent resource type
-						parentType := getParentResourceType(change.ResourceType)
-						if parentType != "" {
-							depMap[fmt.Sprintf("%s:%s", parentType, change.Parent.Ref)] = true
-						}
-					}
-					
-					// Add explicit dependencies
-					for _, depID := range change.DependsOn {
-						// Find the dependent change to get its type and ref
-						for _, depChange := range plan.Changes {
-							if depChange.ID == depID {
-								depMap[fmt.Sprintf("%s:%s", depChange.ResourceType, depChange.ResourceRef)] = true
-								break
-							}
-						}
-					}
-					
-					// Convert map to sorted slice for consistent output
-					if len(depMap) > 0 {
-						deps := make([]string, 0, len(depMap))
-						for dep := range depMap {
-							deps = append(deps, dep)
-						}
-						// Sort for consistent output
-						sort.Strings(deps)
-						depInfo = fmt.Sprintf(" (depends on %s)", strings.Join(deps, ", "))
-					}
+				// Check if this resource is protected
+				protectedIndicator := ""
+				if isProtectedResource(change) {
+					protectedIndicator = " 🔒"
 				}
 				
-				fmt.Fprintf(out, "    %s %s%s\n", actionPrefix, resourceName, depInfo)
+				// Display the resource change with enhanced formatting
+				fmt.Fprintf(out, "    %s %s %s%s\n", actionColor, actionPrefix, resourceName, protectedIndicator)
+				
+				// Show field-level changes for updates
+				if change.Action == planner.ActionUpdate {
+					displayFieldChanges(out, change, "      ")
+				}
+				
+				// Show dependencies if any
+				displayDependencies(out, change, plan.Changes, "      ")
 			}
 		}
 		
-		// Add spacing between namespaces
-		if namespace != namespaces[len(namespaces)-1] {
+		// Add spacing between namespaces (but not after the last one)
+		if nsIdx < len(namespaces)-1 {
 			fmt.Fprintln(out, "")
 		}
 	}
 
-	// Show warnings if any with change IDs
+	// Show warnings if any with enhanced formatting
 	if len(plan.Warnings) > 0 {
-		fmt.Fprintf(out, "\nWarnings (%d):\n", len(plan.Warnings))
+		fmt.Fprintln(out, "\n⚠️  WARNINGS")
+		fmt.Fprintln(out, strings.Repeat("-", 70))
 		for _, warning := range plan.Warnings {
 			// Find the change to get more context
 			var change *planner.PlannedChange
@@ -226,16 +255,20 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 				// Extract position from change ID (format: "N:action:type:ref")
 				parts := strings.SplitN(change.ID, ":", 4)
 				if len(parts) >= 4 {
-					fmt.Fprintf(out, "  ⚠ [%s] %s: %s\n", parts[0], change.ResourceType, change.ResourceRef)
-					fmt.Fprintf(out, "    %s\n", warning.Message)
+					fmt.Fprintf(out, "  ⚠️  [%s] %s: %s\n", parts[0], change.ResourceType, change.ResourceRef)
+					fmt.Fprintf(out, "      %s\n", warning.Message)
 				} else {
-					fmt.Fprintf(out, "  ⚠ %s\n", warning.Message)
+					fmt.Fprintf(out, "  ⚠️  %s\n", warning.Message)
 				}
 			} else {
-				fmt.Fprintf(out, "  ⚠ %s\n", warning.Message)
+				fmt.Fprintf(out, "  ⚠️  %s\n", warning.Message)
 			}
 		}
+		fmt.Fprintln(out, strings.Repeat("-", 70))
 	}
+	
+	// Footer separator
+	fmt.Fprintln(out, strings.Repeat("=", 70))
 }
 
 // getParentResourceType returns the parent resource type for a given child type
@@ -386,4 +419,222 @@ func formatResourceName(change planner.PlannedChange) string {
 	}
 	
 	return resourceName
+}
+
+// displayStatistics shows comprehensive plan statistics
+func displayStatistics(plan *planner.Plan, out io.Writer) {
+	fmt.Fprintln(out, "\n📊 STATISTICS")
+	fmt.Fprintln(out, strings.Repeat("-", 70))
+	
+	// Action breakdown
+	createCount := plan.Summary.ByAction[planner.ActionCreate]
+	updateCount := plan.Summary.ByAction[planner.ActionUpdate]
+	deleteCount := plan.Summary.ByAction[planner.ActionDelete]
+	
+	fmt.Fprintf(out, "  Total changes: %d\n", plan.Summary.TotalChanges)
+	if createCount > 0 {
+		fmt.Fprintf(out, "  ➕ Resources to create: %d\n", createCount)
+	}
+	if updateCount > 0 {
+		fmt.Fprintf(out, "  🔄 Resources to update: %d\n", updateCount)
+	}
+	if deleteCount > 0 {
+		fmt.Fprintf(out, "  ❌ Resources to delete: %d\n", deleteCount)
+	}
+	
+	// Resource type breakdown
+	if len(plan.Summary.ByResource) > 0 {
+		fmt.Fprintln(out, "\n  Resource breakdown:")
+		// Sort resource types for consistent output
+		resourceTypes := make([]string, 0, len(plan.Summary.ByResource))
+		for resourceType := range plan.Summary.ByResource {
+			resourceTypes = append(resourceTypes, resourceType)
+		}
+		sort.Strings(resourceTypes)
+		
+		for _, resourceType := range resourceTypes {
+			count := plan.Summary.ByResource[resourceType]
+			fmt.Fprintf(out, "    %s: %d\n", resourceType, count)
+		}
+	}
+	
+	// Protection changes
+	if plan.Summary.ProtectionChanges != nil {
+		if plan.Summary.ProtectionChanges.Protecting > 0 {
+			fmt.Fprintf(out, "  🔒 Resources being protected: %d\n", plan.Summary.ProtectionChanges.Protecting)
+		}
+		if plan.Summary.ProtectionChanges.Unprotecting > 0 {
+			fmt.Fprintf(out, "  🔓 Resources being unprotected: %d\n", plan.Summary.ProtectionChanges.Unprotecting)
+		}
+	}
+	
+	// Namespace count
+	namespaces := make(map[string]bool)
+	for _, change := range plan.Changes {
+		namespace := change.Namespace
+		if namespace == "" {
+			namespace = "default"
+		}
+		namespaces[namespace] = true
+	}
+	fmt.Fprintf(out, "  📁 Namespaces affected: %d\n", len(namespaces))
+	
+	fmt.Fprintln(out, strings.Repeat("-", 70))
+}
+
+// isProtectedResource checks if a resource change involves a protected resource
+func isProtectedResource(change planner.PlannedChange) bool {
+	// Check for protection status
+	switch p := change.Protection.(type) {
+	case bool:
+		return p
+	case planner.ProtectionChange:
+		// Resource is protected if it's currently protected (old value)
+		return p.Old
+	case map[string]interface{}:
+		// Handle JSON deserialization
+		if oldVal, hasOld := p["old"].(bool); hasOld {
+			return oldVal
+		}
+	}
+	return false
+}
+
+// getActionColor returns a colored indicator for the action type
+func getActionColor(action planner.ActionType) string {
+	switch action {
+	case planner.ActionCreate:
+		return "🟢" // Green for create
+	case planner.ActionUpdate:
+		return "🟡" // Yellow for update
+	case planner.ActionDelete:
+		return "🔴" // Red for delete
+	default:
+		return "⚪" // White for unknown
+	}
+}
+
+// displayFieldChanges shows detailed field-level changes for update operations
+func displayFieldChanges(out io.Writer, change planner.PlannedChange, indent string) {
+	hasFieldChanges := false
+	
+	// Collect and sort field names for consistent output
+	fieldNames := make([]string, 0, len(change.Fields))
+	for field := range change.Fields {
+		// Skip internal/special fields
+		if field == "current_labels" || strings.HasPrefix(field, "_") {
+			continue
+		}
+		fieldNames = append(fieldNames, field)
+	}
+	sort.Strings(fieldNames)
+	
+	for _, field := range fieldNames {
+		value := change.Fields[field]
+		
+		// Handle different field change formats
+		if fc, ok := value.(planner.FieldChange); ok {
+			hasFieldChanges = true
+			fmt.Fprintf(out, "%s📝 %s: %v → %v\n", indent, field, formatFieldValue(fc.Old), formatFieldValue(fc.New))
+		} else if fc, ok := value.(map[string]interface{}); ok {
+			// Handle FieldChange that was unmarshaled from JSON
+			if oldVal, hasOld := fc["old"]; hasOld {
+				if newVal, hasNew := fc["new"]; hasNew {
+					hasFieldChanges = true
+					fmt.Fprintf(out, "%s📝 %s: %v → %v\n", indent, field, formatFieldValue(oldVal), formatFieldValue(newVal))
+				}
+			}
+		}
+	}
+	
+	// Check protection changes
+	if pc, ok := change.Protection.(planner.ProtectionChange); ok {
+		if pc.Old != pc.New {
+			hasFieldChanges = true
+			if pc.Old && !pc.New {
+				fmt.Fprintf(out, "%s🔓 protection: enabled → disabled\n", indent)
+			} else if !pc.Old && pc.New {
+				fmt.Fprintf(out, "%s🔒 protection: disabled → enabled\n", indent)
+			}
+		}
+	} else if pc, ok := change.Protection.(map[string]interface{}); ok {
+		// Handle JSON deserialization
+		if oldVal, hasOld := pc["old"].(bool); hasOld {
+			if newVal, hasNew := pc["new"].(bool); hasNew {
+				if oldVal != newVal {
+					hasFieldChanges = true
+					if oldVal && !newVal {
+						fmt.Fprintf(out, "%s🔓 protection: enabled → disabled\n", indent)
+					} else if !oldVal && newVal {
+						fmt.Fprintf(out, "%s🔒 protection: disabled → enabled\n", indent)
+					}
+				}
+			}
+		}
+	}
+	
+	if !hasFieldChanges {
+		fmt.Fprintf(out, "%s📝 <configuration changes detected>\n", indent)
+	}
+}
+
+// displayDependencies shows resource dependencies with better formatting
+func displayDependencies(out io.Writer, change planner.PlannedChange, 
+	allChanges []planner.PlannedChange, indent string) {
+	if len(change.DependsOn) == 0 && (change.Parent == nil || change.Parent.Ref == "") {
+		return
+	}
+	
+	// Use a map to track unique dependencies
+	depMap := make(map[string]bool)
+	
+	// Add parent dependency if exists
+	if change.Parent != nil && change.Parent.Ref != "" {
+		parentType := getParentResourceType(change.ResourceType)
+		if parentType != "" {
+			depMap[fmt.Sprintf("%s:%s", parentType, change.Parent.Ref)] = true
+		}
+	}
+	
+	// Add explicit dependencies
+	for _, depID := range change.DependsOn {
+		// Find the dependent change to get its type and ref
+		for _, depChange := range allChanges {
+			if depChange.ID == depID {
+				depMap[fmt.Sprintf("%s:%s", depChange.ResourceType, depChange.ResourceRef)] = true
+				break
+			}
+		}
+	}
+	
+	// Display dependencies if any
+	if len(depMap) > 0 {
+		deps := make([]string, 0, len(depMap))
+		for dep := range depMap {
+			deps = append(deps, dep)
+		}
+		sort.Strings(deps) // Consistent ordering
+		fmt.Fprintf(out, "%s🔗 depends on: %s\n", indent, strings.Join(deps, ", "))
+	}
+}
+
+// formatFieldValue formats a field value for display, truncating long strings
+func formatFieldValue(value interface{}) string {
+	switch v := value.(type) {
+	case string:
+		if len(v) > 50 {
+			return fmt.Sprintf("\"%.47s...\"", v)
+		}
+		return fmt.Sprintf("\"%s\"", v)
+	case bool:
+		return fmt.Sprintf("%t", v)
+	case nil:
+		return "<nil>"
+	default:
+		str := fmt.Sprintf("%v", v)
+		if len(str) > 50 {
+			return fmt.Sprintf("%.47s...", str)
+		}
+		return str
+	}
 }

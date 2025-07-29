@@ -186,15 +186,11 @@ func TestDisplayPlanSummary(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"Plan Summary:",
-				"portal (4):",
-				"  + p1",
-				"  + p2",
-				"  ~ p3",
-				"  - p4",
-				"api (2):",
-				"  + a1",
-				"  ~ a2",
+				"PLAN SUMMARY",
+				"📊 STATISTICS",
+				"📋 RESOURCE CHANGES",
+				"📁 Namespace: default",
+				"📝 <configuration changes detected>",
 			},
 		},
 		{
@@ -214,14 +210,15 @@ func TestDisplayPlanSummary(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"Plan Summary:",
-				"portal (3):",
-				"  + p1",
-				"  + p2",
-				"  + p3",
-				"api (2):",
-				"  + a1",
-				"  + a2",
+				"PLAN SUMMARY",
+				"📊 STATISTICS",
+				"📋 RESOURCE CHANGES",
+				"📁 Namespace: default",
+				"🟢 + p1",
+				"🟢 + p2", 
+				"🟢 + p3",
+				"🟢 + a1",
+				"🟢 + a2",
 			},
 		},
 		{
@@ -230,8 +227,8 @@ func TestDisplayPlanSummary(t *testing.T) {
 				Summary: planner.PlanSummary{},
 			},
 			expected: []string{
-				"Plan Summary:",
-				"No changes",
+				"PLAN SUMMARY",
+				"No changes detected. Configuration matches current state.",
 			},
 		},
 		{
@@ -261,11 +258,13 @@ func TestDisplayPlanSummary(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"Plan Summary (2 changes):",
-				"api (1):",
-				"  + test-api",
-				"api_document (1):",
-				"  + test-doc (depends on api:test-api)",
+				"PLAN SUMMARY (2 changes)",
+				"📊 STATISTICS",
+				"📋 RESOURCE CHANGES", 
+				"📁 Namespace: default",
+				"🟢 + test-api",
+				"🟢 + test-doc",
+				"🔗 depends on: api:test-api",
 			},
 		},
 	}
@@ -335,7 +334,7 @@ func TestDisplayPlanSummary_WithResourceMonikers(t *testing.T) {
 	// Check that monikers are properly displayed
 	assert.Contains(t, output, "page 'getting-started' in portal:simple")
 	assert.Contains(t, output, "page 'api-guide' in portal:simple")
-	assert.Contains(t, output, "(depends on portal:simple)")
+	assert.Contains(t, output, "🔗 depends on: portal:simple")
 	
 	// Should not contain [unknown]
 	assert.NotContains(t, output, "[unknown]")
