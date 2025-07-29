@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/errors"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"sigs.k8s.io/yaml"
@@ -88,7 +89,7 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 		case SourceTypeSTDIN:
 			rs, err = l.loadSTDIN()
 		default:
-			return nil, fmt.Errorf("unknown source type for %s", source.Path)
+			return nil, errors.FormatConfigurationError(source.Path, 0, fmt.Sprintf("unknown source type: %v", source.Type))
 		}
 		
 		if err != nil {

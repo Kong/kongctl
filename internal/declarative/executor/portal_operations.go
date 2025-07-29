@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/kong/kongctl/internal/declarative/errors"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/log"
@@ -26,7 +27,7 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 	if name, ok := change.Fields["name"].(string); ok {
 		portal.Name = name
 	} else {
-		return "", fmt.Errorf("portal name is required")
+		return "", errors.FormatValidationError("portal", "", "name", "is required")
 	}
 	
 	// Optional fields
@@ -96,12 +97,14 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 	
 	// First, validate protection status at execution time
-	portal, err := e.client.GetPortalByName(ctx, getResourceName(change.Fields))
+	portalName := getResourceName(change.Fields)
+	portal, err := e.client.GetPortalByName(ctx, portalName)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch portal for protection check: %w", err)
+		return "", errors.FormatResourceError("fetch", "portal", portalName, change.Namespace, err)
 	}
 	if portal == nil {
-		return "", fmt.Errorf("portal no longer exists")
+		return "", errors.FormatValidationError("portal", portalName, "resource", 
+			"no longer exists - it may have been deleted by another process")
 	}
 	
 	// Check if portal is protected
@@ -126,7 +129,7 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 	
 	if isProtected && !isProtectionChange {
 		// Regular update to a protected resource is not allowed
-		return "", fmt.Errorf("resource is protected and cannot be updated")
+		return "", errors.FormatProtectionError("portal", portalName, "update")
 	}
 	
 	// Build sparse update request - only include fields that changed

@@ -1,8 +1,8 @@
 # Stage 7: Testing, Documentation, and Core Improvements - Implementation Steps
 
 ## Progress Summary
-**Progress**: 10/15 steps completed (67%)  
-**Current Step**: Step 11 - Enhanced Error Messages
+**Progress**: 11/15 steps completed (73%)  
+**Current Step**: Step 12 - Improved Plan Summary Display
 
 ## Overview
 This document outlines the step-by-step implementation plan for completing 
@@ -278,7 +278,7 @@ Create integration tests for error scenarios and edge cases.
 ---
 
 ### Step 11: Enhanced Error Messages
-**Status**: Not Started
+**Status**: Completed
 
 Improve error messages throughout the declarative configuration system.
 
@@ -295,10 +295,19 @@ Improve error messages throughout the declarative configuration system.
 - Consistent error formatting
 
 **Acceptance criteria**:
-- Error messages include resource context
-- API errors translated to user-friendly messages
-- Hints provided for common issues
-- Consistent formatting across all errors
+- ✅ Error messages include resource context
+- ✅ API errors translated to user-friendly messages
+- ✅ Hints provided for common issues (no incorrect "take ownership" hints)
+- ✅ Consistent formatting across all errors
+
+**Files created**:
+- `internal/declarative/errors/context.go` - Resource context utilities
+- `internal/declarative/errors/api_errors.go` - API error enhancement with hints
+- `internal/declarative/errors/formatting.go` - Consistent error formatting
+
+**Critical Bug Fixed**:
+- Portal creation error now provides accurate hint about unique naming requirements
+- Removed incorrect "Use 'kongctl sync' to take ownership" suggestion
 
 ---
 

@@ -320,7 +320,7 @@ func TestExecutor_updatePortal(t *testing.T) {
 				}, nil)
 			},
 			wantErr: true,
-			errMsg:  "resource is protected and cannot be updated",
+			errMsg:  "resource is protected",
 		},
 		{
 			name: "portal not found",
@@ -343,7 +343,7 @@ func TestExecutor_updatePortal(t *testing.T) {
 				}, nil)
 			},
 			wantErr: true,
-			errMsg:  "portal no longer exists",
+			errMsg:  "no longer exists",
 		},
 	}
 
@@ -575,7 +575,7 @@ func TestExecutor_protectionChangeBetweenPlanAndExecution(t *testing.T) {
 	
 	// Should fail due to protection
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "resource is protected and cannot be updated")
+	assert.Contains(t, err.Error(), "resource is protected")
 	
 	mockAPI.AssertExpectations(t)
 }

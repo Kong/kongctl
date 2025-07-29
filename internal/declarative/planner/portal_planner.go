@@ -46,7 +46,7 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 		if err.Error() == "Portal client not configured" {
 			return nil
 		}
-		return fmt.Errorf("failed to list current portals: %w", err)
+		return fmt.Errorf("failed to list current portals in namespace %s: %w", namespace, err)
 	}
 
 	// Index current portals by name

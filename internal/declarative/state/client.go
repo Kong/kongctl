@@ -8,6 +8,7 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/kong/kongctl/internal/declarative/errors"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
@@ -279,7 +280,19 @@ func (c *Client) CreatePortal(
 
 	resp, err := c.portalAPI.CreatePortal(ctx, portal)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create portal: %w", err)
+		// Extract status code from error if possible
+		statusCode := errors.ExtractStatusCodeFromError(err)
+		
+		// Create enhanced error with context and hints
+		ctx := errors.APIErrorContext{
+			ResourceType: "portal",
+			ResourceName: portal.Name,
+			Namespace:    namespace,
+			Operation:    "create",
+			StatusCode:   statusCode,
+		}
+		
+		return nil, errors.EnhanceAPIError(err, ctx)
 	}
 
 	if resp.PortalResponse == nil {
@@ -301,7 +314,23 @@ func (c *Client) UpdatePortal(
 
 	resp, err := c.portalAPI.UpdatePortal(ctx, id, portal)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update portal: %w", err)
+		// Extract status code from error if possible
+		statusCode := errors.ExtractStatusCodeFromError(err)
+		
+		// Create enhanced error with context and hints
+		ctx := errors.APIErrorContext{
+			ResourceType: "portal",
+			ResourceName: func() string {
+				if portal.Name != nil {
+					return *portal.Name
+				}
+				return ""
+			}(), // May be nil for partial updates
+			Operation:    "update",
+			StatusCode:   statusCode,
+		}
+		
+		return nil, errors.EnhanceAPIError(err, ctx)
 	}
 
 	if resp.PortalResponse == nil {
@@ -315,7 +344,18 @@ func (c *Client) UpdatePortal(
 func (c *Client) DeletePortal(ctx context.Context, id string, force bool) error {
 	_, err := c.portalAPI.DeletePortal(ctx, id, force)
 	if err != nil {
-		return fmt.Errorf("failed to delete portal: %w", err)
+		// Extract status code from error if possible
+		statusCode := errors.ExtractStatusCodeFromError(err)
+		
+		// Create enhanced error with context and hints
+		ctx := errors.APIErrorContext{
+			ResourceType: "portal",
+			ResourceName: id, // Using ID since we don't have name in delete context
+			Operation:    "delete",
+			StatusCode:   statusCode,
+		}
+		
+		return errors.EnhanceAPIError(err, ctx)
 	}
 	return nil
 }
@@ -473,7 +513,19 @@ func (c *Client) CreateAPI(
 
 	resp, err := c.apiAPI.CreateAPI(ctx, api)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create API: %w", err)
+		// Extract status code from error if possible
+		statusCode := errors.ExtractStatusCodeFromError(err)
+		
+		// Create enhanced error with context and hints
+		ctx := errors.APIErrorContext{
+			ResourceType: "api",
+			ResourceName: api.Name,
+			Namespace:    namespace,
+			Operation:    "create",
+			StatusCode:   statusCode,
+		}
+		
+		return nil, errors.EnhanceAPIError(err, ctx)
 	}
 
 	if resp.APIResponseSchema == nil {
