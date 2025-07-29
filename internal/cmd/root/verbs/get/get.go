@@ -37,6 +37,8 @@ Output can be formatted in multiple ways to aid in further processing.`))
 		%[1]s get portals
 		# Retrieve Konnect APIs
 		%[1]s get apis
+		# Retrieve Konnect auth strategies
+		%[1]s get auth-strategies
 		# Retrieve Konnect control planes
 		%[1]s get konnect gateway controlplanes
 		# Retrieve on-premises Kong Gateway services 
@@ -81,6 +83,13 @@ func NewGetCmd() (*cobra.Command, error) {
 		return nil, err
 	}
 	cmd.AddCommand(apiCmd)
+
+	// Add auth strategy command directly for Konnect-first pattern
+	authStrategyCmd, err := NewDirectAuthStrategyCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(authStrategyCmd)
 
 	return cmd, nil
 }

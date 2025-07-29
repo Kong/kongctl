@@ -1,8 +1,8 @@
 # Stage 7: Testing, Documentation, and Core Improvements - Implementation Steps
 
 ## Progress Summary
-**Progress**: 4/15 steps completed (27%)  
-**Current Step**: Step 5 - Implement Get Command for Auth Strategies
+**Progress**: 5/15 steps completed (33%)  
+**Current Step**: Step 6 - Make All Imperative Commands Konnect-First
 
 ## Overview
 This document outlines the step-by-step implementation plan for completing 
@@ -117,7 +117,7 @@ Add imperative `get` support for API resources.
 ---
 
 ### Step 5: Implement Get Command for Auth Strategies
-**Status**: Not Started
+**Status**: Completed
 
 Add imperative `get` support for auth strategy resources.
 
