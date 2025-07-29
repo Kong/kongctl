@@ -20,34 +20,17 @@ var (
 	planUse = Verb.String()
 
 	planShort = i18n.T("root.verbs.plan.planShort",
-		"Generate a declarative configuration plan artifact")
+		"Preview changes to Kong Konnect resources")
 
 	planLong = normalizers.LongDesc(i18n.T("root.verbs.plan.planLong",
-		`Generate a plan artifact from declarative configuration files.
-
-The plan artifact represents the desired state and can be used for review,
-approval workflows, or as input to sync operations.`))
+		`Generate an execution plan showing what changes will be made.`))
 
 	planExamples = normalizers.Examples(i18n.T("root.verbs.plan.planExamples",
-		fmt.Sprintf(`
-		# Generate a plan from configuration files
-		%[1]s plan -f portal.yaml -f auth.yaml
-		
-		# Generate a plan from comma-separated files
-		%[1]s plan -f portal.yaml,auth.yaml,api.yaml
-		
-		# Generate a plan from a directory
-		%[1]s plan -f ./config
-		
-		# Generate a plan from directory recursively
-		%[1]s plan -f ./config -R
-		
-		# Generate a plan and save to file
-		%[1]s plan -f ./config --output-file plan.json
-		
-		# Generate a plan from stdin
-		cat portal.yaml | %[1]s plan -f -
-		`, meta.CLIName)))
+		fmt.Sprintf(`  %[1]s plan -f api.yaml
+  %[1]s plan -f ./configs/ --recursive
+  %[1]s plan -f config.yaml -o plan.json
+
+Use "%[1]s help plan" for detailed documentation`, meta.CLIName)))
 )
 
 func NewPlanCmd() (*cobra.Command, error) {

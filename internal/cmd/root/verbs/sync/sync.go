@@ -23,35 +23,17 @@ var (
 	syncUse = Verb.String()
 
 	syncShort = i18n.T("root.verbs.sync.syncShort",
-		"Synchronize declarative configuration to target environment")
+		"Full state synchronization (create/update/delete)")
 
 	syncLong = normalizers.LongDesc(i18n.T("root.verbs.sync.syncLong",
-		`Synchronize declarative configuration files to the target environment.
-
-Sync analyzes the current state, compares it with the desired state defined
-in the configuration files, and applies the necessary changes to achieve
-the desired state.`))
+		`Synchronize configuration with Kong Konnect. Creates, updates, and DELETES resources.`))
 
 	syncExamples = normalizers.Examples(i18n.T("root.verbs.sync.syncExamples",
-		fmt.Sprintf(`
-		# Sync configuration from files
-		%[1]s sync -f portal.yaml -f auth.yaml
-		
-		# Sync configuration from comma-separated files
-		%[1]s sync -f portal.yaml,auth.yaml,api.yaml
-		
-		# Sync configuration from directory
-		%[1]s sync -f ./config
-		
-		# Sync configuration from directory recursively
-		%[1]s sync -f ./config -R
-		
-		# Sync configuration with dry-run to preview changes
-		%[1]s sync -f ./config --dry-run
-		
-		# Sync configuration from stdin
-		cat portal.yaml | %[1]s sync -f -
-		`, meta.CLIName)))
+		fmt.Sprintf(`  %[1]s sync -f api.yaml
+  %[1]s sync -f ./configs/ --dry-run
+  %[1]s sync --plan plan.json --auto-approve
+
+Use "%[1]s help sync" for detailed documentation`, meta.CLIName)))
 )
 
 func NewSyncCmd() (*cobra.Command, error) {

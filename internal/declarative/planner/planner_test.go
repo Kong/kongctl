@@ -980,10 +980,6 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 }
 
 // Test helpers
-var (
-	trueStr = "true"
-)
-
 func ptrString(s string) *string {
 	return &s
 }

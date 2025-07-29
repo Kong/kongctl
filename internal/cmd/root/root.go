@@ -18,6 +18,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs/dump"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/export"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/get"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/help"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/list"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/login"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/plan"
@@ -191,6 +192,9 @@ func addCommands() error {
 		return e
 	}
 	rootCmd.AddCommand(c)
+
+	// Add help command
+	rootCmd.AddCommand(help.NewHelpCmd())
 
 	return nil
 }

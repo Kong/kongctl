@@ -22,34 +22,17 @@ const (
 var (
 	applyUse = Verb.String()
 
-	applyShort = i18n.T("root.verbs.apply.applyShort", "Apply declarative configuration")
+	applyShort = i18n.T("root.verbs.apply.applyShort", "Apply configuration changes (create/update only)")
 
 	applyLong = normalizers.LongDesc(i18n.T("root.verbs.apply.applyLong",
-		`Apply declarative configuration files to target environment.
-
-Apply reads the configuration files and makes the necessary API calls to create,
-update, or delete resources to match the desired state.`))
+		`Apply configuration changes to Kong Konnect. Creates new resources and updates existing ones.`))
 
 	applyExamples = normalizers.Examples(i18n.T("root.verbs.apply.applyExamples",
-		fmt.Sprintf(`
-		# Apply configuration from files
-		%[1]s apply -f portal.yaml -f auth.yaml
-		
-		# Apply configuration from comma-separated files
-		%[1]s apply -f portal.yaml,auth.yaml,api.yaml
-		
-		# Apply configuration from directory
-		%[1]s apply -f ./config
-		
-		# Apply configuration from directory recursively
-		%[1]s apply -f ./config -R
-		
-		# Apply configuration with force flag
-		%[1]s apply -f ./config --force
-		
-		# Apply configuration from stdin
-		cat portal.yaml | %[1]s apply -f -
-		`, meta.CLIName)))
+		fmt.Sprintf(`  %[1]s apply -f api.yaml
+  %[1]s apply -f ./configs/ --recursive
+  %[1]s apply --plan plan.json
+
+Use "%[1]s help apply" for detailed documentation`, meta.CLIName)))
 )
 
 func NewApplyCmd() (*cobra.Command, error) {

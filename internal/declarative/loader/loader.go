@@ -967,8 +967,8 @@ func (l *Loader) suggestFieldName(fieldName string) string {
 	knownFields := map[string][]string{
 		// Portal fields
 		"labels":       {"lables", "label", "labeles", "lablels"},
-		"name":         {"nam", "nme", "nmae"},
-		"description":  {"desc", "descripton", "descriptin", "descrption"},
+		"name":         {"nam", "nme", "name"},
+		"description":  {"desc", "description", "descriptin", "descrption"},
 		"ref":          {"reference", "id", "key"},
 		"kongctl":      {"kong_ctl", "kong-ctl", "kongcontrol"},
 		"namespace":    {"namspace", "namesapce", "ns"},

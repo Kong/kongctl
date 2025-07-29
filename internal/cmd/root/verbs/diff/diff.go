@@ -20,38 +20,17 @@ var (
 	diffUse = Verb.String()
 
 	diffShort = i18n.T("root.verbs.diff.diffShort",
-		"Display differences between current and desired state")
+		"Show configuration differences")
 
 	diffLong = normalizers.LongDesc(i18n.T("root.verbs.diff.diffLong",
-		`Display the changes that would be made to achieve the desired state.
-
-Accepts a plan file via --plan, or generates a new plan from configuration files
-if no plan is provided. The output shows what changes would be made without
-actually applying them.`))
+		`Display differences between current and desired state.`))
 
 	diffExamples = normalizers.Examples(i18n.T("root.verbs.diff.diffExamples",
-		fmt.Sprintf(`
-		# Show differences from an existing plan file
-		%[1]s diff --plan plan.json
-		
-		# Show differences from a plan on stdin
-		cat plan.json | %[1]s diff --plan -
-		
-		# Generate plan and pipe to diff for immediate review
-		%[1]s plan -f portal.yaml | %[1]s diff --plan -
-		
-		# Show differences in JSON format
-		%[1]s diff --plan plan.json -o json
-		
-		# Show differences in YAML format
-		%[1]s diff --plan plan.json -o yaml
-		
-		# Generate and review plan from configuration files
-		%[1]s diff -f portal.yaml -f auth.yaml
-		
-		# Generate and review plan from directory
-		%[1]s diff -f ./config -R
-		`, meta.CLIName)))
+		fmt.Sprintf(`  %[1]s diff -f api.yaml
+  %[1]s diff --plan plan.json
+  %[1]s diff -f config.yaml --format json
+
+Use "%[1]s help diff" for detailed documentation`, meta.CLIName)))
 )
 
 func NewDiffCmd() (*cobra.Command, error) {

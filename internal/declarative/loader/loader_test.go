@@ -425,12 +425,15 @@ func TestLoader_LoadFile_UnknownFields(t *testing.T) {
 		{
 			name:          "unknown field with no suggestion",
 			file:          "invalid/unknown-field-no-suggestion.yaml",
-			expectedError: "unknown field 'completely_unknown_field' in testdata/invalid/unknown-field-no-suggestion.yaml. Please check the field name against the schema",
+			expectedError: "unknown field 'completely_unknown_field' in " +
+				"testdata/invalid/unknown-field-no-suggestion.yaml. " +
+				"Please check the field name against the schema",
 		},
 		{
 			name:          "misspelled strategy_type field",
 			file:          "invalid/unknown-field-auth.yaml",
-			expectedError: "unknown field 'strategytype' in testdata/invalid/unknown-field-auth.yaml. Did you mean 'strategy_type'?",
+			expectedError: "unknown field 'strategytype' in " +
+				"testdata/invalid/unknown-field-auth.yaml. Did you mean 'strategy_type'?",
 		},
 	}
 
