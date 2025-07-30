@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
@@ -120,6 +121,7 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 	return e
 }
 
+
 // Execute runs the plan and returns the execution result
 func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) (*ExecutionResult, error) {
 	result := &ExecutionResult{
@@ -132,12 +134,12 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) (*ExecutionR
 	}
 	
 	// Execute changes in order
-	for _, changeID := range plan.ExecutionOrder {
+	for i, changeID := range plan.ExecutionOrder {
 		// Find the change by ID
 		var change *planner.PlannedChange
-		for i := range plan.Changes {
-			if plan.Changes[i].ID == changeID {
-				change = &plan.Changes[i]
+		for j := range plan.Changes {
+			if plan.Changes[j].ID == changeID {
+				change = &plan.Changes[j]
 				break
 			}
 		}
@@ -154,7 +156,7 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) (*ExecutionR
 		}
 		
 		// Execute the change
-		if err := e.executeChange(ctx, result, *change); err != nil {
+		if err := e.executeChange(ctx, result, change, plan, i); err != nil {
 			// Error already recorded in executeChange
 			continue
 		}
@@ -169,17 +171,18 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) (*ExecutionR
 }
 
 // executeChange executes a single change from the plan
-func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, change planner.PlannedChange) error {
+func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, change *planner.PlannedChange,
+	plan *planner.Plan, changeIndex int) error {
 	// Notify reporter of change start
 	if e.reporter != nil {
-		e.reporter.StartChange(change)
+		e.reporter.StartChange(*change)
 	}
 	
 	// Extract resource name from fields
 	resourceName := getResourceName(change.Fields)
 	
 	// Pre-execution validation (always performed, even in dry-run)
-	if err := e.validateChangePreExecution(ctx, change); err != nil {
+	if err := e.validateChangePreExecution(ctx, *change); err != nil {
 		// Record error
 		execError := ExecutionError{
 			ChangeID:     change.ID,
@@ -208,7 +211,7 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		
 		// Notify reporter
 		if e.reporter != nil {
-			e.reporter.CompleteChange(change, err)
+			e.reporter.CompleteChange(*change, err)
 		}
 		
 		return err
@@ -228,7 +231,7 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		})
 		
 		if e.reporter != nil {
-			e.reporter.SkipChange(change, "dry-run mode")
+			e.reporter.SkipChange(*change, "dry-run mode")
 		}
 		
 		return nil
@@ -282,12 +285,42 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 				e.refToID[change.ResourceType] = make(map[string]string)
 			}
 			e.refToID[change.ResourceType][change.ResourceRef] = resourceID
+			
+			// Propagate the created resource ID to any pending changes that reference it
+			if changeIndex+1 < len(plan.ExecutionOrder) {
+				// Update remaining changes directly in plan.Changes
+				for i := changeIndex + 1; i < len(plan.ExecutionOrder); i++ {
+					changeID := plan.ExecutionOrder[i]
+					for j := range plan.Changes {
+						if plan.Changes[j].ID == changeID {
+							// Check all references in this change
+							for refKey, refInfo := range plan.Changes[j].References {
+								// Match based on resource type from the reference key
+								refResourceType := strings.TrimSuffix(refKey, "_id")
+								if refResourceType == change.ResourceType && refInfo.Ref == change.ResourceRef {
+									// Update the reference with the created resource ID
+									refInfo.ID = resourceID
+									plan.Changes[j].References[refKey] = refInfo
+									slog.Debug("Propagated created resource ID to dependent change",
+										"change_id", plan.Changes[j].ID,
+										"ref_key", refKey,
+										"resource_type", change.ResourceType,
+										"resource_ref", change.ResourceRef,
+										"resource_id", resourceID,
+									)
+								}
+							}
+							break
+						}
+					}
+				}
+			}
 		}
 	}
 	
 	// Notify reporter
 	if e.reporter != nil {
-		e.reporter.CompleteChange(change, err)
+		e.reporter.CompleteChange(*change, err)
 	}
 	
 	return err
@@ -465,6 +498,10 @@ func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceI
 	// First check if it was created in this execution
 	if apis, ok := e.refToID["api"]; ok {
 		if id, found := apis[refInfo.Ref]; found {
+			slog.Debug("Resolved API reference from created resources",
+				"api_ref", refInfo.Ref,
+				"api_id", id,
+			)
 			return id, nil
 		}
 	}
@@ -477,16 +514,34 @@ func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceI
 		}
 	}
 	
-	// Otherwise, look it up from the API
-	api, err := e.client.GetAPIByName(ctx, lookupValue)
-	if err != nil {
-		return "", fmt.Errorf("failed to get API by name: %w", err)
-	}
-	if api == nil {
-		return "", fmt.Errorf("API not found: ref=%s, looked up by name=%s", refInfo.Ref, lookupValue)
+	// Try to find the API in Konnect with retry for eventual consistency
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt) * time.Second)
+		}
+		
+		api, err := e.client.GetAPIByName(ctx, lookupValue)
+		if err == nil && api != nil {
+			apiID := api.ID
+			slog.Debug("Resolved API reference from Konnect",
+				"api_ref", refInfo.Ref,
+				"lookup_value", lookupValue,
+				"api_id", apiID,
+				"attempt", attempt+1,
+			)
+			
+			// Cache this resolution
+			if apis, ok := e.refToID["api"]; ok {
+				apis[refInfo.Ref] = apiID
+			}
+			return apiID, nil
+		}
+		lastErr = err
 	}
 	
-	return api.ID, nil
+	return "", fmt.Errorf("failed to resolve API reference %s (lookup: %s) after 3 attempts: %w", 
+		refInfo.Ref, lookupValue, lastErr)
 }
 
 // populatePortalPages fetches and caches all pages for a portal
@@ -586,17 +641,17 @@ func (e *Executor) resolvePortalPageRef(
 
 // Resource operations
 
-func (e *Executor) createResource(ctx context.Context, change planner.PlannedChange) (string, error) {
+func (e *Executor) createResource(ctx context.Context, change *planner.PlannedChange) (string, error) {
 	// Add namespace, protection, and planned change to context for adapters
 	ctx = context.WithValue(ctx, contextKeyNamespace, change.Namespace)
 	ctx = context.WithValue(ctx, contextKeyProtection, change.Protection)
-	ctx = context.WithValue(ctx, contextKeyPlannedChange, change)
+	ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 	
 	switch change.ResourceType {
 	case "portal":
-		return e.portalExecutor.Create(ctx, change)
+		return e.portalExecutor.Create(ctx, *change)
 	case "api":
-		return e.apiExecutor.Create(ctx, change)
+		return e.apiExecutor.Create(ctx, *change)
 	case "api_version":
 		// First resolve API reference if needed
 		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
@@ -608,7 +663,7 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 			apiRef.ID = apiID
 			change.References["api_id"] = apiRef
 		}
-		return e.apiVersionExecutor.Create(ctx, change)
+		return e.apiVersionExecutor.Create(ctx, *change)
 	case "api_publication":
 		// First resolve API reference if needed
 		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
@@ -630,7 +685,7 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 			portalRef.ID = portalID
 			change.References["portal_id"] = portalRef
 		}
-		return e.apiPublicationExecutor.Create(ctx, change)
+		return e.apiPublicationExecutor.Create(ctx, *change)
 	case "api_implementation":
 		// First resolve API reference if needed
 		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
@@ -642,7 +697,7 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 			apiRef.ID = apiID
 			change.References["api_id"] = apiRef
 		}
-		return e.apiImplementationExecutor.Create(ctx, change)
+		return e.apiImplementationExecutor.Create(ctx, *change)
 	case "api_document":
 		// First resolve API reference if needed
 		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
@@ -654,18 +709,18 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 			apiRef.ID = apiID
 			change.References["api_id"] = apiRef
 		}
-		return e.apiDocumentExecutor.Create(ctx, change)
+		return e.apiDocumentExecutor.Create(ctx, *change)
 	case "application_auth_strategy":
-		return e.authStrategyExecutor.Create(ctx, change)
+		return e.authStrategyExecutor.Create(ctx, *change)
 	case "portal_customization":
 		// Portal customization is a singleton resource - always exists, so we update instead
 		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
 		if err != nil {
 			return "", err
 		}
-		return e.portalCustomizationExecutor.Update(ctx, change, portalID)
+		return e.portalCustomizationExecutor.Update(ctx, *change, portalID)
 	case "portal_custom_domain":
-		return e.portalDomainExecutor.Create(ctx, change)
+		return e.portalDomainExecutor.Create(ctx, *change)
 	case "portal_page":
 		// First resolve portal reference if needed
 		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
@@ -688,7 +743,7 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 			parentPageRef.ID = parentPageID
 			change.References["parent_page_id"] = parentPageRef
 		}
-		return e.portalPageExecutor.Create(ctx, change)
+		return e.portalPageExecutor.Create(ctx, *change)
 	case "portal_snippet":
 		// First resolve portal reference if needed
 		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
@@ -700,23 +755,23 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 			portalRef.ID = portalID
 			change.References["portal_id"] = portalRef
 		}
-		return e.portalSnippetExecutor.Create(ctx, change)
+		return e.portalSnippetExecutor.Create(ctx, *change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
 	}
 }
 
-func (e *Executor) updateResource(ctx context.Context, change planner.PlannedChange) (string, error) {
+func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedChange) (string, error) {
 	// Add namespace, protection, and planned change to context for adapters
 	ctx = context.WithValue(ctx, contextKeyNamespace, change.Namespace)
 	ctx = context.WithValue(ctx, contextKeyProtection, change.Protection)
-	ctx = context.WithValue(ctx, contextKeyPlannedChange, change)
+	ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 	
 	switch change.ResourceType {
 	case "portal":
-		return e.portalExecutor.Update(ctx, change)
+		return e.portalExecutor.Update(ctx, *change)
 	case "api":
-		return e.apiExecutor.Update(ctx, change)
+		return e.apiExecutor.Update(ctx, *change)
 	case "api_document":
 		// First resolve API reference if needed
 		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
@@ -728,17 +783,17 @@ func (e *Executor) updateResource(ctx context.Context, change planner.PlannedCha
 			apiRef.ID = apiID
 			change.References["api_id"] = apiRef
 		}
-		return e.apiDocumentExecutor.Update(ctx, change)
+		return e.apiDocumentExecutor.Update(ctx, *change)
 	case "application_auth_strategy":
-		return e.authStrategyExecutor.Update(ctx, change)
+		return e.authStrategyExecutor.Update(ctx, *change)
 	case "portal_customization":
 		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
 		if err != nil {
 			return "", err
 		}
-		return e.portalCustomizationExecutor.Update(ctx, change, portalID)
+		return e.portalCustomizationExecutor.Update(ctx, *change, portalID)
 	case "portal_custom_domain":
-		return e.portalDomainExecutor.Update(ctx, change)
+		return e.portalDomainExecutor.Update(ctx, *change)
 	case "portal_page":
 		// First resolve portal reference if needed
 		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
@@ -761,7 +816,7 @@ func (e *Executor) updateResource(ctx context.Context, change planner.PlannedCha
 			parentPageRef.ID = parentPageID
 			change.References["parent_page_id"] = parentPageRef
 		}
-		return e.portalPageExecutor.Update(ctx, change)
+		return e.portalPageExecutor.Update(ctx, *change)
 	case "portal_snippet":
 		// First resolve portal reference if needed
 		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
@@ -773,30 +828,30 @@ func (e *Executor) updateResource(ctx context.Context, change planner.PlannedCha
 			portalRef.ID = portalID
 			change.References["portal_id"] = portalRef
 		}
-		return e.portalSnippetExecutor.Update(ctx, change)
+		return e.portalSnippetExecutor.Update(ctx, *change)
 	// Note: api_version, api_publication, and api_implementation don't support update
 	default:
 		return "", fmt.Errorf("update operation not yet implemented for %s", change.ResourceType)
 	}
 }
 
-func (e *Executor) deleteResource(ctx context.Context, change planner.PlannedChange) error {
+func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedChange) error {
 	// Add namespace, protection, and planned change to context for adapters
 	ctx = context.WithValue(ctx, contextKeyNamespace, change.Namespace)
 	ctx = context.WithValue(ctx, contextKeyProtection, change.Protection)
-	ctx = context.WithValue(ctx, contextKeyPlannedChange, change)
+	ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 	
 	switch change.ResourceType {
 	case "portal":
-		return e.portalExecutor.Delete(ctx, change)
+		return e.portalExecutor.Delete(ctx, *change)
 	case "api":
-		return e.apiExecutor.Delete(ctx, change)
+		return e.apiExecutor.Delete(ctx, *change)
 	case "api_version":
-		return e.apiVersionExecutor.Delete(ctx, change)
+		return e.apiVersionExecutor.Delete(ctx, *change)
 	case "api_publication":
-		return e.apiPublicationExecutor.Delete(ctx, change)
+		return e.apiPublicationExecutor.Delete(ctx, *change)
 	case "api_implementation":
-		return e.apiImplementationExecutor.Delete(ctx, change)
+		return e.apiImplementationExecutor.Delete(ctx, *change)
 	case "api_document":
 		// First resolve API reference if needed
 		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
@@ -808,11 +863,11 @@ func (e *Executor) deleteResource(ctx context.Context, change planner.PlannedCha
 			apiRef.ID = apiID
 			change.References["api_id"] = apiRef
 		}
-		return e.apiDocumentExecutor.Delete(ctx, change)
+		return e.apiDocumentExecutor.Delete(ctx, *change)
 	case "application_auth_strategy":
-		return e.authStrategyExecutor.Delete(ctx, change)
+		return e.authStrategyExecutor.Delete(ctx, *change)
 	case "portal_custom_domain":
-		return e.portalDomainExecutor.Delete(ctx, change)
+		return e.portalDomainExecutor.Delete(ctx, *change)
 	case "portal_page":
 		// First resolve portal reference if needed
 		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
@@ -824,7 +879,7 @@ func (e *Executor) deleteResource(ctx context.Context, change planner.PlannedCha
 			portalRef.ID = portalID
 			change.References["portal_id"] = portalRef
 		}
-		return e.portalPageExecutor.Delete(ctx, change)
+		return e.portalPageExecutor.Delete(ctx, *change)
 	case "portal_snippet":
 		// First resolve portal reference if needed
 		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
@@ -836,7 +891,7 @@ func (e *Executor) deleteResource(ctx context.Context, change planner.PlannedCha
 			portalRef.ID = portalID
 			change.References["portal_id"] = portalRef
 		}
-		return e.portalSnippetExecutor.Delete(ctx, change)
+		return e.portalSnippetExecutor.Delete(ctx, *change)
 	// Note: portal_customization is a singleton resource and cannot be deleted
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)

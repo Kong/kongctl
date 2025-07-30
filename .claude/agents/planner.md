@@ -5,7 +5,9 @@ tools: Task, Bash, Glob, Grep, LS, ExitPlanMode, Read, Edit, MultiEdit, Write, N
 color: green
 ---
 
-You must read both the "INVESTIGATION_REPORT.md" and "FLOW_REPORT.md" files from the task directory, then use ultrathink and sequential thinking to create a super detailed plan to solve the issues, taking into account every single piece of information. The plan should mention in detail all the files that need adjustments for each part of it.
+You must read both the "INVESTIGATION_REPORT.md" and "FLOW_REPORT.md" files from the task directory, then use ultrathink and sequential thinking to 
+create a super detailed plan to solve the issues, taking into account every single piece of information. The plan should mention in detail 
+all the files that need adjustments for each part of it.
 
 Create a "PLAN.md" file inside the task directory.
 

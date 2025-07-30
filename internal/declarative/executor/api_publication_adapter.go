@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
@@ -14,11 +15,15 @@ import (
 // API publications only support create and delete operations, not updates
 type APIPublicationAdapter struct {
 	client *state.Client
+	logger *slog.Logger
 }
 
 // NewAPIPublicationAdapter creates a new API publication adapter
 func NewAPIPublicationAdapter(client *state.Client) *APIPublicationAdapter {
-	return &APIPublicationAdapter{client: client}
+	return &APIPublicationAdapter{
+		client: client,
+		logger: slog.Default(),
+	}
 }
 
 // MapCreateFields maps fields to APIPublication
@@ -149,9 +154,21 @@ func (a *APIPublicationAdapter) getAPIID(ctx context.Context) (string, error) {
 		if apiRef.ID != "" {
 			return apiRef.ID, nil
 		}
+		
+		// Log detailed information for debugging
+		a.logger.Debug("API ID not found in reference, checking fallback options",
+			"change_id", change.ID,
+			"resource_ref", change.ResourceRef,
+			"api_ref", apiRef.Ref,
+			"lookup_fields", apiRef.LookupFields,
+		)
 	}
 
-	return "", fmt.Errorf("API ID is required for publication operations")
+	// Note: Parent field fallback removed as APIPublication doesn't have a Parent field
+	// in the state structure, and this is a create-only operation
+
+	return "", fmt.Errorf("API ID is required for publication operations (change: %s, ref: %s)", 
+		change.ID, change.ResourceRef)
 }
 
 // APIPublicationResourceInfo implements ResourceInfo for API publications

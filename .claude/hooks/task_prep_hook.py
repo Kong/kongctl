@@ -48,8 +48,8 @@ def create_task_directory(base_dir: Path, task_id: int) -> tuple[bool, str]:
         return False, str(e)
 
 
-def create_git_branch(branch_name: str, cwd: str) -> bool:
-    """Create and checkout a new git branch for the task."""
+def validate_git_environment(cwd: str) -> tuple[bool, str]:
+    """Validate git environment is clean before proceeding with task creation."""
     try:
         # Check if we're in a git repository
         result = subprocess.run(
@@ -59,9 +59,9 @@ def create_git_branch(branch_name: str, cwd: str) -> bool:
             text=True
         )
         if result.returncode != 0:
-            return False
+            return False, "Not in a git repository. Please initialize a git repository first."
         
-        # Check if there are uncommitted changes
+        # Check for uncommitted changes
         result = subprocess.run(
             ["git", "status", "--porcelain"], 
             cwd=cwd, 
@@ -69,10 +69,23 @@ def create_git_branch(branch_name: str, cwd: str) -> bool:
             text=True
         )
         if result.stdout.strip():
-            # There are uncommitted changes, don't create branch
-            print(f"Warning: Uncommitted changes detected. Branch '{branch_name}' not created.", file=sys.stderr)
-            return False
+            # Get more detailed status for user
+            status_result = subprocess.run(
+                ["git", "status", "--short"], 
+                cwd=cwd, 
+                capture_output=True, 
+                text=True
+            )
+            return False, f"Uncommitted changes detected. Please commit or stash your changes before starting a new task.\n\nCurrent git status:\n{status_result.stdout}"
         
+        return True, ""
+    except Exception as e:
+        return False, f"Failed to check git environment: {e}"
+
+
+def create_git_branch(branch_name: str, cwd: str) -> bool:
+    """Create and checkout a new git branch for the task."""
+    try:
         # Check if branch already exists
         result = subprocess.run(
             ["git", "rev-parse", "--verify", f"refs/heads/{branch_name}"], 
@@ -118,6 +131,16 @@ def main():
         # Not a task prompt, exit silently to allow normal processing
         sys.exit(0)
     
+    # Validate git environment before proceeding
+    git_valid, git_error = validate_git_environment(cwd)
+    if not git_valid:
+        print(f"ERROR: Cannot start new task - {git_error}")
+        print("\nTo resolve this issue:")
+        print("  - Commit your changes: git add . && git commit -m 'your message'")
+        print("  - Or stash your changes: git stash")
+        print("  - Or discard changes: git checkout .")
+        sys.exit(1)  # Exit with error code to block the task
+    
     # Get next task ID
     base_dir = Path(cwd) / "docs" / "plan" / "tasks"
     task_id = get_next_task_id(base_dir)
@@ -134,9 +157,9 @@ def main():
         problem_text = prompt.replace('/task', '').strip()
         
         # Output context message that will be added to the prompt
-        context_msg = f"Directory task-{task_id} has been automatically created for this task session. The subagents must create the INVESTIGATION_REPORT.md, FLOW_REPORT.md and PLAN.md files inside docs/plan/tasks/task-{task_id}/."
-        if branch_created:
-            context_msg += f" Git branch 'task-{task_id}' has been created and checked out."
+        context_msg = f"Directory task-{task_id} has been automatically created for this task session. Git branch 'task-{task_id}' has been created and checked out. The subagents must create the INVESTIGATION_REPORT.md, FLOW_REPORT.md and PLAN.md files inside docs/plan/tasks/task-{task_id}/."
+        if not branch_created:
+            context_msg += " Note: Git branch creation encountered an issue, but task directory was created."
         if problem_text:
             context_msg += f" Problem to solve: {problem_text}"
         
