@@ -30,6 +30,13 @@ type Executor struct {
 	portalExecutor *BaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal]
 	apiExecutor    *BaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest]
 	authStrategyExecutor *BaseExecutor[kkComps.CreateAppAuthStrategyRequest, kkComps.UpdateAppAuthStrategyRequest]
+	
+	// Portal child resource executors
+	portalCustomizationExecutor *BaseSingletonExecutor[kkComps.PortalCustomization]
+	portalDomainExecutor        *BaseExecutor[kkComps.CreatePortalCustomDomainRequest,
+		kkComps.UpdatePortalCustomDomainRequest]
+	portalPageExecutor    *BaseExecutor[kkComps.CreatePortalPageRequest, kkComps.UpdatePortalPageRequest]
+	portalSnippetExecutor *BaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest]
 }
 
 // New creates a new Executor instance
@@ -56,6 +63,28 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 	)
 	e.authStrategyExecutor = NewBaseExecutor[kkComps.CreateAppAuthStrategyRequest, kkComps.UpdateAppAuthStrategyRequest](
 		NewAuthStrategyAdapter(client),
+		client,
+		dryRun,
+	)
+	
+	// Initialize portal child resource executors
+	e.portalCustomizationExecutor = NewBaseSingletonExecutor[kkComps.PortalCustomization](
+		NewPortalCustomizationAdapter(client),
+		dryRun,
+	)
+	e.portalDomainExecutor = NewBaseExecutor[kkComps.CreatePortalCustomDomainRequest,
+		kkComps.UpdatePortalCustomDomainRequest](
+		NewPortalDomainAdapter(client),
+		client,
+		dryRun,
+	)
+	e.portalPageExecutor = NewBaseExecutor[kkComps.CreatePortalPageRequest, kkComps.UpdatePortalPageRequest](
+		NewPortalPageAdapter(client),
+		client,
+		dryRun,
+	)
+	e.portalSnippetExecutor = NewBaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest](
+		NewPortalSnippetAdapter(client),
 		client,
 		dryRun,
 	)
@@ -499,9 +528,10 @@ func (e *Executor) resolvePortalPageRef(
 // Resource operations
 
 func (e *Executor) createResource(ctx context.Context, change planner.PlannedChange) (string, error) {
-	// Add namespace and protection to context for adapters
+	// Add namespace, protection, and planned change to context for adapters
 	ctx = context.WithValue(ctx, contextKeyNamespace, change.Namespace)
 	ctx = context.WithValue(ctx, contextKeyProtection, change.Protection)
+	ctx = context.WithValue(ctx, contextKeyPlannedChange, change)
 	
 	switch change.ResourceType {
 	case "portal":
@@ -520,22 +550,41 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 		return e.authStrategyExecutor.Create(ctx, change)
 	case "portal_customization":
 		// Portal customization is a singleton resource - always exists, so we update instead
-		return e.updatePortalCustomization(ctx, change)
+		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
+		if err != nil {
+			return "", err
+		}
+		return e.portalCustomizationExecutor.Update(ctx, change, portalID)
 	case "portal_custom_domain":
-		return e.createPortalCustomDomain(ctx, change)
+		return e.portalDomainExecutor.Create(ctx, change)
 	case "portal_page":
-		return e.createPortalPage(ctx, change)
+		// Handle parent page reference resolution if needed
+		if parentPageRef, ok := change.References["parent_page_id"]; ok && parentPageRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal for page: %w", err)
+			}
+			parentPageID, err := e.resolvePortalPageRef(ctx, portalID, parentPageRef.Ref, parentPageRef.LookupFields)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve parent page reference: %w", err)
+			}
+			// Create a new reference with the resolved ID
+			parentPageRef.ID = parentPageID
+			change.References["parent_page_id"] = parentPageRef
+		}
+		return e.portalPageExecutor.Create(ctx, change)
 	case "portal_snippet":
-		return e.createPortalSnippet(ctx, change)
+		return e.portalSnippetExecutor.Create(ctx, change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
 	}
 }
 
 func (e *Executor) updateResource(ctx context.Context, change planner.PlannedChange) (string, error) {
-	// Add namespace and protection to context for adapters
+	// Add namespace, protection, and planned change to context for adapters
 	ctx = context.WithValue(ctx, contextKeyNamespace, change.Namespace)
 	ctx = context.WithValue(ctx, contextKeyProtection, change.Protection)
+	ctx = context.WithValue(ctx, contextKeyPlannedChange, change)
 	
 	switch change.ResourceType {
 	case "portal":
@@ -547,13 +596,31 @@ func (e *Executor) updateResource(ctx context.Context, change planner.PlannedCha
 	case "application_auth_strategy":
 		return e.authStrategyExecutor.Update(ctx, change)
 	case "portal_customization":
-		return e.updatePortalCustomization(ctx, change)
+		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
+		if err != nil {
+			return "", err
+		}
+		return e.portalCustomizationExecutor.Update(ctx, change, portalID)
 	case "portal_custom_domain":
-		return e.updatePortalCustomDomain(ctx, change)
+		return e.portalDomainExecutor.Update(ctx, change)
 	case "portal_page":
-		return e.updatePortalPage(ctx, change)
+		// Handle parent page reference resolution if needed
+		if parentPageRef, ok := change.References["parent_page_id"]; ok && parentPageRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal for page: %w", err)
+			}
+			parentPageID, err := e.resolvePortalPageRef(ctx, portalID, parentPageRef.Ref, parentPageRef.LookupFields)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve parent page reference: %w", err)
+			}
+			// Create a new reference with the resolved ID
+			parentPageRef.ID = parentPageID
+			change.References["parent_page_id"] = parentPageRef
+		}
+		return e.portalPageExecutor.Update(ctx, change)
 	case "portal_snippet":
-		return e.updatePortalSnippet(ctx, change)
+		return e.portalSnippetExecutor.Update(ctx, change)
 	// Note: api_version, api_publication, and api_implementation don't support update
 	default:
 		return "", fmt.Errorf("update operation not yet implemented for %s", change.ResourceType)
@@ -561,9 +628,10 @@ func (e *Executor) updateResource(ctx context.Context, change planner.PlannedCha
 }
 
 func (e *Executor) deleteResource(ctx context.Context, change planner.PlannedChange) error {
-	// Add namespace and protection to context for adapters
+	// Add namespace, protection, and planned change to context for adapters
 	ctx = context.WithValue(ctx, contextKeyNamespace, change.Namespace)
 	ctx = context.WithValue(ctx, contextKeyProtection, change.Protection)
+	ctx = context.WithValue(ctx, contextKeyPlannedChange, change)
 	
 	switch change.ResourceType {
 	case "portal":
@@ -581,11 +649,11 @@ func (e *Executor) deleteResource(ctx context.Context, change planner.PlannedCha
 	case "application_auth_strategy":
 		return e.authStrategyExecutor.Delete(ctx, change)
 	case "portal_custom_domain":
-		return e.deletePortalCustomDomain(ctx, change)
+		return e.portalDomainExecutor.Delete(ctx, change)
 	case "portal_page":
-		return e.deletePortalPage(ctx, change)
+		return e.portalPageExecutor.Delete(ctx, change)
 	case "portal_snippet":
-		return e.deletePortalSnippet(ctx, change)
+		return e.portalSnippetExecutor.Delete(ctx, change)
 	// Note: portal_customization is a singleton resource and cannot be deleted
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)

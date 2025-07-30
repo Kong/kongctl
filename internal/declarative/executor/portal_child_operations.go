@@ -14,6 +14,9 @@ import (
 
 // updatePortalCustomization handles both CREATE and UPDATE operations for portal customization
 // Since customization is a singleton resource that always exists, we always use update
+// Deprecated: Use PortalCustomizationAdapter with BaseSingletonExecutor instead
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) updatePortalCustomization(ctx context.Context, change planner.PlannedChange) (string, error) {
 	// Get logger from context
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
@@ -180,6 +183,9 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 // Portal Custom Domain operations
 
 // createPortalCustomDomain handles CREATE operations for portal custom domains
+// Deprecated: Use PortalDomainAdapter with BaseExecutor instead
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) createPortalCustomDomain(ctx context.Context, change planner.PlannedChange) (string, error) {
 	// Get logger from context
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
@@ -233,6 +239,9 @@ func (e *Executor) createPortalCustomDomain(ctx context.Context, change planner.
 }
 
 // updatePortalCustomDomain handles UPDATE operations for portal custom domains
+// Deprecated: Use PortalDomainAdapter with BaseExecutor instead
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) updatePortalCustomDomain(ctx context.Context, change planner.PlannedChange) (string, error) {
 	// Get logger from context
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
@@ -280,6 +289,9 @@ func (e *Executor) updatePortalCustomDomain(ctx context.Context, change planner.
 }
 
 // deletePortalCustomDomain handles DELETE operations for portal custom domains
+// Deprecated: Use PortalDomainAdapter with BaseExecutor instead
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) deletePortalCustomDomain(ctx context.Context, change planner.PlannedChange) error {
 	// Get portal ID
 	portalID := change.ResourceID
@@ -299,6 +311,9 @@ func (e *Executor) deletePortalCustomDomain(ctx context.Context, change planner.
 // Portal Page operations
 
 // createPortalPage handles CREATE operations for portal pages
+// Deprecated: Use PortalPageAdapter with BaseExecutor instead
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) createPortalPage(ctx context.Context, change planner.PlannedChange) (string, error) {
 	// Get logger from context
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
@@ -378,6 +393,9 @@ func (e *Executor) createPortalPage(ctx context.Context, change planner.PlannedC
 }
 
 // updatePortalPage handles UPDATE operations for portal pages
+// Deprecated: Use PortalPageAdapter with BaseExecutor instead
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) updatePortalPage(ctx context.Context, change planner.PlannedChange) (string, error) {
 	// Get logger from context
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
@@ -472,6 +490,9 @@ func (e *Executor) updatePortalPage(ctx context.Context, change planner.PlannedC
 }
 
 // deletePortalPage handles DELETE operations for portal pages
+// Deprecated: Use PortalPageAdapter with BaseExecutor instead
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) deletePortalPage(ctx context.Context, change planner.PlannedChange) error {
 	// Get portal ID and page ID
 	portalID := ""
@@ -513,6 +534,9 @@ func (e *Executor) deletePortalPage(ctx context.Context, change planner.PlannedC
 // Portal Snippet operations
 
 // createPortalSnippet handles CREATE operations for portal snippets
+// Deprecated: Use PortalSnippetAdapter with BaseExecutor instead
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) createPortalSnippet(ctx context.Context, change planner.PlannedChange) (string, error) {
 	// Get logger from context
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
@@ -575,6 +599,9 @@ func (e *Executor) createPortalSnippet(ctx context.Context, change planner.Plann
 }
 
 // updatePortalSnippet handles UPDATE operations for portal snippets
+// Deprecated: Use PortalSnippetAdapter with BaseExecutor instead
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) updatePortalSnippet(ctx context.Context, change planner.PlannedChange) (string, error) {
 	// Get logger from context
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
@@ -652,6 +679,9 @@ func (e *Executor) updatePortalSnippet(ctx context.Context, change planner.Plann
 }
 
 // deletePortalSnippet handles DELETE operations for portal snippets
+// Deprecated: Use PortalSnippetAdapter with BaseExecutor instead
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) deletePortalSnippet(ctx context.Context, change planner.PlannedChange) error {
 	// Get portal ID and snippet ID
 	portalID := ""

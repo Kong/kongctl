@@ -16,8 +16,9 @@ import (
 type contextKey string
 
 const (
-	contextKeyNamespace  contextKey = "namespace"
-	contextKeyProtection contextKey = "protection"
+	contextKeyNamespace     contextKey = "namespace"
+	contextKeyProtection    contextKey = "protection"
+	contextKeyPlannedChange contextKey = "plannedChange"
 )
 
 // ResourceOperations defines the contract for resource-specific operations
