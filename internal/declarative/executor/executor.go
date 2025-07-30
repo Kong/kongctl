@@ -28,6 +28,7 @@ type Executor struct {
 	
 	// Resource executors
 	portalExecutor *BaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal]
+	apiExecutor    *BaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest]
 }
 
 // New creates a new Executor instance
@@ -44,6 +45,11 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 	// Initialize resource executors
 	e.portalExecutor = NewBaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal](
 		NewPortalAdapter(client),
+		client,
+		dryRun,
+	)
+	e.apiExecutor = NewBaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest](
+		NewAPIAdapter(client),
 		client,
 		dryRun,
 	)
@@ -495,7 +501,7 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 	case "portal":
 		return e.portalExecutor.Create(ctx, change)
 	case "api":
-		return e.createAPI(ctx, change)
+		return e.apiExecutor.Create(ctx, change)
 	case "api_version":
 		return e.createAPIVersion(ctx, change)
 	case "api_publication":
@@ -529,7 +535,7 @@ func (e *Executor) updateResource(ctx context.Context, change planner.PlannedCha
 	case "portal":
 		return e.portalExecutor.Update(ctx, change)
 	case "api":
-		return e.updateAPI(ctx, change)
+		return e.apiExecutor.Update(ctx, change)
 	case "api_document":
 		return e.updateAPIDocument(ctx, change)
 	case "application_auth_strategy":
@@ -557,7 +563,7 @@ func (e *Executor) deleteResource(ctx context.Context, change planner.PlannedCha
 	case "portal":
 		return e.portalExecutor.Delete(ctx, change)
 	case "api":
-		return e.deleteAPI(ctx, change)
+		return e.apiExecutor.Delete(ctx, change)
 	case "api_version":
 		return e.deleteAPIVersion(ctx, change)
 	case "api_publication":

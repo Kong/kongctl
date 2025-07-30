@@ -54,6 +54,8 @@ func (e *Executor) createAPI(ctx context.Context, change planner.PlannedChange) 
 }
 
 // updateAPI handles UPDATE operations for APIs
+// Deprecated: Use APIAdapter with BaseExecutor instead
+//nolint:unused // kept for test compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) updateAPI(ctx context.Context, change planner.PlannedChange) (string, error) {
 	// Get logger from context
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
