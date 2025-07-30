@@ -99,6 +99,9 @@ func (b *BasePlanner) GetDesiredPortalSnippets() []resources.PortalSnippetResour
 
 // GetGenericPlanner returns the generic planner instance
 func (b *BasePlanner) GetGenericPlanner() *GenericPlanner {
+	if b == nil || b.planner == nil {
+		return nil
+	}
 	return b.planner.genericPlanner
 }
 

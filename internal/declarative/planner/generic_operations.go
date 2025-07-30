@@ -35,6 +35,7 @@ type CreateConfig struct {
 type UpdateConfig struct {
 	ResourceType      string
 	ResourceName      string
+	ResourceRef       string
 	ResourceID        string
 	CurrentFields     map[string]interface{}
 	DesiredFields     map[string]interface{}
@@ -68,6 +69,11 @@ type ProtectionChangeConfig struct {
 
 // PlanCreate creates a planned change for resource creation
 func (g *GenericPlanner) PlanCreate(_ context.Context, config CreateConfig) (PlannedChange, error) {
+	// Check for nil planner
+	if g == nil || g.planner == nil {
+		return PlannedChange{}, fmt.Errorf("generic planner not properly initialized")
+	}
+	
 	// Create fields map
 	fields := config.FieldExtractor(nil)
 	
@@ -119,6 +125,11 @@ func (g *GenericPlanner) ShouldUpdate(config UpdateConfig) bool {
 
 // PlanUpdate creates a planned change for resource update
 func (g *GenericPlanner) PlanUpdate(_ context.Context, config UpdateConfig) (PlannedChange, error) {
+	// Check for nil planner
+	if g == nil || g.planner == nil {
+		return PlannedChange{}, fmt.Errorf("generic planner not properly initialized")
+	}
+	
 	// Validate required fields
 	for _, field := range config.RequiredFields {
 		if _, ok := config.DesiredFields[field]; !ok {
@@ -128,13 +139,18 @@ func (g *GenericPlanner) PlanUpdate(_ context.Context, config UpdateConfig) (Pla
 	}
 	
 	// Create the planned change
-	changeID := g.planner.nextChangeID(ActionUpdate, config.ResourceType, config.ResourceName)
+	// Use ResourceRef if provided, otherwise fall back to ResourceName
+	ref := config.ResourceRef
+	if ref == "" {
+		ref = config.ResourceName
+	}
+	changeID := g.planner.nextChangeID(ActionUpdate, config.ResourceType, ref)
 	
 	change := PlannedChange{
 		ID:           changeID,
 		Action:       ActionUpdate,
 		ResourceType: config.ResourceType,
-		ResourceRef:  config.ResourceName,
+		ResourceRef:  ref,
 		ResourceID:   config.ResourceID,
 		Fields:       config.DesiredFields,
 		Namespace:    config.Namespace,

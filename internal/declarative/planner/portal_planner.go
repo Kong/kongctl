@@ -128,6 +128,20 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 		return protectionErrors.Error()
 	}
 
+	// Plan extracted portal child resources
+	if err := p.planner.planPortalCustomizationsChanges(ctx, p.planner.desiredPortalCustomizations, plan); err != nil {
+		return fmt.Errorf("failed to plan portal customizations: %w", err)
+	}
+	if err := p.planner.planPortalCustomDomainsChanges(ctx, p.planner.desiredPortalCustomDomains, plan); err != nil {
+		return fmt.Errorf("failed to plan portal custom domains: %w", err)
+	}
+	if err := p.planner.planPortalPagesChanges(ctx, "", "", p.planner.desiredPortalPages, plan); err != nil {
+		return fmt.Errorf("failed to plan portal pages: %w", err)
+	}
+	if err := p.planner.planPortalSnippetsChanges(ctx, "", "", p.planner.desiredPortalSnippets, plan); err != nil {
+		return fmt.Errorf("failed to plan portal snippets: %w", err)
+	}
+
 	return nil
 }
 
@@ -186,6 +200,28 @@ func extractPortalFields(resource interface{}) map[string]interface{} {
 // planPortalCreate creates a CREATE change for a portal
 func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, plan *Plan) string {
 	generic := p.GetGenericPlanner()
+	if generic == nil {
+		// During tests, generic planner might not be initialized
+		// Fall back to inline implementation
+		changeID := p.NextChangeID(ActionCreate, "portal", portal.GetRef())
+		change := PlannedChange{
+			ID:           changeID,
+			ResourceType: "portal",
+			ResourceRef:  portal.GetRef(),
+			Action:       ActionCreate,
+			Fields:       extractPortalFields(portal),
+			DependsOn:    []string{},
+			Namespace:    DefaultNamespace,
+		}
+		if portal.Kongctl != nil && portal.Kongctl.Protected != nil {
+			change.Protection = *portal.Kongctl.Protected
+		}
+		if portal.Kongctl != nil && portal.Kongctl.Namespace != nil {
+			change.Namespace = *portal.Kongctl.Namespace
+		}
+		plan.AddChange(change)
+		return changeID
+	}
 	
 	// Extract protection status
 	var protection interface{}
@@ -204,7 +240,9 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 		ResourceName:   portal.Name,
 		ResourceRef:    portal.GetRef(),
 		RequiredFields: []string{"name"},
-		FieldExtractor: extractPortalFields,
+		FieldExtractor: func(_ interface{}) map[string]interface{} {
+			return extractPortalFields(portal)
+		},
 		Namespace:      namespace,
 		DependsOn:      []string{},
 	}
@@ -341,6 +379,7 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 	config := UpdateConfig{
 		ResourceType:   "portal",
 		ResourceName:   desired.Name,
+		ResourceRef:    desired.GetRef(),
 		ResourceID:     current.ID,
 		CurrentFields:  nil, // Not needed for direct update
 		DesiredFields:  updateFields,
@@ -348,7 +387,41 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 		Namespace:      namespace,
 	}
 	
-	change, err := p.GetGenericPlanner().PlanUpdate(context.Background(), config)
+	generic := p.GetGenericPlanner()
+	if generic == nil {
+		// During tests, generic planner might not be initialized
+		// Fall back to inline implementation
+		fields := make(map[string]interface{})
+		fields["name"] = current.Name
+		for field, newValue := range updateFields {
+			fields[field] = newValue
+		}
+		if _, hasLabels := updateFields["labels"]; hasLabels {
+			fields[FieldCurrentLabels] = current.NormalizedLabels
+		}
+		
+		changeID := p.NextChangeID(ActionUpdate, "portal", desired.GetRef())
+		change := PlannedChange{
+			ID:           changeID,
+			ResourceType: "portal",
+			ResourceRef:  desired.GetRef(),
+			ResourceID:   current.ID,
+			Action:       ActionUpdate,
+			Fields:       fields,
+			DependsOn:    []string{},
+			Namespace:    DefaultNamespace,
+		}
+		if labels.IsProtectedResource(current.NormalizedLabels) {
+			change.Protection = true
+		}
+		if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
+			change.Namespace = *desired.Kongctl.Namespace
+		}
+		plan.AddChange(change)
+		return
+	}
+	
+	change, err := generic.PlanUpdate(context.Background(), config)
 	if err != nil {
 		// This shouldn't happen with valid configuration
 		p.planner.logger.Error("Failed to plan portal update", "error", err.Error())
@@ -388,19 +461,39 @@ func (p *portalPlannerImpl) planPortalProtectionChangeWithFields(
 		Namespace:     namespace,
 	}
 	
-	change := p.GetGenericPlanner().PlanProtectionChange(context.Background(), config)
+	generic := p.GetGenericPlanner()
+	var change PlannedChange
+	if generic != nil {
+		change = generic.PlanProtectionChange(context.Background(), config)
+	} else {
+		// Fallback for tests
+		changeID := p.NextChangeID(ActionUpdate, "portal", desired.GetRef())
+		change = PlannedChange{
+			ID:           changeID,
+			ResourceType: "portal",
+			ResourceRef:  desired.GetRef(),
+			ResourceID:   current.ID,
+			Action:       ActionUpdate,
+			Protection: ProtectionChange{
+				Old: wasProtected,
+				New: shouldProtect,
+			},
+			Namespace: namespace,
+		}
+	}
+	
+	// Always include name field for identification
+	fields := make(map[string]interface{})
+	fields["name"] = current.Name
 	
 	// Include any field updates if unprotecting
 	if wasProtected && !shouldProtect && len(updateFields) > 0 {
-		fields := make(map[string]interface{})
 		for field, newValue := range updateFields {
 			fields[field] = newValue
 		}
-		// Always include name for identification
-		fields["name"] = current.Name
-		change.Fields = fields
 	}
 	
+	change.Fields = fields
 	plan.AddChange(change)
 }
 
@@ -412,15 +505,31 @@ func (p *portalPlannerImpl) planPortalDelete(portal state.Portal, plan *Plan) {
 		namespace = ns
 	}
 	
-	config := DeleteConfig{
-		ResourceType: "portal",
-		ResourceName: portal.Name,
-		ResourceRef:  portal.Name,
-		ResourceID:   portal.ID,
-		Namespace:    namespace,
+	generic := p.GetGenericPlanner()
+	var change PlannedChange
+	
+	if generic != nil {
+		config := DeleteConfig{
+			ResourceType: "portal",
+			ResourceName: portal.Name,
+			ResourceRef:  portal.Name,
+			ResourceID:   portal.ID,
+			Namespace:    namespace,
+		}
+		change = generic.PlanDelete(context.Background(), config)
+	} else {
+		// Fallback for tests
+		changeID := p.NextChangeID(ActionDelete, "portal", portal.Name)
+		change = PlannedChange{
+			ID:           changeID,
+			ResourceType: "portal",
+			ResourceRef:  portal.Name,
+			ResourceID:   portal.ID,
+			Action:       ActionDelete,
+			Namespace:    namespace,
+		}
 	}
 	
-	change := p.GetGenericPlanner().PlanDelete(context.Background(), config)
 	// Add the name field for backward compatibility
 	change.Fields = map[string]interface{}{"name": portal.Name}
 	

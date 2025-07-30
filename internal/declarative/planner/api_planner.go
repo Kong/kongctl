@@ -218,7 +218,9 @@ func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) string {
 		ResourceName:   api.Name,
 		ResourceRef:    api.GetRef(),
 		RequiredFields: []string{"name"},
-		FieldExtractor: extractAPIFields,
+		FieldExtractor: func(_ interface{}) map[string]interface{} {
+			return extractAPIFields(api)
+		},
 		Namespace:      namespace,
 		DependsOn:      []string{},
 	}
@@ -289,6 +291,7 @@ func (p *Planner) planAPIUpdateWithFields(
 	config := UpdateConfig{
 		ResourceType:   "api",
 		ResourceName:   desired.Name,
+		ResourceRef:    desired.GetRef(),
 		ResourceID:     current.ID,
 		CurrentFields:  nil, // Not needed for direct update
 		DesiredFields:  updateFields,

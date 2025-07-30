@@ -237,11 +237,11 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceS
 		return nil, fmt.Errorf("failed to apply namespace defaults: %w", err)
 	}
 
-	// Apply SDK defaults to all resources
-	l.applyDefaults(&rs)
-
-	// Extract nested child resources to root level
+	// Extract nested child resources to root level first
 	l.extractNestedResources(&rs)
+
+	// Apply SDK defaults to all resources (including extracted child resources)
+	l.applyDefaults(&rs)
 
 	// Note: We don't validate here when called from loadDirectory
 	// because cross-references might be in other files.

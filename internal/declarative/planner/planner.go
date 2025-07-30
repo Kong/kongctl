@@ -119,6 +119,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 			changeCount: p.changeCount,
 		}
 		
+		// Initialize generic planner for namespace-specific planner
+		namespacePlanner.genericPlanner = NewGenericPlanner(namespacePlanner)
+		
 		// Create new sub-planners for this namespace to ensure they reference
 		// the namespace-specific resources, not the parent's empty lists
 		base := NewBasePlanner(namespacePlanner)
@@ -533,10 +536,10 @@ func (p *Planner) filterResourcesByNamespace(rs *resources.ResourceSet, namespac
 	}
 	
 	// For child resources, include them if their parent is in the filtered set
-	// This requires building parent resource name sets for efficient lookup
-	portalNames := make(map[string]bool)
+	// This requires building parent resource ref sets for efficient lookup
+	portalRefs := make(map[string]bool)
 	for _, portal := range filtered.Portals {
-		portalNames[portal.Name] = true
+		portalRefs[portal.Ref] = true
 	}
 	
 	apiNames := make(map[string]bool)
@@ -570,25 +573,25 @@ func (p *Planner) filterResourcesByNamespace(rs *resources.ResourceSet, namespac
 	}
 	
 	for _, custom := range rs.PortalCustomizations {
-		if portalNames[custom.Portal] {
+		if portalRefs[custom.Portal] {
 			filtered.PortalCustomizations = append(filtered.PortalCustomizations, custom)
 		}
 	}
 	
 	for _, domain := range rs.PortalCustomDomains {
-		if portalNames[domain.Portal] {
+		if portalRefs[domain.Portal] {
 			filtered.PortalCustomDomains = append(filtered.PortalCustomDomains, domain)
 		}
 	}
 	
 	for _, page := range rs.PortalPages {
-		if portalNames[page.Portal] {
+		if portalRefs[page.Portal] {
 			filtered.PortalPages = append(filtered.PortalPages, page)
 		}
 	}
 	
 	for _, snippet := range rs.PortalSnippets {
-		if portalNames[snippet.Portal] {
+		if portalRefs[snippet.Portal] {
 			filtered.PortalSnippets = append(filtered.PortalSnippets, snippet)
 		}
 	}
