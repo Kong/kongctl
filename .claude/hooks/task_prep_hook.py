@@ -134,12 +134,12 @@ def main():
     # Validate git environment before proceeding
     git_valid, git_error = validate_git_environment(cwd)
     if not git_valid:
-        print(f"ERROR: Cannot start new task - {git_error}")
-        print("\nTo resolve this issue:")
-        print("  - Commit your changes: git add . && git commit -m 'your message'")
-        print("  - Or stash your changes: git stash")
-        print("  - Or discard changes: git checkout .")
-        sys.exit(1)  # Exit with error code to block the task
+        print(f"ERROR: Cannot start new task - {git_error}", file=sys.stderr)
+        print("\nTo resolve this issue:", file=sys.stderr)
+        print("  - Commit your changes: git add . && git commit -m 'your message'", file=sys.stderr)
+        print("  - Or stash your changes: git stash", file=sys.stderr)
+        print("  - Or discard changes: git checkout .", file=sys.stderr)
+        sys.exit(2)  # Exit with error code to block the task
     
     # Get next task ID
     base_dir = Path(cwd) / "docs" / "plan" / "tasks"
@@ -168,7 +168,7 @@ def main():
     else:
         # Output error but don't block processing
         print(f"Warning: Failed to create task directory: {result}", file=sys.stderr)
-        sys.exit(0)
+        sys.exit(2)
 
 
 if __name__ == "__main__":
