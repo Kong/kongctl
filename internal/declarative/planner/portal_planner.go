@@ -128,19 +128,8 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 		return protectionErrors.Error()
 	}
 
-	// Plan extracted portal child resources
-	if err := p.planner.planPortalCustomizationsChanges(ctx, p.planner.desiredPortalCustomizations, plan); err != nil {
-		return fmt.Errorf("failed to plan portal customizations: %w", err)
-	}
-	if err := p.planner.planPortalCustomDomainsChanges(ctx, p.planner.desiredPortalCustomDomains, plan); err != nil {
-		return fmt.Errorf("failed to plan portal custom domains: %w", err)
-	}
-	if err := p.planner.planPortalPagesChanges(ctx, "", "", p.planner.desiredPortalPages, plan); err != nil {
-		return fmt.Errorf("failed to plan portal pages: %w", err)
-	}
-	if err := p.planner.planPortalSnippetsChanges(ctx, "", "", p.planner.desiredPortalSnippets, plan); err != nil {
-		return fmt.Errorf("failed to plan portal snippets: %w", err)
-	}
+	// Note: Portal child resources are already planned when processing each portal above
+	// No need to plan them again here
 
 	return nil
 }
