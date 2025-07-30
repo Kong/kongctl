@@ -73,7 +73,6 @@ def main():
         sys.exit(0)
     
     # Get next instance ID
-    # base_dir = Path(cwd) / "claude-code-storage"
     base_dir = Path(cwd) / "docs" / "plan"
     instance_id = get_next_instance_id(base_dir)
     
@@ -85,7 +84,7 @@ def main():
         problem_text = prompt.replace('/task', '').strip()
         
         # Output context message that will be added to the prompt
-        context_msg = f"Directory claude-instance-{instance_id} has been automatically created for this task session. The subagents must create the INVESTIGATION_REPORT.md, FLOW_REPORT.md and PLAN.md files inside claude-code-storage/claude-instance-{instance_id}/."
+        context_msg = f"Directory claude-instance-{instance_id} has been automatically created for this task session. The subagents must create the INVESTIGATION_REPORT.md, FLOW_REPORT.md and PLAN.md files inside docs/plan/claude-instance-{instance_id}/."
         if problem_text:
             context_msg += f" Problem to solve: {problem_text}"
         

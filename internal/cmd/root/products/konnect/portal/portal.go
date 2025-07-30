@@ -49,7 +49,9 @@ func NewPortalCmd(verb verbs.VerbValue,
 		return newGetPortalCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
 	case verbs.List:
 		return newGetPortalCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
-	case verbs.Create, verbs.Delete, verbs.Add, verbs.Apply, verbs.Dump, verbs.Update, verbs.Help, verbs.Login,
+	case verbs.Delete:
+		return newDeletePortalCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
+	case verbs.Create, verbs.Add, verbs.Apply, verbs.Dump, verbs.Update, verbs.Help, verbs.Login,
 		verbs.Plan, verbs.Sync, verbs.Diff, verbs.Export:
 		return &baseCmd, nil
 	}

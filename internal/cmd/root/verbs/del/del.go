@@ -36,6 +36,10 @@ Output can be formatted in multiple ways to aid in further processing.`))
 		%[1]s delete gateway control-plane <id>
 		# Delete a Konnect Kong Gateway control plane (explicit)
 		%[1]s delete konnect gateway control-plane <id>
+		# Delete a Konnect portal by ID (Konnect-first)
+		%[1]s delete portal 12345678-1234-1234-1234-123456789012
+		# Delete a Konnect portal by name
+		%[1]s delete portal my-portal
 		`, meta.CLIName)))
 )
 
@@ -67,6 +71,13 @@ func NewDeleteCmd() (*cobra.Command, error) {
 		return nil, err
 	}
 	cmd.AddCommand(gatewayCmd)
+
+	// Add portal command directly for Konnect-first pattern
+	portalCmd, err := NewDirectPortalCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(portalCmd)
 
 	return cmd, nil
 }
