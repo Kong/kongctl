@@ -943,7 +943,7 @@ func (p *Planner) planAPIDocumentChanges(
 			
 			// Now compare with full content
 			if p.shouldUpdateAPIDocument(current, desiredDoc) {
-				p.planAPIDocumentUpdate(apiRef, current.ID, desiredDoc, plan)
+				p.planAPIDocumentUpdate(apiRef, apiID, current.ID, desiredDoc, plan)
 			}
 		}
 	}
@@ -1021,11 +1021,33 @@ func (p *Planner) planAPIDocumentCreate(
 		DependsOn:    dependsOn,
 	}
 
+	// Set API reference for executor
+	if apiRef != "" {
+		// Find the API to get its name for lookup
+		var apiName string
+		for _, api := range p.desiredAPIs {
+			if api.Ref == apiRef {
+				apiName = api.Name
+				break
+			}
+		}
+		
+		change.References = map[string]ReferenceInfo{
+			"api_id": {
+				Ref: apiRef,
+				ID:  apiID, // May be empty if API doesn't exist yet
+				LookupFields: map[string]string{
+					"name": apiName,
+				},
+			},
+		}
+	}
+
 	plan.AddChange(change)
 }
 
 func (p *Planner) planAPIDocumentUpdate(
-	apiRef string, documentID string, document resources.APIDocumentResource, plan *Plan,
+	apiRef string, apiID string, documentID string, document resources.APIDocumentResource, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	fields["content"] = document.Content
@@ -1047,10 +1069,32 @@ func (p *Planner) planAPIDocumentUpdate(
 		ResourceType: "api_document",
 		ResourceRef:  document.GetRef(),
 		ResourceID:   documentID,
-		Parent:       &ParentInfo{Ref: apiRef},
+		Parent:       &ParentInfo{Ref: apiRef, ID: apiID},
 		Action:       ActionUpdate,
 		Fields:       fields,
 		DependsOn:    []string{},
+	}
+
+	// Set API reference for executor
+	if apiRef != "" {
+		// Find the API to get its name for lookup
+		var apiName string
+		for _, api := range p.desiredAPIs {
+			if api.Ref == apiRef {
+				apiName = api.Name
+				break
+			}
+		}
+		
+		change.References = map[string]ReferenceInfo{
+			"api_id": {
+				Ref: apiRef,
+				ID:  apiID,
+				LookupFields: map[string]string{
+					"name": apiName,
+				},
+			},
+		}
 	}
 
 	plan.AddChange(change)
@@ -1070,6 +1114,28 @@ func (p *Planner) planAPIDocumentDelete(apiRef string, apiID string, documentID 
 		Action:    ActionDelete,
 		Fields:    map[string]interface{}{"slug": slug},
 		DependsOn: []string{},
+	}
+
+	// Set API reference for executor
+	if apiRef != "" {
+		// Find the API to get its name for lookup
+		var apiName string
+		for _, api := range p.desiredAPIs {
+			if api.Ref == apiRef {
+				apiName = api.Name
+				break
+			}
+		}
+		
+		change.References = map[string]ReferenceInfo{
+			"api_id": {
+				Ref: apiRef,
+				ID:  apiID,
+				LookupFields: map[string]string{
+					"name": apiName,
+				},
+			},
+		}
 	}
 
 	plan.AddChange(change)

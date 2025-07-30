@@ -298,6 +298,11 @@ func sortResourceTypesByDependency(
 	
 	// Analyze dependencies between resource types
 	for _, change := range allChanges {
+		// Ensure the resource type has an entry in typeDependencies
+		if _, exists := typeDependencies[change.ResourceType]; !exists {
+			typeDependencies[change.ResourceType] = make(map[string]bool)
+		}
+		
 		// Check parent dependencies
 		if change.Parent != nil && change.Parent.Ref != "" {
 			parentType := getParentResourceType(change.ResourceType)
@@ -431,6 +436,18 @@ func displayStatistics(plan *planner.Plan, out io.Writer) {
 	deleteCount := plan.Summary.ByAction[planner.ActionDelete]
 	
 	fmt.Fprintf(out, "  Total changes: %d\n", plan.Summary.TotalChanges)
+	
+	// Namespace count
+	namespaces := make(map[string]bool)
+	for _, change := range plan.Changes {
+		namespace := change.Namespace
+		if namespace == "" {
+			namespace = "default"
+		}
+		namespaces[namespace] = true
+	}
+	fmt.Fprintf(out, "  Namespaces affected: %d\n", len(namespaces))
+	
 	if createCount > 0 {
 		fmt.Fprintf(out, "  Resources to create: %d\n", createCount)
 	}
@@ -466,17 +483,6 @@ func displayStatistics(plan *planner.Plan, out io.Writer) {
 			fmt.Fprintf(out, "  🔓 Resources being unprotected: %d\n", plan.Summary.ProtectionChanges.Unprotecting)
 		}
 	}
-	
-	// Namespace count
-	namespaces := make(map[string]bool)
-	for _, change := range plan.Changes {
-		namespace := change.Namespace
-		if namespace == "" {
-			namespace = "default"
-		}
-		namespaces[namespace] = true
-	}
-	fmt.Fprintf(out, "  Namespaces affected: %d\n", len(namespaces))
 	
 	fmt.Fprintln(out, strings.Repeat("-", 70))
 }

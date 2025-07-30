@@ -460,6 +460,35 @@ func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.Referen
 	return portal.ID, nil
 }
 
+// resolveAPIRef resolves an API reference to its ID
+func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
+	// First check if it was created in this execution
+	if apis, ok := e.refToID["api"]; ok {
+		if id, found := apis[refInfo.Ref]; found {
+			return id, nil
+		}
+	}
+	
+	// Determine the lookup value - use name from lookup fields if available
+	lookupValue := refInfo.Ref
+	if refInfo.LookupFields != nil {
+		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
+			lookupValue = name
+		}
+	}
+	
+	// Otherwise, look it up from the API
+	api, err := e.client.GetAPIByName(ctx, lookupValue)
+	if err != nil {
+		return "", fmt.Errorf("failed to get API by name: %w", err)
+	}
+	if api == nil {
+		return "", fmt.Errorf("API not found: ref=%s, looked up by name=%s", refInfo.Ref, lookupValue)
+	}
+	
+	return api.ID, nil
+}
+
 // populatePortalPages fetches and caches all pages for a portal
 func (e *Executor) populatePortalPages(ctx context.Context, portalID string) error {
 	portal, exists := e.stateCache.Portals[portalID]
@@ -575,6 +604,16 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 	case "api_implementation":
 		return e.apiImplementationExecutor.Create(ctx, change)
 	case "api_document":
+		// First resolve API reference if needed
+		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
+			apiID, err := e.resolveAPIRef(ctx, apiRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve API reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			apiRef.ID = apiID
+			change.References["api_id"] = apiRef
+		}
 		return e.apiDocumentExecutor.Create(ctx, change)
 	case "application_auth_strategy":
 		return e.authStrategyExecutor.Create(ctx, change)
@@ -588,12 +627,19 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 	case "portal_custom_domain":
 		return e.portalDomainExecutor.Create(ctx, change)
 	case "portal_page":
+		// First resolve portal reference if needed
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
 		// Handle parent page reference resolution if needed
 		if parentPageRef, ok := change.References["parent_page_id"]; ok && parentPageRef.ID == "" {
-			portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve portal for page: %w", err)
-			}
+			portalID := change.References["portal_id"].ID
 			parentPageID, err := e.resolvePortalPageRef(ctx, portalID, parentPageRef.Ref, parentPageRef.LookupFields)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve parent page reference: %w", err)
@@ -604,6 +650,16 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 		}
 		return e.portalPageExecutor.Create(ctx, change)
 	case "portal_snippet":
+		// First resolve portal reference if needed
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
 		return e.portalSnippetExecutor.Create(ctx, change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
@@ -622,6 +678,16 @@ func (e *Executor) updateResource(ctx context.Context, change planner.PlannedCha
 	case "api":
 		return e.apiExecutor.Update(ctx, change)
 	case "api_document":
+		// First resolve API reference if needed
+		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
+			apiID, err := e.resolveAPIRef(ctx, apiRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve API reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			apiRef.ID = apiID
+			change.References["api_id"] = apiRef
+		}
 		return e.apiDocumentExecutor.Update(ctx, change)
 	case "application_auth_strategy":
 		return e.authStrategyExecutor.Update(ctx, change)
@@ -634,12 +700,19 @@ func (e *Executor) updateResource(ctx context.Context, change planner.PlannedCha
 	case "portal_custom_domain":
 		return e.portalDomainExecutor.Update(ctx, change)
 	case "portal_page":
+		// First resolve portal reference if needed
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
 		// Handle parent page reference resolution if needed
 		if parentPageRef, ok := change.References["parent_page_id"]; ok && parentPageRef.ID == "" {
-			portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve portal for page: %w", err)
-			}
+			portalID := change.References["portal_id"].ID
 			parentPageID, err := e.resolvePortalPageRef(ctx, portalID, parentPageRef.Ref, parentPageRef.LookupFields)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve parent page reference: %w", err)
@@ -650,6 +723,16 @@ func (e *Executor) updateResource(ctx context.Context, change planner.PlannedCha
 		}
 		return e.portalPageExecutor.Update(ctx, change)
 	case "portal_snippet":
+		// First resolve portal reference if needed
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
 		return e.portalSnippetExecutor.Update(ctx, change)
 	// Note: api_version, api_publication, and api_implementation don't support update
 	default:
@@ -675,14 +758,44 @@ func (e *Executor) deleteResource(ctx context.Context, change planner.PlannedCha
 	case "api_implementation":
 		return e.apiImplementationExecutor.Delete(ctx, change)
 	case "api_document":
+		// First resolve API reference if needed
+		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
+			apiID, err := e.resolveAPIRef(ctx, apiRef)
+			if err != nil {
+				return fmt.Errorf("failed to resolve API reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			apiRef.ID = apiID
+			change.References["api_id"] = apiRef
+		}
 		return e.apiDocumentExecutor.Delete(ctx, change)
 	case "application_auth_strategy":
 		return e.authStrategyExecutor.Delete(ctx, change)
 	case "portal_custom_domain":
 		return e.portalDomainExecutor.Delete(ctx, change)
 	case "portal_page":
+		// First resolve portal reference if needed
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
 		return e.portalPageExecutor.Delete(ctx, change)
 	case "portal_snippet":
+		// First resolve portal reference if needed
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
 		return e.portalSnippetExecutor.Delete(ctx, change)
 	// Note: portal_customization is a singleton resource and cannot be deleted
 	default:

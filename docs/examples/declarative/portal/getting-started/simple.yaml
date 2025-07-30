@@ -14,29 +14,26 @@ portals:
     kongctl:
       namespace: foo
       protected: false
-# #   pages:
-#      - ref: home
-#        slug: "/"
-#        title: "Kong API"
-#        description: "Start building and innovating with our APIs"
-#        visibility: "public"
-#        status: "published"
-#        content: !file ./pages/home.md
-#
+    pages:
+     - ref: home
+       slug: "/"
+       title: "Kong API"
+       description: "Start building and innovating with our APIs"
+       visibility: "public"
+       status: "published"
+       content: !file ./pages/home.md
 
-#apis:
-#  - ref: sms
-#    name: !file apis/sms/openapi.yaml#info.title
-#    description: !file apis/sms/openapi.yaml#info.description
-#    labels:
-#      category: messaging
-#      protocol: rest
-#    documents:
-#      #- ref: apis
-#      #  slug: "apis"
-#      #  title: "APIs"
-#      #  description: "API Products available in this Developer Portal."
-#      #  visibility: "public"
-#      #  status: "published"
-#      #  content: !file ./pages/apis.md
-#
+
+apis:
+  - ref: sms
+    name: !file apis/sms/openapi.yaml#info.title
+    description: !file apis/sms/openapi.yaml#info.description
+    labels:
+      category: messaging
+      protocol: rest
+    documents:
+      - ref: apis
+        slug: "apis"
+        title: "APIs"
+        status: "published"
+        content: !file ./pages/apis.md

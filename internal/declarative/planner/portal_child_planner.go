@@ -1036,6 +1036,12 @@ func (p *Planner) planPortalSnippetCreate(
 			}
 		}
 		
+		// Set Parent field for proper display and serialization
+		change.Parent = &ParentInfo{
+			Ref: snippet.Portal,
+			ID:  "", // Will be resolved during execution
+		}
+		
 		change.References = map[string]ReferenceInfo{
 			"portal_id": {
 				Ref: snippet.Portal,
