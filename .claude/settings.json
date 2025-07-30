@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:github.com)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "Bash(grep:*)",
+      "Bash(git add:*)",
+      "Bash(sed:*)",
+      "Bash(git push:*)",
+      "Bash(find:*)",
+      "Bash(rg:*)",
+      "Bash(git commit:*)",
+      "Bash(git rm:*)",
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(git checkout:*)",
+      "Bash(git pull:*)",
+      "Bash(diff:*)",
+      "Bash(git reset:*)"
+    ],
+    "deny": []
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "context7",
+    "sequential-thinking"
+  ],
+  "hooks": {
+    "PreToolUse": [],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/task_prep_hook.py"
+          }
+        ]
+      }
+    ]
+  }
+}
