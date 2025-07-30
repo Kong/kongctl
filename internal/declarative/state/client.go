@@ -153,11 +153,13 @@ type ApplicationAuthStrategy struct {
 // If namespaces is empty, no resources are returned (breaking change from previous behavior)
 // To get all managed resources across all namespaces, pass []string{"*"}
 func (c *Client) ListManagedPortals(ctx context.Context, namespaces []string) ([]Portal, error) {
-	var allPortals []Portal
-	var pageNumber int64 = 1
-	pageSize := int64(100)
+	// Validate API client
+	if err := ValidateAPIClient(c.portalAPI, "Portal API"); err != nil {
+		return nil, err
+	}
 
-	for {
+	// Create paginated lister function
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]Portal, *PageMeta, error) {
 		req := kkOps.ListPortalsRequest{
 			PageSize:   &pageSize,
 			PageNumber: &pageNumber,
@@ -165,13 +167,15 @@ func (c *Client) ListManagedPortals(ctx context.Context, namespaces []string) ([
 
 		resp, err := c.portalAPI.ListPortals(ctx, req)
 		if err != nil {
-			return nil, fmt.Errorf("failed to list portals: %w", err)
+			return nil, nil, WrapAPIError(err, "list portals", nil)
 		}
 
-		if resp.ListPortalsResponse == nil || len(resp.ListPortalsResponse.Data) == 0 {
-			break
+		if resp.ListPortalsResponse == nil {
+			return []Portal{}, &PageMeta{Total: 0}, nil
 		}
 
+		var filteredPortals []Portal
+		
 		// Process and filter portals
 		for _, p := range resp.ListPortalsResponse.Data {
 			// Labels are already map[string]string in the SDK
@@ -188,20 +192,18 @@ func (c *Client) ListManagedPortals(ctx context.Context, namespaces []string) ([
 						Portal:           p,
 						NormalizedLabels: normalized,
 					}
-					allPortals = append(allPortals, portal)
+					filteredPortals = append(filteredPortals, portal)
 				}
 			}
 		}
 
-		pageNumber++
+		// Extract pagination metadata
+		meta := &PageMeta{Total: resp.ListPortalsResponse.Meta.Page.Total}
 
-		// Check if we've fetched all pages
-		if resp.ListPortalsResponse.Meta.Page.Total <= float64(pageSize*(pageNumber-1)) {
-			break
-		}
+		return filteredPortals, meta, nil
 	}
 
-	return allPortals, nil
+	return PaginateAll(ctx, lister)
 }
 
 // GetPortalByName finds a managed portal by name
@@ -280,23 +282,16 @@ func (c *Client) CreatePortal(
 
 	resp, err := c.portalAPI.CreatePortal(ctx, portal)
 	if err != nil {
-		// Extract status code from error if possible
-		statusCode := errors.ExtractStatusCodeFromError(err)
-		
-		// Create enhanced error with context and hints
-		ctx := errors.APIErrorContext{
+		return nil, WrapAPIError(err, "create portal", &ErrorWrapperOptions{
 			ResourceType: "portal",
 			ResourceName: portal.Name,
 			Namespace:    namespace,
-			Operation:    "create",
-			StatusCode:   statusCode,
-		}
-		
-		return nil, errors.EnhanceAPIError(err, ctx)
+			UseEnhanced:  true,
+		})
 	}
 
-	if resp.PortalResponse == nil {
-		return nil, fmt.Errorf("create portal response missing portal data")
+	if err := ValidateResponse(resp.PortalResponse, "create portal"); err != nil {
+		return nil, err
 	}
 
 	return resp.PortalResponse, nil
@@ -364,15 +359,13 @@ func (c *Client) DeletePortal(ctx context.Context, id string, force bool) error 
 // If namespaces is empty, no resources are returned (breaking change from previous behavior)
 // To get all managed resources across all namespaces, pass []string{"*"}
 func (c *Client) ListManagedAPIs(ctx context.Context, namespaces []string) ([]API, error) {
-	if c.apiAPI == nil {
-		return nil, fmt.Errorf("API client not configured")
+	// Validate API client
+	if err := ValidateAPIClient(c.apiAPI, "API"); err != nil {
+		return nil, err
 	}
 
-	var allAPIs []API
-	var pageNumber int64 = 1
-	pageSize := int64(100)
-
-	for {
+	// Create paginated lister function
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]API, *PageMeta, error) {
 		req := kkOps.ListApisRequest{
 			PageSize:   &pageSize,
 			PageNumber: &pageNumber,
@@ -380,12 +373,14 @@ func (c *Client) ListManagedAPIs(ctx context.Context, namespaces []string) ([]AP
 
 		resp, err := c.apiAPI.ListApis(ctx, req)
 		if err != nil {
-			return nil, fmt.Errorf("failed to list APIs: %w", err)
+			return nil, nil, WrapAPIError(err, "list APIs", nil)
 		}
 
-		if resp.ListAPIResponse == nil || len(resp.ListAPIResponse.Data) == 0 {
-			break
+		if resp.ListAPIResponse == nil {
+			return []API{}, &PageMeta{Total: 0}, nil
 		}
+
+		var filteredAPIs []API
 
 		// Process and filter APIs
 		for _, a := range resp.ListAPIResponse.Data {
@@ -403,20 +398,18 @@ func (c *Client) ListManagedAPIs(ctx context.Context, namespaces []string) ([]AP
 						APIResponseSchema: a,
 						NormalizedLabels:  normalized,
 					}
-					allAPIs = append(allAPIs, api)
+					filteredAPIs = append(filteredAPIs, api)
 				}
 			}
 		}
 
-		pageNumber++
+		// Extract pagination metadata
+		meta := &PageMeta{Total: resp.ListAPIResponse.Meta.Page.Total}
 
-		// Check if we've fetched all pages
-		if resp.ListAPIResponse.Meta.Page.Total <= float64(pageSize*(pageNumber-1)) {
-			break
-		}
+		return filteredAPIs, meta, nil
 	}
 
-	return allAPIs, nil
+	return PaginateAll(ctx, lister)
 }
 
 // GetAPIByName finds a managed API by name
@@ -1009,15 +1002,13 @@ func (c *Client) CreateApplicationAuthStrategy(
 func (c *Client) ListManagedAuthStrategies(
 	ctx context.Context, namespaces []string,
 ) ([]ApplicationAuthStrategy, error) {
-	if c.appAuthAPI == nil {
-		return nil, fmt.Errorf("app auth API client not configured")
+	// Validate API client
+	if err := ValidateAPIClient(c.appAuthAPI, "app auth API"); err != nil {
+		return nil, err
 	}
 
-	var allStrategies []ApplicationAuthStrategy
-	var pageNumber int64 = 1
-	pageSize := int64(100)
-
-	for {
+	// Create paginated lister function
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]ApplicationAuthStrategy, *PageMeta, error) {
 		req := kkOps.ListAppAuthStrategiesRequest{
 			PageSize:   &pageSize,
 			PageNumber: &pageNumber,
@@ -1025,92 +1016,102 @@ func (c *Client) ListManagedAuthStrategies(
 
 		resp, err := c.appAuthAPI.ListAppAuthStrategies(ctx, req)
 		if err != nil {
-			return nil, fmt.Errorf("failed to list application auth strategies: %w", err)
+			return nil, nil, WrapAPIError(err, "list application auth strategies", nil)
 		}
 
-		if resp.ListAppAuthStrategiesResponse == nil || len(resp.ListAppAuthStrategiesResponse.Data) == 0 {
-			break
+		if resp.ListAppAuthStrategiesResponse == nil {
+			return []ApplicationAuthStrategy{}, &PageMeta{Total: 0}, nil
 		}
+
+		var filteredStrategies []ApplicationAuthStrategy
 
 		// Process and filter auth strategies
 		for _, s := range resp.ListAppAuthStrategiesResponse.Data {
-			// Extract common fields based on strategy type
-			var strategy ApplicationAuthStrategy
-			var labelMap map[string]string
-
-			// The SDK returns AppAuthStrategy which is a union type
-			// We need to check which type it is by checking the embedded fields
-			if s.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse != nil {
-				keyAuthResp := s.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse
-				strategy.ID = keyAuthResp.ID
-				strategy.Name = keyAuthResp.Name
-				strategy.DisplayName = keyAuthResp.DisplayName
-				strategy.StrategyType = "key_auth"
-
-				// Extract configs
-				configs := make(map[string]interface{})
-				keyAuthConfig := make(map[string]interface{})
-				if keyAuthResp.Configs.KeyAuth.KeyNames != nil {
-					keyAuthConfig["key_names"] = keyAuthResp.Configs.KeyAuth.KeyNames
-				}
-				configs["key-auth"] = keyAuthConfig
-				strategy.Configs = configs
-
-				labelMap = keyAuthResp.Labels
-
-			} else if s.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse != nil {
-				oidcResp := s.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse
-				strategy.ID = oidcResp.ID
-				strategy.Name = oidcResp.Name
-				strategy.DisplayName = oidcResp.DisplayName
-				strategy.StrategyType = "openid_connect"
-
-				// Extract configs
-				configs := make(map[string]interface{})
-				oidcConfig := make(map[string]interface{})
-				oidcConfig["issuer"] = oidcResp.Configs.OpenidConnect.Issuer
-				if oidcResp.Configs.OpenidConnect.CredentialClaim != nil {
-					oidcConfig["credential_claim"] = oidcResp.Configs.OpenidConnect.CredentialClaim
-				}
-				if oidcResp.Configs.OpenidConnect.Scopes != nil {
-					oidcConfig["scopes"] = oidcResp.Configs.OpenidConnect.Scopes
-				}
-				if oidcResp.Configs.OpenidConnect.AuthMethods != nil {
-					oidcConfig["auth_methods"] = oidcResp.Configs.OpenidConnect.AuthMethods
-				}
-				configs["openid-connect"] = oidcConfig
-				strategy.Configs = configs
-
-				labelMap = oidcResp.Labels
-			} else {
+			strategy := c.extractAuthStrategyFromUnion(s)
+			if strategy == nil {
 				// Unknown type, skip
 				continue
 			}
 
-			// Normalize labels
-			if labelMap == nil {
-				labelMap = make(map[string]string)
-			}
-			strategy.NormalizedLabels = labelMap
-
 			// Check if resource has a namespace label (new criteria for managed resources)
-			if labels.IsManagedResource(labelMap) {
+			if labels.IsManagedResource(strategy.NormalizedLabels) {
 				// Filter by namespace if specified
-				if shouldIncludeNamespace(labelMap[labels.NamespaceKey], namespaces) {
-					allStrategies = append(allStrategies, strategy)
+				if shouldIncludeNamespace(strategy.NormalizedLabels[labels.NamespaceKey], namespaces) {
+					filteredStrategies = append(filteredStrategies, *strategy)
 				}
 			}
 		}
 
-		pageNumber++
+		// Extract pagination metadata
+		meta := &PageMeta{Total: resp.ListAppAuthStrategiesResponse.Meta.Page.Total}
 
-		// Check if we've fetched all pages
-		if resp.ListAppAuthStrategiesResponse.Meta.Page.Total <= float64(pageSize*(pageNumber-1)) {
-			break
-		}
+		return filteredStrategies, meta, nil
 	}
 
-	return allStrategies, nil
+	return PaginateAll(ctx, lister)
+}
+
+// extractAuthStrategyFromUnion extracts a normalized auth strategy from the SDK union type
+func (c *Client) extractAuthStrategyFromUnion(s kkComps.AppAuthStrategy) *ApplicationAuthStrategy {
+	var strategy ApplicationAuthStrategy
+	var labelMap map[string]string
+
+	// The SDK returns AppAuthStrategy which is a union type
+	// We need to check which type it is by checking the embedded fields
+	if s.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse != nil {
+		keyAuthResp := s.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse
+		strategy.ID = keyAuthResp.ID
+		strategy.Name = keyAuthResp.Name
+		strategy.DisplayName = keyAuthResp.DisplayName
+		strategy.StrategyType = "key_auth"
+
+		// Extract configs
+		configs := make(map[string]interface{})
+		keyAuthConfig := make(map[string]interface{})
+		if keyAuthResp.Configs.KeyAuth.KeyNames != nil {
+			keyAuthConfig["key_names"] = keyAuthResp.Configs.KeyAuth.KeyNames
+		}
+		configs["key-auth"] = keyAuthConfig
+		strategy.Configs = configs
+
+		labelMap = keyAuthResp.Labels
+
+	} else if s.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse != nil {
+		oidcResp := s.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse
+		strategy.ID = oidcResp.ID
+		strategy.Name = oidcResp.Name
+		strategy.DisplayName = oidcResp.DisplayName
+		strategy.StrategyType = "openid_connect"
+
+		// Extract configs
+		configs := make(map[string]interface{})
+		oidcConfig := make(map[string]interface{})
+		oidcConfig["issuer"] = oidcResp.Configs.OpenidConnect.Issuer
+		if oidcResp.Configs.OpenidConnect.CredentialClaim != nil {
+			oidcConfig["credential_claim"] = oidcResp.Configs.OpenidConnect.CredentialClaim
+		}
+		if oidcResp.Configs.OpenidConnect.Scopes != nil {
+			oidcConfig["scopes"] = oidcResp.Configs.OpenidConnect.Scopes
+		}
+		if oidcResp.Configs.OpenidConnect.AuthMethods != nil {
+			oidcConfig["auth_methods"] = oidcResp.Configs.OpenidConnect.AuthMethods
+		}
+		configs["openid-connect"] = oidcConfig
+		strategy.Configs = configs
+
+		labelMap = oidcResp.Labels
+	} else {
+		// Unknown type
+		return nil
+	}
+
+	// Normalize labels
+	if labelMap == nil {
+		labelMap = make(map[string]string)
+	}
+	strategy.NormalizedLabels = labelMap
+
+	return &strategy
 }
 
 // GetAuthStrategyByName finds a managed auth strategy by name
