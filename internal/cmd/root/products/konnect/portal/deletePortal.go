@@ -28,9 +28,8 @@ var (
 	deletePortalLong = i18n.T("root.products.konnect.portal.deletePortalLong",
 		`Delete a portal by ID or name.
 
-If the portal has child resources (pages, snippets, custom domains), the deletion will fail
-unless the --force flag is used. Using --force will cascade delete the portal and all its
-child resources.
+If the portal has published APIs, the deletion will fail unless the --force flag is used.
+Using --force will delete the portal along with all API publications.
 
 A confirmation prompt will be shown before deletion unless --auto-approve is used.`)
 	deletePortalExample = normalizers.Examples(
@@ -42,7 +41,7 @@ A confirmation prompt will be shown before deletion unless --auto-approve is use
 	# Delete a portal by name
 	%[1]s delete portal my-portal
 
-	# Force delete a portal with child resources
+	# Force delete a portal with published APIs
 	%[1]s delete portal my-portal --force
 
 	# Delete without confirmation prompt
@@ -142,9 +141,9 @@ func (c *deletePortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	_, err := sdk.GetPortalAPI().DeletePortal(helper.GetContext(), portalID, c.force)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
-		// Check if error is due to child resources
-		if !c.force && strings.Contains(err.Error(), "child") {
-			attrs = append(attrs, "suggestion", "Use --force to cascade delete portal with child resources")
+		// Check if error is due to published APIs
+		if !c.force && (strings.Contains(err.Error(), "published") || strings.Contains(err.Error(), "API")) {
+			attrs = append(attrs, "suggestion", "Use --force to delete portal with published APIs")
 		}
 		return cmd.PrepareExecutionError("Failed to delete portal", err, helper.GetCmd(), attrs...)
 	}
@@ -244,11 +243,10 @@ func (c *deletePortalCmd) confirmDeletion(portal *kkComps.Portal, helper cmd.Hel
 	fmt.Fprintf(streams.Out, "\n  Name: %s\n", portal.Name)
 	fmt.Fprintf(streams.Out, "  ID:   %s\n", portal.ID)
 
-	// Add warning about child resources if not using force
+	// Add warning about published APIs if not using force
 	if !c.force {
-		fmt.Fprintln(streams.Out, "\nNote: If this portal has child resources (pages, snippets, custom domains),")
-		fmt.Fprintln(streams.Out, "      the deletion will fail.")
-		fmt.Fprintln(streams.Out, "      Use --force to cascade delete the portal and all its child resources.")
+		fmt.Fprintln(streams.Out, "\nNote: If this portal has published APIs, the deletion will fail.")
+		fmt.Fprintln(streams.Out, "      Use --force to delete the portal along with all API publications.")
 	}
 
 	fmt.Fprint(streams.Out, "\nDo you want to continue? Type 'yes' to confirm: ")
@@ -292,7 +290,7 @@ func newDeletePortalCmd(
 
 	// Add flags
 	rv.Flags().BoolVar(&rv.force, "force", false,
-		"Force deletion even if the portal has child resources (cascades delete)")
+		"Force deletion even if the portal has published APIs")
 	rv.Flags().BoolVar(&rv.autoApprove, "auto-approve", false,
 		"Skip confirmation prompt")
 

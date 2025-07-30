@@ -55,7 +55,7 @@ Setting this value overrides tokens obtained from the login command.
   kongctl delete portal 12345678-1234-1234-1234-123456789012
   # Delete a portal by name
   kongctl delete portal my-portal
-  # Force delete a portal with child resources
+  # Force delete a portal with published APIs
   kongctl delete portal my-portal --force
   # Delete without confirmation prompt
   kongctl delete portal my-portal --auto-approve`
