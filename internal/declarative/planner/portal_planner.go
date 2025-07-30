@@ -3,7 +3,6 @@ package planner
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -132,9 +131,15 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 	return nil
 }
 
-// planPortalCreate creates a CREATE change for a portal
-func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, plan *Plan) string {
+// extractPortalFields extracts fields from a portal resource for planner operations
+func extractPortalFields(resource interface{}) map[string]interface{} {
 	fields := make(map[string]interface{})
+	
+	portal, ok := resource.(resources.PortalResource)
+	if !ok {
+		return fields
+	}
+	
 	fields["name"] = portal.Name
 	if portal.DisplayName != nil {
 		fields["display_name"] = *portal.DisplayName
@@ -163,29 +168,7 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 	if portal.AutoApproveApplications != nil {
 		fields["auto_approve_applications"] = *portal.AutoApproveApplications
 	}
-
-	change := PlannedChange{
-		ID:           p.NextChangeID(ActionCreate, "portal", portal.GetRef()),
-		ResourceType: "portal",
-		ResourceRef:  portal.GetRef(),
-		Action:       ActionCreate,
-		Fields:       fields,
-		DependsOn:    []string{},
-	}
-
-	// Only set protection if explicitly specified
-	if portal.Kongctl != nil && portal.Kongctl.Protected != nil {
-		change.Protection = *portal.Kongctl.Protected
-	}
-
-	// Extract namespace
-	if portal.Kongctl != nil && portal.Kongctl.Namespace != nil {
-		change.Namespace = *portal.Kongctl.Namespace
-	} else {
-		// This should not happen as loader should have set default namespace
-		change.Namespace = DefaultNamespace
-	}
-
+	
 	// Copy user-defined labels only (protection label will be added during execution)
 	if len(portal.Labels) > 0 {
 		labelsMap := make(map[string]interface{})
@@ -196,7 +179,46 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 		}
 		fields["labels"] = labelsMap
 	}
+	
+	return fields
+}
 
+// planPortalCreate creates a CREATE change for a portal
+func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, plan *Plan) string {
+	generic := p.GetGenericPlanner()
+	
+	// Extract protection status
+	var protection interface{}
+	if portal.Kongctl != nil && portal.Kongctl.Protected != nil {
+		protection = *portal.Kongctl.Protected
+	}
+	
+	// Extract namespace
+	namespace := DefaultNamespace
+	if portal.Kongctl != nil && portal.Kongctl.Namespace != nil {
+		namespace = *portal.Kongctl.Namespace
+	}
+	
+	config := CreateConfig{
+		ResourceType:   "portal",
+		ResourceName:   portal.Name,
+		ResourceRef:    portal.GetRef(),
+		RequiredFields: []string{"name"},
+		FieldExtractor: extractPortalFields,
+		Namespace:      namespace,
+		DependsOn:      []string{},
+	}
+	
+	change, err := generic.PlanCreate(context.Background(), config)
+	if err != nil {
+		// This shouldn't happen with valid configuration
+		p.planner.logger.Error("Failed to plan portal create", "error", err.Error())
+		return ""
+	}
+	
+	// Set protection after creation
+	change.Protection = protection
+	
 	plan.AddChange(change)
 	return change.ID
 }
@@ -302,44 +324,42 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 	updateFields map[string]interface{},
 	plan *Plan,
 ) {
-	fields := make(map[string]interface{})
-
 	// Always include name for identification
-	fields["name"] = current.Name
-
-	// Store the fields that need updating
-	for field, newValue := range updateFields {
-		fields[field] = newValue
-	}
+	updateFields["name"] = current.Name
 	
 	// Pass current labels so executor can properly handle removals
 	if _, hasLabels := updateFields["labels"]; hasLabels {
-		fields[FieldCurrentLabels] = current.NormalizedLabels
+		updateFields[FieldCurrentLabels] = current.NormalizedLabels
 	}
-
-	change := PlannedChange{
-		ID:           p.NextChangeID(ActionUpdate, "portal", desired.GetRef()),
-		ResourceType: "portal",
-		ResourceRef:  desired.GetRef(),
-		ResourceID:   current.ID,
-		Action:       ActionUpdate,
-		Fields:       fields,
-		DependsOn:    []string{},
+	
+	// Extract namespace
+	namespace := DefaultNamespace
+	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
+		namespace = *desired.Kongctl.Namespace
 	}
-
+	
+	config := UpdateConfig{
+		ResourceType:   "portal",
+		ResourceName:   desired.Name,
+		ResourceID:     current.ID,
+		CurrentFields:  nil, // Not needed for direct update
+		DesiredFields:  updateFields,
+		RequiredFields: []string{"name"},
+		Namespace:      namespace,
+	}
+	
+	change, err := p.GetGenericPlanner().PlanUpdate(context.Background(), config)
+	if err != nil {
+		// This shouldn't happen with valid configuration
+		p.planner.logger.Error("Failed to plan portal update", "error", err.Error())
+		return
+	}
+	
 	// Check if already protected
 	if labels.IsProtectedResource(current.NormalizedLabels) {
 		change.Protection = true
 	}
-
-	// Extract namespace
-	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
-		change.Namespace = *desired.Kongctl.Namespace
-	} else {
-		// This should not happen as loader should have set default namespace
-		change.Namespace = DefaultNamespace
-	}
-
+	
 	plan.AddChange(change)
 }
 
@@ -351,66 +371,59 @@ func (p *portalPlannerImpl) planPortalProtectionChangeWithFields(
 	updateFields map[string]interface{},
 	plan *Plan,
 ) {
-	fields := make(map[string]interface{})
-
+	// Extract namespace
+	namespace := DefaultNamespace
+	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
+		namespace = *desired.Kongctl.Namespace
+	}
+	
+	// Use generic protection change planner
+	config := ProtectionChangeConfig{
+		ResourceType:  "portal",
+		ResourceName:  desired.Name,
+		ResourceRef:   desired.GetRef(),
+		ResourceID:    current.ID,
+		OldProtected:  wasProtected,
+		NewProtected:  shouldProtect,
+		Namespace:     namespace,
+	}
+	
+	change := p.GetGenericPlanner().PlanProtectionChange(context.Background(), config)
+	
 	// Include any field updates if unprotecting
 	if wasProtected && !shouldProtect && len(updateFields) > 0 {
+		fields := make(map[string]interface{})
 		for field, newValue := range updateFields {
 			fields[field] = newValue
 		}
+		// Always include name for identification
+		fields["name"] = current.Name
+		change.Fields = fields
 	}
-
-	// Always include name for identification
-	fields["name"] = current.Name
-
-	// Don't add protection label here - it will be added during execution
-	// based on the Protection field
-
-	change := PlannedChange{
-		ID:           p.NextChangeID(ActionUpdate, "portal", desired.GetRef()),
-		ResourceType: "portal",
-		ResourceRef:  desired.GetRef(),
-		ResourceID:   current.ID,
-		Action:       ActionUpdate,
-		Fields:       fields,
-		Protection: ProtectionChange{
-			Old: wasProtected,
-			New: shouldProtect,
-		},
-		DependsOn: []string{},
-	}
-
-	// Extract namespace
-	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
-		change.Namespace = *desired.Kongctl.Namespace
-	} else {
-		// This should not happen as loader should have set default namespace
-		change.Namespace = DefaultNamespace
-	}
-
+	
 	plan.AddChange(change)
 }
 
 // planPortalDelete creates a DELETE change for a portal
 func (p *portalPlannerImpl) planPortalDelete(portal state.Portal, plan *Plan) {
-	change := PlannedChange{
-		ID:           p.NextChangeID(ActionDelete, "portal", portal.Name),
+	// Extract namespace from labels (for existing resources being deleted)
+	namespace := DefaultNamespace
+	if ns, ok := portal.NormalizedLabels[labels.NamespaceKey]; ok {
+		namespace = ns
+	}
+	
+	config := DeleteConfig{
 		ResourceType: "portal",
+		ResourceName: portal.Name,
 		ResourceRef:  portal.Name,
 		ResourceID:   portal.ID,
-		Action:       ActionDelete,
-		Fields:       map[string]interface{}{"name": portal.Name},
-		DependsOn:    []string{},
+		Namespace:    namespace,
 	}
-
-	// Extract namespace from labels (for existing resources being deleted)
-	if ns, ok := portal.NormalizedLabels[labels.NamespaceKey]; ok {
-		change.Namespace = ns
-	} else {
-		// Fallback to default
-		change.Namespace = DefaultNamespace
-	}
-
+	
+	change := p.GetGenericPlanner().PlanDelete(context.Background(), config)
+	// Add the name field for backward compatibility
+	change.Fields = map[string]interface{}{"name": portal.Name}
+	
 	plan.AddChange(change)
 }
 
@@ -438,8 +451,8 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 	if err := planner.planPortalPagesChanges(ctx, "", desired.Ref, pages, plan); err != nil {
 		// Log error but don't fail - portal creation should still proceed
 		planner.logger.Debug("Failed to plan portal pages for new portal", 
-			slog.String("portal", desired.Ref),
-			slog.String("error", err.Error()))
+			"portal", desired.Ref,
+			"error", err.Error())
 	}
 	
 	// Plan snippets
@@ -451,8 +464,8 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 	}
 	if err := planner.planPortalSnippetsChanges(ctx, "", desired.Ref, snippets, plan); err != nil {
 		planner.logger.Debug("Failed to plan portal snippets for new portal",
-			slog.String("portal", desired.Ref),
-			slog.String("error", err.Error()))
+			"portal", desired.Ref,
+			"error", err.Error())
 	}
 	
 	// Plan customization
@@ -464,8 +477,8 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 	}
 	if err := planner.planPortalCustomizationsChanges(ctx, customizations, plan); err != nil {
 		planner.logger.Debug("Failed to plan portal customizations for new portal",
-			slog.String("portal", desired.Ref),
-			slog.String("error", err.Error()))
+			"portal", desired.Ref,
+			"error", err.Error())
 	}
 	
 	// Plan custom domain
@@ -477,8 +490,8 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 	}
 	if err := planner.planPortalCustomDomainsChanges(ctx, domains, plan); err != nil {
 		planner.logger.Debug("Failed to plan portal custom domains for new portal",
-			slog.String("portal", desired.Ref),
-			slog.String("error", err.Error()))
+			"portal", desired.Ref,
+			"error", err.Error())
 	}
 }
 

@@ -62,6 +62,7 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 
 	// Test case 1: Minimal config - should not trigger updates for API defaults
 	t.Run("minimal config no changes", func(t *testing.T) {
+		namespace := "default"
 		rs := &resources.ResourceSet{
 			Portals: []resources.PortalResource{
 				{
@@ -70,6 +71,9 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 						Description: &description, // Only configured field
 					},
 					Ref: "test-portal",
+					Kongctl: &resources.KongctlMeta{
+						Namespace: &namespace,
+					},
 				},
 			},
 		}
@@ -87,6 +91,7 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 	// Test case 2: Config with different value - should trigger update
 	t.Run("config with changes", func(t *testing.T) {
 		newDesc := "Updated description"
+		namespace := "default"
 		rs := &resources.ResourceSet{
 			Portals: []resources.PortalResource{
 				{
@@ -95,6 +100,9 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 						Description: &newDesc, // Changed value
 					},
 					Ref: "test-portal",
+					Kongctl: &resources.KongctlMeta{
+						Namespace: &namespace,
+					},
 				},
 			},
 		}
@@ -116,6 +124,7 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 	// Test case 3: Add new field to existing config
 	t.Run("add new field", func(t *testing.T) {
 		newDisplayName := "Custom Portal"
+		namespace := "default"
 		rs := &resources.ResourceSet{
 			Portals: []resources.PortalResource{
 				{
@@ -125,6 +134,9 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 						DisplayName: &newDisplayName,   // New field
 					},
 					Ref: "test-portal",
+					Kongctl: &resources.KongctlMeta{
+						Namespace: &namespace,
+					},
 				},
 			},
 		}
