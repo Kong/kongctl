@@ -9,6 +9,9 @@ import (
 )
 
 // createAPIVersion creates a new API version
+// Deprecated: Use APIVersionAdapter with BaseCreateDeleteExecutor instead
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) createAPIVersion(ctx context.Context, change planner.PlannedChange) (string, error) {
 	if e.client == nil {
 		return "", fmt.Errorf("client not configured")
@@ -46,6 +49,9 @@ func (e *Executor) createAPIVersion(ctx context.Context, change planner.PlannedC
 }
 
 // deleteAPIVersion deletes an API version
+// Deprecated: Use APIVersionAdapter with BaseCreateDeleteExecutor instead
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) deleteAPIVersion(ctx context.Context, change planner.PlannedChange) error {
 	if e.client == nil {
 		return fmt.Errorf("client not configured")

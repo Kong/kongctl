@@ -9,6 +9,9 @@ import (
 )
 
 // createAPIDocument creates a new API document
+// Deprecated: Use APIDocumentAdapter with BaseExecutor instead
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) createAPIDocument(ctx context.Context, change planner.PlannedChange) (string, error) {
 	if e.client == nil {
 		return "", fmt.Errorf("client not configured")
@@ -54,6 +57,9 @@ func (e *Executor) createAPIDocument(ctx context.Context, change planner.Planned
 }
 
 // updateAPIDocument updates an existing API document
+// Deprecated: Use APIDocumentAdapter with BaseExecutor instead
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) updateAPIDocument(ctx context.Context, change planner.PlannedChange) (string, error) {
 	if e.client == nil {
 		return "", fmt.Errorf("client not configured")
@@ -96,6 +102,9 @@ func (e *Executor) updateAPIDocument(ctx context.Context, change planner.Planned
 }
 
 // deleteAPIDocument deletes an API document
+// Deprecated: Use APIDocumentAdapter with BaseExecutor instead
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) deleteAPIDocument(ctx context.Context, change planner.PlannedChange) error {
 	if e.client == nil {
 		return fmt.Errorf("client not configured")

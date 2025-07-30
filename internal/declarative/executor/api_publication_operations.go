@@ -10,6 +10,9 @@ import (
 )
 
 // createAPIPublication creates a new API publication
+// Deprecated: Use APIPublicationAdapter with BaseCreateDeleteExecutor instead
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) createAPIPublication(ctx context.Context, change planner.PlannedChange) (string, error) {
 	if e.client == nil {
 		return "", fmt.Errorf("client not configured")
@@ -116,6 +119,9 @@ func (e *Executor) createAPIPublication(ctx context.Context, change planner.Plan
 }
 
 // deleteAPIPublication deletes an API publication
+// Deprecated: Use APIPublicationAdapter with BaseCreateDeleteExecutor instead
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) deleteAPIPublication(ctx context.Context, change planner.PlannedChange) error {
 	if e.client == nil {
 		return fmt.Errorf("client not configured")
@@ -153,6 +159,8 @@ func (e *Executor) deleteAPIPublication(ctx context.Context, change planner.Plan
 // Note: API publications don't support update operations in the SDK
 
 // isUUID checks if a string is a UUID format
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func isUUID(s string) bool {
 	// Simple check - UUID format: 8-4-4-4-12 characters
 	return len(s) == 36 && s[8] == '-' && s[13] == '-' && s[18] == '-' && s[23] == '-'

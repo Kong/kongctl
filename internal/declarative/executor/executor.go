@@ -37,6 +37,13 @@ type Executor struct {
 		kkComps.UpdatePortalCustomDomainRequest]
 	portalPageExecutor    *BaseExecutor[kkComps.CreatePortalPageRequest, kkComps.UpdatePortalPageRequest]
 	portalSnippetExecutor *BaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest]
+	
+	// API child resource executors
+	apiVersionExecutor      *BaseCreateDeleteExecutor[kkComps.CreateAPIVersionRequest]
+	apiPublicationExecutor  *BaseCreateDeleteExecutor[kkComps.APIPublication]
+	apiDocumentExecutor     *BaseExecutor[kkComps.CreateAPIDocumentRequest, kkComps.APIDocument]
+	// API implementation is not yet supported by SDK but we include adapter for completeness
+	apiImplementationExecutor *BaseExecutor[kkComps.CreateAPIVersionRequest, kkComps.APIVersion]
 }
 
 // New creates a new Executor instance
@@ -85,6 +92,27 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 	)
 	e.portalSnippetExecutor = NewBaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest](
 		NewPortalSnippetAdapter(client),
+		client,
+		dryRun,
+	)
+	
+	// Initialize API child resource executors
+	e.apiVersionExecutor = NewBaseCreateDeleteExecutor[kkComps.CreateAPIVersionRequest](
+		NewAPIVersionAdapter(client),
+		dryRun,
+	)
+	e.apiPublicationExecutor = NewBaseCreateDeleteExecutor[kkComps.APIPublication](
+		NewAPIPublicationAdapter(client),
+		dryRun,
+	)
+	e.apiDocumentExecutor = NewBaseExecutor[kkComps.CreateAPIDocumentRequest, kkComps.APIDocument](
+		NewAPIDocumentAdapter(client),
+		client,
+		dryRun,
+	)
+	// API implementation placeholder - not yet supported by SDK
+	e.apiImplementationExecutor = NewBaseExecutor[kkComps.CreateAPIVersionRequest, kkComps.APIVersion](
+		NewAPIImplementationAdapter(client),
 		client,
 		dryRun,
 	)
@@ -381,6 +409,8 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 
 
 // resolveAuthStrategyRef resolves an auth strategy reference to its ID
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) resolveAuthStrategyRef(ctx context.Context, ref string) (string, error) {
 	// First check if it was created in this execution
 	if authStrategies, ok := e.refToID["application_auth_strategy"]; ok {
@@ -539,13 +569,13 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 	case "api":
 		return e.apiExecutor.Create(ctx, change)
 	case "api_version":
-		return e.createAPIVersion(ctx, change)
+		return e.apiVersionExecutor.Create(ctx, change)
 	case "api_publication":
-		return e.createAPIPublication(ctx, change)
+		return e.apiPublicationExecutor.Create(ctx, change)
 	case "api_implementation":
-		return e.createAPIImplementation(ctx, change)
+		return e.apiImplementationExecutor.Create(ctx, change)
 	case "api_document":
-		return e.createAPIDocument(ctx, change)
+		return e.apiDocumentExecutor.Create(ctx, change)
 	case "application_auth_strategy":
 		return e.authStrategyExecutor.Create(ctx, change)
 	case "portal_customization":
@@ -592,7 +622,7 @@ func (e *Executor) updateResource(ctx context.Context, change planner.PlannedCha
 	case "api":
 		return e.apiExecutor.Update(ctx, change)
 	case "api_document":
-		return e.updateAPIDocument(ctx, change)
+		return e.apiDocumentExecutor.Update(ctx, change)
 	case "application_auth_strategy":
 		return e.authStrategyExecutor.Update(ctx, change)
 	case "portal_customization":
@@ -639,13 +669,13 @@ func (e *Executor) deleteResource(ctx context.Context, change planner.PlannedCha
 	case "api":
 		return e.apiExecutor.Delete(ctx, change)
 	case "api_version":
-		return e.deleteAPIVersion(ctx, change)
+		return e.apiVersionExecutor.Delete(ctx, change)
 	case "api_publication":
-		return e.deleteAPIPublication(ctx, change)
+		return e.apiPublicationExecutor.Delete(ctx, change)
 	case "api_implementation":
-		return e.deleteAPIImplementation(ctx, change)
+		return e.apiImplementationExecutor.Delete(ctx, change)
 	case "api_document":
-		return e.deleteAPIDocument(ctx, change)
+		return e.apiDocumentExecutor.Delete(ctx, change)
 	case "application_auth_strategy":
 		return e.authStrategyExecutor.Delete(ctx, change)
 	case "portal_custom_domain":
@@ -684,6 +714,8 @@ func actionToVerb(action planner.ActionType) string {
 }
 
 // getParentAPIID resolves the parent API ID for child resources
+//
+//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) getParentAPIID(ctx context.Context, change planner.PlannedChange) (string, error) {
 	// Add debug logging
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
