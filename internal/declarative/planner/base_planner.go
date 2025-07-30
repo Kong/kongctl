@@ -97,6 +97,11 @@ func (b *BasePlanner) GetDesiredPortalSnippets() []resources.PortalSnippetResour
 	return b.planner.desiredPortalSnippets
 }
 
+// GetGenericPlanner returns the generic planner instance
+func (b *BasePlanner) GetGenericPlanner() *GenericPlanner {
+	return b.planner.genericPlanner
+}
+
 // CollectProtectionErrors collects protection validation errors for batch reporting
 type ProtectionErrorCollector struct {
 	errors []error

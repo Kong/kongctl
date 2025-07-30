@@ -33,6 +33,9 @@ type Planner struct {
 	depResolver *DependencyResolver
 	changeCount int
 	
+	// Generic planner for common operations
+	genericPlanner *GenericPlanner
+	
 	// Resource-specific planners
 	portalPlanner       PortalPlanner
 	authStrategyPlanner AuthStrategyPlanner
@@ -61,6 +64,9 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 		depResolver: NewDependencyResolver(),
 		changeCount: 0,
 	}
+	
+	// Initialize generic planner
+	p.genericPlanner = NewGenericPlanner(p)
 	
 	// Initialize resource-specific planners
 	base := NewBasePlanner(p)

@@ -171,36 +171,20 @@ func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIRes
 	return nil
 }
 
-// planAPICreate creates a CREATE change for an API
-func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) string {
+// extractAPIFields extracts fields from an API resource for planner operations
+func extractAPIFields(resource interface{}) map[string]interface{} {
 	fields := make(map[string]interface{})
+	
+	api, ok := resource.(resources.APIResource)
+	if !ok {
+		return fields
+	}
+	
 	fields["name"] = api.Name
 	if api.Description != nil {
 		fields["description"] = *api.Description
 	}
-
-	change := PlannedChange{
-		ID:           p.nextChangeID(ActionCreate, "api", api.GetRef()),
-		ResourceType: "api",
-		ResourceRef:  api.GetRef(),
-		Action:       ActionCreate,
-		Fields:       fields,
-		DependsOn:    []string{},
-	}
-
-	// Only set protection if explicitly specified
-	if api.Kongctl != nil && api.Kongctl.Protected != nil {
-		change.Protection = *api.Kongctl.Protected
-	}
-
-	// Extract namespace
-	if api.Kongctl != nil && api.Kongctl.Namespace != nil {
-		change.Namespace = *api.Kongctl.Namespace
-	} else {
-		// This should not happen as loader should have set default namespace
-		change.Namespace = DefaultNamespace
-	}
-
+	
 	// Copy user-defined labels only (protection label will be added during execution)
 	if len(api.Labels) > 0 {
 		labelsMap := make(map[string]interface{})
@@ -209,7 +193,46 @@ func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) string {
 		}
 		fields["labels"] = labelsMap
 	}
+	
+	return fields
+}
 
+// planAPICreate creates a CREATE change for an API
+func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) string {
+	generic := p.genericPlanner
+	
+	// Extract protection status
+	var protection interface{}
+	if api.Kongctl != nil && api.Kongctl.Protected != nil {
+		protection = *api.Kongctl.Protected
+	}
+	
+	// Extract namespace
+	namespace := DefaultNamespace
+	if api.Kongctl != nil && api.Kongctl.Namespace != nil {
+		namespace = *api.Kongctl.Namespace
+	}
+	
+	config := CreateConfig{
+		ResourceType:   "api",
+		ResourceName:   api.Name,
+		ResourceRef:    api.GetRef(),
+		RequiredFields: []string{"name"},
+		FieldExtractor: extractAPIFields,
+		Namespace:      namespace,
+		DependsOn:      []string{},
+	}
+	
+	change, err := generic.PlanCreate(context.Background(), config)
+	if err != nil {
+		// This shouldn't happen with valid configuration
+		p.logger.Error("Failed to plan API create", slog.String("error", err.Error()))
+		return ""
+	}
+	
+	// Set protection after creation
+	change.Protection = protection
+	
 	plan.AddChange(change)
 	return change.ID
 }
@@ -252,41 +275,39 @@ func (p *Planner) planAPIUpdateWithFields(
 	updateFields map[string]interface{},
 	plan *Plan,
 ) {
-	fields := make(map[string]interface{})
-
-	// Store the fields that need updating
-	for field, newValue := range updateFields {
-		fields[field] = newValue
-	}
-	
 	// Pass current labels so executor can properly handle removals
 	if _, hasLabels := updateFields["labels"]; hasLabels {
-		fields[FieldCurrentLabels] = current.NormalizedLabels
+		updateFields[FieldCurrentLabels] = current.NormalizedLabels
 	}
-
-	change := PlannedChange{
-		ID:           p.nextChangeID(ActionUpdate, "api", desired.GetRef()),
-		ResourceType: "api",
-		ResourceRef:  desired.GetRef(),
-		ResourceID:   current.ID,
-		Action:       ActionUpdate,
-		Fields:       fields,
-		DependsOn:    []string{},
+	
+	// Extract namespace
+	namespace := DefaultNamespace
+	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
+		namespace = *desired.Kongctl.Namespace
 	}
-
+	
+	config := UpdateConfig{
+		ResourceType:   "api",
+		ResourceName:   desired.Name,
+		ResourceID:     current.ID,
+		CurrentFields:  nil, // Not needed for direct update
+		DesiredFields:  updateFields,
+		RequiredFields: []string{"name"},
+		Namespace:      namespace,
+	}
+	
+	change, err := p.genericPlanner.PlanUpdate(context.Background(), config)
+	if err != nil {
+		// This shouldn't happen with valid configuration
+		p.logger.Error("Failed to plan API update", slog.String("error", err.Error()))
+		return
+	}
+	
 	// Check if already protected
 	if labels.IsProtectedResource(current.NormalizedLabels) {
 		change.Protection = true
 	}
-
-	// Extract namespace
-	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
-		change.Namespace = *desired.Kongctl.Namespace
-	} else {
-		// This should not happen as loader should have set default namespace
-		change.Namespace = DefaultNamespace
-	}
-
+	
 	plan.AddChange(change)
 }
 
@@ -298,66 +319,59 @@ func (p *Planner) planAPIProtectionChangeWithFields(
 	updateFields map[string]interface{},
 	plan *Plan,
 ) {
-	fields := make(map[string]interface{})
-
+	// Extract namespace
+	namespace := DefaultNamespace
+	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
+		namespace = *desired.Kongctl.Namespace
+	}
+	
+	// Use generic protection change planner
+	config := ProtectionChangeConfig{
+		ResourceType:  "api",
+		ResourceName:  desired.Name,
+		ResourceRef:   desired.GetRef(),
+		ResourceID:    current.ID,
+		OldProtected:  wasProtected,
+		NewProtected:  shouldProtect,
+		Namespace:     namespace,
+	}
+	
+	change := p.genericPlanner.PlanProtectionChange(context.Background(), config)
+	
 	// Include any field updates if unprotecting
 	if wasProtected && !shouldProtect && len(updateFields) > 0 {
+		fields := make(map[string]interface{})
 		for field, newValue := range updateFields {
 			fields[field] = newValue
 		}
+		// Always include name for identification
+		fields["name"] = current.Name
+		change.Fields = fields
 	}
-
-	// Always include name for identification
-	fields["name"] = current.Name
-
-	// Don't add protection label here - it will be added during execution
-	// based on the Protection field
-
-	change := PlannedChange{
-		ID:           p.nextChangeID(ActionUpdate, "api", desired.GetRef()),
-		ResourceType: "api",
-		ResourceRef:  desired.GetRef(),
-		ResourceID:   current.ID,
-		Action:       ActionUpdate,
-		Fields:       fields,
-		Protection: ProtectionChange{
-			Old: wasProtected,
-			New: shouldProtect,
-		},
-		DependsOn: []string{},
-	}
-
-	// Extract namespace
-	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
-		change.Namespace = *desired.Kongctl.Namespace
-	} else {
-		// This should not happen as loader should have set default namespace
-		change.Namespace = DefaultNamespace
-	}
-
+	
 	plan.AddChange(change)
 }
 
 // planAPIDelete creates a DELETE change for an API
 func (p *Planner) planAPIDelete(api state.API, plan *Plan) {
-	change := PlannedChange{
-		ID:           p.nextChangeID(ActionDelete, "api", api.Name),
+	// Extract namespace from labels (for existing resources being deleted)
+	namespace := DefaultNamespace
+	if ns, ok := api.NormalizedLabels[labels.NamespaceKey]; ok {
+		namespace = ns
+	}
+	
+	config := DeleteConfig{
 		ResourceType: "api",
+		ResourceName: api.Name,
 		ResourceRef:  api.Name,
 		ResourceID:   api.ID,
-		Action:       ActionDelete,
-		Fields:       map[string]interface{}{"name": api.Name},
-		DependsOn:    []string{},
+		Namespace:    namespace,
 	}
-
-	// Extract namespace from labels (for existing resources being deleted)
-	if ns, ok := api.NormalizedLabels[labels.NamespaceKey]; ok {
-		change.Namespace = ns
-	} else {
-		// Fallback to default
-		change.Namespace = DefaultNamespace
-	}
-
+	
+	change := p.genericPlanner.PlanDelete(context.Background(), config)
+	// Add the name field for backward compatibility
+	change.Fields = map[string]interface{}{"name": api.Name}
+	
 	plan.AddChange(change)
 }
 
