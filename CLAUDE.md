@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 🚀 Quick Start
 
 Use custom commands for streamlined development:
+- **`/task`** - Follow the task based workflow which uses subagents and mcp servers for planning and implementation
 - **`/start-session`** - Initialize session and check project health
 - **`/status`** - View current progress and next steps  
 - **`/implement-next`** - Implement next step with quality checks

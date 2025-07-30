@@ -538,6 +538,27 @@ func (p *Planner) planAPIVersionCreate(
 		DependsOn:    dependsOn,
 	}
 
+	// Set API reference for executor - find the API name for lookup
+	if apiRef != "" {
+		var apiName string
+		for _, api := range p.desiredAPIs {
+			if api.Ref == apiRef {
+				apiName = api.Name
+				break
+			}
+		}
+		
+		change.References = map[string]ReferenceInfo{
+			"api_id": {
+				Ref: apiRef,
+				ID:  apiID, // May be empty if API doesn't exist yet
+				LookupFields: map[string]string{
+					"name": apiName,
+				},
+			},
+		}
+	}
+
 	plan.AddChange(change)
 }
 
@@ -774,14 +795,34 @@ func (p *Planner) planAPIPublicationCreate(
 		}
 	}
 
-	// Set up reference with lookup fields
+	// Set up references with lookup fields
+	change.References = make(map[string]ReferenceInfo)
+	
+	// Set API reference for executor - find the API name for lookup
+	if apiRef != "" {
+		var apiName string
+		for _, api := range p.desiredAPIs {
+			if api.Ref == apiRef {
+				apiName = api.Name
+				break
+			}
+		}
+		
+		change.References["api_id"] = ReferenceInfo{
+			Ref: apiRef,
+			ID:  apiID, // May be empty if API doesn't exist yet
+			LookupFields: map[string]string{
+				"name": apiName,
+			},
+		}
+	}
+	
+	// Set portal reference
 	if publication.PortalID != "" {
-		change.References = map[string]ReferenceInfo{
-			"portal_id": {
-				Ref: publication.PortalID,
-				LookupFields: map[string]string{
-					"name": portalName,
-				},
+		change.References["portal_id"] = ReferenceInfo{
+			Ref: publication.PortalID,
+			LookupFields: map[string]string{
+				"name": portalName,
 			},
 		}
 	}
@@ -892,6 +933,27 @@ func (p *Planner) planAPIImplementationCreate(
 		Action:       ActionCreate,
 		Fields:       fields,
 		DependsOn:    dependsOn,
+	}
+
+	// Set API reference for executor - find the API name for lookup
+	if apiRef != "" {
+		var apiName string
+		for _, api := range p.desiredAPIs {
+			if api.Ref == apiRef {
+				apiName = api.Name
+				break
+			}
+		}
+		
+		change.References = map[string]ReferenceInfo{
+			"api_id": {
+				Ref: apiRef,
+				ID:  apiID, // May be empty if API doesn't exist yet
+				LookupFields: map[string]string{
+					"name": apiName,
+				},
+			},
+		}
 	}
 
 	plan.AddChange(change)

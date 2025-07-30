@@ -598,10 +598,50 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 	case "api":
 		return e.apiExecutor.Create(ctx, change)
 	case "api_version":
+		// First resolve API reference if needed
+		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
+			apiID, err := e.resolveAPIRef(ctx, apiRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve API reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			apiRef.ID = apiID
+			change.References["api_id"] = apiRef
+		}
 		return e.apiVersionExecutor.Create(ctx, change)
 	case "api_publication":
+		// First resolve API reference if needed
+		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
+			apiID, err := e.resolveAPIRef(ctx, apiRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve API reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			apiRef.ID = apiID
+			change.References["api_id"] = apiRef
+		}
+		// Also resolve portal reference if needed
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
 		return e.apiPublicationExecutor.Create(ctx, change)
 	case "api_implementation":
+		// First resolve API reference if needed
+		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
+			apiID, err := e.resolveAPIRef(ctx, apiRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve API reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			apiRef.ID = apiID
+			change.References["api_id"] = apiRef
+		}
 		return e.apiImplementationExecutor.Create(ctx, change)
 	case "api_document":
 		// First resolve API reference if needed

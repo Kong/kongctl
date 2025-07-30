@@ -8,6 +8,9 @@ Claude Code custom commands are implemented in `.claude/commands/` and can be in
 
 ### Session Management Commands
 
+#### `/task`
+Follow the task based workflow which uses subagents and mcp servers for planning and implementation
+
 #### `/start-session`
 **Usage**: "Start a new development session with /start-session"
 **What Claude Code will do**:

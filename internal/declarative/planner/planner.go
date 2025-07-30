@@ -542,32 +542,32 @@ func (p *Planner) filterResourcesByNamespace(rs *resources.ResourceSet, namespac
 		portalRefs[portal.Ref] = true
 	}
 	
-	apiNames := make(map[string]bool)
+	apiRefs := make(map[string]bool)
 	for _, api := range filtered.APIs {
-		apiNames[api.Name] = true
+		apiRefs[api.Ref] = true
 	}
 	
 	// Filter child resources based on parent presence
 	for _, version := range rs.APIVersions {
-		if apiNames[version.API] {
+		if apiRefs[version.API] {
 			filtered.APIVersions = append(filtered.APIVersions, version)
 		}
 	}
 	
 	for _, pub := range rs.APIPublications {
-		if apiNames[pub.API] {
+		if apiRefs[pub.API] {
 			filtered.APIPublications = append(filtered.APIPublications, pub)
 		}
 	}
 	
 	for _, impl := range rs.APIImplementations {
-		if apiNames[impl.API] {
+		if apiRefs[impl.API] {
 			filtered.APIImplementations = append(filtered.APIImplementations, impl)
 		}
 	}
 	
 	for _, doc := range rs.APIDocuments {
-		if apiNames[doc.API] {
+		if apiRefs[doc.API] {
 			filtered.APIDocuments = append(filtered.APIDocuments, doc)
 		}
 	}

@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
 """
 UserPromptSubmit hook for task directory preparation.
-Automatically creates claude-instance-{id} directories when users type /task.
+Automatically creates task-{id} directories and git branches when users type /task.
 """
 import json
 import os
 import sys
 import re
+import subprocess
 from pathlib import Path
 
 
-def get_next_instance_id(base_dir: Path) -> int:
-    """Find the next available instance ID by checking existing directories."""
+def get_next_task_id(base_dir: Path) -> int:
+    """Find the next available task ID by checking existing directories."""
     if not base_dir.exists():
         return 1
     
     existing_dirs = [
         d for d in base_dir.iterdir() 
-        if d.is_dir() and d.name.startswith('claude-instance-')
+        if d.is_dir() and d.name.startswith('task-')
     ]
     
     if not existing_dirs:
@@ -26,25 +27,70 @@ def get_next_instance_id(base_dir: Path) -> int:
     # Extract numbers from directory names
     numbers = []
     for dir_path in existing_dirs:
-        match = re.search(r'claude-instance-(\d+)', dir_path.name)
+        match = re.search(r'task-(\d+)', dir_path.name)
         if match:
             numbers.append(int(match.group(1)))
     
     return max(numbers) + 1 if numbers else 1
 
 
-def create_instance_directory(base_dir: str, instance_id: int) -> tuple[bool, str]:
-    """Create the claude-instance directory and return success status and path."""
+def create_task_directory(base_dir: Path, task_id: int) -> tuple[bool, str]:
+    """Create the task directory and return success status and path."""
     try:
-        instance_dir = base_dir / f"claude-instance-{instance_id}"
+        task_dir = base_dir / f"task-{task_id}"
         
         # Create directories with proper permissions
-        base_dir.mkdir(exist_ok=True)
-        instance_dir.mkdir(exist_ok=True)
+        base_dir.mkdir(parents=True, exist_ok=True)
+        task_dir.mkdir(exist_ok=True)
         
-        return True, str(instance_dir)
+        return True, str(task_dir)
     except Exception as e:
         return False, str(e)
+
+
+def create_git_branch(branch_name: str, cwd: str) -> bool:
+    """Create and checkout a new git branch for the task."""
+    try:
+        # Check if we're in a git repository
+        result = subprocess.run(
+            ["git", "rev-parse", "--git-dir"], 
+            cwd=cwd, 
+            capture_output=True, 
+            text=True
+        )
+        if result.returncode != 0:
+            return False
+        
+        # Check if there are uncommitted changes
+        result = subprocess.run(
+            ["git", "status", "--porcelain"], 
+            cwd=cwd, 
+            capture_output=True, 
+            text=True
+        )
+        if result.stdout.strip():
+            # There are uncommitted changes, don't create branch
+            print(f"Warning: Uncommitted changes detected. Branch '{branch_name}' not created.", file=sys.stderr)
+            return False
+        
+        # Check if branch already exists
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", f"refs/heads/{branch_name}"], 
+            cwd=cwd, 
+            capture_output=True, 
+            text=True
+        )
+        if result.returncode == 0:
+            # Branch exists, just checkout
+            subprocess.run(["git", "checkout", branch_name], cwd=cwd, capture_output=True)
+        else:
+            # Create and checkout new branch
+            subprocess.run(["git", "checkout", "-b", branch_name], cwd=cwd, capture_output=True)
+        
+        return True
+    except Exception as e:
+        print(f"Warning: Failed to create git branch: {e}", file=sys.stderr)
+        return False
 
 
 def validate_prompt(prompt: str) -> bool:
@@ -72,19 +118,25 @@ def main():
         # Not a task prompt, exit silently to allow normal processing
         sys.exit(0)
     
-    # Get next instance ID
-    base_dir = Path(cwd) / "docs" / "plan"
-    instance_id = get_next_instance_id(base_dir)
+    # Get next task ID
+    base_dir = Path(cwd) / "docs" / "plan" / "tasks"
+    task_id = get_next_task_id(base_dir)
     
-    # Create instance directory
-    success, result = create_instance_directory(base_dir, instance_id)
+    # Create task directory
+    success, result = create_task_directory(base_dir, task_id)
     
     if success:
+        # Create git branch for this task
+        branch_name = f"task-{task_id}"
+        branch_created = create_git_branch(branch_name, cwd)
+        
         # Extract the original problem from the prompt (after /task)
         problem_text = prompt.replace('/task', '').strip()
         
         # Output context message that will be added to the prompt
-        context_msg = f"Directory claude-instance-{instance_id} has been automatically created for this task session. The subagents must create the INVESTIGATION_REPORT.md, FLOW_REPORT.md and PLAN.md files inside docs/plan/claude-instance-{instance_id}/."
+        context_msg = f"Directory task-{task_id} has been automatically created for this task session. The subagents must create the INVESTIGATION_REPORT.md, FLOW_REPORT.md and PLAN.md files inside docs/plan/tasks/task-{task_id}/."
+        if branch_created:
+            context_msg += f" Git branch 'task-{task_id}' has been created and checked out."
         if problem_text:
             context_msg += f" Problem to solve: {problem_text}"
         
@@ -92,7 +144,7 @@ def main():
         sys.exit(0)
     else:
         # Output error but don't block processing
-        print(f"Warning: Failed to create instance directory: {result}", file=sys.stderr)
+        print(f"Warning: Failed to create task directory: {result}", file=sys.stderr)
         sys.exit(0)
 
 
