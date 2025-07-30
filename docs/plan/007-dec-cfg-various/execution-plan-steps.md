@@ -392,7 +392,7 @@ Complete the migration from internal to public Konnect SDK for dump command.
 ---
 
 ### Step 15: Code Quality and Refactoring
-**Status**: Not Started
+**Status**: In Progress
 
 Conduct focused code review and refactoring for maintainability.
 

@@ -11,6 +11,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/log"
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // Executor handles the execution of declarative configuration plans
@@ -24,11 +25,14 @@ type Executor struct {
 	refToID map[string]map[string]string // resourceType -> ref -> resourceID
 	// Unified state cache
 	stateCache *state.Cache
+	
+	// Resource executors
+	portalExecutor *BaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal]
 }
 
 // New creates a new Executor instance
 func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor {
-	return &Executor{
+	e := &Executor{
 		client:   client,
 		reporter: reporter,
 		dryRun:   dryRun,
@@ -36,6 +40,15 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 		refToID: make(map[string]map[string]string),
 		stateCache: state.NewCache(),
 	}
+	
+	// Initialize resource executors
+	e.portalExecutor = NewBaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal](
+		NewPortalAdapter(client),
+		client,
+		dryRun,
+	)
+	
+	return e
 }
 
 // Execute runs the plan and returns the execution result
@@ -474,9 +487,13 @@ func (e *Executor) resolvePortalPageRef(
 // Resource operations
 
 func (e *Executor) createResource(ctx context.Context, change planner.PlannedChange) (string, error) {
+	// Add namespace and protection to context for adapters
+	ctx = context.WithValue(ctx, contextKeyNamespace, change.Namespace)
+	ctx = context.WithValue(ctx, contextKeyProtection, change.Protection)
+	
 	switch change.ResourceType {
 	case "portal":
-		return e.createPortal(ctx, change)
+		return e.portalExecutor.Create(ctx, change)
 	case "api":
 		return e.createAPI(ctx, change)
 	case "api_version":
@@ -504,9 +521,13 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 }
 
 func (e *Executor) updateResource(ctx context.Context, change planner.PlannedChange) (string, error) {
+	// Add namespace and protection to context for adapters
+	ctx = context.WithValue(ctx, contextKeyNamespace, change.Namespace)
+	ctx = context.WithValue(ctx, contextKeyProtection, change.Protection)
+	
 	switch change.ResourceType {
 	case "portal":
-		return e.updatePortal(ctx, change)
+		return e.portalExecutor.Update(ctx, change)
 	case "api":
 		return e.updateAPI(ctx, change)
 	case "api_document":
@@ -528,9 +549,13 @@ func (e *Executor) updateResource(ctx context.Context, change planner.PlannedCha
 }
 
 func (e *Executor) deleteResource(ctx context.Context, change planner.PlannedChange) error {
+	// Add namespace and protection to context for adapters
+	ctx = context.WithValue(ctx, contextKeyNamespace, change.Namespace)
+	ctx = context.WithValue(ctx, contextKeyProtection, change.Protection)
+	
 	switch change.ResourceType {
 	case "portal":
-		return e.deletePortal(ctx, change)
+		return e.portalExecutor.Delete(ctx, change)
 	case "api":
 		return e.deleteAPI(ctx, change)
 	case "api_version":
