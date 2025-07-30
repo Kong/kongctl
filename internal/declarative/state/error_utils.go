@@ -1,10 +1,11 @@
 package state
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
-	"github.com/kong/kongctl/internal/declarative/errors"
+	kErrors "github.com/kong/kongctl/internal/declarative/errors"
 )
 
 // APIClientError represents an error when an API client is not configured
@@ -65,11 +66,11 @@ func WrapAPIError(err error, operation string, opts *ErrorWrapperOptions) error 
 		// Extract status code from error if not provided
 		statusCode := opts.StatusCode
 		if statusCode == 0 {
-			statusCode = errors.ExtractStatusCodeFromError(err)
+			statusCode = kErrors.ExtractStatusCodeFromError(err)
 		}
 
 		// Create enhanced error with context and hints
-		ctx := errors.APIErrorContext{
+		ctx := kErrors.APIErrorContext{
 			ResourceType: opts.ResourceType,
 			ResourceName: opts.ResourceName,
 			Namespace:    opts.Namespace,
@@ -77,7 +78,7 @@ func WrapAPIError(err error, operation string, opts *ErrorWrapperOptions) error 
 			StatusCode:   statusCode,
 		}
 
-		return errors.EnhanceAPIError(err, ctx)
+		return kErrors.EnhanceAPIError(err, ctx)
 	}
 
 	// Standard error wrapping
@@ -101,14 +102,14 @@ func NewResponseValidationError(operation, expectedType string) error {
 
 // IsAPIClientError checks if an error is an API client not configured error
 func IsAPIClientError(err error) bool {
-	_, ok := err.(*APIClientError)
-	return ok
+	var apiErr *APIClientError
+	return errors.As(err, &apiErr)
 }
 
 // IsResponseValidationError checks if an error is a response validation error
 func IsResponseValidationError(err error) bool {
-	_, ok := err.(*ResponseValidationError)
-	return ok
+	var validationErr *ResponseValidationError
+	return errors.As(err, &validationErr)
 }
 
 // Standard error messages for common scenarios
