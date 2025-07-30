@@ -432,13 +432,13 @@ func displayStatistics(plan *planner.Plan, out io.Writer) {
 	
 	fmt.Fprintf(out, "  Total changes: %d\n", plan.Summary.TotalChanges)
 	if createCount > 0 {
-		fmt.Fprintf(out, "  ➕ Resources to create: %d\n", createCount)
+		fmt.Fprintf(out, "  Resources to create: %d\n", createCount)
 	}
 	if updateCount > 0 {
-		fmt.Fprintf(out, "  ~ Resources to update: %d\n", updateCount)
+		fmt.Fprintf(out, "  Resources to update: %d\n", updateCount)
 	}
 	if deleteCount > 0 {
-		fmt.Fprintf(out, "  - Resources to delete: %d\n", deleteCount)
+		fmt.Fprintf(out, "  Resources to delete: %d\n", deleteCount)
 	}
 	
 	// Resource type breakdown
