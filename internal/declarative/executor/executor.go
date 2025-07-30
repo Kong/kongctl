@@ -29,6 +29,7 @@ type Executor struct {
 	// Resource executors
 	portalExecutor *BaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal]
 	apiExecutor    *BaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest]
+	authStrategyExecutor *BaseExecutor[kkComps.CreateAppAuthStrategyRequest, kkComps.UpdateAppAuthStrategyRequest]
 }
 
 // New creates a new Executor instance
@@ -50,6 +51,11 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 	)
 	e.apiExecutor = NewBaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest](
 		NewAPIAdapter(client),
+		client,
+		dryRun,
+	)
+	e.authStrategyExecutor = NewBaseExecutor[kkComps.CreateAppAuthStrategyRequest, kkComps.UpdateAppAuthStrategyRequest](
+		NewAuthStrategyAdapter(client),
 		client,
 		dryRun,
 	)
@@ -511,7 +517,7 @@ func (e *Executor) createResource(ctx context.Context, change planner.PlannedCha
 	case "api_document":
 		return e.createAPIDocument(ctx, change)
 	case "application_auth_strategy":
-		return e.createApplicationAuthStrategy(ctx, change)
+		return e.authStrategyExecutor.Create(ctx, change)
 	case "portal_customization":
 		// Portal customization is a singleton resource - always exists, so we update instead
 		return e.updatePortalCustomization(ctx, change)
@@ -539,7 +545,7 @@ func (e *Executor) updateResource(ctx context.Context, change planner.PlannedCha
 	case "api_document":
 		return e.updateAPIDocument(ctx, change)
 	case "application_auth_strategy":
-		return e.updateApplicationAuthStrategy(ctx, change)
+		return e.authStrategyExecutor.Update(ctx, change)
 	case "portal_customization":
 		return e.updatePortalCustomization(ctx, change)
 	case "portal_custom_domain":
@@ -573,7 +579,7 @@ func (e *Executor) deleteResource(ctx context.Context, change planner.PlannedCha
 	case "api_document":
 		return e.deleteAPIDocument(ctx, change)
 	case "application_auth_strategy":
-		return e.deleteApplicationAuthStrategy(ctx, change)
+		return e.authStrategyExecutor.Delete(ctx, change)
 	case "portal_custom_domain":
 		return e.deletePortalCustomDomain(ctx, change)
 	case "portal_page":

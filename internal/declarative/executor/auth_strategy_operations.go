@@ -13,6 +13,8 @@ import (
 )
 
 // createApplicationAuthStrategy handles CREATE operations for application auth strategies
+// Deprecated: Use AuthStrategyAdapter with BaseExecutor instead
+//nolint:unused // kept for test compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change planner.PlannedChange) (string, error) {
 	// Get logger from context
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
@@ -225,6 +227,8 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 }
 
 // updateApplicationAuthStrategy handles UPDATE operations for application auth strategies
+// Deprecated: Use AuthStrategyAdapter with BaseExecutor instead
+//nolint:unused // kept for test compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) updateApplicationAuthStrategy(ctx context.Context, change planner.PlannedChange) (string, error) {
 	// Get logger from context
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
@@ -289,6 +293,8 @@ func (e *Executor) updateApplicationAuthStrategy(ctx context.Context, change pla
 }
 
 // deleteApplicationAuthStrategy handles DELETE operations for application auth strategies
+// Deprecated: Use AuthStrategyAdapter with BaseExecutor instead
+//nolint:unused // kept for test compatibility, will be removed in Phase 2 cleanup
 func (e *Executor) deleteApplicationAuthStrategy(ctx context.Context, change planner.PlannedChange) error {
 	if e.client == nil {
 		return fmt.Errorf("client not configured")
@@ -298,6 +304,7 @@ func (e *Executor) deleteApplicationAuthStrategy(ctx context.Context, change pla
 }
 
 // buildAuthStrategyConfigs builds the SDK Configs union type from planner data
+//nolint:unused // deprecated, will be removed in Phase 2 cleanup
 func buildAuthStrategyConfigs(strategyType string, configs map[string]interface{}) (*kkComps.Configs, error) {
 	switch strategyType {
 	case "key_auth":
@@ -322,6 +329,7 @@ func buildAuthStrategyConfigs(strategyType string, configs map[string]interface{
 }
 
 // buildKeyAuthConfigs builds key auth configs for the SDK
+//nolint:unused // deprecated, will be removed in Phase 2 cleanup
 func buildKeyAuthConfigs(keyAuthConfig map[string]interface{}) (*kkComps.Configs, error) {
 	keyAuth := kkComps.AppAuthStrategyConfigKeyAuth{}
 	
@@ -348,6 +356,7 @@ func buildKeyAuthConfigs(keyAuthConfig map[string]interface{}) (*kkComps.Configs
 }
 
 // buildOpenIDConnectConfigs builds OpenID Connect configs for the SDK
+//nolint:unused // deprecated, will be removed in Phase 2 cleanup
 func buildOpenIDConnectConfigs(oidcConfig map[string]interface{}) (*kkComps.Configs, error) {
 	// Use partial config for updates
 	oidc := kkComps.PartialAppAuthStrategyConfigOpenIDConnect{}
