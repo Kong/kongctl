@@ -642,15 +642,19 @@ func (e *Executor) resolvePortalPageRef(
 // Resource operations
 
 func (e *Executor) createResource(ctx context.Context, change *planner.PlannedChange) (string, error) {
-	// Add namespace, protection, and planned change to context for adapters
+	// Add namespace and protection to context for adapters
 	ctx = context.WithValue(ctx, contextKeyNamespace, change.Namespace)
 	ctx = context.WithValue(ctx, contextKeyProtection, change.Protection)
-	ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
+	// NOTE: PlannedChange is added to context AFTER reference resolution for each resource type
 	
 	switch change.ResourceType {
 	case "portal":
+		// No references to resolve for portal
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.portalExecutor.Create(ctx, *change)
 	case "api":
+		// No references to resolve for api
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.apiExecutor.Create(ctx, *change)
 	case "api_version":
 		// First resolve API reference if needed
@@ -663,6 +667,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			apiRef.ID = apiID
 			change.References["api_id"] = apiRef
 		}
+		// Add context with resolved references
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.apiVersionExecutor.Create(ctx, *change)
 	case "api_publication":
 		// First resolve API reference if needed
@@ -685,6 +691,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			portalRef.ID = portalID
 			change.References["portal_id"] = portalRef
 		}
+		// Add context with resolved references
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.apiPublicationExecutor.Create(ctx, *change)
 	case "api_implementation":
 		// First resolve API reference if needed
@@ -697,6 +705,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			apiRef.ID = apiID
 			change.References["api_id"] = apiRef
 		}
+		// Add context with resolved references
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.apiImplementationExecutor.Create(ctx, *change)
 	case "api_document":
 		// First resolve API reference if needed
@@ -709,8 +719,12 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			apiRef.ID = apiID
 			change.References["api_id"] = apiRef
 		}
+		// Add context with resolved references
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.apiDocumentExecutor.Create(ctx, *change)
 	case "application_auth_strategy":
+		// No references to resolve for application_auth_strategy
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.authStrategyExecutor.Create(ctx, *change)
 	case "portal_customization":
 		// Portal customization is a singleton resource - always exists, so we update instead
@@ -718,8 +732,12 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		if err != nil {
 			return "", err
 		}
+		// Add context after resolution
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.portalCustomizationExecutor.Update(ctx, *change, portalID)
 	case "portal_custom_domain":
+		// No references to resolve for portal_custom_domain
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.portalDomainExecutor.Create(ctx, *change)
 	case "portal_page":
 		// First resolve portal reference if needed
@@ -743,6 +761,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			parentPageRef.ID = parentPageID
 			change.References["parent_page_id"] = parentPageRef
 		}
+		// Add context with resolved references
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.portalPageExecutor.Create(ctx, *change)
 	case "portal_snippet":
 		// First resolve portal reference if needed
@@ -755,6 +775,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			portalRef.ID = portalID
 			change.References["portal_id"] = portalRef
 		}
+		// Add context with resolved references
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.portalSnippetExecutor.Create(ctx, *change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
@@ -836,21 +858,31 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 }
 
 func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedChange) error {
-	// Add namespace, protection, and planned change to context for adapters
+	// Add namespace and protection to context for adapters
 	ctx = context.WithValue(ctx, contextKeyNamespace, change.Namespace)
 	ctx = context.WithValue(ctx, contextKeyProtection, change.Protection)
-	ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
+	// NOTE: PlannedChange is added to context AFTER reference resolution for each resource type
 	
 	switch change.ResourceType {
 	case "portal":
+		// No references to resolve for portal
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.portalExecutor.Delete(ctx, *change)
 	case "api":
+		// No references to resolve for api
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.apiExecutor.Delete(ctx, *change)
 	case "api_version":
+		// No references to resolve for api_version delete
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.apiVersionExecutor.Delete(ctx, *change)
 	case "api_publication":
+		// No references to resolve for api_publication delete
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.apiPublicationExecutor.Delete(ctx, *change)
 	case "api_implementation":
+		// No references to resolve for api_implementation delete
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.apiImplementationExecutor.Delete(ctx, *change)
 	case "api_document":
 		// First resolve API reference if needed
@@ -863,10 +895,16 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 			apiRef.ID = apiID
 			change.References["api_id"] = apiRef
 		}
+		// Add context with resolved references
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.apiDocumentExecutor.Delete(ctx, *change)
 	case "application_auth_strategy":
+		// No references to resolve for application_auth_strategy
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.authStrategyExecutor.Delete(ctx, *change)
 	case "portal_custom_domain":
+		// No references to resolve for portal_custom_domain
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.portalDomainExecutor.Delete(ctx, *change)
 	case "portal_page":
 		// First resolve portal reference if needed
@@ -879,6 +917,8 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 			portalRef.ID = portalID
 			change.References["portal_id"] = portalRef
 		}
+		// Add context with resolved references
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.portalPageExecutor.Delete(ctx, *change)
 	case "portal_snippet":
 		// First resolve portal reference if needed
@@ -891,6 +931,8 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 			portalRef.ID = portalID
 			change.References["portal_id"] = portalRef
 		}
+		// Add context with resolved references
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.portalSnippetExecutor.Delete(ctx, *change)
 	// Note: portal_customization is a singleton resource and cannot be deleted
 	default:
