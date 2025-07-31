@@ -69,10 +69,10 @@ func TestGeneratePlan_PortalCustomDomain(t *testing.T) {
 			{
 				Ref:    "portal-custom-domain",
 				Portal: "dev-portal",
-				PortalCustomDomain: kkComps.PortalCustomDomain{
+				CreatePortalCustomDomainRequest: kkComps.CreatePortalCustomDomainRequest{
 					Hostname: "developer.example.com",
 					Enabled:  true,
-					Ssl: kkComps.PortalCustomDomainSSL{
+					Ssl: kkComps.CreatePortalCustomDomainSSL{
 						DomainVerificationMethod: kkComps.PortalCustomDomainVerificationMethodHTTP,
 					},
 				},

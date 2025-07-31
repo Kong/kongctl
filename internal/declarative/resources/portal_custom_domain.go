@@ -9,7 +9,9 @@ import (
 
 // PortalCustomDomainResource represents a portal custom domain configuration
 type PortalCustomDomainResource struct {
-	kkComps.PortalCustomDomain `yaml:",inline" json:",inline"`
+	// Use CreatePortalCustomDomainRequest which contains only user-configurable fields
+	// This aligns with the pattern used by other resources (API, APIVersion, etc.)
+	kkComps.CreatePortalCustomDomainRequest `yaml:",inline" json:",inline"`
 	Ref    string `yaml:"ref,omitempty" json:"ref,omitempty"`
 	Portal string `yaml:"portal,omitempty" json:"portal,omitempty"` // Parent portal reference
 }
@@ -45,23 +47,6 @@ func (d *PortalCustomDomainResource) SetDefaults() {
 	// No defaults needed for custom domains currently
 }
 
-// UnmarshalYAML implements custom YAML unmarshaling to handle the embedded type
-func (d *PortalCustomDomainResource) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	// Create a type alias to avoid recursion
-	type Alias PortalCustomDomainResource
-	aux := &struct {
-		*Alias
-	}{
-		Alias: (*Alias)(d),
-	}
-	
-	// Unmarshal into the auxiliary struct
-	if err := unmarshal(aux); err != nil {
-		return err
-	}
-	
-	return nil
-}
 
 // isValidHostname validates hostname format
 func isValidHostname(hostname string) bool {

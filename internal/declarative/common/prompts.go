@@ -214,7 +214,7 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 				// Check if this resource is protected
 				protectedIndicator := ""
 				if isProtectedResource(change) {
-					protectedIndicator = " 🔒"
+					protectedIndicator = " [protected]"
 				}
 				
 				// Display the resource change with enhanced formatting
@@ -254,13 +254,13 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 				// Extract position from change ID (format: "N:action:type:ref")
 				parts := strings.SplitN(change.ID, ":", 4)
 				if len(parts) >= 4 {
-					fmt.Fprintf(out, "  ⚠️  [%s] %s: %s\n", parts[0], change.ResourceType, change.ResourceRef)
+					fmt.Fprintf(out, "  [%s] %s: %s\n", parts[0], change.ResourceType, change.ResourceRef)
 					fmt.Fprintf(out, "      %s\n", warning.Message)
 				} else {
-					fmt.Fprintf(out, "  ⚠️  %s\n", warning.Message)
+					fmt.Fprintf(out, "  %s\n", warning.Message)
 				}
 			} else {
-				fmt.Fprintf(out, "  ⚠️  %s\n", warning.Message)
+				fmt.Fprintf(out, "  %s\n", warning.Message)
 			}
 		}
 		fmt.Fprintln(out, strings.Repeat("-", 70))
@@ -477,10 +477,10 @@ func displayStatistics(plan *planner.Plan, out io.Writer) {
 	// Protection changes
 	if plan.Summary.ProtectionChanges != nil {
 		if plan.Summary.ProtectionChanges.Protecting > 0 {
-			fmt.Fprintf(out, "  🔒 Resources being protected: %d\n", plan.Summary.ProtectionChanges.Protecting)
+			fmt.Fprintf(out, "  Resources being protected: %d\n", plan.Summary.ProtectionChanges.Protecting)
 		}
 		if plan.Summary.ProtectionChanges.Unprotecting > 0 {
-			fmt.Fprintf(out, "  🔓 Resources being unprotected: %d\n", plan.Summary.ProtectionChanges.Unprotecting)
+			fmt.Fprintf(out, "  Resources being unprotected: %d\n", plan.Summary.ProtectionChanges.Unprotecting)
 		}
 	}
 	
@@ -544,9 +544,9 @@ func displayFieldChanges(out io.Writer, change planner.PlannedChange, indent str
 		if pc.Old != pc.New {
 			hasFieldChanges = true
 			if pc.Old && !pc.New {
-				fmt.Fprintf(out, "%s🔓 protection: enabled → disabled\n", indent)
+				fmt.Fprintf(out, "%sprotection: enabled → disabled\n", indent)
 			} else if !pc.Old && pc.New {
-				fmt.Fprintf(out, "%s🔒 protection: disabled → enabled\n", indent)
+				fmt.Fprintf(out, "%sprotection: disabled → enabled\n", indent)
 			}
 		}
 	} else if pc, ok := change.Protection.(map[string]interface{}); ok {
@@ -556,9 +556,9 @@ func displayFieldChanges(out io.Writer, change planner.PlannedChange, indent str
 				if oldVal != newVal {
 					hasFieldChanges = true
 					if oldVal && !newVal {
-						fmt.Fprintf(out, "%s🔓 protection: enabled → disabled\n", indent)
+						fmt.Fprintf(out, "%sprotection: enabled → disabled\n", indent)
 					} else if !oldVal && newVal {
-						fmt.Fprintf(out, "%s🔒 protection: disabled → enabled\n", indent)
+						fmt.Fprintf(out, "%sprotection: disabled → enabled\n", indent)
 					}
 				}
 			}

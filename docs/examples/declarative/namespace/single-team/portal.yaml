@@ -23,7 +23,7 @@ portals:
     
     custom_domain:
       ref: internal-domain
-      domain: "api.internal.example.com"
+      hostname: "api.internal.example.com"
     
     pages:
       - ref: getting-started
