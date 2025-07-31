@@ -204,7 +204,10 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	for changeID, refs := range resolveResult.ChangeReferences {
 		for i := range basePlan.Changes {
 			if basePlan.Changes[i].ID == changeID {
-				basePlan.Changes[i].References = make(map[string]ReferenceInfo)
+				// Preserve existing references and merge with resolver results
+				if basePlan.Changes[i].References == nil {
+					basePlan.Changes[i].References = make(map[string]ReferenceInfo)
+				}
 				for field, ref := range refs {
 					basePlan.Changes[i].References[field] = ReferenceInfo{
 						Ref: ref.Ref,
