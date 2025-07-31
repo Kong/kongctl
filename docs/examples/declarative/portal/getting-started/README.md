@@ -1,6 +1,7 @@
 # Getting Started Portal Example
 
-This example demonstrates a complete Kong Developer Portal setup using declarative configuration. It includes a fully configured portal with pages, customization, and reusable snippets.
+This example demonstrates a complete Kong Developer Portal setup using declarative configuration. 
+It includes a fully configured portal with pages, customization, and reusable snippets.
 
 ## Overview
 

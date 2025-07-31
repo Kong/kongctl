@@ -51,5 +51,3 @@ apis:
         portal_id: internal-portal  # References a portal (can be in any namespace)
         auth_strategy_ids: 
           - api-key-auth            # References auth strategy
-        auto_approve_registration: true
-        registration_enabled: true

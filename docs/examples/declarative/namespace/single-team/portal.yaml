@@ -20,16 +20,10 @@ portals:
         mode: light
         colors:
           primary: "#2C5282"
-          text: "#1A202C"
-        fonts:
-          base: "Inter, system-ui, sans-serif"
-      catalog:
-        cover_image_url: "https://example.com/images/portal-cover.jpg"
-      welcome_message: "Welcome to our Internal API Portal"
     
-    custom_domains:
-      - ref: internal-domain
-        domain: "api.internal.example.com"
+    custom_domain:
+      ref: internal-domain
+      domain: "api.internal.example.com"
     
     pages:
       - ref: getting-started
