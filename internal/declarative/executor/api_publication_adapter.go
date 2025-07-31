@@ -71,11 +71,6 @@ func (a *APIPublicationAdapter) Create(ctx context.Context, req kkComps.APIPubli
 		return "", err
 	}
 
-	// Check that we have auth strategy IDs
-	if len(req.AuthStrategyIds) == 0 {
-		return "", fmt.Errorf("auth_strategy_ids is required for API publication")
-	}
-	
 	// Get portal ID from context
 	portalID, err := a.getPortalID(ctx)
 	if err != nil {
@@ -115,7 +110,7 @@ func (a *APIPublicationAdapter) ResourceType() string {
 
 // RequiredFields returns the required fields for creation
 func (a *APIPublicationAdapter) RequiredFields() []string {
-	return []string{"portal_id", "auth_strategy_ids"}
+	return []string{"portal_id"}
 }
 
 // getPortalID extracts the portal ID from the context
