@@ -373,20 +373,20 @@ func (p *Planner) compareModePtr(current, desired *kkComps.Mode) bool {
 // Portal Custom Domain planning
 
 func (p *Planner) planPortalCustomDomainsChanges(
-	_ context.Context, desired []resources.PortalCustomDomainResource, plan *Plan,
+	_ context.Context, parentNamespace string, desired []resources.PortalCustomDomainResource, plan *Plan,
 ) error { //nolint:unparam // Will return errors when state fetching is added
 	// For each desired custom domain
 	for _, desiredDomain := range desired {
 		// Portal custom domains are singleton resources per portal
 		// Always create/update, never fetch current state
-		p.planPortalCustomDomainCreate(desiredDomain, plan)
+		p.planPortalCustomDomainCreate(parentNamespace, desiredDomain, plan)
 	}
 
 	return nil
 }
 
 func (p *Planner) planPortalCustomDomainCreate(
-	domain resources.PortalCustomDomainResource, plan *Plan,
+	parentNamespace string, domain resources.PortalCustomDomainResource, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	fields["hostname"] = domain.Hostname
@@ -419,6 +419,7 @@ func (p *Planner) planPortalCustomDomainCreate(
 		Action:       ActionCreate,
 		Fields:       fields,
 		DependsOn:    dependencies,
+		Namespace:    parentNamespace,
 	}
 
 	// Store parent portal reference
@@ -454,7 +455,7 @@ func (p *Planner) planPortalCustomDomainCreate(
 // Portal Page planning
 
 func (p *Planner) planPortalPagesChanges(
-	ctx context.Context, portalID string, portalRef string, desired []resources.PortalPageResource, plan *Plan,
+	ctx context.Context, parentNamespace string, portalID string, portalRef string, desired []resources.PortalPageResource, plan *Plan,
 ) error {
 	// Fetch existing pages for this portal
 	existingPages := make([]state.PortalPage, 0)
@@ -572,7 +573,7 @@ func (p *Planner) planPortalPagesChanges(
 		
 		if !exists {
 			// CREATE new page
-			p.planPortalPageCreate(desiredPage, portalRef, portalID, plan)
+			p.planPortalPageCreate(parentNamespace, desiredPage, portalRef, portalID, plan)
 		} else {
 			// Check if UPDATE is needed - must fetch full content first
 			if portalID != "" && existingPage.ID != "" {
@@ -583,7 +584,7 @@ func (p *Planner) planPortalPagesChanges(
 				
 				needsUpdate, updateFields := p.shouldUpdatePortalPage(fullPage, desiredPage)
 				if needsUpdate {
-					p.planPortalPageUpdate(existingPage, desiredPage, portalRef, updateFields, plan)
+					p.planPortalPageUpdate(parentNamespace, existingPage, desiredPage, portalRef, updateFields, plan)
 				}
 			}
 		}
@@ -631,7 +632,7 @@ func (p *Planner) planPortalPagesChanges(
 }
 
 func (p *Planner) planPortalPageCreate(
-	page resources.PortalPageResource, _ string, portalID string, plan *Plan,
+	parentNamespace string, page resources.PortalPageResource, _ string, portalID string, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	fields["slug"] = page.Slug
@@ -676,6 +677,7 @@ func (p *Planner) planPortalPageCreate(
 		Action:       ActionCreate,
 		Fields:       fields,
 		DependsOn:    dependencies,
+		Namespace:    parentNamespace,
 	}
 
 	// Store parent portal reference
@@ -789,6 +791,7 @@ func (p *Planner) shouldUpdatePortalPage(
 
 // planPortalPageUpdate creates an UPDATE change for a portal page
 func (p *Planner) planPortalPageUpdate(
+	parentNamespace string,
 	current state.PortalPage,
 	desired resources.PortalPageResource,
 	portalRef string,
@@ -825,6 +828,7 @@ func (p *Planner) planPortalPageUpdate(
 		Action:       ActionUpdate,
 		Fields:       fields,
 		DependsOn:    dependencies,
+		Namespace:    parentNamespace,
 	}
 
 	// Store parent portal reference
@@ -927,7 +931,7 @@ func (p *Planner) buildParentPath(pageRef string, allPages []resources.PortalPag
 // Portal Snippet planning
 
 func (p *Planner) planPortalSnippetsChanges(
-	ctx context.Context, portalID string, portalRef string, desired []resources.PortalSnippetResource, plan *Plan,
+	ctx context.Context, parentNamespace string, portalID string, portalRef string, desired []resources.PortalSnippetResource, plan *Plan,
 ) error {
 	// Fetch existing snippets for this portal
 	existingSnippets := make(map[string]state.PortalSnippet)
@@ -971,12 +975,12 @@ func (p *Planner) planPortalSnippetsChanges(
 				
 				needsUpdate, updateFields := p.shouldUpdatePortalSnippet(fullSnippet, desiredSnippet)
 				if needsUpdate {
-					p.planPortalSnippetUpdate(existingSnippet, desiredSnippet, portalRef, updateFields, plan)
+					p.planPortalSnippetUpdate(parentNamespace, existingSnippet, desiredSnippet, portalRef, updateFields, plan)
 				}
 			}
 		} else {
 			// CREATE new snippet
-			p.planPortalSnippetCreate(desiredSnippet, plan)
+			p.planPortalSnippetCreate(parentNamespace, desiredSnippet, plan)
 		}
 	}
 
@@ -984,7 +988,7 @@ func (p *Planner) planPortalSnippetsChanges(
 }
 
 func (p *Planner) planPortalSnippetCreate(
-	snippet resources.PortalSnippetResource, plan *Plan,
+	parentNamespace string, snippet resources.PortalSnippetResource, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	fields["name"] = snippet.Name
@@ -1023,6 +1027,7 @@ func (p *Planner) planPortalSnippetCreate(
 		Action:       ActionCreate,
 		Fields:       fields,
 		DependsOn:    dependencies,
+		Namespace:    parentNamespace,
 	}
 
 	// Store parent portal reference
@@ -1098,6 +1103,7 @@ func (p *Planner) shouldUpdatePortalSnippet(
 
 // planPortalSnippetUpdate creates an UPDATE change for a portal snippet
 func (p *Planner) planPortalSnippetUpdate(
+	parentNamespace string,
 	current state.PortalSnippet,
 	desired resources.PortalSnippetResource,
 	portalRef string,
@@ -1134,6 +1140,7 @@ func (p *Planner) planPortalSnippetUpdate(
 		Action:       ActionUpdate,
 		Fields:       fields,
 		DependsOn:    dependencies,
+		Namespace:    parentNamespace,
 	}
 
 	// Store parent portal reference

@@ -535,6 +535,12 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 	// Get the main planner instance to access child resource planning methods
 	planner := p.planner
 	
+	// Extract parent namespace for child resources
+	parentNamespace := DefaultNamespace
+	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
+		parentNamespace = *desired.Kongctl.Namespace
+	}
+	
 	// For new portals, we can't list existing resources, but we still need to plan
 	// creation of child resources. Pass empty portal ID - the executor will resolve it.
 	
@@ -546,7 +552,7 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 		}
 	}
 	// Note: Passing empty portalID for new portal
-	if err := planner.planPortalPagesChanges(ctx, "", desired.Ref, pages, plan); err != nil {
+	if err := planner.planPortalPagesChanges(ctx, parentNamespace, "", desired.Ref, pages, plan); err != nil {
 		// Log error but don't fail - portal creation should still proceed
 		planner.logger.Debug("Failed to plan portal pages for new portal", 
 			"portal", desired.Ref,
@@ -560,7 +566,7 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			snippets = append(snippets, snippet)
 		}
 	}
-	if err := planner.planPortalSnippetsChanges(ctx, "", desired.Ref, snippets, plan); err != nil {
+	if err := planner.planPortalSnippetsChanges(ctx, parentNamespace, "", desired.Ref, snippets, plan); err != nil {
 		planner.logger.Debug("Failed to plan portal snippets for new portal",
 			"portal", desired.Ref,
 			"error", err.Error())
@@ -586,7 +592,7 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			domains = append(domains, domain)
 		}
 	}
-	if err := planner.planPortalCustomDomainsChanges(ctx, domains, plan); err != nil {
+	if err := planner.planPortalCustomDomainsChanges(ctx, parentNamespace, domains, plan); err != nil {
 		planner.logger.Debug("Failed to plan portal custom domains for new portal",
 			"portal", desired.Ref,
 			"error", err.Error())
@@ -600,6 +606,12 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 	// Get the main planner instance to access child resource planning methods
 	planner := p.planner
 	
+	// Extract parent namespace for child resources
+	parentNamespace := DefaultNamespace
+	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
+		parentNamespace = *desired.Kongctl.Namespace
+	}
+	
 	// Plan pages - pass empty array if no pages defined
 	pages := make([]resources.PortalPageResource, 0)
 	// Note: Pages have already been extracted to root level by loader
@@ -609,7 +621,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			pages = append(pages, page)
 		}
 	}
-	if err := planner.planPortalPagesChanges(ctx, current.ID, desired.Ref, pages, plan); err != nil {
+	if err := planner.planPortalPagesChanges(ctx, parentNamespace, current.ID, desired.Ref, pages, plan); err != nil {
 		return fmt.Errorf("failed to plan portal page changes: %w", err)
 	}
 	
@@ -622,7 +634,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			snippets = append(snippets, snippet)
 		}
 	}
-	if err := planner.planPortalSnippetsChanges(ctx, current.ID, desired.Ref, snippets, plan); err != nil {
+	if err := planner.planPortalSnippetsChanges(ctx, parentNamespace, current.ID, desired.Ref, snippets, plan); err != nil {
 		return fmt.Errorf("failed to plan portal snippet changes: %w", err)
 	}
 	
@@ -644,7 +656,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			domains = append(domains, domain)
 		}
 	}
-	if err := planner.planPortalCustomDomainsChanges(ctx, domains, plan); err != nil {
+	if err := planner.planPortalCustomDomainsChanges(ctx, parentNamespace, domains, plan); err != nil {
 		return fmt.Errorf("failed to plan portal custom domain changes: %w", err)
 	}
 	

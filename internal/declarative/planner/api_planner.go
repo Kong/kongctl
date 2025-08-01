@@ -99,8 +99,13 @@ func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIRes
 		if !exists {
 			// CREATE action
 			apiChangeID := p.planAPICreate(desiredAPI, plan)
+			// Extract namespace for child resources
+			parentNamespace := DefaultNamespace
+			if desiredAPI.Kongctl != nil && desiredAPI.Kongctl.Namespace != nil {
+				parentNamespace = *desiredAPI.Kongctl.Namespace
+			}
 			// Plan child resources after API creation
-			p.planAPIChildResourcesCreate(desiredAPI, apiChangeID, plan)
+			p.planAPIChildResourcesCreate(parentNamespace, desiredAPI, apiChangeID, plan)
 		} else {
 			// Check if update needed
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
@@ -379,25 +384,25 @@ func (p *Planner) planAPIDelete(api state.API, plan *Plan) {
 }
 
 // planAPIChildResourcesCreate plans creation of child resources for a new API
-func (p *Planner) planAPIChildResourcesCreate(api resources.APIResource, apiChangeID string, plan *Plan) {
+func (p *Planner) planAPIChildResourcesCreate(parentNamespace string, api resources.APIResource, apiChangeID string, plan *Plan) {
 	// Plan version creation - API ID is not yet known
 	for _, version := range api.Versions {
-		p.planAPIVersionCreate(api.GetRef(), "", version, []string{apiChangeID}, plan)
+		p.planAPIVersionCreate(parentNamespace, api.GetRef(), "", version, []string{apiChangeID}, plan)
 	}
 
 	// Plan publication creation - API ID is not yet known
 	for _, publication := range api.Publications {
-		p.planAPIPublicationCreate(api.GetRef(), "", publication, []string{apiChangeID}, plan)
+		p.planAPIPublicationCreate(parentNamespace, api.GetRef(), "", publication, []string{apiChangeID}, plan)
 	}
 
 	// Plan implementation creation - API ID is not yet known
 	for _, implementation := range api.Implementations {
-		p.planAPIImplementationCreate(api.GetRef(), "", implementation, []string{apiChangeID}, plan)
+		p.planAPIImplementationCreate(parentNamespace, api.GetRef(), "", implementation, []string{apiChangeID}, plan)
 	}
 
 	// Plan document creation - API ID is not yet known
 	for _, document := range api.Documents {
-		p.planAPIDocumentCreate(api.GetRef(), "", document, []string{apiChangeID}, plan)
+		p.planAPIDocumentCreate(parentNamespace, api.GetRef(), "", document, []string{apiChangeID}, plan)
 	}
 }
 
@@ -405,24 +410,30 @@ func (p *Planner) planAPIChildResourcesCreate(api resources.APIResource, apiChan
 func (p *Planner) planAPIChildResourceChanges(
 	ctx context.Context, current state.API, desired resources.APIResource, plan *Plan,
 ) error {
+	// Extract parent namespace for child resources
+	parentNamespace := DefaultNamespace
+	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
+		parentNamespace = *desired.Kongctl.Namespace
+	}
+
 	// Plan version changes
-	if err := p.planAPIVersionChanges(ctx, current.ID, desired.GetRef(), desired.Versions, plan); err != nil {
+	if err := p.planAPIVersionChanges(ctx, parentNamespace, current.ID, desired.GetRef(), desired.Versions, plan); err != nil {
 		return fmt.Errorf("failed to plan API version changes: %w", err)
 	}
 
 	// Plan publication changes
-	if err := p.planAPIPublicationChanges(ctx, current.ID, desired.GetRef(), desired.Publications, plan); err != nil {
+	if err := p.planAPIPublicationChanges(ctx, parentNamespace, current.ID, desired.GetRef(), desired.Publications, plan); err != nil {
 		return fmt.Errorf("failed to plan API publication changes: %w", err)
 	}
 
 	// Plan implementation changes
 	if err := p.planAPIImplementationChanges(
-		ctx, current.ID, desired.GetRef(), desired.Implementations, plan); err != nil {
+		ctx, parentNamespace, current.ID, desired.GetRef(), desired.Implementations, plan); err != nil {
 		return fmt.Errorf("failed to plan API implementation changes: %w", err)
 	}
 
 	// Plan document changes
-	if err := p.planAPIDocumentChanges(ctx, current.ID, desired.GetRef(), desired.Documents, plan); err != nil {
+	if err := p.planAPIDocumentChanges(ctx, parentNamespace, current.ID, desired.GetRef(), desired.Documents, plan); err != nil {
 		return fmt.Errorf("failed to plan API document changes: %w", err)
 	}
 
@@ -432,7 +443,7 @@ func (p *Planner) planAPIChildResourceChanges(
 // API Version planning
 
 func (p *Planner) planAPIVersionChanges(
-	ctx context.Context, apiID string, apiRef string, desired []resources.APIVersionResource, plan *Plan,
+	ctx context.Context, parentNamespace string, apiID string, apiRef string, desired []resources.APIVersionResource, plan *Plan,
 ) error {
 	// List current versions
 	currentVersions, err := p.client.ListAPIVersions(ctx, apiID)
@@ -455,7 +466,7 @@ func (p *Planner) planAPIVersionChanges(
 
 		if _, exists := currentByVersion[versionStr]; !exists {
 			// CREATE - versions don't support update
-			p.planAPIVersionCreate(apiRef, apiID, desiredVersion, []string{}, plan)
+			p.planAPIVersionCreate(parentNamespace, apiRef, apiID, desiredVersion, []string{}, plan)
 		}
 		// Note: API versions don't support update operations
 	}
@@ -509,7 +520,7 @@ func (p *Planner) planAPIVersionChanges(
 }
 
 func (p *Planner) planAPIVersionCreate(
-	apiRef string, apiID string, version resources.APIVersionResource, dependsOn []string, plan *Plan,
+	parentNamespace string, apiRef string, apiID string, version resources.APIVersionResource, dependsOn []string, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	if version.Version != nil {
@@ -536,6 +547,7 @@ func (p *Planner) planAPIVersionCreate(
 		Action:       ActionCreate,
 		Fields:       fields,
 		DependsOn:    dependsOn,
+		Namespace:    parentNamespace,
 	}
 
 	// Set API reference for executor - find the API name for lookup
@@ -584,7 +596,7 @@ func (p *Planner) planAPIVersionDelete(apiRef string, apiID string, versionID st
 // API Publication planning
 
 func (p *Planner) planAPIPublicationChanges(
-	ctx context.Context, apiID string, apiRef string, desired []resources.APIPublicationResource, plan *Plan,
+	ctx context.Context, parentNamespace string, apiID string, apiRef string, desired []resources.APIPublicationResource, plan *Plan,
 ) error {
 	// Get namespace from context
 	namespace, ok := ctx.Value(NamespaceContextKey).(string)
@@ -682,7 +694,7 @@ func (p *Planner) planAPIPublicationChanges(
 
 		if !exists {
 			// CREATE - publications don't support update
-			p.planAPIPublicationCreate(apiRef, apiID, desiredPub, []string{}, plan)
+			p.planAPIPublicationCreate(parentNamespace, apiRef, apiID, desiredPub, []string{}, plan)
 		}
 		// Note: Publications are identified by portal ID, not a separate ID
 	}
@@ -750,7 +762,7 @@ func (p *Planner) planAPIPublicationChanges(
 }
 
 func (p *Planner) planAPIPublicationCreate(
-	apiRef string, apiID string, publication resources.APIPublicationResource, dependsOn []string, plan *Plan,
+	parentNamespace string, apiRef string, apiID string, publication resources.APIPublicationResource, dependsOn []string, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	fields["portal_id"] = publication.PortalID
@@ -784,6 +796,7 @@ func (p *Planner) planAPIPublicationCreate(
 		Action:       ActionCreate,
 		Fields:       fields,
 		DependsOn:    dependsOn,
+		Namespace:    parentNamespace,
 	}
 
 	// Look up portal name for reference resolution
@@ -854,7 +867,7 @@ func (p *Planner) planAPIPublicationDelete(apiRef string, apiID string, portalID
 // API Implementation planning
 
 func (p *Planner) planAPIImplementationChanges(
-	ctx context.Context, apiID string, _ string, desired []resources.APIImplementationResource, plan *Plan,
+	ctx context.Context, parentNamespace string, apiID string, _ string, desired []resources.APIImplementationResource, plan *Plan,
 ) error {
 	// List current implementations
 	currentImplementations, err := p.client.ListAPIImplementations(ctx, apiID)
@@ -909,7 +922,7 @@ func (p *Planner) planAPIImplementationChanges(
 }
 
 func (p *Planner) planAPIImplementationCreate(
-	apiRef string, apiID string, implementation resources.APIImplementationResource, dependsOn []string, plan *Plan,
+	parentNamespace string, apiRef string, apiID string, implementation resources.APIImplementationResource, dependsOn []string, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	// APIImplementation only has Service field in the SDK
@@ -933,6 +946,7 @@ func (p *Planner) planAPIImplementationCreate(
 		Action:       ActionCreate,
 		Fields:       fields,
 		DependsOn:    dependsOn,
+		Namespace:    parentNamespace,
 	}
 
 	// Set API reference for executor - find the API name for lookup
@@ -962,7 +976,7 @@ func (p *Planner) planAPIImplementationCreate(
 // API Document planning
 
 func (p *Planner) planAPIDocumentChanges(
-	ctx context.Context, apiID string, apiRef string, desired []resources.APIDocumentResource, plan *Plan,
+	ctx context.Context, parentNamespace string, apiID string, apiRef string, desired []resources.APIDocumentResource, plan *Plan,
 ) error {
 	// List current documents
 	currentDocuments, err := p.client.ListAPIDocuments(ctx, apiID)
@@ -991,7 +1005,7 @@ func (p *Planner) planAPIDocumentChanges(
 
 		if !exists {
 			// CREATE
-			p.planAPIDocumentCreate(apiRef, apiID, desiredDoc, []string{}, plan)
+			p.planAPIDocumentCreate(parentNamespace, apiRef, apiID, desiredDoc, []string{}, plan)
 		} else {
 			// UPDATE - documents support update
 			// Fetch full document to get content for comparison
@@ -1005,7 +1019,7 @@ func (p *Planner) planAPIDocumentChanges(
 			
 			// Now compare with full content
 			if p.shouldUpdateAPIDocument(current, desiredDoc) {
-				p.planAPIDocumentUpdate(apiRef, apiID, current.ID, desiredDoc, plan)
+				p.planAPIDocumentUpdate(parentNamespace, apiRef, apiID, current.ID, desiredDoc, plan)
 			}
 		}
 	}
@@ -1051,7 +1065,7 @@ func (p *Planner) shouldUpdateAPIDocument(current state.APIDocument, desired res
 }
 
 func (p *Planner) planAPIDocumentCreate(
-	apiRef string, apiID string, document resources.APIDocumentResource, dependsOn []string, plan *Plan,
+	parentNamespace string, apiRef string, apiID string, document resources.APIDocumentResource, dependsOn []string, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	fields["content"] = document.Content
@@ -1081,6 +1095,7 @@ func (p *Planner) planAPIDocumentCreate(
 		Action:       ActionCreate,
 		Fields:       fields,
 		DependsOn:    dependsOn,
+		Namespace:    parentNamespace,
 	}
 
 	// Set API reference for executor
@@ -1109,7 +1124,7 @@ func (p *Planner) planAPIDocumentCreate(
 }
 
 func (p *Planner) planAPIDocumentUpdate(
-	apiRef string, apiID string, documentID string, document resources.APIDocumentResource, plan *Plan,
+	parentNamespace string, apiRef string, apiID string, documentID string, document resources.APIDocumentResource, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	fields["content"] = document.Content
@@ -1135,6 +1150,7 @@ func (p *Planner) planAPIDocumentUpdate(
 		Action:       ActionUpdate,
 		Fields:       fields,
 		DependsOn:    []string{},
+		Namespace:    parentNamespace,
 	}
 
 	// Set API reference for executor
@@ -1221,8 +1237,13 @@ func (p *Planner) planAPIVersionsChanges(
 			if change.ResourceType == "api" && change.ResourceRef == apiRef {
 				if change.Action == ActionCreate {
 					// API is being created, use dependency
+					// Get parent namespace from the API change
+					parentNamespace := change.Namespace
+					if parentNamespace == "" {
+						parentNamespace = DefaultNamespace
+					}
 					for _, v := range versions {
-						p.planAPIVersionCreate(apiRef, "", v, []string{change.ID}, plan)
+						p.planAPIVersionCreate(parentNamespace, apiRef, "", v, []string{change.ID}, plan)
 					}
 					continue
 				}
@@ -1247,7 +1268,17 @@ func (p *Planner) planAPIVersionsChanges(
 
 		if apiID != "" {
 			// Plan version changes for existing API
-			if err := p.planAPIVersionChanges(ctx, apiID, apiRef, versions, plan); err != nil {
+			// Find parent namespace from the API resource
+			parentNamespace := DefaultNamespace
+			for _, api := range p.GetDesiredAPIs() {
+				if api.GetRef() == apiRef {
+					if api.Kongctl != nil && api.Kongctl.Namespace != nil {
+						parentNamespace = *api.Kongctl.Namespace
+					}
+					break
+				}
+			}
+			if err := p.planAPIVersionChanges(ctx, parentNamespace, apiID, apiRef, versions, plan); err != nil {
 				return err
 			}
 		}
@@ -1274,8 +1305,13 @@ func (p *Planner) planAPIPublicationsChanges(
 			if change.ResourceType == "api" && change.ResourceRef == apiRef {
 				if change.Action == ActionCreate {
 					// API is being created, use dependency
+					// Get parent namespace from the API change
+					parentNamespace := change.Namespace
+					if parentNamespace == "" {
+						parentNamespace = DefaultNamespace
+					}
 					for _, pub := range publications {
-						p.planAPIPublicationCreate(apiRef, "", pub, []string{change.ID}, plan)
+						p.planAPIPublicationCreate(parentNamespace, apiRef, "", pub, []string{change.ID}, plan)
 					}
 					continue
 				}
@@ -1300,7 +1336,17 @@ func (p *Planner) planAPIPublicationsChanges(
 
 		if apiID != "" {
 			// Plan publication changes for existing API
-			if err := p.planAPIPublicationChanges(ctx, apiID, apiRef, publications, plan); err != nil {
+			// Find parent namespace from the API resource
+			parentNamespace := DefaultNamespace
+			for _, api := range p.GetDesiredAPIs() {
+				if api.GetRef() == apiRef {
+					if api.Kongctl != nil && api.Kongctl.Namespace != nil {
+						parentNamespace = *api.Kongctl.Namespace
+					}
+					break
+				}
+			}
+			if err := p.planAPIPublicationChanges(ctx, parentNamespace, apiID, apiRef, publications, plan); err != nil {
 				return err
 			}
 		}
@@ -1354,7 +1400,17 @@ func (p *Planner) planAPIImplementationsChanges(
 
 		if apiID != "" {
 			// Plan implementation changes for existing API
-			if err := p.planAPIImplementationChanges(ctx, apiID, apiRef, implementations, plan); err != nil {
+			// Find parent namespace from the API resource
+			parentNamespace := DefaultNamespace
+			for _, api := range p.GetDesiredAPIs() {
+				if api.GetRef() == apiRef {
+					if api.Kongctl != nil && api.Kongctl.Namespace != nil {
+						parentNamespace = *api.Kongctl.Namespace
+					}
+					break
+				}
+			}
+			if err := p.planAPIImplementationChanges(ctx, parentNamespace, apiID, apiRef, implementations, plan); err != nil {
 				return err
 			}
 		}
@@ -1381,8 +1437,13 @@ func (p *Planner) planAPIDocumentsChanges(
 			if change.ResourceType == "api" && change.ResourceRef == apiRef {
 				if change.Action == ActionCreate {
 					// API is being created, use dependency
+					// Get parent namespace from the API change
+					parentNamespace := change.Namespace
+					if parentNamespace == "" {
+						parentNamespace = DefaultNamespace
+					}
 					for _, doc := range documents {
-						p.planAPIDocumentCreate(apiRef, "", doc, []string{change.ID}, plan)
+						p.planAPIDocumentCreate(parentNamespace, apiRef, "", doc, []string{change.ID}, plan)
 					}
 					continue
 				}
@@ -1407,7 +1468,17 @@ func (p *Planner) planAPIDocumentsChanges(
 
 		if apiID != "" {
 			// Plan document changes for existing API
-			if err := p.planAPIDocumentChanges(ctx, apiID, apiRef, documents, plan); err != nil {
+			// Find parent namespace from the API resource
+			parentNamespace := DefaultNamespace
+			for _, api := range p.GetDesiredAPIs() {
+				if api.GetRef() == apiRef {
+					if api.Kongctl != nil && api.Kongctl.Namespace != nil {
+						parentNamespace = *api.Kongctl.Namespace
+					}
+					break
+				}
+			}
+			if err := p.planAPIDocumentChanges(ctx, parentNamespace, apiID, apiRef, documents, plan); err != nil {
 				return err
 			}
 		}
