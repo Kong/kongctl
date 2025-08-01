@@ -30,11 +30,6 @@ apis:
         name: "v1.0.0"
         version: "v1"
         publish_status: "published"
-      
-      - ref: my-api-v2
-        name: "v2.0.0"
-        version: "v2"
-        publish_status: "published"
         
     publications:
       - ref: my-api-pub

@@ -296,6 +296,53 @@ func TestLoader_validateAPIs(t *testing.T) {
 			wantErr:     true,
 			expectedErr: "duplicate api_implementation ref: impl1",
 		},
+		{
+			name: "API with multiple versions - Konnect constraint",
+			apis: []resources.APIResource{
+				{
+					Ref: "api1",
+					CreateAPIRequest: kkComps.CreateAPIRequest{
+						Name: "API One",
+					},
+					Versions: []resources.APIVersionResource{
+						{
+							Ref: "v1",
+							CreateAPIVersionRequest: kkComps.CreateAPIVersionRequest{
+								Version: stringPtr("v1.0"),
+							},
+						},
+						{
+							Ref: "v2",
+							CreateAPIVersionRequest: kkComps.CreateAPIVersionRequest{
+								Version: stringPtr("v2.0"),
+							},
+						},
+					},
+				},
+			},
+			wantErr:     true,
+			expectedErr: "Ensure each API versions key has only 1 version defined",
+		},
+		{
+			name: "API with single version - should pass",
+			apis: []resources.APIResource{
+				{
+					Ref: "api1",
+					CreateAPIRequest: kkComps.CreateAPIRequest{
+						Name: "API One",
+					},
+					Versions: []resources.APIVersionResource{
+						{
+							Ref: "v1",
+							CreateAPIVersionRequest: kkComps.CreateAPIVersionRequest{
+								Version: stringPtr("v1.0"),
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 	
 	for _, tt := range tests {

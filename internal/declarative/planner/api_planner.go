@@ -471,6 +471,26 @@ func (p *Planner) planAPIVersionChanges(
 		currentByVersion[v.Version] = v
 	}
 
+	// Check if API already has a version (Konnect constraint)
+	if len(currentVersions) > 0 && len(desired) > 0 {
+		// Check if we're trying to add a new version to an API that already has one
+		for _, desiredVersion := range desired {
+			versionStr := ""
+			if desiredVersion.Version != nil {
+				versionStr = *desiredVersion.Version
+			}
+			if _, exists := currentByVersion[versionStr]; !exists {
+				// Trying to add a new version to an API that already has version(s)
+				currentVersionStr := ""
+				if len(currentVersions) > 0 {
+					currentVersionStr = currentVersions[0].Version
+				}
+				return fmt.Errorf("cannot add version to api %q: Konnect APIs support only one version. "+
+					"Current version: %s", apiRef, currentVersionStr)
+			}
+		}
+	}
+
 	// Compare desired versions
 	for _, desiredVersion := range desired {
 		versionStr := ""

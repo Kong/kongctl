@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -51,7 +52,12 @@ func (a *APIVersionAdapter) Create(ctx context.Context, req kkComps.CreateAPIVer
 
 	resp, err := a.client.CreateAPIVersion(ctx, apiID, req)
 	if err != nil {
-		return "", err
+		// Enhance error message for Konnect's single version constraint
+		if strings.Contains(err.Error(), "At most one api specification") {
+			return "", fmt.Errorf("failed to create API version: Konnect allows only one version per API. "+
+				"Consider updating the existing version or creating a separate API. Original error: %w", err)
+		}
+		return "", fmt.Errorf("failed to create API version: %w", err)
 	}
 	if resp == nil {
 		return "", fmt.Errorf("API version creation returned no response")

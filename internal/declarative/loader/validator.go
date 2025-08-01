@@ -205,6 +205,12 @@ func (l *Loader) validateAPIs(apis []resources.APIResource, registry map[string]
 			versionRefs[version.GetRef()] = true
 		}
 
+		// Validate Konnect's single-version constraint
+		if len(api.Versions) > 1 {
+			return fmt.Errorf("api %q defines %d versions, but Konnect currently supports only one version per API. "+
+				"Ensure each API versions key has only 1 version defined", api.GetRef(), len(api.Versions))
+		}
+
 		// Validate nested publications
 		for j := range api.Publications {
 			publication := &api.Publications[j]
@@ -280,6 +286,24 @@ func (l *Loader) validateCrossReferences(rs *resources.ResourceSet, registry map
 
 // validateSeparateAPIChildResources validates individual API child resources that were extracted
 func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet, _ map[string]map[string]bool) error {
+	// Count versions per API to enforce single-version constraint
+	// This is a safety check in case the early validation was bypassed
+	versionCountByAPI := make(map[string]int)
+	for i := range rs.APIVersions {
+		version := &rs.APIVersions[i]
+		if version.API != "" {
+			versionCountByAPI[version.API]++
+		}
+	}
+	
+	// Check if any API has multiple versions
+	for apiRef, count := range versionCountByAPI {
+		if count > 1 {
+			return fmt.Errorf("api %q has %d versions defined, but Konnect currently supports only one version per API. "+
+				"Ensure each API versions key has only 1 version defined", apiRef, count)
+		}
+	}
+	
 	// Validate separate API versions
 	for i := range rs.APIVersions {
 		version := &rs.APIVersions[i]

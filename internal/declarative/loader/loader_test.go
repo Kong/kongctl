@@ -104,6 +104,11 @@ func TestLoader_LoadFile_InvalidConfigs(t *testing.T) {
 			file:        "invalid/duplicate-names.yaml",
 			expectError: "duplicate",
 		},
+		{
+			name:        "api with multiple versions",
+			file:        "invalid/api-multiple-versions.yaml",
+			expectError: "Ensure each API versions key has only 1 version defined",
+		},
 	}
 
 	for _, tt := range tests {
@@ -159,15 +164,13 @@ func TestLoader_LoadFile_APIWithChildren(t *testing.T) {
 	assert.Len(t, api.Implementations, 0)
 	
 	// Verify child resources are extracted to root level with parent references
-	assert.Len(t, rs.APIVersions, 2)
+	assert.Len(t, rs.APIVersions, 1)
 	assert.Len(t, rs.APIPublications, 1)
 	assert.Len(t, rs.APIImplementations, 1)
 	
-	// Check versions
+	// Check version
 	assert.Equal(t, "my-api-v1", rs.APIVersions[0].GetRef())
 	assert.Equal(t, "my-api", rs.APIVersions[0].API) // Parent reference
-	assert.Equal(t, "my-api-v2", rs.APIVersions[1].GetRef())
-	assert.Equal(t, "my-api", rs.APIVersions[1].API) // Parent reference
 	
 	// Check publication
 	assert.Equal(t, "my-api-pub", rs.APIPublications[0].GetRef())
@@ -185,7 +188,7 @@ func TestLoader_LoadFile_SeparateAPIChildResources(t *testing.T) {
 	dir := filepath.Join("testdata", "valid")
 	sources := []Source{
 		{Path: filepath.Join(dir, "api-only.yaml"), Type: SourceTypeFile},
-		{Path: filepath.Join(dir, "api-versions-separate.yaml"), Type: SourceTypeFile},
+		{Path: filepath.Join(dir, "api-version-single-separate.yaml"), Type: SourceTypeFile},
 		{Path: filepath.Join(dir, "api-publications-separate.yaml"), Type: SourceTypeFile},
 		{Path: filepath.Join(dir, "simple-portal.yaml"), Type: SourceTypeFile}, // For portal reference
 	}
@@ -199,11 +202,9 @@ func TestLoader_LoadFile_SeparateAPIChildResources(t *testing.T) {
 	assert.Equal(t, "users-api", rs.APIs[0].GetRef())
 	
 	// Verify separately defined child resources
-	assert.Len(t, rs.APIVersions, 2)
+	assert.Len(t, rs.APIVersions, 1)
 	assert.Equal(t, "users-api-v1", rs.APIVersions[0].GetRef())
 	assert.Equal(t, "users-api", rs.APIVersions[0].API) // Parent reference
-	assert.Equal(t, "users-api-v2", rs.APIVersions[1].GetRef())
-	assert.Equal(t, "users-api", rs.APIVersions[1].API) // Parent reference
 	
 	assert.Len(t, rs.APIPublications, 1)
 	assert.Equal(t, "users-api-public-pub", rs.APIPublications[0].GetRef())

@@ -1,0 +1,21 @@
+# Separate file with multiple API versions for the same API (should fail validation)
+api_versions:
+  - ref: test-api-v1
+    api: test-api
+    version: "1.0.0"
+    spec:
+      content: |
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 1.0.0
+  
+  - ref: test-api-v2
+    api: test-api
+    version: "2.0.0"
+    spec:
+      content: |
+        openapi: 3.0.0
+        info:
+          title: Test API
+          version: 2.0.0

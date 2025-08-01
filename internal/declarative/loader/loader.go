@@ -237,6 +237,16 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceS
 		return nil, fmt.Errorf("failed to apply namespace defaults: %w", err)
 	}
 
+	// Validate API version constraints before extraction
+	// This ensures we catch multiple versions as configured by the user
+	for i := range rs.APIs {
+		api := &rs.APIs[i]
+		if len(api.Versions) > 1 {
+			return nil, fmt.Errorf("api %q defines %d versions, but Konnect currently supports only one version per API. "+
+				"Ensure each API versions key has only 1 version defined", api.GetRef(), len(api.Versions))
+		}
+	}
+
 	// Extract nested child resources to root level first
 	l.extractNestedResources(&rs)
 

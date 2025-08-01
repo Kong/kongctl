@@ -31,24 +31,9 @@ apis:
             /items/{id}:
               get:
                 summary: Get item by ID
-      
-      - ref: inventory-v2
-        version: "2.0.0"
-        spec:
-          openapi: 3.0.0
-          info:
-            title: Inventory API
-            version: 2.0.0
-          paths:
-            /items:
-              get:
-                summary: List inventory items with pagination
-            /items/{id}:
-              get:
-                summary: Get item by ID
     
-    #publications:
-    #  - ref: internal-portal-pub
-    #    portal_id: internal-portal  # References a portal (can be in any namespace)
-    #    auth_strategy_ids: 
-    #      - api-key-auth            # References auth strategy
+    publications:
+      - ref: internal-portal-pub
+        portal_id: internal-portal  # References a portal (can be in any namespace)
+        auth_strategy_ids: 
+          - api-key-auth            # References auth strategy
