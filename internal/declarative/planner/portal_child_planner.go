@@ -13,16 +13,14 @@ import (
 // Portal Customization planning
 
 func (p *Planner) planPortalCustomizationsChanges(
-	ctx context.Context, desired []resources.PortalCustomizationResource, plan *Plan,
+	ctx context.Context, parentNamespace string, desired []resources.PortalCustomizationResource, plan *Plan,
 ) error { //nolint:unparam // Will return errors in future enhancements
-	// Get namespace from context
+	// Get existing portals to check current customization
+	// Use context to get namespace filter for API calls
 	namespace, ok := ctx.Value(NamespaceContextKey).(string)
 	if !ok {
-		// Default to all namespaces for backward compatibility
 		namespace = "*"
 	}
-	
-	// Get existing portals to check current customization
 	namespaceFilter := []string{namespace}
 	existingPortals, _ := p.client.ListManagedPortals(ctx, namespaceFilter)
 	portalNameToID := make(map[string]string)
@@ -52,18 +50,18 @@ func (p *Planner) planPortalCustomizationsChanges(
 					continue
 				}
 				// If we can't fetch current state, plan the update anyway
-				p.planPortalCustomizationUpdate(desiredCustomization, portalName, portalID, plan)
+				p.planPortalCustomizationUpdate(parentNamespace, desiredCustomization, portalName, portalID, plan)
 				continue
 			}
 
 			// Compare and only update if needed
 			needsUpdate, updateFields := p.shouldUpdatePortalCustomization(current, desiredCustomization)
 			if needsUpdate {
-				p.planPortalCustomizationUpdateWithFields(desiredCustomization, portalName, portalID, updateFields, plan)
+				p.planPortalCustomizationUpdateWithFields(parentNamespace, desiredCustomization, portalName, portalID, updateFields, plan)
 			}
 		} else {
 			// Portal doesn't exist yet, plan the update for after portal creation
-			p.planPortalCustomizationUpdate(desiredCustomization, portalName, "", plan)
+			p.planPortalCustomizationUpdate(parentNamespace, desiredCustomization, portalName, "", plan)
 		}
 	}
 
@@ -71,15 +69,15 @@ func (p *Planner) planPortalCustomizationsChanges(
 }
 
 func (p *Planner) planPortalCustomizationUpdate(
-	customization resources.PortalCustomizationResource, portalName string, portalID string, plan *Plan,
+	parentNamespace string, customization resources.PortalCustomizationResource, portalName string, portalID string, plan *Plan,
 ) {
 	// Build all fields from the resource
 	fields := p.buildAllCustomizationFields(customization)
-	p.planPortalCustomizationUpdateWithFields(customization, portalName, portalID, fields, plan)
+	p.planPortalCustomizationUpdateWithFields(parentNamespace, customization, portalName, portalID, fields, plan)
 }
 
 func (p *Planner) planPortalCustomizationUpdateWithFields(
-	customization resources.PortalCustomizationResource, portalName string, portalID string,
+	parentNamespace string, customization resources.PortalCustomizationResource, portalName string, portalID string,
 	fields map[string]interface{}, plan *Plan,
 ) {
 	// Only proceed if there are fields to update
@@ -107,6 +105,7 @@ func (p *Planner) planPortalCustomizationUpdateWithFields(
 		Action:       ActionUpdate,
 		Fields:       fields,
 		DependsOn:    dependencies,
+		Namespace:    parentNamespace,
 	}
 
 	// Store parent portal reference

@@ -579,7 +579,7 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			customizations = append(customizations, customization)
 		}
 	}
-	if err := planner.planPortalCustomizationsChanges(ctx, customizations, plan); err != nil {
+	if err := planner.planPortalCustomizationsChanges(ctx, parentNamespace, customizations, plan); err != nil {
 		planner.logger.Debug("Failed to plan portal customizations for new portal",
 			"portal", desired.Ref,
 			"error", err.Error())
@@ -645,7 +645,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			customizations = append(customizations, customization)
 		}
 	}
-	if err := planner.planPortalCustomizationsChanges(ctx, customizations, plan); err != nil {
+	if err := planner.planPortalCustomizationsChanges(ctx, parentNamespace, customizations, plan); err != nil {
 		return fmt.Errorf("failed to plan portal customization changes: %w", err)
 	}
 	
