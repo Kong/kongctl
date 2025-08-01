@@ -1,195 +1,282 @@
-# Plan: Fix Portal Custom Domain Configuration Error
+# Fix Runtime Errors Plan
 
-## Problem Summary
+## Overview
 
-When running `k sync -f docs/examples/declarative/namespace/single-team -R`, the command fails with:
-```
-Error: failed to load configuration: invalid portal_custom_domain '': invalid custom domain ref: ref cannot be empty
-```
+This plan addresses critical runtime validation errors that occur when running `kongctl apply` with the example YAML files. The errors prevent successful resource creation in Konnect and must be fixed immediately to restore functionality.
 
-The root cause is that the `ref` field from nested custom domains is not preserved during the extraction process in `extractNestedResources()`.
+## Priority Order
 
-## Root Cause Analysis
+1. **P0 - Portal Custom Domain SSL Error** (Blocks portal creation)
+2. **P0 - Auth Strategy Key Naming Errors** (Blocks auth strategy creation)
+3. **P1 - API Publication UUID Resolution** (Blocks API publication)
+4. **P1 - API Version Content Validation** (Blocks API version creation)
+5. **P2 - Add Validation and Testing** (Prevents regression)
 
-In `internal/declarative/loader/loader.go` (lines 936-940), when extracting nested custom domains:
+## Detailed Implementation Steps
+
+### Step 1: Fix Portal Custom Domain SSL Nil Pointer Issue
+
+**Problem**: Attempting to access `domain.Ssl.DomainVerificationMethod` without nil check causes creation of empty SSL object that fails API validation.
+
+**Files to Modify**:
+- `/internal/declarative/planner/portal_child_planner.go`
+
+**Code Changes**:
 ```go
-if portal.CustomDomain != nil {
-    customDomain := *portal.CustomDomain  // Shallow copy loses the Ref field
-    customDomain.Portal = portal.Ref     // Only parent ref is set
-    rs.PortalCustomDomains = append(rs.PortalCustomDomains, customDomain)
+// Lines 396-401 - Add nil check before accessing SSL fields
+if domain.Ssl != nil && domain.Ssl.DomainVerificationMethod != "" {
+    sslFields := make(map[string]interface{})
+    sslFields["domain_verification_method"] = string(domain.Ssl.DomainVerificationMethod)
+    fields["ssl"] = sslFields
 }
 ```
 
-The `Ref` field from the original custom domain is not explicitly preserved, causing validation to fail.
+**Why This Fixes It**:
+- Prevents creating empty SSL object when no SSL configuration exists
+- Konnect API expects either no SSL field or a fully populated SSL configuration
+- The oneOf schema validation fails with empty SSL objects
 
-## Implementation Plan
+**Testing**:
+```bash
+# Verify portal with custom domain can be created without SSL
+./kongctl apply -f docs/examples/declarative/namespace/single-team/portal.yaml --pat $(cat ~/.konnect/claude.pat)
+```
 
-### Phase 1: Immediate Bug Fix (High Priority)
+### Step 2: Fix Auth Strategy Key Naming Convention
 
-#### 1.1 Fix Custom Domain Extraction
-**File**: `internal/declarative/loader/loader.go`
-**Location**: Lines 936-940 in `extractNestedResources()` function
-**Change**:
+**Problem**: Using hyphens ("key-auth", "openid-connect") instead of underscores ("key_auth", "openid_connect") in config keys.
+
+**Files to Modify**:
+- `/internal/declarative/planner/auth_strategy_planner.go`
+
+**Code Changes**:
+
+For Key-Auth (Line 188):
 ```go
-if portal.CustomDomain != nil {
-    customDomain := *portal.CustomDomain
-    // Preserve the original ref if it exists
-    if portal.CustomDomain.Ref != "" {
-        customDomain.Ref = portal.CustomDomain.Ref
-    }
-    customDomain.Portal = portal.Ref
-    rs.PortalCustomDomains = append(rs.PortalCustomDomains, customDomain)
+// Change from "key-auth" to "key_auth"
+fields["configs"] = map[string]interface{}{
+    "key_auth": map[string]interface{}{
+        "key_names": strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames,
+    },
 }
 ```
 
-#### 1.2 Add Unit Test for Extraction
-**File**: `internal/declarative/loader/loader_test.go` (create if doesn't exist)
-**Test Case**:
-- Test that nested custom domain extraction preserves all fields including Ref
-- Test with various combinations of fields populated
-- Test edge cases (empty ref, missing fields)
-
-### Phase 2: Improve Error Messages (Medium Priority)
-
-#### 2.1 Enhance Validation Error Message
-**File**: `internal/declarative/loader/validator.go`
-**Location**: Line 343 in `validateResourceSet()` function
-**Change**:
+For OAuth2/OpenID Connect (Line 219):
 ```go
-// Current:
-return fmt.Errorf("invalid portal_custom_domain %q: %w", domain.GetRef(), err)
-
-// Improved:
-var errorMsg string
-if domain.GetRef() == "" {
-    errorMsg = fmt.Sprintf("invalid portal_custom_domain (ref is empty, parent portal: %q): %w", 
-        domain.Portal, err)
-} else {
-    errorMsg = fmt.Sprintf("invalid portal_custom_domain %q (parent portal: %q): %w", 
-        domain.GetRef(), domain.Portal, err)
+// Change from "openid-connect" to "openid_connect"
+fields["configs"] = map[string]interface{}{
+    "openid_connect": oidcConfig,
 }
-
-// Add file context if available
-if domain.GetMeta() != nil && domain.GetMeta().FilePath != "" {
-    errorMsg = fmt.Sprintf("%s [file: %s]", errorMsg, domain.GetMeta().FilePath)
-}
-
-return fmt.Errorf(errorMsg)
 ```
 
-#### 2.2 Add Context to Resource Metadata
-**File**: `internal/declarative/loader/loader.go`
-**Location**: In `parseYAML()` function, after creating resources
-**Change**:
-- Store the source file path in resource metadata for better error reporting
-- Pass this context through the extraction process
+**Why This Fixes It**:
+- Konnect API expects underscore-separated keys in the configs map
+- The API validation looks for specific keys like "key_auth" and "openid_connect"
+- Using hyphens causes the API to not find the required configuration
 
-### Phase 3: Add Trace Logging (Medium Priority)
+**Testing**:
+```bash
+# Test key-auth strategy creation
+./kongctl apply -f docs/examples/declarative/namespace/single-team/auth_strategies.yaml --pat $(cat ~/.konnect/claude.pat)
+```
 
-#### 3.1 Add Extraction Logging
-**File**: `internal/declarative/loader/loader.go`
-**Location**: Throughout `extractNestedResources()` function
-**Changes**:
+### Step 3: Fix API Publication Reference Resolution
+
+**Problem**: auth_strategy_ids contains reference names instead of UUIDs.
+
+**Investigation Needed**:
+1. Check if reference resolution is being called for auth_strategy_ids
+2. Verify the reference mapping is working correctly
+
+**Files to Check**:
+- `/internal/declarative/planner/api_publication_planner.go`
+- `/internal/declarative/planner/reference_resolver.go`
+
+**Potential Fix**:
+Ensure auth_strategy_ids references are resolved during planning phase. The resource already has correct reference field mappings:
+
 ```go
-// At the start of portal custom domain extraction
-l.logger.Trace("extracting custom domain from portal", 
-    "portal_ref", portal.Ref, 
-    "has_custom_domain", portal.CustomDomain != nil)
-
-// After extraction
-if portal.CustomDomain != nil {
-    l.logger.Trace("extracted custom domain", 
-        "portal_ref", portal.Ref,
-        "custom_domain_ref", customDomain.Ref,
-        "domain", customDomain.Domain)
+// In api_publication.go GetReferenceFieldMappings()
+"auth_strategy_ids": {
+    ResourceType: DeclarativeAuthStrategiesResourceType,
+    SourceField:  "auth_strategy_ids",
+    TargetField:  "id",
 }
 ```
 
-### Phase 4: Comprehensive Testing (High Priority)
+**Testing**:
+```bash
+# Verify auth strategies are created first, then API publication
+./kongctl apply -f docs/examples/declarative/namespace/single-team -R --pat $(cat ~/.konnect/claude.pat)
+```
 
-#### 4.1 Integration Test
-**File**: `test/integration/declarative/portal_custom_domain_test.go` (create new)
-**Test Cases**:
-1. Test successful sync with portal containing custom domain
-2. Test error handling when ref is missing
-3. Test with multiple portals having custom domains
-4. Test namespace inheritance for custom domains
+### Step 4: Fix API Version Content Validation
 
-#### 4.2 Example Configuration Test
-**File**: Add test that specifically loads `docs/examples/declarative/namespace/single-team`
-- Ensure the example configuration works correctly after the fix
+**Problem**: API rejects content as invalid specification.
 
-### Phase 5: Review Similar Patterns (Medium Priority)
+**Investigation Needed**:
+1. Check if YAML content is properly converted to JSON
+2. Verify the content structure matches API expectations
 
-#### 5.1 Audit Other Nested Resource Extractions
+**Files to Check**:
+- `/internal/declarative/resources/api_version.go` (UnmarshalJSON method)
+- `/internal/declarative/planner/api_version_planner.go`
+- Example YAML files using "document:" instead of "content:"
+
+**Potential Fixes**:
+1. Ensure YAML specs are converted to proper JSON format
+2. Update example files to use "content:" if needed
+3. Add validation for OpenAPI/AsyncAPI spec formats
+
+**Testing**:
+```bash
+# Test API version creation with various spec formats
+./kongctl apply -f docs/examples/declarative/namespace/single-team/api.yaml --pat $(cat ~/.konnect/claude.pat)
+```
+
+### Step 5: Add Comprehensive Testing
+
+**Unit Tests to Add**:
+
+1. **Portal Custom Domain Nil Check Test**:
+   - File: `/internal/declarative/planner/portal_child_planner_test.go`
+   - Test nil SSL field doesn't create empty object
+   - Test populated SSL field is correctly mapped
+
+2. **Auth Strategy Key Naming Test**:
+   - File: `/internal/declarative/planner/auth_strategy_planner_test.go`
+   - Test key_auth uses underscore in config key
+   - Test openid_connect uses underscore in config key
+
+3. **Reference Resolution Test**:
+   - Verify auth_strategy_ids references are resolved to UUIDs
+
+**Integration Tests**:
+- Add integration test that runs full apply with example files
+- Verify all resources are created successfully
+
+### Step 6: Add Early Validation
+
+**Goal**: Catch errors during planning phase instead of API call phase.
+
+**Implementation**:
+1. Add validation function in each planner to check:
+   - Required fields are present
+   - Field formats match API expectations (e.g., UUIDs)
+   - Key naming conventions are correct
+
+2. Create common validation utilities:
+   - UUID format validator
+   - Reference resolution checker
+   - Key naming convention validator
+
+**Files to Create/Modify**:
+- `/internal/declarative/planner/validation.go` (new file)
+- Update each planner to call validation before returning plan
+
+### Step 7: Pattern Consistency Review
+
+**Check for Similar Issues**:
+
+1. **Nil Pointer Checks**:
+   - Search for other embedded SDK structs
+   - Add nil checks where needed
+   - Pattern: `if resource.Field != nil`
+
+2. **Key Naming Convention**:
+   - Search for map keys with hyphens
+   - Ensure all use underscores for API compatibility
+   - Pattern: Use `key_name` not `key-name`
+
+3. **Reference Resolution**:
+   - Verify all reference fields are properly resolved
+   - Check GetReferenceFieldMappings implementations
+
 **Files to Review**:
-- `internal/declarative/loader/loader.go` - Check all extraction patterns:
-  - API Publications extraction (lines ~950-960)
-  - Auth Strategy associations
-  - Any other nested resource extractions
+```bash
+# Find potential nil pointer issues
+grep -r "\..*\." --include="*.go" internal/declarative/planner/
 
-**Action**: Ensure all nested resource extractions preserve original fields correctly
+# Find hyphenated keys
+grep -r '".*-.*":' --include="*.go" internal/declarative/
 
-#### 5.2 Create Helper Function
-**File**: `internal/declarative/loader/loader.go`
-**New Function**:
-```go
-// ensureFieldPreservation performs a defensive copy ensuring critical fields are preserved
-func ensureFieldPreservation[T any](original, extracted *T, preserveFields ...string) {
-    // Implementation to use reflection to ensure specified fields are preserved
-    // This prevents similar bugs in the future
-}
+# Check reference mappings
+grep -r "GetReferenceFieldMappings" --include="*.go" internal/declarative/resources/
 ```
 
-### Phase 6: Documentation Updates
+## Implementation Order
 
-#### 6.1 Code Documentation
-**Files**: Add comments to extraction code explaining the importance of field preservation
+1. **Immediate Fixes (Do First)**:
+   - Step 1: Portal Custom Domain nil check
+   - Step 2: Auth Strategy key naming
+   - These are simple, low-risk fixes that unblock functionality
 
-#### 6.2 Debugging Guide
-**File**: `docs/debugging/declarative-config-errors.md` (create if doesn't exist)
-**Content**:
-- Common configuration errors and their solutions
-- How to enable trace logging for debugging
-- Understanding validation error messages
+2. **Investigation and Fixes (Do Second)**:
+   - Step 3: API Publication reference resolution
+   - Step 4: API Version content validation
+   - May require more investigation but critical for full functionality
 
-## Testing Strategy
+3. **Quality Improvements (Do Third)**:
+   - Step 5: Add comprehensive testing
+   - Step 6: Add early validation
+   - Step 7: Pattern consistency review
+   - Prevents regression and improves reliability
 
-### Before Fix Verification
-1. Run `k sync -f docs/examples/declarative/namespace/single-team -R`
-2. Confirm error: `invalid portal_custom_domain ''`
+## Risk Assessment
 
-### After Fix Verification
-1. Run the same command
-2. Verify successful sync
-3. Check that portal custom domain is created correctly in Konnect
-4. Run all new tests: `make test`
-5. Run integration tests: `make test-integration`
+**Low Risk**:
+- Portal Custom Domain nil check - Simple defensive programming
+- Auth Strategy key naming - String constant changes only
 
-### Edge Cases to Test
-1. Portal with custom_domain but no ref specified
-2. Portal with custom_domain ref containing special characters
-3. Multiple portals with custom domains in same file
-4. Custom domain with very long ref names
+**Medium Risk**:
+- Reference resolution changes - May affect other resources
+- API Version content handling - Complex transformation logic
 
-## Rollback Plan
-
-If the fix causes unexpected issues:
-1. The changes are minimal and can be reverted easily
-2. The fix only affects the extraction logic, not the data model
-3. Existing configurations without custom domains are unaffected
-
-## Future Improvements
-
-1. **Validation Timing**: Consider validating nested resources before extraction to catch issues earlier with better context
-2. **Generic Extraction**: Implement a generic nested resource extraction pattern that ensures field preservation
-3. **Schema Validation**: Add JSON schema validation for configuration files to catch issues before parsing
-4. **Better Error Recovery**: Allow partial configuration loading with warnings for invalid resources
+**Mitigation**:
+- Test each fix individually before combining
+- Run full integration test suite after each change
+- Keep changes minimal and focused
 
 ## Success Criteria
 
-1. The example configuration in `docs/examples/declarative/namespace/single-team` loads successfully
-2. Portal custom domains are created with correct references
-3. Error messages clearly indicate the source of validation failures
-4. All existing tests continue to pass
-5. New tests cover the fixed functionality
+1. All example YAML files apply successfully without errors
+2. Unit tests pass for all fixed issues
+3. Integration tests verify end-to-end functionality
+4. No regression in existing functionality
+5. Early validation prevents runtime errors
+
+## Decision: Portal Custom Domain Change
+
+**Keep the embedding approach** rather than reverting because:
+1. Aligns with pattern used in other resources
+2. Provides better type safety from SDK
+3. Fix is simple (add nil check)
+4. Maintains consistency across codebase
+
+## Testing Commands
+
+After implementing fixes, run these commands in order:
+
+```bash
+# Build and verify compilation
+make build
+
+# Run linter to check code quality
+make lint
+
+# Run unit tests
+make test
+
+# Run integration tests
+make test-integration
+
+# Test with example files
+./kongctl apply -f docs/examples/declarative/namespace/single-team -R --pat $(cat ~/.konnect/claude.pat)
+```
+
+## Notes
+
+- All fixes maintain backward compatibility
+- No changes to public APIs or CLI interface
+- Focus on minimal changes to restore functionality
+- Comprehensive testing prevents future regression

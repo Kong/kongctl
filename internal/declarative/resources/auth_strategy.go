@@ -174,13 +174,13 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 	case "openid_connect":
 		// Create OpenID Connect request
 		var oidcConfig kkComps.AppAuthStrategyConfigOpenIDConnect
-		if configData, ok := temp.Configs["openid_connect"]; ok {
+		if configData, ok := temp.Configs["openid-connect"]; ok {
 			configBytes, err := json.Marshal(configData)
 			if err != nil {
-				return fmt.Errorf("failed to marshal openid_connect config: %w", err)
+				return fmt.Errorf("failed to marshal openid-connect config: %w", err)
 			}
 			if err := json.Unmarshal(configBytes, &oidcConfig); err != nil {
-				return fmt.Errorf("failed to unmarshal openid_connect config: %w", err)
+				return fmt.Errorf("failed to unmarshal openid-connect config: %w", err)
 			}
 		}
 		
@@ -199,13 +199,13 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 	case "key_auth":
 		// Create Key Auth request
 		var keyAuthConfig kkComps.AppAuthStrategyConfigKeyAuth
-		if configData, ok := temp.Configs["key_auth"]; ok {
+		if configData, ok := temp.Configs["key-auth"]; ok {
 			configBytes, err := json.Marshal(configData)
 			if err != nil {
-				return fmt.Errorf("failed to marshal key_auth config: %w", err)
+				return fmt.Errorf("failed to marshal key-auth config: %w", err)
 			}
 			if err := json.Unmarshal(configBytes, &keyAuthConfig); err != nil {
-				return fmt.Errorf("failed to unmarshal key_auth config: %w", err)
+				return fmt.Errorf("failed to unmarshal key-auth config: %w", err)
 			}
 		}
 		

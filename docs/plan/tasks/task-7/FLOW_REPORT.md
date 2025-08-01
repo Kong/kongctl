@@ -1,199 +1,244 @@
-# Flow Report: Portal Custom Domain Validation Error
+# Flow Report: Runtime Errors in kongctl Execution Path
 
 ## Executive Summary
 
-This report documents the complete code execution flow for the portal_custom_domain validation error that occurs when running `k sync -f docs/examples/declarative/namespace/single-team -R`. The error "invalid portal_custom_domain '': invalid custom domain ref: ref cannot be empty" occurs due to a critical issue in the resource extraction process where the `ref` field from nested custom domains is not properly preserved.
+This report maps the complete execution flow in kongctl from loading YAML files to making API calls, focusing on where runtime validation errors occur for the following resources:
+- `portal_custom_domain` - SSL field validation error
+- `application_auth_strategy` - configs and auth_methods errors  
+- `api_version` - content validation error
+- `api_publication` - UUID format error
 
 ## Error Reproduction
 
-Command: `k sync -f docs/examples/declarative/namespace/single-team -R`
+Command: `./kongctl apply -f docs/examples/declarative/namespace/single-team -R --pat $(cat ~/.konnect/claude.pat)`
 
-Error: `Error: failed to load configuration: invalid portal_custom_domain '': invalid custom domain ref: ref cannot be empty`
+Multiple validation errors occur during API calls to Konnect.
 
-## Complete Execution Flow
+## Execution Flow
 
 ### 1. Command Entry Point
 
-```
-internal/cmd/root/verbs/sync/sync.go:NewSyncCmd()
-├─ Creates sync command wrapper
-├─ Sets up context with Verb=sync and Product=konnect
-└─ Delegates to konnect command's RunE function
-```
+**File**: `/internal/cmd/root/verbs/apply/apply.go`
+- The `apply` command delegates to the konnect declarative command
+- Sets up context with Verb=apply and Product=konnect
+- Entry point: `runApply()` function in `/internal/cmd/root/products/konnect/declarative/declarative.go:641`
 
-### 2. Konnect Declarative Sync Command
+### 2. Configuration Loading Phase
 
-```
-internal/cmd/root/products/konnect/declarative/declarative.go:runSync()
-├─ Line 1033: Entry point for sync execution
-├─ Line 1122: Parses sources from filenames
-├─ Line 1129: Creates new loader instance
-└─ Line 1130: Calls ldr.LoadFromSources(sources, recursive)
-```
+**File**: `/internal/declarative/loader/loader.go`
 
-### 3. Configuration Loading Process
+#### 2.1 Source Parsing
+- `LoadFromSources()` (line 55) - Main entry point for loading configuration
+- `loadSingleFile()` (line 161) - Loads individual YAML files
+- `parseYAML()` (line 183) - Parses YAML content into ResourceSet
 
-```
-internal/declarative/loader/loader.go:LoadFromSources()
-├─ Line 55: Main loading entry point
-├─ Line 76-125: Iterates through sources
-│   └─ Line 84: For directory source, calls loadDirectorySource()
-├─ Line 129: Applies SDK defaults
-└─ Line 132: Calls validateResourceSet() - WHERE ERROR OCCURS
-```
+#### 2.2 Resource Extraction
+- `extractNestedResources()` (line 241) - **Critical function** that extracts child resources from parent structures
+- For portal custom domains (lines in extract function):
+  ```go
+  if portal.CustomDomain != nil {
+      customDomain := *portal.CustomDomain
+      customDomain.Portal = portal.Ref // Set parent reference
+      rs.PortalCustomDomains = append(rs.PortalCustomDomains, customDomain)
+  }
+  ```
 
-### 4. Directory Loading
+### 3. Planning Phase
 
-```
-internal/declarative/loader/loader.go:loadDirectorySource()
-├─ Walks directory recursively
-├─ Finds YAML files: api.yaml, auth-strategy.yaml, portal.yaml
-└─ For each file:
-    ├─ Calls loadSingleFile()
-    └─ Merges into ResourceSet
-```
+**File**: `/internal/declarative/planner/planner.go`
+- `GeneratePlan()` - Creates execution plan from ResourceSet
+- Delegates to resource-specific planners
 
-### 5. YAML Parsing and Resource Extraction
+#### 3.1 Portal Custom Domain Planning Error
 
-```
-internal/declarative/loader/loader.go:parseYAML()
-├─ Line 183: Parses YAML content
-├─ Line 236: Applies namespace defaults
-├─ Line 251: Extracts references
-└─ Line 255: Calls extractNestedResources()
-```
+**File**: `/internal/declarative/planner/portal_child_planner.go`
+**Lines**: 396-401
 
-### 6. Nested Resource Extraction (CRITICAL ISSUE)
-
-```
-internal/declarative/loader/loader.go:extractNestedResources()
-├─ Line 924-963: Portal resource extraction
-└─ Line 936-940: Custom domain extraction
-    ├─ if portal.CustomDomain != nil {
-    ├─     customDomain := *portal.CustomDomain  // ISSUE: Ref field not preserved
-    ├─     customDomain.Portal = portal.Ref     // Only parent ref is set
-    └─     rs.PortalCustomDomains = append(rs.PortalCustomDomains, customDomain)
-```
-
-### 7. Validation Phase (ERROR OCCURS)
-
-```
-internal/declarative/loader/validator.go:validateResourceSet()
-├─ Line 340-345: Portal custom domain validation
-└─ Line 343: Error construction
-    ├─ domain.GetRef() returns "" (empty string)
-    └─ Returns: "invalid portal_custom_domain '': invalid custom domain ref: ref cannot be empty"
-```
-
-### 8. Custom Domain Validation
-
-```
-internal/declarative/resources/portal_custom_domain.go:Validate()
-├─ Line 23: Entry point
-├─ Line 24: Calls ValidateRef(d.Ref)
-└─ Returns error when Ref is empty
-```
-
-## File Interconnections
-
-### Configuration Files
-- `docs/examples/declarative/namespace/single-team/portal.yaml`
-  - Defines portal with nested custom_domain
-  - Contains `ref: internal-domain` in custom_domain section
-
-### Core Components
-
-1. **Command Layer**
-   - `internal/cmd/root/verbs/sync/sync.go` - Sync verb command
-   - `internal/cmd/root/products/konnect/declarative/declarative.go` - Declarative operations
-
-2. **Loader Layer**
-   - `internal/declarative/loader/loader.go` - Main configuration loading
-   - `internal/declarative/loader/validator.go` - Resource validation
-   - `internal/declarative/loader/source.go` - Source type definitions
-
-3. **Resource Layer**
-   - `internal/declarative/resources/portal.go` - Portal resource definition
-   - `internal/declarative/resources/portal_custom_domain.go` - Custom domain resource
-   - `internal/declarative/resources/validation.go` - Common validation functions
-
-4. **SDK Integration**
-   - Uses `github.com/Kong/sdk-konnect-go/models/components` for base types
-
-## Root Cause Analysis
-
-### The Problem
-
-When extracting nested custom domains from portals in `extractNestedResources()`:
-
-1. The code copies the custom domain struct: `customDomain := *portal.CustomDomain`
-2. It sets the parent reference: `customDomain.Portal = portal.Ref`
-3. **BUT** it fails to preserve the original `Ref` field from the nested structure
-
-### Data Flow Issue
-
-```yaml
-# Input (portal.yaml)
-custom_domain:
-  ref: internal-domain      # This ref is lost
-  domain: "api.internal.example.com"
-
-# After extraction
-PortalCustomDomainResource {
-  Ref: ""                   # Empty - not preserved!
-  Portal: "internal-portal" # Parent ref correctly set
-  Domain: "api.internal.example.com"
+**Root Cause**: Nil pointer dereference
+```go
+// Line 397: Direct access without nil check
+if domain.Ssl.DomainVerificationMethod != "" {
+    sslFields := make(map[string]interface{})
+    sslFields["domain_verification_method"] = string(domain.Ssl.DomainVerificationMethod)
+    fields["ssl"] = sslFields
 }
 ```
 
-### Why the Error Message is Confusing
+**Data Flow**:
+1. YAML has no SSL field: `custom_domain: { hostname: "api.internal.example.com" }`
+2. Resource struct has `Ssl *CreatePortalCustomDomainSSL` (nil by default)
+3. Planner tries to access `domain.Ssl.DomainVerificationMethod` without nil check
+4. Results in panic or error
 
-1. The error shows `invalid portal_custom_domain ''` because `domain.GetRef()` returns empty string
-2. No indication of which portal contains the problematic custom domain
-3. The actual ref value "internal-domain" from YAML is lost during extraction
+#### 3.2 Application Auth Strategy Planning Errors
 
-## Validation Logic Flow
+**File**: `/internal/declarative/planner/auth_strategy_planner.go`
 
+**Key-Auth Error** (Lines 187-192):
+```go
+// Line 188: Wrong key name with hyphen
+fields["configs"] = map[string]interface{}{
+    "key-auth": map[string]interface{}{  // Should be "key_auth"
+        "key_names": strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames,
+    },
+}
 ```
-validateResourceSet()
-├─ Iterates through PortalCustomDomains slice
-├─ Calls domain.Validate() for each
-│   └─ ValidateRef(d.Ref) checks if Ref is empty
-└─ Formats error with domain.GetRef() which returns ""
+
+**OAuth2 Error** (Lines 219-222):
+```go
+// Line 219: Wrong key name with hyphen
+fields["configs"] = map[string]interface{}{
+    "openid-connect": oidcConfig,  // Should be "openid_connect"
+}
 ```
 
-## Reference Resolution System
+### 4. Execution Phase
 
-The loader maintains reference registries for cross-referencing:
-- Portal refs/names
-- Auth strategy refs/names  
-- API refs/names
-- Child resource refs
+**File**: `/internal/declarative/executor/executor.go`
 
-These are used during validation to ensure references point to existing resources.
+#### 4.1 Execution Flow
+1. `Execute()` (line 126) - Main execution entry point
+2. `executeChange()` (line 235) - Executes individual changes
+3. Routes to resource-specific executors based on ResourceType
 
-## Key Design Patterns
+#### 4.2 Portal Custom Domain Execution
 
-1. **Nested Resource Extraction**: Child resources are extracted from parent resources and stored separately
-2. **Reference Preservation**: Each extracted resource maintains a reference to its parent
-3. **Two-Phase Processing**: Parse first, validate after all resources are loaded
-4. **Namespace Inheritance**: Child resources inherit namespace from parent if not specified
+**File**: `/internal/declarative/executor/portal_domain_adapter.go`
 
-## Impact Analysis
+**MapCreateFields()** (Lines 23-49):
+- Correctly handles SSL field if present
+- Creates proper SDK request structure
+```go
+if sslData, ok := fields["ssl"].(map[string]interface{}); ok {
+    ssl := kkComps.CreatePortalCustomDomainSSL{}
+    if method, ok := sslData["domain_verification_method"].(string); ok {
+        ssl.DomainVerificationMethod = kkComps.PortalCustomDomainVerificationMethod(method)
+    }
+    create.Ssl = ssl
+}
+```
 
-This bug affects:
-- Any portal configuration with custom_domain defined
-- Both single file and directory-based configurations
-- Namespace-scoped and default namespace scenarios
+### 5. API Call Phase
 
-The error prevents the entire configuration from loading, blocking all sync operations.
+**File**: `/internal/declarative/state/client.go`
+
+**CreatePortalCustomDomain()** (Lines ~305-318):
+```go
+func (c *Client) CreatePortalCustomDomain(
+    ctx context.Context,
+    portalID string,
+    req kkComps.CreatePortalCustomDomainRequest,
+) error {
+    _, err := c.portalCustomDomainAPI.CreatePortalCustomDomain(ctx, portalID, req)
+    if err != nil {
+        return fmt.Errorf("failed to create portal custom domain: %w", err)
+    }
+    return nil
+}
+```
+
+## Error Analysis
+
+### 1. Portal Custom Domain SSL Error
+
+**Error**: `"field":"ssl","reason":"must match exactly one schema in oneOf"`
+
+**Flow**:
+1. Planner creates fields with empty SSL object due to nil check bug
+2. Executor creates request with empty SSL struct
+3. Konnect API rejects empty SSL as it doesn't match any oneOf schemas
+4. API expects either no SSL field or a fully populated SSL configuration
+
+### 2. Application Auth Strategy Errors
+
+**Error**: `"configs is required for key_auth strategy"`
+
+**Flow**:
+1. Planner uses "key-auth" (hyphen) as map key
+2. API expects "key_auth" (underscore)
+3. API doesn't find required configs under correct key
+4. Validation fails
+
+### 3. API Version Content Error
+
+**Error**: `"content must be valid specification"`
+
+**File**: `/internal/declarative/resources/api_version.go`
+- Custom UnmarshalJSON handles various spec formats
+- Issue may be YAML content being passed as string instead of JSON object
+
+### 4. API Publication UUID Error
+
+**Error**: `"auth_strategy_ids.0":"must match format \"uuid\""`
+
+**Flow**:
+1. YAML contains reference names: `auth_strategy_ids: [api-key-auth]`
+2. Reference resolution not happening during planning
+3. API receives reference name instead of UUID
+4. Validation fails expecting UUID format
+
+## Data Transformation Summary
+
+1. **YAML → ResourceSet**: Loader parses and extracts nested resources
+2. **ResourceSet → Plan**: Planner creates change objects with fields
+3. **Plan → API Requests**: Executor maps fields to SDK request types
+4. **API Requests → HTTP**: State client calls SDK methods
+
+## Key Files and Functions
+
+- **Entry**: `/internal/cmd/root/products/konnect/declarative/declarative.go:runApply()`
+- **Loading**: `/internal/declarative/loader/loader.go:parseYAML()`
+- **Extraction**: `/internal/declarative/loader/loader.go:extractNestedResources()`
+- **Planning**: `/internal/declarative/planner/portal_child_planner.go:planPortalCustomDomainCreate()`
+- **Execution**: `/internal/declarative/executor/portal_domain_adapter.go:MapCreateFields()`
+- **API Call**: `/internal/declarative/state/client.go:CreatePortalCustomDomain()`
+
+## Example Data Flow
+
+### Portal Custom Domain
+```yaml
+# Input YAML
+custom_domain:
+  ref: internal-domain
+  hostname: "api.internal.example.com"
+  enabled: true
+```
+
+```go
+// After extraction (ResourceSet)
+PortalCustomDomainResource{
+  CreatePortalCustomDomainRequest{
+    Hostname: "api.internal.example.com",
+    Enabled: true,
+    Ssl: nil,  // No SSL in YAML
+  },
+  Ref: "internal-domain",
+  Portal: "internal-portal",
+}
+```
+
+```go
+// Planner creates fields map
+fields := map[string]interface{}{
+  "hostname": "api.internal.example.com",
+  "enabled": true,
+  "ssl": map[string]interface{}{},  // BUG: Empty SSL added due to nil check issue
+}
+```
+
+```go
+// Executor creates SDK request
+CreatePortalCustomDomainRequest{
+  Hostname: "api.internal.example.com",
+  Enabled: true,
+  Ssl: CreatePortalCustomDomainSSL{},  // Empty struct sent to API
+}
+```
 
 ## Recommendations
 
-1. **Fix the Extraction Logic**: Ensure all fields including `Ref` are properly preserved when extracting nested resources
-2. **Improve Error Messages**: Include parent portal reference and file location in error messages
-3. **Add Validation Tests**: Test cases for nested resource extraction with all fields populated
-4. **Consider Alternative Approaches**: 
-   - Validate nested resources before extraction (with better context)
-   - Use deep copy instead of struct copy to preserve all fields
-   - Add logging/tracing during extraction for debugging
+1. **Add nil checks** in portal_child_planner.go before accessing SSL fields
+2. **Fix key naming** in auth_strategy_planner.go (use underscores not hyphens)
+3. **Ensure reference resolution** happens before API calls
+4. **Validate spec content format** in api_version processing
+5. **Add comprehensive tests** for all transformation steps

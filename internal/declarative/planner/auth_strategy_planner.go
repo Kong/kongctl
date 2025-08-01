@@ -183,12 +183,13 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 			fields["strategy_type"] = "key_auth"
 			
 			// Set config under configs map
+			keyAuthConfig := make(map[string]interface{})
 			if strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames != nil {
-				fields["configs"] = map[string]interface{}{
-					"key-auth": map[string]interface{}{
-						"key_names": strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames,
-					},
-				}
+				keyAuthConfig["key_names"] = strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames
+			}
+			
+			fields["configs"] = map[string]interface{}{
+				"key-auth": keyAuthConfig,
 			}
 		}
 	case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
@@ -215,10 +216,8 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 				oidcConfig["auth_methods"] = strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.AuthMethods
 			}
 			
-			if len(oidcConfig) > 0 {
-				fields["configs"] = map[string]interface{}{
-					"openid-connect": oidcConfig,
-				}
+			fields["configs"] = map[string]interface{}{
+				"openid-connect": oidcConfig,
 			}
 		}
 	}

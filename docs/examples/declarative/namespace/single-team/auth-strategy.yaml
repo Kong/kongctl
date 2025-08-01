@@ -7,11 +7,10 @@ application_auth_strategies:
     display_name: "API Key"
     strategy_type: key_auth
     configs:
-      key_names:
-        - "x-api-key"
-        - "apikey"
-      key_in_body: false
-      hide_credentials: true
+      key-auth:
+        key_names:
+          - "x-api-key"
+          - "apikey"
     labels:
       type: key-auth
       usage: internal
@@ -24,15 +23,19 @@ application_auth_strategies:
     display_name: "OAuth 2.0"
     strategy_type: openid_connect
     configs:
-      openid_connect:
+      openid-connect:
         issuer: "https://partners.example.com"
-        client_id: "logistics-partner-client"
-        client_secret: "logistics-partner-secret"
         scopes:
           - "openid"
           - "profile"
           - "read:shipments"
           - "write:shipments"
+        credential_claim:
+          - "client_id"
+          - "claim2"
+        auth_methods:
+          - "bearer"
+          - "client_credentials"
     labels:
       type: oauth2
       usage: partners

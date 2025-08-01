@@ -23,7 +23,10 @@ portals:
     
     custom_domain:
       ref: internal-domain
-      hostname: "api.internal.example.com"
+      hostname: "api.internal.mycompany.com"
+      enabled: true
+      ssl:
+        domain_verification_method: "http"
     
     pages:
       - ref: getting-started
