@@ -32,6 +32,18 @@ func (b *BasePlanner) ValidateProtection(resourceType, resourceName string, isPr
 	return b.planner.validateProtection(resourceType, resourceName, isProtected, action)
 }
 
+// ValidateProtectionWithChange validates protection status for an operation with protection change info
+func (b *BasePlanner) ValidateProtectionWithChange(
+	resourceType, resourceName string, 
+	isProtected bool, 
+	action ActionType,
+	protectionChange *ProtectionChange,
+	hasOtherFieldChanges bool,
+) error {
+	return b.planner.validateProtectionWithChange(resourceType, resourceName, isProtected, 
+		action, protectionChange, hasOtherFieldChanges)
+}
+
 // GetString safely dereferences a string pointer
 func (b *BasePlanner) GetString(s *string) string {
 	return getString(s)

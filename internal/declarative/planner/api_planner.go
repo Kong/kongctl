@@ -119,8 +119,22 @@ func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIRes
 			// Handle protection changes
 			if isProtected != shouldProtect {
 				// When changing protection status, include any other field updates too
-				_, updateFields := p.shouldUpdateAPI(current, desiredAPI)
-				p.planAPIProtectionChangeWithFields(current, desiredAPI, isProtected, shouldProtect, updateFields, plan)
+				needsUpdate, updateFields := p.shouldUpdateAPI(current, desiredAPI)
+				
+				// Create protection change object
+				protectionChange := &ProtectionChange{
+					Old: isProtected,
+					New: shouldProtect,
+				}
+				
+				// Validate protection change
+				err := p.validateProtectionWithChange("api", desiredAPI.Name, isProtected, ActionUpdate, 
+					protectionChange, needsUpdate)
+				if err != nil {
+					protectionErrors = append(protectionErrors, err)
+				} else {
+					p.planAPIProtectionChangeWithFields(current, desiredAPI, isProtected, shouldProtect, updateFields, plan)
+				}
 			} else {
 				// Check if update needed based on configuration
 				needsUpdate, updateFields := p.shouldUpdateAPI(current, desiredAPI)

@@ -95,9 +95,22 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) e
 			// Handle protection changes
 			if isProtected != shouldProtect {
 				// When changing protection status, include any other field updates too
-				_, updateFields := p.shouldUpdateAuthStrategy(current, desiredStrategy)
-				p.planAuthStrategyProtectionChangeWithFields(
-					current, desiredStrategy, isProtected, shouldProtect, updateFields, plan)
+				needsUpdate, updateFields := p.shouldUpdateAuthStrategy(current, desiredStrategy)
+				
+				// Create protection change object
+				protectionChange := &ProtectionChange{
+					Old: isProtected,
+					New: shouldProtect,
+				}
+				
+				// Validate protection change
+				err := p.ValidateProtectionWithChange("auth_strategy", name, isProtected, ActionUpdate, 
+					protectionChange, needsUpdate)
+				protectionErrors.Add(err)
+				if err == nil {
+					p.planAuthStrategyProtectionChangeWithFields(
+						current, desiredStrategy, isProtected, shouldProtect, updateFields, plan)
+				}
 			} else {
 				// Check if update needed based on configuration
 				needsUpdate, updateFields := p.shouldUpdateAuthStrategy(current, desiredStrategy)

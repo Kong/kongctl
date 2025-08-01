@@ -61,7 +61,10 @@ func ConfirmExecution(plan *planner.Plan, _, stderr io.Writer, stdin io.Reader) 
 		}
 	}
 
-	fmt.Fprint(stderr, "\nDo you want to continue? Type 'yes' to confirm: ")
+	// Add CONFIRM? section
+	fmt.Fprintln(stderr, "\nCONFIRM?")
+	fmt.Fprintln(stderr, strings.Repeat("-", 70))
+	fmt.Fprint(stderr, "Do you want to continue? Type 'yes' to confirm: ")
 	
 	// Set up interrupt handling
 	ctx, cancel := context.WithCancel(context.Background())
@@ -98,31 +101,20 @@ func ConfirmExecution(plan *planner.Plan, _, stderr io.Writer, stdin io.Reader) 
 // DisplayPlanSummary shows an enhanced summary of the plan with better formatting,
 // field-level changes, protected resource warnings, and comprehensive statistics.
 func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
-	totalChanges := plan.Summary.TotalChanges
-	
-	// Header with visual separator
-	fmt.Fprintln(out, strings.Repeat("=", 70))
-	if totalChanges > 0 {
-		fmt.Fprintf(out, "PLAN SUMMARY (%d changes)\n", totalChanges)
-	} else {
-		fmt.Fprintln(out, "PLAN SUMMARY")
-	}
-	fmt.Fprintln(out, strings.Repeat("=", 70))
-
 	if plan.Summary.ByAction == nil || len(plan.Changes) == 0 {
-		fmt.Fprintln(out, "  No changes detected. Configuration matches current state.")
-		fmt.Fprintln(out, strings.Repeat("=", 70))
+		fmt.Fprintln(out, "No changes detected. Configuration matches current state.")
 		return
 	}
-
-	// Display comprehensive statistics section
-	displayStatistics(plan, out)
 	
 	// Group changes by namespace first, then by resource type
 	changesByNamespace := make(map[string]map[string][]planner.PlannedChange)
 	namespaces := make([]string, 0)
 	namespaceSeen := make(map[string]bool)
-	protectedResourceCount := 0
+	
+	// Count different types of protected resource changes
+	protectedBeingCreated := 0
+	protectedBeingModified := 0
+	protectedBeingRemoved := 0
 	
 	for _, change := range plan.Changes {
 		namespace := change.Namespace
@@ -142,29 +134,28 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 		changesByNamespace[namespace][change.ResourceType] = append(
 			changesByNamespace[namespace][change.ResourceType], change)
 		
-		// Count protected resources
-		if isProtectedResource(change) {
-			protectedResourceCount++
+		// Count protected resource changes by type
+		if change.Action == planner.ActionCreate && willBeProtected(change) {
+			protectedBeingCreated++
+		} else if change.Action == planner.ActionUpdate {
+			if pc, ok := change.Protection.(planner.ProtectionChange); ok {
+				if pc.Old && !pc.New {
+					protectedBeingRemoved++
+				} else if pc.Old {
+					protectedBeingModified++
+				}
+			} else if isProtectedResource(change) {
+				protectedBeingModified++
+			}
 		}
 	}
 	
 	// Sort namespaces for consistent output
 	sort.Strings(namespaces)
 
-	// Display protected resource warning if any
-	if protectedResourceCount > 0 {
-		fmt.Fprintf(out, "\n🔒 PROTECTED RESOURCES WARNING\n")
-		fmt.Fprintln(out, strings.Repeat("-", 70))
-		fmt.Fprintf(out, "Found %d protected resource(s) in this plan.\n", protectedResourceCount)
-		fmt.Fprintln(out, "Protected resources cannot be modified through declarative configuration.")
-		fmt.Fprintln(out, "These changes will fail unless protection is removed first.")
-		fmt.Fprintln(out, strings.Repeat("-", 70))
-	}
-
-	// Display changes organized by namespace, then by resource type
-	fmt.Fprintln(out, "\n📋 RESOURCE CHANGES")
+	// Display changes organized by namespace, then by resource type (FIRST)
+	fmt.Fprintln(out, "\nRESOURCE CHANGES")
 	fmt.Fprintln(out, strings.Repeat("-", 70))
-	
 	for nsIdx, namespace := range namespaces {
 		changesByResource := changesByNamespace[namespace]
 		
@@ -185,8 +176,13 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 			}
 		}
 		
+		// Add spacing between namespaces (but not before the first one)
+		if nsIdx > 0 {
+			fmt.Fprintln(out, "")
+		}
+		
 		// Display namespace header with statistics
-		fmt.Fprintf(out, "\nNamespace: %s (%d changes: ", namespace, namespaceTotal)
+		fmt.Fprintf(out, "Namespace: %s (%d changes: ", namespace, namespaceTotal)
 		actionSummary := []string{}
 		if createCount > 0 {
 			actionSummary = append(actionSummary, fmt.Sprintf("%d create", createCount))
@@ -203,18 +199,46 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 		sortedTypes := sortResourceTypesByDependency(changesByResource, plan.Changes)
 		
 		// Display resources within namespace
-		for _, resourceType := range sortedTypes {
+		for resIdx, resourceType := range sortedTypes {
 			changes := changesByResource[resourceType]
-			fmt.Fprintf(out, "\n  %s (%d resources):\n", resourceType, len(changes))
+			if resIdx > 0 {
+				fmt.Fprintln(out, "") // Add blank line between resource types
+			}
+			fmt.Fprintf(out, "  %s (%d resources):\n", resourceType, len(changes))
 			
 			for _, change := range changes {
 				resourceName := formatResourceName(change)
 				actionPrefix := getActionPrefix(change.Action)
 				
-				// Check if this resource is protected
+				// Check protection status and create appropriate indicator
 				protectedIndicator := ""
-				if isProtectedResource(change) {
-					protectedIndicator = " [protected]"
+				if pc, ok := change.Protection.(planner.ProtectionChange); ok {
+					if pc.Old && !pc.New {
+						protectedIndicator = " [protected → unprotected]"
+					} else if !pc.Old && pc.New {
+						protectedIndicator = " [unprotected → protected]"
+					} else if pc.Old && pc.New {
+						protectedIndicator = " [protected]"
+					}
+				} else if pcMap, ok := change.Protection.(map[string]interface{}); ok {
+					// Handle JSON deserialization
+					oldVal, hasOld := pcMap["old"].(bool)
+					newVal, hasNew := pcMap["new"].(bool)
+					if hasOld && hasNew {
+						if oldVal && !newVal {
+							protectedIndicator = " [protected → unprotected]"
+						} else if !oldVal && newVal {
+							protectedIndicator = " [unprotected → protected]"
+						} else if oldVal && newVal {
+							protectedIndicator = " [protected]"
+						}
+					}
+				} else if prot, ok := change.Protection.(bool); ok && prot {
+					if change.Action == planner.ActionCreate {
+						protectedIndicator = " [will be protected]"
+					} else {
+						protectedIndicator = " [protected]"
+					}
 				}
 				
 				// Display the resource change with enhanced formatting
@@ -229,16 +253,31 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 				displayDependencies(out, change, plan.Changes, "      ")
 			}
 		}
+	}
+
+	// Display protected resource warnings if any (SECOND)
+	if protectedBeingCreated > 0 || protectedBeingModified > 0 || protectedBeingRemoved > 0 {
+		fmt.Fprintf(out, "\nPROTECTED RESOURCES\n")
+		fmt.Fprintln(out, strings.Repeat("-", 70))
 		
-		// Add spacing between namespaces (but not after the last one)
-		if nsIdx < len(namespaces)-1 {
-			fmt.Fprintln(out, "")
+		if protectedBeingCreated > 0 {
+			fmt.Fprintf(out, "  Adding protection to %d resource(s) - these changes will succeed\n", protectedBeingCreated)
+		}
+		
+		if protectedBeingRemoved > 0 {
+			fmt.Fprintf(out, "  Removing protection from %d resource(s) - these changes will succeed\n", protectedBeingRemoved)
+		}
+		
+		if protectedBeingModified > 0 {
+			fmt.Fprintf(out, "  Attempting to modify %d protected resource(s) - these changes will fail\n", 
+				protectedBeingModified)
+			fmt.Fprintln(out, "  To modify protected resources, first update them to set protected: false")
 		}
 	}
 
 	// Show warnings if any with enhanced formatting
 	if len(plan.Warnings) > 0 {
-		fmt.Fprintln(out, "\n⚠️  WARNINGS")
+		fmt.Fprintln(out, "\nWARNINGS")
 		fmt.Fprintln(out, strings.Repeat("-", 70))
 		for _, warning := range plan.Warnings {
 			// Find the change to get more context
@@ -266,8 +305,8 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 		fmt.Fprintln(out, strings.Repeat("-", 70))
 	}
 	
-	// Footer separator
-	fmt.Fprintln(out, strings.Repeat("=", 70))
+	// Display summary statistics at the end (THIRD)
+	displaySummary(plan, out)
 }
 
 // getParentResourceType returns the parent resource type for a given child type
@@ -425,9 +464,9 @@ func formatResourceName(change planner.PlannedChange) string {
 	return resourceName
 }
 
-// displayStatistics shows comprehensive plan statistics
-func displayStatistics(plan *planner.Plan, out io.Writer) {
-	fmt.Fprintln(out, "\n📊 STATISTICS")
+// displaySummary shows comprehensive plan summary at the end
+func displaySummary(plan *planner.Plan, out io.Writer) {
+	fmt.Fprintln(out, "\nSUMMARY")
 	fmt.Fprintln(out, strings.Repeat("-", 70))
 	
 	// Action breakdown
@@ -483,16 +522,15 @@ func displayStatistics(plan *planner.Plan, out io.Writer) {
 			fmt.Fprintf(out, "  Resources being unprotected: %d\n", plan.Summary.ProtectionChanges.Unprotecting)
 		}
 	}
-	
-	fmt.Fprintln(out, strings.Repeat("-", 70))
 }
 
-// isProtectedResource checks if a resource change involves a protected resource
+// isProtectedResource checks if a resource is currently protected
 func isProtectedResource(change planner.PlannedChange) bool {
 	// Check for protection status
 	switch p := change.Protection.(type) {
 	case bool:
-		return p
+		// For CREATE actions, this indicates the resource will be created with protection
+		return change.Action != planner.ActionCreate && p
 	case planner.ProtectionChange:
 		// Resource is protected if it's currently protected (old value)
 		return p.Old
@@ -500,6 +538,28 @@ func isProtectedResource(change planner.PlannedChange) bool {
 		// Handle JSON deserialization
 		if oldVal, hasOld := p["old"].(bool); hasOld {
 			return oldVal
+		}
+	}
+	return false
+}
+
+// willBeProtected checks if a resource will be protected after the plan executes
+func willBeProtected(change planner.PlannedChange) bool {
+	switch p := change.Protection.(type) {
+	case bool:
+		// For CREATE actions, this is the protection status
+		return p
+	case planner.ProtectionChange:
+		// For UPDATE actions, use the new value
+		return p.New
+	case map[string]interface{}:
+		// Handle JSON deserialization
+		if newVal, hasNew := p["new"].(bool); hasNew {
+			return newVal
+		}
+		// Fallback to old format
+		if val, ok := p["protected"].(bool); ok {
+			return val
 		}
 	}
 	return false

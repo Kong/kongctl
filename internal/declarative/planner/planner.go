@@ -327,6 +327,31 @@ func (p *Planner) validateProtection(
 	return nil
 }
 
+// validateProtectionWithChange checks if a protected resource would be modified or deleted,
+// but allows protection-only removal
+func (p *Planner) validateProtectionWithChange(
+	resourceType, resourceName string, 
+	currentProtected bool,
+	action ActionType,
+	protectionChange *ProtectionChange,
+	hasOtherFieldChanges bool,
+) error {
+	if action == ActionUpdate && currentProtected {
+		// Allow if only removing protection (no other field changes)
+		if protectionChange != nil && !protectionChange.New && !hasOtherFieldChanges {
+			return nil
+		}
+		// Block all other updates to protected resources
+		return fmt.Errorf("%s %q is protected and cannot be updated", 
+			resourceType, resourceName)
+	}
+	if action == ActionDelete && currentProtected {
+		return fmt.Errorf("%s %q is protected and cannot be deleted", 
+			resourceType, resourceName)
+	}
+	return nil
+}
+
 // getString dereferences string pointer or returns empty
 func getString(s *string) string {
 	if s == nil {

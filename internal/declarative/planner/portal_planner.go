@@ -79,8 +79,21 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 			// Handle protection changes
 			if isProtected != shouldProtect {
 				// When changing protection status, include any other field updates too
-				_, updateFields := p.shouldUpdatePortal(current, desiredPortal)
-				p.planPortalProtectionChangeWithFields(current, desiredPortal, isProtected, shouldProtect, updateFields, plan)
+				needsUpdate, updateFields := p.shouldUpdatePortal(current, desiredPortal)
+				
+				// Create protection change object
+				protectionChange := &ProtectionChange{
+					Old: isProtected,
+					New: shouldProtect,
+				}
+				
+				// Validate protection change
+				err := p.ValidateProtectionWithChange("portal", desiredPortal.Name, isProtected, ActionUpdate, 
+					protectionChange, needsUpdate)
+				protectionErrors.Add(err)
+				if err == nil {
+					p.planPortalProtectionChangeWithFields(current, desiredPortal, isProtected, shouldProtect, updateFields, plan)
+				}
 			} else {
 				// Check if update needed based on configuration
 				needsUpdate, updateFields := p.shouldUpdatePortal(current, desiredPortal)
