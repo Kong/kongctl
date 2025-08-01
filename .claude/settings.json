@@ -59,7 +59,7 @@
       "Bash(git stash:*)",
       "mcp__sequential-thinking__sequentialthinking",
       "Bash(./kongctl:*)",
-      "Bash(make build && ./kongctl:*)",
+      "Bash(make build && ./kongctl:*)"
     ],
     "deny": []
   },
