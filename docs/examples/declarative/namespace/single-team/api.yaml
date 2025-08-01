@@ -35,5 +35,7 @@ apis:
     publications:
       - ref: internal-portal-pub
         portal_id: internal-portal  # References a portal (can be in any namespace)
+        auto_approve_registrations: true
+        visibility: public
         auth_strategy_ids: 
-          - api-key-auth            # References auth strategy
+          - api-key-auth

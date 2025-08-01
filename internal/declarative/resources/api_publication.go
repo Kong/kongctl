@@ -63,6 +63,11 @@ func (p APIPublicationResource) Validate() error {
 	if p.PortalID == "" {
 		return fmt.Errorf("API publication portal_id is required")
 	}
+	// Validate Konnect's single auth strategy constraint
+	if len(p.AuthStrategyIds) > 1 {
+		return fmt.Errorf("konnect currently supports only one auth strategy per API publication. "+
+			"Found %d auth strategies", len(p.AuthStrategyIds))
+	}
 	// Parent API validation happens through dependency system
 	return nil
 }

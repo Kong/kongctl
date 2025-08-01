@@ -717,7 +717,7 @@ func (p *Planner) planAPIPublicationChanges(
 			resolvedPortalID = id
 		}
 
-		_, exists := currentByPortal[resolvedPortalID]
+		current, exists := currentByPortal[resolvedPortalID]
 		
 		p.logger.Debug("Checking publication existence",
 			slog.String("api", apiRef),
@@ -727,8 +727,19 @@ func (p *Planner) planAPIPublicationChanges(
 		)
 
 		if !exists {
-			// CREATE - publications don't support update
+			// CREATE new publication
 			p.planAPIPublicationCreate(parentNamespace, apiRef, apiID, desiredPub, []string{}, plan)
+		} else {
+			// Check if update needed - publications use PUT which supports both create/update
+			needsUpdate, updateFields := p.shouldUpdateAPIPublication(current, desiredPub)
+			if needsUpdate {
+				p.logger.Debug("API publication needs update",
+					slog.String("api", apiRef),
+					slog.String("portal", desiredPub.PortalID),
+					slog.Any("fields", updateFields),
+				)
+				p.planAPIPublicationUpdate(parentNamespace, apiRef, apiID, current, desiredPub, updateFields, plan)
+			}
 		}
 		// Note: Publications are identified by portal ID, not a separate ID
 	}
@@ -802,13 +813,6 @@ func (p *Planner) planAPIPublicationCreate(
 	fields["portal_id"] = publication.PortalID
 	if publication.AuthStrategyIds != nil {
 		fields["auth_strategy_ids"] = publication.AuthStrategyIds
-		// Warn if multiple auth strategies are specified (Kong limitation)
-		if len(publication.AuthStrategyIds) > 1 {
-			plan.AddWarning(
-				p.nextChangeID(ActionCreate, "api_publication", publication.GetRef()),
-				"Kong currently only supports 1 auth strategy per API publication. Only the first auth strategy will be used.",
-			)
-		}
 	}
 	if publication.AutoApproveRegistrations != nil {
 		fields["auto_approve_registrations"] = *publication.AutoApproveRegistrations
@@ -873,8 +877,47 @@ func (p *Planner) planAPIPublicationCreate(
 			},
 		}
 	}
+	
+	// Set up auth_strategy_ids references (array)
+	if len(publication.AuthStrategyIds) > 0 {
+		// Look up names for each auth strategy reference
+		var authStrategyNames []string
+		for _, ref := range publication.AuthStrategyIds {
+			// Find the auth strategy in desired state
+			var strategyName string
+			for _, strategy := range p.desiredAuthStrategies {
+				if strategy.Ref == ref {
+					strategyName = p.getAuthStrategyName(strategy)
+					break
+				}
+			}
+			authStrategyNames = append(authStrategyNames, strategyName)
+		}
+		
+		// Set up array reference with lookup names
+		change.References["auth_strategy_ids"] = ReferenceInfo{
+			Refs:    publication.AuthStrategyIds,
+			IsArray: true,
+			LookupArrays: map[string][]string{
+				"names": authStrategyNames,
+			},
+		}
+	}
 
 	plan.AddChange(change)
+}
+
+// getAuthStrategyName extracts the name from an auth strategy resource (handles union type)
+func (p *Planner) getAuthStrategyName(strategy resources.ApplicationAuthStrategyResource) string {
+	// Handle the union type - check which strategy type is populated
+	if strategy.AppAuthStrategyKeyAuthRequest != nil {
+		return strategy.AppAuthStrategyKeyAuthRequest.Name
+	}
+	if strategy.AppAuthStrategyOpenIDConnectRequest != nil {
+		return strategy.AppAuthStrategyOpenIDConnectRequest.Name
+	}
+	// Return empty string if no known type is found
+	return ""
 }
 
 func (p *Planner) planAPIPublicationDelete(apiRef string, apiID string, portalID string, portalRef string, plan *Plan) {
@@ -896,6 +939,153 @@ func (p *Planner) planAPIPublicationDelete(apiRef string, apiID string, portalID
 	}
 
 	plan.AddChange(change)
+}
+
+// planAPIPublicationUpdate plans an update to an existing API publication
+func (p *Planner) planAPIPublicationUpdate(
+	parentNamespace string, apiRef string, apiID string, 
+	current state.APIPublication, desired resources.APIPublicationResource, 
+	updateFields map[string]interface{}, plan *Plan,
+) {
+	// Update fields with resolved portal ID
+	updateFields["portal_id"] = current.PortalID
+	
+	// Create a composite reference that includes both API and portal for clarity
+	compositeRef := fmt.Sprintf("%s-to-%s", apiRef, desired.PortalID)
+	
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionUpdate, "api_publication", compositeRef),
+		ResourceType: "api_publication", 
+		ResourceRef:  compositeRef,
+		ResourceID:   fmt.Sprintf("%s:%s", apiID, current.PortalID), // Composite ID
+		Parent:       &ParentInfo{Ref: apiRef, ID: apiID},
+		Action:       ActionUpdate,
+		Fields:       updateFields,
+		DependsOn:    []string{},
+		Namespace:    parentNamespace,
+	}
+
+	// Look up portal name for reference resolution
+	var portalName string
+	for _, portal := range p.desiredPortals {
+		if portal.Ref == desired.PortalID {
+			portalName = portal.Name
+			break
+		}
+	}
+
+	// Set up references with lookup fields
+	change.References = make(map[string]ReferenceInfo)
+	
+	// Set API reference
+	if apiRef != "" {
+		var apiName string
+		for _, api := range p.desiredAPIs {
+			if api.Ref == apiRef {
+				apiName = api.Name
+				break
+			}
+		}
+		
+		change.References["api_id"] = ReferenceInfo{
+			Ref: apiRef,
+			ID:  apiID,
+			LookupFields: map[string]string{
+				"name": apiName,
+			},
+		}
+	}
+	
+	// Set portal reference
+	if desired.PortalID != "" {
+		change.References["portal_id"] = ReferenceInfo{
+			Ref: desired.PortalID,
+			ID:  current.PortalID, // Use the resolved ID
+			LookupFields: map[string]string{
+				"name": portalName,
+			},
+		}
+	}
+
+	// Handle auth strategy references if they are being updated
+	if authStrategyIDs, ok := updateFields["auth_strategy_ids"].([]string); ok && len(authStrategyIDs) > 0 {
+		// Extract auth strategy names for lookup
+		authStrategyNames := make([]string, 0, len(authStrategyIDs))
+		for _, strategyRef := range authStrategyIDs {
+			// Find the auth strategy by ref to get its name
+			for _, strategy := range p.desiredAuthStrategies {
+				if strategy.GetRef() == strategyRef {
+					authStrategyNames = append(authStrategyNames, p.getAuthStrategyName(strategy))
+					break
+				}
+			}
+		}
+		
+		// Set auth strategy array reference
+		change.References["auth_strategy_ids"] = ReferenceInfo{
+			Refs:    authStrategyIDs,
+			IsArray: true,
+			LookupArrays: map[string][]string{
+				"names": authStrategyNames,
+			},
+		}
+	}
+
+	plan.AddChange(change)
+}
+
+// shouldUpdateAPIPublication compares current and desired API publication to determine if update is needed
+func (p *Planner) shouldUpdateAPIPublication(
+	current state.APIPublication,
+	desired resources.APIPublicationResource,
+) (bool, map[string]interface{}) {
+	updates := make(map[string]interface{})
+
+	// Compare auth strategy IDs (order-independent comparison)
+	if !p.compareStringSlices(current.AuthStrategyIDs, desired.AuthStrategyIds) {
+		updates["auth_strategy_ids"] = desired.AuthStrategyIds
+	}
+
+	// Compare auto approve registrations
+	desiredAutoApprove := false
+	if desired.AutoApproveRegistrations != nil {
+		desiredAutoApprove = *desired.AutoApproveRegistrations
+	}
+	if current.AutoApproveRegistrations != desiredAutoApprove {
+		updates["auto_approve_registrations"] = desiredAutoApprove
+	}
+
+	// Compare visibility - only update if explicitly specified and different
+	if desired.Visibility != nil {
+		desiredVisibility := string(*desired.Visibility)
+		if current.Visibility != desiredVisibility {
+			updates["visibility"] = desiredVisibility
+		}
+	}
+
+	return len(updates) > 0, updates
+}
+
+// compareStringSlices compares two string slices for equality (order-independent)
+func (p *Planner) compareStringSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	
+	// Create maps for efficient comparison
+	aMap := make(map[string]bool)
+	for _, s := range a {
+		aMap[s] = true
+	}
+	
+	// Check if all elements in b exist in a
+	for _, s := range b {
+		if !aMap[s] {
+			return false
+		}
+	}
+	
+	return true
 }
 
 // API Implementation planning

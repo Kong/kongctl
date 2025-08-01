@@ -21,12 +21,12 @@ portals:
         colors:
           primary: "#2C5282"
     
-    custom_domain:
-      ref: internal-domain
-      hostname: "api.internal.mycompany.com"
-      enabled: true
-      ssl:
-        domain_verification_method: "http"
+    #custom_domain:
+    #  ref: internal-domain
+    #  hostname: "api.internal.mycompany.com"
+    #  enabled: true
+    #  ssl:
+    #    domain_verification_method: "http"
     
     pages:
       - ref: getting-started

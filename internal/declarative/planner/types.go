@@ -48,9 +48,16 @@ type PlannedChange struct {
 
 // ReferenceInfo tracks reference resolution
 type ReferenceInfo struct {
-	Ref          string            `json:"ref"`
-	ID           string            `json:"id"` // May be "[unknown]" for resources in same plan
+	// Existing fields for single references
+	Ref          string            `json:"ref,omitempty"`
+	ID           string            `json:"id,omitempty"` // May be "[unknown]" for resources in same plan
 	LookupFields map[string]string `json:"lookup_fields,omitempty"` // Resource-specific identifying fields
+	
+	// New fields for array references
+	Refs         []string               `json:"refs,omitempty"`          // Array of reference strings
+	ResolvedIDs  []string               `json:"resolved_ids,omitempty"`  // Array of resolved UUIDs
+	LookupArrays map[string][]string    `json:"lookup_arrays,omitempty"` // Array lookup fields
+	IsArray      bool                   `json:"is_array,omitempty"`      // Flag to indicate array reference
 }
 
 // ParentInfo tracks parent relationships

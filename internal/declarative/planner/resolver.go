@@ -114,6 +114,7 @@ func (r *ReferenceResolver) extractReference(fieldName string, value interface{}
 	return "", false
 }
 
+
 // isReferenceField checks if field name indicates a reference
 func (r *ReferenceResolver) isReferenceField(fieldName string) bool {
 	// Fields that contain references to other resources

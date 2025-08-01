@@ -442,23 +442,29 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 
 
 // resolveAuthStrategyRef resolves an auth strategy reference to its ID
-//
-//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
-func (e *Executor) resolveAuthStrategyRef(ctx context.Context, ref string) (string, error) {
+func (e *Executor) resolveAuthStrategyRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
 	// First check if it was created in this execution
 	if authStrategies, ok := e.refToID["application_auth_strategy"]; ok {
-		if id, found := authStrategies[ref]; found {
+		if id, found := authStrategies[refInfo.Ref]; found {
 			return id, nil
 		}
 	}
 	
+	// Determine the lookup value - use name from lookup fields if available
+	lookupValue := refInfo.Ref
+	if refInfo.LookupFields != nil {
+		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
+			lookupValue = name
+		}
+	}
+	
 	// Otherwise, look it up from the API
-	strategy, err := e.client.GetAuthStrategyByName(ctx, ref)
+	strategy, err := e.client.GetAuthStrategyByName(ctx, lookupValue)
 	if err != nil {
 		return "", fmt.Errorf("failed to get auth strategy by name: %w", err)
 	}
 	if strategy == nil {
-		return "", fmt.Errorf("auth strategy not found: %s", ref)
+		return "", fmt.Errorf("auth strategy not found: ref=%s, looked up by name=%s", refInfo.Ref, lookupValue)
 	}
 	
 	return strategy.ID, nil
@@ -691,6 +697,47 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			portalRef.ID = portalID
 			change.References["portal_id"] = portalRef
 		}
+		// Resolve auth_strategy_ids array references if needed
+		if authStrategyRefs, ok := change.References["auth_strategy_ids"]; ok && authStrategyRefs.IsArray {
+			resolvedIDs := make([]string, 0, len(authStrategyRefs.Refs))
+			
+			for i, ref := range authStrategyRefs.Refs {
+				var resolvedID string
+				var err error
+				
+				// Check if already resolved
+				if authStrategyRefs.ResolvedIDs != nil && i < len(authStrategyRefs.ResolvedIDs) &&
+					authStrategyRefs.ResolvedIDs[i] != "" {
+					resolvedID = authStrategyRefs.ResolvedIDs[i]
+				} else {
+					// Construct ReferenceInfo for the auth strategy
+					refInfo := planner.ReferenceInfo{
+						Ref: ref,
+					}
+					// Add lookup fields if available
+					if names, ok := authStrategyRefs.LookupArrays["names"]; ok && i < len(names) {
+						refInfo.LookupFields = map[string]string{
+							"name": names[i],
+						}
+					}
+					
+					resolvedID, err = e.resolveAuthStrategyRef(ctx, refInfo)
+					if err != nil {
+						return "", fmt.Errorf("failed to resolve auth strategy reference %q: %w", ref, err)
+					}
+				}
+				
+				if resolvedID == "" {
+					return "", fmt.Errorf("failed to resolve auth strategy reference %q", ref)
+				}
+				
+				resolvedIDs = append(resolvedIDs, resolvedID)
+			}
+			
+			// Update the reference with resolved IDs
+			authStrategyRefs.ResolvedIDs = resolvedIDs
+			change.References["auth_strategy_ids"] = authStrategyRefs
+		}
 		// Add context with resolved references
 		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.apiPublicationExecutor.Create(ctx, *change)
@@ -736,7 +783,16 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.portalCustomizationExecutor.Update(ctx, *change, portalID)
 	case "portal_custom_domain":
-		// No references to resolve for portal_custom_domain
+		// Resolve portal reference if needed
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
 		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
 		return e.portalDomainExecutor.Create(ctx, *change)
 	case "portal_page":
@@ -806,6 +862,59 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			change.References["api_id"] = apiRef
 		}
 		return e.apiDocumentExecutor.Update(ctx, *change)
+	case "api_publication":
+		// API publications use PUT for both create and update
+		// First resolve API reference if needed
+		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
+			apiID, err := e.resolveAPIRef(ctx, apiRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve API reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			apiRef.ID = apiID
+			change.References["api_id"] = apiRef
+		}
+		// Also resolve portal reference if needed
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
+		// Resolve auth strategy references if present
+		if authStrategyRefs, ok := change.References["auth_strategy_ids"]; ok && authStrategyRefs.IsArray {
+			resolvedIDs := make([]string, 0, len(authStrategyRefs.Refs))
+			for _, ref := range authStrategyRefs.Refs {
+				strategyRef := planner.ReferenceInfo{
+					Ref: ref,
+					LookupFields: make(map[string]string),
+				}
+				// Copy lookup fields if available
+				if authStrategyRefs.LookupArrays != nil && len(authStrategyRefs.LookupArrays["names"]) > 0 {
+					// Find corresponding name for this ref
+					for i, r := range authStrategyRefs.Refs {
+						if r == ref && i < len(authStrategyRefs.LookupArrays["names"]) {
+							strategyRef.LookupFields["name"] = authStrategyRefs.LookupArrays["names"][i]
+							break
+						}
+					}
+				}
+				resolvedID, err := e.resolveAuthStrategyRef(ctx, strategyRef)
+				if err != nil {
+					return "", fmt.Errorf("failed to resolve auth strategy reference %q: %w", ref, err)
+				}
+				resolvedIDs = append(resolvedIDs, resolvedID)
+			}
+			// Update the reference with resolved IDs
+			authStrategyRefs.ResolvedIDs = resolvedIDs
+			change.References["auth_strategy_ids"] = authStrategyRefs
+		}
+		// Use Create method which handles PUT (both create and update)
+		ctx = context.WithValue(ctx, contextKeyPlannedChange, *change)
+		return e.apiPublicationExecutor.Create(ctx, *change)
 	case "application_auth_strategy":
 		return e.authStrategyExecutor.Update(ctx, *change)
 	case "portal_customization":

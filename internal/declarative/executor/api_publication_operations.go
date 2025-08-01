@@ -72,7 +72,7 @@ func (e *Executor) createAPIPublication(ctx context.Context, change planner.Plan
 					ids = append(ids, strID)
 				} else {
 					// It's a reference, resolve it
-					resolvedID, err := e.resolveAuthStrategyRef(ctx, strID)
+					resolvedID, err := e.resolveAuthStrategyRef(ctx, planner.ReferenceInfo{Ref: strID})
 					if err != nil {
 						return "", fmt.Errorf("failed to resolve auth strategy reference %q: %w", strID, err)
 					}
@@ -91,7 +91,7 @@ func (e *Executor) createAPIPublication(ctx context.Context, change planner.Plan
 				ids = append(ids, strID)
 			} else {
 				// It's a reference, resolve it
-				resolvedID, err := e.resolveAuthStrategyRef(ctx, strID)
+				resolvedID, err := e.resolveAuthStrategyRef(ctx, planner.ReferenceInfo{Ref: strID})
 				if err != nil {
 					return "", fmt.Errorf("failed to resolve auth strategy reference %q: %w", strID, err)
 				}

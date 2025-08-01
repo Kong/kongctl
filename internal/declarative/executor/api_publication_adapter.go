@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -33,19 +32,22 @@ func (a *APIPublicationAdapter) MapCreateFields(ctx context.Context, fields map[
 	change, _ := ctx.Value(contextKeyPlannedChange).(planner.PlannedChange)
 
 	// Handle auth strategy IDs references
-	if authStrategyRefs, ok := change.References["auth_strategy_ids"]; ok {
-		// For multiple references, we expect the IDs to be comma-separated
-		if authStrategyRefs.ID != "" {
-			// The executor should have resolved these to a comma-separated list
-			// Split the comma-separated IDs into a slice
-			ids := strings.Split(authStrategyRefs.ID, ",")
-			create.AuthStrategyIds = ids
+	if authStrategyRefs, ok := change.References["auth_strategy_ids"]; ok && authStrategyRefs.IsArray {
+		// Handle array references - use ResolvedIDs if available
+		if len(authStrategyRefs.ResolvedIDs) > 0 {
+			create.AuthStrategyIds = authStrategyRefs.ResolvedIDs
 		}
-		// Auth strategy resolution will be handled by the executor if ID is empty
-	} else if authStrategyIDs, ok := fields["auth_strategy_ids"].(string); ok {
-		ids := strings.Split(authStrategyIDs, ",")
+	} else if authStrategyIDs, ok := fields["auth_strategy_ids"].([]interface{}); ok {
+		// Fallback: Convert interface array to string array
+		ids := make([]string, 0, len(authStrategyIDs))
+		for _, id := range authStrategyIDs {
+			if strID, ok := id.(string); ok {
+				ids = append(ids, strID)
+			}
+		}
 		create.AuthStrategyIds = ids
 	} else if authStrategyIDsList, ok := fields["auth_strategy_ids"].([]string); ok {
+		// Direct array assignment
 		create.AuthStrategyIds = authStrategyIDsList
 	}
 
