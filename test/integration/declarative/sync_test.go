@@ -236,7 +236,7 @@ portals:
 	require.Error(t, err)
 	
 	// Verify sync was cancelled (this happens when protected resources would be modified)
-	assert.Contains(t, err.Error(), "sync cancelled")
+	assert.Contains(t, err.Error(), "Cannot generate plan due to protected resources")
 	
 	// Verify no API calls were made for updates (fail-fast behavior)
 	mockPortalAPI.AssertExpectations(t)

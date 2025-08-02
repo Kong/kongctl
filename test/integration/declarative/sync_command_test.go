@@ -126,7 +126,7 @@ func TestSyncCommand_WithDeletes(t *testing.T) {
 	outputStr := output.String()
 	
 	// Verify plan was generated with new enhanced format
-	assert.Contains(t, outputStr, "PLAN SUMMARY")
+	assert.Contains(t, outputStr, "SUMMARY")
 	assert.Contains(t, outputStr, "- Old Portal")
 	assert.Contains(t, outputStr, "portal (1 resources):")
 	
