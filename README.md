@@ -67,21 +67,21 @@ kongctl login
 
 Follow the instructions given in the terminal to complete the login process.
 
-### 3. Test Your Connection
+### 3. Test the Authentication
 
-List your control planes:
+You can verify that `kongctl` is authenticated and can access information on your Konnect account by running:
 
 ```shell
-kongctl get gateway control-planes
+kongctl get me 
 ```
 
 ### 4. Next Steps
 
-**→ [Read the Getting Started Guide](docs/getting-started.md)** - Learn how to use declarative configuration to manage your APIs in Konnect
+**→ [Read the Getting Started Guide](docs/declarative-getting-started.md)** - Learn how to use declarative configuration to manage your APIs in Konnect
 
-## Documentation
+## Documentation Listing
 
-- **[Getting Started Guide](docs/getting-started.md)** - Step-by-step tutorial for declarative configuration
+- **[Getting Started Guide](docs/declarative-getting-started.md)** - Step-by-step tutorial for declarative configuration
 - **[Declarative Configuration](docs/declarative-configuration.md)** - Complete reference guide
 - **[Troubleshooting Guide](docs/troubleshooting.md)** - Common issues and solutions
 - **[Examples](docs/examples/)** - Sample configurations and use cases

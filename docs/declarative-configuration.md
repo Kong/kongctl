@@ -630,7 +630,7 @@ Browse the [examples directory](examples/declarative/) for:
 
 ## Related Documentation
 
-- [Getting Started Guide](getting-started.md) - Step-by-step tutorial
+- [Getting Started Guide](declarative-getting-started.md) - Step-by-step tutorial
 - [YAML Tags Reference](declarative-yaml-tags.md) - Comprehensive file loading guide
 - [CI/CD Integration](declarative-ci-cd.md) - Automation examples
 - [Troubleshooting Guide](troubleshooting.md) - Common issues and solutions
