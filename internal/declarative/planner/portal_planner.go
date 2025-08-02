@@ -647,7 +647,9 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			snippets = append(snippets, snippet)
 		}
 	}
-	if err := planner.planPortalSnippetsChanges(ctx, parentNamespace, current.ID, desired.Ref, snippets, plan); err != nil {
+	if err := planner.planPortalSnippetsChanges(
+		ctx, parentNamespace, current.ID, desired.Ref, snippets, plan,
+	); err != nil {
 		return fmt.Errorf("failed to plan portal snippet changes: %w", err)
 	}
 	

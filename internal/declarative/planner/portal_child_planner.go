@@ -57,7 +57,9 @@ func (p *Planner) planPortalCustomizationsChanges(
 			// Compare and only update if needed
 			needsUpdate, updateFields := p.shouldUpdatePortalCustomization(current, desiredCustomization)
 			if needsUpdate {
-				p.planPortalCustomizationUpdateWithFields(parentNamespace, desiredCustomization, portalName, portalID, updateFields, plan)
+				p.planPortalCustomizationUpdateWithFields(
+					parentNamespace, desiredCustomization, portalName, portalID, updateFields, plan,
+				)
 			}
 		} else {
 			// Portal doesn't exist yet, plan the update for after portal creation
@@ -69,7 +71,8 @@ func (p *Planner) planPortalCustomizationsChanges(
 }
 
 func (p *Planner) planPortalCustomizationUpdate(
-	parentNamespace string, customization resources.PortalCustomizationResource, portalName string, portalID string, plan *Plan,
+	parentNamespace string, customization resources.PortalCustomizationResource,
+	portalName string, portalID string, plan *Plan,
 ) {
 	// Build all fields from the resource
 	fields := p.buildAllCustomizationFields(customization)
@@ -454,7 +457,8 @@ func (p *Planner) planPortalCustomDomainCreate(
 // Portal Page planning
 
 func (p *Planner) planPortalPagesChanges(
-	ctx context.Context, parentNamespace string, portalID string, portalRef string, desired []resources.PortalPageResource, plan *Plan,
+	ctx context.Context, parentNamespace string, portalID string, portalRef string,
+	desired []resources.PortalPageResource, plan *Plan,
 ) error {
 	// Fetch existing pages for this portal
 	existingPages := make([]state.PortalPage, 0)
@@ -930,7 +934,8 @@ func (p *Planner) buildParentPath(pageRef string, allPages []resources.PortalPag
 // Portal Snippet planning
 
 func (p *Planner) planPortalSnippetsChanges(
-	ctx context.Context, parentNamespace string, portalID string, portalRef string, desired []resources.PortalSnippetResource, plan *Plan,
+	ctx context.Context, parentNamespace string, portalID string, portalRef string,
+	desired []resources.PortalSnippetResource, plan *Plan,
 ) error {
 	// Fetch existing snippets for this portal
 	existingSnippets := make(map[string]state.PortalSnippet)

@@ -201,7 +201,9 @@ func (b *BaseExecutor[TCreate, TUpdate]) Delete(ctx context.Context, change plan
 }
 
 // validateResourceForUpdate provides robust resource validation with fallback strategies
-func (b *BaseExecutor[TCreate, TUpdate]) validateResourceForUpdate(ctx context.Context, resourceName string, change planner.PlannedChange) (ResourceInfo, error) {
+func (b *BaseExecutor[TCreate, TUpdate]) validateResourceForUpdate(
+	ctx context.Context, resourceName string, change planner.PlannedChange,
+) (ResourceInfo, error) {
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 	
 	// Strategy 1: Standard name-based lookup
@@ -228,7 +230,9 @@ func (b *BaseExecutor[TCreate, TUpdate]) validateResourceForUpdate(ctx context.C
 	if isProtectionChange(change) && change.Fields != nil {
 		if namespace, ok := change.Fields["namespace"].(string); ok {
 			// Try namespace-specific lookup
-			if nsLookup, ok := b.ops.(interface{ GetByNameInNamespace(context.Context, string, string) (ResourceInfo, error) }); ok {
+			if nsLookup, ok := b.ops.(interface {
+				GetByNameInNamespace(context.Context, string, string) (ResourceInfo, error)
+			}); ok {
 				resource, err := nsLookup.GetByNameInNamespace(ctx, resourceName, namespace)
 				if err == nil && resource != nil {
 					logger.Debug("Resource found via namespace lookup during protection change",
