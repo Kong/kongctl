@@ -186,9 +186,8 @@ func TestDisplayPlanSummary(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"PLAN SUMMARY",
-				"📊 STATISTICS",
-				"📋 RESOURCE CHANGES",
+				"RESOURCE CHANGES",
+				"SUMMARY",
 				"Namespace: default",
 				"<configuration changes detected>",
 			},
@@ -210,9 +209,8 @@ func TestDisplayPlanSummary(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"PLAN SUMMARY",
-				"📊 STATISTICS",
-				"📋 RESOURCE CHANGES",
+				"RESOURCE CHANGES",
+				"SUMMARY",
 				"Namespace: default",
 				"+ p1",
 				"+ p2", 
@@ -227,7 +225,6 @@ func TestDisplayPlanSummary(t *testing.T) {
 				Summary: planner.PlanSummary{},
 			},
 			expected: []string{
-				"PLAN SUMMARY",
 				"No changes detected. Configuration matches current state.",
 			},
 		},
@@ -258,9 +255,8 @@ func TestDisplayPlanSummary(t *testing.T) {
 				},
 			},
 			expected: []string{
-				"PLAN SUMMARY (2 changes)",
-				"📊 STATISTICS",
-				"📋 RESOURCE CHANGES", 
+				"RESOURCE CHANGES",
+				"SUMMARY",
 				"Namespace: default",
 				"+ test-api",
 				"+ test-doc",
