@@ -117,7 +117,26 @@ in the command help text with a "Config path" note that looks like this:
 The above help text shows a YAML key path for the `--output` flag which controls the format of output text
 from the CLI. The config path is the location in the configuration file where a flag value can be defauled. 
 In this case it specifies that output formats can be set in the configuration file under an `output` key. 
-You could specificy different output values under different profiles, like so:
+
+It's called a config _path_ because the key may be nested. For example this `--control-plane-flag` has this 
+nested path:
+
+```text
+--control-plane-id string     The ID of the control plane to use for a gateway service command.
+                                    - Config path: [ konnect.gateway.control-plane.id ]
+```
+
+To set the default for this, a configuration file might looks like this:
+
+```yaml
+default:
+  konnect:
+    gateway:
+      control-plane:
+        id: <control-plane-id>
+```
+
+You can specify different values under different profiles, like so:
 
 ```yaml
 default:
