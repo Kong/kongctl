@@ -117,7 +117,7 @@ your developer portal with the published API.
 ## Next Steps
 
 To see a more complete Developer Portal example with pages, API specifications and more check out the
-portal example in [docs/examples/declarative/portal](docs/examples/declarative/portal/README.md).
+[portal specific example](docs/examples/declarative/portal/README.md).
 
 ## Troubleshooting
 
