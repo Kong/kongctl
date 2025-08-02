@@ -1,4 +1,4 @@
-# Getting Started with `kongctl`
+# Getting Started with `kongctl` Declarative Configuration
 
 This guide gets you started with managing your API Platform using `kongctl`'s 
 declarative configuration. You'll create a developer portal and publish an API 
@@ -12,9 +12,9 @@ in just a few steps.
 
 ## Key Concepts
 
-- **Resources**: Kong Konnect API Platform objects. For example APIs, Portals, 
-  and Auth Strategies. More resource types will be added over time
-- **References (ref)**: Identifier string in the declarative configuration which 
+- **Resources**: Kong Konnect API Platform objects, for example APIs, Portals, 
+  and Auth Strategies. 
+- **References (ref)**: Identifier string _in the declarative configuration_ which 
   uniquely identifies each resource
 - **Plan**: Plans are artifacts that contain desired changes to resources. Plans 
   are the foundation to the declarative configuration feature, but using them 
@@ -48,7 +48,7 @@ portals:
 
 ## Step 3: Add an API and Publish it to Your Portal
 
-Now add an API and publish it to your portal. Add this to your `portal.yaml` 
+Create an API and publish it to the portal. Add this to your `portal.yaml` 
 file:
 
 ```yaml
@@ -64,7 +64,7 @@ apis:
 
 ## Step 4: Apply Your Configuration
 
-Your complete `portal.yaml` file should now look like this:
+Be sure to save the file. Your complete `portal.yaml` file should now look like this:
 
 ```yaml
 portals:
@@ -116,8 +116,8 @@ your developer portal with the published API.
 
 ## Next Steps
 
-To see a more complete example with Portal pages, API specifications and versions, see 
-the portal example in [docs/examples/declarative/portal](docs/examples/declarative/portal).
+To see a more complete Developer Portal example with pages, API specifications and more check out the
+portal example in [docs/examples/declarative/portal](docs/examples/declarative/portal/README.md).
 
 ## Troubleshooting
 
