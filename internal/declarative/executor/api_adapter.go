@@ -118,6 +118,18 @@ func (p *APIAdapter) GetByName(ctx context.Context, name string) (ResourceInfo, 
 	return &APIResourceInfo{api: api}, nil
 }
 
+// GetByID gets an API by ID
+func (p *APIAdapter) GetByID(ctx context.Context, id string) (ResourceInfo, error) {
+	api, err := p.client.GetAPIByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if api == nil {
+		return nil, nil
+	}
+	return &APIResourceInfo{api: api}, nil
+}
+
 // ResourceType returns the resource type name
 func (p *APIAdapter) ResourceType() string {
 	return "api"

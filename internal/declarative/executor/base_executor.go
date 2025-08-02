@@ -114,9 +114,9 @@ func (b *BaseExecutor[TCreate, TUpdate]) Update(ctx context.Context, change plan
 	resourceName := common.ExtractResourceName(change.Fields)
 
 	// First, validate protection status at execution time
-	resource, err := b.ops.GetByName(ctx, resourceName)
+	resource, err := b.validateResourceForUpdate(ctx, resourceName, change)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch %s for protection check: %w", b.ops.ResourceType(), err)
+		return "", fmt.Errorf("failed to validate %s for update: %w", b.ops.ResourceType(), err)
 	}
 	if resource == nil {
 		return "", fmt.Errorf("%s no longer exists", b.ops.ResourceType())
@@ -198,4 +198,54 @@ func (b *BaseExecutor[TCreate, TUpdate]) Delete(ctx context.Context, change plan
 	}
 
 	return nil
+}
+
+// validateResourceForUpdate provides robust resource validation with fallback strategies
+func (b *BaseExecutor[TCreate, TUpdate]) validateResourceForUpdate(ctx context.Context, resourceName string, change planner.PlannedChange) (ResourceInfo, error) {
+	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
+	
+	// Strategy 1: Standard name-based lookup
+	resource, err := b.ops.GetByName(ctx, resourceName)
+	if err == nil && resource != nil {
+		return resource, nil
+	}
+	
+	// Strategy 2: For protection changes, try ID-based lookup if available
+	if change.ResourceID != "" && isProtectionChange(change) {
+		if idLookup, ok := b.ops.(interface{ GetByID(context.Context, string) (ResourceInfo, error) }); ok {
+			resource, err := idLookup.GetByID(ctx, change.ResourceID)
+			if err == nil && resource != nil {
+				logger.Debug("Resource found via ID lookup during protection change", 
+					"resource_type", b.ops.ResourceType(), 
+					"name", resourceName, 
+					"id", change.ResourceID)
+				return resource, nil
+			}
+		}
+	}
+	
+	// Strategy 3: For protection changes, try lookup with preserved labels context
+	if isProtectionChange(change) && change.Fields != nil {
+		if namespace, ok := change.Fields["namespace"].(string); ok {
+			// Try namespace-specific lookup
+			if nsLookup, ok := b.ops.(interface{ GetByNameInNamespace(context.Context, string, string) (ResourceInfo, error) }); ok {
+				resource, err := nsLookup.GetByNameInNamespace(ctx, resourceName, namespace)
+				if err == nil && resource != nil {
+					logger.Debug("Resource found via namespace lookup during protection change",
+						"resource_type", b.ops.ResourceType(),
+						"name", resourceName,
+						"namespace", namespace)
+					return resource, nil
+				}
+			}
+		}
+	}
+	
+	// Return original result if all fallback strategies fail
+	return b.ops.GetByName(ctx, resourceName)
+}
+
+// Helper function to detect protection changes
+func isProtectionChange(change planner.PlannedChange) bool {
+	return change.Protection != nil
 }
