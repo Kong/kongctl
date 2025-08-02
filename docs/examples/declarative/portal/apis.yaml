@@ -1,0 +1,85 @@
+# API Resources for Getting Started Portal
+# This file defines the APIs that will be published to the developer portal
+
+apis:
+  - ref: sms
+    name: !file apis/sms/openapi.yaml#info.title
+    description: !file apis/sms/openapi.yaml#info.description
+    labels:
+      category: messaging
+      protocol: rest
+    
+    versions:
+      - ref: sms-v1
+        version: !file apis/sms/openapi.yaml#info.version
+        spec: !file apis/sms/openapi.yaml
+        
+    documents:
+      - ref: sms-getting-started
+        title: "SMS API: Getting Started"
+        slug: sms-getting-started
+        status: published
+        content: !file apis/sms/docs/getting-started.md
+        
+      - ref: sms-authentication
+        title: "SMS API: Authentication Guide"
+        slug: sms-authentication
+        status: published
+        content: !file apis/sms/docs/authentication.md
+        
+      - ref: sms-errors
+        title: "SMS API: Error Handling"
+        slug: sms-errors
+        status: published
+        content: !file apis/sms/docs/errors.md
+        
+      - ref: sms-webhooks
+        title: "SMS API: Webhooks"
+        slug: sms-webhooks
+        status: published
+        content: !file apis/sms/docs/webhooks.md
+        
+    publications:
+      - ref: sms-api-to-getting-started
+        portal_id: getting-started
+
+  - ref: voice
+    name: !file apis/voice/openapi.yaml#info.title
+    description: !file apis/voice/openapi.yaml#info.description
+    labels:
+      category: voice
+      protocol: rest
+    
+    versions:
+      - ref: voice-api-v1
+        version: !file apis/voice/openapi.yaml#info.version
+        spec: !file apis/voice/openapi.yaml
+        
+    documents:
+      - ref: voice-getting-started
+        title: "Voice API: Getting Started"
+        slug: voice-getting-started
+        status: published
+        content: !file apis/voice/docs/getting-started.md
+        
+      - ref: voice-authentication
+        title: "Voice API: Authentication Guide"
+        slug: voice-authentication
+        status: published
+        content: !file apis/voice/docs/authentication.md
+        
+      - ref: voice-errors
+        title: "Voice API: Error Handling"
+        slug: voice-errors
+        status: published
+        content: !file apis/voice/docs/errors.md
+        
+      - ref: voice-ncco
+        title: "Voice API: NCCO Reference"
+        slug: voice-ncco
+        status: published
+        content: !file apis/voice/docs/ncco.md
+        
+    publications:
+      - ref: voice-api-to-getting-started
+        portal_id: getting-started

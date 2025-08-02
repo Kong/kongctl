@@ -13,7 +13,7 @@ This command requires a step number as an argument. The user should specify whic
    - If no number found, ask the user to specify which step
 
 2. Identify the current feature:
-   - Read `docs/plan/index.md` to find current active stage
+   - Read `planning/index.md` to find current active stage
    - Navigate to the feature folder's `execution-plan-steps.md`
 
 3. Find the specified step:

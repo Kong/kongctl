@@ -1,0 +1,28 @@
+# Protected Resources
+# This example demonstrates resource protection for critical APIs
+
+_defaults:
+  kongctl:
+    protected: true            # All resources protected by default
+
+# Protected resources cannot be modified or deleted without explicitly
+# setting protected: false first. This helps mitigate accidental changes.
+
+apis:
+  - ref: customer-api
+    name: "Customer API"
+    description: "Production API for customer data and operations"
+    # Inherits protected: true from defaults
+
+  - ref: order-api
+    name: "Order Management API"
+    description: "Production API for order processing"
+    kongctl:
+      protected: false
+    
+  - ref: test-api
+    name: "Test API"
+    description: "Non-critical test API that can be modified"
+    kongctl:
+      protected: false          # Override: Not protected - can be modified
+    

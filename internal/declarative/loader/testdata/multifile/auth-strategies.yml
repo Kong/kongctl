@@ -1,0 +1,12 @@
+# Test file for auth strategies (note .yml extension)
+application_auth_strategies:
+  - ref: multifile-oauth
+    name: "Multi-file OAuth"
+    display_name: "OAuth from multifile"
+    strategy_type: openid_connect
+    configs:
+      openid_connect:
+        issuer: "https://auth.multifile.com"
+        client_id: "multifile-client"
+        client_secret: "${MULTIFILE_SECRET}"
+        scopes: ["openid", "profile"]

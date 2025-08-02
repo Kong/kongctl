@@ -73,19 +73,20 @@ func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, er
 
 	baseURL := cfg.GetString(BaseURLConfigPath)
 
-	sdk, err := auth.GetAuthenticatedClient(baseURL, token)
-	if err != nil {
-		return nil, err
-	}
-
-	// Initialize the internal SDK for accessing APIs that aren't in the public SDK yet
-	internalSDK, err := auth.GetAuthenticatedInternalClient(baseURL, token)
+	sdk, err := auth.GetAuthenticatedClient(baseURL, token, logger)
 	if err != nil {
 		return nil, err
 	}
 
 	return &helpers.KonnectSDK{
-		SDK:         sdk,
-		InternalSDK: internalSDK,
+		SDK: sdk,
 	}, nil
+}
+
+// GetSDKFactory returns the SDK factory to use, checking for test overrides
+func GetSDKFactory() helpers.SDKAPIFactory {
+	if helpers.DefaultSDKFactory != nil {
+		return helpers.DefaultSDKFactory
+	}
+	return KonnectSDKFactory
 }

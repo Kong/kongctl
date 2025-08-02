@@ -1,0 +1,4 @@
+portals:
+  - ref: test-portal
+    name: "Test Portal"
+    default_application_auth_strategy_id: nonexistent-strategy

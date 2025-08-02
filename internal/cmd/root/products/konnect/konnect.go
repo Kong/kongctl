@@ -6,8 +6,13 @@ import (
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/products"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/api"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/authstrategy"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/me"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/portal"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -87,10 +92,13 @@ func bindFlags(c *cobra.Command, args []string) error {
 }
 
 func preRunE(c *cobra.Command, args []string) error {
-	c.SetContext(context.WithValue(c.Context(),
-		products.Product, Product))
-	c.SetContext(context.WithValue(c.Context(),
-		helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(common.KonnectSDKFactory)))
+	ctx := c.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx = context.WithValue(ctx, products.Product, Product)
+	ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
+	c.SetContext(ctx)
 	return bindFlags(c, args)
 }
 
@@ -102,10 +110,13 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		Example: konnectExamples,
 		Aliases: []string{"k", "K"},
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
-			c.SetContext(context.WithValue(c.Context(),
-				products.Product, Product))
-			c.SetContext(context.WithValue(c.Context(),
-				helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(common.KonnectSDKFactory)))
+			ctx := c.Context()
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			ctx = context.WithValue(ctx, products.Product, Product)
+			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
+			c.SetContext(ctx)
 			return bindFlags(c, args)
 		},
 	}
@@ -114,11 +125,60 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return newLoginKonnectCmd(verb, cmd, addFlags, preRunE).Command, nil
 	}
 
+	// Handle declarative configuration verbs
+	switch verb {
+	case verbs.Plan, verbs.Sync, verbs.Diff, verbs.Export, verbs.Apply:
+		c, e := declarative.NewDeclarativeCmd(verb)
+		if e != nil {
+			return nil, e
+		}
+		// Replace the konnect command with the declarative command
+		cmd.Use = c.Use
+		cmd.Short = c.Short
+		cmd.Long = c.Long
+		cmd.RunE = c.RunE
+		// Copy flags from declarative command
+		cmd.Flags().AddFlagSet(c.Flags())
+		addFlags(verb, cmd)
+		return cmd, nil
+	case verbs.Add, verbs.Get, verbs.Create, verbs.Dump, verbs.Update,
+		verbs.Delete, verbs.Help, verbs.List, verbs.Login:
+		// These verbs don't use declarative configuration, continue below
+	}
+
 	c, e := gateway.NewGatewayCmd(verb, addFlags, preRunE)
 	if e != nil {
 		return nil, e
 	}
 	cmd.AddCommand(c)
+
+	// Add portal command
+	pc, e := portal.NewPortalCmd(verb, addFlags, preRunE)
+	if e != nil {
+		return nil, e
+	}
+	cmd.AddCommand(pc)
+
+	// Add API command
+	ac, e := api.NewAPICmd(verb, addFlags, preRunE)
+	if e != nil {
+		return nil, e
+	}
+	cmd.AddCommand(ac)
+
+	// Add auth strategy command
+	asc, e := authstrategy.NewAuthStrategyCmd(verb, addFlags, preRunE)
+	if e != nil {
+		return nil, e
+	}
+	cmd.AddCommand(asc)
+
+	// Add me command
+	mc, e := me.NewMeCmd(verb, addFlags, preRunE)
+	if e != nil {
+		return nil, e
+	}
+	cmd.AddCommand(mc)
 
 	return cmd, e
 }

@@ -11,12 +11,18 @@ import (
 	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/apply"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/create"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/del"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/diff"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/dump"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/export"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/get"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/help"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/list"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/login"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/plan"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/sync"
 	"github.com/kong/kongctl/internal/cmd/root/version"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/iostreams"
@@ -59,6 +65,7 @@ var (
 		common.TEXT.String())
 
 	logLevel = cmd.NewEnum([]string{
+		common.TRACE.String(),
 		common.DEBUG.String(),
 		common.INFO.String(),
 		common.WARN.String(),
@@ -156,6 +163,39 @@ func addCommands() error {
 	}
 	rootCmd.AddCommand(c)
 
+	c, e = plan.NewPlanCmd()
+	if e != nil {
+		return e
+	}
+	rootCmd.AddCommand(c)
+
+	c, e = sync.NewSyncCmd()
+	if e != nil {
+		return e
+	}
+	rootCmd.AddCommand(c)
+
+	c, e = diff.NewDiffCmd()
+	if e != nil {
+		return e
+	}
+	rootCmd.AddCommand(c)
+
+	c, e = export.NewExportCmd()
+	if e != nil {
+		return e
+	}
+	rootCmd.AddCommand(c)
+
+	c, e = apply.NewApplyCmd()
+	if e != nil {
+		return e
+	}
+	rootCmd.AddCommand(c)
+
+	// Add help command
+	rootCmd.AddCommand(help.NewHelpCmd())
+
 	return nil
 }
 
@@ -217,7 +257,7 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 		// show the usage information, so we don't also print the error here
 		var executionError *cmd.ExecutionError
 		if errors.Is(err, context.Canceled) {
-			fmt.Println("Canceled...")
+			logger.Info("Operation canceled")
 		} else if errors.As(err, &executionError) {
 			if executionError.Msg != "" && executionError.Attrs != nil && len(executionError.Attrs) > 0 {
 				logger.Error(executionError.Msg, executionError.Attrs...)

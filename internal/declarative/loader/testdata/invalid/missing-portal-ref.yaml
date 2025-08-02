@@ -1,0 +1,3 @@
+portals:
+  - name: "Portal Without Ref"
+    description: "This should fail validation"

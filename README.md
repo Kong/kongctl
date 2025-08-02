@@ -1,201 +1,222 @@
 # kongctl
 
-A CLI for operating Kong Gateway and Kong Konnect
+The Kong Konnect CLI
 
-> :warning: **WARNING: This is a work in progress CLI. Do not use in production. The CLI is under
-heavy development and the API and behavior are subject to change.**
+## ⚠️ Tech Preview ⚠️
+
+**`kongctl` is a _Tech Preview_ project. This software is provided by Kong, Inc. without warranty and is not recommended for 
+production use. The CLI is under active development - interfaces, commands, and behaviors are subject to change without notice. 
+Use at your own risk for evaluation and testing purposes only.**
+
+By using this software, you acknowledge that:
+- It may contain bugs and incomplete features
+- It should not be used for critical systems or production workloads
+- Data loss or service disruption may occur
+- No support commitments or SLAs apply
+
+## What is `kongctl`?
+
+`kongctl` is a command-line tool for Kong Konnect that enables you to:
+- Manage Konnect resources programmatically
+- Define your Konnect API infrastructure as code using declarative configuration
+- Integrate Konnect into your CI/CD pipelines
+- Automate API lifecycle management
+
+*Note: Future releases may include support for Kong Gateway on-premise deployments.*
 
 ## Installation
 
 ### macOS
 
-If you are on macOS, install `kongctl` using Homebrew.
-
-Add the `kongctl` tap to your local Homebrew installation:
+Install using Homebrew:
 
 ```shell
-brew tap kong/kongctl
-```
-
-Install `kongctl`:
-
-```shell
-brew install kongctl
-```
-
-Verify the installation:
-
-```shell
-kongctl version --full
-```
-
-Which should report the installed version:
-
-```text
-0.0.12 (100a56d2e877b3004d3753446a98001c5010b478 : 2024-08-29T21:59:04Z)
-```
-
-Upgrades can be applied using:
-
-```shell
-brew upgrade kongctl
+brew install kong/kongctl/kongctl
 ```
 
 ### Linux
 
-To install on Linux download the proper release from the the GitHub 
-[release page](https://github.com/kong/kongctl/releases) and extract the binary to a location in your PATH.
-
-For example to install the `0.0.12` version of the x86-64 compatible binary:
+Download from the [release page](https://github.com/kong/kongctl/releases):
 
 ```shell
+# Example: Install v0.0.12 for x86-64
 curl -sL https://github.com/Kong/kongctl/releases/download/v0.0.12/kongctl_linux_amd64.zip -o kongctl_linux_amd64.zip
 unzip kongctl_linux_amd64.zip -d /tmp
 sudo cp /tmp/kongctl /usr/local/bin/
 ```
 
-Verify the installation:
+### Verify
 
 ```shell
 kongctl version --full
 ```
 
-Which should report the installed version:
+## Getting Started
 
-```text
-0.0.12 (100a56d2e877b3004d3753446a98001c5010b478 : 2024-08-29T21:59:04Z)
+### 1. Create a Kong Konnect Account
+
+If you don't have a Kong Konnect account, [sign up for free](https://konghq.com/products/kong-konnect/register).
+
+### 2. Authenticate with Konnect
+
+Use the `kongctl login` command to authenticate with you Kong Konnect account:
+
+```shell
+kongctl login
 ```
 
-## Usage
+Follow the instructions given in the terminal to complete the login process.
 
-### Configuration File
+### 3. Test the Authentication
 
-The CLI aims to allow all values that affect the behavior to be configurable. The CLI uses the `viper` library
-and conforms to it's own [precedence rules](https://github.com/spf13/viper?tab=readme-ov-file#why-viper). 
-The default configuration file is created and stored at
-`$XDG_CONFIG_HOME/kongctl/config.yaml`, or if `XDG_CONFIG_HOME` is not set, `$HOME/.config/kongctl/config.yaml`.
+You can verify that `kongctl` is authenticated and can access information on your Konnect account by running:
 
-A configuration file can be specified with the `--config-file` flag, and the default file is ignored and the configuration
-is read from the path specified.
+```shell
+kongctl get me 
+```
 
-A default configuration file is created on initial execution if it doesn't exist. A basic configuration will look like 
-the following:
+### 4. Next Steps
+
+**→ [Read the Getting Started Guide](docs/declarative-getting-started.md)** - Learn how to use declarative configuration to manage your APIs in Konnect
+
+## Documentation Listing
+
+- **[Getting Started Guide](docs/declarative-getting-started.md)** - Step-by-step tutorial for declarative configuration
+- **[Declarative Configuration](docs/declarative-configuration.md)** - Complete reference guide
+- **[Troubleshooting Guide](docs/troubleshooting.md)** - Common issues and solutions
+- **[Examples](docs/examples/)** - Sample configurations and use cases
+
+### Advanced Topics
+
+- **[YAML Tags Reference](docs/declarative-yaml-tags.md)** - Loading external files and value extraction
+- **[CI/CD Integration](docs/declarative-ci-cd.md)** - GitHub Actions, GitLab CI, and Jenkins examples
+
+## Configuration and Profiles
+
+`kongctl` configuration data is read from `$XDG_CONFIG_HOME/kongctl/config.yaml`. The format of the file is YAML,
+and at the root level you can specify profiles. A profile is a named collection of configuration values. By default
+there is a `default` profile, but you can create additional profiles for different environments or configurations.
+
+The basic example of a configuration file follows:
 
 ```yaml
 default:
   output: text
-dev:
+```
+
+Some flags and options can be defaulted by providing a value in the configuration file, effectively 
+allowing you to override the default behavior of commands. Flags that support this will be documented
+in the command help text with a "Config path" note that looks like this:
+
+```text
+-o, --output string        Configures the format of data written to STDOUT.
+                             - Config path: [ output ]
+                             - Allowed    : [ json|yaml|text ] (default "text")
+```
+
+The above help text shows a YAML key path for the `--output` flag which controls the format of output text
+from the CLI. The config path is the location in the configuration file where a flag value can be defauled. 
+In this case it specifies that output formats can be set in the configuration file under an `output` key. 
+
+It's called a config _path_ because the key may be nested. For example this `--control-plane-flag` has this 
+nested path:
+
+```text
+--control-plane-id string     The ID of the control plane to use for a gateway service command.
+                                    - Config path: [ konnect.gateway.control-plane.id ]
+```
+
+To set the default for this, a configuration file might looks like this:
+
+```yaml
+default:
+  konnect:
+    gateway:
+      control-plane:
+        id: <control-plane-id>
+```
+
+You can specify different values under different profiles, like so:
+
+```yaml
+default:
   output: text
-prod:
+cicd:
   output: json
 ```
 
-Each top level key is a profile name and configuration values are specified in the object underneath it. 
-More on profiles next...
+This configuration file defines two profiles: `default` and `cicd`. 
+The `default` profile will output text, while the `cicd` profile will output JSON.
 
-### Profiles
-
-The CLI supports profiles, which are used to isolate configurations. The profile is determined in the following precedence: 
-
-1. The `--profile` flag
-2. The `KONGCTL_PROFILE` environment variable
-
-Once the profile is determined, the CLI will read the configuration from the configuration file, using the sub-configuration 
-under the profile name.
-
-> :warning: **Note: Do not use `-` characters in profile names if you intend to use environment
-variables. The `-` character is not allowed in environment variable names.**
-
-### Configuration Values
-
-With the exception of the `--config-file` and `--profile` flags, every flag for every command can be set via the configuration system.
-The command usage text will aid you in determining the configuration path for all flags.  For example:
+You can use the `--profile` flag to specify which profile to use when running commands:
 
 ```shell
---log-level string     Configures the logging level. Execution logs are written to STDERR.
-                             - Config path: [ log-level ]
+kongctl get apis --profile cicd
 ```
 
-The usage help text for the `--log-level` flag indicates that the configuration path is `log-level`. That means for the `default` profile,
-the configuration would look like:
-
-```yaml
-default:
-  log-level: debug
-```
-
-Another example for the `--page-size` flag which is used to specify how many records are returned for a request to a Kong Konnect API, looks like the following:
+Or you can set the `KONGCTL_PROFILE` environment variable:
 
 ```shell
---page-size int        Max number of results to include per response page for get and list operations.
-                              (config path = 'konnect.page-size') (default 10)
+KONGCTL_PROFILE=cicd kongctl get apis
 ```
 
-Here, the config path is `konnect.page-size`, which means for a profile named "dev", the configuration would look like:
-
-```yaml
-dev:
-  konnect:
-    page-size: 20
-```
-
-### Konnect Authorization
-
-When invoking commands that interact with the Kong Konnect API, 
-the following logic is used to determine which access token to use for requests.
-
-First, the CLI profile is determined by the `--profile` flag or the `KONGCTL_PROFILE` environment variable.
-Once the profile is known, the CLI looks for a Konnect Access Token in the following order:
-
-1. The `--pat` flag is used to specify a Konnect Personal Access Token (PAT). For example:
-    
-    ```shell
-    kongctl get konnect gateway control-planes --pat kpat_Pfjifj...
-    ```
-
-2. The `KONGCTL_<PROFILE>_KONNECT_PAT` environment variable (where `<PROFILE>` is the name of the profile you are specifying for this command) is read
-next. For example:
-    ```shell
-    KONGCTL_PROFILE=dev KONGCTL_DEV_KONNECT_PAT=kpat_Pfjifj... kongctl get konnect gateway control-planes
-    ```
-
-    Or:
-    ```shell
-    KONGCTL_FOO_KONNECT_PAT=kpat_Pfjifj... kongctl get konnect gateway control-planes --profile foo
-    ```
-
-3. If a PAT is not found, the CLI moves to using a 
-[Device Authorization Flow](https://auth0.com/docs/get-started/authentication-and-authorization-flow/device-authorization-flow). 
-This authorization technique uses a browser based flow, allowing you to authorize your CLI using the organization authorization provided by Kong Konnect. 
-The credentials provided by this flow are preferred over the PAT, as they contain a shorter expriration time and are more secure.
-
-   You can initialize this authorization flow by invoking the `kongctl login konnect` command. This command will display a URL you navigate to in your 
-   browser to authorize the CLI. Included in the URL is a device code that is a one-use code generated by the auth flow for your specific CLI.
-   Once you have authorized the CLI using the browser, the CLI will store the access and refresh tokens in a file located 
-   in a file named `.<profile>-konnect-token.json` in the same path as the loaded configuration file.
-
-5. If the CLI locates an access token file located in the same path as the loaded configuration file, with a file name 
-following the pattern `.<profile>-konnect-token.json`, the CLI will read the expriration date stored in the file and determine if the token is expired.
-
-   If the token is unexpired, it will use the token for all requests made for that command execution. If the token is expired, the CLI will attempt to 
-   refresh the token using the refresh token stored in the file. A new token is obtained, stored in the file, and used for the command execution. 
-
-   If the refresh operation fails (maybe because the refresh token itself is expired), 
-   the user will need to re-invoke the `kongctl login konnect` command to re-authorize the CLI.
-
-### Command Structure
-
-The CLI is designed to follow a natural language style command structure.  Commands are generally strucutred around verbs followed by resources.  For example:
+Configuration values can also be specified using environment variables. `kongctl` looks for environment variables
+which follow the pattern `KONGCTL_<PROFILE>_<PATH>`, where `<PROFILE>` is the profile name in uppercase and `<PATH>` 
+is the configuration path in uppercase. For example, to set the output format for the `default` profile, you can use:
 
 ```shell
-kongctl get konnect gateway control-planes
+KONGCTL_DEFAULT_OUTPUT=yaml kongctl get apis 
 ```
 
-The verb is `get` and you are asking the CLI to retrieve a list of control planes from the Kong Konnect Gateway Manager.
-The CLI will attempt to provide helpful usage text for each command to help you understand the expected input.
+### Authentication Options
 
-See the usage text for any command:
+`kongctl` makes requests to the Konnect API using API tokens. There are two primary methods for authentication.
+
+1. **Device Flow** (Recommended):
+
+   Execute the following command to authorize `kongctl` with your Kong Konnect account:
+
+   ```shell
+   kongctl login
+   ```
+
+   This command will generate a web link you can use to open a browser window and authenticate with your Kong Konnect account. 
+   After logging in and authorizing the CLI using the provided code, `kongctl` will store token and refresh token data in a file at 
+   `$XDG_CONFIG_HOME/kongctl/.<profile>-konnect-token.json`
+
+2. **Personal Access Token flag**:
+
+   You can also pass an API token directly using the `--pat` flag. This is useful for automation pipelines 
+   where you want to avoid interactive login or provide various tokens for different operations.
+
+   ```shell
+   kongctl get apis --pat <token>
+   ```
+
+   You can also set an environment variable for the token following the same pattern as configuration values:
+
+   ```
+   KONGCTL_DEFAULT_KONNECT_PAT=<token> kongctl get apis
+   ```
+
+## Command Structure
+
+Commands follow a verb-resource pattern for Konnect resources:
 
 ```shell
-kongctl get konnect gateway control-planes --help
+kongctl <verb> <resource-type> [resource-name] [flags]
 ```
+
+Examples:
+- `kongctl get apis` - List all APIs in Konnect
+- `kongctl get api users-api` - Get specific API details
+- `kongctl create portal` - Create a new developer portal
+- `kongctl delete api my-api` - Delete an API from Konnect
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/kong/kongctl/issues)
+- **Documentation**: [Kong Docs](https://developer.konghq.com)
+- **Community**: [Kong Nation](https://discuss.konghq.com)
+
+Remember: This is tech preview software. Please report bugs and provide feedback through GitHub Issues.

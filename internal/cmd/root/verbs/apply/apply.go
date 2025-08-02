@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -19,39 +22,57 @@ const (
 var (
 	applyUse = Verb.String()
 
-	applyShort = i18n.T("root.verbs.apply.applyShort", "Apply configurations")
+	applyShort = i18n.T("root.verbs.apply.applyShort", "Apply configuration changes (create/update only)")
 
 	applyLong = normalizers.LongDesc(i18n.T("root.verbs.apply.applyLong",
-		`Use apply to apply a configuration to a system.
-
-Further sub-commands are required to determine which remote system is contacted. 
-The command will apply a given configuration and report a result depending on further arguments.
-Output can be formatted in multiple ways to aid in further processing.`))
+		`Apply configuration changes to Kong Konnect. Creates new resources and updates existing ones.`))
 
 	applyExamples = normalizers.Examples(i18n.T("root.verbs.apply.applyExamples",
-		fmt.Sprintf(`
-		# Apply a configuration to a Konnect Kong Gateway control plane
-		%[1]s apply konnect gateway --control-plane <cp-name> <path-to-config.yaml>
-		`, meta.CLIName)))
+		fmt.Sprintf(`  %[1]s apply -f api.yaml
+  %[1]s apply -f ./configs/ --recursive
+  %[1]s apply --plan plan.json
+
+Use "%[1]s help apply" for detailed documentation`, meta.CLIName)))
 )
 
 func NewApplyCmd() (*cobra.Command, error) {
+	// Create the konnect subcommand first to get its implementation
+	konnectCmd, err := konnect.NewKonnectCmd(Verb)
+	if err != nil {
+		return nil, err
+	}
+
 	cmd := &cobra.Command{
 		Use:     applyUse,
 		Short:   applyShort,
 		Long:    applyLong,
 		Example: applyExamples,
 		Aliases: []string{"a", "A"},
-		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
-			cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))
+		// Use the konnect command's RunE directly for Konnect-first pattern
+		RunE: konnectCmd.RunE,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			ctx = context.WithValue(ctx, verbs.Verb, Verb)
+			ctx = context.WithValue(ctx, products.Product, konnect.Product)
+			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
+			cmd.SetContext(ctx)
+			
+			// Also call the konnect command's PersistentPreRunE to set up binding
+			if konnectCmd.PersistentPreRunE != nil {
+				return konnectCmd.PersistentPreRunE(cmd, args)
+			}
+			return nil
 		},
 	}
 
-	c, e := konnect.NewKonnectCmd(Verb)
-	if e != nil {
-		return nil, e
-	}
+	// Copy flags from konnect command to parent
+	cmd.Flags().AddFlagSet(konnectCmd.Flags())
 
-	cmd.AddCommand(c)
+	// Also add konnect as a subcommand for explicit usage
+	cmd.AddCommand(konnectCmd)
+
 	return cmd, nil
 }

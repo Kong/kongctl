@@ -1,0 +1,6 @@
+portals:
+  - ref: test-portal
+    name: "Test Portal"
+    description: "Testing unknown field handling"
+    lables:  # Misspelled labels field
+      purpose: demo

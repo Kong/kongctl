@@ -1,0 +1,5 @@
+portals:
+  - ref: test-portal
+    name: "Test Portal"
+    description: "Testing unknown field with no suggestion"
+    completely_unknown_field: "should error"

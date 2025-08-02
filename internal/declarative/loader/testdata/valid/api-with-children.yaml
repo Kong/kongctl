@@ -1,0 +1,45 @@
+# Test data with API and all referenced resources
+portals:
+  - ref: test-portal
+    name: "Test Portal"
+
+application_auth_strategies:
+  - ref: oauth-strategy
+    name: "OAuth Strategy"
+    display_name: "OAuth Strategy"
+    strategy_type: openid_connect
+    configs:
+      openid_connect:
+        issuer: "https://auth.example.com"
+        client_id: "test-client"
+        client_secret: "test-secret"
+        scopes: ["openid", "profile"]
+
+control_planes:
+  - ref: test-cp
+    name: "Test Control Plane"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+
+apis:
+  - ref: my-api
+    name: "My API"
+    description: "A test API"
+    
+    versions:
+      - ref: my-api-v1
+        name: "v1.0.0"
+        version: "v1"
+        publish_status: "published"
+        
+    publications:
+      - ref: my-api-pub
+        portal_id: test-portal
+        publish_status: "published"
+        auth_strategy_ids: ["oauth-strategy"]
+        
+    implementations:
+      - ref: my-api-impl
+        implementation_url: "https://api.example.com/v1"
+        service:
+          id: "12345678-1234-1234-1234-123456789012"
+          control_plane_id: test-cp

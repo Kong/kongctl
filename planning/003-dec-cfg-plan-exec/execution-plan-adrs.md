@@ -1,0 +1,427 @@
+# Stage 3: Plan Execution - Architecture Decision Records
+
+## ADR-003-001: Mode-Aware Plan Generation
+
+### Context
+The plan generation phase needs to support two distinct execution modes:
+- Apply: Safe incremental updates (CREATE/UPDATE only)
+- Sync: Full reconciliation (CREATE/UPDATE/DELETE)
+
+### Decision
+Implement mode-aware plan generation where the planner accepts a mode parameter
+that determines which operations to include in the generated plan.
+
+### Consequences
+- Plans are optimized for their intended use case
+- Apply mode plans are smaller without DELETE operations
+- Plan metadata must indicate generation mode
+- Planner logic becomes slightly more complex
+
+### Implementation
+```go
+type PlannerOptions struct {
+    Mode PlanMode // "apply" or "sync"
+}
+
+// Plan metadata includes mode
+type PlanMetadata struct {
+    GeneratedAt string    `json:"generated_at"`
+    Version     string    `json:"version"`
+    Mode        PlanMode  `json:"mode"`
+    ConfigHash  string    `json:"config_hash"`
+}
+```
+
+---
+
+## ADR-003-002: Separate Apply and Sync Commands
+
+### Context
+Users need both safe incremental updates and full state reconciliation, but
+these represent fundamentally different risk profiles and use cases.
+
+### Decision
+Implement two separate commands with distinct behaviors:
+- `kongctl apply`: CREATE/UPDATE only, safe for production
+- `kongctl sync`: Full reconciliation including DELETE
+
+### Consequences
+- Clear separation of concerns
+- Reduced risk of accidental deletions
+- Commands can have different default behaviors
+- Some code duplication between commands
+
+### Rationale
+Following the principle of least surprise, separating destructive and
+non-destructive operations into different commands provides better safety
+and clearer intent.
+
+---
+
+## ADR-003-003: Plan Validation and Mode Compatibility
+
+### Context
+Commands need to validate that the plan they're executing matches their
+intended behavior to prevent accidents.
+
+### Decision
+- Apply command rejects plans containing DELETE operations
+- Sync command accepts both plan types but warns for apply-mode plans
+- Validation happens before any execution begins
+
+### Consequences
+- Strong safety guarantees
+- Clear error messages for mismatched plans
+- Plans are not universally interchangeable
+
+### Example
+```go
+func validatePlanCompatibility(plan *Plan, expectedMode PlanMode) error {
+    if expectedMode == PlanModeApply && plan.containsDeletes() {
+        return fmt.Errorf("apply command cannot execute plans with DELETE operations")
+    }
+    return nil
+}
+```
+
+---
+
+## ADR-003-004: Protected Resource Immutability
+
+### Context
+Protected resources represent critical infrastructure that should not be
+modified or deleted without explicit intent. Both UPDATE and DELETE operations
+on protected resources carry risk and should be prevented.
+
+### Decision
+Implement fail-fast protection with execution-time validation:
+1. Protected resources cannot be updated or deleted
+2. Plan generation fails immediately when protected resources would be modified
+3. Clear error messages guide users to unprotect specific resources
+4. Two-phase process required for any modifications
+5. Protection status re-validated at execution time for safety
+
+### Consequences
+- Complete immutability for protected resources
+- Immediate feedback during planning phase
+- No ambiguous "blocked" changes in plans
+- Explicit unprotection required before any changes
+- Safe against protection changes between planning and execution
+
+### Protection Modification Flow
+```yaml
+# Phase 1: Remove protection (only change allowed)
+kongctl:
+  protected: false  # Changed from true
+
+# Phase 2: Make desired changes (update or delete)
+# Resource can now be modified in subsequent operations
+```
+
+### Planning Error Example
+```
+Error: Cannot generate plan due to protected resources:
+- portal "production-portal" is protected and cannot be updated
+- portal "staging-portal" is protected and cannot be deleted
+
+To proceed, first update these resources to set protected: false
+```
+
+### Execution-Time Validation
+```go
+// Before executing any UPDATE or DELETE operation
+if resource.IsProtected() {
+    return fmt.Errorf("resource %s became protected after plan generation", resource.Name)
+}
+```
+
+---
+
+## ADR-003-005: Executor Error Handling Strategy
+
+### Context
+Plan execution can fail at any operation, and we need a consistent strategy
+for handling partial failures.
+
+### Decision
+- Default to fail-fast behavior (stop on first error)
+- No automatic rollback of successful operations
+- Clear error reporting with operation context
+- Future: Best-effort mode as optional flag
+
+### Consequences
+- Predictable behavior on errors
+- Partial state possible after failures
+- Re-running can complete remaining operations
+- Aligns with tools like Terraform
+
+### Rationale
+Automatic rollback is complex and can cause more issues than it solves.
+Clear error reporting allows users to make informed decisions about recovery.
+
+---
+
+## ADR-003-006: Konnect-First Login Command Migration
+
+### Context
+Current login command requires explicit "konnect" product specification:
+`kongctl login konnect`. This conflicts with our Konnect-first approach
+used in declarative commands.
+
+### Decision
+Migrate login to be Konnect-first:
+- `kongctl login` defaults to Konnect login
+- Future products can be `kongctl login --product gateway`
+- Maintain backward compatibility during transition
+
+### Consequences
+- Consistent with declarative command patterns
+- Simpler default usage
+- May require deprecation period for old syntax
+
+---
+
+## ADR-003-007: Confirmation Prompt and Output Format Patterns
+
+### Context
+Both apply and sync commands need consistent user interfaces for confirmation
+and output formatting. Commands should work well in both interactive and
+automated contexts.
+
+### Decision
+Implement consistent behavior across both commands:
+1. Unified confirmation prompt (type 'yes' to proceed)
+2. Clear plan summary before confirmation
+3. Support `--auto-approve` flag for automation
+4. Respect `--output` flag for structured output (json, yaml)
+5. Default to human-readable text format
+
+### Consequences
+- Consistent user experience across commands
+- Automation-friendly with structured output
+- Clear visibility of changes before execution
+- Works well in CI/CD pipelines
+
+### Example Interactive Flow
+```
+# Both apply and sync show plan summary
+Plan Summary:
+- Create: 3 resources
+- Update: 2 resources  
+- Delete: 1 resource (sync only)
+- Blocked: 2 resources (protected)
+
+WARNING: This operation will DELETE resources:
+- portal: staging-portal
+
+Do you want to continue? Type 'yes' to confirm: yes
+```
+
+### Example Automated Flow
+```bash
+# With auto-approve and JSON output
+kongctl sync --auto-approve --output json
+
+# Output:
+{
+  "execution_result": {
+    "success_count": 5,
+    "failure_count": 0,
+    "skipped_count": 0,
+    "blocked_count": 2,
+    "errors": []
+  }
+}
+```
+
+---
+
+## ADR-003-008: Executor Architecture
+
+### Context
+The executor needs to handle multiple operation types, provide progress
+feedback, and integrate with existing components.
+
+### Decision
+Single executor implementation that:
+- Accepts any valid plan regardless of mode
+- Delegates to operation-specific methods
+- Uses strategy pattern for progress reporting
+- Maintains stateless execution
+
+### Consequences
+- Single, well-tested executor component
+- Flexible progress reporting
+- Easy to extend for new operation types
+- Clear separation from plan generation
+
+### Structure
+```go
+type Executor struct {
+    client   *state.KonnectClient
+    reporter ProgressReporter
+    dryRun   bool
+}
+
+// Executes any plan, regardless of operations
+func (e *Executor) Execute(ctx context.Context, plan *Plan) (*ExecutionResult, error)
+```
+
+---
+
+## ADR-003-009: Label Update Strategy
+
+### Context
+Successful operations need to update resource labels to maintain tracking,
+but the strategy differs between operations.
+
+### Decision
+- CREATE: Add all management labels
+- UPDATE: Update config-hash and last-updated
+- DELETE: No label operations (resource removed)
+- Failed operations: No label changes
+
+### Consequences
+- Consistent tracking of managed resources
+- Config drift detection remains accurate
+- Failed operations don't corrupt tracking
+
+---
+
+## ADR-003-010: Integration Test Approach
+
+### Context
+Stage 3 introduces complex command flows that need thorough testing without
+depending on real Konnect APIs.
+
+### Decision
+Extend Stage 2's dual-mode SDK testing approach:
+- Mock mode for fast, deterministic tests
+- Real mode for integration validation
+- Test both apply and sync flows completely
+
+### Consequences
+- Comprehensive test coverage
+- Fast test execution in CI
+- Ability to test error scenarios
+- Validation against real API when needed
+
+---
+
+## ADR-003-011: Configuration-Based Change Detection
+
+### Context
+The initial hash-based change detection approach failed to achieve idempotency 
+due to API servers adding default values to resources. When comparing desired 
+configuration (minimal) with current state (includes defaults), the system would 
+incorrectly detect changes on every apply.
+
+Example problem:
+- User config: `{name: "portal", description: "My portal"}`
+- API returns: `{name: "portal", description: "My portal", display_name: "Developer Portal", auth_enabled: true, ...}`
+- Second apply would try to "update" fields the user never specified
+
+### Decision
+Implement a "configuration-based" change detection approach:
+1. **Only manage fields present in user configuration** - if a field isn't in the config file, kongctl doesn't touch it
+2. **No external state storage** - the configuration file is the single source of truth
+3. **Field-level comparison** - compare only fields explicitly set by the user
+4. **Sparse updates** - only send changed fields to the API, not the entire resource
+
+### Consequences
+- **Positive:**
+  - True idempotency - same config always produces same result
+  - Simple mental model - "what's in config is what's managed"
+  - No state storage limitations or complexity
+  - Immune to API default changes
+  - Predictable behavior
+
+- **Negative:**
+  - Cannot "unmanage" fields - once set, must explicitly change
+  - No automatic drift detection for unmanaged fields
+  - Users must know default values to reset fields
+
+### Implementation Details
+```go
+// Old approach - hash everything
+oldHash := calculateHash(minimalConfig)
+currentHash := resource.Labels["config-hash"]
+if oldHash != currentHash { /* update needed */ }
+
+// New approach - compare only configured fields
+configuredFields := extractFields(userConfig)
+for field := range configuredFields {
+    if currentState[field] != desiredState[field] {
+        // update needed for this field only
+    }
+}
+```
+
+### Example Behavior
+```yaml
+# First apply - manages only these fields
+portals:
+  - name: "my-portal"
+    description: "Portal description"
+
+# API adds defaults, but kongctl ignores them
+
+# Second apply - no changes detected (idempotent)
+# Third apply with new field - only updates display_name
+portals:
+  - name: "my-portal"
+    description: "Portal description"
+    display_name: "Custom Portal"  # Now managing this field
+```
+
+---
+
+## ADR-003-012: Progressive Configuration Discovery
+
+### Context
+With configuration-based change detection, users need a way to discover what 
+fields are available but not yet managed. Without this visibility, users might 
+not know what configuration options exist or what values are currently set for 
+unmanaged fields.
+
+### Decision
+Implement a configuration discovery feature that shows unmanaged fields to users:
+1. **Identify unmanaged fields** - Compare user configuration against current API state
+2. **Surface this information** - Make unmanaged fields visible during apply/sync operations
+3. **Show current values** - Display what values are currently set for unmanaged fields
+4. **Progressive enhancement** - Allow users to gradually expand their configurations
+
+The exact implementation mechanism (command output, separate files, new commands) 
+will be determined based on user workflow patterns and technical constraints.
+
+### Consequences
+- Users can start with minimal configs and expand over time
+- Clear visibility into what's managed vs unmanaged
+- Natural learning path for API capabilities
+- Helps users make informed decisions about field management
+
+### Design Principles
+- **Non-intrusive** - Discovery should not interfere with normal operations
+- **Contextual** - Information provided when most relevant
+- **Actionable** - Users should understand how to manage discovered fields
+- **Scalable** - Solution must work with single files or complex multi-file configs
+
+### Example Concept
+```bash
+$ kongctl apply -f portal.yaml
+
+✓ Applied successfully
+
+Discovered unmanaged fields for portal "my-portal":
+  - display_name: "Developer Portal"
+  - authentication_enabled: true
+  - rbac_enabled: false
+
+To manage these fields, add them to your configuration.
+```
+
+### Future Considerations
+- How to handle discovery across multiple resources
+- Filtering or grouping of discovered fields
+- Integration with existing command output
+- Machine-readable discovery format for automation

@@ -1,0 +1,44 @@
+# Team Alpha resources
+# All resources in this file belong to the "team-alpha" namespace
+
+apis:
+  - ref: user-service
+    name: "User Service API"
+    description: "API for user management - owned by Team Alpha"
+    kongctl:
+      namespace: team-alpha
+    
+    versions:
+      - ref: user-service-v1
+        version: "1.0.0"
+        spec:
+          openapi: 3.0.0
+          info:
+            title: User Service API
+            version: 1.0.0
+          paths:
+            /users:
+              get:
+                summary: List users
+            /users/{id}:
+              get:
+                summary: Get user by ID
+
+  - ref: profile-service
+    name: "Profile Service API"
+    description: "API for user profiles - owned by Team Alpha"
+    kongctl:
+      namespace: team-alpha
+    
+    versions:
+      - ref: profile-service-v1
+        version: "1.0.0"
+        spec:
+          openapi: 3.0.0
+          info:
+            title: Profile Service API
+            version: 1.0.0
+          paths:
+            /profiles/{userId}:
+              get:
+                summary: Get user profile

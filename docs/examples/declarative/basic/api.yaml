@@ -1,0 +1,7 @@
+# Simple API Example
+# Minimal configuration for an API
+
+apis:
+  - ref: simple-api
+    name: My Simple API
+    description: The simplest API example 

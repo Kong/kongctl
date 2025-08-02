@@ -1,0 +1,84 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:github.com)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "Bash(grep:*)",
+      "Bash(git add:*)",
+      "Bash(sed:*)",
+      "Bash(git push:*)",
+      "Bash(find:*)",
+      "Bash(rg:*)",
+      "Bash(git commit:*)",
+      "Bash(git rm:*)",
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(git checkout:*)",
+      "Bash(git pull:*)",
+      "Bash(diff:*)",
+      "Bash(git reset:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(go build:*)",
+      "Bash(make:*)",
+      "Bash(cat:*)",
+      "Bash(cp:*)",
+      "Bash(go test:*)",
+      "Bash(go list:*)",
+      "Bash(go doc:*)",
+      "Bash(grep:*)",
+      "Bash(sed:*)",
+      "Bash(find:*)",
+      "Bash(./kongctl:*)",
+      "Bash(golangci-lint:*)",
+      "Bash(gofmt:*)",
+      "Bash(gofumpt:*)",
+      "Bash(git checkout:*)",
+      "Bash(awk:*)",
+      "Bash(gci write:*)",
+      "Bash(mv:*)",
+      "Bash(git pull:*)",
+      "Bash(mkdir:*)",
+      "Bash(ls:*)",
+      "Bash(go get:*)",
+      "Bash(go mod:*)",
+      "Bash(go run:*)",
+      "Bash(tree:*)",
+      "Bash(git push:*)",
+      "Bash(git branch:*)",
+      "Bash(rg:*)",
+      "Bash(true)",
+      "Bash(yq eval:*)",
+      "Bash(./kongctl*)",
+      "Bash(openssl req:*)",
+      "WebFetch(domain:developer.konghq.com)",
+      "WebFetch(domain:docs.konghq.com)",
+      "Bash(CGO_ENABLED=0 go build -o kongctl)",
+      "Bash(git log:*)",
+      "Bash(git stash:*)",
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(./kongctl:*)",
+      "Bash(make build && ./kongctl:*)"
+    ],
+    "deny": []
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "context7",
+    "sequential-thinking"
+  ],
+  "hooks": {
+    "PreToolUse": [],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/task_prep_hook.py"
+          }
+        ]
+      }
+    ]
+  }
+}

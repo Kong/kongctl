@@ -1,0 +1,13 @@
+# API definition without nested children
+apis:
+  - ref: users-api
+    name: "Users API"
+    description: "User management API"
+    version: "3.0.0"
+    labels:
+      team: identity
+    spec_content: |
+      openapi: 3.0.0
+      info:
+        title: Users API
+        version: 3.0.0

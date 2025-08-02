@@ -1,0 +1,5 @@
+# Additional portal in subdirectory
+portals:
+  - ref: subdirectory-portal
+    name: "Subdirectory Portal"
+    description: "Portal from subdirectory"
