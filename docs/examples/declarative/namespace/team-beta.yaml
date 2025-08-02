@@ -1,0 +1,47 @@
+# Team Beta resources
+# All resources in this file belong to the "team-beta" namespace
+
+apis:
+  - ref: payment-service
+    name: "Payment Service API"
+    description: "API for payment processing - owned by Team Beta"
+    kongctl:
+      namespace: team-beta
+    
+    versions:
+      - ref: payment-service-v2
+        version: "2.0.0"
+        spec:
+          openapi: 3.0.0
+          info:
+            title: Payment Service API
+            version: 2.0.0
+          paths:
+            /payments:
+              post:
+                summary: Process payment
+            /payments/{id}:
+              get:
+                summary: Get payment status
+
+  - ref: billing-service
+    name: "Billing Service API"
+    description: "API for billing operations - owned by Team Beta"
+    kongctl:
+      namespace: team-beta
+    
+    versions:
+      - ref: billing-service-v1
+        version: "1.0.0"
+        spec:
+          openapi: 3.0.0
+          info:
+            title: Billing Service API
+            version: 1.0.0
+          paths:
+            /invoices:
+              get:
+                summary: List invoices
+            /invoices/{id}:
+              get:
+                summary: Get invoice details

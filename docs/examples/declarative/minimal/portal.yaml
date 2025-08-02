@@ -1,8 +1,0 @@
-# Simple Portal Example
-# Minimal configuration for a developer portal
-
-portals:
-  - ref: simple-portal
-    name: My Simple Portal 
-    display_name: Simple Portal ©
-    description: A simple developer portal for API documentation

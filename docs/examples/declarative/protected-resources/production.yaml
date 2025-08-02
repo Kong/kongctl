@@ -1,13 +1,12 @@
-# Production Resources with Namespace and Protection
-# Shows best practices for production environments
+# Protected Production Resources
+# This example demonstrates resource protection for critical production APIs
 
 _defaults:
   kongctl:
-    namespace: prod            # Production namespace
     protected: true            # All resources protected by default
 
-# Production resources are protected from accidental deletion/modification
-# To modify these resources, you must explicitly set protected: false first
+# Protected resources cannot be modified or deleted without explicitly
+# setting protected: false first. This prevents accidental changes.
 
 apis:
   - ref: customer-api
@@ -17,7 +16,7 @@ apis:
       environment: production
       tier: critical
       sla: 99.99
-    # Inherits namespace: prod, protected: true from defaults
+    # Inherits protected: true from defaults
     
     versions:
       - ref: customer-v4
@@ -52,7 +51,7 @@ apis:
       environment: production
       tier: critical
       sla: 99.99
-    # Also inherits protection from defaults
+    # Inherits protected: true from defaults
     
     versions:
       - ref: order-v2
@@ -64,15 +63,14 @@ apis:
               title: Order API
               version: 2.0.0
 
-  - ref: staging-test-api
-    name: "Staging Test API"
-    description: "Test API deployed to production for staging verification"
+  - ref: test-api
+    name: "Test API"
+    description: "Non-critical test API that can be modified"
     labels:
       environment: production
-      purpose: staging-test
+      purpose: testing
     kongctl:
-      namespace: staging        # Override to different namespace
-      protected: false          # Not protected - can be modified for testing
+      protected: false          # Override: Not protected - can be modified
     
     versions:
       - ref: test-v1
@@ -92,7 +90,7 @@ portals:
     labels:
       environment: production
       tier: critical
-    # Inherits namespace: prod, protected: true
+    # Inherits protected: true from defaults
     
     customization:
       ref: prod-theme
@@ -120,11 +118,11 @@ application_auth_strategies:
           - "write"
     labels:
       environment: production
-    # Inherits namespace: prod, protected: true
+    # Inherits protected: true from defaults
 
 # Best Practices Demonstrated:
-# 1. Use namespace for environment separation (prod, staging, dev)
-# 2. Protect all production resources by default
-# 3. Use labels for additional metadata (tier, SLA, environment)
-# 4. Override protection only for specific test resources
-# 5. Keep production configs separate from other environments
+# 1. Protect all production resources by default using _defaults
+# 2. Use labels for additional metadata (tier, SLA, environment)
+# 3. Override protection only for specific non-critical resources
+# 4. Always document why a resource is not protected
+# 5. Consider combining with namespaces for team isolation
