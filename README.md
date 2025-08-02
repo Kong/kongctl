@@ -2,7 +2,7 @@
 
 The Kong Konnect CLI
 
-## ⚠️ Tech Preview Disclaimer
+## ⚠️ Tech Preview ⚠️
 
 **`kongctl` is a _Tech Preview_ project. This software is provided by Kong, Inc. without warranty and is not recommended for 
 production use. The CLI is under active development - interfaces, commands, and behaviors are subject to change without notice. 
@@ -59,13 +59,13 @@ If you don't have a Kong Konnect account, [sign up for free](https://konghq.com/
 
 ### 2. Authenticate with Konnect
 
-Login using device authorization:
+Use the `kongctl login` command to authenticate with you Kong Konnect account:
 
 ```shell
 kongctl login
 ```
 
-This will give you a link to open your browser for authentication, follow the instructions to complete the login process.
+Follow the instructions given in the terminal to complete the login process.
 
 ### 3. Test Your Connection
 
