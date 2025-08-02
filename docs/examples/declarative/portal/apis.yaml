@@ -2,7 +2,6 @@
 # This file defines the APIs that will be published to the developer portal
 
 apis:
-  # SMS API - Messaging service for sending and receiving SMS
   - ref: sms
     name: !file apis/sms/openapi.yaml#info.title
     description: !file apis/sms/openapi.yaml#info.description
@@ -43,10 +42,7 @@ apis:
     publications:
       - ref: sms-api-to-getting-started
         portal_id: getting-started
-        visibility: public
-        auto_approve_registrations: true
 
-  # Voice API - Programmable voice calls and audio streaming
   - ref: voice
     name: !file apis/voice/openapi.yaml#info.title
     description: !file apis/voice/openapi.yaml#info.description
@@ -78,12 +74,6 @@ apis:
         status: published
         content: !file apis/voice/docs/errors.md
         
-      #- ref: voice-webhooks
-      #  title: "Voice API: Webhooks and Events"
-      #  slug: voice-webhooks
-      #  status: published
-      #  content: !file apis/voice/docs/webhooks.md
-        
       - ref: voice-ncco
         title: "Voice API: NCCO Reference"
         slug: voice-ncco
@@ -93,5 +83,3 @@ apis:
     publications:
       - ref: voice-api-to-getting-started
         portal_id: getting-started
-        visibility: public
-        auto_approve_registrations: true

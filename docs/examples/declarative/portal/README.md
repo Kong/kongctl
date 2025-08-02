@@ -1,12 +1,13 @@
 # Getting Started Portal Example
 
 This example demonstrates a complete Kong Developer Portal setup using declarative configuration. 
-It includes a fully configured portal with pages, customization, and reusable snippets.
+It includes a fully configured portal with APIs, pages, customizations, and reusable snippets.
 
 ## Overview
 
 This example creates:
 - A developer portal with authentication disabled and public visibility
+- APIs published to the portal
 - Portal customization with theme colors and navigation menus
 - A hierarchy of pages including home, APIs, getting started, and guides
 - Reusable snippets for common UI components
@@ -14,19 +15,19 @@ This example creates:
 ## Structure
 
 ```
-getting-started/
-├── portal.yaml          # Main declarative configuration
-├── pages/              # Page content files
-│   ├── home.md
-│   ├── apis.md
-│   ├── getting-started.md
-│   ├── guides.md
-│   └── guides/
-│       ├── document-apis.md
-│       ├── publish-apis.md
-│       └── publish-apis/
-│           └── versioning.md
-└── snippets/           # Reusable content snippets
+portal.yaml         # Portal definition 
+apis.yaml           # API definitions
+pages/              # content files
+├── home.md
+├── apis.md
+├── getting-started.md
+├── guides.md
+└── guides/
+    ├── document-apis.md
+    ├── publish-apis.md
+    └── publish-apis/
+        └── versioning.md
+snippets/            # reusable content snippets 
     ├── example-guides-page-banner.md
     ├── example-guides-page-header.md
     ├── example-guides-page-nav.md
@@ -42,19 +43,6 @@ getting-started/
 - **RBAC**: Disabled
 - **Auto-approval**: Disabled for both developers and applications
 - **Default visibility**: All APIs and pages are public by default
-
-### Nested Structure
-This example uses a nested configuration where all portal resources are defined within the portal definition:
-- `customization` - Theme, layout, and navigation menus
-- `pages` - All portal pages with hierarchical relationships
-- `snippets` - Reusable content components
-
-### Kongctl Metadata
-The portal resource (parent) can include a `kongctl` section for tool-specific settings:
-- `protected` - Prevents accidental deletion via sync
-- `namespace` - Resource ownership for multi-team environments
-
-**Note**: Child resources (pages, customization, snippets) do not support kongctl metadata - they inherit settings from their parent portal.
 
 ### Theme Customization
 - **Primary color**: #8250FF
@@ -80,24 +68,16 @@ pages:
 
 ## Usage
 
-To apply this configuration:
+To sync this configuration:
 
 ```bash
-kongctl apply -f docs/examples/declarative/portal/getting-started/portal.yaml
+kongctl sync -f portal.yaml -f apis.yaml
 ```
 
-## Custom Components
+If all changes are applied, you have successfully created a developer portal with APIs and pages.
+Assuming you have the `jq` command-line tool installed, you can obtain the portal URL with:
 
-The portal pages use special markdown components:
-- `::page-section` - Creates page sections with styling
-- `::page-hero` - Hero sections with background colors
-- `::button` - Styled buttons with links
-- `::snippet` - References to reusable snippets
-- `::page-layout` - Page layout configuration
+```bash
+kongctl get portals "My First Portal" -o json | jq -r '"https://\(.default_domain)"'
+```
 
-## Notes
-
-- All pages have `visibility: "public"` and `status: "published"`
-- The `!File` tag is used to load content from external files
-- Parent-child relationships are defined using `parent_page_ref`
-- Snippets can be referenced in pages using the `::snippet` component
