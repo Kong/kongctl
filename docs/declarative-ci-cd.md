@@ -616,4 +616,4 @@ kongctl apply -f configs/ --auto-approve
 
 - [Declarative Configuration Guide](../declarative-configuration.md)
 - [Troubleshooting Guide](../troubleshooting.md)
-- [Example Configurations](declarative/)
+- [Example Configurations](examples/declarative/)

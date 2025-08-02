@@ -88,8 +88,8 @@ kongctl get gateway control-planes
 
 ### Advanced Topics
 
-- **[YAML Tags Reference](docs/declarative/yaml-tags.md)** - Loading external files and value extraction
-- **[CI/CD Integration](docs/declarative/ci-cd-integration.md)** - GitHub Actions, GitLab CI, and Jenkins examples
+- **[YAML Tags Reference](docs/declarative-yaml-tags.md)** - Loading external files and value extraction
+- **[CI/CD Integration](docs/declarative-ci-cd.md)** - GitHub Actions, GitLab CI, and Jenkins examples
 
 ## Configuration and Profiles
 
