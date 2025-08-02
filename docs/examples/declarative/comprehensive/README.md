@@ -19,12 +19,10 @@ This directory contains a comprehensive example showing all supported resource t
 
 ## Usage
 
-```bash
-# Preview all changes
-kongctl plan -f main.yaml
+Sync the complete configuration:
 
-# Apply the complete configuration
-kongctl apply -f main.yaml
+```bash
+kongctl sync -f main.yaml
 ```
 
 This example will be expanded as new features are added to kongctl.

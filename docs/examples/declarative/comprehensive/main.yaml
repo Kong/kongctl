@@ -4,29 +4,24 @@ portals:
   - ref: securebank-portal
     name: securebank-developer-portal
     display_name: SecureBank Developer Portal
-    description: Official developer portal for SecureBank API integration
+    description: "Official developer portal for SecureBank API integration"
     authentication_enabled: true
     rbac_enabled: true
     auto_approve_developers: true
     auto_approve_applications: false
-    is_public: true
     labels:
       industry: financial-services
       compliance: pci-dss
       environment: production
       team: platform-engineering
-    kongctl:
-      namespace: platform-team  # Owned by platform engineering team
-      protected: false 
 
 application_auth_strategies:
   - ref: securebank-oauth2-strategy
     name: securebank-oauth2
     display_name: OAuth 2.0 Authentication
-    description: OAuth 2.0 with authorization code flow for user-authorized applications
     strategy_type: openid_connect
     configs:
-      openid_connect:
+      openid-connect:
         issuer: https://auth.securebank.com/
         scopes:
           - openid
@@ -45,10 +40,9 @@ application_auth_strategies:
   - ref: securebank-apikey-strategy
     name: securebank-api-key
     display_name: API Key Authentication
-    description: API key authentication for machine-to-machine integrations
     strategy_type: key_auth
     configs:
-      key_auth:
+      key-auth:
         key_names:
           - X-API-Key
           - Api-Key
@@ -70,28 +64,23 @@ apis:
       criticality: high
       # Dynamic labels from OpenAPI spec
       license: !file specs/openapi.yaml#info.license.name
-    kongctl:
-      namespace: platform-team  # Owned by platform engineering team
-      protected: false
 
     versions:
       - ref: securebank-version-v1
         version: "1.0.0"
         spec: !file specs/openapi-v1.yaml
         
-    #publications:
-    #  # Public publication for external developers
-    #  - ref: securebank-public-publication
-    #    portal_id: securebank-portal
-    #    visibility: public
-    #    auth_strategy_ids:
-    #      # NOTE: Kong currently only supports 1 auth strategy per API publication
-    #      # See main-single-auth.yaml for a working example
-    #      - securebank-oauth2-strategy
-    #    auto_approve_registrations: false
-    #    auto_approve_applications: false
-    #    application_registration_enabled: true
-    #    
+    publications:
+      # Public publication for external developers
+      - ref: securebank-public-publication
+        portal_id: securebank-portal
+        visibility: public
+        auth_strategy_ids:
+          # NOTE: Kong currently only supports 1 auth strategy per API publication
+          # See main-single-auth.yaml for a working example
+          - securebank-oauth2-strategy
+        auto_approve_registrations: false
+        
     # API Documents - comprehensive documentation
     documents:
       - ref: auth-guide
