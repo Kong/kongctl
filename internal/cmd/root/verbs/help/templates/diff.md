@@ -361,6 +361,6 @@ kongctl diff -f large-config/
 
 ## See Also
 
-- [Understanding Plan Output](https://docs.konghq.com/kongctl/plans)
-- [Change Management](https://docs.konghq.com/kongctl/change-management)
-- [CI/CD Integration](https://docs.konghq.com/kongctl/ci-cd)
+- [Declarative Configuration Guide](https://github.com/Kong/kongctl/blob/main/docs/declarative-configuration.md)
+- [Getting Started Guide](https://github.com/Kong/kongctl/blob/main/docs/declarative-getting-started.md)
+- [CI/CD Integration Guide](https://github.com/Kong/kongctl/blob/main/docs/declarative-ci-cd.md)

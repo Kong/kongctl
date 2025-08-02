@@ -1,10 +1,12 @@
 # Namespace Example
 
-This example demonstrates how to use namespaces to isolate resources between different teams.
+This example demonstrates how to use namespaces to isolate groups of resources for declarative configuration.
 
 ## What are Namespaces?
 
-Namespaces allow multiple teams to manage their own resources within the same Kong Konnect organization. Resources are tagged with a `KONGCTL-namespace` label, and kongctl operations only affect resources within the specified namespaces.
+Namespaces allow arbitrary grouping of resources within the same Kong Konnect organization. 
+Resources are tagged with a `KONGCTL-namespace` label, and `kongctl` operations only affect resources within 
+the specified namespaces.
 
 ## Files
 
@@ -13,18 +15,32 @@ Namespaces allow multiple teams to manage their own resources within the same Ko
 
 ## Usage
 
+Sync both team's resources:
+
 ```bash
-# Apply Team Alpha's resources
-kongctl apply -f team-alpha.yaml
+kongctl sync -f team-alpha.yaml -f team-beta.yaml
+```
 
-# Apply Team Beta's resources  
-kongctl apply -f team-beta.yaml
+Investigate the resources created and observe the namespace labels applied:
 
-# Sync Team Alpha's namespace (removes unmanaged resources in team-alpha namespace only)
-kongctl sync -f team-alpha.yaml
+```bash
+kongctl get apis -o json
+```
 
-# Preview changes with dry-run
-kongctl sync -f team-beta.yaml --dry-run
+Because we are using `sync`, resources can be deleted. One way to simulate the removing of resources for a 
+namespace is to pass an empty configuration file with a `_default` namespace value:
+
+⚠️ Warning: This removes all resources in the namespace, so use with caution! ⚠️
+
+```bash
+echo "_defaults: {kongctl: {namespace: team-beta}}" | kongctl sync -f -
+```
+
+Notice that only resources in the `team-beta` namespace will be removed. Check the list of apis again to 
+verify that `team-alpha` apis remains intact:
+
+```bash
+kongctl get apis -o json
 ```
 
 ## Key Points

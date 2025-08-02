@@ -321,6 +321,6 @@ kongctl sync -f last-known-good.yaml
 
 ## See Also
 
-- [Namespace Management](https://docs.konghq.com/kongctl/namespaces)
-- [Protected Resources](https://docs.konghq.com/kongctl/protected-resources)
-- [Disaster Recovery](https://docs.konghq.com/kongctl/disaster-recovery)
+- [Namespace Example](https://github.com/Kong/kongctl/tree/main/docs/examples/declarative/namespace)
+- [Protected Resources Example](https://github.com/Kong/kongctl/tree/main/docs/examples/declarative/protected)
+- [Declarative Configuration Guide](https://github.com/Kong/kongctl/blob/main/docs/declarative-configuration.md)

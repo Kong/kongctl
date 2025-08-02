@@ -298,6 +298,6 @@ Common validation issues:
 
 ## See Also
 
-- [Declarative Configuration Guide](https://docs.konghq.com/kongctl/declarative-config)
-- [GitOps with Kong](https://docs.konghq.com/kongctl/gitops)
-- [Protected Resources](https://docs.konghq.com/kongctl/protected-resources)
+- [Declarative Configuration Guide](https://github.com/Kong/kongctl/blob/main/docs/declarative-configuration.md)
+- [CI/CD Integration Guide](https://github.com/Kong/kongctl/blob/main/docs/declarative-ci-cd.md)
+- [Protected Resources Example](https://github.com/Kong/kongctl/tree/main/docs/examples/declarative/protected)

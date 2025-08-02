@@ -232,6 +232,6 @@ This shows:
 
 ## See Also
 
-- [Declarative Configuration Guide](https://docs.konghq.com/kongctl/declarative-config)
-- [YAML Configuration Reference](https://docs.konghq.com/kongctl/yaml-reference)
-- [CI/CD Integration Examples](https://docs.konghq.com/kongctl/ci-cd)
+- [Declarative Configuration Guide](https://github.com/Kong/kongctl/blob/main/docs/declarative-configuration.md)
+- [YAML Tags Reference](https://github.com/Kong/kongctl/blob/main/docs/declarative-yaml-tags.md)
+- [CI/CD Integration Guide](https://github.com/Kong/kongctl/blob/main/docs/declarative-ci-cd.md)
