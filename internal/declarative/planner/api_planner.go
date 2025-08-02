@@ -360,16 +360,40 @@ func (p *Planner) planAPIProtectionChangeWithFields(
 	
 	change := p.genericPlanner.PlanProtectionChange(context.Background(), config)
 	
-	// Include any field updates if unprotecting
-	if wasProtected && !shouldProtect && len(updateFields) > 0 {
-		fields := make(map[string]interface{})
-		for field, newValue := range updateFields {
-			fields[field] = newValue
-		}
-		// Always include name for identification
-		fields["name"] = current.Name
-		change.Fields = fields
+	// Always include essential fields for protection changes
+	fields := make(map[string]interface{})
+	
+	// Include any field updates if present
+	for field, newValue := range updateFields {
+		fields[field] = newValue
 	}
+	
+	// ALWAYS include essential identification fields for protection changes
+	fields["name"] = current.Name
+	fields["id"] = current.ID
+	
+	// Preserve namespace context for execution phase
+	if current.Labels != nil {
+		if namespace, exists := current.Labels[labels.NamespaceKey]; exists {
+			fields["namespace"] = namespace
+		}
+	}
+	
+	// Preserve other critical labels that identify managed resources
+	if current.Labels != nil {
+		preservedLabels := make(map[string]string)
+		for key, value := range current.Labels {
+			// Preserve all KONGCTL- prefixed labels except protected (which will be updated)
+			if strings.HasPrefix(key, "KONGCTL-") && key != labels.ProtectedKey {
+				preservedLabels[key] = value
+			}
+		}
+		if len(preservedLabels) > 0 {
+			fields["preserved_labels"] = preservedLabels
+		}
+	}
+	
+	change.Fields = fields
 	
 	plan.AddChange(change)
 }
