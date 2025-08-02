@@ -422,7 +422,9 @@ func (p *Planner) planAPIDelete(api state.API, plan *Plan) {
 }
 
 // planAPIChildResourcesCreate plans creation of child resources for a new API
-func (p *Planner) planAPIChildResourcesCreate(parentNamespace string, api resources.APIResource, apiChangeID string, plan *Plan) {
+func (p *Planner) planAPIChildResourcesCreate(
+	parentNamespace string, api resources.APIResource, apiChangeID string, plan *Plan,
+) {
 	// Plan version creation - API ID is not yet known
 	for _, version := range api.Versions {
 		p.planAPIVersionCreate(parentNamespace, api.GetRef(), "", version, []string{apiChangeID}, plan)
@@ -455,12 +457,16 @@ func (p *Planner) planAPIChildResourceChanges(
 	}
 
 	// Plan version changes
-	if err := p.planAPIVersionChanges(ctx, parentNamespace, current.ID, desired.GetRef(), desired.Versions, plan); err != nil {
+	if err := p.planAPIVersionChanges(
+		ctx, parentNamespace, current.ID, desired.GetRef(), desired.Versions, plan,
+	); err != nil {
 		return fmt.Errorf("failed to plan API version changes: %w", err)
 	}
 
 	// Plan publication changes
-	if err := p.planAPIPublicationChanges(ctx, parentNamespace, current.ID, desired.GetRef(), desired.Publications, plan); err != nil {
+	if err := p.planAPIPublicationChanges(
+		ctx, parentNamespace, current.ID, desired.GetRef(), desired.Publications, plan,
+	); err != nil {
 		return fmt.Errorf("failed to plan API publication changes: %w", err)
 	}
 
@@ -471,7 +477,9 @@ func (p *Planner) planAPIChildResourceChanges(
 	}
 
 	// Plan document changes
-	if err := p.planAPIDocumentChanges(ctx, parentNamespace, current.ID, desired.GetRef(), desired.Documents, plan); err != nil {
+	if err := p.planAPIDocumentChanges(
+		ctx, parentNamespace, current.ID, desired.GetRef(), desired.Documents, plan,
+	); err != nil {
 		return fmt.Errorf("failed to plan API document changes: %w", err)
 	}
 
@@ -481,7 +489,8 @@ func (p *Planner) planAPIChildResourceChanges(
 // API Version planning
 
 func (p *Planner) planAPIVersionChanges(
-	ctx context.Context, parentNamespace string, apiID string, apiRef string, desired []resources.APIVersionResource, plan *Plan,
+	ctx context.Context, parentNamespace string, apiID string, apiRef string,
+	desired []resources.APIVersionResource, plan *Plan,
 ) error {
 	// List current versions
 	currentVersions, err := p.client.ListAPIVersions(ctx, apiID)
@@ -578,7 +587,8 @@ func (p *Planner) planAPIVersionChanges(
 }
 
 func (p *Planner) planAPIVersionCreate(
-	parentNamespace string, apiRef string, apiID string, version resources.APIVersionResource, dependsOn []string, plan *Plan,
+	parentNamespace string, apiRef string, apiID string, version resources.APIVersionResource,
+	dependsOn []string, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	if version.Version != nil {
@@ -654,7 +664,8 @@ func (p *Planner) planAPIVersionDelete(apiRef string, apiID string, versionID st
 // API Publication planning
 
 func (p *Planner) planAPIPublicationChanges(
-	ctx context.Context, parentNamespace string, apiID string, apiRef string, desired []resources.APIPublicationResource, plan *Plan,
+	ctx context.Context, parentNamespace string, apiID string, apiRef string,
+	desired []resources.APIPublicationResource, plan *Plan,
 ) error {
 	// Get namespace from context
 	namespace, ok := ctx.Value(NamespaceContextKey).(string)
@@ -831,7 +842,8 @@ func (p *Planner) planAPIPublicationChanges(
 }
 
 func (p *Planner) planAPIPublicationCreate(
-	parentNamespace string, apiRef string, apiID string, publication resources.APIPublicationResource, dependsOn []string, plan *Plan,
+	parentNamespace string, apiRef string, apiID string, publication resources.APIPublicationResource,
+	dependsOn []string, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	fields["portal_id"] = publication.PortalID
@@ -1115,7 +1127,8 @@ func (p *Planner) compareStringSlices(a, b []string) bool {
 // API Implementation planning
 
 func (p *Planner) planAPIImplementationChanges(
-	ctx context.Context, parentNamespace string, apiID string, _ string, desired []resources.APIImplementationResource, plan *Plan,
+	ctx context.Context, _ string, apiID string, _ string,
+	desired []resources.APIImplementationResource, plan *Plan,
 ) error {
 	// List current implementations
 	currentImplementations, err := p.client.ListAPIImplementations(ctx, apiID)
@@ -1170,7 +1183,8 @@ func (p *Planner) planAPIImplementationChanges(
 }
 
 func (p *Planner) planAPIImplementationCreate(
-	parentNamespace string, apiRef string, apiID string, implementation resources.APIImplementationResource, dependsOn []string, plan *Plan,
+	parentNamespace string, apiRef string, apiID string,
+	implementation resources.APIImplementationResource, dependsOn []string, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	// APIImplementation only has Service field in the SDK
@@ -1224,7 +1238,8 @@ func (p *Planner) planAPIImplementationCreate(
 // API Document planning
 
 func (p *Planner) planAPIDocumentChanges(
-	ctx context.Context, parentNamespace string, apiID string, apiRef string, desired []resources.APIDocumentResource, plan *Plan,
+	ctx context.Context, parentNamespace string, apiID string, apiRef string,
+	desired []resources.APIDocumentResource, plan *Plan,
 ) error {
 	// List current documents
 	currentDocuments, err := p.client.ListAPIDocuments(ctx, apiID)
@@ -1313,7 +1328,8 @@ func (p *Planner) shouldUpdateAPIDocument(current state.APIDocument, desired res
 }
 
 func (p *Planner) planAPIDocumentCreate(
-	parentNamespace string, apiRef string, apiID string, document resources.APIDocumentResource, dependsOn []string, plan *Plan,
+	parentNamespace string, apiRef string, apiID string, document resources.APIDocumentResource,
+	dependsOn []string, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	fields["content"] = document.Content
@@ -1372,7 +1388,8 @@ func (p *Planner) planAPIDocumentCreate(
 }
 
 func (p *Planner) planAPIDocumentUpdate(
-	parentNamespace string, apiRef string, apiID string, documentID string, document resources.APIDocumentResource, plan *Plan,
+	parentNamespace string, apiRef string, apiID string, documentID string,
+	document resources.APIDocumentResource, plan *Plan,
 ) {
 	fields := make(map[string]interface{})
 	fields["content"] = document.Content
