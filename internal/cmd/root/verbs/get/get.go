@@ -100,5 +100,12 @@ func NewGetCmd() (*cobra.Command, error) {
 	}
 	cmd.AddCommand(gatewayCmd)
 
+	// Add me command directly for Konnect-first pattern
+	meCmd, err := NewDirectMeCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(meCmd)
+
 	return cmd, nil
 }

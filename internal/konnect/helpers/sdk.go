@@ -25,6 +25,7 @@ type SDKAPI interface {
 	GetAPIPublicationAPI() APIPublicationAPI
 	GetAPIImplementationAPI() APIImplementationAPI
 	GetAppAuthStrategiesAPI() AppAuthStrategiesAPI
+	GetMeAPI() MeAPI
 	// Portal child resource APIs
 	GetPortalPageAPI() PortalPageAPI
 	GetPortalCustomizationAPI() PortalCustomizationAPI
@@ -143,6 +144,15 @@ func (k *KonnectSDK) GetPortalSnippetAPI() PortalSnippetAPI {
 	}
 
 	return &PortalSnippetAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the MeAPI interface
+func (k *KonnectSDK) GetMeAPI() MeAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return k.SDK.Me
 }
 
 // A function that can build an SDKAPI with a given configuration
