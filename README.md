@@ -79,18 +79,17 @@ kongctl get gateway control-planes
 
 **→ [Read the Getting Started Guide](docs/getting-started.md)** - Learn how to use declarative configuration to manage your APIs in Konnect
 
-## Documentation Listing
+## Documentation
 
 - **[Getting Started Guide](docs/getting-started.md)** - Step-by-step tutorial for declarative configuration
 - **[Declarative Configuration](docs/declarative-configuration.md)** - Complete reference guide
 - **[Troubleshooting Guide](docs/troubleshooting.md)** - Common issues and solutions
 - **[Examples](docs/examples/)** - Sample configurations and use cases
 
-### Additional Resources
+### Advanced Topics
 
-- **[Configuration Guide](docs/declarative/Configuration-Guide.md)** - Detailed configuration reference
-- **[YAML Tags Reference](docs/declarative/YAML-Tags-Reference.md)** - External file loading
-- **[CI/CD Integration](docs/declarative/ci-cd-integration.md)** - Automation examples
+- **[YAML Tags Reference](docs/declarative/yaml-tags.md)** - Loading external files and value extraction
+- **[CI/CD Integration](docs/declarative/ci-cd-integration.md)** - GitHub Actions, GitLab CI, and Jenkins examples
 
 ## Configuration and Profiles
 

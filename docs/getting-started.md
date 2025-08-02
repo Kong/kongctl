@@ -1,23 +1,27 @@
-# Getting Started with kongctl
+# Getting Started with `kongctl`
 
-This guide walks you through using kongctl to manage Kong Konnect resources with declarative configuration. You'll learn how to define APIs, portals, and other resources as code.
+This guide walks you through using `kongctl` to manage Kong Konnect resources with declarative configuration. 
+You'll learn how to define APIs, portals, and other resources as code.
 
 ## Prerequisites
 
 1. **Kong Konnect Account**: [Sign up for free](https://konghq.com/products/kong-konnect/register) if you don't have one
-2. **kongctl installed**: See [installation instructions](../README.md#installation)
+2. **`kongctl` installed**: See [installation instructions](../README.md#installation)
 3. **Authenticated with Konnect**: Run `kongctl login` to authenticate
 
 ## Introduction to Declarative Configuration
 
-kongctl uses YAML files to define your Konnect resources. Instead of clicking through the UI or making individual API calls, you define your desired state in configuration files and kongctl handles the rest.
+`kongctl` uses YAML files to define your Konnect resources. Instead of clicking through the UI or making individual 
+API calls, you define your desired state in configuration files and `kongctl` handles the rest.
 
 ### Key Concepts
 
 - **Resources**: APIs, Portals, Auth Strategies, and their related configurations
 - **References (ref)**: Unique identifiers you define for each resource
-- **Plan**: A preview of changes before they're applied
-- **Apply**: Execute the changes to update Konnect
+- **Plan**: Plans are artifacts that contain planned changes to resources. 
+    Using plans is optional but usefulf for automated workflows.
+- **Apply**: Execute changes to resources (create and update only)
+- **Sync**: Full declarative reconciliation (create, update and delete) 
 
 ## Step 1: Create Your First Portal
 
@@ -31,23 +35,6 @@ portals:
     display_name: "My Developer Portal"
     description: "A portal for our API documentation"
     authentication_enabled: false
-```
-
-### Plan the Changes
-
-Before applying, always preview what will happen:
-
-```shell
-kongctl plan -f portal.yaml
-```
-
-You'll see output like:
-```
-Planning changes...
-Changes to apply:
-  + CREATE portal "my-first-portal"
-    
-Total changes: 1 create, 0 update, 0 delete
 ```
 
 ### Apply the Configuration
@@ -82,10 +69,9 @@ apis:
       environment: production
 ```
 
-Plan and apply:
+Apply the API configuration:
 
 ```shell
-kongctl plan -f api.yaml
 kongctl apply -f api.yaml
 ```
 
@@ -103,10 +89,9 @@ api_publications:
     auto_approve_registrations: true
 ```
 
-Plan and apply:
+apply:
 
 ```shell
-kongctl plan -f publication.yaml
 kongctl apply -f publication.yaml
 ```
 
@@ -150,10 +135,9 @@ api_publications:
     visibility: public
 ```
 
-Plan and apply all resources at once:
+apply all resources at once:
 
 ```shell
-kongctl plan -f complete-setup.yaml
 kongctl apply -f complete-setup.yaml
 ```
 
@@ -262,8 +246,8 @@ Each profile can have different authentication tokens and Konnect organizations.
 
 ### Explore Advanced Features
 
-1. **[YAML Tags](declarative/YAML-Tags-Reference.md)**: Load content from external files
-2. **[Multi-team workflows](declarative/Configuration-Guide.md#namespace-management)**: Use namespaces for team isolation
+1. **[YAML Tags](declarative/yaml-tags.md)**: Load content from external files
+2. **[Multi-team workflows](declarative-configuration.md#namespace-management)**: Use namespaces for team isolation
 3. **[CI/CD Integration](declarative/ci-cd-integration.md)**: Automate with GitHub Actions or GitLab
 
 ### Example Configurations

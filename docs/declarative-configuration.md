@@ -2,6 +2,18 @@
 
 This guide provides a comprehensive reference for kongctl's declarative configuration features for Kong Konnect.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Core Concepts](#core-concepts)
+- [Resource Types](#resource-types)
+- [Configuration Structure](#configuration-structure)
+- [Kongctl Metadata](#kongctl-metadata)
+- [YAML Tags](#yaml-tags)
+- [Commands Reference](#commands-reference)
+- [Best Practices](#best-practices)
+- [Migration Guide](#migration-guide)
+
 ## Overview
 
 Declarative configuration enables you to manage your Konnect resources as code using YAML files. This approach is ideal for:
@@ -12,7 +24,7 @@ Declarative configuration enables you to manage your Konnect resources as code u
 - Team collaboration through code review
 - Disaster recovery and backup
 
-## Quick Start
+### Quick Start
 
 ```yaml
 # api-config.yaml
@@ -31,24 +43,95 @@ kongctl plan -f api-config.yaml
 kongctl apply -f api-config.yaml
 ```
 
-## Supported Resources
+## Core Concepts
 
-### Parent Resources
-- **APIs**: Core API definitions
-- **Portals**: Developer portal instances
-- **Application Auth Strategies**: Authentication methods for applications
+### Declarative vs Imperative
 
-### Child Resources
-- **API Versions**: Different versions of an API
-- **API Publications**: Publishing APIs to portals
-- **API Implementations**: Linking APIs to Kong Gateway services
-- **API Documents**: Additional API documentation
+**Imperative** (traditional CLI commands):
+```bash
+kongctl create portal developer-portal
+kongctl update portal developer-portal --display-name "Dev Portal"
+```
+
+**Declarative** (configuration as code):
+```yaml
+portals:
+  - ref: developer-portal
+    name: "developer-portal"
+    display_name: "Dev Portal"
+    authentication_enabled: true
+```
+
+### Key Principles
+
+1. **Desired State**: Define what you want, not how to get there
+2. **Idempotency**: Apply configurations multiple times safely
+3. **State-Free**: No local state files - current state queried from Konnect
+4. **Plan-Based**: Preview changes before applying
+
+### Resource Identity
+
+Resources have two types of identifiers:
+
+- **id**: UUID assigned by Konnect (not used in configuration files)
+- **ref**: User-defined reference identifier for cross-references
+
+Additionally, resources have a `name` field for display:
+- **name**: Display field that may or may not be unique depending on resource type
+- The `name` field should not be used as an identifier
+
+```yaml
+application_auth_strategies:
+  - ref: oauth-strategy              # Identifier for cross-references
+    name: "OAuth 2.0 Strategy"       # Display field (not an identifier)
+
+portals:
+  - ref: developer-portal
+    name: "Developer Portal"         # Display field (not an identifier)
+    default_application_auth_strategy: oauth-strategy  # References the ref
+```
+
+## Resource Types
+
+### Parent vs Child Resources
+
+**Parent Resources** (support kongctl metadata):
+- APIs
+- Portals  
+- Application Auth Strategies
+- Control Planes
+
+**Child Resources** (do NOT support kongctl metadata):
+- API Versions
+- API Publications
+- API Implementations
+- API Documents
+- Portal Pages
+- Portal Snippets
+- Portal Customizations
+- Portal Custom Domains
+
+### Resource Relationships
+
+```
+Portal
+  └── API Publication → API
+                         ├── API Version
+                         ├── API Document
+                         └── API Implementation
+```
 
 ## Configuration Structure
 
 ### Basic Structure
 
 ```yaml
+# Optional defaults section
+_defaults:
+  kongctl:
+    namespace: production
+    protected: false
+
 # Define portals
 portals:
   - ref: developer-portal
@@ -73,24 +156,144 @@ api_publications:
     visibility: public
 ```
 
-### Resource References
+### Nested vs Separate Configuration
 
-Resources reference each other using the `ref` field:
+Both approaches are supported:
+
+**Nested Configuration**:
+```yaml
+apis:
+  - ref: users-api
+    name: "Users API"
+    versions:
+      - ref: v1
+        name: "v1.0.0"
+        spec: !file ./specs/users-v1.yaml
+    publications:
+      - ref: public
+        portal: main-portal
+        visibility: public
+```
+
+**Separate Configuration**:
+```yaml
+apis:
+  - ref: users-api
+    name: "Users API"
+
+api_versions:
+  - ref: v1
+    api: users-api
+    name: "v1.0.0"
+    spec: !file ./specs/users-v1.yaml
+
+api_publications:
+  - ref: public
+    api: users-api
+    portal: main-portal
+```
+
+## Kongctl Metadata
+
+The `kongctl` section provides tool-specific metadata for resource management. This section is **only supported on parent resources**.
+
+### Protected Resources
+
+The `protected` field prevents accidental deletion of critical resources:
+
+```yaml
+portals:
+  - ref: production-portal
+    name: "Production Portal"
+    kongctl:
+      protected: true  # Cannot be deleted until protection is removed
+```
+
+### Namespace Management
+
+The `namespace` field enables multi-team resource isolation:
 
 ```yaml
 apis:
-  - ref: payment-api        # This ref is used by other resources
-    name: "Payment API"
-
-api_publications:
-  - ref: payment-pub
-    api: payment-api        # References the API above
-    portal: main-portal     # References a portal ref
+  - ref: billing-api
+    name: "Billing API"
+    kongctl:
+      namespace: finance-team  # Owned by finance team
+      protected: false
 ```
 
-## YAML Tags for External Content
+### File-Level Defaults
 
-### Loading Files
+Use `_defaults` to set default values for all resources in a file:
+
+```yaml
+_defaults:
+  kongctl:
+    namespace: platform-team    # Default namespace for resources in this file
+    protected: true            # Default protection status
+
+portals:
+  - ref: api-portal
+    name: "API Portal"
+    # Inherits namespace: platform-team and protected: true
+    
+  - ref: test-portal
+    name: "Test Portal"
+    kongctl:
+      namespace: qa-team      # Overrides default namespace
+      protected: false        # Overrides default protected
+```
+
+### Namespace and Protected Field Behavior
+
+#### Namespace Field Behavior
+
+| File Default | Resource Value | Final Result | Notes |
+|-------------|----------------|--------------|-------|
+| Not set | Not set | "default" | System default |
+| Not set | "team-a" | "team-a" | Resource explicit |
+| Not set | "" (empty) | ERROR | Empty namespace not allowed |
+| "team-b" | Not set | "team-b" | Inherits default |
+| "team-b" | "team-a" | "team-a" | Resource overrides |
+| "team-b" | "" (empty) | ERROR | Empty namespace not allowed |
+| "" (empty) | Any value | ERROR | Empty default not allowed |
+
+#### Protected Field Behavior
+
+| File Default | Resource Value | Final Result | Notes |
+|-------------|----------------|--------------|-------|
+| Not set | Not set | false | System default |
+| Not set | true | true | Resource explicit |
+| Not set | false | false | Explicit false |
+| true | Not set | true | Inherits default |
+| true | false | false | Resource overrides |
+| false | true | true | Resource overrides |
+
+### Namespace Inheritance
+
+Child resources automatically inherit the namespace of their parent resource:
+
+```yaml
+apis:
+  - ref: user-api
+    name: "User API"
+    kongctl:
+      namespace: platform-team  # ✅ Valid on parent
+    
+    versions:
+      - ref: v1
+        version: "1.0.0"
+        # ❌ No kongctl section here - inherits from parent
+        
+    documents:
+      - ref: changelog
+        title: "Changelog"
+        # ❌ No kongctl section here - inherits from parent
+```
+
+## YAML Tags
+
+### Basic File Loading
 
 Load content from external files using the `!file` tag:
 
@@ -101,9 +304,9 @@ apis:
     description: !file ./docs/api-description.md
 ```
 
-### Extracting Values from OpenAPI
+### Value Extraction
 
-Extract specific values from OpenAPI specifications:
+Extract specific values from YAML/JSON files:
 
 ```yaml
 apis:
@@ -119,7 +322,7 @@ apis:
 
 ### Map Format
 
-For complex extractions, use the map format:
+For complex extractions:
 
 ```yaml
 apis:
@@ -133,135 +336,28 @@ apis:
         extract: info.contact.email
 ```
 
-## Multi-Resource Configurations
+For comprehensive YAML tags documentation, see [YAML Tags Reference](declarative/yaml-tags.md).
 
-### Complete Example
+## Commands Reference
 
-```yaml
-# Complete API platform setup
-portals:
-  - ref: public-portal
-    name: "public-portal"
-    display_name: "Public APIs"
-    authentication_enabled: true
+### plan
 
-  - ref: partner-portal  
-    name: "partner-portal"
-    display_name: "Partner APIs"
-    authentication_enabled: true
-    rbac_enabled: true
-
-apis:
-  - ref: users-api
-    name: "Users API"
-    description: "User management and authentication"
-    version: "v2.0.0"
-    labels:
-      team: identity
-      tier: public
-    
-    # Nested versions
-    versions:
-      - ref: users-v2
-        name: "v2.0.0"
-        gateway_service:
-          control_plane_id: "cp-123"
-          id: "service-456"
-        spec: !file ./specs/users-v2.yaml
-    
-    # Nested publications
-    publications:
-      - ref: users-public
-        portal: public-portal
-        visibility: public
-      
-      - ref: users-partner
-        portal: partner-portal
-        visibility: private
-
-# Additional publications (alternative to nested)
-api_publications:
-  - ref: billing-api-pub
-    api: billing-api
-    portal: partner-portal
-    visibility: private
-```
-
-## Team Organization Pattern
-
-Organize configurations by team:
-
-```yaml
-# platform/main.yaml
-portals:
-  - ref: main-portal
-    name: "main-portal"
-    display_name: "Developer Portal"
-
-# Load team configurations
-apis:
-  - !file ./teams/identity/apis.yaml
-  - !file ./teams/payments/apis.yaml
-  - !file ./teams/shipping/apis.yaml
-```
-
-```yaml
-# teams/identity/apis.yaml
-ref: users-api
-name: "Users API"
-description: "Identity and authentication"
-labels:
-  team: identity
-  owner: alice@company.com
-```
-
-## Namespace Management
-
-Use namespaces to isolate team resources:
-
-```yaml
-# Set namespace for all resources in file
-_defaults:
-  kongctl:
-    namespace: payments-team
-
-apis:
-  - ref: payment-api
-    name: "Payment API"
-    # Inherits namespace: payments-team
-    
-  - ref: billing-api
-    name: "Billing API"
-    kongctl:
-      namespace: billing-team  # Override namespace
-```
-
-### Namespace Benefits
-
-- Prevents accidental cross-team modifications
-- Enables safe multi-team collaboration
-- Allows team-specific sync operations
-
-## Commands
-
-### Plan Command
-
-Preview changes before applying:
+Generate an execution plan showing what changes will be made:
 
 ```shell
-# Generate plan
+# Generate plan from configuration
 kongctl plan -f config.yaml
 
 # Save plan to file
 kongctl plan -f config.yaml -o plan.json
 
-# Plan with specific profile
-kongctl plan -f config.yaml --profile production
+# Plan with specific namespace
+kongctl plan -f config.yaml --namespace team-alpha
 ```
 
-### Apply Command
+### apply
 
-Apply configuration changes:
+Apply configuration changes (create/update only):
 
 ```shell
 # Apply directly from config
@@ -274,55 +370,77 @@ kongctl apply --plan plan.json
 kongctl apply -f config.yaml --dry-run
 ```
 
-### Sync Command
+### sync
 
-Ensure Konnect matches your configuration exactly:
+Full synchronization including deletions:
 
 ```shell
 # Preview sync changes
 kongctl sync -f config.yaml --dry-run
 
 # Sync specific namespace
-kongctl sync -f team-config.yaml  # Only affects that namespace
+kongctl sync -f team-config.yaml
 
-# Force sync (skip confirmations)
+# Force sync without confirmation
 kongctl sync -f config.yaml --force
 ```
 
-### Diff Command
+### diff
 
-Compare current state with desired configuration:
+Show differences between current and desired state:
 
 ```shell
 kongctl diff -f config.yaml
 ```
 
+### dump
+
+Export current Konnect state to YAML:
+
+```shell
+# Export all resources
+kongctl dump > current-state.yaml
+
+# Export specific namespace
+kongctl dump --namespace team-alpha > team-state.yaml
+```
+
 ## Best Practices
 
-### 1. File Organization
+### File Organization
 
 ```
 config/
-├── portals.yaml          # Portal definitions
-├── apis/
-│   ├── users-api.yaml
-│   ├── products-api.yaml
-│   └── billing-api.yaml
-├── publications.yaml     # API publications
-└── specs/               # OpenAPI specifications
+├── _defaults.yaml        # Shared defaults
+├── portals/             # Portal definitions
+│   └── main.yaml
+├── apis/                # API definitions
+│   ├── users.yaml
+│   └── products.yaml
+├── publications/        # API publications
+│   └── public.yaml
+└── specs/              # OpenAPI specifications
     ├── users-v1.yaml
     └── products-v2.yaml
 ```
 
-### 2. Use Version Control
+### Multi-Team Setup
 
-```shell
-git add config/
-git commit -m "Add users API v2"
-git push
+Each team manages their own namespace:
+
+```yaml
+# team-alpha/config.yaml
+_defaults:
+  kongctl:
+    namespace: team-alpha
+
+apis:
+  - ref: frontend-api
+    name: "Frontend API"
+    # Automatically in team-alpha namespace
 ```
 
-### 3. Environment Separation
+### Environment Management
 
 Use profiles for different environments:
 
@@ -330,85 +448,189 @@ Use profiles for different environments:
 # Development
 kongctl apply -f config.yaml --profile dev
 
-# Production (with plan review)
+# Production with approval
 kongctl plan -f config.yaml --profile prod -o prod-plan.json
 # Review plan...
 kongctl apply --plan prod-plan.json --profile prod
 ```
 
-### 4. Protect Critical Resources
+### Security Best Practices
 
+1. **Protect production resources**:
+   ```yaml
+   apis:
+     - ref: payment-api
+       kongctl:
+         namespace: production
+         protected: true
+   ```
+
+2. **Use namespaces for isolation**:
+   - One namespace per team
+   - Separate namespaces for environments
+   - Clear namespace ownership documentation
+
+3. **Version control everything**:
+   - Configuration files
+   - OpenAPI specifications
+   - Documentation
+
+4. **Review plans before applying**:
+   - Always use `plan` in production
+   - Save plans for audit trail
+   - Implement approval workflows
+
+### Common Mistakes to Avoid
+
+❌ **Setting kongctl on child resources**:
 ```yaml
+# WRONG
 apis:
-  - ref: payment-api
-    name: "Payment API"
+  - ref: my-api
     kongctl:
-      protected: true  # Prevents accidental deletion
+      namespace: team-a
+    versions:
+      - ref: v1
+        kongctl:  # ERROR: Not supported on child
+          protected: true
 ```
 
-### 5. Use Namespaces for Teams
-
+✅ **Correct approach**:
 ```yaml
-_defaults:
-  kongctl:
-    namespace: platform-team
-    protected: false
+# RIGHT
+apis:
+  - ref: my-api
+    kongctl:
+      namespace: team-a
+      protected: true  # Set on parent only
+    versions:
+      - ref: v1
+        # No kongctl here
 ```
 
-## Migration from Imperative
+❌ **Using name as identifier**:
+```yaml
+# WRONG
+api_publications:
+  - ref: pub1
+    api: "Users API"  # Using display name
+```
 
-### Step 1: Export Current State
+✅ **Use ref for references**:
+```yaml
+# RIGHT
+api_publications:
+  - ref: pub1
+    api: users-api  # Using ref
+```
+
+## Migration Guide
+
+### From Imperative to Declarative
+
+#### Step 1: Export Current State
 
 ```shell
 kongctl dump > current-state.yaml
 ```
 
-### Step 2: Clean Up Export
+#### Step 2: Clean Up Export
 
 Remove server-generated fields:
-- `id` fields
+- `id` fields (except where required)
 - `created_at`, `updated_at`
-- System labels
+- System-generated labels
 
-### Step 3: Add References
+#### Step 3: Add References
 
 Replace IDs with meaningful refs:
 
 ```yaml
-# Before
+# Before (exported)
 apis:
   - id: "123e4567-e89b-12d3-a456-426614174000"
     name: "Users API"
 
-# After  
+# After (cleaned)
 apis:
   - ref: users-api
     name: "Users API"
 ```
 
-### Step 4: Test Migration
+#### Step 4: Add Management Metadata
+
+```yaml
+apis:
+  - ref: users-api
+    name: "Users API"
+    kongctl:
+      namespace: production
+      protected: true  # Protect during migration
+```
+
+#### Step 5: Test Migration
 
 ```shell
-# Dry run to verify
-kongctl plan -f migrated-config.yaml
-kongctl apply -f migrated-config.yaml --dry-run
+# Dry run to ensure no unexpected changes
+kongctl sync -f migrated-config.yaml --dry-run
+
+# Should show minimal changes (mainly adding labels)
 ```
+
+#### Step 6: Apply Configuration
+
+```shell
+# First apply adds management labels
+kongctl apply -f migrated-config.yaml
+
+# Verify state matches
+kongctl diff -f migrated-config.yaml
+```
+
+### Gradual Migration Strategy
+
+For large deployments:
+
+1. **Phase 1**: Export and document current state
+2. **Phase 2**: Migrate non-critical resources
+3. **Phase 3**: Migrate development/staging environments
+4. **Phase 4**: Migrate production with protection enabled
+5. **Phase 5**: Enable full management (remove protection)
+
+## Field Validation
+
+Kongctl uses strict YAML validation to catch configuration errors early:
+
+```yaml
+# This will cause an error
+portals:
+  - ref: my-portal
+    name: "My Portal"
+    lables:  # ❌ ERROR: Unknown field 'lables'. Did you mean 'labels'?
+      team: platform
+```
+
+Common field name errors:
+- `lables` → `labels`
+- `descriptin` → `description`
+- `displayname` → `display_name`
+- `strategytype` → `strategy_type`
 
 ## Troubleshooting
 
-See the [Troubleshooting Guide](troubleshooting.md) for common issues and solutions.
+For common issues and solutions, see the [Troubleshooting Guide](troubleshooting.md).
 
 ## Examples
 
 Browse the [examples directory](examples/declarative/) for:
 - Basic configurations
 - Multi-resource setups
-- Team patterns
+- Team collaboration patterns
 - CI/CD integration
 
 ## Related Documentation
 
 - [Getting Started Guide](getting-started.md) - Step-by-step tutorial
-- [Configuration Guide](declarative/Configuration-Guide.md) - Detailed configuration reference
-- [YAML Tags Reference](declarative/YAML-Tags-Reference.md) - External file loading
+- [YAML Tags Reference](declarative/yaml-tags.md) - Comprehensive file loading guide
 - [CI/CD Integration](declarative/ci-cd-integration.md) - Automation examples
+- [Troubleshooting Guide](troubleshooting.md) - Common issues and solutions

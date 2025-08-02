@@ -1,13 +1,14 @@
 # Troubleshooting Guide
 
-This guide helps you diagnose and resolve common issues when using kongctl's 
-declarative configuration features.
+This guide helps you diagnose and resolve common issues when using kongctl.
 
 ## Table of Contents
 
 - [Common Issues](#common-issues)
 - [Authentication Problems](#authentication-problems)
 - [Configuration Errors](#configuration-errors)
+- [File Loading and YAML Tags](#file-loading-and-yaml-tags)
+- [Cross-Resource References](#cross-resource-references)
 - [Planning Issues](#planning-issues)
 - [Execution Failures](#execution-failures)
 - [Performance Issues](#performance-issues)
@@ -64,28 +65,6 @@ grep -n "my-portal" *.yaml
 kongctl apply -f portals.yaml
 kongctl apply -f apis.yaml
 kongctl apply -f publications.yaml
-```
-
-### Issue: File loading errors
-
-**Symptoms:**
-```
-Error: failed to process file tag: file not found: ./specs/api.yaml
-```
-
-**Solutions:**
-
-```bash
-# 1. Check file exists
-ls -la ./specs/api.yaml
-
-# 2. Verify relative paths
-# Paths are relative to the YAML file, not current directory
-cd $(dirname config.yaml)
-ls -la ./specs/api.yaml
-
-# 3. Check file permissions
-chmod 644 ./specs/api.yaml
 ```
 
 ## Authentication Problems
@@ -192,6 +171,209 @@ Error: invalid value for field "visibility": "internal"
 api_publications:
   - ref: my-pub
     visibility: private  # Allowed: public, private
+```
+
+## File Loading and YAML Tags
+
+### Issue: File not found errors
+
+**Symptoms:**
+```
+Error: failed to process file tag: file not found: ./specs/api.yaml
+```
+
+**Common causes and solutions:**
+
+1. **Incorrect relative path**:
+   ```yaml
+   # ❌ Wrong - path not relative to config file
+   spec: !file specs/api.yaml
+   
+   # ✅ Correct - proper relative path
+   spec: !file ./specs/api.yaml
+   ```
+
+2. **Wrong base directory**:
+   ```
+   project/
+   ├── config/
+   │   └── main.yaml       # Config file here
+   └── specs/
+       └── api.yaml        # Spec file here
+   ```
+   
+   In `config/main.yaml`:
+   ```yaml
+   # ❌ Wrong - looks in config/specs/
+   spec: !file ./specs/api.yaml
+   
+   # ✅ Correct - goes up one level first
+   spec: !file ../specs/api.yaml
+   ```
+
+3. **File permissions**:
+   ```bash
+   # Check permissions
+   ls -la ./specs/api.yaml
+   
+   # Fix permissions
+   chmod 644 ./specs/api.yaml
+   chmod 755 ./specs/
+   ```
+
+### Issue: Invalid YAML tag extraction path
+
+**Symptoms:**
+```
+Error: path not found: info.nonexistent.field
+```
+
+**Debugging steps:**
+
+```bash
+# View YAML structure
+yq eval '.' ./specs/api.yaml
+
+# Check specific path
+yq eval '.info' ./specs/api.yaml
+```
+
+**Common mistakes:**
+
+```yaml
+# ❌ Wrong field names
+title: !file ./spec.yaml#info.titel  # Typo: "titel"
+
+# ✅ Correct field names
+title: !file ./spec.yaml#info.title
+
+# ❌ Wrong array syntax
+server: !file ./spec.yaml#servers[0].url  # Wrong bracket syntax
+
+# ✅ Correct array syntax
+server: !file ./spec.yaml#servers.0.url
+```
+
+### Issue: Malformed YAML tag syntax
+
+**Symptoms:**
+```
+Error: failed to parse file reference: invalid tag format
+```
+
+**Solutions:**
+
+```yaml
+# ❌ Missing file path
+description: !file
+
+# ✅ Provide file path
+description: !file ./docs/description.txt
+
+# ❌ Wrong map format
+title: !file
+  file: ./spec.yaml     # Should be 'path'
+  get: info.title       # Should be 'extract'
+
+# ✅ Correct map format
+title: !file
+  path: ./spec.yaml
+  extract: info.title
+```
+
+### Issue: Large file handling
+
+**Symptoms:**
+```
+Error: file size exceeds limit: ./large-spec.yaml (12MB > 10MB limit)
+```
+
+**Solutions:**
+
+1. **Split large files**:
+   ```yaml
+   # Instead of one huge spec, split into sections
+   apis:
+     - ref: users-api
+       versions:
+         - ref: users-v1
+           spec: !file ./specs/users/v1/core.yaml
+   ```
+
+2. **Use value extraction**:
+   ```yaml
+   # Extract only needed values instead of entire file
+   name: !file ./large-spec.yaml#info.title
+   version: !file ./large-spec.yaml#info.version
+   ```
+
+## Cross-Resource References
+
+### Issue: Unknown resource references
+
+**Symptoms:**
+```
+Error: resource "my-api" references unknown portal: unknown-portal
+```
+
+**Common causes:**
+
+1. **Typo in reference**:
+   ```yaml
+   portals:
+     - ref: developer-portal  # Note the exact ref
+   
+   api_publications:
+     - ref: api-pub
+       portal: dev-portal     # ❌ Wrong ref
+   ```
+
+2. **Resource ordering**:
+   ```yaml
+   # ✅ Correct order - define before reference
+   portals:
+     - ref: my-portal
+       name: "My Portal"
+   
+   api_publications:
+     - ref: api-pub
+       portal: my-portal
+   ```
+
+3. **Nested vs separate resources**:
+   ```yaml
+   # ❌ Conflicting declarations
+   apis:
+     - ref: my-api
+       versions:
+         - ref: v1  # Nested
+   
+   api_versions:
+     - ref: v1    # Same ref - conflict!
+       api: my-api
+   ```
+
+### Issue: External ID vs reference confusion
+
+**Symptoms:**
+```
+Error: resource references unknown control_plane_id: my-control-plane
+```
+
+**Understanding the difference:**
+
+```yaml
+# ✅ External UUID (existing Kong resource)
+api_implementations:
+  - ref: external-impl
+    service:
+      control_plane_id: "550e8400-e29b-41d4-a716-446655440000"  # UUID
+      id: "550e8400-e29b-41d4-a716-446655440001"                # UUID
+
+# ❌ Wrong - trying to use declarative ref
+  - ref: internal-impl
+    service:
+      control_plane_id: "my-control-plane"  # Not a UUID
 ```
 
 ## Planning Issues
@@ -340,32 +522,28 @@ kongctl plan -f apis-batch-2.yaml
 # Look for 429 status codes in trace logs
 ```
 
-### Issue: Large file handling
-
-**Symptoms:**
-```
-Error: file size exceeds limit: 10MB
-```
+### Issue: High memory usage with file tags
 
 **Solutions:**
 
-```yaml
-# 1. Split large OpenAPI specs
-api_versions:
-  - ref: v1
-    spec: !file ./specs/api-v1-endpoints.yaml
-    
-  - ref: v1-schemas
-    additional_specs:
-      - !file ./specs/api-v1-schemas.yaml
+1. **Load only needed portions**:
+   ```yaml
+   # ❌ Loading entire large specification
+   spec: !file ./huge-openapi-spec.yaml
+   
+   # ✅ Extract only metadata
+   name: !file ./huge-openapi-spec.yaml#info.title
+   version: !file ./huge-openapi-spec.yaml#info.version
+   ```
 
-# 2. Use value extraction
-apis:
-  - ref: my-api
-    name: !file 
-      path: ./huge-spec.yaml
-      extract: info.title  # Only extract needed value
-```
+2. **Optimize file references**:
+   ```yaml
+   # File caching helps when loading same file multiple times
+   apis:
+     - ref: api-1
+       name: !file ./common.yaml#api.name        # Loaded and cached
+       description: !file ./common.yaml#api.desc # Uses cache
+   ```
 
 ## Debugging Techniques
 
@@ -440,6 +618,25 @@ for ref in $(grep -h "ref:" *.yaml | awk '{print $2}'); do
 done
 ```
 
+### Configuration Validation Script
+
+```bash
+# Pre-deployment validation
+validate-config() {
+  # 1. YAML syntax validation
+  yq eval '.' config.yaml > /dev/null
+  
+  # 2. File reference validation
+  grep -r '!file' config.yaml | while read -r line; do
+    file_path=$(echo "$line" | sed 's/.*!file \([^#]*\).*/\1/')
+    [[ -f "$file_path" ]] || echo "Missing file: $file_path"
+  done
+  
+  # 3. Plan generation test
+  kongctl plan --config config.yaml --dry-run
+}
+```
+
 ## Getting Help
 
 ### 1. Extended Documentation
@@ -487,6 +684,8 @@ If you encounter a bug:
 | "file not found" | Wrong path | Use relative paths |
 | "protected resource" | Protection enabled | Temporarily disable |
 | "circular dependency" | Resource loop | Restructure deps |
+| "path not found" | Invalid extraction | Check YAML structure |
+| "exceeds limit" | File too large | Split or extract values |
 
 ### Useful Environment Variables
 
@@ -510,3 +709,6 @@ export KONGCTL_KONNECT_BASE_URL=https://api.konghq.tech
 5. **Use namespaces** to isolate changes
 6. **Enable trace logging** when debugging
 7. **Review plans** before applying
+8. **Validate YAML syntax** before deploying
+9. **Check file paths** are relative to config
+10. **Monitor file sizes** to stay under limits
