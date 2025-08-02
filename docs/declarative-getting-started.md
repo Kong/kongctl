@@ -1,8 +1,8 @@
 # Getting Started with `kongctl` Declarative Configuration
 
 This guide gets you started with managing your API Platform using `kongctl`'s 
-declarative configuration. You'll create a developer portal and publish an API 
-in just a few steps.
+declarative configuration. You'll quickly create a configuration for a developer portal 
+and an API and apply them to your Kong Konnect account.
 
 ## Prerequisites
 
@@ -111,8 +111,8 @@ List the APIs:
 kongctl get apis
 ```
 
-Your developer portal and API are now live! Visit the Konnect dashboard to see 
-your developer portal with the published API.
+Your developer portal and API are now live! Visit the [Konnect Console](https://cloud.konghq.com/us/portals/) 
+to see your developer portal with the published API.
 
 ## Next Steps
 

@@ -10,14 +10,16 @@ This directory contains minimal examples with only required fields for each reso
 
 ## Usage
 
-Each file demonstrates the absolute minimum required fields to successfully deploy that resource type to Kong Konnect.
+Each file demonstrates the minimum required fields to deploy that resource type to Kong Konnect.
+
+Deploy a single resource
 
 ```bash
-# Deploy a single resource
 kongctl apply -f api.yaml
-
-# Deploy all basic resources
-kongctl apply -f .
 ```
 
-These examples are intended as starting points. For more complex configurations, see the comprehensive example.
+Deploy all resources in current directory:
+
+```bash
+kongctl apply -f .
+```
