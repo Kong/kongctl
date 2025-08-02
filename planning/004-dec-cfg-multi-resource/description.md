@@ -1,0 +1,394 @@
+# KongCtl Stage 4 - API Resources and Multi-Resource Support
+
+## Goal
+Extend declarative configuration to support API resources and their child resources (versions, publications, implementations) with dependency handling and external content loading.
+
+## Deliverables
+- Support for API resource type and all child resources
+- YAML tag system for external content loading with value extraction
+- Dependency resolution between resources
+- Cross-file reference validation
+- Enhanced diff output showing dependencies
+- Nested resource configuration support
+- External ID references for control planes and services
+
+## Implementation Details
+
+### Extended Configuration Format
+
+#### Basic API Configuration
+```yaml
+# apis.yaml
+apis:
+  - ref: users-api
+    name: "Users API"
+    description: "User management API"
+    labels:
+      team: platform
+    kongctl:
+      protected: false
+```
+
+#### With External Content Loading (YAML Tags)
+```yaml
+apis:
+  - ref: users-api
+    # Load values from external OpenAPI spec
+    name: !file
+      path: ./specs/users-api.yaml
+      extract: info.title
+    description: !file
+      path: ./specs/users-api.yaml
+      extract: info.description
+    # Load entire spec content
+    spec_content: !file ./specs/users-api.yaml
+    labels:
+      team: platform
+```
+
+#### Nested Child Resources
+```yaml
+apis:
+  - ref: users-api
+    name: "Users API"
+    description: "API for user management"
+    spec_content: !file ./specs/users-api.yaml
+    
+    # Nested child resources
+    versions:
+      - ref: v1
+        version: !file.extract [./specs/users-api-v1.yaml, info.version]
+        spec:
+          content: !file ./specs/users-api-v1.yaml
+        
+      - ref: v2
+        version: "2.0.0"
+        spec:
+          content: !file ./specs/users-api-v2.yaml
+    
+    publications:
+      - ref: dev-portal-pub
+        portal: developer-portal  # Reference to portal
+        version: v2  # Reference to API version
+        visibility: public
+        auto_approve_registrations: true
+        auth_strategy_ids: []  # No auth required
+        
+    implementations:
+      - ref: users-impl
+        service:
+          control_plane_id: "prod-cp"  # External ID reference
+          id: "users-service-v2"       # External service ID
+```
+
+#### Alternative: Separate Files
+```yaml
+# api-versions.yaml
+api_versions:
+  - ref: users-v1
+    api: users-api  # Reference to parent API
+    version: "1.0.0"
+    spec:
+      content: !file ./specs/users-v1.yaml
+
+# api-publications.yaml  
+api_publications:
+  - ref: users-pub
+    api: users-api
+    portal: developer-portal
+    version: users-v1
+    visibility: public
+    auto_approve_registrations: true
+    auth_strategy_ids: 
+      - "key-auth-strategy"
+```
+
+### Resource Types
+```go
+// Using public SDK where available
+import kkComps "github.com/Kong/sdk-konnect-go/models/components"
+
+// internal/declarative/resources/api.go (already exists)
+type APIResource struct {
+    kkComps.CreateAPIRequest `yaml:",inline" json:",inline"`
+    Ref     string       `yaml:"ref" json:"ref"`
+    Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+    
+    // Nested child resources
+    Versions        []APIVersionResource        `yaml:"versions,omitempty"`
+    Publications    []APIPublicationResource    `yaml:"publications,omitempty"`
+    Implementations []APIImplementationResource `yaml:"implementations,omitempty"`
+}
+
+// internal/declarative/resources/api_version.go
+type APIVersionResource struct {
+    Ref     string  `yaml:"ref" json:"ref"`
+    API     string  `yaml:"api,omitempty"` // Parent API reference
+    Version *string `yaml:"version,omitempty"`
+    Spec    *struct {
+        Content *string `yaml:"content,omitempty"`
+    } `yaml:"spec,omitempty"`
+}
+
+// internal/declarative/resources/api_publication.go
+type APIPublicationResource struct {
+    Ref                      string   `yaml:"ref" json:"ref"`
+    API                      string   `yaml:"api,omitempty"`
+    Portal                   string   `yaml:"portal"` // Reference to portal
+    Version                  string   `yaml:"version,omitempty"` // Reference to API version
+    AutoApproveRegistrations *bool    `yaml:"auto_approve_registrations,omitempty"`
+    AuthStrategyIds          []string `yaml:"auth_strategy_ids,omitempty"`
+    Visibility               *string  `yaml:"visibility,omitempty"` // "public" or "private"
+}
+
+// internal/declarative/resources/api_implementation.go
+type APIImplementationResource struct {
+    Ref     string `yaml:"ref" json:"ref"`
+    API     string `yaml:"api,omitempty"`
+    Service struct {
+        ControlPlaneID string `yaml:"control_plane_id"`
+        ID             string `yaml:"id"`
+    } `yaml:"service"`
+}
+```
+
+### Resource Interfaces
+```go
+// internal/declarative/resources/interfaces.go
+type Resource interface {
+    GetKind() string
+    GetName() string
+    GetRef() string
+    GetDependencies() []ResourceRef
+    Validate() error
+}
+
+type ResourceRef struct {
+    Kind string
+    Name string
+}
+
+// Example implementation for API Version
+func (v APIVersionResource) GetKind() string { return "api_version" }
+func (v APIVersionResource) GetRef() string { return v.Ref }
+func (v APIVersionResource) GetDependencies() []ResourceRef {
+    deps := []ResourceRef{}
+    if v.API != "" {
+        deps = append(deps, ResourceRef{Kind: "api", Name: v.API})
+    }
+    return deps
+}
+
+// Example for API Publication (depends on API, Portal, and Version)
+func (p APIPublicationResource) GetDependencies() []ResourceRef {
+    return []ResourceRef{
+        {Kind: "api", Name: p.API},
+        {Kind: "portal", Name: p.Portal},
+        {Kind: "api_version", Name: p.Version},
+    }
+}
+```
+
+### Extended Resource Set Structure
+```go
+// internal/declarative/resources/resource_set.go
+type ResourceSet struct {
+    Portals               []PortalResource               `yaml:"portals,omitempty"`
+    ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty"`
+    ControlPlanes         []ControlPlaneResource         `yaml:"control_planes,omitempty"`
+    APIs                  []APIResource                  `yaml:"apis,omitempty"`
+    // Note: Child resources can be nested under APIs or separate
+    APIVersions           []APIVersionResource           `yaml:"api_versions,omitempty"`
+    APIPublications       []APIPublicationResource       `yaml:"api_publications,omitempty"`
+    APIImplementations    []APIImplementationResource    `yaml:"api_implementations,omitempty"`
+}
+
+// Extract nested resources when processing
+func (rs *ResourceSet) NormalizeNestedResources() {
+    for _, api := range rs.APIs {
+        // Extract nested versions and add parent reference
+        for _, version := range api.Versions {
+            version.API = api.Ref
+            rs.APIVersions = append(rs.APIVersions, version)
+        }
+        // Clear nested to avoid duplication
+        api.Versions = nil
+        
+        // Same for publications and implementations
+    }
+}
+```
+
+### Dependency Resolution
+```go
+// internal/declarative/planner/dependencies.go
+type DependencyGraph struct {
+    nodes map[string]Resource
+    edges map[string][]string // from -> to
+}
+
+func BuildDependencyGraph(resources []Resource) (*DependencyGraph, error) {
+    graph := &DependencyGraph{
+        nodes: make(map[string]Resource),
+        edges: make(map[string][]string),
+    }
+    
+    // Build node map using ref as key
+    for _, r := range resources {
+        key := fmt.Sprintf("%s:%s", r.GetKind(), r.GetRef())
+        graph.nodes[key] = r
+    }
+    
+    // Build edges
+    for _, r := range resources {
+        fromKey := fmt.Sprintf("%s:%s", r.GetKind(), r.GetRef())
+        for _, dep := range r.GetDependencies() {
+            toKey := fmt.Sprintf("%s:%s", dep.Kind, dep.Name)
+            
+            // Validate dependency exists
+            if _, exists := graph.nodes[toKey]; !exists {
+                return nil, fmt.Errorf("resource %s depends on non-existent %s", 
+                    fromKey, toKey)
+            }
+            
+            graph.edges[fromKey] = append(graph.edges[fromKey], toKey)
+        }
+    }
+    
+    // Check for cycles
+    if graph.hasCycles() {
+        return nil, fmt.Errorf("circular dependency detected")
+    }
+    
+    return graph, nil
+}
+```
+
+### Enhanced Planner
+```go
+// Extend planner to handle API resources
+func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIResource, plan *Plan) error {
+    // Fetch current APIs
+    currentAPIs, err := p.client.ListAPIs(ctx)
+    if err != nil {
+        return fmt.Errorf("failed to list current APIs: %w", err)
+    }
+    
+    // Similar logic to portal planning
+    // Handle CREATE, UPDATE based on presence and changes
+    // Check protection status
+    // Build planned changes
+}
+
+// Add handlers for child resources
+func (p *Planner) planAPIVersionChanges(ctx context.Context, desired []resources.APIVersionResource, plan *Plan) error
+func (p *Planner) planAPIPublicationChanges(ctx context.Context, desired []resources.APIPublicationResource, plan *Plan) error
+func (p *Planner) planAPIImplementationChanges(ctx context.Context, desired []resources.APIImplementationResource, plan *Plan) error
+```
+
+### Enhanced Diff Output
+```go
+func displayHumanReadableDiff(plan *Plan) error {
+    fmt.Println("Plan Summary:")
+    fmt.Printf("  %d resource(s) to create\n", plan.Summary.ByAction[ActionCreate])
+    fmt.Printf("  %d resource(s) to update\n", plan.Summary.ByAction[ActionUpdate])
+    fmt.Println()
+    
+    // Show changes with dependencies
+    for _, change := range plan.Changes {
+        displayChange(change)
+        
+        // Show dependencies if any
+        if len(change.Dependencies) > 0 {
+            fmt.Printf("  Dependencies:\n")
+            for _, dep := range change.Dependencies {
+                fmt.Printf("    - %s\n", dep)
+            }
+        }
+        fmt.Println()
+    }
+    
+    return nil
+}
+```
+
+### Extended Executor
+```go
+// Add API operations to executor
+func (e *Executor) createAPI(ctx context.Context, change planner.PlannedChange) error
+func (e *Executor) updateAPI(ctx context.Context, change planner.PlannedChange) error
+func (e *Executor) deleteAPI(ctx context.Context, change planner.PlannedChange) error
+
+// Add child resource operations
+func (e *Executor) createAPIVersion(ctx context.Context, change planner.PlannedChange) error
+func (e *Executor) createAPIPublication(ctx context.Context, change planner.PlannedChange) error
+func (e *Executor) createAPIImplementation(ctx context.Context, change planner.PlannedChange) error
+```
+
+## Tests Required
+- API resource CRUD operations
+- Nested resource extraction and normalization
+- Dependency graph with multi-level dependencies
+- Cross-resource reference validation
+- Execution order with complex dependencies
+- Protection handling for APIs and child resources
+
+## Proof of Success
+```bash
+# Create API with nested resources
+$ kongctl apply
+Validating configuration...
+✓ Dependencies resolved successfully
+
+Executing plan...
+✓ Created api: users-api
+✓ Created api_version: v1 (parent: users-api)
+✓ Created api_version: v2 (parent: users-api)
+✓ Created api_publication: dev-portal-pub (dependencies: users-api, developer-portal, v2)
+✓ Created api_implementation: users-impl (parent: users-api)
+Plan applied successfully: 5 resources created
+
+# Show dependencies in diff
+$ kongctl diff
+Plan Summary:
+  5 resource(s) to create
+  0 resource(s) to update
+
+Changes:
++ api: users-api
+  
++ api_version: v1
+  Dependencies:
+    - api:users-api
+    
++ api_version: v2
+  Dependencies:
+    - api:users-api
+    
++ api_publication: dev-portal-pub
+  Dependencies:
+    - api:users-api
+    - portal:developer-portal
+    - api_version:v2
+    
++ api_implementation: users-impl
+  Dependencies:
+    - api:users-api
+
+# Handle missing dependencies
+$ kongctl plan
+Error: dependency resolution failed: resource api_publication:dev-portal-pub depends on non-existent portal:developer-portal
+```
+
+## Dependencies
+- Stage 3 completion (plan execution infrastructure)
+- Understanding of API resource model in Konnect
+- SDK support for API operations
+
+## Notes
+- Resources reference each other by ref field, not ID
+- Support both nested and separate file configurations
+- Dependency order is critical for creation
+- Reverse dependency order for deletion in sync
+- Consider parallel execution for independent resources
+- API implementations may have complex configuration schemas

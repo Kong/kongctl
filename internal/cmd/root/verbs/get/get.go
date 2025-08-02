@@ -5,8 +5,10 @@ import (
 	"fmt"
 
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
+	onprem "github.com/kong/kongctl/internal/cmd/root/products/on-prem"
 	profileCmd "github.com/kong/kongctl/internal/cmd/root/profile"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -31,10 +33,18 @@ Output can be formatted in multiple ways to aid in further processing.`))
 
 	getExamples = normalizers.Examples(i18n.T("root.verbs.get.getExamples",
 		fmt.Sprintf(`
-		# Retrieve Konnect control planes
-		%[1]s get konnect gateway controlplanes
-		# Retrieve Kong Gateway (on-prem) gateway services 
-		%[1]s get gateway services
+		# Retrieve Konnect portals
+		%[1]s get portals
+		# Retrieve Konnect APIs
+		%[1]s get apis
+		# Retrieve Konnect auth strategies
+		%[1]s get auth-strategies
+		# Retrieve Konnect control planes (Konnect-first)
+		%[1]s get gateway control-planes
+		# Retrieve Konnect control planes (explicit)
+		%[1]s get konnect gateway control-planes
+		# Retrieve on-premises Kong Gateway services 
+		%[1]s get on-prem services
 		`, meta.CLIName)))
 )
 
@@ -56,7 +66,46 @@ func NewGetCmd() (*cobra.Command, error) {
 	}
 	cmd.AddCommand(c)
 
+	// Add on-prem product command
+	streams := &iostreams.IOStreams{}
+	cmd.AddCommand(onprem.NewOnPremCmd(streams))
+
 	cmd.AddCommand(profileCmd.NewProfileCmd())
+
+	// Add portal command directly for Konnect-first pattern
+	portalCmd, err := NewDirectPortalCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(portalCmd)
+
+	// Add API command directly for Konnect-first pattern
+	apiCmd, err := NewDirectAPICmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(apiCmd)
+
+	// Add auth strategy command directly for Konnect-first pattern
+	authStrategyCmd, err := NewDirectAuthStrategyCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(authStrategyCmd)
+
+	// Add gateway command directly for Konnect-first pattern
+	gatewayCmd, err := NewDirectGatewayCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(gatewayCmd)
+
+	// Add me command directly for Konnect-first pattern
+	meCmd, err := NewDirectMeCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(meCmd)
 
 	return cmd, nil
 }

@@ -17,12 +17,12 @@ import (
 	"github.com/ajg/form"
 	"github.com/google/uuid"
 
-	kkInternal "github.com/Kong/sdk-konnect-go-internal"
-	kkInternalComps "github.com/Kong/sdk-konnect-go-internal/models/components"
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 
 	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/konnect/httpclient"
+	"github.com/kong/kongctl/internal/log"
 )
 
 var (
@@ -304,20 +304,20 @@ func saveAccessTokenToDisk(path string, token *AccessToken) error {
 	return nil
 }
 
-func GetAuthenticatedClient(baseURL string, token string) (*kk.SDK, error) {
-	return kk.New(
+func GetAuthenticatedClient(baseURL string, token string, logger *slog.Logger) (*kk.SDK, error) {
+	opts := []kk.SDKOption{
 		kk.WithServerURL(baseURL),
 		kk.WithSecurity(kkComps.Security{
 			PersonalAccessToken: kk.String(token),
 		}),
-	), nil
+	}
+
+	// Add logging client if logger is provided and trace level is enabled
+	if logger != nil && logger.Enabled(context.Background(), log.LevelTrace) {
+		loggingClient := httpclient.NewLoggingHTTPClient(logger)
+		opts = append(opts, kk.WithClient(loggingClient))
+	}
+
+	return kk.New(opts...), nil
 }
 
-func GetAuthenticatedInternalClient(baseURL string, token string) (*kkInternal.SDK, error) {
-	return kkInternal.New(
-		kkInternal.WithServerURL(baseURL),
-		kkInternal.WithSecurity(kkInternalComps.Security{
-			PersonalAccessToken: kkInternal.String(token),
-		}),
-	), nil
-}

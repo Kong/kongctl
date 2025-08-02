@@ -14,7 +14,7 @@ Create a pull request for the current feature branch.
    - If branch doesn't exist on remote, use `git push -u origin [current-branch]`
 
 3. Gather PR information:
-   - Identify current feature from branch name and `docs/plan/index.md`
+   - Identify current feature from branch name and `planning/index.md`
    - Read the feature's `description.md` for PM requirements
    - Read `execution-plan-steps.md` to see what was completed
    - Summarize implemented changes
@@ -38,7 +38,7 @@ Create a pull request for the current feature branch.
      - [x] Integration tests pass: `make test-integration` (if applicable)
      
      ## Related Planning
-     - Feature folder: `docs/plan/[feature-folder]/`
+     - Feature folder: `planning/[feature-folder]/`
      - Requirements: [link to description.md]
      - Implementation plan: [link to execution-plan-steps.md]
      

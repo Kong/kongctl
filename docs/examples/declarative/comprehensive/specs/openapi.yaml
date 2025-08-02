@@ -1,0 +1,328 @@
+openapi: 3.0.3
+info:
+  title: SecureBank API
+  version: 2.0.0
+  description: Secure banking API for account management, transactions, and financial services
+  contact:
+    name: SecureBank API Team
+    email: api-support@securebank.com
+    url: https://developer.securebank.com
+  license:
+    name: Commercial
+    url: https://securebank.com/api-license
+  x-logo:
+    url: https://securebank.com/logo.png
+servers:
+  - url: https://api.securebank.com/v2
+    description: Production server
+  - url: https://sandbox.securebank.com/v2
+    description: Sandbox environment
+security:
+  - OAuth2: [read, write]
+  - ApiKey: []
+tags:
+  - name: accounts
+    description: Account management operations
+  - name: transactions
+    description: Transaction operations
+  - name: payments
+    description: Payment processing
+paths:
+  /accounts:
+    get:
+      summary: List user accounts
+      operationId: listAccounts
+      tags:
+        - accounts
+      parameters:
+        - name: account_type
+          in: query
+          description: Filter by account type
+          schema:
+            type: string
+            enum: [checking, savings, credit]
+        - name: status
+          in: query
+          description: Filter by account status
+          schema:
+            type: string
+            enum: [active, inactive, frozen]
+      responses:
+        '200':
+          description: List of accounts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accounts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Account'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+  /accounts/{accountId}:
+    get:
+      summary: Get account details
+      operationId: getAccount
+      tags:
+        - accounts
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          description: Account identifier
+          schema:
+            type: string
+            pattern: '^[A-Z]{2}[0-9]{10}$'
+      responses:
+        '200':
+          description: Account details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /accounts/{accountId}/transactions:
+    get:
+      summary: List account transactions
+      operationId: listTransactions
+      tags:
+        - transactions
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: from_date
+          in: query
+          description: Start date for transaction history
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          description: End date for transaction history
+          schema:
+            type: string
+            format: date
+        - name: limit
+          in: query
+          description: Number of transactions to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transactions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Transaction'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+  /payments/transfer:
+    post:
+      summary: Initiate a payment transfer
+      operationId: createTransfer
+      tags:
+        - payments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferRequest'
+      responses:
+        '201':
+          description: Transfer initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+components:
+  schemas:
+    Account:
+      type: object
+      required:
+        - id
+        - account_number
+        - account_type
+        - status
+        - balance
+      properties:
+        id:
+          type: string
+          description: Unique account identifier
+        account_number:
+          type: string
+          description: Account number
+        account_type:
+          type: string
+          enum: [checking, savings, credit]
+        status:
+          type: string
+          enum: [active, inactive, frozen]
+        balance:
+          type: object
+          properties:
+            currency:
+              type: string
+              example: USD
+            amount:
+              type: number
+              format: double
+        created_at:
+          type: string
+          format: date-time
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+        date:
+          type: string
+          format: date-time
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [debit, credit]
+        category:
+          type: string
+        merchant:
+          type: string
+    TransferRequest:
+      type: object
+      required:
+        - from_account
+        - to_account
+        - amount
+        - currency
+      properties:
+        from_account:
+          type: string
+        to_account:
+          type: string
+        amount:
+          type: number
+          format: double
+          minimum: 0.01
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        description:
+          type: string
+          maxLength: 255
+        reference:
+          type: string
+    TransferResponse:
+      type: object
+      properties:
+        transfer_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, completed, failed]
+        created_at:
+          type: string
+          format: date-time
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+        has_next:
+          type: boolean
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UnprocessableEntity:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    RateLimitExceeded:
+      description: Rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Request limit per hour
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Remaining requests
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Time when rate limit resets (Unix timestamp)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.securebank.com/oauth/authorize
+          tokenUrl: https://auth.securebank.com/oauth/token
+          scopes:
+            read: Read access to accounts and transactions
+            write: Write access for payments and transfers
+    ApiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for machine-to-machine authentication

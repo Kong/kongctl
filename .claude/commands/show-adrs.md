@@ -5,7 +5,7 @@ Display architecture decision records (ADRs) for the current feature.
 ## Steps
 
 1. Identify the current feature:
-   - Read `docs/plan/index.md` to find current active stage
+   - Read `planning/index.md` to find current active stage
    - Note the feature folder name
 
 2. Read the ADRs file:
@@ -38,7 +38,7 @@ Architecture Decision Records
 ============================
 
 Feature: Declarative Configuration - Stage 1
-ADR File: docs/plan/001-dec-cfg-cfg-format-basic-cli/execution-plan-adrs.md
+ADR File: planning/001-dec-cfg-cfg-format-basic-cli/execution-plan-adrs.md
 
 📋 Decision Summary:
 

@@ -1,0 +1,163 @@
+# Comprehensive Banking API Example
+
+portals:
+  - ref: securebank-portal
+    name: securebank-developer-portal
+    display_name: SecureBank Developer Portal
+    description: "Official developer portal for SecureBank API integration"
+    authentication_enabled: true
+    rbac_enabled: true
+    auto_approve_developers: true
+    auto_approve_applications: false
+    labels:
+      industry: financial-services
+      compliance: pci-dss
+      environment: production
+      team: platform-engineering
+
+application_auth_strategies:
+  - ref: securebank-oauth2-strategy
+    name: securebank-oauth2
+    display_name: OAuth 2.0 Authentication
+    strategy_type: openid_connect
+    configs:
+      openid-connect:
+        issuer: https://auth.securebank.com/
+        scopes:
+          - openid
+          - profile
+          - email
+          - read
+          - write
+        auth_methods:
+          - client_credentials
+          - authorization_code
+          - refresh_token
+    labels:
+      auth_type: oauth2
+      use_case: p2b 
+    
+  - ref: securebank-apikey-strategy
+    name: securebank-api-key
+    display_name: API Key Authentication
+    strategy_type: key_auth
+    configs:
+      key-auth:
+        key_names:
+          - X-API-Key
+          - Api-Key
+    labels:
+      auth_type: api-key
+      use_case: b2b 
+
+# Main API configuration with all features
+apis:
+  - ref: securebank-api
+    # Load metadata from OpenAPI spec using !file tags
+    name: !file specs/openapi.yaml#info.title
+    description: !file specs/openapi.yaml#info.description
+    version: !file specs/openapi.yaml#info.version
+    labels:
+      # Static labels
+      team: platform-api-foo
+      product: core-banking
+      criticality: high
+      # Dynamic labels from OpenAPI spec
+      license: !file specs/openapi.yaml#info.license.name
+
+    versions:
+      - ref: securebank-version-v1
+        version: "1.0.0"
+        spec: !file specs/openapi-v1.yaml
+        
+    publications:
+      # Public publication for external developers
+      - ref: securebank-public-publication
+        portal_id: securebank-portal
+        visibility: public
+        auth_strategy_ids:
+          # NOTE: Kong currently only supports 1 auth strategy per API publication
+          # See main-single-auth.yaml for a working example
+          - securebank-oauth2-strategy
+        auto_approve_registrations: false
+        
+    # API Documents - comprehensive documentation
+    documents:
+      - ref: auth-guide
+        title: Authentication Guide
+        slug: authentication
+        status: published
+        # Load content from markdown file
+        content: !file docs/authentication.md
+        
+      - ref: rate-limits-doc
+        title: Rate Limiting Documentation
+        slug: rate-limits
+        status: published
+        content: !file docs/rate-limits.md
+        
+      - ref: migration-guide
+        title: "Migration Guide: v1 to v2"
+        slug: migration-v1-v2
+        status: published
+        content: !file docs/migration-v1-v2.md
+        
+      - ref: api-changelog
+        title: API Changelog
+        slug: changelog
+        status: published
+        # Example of inline content for shorter documents
+        content: |
+          # SecureBank API Changelog
+          
+          ## Version 2.0.0 (2024-01-15)
+          ### Breaking Changes
+          - Removed HTTP Basic Authentication
+          - Changed date format to ISO 8601
+          - Restructured error responses
+          
+          ### New Features
+          - Added batch payment endpoints
+          - Introduced webhook support
+          - Enhanced OAuth 2.0 scopes
+          
+          ### Improvements
+          - 50% faster response times
+          - Improved error messages
+          - Added request ID tracking
+          
+          ## Version 1.5.0 (2023-10-01)
+          ### Features
+          - Added transaction categorization
+          - Introduced spending insights endpoint
+          
+          ## Version 1.0.0 (2023-01-01)
+          - Initial release
+
+      - ref: quickstart
+        title: Quick Start Guide
+        slug: quickstart
+        status: published
+        content: |
+          # Quick Start Guide
+          
+          Get started with SecureBank API in 5 minutes!
+          
+          ## 1. Get Your API Key
+          Sign up at https://developer.securebank.com
+          
+          ## 2. Make Your First Request
+          ```bash
+          curl https://api.securebank.com/v2/accounts \
+            -H "X-API-Key: YOUR_API_KEY"
+          ```
+          
+          ## 3. Explore the API
+          - View full API reference
+          - Try our interactive console
+          - Download SDK for your language
+          
+          ## Need Help?
+          - Email: api-support@securebank.com
+          - Documentation: https://docs.securebank.com
+          - Status: https://status.securebank.com

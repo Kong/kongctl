@@ -1,0 +1,9 @@
+# Test for duplicate names within same file
+portals:
+  - ref: portal1
+    name: "Same Portal Name"
+    description: "First portal"
+    
+  - ref: portal2
+    name: "Same Portal Name"
+    description: "Second portal with same name"

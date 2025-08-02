@@ -1,0 +1,7 @@
+# Separate file with API publications
+api_publications:
+  - ref: users-api-public-pub
+    api: users-api
+    portal_id: test-portal
+    visibility: public
+    auto_approve_registrations: true

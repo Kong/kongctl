@@ -13,8 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	kkSDK "github.com/Kong/sdk-konnect-go"
-	kkInternalOps "github.com/Kong/sdk-konnect-go-internal/models/operations"
-	kkOPS "github.com/Kong/sdk-konnect-go/models/operations"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
@@ -53,14 +52,13 @@ var (
 		# Export all portals with their child resources to a file
 		%[1]s dump --resources=portal --include-child-resources --output-file=portals.tf
 
-		# Export with debug logging enabled
-		%[1]s dump --resources=api --include-child-resources --debug
+		# Export with debug logging enabled (use --log-level=debug)
+		%[1]s dump --resources=api --include-child-resources --log-level=debug
 		`, meta.CLIName)))
 
 	resources             string
 	includeChildResources bool
 	outputFile            string
-	debug                 bool
 	dumpFormat            = cmd.NewEnum([]string{"tf-imports"}, "tf-imports")
 )
 
@@ -184,11 +182,10 @@ func Int64(v int64) *int64 {
 	return &v
 }
 
-// debugf prints a debug message if debug mode is enabled
-func debugf(format string, args ...interface{}) {
-	if debug {
-		fmt.Fprintf(os.Stderr, "DEBUG: "+format+"\n", args...)
-	}
+// debugf prints a debug message - kept for compatibility but does nothing
+// TODO: Remove all debugf calls as proper slog logging is now available via context
+func debugf(_ string, _ ...interface{}) {
+	// No-op: Debug logging should use slog from context instead
 }
 
 // paginationHandler defines a function that performs paginated requests
@@ -272,7 +269,7 @@ func dumpPortals(
 	includeChildResources bool,
 ) error {
 	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
-		req := kkInternalOps.ListPortalsRequest{
+		req := kkOps.ListPortalsRequest{
 			PageSize:   Int64(requestPageSize),
 			PageNumber: Int64(pageNumber),
 		}
@@ -322,12 +319,12 @@ func dumpAPIs(
 	}
 
 	// Check what kind of client we have
-	_, isInternalAPI := kkClient.(*helpers.InternalAPIAPI)
-	debugf("kkClient is InternalAPIAPI: %v", isInternalAPI)
+	_, isPublicAPI := kkClient.(*helpers.APIAPIImpl)
+	debugf("kkClient is APIAPIImpl: %v", isPublicAPI)
 
 	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		// Create a request to list APIs with pagination
-		req := kkInternalOps.ListApisRequest{
+		req := kkOps.ListApisRequest{
 			PageSize:   Int64(requestPageSize),
 			PageNumber: Int64(pageNumber),
 		}
@@ -392,40 +389,40 @@ func dumpAPIChildResources(
 	// Get the SDK
 	debugf("Attempting to get the API client services")
 
-	// Try to convert to get the internal SDK
-	sdk, ok := kkClient.(*helpers.InternalAPIAPI)
+	// Try to convert to get the public SDK
+	sdk, ok := kkClient.(*helpers.APIAPIImpl)
 	if !ok {
-		err := fmt.Errorf("failed to convert API client to internal API client")
+		err := fmt.Errorf("failed to convert API client to public API client")
 		if logger != nil {
 			logger.Error("failed to convert API client", "error", err)
 		}
-		debugf("Could not convert kkClient to InternalAPIAPI")
+		debugf("Could not convert kkClient to APIAPIImpl")
 		return err
 	}
 
 	if logger != nil {
-		logger.Debug("successfully obtained InternalAPIAPI", "sdk_nil", sdk.SDK == nil)
+		logger.Debug("successfully obtained APIAPIImpl", "sdk_nil", sdk.SDK == nil)
 	}
 
-	debugf("Successfully converted to InternalAPIAPI")
+	debugf("Successfully converted to APIAPIImpl")
 
 	// Check if SDK is nil
 	if sdk.SDK == nil {
-		debugf("InternalAPIAPI.SDK is nil")
-		return fmt.Errorf("internal SDK is nil")
+		debugf("APIAPIImpl.SDK is nil")
+		return fmt.Errorf("public SDK is nil")
 	}
 
 	// Process API Documents
 	// Let's check if the SDK has a valid APIDocumentation field
 	if sdk.SDK.APIDocumentation == nil {
-		debugf("InternalAPIAPI.SDK.APIDocumentation is nil")
+		debugf("APIAPIImpl.SDK.APIDocumentation is nil")
 		if logger != nil {
 			logger.Warn("SDK.APIDocumentation is nil, skipping API documents")
 		}
 	} else {
 		// Create an API document client using the existing SDK reference
 		debugf("Creating API document client directly")
-		apiDocAPI := &helpers.InternalAPIDocumentAPI{SDK: sdk.SDK}
+		apiDocAPI := &helpers.APIDocumentAPIImpl{SDK: sdk.SDK}
 		debugf("Successfully obtained API document client")
 
 		if logger != nil {
@@ -551,14 +548,14 @@ func dumpAPIChildResources(
 	// Process API Versions (formerly Specifications)
 	// Let's check if the SDK has a valid APIVersion field
 	if sdk.SDK.APIVersion == nil {
-		debugf("InternalAPIAPI.SDK.APIVersion is nil")
+		debugf("APIAPIImpl.SDK.APIVersion is nil")
 		if logger != nil {
 			logger.Warn("SDK.APIVersion is nil, skipping API versions")
 		}
 	} else {
 		// Create an API version client using the existing SDK reference
 		debugf("Creating API version client directly")
-		apiVersionAPI := &helpers.InternalAPIVersionAPI{SDK: sdk.SDK}
+		apiVersionAPI := &helpers.APIVersionAPIImpl{SDK: sdk.SDK}
 		debugf("Successfully obtained API version client")
 
 		if logger != nil {
@@ -693,7 +690,7 @@ func dumpAPIChildResources(
 	} else {
 		// Create an API publication client using the existing SDK reference
 		debugf("Creating API publication client directly")
-		apiPubAPI := &helpers.InternalAPIPublicationAPI{SDK: sdk.SDK}
+		apiPubAPI := &helpers.APIPublicationAPIImpl{SDK: sdk.SDK}
 		debugf("Successfully obtained API publication client")
 
 		if logger != nil {
@@ -800,7 +797,7 @@ func dumpAPIChildResources(
 	} else {
 		// Create an API implementation client using the existing SDK reference
 		debugf("Creating API implementation client directly")
-		apiImplAPI := &helpers.InternalAPIImplementationAPI{SDK: sdk.SDK}
+		apiImplAPI := &helpers.APIImplementationAPIImpl{SDK: sdk.SDK}
 		debugf("Successfully obtained API implementation client")
 
 		if logger != nil {
@@ -1024,7 +1021,7 @@ func dumpAppAuthStrategies(
 
 	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		// Create a request to list app auth strategies with pagination
-		req := kkOPS.ListAppAuthStrategiesRequest{
+		req := kkOps.ListAppAuthStrategiesRequest{
 			PageSize:   kkSDK.Int64(requestPageSize),
 			PageNumber: kkSDK.Int64(pageNumber),
 		}
@@ -1122,13 +1119,8 @@ func (c *dumpCmd) validate(helper cmd.Helper) error {
 }
 
 func (c *dumpCmd) runE(cobraCmd *cobra.Command, args []string) error {
-	// Set environment variable for debug mode if requested
-	if debug {
-		os.Setenv("KONGCTL_DEBUG", "true")
-		debugf("Debug mode enabled")
-	} else {
-		os.Setenv("KONGCTL_DEBUG", "false")
-	}
+	// Debug mode is now handled via --log-level flag
+	// Remove deprecated debug flag handling
 
 	helper := cmd.BuildHelper(cobraCmd, args)
 	if err := c.validate(helper); err != nil {
@@ -1240,9 +1232,7 @@ func NewDumpCmd() (*cobra.Command, error) {
 		"",
 		"File to write the output to. If not specified, output is written to stdout.")
 
-	dumpCommand.Flags().BoolVar(&debug, "debug",
-		false,
-		"Enable debug logging for troubleshooting.")
+	// Debug logging is now controlled via --log-level flag
 
 	// Add the page size flag with the same default as other commands
 	dumpCommand.Flags().Int(

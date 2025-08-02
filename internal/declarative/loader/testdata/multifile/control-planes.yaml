@@ -1,0 +1,7 @@
+# Test file for control planes
+control_planes:
+  - ref: multifile-cp
+    name: "Multi-file Control Plane"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    labels:
+      environment: "test"

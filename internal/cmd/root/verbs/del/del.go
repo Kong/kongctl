@@ -5,7 +5,9 @@ import (
 	"fmt"
 
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
+	onprem "github.com/kong/kongctl/internal/cmd/root/products/on-prem"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -30,8 +32,14 @@ Output can be formatted in multiple ways to aid in further processing.`))
 
 	deleteExamples = normalizers.Examples(i18n.T("root.verbs.delete.deleteExamples",
 		fmt.Sprintf(`
-		# Delete a Konnect Kong Gateway control plane
-		%[1]s delete konnect gateway controlplane <id>
+		# Delete a Konnect Kong Gateway control plane (Konnect-first)
+		%[1]s delete gateway control-plane <id>
+		# Delete a Konnect Kong Gateway control plane (explicit)
+		%[1]s delete konnect gateway control-plane <id>
+		# Delete a Konnect portal by ID (Konnect-first)
+		%[1]s delete portal 12345678-1234-1234-1234-123456789012
+		# Delete a Konnect portal by name
+		%[1]s delete portal my-portal
 		`, meta.CLIName)))
 )
 
@@ -52,6 +60,24 @@ func NewDeleteCmd() (*cobra.Command, error) {
 		return nil, e
 	}
 	cmd.AddCommand(c)
+
+	// Add on-prem product command
+	streams := &iostreams.IOStreams{}
+	cmd.AddCommand(onprem.NewOnPremCmd(streams))
+
+	// Add gateway command directly for Konnect-first pattern
+	gatewayCmd, err := NewDirectGatewayCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(gatewayCmd)
+
+	// Add portal command directly for Konnect-first pattern
+	portalCmd, err := NewDirectPortalCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(portalCmd)
 
 	return cmd, nil
 }

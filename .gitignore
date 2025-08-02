@@ -30,3 +30,6 @@ kongctl
 .vscode/
 
 dist/
+
+# Local development context
+CLAUDE.local.md

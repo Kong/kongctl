@@ -1,0 +1,1 @@
+This is a non-YAML file that should be ignored by the loader.
