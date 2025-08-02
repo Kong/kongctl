@@ -142,7 +142,7 @@ def main():
         sys.exit(2)  # Exit with error code to block the task
     
     # Get next task ID
-    base_dir = Path(cwd) / "docs" / "plan" / "tasks"
+    base_dir = Path(cwd) / "planning" / "tasks"
     task_id = get_next_task_id(base_dir)
     
     # Create task directory
@@ -157,7 +157,7 @@ def main():
         problem_text = prompt.replace('/task', '').strip()
         
         # Output context message that will be added to the prompt
-        context_msg = f"Directory task-{task_id} has been automatically created for this task session. Git branch 'task-{task_id}' has been created and checked out. The subagents must create the INVESTIGATION_REPORT.md, FLOW_REPORT.md and PLAN.md files inside docs/plan/tasks/task-{task_id}/."
+        context_msg = f"Directory task-{task_id} has been automatically created for this task session. Git branch 'task-{task_id}' has been created and checked out. The subagents must create the INVESTIGATION_REPORT.md, FLOW_REPORT.md and PLAN.md files inside planning/tasks/task-{task_id}/."
         if not branch_created:
             context_msg += " Note: Git branch creation encountered an issue, but task directory was created."
         if problem_text:

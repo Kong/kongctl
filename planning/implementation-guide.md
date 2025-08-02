@@ -5,7 +5,7 @@
 ## 🚀 Getting Started
 
 ### 1. Check Current Status
-Read `docs/plan/index.md` → "Current Active Stage" section shows current development and links to implementation guide.
+Read `planning/index.md` → "Current Active Stage" section shows current development and links to implementation guide.
 
 ### 2. Find Your Next Task
 Look for first step with Status: "Not Started" and resolved dependencies.
@@ -23,7 +23,7 @@ Look for first step with Status: "Not Started" and resolved dependencies.
 
 ### Folder Structure
 ```
-docs/plan/
+planning/
 ├── index.md                               # Current active development
 ├── user-guide.md                          # Human developer commands
 ├── implementation-guide.md                # This guide
@@ -125,7 +125,7 @@ When completing a development effort:
    - Update feature name, status, and document links
 
 3. **Prepare new development folder**:
-   - Create folder: `docs/plan/NNN-feature-name/`
+   - Create folder: `planning/NNN-feature-name/`
    - Add description.md with PM requirements
    - Create execution-plan-*.md documents
 

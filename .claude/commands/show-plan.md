@@ -5,7 +5,7 @@ Display the current development plan including all steps and their status.
 ## Steps
 
 1. Identify the current active feature:
-   - Read `docs/plan/index.md` to find the current active stage
+   - Read `planning/index.md` to find the current active stage
    - Note the feature name and folder
 
 2. Read the feature requirements:
@@ -40,7 +40,7 @@ Development Plan: Declarative Configuration - Stage 1
 =====================================================
 
 Feature: Configuration Format & Basic CLI
-Folder: docs/plan/001-dec-cfg-cfg-format-basic-cli/
+Folder: planning/001-dec-cfg-cfg-format-basic-cli/
 
 Goals:
 - Establish YAML configuration format

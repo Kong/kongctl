@@ -17,7 +17,7 @@ Follow the task based workflow which uses subagents and mcp servers for planning
 1. Run the session quick start checklist from CLAUDE.md
 2. Check git status and recent commits
 3. Verify build health
-4. Review current active development in docs/plan/index.md
+4. Review current active development in planning/index.md
 5. Report current progress and next steps
 
 #### `/status`

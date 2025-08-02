@@ -29,7 +29,7 @@ import (
 // context and SDK factory, overriding test mocks. This causes "unexpected method call" errors.
 // 
 // Recommended fix: Mock at the SDK factory level by overriding helpers.DefaultSDKFactory
-// See docs/plan/004-dec-cfg-multi-resource/test-refactoring-todo.md for detailed proposal
+// See planning/004-dec-cfg-multi-resource/test-refactoring-todo.md for detailed proposal
 func TestPlanGeneration_CreatePortal(t *testing.T) {
 	// Create test configuration
 	configDir := t.TempDir()
@@ -643,7 +643,7 @@ func TestDiffCommand_YAMLOutput(t *testing.T) {
 }
 
 // TODO: Fix mock injection for command-level tests (same issue as TestPlanGeneration_CreatePortal)
-// See docs/plan/004-dec-cfg-multi-resource/test-refactoring-todo.md for detailed proposal
+// See planning/004-dec-cfg-multi-resource/test-refactoring-todo.md for detailed proposal
 func TestPlanDiffPipeline(t *testing.T) {
 	// Create test configuration
 	configDir := t.TempDir()

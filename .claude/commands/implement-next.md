@@ -5,7 +5,7 @@ Implement the next available step in the current development plan with full qual
 ## Steps
 
 1. Identify next step:
-   - Read `docs/plan/index.md` → current active stage
+   - Read `planning/index.md` → current active stage
    - Find first "Not Started" step in execution-plan-steps.md
    - Verify dependencies are met
 

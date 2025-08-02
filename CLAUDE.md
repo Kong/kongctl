@@ -10,9 +10,9 @@ Use custom commands for streamlined development:
 - **`/status`** - View current progress and next steps  
 - **`/implement-next`** - Implement next step with quality checks
 
-**For complete workflow guide**: See [docs/plan/user-guide.md](docs/plan/user-guide.md)  
-**For current work status**: Check [docs/plan/index.md](docs/plan/index.md)  
-**For implementation details**: See [docs/plan/implementation-guide.md](docs/plan/implementation-guide.md)
+**For complete workflow guide**: See [planning/user-guide.md](planning/user-guide.md)  
+**For current work status**: Check [planning/index.md](planning/index.md)  
+**For implementation details**: See [planning/implementation-guide.md](planning/implementation-guide.md)
 
 ## Repository Overview
 
@@ -253,7 +253,7 @@ func outputResult(data interface{}, format string) error {
 
 ## Development Process and Documentation 
 
-All planning and design decisions are documented in `docs/plan/` with stage-based folders. Current development status is tracked in [docs/plan/index.md](docs/plan/index.md).
+All planning and design decisions are documented in `planning/` with stage-based folders. Current development status is tracked in [planning/index.md](planning/index.md).
 
 ### Session Start Checklist
 
@@ -261,21 +261,21 @@ Use `/start-session` command which automatically handles project health checks a
 
 ### Custom Commands for Users
 
-See [docs/plan/user-guide.md](docs/plan/user-guide.md) for complete command reference and workflow patterns.
+See [planning/user-guide.md](planning/user-guide.md) for complete command reference and workflow patterns.
 
 ### Implementation Workflow for Claude Code
 
-Detailed implementation workflow is documented in [docs/plan/implementation-guide.md](docs/plan/implementation-guide.md). Key principles:
-- Always start with `docs/plan/index.md` for current active stage
+Detailed implementation workflow is documented in [planning/implementation-guide.md](planning/implementation-guide.md). Key principles:
+- Always start with `planning/index.md` for current active stage
 - Use `/implement-next` for step-by-step implementation
 - Run quality gates: `make build && make lint && make test`
 
 ### Current Development Context
 
-The planning documents in `docs/plan/` track all development efforts for kongctl:
-- **Current work**: [docs/plan/index.md](docs/plan/index.md) - Active development status
-- **Implementation workflow**: [docs/plan/implementation-guide.md](docs/plan/implementation-guide.md) - Claude Code guidance
-- **User commands**: [docs/plan/user-guide.md](docs/plan/user-guide.md) - Human developer reference
+The planning documents in `planning/` track all development efforts for kongctl:
+- **Current work**: [planning/index.md](planning/index.md) - Active development status
+- **Implementation workflow**: [planning/implementation-guide.md](planning/implementation-guide.md) - Claude Code guidance
+- **User commands**: [planning/user-guide.md](planning/user-guide.md) - Human developer reference
 
 Each feature has its own folder with requirements, technical approach, and implementation steps.
 
