@@ -37,7 +37,7 @@ graph LR
 
 ## Plan Artifacts in CI/CD
 
-Plan artifacts optional, but can be useful for CI/CD workflows. A plan filei enables separation 
+Plan artifacts optional, but can be useful for CI/CD workflows. A plan file enables separation 
 between planning and execution, allowing for additional review and approval processes of changes.
 
 ### Benefits of Plan Artifacts
