@@ -43,8 +43,9 @@ To test the protection, try commenting out the `order-api` resource in the confi
   #- ref: order-api
   #  name: "Order Management API"
   #  description: "Production API for order processing"
-  #  # Inherits protected: true from defaults
 ```
+
+Note: This resource inherits `protected: true` from the defaults section.
 
 And run the sync command again:
 

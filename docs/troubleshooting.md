@@ -333,10 +333,15 @@ Error: resource "my-api" references unknown portal: unknown-portal
 **Common causes:**
 
 1. **Typo in reference**:
+   
+   Note the exact ref value:
    ```yaml
    portals:
-     - ref: developer-portal  # Note the exact ref
+     - ref: developer-portal
+   ```
    
+   Wrong ref value:
+   ```yaml
    api_publications:
      - ref: api-pub
        portal: dev-portal     # ❌ Wrong ref
