@@ -29,15 +29,19 @@ This guide helps you diagnose and resolve common issues when using kongctl.
 
 **Solutions:**
 
+Verify current state:
 ```bash
-# 1. Verify current state
 kongctl dump > current-state.yaml
 diff current-state.yaml your-config.yaml
+```
 
-# 2. Check resource references
+Check resource references:
+```bash
 grep "ref:" your-config.yaml
+```
 
-# 3. Verify namespace
+Verify namespace:
+```bash
 kongctl get apis --format json | jq '.[] | select(.labels."KONGCTL-namespace")'
 ```
 
@@ -54,14 +58,18 @@ Error: resource "my-portal" not found
 
 **Solutions:**
 
+Check if resource exists:
 ```bash
-# 1. Check if resource exists
 kongctl get portals | grep my-portal
+```
 
-# 2. Verify resource ref spelling
+Verify resource ref spelling:
+```bash
 grep -n "my-portal" *.yaml
+```
 
-# 3. Ensure dependencies are created first
+Ensure dependencies are created first:
+```bash
 kongctl apply -f portals.yaml
 kongctl apply -f apis.yaml
 kongctl apply -f publications.yaml
@@ -77,22 +85,28 @@ kongctl apply -f publications.yaml
 
 **Solutions:**
 
+Check token expiration:
 ```bash
-# 1. Check token expiration
 kongctl get portals
-# If this fails, token may be expired
-
-# 2. Re-authenticate
-kongctl login
-
-# 3. Verify PAT (if using)
-echo $KONGCTL_KONNECT_PAT
-# Should start with "kpat_"
-
-# 4. Check profile
-echo $KONGCTL_PROFILE
-# Ensure using correct profile
 ```
+If this fails, token may be expired.
+
+Re-authenticate:
+```bash
+kongctl login
+```
+
+Verify PAT (if using):
+```bash
+echo $KONGCTL_KONNECT_PAT
+```
+Should start with "kpat_"
+
+Check profile:
+```bash
+echo $KONGCTL_PROFILE
+```
+Ensure using correct profile.
 
 ### Issue: Multiple authentication methods conflict
 
@@ -105,8 +119,8 @@ echo $KONGCTL_PROFILE
 2. `KONGCTL_<PROFILE>_KONNECT_PAT` environment variable
 3. Stored token from `kongctl login`
 
+Clear all auth methods and start fresh:
 ```bash
-# Clear all auth methods and start fresh
 unset KONGCTL_DEFAULT_KONNECT_PAT
 rm ~/.config/kongctl/.default-konnect-token.json
 kongctl login
@@ -423,6 +437,111 @@ apis:
     depends_on: api-base
 ```
 
+## Plan Artifact Debugging
+
+### Understanding Plan Structure
+
+Plan artifacts are JSON files with the following structure:
+
+```json
+{
+  "version": "1.0",
+  "generated_at": "2024-01-15T14:30:00Z",
+  "summary": {
+    "create": 2,
+    "update": 1,
+    "delete": 0
+  },
+  "changes": [
+    {
+      "operation": "CREATE",
+      "resource_type": "api",
+      "resource_ref": "user-api",
+      "changes": { /* full resource definition */ }
+    }
+  ]
+}
+```
+
+### Issue: Invalid plan file
+
+**Symptoms:**
+```
+Error: failed to read plan: invalid plan format
+```
+
+**Solutions:**
+
+Validate JSON syntax:
+```bash
+cat plan.json | jq . > /dev/null
+```
+
+Check plan version compatibility:
+```bash
+jq '.version' plan.json
+```
+
+Ensure plan hasn't been corrupted:
+```bash
+sha256sum plan.json
+```
+
+### Issue: Stale plan artifact
+
+**Symptoms:**
+```
+Error: plan is out of date - resource already exists
+```
+
+**Solutions:**
+
+Regenerate the plan:
+```bash
+kongctl plan -f config.yaml --output-file new-plan.json
+```
+
+Compare old and new plans:
+```bash
+diff <(jq -S . old-plan.json) <(jq -S . new-plan.json)
+```
+
+Check resource state:
+```bash
+kongctl get api user-api
+```
+
+### Inspecting Plan Contents
+
+**View plan summary:**
+```bash
+jq '.summary' plan.json
+```
+
+**List all operations:**
+```bash
+jq '.changes[] | {op: .operation, type: .resource_type, ref: .resource_ref}' plan.json
+```
+
+**Filter specific operations:**
+
+Show only CREATE operations:
+```bash
+jq '.changes[] | select(.operation == "CREATE")' plan.json
+```
+
+Show only API updates:
+```bash
+jq '.changes[] | select(.operation == "UPDATE" and .resource_type == "api")' plan.json
+```
+
+**Check execution order:**
+
+Plans are ordered by dependencies:
+```bash
+jq '.changes[] | {order: ._order, ref: .resource_ref, deps: .depends_on}' plan.json
+```
+
 ## Execution Failures
 
 ### Issue: Partial apply failures
@@ -509,18 +628,18 @@ kongctl get apis -o json | jq '.[] | select(.labels."KONGCTL-managed" == "true")
 
 **Solutions:**
 
+Enable trace logging to see API calls:
 ```bash
-# 1. Enable trace logging to see API calls
 kongctl plan -f config.yaml --log-level trace
+```
 
-# 2. Reduce configuration size
-# Split into smaller files
+Reduce configuration size by splitting into smaller files:
+```bash
 kongctl plan -f apis-batch-1.yaml
 kongctl plan -f apis-batch-2.yaml
-
-# 3. Check for rate limiting
-# Look for 429 status codes in trace logs
 ```
+
+Check for rate limiting by looking for 429 status codes in trace logs.
 
 ### Issue: High memory usage with file tags
 
@@ -549,11 +668,13 @@ kongctl plan -f apis-batch-2.yaml
 
 ### Enable Debug Logging
 
+Show detailed operation logs:
 ```bash
-# Show detailed operation logs
 kongctl apply -f config.yaml --log-level debug
+```
 
-# Show API requests/responses
+Show API requests/responses:
+```bash
 kongctl apply -f config.yaml --log-level trace
 ```
 
@@ -573,45 +694,65 @@ Look for:
 
 ### Step-by-Step Debugging
 
+Validate configuration:
 ```bash
-# 1. Validate configuration
 cat config.yaml | python -m yaml
+```
 
-# 2. Test authentication
+Test authentication:
+```bash
 kongctl get portals
+```
 
-# 3. Generate plan with debug
-kongctl plan -f config.yaml --log-level debug -o plan.json
+Generate plan with debug:
+```bash
+kongctl plan -f config.yaml --log-level debug --output-file plan.json
+```
 
-# 4. Review plan
+Review plan:
+```bash
 cat plan.json | jq '.changes'
+```
 
-# 5. Dry run
+Dry run:
+```bash
 kongctl apply --plan plan.json --dry-run
+```
 
-# 6. Apply with trace logging
+Apply with trace logging:
+```bash
 kongctl apply --plan plan.json --log-level trace
 ```
 
 ### Common Debug Commands
 
+Check current state:
 ```bash
-# Check current state
 kongctl dump > current.yaml
+```
 
-# Compare configurations
+Compare configurations:
+```bash
 diff -u current.yaml desired.yaml
+```
 
-# List managed resources
+List managed resources:
+```bash
 kongctl get apis -o json | jq '.[] | select(.labels."KONGCTL-managed")'
+```
 
-# Check specific resource
+Check specific resource:
+```bash
 kongctl get api my-api -o yaml
+```
 
-# Verify file paths
+Verify file paths:
+```bash
 find . -name "*.yaml" -exec echo {} \; -exec head -1 {} \;
+```
 
-# Validate references
+Validate references:
+```bash
 for ref in $(grep -h "ref:" *.yaml | awk '{print $2}'); do
   echo "Checking ref: $ref"
   grep -l "$ref" *.yaml
@@ -633,7 +774,7 @@ validate-config() {
   done
   
   # 3. Plan generation test
-  kongctl plan --config config.yaml --dry-run
+  kongctl plan -f config.yaml
 }
 ```
 
