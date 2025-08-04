@@ -97,14 +97,15 @@ api_publications:
 ## Scripts
 
 ### scripts/generate-plan.sh
+
+This script creates a timestamped plan artifact:
+
 ```bash
 #!/bin/bash
 set -e
 
-# Create plans directory if it doesn't exist
 mkdir -p plans
 
-# Generate timestamp
 TIMESTAMP=$(date +%Y-%m-%d-%H%M%S)
 PLAN_FILE="plans/plan-${TIMESTAMP}.json"
 
@@ -117,6 +118,9 @@ echo "Review with: kongctl diff --plan $PLAN_FILE"
 ```
 
 ### scripts/apply-plan.sh
+
+This script applies a plan artifact with confirmation:
+
 ```bash
 #!/bin/bash
 set -e
@@ -136,12 +140,10 @@ fi
 echo "Applying plan: $PLAN_FILE"
 echo ""
 
-# Show summary
 echo "Plan summary:"
 jq '.summary' "$PLAN_FILE"
 echo ""
 
-# Confirm before applying
 read -p "Apply this plan? (y/N) " -n 1 -r
 echo
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -149,10 +151,8 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   exit 1
 fi
 
-# Apply the plan
 kongctl apply --plan "$PLAN_FILE"
 
-# Archive the applied plan
 ARCHIVE_DIR="plans/applied"
 mkdir -p "$ARCHIVE_DIR"
 mv "$PLAN_FILE" "$ARCHIVE_DIR/"

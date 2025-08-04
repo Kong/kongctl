@@ -299,20 +299,31 @@ Use `_defaults` to set default values for all resources in a file:
 ```yaml
 _defaults:
   kongctl:
-    namespace: platform-team    # Default namespace for resources in this file
-    protected: true            # Default protection status
+    namespace: platform-team
+    protected: true
+```
 
+In this example:
+- Default namespace for resources in this file: `platform-team`
+- Default protection status: `true`
+
+```yaml
 portals:
   - ref: api-portal
     name: "API Portal"
-    # Inherits namespace: platform-team and protected: true
-    
+```
+
+The `api-portal` inherits `namespace: platform-team` and `protected: true` from defaults.
+
+```yaml
   - ref: test-portal
     name: "Test Portal"
     kongctl:
-      namespace: qa-team      # Overrides default namespace
-      protected: false        # Overrides default protected
+      namespace: qa-team
+      protected: false
 ```
+
+The `test-portal` overrides the default namespace with `qa-team` and protected status with `false`.
 
 ### Namespace and Protected Field Behavior
 
@@ -638,6 +649,8 @@ kongctl sync --plan plans/last-known-good.json --auto-approve
 ### Common Mistakes to Avoid
 
 ❌ **Setting kongctl on child resources**:
+
+Wrong - kongctl section not supported on child resources:
 ```yaml
 # WRONG
 apis:
@@ -646,7 +659,7 @@ apis:
       namespace: team-a
     versions:
       - ref: v1
-        kongctl:  # ERROR: Not supported on child
+        kongctl:  # ERROR
           protected: true
 ```
 
@@ -657,26 +670,31 @@ apis:
   - ref: my-api
     kongctl:
       namespace: team-a
-      protected: true  # Set on parent only
+      protected: true
     versions:
       - ref: v1
-        # No kongctl here
 ```
 
+Note: Set kongctl metadata on parent only. Child resources don't support kongctl sections.
+
 ❌ **Using name as identifier**:
+
+Wrong - using display name:
 ```yaml
 # WRONG
 api_publications:
   - ref: pub1
-    api: "Users API"  # Using display name
+    api: "Users API"
 ```
 
 ✅ **Use ref for references**:
+
+Correct - using ref:
 ```yaml
 # RIGHT
 api_publications:
   - ref: pub1
-    api: users-api  # Using ref
+    api: users-api
 ```
 
 ## Migration Guide
@@ -720,8 +738,10 @@ apis:
     name: "Users API"
     kongctl:
       namespace: production
-      protected: true  # Protect during migration
+      protected: true
 ```
+
+Note: Enable protection during migration to prevent accidental changes.
 
 #### Step 5: Test Migration
 

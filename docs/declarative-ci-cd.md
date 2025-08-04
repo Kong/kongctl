@@ -482,11 +482,13 @@ apis:
 
 Create separate PATs for each environment:
 
+Development PAT with read/write to dev resources:
 ```bash
-# Development - read/write to dev resources
 KONG_PAT_DEV="kpat_dev_xxxxx"
+```
 
-# Production - read/write to prod resources, requires 2FA
+Production PAT with read/write to prod resources (requires 2FA):
+```bash
 KONG_PAT_PROD="kpat_prod_xxxxx"
 ```
 
@@ -513,9 +515,11 @@ apis:
   - ref: payment-api
     name: "Payment Processing API"
     kongctl:
-      protected: true  # Prevents accidental changes
+      protected: true
       namespace: production
 ```
+
+Note: The `protected: true` flag prevents accidental changes through kongctl operations.
 
 ## Advanced Patterns
 
@@ -554,25 +558,32 @@ jobs:
 
 ### 2. Canary Deployments
 
+Create a canary deployment script:
+
 ```bash
 #!/bin/bash
-# canary-deploy.sh
+```
 
-# Deploy canary configuration
+Filename: canary-deploy.sh
+
+Deploy canary configuration:
+```bash
 kongctl apply -f configs/canary/ \
   --auto-approve
+```
 
-# Monitor metrics
+Monitor metrics for 5 minutes:
+```bash
 sleep 300
+```
 
-# Check error rate
+Check error rate and decide on deployment:
+```bash
 ERROR_RATE=$(curl -s metrics.example.com/error_rate)
 if [ "$ERROR_RATE" -lt "0.01" ]; then
-  # Deploy to production
   kongctl apply -f configs/production/ \
     --auto-approve
 else
-  # Rollback canary
   kongctl sync -f configs/canary-stable/ \
     --auto-approve
   exit 1
@@ -603,7 +614,6 @@ jobs:
           
           if [ -s drift.json ]; then
             echo "Drift detected!"
-            # Send alert
             curl -X POST ${{ secrets.SLACK_WEBHOOK }} \
               -d '{"text":"Kong configuration drift detected"}'
           fi
