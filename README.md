@@ -201,7 +201,7 @@ KONGCTL_DEFAULT_OUTPUT=yaml kongctl get apis
 
 ## Command Structure
 
-Commands generallyfollow a verb->product->resource->args pattern with `konnect` as the default product.
+Commands generally follow a verb->product->resource->args pattern with `konnect` as the default product.
 
 ```shell
 kongctl <verb> <product> <resource-type> [resource-name] [flags]
