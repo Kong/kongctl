@@ -423,19 +423,19 @@ For comprehensive YAML tags documentation, see [YAML Tags Reference](declarative
 
 ### plan
 
-Create a plan artifact - a JSON file containing the exact changes to be made:
+Create a plan - a JSON file containing the set changes to be made:
 
 Generate a plan and output to STDOUT:
 ```shell
 kongctl plan -f config.yaml
 ```
 
-Create a plan artifact for later execution:
+Create a plan and store in a file:
 ```shell
 kongctl plan -f config.yaml --output-file plan.json
 ```
 
-Generate plan from multiple configs:
+Generate plan file from multiple configs:
 ```shell
 kongctl plan -f base.yaml -f overrides.yaml --output-file changes.json
 ```
@@ -471,7 +471,7 @@ Preview sync changes:
 kongctl sync -f config.yaml --dry-run
 ```
 
-Sync team-specific configuration:
+Sync configuration with a prompt confirmation:
 ```shell
 kongctl sync -f team-config.yaml
 ```
@@ -479,6 +479,11 @@ kongctl sync -f team-config.yaml
 Skip confirmation prompt:
 ```shell
 kongctl sync -f config.yaml --auto-approve
+```
+
+Sync from a plan artifact:
+```shell
+kongctl sync --plan plan.json
 ```
 
 ### diff
@@ -507,31 +512,15 @@ kongctl diff -f config.yaml --format json
 
 ### dump
 
-Export current Konnect state to YAML:
+Export current Konnect state to Terraform import statements:
 
-Export all resources:
+_Note: This command will be extended in the future to support YAML export._
+
 ```shell
 kongctl dump > current-state.yaml
 ```
 
 ## Best Practices
-
-### File Organization
-
-```
-config/
-├── _defaults.yaml        # Shared defaults
-├── portals/             # Portal definitions
-│   └── main.yaml
-├── apis/                # API definitions
-│   ├── users.yaml
-│   └── products.yaml
-├── publications/        # API publications
-│   └── public.yaml
-└── specs/              # OpenAPI specifications
-    ├── users-v1.yaml
-    └── products-v2.yaml
-```
 
 ### Multi-Team Setup
 
@@ -551,16 +540,11 @@ apis:
 
 ### Environment Management
 
-Use profiles for different environments:
+Use configuration profiles for different environments:
 
+Development environment configurations stored in `dev` profile:
 ```shell
-# Development
 kongctl apply -f config.yaml --profile dev
-
-# Production with approval
-kongctl plan -f config.yaml --profile prod --output-file prod-plan.json
-# Review plan...
-kongctl apply --plan prod-plan.json --profile prod
 ```
 
 ### Security Best Practices
@@ -585,7 +569,7 @@ kongctl apply --plan prod-plan.json --profile prod
    - Documentation
 
 4. **Review plans before applying**:
-   - Always use `plan` in production
+   - Use `plan` in production
    - Save plans for audit trail
    - Implement approval workflows
 
@@ -696,81 +680,6 @@ api_publications:
   - ref: pub1
     api: users-api
 ```
-
-## Migration Guide
-
-### From Imperative to Declarative
-
-#### Step 1: Export Current State
-
-```shell
-kongctl dump > current-state.yaml
-```
-
-#### Step 2: Clean Up Export
-
-Remove server-generated fields:
-- `id` fields (except where required)
-- `created_at`, `updated_at`
-- System-generated labels
-
-#### Step 3: Add References
-
-Replace IDs with meaningful refs:
-
-```yaml
-# Before (exported)
-apis:
-  - id: "123e4567-e89b-12d3-a456-426614174000"
-    name: "Users API"
-
-# After (cleaned)
-apis:
-  - ref: users-api
-    name: "Users API"
-```
-
-#### Step 4: Add Management Metadata
-
-```yaml
-apis:
-  - ref: users-api
-    name: "Users API"
-    kongctl:
-      namespace: production
-      protected: true
-```
-
-Note: Enable protection during migration to prevent accidental changes.
-
-#### Step 5: Test Migration
-
-```shell
-# Dry run to ensure no unexpected changes
-kongctl sync -f migrated-config.yaml --dry-run
-
-# Should show minimal changes (mainly adding labels)
-```
-
-#### Step 6: Apply Configuration
-
-```shell
-# First apply adds management labels
-kongctl apply -f migrated-config.yaml
-
-# Verify state matches
-kongctl diff -f migrated-config.yaml
-```
-
-### Gradual Migration Strategy
-
-For large deployments:
-
-1. **Phase 1**: Export and document current state
-2. **Phase 2**: Migrate non-critical resources
-3. **Phase 3**: Migrate development/staging environments
-4. **Phase 4**: Migrate production with protection enabled
-5. **Phase 5**: Enable full management (remove protection)
 
 ## Field Validation
 
