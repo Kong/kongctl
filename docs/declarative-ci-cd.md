@@ -673,8 +673,7 @@ jobs:
 Enable verbose logging in CI:
 
 ```bash
-export KONGCTL_LOG_LEVEL=debug
-kongctl apply -f configs/ --auto-approve
+kongctl apply -f configs/ --auto-approve --log-level debug
 ```
 
 ## Further Reading
