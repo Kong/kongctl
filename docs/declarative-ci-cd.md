@@ -35,6 +35,69 @@ graph LR
     G --> H[CD: Apply Changes]
 ```
 
+## Plan Artifacts in CI/CD
+
+Plan artifacts optional, but can be useful for CI/CD workflows. A plan filei enables separation 
+between planning and execution, allowing for additional review and approval processes of changes.
+
+### Benefits of Plan Artifacts
+
+1. **Predictability**: Know exactly what will change before execution
+2. **Auditability**: Store plans as build artifacts for compliance
+3. **Approval Workflows**: Review plans before applying to production
+4. **Rollback Safety**: Keep previous plans for quick recovery
+5. **Cross-Team Collaboration**: Share plans for review and feedback
+
+### Plan Artifact Storage Strategies
+
+#### Short-term Storage (CI Artifacts)
+```yaml
+# Store as CI build artifact
+- name: Upload Plan
+  uses: actions/upload-artifact@v3
+  with:
+    name: kong-plan-${{ github.sha }}
+    path: plan.json
+    retention-days: 30
+```
+
+#### Long-term Storage (Version Control)
+
+Commit plans alongside configurations:
+```shell
+plans/
+├── 2024-01-15-add-user-api.json
+├── 2024-01-16-update-rate-limits.json
+└── 2024-01-17-emergency-rollback.json
+```
+
+#### External Storage (S3, GCS, etc.)
+
+Upload to S3 for long-term retention:
+```shell
+aws s3 cp plan.json s3://kong-plans/$(date +%Y/%m/%d)/plan-${BUILD_ID}.json
+```
+
+### Plan Review Best Practices
+
+1. **Always generate diffs from plans** for human review:
+   ```shell
+   kongctl diff --plan plan.json
+   ```
+
+2. **Include plan summary in PR comments** for visibility
+
+3. **Validate plans before storing** to ensure they're valid:
+   ```shell
+   kongctl apply --plan plan.json --dry-run
+   ```
+
+4. **Tag plans with metadata** for easier tracking:
+   - Commit SHA
+   - Timestamp
+   - Author
+   - Environment
+
 ## GitHub Actions
 
 ### Basic Workflow
@@ -71,7 +134,7 @@ jobs:
         env:
           KONGCTL_KONNECT_PAT: ${{ secrets.KONG_PAT }}
         run: |
-          kongctl plan -f kong-config/ -o plan.json
+          kongctl plan -f kong-config/ --output-file plan.json
           
       - name: Comment PR with Plan
         uses: actions/github-script@v6
@@ -195,7 +258,7 @@ validate:
   stage: validate
   script:
     - *install_kongctl
-    - kongctl plan -f $KONG_CONFIG_PATH --dry-run
+    - kongctl plan -f $KONG_CONFIG_PATH
   only:
     - merge_requests
 
@@ -203,7 +266,7 @@ plan:
   stage: plan
   script:
     - *install_kongctl
-    - kongctl plan -f $KONG_CONFIG_PATH -o plan.json
+    - kongctl plan -f $KONG_CONFIG_PATH --output-file plan.json
     - kongctl diff --plan plan.json
   artifacts:
     paths:
@@ -242,7 +305,7 @@ plan:development:
   extends: .kong_job
   stage: plan
   script:
-    - kongctl plan -f kong-config/dev/ -o plan-dev.json
+    - kongctl plan -f kong-config/dev/ --output-file plan-dev.json
   artifacts:
     paths:
       - plan-dev.json
@@ -253,7 +316,7 @@ plan:production:
   extends: .kong_job
   stage: plan
   script:
-    - kongctl plan -f kong-config/prod/ -o plan-prod.json
+    - kongctl plan -f kong-config/prod/ --output-file plan-prod.json
   artifacts:
     paths:
       - plan-prod.json
@@ -322,7 +385,7 @@ pipeline {
             }
             steps {
                 withCredentials([string(credentialsId: 'kong-pat', variable: 'KONGCTL_KONNECT_PAT')]) {
-                    sh 'kongctl plan -f ${KONG_CONFIG_PATH} -o plan.json'
+                    sh 'kongctl plan -f ${KONG_CONFIG_PATH} --output-file plan.json'
                     sh 'kongctl diff --plan plan.json'
                     
                     publishHTML([
@@ -370,7 +433,7 @@ node {
     
     stage('Plan') {
         withCredentials([string(credentialsId: 'kong-pat-dev', variable: 'KONGCTL_KONNECT_PAT')]) {
-            sh "${kongctl}/kongctl plan -f kong-config/ -o plan.json"
+            sh "${kongctl}/kongctl plan -f kong-config/ --output-file plan.json"
             
             def plan = readJSON file: 'plan.json'
             echo "Changes: ${plan.summary.create} creates, ${plan.summary.update} updates, ${plan.summary.delete} deletes"
@@ -495,9 +558,8 @@ jobs:
 #!/bin/bash
 # canary-deploy.sh
 
-# Deploy to canary namespace
-kongctl apply -f configs/ \
-  --namespace canary \
+# Deploy canary configuration
+kongctl apply -f configs/canary/ \
   --auto-approve
 
 # Monitor metrics
@@ -507,13 +569,11 @@ sleep 300
 ERROR_RATE=$(curl -s metrics.example.com/error_rate)
 if [ "$ERROR_RATE" -lt "0.01" ]; then
   # Deploy to production
-  kongctl apply -f configs/ \
-    --namespace production \
+  kongctl apply -f configs/production/ \
     --auto-approve
 else
   # Rollback canary
-  kongctl sync -f configs/stable/ \
-    --namespace canary \
+  kongctl sync -f configs/canary-stable/ \
     --auto-approve
   exit 1
 fi

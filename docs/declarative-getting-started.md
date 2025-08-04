@@ -16,9 +16,9 @@ and an API and apply them to your Kong Konnect account.
   and Auth Strategies. 
 - **References (ref)**: Identifier string _in the declarative configuration_ which 
   uniquely identifies each resource
-- **Plan**: Plans are artifacts that contain desired changes to resources. Plans 
-  are the foundation to the declarative configuration feature, but using them 
-  directly is optional
+- **Plan**: A plan is a JSON artifact that captures the exact changes to be made 
+  to your resources. While `apply` and `sync` generate plans internally, you can 
+  create explicit plan artifacts for review, audit, and deferred execution
 - **Apply**: Execute changes to resources (create and update only)
 - **Sync**: Full declarative reconciliation (create, update and delete). Not used in this guide
 

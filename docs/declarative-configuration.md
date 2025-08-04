@@ -35,11 +35,13 @@ apis:
     version: "v1.0.0"
 ```
 
+Preview changes:
 ```shell
-# Preview changes
-kongctl plan -f api-config.yaml
+kongctl diff -f api-config.yaml
+```
 
-# Apply configuration
+Apply configuration:
+```shell
 kongctl apply -f api-config.yaml
 ```
 
@@ -47,14 +49,18 @@ kongctl apply -f api-config.yaml
 
 ### Declarative vs Imperative
 
-**Imperative** (traditional CLI commands):
+#### Imperative (traditional CLI commands):
+
+_Note: Imperative command support is currently limited. The following 
+is conceptual._
+
 ```bash
 kongctl create portal developer-portal
-kongctl update portal developer-portal --display-name "Dev Portal"
 ```
 
-**Declarative** (configuration as code):
+#### Declarative (configuration as code):
 ```yaml
+# config.yaml
 portals:
   - ref: developer-portal
     name: "developer-portal"
@@ -62,12 +68,76 @@ portals:
     authentication_enabled: true
 ```
 
+```shell
+kongctl apply -f config.yaml
+```
+
 ### Key Principles
 
 1. **Desired State**: Define what you want, not how to get there
 2. **Idempotency**: Apply configurations multiple times safely
 3. **State-Free**: No local state files - current state queried from Konnect
-4. **Plan-Based**: Preview changes before applying
+4. **Plan-Based**: Create sets of changes before applying
+
+### Plan Artifacts
+
+Plan artifacts are JSON files that capture the exact set of changes to be made to your 
+Kong Konnect resources at a specific point in time. Plans are optional, but useful 
+for advanced declarative configuration workflows.
+
+#### What are Plan Artifacts?
+
+A plan artifact is a machine-readable JSON file that contains:
+- The complete set of operations to be performed (CREATE, UPDATE, DELETE)
+- Resource dependencies and execution order
+- Exact field-level changes for updates
+- Metadata about when and how the plan was generated
+
+#### How Planning Works
+
+Both `apply` and `sync` commands use the planning engine internally:
+
+1. **Implicit Planning** (direct execution):
+   ```shell
+   kongctl apply -f config.yaml
+   # Internally: generates plan → executes plan
+   ```
+
+2. **Explicit Planning** (two-phase execution):
+   ```shell
+   # Phase 1: Generate plan artifact
+   kongctl plan -f config.yaml --output-file plan.json
+   
+   # Phase 2: Execute plan artifact (can be done later)
+   kongctl apply --plan plan.json
+   ```
+
+#### Why Use Plan Artifacts?
+
+Plan artifacts enable more advanced workflows:
+
+- **Audit Trail**: Store plans in version control alongside configurations
+- **Review Process**: Share plans with team members before execution
+- **Deferred Execution**: Generate plans in CI, apply them after approval
+- **Rollback Safety**: Keep previously applied plans for rollback
+- **Compliance**: Document exactly what changes were planned
+
+#### Plan vs Diff
+
+Choose the right tool for your needs:
+
+- **`diff` command**: Human-readable preview with flexible output formats
+- **`plan` command**: Machine-readable artifact for execution
+
+For reviewing changes visually:
+```shell
+kongctl diff -f config.yaml
+```
+
+For creating an plan artifact:
+```shell
+kongctl plan -f config.yaml --output-file plan.json
+```
 
 ### Resource Identity
 
@@ -342,31 +412,42 @@ For comprehensive YAML tags documentation, see [YAML Tags Reference](declarative
 
 ### plan
 
-Generate an execution plan showing what changes will be made:
+Create a plan artifact - a JSON file containing the exact changes to be made:
 
+Generate a plan and output to STDOUT:
 ```shell
-# Generate plan from configuration
 kongctl plan -f config.yaml
-
-# Save plan to file
-kongctl plan -f config.yaml -o plan.json
-
-# Plan with specific namespace
-kongctl plan -f config.yaml --namespace team-alpha
 ```
+
+Create a plan artifact for later execution:
+```shell
+kongctl plan -f config.yaml --output-file plan.json
+```
+
+Generate plan from multiple configs:
+```shell
+kongctl plan -f base.yaml -f overrides.yaml --output-file changes.json
+```
+
+**Note**: The `plan` command creates machine-readable plan artifacts. For human-readable 
+change preview, use the `diff` command instead.
 
 ### apply
 
 Apply configuration changes (create/update only):
 
+Apply directly from config:
 ```shell
-# Apply directly from config
 kongctl apply -f config.yaml
+```
 
-# Apply from saved plan
+Apply from saved plan:
+```shell
 kongctl apply --plan plan.json
+```
 
-# Dry run
+Preview changes without applying:
+```shell
 kongctl apply -f config.yaml --dry-run
 ```
 
@@ -374,35 +455,52 @@ kongctl apply -f config.yaml --dry-run
 
 Full synchronization including deletions:
 
+Preview sync changes:
 ```shell
-# Preview sync changes
 kongctl sync -f config.yaml --dry-run
+```
 
-# Sync specific namespace
+Sync team-specific configuration:
+```shell
 kongctl sync -f team-config.yaml
+```
 
-# Force sync without confirmation
-kongctl sync -f config.yaml --force
+Skip confirmation prompt:
+```shell
+kongctl sync -f config.yaml --auto-approve
 ```
 
 ### diff
 
-Show differences between current and desired state:
+Display human-readable preview of changes between current and desired state:
 
+Preview changes from configuration file:
 ```shell
 kongctl diff -f config.yaml
 ```
+
+Preview changes from a plan artifact:
+```shell
+kongctl diff --plan plan.json
+```
+
+Get JSON output for scripting:
+```shell
+kongctl diff -f config.yaml --format json
+```
+
+**Use cases**:
+- Quick visual review of pending changes
+- Validating configuration before creating a plan
+- Debugging unexpected changes
 
 ### dump
 
 Export current Konnect state to YAML:
 
+Export all resources:
 ```shell
-# Export all resources
 kongctl dump > current-state.yaml
-
-# Export specific namespace
-kongctl dump --namespace team-alpha > team-state.yaml
 ```
 
 ## Best Practices
@@ -449,7 +547,7 @@ Use profiles for different environments:
 kongctl apply -f config.yaml --profile dev
 
 # Production with approval
-kongctl plan -f config.yaml --profile prod -o prod-plan.json
+kongctl plan -f config.yaml --profile prod --output-file prod-plan.json
 # Review plan...
 kongctl apply --plan prod-plan.json --profile prod
 ```
@@ -479,6 +577,63 @@ kongctl apply --plan prod-plan.json --profile prod
    - Always use `plan` in production
    - Save plans for audit trail
    - Implement approval workflows
+
+### Plan Artifact Workflows
+
+#### Basic Plan Review Workflow
+
+Developer creates plan:
+```shell
+kongctl plan -f config.yaml --output-file proposed-changes.json
+```
+
+Review changes visually:
+```shell
+kongctl diff --plan proposed-changes.json
+```
+
+Share plan for review (commit to git, attach to PR, etc.):
+```shell
+git add proposed-changes.json
+git commit -m "Plan for adding new API endpoints"
+```
+
+After approval, apply the plan:
+```shell
+kongctl apply --plan proposed-changes.json
+```
+
+#### Production Deployment with Approval
+
+```shell
+# CI/CD Pipeline Stage 1: Plan Generation
+kongctl plan -f production-config.yaml --output-file plan-$(date +%Y%m%d-%H%M%S).json
+
+# Stage 2: Manual approval gate
+# - Plan artifact is stored as build artifact
+# - Team reviews plan details
+# - Approval triggers next stage
+
+# Stage 3: Plan Execution
+kongctl apply --plan plan-20240115-142530.json --auto-approve
+```
+
+#### Emergency Rollback Using Previous Plan
+
+List recent plans (assuming you store them):
+```shell
+ls -la plans/
+```
+
+Review what the previous state included:
+```shell
+kongctl diff --plan plans/last-known-good.json
+```
+
+Revert to previous state:
+```shell
+kongctl sync --plan plans/last-known-good.json --auto-approve
+```
 
 ### Common Mistakes to Avoid
 
@@ -627,6 +782,7 @@ Browse the [examples directory](examples/declarative/) for:
 - Multi-resource setups
 - Team collaboration patterns
 - CI/CD integration
+- [Plan artifact workflows](examples/declarative/plan-artifacts/) - Complete workflow example
 
 ## Related Documentation
 
