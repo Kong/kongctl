@@ -80,7 +80,7 @@ aws s3 cp plan.json s3://kong-plans/$(date +%Y/%m/%d)/plan-${BUILD_ID}.json
 
 ### Plan Review Best Practices
 
-1. **Generate diffs from plans for human review:
+1. **Generate diffs from plans for human review:**
    ```shell
    kongctl diff --plan plan.json
    ```
