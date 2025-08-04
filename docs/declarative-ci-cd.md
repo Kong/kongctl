@@ -80,19 +80,14 @@ aws s3 cp plan.json s3://kong-plans/$(date +%Y/%m/%d)/plan-${BUILD_ID}.json
 
 ### Plan Review Best Practices
 
-1. **Always generate diffs from plans** for human review:
+1. **Generate diffs from plans for human review:
    ```shell
    kongctl diff --plan plan.json
    ```
 
 2. **Include plan summary in PR comments** for visibility
 
-3. **Validate plans before storing** to ensure they're valid:
-   ```shell
-   kongctl apply --plan plan.json --dry-run
-   ```
-
-4. **Tag plans with metadata** for easier tracking:
+3. **Tag plans with metadata** for easier tracking:
    - Commit SHA
    - Timestamp
    - Author
