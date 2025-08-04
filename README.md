@@ -115,7 +115,7 @@ in the command help text with a "Config path" note that looks like this:
 ```
 
 The above help text shows a YAML key path for the `--output` flag which controls the format of output text
-from the CLI. The config path is the location in the configuration file where a flag value can be defauled. 
+from the CLI. The config path is the location in the configuration file where a flag value can be defaulted. 
 In this case it specifies that output formats can be set in the configuration file under an `output` key. 
 
 It's called a config _path_ because the key may be nested. For example this `--control-plane-flag` has this 
@@ -201,16 +201,16 @@ KONGCTL_DEFAULT_OUTPUT=yaml kongctl get apis
 
 ## Command Structure
 
-Commands follow a verb-resource pattern for Konnect resources:
+Commands generallyfollow a verb->product->resource->args pattern with `konnect` as the default product.
 
 ```shell
-kongctl <verb> <resource-type> [resource-name] [flags]
+kongctl <verb> <product> <resource-type> [resource-name] [flags]
 ```
 
 Examples:
-- `kongctl get apis` - List all APIs in Konnect
+- `kongctl get apis` - List all APIs in Konnect (`konnect` product is implicit)
+- `kongctl get konnect apis` - List all APIs in Konnect (using full product name)
 - `kongctl get api users-api` - Get specific API details
-- `kongctl create portal` - Create a new developer portal
 - `kongctl delete api my-api` - Delete an API from Konnect
 
 ## Support
@@ -219,4 +219,5 @@ Examples:
 - **Documentation**: [Kong Docs](https://developer.konghq.com)
 - **Community**: [Kong Nation](https://discuss.konghq.com)
 
-Remember: This is tech preview software. Please report bugs and provide feedback through GitHub Issues.
+Remember: This is tech preview software. Please report bugs and provide feedback through GitHub 
+Issues or the [Kong Nation](https://discuss.konghq.com/) community.
