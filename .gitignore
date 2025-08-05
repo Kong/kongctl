@@ -33,3 +33,5 @@ dist/
 
 # Local development context
 CLAUDE.local.md
+
+.serena/
