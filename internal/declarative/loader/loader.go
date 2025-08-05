@@ -846,6 +846,9 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 		for j := range api.Implementations {
 			api.Implementations[j].SetDefaults()
 		}
+		for j := range api.Documents {
+			api.Documents[j].SetDefaults()
+		}
 	}
 
 	// Apply defaults to root-level API child resources
@@ -857,6 +860,9 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 	}
 	for i := range rs.APIImplementations {
 		rs.APIImplementations[i].SetDefaults()
+	}
+	for i := range rs.APIDocuments {
+		rs.APIDocuments[i].SetDefaults()
 	}
 	
 	// Apply defaults to portal child resources

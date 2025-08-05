@@ -1,8 +1,3 @@
----
-title: Example Guides Page Header
-description: An example of a page header reusable snippet with dynamic data.
----
-
 <!--
 Example Usage:
 

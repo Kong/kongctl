@@ -1,8 +1,3 @@
----
-title: Example Page Banner
-description: An example of a page banner reusable snippet.
----
-
 ::page-hero
 ---
 full-width: true

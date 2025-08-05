@@ -1,8 +1,3 @@
----
-title: APIs
-description: API Products available in this Developer Portal.
----
-
 ::page-section
 ---
 full-width: true

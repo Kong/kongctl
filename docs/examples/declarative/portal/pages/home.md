@@ -1,8 +1,3 @@
----
-title: Kong API
-description: Start building and innovating with our APIs
----
-
 ::page-section
 ---
 full-width: true

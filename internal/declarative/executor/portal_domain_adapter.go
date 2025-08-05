@@ -102,6 +102,21 @@ func (p *PortalDomainAdapter) GetByName(_ context.Context, _ string) (ResourceIn
 	return nil, nil
 }
 
+// GetByID gets a portal custom domain by ID (portal ID in this case)
+func (p *PortalDomainAdapter) GetByID(_ context.Context, id string) (ResourceInfo, error) {
+	// For custom domains, the ID is actually the portal ID since they're singleton resources
+	// The executor calls this with the resource ID from the planned change, which for 
+	// custom domains is the portal ID
+	
+	// Since there's no direct Get method for custom domains in the SDK,
+	// and they're singleton resources, we return a minimal ResourceInfo
+	// that indicates the resource exists
+	return &PortalDomainResourceInfo{
+		portalID: id,
+		hostname: "", // We don't have the hostname without fetching the portal
+	}, nil
+}
+
 // ResourceType returns the resource type name
 func (p *PortalDomainAdapter) ResourceType() string {
 	return "portal_custom_domain"

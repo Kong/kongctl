@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"regexp"
 
+	"github.com/kong/kongctl/internal/util"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
@@ -88,6 +89,13 @@ func (d *APIDocumentResource) SetDefaults() {
 	if d.Status == nil {
 		status := kkComps.APIDocumentStatusPublished
 		d.Status = &status
+	}
+	
+	// If slug is not set but title is provided, generate slug from title
+	// This matches the Konnect API behavior: "defaults to slugify(title)"
+	if d.Slug == nil && d.Title != nil && *d.Title != "" {
+		slug := util.GenerateSlug(*d.Title)
+		d.Slug = &slug
 	}
 }
 

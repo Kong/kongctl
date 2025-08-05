@@ -1,7 +1,4 @@
 ---
-title: Publish APIs
-description: Learn best practices for exposing, versioning, and managing your
-  APIs to accelerate integration and developer adoption.
 page-layout:
   sidebar-left: example-guides-page-nav
   sidebar-right: example-page-toc
