@@ -125,6 +125,26 @@ func (a *APIDocumentAdapter) GetByName(_ context.Context, _ string) (ResourceInf
 	return nil, nil
 }
 
+// GetByID gets an API document by ID using API context
+func (a *APIDocumentAdapter) GetByID(ctx context.Context, id string) (ResourceInfo, error) {
+	// Get API ID from context using existing pattern
+	apiID, err := a.getAPIID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get API ID for document lookup: %w", err)
+	}
+	
+	// Use existing client method
+	document, err := a.client.GetAPIDocument(ctx, apiID, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get API document: %w", err)
+	}
+	if document == nil {
+		return nil, nil
+	}
+	
+	return &APIDocumentResourceInfo{document: document}, nil
+}
+
 // ResourceType returns the resource type name
 func (a *APIDocumentAdapter) ResourceType() string {
 	return "api_document"

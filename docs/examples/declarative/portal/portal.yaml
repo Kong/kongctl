@@ -198,7 +198,7 @@ portals:
       - ref: example-page-toc
         name: "example-page-toc"
         title: "On this page"
-        description: "A snippet to display the table of contents for a page. Ideally utilized in the 'page-layout.sidebar-right' page config."
+        description: "Description in API. A snippet to display the table of contents for a page. Ideally utilized in the 'page-layout.sidebar-right' page config."
         visibility: "public"
         status: "published"
         content: !file ./snippets/example-page-toc.md
