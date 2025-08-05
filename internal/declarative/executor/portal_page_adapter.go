@@ -191,6 +191,26 @@ func (p *PortalPageAdapter) getPortalID(ctx context.Context) (string, error) {
 	return "", fmt.Errorf("portal ID is required for page operations")
 }
 
+// GetByID gets a portal page by ID using portal context
+func (p *PortalPageAdapter) GetByID(ctx context.Context, id string) (ResourceInfo, error) {
+	// Get portal ID from context using existing pattern
+	portalID, err := p.getPortalID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get portal ID for page lookup: %w", err)
+	}
+	
+	// Use existing client method
+	page, err := p.client.GetPortalPage(ctx, portalID, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get portal page: %w", err)
+	}
+	if page == nil {
+		return nil, nil
+	}
+	
+	return &PortalPageResourceInfo{page: page}, nil
+}
+
 // PortalPageResourceInfo implements ResourceInfo for portal pages
 type PortalPageResourceInfo struct {
 	page *state.PortalPage
