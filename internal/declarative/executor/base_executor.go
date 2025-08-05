@@ -212,12 +212,12 @@ func (b *BaseExecutor[TCreate, TUpdate]) validateResourceForUpdate(
 		return resource, nil
 	}
 	
-	// Strategy 2: For protection changes, try ID-based lookup if available
-	if change.ResourceID != "" && isProtectionChange(change) {
+	// Strategy 2: Try ID-based lookup if available (useful for child resources)
+	if change.ResourceID != "" {
 		if idLookup, ok := b.ops.(interface{ GetByID(context.Context, string) (ResourceInfo, error) }); ok {
 			resource, err := idLookup.GetByID(ctx, change.ResourceID)
 			if err == nil && resource != nil {
-				logger.Debug("Resource found via ID lookup during protection change", 
+				logger.Debug("Resource found via ID lookup", 
 					"resource_type", b.ops.ResourceType(), 
 					"name", resourceName, 
 					"id", change.ResourceID)
