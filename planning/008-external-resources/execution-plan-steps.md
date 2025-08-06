@@ -2,19 +2,19 @@
 
 ## Phase 1: Core Implementation
 
-### Step 1: Schema and Configuration (2 days)
+### Step 1: Schema and Configuration
 - [ ] Define external_resources schema in configuration types
 - [ ] Add validation for external resource blocks
 - [ ] Support both direct ID and selector patterns
 - [ ] Add parent field support for hierarchical resources
 
-### Step 2: Resource Type Registry (1 day)
+### Step 2: Resource Type Registry
 - [ ] Create registry for supported external resource types
 - [ ] Map resource types to SDK operations
 - [ ] Define parent-child relationships
 - [ ] Add resource type validation
 
-### Step 3: External Resource Resolver (3 days)
+### Step 3: External Resource Resolver
 - [ ] Implement ExternalResourceResolver struct
 - [ ] Parse external_resources from configuration
 - [ ] Build dependency graph for resolution order
@@ -24,27 +24,27 @@
 - [ ] Implement match validation (exactly one)
 - [ ] Add resource caching mechanism
 
-### Step 4: Reference Resolution (2 days)
+### Step 4: Reference Resolution
 - [ ] Implement ReferenceResolver for dependency handling
 - [ ] Detect external resource references in configurations
 - [ ] Implement implicit ID resolution for _id fields
 - [ ] Handle mixed internal/external references
 - [ ] Add reference validation
 
-### Step 5: Error Handling (1 day)
+### Step 5: Error Handling
 - [ ] Implement clear error messages for zero matches
 - [ ] Implement error messages for multiple matches
 - [ ] Add validation errors for invalid configurations
 - [ ] Handle SDK errors gracefully
 - [ ] Add detailed error context
 
-### Step 6: Integration with Planning (2 days)
+### Step 6: Integration with Planning
 - [ ] Integrate external resolution into planning phase
 - [ ] Ensure resolution happens before plan generation
 - [ ] Update plan output to show external resources
 - [ ] Add external resource status to plan
 
-### Step 7: Testing (3 days)
+### Step 7: Testing
 - [ ] Unit tests for resolver components
 - [ ] Integration tests with mock SDK responses
 - [ ] Test error scenarios (0 matches, multiple matches)
@@ -52,7 +52,7 @@
 - [ ] Test implicit ID resolution
 - [ ] End-to-end tests with real resources
 
-### Step 8: Documentation (1 day)
+### Step 8: Documentation
 - [ ] User guide for external resources
 - [ ] Migration guide from other tools
 - [ ] Configuration examples
@@ -146,16 +146,7 @@
 - Planning phase implementation
 - Configuration management system
 
-## Estimated Timeline
+## Timeline
 
-**Phase 1**: 15 days
-- Core implementation: 11 days
-- Testing: 3 days
-- Documentation: 1 day
-
-**Phase 2**: 10 days (future)
-- Extended features: 7 days
-- Testing: 2 days
-- Documentation: 1 day
-
-Total: 25 days across two phases
+Implementation will proceed through the phases as prioritized, with Phase 1 
+focusing on core functionality and Phase 2 adding extended capabilities.
