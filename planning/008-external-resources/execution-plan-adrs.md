@@ -1,6 +1,6 @@
 # Architecture Decision Records (ADRs)
 
-## ADR-001: Core External Resource Design
+## ADR-008-001: Core External Resource Design
 
 ### Status
 Accepted
@@ -16,7 +16,7 @@ Accepted
 - Clear separation between managed and external resources
 - Flexibility for different identification methods
 
-## ADR-002: Selector Design - Phase 1
+## ADR-008-002: Selector Design - Phase 1
 
 ### Status
 Accepted
@@ -39,7 +39,7 @@ selector:
 ### Future Consideration
 matchExpressions with operators for complex queries (deferred to Phase 2)
 
-## ADR-003: Direct ID Reference
+## ADR-008-003: Direct ID Reference
 
 ### Status
 Accepted
@@ -58,7 +58,7 @@ external_resources:
 - Clear precedence (ID overrides selector)
 - Common use case when IDs are known
 
-## ADR-004: Selector Matching Requirements
+## ADR-008-004: Selector Matching Requirements
 
 ### Status
 Accepted
@@ -73,7 +73,7 @@ Accepted
 - Ambiguity should block operations
 - Clear error messages guide users to fix selectors
 
-## ADR-005: Parent Relationships
+## ADR-008-005: Parent Relationships
 
 ### Status
 Accepted
@@ -92,7 +92,7 @@ external_resources:
 - Clean syntax without unnecessary nesting
 - Consistent with resource hierarchies
 
-## ADR-006: External Resource Storage and Field Resolution
+## ADR-008-006: External Resource Storage and Field Resolution
 
 ### Status
 Accepted
@@ -130,7 +130,7 @@ Since complete objects are stored, future phases could:
 - Use JQ-like syntax for complex field access
 - Add more type mappings as needed
 
-## ADR-007: Resolution Timing
+## ADR-008-007: Resolution Timing
 
 ### Status
 Accepted
@@ -156,7 +156,7 @@ Follows existing two-phase resolution used for API publications:
 - Clear error messages guide users to fix selectors
 - Simplifies executor implementation (IDs always available)
 
-## ADR-008: Caching Strategy
+## ADR-008-008: Caching Strategy
 
 ### Status
 Accepted
@@ -173,7 +173,7 @@ Accepted
 - Simplifies implementation
 - Can add caching in future if performance requires
 
-## ADR-009: No Provider Attribution
+## ADR-008-009: No Provider Attribution
 
 ### Status
 Accepted
@@ -187,7 +187,7 @@ Do not include provider/tool attribution fields
 - Avoids coupling to specific tools
 - Focus on resource identity, not management tool
 
-## ADR-010: Namespace Handling
+## ADR-008-010: Namespace Handling
 
 ### Status
 Accepted
@@ -204,7 +204,7 @@ Accepted
 - External resources are shared references available to all namespaces
 - Simplifies cross-team resource sharing
 
-## ADR-011: Plan Output Representation
+## ADR-008-011: Plan Output Representation
 
 ### Status
 Accepted
@@ -225,7 +225,7 @@ Changes to apply:
 - Shows successful resolution status
 - Provides visibility into external dependencies
 
-## ADR-012: SDK Error Handling
+## ADR-008-012: SDK Error Handling
 
 ### Status
 Accepted
@@ -243,7 +243,7 @@ Accepted
 - Better to fail early with clear errors
 - Users must fix connectivity/auth before proceeding
 
-## ADR-013: Dry Run Behavior
+## ADR-008-013: Dry Run Behavior
 
 ### Status
 Accepted
@@ -258,7 +258,7 @@ Accepted
 - Catches configuration errors early
 - Consistent behavior across modes
 
-## ADR-014: Complex Selectors (Future)
+## ADR-008-014: Complex Selectors (Future)
 
 ### Status
 Proposed (Phase 2)
@@ -291,7 +291,7 @@ Option 1 (matchExpressions) for Phase 2:
 - Better IDE support
 - Consistent with Kubernetes patterns
 
-## ADR-015: Core Entity Resource Naming
+## ADR-008-015: Core Entity Resource Naming
 
 ### Status
 Accepted
@@ -317,7 +317,7 @@ Use `ce_` prefix for Gateway core entity resource types:
 - Documentation explains convention once
 - Consistent usage across all examples
 
-## ADR-016: Parent Validation
+## ADR-008-016: Parent Validation
 
 ### Status
 Accepted
@@ -356,7 +356,7 @@ Error: Invalid external resource configuration
 - Consistent with existing validation patterns
 - Better user experience with early error detection
 
-## ADR-017: Phase 1 Resource Types
+## ADR-008-017: Phase 1 Resource Types
 
 ### Status
 Accepted
@@ -372,7 +372,7 @@ Phase 1 supports only essential resource types for api_implementation:
 - Proves the pattern before expanding
 - Additional types can be added incrementally
 
-## ADR-018: Testing Strategy
+## ADR-008-018: Testing Strategy
 
 ### Status
 Accepted
