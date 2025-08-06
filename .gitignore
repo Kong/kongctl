@@ -35,3 +35,7 @@ dist/
 CLAUDE.local.md
 
 .serena/
+
+# Python cache folders
+__pycache__/
+*.pyc
