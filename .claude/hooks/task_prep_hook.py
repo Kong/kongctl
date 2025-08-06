@@ -233,7 +233,7 @@ def main():
     if mode == 'github':
         # GitHub issue mode
         issue_number = identifier.replace('gh-', '')
-        base_dir = Path(cwd) / "tasks"
+        base_dir = Path(cwd) / "planning" / "tasks"
         task_dir_name = identifier
         branch_name = identifier
         
@@ -253,7 +253,7 @@ def main():
         issue_file = Path(task_dir) / "GITHUB_ISSUE.md"
         issue_file.write_text(issue_content)
         
-        context_msg = f"GitHub issue #{issue_number} task directory has been created at tasks/{identifier}/. Git branch '{branch_name}' has been created and checked out. The issue details have been saved to GITHUB_ISSUE.md. The subagents must create the INVESTIGATION_REPORT.md, FLOW_REPORT.md and PLAN.md files inside tasks/{identifier}/."
+        context_msg = f"GitHub issue #{issue_number} task directory has been created at planning/tasks/{identifier}/. Git branch '{branch_name}' has been created and checked out. The issue details have been saved to GITHUB_ISSUE.md. The subagents must create the INVESTIGATION_REPORT.md, FLOW_REPORT.md and PLAN.md files inside planning/tasks/{identifier}/."
         
     elif mode == 'planning':
         # Planning stage mode
@@ -279,7 +279,7 @@ def main():
         
     else:
         # Ad-hoc task mode
-        base_dir = Path(cwd) / "tasks"
+        base_dir = Path(cwd) / "planning" / "tasks"
         task_id = get_next_task_id(base_dir, 'task-')
         task_dir_name = f"task-{task_id}"
         branch_name = task_dir_name
@@ -290,7 +290,7 @@ def main():
             print(f"ERROR: Failed to create task directory: {task_dir}", file=sys.stderr)
             sys.exit(2)
         
-        context_msg = f"Directory {task_dir_name} has been automatically created for this task session at tasks/{task_dir_name}/. Git branch '{branch_name}' has been created and checked out. The subagents must create the INVESTIGATION_REPORT.md, FLOW_REPORT.md and PLAN.md files inside tasks/{task_dir_name}/."
+        context_msg = f"Directory {task_dir_name} has been automatically created for this task session at planning/tasks/{task_dir_name}/. Git branch '{branch_name}' has been created and checked out. The subagents must create the INVESTIGATION_REPORT.md, FLOW_REPORT.md and PLAN.md files inside planning/tasks/{task_dir_name}/."
         if task_args:
             context_msg += f" Problem to solve: {task_args}"
     
