@@ -2,16 +2,18 @@
 
 This folder contains the complete planning and implementation tracking for all kongctl features and development efforts.
 
-## 🎯 Current Active Stage: All Planned Stages Completed! 
+## 🎯 Current Active Stage: Stage 8 - External Resources 🚧
 
-**Stage 7: Testing, Documentation, and Core Improvements** ✅ **COMPLETED**
-- **Requirements**: [007-dec-cfg-various/description.md](007-dec-cfg-various/description.md) ✅ Complete
-- **Implementation Guide**: [007-dec-cfg-various/execution-plan-steps.md](007-dec-cfg-various/execution-plan-steps.md) ✅ Complete
-- **Technical Overview**: [007-dec-cfg-various/execution-plan-overview.md](007-dec-cfg-various/execution-plan-overview.md) ✅ Complete
-- **Architecture Decisions**: [007-dec-cfg-various/execution-plan-adrs.md](007-dec-cfg-various/execution-plan-adrs.md) ✅ Complete
-- **Goal**: Complete essential testing, documentation, and core improvements for production readiness
+**Stage 8: External Resources** 🚧 **IN PROGRESS**
+- **Requirements**: [008-external-resources/description.md](008-external-resources/description.md) ✅ Complete
+- **Implementation Guide**: [008-external-resources/execution-plan-steps.md](008-external-resources/execution-plan-steps.md) ✅ Complete
+- **Technical Overview**: [008-external-resources/execution-plan-overview.md](008-external-resources/execution-plan-overview.md) ✅ Complete
+- **Architecture Decisions**: [008-external-resources/execution-plan-adrs.md](008-external-resources/execution-plan-adrs.md) ✅ Complete
+- **Goal**: Enable referencing external resources managed by other Kong tools (decK, Terraform, Kong Operator) without taking ownership
 
-**Progress**: 15/15 steps completed (100%) ✅ **COMPLETED**
+**Progress**: 0/8 steps completed (0%) 🚧 **READY TO START**
+- **Dependencies**: Stage 7 completion ✅ Met
+- **Current Task**: Task-1 planning completed, ready to begin Step 1 (Schema and Configuration)
 
 ## Quick Start for Implementation
 
@@ -223,6 +225,29 @@ The first major feature being implemented is declarative configuration managemen
   - ✅ Dump command migration to public SDK with verified functionality
   - ✅ Code quality and refactoring completed through previous sessions
 
+#### Stage 8: External Resources 🚧 In Progress
+**Goal**: Enable referencing external resources managed by other Kong tools (decK, Terraform, Kong Operator) without taking ownership
+
+| Document | Purpose | Status |
+|----------|---------|---------|
+| [description.md](008-external-resources/description.md) | Requirements | ✅ Complete |
+| [execution-plan-overview.md](008-external-resources/execution-plan-overview.md) | Technical approach | ✅ Complete |
+| [execution-plan-steps.md](008-external-resources/execution-plan-steps.md) | **Implementation guide** | ✅ Complete |
+| [execution-plan-adrs.md](008-external-resources/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
+
+**Implementation Status**: 0/8 steps completed (0%) 🚧 **READY TO START**
+- **Dependencies**: Stage 7 completion ✅ Met
+- **Current Task**: Task-1 planning completed with investigation, flow analysis, and implementation plan
+- **Key deliverables planned**:
+  - Schema and configuration for external resource definitions
+  - Resource type registry mapping to SDK operations
+  - External resource resolver with selector-based matching
+  - Reference resolution integration for implicit ID resolution
+  - Dependency handling for parent-child resource relationships
+  - Planning phase integration with pre-resolution
+  - Comprehensive error handling and validation
+  - Integration testing and documentation
+
 #### Future Work 💭
 **Goal**: Capture ideas for future enhancements
 
@@ -237,7 +262,7 @@ The first major feature being implemented is declarative configuration managemen
 
 ### 🎯 Current Status
 
-**All Planned Stages Completed! 🎉**
+**Stage 8: External Resources - In Progress 🚧**
 
 **Completed Stages**:
 - Stage 1: Configuration Format & Basic CLI ✅ **COMPLETED**
@@ -247,6 +272,9 @@ The first major feature being implemented is declarative configuration managemen
 - Stage 5: Sync Command Implementation ✅ **COMPLETED**
 - Stage 6: Namespace-Based Resource Management ✅ **COMPLETED**
 - Stage 7: Testing, Documentation, and Core Improvements ✅ **COMPLETED**
+
+**Current Stage**:
+- Stage 8: External Resources 🚧 **IN PROGRESS**
 
 **Key Achievements**:
 - Complete declarative configuration management system
@@ -258,10 +286,10 @@ The first major feature being implemented is declarative configuration managemen
 - Extensive integration test coverage
 - Production-ready implementation
 
-**Next Steps**: 
-- Monitor for new feature requests
-- Address any bug reports
-- Consider future enhancements from the Future Work section
+**Current Work**: 
+- Task-1 planning completed: investigation, flow analysis, and implementation plan ready
+- Ready to begin Step 1: Schema and Configuration
+- External resources will enable integration with other Kong declarative tools
 
 ### 🎯 Entry Points for Claude Code
 
