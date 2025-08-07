@@ -1,5 +1,20 @@
 # External Resources Implementation Steps
 
+## Progress Summary
+
+| Step | Task | Status | Notes |
+|------|------|--------|-------|
+| 1 | Schema and Configuration | ✅ Completed | Resolution naming theme |
+| 2 | Resource Type Registry | 🚧 In Progress | Foundation complete (2025-08-07) |
+| 3 | External Resource Resolver | Not Started | |
+| 4 | Reference Resolution Integration | Not Started | |
+| 5 | Error Handling | Not Started | |
+| 6 | Integration with Planning | Not Started | |
+| 7 | Testing | Not Started | |
+| 8 | Documentation | Not Started | |
+
+**Overall Progress**: 2/8 steps (25%) - Step 2 foundation complete, ready for full adapter implementations
+
 ## Phase 1: Core Implementation
 
 ### Step 1: Schema and Configuration ✅ COMPLETED
@@ -14,11 +29,20 @@
 - Registry expanded to include all portal and API child resource types
 - Complete validation framework with XOR validation for ID/selector
 
-### Step 2: Resource Type Registry
-- [ ] Create registry for supported external resource types
-- [ ] Map resource types to SDK operations
-- [ ] Define parent-child relationships
+### Step 2: Resource Type Registry 🚧 IN PROGRESS
+- [x] Create registry for supported external resource types
+- [x] Map resource types to SDK operations (foundation complete)
+- [x] Define parent-child relationships
 - [ ] Add resource type validation
+
+**Implementation Notes** (2025-08-07):
+- Created base adapter pattern with common filtering and validation logic
+- Implemented adapter factory with dependency injection for all 13 resource types
+- Extended state client with GetPortalByID and ListPortalsWithFilter methods
+- Added InjectAdapters method to registry for runtime adapter injection
+- Portal and API adapters fully functional, others have TODO stubs
+- Added support for ce_service (core entity) with control_plane parent requirement
+- Comprehensive test coverage for base adapter functionality
 
 ### Step 3: External Resource Resolver
 - [ ] Implement ExternalResourceResolver struct

@@ -200,6 +200,60 @@ func TestExternalResourceResource_Validate(t *testing.T) {
 			wantErr: true,
 			errMsg:  "cannot have parent of type",
 		},
+		{
+			name: "valid ce_service with control_plane parent ID",
+			resource: ExternalResourceResource{
+				Ref:          "my-service",
+				ResourceType: "ce_service",
+				ID:           extStringPtr("service-123"),
+				Parent: &ExternalResourceParent{
+					ResourceType: "control_plane",
+					ID:           "cp-456",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid ce_service with control_plane parent ref",
+			resource: ExternalResourceResource{
+				Ref:          "my-service",
+				ResourceType: "ce_service",
+				Selector: &ExternalResourceSelector{
+					MatchFields: map[string]string{
+						"name": "user-service",
+					},
+				},
+				Parent: &ExternalResourceParent{
+					ResourceType: "control_plane",
+					Ref:          "prod-cp",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid ce_service without parent",
+			resource: ExternalResourceResource{
+				Ref:          "my-service",
+				ResourceType: "ce_service",
+				ID:           extStringPtr("service-123"),
+			},
+			wantErr: true,
+			errMsg:  "requires parent",
+		},
+		{
+			name: "invalid ce_service with wrong parent type",
+			resource: ExternalResourceResource{
+				Ref:          "my-service",
+				ResourceType: "ce_service",
+				ID:           extStringPtr("service-123"),
+				Parent: &ExternalResourceParent{
+					ResourceType: "api",
+					ID:           "api-456",
+				},
+			},
+			wantErr: true,
+			errMsg:  "cannot have parent of type",
+		},
 	}
 
 	for _, tt := range tests {

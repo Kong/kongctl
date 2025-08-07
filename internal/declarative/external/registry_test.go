@@ -30,6 +30,11 @@ func TestResolutionRegistry_IsSupported(t *testing.T) {
 			want:         true,
 		},
 		{
+			name:         "supported ce_service",
+			resourceType: "ce_service",
+			want:         true,
+		},
+		{
 			name:         "supported api_version",
 			resourceType: "api_version",
 			want:         true,
@@ -100,13 +105,14 @@ func TestResolutionRegistry_GetSupportedTypes(t *testing.T) {
 	supportedTypes := registry.GetSupportedTypes()
 	
 	// Check that we have the expected number of resource types
-	assert.GreaterOrEqual(t, len(supportedTypes), 12)
+	assert.GreaterOrEqual(t, len(supportedTypes), 13)
 	
 	// Check that key resource types are present
 	expectedTypes := []string{
 		"portal",
 		"api",
 		"control_plane",
+		"ce_service",
 		"api_version",
 		"api_publication",
 		"api_implementation",
@@ -146,6 +152,11 @@ func TestResolutionRegistry_GetSupportedSelectorFields(t *testing.T) {
 			name:           "control_plane selector fields",
 			resourceType:   "control_plane",
 			expectedFields: []string{"name", "description"},
+		},
+		{
+			name:           "ce_service selector fields",
+			resourceType:   "ce_service",
+			expectedFields: []string{"name"},
 		},
 		{
 			name:           "api_version selector fields",
@@ -254,6 +265,13 @@ func TestResolutionRegistry_IsValidParentChild(t *testing.T) {
 			childType:  "portal_snippet",
 			want:       true,
 		},
+		// Valid Control Plane parent-child relationships
+		{
+			name:       "control_plane -> ce_service",
+			parentType: "control_plane",
+			childType:  "ce_service",
+			want:       true,
+		},
 		// Invalid relationships
 		{
 			name:       "api_version -> api (reversed)",
@@ -274,9 +292,15 @@ func TestResolutionRegistry_IsValidParentChild(t *testing.T) {
 			want:       false,
 		},
 		{
-			name:       "control_plane -> api (no children)",
+			name:       "control_plane -> api (invalid child)",
 			parentType: "control_plane",
 			childType:  "api",
+			want:       false,
+		},
+		{
+			name:       "ce_service -> control_plane (reversed)",
+			parentType: "ce_service",
+			childType:  "control_plane",
 			want:       false,
 		},
 		{

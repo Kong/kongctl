@@ -85,6 +85,17 @@ func (e ExternalResourceResource) Validate() error {
 		}
 	}
 
+	// Check if parent is required for this resource type
+	registry := external.GetResolutionRegistry()
+	metadata, exists := registry.GetResolutionMetadata(e.ResourceType)
+	if exists && len(metadata.SupportedParents) > 0 {
+		// Parent is required for this resource type
+		if e.Parent == nil {
+			return fmt.Errorf("external resource %q of type %q requires parent of type(s): %s",
+				e.Ref, e.ResourceType, strings.Join(metadata.SupportedParents, ", "))
+		}
+	}
+
 	// Validate parent if present
 	if e.Parent != nil {
 		if err := ValidateParent(e.ResourceType, e.Parent); err != nil {

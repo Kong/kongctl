@@ -111,6 +111,18 @@ func (r *ResolutionRegistry) GetResolutionMetadata(resourceType string) (*Resolu
 	return info, exists
 }
 
+// InjectAdapters updates the registry with concrete adapter implementations
+func (r *ResolutionRegistry) InjectAdapters(adapters map[string]ResolutionAdapter) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	
+	for resourceType, adapter := range adapters {
+		if metadata, exists := r.types[resourceType]; exists {
+			metadata.ResolutionAdapter = adapter
+		}
+	}
+}
+
 // initializeBuiltinTypes registers the built-in resource types with their resolution metadata
 func (r *ResolutionRegistry) initializeBuiltinTypes() {
 	// Portal resource type
@@ -135,9 +147,18 @@ func (r *ResolutionRegistry) initializeBuiltinTypes() {
 	r.Register("control_plane", &ResolutionMetadata{
 		Name:              "Control Plane",
 		SelectorFields:    []string{"name", "description"},
-		SupportedParents:  nil, // Control planes are top-level
-		SupportedChildren: nil, // No child resources supported yet
-		ResolutionAdapter: nil, // Will be set in future steps
+		SupportedParents:  nil,                 // Control planes are top-level
+		SupportedChildren: []string{"ce_service"}, // Gateway services as children
+		ResolutionAdapter: nil,                 // Will be set in future steps
+	})
+
+	// Gateway Service (Core Entity) resource type
+	r.Register("ce_service", &ResolutionMetadata{
+		Name:              "Gateway Service (Core Entity)",
+		SelectorFields:    []string{"name"},
+		SupportedParents:  []string{"control_plane"}, // Must have control plane parent
+		SupportedChildren: nil,                       // No child resources for now
+		ResolutionAdapter: nil,                       // Will be set in future steps
 	})
 
 	// API Version resource type (child of API)
@@ -221,3 +242,4 @@ func (r *ResolutionRegistry) initializeBuiltinTypes() {
 		ResolutionAdapter: nil, // Will be set in future steps
 	})
 }
+

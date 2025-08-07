@@ -1752,3 +1752,151 @@ func shouldIncludeNamespace(resourceNamespace string, namespaces []string) bool 
 	return false
 }
 
+// External Resource Resolution Methods
+
+// GetPortalByID retrieves a portal by ID (for external resource resolution)
+func (c *Client) GetPortalByID(ctx context.Context, id string) (*Portal, error) {
+	if c.portalAPI == nil {
+		return nil, fmt.Errorf("Portal API client not configured")
+	}
+	
+	resp, err := c.portalAPI.GetPortal(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get portal by ID: %w", err)
+	}
+	
+	portalResp := resp.GetPortalResponse()
+	if portalResp == nil {
+		return nil, nil
+	}
+	
+	// Convert PortalResponse to Portal
+	// PortalResponse contains the same fields we need
+	normalized := portalResp.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+	
+	portal := &Portal{
+		Portal: kkComps.Portal{
+			ID:          portalResp.ID,
+			Name:        portalResp.Name,
+			Description: portalResp.Description,
+			Labels:      portalResp.Labels,
+			CreatedAt:   portalResp.CreatedAt,
+			UpdatedAt:   portalResp.UpdatedAt,
+		},
+		NormalizedLabels: normalized,
+	}
+	
+	return portal, nil
+}
+
+// ListPortalsWithFilter retrieves all portals and filters by selector (for external resource resolution)
+func (c *Client) ListPortalsWithFilter(ctx context.Context, _ map[string]string) ([]interface{}, error) {
+	if c.portalAPI == nil {
+		return nil, fmt.Errorf("Portal API client not configured")
+	}
+	
+	// Get all portals (no namespace filtering for external resources)
+	pageSize := int64(100)
+	pageNumber := int64(1)
+	req := kkOps.ListPortalsRequest{
+		PageSize:   &pageSize,
+		PageNumber: &pageNumber,
+	}
+	
+	var allPortals []interface{}
+	
+	for {
+		resp, err := c.portalAPI.ListPortals(ctx, req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list portals: %w", err)
+		}
+		
+		if resp.ListPortalsResponse == nil || resp.ListPortalsResponse.Data == nil {
+			break
+		}
+		
+		// Convert to Portal types
+		for _, p := range resp.ListPortalsResponse.Data {
+			normalized := p.Labels
+			if normalized == nil {
+				normalized = make(map[string]string)
+			}
+			
+			portal := &Portal{
+				Portal:           p,
+				NormalizedLabels: normalized,
+			}
+			allPortals = append(allPortals, portal)
+		}
+		
+		// Check if more pages
+		if resp.ListPortalsResponse.Meta.Page.Total <= float64(pageNumber) {
+			break
+		}
+		
+		// Next page
+		pageNumber++
+		req.PageNumber = &pageNumber
+	}
+	
+	// Note: Filtering will be done by the adapter using BaseAdapter.FilterBySelector
+	return allPortals, nil
+}
+
+// ListAPIsWithFilter retrieves all APIs and filters by selector (for external resource resolution)
+func (c *Client) ListAPIsWithFilter(ctx context.Context, _ map[string]string) ([]interface{}, error) {
+	if c.apiAPI == nil {
+		return nil, fmt.Errorf("API client not configured")
+	}
+	
+	// Get all APIs (no namespace filtering for external resources)
+	pageSize := int64(100)
+	pageNumber := int64(1)
+	req := kkOps.ListApisRequest{
+		PageSize:   &pageSize,
+		PageNumber: &pageNumber,
+	}
+	
+	var allAPIs []interface{}
+	
+	for {
+		resp, err := c.apiAPI.ListApis(ctx, req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list APIs: %w", err)
+		}
+		
+		if resp.ListAPIResponse == nil || resp.ListAPIResponse.Data == nil {
+			break
+		}
+		
+		// Convert to API types
+		for _, a := range resp.ListAPIResponse.Data {
+			normalized := a.Labels
+			if normalized == nil {
+				normalized = make(map[string]string)
+			}
+			
+			api := &API{
+				APIResponseSchema: a,
+				NormalizedLabels:  normalized,
+			}
+			allAPIs = append(allAPIs, api)
+		}
+		
+		// Check if more pages
+		if pageNumber >= int64(resp.ListAPIResponse.Meta.Page.Total) {
+			break
+		}
+		
+		// Next page
+		pageNumber++
+		req.PageNumber = &pageNumber
+	}
+	
+	// Note: Filtering will be done by the adapter using BaseAdapter.FilterBySelector
+	return allAPIs, nil
+}
+

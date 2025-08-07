@@ -11,9 +11,9 @@ This folder contains the complete planning and implementation tracking for all k
 - **Architecture Decisions**: [008-external-resources/execution-plan-adrs.md](008-external-resources/execution-plan-adrs.md) ✅ Complete
 - **Goal**: Enable referencing external resources managed by other Kong tools (decK, Terraform, Kong Operator) without taking ownership
 
-**Progress**: 1/8 steps completed (12.5%) 🚧 **IN PROGRESS**
+**Progress**: 2/8 steps completed (25%) 🚧 **IN PROGRESS**
 - **Dependencies**: Stage 7 completion ✅ Met
-- **Current Task**: Step 1 completed with Resolution naming theme, ready for Step 2 (Resource Type Registry)
+- **Current Task**: Step 2 foundation complete (adapters, factory, state client methods), ready for full adapter implementations
 
 ## Quick Start for Implementation
 
@@ -235,11 +235,12 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](008-external-resources/execution-plan-steps.md) | **Implementation guide** | ✅ Complete |
 | [execution-plan-adrs.md](008-external-resources/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: 1/8 steps completed (12.5%) 🚧 **IN PROGRESS**
+**Implementation Status**: 2/8 steps completed (25%) 🚧 **IN PROGRESS**
 - **Dependencies**: Stage 7 completion ✅ Met
 - **Completed Steps**:
   - ✅ Step 1: Schema and Configuration - External resource types with Resolution naming theme
-- **Current Task**: Step 2: Resource Type Registry (Ready to start)
+  - ✅ Step 2: Resource Type Registry - Foundation complete with adapters, factory, and state client methods
+- **Current Task**: Complete remaining adapter implementations (child resources and control plane)
 - **Key deliverables planned**:
   - ✅ Schema and configuration for external resource definitions (Resolution theme)
   - Resource type registry mapping to SDK operations
@@ -254,6 +255,8 @@ The first major feature being implemented is declarative configuration managemen
 - Used "Resolution" naming theme (ResolutionMetadata, ResolutionRegistry, ResolutionAdapter) to avoid stuttering and clarify purpose
 - External resources do not have Kongctl metadata as they cannot be protected/namespaced (owned by external system)
 - Registry expanded to include more child resource types (portal_customization, portal_custom_domain, etc.)
+- Added support for ce_service (core entity service) with control_plane parent requirement
+- Step 2 foundation complete with 13 adapter stubs, factory pattern, and state client resolution methods
 
 #### Future Work 💭
 **Goal**: Capture ideas for future enhancements
@@ -294,8 +297,10 @@ The first major feature being implemented is declarative configuration managemen
 - Production-ready implementation
 
 **Current Work**: 
-- Task-1 planning completed: investigation, flow analysis, and implementation plan ready
-- Ready to begin Step 1: Schema and Configuration
+- Step 1 completed: Schema and configuration with Resolution naming theme
+- Step 2 foundation completed: Base adapter, factory, and state client resolution methods
+- 13 resource type adapters created (including ce_service for core entities)
+- Portal and API adapters functional, others have TODO stubs ready for implementation
 - External resources will enable integration with other Kong declarative tools
 
 ### 🎯 Entry Points for Claude Code
