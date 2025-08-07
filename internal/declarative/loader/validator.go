@@ -14,6 +14,11 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	// Build registry of all resources by type for reference validation
 	resourceRegistry := make(map[string]map[string]bool)
 
+	// Validate external resources first (they provide context for other validations)
+	if err := l.validateExternalResources(rs.ExternalResources, resourceRegistry); err != nil {
+		return err
+	}
+
 	// Validate portals
 	if err := l.validatePortals(rs.Portals, resourceRegistry); err != nil {
 		return err
@@ -47,6 +52,33 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	// Validate namespaces
 	if err := l.validateNamespaces(rs); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// validateExternalResources validates external resource definitions
+func (l *Loader) validateExternalResources(
+	externalResources []resources.ExternalResourceResource,
+	registry map[string]map[string]bool,
+) error {
+	refs := make(map[string]bool)
+	registry["external_resource"] = refs
+
+	for i := range externalResources {
+		extResource := &externalResources[i]
+
+		// Validate resource
+		if err := extResource.Validate(); err != nil {
+			return fmt.Errorf("invalid external_resource %q: %w", extResource.GetRef(), err)
+		}
+
+		// Check ref uniqueness
+		if refs[extResource.GetRef()] {
+			return fmt.Errorf("duplicate external_resource ref: %s", extResource.GetRef())
+		}
+
+		refs[extResource.GetRef()] = true
 	}
 
 	return nil

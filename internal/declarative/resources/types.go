@@ -2,7 +2,9 @@ package resources
 
 // ResourceSet contains all declarative resources from configuration files
 type ResourceSet struct {
-	Portals []PortalResource `yaml:"portals,omitempty" json:"portals,omitempty"`
+	// ExternalResources contains references to existing resources not managed by this configuration
+	ExternalResources []ExternalResourceResource `yaml:"external_resources,omitempty" json:"external_resources,omitempty"` //nolint:lll
+	Portals           []PortalResource           `yaml:"portals,omitempty" json:"portals,omitempty"`
 	// ApplicationAuthStrategies contains auth strategy configurations
 	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty" json:"application_auth_strategies,omitempty"` //nolint:lll
 	// ControlPlanes contains control plane configurations
