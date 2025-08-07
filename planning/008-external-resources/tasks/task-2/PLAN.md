@@ -61,12 +61,11 @@ import (
 
 // ExternalResourceResource represents a reference to an existing resource in Konnect
 // that is not managed by this configuration but needs to be referenced by managed resources.
+// Note: External resources do not have Kongctl metadata as they cannot be protected
+// or namespaced (they are owned by an external system).
 type ExternalResourceResource struct {
     // Declarative reference identifier
     Ref string `yaml:"ref" json:"ref"`
-    
-    // Tool metadata (consistent with other resources)
-    Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
     
     // Resource type identifier (e.g., "portal", "api", "control_plane")
     ResourceType string `yaml:"resource_type" json:"resource_type"`
@@ -98,7 +97,7 @@ type ExternalResourceParent struct {
     ResourceType string `yaml:"resource_type" json:"resource_type"`
     
     // Parent resource ID (must be resolved before child)
-    ID string `yaml:"id" json:"id"`
+    ID string `yaml:"id,omitempty" json:"id,omitempty"`
     
     // Alternative: reference to another external resource
     Ref string `yaml:"ref,omitempty" json:"ref,omitempty"`
@@ -111,9 +110,9 @@ func (e ExternalResourceResource) GetRef() string {
     return e.Ref
 }
 
-// GetKongctlMeta returns the kongctl metadata
-func (e ExternalResourceResource) GetKongctlMeta() *KongctlMeta {
-    return e.Kongctl
+// GetResourceType returns the resource type
+func (e ExternalResourceResource) GetResourceType() string {
+    return e.ResourceType
 }
 
 // Validate implements ResourceValidator interface
@@ -198,11 +197,12 @@ func ValidateResourceType(resourceType string) error {
         return fmt.Errorf("resource_type is required")
     }
     
-    // Get supported resource types from registry
-    registry := external.GetResourceTypeRegistry()
+    // Get supported resource types from resolution registry
+    registry := external.GetResolutionRegistry()
     if !registry.IsSupported(resourceType) {
-        supported := strings.Join(registry.GetSupportedTypes(), ", ")
-        return fmt.Errorf("unsupported resource_type %q, supported types: %s", resourceType, supported)
+        supported := registry.GetSupportedTypes()
+        return fmt.Errorf("unsupported resource_type %q, supported types: %s", 
+            resourceType, strings.Join(supported, ", "))
     }
     
     return nil
@@ -234,9 +234,13 @@ func ValidateSelector(resourceType string, selector *ExternalResourceSelector) e
         return fmt.Errorf("selector.match_fields cannot be empty")
     }
     
-    // Get supported fields from registry
-    registry := external.GetResourceTypeRegistry()
+    // Get supported fields from resolution registry
+    registry := external.GetResolutionRegistry()
     supportedFields := registry.GetSupportedSelectorFields(resourceType)
+    
+    if supportedFields == nil {
+        return fmt.Errorf("no supported selector fields defined for resource_type %q", resourceType)
+    }
     
     for field := range selector.MatchFields {
         if !contains(supportedFields, field) {
@@ -271,8 +275,8 @@ func ValidateParent(childResourceType string, parent *ExternalResourceParent) er
         return fmt.Errorf("parent 'id' and 'ref' are mutually exclusive")
     }
     
-    // Validate parent-child relationship
-    registry := external.GetResourceTypeRegistry()
+    // Validate parent-child relationship using resolution registry
+    registry := external.GetResolutionRegistry()
     if !registry.IsValidParentChild(parent.ResourceType, childResourceType) {
         return fmt.Errorf("resource_type %q cannot have parent of type %q",
             childResourceType, parent.ResourceType)
@@ -303,8 +307,12 @@ This phase creates the external resource registry and supporting components.
 ```go
 package external
 
-// ResourceTypeInfo contains metadata about a resource type for external resource processing
-type ResourceTypeInfo struct {
+import (
+    "context"
+)
+
+// ResolutionMetadata contains metadata needed to resolve external resources from Konnect
+type ResolutionMetadata struct {
     // Human-readable name
     Name string
     
@@ -317,12 +325,12 @@ type ResourceTypeInfo struct {
     // Supported child resource types  
     SupportedChildren []string
     
-    // SDK query adapter
-    QueryAdapter QueryAdapter
+    // Adapter for resolving resources via SDK
+    ResolutionAdapter ResolutionAdapter
 }
 
-// QueryAdapter defines the interface for resource-specific SDK queries
-type QueryAdapter interface {
+// ResolutionAdapter defines the interface for resolving external resources via SDK
+type ResolutionAdapter interface {
     // GetByID retrieves a resource by its Konnect ID
     GetByID(ctx context.Context, id string, parent *ResolvedParent) (interface{}, error)
     
@@ -348,22 +356,22 @@ import (
     "sync"
 )
 
-// ResourceTypeRegistry manages supported resource types for external resources
-type ResourceTypeRegistry struct {
+// ResolutionRegistry manages resolution metadata for external resource types
+type ResolutionRegistry struct {
     mu    sync.RWMutex
-    types map[string]*ResourceTypeInfo
+    types map[string]*ResolutionMetadata
 }
 
 var (
-    registry     *ResourceTypeRegistry
+    registry     *ResolutionRegistry
     registryOnce sync.Once
 )
 
-// GetResourceTypeRegistry returns the singleton registry instance
-func GetResourceTypeRegistry() *ResourceTypeRegistry {
+// GetResolutionRegistry returns the singleton registry instance
+func GetResolutionRegistry() *ResolutionRegistry {
     registryOnce.Do(func() {
-        registry = &ResourceTypeRegistry{
-            types: make(map[string]*ResourceTypeInfo),
+        registry = &ResolutionRegistry{
+            types: make(map[string]*ResolutionMetadata),
         }
         // Initialize with built-in resource types
         registry.initializeBuiltinTypes()
@@ -371,23 +379,23 @@ func GetResourceTypeRegistry() *ResourceTypeRegistry {
     return registry
 }
 
-// Register adds a resource type to the registry
-func (r *ResourceTypeRegistry) Register(resourceType string, info *ResourceTypeInfo) {
+// Register adds resolution metadata for a resource type to the registry
+func (r *ResolutionRegistry) Register(resourceType string, info *ResolutionMetadata) {
     r.mu.Lock()
     defer r.mu.Unlock()
     r.types[resourceType] = info
 }
 
-// IsSupported returns true if the resource type is supported
-func (r *ResourceTypeRegistry) IsSupported(resourceType string) bool {
+// IsSupported returns true if the resource type is supported for resolution
+func (r *ResolutionRegistry) IsSupported(resourceType string) bool {
     r.mu.RLock()
     defer r.mu.RUnlock()
     _, exists := r.types[resourceType]
     return exists
 }
 
-// GetSupportedTypes returns a list of all supported resource types
-func (r *ResourceTypeRegistry) GetSupportedTypes() []string {
+// GetSupportedTypes returns a list of all resource types that can be resolved
+func (r *ResolutionRegistry) GetSupportedTypes() []string {
     r.mu.RLock()
     defer r.mu.RUnlock()
     
@@ -398,8 +406,8 @@ func (r *ResourceTypeRegistry) GetSupportedTypes() []string {
     return types
 }
 
-// GetSupportedSelectorFields returns supported fields for selector matching
-func (r *ResourceTypeRegistry) GetSupportedSelectorFields(resourceType string) []string {
+// GetSupportedSelectorFields returns supported fields for selector-based resolution
+func (r *ResolutionRegistry) GetSupportedSelectorFields(resourceType string) []string {
     r.mu.RLock()
     defer r.mu.RUnlock()
     
@@ -409,8 +417,8 @@ func (r *ResourceTypeRegistry) GetSupportedSelectorFields(resourceType string) [
     return nil
 }
 
-// IsValidParentChild returns true if the parent-child relationship is valid
-func (r *ResourceTypeRegistry) IsValidParentChild(parentType, childType string) bool {
+// IsValidParentChild returns true if the parent-child relationship is valid for resolution
+func (r *ResolutionRegistry) IsValidParentChild(parentType, childType string) bool {
     r.mu.RLock()
     defer r.mu.RUnlock()
     
@@ -428,8 +436,8 @@ func (r *ResourceTypeRegistry) IsValidParentChild(parentType, childType string) 
     return false
 }
 
-// GetQueryAdapter returns the query adapter for a resource type
-func (r *ResourceTypeRegistry) GetQueryAdapter(resourceType string) (QueryAdapter, error) {
+// GetResolutionAdapter returns the resolution adapter for a resource type
+func (r *ResolutionRegistry) GetResolutionAdapter(resourceType string) (ResolutionAdapter, error) {
     r.mu.RLock()
     defer r.mu.RUnlock()
     
@@ -438,42 +446,61 @@ func (r *ResourceTypeRegistry) GetQueryAdapter(resourceType string) (QueryAdapte
         return nil, fmt.Errorf("unsupported resource type: %s", resourceType)
     }
     
-    return info.QueryAdapter, nil
+    if info.ResolutionAdapter == nil {
+        return nil, fmt.Errorf("no resolution adapter configured for resource type: %s", resourceType)
+    }
+    
+    return info.ResolutionAdapter, nil
 }
 
-// initializeBuiltinTypes registers the built-in resource types
-func (r *ResourceTypeRegistry) initializeBuiltinTypes() {
+// GetResolutionMetadata returns the full resolution metadata for a resource type
+func (r *ResolutionRegistry) GetResolutionMetadata(resourceType string) (*ResolutionMetadata, bool) {
+    r.mu.RLock()
+    defer r.mu.RUnlock()
+    
+    info, exists := r.types[resourceType]
+    return info, exists
+}
+
+// initializeBuiltinTypes registers the built-in resource types with their resolution metadata
+func (r *ResolutionRegistry) initializeBuiltinTypes() {
     // Portal resource type
-    r.Register("portal", &ResourceTypeInfo{
-        Name:           "Portal",
-        SelectorFields: []string{"name", "description"},
-        SupportedParents: nil, // Portals are top-level
-        SupportedChildren: []string{"api_product_version"},
+    r.Register("portal", &ResolutionMetadata{
+        Name:              "Portal",
+        SelectorFields:    []string{"name", "description"},
+        SupportedParents:  nil, // Portals are top-level
+        SupportedChildren: []string{"portal_customization", "portal_custom_domain", "portal_page", "portal_snippet"},
+        ResolutionAdapter: nil, // Will be set in future steps
     })
     
     // API resource type
-    r.Register("api", &ResourceTypeInfo{
-        Name:           "API",
-        SelectorFields: []string{"name", "description"},
-        SupportedParents: nil, // APIs are top-level
-        SupportedChildren: []string{"api_version"},
+    r.Register("api", &ResolutionMetadata{
+        Name:              "API",
+        SelectorFields:    []string{"name", "description"},
+        SupportedParents:  nil, // APIs are top-level
+        SupportedChildren: []string{"api_version", "api_publication", "api_implementation", "api_document"},
+        ResolutionAdapter: nil, // Will be set in future steps
     })
     
     // Control Plane resource type
-    r.Register("control_plane", &ResourceTypeInfo{
-        Name:           "Control Plane",
-        SelectorFields: []string{"name", "description"},
-        SupportedParents: nil, // Control planes are top-level
+    r.Register("control_plane", &ResolutionMetadata{
+        Name:              "Control Plane",
+        SelectorFields:    []string{"name", "description"},
+        SupportedParents:  nil, // Control planes are top-level
         SupportedChildren: nil, // No child resources supported yet
+        ResolutionAdapter: nil, // Will be set in future steps
     })
     
     // API Version resource type (child of API)
-    r.Register("api_version", &ResourceTypeInfo{
-        Name:           "API Version", 
-        SelectorFields: []string{"name", "version"},
+    r.Register("api_version", &ResolutionMetadata{
+        Name:             "API Version", 
+        SelectorFields:   []string{"name", "version"},
         SupportedParents: []string{"api"},
         SupportedChildren: nil,
+        ResolutionAdapter: nil, // Will be set in future steps
     })
+    
+    // Additional child resource types would be added here...
 }
 ```
 
@@ -555,24 +582,24 @@ The `ExternalResourceResource` struct implements the following interfaces:
 
 ```go
 // Resource interface (common to all resources)
-type Resource interface {
-    GetRef() string
-    GetKongctlMeta() *KongctlMeta
-}
+// Note: ExternalResourceResource only implements GetRef(), not GetKongctlMeta()
+// as external resources cannot be protected or namespaced
 
 // ResourceValidator interface (for validation)
 type ResourceValidator interface {
     Validate() error
 }
 
-// ExternalResourceInterface (new interface specific to external resources)
+// ExternalResourceInterface (interface specific to external resources)
 type ExternalResourceInterface interface {
-    Resource
-    ResourceValidator
+    GetRef() string
     GetResourceType() string
+    Validate() error
     IsResolved() bool
     GetResolvedID() string
     SetResolvedID(id string)
+    GetResolvedResource() interface{}
+    SetResolvedResource(resource interface{})
 }
 ```
 
@@ -699,8 +726,8 @@ func stringPtr(s string) *string {
 **File:** `internal/declarative/external/registry_test.go` (NEW FILE)
 
 ```go
-func TestResourceTypeRegistry_IsSupported(t *testing.T) {
-    registry := GetResourceTypeRegistry()
+func TestResolutionRegistry_IsSupported(t *testing.T) {
+    registry := GetResolutionRegistry()
     
     tests := []struct {
         resourceType string
@@ -721,8 +748,8 @@ func TestResourceTypeRegistry_IsSupported(t *testing.T) {
     }
 }
 
-func TestResourceTypeRegistry_GetSupportedSelectorFields(t *testing.T) {
-    registry := GetResourceTypeRegistry()
+func TestResolutionRegistry_GetSupportedSelectorFields(t *testing.T) {
+    registry := GetResolutionRegistry()
     
     fields := registry.GetSupportedSelectorFields("portal")
     assert.Contains(t, fields, "name")
@@ -732,17 +759,27 @@ func TestResourceTypeRegistry_GetSupportedSelectorFields(t *testing.T) {
     assert.Nil(t, fields)
 }
 
-func TestResourceTypeRegistry_IsValidParentChild(t *testing.T) {
-    registry := GetResourceTypeRegistry()
+func TestResolutionRegistry_IsValidParentChild(t *testing.T) {
+    registry := GetResolutionRegistry()
     
     // Valid relationships
     assert.True(t, registry.IsValidParentChild("api", "api_version"))
-    assert.True(t, registry.IsValidParentChild("portal", "api_product_version"))
+    assert.True(t, registry.IsValidParentChild("portal", "portal_page"))
     
     // Invalid relationships
     assert.False(t, registry.IsValidParentChild("api_version", "api"))
     assert.False(t, registry.IsValidParentChild("portal", "control_plane"))
     assert.False(t, registry.IsValidParentChild("invalid", "api"))
+}
+
+func TestResolutionRegistry_GetResolutionAdapter(t *testing.T) {
+    registry := GetResolutionRegistry()
+    
+    // Test that resolution adapters return nil for now (will be implemented in future steps)
+    adapter, err := registry.GetResolutionAdapter("portal")
+    assert.Error(t, err)
+    assert.Contains(t, err.Error(), "no resolution adapter configured")
+    assert.Nil(t, adapter)
 }
 ```
 

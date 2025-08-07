@@ -11,9 +11,9 @@ This folder contains the complete planning and implementation tracking for all k
 - **Architecture Decisions**: [008-external-resources/execution-plan-adrs.md](008-external-resources/execution-plan-adrs.md) ✅ Complete
 - **Goal**: Enable referencing external resources managed by other Kong tools (decK, Terraform, Kong Operator) without taking ownership
 
-**Progress**: 0/8 steps completed (0%) 🚧 **READY TO START**
+**Progress**: 1/8 steps completed (12.5%) 🚧 **IN PROGRESS**
 - **Dependencies**: Stage 7 completion ✅ Met
-- **Current Task**: Task-1 planning completed, ready to begin Step 1 (Schema and Configuration)
+- **Current Task**: Step 1 completed with Resolution naming theme, ready for Step 2 (Resource Type Registry)
 
 ## Quick Start for Implementation
 
@@ -235,11 +235,13 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](008-external-resources/execution-plan-steps.md) | **Implementation guide** | ✅ Complete |
 | [execution-plan-adrs.md](008-external-resources/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: 0/8 steps completed (0%) 🚧 **READY TO START**
+**Implementation Status**: 1/8 steps completed (12.5%) 🚧 **IN PROGRESS**
 - **Dependencies**: Stage 7 completion ✅ Met
-- **Current Task**: Task-1 planning completed with investigation, flow analysis, and implementation plan
+- **Completed Steps**:
+  - ✅ Step 1: Schema and Configuration - External resource types with Resolution naming theme
+- **Current Task**: Step 2: Resource Type Registry (Ready to start)
 - **Key deliverables planned**:
-  - Schema and configuration for external resource definitions
+  - ✅ Schema and configuration for external resource definitions (Resolution theme)
   - Resource type registry mapping to SDK operations
   - External resource resolver with selector-based matching
   - Reference resolution integration for implicit ID resolution
@@ -247,6 +249,11 @@ The first major feature being implemented is declarative configuration managemen
   - Planning phase integration with pre-resolution
   - Comprehensive error handling and validation
   - Integration testing and documentation
+
+**Implementation Notes**:
+- Used "Resolution" naming theme (ResolutionMetadata, ResolutionRegistry, ResolutionAdapter) to avoid stuttering and clarify purpose
+- External resources do not have Kongctl metadata as they cannot be protected/namespaced (owned by external system)
+- Registry expanded to include more child resource types (portal_customization, portal_custom_domain, etc.)
 
 #### Future Work 💭
 **Goal**: Capture ideas for future enhancements

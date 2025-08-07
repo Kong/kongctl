@@ -2,11 +2,17 @@
 
 ## Phase 1: Core Implementation
 
-### Step 1: Schema and Configuration
-- [ ] Define external_resources schema in configuration types
-- [ ] Add validation for external resource blocks
-- [ ] Support both direct ID and selector patterns
-- [ ] Add parent field support for hierarchical resources
+### Step 1: Schema and Configuration ✅ COMPLETED
+- [x] Define external_resources schema in configuration types
+- [x] Add validation for external resource blocks
+- [x] Support both direct ID and selector patterns
+- [x] Add parent field support for hierarchical resources
+
+**Implementation Notes**:
+- Implemented with "Resolution" naming theme to avoid stuttering
+- External resources do not have Kongctl metadata (cannot be protected/namespaced)
+- Registry expanded to include all portal and API child resource types
+- Complete validation framework with XOR validation for ID/selector
 
 ### Step 2: Resource Type Registry
 - [ ] Create registry for supported external resource types
