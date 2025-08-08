@@ -21,21 +21,50 @@ func NewPortalPageResolutionAdapter(client *state.Client) *PortalPageResolutionA
 }
 
 // GetByID retrieves a portal page by ID with parent context
-func (p *PortalPageResolutionAdapter) GetByID(ctx context.Context, id string, parent *external.ResolvedParent) (interface{}, error) {
+func (p *PortalPageResolutionAdapter) GetByID(
+	ctx context.Context, id string, parent *external.ResolvedParent,
+) (interface{}, error) {
 	if err := p.ValidateParentContext(parent, "portal"); err != nil {
 		return nil, err
 	}
 	
-	// TODO: Implement using state client method with parent.ID
-	return nil, fmt.Errorf("portal page GetByID not yet implemented")
+	page, err := p.GetClient().GetPortalPage(ctx, parent.ID, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve portal page %s for portal %s: %w", id, parent.ID, err)
+	}
+	
+	return page, nil
 }
 
 // GetBySelector retrieves portal pages by selector fields with parent context
-func (p *PortalPageResolutionAdapter) GetBySelector(ctx context.Context, selector map[string]string, parent *external.ResolvedParent) ([]interface{}, error) {
+func (p *PortalPageResolutionAdapter) GetBySelector(
+	ctx context.Context, selector map[string]string, parent *external.ResolvedParent,
+) ([]interface{}, error) {
 	if err := p.ValidateParentContext(parent, "portal"); err != nil {
 		return nil, err
 	}
 	
-	// TODO: Implement using state client method with parent.ID
-	return nil, fmt.Errorf("portal page GetBySelector not yet implemented")
+	pages, err := p.GetClient().ListPortalPagesWithFilter(ctx, parent.ID, selector)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve portal pages for portal %s: %w", parent.ID, err)
+	}
+	
+	// FilterBySelector expects exactly one match and returns it
+	page, err := p.FilterBySelector(pages, selector, func(resource interface{}, field string) string {
+		pg := resource.(*state.PortalPage)
+		switch field {
+		case "slug":
+			return pg.Slug
+		case "title":
+			return pg.Title
+		default:
+			return ""
+		}
+	})
+	
+	if err != nil {
+		return nil, err
+	}
+	
+	return []interface{}{page}, nil
 }

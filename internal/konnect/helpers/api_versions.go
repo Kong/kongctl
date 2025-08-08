@@ -16,6 +16,8 @@ type APIVersionAPI interface {
 		opts ...kkOps.Option) (*kkOps.CreateAPIVersionResponse, error)
 	ListAPIVersions(ctx context.Context, request kkOps.ListAPIVersionsRequest,
 		opts ...kkOps.Option) (*kkOps.ListAPIVersionsResponse, error)
+	FetchAPIVersion(ctx context.Context, apiID string, versionID string,
+		opts ...kkOps.Option) (*kkOps.FetchAPIVersionResponse, error)
 	UpdateAPIVersion(ctx context.Context, request kkOps.UpdateAPIVersionRequest,
 		opts ...kkOps.Option) (*kkOps.UpdateAPIVersionResponse, error)
 	DeleteAPIVersion(ctx context.Context, apiID string, versionID string,
@@ -54,6 +56,20 @@ func (a *APIVersionAPIImpl) ListAPIVersions(ctx context.Context,
 		return nil, fmt.Errorf("SDK.APIVersion is nil")
 	}
 	return a.SDK.APIVersion.ListAPIVersions(ctx, request, opts...)
+}
+
+// FetchAPIVersion implements the APIVersionAPI interface
+func (a *APIVersionAPIImpl) FetchAPIVersion(ctx context.Context, apiID string, versionID string,
+	opts ...kkOps.Option,
+) (*kkOps.FetchAPIVersionResponse, error) {
+	if a.SDK == nil {
+		return nil, fmt.Errorf("SDK is nil")
+	}
+
+	if a.SDK.APIVersion == nil {
+		return nil, fmt.Errorf("SDK.APIVersion is nil")
+	}
+	return a.SDK.APIVersion.FetchAPIVersion(ctx, apiID, versionID, opts...)
 }
 
 // UpdateAPIVersion implements the APIVersionAPI interface

@@ -5,7 +5,7 @@
 | Step | Task | Status | Notes |
 |------|------|--------|-------|
 | 1 | Schema and Configuration | ✅ Completed | Resolution naming theme |
-| 2 | Resource Type Registry | 🚧 In Progress | Foundation complete (2025-08-07) |
+| 2 | Resource Type Registry | ✅ Completed | All 13 adapters implemented (2025-08-07) |
 | 3 | External Resource Resolver | Not Started | |
 | 4 | Reference Resolution Integration | Not Started | |
 | 5 | Error Handling | Not Started | |
@@ -13,7 +13,7 @@
 | 7 | Testing | Not Started | |
 | 8 | Documentation | Not Started | |
 
-**Overall Progress**: 2/8 steps (25%) - Step 2 foundation complete, ready for full adapter implementations
+**Overall Progress**: 2/8 steps (25%) - Step 2 complete with all 13 adapters fully implemented
 
 ## Phase 1: Core Implementation
 
@@ -29,20 +29,25 @@
 - Registry expanded to include all portal and API child resource types
 - Complete validation framework with XOR validation for ID/selector
 
-### Step 2: Resource Type Registry 🚧 IN PROGRESS
+### Step 2: Resource Type Registry ✅ COMPLETED
 - [x] Create registry for supported external resource types
-- [x] Map resource types to SDK operations (foundation complete)
+- [x] Map resource types to SDK operations (all 13 adapters)
 - [x] Define parent-child relationships
-- [ ] Add resource type validation
+- [x] Add resource type validation
 
 **Implementation Notes** (2025-08-07):
 - Created base adapter pattern with common filtering and validation logic
 - Implemented adapter factory with dependency injection for all 13 resource types
-- Extended state client with GetPortalByID and ListPortalsWithFilter methods
+- Extended state client with resolution methods for all resource types:
+  - Top-level: portal, api, control_plane, application_auth_strategy
+  - Child resources: ce_service (with control_plane parent)
+  - Portal children: customization, custom_domain, page, snippet
+  - API children: version, implementation, document, publication
 - Added InjectAdapters method to registry for runtime adapter injection
-- Portal and API adapters fully functional, others have TODO stubs
-- Added support for ce_service (core entity) with control_plane parent requirement
+- All 13 adapters fully implemented with GetByID and GetBySelector methods
+- Fixed SDK integration issues (union types, response field mappings)
 - Comprehensive test coverage for base adapter functionality
+- All quality checks passing (build, lint, test)
 
 ### Step 3: External Resource Resolver
 - [ ] Implement ExternalResourceResolver struct

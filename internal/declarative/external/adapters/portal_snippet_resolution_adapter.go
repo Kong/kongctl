@@ -21,21 +21,50 @@ func NewPortalSnippetResolutionAdapter(client *state.Client) *PortalSnippetResol
 }
 
 // GetByID retrieves a portal snippet by ID with parent context
-func (p *PortalSnippetResolutionAdapter) GetByID(ctx context.Context, id string, parent *external.ResolvedParent) (interface{}, error) {
+func (p *PortalSnippetResolutionAdapter) GetByID(
+	ctx context.Context, id string, parent *external.ResolvedParent,
+) (interface{}, error) {
 	if err := p.ValidateParentContext(parent, "portal"); err != nil {
 		return nil, err
 	}
 	
-	// TODO: Implement using state client method with parent.ID
-	return nil, fmt.Errorf("portal snippet GetByID not yet implemented")
+	snippet, err := p.GetClient().GetPortalSnippet(ctx, parent.ID, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve portal snippet %s for portal %s: %w", id, parent.ID, err)
+	}
+	
+	return snippet, nil
 }
 
 // GetBySelector retrieves portal snippets by selector fields with parent context
-func (p *PortalSnippetResolutionAdapter) GetBySelector(ctx context.Context, selector map[string]string, parent *external.ResolvedParent) ([]interface{}, error) {
+func (p *PortalSnippetResolutionAdapter) GetBySelector(
+	ctx context.Context, selector map[string]string, parent *external.ResolvedParent,
+) ([]interface{}, error) {
 	if err := p.ValidateParentContext(parent, "portal"); err != nil {
 		return nil, err
 	}
 	
-	// TODO: Implement using state client method with parent.ID
-	return nil, fmt.Errorf("portal snippet GetBySelector not yet implemented")
+	snippets, err := p.GetClient().ListPortalSnippetsWithFilter(ctx, parent.ID, selector)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve portal snippets for portal %s: %w", parent.ID, err)
+	}
+	
+	// FilterBySelector expects exactly one match and returns it
+	snippet, err := p.FilterBySelector(snippets, selector, func(resource interface{}, field string) string {
+		sn := resource.(*state.PortalSnippet)
+		switch field {
+		case "name":
+			return sn.Name
+		case "title":
+			return sn.Title
+		default:
+			return ""
+		}
+	})
+	
+	if err != nil {
+		return nil, err
+	}
+	
+	return []interface{}{snippet}, nil
 }

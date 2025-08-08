@@ -17,16 +17,18 @@ import (
 // ClientConfig contains all the API interfaces needed by the state client
 type ClientConfig struct {
 	// Core APIs
-	PortalAPI  helpers.PortalAPI
-	APIAPI     helpers.APIAPI
-	AppAuthAPI helpers.AppAuthStrategiesAPI
-	
+	PortalAPI             helpers.PortalAPI
+	APIAPI                helpers.APIAPI
+	AppAuthAPI            helpers.AppAuthStrategiesAPI
+	ControlPlaneAPI       helpers.ControlPlaneAPI
+	CoreEntityServicesAPI helpers.CoreEntityServicesAPI
+
 	// Portal child resource APIs
 	PortalPageAPI          helpers.PortalPageAPI
 	PortalCustomizationAPI helpers.PortalCustomizationAPI
 	PortalCustomDomainAPI  helpers.PortalCustomDomainAPI
 	PortalSnippetAPI       helpers.PortalSnippetAPI
-	
+
 	// API child resource APIs
 	APIVersionAPI        helpers.APIVersionAPI
 	APIPublicationAPI    helpers.APIPublicationAPI
@@ -37,16 +39,18 @@ type ClientConfig struct {
 // Client wraps Konnect SDK for state management
 type Client struct {
 	// Core APIs
-	portalAPI  helpers.PortalAPI
-	apiAPI     helpers.APIAPI
-	appAuthAPI helpers.AppAuthStrategiesAPI
-	
+	portalAPI             helpers.PortalAPI
+	apiAPI                helpers.APIAPI
+	appAuthAPI            helpers.AppAuthStrategiesAPI
+	controlPlaneAPI       helpers.ControlPlaneAPI
+	coreEntityServicesAPI helpers.CoreEntityServicesAPI
+
 	// Portal child resource APIs
 	portalPageAPI          helpers.PortalPageAPI
 	portalCustomizationAPI helpers.PortalCustomizationAPI
 	portalCustomDomainAPI  helpers.PortalCustomDomainAPI
 	portalSnippetAPI       helpers.PortalSnippetAPI
-	
+
 	// API child resource APIs
 	apiVersionAPI        helpers.APIVersionAPI
 	apiPublicationAPI    helpers.APIPublicationAPI
@@ -58,16 +62,18 @@ type Client struct {
 func NewClient(config ClientConfig) *Client {
 	return &Client{
 		// Core APIs
-		portalAPI:  config.PortalAPI,
-		apiAPI:     config.APIAPI,
-		appAuthAPI: config.AppAuthAPI,
-		
+		portalAPI:             config.PortalAPI,
+		apiAPI:                config.APIAPI,
+		appAuthAPI:            config.AppAuthAPI,
+		controlPlaneAPI:       config.ControlPlaneAPI,
+		coreEntityServicesAPI: config.CoreEntityServicesAPI,
+
 		// Portal child resource APIs
 		portalPageAPI:          config.PortalPageAPI,
 		portalCustomizationAPI: config.PortalCustomizationAPI,
 		portalCustomDomainAPI:  config.PortalCustomDomainAPI,
 		portalSnippetAPI:       config.PortalSnippetAPI,
-		
+
 		// API child resource APIs
 		apiVersionAPI:        config.APIVersionAPI,
 		apiPublicationAPI:    config.APIPublicationAPI,
@@ -149,6 +155,28 @@ type ApplicationAuthStrategy struct {
 	NormalizedLabels map[string]string // Non-pointer labels
 }
 
+// ControlPlane represents a normalized control plane for internal use
+type ControlPlane struct {
+	ID          string
+	Name        string
+	Description *string
+	ClusterType string
+	Labels      map[string]string
+}
+
+// CoreEntityService represents a core entity service (Kong Gateway service) for internal use
+// This is distinct from future Service Catalog services
+type CoreEntityService struct {
+	ID             string
+	Name           string
+	ControlPlaneID string
+	Protocol       string
+	Host           string
+	Port           int64
+	Path           string
+	Tags           []string
+}
+
 // ListManagedPortals returns all KONGCTL-managed portals in the specified namespaces
 // If namespaces is empty, no resources are returned (breaking change from previous behavior)
 // To get all managed resources across all namespaces, pass []string{"*"}
@@ -175,7 +203,7 @@ func (c *Client) ListManagedPortals(ctx context.Context, namespaces []string) ([
 		}
 
 		var filteredPortals []Portal
-		
+
 		// Process and filter portals
 		for _, p := range resp.ListPortalsResponse.Data {
 			// Labels are already map[string]string in the SDK
@@ -311,7 +339,7 @@ func (c *Client) UpdatePortal(
 	if err != nil {
 		// Extract status code from error if possible
 		statusCode := errors.ExtractStatusCodeFromError(err)
-		
+
 		// Create enhanced error with context and hints
 		ctx := errors.APIErrorContext{
 			ResourceType: "portal",
@@ -321,10 +349,10 @@ func (c *Client) UpdatePortal(
 				}
 				return ""
 			}(), // May be nil for partial updates
-			Operation:    "update",
-			StatusCode:   statusCode,
+			Operation:  "update",
+			StatusCode: statusCode,
 		}
-		
+
 		return nil, errors.EnhanceAPIError(err, ctx)
 	}
 
@@ -341,7 +369,7 @@ func (c *Client) DeletePortal(ctx context.Context, id string, force bool) error 
 	if err != nil {
 		// Extract status code from error if possible
 		statusCode := errors.ExtractStatusCodeFromError(err)
-		
+
 		// Create enhanced error with context and hints
 		ctx := errors.APIErrorContext{
 			ResourceType: "portal",
@@ -349,7 +377,7 @@ func (c *Client) DeletePortal(ctx context.Context, id string, force bool) error 
 			Operation:    "delete",
 			StatusCode:   statusCode,
 		}
-		
+
 		return errors.EnhanceAPIError(err, ctx)
 	}
 	return nil
@@ -417,46 +445,46 @@ func (c *Client) GetAPIByName(ctx context.Context, name string) (*API, error) {
 	// Get logger from context
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 	logger.Debug("Looking up API by name", "name", name)
-	
+
 	// Primary strategy: Standard managed resource lookup
 	apis, err := c.ListManagedAPIs(ctx, []string{"*"})
 	if err != nil {
 		logger.Error("Failed to list managed APIs", "error", err)
 		return nil, err
 	}
-	
+
 	logger.Debug("Found managed APIs", "count", len(apis))
-	
+
 	for _, a := range apis {
 		if a.Name == name {
 			logger.Debug("Found API via managed lookup", "name", name, "id", a.ID)
 			return &a, nil
 		}
 	}
-	
+
 	// Fallback strategy: Look for resources that might be undergoing protection changes
 	// This includes resources that might temporarily appear "unmanaged" during updates
 	logger.Debug("API not found in managed resources, trying fallback lookup", "name", name)
-	
+
 	allAPIs, err := c.ListAllAPIs(ctx)
 	if err != nil {
 		logger.Error("Fallback lookup failed", "error", err)
 		return nil, fmt.Errorf("fallback lookup failed: %w", err)
 	}
-	
+
 	logger.Debug("Found total APIs", "count", len(allAPIs))
-	
+
 	for _, a := range allAPIs {
 		if a.Name == name {
 			// Check if this resource has any KONGCTL labels (indicating it was managed)
 			if c.hasAnyKongctlLabels(a.Labels) {
-				logger.Warn("Found API via fallback - may indicate protection change issue", 
+				logger.Warn("Found API via fallback - may indicate protection change issue",
 					"name", name, "id", a.ID, "labels", a.Labels)
 				return &a, nil
 			}
 		}
 	}
-	
+
 	logger.Debug("API not found in any lookup strategy", "name", name)
 	return nil, nil // Not found
 }
@@ -540,7 +568,7 @@ func (c *Client) CreateAPI(
 	if err != nil {
 		// Extract status code from error if possible
 		statusCode := errors.ExtractStatusCodeFromError(err)
-		
+
 		// Create enhanced error with context and hints
 		ctx := errors.APIErrorContext{
 			ResourceType: "api",
@@ -549,7 +577,7 @@ func (c *Client) CreateAPI(
 			Operation:    "create",
 			StatusCode:   statusCode,
 		}
-		
+
 		return nil, errors.EnhanceAPIError(err, ctx)
 	}
 
@@ -604,49 +632,49 @@ func (c *Client) ListAllAPIs(ctx context.Context) ([]API, error) {
 	if c.apiAPI == nil {
 		return nil, fmt.Errorf("API client not configured")
 	}
-	
+
 	var allAPIs []API
 	var pageNumber int64 = 1
 	pageSize := int64(100)
-	
+
 	for {
 		req := kkOps.ListApisRequest{
 			PageSize:   &pageSize,
 			PageNumber: &pageNumber,
 		}
-		
+
 		resp, err := c.apiAPI.ListApis(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list APIs: %w", err)
 		}
-		
+
 		if resp.ListAPIResponse == nil || len(resp.ListAPIResponse.Data) == 0 {
 			break
 		}
-		
+
 		for _, api := range resp.ListAPIResponse.Data {
 			// Labels are already map[string]string in the SDK
 			normalized := api.Labels
 			if normalized == nil {
 				normalized = make(map[string]string)
 			}
-			
+
 			parsedAPI := API{
 				APIResponseSchema: api,
 				NormalizedLabels:  normalized,
 			}
 			allAPIs = append(allAPIs, parsedAPI)
 		}
-		
+
 		// Check if we've retrieved all pages
 		// Since Meta and Page are not pointers, we check the total count
 		if resp.ListAPIResponse.Meta.Page.Total <= float64(pageNumber*pageSize) {
 			break
 		}
-		
+
 		pageNumber++
 	}
-	
+
 	return allAPIs, nil
 }
 
@@ -668,27 +696,27 @@ func (c *Client) GetAPIByID(ctx context.Context, id string) (*API, error) {
 	if c.apiAPI == nil {
 		return nil, fmt.Errorf("API client not configured")
 	}
-	
+
 	resp, err := c.apiAPI.FetchAPI(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get API by ID: %w", err)
 	}
-	
+
 	if resp.APIResponseSchema == nil {
 		return nil, nil
 	}
-	
+
 	// Labels are already map[string]string in the SDK
 	normalized := resp.APIResponseSchema.Labels
 	if normalized == nil {
 		normalized = make(map[string]string)
 	}
-	
+
 	api := &API{
 		APIResponseSchema: *resp.APIResponseSchema,
 		NormalizedLabels:  normalized,
 	}
-	
+
 	return api, nil
 }
 
@@ -1329,16 +1357,16 @@ func (c *Client) GetPortalCustomization(
 	if c.portalCustomizationAPI == nil {
 		return nil, fmt.Errorf("portal customization API not configured")
 	}
-	
+
 	resp, err := c.portalCustomizationAPI.GetPortalCustomization(ctx, portalID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get portal customization: %w", err)
 	}
-	
+
 	if resp.PortalCustomization == nil {
 		return nil, fmt.Errorf("no customization data in response")
 	}
-	
+
 	return resp.PortalCustomization, nil
 }
 
@@ -1440,9 +1468,9 @@ func (c *Client) ListManagedPortalPages(ctx context.Context, portalID string) ([
 func (c *Client) processPortalPages(allPages *[]PortalPage, pages []kkComps.PortalPageInfo, parentID string) {
 	for _, p := range pages {
 		page := PortalPage{
-			ID:           p.ID,
-			Slug:         p.Slug,
-			Title:        p.Title,
+			ID:    p.ID,
+			Slug:  p.Slug,
+			Title: p.Title,
 			// Content not available in list response
 			Visibility:   string(p.Visibility),
 			Status:       string(p.Status),
@@ -1491,7 +1519,7 @@ func (c *Client) GetPortalPage(ctx context.Context, portalID string, pageID stri
 		Visibility: string(pageResp.Visibility),
 		Status:     string(pageResp.Status),
 	}
-	
+
 	// Handle nullable parent page ID
 	if pageResp.ParentPageID != nil {
 		page.ParentPageID = *pageResp.ParentPageID
@@ -1607,7 +1635,7 @@ func (c *Client) ListPortalSnippets(ctx context.Context, portalID string) ([]Por
 
 			// Title is always present (not a pointer)
 			snippet.Title = s.Title
-			
+
 			// Handle optional fields
 			if s.Description != nil {
 				snippet.Description = *s.Description
@@ -1734,21 +1762,21 @@ func shouldIncludeNamespace(resourceNamespace string, namespaces []string) bool 
 	if len(namespaces) == 0 {
 		return false
 	}
-	
+
 	// Check for wildcard (all namespaces)
 	for _, ns := range namespaces {
 		if ns == "*" {
 			return true
 		}
 	}
-	
+
 	// Check if resource's namespace is in the filter list
 	for _, ns := range namespaces {
 		if resourceNamespace == ns {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -1759,24 +1787,24 @@ func (c *Client) GetPortalByID(ctx context.Context, id string) (*Portal, error) 
 	if c.portalAPI == nil {
 		return nil, fmt.Errorf("Portal API client not configured")
 	}
-	
+
 	resp, err := c.portalAPI.GetPortal(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get portal by ID: %w", err)
 	}
-	
+
 	portalResp := resp.GetPortalResponse()
 	if portalResp == nil {
 		return nil, nil
 	}
-	
+
 	// Convert PortalResponse to Portal
 	// PortalResponse contains the same fields we need
 	normalized := portalResp.Labels
 	if normalized == nil {
 		normalized = make(map[string]string)
 	}
-	
+
 	portal := &Portal{
 		Portal: kkComps.Portal{
 			ID:          portalResp.ID,
@@ -1788,7 +1816,7 @@ func (c *Client) GetPortalByID(ctx context.Context, id string) (*Portal, error) 
 		},
 		NormalizedLabels: normalized,
 	}
-	
+
 	return portal, nil
 }
 
@@ -1797,7 +1825,7 @@ func (c *Client) ListPortalsWithFilter(ctx context.Context, _ map[string]string)
 	if c.portalAPI == nil {
 		return nil, fmt.Errorf("Portal API client not configured")
 	}
-	
+
 	// Get all portals (no namespace filtering for external resources)
 	pageSize := int64(100)
 	pageNumber := int64(1)
@@ -1805,43 +1833,43 @@ func (c *Client) ListPortalsWithFilter(ctx context.Context, _ map[string]string)
 		PageSize:   &pageSize,
 		PageNumber: &pageNumber,
 	}
-	
+
 	var allPortals []interface{}
-	
+
 	for {
 		resp, err := c.portalAPI.ListPortals(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list portals: %w", err)
 		}
-		
+
 		if resp.ListPortalsResponse == nil || resp.ListPortalsResponse.Data == nil {
 			break
 		}
-		
+
 		// Convert to Portal types
 		for _, p := range resp.ListPortalsResponse.Data {
 			normalized := p.Labels
 			if normalized == nil {
 				normalized = make(map[string]string)
 			}
-			
+
 			portal := &Portal{
 				Portal:           p,
 				NormalizedLabels: normalized,
 			}
 			allPortals = append(allPortals, portal)
 		}
-		
+
 		// Check if more pages
 		if resp.ListPortalsResponse.Meta.Page.Total <= float64(pageNumber) {
 			break
 		}
-		
+
 		// Next page
 		pageNumber++
 		req.PageNumber = &pageNumber
 	}
-	
+
 	// Note: Filtering will be done by the adapter using BaseAdapter.FilterBySelector
 	return allPortals, nil
 }
@@ -1851,7 +1879,7 @@ func (c *Client) ListAPIsWithFilter(ctx context.Context, _ map[string]string) ([
 	if c.apiAPI == nil {
 		return nil, fmt.Errorf("API client not configured")
 	}
-	
+
 	// Get all APIs (no namespace filtering for external resources)
 	pageSize := int64(100)
 	pageNumber := int64(1)
@@ -1859,44 +1887,619 @@ func (c *Client) ListAPIsWithFilter(ctx context.Context, _ map[string]string) ([
 		PageSize:   &pageSize,
 		PageNumber: &pageNumber,
 	}
-	
+
 	var allAPIs []interface{}
-	
+
 	for {
 		resp, err := c.apiAPI.ListApis(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list APIs: %w", err)
 		}
-		
+
 		if resp.ListAPIResponse == nil || resp.ListAPIResponse.Data == nil {
 			break
 		}
-		
+
 		// Convert to API types
 		for _, a := range resp.ListAPIResponse.Data {
 			normalized := a.Labels
 			if normalized == nil {
 				normalized = make(map[string]string)
 			}
-			
+
 			api := &API{
 				APIResponseSchema: a,
 				NormalizedLabels:  normalized,
 			}
 			allAPIs = append(allAPIs, api)
 		}
-		
+
 		// Check if more pages
 		if pageNumber >= int64(resp.ListAPIResponse.Meta.Page.Total) {
 			break
 		}
-		
+
 		// Next page
 		pageNumber++
 		req.PageNumber = &pageNumber
 	}
-	
+
 	// Note: Filtering will be done by the adapter using BaseAdapter.FilterBySelector
 	return allAPIs, nil
 }
 
+// ============================================================================
+// External Resource Resolution Methods
+// ============================================================================
+
+// GetControlPlaneByID retrieves a control plane by ID for external resource resolution
+func (c *Client) GetControlPlaneByID(ctx context.Context, id string) (*ControlPlane, error) {
+	if c.controlPlaneAPI == nil {
+		return nil, fmt.Errorf("control plane API client not configured")
+	}
+
+	resp, err := c.controlPlaneAPI.GetControlPlane(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get control plane by ID %s: %w", id, err)
+	}
+
+	if resp.ControlPlane == nil {
+		return nil, fmt.Errorf("control plane with ID %s not found", id)
+	}
+
+	cp := resp.ControlPlane
+	clusterType := string(cp.Config.ClusterType)
+	return &ControlPlane{
+		ID:          cp.ID,
+		Name:        cp.Name,
+		Description: cp.Description,
+		ClusterType: clusterType,
+		Labels:      cp.Labels,
+	}, nil
+}
+
+// ListControlPlanesWithFilter retrieves control planes for external resource resolution
+func (c *Client) ListControlPlanesWithFilter(
+	ctx context.Context, _ map[string]string,
+) ([]interface{}, error) {
+	if c.controlPlaneAPI == nil {
+		return nil, fmt.Errorf("control plane API client not configured")
+	}
+
+	var allControlPlanes []interface{}
+	pageNumber := int64(1)
+	pageSize := int64(100)
+
+	for {
+		req := kkOps.ListControlPlanesRequest{
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.controlPlaneAPI.ListControlPlanes(ctx, req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list control planes: %w", err)
+		}
+
+		if resp.ListControlPlanesResponse == nil || resp.ListControlPlanesResponse.Data == nil {
+			break
+		}
+
+		// Convert to ControlPlane types
+		for _, cp := range resp.ListControlPlanesResponse.Data {
+			clusterType := string(cp.Config.ClusterType)
+			controlPlane := &ControlPlane{
+				ID:          cp.ID,
+				Name:        cp.Name,
+				Description: cp.Description,
+				ClusterType: clusterType,
+				Labels:      cp.Labels,
+			}
+			allControlPlanes = append(allControlPlanes, controlPlane)
+		}
+
+		// Check if more pages
+		if pageNumber >= int64(resp.ListControlPlanesResponse.Meta.Page.Total) {
+			break
+		}
+
+		// Next page
+		pageNumber++
+	}
+
+	// Note: Filtering will be done by the adapter using BaseAdapter.FilterBySelector
+	return allControlPlanes, nil
+}
+
+// GetCoreEntityServiceByID retrieves a core entity service by ID for external resource resolution
+func (c *Client) GetCoreEntityServiceByID(
+	ctx context.Context, controlPlaneID string, serviceID string,
+) (*CoreEntityService, error) {
+	if c.coreEntityServicesAPI == nil {
+		return nil, fmt.Errorf("core entity services API client not configured")
+	}
+
+	resp, err := c.coreEntityServicesAPI.GetService(ctx, controlPlaneID, serviceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service by ID %s in control plane %s: %w",
+			serviceID, controlPlaneID, err)
+	}
+
+	if resp.Service == nil {
+		return nil, fmt.Errorf("service with ID %s not found in control plane %s",
+			serviceID, controlPlaneID)
+	}
+
+	svc := resp.Service
+	path := ""
+	if svc.Path != nil {
+		path = *svc.Path
+	}
+	port := int64(0)
+	if svc.Port != nil {
+		port = *svc.Port
+	}
+	protocol := ""
+	if svc.Protocol != nil {
+		protocol = string(*svc.Protocol)
+	}
+	host := svc.Host
+	name := ""
+	if svc.Name != nil {
+		name = *svc.Name
+	}
+	id := ""
+	if svc.ID != nil {
+		id = *svc.ID
+	}
+	return &CoreEntityService{
+		ID:             id,
+		Name:           name,
+		ControlPlaneID: controlPlaneID,
+		Protocol:       protocol,
+		Host:           host,
+		Port:           port,
+		Path:           path,
+		Tags:           svc.Tags,
+	}, nil
+}
+
+// ListCoreEntityServicesWithFilter retrieves core entity services for external resource resolution
+func (c *Client) ListCoreEntityServicesWithFilter(
+	ctx context.Context, controlPlaneID string, _ map[string]string,
+) ([]interface{}, error) {
+	if c.coreEntityServicesAPI == nil {
+		return nil, fmt.Errorf("core entity services API client not configured")
+	}
+
+	var allServices []interface{}
+	offset := ""
+	size := int64(100)
+
+	for {
+		req := kkOps.ListServiceRequest{
+			ControlPlaneID: controlPlaneID,
+			Size:           &size,
+			Offset:         &offset,
+		}
+
+		resp, err := c.coreEntityServicesAPI.ListService(ctx, req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list services in control plane %s: %w",
+				controlPlaneID, err)
+		}
+
+		if resp.Object == nil || resp.Object.Data == nil {
+			break
+		}
+
+		// Convert to CoreEntityService types
+		for _, svc := range resp.Object.Data {
+			path := ""
+			if svc.Path != nil {
+				path = *svc.Path
+			}
+			port := int64(0)
+			if svc.Port != nil {
+				port = *svc.Port
+			}
+			protocol := ""
+			if svc.Protocol != nil {
+				protocol = string(*svc.Protocol)
+			}
+			host := svc.Host
+			name := ""
+			if svc.Name != nil {
+				name = *svc.Name
+			}
+			id := ""
+			if svc.ID != nil {
+				id = *svc.ID
+			}
+
+			service := &CoreEntityService{
+				ID:             id,
+				Name:           name,
+				ControlPlaneID: controlPlaneID,
+				Protocol:       protocol,
+				Host:           host,
+				Port:           port,
+				Path:           path,
+				Tags:           svc.Tags,
+			}
+			allServices = append(allServices, service)
+		}
+
+		// Check if more pages
+		if resp.Object.Offset == nil || *resp.Object.Offset == "" {
+			break
+		}
+
+		// Next page
+		offset = *resp.Object.Offset
+	}
+
+	// Note: Filtering will be done by the adapter using BaseAdapter.FilterBySelector
+	return allServices, nil
+}
+
+// GetApplicationAuthStrategyByID retrieves an auth strategy by ID for external resource resolution
+func (c *Client) GetApplicationAuthStrategyByID(
+	ctx context.Context, id string,
+) (*ApplicationAuthStrategy, error) {
+	response, err := c.appAuthAPI.GetAppAuthStrategy(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get application auth strategy by ID: %w", err)
+	}
+
+	if response == nil || response.CreateAppAuthStrategyResponse == nil {
+		return nil, fmt.Errorf("application auth strategy with ID %s not found", id)
+	}
+
+	// Convert CreateAppAuthStrategyResponse to ApplicationAuthStrategy
+	// The response type has the same structure but different Go type
+	var strategy *ApplicationAuthStrategy
+
+	if response.CreateAppAuthStrategyResponse.AppAuthStrategyKeyAuthResponse != nil {
+		strategy = &ApplicationAuthStrategy{
+			ID:               response.CreateAppAuthStrategyResponse.AppAuthStrategyKeyAuthResponse.ID,
+			Name:             response.CreateAppAuthStrategyResponse.AppAuthStrategyKeyAuthResponse.Name,
+			DisplayName:      response.CreateAppAuthStrategyResponse.AppAuthStrategyKeyAuthResponse.DisplayName,
+			StrategyType:     "key_auth",
+			Configs:          nil, // TODO: map configs if needed
+			NormalizedLabels: response.CreateAppAuthStrategyResponse.AppAuthStrategyKeyAuthResponse.Labels,
+		}
+	} else if response.CreateAppAuthStrategyResponse.AppAuthStrategyOpenIDConnectResponse != nil {
+		strategy = &ApplicationAuthStrategy{
+			ID:               response.CreateAppAuthStrategyResponse.AppAuthStrategyOpenIDConnectResponse.ID,
+			Name:             response.CreateAppAuthStrategyResponse.AppAuthStrategyOpenIDConnectResponse.Name,
+			DisplayName:      response.CreateAppAuthStrategyResponse.AppAuthStrategyOpenIDConnectResponse.DisplayName,
+			StrategyType:     "openid_connect",
+			Configs:          nil, // TODO: map configs if needed
+			NormalizedLabels: response.CreateAppAuthStrategyResponse.AppAuthStrategyOpenIDConnectResponse.Labels,
+		}
+	}
+
+	if strategy == nil {
+		return nil, fmt.Errorf("unknown auth strategy type in response")
+	}
+
+	return strategy, nil
+}
+
+// ListApplicationAuthStrategiesWithFilter retrieves auth strategies for external resource resolution
+func (c *Client) ListApplicationAuthStrategiesWithFilter(
+	ctx context.Context, _ map[string]string,
+) ([]interface{}, error) {
+	if c.appAuthAPI == nil {
+		return nil, fmt.Errorf("app auth API client not configured")
+	}
+
+	var allStrategies []interface{}
+	pageNumber := int64(1)
+	pageSize := int64(100)
+
+	for {
+		req := kkOps.ListAppAuthStrategiesRequest{
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.appAuthAPI.ListAppAuthStrategies(ctx, req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list application auth strategies: %w", err)
+		}
+
+		if resp.ListAppAuthStrategiesResponse == nil || resp.ListAppAuthStrategiesResponse.Data == nil {
+			break
+		}
+
+		// Convert to ApplicationAuthStrategy types
+		for _, s := range resp.ListAppAuthStrategiesResponse.Data {
+			strategy := c.extractAuthStrategyFromUnion(s)
+			if strategy != nil {
+				allStrategies = append(allStrategies, strategy)
+			}
+		}
+
+		// Check if more pages
+		if pageNumber >= int64(resp.ListAppAuthStrategiesResponse.Meta.Page.Total) {
+			break
+		}
+
+		// Next page
+		pageNumber++
+	}
+
+	// Note: Filtering will be done by the adapter using BaseAdapter.FilterBySelector
+	return allStrategies, nil
+}
+
+// ============================================================================
+// Portal Child Resource Methods
+// ============================================================================
+
+// GetPortalCustomizationByID retrieves portal customization for external resource resolution
+func (c *Client) GetPortalCustomizationByID(
+	ctx context.Context, portalID string, _ string,
+) (*PortalCustomization, error) {
+	if c.portalCustomizationAPI == nil {
+		return nil, fmt.Errorf("portal customization API not configured")
+	}
+
+	// Portal customization doesn't have its own ID, it's identified by portal ID
+	resp, err := c.portalCustomizationAPI.GetPortalCustomization(ctx, portalID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get portal customization for portal %s: %w", portalID, err)
+	}
+
+	if resp.PortalCustomization == nil {
+		return nil, fmt.Errorf("portal customization not found for portal %s", portalID)
+	}
+
+	// Convert SDK type to our internal type
+	// PortalCustomization is currently a placeholder struct with no fields
+	customization := &PortalCustomization{
+		// TODO: Add fields when implementing portal customization support
+	}
+
+	return customization, nil
+}
+
+// ListPortalCustomizationsWithFilter retrieves portal customizations for external resource resolution
+func (c *Client) ListPortalCustomizationsWithFilter(
+	ctx context.Context, portalID string, _ map[string]string,
+) ([]interface{}, error) {
+	// Portal customization is a singleton per portal, return single item
+	customization, err := c.GetPortalCustomizationByID(ctx, portalID, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return []interface{}{customization}, nil
+}
+
+// GetPortalCustomDomainByID retrieves portal custom domain for external resource resolution
+func (c *Client) GetPortalCustomDomainByID(
+	ctx context.Context, portalID string, _ string,
+) (*PortalCustomDomain, error) {
+	if c.portalCustomDomainAPI == nil {
+		return nil, fmt.Errorf("portal custom domain API not configured")
+	}
+
+	// Custom domain doesn't have its own ID, it's identified by portal ID
+	resp, err := c.portalCustomDomainAPI.GetPortalCustomDomain(ctx, portalID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get portal custom domain for portal %s: %w", portalID, err)
+	}
+
+	if resp.PortalCustomDomain == nil {
+		return nil, fmt.Errorf("portal custom domain not found for portal %s", portalID)
+	}
+
+	// Convert SDK type to our internal type
+	// PortalCustomDomain is currently a placeholder struct with no fields
+	customDomain := &PortalCustomDomain{
+		// TODO: Add fields when implementing portal custom domain support
+	}
+
+	return customDomain, nil
+}
+
+// ListPortalCustomDomainsWithFilter retrieves portal custom domains for external resource resolution
+func (c *Client) ListPortalCustomDomainsWithFilter(
+	ctx context.Context, portalID string, _ map[string]string,
+) ([]interface{}, error) {
+	// Portal custom domain is a singleton per portal, return single item
+	customDomain, err := c.GetPortalCustomDomainByID(ctx, portalID, "")
+	if err != nil {
+		// Return empty list if not found (err was checked, ok to return nil)
+		return nil, nil //nolint:nilerr
+	}
+
+	return []interface{}{customDomain}, nil
+}
+
+// ListPortalPagesWithFilter retrieves portal pages for external resource resolution
+func (c *Client) ListPortalPagesWithFilter(
+	ctx context.Context, portalID string, _ map[string]string,
+) ([]interface{}, error) {
+	pages, err := c.ListManagedPortalPages(ctx, portalID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to interface{} slice
+	var result []interface{}
+	for i := range pages {
+		result = append(result, &pages[i])
+	}
+
+	return result, nil
+}
+
+// ListPortalSnippetsWithFilter retrieves portal snippets for external resource resolution
+func (c *Client) ListPortalSnippetsWithFilter(
+	ctx context.Context, portalID string, _ map[string]string,
+) ([]interface{}, error) {
+	snippets, err := c.ListPortalSnippets(ctx, portalID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to interface{} slice
+	var result []interface{}
+	for i := range snippets {
+		result = append(result, &snippets[i])
+	}
+
+	return result, nil
+}
+
+// GetAPIVersionByID retrieves an API version by ID for external resource resolution
+func (c *Client) GetAPIVersionByID(
+	ctx context.Context, apiID string, versionID string,
+) (*APIVersion, error) {
+	if c.apiVersionAPI == nil {
+		return nil, fmt.Errorf("API version client not configured")
+	}
+
+	resp, err := c.apiVersionAPI.FetchAPIVersion(ctx, apiID, versionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get API version %s for API %s: %w", versionID, apiID, err)
+	}
+
+	if resp.APIVersionResponse == nil {
+		return nil, fmt.Errorf("API version %s not found for API %s", versionID, apiID)
+	}
+
+	v := resp.APIVersionResponse
+	version := &APIVersion{
+		ID:            v.ID,
+		Version:       v.Version,
+		PublishStatus: "",    // Not available in SDK response
+		Deprecated:    false, // Not available in SDK response
+		SunsetDate:    "",    // Not available in SDK response
+	}
+
+	return version, nil
+}
+
+// ListAPIVersionsWithFilter retrieves API versions for external resource resolution
+func (c *Client) ListAPIVersionsWithFilter(
+	ctx context.Context, apiID string, _ map[string]string,
+) ([]interface{}, error) {
+	versions, err := c.ListAPIVersions(ctx, apiID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to interface{} slice
+	var result []interface{}
+	for i := range versions {
+		result = append(result, &versions[i])
+	}
+
+	return result, nil
+}
+
+// GetAPIPublicationByID retrieves an API publication for external resource resolution
+func (c *Client) GetAPIPublicationByID(
+	ctx context.Context, apiID string, portalID string,
+) (*APIPublication, error) {
+	if c.apiPublicationAPI == nil {
+		return nil, fmt.Errorf("API publication client not configured")
+	}
+
+	// API publication is identified by the combination of API ID and Portal ID
+	// Need to list and find the matching one
+	publications, err := c.ListAPIPublications(ctx, apiID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, pub := range publications {
+		if pub.PortalID == portalID {
+			return &pub, nil
+		}
+	}
+
+	return nil, fmt.Errorf("API publication not found for API %s and portal %s", apiID, portalID)
+}
+
+// ListAPIPublicationsWithFilter retrieves API publications for external resource resolution
+func (c *Client) ListAPIPublicationsWithFilter(
+	ctx context.Context, apiID string, _ map[string]string,
+) ([]interface{}, error) {
+	publications, err := c.ListAPIPublications(ctx, apiID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to interface{} slice
+	var result []interface{}
+	for i := range publications {
+		result = append(result, &publications[i])
+	}
+
+	return result, nil
+}
+
+// GetAPIImplementationByID retrieves an API implementation by ID for external resource resolution
+func (c *Client) GetAPIImplementationByID(
+	ctx context.Context, apiID string, implementationID string,
+) (*APIImplementation, error) {
+	if c.apiImplementationAPI == nil {
+		return nil, fmt.Errorf("API implementation client not configured")
+	}
+
+	// Need to list and find the matching one
+	implementations, err := c.ListAPIImplementations(ctx, apiID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, impl := range implementations {
+		if impl.ID == implementationID {
+			return &impl, nil
+		}
+	}
+
+	return nil, fmt.Errorf("API implementation %s not found for API %s", implementationID, apiID)
+}
+
+// ListAPIImplementationsWithFilter retrieves API implementations for external resource resolution
+func (c *Client) ListAPIImplementationsWithFilter(
+	ctx context.Context, apiID string, _ map[string]string,
+) ([]interface{}, error) {
+	implementations, err := c.ListAPIImplementations(ctx, apiID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to interface{} slice
+	var result []interface{}
+	for i := range implementations {
+		result = append(result, &implementations[i])
+	}
+
+	return result, nil
+}
+
+// ListAPIDocumentsWithFilter retrieves API documents for external resource resolution
+func (c *Client) ListAPIDocumentsWithFilter(
+	ctx context.Context, apiID string, _ map[string]string,
+) ([]interface{}, error) {
+	documents, err := c.ListAPIDocuments(ctx, apiID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to interface{} slice
+	var result []interface{}
+	for i := range documents {
+		result = append(result, &documents[i])
+	}
+
+	return result, nil
+}

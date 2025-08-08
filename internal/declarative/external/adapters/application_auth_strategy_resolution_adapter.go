@@ -21,21 +21,50 @@ func NewApplicationAuthStrategyResolutionAdapter(client *state.Client) *Applicat
 }
 
 // GetByID retrieves an application auth strategy by ID
-func (a *ApplicationAuthStrategyResolutionAdapter) GetByID(ctx context.Context, id string, parent *external.ResolvedParent) (interface{}, error) {
+func (a *ApplicationAuthStrategyResolutionAdapter) GetByID(
+	ctx context.Context, id string, parent *external.ResolvedParent,
+) (interface{}, error) {
 	if parent != nil {
 		return nil, fmt.Errorf("application_auth_strategy is a top-level resource and cannot have a parent")
 	}
 	
-	// TODO: Implement using state client method
-	return nil, fmt.Errorf("application auth strategy GetByID not yet implemented")
+	strategy, err := a.GetClient().GetApplicationAuthStrategyByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve application auth strategy by ID %s: %w", id, err)
+	}
+	
+	return strategy, nil
 }
 
 // GetBySelector retrieves application auth strategies by selector fields
-func (a *ApplicationAuthStrategyResolutionAdapter) GetBySelector(ctx context.Context, selector map[string]string, parent *external.ResolvedParent) ([]interface{}, error) {
+func (a *ApplicationAuthStrategyResolutionAdapter) GetBySelector(
+	ctx context.Context, selector map[string]string, parent *external.ResolvedParent,
+) ([]interface{}, error) {
 	if parent != nil {
 		return nil, fmt.Errorf("application_auth_strategy is a top-level resource and cannot have a parent")
 	}
 	
-	// TODO: Implement using state client method
-	return nil, fmt.Errorf("application auth strategy GetBySelector not yet implemented")
+	strategies, err := a.GetClient().ListApplicationAuthStrategiesWithFilter(ctx, selector)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve application auth strategies by selector %v: %w", selector, err)
+	}
+	
+	// FilterBySelector expects exactly one match and returns it
+	strategy, err := a.FilterBySelector(strategies, selector, func(resource interface{}, field string) string {
+		s := resource.(*state.ApplicationAuthStrategy)
+		switch field {
+		case "name":
+			return s.Name
+		case "display_name":
+			return s.DisplayName
+		default:
+			return ""
+		}
+	})
+	
+	if err != nil {
+		return nil, err
+	}
+	
+	return []interface{}{strategy}, nil
 }

@@ -21,21 +21,53 @@ func NewControlPlaneResolutionAdapter(client *state.Client) *ControlPlaneResolut
 }
 
 // GetByID retrieves a control plane by ID
-func (c *ControlPlaneResolutionAdapter) GetByID(ctx context.Context, id string, parent *external.ResolvedParent) (interface{}, error) {
+func (c *ControlPlaneResolutionAdapter) GetByID(
+	ctx context.Context, id string, parent *external.ResolvedParent,
+) (interface{}, error) {
 	if parent != nil {
 		return nil, fmt.Errorf("control_plane is a top-level resource and cannot have a parent")
 	}
 	
-	// TODO: Implement using state client method
-	return nil, fmt.Errorf("control plane GetByID not yet implemented")
+	controlPlane, err := c.GetClient().GetControlPlaneByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve control plane by ID %s: %w", id, err)
+	}
+	
+	return controlPlane, nil
 }
 
 // GetBySelector retrieves control planes by selector fields
-func (c *ControlPlaneResolutionAdapter) GetBySelector(ctx context.Context, selector map[string]string, parent *external.ResolvedParent) ([]interface{}, error) {
+func (c *ControlPlaneResolutionAdapter) GetBySelector(
+	ctx context.Context, selector map[string]string, parent *external.ResolvedParent,
+) ([]interface{}, error) {
 	if parent != nil {
 		return nil, fmt.Errorf("control_plane is a top-level resource and cannot have a parent")
 	}
 	
-	// TODO: Implement using state client method
-	return nil, fmt.Errorf("control plane GetBySelector not yet implemented")
+	controlPlanes, err := c.GetClient().ListControlPlanesWithFilter(ctx, selector)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve control planes by selector %v: %w", selector, err)
+	}
+	
+	// FilterBySelector expects exactly one match and returns it
+	controlPlane, err := c.FilterBySelector(controlPlanes, selector, func(resource interface{}, field string) string {
+		cp := resource.(*state.ControlPlane)
+		switch field {
+		case "name":
+			return cp.Name
+		case "description":
+			if cp.Description != nil {
+				return *cp.Description
+			}
+			return ""
+		default:
+			return ""
+		}
+	})
+	
+	if err != nil {
+		return nil, err
+	}
+	
+	return []interface{}{controlPlane}, nil
 }
