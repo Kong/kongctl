@@ -6,14 +6,14 @@
 |------|------|--------|-------|
 | 1 | Schema and Configuration | ✅ Completed | Resolution naming theme |
 | 2 | Resource Type Registry | ✅ Completed | All 13 adapters implemented (2025-08-07) |
-| 3 | External Resource Resolver | Not Started | |
+| 3 | External Resource Resolver | ✅ Completed | Core resolver, dependency graph, planner integration (2025-08-08) |
 | 4 | Reference Resolution Integration | Not Started | |
 | 5 | Error Handling | Not Started | |
 | 6 | Integration with Planning | Not Started | |
 | 7 | Testing | Not Started | |
 | 8 | Documentation | Not Started | |
 
-**Overall Progress**: 2/8 steps (25%) - Step 2 complete with all 13 adapters fully implemented
+**Overall Progress**: 3/8 steps (37.5%) - Step 3 complete with full resolver implementation
 
 ## Phase 1: Core Implementation
 
@@ -49,15 +49,24 @@
 - Comprehensive test coverage for base adapter functionality
 - All quality checks passing (build, lint, test)
 
-### Step 3: External Resource Resolver
-- [ ] Implement ExternalResourceResolver struct
-- [ ] Parse external_resources from configuration
-- [ ] Build dependency graph for resolution order
-- [ ] Implement direct ID resolution
-- [ ] Implement matchFields selector logic
-- [ ] Add SDK query execution
-- [ ] Implement match validation (exactly one)
-- [ ] Add resource caching mechanism
+### Step 3: External Resource Resolver ✅ COMPLETED
+- [x] Implement ExternalResourceResolver struct
+- [x] Parse external_resources from configuration
+- [x] Build dependency graph for resolution order
+- [x] Implement direct ID resolution
+- [x] Implement matchFields selector logic
+- [x] Add SDK query execution (via adapters)
+- [x] Implement match validation (exactly one)
+- [x] Add resource caching mechanism
+
+**Implementation Notes** (2025-08-08):
+- Created ExternalResourceResolver with full resolution workflow
+- Implemented dependency graph with topological sorting (Kahn's algorithm)
+- Added interface-based design to avoid circular dependencies
+- Integrated with planner for pre-resolution phase
+- Enhanced reference resolver to check external resource cache
+- All quality gates passing (build, tests)
+- 4 minor linting style warnings about naming conventions (kept for consistency)
 
 ### Step 4: Reference Resolution
 - [ ] Implement ReferenceResolver for dependency handling

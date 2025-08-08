@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/external"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
@@ -27,11 +28,12 @@ type Options struct {
 
 // Planner generates execution plans
 type Planner struct {
-	client      *state.Client
-	logger      *slog.Logger
-	resolver    *ReferenceResolver
-	depResolver *DependencyResolver
-	changeCount int
+	client           *state.Client
+	logger           *slog.Logger
+	resolver         *ReferenceResolver
+	depResolver      *DependencyResolver
+	externalResolver *external.ResourceResolver
+	changeCount      int
 	
 	// Generic planner for common operations
 	genericPlanner *GenericPlanner
@@ -57,12 +59,17 @@ type Planner struct {
 
 // NewPlanner creates a new planner
 func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
+	// Initialize external resource resolver
+	registry := external.GetResolutionRegistry()
+	externalResolver := external.NewResourceResolver(registry, client, logger)
+	
 	p := &Planner{
-		client:      client,
-		logger:      logger,
-		resolver:    NewReferenceResolver(client),
-		depResolver: NewDependencyResolver(),
-		changeCount: 0,
+		client:           client,
+		logger:           logger,
+		resolver:         NewReferenceResolver(client, externalResolver),
+		depResolver:      NewDependencyResolver(),
+		externalResolver: externalResolver,
+		changeCount:      0,
 	}
 	
 	// Initialize generic planner
@@ -112,11 +119,12 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	for _, namespace := range namespaces {
 		// Create a namespace-specific planner context
 		namespacePlanner := &Planner{
-			client:      p.client,
-			logger:      p.logger,
-			resolver:    p.resolver,
-			depResolver: p.depResolver,
-			changeCount: p.changeCount,
+			client:           p.client,
+			logger:           p.logger,
+			resolver:         p.resolver,
+			depResolver:      p.depResolver,
+			externalResolver: p.externalResolver,
+			changeCount:      p.changeCount,
 		}
 		
 		// Initialize generic planner for namespace-specific planner
@@ -387,8 +395,16 @@ func (p *Planner) GetDesiredPortalSnippets() []resources.PortalSnippetResource {
 
 // resolveResourceIdentities pre-resolves Konnect IDs for all resources
 func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.ResourceSet) error {
-	// Validate external resources (resolution will be implemented in future steps)
-	p.validateExternalResources(rs.ExternalResources)
+	// Resolve external resources first (they may be referenced by other resources)
+	// Convert concrete types to interface for the resolver
+	externalResources := make([]external.Resource, len(rs.ExternalResources))
+	for i := range rs.ExternalResources {
+		externalResources[i] = &rs.ExternalResources[i]
+	}
+	
+	if err := p.externalResolver.ResolveExternalResources(ctx, externalResources); err != nil {
+		return fmt.Errorf("failed to resolve external resources: %w", err)
+	}
 	
 	// Resolve API identities
 	if err := p.resolveAPIIdentities(ctx, rs.APIs); err != nil {
@@ -411,34 +427,6 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 	return nil
 }
 
-// validateExternalResources validates external resource definitions
-// NOTE: This is a placeholder for Step 1. Full resolution will be implemented in future steps.
-func (p *Planner) validateExternalResources(externalResources []resources.ExternalResourceResource) {
-	// For now, we just ensure external resources are structurally valid
-	// The actual resolution (SDK queries, selector matching, etc.) will be
-	// implemented in subsequent steps as defined in the execution plan
-	
-	for i := range externalResources {
-		extResource := &externalResources[i]
-		
-		// Validation already performed by loader, but we can add planning-specific
-		// validation here if needed in the future
-		p.logger.Debug("External resource registered",
-			"ref", extResource.GetRef(),
-			"type", extResource.GetResourceType(),
-			"hasID", extResource.ID != nil,
-			"hasSelector", extResource.Selector != nil,
-			"hasParent", extResource.Parent != nil,
-		)
-	}
-	
-	// TODO: In future steps, this will:
-	// 1. Build dependency graph for resolution order
-	// 2. Resolve parent resources first
-	// 3. Execute SDK queries to resolve IDs
-	// 4. Validate exactly one match for selectors
-	// 5. Cache resolved resources for reference resolution
-}
 
 // resolveAPIIdentities resolves Konnect IDs for API resources
 func (p *Planner) resolveAPIIdentities(ctx context.Context, apis []resources.APIResource) error {

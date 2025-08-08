@@ -134,6 +134,59 @@ func (e *ExternalResourceResource) IsResolved() bool {
 	return e.resolved
 }
 
+// GetID returns the ID field as a pointer (implements ExternalResource interface)
+func (e ExternalResourceResource) GetID() *string {
+	return e.ID
+}
+
+// GetSelector returns the selector (implements Resource interface)
+func (e ExternalResourceResource) GetSelector() external.Selector {
+	if e.Selector == nil {
+		return nil
+	}
+	return e.Selector
+}
+
+// GetParent returns the parent (implements Resource interface)
+func (e ExternalResourceResource) GetParent() external.Parent {
+	if e.Parent == nil {
+		return nil
+	}
+	return e.Parent
+}
+
+// GetMatchFields returns the match fields from the selector (implements Selector interface)
+func (s *ExternalResourceSelector) GetMatchFields() map[string]string {
+	if s == nil {
+		return nil
+	}
+	return s.MatchFields
+}
+
+// GetResourceType returns the resource type (implements Parent interface)
+func (p *ExternalResourceParent) GetResourceType() string {
+	if p == nil {
+		return ""
+	}
+	return p.ResourceType
+}
+
+// GetID returns the ID (implements Parent interface)
+func (p *ExternalResourceParent) GetID() string {
+	if p == nil {
+		return ""
+	}
+	return p.ID
+}
+
+// GetRef returns the reference (implements Parent interface)
+func (p *ExternalResourceParent) GetRef() string {
+	if p == nil {
+		return ""
+	}
+	return p.Ref
+}
+
 // ExternalResourceError represents validation errors for external resources
 type ExternalResourceError struct {
 	Ref          string

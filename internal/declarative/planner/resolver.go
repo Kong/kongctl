@@ -4,18 +4,24 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/kong/kongctl/internal/declarative/external"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
 // ReferenceResolver resolves declarative refs to Konnect IDs
 type ReferenceResolver struct {
-	client *state.Client
+	client           *state.Client
+	externalResolver *external.ResourceResolver
 }
 
 // NewReferenceResolver creates a new resolver
-func NewReferenceResolver(client *state.Client) *ReferenceResolver {
+func NewReferenceResolver(
+	client *state.Client,
+	externalResolver *external.ResourceResolver,
+) *ReferenceResolver {
 	return &ReferenceResolver{
-		client: client,
+		client:           client,
+		externalResolver: externalResolver,
 	}
 }
 
@@ -153,6 +159,14 @@ func (r *ReferenceResolver) getResourceTypeForField(fieldName string) string {
 
 // resolveReference looks up a reference in existing resources
 func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, ref string) (string, error) {
+	// Check external resources first
+	if r.externalResolver != nil {
+		if resolvedID, found := r.externalResolver.GetResolvedID(ref); found {
+			return resolvedID, nil
+		}
+	}
+	
+	// Fall back to internal resolution
 	switch resourceType {
 	case "application_auth_strategy":
 		return r.resolveAuthStrategyRef(ctx, ref)
