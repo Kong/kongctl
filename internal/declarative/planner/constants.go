@@ -33,6 +33,21 @@ const (
 	
 	// ResourceTypePortalCustomDomain is the resource type for portal custom domains
 	ResourceTypePortalCustomDomain = "portal_custom_domain"
+	
+	// ResourceTypeAPI is the resource type for APIs
+	ResourceTypeAPI = "api"
+	
+	// ResourceTypeAPIVersion is the resource type for API versions
+	ResourceTypeAPIVersion = "api_version"
+	
+	// ResourceTypeAPIPublication is the resource type for API publications
+	ResourceTypeAPIPublication = "api_publication"
+	
+	// ResourceTypeAPIImplementation is the resource type for API implementations
+	ResourceTypeAPIImplementation = "api_implementation"
+	
+	// ResourceTypeAPIDocument is the resource type for API documents
+	ResourceTypeAPIDocument = "api_document"
 )
 
 // Default values

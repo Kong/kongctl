@@ -3,8 +3,10 @@ package planner
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/kong/kongctl/internal/declarative/external"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
@@ -12,6 +14,8 @@ import (
 type ReferenceResolver struct {
 	client           *state.Client
 	externalResolver *external.ResourceResolver
+	mappingCache     map[string]map[string]string // Cache for resource mappings
+	cacheMutex       sync.RWMutex                 // Mutex for cache synchronization
 }
 
 // NewReferenceResolver creates a new resolver
@@ -22,6 +26,7 @@ func NewReferenceResolver(
 	return &ReferenceResolver{
 		client:           client,
 		externalResolver: externalResolver,
+		mappingCache:     make(map[string]map[string]string),
 	}
 }
 
@@ -63,8 +68,35 @@ func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []Pla
 
 		// Check fields that might contain references
 		for fieldName, fieldValue := range change.Fields {
-			if ref, isRef := r.extractReference(fieldName, fieldValue); isRef {
-				// Determine resource type from field name
+			// First try dynamic resolution based on resource type
+			if r.isReferenceFieldDynamic(change.ResourceType, fieldName) {
+				if ref, isRef := r.extractReferenceValue(fieldValue); isRef {
+					// Use dynamic resource type lookup
+					resourceType := r.getResourceTypeForFieldDynamic(change.ResourceType, fieldName)
+					
+					// Check if this references something being created
+					if _, inPlan := createdResources[resourceType][ref]; inPlan {
+						changeRefs[fieldName] = ResolvedReference{
+							Ref: ref,
+							ID:  "[unknown]", // Will be resolved at execution
+						}
+					} else {
+						// Resolve from existing resources
+						id, err := r.resolveReference(ctx, resourceType, ref)
+						if err != nil {
+							result.Errors = append(result.Errors, fmt.Errorf(
+								"change %s: failed to resolve %s reference %q: %w",
+								change.ID, resourceType, ref, err))
+							continue
+						}
+						changeRefs[fieldName] = ResolvedReference{
+							Ref: ref,
+							ID:  id,
+						}
+					}
+				}
+			} else if ref, isRef := r.extractReference(fieldName, fieldValue); isRef {
+				// Fallback to hardcoded approach for backward compatibility
 				resourceType := r.getResourceTypeForField(fieldName)
 
 				// Check if this references something being created
@@ -207,4 +239,99 @@ func (r *ReferenceResolver) resolvePortalRef(ctx context.Context, ref string) (s
 func isUUID(s string) bool {
 	// Simple check - actual implementation would use regex or uuid library
 	return len(s) == 36 && s[8] == '-' && s[13] == '-' && s[18] == '-' && s[23] == '-'
+}
+
+// getResourceMappings retrieves reference field mappings for a resource type
+func (r *ReferenceResolver) getResourceMappings(resourceType string) map[string]string {
+	// Check cache first
+	r.cacheMutex.RLock()
+	if mappings, exists := r.mappingCache[resourceType]; exists {
+		r.cacheMutex.RUnlock()
+		return mappings
+	}
+	r.cacheMutex.RUnlock()
+
+	// Create a resource instance to get its mappings
+	mappings := r.createResourceAndGetMappings(resourceType)
+	
+	// Cache the result
+	r.cacheMutex.Lock()
+	r.mappingCache[resourceType] = mappings
+	r.cacheMutex.Unlock()
+	
+	return mappings
+}
+
+// createResourceAndGetMappings creates a resource instance and retrieves its field mappings
+func (r *ReferenceResolver) createResourceAndGetMappings(resourceType string) map[string]string {
+	// Create an instance of the resource type to query its mappings
+	var resource interface{}
+	
+	switch resourceType {
+	case ResourceTypePortal:
+		resource = resources.PortalResource{}
+	case ResourceTypeAPI:
+		resource = resources.APIResource{}
+	case ResourceTypeAPIVersion:
+		resource = resources.APIVersionResource{}
+	case ResourceTypeAPIPublication:
+		resource = resources.APIPublicationResource{}
+	case ResourceTypeAPIImplementation:
+		resource = resources.APIImplementationResource{}
+	case ResourceTypeAPIDocument:
+		resource = resources.APIDocumentResource{}
+	case "application_auth_strategy":
+		resource = resources.ApplicationAuthStrategyResource{}
+	case "control_plane":
+		resource = resources.ControlPlaneResource{}
+	case "portal_customization":
+		resource = resources.PortalCustomizationResource{}
+	case "portal_custom_domain":
+		resource = resources.PortalCustomDomainResource{}
+	case "portal_page":
+		resource = resources.PortalPageResource{}
+	case "portal_snippet":
+		resource = resources.PortalSnippetResource{}
+	default:
+		return make(map[string]string)
+	}
+	
+	// Check if resource implements reference mappings interface
+	if mapper, ok := resource.(interface{ GetReferenceFieldMappings() map[string]string }); ok {
+		return mapper.GetReferenceFieldMappings()
+	}
+	
+	return make(map[string]string)
+}
+
+// isReferenceFieldDynamic checks if a field is a reference field using resource mappings
+func (r *ReferenceResolver) isReferenceFieldDynamic(resourceType, fieldName string) bool {
+	mappings := r.getResourceMappings(resourceType)
+	_, exists := mappings[fieldName]
+	return exists
+}
+
+// getResourceTypeForFieldDynamic gets resource type using dynamic mappings
+func (r *ReferenceResolver) getResourceTypeForFieldDynamic(resourceType, fieldName string) string {
+	mappings := r.getResourceMappings(resourceType)
+	if targetType, exists := mappings[fieldName]; exists {
+		return targetType
+	}
+	return ""
+}
+
+// extractReferenceValue extracts reference value without checking field name
+func (r *ReferenceResolver) extractReferenceValue(value interface{}) (string, bool) {
+	// Extract string value
+	switch v := value.(type) {
+	case string:
+		if !isUUID(v) && v != "" {
+			return v, true
+		}
+	case FieldChange:
+		if newVal, ok := v.New.(string); ok && !isUUID(newVal) && newVal != "" {
+			return newVal, true
+		}
+	}
+	return "", false
 }

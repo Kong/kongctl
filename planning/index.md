@@ -11,9 +11,9 @@ This folder contains the complete planning and implementation tracking for all k
 - **Architecture Decisions**: [008-external-resources/execution-plan-adrs.md](008-external-resources/execution-plan-adrs.md) ✅ Complete
 - **Goal**: Enable referencing external resources managed by other Kong tools (decK, Terraform, Kong Operator) without taking ownership
 
-**Progress**: 3/8 steps completed (37.5%) 🚧 **IN PROGRESS**
+**Progress**: 4/8 steps completed (50%) 🚧 **IN PROGRESS**
 - **Dependencies**: Stage 7 completion ✅ Met
-- **Current Task**: Step 4 - Reference Resolution Integration (Step 3 completed with full resolver implementation)
+- **Current Task**: Step 5 - Error Handling (Step 4 completed with dynamic reference resolution)
 
 ## Quick Start for Implementation
 
@@ -235,13 +235,14 @@ The first major feature being implemented is declarative configuration managemen
 | [execution-plan-steps.md](008-external-resources/execution-plan-steps.md) | **Implementation guide** | ✅ Complete |
 | [execution-plan-adrs.md](008-external-resources/execution-plan-adrs.md) | Architecture decisions | ✅ Complete |
 
-**Implementation Status**: 3/8 steps completed (37.5%) 🚧 **IN PROGRESS**
+**Implementation Status**: 4/8 steps completed (50%) 🚧 **IN PROGRESS**
 - **Dependencies**: Stage 7 completion ✅ Met
 - **Completed Steps**:
   - ✅ Step 1: Schema and Configuration - External resource types with Resolution naming theme
   - ✅ Step 2: Resource Type Registry - All 13 adapters fully implemented with SDK integration
   - ✅ Step 3: External Resource Resolver - Full resolver with dependency graph and planner integration
-- **Current Task**: Step 4 - Reference Resolution Integration
+  - ✅ Step 4: Reference Resolution Integration - Dynamic field detection replacing hardcoded approach
+- **Current Task**: Step 5 - Error Handling
 - **Key deliverables planned**:
   - ✅ Schema and configuration for external resource definitions (Resolution theme)
   - Resource type registry mapping to SDK operations
@@ -304,7 +305,8 @@ The first major feature being implemented is declarative configuration managemen
 - Step 1 completed: Schema and configuration with Resolution naming theme
 - Step 2 completed: All 13 resource type adapters fully implemented with SDK integration
 - Step 3 completed: External Resource Resolver with dependency graph and planner integration
-- Ready for Step 4: Reference Resolution Integration
+- Step 4 completed: Reference Resolution Integration with dynamic field detection
+- Ready for Step 5: Error Handling
 - External resources will enable integration with other Kong declarative tools
 
 ### 🎯 Entry Points for Claude Code
