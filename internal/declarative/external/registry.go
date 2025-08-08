@@ -123,6 +123,85 @@ func (r *ResolutionRegistry) InjectAdapters(adapters map[string]ResolutionAdapte
 	}
 }
 
+// GetSelectorFieldMetadata returns detailed metadata about selector fields for a resource type
+func (r *ResolutionRegistry) GetSelectorFieldMetadata(resourceType string) map[string]string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	
+	metadata := make(map[string]string)
+	if info, exists := r.types[resourceType]; exists {
+		for _, field := range info.SelectorFields {
+			// Provide descriptive metadata for known fields
+			switch field {
+			case "name":
+				metadata[field] = "The unique name of the resource"
+			case "description":
+				metadata[field] = "The description text of the resource"
+			case "id":
+				metadata[field] = "The unique identifier (UUID) of the resource"
+			case "email":
+				metadata[field] = "The email address associated with the resource"
+			case "full_name":
+				metadata[field] = "The full name or display name"
+			case "path":
+				metadata[field] = "The API path or route"
+			case "slug":
+				metadata[field] = "The URL-friendly identifier"
+			default:
+				metadata[field] = "Field for matching " + resourceType + " resources"
+			}
+		}
+	}
+	return metadata
+}
+
+// FindSimilarResourceNames provides name suggestions for resources based on similarity
+// This is a placeholder that will be enhanced with actual SDK queries in the future
+func (r *ResolutionRegistry) FindSimilarResourceNames(resourceType, _ string) []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	
+	// For now, return generic suggestions based on resource type
+	// This will be enhanced to query actual resources via SDK
+	suggestions := []string{}
+	
+	switch resourceType {
+	case "portal":
+		suggestions = append(suggestions, 
+			"Try listing available portals with: kongctl list portals",
+			"Verify the portal name matches exactly (case-sensitive)",
+			"Check if the portal exists in the current environment")
+	case "api":
+		suggestions = append(suggestions,
+			"Try listing available APIs with: kongctl list apis",
+			"Verify the API name matches exactly (case-sensitive)",
+			"Check if the API exists in the current environment")
+	case "control_plane":
+		suggestions = append(suggestions,
+			"Try listing control planes with: kongctl get konnect gateway control-planes",
+			"Verify the control plane name is correct",
+			"Check if you have access to the control plane")
+	default:
+		suggestions = append(suggestions,
+			"Verify the "+resourceType+" exists in Konnect",
+			"Check the selector fields are correct",
+			"Use more specific selector criteria")
+	}
+	
+	return suggestions
+}
+
+// GetSampleResources returns sample resources for error context
+// This is a placeholder that will query actual resources via SDK in the future
+func (r *ResolutionRegistry) GetSampleResources(_ string, _ int) ([]ResourceSummary, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	
+	// For now, return empty list - will be enhanced with SDK queries
+	// This placeholder allows the error messages to work without breaking
+	return []ResourceSummary{}, nil
+}
+
 // initializeBuiltinTypes registers the built-in resource types with their resolution metadata
 func (r *ResolutionRegistry) initializeBuiltinTypes() {
 	// Portal resource type

@@ -30,7 +30,8 @@ func (p *PortalResolutionAdapter) GetByID(
 	
 	portal, err := p.GetClient().GetPortalByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve portal by ID %s: %w", id, err)
+		// Wrap SDK error with user-friendly message
+		return nil, p.WrapSDKError(err, id, "portal", "GetByID")
 	}
 	
 	return portal, nil
@@ -46,7 +47,8 @@ func (p *PortalResolutionAdapter) GetBySelector(
 	
 	portals, err := p.GetClient().ListPortalsWithFilter(ctx, selector)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve portals by selector %v: %w", selector, err)
+		// Wrap SDK error with user-friendly message - use selector as ref for error context
+		return nil, p.WrapSDKError(err, fmt.Sprintf("%v", selector), "portal", "GetBySelector")
 	}
 	
 	// FilterBySelector expects exactly one match and returns it

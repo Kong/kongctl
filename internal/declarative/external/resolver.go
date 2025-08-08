@@ -124,6 +124,7 @@ func (r *ResourceResolver) resolveResource(ctx context.Context, resource Resourc
 		// Direct ID resolution
 		resolved, err = adapter.GetByID(ctx, *id, parentResource)
 		if err != nil {
+			// SDK errors should be wrapped by the adapters themselves
 			return fmt.Errorf("failed to resolve by ID: %w", err)
 		}
 		resolvedID = *id
@@ -131,6 +132,7 @@ func (r *ResourceResolver) resolveResource(ctx context.Context, resource Resourc
 		// Selector-based resolution
 		results, err := adapter.GetBySelector(ctx, selector.GetMatchFields(), parentResource)
 		if err != nil {
+			// SDK errors should be wrapped by the adapters themselves
 			return fmt.Errorf("failed to resolve by selector: %w", err)
 		}
 
@@ -139,7 +141,7 @@ func (r *ResourceResolver) resolveResource(ctx context.Context, resource Resourc
 			return r.createZeroMatchError(resource)
 		}
 		if len(results) > 1 {
-			return r.createMultipleMatchError(resource, len(results))
+			return r.createMultipleMatchError(resource, len(results), results)
 		}
 
 		resolved = results[0]
@@ -234,31 +236,103 @@ func (r *ResourceResolver) ClearCache() {
 
 // Helper functions for error creation
 func (r *ResourceResolver) createZeroMatchError(resource Resource) error {
-	selectorStr := ""
 	selector := resource.GetSelector()
+	selectorFields := make(map[string]string)
 	if selector != nil {
-		selectorStr = fmt.Sprintf("%+v", selector.GetMatchFields())
+		selectorFields = selector.GetMatchFields()
 	}
 	
-	return fmt.Errorf("external resource %q selector matched 0 resources\n"+
-		"  Resource type: %s\n"+
-		"  Selector: %s\n"+
-		"  Suggestion: Verify the resource exists in Konnect and the selector fields are correct",
-		resource.GetRef(), resource.GetResourceType(), selectorStr)
+	// Get suggestions from registry
+	suggestions := r.registry.FindSimilarResourceNames(resource.GetResourceType(), resource.GetRef())
+	
+	// Add field-specific suggestions
+	fieldMetadata := r.registry.GetSelectorFieldMetadata(resource.GetResourceType())
+	if len(fieldMetadata) > 0 {
+		suggestions = append(suggestions, "Available selector fields for "+resource.GetResourceType()+":")
+		for field, description := range fieldMetadata {
+			suggestions = append(suggestions, "  - "+field+": "+description)
+		}
+	}
+	
+	// Build parent context if available
+	var parentContext *ParentResourceContext
+	if parent := resource.GetParent(); parent != nil {
+		parentContext = &ParentResourceContext{
+			ParentType: parent.GetResourceType(),
+			ParentID:   parent.GetID(),
+			ParentName: parent.GetRef(),
+		}
+	}
+	
+	return &ResourceResolutionError{
+		Ref:            resource.GetRef(),
+		ResourceType:   resource.GetResourceType(),
+		Selector:       selectorFields,
+		MatchedCount:   0,
+		MatchedDetails: []ResourceSummary{},
+		Suggestions:    suggestions,
+		ParentContext:  parentContext,
+		Cause:          nil,
+	}
 }
 
-func (r *ResourceResolver) createMultipleMatchError(resource Resource, count int) error {
-	selectorStr := ""
+func (r *ResourceResolver) createMultipleMatchError(
+	resource Resource, count int, matchedResources []interface{},
+) error {
 	selector := resource.GetSelector()
+	selectorFields := make(map[string]string)
 	if selector != nil {
-		selectorStr = fmt.Sprintf("%+v", selector.GetMatchFields())
+		selectorFields = selector.GetMatchFields()
 	}
 	
-	return fmt.Errorf("external resource %q selector matched %d resources\n"+
-		"  Resource type: %s\n"+
-		"  Selector: %s\n"+
-		"  Suggestion: Use more specific selector fields to match exactly one resource",
-		resource.GetRef(), count, resource.GetResourceType(), selectorStr)
+	// Build matched resource details (up to 5)
+	matchedDetails := []ResourceSummary{}
+	for i := range matchedResources {
+		if i >= 5 {
+			break
+		}
+		// Extract basic info from matched resource
+		// This will be enhanced when we have proper type assertions per resource type
+		summary := ResourceSummary{
+			ID:     fmt.Sprintf("resource-%d", i+1),
+			Fields: make(map[string]string),
+		}
+		matchedDetails = append(matchedDetails, summary)
+	}
+	
+	// Build suggestions for disambiguation
+	suggestions := []string{
+		"Add more specific selector fields to match exactly one resource",
+		"Available selector fields for " + resource.GetResourceType() + ":",
+	}
+	
+	fieldMetadata := r.registry.GetSelectorFieldMetadata(resource.GetResourceType())
+	for field, description := range fieldMetadata {
+		if _, exists := selectorFields[field]; !exists {
+			suggestions = append(suggestions, "  - "+field+": "+description)
+		}
+	}
+	
+	// Build parent context if available
+	var parentContext *ParentResourceContext
+	if parent := resource.GetParent(); parent != nil {
+		parentContext = &ParentResourceContext{
+			ParentType: parent.GetResourceType(),
+			ParentID:   parent.GetID(),
+			ParentName: parent.GetRef(),
+		}
+	}
+	
+	return &ResourceResolutionError{
+		Ref:            resource.GetRef(),
+		ResourceType:   resource.GetResourceType(),
+		Selector:       selectorFields,
+		MatchedCount:   count,
+		MatchedDetails: matchedDetails,
+		Suggestions:    suggestions,
+		ParentContext:  parentContext,
+		Cause:          nil,
+	}
 }
 
 // findResourceByRef finds an external resource by reference
