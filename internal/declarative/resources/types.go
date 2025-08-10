@@ -1,5 +1,68 @@
 package resources
 
+import (
+	"fmt"
+	"sync"
+)
+
+// GlobalRefRegistry tracks refs across all resource types to ensure global uniqueness
+type GlobalRefRegistry struct {
+	refs  map[string]string // ref -> resource_type
+	mutex sync.RWMutex
+}
+
+// NewGlobalRefRegistry creates a new registry for tracking global refs
+func NewGlobalRefRegistry() *GlobalRefRegistry {
+	return &GlobalRefRegistry{
+		refs: make(map[string]string),
+	}
+}
+
+// AddRef registers a ref, returning an error if it already exists
+func (g *GlobalRefRegistry) AddRef(ref, resourceType string) error {
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+
+	if existingType, exists := g.refs[ref]; exists {
+		if existingType == resourceType {
+			return fmt.Errorf("duplicate ref '%s': already used by another %s resource", ref, resourceType)
+		}
+		return fmt.Errorf("duplicate ref '%s': already used by %s resource, cannot use for %s resource",
+			ref, existingType, resourceType)
+	}
+
+	g.refs[ref] = resourceType
+	return nil
+}
+
+// HasRef checks if a ref exists in the registry
+func (g *GlobalRefRegistry) HasRef(ref string) bool {
+	g.mutex.RLock()
+	defer g.mutex.RUnlock()
+	_, exists := g.refs[ref]
+	return exists
+}
+
+// GetResourceType returns the resource type for a given ref
+func (g *GlobalRefRegistry) GetResourceType(ref string) (string, bool) {
+	g.mutex.RLock()
+	defer g.mutex.RUnlock()
+	resourceType, exists := g.refs[ref]
+	return resourceType, exists
+}
+
+// GetAllRefs returns a copy of all refs and their resource types
+func (g *GlobalRefRegistry) GetAllRefs() map[string]string {
+	g.mutex.RLock()
+	defer g.mutex.RUnlock()
+
+	result := make(map[string]string)
+	for ref, resourceType := range g.refs {
+		result[ref] = resourceType
+	}
+	return result
+}
+
 // ResourceSet contains all declarative resources from configuration files
 type ResourceSet struct {
 	Portals []PortalResource `yaml:"portals,omitempty" json:"portals,omitempty"`

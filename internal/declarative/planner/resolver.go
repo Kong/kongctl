@@ -40,14 +40,16 @@ func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []Pla
 		Errors:           []error{},
 	}
 
-	// Build a map of what's being created in this plan
-	createdResources := make(map[string]map[string]string) // resource_type -> ref -> change_id
+	// Build maps of what's being created in this plan
+	// Global map for ref lookups (since refs are globally unique)
+	createdResourcesByRef := make(map[string]string) // ref -> change_id
+	// Map to track resource types (for validation)
+	refToResourceType := make(map[string]string) // ref -> resource_type
+	
 	for _, change := range changes {
 		if change.Action == ActionCreate {
-			if createdResources[change.ResourceType] == nil {
-				createdResources[change.ResourceType] = make(map[string]string)
-			}
-			createdResources[change.ResourceType][change.ResourceRef] = change.ID
+			createdResourcesByRef[change.ResourceRef] = change.ID
+			refToResourceType[change.ResourceRef] = change.ResourceType
 		}
 	}
 
@@ -58,22 +60,32 @@ func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []Pla
 		// Check fields that might contain references
 		for fieldName, fieldValue := range change.Fields {
 			if ref, isRef := r.extractReference(fieldName, fieldValue); isRef {
-				// Determine resource type from field name
-				resourceType := r.getResourceTypeForField(fieldName)
+				// Determine expected resource type from field name
+				expectedResourceType := r.getResourceTypeForField(fieldName)
 
-				// Check if this references something being created
-				if _, inPlan := createdResources[resourceType][ref]; inPlan {
+				// Check if this references something being created in this plan
+				if _, inPlan := createdResourcesByRef[ref]; inPlan {
+					// Validate the resource type matches expectation
+					actualResourceType := refToResourceType[ref]
+					if actualResourceType != expectedResourceType {
+						result.Errors = append(result.Errors, fmt.Errorf(
+							"change %s: field %s expects %s resource, but ref %q is a %s resource",
+							change.ID, fieldName, expectedResourceType, ref, actualResourceType))
+						continue
+					}
 					changeRefs[fieldName] = ResolvedReference{
 						Ref: ref,
 						ID:  "[unknown]", // Will be resolved at execution
 					}
 				} else {
 					// Resolve from existing resources
-					id, err := r.resolveReference(ctx, resourceType, ref)
+					// Since refs are globally unique, we can resolve by ref alone
+					// But we still pass expectedResourceType for validation
+					id, err := r.resolveReference(ctx, expectedResourceType, ref)
 					if err != nil {
 						result.Errors = append(result.Errors, fmt.Errorf(
 							"change %s: failed to resolve %s reference %q: %w",
-							change.ID, resourceType, ref, err))
+							change.ID, expectedResourceType, ref, err))
 						continue
 					}
 					changeRefs[fieldName] = ResolvedReference{

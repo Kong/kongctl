@@ -11,31 +11,35 @@ import (
 
 // validateResourceSet validates all resources and checks for ref uniqueness
 func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
+	// Use global ref registry to enforce uniqueness across ALL resource types
+	globalRefRegistry := resources.NewGlobalRefRegistry()
+	
 	// Build registry of all resources by type for reference validation
+	// Note: We still need this for cross-reference validation
 	resourceRegistry := make(map[string]map[string]bool)
 
 	// Validate portals
-	if err := l.validatePortals(rs.Portals, resourceRegistry); err != nil {
+	if err := l.validatePortals(rs.Portals, globalRefRegistry, resourceRegistry); err != nil {
 		return err
 	}
 
 	// Validate auth strategies
-	if err := l.validateAuthStrategies(rs.ApplicationAuthStrategies, resourceRegistry); err != nil {
+	if err := l.validateAuthStrategies(rs.ApplicationAuthStrategies, globalRefRegistry, resourceRegistry); err != nil {
 		return err
 	}
 
 	// Validate control planes
-	if err := l.validateControlPlanes(rs.ControlPlanes, resourceRegistry); err != nil {
+	if err := l.validateControlPlanes(rs.ControlPlanes, globalRefRegistry, resourceRegistry); err != nil {
 		return err
 	}
 
 	// Validate APIs and their children
-	if err := l.validateAPIs(rs.APIs, resourceRegistry); err != nil {
+	if err := l.validateAPIs(rs.APIs, globalRefRegistry, resourceRegistry); err != nil {
 		return err
 	}
 
 	// Validate separate API child resources (extracted from nested resources)
-	if err := l.validateSeparateAPIChildResources(rs, resourceRegistry); err != nil {
+	if err := l.validateSeparateAPIChildResources(rs, globalRefRegistry, resourceRegistry); err != nil {
 		return err
 	}
 
@@ -53,7 +57,11 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 }
 
 // validatePortals validates portal resources
-func (l *Loader) validatePortals(portals []resources.PortalResource, registry map[string]map[string]bool) error {
+func (l *Loader) validatePortals(
+	portals []resources.PortalResource,
+	globalRefRegistry *resources.GlobalRefRegistry,
+	registry map[string]map[string]bool,
+) error {
 	refs := make(map[string]bool)
 	names := make(map[string]string) // name -> ref mapping
 	registry["portal"] = refs
@@ -66,12 +74,12 @@ func (l *Loader) validatePortals(portals []resources.PortalResource, registry ma
 			return fmt.Errorf("invalid portal %q: %w", portal.GetRef(), err)
 		}
 
-		// Check ref uniqueness
-		if refs[portal.GetRef()] {
-			return fmt.Errorf("duplicate portal ref: %s", portal.GetRef())
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(portal.GetRef(), "portal"); err != nil {
+			return err
 		}
 		
-		// Check name uniqueness
+		// Check name uniqueness (within type)
 		if existingRef, exists := names[portal.Name]; exists {
 			return fmt.Errorf("duplicate portal name '%s' (ref: %s conflicts with ref: %s)", 
 				portal.Name, portal.GetRef(), existingRef)
@@ -87,6 +95,7 @@ func (l *Loader) validatePortals(portals []resources.PortalResource, registry ma
 // validateAuthStrategies validates auth strategy resources
 func (l *Loader) validateAuthStrategies(
 	strategies []resources.ApplicationAuthStrategyResource,
+	globalRefRegistry *resources.GlobalRefRegistry,
 	registry map[string]map[string]bool,
 ) error {
 	refs := make(map[string]bool)
@@ -101,12 +110,12 @@ func (l *Loader) validateAuthStrategies(
 			return fmt.Errorf("invalid application_auth_strategy %q: %w", strategy.GetRef(), err)
 		}
 
-		// Check ref uniqueness
-		if refs[strategy.GetRef()] {
-			return fmt.Errorf("duplicate application_auth_strategy ref: %s", strategy.GetRef())
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(strategy.GetRef(), "application_auth_strategy"); err != nil {
+			return err
 		}
 		
-		// Check name uniqueness
+		// Check name uniqueness (within type)
 		stratName := strategy.GetMoniker()
 		if existingRef, exists := names[stratName]; exists {
 			return fmt.Errorf("duplicate application_auth_strategy name '%s' (ref: %s conflicts with ref: %s)", 
@@ -123,6 +132,7 @@ func (l *Loader) validateAuthStrategies(
 // validateControlPlanes validates control plane resources
 func (l *Loader) validateControlPlanes(
 	cps []resources.ControlPlaneResource,
+	globalRefRegistry *resources.GlobalRefRegistry,
 	registry map[string]map[string]bool,
 ) error {
 	refs := make(map[string]bool)
@@ -137,9 +147,9 @@ func (l *Loader) validateControlPlanes(
 			return fmt.Errorf("invalid control_plane %q: %w", cp.GetRef(), err)
 		}
 
-		// Check ref uniqueness
-		if refs[cp.GetRef()] {
-			return fmt.Errorf("duplicate control_plane ref: %s", cp.GetRef())
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(cp.GetRef(), "control_plane"); err != nil {
+			return err
 		}
 		
 		// Check name uniqueness
@@ -156,7 +166,11 @@ func (l *Loader) validateControlPlanes(
 }
 
 // validateAPIs validates API resources and their children
-func (l *Loader) validateAPIs(apis []resources.APIResource, registry map[string]map[string]bool) error {
+func (l *Loader) validateAPIs(
+	apis []resources.APIResource,
+	globalRefRegistry *resources.GlobalRefRegistry,
+	registry map[string]map[string]bool,
+) error {
 	apiRefs := make(map[string]bool)
 	apiNames := make(map[string]string) // name -> ref mapping
 	registry["api"] = apiRefs
@@ -179,9 +193,9 @@ func (l *Loader) validateAPIs(apis []resources.APIResource, registry map[string]
 			return fmt.Errorf("invalid api %q: %w", api.GetRef(), err)
 		}
 
-		// Check API ref uniqueness
-		if apiRefs[api.GetRef()] {
-			return fmt.Errorf("duplicate api ref: %s", api.GetRef())
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(api.GetRef(), "api"); err != nil {
+			return err
 		}
 		
 		// Check API name uniqueness
@@ -285,7 +299,11 @@ func (l *Loader) validateCrossReferences(rs *resources.ResourceSet, registry map
 }
 
 // validateSeparateAPIChildResources validates individual API child resources that were extracted
-func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet, _ map[string]map[string]bool) error {
+func (l *Loader) validateSeparateAPIChildResources(
+	rs *resources.ResourceSet,
+	globalRefRegistry *resources.GlobalRefRegistry,
+	registry map[string]map[string]bool,
+) error {
 	// Count versions per API to enforce single-version constraint
 	// This is a safety check in case the early validation was bypassed
 	versionCountByAPI := make(map[string]int)
@@ -305,67 +323,123 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet, _ 
 	}
 	
 	// Validate separate API versions
+	versionRefs := make(map[string]bool)
+	registry["api_version"] = versionRefs
 	for i := range rs.APIVersions {
 		version := &rs.APIVersions[i]
 		if err := version.Validate(); err != nil {
 			return fmt.Errorf("invalid api_version %q: %w", version.GetRef(), err)
 		}
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(version.GetRef(), "api_version"); err != nil {
+			return err
+		}
+		versionRefs[version.GetRef()] = true
 	}
 
 	// Validate separate API publications  
+	publicationRefs := make(map[string]bool)
+	registry["api_publication"] = publicationRefs
 	for i := range rs.APIPublications {
 		publication := &rs.APIPublications[i]
 		if err := publication.Validate(); err != nil {
 			return fmt.Errorf("invalid api_publication %q: %w", publication.GetRef(), err)
 		}
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(publication.GetRef(), "api_publication"); err != nil {
+			return err
+		}
+		publicationRefs[publication.GetRef()] = true
 	}
 
 	// Validate separate API implementations
+	implementationRefs := make(map[string]bool)
+	registry["api_implementation"] = implementationRefs
 	for i := range rs.APIImplementations {
 		implementation := &rs.APIImplementations[i]
 		if err := implementation.Validate(); err != nil {
 			return fmt.Errorf("invalid api_implementation %q: %w", implementation.GetRef(), err)
 		}
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(implementation.GetRef(), "api_implementation"); err != nil {
+			return err
+		}
+		implementationRefs[implementation.GetRef()] = true
 	}
 
 	// Validate separate API documents
+	documentRefs := make(map[string]bool)
+	registry["api_document"] = documentRefs
 	for i := range rs.APIDocuments {
 		document := &rs.APIDocuments[i]
 		if err := document.Validate(); err != nil {
 			return fmt.Errorf("invalid api_document %q: %w", document.GetRef(), err)
 		}
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(document.GetRef(), "api_document"); err != nil {
+			return err
+		}
+		documentRefs[document.GetRef()] = true
 	}
 
 	// Validate portal pages
+	pageRefs := make(map[string]bool)
+	registry["portal_page"] = pageRefs
 	for i := range rs.PortalPages {
 		page := &rs.PortalPages[i]
 		if err := page.Validate(); err != nil {
 			return fmt.Errorf("invalid portal_page %q: %w", page.GetRef(), err)
 		}
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(page.GetRef(), "portal_page"); err != nil {
+			return err
+		}
+		pageRefs[page.GetRef()] = true
 	}
 
 	// Validate portal snippets
+	snippetRefs := make(map[string]bool)
+	registry["portal_snippet"] = snippetRefs
 	for i := range rs.PortalSnippets {
 		snippet := &rs.PortalSnippets[i]
 		if err := snippet.Validate(); err != nil {
 			return fmt.Errorf("invalid portal_snippet %q: %w", snippet.GetRef(), err)
 		}
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(snippet.GetRef(), "portal_snippet"); err != nil {
+			return err
+		}
+		snippetRefs[snippet.GetRef()] = true
 	}
 
 	// Validate portal customizations
+	customizationRefs := make(map[string]bool)
+	registry["portal_customization"] = customizationRefs
 	for i := range rs.PortalCustomizations {
 		customization := &rs.PortalCustomizations[i]
 		if err := customization.Validate(); err != nil {
 			return fmt.Errorf("invalid portal_customization %q: %w", customization.GetRef(), err)
 		}
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(customization.GetRef(), "portal_customization"); err != nil {
+			return err
+		}
+		customizationRefs[customization.GetRef()] = true
 	}
 
 	// Validate portal custom domains
+	domainRefs := make(map[string]bool)
+	registry["portal_custom_domain"] = domainRefs
 	for i := range rs.PortalCustomDomains {
 		domain := &rs.PortalCustomDomains[i]
 		if err := domain.Validate(); err != nil {
 			return fmt.Errorf("invalid portal_custom_domain %q: %w", domain.GetRef(), err)
 		}
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(domain.GetRef(), "portal_custom_domain"); err != nil {
+			return err
+		}
+		domainRefs[domain.GetRef()] = true
 	}
 
 	return nil

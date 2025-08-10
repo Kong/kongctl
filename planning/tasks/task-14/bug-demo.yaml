@@ -1,0 +1,18 @@
+# This demonstrates the bug - we can have the same ref value
+# across different resource types, which should NOT be allowed
+# according to the requirement that refs are globally unique
+
+# A portal with ref "common"
+portals:
+  - ref: common
+    name: "My Portal"
+
+# An API with the same ref "common" - this should fail but doesn't
+apis:
+  - ref: common
+    name: "My API"
+
+# A control plane with the same ref "common" - this should also fail but doesn't
+control_planes:
+  - ref: common
+    name: "My Control Plane"

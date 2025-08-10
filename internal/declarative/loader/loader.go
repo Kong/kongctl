@@ -55,23 +55,15 @@ func (l *Loader) getTagRegistry() *tags.ResolverRegistry {
 func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.ResourceSet, error) {
 	var allResources resources.ResourceSet
 	
-	// Track refs and names for duplicate detection across all sources
-	portalRefs := make(map[string]string)      // ref -> source path
+	// Use global ref registry to enforce uniqueness across ALL resource types
+	globalRefRegistry := resources.NewGlobalRefRegistry()
+	refSourceMap := make(map[string]string) // ref -> source path for error messages
+	
+	// Still track names separately per type (names are only unique within type)
 	portalNames := make(map[string]string)     // name -> source path
-	authStratRefs := make(map[string]string)   // ref -> source path
 	authStratNames := make(map[string]string)  // name -> source path
-	cpRefs := make(map[string]string)          // ref -> source path
 	cpNames := make(map[string]string)         // name -> source path
-	apiRefs := make(map[string]string)         // ref -> source path
 	apiNames := make(map[string]string)        // name -> source path
-	apiVersionRefs := make(map[string]string)  // ref -> source path
-	apiPubRefs := make(map[string]string)      // ref -> source path
-	apiImplRefs := make(map[string]string)     // ref -> source path
-	apiDocRefs := make(map[string]string)      // ref -> source path
-	portalCustomizationRefs := make(map[string]string) // ref -> source path
-	portalCustomDomainRefs := make(map[string]string)  // ref -> source path
-	portalPageRefs := make(map[string]string)          // ref -> source path
-	portalSnippetRefs := make(map[string]string)       // ref -> source path
 	
 	for _, source := range sources {
 		var rs *resources.ResourceSet
@@ -82,10 +74,8 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 			rs, err = l.loadSingleFile(source.Path)
 		case SourceTypeDirectory:
 			rs, err = l.loadDirectorySource(source.Path, recursive, 
-				portalRefs, portalNames, authStratRefs, authStratNames,
-				cpRefs, cpNames, apiRefs, apiNames,
-				apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs,
-				portalCustomizationRefs, portalCustomDomainRefs, portalPageRefs, portalSnippetRefs)
+				globalRefRegistry, refSourceMap,
+				portalNames, authStratNames, cpNames, apiNames)
 		case SourceTypeSTDIN:
 			rs, err = l.loadSTDIN()
 		default:
@@ -100,10 +90,8 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 		// For directories, duplicates are already checked during loading
 		if source.Type != SourceTypeDirectory {
 			if err := l.mergeResourceSet(&allResources, rs, source.Path,
-				portalRefs, portalNames, authStratRefs, authStratNames,
-				cpRefs, cpNames, apiRefs, apiNames,
-				apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs,
-				portalCustomizationRefs, portalCustomDomainRefs, portalPageRefs, portalSnippetRefs); err != nil {
+				globalRefRegistry, refSourceMap,
+				portalNames, authStratNames, cpNames, apiNames); err != nil {
 				return nil, err
 			}
 		} else {
@@ -282,11 +270,8 @@ func (l *Loader) loadSTDIN() (*resources.ResourceSet, error) {
 
 // loadDirectorySource loads YAML files from a directory
 func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
-	portalRefs, portalNames, authStratRefs, authStratNames,
-	cpRefs, cpNames, apiRefs, apiNames,
-	apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs,
-	portalCustomizationRefs, portalCustomDomainRefs, 
-	portalPageRefs, portalSnippetRefs map[string]string,
+	globalRefRegistry *resources.GlobalRefRegistry, refSourceMap map[string]string,
+	portalNames, authStratNames, cpNames, apiNames map[string]string,
 ) (*resources.ResourceSet, error) {
 	
 	var allResources resources.ResourceSet
@@ -307,10 +292,8 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 			if recursive {
 				// Recursively load subdirectory
 				subRS, err := l.loadDirectorySource(path, recursive,
-					portalRefs, portalNames, authStratRefs, authStratNames,
-					cpRefs, cpNames, apiRefs, apiNames,
-					apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs,
-					portalCustomizationRefs, portalCustomDomainRefs, portalPageRefs, portalSnippetRefs)
+					globalRefRegistry, refSourceMap,
+					portalNames, authStratNames, cpNames, apiNames)
 				if err != nil {
 					return nil, err
 				}
@@ -325,6 +308,10 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 				allResources.APIPublications = append(allResources.APIPublications, subRS.APIPublications...)
 				allResources.APIImplementations = append(allResources.APIImplementations, subRS.APIImplementations...)
 				allResources.APIDocuments = append(allResources.APIDocuments, subRS.APIDocuments...)
+				allResources.PortalCustomizations = append(allResources.PortalCustomizations, subRS.PortalCustomizations...)
+				allResources.PortalCustomDomains = append(allResources.PortalCustomDomains, subRS.PortalCustomDomains...)
+				allResources.PortalPages = append(allResources.PortalPages, subRS.PortalPages...)
+				allResources.PortalSnippets = append(allResources.PortalSnippets, subRS.PortalSnippets...)
 			}
 			continue
 		}
@@ -351,24 +338,35 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 		// Check duplicates during merge (inline to reuse the maps)
 		// This is the fail-fast duplicate detection logic
 		for _, portal := range rs.Portals {
-			if existingPath, exists := portalRefs[portal.Ref]; exists {
-				return nil, fmt.Errorf("duplicate portal ref '%s' found in %s (already defined in %s)", 
-					portal.Ref, path, existingPath)
+			// Check global ref uniqueness
+			if err := globalRefRegistry.AddRef(portal.Ref, "portal"); err != nil {
+				if existingPath, exists := refSourceMap[portal.Ref]; exists {
+					return nil, fmt.Errorf("%w (found in %s, already defined in %s)", err, path, existingPath)
+				}
+				return nil, fmt.Errorf("%w (found in %s)", err, path)
 			}
+			refSourceMap[portal.Ref] = path
+			
+			// Check name uniqueness (within type)
 			if existingPath, exists := portalNames[portal.Name]; exists {
 				return nil, fmt.Errorf("duplicate portal name '%s' found in %s (already defined in %s with ref '%s')", 
 					portal.Name, path, existingPath, l.findRefByName(allResources.Portals, portal.Name))
 			}
-			portalRefs[portal.Ref] = path
 			portalNames[portal.Name] = path
 			allResources.Portals = append(allResources.Portals, portal)
 		}
 		
 		for _, authStrat := range rs.ApplicationAuthStrategies {
-			if existingPath, exists := authStratRefs[authStrat.Ref]; exists {
-				return nil, fmt.Errorf("duplicate application_auth_strategy ref '%s' found in %s (already defined in %s)", 
-					authStrat.Ref, path, existingPath)
+			// Check global ref uniqueness
+			if err := globalRefRegistry.AddRef(authStrat.Ref, "application_auth_strategy"); err != nil {
+				if existingPath, exists := refSourceMap[authStrat.Ref]; exists {
+					return nil, fmt.Errorf("%w (found in %s, already defined in %s)", err, path, existingPath)
+				}
+				return nil, fmt.Errorf("%w (found in %s)", err, path)
 			}
+			refSourceMap[authStrat.Ref] = path
+			
+			// Check name uniqueness (within type)
 			authName := authStrat.GetMoniker()
 			if existingPath, exists := authStratNames[authName]; exists {
 				existingRef := l.findRefByName(allResources.ApplicationAuthStrategies, authName)
@@ -376,110 +374,135 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 					"duplicate application_auth_strategy name '%s' found in %s (already defined in %s with ref '%s')", 
 					authName, path, existingPath, existingRef)
 			}
-			authStratRefs[authStrat.Ref] = path
 			authStratNames[authName] = path
 			allResources.ApplicationAuthStrategies = append(allResources.ApplicationAuthStrategies, authStrat)
 		}
 		
 		for _, cp := range rs.ControlPlanes {
-			if existingPath, exists := cpRefs[cp.Ref]; exists {
-				return nil, fmt.Errorf("duplicate control_plane ref '%s' found in %s (already defined in %s)", 
-					cp.Ref, path, existingPath)
+			// Check global ref uniqueness
+			if err := globalRefRegistry.AddRef(cp.Ref, "control_plane"); err != nil {
+				if existingPath, exists := refSourceMap[cp.Ref]; exists {
+					return nil, fmt.Errorf("%w (found in %s, already defined in %s)", err, path, existingPath)
+				}
+				return nil, fmt.Errorf("%w (found in %s)", err, path)
 			}
+			refSourceMap[cp.Ref] = path
+			
+			// Check name uniqueness (within type)
 			if existingPath, exists := cpNames[cp.Name]; exists {
 				return nil, fmt.Errorf("duplicate control_plane name '%s' found in %s (already defined in %s with ref '%s')", 
 					cp.Name, path, existingPath, l.findRefByName(allResources.ControlPlanes, cp.Name))
 			}
-			cpRefs[cp.Ref] = path
 			cpNames[cp.Name] = path
 			allResources.ControlPlanes = append(allResources.ControlPlanes, cp)
 		}
 		
 		for _, api := range rs.APIs {
-			if existingPath, exists := apiRefs[api.Ref]; exists {
-				return nil, fmt.Errorf("duplicate api ref '%s' found in %s (already defined in %s)", 
-					api.Ref, path, existingPath)
+			// Check global ref uniqueness
+			if err := globalRefRegistry.AddRef(api.Ref, "api"); err != nil {
+				if existingPath, exists := refSourceMap[api.Ref]; exists {
+					return nil, fmt.Errorf("%w (found in %s, already defined in %s)", err, path, existingPath)
+				}
+				return nil, fmt.Errorf("%w (found in %s)", err, path)
 			}
+			refSourceMap[api.Ref] = path
+			
+			// Check name uniqueness (within type)
 			if existingPath, exists := apiNames[api.Name]; exists {
 				return nil, fmt.Errorf("duplicate api name '%s' found in %s (already defined in %s with ref '%s')", 
 					api.Name, path, existingPath, l.findRefByName(allResources.APIs, api.Name))
 			}
-			apiRefs[api.Ref] = path
 			apiNames[api.Name] = path
 			allResources.APIs = append(allResources.APIs, api)
 		}
 		
 		// Check duplicates for API child resources
 		for _, version := range rs.APIVersions {
-			if existingPath, exists := apiVersionRefs[version.Ref]; exists {
-				return nil, fmt.Errorf("duplicate api_version ref '%s' found in %s (already defined in %s)", 
-					version.Ref, path, existingPath)
+			if err := globalRefRegistry.AddRef(version.Ref, "api_version"); err != nil {
+				if existingPath, exists := refSourceMap[version.Ref]; exists {
+					return nil, fmt.Errorf("%w (found in %s, already defined in %s)", err, path, existingPath)
+				}
+				return nil, fmt.Errorf("%w (found in %s)", err, path)
 			}
-			apiVersionRefs[version.Ref] = path
+			refSourceMap[version.Ref] = path
 			allResources.APIVersions = append(allResources.APIVersions, version)
 		}
 		
 		for _, pub := range rs.APIPublications {
-			if existingPath, exists := apiPubRefs[pub.Ref]; exists {
-				return nil, fmt.Errorf("duplicate api_publication ref '%s' found in %s (already defined in %s)", 
-					pub.Ref, path, existingPath)
+			if err := globalRefRegistry.AddRef(pub.Ref, "api_publication"); err != nil {
+				if existingPath, exists := refSourceMap[pub.Ref]; exists {
+					return nil, fmt.Errorf("%w (found in %s, already defined in %s)", err, path, existingPath)
+				}
+				return nil, fmt.Errorf("%w (found in %s)", err, path)
 			}
-			apiPubRefs[pub.Ref] = path
+			refSourceMap[pub.Ref] = path
 			allResources.APIPublications = append(allResources.APIPublications, pub)
 		}
 		
 		for _, impl := range rs.APIImplementations {
-			if existingPath, exists := apiImplRefs[impl.Ref]; exists {
-				return nil, fmt.Errorf("duplicate api_implementation ref '%s' found in %s (already defined in %s)", 
-					impl.Ref, path, existingPath)
+			if err := globalRefRegistry.AddRef(impl.Ref, "api_implementation"); err != nil {
+				if existingPath, exists := refSourceMap[impl.Ref]; exists {
+					return nil, fmt.Errorf("%w (found in %s, already defined in %s)", err, path, existingPath)
+				}
+				return nil, fmt.Errorf("%w (found in %s)", err, path)
 			}
-			apiImplRefs[impl.Ref] = path
+			refSourceMap[impl.Ref] = path
 			allResources.APIImplementations = append(allResources.APIImplementations, impl)
 		}
 		
 		for _, doc := range rs.APIDocuments {
-			if existingPath, exists := apiDocRefs[doc.Ref]; exists {
-				return nil, fmt.Errorf("duplicate api_document ref '%s' found in %s (already defined in %s)", 
-					doc.Ref, path, existingPath)
+			if err := globalRefRegistry.AddRef(doc.Ref, "api_document"); err != nil {
+				if existingPath, exists := refSourceMap[doc.Ref]; exists {
+					return nil, fmt.Errorf("%w (found in %s, already defined in %s)", err, path, existingPath)
+				}
+				return nil, fmt.Errorf("%w (found in %s)", err, path)
 			}
-			apiDocRefs[doc.Ref] = path
+			refSourceMap[doc.Ref] = path
 			allResources.APIDocuments = append(allResources.APIDocuments, doc)
 		}
 		
 		// Check duplicates for Portal child resources
 		for _, customization := range rs.PortalCustomizations {
-			if existingPath, exists := portalCustomizationRefs[customization.Ref]; exists {
-				return nil, fmt.Errorf("duplicate portal_customization ref '%s' found in %s (already defined in %s)", 
-					customization.Ref, path, existingPath)
+			if err := globalRefRegistry.AddRef(customization.Ref, "portal_customization"); err != nil {
+				if existingPath, exists := refSourceMap[customization.Ref]; exists {
+					return nil, fmt.Errorf("%w (found in %s, already defined in %s)", err, path, existingPath)
+				}
+				return nil, fmt.Errorf("%w (found in %s)", err, path)
 			}
-			portalCustomizationRefs[customization.Ref] = path
+			refSourceMap[customization.Ref] = path
 			allResources.PortalCustomizations = append(allResources.PortalCustomizations, customization)
 		}
 		
 		for _, domain := range rs.PortalCustomDomains {
-			if existingPath, exists := portalCustomDomainRefs[domain.Ref]; exists {
-				return nil, fmt.Errorf("duplicate portal_custom_domain ref '%s' found in %s (already defined in %s)", 
-					domain.Ref, path, existingPath)
+			if err := globalRefRegistry.AddRef(domain.Ref, "portal_custom_domain"); err != nil {
+				if existingPath, exists := refSourceMap[domain.Ref]; exists {
+					return nil, fmt.Errorf("%w (found in %s, already defined in %s)", err, path, existingPath)
+				}
+				return nil, fmt.Errorf("%w (found in %s)", err, path)
 			}
-			portalCustomDomainRefs[domain.Ref] = path
+			refSourceMap[domain.Ref] = path
 			allResources.PortalCustomDomains = append(allResources.PortalCustomDomains, domain)
 		}
 		
 		for _, page := range rs.PortalPages {
-			if existingPath, exists := portalPageRefs[page.Ref]; exists {
-				return nil, fmt.Errorf("duplicate portal_page ref '%s' found in %s (already defined in %s)", 
-					page.Ref, path, existingPath)
+			if err := globalRefRegistry.AddRef(page.Ref, "portal_page"); err != nil {
+				if existingPath, exists := refSourceMap[page.Ref]; exists {
+					return nil, fmt.Errorf("%w (found in %s, already defined in %s)", err, path, existingPath)
+				}
+				return nil, fmt.Errorf("%w (found in %s)", err, path)
 			}
-			portalPageRefs[page.Ref] = path
+			refSourceMap[page.Ref] = path
 			allResources.PortalPages = append(allResources.PortalPages, page)
 		}
 		
 		for _, snippet := range rs.PortalSnippets {
-			if existingPath, exists := portalSnippetRefs[snippet.Ref]; exists {
-				return nil, fmt.Errorf("duplicate portal_snippet ref '%s' found in %s (already defined in %s)", 
-					snippet.Ref, path, existingPath)
+			if err := globalRefRegistry.AddRef(snippet.Ref, "portal_snippet"); err != nil {
+				if existingPath, exists := refSourceMap[snippet.Ref]; exists {
+					return nil, fmt.Errorf("%w (found in %s, already defined in %s)", err, path, existingPath)
+				}
+				return nil, fmt.Errorf("%w (found in %s)", err, path)
 			}
-			portalSnippetRefs[snippet.Ref] = path
+			refSourceMap[snippet.Ref] = path
 			allResources.PortalSnippets = append(allResources.PortalSnippets, snippet)
 		}
 	}
@@ -504,35 +527,44 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 
 // mergeResourceSet merges source resources into target with duplicate detection
 func (l *Loader) mergeResourceSet(target, source *resources.ResourceSet, sourcePath string,
-	portalRefs, portalNames, authStratRefs, authStratNames,
-	cpRefs, cpNames, apiRefs, apiNames,
-	apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs,
-	portalCustomizationRefs, portalCustomDomainRefs, portalPageRefs, portalSnippetRefs map[string]string) error {
+	globalRefRegistry *resources.GlobalRefRegistry, refSourceMap map[string]string,
+	portalNames, authStratNames, cpNames, apiNames map[string]string) error {
 	
 	// For single files and STDIN, we need to check duplicates
 	// For directories, duplicates are already checked during loading
 	
 	// Merge portals
 	for _, portal := range source.Portals {
-		if existingPath, exists := portalRefs[portal.Ref]; exists {
-			return fmt.Errorf("duplicate portal ref '%s' found in %s (already defined in %s)", 
-				portal.Ref, sourcePath, existingPath)
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(portal.Ref, "portal"); err != nil {
+			if existingPath, exists := refSourceMap[portal.Ref]; exists {
+				return fmt.Errorf("%w (found in %s, already defined in %s)", err, sourcePath, existingPath)
+			}
+			return fmt.Errorf("%w (found in %s)", err, sourcePath)
 		}
+		refSourceMap[portal.Ref] = sourcePath
+		
+		// Check name uniqueness (within type)
 		if existingPath, exists := portalNames[portal.Name]; exists {
 			return fmt.Errorf("duplicate portal name '%s' found in %s (already defined in %s with ref '%s')", 
 				portal.Name, sourcePath, existingPath, l.findRefByName(target.Portals, portal.Name))
 		}
-		portalRefs[portal.Ref] = sourcePath
 		portalNames[portal.Name] = sourcePath
 		target.Portals = append(target.Portals, portal)
 	}
 	
 	// Merge auth strategies
 	for _, authStrat := range source.ApplicationAuthStrategies {
-		if existingPath, exists := authStratRefs[authStrat.Ref]; exists {
-			return fmt.Errorf("duplicate application_auth_strategy ref '%s' found in %s (already defined in %s)", 
-				authStrat.Ref, sourcePath, existingPath)
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(authStrat.Ref, "application_auth_strategy"); err != nil {
+			if existingPath, exists := refSourceMap[authStrat.Ref]; exists {
+				return fmt.Errorf("%w (found in %s, already defined in %s)", err, sourcePath, existingPath)
+			}
+			return fmt.Errorf("%w (found in %s)", err, sourcePath)
 		}
+		refSourceMap[authStrat.Ref] = sourcePath
+		
+		// Check name uniqueness (within type)
 		authName := authStrat.GetMoniker()
 		if existingPath, exists := authStratNames[authName]; exists {
 			existingRef := l.findRefByName(target.ApplicationAuthStrategies, authName)
@@ -540,112 +572,145 @@ func (l *Loader) mergeResourceSet(target, source *resources.ResourceSet, sourceP
 				"duplicate application_auth_strategy name '%s' found in %s (already defined in %s with ref '%s')", 
 				authName, sourcePath, existingPath, existingRef)
 		}
-		authStratRefs[authStrat.Ref] = sourcePath
 		authStratNames[authName] = sourcePath
 		target.ApplicationAuthStrategies = append(target.ApplicationAuthStrategies, authStrat)
 	}
 	
 	// Merge control planes
 	for _, cp := range source.ControlPlanes {
-		if existingPath, exists := cpRefs[cp.Ref]; exists {
-			return fmt.Errorf("duplicate control_plane ref '%s' found in %s (already defined in %s)", 
-				cp.Ref, sourcePath, existingPath)
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(cp.Ref, "control_plane"); err != nil {
+			if existingPath, exists := refSourceMap[cp.Ref]; exists {
+				return fmt.Errorf("%w (found in %s, already defined in %s)", err, sourcePath, existingPath)
+			}
+			return fmt.Errorf("%w (found in %s)", err, sourcePath)
 		}
+		refSourceMap[cp.Ref] = sourcePath
+		
+		// Check name uniqueness (within type)
 		if existingPath, exists := cpNames[cp.Name]; exists {
 			return fmt.Errorf("duplicate control_plane name '%s' found in %s (already defined in %s with ref '%s')", 
 				cp.Name, sourcePath, existingPath, l.findRefByName(target.ControlPlanes, cp.Name))
 		}
-		cpRefs[cp.Ref] = sourcePath
 		cpNames[cp.Name] = sourcePath
 		target.ControlPlanes = append(target.ControlPlanes, cp)
 	}
 	
 	// Merge APIs
 	for _, api := range source.APIs {
-		if existingPath, exists := apiRefs[api.Ref]; exists {
-			return fmt.Errorf("duplicate api ref '%s' found in %s (already defined in %s)", 
-				api.Ref, sourcePath, existingPath)
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(api.Ref, "api"); err != nil {
+			if existingPath, exists := refSourceMap[api.Ref]; exists {
+				return fmt.Errorf("%w (found in %s, already defined in %s)", err, sourcePath, existingPath)
+			}
+			return fmt.Errorf("%w (found in %s)", err, sourcePath)
 		}
+		refSourceMap[api.Ref] = sourcePath
+		
+		// Check name uniqueness (within type)
 		if existingPath, exists := apiNames[api.Name]; exists {
 			return fmt.Errorf("duplicate api name '%s' found in %s (already defined in %s with ref '%s')", 
 				api.Name, sourcePath, existingPath, l.findRefByName(target.APIs, api.Name))
 		}
-		apiRefs[api.Ref] = sourcePath
 		apiNames[api.Name] = sourcePath
 		target.APIs = append(target.APIs, api)
 	}
 	
 	// Merge API child resources
 	for _, version := range source.APIVersions {
-		if existingPath, exists := apiVersionRefs[version.Ref]; exists {
-			return fmt.Errorf("duplicate api_version ref '%s' found in %s (already defined in %s)", 
-				version.Ref, sourcePath, existingPath)
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(version.Ref, "api_version"); err != nil {
+			if existingPath, exists := refSourceMap[version.Ref]; exists {
+				return fmt.Errorf("%w (found in %s, already defined in %s)", err, sourcePath, existingPath)
+			}
+			return fmt.Errorf("%w (found in %s)", err, sourcePath)
 		}
-		apiVersionRefs[version.Ref] = sourcePath
+		refSourceMap[version.Ref] = sourcePath
 		target.APIVersions = append(target.APIVersions, version)
 	}
 	
 	for _, pub := range source.APIPublications {
-		if existingPath, exists := apiPubRefs[pub.Ref]; exists {
-			return fmt.Errorf("duplicate api_publication ref '%s' found in %s (already defined in %s)", 
-				pub.Ref, sourcePath, existingPath)
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(pub.Ref, "api_publication"); err != nil {
+			if existingPath, exists := refSourceMap[pub.Ref]; exists {
+				return fmt.Errorf("%w (found in %s, already defined in %s)", err, sourcePath, existingPath)
+			}
+			return fmt.Errorf("%w (found in %s)", err, sourcePath)
 		}
-		apiPubRefs[pub.Ref] = sourcePath
+		refSourceMap[pub.Ref] = sourcePath
 		target.APIPublications = append(target.APIPublications, pub)
 	}
 	
 	for _, impl := range source.APIImplementations {
-		if existingPath, exists := apiImplRefs[impl.Ref]; exists {
-			return fmt.Errorf("duplicate api_implementation ref '%s' found in %s (already defined in %s)", 
-				impl.Ref, sourcePath, existingPath)
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(impl.Ref, "api_implementation"); err != nil {
+			if existingPath, exists := refSourceMap[impl.Ref]; exists {
+				return fmt.Errorf("%w (found in %s, already defined in %s)", err, sourcePath, existingPath)
+			}
+			return fmt.Errorf("%w (found in %s)", err, sourcePath)
 		}
-		apiImplRefs[impl.Ref] = sourcePath
+		refSourceMap[impl.Ref] = sourcePath
 		target.APIImplementations = append(target.APIImplementations, impl)
 	}
 	
 	for _, doc := range source.APIDocuments {
-		if existingPath, exists := apiDocRefs[doc.Ref]; exists {
-			return fmt.Errorf("duplicate api_document ref '%s' found in %s (already defined in %s)", 
-				doc.Ref, sourcePath, existingPath)
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(doc.Ref, "api_document"); err != nil {
+			if existingPath, exists := refSourceMap[doc.Ref]; exists {
+				return fmt.Errorf("%w (found in %s, already defined in %s)", err, sourcePath, existingPath)
+			}
+			return fmt.Errorf("%w (found in %s)", err, sourcePath)
 		}
-		apiDocRefs[doc.Ref] = sourcePath
+		refSourceMap[doc.Ref] = sourcePath
 		target.APIDocuments = append(target.APIDocuments, doc)
 	}
 	
 	// Merge Portal child resources
 	for _, customization := range source.PortalCustomizations {
-		if existingPath, exists := portalCustomizationRefs[customization.Ref]; exists {
-			return fmt.Errorf("duplicate portal_customization ref '%s' found in %s (already defined in %s)", 
-				customization.Ref, sourcePath, existingPath)
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(customization.Ref, "portal_customization"); err != nil {
+			if existingPath, exists := refSourceMap[customization.Ref]; exists {
+				return fmt.Errorf("%w (found in %s, already defined in %s)", err, sourcePath, existingPath)
+			}
+			return fmt.Errorf("%w (found in %s)", err, sourcePath)
 		}
-		portalCustomizationRefs[customization.Ref] = sourcePath
+		refSourceMap[customization.Ref] = sourcePath
 		target.PortalCustomizations = append(target.PortalCustomizations, customization)
 	}
 	
 	for _, domain := range source.PortalCustomDomains {
-		if existingPath, exists := portalCustomDomainRefs[domain.Ref]; exists {
-			return fmt.Errorf("duplicate portal_custom_domain ref '%s' found in %s (already defined in %s)", 
-				domain.Ref, sourcePath, existingPath)
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(domain.Ref, "portal_custom_domain"); err != nil {
+			if existingPath, exists := refSourceMap[domain.Ref]; exists {
+				return fmt.Errorf("%w (found in %s, already defined in %s)", err, sourcePath, existingPath)
+			}
+			return fmt.Errorf("%w (found in %s)", err, sourcePath)
 		}
-		portalCustomDomainRefs[domain.Ref] = sourcePath
+		refSourceMap[domain.Ref] = sourcePath
 		target.PortalCustomDomains = append(target.PortalCustomDomains, domain)
 	}
 	
 	for _, page := range source.PortalPages {
-		if existingPath, exists := portalPageRefs[page.Ref]; exists {
-			return fmt.Errorf("duplicate portal_page ref '%s' found in %s (already defined in %s)", 
-				page.Ref, sourcePath, existingPath)
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(page.Ref, "portal_page"); err != nil {
+			if existingPath, exists := refSourceMap[page.Ref]; exists {
+				return fmt.Errorf("%w (found in %s, already defined in %s)", err, sourcePath, existingPath)
+			}
+			return fmt.Errorf("%w (found in %s)", err, sourcePath)
 		}
-		portalPageRefs[page.Ref] = sourcePath
+		refSourceMap[page.Ref] = sourcePath
 		target.PortalPages = append(target.PortalPages, page)
 	}
 	
 	for _, snippet := range source.PortalSnippets {
-		if existingPath, exists := portalSnippetRefs[snippet.Ref]; exists {
-			return fmt.Errorf("duplicate portal_snippet ref '%s' found in %s (already defined in %s)", 
-				snippet.Ref, sourcePath, existingPath)
+		// Check global ref uniqueness
+		if err := globalRefRegistry.AddRef(snippet.Ref, "portal_snippet"); err != nil {
+			if existingPath, exists := refSourceMap[snippet.Ref]; exists {
+				return fmt.Errorf("%w (found in %s, already defined in %s)", err, sourcePath, existingPath)
+			}
+			return fmt.Errorf("%w (found in %s)", err, sourcePath)
 		}
-		portalSnippetRefs[snippet.Ref] = sourcePath
+		refSourceMap[snippet.Ref] = sourcePath
 		target.PortalSnippets = append(target.PortalSnippets, snippet)
 	}
 	

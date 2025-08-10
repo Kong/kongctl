@@ -52,7 +52,7 @@ func TestLoader_validatePortals(t *testing.T) {
 				{Ref: "portal1"},
 			},
 			wantErr:     true,
-			expectedErr: "duplicate portal ref: portal1",
+			expectedErr: "duplicate ref 'portal1': already used by another portal resource",
 		},
 		{
 			name: "missing ref",
@@ -68,8 +68,9 @@ func TestLoader_validatePortals(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset registry for each test
 			registry = make(map[string]map[string]bool)
+			globalRefRegistry := resources.NewGlobalRefRegistry()
 			
-			err := loader.validatePortals(tt.portals, registry)
+			err := loader.validatePortals(tt.portals, globalRefRegistry, registry)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedErr)
@@ -126,15 +127,16 @@ func TestLoader_validateAuthStrategies(t *testing.T) {
 				{Ref: "oauth1"},
 			},
 			wantErr:     true,
-			expectedErr: "duplicate application_auth_strategy ref: oauth1",
+			expectedErr: "duplicate ref 'oauth1': already used by another application_auth_strategy resource",
 		},
 	}
 	
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			registry = make(map[string]map[string]bool)
+			globalRefRegistry := resources.NewGlobalRefRegistry()
 			
-			err := loader.validateAuthStrategies(tt.strategies, registry)
+			err := loader.validateAuthStrategies(tt.strategies, globalRefRegistry, registry)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedErr)
@@ -181,15 +183,16 @@ func TestLoader_validateControlPlanes(t *testing.T) {
 				{Ref: "cp1"},
 			},
 			wantErr:     true,
-			expectedErr: "duplicate control_plane ref: cp1",
+			expectedErr: "duplicate ref 'cp1': already used by another control_plane resource",
 		},
 	}
 	
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			registry = make(map[string]map[string]bool)
+			globalRefRegistry := resources.NewGlobalRefRegistry()
 			
-			err := loader.validateControlPlanes(tt.cps, registry)
+			err := loader.validateControlPlanes(tt.cps, globalRefRegistry, registry)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedErr)
@@ -236,7 +239,7 @@ func TestLoader_validateAPIs(t *testing.T) {
 				{Ref: "api1"},
 			},
 			wantErr:     true,
-			expectedErr: "duplicate api ref: api1",
+			expectedErr: "duplicate ref 'api1': already used by another api resource",
 		},
 		{
 			name: "API with duplicate version refs",
@@ -348,8 +351,9 @@ func TestLoader_validateAPIs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			registry = make(map[string]map[string]bool)
+			globalRefRegistry := resources.NewGlobalRefRegistry()
 			
-			err := loader.validateAPIs(tt.apis, registry)
+			err := loader.validateAPIs(tt.apis, globalRefRegistry, registry)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedErr)
