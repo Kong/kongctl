@@ -55,72 +55,22 @@ func (l *Loader) getTagRegistry() *tags.ResolverRegistry {
 func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.ResourceSet, error) {
 	var allResources resources.ResourceSet
 	
-	// Track refs and names for duplicate detection across all sources
-	portalRefs := make(map[string]string)      // ref -> source path
-	portalNames := make(map[string]string)     // name -> source path
-	authStratRefs := make(map[string]string)   // ref -> source path
-	authStratNames := make(map[string]string)  // name -> source path
-	cpRefs := make(map[string]string)          // ref -> source path
-	cpNames := make(map[string]string)         // name -> source path
-	apiRefs := make(map[string]string)         // ref -> source path
-	apiNames := make(map[string]string)        // name -> source path
-	apiVersionRefs := make(map[string]string)  // ref -> source path
-	apiPubRefs := make(map[string]string)      // ref -> source path
-	apiImplRefs := make(map[string]string)     // ref -> source path
-	apiDocRefs := make(map[string]string)      // ref -> source path
-	portalCustomizationRefs := make(map[string]string) // ref -> source path
-	portalCustomDomainRefs := make(map[string]string)  // ref -> source path
-	portalPageRefs := make(map[string]string)          // ref -> source path
-	portalSnippetRefs := make(map[string]string)       // ref -> source path
-	
 	for _, source := range sources {
-		var rs *resources.ResourceSet
 		var err error
 		
 		switch source.Type {
 		case SourceTypeFile:
-			rs, err = l.loadSingleFile(source.Path)
+			err = l.loadSingleFile(source.Path, &allResources)
 		case SourceTypeDirectory:
-			rs, err = l.loadDirectorySource(source.Path, recursive, 
-				portalRefs, portalNames, authStratRefs, authStratNames,
-				cpRefs, cpNames, apiRefs, apiNames,
-				apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs,
-				portalCustomizationRefs, portalCustomDomainRefs, portalPageRefs, portalSnippetRefs)
+			err = l.loadDirectorySource(source.Path, recursive, &allResources)
 		case SourceTypeSTDIN:
-			rs, err = l.loadSTDIN()
+			err = l.loadSTDIN(&allResources)
 		default:
 			return nil, errors.FormatConfigurationError(source.Path, 0, fmt.Sprintf("unknown source type: %v", source.Type))
 		}
 		
 		if err != nil {
 			return nil, err
-		}
-		
-		// Merge resources with duplicate detection
-		// For directories, duplicates are already checked during loading
-		if source.Type != SourceTypeDirectory {
-			if err := l.mergeResourceSet(&allResources, rs, source.Path,
-				portalRefs, portalNames, authStratRefs, authStratNames,
-				cpRefs, cpNames, apiRefs, apiNames,
-				apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs,
-				portalCustomizationRefs, portalCustomDomainRefs, portalPageRefs, portalSnippetRefs); err != nil {
-				return nil, err
-			}
-		} else {
-			// For directories, just append since duplicates were already checked
-			allResources.Portals = append(allResources.Portals, rs.Portals...)
-			allResources.ApplicationAuthStrategies = append(allResources.ApplicationAuthStrategies,
-				rs.ApplicationAuthStrategies...)
-			allResources.ControlPlanes = append(allResources.ControlPlanes, rs.ControlPlanes...)
-			allResources.APIs = append(allResources.APIs, rs.APIs...)
-			allResources.APIVersions = append(allResources.APIVersions, rs.APIVersions...)
-			allResources.APIPublications = append(allResources.APIPublications, rs.APIPublications...)
-			allResources.APIImplementations = append(allResources.APIImplementations, rs.APIImplementations...)
-			allResources.APIDocuments = append(allResources.APIDocuments, rs.APIDocuments...)
-			allResources.PortalCustomizations = append(allResources.PortalCustomizations, rs.PortalCustomizations...)
-			allResources.PortalCustomDomains = append(allResources.PortalCustomDomains, rs.PortalCustomDomains...)
-			allResources.PortalPages = append(allResources.PortalPages, rs.PortalPages...)
-			allResources.PortalSnippets = append(allResources.PortalSnippets, rs.PortalSnippets...)
 		}
 	}
 	
@@ -144,39 +94,42 @@ func (l *Loader) Load() (*resources.ResourceSet, error) {
 
 // LoadFile loads configuration from a single YAML file (deprecated, for backward compatibility)
 func (l *Loader) LoadFile(path string) (*resources.ResourceSet, error) {
-	rs, err := l.loadSingleFile(path)
-	if err != nil {
+	var rs resources.ResourceSet
+	if err := l.loadSingleFile(path, &rs); err != nil {
 		return nil, err
 	}
 	
+	// Apply defaults
+	l.applyDefaults(&rs)
+	
 	// Validate for backward compatibility
-	if err := l.validateResourceSet(rs); err != nil {
+	if err := l.validateResourceSet(&rs); err != nil {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}
 	
-	return rs, nil
+	return &rs, nil
 }
 
 // loadSingleFile loads configuration from a single YAML file
-func (l *Loader) loadSingleFile(path string) (*resources.ResourceSet, error) {
+func (l *Loader) loadSingleFile(path string, accumulated *resources.ResourceSet) error {
 	// Validate YAML extension
 	if !ValidateYAMLFile(path) {
-		return nil, fmt.Errorf("file %s does not have .yaml or .yml extension", path)
+		return fmt.Errorf("file %s does not have .yaml or .yml extension", path)
 	}
 	
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file %s: %w", path, err)
+		return fmt.Errorf("failed to open file %s: %w", path, err)
 	}
 	defer file.Close()
 
 	rs, err := l.parseYAML(file, path)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	
-	// Don't validate here - will be validated after merging all sources
-	return rs, nil
+	// Append resources with duplicate checking
+	return l.appendResourcesWithDuplicateCheck(accumulated, rs, path)
 }
 
 // parseYAML parses YAML content into ResourceSet
@@ -261,42 +214,35 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceS
 }
 
 // loadSTDIN loads configuration from stdin
-func (l *Loader) loadSTDIN() (*resources.ResourceSet, error) {
+func (l *Loader) loadSTDIN(accumulated *resources.ResourceSet) error {
 	// Check if stdin has data
 	stat, err := os.Stdin.Stat()
 	if err != nil {
-		return nil, fmt.Errorf("failed to stat stdin: %w", err)
+		return fmt.Errorf("failed to stat stdin: %w", err)
 	}
 	
 	if (stat.Mode() & os.ModeCharDevice) != 0 {
-		return nil, fmt.Errorf("no data provided on stdin")
+		return fmt.Errorf("no data provided on stdin")
 	}
 	
 	rs, err := l.parseYAML(os.Stdin, "stdin")
 	if err != nil {
-		return nil, err
+		return err
 	}
 	
-	return rs, nil
+	// Append resources with duplicate checking
+	return l.appendResourcesWithDuplicateCheck(accumulated, rs, "stdin")
 }
 
 // loadDirectorySource loads YAML files from a directory
-func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
-	portalRefs, portalNames, authStratRefs, authStratNames,
-	cpRefs, cpNames, apiRefs, apiNames,
-	apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs,
-	portalCustomizationRefs, portalCustomDomainRefs, 
-	portalPageRefs, portalSnippetRefs map[string]string,
-) (*resources.ResourceSet, error) {
-	
-	var allResources resources.ResourceSet
+func (l *Loader) loadDirectorySource(dirPath string, recursive bool, accumulated *resources.ResourceSet) error {
 	yamlCount := 0
 	subdirCount := 0
 	
 	// First, check direct YAML files in the directory
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read directory %s: %w", dirPath, err)
+		return fmt.Errorf("failed to read directory %s: %w", dirPath, err)
 	}
 	
 	for _, entry := range entries {
@@ -306,25 +252,9 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 			subdirCount++
 			if recursive {
 				// Recursively load subdirectory
-				subRS, err := l.loadDirectorySource(path, recursive,
-					portalRefs, portalNames, authStratRefs, authStratNames,
-					cpRefs, cpNames, apiRefs, apiNames,
-					apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs,
-					portalCustomizationRefs, portalCustomDomainRefs, portalPageRefs, portalSnippetRefs)
-				if err != nil {
-					return nil, err
+				if err := l.loadDirectorySource(path, recursive, accumulated); err != nil {
+					return err
 				}
-				
-				// Merge is handled by parent since we pass the maps
-				allResources.Portals = append(allResources.Portals, subRS.Portals...)
-				allResources.ApplicationAuthStrategies = append(allResources.ApplicationAuthStrategies,
-					subRS.ApplicationAuthStrategies...)
-				allResources.ControlPlanes = append(allResources.ControlPlanes, subRS.ControlPlanes...)
-				allResources.APIs = append(allResources.APIs, subRS.APIs...)
-				allResources.APIVersions = append(allResources.APIVersions, subRS.APIVersions...)
-				allResources.APIPublications = append(allResources.APIPublications, subRS.APIPublications...)
-				allResources.APIImplementations = append(allResources.APIImplementations, subRS.APIImplementations...)
-				allResources.APIDocuments = append(allResources.APIDocuments, subRS.APIDocuments...)
 			}
 			continue
 		}
@@ -339,355 +269,163 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool,
 		// Load file without validation (will validate merged result later)
 		file, err := os.Open(path)
 		if err != nil {
-			return nil, fmt.Errorf("failed to open %s: %w", path, err)
+			return fmt.Errorf("failed to open %s: %w", path, err)
 		}
 		
 		rs, err := l.parseYAML(file, path)
 		file.Close()
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse %s: %w", path, err)
+			return fmt.Errorf("failed to parse %s: %w", path, err)
 		}
 		
-		// Check duplicates during merge (inline to reuse the maps)
-		// This is the fail-fast duplicate detection logic
-		for _, portal := range rs.Portals {
-			if existingPath, exists := portalRefs[portal.Ref]; exists {
-				return nil, fmt.Errorf("duplicate portal ref '%s' found in %s (already defined in %s)", 
-					portal.Ref, path, existingPath)
-			}
-			if existingPath, exists := portalNames[portal.Name]; exists {
-				return nil, fmt.Errorf("duplicate portal name '%s' found in %s (already defined in %s with ref '%s')", 
-					portal.Name, path, existingPath, l.findRefByName(allResources.Portals, portal.Name))
-			}
-			portalRefs[portal.Ref] = path
-			portalNames[portal.Name] = path
-			allResources.Portals = append(allResources.Portals, portal)
+		// Append resources with duplicate checking
+		if err := l.appendResourcesWithDuplicateCheck(accumulated, rs, path); err != nil {
+			return err
 		}
 		
-		for _, authStrat := range rs.ApplicationAuthStrategies {
-			if existingPath, exists := authStratRefs[authStrat.Ref]; exists {
-				return nil, fmt.Errorf("duplicate application_auth_strategy ref '%s' found in %s (already defined in %s)", 
-					authStrat.Ref, path, existingPath)
-			}
-			authName := authStrat.GetMoniker()
-			if existingPath, exists := authStratNames[authName]; exists {
-				existingRef := l.findRefByName(allResources.ApplicationAuthStrategies, authName)
-				return nil, fmt.Errorf(
-					"duplicate application_auth_strategy name '%s' found in %s (already defined in %s with ref '%s')", 
-					authName, path, existingPath, existingRef)
-			}
-			authStratRefs[authStrat.Ref] = path
-			authStratNames[authName] = path
-			allResources.ApplicationAuthStrategies = append(allResources.ApplicationAuthStrategies, authStrat)
-		}
-		
-		for _, cp := range rs.ControlPlanes {
-			if existingPath, exists := cpRefs[cp.Ref]; exists {
-				return nil, fmt.Errorf("duplicate control_plane ref '%s' found in %s (already defined in %s)", 
-					cp.Ref, path, existingPath)
-			}
-			if existingPath, exists := cpNames[cp.Name]; exists {
-				return nil, fmt.Errorf("duplicate control_plane name '%s' found in %s (already defined in %s with ref '%s')", 
-					cp.Name, path, existingPath, l.findRefByName(allResources.ControlPlanes, cp.Name))
-			}
-			cpRefs[cp.Ref] = path
-			cpNames[cp.Name] = path
-			allResources.ControlPlanes = append(allResources.ControlPlanes, cp)
-		}
-		
-		for _, api := range rs.APIs {
-			if existingPath, exists := apiRefs[api.Ref]; exists {
-				return nil, fmt.Errorf("duplicate api ref '%s' found in %s (already defined in %s)", 
-					api.Ref, path, existingPath)
-			}
-			if existingPath, exists := apiNames[api.Name]; exists {
-				return nil, fmt.Errorf("duplicate api name '%s' found in %s (already defined in %s with ref '%s')", 
-					api.Name, path, existingPath, l.findRefByName(allResources.APIs, api.Name))
-			}
-			apiRefs[api.Ref] = path
-			apiNames[api.Name] = path
-			allResources.APIs = append(allResources.APIs, api)
-		}
-		
-		// Check duplicates for API child resources
-		for _, version := range rs.APIVersions {
-			if existingPath, exists := apiVersionRefs[version.Ref]; exists {
-				return nil, fmt.Errorf("duplicate api_version ref '%s' found in %s (already defined in %s)", 
-					version.Ref, path, existingPath)
-			}
-			apiVersionRefs[version.Ref] = path
-			allResources.APIVersions = append(allResources.APIVersions, version)
-		}
-		
-		for _, pub := range rs.APIPublications {
-			if existingPath, exists := apiPubRefs[pub.Ref]; exists {
-				return nil, fmt.Errorf("duplicate api_publication ref '%s' found in %s (already defined in %s)", 
-					pub.Ref, path, existingPath)
-			}
-			apiPubRefs[pub.Ref] = path
-			allResources.APIPublications = append(allResources.APIPublications, pub)
-		}
-		
-		for _, impl := range rs.APIImplementations {
-			if existingPath, exists := apiImplRefs[impl.Ref]; exists {
-				return nil, fmt.Errorf("duplicate api_implementation ref '%s' found in %s (already defined in %s)", 
-					impl.Ref, path, existingPath)
-			}
-			apiImplRefs[impl.Ref] = path
-			allResources.APIImplementations = append(allResources.APIImplementations, impl)
-		}
-		
-		for _, doc := range rs.APIDocuments {
-			if existingPath, exists := apiDocRefs[doc.Ref]; exists {
-				return nil, fmt.Errorf("duplicate api_document ref '%s' found in %s (already defined in %s)", 
-					doc.Ref, path, existingPath)
-			}
-			apiDocRefs[doc.Ref] = path
-			allResources.APIDocuments = append(allResources.APIDocuments, doc)
-		}
-		
-		// Check duplicates for Portal child resources
-		for _, customization := range rs.PortalCustomizations {
-			if existingPath, exists := portalCustomizationRefs[customization.Ref]; exists {
-				return nil, fmt.Errorf("duplicate portal_customization ref '%s' found in %s (already defined in %s)", 
-					customization.Ref, path, existingPath)
-			}
-			portalCustomizationRefs[customization.Ref] = path
-			allResources.PortalCustomizations = append(allResources.PortalCustomizations, customization)
-		}
-		
-		for _, domain := range rs.PortalCustomDomains {
-			if existingPath, exists := portalCustomDomainRefs[domain.Ref]; exists {
-				return nil, fmt.Errorf("duplicate portal_custom_domain ref '%s' found in %s (already defined in %s)", 
-					domain.Ref, path, existingPath)
-			}
-			portalCustomDomainRefs[domain.Ref] = path
-			allResources.PortalCustomDomains = append(allResources.PortalCustomDomains, domain)
-		}
-		
-		for _, page := range rs.PortalPages {
-			if existingPath, exists := portalPageRefs[page.Ref]; exists {
-				return nil, fmt.Errorf("duplicate portal_page ref '%s' found in %s (already defined in %s)", 
-					page.Ref, path, existingPath)
-			}
-			portalPageRefs[page.Ref] = path
-			allResources.PortalPages = append(allResources.PortalPages, page)
-		}
-		
-		for _, snippet := range rs.PortalSnippets {
-			if existingPath, exists := portalSnippetRefs[snippet.Ref]; exists {
-				return nil, fmt.Errorf("duplicate portal_snippet ref '%s' found in %s (already defined in %s)", 
-					snippet.Ref, path, existingPath)
-			}
-			portalSnippetRefs[snippet.Ref] = path
-			allResources.PortalSnippets = append(allResources.PortalSnippets, snippet)
-		}
 	}
 	
 	// Provide helpful error if no YAML files found
 	if yamlCount == 0 && subdirCount > 0 && !recursive {
-		return nil, fmt.Errorf("no YAML files found in directory '%s'. Found %d subdirectories. "+
+		return fmt.Errorf("no YAML files found in directory '%s'. Found %d subdirectories. "+
 			"Use -R to search subdirectories", dirPath, subdirCount)
-	} else if yamlCount == 0 && len(allResources.Portals) == 0 && 
-		len(allResources.ApplicationAuthStrategies) == 0 &&
-		len(allResources.ControlPlanes) == 0 && len(allResources.APIs) == 0 &&
-		len(allResources.APIVersions) == 0 && len(allResources.APIPublications) == 0 &&
-		len(allResources.APIImplementations) == 0 && len(allResources.APIDocuments) == 0 &&
-		len(allResources.PortalCustomizations) == 0 && len(allResources.PortalCustomDomains) == 0 &&
-		len(allResources.PortalPages) == 0 && len(allResources.PortalSnippets) == 0 {
-		// Only error if no files were found at all (not just empty files)
-		return nil, fmt.Errorf("no YAML files found in directory '%s'", dirPath)
-	}
-	
-	return &allResources, nil
-}
-
-// mergeResourceSet merges source resources into target with duplicate detection
-func (l *Loader) mergeResourceSet(target, source *resources.ResourceSet, sourcePath string,
-	portalRefs, portalNames, authStratRefs, authStratNames,
-	cpRefs, cpNames, apiRefs, apiNames,
-	apiVersionRefs, apiPubRefs, apiImplRefs, apiDocRefs,
-	portalCustomizationRefs, portalCustomDomainRefs, portalPageRefs, portalSnippetRefs map[string]string) error {
-	
-	// For single files and STDIN, we need to check duplicates
-	// For directories, duplicates are already checked during loading
-	
-	// Merge portals
-	for _, portal := range source.Portals {
-		if existingPath, exists := portalRefs[portal.Ref]; exists {
-			return fmt.Errorf("duplicate portal ref '%s' found in %s (already defined in %s)", 
-				portal.Ref, sourcePath, existingPath)
+	} else if yamlCount == 0 {
+		// Check if accumulated has any resources
+		hasResources := len(accumulated.Portals) > 0 || 
+			len(accumulated.ApplicationAuthStrategies) > 0 ||
+			len(accumulated.ControlPlanes) > 0 || len(accumulated.APIs) > 0 ||
+			len(accumulated.APIVersions) > 0 || len(accumulated.APIPublications) > 0 ||
+			len(accumulated.APIImplementations) > 0 || len(accumulated.APIDocuments) > 0 ||
+			len(accumulated.PortalCustomizations) > 0 || len(accumulated.PortalCustomDomains) > 0 ||
+			len(accumulated.PortalPages) > 0 || len(accumulated.PortalSnippets) > 0
+		
+		if !hasResources {
+			// Only error if no files were found at all (not just empty files)
+			return fmt.Errorf("no YAML files found in directory '%s'", dirPath)
 		}
-		if existingPath, exists := portalNames[portal.Name]; exists {
-			return fmt.Errorf("duplicate portal name '%s' found in %s (already defined in %s with ref '%s')", 
-				portal.Name, sourcePath, existingPath, l.findRefByName(target.Portals, portal.Name))
-		}
-		portalRefs[portal.Ref] = sourcePath
-		portalNames[portal.Name] = sourcePath
-		target.Portals = append(target.Portals, portal)
-	}
-	
-	// Merge auth strategies
-	for _, authStrat := range source.ApplicationAuthStrategies {
-		if existingPath, exists := authStratRefs[authStrat.Ref]; exists {
-			return fmt.Errorf("duplicate application_auth_strategy ref '%s' found in %s (already defined in %s)", 
-				authStrat.Ref, sourcePath, existingPath)
-		}
-		authName := authStrat.GetMoniker()
-		if existingPath, exists := authStratNames[authName]; exists {
-			existingRef := l.findRefByName(target.ApplicationAuthStrategies, authName)
-			return fmt.Errorf(
-				"duplicate application_auth_strategy name '%s' found in %s (already defined in %s with ref '%s')", 
-				authName, sourcePath, existingPath, existingRef)
-		}
-		authStratRefs[authStrat.Ref] = sourcePath
-		authStratNames[authName] = sourcePath
-		target.ApplicationAuthStrategies = append(target.ApplicationAuthStrategies, authStrat)
-	}
-	
-	// Merge control planes
-	for _, cp := range source.ControlPlanes {
-		if existingPath, exists := cpRefs[cp.Ref]; exists {
-			return fmt.Errorf("duplicate control_plane ref '%s' found in %s (already defined in %s)", 
-				cp.Ref, sourcePath, existingPath)
-		}
-		if existingPath, exists := cpNames[cp.Name]; exists {
-			return fmt.Errorf("duplicate control_plane name '%s' found in %s (already defined in %s with ref '%s')", 
-				cp.Name, sourcePath, existingPath, l.findRefByName(target.ControlPlanes, cp.Name))
-		}
-		cpRefs[cp.Ref] = sourcePath
-		cpNames[cp.Name] = sourcePath
-		target.ControlPlanes = append(target.ControlPlanes, cp)
-	}
-	
-	// Merge APIs
-	for _, api := range source.APIs {
-		if existingPath, exists := apiRefs[api.Ref]; exists {
-			return fmt.Errorf("duplicate api ref '%s' found in %s (already defined in %s)", 
-				api.Ref, sourcePath, existingPath)
-		}
-		if existingPath, exists := apiNames[api.Name]; exists {
-			return fmt.Errorf("duplicate api name '%s' found in %s (already defined in %s with ref '%s')", 
-				api.Name, sourcePath, existingPath, l.findRefByName(target.APIs, api.Name))
-		}
-		apiRefs[api.Ref] = sourcePath
-		apiNames[api.Name] = sourcePath
-		target.APIs = append(target.APIs, api)
-	}
-	
-	// Merge API child resources
-	for _, version := range source.APIVersions {
-		if existingPath, exists := apiVersionRefs[version.Ref]; exists {
-			return fmt.Errorf("duplicate api_version ref '%s' found in %s (already defined in %s)", 
-				version.Ref, sourcePath, existingPath)
-		}
-		apiVersionRefs[version.Ref] = sourcePath
-		target.APIVersions = append(target.APIVersions, version)
-	}
-	
-	for _, pub := range source.APIPublications {
-		if existingPath, exists := apiPubRefs[pub.Ref]; exists {
-			return fmt.Errorf("duplicate api_publication ref '%s' found in %s (already defined in %s)", 
-				pub.Ref, sourcePath, existingPath)
-		}
-		apiPubRefs[pub.Ref] = sourcePath
-		target.APIPublications = append(target.APIPublications, pub)
-	}
-	
-	for _, impl := range source.APIImplementations {
-		if existingPath, exists := apiImplRefs[impl.Ref]; exists {
-			return fmt.Errorf("duplicate api_implementation ref '%s' found in %s (already defined in %s)", 
-				impl.Ref, sourcePath, existingPath)
-		}
-		apiImplRefs[impl.Ref] = sourcePath
-		target.APIImplementations = append(target.APIImplementations, impl)
-	}
-	
-	for _, doc := range source.APIDocuments {
-		if existingPath, exists := apiDocRefs[doc.Ref]; exists {
-			return fmt.Errorf("duplicate api_document ref '%s' found in %s (already defined in %s)", 
-				doc.Ref, sourcePath, existingPath)
-		}
-		apiDocRefs[doc.Ref] = sourcePath
-		target.APIDocuments = append(target.APIDocuments, doc)
-	}
-	
-	// Merge Portal child resources
-	for _, customization := range source.PortalCustomizations {
-		if existingPath, exists := portalCustomizationRefs[customization.Ref]; exists {
-			return fmt.Errorf("duplicate portal_customization ref '%s' found in %s (already defined in %s)", 
-				customization.Ref, sourcePath, existingPath)
-		}
-		portalCustomizationRefs[customization.Ref] = sourcePath
-		target.PortalCustomizations = append(target.PortalCustomizations, customization)
-	}
-	
-	for _, domain := range source.PortalCustomDomains {
-		if existingPath, exists := portalCustomDomainRefs[domain.Ref]; exists {
-			return fmt.Errorf("duplicate portal_custom_domain ref '%s' found in %s (already defined in %s)", 
-				domain.Ref, sourcePath, existingPath)
-		}
-		portalCustomDomainRefs[domain.Ref] = sourcePath
-		target.PortalCustomDomains = append(target.PortalCustomDomains, domain)
-	}
-	
-	for _, page := range source.PortalPages {
-		if existingPath, exists := portalPageRefs[page.Ref]; exists {
-			return fmt.Errorf("duplicate portal_page ref '%s' found in %s (already defined in %s)", 
-				page.Ref, sourcePath, existingPath)
-		}
-		portalPageRefs[page.Ref] = sourcePath
-		target.PortalPages = append(target.PortalPages, page)
-	}
-	
-	for _, snippet := range source.PortalSnippets {
-		if existingPath, exists := portalSnippetRefs[snippet.Ref]; exists {
-			return fmt.Errorf("duplicate portal_snippet ref '%s' found in %s (already defined in %s)", 
-				snippet.Ref, sourcePath, existingPath)
-		}
-		portalSnippetRefs[snippet.Ref] = sourcePath
-		target.PortalSnippets = append(target.PortalSnippets, snippet)
-	}
-	
-	// Preserve DefaultNamespace if set in source
-	// When merging multiple files, the last one with a default namespace wins
-	if source.DefaultNamespace != "" {
-		target.DefaultNamespace = source.DefaultNamespace
 	}
 	
 	return nil
 }
 
-
-// findRefByName is a generic helper to find ref by name for any resource type
-func (l *Loader) findRefByName(resourceList interface{}, name string) string {
-	switch res := resourceList.(type) {
-	case []resources.PortalResource:
-		for _, r := range res {
-			if r.Name == name {
-				return r.Ref
-			}
+// appendResourcesWithDuplicateCheck appends resources from source to accumulated with global duplicate checking
+func (l *Loader) appendResourcesWithDuplicateCheck(
+	accumulated, source *resources.ResourceSet, sourcePath string) error {
+	// Check and append portals
+	for _, portal := range source.Portals {
+		if accumulated.HasRef(portal.Ref) {
+			existing, _ := accumulated.GetResourceByRef(portal.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)", 
+				portal.Ref, sourcePath, existing.GetType())
 		}
-	case []resources.ApplicationAuthStrategyResource:
-		for _, r := range res {
-			if r.GetMoniker() == name {
-				return r.Ref
-			}
-		}
-	case []resources.ControlPlaneResource:
-		for _, r := range res {
-			if r.Name == name {
-				return r.Ref
-			}
-		}
-	case []resources.APIResource:
-		for _, r := range res {
-			if r.Name == name {
-				return r.Ref
-			}
-		}
+		accumulated.Portals = append(accumulated.Portals, portal)
 	}
-	return ""
+	
+	// Check and append auth strategies
+	for _, authStrat := range source.ApplicationAuthStrategies {
+		if accumulated.HasRef(authStrat.Ref) {
+			existing, _ := accumulated.GetResourceByRef(authStrat.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)", 
+				authStrat.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.ApplicationAuthStrategies = append(accumulated.ApplicationAuthStrategies, authStrat)
+	}
+	
+	// Check and append control planes
+	for _, cp := range source.ControlPlanes {
+		if accumulated.HasRef(cp.Ref) {
+			existing, _ := accumulated.GetResourceByRef(cp.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)", 
+				cp.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.ControlPlanes = append(accumulated.ControlPlanes, cp)
+	}
+	
+	// Check and append APIs
+	for _, api := range source.APIs {
+		if accumulated.HasRef(api.Ref) {
+			existing, _ := accumulated.GetResourceByRef(api.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)", 
+				api.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.APIs = append(accumulated.APIs, api)
+	}
+	
+	// Check and append API child resources
+	for _, version := range source.APIVersions {
+		if accumulated.HasRef(version.Ref) {
+			existing, _ := accumulated.GetResourceByRef(version.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)", 
+				version.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.APIVersions = append(accumulated.APIVersions, version)
+	}
+	
+	for _, pub := range source.APIPublications {
+		if accumulated.HasRef(pub.Ref) {
+			existing, _ := accumulated.GetResourceByRef(pub.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)", 
+				pub.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.APIPublications = append(accumulated.APIPublications, pub)
+	}
+	
+	for _, impl := range source.APIImplementations {
+		if accumulated.HasRef(impl.Ref) {
+			existing, _ := accumulated.GetResourceByRef(impl.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)", 
+				impl.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.APIImplementations = append(accumulated.APIImplementations, impl)
+	}
+	
+	for _, doc := range source.APIDocuments {
+		if accumulated.HasRef(doc.Ref) {
+			existing, _ := accumulated.GetResourceByRef(doc.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)", 
+				doc.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.APIDocuments = append(accumulated.APIDocuments, doc)
+	}
+	
+	// Check and append Portal child resources
+	for _, customization := range source.PortalCustomizations {
+		if accumulated.HasRef(customization.Ref) {
+			existing, _ := accumulated.GetResourceByRef(customization.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)", 
+				customization.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.PortalCustomizations = append(accumulated.PortalCustomizations, customization)
+	}
+	
+	for _, domain := range source.PortalCustomDomains {
+		if accumulated.HasRef(domain.Ref) {
+			existing, _ := accumulated.GetResourceByRef(domain.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)", 
+				domain.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.PortalCustomDomains = append(accumulated.PortalCustomDomains, domain)
+	}
+	
+	for _, page := range source.PortalPages {
+		if accumulated.HasRef(page.Ref) {
+			existing, _ := accumulated.GetResourceByRef(page.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)", 
+				page.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.PortalPages = append(accumulated.PortalPages, page)
+	}
+	
+	for _, snippet := range source.PortalSnippets {
+		if accumulated.HasRef(snippet.Ref) {
+			existing, _ := accumulated.GetResourceByRef(snippet.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)", 
+				snippet.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.PortalSnippets = append(accumulated.PortalSnippets, snippet)
+	}
+	
+	return nil
 }
 
 // applyNamespaceDefaults applies file-level namespace and protected defaults to parent resources
