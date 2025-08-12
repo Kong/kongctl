@@ -87,7 +87,7 @@ func TestLoader_LoadFile_InvalidConfigs(t *testing.T) {
 		{
 			name:        "portal with duplicate refs",
 			file:        "invalid/duplicate-refs.yaml",
-			expectError: "duplicate portal ref",
+			expectError: "duplicate ref",
 		},
 		{
 			name:        "malformed yaml",
