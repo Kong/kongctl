@@ -267,13 +267,13 @@ func TestLoader_validateAPIs(t *testing.T) {
 				{
 					Ref: "api1",
 					Publications: []resources.APIPublicationResource{
-						{Ref: "pub1", PortalID: "portal1"},
-						{Ref: "pub1", PortalID: "portal1"},
+						{Ref: "pub1", PortalID: "dummy-portal"},  // Use dummy value for required field
+						{Ref: "pub1", PortalID: "dummy-portal"},
 					},
 				},
 			},
-			wantErr:     false, // TODO: Phase 4 - nested duplicates not detected yet
-			expectedErr: "",
+			wantErr:     true,
+			expectedErr: "duplicate ref 'pub1' (already defined as api_publication)",
 		},
 		{
 			name: "API with duplicate implementation refs",
@@ -286,7 +286,7 @@ func TestLoader_validateAPIs(t *testing.T) {
 							APIImplementation: kkComps.APIImplementation{
 								Service: &kkComps.APIImplementationService{
 									ID:             "12345678-1234-1234-1234-123456789012",
-									ControlPlaneID: "cp1",
+									ControlPlaneID: "dummy-cp",  // Use dummy value for required field
 								},
 							},
 						},
@@ -295,15 +295,15 @@ func TestLoader_validateAPIs(t *testing.T) {
 							APIImplementation: kkComps.APIImplementation{
 								Service: &kkComps.APIImplementationService{
 									ID:             "12345678-1234-1234-1234-123456789012",
-									ControlPlaneID: "cp1",
+									ControlPlaneID: "dummy-cp",
 								},
 							},
 						},
 					},
 				},
 			},
-			wantErr:     false, // TODO: Phase 4 - nested duplicates not detected yet
-			expectedErr: "",
+			wantErr:     true,
+			expectedErr: "duplicate ref 'impl1' (already defined as api_implementation)",
 		},
 		{
 			name: "API with multiple versions - Konnect constraint",
@@ -356,13 +356,27 @@ func TestLoader_validateAPIs(t *testing.T) {
 	
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a ResourceSet with just the test APIs
-			// Nested resources will be validated but not extracted (that's done by loader)
+			// Create a ResourceSet with the test APIs
 			rs := &resources.ResourceSet{
 				APIs: tt.apis,
 			}
 			
-			err := loader.validateAPIs(tt.apis, rs)
+			// Add dummy resources for cross-reference validation
+			// These are needed because validateCrossReferences checks that references exist
+			rs.Portals = []resources.PortalResource{
+				{Ref: "dummy-portal"},
+			}
+			rs.ControlPlanes = []resources.ControlPlaneResource{
+				{Ref: "dummy-cp"},
+			}
+			
+			// Extract nested resources to match real loader behavior
+			// This moves versions, publications, and implementations to top-level arrays
+			extractNestedResourcesForTest(rs)
+			
+			// Now validate the entire ResourceSet (not just APIs)
+			// This will check both the APIs and the extracted child resources
+			err := loader.validateResourceSet(rs)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedErr)
@@ -566,6 +580,36 @@ func TestLoader_findField(t *testing.T) {
 				assert.False(t, field.IsValid())
 			}
 		})
+	}
+}
+
+// extractNestedResourcesForTest extracts nested resources to match real loader behavior
+// This mimics what happens in loader.extractNestedResources during parseYAML
+func extractNestedResourcesForTest(rs *resources.ResourceSet) {
+	// Extract nested API child resources
+	for i := range rs.APIs {
+		api := &rs.APIs[i]
+		
+		// Extract versions
+		for _, v := range api.Versions {
+			v.API = api.Ref
+			rs.APIVersions = append(rs.APIVersions, v)
+		}
+		api.Versions = nil
+		
+		// Extract publications
+		for _, p := range api.Publications {
+			p.API = api.Ref
+			rs.APIPublications = append(rs.APIPublications, p)
+		}
+		api.Publications = nil
+		
+		// Extract implementations
+		for _, impl := range api.Implementations {
+			impl.API = api.Ref
+			rs.APIImplementations = append(rs.APIImplementations, impl)
+		}
+		api.Implementations = nil
 	}
 }
 

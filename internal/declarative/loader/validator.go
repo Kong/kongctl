@@ -313,6 +313,13 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 		if err := version.Validate(); err != nil {
 			return fmt.Errorf("invalid api_version %q: %w", version.GetRef(), err)
 		}
+		// Check global ref uniqueness using RefReader (duplicates were extracted from nested)
+		// We need to check against self since these are already in the ResourceSet
+		for j := i + 1; j < len(rs.APIVersions); j++ {
+			if rs.APIVersions[j].GetRef() == version.GetRef() {
+				return fmt.Errorf("duplicate ref '%s' (already defined as api_version)", version.GetRef())
+			}
+		}
 	}
 
 	// Validate separate API publications  
@@ -320,6 +327,12 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 		publication := &rs.APIPublications[i]
 		if err := publication.Validate(); err != nil {
 			return fmt.Errorf("invalid api_publication %q: %w", publication.GetRef(), err)
+		}
+		// Check for duplicates within extracted publications
+		for j := i + 1; j < len(rs.APIPublications); j++ {
+			if rs.APIPublications[j].GetRef() == publication.GetRef() {
+				return fmt.Errorf("duplicate ref '%s' (already defined as api_publication)", publication.GetRef())
+			}
 		}
 	}
 
@@ -329,6 +342,12 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 		if err := implementation.Validate(); err != nil {
 			return fmt.Errorf("invalid api_implementation %q: %w", implementation.GetRef(), err)
 		}
+		// Check for duplicates within extracted implementations
+		for j := i + 1; j < len(rs.APIImplementations); j++ {
+			if rs.APIImplementations[j].GetRef() == implementation.GetRef() {
+				return fmt.Errorf("duplicate ref '%s' (already defined as api_implementation)", implementation.GetRef())
+			}
+		}
 	}
 
 	// Validate separate API documents
@@ -336,6 +355,12 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 		document := &rs.APIDocuments[i]
 		if err := document.Validate(); err != nil {
 			return fmt.Errorf("invalid api_document %q: %w", document.GetRef(), err)
+		}
+		// Check for duplicates within extracted documents
+		for j := i + 1; j < len(rs.APIDocuments); j++ {
+			if rs.APIDocuments[j].GetRef() == document.GetRef() {
+				return fmt.Errorf("duplicate ref '%s' (already defined as api_document)", document.GetRef())
+			}
 		}
 	}
 
@@ -345,6 +370,12 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 		if err := page.Validate(); err != nil {
 			return fmt.Errorf("invalid portal_page %q: %w", page.GetRef(), err)
 		}
+		// Check for duplicates within extracted pages
+		for j := i + 1; j < len(rs.PortalPages); j++ {
+			if rs.PortalPages[j].GetRef() == page.GetRef() {
+				return fmt.Errorf("duplicate ref '%s' (already defined as portal_page)", page.GetRef())
+			}
+		}
 	}
 
 	// Validate portal snippets
@@ -352,6 +383,12 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 		snippet := &rs.PortalSnippets[i]
 		if err := snippet.Validate(); err != nil {
 			return fmt.Errorf("invalid portal_snippet %q: %w", snippet.GetRef(), err)
+		}
+		// Check for duplicates within extracted snippets
+		for j := i + 1; j < len(rs.PortalSnippets); j++ {
+			if rs.PortalSnippets[j].GetRef() == snippet.GetRef() {
+				return fmt.Errorf("duplicate ref '%s' (already defined as portal_snippet)", snippet.GetRef())
+			}
 		}
 	}
 
@@ -361,6 +398,12 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 		if err := customization.Validate(); err != nil {
 			return fmt.Errorf("invalid portal_customization %q: %w", customization.GetRef(), err)
 		}
+		// Check for duplicates within extracted customizations
+		for j := i + 1; j < len(rs.PortalCustomizations); j++ {
+			if rs.PortalCustomizations[j].GetRef() == customization.GetRef() {
+				return fmt.Errorf("duplicate ref '%s' (already defined as portal_customization)", customization.GetRef())
+			}
+		}
 	}
 
 	// Validate portal custom domains
@@ -368,6 +411,12 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 		domain := &rs.PortalCustomDomains[i]
 		if err := domain.Validate(); err != nil {
 			return fmt.Errorf("invalid portal_custom_domain %q: %w", domain.GetRef(), err)
+		}
+		// Check for duplicates within extracted domains
+		for j := i + 1; j < len(rs.PortalCustomDomains); j++ {
+			if rs.PortalCustomDomains[j].GetRef() == domain.GetRef() {
+				return fmt.Errorf("duplicate ref '%s' (already defined as portal_custom_domain)", domain.GetRef())
+			}
 		}
 	}
 

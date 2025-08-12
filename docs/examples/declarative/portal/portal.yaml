@@ -3,7 +3,7 @@
 # Based on Kong's default getting started portal template
 
 portals:
-  - ref: getting-started
+  - ref: getting-started-portal
     name: "My First Portal"
     display_name: "Getting Started Portal"
     description: "A comprehensive developer portal with guides, API documentation, and getting started content"
@@ -16,7 +16,7 @@ portals:
     
     # Portal customization with theme and navigation
     customization:
-      ref: getting-started
+      ref: getting-started-customization
       theme:
         mode: "light"
         colors:
@@ -109,7 +109,7 @@ portals:
         content: !file ./pages/apis.md
 
       # Getting Started page
-      - ref: getting-started
+      - ref: getting-started-page
         slug: "getting-started"
         title: "Getting started"
         description: "Get started with our new Developer Portal!"
