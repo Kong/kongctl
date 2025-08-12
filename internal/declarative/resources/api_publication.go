@@ -20,9 +20,9 @@ type APIPublicationResource struct {
 	konnectID string `yaml:"-" json:"-"`
 }
 
-// GetKind returns the resource kind
-func (p APIPublicationResource) GetKind() string {
-	return "api_publication"
+// GetType returns the resource type
+func (p APIPublicationResource) GetType() ResourceType {
+	return ResourceTypeAPIPublication
 }
 
 // GetRef returns the reference identifier used for cross-resource references

@@ -11,6 +11,9 @@ type PortalCustomizationResource struct {
 	kkComps.PortalCustomization `yaml:",inline" json:",inline"`
 	Ref    string `yaml:"ref,omitempty" json:"ref,omitempty"`
 	Portal string `yaml:"portal,omitempty" json:"portal,omitempty"` // Parent portal reference
+	
+	// Resolved Konnect ID (not serialized)
+	konnectID string `yaml:"-" json:"-"`
 }
 
 // GetRef returns the reference identifier
@@ -55,6 +58,39 @@ func (c PortalCustomizationResource) Validate() error {
 // SetDefaults applies default values
 func (c *PortalCustomizationResource) SetDefaults() {
 	// No defaults needed for customizations currently
+}
+
+// GetType returns the resource type
+func (c PortalCustomizationResource) GetType() ResourceType {
+	return ResourceTypePortalCustomization
+}
+
+// GetMoniker returns the resource moniker (for customizations, this is the ref)
+func (c PortalCustomizationResource) GetMoniker() string {
+	return c.Ref // Customizations don't have names
+}
+
+// GetDependencies returns references to other resources this customization depends on
+func (c PortalCustomizationResource) GetDependencies() []ResourceRef {
+	// Portal customizations don't have dependencies
+	return []ResourceRef{}
+}
+
+// GetKonnectID returns the resolved Konnect ID if available
+func (c PortalCustomizationResource) GetKonnectID() string {
+	return c.konnectID
+}
+
+// GetKonnectMonikerFilter returns the filter string for Konnect API lookup
+func (c PortalCustomizationResource) GetKonnectMonikerFilter() string {
+	// Customizations don't support filtering
+	return ""
+}
+
+// TryMatchKonnectResource attempts to match this resource with a Konnect resource
+func (c *PortalCustomizationResource) TryMatchKonnectResource(_ interface{}) bool {
+	// Portal customizations are matched through parent portal
+	return false
 }
 
 // isValidHexColor validates hex color format

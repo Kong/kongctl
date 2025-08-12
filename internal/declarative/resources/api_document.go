@@ -23,9 +23,9 @@ type APIDocumentResource struct {
 	konnectID string `yaml:"-" json:"-"`
 }
 
-// GetKind returns the resource kind
-func (d APIDocumentResource) GetKind() string {
-	return "api_document"
+// GetType returns the resource type
+func (d APIDocumentResource) GetType() ResourceType {
+	return ResourceTypeAPIDocument
 }
 
 // GetRef returns the reference identifier used for cross-resource references

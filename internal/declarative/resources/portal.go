@@ -23,9 +23,9 @@ type PortalResource struct {
 	konnectID string `yaml:"-" json:"-"`
 }
 
-// GetKind returns the resource kind
-func (p PortalResource) GetKind() string {
-	return "portal"
+// GetType returns the resource type
+func (p PortalResource) GetType() ResourceType {
+	return ResourceTypePortal
 }
 
 // GetRef returns the reference identifier used for cross-resource references
@@ -40,7 +40,7 @@ func (p PortalResource) GetMoniker() string {
 
 // GetDependencies returns references to other resources this portal depends on
 func (p PortalResource) GetDependencies() []ResourceRef {
-	var deps []ResourceRef
+	deps := []ResourceRef{}
 
 	// Portal may depend on an auth strategy
 	if p.DefaultApplicationAuthStrategyID != nil && *p.DefaultApplicationAuthStrategyID != "" {

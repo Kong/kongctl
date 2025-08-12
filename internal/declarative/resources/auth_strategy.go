@@ -19,9 +19,9 @@ type ApplicationAuthStrategyResource struct {
 	konnectID string `yaml:"-" json:"-"`
 }
 
-// GetKind returns the resource kind
-func (a ApplicationAuthStrategyResource) GetKind() string {
-	return "application_auth_strategy"
+// GetType returns the resource type
+func (a ApplicationAuthStrategyResource) GetType() ResourceType {
+	return ResourceTypeApplicationAuthStrategy
 }
 
 // GetRef returns the reference identifier used for cross-resource references
