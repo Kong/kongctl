@@ -15,8 +15,8 @@ func TestAPIResourceInterface(t *testing.T) {
 	}
 
 	// Test Resource interface methods
-	if got := api.GetKind(); got != "api" {
-		t.Errorf("GetKind() = %v, want %v", got, "api")
+	if got := api.GetType(); got != ResourceTypeAPI {
+		t.Errorf("GetType() = %v, want %v", got, ResourceTypeAPI)
 	}
 
 	if got := api.GetRef(); got != "test-api" {

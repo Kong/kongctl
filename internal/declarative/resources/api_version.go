@@ -19,9 +19,9 @@ type APIVersionResource struct {
 	konnectID string `yaml:"-" json:"-"`
 }
 
-// GetKind returns the resource kind
-func (v APIVersionResource) GetKind() string {
-	return "api_version"
+// GetType returns the resource type
+func (v APIVersionResource) GetType() ResourceType {
+	return ResourceTypeAPIVersion
 }
 
 // GetRef returns the reference identifier used for cross-resource references

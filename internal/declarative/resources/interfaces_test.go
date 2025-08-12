@@ -23,8 +23,8 @@ func TestPortalResourceInterface(t *testing.T) {
 	portal.Name = "Test Portal"
 	
 	// Test Resource interface methods
-	if got := portal.GetKind(); got != "portal" {
-		t.Errorf("GetKind() = %v, want %v", got, "portal")
+	if got := portal.GetType(); got != ResourceTypePortal {
+		t.Errorf("GetType() = %v, want %v", got, ResourceTypePortal)
 	}
 	
 	if got := portal.GetRef(); got != "test-portal" {
@@ -50,8 +50,8 @@ func TestApplicationAuthStrategyResourceInterface(t *testing.T) {
 	}
 	
 	// Test Resource interface methods
-	if got := strategy.GetKind(); got != "application_auth_strategy" {
-		t.Errorf("GetKind() = %v, want %v", got, "application_auth_strategy")
+	if got := strategy.GetType(); got != ResourceTypeApplicationAuthStrategy {
+		t.Errorf("GetType() = %v, want %v", got, ResourceTypeApplicationAuthStrategy)
 	}
 	
 	if got := strategy.GetRef(); got != "test-strategy" {

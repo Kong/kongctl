@@ -2,6 +2,7 @@ package resources
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -17,6 +18,9 @@ type PortalPageResource struct {
 	ParentPageRef string                `yaml:"parent_page_ref,omitempty" json:"parent_page_ref,omitempty"`
 	// Nested child pages
 	Children      []PortalPageResource  `yaml:"children,omitempty" json:"children,omitempty"`
+	
+	// Resolved Konnect ID (not serialized)
+	konnectID string `yaml:"-" json:"-"`
 }
 
 // GetRef returns the reference identifier
@@ -121,6 +125,66 @@ func (p *PortalPageResource) SetDefaults() {
 	}
 }
 
+// GetType returns the resource type
+func (p PortalPageResource) GetType() ResourceType {
+	return ResourceTypePortalPage
+}
+
+// GetMoniker returns the resource moniker (for pages, this is the slug)
+func (p PortalPageResource) GetMoniker() string {
+	return p.Slug
+}
+
+// GetDependencies returns references to other resources this page depends on
+func (p PortalPageResource) GetDependencies() []ResourceRef {
+	// Portal pages don't have dependencies (parent page is handled separately)
+	return []ResourceRef{}
+}
+
+// GetKonnectID returns the resolved Konnect ID if available
+func (p PortalPageResource) GetKonnectID() string {
+	return p.konnectID
+}
+
+// GetKonnectMonikerFilter returns the filter string for Konnect API lookup
+func (p PortalPageResource) GetKonnectMonikerFilter() string {
+	if p.Slug == "" {
+		return ""
+	}
+	return fmt.Sprintf("slug[eq]=%s", p.Slug)
+}
+
+// TryMatchKonnectResource attempts to match this resource with a Konnect resource
+func (p *PortalPageResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+	// For portal pages, we match by slug
+	// Use reflection to access fields from state.PortalPage
+	v := reflect.ValueOf(konnectResource)
+	
+	// Handle pointer types
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	
+	// Ensure we have a struct
+	if v.Kind() != reflect.Struct {
+		return false
+	}
+	
+	// Look for Slug and ID fields
+	slugField := v.FieldByName("Slug")
+	idField := v.FieldByName("ID")
+	
+	// Extract values if fields are valid
+	if slugField.IsValid() && idField.IsValid() && 
+	   slugField.Kind() == reflect.String && idField.Kind() == reflect.String {
+		if slugField.String() == p.Slug {
+			p.konnectID = idField.String()
+			return true
+		}
+	}
+	return false
+}
+
 // PortalSnippetResource represents a portal snippet
 type PortalSnippetResource struct {
 	Ref         string                            `yaml:"ref" json:"ref"`
@@ -132,6 +196,9 @@ type PortalSnippetResource struct {
 	Visibility  *kkComps.SnippetVisibilityStatus  `yaml:"visibility,omitempty" json:"visibility,omitempty"`
 	Status      *kkComps.PublishedStatus          `yaml:"status,omitempty" json:"status,omitempty"`
 	Description *string                           `yaml:"description,omitempty" json:"description,omitempty"`
+	
+	// Resolved Konnect ID (not serialized)
+	konnectID string `yaml:"-" json:"-"`
 }
 
 // GetRef returns the reference identifier
@@ -209,4 +276,64 @@ func (s *PortalSnippetResource) SetDefaults() {
 		title := s.Name
 		s.Title = &title
 	}
+}
+
+// GetType returns the resource type
+func (s PortalSnippetResource) GetType() ResourceType {
+	return ResourceTypePortalSnippet
+}
+
+// GetMoniker returns the resource moniker (for snippets, this is the name)
+func (s PortalSnippetResource) GetMoniker() string {
+	return s.Name
+}
+
+// GetDependencies returns references to other resources this snippet depends on
+func (s PortalSnippetResource) GetDependencies() []ResourceRef {
+	// Portal snippets don't have dependencies
+	return []ResourceRef{}
+}
+
+// GetKonnectID returns the resolved Konnect ID if available
+func (s PortalSnippetResource) GetKonnectID() string {
+	return s.konnectID
+}
+
+// GetKonnectMonikerFilter returns the filter string for Konnect API lookup
+func (s PortalSnippetResource) GetKonnectMonikerFilter() string {
+	if s.Name == "" {
+		return ""
+	}
+	return fmt.Sprintf("name[eq]=%s", s.Name)
+}
+
+// TryMatchKonnectResource attempts to match this resource with a Konnect resource
+func (s *PortalSnippetResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+	// For portal snippets, we match by name
+	// Use reflection to access fields from state.PortalSnippet
+	v := reflect.ValueOf(konnectResource)
+	
+	// Handle pointer types
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+	
+	// Ensure we have a struct
+	if v.Kind() != reflect.Struct {
+		return false
+	}
+	
+	// Look for Name and ID fields
+	nameField := v.FieldByName("Name")
+	idField := v.FieldByName("ID")
+	
+	// Extract values if fields are valid
+	if nameField.IsValid() && idField.IsValid() && 
+	   nameField.Kind() == reflect.String && idField.Kind() == reflect.String {
+		if nameField.String() == s.Name {
+			s.konnectID = idField.String()
+			return true
+		}
+	}
+	return false
 }

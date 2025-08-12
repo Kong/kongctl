@@ -2,7 +2,7 @@ package resources
 
 // Resource is the common interface for all declarative resources
 type Resource interface {
-	GetKind() string
+	GetType() ResourceType
 	GetRef() string
 	GetMoniker() string // Generic identifier (name, username, version, etc.)
 	GetDependencies() []ResourceRef
@@ -15,10 +15,33 @@ type Resource interface {
 	TryMatchKonnectResource(konnectResource interface{}) bool // Matches against Konnect resource
 }
 
-// ResourceRef represents a reference to another resource
-type ResourceRef struct {
-	Kind string `json:"kind" yaml:"kind"`
-	Ref  string `json:"ref" yaml:"ref"`
+// RefReader provides read-only access to resources by ref
+type RefReader interface {
+	// HasRef checks if a ref exists globally across all resource types
+	HasRef(ref string) bool
+	
+	// GetResourceByRef returns the resource for a given ref
+	// Returns nil and false if not found
+	GetResourceByRef(ref string) (Resource, bool)
+	
+	// GetResourceTypeByRef returns the resource type for a given ref
+	// This is a convenience method that uses GetResourceByRef
+	GetResourceTypeByRef(ref string) (ResourceType, bool)
+}
+
+// ResourceValidator interface for common validation behavior
+type ResourceValidator interface {
+	Validate() error
+}
+
+// ReferencedResource interface for resources that can be referenced
+type ReferencedResource interface {
+	GetRef() string
+}
+
+// ReferenceMapping interface for resources that have reference fields
+type ReferenceMapping interface {
+	GetReferenceFieldMappings() map[string]string
 }
 
 // ResourceWithParent represents resources that have a parent
