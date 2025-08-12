@@ -41,7 +41,7 @@ apis:
         
     publications:
       - ref: sms-api-to-getting-started
-        portal_id: getting-started
+        portal_id: getting-started-portal
 
   - ref: voice
     name: !file apis/voice/openapi.yaml#info.title
@@ -82,4 +82,4 @@ apis:
         
     publications:
       - ref: voice-api-to-getting-started
-        portal_id: getting-started
+        portal_id: getting-started-portal
