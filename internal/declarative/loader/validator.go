@@ -11,36 +11,33 @@ import (
 
 // validateResourceSet validates all resources and checks for ref uniqueness
 func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
-	// Build registry of all resources by type for reference validation
-	resourceRegistry := make(map[string]map[string]bool)
-
 	// Validate portals
-	if err := l.validatePortals(rs.Portals, resourceRegistry); err != nil {
+	if err := l.validatePortals(rs.Portals, rs); err != nil {
 		return err
 	}
 
 	// Validate auth strategies
-	if err := l.validateAuthStrategies(rs.ApplicationAuthStrategies, resourceRegistry); err != nil {
+	if err := l.validateAuthStrategies(rs.ApplicationAuthStrategies, rs); err != nil {
 		return err
 	}
 
 	// Validate control planes
-	if err := l.validateControlPlanes(rs.ControlPlanes, resourceRegistry); err != nil {
+	if err := l.validateControlPlanes(rs.ControlPlanes, rs); err != nil {
 		return err
 	}
 
 	// Validate APIs and their children
-	if err := l.validateAPIs(rs.APIs, resourceRegistry); err != nil {
+	if err := l.validateAPIs(rs.APIs, rs); err != nil {
 		return err
 	}
 
 	// Validate separate API child resources (extracted from nested resources)
-	if err := l.validateSeparateAPIChildResources(rs, resourceRegistry); err != nil {
+	if err := l.validateSeparateAPIChildResources(rs); err != nil {
 		return err
 	}
 
 	// Validate cross-resource references
-	if err := l.validateCrossReferences(rs, resourceRegistry); err != nil {
+	if err := l.validateCrossReferences(rs); err != nil {
 		return err
 	}
 
@@ -53,10 +50,8 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 }
 
 // validatePortals validates portal resources
-func (l *Loader) validatePortals(portals []resources.PortalResource, registry map[string]map[string]bool) error {
-	refs := make(map[string]bool)
-	names := make(map[string]string) // name -> ref mapping
-	registry["portal"] = refs
+func (l *Loader) validatePortals(portals []resources.PortalResource, rs *resources.ResourceSet) error {
+	names := make(map[string]string) // name -> ref mapping (names unique per type)
 
 	for i := range portals {
 		portal := &portals[i]
@@ -66,18 +61,21 @@ func (l *Loader) validatePortals(portals []resources.PortalResource, registry ma
 			return fmt.Errorf("invalid portal %q: %w", portal.GetRef(), err)
 		}
 
-		// Check ref uniqueness
-		if refs[portal.GetRef()] {
-			return fmt.Errorf("duplicate portal ref: %s", portal.GetRef())
+		// Check global ref uniqueness using RefReader
+		if rs.HasRef(portal.GetRef()) {
+			existing, _ := rs.GetResourceByRef(portal.GetRef())
+			if existing != portal { // Don't error on self
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
+					portal.GetRef(), existing.GetType())
+			}
 		}
 		
-		// Check name uniqueness
+		// Check name uniqueness (within portal type only)
 		if existingRef, exists := names[portal.Name]; exists {
 			return fmt.Errorf("duplicate portal name '%s' (ref: %s conflicts with ref: %s)", 
 				portal.Name, portal.GetRef(), existingRef)
 		}
 		
-		refs[portal.GetRef()] = true
 		names[portal.Name] = portal.GetRef()
 	}
 
@@ -87,11 +85,9 @@ func (l *Loader) validatePortals(portals []resources.PortalResource, registry ma
 // validateAuthStrategies validates auth strategy resources
 func (l *Loader) validateAuthStrategies(
 	strategies []resources.ApplicationAuthStrategyResource,
-	registry map[string]map[string]bool,
+	rs *resources.ResourceSet,
 ) error {
-	refs := make(map[string]bool)
-	names := make(map[string]string) // name -> ref mapping
-	registry["application_auth_strategy"] = refs
+	names := make(map[string]string) // name -> ref mapping (names unique per type)
 
 	for i := range strategies {
 		strategy := &strategies[i]
@@ -101,19 +97,22 @@ func (l *Loader) validateAuthStrategies(
 			return fmt.Errorf("invalid application_auth_strategy %q: %w", strategy.GetRef(), err)
 		}
 
-		// Check ref uniqueness
-		if refs[strategy.GetRef()] {
-			return fmt.Errorf("duplicate application_auth_strategy ref: %s", strategy.GetRef())
+		// Check global ref uniqueness using RefReader
+		if rs.HasRef(strategy.GetRef()) {
+			existing, _ := rs.GetResourceByRef(strategy.GetRef())
+			if existing != strategy { // Don't error on self
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
+					strategy.GetRef(), existing.GetType())
+			}
 		}
 		
-		// Check name uniqueness
+		// Check name uniqueness (within auth strategy type only)
 		stratName := strategy.GetMoniker()
 		if existingRef, exists := names[stratName]; exists {
 			return fmt.Errorf("duplicate application_auth_strategy name '%s' (ref: %s conflicts with ref: %s)", 
 				stratName, strategy.GetRef(), existingRef)
 		}
 		
-		refs[strategy.GetRef()] = true
 		names[stratName] = strategy.GetRef()
 	}
 
@@ -123,11 +122,9 @@ func (l *Loader) validateAuthStrategies(
 // validateControlPlanes validates control plane resources
 func (l *Loader) validateControlPlanes(
 	cps []resources.ControlPlaneResource,
-	registry map[string]map[string]bool,
+	rs *resources.ResourceSet,
 ) error {
-	refs := make(map[string]bool)
-	names := make(map[string]string) // name -> ref mapping
-	registry["control_plane"] = refs
+	names := make(map[string]string) // name -> ref mapping (names unique per type)
 
 	for i := range cps {
 		cp := &cps[i]
@@ -137,18 +134,21 @@ func (l *Loader) validateControlPlanes(
 			return fmt.Errorf("invalid control_plane %q: %w", cp.GetRef(), err)
 		}
 
-		// Check ref uniqueness
-		if refs[cp.GetRef()] {
-			return fmt.Errorf("duplicate control_plane ref: %s", cp.GetRef())
+		// Check global ref uniqueness using RefReader
+		if rs.HasRef(cp.GetRef()) {
+			existing, _ := rs.GetResourceByRef(cp.GetRef())
+			if existing != cp { // Don't error on self
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
+					cp.GetRef(), existing.GetType())
+			}
 		}
 		
-		// Check name uniqueness
+		// Check name uniqueness (within control plane type only)
 		if existingRef, exists := names[cp.Name]; exists {
 			return fmt.Errorf("duplicate control_plane name '%s' (ref: %s conflicts with ref: %s)", 
 				cp.Name, cp.GetRef(), existingRef)
 		}
 		
-		refs[cp.GetRef()] = true
 		names[cp.Name] = cp.GetRef()
 	}
 
@@ -156,20 +156,8 @@ func (l *Loader) validateControlPlanes(
 }
 
 // validateAPIs validates API resources and their children
-func (l *Loader) validateAPIs(apis []resources.APIResource, registry map[string]map[string]bool) error {
-	apiRefs := make(map[string]bool)
-	apiNames := make(map[string]string) // name -> ref mapping
-	registry["api"] = apiRefs
-
-	// Also create registries for child resources
-	versionRefs := make(map[string]bool)
-	registry["api_version"] = versionRefs
-	
-	publicationRefs := make(map[string]bool)
-	registry["api_publication"] = publicationRefs
-	
-	implementationRefs := make(map[string]bool)
-	registry["api_implementation"] = implementationRefs
+func (l *Loader) validateAPIs(apis []resources.APIResource, rs *resources.ResourceSet) error {
+	apiNames := make(map[string]string) // name -> ref mapping (names unique per type)
 
 	for i := range apis {
 		api := &apis[i]
@@ -179,30 +167,37 @@ func (l *Loader) validateAPIs(apis []resources.APIResource, registry map[string]
 			return fmt.Errorf("invalid api %q: %w", api.GetRef(), err)
 		}
 
-		// Check API ref uniqueness
-		if apiRefs[api.GetRef()] {
-			return fmt.Errorf("duplicate api ref: %s", api.GetRef())
+		// Check global ref uniqueness using RefReader
+		if rs.HasRef(api.GetRef()) {
+			existing, _ := rs.GetResourceByRef(api.GetRef())
+			if existing != api { // Don't error on self
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
+					api.GetRef(), existing.GetType())
+			}
 		}
 		
-		// Check API name uniqueness
+		// Check API name uniqueness (within API type only)
 		if existingRef, exists := apiNames[api.Name]; exists {
 			return fmt.Errorf("duplicate api name '%s' (ref: %s conflicts with ref: %s)", 
 				api.Name, api.GetRef(), existingRef)
 		}
 		
-		apiRefs[api.GetRef()] = true
 		apiNames[api.Name] = api.GetRef()
 
-		// Validate nested versions
+		// Validate nested versions (these should be empty after extraction)
 		for j := range api.Versions {
 			version := &api.Versions[j]
 			if err := version.Validate(); err != nil {
 				return fmt.Errorf("invalid api_version %q in api %q: %w", version.GetRef(), api.GetRef(), err)
 			}
-			if versionRefs[version.GetRef()] {
-				return fmt.Errorf("duplicate api_version ref: %s", version.GetRef())
+			// Check global ref uniqueness for nested version
+			if rs.HasRef(version.GetRef()) {
+				existing, _ := rs.GetResourceByRef(version.GetRef())
+				if existing != version {
+					return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
+						version.GetRef(), existing.GetType())
+				}
 			}
-			versionRefs[version.GetRef()] = true
 		}
 
 		// Validate Konnect's single-version constraint
@@ -211,28 +206,36 @@ func (l *Loader) validateAPIs(apis []resources.APIResource, registry map[string]
 				"Ensure each API versions key has only 1 version defined", api.GetRef(), len(api.Versions))
 		}
 
-		// Validate nested publications
+		// Validate nested publications (these should be empty after extraction)
 		for j := range api.Publications {
 			publication := &api.Publications[j]
 			if err := publication.Validate(); err != nil {
 				return fmt.Errorf("invalid api_publication %q in api %q: %w", publication.GetRef(), api.GetRef(), err)
 			}
-			if publicationRefs[publication.GetRef()] {
-				return fmt.Errorf("duplicate api_publication ref: %s", publication.GetRef())
+			// Check global ref uniqueness for nested publication
+			if rs.HasRef(publication.GetRef()) {
+				existing, _ := rs.GetResourceByRef(publication.GetRef())
+				if existing != publication {
+					return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
+						publication.GetRef(), existing.GetType())
+				}
 			}
-			publicationRefs[publication.GetRef()] = true
 		}
 
-		// Validate nested implementations
+		// Validate nested implementations (these should be empty after extraction)
 		for j := range api.Implementations {
 			implementation := &api.Implementations[j]
 			if err := implementation.Validate(); err != nil {
 				return fmt.Errorf("invalid api_implementation %q in api %q: %w", implementation.GetRef(), api.GetRef(), err)
 			}
-			if implementationRefs[implementation.GetRef()] {
-				return fmt.Errorf("duplicate api_implementation ref: %s", implementation.GetRef())
+			// Check global ref uniqueness for nested implementation
+			if rs.HasRef(implementation.GetRef()) {
+				existing, _ := rs.GetResourceByRef(implementation.GetRef())
+				if existing != implementation {
+					return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
+						implementation.GetRef(), existing.GetType())
+				}
 			}
-			implementationRefs[implementation.GetRef()] = true
 		}
 	}
 
@@ -240,10 +243,10 @@ func (l *Loader) validateAPIs(apis []resources.APIResource, registry map[string]
 }
 
 // validateCrossReferences validates that all cross-resource references are valid
-func (l *Loader) validateCrossReferences(rs *resources.ResourceSet, registry map[string]map[string]bool) error {
+func (l *Loader) validateCrossReferences(rs *resources.ResourceSet) error {
 	// Validate portal references
 	for i := range rs.Portals {
-		if err := l.validateResourceReferences(&rs.Portals[i], registry); err != nil {
+		if err := l.validateResourceReferences(&rs.Portals[i], rs); err != nil {
 			return err
 		}
 	}
@@ -253,14 +256,14 @@ func (l *Loader) validateCrossReferences(rs *resources.ResourceSet, registry map
 		api := &rs.APIs[i]
 		// Validate publication references
 		for j := range api.Publications {
-			if err := l.validateResourceReferences(&api.Publications[j], registry); err != nil {
+			if err := l.validateResourceReferences(&api.Publications[j], rs); err != nil {
 				return err
 			}
 		}
 
 		// Validate implementation references
 		for j := range api.Implementations {
-			if err := l.validateResourceReferences(&api.Implementations[j], registry); err != nil {
+			if err := l.validateResourceReferences(&api.Implementations[j], rs); err != nil {
 				return err
 			}
 		}
@@ -268,13 +271,13 @@ func (l *Loader) validateCrossReferences(rs *resources.ResourceSet, registry map
 
 	// Validate separate API child resources (extracted from nested resources)
 	for i := range rs.APIPublications {
-		if err := l.validateResourceReferences(&rs.APIPublications[i], registry); err != nil {
+		if err := l.validateResourceReferences(&rs.APIPublications[i], rs); err != nil {
 			return err
 		}
 	}
 
 	for i := range rs.APIImplementations {
-		if err := l.validateResourceReferences(&rs.APIImplementations[i], registry); err != nil {
+		if err := l.validateResourceReferences(&rs.APIImplementations[i], rs); err != nil {
 			return err
 		}
 	}
@@ -285,7 +288,7 @@ func (l *Loader) validateCrossReferences(rs *resources.ResourceSet, registry map
 }
 
 // validateSeparateAPIChildResources validates individual API child resources that were extracted
-func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet, _ map[string]map[string]bool) error {
+func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) error {
 	// Count versions per API to enforce single-version constraint
 	// This is a safety check in case the early validation was bypassed
 	versionCountByAPI := make(map[string]int)
@@ -372,7 +375,7 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet, _ 
 }
 
 // validateResourceReferences validates references for a single resource using its mapping
-func (l *Loader) validateResourceReferences(resource interface{}, registry map[string]map[string]bool) error {
+func (l *Loader) validateResourceReferences(resource interface{}, rs *resources.ResourceSet) error {
 	// fmt.Printf("DEBUG: validateResourceReferences called with resource type: %T\n", resource)
 	
 	// Check if resource implements ReferenceMapping
@@ -404,10 +407,16 @@ func (l *Loader) validateResourceReferences(resource interface{}, registry map[s
 			continue
 		}
 
-		// Check if the referenced resource exists
-		if !registry[expectedType][fieldValue] {
+		// Check if the referenced resource exists using RefReader
+		if !rs.HasRef(fieldValue) {
 			return fmt.Errorf("resource %q references unknown %s: %s (field: %s)",
 				refResource.GetRef(), expectedType, fieldValue, fieldPath)
+		}
+		
+		// Verify the referenced resource is of the expected type
+		if actualType, _ := rs.GetResourceTypeByRef(fieldValue); string(actualType) != expectedType {
+			return fmt.Errorf("resource %q references %s but expected %s: %s (field: %s)",
+				refResource.GetRef(), actualType, expectedType, fieldValue, fieldPath)
 		}
 	}
 
@@ -522,6 +531,7 @@ func (l *Loader) toPascalCase(s string) string {
 	}
 	return strings.Join(parts, "")
 }
+
 
 // validateNamespaces validates all namespace values in the resource set
 func (l *Loader) validateNamespaces(rs *resources.ResourceSet) error {
