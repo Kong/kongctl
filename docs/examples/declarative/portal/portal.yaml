@@ -5,7 +5,7 @@
 portals:
   - ref: getting-started-portal
     name: "My First Portal"
-    display_name: "Getting Started Portal"
+    display_name: "A Getting Started Portal"
     description: "A comprehensive developer portal with guides, API documentation, and getting started content"
     authentication_enabled: false
     rbac_enabled: false
