@@ -61,10 +61,10 @@ func (l *Loader) validatePortals(portals []resources.PortalResource, rs *resourc
 			return fmt.Errorf("invalid portal %q: %w", portal.GetRef(), err)
 		}
 
-		// Check global ref uniqueness using RefReader
-		if rs.HasRef(portal.GetRef()) {
-			existing, _ := rs.GetResourceByRef(portal.GetRef())
-			if existing != portal { // Don't error on self
+		// Check global ref uniqueness across different resource types
+		// Don't check within same type - that's handled by the loader during append
+		if existing, found := rs.GetResourceByRef(portal.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypePortal {
 				return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
 					portal.GetRef(), existing.GetType())
 			}
@@ -97,10 +97,10 @@ func (l *Loader) validateAuthStrategies(
 			return fmt.Errorf("invalid application_auth_strategy %q: %w", strategy.GetRef(), err)
 		}
 
-		// Check global ref uniqueness using RefReader
-		if rs.HasRef(strategy.GetRef()) {
-			existing, _ := rs.GetResourceByRef(strategy.GetRef())
-			if existing != strategy { // Don't error on self
+		// Check global ref uniqueness across different resource types
+		// Don't check within same type - that's handled by the loader during append
+		if existing, found := rs.GetResourceByRef(strategy.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeApplicationAuthStrategy {
 				return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
 					strategy.GetRef(), existing.GetType())
 			}
@@ -134,10 +134,10 @@ func (l *Loader) validateControlPlanes(
 			return fmt.Errorf("invalid control_plane %q: %w", cp.GetRef(), err)
 		}
 
-		// Check global ref uniqueness using RefReader
-		if rs.HasRef(cp.GetRef()) {
-			existing, _ := rs.GetResourceByRef(cp.GetRef())
-			if existing != cp { // Don't error on self
+		// Check global ref uniqueness across different resource types
+		// Don't check within same type - that's handled by the loader during append
+		if existing, found := rs.GetResourceByRef(cp.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeControlPlane {
 				return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
 					cp.GetRef(), existing.GetType())
 			}
@@ -167,10 +167,10 @@ func (l *Loader) validateAPIs(apis []resources.APIResource, rs *resources.Resour
 			return fmt.Errorf("invalid api %q: %w", api.GetRef(), err)
 		}
 
-		// Check global ref uniqueness using RefReader
-		if rs.HasRef(api.GetRef()) {
-			existing, _ := rs.GetResourceByRef(api.GetRef())
-			if existing != api { // Don't error on self
+		// Check global ref uniqueness across different resource types
+		// Don't check within same type - that's handled by the loader during append
+		if existing, found := rs.GetResourceByRef(api.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeAPI {
 				return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
 					api.GetRef(), existing.GetType())
 			}
@@ -191,9 +191,8 @@ func (l *Loader) validateAPIs(apis []resources.APIResource, rs *resources.Resour
 				return fmt.Errorf("invalid api_version %q in api %q: %w", version.GetRef(), api.GetRef(), err)
 			}
 			// Check global ref uniqueness for nested version
-			if rs.HasRef(version.GetRef()) {
-				existing, _ := rs.GetResourceByRef(version.GetRef())
-				if existing != version {
+			if existing, found := rs.GetResourceByRef(version.GetRef()); found {
+				if existing.GetType() != resources.ResourceTypeAPIVersion {
 					return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
 						version.GetRef(), existing.GetType())
 				}
@@ -213,9 +212,8 @@ func (l *Loader) validateAPIs(apis []resources.APIResource, rs *resources.Resour
 				return fmt.Errorf("invalid api_publication %q in api %q: %w", publication.GetRef(), api.GetRef(), err)
 			}
 			// Check global ref uniqueness for nested publication
-			if rs.HasRef(publication.GetRef()) {
-				existing, _ := rs.GetResourceByRef(publication.GetRef())
-				if existing != publication {
+			if existing, found := rs.GetResourceByRef(publication.GetRef()); found {
+				if existing.GetType() != resources.ResourceTypeAPIPublication {
 					return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
 						publication.GetRef(), existing.GetType())
 				}
@@ -229,9 +227,8 @@ func (l *Loader) validateAPIs(apis []resources.APIResource, rs *resources.Resour
 				return fmt.Errorf("invalid api_implementation %q in api %q: %w", implementation.GetRef(), api.GetRef(), err)
 			}
 			// Check global ref uniqueness for nested implementation
-			if rs.HasRef(implementation.GetRef()) {
-				existing, _ := rs.GetResourceByRef(implementation.GetRef())
-				if existing != implementation {
+			if existing, found := rs.GetResourceByRef(implementation.GetRef()); found {
+				if existing.GetType() != resources.ResourceTypeAPIImplementation {
 					return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
 						implementation.GetRef(), existing.GetType())
 				}

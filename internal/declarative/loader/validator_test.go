@@ -45,13 +45,23 @@ func TestLoader_validatePortals(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "duplicate refs",
+			name: "duplicate refs within same type not detected by validator",
 			portals: []resources.PortalResource{
-				{Ref: "portal1"},
-				{Ref: "portal1"},
+				{
+					Ref: "portal1",
+					CreatePortal: kkComps.CreatePortal{
+						Name: "Portal One",
+					},
+				},
+				{
+					Ref: "portal1",
+					CreatePortal: kkComps.CreatePortal{
+						Name: "Portal Two",  // Different name to avoid name duplicate error
+					},
+				},
 			},
-			wantErr:     true,
-			expectedErr: "duplicate ref 'portal1' (already defined as portal)",
+			wantErr:     false,  // Validator doesn't check same-type duplicates anymore
+			expectedErr: "",
 		},
 		{
 			name: "missing ref",
@@ -119,13 +129,29 @@ func TestLoader_validateAuthStrategies(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "duplicate refs",
+			name: "duplicate refs within same type not detected by validator",
 			strategies: []resources.ApplicationAuthStrategyResource{
-				{Ref: "oauth1"},
-				{Ref: "oauth1"},
+				{
+					Ref: "oauth1",
+					CreateAppAuthStrategyRequest: kkComps.CreateAppAuthStrategyRequest{
+						Type: kkComps.CreateAppAuthStrategyRequestTypeKeyAuth,
+						AppAuthStrategyKeyAuthRequest: &kkComps.AppAuthStrategyKeyAuthRequest{
+							Name: "Key Auth One",
+						},
+					},
+				},
+				{
+					Ref: "oauth1",
+					CreateAppAuthStrategyRequest: kkComps.CreateAppAuthStrategyRequest{
+						Type: kkComps.CreateAppAuthStrategyRequestTypeKeyAuth,
+						AppAuthStrategyKeyAuthRequest: &kkComps.AppAuthStrategyKeyAuthRequest{
+							Name: "Key Auth Two",  // Different name to avoid name duplicate error
+						},
+					},
+				},
 			},
-			wantErr:     true,
-			expectedErr: "duplicate ref 'oauth1' (already defined as application_auth_strategy)",
+			wantErr:     false,  // Validator doesn't check same-type duplicates anymore
+			expectedErr: "",
 		},
 	}
 	
@@ -179,13 +205,23 @@ func TestLoader_validateControlPlanes(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "duplicate refs",
+			name: "duplicate refs within same type not detected by validator",
 			cps: []resources.ControlPlaneResource{
-				{Ref: "cp1"},
-				{Ref: "cp1"},
+				{
+					Ref: "cp1",
+					CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
+						Name: "Control Plane One",
+					},
+				},
+				{
+					Ref: "cp1",
+					CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
+						Name: "Control Plane Two",  // Different name to avoid name duplicate error
+					},
+				},
 			},
-			wantErr:     true,
-			expectedErr: "duplicate ref 'cp1' (already defined as control_plane)",
+			wantErr:     false,  // Validator doesn't check same-type duplicates anymore
+			expectedErr: "",
 		},
 	}
 	
@@ -239,13 +275,23 @@ func TestLoader_validateAPIs(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "duplicate API refs",
+			name: "duplicate API refs within same type not detected by validator",
 			apis: []resources.APIResource{
-				{Ref: "api1"},
-				{Ref: "api1"},
+				{
+					Ref: "api1",
+					CreateAPIRequest: kkComps.CreateAPIRequest{
+						Name: "API One",
+					},
+				},
+				{
+					Ref: "api1",
+					CreateAPIRequest: kkComps.CreateAPIRequest{
+						Name: "API Two",  // Different name to avoid name duplicate error
+					},
+				},
 			},
-			wantErr:     true,
-			expectedErr: "duplicate ref 'api1' (already defined as api)",
+			wantErr:     false,  // Validator doesn't check same-type duplicates anymore
+			expectedErr: "",
 		},
 		{
 			name: "API with duplicate version refs",

@@ -159,87 +159,10 @@ func (rs *ResourceSet) GetResourceByRef(ref string) (Resource, bool) {
 
 // GetResourceTypeByRef returns the resource type for a given ref
 func (rs *ResourceSet) GetResourceTypeByRef(ref string) (ResourceType, bool) {
-	// We need to check each resource type directly to know which type it is
-	// since not all resources implement the Resource interface with GetType()
-	
-	// Check Portals
-	for i := range rs.Portals {
-		if rs.Portals[i].GetRef() == ref {
-			return ResourceTypePortal, true
-		}
+	res, ok := rs.GetResourceByRef(ref)
+	if !ok || res == nil {
+		return "", false
 	}
-	
-	// Check ApplicationAuthStrategies
-	for i := range rs.ApplicationAuthStrategies {
-		if rs.ApplicationAuthStrategies[i].GetRef() == ref {
-			return ResourceTypeApplicationAuthStrategy, true
-		}
-	}
-	
-	// Check ControlPlanes
-	for i := range rs.ControlPlanes {
-		if rs.ControlPlanes[i].GetRef() == ref {
-			return ResourceTypeControlPlane, true
-		}
-	}
-	
-	// Check APIs
-	for i := range rs.APIs {
-		if rs.APIs[i].GetRef() == ref {
-			return ResourceTypeAPI, true
-		}
-	}
-	
-	// Check API child resources
-	for i := range rs.APIVersions {
-		if rs.APIVersions[i].GetRef() == ref {
-			return ResourceTypeAPIVersion, true
-		}
-	}
-	
-	for i := range rs.APIPublications {
-		if rs.APIPublications[i].GetRef() == ref {
-			return ResourceTypeAPIPublication, true
-		}
-	}
-	
-	for i := range rs.APIImplementations {
-		if rs.APIImplementations[i].GetRef() == ref {
-			return ResourceTypeAPIImplementation, true
-		}
-	}
-	
-	for i := range rs.APIDocuments {
-		if rs.APIDocuments[i].GetRef() == ref {
-			return ResourceTypeAPIDocument, true
-		}
-	}
-	
-	// Check Portal child resources
-	for i := range rs.PortalCustomizations {
-		if rs.PortalCustomizations[i].GetRef() == ref {
-			return ResourceTypePortalCustomization, true
-		}
-	}
-	
-	for i := range rs.PortalCustomDomains {
-		if rs.PortalCustomDomains[i].GetRef() == ref {
-			return ResourceTypePortalCustomDomain, true
-		}
-	}
-	
-	for i := range rs.PortalPages {
-		if rs.PortalPages[i].GetRef() == ref {
-			return ResourceTypePortalPage, true
-		}
-	}
-	
-	for i := range rs.PortalSnippets {
-		if rs.PortalSnippets[i].GetRef() == ref {
-			return ResourceTypePortalSnippet, true
-		}
-	}
-	
-	return "", false
+	return res.GetType(), true
 }
 
