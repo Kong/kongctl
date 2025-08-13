@@ -12,20 +12,13 @@ import (
 	"github.com/kong/kongctl/internal/log"
 )
 
-// Context keys for passing data to adapters
-type contextKey string
-
-const (
-	contextKeyNamespace     contextKey = "namespace"
-	contextKeyProtection    contextKey = "protection"
-	contextKeyPlannedChange contextKey = "plannedChange"
-)
+// Note: Context keys removed - now using explicit ExecutionContext parameter
 
 // ResourceOperations defines the contract for resource-specific operations
 type ResourceOperations[TCreate any, TUpdate any] interface {
 	// Field mapping
-	MapCreateFields(ctx context.Context, fields map[string]interface{}, create *TCreate) error
-	MapUpdateFields(ctx context.Context, fields map[string]interface{}, update *TUpdate,
+	MapCreateFields(ctx context.Context, execCtx *ExecutionContext, fields map[string]interface{}, create *TCreate) error
+	MapUpdateFields(ctx context.Context, execCtx *ExecutionContext, fields map[string]interface{}, update *TUpdate,
 		currentLabels map[string]string) error
 
 	// API calls
@@ -79,9 +72,12 @@ func (b *BaseExecutor[TCreate, TUpdate]) Create(ctx context.Context, change plan
 		return "", common.WrapWithResourceContext(err, b.ops.ResourceType(), "")
 	}
 
+	// Create execution context
+	execCtx := NewExecutionContext(&change)
+
 	// Create request object
 	var create TCreate
-	if err := b.ops.MapCreateFields(ctx, change.Fields, &create); err != nil {
+	if err := b.ops.MapCreateFields(ctx, execCtx, change.Fields, &create); err != nil {
 		resourceName := common.ExtractResourceName(change.Fields)
 		return "", common.FormatAPIError(b.ops.ResourceType(), resourceName, "create", err)
 	}
@@ -141,9 +137,12 @@ func (b *BaseExecutor[TCreate, TUpdate]) Update(ctx context.Context, change plan
 		}
 	}
 
+	// Create execution context
+	execCtx := NewExecutionContext(&change)
+
 	// Create update request
 	var update TUpdate
-	if err := b.ops.MapUpdateFields(ctx, change.Fields, &update, currentLabels); err != nil {
+	if err := b.ops.MapUpdateFields(ctx, execCtx, change.Fields, &update, currentLabels); err != nil {
 		return "", common.FormatAPIError(b.ops.ResourceType(), resourceName, "update", err)
 	}
 

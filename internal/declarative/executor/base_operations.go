@@ -11,7 +11,7 @@ import (
 // (no update operation), such as API versions and API publications
 type CreateDeleteOperations[TCreate any] interface {
 	// Field mapping
-	MapCreateFields(ctx context.Context, fields map[string]interface{}, create *TCreate) error
+	MapCreateFields(ctx context.Context, execCtx *ExecutionContext, fields map[string]interface{}, create *TCreate) error
 
 	// API calls
 	Create(ctx context.Context, req TCreate, namespace string) (string, error)
@@ -63,9 +63,12 @@ func NewBaseCreateDeleteExecutor[TCreate any](
 
 // Create handles CREATE operations
 func (b *BaseCreateDeleteExecutor[TCreate]) Create(ctx context.Context, change planner.PlannedChange) (string, error) {
+	// Create ExecutionContext
+	execCtx := NewExecutionContext(&change)
+	
 	// Create request object
 	var create TCreate
-	if err := b.ops.MapCreateFields(ctx, change.Fields, &create); err != nil {
+	if err := b.ops.MapCreateFields(ctx, execCtx, change.Fields, &create); err != nil {
 		return "", fmt.Errorf("failed to map fields for %s: %w", b.ops.ResourceType(), err)
 	}
 

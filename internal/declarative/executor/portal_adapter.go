@@ -21,11 +21,11 @@ func NewPortalAdapter(client *state.Client) *PortalAdapter {
 }
 
 // MapCreateFields maps fields to CreatePortal request
-func (p *PortalAdapter) MapCreateFields(ctx context.Context, fields map[string]interface{},
+func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
 	create *kkComps.CreatePortal) error {
-	// Extract namespace and protection from context
-	namespace, _ := ctx.Value(contextKeyNamespace).(string)
-	protection := ctx.Value(contextKeyProtection)
+	// Extract namespace and protection from execution context
+	namespace := execCtx.Namespace
+	protection := execCtx.Protection
 
 	// Map required fields
 	create.Name = common.ExtractResourceName(fields)
@@ -63,11 +63,11 @@ func (p *PortalAdapter) MapCreateFields(ctx context.Context, fields map[string]i
 }
 
 // MapUpdateFields maps fields to UpdatePortal request
-func (p *PortalAdapter) MapUpdateFields(ctx context.Context, fields map[string]interface{},
+func (p *PortalAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
 	update *kkComps.UpdatePortal, currentLabels map[string]string) error {
-	// Extract namespace and protection from context
-	namespace, _ := ctx.Value(contextKeyNamespace).(string)
-	protection := ctx.Value(contextKeyProtection)
+	// Extract namespace and protection from execution context
+	namespace := execCtx.Namespace
+	protection := execCtx.Protection
 
 	// Only include fields that are in the fields map
 	// These represent actual changes detected by the planner

@@ -4,14 +4,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // PortalDomainAdapter implements ResourceOperations for portal custom domains
 type PortalDomainAdapter struct {
-	client *state.Client
+	client  *state.Client
+	execCtx *ExecutionContext // Store execution context for helper methods
 }
 
 // NewPortalDomainAdapter creates a new portal domain adapter
@@ -20,8 +20,11 @@ func NewPortalDomainAdapter(client *state.Client) *PortalDomainAdapter {
 }
 
 // MapCreateFields maps fields to CreatePortalCustomDomainRequest
-func (p *PortalDomainAdapter) MapCreateFields(_ context.Context, fields map[string]interface{},
+func (p *PortalDomainAdapter) MapCreateFields(
+	_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
 	create *kkComps.CreatePortalCustomDomainRequest) error {
+	// Store execution context for use in helper methods
+	p.execCtx = execCtx
 	
 	// Required fields
 	hostname, ok := fields["hostname"].(string)
@@ -49,7 +52,7 @@ func (p *PortalDomainAdapter) MapCreateFields(_ context.Context, fields map[stri
 }
 
 // MapUpdateFields maps fields to UpdatePortalCustomDomainRequest
-func (p *PortalDomainAdapter) MapUpdateFields(_ context.Context, fields map[string]interface{},
+func (p *PortalDomainAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, fields map[string]interface{},
 	update *kkComps.UpdatePortalCustomDomainRequest, _ map[string]string) error {
 	// Only enabled field can be updated
 	if enabled, ok := fields["enabled"].(bool); ok {
@@ -133,12 +136,12 @@ func (p *PortalDomainAdapter) SupportsUpdate() bool {
 }
 
 // getPortalID extracts the portal ID from the context
-func (p *PortalDomainAdapter) getPortalID(ctx context.Context) (string, error) {
-	// Get the planned change from context
-	change, ok := ctx.Value(contextKeyPlannedChange).(planner.PlannedChange)
-	if !ok {
-		return "", fmt.Errorf("planned change not found in context")
+func (p *PortalDomainAdapter) getPortalID(_ context.Context) (string, error) {
+	// Get the planned change from execution context
+	if p.execCtx == nil || p.execCtx.PlannedChange == nil {
+		return "", fmt.Errorf("execution context not found")
 	}
+	change := *p.execCtx.PlannedChange
 	
 	// Get portal ID from references
 	if portalRef, ok := change.References["portal_id"]; ok {

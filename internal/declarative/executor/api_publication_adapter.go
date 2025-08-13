@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -13,8 +12,9 @@ import (
 // APIPublicationAdapter implements CreateDeleteOperations for API publications
 // API publications only support create and delete operations, not updates
 type APIPublicationAdapter struct {
-	client *state.Client
-	logger *slog.Logger
+	client  *state.Client
+	logger  *slog.Logger
+	execCtx *ExecutionContext // Store execution context for helper methods
 }
 
 // NewAPIPublicationAdapter creates a new API publication adapter
@@ -26,10 +26,14 @@ func NewAPIPublicationAdapter(client *state.Client) *APIPublicationAdapter {
 }
 
 // MapCreateFields maps fields to APIPublication
-func (a *APIPublicationAdapter) MapCreateFields(ctx context.Context, fields map[string]interface{},
+func (a *APIPublicationAdapter) MapCreateFields(
+	_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
 	create *kkComps.APIPublication) error {
-	// Get the planned change from context to access references
-	change, _ := ctx.Value(contextKeyPlannedChange).(planner.PlannedChange)
+	// Store execution context for use in helper methods
+	a.execCtx = execCtx
+	
+	// Get the planned change from execution context to access references
+	change := *execCtx.PlannedChange
 
 	// Handle auth strategy IDs references
 	if authStrategyRefs, ok := change.References["auth_strategy_ids"]; ok && authStrategyRefs.IsArray {
@@ -115,13 +119,13 @@ func (a *APIPublicationAdapter) RequiredFields() []string {
 	return []string{"portal_id"}
 }
 
-// getPortalID extracts the portal ID from the context
-func (a *APIPublicationAdapter) getPortalID(ctx context.Context) (string, error) {
-	// Get the planned change from context
-	change, ok := ctx.Value(contextKeyPlannedChange).(planner.PlannedChange)
-	if !ok {
-		return "", fmt.Errorf("planned change not found in context")
+// getPortalID extracts the portal ID from the execution context
+func (a *APIPublicationAdapter) getPortalID(_ context.Context) (string, error) {
+	// Get the planned change from execution context
+	if a.execCtx == nil || a.execCtx.PlannedChange == nil {
+		return "", fmt.Errorf("execution context not found")
 	}
+	change := *a.execCtx.PlannedChange
 
 	// Get portal ID from references
 	if portalRef, ok := change.References["portal_id"]; ok {
@@ -138,13 +142,13 @@ func (a *APIPublicationAdapter) getPortalID(ctx context.Context) (string, error)
 	return "", fmt.Errorf("portal ID is required for publication operations")
 }
 
-// getAPIID extracts the API ID from the context
-func (a *APIPublicationAdapter) getAPIID(ctx context.Context) (string, error) {
-	// Get the planned change from context
-	change, ok := ctx.Value(contextKeyPlannedChange).(planner.PlannedChange)
-	if !ok {
-		return "", fmt.Errorf("planned change not found in context")
+// getAPIID extracts the API ID from the execution context
+func (a *APIPublicationAdapter) getAPIID(_ context.Context) (string, error) {
+	// Get the planned change from execution context
+	if a.execCtx == nil || a.execCtx.PlannedChange == nil {
+		return "", fmt.Errorf("execution context not found")
 	}
+	change := *a.execCtx.PlannedChange
 
 	// Get API ID from references
 	if apiRef, ok := change.References["api_id"]; ok {

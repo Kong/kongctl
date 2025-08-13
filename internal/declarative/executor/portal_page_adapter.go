@@ -4,14 +4,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // PortalPageAdapter implements ResourceOperations for portal pages
 type PortalPageAdapter struct {
-	client *state.Client
+	client  *state.Client
+	execCtx *ExecutionContext // Store execution context for helper methods
 }
 
 // NewPortalPageAdapter creates a new portal page adapter
@@ -20,8 +20,11 @@ func NewPortalPageAdapter(client *state.Client) *PortalPageAdapter {
 }
 
 // MapCreateFields maps fields to CreatePortalPageRequest
-func (p *PortalPageAdapter) MapCreateFields(ctx context.Context, fields map[string]interface{},
+func (p *PortalPageAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
 	create *kkComps.CreatePortalPageRequest) error {
+	// Store execution context for use in helper methods
+	p.execCtx = execCtx
+	
 	// Required fields
 	slug, ok := fields["slug"].(string)
 	if !ok {
@@ -55,7 +58,7 @@ func (p *PortalPageAdapter) MapCreateFields(ctx context.Context, fields map[stri
 	}
 	
 	// Handle parent page reference
-	change, _ := ctx.Value(contextKeyPlannedChange).(planner.PlannedChange)
+	change := *execCtx.PlannedChange
 	if parentPageRef, ok := change.References["parent_page_id"]; ok {
 		if parentPageRef.ID != "" {
 			create.ParentPageID = &parentPageRef.ID
@@ -69,7 +72,7 @@ func (p *PortalPageAdapter) MapCreateFields(ctx context.Context, fields map[stri
 }
 
 // MapUpdateFields maps fields to UpdatePortalPageRequest
-func (p *PortalPageAdapter) MapUpdateFields(ctx context.Context, fields map[string]interface{},
+func (p *PortalPageAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
 	update *kkComps.UpdatePortalPageRequest, _ map[string]string) error {
 	// Optional fields
 	if slug, ok := fields["slug"].(string); ok {
@@ -99,7 +102,7 @@ func (p *PortalPageAdapter) MapUpdateFields(ctx context.Context, fields map[stri
 	}
 	
 	// Handle parent page reference
-	change, _ := ctx.Value(contextKeyPlannedChange).(planner.PlannedChange)
+	change := *execCtx.PlannedChange
 	if parentPageRef, ok := change.References["parent_page_id"]; ok {
 		if parentPageRef.ID != "" {
 			update.ParentPageID = &parentPageRef.ID
@@ -174,12 +177,12 @@ func (p *PortalPageAdapter) SupportsUpdate() bool {
 }
 
 // getPortalID extracts the portal ID from the context
-func (p *PortalPageAdapter) getPortalID(ctx context.Context) (string, error) {
-	// Get the planned change from context
-	change, ok := ctx.Value(contextKeyPlannedChange).(planner.PlannedChange)
-	if !ok {
-		return "", fmt.Errorf("planned change not found in context")
+func (p *PortalPageAdapter) getPortalID(_ context.Context) (string, error) {
+	// Get the planned change from execution context
+	if p.execCtx == nil || p.execCtx.PlannedChange == nil {
+		return "", fmt.Errorf("execution context not found")
 	}
+	change := *p.execCtx.PlannedChange
 	
 	// Get portal ID from references
 	if portalRef, ok := change.References["portal_id"]; ok {

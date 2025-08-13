@@ -4,14 +4,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // APIDocumentAdapter implements ResourceOperations for API documents
 type APIDocumentAdapter struct {
-	client *state.Client
+	client  *state.Client
+	execCtx *ExecutionContext // Store execution context for helper methods
 }
 
 // NewAPIDocumentAdapter creates a new API document adapter
@@ -20,8 +20,12 @@ func NewAPIDocumentAdapter(client *state.Client) *APIDocumentAdapter {
 }
 
 // MapCreateFields maps fields to CreateAPIDocumentRequest
-func (a *APIDocumentAdapter) MapCreateFields(_ context.Context, fields map[string]interface{},
+func (a *APIDocumentAdapter) MapCreateFields(
+	_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
 	create *kkComps.CreateAPIDocumentRequest) error {
+	// Store execution context for use in helper methods
+	a.execCtx = execCtx
+	
 	// Required fields
 	title, ok := fields["title"].(string)
 	if !ok {
@@ -49,7 +53,7 @@ func (a *APIDocumentAdapter) MapCreateFields(_ context.Context, fields map[strin
 }
 
 // MapUpdateFields maps fields to APIDocument
-func (a *APIDocumentAdapter) MapUpdateFields(_ context.Context, fields map[string]interface{},
+func (a *APIDocumentAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, fields map[string]interface{},
 	update *kkComps.APIDocument, _ map[string]string) error {
 	// Optional fields - all fields are optional for updates
 	if title, ok := fields["title"].(string); ok {
@@ -161,12 +165,12 @@ func (a *APIDocumentAdapter) SupportsUpdate() bool {
 }
 
 // getAPIID extracts the API ID from the context
-func (a *APIDocumentAdapter) getAPIID(ctx context.Context) (string, error) {
-	// Get the planned change from context
-	change, ok := ctx.Value(contextKeyPlannedChange).(planner.PlannedChange)
-	if !ok {
-		return "", fmt.Errorf("planned change not found in context")
+func (a *APIDocumentAdapter) getAPIID(_ context.Context) (string, error) {
+	// Get the planned change from execution context
+	if a.execCtx == nil || a.execCtx.PlannedChange == nil {
+		return "", fmt.Errorf("execution context not found")
 	}
+	change := *a.execCtx.PlannedChange
 
 	// Get API ID from references
 	if apiRef, ok := change.References["api_id"]; ok {
