@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/util"
 )
 
 // ReferenceResolver resolves declarative refs to Konnect IDs
@@ -102,11 +103,11 @@ func (r *ReferenceResolver) extractReference(fieldName string, value interface{}
 	// Extract string value
 	switch v := value.(type) {
 	case string:
-		if !isUUID(v) {
+		if !util.IsValidUUID(v) {
 			return v, true
 		}
 	case FieldChange:
-		if newVal, ok := v.New.(string); ok && !isUUID(newVal) {
+		if newVal, ok := v.New.(string); ok && !util.IsValidUUID(newVal) {
 			return newVal, true
 		}
 	}
@@ -189,8 +190,3 @@ func (r *ReferenceResolver) resolvePortalRef(ctx context.Context, ref string) (s
 	return portal.ID, nil
 }
 
-// isUUID checks if string is already a UUID
-func isUUID(s string) bool {
-	// Simple check - actual implementation would use regex or uuid library
-	return len(s) == 36 && s[8] == '-' && s[13] == '-' && s[18] == '-' && s[23] == '-'
-}

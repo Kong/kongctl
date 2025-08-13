@@ -8,6 +8,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/kong/kongctl/internal/util"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/stretchr/testify/mock"
@@ -732,9 +733,9 @@ func TestIsUUID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			result := isUUID(tt.input)
+			result := util.IsValidUUID(tt.input)
 			if result != tt.expected {
-				t.Errorf("isUUID(%q) = %v, want %v", tt.input, result, tt.expected)
+				t.Errorf("util.IsValidUUID(%q) = %v, want %v", tt.input, result, tt.expected)
 			}
 		})
 	}

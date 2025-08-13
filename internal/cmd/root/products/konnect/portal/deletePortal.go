@@ -3,7 +3,6 @@ package portal
 import (
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 
 	kk "github.com/Kong/sdk-konnect-go"
@@ -13,6 +12,7 @@ import (
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -97,8 +97,7 @@ func (c *deletePortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	var portal *kkComps.Portal
 
 	// Check if argument is UUID
-	uuidRegex := regexp.MustCompile(`^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`)
-	isUUID := uuidRegex.MatchString(portalID)
+	isUUID := util.IsValidUUID(portalID)
 
 	if !isUUID {
 		// Resolve name to ID

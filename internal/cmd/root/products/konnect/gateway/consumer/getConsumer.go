@@ -2,7 +2,6 @@ package consumer
 
 import (
 	"fmt"
-	"regexp"
 
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	"github.com/kong/kongctl/internal/cmd"
@@ -12,6 +11,7 @@ import (
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/segmentio/cli"
@@ -157,7 +157,7 @@ func (c *getConsumerCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	if len(helper.GetArgs()) == 1 { // validate above checks that args is 0 or 1
 		id := helper.GetArgs()[0]
 
-		isUUID, _ := regexp.MatchString(`^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`, id)
+		isUUID := util.IsValidUUID(id)
 		// TODO: Is capturing the previous blanked error advised?
 
 		if !isUUID {

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/util"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
@@ -42,7 +43,7 @@ func (e *Executor) createAPIPublication(ctx context.Context, change planner.Plan
 		}
 		
 		// If it's a UUID, use it directly
-		if isUUID(fieldValue) {
+		if util.IsValidUUID(fieldValue) {
 			portalID = fieldValue
 		} else {
 			// It's a reference that needs runtime resolution
@@ -68,7 +69,7 @@ func (e *Executor) createAPIPublication(ctx context.Context, change planner.Plan
 		for _, id := range authStrategyIDs {
 			if strID, ok := id.(string); ok {
 				// Check if this is a UUID or a reference
-				if isUUID(strID) {
+				if util.IsValidUUID(strID) {
 					ids = append(ids, strID)
 				} else {
 					// It's a reference, resolve it
@@ -87,7 +88,7 @@ func (e *Executor) createAPIPublication(ctx context.Context, change planner.Plan
 		ids := make([]string, 0, len(authStrategyIDs))
 		for _, strID := range authStrategyIDs {
 			// Check if this is a UUID or a reference
-			if isUUID(strID) {
+			if util.IsValidUUID(strID) {
 				ids = append(ids, strID)
 			} else {
 				// It's a reference, resolve it
@@ -158,10 +159,3 @@ func (e *Executor) deleteAPIPublication(ctx context.Context, change planner.Plan
 
 // Note: API publications don't support update operations in the SDK
 
-// isUUID checks if a string is a UUID format
-//
-//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
-func isUUID(s string) bool {
-	// Simple check - UUID format: 8-4-4-4-12 characters
-	return len(s) == 36 && s[8] == '-' && s[13] == '-' && s[18] == '-' && s[23] == '-'
-}
