@@ -1,0 +1,38 @@
+external_resources:
+  - ref: test-cp
+    resource_type: control_plane
+    id: 4f6e1ae3-95b8-4b05-983d-2456556c8226
+  - ref: httpbin-service
+    # we may need 'gw_service' or 'ce_service' to disambiguate with SC services
+    resource_type: service 
+    parent: test-cp
+    selector:
+      matchFields:
+        name: httpbin
+
+#control_planes:
+#  - ref: test-cp
+#    _external:
+#      id: 4f6e1ae3-95b8-4b05-983d-2456556c8226
+#    # we don't need 'gw_service' or 'ce_service' here, it's namespaced under the control plane
+#    services:
+#      - ref: httpbin-service
+#        _external:
+#          selector:
+#            matchFields:
+#              name: httpbin
+
+apis:
+  - ref: httpbin-api
+    name: API for httpbin
+    description: The httpbin API
+    #implementations:
+    #  - ref: external-impl
+    #    service:
+    #      control_plane_id: test-cp 
+    #      id: http-ce-service 
+
+portals:
+  - ref: httpbin-portal
+    name: Portal for httpbin
+    description: The portal for the httpbin API
