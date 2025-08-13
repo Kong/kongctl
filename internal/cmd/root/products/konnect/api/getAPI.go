@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -265,7 +265,7 @@ func (c *getAPICmd) runE(cobraCmd *cobra.Command, args []string) error {
 	if len(helper.GetArgs()) == 1 { // validate above checks that args is 0 or 1
 		id := strings.TrimSpace(helper.GetArgs()[0])
 
-		isUUID, _ := regexp.MatchString(`^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`, id)
+		isUUID := util.IsValidUUID(id)
 
 		if !isUUID {
 			// If the ID is not a UUID, then it is a name

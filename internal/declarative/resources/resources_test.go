@@ -5,6 +5,7 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/stretchr/testify/assert"
+	"github.com/kong/kongctl/internal/util"
 	"sigs.k8s.io/yaml"
 )
 
@@ -610,9 +611,9 @@ func TestIsValidUUID(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "invalid UUID with uppercase letters",
+			name:     "valid UUID with uppercase letters",
 			input:    "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
-			expected: false,
+			expected: true,
 		},
 		{
 			name:     "invalid UUID - missing hyphens",
@@ -653,8 +654,8 @@ func TestIsValidUUID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := isValidUUID(tt.input)
-			assert.Equal(t, tt.expected, result, "isValidUUID(%q) should return %v", tt.input, tt.expected)
+			result := util.IsValidUUID(tt.input)
+			assert.Equal(t, tt.expected, result, "util.IsValidUUID(%q) should return %v", tt.input, tt.expected)
 		})
 	}
 }

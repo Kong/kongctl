@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"regexp"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/util"
 )
 
 // APIImplementationResource represents an API implementation in declarative configuration
@@ -54,7 +54,7 @@ func (i APIImplementationResource) GetReferenceFieldMappings() map[string]string
 	
 	if i.Service != nil && i.Service.ControlPlaneID != "" {
 		// Check if control_plane_id is a UUID - if so, it's an external reference
-		if !isValidUUID(i.Service.ControlPlaneID) {
+		if !util.IsValidUUID(i.Service.ControlPlaneID) {
 			// Not a UUID, so it's a reference to a declarative control plane
 			mappings["service.control_plane_id"] = "control_plane"
 		}
@@ -77,7 +77,7 @@ func (i APIImplementationResource) Validate() error {
 		}
 		
 		// Validate service.id is a UUID format (external system)
-		if !isValidUUID(i.Service.ID) {
+		if !util.IsValidUUID(i.Service.ID) {
 			return fmt.Errorf("API implementation service.id must be a valid UUID (external service managed by decK)")
 		}
 		
@@ -215,8 +215,3 @@ func (i *APIImplementationResource) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// isValidUUID checks if a string is a valid UUID format
-func isValidUUID(s string) bool {
-	uuidRegex := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
-	return uuidRegex.MatchString(s)
-}
