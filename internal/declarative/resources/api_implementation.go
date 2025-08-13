@@ -49,18 +49,21 @@ func (i APIImplementationResource) GetDependencies() []ResourceRef {
 
 // GetReferenceFieldMappings returns the field mappings for reference validation
 func (i APIImplementationResource) GetReferenceFieldMappings() map[string]string {
-	// Only include control_plane_id mapping if it's not a UUID
+	// Only include mappings for non-UUID references
 	mappings := make(map[string]string)
 	
-	if i.Service != nil && i.Service.ControlPlaneID != "" {
-		// Check if control_plane_id is a UUID - if so, it's an external reference
-		if !isValidUUID(i.Service.ControlPlaneID) {
-			// Not a UUID, so it's a reference to a declarative control plane
+	if i.Service != nil {
+		// Check if control_plane_id is a reference (not a UUID)
+		if i.Service.ControlPlaneID != "" && !isValidUUID(i.Service.ControlPlaneID) {
 			mappings["service.control_plane_id"] = "control_plane"
+		}
+		
+		// Check if service.id is a reference (not a UUID)
+		if i.Service.ID != "" && !isValidUUID(i.Service.ID) {
+			mappings["service.id"] = "ce_service"
 		}
 	}
 	
-	// Note: service.id is always external UUID, not ref-based
 	return mappings
 }
 
@@ -76,10 +79,8 @@ func (i APIImplementationResource) Validate() error {
 			return fmt.Errorf("API implementation service.id is required")
 		}
 		
-		// Validate service.id is a UUID format (external system)
-		if !isValidUUID(i.Service.ID) {
-			return fmt.Errorf("API implementation service.id must be a valid UUID (external service managed by decK)")
-		}
+		// service.id can be either a UUID (external) or a reference (external resource)
+		// Both are valid - no additional validation needed here
 		
 		if i.Service.ControlPlaneID == "" {
 			return fmt.Errorf("API implementation service.control_plane_id is required")

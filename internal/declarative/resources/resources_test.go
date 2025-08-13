@@ -350,18 +350,17 @@ func TestAPIImplementationResource_Validation(t *testing.T) {
 			errMsg:  "API implementation service.id is required",
 		},
 		{
-			name: "service with invalid id (not UUID)",
+			name: "service with non-UUID id (external resource reference)",
 			implementation: APIImplementationResource{
 				Ref: "api-impl-1",
 				APIImplementation: kkComps.APIImplementation{
 					Service: &kkComps.APIImplementationService{
-						ID:             "not-a-uuid",
+						ID:             "my-service-ref",  // Now allowed for external resources
 						ControlPlaneID: "prod-cp",
 					},
 				},
 			},
-			wantErr: true,
-			errMsg:  "API implementation service.id must be a valid UUID",
+			wantErr: false,  // Should pass now
 		},
 		{
 			name: "service with missing control_plane_id",

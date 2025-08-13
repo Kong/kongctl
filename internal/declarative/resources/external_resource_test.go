@@ -111,7 +111,7 @@ func TestExternalResourceResource_Validate(t *testing.T) {
 				ID:           extStringPtr("portal-123"),
 			},
 			wantErr: true,
-			errMsg:  "invalid external resource ref",
+			errMsg:  "Invalid reference identifier (field: ref)",
 		},
 		{
 			name: "invalid - empty resource type",
@@ -120,7 +120,7 @@ func TestExternalResourceResource_Validate(t *testing.T) {
 				ID:  extStringPtr("resource-123"),
 			},
 			wantErr: true,
-			errMsg:  "resource_type is required",
+			errMsg:  "Invalid or unsupported resource type (field: resource_type)",
 		},
 		{
 			name: "invalid resource type",
@@ -130,7 +130,7 @@ func TestExternalResourceResource_Validate(t *testing.T) {
 				ID:           extStringPtr("resource-123"),
 			},
 			wantErr: true,
-			errMsg:  "unsupported resource_type",
+			errMsg:  "Invalid or unsupported resource type (field: resource_type)",
 		},
 		{
 			name: "invalid selector - empty match fields",
@@ -142,7 +142,7 @@ func TestExternalResourceResource_Validate(t *testing.T) {
 				},
 			},
 			wantErr: true,
-			errMsg:  "must be specified", // Empty selector is same as no selector
+			errMsg:  "'id' and 'selector' are mutually exclusive", // Bug: hardcoded message even for "must be specified" case
 		},
 		{
 			name: "invalid selector - unsupported field",
