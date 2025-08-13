@@ -24,11 +24,12 @@ func NewAuthStrategyAdapter(client *state.Client) *AuthStrategyAdapter {
 
 // MapCreateFields maps fields to the appropriate auth strategy request type
 // Note: This returns interface{} because the SDK uses union types
-func (a *AuthStrategyAdapter) MapCreateFields(ctx context.Context, fields map[string]interface{}, 
+func (a *AuthStrategyAdapter) MapCreateFields(
+	_ context.Context, execCtx *ExecutionContext, fields map[string]interface{}, 
 	create *kkComps.CreateAppAuthStrategyRequest) error {
-	// Extract namespace and protection from context
-	namespace, _ := ctx.Value(contextKeyNamespace).(string)
-	protection := ctx.Value(contextKeyProtection)
+	// Extract namespace and protection from execution context
+	namespace := execCtx.Namespace
+	protection := execCtx.Protection
 
 	// Validate required fields
 	strategyType, ok := fields["strategy_type"].(string)
@@ -69,11 +70,12 @@ func (a *AuthStrategyAdapter) MapCreateFields(ctx context.Context, fields map[st
 }
 
 // MapUpdateFields maps fields to UpdateAppAuthStrategyRequest
-func (a *AuthStrategyAdapter) MapUpdateFields(ctx context.Context, fields map[string]interface{},
+func (a *AuthStrategyAdapter) MapUpdateFields(
+	_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
 	update *kkComps.UpdateAppAuthStrategyRequest, currentLabels map[string]string) error {
-	// Extract namespace and protection from context
-	namespace, _ := ctx.Value(contextKeyNamespace).(string)
-	protection := ctx.Value(contextKeyProtection)
+	// Extract namespace and protection from execution context
+	namespace := execCtx.Namespace
+	protection := execCtx.Protection
 
 	// Update display name if present
 	if displayName, ok := fields["display_name"].(string); ok {

@@ -4,14 +4,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // PortalSnippetAdapter implements ResourceOperations for portal snippets
 type PortalSnippetAdapter struct {
-	client *state.Client
+	client  *state.Client
+	execCtx *ExecutionContext // Store execution context for helper methods
 }
 
 // NewPortalSnippetAdapter creates a new portal snippet adapter
@@ -20,8 +20,12 @@ func NewPortalSnippetAdapter(client *state.Client) *PortalSnippetAdapter {
 }
 
 // MapCreateFields maps fields to CreatePortalSnippetRequest
-func (p *PortalSnippetAdapter) MapCreateFields(_ context.Context, fields map[string]interface{},
+func (p *PortalSnippetAdapter) MapCreateFields(
+	_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
 	create *kkComps.CreatePortalSnippetRequest) error {
+	// Store execution context for use in helper methods
+	p.execCtx = execCtx
+	
 	// Required fields
 	name, ok := fields["name"].(string)
 	if !ok {
@@ -58,7 +62,7 @@ func (p *PortalSnippetAdapter) MapCreateFields(_ context.Context, fields map[str
 }
 
 // MapUpdateFields maps fields to UpdatePortalSnippetRequest
-func (p *PortalSnippetAdapter) MapUpdateFields(_ context.Context, fields map[string]interface{},
+func (p *PortalSnippetAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, fields map[string]interface{},
 	update *kkComps.UpdatePortalSnippetRequest, _ map[string]string) error {
 	// Optional fields
 	if name, ok := fields["name"].(string); ok {
@@ -172,12 +176,12 @@ func (p *PortalSnippetAdapter) SupportsUpdate() bool {
 }
 
 // getPortalID extracts the portal ID from the context
-func (p *PortalSnippetAdapter) getPortalID(ctx context.Context) (string, error) {
-	// Get the planned change from context
-	change, ok := ctx.Value(contextKeyPlannedChange).(planner.PlannedChange)
-	if !ok {
-		return "", fmt.Errorf("planned change not found in context")
+func (p *PortalSnippetAdapter) getPortalID(_ context.Context) (string, error) {
+	// Get the planned change from execution context
+	if p.execCtx == nil || p.execCtx.PlannedChange == nil {
+		return "", fmt.Errorf("execution context not found")
 	}
+	change := *p.execCtx.PlannedChange
 	
 	// Get portal ID from references
 	if portalRef, ok := change.References["portal_id"]; ok {

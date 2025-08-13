@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -13,7 +12,8 @@ import (
 // APIVersionAdapter implements CreateDeleteOperations for API versions
 // API versions only support create and delete operations, not updates
 type APIVersionAdapter struct {
-	client *state.Client
+	client  *state.Client
+	execCtx *ExecutionContext // Store execution context for helper methods
 }
 
 // NewAPIVersionAdapter creates a new API version adapter
@@ -22,8 +22,11 @@ func NewAPIVersionAdapter(client *state.Client) *APIVersionAdapter {
 }
 
 // MapCreateFields maps fields to CreateAPIVersionRequest
-func (a *APIVersionAdapter) MapCreateFields(_ context.Context, fields map[string]interface{},
+func (a *APIVersionAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
 	create *kkComps.CreateAPIVersionRequest) error {
+	// Store execution context for use in helper methods
+	a.execCtx = execCtx
+	
 	// Version field
 	if version, ok := fields["version"].(string); ok {
 		create.Version = &version
@@ -94,12 +97,12 @@ func (a *APIVersionAdapter) RequiredFields() []string {
 }
 
 // getAPIID extracts the API ID from the context
-func (a *APIVersionAdapter) getAPIID(ctx context.Context) (string, error) {
-	// Get the planned change from context
-	change, ok := ctx.Value(contextKeyPlannedChange).(planner.PlannedChange)
-	if !ok {
-		return "", fmt.Errorf("planned change not found in context")
+func (a *APIVersionAdapter) getAPIID(_ context.Context) (string, error) {
+	// Get the planned change from execution context
+	if a.execCtx == nil || a.execCtx.PlannedChange == nil {
+		return "", fmt.Errorf("execution context not found")
 	}
+	change := *a.execCtx.PlannedChange
 
 	// Get API ID from references
 	if apiRef, ok := change.References["api_id"]; ok {
