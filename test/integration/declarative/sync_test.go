@@ -488,7 +488,7 @@ portals:
 			switch tc.format {
 			case "json":
 				// Should be valid JSON
-				var jsonData map[string]interface{}
+				var jsonData map[string]any
 				assert.NoError(t, json.Unmarshal(output.Bytes(), &jsonData))
 			case "yaml":
 				// Should contain YAML-style output

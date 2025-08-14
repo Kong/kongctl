@@ -367,7 +367,7 @@ portals:
 	assert.Equal(t, "1:u:portal:protected-portal", change.ID)
 	
 	// Verify protection change (marshaled as map from JSON)
-	protChange, ok := change.Protection.(map[string]interface{})
+	protChange, ok := change.Protection.(map[string]any)
 	require.True(t, ok, "Protection should be a map after JSON unmarshaling")
 	assert.False(t, protChange["old"].(bool))
 	assert.True(t, protChange["new"].(bool))
@@ -484,7 +484,7 @@ func TestDiffCommand_TextOutput(t *testing.T) {
 				ResourceType: "portal",
 				ResourceRef:  "new-portal",
 				Action:       planner.ActionCreate,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name":        "New Portal",
 					"description": "A new portal",
 				},
@@ -545,7 +545,7 @@ func TestDiffCommand_JSONOutput(t *testing.T) {
 				ResourceRef:  "portal-1",
 				ResourceID:   "portal-123",
 				Action:       planner.ActionUpdate,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"description": planner.FieldChange{
 						Old: "Old desc",
 						New: "New desc",

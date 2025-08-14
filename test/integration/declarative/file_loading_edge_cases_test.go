@@ -145,36 +145,36 @@ portals:
 		tempDir := t.TempDir()
 		
 		// Create a large JSON specification
-		largeSpec := map[string]interface{}{
+		largeSpec := map[string]any{
 			"openapi": "3.0.0",
-			"info": map[string]interface{}{
+			"info": map[string]any{
 				"title":   "Large API",
 				"version": "1.0.0",
 			},
-			"paths": make(map[string]interface{}),
+			"paths": make(map[string]any),
 		}
 		
 		// Add many paths to make it large
-		paths := largeSpec["paths"].(map[string]interface{})
+		paths := largeSpec["paths"].(map[string]any)
 		for i := 0; i < 1000; i++ {
 			pathName := fmt.Sprintf("/endpoint_%d", i)
-			paths[pathName] = map[string]interface{}{
-				"get": map[string]interface{}{
+			paths[pathName] = map[string]any{
+				"get": map[string]any{
 					"summary":     fmt.Sprintf("Get endpoint %d", i),
 					"description": strings.Repeat("This is a detailed description. ", 50),
-					"responses": map[string]interface{}{
-						"200": map[string]interface{}{
+					"responses": map[string]any{
+						"200": map[string]any{
 							"description": "Success",
-							"content": map[string]interface{}{
-								"application/json": map[string]interface{}{
-									"schema": map[string]interface{}{
+							"content": map[string]any{
+								"application/json": map[string]any{
+									"schema": map[string]any{
 										"type": "object",
-										"properties": map[string]interface{}{
-											"id":   map[string]interface{}{"type": "integer"},
-											"name": map[string]interface{}{"type": "string"},
-											"data": map[string]interface{}{
+										"properties": map[string]any{
+											"id":   map[string]any{"type": "integer"},
+											"name": map[string]any{"type": "string"},
+											"data": map[string]any{
 												"type": "object",
-												"additionalProperties": map[string]interface{}{
+												"additionalProperties": map[string]any{
 													"type": "string",
 												},
 											},
