@@ -143,7 +143,7 @@ type ExecutionError struct {
 	// Err is the error that occurred during execution
 	Err error
 	// Optional attributes that can be used to provide additional context to the error
-	Attrs []interface{}
+	Attrs []any
 }
 
 func (e *ConfigurationError) Error() string {
@@ -156,13 +156,13 @@ func (e *ExecutionError) Error() string {
 
 // Will try and json unmarshal an error string into a slice of interfaces
 // that match the slog algorithm for varadic parameters (alternating key value pairs)
-func TryConvertErrorToAttrs(err error) []interface{} {
-	var result map[string]interface{}
+func TryConvertErrorToAttrs(err error) []any {
+	var result map[string]any
 	umError := json.Unmarshal([]byte(err.Error()), &result)
 	if umError != nil {
 		return nil
 	}
-	attrs := make([]interface{}, 0, len(result)*2)
+	attrs := make([]any, 0, len(result)*2)
 	for k, v := range result {
 		attrs = append(attrs, k, v)
 	}

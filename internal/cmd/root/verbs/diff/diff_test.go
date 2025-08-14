@@ -104,7 +104,7 @@ func TestDiffCmd_OutputFormats(t *testing.T) {
 				ResourceType: "portal",
 				ResourceRef:  "new-portal",
 				Action:       planner.ActionCreate,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name":        "New Portal",
 					"description": "A brand new portal",
 				},
@@ -115,7 +115,7 @@ func TestDiffCmd_OutputFormats(t *testing.T) {
 				ResourceRef:  "existing-api",
 				ResourceID:   "api-123",
 				Action:       planner.ActionUpdate,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"description": planner.FieldChange{
 						Old: "Old description",
 						New: "Updated description",
@@ -128,7 +128,7 @@ func TestDiffCmd_OutputFormats(t *testing.T) {
 				ResourceRef:  "old-api",
 				ResourceID:   "api-456",
 				Action:       planner.ActionDelete,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "Old API",
 				},
 			},
@@ -248,7 +248,7 @@ func TestDiffCmd_StdinSupport(t *testing.T) {
 				ResourceType: "portal",
 				ResourceRef:  "stdin-portal",
 				Action:       planner.ActionCreate,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "Portal from stdin",
 				},
 			},

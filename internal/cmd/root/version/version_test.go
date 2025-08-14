@@ -87,7 +87,7 @@ func Test_VersionCmd(t *testing.T) {
 //		"version": "dev"
 //	}`
 //
-//	var expected, actual map[string]interface{}
+//	var expected, actual map[string]any
 //	err := json.Unmarshal([]byte(expectedOutput), &expected)
 //	util.CheckError(err) // sanity check of the test json marshal
 //

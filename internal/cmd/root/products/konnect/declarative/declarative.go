@@ -462,7 +462,7 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 			for field, value := range change.Fields {
 				if fc, ok := value.(planner.FieldChange); ok {
 					fmt.Fprintf(out, "  %s: %v → %v\n", field, fc.Old, fc.New)
-				} else if fc, ok := value.(map[string]interface{}); ok {
+				} else if fc, ok := value.(map[string]any); ok {
 					// Handle FieldChange that was unmarshaled from JSON
 					if oldVal, hasOld := fc["old"]; hasOld {
 						if newVal, hasNew := fc["new"]; hasNew {
@@ -524,7 +524,7 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 	return nil
 }
 
-func displayField(out io.Writer, field string, value interface{}, indent string, fullContent bool) {
+func displayField(out io.Writer, field string, value any, indent string, fullContent bool) {
 	switch v := value.(type) {
 	case string:
 		if v != "" {
@@ -542,7 +542,7 @@ func displayField(out io.Writer, field string, value interface{}, indent string,
 		fmt.Fprintf(out, "%s%s: %t\n", indent, field, v)
 	case float64:
 		fmt.Fprintf(out, "%s%s: %g\n", indent, field, v)
-	case map[string]interface{}:
+	case map[string]any:
 		// Skip empty maps
 		if len(v) == 0 {
 			return
@@ -551,7 +551,7 @@ func displayField(out io.Writer, field string, value interface{}, indent string,
 		for k, val := range v {
 			displayField(out, k, val, indent+"  ", fullContent)
 		}
-	case []interface{}:
+	case []any:
 		// Skip empty slices
 		if len(v) == 0 {
 			return
@@ -871,7 +871,7 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 	}
 
 	// Build the execution section
-	execution := map[string]interface{}{
+	execution := map[string]any{
 		"dry_run": result.DryRun,
 	}
 
@@ -892,7 +892,7 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 	}
 
 	// Build the summary section
-	summary := map[string]interface{}{
+	summary := map[string]any{
 		"total_changes": result.TotalChanges(),
 		"applied":       result.SuccessCount,
 		"failed":        result.FailureCount,
@@ -920,7 +920,7 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 	executionReportFile, _ := command.Flags().GetString("execution-report-file")
 	if executionReportFile != "" {
 		// Build the complete execution report
-		report := make(map[string]interface{})
+		report := make(map[string]any)
 		if plan != nil {
 			report["plan"] = plan
 		}
