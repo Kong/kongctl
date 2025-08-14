@@ -9,7 +9,7 @@ import (
 
 // InitializeDefaultViper initializes a viper instance with default values and a path to a file
 // If the file does not exist, it will be created with the default values
-func InitializeDefaultViper(defaultValues map[string]interface{}, path string) (*v.Viper, error) {
+func InitializeDefaultViper(defaultValues map[string]any, path string) (*v.Viper, error) {
 	var err error
 
 	err = util.InitDir(path, 0o755)

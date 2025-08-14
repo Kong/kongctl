@@ -18,7 +18,7 @@ var (
 
 type Manager interface {
 	GetProfiles() []string
-	GetProfile(name string) (map[string]interface{}, error)
+	GetProfile(name string) (map[string]any, error)
 	CreateProfile(name string) error
 	DeleteProfile(name string) error
 }
@@ -59,7 +59,7 @@ func (v *profileManager) CreateProfile(profileName string) error {
 		return errorProfileExists
 	}
 
-	v.config.Set(profileName, map[string]interface{}{})
+	v.config.Set(profileName, map[string]any{})
 
 	return nil
 }
@@ -76,7 +76,7 @@ func (v *profileManager) DeleteProfile(_ string) error {
 	return nil
 }
 
-func (v *profileManager) GetProfile(name string) (map[string]interface{}, error) {
+func (v *profileManager) GetProfile(name string) (map[string]any, error) {
 	return v.config.GetStringMap(name), nil
 }
 

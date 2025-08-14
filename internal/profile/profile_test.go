@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-//func buildViper(kvPairs map[string]interface{}) *viper.Viper {
+//func buildViper(kvPairs map[string]any) *viper.Viper {
 //	v := viper.New()
 //	for key, value := range kvPairs {
 //		v.Set(key, value)
@@ -25,12 +25,12 @@ func TestAddProfile(_ *testing.T) {
 	//	},
 	//	{
 	//		name: "exists",
-	//		v:    buildViper(map[string]interface{}{"exists": map[string]interface{}{}}),
+	//		v:    buildViper(map[string]any{"exists": map[string]any{}}),
 	//		want: errorProfileExists,
 	//	},
 	//	{
 	//		name: "valid",
-	//		v:    buildViper(map[string]interface{}{}),
+	//		v:    buildViper(map[string]any{}),
 	//		want: nil,
 	//	},
 	//}
