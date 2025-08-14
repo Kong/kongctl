@@ -14,8 +14,8 @@ type MockConfigHook struct {
 	GetProfileMock     func() string
 	GetStringSlickMock func(key string) []string
 	SetStringMock      func(k string, v string)
-	SetMock            func(k string, v interface{})
-	GetMock            func(k string) interface{}
+	SetMock            func(k string, v any)
+	GetMock            func(k string) any
 	GetPathMock        func() string
 }
 
@@ -58,11 +58,11 @@ func (m *MockConfigHook) SetString(k string, v string) {
 	m.SetStringMock(k, v)
 }
 
-func (m *MockConfigHook) Set(k string, v interface{}) {
+func (m *MockConfigHook) Set(k string, v any) {
 	m.SetMock(k, v)
 }
 
-func (m *MockConfigHook) Get(k string) interface{} {
+func (m *MockConfigHook) Get(k string) any {
 	return m.GetMock(k)
 }
 

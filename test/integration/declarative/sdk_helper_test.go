@@ -108,7 +108,7 @@ func WithMockSDKFactory(t *testing.T, setupMocks func(*testing.T) helpers.SDKAPI
 func GetTestConfig() kongctlconfig.Hook {
 	// Create a simple mock config
 	return &mockConfig{
-		values: map[string]interface{}{
+		values: map[string]any{
 			"konnect.base_url": "https://us.api.konghq.com",
 			"konnect.pat":      "test-pat-token", // Dummy PAT to prevent auth errors
 		},
@@ -117,7 +117,7 @@ func GetTestConfig() kongctlconfig.Hook {
 
 // mockConfig implements kongctlconfig.Hook for testing
 type mockConfig struct {
-	values map[string]interface{}
+	values map[string]any
 }
 
 func (m *mockConfig) Save() error {
@@ -161,19 +161,19 @@ func (m *mockConfig) GetStringSlice(key string) []string {
 
 func (m *mockConfig) SetString(key string, value string) {
 	if m.values == nil {
-		m.values = make(map[string]interface{})
+		m.values = make(map[string]any)
 	}
 	m.values[key] = value
 }
 
-func (m *mockConfig) Set(key string, value interface{}) {
+func (m *mockConfig) Set(key string, value any) {
 	if m.values == nil {
-		m.values = make(map[string]interface{})
+		m.values = make(map[string]any)
 	}
 	m.values[key] = value
 }
 
-func (m *mockConfig) Get(key string) interface{} {
+func (m *mockConfig) Get(key string) any {
 	return m.values[key]
 }
 
