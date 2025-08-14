@@ -85,7 +85,7 @@ func (a *APIVersionAPIImpl) DeleteAPIVersion(ctx context.Context, apiID string, 
 }
 
 // GetVersionsForAPI fetches all version objects for a specific API
-func GetVersionsForAPI(ctx context.Context, kkClient APIVersionAPI, apiID string) ([]interface{}, error) {
+func GetVersionsForAPI(ctx context.Context, kkClient APIVersionAPI, apiID string) ([]any, error) {
 	if kkClient == nil {
 		return nil, fmt.Errorf("APIVersionAPI client is nil")
 	}
@@ -102,20 +102,20 @@ func GetVersionsForAPI(ctx context.Context, kkClient APIVersionAPI, apiID string
 	}
 
 	if res == nil {
-		return []interface{}{}, nil
+		return []any{}, nil
 	}
 
 	if res.ListAPIVersionResponse == nil {
-		return []interface{}{}, nil
+		return []any{}, nil
 	}
 
 	// Check if we have data in the response
 	if len(res.ListAPIVersionResponse.Data) == 0 {
-		return []interface{}{}, nil
+		return []any{}, nil
 	}
 
-	// Convert to []interface{} and return
-	result := make([]interface{}, len(res.ListAPIVersionResponse.Data))
+	// Convert to []any and return
+	result := make([]any, len(res.ListAPIVersionResponse.Data))
 	for i, version := range res.ListAPIVersionResponse.Data {
 		result[i] = version
 	}

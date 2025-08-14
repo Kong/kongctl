@@ -69,7 +69,7 @@ func (a *APIPublicationAPIImpl) ListAPIPublications(ctx context.Context,
 }
 
 // GetPublicationsForAPI fetches all publication objects for a specific API
-func GetPublicationsForAPI(ctx context.Context, kkClient APIPublicationAPI, apiID string) ([]interface{}, error) {
+func GetPublicationsForAPI(ctx context.Context, kkClient APIPublicationAPI, apiID string) ([]any, error) {
 	if kkClient == nil {
 		return nil, fmt.Errorf("APIPublicationAPI client is nil")
 	}
@@ -93,20 +93,20 @@ func GetPublicationsForAPI(ctx context.Context, kkClient APIPublicationAPI, apiI
 	}
 
 	if res == nil {
-		return []interface{}{}, nil
+		return []any{}, nil
 	}
 
 	if res.ListAPIPublicationResponse == nil {
-		return []interface{}{}, nil
+		return []any{}, nil
 	}
 
 	// Check if we have data in the response
 	if len(res.ListAPIPublicationResponse.Data) == 0 {
-		return []interface{}{}, nil
+		return []any{}, nil
 	}
 
-	// Convert to []interface{} and return
-	result := make([]interface{}, len(res.ListAPIPublicationResponse.Data))
+	// Convert to []any and return
+	result := make([]any, len(res.ListAPIPublicationResponse.Data))
 	for i, pub := range res.ListAPIPublicationResponse.Data {
 		result[i] = pub
 	}

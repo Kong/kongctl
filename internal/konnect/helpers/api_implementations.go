@@ -38,7 +38,7 @@ func (a *APIImplementationAPIImpl) ListAPIImplementations(ctx context.Context,
 }
 
 // GetImplementationsForAPI fetches all implementation objects for a specific API
-func GetImplementationsForAPI(ctx context.Context, kkClient APIImplementationAPI, apiID string) ([]interface{}, error) {
+func GetImplementationsForAPI(ctx context.Context, kkClient APIImplementationAPI, apiID string) ([]any, error) {
 	if kkClient == nil {
 		return nil, fmt.Errorf("APIImplementationAPI client is nil")
 	}
@@ -62,20 +62,20 @@ func GetImplementationsForAPI(ctx context.Context, kkClient APIImplementationAPI
 	}
 
 	if res == nil {
-		return []interface{}{}, nil
+		return []any{}, nil
 	}
 
 	if res.ListAPIImplementationsResponse == nil {
-		return []interface{}{}, nil
+		return []any{}, nil
 	}
 
 	// Check if we have data in the response
 	if len(res.ListAPIImplementationsResponse.Data) == 0 {
-		return []interface{}{}, nil
+		return []any{}, nil
 	}
 
-	// Convert to []interface{} and return
-	result := make([]interface{}, len(res.ListAPIImplementationsResponse.Data))
+	// Convert to []any and return
+	result := make([]any, len(res.ListAPIImplementationsResponse.Data))
 	for i, impl := range res.ListAPIImplementationsResponse.Data {
 		result[i] = impl
 	}

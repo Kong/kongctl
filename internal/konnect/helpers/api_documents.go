@@ -108,7 +108,7 @@ func (a *APIDocumentAPIImpl) ListAPIDocuments(ctx context.Context,
 }
 
 // GetDocumentsForAPI fetches all document objects for a specific API
-func GetDocumentsForAPI(ctx context.Context, kkClient APIDocumentAPI, apiID string) ([]interface{}, error) {
+func GetDocumentsForAPI(ctx context.Context, kkClient APIDocumentAPI, apiID string) ([]any, error) {
 	if kkClient == nil {
 		return nil, fmt.Errorf("APIDocumentAPI client is nil")
 	}
@@ -120,20 +120,20 @@ func GetDocumentsForAPI(ctx context.Context, kkClient APIDocumentAPI, apiID stri
 	}
 
 	if res == nil {
-		return []interface{}{}, nil
+		return []any{}, nil
 	}
 
 	if res.ListAPIDocumentResponse == nil {
-		return []interface{}{}, nil
+		return []any{}, nil
 	}
 
 	// Check if we have data in the response
 	if len(res.ListAPIDocumentResponse.Data) == 0 {
-		return []interface{}{}, nil
+		return []any{}, nil
 	}
 
-	// Convert to []interface{} and return
-	result := make([]interface{}, len(res.ListAPIDocumentResponse.Data))
+	// Convert to []any and return
+	result := make([]any, len(res.ListAPIDocumentResponse.Data))
 	for i, doc := range res.ListAPIDocumentResponse.Data {
 		result[i] = doc
 	}

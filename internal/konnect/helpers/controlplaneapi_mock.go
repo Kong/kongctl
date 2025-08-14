@@ -27,11 +27,11 @@ func (_m *MockControlPlaneAPI) EXPECT() *MockControlPlaneAPI_Expecter {
 
 // CreateControlPlane provides a mock function with given fields: ctx, request, opts
 func (_m *MockControlPlaneAPI) CreateControlPlane(ctx context.Context, request components.CreateControlPlaneRequest, opts ...operations.Option) (*operations.CreateControlPlaneResponse, error) {
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, request)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -71,9 +71,9 @@ type MockControlPlaneAPI_CreateControlPlane_Call struct {
 //   - ctx context.Context
 //   - request components.CreateControlPlaneRequest
 //   - opts ...operations.Option
-func (_e *MockControlPlaneAPI_Expecter) CreateControlPlane(ctx interface{}, request interface{}, opts ...interface{}) *MockControlPlaneAPI_CreateControlPlane_Call {
+func (_e *MockControlPlaneAPI_Expecter) CreateControlPlane(ctx any, request any, opts ...any) *MockControlPlaneAPI_CreateControlPlane_Call {
 	return &MockControlPlaneAPI_CreateControlPlane_Call{Call: _e.mock.On("CreateControlPlane",
-		append([]interface{}{ctx, request}, opts...)...)}
+		append([]any{ctx, request}, opts...)...)}
 }
 
 func (_c *MockControlPlaneAPI_CreateControlPlane_Call) Run(run func(ctx context.Context, request components.CreateControlPlaneRequest, opts ...operations.Option)) *MockControlPlaneAPI_CreateControlPlane_Call {
@@ -101,11 +101,11 @@ func (_c *MockControlPlaneAPI_CreateControlPlane_Call) RunAndReturn(run func(con
 
 // DeleteControlPlane provides a mock function with given fields: ctx, id, opts
 func (_m *MockControlPlaneAPI) DeleteControlPlane(ctx context.Context, id string, opts ...operations.Option) (*operations.DeleteControlPlaneResponse, error) {
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, id)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -145,9 +145,9 @@ type MockControlPlaneAPI_DeleteControlPlane_Call struct {
 //   - ctx context.Context
 //   - id string
 //   - opts ...operations.Option
-func (_e *MockControlPlaneAPI_Expecter) DeleteControlPlane(ctx interface{}, id interface{}, opts ...interface{}) *MockControlPlaneAPI_DeleteControlPlane_Call {
+func (_e *MockControlPlaneAPI_Expecter) DeleteControlPlane(ctx any, id any, opts ...any) *MockControlPlaneAPI_DeleteControlPlane_Call {
 	return &MockControlPlaneAPI_DeleteControlPlane_Call{Call: _e.mock.On("DeleteControlPlane",
-		append([]interface{}{ctx, id}, opts...)...)}
+		append([]any{ctx, id}, opts...)...)}
 }
 
 func (_c *MockControlPlaneAPI_DeleteControlPlane_Call) Run(run func(ctx context.Context, id string, opts ...operations.Option)) *MockControlPlaneAPI_DeleteControlPlane_Call {
@@ -175,11 +175,11 @@ func (_c *MockControlPlaneAPI_DeleteControlPlane_Call) RunAndReturn(run func(con
 
 // GetControlPlane provides a mock function with given fields: ctx, id, opts
 func (_m *MockControlPlaneAPI) GetControlPlane(ctx context.Context, id string, opts ...operations.Option) (*operations.GetControlPlaneResponse, error) {
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, id)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -219,9 +219,9 @@ type MockControlPlaneAPI_GetControlPlane_Call struct {
 //   - ctx context.Context
 //   - id string
 //   - opts ...operations.Option
-func (_e *MockControlPlaneAPI_Expecter) GetControlPlane(ctx interface{}, id interface{}, opts ...interface{}) *MockControlPlaneAPI_GetControlPlane_Call {
+func (_e *MockControlPlaneAPI_Expecter) GetControlPlane(ctx any, id any, opts ...any) *MockControlPlaneAPI_GetControlPlane_Call {
 	return &MockControlPlaneAPI_GetControlPlane_Call{Call: _e.mock.On("GetControlPlane",
-		append([]interface{}{ctx, id}, opts...)...)}
+		append([]any{ctx, id}, opts...)...)}
 }
 
 func (_c *MockControlPlaneAPI_GetControlPlane_Call) Run(run func(ctx context.Context, id string, opts ...operations.Option)) *MockControlPlaneAPI_GetControlPlane_Call {
@@ -249,11 +249,11 @@ func (_c *MockControlPlaneAPI_GetControlPlane_Call) RunAndReturn(run func(contex
 
 // ListControlPlanes provides a mock function with given fields: ctx, request, opts
 func (_m *MockControlPlaneAPI) ListControlPlanes(ctx context.Context, request operations.ListControlPlanesRequest, opts ...operations.Option) (*operations.ListControlPlanesResponse, error) {
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, request)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -293,9 +293,9 @@ type MockControlPlaneAPI_ListControlPlanes_Call struct {
 //   - ctx context.Context
 //   - request operations.ListControlPlanesRequest
 //   - opts ...operations.Option
-func (_e *MockControlPlaneAPI_Expecter) ListControlPlanes(ctx interface{}, request interface{}, opts ...interface{}) *MockControlPlaneAPI_ListControlPlanes_Call {
+func (_e *MockControlPlaneAPI_Expecter) ListControlPlanes(ctx any, request any, opts ...any) *MockControlPlaneAPI_ListControlPlanes_Call {
 	return &MockControlPlaneAPI_ListControlPlanes_Call{Call: _e.mock.On("ListControlPlanes",
-		append([]interface{}{ctx, request}, opts...)...)}
+		append([]any{ctx, request}, opts...)...)}
 }
 
 func (_c *MockControlPlaneAPI_ListControlPlanes_Call) Run(run func(ctx context.Context, request operations.ListControlPlanesRequest, opts ...operations.Option)) *MockControlPlaneAPI_ListControlPlanes_Call {
@@ -323,11 +323,11 @@ func (_c *MockControlPlaneAPI_ListControlPlanes_Call) RunAndReturn(run func(cont
 
 // UpdateControlPlane provides a mock function with given fields: ctx, id, updateControlPlaneRequest, opts
 func (_m *MockControlPlaneAPI) UpdateControlPlane(ctx context.Context, id string, updateControlPlaneRequest components.UpdateControlPlaneRequest, opts ...operations.Option) (*operations.UpdateControlPlaneResponse, error) {
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, id, updateControlPlaneRequest)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
@@ -368,9 +368,9 @@ type MockControlPlaneAPI_UpdateControlPlane_Call struct {
 //   - id string
 //   - updateControlPlaneRequest components.UpdateControlPlaneRequest
 //   - opts ...operations.Option
-func (_e *MockControlPlaneAPI_Expecter) UpdateControlPlane(ctx interface{}, id interface{}, updateControlPlaneRequest interface{}, opts ...interface{}) *MockControlPlaneAPI_UpdateControlPlane_Call {
+func (_e *MockControlPlaneAPI_Expecter) UpdateControlPlane(ctx any, id any, updateControlPlaneRequest any, opts ...any) *MockControlPlaneAPI_UpdateControlPlane_Call {
 	return &MockControlPlaneAPI_UpdateControlPlane_Call{Call: _e.mock.On("UpdateControlPlane",
-		append([]interface{}{ctx, id, updateControlPlaneRequest}, opts...)...)}
+		append([]any{ctx, id, updateControlPlaneRequest}, opts...)...)}
 }
 
 func (_c *MockControlPlaneAPI_UpdateControlPlane_Call) Run(run func(ctx context.Context, id string, updateControlPlaneRequest components.UpdateControlPlaneRequest, opts ...operations.Option)) *MockControlPlaneAPI_UpdateControlPlane_Call {
