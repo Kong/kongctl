@@ -23,9 +23,9 @@ func NewAuthStrategyAdapter(client *state.Client) *AuthStrategyAdapter {
 }
 
 // MapCreateFields maps fields to the appropriate auth strategy request type
-// Note: This returns interface{} because the SDK uses union types
+// Note: This returns any because the SDK uses union types
 func (a *AuthStrategyAdapter) MapCreateFields(
-	_ context.Context, execCtx *ExecutionContext, fields map[string]interface{}, 
+	_ context.Context, execCtx *ExecutionContext, fields map[string]any, 
 	create *kkComps.CreateAppAuthStrategyRequest) error {
 	// Extract namespace and protection from execution context
 	namespace := execCtx.Namespace
@@ -71,7 +71,7 @@ func (a *AuthStrategyAdapter) MapCreateFields(
 
 // MapUpdateFields maps fields to UpdateAppAuthStrategyRequest
 func (a *AuthStrategyAdapter) MapUpdateFields(
-	_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
+	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	update *kkComps.UpdateAppAuthStrategyRequest, currentLabels map[string]string) error {
 	// Extract namespace and protection from execution context
 	namespace := execCtx.Namespace
@@ -96,7 +96,7 @@ func (a *AuthStrategyAdapter) MapUpdateFields(
 	}
 
 	// Handle config updates if present
-	if configs, ok := fields["configs"].(map[string]interface{}); ok {
+	if configs, ok := fields["configs"].(map[string]any); ok {
 		// Get strategy type from fields (passed by planner)
 		strategyType, _ := fields[planner.FieldStrategyType].(string)
 		
@@ -184,14 +184,14 @@ func (a *AuthStrategyAdapter) SupportsUpdate() bool {
 
 // buildKeyAuthRequest builds a key auth strategy request
 func (a *AuthStrategyAdapter) buildKeyAuthRequest(name, displayName string, labels map[string]string,
-	fields map[string]interface{}) (*kkComps.AppAuthStrategyKeyAuthRequest, error) {
+	fields map[string]any) (*kkComps.AppAuthStrategyKeyAuthRequest, error) {
 	// Extract key auth config
-	configs, ok := fields["configs"].(map[string]interface{})
+	configs, ok := fields["configs"].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("configs is required for key_auth strategy")
 	}
 	
-	keyAuthConfig, ok := configs["key-auth"].(map[string]interface{})
+	keyAuthConfig, ok := configs["key-auth"].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("configs.key-auth is required for key_auth strategy")
 	}
@@ -207,11 +207,11 @@ func (a *AuthStrategyAdapter) buildKeyAuthRequest(name, displayName string, labe
 		Labels: labels,
 	}
 	
-	// Extract key names - handle both []string and []interface{}
+	// Extract key names - handle both []string and []any
 	switch keyNames := keyAuthConfig["key_names"].(type) {
 	case []string:
 		req.Configs.KeyAuth.KeyNames = keyNames
-	case []interface{}:
+	case []any:
 		names := make([]string, 0, len(keyNames))
 		for _, kn := range keyNames {
 			if name, ok := kn.(string); ok {
@@ -228,14 +228,14 @@ func (a *AuthStrategyAdapter) buildKeyAuthRequest(name, displayName string, labe
 
 // buildOpenIDConnectRequest builds an OpenID Connect strategy request
 func (a *AuthStrategyAdapter) buildOpenIDConnectRequest(name, displayName string, labels map[string]string,
-	fields map[string]interface{}) (*kkComps.AppAuthStrategyOpenIDConnectRequest, error) {
+	fields map[string]any) (*kkComps.AppAuthStrategyOpenIDConnectRequest, error) {
 	// Extract openid connect config
-	configs, ok := fields["configs"].(map[string]interface{})
+	configs, ok := fields["configs"].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("configs is required for openid_connect strategy")
 	}
 	
-	oidcConfig, ok := configs["openid-connect"].(map[string]interface{})
+	oidcConfig, ok := configs["openid-connect"].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("configs.openid-connect is required for openid_connect strategy")
 	}
@@ -272,10 +272,10 @@ func (a *AuthStrategyAdapter) buildOpenIDConnectRequest(name, displayName string
 
 // buildUpdateConfigs builds the SDK Configs union type from planner data
 func (a *AuthStrategyAdapter) buildUpdateConfigs(strategyType string,
-	configs map[string]interface{}) (*kkComps.Configs, error) {
+	configs map[string]any) (*kkComps.Configs, error) {
 	switch strategyType {
 	case "key_auth":
-		keyAuthConfig, ok := configs["key-auth"].(map[string]interface{})
+		keyAuthConfig, ok := configs["key-auth"].(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("key-auth config missing for key_auth strategy")
 		}
@@ -291,7 +291,7 @@ func (a *AuthStrategyAdapter) buildUpdateConfigs(strategyType string,
 		return &configs, nil
 		
 	case "openid_connect":
-		oidcConfig, ok := configs["openid-connect"].(map[string]interface{})
+		oidcConfig, ok := configs["openid-connect"].(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("openid-connect config missing for openid_connect strategy")
 		}
@@ -322,11 +322,11 @@ func (a *AuthStrategyAdapter) buildUpdateConfigs(strategyType string,
 }
 
 // extractStringSlice extracts a string slice from various input types
-func (a *AuthStrategyAdapter) extractStringSlice(input interface{}, defaultValue []string) []string {
+func (a *AuthStrategyAdapter) extractStringSlice(input any, defaultValue []string) []string {
 	switch v := input.(type) {
 	case []string:
 		return v
-	case []interface{}:
+	case []any:
 		result := make([]string, 0, len(v))
 		for _, item := range v {
 			if str, ok := item.(string); ok {

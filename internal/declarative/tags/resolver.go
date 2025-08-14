@@ -126,7 +126,7 @@ func (r *ResolverRegistry) processNode(node *yaml.Node) error {
 }
 
 // replaceNodeWithValue replaces a node's content with the resolved value
-func (r *ResolverRegistry) replaceNodeWithValue(node *yaml.Node, value interface{}) error {
+func (r *ResolverRegistry) replaceNodeWithValue(node *yaml.Node, value any) error {
 	// Create a temporary node to marshal the value
 	tempNode := &yaml.Node{}
 	if err := tempNode.Encode(value); err != nil {

@@ -457,7 +457,7 @@ func TestFormatResourceName_AllResourceTypes(t *testing.T) {
 			change: planner.PlannedChange{
 				ResourceRef:  "",
 				ResourceType: "api",
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "my-api",
 				},
 			},

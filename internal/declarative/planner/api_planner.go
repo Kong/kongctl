@@ -191,8 +191,8 @@ func (p *Planner) planAPIChanges(
 }
 
 // extractAPIFields extracts fields from an API resource for planner operations
-func extractAPIFields(resource interface{}) map[string]interface{} {
-	fields := make(map[string]interface{})
+func extractAPIFields(resource any) map[string]any {
+	fields := make(map[string]any)
 	
 	api, ok := resource.(resources.APIResource)
 	if !ok {
@@ -206,7 +206,7 @@ func extractAPIFields(resource interface{}) map[string]interface{} {
 	
 	// Copy user-defined labels only (protection label will be added during execution)
 	if len(api.Labels) > 0 {
-		labelsMap := make(map[string]interface{})
+		labelsMap := make(map[string]any)
 		for k, v := range api.Labels {
 			labelsMap[k] = v
 		}
@@ -221,7 +221,7 @@ func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) string {
 	generic := p.genericPlanner
 	
 	// Extract protection status
-	var protection interface{}
+	var protection any
 	if api.Kongctl != nil && api.Kongctl.Protected != nil {
 		protection = *api.Kongctl.Protected
 	}
@@ -237,7 +237,7 @@ func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) string {
 		ResourceName:   api.Name,
 		ResourceRef:    api.GetRef(),
 		RequiredFields: []string{"name"},
-		FieldExtractor: func(_ interface{}) map[string]interface{} {
+		FieldExtractor: func(_ any) map[string]any {
 			return extractAPIFields(api)
 		},
 		Namespace:      namespace,
@@ -262,8 +262,8 @@ func (p *Planner) planAPICreate(api resources.APIResource, plan *Plan) string {
 func (p *Planner) shouldUpdateAPI(
 	current state.API,
 	desired resources.APIResource,
-) (bool, map[string]interface{}) {
-	updates := make(map[string]interface{})
+) (bool, map[string]any) {
+	updates := make(map[string]any)
 
 	// Only compare fields present in desired configuration
 	if desired.Description != nil {
@@ -278,7 +278,7 @@ func (p *Planner) shouldUpdateAPI(
 		// Compare only user labels to determine if update is needed
 		if labels.CompareUserLabels(current.NormalizedLabels, desired.Labels) {
 			// User labels differ, include all labels in update
-			labelsMap := make(map[string]interface{})
+			labelsMap := make(map[string]any)
 			for k, v := range desired.Labels {
 				labelsMap[k] = v
 			}
@@ -293,7 +293,7 @@ func (p *Planner) shouldUpdateAPI(
 func (p *Planner) planAPIUpdateWithFields(
 	current state.API,
 	desired resources.APIResource,
-	updateFields map[string]interface{},
+	updateFields map[string]any,
 	plan *Plan,
 ) {
 	// Pass current labels so executor can properly handle removals
@@ -338,7 +338,7 @@ func (p *Planner) planAPIProtectionChangeWithFields(
 	current state.API,
 	desired resources.APIResource,
 	wasProtected, shouldProtect bool,
-	updateFields map[string]interface{},
+	updateFields map[string]any,
 	plan *Plan,
 ) {
 	// Extract namespace
@@ -361,7 +361,7 @@ func (p *Planner) planAPIProtectionChangeWithFields(
 	change := p.genericPlanner.PlanProtectionChange(context.Background(), config)
 	
 	// Always include essential fields for protection changes
-	fields := make(map[string]interface{})
+	fields := make(map[string]any)
 	
 	// Include any field updates if present
 	for field, newValue := range updateFields {
@@ -416,7 +416,7 @@ func (p *Planner) planAPIDelete(api state.API, plan *Plan) {
 	
 	change := p.genericPlanner.PlanDelete(context.Background(), config)
 	// Add the name field for backward compatibility
-	change.Fields = map[string]interface{}{"name": api.Name}
+	change.Fields = map[string]any{"name": api.Name}
 	
 	plan.AddChange(change)
 }
@@ -590,13 +590,13 @@ func (p *Planner) planAPIVersionCreate(
 	parentNamespace string, apiRef string, apiID string, version resources.APIVersionResource,
 	dependsOn []string, plan *Plan,
 ) {
-	fields := make(map[string]interface{})
+	fields := make(map[string]any)
 	if version.Version != nil {
 		fields["version"] = *version.Version
 	}
 	if version.Spec != nil && version.Spec.Content != nil {
 		// Store spec as a map with content field for proper JSON serialization
-		fields["spec"] = map[string]interface{}{
+		fields["spec"] = map[string]any{
 			"content": *version.Spec.Content,
 		}
 	}
@@ -654,7 +654,7 @@ func (p *Planner) planAPIVersionDelete(apiRef string, apiID string, versionID st
 		},
 		Parent:    &ParentInfo{Ref: apiRef, ID: apiID},
 		Action:    ActionDelete,
-		Fields:    map[string]interface{}{"version": versionStr},
+		Fields:    map[string]any{"version": versionStr},
 		DependsOn: []string{},
 	}
 
@@ -841,7 +841,7 @@ func (p *Planner) planAPIPublicationCreate(
 	parentNamespace string, apiRef string, apiID string, publication resources.APIPublicationResource,
 	dependsOn []string, plan *Plan,
 ) {
-	fields := make(map[string]interface{})
+	fields := make(map[string]any)
 	fields["portal_id"] = publication.PortalID
 	if publication.AuthStrategyIds != nil {
 		fields["auth_strategy_ids"] = publication.AuthStrategyIds
@@ -963,7 +963,7 @@ func (p *Planner) planAPIPublicationDelete(apiRef string, apiID string, portalID
 		ResourceID:   fmt.Sprintf("%s:%s", apiID, portalID), // Composite ID for API publication
 		Parent:       &ParentInfo{Ref: apiRef, ID: apiID},
 		Action:       ActionDelete,
-		Fields: map[string]interface{}{
+		Fields: map[string]any{
 			"api_id":    apiID,
 			"portal_id": portalID,
 		},
@@ -977,7 +977,7 @@ func (p *Planner) planAPIPublicationDelete(apiRef string, apiID string, portalID
 func (p *Planner) planAPIPublicationUpdate(
 	parentNamespace string, apiRef string, apiID string, 
 	current state.APIPublication, desired resources.APIPublicationResource, 
-	updateFields map[string]interface{}, plan *Plan,
+	updateFields map[string]any, plan *Plan,
 ) {
 	// Update fields with resolved portal ID
 	updateFields["portal_id"] = current.PortalID
@@ -1070,8 +1070,8 @@ func (p *Planner) planAPIPublicationUpdate(
 func (p *Planner) shouldUpdateAPIPublication(
 	current state.APIPublication,
 	desired resources.APIPublicationResource,
-) (bool, map[string]interface{}) {
-	updates := make(map[string]interface{})
+) (bool, map[string]any) {
+	updates := make(map[string]any)
 
 	// Compare auth strategy IDs (order-independent comparison)
 	if !p.compareStringSlices(current.AuthStrategyIDs, desired.AuthStrategyIds) {
@@ -1182,10 +1182,10 @@ func (p *Planner) planAPIImplementationCreate(
 	parentNamespace string, apiRef string, apiID string,
 	implementation resources.APIImplementationResource, dependsOn []string, plan *Plan,
 ) {
-	fields := make(map[string]interface{})
+	fields := make(map[string]any)
 	// APIImplementation only has Service field in the SDK
 	if implementation.Service != nil {
-		fields["service"] = map[string]interface{}{
+		fields["service"] = map[string]any{
 			"id":               implementation.Service.ID,
 			"control_plane_id": implementation.Service.ControlPlaneID,
 		}
@@ -1327,7 +1327,7 @@ func (p *Planner) planAPIDocumentCreate(
 	parentNamespace string, apiRef string, apiID string, document resources.APIDocumentResource,
 	dependsOn []string, plan *Plan,
 ) {
-	fields := make(map[string]interface{})
+	fields := make(map[string]any)
 	fields["content"] = document.Content
 	if document.Title != nil {
 		fields["title"] = *document.Title
@@ -1387,7 +1387,7 @@ func (p *Planner) planAPIDocumentUpdate(
 	parentNamespace string, apiRef string, apiID string, documentID string,
 	document resources.APIDocumentResource, plan *Plan,
 ) {
-	fields := make(map[string]interface{})
+	fields := make(map[string]any)
 	fields["content"] = document.Content
 	if document.Title != nil {
 		fields["title"] = *document.Title
@@ -1451,7 +1451,7 @@ func (p *Planner) planAPIDocumentDelete(apiRef string, apiID string, documentID 
 		},
 		Parent:    &ParentInfo{Ref: apiRef, ID: apiID},
 		Action:    ActionDelete,
-		Fields:    map[string]interface{}{"slug": slug},
+		Fields:    map[string]any{"slug": slug},
 		DependsOn: []string{},
 	}
 

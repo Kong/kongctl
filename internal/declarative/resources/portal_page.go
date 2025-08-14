@@ -155,7 +155,7 @@ func (p PortalPageResource) GetKonnectMonikerFilter() string {
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
-func (p *PortalPageResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+func (p *PortalPageResource) TryMatchKonnectResource(konnectResource any) bool {
 	// For portal pages, we match by slug
 	// Use reflection to access fields from state.PortalPage
 	v := reflect.ValueOf(konnectResource)
@@ -308,7 +308,7 @@ func (s PortalSnippetResource) GetKonnectMonikerFilter() string {
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
-func (s *PortalSnippetResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+func (s *PortalSnippetResource) TryMatchKonnectResource(konnectResource any) bool {
 	// For portal snippets, we match by name
 	// Use reflection to access fields from state.PortalSnippet
 	v := reflect.ValueOf(konnectResource)

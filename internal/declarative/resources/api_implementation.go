@@ -109,7 +109,7 @@ func (i APIImplementationResource) GetKonnectMonikerFilter() string {
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
-func (i *APIImplementationResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+func (i *APIImplementationResource) TryMatchKonnectResource(konnectResource any) bool {
 	// For API implementations, we match by service ID + control plane ID
 	// Use reflection to access fields from state.APIImplementation
 	v := reflect.ValueOf(konnectResource)
@@ -168,7 +168,7 @@ func (i *APIImplementationResource) UnmarshalJSON(data []byte) error {
 			ID             string `json:"id"`
 			ControlPlaneID string `json:"control_plane_id"`
 		} `json:"service,omitempty"`
-		Kongctl interface{} `json:"kongctl,omitempty"`
+		Kongctl any `json:"kongctl,omitempty"`
 	}
 	
 	// Use a decoder with DisallowUnknownFields to catch typos
@@ -189,14 +189,14 @@ func (i *APIImplementationResource) UnmarshalJSON(data []byte) error {
 	}
 	
 	// Map to SDK fields embedded in APIImplementation
-	sdkData := map[string]interface{}{}
+	sdkData := map[string]any{}
 	
 	if temp.ImplementationURL != "" {
 		sdkData["implementation_url"] = temp.ImplementationURL
 	}
 	
 	if temp.Service != nil {
-		sdkData["service"] = map[string]interface{}{
+		sdkData["service"] = map[string]any{
 			"id":               temp.Service.ID,
 			"control_plane_id": temp.Service.ControlPlaneID,
 		}

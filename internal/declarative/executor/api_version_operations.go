@@ -31,7 +31,7 @@ func (e *Executor) createAPIVersion(ctx context.Context, change planner.PlannedC
 		req.Version = &version
 	}
 	// The SDK only supports Version and Spec fields
-	if spec, ok := change.Fields["spec"].(map[string]interface{}); ok {
+	if spec, ok := change.Fields["spec"].(map[string]any); ok {
 		if content, ok := spec["content"].(string); ok {
 			req.Spec = &kkComps.CreateAPIVersionRequestSpec{
 				Content: &content,

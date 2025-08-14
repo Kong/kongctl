@@ -42,13 +42,13 @@ description: A test API`
 	tests := []struct {
 		name     string
 		nodeValue string
-		want     interface{}
+		want     any
 		wantErr  bool
 	}{
 		{
 			name:     "YAML file",
 			nodeValue: "test.yaml",
-			want: map[string]interface{}{
+			want: map[string]any{
 				"name":        "Test API",
 				"version":     "1.0.0",
 				"description": "A test API",
@@ -57,7 +57,7 @@ description: A test API`
 		{
 			name:     "JSON file",
 			nodeValue: "test.json",
-			want: map[string]interface{}{
+			want: map[string]any{
 				"title": "Test JSON",
 				"count": float64(42),
 			},
@@ -114,7 +114,7 @@ servers:
 	tests := []struct {
 		name    string
 		fileRef FileRef
-		want    interface{}
+		want    any
 		wantErr bool
 	}{
 		{
@@ -138,17 +138,17 @@ servers:
 			fileRef: FileRef{
 				Path: "openapi.yaml",
 			},
-			want: map[string]interface{}{
-				"info": map[string]interface{}{
+			want: map[string]any{
+				"info": map[string]any{
 					"title":   "Test API",
 					"version": "1.0.0",
-					"contact": map[string]interface{}{
+					"contact": map[string]any{
 						"name":  "John Doe",
 						"email": "john@example.com",
 					},
 				},
-				"servers": []interface{}{
-					map[string]interface{}{
+				"servers": []any{
+					map[string]any{
 						"url":         "https://api.example.com",
 						"description": "Production",
 					},
@@ -258,7 +258,7 @@ func TestFileTagResolver_Caching(t *testing.T) {
 	got1, err := resolver.Resolve(mapNode)
 	require.NoError(t, err)
 	// Should be version 1 - check for either int or float
-	var version1 interface{}
+	var version1 any
 	switch v := got1.(type) {
 	case int:
 		assert.Equal(t, 1, v)
@@ -292,7 +292,7 @@ func TestFileTagResolver_Caching(t *testing.T) {
 	
 	got3, err := resolver.Resolve(mapNode2)
 	require.NoError(t, err)
-	got3Map, ok := got3.(map[string]interface{})
+	got3Map, ok := got3.(map[string]any)
 	require.True(t, ok, "Expected map result")
 	// Since this is a different cache key (no extraction), it should load fresh
 	// and see version 2
@@ -379,7 +379,7 @@ func TestFileTagResolver_NestedDirectory(t *testing.T) {
 	
 	got, err := resolver.Resolve(node)
 	assert.NoError(t, err)
-	assert.Equal(t, map[string]interface{}{"api_version": "v1"}, got)
+	assert.Equal(t, map[string]any{"api_version": "v1"}, got)
 }
 
 func TestFileTagResolver_ConcurrentAccess(t *testing.T) {
@@ -403,7 +403,7 @@ func TestFileTagResolver_ConcurrentAccess(t *testing.T) {
 			
 			got, err := resolver.Resolve(node)
 			assert.NoError(t, err)
-			assert.Equal(t, map[string]interface{}{"value": "test"}, got)
+			assert.Equal(t, map[string]any{"value": "test"}, got)
 			done <- true
 		}()
 	}

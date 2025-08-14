@@ -81,7 +81,7 @@ func (d PortalCustomDomainResource) GetKonnectMonikerFilter() string {
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
-func (d *PortalCustomDomainResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+func (d *PortalCustomDomainResource) TryMatchKonnectResource(konnectResource any) bool {
 	// For custom domains, we match by hostname
 	// Use reflection to access fields from state.PortalCustomDomain
 	v := reflect.ValueOf(konnectResource)

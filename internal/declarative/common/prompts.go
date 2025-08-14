@@ -220,7 +220,7 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 					} else if pc.Old && pc.New {
 						protectedIndicator = " [protected]"
 					}
-				} else if pcMap, ok := change.Protection.(map[string]interface{}); ok {
+				} else if pcMap, ok := change.Protection.(map[string]any); ok {
 					// Handle JSON deserialization
 					oldVal, hasOld := pcMap["old"].(bool)
 					newVal, hasNew := pcMap["new"].(bool)
@@ -534,7 +534,7 @@ func isProtectedResource(change planner.PlannedChange) bool {
 	case planner.ProtectionChange:
 		// Resource is protected if it's currently protected (old value)
 		return p.Old
-	case map[string]interface{}:
+	case map[string]any:
 		// Handle JSON deserialization
 		if oldVal, hasOld := p["old"].(bool); hasOld {
 			return oldVal
@@ -552,7 +552,7 @@ func willBeProtected(change planner.PlannedChange) bool {
 	case planner.ProtectionChange:
 		// For UPDATE actions, use the new value
 		return p.New
-	case map[string]interface{}:
+	case map[string]any:
 		// Handle JSON deserialization
 		if newVal, hasNew := p["new"].(bool); hasNew {
 			return newVal
@@ -588,7 +588,7 @@ func displayFieldChanges(out io.Writer, change planner.PlannedChange, indent str
 		if fc, ok := value.(planner.FieldChange); ok {
 			hasFieldChanges = true
 			fmt.Fprintf(out, "%s%s: %v → %v\n", indent, field, formatFieldValue(fc.Old), formatFieldValue(fc.New))
-		} else if fc, ok := value.(map[string]interface{}); ok {
+		} else if fc, ok := value.(map[string]any); ok {
 			// Handle FieldChange that was unmarshaled from JSON
 			if oldVal, hasOld := fc["old"]; hasOld {
 				if newVal, hasNew := fc["new"]; hasNew {
@@ -609,7 +609,7 @@ func displayFieldChanges(out io.Writer, change planner.PlannedChange, indent str
 				fmt.Fprintf(out, "%sprotection: disabled → enabled\n", indent)
 			}
 		}
-	} else if pc, ok := change.Protection.(map[string]interface{}); ok {
+	} else if pc, ok := change.Protection.(map[string]any); ok {
 		// Handle JSON deserialization
 		if oldVal, hasOld := pc["old"].(bool); hasOld {
 			if newVal, hasNew := pc["new"].(bool); hasNew {
@@ -671,7 +671,7 @@ func displayDependencies(out io.Writer, change planner.PlannedChange,
 }
 
 // formatFieldValue formats a field value for display, truncating long strings
-func formatFieldValue(value interface{}) string {
+func formatFieldValue(value any) string {
 	switch v := value.(type) {
 	case string:
 		if len(v) > 50 {

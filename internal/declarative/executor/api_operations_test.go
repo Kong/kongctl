@@ -83,7 +83,7 @@ func TestExecutor_deleteAPI(t *testing.T) {
 				ResourceType: "api",
 				ResourceID:   "api-123",
 				Action:       planner.ActionDelete,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "delete-api",
 				},
 			},
@@ -118,7 +118,7 @@ func TestExecutor_deleteAPI(t *testing.T) {
 				ResourceType: "api",
 				ResourceID:   "api-456",
 				Action:       planner.ActionDelete,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "protected-api",
 				},
 			},
@@ -150,7 +150,7 @@ func TestExecutor_deleteAPI(t *testing.T) {
 				ResourceType: "api",
 				ResourceID:   "api-789",
 				Action:       planner.ActionDelete,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "unmanaged-api",
 				},
 			},
@@ -177,7 +177,7 @@ func TestExecutor_deleteAPI(t *testing.T) {
 				ResourceType: "api",
 				ResourceID:   "api-999",
 				Action:       planner.ActionDelete,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "already-deleted",
 				},
 			},
@@ -199,7 +199,7 @@ func TestExecutor_deleteAPI(t *testing.T) {
 				ResourceType: "api",
 				ResourceID:   "api-fail",
 				Action:       planner.ActionDelete,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "fail-api",
 				},
 			},
@@ -272,10 +272,10 @@ func TestExecutor_createAPI(t *testing.T) {
 			change: planner.PlannedChange{
 				ResourceType: "api",
 				Action:       planner.ActionCreate,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name":        "new-api",
 					"description": "Test API",
-					"labels": map[string]interface{}{
+					"labels": map[string]any{
 						"env": "test",
 					},
 				},
@@ -304,7 +304,7 @@ func TestExecutor_createAPI(t *testing.T) {
 			change: planner.PlannedChange{
 				ResourceType: "api",
 				Action:       planner.ActionCreate,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "protected-api",
 				},
 				Protection: true,

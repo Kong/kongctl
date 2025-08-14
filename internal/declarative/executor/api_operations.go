@@ -80,7 +80,7 @@ func (e *Executor) updateAPI(ctx context.Context, change planner.PlannedChange) 
 	switch p := change.Protection.(type) {
 	case planner.ProtectionChange:
 		isProtectionChange = true
-	case map[string]interface{}:
+	case map[string]any:
 		// From JSON deserialization
 		if _, hasOld := p["old"].(bool); hasOld {
 			if _, hasNew := p["new"].(bool); hasNew {

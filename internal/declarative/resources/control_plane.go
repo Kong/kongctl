@@ -73,7 +73,7 @@ func (c ControlPlaneResource) GetKonnectMonikerFilter() string {
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
-func (c *ControlPlaneResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+func (c *ControlPlaneResource) TryMatchKonnectResource(konnectResource any) bool {
 	// For control planes, we match by name
 	// Use reflection to access fields from state.ControlPlane
 	v := reflect.ValueOf(konnectResource)

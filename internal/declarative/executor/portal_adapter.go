@@ -21,7 +21,7 @@ func NewPortalAdapter(client *state.Client) *PortalAdapter {
 }
 
 // MapCreateFields maps fields to CreatePortal request
-func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
+func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	create *kkComps.CreatePortal) error {
 	// Extract namespace and protection from execution context
 	namespace := execCtx.Namespace
@@ -63,7 +63,7 @@ func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionCon
 }
 
 // MapUpdateFields maps fields to UpdatePortal request
-func (p *PortalAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
+func (p *PortalAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	update *kkComps.UpdatePortal, currentLabels map[string]string) error {
 	// Extract namespace and protection from execution context
 	namespace := execCtx.Namespace

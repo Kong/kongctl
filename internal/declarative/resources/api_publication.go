@@ -92,7 +92,7 @@ func (p APIPublicationResource) GetKonnectMonikerFilter() string {
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
-func (p *APIPublicationResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+func (p *APIPublicationResource) TryMatchKonnectResource(konnectResource any) bool {
 	// For API publications, we match by portal ID
 	// Use reflection to access fields from state.APIPublication
 	v := reflect.ValueOf(konnectResource)
@@ -142,7 +142,7 @@ func (p *APIPublicationResource) UnmarshalJSON(data []byte) error {
 		AuthStrategyIDs          []string `json:"auth_strategy_ids,omitempty"`
 		AutoApproveRegistrations *bool    `json:"auto_approve_registrations,omitempty"`
 		Visibility               string   `json:"visibility,omitempty"`
-		Kongctl                  interface{} `json:"kongctl,omitempty"`
+		Kongctl                  any `json:"kongctl,omitempty"`
 	}
 	
 	// Use a decoder with DisallowUnknownFields to catch typos

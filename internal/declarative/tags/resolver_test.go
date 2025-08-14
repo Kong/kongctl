@@ -10,14 +10,14 @@ import (
 // mockTagResolver is a mock implementation for testing
 type mockTagResolver struct {
 	tag          string
-	resolveFunc  func(node *yaml.Node) (interface{}, error)
+	resolveFunc  func(node *yaml.Node) (any, error)
 }
 
 func (m *mockTagResolver) Tag() string {
 	return m.tag
 }
 
-func (m *mockTagResolver) Resolve(node *yaml.Node) (interface{}, error) {
+func (m *mockTagResolver) Resolve(node *yaml.Node) (any, error) {
 	if m.resolveFunc != nil {
 		return m.resolveFunc(node)
 	}
@@ -50,7 +50,7 @@ func TestResolverRegistry_Process(t *testing.T) {
 			input: `value: !test simple`,
 			resolver: &mockTagResolver{
 				tag: "!test",
-				resolveFunc: func(_ *yaml.Node) (interface{}, error) {
+				resolveFunc: func(_ *yaml.Node) (any, error) {
 					return "replaced", nil
 				},
 			},
@@ -65,7 +65,7 @@ api:
   version: "1.0"`,
 			resolver: &mockTagResolver{
 				tag: "!test",
-				resolveFunc: func(_ *yaml.Node) (interface{}, error) {
+				resolveFunc: func(_ *yaml.Node) (any, error) {
 					return "My API", nil
 				},
 			},
@@ -81,7 +81,7 @@ name: !test name
 description: !test desc`,
 			resolver: &mockTagResolver{
 				tag: "!test",
-				resolveFunc: func(node *yaml.Node) (interface{}, error) {
+				resolveFunc: func(node *yaml.Node) (any, error) {
 					// Return different values based on node value
 					if node.Value == "name" {
 						return "Test Name", nil
@@ -129,7 +129,7 @@ func TestResolverRegistry_ProcessNode(t *testing.T) {
 	// Register a test resolver
 	resolver := &mockTagResolver{
 		tag: "!test",
-		resolveFunc: func(_ *yaml.Node) (interface{}, error) {
+		resolveFunc: func(_ *yaml.Node) (any, error) {
 			return map[string]string{
 				"key": "value",
 			}, nil

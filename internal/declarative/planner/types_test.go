@@ -34,7 +34,7 @@ func TestPlanAddChange(t *testing.T) {
 		ResourceType: "portal",
 		ResourceRef:  "portal1",
 		Action:       ActionCreate,
-		Fields:       map[string]interface{}{"name": "Portal 1"},
+		Fields:       map[string]any{"name": "Portal 1"},
 	}
 
 	change2 := PlannedChange{
@@ -43,7 +43,7 @@ func TestPlanAddChange(t *testing.T) {
 		ResourceRef:  "portal2",
 		ResourceID:   "existing-id",
 		Action:       ActionUpdate,
-		Fields:       map[string]interface{}{"description": FieldChange{Old: "old", New: "new"}},
+		Fields:       map[string]any{"description": FieldChange{Old: "old", New: "new"}},
 	}
 
 	plan.AddChange(change1)
@@ -160,7 +160,7 @@ func TestPlanJSONSerialization(t *testing.T) {
 		ResourceType: "portal",
 		ResourceRef:  "my-portal",
 		Action:       ActionCreate,
-		Fields: map[string]interface{}{
+		Fields: map[string]any{
 			"name":        "My Portal",
 			"description": "Test portal",
 		},

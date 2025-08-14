@@ -27,7 +27,7 @@ func NewAPIPublicationAdapter(client *state.Client) *APIPublicationAdapter {
 
 // MapCreateFields maps fields to APIPublication
 func (a *APIPublicationAdapter) MapCreateFields(
-	_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
+	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	create *kkComps.APIPublication) error {
 	// Store execution context for use in helper methods
 	a.execCtx = execCtx
@@ -41,7 +41,7 @@ func (a *APIPublicationAdapter) MapCreateFields(
 		if len(authStrategyRefs.ResolvedIDs) > 0 {
 			create.AuthStrategyIds = authStrategyRefs.ResolvedIDs
 		}
-	} else if authStrategyIDs, ok := fields["auth_strategy_ids"].([]interface{}); ok {
+	} else if authStrategyIDs, ok := fields["auth_strategy_ids"].([]any); ok {
 		// Fallback: Convert interface array to string array
 		ids := make([]string, 0, len(authStrategyIDs))
 		for _, id := range authStrategyIDs {

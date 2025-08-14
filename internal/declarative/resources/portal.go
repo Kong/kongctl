@@ -178,7 +178,7 @@ func (p PortalResource) GetKonnectMonikerFilter() string {
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
-func (p *PortalResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+func (p *PortalResource) TryMatchKonnectResource(konnectResource any) bool {
 	// For portals, we match by name
 	// Use reflection to access fields from state.Portal
 	v := reflect.ValueOf(konnectResource)

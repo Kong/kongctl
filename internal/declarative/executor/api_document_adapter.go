@@ -21,7 +21,7 @@ func NewAPIDocumentAdapter(client *state.Client) *APIDocumentAdapter {
 
 // MapCreateFields maps fields to CreateAPIDocumentRequest
 func (a *APIDocumentAdapter) MapCreateFields(
-	_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
+	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	create *kkComps.CreateAPIDocumentRequest) error {
 	// Store execution context for use in helper methods
 	a.execCtx = execCtx
@@ -53,7 +53,7 @@ func (a *APIDocumentAdapter) MapCreateFields(
 }
 
 // MapUpdateFields maps fields to APIDocument
-func (a *APIDocumentAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, fields map[string]interface{},
+func (a *APIDocumentAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, fields map[string]any,
 	update *kkComps.APIDocument, _ map[string]string) error {
 	// Optional fields - all fields are optional for updates
 	if title, ok := fields["title"].(string); ok {

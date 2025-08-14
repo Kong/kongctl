@@ -8,18 +8,18 @@ import (
 
 func TestExtractValue(t *testing.T) {
 	// Test data structure
-	testData := map[string]interface{}{
-		"info": map[string]interface{}{
+	testData := map[string]any{
+		"info": map[string]any{
 			"title":       "Test API",
 			"version":     "1.0.0",
 			"description": "A test API",
-			"contact": map[string]interface{}{
+			"contact": map[string]any{
 				"name":  "Test User",
 				"email": "test@example.com",
 			},
 		},
-		"servers": []interface{}{
-			map[string]interface{}{
+		"servers": []any{
+			map[string]any{
 				"url":         "https://api.example.com",
 				"description": "Production server",
 			},
@@ -29,9 +29,9 @@ func TestExtractValue(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		data    interface{}
+		data    any
 		path    string
-		want    interface{}
+		want    any
 		wantErr bool
 	}{
 		{
@@ -98,8 +98,8 @@ func TestExtractValue(t *testing.T) {
 		},
 		{
 			name: "pointer to value navigation",
-			data: func() interface{} {
-				data := map[string]interface{}{
+			data: func() any {
+				data := map[string]any{
 					"field": "test",
 				}
 				return &data
@@ -123,8 +123,8 @@ func TestExtractValue(t *testing.T) {
 }
 
 func TestGetAvailablePaths(t *testing.T) {
-	testData := map[string]interface{}{
-		"info": map[string]interface{}{
+	testData := map[string]any{
+		"info": map[string]any{
 			"title":   "Test",
 			"version": "1.0",
 		},
@@ -147,9 +147,9 @@ func TestGetAvailablePaths(t *testing.T) {
 	assert.Contains(t, paths, "info.version")
 	
 	// Test max depth
-	deepData := map[string]interface{}{
-		"a": map[string]interface{}{
-			"b": map[string]interface{}{
+	deepData := map[string]any{
+		"a": map[string]any{
+			"b": map[string]any{
 				"c": "value",
 			},
 		},

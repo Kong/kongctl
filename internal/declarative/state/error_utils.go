@@ -18,7 +18,7 @@ func (e *APIClientError) Error() string {
 }
 
 // ValidateAPIClient checks if an API client interface is configured (not nil)
-func ValidateAPIClient(client interface{}, clientType string) error {
+func ValidateAPIClient(client any, clientType string) error {
 	if client == nil || reflect.ValueOf(client).IsNil() {
 		return &APIClientError{ClientType: clientType}
 	}

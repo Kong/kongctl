@@ -94,7 +94,7 @@ func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []Pla
 }
 
 // extractReference checks if a field value is a reference
-func (r *ReferenceResolver) extractReference(fieldName string, value interface{}) (string, bool) {
+func (r *ReferenceResolver) extractReference(fieldName string, value any) (string, bool) {
 	// Check if field name suggests a reference
 	if !r.isReferenceField(fieldName) {
 		return "", false

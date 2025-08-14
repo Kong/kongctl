@@ -20,7 +20,7 @@ func NewPortalPageAdapter(client *state.Client) *PortalPageAdapter {
 }
 
 // MapCreateFields maps fields to CreatePortalPageRequest
-func (p *PortalPageAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
+func (p *PortalPageAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	create *kkComps.CreatePortalPageRequest) error {
 	// Store execution context for use in helper methods
 	p.execCtx = execCtx
@@ -72,7 +72,7 @@ func (p *PortalPageAdapter) MapCreateFields(_ context.Context, execCtx *Executio
 }
 
 // MapUpdateFields maps fields to UpdatePortalPageRequest
-func (p *PortalPageAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
+func (p *PortalPageAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	update *kkComps.UpdatePortalPageRequest, _ map[string]string) error {
 	// Optional fields
 	if slug, ok := fields["slug"].(string); ok {

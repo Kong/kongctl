@@ -10,7 +10,7 @@ type ExecutionContext struct {
 	Namespace string
 	
 	// Protection contains protection-related metadata for resource labeling
-	Protection interface{}
+	Protection any
 	
 	// PlannedChange contains the full planned change being executed,
 	// including references and field changes

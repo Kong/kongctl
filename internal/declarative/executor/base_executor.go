@@ -17,8 +17,8 @@ import (
 // ResourceOperations defines the contract for resource-specific operations
 type ResourceOperations[TCreate any, TUpdate any] interface {
 	// Field mapping
-	MapCreateFields(ctx context.Context, execCtx *ExecutionContext, fields map[string]interface{}, create *TCreate) error
-	MapUpdateFields(ctx context.Context, execCtx *ExecutionContext, fields map[string]interface{}, update *TUpdate,
+	MapCreateFields(ctx context.Context, execCtx *ExecutionContext, fields map[string]any, create *TCreate) error
+	MapUpdateFields(ctx context.Context, execCtx *ExecutionContext, fields map[string]any, update *TUpdate,
 		currentLabels map[string]string) error
 
 	// API calls

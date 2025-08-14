@@ -382,7 +382,7 @@ func TestResolveReferences_PortalReference(t *testing.T) {
 			ResourceType: "application_auth_strategy",
 			ResourceRef:  "basic-auth",
 			Action:       ActionCreate,
-			Fields: map[string]interface{}{
+			Fields: map[string]any{
 				"name": "Basic Auth",
 			},
 		},
@@ -391,7 +391,7 @@ func TestResolveReferences_PortalReference(t *testing.T) {
 			ResourceType: "portal",
 			ResourceRef:  "dev-portal",
 			Action:       ActionCreate,
-			Fields: map[string]interface{}{
+			Fields: map[string]any{
 				"name":                                "Dev Portal",
 				"default_application_auth_strategy_id": "basic-auth",
 			},
@@ -466,7 +466,7 @@ func TestResolveReferences_ExistingPortal(t *testing.T) {
 			ResourceType: "api",
 			ResourceRef:  "my-api",
 			Action:       ActionUpdate,
-			Fields: map[string]interface{}{
+			Fields: map[string]any{
 				"portal_id": "existing-portal",
 			},
 		},
@@ -530,7 +530,7 @@ func TestResolveReferences_MissingPortal(t *testing.T) {
 			ResourceType: "api",
 			ResourceRef:  "my-api",
 			Action:       ActionCreate,
-			Fields: map[string]interface{}{
+			Fields: map[string]any{
 				"portal_id": "non-existent",
 			},
 		},
@@ -568,7 +568,7 @@ func TestResolveReferences_UUIDSkipped(t *testing.T) {
 			ResourceType: "api",
 			ResourceRef:  "my-api",
 			Action:       ActionCreate,
-			Fields: map[string]interface{}{
+			Fields: map[string]any{
 				// This is already a UUID, should not be treated as a reference
 				"portal_id": "12345678-1234-5678-1234-567812345678",
 			},
@@ -627,7 +627,7 @@ func TestResolveReferences_FieldChange(t *testing.T) {
 			ResourceType: "api",
 			ResourceRef:  "my-api",
 			Action:       ActionUpdate,
-			Fields: map[string]interface{}{
+			Fields: map[string]any{
 				"portal_id": FieldChange{
 					Old: "old-portal",
 					New: "new-portal",
@@ -678,7 +678,7 @@ func TestResolveReferences_UnimplementedTypes(t *testing.T) {
 			ResourceType: "portal",
 			ResourceRef:  "my-portal",
 			Action:       ActionCreate,
-			Fields: map[string]interface{}{
+			Fields: map[string]any{
 				"default_application_auth_strategy_id": "auth-ref",
 			},
 		},
@@ -687,7 +687,7 @@ func TestResolveReferences_UnimplementedTypes(t *testing.T) {
 			ResourceType: "service",
 			ResourceRef:  "my-service",
 			Action:       ActionCreate,
-			Fields: map[string]interface{}{
+			Fields: map[string]any{
 				"control_plane_id": "cp-ref",
 			},
 		},
@@ -758,7 +758,7 @@ func TestResolveReferences_NetworkError(t *testing.T) {
 			ResourceType: "api",
 			ResourceRef:  "my-api",
 			Action:       ActionCreate,
-			Fields: map[string]interface{}{
+			Fields: map[string]any{
 				"portal_id": "some-portal",
 			},
 		},

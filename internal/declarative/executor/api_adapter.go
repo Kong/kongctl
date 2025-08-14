@@ -21,7 +21,7 @@ func NewAPIAdapter(client *state.Client) *APIAdapter {
 }
 
 // MapCreateFields maps fields to CreateAPIRequest
-func (p *APIAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
+func (p *APIAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	create *kkComps.CreateAPIRequest) error {
 	// Extract namespace and protection from execution context
 	namespace := execCtx.Namespace
@@ -41,7 +41,7 @@ func (p *APIAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContex
 }
 
 // MapUpdateFields maps fields to UpdateAPIRequest
-func (p *APIAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
+func (p *APIAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	update *kkComps.UpdateAPIRequest, currentLabels map[string]string) error {
 	// Extract namespace and protection from execution context
 	namespace := execCtx.Namespace

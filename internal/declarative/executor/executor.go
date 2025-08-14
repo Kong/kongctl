@@ -380,7 +380,7 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 					switch p := change.Protection.(type) {
 					case planner.ProtectionChange:
 						isProtectionChange = true
-					case map[string]interface{}:
+					case map[string]any:
 						// From JSON deserialization
 						if _, hasOld := p["old"].(bool); hasOld {
 							if _, hasNew := p["new"].(bool); hasNew {
@@ -1012,7 +1012,7 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 
 // getResourceName is deprecated, use common.ExtractResourceName instead
 // Kept for backward compatibility with existing code
-func getResourceName(fields map[string]interface{}) string {
+func getResourceName(fields map[string]any) string {
 	return common.ExtractResourceName(fields)
 }
 

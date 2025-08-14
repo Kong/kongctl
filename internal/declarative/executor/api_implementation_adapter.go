@@ -20,13 +20,13 @@ func NewAPIImplementationAdapter(client *state.Client) *APIImplementationAdapter
 }
 
 // MapCreateFields is not implemented
-func (a *APIImplementationAdapter) MapCreateFields(_ context.Context, _ *ExecutionContext, _ map[string]interface{},
+func (a *APIImplementationAdapter) MapCreateFields(_ context.Context, _ *ExecutionContext, _ map[string]any,
 	_ *kkComps.CreateAPIVersionRequest) error {
 	return fmt.Errorf("API implementations are not yet supported by the SDK")
 }
 
 // MapUpdateFields is not implemented
-func (a *APIImplementationAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, _ map[string]interface{},
+func (a *APIImplementationAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, _ map[string]any,
 	_ *kkComps.APIVersion, _ map[string]string) error {
 	return fmt.Errorf("API implementations are not yet supported by the SDK")
 }

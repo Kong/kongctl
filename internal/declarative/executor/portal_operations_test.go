@@ -97,14 +97,14 @@ func TestExecutor_createPortal(t *testing.T) {
 				ResourceType: "portal",
 				Action:       planner.ActionCreate,
 				Namespace:    "default",
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name":                     "test-portal",
 					"description":              "Test description",
 					"authentication_enabled":   true,
 					"auto_approve_applications": true,
 					"auto_approve_developers":  false,
 					"rbac_enabled":             true,
-					"labels": map[string]interface{}{
+					"labels": map[string]any{
 						"env":  "test",
 						"team": "platform",
 					},
@@ -161,7 +161,7 @@ func TestExecutor_createPortal(t *testing.T) {
 				ResourceType: "portal",
 				Action:       planner.ActionCreate,
 				Namespace:    "default",
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "minimal-portal",
 				},
 			},
@@ -185,7 +185,7 @@ func TestExecutor_createPortal(t *testing.T) {
 				ResourceType: "portal",
 				Action:       planner.ActionCreate,
 				Namespace:    "default",
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"description": "Missing name",
 				},
 			},
@@ -198,7 +198,7 @@ func TestExecutor_createPortal(t *testing.T) {
 				ResourceType: "portal",
 				Action:       planner.ActionCreate,
 				Namespace:    "default",
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "error-portal",
 				},
 			},
@@ -252,7 +252,7 @@ func TestExecutor_updatePortal(t *testing.T) {
 				ResourceType: "portal",
 				ResourceID:   "portal-123",
 				Action:       planner.ActionUpdate,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name":        "updated-portal",
 					"description": "Updated description",
 				},
@@ -296,7 +296,7 @@ func TestExecutor_updatePortal(t *testing.T) {
 				ResourceType: "portal",
 				ResourceID:   "portal-456",
 				Action:       planner.ActionUpdate,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "protected-portal",
 				},
 			},
@@ -328,7 +328,7 @@ func TestExecutor_updatePortal(t *testing.T) {
 				ResourceType: "portal",
 				ResourceID:   "portal-789",
 				Action:       planner.ActionUpdate,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "missing-portal",
 				},
 			},
@@ -391,7 +391,7 @@ func TestExecutor_deletePortal(t *testing.T) {
 				ResourceType: "portal",
 				ResourceID:   "portal-123",
 				Action:       planner.ActionDelete,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "delete-portal",
 				},
 			},
@@ -426,7 +426,7 @@ func TestExecutor_deletePortal(t *testing.T) {
 				ResourceType: "portal",
 				ResourceID:   "portal-456",
 				Action:       planner.ActionDelete,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "protected-portal",
 				},
 			},
@@ -458,7 +458,7 @@ func TestExecutor_deletePortal(t *testing.T) {
 				ResourceType: "portal",
 				ResourceID:   "portal-789",
 				Action:       planner.ActionDelete,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "unmanaged-portal",
 				},
 			},
@@ -485,7 +485,7 @@ func TestExecutor_deletePortal(t *testing.T) {
 				ResourceType: "portal",
 				ResourceID:   "portal-999",
 				Action:       planner.ActionDelete,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "already-deleted",
 				},
 			},
@@ -539,7 +539,7 @@ func TestExecutor_protectionChangeBetweenPlanAndExecution(t *testing.T) {
 		ResourceType: "portal",
 		ResourceID:   "portal-123",
 		Action:       planner.ActionUpdate,
-		Fields: map[string]interface{}{
+		Fields: map[string]any{
 			"name": "test-portal",
 		},
 	}
