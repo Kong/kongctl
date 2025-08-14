@@ -193,11 +193,11 @@ func BuildProfiledConfig(profile string, path string, mainv *v.Viper) *ProfiledC
 	return rv
 }
 
-func getDefaultConfig(profileName string) map[string]interface{} {
-	defaultConfig := map[string]interface{}{
-		profileName: map[string]interface{}{
+func getDefaultConfig(profileName string) map[string]any {
+	defaultConfig := map[string]any{
+		profileName: map[string]any{
 			"output":  "text",
-			"konnect": map[string]interface{}{},
+			"konnect": map[string]any{},
 		},
 	}
 	return defaultConfig
