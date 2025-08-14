@@ -96,7 +96,7 @@ func runGet(helper cmd.Helper) error {
 //	//
 //	// * Use the profileManager to create a new profile
 //	// * Display the new profile
-//	//result := map[string]interface{}{}
+//	//result := map[string]any{}
 //	//printer, err := rb.GetPrinter()
 //	//if err != nil {
 //	//	return err

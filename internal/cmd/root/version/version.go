@@ -88,7 +88,7 @@ func run(helper cmd.Helper) error {
 	}
 
 	// Printer functions take objects to print
-	result := map[string]interface{}{
+	result := map[string]any{
 		"version": bi.Version,
 	}
 
@@ -124,7 +124,7 @@ func run(helper cmd.Helper) error {
 
 // printText is a custom print function for the version command. Not really necessary
 // but it shows how you can override the default printers per command.
-func printText(data map[string]interface{}, out io.Writer, full bool) error {
+func printText(data map[string]any, out io.Writer, full bool) error {
 	if ver, ok := data["version"]; ok {
 		_, e := fmt.Fprintf(out, "%s", ver)
 		if e != nil {

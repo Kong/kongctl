@@ -58,7 +58,7 @@ func TestApplyCmd_ValidatePlanFile(t *testing.T) {
 	t.Skip("Skipping due to config context initialization issue")
 	tests := []struct {
 		name          string
-		planContent   interface{}
+		planContent   any
 		expectError   bool
 		errorContains string
 	}{
@@ -85,11 +85,11 @@ func TestApplyCmd_ValidatePlanFile(t *testing.T) {
 		},
 		{
 			name: "missing version",
-			planContent: map[string]interface{}{
-				"metadata": map[string]interface{}{
+			planContent: map[string]any{
+				"metadata": map[string]any{
 					"generatedAt": time.Now(),
 				},
-				"changes": []interface{}{},
+				"changes": []any{},
 			},
 			expectError:   true,
 			errorContains: "version",
@@ -198,7 +198,7 @@ func TestApplyCmd_StdinSupport(t *testing.T) {
 				ResourceType: "portal",
 				ResourceRef:  "test-portal",
 				Action:       planner.ActionCreate,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "Test Portal",
 				},
 			},

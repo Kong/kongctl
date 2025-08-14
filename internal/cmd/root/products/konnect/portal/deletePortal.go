@@ -160,7 +160,7 @@ func (c *deletePortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	defer printer.Flush()
 
 	// Create success response
-	response := map[string]interface{}{
+	response := map[string]any{
 		"id":      portalID,
 		"name":    portal.Name,
 		"status":  "deleted",

@@ -184,7 +184,7 @@ func Int64(v int64) *int64 {
 
 // debugf prints a debug message - kept for compatibility but does nothing
 // TODO: Remove all debugf calls as proper slog logging is now available via context
-func debugf(_ string, _ ...interface{}) {
+func debugf(_ string, _ ...any) {
 	// No-op: Debug logging should use slog from context instead
 }
 
@@ -224,9 +224,9 @@ func (p paginationParams) hasMorePages() bool {
 }
 
 // extractResourceFields attempts to extract ID and Name fields from a generic resource interface
-func extractResourceFields(resource interface{}, resourceType string) (id string, name string, ok bool) {
+func extractResourceFields(resource any, resourceType string) (id string, name string, ok bool) {
 	// First try direct map access
-	if resMap, isMap := resource.(map[string]interface{}); isMap {
+	if resMap, isMap := resource.(map[string]any); isMap {
 		id, _ = resMap["id"].(string)
 		name, _ = resMap["name"].(string)
 		return id, name, true
@@ -241,7 +241,7 @@ func extractResourceFields(resource interface{}, resourceType string) (id string
 
 	debugf("Successfully serialized %s: %s", resourceType, string(resBytes))
 
-	var resMap map[string]interface{}
+	var resMap map[string]any
 	if err := json.Unmarshal(resBytes, &resMap); err != nil {
 		debugf("Failed to unmarshal %s: %v", resourceType, err)
 		return "", "", false
@@ -446,7 +446,7 @@ func dumpAPIChildResources(
 						logger.Debug("processing document", "index", i, "doc_type", fmt.Sprintf("%T", docInterface))
 					}
 
-					// Convert the interface{} to a map to access its properties
+					// Convert the any to a map to access its properties
 					// The SDK returns API document entries as generic objects
 					debugf("Processing document %d, type: %T, value: %+v", i, docInterface, docInterface)
 
@@ -455,7 +455,7 @@ func dumpAPIChildResources(
 					docName := ""
 
 					// First try to access as a map
-					doc, ok := docInterface.(map[string]interface{})
+					doc, ok := docInterface.(map[string]any)
 					if ok {
 						debugf("Successfully converted document to map")
 						docID, _ = doc["id"].(string)
@@ -470,7 +470,7 @@ func dumpAPIChildResources(
 							debugf("Successfully serialized document: %s", string(docBytes))
 
 							// Try to unmarshal into a simple map
-							var docMap map[string]interface{}
+							var docMap map[string]any
 							if err := json.Unmarshal(docBytes, &docMap); err == nil {
 								debugf("Successfully unmarshaled document to map")
 
@@ -579,7 +579,7 @@ func dumpAPIChildResources(
 						logger.Debug("processing version", "index", i, "version_type", fmt.Sprintf("%T", versionInterface))
 					}
 
-					// Convert the interface{} to a map to access its properties
+					// Convert the any to a map to access its properties
 					// The SDK returns API version entries as generic objects
 					debugf("Processing version %d, type: %T, value: %+v", i, versionInterface, versionInterface)
 
@@ -588,7 +588,7 @@ func dumpAPIChildResources(
 					versionName := ""
 
 					// First try to access as a map
-					version, ok := versionInterface.(map[string]interface{})
+					version, ok := versionInterface.(map[string]any)
 					if ok {
 						debugf("Successfully converted version to map")
 						versionID, _ = version["id"].(string)
@@ -604,7 +604,7 @@ func dumpAPIChildResources(
 							debugf("Successfully serialized version: %s", string(versionBytes))
 
 							// Try to unmarshal into a simple map
-							var versionMap map[string]interface{}
+							var versionMap map[string]any
 							if err := json.Unmarshal(versionBytes, &versionMap); err == nil {
 								debugf("Successfully unmarshaled version to map")
 
@@ -714,7 +714,7 @@ func dumpAPIChildResources(
 						logger.Debug("processing publication", "index", i, "pub_type", fmt.Sprintf("%T", pubInterface))
 					}
 
-					// Convert the interface{} to a map to access its properties
+					// Convert the any to a map to access its properties
 					// The SDK returns API publication entries as generic objects
 					debugf("Processing publication %d, type: %T, value: %+v", i, pubInterface, pubInterface)
 
@@ -722,7 +722,7 @@ func dumpAPIChildResources(
 					portalID := ""
 
 					// First try to access as a map
-					pub, ok := pubInterface.(map[string]interface{})
+					pub, ok := pubInterface.(map[string]any)
 					if ok {
 						debugf("Successfully converted publication to map")
 						portalID, _ = pub["portal_id"].(string)
@@ -736,7 +736,7 @@ func dumpAPIChildResources(
 							debugf("Successfully serialized publication: %s", string(pubBytes))
 
 							// Try to unmarshal into a simple map
-							var pubMap map[string]interface{}
+							var pubMap map[string]any
 							if err := json.Unmarshal(pubBytes, &pubMap); err == nil {
 								debugf("Successfully unmarshaled publication to map")
 
@@ -821,7 +821,7 @@ func dumpAPIChildResources(
 						logger.Debug("processing implementation", "index", i, "impl_type", fmt.Sprintf("%T", implInterface))
 					}
 
-					// Convert the interface{} to a map to access its properties
+					// Convert the any to a map to access its properties
 					// The SDK returns API implementation entries as generic objects
 					debugf("Processing implementation %d, type: %T, value: %+v", i, implInterface, implInterface)
 
@@ -830,13 +830,13 @@ func dumpAPIChildResources(
 					implName := ""
 
 					// First try to access as a map
-					impl, ok := implInterface.(map[string]interface{})
+					impl, ok := implInterface.(map[string]any)
 					if ok {
 						debugf("Successfully converted implementation to map")
 						implID, _ = impl["id"].(string)
 
 						// For implementations, we might get the name from the service field
-						if serviceMap, ok := impl["service"].(map[string]interface{}); ok {
+						if serviceMap, ok := impl["service"].(map[string]any); ok {
 							implName, _ = serviceMap["name"].(string)
 						}
 
@@ -850,7 +850,7 @@ func dumpAPIChildResources(
 							debugf("Successfully serialized implementation: %s", string(implBytes))
 
 							// Try to unmarshal into a simple map
-							var implMap map[string]interface{}
+							var implMap map[string]any
 							if err := json.Unmarshal(implBytes, &implMap); err == nil {
 								debugf("Successfully unmarshaled implementation to map")
 
@@ -861,7 +861,7 @@ func dumpAPIChildResources(
 								}
 
 								// For implementations, we might get the name from the service field
-								if serviceMap, ok := implMap["service"].(map[string]interface{}); ok {
+								if serviceMap, ok := implMap["service"].(map[string]any); ok {
 									implName, _ = serviceMap["name"].(string)
 									if implName != "" {
 										debugf("Found service.name field: %s", implName)

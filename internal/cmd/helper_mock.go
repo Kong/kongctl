@@ -331,7 +331,7 @@ type MockHelper_GetKonnectSDK_Call struct {
 // GetKonnectSDK is a helper method to define mock.On call
 //   - cfg config.Hook
 //   - logger *slog.Logger
-func (_e *MockHelper_Expecter) GetKonnectSDK(cfg interface{}, logger interface{}) *MockHelper_GetKonnectSDK_Call {
+func (_e *MockHelper_Expecter) GetKonnectSDK(cfg any, logger any) *MockHelper_GetKonnectSDK_Call {
 	return &MockHelper_GetKonnectSDK_Call{Call: _e.mock.On("GetKonnectSDK", cfg, logger)}
 }
 
