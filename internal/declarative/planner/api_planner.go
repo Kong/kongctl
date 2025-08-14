@@ -24,30 +24,32 @@ func NewAPIPlanner(base *BasePlanner) APIPlanner {
 }
 
 // PlanChanges generates changes for API resources and their child resources
-func (a *apiPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
+func (a *apiPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
 	// Debug logging
 	desiredAPIs := a.GetDesiredAPIs()
 	a.planner.logger.Debug("apiPlannerImpl.PlanChanges called", "desiredAPIs", len(desiredAPIs))
 	
 	// Plan API resources
-	if err := a.planner.planAPIChanges(ctx, desiredAPIs, plan); err != nil {
+	if err := a.planner.planAPIChanges(ctx, plannerCtx, desiredAPIs, plan); err != nil {
 		return err
 	}
 	
 	// Plan child resources that are defined separately
-	if err := a.planner.planAPIVersionsChanges(ctx, a.GetDesiredAPIVersions(), plan); err != nil {
+	if err := a.planner.planAPIVersionsChanges(ctx, plannerCtx, a.GetDesiredAPIVersions(), plan); err != nil {
 		return err
 	}
 	
-	if err := a.planner.planAPIPublicationsChanges(ctx, a.GetDesiredAPIPublications(), plan); err != nil {
+	if err := a.planner.planAPIPublicationsChanges(ctx, plannerCtx, a.GetDesiredAPIPublications(), plan); err != nil {
 		return err
 	}
 	
-	if err := a.planner.planAPIImplementationsChanges(ctx, a.GetDesiredAPIImplementations(), plan); err != nil {
+	if err := a.planner.planAPIImplementationsChanges(
+		ctx, plannerCtx, a.GetDesiredAPIImplementations(), plan,
+	); err != nil {
 		return err
 	}
 	
-	if err := a.planner.planAPIDocumentsChanges(ctx, a.GetDesiredAPIDocuments(), plan); err != nil {
+	if err := a.planner.planAPIDocumentsChanges(ctx, plannerCtx, a.GetDesiredAPIDocuments(), plan); err != nil {
 		return err
 	}
 	
@@ -55,7 +57,9 @@ func (a *apiPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 }
 
 // planAPIChanges generates changes for API resources and their child resources
-func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIResource, plan *Plan) error {
+func (p *Planner) planAPIChanges(
+	ctx context.Context, plannerCtx *Config, desired []resources.APIResource, plan *Plan,
+) error {
 	// Debug logging
 	p.logger.Debug("planAPIChanges called", "desiredCount", len(desired))
 	
@@ -65,12 +69,8 @@ func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIRes
 		return nil
 	}
 
-	// Get namespace from context
-	namespace, ok := ctx.Value(NamespaceContextKey).(string)
-	if !ok {
-		// Default to all namespaces for backward compatibility
-		namespace = "*"
-	}
+	// Get namespace from planner context
+	namespace := plannerCtx.Namespace
 	
 	// Fetch current managed APIs from the specific namespace
 	namespaceFilter := []string{namespace}
@@ -149,7 +149,7 @@ func (p *Planner) planAPIChanges(ctx context.Context, desired []resources.APIRes
 			}
 
 			// Plan child resource changes
-			if err := p.planAPIChildResourceChanges(ctx, current, desiredAPI, plan); err != nil {
+			if err := p.planAPIChildResourceChanges(ctx, plannerCtx, current, desiredAPI, plan); err != nil {
 				return err
 			}
 		}
@@ -448,7 +448,7 @@ func (p *Planner) planAPIChildResourcesCreate(
 
 // planAPIChildResourceChanges plans changes for child resources of an existing API
 func (p *Planner) planAPIChildResourceChanges(
-	ctx context.Context, current state.API, desired resources.APIResource, plan *Plan,
+	ctx context.Context, plannerCtx *Config, current state.API, desired resources.APIResource, plan *Plan,
 ) error {
 	// Extract parent namespace for child resources
 	parentNamespace := DefaultNamespace
@@ -458,27 +458,27 @@ func (p *Planner) planAPIChildResourceChanges(
 
 	// Plan version changes
 	if err := p.planAPIVersionChanges(
-		ctx, parentNamespace, current.ID, desired.GetRef(), desired.Versions, plan,
+		ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Versions, plan,
 	); err != nil {
 		return fmt.Errorf("failed to plan API version changes: %w", err)
 	}
 
 	// Plan publication changes
 	if err := p.planAPIPublicationChanges(
-		ctx, parentNamespace, current.ID, desired.GetRef(), desired.Publications, plan,
+		ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Publications, plan,
 	); err != nil {
 		return fmt.Errorf("failed to plan API publication changes: %w", err)
 	}
 
 	// Plan implementation changes
 	if err := p.planAPIImplementationChanges(
-		ctx, parentNamespace, current.ID, desired.GetRef(), desired.Implementations, plan); err != nil {
+		ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Implementations, plan); err != nil {
 		return fmt.Errorf("failed to plan API implementation changes: %w", err)
 	}
 
 	// Plan document changes
 	if err := p.planAPIDocumentChanges(
-		ctx, parentNamespace, current.ID, desired.GetRef(), desired.Documents, plan,
+		ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Documents, plan,
 	); err != nil {
 		return fmt.Errorf("failed to plan API document changes: %w", err)
 	}
@@ -489,7 +489,7 @@ func (p *Planner) planAPIChildResourceChanges(
 // API Version planning
 
 func (p *Planner) planAPIVersionChanges(
-	ctx context.Context, parentNamespace string, apiID string, apiRef string,
+	ctx context.Context, _ *Config, parentNamespace string, apiID string, apiRef string,
 	desired []resources.APIVersionResource, plan *Plan,
 ) error {
 	// List current versions
@@ -664,15 +664,11 @@ func (p *Planner) planAPIVersionDelete(apiRef string, apiID string, versionID st
 // API Publication planning
 
 func (p *Planner) planAPIPublicationChanges(
-	ctx context.Context, parentNamespace string, apiID string, apiRef string,
+	ctx context.Context, plannerCtx *Config, parentNamespace string, apiID string, apiRef string,
 	desired []resources.APIPublicationResource, plan *Plan,
 ) error {
-	// Get namespace from context
-	namespace, ok := ctx.Value(NamespaceContextKey).(string)
-	if !ok {
-		// Default to all namespaces for backward compatibility
-		namespace = "*"
-	}
+	// Get namespace from planner context
+	namespace := plannerCtx.Namespace
 	namespaceFilter := []string{namespace}
 	
 	// List current publications
@@ -1127,7 +1123,7 @@ func (p *Planner) compareStringSlices(a, b []string) bool {
 // API Implementation planning
 
 func (p *Planner) planAPIImplementationChanges(
-	ctx context.Context, _ string, apiID string, _ string,
+	ctx context.Context, _ *Config, _ string, apiID string, _ string,
 	desired []resources.APIImplementationResource, plan *Plan,
 ) error {
 	// List current implementations
@@ -1238,7 +1234,7 @@ func (p *Planner) planAPIImplementationCreate(
 // API Document planning
 
 func (p *Planner) planAPIDocumentChanges(
-	ctx context.Context, parentNamespace string, apiID string, apiRef string,
+	ctx context.Context, _ *Config, parentNamespace string, apiID string, apiRef string,
 	desired []resources.APIDocumentResource, plan *Plan,
 ) error {
 	// List current documents
@@ -1486,7 +1482,7 @@ func (p *Planner) planAPIDocumentDelete(apiRef string, apiID string, documentID 
 
 // planAPIVersionsChanges plans changes for extracted API version resources
 func (p *Planner) planAPIVersionsChanges(
-	ctx context.Context, desired []resources.APIVersionResource, plan *Plan,
+	ctx context.Context, plannerCtx *Config, desired []resources.APIVersionResource, plan *Plan,
 ) error {
 	// Group versions by parent API
 	versionsByAPI := make(map[string][]resources.APIVersionResource)
@@ -1543,7 +1539,7 @@ func (p *Planner) planAPIVersionsChanges(
 					break
 				}
 			}
-			if err := p.planAPIVersionChanges(ctx, parentNamespace, apiID, apiRef, versions, plan); err != nil {
+			if err := p.planAPIVersionChanges(ctx, plannerCtx, parentNamespace, apiID, apiRef, versions, plan); err != nil {
 				return err
 			}
 		}
@@ -1554,7 +1550,7 @@ func (p *Planner) planAPIVersionsChanges(
 
 // planAPIPublicationsChanges plans changes for extracted API publication resources
 func (p *Planner) planAPIPublicationsChanges(
-	ctx context.Context, desired []resources.APIPublicationResource, plan *Plan,
+	ctx context.Context, plannerCtx *Config, desired []resources.APIPublicationResource, plan *Plan,
 ) error {
 	// Group publications by parent API
 	publicationsByAPI := make(map[string][]resources.APIPublicationResource)
@@ -1611,7 +1607,9 @@ func (p *Planner) planAPIPublicationsChanges(
 					break
 				}
 			}
-			if err := p.planAPIPublicationChanges(ctx, parentNamespace, apiID, apiRef, publications, plan); err != nil {
+			if err := p.planAPIPublicationChanges(
+				ctx, plannerCtx, parentNamespace, apiID, apiRef, publications, plan,
+			); err != nil {
 				return err
 			}
 		}
@@ -1622,7 +1620,7 @@ func (p *Planner) planAPIPublicationsChanges(
 
 // planAPIImplementationsChanges plans changes for extracted API implementation resources
 func (p *Planner) planAPIImplementationsChanges(
-	ctx context.Context, desired []resources.APIImplementationResource, plan *Plan,
+	ctx context.Context, plannerCtx *Config, desired []resources.APIImplementationResource, plan *Plan,
 ) error {
 	// Group implementations by parent API
 	implementationsByAPI := make(map[string][]resources.APIImplementationResource)
@@ -1675,7 +1673,9 @@ func (p *Planner) planAPIImplementationsChanges(
 					break
 				}
 			}
-			if err := p.planAPIImplementationChanges(ctx, parentNamespace, apiID, apiRef, implementations, plan); err != nil {
+			if err := p.planAPIImplementationChanges(
+				ctx, plannerCtx, parentNamespace, apiID, apiRef, implementations, plan,
+			); err != nil {
 				return err
 			}
 		}
@@ -1686,7 +1686,7 @@ func (p *Planner) planAPIImplementationsChanges(
 
 // planAPIDocumentsChanges plans changes for extracted API document resources
 func (p *Planner) planAPIDocumentsChanges(
-	ctx context.Context, desired []resources.APIDocumentResource, plan *Plan,
+	ctx context.Context, plannerCtx *Config, desired []resources.APIDocumentResource, plan *Plan,
 ) error {
 	// Group documents by parent API
 	documentsByAPI := make(map[string][]resources.APIDocumentResource)
@@ -1743,7 +1743,7 @@ func (p *Planner) planAPIDocumentsChanges(
 					break
 				}
 			}
-			if err := p.planAPIDocumentChanges(ctx, parentNamespace, apiID, apiRef, documents, plan); err != nil {
+			if err := p.planAPIDocumentChanges(ctx, plannerCtx, parentNamespace, apiID, apiRef, documents, plan); err != nil {
 				return err
 			}
 		}

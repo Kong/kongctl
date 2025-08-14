@@ -13,14 +13,12 @@ import (
 // Portal Customization planning
 
 func (p *Planner) planPortalCustomizationsChanges(
-	ctx context.Context, parentNamespace string, desired []resources.PortalCustomizationResource, plan *Plan,
+	ctx context.Context, plannerCtx *Config, parentNamespace string,
+	desired []resources.PortalCustomizationResource, plan *Plan,
 ) error { //nolint:unparam // Will return errors in future enhancements
 	// Get existing portals to check current customization
-	// Use context to get namespace filter for API calls
-	namespace, ok := ctx.Value(NamespaceContextKey).(string)
-	if !ok {
-		namespace = "*"
-	}
+	// Use planner context to get namespace filter for API calls
+	namespace := plannerCtx.Namespace
 	namespaceFilter := []string{namespace}
 	existingPortals, _ := p.client.ListManagedPortals(ctx, namespaceFilter)
 	portalNameToID := make(map[string]string)

@@ -22,7 +22,7 @@ func NewPortalPlanner(base *BasePlanner) PortalPlanner {
 }
 
 // PlanChanges generates changes for portal resources
-func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
+func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
 	desired := p.GetDesiredPortals()
 	
 	// Skip if no portals to plan and not in sync mode
@@ -30,12 +30,8 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 		return nil
 	}
 
-	// Get namespace from context
-	namespace, ok := ctx.Value(NamespaceContextKey).(string)
-	if !ok {
-		// Default to all namespaces for backward compatibility
-		namespace = "*"
-	}
+	// Get namespace from planner context
+	namespace := plannerCtx.Namespace
 	
 	// Fetch current managed portals from the specific namespace
 	namespaceFilter := []string{namespace}
@@ -65,7 +61,7 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 			// CREATE action
 			portalChangeID := p.planPortalCreate(desiredPortal, plan)
 			// Plan child resources after portal creation
-			p.planPortalChildResourcesCreate(ctx, desiredPortal, portalChangeID, plan)
+			p.planPortalChildResourcesCreate(ctx, plannerCtx, desiredPortal, portalChangeID, plan)
 		} else {
 			// Check if update needed
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
@@ -108,7 +104,7 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
 			}
 
 			// Plan child resource changes for existing portal
-			if err := p.planPortalChildResourceChanges(ctx, current, desiredPortal, plan); err != nil {
+			if err := p.planPortalChildResourceChanges(ctx, plannerCtx, current, desiredPortal, plan); err != nil {
 				return err
 			}
 		}
@@ -540,7 +536,7 @@ func (p *portalPlannerImpl) planPortalDelete(portal state.Portal, plan *Plan) {
 
 // planPortalChildResourcesCreate plans creation of child resources for a new portal
 func (p *portalPlannerImpl) planPortalChildResourcesCreate(
-	ctx context.Context, desired resources.PortalResource, _ string, plan *Plan,
+	ctx context.Context, plannerCtx *Config, desired resources.PortalResource, _ string, plan *Plan,
 ) {
 	// Portal ID is not yet known, will be resolved at execution time
 	// But we still need to plan child resources that depend on this portal
@@ -592,7 +588,7 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			customizations = append(customizations, customization)
 		}
 	}
-	if err := planner.planPortalCustomizationsChanges(ctx, parentNamespace, customizations, plan); err != nil {
+	if err := planner.planPortalCustomizationsChanges(ctx, plannerCtx, parentNamespace, customizations, plan); err != nil {
 		planner.logger.Debug("Failed to plan portal customizations for new portal",
 			"portal", desired.Ref,
 			"error", err.Error())
@@ -614,7 +610,7 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 
 // planPortalChildResourceChanges plans changes for child resources of an existing portal
 func (p *portalPlannerImpl) planPortalChildResourceChanges(
-	ctx context.Context, current state.Portal, desired resources.PortalResource, plan *Plan,
+	ctx context.Context, plannerCtx *Config, current state.Portal, desired resources.PortalResource, plan *Plan,
 ) error {
 	// Get the main planner instance to access child resource planning methods
 	planner := p.planner
@@ -660,7 +656,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			customizations = append(customizations, customization)
 		}
 	}
-	if err := planner.planPortalCustomizationsChanges(ctx, parentNamespace, customizations, plan); err != nil {
+	if err := planner.planPortalCustomizationsChanges(ctx, plannerCtx, parentNamespace, customizations, plan); err != nil {
 		return fmt.Errorf("failed to plan portal customization changes: %w", err)
 	}
 	
