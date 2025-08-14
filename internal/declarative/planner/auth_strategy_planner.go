@@ -23,7 +23,7 @@ func NewAuthStrategyPlanner(base *BasePlanner) AuthStrategyPlanner {
 }
 
 // PlanChanges generates changes for auth strategy resources
-func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) error {
+func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
 	desired := p.GetDesiredAuthStrategies()
 	
 	// Skip if no auth strategies to plan and not in sync mode
@@ -31,12 +31,8 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plan *Plan) e
 		return nil
 	}
 
-	// Get namespace from context
-	namespace, ok := ctx.Value(NamespaceContextKey).(string)
-	if !ok {
-		// Default to all namespaces for backward compatibility
-		namespace = "*"
-	}
+	// Get namespace from planner context
+	namespace := plannerCtx.Namespace
 	
 	// Fetch current managed auth strategies from the specific namespace
 	namespaceFilter := []string{namespace}

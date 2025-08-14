@@ -11,14 +11,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
-// ContextKey is the type for context keys
-type ContextKey int
-
-// Context keys for planner
-const (
-	// NamespaceContextKey is the context key for namespace
-	NamespaceContextKey ContextKey = iota
-)
 
 // Options configures plan generation behavior
 type Options struct {
@@ -162,19 +154,19 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 			actualNamespace = "*"
 		}
 		
-		// Update planner context to use specific namespace
-		plannerCtx := context.WithValue(ctx, NamespaceContextKey, actualNamespace)
+		// Create planner context with namespace
+		plannerCtx := NewConfig(actualNamespace)
 		
-		if err := namespacePlanner.authStrategyPlanner.PlanChanges(plannerCtx, namespacePlan); err != nil {
+		if err := namespacePlanner.authStrategyPlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
 			return nil, fmt.Errorf("failed to plan auth strategy changes for namespace %s: %w", namespace, err)
 		}
 
-		if err := namespacePlanner.portalPlanner.PlanChanges(plannerCtx, namespacePlan); err != nil {
+		if err := namespacePlanner.portalPlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
 			return nil, fmt.Errorf("failed to plan portal changes for namespace %s: %w", namespace, err)
 		}
 
 		// Plan API changes (includes child resources)
-		if err := namespacePlanner.apiPlanner.PlanChanges(plannerCtx, namespacePlan); err != nil {
+		if err := namespacePlanner.apiPlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
 			return nil, fmt.Errorf("failed to plan API changes for namespace %s: %w", namespace, err)
 		}
 		

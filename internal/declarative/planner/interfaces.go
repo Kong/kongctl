@@ -7,7 +7,7 @@ import (
 // ResourcePlanner defines the interface that all resource type planners must implement
 type ResourcePlanner interface {
 	// PlanChanges is the main entry point for planning changes for a resource type
-	PlanChanges(ctx context.Context, plan *Plan) error
+	PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error
 }
 
 // PortalPlanner handles planning for portal resources
