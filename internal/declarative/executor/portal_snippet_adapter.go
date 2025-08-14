@@ -21,7 +21,7 @@ func NewPortalSnippetAdapter(client *state.Client) *PortalSnippetAdapter {
 
 // MapCreateFields maps fields to CreatePortalSnippetRequest
 func (p *PortalSnippetAdapter) MapCreateFields(
-	_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
+	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	create *kkComps.CreatePortalSnippetRequest) error {
 	// Store execution context for use in helper methods
 	p.execCtx = execCtx
@@ -62,7 +62,7 @@ func (p *PortalSnippetAdapter) MapCreateFields(
 }
 
 // MapUpdateFields maps fields to UpdatePortalSnippetRequest
-func (p *PortalSnippetAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, fields map[string]interface{},
+func (p *PortalSnippetAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, fields map[string]any,
 	update *kkComps.UpdatePortalSnippetRequest, _ map[string]string) error {
 	// Optional fields
 	if name, ok := fields["name"].(string); ok {

@@ -21,11 +21,11 @@ func ValidateResourceProtection(
 }
 
 // IsProtectionChange checks if the change is specifically updating the protection status
-func IsProtectionChange(protection interface{}) bool {
+func IsProtectionChange(protection any) bool {
 	switch p := protection.(type) {
 	case planner.ProtectionChange:
 		return true
-	case map[string]interface{}:
+	case map[string]any:
 		// From JSON deserialization
 		if _, hasOld := p["old"].(bool); hasOld {
 			if _, hasNew := p["new"].(bool); hasNew {

@@ -197,8 +197,8 @@ func AddManagedLabelsToPointerMap(labels map[string]*string, namespace string) m
 }
 
 // ExtractLabelsFromField extracts labels from a planner field that could be various types
-// Handles type assertions for map[string]interface{}, map[string]string, etc.
-func ExtractLabelsFromField(field interface{}) map[string]string {
+// Handles type assertions for map[string]any, map[string]string, etc.
+func ExtractLabelsFromField(field any) map[string]string {
 	if field == nil {
 		return nil
 	}
@@ -206,8 +206,8 @@ func ExtractLabelsFromField(field interface{}) map[string]string {
 	result := make(map[string]string)
 
 	switch labels := field.(type) {
-	case map[string]interface{}:
-		// Handle map[string]interface{} case from planner
+	case map[string]any:
+		// Handle map[string]any case from planner
 		for k, v := range labels {
 			if strVal, ok := v.(string); ok {
 				result[k] = strVal
@@ -230,7 +230,7 @@ func ExtractLabelsFromField(field interface{}) map[string]string {
 
 // BuildCreateLabels prepares labels for resource creation
 // Adds management labels and handles protection status
-func BuildCreateLabels(userLabels map[string]string, namespace string, protection interface{}) map[string]string {
+func BuildCreateLabels(userLabels map[string]string, namespace string, protection any) map[string]string {
 	result := make(map[string]string)
 
 	// Copy user-defined labels (excluding KONGCTL labels)
@@ -256,7 +256,7 @@ func BuildCreateLabels(userLabels map[string]string, namespace string, protectio
 func BuildUpdateLabels(
 	desiredLabels, currentLabels map[string]string,
 	namespace string,
-	protection interface{},
+	protection any,
 ) map[string]*string {
 	result := make(map[string]*string)
 
@@ -313,7 +313,7 @@ func BuildUpdateLabels(
 
 // getProtectionNewValue uses reflection to get the New field from a ProtectionChange
 // This avoids circular dependency with the planner package
-func getProtectionNewValue(protection interface{}) bool {
+func getProtectionNewValue(protection any) bool {
 	// Try direct field access via reflection
 	v := reflect.ValueOf(protection)
 	if v.Kind() == reflect.Struct {

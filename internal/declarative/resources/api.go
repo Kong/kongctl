@@ -89,7 +89,7 @@ func (a APIResource) GetKonnectMonikerFilter() string {
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
-func (a *APIResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+func (a *APIResource) TryMatchKonnectResource(konnectResource any) bool {
 	// For APIs, we match by name
 	// Use reflection to access fields from state.API
 	v := reflect.ValueOf(konnectResource)

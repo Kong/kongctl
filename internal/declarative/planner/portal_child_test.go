@@ -103,7 +103,7 @@ func TestGeneratePlan_PortalCustomDomain(t *testing.T) {
 	assert.Equal(t, true, customDomainChange.Fields["enabled"])
 	
 	// Verify SSL configuration
-	ssl, ok := customDomainChange.Fields["ssl"].(map[string]interface{})
+	ssl, ok := customDomainChange.Fields["ssl"].(map[string]any)
 	assert.True(t, ok, "SSL should be a map")
 	assert.Equal(t, "http", ssl["domain_verification_method"])
 	

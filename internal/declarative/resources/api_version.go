@@ -80,7 +80,7 @@ func (v APIVersionResource) GetKonnectMonikerFilter() string {
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
-func (v *APIVersionResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+func (v *APIVersionResource) TryMatchKonnectResource(konnectResource any) bool {
 	// For API versions, we match by version string
 	// Use reflection to access fields from state.APIVersion
 	val := reflect.ValueOf(konnectResource)
@@ -131,8 +131,8 @@ func (v *APIVersionResource) UnmarshalJSON(data []byte) error {
 		PublishStatus string      `json:"publish_status,omitempty"`
 		Deprecated    bool        `json:"deprecated,omitempty"`
 		SunsetDate    string      `json:"sunset_date,omitempty"`
-		Kongctl       interface{} `json:"kongctl,omitempty"`
-		Spec          interface{} `json:"spec,omitempty"`
+		Kongctl       any `json:"kongctl,omitempty"`
+		Spec          any `json:"spec,omitempty"`
 	}
 	
 	// Use a decoder with DisallowUnknownFields to catch typos
@@ -153,7 +153,7 @@ func (v *APIVersionResource) UnmarshalJSON(data []byte) error {
 	}
 	
 	// Map to SDK fields embedded in CreateAPIVersionRequest
-	sdkData := map[string]interface{}{
+	sdkData := map[string]any{
 		"version": temp.Version,
 	}
 	
@@ -172,7 +172,7 @@ func (v *APIVersionResource) UnmarshalJSON(data []byte) error {
 		var specContent string
 		
 		// Check if it's already in the SDK format with content field
-		if specMap, ok := temp.Spec.(map[string]interface{}); ok {
+		if specMap, ok := temp.Spec.(map[string]any); ok {
 			if content, hasContent := specMap["content"].(string); hasContent {
 				// Already in correct format
 				specContent = content
@@ -196,7 +196,7 @@ func (v *APIVersionResource) UnmarshalJSON(data []byte) error {
 			specContent = string(specJSON)
 		}
 		
-		sdkData["spec"] = map[string]interface{}{
+		sdkData["spec"] = map[string]any{
 			"content": specContent,
 		}
 	}

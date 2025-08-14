@@ -79,7 +79,7 @@ func (p *Planner) planPortalCustomizationUpdate(
 
 func (p *Planner) planPortalCustomizationUpdateWithFields(
 	parentNamespace string, customization resources.PortalCustomizationResource, portalName string, portalID string,
-	fields map[string]interface{}, plan *Plan,
+	fields map[string]any, plan *Plan,
 ) {
 	// Only proceed if there are fields to update
 	if len(fields) == 0 {
@@ -135,8 +135,8 @@ func (p *Planner) planPortalCustomizationUpdateWithFields(
 func (p *Planner) shouldUpdatePortalCustomization(
 	current *kkComps.PortalCustomization,
 	desired resources.PortalCustomizationResource,
-) (bool, map[string]interface{}) {
-	updates := make(map[string]interface{})
+) (bool, map[string]any) {
+	updates := make(map[string]any)
 
 	// Compare theme
 	if !p.compareTheme(current.Theme, desired.Theme) {
@@ -172,8 +172,8 @@ func (p *Planner) shouldUpdatePortalCustomization(
 // buildAllCustomizationFields builds all fields from the customization resource
 func (p *Planner) buildAllCustomizationFields(
 	customization resources.PortalCustomizationResource,
-) map[string]interface{} {
-	fields := make(map[string]interface{})
+) map[string]any {
+	fields := make(map[string]any)
 
 	// Add theme settings if present
 	if customization.Theme != nil {
@@ -199,8 +199,8 @@ func (p *Planner) buildAllCustomizationFields(
 }
 
 // buildThemeFields constructs theme fields map from theme object
-func (p *Planner) buildThemeFields(theme *kkComps.Theme) map[string]interface{} {
-	themeFields := make(map[string]interface{})
+func (p *Planner) buildThemeFields(theme *kkComps.Theme) map[string]any {
+	themeFields := make(map[string]any)
 	
 	// Add mode if present
 	if theme.Mode != nil {
@@ -214,7 +214,7 @@ func (p *Planner) buildThemeFields(theme *kkComps.Theme) map[string]interface{} 
 	
 	// Add colors if present
 	if theme.Colors != nil {
-		colorsFields := make(map[string]interface{})
+		colorsFields := make(map[string]any)
 		if theme.Colors.Primary != nil {
 			colorsFields["primary"] = *theme.Colors.Primary
 		}
@@ -225,14 +225,14 @@ func (p *Planner) buildThemeFields(theme *kkComps.Theme) map[string]interface{} 
 }
 
 // buildMenuFields constructs menu fields map from menu object
-func (p *Planner) buildMenuFields(menu *kkComps.Menu) map[string]interface{} {
-	menuFields := make(map[string]interface{})
+func (p *Planner) buildMenuFields(menu *kkComps.Menu) map[string]any {
+	menuFields := make(map[string]any)
 	
 	// Add main menu items
 	if menu.Main != nil {
-		var mainMenuItems []map[string]interface{}
+		var mainMenuItems []map[string]any
 		for _, item := range menu.Main {
-			menuItem := map[string]interface{}{
+			menuItem := map[string]any{
 				"path":       item.Path,
 				"title":      item.Title,
 				"external":   item.External,
@@ -245,11 +245,11 @@ func (p *Planner) buildMenuFields(menu *kkComps.Menu) map[string]interface{} {
 	
 	// Add footer sections
 	if menu.FooterSections != nil {
-		var footerSections []map[string]interface{}
+		var footerSections []map[string]any
 		for _, section := range menu.FooterSections {
-			var items []map[string]interface{}
+			var items []map[string]any
 			for _, item := range section.Items {
-				menuItem := map[string]interface{}{
+				menuItem := map[string]any{
 					"path":       item.Path,
 					"title":      item.Title,
 					"external":   item.External,
@@ -257,7 +257,7 @@ func (p *Planner) buildMenuFields(menu *kkComps.Menu) map[string]interface{} {
 				}
 				items = append(items, menuItem)
 			}
-			sectionMap := map[string]interface{}{
+			sectionMap := map[string]any{
 				"title": section.Title,
 				"items": items,
 			}
@@ -388,14 +388,14 @@ func (p *Planner) planPortalCustomDomainsChanges(
 func (p *Planner) planPortalCustomDomainCreate(
 	parentNamespace string, domain resources.PortalCustomDomainResource, plan *Plan,
 ) {
-	fields := make(map[string]interface{})
+	fields := make(map[string]any)
 	fields["hostname"] = domain.Hostname
 	fields["enabled"] = domain.Enabled
 
 	// Add SSL settings if present
 	// Check if DomainVerificationMethod is set (non-empty string)
 	if domain.Ssl.DomainVerificationMethod != "" {
-		sslFields := make(map[string]interface{})
+		sslFields := make(map[string]any)
 		sslFields["domain_verification_method"] = string(domain.Ssl.DomainVerificationMethod)
 		fields["ssl"] = sslFields
 	}
@@ -635,7 +635,7 @@ func (p *Planner) planPortalPagesChanges(
 func (p *Planner) planPortalPageCreate(
 	parentNamespace string, page resources.PortalPageResource, _ string, portalID string, plan *Plan,
 ) {
-	fields := make(map[string]interface{})
+	fields := make(map[string]any)
 	fields["slug"] = page.Slug
 	fields["content"] = page.Content
 	
@@ -751,8 +751,8 @@ func (p *Planner) planPortalPageCreate(
 func (p *Planner) shouldUpdatePortalPage(
 	current *state.PortalPage,
 	desired resources.PortalPageResource,
-) (bool, map[string]interface{}) {
-	updates := make(map[string]interface{})
+) (bool, map[string]any) {
+	updates := make(map[string]any)
 
 	// Compare content (always present)
 	if current.Content != desired.Content {
@@ -796,10 +796,10 @@ func (p *Planner) planPortalPageUpdate(
 	current state.PortalPage,
 	desired resources.PortalPageResource,
 	portalRef string,
-	updateFields map[string]interface{},
+	updateFields map[string]any,
 	plan *Plan,
 ) {
-	fields := make(map[string]interface{})
+	fields := make(map[string]any)
 
 	// Always include slug for identification
 	fields["slug"] = current.Slug
@@ -877,7 +877,7 @@ func (p *Planner) planPortalPageDelete(
 		},
 		Parent:    &ParentInfo{Ref: portalRef, ID: portalID},
 		Action:    ActionDelete,
-		Fields:    map[string]interface{}{"slug": slug},
+		Fields:    map[string]any{"slug": slug},
 		DependsOn: []string{},
 	}
 
@@ -992,7 +992,7 @@ func (p *Planner) planPortalSnippetsChanges(
 func (p *Planner) planPortalSnippetCreate(
 	parentNamespace string, snippet resources.PortalSnippetResource, plan *Plan,
 ) {
-	fields := make(map[string]interface{})
+	fields := make(map[string]any)
 	fields["name"] = snippet.Name
 	fields["content"] = snippet.Content
 	
@@ -1064,8 +1064,8 @@ func (p *Planner) planPortalSnippetCreate(
 func (p *Planner) shouldUpdatePortalSnippet(
 	current *state.PortalSnippet,
 	desired resources.PortalSnippetResource,
-) (bool, map[string]interface{}) {
-	updates := make(map[string]interface{})
+) (bool, map[string]any) {
+	updates := make(map[string]any)
 
 	// Compare content (always present)
 	if current.Content != desired.Content {
@@ -1109,10 +1109,10 @@ func (p *Planner) planPortalSnippetUpdate(
 	current state.PortalSnippet,
 	desired resources.PortalSnippetResource,
 	portalRef string,
-	updateFields map[string]interface{},
+	updateFields map[string]any,
 	plan *Plan,
 ) {
-	fields := make(map[string]interface{})
+	fields := make(map[string]any)
 
 	// Always include name for identification
 	fields["name"] = current.Name

@@ -112,7 +112,7 @@ func (d APIDocumentResource) GetKonnectMonikerFilter() string {
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
-func (d *APIDocumentResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+func (d *APIDocumentResource) TryMatchKonnectResource(konnectResource any) bool {
 	// For API documents, we match by slug
 	// Use reflection to access fields from state.APIDocument
 	v := reflect.ValueOf(konnectResource)
@@ -162,7 +162,7 @@ func (d *APIDocumentResource) UnmarshalJSON(data []byte) error {
 		Slug             *string `json:"slug,omitempty"`
 		Status           *string `json:"status,omitempty"`
 		ParentDocumentID string  `json:"parent_document_id,omitempty"`
-		Kongctl          interface{} `json:"kongctl,omitempty"`
+		Kongctl          any `json:"kongctl,omitempty"`
 	}
 	
 	// Use a decoder with DisallowUnknownFields to catch typos

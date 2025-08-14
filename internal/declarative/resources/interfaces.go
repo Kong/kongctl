@@ -12,7 +12,7 @@ type Resource interface {
 	// Identity resolution methods
 	GetKonnectID() string // Returns the Konnect ID if resolved, empty otherwise
 	GetKonnectMonikerFilter() string // Returns filter string for Konnect API lookup
-	TryMatchKonnectResource(konnectResource interface{}) bool // Matches against Konnect resource
+	TryMatchKonnectResource(konnectResource any) bool // Matches against Konnect resource
 }
 
 // RefReader provides read-only access to resources by ref

@@ -22,7 +22,7 @@ func NewAPIVersionAdapter(client *state.Client) *APIVersionAdapter {
 }
 
 // MapCreateFields maps fields to CreateAPIVersionRequest
-func (a *APIVersionAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
+func (a *APIVersionAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	create *kkComps.CreateAPIVersionRequest) error {
 	// Store execution context for use in helper methods
 	a.execCtx = execCtx
@@ -33,7 +33,7 @@ func (a *APIVersionAdapter) MapCreateFields(_ context.Context, execCtx *Executio
 	}
 	
 	// Spec field (optional)
-	if spec, ok := fields["spec"].(map[string]interface{}); ok {
+	if spec, ok := fields["spec"].(map[string]any); ok {
 		if content, ok := spec["content"].(string); ok {
 			create.Spec = &kkComps.CreateAPIVersionRequestSpec{
 				Content: &content,

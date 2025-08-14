@@ -24,7 +24,7 @@ type CreateConfig struct {
 	ResourceName    string
 	ResourceRef     string
 	RequiredFields  []string
-	FieldExtractor  func(resource interface{}) map[string]interface{}
+	FieldExtractor  func(resource any) map[string]any
 	Namespace       string
 	DependsOn       []string
 	References      map[string]ReferenceInfo
@@ -37,12 +37,12 @@ type UpdateConfig struct {
 	ResourceName      string
 	ResourceRef       string
 	ResourceID        string
-	CurrentFields     map[string]interface{}
-	DesiredFields     map[string]interface{}
+	CurrentFields     map[string]any
+	DesiredFields     map[string]any
 	CurrentLabels     map[string]string
 	DesiredLabels     map[string]string
 	RequiredFields    []string
-	FieldComparator   func(current, desired map[string]interface{}) bool
+	FieldComparator   func(current, desired map[string]any) bool
 	Namespace         string
 	References        map[string]ReferenceInfo
 }
@@ -229,9 +229,9 @@ func normalizeLabels(labelMap map[string]string) map[string]string {
 }
 
 // ExtractFields is a helper to create field extractors for resources with SDK types
-func ExtractFields(resource interface{}, fieldMapping func(interface{}) map[string]interface{}) map[string]interface{} {
+func ExtractFields(resource any, fieldMapping func(any) map[string]any) map[string]any {
 	if resource == nil {
-		return make(map[string]interface{})
+		return make(map[string]any)
 	}
 	return fieldMapping(resource)
 }

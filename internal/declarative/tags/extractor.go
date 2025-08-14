@@ -8,7 +8,7 @@ import (
 
 // ExtractValue extracts a value from structured data using dot notation path
 // Supports paths like "info.title" or "servers.0.url" (array access in future)
-func ExtractValue(data interface{}, path string) (interface{}, error) {
+func ExtractValue(data any, path string) (any, error) {
 	if path == "" {
 		return data, nil
 	}
@@ -99,7 +99,7 @@ func findStructField(val reflect.Value, fieldName string) reflect.Value {
 }
 
 // GetAvailablePaths returns available paths from a data structure for error messages
-func GetAvailablePaths(data interface{}, prefix string, maxDepth int) []string {
+func GetAvailablePaths(data any, prefix string, maxDepth int) []string {
 	if maxDepth <= 0 {
 		return nil
 	}

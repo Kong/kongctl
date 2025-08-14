@@ -106,7 +106,7 @@ func TestExecutor_Execute_DryRun(t *testing.T) {
 		ResourceType: "portal",
 		ResourceRef:  "dev-portal",
 		Action:       planner.ActionCreate,
-		Fields: map[string]interface{}{
+		Fields: map[string]any{
 			"name":        "Developer Portal",
 			"description": "Main developer portal",
 		},
@@ -153,7 +153,7 @@ func TestExecutor_Execute_WithErrors(t *testing.T) {
 		ResourceType: "service", // Not yet implemented
 		ResourceRef:  "test-service",
 		Action:       planner.ActionCreate,
-		Fields: map[string]interface{}{
+		Fields: map[string]any{
 			"name": "Test Service",
 		},
 	}
@@ -314,20 +314,20 @@ func TestExecutor_ExecutionOrder(t *testing.T) {
 			Action:       planner.ActionDelete,
 			ResourceType: "portal",
 			ResourceID:   "portal-3", // Required for DELETE
-			Fields:       map[string]interface{}{"name": "Portal 3-d-portal"},
+			Fields:       map[string]any{"name": "Portal 3-d-portal"},
 		},
 		{
 			ID:           "1-c-portal",
 			Action:       planner.ActionCreate,
 			ResourceType: "portal",
-			Fields:       map[string]interface{}{"name": "Portal 1-c-portal"},
+			Fields:       map[string]any{"name": "Portal 1-c-portal"},
 		},
 		{
 			ID:           "2-u-portal",
 			Action:       planner.ActionUpdate,
 			ResourceType: "portal",
 			ResourceID:   "portal-2", // Required for UPDATE
-			Fields:       map[string]interface{}{"name": "Portal 2-u-portal"},
+			Fields:       map[string]any{"name": "Portal 2-u-portal"},
 		},
 	}
 	
@@ -365,7 +365,7 @@ func TestExecutor_ContinuesOnError(t *testing.T) {
 			ResourceType: "route", // Not yet implemented
 			ResourceRef:  fmt.Sprintf("route-%d", i),
 			Action:       planner.ActionCreate,
-			Fields: map[string]interface{}{
+			Fields: map[string]any{
 				"name": fmt.Sprintf("Route %d", i),
 			},
 		}

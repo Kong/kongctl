@@ -64,7 +64,7 @@ func (e *Executor) createAPIPublication(ctx context.Context, change planner.Plan
 	publication := kkComps.APIPublication{}
 
 	// Map fields to SDK request
-	if authStrategyIDs, ok := change.Fields["auth_strategy_ids"].([]interface{}); ok {
+	if authStrategyIDs, ok := change.Fields["auth_strategy_ids"].([]any); ok {
 		ids := make([]string, 0, len(authStrategyIDs))
 		for _, id := range authStrategyIDs {
 			if strID, ok := id.(string); ok {

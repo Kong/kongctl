@@ -145,7 +145,7 @@ type ApplicationAuthStrategy struct {
 	Name             string
 	DisplayName      string
 	StrategyType     string
-	Configs          map[string]interface{}
+	Configs          map[string]any
 	NormalizedLabels map[string]string // Non-pointer labels
 }
 
@@ -933,7 +933,7 @@ func (c *Client) ListAPIImplementations(ctx context.Context, apiID string) ([]AP
 // CreateAPIImplementation creates a new API implementation
 // Note: This is a placeholder - SDK doesn't support implementation creation yet
 func (c *Client) CreateAPIImplementation(
-	_ context.Context, _ string, _ interface{},
+	_ context.Context, _ string, _ any,
 ) (*kkComps.APIImplementationResponse, error) {
 	return nil, fmt.Errorf("API implementation creation not yet supported by SDK")
 }
@@ -1191,8 +1191,8 @@ func (c *Client) extractAuthStrategyFromUnion(s kkComps.AppAuthStrategy) *Applic
 		strategy.StrategyType = "key_auth"
 
 		// Extract configs
-		configs := make(map[string]interface{})
-		keyAuthConfig := make(map[string]interface{})
+		configs := make(map[string]any)
+		keyAuthConfig := make(map[string]any)
 		if keyAuthResp.Configs.KeyAuth.KeyNames != nil {
 			keyAuthConfig["key_names"] = keyAuthResp.Configs.KeyAuth.KeyNames
 		}
@@ -1209,8 +1209,8 @@ func (c *Client) extractAuthStrategyFromUnion(s kkComps.AppAuthStrategy) *Applic
 		strategy.StrategyType = "openid_connect"
 
 		// Extract configs
-		configs := make(map[string]interface{})
-		oidcConfig := make(map[string]interface{})
+		configs := make(map[string]any)
+		oidcConfig := make(map[string]any)
 		oidcConfig["issuer"] = oidcResp.Configs.OpenidConnect.Issuer
 		if oidcResp.Configs.OpenidConnect.CredentialClaim != nil {
 			oidcConfig["credential_claim"] = oidcResp.Configs.OpenidConnect.CredentialClaim

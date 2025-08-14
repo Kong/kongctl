@@ -11,7 +11,7 @@ import (
 // (no update operation), such as API versions and API publications
 type CreateDeleteOperations[TCreate any] interface {
 	// Field mapping
-	MapCreateFields(ctx context.Context, execCtx *ExecutionContext, fields map[string]interface{}, create *TCreate) error
+	MapCreateFields(ctx context.Context, execCtx *ExecutionContext, fields map[string]any, create *TCreate) error
 
 	// API calls
 	Create(ctx context.Context, req TCreate, namespace string) (string, error)
@@ -27,7 +27,7 @@ type CreateDeleteOperations[TCreate any] interface {
 // and only support updates (no create/delete), such as portal customization
 type SingletonOperations[TUpdate any] interface {
 	// Field mapping
-	MapUpdateFields(ctx context.Context, fields map[string]interface{}, update *TUpdate) error
+	MapUpdateFields(ctx context.Context, fields map[string]any, update *TUpdate) error
 
 	// API calls - note the special signature for singleton resources
 	Update(ctx context.Context, parentID string, req TUpdate) error

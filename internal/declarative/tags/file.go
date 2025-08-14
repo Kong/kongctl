@@ -20,7 +20,7 @@ const (
 // FileTagResolver handles !file tags for loading external content
 type FileTagResolver struct {
 	baseDir string
-	cache   map[string]interface{}
+	cache   map[string]any
 	mu      sync.RWMutex
 }
 
@@ -28,7 +28,7 @@ type FileTagResolver struct {
 func NewFileTagResolver(baseDir string) *FileTagResolver {
 	return &FileTagResolver{
 		baseDir: baseDir,
-		cache:   make(map[string]interface{}),
+		cache:   make(map[string]any),
 	}
 }
 
@@ -38,7 +38,7 @@ func (f *FileTagResolver) Tag() string {
 }
 
 // Resolve processes a YAML node with the !file tag
-func (f *FileTagResolver) Resolve(node *yaml.Node) (interface{}, error) {
+func (f *FileTagResolver) Resolve(node *yaml.Node) (any, error) {
 	// Handle three formats:
 	// 1. String scalar: !file ./path/to/file.yaml
 	// 2. String scalar with extraction: !file ./path/to/file.yaml#field.path
@@ -77,7 +77,7 @@ func (f *FileTagResolver) Resolve(node *yaml.Node) (interface{}, error) {
 }
 
 // loadFile loads a file and optionally extracts a value
-func (f *FileTagResolver) loadFile(path string, extractPath string) (interface{}, error) {
+func (f *FileTagResolver) loadFile(path string, extractPath string) (any, error) {
 	// Validate the path
 	if err := f.validatePath(path); err != nil {
 		return nil, err
@@ -181,19 +181,19 @@ func (f *FileTagResolver) readFile(path string) ([]byte, error) {
 }
 
 // parseContent parses file content based on extension
-func (f *FileTagResolver) parseContent(path string, data []byte) (interface{}, error) {
+func (f *FileTagResolver) parseContent(path string, data []byte) (any, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 	
 	switch ext {
 	case ".yaml", ".yml":
-		var content interface{}
+		var content any
 		if err := k8syaml.Unmarshal(data, &content); err != nil {
 			return nil, err
 		}
 		return content, nil
 		
 	case ".json":
-		var content interface{}
+		var content any
 		// sigs.k8s.io/yaml handles both YAML and JSON
 		if err := k8syaml.Unmarshal(data, &content); err != nil {
 			return nil, err
@@ -207,14 +207,14 @@ func (f *FileTagResolver) parseContent(path string, data []byte) (interface{}, e
 }
 
 // getCached retrieves a cached value
-func (f *FileTagResolver) getCached(key string) interface{} {
+func (f *FileTagResolver) getCached(key string) any {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return f.cache[key]
 }
 
 // setCached stores a value in the cache
-func (f *FileTagResolver) setCached(key string, value interface{}) {
+func (f *FileTagResolver) setCached(key string, value any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.cache[key] = value

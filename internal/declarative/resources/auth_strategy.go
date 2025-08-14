@@ -112,7 +112,7 @@ func (a ApplicationAuthStrategyResource) GetKonnectMonikerFilter() string {
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
-func (a *ApplicationAuthStrategyResource) TryMatchKonnectResource(konnectResource interface{}) bool {
+func (a *ApplicationAuthStrategyResource) TryMatchKonnectResource(konnectResource any) bool {
 	// For auth strategies, we match by name
 	// Use reflection to access fields from state.ApplicationAuthStrategy
 	v := reflect.ValueOf(konnectResource)
@@ -152,7 +152,7 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 		Name         string                 `json:"name"`
 		DisplayName  string                 `json:"display_name"`
 		StrategyType string                 `json:"strategy_type"`
-		Configs      map[string]interface{} `json:"configs"`
+		Configs      map[string]any `json:"configs"`
 		Labels       map[string]string      `json:"labels,omitempty"`
 		Kongctl      *KongctlMeta           `json:"kongctl,omitempty"`
 	}

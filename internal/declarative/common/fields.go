@@ -6,7 +6,7 @@ import (
 )
 
 // MapOptionalStringField maps a string field from source map to target pointer if present
-func MapOptionalStringField(target *string, source map[string]interface{}, key string) {
+func MapOptionalStringField(target *string, source map[string]any, key string) {
 	if value, exists := source[key]; exists {
 		if strValue, ok := value.(string); ok {
 			*target = strValue
@@ -15,7 +15,7 @@ func MapOptionalStringField(target *string, source map[string]interface{}, key s
 }
 
 // MapOptionalBoolField maps a boolean field from source map to target pointer if present
-func MapOptionalBoolField(target *bool, source map[string]interface{}, key string) {
+func MapOptionalBoolField(target *bool, source map[string]any, key string) {
 	if value, exists := source[key]; exists {
 		if boolValue, ok := value.(bool); ok {
 			*target = boolValue
@@ -24,7 +24,7 @@ func MapOptionalBoolField(target *bool, source map[string]interface{}, key strin
 }
 
 // MapOptionalIntField maps an integer field from source map to target pointer if present
-func MapOptionalIntField(target *int, source map[string]interface{}, key string) {
+func MapOptionalIntField(target *int, source map[string]any, key string) {
 	if value, exists := source[key]; exists {
 		switch v := value.(type) {
 		case int:
@@ -36,9 +36,9 @@ func MapOptionalIntField(target *int, source map[string]interface{}, key string)
 }
 
 // MapOptionalSliceField maps a slice field from source map to target pointer if present
-func MapOptionalSliceField(target *[]string, source map[string]interface{}, key string) {
+func MapOptionalSliceField(target *[]string, source map[string]any, key string) {
 	if value, exists := source[key]; exists {
-		if sliceValue, ok := value.([]interface{}); ok {
+		if sliceValue, ok := value.([]any); ok {
 			stringSlice := make([]string, len(sliceValue))
 			for i, item := range sliceValue {
 				if strItem, ok := item.(string); ok {
@@ -53,7 +53,7 @@ func MapOptionalSliceField(target *[]string, source map[string]interface{}, key 
 }
 
 // ExtractResourceName extracts the resource name from fields map
-func ExtractResourceName(fields map[string]interface{}) string {
+func ExtractResourceName(fields map[string]any) string {
 	if name, ok := fields["name"].(string); ok {
 		return name
 	}
@@ -61,7 +61,7 @@ func ExtractResourceName(fields map[string]interface{}) string {
 }
 
 // ExtractResourceID extracts the resource ID from fields map
-func ExtractResourceID(fields map[string]interface{}) string {
+func ExtractResourceID(fields map[string]any) string {
 	if id, ok := fields["id"].(string); ok {
 		return id
 	}
@@ -69,7 +69,7 @@ func ExtractResourceID(fields map[string]interface{}) string {
 }
 
 // HasFieldChanged checks if a field value has changed between old and new maps
-func HasFieldChanged(oldFields, newFields map[string]interface{}, key string) bool {
+func HasFieldChanged(oldFields, newFields map[string]any, key string) bool {
 	oldValue, oldExists := oldFields[key]
 	newValue, newExists := newFields[key]
 	
@@ -88,14 +88,14 @@ func HasFieldChanged(oldFields, newFields map[string]interface{}, key string) bo
 }
 
 // CopyField copies a field from source to destination map if it exists
-func CopyField(dest, src map[string]interface{}, key string) {
+func CopyField(dest, src map[string]any, key string) {
 	if value, exists := src[key]; exists {
 		dest[key] = value
 	}
 }
 
 // ValidateRequiredFields checks that all required fields are present and non-empty
-func ValidateRequiredFields(fields map[string]interface{}, requiredFields []string) error {
+func ValidateRequiredFields(fields map[string]any, requiredFields []string) error {
 	for _, field := range requiredFields {
 		value, exists := fields[field]
 		if !exists {
@@ -111,7 +111,7 @@ func ValidateRequiredFields(fields map[string]interface{}, requiredFields []stri
 }
 
 // MapOptionalStringFieldToPtr maps a string field to a double pointer (used by SDK types)
-func MapOptionalStringFieldToPtr(target **string, source map[string]interface{}, key string) {
+func MapOptionalStringFieldToPtr(target **string, source map[string]any, key string) {
 	if value, exists := source[key]; exists {
 		if strValue, ok := value.(string); ok {
 			*target = &strValue
@@ -120,7 +120,7 @@ func MapOptionalStringFieldToPtr(target **string, source map[string]interface{},
 }
 
 // MapOptionalBoolFieldToPtr maps a boolean field to a double pointer (used by SDK types)
-func MapOptionalBoolFieldToPtr(target **bool, source map[string]interface{}, key string) {
+func MapOptionalBoolFieldToPtr(target **bool, source map[string]any, key string) {
 	if value, exists := source[key]; exists {
 		if boolValue, ok := value.(bool); ok {
 			*target = &boolValue

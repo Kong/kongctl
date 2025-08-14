@@ -38,10 +38,10 @@ type PlannedChange struct {
 	// Human-readable identifiers for resources without config refs
 	ResourceMonikers map[string]string         `json:"resource_monikers,omitempty"`
 	Action           ActionType                `json:"action"`
-	Fields           map[string]interface{}    `json:"fields"`
+	Fields           map[string]any    `json:"fields"`
 	References       map[string]ReferenceInfo  `json:"references,omitempty"`
 	Parent           *ParentInfo               `json:"parent,omitempty"`
-	Protection       interface{}               `json:"protection,omitempty"` // bool or ProtectionChange
+	Protection       any               `json:"protection,omitempty"` // bool or ProtectionChange
 	Namespace        string                    `json:"namespace"`
 	DependsOn        []string                  `json:"depends_on,omitempty"`
 }
@@ -74,8 +74,8 @@ type ProtectionChange struct {
 
 // FieldChange represents a single field modification (for UPDATE)
 type FieldChange struct {
-	Old interface{} `json:"old"`
-	New interface{} `json:"new"`
+	Old any `json:"old"`
+	New any `json:"new"`
 }
 
 // ActionType represents the type of change

@@ -44,12 +44,12 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 	switch strategyType {
 	case "key_auth":
 		// Extract key auth config
-		configs, ok := change.Fields["configs"].(map[string]interface{})
+		configs, ok := change.Fields["configs"].(map[string]any)
 		if !ok {
 			return "", fmt.Errorf("configs is required for key_auth strategy")
 		}
 		
-		keyAuthConfig, ok := configs["key-auth"].(map[string]interface{})
+		keyAuthConfig, ok := configs["key-auth"].(map[string]any)
 		if !ok {
 			return "", fmt.Errorf("configs.key-auth is required for key_auth strategy")
 		}
@@ -65,11 +65,11 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 			Labels: authLabels,
 		}
 		
-		// Extract key names - handle both []string and []interface{}
+		// Extract key names - handle both []string and []any
 		switch keyNames := keyAuthConfig["key_names"].(type) {
 		case []string:
 			req.Configs.KeyAuth.KeyNames = keyNames
-		case []interface{}:
+		case []any:
 			names := make([]string, 0, len(keyNames))
 			for _, kn := range keyNames {
 				if name, ok := kn.(string); ok {
@@ -111,12 +111,12 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 		
 	case "openid_connect":
 		// Extract openid connect config
-		configs, ok := change.Fields["configs"].(map[string]interface{})
+		configs, ok := change.Fields["configs"].(map[string]any)
 		if !ok {
 			return "", fmt.Errorf("configs is required for openid_connect strategy")
 		}
 		
-		oidcConfig, ok := configs["openid-connect"].(map[string]interface{})
+		oidcConfig, ok := configs["openid-connect"].(map[string]any)
 		if !ok {
 			return "", fmt.Errorf("configs.openid-connect is required for openid_connect strategy")
 		}
@@ -139,11 +139,11 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 			return "", fmt.Errorf("issuer is required for openid_connect strategy")
 		}
 		
-		// Extract credential_claim (required by API) - handle both []string and []interface{}
+		// Extract credential_claim (required by API) - handle both []string and []any
 		switch credentialClaim := oidcConfig["credential_claim"].(type) {
 		case []string:
 			req.Configs.OpenidConnect.CredentialClaim = credentialClaim
-		case []interface{}:
+		case []any:
 			claims := make([]string, 0, len(credentialClaim))
 			for _, c := range credentialClaim {
 				if claim, ok := c.(string); ok {
@@ -156,11 +156,11 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 			req.Configs.OpenidConnect.CredentialClaim = []string{"sub"}
 		}
 		
-		// Extract scopes - handle both []string and []interface{}
+		// Extract scopes - handle both []string and []any
 		switch scopes := oidcConfig["scopes"].(type) {
 		case []string:
 			req.Configs.OpenidConnect.Scopes = scopes
-		case []interface{}:
+		case []any:
 			scopeStrs := make([]string, 0, len(scopes))
 			for _, s := range scopes {
 				if scope, ok := s.(string); ok {
@@ -172,11 +172,11 @@ func (e *Executor) createApplicationAuthStrategy(ctx context.Context, change pla
 			}
 		}
 		
-		// Extract auth methods - handle both []string and []interface{}
+		// Extract auth methods - handle both []string and []any
 		switch authMethods := oidcConfig["auth_methods"].(type) {
 		case []string:
 			req.Configs.OpenidConnect.AuthMethods = authMethods
-		case []interface{}:
+		case []any:
 			methods := make([]string, 0, len(authMethods))
 			for _, m := range authMethods {
 				if method, ok := m.(string); ok {
@@ -262,7 +262,7 @@ func (e *Executor) updateApplicationAuthStrategy(ctx context.Context, change pla
 	}
 	
 	// Handle config updates if present
-	if configs, ok := change.Fields["configs"].(map[string]interface{}); ok {
+	if configs, ok := change.Fields["configs"].(map[string]any); ok {
 		// Get strategy type from fields (passed by planner)
 		strategyType, _ := change.Fields[planner.FieldStrategyType].(string)
 		
@@ -305,10 +305,10 @@ func (e *Executor) deleteApplicationAuthStrategy(ctx context.Context, change pla
 
 // buildAuthStrategyConfigs builds the SDK Configs union type from planner data
 //nolint:unused // deprecated, will be removed in Phase 2 cleanup
-func buildAuthStrategyConfigs(strategyType string, configs map[string]interface{}) (*kkComps.Configs, error) {
+func buildAuthStrategyConfigs(strategyType string, configs map[string]any) (*kkComps.Configs, error) {
 	switch strategyType {
 	case "key_auth":
-		keyAuthConfig, ok := configs["key-auth"].(map[string]interface{})
+		keyAuthConfig, ok := configs["key-auth"].(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("key-auth config missing for key_auth strategy")
 		}
@@ -316,7 +316,7 @@ func buildAuthStrategyConfigs(strategyType string, configs map[string]interface{
 		return buildKeyAuthConfigs(keyAuthConfig)
 		
 	case "openid_connect":
-		oidcConfig, ok := configs["openid-connect"].(map[string]interface{})
+		oidcConfig, ok := configs["openid-connect"].(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("openid-connect config missing for openid_connect strategy")
 		}
@@ -330,14 +330,14 @@ func buildAuthStrategyConfigs(strategyType string, configs map[string]interface{
 
 // buildKeyAuthConfigs builds key auth configs for the SDK
 //nolint:unused // deprecated, will be removed in Phase 2 cleanup
-func buildKeyAuthConfigs(keyAuthConfig map[string]interface{}) (*kkComps.Configs, error) {
+func buildKeyAuthConfigs(keyAuthConfig map[string]any) (*kkComps.Configs, error) {
 	keyAuth := kkComps.AppAuthStrategyConfigKeyAuth{}
 	
-	// Extract key names - handle both []string and []interface{}
+	// Extract key names - handle both []string and []any
 	switch keyNames := keyAuthConfig["key_names"].(type) {
 	case []string:
 		keyAuth.KeyNames = keyNames
-	case []interface{}:
+	case []any:
 		names := make([]string, 0, len(keyNames))
 		for _, kn := range keyNames {
 			if name, ok := kn.(string); ok {
@@ -357,7 +357,7 @@ func buildKeyAuthConfigs(keyAuthConfig map[string]interface{}) (*kkComps.Configs
 
 // buildOpenIDConnectConfigs builds OpenID Connect configs for the SDK
 //nolint:unused // deprecated, will be removed in Phase 2 cleanup
-func buildOpenIDConnectConfigs(oidcConfig map[string]interface{}) (*kkComps.Configs, error) {
+func buildOpenIDConnectConfigs(oidcConfig map[string]any) (*kkComps.Configs, error) {
 	// Use partial config for updates
 	oidc := kkComps.PartialAppAuthStrategyConfigOpenIDConnect{}
 	
@@ -366,11 +366,11 @@ func buildOpenIDConnectConfigs(oidcConfig map[string]interface{}) (*kkComps.Conf
 		oidc.Issuer = &issuer
 	}
 	
-	// Extract credential_claim - handle both []string and []interface{}
+	// Extract credential_claim - handle both []string and []any
 	switch credentialClaim := oidcConfig["credential_claim"].(type) {
 	case []string:
 		oidc.CredentialClaim = credentialClaim
-	case []interface{}:
+	case []any:
 		claims := make([]string, 0, len(credentialClaim))
 		for _, c := range credentialClaim {
 			if claim, ok := c.(string); ok {
@@ -382,11 +382,11 @@ func buildOpenIDConnectConfigs(oidcConfig map[string]interface{}) (*kkComps.Conf
 		}
 	}
 	
-	// Extract scopes - handle both []string and []interface{}
+	// Extract scopes - handle both []string and []any
 	switch scopes := oidcConfig["scopes"].(type) {
 	case []string:
 		oidc.Scopes = scopes
-	case []interface{}:
+	case []any:
 		scopeStrs := make([]string, 0, len(scopes))
 		for _, s := range scopes {
 			if scope, ok := s.(string); ok {
@@ -398,11 +398,11 @@ func buildOpenIDConnectConfigs(oidcConfig map[string]interface{}) (*kkComps.Conf
 		}
 	}
 	
-	// Extract auth methods - handle both []string and []interface{}
+	// Extract auth methods - handle both []string and []any
 	switch authMethods := oidcConfig["auth_methods"].(type) {
 	case []string:
 		oidc.AuthMethods = authMethods
-	case []interface{}:
+	case []any:
 		methods := make([]string, 0, len(authMethods))
 		for _, m := range authMethods {
 			if method, ok := m.(string); ok {

@@ -10,7 +10,7 @@ type TagResolver interface {
 	Tag() string
 	
 	// Resolve processes a YAML node with this tag and returns the resolved value
-	Resolve(node *yaml.Node) (interface{}, error)
+	Resolve(node *yaml.Node) (any, error)
 }
 
 // FileRef represents a file reference with optional value extraction
@@ -21,6 +21,6 @@ type FileRef struct {
 
 // ResolvedValue represents a value that was resolved from a tag
 type ResolvedValue struct {
-	Value  interface{} // The resolved value
+	Value  any // The resolved value
 	Source string      // Source information for error reporting
 }

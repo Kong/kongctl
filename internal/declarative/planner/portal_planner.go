@@ -144,8 +144,8 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 }
 
 // extractPortalFields extracts fields from a portal resource for planner operations
-func extractPortalFields(resource interface{}) map[string]interface{} {
-	fields := make(map[string]interface{})
+func extractPortalFields(resource any) map[string]any {
+	fields := make(map[string]any)
 	
 	portal, ok := resource.(resources.PortalResource)
 	if !ok {
@@ -183,7 +183,7 @@ func extractPortalFields(resource interface{}) map[string]interface{} {
 	
 	// Copy user-defined labels only (protection label will be added during execution)
 	if len(portal.Labels) > 0 {
-		labelsMap := make(map[string]interface{})
+		labelsMap := make(map[string]any)
 		for k, v := range portal.Labels {
 			if v != nil {
 				labelsMap[k] = *v
@@ -222,7 +222,7 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 	}
 	
 	// Extract protection status
-	var protection interface{}
+	var protection any
 	if portal.Kongctl != nil && portal.Kongctl.Protected != nil {
 		protection = *portal.Kongctl.Protected
 	}
@@ -238,7 +238,7 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 		ResourceName:   portal.Name,
 		ResourceRef:    portal.GetRef(),
 		RequiredFields: []string{"name"},
-		FieldExtractor: func(_ interface{}) map[string]interface{} {
+		FieldExtractor: func(_ any) map[string]any {
 			return extractPortalFields(portal)
 		},
 		Namespace:      namespace,
@@ -263,8 +263,8 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 func (p *portalPlannerImpl) shouldUpdatePortal(
 	current state.Portal,
 	desired resources.PortalResource,
-) (bool, map[string]interface{}) {
-	updates := make(map[string]interface{})
+) (bool, map[string]any) {
+	updates := make(map[string]any)
 
 	// Only compare fields present in desired configuration
 	if desired.DisplayName != nil {
@@ -340,7 +340,7 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 		
 		if labels.CompareUserLabels(current.NormalizedLabels, desiredLabels) {
 			// User labels differ, include all labels in update
-			labelsMap := make(map[string]interface{})
+			labelsMap := make(map[string]any)
 			for k, v := range desired.Labels {
 				if v != nil {
 					labelsMap[k] = *v
@@ -357,7 +357,7 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 func (p *portalPlannerImpl) planPortalUpdateWithFields(
 	current state.Portal,
 	desired resources.PortalResource,
-	updateFields map[string]interface{},
+	updateFields map[string]any,
 	plan *Plan,
 ) {
 	// Always include name for identification
@@ -389,7 +389,7 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 	if generic == nil {
 		// During tests, generic planner might not be initialized
 		// Fall back to inline implementation
-		fields := make(map[string]interface{})
+		fields := make(map[string]any)
 		fields["name"] = current.Name
 		for field, newValue := range updateFields {
 			fields[field] = newValue
@@ -439,7 +439,7 @@ func (p *portalPlannerImpl) planPortalProtectionChangeWithFields(
 	current state.Portal,
 	desired resources.PortalResource,
 	wasProtected, shouldProtect bool,
-	updateFields map[string]interface{},
+	updateFields map[string]any,
 	plan *Plan,
 ) {
 	// Extract namespace
@@ -481,7 +481,7 @@ func (p *portalPlannerImpl) planPortalProtectionChangeWithFields(
 	}
 	
 	// Always include name field for identification
-	fields := make(map[string]interface{})
+	fields := make(map[string]any)
 	fields["name"] = current.Name
 	
 	// Include any field updates if unprotecting
@@ -529,7 +529,7 @@ func (p *portalPlannerImpl) planPortalDelete(portal state.Portal, plan *Plan) {
 	}
 	
 	// Add the name field for backward compatibility
-	change.Fields = map[string]interface{}{"name": portal.Name}
+	change.Fields = map[string]any{"name": portal.Name}
 	
 	plan.AddChange(change)
 }

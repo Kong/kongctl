@@ -48,7 +48,7 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 	var customization kkComps.PortalCustomization
 	
 	// Handle theme
-	if themeData, ok := change.Fields["theme"].(map[string]interface{}); ok {
+	if themeData, ok := change.Fields["theme"].(map[string]any); ok {
 		theme := &kkComps.Theme{}
 		
 		if name, ok := themeData["name"].(string); ok {
@@ -60,7 +60,7 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 		}
 		
 		// Handle colors
-		if colorsData, ok := themeData["colors"].(map[string]interface{}); ok {
+		if colorsData, ok := themeData["colors"].(map[string]any); ok {
 			colors := &kkComps.Colors{}
 			if primary, ok := colorsData["primary"].(string); ok {
 				colors.Primary = &primary
@@ -86,7 +86,7 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 		slog.Any("menu_data", change.Fields["menu"]),
 		slog.String("menu_type", fmt.Sprintf("%T", change.Fields["menu"])))
 		
-	if menuData, ok := change.Fields["menu"].(map[string]interface{}); ok {
+	if menuData, ok := change.Fields["menu"].(map[string]any); ok {
 		logger.LogAttrs(ctx, log.LevelTrace, "Menu data found",
 			slog.Any("main", menuData["main"]),
 			slog.String("main_type", fmt.Sprintf("%T", menuData["main"])),
@@ -95,7 +95,7 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 			
 		menu := &kkComps.Menu{}
 		
-		if mainItems, ok := menuData["main"].([]map[string]interface{}); ok {
+		if mainItems, ok := menuData["main"].([]map[string]any); ok {
 			var mainMenu []kkComps.PortalMenuItem
 			for _, itemMap := range mainItems {
 				menuItem := kkComps.PortalMenuItem{
@@ -117,7 +117,7 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 		}
 		
 		// Handle footer sections
-		if footerSections, ok := menuData["footer_sections"].([]map[string]interface{}); ok {
+		if footerSections, ok := menuData["footer_sections"].([]map[string]any); ok {
 			var footerSectionsList []kkComps.PortalFooterMenuSection
 			for _, sectionMap := range footerSections {
 				footerSection := kkComps.PortalFooterMenuSection{
@@ -125,7 +125,7 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 				}
 				
 				// Process items in the section
-				if items, ok := sectionMap["items"].([]map[string]interface{}); ok {
+				if items, ok := sectionMap["items"].([]map[string]any); ok {
 					var sectionItems []kkComps.PortalMenuItem
 					for _, itemMap := range items {
 						footerItem := kkComps.PortalMenuItem{
@@ -220,7 +220,7 @@ func (e *Executor) createPortalCustomDomain(ctx context.Context, change planner.
 	}
 	
 	// Handle SSL settings
-	if sslData, ok := change.Fields["ssl"].(map[string]interface{}); ok {
+	if sslData, ok := change.Fields["ssl"].(map[string]any); ok {
 		ssl := kkComps.CreatePortalCustomDomainSSL{}
 		if method, ok := sslData["domain_verification_method"].(string); ok {
 			ssl.DomainVerificationMethod = kkComps.PortalCustomDomainVerificationMethod(method)

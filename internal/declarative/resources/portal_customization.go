@@ -88,7 +88,7 @@ func (c PortalCustomizationResource) GetKonnectMonikerFilter() string {
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
-func (c *PortalCustomizationResource) TryMatchKonnectResource(_ interface{}) bool {
+func (c *PortalCustomizationResource) TryMatchKonnectResource(_ any) bool {
 	// Portal customizations are matched through parent portal
 	return false
 }

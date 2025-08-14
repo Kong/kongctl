@@ -21,8 +21,8 @@ func TestPlannedChange_ParentSerialization(t *testing.T) {
 				ResourceType: ResourceTypePortalCustomization,
 				ResourceRef:  "test-customization",
 				Action:       ActionUpdate,
-				Fields: map[string]interface{}{
-					"theme": map[string]interface{}{
+				Fields: map[string]any{
+					"theme": map[string]any{
 						"name": "mint_rocket",
 					},
 				},
@@ -47,7 +47,7 @@ func TestPlannedChange_ParentSerialization(t *testing.T) {
 				ResourceType: ResourceTypePortalPage,
 				ResourceRef:  "test-page",
 				Action:       ActionCreate,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"slug":    "test",
 					"content": "Test content",
 				},
@@ -64,7 +64,7 @@ func TestPlannedChange_ParentSerialization(t *testing.T) {
 				ResourceType: ResourceTypePortal,
 				ResourceRef:  "test-portal",
 				Action:       ActionCreate,
-				Fields: map[string]interface{}{
+				Fields: map[string]any{
 					"name": "Test Portal",
 				},
 				// No Parent field
@@ -117,7 +117,7 @@ func TestPlan_ParentPreservationInJSON(t *testing.T) {
 		ResourceType: ResourceTypePortal,
 		ResourceRef:  "test-portal",
 		Action:       ActionCreate,
-		Fields: map[string]interface{}{
+		Fields: map[string]any{
 			"name": "Test Portal",
 		},
 	})
@@ -127,8 +127,8 @@ func TestPlan_ParentPreservationInJSON(t *testing.T) {
 		ResourceType: ResourceTypePortalCustomization,
 		ResourceRef:  "test-customization",
 		Action:       ActionUpdate,
-		Fields: map[string]interface{}{
-			"theme": map[string]interface{}{
+		Fields: map[string]any{
+			"theme": map[string]any{
 				"name": "mint_rocket",
 			},
 		},

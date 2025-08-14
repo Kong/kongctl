@@ -21,7 +21,7 @@ func NewPortalDomainAdapter(client *state.Client) *PortalDomainAdapter {
 
 // MapCreateFields maps fields to CreatePortalCustomDomainRequest
 func (p *PortalDomainAdapter) MapCreateFields(
-	_ context.Context, execCtx *ExecutionContext, fields map[string]interface{},
+	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	create *kkComps.CreatePortalCustomDomainRequest) error {
 	// Store execution context for use in helper methods
 	p.execCtx = execCtx
@@ -40,7 +40,7 @@ func (p *PortalDomainAdapter) MapCreateFields(
 	create.Enabled = enabled
 	
 	// Handle SSL settings
-	if sslData, ok := fields["ssl"].(map[string]interface{}); ok {
+	if sslData, ok := fields["ssl"].(map[string]any); ok {
 		ssl := kkComps.CreatePortalCustomDomainSSL{}
 		if method, ok := sslData["domain_verification_method"].(string); ok {
 			ssl.DomainVerificationMethod = kkComps.PortalCustomDomainVerificationMethod(method)
@@ -52,7 +52,7 @@ func (p *PortalDomainAdapter) MapCreateFields(
 }
 
 // MapUpdateFields maps fields to UpdatePortalCustomDomainRequest
-func (p *PortalDomainAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, fields map[string]interface{},
+func (p *PortalDomainAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, fields map[string]any,
 	update *kkComps.UpdatePortalCustomDomainRequest, _ map[string]string) error {
 	// Only enabled field can be updated
 	if enabled, ok := fields["enabled"].(bool); ok {

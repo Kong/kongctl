@@ -421,7 +421,7 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 }
 
 // validateResourceReferences validates references for a single resource using its mapping
-func (l *Loader) validateResourceReferences(resource interface{}, rs *resources.ResourceSet) error {
+func (l *Loader) validateResourceReferences(resource any, rs *resources.ResourceSet) error {
 	// fmt.Printf("DEBUG: validateResourceReferences called with resource type: %T\n", resource)
 	
 	// Check if resource implements ReferenceMapping
@@ -470,7 +470,7 @@ func (l *Loader) validateResourceReferences(resource interface{}, rs *resources.
 }
 
 // getFieldValue extracts field value using reflection, supporting qualified field names
-func (l *Loader) getFieldValue(resource interface{}, fieldPath string) string {
+func (l *Loader) getFieldValue(resource any, fieldPath string) string {
 	v := reflect.ValueOf(resource)
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
