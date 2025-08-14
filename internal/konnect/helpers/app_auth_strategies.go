@@ -56,8 +56,8 @@ func (a *AppAuthStrategiesAPIImpl) DeleteAppAuthStrategy(ctx context.Context,
 }
 
 // GetAllAppAuthStrategies fetches all app auth strategies with pagination
-func GetAllAppAuthStrategies(ctx context.Context, kkClient AppAuthStrategiesAPI) ([]interface{}, error) {
-	var allStrategies []interface{}
+func GetAllAppAuthStrategies(ctx context.Context, kkClient AppAuthStrategiesAPI) ([]any, error) {
+	var allStrategies []any
 	var pageNumber int64 = 1
 	requestPageSize := int64(100) // Use a reasonable page size
 
