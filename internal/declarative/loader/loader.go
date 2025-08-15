@@ -75,7 +75,7 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 	}
 	
 	// Apply SDK defaults to merged resources
-	// Note: Namespace defaults were already applied per-file in parseYAML
+	// Note: Only namespace defaults are applied per-file in parseYAML
 	l.applyDefaults(&allResources)
 	
 	// Validate merged resources
@@ -202,9 +202,6 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceS
 
 	// Extract nested child resources to root level first
 	l.extractNestedResources(&rs)
-
-	// Apply SDK defaults to all resources (including extracted child resources)
-	l.applyDefaults(&rs)
 
 	// Note: We don't validate here when called from loadDirectory
 	// because cross-references might be in other files.
