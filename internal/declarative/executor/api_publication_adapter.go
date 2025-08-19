@@ -175,29 +175,6 @@ func (a *APIPublicationAdapter) getAPIIDFromExecutionContext(execCtx *ExecutionC
 	return "", fmt.Errorf("API ID is required for publication operations")
 }
 
-// getPortalIDFromExecutionContext extracts the portal ID from ExecutionContext parameter
-func (a *APIPublicationAdapter) getPortalIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
-	if execCtx == nil || execCtx.PlannedChange == nil {
-		return "", fmt.Errorf("execution context is required for publication operations")
-	}
-	
-	change := *execCtx.PlannedChange
-	
-	// Priority 1: Check References (for Create operations)
-	if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
-		return portalRef.ID, nil
-	}
-	
-	// Priority 2: Check Parent field - Note: API publication Parent is the API, not portal
-	// So we don't check Parent for portal ID
-	
-	// Priority 3: Check Fields (special case for api_publication delete)
-	if portalID, ok := change.Fields["portal_id"].(string); ok && portalID != "" {
-		return portalID, nil
-	}
-	
-	return "", fmt.Errorf("portal ID is required for publication operations")
-}
 
 // APIPublicationResourceInfo implements ResourceInfo for API publications
 type APIPublicationResourceInfo struct {
