@@ -336,8 +336,8 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 			return fmt.Errorf("resource ID required for %s operation", change.Action)
 		}
 		
-		// Skip validation for updates/deletes with ResourceID - the planner already verified 
-		// the resource exists and the actual operation will handle protection checks
+		// Skip validation for updates/deletes with ResourceID - planner already verified existence
+		// and actual operations handle protection checks
 		if change.ResourceID != "" {
 			return nil
 		}

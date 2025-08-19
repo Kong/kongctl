@@ -11,6 +11,9 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
+// NoRequiredFields is an explicitly empty slice for operations that don't require field validation
+var NoRequiredFields = []string{}
+
 // apiPlannerImpl implements planning logic for API resources
 type apiPlannerImpl struct {
 	*BasePlanner
@@ -325,7 +328,7 @@ func (p *Planner) planAPIUpdateWithFields(
 		ResourceID:     current.ID,
 		CurrentFields:  nil, // Not needed for direct update
 		DesiredFields:  updateFields,
-		RequiredFields: []string{}, // No required fields for updates - we already have the resource ID
+		RequiredFields: NoRequiredFields, // No required fields for updates - we already have the resource ID
 		Namespace:      namespace,
 	}
 	

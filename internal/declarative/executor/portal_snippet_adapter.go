@@ -175,7 +175,7 @@ func (p *PortalSnippetAdapter) SupportsUpdate() bool {
 	return true
 }
 
-// getPortalID extracts the portal ID from the context
+// getPortalID extracts the portal ID from the stored execution context (used for Create operations)
 func (p *PortalSnippetAdapter) getPortalID(ctx context.Context) (string, error) {
 	// First try to get from context (for Delete operations)
 	if execCtx, ok := ctx.Value("executionContext").(*ExecutionContext); ok && execCtx != nil {
@@ -203,7 +203,7 @@ func (p *PortalSnippetAdapter) getPortalID(ctx context.Context) (string, error) 
 	return "", fmt.Errorf("portal ID is required for snippet operations")
 }
 
-// getPortalIDFromExecutionContext extracts the portal ID from ExecutionContext parameter
+// getPortalIDFromExecutionContext extracts the portal ID from ExecutionContext parameter (used for Delete operations)
 func (p *PortalSnippetAdapter) getPortalIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
 	if execCtx == nil || execCtx.PlannedChange == nil {
 		return "", fmt.Errorf("execution context is required for snippet operations")

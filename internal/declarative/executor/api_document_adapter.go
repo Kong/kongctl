@@ -164,7 +164,7 @@ func (a *APIDocumentAdapter) SupportsUpdate() bool {
 	return true
 }
 
-// getAPIID extracts the API ID from the context
+// getAPIID extracts the API ID from the stored execution context (used for Create operations)
 func (a *APIDocumentAdapter) getAPIID(_ context.Context) (string, error) {
 	// Use stored context (for Create operations)
 	if a.execCtx != nil && a.execCtx.PlannedChange != nil {
@@ -177,7 +177,7 @@ func (a *APIDocumentAdapter) getAPIID(_ context.Context) (string, error) {
 	return "", fmt.Errorf("API ID is required for document operations")
 }
 
-// getAPIIDFromExecutionContext extracts the API ID from ExecutionContext parameter
+// getAPIIDFromExecutionContext extracts the API ID from ExecutionContext parameter (used for Delete operations)
 func (a *APIDocumentAdapter) getAPIIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
 	if execCtx == nil || execCtx.PlannedChange == nil {
 		return "", fmt.Errorf("execution context is required for document operations")

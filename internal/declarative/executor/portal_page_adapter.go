@@ -176,7 +176,7 @@ func (p *PortalPageAdapter) SupportsUpdate() bool {
 	return true
 }
 
-// getPortalID extracts the portal ID from the context
+// getPortalID extracts the portal ID from the stored execution context (used for Create operations)
 func (p *PortalPageAdapter) getPortalID(_ context.Context) (string, error) {
 	// Get the planned change from execution context
 	if p.execCtx == nil || p.execCtx.PlannedChange == nil {
@@ -194,7 +194,7 @@ func (p *PortalPageAdapter) getPortalID(_ context.Context) (string, error) {
 	return "", fmt.Errorf("portal ID is required for page operations")
 }
 
-// getPortalIDFromExecutionContext extracts the portal ID from ExecutionContext parameter
+// getPortalIDFromExecutionContext extracts the portal ID from ExecutionContext parameter (used for Delete operations)
 func (p *PortalPageAdapter) getPortalIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
 	if execCtx == nil || execCtx.PlannedChange == nil {
 		return "", fmt.Errorf("execution context is required for page operations")
