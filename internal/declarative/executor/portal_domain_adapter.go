@@ -10,8 +10,7 @@ import (
 
 // PortalDomainAdapter implements ResourceOperations for portal custom domains
 type PortalDomainAdapter struct {
-	client  *state.Client
-	execCtx *ExecutionContext // Store execution context for helper methods
+	client *state.Client
 }
 
 // NewPortalDomainAdapter creates a new portal domain adapter
@@ -21,10 +20,8 @@ func NewPortalDomainAdapter(client *state.Client) *PortalDomainAdapter {
 
 // MapCreateFields maps fields to CreatePortalCustomDomainRequest
 func (p *PortalDomainAdapter) MapCreateFields(
-	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
+	_ context.Context, _ *ExecutionContext, fields map[string]any,
 	create *kkComps.CreatePortalCustomDomainRequest) error {
-	// Store execution context for use in helper methods
-	p.execCtx = execCtx
 	
 	// Required fields
 	hostname, ok := fields["hostname"].(string)
@@ -64,9 +61,9 @@ func (p *PortalDomainAdapter) MapUpdateFields(_ context.Context, _ *ExecutionCon
 
 // Create creates a new portal custom domain
 func (p *PortalDomainAdapter) Create(ctx context.Context, req kkComps.CreatePortalCustomDomainRequest,
-	_ string) (string, error) {
-	// Get portal ID from parent reference
-	portalID, err := p.getPortalID(ctx)
+	_ string, execCtx *ExecutionContext) (string, error) {
+	// Get portal ID from execution context
+	portalID, err := p.getPortalIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
 	}
@@ -82,7 +79,7 @@ func (p *PortalDomainAdapter) Create(ctx context.Context, req kkComps.CreatePort
 
 // Update updates an existing portal custom domain
 func (p *PortalDomainAdapter) Update(ctx context.Context, id string, 
-	req kkComps.UpdatePortalCustomDomainRequest, _ string) (string, error) {
+	req kkComps.UpdatePortalCustomDomainRequest, _ string, _ *ExecutionContext) (string, error) {
 	// For custom domains, the ID is actually the portal ID
 	err := p.client.UpdatePortalCustomDomain(ctx, id, req)
 	if err != nil {
@@ -135,32 +132,25 @@ func (p *PortalDomainAdapter) SupportsUpdate() bool {
 	return true
 }
 
-// getPortalID extracts the portal ID from the context
-func (p *PortalDomainAdapter) getPortalID(ctx context.Context) (string, error) {
-	// First try to get from context (for Delete operations)
-	if execCtx, ok := ctx.Value("executionContext").(*ExecutionContext); ok && execCtx != nil {
-		if execCtx.PlannedChange != nil {
-			change := *execCtx.PlannedChange
-			if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
-				return portalRef.ID, nil
-			}
-		}
+// getPortalIDFromExecutionContext extracts the portal ID from ExecutionContext parameter
+func (p *PortalDomainAdapter) getPortalIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
+	if execCtx == nil || execCtx.PlannedChange == nil {
+		return "", fmt.Errorf("execution context is required for custom domain operations")
 	}
 	
-	// Fallback to stored context (for Create operations)
-	if p.execCtx == nil || p.execCtx.PlannedChange == nil {
-		return "", fmt.Errorf("execution context not found")
-	}
-	change := *p.execCtx.PlannedChange
+	change := *execCtx.PlannedChange
 	
 	// Get portal ID from references
-	if portalRef, ok := change.References["portal_id"]; ok {
-		if portalRef.ID != "" {
-			return portalRef.ID, nil
-		}
+	if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
+		return portalRef.ID, nil
 	}
 	
-	return "", fmt.Errorf("portal ID is required for custom domain")
+	// Check Parent field (for Delete operations)
+	if change.Parent != nil && change.Parent.ID != "" {
+		return change.Parent.ID, nil
+	}
+	
+	return "", fmt.Errorf("portal ID is required for custom domain operations")
 }
 
 // PortalDomainResourceInfo implements ResourceInfo for portal custom domains

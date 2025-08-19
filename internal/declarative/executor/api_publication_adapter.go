@@ -12,9 +12,8 @@ import (
 // APIPublicationAdapter implements CreateDeleteOperations for API publications
 // API publications only support create and delete operations, not updates
 type APIPublicationAdapter struct {
-	client  *state.Client
-	logger  *slog.Logger
-	execCtx *ExecutionContext // Store execution context for helper methods
+	client *state.Client
+	logger *slog.Logger
 }
 
 // NewAPIPublicationAdapter creates a new API publication adapter
@@ -29,8 +28,6 @@ func NewAPIPublicationAdapter(client *state.Client) *APIPublicationAdapter {
 func (a *APIPublicationAdapter) MapCreateFields(
 	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	create *kkComps.APIPublication) error {
-	// Store execution context for use in helper methods
-	a.execCtx = execCtx
 	
 	// Get the planned change from execution context to access references
 	change := *execCtx.PlannedChange
@@ -70,15 +67,15 @@ func (a *APIPublicationAdapter) MapCreateFields(
 
 // Create creates a new API publication
 func (a *APIPublicationAdapter) Create(ctx context.Context, req kkComps.APIPublication,
-	_ string) (string, error) {
-	// Get API ID from context
-	apiID, err := a.getAPIID(ctx)
+	_ string, execCtx *ExecutionContext) (string, error) {
+	// Get API ID from execution context
+	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
 	}
 
-	// Get portal ID from context
-	portalID, err := a.getPortalID(ctx)
+	// Get portal ID from execution context
+	portalID, err := a.getPortalIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
 	}
@@ -119,35 +116,24 @@ func (a *APIPublicationAdapter) RequiredFields() []string {
 	return []string{"portal_id"}
 }
 
-// getPortalID extracts the portal ID from the execution context
-func (a *APIPublicationAdapter) getPortalID(_ context.Context) (string, error) {
-	// Use stored context (for Create operations)
-	if a.execCtx != nil && a.execCtx.PlannedChange != nil {
-		change := *a.execCtx.PlannedChange
-		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
-			return portalRef.ID, nil
-		}
-		// Check fields as fallback
-		if portalID, ok := change.Fields["portal_id"].(string); ok {
-			return portalID, nil
-		}
+// getPortalIDFromExecutionContext extracts the portal ID from ExecutionContext parameter
+func (a *APIPublicationAdapter) getPortalIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
+	if execCtx == nil || execCtx.PlannedChange == nil {
+		return "", fmt.Errorf("execution context is required for publication operations")
+	}
+	
+	change := *execCtx.PlannedChange
+	if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
+		return portalRef.ID, nil
+	}
+	// Check fields as fallback
+	if portalID, ok := change.Fields["portal_id"].(string); ok {
+		return portalID, nil
 	}
 
 	return "", fmt.Errorf("portal ID is required for publication operations")
 }
 
-// getAPIID extracts the API ID from the execution context
-func (a *APIPublicationAdapter) getAPIID(_ context.Context) (string, error) {
-	// Use stored context (for Create operations)
-	if a.execCtx != nil && a.execCtx.PlannedChange != nil {
-		change := *a.execCtx.PlannedChange
-		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID != "" {
-			return apiRef.ID, nil
-		}
-	}
-
-	return "", fmt.Errorf("API ID is required for publication operations")
-}
 
 // getAPIIDFromExecutionContext extracts the API ID from ExecutionContext parameter
 func (a *APIPublicationAdapter) getAPIIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {

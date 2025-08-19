@@ -116,7 +116,7 @@ func (a *AuthStrategyAdapter) MapUpdateFields(
 
 // Create creates a new auth strategy
 func (a *AuthStrategyAdapter) Create(ctx context.Context, req kkComps.CreateAppAuthStrategyRequest,
-	namespace string) (string, error) {
+	namespace string, _ *ExecutionContext) (string, error) {
 	result, err := a.client.CreateApplicationAuthStrategy(ctx, req, namespace)
 	if err != nil {
 		return "", err
@@ -142,7 +142,7 @@ func (a *AuthStrategyAdapter) Create(ctx context.Context, req kkComps.CreateAppA
 
 // Update updates an existing auth strategy
 func (a *AuthStrategyAdapter) Update(ctx context.Context, id string, req kkComps.UpdateAppAuthStrategyRequest,
-	namespace string) (string, error) {
+	namespace string, _ *ExecutionContext) (string, error) {
 	_, err := a.client.UpdateApplicationAuthStrategy(ctx, id, req, namespace)
 	if err != nil {
 		return "", err

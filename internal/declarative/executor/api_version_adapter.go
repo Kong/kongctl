@@ -12,8 +12,7 @@ import (
 // APIVersionAdapter implements CreateDeleteOperations for API versions
 // API versions only support create and delete operations, not updates
 type APIVersionAdapter struct {
-	client  *state.Client
-	execCtx *ExecutionContext // Store execution context for helper methods
+	client *state.Client
 }
 
 // NewAPIVersionAdapter creates a new API version adapter
@@ -22,10 +21,8 @@ func NewAPIVersionAdapter(client *state.Client) *APIVersionAdapter {
 }
 
 // MapCreateFields maps fields to CreateAPIVersionRequest
-func (a *APIVersionAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]any,
+func (a *APIVersionAdapter) MapCreateFields(_ context.Context, _ *ExecutionContext, fields map[string]any,
 	create *kkComps.CreateAPIVersionRequest) error {
-	// Store execution context for use in helper methods
-	a.execCtx = execCtx
 	
 	// Version field
 	if version, ok := fields["version"].(string); ok {
@@ -46,9 +43,9 @@ func (a *APIVersionAdapter) MapCreateFields(_ context.Context, execCtx *Executio
 
 // Create creates a new API version
 func (a *APIVersionAdapter) Create(ctx context.Context, req kkComps.CreateAPIVersionRequest,
-	_ string) (string, error) {
-	// Get API ID from context
-	apiID, err := a.getAPIID(ctx)
+	_ string, execCtx *ExecutionContext) (string, error) {
+	// Get API ID from execution context
+	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
 	}
@@ -96,18 +93,6 @@ func (a *APIVersionAdapter) RequiredFields() []string {
 	return []string{} // No required fields according to the SDK model (all are pointers)
 }
 
-// getAPIID extracts the API ID from the stored execution context (used for Create operations)
-func (a *APIVersionAdapter) getAPIID(_ context.Context) (string, error) {
-	// Use stored context (for Create operations)
-	if a.execCtx != nil && a.execCtx.PlannedChange != nil {
-		change := *a.execCtx.PlannedChange
-		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID != "" {
-			return apiRef.ID, nil
-		}
-	}
-	
-	return "", fmt.Errorf("API ID is required for version operations")
-}
 
 // getAPIIDFromExecutionContext extracts the API ID from ExecutionContext parameter (used for Delete operations)
 func (a *APIVersionAdapter) getAPIIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {

@@ -14,7 +14,7 @@ type CreateDeleteOperations[TCreate any] interface {
 	MapCreateFields(ctx context.Context, execCtx *ExecutionContext, fields map[string]any, create *TCreate) error
 
 	// API calls
-	Create(ctx context.Context, req TCreate, namespace string) (string, error)
+	Create(ctx context.Context, req TCreate, namespace string, execCtx *ExecutionContext) (string, error)
 	Delete(ctx context.Context, id string, execCtx *ExecutionContext) error
 	GetByName(ctx context.Context, name string) (ResourceInfo, error)
 
@@ -78,7 +78,7 @@ func (b *BaseCreateDeleteExecutor[TCreate]) Create(ctx context.Context, change p
 	}
 
 	// Create resource
-	id, err := b.ops.Create(ctx, create, change.Namespace)
+	id, err := b.ops.Create(ctx, create, change.Namespace, execCtx)
 	if err != nil {
 		return "", fmt.Errorf("failed to create %s: %w", b.ops.ResourceType(), err)
 	}

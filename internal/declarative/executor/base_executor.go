@@ -22,8 +22,8 @@ type ResourceOperations[TCreate any, TUpdate any] interface {
 		currentLabels map[string]string) error
 
 	// API calls
-	Create(ctx context.Context, req TCreate, namespace string) (string, error)
-	Update(ctx context.Context, id string, req TUpdate, namespace string) (string, error)
+	Create(ctx context.Context, req TCreate, namespace string, execCtx *ExecutionContext) (string, error)
+	Update(ctx context.Context, id string, req TUpdate, namespace string, execCtx *ExecutionContext) (string, error)
 	Delete(ctx context.Context, id string, execCtx *ExecutionContext) error
 	GetByName(ctx context.Context, name string) (ResourceInfo, error)
 
@@ -89,7 +89,7 @@ func (b *BaseExecutor[TCreate, TUpdate]) Create(ctx context.Context, change plan
 
 	// Create resource
 	resourceName := common.ExtractResourceName(change.Fields)
-	id, err := b.ops.Create(ctx, create, change.Namespace)
+	id, err := b.ops.Create(ctx, create, change.Namespace, execCtx)
 	if err != nil {
 		return "", common.FormatAPIError(b.ops.ResourceType(), resourceName, "create", err)
 	}
@@ -152,7 +152,7 @@ func (b *BaseExecutor[TCreate, TUpdate]) Update(ctx context.Context, change plan
 	}
 
 	// Update resource
-	id, err := b.ops.Update(ctx, change.ResourceID, update, change.Namespace)
+	id, err := b.ops.Update(ctx, change.ResourceID, update, change.Namespace, execCtx)
 	if err != nil {
 		return "", common.FormatAPIError(b.ops.ResourceType(), resourceName, "update", err)
 	}
