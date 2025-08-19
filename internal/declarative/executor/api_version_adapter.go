@@ -69,9 +69,9 @@ func (a *APIVersionAdapter) Create(ctx context.Context, req kkComps.CreateAPIVer
 }
 
 // Delete deletes an API version
-func (a *APIVersionAdapter) Delete(ctx context.Context, id string) error {
-	// Get API ID from context
-	apiID, err := a.getAPIID(ctx)
+func (a *APIVersionAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
+	// Get API ID from execution context
+	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
 	if err != nil {
 		return err
 	}
@@ -98,19 +98,35 @@ func (a *APIVersionAdapter) RequiredFields() []string {
 
 // getAPIID extracts the API ID from the context
 func (a *APIVersionAdapter) getAPIID(_ context.Context) (string, error) {
-	// Get the planned change from execution context
-	if a.execCtx == nil || a.execCtx.PlannedChange == nil {
-		return "", fmt.Errorf("execution context not found")
-	}
-	change := *a.execCtx.PlannedChange
-
-	// Get API ID from references
-	if apiRef, ok := change.References["api_id"]; ok {
-		if apiRef.ID != "" {
+	// Use stored context (for Create operations)
+	if a.execCtx != nil && a.execCtx.PlannedChange != nil {
+		change := *a.execCtx.PlannedChange
+		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID != "" {
 			return apiRef.ID, nil
 		}
 	}
+	
+	return "", fmt.Errorf("API ID is required for version operations")
+}
 
+// getAPIIDFromExecutionContext extracts the API ID from ExecutionContext parameter
+func (a *APIVersionAdapter) getAPIIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
+	if execCtx == nil || execCtx.PlannedChange == nil {
+		return "", fmt.Errorf("execution context is required for version operations")
+	}
+	
+	change := *execCtx.PlannedChange
+	
+	// Priority 1: Check References (for Create operations)
+	if apiRef, ok := change.References["api_id"]; ok && apiRef.ID != "" {
+		return apiRef.ID, nil
+	}
+	
+	// Priority 2: Check Parent field (for Delete operations)
+	if change.Parent != nil && change.Parent.ID != "" {
+		return change.Parent.ID, nil
+	}
+	
 	return "", fmt.Errorf("API ID is required for version operations")
 }
 

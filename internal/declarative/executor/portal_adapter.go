@@ -158,7 +158,7 @@ func (p *PortalAdapter) Update(ctx context.Context, id string, req kkComps.Updat
 }
 
 // Delete deletes a portal
-func (p *PortalAdapter) Delete(ctx context.Context, id string) error {
+func (p *PortalAdapter) Delete(ctx context.Context, id string, _ *ExecutionContext) error {
 	// Delete the portal with force=true to cascade delete child resources
 	return p.client.DeletePortal(ctx, id, true)
 }

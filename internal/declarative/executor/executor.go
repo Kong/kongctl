@@ -336,7 +336,14 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 			return fmt.Errorf("resource ID required for %s operation", change.Action)
 		}
 		
-		// Perform resource-specific validation
+		// Skip validation for updates/deletes with ResourceID - the planner already verified 
+		// the resource exists and the actual operation will handle protection checks
+		if change.ResourceID != "" {
+			return nil
+		}
+		
+		// Perform resource-specific validation for updates/deletes without ResourceID
+		// (This is mainly for portal_customization which is a singleton)
 		switch change.ResourceType {
 		case "portal":
 			if e.client != nil {

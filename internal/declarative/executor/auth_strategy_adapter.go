@@ -151,7 +151,7 @@ func (a *AuthStrategyAdapter) Update(ctx context.Context, id string, req kkComps
 }
 
 // Delete deletes an auth strategy
-func (a *AuthStrategyAdapter) Delete(ctx context.Context, id string) error {
+func (a *AuthStrategyAdapter) Delete(ctx context.Context, id string, _ *ExecutionContext) error {
 	return a.client.DeleteApplicationAuthStrategy(ctx, id)
 }
 

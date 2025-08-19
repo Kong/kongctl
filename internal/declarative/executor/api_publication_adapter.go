@@ -92,9 +92,9 @@ func (a *APIPublicationAdapter) Create(ctx context.Context, req kkComps.APIPubli
 }
 
 // Delete deletes an API publication
-func (a *APIPublicationAdapter) Delete(ctx context.Context, id string) error {
-	// Get API ID from context
-	apiID, err := a.getAPIID(ctx)
+func (a *APIPublicationAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
+	// Get API ID from execution context
+	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
 	if err != nil {
 		return err
 	}
@@ -121,22 +121,16 @@ func (a *APIPublicationAdapter) RequiredFields() []string {
 
 // getPortalID extracts the portal ID from the execution context
 func (a *APIPublicationAdapter) getPortalID(_ context.Context) (string, error) {
-	// Get the planned change from execution context
-	if a.execCtx == nil || a.execCtx.PlannedChange == nil {
-		return "", fmt.Errorf("execution context not found")
-	}
-	change := *a.execCtx.PlannedChange
-
-	// Get portal ID from references
-	if portalRef, ok := change.References["portal_id"]; ok {
-		if portalRef.ID != "" {
+	// Use stored context (for Create operations)
+	if a.execCtx != nil && a.execCtx.PlannedChange != nil {
+		change := *a.execCtx.PlannedChange
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
 			return portalRef.ID, nil
 		}
-	}
-	
-	// Check fields as fallback
-	if portalID, ok := change.Fields["portal_id"].(string); ok {
-		return portalID, nil
+		// Check fields as fallback
+		if portalID, ok := change.Fields["portal_id"].(string); ok {
+			return portalID, nil
+		}
 	}
 
 	return "", fmt.Errorf("portal ID is required for publication operations")
@@ -144,32 +138,65 @@ func (a *APIPublicationAdapter) getPortalID(_ context.Context) (string, error) {
 
 // getAPIID extracts the API ID from the execution context
 func (a *APIPublicationAdapter) getAPIID(_ context.Context) (string, error) {
-	// Get the planned change from execution context
-	if a.execCtx == nil || a.execCtx.PlannedChange == nil {
-		return "", fmt.Errorf("execution context not found")
-	}
-	change := *a.execCtx.PlannedChange
-
-	// Get API ID from references
-	if apiRef, ok := change.References["api_id"]; ok {
-		if apiRef.ID != "" {
+	// Use stored context (for Create operations)
+	if a.execCtx != nil && a.execCtx.PlannedChange != nil {
+		change := *a.execCtx.PlannedChange
+		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID != "" {
 			return apiRef.ID, nil
 		}
-		
-		// Log detailed information for debugging
-		a.logger.Debug("API ID not found in reference, checking fallback options",
-			"change_id", change.ID,
-			"resource_ref", change.ResourceRef,
-			"api_ref", apiRef.Ref,
-			"lookup_fields", apiRef.LookupFields,
-		)
 	}
 
-	// Note: Parent field fallback removed as APIPublication doesn't have a Parent field
-	// in the state structure, and this is a create-only operation
+	return "", fmt.Errorf("API ID is required for publication operations")
+}
 
-	return "", fmt.Errorf("API ID is required for publication operations (change: %s, ref: %s)", 
-		change.ID, change.ResourceRef)
+// getAPIIDFromExecutionContext extracts the API ID from ExecutionContext parameter
+func (a *APIPublicationAdapter) getAPIIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
+	if execCtx == nil || execCtx.PlannedChange == nil {
+		return "", fmt.Errorf("execution context is required for publication operations")
+	}
+	
+	change := *execCtx.PlannedChange
+	
+	// Priority 1: Check References (for Create operations)
+	if apiRef, ok := change.References["api_id"]; ok && apiRef.ID != "" {
+		return apiRef.ID, nil
+	}
+	
+	// Priority 2: Check Parent field (for Delete operations)
+	if change.Parent != nil && change.Parent.ID != "" {
+		return change.Parent.ID, nil
+	}
+	
+	// Priority 3: Check Fields (special case for api_publication delete)
+	if apiID, ok := change.Fields["api_id"].(string); ok && apiID != "" {
+		return apiID, nil
+	}
+	
+	return "", fmt.Errorf("API ID is required for publication operations")
+}
+
+// getPortalIDFromExecutionContext extracts the portal ID from ExecutionContext parameter
+func (a *APIPublicationAdapter) getPortalIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
+	if execCtx == nil || execCtx.PlannedChange == nil {
+		return "", fmt.Errorf("execution context is required for publication operations")
+	}
+	
+	change := *execCtx.PlannedChange
+	
+	// Priority 1: Check References (for Create operations)
+	if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
+		return portalRef.ID, nil
+	}
+	
+	// Priority 2: Check Parent field - Note: API publication Parent is the API, not portal
+	// So we don't check Parent for portal ID
+	
+	// Priority 3: Check Fields (special case for api_publication delete)
+	if portalID, ok := change.Fields["portal_id"].(string); ok && portalID != "" {
+		return portalID, nil
+	}
+	
+	return "", fmt.Errorf("portal ID is required for publication operations")
 }
 
 // APIPublicationResourceInfo implements ResourceInfo for API publications

@@ -44,7 +44,7 @@ func (a *APIImplementationAdapter) Update(_ context.Context, _ string, _ kkComps
 }
 
 // Delete is not implemented
-func (a *APIImplementationAdapter) Delete(_ context.Context, _ string) error {
+func (a *APIImplementationAdapter) Delete(_ context.Context, _ string, _ *ExecutionContext) error {
 	return fmt.Errorf("API implementations are not yet supported by the SDK")
 }
 

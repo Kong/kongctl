@@ -32,6 +32,7 @@ func (p *APIAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContex
 
 	// Map optional fields using utilities (SDK uses double pointers)
 	common.MapOptionalStringFieldToPtr(&create.Description, fields, "description")
+	common.MapOptionalStringFieldToPtr(&create.Version, fields, "version")
 
 	// Handle labels using centralized helper
 	userLabels := labels.ExtractLabelsFromField(fields["labels"])
@@ -58,6 +59,10 @@ func (p *APIAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContex
 		case "description":
 			if desc, ok := value.(string); ok {
 				update.Description = &desc
+			}
+		case "version":
+			if version, ok := value.(string); ok {
+				update.Version = &version
 			}
 		// Skip "labels" as they're handled separately below
 		}
@@ -102,7 +107,7 @@ func (p *APIAdapter) Update(ctx context.Context, id string, req kkComps.UpdateAP
 }
 
 // Delete deletes an API
-func (p *APIAdapter) Delete(ctx context.Context, id string) error {
+func (p *APIAdapter) Delete(ctx context.Context, id string, _ *ExecutionContext) error {
 	return p.client.DeleteAPI(ctx, id)
 }
 

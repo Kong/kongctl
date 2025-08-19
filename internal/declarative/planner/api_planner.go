@@ -203,6 +203,9 @@ func extractAPIFields(resource any) map[string]any {
 	if api.Description != nil {
 		fields["description"] = *api.Description
 	}
+	if api.Version != nil {
+		fields["version"] = *api.Version
+	}
 	
 	// Copy user-defined labels only (protection label will be added during execution)
 	if len(api.Labels) > 0 {
@@ -272,6 +275,14 @@ func (p *Planner) shouldUpdateAPI(
 			updates["description"] = *desired.Description
 		}
 	}
+	
+	// Check version if present in desired configuration
+	if desired.Version != nil {
+		currentVersion := getString(current.Version)
+		if currentVersion != *desired.Version {
+			updates["version"] = *desired.Version
+		}
+	}
 
 	// Check if labels are defined in the desired state
 	if desired.Labels != nil {
@@ -314,7 +325,7 @@ func (p *Planner) planAPIUpdateWithFields(
 		ResourceID:     current.ID,
 		CurrentFields:  nil, // Not needed for direct update
 		DesiredFields:  updateFields,
-		RequiredFields: []string{"name"},
+		RequiredFields: []string{}, // No required fields for updates - we already have the resource ID
 		Namespace:      namespace,
 	}
 	
@@ -504,25 +515,6 @@ func (p *Planner) planAPIVersionChanges(
 		currentByVersion[v.Version] = v
 	}
 
-	// Check if API already has a version (Konnect constraint)
-	if len(currentVersions) > 0 && len(desired) > 0 {
-		// Check if we're trying to add a new version to an API that already has one
-		for _, desiredVersion := range desired {
-			versionStr := ""
-			if desiredVersion.Version != nil {
-				versionStr = *desiredVersion.Version
-			}
-			if _, exists := currentByVersion[versionStr]; !exists {
-				// Trying to add a new version to an API that already has version(s)
-				currentVersionStr := ""
-				if len(currentVersions) > 0 {
-					currentVersionStr = currentVersions[0].Version
-				}
-				return fmt.Errorf("cannot add version to api %q: Konnect APIs support only one version. "+
-					"Current version: %s", apiRef, currentVersionStr)
-			}
-		}
-	}
 
 	// Compare desired versions
 	for _, desiredVersion := range desired {

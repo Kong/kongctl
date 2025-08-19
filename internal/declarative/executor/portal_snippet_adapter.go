@@ -123,9 +123,9 @@ func (p *PortalSnippetAdapter) Update(ctx context.Context, id string, req kkComp
 }
 
 // Delete deletes a portal snippet
-func (p *PortalSnippetAdapter) Delete(ctx context.Context, id string) error {
-	// Get portal ID from context
-	portalID, err := p.getPortalID(ctx)
+func (p *PortalSnippetAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
+	// Get portal ID from execution context
+	portalID, err := p.getPortalIDFromExecutionContext(execCtx)
 	if err != nil {
 		return err
 	}
@@ -176,8 +176,18 @@ func (p *PortalSnippetAdapter) SupportsUpdate() bool {
 }
 
 // getPortalID extracts the portal ID from the context
-func (p *PortalSnippetAdapter) getPortalID(_ context.Context) (string, error) {
-	// Get the planned change from execution context
+func (p *PortalSnippetAdapter) getPortalID(ctx context.Context) (string, error) {
+	// First try to get from context (for Delete operations)
+	if execCtx, ok := ctx.Value("executionContext").(*ExecutionContext); ok && execCtx != nil {
+		if execCtx.PlannedChange != nil {
+			change := *execCtx.PlannedChange
+			if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
+				return portalRef.ID, nil
+			}
+		}
+	}
+	
+	// Fallback to stored context (for Create operations)
 	if p.execCtx == nil || p.execCtx.PlannedChange == nil {
 		return "", fmt.Errorf("execution context not found")
 	}
@@ -188,6 +198,27 @@ func (p *PortalSnippetAdapter) getPortalID(_ context.Context) (string, error) {
 		if portalRef.ID != "" {
 			return portalRef.ID, nil
 		}
+	}
+	
+	return "", fmt.Errorf("portal ID is required for snippet operations")
+}
+
+// getPortalIDFromExecutionContext extracts the portal ID from ExecutionContext parameter
+func (p *PortalSnippetAdapter) getPortalIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
+	if execCtx == nil || execCtx.PlannedChange == nil {
+		return "", fmt.Errorf("execution context is required for snippet operations")
+	}
+	
+	change := *execCtx.PlannedChange
+	
+	// Priority 1: Check References (for Create operations)
+	if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
+		return portalRef.ID, nil
+	}
+	
+	// Priority 2: Check Parent field (for Delete operations)
+	if change.Parent != nil && change.Parent.ID != "" {
+		return change.Parent.ID, nil
 	}
 	
 	return "", fmt.Errorf("portal ID is required for snippet operations")
