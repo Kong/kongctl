@@ -139,7 +139,8 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionCon
 }
 
 // Create creates a new portal
-func (p *PortalAdapter) Create(ctx context.Context, req kkComps.CreatePortal, namespace string) (string, error) {
+func (p *PortalAdapter) Create(ctx context.Context, req kkComps.CreatePortal, 
+	namespace string, _ *ExecutionContext) (string, error) {
 	resp, err := p.client.CreatePortal(ctx, req, namespace)
 	if err != nil {
 		return "", err
@@ -149,7 +150,7 @@ func (p *PortalAdapter) Create(ctx context.Context, req kkComps.CreatePortal, na
 
 // Update updates an existing portal
 func (p *PortalAdapter) Update(ctx context.Context, id string, req kkComps.UpdatePortal,
-	namespace string) (string, error) {
+	namespace string, _ *ExecutionContext) (string, error) {
 	resp, err := p.client.UpdatePortal(ctx, id, req, namespace)
 	if err != nil {
 		return "", err

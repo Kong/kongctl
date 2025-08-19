@@ -10,8 +10,7 @@ import (
 
 // PortalSnippetAdapter implements ResourceOperations for portal snippets
 type PortalSnippetAdapter struct {
-	client  *state.Client
-	execCtx *ExecutionContext // Store execution context for helper methods
+	client *state.Client
 }
 
 // NewPortalSnippetAdapter creates a new portal snippet adapter
@@ -21,10 +20,8 @@ func NewPortalSnippetAdapter(client *state.Client) *PortalSnippetAdapter {
 
 // MapCreateFields maps fields to CreatePortalSnippetRequest
 func (p *PortalSnippetAdapter) MapCreateFields(
-	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
+	_ context.Context, _ *ExecutionContext, fields map[string]any,
 	create *kkComps.CreatePortalSnippetRequest) error {
-	// Store execution context for use in helper methods
-	p.execCtx = execCtx
 	
 	// Required fields
 	name, ok := fields["name"].(string)
@@ -96,9 +93,9 @@ func (p *PortalSnippetAdapter) MapUpdateFields(_ context.Context, _ *ExecutionCo
 
 // Create creates a new portal snippet
 func (p *PortalSnippetAdapter) Create(ctx context.Context, req kkComps.CreatePortalSnippetRequest,
-	_ string) (string, error) {
-	// Get portal ID from context
-	portalID, err := p.getPortalID(ctx)
+	_ string, execCtx *ExecutionContext) (string, error) {
+	// Get portal ID from execution context
+	portalID, err := p.getPortalID(execCtx)
 	if err != nil {
 		return "", err
 	}
@@ -108,9 +105,9 @@ func (p *PortalSnippetAdapter) Create(ctx context.Context, req kkComps.CreatePor
 
 // Update updates an existing portal snippet
 func (p *PortalSnippetAdapter) Update(ctx context.Context, id string, req kkComps.UpdatePortalSnippetRequest,
-	_ string) (string, error) {
-	// Get portal ID from context
-	portalID, err := p.getPortalID(ctx)
+	_ string, execCtx *ExecutionContext) (string, error) {
+	// Get portal ID from execution context
+	portalID, err := p.getPortalID(execCtx)
 	if err != nil {
 		return "", err
 	}
@@ -125,7 +122,7 @@ func (p *PortalSnippetAdapter) Update(ctx context.Context, id string, req kkComp
 // Delete deletes a portal snippet
 func (p *PortalSnippetAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
 	// Get portal ID from execution context
-	portalID, err := p.getPortalIDFromExecutionContext(execCtx)
+	portalID, err := p.getPortalID(execCtx)
 	if err != nil {
 		return err
 	}
@@ -142,22 +139,25 @@ func (p *PortalSnippetAdapter) GetByName(_ context.Context, _ string) (ResourceI
 
 // GetByID gets a portal snippet by ID
 func (p *PortalSnippetAdapter) GetByID(ctx context.Context, id string) (ResourceInfo, error) {
-	// Get portal ID from context
-	portalID, err := p.getPortalID(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get portal ID for snippet lookup: %w", err)
+	// Get portal ID from context (this method still uses context anti-pattern temporarily)
+	if execCtxValue := ctx.Value("executionContext"); execCtxValue != nil {
+		if execCtx, ok := execCtxValue.(*ExecutionContext); ok {
+			portalID, err := p.getPortalID(execCtx)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get portal ID for snippet lookup: %w", err)
+			}
+			
+			snippet, err := p.client.GetPortalSnippet(ctx, portalID, id)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get portal snippet: %w", err)
+			}
+			if snippet == nil {
+				return nil, nil
+			}
+			return &PortalSnippetResourceInfo{snippet: snippet}, nil
+		}
 	}
-	
-	snippet, err := p.client.GetPortalSnippet(ctx, portalID, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get portal snippet: %w", err)
-	}
-	
-	if snippet == nil {
-		return nil, nil
-	}
-	
-	return &PortalSnippetResourceInfo{snippet: snippet}, nil
+	return nil, fmt.Errorf("failed to get portal ID for snippet lookup: execution context not found")
 }
 
 // ResourceType returns the resource type name
@@ -175,36 +175,8 @@ func (p *PortalSnippetAdapter) SupportsUpdate() bool {
 	return true
 }
 
-// getPortalID extracts the portal ID from the stored execution context (used for Create operations)
-func (p *PortalSnippetAdapter) getPortalID(ctx context.Context) (string, error) {
-	// First try to get from context (for Delete operations)
-	if execCtx, ok := ctx.Value("executionContext").(*ExecutionContext); ok && execCtx != nil {
-		if execCtx.PlannedChange != nil {
-			change := *execCtx.PlannedChange
-			if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
-				return portalRef.ID, nil
-			}
-		}
-	}
-	
-	// Fallback to stored context (for Create operations)
-	if p.execCtx == nil || p.execCtx.PlannedChange == nil {
-		return "", fmt.Errorf("execution context not found")
-	}
-	change := *p.execCtx.PlannedChange
-	
-	// Get portal ID from references
-	if portalRef, ok := change.References["portal_id"]; ok {
-		if portalRef.ID != "" {
-			return portalRef.ID, nil
-		}
-	}
-	
-	return "", fmt.Errorf("portal ID is required for snippet operations")
-}
-
-// getPortalIDFromExecutionContext extracts the portal ID from ExecutionContext parameter (used for Delete operations)
-func (p *PortalSnippetAdapter) getPortalIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
+// getPortalID extracts the portal ID from ExecutionContext
+func (p *PortalSnippetAdapter) getPortalID(execCtx *ExecutionContext) (string, error) {
 	if execCtx == nil || execCtx.PlannedChange == nil {
 		return "", fmt.Errorf("execution context is required for snippet operations")
 	}

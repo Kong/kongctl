@@ -33,13 +33,13 @@ func (a *APIImplementationAdapter) MapUpdateFields(_ context.Context, _ *Executi
 
 // Create is not implemented
 func (a *APIImplementationAdapter) Create(_ context.Context, _ kkComps.CreateAPIVersionRequest,
-	_ string) (string, error) {
+	_ string, _ *ExecutionContext) (string, error) {
 	return "", fmt.Errorf("API implementations are not yet supported by the SDK")
 }
 
 // Update is not implemented
 func (a *APIImplementationAdapter) Update(_ context.Context, _ string, _ kkComps.APIVersion,
-	_ string) (string, error) {
+	_ string, _ *ExecutionContext) (string, error) {
 	return "", fmt.Errorf("API implementations are not yet supported by the SDK")
 }
 

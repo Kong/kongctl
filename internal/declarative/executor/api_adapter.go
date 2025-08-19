@@ -88,7 +88,8 @@ func (p *APIAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContex
 }
 
 // Create creates a new API
-func (p *APIAdapter) Create(ctx context.Context, req kkComps.CreateAPIRequest, namespace string) (string, error) {
+func (p *APIAdapter) Create(ctx context.Context, req kkComps.CreateAPIRequest, 
+	namespace string, _ *ExecutionContext) (string, error) {
 	resp, err := p.client.CreateAPI(ctx, req, namespace)
 	if err != nil {
 		return "", err
@@ -98,7 +99,7 @@ func (p *APIAdapter) Create(ctx context.Context, req kkComps.CreateAPIRequest, n
 
 // Update updates an existing API
 func (p *APIAdapter) Update(ctx context.Context, id string, req kkComps.UpdateAPIRequest,
-	namespace string) (string, error) {
+	namespace string, _ *ExecutionContext) (string, error) {
 	resp, err := p.client.UpdateAPI(ctx, id, req, namespace)
 	if err != nil {
 		return "", err

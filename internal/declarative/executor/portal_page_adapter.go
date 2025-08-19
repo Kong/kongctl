@@ -10,8 +10,7 @@ import (
 
 // PortalPageAdapter implements ResourceOperations for portal pages
 type PortalPageAdapter struct {
-	client  *state.Client
-	execCtx *ExecutionContext // Store execution context for helper methods
+	client *state.Client
 }
 
 // NewPortalPageAdapter creates a new portal page adapter
@@ -22,8 +21,6 @@ func NewPortalPageAdapter(client *state.Client) *PortalPageAdapter {
 // MapCreateFields maps fields to CreatePortalPageRequest
 func (p *PortalPageAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	create *kkComps.CreatePortalPageRequest) error {
-	// Store execution context for use in helper methods
-	p.execCtx = execCtx
 	
 	// Required fields
 	slug, ok := fields["slug"].(string)
@@ -117,9 +114,9 @@ func (p *PortalPageAdapter) MapUpdateFields(_ context.Context, execCtx *Executio
 
 // Create creates a new portal page
 func (p *PortalPageAdapter) Create(ctx context.Context, req kkComps.CreatePortalPageRequest,
-	_ string) (string, error) {
-	// Get portal ID from context
-	portalID, err := p.getPortalID(ctx)
+	_ string, execCtx *ExecutionContext) (string, error) {
+	// Get portal ID from execution context
+	portalID, err := p.getPortalIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
 	}
@@ -129,9 +126,9 @@ func (p *PortalPageAdapter) Create(ctx context.Context, req kkComps.CreatePortal
 
 // Update updates an existing portal page
 func (p *PortalPageAdapter) Update(ctx context.Context, id string, req kkComps.UpdatePortalPageRequest,
-	_ string) (string, error) {
-	// Get portal ID from context
-	portalID, err := p.getPortalID(ctx)
+	_ string, execCtx *ExecutionContext) (string, error) {
+	// Get portal ID from execution context
+	portalID, err := p.getPortalIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
 	}
@@ -176,23 +173,6 @@ func (p *PortalPageAdapter) SupportsUpdate() bool {
 	return true
 }
 
-// getPortalID extracts the portal ID from the stored execution context (used for Create operations)
-func (p *PortalPageAdapter) getPortalID(_ context.Context) (string, error) {
-	// Get the planned change from execution context
-	if p.execCtx == nil || p.execCtx.PlannedChange == nil {
-		return "", fmt.Errorf("execution context not found")
-	}
-	change := *p.execCtx.PlannedChange
-	
-	// Get portal ID from references
-	if portalRef, ok := change.References["portal_id"]; ok {
-		if portalRef.ID != "" {
-			return portalRef.ID, nil
-		}
-	}
-	
-	return "", fmt.Errorf("portal ID is required for page operations")
-}
 
 // getPortalIDFromExecutionContext extracts the portal ID from ExecutionContext parameter (used for Delete operations)
 func (p *PortalPageAdapter) getPortalIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
@@ -217,22 +197,24 @@ func (p *PortalPageAdapter) getPortalIDFromExecutionContext(execCtx *ExecutionCo
 
 // GetByID gets a portal page by ID using portal context
 func (p *PortalPageAdapter) GetByID(ctx context.Context, id string) (ResourceInfo, error) {
-	// Get portal ID from context using existing pattern
-	portalID, err := p.getPortalID(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get portal ID for page lookup: %w", err)
+	// Get portal ID from context (this method still uses context anti-pattern temporarily)
+	if execCtxValue := ctx.Value("executionContext"); execCtxValue != nil {
+		if execCtx, ok := execCtxValue.(*ExecutionContext); ok {
+			portalID, err := p.getPortalIDFromExecutionContext(execCtx)
+			if err == nil {
+				// Use existing client method
+				page, err := p.client.GetPortalPage(ctx, portalID, id)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get portal page: %w", err)
+				}
+				if page == nil {
+					return nil, nil
+				}
+				return &PortalPageResourceInfo{page: page}, nil
+			}
+		}
 	}
-	
-	// Use existing client method
-	page, err := p.client.GetPortalPage(ctx, portalID, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get portal page: %w", err)
-	}
-	if page == nil {
-		return nil, nil
-	}
-	
-	return &PortalPageResourceInfo{page: page}, nil
+	return nil, fmt.Errorf("failed to get portal ID for page lookup: execution context not found")
 }
 
 // PortalPageResourceInfo implements ResourceInfo for portal pages

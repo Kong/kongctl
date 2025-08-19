@@ -10,8 +10,7 @@ import (
 
 // APIDocumentAdapter implements ResourceOperations for API documents
 type APIDocumentAdapter struct {
-	client  *state.Client
-	execCtx *ExecutionContext // Store execution context for helper methods
+	client *state.Client
 }
 
 // NewAPIDocumentAdapter creates a new API document adapter
@@ -21,10 +20,8 @@ func NewAPIDocumentAdapter(client *state.Client) *APIDocumentAdapter {
 
 // MapCreateFields maps fields to CreateAPIDocumentRequest
 func (a *APIDocumentAdapter) MapCreateFields(
-	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
+	_ context.Context, _ *ExecutionContext, fields map[string]any,
 	create *kkComps.CreateAPIDocumentRequest) error {
-	// Store execution context for use in helper methods
-	a.execCtx = execCtx
 	
 	// Required fields
 	title, ok := fields["title"].(string)
@@ -78,9 +75,9 @@ func (a *APIDocumentAdapter) MapUpdateFields(_ context.Context, _ *ExecutionCont
 
 // Create creates a new API document
 func (a *APIDocumentAdapter) Create(ctx context.Context, req kkComps.CreateAPIDocumentRequest,
-	_ string) (string, error) {
-	// Get API ID from context
-	apiID, err := a.getAPIID(ctx)
+	_ string, execCtx *ExecutionContext) (string, error) {
+	// Get API ID from execution context
+	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
 	}
@@ -97,9 +94,9 @@ func (a *APIDocumentAdapter) Create(ctx context.Context, req kkComps.CreateAPIDo
 
 // Update updates an existing API document
 func (a *APIDocumentAdapter) Update(ctx context.Context, id string, req kkComps.APIDocument,
-	_ string) (string, error) {
-	// Get API ID from context
-	apiID, err := a.getAPIID(ctx)
+	_ string, execCtx *ExecutionContext) (string, error) {
+	// Get API ID from execution context
+	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
 	}
@@ -131,22 +128,24 @@ func (a *APIDocumentAdapter) GetByName(_ context.Context, _ string) (ResourceInf
 
 // GetByID gets an API document by ID using API context
 func (a *APIDocumentAdapter) GetByID(ctx context.Context, id string) (ResourceInfo, error) {
-	// Get API ID from context using existing pattern
-	apiID, err := a.getAPIID(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get API ID for document lookup: %w", err)
+	// Get API ID from context (this method still uses context anti-pattern temporarily)
+	if execCtxValue := ctx.Value("executionContext"); execCtxValue != nil {
+		if execCtx, ok := execCtxValue.(*ExecutionContext); ok {
+			apiID, err := a.getAPIIDFromExecutionContext(execCtx)
+			if err == nil {
+				// Use existing client method
+				document, err := a.client.GetAPIDocument(ctx, apiID, id)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get API document: %w", err)
+				}
+				if document == nil {
+					return nil, nil
+				}
+				return &APIDocumentResourceInfo{document: document}, nil
+			}
+		}
 	}
-	
-	// Use existing client method
-	document, err := a.client.GetAPIDocument(ctx, apiID, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get API document: %w", err)
-	}
-	if document == nil {
-		return nil, nil
-	}
-	
-	return &APIDocumentResourceInfo{document: document}, nil
+	return nil, fmt.Errorf("failed to get API ID for document lookup: execution context not found")
 }
 
 // ResourceType returns the resource type name
@@ -164,18 +163,6 @@ func (a *APIDocumentAdapter) SupportsUpdate() bool {
 	return true
 }
 
-// getAPIID extracts the API ID from the stored execution context (used for Create operations)
-func (a *APIDocumentAdapter) getAPIID(_ context.Context) (string, error) {
-	// Use stored context (for Create operations)
-	if a.execCtx != nil && a.execCtx.PlannedChange != nil {
-		change := *a.execCtx.PlannedChange
-		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID != "" {
-			return apiRef.ID, nil
-		}
-	}
-	
-	return "", fmt.Errorf("API ID is required for document operations")
-}
 
 // getAPIIDFromExecutionContext extracts the API ID from ExecutionContext parameter (used for Delete operations)
 func (a *APIDocumentAdapter) getAPIIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
