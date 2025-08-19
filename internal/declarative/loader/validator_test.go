@@ -305,7 +305,7 @@ func TestLoader_validateAPIs(t *testing.T) {
 				},
 			},
 			wantErr:     true,
-			expectedErr: "Ensure each API versions key has only 1 version defined",
+			expectedErr: "duplicate ref 'v1' (already defined as api_version)",
 		},
 		{
 			name: "API with duplicate publication refs",
@@ -352,7 +352,7 @@ func TestLoader_validateAPIs(t *testing.T) {
 			expectedErr: "duplicate ref 'impl1' (already defined as api_implementation)",
 		},
 		{
-			name: "API with multiple versions - Konnect constraint",
+			name: "API with multiple versions - should pass",
 			apis: []resources.APIResource{
 				{
 					Ref: "api1",
@@ -375,8 +375,7 @@ func TestLoader_validateAPIs(t *testing.T) {
 					},
 				},
 			},
-			wantErr:     true,
-			expectedErr: "Ensure each API versions key has only 1 version defined",
+			wantErr: false,
 		},
 		{
 			name: "API with single version - should pass",

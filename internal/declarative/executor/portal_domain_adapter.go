@@ -92,7 +92,7 @@ func (p *PortalDomainAdapter) Update(ctx context.Context, id string,
 }
 
 // Delete deletes a portal custom domain
-func (p *PortalDomainAdapter) Delete(ctx context.Context, id string) error {
+func (p *PortalDomainAdapter) Delete(ctx context.Context, id string, _ *ExecutionContext) error {
 	// For custom domains, the ID is actually the portal ID
 	return p.client.DeletePortalCustomDomain(ctx, id)
 }
@@ -136,8 +136,18 @@ func (p *PortalDomainAdapter) SupportsUpdate() bool {
 }
 
 // getPortalID extracts the portal ID from the context
-func (p *PortalDomainAdapter) getPortalID(_ context.Context) (string, error) {
-	// Get the planned change from execution context
+func (p *PortalDomainAdapter) getPortalID(ctx context.Context) (string, error) {
+	// First try to get from context (for Delete operations)
+	if execCtx, ok := ctx.Value("executionContext").(*ExecutionContext); ok && execCtx != nil {
+		if execCtx.PlannedChange != nil {
+			change := *execCtx.PlannedChange
+			if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
+				return portalRef.ID, nil
+			}
+		}
+	}
+	
+	// Fallback to stored context (for Create operations)
 	if p.execCtx == nil || p.execCtx.PlannedChange == nil {
 		return "", fmt.Errorf("execution context not found")
 	}

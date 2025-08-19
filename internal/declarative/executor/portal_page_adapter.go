@@ -144,9 +144,9 @@ func (p *PortalPageAdapter) Update(ctx context.Context, id string, req kkComps.U
 }
 
 // Delete deletes a portal page
-func (p *PortalPageAdapter) Delete(ctx context.Context, id string) error {
-	// Get portal ID from context
-	portalID, err := p.getPortalID(ctx)
+func (p *PortalPageAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
+	// Get portal ID from execution context
+	portalID, err := p.getPortalIDFromExecutionContext(execCtx)
 	if err != nil {
 		return err
 	}
@@ -189,6 +189,27 @@ func (p *PortalPageAdapter) getPortalID(_ context.Context) (string, error) {
 		if portalRef.ID != "" {
 			return portalRef.ID, nil
 		}
+	}
+	
+	return "", fmt.Errorf("portal ID is required for page operations")
+}
+
+// getPortalIDFromExecutionContext extracts the portal ID from ExecutionContext parameter
+func (p *PortalPageAdapter) getPortalIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
+	if execCtx == nil || execCtx.PlannedChange == nil {
+		return "", fmt.Errorf("execution context is required for page operations")
+	}
+	
+	change := *execCtx.PlannedChange
+	
+	// Priority 1: Check References (for Create operations)
+	if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
+		return portalRef.ID, nil
+	}
+	
+	// Priority 2: Check Parent field (for Delete operations)
+	if change.Parent != nil && change.Parent.ID != "" {
+		return change.Parent.ID, nil
 	}
 	
 	return "", fmt.Errorf("portal ID is required for page operations")

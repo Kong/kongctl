@@ -5,6 +5,7 @@ apis:
   - ref: sms
     name: !file apis/sms/openapi.yaml#info.title
     description: !file apis/sms/openapi.yaml#info.description
+    version: "3.2.0"
     labels:
       category: messaging
       protocol: rest
@@ -13,7 +14,11 @@ apis:
       - ref: sms-v1
         version: !file apis/sms/openapi.yaml#info.version
         spec: !file apis/sms/openapi.yaml
-        
+      - ref: sms-v2
+        version: !file apis/sms/openapi-v2.yaml#info.version
+        spec: !file apis/sms/openapi-v2.yaml
+       
+       
     documents:
       - ref: sms-getting-started
         title: "SMS API: Getting Started"
@@ -42,6 +47,7 @@ apis:
     publications:
       - ref: sms-api-to-getting-started
         portal_id: getting-started-portal
+        visibility: public
 
   - ref: voice
     name: !file apis/voice/openapi.yaml#info.title
@@ -83,3 +89,4 @@ apis:
     publications:
       - ref: voice-api-to-getting-started
         portal_id: getting-started-portal
+        visibility: public

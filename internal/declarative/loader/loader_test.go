@@ -54,6 +54,11 @@ func TestLoader_LoadFile_ValidConfigs(t *testing.T) {
 			expectedControlPlanes: 2,
 			expectedAPIs:          2,
 		},
+		{
+			name:         "api with multiple versions",
+			file:         "valid/api-multiple-versions.yaml",
+			expectedAPIs: 1,
+		},
 	}
 
 	for _, tt := range tests {
@@ -103,11 +108,6 @@ func TestLoader_LoadFile_InvalidConfigs(t *testing.T) {
 			name:        "duplicate names",
 			file:        "invalid/duplicate-names.yaml",
 			expectError: "duplicate",
-		},
-		{
-			name:        "api with multiple versions",
-			file:        "invalid/api-multiple-versions.yaml",
-			expectError: "Ensure each API versions key has only 1 version defined",
 		},
 	}
 

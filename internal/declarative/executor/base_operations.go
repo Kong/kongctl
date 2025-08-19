@@ -15,7 +15,7 @@ type CreateDeleteOperations[TCreate any] interface {
 
 	// API calls
 	Create(ctx context.Context, req TCreate, namespace string) (string, error)
-	Delete(ctx context.Context, id string) error
+	Delete(ctx context.Context, id string, execCtx *ExecutionContext) error
 	GetByName(ctx context.Context, name string) (ResourceInfo, error)
 
 	// Resource info
@@ -93,8 +93,11 @@ func (b *BaseCreateDeleteExecutor[TCreate]) Delete(ctx context.Context, change p
 		return nil
 	}
 
+	// Create execution context for operations that need parent references
+	execCtx := NewExecutionContext(&change)
+
 	// Delete the resource
-	err := b.ops.Delete(ctx, change.ResourceID)
+	err := b.ops.Delete(ctx, change.ResourceID, execCtx)
 	if err != nil {
 		return fmt.Errorf("failed to delete %s: %w", b.ops.ResourceType(), err)
 	}
