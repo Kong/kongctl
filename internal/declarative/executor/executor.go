@@ -40,7 +40,7 @@ type Executor struct {
 	portalSnippetExecutor *BaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest]
 	
 	// API child resource executors
-	apiVersionExecutor      *BaseCreateDeleteExecutor[kkComps.CreateAPIVersionRequest]
+	apiVersionExecutor      *BaseExecutor[kkComps.CreateAPIVersionRequest, kkComps.APIVersion]
 	apiPublicationExecutor  *BaseCreateDeleteExecutor[kkComps.APIPublication]
 	apiDocumentExecutor     *BaseExecutor[kkComps.CreateAPIDocumentRequest, kkComps.APIDocument]
 	// API implementation is not yet supported by SDK but we include adapter for completeness
@@ -98,8 +98,9 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 	)
 	
 	// Initialize API child resource executors
-	e.apiVersionExecutor = NewBaseCreateDeleteExecutor[kkComps.CreateAPIVersionRequest](
+	e.apiVersionExecutor = NewBaseExecutor[kkComps.CreateAPIVersionRequest, kkComps.APIVersion](
 		NewAPIVersionAdapter(client),
+		client,
 		dryRun,
 	)
 	e.apiPublicationExecutor = NewBaseCreateDeleteExecutor[kkComps.APIPublication](
@@ -942,7 +943,19 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			change.References["portal_id"] = portalRef
 		}
 		return e.portalSnippetExecutor.Update(ctx, *change)
-	// Note: api_version, api_publication, and api_implementation don't support update
+	case "api_version":
+		// First resolve API reference if needed
+		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
+			apiID, err := e.resolveAPIRef(ctx, apiRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve API reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			apiRef.ID = apiID
+			change.References["api_id"] = apiRef
+		}
+		return e.apiVersionExecutor.Update(ctx, *change)
+	// Note: api_publication and api_implementation don't support update
 	default:
 		return "", fmt.Errorf("update operation not yet implemented for %s", change.ResourceType)
 	}
