@@ -127,25 +127,20 @@ func (a *APIDocumentAdapter) GetByName(_ context.Context, _ string) (ResourceInf
 }
 
 // GetByID gets an API document by ID using API context
-func (a *APIDocumentAdapter) GetByID(ctx context.Context, id string) (ResourceInfo, error) {
-	// Get API ID from context (this method still uses context anti-pattern temporarily)
-	if execCtxValue := ctx.Value("executionContext"); execCtxValue != nil {
-		if execCtx, ok := execCtxValue.(*ExecutionContext); ok {
-			apiID, err := a.getAPIIDFromExecutionContext(execCtx)
-			if err == nil {
-				// Use existing client method
-				document, err := a.client.GetAPIDocument(ctx, apiID, id)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get API document: %w", err)
-				}
-				if document == nil {
-					return nil, nil
-				}
-				return &APIDocumentResourceInfo{document: document}, nil
-			}
-		}
+func (a *APIDocumentAdapter) GetByID(ctx context.Context, id string, execCtx *ExecutionContext) (ResourceInfo, error) {
+	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get API ID for document lookup: %w", err)
 	}
-	return nil, fmt.Errorf("failed to get API ID for document lookup: execution context not found")
+
+	document, err := a.client.GetAPIDocument(ctx, apiID, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get API document: %w", err)
+	}
+	if document == nil {
+		return nil, nil
+	}
+	return &APIDocumentResourceInfo{document: document}, nil
 }
 
 // ResourceType returns the resource type name

@@ -106,6 +106,13 @@ func (a *APIPublicationAdapter) GetByName(_ context.Context, _ string) (Resource
 	return nil, nil
 }
 
+// GetByID gets an API publication by ID
+func (a *APIPublicationAdapter) GetByID(_ context.Context, _ string, _ *ExecutionContext) (ResourceInfo, error) {
+	// API publications don't have a direct "get by ID" method - they're singleton resources per API
+	// For now, return nil to indicate lookup by ID is not available
+	return nil, nil
+}
+
 // ResourceType returns the resource type name
 func (a *APIPublicationAdapter) ResourceType() string {
 	return "api_publication"
@@ -114,6 +121,24 @@ func (a *APIPublicationAdapter) ResourceType() string {
 // RequiredFields returns the required fields for creation
 func (a *APIPublicationAdapter) RequiredFields() []string {
 	return []string{"portal_id"}
+}
+
+// MapUpdateFields maps fields for update operations (not supported for API publications)
+func (a *APIPublicationAdapter) MapUpdateFields(
+	_ context.Context, _ *ExecutionContext, _ map[string]any,
+	_ *kkComps.APIPublication, _ map[string]string) error {
+	return fmt.Errorf("API publications do not support update operations")
+}
+
+// Update is not supported for API publications
+func (a *APIPublicationAdapter) Update(
+	_ context.Context, _ string, _ kkComps.APIPublication, _ string, _ *ExecutionContext) (string, error) {
+	return "", fmt.Errorf("API publications do not support update operations")
+}
+
+// SupportsUpdate returns false as API publications don't support updates
+func (a *APIPublicationAdapter) SupportsUpdate() bool {
+	return false
 }
 
 // getPortalIDFromExecutionContext extracts the portal ID from ExecutionContext parameter

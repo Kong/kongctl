@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/kong/kongctl/internal/util/normalizers"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
@@ -195,6 +196,13 @@ func (v *APIVersionResource) UnmarshalJSON(data []byte) error {
 			}
 			specContent = string(specJSON)
 		}
+		
+		// Normalize spec to JSON before storing
+		normalizedSpec, err := normalizers.SpecToJSON(specContent)
+		if err != nil {
+			return fmt.Errorf("failed to normalize spec: %w", err)
+		}
+		specContent = normalizedSpec
 		
 		sdkData["spec"] = map[string]any{
 			"content": specContent,

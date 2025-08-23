@@ -83,6 +83,30 @@ func (a *APIVersionAdapter) GetByName(_ context.Context, _ string) (ResourceInfo
 	return nil, nil
 }
 
+// GetByID gets an API version by ID
+func (a *APIVersionAdapter) GetByID(
+	ctx context.Context, versionID string, execCtx *ExecutionContext,
+) (ResourceInfo, error) {
+	// Get API ID from execution context
+	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get API ID for version lookup: %w", err)
+	}
+	
+	// Fetch the full API version
+	version, err := a.client.FetchAPIVersion(ctx, apiID, versionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch API version: %w", err)
+	}
+	
+	if version == nil {
+		return nil, nil // Not found
+	}
+	
+	// Convert to ResourceInfo
+	return NewAPIVersionResourceInfo(version), nil
+}
+
 // ResourceType returns the resource type name
 func (a *APIVersionAdapter) ResourceType() string {
 	return "api_version"
@@ -91,6 +115,55 @@ func (a *APIVersionAdapter) ResourceType() string {
 // RequiredFields returns the required fields for creation
 func (a *APIVersionAdapter) RequiredFields() []string {
 	return []string{} // No required fields according to the SDK model (all are pointers)
+}
+
+// MapUpdateFields maps fields for update operations
+func (a *APIVersionAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, 
+	fields map[string]any, update *kkComps.APIVersion, _ map[string]string) error {
+	
+	// Map version field if changed
+	if version, ok := fields["version"].(string); ok {
+		update.Version = &version
+	}
+	
+	// Map spec field if changed
+	if spec, ok := fields["spec"].(map[string]any); ok {
+		if content, ok := spec["content"].(string); ok {
+			update.Spec = &kkComps.APIVersionSpec{
+				Content: &content,
+			}
+		}
+	}
+	
+	return nil
+}
+
+// Update updates an existing API version
+func (a *APIVersionAdapter) Update(ctx context.Context, id string, 
+	update kkComps.APIVersion, _ string, execCtx *ExecutionContext) (string, error) {
+	
+	// Get API ID from execution context
+	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get API ID for version update: %w", err)
+	}
+	
+	// Call client's UpdateAPIVersion
+	resp, err := a.client.UpdateAPIVersion(ctx, apiID, id, update)
+	if err != nil {
+		return "", fmt.Errorf("failed to update API version: %w", err)
+	}
+	
+	if resp == nil {
+		return "", fmt.Errorf("API version update returned no response")
+	}
+	
+	return resp.ID, nil
+}
+
+// SupportsUpdate returns true as API versions now support updates
+func (a *APIVersionAdapter) SupportsUpdate() bool {
+	return true
 }
 
 
@@ -118,6 +191,11 @@ func (a *APIVersionAdapter) getAPIIDFromExecutionContext(execCtx *ExecutionConte
 // APIVersionResourceInfo implements ResourceInfo for API versions
 type APIVersionResourceInfo struct {
 	version *state.APIVersion
+}
+
+// NewAPIVersionResourceInfo creates a new APIVersionResourceInfo from an APIVersion
+func NewAPIVersionResourceInfo(version *state.APIVersion) *APIVersionResourceInfo {
+	return &APIVersionResourceInfo{version: version}
 }
 
 func (a *APIVersionResourceInfo) GetID() string {

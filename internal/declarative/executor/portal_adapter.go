@@ -176,6 +176,12 @@ func (p *PortalAdapter) GetByName(ctx context.Context, name string) (ResourceInf
 	return &PortalResourceInfo{portal: portal}, nil
 }
 
+// GetByID gets a portal by ID
+func (p *PortalAdapter) GetByID(_ context.Context, _ string, _ *ExecutionContext) (ResourceInfo, error) {
+	// Portals don't have a direct GetByID method - the planner handles ID lookups
+	return nil, nil
+}
+
 // ResourceType returns the resource type name
 func (p *PortalAdapter) ResourceType() string {
 	return "portal"

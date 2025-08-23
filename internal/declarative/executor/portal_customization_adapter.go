@@ -229,3 +229,4 @@ func (p *PortalCustomizationAdapter) Update(ctx context.Context, portalID string
 func (p *PortalCustomizationAdapter) ResourceType() string {
 	return "portal_customization"
 }
+

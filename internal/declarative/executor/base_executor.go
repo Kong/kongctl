@@ -26,6 +26,7 @@ type ResourceOperations[TCreate any, TUpdate any] interface {
 	Update(ctx context.Context, id string, req TUpdate, namespace string, execCtx *ExecutionContext) (string, error)
 	Delete(ctx context.Context, id string, execCtx *ExecutionContext) error
 	GetByName(ctx context.Context, name string) (ResourceInfo, error)
+	GetByID(ctx context.Context, id string, execCtx *ExecutionContext) (ResourceInfo, error)
 
 	// Resource info
 	ResourceType() string
@@ -214,17 +215,16 @@ func (b *BaseExecutor[TCreate, TUpdate]) validateResourceForUpdate(
 		return resource, nil
 	}
 	
-	// Strategy 2: Try ID-based lookup if available (useful for child resources)
+	// Strategy 2: Try ID-based lookup
 	if change.ResourceID != "" {
-		if idLookup, ok := b.ops.(interface{ GetByID(context.Context, string) (ResourceInfo, error) }); ok {
-			resource, err := idLookup.GetByID(ctx, change.ResourceID)
-			if err == nil && resource != nil {
-				logger.Debug("Resource found via ID lookup", 
-					"resource_type", b.ops.ResourceType(), 
-					"name", resourceName, 
-					"id", change.ResourceID)
-				return resource, nil
-			}
+		execCtx := NewExecutionContext(&change)
+		resource, err := b.ops.GetByID(ctx, change.ResourceID, execCtx)
+		if err == nil && resource != nil {
+			logger.Debug("Resource found via ID lookup", 
+				"resource_type", b.ops.ResourceType(), 
+				"name", resourceName, 
+				"id", change.ResourceID)
+			return resource, nil
 		}
 	}
 	

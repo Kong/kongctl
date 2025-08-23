@@ -138,26 +138,21 @@ func (p *PortalSnippetAdapter) GetByName(_ context.Context, _ string) (ResourceI
 }
 
 // GetByID gets a portal snippet by ID
-func (p *PortalSnippetAdapter) GetByID(ctx context.Context, id string) (ResourceInfo, error) {
-	// Get portal ID from context (this method still uses context anti-pattern temporarily)
-	if execCtxValue := ctx.Value("executionContext"); execCtxValue != nil {
-		if execCtx, ok := execCtxValue.(*ExecutionContext); ok {
-			portalID, err := p.getPortalID(execCtx)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get portal ID for snippet lookup: %w", err)
-			}
-			
-			snippet, err := p.client.GetPortalSnippet(ctx, portalID, id)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get portal snippet: %w", err)
-			}
-			if snippet == nil {
-				return nil, nil
-			}
-			return &PortalSnippetResourceInfo{snippet: snippet}, nil
-		}
+func (p *PortalSnippetAdapter) GetByID(
+	ctx context.Context, id string, execCtx *ExecutionContext) (ResourceInfo, error) {
+	portalID, err := p.getPortalID(execCtx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get portal ID for snippet lookup: %w", err)
 	}
-	return nil, fmt.Errorf("failed to get portal ID for snippet lookup: execution context not found")
+	
+	snippet, err := p.client.GetPortalSnippet(ctx, portalID, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get portal snippet: %w", err)
+	}
+	if snippet == nil {
+		return nil, nil
+	}
+	return &PortalSnippetResourceInfo{snippet: snippet}, nil
 }
 
 // ResourceType returns the resource type name

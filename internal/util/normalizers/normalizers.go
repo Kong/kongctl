@@ -1,7 +1,11 @@
 package normalizers
 
 import (
+	"encoding/json"
+	"fmt"
 	"strings"
+
+	"sigs.k8s.io/yaml"
 )
 
 const Indentation = `  `
@@ -39,4 +43,30 @@ func (s source) indent() source {
 	}
 	s.string = strings.Join(indentedLines, "\n")
 	return s
+}
+
+// SpecToJSON converts a spec (YAML/JSON string or object) to normalized JSON string
+func SpecToJSON(spec interface{}) (string, error) {
+	var data interface{}
+
+	switch v := spec.(type) {
+	case string:
+		// Try to parse as YAML (which also handles JSON)
+		if err := yaml.Unmarshal([]byte(v), &data); err != nil {
+			return "", fmt.Errorf("failed to parse spec: %w", err)
+		}
+	case map[string]interface{}:
+		data = v
+	default:
+		// For any other type, use it directly
+		data = spec
+	}
+
+	// Convert to compact JSON
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal spec to JSON: %w", err)
+	}
+
+	return string(jsonBytes), nil
 }

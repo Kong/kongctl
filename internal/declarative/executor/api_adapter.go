@@ -125,7 +125,7 @@ func (p *APIAdapter) GetByName(ctx context.Context, name string) (ResourceInfo, 
 }
 
 // GetByID gets an API by ID
-func (p *APIAdapter) GetByID(ctx context.Context, id string) (ResourceInfo, error) {
+func (p *APIAdapter) GetByID(ctx context.Context, id string, _ *ExecutionContext) (ResourceInfo, error) {
 	api, err := p.client.GetAPIByID(ctx, id)
 	if err != nil {
 		return nil, err

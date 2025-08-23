@@ -95,6 +95,7 @@ type APIVersion struct {
 	PublishStatus string
 	Deprecated    bool
 	SunsetDate    string
+	Spec          string // API version spec content for content comparison
 }
 
 // APIPublication represents an API publication for internal use
@@ -724,7 +725,11 @@ func (c *Client) ListAPIVersions(ctx context.Context, apiID string) ([]APIVersio
 			version := APIVersion{
 				ID:      v.ID,
 				Version: v.Version,
-				// Other fields not available in list response
+				// Other fields not available in list response - use defaults
+				PublishStatus: "",
+				Deprecated:    false,
+				SunsetDate:    "",
+				Spec:          "",
 			}
 			allVersions = append(allVersions, version)
 		}
@@ -758,6 +763,62 @@ func (c *Client) CreateAPIVersion(
 	}
 
 	return resp.APIVersionResponse, nil
+}
+
+// UpdateAPIVersion updates an existing API version
+func (c *Client) UpdateAPIVersion(
+	ctx context.Context, apiID, versionID string, version kkComps.APIVersion,
+) (*kkComps.APIVersionResponse, error) {
+	if c.apiVersionAPI == nil {
+		return nil, fmt.Errorf("API version client not configured")
+	}
+
+	// Create the request object as expected by the SDK
+	req := kkOps.UpdateAPIVersionRequest{
+		APIID:      apiID,
+		SpecID:     versionID,
+		APIVersion: version,
+	}
+
+	resp, err := c.apiVersionAPI.UpdateAPIVersion(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update API version: %w", err)
+	}
+
+	if resp.APIVersionResponse == nil {
+		return nil, fmt.Errorf("update API version response missing data")
+	}
+
+	return resp.APIVersionResponse, nil
+}
+
+// FetchAPIVersion retrieves a single API version with full content
+func (c *Client) FetchAPIVersion(ctx context.Context, apiID, versionID string) (*APIVersion, error) {
+	if c.apiVersionAPI == nil {
+		return nil, fmt.Errorf("API version client not configured")
+	}
+	
+	resp, err := c.apiVersionAPI.FetchAPIVersion(ctx, apiID, versionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch API version: %w", err)
+	}
+	
+	if resp == nil || resp.APIVersionResponse == nil {
+		return nil, fmt.Errorf("fetch API version response missing data")
+	}
+	
+	// Convert to our internal type with full content
+	version := &APIVersion{
+		ID:      resp.APIVersionResponse.ID,
+		Version: resp.APIVersionResponse.Version,
+	}
+	
+	// Set spec content if available
+	if resp.APIVersionResponse.Spec != nil && resp.APIVersionResponse.Spec.Content != nil {
+		version.Spec = *resp.APIVersionResponse.Spec.Content
+	}
+	
+	return version, nil
 }
 
 // DeleteAPIVersion deletes an API version

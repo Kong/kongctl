@@ -196,25 +196,20 @@ func (p *PortalPageAdapter) getPortalIDFromExecutionContext(execCtx *ExecutionCo
 }
 
 // GetByID gets a portal page by ID using portal context
-func (p *PortalPageAdapter) GetByID(ctx context.Context, id string) (ResourceInfo, error) {
-	// Get portal ID from context (this method still uses context anti-pattern temporarily)
-	if execCtxValue := ctx.Value("executionContext"); execCtxValue != nil {
-		if execCtx, ok := execCtxValue.(*ExecutionContext); ok {
-			portalID, err := p.getPortalIDFromExecutionContext(execCtx)
-			if err == nil {
-				// Use existing client method
-				page, err := p.client.GetPortalPage(ctx, portalID, id)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get portal page: %w", err)
-				}
-				if page == nil {
-					return nil, nil
-				}
-				return &PortalPageResourceInfo{page: page}, nil
-			}
-		}
+func (p *PortalPageAdapter) GetByID(ctx context.Context, id string, execCtx *ExecutionContext) (ResourceInfo, error) {
+	portalID, err := p.getPortalIDFromExecutionContext(execCtx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get portal ID for page lookup: %w", err)
 	}
-	return nil, fmt.Errorf("failed to get portal ID for page lookup: execution context not found")
+
+	page, err := p.client.GetPortalPage(ctx, portalID, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get portal page: %w", err)
+	}
+	if page == nil {
+		return nil, nil
+	}
+	return &PortalPageResourceInfo{page: page}, nil
 }
 
 // PortalPageResourceInfo implements ResourceInfo for portal pages

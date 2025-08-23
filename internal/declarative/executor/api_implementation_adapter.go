@@ -53,6 +53,11 @@ func (a *APIImplementationAdapter) GetByName(_ context.Context, _ string) (Resou
 	return nil, fmt.Errorf("API implementations are not yet supported by the SDK")
 }
 
+// GetByID gets an API implementation by ID
+func (a *APIImplementationAdapter) GetByID(_ context.Context, _ string, _ *ExecutionContext) (ResourceInfo, error) {
+	return nil, fmt.Errorf("API implementations are not yet supported by the SDK")
+}
+
 // ResourceType returns the resource type name
 func (a *APIImplementationAdapter) ResourceType() string {
 	return "api_implementation"
@@ -69,20 +74,21 @@ func (a *APIImplementationAdapter) SupportsUpdate() bool {
 	return false
 }
 
-// APIImplementationResourceInfo is a placeholder for API implementation resource info
+// APIImplementationResourceInfo implements ResourceInfo for API implementations
 type APIImplementationResourceInfo struct {
-	// Empty struct as implementations are not supported
+	implementation *state.APIImplementation
 }
 
 func (a *APIImplementationResourceInfo) GetID() string {
-	return ""
+	return a.implementation.ID
 }
 
 func (a *APIImplementationResourceInfo) GetName() string {
-	return ""
+	return a.implementation.ID // Implementations don't have names, use ID
 }
 
 func (a *APIImplementationResourceInfo) GetLabels() map[string]string {
+	// API implementations don't support labels in the SDK
 	return make(map[string]string)
 }
 
