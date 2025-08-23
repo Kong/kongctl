@@ -103,7 +103,7 @@ func (p *PortalDomainAdapter) GetByName(_ context.Context, _ string) (ResourceIn
 }
 
 // GetByID gets a portal custom domain by ID (portal ID in this case)
-func (p *PortalDomainAdapter) GetByID(_ context.Context, id string) (ResourceInfo, error) {
+func (p *PortalDomainAdapter) GetByID(_ context.Context, id string, _ *ExecutionContext) (ResourceInfo, error) {
 	// For custom domains, the ID is actually the portal ID since they're singleton resources
 	// The executor calls this with the resource ID from the planned change, which for 
 	// custom domains is the portal ID

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -526,11 +527,25 @@ func (p *Planner) planAPIVersionChanges(
 			versionStr = *desiredVersion.Version
 		}
 
-		if _, exists := currentByVersion[versionStr]; !exists {
-			// CREATE - versions don't support update
+		if current, exists := currentByVersion[versionStr]; !exists {
+			// CREATE new version
 			p.planAPIVersionCreate(parentNamespace, apiRef, apiID, desiredVersion, []string{}, plan)
+		} else {
+			// CHECK FOR UPDATES - API versions now support updates
+			// Fetch full version to get spec content for comparison
+			fullVersion, err := p.client.FetchAPIVersion(ctx, apiID, current.ID)
+			if err != nil {
+				return fmt.Errorf("failed to fetch version %s: %w", versionStr, err)
+			}
+			if fullVersion != nil {
+				current = *fullVersion
+			}
+			
+			// Now compare with full content
+			if p.shouldUpdateAPIVersion(current, desiredVersion) {
+				p.planAPIVersionUpdate(parentNamespace, apiRef, apiID, current.ID, desiredVersion, plan)
+			}
 		}
-		// Note: API versions don't support update operations
 	}
 
 	// In sync mode, delete unmanaged versions
@@ -1316,6 +1331,93 @@ func (p *Planner) shouldUpdateAPIDocument(current state.APIDocument, desired res
 		return true
 	}
 	return false
+}
+
+func (p *Planner) shouldUpdateAPIVersion(current state.APIVersion, desired resources.APIVersionResource) bool {
+	// Check if version string changed
+	if desired.Version != nil && current.Version != *desired.Version {
+		return true
+	}
+	
+	// Check if spec content changed
+	if desired.Spec != nil && desired.Spec.Content != nil {
+		// Both should already be normalized JSON, but ensure consistency
+		currentSpec := strings.TrimSpace(current.Spec)
+		desiredSpec := strings.TrimSpace(*desired.Spec.Content)
+		
+		// Re-normalize both sides to ensure consistent comparison
+		// This handles any edge cases where normalization wasn't applied
+		normalizedCurrent, err := normalizers.SpecToJSON(currentSpec)
+		if err != nil {
+			// Fallback to direct comparison if normalization fails
+			normalizedCurrent = currentSpec
+		}
+		normalizedDesired, err := normalizers.SpecToJSON(desiredSpec)
+		if err != nil {
+			// Fallback to direct comparison if normalization fails
+			normalizedDesired = desiredSpec
+		}
+		
+		if normalizedCurrent != normalizedDesired {
+			return true
+		}
+	}
+	
+	return false
+}
+
+func (p *Planner) planAPIVersionUpdate(
+	parentNamespace string, apiRef string, apiID string, versionID string,
+	version resources.APIVersionResource, plan *Plan,
+) {
+	fields := make(map[string]any)
+	
+	// Add fields that can be updated
+	if version.Version != nil {
+		fields["version"] = *version.Version
+	}
+	if version.Spec != nil && version.Spec.Content != nil {
+		// Store spec as a map with content field for proper JSON serialization
+		fields["spec"] = map[string]any{
+			"content": *version.Spec.Content,
+		}
+	}
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionUpdate, "api_version", version.GetRef()),
+		ResourceType: "api_version",
+		ResourceRef:  version.GetRef(),
+		ResourceID:   versionID,
+		Parent:       &ParentInfo{Ref: apiRef, ID: apiID},
+		Action:       ActionUpdate,
+		Fields:       fields,
+		DependsOn:    []string{},
+		Namespace:    parentNamespace,
+	}
+
+	// Set API reference for executor
+	if apiRef != "" {
+		// Find the API to get its name for lookup
+		var apiName string
+		for _, api := range p.desiredAPIs {
+			if api.Ref == apiRef {
+				apiName = api.Name
+				break
+			}
+		}
+		
+		change.References = map[string]ReferenceInfo{
+			"api_id": {
+				Ref: apiRef,
+				ID:  apiID,
+				LookupFields: map[string]string{
+					"name": apiName,
+				},
+			},
+		}
+	}
+
+	plan.AddChange(change)
 }
 
 func (p *Planner) planAPIDocumentCreate(

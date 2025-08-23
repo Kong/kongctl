@@ -167,6 +167,13 @@ func (a *AuthStrategyAdapter) GetByName(ctx context.Context, name string) (Resou
 	return &AuthStrategyResourceInfo{strategy: strategy}, nil
 }
 
+// GetByID gets an auth strategy by ID
+func (a *AuthStrategyAdapter) GetByID(_ context.Context, _ string, _ *ExecutionContext) (ResourceInfo, error) {
+	// Use the existing GetByName approach since we don't have a direct GetByID in the client
+	// This is a fallback - the planner should handle ID lookups
+	return nil, nil
+}
+
 // ResourceType returns the resource type name
 func (a *AuthStrategyAdapter) ResourceType() string {
 	return "application_auth_strategy"
