@@ -132,20 +132,20 @@ func TestGetAvailablePaths(t *testing.T) {
 	}
 
 	paths := GetAvailablePaths(testData, "", 2)
-	
+
 	// Should contain top-level keys
 	assert.Contains(t, paths, "info")
 	assert.Contains(t, paths, "tags")
-	
+
 	// Should contain nested paths
 	assert.Contains(t, paths, "info.title")
 	assert.Contains(t, paths, "info.version")
-	
+
 	// Test with prefix
 	paths = GetAvailablePaths(testData["info"], "info", 1)
 	assert.Contains(t, paths, "info.title")
 	assert.Contains(t, paths, "info.version")
-	
+
 	// Test max depth
 	deepData := map[string]any{
 		"a": map[string]any{
@@ -154,7 +154,7 @@ func TestGetAvailablePaths(t *testing.T) {
 			},
 		},
 	}
-	
+
 	paths = GetAvailablePaths(deepData, "", 1)
 	assert.Contains(t, paths, "a")
 	assert.NotContains(t, paths, "a.b") // Limited by maxDepth
@@ -167,16 +167,16 @@ func TestGetAvailablePaths_Struct(t *testing.T) {
 		Description string
 		private     string // Should be skipped
 	}
-	
+
 	data := TestStruct{
 		Name:        "test",
 		Version:     "1.0",
 		Description: "desc",
 		private:     "hidden",
 	}
-	
+
 	paths := GetAvailablePaths(data, "", 1)
-	
+
 	// Should use JSON tag for Name
 	assert.Contains(t, paths, "name")
 	// Should use YAML tag for Version

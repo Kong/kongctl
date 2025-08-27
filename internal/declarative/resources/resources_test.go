@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/stretchr/testify/assert"
 	"github.com/kong/kongctl/internal/util"
+	"github.com/stretchr/testify/assert"
 	"sigs.k8s.io/yaml"
 )
 
@@ -24,7 +24,7 @@ func TestPortalResource_Validation(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "missing ref",
+			name:   "missing ref",
 			portal: PortalResource{
 				// No ref field
 			},
@@ -110,7 +110,7 @@ func TestApplicationAuthStrategyResource_Validation(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "missing ref",
+			name:     "missing ref",
 			strategy: ApplicationAuthStrategyResource{
 				// No ref field
 			},
@@ -148,7 +148,7 @@ func TestControlPlaneResource_Validation(t *testing.T) {
 		},
 		{
 			name: "missing ref",
-			cp: ControlPlaneResource{
+			cp:   ControlPlaneResource{
 				// No ref field
 			},
 			wantErr: true,
@@ -185,7 +185,7 @@ func TestAPIResource_Validation(t *testing.T) {
 		},
 		{
 			name: "missing ref",
-			api: APIResource{
+			api:  APIResource{
 				// No ref field
 			},
 			wantErr: true,
@@ -221,7 +221,7 @@ func TestAPIVersionResource_Validation(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "missing ref",
+			name:    "missing ref",
 			version: APIVersionResource{
 				// No ref field
 			},
@@ -330,7 +330,7 @@ func TestAPIImplementationResource_Validation(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "missing ref",
+			name:           "missing ref",
 			implementation: APIImplementationResource{
 				// No ref field
 			},
@@ -396,7 +396,7 @@ func TestReferenceFieldMappings(t *testing.T) {
 	t.Run("PortalResource reference mappings", func(t *testing.T) {
 		portal := PortalResource{}
 		mappings := portal.GetReferenceFieldMappings()
-		
+
 		// Portal references auth strategies
 		expectedType, exists := mappings["default_application_auth_strategy_id"]
 		assert.True(t, exists, "Should have default_application_auth_strategy_id mapping")
@@ -406,13 +406,13 @@ func TestReferenceFieldMappings(t *testing.T) {
 	t.Run("APIPublicationResource reference mappings", func(t *testing.T) {
 		publication := APIPublicationResource{}
 		mappings := publication.GetReferenceFieldMappings()
-		
+
 		// Check expected mappings
 		expectedMappings := map[string]string{
 			"portal_id":         "portal",
 			"auth_strategy_ids": "application_auth_strategy",
 		}
-		
+
 		for field, expectedType := range expectedMappings {
 			actualType, exists := mappings[field]
 			assert.True(t, exists, "Should have %s mapping", field)
@@ -431,13 +431,13 @@ func TestReferenceFieldMappings(t *testing.T) {
 				},
 			}
 			mappings := implementation.GetReferenceFieldMappings()
-			
+
 			// Should include the mapping
 			actualType, exists := mappings["service.control_plane_id"]
 			assert.True(t, exists, "Should have service.control_plane_id mapping for reference")
 			assert.Equal(t, "control_plane", actualType)
 		})
-		
+
 		// Test with UUID control_plane_id
 		t.Run("with UUID control_plane_id", func(t *testing.T) {
 			implementation := APIImplementationResource{
@@ -448,21 +448,21 @@ func TestReferenceFieldMappings(t *testing.T) {
 				},
 			}
 			mappings := implementation.GetReferenceFieldMappings()
-			
+
 			// Should NOT include the mapping
 			_, exists := mappings["service.control_plane_id"]
 			assert.False(t, exists, "Should not have service.control_plane_id mapping for UUID")
 		})
-		
+
 		// Test with no service
 		t.Run("with no service", func(t *testing.T) {
 			implementation := APIImplementationResource{}
 			mappings := implementation.GetReferenceFieldMappings()
-			
+
 			// Should have empty mappings
 			assert.Empty(t, mappings, "Should have no mappings without service")
 		})
-		
+
 		// Test with empty control_plane_id
 		t.Run("with empty control_plane_id", func(t *testing.T) {
 			implementation := APIImplementationResource{
@@ -473,7 +473,7 @@ func TestReferenceFieldMappings(t *testing.T) {
 				},
 			}
 			mappings := implementation.GetReferenceFieldMappings()
-			
+
 			// Should have empty mappings
 			assert.Empty(t, mappings, "Should have no mappings with empty control_plane_id")
 		})
@@ -508,18 +508,18 @@ func TestKongctlMeta(t *testing.T) {
 			Protected: &trueVal,
 			Namespace: &namespace,
 		}
-		
+
 		assert.NotNil(t, meta.Protected)
 		assert.True(t, *meta.Protected, "Protected field should be settable")
 		assert.NotNil(t, meta.Namespace)
 		assert.Equal(t, "team-a", *meta.Namespace, "Namespace field should be settable")
-		
+
 		// Test zero value
 		var zeroMeta KongctlMeta
 		assert.Nil(t, zeroMeta.Protected, "Default Protected should be nil")
 		assert.Nil(t, zeroMeta.Namespace, "Default Namespace should be nil")
 	})
-	
+
 	t.Run("KongctlMeta YAML marshaling", func(t *testing.T) {
 		// Test marshaling with values
 		trueVal := true
@@ -528,13 +528,13 @@ func TestKongctlMeta(t *testing.T) {
 			Protected: &trueVal,
 			Namespace: &namespace,
 		}
-		
+
 		data, err := yaml.Marshal(meta)
 		assert.NoError(t, err, "Should marshal without error")
-		
+
 		expected := "namespace: production\nprotected: true\n"
 		assert.Equal(t, expected, string(data), "Should marshal to expected YAML")
-		
+
 		// Test unmarshaling
 		var unmarshaledMeta KongctlMeta
 		err = yaml.Unmarshal(data, &unmarshaledMeta)
@@ -542,21 +542,21 @@ func TestKongctlMeta(t *testing.T) {
 		assert.Equal(t, meta.Protected, unmarshaledMeta.Protected, "Protected should match after unmarshaling")
 		assert.Equal(t, meta.Namespace, unmarshaledMeta.Namespace, "Namespace should match after unmarshaling")
 	})
-	
+
 	t.Run("KongctlMeta omitempty behavior", func(t *testing.T) {
 		// Test with zero values (should omit fields)
 		meta := &KongctlMeta{}
-		
+
 		data, err := yaml.Marshal(meta)
 		assert.NoError(t, err, "Should marshal without error")
 		assert.Equal(t, "{}\n", string(data), "Should omit empty fields")
-		
+
 		// Test with only namespace set
 		namespace := "team-b"
 		meta = &KongctlMeta{
 			Namespace: &namespace,
 		}
-		
+
 		data, err = yaml.Marshal(meta)
 		assert.NoError(t, err, "Should marshal without error")
 		assert.Equal(t, "namespace: team-b\n", string(data), "Should only include namespace field")
@@ -580,12 +580,12 @@ func TestResourceSet(t *testing.T) {
 				{Ref: "api1"},
 			},
 		}
-		
+
 		assert.Len(t, rs.Portals, 2, "Should have 2 portals")
 		assert.Len(t, rs.ApplicationAuthStrategies, 1, "Should have 1 auth strategy")
 		assert.Len(t, rs.ControlPlanes, 1, "Should have 1 control plane")
 		assert.Len(t, rs.APIs, 1, "Should have 1 API")
-		
+
 		// Test that we can access refs
 		assert.Equal(t, "portal1", rs.Portals[0].GetRef())
 		assert.Equal(t, "auth1", rs.ApplicationAuthStrategies[0].GetRef())

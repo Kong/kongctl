@@ -10,19 +10,19 @@ import (
 const (
 	// Label prefix
 	KongctlPrefix = "KONGCTL-"
-	
+
 	// Label keys (using prefix to avoid repetition)
 	NamespaceKey = KongctlPrefix + "namespace"
 	ProtectedKey = KongctlPrefix + "protected"
-	
+
 	// Deprecated label keys (kept for backward compatibility)
 	// TODO: Remove in future version after migration period
-	ManagedKey     = KongctlPrefix + "managed"     // Deprecated: use namespace presence instead
+	ManagedKey     = KongctlPrefix + "managed"      // Deprecated: use namespace presence instead
 	LastUpdatedKey = KongctlPrefix + "last-updated" // Deprecated: not needed
-	
+
 	// Environment variables
 	DebugEnvVar = "KONGCTL_DEBUG"
-	
+
 	// Label values
 	TrueValue  = "true"
 	FalseValue = "false"
@@ -33,19 +33,19 @@ func NormalizeLabels(labels map[string]*string) map[string]string {
 	if labels == nil {
 		return nil
 	}
-	
+
 	normalized := make(map[string]string)
 	for k, v := range labels {
 		if v != nil {
 			normalized[k] = *v
 		}
 	}
-	
+
 	// Return nil for empty maps to be consistent
 	if len(normalized) == 0 {
 		return nil
 	}
-	
+
 	return normalized
 }
 
@@ -54,7 +54,7 @@ func DenormalizeLabels(labels map[string]string) map[string]*string {
 	if len(labels) == 0 {
 		return nil
 	}
-	
+
 	denormalized := make(map[string]*string)
 	for k, v := range labels {
 		denormalized[k] = &v
@@ -68,19 +68,19 @@ func AddManagedLabels(labels map[string]string, namespace string) map[string]str
 	if labels == nil {
 		labels = make(map[string]string)
 	}
-	
+
 	// Preserve existing labels
 	result := make(map[string]string)
 	for k, v := range labels {
 		result[k] = v
 	}
-	
+
 	// Add namespace label (required)
 	result[NamespaceKey] = namespace
-	
+
 	// Note: Protected label is handled separately by executors
 	// It's only added when explicitly set to true
-	
+
 	return result
 }
 
@@ -104,19 +104,19 @@ func GetUserLabels(labels map[string]string) map[string]string {
 	if labels == nil {
 		return nil
 	}
-	
+
 	user := make(map[string]string)
 	for k, v := range labels {
 		if !IsKongctlLabel(k) {
 			user[k] = v
 		}
 	}
-	
+
 	// Return nil for empty maps to be consistent
 	if len(user) == 0 {
 		return nil
 	}
-	
+
 	return user
 }
 
@@ -131,24 +131,24 @@ func CompareUserLabels(current, desired map[string]string) bool {
 	// Get user labels from both maps
 	currentUser := GetUserLabels(current)
 	desiredUser := GetUserLabels(desired)
-	
+
 	// If both are empty or nil, they're equal
 	if len(currentUser) == 0 && len(desiredUser) == 0 {
 		return false
 	}
-	
+
 	// If lengths differ, they're not equal
 	if len(currentUser) != len(desiredUser) {
 		return true
 	}
-	
+
 	// Compare each user label
 	for k, v := range desiredUser {
 		if currentVal, exists := currentUser[k]; !exists || currentVal != v {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -157,12 +157,12 @@ func ValidateLabel(key string) error {
 	if len(key) < 1 || len(key) > 63 {
 		return fmt.Errorf("label key must be 1-63 characters: %s", key)
 	}
-	
+
 	// Allow our KONGCTL labels
 	if strings.HasPrefix(key, KongctlPrefix) || strings.HasPrefix(key, "kongctl-") {
 		return nil
 	}
-	
+
 	// Check forbidden prefixes
 	forbidden := []string{"kong", "konnect", "mesh", "kic", "_"}
 	for _, prefix := range forbidden {
@@ -170,7 +170,7 @@ func ValidateLabel(key string) error {
 			return fmt.Errorf("label key cannot start with %s: %s", prefix, key)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -180,19 +180,19 @@ func AddManagedLabelsToPointerMap(labels map[string]*string, namespace string) m
 	if labels == nil {
 		labels = make(map[string]*string)
 	}
-	
+
 	// Create result map preserving all existing entries including nil values
 	result := make(map[string]*string)
 	for k, v := range labels {
 		result[k] = v
 	}
-	
+
 	// Add namespace label as pointer
 	result[NamespaceKey] = &namespace
-	
+
 	// Note: Protected label is handled separately by executors
 	// It's only added when explicitly set to true
-	
+
 	return result
 }
 
@@ -321,7 +321,7 @@ func getProtectionNewValue(protection any) bool {
 			return newField.Bool()
 		}
 	}
-	
+
 	return false
 }
 
@@ -338,4 +338,3 @@ func ConvertStringMapToPointerMap(labels map[string]string) map[string]*string {
 	}
 	return result
 }
-

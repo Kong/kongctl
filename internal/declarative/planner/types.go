@@ -31,33 +31,33 @@ type PlanMetadata struct {
 
 // PlannedChange represents a single resource change
 type PlannedChange struct {
-	ID               string                    `json:"id"`
-	ResourceType     string                    `json:"resource_type"`
-	ResourceRef      string                    `json:"resource_ref"`
-	ResourceID       string                    `json:"resource_id,omitempty"` // Only for UPDATE/DELETE
+	ID           string `json:"id"`
+	ResourceType string `json:"resource_type"`
+	ResourceRef  string `json:"resource_ref"`
+	ResourceID   string `json:"resource_id,omitempty"` // Only for UPDATE/DELETE
 	// Human-readable identifiers for resources without config refs
-	ResourceMonikers map[string]string         `json:"resource_monikers,omitempty"`
-	Action           ActionType                `json:"action"`
-	Fields           map[string]any    `json:"fields"`
-	References       map[string]ReferenceInfo  `json:"references,omitempty"`
-	Parent           *ParentInfo               `json:"parent,omitempty"`
-	Protection       any               `json:"protection,omitempty"` // bool or ProtectionChange
-	Namespace        string                    `json:"namespace"`
-	DependsOn        []string                  `json:"depends_on,omitempty"`
+	ResourceMonikers map[string]string        `json:"resource_monikers,omitempty"`
+	Action           ActionType               `json:"action"`
+	Fields           map[string]any           `json:"fields"`
+	References       map[string]ReferenceInfo `json:"references,omitempty"`
+	Parent           *ParentInfo              `json:"parent,omitempty"`
+	Protection       any                      `json:"protection,omitempty"` // bool or ProtectionChange
+	Namespace        string                   `json:"namespace"`
+	DependsOn        []string                 `json:"depends_on,omitempty"`
 }
 
 // ReferenceInfo tracks reference resolution
 type ReferenceInfo struct {
 	// Existing fields for single references
 	Ref          string            `json:"ref,omitempty"`
-	ID           string            `json:"id,omitempty"` // May be "[unknown]" for resources in same plan
+	ID           string            `json:"id,omitempty"`            // May be "[unknown]" for resources in same plan
 	LookupFields map[string]string `json:"lookup_fields,omitempty"` // Resource-specific identifying fields
-	
+
 	// New fields for array references
-	Refs         []string               `json:"refs,omitempty"`          // Array of reference strings
-	ResolvedIDs  []string               `json:"resolved_ids,omitempty"`  // Array of resolved UUIDs
-	LookupArrays map[string][]string    `json:"lookup_arrays,omitempty"` // Array lookup fields
-	IsArray      bool                   `json:"is_array,omitempty"`      // Flag to indicate array reference
+	Refs         []string            `json:"refs,omitempty"`          // Array of reference strings
+	ResolvedIDs  []string            `json:"resolved_ids,omitempty"`  // Array of resolved UUIDs
+	LookupArrays map[string][]string `json:"lookup_arrays,omitempty"` // Array lookup fields
+	IsArray      bool                `json:"is_array,omitempty"`      // Flag to indicate array reference
 }
 
 // ParentInfo tracks parent relationships
@@ -148,17 +148,17 @@ func (p *Plan) AddWarning(changeID, message string) {
 // UpdateSummary recalculates plan statistics
 func (p *Plan) UpdateSummary() {
 	p.Summary.TotalChanges = len(p.Changes)
-	
+
 	// Reset counts
 	p.Summary.ByAction = make(map[ActionType]int)
 	p.Summary.ByResource = make(map[string]int)
 	protectionSummary := &ProtectionSummary{}
-	
+
 	// Count by action and resource type
 	for _, change := range p.Changes {
 		p.Summary.ByAction[change.Action]++
 		p.Summary.ByResource[change.ResourceType]++
-		
+
 		// Track protection changes
 		switch v := change.Protection.(type) {
 		case bool:
@@ -173,7 +173,7 @@ func (p *Plan) UpdateSummary() {
 			}
 		}
 	}
-	
+
 	if protectionSummary.Protecting > 0 || protectionSummary.Unprotecting > 0 {
 		p.Summary.ProtectionChanges = protectionSummary
 	}

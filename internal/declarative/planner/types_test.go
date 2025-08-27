@@ -170,7 +170,7 @@ func TestPlanJSONSerialization(t *testing.T) {
 				ID:  "auth-123",
 			},
 		},
-		DependsOn:  []string{"0-c-auth"},
+		DependsOn: []string{"0-c-auth"},
 	}
 
 	plan.AddChange(change)

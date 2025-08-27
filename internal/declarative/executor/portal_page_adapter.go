@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kong/kongctl/internal/declarative/state"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/state"
 )
 
 // PortalPageAdapter implements ResourceOperations for portal pages
@@ -20,40 +20,40 @@ func NewPortalPageAdapter(client *state.Client) *PortalPageAdapter {
 
 // MapCreateFields maps fields to CreatePortalPageRequest
 func (p *PortalPageAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]any,
-	create *kkComps.CreatePortalPageRequest) error {
-	
+	create *kkComps.CreatePortalPageRequest,
+) error {
 	// Required fields
 	slug, ok := fields["slug"].(string)
 	if !ok {
 		return fmt.Errorf("slug is required")
 	}
 	create.Slug = slug
-	
+
 	content, ok := fields["content"].(string)
 	if !ok {
 		return fmt.Errorf("content is required")
 	}
 	create.Content = content
-	
+
 	// Optional fields
 	if title, ok := fields["title"].(string); ok {
 		create.Title = &title
 	}
-	
+
 	if visibilityStr, ok := fields["visibility"].(string); ok {
 		visibility := kkComps.PageVisibilityStatus(visibilityStr)
 		create.Visibility = &visibility
 	}
-	
+
 	if statusStr, ok := fields["status"].(string); ok {
 		status := kkComps.PublishedStatus(statusStr)
 		create.Status = &status
 	}
-	
+
 	if description, ok := fields["description"].(string); ok {
 		create.Description = &description
 	}
-	
+
 	// Handle parent page reference
 	change := *execCtx.PlannedChange
 	if parentPageRef, ok := change.References["parent_page_id"]; ok {
@@ -64,40 +64,41 @@ func (p *PortalPageAdapter) MapCreateFields(_ context.Context, execCtx *Executio
 	} else if parentPageID, ok := fields["parent_page_id"].(string); ok {
 		create.ParentPageID = &parentPageID
 	}
-	
+
 	return nil
 }
 
 // MapUpdateFields maps fields to UpdatePortalPageRequest
 func (p *PortalPageAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]any,
-	update *kkComps.UpdatePortalPageRequest, _ map[string]string) error {
+	update *kkComps.UpdatePortalPageRequest, _ map[string]string,
+) error {
 	// Optional fields
 	if slug, ok := fields["slug"].(string); ok {
 		update.Slug = &slug
 	}
-	
+
 	if title, ok := fields["title"].(string); ok {
 		update.Title = &title
 	}
-	
+
 	if content, ok := fields["content"].(string); ok {
 		update.Content = &content
 	}
-	
+
 	if visibilityStr, ok := fields["visibility"].(string); ok {
 		visibility := kkComps.VisibilityStatus(visibilityStr)
 		update.Visibility = &visibility
 	}
-	
+
 	if statusStr, ok := fields["status"].(string); ok {
 		status := kkComps.PublishedStatus(statusStr)
 		update.Status = &status
 	}
-	
+
 	if description, ok := fields["description"].(string); ok {
 		update.Description = &description
 	}
-	
+
 	// Handle parent page reference
 	change := *execCtx.PlannedChange
 	if parentPageRef, ok := change.References["parent_page_id"]; ok {
@@ -108,31 +109,33 @@ func (p *PortalPageAdapter) MapUpdateFields(_ context.Context, execCtx *Executio
 	} else if parentPageID, ok := fields["parent_page_id"].(string); ok {
 		update.ParentPageID = &parentPageID
 	}
-	
+
 	return nil
 }
 
 // Create creates a new portal page
 func (p *PortalPageAdapter) Create(ctx context.Context, req kkComps.CreatePortalPageRequest,
-	_ string, execCtx *ExecutionContext) (string, error) {
+	_ string, execCtx *ExecutionContext,
+) (string, error) {
 	// Get portal ID from execution context
 	portalID, err := p.getPortalIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
 	}
-	
+
 	return p.client.CreatePortalPage(ctx, portalID, req)
 }
 
 // Update updates an existing portal page
 func (p *PortalPageAdapter) Update(ctx context.Context, id string, req kkComps.UpdatePortalPageRequest,
-	_ string, execCtx *ExecutionContext) (string, error) {
+	_ string, execCtx *ExecutionContext,
+) (string, error) {
 	// Get portal ID from execution context
 	portalID, err := p.getPortalIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
 	}
-	
+
 	err = p.client.UpdatePortalPage(ctx, portalID, id, req)
 	if err != nil {
 		return "", err
@@ -147,7 +150,7 @@ func (p *PortalPageAdapter) Delete(ctx context.Context, id string, execCtx *Exec
 	if err != nil {
 		return err
 	}
-	
+
 	return p.client.DeletePortalPage(ctx, portalID, id)
 }
 
@@ -173,25 +176,24 @@ func (p *PortalPageAdapter) SupportsUpdate() bool {
 	return true
 }
 
-
 // getPortalIDFromExecutionContext extracts the portal ID from ExecutionContext parameter (used for Delete operations)
 func (p *PortalPageAdapter) getPortalIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
 	if execCtx == nil || execCtx.PlannedChange == nil {
 		return "", fmt.Errorf("execution context is required for page operations")
 	}
-	
+
 	change := *execCtx.PlannedChange
-	
+
 	// Priority 1: Check References (for Create operations)
 	if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
 		return portalRef.ID, nil
 	}
-	
+
 	// Priority 2: Check Parent field (for Delete operations)
 	if change.Parent != nil && change.Parent.ID != "" {
 		return change.Parent.ID, nil
 	}
-	
+
 	return "", fmt.Errorf("portal ID is required for page operations")
 }
 

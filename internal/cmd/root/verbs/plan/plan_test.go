@@ -65,7 +65,7 @@ func TestPlanCmdSubcommandAccess(t *testing.T) {
 			break
 		}
 	}
-	
+
 	if konnectCmd == nil {
 		t.Fatal("Should have konnect subcommand")
 	}

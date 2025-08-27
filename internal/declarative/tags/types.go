@@ -8,7 +8,7 @@ import "gopkg.in/yaml.v3"
 type TagResolver interface {
 	// Tag returns the YAML tag this resolver handles (e.g., "!file")
 	Tag() string
-	
+
 	// Resolve processes a YAML node with this tag and returns the resolved value
 	Resolve(node *yaml.Node) (any, error)
 }
@@ -21,6 +21,6 @@ type FileRef struct {
 
 // ResolvedValue represents a value that was resolved from a tag
 type ResolvedValue struct {
-	Value  any // The resolved value
-	Source string      // Source information for error reporting
+	Value  any    // The resolved value
+	Source string // Source information for error reporting
 }

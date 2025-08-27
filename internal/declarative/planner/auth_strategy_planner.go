@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // authStrategyPlannerImpl implements planning logic for auth strategy resources
@@ -25,7 +25,7 @@ func NewAuthStrategyPlanner(base *BasePlanner) AuthStrategyPlanner {
 // PlanChanges generates changes for auth strategy resources
 func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
 	desired := p.GetDesiredAuthStrategies()
-	
+
 	// Skip if no auth strategies to plan and not in sync mode
 	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
 		return nil
@@ -33,7 +33,7 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 
 	// Get namespace from planner context
 	namespace := plannerCtx.Namespace
-	
+
 	// Fetch current managed auth strategies from the specific namespace
 	namespaceFilter := []string{namespace}
 	currentStrategies, err := p.GetClient().ListManagedAuthStrategies(ctx, namespaceFilter)
@@ -68,11 +68,11 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 				name = desiredStrategy.AppAuthStrategyOpenIDConnectRequest.Name
 			}
 		}
-		
+
 		if name == "" {
 			continue
 		}
-		
+
 		current, exists := currentByName[name]
 
 		if !exists {
@@ -92,15 +92,15 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 			if isProtected != shouldProtect {
 				// When changing protection status, include any other field updates too
 				needsUpdate, updateFields := p.shouldUpdateAuthStrategy(current, desiredStrategy)
-				
+
 				// Create protection change object
 				protectionChange := &ProtectionChange{
 					Old: isProtected,
 					New: shouldProtect,
 				}
-				
+
 				// Validate protection change
-				err := p.ValidateProtectionWithChange("auth_strategy", name, isProtected, ActionUpdate, 
+				err := p.ValidateProtectionWithChange("auth_strategy", name, isProtected, ActionUpdate,
 					protectionChange, needsUpdate)
 				protectionErrors.Add(err)
 				if err == nil {
@@ -172,31 +172,32 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 
 // planAuthStrategyCreate creates a CREATE change for an auth strategy
 func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
-	strategy resources.ApplicationAuthStrategyResource, plan *Plan) {
+	strategy resources.ApplicationAuthStrategyResource, plan *Plan,
+) {
 	fields := make(map[string]any)
-	
+
 	// Extract fields based on strategy type
 	var name string
 	var displayName string
 	var labels map[string]string
 	var kongctl *resources.KongctlMeta
-	
+
 	switch strategy.Type {
 	case kkComps.CreateAppAuthStrategyRequestTypeKeyAuth:
 		if strategy.AppAuthStrategyKeyAuthRequest != nil {
 			name = strategy.AppAuthStrategyKeyAuthRequest.Name
 			displayName = strategy.AppAuthStrategyKeyAuthRequest.DisplayName
 			labels = strategy.AppAuthStrategyKeyAuthRequest.Labels
-			
+
 			// Set strategy type
 			fields["strategy_type"] = "key_auth"
-			
+
 			// Set config under configs map
 			keyAuthConfig := make(map[string]any)
 			if strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames != nil {
 				keyAuthConfig["key_names"] = strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames
 			}
-			
+
 			fields["configs"] = map[string]any{
 				"key-auth": keyAuthConfig,
 			}
@@ -206,10 +207,10 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 			name = strategy.AppAuthStrategyOpenIDConnectRequest.Name
 			displayName = strategy.AppAuthStrategyOpenIDConnectRequest.DisplayName
 			labels = strategy.AppAuthStrategyOpenIDConnectRequest.Labels
-			
+
 			// Set strategy type
 			fields["strategy_type"] = "openid_connect"
-			
+
 			// Set config under configs map
 			oidcConfig := make(map[string]any)
 			if strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Issuer != "" {
@@ -224,15 +225,15 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 			if strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.AuthMethods != nil {
 				oidcConfig["auth_methods"] = strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.AuthMethods
 			}
-			
+
 			fields["configs"] = map[string]any{
 				"openid-connect": oidcConfig,
 			}
 		}
 	}
-	
+
 	kongctl = strategy.Kongctl
-	
+
 	fields["name"] = name
 	if displayName != "" {
 		fields["display_name"] = displayName
@@ -299,7 +300,7 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 	// Extract fields based on strategy type
 	var displayName string
 	var desiredLabels map[string]string
-	
+
 	switch desired.Type {
 	case kkComps.CreateAppAuthStrategyRequestTypeKeyAuth:
 		if desired.AppAuthStrategyKeyAuthRequest != nil {
@@ -327,7 +328,7 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 			// Check key_names updates
 			if desired.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames != nil {
 				desiredKeyNames := desired.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames
-				
+
 				// Convert current key names to a comparable format
 				currentKeyNames := make([]string, 0)
 				if current.Configs != nil {
@@ -345,7 +346,7 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 						}
 					}
 				}
-				
+
 				// Compare lengths first
 				if len(currentKeyNames) != len(desiredKeyNames) {
 					updateFields["configs"] = map[string]any{
@@ -368,11 +369,11 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 				}
 			}
 		}
-		
+
 	case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
 		if desired.AppAuthStrategyOpenIDConnectRequest != nil {
 			oidcConfig := &desired.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect
-			
+
 			// Get current OIDC config
 			var currentOIDC map[string]any
 			if current.Configs != nil {
@@ -380,10 +381,10 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 					currentOIDC = oidc
 				}
 			}
-			
+
 			oidcUpdates := make(map[string]any)
 			hasUpdates := false
-			
+
 			// Check issuer
 			if oidcConfig.Issuer != "" {
 				currentIssuer, _ := currentOIDC["issuer"].(string)
@@ -392,7 +393,7 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 					hasUpdates = true
 				}
 			}
-			
+
 			// Check credential_claim
 			if oidcConfig.CredentialClaim != nil {
 				currentClaims := extractStringSlice(currentOIDC["credential_claim"])
@@ -401,7 +402,7 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 					hasUpdates = true
 				}
 			}
-			
+
 			// Check scopes
 			if oidcConfig.Scopes != nil {
 				currentScopes := extractStringSlice(currentOIDC["scopes"])
@@ -410,7 +411,7 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 					hasUpdates = true
 				}
 			}
-			
+
 			// Check auth_methods
 			if oidcConfig.AuthMethods != nil {
 				currentMethods := extractStringSlice(currentOIDC["auth_methods"])
@@ -419,7 +420,7 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 					hasUpdates = true
 				}
 			}
-			
+
 			if hasUpdates {
 				updateFields["configs"] = map[string]any{
 					"openid-connect": oidcUpdates,
@@ -485,10 +486,10 @@ func (p *authStrategyPlannerImpl) planAuthStrategyUpdateWithFields(
 			fields[field] = newValue
 		}
 	}
-	
+
 	// Pass strategy type to executor
 	fields[FieldStrategyType] = current.StrategyType
-	
+
 	// Pass current labels so executor can properly handle removals
 	if _, hasLabels := updateFields["labels"]; hasLabels {
 		fields[FieldCurrentLabels] = current.NormalizedLabels

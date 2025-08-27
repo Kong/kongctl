@@ -11,10 +11,10 @@ import (
 
 // ConsoleReporter provides console output for plan execution progress
 type ConsoleReporter struct {
-	writer       io.Writer
-	dryRun       bool
-	totalChanges int
-	currentIndex int
+	writer         io.Writer
+	dryRun         bool
+	totalChanges   int
+	currentIndex   int
 	namespaceStats map[string]*namespaceStats
 }
 
@@ -52,11 +52,11 @@ func (r *ConsoleReporter) StartExecution(plan *planner.Plan) {
 	if r.writer == nil {
 		return
 	}
-	
+
 	// Store total changes and reset current index
 	r.totalChanges = plan.Summary.TotalChanges
 	r.currentIndex = 0
-	
+
 	if plan.Summary.TotalChanges == 0 {
 		fmt.Fprintln(r.writer, "No changes to execute.")
 		return
@@ -75,10 +75,10 @@ func (r *ConsoleReporter) StartChange(change planner.PlannedChange) {
 	if r.writer == nil {
 		return
 	}
-	
+
 	// Increment current index for this change
 	r.currentIndex++
-	
+
 	// Initialize namespace stats if needed
 	namespace := change.Namespace
 	if namespace == "" {
@@ -87,16 +87,16 @@ func (r *ConsoleReporter) StartChange(change planner.PlannedChange) {
 	if r.namespaceStats[namespace] == nil {
 		r.namespaceStats[namespace] = &namespaceStats{}
 	}
-	
+
 	action := getActionVerb(change.Action)
 	resourceName := formatResourceNameForProgress(change)
-	
+
 	// Show progress counter with namespace if we have total changes
 	if r.totalChanges > 0 {
-		fmt.Fprintf(r.writer, "[%d/%d] [namespace: %s] %s %s: %s... ", 
+		fmt.Fprintf(r.writer, "[%d/%d] [namespace: %s] %s %s: %s... ",
 			r.currentIndex, r.totalChanges, namespace, action, change.ResourceType, resourceName)
 	} else {
-		fmt.Fprintf(r.writer, "• [namespace: %s] %s %s: %s... ", 
+		fmt.Fprintf(r.writer, "• [namespace: %s] %s %s: %s... ",
 			namespace, action, change.ResourceType, resourceName)
 	}
 }
@@ -106,13 +106,13 @@ func (r *ConsoleReporter) CompleteChange(change planner.PlannedChange, err error
 	if r.writer == nil {
 		return
 	}
-	
+
 	// Update namespace stats
 	namespace := change.Namespace
 	if namespace == "" {
 		namespace = "default"
 	}
-	
+
 	if err != nil {
 		fmt.Fprintf(r.writer, "✗ Error: %s\n", err.Error())
 		if stats := r.namespaceStats[namespace]; stats != nil {
@@ -131,7 +131,7 @@ func (r *ConsoleReporter) SkipChange(change planner.PlannedChange, reason string
 	if r.writer == nil {
 		return
 	}
-	
+
 	// Update namespace stats
 	namespace := change.Namespace
 	if namespace == "" {
@@ -140,7 +140,7 @@ func (r *ConsoleReporter) SkipChange(change planner.PlannedChange, reason string
 	if stats := r.namespaceStats[namespace]; stats != nil {
 		stats.skippedCount++
 	}
-	
+
 	fmt.Fprintf(r.writer, "⚠ Skipped: %s\n", reason)
 }
 
@@ -150,24 +150,24 @@ func (r *ConsoleReporter) FinishExecution(result *ExecutionResult) {
 		return
 	}
 	fmt.Fprintln(r.writer, "")
-	
+
 	// Show namespace breakdown if we have multiple namespaces
 	if len(r.namespaceStats) > 1 {
 		fmt.Fprintln(r.writer, "\nNamespace Summary:")
-		
+
 		// Sort namespaces for consistent output
 		namespaces := make([]string, 0, len(r.namespaceStats))
 		for ns := range r.namespaceStats {
 			namespaces = append(namespaces, ns)
 		}
 		sort.Strings(namespaces)
-		
+
 		for _, ns := range namespaces {
 			stats := r.namespaceStats[ns]
 			total := stats.successCount + stats.failureCount + stats.skippedCount
 			if total > 0 {
 				fmt.Fprintf(r.writer, "  %s: ", ns)
-				
+
 				parts := []string{}
 				if stats.successCount > 0 {
 					parts = append(parts, fmt.Sprintf("%d succeeded", stats.successCount))
@@ -178,20 +178,20 @@ func (r *ConsoleReporter) FinishExecution(result *ExecutionResult) {
 				if stats.skippedCount > 0 && r.dryRun {
 					parts = append(parts, fmt.Sprintf("%d validated", stats.skippedCount))
 				}
-				
+
 				fmt.Fprintln(r.writer, strings.Join(parts, ", "))
 			}
 		}
 		fmt.Fprintln(r.writer, "")
 	}
-	
+
 	if result.DryRun {
 		// For dry-run, show what would happen
 		fmt.Fprintln(r.writer, "Dry run complete.")
 		if result.SkippedCount > 0 {
 			fmt.Fprintf(r.writer, "%d changes would be applied.\n", result.SkippedCount)
 		}
-		
+
 		if result.FailureCount > 0 {
 			fmt.Fprintln(r.writer, "\nValidation errors:")
 			for _, err := range result.Errors {
@@ -204,11 +204,11 @@ func (r *ConsoleReporter) FinishExecution(result *ExecutionResult) {
 		if result.SuccessCount > 0 {
 			fmt.Fprintf(r.writer, "Applied %d changes.\n", result.SuccessCount)
 		}
-		
+
 		if result.FailureCount > 0 && len(result.Errors) > 0 {
 			fmt.Fprintln(r.writer, "\nErrors:")
 			for _, err := range result.Errors {
-				fmt.Fprintf(r.writer, "  • %s %s: %s\n", 
+				fmt.Fprintf(r.writer, "  • %s %s: %s\n",
 					err.ResourceType, err.ResourceName, err.Error)
 			}
 		}
@@ -235,7 +235,7 @@ var _ ProgressReporter = (*ConsoleReporter)(nil)
 // formatResourceNameForProgress formats a resource name for display, using monikers when ref is unknown
 func formatResourceNameForProgress(change planner.PlannedChange) string {
 	resourceName := change.ResourceRef
-	
+
 	// If resource ref is unknown, try to build a meaningful name from monikers
 	if resourceName == "[unknown]" && len(change.ResourceMonikers) > 0 {
 		switch change.ResourceType {
@@ -278,11 +278,11 @@ func formatResourceNameForProgress(change planner.PlannedChange) string {
 			return strings.Join(parts, ", ")
 		}
 	}
-	
+
 	// Fallback to normal behavior
 	if resourceName == "" {
 		resourceName = fmt.Sprintf("%s/%s", change.ResourceType, change.ID)
 	}
-	
+
 	return resourceName
 }

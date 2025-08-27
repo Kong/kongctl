@@ -8,10 +8,10 @@ type Resource interface {
 	GetDependencies() []ResourceRef
 	Validate() error
 	SetDefaults()
-	
+
 	// Identity resolution methods
-	GetKonnectID() string // Returns the Konnect ID if resolved, empty otherwise
-	GetKonnectMonikerFilter() string // Returns filter string for Konnect API lookup
+	GetKonnectID() string                             // Returns the Konnect ID if resolved, empty otherwise
+	GetKonnectMonikerFilter() string                  // Returns filter string for Konnect API lookup
 	TryMatchKonnectResource(konnectResource any) bool // Matches against Konnect resource
 }
 
@@ -19,11 +19,11 @@ type Resource interface {
 type RefReader interface {
 	// HasRef checks if a ref exists globally across all resource types
 	HasRef(ref string) bool
-	
+
 	// GetResourceByRef returns the resource for a given ref
 	// Returns nil and false if not found
 	GetResourceByRef(ref string) (Resource, bool)
-	
+
 	// GetResourceTypeByRef returns the resource type for a given ref
 	// This is a convenience method that uses GetResourceByRef
 	GetResourceTypeByRef(ref string) (ResourceType, bool)

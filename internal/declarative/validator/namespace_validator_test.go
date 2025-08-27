@@ -7,7 +7,7 @@ import (
 
 func TestValidateNamespace(t *testing.T) {
 	validator := NewNamespaceValidator()
-	
+
 	tests := []struct {
 		name      string
 		namespace string
@@ -50,7 +50,7 @@ func TestValidateNamespace(t *testing.T) {
 			namespace: "team-123-prod-v2",
 			wantErr:   false,
 		},
-		
+
 		// Invalid cases
 		{
 			name:      "empty string",
@@ -113,7 +113,7 @@ func TestValidateNamespace(t *testing.T) {
 			errMsg:    "must start and end with an alphanumeric character",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validator.ValidateNamespace(tt.namespace)
@@ -136,7 +136,7 @@ func TestValidateNamespace(t *testing.T) {
 
 func TestValidateNamespaces(t *testing.T) {
 	validator := NewNamespaceValidator()
-	
+
 	tests := []struct {
 		name       string
 		namespaces []string
@@ -170,7 +170,7 @@ func TestValidateNamespaces(t *testing.T) {
 			wantErr:    false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validator.ValidateNamespaces(tt.namespaces)
@@ -196,21 +196,21 @@ func TestReservedNamespaces(t *testing.T) {
 	if ReservedNamespaces == nil {
 		t.Error("ReservedNamespaces should not be nil")
 	}
-	
+
 	// Currently no reserved namespaces, but test the mechanism
 	originalReserved := ReservedNamespaces
 	defer func() {
 		ReservedNamespaces = originalReserved
 	}()
-	
+
 	// Add a test reserved namespace
 	ReservedNamespaces = map[string]bool{
 		"system": true,
 		"kube":   true,
 	}
-	
+
 	validator := NewNamespaceValidator()
-	
+
 	tests := []struct {
 		namespace string
 		wantErr   bool
@@ -220,7 +220,7 @@ func TestReservedNamespaces(t *testing.T) {
 		{"user", false},
 		{"default", false},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.namespace, func(t *testing.T) {
 			err := validator.ValidateNamespace(tt.namespace)

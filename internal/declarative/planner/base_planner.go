@@ -10,14 +10,14 @@ import (
 
 // BasePlanner provides common functionality for all resource planners
 type BasePlanner struct {
-	planner      *Planner
+	planner         *Planner
 	changeIDCounter *atomic.Int32
 }
 
 // NewBasePlanner creates a new base planner instance
 func NewBasePlanner(p *Planner) *BasePlanner {
 	return &BasePlanner{
-		planner:      p,
+		planner:         p,
 		changeIDCounter: &atomic.Int32{},
 	}
 }
@@ -34,13 +34,13 @@ func (b *BasePlanner) ValidateProtection(resourceType, resourceName string, isPr
 
 // ValidateProtectionWithChange validates protection status for an operation with protection change info
 func (b *BasePlanner) ValidateProtectionWithChange(
-	resourceType, resourceName string, 
-	isProtected bool, 
+	resourceType, resourceName string,
+	isProtected bool,
 	action ActionType,
 	protectionChange *ProtectionChange,
 	hasOtherFieldChanges bool,
 ) error {
-	return b.planner.validateProtectionWithChange(resourceType, resourceName, isProtected, 
+	return b.planner.validateProtectionWithChange(resourceType, resourceName, isProtected,
 		action, protectionChange, hasOtherFieldChanges)
 }
 
@@ -139,7 +139,7 @@ func (c *ProtectionErrorCollector) Error() error {
 	if !c.HasErrors() {
 		return nil
 	}
-	
+
 	errMsg := "Cannot generate plan due to protected resources:\n"
 	for _, err := range c.errors {
 		errMsg += fmt.Sprintf("- %s\n", err.Error())

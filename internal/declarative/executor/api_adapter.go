@@ -3,11 +3,11 @@ package executor
 import (
 	"context"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // APIAdapter implements ResourceOperations for APIs
@@ -22,7 +22,8 @@ func NewAPIAdapter(client *state.Client) *APIAdapter {
 
 // MapCreateFields maps fields to CreateAPIRequest
 func (p *APIAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]any,
-	create *kkComps.CreateAPIRequest) error {
+	create *kkComps.CreateAPIRequest,
+) error {
 	// Extract namespace and protection from execution context
 	namespace := execCtx.Namespace
 	protection := execCtx.Protection
@@ -43,7 +44,8 @@ func (p *APIAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContex
 
 // MapUpdateFields maps fields to UpdateAPIRequest
 func (p *APIAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]any,
-	update *kkComps.UpdateAPIRequest, currentLabels map[string]string) error {
+	update *kkComps.UpdateAPIRequest, currentLabels map[string]string,
+) error {
 	// Extract namespace and protection from execution context
 	namespace := execCtx.Namespace
 	protection := execCtx.Protection
@@ -64,7 +66,7 @@ func (p *APIAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContex
 			if version, ok := value.(string); ok {
 				update.Version = &version
 			}
-		// Skip "labels" as they're handled separately below
+			// Skip "labels" as they're handled separately below
 		}
 	}
 
@@ -88,8 +90,9 @@ func (p *APIAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContex
 }
 
 // Create creates a new API
-func (p *APIAdapter) Create(ctx context.Context, req kkComps.CreateAPIRequest, 
-	namespace string, _ *ExecutionContext) (string, error) {
+func (p *APIAdapter) Create(ctx context.Context, req kkComps.CreateAPIRequest,
+	namespace string, _ *ExecutionContext,
+) (string, error) {
 	resp, err := p.client.CreateAPI(ctx, req, namespace)
 	if err != nil {
 		return "", err
@@ -99,7 +102,8 @@ func (p *APIAdapter) Create(ctx context.Context, req kkComps.CreateAPIRequest,
 
 // Update updates an existing API
 func (p *APIAdapter) Update(ctx context.Context, id string, req kkComps.UpdateAPIRequest,
-	namespace string, _ *ExecutionContext) (string, error) {
+	namespace string, _ *ExecutionContext,
+) (string, error) {
 	resp, err := p.client.UpdateAPI(ctx, id, req, namespace)
 	if err != nil {
 		return "", err

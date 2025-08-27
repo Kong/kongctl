@@ -26,7 +26,7 @@ apis:
 `
 		dir := t.TempDir()
 		file := filepath.Join(dir, "test.yaml")
-		require.NoError(t, os.WriteFile(file, []byte(yaml), 0600))
+		require.NoError(t, os.WriteFile(file, []byte(yaml), 0o600))
 
 		l := New()
 		rs, err := l.LoadFile(file)
@@ -71,7 +71,7 @@ application_auth_strategies:
 `
 		dir := t.TempDir()
 		file := filepath.Join(dir, "test.yaml")
-		require.NoError(t, os.WriteFile(file, []byte(yaml), 0600))
+		require.NoError(t, os.WriteFile(file, []byte(yaml), 0o600))
 
 		l := New()
 		rs, err := l.LoadFile(file)
@@ -117,7 +117,7 @@ apis:
 `
 		dir := t.TempDir()
 		file := filepath.Join(dir, "test.yaml")
-		require.NoError(t, os.WriteFile(file, []byte(yaml), 0600))
+		require.NoError(t, os.WriteFile(file, []byte(yaml), 0o600))
 
 		l := New()
 		rs, err := l.LoadFile(file)
@@ -153,7 +153,7 @@ control_planes:
 `
 		dir := t.TempDir()
 		file := filepath.Join(dir, "test.yaml")
-		require.NoError(t, os.WriteFile(file, []byte(yaml), 0600))
+		require.NoError(t, os.WriteFile(file, []byte(yaml), 0o600))
 
 		l := New()
 		rs, err := l.LoadFile(file)
@@ -199,7 +199,7 @@ apis:
 `
 		dir := t.TempDir()
 		file := filepath.Join(dir, "test.yaml")
-		require.NoError(t, os.WriteFile(file, []byte(yaml), 0600))
+		require.NoError(t, os.WriteFile(file, []byte(yaml), 0o600))
 
 		l := New()
 		rs, err := l.LoadFile(file)
@@ -247,9 +247,9 @@ portals:
 		file1 := filepath.Join(dir, "team-alpha.yaml")
 		file2 := filepath.Join(dir, "team-beta.yaml")
 		file3 := filepath.Join(dir, "default.yaml")
-		require.NoError(t, os.WriteFile(file1, []byte(yaml1), 0600))
-		require.NoError(t, os.WriteFile(file2, []byte(yaml2), 0600))
-		require.NoError(t, os.WriteFile(file3, []byte(yaml3), 0600))
+		require.NoError(t, os.WriteFile(file1, []byte(yaml1), 0o600))
+		require.NoError(t, os.WriteFile(file2, []byte(yaml2), 0o600))
+		require.NoError(t, os.WriteFile(file3, []byte(yaml3), 0o600))
 
 		l := New()
 		sources := []Source{
@@ -262,7 +262,7 @@ portals:
 
 		// Check all portals
 		require.Len(t, rs.Portals, 3)
-		
+
 		// Portal 1 from team-alpha
 		assert.Equal(t, "portal1", rs.Portals[0].Ref)
 		assert.NotNil(t, rs.Portals[0].Kongctl.Namespace)
@@ -300,7 +300,7 @@ portals:
 `
 		dir := t.TempDir()
 		file := filepath.Join(dir, "test.yaml")
-		require.NoError(t, os.WriteFile(file, []byte(yaml), 0600))
+		require.NoError(t, os.WriteFile(file, []byte(yaml), 0o600))
 
 		l := New()
 		rs, err := l.LoadFile(file)
@@ -327,7 +327,7 @@ portals:
 `
 		dir := t.TempDir()
 		file := filepath.Join(dir, "test.yaml")
-		require.NoError(t, os.WriteFile(file, []byte(yaml), 0600))
+		require.NoError(t, os.WriteFile(file, []byte(yaml), 0o600))
 
 		l := New()
 		_, err := l.LoadFile(file)
@@ -345,7 +345,7 @@ portals:
 `
 		dir := t.TempDir()
 		file := filepath.Join(dir, "test.yaml")
-		require.NoError(t, os.WriteFile(file, []byte(yaml), 0600))
+		require.NoError(t, os.WriteFile(file, []byte(yaml), 0o600))
 
 		l := New()
 		_, err := l.LoadFile(file)

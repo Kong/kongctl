@@ -116,7 +116,7 @@ func (p *Planner) planPortalCustomizationUpdateWithFields(
 			Ref: customization.Portal,
 			ID:  portalID, // May be empty if portal doesn't exist yet
 		}
-		
+
 		// Also store in References for executor to use
 		change.References = map[string]ReferenceInfo{
 			"portal_id": {
@@ -201,17 +201,17 @@ func (p *Planner) buildAllCustomizationFields(
 // buildThemeFields constructs theme fields map from theme object
 func (p *Planner) buildThemeFields(theme *kkComps.Theme) map[string]any {
 	themeFields := make(map[string]any)
-	
+
 	// Add mode if present
 	if theme.Mode != nil {
 		themeFields["mode"] = string(*theme.Mode)
 	}
-	
+
 	// Add name if present
 	if theme.Name != nil {
 		themeFields["name"] = *theme.Name
 	}
-	
+
 	// Add colors if present
 	if theme.Colors != nil {
 		colorsFields := make(map[string]any)
@@ -220,14 +220,14 @@ func (p *Planner) buildThemeFields(theme *kkComps.Theme) map[string]any {
 		}
 		themeFields["colors"] = colorsFields
 	}
-	
+
 	return themeFields
 }
 
 // buildMenuFields constructs menu fields map from menu object
 func (p *Planner) buildMenuFields(menu *kkComps.Menu) map[string]any {
 	menuFields := make(map[string]any)
-	
+
 	// Add main menu items
 	if menu.Main != nil {
 		var mainMenuItems []map[string]any
@@ -242,7 +242,7 @@ func (p *Planner) buildMenuFields(menu *kkComps.Menu) map[string]any {
 		}
 		menuFields["main"] = mainMenuItems
 	}
-	
+
 	// Add footer sections
 	if menu.FooterSections != nil {
 		var footerSections []map[string]any
@@ -265,7 +265,7 @@ func (p *Planner) buildMenuFields(menu *kkComps.Menu) map[string]any {
 		}
 		menuFields["footer_sections"] = footerSections
 	}
-	
+
 	return menuFields
 }
 
@@ -277,17 +277,17 @@ func (p *Planner) compareTheme(current, desired *kkComps.Theme) bool {
 	if current == nil || desired == nil {
 		return false
 	}
-	
+
 	// Compare mode
 	if !p.compareModePtr(current.Mode, desired.Mode) {
 		return false
 	}
-	
+
 	// Compare name
 	if !p.compareStringPtr(current.Name, desired.Name) {
 		return false
 	}
-	
+
 	// Compare colors
 	if current.Colors == nil && desired.Colors == nil {
 		return true
@@ -295,7 +295,7 @@ func (p *Planner) compareTheme(current, desired *kkComps.Theme) bool {
 	if current.Colors == nil || desired.Colors == nil {
 		return false
 	}
-	
+
 	return p.compareStringPtr(current.Colors.Primary, desired.Colors.Primary)
 }
 
@@ -307,7 +307,7 @@ func (p *Planner) compareMenu(current, desired *kkComps.Menu) bool {
 	if current == nil || desired == nil {
 		return false
 	}
-	
+
 	// Compare main menu items
 	if len(current.Main) != len(desired.Main) {
 		return false
@@ -321,7 +321,7 @@ func (p *Planner) compareMenu(current, desired *kkComps.Menu) bool {
 			return false
 		}
 	}
-	
+
 	// Compare footer sections
 	if len(current.FooterSections) != len(desired.FooterSections) {
 		return false
@@ -332,7 +332,7 @@ func (p *Planner) compareMenu(current, desired *kkComps.Menu) bool {
 			len(currentSection.Items) != len(desiredSection.Items) {
 			return false
 		}
-		
+
 		// Compare items in section
 		for j, currentItem := range currentSection.Items {
 			desiredItem := desiredSection.Items[j]
@@ -344,7 +344,7 @@ func (p *Planner) compareMenu(current, desired *kkComps.Menu) bool {
 			}
 		}
 	}
-	
+
 	return true
 }
 
@@ -432,13 +432,13 @@ func (p *Planner) planPortalCustomDomainCreate(
 				break
 			}
 		}
-		
+
 		// Set Parent field for proper display and serialization
 		change.Parent = &ParentInfo{
 			Ref: domain.Portal,
 			ID:  "", // Will be resolved during execution
 		}
-		
+
 		change.References = map[string]ReferenceInfo{
 			"portal_id": {
 				Ref: domain.Portal,
@@ -489,39 +489,39 @@ func (p *Planner) planPortalPagesChanges(
 	// Build map from full slug path to page
 	existingByPath := make(map[string]state.PortalPage)
 	existingByID := make(map[string]state.PortalPage)
-	
+
 	// First, index all pages by ID for easy lookup
 	for _, page := range existingPages {
 		existingByID[page.ID] = page
 	}
-	
+
 	// Helper to build full path for a page
 	var getPagePath func(pageID string) string
 	pageIDToPath := make(map[string]string) // cache to avoid recalculation
-	
+
 	getPagePath = func(pageID string) string {
 		// Check cache first
 		if path, cached := pageIDToPath[pageID]; cached {
 			return path
 		}
-		
+
 		page, exists := existingByID[pageID]
 		if !exists {
 			return ""
 		}
-		
+
 		// Special handling for root page with slug "/"
 		normalizedSlug := page.Slug
 		if page.Slug != "/" {
 			normalizedSlug = strings.TrimPrefix(page.Slug, "/")
 		}
-		
+
 		// Root page - path is just the slug
 		if page.ParentPageID == "" {
 			pageIDToPath[pageID] = normalizedSlug
 			return normalizedSlug
 		}
-		
+
 		// Child page - build full path recursively
 		parentPath := getPagePath(page.ParentPageID)
 		if parentPath == "" {
@@ -529,12 +529,12 @@ func (p *Planner) planPortalPagesChanges(
 			pageIDToPath[pageID] = normalizedSlug
 			return normalizedSlug
 		}
-		
+
 		fullPath := parentPath + "/" + normalizedSlug
 		pageIDToPath[pageID] = fullPath
 		return fullPath
 	}
-	
+
 	// Build the path map for all existing pages
 	for _, page := range existingPages {
 		path := getPagePath(page.ID)
@@ -554,7 +554,7 @@ func (p *Planner) planPortalPagesChanges(
 		if desiredPage.Slug != "/" {
 			normalizedDesiredSlug = strings.TrimPrefix(desiredPage.Slug, "/")
 		}
-		
+
 		if desiredPage.ParentPageRef == "" {
 			// Root page
 			fullPath = normalizedDesiredSlug
@@ -568,10 +568,10 @@ func (p *Planner) planPortalPagesChanges(
 				fullPath = normalizedDesiredSlug
 			}
 		}
-		
+
 		// Check if page exists by full path
 		existingPage, exists := existingByPath[fullPath]
-		
+
 		if !exists {
 			// CREATE new page
 			p.planPortalPageCreate(parentNamespace, desiredPage, portalRef, portalID, plan)
@@ -582,7 +582,7 @@ func (p *Planner) planPortalPagesChanges(
 				if err != nil {
 					return fmt.Errorf("failed to fetch portal page %s for comparison: %w", existingPage.ID, err)
 				}
-				
+
 				needsUpdate, updateFields := p.shouldUpdatePortalPage(fullPage, desiredPage)
 				if needsUpdate {
 					p.planPortalPageUpdate(parentNamespace, existingPage, desiredPage, portalRef, updateFields, plan)
@@ -603,7 +603,7 @@ func (p *Planner) planPortalPagesChanges(
 			if desiredPage.Slug != "/" {
 				normalizedDesiredSlug = strings.TrimPrefix(desiredPage.Slug, "/")
 			}
-			
+
 			if desiredPage.ParentPageRef == "" {
 				// Root page
 				fullPath = normalizedDesiredSlug
@@ -617,7 +617,7 @@ func (p *Planner) planPortalPagesChanges(
 					fullPath = normalizedDesiredSlug
 				}
 			}
-			
+
 			desiredPaths[fullPath] = true
 		}
 
@@ -638,23 +638,23 @@ func (p *Planner) planPortalPageCreate(
 	fields := make(map[string]any)
 	fields["slug"] = page.Slug
 	fields["content"] = page.Content
-	
+
 	if page.Title != nil {
 		fields["title"] = *page.Title
 	}
-	
+
 	if page.Visibility != nil {
 		fields["visibility"] = string(*page.Visibility)
 	}
-	
+
 	if page.Status != nil {
 		fields["status"] = string(*page.Status)
 	}
-	
+
 	if page.Description != nil {
 		fields["description"] = *page.Description
 	}
-	
+
 	if page.ParentPageID != nil {
 		fields["parent_page_id"] = *page.ParentPageID
 	}
@@ -691,13 +691,13 @@ func (p *Planner) planPortalPageCreate(
 				break
 			}
 		}
-		
+
 		// Set Parent field for proper display and serialization
 		change.Parent = &ParentInfo{
 			Ref: page.Portal,
 			ID:  portalID, // May be empty if portal doesn't exist yet
 		}
-		
+
 		change.References = map[string]ReferenceInfo{
 			"portal_id": {
 				Ref: page.Portal,
@@ -717,7 +717,7 @@ func (p *Planner) planPortalPageCreate(
 				break
 			}
 		}
-		
+
 		// Build parent path to help with resolution
 		// Get all desired pages from the planner
 		allPages := make([]resources.PortalPageResource, 0)
@@ -729,9 +729,9 @@ func (p *Planner) planPortalPageCreate(
 		}
 		// Also include pages at root level
 		allPages = append(allPages, p.desiredPortalPages...)
-		
+
 		parentPath := p.buildParentPath(page.ParentPageRef, allPages)
-		
+
 		// Store parent page reference for resolution
 		if change.References == nil {
 			change.References = make(map[string]ReferenceInfo)
@@ -842,13 +842,13 @@ func (p *Planner) planPortalPageUpdate(
 				break
 			}
 		}
-		
+
 		// Set Parent field for proper display and serialization
 		change.Parent = &ParentInfo{
 			Ref: portalRef,
 			ID:  "", // Already known via ResourceID but not needed for display
 		}
-		
+
 		change.References = map[string]ReferenceInfo{
 			"portal_id": {
 				Ref: portalRef,
@@ -872,7 +872,7 @@ func (p *Planner) planPortalPageDelete(
 		ResourceRef:  "[unknown]",
 		ResourceID:   pageID,
 		ResourceMonikers: map[string]string{
-			"slug":         slug,
+			"slug":          slug,
 			"parent_portal": portalRef,
 		},
 		Parent:    &ParentInfo{Ref: portalRef, ID: portalID},
@@ -891,7 +891,7 @@ func (p *Planner) planPortalPageDelete(
 				break
 			}
 		}
-		
+
 		change.References = map[string]ReferenceInfo{
 			"portal_id": {
 				Ref: portalRef,
@@ -909,7 +909,7 @@ func (p *Planner) planPortalPageDelete(
 func (p *Planner) buildParentPath(pageRef string, allPages []resources.PortalPageResource) string {
 	pathSegments := []string{}
 	current := pageRef
-	
+
 	// Build path from bottom up
 	for current != "" {
 		found := false
@@ -925,7 +925,7 @@ func (p *Planner) buildParentPath(pageRef string, allPages []resources.PortalPag
 			break // Avoid infinite loop
 		}
 	}
-	
+
 	return strings.Join(pathSegments, "/")
 }
 
@@ -974,10 +974,17 @@ func (p *Planner) planPortalSnippetsChanges(
 				if err != nil {
 					return fmt.Errorf("failed to fetch portal snippet %s for comparison: %w", existingSnippet.ID, err)
 				}
-				
+
 				needsUpdate, updateFields := p.shouldUpdatePortalSnippet(fullSnippet, desiredSnippet)
 				if needsUpdate {
-					p.planPortalSnippetUpdate(parentNamespace, existingSnippet, desiredSnippet, portalRef, updateFields, plan)
+					p.planPortalSnippetUpdate(
+						parentNamespace,
+						existingSnippet,
+						desiredSnippet,
+						portalRef,
+						updateFields,
+						plan,
+					)
 				}
 			}
 		} else {
@@ -995,7 +1002,7 @@ func (p *Planner) planPortalSnippetCreate(
 	fields := make(map[string]any)
 	fields["name"] = snippet.Name
 	fields["content"] = snippet.Content
-	
+
 	// Include optional fields if present
 	if snippet.Title != nil {
 		fields["title"] = *snippet.Title
@@ -1042,13 +1049,13 @@ func (p *Planner) planPortalSnippetCreate(
 				break
 			}
 		}
-		
+
 		// Set Parent field for proper display and serialization
 		change.Parent = &ParentInfo{
 			Ref: snippet.Portal,
 			ID:  "", // Will be resolved during execution
 		}
-		
+
 		change.References = map[string]ReferenceInfo{
 			"portal_id": {
 				Ref: snippet.Portal,
@@ -1060,7 +1067,7 @@ func (p *Planner) planPortalSnippetCreate(
 	}
 
 	plan.AddChange(change)
-}// shouldUpdatePortalSnippet checks if a portal snippet needs updating
+} // shouldUpdatePortalSnippet checks if a portal snippet needs updating
 func (p *Planner) shouldUpdatePortalSnippet(
 	current *state.PortalSnippet,
 	desired resources.PortalSnippetResource,
@@ -1155,7 +1162,7 @@ func (p *Planner) planPortalSnippetUpdate(
 				break
 			}
 		}
-		
+
 		change.References = map[string]ReferenceInfo{
 			"portal_id": {
 				Ref: portalRef,

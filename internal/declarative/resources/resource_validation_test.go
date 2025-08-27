@@ -8,9 +8,9 @@ import (
 
 func TestResourceValidation_RejectsColonsInRefs(t *testing.T) {
 	tests := []struct {
-		name         string
-		resource     ResourceValidator
-		expectedErr  string
+		name        string
+		resource    ResourceValidator
+		expectedErr string
 	}{
 		{
 			name: "portal with colon in ref",

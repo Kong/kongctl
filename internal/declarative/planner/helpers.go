@@ -3,7 +3,7 @@ package planner
 // Note: Label helper functions have been moved to the labels package
 // The following functions are no longer needed as label handling has been centralized:
 // - extractUserLabels
-// - extractUserLabelsFromPointers  
+// - extractUserLabelsFromPointers
 // - compareUserLabels
 // - compareUserLabelsWithPointers
 //
@@ -12,4 +12,3 @@ package planner
 // - labels.BuildCreateLabels
 // - labels.BuildUpdateLabels
 // - labels.ConvertStringMapToPointerMap
-

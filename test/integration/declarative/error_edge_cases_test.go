@@ -13,13 +13,13 @@ import (
 	"testing"
 	"time"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/declarative/executor"
 	"github.com/kong/kongctl/internal/declarative/loader"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/helpers"
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -29,7 +29,7 @@ import (
 func TestErrorConditionsAndEdgeCases(t *testing.T) {
 	t.Run("malformed YAML handling", func(t *testing.T) {
 		tempDir := t.TempDir()
-		
+
 		malformedConfigs := []struct {
 			name    string
 			content string
@@ -76,25 +76,25 @@ portals:
 				error: "duplicate portal ref",
 			},
 		}
-		
+
 		for _, tc := range malformedConfigs {
 			t.Run(tc.name, func(t *testing.T) {
 				configFile := filepath.Join(tempDir, "malformed.yaml")
-				require.NoError(t, os.WriteFile(configFile, []byte(tc.content), 0600))
-				
+				require.NoError(t, os.WriteFile(configFile, []byte(tc.content), 0o600))
+
 				l := loader.New()
 				sources := []loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}
-				
+
 				_, err := l.LoadFromSources(sources, false)
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.error)
 			})
 		}
 	})
-	
+
 	t.Run("cross-resource validation errors", func(t *testing.T) {
 		tempDir := t.TempDir()
-		
+
 		// Test invalid cross-references
 		invalidRefs := []struct {
 			name    string
@@ -150,26 +150,26 @@ apis:
 				error: "references unknown control_plane: nonexistent-cp",
 			},
 		}
-		
+
 		for _, tc := range invalidRefs {
 			t.Run(tc.name, func(t *testing.T) {
 				configFile := filepath.Join(tempDir, "invalid.yaml")
-				require.NoError(t, os.WriteFile(configFile, []byte(tc.content), 0600))
-				
+				require.NoError(t, os.WriteFile(configFile, []byte(tc.content), 0o600))
+
 				l := loader.New()
 				sources := []loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}
-				
+
 				_, err := l.LoadFromSources(sources, false)
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.error)
 			})
 		}
 	})
-	
+
 	t.Run("SDK error handling during planning", func(t *testing.T) {
 		ctx := SetupTestContext(t)
 		tempDir := t.TempDir()
-		
+
 		// Create valid configuration
 		config := `
 portals:
@@ -178,17 +178,17 @@ portals:
     description: "Portal that will trigger SDK errors"
 `
 		configFile := filepath.Join(tempDir, "config.yaml")
-		require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-		
+		require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 		// Load configuration
 		l := loader.New()
 		sources := []loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}
 		resourceSet, err := l.LoadFromSources(sources, false)
 		require.NoError(t, err)
-		
+
 		// Set up mock to return various SDK errors
 		mockPortalAPI := GetMockPortalAPI(ctx, t)
-		
+
 		// Test different types of SDK errors
 		sdkErrors := []struct {
 			name          string
@@ -234,27 +234,27 @@ portals:
 				expectedError: "server error",
 			},
 		}
-		
+
 		for _, tc := range sdkErrors {
 			t.Run(tc.name, func(t *testing.T) {
 				// Reset mock for each test
 				mockPortalAPI.ExpectedCalls = nil
 				tc.mockSetup()
-				
+
 				stateClient := state.NewClientWithAPIs(mockPortalAPI, nil)
 				p := planner.NewPlanner(stateClient, slog.Default())
-				
+
 				_, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.expectedError)
 			})
 		}
 	})
-	
+
 	t.Run("execution error handling", func(t *testing.T) {
 		ctx := SetupTestContext(t)
 		tempDir := t.TempDir()
-		
+
 		// Create configuration for execution testing
 		config := `
 portals:
@@ -263,16 +263,16 @@ portals:
     description: "Portal for testing execution errors"
 `
 		configFile := filepath.Join(tempDir, "config.yaml")
-		require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-		
+		require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 		l := loader.New()
 		sources := []loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}
 		resourceSet, err := l.LoadFromSources(sources, false)
 		require.NoError(t, err)
-		
+
 		// Set up mocks for successful planning but failed execution
 		mockPortalAPI := GetMockPortalAPI(ctx, t)
-		
+
 		// Mock successful list for planning
 		mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 			Return(&kkOps.ListPortalsResponse{
@@ -281,13 +281,13 @@ portals:
 					Data: []kkComps.Portal{},
 				},
 			}, nil)
-		
+
 		// Create plan successfully
 		stateClient := state.NewClientWithAPIs(mockPortalAPI, nil)
 		p := planner.NewPlanner(stateClient, slog.Default())
 		plan, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
 		require.NoError(t, err)
-		
+
 		// Test execution errors
 		executionErrors := []struct {
 			name          string
@@ -323,16 +323,16 @@ portals:
 				expectedError: "resource conflict",
 			},
 		}
-		
+
 		for _, tc := range executionErrors {
 			t.Run(tc.name, func(t *testing.T) {
 				// Reset create mock for each test
 				mockPortalAPI.ExpectedCalls = mockPortalAPI.ExpectedCalls[:1] // Keep list mock
 				tc.mockSetup()
-				
+
 				exe := executor.New(stateClient, nil, false)
 				result, err := exe.Execute(ctx, plan)
-				
+
 				if err != nil {
 					assert.Contains(t, err.Error(), tc.expectedError)
 				} else {
@@ -343,10 +343,10 @@ portals:
 			})
 		}
 	})
-	
+
 	t.Run("resource dependency cycle detection", func(t *testing.T) {
 		tempDir := t.TempDir()
-		
+
 		// Create configuration with circular dependencies
 		config := `
 # This would create a cycle if we allowed portal -> API -> portal references
@@ -369,31 +369,31 @@ apis:
 # This test verifies the system handles complex dependency graphs correctly.
 `
 		configFile := filepath.Join(tempDir, "dependency.yaml")
-		require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-		
+		require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 		l := loader.New()
 		sources := []loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}
-		
+
 		resourceSet, err := l.LoadFromSources(sources, false)
 		require.NoError(t, err)
-		
+
 		// Verify dependencies are resolved correctly (no cycles)
 		require.Len(t, resourceSet.Portals, 1)
 		require.Len(t, resourceSet.APIs, 1)
 		require.Len(t, resourceSet.APIPublications, 1)
-		
+
 		// Verify publication correctly references portal
 		pub := resourceSet.APIPublications[0]
 		assert.Equal(t, "portal-a", pub.PortalID)
 		assert.Equal(t, "api-a", pub.API)
 	})
-	
+
 	t.Run("large resource configuration limits", func(t *testing.T) {
 		tempDir := t.TempDir()
-		
+
 		// Test handling of large numbers of resources
 		numResources := 1000
-		
+
 		// Generate large configuration
 		configParts := []string{"portals:"}
 		for i := 0; i < numResources; i++ {
@@ -406,19 +406,19 @@ apis:
       category: "category-%d"`, i, i, i, i, i%10)
 			configParts = append(configParts, portalDef)
 		}
-		
+
 		largeConfig := strings.Join(configParts, "")
 		configFile := filepath.Join(tempDir, "large.yaml")
-		require.NoError(t, os.WriteFile(configFile, []byte(largeConfig), 0600))
-		
+		require.NoError(t, os.WriteFile(configFile, []byte(largeConfig), 0o600))
+
 		// Load large configuration
 		l := loader.New()
 		sources := []loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}
-		
+
 		resourceSet, err := l.LoadFromSources(sources, false)
 		require.NoError(t, err)
 		require.Len(t, resourceSet.Portals, numResources)
-		
+
 		// Verify random sampling of resources
 		for i := 0; i < 10; i++ {
 			portal := resourceSet.Portals[i]
@@ -427,11 +427,11 @@ apis:
 			assert.Equal(t, fmt.Sprintf("%d", i), portal.Labels["index"])
 		}
 	})
-	
+
 	t.Run("concurrent operation handling", func(t *testing.T) {
 		ctx := SetupTestContext(t)
 		tempDir := t.TempDir()
-		
+
 		// Create configuration with multiple resource types
 		config := `
 portals:
@@ -456,43 +456,43 @@ apis:
         visibility: public
 `
 		configFile := filepath.Join(tempDir, "concurrent.yaml")
-		require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-		
+		require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 		l := loader.New()
 		sources := []loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}
 		resourceSet, err := l.LoadFromSources(sources, false)
 		require.NoError(t, err)
-		
+
 		// Set up mocks for all resource types
 		mockPortalAPI := GetMockPortalAPI(ctx, t)
 		mockAPIAPI := GetMockAPIAPI(ctx, t)
 		mockControlPlaneAPI := GetMockControlPlaneAPI(ctx, t)
-		
+
 		// Mock all list operations
 		mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 			Return(&kkOps.ListPortalsResponse{
-				StatusCode: 200,
+				StatusCode:         200,
 				ListPortalResponse: &kkComps.ListPortalResponse{Data: []kkComps.Portal{}},
 			}, nil)
-		
+
 		mockControlPlaneAPI.On("ListControlPlanes", mock.Anything, mock.Anything).
 			Return(&kkOps.ListControlPlanesResponse{
-				StatusCode: 200,
+				StatusCode:                200,
 				ListControlPlanesResponse: &kkComps.ListControlPlanesResponse{Data: []kkComps.ControlPlane{}},
 			}, nil)
-		
+
 		mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
 			Return(&kkOps.ListApisResponse{
-				StatusCode: 200,
+				StatusCode:      200,
 				ListAPIResponse: &kkComps.ListAPIResponse{Data: []kkComps.APIResponseSchema{}},
 			}, nil)
-		
+
 		mockAPIAPI.On("ListAPIPublications", mock.Anything, mock.Anything).
 			Return(&kkOps.ListAPIPublicationsResponse{
-				StatusCode: 200,
+				StatusCode:                 200,
 				ListAPIPublicationResponse: &kkComps.ListAPIPublicationResponse{Data: []kkComps.APIPublication{}},
 			}, nil)
-		
+
 		// Mock create operations with delays to test concurrent handling
 		mockPortalAPI.On("CreatePortal", mock.Anything, mock.Anything).
 			Return(&kkOps.CreatePortalResponse{
@@ -506,7 +506,7 @@ apis:
 					},
 				},
 			}, nil).After(50 * time.Millisecond)
-		
+
 		mockControlPlaneAPI.On("CreateControlPlane", mock.Anything, mock.Anything).
 			Return(&kkOps.CreateControlPlaneResponse{
 				StatusCode: 201,
@@ -519,7 +519,7 @@ apis:
 					},
 				},
 			}, nil).After(30 * time.Millisecond)
-		
+
 		mockAPIAPI.On("CreateAPI", mock.Anything, mock.Anything).
 			Return(&kkOps.CreateAPIResponse{
 				StatusCode: 201,
@@ -532,22 +532,22 @@ apis:
 					},
 				},
 			}, nil).After(40 * time.Millisecond)
-		
+
 		mockAPIAPI.On("PublishAPIToPortal", mock.Anything, mock.Anything).
 			Return(&kkOps.PublishAPIToPortalResponse{
-				StatusCode: 200,
+				StatusCode:     200,
 				APIPublication: &kkComps.APIPublication{ID: "pub-123"},
 			}, nil).After(20 * time.Millisecond)
-		
+
 		// Test planning and execution with concurrent operations
 		stateClient := state.NewClientWithAPIs(mockPortalAPI, mockAPIAPI)
 		p := planner.NewPlanner(stateClient, slog.Default())
-		
+
 		plan, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
 		require.NoError(t, err)
 		assert.NotNil(t, plan)
 		assert.NotEmpty(t, plan.Changes)
-		
+
 		// Execute plan (operations should be properly ordered despite concurrency)
 		exe := executor.New(stateClient, nil, false)
 		result, err := exe.Execute(ctx, plan)
@@ -555,7 +555,7 @@ apis:
 		require.NotNil(t, result)
 		assert.Greater(t, result.SuccessCount, 0)
 		assert.Equal(t, 0, result.FailureCount)
-		
+
 		// Verify all mocks were called
 		mockPortalAPI.AssertExpectations(t)
 		mockAPIAPI.AssertExpectations(t)
@@ -567,34 +567,34 @@ apis:
 func TestResourceValidationEdgeCases(t *testing.T) {
 	t.Run("empty resource sets", func(t *testing.T) {
 		tempDir := t.TempDir()
-		
+
 		// Create empty configuration file
 		config := `# Empty configuration file`
 		configFile := filepath.Join(tempDir, "empty.yaml")
-		require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-		
+		require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 		l := loader.New()
 		sources := []loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}
-		
+
 		resourceSet, err := l.LoadFromSources(sources, false)
 		require.NoError(t, err)
 		require.NotNil(t, resourceSet)
-		
+
 		// Verify empty resource set is valid
 		assert.Len(t, resourceSet.Portals, 0)
 		assert.Len(t, resourceSet.APIs, 0)
 		assert.Len(t, resourceSet.ControlPlanes, 0)
 	})
-	
+
 	t.Run("resource name and ref edge cases", func(t *testing.T) {
 		tempDir := t.TempDir()
-		
+
 		// Test various edge cases in names and refs
 		edgeCases := []struct {
-			name     string
-			config   string
+			name          string
+			config        string
 			shouldSucceed bool
-			error    string
+			error         string
 		}{
 			{
 				name: "very long ref",
@@ -635,20 +635,20 @@ portals:
     description: "Portal with empty ref"
 `,
 				shouldSucceed: false,
-				error: "portal ref is required",
+				error:         "portal ref is required",
 			},
 		}
-		
+
 		for _, tc := range edgeCases {
 			t.Run(tc.name, func(t *testing.T) {
 				configFile := filepath.Join(tempDir, "edge_case.yaml")
-				require.NoError(t, os.WriteFile(configFile, []byte(tc.config), 0600))
-				
+				require.NoError(t, os.WriteFile(configFile, []byte(tc.config), 0o600))
+
 				l := loader.New()
 				sources := []loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}
-				
+
 				resourceSet, err := l.LoadFromSources(sources, false)
-				
+
 				if tc.shouldSucceed {
 					require.NoError(t, err)
 					require.NotNil(t, resourceSet)

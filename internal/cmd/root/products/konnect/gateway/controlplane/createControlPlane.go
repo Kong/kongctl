@@ -310,7 +310,8 @@ func newCreateControlPlaneCmd(verb verbs.VerbValue,
 Provide multiple URLs as a comma-separated list. URLs must be in the format: <protocol>://<host>:<port>
 - Config path: [ %s ]`, createCpProxyUrlsConfigPath))
 
-	baseCmd.Flags().StringSlice(CreateCpLabelsFlagName, nil, fmt.Sprintf(`Assign metadata labels to the new control plane.
+	baseCmd.Flags().
+		StringSlice(CreateCpLabelsFlagName, nil, fmt.Sprintf(`Assign metadata labels to the new control plane.
 Labels are specified as [ key=value ] pairs and can be provided in a list.
 - Config path: [ %s ]`, createCpLabelsConfigPath))
 

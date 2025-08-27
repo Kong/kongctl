@@ -16,7 +16,7 @@ import (
 func TestFileTagLoader_BasicFileLoading(t *testing.T) {
 	// Create test configuration directory
 	configDir := t.TempDir()
-	
+
 	// Create external content file
 	externalContent := `
 description: "This content was loaded from an external file"
@@ -26,8 +26,8 @@ metadata:
   team: platform
 `
 	externalFile := filepath.Join(configDir, "external.yaml")
-	require.NoError(t, os.WriteFile(externalFile, []byte(externalContent), 0600))
-	
+	require.NoError(t, os.WriteFile(externalFile, []byte(externalContent), 0o600))
+
 	// Create main configuration file with file tags
 	config := `
 portals:
@@ -39,20 +39,20 @@ portals:
       namespace: default
 `
 	configFile := filepath.Join(configDir, "portal.yaml")
-	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-	
+	require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 	// Load configuration using the loader
 	ldr := loader.New()
 	sources, err := loader.ParseSources([]string{configFile})
 	require.NoError(t, err)
-	
+
 	resourceSet, err := ldr.LoadFromSources(sources, false)
 	require.NoError(t, err)
-	
+
 	// Verify the portal was loaded with file tag values resolved
 	require.Len(t, resourceSet.Portals, 1)
 	portal := resourceSet.Portals[0]
-	
+
 	assert.Equal(t, "test-portal", portal.Ref)
 	assert.Equal(t, "Test Portal", portal.Name)
 	assert.Equal(t, "This content was loaded from an external file", *portal.Description)
@@ -63,8 +63,8 @@ func TestFileTagLoader_NestedDirectoryLoading(t *testing.T) {
 	// Create test configuration directory structure
 	configDir := t.TempDir()
 	subDir := filepath.Join(configDir, "subdir")
-	require.NoError(t, os.MkdirAll(subDir, 0755))
-	
+	require.NoError(t, os.MkdirAll(subDir, 0o755))
+
 	// Create external content file in subdirectory
 	externalContent := `
 api_spec: |
@@ -78,8 +78,8 @@ metadata:
   team: backend
 `
 	externalFile := filepath.Join(subDir, "api-spec.yaml")
-	require.NoError(t, os.WriteFile(externalFile, []byte(externalContent), 0600))
-	
+	require.NoError(t, os.WriteFile(externalFile, []byte(externalContent), 0o600))
+
 	// Create API configuration file in subdirectory with relative file reference
 	config := `
 apis:
@@ -90,20 +90,20 @@ apis:
       namespace: default
 `
 	configFile := filepath.Join(subDir, "api.yaml")
-	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-	
+	require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 	// Load configuration using the loader
 	ldr := loader.New()
 	sources, err := loader.ParseSources([]string{configFile})
 	require.NoError(t, err)
-	
+
 	resourceSet, err := ldr.LoadFromSources(sources, false)
 	require.NoError(t, err)
-	
+
 	// Verify the API was loaded with file tag values resolved from correct relative path
 	require.Len(t, resourceSet.APIs, 1)
 	api := resourceSet.APIs[0]
-	
+
 	assert.Equal(t, "test-api", api.Ref)
 	assert.Equal(t, "Test API", api.Name)
 	assert.Equal(t, "production", *api.Description)
@@ -112,7 +112,7 @@ apis:
 func TestFileTagLoader_RecursiveDirectoryLoading(t *testing.T) {
 	// Create test configuration directory structure
 	configDir := t.TempDir()
-	
+
 	// Create portal config in root
 	portalConfig := `
 portals:
@@ -123,8 +123,8 @@ portals:
       namespace: default
 `
 	portalFile := filepath.Join(configDir, "portal.yaml")
-	require.NoError(t, os.WriteFile(portalFile, []byte(portalConfig), 0600))
-	
+	require.NoError(t, os.WriteFile(portalFile, []byte(portalConfig), 0o600))
+
 	// Create API config in root directory with static values
 	apiConfig := `
 apis:
@@ -135,27 +135,27 @@ apis:
       namespace: default
 `
 	apiFile := filepath.Join(configDir, "api.yaml")
-	require.NoError(t, os.WriteFile(apiFile, []byte(apiConfig), 0600))
-	
+	require.NoError(t, os.WriteFile(apiFile, []byte(apiConfig), 0o600))
+
 	// Load configuration using the loader recursively from root directory
 	ldr := loader.New()
 	sources, err := loader.ParseSources([]string{configDir})
 	require.NoError(t, err)
-	
+
 	resourceSet, err := ldr.LoadFromSources(sources, true) // recursive = true
 	require.NoError(t, err)
-	
+
 	// Should have 1 portal + 1 API
 	require.Len(t, resourceSet.Portals, 1)
 	require.Len(t, resourceSet.APIs, 1)
-	
+
 	// Verify portal
 	portal := resourceSet.Portals[0]
 	assert.Equal(t, "main-portal", portal.Ref)
 	assert.Equal(t, "Main Portal", portal.Name)
 	require.NotNil(t, portal.Description)
 	assert.Equal(t, "Main portal for APIs", *portal.Description)
-	
+
 	// Verify API with file tags resolved correctly
 	api := resourceSet.APIs[0]
 	assert.Equal(t, "external-api", api.Ref)
@@ -167,7 +167,7 @@ apis:
 func TestFileTagLoader_ComplexExtraction(t *testing.T) {
 	// Create test configuration directory
 	configDir := t.TempDir()
-	
+
 	// Create external data file with nested structure
 	externalData := `
 portal:
@@ -186,8 +186,8 @@ portal:
       logo_url: "https://example.com/logo.png"
 `
 	externalFile := filepath.Join(configDir, "portal-data.yaml")
-	require.NoError(t, os.WriteFile(externalFile, []byte(externalData), 0600))
-	
+	require.NoError(t, os.WriteFile(externalFile, []byte(externalData), 0o600))
+
 	// Create configuration with complex extractions
 	config := `
 portals:
@@ -199,20 +199,20 @@ portals:
       namespace: default
 `
 	configFile := filepath.Join(configDir, "complex.yaml")
-	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-	
+	require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 	// Load configuration
 	ldr := loader.New()
 	sources, err := loader.ParseSources([]string{configFile})
 	require.NoError(t, err)
-	
+
 	resourceSet, err := ldr.LoadFromSources(sources, false)
 	require.NoError(t, err)
-	
+
 	// Verify complex nested value extraction
 	require.Len(t, resourceSet.Portals, 1)
 	portal := resourceSet.Portals[0]
-	
+
 	assert.Equal(t, "complex-portal", portal.Ref)
 	assert.Equal(t, "Complex Portal", portal.Name)
 	assert.Equal(t, "Portal with complex metadata", *portal.Description)
@@ -222,12 +222,12 @@ portals:
 func TestFileTagLoader_LoadPlainContent(t *testing.T) {
 	// Create test configuration directory
 	configDir := t.TempDir()
-	
+
 	// Create plain text file
 	textContent := "This is plain text content without YAML structure"
 	textFile := filepath.Join(configDir, "plain.txt")
-	require.NoError(t, os.WriteFile(textFile, []byte(textContent), 0600))
-	
+	require.NoError(t, os.WriteFile(textFile, []byte(textContent), 0o600))
+
 	// Create configuration that loads entire file content
 	config := `
 apis:
@@ -238,20 +238,20 @@ apis:
       namespace: default
 `
 	configFile := filepath.Join(configDir, "text-api.yaml")
-	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-	
+	require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 	// Load configuration
 	ldr := loader.New()
 	sources, err := loader.ParseSources([]string{configFile})
 	require.NoError(t, err)
-	
+
 	resourceSet, err := ldr.LoadFromSources(sources, false)
 	require.NoError(t, err)
-	
+
 	// Verify plain text was loaded
 	require.Len(t, resourceSet.APIs, 1)
 	api := resourceSet.APIs[0]
-	
+
 	assert.Equal(t, "text-api", api.Ref)
 	assert.Equal(t, "Text API", api.Name)
 	assert.Equal(t, textContent, *api.Description)

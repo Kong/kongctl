@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/log"
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // Executor handles the execution of declarative configuration plans
@@ -26,23 +26,23 @@ type Executor struct {
 	refToID map[string]map[string]string // resourceType -> ref -> resourceID
 	// Unified state cache
 	stateCache *state.Cache
-	
+
 	// Resource executors
-	portalExecutor *BaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal]
-	apiExecutor    *BaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest]
+	portalExecutor       *BaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal]
+	apiExecutor          *BaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest]
 	authStrategyExecutor *BaseExecutor[kkComps.CreateAppAuthStrategyRequest, kkComps.UpdateAppAuthStrategyRequest]
-	
+
 	// Portal child resource executors
 	portalCustomizationExecutor *BaseSingletonExecutor[kkComps.PortalCustomization]
 	portalDomainExecutor        *BaseExecutor[kkComps.CreatePortalCustomDomainRequest,
 		kkComps.UpdatePortalCustomDomainRequest]
 	portalPageExecutor    *BaseExecutor[kkComps.CreatePortalPageRequest, kkComps.UpdatePortalPageRequest]
 	portalSnippetExecutor *BaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest]
-	
+
 	// API child resource executors
-	apiVersionExecutor      *BaseExecutor[kkComps.CreateAPIVersionRequest, kkComps.APIVersion]
-	apiPublicationExecutor  *BaseCreateDeleteExecutor[kkComps.APIPublication]
-	apiDocumentExecutor     *BaseExecutor[kkComps.CreateAPIDocumentRequest, kkComps.APIDocument]
+	apiVersionExecutor     *BaseExecutor[kkComps.CreateAPIVersionRequest, kkComps.APIVersion]
+	apiPublicationExecutor *BaseCreateDeleteExecutor[kkComps.APIPublication]
+	apiDocumentExecutor    *BaseExecutor[kkComps.CreateAPIDocumentRequest, kkComps.APIDocument]
 	// API implementation is not yet supported by SDK but we include adapter for completeness
 	apiImplementationExecutor *BaseExecutor[kkComps.CreateAPIVersionRequest, kkComps.APIVersion]
 }
@@ -50,14 +50,14 @@ type Executor struct {
 // New creates a new Executor instance
 func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor {
 	e := &Executor{
-		client:   client,
-		reporter: reporter,
-		dryRun:   dryRun,
+		client:           client,
+		reporter:         reporter,
+		dryRun:           dryRun,
 		createdResources: make(map[string]string),
-		refToID: make(map[string]map[string]string),
-		stateCache: state.NewCache(),
+		refToID:          make(map[string]map[string]string),
+		stateCache:       state.NewCache(),
 	}
-	
+
 	// Initialize resource executors
 	e.portalExecutor = NewBaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal](
 		NewPortalAdapter(client),
@@ -74,7 +74,7 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 		client,
 		dryRun,
 	)
-	
+
 	// Initialize portal child resource executors
 	e.portalCustomizationExecutor = NewBaseSingletonExecutor[kkComps.PortalCustomization](
 		NewPortalCustomizationAdapter(client),
@@ -96,7 +96,7 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 		client,
 		dryRun,
 	)
-	
+
 	// Initialize API child resource executors
 	e.apiVersionExecutor = NewBaseExecutor[kkComps.CreateAPIVersionRequest, kkComps.APIVersion](
 		NewAPIVersionAdapter(client),
@@ -118,22 +118,21 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 		client,
 		dryRun,
 	)
-	
+
 	return e
 }
-
 
 // Execute runs the plan and returns the execution result
 func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) (*ExecutionResult, error) {
 	result := &ExecutionResult{
 		DryRun: e.dryRun,
 	}
-	
+
 	// Notify reporter of execution start
 	if e.reporter != nil {
 		e.reporter.StartExecution(plan)
 	}
-	
+
 	// Execute changes in order
 	for i, changeID := range plan.ExecutionOrder {
 		// Find the change by ID
@@ -144,7 +143,7 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) (*ExecutionR
 				break
 			}
 		}
-		
+
 		if change == nil {
 			// This shouldn't happen, but handle gracefully
 			err := fmt.Errorf("change with ID %s not found in plan", changeID)
@@ -155,33 +154,34 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) (*ExecutionR
 			result.FailureCount++
 			continue
 		}
-		
+
 		// Execute the change
 		if err := e.executeChange(ctx, result, change, plan, i); err != nil {
 			// Error already recorded in executeChange
 			continue
 		}
 	}
-	
+
 	// Notify reporter of execution completion
 	if e.reporter != nil {
 		e.reporter.FinishExecution(result)
 	}
-	
+
 	return result, nil
 }
 
 // executeChange executes a single change from the plan
 func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, change *planner.PlannedChange,
-	plan *planner.Plan, changeIndex int) error {
+	plan *planner.Plan, changeIndex int,
+) error {
 	// Notify reporter of change start
 	if e.reporter != nil {
 		e.reporter.StartChange(*change)
 	}
-	
+
 	// Extract resource name from fields
 	resourceName := getResourceName(change.Fields)
-	
+
 	// Pre-execution validation (always performed, even in dry-run)
 	if err := e.validateChangePreExecution(ctx, *change); err != nil {
 		// Record error
@@ -195,7 +195,7 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		}
 		result.Errors = append(result.Errors, execError)
 		result.FailureCount++
-		
+
 		// In dry-run, also record validation result
 		if e.dryRun {
 			result.ValidationResults = append(result.ValidationResults, ValidationResult{
@@ -209,15 +209,15 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 				Message:      err.Error(),
 			})
 		}
-		
+
 		// Notify reporter
 		if e.reporter != nil {
 			e.reporter.CompleteChange(*change, err)
 		}
-		
+
 		return err
 	}
-	
+
 	// If dry-run, skip actual execution
 	if e.dryRun {
 		result.SkippedCount++
@@ -230,18 +230,18 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 			Status:       "would_succeed",
 			Validation:   "passed",
 		})
-		
+
 		if e.reporter != nil {
 			e.reporter.SkipChange(*change, "dry-run mode")
 		}
-		
+
 		return nil
 	}
-	
+
 	// Execute the actual change
 	var err error
 	var resourceID string
-	
+
 	switch change.Action {
 	case planner.ActionCreate:
 		resourceID, err = e.createResource(ctx, change)
@@ -253,7 +253,7 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 	default:
 		err = fmt.Errorf("unknown action: %s", change.Action)
 	}
-	
+
 	// Record result
 	if err != nil {
 		execError := ExecutionError{
@@ -276,17 +276,17 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 			Action:       string(change.Action),
 			ResourceID:   resourceID,
 		})
-		
+
 		// Track created resources for dependencies
 		if change.Action == planner.ActionCreate && resourceID != "" {
 			e.createdResources[change.ID] = resourceID
-			
+
 			// Also track by resource type and ref for reference resolution
 			if e.refToID[change.ResourceType] == nil {
 				e.refToID[change.ResourceType] = make(map[string]string)
 			}
 			e.refToID[change.ResourceType][change.ResourceRef] = resourceID
-			
+
 			// Propagate the created resource ID to any pending changes that reference it
 			if changeIndex+1 < len(plan.ExecutionOrder) {
 				// Update remaining changes directly in plan.Changes
@@ -318,12 +318,12 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 			}
 		}
 	}
-	
+
 	// Notify reporter
 	if e.reporter != nil {
 		e.reporter.CompleteChange(*change, err)
 	}
-	
+
 	return err
 }
 
@@ -336,13 +336,13 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 		if change.ResourceID == "" && change.ResourceType != "portal_customization" {
 			return fmt.Errorf("resource ID required for %s operation", change.Action)
 		}
-		
+
 		// Skip validation for updates/deletes with ResourceID - planner already verified existence
 		// and actual operations handle protection checks
 		if change.ResourceID != "" {
 			return nil
 		}
-		
+
 		// Perform resource-specific validation for updates/deletes without ResourceID
 		// (This is mainly for portal_customization which is a singleton)
 		switch change.ResourceType {
@@ -355,11 +355,11 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 				if portal == nil {
 					return fmt.Errorf("portal no longer exists")
 				}
-			
-			// Check protection status using common utility
-			isProtected := common.GetProtectionStatus(portal.NormalizedLabels)
-			isProtectionChange := common.IsProtectionChange(change.Protection)
-			
+
+				// Check protection status using common utility
+				isProtected := common.GetProtectionStatus(portal.NormalizedLabels)
+				isProtectionChange := common.IsProtectionChange(change.Protection)
+
 				// Validate protection using common utility
 				resourceName := common.ExtractResourceName(change.Fields)
 				if err := common.ValidateResourceProtection(
@@ -377,10 +377,10 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 				if api == nil {
 					return fmt.Errorf("API no longer exists")
 				}
-			
+
 				// Check protection status
 				isProtected := api.NormalizedLabels[labels.ProtectedKey] == "true"
-				
+
 				// For updates, check if this is a protection change (which is allowed)
 				isProtectionChange := false
 				if change.Action == planner.ActionUpdate {
@@ -397,16 +397,16 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 						}
 					}
 				}
-				
+
 				// Block protected resources unless it's a protection change
-				if isProtected && !isProtectionChange && 
+				if isProtected && !isProtectionChange &&
 					(change.Action == planner.ActionUpdate || change.Action == planner.ActionDelete) {
-					return fmt.Errorf("resource is protected and cannot be %s", 
+					return fmt.Errorf("resource is protected and cannot be %s",
 						actionToVerb(change.Action))
 				}
 			}
 		}
-		
+
 	case planner.ActionCreate:
 		// For create, verify resource doesn't already exist
 		switch change.ResourceType {
@@ -444,10 +444,9 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 			}
 		}
 	}
-	
+
 	return nil
 }
-
 
 // resolveAuthStrategyRef resolves an auth strategy reference to its ID
 func (e *Executor) resolveAuthStrategyRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
@@ -457,7 +456,7 @@ func (e *Executor) resolveAuthStrategyRef(ctx context.Context, refInfo planner.R
 			return id, nil
 		}
 	}
-	
+
 	// Determine the lookup value - use name from lookup fields if available
 	lookupValue := refInfo.Ref
 	if refInfo.LookupFields != nil {
@@ -465,7 +464,7 @@ func (e *Executor) resolveAuthStrategyRef(ctx context.Context, refInfo planner.R
 			lookupValue = name
 		}
 	}
-	
+
 	// Otherwise, look it up from the API
 	strategy, err := e.client.GetAuthStrategyByName(ctx, lookupValue)
 	if err != nil {
@@ -474,7 +473,7 @@ func (e *Executor) resolveAuthStrategyRef(ctx context.Context, refInfo planner.R
 	if strategy == nil {
 		return "", fmt.Errorf("auth strategy not found: ref=%s, looked up by name=%s", refInfo.Ref, lookupValue)
 	}
-	
+
 	return strategy.ID, nil
 }
 
@@ -486,7 +485,7 @@ func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.Referen
 			return id, nil
 		}
 	}
-	
+
 	// Determine the lookup value - use name from lookup fields if available
 	lookupValue := refInfo.Ref
 	if refInfo.LookupFields != nil {
@@ -494,7 +493,7 @@ func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.Referen
 			lookupValue = name
 		}
 	}
-	
+
 	// Otherwise, look it up from the API
 	portal, err := e.client.GetPortalByName(ctx, lookupValue)
 	if err != nil {
@@ -503,7 +502,7 @@ func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.Referen
 	if portal == nil {
 		return "", fmt.Errorf("portal not found: ref=%s, looked up by name=%s", refInfo.Ref, lookupValue)
 	}
-	
+
 	return portal.ID, nil
 }
 
@@ -519,7 +518,7 @@ func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceI
 			return id, nil
 		}
 	}
-	
+
 	// Determine the lookup value - use name from lookup fields if available
 	lookupValue := refInfo.Ref
 	if refInfo.LookupFields != nil {
@@ -527,14 +526,14 @@ func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceI
 			lookupValue = name
 		}
 	}
-	
+
 	// Try to find the API in Konnect with retry for eventual consistency
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
 		if attempt > 0 {
 			time.Sleep(time.Duration(attempt) * time.Second)
 		}
-		
+
 		api, err := e.client.GetAPIByName(ctx, lookupValue)
 		if err == nil && api != nil {
 			apiID := api.ID
@@ -544,7 +543,7 @@ func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceI
 				"api_id", apiID,
 				"attempt", attempt+1,
 			)
-			
+
 			// Cache this resolution
 			if apis, ok := e.refToID["api"]; ok {
 				apis[refInfo.Ref] = apiID
@@ -553,8 +552,8 @@ func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceI
 		}
 		lastErr = err
 	}
-	
-	return "", fmt.Errorf("failed to resolve API reference %s (lookup: %s) after 3 attempts: %w", 
+
+	return "", fmt.Errorf("failed to resolve API reference %s (lookup: %s) after 3 attempts: %w",
 		refInfo.Ref, lookupValue, lastErr)
 }
 
@@ -567,13 +566,13 @@ func (e *Executor) populatePortalPages(ctx context.Context, portalID string) err
 		}
 		e.stateCache.Portals[portalID] = portal
 	}
-	
+
 	// Fetch all pages
 	pages, err := e.client.ListManagedPortalPages(ctx, portalID)
 	if err != nil {
 		return fmt.Errorf("failed to list portal pages: %w", err)
 	}
-	
+
 	// First pass: create all pages
 	pageMap := make(map[string]*state.CachedPortalPage)
 	for _, page := range pages {
@@ -583,11 +582,11 @@ func (e *Executor) populatePortalPages(ctx context.Context, portalID string) err
 		}
 		pageMap[page.ID] = cachedPage
 	}
-	
+
 	// Second pass: establish parent-child relationships
 	for _, page := range pages {
 		cachedPage := pageMap[page.ID]
-		
+
 		if page.ParentPageID == "" {
 			// Root page
 			portal.Pages[page.ID] = cachedPage
@@ -596,7 +595,7 @@ func (e *Executor) populatePortalPages(ctx context.Context, portalID string) err
 			parent.Children[page.ID] = cachedPage
 		}
 	}
-	
+
 	return nil
 }
 
@@ -610,26 +609,26 @@ func (e *Executor) resolvePortalPageRef(
 			return id, nil
 		}
 	}
-	
+
 	// Ensure portal pages are cached
-	if _, exists := e.stateCache.Portals[portalID]; !exists || 
+	if _, exists := e.stateCache.Portals[portalID]; !exists ||
 		e.stateCache.Portals[portalID].Pages == nil {
 		if err := e.populatePortalPages(ctx, portalID); err != nil {
 			return "", err
 		}
 	}
-	
+
 	portal := e.stateCache.Portals[portalID]
-	
+
 	// If we have a parent path, use it for more accurate matching
 	if lookupFields != nil && lookupFields["parent_path"] != "" {
 		targetPath := lookupFields["parent_path"]
-		
+
 		if page := portal.FindPageBySlugPath(targetPath); page != nil {
 			return page.ID, nil
 		}
 	}
-	
+
 	// Fallback: search all pages for matching slug
 	var searchPages func(pages map[string]*state.CachedPortalPage) string
 	searchPages = func(pages map[string]*state.CachedPortalPage) string {
@@ -645,11 +644,11 @@ func (e *Executor) resolvePortalPageRef(
 		}
 		return ""
 	}
-	
+
 	if pageID := searchPages(portal.Pages); pageID != "" {
 		return pageID, nil
 	}
-	
+
 	return "", fmt.Errorf("portal page not found: ref=%s in portal=%s", pageRef, portalID)
 }
 
@@ -657,7 +656,7 @@ func (e *Executor) resolvePortalPageRef(
 
 func (e *Executor) createResource(ctx context.Context, change *planner.PlannedChange) (string, error) {
 	// Note: ExecutionContext is now passed explicitly to executors instead of using context.WithValue
-	
+
 	switch change.ResourceType {
 	case "portal":
 		// No references to resolve for portal
@@ -701,11 +700,11 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		// Resolve auth_strategy_ids array references if needed
 		if authStrategyRefs, ok := change.References["auth_strategy_ids"]; ok && authStrategyRefs.IsArray {
 			resolvedIDs := make([]string, 0, len(authStrategyRefs.Refs))
-			
+
 			for i, ref := range authStrategyRefs.Refs {
 				var resolvedID string
 				var err error
-				
+
 				// Check if already resolved
 				if authStrategyRefs.ResolvedIDs != nil && i < len(authStrategyRefs.ResolvedIDs) &&
 					authStrategyRefs.ResolvedIDs[i] != "" {
@@ -721,20 +720,20 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 							"name": names[i],
 						}
 					}
-					
+
 					resolvedID, err = e.resolveAuthStrategyRef(ctx, refInfo)
 					if err != nil {
 						return "", fmt.Errorf("failed to resolve auth strategy reference %q: %w", ref, err)
 					}
 				}
-				
+
 				if resolvedID == "" {
 					return "", fmt.Errorf("failed to resolve auth strategy reference %q", ref)
 				}
-				
+
 				resolvedIDs = append(resolvedIDs, resolvedID)
 			}
-			
+
 			// Update the reference with resolved IDs
 			authStrategyRefs.ResolvedIDs = resolvedIDs
 			change.References["auth_strategy_ids"] = authStrategyRefs
@@ -828,7 +827,7 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 
 func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedChange) (string, error) {
 	// Note: ExecutionContext is now passed explicitly to executors instead of using context.WithValue
-	
+
 	switch change.ResourceType {
 	case "portal":
 		return e.portalExecutor.Update(ctx, *change)
@@ -873,7 +872,7 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			resolvedIDs := make([]string, 0, len(authStrategyRefs.Refs))
 			for _, ref := range authStrategyRefs.Refs {
 				strategyRef := planner.ReferenceInfo{
-					Ref: ref,
+					Ref:          ref,
 					LookupFields: make(map[string]string),
 				}
 				// Copy lookup fields if available
@@ -963,7 +962,7 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 
 func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedChange) error {
 	// Note: ExecutionContext is now passed explicitly to executors instead of using context.WithValue
-	
+
 	switch change.ResourceType {
 	case "portal":
 		// No references to resolve for portal
@@ -1063,11 +1062,11 @@ func (e *Executor) getParentAPIID(ctx context.Context, change planner.PlannedCha
 		slog.String("resource_ref", change.ResourceRef),
 		slog.Any("parent", change.Parent),
 	)
-	
+
 	if change.Parent == nil {
 		return "", fmt.Errorf("parent API reference required")
 	}
-	
+
 	// Log parent details
 	logger.Debug("Parent details",
 		slog.String("parent_ref", change.Parent.Ref),
@@ -1075,13 +1074,13 @@ func (e *Executor) getParentAPIID(ctx context.Context, change planner.PlannedCha
 		slog.Bool("parent_id_empty", change.Parent.ID == ""),
 		slog.Int("parent_id_length", len(change.Parent.ID)),
 	)
-	
+
 	// Use the parent ID if it was already resolved
 	if change.Parent.ID != "" {
 		logger.Debug("Using resolved parent ID", slog.String("parent_id", change.Parent.ID))
 		return change.Parent.ID, nil
 	}
-	
+
 	// Check if parent was created in this execution
 	logger.Debug("Checking dependencies", slog.Int("dep_count", len(change.DependsOn)))
 	for _, dep := range change.DependsOn {
@@ -1093,7 +1092,7 @@ func (e *Executor) getParentAPIID(ctx context.Context, change planner.PlannedCha
 			return resourceID, nil
 		}
 	}
-	
+
 	// Otherwise look up by name
 	logger.Debug("Falling back to API lookup by name", slog.String("api_ref", change.Parent.Ref))
 	parentAPI, err := e.client.GetAPIByName(ctx, change.Parent.Ref)
@@ -1103,11 +1102,11 @@ func (e *Executor) getParentAPIID(ctx context.Context, change planner.PlannedCha
 	if parentAPI == nil {
 		return "", fmt.Errorf("parent API not found: %s", change.Parent.Ref)
 	}
-	
-	logger.Debug("Found parent API by name", 
+
+	logger.Debug("Found parent API by name",
 		slog.String("api_name", parentAPI.Name),
 		slog.String("api_id", parentAPI.ID),
 	)
-	
+
 	return parentAPI.ID, nil
 }

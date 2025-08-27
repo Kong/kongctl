@@ -320,4 +320,3 @@ func GetAuthenticatedClient(baseURL string, token string, logger *slog.Logger) (
 
 	return kk.New(opts...), nil
 }
-

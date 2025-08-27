@@ -8,13 +8,13 @@ import (
 
 // ValidateResourceProtection validates that protected resources are not being modified inappropriately
 func ValidateResourceProtection(
-	resourceType, resourceName string, isProtected bool, 
+	resourceType, resourceName string, isProtected bool,
 	change planner.PlannedChange, isProtectionChange bool,
 ) error {
 	// Block protected resources unless it's a protection change
-	if isProtected && !isProtectionChange && 
+	if isProtected && !isProtectionChange &&
 		(change.Action == planner.ActionUpdate || change.Action == planner.ActionDelete) {
-		return fmt.Errorf("resource '%s' (%s) is protected and cannot be %s", 
+		return fmt.Errorf("resource '%s' (%s) is protected and cannot be %s",
 			resourceName, resourceType, actionToVerb(change.Action))
 	}
 	return nil
@@ -43,7 +43,7 @@ func GetProtectionStatus(normalizedLabels map[string]string) bool {
 
 // FormatProtectionError creates a standardized error message for protection violations
 func FormatProtectionError(resourceType, resourceName, action string) error {
-	return fmt.Errorf("resource '%s' (%s) is protected and cannot be %s", 
+	return fmt.Errorf("resource '%s' (%s) is protected and cannot be %s",
 		resourceName, resourceType, actionToStringVerb(action))
 }
 

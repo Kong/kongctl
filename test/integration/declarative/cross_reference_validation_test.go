@@ -233,7 +233,7 @@ api_implementations:
 			// Create temporary config file
 			configDir := t.TempDir()
 			configFile := filepath.Join(configDir, "config.yaml")
-			require.NoError(t, os.WriteFile(configFile, []byte(tt.config), 0600))
+			require.NoError(t, os.WriteFile(configFile, []byte(tt.config), 0o600))
 
 			// Load configuration
 			l := loader.New()
@@ -297,7 +297,7 @@ apis:
 			// Create temporary config file
 			configDir := t.TempDir()
 			configFile := filepath.Join(configDir, "config.yaml")
-			require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
+			require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
 
 			// Load configuration
 			l := loader.New()
@@ -353,7 +353,7 @@ apis:
 			// Create temporary config file
 			configDir := t.TempDir()
 			configFile := filepath.Join(configDir, "config.yaml")
-			require.NoError(t, os.WriteFile(configFile, []byte(tt.config), 0600))
+			require.NoError(t, os.WriteFile(configFile, []byte(tt.config), 0o600))
 
 			// Load configuration
 			l := loader.New()

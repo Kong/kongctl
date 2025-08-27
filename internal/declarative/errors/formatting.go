@@ -15,14 +15,14 @@ func FormatValidationError(resourceType, resourceName, field, issue string) erro
 
 // FormatDependencyError formats dependency resolution errors
 func FormatDependencyError(resourceType, resourceName, dependencyType, dependencyRef string) error {
-	return fmt.Errorf("%s \"%s\" references unknown %s \"%s\". Ensure the %s exists in your configuration", 
+	return fmt.Errorf("%s \"%s\" references unknown %s \"%s\". Ensure the %s exists in your configuration",
 		resourceType, resourceName, dependencyType, dependencyRef, dependencyType)
 }
 
 // FormatProtectionError formats protection violation errors
 func FormatProtectionError(resourceType, resourceName, operation string) error {
 	return fmt.Errorf("cannot %s %s \"%s\": resource is protected. "+
-		"Remove the 'protected: true' setting to allow modifications", 
+		"Remove the 'protected: true' setting to allow modifications",
 		operation, resourceType, resourceName)
 }
 
@@ -40,7 +40,7 @@ func FormatNetworkError(operation, resourceType, resourceName string, err error)
 	if resourceName != "" {
 		baseMsg = fmt.Sprintf("network error during %s of %s \"%s\"", operation, resourceType, resourceName)
 	}
-	
+
 	errMsg := strings.ToLower(err.Error())
 	if strings.Contains(errMsg, "timeout") || strings.Contains(errMsg, "deadline") {
 		return fmt.Errorf("%s: %w. The operation timed out - check your network connection and try again", baseMsg, err)
@@ -49,6 +49,6 @@ func FormatNetworkError(operation, resourceType, resourceName string, err error)
 		return fmt.Errorf("%s: %w. Cannot connect to Konnect API - "+
 			"check your network connection and DNS resolution", baseMsg, err)
 	}
-	
+
 	return fmt.Errorf("%s: %w. Check your network connection and try again", baseMsg, err)
 }

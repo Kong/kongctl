@@ -140,4 +140,3 @@ func GetDocumentsForAPI(ctx context.Context, kkClient APIDocumentAPI, apiID stri
 
 	return result, nil
 }
-

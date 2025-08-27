@@ -7,18 +7,18 @@ import (
 	"reflect"
 	"regexp"
 
-	"github.com/kong/kongctl/internal/util"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/util"
 )
 
 // APIDocumentResource represents an API document in declarative configuration
 type APIDocumentResource struct {
-	kkComps.CreateAPIDocumentRequest `yaml:",inline" json:",inline"`
-	Ref              string       `yaml:"ref" json:"ref"`
+	kkComps.CreateAPIDocumentRequest `       yaml:",inline"                      json:",inline"`
+	Ref                              string `yaml:"ref"                          json:"ref"`
 	// Parent API reference (for root-level definitions)
-	API string `yaml:"api,omitempty" json:"api,omitempty"`
-	ParentDocumentID string       `yaml:"parent_document_id,omitempty" json:"parent_document_id,omitempty"`
-	
+	API              string `yaml:"api,omitempty"                json:"api,omitempty"`
+	ParentDocumentID string `yaml:"parent_document_id,omitempty" json:"parent_document_id,omitempty"`
+
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
 }
@@ -70,15 +70,18 @@ func (d APIDocumentResource) Validate() error {
 	if d.Content == "" {
 		return fmt.Errorf("API document content is required")
 	}
-	
+
 	// Validate slug format using Konnect's regex pattern
 	if d.Slug != nil && *d.Slug != "" {
 		slugRegex := regexp.MustCompile(`^[\w-]+$`)
 		if !slugRegex.MatchString(*d.Slug) {
-			return fmt.Errorf("invalid slug %q: slugs must contain only letters, numbers, underscores, and hyphens", *d.Slug)
+			return fmt.Errorf(
+				"invalid slug %q: slugs must contain only letters, numbers, underscores, and hyphens",
+				*d.Slug,
+			)
 		}
 	}
-	
+
 	// Parent API validation happens through dependency system
 	return nil
 }
@@ -90,7 +93,7 @@ func (d *APIDocumentResource) SetDefaults() {
 		status := kkComps.APIDocumentStatusPublished
 		d.Status = &status
 	}
-	
+
 	// If slug is not set but title is provided, generate slug from title
 	// This matches the Konnect API behavior: "defaults to slugify(title)"
 	if d.Slug == nil && d.Title != nil && *d.Title != "" {
@@ -116,30 +119,30 @@ func (d *APIDocumentResource) TryMatchKonnectResource(konnectResource any) bool 
 	// For API documents, we match by slug
 	// Use reflection to access fields from state.APIDocument
 	v := reflect.ValueOf(konnectResource)
-	
+
 	// Handle pointer types
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
-	
+
 	// Ensure we have a struct
 	if v.Kind() != reflect.Struct {
 		return false
 	}
-	
+
 	// Look for Slug and ID fields
 	slugField := v.FieldByName("Slug")
 	idField := v.FieldByName("ID")
-	
+
 	// Extract values if fields are valid
-	if slugField.IsValid() && idField.IsValid() && 
-	   slugField.Kind() == reflect.String && idField.Kind() == reflect.String {
+	if slugField.IsValid() && idField.IsValid() &&
+		slugField.Kind() == reflect.String && idField.Kind() == reflect.String {
 		if d.Slug != nil && slugField.String() == *d.Slug {
 			d.konnectID = idField.String()
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -162,43 +165,42 @@ func (d *APIDocumentResource) UnmarshalJSON(data []byte) error {
 		Slug             *string `json:"slug,omitempty"`
 		Status           *string `json:"status,omitempty"`
 		ParentDocumentID string  `json:"parent_document_id,omitempty"`
-		Kongctl          any `json:"kongctl,omitempty"`
+		Kongctl          any     `json:"kongctl,omitempty"`
 	}
-	
+
 	// Use a decoder with DisallowUnknownFields to catch typos
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	
+
 	if err := decoder.Decode(&temp); err != nil {
 		return err
 	}
-	
+
 	// Set our custom fields
 	d.Ref = temp.Ref
 	d.API = temp.API
 	d.ParentDocumentID = temp.ParentDocumentID
-	
+
 	// Check if kongctl field was provided and reject it
 	if temp.Kongctl != nil {
 		return fmt.Errorf("kongctl metadata is not supported on child resources (API documents)")
 	}
-	
+
 	// Map to SDK fields embedded in CreateAPIDocumentRequest
 	d.Content = temp.Content
 	d.Title = temp.Title
 	d.Slug = temp.Slug
-	
+
 	// Handle status enum if present
 	if temp.Status != nil {
 		status := kkComps.APIDocumentStatus(*temp.Status)
 		d.Status = &status
 	}
-	
+
 	// Handle ParentDocumentID for SDK field (pointer type)
 	if temp.ParentDocumentID != "" {
 		d.CreateAPIDocumentRequest.ParentDocumentID = &temp.ParentDocumentID
 	}
-	
+
 	return nil
 }
-

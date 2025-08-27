@@ -10,16 +10,16 @@ type ExecutionResult struct {
 	SuccessCount int `json:"success_count"`
 	FailureCount int `json:"failure_count"`
 	SkippedCount int `json:"skipped_count"`
-	
+
 	// Errors encountered during execution
 	Errors []ExecutionError `json:"errors,omitempty"`
-	
+
 	// Indicates if this was a dry-run execution
 	DryRun bool `json:"dry_run"`
-	
+
 	// Changes that were successfully applied (empty in dry-run)
 	ChangesApplied []AppliedChange `json:"changes_applied,omitempty"`
-	
+
 	// Validation results for dry-run mode
 	ValidationResults []ValidationResult `json:"validation_results,omitempty"`
 }
@@ -51,7 +51,7 @@ type ValidationResult struct {
 	ResourceName string `json:"resource_name"`
 	ResourceRef  string `json:"resource_ref"`
 	Action       string `json:"action"`
-	Status       string `json:"status"` // "would_succeed", "would_fail", "skipped"
+	Status       string `json:"status"`               // "would_succeed", "would_fail", "skipped"
 	Validation   string `json:"validation,omitempty"` // "passed", "failed", reason
 	Message      string `json:"message,omitempty"`
 }
@@ -60,16 +60,16 @@ type ValidationResult struct {
 type ProgressReporter interface {
 	// StartExecution is called at the beginning of plan execution
 	StartExecution(plan *planner.Plan)
-	
+
 	// StartChange is called before executing a change
 	StartChange(change planner.PlannedChange)
-	
+
 	// CompleteChange is called after a change is executed (success or failure)
 	CompleteChange(change planner.PlannedChange, err error)
-	
+
 	// SkipChange is called when a change is skipped (e.g., in dry-run mode)
 	SkipChange(change planner.PlannedChange, reason string)
-	
+
 	// FinishExecution is called at the end of plan execution
 	FinishExecution(result *ExecutionResult)
 }
@@ -82,7 +82,7 @@ func (r *ExecutionResult) Message() string {
 		}
 		return "Dry-run complete. No changes were made."
 	}
-	
+
 	if r.FailureCount > 0 {
 		return "Execution completed with errors."
 	}

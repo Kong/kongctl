@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kong/kongctl/internal/declarative/state"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/state"
 )
 
 // PortalDomainAdapter implements ResourceOperations for portal custom domains
@@ -21,21 +21,21 @@ func NewPortalDomainAdapter(client *state.Client) *PortalDomainAdapter {
 // MapCreateFields maps fields to CreatePortalCustomDomainRequest
 func (p *PortalDomainAdapter) MapCreateFields(
 	_ context.Context, _ *ExecutionContext, fields map[string]any,
-	create *kkComps.CreatePortalCustomDomainRequest) error {
-	
+	create *kkComps.CreatePortalCustomDomainRequest,
+) error {
 	// Required fields
 	hostname, ok := fields["hostname"].(string)
 	if !ok {
 		return fmt.Errorf("hostname is required")
 	}
 	create.Hostname = hostname
-	
+
 	enabled, ok := fields["enabled"].(bool)
 	if !ok {
 		return fmt.Errorf("enabled is required")
 	}
 	create.Enabled = enabled
-	
+
 	// Handle SSL settings
 	if sslData, ok := fields["ssl"].(map[string]any); ok {
 		ssl := kkComps.CreatePortalCustomDomainSSL{}
@@ -44,42 +44,45 @@ func (p *PortalDomainAdapter) MapCreateFields(
 		}
 		create.Ssl = ssl
 	}
-	
+
 	return nil
 }
 
 // MapUpdateFields maps fields to UpdatePortalCustomDomainRequest
 func (p *PortalDomainAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, fields map[string]any,
-	update *kkComps.UpdatePortalCustomDomainRequest, _ map[string]string) error {
+	update *kkComps.UpdatePortalCustomDomainRequest, _ map[string]string,
+) error {
 	// Only enabled field can be updated
 	if enabled, ok := fields["enabled"].(bool); ok {
 		update.Enabled = &enabled
 	}
-	
+
 	return nil
 }
 
 // Create creates a new portal custom domain
 func (p *PortalDomainAdapter) Create(ctx context.Context, req kkComps.CreatePortalCustomDomainRequest,
-	_ string, execCtx *ExecutionContext) (string, error) {
+	_ string, execCtx *ExecutionContext,
+) (string, error) {
 	// Get portal ID from execution context
 	portalID, err := p.getPortalIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
 	}
-	
+
 	err = p.client.CreatePortalCustomDomain(ctx, portalID, req)
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Custom domain doesn't return an ID, use portal ID instead
 	return portalID, nil
 }
 
 // Update updates an existing portal custom domain
-func (p *PortalDomainAdapter) Update(ctx context.Context, id string, 
-	req kkComps.UpdatePortalCustomDomainRequest, _ string, _ *ExecutionContext) (string, error) {
+func (p *PortalDomainAdapter) Update(ctx context.Context, id string,
+	req kkComps.UpdatePortalCustomDomainRequest, _ string, _ *ExecutionContext,
+) (string, error) {
 	// For custom domains, the ID is actually the portal ID
 	err := p.client.UpdatePortalCustomDomain(ctx, id, req)
 	if err != nil {
@@ -105,9 +108,9 @@ func (p *PortalDomainAdapter) GetByName(_ context.Context, _ string) (ResourceIn
 // GetByID gets a portal custom domain by ID (portal ID in this case)
 func (p *PortalDomainAdapter) GetByID(_ context.Context, id string, _ *ExecutionContext) (ResourceInfo, error) {
 	// For custom domains, the ID is actually the portal ID since they're singleton resources
-	// The executor calls this with the resource ID from the planned change, which for 
+	// The executor calls this with the resource ID from the planned change, which for
 	// custom domains is the portal ID
-	
+
 	// Since there's no direct Get method for custom domains in the SDK,
 	// and they're singleton resources, we return a minimal ResourceInfo
 	// that indicates the resource exists
@@ -137,19 +140,19 @@ func (p *PortalDomainAdapter) getPortalIDFromExecutionContext(execCtx *Execution
 	if execCtx == nil || execCtx.PlannedChange == nil {
 		return "", fmt.Errorf("execution context is required for custom domain operations")
 	}
-	
+
 	change := *execCtx.PlannedChange
-	
+
 	// Get portal ID from references
 	if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
 		return portalRef.ID, nil
 	}
-	
+
 	// Check Parent field (for Delete operations)
 	if change.Parent != nil && change.Parent.ID != "" {
 		return change.Parent.ID, nil
 	}
-	
+
 	return "", fmt.Errorf("portal ID is required for custom domain operations")
 }
 

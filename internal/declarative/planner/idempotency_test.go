@@ -5,11 +5,11 @@ import (
 	"log/slog"
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -17,7 +17,7 @@ import (
 func TestGeneratePlan_Idempotency(t *testing.T) {
 	ctx := context.Background()
 	mockAPI := new(MockPortalAPI)
-	
+
 	// Create a client with minimal configuration
 	// Portal child resources will return errors, but that's OK for this test
 	// which is focused on portal-level idempotency
@@ -33,14 +33,14 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 	rbacEnabled := false
 	autoApproveDev := true
 	autoApproveApp := false
-	
+
 	existingPortal := kkComps.Portal{
 		ID:                      "portal-123",
 		Name:                    "test-portal",
 		DisplayName:             displayName,
 		Description:             &description,
 		AuthenticationEnabled:   authEnabled,
-		RbacEnabled:            rbacEnabled,
+		RbacEnabled:             rbacEnabled,
 		AutoApproveDevelopers:   autoApproveDev,
 		AutoApproveApplications: autoApproveApp,
 		Labels: map[string]string{
@@ -130,8 +130,8 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 				{
 					CreatePortal: kkComps.CreatePortal{
 						Name:        "test-portal",
-						Description: &description,      // Existing field
-						DisplayName: &newDisplayName,   // New field
+						Description: &description,    // Existing field
+						DisplayName: &newDisplayName, // New field
 					},
 					Ref: "test-portal",
 					Kongctl: &resources.KongctlMeta{
@@ -192,10 +192,10 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 				{
 					CreatePortal: kkComps.CreatePortal{
 						Name:                  "test-portal",
-						Description:           &description,       // Same
-						DisplayName:           &newDisplayName,    // Changed
-						AuthenticationEnabled: &newAuthEnabled,    // Changed
-						RbacEnabled:          &rbacEnabled,       // Same
+						Description:           &description,    // Same
+						DisplayName:           &newDisplayName, // Changed
+						AuthenticationEnabled: &newAuthEnabled, // Changed
+						RbacEnabled:           &rbacEnabled,    // Same
 					},
 					Ref: "test-portal",
 				},
@@ -211,13 +211,13 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 		assert.Len(t, plan.Changes, 1)
 		change := plan.Changes[0]
 		assert.Equal(t, ActionUpdate, change.Action)
-		
+
 		// Should only have the two changed fields
 		assert.Len(t, change.Fields, 3) // name + 2 changes
 		assert.Equal(t, "test-portal", change.Fields["name"])
 		assert.Equal(t, newDisplayName, change.Fields["display_name"])
 		assert.Equal(t, newAuthEnabled, change.Fields["authentication_enabled"])
-		
+
 		// Should not have unchanged fields
 		_, hasDesc := change.Fields["description"]
 		assert.False(t, hasDesc)

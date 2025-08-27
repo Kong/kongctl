@@ -63,7 +63,7 @@ func NewLoginCmd() (*cobra.Command, error) {
 			ctx = context.WithValue(ctx, products.Product, konnect.Product)
 			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(common.KonnectSDKFactory))
 			cmd.SetContext(ctx)
-			
+
 			// Also call the konnect command's PersistentPreRunE to set up binding
 			if konnectCmd.PersistentPreRunE != nil {
 				return konnectCmd.PersistentPreRunE(cmd, args)

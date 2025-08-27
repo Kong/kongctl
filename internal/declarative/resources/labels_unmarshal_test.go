@@ -2,7 +2,7 @@ package resources
 
 import (
 	"testing"
-	
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
@@ -11,10 +11,10 @@ import (
 // TestAPIResource_Labels tests the new label behavior after removing custom UnmarshalJSON
 func TestAPIResource_Labels(t *testing.T) {
 	tests := []struct {
-		name           string
-		yamlContent    string
-		expectNil      bool
-		expectLength   int
+		name         string
+		yamlContent  string
+		expectNil    bool
+		expectLength int
 	}{
 		{
 			name: "labels with values",
@@ -76,7 +76,7 @@ name: test-api
 			var api APIResource
 			err := yaml.Unmarshal([]byte(tt.yamlContent), &api)
 			require.NoError(t, err)
-			
+
 			if tt.expectNil {
 				assert.Nil(t, api.Labels)
 			} else {
@@ -90,10 +90,10 @@ name: test-api
 // TestPortalResource_Labels tests the new label behavior for portals
 func TestPortalResource_Labels(t *testing.T) {
 	tests := []struct {
-		name           string
-		yamlContent    string
-		expectNil      bool
-		expectLength   int
+		name         string
+		yamlContent  string
+		expectNil    bool
+		expectLength int
 	}{
 		{
 			name: "labels with values",
@@ -155,7 +155,7 @@ name: test-portal
 			var portal PortalResource
 			err := yaml.Unmarshal([]byte(tt.yamlContent), &portal)
 			require.NoError(t, err)
-			
+
 			if tt.expectNil {
 				assert.Nil(t, portal.Labels)
 			} else {
@@ -169,10 +169,10 @@ name: test-portal
 // TestAuthStrategyResource_Labels tests the new label behavior for auth strategies
 func TestAuthStrategyResource_Labels(t *testing.T) {
 	tests := []struct {
-		name           string
-		yamlContent    string
-		expectNil      bool
-		expectLength   int
+		name         string
+		yamlContent  string
+		expectNil    bool
+		expectLength int
 	}{
 		{
 			name: "labels with values",
@@ -264,7 +264,7 @@ configs:
 			var auth ApplicationAuthStrategyResource
 			err := yaml.Unmarshal([]byte(tt.yamlContent), &auth)
 			require.NoError(t, err)
-			
+
 			labels := auth.GetLabels()
 			if tt.expectNil {
 				assert.Nil(t, labels)

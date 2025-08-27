@@ -44,9 +44,9 @@ type ResourceInfo interface {
 
 // BaseExecutor provides common CRUD operations
 type BaseExecutor[TCreate any, TUpdate any] struct {
-	ops     ResourceOperations[TCreate, TUpdate]
-	client  *state.Client
-	dryRun  bool
+	ops    ResourceOperations[TCreate, TUpdate]
+	client *state.Client
+	dryRun bool
 }
 
 // NewBaseExecutor creates a new base executor instance
@@ -56,9 +56,9 @@ func NewBaseExecutor[TCreate any, TUpdate any](
 	dryRun bool,
 ) *BaseExecutor[TCreate, TUpdate] {
 	return &BaseExecutor[TCreate, TUpdate]{
-		ops:     ops,
-		client:  client,
-		dryRun:  dryRun,
+		ops:    ops,
+		client: client,
+		dryRun: dryRun,
 	}
 }
 
@@ -208,26 +208,26 @@ func (b *BaseExecutor[TCreate, TUpdate]) validateResourceForUpdate(
 	ctx context.Context, resourceName string, change planner.PlannedChange,
 ) (ResourceInfo, error) {
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
-	
+
 	// Strategy 1: Standard name-based lookup
 	resource, err := b.ops.GetByName(ctx, resourceName)
 	if err == nil && resource != nil {
 		return resource, nil
 	}
-	
+
 	// Strategy 2: Try ID-based lookup
 	if change.ResourceID != "" {
 		execCtx := NewExecutionContext(&change)
 		resource, err := b.ops.GetByID(ctx, change.ResourceID, execCtx)
 		if err == nil && resource != nil {
-			logger.Debug("Resource found via ID lookup", 
-				"resource_type", b.ops.ResourceType(), 
-				"name", resourceName, 
+			logger.Debug("Resource found via ID lookup",
+				"resource_type", b.ops.ResourceType(),
+				"name", resourceName,
 				"id", change.ResourceID)
 			return resource, nil
 		}
 	}
-	
+
 	// Strategy 3: For protection changes, try lookup with preserved labels context
 	if isProtectionChange(change) && change.Fields != nil {
 		if namespace, ok := change.Fields["namespace"].(string); ok {
@@ -246,7 +246,7 @@ func (b *BaseExecutor[TCreate, TUpdate]) validateResourceForUpdate(
 			}
 		}
 	}
-	
+
 	// Return original result if all fallback strategies fail
 	return b.ops.GetByName(ctx, resourceName)
 }

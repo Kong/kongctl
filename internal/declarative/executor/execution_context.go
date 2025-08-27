@@ -8,10 +8,10 @@ import "github.com/kong/kongctl/internal/declarative/planner"
 type ExecutionContext struct {
 	// Namespace is the kongctl namespace for resource labeling
 	Namespace string
-	
+
 	// Protection contains protection-related metadata for resource labeling
 	Protection any
-	
+
 	// PlannedChange contains the full planned change being executed,
 	// including references and field changes
 	PlannedChange *planner.PlannedChange
