@@ -142,7 +142,8 @@ func (p *PortalSnippetAdapter) GetByName(_ context.Context, _ string) (ResourceI
 
 // GetByID gets a portal snippet by ID
 func (p *PortalSnippetAdapter) GetByID(
-	ctx context.Context, id string, execCtx *ExecutionContext) (ResourceInfo, error) {
+	ctx context.Context, id string, execCtx *ExecutionContext,
+) (ResourceInfo, error) {
 	portalID, err := p.getPortalID(execCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get portal ID for snippet lookup: %w", err)

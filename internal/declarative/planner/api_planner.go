@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/util/normalizers"
 )
 
 // NoRequiredFields is an explicitly empty slice for operations that don't require field validation
@@ -539,7 +539,7 @@ func (p *Planner) planAPIVersionChanges(
 			if fullVersion != nil {
 				current = *fullVersion
 			}
-			
+
 			// Now compare with full content
 			if p.shouldUpdateAPIVersion(current, desiredVersion) {
 				p.planAPIVersionUpdate(parentNamespace, apiRef, apiID, current.ID, desiredVersion, plan)
@@ -1337,13 +1337,13 @@ func (p *Planner) shouldUpdateAPIVersion(current state.APIVersion, desired resou
 	if desired.Version != nil && current.Version != *desired.Version {
 		return true
 	}
-	
+
 	// Check if spec content changed
 	if desired.Spec != nil && desired.Spec.Content != nil {
 		// Both should already be normalized JSON, but ensure consistency
 		currentSpec := strings.TrimSpace(current.Spec)
 		desiredSpec := strings.TrimSpace(*desired.Spec.Content)
-		
+
 		// Re-normalize both sides to ensure consistent comparison
 		// This handles any edge cases where normalization wasn't applied
 		normalizedCurrent, err := normalizers.SpecToJSON(currentSpec)
@@ -1356,12 +1356,12 @@ func (p *Planner) shouldUpdateAPIVersion(current state.APIVersion, desired resou
 			// Fallback to direct comparison if normalization fails
 			normalizedDesired = desiredSpec
 		}
-		
+
 		if normalizedCurrent != normalizedDesired {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -1370,7 +1370,7 @@ func (p *Planner) planAPIVersionUpdate(
 	version resources.APIVersionResource, plan *Plan,
 ) {
 	fields := make(map[string]any)
-	
+
 	// Add fields that can be updated
 	if version.Version != nil {
 		fields["version"] = *version.Version
@@ -1404,7 +1404,7 @@ func (p *Planner) planAPIVersionUpdate(
 				break
 			}
 		}
-		
+
 		change.References = map[string]ReferenceInfo{
 			"api_id": {
 				Ref: apiRef,

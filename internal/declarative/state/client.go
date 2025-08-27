@@ -797,27 +797,27 @@ func (c *Client) FetchAPIVersion(ctx context.Context, apiID, versionID string) (
 	if c.apiVersionAPI == nil {
 		return nil, fmt.Errorf("API version client not configured")
 	}
-	
+
 	resp, err := c.apiVersionAPI.FetchAPIVersion(ctx, apiID, versionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch API version: %w", err)
 	}
-	
+
 	if resp == nil || resp.APIVersionResponse == nil {
 		return nil, fmt.Errorf("fetch API version response missing data")
 	}
-	
+
 	// Convert to our internal type with full content
 	version := &APIVersion{
 		ID:      resp.APIVersionResponse.ID,
 		Version: resp.APIVersionResponse.Version,
 	}
-	
+
 	// Set spec content if available
 	if resp.APIVersionResponse.Spec != nil && resp.APIVersionResponse.Spec.Content != nil {
 		version.Spec = *resp.APIVersionResponse.Spec.Content
 	}
-	
+
 	return version, nil
 }
 
