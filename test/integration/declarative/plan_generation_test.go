@@ -12,12 +12,12 @@ import (
 	"testing"
 	"time"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/konnect/helpers"
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -27,14 +27,14 @@ import (
 // TODO: Fix mock injection for command-level tests
 // Issue: When executing commands via cobra.Command.Execute(), the command creates its own
 // context and SDK factory, overriding test mocks. This causes "unexpected method call" errors.
-// 
+//
 // Recommended fix: Mock at the SDK factory level by overriding helpers.DefaultSDKFactory
 // See planning/004-dec-cfg-multi-resource/test-refactoring-todo.md for detailed proposal
 func TestPlanGeneration_CreatePortal(t *testing.T) {
 	// Create test configuration
 	configDir := t.TempDir()
 	configFile := filepath.Join(configDir, "portal.yaml")
-	
+
 	config := `
 portals:
   - ref: test-portal
@@ -42,17 +42,17 @@ portals:
     description: "Integration test portal"
     display_name: "Test Display"
 `
-	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-	
+	require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 	// Set up test context with mocks
 	ctx := SetupTestContext(t)
-	
+
 	// Get the mock SDK and set up expectations
 	sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
 	konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
 	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
 	mockPortalAPI := mockSDK.GetPortalAPI().(*MockPortalAPI)
-	
+
 	// Mock empty portals list (no existing portals)
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
@@ -65,7 +65,7 @@ portals:
 				},
 			},
 		}, nil)
-	
+
 	// Get the mock auth strategies API and set up expectations
 	mockAuthAPI := mockSDK.GetAppAuthStrategiesAPI().(*MockAppAuthStrategiesAPI)
 	// Mock empty auth strategies list
@@ -76,7 +76,7 @@ portals:
 				Data: []kkComps.AppAuthStrategy{},
 			},
 		}, nil).Maybe()
-	
+
 	// Get the mock API API and set up expectations
 	mockAPIAPI := mockSDK.GetAPIAPI().(*MockAPIAPI)
 	// Mock empty APIs list
@@ -92,43 +92,43 @@ portals:
 				},
 			},
 		}, nil).Maybe()
-	
+
 	// Create plan command using declarative command
 	planCmd, err := declarative.NewDeclarativeCmd("plan")
 	require.NoError(t, err)
-	
+
 	// Set context
 	planCmd.SetContext(ctx)
-	
+
 	// Capture output
 	var output bytes.Buffer
 	planCmd.SetOut(&output)
 	planCmd.SetErr(&output)
-	
+
 	// Generate plan to JSON
 	planFile := filepath.Join(t.TempDir(), "plan.json")
 	planCmd.SetArgs([]string{"-f", configFile, "--output-file", planFile})
-	
-	// Execute command  
+
+	// Execute command
 	err = planCmd.Execute()
 	require.NoError(t, err)
-	
+
 	// Verify plan file exists and parse it
 	planData, err := os.ReadFile(planFile)
 	require.NoError(t, err)
-	
+
 	var plan planner.Plan
 	require.NoError(t, json.Unmarshal(planData, &plan))
-	
+
 	// Verify plan structure
 	assert.Equal(t, "1.0", plan.Metadata.Version)
 	assert.NotEmpty(t, plan.Metadata.GeneratedAt)
 	assert.Contains(t, plan.Metadata.Generator, "kongctl")
-	
+
 	// Verify changes
 	assert.Len(t, plan.Changes, 1)
 	change := plan.Changes[0]
-	
+
 	assert.Equal(t, "1:c:portal:test-portal", change.ID)
 	assert.Equal(t, planner.ActionCreate, change.Action)
 	assert.Equal(t, "portal", change.ResourceType)
@@ -136,7 +136,7 @@ portals:
 	assert.Equal(t, "Test Portal", change.Fields["name"])
 	assert.Equal(t, "Integration test portal", change.Fields["description"])
 	assert.Equal(t, "Test Display", change.Fields["display_name"])
-	
+
 	// Verify summary
 	assert.Equal(t, 1, plan.Summary.TotalChanges)
 	assert.Equal(t, 1, plan.Summary.ByAction[planner.ActionCreate])
@@ -147,7 +147,7 @@ func TestPlanGeneration_UpdatePortal(t *testing.T) {
 	// Create test configuration
 	configDir := t.TempDir()
 	configFile := filepath.Join(configDir, "portal.yaml")
-	
+
 	config := `
 portals:
   - ref: existing-portal
@@ -155,23 +155,23 @@ portals:
     description: "Updated description"
     display_name: "Updated Display"
 `
-	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-	
+	require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 	// Set up test context with mocks
 	ctx := SetupTestContext(t)
-	
+
 	// Get the mock SDK and set up expectations
 	sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
 	konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
 	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
 	mockPortalAPI := mockSDK.GetPortalAPI().(*MockPortalAPI)
-	
+
 	// Mock existing portal with different values
 	existingID := "portal-123"
 	existingName := "Existing Portal"
 	oldDesc := "Old description"
 	oldDisplay := "Old Display"
-	
+
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
@@ -192,7 +192,7 @@ portals:
 			},
 		},
 	}, nil)
-	
+
 	// Get the mock auth strategies API and set up expectations
 	mockAuthAPI := mockSDK.GetAppAuthStrategiesAPI().(*MockAppAuthStrategiesAPI)
 	// Mock empty auth strategies list
@@ -203,7 +203,7 @@ portals:
 				Data: []kkComps.AppAuthStrategy{},
 			},
 		}, nil).Maybe()
-	
+
 	// Get the mock API API and set up expectations
 	mockAPIAPI := mockSDK.GetAPIAPI().(*MockAPIAPI)
 	// Mock empty APIs list
@@ -219,43 +219,43 @@ portals:
 				},
 			},
 		}, nil).Maybe()
-	
+
 	// Create plan command using declarative command
 	planCmd, err := declarative.NewDeclarativeCmd("plan")
 	require.NoError(t, err)
-	
+
 	// Set context
 	planCmd.SetContext(ctx)
-	
+
 	// Capture output
 	var output bytes.Buffer
 	planCmd.SetOut(&output)
 	planCmd.SetErr(&output)
-	
+
 	// Generate plan
 	planFile := filepath.Join(t.TempDir(), "plan.json")
 	planCmd.SetArgs([]string{"-f", configFile, "--output-file", planFile})
-	
-	// Execute command  
+
+	// Execute command
 	err = planCmd.Execute()
 	require.NoError(t, err)
-	
+
 	// Verify plan
 	planData, err := os.ReadFile(planFile)
 	require.NoError(t, err)
-	
+
 	var plan planner.Plan
 	require.NoError(t, json.Unmarshal(planData, &plan))
-	
+
 	// Verify UPDATE change
 	assert.Len(t, plan.Changes, 1)
 	change := plan.Changes[0]
-	
+
 	assert.Equal(t, planner.ActionUpdate, change.Action)
 	assert.Equal(t, "portal", change.ResourceType)
 	assert.Equal(t, "existing-portal", change.ResourceRef)
 	assert.Equal(t, "portal-123", change.ResourceID)
-	
+
 	// Verify field changes - we now store the new values directly
 	assert.Equal(t, "Updated description", change.Fields["description"])
 	assert.Equal(t, "Updated Display", change.Fields["display_name"])
@@ -265,7 +265,7 @@ func TestPlanGeneration_ProtectionChange(t *testing.T) {
 	// Create test configuration with protection enabled
 	configDir := t.TempDir()
 	configFile := filepath.Join(configDir, "portal.yaml")
-	
+
 	config := `
 portals:
   - ref: protected-portal
@@ -274,22 +274,22 @@ portals:
     kongctl:
       protected: true
 `
-	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-	
+	require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 	// Set up test context with mocks
 	ctx := SetupTestContext(t)
-	
+
 	// Get the mock SDK and set up expectations
 	sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
 	konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
 	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
 	mockPortalAPI := mockSDK.GetPortalAPI().(*MockPortalAPI)
-	
+
 	// Mock existing unprotected portal
 	existingID := "portal-456"
 	existingName := "Protected Portal"
 	desc := "Portal with protection"
-	
+
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{
@@ -310,7 +310,7 @@ portals:
 			},
 		},
 	}, nil)
-	
+
 	// Get the mock auth strategies API and set up expectations
 	mockAuthAPI := mockSDK.GetAppAuthStrategiesAPI().(*MockAppAuthStrategiesAPI)
 	// Mock empty auth strategies list
@@ -321,7 +321,7 @@ portals:
 				Data: []kkComps.AppAuthStrategy{},
 			},
 		}, nil).Maybe()
-	
+
 	// Get the mock API API and set up expectations
 	mockAPIAPI := mockSDK.GetAPIAPI().(*MockAPIAPI)
 	// Mock empty APIs list
@@ -337,45 +337,45 @@ portals:
 				},
 			},
 		}, nil).Maybe()
-	
+
 	// Create plan command using declarative command
 	planCmd, err := declarative.NewDeclarativeCmd("plan")
 	require.NoError(t, err)
-	
+
 	// Set context
 	planCmd.SetContext(ctx)
-	
+
 	// Generate plan
 	planFile := filepath.Join(t.TempDir(), "plan.json")
 	planCmd.SetArgs([]string{"-f", configFile, "--output-file", planFile})
-	
+
 	err = planCmd.Execute()
 	require.NoError(t, err)
-	
+
 	// Verify plan has protection change
 	planData, err := os.ReadFile(planFile)
 	require.NoError(t, err)
-	
+
 	var plan planner.Plan
 	require.NoError(t, json.Unmarshal(planData, &plan))
-	
+
 	// Should have one UPDATE for protection change
 	assert.Len(t, plan.Changes, 1)
 	change := plan.Changes[0]
-	
+
 	assert.Equal(t, planner.ActionUpdate, change.Action)
 	assert.Equal(t, "1:u:portal:protected-portal", change.ID)
-	
+
 	// Verify protection change (marshaled as map from JSON)
 	protChange, ok := change.Protection.(map[string]any)
 	require.True(t, ok, "Protection should be a map after JSON unmarshaling")
 	assert.False(t, protChange["old"].(bool))
 	assert.True(t, protChange["new"].(bool))
-	
+
 	// Protection change includes name and labels fields
 	assert.NotEmpty(t, change.Fields)
 	assert.Equal(t, "Protected Portal", change.Fields["name"])
-	
+
 	// Protection status is tracked in change.Protection, not in labels field
 	// The labels field should be updated but without KONGCTL-protected label
 }
@@ -384,31 +384,31 @@ func TestPlanGeneration_EmptyPlan(t *testing.T) {
 	// Create test configuration matching existing state
 	configDir := t.TempDir()
 	configFile := filepath.Join(configDir, "portal.yaml")
-	
+
 	config := `
 portals:
   - ref: existing-portal
     name: "Existing Portal"
     description: "Same description"
 `
-	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-	
+	require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 	// Create plan command using declarative command
 	planCmd, err := declarative.NewDeclarativeCmd("plan")
 	require.NoError(t, err)
-	
+
 	// Set up test context with mocks
 	ctx := SetupTestContext(t)
-	
+
 	// Get the mock SDK and set up expectations
 	sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
 	konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
 	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
 	mockPortalAPI := mockSDK.GetPortalAPI().(*MockPortalAPI)
-	
+
 	// Mock portal that matches desired state
 	portal := CreateManagedPortal("Existing Portal", "portal-789", "Same description")
-	
+
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.Portal{portal},
@@ -419,7 +419,7 @@ portals:
 			},
 		},
 	}, nil)
-	
+
 	// Get the mock auth strategies API and set up expectations
 	mockAuthAPI := mockSDK.GetAppAuthStrategiesAPI().(*MockAppAuthStrategiesAPI)
 	// Mock empty auth strategies list
@@ -430,7 +430,7 @@ portals:
 				Data: []kkComps.AppAuthStrategy{},
 			},
 		}, nil).Maybe()
-	
+
 	// Get the mock API API and set up expectations
 	mockAPIAPI := mockSDK.GetAPIAPI().(*MockAPIAPI)
 	// Mock empty APIs list
@@ -449,21 +449,21 @@ portals:
 
 	// Set context
 	planCmd.SetContext(ctx)
-	
+
 	// Generate plan
 	planFile := filepath.Join(t.TempDir(), "plan.json")
 	planCmd.SetArgs([]string{"-f", configFile, "--output-file", planFile})
-	
+
 	err = planCmd.Execute()
 	require.NoError(t, err)
-	
+
 	// Verify empty plan
 	planData, err := os.ReadFile(planFile)
 	require.NoError(t, err)
-	
+
 	var plan planner.Plan
 	require.NoError(t, json.Unmarshal(planData, &plan))
-	
+
 	assert.True(t, plan.IsEmpty())
 	assert.Len(t, plan.Changes, 0)
 	assert.Equal(t, 0, plan.Summary.TotalChanges)
@@ -497,32 +497,32 @@ func TestDiffCommand_TextOutput(t *testing.T) {
 			ByResource:   map[string]int{"portal": 1},
 		},
 	}
-	
+
 	planData, err := json.MarshalIndent(plan, "", "  ")
 	require.NoError(t, err)
-	
+
 	planFile := filepath.Join(t.TempDir(), "test-plan.json")
-	require.NoError(t, os.WriteFile(planFile, planData, 0600))
-	
+	require.NoError(t, os.WriteFile(planFile, planData, 0o600))
+
 	// Create diff command using declarative command
 	diffCmd, err := declarative.NewDeclarativeCmd("diff")
 	require.NoError(t, err)
-	
+
 	// Set up test context
 	ctx := SetupTestContext(t)
 	diffCmd.SetContext(ctx)
-	
+
 	// Capture output
 	var output bytes.Buffer
 	diffCmd.SetOut(&output)
 	diffCmd.SetErr(&output)
-	
+
 	// Run diff with text output
 	diffCmd.SetArgs([]string{"--plan", planFile})
-	
+
 	err = diffCmd.Execute()
 	require.NoError(t, err)
-	
+
 	// Verify text output
 	outputStr := output.String()
 	assert.Contains(t, outputStr, "Plan: 1 to add, 0 to change")
@@ -536,7 +536,7 @@ func TestDiffCommand_JSONOutput(t *testing.T) {
 	plan := planner.Plan{
 		Metadata: planner.PlanMetadata{
 			Version: "1.0",
-			Mode: planner.PlanModeSync,
+			Mode:    planner.PlanModeSync,
 		},
 		Changes: []planner.PlannedChange{
 			{
@@ -559,36 +559,36 @@ func TestDiffCommand_JSONOutput(t *testing.T) {
 			ByResource:   map[string]int{"portal": 1},
 		},
 	}
-	
+
 	planData, err := json.Marshal(plan)
 	require.NoError(t, err)
-	
+
 	planFile := filepath.Join(t.TempDir(), "update-plan.json")
-	require.NoError(t, os.WriteFile(planFile, planData, 0600))
-	
+	require.NoError(t, os.WriteFile(planFile, planData, 0o600))
+
 	// Create diff command using declarative command
 	diffCmd, err := declarative.NewDeclarativeCmd("diff")
 	require.NoError(t, err)
-	
+
 	// Set up test context
 	ctx := SetupTestContext(t)
 	diffCmd.SetContext(ctx)
-	
+
 	// Capture output
 	var output bytes.Buffer
 	diffCmd.SetOut(&output)
 	diffCmd.SetErr(&output)
-	
+
 	// Run diff with JSON output
 	diffCmd.SetArgs([]string{"--plan", planFile, "-o", "json"})
-	
+
 	err = diffCmd.Execute()
 	require.NoError(t, err)
-	
+
 	// Verify JSON output is valid
 	var outputPlan planner.Plan
 	require.NoError(t, json.Unmarshal(output.Bytes(), &outputPlan))
-	
+
 	// Should be pass-through of the plan
 	assert.Equal(t, plan.Metadata.Version, outputPlan.Metadata.Version)
 	assert.Len(t, outputPlan.Changes, 1)
@@ -600,7 +600,7 @@ func TestDiffCommand_YAMLOutput(t *testing.T) {
 	plan := planner.Plan{
 		Metadata: planner.PlanMetadata{
 			Version: "1.0",
-			Mode: planner.PlanModeSync,
+			Mode:    planner.PlanModeSync,
 		},
 		Changes:        []planner.PlannedChange{},
 		ExecutionOrder: []string{},
@@ -608,36 +608,36 @@ func TestDiffCommand_YAMLOutput(t *testing.T) {
 			TotalChanges: 0,
 		},
 	}
-	
+
 	planData, err := json.Marshal(plan)
 	require.NoError(t, err)
-	
+
 	planFile := filepath.Join(t.TempDir(), "empty-plan.json")
-	require.NoError(t, os.WriteFile(planFile, planData, 0600))
-	
+	require.NoError(t, os.WriteFile(planFile, planData, 0o600))
+
 	// Create diff command using declarative command
 	diffCmd, err := declarative.NewDeclarativeCmd("diff")
 	require.NoError(t, err)
-	
+
 	// Set up test context
 	ctx := SetupTestContext(t)
 	diffCmd.SetContext(ctx)
-	
+
 	// Capture output
 	var output bytes.Buffer
 	diffCmd.SetOut(&output)
 	diffCmd.SetErr(&output)
-	
+
 	// Run diff with YAML output
 	diffCmd.SetArgs([]string{"--plan", planFile, "-o", "yaml"})
-	
+
 	err = diffCmd.Execute()
 	require.NoError(t, err)
-	
+
 	// Verify YAML output is valid
 	var outputPlan planner.Plan
 	require.NoError(t, yaml.Unmarshal(output.Bytes(), &outputPlan))
-	
+
 	assert.Equal(t, "1.0", outputPlan.Metadata.Version)
 	assert.True(t, outputPlan.IsEmpty())
 }
@@ -648,24 +648,24 @@ func TestPlanDiffPipeline(t *testing.T) {
 	// Create test configuration
 	configDir := t.TempDir()
 	configFile := filepath.Join(configDir, "portal.yaml")
-	
+
 	config := `
 portals:
   - ref: pipeline-portal
     name: "Pipeline Portal"
     description: "Test piping plan to diff"
 `
-	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-	
+	require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 	// Set up test context with mocks
 	ctx := SetupTestContext(t)
-	
+
 	// Get the mock SDK and set up expectations
 	sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
 	konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
 	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
 	mockPortalAPI := mockSDK.GetPortalAPI().(*MockPortalAPI)
-	
+
 	// Mock empty portals list (no existing portals)
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
@@ -678,7 +678,7 @@ portals:
 				},
 			},
 		}, nil)
-	
+
 	// Get the mock auth strategies API and set up expectations
 	mockAuthAPI := mockSDK.GetAppAuthStrategiesAPI().(*MockAppAuthStrategiesAPI)
 	// Mock empty auth strategies list
@@ -689,7 +689,7 @@ portals:
 				Data: []kkComps.AppAuthStrategy{},
 			},
 		}, nil).Maybe()
-	
+
 	// Get the mock API API and set up expectations
 	mockAPIAPI := mockSDK.GetAPIAPI().(*MockAPIAPI)
 	// Mock empty APIs list
@@ -705,50 +705,49 @@ portals:
 				},
 			},
 		}, nil).Maybe()
-	
+
 	// Create plan command using declarative command
 	planCmd, err := declarative.NewDeclarativeCmd("plan")
 	require.NoError(t, err)
-	
+
 	// Set context
 	planCmd.SetContext(ctx)
-	
+
 	// Capture plan output
 	var planOutput bytes.Buffer
 	planCmd.SetOut(&planOutput)
 	planCmd.SetErr(&planOutput)
-	
+
 	// Generate plan to stdout
 	planCmd.SetArgs([]string{"-f", configFile})
-	
+
 	err = planCmd.Execute()
 	require.NoError(t, err)
-	
+
 	// Create diff command using declarative command
 	diffCmd, err := declarative.NewDeclarativeCmd("diff")
 	require.NoError(t, err)
-	
+
 	// Set context for diff command
 	diffCmd.SetContext(ctx)
-	
+
 	// Capture diff output
 	var diffOutput bytes.Buffer
 	diffCmd.SetOut(&diffOutput)
 	diffCmd.SetErr(&diffOutput)
-	
+
 	// Simulate piping by using plan output as stdin
 	diffCmd.SetIn(strings.NewReader(planOutput.String()))
-	
+
 	// Run diff reading from stdin
 	diffCmd.SetArgs([]string{"--plan", "-"})
-	
+
 	err = diffCmd.Execute()
 	require.NoError(t, err)
-	
+
 	// Verify diff output
 	outputStr := diffOutput.String()
 	assert.Contains(t, outputStr, "Plan: 1 to add, 0 to change")
 	assert.Contains(t, outputStr, "pipeline-portal")
 	assert.Contains(t, outputStr, "Pipeline Portal")
 }
-

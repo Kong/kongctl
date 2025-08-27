@@ -36,7 +36,7 @@ type SDKAPI interface {
 // This is the real implementation of the SDKAPI
 // which wraps the actual SDK implmentation
 type KonnectSDK struct {
-	SDK          *kkSDK.SDK
+	SDK        *kkSDK.SDK
 	portalImpl *PortalAPIImpl
 }
 

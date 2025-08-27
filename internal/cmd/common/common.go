@@ -75,7 +75,7 @@ func LogLevelStringToIota(level string) (LogLevel, error) {
 	case "error":
 		return ERROR, nil
 	default:
-		return ERROR, fmt.Errorf("invalid log level %q, must be one of %v", level, 
+		return ERROR, fmt.Errorf("invalid log level %q, must be one of %v", level,
 			[]string{"trace", "debug", "info", "warn", "error"})
 	}
 }

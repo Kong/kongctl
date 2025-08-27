@@ -10,15 +10,15 @@ import (
 
 // PortalPageResource represents a portal page
 type PortalPageResource struct {
-	kkComps.CreatePortalPageRequest `yaml:",inline" json:",inline"`
-	Ref           string                `yaml:"ref" json:"ref"`
+	kkComps.CreatePortalPageRequest `                     yaml:",inline"                   json:",inline"`
+	Ref                             string `yaml:"ref"                       json:"ref"`
 	// Parent portal reference
-	Portal        string                `yaml:"portal,omitempty" json:"portal,omitempty"`
+	Portal string `yaml:"portal,omitempty"          json:"portal,omitempty"`
 	// Reference to parent page
-	ParentPageRef string                `yaml:"parent_page_ref,omitempty" json:"parent_page_ref,omitempty"`
+	ParentPageRef string `yaml:"parent_page_ref,omitempty" json:"parent_page_ref,omitempty"`
 	// Nested child pages
-	Children      []PortalPageResource  `yaml:"children,omitempty" json:"children,omitempty"`
-	
+	Children []PortalPageResource `yaml:"children,omitempty"        json:"children,omitempty"`
+
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
 }
@@ -33,7 +33,7 @@ func (p PortalPageResource) Validate() error {
 	if err := ValidateRef(p.Ref); err != nil {
 		return fmt.Errorf("invalid page ref: %w", err)
 	}
-	
+
 	// Validate slug
 	switch p.Slug {
 	case "/":
@@ -48,14 +48,17 @@ func (p PortalPageResource) Validate() error {
 		// Validate slug format using Konnect's regex pattern for non-root pages
 		slugRegex := regexp.MustCompile(`^[\w-]+$`)
 		if !slugRegex.MatchString(p.Slug) {
-			return fmt.Errorf("invalid slug %q: slugs must contain only letters, numbers, underscores, and hyphens", p.Slug)
+			return fmt.Errorf(
+				"invalid slug %q: slugs must contain only letters, numbers, underscores, and hyphens",
+				p.Slug,
+			)
 		}
 	}
-	
+
 	if p.Content == "" {
 		return fmt.Errorf("page content is required")
 	}
-	
+
 	// Validate visibility if set
 	if p.Visibility != nil {
 		validVisibility := false
@@ -72,7 +75,7 @@ func (p PortalPageResource) Validate() error {
 			return fmt.Errorf("page visibility must be 'public' or 'private'")
 		}
 	}
-	
+
 	// Validate status if set
 	if p.Status != nil {
 		validStatus := false
@@ -89,7 +92,7 @@ func (p PortalPageResource) Validate() error {
 			return fmt.Errorf("page status must be 'published' or 'unpublished'")
 		}
 	}
-	
+
 	// Validate children recursively
 	for i, child := range p.Children {
 		// Children should not redefine portal
@@ -100,7 +103,7 @@ func (p PortalPageResource) Validate() error {
 			return fmt.Errorf("child page[%d] ref=%q validation failed: %w", i, child.Ref, err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -111,13 +114,13 @@ func (p *PortalPageResource) SetDefaults() {
 		visibility := kkComps.PageVisibilityStatusPublic
 		p.Visibility = &visibility
 	}
-	
+
 	// Set default status to published if not specified
 	if p.Status == nil {
 		status := kkComps.PublishedStatusPublished
 		p.Status = &status
 	}
-	
+
 	// Set title from slug if not provided
 	if p.Title == nil && p.Slug != "" {
 		title := p.Slug
@@ -159,24 +162,24 @@ func (p *PortalPageResource) TryMatchKonnectResource(konnectResource any) bool {
 	// For portal pages, we match by slug
 	// Use reflection to access fields from state.PortalPage
 	v := reflect.ValueOf(konnectResource)
-	
+
 	// Handle pointer types
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
-	
+
 	// Ensure we have a struct
 	if v.Kind() != reflect.Struct {
 		return false
 	}
-	
+
 	// Look for Slug and ID fields
 	slugField := v.FieldByName("Slug")
 	idField := v.FieldByName("ID")
-	
+
 	// Extract values if fields are valid
-	if slugField.IsValid() && idField.IsValid() && 
-	   slugField.Kind() == reflect.String && idField.Kind() == reflect.String {
+	if slugField.IsValid() && idField.IsValid() &&
+		slugField.Kind() == reflect.String && idField.Kind() == reflect.String {
 		if slugField.String() == p.Slug {
 			p.konnectID = idField.String()
 			return true
@@ -187,16 +190,16 @@ func (p *PortalPageResource) TryMatchKonnectResource(konnectResource any) bool {
 
 // PortalSnippetResource represents a portal snippet
 type PortalSnippetResource struct {
-	Ref         string                            `yaml:"ref" json:"ref"`
+	Ref string `yaml:"ref"                   json:"ref"`
 	// Parent portal reference
-	Portal      string                            `yaml:"portal,omitempty" json:"portal,omitempty"`
-	Name        string                            `yaml:"name" json:"name"`
-	Content     string                            `yaml:"content" json:"content"`
-	Title       *string                           `yaml:"title,omitempty" json:"title,omitempty"`
-	Visibility  *kkComps.SnippetVisibilityStatus  `yaml:"visibility,omitempty" json:"visibility,omitempty"`
-	Status      *kkComps.PublishedStatus          `yaml:"status,omitempty" json:"status,omitempty"`
-	Description *string                           `yaml:"description,omitempty" json:"description,omitempty"`
-	
+	Portal      string                           `yaml:"portal,omitempty"      json:"portal,omitempty"`
+	Name        string                           `yaml:"name"                  json:"name"`
+	Content     string                           `yaml:"content"               json:"content"`
+	Title       *string                          `yaml:"title,omitempty"       json:"title,omitempty"`
+	Visibility  *kkComps.SnippetVisibilityStatus `yaml:"visibility,omitempty"  json:"visibility,omitempty"`
+	Status      *kkComps.PublishedStatus         `yaml:"status,omitempty"      json:"status,omitempty"`
+	Description *string                          `yaml:"description,omitempty" json:"description,omitempty"`
+
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
 }
@@ -211,15 +214,15 @@ func (s PortalSnippetResource) Validate() error {
 	if err := ValidateRef(s.Ref); err != nil {
 		return fmt.Errorf("invalid snippet ref: %w", err)
 	}
-	
+
 	if s.Name == "" {
 		return fmt.Errorf("snippet name is required")
 	}
-	
+
 	if s.Content == "" {
 		return fmt.Errorf("snippet content is required")
 	}
-	
+
 	// Validate visibility if set
 	if s.Visibility != nil {
 		validVisibility := false
@@ -236,7 +239,7 @@ func (s PortalSnippetResource) Validate() error {
 			return fmt.Errorf("snippet visibility must be 'public' or 'private'")
 		}
 	}
-	
+
 	// Validate status if set
 	if s.Status != nil {
 		validStatus := false
@@ -253,7 +256,7 @@ func (s PortalSnippetResource) Validate() error {
 			return fmt.Errorf("snippet status must be 'published' or 'unpublished'")
 		}
 	}
-	
+
 	return nil
 }
 
@@ -264,13 +267,13 @@ func (s *PortalSnippetResource) SetDefaults() {
 		visibility := kkComps.SnippetVisibilityStatusPublic
 		s.Visibility = &visibility
 	}
-	
+
 	// Set default status to published if not specified
 	if s.Status == nil {
 		status := kkComps.PublishedStatusPublished
 		s.Status = &status
 	}
-	
+
 	// Set title from name if not provided
 	if s.Title == nil && s.Name != "" {
 		title := s.Name
@@ -312,24 +315,24 @@ func (s *PortalSnippetResource) TryMatchKonnectResource(konnectResource any) boo
 	// For portal snippets, we match by name
 	// Use reflection to access fields from state.PortalSnippet
 	v := reflect.ValueOf(konnectResource)
-	
+
 	// Handle pointer types
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
-	
+
 	// Ensure we have a struct
 	if v.Kind() != reflect.Struct {
 		return false
 	}
-	
+
 	// Look for Name and ID fields
 	nameField := v.FieldByName("Name")
 	idField := v.FieldByName("ID")
-	
+
 	// Extract values if fields are valid
-	if nameField.IsValid() && idField.IsValid() && 
-	   nameField.Kind() == reflect.String && idField.Kind() == reflect.String {
+	if nameField.IsValid() && idField.IsValid() &&
+		nameField.Kind() == reflect.String && idField.Kind() == reflect.String {
 		if nameField.String() == s.Name {
 			s.konnectID = idField.String()
 			return true

@@ -79,7 +79,7 @@ func PaginateAllFiltered[T any](
 		// We need to check if this is the last page based on page number
 		// This is a simplified approach - in real scenarios, the API would indicate this
 		pageNumber++
-		
+
 		// Simple heuristic: if we're beyond reasonable page count, stop
 		if pageNumber > 10 {
 			break

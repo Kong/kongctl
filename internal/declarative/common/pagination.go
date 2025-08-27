@@ -54,12 +54,12 @@ func hasMorePages(meta *PageMeta) bool {
 	if meta.HasNextPage {
 		return true
 	}
-	
+
 	// Fallback calculation if HasNextPage is not set
 	if meta.Total > 0 && meta.PageSize > 0 {
 		return meta.Total > float64(meta.PageSize*meta.Page)
 	}
-	
+
 	return false
 }
 

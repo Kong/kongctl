@@ -13,20 +13,20 @@ type ResourcePlanner interface {
 // PortalPlanner handles planning for portal resources
 type PortalPlanner interface {
 	ResourcePlanner
-	
+
 	// Additional portal-specific methods if needed
 }
 
 // AuthStrategyPlanner handles planning for auth strategy resources
 type AuthStrategyPlanner interface {
 	ResourcePlanner
-	
+
 	// Additional auth strategy-specific methods if needed
 }
 
 // APIPlanner handles planning for API resources and their child resources
 type APIPlanner interface {
 	ResourcePlanner
-	
+
 	// Additional API-specific methods if needed
 }

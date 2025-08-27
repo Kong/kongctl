@@ -12,10 +12,10 @@ import (
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
-	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/segmentio/cli"
@@ -46,8 +46,8 @@ var (
 )
 
 const (
-	includeVersionsFlagName      = "include-versions"
-	includePublicationsFlagName  = "include-publications"
+	includeVersionsFlagName     = "include-versions"
+	includePublicationsFlagName = "include-publications"
 )
 
 // Represents a text display record for an API

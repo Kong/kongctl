@@ -22,7 +22,7 @@ func IsConflictError(err error, statusCode int) bool {
 	if statusCode == http.StatusConflict {
 		return true
 	}
-	
+
 	errMsg := strings.ToLower(err.Error())
 	return strings.Contains(errMsg, "already exists") ||
 		strings.Contains(errMsg, "name is not unique") ||
@@ -35,7 +35,7 @@ func IsValidationError(err error, statusCode int) bool {
 	if statusCode == http.StatusUnprocessableEntity || statusCode == http.StatusBadRequest {
 		return true
 	}
-	
+
 	errMsg := strings.ToLower(err.Error())
 	return strings.Contains(errMsg, "validation") ||
 		strings.Contains(errMsg, "invalid") ||
@@ -62,10 +62,10 @@ func EnhanceAPIError(err error, ctx APIErrorContext) error {
 	var baseMsg string
 	if ctx.ResourceName != "" {
 		if ctx.Namespace != "" && ctx.Namespace != "*" {
-			baseMsg = fmt.Sprintf("failed to %s %s \"%s\" in namespace \"%s\"", 
+			baseMsg = fmt.Sprintf("failed to %s %s \"%s\" in namespace \"%s\"",
 				ctx.Operation, ctx.ResourceType, ctx.ResourceName, ctx.Namespace)
 		} else {
-			baseMsg = fmt.Sprintf("failed to %s %s \"%s\"", 
+			baseMsg = fmt.Sprintf("failed to %s %s \"%s\"",
 				ctx.Operation, ctx.ResourceType, ctx.ResourceName)
 		}
 	} else {
@@ -80,11 +80,11 @@ func EnhanceAPIError(err error, ctx APIErrorContext) error {
 
 	// Generate helpful hints based on error type
 	hint := generateHint(err, ctx)
-	
+
 	if hint != "" {
 		return fmt.Errorf("%s%s: %w. %s", baseMsg, statusInfo, err, hint)
 	}
-	
+
 	return fmt.Errorf("%s%s: %w", baseMsg, statusInfo, err)
 }
 
@@ -102,7 +102,7 @@ func generateHint(err error, ctx APIErrorContext) string {
 				"Try using a different name like \"%s-v2\" or check existing APIs with 'kongctl get apis'", ctx.ResourceName)
 		case "auth-strategy":
 			return fmt.Sprintf("Auth strategy names must be unique. "+
-				"Try using a different name like \"%s-v2\" or check existing strategies with 'kongctl get auth-strategies'", 
+				"Try using a different name like \"%s-v2\" or check existing strategies with 'kongctl get auth-strategies'",
 				ctx.ResourceName)
 		default:
 			return "Resource names must be unique. Try using a different name or check existing resources"
@@ -150,16 +150,16 @@ func ExtractStatusCodeFromError(err error) int {
 	if err == nil {
 		return 0
 	}
-	
+
 	errMsg := err.Error()
-	
+
 	// Look for common status code patterns
 	patterns := []string{
 		"status code: ",
 		"HTTP ",
 		"status ",
 	}
-	
+
 	for _, pattern := range patterns {
 		if idx := strings.Index(errMsg, pattern); idx != -1 {
 			start := idx + len(pattern)
@@ -174,6 +174,6 @@ func ExtractStatusCodeFromError(err error) int {
 			}
 		}
 	}
-	
+
 	return 0
 }

@@ -5,10 +5,10 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/kong/kongctl/internal/declarative/resources"
-	"github.com/kong/kongctl/internal/declarative/state"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -34,16 +34,17 @@ func TestGeneratePlan_PortalCustomDomain(t *testing.T) {
 			},
 		},
 	}, nil)
-	
-	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
-		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
-			Data: []kkComps.AppAuthStrategy{},
-			Meta: kkComps.PaginatedMeta{
-				Page: kkComps.PageMeta{Total: 0},
+
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{Total: 0},
+				},
 			},
-		},
-	}, nil)
-	
+		}, nil)
+
 	// Mock empty APIs list (needed for sync mode)
 	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).Return(&kkOps.ListApisResponse{
 		StatusCode: 200,
@@ -97,16 +98,16 @@ func TestGeneratePlan_PortalCustomDomain(t *testing.T) {
 	assert.NotNil(t, customDomainChange, "Should have a portal custom domain change")
 	assert.Equal(t, ActionCreate, customDomainChange.Action)
 	assert.Equal(t, "portal-custom-domain", customDomainChange.ResourceRef)
-	
+
 	// Verify fields
 	assert.Equal(t, "developer.example.com", customDomainChange.Fields["hostname"])
 	assert.Equal(t, true, customDomainChange.Fields["enabled"])
-	
+
 	// Verify SSL configuration
 	ssl, ok := customDomainChange.Fields["ssl"].(map[string]any)
 	assert.True(t, ok, "SSL should be a map")
 	assert.Equal(t, "http", ssl["domain_verification_method"])
-	
+
 	// Verify dependencies
 	assert.Contains(t, customDomainChange.DependsOn, "1:c:portal:dev-portal")
 }

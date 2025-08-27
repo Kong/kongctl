@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kong/kongctl/internal/declarative/state"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/state"
 )
 
 // APIVersionAdapter implements CreateDeleteOperations for API versions
@@ -22,13 +22,13 @@ func NewAPIVersionAdapter(client *state.Client) *APIVersionAdapter {
 
 // MapCreateFields maps fields to CreateAPIVersionRequest
 func (a *APIVersionAdapter) MapCreateFields(_ context.Context, _ *ExecutionContext, fields map[string]any,
-	create *kkComps.CreateAPIVersionRequest) error {
-	
+	create *kkComps.CreateAPIVersionRequest,
+) error {
 	// Version field
 	if version, ok := fields["version"].(string); ok {
 		create.Version = &version
 	}
-	
+
 	// Spec field (optional)
 	if spec, ok := fields["spec"].(map[string]any); ok {
 		if content, ok := spec["content"].(string); ok {
@@ -43,7 +43,8 @@ func (a *APIVersionAdapter) MapCreateFields(_ context.Context, _ *ExecutionConte
 
 // Create creates a new API version
 func (a *APIVersionAdapter) Create(ctx context.Context, req kkComps.CreateAPIVersionRequest,
-	_ string, execCtx *ExecutionContext) (string, error) {
+	_ string, execCtx *ExecutionContext,
+) (string, error) {
 	// Get API ID from execution context
 	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
 	if err != nil {
@@ -92,17 +93,17 @@ func (a *APIVersionAdapter) GetByID(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get API ID for version lookup: %w", err)
 	}
-	
+
 	// Fetch the full API version
 	version, err := a.client.FetchAPIVersion(ctx, apiID, versionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch API version: %w", err)
 	}
-	
+
 	if version == nil {
 		return nil, nil // Not found
 	}
-	
+
 	// Convert to ResourceInfo
 	return NewAPIVersionResourceInfo(version), nil
 }
@@ -118,14 +119,14 @@ func (a *APIVersionAdapter) RequiredFields() []string {
 }
 
 // MapUpdateFields maps fields for update operations
-func (a *APIVersionAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, 
+func (a *APIVersionAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext,
 	fields map[string]any, update *kkComps.APIVersion, _ map[string]string) error {
-	
+
 	// Map version field if changed
 	if version, ok := fields["version"].(string); ok {
 		update.Version = &version
 	}
-	
+
 	// Map spec field if changed
 	if spec, ok := fields["spec"].(map[string]any); ok {
 		if content, ok := spec["content"].(string); ok {
@@ -134,30 +135,30 @@ func (a *APIVersionAdapter) MapUpdateFields(_ context.Context, _ *ExecutionConte
 			}
 		}
 	}
-	
+
 	return nil
 }
 
 // Update updates an existing API version
-func (a *APIVersionAdapter) Update(ctx context.Context, id string, 
+func (a *APIVersionAdapter) Update(ctx context.Context, id string,
 	update kkComps.APIVersion, _ string, execCtx *ExecutionContext) (string, error) {
-	
+
 	// Get API ID from execution context
 	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", fmt.Errorf("failed to get API ID for version update: %w", err)
 	}
-	
+
 	// Call client's UpdateAPIVersion
 	resp, err := a.client.UpdateAPIVersion(ctx, apiID, id, update)
 	if err != nil {
 		return "", fmt.Errorf("failed to update API version: %w", err)
 	}
-	
+
 	if resp == nil {
 		return "", fmt.Errorf("API version update returned no response")
 	}
-	
+
 	return resp.ID, nil
 }
 
@@ -166,25 +167,24 @@ func (a *APIVersionAdapter) SupportsUpdate() bool {
 	return true
 }
 
-
 // getAPIIDFromExecutionContext extracts the API ID from ExecutionContext parameter (used for Delete operations)
 func (a *APIVersionAdapter) getAPIIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
 	if execCtx == nil || execCtx.PlannedChange == nil {
 		return "", fmt.Errorf("execution context is required for version operations")
 	}
-	
+
 	change := *execCtx.PlannedChange
-	
+
 	// Priority 1: Check References (for Create operations)
 	if apiRef, ok := change.References["api_id"]; ok && apiRef.ID != "" {
 		return apiRef.ID, nil
 	}
-	
+
 	// Priority 2: Check Parent field (for Delete operations)
 	if change.Parent != nil && change.Parent.ID != "" {
 		return change.Parent.ID, nil
 	}
-	
+
 	return "", fmt.Errorf("API ID is required for version operations")
 }
 

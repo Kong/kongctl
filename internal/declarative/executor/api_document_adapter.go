@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kong/kongctl/internal/declarative/state"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/state"
 )
 
 // APIDocumentAdapter implements ResourceOperations for API documents
@@ -21,8 +21,8 @@ func NewAPIDocumentAdapter(client *state.Client) *APIDocumentAdapter {
 // MapCreateFields maps fields to CreateAPIDocumentRequest
 func (a *APIDocumentAdapter) MapCreateFields(
 	_ context.Context, _ *ExecutionContext, fields map[string]any,
-	create *kkComps.CreateAPIDocumentRequest) error {
-	
+	create *kkComps.CreateAPIDocumentRequest,
+) error {
 	// Required fields
 	title, ok := fields["title"].(string)
 	if !ok {
@@ -51,7 +51,8 @@ func (a *APIDocumentAdapter) MapCreateFields(
 
 // MapUpdateFields maps fields to APIDocument
 func (a *APIDocumentAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, fields map[string]any,
-	update *kkComps.APIDocument, _ map[string]string) error {
+	update *kkComps.APIDocument, _ map[string]string,
+) error {
 	// Optional fields - all fields are optional for updates
 	if title, ok := fields["title"].(string); ok {
 		update.Title = &title
@@ -75,7 +76,8 @@ func (a *APIDocumentAdapter) MapUpdateFields(_ context.Context, _ *ExecutionCont
 
 // Create creates a new API document
 func (a *APIDocumentAdapter) Create(ctx context.Context, req kkComps.CreateAPIDocumentRequest,
-	_ string, execCtx *ExecutionContext) (string, error) {
+	_ string, execCtx *ExecutionContext,
+) (string, error) {
 	// Get API ID from execution context
 	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
 	if err != nil {
@@ -94,7 +96,8 @@ func (a *APIDocumentAdapter) Create(ctx context.Context, req kkComps.CreateAPIDo
 
 // Update updates an existing API document
 func (a *APIDocumentAdapter) Update(ctx context.Context, id string, req kkComps.APIDocument,
-	_ string, execCtx *ExecutionContext) (string, error) {
+	_ string, execCtx *ExecutionContext,
+) (string, error) {
 	// Get API ID from execution context
 	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
 	if err != nil {
@@ -158,25 +161,24 @@ func (a *APIDocumentAdapter) SupportsUpdate() bool {
 	return true
 }
 
-
 // getAPIIDFromExecutionContext extracts the API ID from ExecutionContext parameter (used for Delete operations)
 func (a *APIDocumentAdapter) getAPIIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
 	if execCtx == nil || execCtx.PlannedChange == nil {
 		return "", fmt.Errorf("execution context is required for document operations")
 	}
-	
+
 	change := *execCtx.PlannedChange
-	
+
 	// Priority 1: Check References (for Create operations)
 	if apiRef, ok := change.References["api_id"]; ok && apiRef.ID != "" {
 		return apiRef.ID, nil
 	}
-	
+
 	// Priority 2: Check Parent field (for Delete operations)
 	if change.Parent != nil && change.Parent.ID != "" {
 		return change.Parent.ID, nil
 	}
-	
+
 	return "", fmt.Errorf("API ID is required for document operations")
 }
 

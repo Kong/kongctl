@@ -27,7 +27,7 @@ type Source struct {
 // ParseSources parses the filename flag values into individual sources
 func ParseSources(filenames []string) ([]Source, error) {
 	var sources []Source
-	
+
 	for _, filename := range filenames {
 		// Handle comma-separated values
 		parts := strings.Split(filename, ",")
@@ -36,19 +36,19 @@ func ParseSources(filenames []string) ([]Source, error) {
 			if part == "" {
 				continue
 			}
-			
+
 			sourceType, err := detectSourceType(part)
 			if err != nil {
 				return nil, fmt.Errorf("invalid source %s: %w", part, err)
 			}
-			
+
 			sources = append(sources, Source{
 				Path: part,
 				Type: sourceType,
 			})
 		}
 	}
-	
+
 	// If no sources provided, default to current directory
 	if len(sources) == 0 {
 		sources = append(sources, Source{
@@ -56,7 +56,7 @@ func ParseSources(filenames []string) ([]Source, error) {
 			Type: SourceTypeDirectory,
 		})
 	}
-	
+
 	return sources, nil
 }
 
@@ -66,7 +66,7 @@ func detectSourceType(source string) (SourceType, error) {
 	if source == "-" {
 		return SourceTypeSTDIN, nil
 	}
-	
+
 	// Check if file/directory exists
 	info, err := os.Stat(source)
 	if err != nil {
@@ -75,11 +75,11 @@ func detectSourceType(source string) (SourceType, error) {
 		}
 		return 0, err
 	}
-	
+
 	if info.IsDir() {
 		return SourceTypeDirectory, nil
 	}
-	
+
 	return SourceTypeFile, nil
 }
 

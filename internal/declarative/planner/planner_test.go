@@ -5,11 +5,11 @@ import (
 	"log/slog"
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -73,19 +73,20 @@ func TestGeneratePlan_CreatePortal(t *testing.T) {
 			},
 		},
 	}, nil)
-	
+
 	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
-		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
-			Data: []kkComps.AppAuthStrategy{},
-			Meta: kkComps.PaginatedMeta{
-				Page: kkComps.PageMeta{
-					Total: 0,
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
 				},
 			},
-		},
-	}, nil)
-	
+		}, nil)
+
 	// Mock empty APIs list (needed because we're in sync mode)
 	mockEmptyAPIsList(ctx, mockAPIAPI)
 
@@ -174,19 +175,20 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 			},
 		},
 	}, nil)
-	
+
 	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
-		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
-			Data: []kkComps.AppAuthStrategy{},
-			Meta: kkComps.PaginatedMeta{
-				Page: kkComps.PageMeta{
-					Total: 0,
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
 				},
 			},
-		},
-	}, nil)
-	
+		}, nil)
+
 	// Mock empty APIs list (needed because we're in sync mode)
 	mockEmptyAPIsList(ctx, mockAPIAPI)
 
@@ -256,7 +258,7 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 					DisplayName: "Development Portal",
 					Labels: map[string]string{
 						labels.NamespaceKey: "default",
-						labels.ProtectedKey:  "true",
+						labels.ProtectedKey: "true",
 					},
 				},
 			},
@@ -267,19 +269,20 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 			},
 		},
 	}, nil)
-	
+
 	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
-		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
-			Data: []kkComps.AppAuthStrategy{},
-			Meta: kkComps.PaginatedMeta{
-				Page: kkComps.PageMeta{
-					Total: 0,
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
 				},
 			},
-		},
-	}, nil)
-	
+		}, nil)
+
 	// Mock empty APIs list (needed because we're in sync mode)
 	mockEmptyAPIsList(ctx, mockAPIAPI)
 
@@ -353,19 +356,20 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 			},
 		},
 	}, nil)
-	
+
 	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
-		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
-			Data: []kkComps.AppAuthStrategy{},
-			Meta: kkComps.PaginatedMeta{
-				Page: kkComps.PageMeta{
-					Total: 0,
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
 				},
 			},
-		},
-	}, nil)
-	
+		}, nil)
+
 	// Mock empty APIs list (needed because we're in sync mode)
 	mockEmptyAPIsList(ctx, mockAPIAPI)
 
@@ -482,19 +486,20 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 			},
 		},
 	}, nil)
-	
+
 	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
-		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
-			Data: []kkComps.AppAuthStrategy{},
-			Meta: kkComps.PaginatedMeta{
-				Page: kkComps.PageMeta{
-					Total: 0,
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
 				},
 			},
-		},
-	}, nil)
-	
+		}, nil)
+
 	// Mock empty APIs list (needed because we're in sync mode)
 	mockEmptyAPIsList(ctx, mockAPIAPI)
 
@@ -550,10 +555,10 @@ func TestNextChangeID(t *testing.T) {
 
 func TestReassignChangeIDs(t *testing.T) {
 	planner := &Planner{changeCount: 0}
-	
+
 	// Create a plan with some changes
 	plan := NewPlan("1.0", "test", PlanModeApply)
-	
+
 	// Add changes in one order
 	plan.AddChange(PlannedChange{
 		ID:           "temp-1:c:portal:portal-1",
@@ -575,10 +580,10 @@ func TestReassignChangeIDs(t *testing.T) {
 		Action:       ActionCreate,
 		DependsOn:    []string{"temp-1:c:portal:portal-1"},
 	})
-	
+
 	// Add a warning
 	plan.AddWarning("temp-2:c:api:api-1", "Test warning")
-	
+
 	// Define execution order (different from creation order)
 	executionOrder := []string{
 		"temp-1:c:portal:portal-1",
@@ -586,27 +591,27 @@ func TestReassignChangeIDs(t *testing.T) {
 		"temp-2:c:api:api-1",
 	}
 	plan.SetExecutionOrder(executionOrder)
-	
+
 	// Reassign IDs
 	planner.reassignChangeIDs(plan, executionOrder)
-	
+
 	// Check that IDs have been reassigned based on execution order
 	// Changes array order stays the same, but IDs are updated
 	assert.Equal(t, "1:c:portal:portal-1", plan.Changes[0].ID)
-	assert.Equal(t, "3:c:api:api-1", plan.Changes[1].ID) // This was 3rd in execution order
+	assert.Equal(t, "3:c:api:api-1", plan.Changes[1].ID)          // This was 3rd in execution order
 	assert.Equal(t, "2:c:portal_page:page-1", plan.Changes[2].ID) // This was 2nd in execution order
-	
+
 	// Check that dependencies were updated
 	assert.Equal(t, []string{"1:c:portal:portal-1"}, plan.Changes[1].DependsOn)
 	assert.Equal(t, []string{"1:c:portal:portal-1"}, plan.Changes[2].DependsOn)
-	
+
 	// Check that execution order was updated
 	assert.Equal(t, []string{
 		"1:c:portal:portal-1",
 		"2:c:portal_page:page-1",
 		"3:c:api:api-1",
 	}, plan.ExecutionOrder)
-	
+
 	// Check that warning was updated
 	assert.Equal(t, "3:c:api:api-1", plan.Warnings[0].ChangeID)
 }
@@ -709,19 +714,20 @@ func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
 			},
 		},
 	}, nil)
-	
+
 	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
-		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
-			Data: []kkComps.AppAuthStrategy{},
-			Meta: kkComps.PaginatedMeta{
-				Page: kkComps.PageMeta{
-					Total: 0,
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
 				},
 			},
-		},
-	}, nil)
-	
+		}, nil)
+
 	// Mock empty APIs list (needed because we're in sync mode)
 	mockEmptyAPIsList(ctx, mockAPIAPI)
 
@@ -773,7 +779,7 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 					Description: ptrString("Old description"),
 					Labels: map[string]string{
 						labels.NamespaceKey: "default",
-						labels.ProtectedKey:  protectedStr,
+						labels.ProtectedKey: protectedStr,
 					},
 				},
 			},
@@ -784,19 +790,20 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 			},
 		},
 	}, nil)
-	
+
 	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
-		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
-			Data: []kkComps.AppAuthStrategy{},
-			Meta: kkComps.PaginatedMeta{
-				Page: kkComps.PageMeta{
-					Total: 0,
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
 				},
 			},
-		},
-	}, nil)
-	
+		}, nil)
+
 	// Mock empty APIs list (needed because we're in sync mode)
 	mockEmptyAPIsList(ctx, mockAPIAPI)
 
@@ -854,7 +861,7 @@ func TestGeneratePlan_ProtectedResourceFailsDelete(t *testing.T) {
 					DisplayName: "Protected Portal",
 					Labels: map[string]string{
 						labels.NamespaceKey: "default",
-						labels.ProtectedKey:  protectedStr,
+						labels.ProtectedKey: protectedStr,
 					},
 				},
 			},
@@ -865,18 +872,19 @@ func TestGeneratePlan_ProtectedResourceFailsDelete(t *testing.T) {
 			},
 		},
 	}, nil)
-	
+
 	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
-		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
-			Data: []kkComps.AppAuthStrategy{},
-			Meta: kkComps.PaginatedMeta{
-				Page: kkComps.PageMeta{
-					Total: 0,
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
 				},
 			},
-		},
-	}, nil)
+		}, nil)
 
 	// Empty resource set (would delete all)
 	rs := &resources.ResourceSet{
@@ -918,7 +926,7 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 					DisplayName: "Protected Portal",
 					Labels: map[string]string{
 						labels.NamespaceKey: "default",
-						labels.ProtectedKey:  protectedStr,
+						labels.ProtectedKey: protectedStr,
 					},
 				},
 			},
@@ -929,19 +937,20 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 			},
 		},
 	}, nil)
-	
+
 	// Mock empty auth strategies list
-	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
-		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
-			Data: []kkComps.AppAuthStrategy{},
-			Meta: kkComps.PaginatedMeta{
-				Page: kkComps.PageMeta{
-					Total: 0,
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{
+						Total: 0,
+					},
 				},
 			},
-		},
-	}, nil)
-	
+		}, nil)
+
 	// Mock empty APIs list (needed because we're in sync mode)
 	mockEmptyAPIsList(ctx, mockAPIAPI)
 

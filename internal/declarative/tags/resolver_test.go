@@ -9,8 +9,8 @@ import (
 
 // mockTagResolver is a mock implementation for testing
 type mockTagResolver struct {
-	tag          string
-	resolveFunc  func(node *yaml.Node) (any, error)
+	tag         string
+	resolveFunc func(node *yaml.Node) (any, error)
 }
 
 func (m *mockTagResolver) Tag() string {
@@ -26,14 +26,14 @@ func (m *mockTagResolver) Resolve(node *yaml.Node) (any, error) {
 
 func TestResolverRegistry_Register(t *testing.T) {
 	registry := NewResolverRegistry()
-	
+
 	// Initially no resolvers
 	assert.False(t, registry.HasResolvers())
-	
+
 	// Register a resolver
 	resolver := &mockTagResolver{tag: "!test"}
 	registry.Register(resolver)
-	
+
 	assert.True(t, registry.HasResolvers())
 }
 
@@ -58,7 +58,7 @@ func TestResolverRegistry_Process(t *testing.T) {
 `,
 		},
 		{
-			name:  "nested structure",
+			name: "nested structure",
 			input: `
 api:
   name: !test name
@@ -75,7 +75,7 @@ api:
 `,
 		},
 		{
-			name:  "multiple tags",
+			name: "multiple tags",
 			input: `
 name: !test name
 description: !test desc`,
@@ -94,7 +94,7 @@ description: Test Description
 `,
 		},
 		{
-			name:  "no tags",
+			name: "no tags",
 			input: `
 name: regular value
 count: 42`,
@@ -125,7 +125,7 @@ count: 42
 
 func TestResolverRegistry_ProcessNode(t *testing.T) {
 	registry := NewResolverRegistry()
-	
+
 	// Register a test resolver
 	resolver := &mockTagResolver{
 		tag: "!test",
@@ -139,7 +139,7 @@ func TestResolverRegistry_ProcessNode(t *testing.T) {
 
 	// Test processing a node with our tag
 	input := `data: !test placeholder`
-	
+
 	var doc yaml.Node
 	err := yaml.Unmarshal([]byte(input), &doc)
 	assert.NoError(t, err)
@@ -155,7 +155,7 @@ func TestResolverRegistry_ProcessNode(t *testing.T) {
 
 func TestResolverRegistry_InvalidYAML(t *testing.T) {
 	registry := NewResolverRegistry()
-	
+
 	invalidYAML := `{this is not: valid yaml`
 	_, err := registry.Process([]byte(invalidYAML))
 	assert.Error(t, err)

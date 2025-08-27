@@ -17,7 +17,7 @@ func TestAPIVersionResource_Interfaces(t *testing.T) {
 	assert.Equal(t, ResourceTypeAPIVersion, version.GetType())
 	assert.Equal(t, "v1", version.GetRef())
 	assert.Equal(t, "", version.GetMoniker()) // No version set
-	
+
 	deps := version.GetDependencies()
 	assert.Len(t, deps, 1)
 	assert.Equal(t, "api", deps[0].Kind)
@@ -48,7 +48,7 @@ func TestAPIPublicationResource_Interfaces(t *testing.T) {
 	assert.Equal(t, ResourceTypeAPIPublication, pub.GetType())
 	assert.Equal(t, "pub1", pub.GetRef())
 	assert.Equal(t, "dev-portal", pub.GetMoniker()) // Uses portal_id as moniker
-	
+
 	deps := pub.GetDependencies()
 	assert.Len(t, deps, 1)
 	assert.Equal(t, "api", deps[0].Kind)
@@ -78,7 +78,7 @@ func TestAPIImplementationResource_Interfaces(t *testing.T) {
 	assert.Equal(t, ResourceTypeAPIImplementation, impl.GetType())
 	assert.Equal(t, "impl1", impl.GetRef())
 	assert.Equal(t, "", impl.GetMoniker()) // API implementations have no moniker
-	
+
 	deps := impl.GetDependencies()
 	assert.Len(t, deps, 1)
 	assert.Equal(t, "api", deps[0].Kind)

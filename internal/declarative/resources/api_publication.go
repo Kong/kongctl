@@ -11,11 +11,12 @@ import (
 
 // APIPublicationResource represents an API publication in declarative configuration
 type APIPublicationResource struct {
-	kkComps.APIPublication `yaml:",inline" json:",inline"`
-	Ref      string       `yaml:"ref" json:"ref"`
-	API      string       `yaml:"api,omitempty" json:"api,omitempty"` // Parent API reference (for root-level definitions)
-	PortalID string       `yaml:"portal_id" json:"portal_id"`
-	
+	kkComps.APIPublication `       yaml:",inline"       json:",inline"`
+	Ref                    string `yaml:"ref"           json:"ref"`
+	// Parent API reference (for root-level definitions)
+	API      string `yaml:"api,omitempty" json:"api,omitempty"`
+	PortalID string `yaml:"portal_id"     json:"portal_id"`
+
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
 }
@@ -96,30 +97,30 @@ func (p *APIPublicationResource) TryMatchKonnectResource(konnectResource any) bo
 	// For API publications, we match by portal ID
 	// Use reflection to access fields from state.APIPublication
 	v := reflect.ValueOf(konnectResource)
-	
+
 	// Handle pointer types
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
-	
+
 	// Ensure we have a struct
 	if v.Kind() != reflect.Struct {
 		return false
 	}
-	
+
 	// Look for PortalID and ID fields
 	portalIDField := v.FieldByName("PortalID")
 	idField := v.FieldByName("ID")
-	
+
 	// Extract values if fields are valid
-	if portalIDField.IsValid() && idField.IsValid() && 
-	   portalIDField.Kind() == reflect.String && idField.Kind() == reflect.String {
+	if portalIDField.IsValid() && idField.IsValid() &&
+		portalIDField.Kind() == reflect.String && idField.Kind() == reflect.String {
 		if portalIDField.String() == p.PortalID {
 			p.konnectID = idField.String()
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -142,37 +143,36 @@ func (p *APIPublicationResource) UnmarshalJSON(data []byte) error {
 		AuthStrategyIDs          []string `json:"auth_strategy_ids,omitempty"`
 		AutoApproveRegistrations *bool    `json:"auto_approve_registrations,omitempty"`
 		Visibility               string   `json:"visibility,omitempty"`
-		Kongctl                  any `json:"kongctl,omitempty"`
+		Kongctl                  any      `json:"kongctl,omitempty"`
 	}
-	
+
 	// Use a decoder with DisallowUnknownFields to catch typos
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	
+
 	if err := decoder.Decode(&temp); err != nil {
 		return err
 	}
-	
+
 	// Set our custom fields
 	p.Ref = temp.Ref
 	p.API = temp.API
 	p.PortalID = temp.PortalID
-	
+
 	// Check if kongctl field was provided and reject it
 	if temp.Kongctl != nil {
 		return fmt.Errorf("kongctl metadata is not supported on child resources (API publications)")
 	}
-	
+
 	// Map to SDK fields
 	p.AuthStrategyIds = temp.AuthStrategyIDs
 	p.AutoApproveRegistrations = temp.AutoApproveRegistrations
-	
+
 	// Handle visibility enum if present
 	if temp.Visibility != "" {
 		visibility := kkComps.APIPublicationVisibility(temp.Visibility)
 		p.Visibility = &visibility
 	}
-	
+
 	return nil
 }
-

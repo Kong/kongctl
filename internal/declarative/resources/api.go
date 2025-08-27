@@ -9,16 +9,16 @@ import (
 
 // APIResource represents an API in declarative configuration
 type APIResource struct {
-	kkComps.CreateAPIRequest `yaml:",inline" json:",inline"`
-	Ref     string       `yaml:"ref" json:"ref"`
-	Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
-	
+	kkComps.CreateAPIRequest `             yaml:",inline"           json:",inline"`
+	Ref                      string       `yaml:"ref"               json:"ref"`
+	Kongctl                  *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+
 	// Nested child resources
-	Versions        []APIVersionResource        `yaml:"versions,omitempty" json:"versions,omitempty"`
-	Publications    []APIPublicationResource    `yaml:"publications,omitempty" json:"publications,omitempty"`
+	Versions        []APIVersionResource        `yaml:"versions,omitempty"        json:"versions,omitempty"`
+	Publications    []APIPublicationResource    `yaml:"publications,omitempty"    json:"publications,omitempty"`
 	Implementations []APIImplementationResource `yaml:"implementations,omitempty" json:"implementations,omitempty"`
-	Documents       []APIDocumentResource       `yaml:"documents,omitempty" json:"documents,omitempty"`
-	
+	Documents       []APIDocumentResource       `yaml:"documents,omitempty"       json:"documents,omitempty"`
+
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
 }
@@ -93,21 +93,21 @@ func (a *APIResource) TryMatchKonnectResource(konnectResource any) bool {
 	// For APIs, we match by name
 	// Use reflection to access fields from state.API
 	v := reflect.ValueOf(konnectResource)
-	
+
 	// Handle pointer types
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
-	
+
 	// Ensure we have a struct
 	if v.Kind() != reflect.Struct {
 		return false
 	}
-	
+
 	// Look for Name and ID fields
 	nameField := v.FieldByName("Name")
 	idField := v.FieldByName("ID")
-	
+
 	if !nameField.IsValid() || !idField.IsValid() {
 		// Try accessing embedded APIResponseSchema
 		apiField := v.FieldByName("APIResponseSchema")
@@ -116,16 +116,15 @@ func (a *APIResource) TryMatchKonnectResource(konnectResource any) bool {
 			idField = apiField.FieldByName("ID")
 		}
 	}
-	
+
 	// Extract values if fields are valid
-	if nameField.IsValid() && idField.IsValid() && 
-	   nameField.Kind() == reflect.String && idField.Kind() == reflect.String {
+	if nameField.IsValid() && idField.IsValid() &&
+		nameField.Kind() == reflect.String && idField.Kind() == reflect.String {
 		if nameField.String() == a.Name {
 			a.konnectID = idField.String()
 			return true
 		}
 	}
-	
+
 	return false
 }
-

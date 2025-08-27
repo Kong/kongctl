@@ -158,7 +158,7 @@ func TestIsValidUUID(t *testing.T) {
 func TestIsValidUUID_Performance(t *testing.T) {
 	// Test that regex is compiled once and performs well
 	validUUID := "12345678-1234-1234-1234-123456789012"
-	
+
 	// Run validation many times to ensure no performance regression
 	for i := 0; i < 1000; i++ {
 		result := IsValidUUID(validUUID)
@@ -174,7 +174,7 @@ func TestIsValidUUID_CaseInsensitive(t *testing.T) {
 		"A1b2C3d4-E5f6-7890-AbCd-Ef1234567890", // mixed case
 		"a1B2c3D4-e5F6-7890-aBcD-eF1234567890", // mixed case 2
 	}
-	
+
 	for _, uuid := range testCases {
 		t.Run("case_test_"+uuid, func(t *testing.T) {
 			result := IsValidUUID(uuid)

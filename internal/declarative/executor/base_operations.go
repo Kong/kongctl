@@ -39,15 +39,15 @@ type SingletonOperations[TUpdate any] interface {
 // ParentAwareOperations extends ResourceOperations for resources with parent relationships
 type ParentAwareOperations[TCreate any, TUpdate any] interface {
 	ResourceOperations[TCreate, TUpdate]
-	
+
 	// Parent resolution
 	ResolveParentID(ctx context.Context, change planner.PlannedChange, executor *Executor) (string, error)
 }
 
 // BaseCreateDeleteExecutor provides common operations for create/delete only resources
 type BaseCreateDeleteExecutor[TCreate any] struct {
-	ops     CreateDeleteOperations[TCreate]
-	dryRun  bool
+	ops    CreateDeleteOperations[TCreate]
+	dryRun bool
 }
 
 // NewBaseCreateDeleteExecutor creates a new executor for create/delete only resources
@@ -65,7 +65,7 @@ func NewBaseCreateDeleteExecutor[TCreate any](
 func (b *BaseCreateDeleteExecutor[TCreate]) Create(ctx context.Context, change planner.PlannedChange) (string, error) {
 	// Create ExecutionContext
 	execCtx := NewExecutionContext(&change)
-	
+
 	// Create request object
 	var create TCreate
 	if err := b.ops.MapCreateFields(ctx, execCtx, change.Fields, &create); err != nil {
@@ -107,8 +107,8 @@ func (b *BaseCreateDeleteExecutor[TCreate]) Delete(ctx context.Context, change p
 
 // BaseSingletonExecutor provides common operations for singleton resources
 type BaseSingletonExecutor[TUpdate any] struct {
-	ops     SingletonOperations[TUpdate]
-	dryRun  bool
+	ops    SingletonOperations[TUpdate]
+	dryRun bool
 }
 
 // NewBaseSingletonExecutor creates a new executor for singleton resources
@@ -124,7 +124,8 @@ func NewBaseSingletonExecutor[TUpdate any](
 
 // Update handles both CREATE and UPDATE operations for singleton resources
 func (b *BaseSingletonExecutor[TUpdate]) Update(ctx context.Context, change planner.PlannedChange,
-	parentID string) (string, error) {
+	parentID string,
+) (string, error) {
 	// Create update request
 	var update TUpdate
 	if err := b.ops.MapUpdateFields(ctx, change.Fields, &update); err != nil {

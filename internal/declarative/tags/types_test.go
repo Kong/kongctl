@@ -47,7 +47,7 @@ func TestResolvedValue(t *testing.T) {
 		Value:  "test value",
 		Source: "file://test.yaml",
 	}
-	
+
 	assert.Equal(t, "test value", rv.Value)
 	assert.Equal(t, "file://test.yaml", rv.Source)
 }

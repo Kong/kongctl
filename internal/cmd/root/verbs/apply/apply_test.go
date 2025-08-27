@@ -117,7 +117,7 @@ func TestApplyCmd_ValidatePlanFile(t *testing.T) {
 				content, err = json.Marshal(tt.planContent)
 				require.NoError(t, err)
 			}
-			require.NoError(t, os.WriteFile(planFile, content, 0600))
+			require.NoError(t, os.WriteFile(planFile, content, 0o600))
 
 			// Create apply command
 			cmd, err := NewApplyCmd()
@@ -258,7 +258,7 @@ func TestApplyCmd_EmptyPlanHandling(t *testing.T) {
 	// Write plan file
 	tempDir := t.TempDir()
 	planFile := filepath.Join(tempDir, "empty-plan.json")
-	require.NoError(t, os.WriteFile(planFile, planData, 0600))
+	require.NoError(t, os.WriteFile(planFile, planData, 0o600))
 
 	// Create apply command
 	cmd, err := NewApplyCmd()

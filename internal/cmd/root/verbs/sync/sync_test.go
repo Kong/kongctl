@@ -25,7 +25,7 @@ func TestNewSyncCmd(t *testing.T) {
 	assert.Equal(t, "sync", cmd.Use, "Command use should be 'sync'")
 	assert.Contains(t, cmd.Short, "Full state synchronization",
 		"Short description should mention synchronization")
-	assert.Contains(t, cmd.Long, "Synchronize configuration with Kong Konnect", 
+	assert.Contains(t, cmd.Long, "Synchronize configuration with Kong Konnect",
 		"Long description should mention synchronize")
 	assert.Contains(t, cmd.Example, meta.CLIName, "Examples should include CLI name")
 
@@ -151,7 +151,7 @@ apis:
 			// Create temp config file
 			tempDir := t.TempDir()
 			configFile := filepath.Join(tempDir, "config.yaml")
-			require.NoError(t, os.WriteFile(configFile, []byte(tt.configContent), 0600))
+			require.NoError(t, os.WriteFile(configFile, []byte(tt.configContent), 0o600))
 
 			// Create sync command
 			cmd, err := NewSyncCmd()
@@ -159,7 +159,7 @@ apis:
 
 			// Note: Actual execution will fail without proper SDK setup,
 			// but this tests the command structure and flag handling
-			
+
 			// Verify the command accepts the file flag
 			var konnectCmd *cobra.Command
 			for _, subcmd := range cmd.Commands() {
@@ -186,7 +186,7 @@ func TestSyncCmd_DirectorySupport(t *testing.T) {
 	// Create a directory with multiple config files
 	tempDir := t.TempDir()
 	configDir := filepath.Join(tempDir, "configs")
-	require.NoError(t, os.MkdirAll(configDir, 0755))
+	require.NoError(t, os.MkdirAll(configDir, 0o755))
 
 	// Create multiple config files
 	portalConfig := `
@@ -194,7 +194,7 @@ portals:
   - ref: portal-1
     name: "Portal 1"
 `
-	require.NoError(t, os.WriteFile(filepath.Join(configDir, "portals.yaml"), []byte(portalConfig), 0600))
+	require.NoError(t, os.WriteFile(filepath.Join(configDir, "portals.yaml"), []byte(portalConfig), 0o600))
 
 	apiConfig := `
 apis:
@@ -202,7 +202,7 @@ apis:
     name: "API 1"
     version: "1.0.0"
 `
-	require.NoError(t, os.WriteFile(filepath.Join(configDir, "apis.yaml"), []byte(apiConfig), 0600))
+	require.NoError(t, os.WriteFile(filepath.Join(configDir, "apis.yaml"), []byte(apiConfig), 0o600))
 
 	// Create sync command
 	cmd, err := NewSyncCmd()
@@ -231,14 +231,14 @@ apis:
 func TestSyncCmd_MultipleFileSupport(t *testing.T) {
 	// Create multiple config files
 	tempDir := t.TempDir()
-	
+
 	portalFile := filepath.Join(tempDir, "portals.yaml")
 	portalConfig := `
 portals:
   - ref: portal-1
     name: "Portal 1"
 `
-	require.NoError(t, os.WriteFile(portalFile, []byte(portalConfig), 0600))
+	require.NoError(t, os.WriteFile(portalFile, []byte(portalConfig), 0o600))
 
 	apiFile := filepath.Join(tempDir, "apis.yaml")
 	apiConfig := `
@@ -247,7 +247,7 @@ apis:
     name: "API 1"
     version: "1.0.0"
 `
-	require.NoError(t, os.WriteFile(apiFile, []byte(apiConfig), 0600))
+	require.NoError(t, os.WriteFile(apiFile, []byte(apiConfig), 0o600))
 
 	// Create sync command
 	cmd, err := NewSyncCmd()
@@ -266,7 +266,7 @@ apis:
 	// Test that the filename flag is a string slice
 	fileFlag := konnectCmd.Flags().Lookup("filename")
 	assert.NotNil(t, fileFlag)
-	
+
 	// The flag should accept multiple values
 	assert.Equal(t, "stringSlice", fileFlag.Value.Type())
 }

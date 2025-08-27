@@ -12,10 +12,11 @@ import (
 type PortalCustomDomainResource struct {
 	// Use CreatePortalCustomDomainRequest which contains only user-configurable fields
 	// This aligns with the pattern used by other resources (API, APIVersion, etc.)
-	kkComps.CreatePortalCustomDomainRequest `yaml:",inline" json:",inline"`
-	Ref    string `yaml:"ref,omitempty" json:"ref,omitempty"`
-	Portal string `yaml:"portal,omitempty" json:"portal,omitempty"` // Parent portal reference
-	
+	kkComps.CreatePortalCustomDomainRequest `       yaml:",inline"          json:",inline"`
+	Ref                                     string `yaml:"ref,omitempty"    json:"ref,omitempty"`
+	// Parent portal reference
+	Portal string `yaml:"portal,omitempty" json:"portal,omitempty"`
+
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
 }
@@ -30,19 +31,19 @@ func (d PortalCustomDomainResource) Validate() error {
 	if err := ValidateRef(d.Ref); err != nil {
 		return fmt.Errorf("invalid custom domain ref: %w", err)
 	}
-	
+
 	if d.Hostname == "" {
 		return fmt.Errorf("custom domain hostname is required")
 	}
-	
+
 	// Validate hostname format
 	if !isValidHostname(d.Hostname) {
 		return fmt.Errorf("invalid hostname format: %s", d.Hostname)
 	}
-	
+
 	// SSL validation would go here once we understand the actual SSL structure
 	// For now, just validate the hostname
-	
+
 	return nil
 }
 
@@ -85,24 +86,24 @@ func (d *PortalCustomDomainResource) TryMatchKonnectResource(konnectResource any
 	// For custom domains, we match by hostname
 	// Use reflection to access fields from state.PortalCustomDomain
 	v := reflect.ValueOf(konnectResource)
-	
+
 	// Handle pointer types
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
-	
+
 	// Ensure we have a struct
 	if v.Kind() != reflect.Struct {
 		return false
 	}
-	
+
 	// Look for Hostname and ID fields
 	hostnameField := v.FieldByName("Hostname")
 	idField := v.FieldByName("ID")
-	
+
 	// Extract values if fields are valid
-	if hostnameField.IsValid() && idField.IsValid() && 
-	   hostnameField.Kind() == reflect.String && idField.Kind() == reflect.String {
+	if hostnameField.IsValid() && idField.IsValid() &&
+		hostnameField.Kind() == reflect.String && idField.Kind() == reflect.String {
 		if hostnameField.String() == d.Hostname {
 			d.konnectID = idField.String()
 			return true

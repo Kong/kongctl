@@ -9,10 +9,10 @@ import (
 
 // ControlPlaneResource represents a control plane in declarative configuration
 type ControlPlaneResource struct {
-	kkComps.CreateControlPlaneRequest `yaml:",inline" json:",inline"`
-	Ref     string       `yaml:"ref" json:"ref"`
-	Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
-	
+	kkComps.CreateControlPlaneRequest `             yaml:",inline"           json:",inline"`
+	Ref                               string       `yaml:"ref"               json:"ref"`
+	Kongctl                           *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
 }
@@ -77,24 +77,24 @@ func (c *ControlPlaneResource) TryMatchKonnectResource(konnectResource any) bool
 	// For control planes, we match by name
 	// Use reflection to access fields from state.ControlPlane
 	v := reflect.ValueOf(konnectResource)
-	
+
 	// Handle pointer types
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
-	
+
 	// Ensure we have a struct
 	if v.Kind() != reflect.Struct {
 		return false
 	}
-	
+
 	// Look for Name and ID fields
 	nameField := v.FieldByName("Name")
 	idField := v.FieldByName("ID")
-	
+
 	// Extract values if fields are valid
-	if nameField.IsValid() && idField.IsValid() && 
-	   nameField.Kind() == reflect.String && idField.Kind() == reflect.String {
+	if nameField.IsValid() && idField.IsValid() &&
+		nameField.Kind() == reflect.String && idField.Kind() == reflect.String {
 		if nameField.String() == c.Name {
 			c.konnectID = idField.String()
 			return true

@@ -20,13 +20,13 @@ type ClientConfig struct {
 	PortalAPI  helpers.PortalAPI
 	APIAPI     helpers.APIAPI
 	AppAuthAPI helpers.AppAuthStrategiesAPI
-	
+
 	// Portal child resource APIs
 	PortalPageAPI          helpers.PortalPageAPI
 	PortalCustomizationAPI helpers.PortalCustomizationAPI
 	PortalCustomDomainAPI  helpers.PortalCustomDomainAPI
 	PortalSnippetAPI       helpers.PortalSnippetAPI
-	
+
 	// API child resource APIs
 	APIVersionAPI        helpers.APIVersionAPI
 	APIPublicationAPI    helpers.APIPublicationAPI
@@ -40,13 +40,13 @@ type Client struct {
 	portalAPI  helpers.PortalAPI
 	apiAPI     helpers.APIAPI
 	appAuthAPI helpers.AppAuthStrategiesAPI
-	
+
 	// Portal child resource APIs
 	portalPageAPI          helpers.PortalPageAPI
 	portalCustomizationAPI helpers.PortalCustomizationAPI
 	portalCustomDomainAPI  helpers.PortalCustomDomainAPI
 	portalSnippetAPI       helpers.PortalSnippetAPI
-	
+
 	// API child resource APIs
 	apiVersionAPI        helpers.APIVersionAPI
 	apiPublicationAPI    helpers.APIPublicationAPI
@@ -61,13 +61,13 @@ func NewClient(config ClientConfig) *Client {
 		portalAPI:  config.PortalAPI,
 		apiAPI:     config.APIAPI,
 		appAuthAPI: config.AppAuthAPI,
-		
+
 		// Portal child resource APIs
 		portalPageAPI:          config.PortalPageAPI,
 		portalCustomizationAPI: config.PortalCustomizationAPI,
 		portalCustomDomainAPI:  config.PortalCustomDomainAPI,
 		portalSnippetAPI:       config.PortalSnippetAPI,
-		
+
 		// API child resource APIs
 		apiVersionAPI:        config.APIVersionAPI,
 		apiPublicationAPI:    config.APIPublicationAPI,
@@ -176,7 +176,7 @@ func (c *Client) ListManagedPortals(ctx context.Context, namespaces []string) ([
 		}
 
 		var filteredPortals []Portal
-		
+
 		// Process and filter portals
 		for _, p := range resp.ListPortalsResponse.Data {
 			// Labels are already map[string]string in the SDK
@@ -312,7 +312,7 @@ func (c *Client) UpdatePortal(
 	if err != nil {
 		// Extract status code from error if possible
 		statusCode := errors.ExtractStatusCodeFromError(err)
-		
+
 		// Create enhanced error with context and hints
 		ctx := errors.APIErrorContext{
 			ResourceType: "portal",
@@ -322,10 +322,10 @@ func (c *Client) UpdatePortal(
 				}
 				return ""
 			}(), // May be nil for partial updates
-			Operation:    "update",
-			StatusCode:   statusCode,
+			Operation:  "update",
+			StatusCode: statusCode,
 		}
-		
+
 		return nil, errors.EnhanceAPIError(err, ctx)
 	}
 
@@ -342,7 +342,7 @@ func (c *Client) DeletePortal(ctx context.Context, id string, force bool) error 
 	if err != nil {
 		// Extract status code from error if possible
 		statusCode := errors.ExtractStatusCodeFromError(err)
-		
+
 		// Create enhanced error with context and hints
 		ctx := errors.APIErrorContext{
 			ResourceType: "portal",
@@ -350,7 +350,7 @@ func (c *Client) DeletePortal(ctx context.Context, id string, force bool) error 
 			Operation:    "delete",
 			StatusCode:   statusCode,
 		}
-		
+
 		return errors.EnhanceAPIError(err, ctx)
 	}
 	return nil
@@ -418,46 +418,46 @@ func (c *Client) GetAPIByName(ctx context.Context, name string) (*API, error) {
 	// Get logger from context
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 	logger.Debug("Looking up API by name", "name", name)
-	
+
 	// Primary strategy: Standard managed resource lookup
 	apis, err := c.ListManagedAPIs(ctx, []string{"*"})
 	if err != nil {
 		logger.Error("Failed to list managed APIs", "error", err)
 		return nil, err
 	}
-	
+
 	logger.Debug("Found managed APIs", "count", len(apis))
-	
+
 	for _, a := range apis {
 		if a.Name == name {
 			logger.Debug("Found API via managed lookup", "name", name, "id", a.ID)
 			return &a, nil
 		}
 	}
-	
+
 	// Fallback strategy: Look for resources that might be undergoing protection changes
 	// This includes resources that might temporarily appear "unmanaged" during updates
 	logger.Debug("API not found in managed resources, trying fallback lookup", "name", name)
-	
+
 	allAPIs, err := c.ListAllAPIs(ctx)
 	if err != nil {
 		logger.Error("Fallback lookup failed", "error", err)
 		return nil, fmt.Errorf("fallback lookup failed: %w", err)
 	}
-	
+
 	logger.Debug("Found total APIs", "count", len(allAPIs))
-	
+
 	for _, a := range allAPIs {
 		if a.Name == name {
 			// Check if this resource has any KONGCTL labels (indicating it was managed)
 			if c.hasAnyKongctlLabels(a.Labels) {
-				logger.Warn("Found API via fallback - may indicate protection change issue", 
+				logger.Warn("Found API via fallback - may indicate protection change issue",
 					"name", name, "id", a.ID, "labels", a.Labels)
 				return &a, nil
 			}
 		}
 	}
-	
+
 	logger.Debug("API not found in any lookup strategy", "name", name)
 	return nil, nil // Not found
 }
@@ -541,7 +541,7 @@ func (c *Client) CreateAPI(
 	if err != nil {
 		// Extract status code from error if possible
 		statusCode := errors.ExtractStatusCodeFromError(err)
-		
+
 		// Create enhanced error with context and hints
 		ctx := errors.APIErrorContext{
 			ResourceType: "api",
@@ -550,7 +550,7 @@ func (c *Client) CreateAPI(
 			Operation:    "create",
 			StatusCode:   statusCode,
 		}
-		
+
 		return nil, errors.EnhanceAPIError(err, ctx)
 	}
 
@@ -605,49 +605,49 @@ func (c *Client) ListAllAPIs(ctx context.Context) ([]API, error) {
 	if c.apiAPI == nil {
 		return nil, fmt.Errorf("API client not configured")
 	}
-	
+
 	var allAPIs []API
 	var pageNumber int64 = 1
 	pageSize := int64(100)
-	
+
 	for {
 		req := kkOps.ListApisRequest{
 			PageSize:   &pageSize,
 			PageNumber: &pageNumber,
 		}
-		
+
 		resp, err := c.apiAPI.ListApis(ctx, req)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list APIs: %w", err)
 		}
-		
+
 		if resp.ListAPIResponse == nil || len(resp.ListAPIResponse.Data) == 0 {
 			break
 		}
-		
+
 		for _, api := range resp.ListAPIResponse.Data {
 			// Labels are already map[string]string in the SDK
 			normalized := api.Labels
 			if normalized == nil {
 				normalized = make(map[string]string)
 			}
-			
+
 			parsedAPI := API{
 				APIResponseSchema: api,
 				NormalizedLabels:  normalized,
 			}
 			allAPIs = append(allAPIs, parsedAPI)
 		}
-		
+
 		// Check if we've retrieved all pages
 		// Since Meta and Page are not pointers, we check the total count
 		if resp.ListAPIResponse.Meta.Page.Total <= float64(pageNumber*pageSize) {
 			break
 		}
-		
+
 		pageNumber++
 	}
-	
+
 	return allAPIs, nil
 }
 
@@ -669,27 +669,27 @@ func (c *Client) GetAPIByID(ctx context.Context, id string) (*API, error) {
 	if c.apiAPI == nil {
 		return nil, fmt.Errorf("API client not configured")
 	}
-	
+
 	resp, err := c.apiAPI.FetchAPI(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get API by ID: %w", err)
 	}
-	
+
 	if resp.APIResponseSchema == nil {
 		return nil, nil
 	}
-	
+
 	// Labels are already map[string]string in the SDK
 	normalized := resp.APIResponseSchema.Labels
 	if normalized == nil {
 		normalized = make(map[string]string)
 	}
-	
+
 	api := &API{
 		APIResponseSchema: *resp.APIResponseSchema,
 		NormalizedLabels:  normalized,
 	}
-	
+
 	return api, nil
 }
 
@@ -1390,16 +1390,16 @@ func (c *Client) GetPortalCustomization(
 	if c.portalCustomizationAPI == nil {
 		return nil, fmt.Errorf("portal customization API not configured")
 	}
-	
+
 	resp, err := c.portalCustomizationAPI.GetPortalCustomization(ctx, portalID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get portal customization: %w", err)
 	}
-	
+
 	if resp.PortalCustomization == nil {
 		return nil, fmt.Errorf("no customization data in response")
 	}
-	
+
 	return resp.PortalCustomization, nil
 }
 
@@ -1501,9 +1501,9 @@ func (c *Client) ListManagedPortalPages(ctx context.Context, portalID string) ([
 func (c *Client) processPortalPages(allPages *[]PortalPage, pages []kkComps.PortalPageInfo, parentID string) {
 	for _, p := range pages {
 		page := PortalPage{
-			ID:           p.ID,
-			Slug:         p.Slug,
-			Title:        p.Title,
+			ID:    p.ID,
+			Slug:  p.Slug,
+			Title: p.Title,
 			// Content not available in list response
 			Visibility:   string(p.Visibility),
 			Status:       string(p.Status),
@@ -1552,7 +1552,7 @@ func (c *Client) GetPortalPage(ctx context.Context, portalID string, pageID stri
 		Visibility: string(pageResp.Visibility),
 		Status:     string(pageResp.Status),
 	}
-	
+
 	// Handle nullable parent page ID
 	if pageResp.ParentPageID != nil {
 		page.ParentPageID = *pageResp.ParentPageID
@@ -1668,7 +1668,7 @@ func (c *Client) ListPortalSnippets(ctx context.Context, portalID string) ([]Por
 
 			// Title is always present (not a pointer)
 			snippet.Title = s.Title
-			
+
 			// Handle optional fields
 			if s.Description != nil {
 				snippet.Description = *s.Description
@@ -1795,21 +1795,20 @@ func shouldIncludeNamespace(resourceNamespace string, namespaces []string) bool 
 	if len(namespaces) == 0 {
 		return false
 	}
-	
+
 	// Check for wildcard (all namespaces)
 	for _, ns := range namespaces {
 		if ns == "*" {
 			return true
 		}
 	}
-	
+
 	// Check if resource's namespace is in the filter list
 	for _, ns := range namespaces {
 		if resourceNamespace == ns {
 			return true
 		}
 	}
-	
+
 	return false
 }
-

@@ -21,16 +21,16 @@ const (
 const (
 	// ResourceTypePortal is the resource type for portals
 	ResourceTypePortal = "portal"
-	
+
 	// ResourceTypePortalPage is the resource type for portal pages
 	ResourceTypePortalPage = "portal_page"
-	
+
 	// ResourceTypePortalSnippet is the resource type for portal snippets
 	ResourceTypePortalSnippet = "portal_snippet"
-	
+
 	// ResourceTypePortalCustomization is the resource type for portal customizations
 	ResourceTypePortalCustomization = "portal_customization"
-	
+
 	// ResourceTypePortalCustomDomain is the resource type for portal custom domains
 	ResourceTypePortalCustomDomain = "portal_custom_domain"
 )

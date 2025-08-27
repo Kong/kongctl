@@ -6,13 +6,13 @@ import (
 	"log/slog"
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -98,12 +98,12 @@ func TestExecutor_createPortal(t *testing.T) {
 				Action:       planner.ActionCreate,
 				Namespace:    "default",
 				Fields: map[string]any{
-					"name":                     "test-portal",
-					"description":              "Test description",
-					"authentication_enabled":   true,
+					"name":                      "test-portal",
+					"description":               "Test description",
+					"authentication_enabled":    true,
 					"auto_approve_applications": true,
-					"auto_approve_developers":  false,
-					"rbac_enabled":             true,
+					"auto_approve_developers":   false,
+					"rbac_enabled":              true,
 					"labels": map[string]any{
 						"env":  "test",
 						"team": "platform",
@@ -215,15 +215,15 @@ func TestExecutor_createPortal(t *testing.T) {
 			// Setup
 			mockAPI := new(MockPortalAPI)
 			tt.setupMock(mockAPI)
-			
+
 			client := state.NewClient(state.ClientConfig{
 				PortalAPI: mockAPI,
 			})
 			executor := New(client, nil, false)
-			
+
 			// Execute
 			gotID, err := executor.createPortal(testContextWithLogger(), tt.change)
-			
+
 			// Verify
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -231,7 +231,7 @@ func TestExecutor_createPortal(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.wantID, gotID)
 			}
-			
+
 			mockAPI.AssertExpectations(t)
 		})
 	}
@@ -276,7 +276,7 @@ func TestExecutor_updatePortal(t *testing.T) {
 						},
 					},
 				}, nil)
-				
+
 				// Mock UpdatePortal
 				m.On("UpdatePortal", mock.Anything, "portal-123", mock.MatchedBy(func(p kkComps.UpdatePortal) bool {
 					return p.Name != nil && *p.Name == "updated-portal" &&
@@ -308,7 +308,7 @@ func TestExecutor_updatePortal(t *testing.T) {
 								ID:   "portal-456",
 								Name: "protected-portal",
 								Labels: map[string]string{
-									labels.NamespaceKey:   "default",
+									labels.NamespaceKey: "default",
 									labels.ProtectedKey: "true",
 								},
 							},
@@ -352,15 +352,15 @@ func TestExecutor_updatePortal(t *testing.T) {
 			// Setup
 			mockAPI := new(MockPortalAPI)
 			tt.setupMock(mockAPI)
-			
+
 			client := state.NewClient(state.ClientConfig{
 				PortalAPI: mockAPI,
 			})
 			executor := New(client, nil, false)
-			
+
 			// Execute
 			gotID, err := executor.updatePortal(testContextWithLogger(), tt.change)
-			
+
 			// Verify
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -371,7 +371,7 @@ func TestExecutor_updatePortal(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.wantID, gotID)
 			}
-			
+
 			mockAPI.AssertExpectations(t)
 		})
 	}
@@ -413,7 +413,7 @@ func TestExecutor_deletePortal(t *testing.T) {
 						},
 					},
 				}, nil)
-				
+
 				// Mock DeletePortal with force=true
 				m.On("DeletePortal", mock.Anything, "portal-123", true).
 					Return(&kkOps.DeletePortalResponse{}, nil)
@@ -438,7 +438,7 @@ func TestExecutor_deletePortal(t *testing.T) {
 								ID:   "portal-456",
 								Name: "protected-portal",
 								Labels: map[string]string{
-									labels.NamespaceKey:   "default",
+									labels.NamespaceKey: "default",
 									labels.ProtectedKey: "true",
 								},
 							},
@@ -473,7 +473,7 @@ func TestExecutor_deletePortal(t *testing.T) {
 						},
 					},
 				}, nil)
-				
+
 				// Delete won't be called because portal is not found in managed portals
 				// This is correct behavior - we only delete portals we manage
 			},
@@ -508,15 +508,15 @@ func TestExecutor_deletePortal(t *testing.T) {
 			// Setup
 			mockAPI := new(MockPortalAPI)
 			tt.setupMock(mockAPI)
-			
+
 			client := state.NewClient(state.ClientConfig{
 				PortalAPI: mockAPI,
 			})
 			executor := New(client, nil, false)
-			
+
 			// Execute
 			err := executor.deletePortal(testContextWithLogger(), tt.change)
-			
+
 			// Verify
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -526,7 +526,7 @@ func TestExecutor_deletePortal(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
-			
+
 			mockAPI.AssertExpectations(t)
 		})
 	}
@@ -545,7 +545,7 @@ func TestExecutor_protectionChangeBetweenPlanAndExecution(t *testing.T) {
 	}
 
 	mockAPI := new(MockPortalAPI)
-	
+
 	// Simulate portal becoming protected after plan was generated
 	mockAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
@@ -554,7 +554,7 @@ func TestExecutor_protectionChangeBetweenPlanAndExecution(t *testing.T) {
 					ID:   "portal-123",
 					Name: "test-portal",
 					Labels: map[string]string{
-						labels.NamespaceKey:   "default",
+						labels.NamespaceKey: "default",
 						labels.ProtectedKey: "true", // Protected after plan generation
 					},
 				},
@@ -564,19 +564,19 @@ func TestExecutor_protectionChangeBetweenPlanAndExecution(t *testing.T) {
 			},
 		},
 	}, nil)
-	
+
 	client := state.NewClient(state.ClientConfig{
 		PortalAPI: mockAPI,
 	})
 	executor := New(client, nil, false)
-	
+
 	// Execute update
 	_, err := executor.updatePortal(testContextWithLogger(), change)
-	
+
 	// Should fail due to protection
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "resource is protected")
-	
+
 	mockAPI.AssertExpectations(t)
 }
 

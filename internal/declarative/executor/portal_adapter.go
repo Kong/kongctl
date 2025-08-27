@@ -3,11 +3,11 @@ package executor
 import (
 	"context"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // PortalAdapter implements ResourceOperations for portals
@@ -22,7 +22,8 @@ func NewPortalAdapter(client *state.Client) *PortalAdapter {
 
 // MapCreateFields maps fields to CreatePortal request
 func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]any,
-	create *kkComps.CreatePortal) error {
+	create *kkComps.CreatePortal,
+) error {
 	// Extract namespace and protection from execution context
 	namespace := execCtx.Namespace
 	protection := execCtx.Protection
@@ -64,7 +65,8 @@ func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionCon
 
 // MapUpdateFields maps fields to UpdatePortal request
 func (p *PortalAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]any,
-	update *kkComps.UpdatePortal, currentLabels map[string]string) error {
+	update *kkComps.UpdatePortal, currentLabels map[string]string,
+) error {
 	// Extract namespace and protection from execution context
 	namespace := execCtx.Namespace
 	protection := execCtx.Protection
@@ -115,7 +117,7 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionCon
 				vis := kkComps.UpdatePortalDefaultPageVisibility(visibility)
 				update.DefaultPageVisibility = &vis
 			}
-		// Skip "labels" as they're handled separately below
+			// Skip "labels" as they're handled separately below
 		}
 	}
 
@@ -139,8 +141,9 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionCon
 }
 
 // Create creates a new portal
-func (p *PortalAdapter) Create(ctx context.Context, req kkComps.CreatePortal, 
-	namespace string, _ *ExecutionContext) (string, error) {
+func (p *PortalAdapter) Create(ctx context.Context, req kkComps.CreatePortal,
+	namespace string, _ *ExecutionContext,
+) (string, error) {
 	resp, err := p.client.CreatePortal(ctx, req, namespace)
 	if err != nil {
 		return "", err
@@ -150,7 +153,8 @@ func (p *PortalAdapter) Create(ctx context.Context, req kkComps.CreatePortal,
 
 // Update updates an existing portal
 func (p *PortalAdapter) Update(ctx context.Context, id string, req kkComps.UpdatePortal,
-	namespace string, _ *ExecutionContext) (string, error) {
+	namespace string, _ *ExecutionContext,
+) (string, error) {
 	resp, err := p.client.UpdatePortal(ctx, id, req, namespace)
 	if err != nil {
 		return "", err

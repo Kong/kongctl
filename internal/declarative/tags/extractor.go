@@ -19,7 +19,7 @@ func ExtractValue(data any, path string) (any, error) {
 	for i, part := range parts {
 		// Convert current to a reflectable value
 		val := reflect.ValueOf(current)
-		
+
 		// Dereference pointers
 		for val.Kind() == reflect.Ptr && !val.IsNil() {
 			val = val.Elem()
@@ -55,7 +55,7 @@ func ExtractValue(data any, path string) (any, error) {
 			return nil, fmt.Errorf("path not found: %s (nil interface at '%s')", path, strings.Join(parts[:i], "."))
 
 		default:
-			return nil, fmt.Errorf("cannot traverse path %s: unexpected type %v at '%s'", 
+			return nil, fmt.Errorf("cannot traverse path %s: unexpected type %v at '%s'",
 				path, val.Kind(), strings.Join(parts[:i], "."))
 		}
 	}
@@ -66,12 +66,12 @@ func ExtractValue(data any, path string) (any, error) {
 // findStructField finds a struct field by name (case-insensitive)
 func findStructField(val reflect.Value, fieldName string) reflect.Value {
 	typ := val.Type()
-	
+
 	// First try exact match
 	if field, ok := typ.FieldByName(fieldName); ok {
 		return val.FieldByIndex(field.Index)
 	}
-	
+
 	// Try case-insensitive match
 	fieldNameLower := strings.ToLower(fieldName)
 	for i := 0; i < typ.NumField(); i++ {
@@ -79,7 +79,7 @@ func findStructField(val reflect.Value, fieldName string) reflect.Value {
 		if strings.ToLower(field.Name) == fieldNameLower {
 			return val.Field(i)
 		}
-		
+
 		// Also check JSON/YAML tags
 		if tag := field.Tag.Get("json"); tag != "" {
 			tagName := strings.Split(tag, ",")[0]
@@ -94,7 +94,7 @@ func findStructField(val reflect.Value, fieldName string) reflect.Value {
 			}
 		}
 	}
-	
+
 	return reflect.Value{}
 }
 
@@ -106,7 +106,7 @@ func GetAvailablePaths(data any, prefix string, maxDepth int) []string {
 
 	var paths []string
 	val := reflect.ValueOf(data)
-	
+
 	// Dereference pointers
 	for val.Kind() == reflect.Ptr && !val.IsNil() {
 		val = val.Elem()
@@ -121,9 +121,11 @@ func GetAvailablePaths(data any, prefix string, maxDepth int) []string {
 				fullPath = prefix + "." + keyStr
 			}
 			paths = append(paths, fullPath)
-			
+
 			// Recursively get paths from map values
-			if childPaths := GetAvailablePaths(val.MapIndex(key).Interface(), fullPath, maxDepth-1); len(childPaths) > 0 {
+			if childPaths := GetAvailablePaths(val.MapIndex(key).Interface(), fullPath, maxDepth-1); len(
+				childPaths,
+			) > 0 {
 				paths = append(paths, childPaths...)
 			}
 		}
@@ -135,7 +137,7 @@ func GetAvailablePaths(data any, prefix string, maxDepth int) []string {
 			if field.PkgPath != "" { // Skip unexported fields
 				continue
 			}
-			
+
 			fieldName := field.Name
 			// Prefer JSON/YAML tag name if available
 			if tag := field.Tag.Get("json"); tag != "" {
@@ -147,19 +149,19 @@ func GetAvailablePaths(data any, prefix string, maxDepth int) []string {
 					fieldName = tagName
 				}
 			}
-			
+
 			fullPath := fieldName
 			if prefix != "" {
 				fullPath = prefix + "." + fieldName
 			}
 			paths = append(paths, fullPath)
-			
+
 			// Recursively get paths from struct fields
 			if childPaths := GetAvailablePaths(val.Field(i).Interface(), fullPath, maxDepth-1); len(childPaths) > 0 {
 				paths = append(paths, childPaths...)
 			}
 		}
-	
+
 	default:
 		// For other types (slices, arrays, scalars), we can't extract paths
 		// Just return the current path if any

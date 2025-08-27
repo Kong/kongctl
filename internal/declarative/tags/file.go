@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"gopkg.in/yaml.v3" //nolint:gomodguard // yaml.v3 required for custom tag processing
+	"gopkg.in/yaml.v3"         //nolint:gomodguard // yaml.v3 required for custom tag processing
 	k8syaml "sigs.k8s.io/yaml" // For JSON support
 )
 
@@ -43,34 +43,34 @@ func (f *FileTagResolver) Resolve(node *yaml.Node) (any, error) {
 	// 1. String scalar: !file ./path/to/file.yaml
 	// 2. String scalar with extraction: !file ./path/to/file.yaml#field.path
 	// 3. Mapping: !file {path: ./file.yaml, extract: info.title}
-	
+
 	switch node.Kind { //nolint:exhaustive // We only support scalar and mapping nodes
 	case yaml.ScalarNode:
 		// String format - supports both simple path and path#extract syntax
 		path := node.Value
 		extractPath := ""
-		
+
 		// Check for extraction syntax (path#extract)
 		if idx := strings.Index(path, "#"); idx != -1 {
 			extractPath = path[idx+1:]
 			path = path[:idx]
 		}
-		
+
 		return f.loadFile(path, extractPath)
-		
+
 	case yaml.MappingNode:
 		// Map format with optional extraction
 		var fileRef FileRef
 		if err := node.Decode(&fileRef); err != nil {
 			return nil, fmt.Errorf("invalid !file tag format: %w", err)
 		}
-		
+
 		if fileRef.Path == "" {
 			return nil, fmt.Errorf("!file tag requires 'path' field")
 		}
-		
+
 		return f.loadFile(fileRef.Path, fileRef.Extract)
-		
+
 	default:
 		return nil, fmt.Errorf("!file tag must be used with a string or map, got %v", node.Kind)
 	}
@@ -82,44 +82,44 @@ func (f *FileTagResolver) loadFile(path string, extractPath string) (any, error)
 	if err := f.validatePath(path); err != nil {
 		return nil, err
 	}
-	
+
 	// Resolve the full path
 	fullPath := f.resolvePath(path)
-	
+
 	// Check cache first
 	cacheKey := fullPath
 	if extractPath != "" {
 		cacheKey = fmt.Sprintf("%s#%s", fullPath, extractPath)
 	}
-	
+
 	if cached := f.getCached(cacheKey); cached != nil {
 		return cached, nil
 	}
-	
+
 	// Load the file
 	data, err := f.readFile(fullPath)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Parse the content based on extension
 	content, err := f.parseContent(fullPath, data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse %s: %w", path, err)
 	}
-	
+
 	// Extract value if path is specified
-	var result = content
+	result := content
 	if extractPath != "" {
 		result, err = ExtractValue(content, extractPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract '%s' from %s: %w", extractPath, path, err)
 		}
 	}
-	
+
 	// Cache the result
 	f.setCached(cacheKey, result)
-	
+
 	return result, nil
 }
 
@@ -127,17 +127,17 @@ func (f *FileTagResolver) loadFile(path string, extractPath string) (any, error)
 func (f *FileTagResolver) validatePath(path string) error {
 	// Clean the path first
 	cleaned := filepath.Clean(path)
-	
+
 	// Check for absolute paths
 	if filepath.IsAbs(path) {
 		return fmt.Errorf("absolute paths are not allowed: %s", path)
 	}
-	
+
 	// Check for parent directory traversal after cleaning
 	if strings.Contains(cleaned, "..") {
 		return fmt.Errorf("parent directory traversal is not allowed: %s", path)
 	}
-	
+
 	return nil
 }
 
@@ -159,31 +159,31 @@ func (f *FileTagResolver) readFile(path string) ([]byte, error) {
 		}
 		return nil, fmt.Errorf("failed to stat file %s: %w", path, err)
 	}
-	
+
 	// Check file size
 	if info.Size() > MaxFileSize {
 		return nil, fmt.Errorf("file %s is too large (%d bytes, max %d)", path, info.Size(), MaxFileSize)
 	}
-	
+
 	// Read the file
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file %s: %w", path, err)
 	}
 	defer file.Close()
-	
+
 	data, err := io.ReadAll(io.LimitReader(file, MaxFileSize))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file %s: %w", path, err)
 	}
-	
+
 	return data, nil
 }
 
 // parseContent parses file content based on extension
 func (f *FileTagResolver) parseContent(path string, data []byte) (any, error) {
 	ext := strings.ToLower(filepath.Ext(path))
-	
+
 	switch ext {
 	case ".yaml", ".yml":
 		var content any
@@ -191,7 +191,7 @@ func (f *FileTagResolver) parseContent(path string, data []byte) (any, error) {
 			return nil, err
 		}
 		return content, nil
-		
+
 	case ".json":
 		var content any
 		// sigs.k8s.io/yaml handles both YAML and JSON
@@ -199,7 +199,7 @@ func (f *FileTagResolver) parseContent(path string, data []byte) (any, error) {
 			return nil, err
 		}
 		return content, nil
-		
+
 	default:
 		// For other files, return as string
 		return string(data), nil

@@ -4,22 +4,22 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/kong/kongctl/internal/declarative/resources"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestLoader_validateResourceSet_EmptyResourceSet(t *testing.T) {
 	loader := New()
 	rs := &resources.ResourceSet{}
-	
+
 	err := loader.validateResourceSet(rs)
 	assert.NoError(t, err, "Empty resource set should be valid")
 }
 
 func TestLoader_validatePortals(t *testing.T) {
 	loader := New()
-	
+
 	tests := []struct {
 		name        string
 		portals     []resources.PortalResource
@@ -56,11 +56,11 @@ func TestLoader_validatePortals(t *testing.T) {
 				{
 					Ref: "portal1",
 					CreatePortal: kkComps.CreatePortal{
-						Name: "Portal Two",  // Different name to avoid name duplicate error
+						Name: "Portal Two", // Different name to avoid name duplicate error
 					},
 				},
 			},
-			wantErr:     false,  // Validator doesn't check same-type duplicates anymore
+			wantErr:     false, // Validator doesn't check same-type duplicates anymore
 			expectedErr: "",
 		},
 		{
@@ -72,14 +72,14 @@ func TestLoader_validatePortals(t *testing.T) {
 			expectedErr: "invalid portal ref: ref cannot be empty",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a ResourceSet with the test portals
 			rs := &resources.ResourceSet{
 				Portals: tt.portals,
 			}
-			
+
 			err := loader.validatePortals(tt.portals, rs)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -97,7 +97,7 @@ func TestLoader_validatePortals(t *testing.T) {
 
 func TestLoader_validateAuthStrategies(t *testing.T) {
 	loader := New()
-	
+
 	tests := []struct {
 		name        string
 		strategies  []resources.ApplicationAuthStrategyResource
@@ -145,23 +145,23 @@ func TestLoader_validateAuthStrategies(t *testing.T) {
 					CreateAppAuthStrategyRequest: kkComps.CreateAppAuthStrategyRequest{
 						Type: kkComps.CreateAppAuthStrategyRequestTypeKeyAuth,
 						AppAuthStrategyKeyAuthRequest: &kkComps.AppAuthStrategyKeyAuthRequest{
-							Name: "Key Auth Two",  // Different name to avoid name duplicate error
+							Name: "Key Auth Two", // Different name to avoid name duplicate error
 						},
 					},
 				},
 			},
-			wantErr:     false,  // Validator doesn't check same-type duplicates anymore
+			wantErr:     false, // Validator doesn't check same-type duplicates anymore
 			expectedErr: "",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a ResourceSet with the test strategies
 			rs := &resources.ResourceSet{
 				ApplicationAuthStrategies: tt.strategies,
 			}
-			
+
 			err := loader.validateAuthStrategies(tt.strategies, rs)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -179,7 +179,7 @@ func TestLoader_validateAuthStrategies(t *testing.T) {
 
 func TestLoader_validateControlPlanes(t *testing.T) {
 	loader := New()
-	
+
 	tests := []struct {
 		name        string
 		cps         []resources.ControlPlaneResource
@@ -216,22 +216,22 @@ func TestLoader_validateControlPlanes(t *testing.T) {
 				{
 					Ref: "cp1",
 					CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
-						Name: "Control Plane Two",  // Different name to avoid name duplicate error
+						Name: "Control Plane Two", // Different name to avoid name duplicate error
 					},
 				},
 			},
-			wantErr:     false,  // Validator doesn't check same-type duplicates anymore
+			wantErr:     false, // Validator doesn't check same-type duplicates anymore
 			expectedErr: "",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a ResourceSet with the test control planes
 			rs := &resources.ResourceSet{
 				ControlPlanes: tt.cps,
 			}
-			
+
 			err := loader.validateControlPlanes(tt.cps, rs)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -249,7 +249,7 @@ func TestLoader_validateControlPlanes(t *testing.T) {
 
 func TestLoader_validateAPIs(t *testing.T) {
 	loader := New()
-	
+
 	tests := []struct {
 		name        string
 		apis        []resources.APIResource
@@ -286,11 +286,11 @@ func TestLoader_validateAPIs(t *testing.T) {
 				{
 					Ref: "api1",
 					CreateAPIRequest: kkComps.CreateAPIRequest{
-						Name: "API Two",  // Different name to avoid name duplicate error
+						Name: "API Two", // Different name to avoid name duplicate error
 					},
 				},
 			},
-			wantErr:     false,  // Validator doesn't check same-type duplicates anymore
+			wantErr:     false, // Validator doesn't check same-type duplicates anymore
 			expectedErr: "",
 		},
 		{
@@ -313,7 +313,7 @@ func TestLoader_validateAPIs(t *testing.T) {
 				{
 					Ref: "api1",
 					Publications: []resources.APIPublicationResource{
-						{Ref: "pub1", PortalID: "dummy-portal"},  // Use dummy value for required field
+						{Ref: "pub1", PortalID: "dummy-portal"}, // Use dummy value for required field
 						{Ref: "pub1", PortalID: "dummy-portal"},
 					},
 				},
@@ -332,7 +332,7 @@ func TestLoader_validateAPIs(t *testing.T) {
 							APIImplementation: kkComps.APIImplementation{
 								Service: &kkComps.APIImplementationService{
 									ID:             "12345678-1234-1234-1234-123456789012",
-									ControlPlaneID: "dummy-cp",  // Use dummy value for required field
+									ControlPlaneID: "dummy-cp", // Use dummy value for required field
 								},
 							},
 						},
@@ -398,14 +398,14 @@ func TestLoader_validateAPIs(t *testing.T) {
 			wantErr: false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a ResourceSet with the test APIs
 			rs := &resources.ResourceSet{
 				APIs: tt.apis,
 			}
-			
+
 			// Add dummy resources for cross-reference validation
 			// These are needed because validateCrossReferences checks that references exist
 			rs.Portals = []resources.PortalResource{
@@ -414,11 +414,11 @@ func TestLoader_validateAPIs(t *testing.T) {
 			rs.ControlPlanes = []resources.ControlPlaneResource{
 				{Ref: "dummy-cp"},
 			}
-			
+
 			// Extract nested resources to match real loader behavior
 			// This moves versions, publications, and implementations to top-level arrays
 			extractNestedResourcesForTest(rs)
-			
+
 			// Now validate the entire ResourceSet (not just APIs)
 			// This will check both the APIs and the extracted child resources
 			err := loader.validateResourceSet(rs)
@@ -438,7 +438,7 @@ func TestLoader_validateAPIs(t *testing.T) {
 
 func TestLoader_validateCrossReferences(t *testing.T) {
 	loader := New()
-	
+
 	// Create a base ResourceSet with some resources for reference validation
 	baseResources := &resources.ResourceSet{
 		Portals: []resources.PortalResource{
@@ -451,7 +451,7 @@ func TestLoader_validateCrossReferences(t *testing.T) {
 			{Ref: "cp1"},
 		},
 	}
-	
+
 	tests := []struct {
 		name        string
 		rs          *resources.ResourceSet
@@ -500,19 +500,19 @@ func TestLoader_validateCrossReferences(t *testing.T) {
 			wantErr: false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Merge test resources with base resources for reference validation
 			fullRS := &resources.ResourceSet{
 				Portals:                   append(baseResources.Portals, tt.rs.Portals...),
 				ApplicationAuthStrategies: baseResources.ApplicationAuthStrategies,
-				ControlPlanes:            baseResources.ControlPlanes,
-				APIs:                     tt.rs.APIs,
-				APIPublications:          tt.rs.APIPublications,
-				APIImplementations:       tt.rs.APIImplementations,
+				ControlPlanes:             baseResources.ControlPlanes,
+				APIs:                      tt.rs.APIs,
+				APIPublications:           tt.rs.APIPublications,
+				APIImplementations:        tt.rs.APIImplementations,
 			}
-			
+
 			err := loader.validateCrossReferences(fullRS)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -526,20 +526,20 @@ func TestLoader_validateCrossReferences(t *testing.T) {
 
 func TestLoader_getFieldValue(t *testing.T) {
 	loader := New()
-	
+
 	// Test with a mock struct that has various field types
 	type TestStruct struct {
-		SimpleField string `yaml:"simple_field"`
+		SimpleField  string `yaml:"simple_field"`
 		NestedStruct struct {
 			NestedField string `yaml:"nested_field"`
 		} `yaml:"nested_struct"`
 	}
-	
+
 	testObj := TestStruct{
 		SimpleField: "simple_value",
 	}
 	testObj.NestedStruct.NestedField = "nested_value"
-	
+
 	tests := []struct {
 		name      string
 		fieldPath string
@@ -566,7 +566,7 @@ func TestLoader_getFieldValue(t *testing.T) {
 			expected:  "",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := loader.getFieldValue(testObj, tt.fieldPath)
@@ -577,19 +577,19 @@ func TestLoader_getFieldValue(t *testing.T) {
 
 func TestLoader_findField(t *testing.T) {
 	loader := New()
-	
+
 	type TestStruct struct {
 		DirectField string `yaml:"direct_field"`
 		YAMLField   string `yaml:"yaml_tagged_field"`
 	}
-	
+
 	testObj := TestStruct{
 		DirectField: "direct_value",
 		YAMLField:   "yaml_value",
 	}
-	
+
 	v := reflect.ValueOf(testObj)
-	
+
 	tests := []struct {
 		name      string
 		fieldName string
@@ -614,7 +614,7 @@ func TestLoader_findField(t *testing.T) {
 			wantValid: false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			field := loader.findField(v, tt.fieldName)
@@ -634,21 +634,21 @@ func extractNestedResourcesForTest(rs *resources.ResourceSet) {
 	// Extract nested API child resources
 	for i := range rs.APIs {
 		api := &rs.APIs[i]
-		
+
 		// Extract versions
 		for _, v := range api.Versions {
 			v.API = api.Ref
 			rs.APIVersions = append(rs.APIVersions, v)
 		}
 		api.Versions = nil
-		
+
 		// Extract publications
 		for _, p := range api.Publications {
 			p.API = api.Ref
 			rs.APIPublications = append(rs.APIPublications, p)
 		}
 		api.Publications = nil
-		
+
 		// Extract implementations
 		for _, impl := range api.Implementations {
 			impl.API = api.Ref

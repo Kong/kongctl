@@ -12,10 +12,10 @@ import (
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
-	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/segmentio/cli"
@@ -72,13 +72,13 @@ func authStrategyToDisplayRecord(strategy kkComps.AppAuthStrategy) textDisplayRe
 		record.DisplayName = keyAuth.DisplayName
 		record.StrategyType = string(keyAuth.StrategyType)
 		record.Active = fmt.Sprintf("%t", keyAuth.Active)
-		
+
 		if keyAuth.DcrProvider != nil {
 			record.DCRProvider = keyAuth.DcrProvider.Name
 		} else {
 			record.DCRProvider = missing
 		}
-		
+
 		record.LocalCreatedTime = keyAuth.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
 		record.LocalUpdatedTime = keyAuth.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
 	} else if strategy.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse != nil {
@@ -88,13 +88,13 @@ func authStrategyToDisplayRecord(strategy kkComps.AppAuthStrategy) textDisplayRe
 		record.DisplayName = openID.DisplayName
 		record.StrategyType = string(openID.StrategyType)
 		record.Active = fmt.Sprintf("%t", openID.Active)
-		
+
 		if openID.DcrProvider != nil {
 			record.DCRProvider = openID.DcrProvider.Name
 		} else {
 			record.DCRProvider = missing
 		}
-		
+
 		record.LocalCreatedTime = openID.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
 		record.LocalUpdatedTime = openID.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
 	} else {

@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // AuthStrategyAdapter implements ResourceOperations for application auth strategies
@@ -25,8 +25,9 @@ func NewAuthStrategyAdapter(client *state.Client) *AuthStrategyAdapter {
 // MapCreateFields maps fields to the appropriate auth strategy request type
 // Note: This returns any because the SDK uses union types
 func (a *AuthStrategyAdapter) MapCreateFields(
-	_ context.Context, execCtx *ExecutionContext, fields map[string]any, 
-	create *kkComps.CreateAppAuthStrategyRequest) error {
+	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
+	create *kkComps.CreateAppAuthStrategyRequest,
+) error {
 	// Extract namespace and protection from execution context
 	namespace := execCtx.Namespace
 	protection := execCtx.Protection
@@ -38,7 +39,7 @@ func (a *AuthStrategyAdapter) MapCreateFields(
 	}
 
 	name := common.ExtractResourceName(fields)
-	
+
 	var displayName string
 	common.MapOptionalStringField(&displayName, fields, "display_name")
 
@@ -72,7 +73,8 @@ func (a *AuthStrategyAdapter) MapCreateFields(
 // MapUpdateFields maps fields to UpdateAppAuthStrategyRequest
 func (a *AuthStrategyAdapter) MapUpdateFields(
 	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
-	update *kkComps.UpdateAppAuthStrategyRequest, currentLabels map[string]string) error {
+	update *kkComps.UpdateAppAuthStrategyRequest, currentLabels map[string]string,
+) error {
 	// Extract namespace and protection from execution context
 	namespace := execCtx.Namespace
 	protection := execCtx.Protection
@@ -99,11 +101,11 @@ func (a *AuthStrategyAdapter) MapUpdateFields(
 	if configs, ok := fields["configs"].(map[string]any); ok {
 		// Get strategy type from fields (passed by planner)
 		strategyType, _ := fields[planner.FieldStrategyType].(string)
-		
+
 		if strategyType == "" {
 			return fmt.Errorf("strategy type not provided for config update")
 		}
-		
+
 		updateConfigs, err := a.buildUpdateConfigs(strategyType, configs)
 		if err != nil {
 			return fmt.Errorf("failed to build configs: %w", err)
@@ -116,7 +118,8 @@ func (a *AuthStrategyAdapter) MapUpdateFields(
 
 // Create creates a new auth strategy
 func (a *AuthStrategyAdapter) Create(ctx context.Context, req kkComps.CreateAppAuthStrategyRequest,
-	namespace string, _ *ExecutionContext) (string, error) {
+	namespace string, _ *ExecutionContext,
+) (string, error) {
 	result, err := a.client.CreateApplicationAuthStrategy(ctx, req, namespace)
 	if err != nil {
 		return "", err
@@ -142,7 +145,8 @@ func (a *AuthStrategyAdapter) Create(ctx context.Context, req kkComps.CreateAppA
 
 // Update updates an existing auth strategy
 func (a *AuthStrategyAdapter) Update(ctx context.Context, id string, req kkComps.UpdateAppAuthStrategyRequest,
-	namespace string, _ *ExecutionContext) (string, error) {
+	namespace string, _ *ExecutionContext,
+) (string, error) {
 	_, err := a.client.UpdateApplicationAuthStrategy(ctx, id, req, namespace)
 	if err != nil {
 		return "", err
@@ -191,18 +195,19 @@ func (a *AuthStrategyAdapter) SupportsUpdate() bool {
 
 // buildKeyAuthRequest builds a key auth strategy request
 func (a *AuthStrategyAdapter) buildKeyAuthRequest(name, displayName string, labels map[string]string,
-	fields map[string]any) (*kkComps.AppAuthStrategyKeyAuthRequest, error) {
+	fields map[string]any,
+) (*kkComps.AppAuthStrategyKeyAuthRequest, error) {
 	// Extract key auth config
 	configs, ok := fields["configs"].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("configs is required for key_auth strategy")
 	}
-	
+
 	keyAuthConfig, ok := configs["key-auth"].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("configs.key-auth is required for key_auth strategy")
 	}
-	
+
 	// Build key auth request
 	req := &kkComps.AppAuthStrategyKeyAuthRequest{
 		Name:         name,
@@ -213,7 +218,7 @@ func (a *AuthStrategyAdapter) buildKeyAuthRequest(name, displayName string, labe
 		},
 		Labels: labels,
 	}
-	
+
 	// Extract key names - handle both []string and []any
 	switch keyNames := keyAuthConfig["key_names"].(type) {
 	case []string:
@@ -235,18 +240,19 @@ func (a *AuthStrategyAdapter) buildKeyAuthRequest(name, displayName string, labe
 
 // buildOpenIDConnectRequest builds an OpenID Connect strategy request
 func (a *AuthStrategyAdapter) buildOpenIDConnectRequest(name, displayName string, labels map[string]string,
-	fields map[string]any) (*kkComps.AppAuthStrategyOpenIDConnectRequest, error) {
+	fields map[string]any,
+) (*kkComps.AppAuthStrategyOpenIDConnectRequest, error) {
 	// Extract openid connect config
 	configs, ok := fields["configs"].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("configs is required for openid_connect strategy")
 	}
-	
+
 	oidcConfig, ok := configs["openid-connect"].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("configs.openid-connect is required for openid_connect strategy")
 	}
-	
+
 	// Build openid connect request
 	req := &kkComps.AppAuthStrategyOpenIDConnectRequest{
 		Name:         name,
@@ -257,20 +263,20 @@ func (a *AuthStrategyAdapter) buildOpenIDConnectRequest(name, displayName string
 		},
 		Labels: labels,
 	}
-	
+
 	// Extract issuer (required)
 	if issuer, ok := oidcConfig["issuer"].(string); ok {
 		req.Configs.OpenidConnect.Issuer = issuer
 	} else {
 		return nil, fmt.Errorf("issuer is required for openid_connect strategy")
 	}
-	
+
 	// Extract credential_claim
 	req.Configs.OpenidConnect.CredentialClaim = a.extractStringSlice(oidcConfig["credential_claim"], []string{"sub"})
-	
+
 	// Extract scopes
 	req.Configs.OpenidConnect.Scopes = a.extractStringSlice(oidcConfig["scopes"], nil)
-	
+
 	// Extract auth methods
 	req.Configs.OpenidConnect.AuthMethods = a.extractStringSlice(oidcConfig["auth_methods"], nil)
 
@@ -279,50 +285,51 @@ func (a *AuthStrategyAdapter) buildOpenIDConnectRequest(name, displayName string
 
 // buildUpdateConfigs builds the SDK Configs union type from planner data
 func (a *AuthStrategyAdapter) buildUpdateConfigs(strategyType string,
-	configs map[string]any) (*kkComps.Configs, error) {
+	configs map[string]any,
+) (*kkComps.Configs, error) {
 	switch strategyType {
 	case "key_auth":
 		keyAuthConfig, ok := configs["key-auth"].(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("key-auth config missing for key_auth strategy")
 		}
-		
+
 		keyAuth := kkComps.AppAuthStrategyConfigKeyAuth{}
 		keyAuth.KeyNames = a.extractStringSlice(keyAuthConfig["key_names"], nil)
-		
+
 		two := kkComps.Two{
 			KeyAuth: keyAuth,
 		}
-		
+
 		configs := kkComps.CreateConfigsTwo(two)
 		return &configs, nil
-		
+
 	case "openid_connect":
 		oidcConfig, ok := configs["openid-connect"].(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("openid-connect config missing for openid_connect strategy")
 		}
-		
+
 		// Use partial config for updates
 		oidc := kkComps.PartialAppAuthStrategyConfigOpenIDConnect{}
-		
+
 		// Extract issuer
 		if issuer, ok := oidcConfig["issuer"].(string); ok {
 			oidc.Issuer = &issuer
 		}
-		
+
 		// Extract other fields
 		oidc.CredentialClaim = a.extractStringSlice(oidcConfig["credential_claim"], nil)
 		oidc.Scopes = a.extractStringSlice(oidcConfig["scopes"], nil)
 		oidc.AuthMethods = a.extractStringSlice(oidcConfig["auth_methods"], nil)
-		
+
 		one := kkComps.One{
 			OpenidConnect: oidc,
 		}
-		
+
 		configs := kkComps.CreateConfigsOne(one)
 		return &configs, nil
-		
+
 	default:
 		return nil, fmt.Errorf("unsupported strategy type: %s", strategyType)
 	}

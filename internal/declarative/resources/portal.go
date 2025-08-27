@@ -9,15 +9,15 @@ import (
 
 // PortalResource represents a portal in declarative configuration
 type PortalResource struct {
-	kkComps.CreatePortal `yaml:",inline" json:",inline"`
-	Ref                  string       `yaml:"ref" json:"ref"`
+	kkComps.CreatePortal `             yaml:",inline"           json:",inline"`
+	Ref                  string       `yaml:"ref"               json:"ref"`
 	Kongctl              *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
 
 	// Child resources that match API endpoints
 	Customization *PortalCustomizationResource `yaml:"customization,omitempty" json:"customization,omitempty"`
 	CustomDomain  *PortalCustomDomainResource  `yaml:"custom_domain,omitempty" json:"custom_domain,omitempty"`
-	Pages         []PortalPageResource         `yaml:"pages,omitempty" json:"pages,omitempty"`
-	Snippets      []PortalSnippetResource      `yaml:"snippets,omitempty" json:"snippets,omitempty"`
+	Pages         []PortalPageResource         `yaml:"pages,omitempty"         json:"pages,omitempty"`
+	Snippets      []PortalSnippetResource      `yaml:"snippets,omitempty"      json:"snippets,omitempty"`
 
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
@@ -148,16 +148,16 @@ func (p *PortalResource) SetDefaults() {
 	if p.Customization != nil {
 		p.Customization.SetDefaults()
 	}
-	
+
 	if p.CustomDomain != nil {
 		p.CustomDomain.SetDefaults()
 	}
-	
+
 	// Apply defaults to pages
 	for i := range p.Pages {
 		p.Pages[i].SetDefaults()
 	}
-	
+
 	// Apply defaults to snippets
 	for i := range p.Snippets {
 		p.Snippets[i].SetDefaults()
@@ -217,5 +217,3 @@ func (p *PortalResource) TryMatchKonnectResource(konnectResource any) bool {
 
 	return false
 }
-
-

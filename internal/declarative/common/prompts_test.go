@@ -12,10 +12,10 @@ import (
 
 func TestConfirmExecution(t *testing.T) {
 	tests := []struct {
-		name      string
-		plan      *planner.Plan
-		input     string
-		expected  bool
+		name        string
+		plan        *planner.Plan
+		input       string
+		expected    bool
 		checkStdout func(t *testing.T, stdout string)
 		checkStderr func(t *testing.T, stderr string)
 	}{
@@ -213,7 +213,7 @@ func TestDisplayPlanSummary(t *testing.T) {
 				"SUMMARY",
 				"Namespace: default",
 				"+ p1",
-				"+ p2", 
+				"+ p2",
 				"+ p3",
 				"+ a1",
 				"+ a2",
@@ -286,7 +286,7 @@ func TestDisplayPlanSummary_WithResourceMonikers(t *testing.T) {
 				ResourceType: "portal_page",
 				ResourceRef:  "[unknown]",
 				ResourceMonikers: map[string]string{
-					"slug":         "getting-started",
+					"slug":          "getting-started",
 					"parent_portal": "simple",
 				},
 				Action: planner.ActionDelete,
@@ -300,7 +300,7 @@ func TestDisplayPlanSummary_WithResourceMonikers(t *testing.T) {
 				ResourceType: "portal_page",
 				ResourceRef:  "[unknown]",
 				ResourceMonikers: map[string]string{
-					"slug":         "api-guide",
+					"slug":          "api-guide",
 					"parent_portal": "simple",
 				},
 				Action: planner.ActionDelete,
@@ -331,7 +331,7 @@ func TestDisplayPlanSummary_WithResourceMonikers(t *testing.T) {
 	assert.Contains(t, output, "page 'getting-started' in portal:simple")
 	assert.Contains(t, output, "page 'api-guide' in portal:simple")
 	assert.Contains(t, output, "depends on: portal:simple")
-	
+
 	// Should not contain [unknown]
 	assert.NotContains(t, output, "[unknown]")
 }
@@ -344,7 +344,7 @@ func TestConfirmExecution_WithResourceMonikers(t *testing.T) {
 				ResourceType: "portal_page",
 				ResourceRef:  "[unknown]",
 				ResourceMonikers: map[string]string{
-					"slug":         "getting-started",
+					"slug":          "getting-started",
 					"parent_portal": "simple",
 				},
 				Action: planner.ActionDelete,
@@ -363,7 +363,7 @@ func TestConfirmExecution_WithResourceMonikers(t *testing.T) {
 
 	var stderr bytes.Buffer
 	stdin := strings.NewReader("no\n")
-	
+
 	result := ConfirmExecution(plan, nil, &stderr, stdin)
 	require.False(t, result)
 
@@ -373,7 +373,7 @@ func TestConfirmExecution_WithResourceMonikers(t *testing.T) {
 	// Check that the DELETE warning shows monikers
 	assert.Contains(t, output, "WARNING: This operation will DELETE resources:")
 	assert.Contains(t, output, "- portal_page: page 'getting-started' in portal:simple")
-	
+
 	// Should not contain [unknown]
 	assert.NotContains(t, output, "[unknown]")
 }
@@ -387,10 +387,10 @@ func TestFormatResourceName_AllResourceTypes(t *testing.T) {
 		{
 			name: "portal_page with monikers",
 			change: planner.PlannedChange{
-				ResourceRef: "[unknown]",
+				ResourceRef:  "[unknown]",
 				ResourceType: "portal_page",
 				ResourceMonikers: map[string]string{
-					"slug":         "getting-started",
+					"slug":          "getting-started",
 					"parent_portal": "dev-portal",
 				},
 			},
@@ -399,10 +399,10 @@ func TestFormatResourceName_AllResourceTypes(t *testing.T) {
 		{
 			name: "portal_snippet with monikers",
 			change: planner.PlannedChange{
-				ResourceRef: "[unknown]",
+				ResourceRef:  "[unknown]",
 				ResourceType: "portal_snippet",
 				ResourceMonikers: map[string]string{
-					"name":         "header-snippet",
+					"name":          "header-snippet",
 					"parent_portal": "dev-portal",
 				},
 			},
@@ -411,7 +411,7 @@ func TestFormatResourceName_AllResourceTypes(t *testing.T) {
 		{
 			name: "api_document with monikers",
 			change: planner.PlannedChange{
-				ResourceRef: "[unknown]",
+				ResourceRef:  "[unknown]",
 				ResourceType: "api_document",
 				ResourceMonikers: map[string]string{
 					"slug":       "api-guide",
@@ -423,7 +423,7 @@ func TestFormatResourceName_AllResourceTypes(t *testing.T) {
 		{
 			name: "api_publication with monikers",
 			change: planner.PlannedChange{
-				ResourceRef: "[unknown]",
+				ResourceRef:  "[unknown]",
 				ResourceType: "api_publication",
 				ResourceMonikers: map[string]string{
 					"portal_name": "dev-portal",
@@ -435,7 +435,7 @@ func TestFormatResourceName_AllResourceTypes(t *testing.T) {
 		{
 			name: "generic resource with monikers",
 			change: planner.PlannedChange{
-				ResourceRef: "[unknown]",
+				ResourceRef:  "[unknown]",
 				ResourceType: "some_resource",
 				ResourceMonikers: map[string]string{
 					"name": "test",

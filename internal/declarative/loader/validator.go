@@ -65,17 +65,17 @@ func (l *Loader) validatePortals(portals []resources.PortalResource, rs *resourc
 		// Don't check within same type - that's handled by the loader during append
 		if existing, found := rs.GetResourceByRef(portal.GetRef()); found {
 			if existing.GetType() != resources.ResourceTypePortal {
-				return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
 					portal.GetRef(), existing.GetType())
 			}
 		}
-		
+
 		// Check name uniqueness (within portal type only)
 		if existingRef, exists := names[portal.Name]; exists {
-			return fmt.Errorf("duplicate portal name '%s' (ref: %s conflicts with ref: %s)", 
+			return fmt.Errorf("duplicate portal name '%s' (ref: %s conflicts with ref: %s)",
 				portal.Name, portal.GetRef(), existingRef)
 		}
-		
+
 		names[portal.Name] = portal.GetRef()
 	}
 
@@ -101,18 +101,18 @@ func (l *Loader) validateAuthStrategies(
 		// Don't check within same type - that's handled by the loader during append
 		if existing, found := rs.GetResourceByRef(strategy.GetRef()); found {
 			if existing.GetType() != resources.ResourceTypeApplicationAuthStrategy {
-				return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
 					strategy.GetRef(), existing.GetType())
 			}
 		}
-		
+
 		// Check name uniqueness (within auth strategy type only)
 		stratName := strategy.GetMoniker()
 		if existingRef, exists := names[stratName]; exists {
-			return fmt.Errorf("duplicate application_auth_strategy name '%s' (ref: %s conflicts with ref: %s)", 
+			return fmt.Errorf("duplicate application_auth_strategy name '%s' (ref: %s conflicts with ref: %s)",
 				stratName, strategy.GetRef(), existingRef)
 		}
-		
+
 		names[stratName] = strategy.GetRef()
 	}
 
@@ -138,17 +138,17 @@ func (l *Loader) validateControlPlanes(
 		// Don't check within same type - that's handled by the loader during append
 		if existing, found := rs.GetResourceByRef(cp.GetRef()); found {
 			if existing.GetType() != resources.ResourceTypeControlPlane {
-				return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
 					cp.GetRef(), existing.GetType())
 			}
 		}
-		
+
 		// Check name uniqueness (within control plane type only)
 		if existingRef, exists := names[cp.Name]; exists {
-			return fmt.Errorf("duplicate control_plane name '%s' (ref: %s conflicts with ref: %s)", 
+			return fmt.Errorf("duplicate control_plane name '%s' (ref: %s conflicts with ref: %s)",
 				cp.Name, cp.GetRef(), existingRef)
 		}
-		
+
 		names[cp.Name] = cp.GetRef()
 	}
 
@@ -171,17 +171,17 @@ func (l *Loader) validateAPIs(apis []resources.APIResource, rs *resources.Resour
 		// Don't check within same type - that's handled by the loader during append
 		if existing, found := rs.GetResourceByRef(api.GetRef()); found {
 			if existing.GetType() != resources.ResourceTypeAPI {
-				return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
 					api.GetRef(), existing.GetType())
 			}
 		}
-		
+
 		// Check API name uniqueness (within API type only)
 		if existingRef, exists := apiNames[api.Name]; exists {
-			return fmt.Errorf("duplicate api name '%s' (ref: %s conflicts with ref: %s)", 
+			return fmt.Errorf("duplicate api name '%s' (ref: %s conflicts with ref: %s)",
 				api.Name, api.GetRef(), existingRef)
 		}
-		
+
 		apiNames[api.Name] = api.GetRef()
 
 		// Validate nested versions (these should be empty after extraction)
@@ -193,12 +193,11 @@ func (l *Loader) validateAPIs(apis []resources.APIResource, rs *resources.Resour
 			// Check global ref uniqueness for nested version
 			if existing, found := rs.GetResourceByRef(version.GetRef()); found {
 				if existing.GetType() != resources.ResourceTypeAPIVersion {
-					return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
+					return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
 						version.GetRef(), existing.GetType())
 				}
 			}
 		}
-
 
 		// Validate nested publications (these should be empty after extraction)
 		for j := range api.Publications {
@@ -209,7 +208,7 @@ func (l *Loader) validateAPIs(apis []resources.APIResource, rs *resources.Resour
 			// Check global ref uniqueness for nested publication
 			if existing, found := rs.GetResourceByRef(publication.GetRef()); found {
 				if existing.GetType() != resources.ResourceTypeAPIPublication {
-					return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
+					return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
 						publication.GetRef(), existing.GetType())
 				}
 			}
@@ -219,12 +218,17 @@ func (l *Loader) validateAPIs(apis []resources.APIResource, rs *resources.Resour
 		for j := range api.Implementations {
 			implementation := &api.Implementations[j]
 			if err := implementation.Validate(); err != nil {
-				return fmt.Errorf("invalid api_implementation %q in api %q: %w", implementation.GetRef(), api.GetRef(), err)
+				return fmt.Errorf(
+					"invalid api_implementation %q in api %q: %w",
+					implementation.GetRef(),
+					api.GetRef(),
+					err,
+				)
 			}
 			// Check global ref uniqueness for nested implementation
 			if existing, found := rs.GetResourceByRef(implementation.GetRef()); found {
 				if existing.GetType() != resources.ResourceTypeAPIImplementation {
-					return fmt.Errorf("duplicate ref '%s' (already defined as %s)", 
+					return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
 						implementation.GetRef(), existing.GetType())
 				}
 			}
@@ -290,8 +294,7 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 			versionCountByAPI[version.API]++
 		}
 	}
-	
-	
+
 	// Validate separate API versions
 	for i := range rs.APIVersions {
 		version := &rs.APIVersions[i]
@@ -307,7 +310,7 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 		}
 	}
 
-	// Validate separate API publications  
+	// Validate separate API publications
 	for i := range rs.APIPublications {
 		publication := &rs.APIPublications[i]
 		if err := publication.Validate(); err != nil {
@@ -386,7 +389,10 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 		// Check for duplicates within extracted customizations
 		for j := i + 1; j < len(rs.PortalCustomizations); j++ {
 			if rs.PortalCustomizations[j].GetRef() == customization.GetRef() {
-				return fmt.Errorf("duplicate ref '%s' (already defined as portal_customization)", customization.GetRef())
+				return fmt.Errorf(
+					"duplicate ref '%s' (already defined as portal_customization)",
+					customization.GetRef(),
+				)
 			}
 		}
 	}
@@ -411,7 +417,7 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 // validateResourceReferences validates references for a single resource using its mapping
 func (l *Loader) validateResourceReferences(resource any, rs *resources.ResourceSet) error {
 	// fmt.Printf("DEBUG: validateResourceReferences called with resource type: %T\n", resource)
-	
+
 	// Check if resource implements ReferenceMapping
 	refMapper, ok := resource.(resources.ReferenceMapping)
 	if !ok {
@@ -426,11 +432,11 @@ func (l *Loader) validateResourceReferences(resource any, rs *resources.Resource
 
 	mappings := refMapper.GetReferenceFieldMappings()
 	// fmt.Printf("DEBUG: Reference mappings: %v\n", mappings)
-	
+
 	for fieldPath, expectedType := range mappings {
 		fieldValue := l.getFieldValue(resource, fieldPath)
 		// fmt.Printf("DEBUG: Field %s = '%s' (expected type: %s)\n", fieldPath, fieldValue, expectedType)
-		
+
 		if fieldValue == "" {
 			continue // Empty references are allowed (optional fields)
 		}
@@ -446,7 +452,7 @@ func (l *Loader) validateResourceReferences(resource any, rs *resources.Resource
 			return fmt.Errorf("resource %q references unknown %s: %s (field: %s)",
 				refResource.GetRef(), expectedType, fieldValue, fieldPath)
 		}
-		
+
 		// Verify the referenced resource is of the expected type
 		if actualType, _ := rs.GetResourceTypeByRef(fieldValue); string(actualType) != expectedType {
 			return fmt.Errorf("resource %q references %s but expected %s: %s (field: %s)",
@@ -463,12 +469,12 @@ func (l *Loader) getFieldValue(resource any, fieldPath string) string {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
-	
+
 	// fmt.Printf("DEBUG: getFieldValue - type: %v, fieldPath: %s\n", v.Type(), fieldPath)
 
 	// Split field path for nested fields (e.g., "service.control_plane_id")
 	parts := strings.Split(fieldPath, ".")
-	
+
 	for i, part := range parts {
 		// Handle both struct field names and YAML tags
 		field := l.findField(v, part)
@@ -510,7 +516,7 @@ func (l *Loader) findField(v reflect.Value, name string) reflect.Value {
 	}
 
 	t := v.Type()
-	
+
 	// First try direct field name
 	if field, ok := t.FieldByName(name); ok {
 		return v.FieldByIndex(field.Index)
@@ -540,7 +546,7 @@ func (l *Loader) findField(v reflect.Value, name string) reflect.Value {
 			}
 		}
 	}
-	
+
 	// Try converting snake_case to PascalCase for SDK field names
 	pascalCase := l.toPascalCase(name)
 	if pascalCase != name {
@@ -566,12 +572,11 @@ func (l *Loader) toPascalCase(s string) string {
 	return strings.Join(parts, "")
 }
 
-
 // validateNamespaces validates all namespace values in the resource set
 func (l *Loader) validateNamespaces(rs *resources.ResourceSet) error {
 	nsValidator := validator.NewNamespaceValidator()
 	namespaces := make(map[string]bool)
-	
+
 	// Collect all unique namespaces from parent resources
 	// Portals
 	for _, portal := range rs.Portals {
@@ -579,38 +584,38 @@ func (l *Loader) validateNamespaces(rs *resources.ResourceSet) error {
 			namespaces[*portal.Kongctl.Namespace] = true
 		}
 	}
-	
+
 	// APIs
 	for _, api := range rs.APIs {
 		if api.Kongctl != nil && api.Kongctl.Namespace != nil {
 			namespaces[*api.Kongctl.Namespace] = true
 		}
 	}
-	
+
 	// Application Auth Strategies
 	for _, strategy := range rs.ApplicationAuthStrategies {
 		if strategy.Kongctl != nil && strategy.Kongctl.Namespace != nil {
 			namespaces[*strategy.Kongctl.Namespace] = true
 		}
 	}
-	
+
 	// Control Planes
 	for _, cp := range rs.ControlPlanes {
 		if cp.Kongctl != nil && cp.Kongctl.Namespace != nil {
 			namespaces[*cp.Kongctl.Namespace] = true
 		}
 	}
-	
+
 	// Convert to slice for validation
 	namespaceList := make([]string, 0, len(namespaces))
 	for ns := range namespaces {
 		namespaceList = append(namespaceList, ns)
 	}
-	
+
 	// Validate all namespaces
 	if err := nsValidator.ValidateNamespaces(namespaceList); err != nil {
 		return fmt.Errorf("namespace validation failed: %w", err)
 	}
-	
+
 	return nil
 }
