@@ -24,25 +24,25 @@ func GetSDKFactory(t *testing.T) helpers.SDKAPIFactory {
 		return func(cfg kongctlconfig.Hook, _ *slog.Logger) (helpers.SDKAPI, error) {
 			// Override token from environment
 			cfg.Set("konnect.token", token)
-			
+
 			// For real SDK, we would need to build the actual SDK here
 			// For now, return an error indicating real SDK is not implemented
 			return nil, fmt.Errorf(
 				"real Konnect SDK integration not yet implemented - remove KONNECT_INTEGRATION_TOKEN to use mocks")
 		}
 	}
-	
+
 	t.Logf("Using mock Konnect SDK (set KONNECT_INTEGRATION_TOKEN to use real API)")
-	
+
 	// Create singleton instances of mocks to ensure consistency
 	portalAPI := NewMockPortalAPI(t)
 	authAPI := NewMockAppAuthStrategiesAPI(t)
 	apiAPI := NewMockAPIAPI(t)
-	
+
 	return func(_ kongctlconfig.Hook, _ *slog.Logger) (helpers.SDKAPI, error) {
 		// Return mock SDK with test-specific factories that return the same instances
 		return &helpers.MockKonnectSDK{
-			T:             t,
+			T: t,
 			PortalFactory: func() helpers.PortalAPI {
 				return portalAPI
 			},
@@ -61,21 +61,21 @@ func GetSDKFactory(t *testing.T) helpers.SDKAPIFactory {
 // SetupTestContext creates a context with all necessary values for testing
 func SetupTestContext(t *testing.T) context.Context {
 	ctx := context.Background()
-	
+
 	// Add SDK factory
 	sdkFactory := GetSDKFactory(t)
 	ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, sdkFactory)
-	
+
 	// Add config
 	testConfig := GetTestConfig()
 	ctx = context.WithValue(ctx, kongctlconfig.ConfigKey, testConfig)
-	
+
 	// Add logger
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 		Level: slog.LevelError, // Only show errors in tests
 	}))
 	ctx = context.WithValue(ctx, log.LoggerKey, logger)
-	
+
 	// Add IO streams
 	streams := &iostreams.IOStreams{
 		In:     os.Stdin,
@@ -83,7 +83,7 @@ func SetupTestContext(t *testing.T) context.Context {
 		ErrOut: os.Stderr,
 	}
 	ctx = context.WithValue(ctx, iostreams.StreamsKey, streams)
-	
+
 	return ctx
 }
 
@@ -91,13 +91,13 @@ func SetupTestContext(t *testing.T) context.Context {
 // and restores the original factory when done.
 func WithMockSDKFactory(t *testing.T, setupMocks func(*testing.T) helpers.SDKAPIFactory) func() {
 	t.Helper()
-	
+
 	// Save original factory
 	original := helpers.DefaultSDKFactory
-	
+
 	// Set test factory
 	helpers.DefaultSDKFactory = setupMocks(t)
-	
+
 	// Return cleanup function
 	return func() {
 		helpers.DefaultSDKFactory = original

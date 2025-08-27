@@ -72,17 +72,17 @@ func ExtractResourceID(fields map[string]any) string {
 func HasFieldChanged(oldFields, newFields map[string]any, key string) bool {
 	oldValue, oldExists := oldFields[key]
 	newValue, newExists := newFields[key]
-	
+
 	// If existence changed, it's a change
 	if oldExists != newExists {
 		return true
 	}
-	
+
 	// If neither exists, no change
 	if !oldExists && !newExists {
 		return false
 	}
-	
+
 	// Compare values using deep equality
 	return !reflect.DeepEqual(oldValue, newValue)
 }
@@ -101,7 +101,7 @@ func ValidateRequiredFields(fields map[string]any, requiredFields []string) erro
 		if !exists {
 			return fmt.Errorf("required field '%s' is missing", field)
 		}
-		
+
 		// Check for empty string values
 		if strValue, ok := value.(string); ok && strValue == "" {
 			return fmt.Errorf("required field '%s' cannot be empty", field)

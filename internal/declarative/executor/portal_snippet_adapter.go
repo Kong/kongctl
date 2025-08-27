@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kong/kongctl/internal/declarative/state"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/state"
 )
 
 // PortalSnippetAdapter implements ResourceOperations for portal snippets
@@ -21,97 +21,100 @@ func NewPortalSnippetAdapter(client *state.Client) *PortalSnippetAdapter {
 // MapCreateFields maps fields to CreatePortalSnippetRequest
 func (p *PortalSnippetAdapter) MapCreateFields(
 	_ context.Context, _ *ExecutionContext, fields map[string]any,
-	create *kkComps.CreatePortalSnippetRequest) error {
-	
+	create *kkComps.CreatePortalSnippetRequest,
+) error {
 	// Required fields
 	name, ok := fields["name"].(string)
 	if !ok {
 		return fmt.Errorf("name is required")
 	}
 	create.Name = name
-	
+
 	content, ok := fields["content"].(string)
 	if !ok {
 		return fmt.Errorf("content is required")
 	}
 	create.Content = content
-	
+
 	// Optional fields
 	if title, ok := fields["title"].(string); ok {
 		create.Title = &title
 	}
-	
+
 	if visibilityStr, ok := fields["visibility"].(string); ok {
 		visibility := kkComps.SnippetVisibilityStatus(visibilityStr)
 		create.Visibility = &visibility
 	}
-	
+
 	if statusStr, ok := fields["status"].(string); ok {
 		status := kkComps.PublishedStatus(statusStr)
 		create.Status = &status
 	}
-	
+
 	if description, ok := fields["description"].(string); ok {
 		create.Description = &description
 	}
-	
+
 	return nil
 }
 
 // MapUpdateFields maps fields to UpdatePortalSnippetRequest
 func (p *PortalSnippetAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, fields map[string]any,
-	update *kkComps.UpdatePortalSnippetRequest, _ map[string]string) error {
+	update *kkComps.UpdatePortalSnippetRequest, _ map[string]string,
+) error {
 	// Optional fields
 	if name, ok := fields["name"].(string); ok {
 		update.Name = &name
 	}
-	
+
 	if content, ok := fields["content"].(string); ok {
 		update.Content = &content
 	}
-	
+
 	if title, ok := fields["title"].(string); ok {
 		update.Title = &title
 	}
-	
+
 	if visibilityStr, ok := fields["visibility"].(string); ok {
 		visibility := kkComps.VisibilityStatus(visibilityStr)
 		update.Visibility = &visibility
 	}
-	
+
 	if statusStr, ok := fields["status"].(string); ok {
 		status := kkComps.PublishedStatus(statusStr)
 		update.Status = &status
 	}
-	
+
 	if description, ok := fields["description"].(string); ok {
 		update.Description = &description
 	}
-	
+
 	return nil
 }
 
 // Create creates a new portal snippet
 func (p *PortalSnippetAdapter) Create(ctx context.Context, req kkComps.CreatePortalSnippetRequest,
-	_ string, execCtx *ExecutionContext) (string, error) {
+	_ string, execCtx *ExecutionContext,
+) (string, error) {
 	// Get portal ID from execution context
 	portalID, err := p.getPortalID(execCtx)
 	if err != nil {
 		return "", err
 	}
-	
+
 	return p.client.CreatePortalSnippet(ctx, portalID, req)
 }
 
 // Update updates an existing portal snippet
 func (p *PortalSnippetAdapter) Update(ctx context.Context, id string, req kkComps.UpdatePortalSnippetRequest,
-	_ string, execCtx *ExecutionContext) (string, error) {
+	_ string, execCtx *ExecutionContext,
+) (string, error) {
 	// Get portal ID from execution context
 	portalID, err := p.getPortalID(execCtx)
 	if err != nil {
 		return "", err
 	}
-	
+
 	err = p.client.UpdatePortalSnippet(ctx, portalID, id, req)
 	if err != nil {
 		return "", err
@@ -126,7 +129,7 @@ func (p *PortalSnippetAdapter) Delete(ctx context.Context, id string, execCtx *E
 	if err != nil {
 		return err
 	}
-	
+
 	return p.client.DeletePortalSnippet(ctx, portalID, id)
 }
 
@@ -144,7 +147,7 @@ func (p *PortalSnippetAdapter) GetByID(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get portal ID for snippet lookup: %w", err)
 	}
-	
+
 	snippet, err := p.client.GetPortalSnippet(ctx, portalID, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get portal snippet: %w", err)
@@ -175,19 +178,19 @@ func (p *PortalSnippetAdapter) getPortalID(execCtx *ExecutionContext) (string, e
 	if execCtx == nil || execCtx.PlannedChange == nil {
 		return "", fmt.Errorf("execution context is required for snippet operations")
 	}
-	
+
 	change := *execCtx.PlannedChange
-	
+
 	// Priority 1: Check References (for Create operations)
 	if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
 		return portalRef.ID, nil
 	}
-	
+
 	// Priority 2: Check Parent field (for Delete operations)
 	if change.Parent != nil && change.Parent.ID != "" {
 		return change.Parent.ID, nil
 	}
-	
+
 	return "", fmt.Errorf("portal ID is required for snippet operations")
 }
 

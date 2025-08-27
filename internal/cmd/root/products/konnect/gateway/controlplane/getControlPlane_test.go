@@ -77,8 +77,12 @@ func TestTextDisplayConversion(t *testing.T) {
 				Description:          "description-field",
 				Labels:               "label-1-key: label-1-value, label-2-key: label-2-value",
 				ControlPlaneEndpoint: "config-endpoint-field",
-				LocalCreatedTime:     time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC).In(time.Local).Format("2006-01-02 15:04:05"),
-				LocalUpdatedTime:     time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC).In(time.Local).Format("2006-01-02 15:04:05"),
+				LocalCreatedTime: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC).
+					In(time.Local).
+					Format("2006-01-02 15:04:05"),
+				LocalUpdatedTime: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC).
+					In(time.Local).
+					Format("2006-01-02 15:04:05"),
 			},
 		},
 	}

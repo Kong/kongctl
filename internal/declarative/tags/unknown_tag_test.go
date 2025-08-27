@@ -16,23 +16,23 @@ func TestResolverRegistry_UnknownTag(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name: "unknown tag !File",
-			yaml: `value: !File test.txt`,
+			name:    "unknown tag !File",
+			yaml:    `value: !File test.txt`,
 			wantErr: "unsupported YAML tag: !File",
 		},
 		{
-			name: "known tag !file",
-			yaml: `value: !file ./test.txt`,
+			name:    "known tag !file",
+			yaml:    `value: !file ./test.txt`,
 			wantErr: "file not found", // Will fail but proves tag is recognized
 		},
 		{
-			name: "unknown tag !env",
-			yaml: `value: !env HOME`,
+			name:    "unknown tag !env",
+			yaml:    `value: !env HOME`,
 			wantErr: "unsupported YAML tag: !env",
 		},
 		{
-			name: "built-in tag !!str",
-			yaml: `value: !!str "test"`,
+			name:    "built-in tag !!str",
+			yaml:    `value: !!str "test"`,
 			wantErr: "", // Should not error on built-in tags
 		},
 	}

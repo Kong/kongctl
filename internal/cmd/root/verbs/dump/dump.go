@@ -294,7 +294,12 @@ func dumpPortals(
 			if includeChildResources {
 				if err := dumpPortalChildResources(ctx, writer, kkClient, portal.ID, portal.Name, requestPageSize); err != nil {
 					// Log error but continue with other portals
-					fmt.Fprintf(os.Stderr, "Warning: Failed to dump child resources for portal %s: %v\n", portal.Name, err)
+					fmt.Fprintf(
+						os.Stderr,
+						"Warning: Failed to dump child resources for portal %s: %v\n",
+						portal.Name,
+						err,
+					)
 				}
 			}
 		}

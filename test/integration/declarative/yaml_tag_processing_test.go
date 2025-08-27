@@ -19,7 +19,7 @@ import (
 func TestYAMLTagProcessingComprehensive(t *testing.T) {
 	t.Run("multiple tag formats in single file", func(t *testing.T) {
 		tempDir := t.TempDir()
-		
+
 		// Create data files with different formats
 		yamlData := `
 yaml_content:
@@ -30,8 +30,8 @@ yaml_content:
     version: "1.0"
 `
 		yamlFile := filepath.Join(tempDir, "data.yaml")
-		require.NoError(t, os.WriteFile(yamlFile, []byte(yamlData), 0600))
-		
+		require.NoError(t, os.WriteFile(yamlFile, []byte(yamlData), 0o600))
+
 		jsonData := `{
 			"json_content": {
 				"title": "From JSON",
@@ -43,12 +43,12 @@ yaml_content:
 			}
 		}`
 		jsonFile := filepath.Join(tempDir, "data.json")
-		require.NoError(t, os.WriteFile(jsonFile, []byte(jsonData), 0600))
-		
+		require.NoError(t, os.WriteFile(jsonFile, []byte(jsonData), 0o600))
+
 		textData := "Plain text content from file"
 		textFile := filepath.Join(tempDir, "data.txt")
-		require.NoError(t, os.WriteFile(textFile, []byte(textData), 0600))
-		
+		require.NoError(t, os.WriteFile(textFile, []byte(textData), 0o600))
+
 		// Create config using all tag formats
 		config := `
 portals:
@@ -73,16 +73,16 @@ portals:
       json_format: !file ./data.json#json_content.metadata.format
 `
 		configFile := filepath.Join(tempDir, "config.yaml")
-		require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-		
+		require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 		// Load and verify all formats work
 		l := loader.New()
 		sources := []loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}
-		
+
 		resourceSet, err := l.LoadFromSources(sources, false)
 		require.NoError(t, err)
 		require.Len(t, resourceSet.Portals, 1)
-		
+
 		portal := resourceSet.Portals[0]
 		require.NotNil(t, portal.Description)
 		assert.Equal(t, "Plain text content from file", *portal.Description)
@@ -99,10 +99,10 @@ portals:
 		require.NotNil(t, portal.Labels["json_format"])
 		assert.Equal(t, "json", *portal.Labels["json_format"])
 	})
-	
+
 	t.Run("nested tag processing", func(t *testing.T) {
 		tempDir := t.TempDir()
-		
+
 		// Create base configuration file
 		baseConfig := `
 base_settings:
@@ -114,8 +114,8 @@ base_settings:
     caching: false
 `
 		baseFile := filepath.Join(tempDir, "base.yaml")
-		require.NoError(t, os.WriteFile(baseFile, []byte(baseConfig), 0600))
-		
+		require.NoError(t, os.WriteFile(baseFile, []byte(baseConfig), 0o600))
+
 		// Create environment-specific file that references base
 		envConfig := `
 environment_config:
@@ -129,8 +129,8 @@ environment_config:
     rate_limit: !file ./base.yaml#base_settings.features.rate_limiting
 `
 		envFile := filepath.Join(tempDir, "environment.yaml")
-		require.NoError(t, os.WriteFile(envFile, []byte(envConfig), 0600))
-		
+		require.NoError(t, os.WriteFile(envFile, []byte(envConfig), 0o600))
+
 		// Create final config that references environment config
 		config := `
 apis:
@@ -144,16 +144,16 @@ apis:
       rate_limit_enabled: !file ./environment.yaml#environment_config.enabled_features.rate_limit
 `
 		configFile := filepath.Join(tempDir, "config.yaml")
-		require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-		
+		require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 		// Load and verify nested references work
 		l := loader.New()
 		sources := []loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}
-		
+
 		resourceSet, err := l.LoadFromSources(sources, false)
 		require.NoError(t, err)
 		require.Len(t, resourceSet.APIs, 1)
-		
+
 		api := resourceSet.APIs[0]
 		assert.Equal(t, "Production Environment", api.Name)
 		require.NotNil(t, api.Version)
@@ -164,10 +164,10 @@ apis:
 		assert.Equal(t, "./base.yaml#base_settings.features.authentication", api.Labels["auth_enabled"])
 		assert.Equal(t, "./base.yaml#base_settings.features.rate_limiting", api.Labels["rate_limit_enabled"])
 	})
-	
+
 	t.Run("complex data type extraction", func(t *testing.T) {
 		tempDir := t.TempDir()
-		
+
 		// Create file with complex data structures
 		complexData := `
 api_specs:
@@ -226,8 +226,8 @@ configurations:
       cleanup_interval: "5m"
 `
 		complexFile := filepath.Join(tempDir, "complex.yaml")
-		require.NoError(t, os.WriteFile(complexFile, []byte(complexData), 0600))
-		
+		require.NoError(t, os.WriteFile(complexFile, []byte(complexData), 0o600))
+
 		// Create config that extracts various complex data types
 		config := `
 apis:
@@ -260,18 +260,18 @@ portals:
       cache_size: !file ./complex.yaml#configurations.cache.memory.max_size
 `
 		configFile := filepath.Join(tempDir, "config.yaml")
-		require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-		
+		require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 		// Load and verify complex extraction
 		l := loader.New()
 		sources := []loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}
-		
+
 		resourceSet, err := l.LoadFromSources(sources, false)
 		require.NoError(t, err)
 		require.Len(t, resourceSet.APIs, 1)
 		require.Len(t, resourceSet.APIVersions, 1)
 		require.Len(t, resourceSet.Portals, 1)
-		
+
 		api := resourceSet.APIs[0]
 		assert.Equal(t, "Users API", api.Name)
 		require.NotNil(t, api.Version)
@@ -280,12 +280,12 @@ portals:
 		assert.Equal(t, "db.company.com", api.Labels["db_host"])
 		assert.Equal(t, "5432", api.Labels["db_port"])
 		assert.Equal(t, "3600", api.Labels["cache_ttl"])
-		
+
 		version := resourceSet.APIVersions[0]
 		if version.Spec != nil {
 			t.Log("Complex value extraction spec loaded successfully")
 		}
-		
+
 		portal := resourceSet.Portals[0]
 		require.NotNil(t, portal.Description)
 		assert.Equal(t, "API Team", *portal.Description)
@@ -298,10 +298,10 @@ portals:
 		require.NotNil(t, portal.Labels["cache_size"])
 		assert.Equal(t, "256MB", *portal.Labels["cache_size"])
 	})
-	
+
 	t.Run("tag processing with special characters", func(t *testing.T) {
 		tempDir := t.TempDir()
-		
+
 		// Create file with special characters and edge cases
 		specialData := `
 special_data:
@@ -348,8 +348,8 @@ special_data:
   email: "test@example.com"
 `
 		specialFile := filepath.Join(tempDir, "special.yaml")
-		require.NoError(t, os.WriteFile(specialFile, []byte(specialData), 0600))
-		
+		require.NoError(t, os.WriteFile(specialFile, []byte(specialData), 0o600))
+
 		// Create config that extracts special content
 		config := `
 portals:
@@ -376,17 +376,17 @@ apis:
     version: !file ./special.yaml#special_data.version_string
 `
 		configFile := filepath.Join(tempDir, "config.yaml")
-		require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-		
+		require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 		// Load and verify special character handling
 		l := loader.New()
 		sources := []loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}
-		
+
 		resourceSet, err := l.LoadFromSources(sources, false)
 		require.NoError(t, err)
 		require.Len(t, resourceSet.Portals, 1)
 		require.Len(t, resourceSet.APIs, 1)
-		
+
 		portal := resourceSet.Portals[0]
 		require.NotNil(t, portal.Description)
 		assert.Contains(t, *portal.Description, "àáâãäåæçèéêë")
@@ -413,22 +413,22 @@ apis:
 		assert.Equal(t, "https://api.example.com/v1/users?limit=10&offset=0", *portal.Labels["endpoint"])
 		require.NotNil(t, portal.Labels["email"])
 		assert.Equal(t, "test@example.com", *portal.Labels["email"])
-		
+
 		api := resourceSet.APIs[0]
 		require.NotNil(t, api.Description)
 		assert.Contains(t, *api.Description, "Hello 世界 🌍 Мир")
 		require.NotNil(t, api.Version)
 		assert.Equal(t, "1.2.3", *api.Version)
 	})
-	
+
 	t.Run("tag processing error scenarios", func(t *testing.T) {
 		tempDir := t.TempDir()
-		
+
 		// Create file for valid references
 		validData := `valid: "content"`
 		validFile := filepath.Join(tempDir, "valid.yaml")
-		require.NoError(t, os.WriteFile(validFile, []byte(validData), 0600))
-		
+		require.NoError(t, os.WriteFile(validFile, []byte(validData), 0o600))
+
 		errorTests := []struct {
 			name          string
 			configContent string
@@ -475,15 +475,15 @@ portals:
 				expectedError: "is a directory",
 			},
 		}
-		
+
 		for _, tt := range errorTests {
 			t.Run(tt.name, func(t *testing.T) {
 				configFile := filepath.Join(tempDir, "error_config.yaml")
-				require.NoError(t, os.WriteFile(configFile, []byte(tt.configContent), 0600))
-				
+				require.NoError(t, os.WriteFile(configFile, []byte(tt.configContent), 0o600))
+
 				l := loader.New()
 				sources := []loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}
-				
+
 				_, err := l.LoadFromSources(sources, false)
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedError)
@@ -496,7 +496,7 @@ portals:
 func TestYAMLTagPerformance(t *testing.T) {
 	t.Run("large scale file tag processing", func(t *testing.T) {
 		tempDir := t.TempDir()
-		
+
 		// Create multiple data files
 		numDataFiles := 50
 		for i := 0; i < numDataFiles; i++ {
@@ -510,12 +510,12 @@ data_%d:
     index: "%d"
     category: "category_%d"
 `, i, i, i, i, i%24, i, i%10)
-			
+
 			fileName := fmt.Sprintf("data_%d.yaml", i)
 			filePath := filepath.Join(tempDir, fileName)
-			require.NoError(t, os.WriteFile(filePath, []byte(content), 0600))
+			require.NoError(t, os.WriteFile(filePath, []byte(content), 0o600))
 		}
-		
+
 		// Create config that references all files
 		configParts := []string{"apis:"}
 		for i := 0; i < numDataFiles; i++ {
@@ -531,19 +531,19 @@ data_%d:
 				i, i, i, i, i, i, i, i, i, i, i)
 			configParts = append(configParts, apiDef)
 		}
-		
+
 		config := strings.Join(configParts, "")
 		configFile := filepath.Join(tempDir, "large_config.yaml")
-		require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-		
+		require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 		// Load and verify performance is acceptable
 		l := loader.New()
 		sources := []loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}
-		
+
 		resourceSet, err := l.LoadFromSources(sources, false)
 		require.NoError(t, err)
 		require.Len(t, resourceSet.APIs, numDataFiles)
-		
+
 		// Verify random sampling of loaded data
 		for i := 0; i < 10; i++ {
 			api := resourceSet.APIs[i]

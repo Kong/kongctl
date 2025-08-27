@@ -128,7 +128,9 @@ func runPlan(command *cobra.Command, args []string) error {
 	if err != nil {
 		// Provide more helpful error message for common cases
 		if len(filenames) == 0 && strings.Contains(err.Error(), "no YAML files found") {
-			return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
+			return fmt.Errorf(
+				"no configuration files found in current directory. Use -f to specify files or directories",
+			)
 		}
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
@@ -140,25 +142,27 @@ func runPlan(command *cobra.Command, args []string) error {
 	if totalResources == 0 {
 		// Check if we're using default directory (no explicit sources)
 		if len(filenames) == 0 {
-			return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
+			return fmt.Errorf(
+				"no configuration files found in current directory. Use -f to specify files or directories",
+			)
 		}
-		
+
 		// In sync mode, empty config is valid - it means delete all managed resources
 		// In apply mode, we need at least one resource to apply
 		if planMode == planner.PlanModeApply {
 			return fmt.Errorf("no resources found in configuration files")
 		}
-		
+
 		// For sync mode, log that we're checking for deletions
 		outputFile, _ := command.Flags().GetString("output-file")
 		if outputFile == "" {
 			if resourceSet.DefaultNamespace != "" {
-				fmt.Fprintf(command.OutOrStderr(), 
+				fmt.Fprintf(command.OutOrStderr(),
 					"No resources defined in configuration. Using namespace '%s' from _defaults.\n"+
-					"Checking for managed resources to remove...\n",
+						"Checking for managed resources to remove...\n",
 					resourceSet.DefaultNamespace)
 			} else {
-				fmt.Fprintln(command.OutOrStderr(), 
+				fmt.Fprintln(command.OutOrStderr(),
 					"No resources defined in configuration. Checking 'default' namespace for managed resources to remove...")
 			}
 		}
@@ -194,7 +198,7 @@ func runPlan(command *cobra.Command, args []string) error {
 			}
 			namespaces[ns] = true
 		}
-		
+
 		if len(namespaces) > 1 {
 			fmt.Fprintf(command.OutOrStderr(), "Processing %d namespaces...\n", len(namespaces))
 		}
@@ -220,7 +224,7 @@ func runPlan(command *cobra.Command, args []string) error {
 
 	if outputFile != "" {
 		// Save to file
-		if err := os.WriteFile(outputFile, planJSON, 0600); err != nil {
+		if err := os.WriteFile(outputFile, planJSON, 0o600); err != nil {
 			return fmt.Errorf("failed to write plan file: %w", err)
 		}
 	} else {
@@ -381,7 +385,7 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 	changesByNamespace := make(map[string][]*planner.PlannedChange)
 	namespaces := make([]string, 0)
 	namespaceSeen := make(map[string]bool)
-	
+
 	// Build namespace groups following execution order
 	for _, changeID := range plan.ExecutionOrder {
 		// Find the change
@@ -395,20 +399,20 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 		if change == nil {
 			continue
 		}
-		
+
 		namespace := change.Namespace
 		if namespace == "" {
 			namespace = "default"
 		}
-		
+
 		if !namespaceSeen[namespace] {
 			namespaceSeen[namespace] = true
 			namespaces = append(namespaces, namespace)
 		}
-		
+
 		changesByNamespace[namespace] = append(changesByNamespace[namespace], change)
 	}
-	
+
 	// Sort namespaces for consistent output
 	sort.Strings(namespaces)
 
@@ -416,72 +420,72 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 	for nsIdx, namespace := range namespaces {
 		// Show namespace header
 		fmt.Fprintf(out, "=== Namespace: %s ===\n", namespace)
-		
+
 		// Display each change in this namespace
 		for _, change := range changesByNamespace[namespace] {
 
-		switch change.Action {
-		case planner.ActionCreate:
-			fmt.Fprintf(out, "+ [%s] %s %q will be created\n",
-				change.ID, change.ResourceType, change.ResourceRef)
+			switch change.Action {
+			case planner.ActionCreate:
+				fmt.Fprintf(out, "+ [%s] %s %q will be created\n",
+					change.ID, change.ResourceType, change.ResourceRef)
 
-			// Show key fields
-			for field, value := range change.Fields {
-				displayField(out, field, value, "  ", fullContent)
-			}
-
-			// Show protection status
-			if prot, ok := change.Protection.(bool); ok {
-				if prot {
-					fmt.Fprintln(out, "  protection: enabled")
-				} else {
-					fmt.Fprintln(out, "  protection: disabled")
+				// Show key fields
+				for field, value := range change.Fields {
+					displayField(out, field, value, "  ", fullContent)
 				}
-			}
 
-		case planner.ActionUpdate:
-			fmt.Fprintf(out, "~ [%s] %s %q will be updated\n",
-				change.ID, change.ResourceType, change.ResourceRef)
-
-			// Check if this is a protection change
-			if pc, ok := change.Protection.(planner.ProtectionChange); ok {
-				if pc.Old && !pc.New {
-					fmt.Fprintln(out, "  protection: enabled → disabled")
-				} else if !pc.Old && pc.New {
-					fmt.Fprintln(out, "  protection: disabled → enabled")
-				}
-			} else if prot, ok := change.Protection.(bool); ok {
-				if prot {
-					fmt.Fprintln(out, "  protection: enabled (no change)")
-				} else {
-					fmt.Fprintln(out, "  protection: disabled (no change)")
-				}
-			}
-
-			// Show field changes
-			for field, value := range change.Fields {
-				if fc, ok := value.(planner.FieldChange); ok {
-					fmt.Fprintf(out, "  %s: %v → %v\n", field, fc.Old, fc.New)
-				} else if fc, ok := value.(map[string]any); ok {
-					// Handle FieldChange that was unmarshaled from JSON
-					if oldVal, hasOld := fc["old"]; hasOld {
-						if newVal, hasNew := fc["new"]; hasNew {
-							fmt.Fprintf(out, "  %s: %v → %v\n", field, oldVal, newVal)
-							continue
-						}
+				// Show protection status
+				if prot, ok := change.Protection.(bool); ok {
+					if prot {
+						fmt.Fprintln(out, "  protection: enabled")
+					} else {
+						fmt.Fprintln(out, "  protection: disabled")
 					}
-					// Fallback for other map types
-					displayField(out, field, value, "  ", fullContent)
-				} else {
-					displayField(out, field, value, "  ", fullContent)
 				}
-			}
 
-		case planner.ActionDelete:
-			// DELETE action (future implementation)
-			fmt.Fprintf(out, "- [%s] %s %q will be deleted\n",
-				change.ID, change.ResourceType, change.ResourceRef)
-		}
+			case planner.ActionUpdate:
+				fmt.Fprintf(out, "~ [%s] %s %q will be updated\n",
+					change.ID, change.ResourceType, change.ResourceRef)
+
+				// Check if this is a protection change
+				if pc, ok := change.Protection.(planner.ProtectionChange); ok {
+					if pc.Old && !pc.New {
+						fmt.Fprintln(out, "  protection: enabled → disabled")
+					} else if !pc.Old && pc.New {
+						fmt.Fprintln(out, "  protection: disabled → enabled")
+					}
+				} else if prot, ok := change.Protection.(bool); ok {
+					if prot {
+						fmt.Fprintln(out, "  protection: enabled (no change)")
+					} else {
+						fmt.Fprintln(out, "  protection: disabled (no change)")
+					}
+				}
+
+				// Show field changes
+				for field, value := range change.Fields {
+					if fc, ok := value.(planner.FieldChange); ok {
+						fmt.Fprintf(out, "  %s: %v → %v\n", field, fc.Old, fc.New)
+					} else if fc, ok := value.(map[string]any); ok {
+						// Handle FieldChange that was unmarshaled from JSON
+						if oldVal, hasOld := fc["old"]; hasOld {
+							if newVal, hasNew := fc["new"]; hasNew {
+								fmt.Fprintf(out, "  %s: %v → %v\n", field, oldVal, newVal)
+								continue
+							}
+						}
+						// Fallback for other map types
+						displayField(out, field, value, "  ", fullContent)
+					} else {
+						displayField(out, field, value, "  ", fullContent)
+					}
+				}
+
+			case planner.ActionDelete:
+				// DELETE action (future implementation)
+				fmt.Fprintf(out, "- [%s] %s %q will be deleted\n",
+					change.ID, change.ResourceType, change.ResourceRef)
+			}
 
 			// Show dependencies
 			if len(change.DependsOn) > 0 {
@@ -502,7 +506,7 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 
 			fmt.Fprintln(out)
 		}
-		
+
 		// Add spacing between namespaces
 		if nsIdx < len(namespaces)-1 {
 			fmt.Fprintln(out)
@@ -854,7 +858,10 @@ func validateApplyPlan(plan *planner.Plan, command *cobra.Command) error {
 
 	// Warn if plan was generated in sync mode
 	if plan.Metadata.Mode == planner.PlanModeSync {
-		fmt.Fprintf(command.OutOrStderr(), "Warning: Plan was generated in sync mode but apply will skip DELETE operations\n")
+		fmt.Fprintf(
+			command.OutOrStderr(),
+			"Warning: Plan was generated in sync mode but apply will skip DELETE operations\n",
+		)
 	}
 
 	return nil
@@ -934,7 +941,7 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 		}
 
 		// Write to file
-		if err := os.WriteFile(executionReportFile, reportJSON, 0600); err != nil {
+		if err := os.WriteFile(executionReportFile, reportJSON, 0o600); err != nil {
 			return fmt.Errorf("failed to write execution report file: %w", err)
 		}
 	}
@@ -1146,16 +1153,16 @@ func runSync(command *cobra.Command, args []string) error {
 			if len(filenames) == 0 {
 				return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
 			}
-			
+
 			// In sync mode, empty config is valid - it means delete all managed resources
 			if outputFormat == textOutputFormat {
 				if resourceSet.DefaultNamespace != "" {
-					fmt.Fprintf(command.OutOrStderr(), 
+					fmt.Fprintf(command.OutOrStderr(),
 						"No resources defined in configuration. Using namespace '%s' from _defaults.\n"+
-						"Checking for managed resources to remove...\n",
+							"Checking for managed resources to remove...\n",
 						resourceSet.DefaultNamespace)
 				} else {
-					fmt.Fprintln(command.OutOrStderr(), 
+					fmt.Fprintln(command.OutOrStderr(),
 						"No resources defined in configuration. Checking 'default' namespace for managed resources to remove...")
 				}
 			}
@@ -1251,13 +1258,13 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		PortalAPI:  kkClient.GetPortalAPI(),
 		APIAPI:     kkClient.GetAPIAPI(),
 		AppAuthAPI: kkClient.GetAppAuthStrategiesAPI(),
-		
+
 		// Portal child resource APIs
 		PortalPageAPI:          kkClient.GetPortalPageAPI(),
 		PortalCustomizationAPI: kkClient.GetPortalCustomizationAPI(),
 		PortalCustomDomainAPI:  kkClient.GetPortalCustomDomainAPI(),
 		PortalSnippetAPI:       kkClient.GetPortalSnippetAPI(),
-		
+
 		// API child resource APIs
 		APIVersionAPI:        kkClient.GetAPIVersionAPI(),
 		APIPublicationAPI:    kkClient.GetAPIPublicationAPI(),
@@ -1265,4 +1272,3 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		APIDocumentAPI:       kkClient.GetAPIDocumentAPI(),
 	})
 }
-

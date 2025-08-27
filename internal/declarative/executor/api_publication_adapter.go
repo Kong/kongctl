@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/kong/kongctl/internal/declarative/state"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/state"
 )
 
 // APIPublicationAdapter implements CreateDeleteOperations for API publications
@@ -27,8 +27,8 @@ func NewAPIPublicationAdapter(client *state.Client) *APIPublicationAdapter {
 // MapCreateFields maps fields to APIPublication
 func (a *APIPublicationAdapter) MapCreateFields(
 	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
-	create *kkComps.APIPublication) error {
-	
+	create *kkComps.APIPublication,
+) error {
 	// Get the planned change from execution context to access references
 	change := *execCtx.PlannedChange
 
@@ -67,7 +67,8 @@ func (a *APIPublicationAdapter) MapCreateFields(
 
 // Create creates a new API publication
 func (a *APIPublicationAdapter) Create(ctx context.Context, req kkComps.APIPublication,
-	_ string, execCtx *ExecutionContext) (string, error) {
+	_ string, execCtx *ExecutionContext,
+) (string, error) {
 	// Get API ID from execution context
 	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
 	if err != nil {
@@ -146,7 +147,7 @@ func (a *APIPublicationAdapter) getPortalIDFromExecutionContext(execCtx *Executi
 	if execCtx == nil || execCtx.PlannedChange == nil {
 		return "", fmt.Errorf("execution context is required for publication operations")
 	}
-	
+
 	change := *execCtx.PlannedChange
 	if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID != "" {
 		return portalRef.ID, nil
@@ -159,33 +160,31 @@ func (a *APIPublicationAdapter) getPortalIDFromExecutionContext(execCtx *Executi
 	return "", fmt.Errorf("portal ID is required for publication operations")
 }
 
-
 // getAPIIDFromExecutionContext extracts the API ID from ExecutionContext parameter
 func (a *APIPublicationAdapter) getAPIIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
 	if execCtx == nil || execCtx.PlannedChange == nil {
 		return "", fmt.Errorf("execution context is required for publication operations")
 	}
-	
+
 	change := *execCtx.PlannedChange
-	
+
 	// Priority 1: Check References (for Create operations)
 	if apiRef, ok := change.References["api_id"]; ok && apiRef.ID != "" {
 		return apiRef.ID, nil
 	}
-	
+
 	// Priority 2: Check Parent field (for Delete operations)
 	if change.Parent != nil && change.Parent.ID != "" {
 		return change.Parent.ID, nil
 	}
-	
+
 	// Priority 3: Check Fields (special case for api_publication delete)
 	if apiID, ok := change.Fields["api_id"].(string); ok && apiID != "" {
 		return apiID, nil
 	}
-	
+
 	return "", fmt.Errorf("API ID is required for publication operations")
 }
-
 
 // APIPublicationResourceInfo implements ResourceInfo for API publications
 type APIPublicationResourceInfo struct {

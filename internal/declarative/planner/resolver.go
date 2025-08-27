@@ -115,7 +115,6 @@ func (r *ReferenceResolver) extractReference(fieldName string, value any) (strin
 	return "", false
 }
 
-
 // isReferenceField checks if field name indicates a reference
 func (r *ReferenceResolver) isReferenceField(fieldName string) bool {
 	// Fields that contain references to other resources
@@ -189,4 +188,3 @@ func (r *ReferenceResolver) resolvePortalRef(ctx context.Context, ref string) (s
 	}
 	return portal.ID, nil
 }
-

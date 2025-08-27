@@ -1,9 +1,15 @@
 .PHONY: test-all
-test-all: lint test
+test-all: fmt lint test
 
 .PHONY: lint
 lint:
 	golangci-lint run -v ./...
+
+.PHONY: format fmt
+format:
+	gofumpt -l -w . 
+	golines -m 120 -w --base-formatter=gofumpt .
+fmt: format
 
 
 .PHONY: build

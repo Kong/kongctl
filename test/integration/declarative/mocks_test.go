@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/kong/kongctl/internal/declarative/labels"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -249,7 +249,6 @@ func (m *MockAPIAPI) ListAPIImplementations(
 	}
 	return args.Get(0).(*kkOps.ListAPIImplementationsResponse), args.Error(1)
 }
-
 
 // API Document operations
 func (m *MockAPIAPI) CreateAPIDocument(

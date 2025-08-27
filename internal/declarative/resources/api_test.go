@@ -2,7 +2,7 @@ package resources
 
 import (
 	"testing"
-	
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 

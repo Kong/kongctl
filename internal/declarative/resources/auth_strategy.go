@@ -11,10 +11,10 @@ import (
 
 // ApplicationAuthStrategyResource represents an application auth strategy in declarative configuration
 type ApplicationAuthStrategyResource struct {
-	kkComps.CreateAppAuthStrategyRequest `yaml:",inline" json:",inline"`
-	Ref     string       `yaml:"ref" json:"ref"`
-	Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
-	
+	kkComps.CreateAppAuthStrategyRequest `             yaml:",inline"           json:",inline"`
+	Ref                                  string       `yaml:"ref"               json:"ref"`
+	Kongctl                              *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
 }
@@ -116,30 +116,30 @@ func (a *ApplicationAuthStrategyResource) TryMatchKonnectResource(konnectResourc
 	// For auth strategies, we match by name
 	// Use reflection to access fields from state.ApplicationAuthStrategy
 	v := reflect.ValueOf(konnectResource)
-	
+
 	// Handle pointer types
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
-	
+
 	// Ensure we have a struct
 	if v.Kind() != reflect.Struct {
 		return false
 	}
-	
+
 	// Look for Name and ID fields
 	nameField := v.FieldByName("Name")
 	idField := v.FieldByName("ID")
-	
+
 	// Extract values if fields are valid
-	if nameField.IsValid() && idField.IsValid() && 
-	   nameField.Kind() == reflect.String && idField.Kind() == reflect.String {
+	if nameField.IsValid() && idField.IsValid() &&
+		nameField.Kind() == reflect.String && idField.Kind() == reflect.String {
 		if nameField.String() == a.GetMoniker() {
 			a.konnectID = idField.String()
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -148,27 +148,27 @@ func (a *ApplicationAuthStrategyResource) TryMatchKonnectResource(konnectResourc
 func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 	// Temporary struct to capture all fields
 	var temp struct {
-		Ref          string                 `json:"ref"`
-		Name         string                 `json:"name"`
-		DisplayName  string                 `json:"display_name"`
-		StrategyType string                 `json:"strategy_type"`
-		Configs      map[string]any `json:"configs"`
-		Labels       map[string]string      `json:"labels,omitempty"`
-		Kongctl      *KongctlMeta           `json:"kongctl,omitempty"`
+		Ref          string            `json:"ref"`
+		Name         string            `json:"name"`
+		DisplayName  string            `json:"display_name"`
+		StrategyType string            `json:"strategy_type"`
+		Configs      map[string]any    `json:"configs"`
+		Labels       map[string]string `json:"labels,omitempty"`
+		Kongctl      *KongctlMeta      `json:"kongctl,omitempty"`
 	}
-	
+
 	// Use a decoder with DisallowUnknownFields to catch typos
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	
+
 	if err := decoder.Decode(&temp); err != nil {
 		return err
 	}
-	
+
 	// Set our fields
 	a.Ref = temp.Ref
 	a.Kongctl = temp.Kongctl
-	
+
 	// Based on strategy_type, create the appropriate SDK union type
 	switch temp.StrategyType {
 	case "openid_connect":
@@ -183,7 +183,7 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 				return fmt.Errorf("failed to unmarshal openid-connect config: %w", err)
 			}
 		}
-		
+
 		oidcRequest := kkComps.AppAuthStrategyOpenIDConnectRequest{
 			Name:         temp.Name,
 			DisplayName:  temp.DisplayName,
@@ -193,9 +193,9 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 			},
 			Labels: temp.Labels,
 		}
-		
+
 		a.CreateAppAuthStrategyRequest = kkComps.CreateCreateAppAuthStrategyRequestOpenidConnect(oidcRequest)
-		
+
 	case "key_auth":
 		// Create Key Auth request
 		var keyAuthConfig kkComps.AppAuthStrategyConfigKeyAuth
@@ -208,7 +208,7 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 				return fmt.Errorf("failed to unmarshal key-auth config: %w", err)
 			}
 		}
-		
+
 		keyAuthRequest := kkComps.AppAuthStrategyKeyAuthRequest{
 			Name:         temp.Name,
 			DisplayName:  temp.DisplayName,
@@ -218,13 +218,12 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 			},
 			Labels: temp.Labels,
 		}
-		
+
 		a.CreateAppAuthStrategyRequest = kkComps.CreateCreateAppAuthStrategyRequestKeyAuth(keyAuthRequest)
-		
+
 	default:
 		return fmt.Errorf("unsupported strategy_type: %s", temp.StrategyType)
 	}
-	
+
 	return nil
 }
-

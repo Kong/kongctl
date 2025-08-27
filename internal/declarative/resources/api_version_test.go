@@ -36,7 +36,7 @@ versions:
 	err := yaml.Unmarshal([]byte(yamlContent), &api)
 	require.NoError(t, err)
 	require.Len(t, api.Versions, 1, "API should have one version")
-	
+
 	apiVersion := api.Versions[0]
 	assert.Equal(t, "api-v1", apiVersion.Ref)
 	assert.Equal(t, "1.0.0", *apiVersion.Version)

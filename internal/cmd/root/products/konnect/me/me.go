@@ -42,8 +42,19 @@ func NewMeCmd(verb verbs.VerbValue,
 	switch verb {
 	case verbs.Get:
 		return newGetMeCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
-	case verbs.List, verbs.Delete, verbs.Create, verbs.Add, verbs.Apply, verbs.Dump, verbs.Update, verbs.Help, verbs.Login,
-		verbs.Plan, verbs.Sync, verbs.Diff, verbs.Export:
+	case verbs.List,
+		verbs.Delete,
+		verbs.Create,
+		verbs.Add,
+		verbs.Apply,
+		verbs.Dump,
+		verbs.Update,
+		verbs.Help,
+		verbs.Login,
+		verbs.Plan,
+		verbs.Sync,
+		verbs.Diff,
+		verbs.Export:
 		return &baseCmd, nil
 	}
 

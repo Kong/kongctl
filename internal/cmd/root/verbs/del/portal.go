@@ -22,7 +22,7 @@ func NewDirectPortalCmd() (*cobra.Command, error) {
 			fmt.Sprintf(`Base URL for Konnect API requests.
 - Config path: [ %s ]`,
 				common.BaseURLConfigPath))
-		
+
 		cmd.Flags().String(common.PATFlagName, "",
 			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
 Setting this value overrides tokens obtained from the login command.
@@ -39,7 +39,7 @@ Setting this value overrides tokens obtained from the login command.
 		ctx = context.WithValue(ctx, products.Product, konnect.Product)
 		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(common.KonnectSDKFactory))
 		c.SetContext(ctx)
-		
+
 		// Bind flags
 		return bindPortalFlags(c, args)
 	}

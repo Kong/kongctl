@@ -26,12 +26,12 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 	// Get namespace from planner context
 	namespace := plannerCtx.Namespace
 	desired := p.GetDesiredPortals(namespace)
-	
+
 	// Skip if no portals to plan and not in sync mode
 	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
 		return nil
 	}
-	
+
 	// Fetch current managed portals from the specific namespace
 	namespaceFilter := []string{namespace}
 	currentPortals, err := p.GetClient().ListManagedPortals(ctx, namespaceFilter)
@@ -75,15 +75,15 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 			if isProtected != shouldProtect {
 				// When changing protection status, include any other field updates too
 				needsUpdate, updateFields := p.shouldUpdatePortal(current, desiredPortal)
-				
+
 				// Create protection change object
 				protectionChange := &ProtectionChange{
 					Old: isProtected,
 					New: shouldProtect,
 				}
-				
+
 				// Validate protection change
-				err := p.ValidateProtectionWithChange("portal", desiredPortal.Name, isProtected, ActionUpdate, 
+				err := p.ValidateProtectionWithChange("portal", desiredPortal.Name, isProtected, ActionUpdate,
 					protectionChange, needsUpdate)
 				protectionErrors.Add(err)
 				if err == nil {
@@ -145,12 +145,12 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 // extractPortalFields extracts fields from a portal resource for planner operations
 func extractPortalFields(resource any) map[string]any {
 	fields := make(map[string]any)
-	
+
 	portal, ok := resource.(resources.PortalResource)
 	if !ok {
 		return fields
 	}
-	
+
 	fields["name"] = portal.Name
 	if portal.DisplayName != nil {
 		fields["display_name"] = *portal.DisplayName
@@ -179,7 +179,7 @@ func extractPortalFields(resource any) map[string]any {
 	if portal.AutoApproveApplications != nil {
 		fields["auto_approve_applications"] = *portal.AutoApproveApplications
 	}
-	
+
 	// Copy user-defined labels only (protection label will be added during execution)
 	if len(portal.Labels) > 0 {
 		labelsMap := make(map[string]any)
@@ -190,7 +190,7 @@ func extractPortalFields(resource any) map[string]any {
 		}
 		fields["labels"] = labelsMap
 	}
-	
+
 	return fields
 }
 
@@ -219,19 +219,19 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 		plan.AddChange(change)
 		return changeID
 	}
-	
+
 	// Extract protection status
 	var protection any
 	if portal.Kongctl != nil && portal.Kongctl.Protected != nil {
 		protection = *portal.Kongctl.Protected
 	}
-	
+
 	// Extract namespace
 	namespace := DefaultNamespace
 	if portal.Kongctl != nil && portal.Kongctl.Namespace != nil {
 		namespace = *portal.Kongctl.Namespace
 	}
-	
+
 	config := CreateConfig{
 		ResourceType:   "portal",
 		ResourceName:   portal.Name,
@@ -240,20 +240,20 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 		FieldExtractor: func(_ any) map[string]any {
 			return extractPortalFields(portal)
 		},
-		Namespace:      namespace,
-		DependsOn:      []string{},
+		Namespace: namespace,
+		DependsOn: []string{},
 	}
-	
+
 	change, err := generic.PlanCreate(context.Background(), config)
 	if err != nil {
 		// This shouldn't happen with valid configuration
 		p.planner.logger.Error("Failed to plan portal create", "error", err.Error())
 		return ""
 	}
-	
+
 	// Set protection after creation
 	change.Protection = protection
-	
+
 	plan.AddChange(change)
 	return change.ID
 }
@@ -277,38 +277,38 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 			updates["description"] = *desired.Description
 		}
 	}
-	
+
 	if desired.DefaultApplicationAuthStrategyID != nil {
 		currentAuthID := p.GetString(current.DefaultApplicationAuthStrategyID)
 		if currentAuthID != *desired.DefaultApplicationAuthStrategyID {
 			updates["default_application_auth_strategy_id"] = *desired.DefaultApplicationAuthStrategyID
 		}
 	}
-	
+
 	if desired.AuthenticationEnabled != nil {
 		if current.AuthenticationEnabled != *desired.AuthenticationEnabled {
 			updates["authentication_enabled"] = *desired.AuthenticationEnabled
 		}
 	}
-	
+
 	if desired.RbacEnabled != nil {
 		if current.RbacEnabled != *desired.RbacEnabled {
 			updates["rbac_enabled"] = *desired.RbacEnabled
 		}
 	}
-	
+
 	if desired.AutoApproveDevelopers != nil {
 		if current.AutoApproveDevelopers != *desired.AutoApproveDevelopers {
 			updates["auto_approve_developers"] = *desired.AutoApproveDevelopers
 		}
 	}
-	
+
 	if desired.AutoApproveApplications != nil {
 		if current.AutoApproveApplications != *desired.AutoApproveApplications {
 			updates["auto_approve_applications"] = *desired.AutoApproveApplications
 		}
 	}
-	
+
 	if desired.DefaultAPIVisibility != nil {
 		currentVisibility := string(current.DefaultAPIVisibility)
 		desiredVisibility := string(*desired.DefaultAPIVisibility)
@@ -316,7 +316,7 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 			updates["default_api_visibility"] = desiredVisibility
 		}
 	}
-	
+
 	if desired.DefaultPageVisibility != nil {
 		currentVisibility := string(current.DefaultPageVisibility)
 		desiredVisibility := string(*desired.DefaultPageVisibility)
@@ -336,7 +336,7 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 				desiredLabels[k] = *v
 			}
 		}
-		
+
 		if labels.CompareUserLabels(current.NormalizedLabels, desiredLabels) {
 			// User labels differ, include all labels in update
 			labelsMap := make(map[string]any)
@@ -361,18 +361,18 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 ) {
 	// Always include name for identification
 	updateFields["name"] = current.Name
-	
+
 	// Pass current labels so executor can properly handle removals
 	if _, hasLabels := updateFields["labels"]; hasLabels {
 		updateFields[FieldCurrentLabels] = current.NormalizedLabels
 	}
-	
+
 	// Extract namespace
 	namespace := DefaultNamespace
 	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
 		namespace = *desired.Kongctl.Namespace
 	}
-	
+
 	config := UpdateConfig{
 		ResourceType:   "portal",
 		ResourceName:   desired.Name,
@@ -383,7 +383,7 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 		RequiredFields: []string{"name"},
 		Namespace:      namespace,
 	}
-	
+
 	generic := p.GetGenericPlanner()
 	if generic == nil {
 		// During tests, generic planner might not be initialized
@@ -396,7 +396,7 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 		if _, hasLabels := updateFields["labels"]; hasLabels {
 			fields[FieldCurrentLabels] = current.NormalizedLabels
 		}
-		
+
 		changeID := p.NextChangeID(ActionUpdate, "portal", desired.GetRef())
 		change := PlannedChange{
 			ID:           changeID,
@@ -417,19 +417,19 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 		plan.AddChange(change)
 		return
 	}
-	
+
 	change, err := generic.PlanUpdate(context.Background(), config)
 	if err != nil {
 		// This shouldn't happen with valid configuration
 		p.planner.logger.Error("Failed to plan portal update", "error", err.Error())
 		return
 	}
-	
+
 	// Check if already protected
 	if labels.IsProtectedResource(current.NormalizedLabels) {
 		change.Protection = true
 	}
-	
+
 	plan.AddChange(change)
 }
 
@@ -446,18 +446,18 @@ func (p *portalPlannerImpl) planPortalProtectionChangeWithFields(
 	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
 		namespace = *desired.Kongctl.Namespace
 	}
-	
+
 	// Use generic protection change planner
 	config := ProtectionChangeConfig{
-		ResourceType:  "portal",
-		ResourceName:  desired.Name,
-		ResourceRef:   desired.GetRef(),
-		ResourceID:    current.ID,
-		OldProtected:  wasProtected,
-		NewProtected:  shouldProtect,
-		Namespace:     namespace,
+		ResourceType: "portal",
+		ResourceName: desired.Name,
+		ResourceRef:  desired.GetRef(),
+		ResourceID:   current.ID,
+		OldProtected: wasProtected,
+		NewProtected: shouldProtect,
+		Namespace:    namespace,
 	}
-	
+
 	generic := p.GetGenericPlanner()
 	var change PlannedChange
 	if generic != nil {
@@ -478,18 +478,18 @@ func (p *portalPlannerImpl) planPortalProtectionChangeWithFields(
 			Namespace: namespace,
 		}
 	}
-	
+
 	// Always include name field for identification
 	fields := make(map[string]any)
 	fields["name"] = current.Name
-	
+
 	// Include any field updates if unprotecting
 	if wasProtected && !shouldProtect && len(updateFields) > 0 {
 		for field, newValue := range updateFields {
 			fields[field] = newValue
 		}
 	}
-	
+
 	change.Fields = fields
 	plan.AddChange(change)
 }
@@ -501,10 +501,10 @@ func (p *portalPlannerImpl) planPortalDelete(portal state.Portal, plan *Plan) {
 	if ns, ok := portal.NormalizedLabels[labels.NamespaceKey]; ok {
 		namespace = ns
 	}
-	
+
 	generic := p.GetGenericPlanner()
 	var change PlannedChange
-	
+
 	if generic != nil {
 		config := DeleteConfig{
 			ResourceType: "portal",
@@ -526,10 +526,10 @@ func (p *portalPlannerImpl) planPortalDelete(portal state.Portal, plan *Plan) {
 			Namespace:    namespace,
 		}
 	}
-	
+
 	// Add the name field for backward compatibility
 	change.Fields = map[string]any{"name": portal.Name}
-	
+
 	plan.AddChange(change)
 }
 
@@ -539,19 +539,19 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 ) {
 	// Portal ID is not yet known, will be resolved at execution time
 	// But we still need to plan child resources that depend on this portal
-	
+
 	// Get the main planner instance to access child resource planning methods
 	planner := p.planner
-	
+
 	// Extract parent namespace for child resources
 	parentNamespace := DefaultNamespace
 	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
 		parentNamespace = *desired.Kongctl.Namespace
 	}
-	
+
 	// For new portals, we can't list existing resources, but we still need to plan
 	// creation of child resources. Pass empty portal ID - the executor will resolve it.
-	
+
 	// Plan pages
 	pages := make([]resources.PortalPageResource, 0)
 	for _, page := range planner.desiredPortalPages {
@@ -562,11 +562,11 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 	// Note: Passing empty portalID for new portal
 	if err := planner.planPortalPagesChanges(ctx, parentNamespace, "", desired.Ref, pages, plan); err != nil {
 		// Log error but don't fail - portal creation should still proceed
-		planner.logger.Debug("Failed to plan portal pages for new portal", 
+		planner.logger.Debug("Failed to plan portal pages for new portal",
 			"portal", desired.Ref,
 			"error", err.Error())
 	}
-	
+
 	// Plan snippets
 	snippets := make([]resources.PortalSnippetResource, 0)
 	for _, snippet := range planner.desiredPortalSnippets {
@@ -579,7 +579,7 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			"portal", desired.Ref,
 			"error", err.Error())
 	}
-	
+
 	// Plan customization
 	customizations := make([]resources.PortalCustomizationResource, 0)
 	for _, customization := range planner.desiredPortalCustomizations {
@@ -592,7 +592,7 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			"portal", desired.Ref,
 			"error", err.Error())
 	}
-	
+
 	// Plan custom domain
 	domains := make([]resources.PortalCustomDomainResource, 0)
 	for _, domain := range planner.desiredPortalCustomDomains {
@@ -613,13 +613,13 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 ) error {
 	// Get the main planner instance to access child resource planning methods
 	planner := p.planner
-	
+
 	// Extract parent namespace for child resources
 	parentNamespace := DefaultNamespace
 	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
 		parentNamespace = *desired.Kongctl.Namespace
 	}
-	
+
 	// Plan pages - pass empty array if no pages defined
 	pages := make([]resources.PortalPageResource, 0)
 	// Note: Pages have already been extracted to root level by loader
@@ -632,7 +632,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 	if err := planner.planPortalPagesChanges(ctx, parentNamespace, current.ID, desired.Ref, pages, plan); err != nil {
 		return fmt.Errorf("failed to plan portal page changes: %w", err)
 	}
-	
+
 	// Plan snippets - pass empty array if no snippets defined
 	snippets := make([]resources.PortalSnippetResource, 0)
 	// Note: Snippets have already been extracted to root level by loader
@@ -647,7 +647,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 	); err != nil {
 		return fmt.Errorf("failed to plan portal snippet changes: %w", err)
 	}
-	
+
 	// Plan customization (singleton resource)
 	customizations := make([]resources.PortalCustomizationResource, 0)
 	for _, customization := range planner.desiredPortalCustomizations {
@@ -658,7 +658,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 	if err := planner.planPortalCustomizationsChanges(ctx, plannerCtx, parentNamespace, customizations, plan); err != nil {
 		return fmt.Errorf("failed to plan portal customization changes: %w", err)
 	}
-	
+
 	// Plan custom domain (singleton resource)
 	domains := make([]resources.PortalCustomDomainResource, 0)
 	for _, domain := range planner.desiredPortalCustomDomains {
@@ -669,6 +669,6 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 	if err := planner.planPortalCustomDomainsChanges(ctx, parentNamespace, domains, plan); err != nil {
 		return fmt.Errorf("failed to plan portal custom domain changes: %w", err)
 	}
-	
+
 	return nil
 }

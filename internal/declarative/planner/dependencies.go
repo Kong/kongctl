@@ -16,9 +16,9 @@ func NewDependencyResolver() *DependencyResolver {
 // ResolveDependencies builds dependency graph and calculates execution order
 func (d *DependencyResolver) ResolveDependencies(changes []PlannedChange) ([]string, error) {
 	// Build dependency graph
-	graph := make(map[string][]string)     // change_id -> list of dependencies
-	inDegree := make(map[string]int)       // change_id -> number of incoming edges
-	allChanges := make(map[string]bool)    // set of all change IDs
+	graph := make(map[string][]string)       // change_id -> list of dependencies
+	inDegree := make(map[string]int)         // change_id -> number of incoming edges
+	allChanges := make(map[string]bool)      // set of all change IDs
 	changeDetails := make(map[string]string) // change_id -> resource details for error reporting
 
 	// Initialize graph
@@ -156,9 +156,9 @@ func contains(slice []string, item string) bool {
 
 // findCycleDetails finds and returns detailed information about circular dependencies
 func (d *DependencyResolver) findCycleDetails(
-	graph map[string][]string, 
-	inDegree map[string]int, 
-	allChanges map[string]bool, 
+	graph map[string][]string,
+	inDegree map[string]int,
+	allChanges map[string]bool,
 	changeDetails map[string]string,
 ) string {
 	// Find nodes that still have dependencies (part of cycle)
@@ -168,16 +168,16 @@ func (d *DependencyResolver) findCycleDetails(
 			cycleNodes = append(cycleNodes, changeID)
 		}
 	}
-	
+
 	if len(cycleNodes) == 0 {
 		return "unable to determine cycle participants"
 	}
-	
+
 	// Build detailed message
 	details := fmt.Sprintf("The following resources form a circular dependency (%d resources):\n", len(cycleNodes))
 	for _, node := range cycleNodes {
 		resourceInfo := changeDetails[node]
-		
+
 		// Find what this node is waiting for (incoming edges)
 		var waitingFor []string
 		for dep, dependents := range graph {
@@ -191,7 +191,7 @@ func (d *DependencyResolver) findCycleDetails(
 				}
 			}
 		}
-		
+
 		// Find what depends on this node (outgoing edges)
 		deps := graph[node]
 		if len(waitingFor) > 0 {
@@ -210,7 +210,7 @@ func (d *DependencyResolver) findCycleDetails(
 			details += fmt.Sprintf("  - %s (%s) has %d unresolved incoming dependencies\n", node, resourceInfo, inDegree[node])
 		}
 	}
-	
+
 	// Try to find a specific cycle path using DFS
 	cyclePath := d.findCyclePath(graph, cycleNodes[0], make(map[string]bool), []string{})
 	if len(cyclePath) > 0 {
@@ -224,15 +224,15 @@ func (d *DependencyResolver) findCycleDetails(
 		}
 		details += fmt.Sprintf("\nDetected cycle: %s", strings.Join(pathDetails, " → "))
 	}
-	
+
 	return details
 }
 
 // findCyclePath uses DFS to find a cycle path starting from a given node
 func (d *DependencyResolver) findCyclePath(
-	graph map[string][]string, 
-	start string, 
-	visited map[string]bool, 
+	graph map[string][]string,
+	start string,
+	visited map[string]bool,
 	path []string,
 ) []string {
 	// Check if we've found a cycle
@@ -242,11 +242,11 @@ func (d *DependencyResolver) findCyclePath(
 			return path[i:]
 		}
 	}
-	
+
 	// Mark as visited
 	visited[start] = true
 	path = append(path, start)
-	
+
 	// DFS on dependencies
 	for _, dep := range graph[start] {
 		if visited[dep] && contains(path, dep) {
@@ -263,14 +263,13 @@ func (d *DependencyResolver) findCyclePath(
 				return cyclePath
 			}
 		}
-		
+
 		if !visited[dep] {
 			if cyclePath := d.findCyclePath(graph, dep, visited, path); len(cyclePath) > 0 {
 				return cyclePath
 			}
 		}
 	}
-	
+
 	return nil
 }
-

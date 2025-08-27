@@ -5,11 +5,11 @@ import (
 	"errors"
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -105,7 +105,7 @@ func TestExecutor_deleteAPI(t *testing.T) {
 						},
 					},
 				}, nil)
-				
+
 				// Mock DeleteAPI
 				m.On("DeleteAPI", mock.Anything, "api-123", mock.Anything).
 					Return(&kkOps.DeleteAPIResponse{}, nil)
@@ -165,7 +165,7 @@ func TestExecutor_deleteAPI(t *testing.T) {
 						},
 					},
 				}, nil)
-				
+
 				// Delete won't be called because API is not found in managed APIs
 				// This is correct behavior - we only delete APIs we manage
 			},
@@ -220,7 +220,7 @@ func TestExecutor_deleteAPI(t *testing.T) {
 						},
 					},
 				}, nil)
-				
+
 				// Mock DeleteAPI to fail
 				m.On("DeleteAPI", mock.Anything, "api-fail", mock.Anything).
 					Return(nil, errors.New("API error"))
@@ -235,15 +235,15 @@ func TestExecutor_deleteAPI(t *testing.T) {
 			// Setup
 			mockAPI := new(MockAPIAPI)
 			tt.setupMock(mockAPI)
-			
+
 			client := state.NewClient(state.ClientConfig{
 				APIAPI: mockAPI,
 			})
 			executor := New(client, nil, false)
-			
+
 			// Execute
 			err := executor.deleteAPI(testContextWithLogger(), tt.change)
-			
+
 			// Verify
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -253,7 +253,7 @@ func TestExecutor_deleteAPI(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
-			
+
 			mockAPI.AssertExpectations(t)
 		})
 	}
@@ -280,7 +280,7 @@ func TestExecutor_createAPI(t *testing.T) {
 					},
 				},
 				Protection: false,
-				Namespace: "default",
+				Namespace:  "default",
 			},
 			setupMock: func(m *MockAPIAPI) {
 				m.On("CreateAPI", mock.Anything, mock.MatchedBy(func(req kkComps.CreateAPIRequest) bool {
@@ -308,7 +308,7 @@ func TestExecutor_createAPI(t *testing.T) {
 					"name": "protected-api",
 				},
 				Protection: true,
-				Namespace: "default",
+				Namespace:  "default",
 			},
 			setupMock: func(m *MockAPIAPI) {
 				m.On("CreateAPI", mock.Anything, mock.MatchedBy(func(req kkComps.CreateAPIRequest) bool {
@@ -332,15 +332,15 @@ func TestExecutor_createAPI(t *testing.T) {
 			// Setup
 			mockAPI := new(MockAPIAPI)
 			tt.setupMock(mockAPI)
-			
+
 			client := state.NewClient(state.ClientConfig{
 				APIAPI: mockAPI,
 			})
 			executor := New(client, nil, false)
-			
+
 			// Execute
 			id, err := executor.createAPI(testContextWithLogger(), tt.change)
-			
+
 			// Verify
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -348,9 +348,8 @@ func TestExecutor_createAPI(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.wantID, id)
 			}
-			
+
 			mockAPI.AssertExpectations(t)
 		})
 	}
 }
-

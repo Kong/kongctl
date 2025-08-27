@@ -81,7 +81,7 @@ func TestDenormalizeLabels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := DenormalizeLabels(tt.input)
-			
+
 			// Verify structure
 			if len(tt.input) == 0 && result == nil {
 				return
@@ -89,7 +89,7 @@ func TestDenormalizeLabels(t *testing.T) {
 			if len(tt.input) > 0 && len(result) != len(tt.input) {
 				t.Errorf("DenormalizeLabels() length = %d, want %d", len(result), len(tt.input))
 			}
-			
+
 			// Verify values
 			for k, v := range tt.input {
 				if result[k] == nil || *result[k] != v {
@@ -101,7 +101,6 @@ func TestDenormalizeLabels(t *testing.T) {
 }
 
 func TestAddManagedLabels(t *testing.T) {
-	
 	tests := []struct {
 		name   string
 		input  map[string]string
@@ -397,7 +396,7 @@ func checkManagedLabels(t *testing.T, labels map[string]string, _ string) {
 	if labels[NamespaceKey] != "default" {
 		t.Errorf("Expected %s=default, got %s", NamespaceKey, labels[NamespaceKey])
 	}
-	
+
 	// Protected label should not be added by AddManagedLabels anymore
 	// It's handled separately by executors
 }

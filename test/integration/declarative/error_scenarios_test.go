@@ -14,12 +14,12 @@ import (
 	"testing"
 	"time"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/konnect/helpers"
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -102,46 +102,46 @@ func TestExecutorAPIErrors(t *testing.T) {
 			// Create test configuration
 			configDir := t.TempDir()
 			configFile := filepath.Join(configDir, "config.yaml")
-			
+
 			config := `
 portals:
   - ref: error-portal
     name: "Error Test Portal"
     description: "Portal for API error testing"
 `
-			require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-			
+			require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 			// Set up test context with mocks
 			ctx := SetupTestContext(t)
-			
+
 			// Get the mock SDK and set up expectations
 			sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
 			konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
 			mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
 			mockPortalAPI := mockSDK.GetPortalAPI().(*MockPortalAPI)
-			
+
 			// Set up mock API behavior for the test case
 			tc.mockSetup(mockPortalAPI)
-			
-			// Set up auth and API mocks 
+
+			// Set up auth and API mocks
 			setupEmptyAPIMocks(mockSDK)
-			
+
 			// Create command
 			cmd, err := declarative.NewDeclarativeCmd(verbs.VerbValue(tc.command))
 			require.NoError(t, err)
-			
+
 			// Set context
 			cmd.SetContext(ctx)
-			
+
 			// Capture output
 			var output bytes.Buffer
 			cmd.SetOut(&output)
 			cmd.SetErr(&output)
-			
+
 			// Run command
 			cmd.SetArgs([]string{"-f", configFile, "--auto-approve"})
 			err = cmd.Execute()
-			
+
 			// Verify error handling
 			if tc.expectFailure {
 				if err != nil {
@@ -155,7 +155,7 @@ portals:
 			} else {
 				require.NoError(t, err)
 			}
-			
+
 			// Verify mocks were called as expected
 			mockPortalAPI.AssertExpectations(t)
 		})
@@ -166,7 +166,7 @@ func TestExecutorPartialFailure(t *testing.T) {
 	// Create test configuration with multiple portals
 	configDir := t.TempDir()
 	configFile := filepath.Join(configDir, "multi-portal.yaml")
-	
+
 	config := `
 portals:
   - ref: success-portal
@@ -179,17 +179,17 @@ portals:
     name: "Another Success Portal"
     description: "This should also succeed"
 `
-	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-	
+	require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 	// Set up test context with mocks
 	ctx := SetupTestContext(t)
-	
+
 	// Get the mock SDK and set up expectations
 	sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
 	konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
 	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
 	mockPortalAPI := mockSDK.GetPortalAPI().(*MockPortalAPI)
-	
+
 	// Mock empty current state
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		StatusCode: 200,
@@ -200,7 +200,7 @@ portals:
 			},
 		},
 	}, nil)
-	
+
 	// Mock successful creation for first portal
 	mockPortalAPI.On("CreatePortal", mock.Anything, mock.MatchedBy(func(portal kkComps.CreatePortal) bool {
 		return portal.Name == "Success Portal"
@@ -216,14 +216,14 @@ portals:
 			UpdatedAt:   time.Now(),
 		},
 	}, nil)
-	
+
 	// Mock failure for second portal
 	mockPortalAPI.On("CreatePortal", mock.Anything, mock.MatchedBy(func(portal kkComps.CreatePortal) bool {
 		return portal.Name == "Failure Portal"
 	})).Return(&kkOps.CreatePortalResponse{
 		StatusCode: 422,
 	}, nil)
-	
+
 	// Mock successful creation for third portal
 	mockPortalAPI.On("CreatePortal", mock.Anything, mock.MatchedBy(func(portal kkComps.CreatePortal) bool {
 		return portal.Name == "Another Success Portal"
@@ -239,34 +239,34 @@ portals:
 			UpdatedAt:   time.Now(),
 		},
 	}, nil)
-	
+
 	// Set up auth and API mocks
 	setupEmptyAPIMocks(mockSDK)
-	
+
 	// Create apply command
 	cmd, err := declarative.NewDeclarativeCmd(verbs.Apply)
 	require.NoError(t, err)
-	
+
 	// Set context
 	cmd.SetContext(ctx)
-	
+
 	// Capture output
 	var output bytes.Buffer
 	cmd.SetOut(&output)
 	cmd.SetErr(&output)
-	
+
 	// Run apply with auto-approve
 	cmd.SetArgs([]string{"-f", configFile, "--auto-approve"})
 	err = cmd.Execute()
-	
+
 	// The command should complete but report partial failure
 	// In this case, we expect the command to complete with some errors
 	outputStr := output.String()
-	
+
 	// Check that successful operations are reported
 	assert.Contains(t, outputStr, "Creating portal: success-portal")
 	assert.Contains(t, outputStr, "Creating portal: another-success-portal")
-	
+
 	// The failure should be handled gracefully - either as an error or in the execution result
 	// depending on the executor implementation
 	if err != nil {
@@ -276,7 +276,7 @@ portals:
 		// If the command succeeds with partial failure, the output should indicate the failure
 		assert.Contains(t, outputStr, "failure-portal")
 	}
-	
+
 	// Verify mocks were called as expected
 	mockPortalAPI.AssertExpectations(t)
 }
@@ -308,27 +308,27 @@ portals:
 			expectedError: "protected",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create test configuration
 			configDir := t.TempDir()
 			configFile := filepath.Join(configDir, "protected.yaml")
-			require.NoError(t, os.WriteFile(configFile, []byte(tc.config), 0600))
-			
+			require.NoError(t, os.WriteFile(configFile, []byte(tc.config), 0o600))
+
 			// Set up test context with mocks
 			ctx := SetupTestContext(t)
-			
+
 			// Get the mock SDK and set up expectations
 			sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
 			konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
 			mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
 			mockPortalAPI := mockSDK.GetPortalAPI().(*MockPortalAPI)
-			
+
 			// Mock current state with a protected portal
 			protectedPortal := CreateManagedPortal("Protected Portal", "protected-id", "Original description")
 			protectedPortal.Labels[labels.ProtectedKey] = "true"
-			
+
 			mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 				StatusCode: 200,
 				ListPortalsResponse: &kkComps.ListPortalsResponse{
@@ -338,30 +338,30 @@ portals:
 					},
 				},
 			}, nil)
-			
+
 			// Set up auth and API mocks
 			setupEmptyAPIMocks(mockSDK)
-			
+
 			// Create command
 			cmd, err := declarative.NewDeclarativeCmd(verbs.VerbValue(tc.command))
 			require.NoError(t, err)
-			
+
 			// Set context
 			cmd.SetContext(ctx)
-			
+
 			// Capture output
 			var output bytes.Buffer
 			cmd.SetOut(&output)
 			cmd.SetErr(&output)
-			
+
 			// Run command - should fail due to protection violation
 			cmd.SetArgs([]string{"-f", configFile, "--auto-approve"})
 			err = cmd.Execute()
-			
+
 			// Verify protection violation is detected
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tc.expectedError)
-			
+
 			// Verify no API modification calls were made (fail-fast behavior)
 			mockPortalAPI.AssertExpectations(t)
 		})
@@ -414,56 +414,56 @@ func TestNetworkFailures(t *testing.T) {
 			expectedError: "network is unreachable",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create test configuration
 			configDir := t.TempDir()
 			configFile := filepath.Join(configDir, "network-test.yaml")
-			
+
 			config := `
 portals:
   - ref: network-test-portal
     name: "Network Test Portal"
     description: "Portal for network failure testing"
 `
-			require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-			
+			require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 			// Set up test context with mocks
 			ctx := SetupTestContext(t)
-			
+
 			// Get the mock SDK and set up expectations
 			sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
 			konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
 			mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
 			mockPortalAPI := mockSDK.GetPortalAPI().(*MockPortalAPI)
-			
+
 			// Set up network failure mock
 			tc.mockSetup(mockPortalAPI)
-			
+
 			// Set up auth and API mocks (though they may not be called due to early failure)
 			setupEmptyAPIMocks(mockSDK)
-			
+
 			// Create apply command
 			cmd, err := declarative.NewDeclarativeCmd("apply")
 			require.NoError(t, err)
-			
+
 			// Set context
 			cmd.SetContext(ctx)
-			
+
 			// Capture output
 			var output bytes.Buffer
 			cmd.SetOut(&output)
 			cmd.SetErr(&output)
-			
+
 			// Run command - should fail due to network error
 			cmd.SetArgs([]string{"-f", configFile, "--auto-approve"})
 			err = cmd.Execute()
-			
+
 			// Verify network failure is handled gracefully
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tc.expectedError)
-			
+
 			// Verify mocks were called as expected
 			mockPortalAPI.AssertExpectations(t)
 		})
@@ -526,43 +526,41 @@ apis:
 			expectedError: "unknown portal",
 		},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create test configuration file
 			configDir := t.TempDir()
 			configFile := filepath.Join(configDir, "invalid.yaml")
-			require.NoError(t, os.WriteFile(configFile, []byte(tc.config), 0600))
-			
+			require.NoError(t, os.WriteFile(configFile, []byte(tc.config), 0o600))
+
 			// Set up test context
 			ctx := SetupTestContext(t)
-			
-			
+
 			// Create apply command
 			cmd, err := declarative.NewDeclarativeCmd(verbs.Apply)
 			require.NoError(t, err)
-			
+
 			// Set context
 			cmd.SetContext(ctx)
-			
+
 			// Capture output
 			var output bytes.Buffer
 			cmd.SetOut(&output)
 			cmd.SetErr(&output)
-			
+
 			// Run command - should fail due to invalid configuration
 			cmd.SetArgs([]string{"-f", configFile, "--auto-approve"})
 			err = cmd.Execute()
-			
+
 			// Verify configuration validation catches the error
 			require.Error(t, err)
-			
+
 			// Check that the error message contains expected information
 			errorMsg := strings.ToLower(err.Error())
 			expectedMsg := strings.ToLower(tc.expectedError)
-			assert.Contains(t, errorMsg, expectedMsg, 
+			assert.Contains(t, errorMsg, expectedMsg,
 				"Expected error to contain '%s', but got: %s", tc.expectedError, err.Error())
 		})
 	}
 }
-

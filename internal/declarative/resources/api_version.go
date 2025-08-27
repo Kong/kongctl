@@ -6,16 +6,17 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/kong/kongctl/internal/util/normalizers"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/util/normalizers"
 )
 
 // APIVersionResource represents an API version in declarative configuration
 type APIVersionResource struct {
-	kkComps.CreateAPIVersionRequest `yaml:",inline" json:",inline"`
-	Ref     string       `yaml:"ref" json:"ref"`
-	API     string       `yaml:"api,omitempty" json:"api,omitempty"` // Parent API reference (for root-level definitions)
-	
+	kkComps.CreateAPIVersionRequest `       yaml:",inline"       json:",inline"`
+	Ref                             string `yaml:"ref"           json:"ref"`
+	// Parent API reference (for root-level definitions)
+	API string `yaml:"api,omitempty" json:"api,omitempty"`
+
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
 }
@@ -85,30 +86,30 @@ func (v *APIVersionResource) TryMatchKonnectResource(konnectResource any) bool {
 	// For API versions, we match by version string
 	// Use reflection to access fields from state.APIVersion
 	val := reflect.ValueOf(konnectResource)
-	
+
 	// Handle pointer types
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
 	}
-	
+
 	// Ensure we have a struct
 	if val.Kind() != reflect.Struct {
 		return false
 	}
-	
+
 	// Look for Version and ID fields
 	versionField := val.FieldByName("Version")
 	idField := val.FieldByName("ID")
-	
+
 	// Extract values if fields are valid
-	if versionField.IsValid() && idField.IsValid() && 
-	   versionField.Kind() == reflect.String && idField.Kind() == reflect.String {
+	if versionField.IsValid() && idField.IsValid() &&
+		versionField.Kind() == reflect.String && idField.Kind() == reflect.String {
 		if v.Version != nil && versionField.String() == *v.Version {
 			v.konnectID = idField.String()
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -124,40 +125,40 @@ func (v APIVersionResource) GetParentRef() *ResourceRef {
 func (v *APIVersionResource) UnmarshalJSON(data []byte) error {
 	// Temporary struct to capture all fields
 	var temp struct {
-		Ref           string      `json:"ref"`
-		API           string      `json:"api,omitempty"`
-		Name          string      `json:"name,omitempty"`
-		Description   string      `json:"description,omitempty"`
-		Version       string      `json:"version"`
-		PublishStatus string      `json:"publish_status,omitempty"`
-		Deprecated    bool        `json:"deprecated,omitempty"`
-		SunsetDate    string      `json:"sunset_date,omitempty"`
-		Kongctl       any `json:"kongctl,omitempty"`
-		Spec          any `json:"spec,omitempty"`
+		Ref           string `json:"ref"`
+		API           string `json:"api,omitempty"`
+		Name          string `json:"name,omitempty"`
+		Description   string `json:"description,omitempty"`
+		Version       string `json:"version"`
+		PublishStatus string `json:"publish_status,omitempty"`
+		Deprecated    bool   `json:"deprecated,omitempty"`
+		SunsetDate    string `json:"sunset_date,omitempty"`
+		Kongctl       any    `json:"kongctl,omitempty"`
+		Spec          any    `json:"spec,omitempty"`
 	}
-	
+
 	// Use a decoder with DisallowUnknownFields to catch typos
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	
+
 	if err := decoder.Decode(&temp); err != nil {
 		return err
 	}
-	
+
 	// Set our custom fields
 	v.Ref = temp.Ref
 	v.API = temp.API
-	
+
 	// Check if kongctl field was provided and reject it
 	if temp.Kongctl != nil {
 		return fmt.Errorf("kongctl metadata is not supported on child resources (API versions)")
 	}
-	
+
 	// Map to SDK fields embedded in CreateAPIVersionRequest
 	sdkData := map[string]any{
 		"version": temp.Version,
 	}
-	
+
 	if temp.PublishStatus != "" {
 		sdkData["publish_status"] = temp.PublishStatus
 	}
@@ -167,11 +168,11 @@ func (v *APIVersionResource) UnmarshalJSON(data []byte) error {
 	if temp.SunsetDate != "" {
 		sdkData["sunset_date"] = temp.SunsetDate
 	}
-	
+
 	// Handle spec field - it could be a string, a map, or a wrapped object
 	if temp.Spec != nil {
 		var specContent string
-		
+
 		// Check if it's already in the SDK format with content field
 		if specMap, ok := temp.Spec.(map[string]any); ok {
 			if content, hasContent := specMap["content"].(string); hasContent {
@@ -196,28 +197,28 @@ func (v *APIVersionResource) UnmarshalJSON(data []byte) error {
 			}
 			specContent = string(specJSON)
 		}
-		
+
 		// Normalize spec to JSON before storing
 		normalizedSpec, err := normalizers.SpecToJSON(specContent)
 		if err != nil {
 			return fmt.Errorf("failed to normalize spec: %w", err)
 		}
 		specContent = normalizedSpec
-		
+
 		sdkData["spec"] = map[string]any{
 			"content": specContent,
 		}
 	}
-	
+
 	sdkBytes, err := json.Marshal(sdkData)
 	if err != nil {
 		return err
 	}
-	
+
 	// Unmarshal into the embedded SDK type
 	if err := json.Unmarshal(sdkBytes, &v.CreateAPIVersionRequest); err != nil {
 		return err
 	}
-	
+
 	return nil
 }

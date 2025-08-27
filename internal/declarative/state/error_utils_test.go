@@ -66,7 +66,7 @@ func TestValidateResponse_NilResponse(t *testing.T) {
 	if errMsg == "" {
 		t.Error("Error message should not be empty")
 	}
-	
+
 	// Check that it contains "test operation" and "response missing" and "data"
 	if !errorContains(err, "test operation") {
 		t.Errorf("Expected error to contain 'test operation', got: %q", errMsg)
@@ -241,7 +241,7 @@ func TestWrapAPIError_ErrorChaining(t *testing.T) {
 	if !errorContains(finalErr, "failed to list resources") {
 		t.Errorf("Expected final error to contain 'failed to list resources', got: %q", errMsg)
 	}
-	
+
 	// The error should chain properly through fmt.Errorf's %w verb
 	if errMsg == "" {
 		t.Error("Final error should not be empty")
@@ -259,27 +259,27 @@ func errorContains(err error, substr string) bool {
 // Test concurrent error creation (for thread safety)
 func TestWrapAPIError_Concurrent(t *testing.T) {
 	originalErr := fmt.Errorf("base error")
-	
+
 	done := make(chan bool, 100)
-	
+
 	// Create 100 concurrent error wrappings
 	for i := 0; i < 100; i++ {
 		go func(id int) {
 			defer func() { done <- true }()
-			
+
 			opts := &ErrorWrapperOptions{
 				ResourceType: "test",
 				ResourceName: fmt.Sprintf("resource-%d", id),
 				UseEnhanced:  true,
 			}
-			
+
 			wrappedErr := WrapAPIError(originalErr, "test operation", opts)
 			if wrappedErr == nil {
 				t.Errorf("Expected wrapped error, got nil for goroutine %d", id)
 			}
 		}(i)
 	}
-	
+
 	// Wait for all goroutines to complete
 	for i := 0; i < 100; i++ {
 		<-done

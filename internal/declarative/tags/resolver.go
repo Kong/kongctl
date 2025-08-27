@@ -83,12 +83,12 @@ func (r *ResolverRegistry) processNode(node *yaml.Node) error {
 			if err := r.replaceNodeWithValue(node, resolved); err != nil {
 				return fmt.Errorf("failed to replace node: %w", err)
 			}
-			
+
 			// After replacement, the node content has changed, so we should return
 			// to avoid processing the new content as if it had tags
 			return nil
 		}
-		
+
 		// Unknown tag - return an error
 		return fmt.Errorf("unsupported YAML tag: %s", node.Tag)
 	}

@@ -8,10 +8,10 @@ import (
 
 // PortalCustomizationResource represents portal customization settings
 type PortalCustomizationResource struct {
-	kkComps.PortalCustomization `yaml:",inline" json:",inline"`
-	Ref    string `yaml:"ref,omitempty" json:"ref,omitempty"`
-	Portal string `yaml:"portal,omitempty" json:"portal,omitempty"` // Parent portal reference
-	
+	kkComps.PortalCustomization `       yaml:",inline"          json:",inline"`
+	Ref                         string `yaml:"ref,omitempty"    json:"ref,omitempty"`
+	Portal                      string `yaml:"portal,omitempty" json:"portal,omitempty"` // Parent portal reference
+
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
 }
@@ -26,7 +26,7 @@ func (c PortalCustomizationResource) Validate() error {
 	if err := ValidateRef(c.Ref); err != nil {
 		return fmt.Errorf("invalid customization ref: %w", err)
 	}
-	
+
 	// Theme validation
 	if c.Theme != nil {
 		if c.Theme.Colors != nil && c.Theme.Colors.Primary != nil {
@@ -36,7 +36,7 @@ func (c PortalCustomizationResource) Validate() error {
 			}
 		}
 	}
-	
+
 	// Menu validation
 	if c.Menu != nil {
 		// Validate menu items
@@ -51,7 +51,7 @@ func (c PortalCustomizationResource) Validate() error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 

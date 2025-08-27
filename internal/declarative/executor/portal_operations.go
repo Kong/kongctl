@@ -5,31 +5,31 @@ import (
 	"fmt"
 	"log/slog"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/errors"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/log"
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // createPortal handles CREATE operations for portals
 func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChange) (string, error) {
 	// Get logger from context
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
-	
+
 	logger.Debug("Creating portal",
 		slog.Any("fields", change.Fields))
-	
+
 	// Extract portal fields
 	var portal kkComps.CreatePortal
-	
+
 	// Map required fields
 	if err := common.ValidateRequiredFields(change.Fields, []string{"name"}); err != nil {
 		return "", common.WrapWithResourceContext(err, "portal", "")
 	}
 	portal.Name = common.ExtractResourceName(change.Fields)
-	
+
 	// Map optional fields using utilities (SDK uses double pointers)
 	common.MapOptionalStringFieldToPtr(&portal.Description, change.Fields, "description")
 	common.MapOptionalStringFieldToPtr(&portal.DisplayName, change.Fields, "display_name")
@@ -37,31 +37,31 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 	common.MapOptionalBoolFieldToPtr(&portal.RbacEnabled, change.Fields, "rbac_enabled")
 	common.MapOptionalBoolFieldToPtr(&portal.AutoApproveDevelopers, change.Fields, "auto_approve_developers")
 	common.MapOptionalBoolFieldToPtr(&portal.AutoApproveApplications, change.Fields, "auto_approve_applications")
-	
+
 	if defaultAPIVisibility, ok := change.Fields["default_api_visibility"].(string); ok {
 		visibility := kkComps.DefaultAPIVisibility(defaultAPIVisibility)
 		portal.DefaultAPIVisibility = &visibility
 	}
-	
+
 	if defaultPageVisibility, ok := change.Fields["default_page_visibility"].(string); ok {
 		visibility := kkComps.DefaultPageVisibility(defaultPageVisibility)
 		portal.DefaultPageVisibility = &visibility
 	}
-	
+
 	if defaultAppAuthStrategyID, ok := change.Fields["default_application_auth_strategy_id"].(string); ok {
 		portal.DefaultApplicationAuthStrategyID = &defaultAppAuthStrategyID
 	}
-	
+
 	// Handle labels using centralized helper
 	userLabels := labels.ExtractLabelsFromField(change.Fields["labels"])
 	portalLabels := labels.BuildCreateLabels(userLabels, change.Namespace, change.Protection)
-	
+
 	// Convert to pointer map since portals use map[string]*string
 	portal.Labels = labels.ConvertStringMapToPointerMap(portalLabels)
-	
+
 	logger.Debug("Portal will have labels",
 		slog.Any("labels", portal.Labels))
-	
+
 	// Create the portal
 	logger.Debug("Final portal before creation",
 		slog.String("name", portal.Name),
@@ -70,7 +70,7 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 	if err != nil {
 		return "", common.FormatAPIError("portal", portal.Name, "create", err)
 	}
-	
+
 	return resp.ID, nil
 }
 
@@ -78,7 +78,7 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChange) (string, error) {
 	// Get logger from context
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
-	
+
 	// First, validate protection status at execution time
 	portalName := getResourceName(change.Fields)
 	portal, err := e.client.GetPortalByName(ctx, portalName)
@@ -86,17 +86,17 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 		return "", errors.FormatResourceError("fetch", "portal", portalName, change.Namespace, err)
 	}
 	if portal == nil {
-		return "", errors.FormatValidationError("portal", portalName, "resource", 
+		return "", errors.FormatValidationError("portal", portalName, "resource",
 			"no longer exists - it may have been deleted by another process")
 	}
-	
+
 	// Check if portal is protected
 	// Protection changes are always allowed (to unprotect a resource)
 	isProtected := portal.NormalizedLabels[labels.ProtectedKey] == "true"
-	
+
 	// Check if this is a protection change
 	isProtectionChange := false
-	
+
 	// Handle both direct struct and map from JSON deserialization
 	switch p := change.Protection.(type) {
 	case planner.ProtectionChange:
@@ -109,15 +109,15 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 			}
 		}
 	}
-	
+
 	if isProtected && !isProtectionChange {
 		// Regular update to a protected resource is not allowed
 		return "", errors.FormatProtectionError("portal", portalName, "update")
 	}
-	
+
 	// Build sparse update request - only include fields that changed
 	var updatePortal kkComps.UpdatePortal
-	
+
 	// Only include fields that are in the change.Fields map
 	// These represent actual changes detected by the planner
 	for field, value := range change.Fields {
@@ -164,19 +164,24 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 				vis := kkComps.UpdatePortalDefaultPageVisibility(visibility)
 				updatePortal.DefaultPageVisibility = &vis
 			}
-		// Skip "labels" as they're handled separately below
+			// Skip "labels" as they're handled separately below
 		}
 	}
-	
+
 	// Handle labels using centralized helper
 	desiredLabels := labels.ExtractLabelsFromField(change.Fields["labels"])
 	if desiredLabels != nil {
 		// Get current labels if passed from planner
 		currentLabels := labels.ExtractLabelsFromField(change.Fields[planner.FieldCurrentLabels])
-		
+
 		// Build update labels with removal support
-		updatePortal.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, change.Namespace, change.Protection)
-		
+		updatePortal.Labels = labels.BuildUpdateLabels(
+			desiredLabels,
+			currentLabels,
+			change.Namespace,
+			change.Protection,
+		)
+
 		logger.Debug("Update request labels (with removal support)",
 			slog.Any("labels", updatePortal.Labels))
 	} else {
@@ -187,17 +192,17 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 				currentLabels[k] = v
 			}
 		}
-		
+
 		// Build labels just for protection update
 		updatePortal.Labels = labels.BuildUpdateLabels(currentLabels, currentLabels, change.Namespace, change.Protection)
 	}
-	
+
 	// Update the portal
 	resp, err := e.client.UpdatePortal(ctx, change.ResourceID, updatePortal, change.Namespace)
 	if err != nil {
 		return "", err
 	}
-	
+
 	return resp.ID, nil
 }
 
@@ -212,23 +217,23 @@ func (e *Executor) deletePortal(ctx context.Context, change planner.PlannedChang
 		// Portal already deleted, consider this success
 		return nil
 	}
-	
+
 	// Check if portal is protected
 	isProtected := portal.NormalizedLabels[labels.ProtectedKey] == "true"
 	if isProtected {
 		return fmt.Errorf("resource is protected and cannot be deleted")
 	}
-	
+
 	// Verify it's a managed resource
 	if !labels.IsManagedResource(portal.NormalizedLabels) {
 		return fmt.Errorf("cannot delete portal: not a KONGCTL-managed resource")
 	}
-	
+
 	// Delete the portal with force=true to cascade delete child resources
 	err = e.client.DeletePortal(ctx, change.ResourceID, true)
 	if err != nil {
 		return fmt.Errorf("failed to delete portal: %w", err)
 	}
-	
+
 	return nil
 }

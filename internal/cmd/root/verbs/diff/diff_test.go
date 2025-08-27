@@ -154,7 +154,7 @@ func TestDiffCmd_OutputFormats(t *testing.T) {
 	// Write plan file
 	tempDir := t.TempDir()
 	planFile := filepath.Join(tempDir, "test-plan.json")
-	require.NoError(t, os.WriteFile(planFile, planData, 0600))
+	require.NoError(t, os.WriteFile(planFile, planData, 0o600))
 
 	tests := []struct {
 		name           string
@@ -167,12 +167,12 @@ func TestDiffCmd_OutputFormats(t *testing.T) {
 			validateOutput: func(t *testing.T, output string) {
 				// Check summary
 				assert.Contains(t, output, "Plan: 1 to add, 1 to change, 1 to destroy")
-				
+
 				// Check individual changes
 				assert.Contains(t, output, `+ [1:c:portal:new-portal] portal "new-portal" will be created`)
 				assert.Contains(t, output, `~ [2:u:api:existing-api] api "existing-api" will be updated`)
 				assert.Contains(t, output, `- [3:d:api:old-api] api "old-api" will be destroyed`)
-				
+
 				// Check field details
 				assert.Contains(t, output, `name: "New Portal"`)
 				assert.Contains(t, output, `description: "Old description" => "Updated description"`)
@@ -185,7 +185,7 @@ func TestDiffCmd_OutputFormats(t *testing.T) {
 				var outputPlan planner.Plan
 				err := json.Unmarshal([]byte(output), &outputPlan)
 				require.NoError(t, err)
-				
+
 				assert.Equal(t, "1.0", outputPlan.Metadata.Version)
 				assert.Len(t, outputPlan.Changes, 3)
 				assert.Equal(t, 3, outputPlan.Summary.TotalChanges)
@@ -198,7 +198,7 @@ func TestDiffCmd_OutputFormats(t *testing.T) {
 				var outputPlan planner.Plan
 				err := yaml.Unmarshal([]byte(output), &outputPlan)
 				require.NoError(t, err)
-				
+
 				assert.Equal(t, "1.0", outputPlan.Metadata.Version)
 				assert.Len(t, outputPlan.Changes, 3)
 				assert.Equal(t, 3, outputPlan.Summary.TotalChanges)
@@ -316,7 +316,7 @@ func TestDiffCmd_EmptyPlan(t *testing.T) {
 	// Write plan file
 	tempDir := t.TempDir()
 	planFile := filepath.Join(tempDir, "empty-plan.json")
-	require.NoError(t, os.WriteFile(planFile, planData, 0600))
+	require.NoError(t, os.WriteFile(planFile, planData, 0o600))
 
 	// Create diff command
 	cmd, err := NewDiffCmd()
@@ -324,7 +324,7 @@ func TestDiffCmd_EmptyPlan(t *testing.T) {
 
 	// Verify the command handles empty plans
 	cmd.SetArgs([]string{"--plan", planFile})
-	
+
 	// The command structure should be valid even for empty plans
 	assert.NotNil(t, cmd)
 }
@@ -360,9 +360,9 @@ func TestDiffCmd_InvalidPlanFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tempDir := t.TempDir()
 			planFile := filepath.Join(tempDir, "invalid-plan.json")
-			
+
 			if tt.name != "missing file" {
-				require.NoError(t, os.WriteFile(planFile, []byte(tt.planContent), 0600))
+				require.NoError(t, os.WriteFile(planFile, []byte(tt.planContent), 0o600))
 			} else {
 				// Use non-existent file path
 				planFile = filepath.Join(tempDir, "non-existent.json")
@@ -374,7 +374,7 @@ func TestDiffCmd_InvalidPlanFile(t *testing.T) {
 
 			// The command should be created successfully
 			assert.NotNil(t, cmd)
-			
+
 			// Validate plan flag accepts the path
 			var konnectCmd *cobra.Command
 			for _, subcmd := range cmd.Commands() {

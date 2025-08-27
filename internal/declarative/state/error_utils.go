@@ -114,15 +114,15 @@ func IsResponseValidationError(err error) bool {
 
 // Standard error messages for common scenarios
 const (
-	ErrMsgPortalAPINotConfigured           = "Portal API client not configured"
-	ErrMsgAPIAPINotConfigured              = "API client not configured"
-	ErrMsgAuthStrategyAPINotConfigured     = "app auth API client not configured"
-	ErrMsgAPIVersionAPINotConfigured       = "API version client not configured"
-	ErrMsgAPIPublicationAPINotConfigured   = "API publication client not configured"
-	ErrMsgAPIImplementationAPINotConfigured = "API implementation client not configured"
-	ErrMsgAPIDocumentAPINotConfigured      = "API document client not configured"
-	ErrMsgPortalPageAPINotConfigured       = "portal page API not configured"
-	ErrMsgPortalSnippetAPINotConfigured    = "portal snippet API not configured"
+	ErrMsgPortalAPINotConfigured              = "Portal API client not configured"
+	ErrMsgAPIAPINotConfigured                 = "API client not configured"
+	ErrMsgAuthStrategyAPINotConfigured        = "app auth API client not configured"
+	ErrMsgAPIVersionAPINotConfigured          = "API version client not configured"
+	ErrMsgAPIPublicationAPINotConfigured      = "API publication client not configured"
+	ErrMsgAPIImplementationAPINotConfigured   = "API implementation client not configured"
+	ErrMsgAPIDocumentAPINotConfigured         = "API document client not configured"
+	ErrMsgPortalPageAPINotConfigured          = "portal page API not configured"
+	ErrMsgPortalSnippetAPINotConfigured       = "portal snippet API not configured"
 	ErrMsgPortalCustomizationAPINotConfigured = "portal customization API not configured"
 	ErrMsgPortalCustomDomainAPINotConfigured  = "portal custom domain API not configured"
 )

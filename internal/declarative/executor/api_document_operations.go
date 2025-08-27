@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kong/kongctl/internal/declarative/planner"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/planner"
 )
 
 // createAPIDocument creates a new API document

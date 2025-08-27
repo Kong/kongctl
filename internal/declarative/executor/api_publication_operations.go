@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/util"
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 // createAPIPublication creates a new API publication
@@ -27,21 +27,21 @@ func (e *Executor) createAPIPublication(ctx context.Context, change planner.Plan
 
 	// Get portal ID - check resolved reference first, then field value
 	var portalID string
-	
+
 	// First check if we have a resolved reference
 	if change.References != nil {
 		if ref, exists := change.References["portal_id"]; exists && ref.ID != "" && ref.ID != "[unknown]" {
 			portalID = ref.ID
 		}
 	}
-	
+
 	// If no resolved reference, check field value
 	if portalID == "" {
 		fieldValue, ok := change.Fields["portal_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("portal_id is required for API publication")
 		}
-		
+
 		// If it's a UUID, use it directly
 		if util.IsValidUUID(fieldValue) {
 			portalID = fieldValue
@@ -136,7 +136,7 @@ func (e *Executor) deleteAPIPublication(ctx context.Context, change planner.Plan
 
 	// Extract portal ID from fields or ResourceID
 	var portalID string
-	
+
 	// First try to get portal ID from fields (new format)
 	if pid, ok := change.Fields["portal_id"].(string); ok {
 		portalID = pid
@@ -158,4 +158,3 @@ func (e *Executor) deleteAPIPublication(ctx context.Context, change planner.Plan
 }
 
 // Note: API publications don't support update operations in the SDK
-

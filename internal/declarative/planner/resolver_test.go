@@ -5,12 +5,12 @@ import (
 	"errors"
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util"
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -237,7 +237,6 @@ func (m *MockAPIAPI) ListAPIImplementations(
 	return args.Get(0).(*kkOps.ListAPIImplementationsResponse), args.Error(1)
 }
 
-
 func (m *MockAPIAPI) ListAPIDocuments(
 	ctx context.Context,
 	request kkOps.ListAPIDocumentsRequest,
@@ -262,7 +261,6 @@ func (m *MockAPIAPI) FetchAPIDocument(
 	}
 	return args.Get(0).(*kkOps.FetchAPIDocumentResponse), args.Error(1)
 }
-
 
 func (m *MockAPIAPI) CreateAPIDocument(
 	ctx context.Context,
@@ -392,7 +390,7 @@ func TestResolveReferences_PortalReference(t *testing.T) {
 			ResourceRef:  "dev-portal",
 			Action:       ActionCreate,
 			Fields: map[string]any{
-				"name":                                "Dev Portal",
+				"name":                                 "Dev Portal",
 				"default_application_auth_strategy_id": "basic-auth",
 			},
 		},
@@ -725,9 +723,9 @@ func TestIsUUID(t *testing.T) {
 		{"12345678-1234-5678-1234-567812345678", true},
 		{"a0b1c2d3-e4f5-6789-abcd-ef0123456789", true},
 		{"not-a-uuid", false},
-		{"12345678-1234-5678-1234", false}, // Too short
+		{"12345678-1234-5678-1234", false},                    // Too short
 		{"12345678-1234-5678-1234-567812345678-extra", false}, // Too long
-		{"12345678_1234_5678_1234_567812345678", false}, // Wrong separator
+		{"12345678_1234_5678_1234_567812345678", false},       // Wrong separator
 		{"", false},
 	}
 

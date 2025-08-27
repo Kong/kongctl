@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kong/kongctl/internal/declarative/state"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/state"
 )
 
 // APIImplementationAdapter is a placeholder adapter for API implementations
@@ -21,25 +21,29 @@ func NewAPIImplementationAdapter(client *state.Client) *APIImplementationAdapter
 
 // MapCreateFields is not implemented
 func (a *APIImplementationAdapter) MapCreateFields(_ context.Context, _ *ExecutionContext, _ map[string]any,
-	_ *kkComps.CreateAPIVersionRequest) error {
+	_ *kkComps.CreateAPIVersionRequest,
+) error {
 	return fmt.Errorf("API implementations are not yet supported by the SDK")
 }
 
 // MapUpdateFields is not implemented
 func (a *APIImplementationAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, _ map[string]any,
-	_ *kkComps.APIVersion, _ map[string]string) error {
+	_ *kkComps.APIVersion, _ map[string]string,
+) error {
 	return fmt.Errorf("API implementations are not yet supported by the SDK")
 }
 
 // Create is not implemented
 func (a *APIImplementationAdapter) Create(_ context.Context, _ kkComps.CreateAPIVersionRequest,
-	_ string, _ *ExecutionContext) (string, error) {
+	_ string, _ *ExecutionContext,
+) (string, error) {
 	return "", fmt.Errorf("API implementations are not yet supported by the SDK")
 }
 
 // Update is not implemented
 func (a *APIImplementationAdapter) Update(_ context.Context, _ string, _ kkComps.APIVersion,
-	_ string, _ *ExecutionContext) (string, error) {
+	_ string, _ *ExecutionContext,
+) (string, error) {
 	return "", fmt.Errorf("API implementations are not yet supported by the SDK")
 }
 

@@ -68,7 +68,8 @@ func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, er
 	if e != nil {
 		return nil, fmt.Errorf(
 			`no access token available. Use "%s login konnect" to authenticate or provide a Konnect PAT using the --pat flag`,
-			meta.CLIName)
+			meta.CLIName,
+		)
 	}
 
 	baseURL := cfg.GetString(BaseURLConfigPath)

@@ -41,7 +41,7 @@ func TestLoadPlan(t *testing.T) {
 		},
 		"execution_order": ["1-c-portal"]
 	}`
-	err := os.WriteFile(planFile, []byte(planJSON), 0600)
+	err := os.WriteFile(planFile, []byte(planJSON), 0o600)
 	require.NoError(t, err)
 
 	t.Run("load from file", func(t *testing.T) {
@@ -71,7 +71,7 @@ func TestLoadPlan(t *testing.T) {
 
 	t.Run("invalid JSON", func(t *testing.T) {
 		invalidFile := filepath.Join(tmpDir, "invalid.json")
-		err := os.WriteFile(invalidFile, []byte("not valid json"), 0600)
+		err := os.WriteFile(invalidFile, []byte("not valid json"), 0o600)
 		require.NoError(t, err)
 
 		_, err = LoadPlan(invalidFile, nil)
@@ -86,7 +86,7 @@ func TestLoadPlan(t *testing.T) {
 			}
 		}`
 		invalidFile := filepath.Join(tmpDir, "no-version.json")
-		err := os.WriteFile(invalidFile, []byte(invalidPlan), 0600)
+		err := os.WriteFile(invalidFile, []byte(invalidPlan), 0o600)
 		require.NoError(t, err)
 
 		_, err = LoadPlan(invalidFile, nil)
@@ -101,7 +101,7 @@ func TestLoadPlan(t *testing.T) {
 			}
 		}`
 		invalidFile := filepath.Join(tmpDir, "no-mode.json")
-		err := os.WriteFile(invalidFile, []byte(invalidPlan), 0600)
+		err := os.WriteFile(invalidFile, []byte(invalidPlan), 0o600)
 		require.NoError(t, err)
 
 		_, err = LoadPlan(invalidFile, nil)

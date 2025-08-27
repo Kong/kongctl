@@ -11,7 +11,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
-
 // Options configures plan generation behavior
 type Options struct {
 	Mode PlanMode
@@ -24,14 +23,15 @@ type Planner struct {
 	resolver    *ReferenceResolver
 	depResolver *DependencyResolver
 	changeCount int
-	
+
 	// Generic planner for common operations
 	genericPlanner *GenericPlanner
-	
+
 	// Resource-specific planners
 	portalPlanner       PortalPlanner
 	authStrategyPlanner AuthStrategyPlanner
 	apiPlanner          APIPlanner
+<<<<<<< HEAD
 	
 	// ResourceSet containing all desired resources
 	resources *resources.ResourceSet
@@ -40,6 +40,17 @@ type Planner struct {
 	desiredPortals             []resources.PortalResource
 	desiredPortalPages         []resources.PortalPageResource
 	desiredPortalSnippets      []resources.PortalSnippetResource
+=======
+
+	// Desired resources (set during plan generation)
+	desiredPortals              []resources.PortalResource
+	desiredAuthStrategies       []resources.ApplicationAuthStrategyResource
+	desiredAPIs                 []resources.APIResource
+	desiredAPIVersions          []resources.APIVersionResource
+	desiredAPIPublications      []resources.APIPublicationResource
+	desiredAPIImplementations   []resources.APIImplementationResource
+	desiredAPIDocuments         []resources.APIDocumentResource
+>>>>>>> 8f805c6 (add gofumpt formatting to project)
 	desiredPortalCustomizations []resources.PortalCustomizationResource
 	desiredPortalCustomDomains  []resources.PortalCustomDomainResource
 }
@@ -53,16 +64,16 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 		depResolver: NewDependencyResolver(),
 		changeCount: 0,
 	}
-	
+
 	// Initialize generic planner
 	p.genericPlanner = NewGenericPlanner(p)
-	
+
 	// Initialize resource-specific planners
 	base := NewBasePlanner(p)
 	p.portalPlanner = NewPortalPlanner(base)
 	p.authStrategyPlanner = NewAuthStrategyPlanner(base)
 	p.apiPlanner = NewAPIPlanner(base)
-	
+
 	return p
 }
 
@@ -70,15 +81,15 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, opts Options) (*Plan, error) {
 	// Create base plan
 	basePlan := NewPlan("1.0", "kongctl/dev", opts.Mode)
-	
+
 	// Pre-resolution phase: Resolve resource identities before planning
 	if err := p.resolveResourceIdentities(ctx, rs); err != nil {
 		return nil, fmt.Errorf("failed to resolve resource identities: %w", err)
 	}
-	
+
 	// Extract all unique namespaces from desired resources
 	namespaces := p.getResourceNamespaces(rs)
-	
+
 	// If no namespaces found and we're in sync mode, we need to check existing resources
 	if len(namespaces) == 0 && opts.Mode == PlanModeSync {
 		// Check if we have a namespace from _defaults
@@ -91,12 +102,12 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 			namespaces = []string{DefaultNamespace}
 		}
 	}
-	
+
 	// Log namespace processing
-	p.logger.Debug("Processing namespaces", 
+	p.logger.Debug("Processing namespaces",
 		slog.Int("count", len(namespaces)),
 		slog.Any("namespaces", namespaces))
-	
+
 	// Process each namespace independently
 	for _, namespace := range namespaces {
 		// Create a namespace-specific planner context
@@ -107,16 +118,17 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 			depResolver: p.depResolver,
 			changeCount: p.changeCount,
 		}
-		
+
 		// Initialize generic planner for namespace-specific planner
 		namespacePlanner.genericPlanner = NewGenericPlanner(namespacePlanner)
-		
+
 		// Create new sub-planners for this namespace to ensure they reference
 		// the namespace-specific resources, not the parent's empty lists
 		base := NewBasePlanner(namespacePlanner)
 		namespacePlanner.portalPlanner = NewPortalPlanner(base)
 		namespacePlanner.authStrategyPlanner = NewAuthStrategyPlanner(base)
 		namespacePlanner.apiPlanner = NewAPIPlanner(base)
+<<<<<<< HEAD
 		
 		
 		// Store full ResourceSet for access by planners (enables both filtered views and global lookups)
@@ -129,9 +141,34 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.desiredPortalCustomizations = rs.PortalCustomizations
 		namespacePlanner.desiredPortalCustomDomains = rs.PortalCustomDomains
 		
+=======
+
+		// Filter resources for this namespace
+		var namespaceResources *resources.ResourceSet
+		if namespace == "*" {
+			// Special case for sync mode with empty config
+			namespaceResources = &resources.ResourceSet{}
+		} else {
+			namespaceResources = p.filterResourcesByNamespace(rs, namespace)
+		}
+
+		// Store filtered resources for access by planners
+		namespacePlanner.desiredPortals = namespaceResources.Portals
+		namespacePlanner.desiredAuthStrategies = namespaceResources.ApplicationAuthStrategies
+		namespacePlanner.desiredAPIs = namespaceResources.APIs
+		namespacePlanner.desiredAPIVersions = namespaceResources.APIVersions
+		namespacePlanner.desiredAPIPublications = namespaceResources.APIPublications
+		namespacePlanner.desiredAPIImplementations = namespaceResources.APIImplementations
+		namespacePlanner.desiredAPIDocuments = namespaceResources.APIDocuments
+		namespacePlanner.desiredPortalCustomizations = namespaceResources.PortalCustomizations
+		namespacePlanner.desiredPortalCustomDomains = namespaceResources.PortalCustomDomains
+		namespacePlanner.desiredPortalPages = namespaceResources.PortalPages
+		namespacePlanner.desiredPortalSnippets = namespaceResources.PortalSnippets
+
+>>>>>>> 8f805c6 (add gofumpt formatting to project)
 		// Create a plan for this namespace
 		namespacePlan := NewPlan("1.0", "kongctl/dev", opts.Mode)
-		
+
 		// Generate changes using interface-based planners
 		// Pass the specific namespace to planners instead of wildcard
 		actualNamespace := namespace
@@ -139,10 +176,10 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 			// For sync mode with empty config, we still need to query all namespaces
 			actualNamespace = "*"
 		}
-		
+
 		// Create planner context with namespace
 		plannerCtx := NewConfig(actualNamespace)
-		
+
 		if err := namespacePlanner.authStrategyPlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
 			return nil, fmt.Errorf("failed to plan auth strategy changes for namespace %s: %w", namespace, err)
 		}
@@ -155,15 +192,15 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		if err := namespacePlanner.apiPlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
 			return nil, fmt.Errorf("failed to plan API changes for namespace %s: %w", namespace, err)
 		}
-		
+
 		// Merge namespace plan into base plan
 		basePlan.Changes = append(basePlan.Changes, namespacePlan.Changes...)
 		basePlan.Warnings = append(basePlan.Warnings, namespacePlan.Warnings...)
-		
+
 		// Update change count
 		p.changeCount = namespacePlanner.changeCount
 	}
-	
+
 	// Update the base plan summary after merging all namespace changes
 	basePlan.UpdateSummary()
 
@@ -202,7 +239,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		return nil, fmt.Errorf("failed to resolve dependencies: %w", err)
 	}
 	basePlan.SetExecutionOrder(executionOrder)
-	
+
 	// Reassign change IDs to match execution order
 	p.reassignChangeIDs(basePlan, executionOrder)
 
@@ -250,13 +287,13 @@ func (p *Planner) reassignChangeIDs(plan *Plan, executionOrder []string) {
 			idMapping[oldID] = newID
 		}
 	}
-	
+
 	// Update change IDs
 	for i := range plan.Changes {
 		if newID, ok := idMapping[plan.Changes[i].ID]; ok {
 			plan.Changes[i].ID = newID
 		}
-		
+
 		// Update DependsOn references
 		for j := range plan.Changes[i].DependsOn {
 			if newID, ok := idMapping[plan.Changes[i].DependsOn[j]]; ok {
@@ -264,14 +301,14 @@ func (p *Planner) reassignChangeIDs(plan *Plan, executionOrder []string) {
 			}
 		}
 	}
-	
+
 	// Update execution order with new IDs
 	for i := range plan.ExecutionOrder {
 		if newID, ok := idMapping[plan.ExecutionOrder[i]]; ok {
 			plan.ExecutionOrder[i] = newID
 		}
 	}
-	
+
 	// Update warnings
 	for i := range plan.Warnings {
 		if newID, ok := idMapping[plan.Warnings[i].ChangeID]; ok {
@@ -282,8 +319,8 @@ func (p *Planner) reassignChangeIDs(plan *Plan, executionOrder []string) {
 
 // validateProtection checks if a protected resource would be modified or deleted
 func (p *Planner) validateProtection(
-	resourceType, resourceName string, 
-	currentProtected bool, 
+	resourceType, resourceName string,
+	currentProtected bool,
 	action ActionType,
 ) error {
 	if action == ActionUpdate || action == ActionDelete {
@@ -297,7 +334,7 @@ func (p *Planner) validateProtection(
 			default:
 				actionVerb = "modified"
 			}
-			return fmt.Errorf("%s %q is protected and cannot be %s", 
+			return fmt.Errorf("%s %q is protected and cannot be %s",
 				resourceType, resourceName, actionVerb)
 		}
 	}
@@ -307,7 +344,7 @@ func (p *Planner) validateProtection(
 // validateProtectionWithChange checks if a protected resource would be modified or deleted,
 // but allows protection-only removal
 func (p *Planner) validateProtectionWithChange(
-	resourceType, resourceName string, 
+	resourceType, resourceName string,
 	currentProtected bool,
 	action ActionType,
 	protectionChange *ProtectionChange,
@@ -319,11 +356,11 @@ func (p *Planner) validateProtectionWithChange(
 			return nil
 		}
 		// Block all other updates to protected resources
-		return fmt.Errorf("%s %q is protected and cannot be updated", 
+		return fmt.Errorf("%s %q is protected and cannot be updated",
 			resourceType, resourceName)
 	}
 	if action == ActionDelete && currentProtected {
-		return fmt.Errorf("%s %q is protected and cannot be deleted", 
+		return fmt.Errorf("%s %q is protected and cannot be deleted",
 			resourceType, resourceName)
 	}
 	return nil
@@ -386,20 +423,20 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 	if err := p.resolveAPIIdentities(ctx, rs.APIs); err != nil {
 		return fmt.Errorf("failed to resolve API identities: %w", err)
 	}
-	
+
 	// Resolve Portal identities
 	if err := p.resolvePortalIdentities(ctx, rs.Portals); err != nil {
 		return fmt.Errorf("failed to resolve portal identities: %w", err)
 	}
-	
+
 	// Resolve Auth Strategy identities
 	if err := p.resolveAuthStrategyIdentities(ctx, rs.ApplicationAuthStrategies); err != nil {
 		return fmt.Errorf("failed to resolve auth strategy identities: %w", err)
 	}
-	
+
 	// API child resources are resolved through their parent APIs
 	// so we don't need to resolve them separately here
-	
+
 	return nil
 }
 
@@ -407,29 +444,29 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 func (p *Planner) resolveAPIIdentities(ctx context.Context, apis []resources.APIResource) error {
 	for i := range apis {
 		api := &apis[i]
-		
+
 		// Skip if already resolved
 		if api.GetKonnectID() != "" {
 			continue
 		}
-		
+
 		// Try to find the API using filter
 		filter := api.GetKonnectMonikerFilter()
 		if filter == "" {
 			continue
 		}
-		
+
 		konnectAPI, err := p.client.GetAPIByFilter(ctx, filter)
 		if err != nil {
 			return fmt.Errorf("failed to lookup API %s: %w", api.GetRef(), err)
 		}
-		
+
 		if konnectAPI != nil {
 			// Match found, update the resource
 			api.TryMatchKonnectResource(konnectAPI)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -437,29 +474,29 @@ func (p *Planner) resolveAPIIdentities(ctx context.Context, apis []resources.API
 func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resources.PortalResource) error {
 	for i := range portals {
 		portal := &portals[i]
-		
+
 		// Skip if already resolved
 		if portal.GetKonnectID() != "" {
 			continue
 		}
-		
+
 		// Try to find the portal using filter
 		filter := portal.GetKonnectMonikerFilter()
 		if filter == "" {
 			continue
 		}
-		
+
 		konnectPortal, err := p.client.GetPortalByFilter(ctx, filter)
 		if err != nil {
 			return fmt.Errorf("failed to lookup portal %s: %w", portal.GetRef(), err)
 		}
-		
+
 		if konnectPortal != nil {
 			// Match found, update the resource
 			portal.TryMatchKonnectResource(konnectPortal)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -469,62 +506,151 @@ func (p *Planner) resolveAuthStrategyIdentities(
 ) error {
 	for i := range strategies {
 		strategy := &strategies[i]
-		
+
 		// Skip if already resolved
 		if strategy.GetKonnectID() != "" {
 			continue
 		}
-		
+
 		// Try to find the strategy using filter
 		filter := strategy.GetKonnectMonikerFilter()
 		if filter == "" {
 			continue
 		}
-		
+
 		konnectStrategy, err := p.client.GetAuthStrategyByFilter(ctx, filter)
 		if err != nil {
 			return fmt.Errorf("failed to lookup auth strategy %s: %w", strategy.GetRef(), err)
 		}
-		
+
 		if konnectStrategy != nil {
 			// Match found, update the resource
 			strategy.TryMatchKonnectResource(konnectStrategy)
 		}
 	}
-	
+
 	return nil
 }
 
 // getResourceNamespaces extracts all unique namespaces from the desired resources
 func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	namespaceSet := make(map[string]bool)
-	
+
 	// Extract namespaces from parent resources
 	for _, portal := range rs.Portals {
 		ns := resources.GetNamespace(portal.Kongctl)
 		namespaceSet[ns] = true
 	}
-	
+
 	for _, api := range rs.APIs {
 		ns := resources.GetNamespace(api.Kongctl)
 		namespaceSet[ns] = true
 	}
-	
+
 	for _, strategy := range rs.ApplicationAuthStrategies {
 		ns := resources.GetNamespace(strategy.Kongctl)
 		namespaceSet[ns] = true
 	}
-	
+
 	// Convert set to sorted slice for consistent ordering
 	namespaces := make([]string, 0, len(namespaceSet))
 	for ns := range namespaceSet {
 		namespaces = append(namespaces, ns)
 	}
-	
+
 	// Sort for consistent processing order
 	sort.Strings(namespaces)
-	
+
 	return namespaces
 }
 
 
+<<<<<<< HEAD
+=======
+// filterResourcesByNamespace creates a filtered ResourceSet containing only resources from the specified namespace
+func (p *Planner) filterResourcesByNamespace(rs *resources.ResourceSet, namespace string) *resources.ResourceSet {
+	filtered := &resources.ResourceSet{}
+
+	// Filter parent resources by namespace
+	for _, portal := range rs.Portals {
+		if getNamespace(portal.Kongctl) == namespace {
+			filtered.Portals = append(filtered.Portals, portal)
+		}
+	}
+
+	for _, api := range rs.APIs {
+		if getNamespace(api.Kongctl) == namespace {
+			filtered.APIs = append(filtered.APIs, api)
+		}
+	}
+
+	for _, strategy := range rs.ApplicationAuthStrategies {
+		if getNamespace(strategy.Kongctl) == namespace {
+			filtered.ApplicationAuthStrategies = append(filtered.ApplicationAuthStrategies, strategy)
+		}
+	}
+
+	// For child resources, include them if their parent is in the filtered set
+	// This requires building parent resource ref sets for efficient lookup
+	portalRefs := make(map[string]bool)
+	for _, portal := range filtered.Portals {
+		portalRefs[portal.Ref] = true
+	}
+
+	apiRefs := make(map[string]bool)
+	for _, api := range filtered.APIs {
+		apiRefs[api.Ref] = true
+	}
+
+	// Filter child resources based on parent presence
+	for _, version := range rs.APIVersions {
+		if apiRefs[version.API] {
+			filtered.APIVersions = append(filtered.APIVersions, version)
+		}
+	}
+
+	for _, pub := range rs.APIPublications {
+		if apiRefs[pub.API] {
+			filtered.APIPublications = append(filtered.APIPublications, pub)
+		}
+	}
+
+	for _, impl := range rs.APIImplementations {
+		if apiRefs[impl.API] {
+			filtered.APIImplementations = append(filtered.APIImplementations, impl)
+		}
+	}
+
+	for _, doc := range rs.APIDocuments {
+		if apiRefs[doc.API] {
+			filtered.APIDocuments = append(filtered.APIDocuments, doc)
+		}
+	}
+
+	for _, custom := range rs.PortalCustomizations {
+		if portalRefs[custom.Portal] {
+			filtered.PortalCustomizations = append(filtered.PortalCustomizations, custom)
+		}
+	}
+
+	for _, domain := range rs.PortalCustomDomains {
+		if portalRefs[domain.Portal] {
+			filtered.PortalCustomDomains = append(filtered.PortalCustomDomains, domain)
+		}
+	}
+
+	for _, page := range rs.PortalPages {
+		if portalRefs[page.Portal] {
+			filtered.PortalPages = append(filtered.PortalPages, page)
+		}
+	}
+
+	for _, snippet := range rs.PortalSnippets {
+		if portalRefs[snippet.Portal] {
+			filtered.PortalSnippets = append(filtered.PortalSnippets, snippet)
+		}
+	}
+
+	return filtered
+}
+>>>>>>> 8f805c6 (add gofumpt formatting to project)

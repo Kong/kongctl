@@ -20,14 +20,14 @@ func WithResourceContext(err error, ctx ResourceContext) error {
 	}
 
 	var contextParts []string
-	
+
 	if ctx.Operation != "" {
 		contextParts = append(contextParts, fmt.Sprintf("operation: %s", ctx.Operation))
 	}
-	
+
 	if ctx.ResourceType != "" && ctx.ResourceName != "" {
 		if ctx.Namespace != "" && ctx.Namespace != "*" {
-			contextParts = append(contextParts, 
+			contextParts = append(contextParts,
 				fmt.Sprintf("%s: %s (namespace: %s)", ctx.ResourceType, ctx.ResourceName, ctx.Namespace))
 		} else {
 			contextParts = append(contextParts, fmt.Sprintf("%s: %s", ctx.ResourceType, ctx.ResourceName))

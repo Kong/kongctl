@@ -15,10 +15,9 @@ import (
 
 // TestCompleteMultiResourceScenario tests a complex scenario with APIs, portals, and child resources
 func TestCompleteMultiResourceScenario(t *testing.T) {
-	
 	// Create test directory structure
 	tempDir := t.TempDir()
-	
+
 	// Create external spec file
 	specContent := `{
 		"openapi": "3.0.0",
@@ -40,9 +39,9 @@ func TestCompleteMultiResourceScenario(t *testing.T) {
 		}
 	}`
 	specFile := filepath.Join(tempDir, "specs", "users-api-spec.json")
-	require.NoError(t, os.MkdirAll(filepath.Dir(specFile), 0755))
-	require.NoError(t, os.WriteFile(specFile, []byte(specContent), 0600))
-	
+	require.NoError(t, os.MkdirAll(filepath.Dir(specFile), 0o755))
+	require.NoError(t, os.WriteFile(specFile, []byte(specContent), 0o600))
+
 	// Create portal configuration
 	portalConfig := `
 portals:
@@ -55,8 +54,8 @@ portals:
     auto_approve_developers: true
 `
 	portalFile := filepath.Join(tempDir, "portal.yaml")
-	require.NoError(t, os.WriteFile(portalFile, []byte(portalConfig), 0600))
-	
+	require.NoError(t, os.WriteFile(portalFile, []byte(portalConfig), 0o600))
+
 	// Create control plane configuration
 	controlPlaneConfig := `
 control_planes:
@@ -66,8 +65,8 @@ control_planes:
     cluster_type: "CLUSTER_TYPE_HYBRID"
 `
 	controlPlaneFile := filepath.Join(tempDir, "control-plane.yaml")
-	require.NoError(t, os.WriteFile(controlPlaneFile, []byte(controlPlaneConfig), 0600))
-	
+	require.NoError(t, os.WriteFile(controlPlaneFile, []byte(controlPlaneConfig), 0o600))
+
 	// Create main API configuration with file tags and child resources
 	apiConfig := `
 apis:
@@ -100,8 +99,8 @@ apis:
           id: "550e8400-e29b-41d4-a716-446655440000"
 `
 	apiFile := filepath.Join(tempDir, "api.yaml")
-	require.NoError(t, os.WriteFile(apiFile, []byte(apiConfig), 0600))
-	
+	require.NoError(t, os.WriteFile(apiFile, []byte(apiConfig), 0o600))
+
 	// Load all configurations
 	l := loader.New()
 	sources := []loader.Source{
@@ -109,10 +108,10 @@ apis:
 		{Path: controlPlaneFile, Type: loader.SourceTypeFile},
 		{Path: apiFile, Type: loader.SourceTypeFile},
 	}
-	
+
 	resourceSet, err := l.LoadFromSources(sources, false)
 	require.NoError(t, err)
-	
+
 	// Verify loaded resources
 	require.Len(t, resourceSet.Portals, 1)
 	require.Len(t, resourceSet.ControlPlanes, 1)
@@ -120,7 +119,7 @@ apis:
 	require.Len(t, resourceSet.APIVersions, 2)
 	require.Len(t, resourceSet.APIPublications, 1)
 	require.Len(t, resourceSet.APIImplementations, 1)
-	
+
 	// Verify API versions have spec loaded from file
 	for _, version := range resourceSet.APIVersions {
 		if version.Spec != nil {
@@ -128,7 +127,7 @@ apis:
 			t.Logf("API version %s has spec loaded from file", version.GetRef())
 		}
 	}
-	
+
 	// This test verifies comprehensive multi-resource loading with file tags
 	// The actual planning and execution tests are covered in existing api_test.go
 	t.Log("Successfully loaded complex multi-resource scenario with file tags")
@@ -136,12 +135,11 @@ apis:
 
 // TestSeparateFileMultiResourceConfiguration tests loading resources from separate files
 func TestSeparateFileMultiResourceConfiguration(t *testing.T) {
-	
 	// Create test directory structure
 	tempDir := t.TempDir()
 	resourcesDir := filepath.Join(tempDir, "resources")
-	require.NoError(t, os.MkdirAll(resourcesDir, 0755))
-	
+	require.NoError(t, os.MkdirAll(resourcesDir, 0o755))
+
 	// Create separate files for each resource type
 	portalConfig := `
 portals:
@@ -149,8 +147,8 @@ portals:
     name: "API Portal"
     description: "Portal for API documentation"
 `
-	require.NoError(t, os.WriteFile(filepath.Join(resourcesDir, "portals.yaml"), []byte(portalConfig), 0600))
-	
+	require.NoError(t, os.WriteFile(filepath.Join(resourcesDir, "portals.yaml"), []byte(portalConfig), 0o600))
+
 	apiConfig := `
 apis:
   - ref: payment-api
@@ -158,8 +156,8 @@ apis:
     description: "API for payment processing"
     version: "2.0.0"
 `
-	require.NoError(t, os.WriteFile(filepath.Join(resourcesDir, "apis.yaml"), []byte(apiConfig), 0600))
-	
+	require.NoError(t, os.WriteFile(filepath.Join(resourcesDir, "apis.yaml"), []byte(apiConfig), 0o600))
+
 	versionConfig := `
 api_versions:
   - ref: payment-api-v2
@@ -169,8 +167,8 @@ api_versions:
       control_plane_id: "550e8400-e29b-41d4-a716-446655440000"
       id: "550e8400-e29b-41d4-a716-446655440001"
 `
-	require.NoError(t, os.WriteFile(filepath.Join(resourcesDir, "versions.yaml"), []byte(versionConfig), 0600))
-	
+	require.NoError(t, os.WriteFile(filepath.Join(resourcesDir, "versions.yaml"), []byte(versionConfig), 0o600))
+
 	publicationConfig := `
 api_publications:
   - ref: payment-api-pub
@@ -179,26 +177,26 @@ api_publications:
     visibility: private
     auto_approve_registrations: false
 `
-	require.NoError(t, os.WriteFile(filepath.Join(resourcesDir, "publications.yaml"), []byte(publicationConfig), 0600))
-	
+	require.NoError(t, os.WriteFile(filepath.Join(resourcesDir, "publications.yaml"), []byte(publicationConfig), 0o600))
+
 	// Load configuration directory
 	l := loader.New()
 	sources := []loader.Source{{Path: resourcesDir, Type: loader.SourceTypeDirectory}}
-	
+
 	resourceSet, err := l.LoadFromSources(sources, false)
 	require.NoError(t, err)
-	
+
 	// Verify all resources loaded correctly
 	require.Len(t, resourceSet.Portals, 1)
 	require.Len(t, resourceSet.APIs, 1)
 	require.Len(t, resourceSet.APIVersions, 1)
 	require.Len(t, resourceSet.APIPublications, 1)
-	
+
 	// Verify cross-references
 	assert.Equal(t, "payment-api", resourceSet.APIVersions[0].API)
 	assert.Equal(t, "payment-api", resourceSet.APIPublications[0].API)
 	assert.Equal(t, "api-portal", resourceSet.APIPublications[0].PortalID)
-	
+
 	// This test verifies loading separate file configurations
 	// Planning and execution are covered in existing tests
 	t.Log("Successfully loaded separate file multi-resource configuration")
@@ -208,7 +206,7 @@ api_publications:
 func TestFileTagComplexValueExtraction(t *testing.T) {
 	// Create test directory
 	tempDir := t.TempDir()
-	
+
 	// Create complex metadata file
 	metadataContent := `
 api_specs:
@@ -262,8 +260,8 @@ portal_settings:
         enabled: true
 `
 	metadataFile := filepath.Join(tempDir, "metadata.yaml")
-	require.NoError(t, os.WriteFile(metadataFile, []byte(metadataContent), 0600))
-	
+	require.NoError(t, os.WriteFile(metadataFile, []byte(metadataContent), 0o600))
+
 	// Create configuration with complex value extraction
 	config := `
 portals:
@@ -297,25 +295,25 @@ apis:
       environment: !file ./metadata.yaml#deployment.environment
 `
 	configFile := filepath.Join(tempDir, "config.yaml")
-	require.NoError(t, os.WriteFile(configFile, []byte(config), 0600))
-	
+	require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
+
 	// Load configuration
 	l := loader.New()
 	sources := []loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}
-	
+
 	resourceSet, err := l.LoadFromSources(sources, false)
 	require.NoError(t, err)
-	
+
 	// Verify complex value extraction worked correctly
 	require.Len(t, resourceSet.Portals, 1)
 	require.Len(t, resourceSet.APIs, 2)
 	require.Len(t, resourceSet.APIVersions, 1)
-	
+
 	// Check portal values
 	portal := resourceSet.Portals[0]
 	assert.Equal(t, "© 2024 Company Inc", portal.Description)
 	// Note: CustomTheme field handling may vary by SDK version
-	
+
 	// Check APIs values
 	usersAPI := resourceSet.APIs[0]
 	assert.Equal(t, "Users API", usersAPI.Name)
@@ -323,13 +321,13 @@ apis:
 	assert.Equal(t, "1.2.3", usersAPI.Version)
 	assert.Equal(t, "production", usersAPI.Labels["environment"])
 	assert.Equal(t, "API Team", usersAPI.Labels["team"])
-	
+
 	productsAPI := resourceSet.APIs[1]
 	assert.Equal(t, "Products API", productsAPI.Name)
 	assert.Equal(t, "Product catalog management", productsAPI.Description)
 	assert.Equal(t, "2.1.0", productsAPI.Version)
 	assert.Equal(t, "production", productsAPI.Labels["environment"])
-	
+
 	// Check version spec
 	version := resourceSet.APIVersions[0]
 	if version.Spec != nil {
@@ -341,10 +339,10 @@ apis:
 // TestErrorHandlingScenarios tests various error conditions
 func TestErrorHandlingScenarios(t *testing.T) {
 	tests := []struct {
-		name           string
-		configContent  string
-		expectedError  string
-		setupFiles     func(string) error
+		name          string
+		configContent string
+		expectedError string
+		setupFiles    func(string) error
 	}{
 		{
 			name: "missing file reference",
@@ -377,7 +375,7 @@ portals:
 			expectedError: "path not found: nonexistent.path",
 			setupFiles: func(dir string) error {
 				content := `existing: value`
-				return os.WriteFile(filepath.Join(dir, "metadata.yaml"), []byte(content), 0600)
+				return os.WriteFile(filepath.Join(dir, "metadata.yaml"), []byte(content), 0o600)
 			},
 		},
 		{
@@ -394,27 +392,27 @@ portals:
 portal:
   description: !file ./circular.yaml#portal.description
 `
-				return os.WriteFile(filepath.Join(dir, "circular.yaml"), []byte(content), 0600)
+				return os.WriteFile(filepath.Join(dir, "circular.yaml"), []byte(content), 0o600)
 			},
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tempDir := t.TempDir()
-			
+
 			// Setup additional files if needed
 			if tt.setupFiles != nil {
 				require.NoError(t, tt.setupFiles(tempDir))
 			}
-			
+
 			configFile := filepath.Join(tempDir, "config.yaml")
-			require.NoError(t, os.WriteFile(configFile, []byte(tt.configContent), 0600))
-			
+			require.NoError(t, os.WriteFile(configFile, []byte(tt.configContent), 0o600))
+
 			// Attempt to load configuration
 			l := loader.New()
 			sources := []loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}
-			
+
 			_, err := l.LoadFromSources(sources, false)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.expectedError)

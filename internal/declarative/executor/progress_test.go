@@ -76,9 +76,9 @@ func TestConsoleReporter_StartExecution(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			reporter := NewConsoleReporterWithOptions(&buf, tt.dryRun)
-			
+
 			reporter.StartExecution(tt.plan)
-			
+
 			output := buf.String()
 			if tt.shouldOutput {
 				assert.Equal(t, tt.expectedOut, output)
@@ -131,9 +131,9 @@ func TestConsoleReporter_StartChange(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			reporter := NewConsoleReporter(&buf)
-			
+
 			reporter.StartChange(tt.change)
-			
+
 			assert.Equal(t, tt.expectedOut, buf.String())
 		})
 	}
@@ -161,15 +161,15 @@ func TestConsoleReporter_CompleteChange(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			reporter := NewConsoleReporter(&buf)
-			
+
 			change := planner.PlannedChange{
 				Action:       planner.ActionCreate,
 				ResourceType: "portal",
 				ResourceRef:  "test-portal",
 			}
-			
+
 			reporter.CompleteChange(change, tt.err)
-			
+
 			assert.Equal(t, tt.expectedOut, buf.String())
 		})
 	}
@@ -178,15 +178,15 @@ func TestConsoleReporter_CompleteChange(t *testing.T) {
 func TestConsoleReporter_SkipChange(t *testing.T) {
 	var buf bytes.Buffer
 	reporter := NewConsoleReporter(&buf)
-	
+
 	change := planner.PlannedChange{
 		Action:       planner.ActionCreate,
 		ResourceType: "portal",
 		ResourceRef:  "test-portal",
 	}
-	
+
 	reporter.SkipChange(change, "dry-run mode")
-	
+
 	assert.Equal(t, "⚠ Skipped: dry-run mode\n", buf.String())
 }
 
@@ -254,9 +254,9 @@ func TestConsoleReporter_FinishExecution_Normal(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			reporter := NewConsoleReporter(&buf)
-			
+
 			reporter.FinishExecution(tt.result)
-			
+
 			output := buf.String()
 			for _, expected := range tt.containsStr {
 				assert.Contains(t, output, expected)
@@ -328,9 +328,9 @@ func TestConsoleReporter_FinishExecution_DryRun(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			reporter := NewConsoleReporter(&buf)
-			
+
 			reporter.FinishExecution(tt.result)
-			
+
 			output := buf.String()
 			for _, expected := range tt.containsStr {
 				assert.Contains(t, output, expected)
@@ -342,7 +342,7 @@ func TestConsoleReporter_FinishExecution_DryRun(t *testing.T) {
 func TestConsoleReporter_CompleteWorkflow(t *testing.T) {
 	var buf bytes.Buffer
 	reporter := NewConsoleReporter(&buf)
-	
+
 	// Simulate a complete execution workflow
 	plan := &planner.Plan{
 		Metadata: planner.PlanMetadata{
@@ -353,9 +353,9 @@ func TestConsoleReporter_CompleteWorkflow(t *testing.T) {
 			TotalChanges: 3,
 		},
 	}
-	
+
 	reporter.StartExecution(plan)
-	
+
 	// First change: successful create
 	change1 := planner.PlannedChange{
 		Action:       planner.ActionCreate,
@@ -365,7 +365,7 @@ func TestConsoleReporter_CompleteWorkflow(t *testing.T) {
 	}
 	reporter.StartChange(change1)
 	reporter.CompleteChange(change1, nil)
-	
+
 	// Second change: successful update
 	change2 := planner.PlannedChange{
 		Action:       planner.ActionUpdate,
@@ -375,7 +375,7 @@ func TestConsoleReporter_CompleteWorkflow(t *testing.T) {
 	}
 	reporter.StartChange(change2)
 	reporter.CompleteChange(change2, nil)
-	
+
 	// Third change: failed delete
 	change3 := planner.PlannedChange{
 		Action:       planner.ActionDelete,
@@ -385,7 +385,7 @@ func TestConsoleReporter_CompleteWorkflow(t *testing.T) {
 	}
 	reporter.StartChange(change3)
 	reporter.CompleteChange(change3, errors.New("not found"))
-	
+
 	// Finish execution
 	result := &ExecutionResult{
 		SuccessCount: 2,
@@ -400,9 +400,9 @@ func TestConsoleReporter_CompleteWorkflow(t *testing.T) {
 		},
 	}
 	reporter.FinishExecution(result)
-	
+
 	output := buf.String()
-	
+
 	// Verify the complete output
 	assert.Contains(t, output, "Applying changes:")
 	assert.Contains(t, output, "[1/3] [namespace: default] Creating portal: developer-portal... ✓")
@@ -442,7 +442,7 @@ func TestConsoleReporter_InterfaceCompliance(t *testing.T) {
 func TestConsoleReporter_NilWriter(t *testing.T) {
 	// Test that operations don't panic with nil writer
 	reporter := &ConsoleReporter{writer: nil}
-	
+
 	plan := &planner.Plan{
 		Summary: planner.PlanSummary{TotalChanges: 1},
 	}
@@ -454,7 +454,7 @@ func TestConsoleReporter_NilWriter(t *testing.T) {
 	result := &ExecutionResult{
 		SuccessCount: 1,
 	}
-	
+
 	// These should not panic
 	assert.NotPanics(t, func() {
 		reporter.StartExecution(plan)
@@ -469,7 +469,7 @@ func TestConsoleReporter_NilWriter(t *testing.T) {
 func TestConsoleReporter_MultilineOutput(t *testing.T) {
 	var buf bytes.Buffer
 	reporter := NewConsoleReporter(&buf)
-	
+
 	// Create a dry-run result with mixed outcomes
 	result := &ExecutionResult{
 		DryRun:       true,
@@ -490,23 +490,23 @@ func TestConsoleReporter_MultilineOutput(t *testing.T) {
 			},
 		},
 	}
-	
+
 	reporter.FinishExecution(result)
-	
+
 	output := buf.String()
 	lines := strings.Split(strings.TrimSpace(output), "\n")
-	
+
 	// Verify structure
 	assert.Equal(t, "Dry run complete.", lines[0])
-	assert.Contains(t, lines[1], "5 changes would be applied.")  // Message about changes
-	
+	assert.Contains(t, lines[1], "5 changes would be applied.") // Message about changes
+
 	// Find validation errors section
 	foundErrors := false
 	for i, line := range lines {
 		if line == "Validation errors:" {
 			foundErrors = true
 			assert.True(t, i+1 < len(lines))
-			assert.True(t, strings.HasPrefix(lines[i+1], "  • "))  // Indented error
+			assert.True(t, strings.HasPrefix(lines[i+1], "  • ")) // Indented error
 			break
 		}
 	}
@@ -533,29 +533,29 @@ func TestConsoleReporter_WithResourceMonikers(t *testing.T) {
 		ResourceType: "portal_page",
 		ResourceRef:  "[unknown]",
 		ResourceMonikers: map[string]string{
-			"slug":         "getting-started",
+			"slug":          "getting-started",
 			"parent_portal": "simple",
 		},
 		Action: planner.ActionDelete,
 	}
-	
+
 	reporter.StartChange(change1)
 	output := buf.String()
 	t.Log("Progress output for change 1:", output)
-	
+
 	// Should show meaningful name from monikers
 	assert.Contains(t, output, "Deleting portal_page: page 'getting-started' in portal:simple")
 	assert.NotContains(t, output, "[unknown]")
-	
+
 	// Complete the change
 	reporter.CompleteChange(change1, nil)
-	
+
 	// Test another resource type
 	buf.Reset()
 	reporter = NewConsoleReporter(&buf)
 	reporter.totalChanges = 2
 	reporter.currentIndex = 1
-	
+
 	change2 := planner.PlannedChange{
 		ID:           "2:d:api_document:doc1",
 		ResourceType: "api_document",
@@ -566,11 +566,11 @@ func TestConsoleReporter_WithResourceMonikers(t *testing.T) {
 		},
 		Action: planner.ActionDelete,
 	}
-	
+
 	reporter.StartChange(change2)
 	output = buf.String()
 	t.Log("Progress output for change 2:", output)
-	
+
 	assert.Contains(t, output, "Deleting api_document: document 'api-guide' in api:my-api")
 	assert.NotContains(t, output, "[unknown]")
 }
@@ -584,10 +584,10 @@ func TestFormatResourceNameForProgress_AllTypes(t *testing.T) {
 		{
 			name: "portal_page with monikers",
 			change: planner.PlannedChange{
-				ResourceRef: "[unknown]",
+				ResourceRef:  "[unknown]",
 				ResourceType: "portal_page",
 				ResourceMonikers: map[string]string{
-					"slug":         "getting-started",
+					"slug":          "getting-started",
 					"parent_portal": "dev-portal",
 				},
 			},

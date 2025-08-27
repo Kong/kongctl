@@ -62,7 +62,7 @@ func NewHelpCmd() *cobra.Command {
 
 func runHelp(cmd *cobra.Command, args []string) error {
 	commandName := args[0]
-	
+
 	// Load the help template for the command
 	helpContent, err := loadHelpTemplate(commandName)
 	if err != nil {
@@ -72,31 +72,31 @@ func runHelp(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("unknown command %q", commandName)
 		}
-		
+
 		return targetCmd.Help()
 	}
 
 	// Get IO streams
 	streams := cmd.Context().Value(iostreams.StreamsKey).(*iostreams.IOStreams)
-	
+
 	// Display help through pager if available
 	if err := displayWithPager(helpContent, streams); err != nil {
 		// Fall back to direct output if pager fails
 		fmt.Fprint(streams.Out, helpContent)
 	}
-	
+
 	return nil
 }
 
 func loadHelpTemplate(command string) (string, error) {
 	// Map command names to template files
 	templateFile := fmt.Sprintf("templates/%s.md", command)
-	
+
 	content, err := helpTemplates.ReadFile(templateFile)
 	if err != nil {
 		return "", err
 	}
-	
+
 	return string(content), nil
 }
 
@@ -112,16 +112,16 @@ func displayWithPager(content string, streams *iostreams.IOStreams) error {
 			}
 		}
 	}
-	
+
 	if pager == "" {
 		return fmt.Errorf("no pager found")
 	}
-	
+
 	// Handle less specifically for better experience
 	if strings.Contains(pager, "less") {
 		pager = "less -R" // Enable color support
 	}
-	
+
 	// Create pager command
 	var pagerCmd *exec.Cmd
 	if runtime.GOOS == "windows" {
@@ -129,27 +129,27 @@ func displayWithPager(content string, streams *iostreams.IOStreams) error {
 	} else {
 		pagerCmd = exec.Command("sh", "-c", pager)
 	}
-	
+
 	// Set up pipes
 	pagerCmd.Stdout = streams.Out
 	pagerCmd.Stderr = streams.ErrOut
-	
+
 	// Create pipe for input
 	pipeReader, pipeWriter := io.Pipe()
 	pagerCmd.Stdin = pipeReader
-	
+
 	// Start pager
 	if err := pagerCmd.Start(); err != nil {
 		pipeWriter.Close()
 		return err
 	}
-	
+
 	// Write content to pager
 	go func() {
 		defer pipeWriter.Close()
 		fmt.Fprint(pipeWriter, content)
 	}()
-	
+
 	// Wait for pager to finish
 	return pagerCmd.Wait()
 }
