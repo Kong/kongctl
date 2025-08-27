@@ -46,7 +46,9 @@ func (a *apiPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, pl
 		return err
 	}
 	
-	if err := a.planner.planAPIPublicationsChanges(ctx, plannerCtx, a.GetDesiredAPIPublications(namespace), plan); err != nil {
+	if err := a.planner.planAPIPublicationsChanges(
+		ctx, plannerCtx, a.GetDesiredAPIPublications(namespace), plan,
+	); err != nil {
 		return err
 	}
 	

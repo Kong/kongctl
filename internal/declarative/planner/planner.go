@@ -168,9 +168,8 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	basePlan.UpdateSummary()
 
 	// Note: Orphan portal child resources (those referencing non-existent portals)
-	// are now handled within each namespace's processing. The filterResourcesByNamespace
-	// method ensures child resources are only included if their parent exists in the
-	// same namespace.
+	// are now handled within each namespace's processing using the namespace-filtered
+	// resource access methods.
 
 	// Resolve references for all changes
 	resolveResult, err := p.resolver.ResolveReferences(ctx, basePlan.Changes)
@@ -529,89 +528,3 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 }
 
 
-// filterResourcesByNamespace creates a filtered ResourceSet containing only resources from the specified namespace
-func (p *Planner) filterResourcesByNamespace(rs *resources.ResourceSet, namespace string) *resources.ResourceSet {
-	filtered := &resources.ResourceSet{}
-	
-	// Filter parent resources by namespace
-	for _, portal := range rs.Portals {
-		if resources.GetNamespace(portal.Kongctl) == namespace {
-			filtered.Portals = append(filtered.Portals, portal)
-		}
-	}
-	
-	for _, api := range rs.APIs {
-		if resources.GetNamespace(api.Kongctl) == namespace {
-			filtered.APIs = append(filtered.APIs, api)
-		}
-	}
-	
-	for _, strategy := range rs.ApplicationAuthStrategies {
-		if resources.GetNamespace(strategy.Kongctl) == namespace {
-			filtered.ApplicationAuthStrategies = append(filtered.ApplicationAuthStrategies, strategy)
-		}
-	}
-	
-	// For child resources, include them if their parent is in the filtered set
-	// This requires building parent resource ref sets for efficient lookup
-	portalRefs := make(map[string]bool)
-	for _, portal := range filtered.Portals {
-		portalRefs[portal.Ref] = true
-	}
-	
-	apiRefs := make(map[string]bool)
-	for _, api := range filtered.APIs {
-		apiRefs[api.Ref] = true
-	}
-	
-	// Filter child resources based on parent presence
-	for _, version := range rs.APIVersions {
-		if apiRefs[version.API] {
-			filtered.APIVersions = append(filtered.APIVersions, version)
-		}
-	}
-	
-	for _, pub := range rs.APIPublications {
-		if apiRefs[pub.API] {
-			filtered.APIPublications = append(filtered.APIPublications, pub)
-		}
-	}
-	
-	for _, impl := range rs.APIImplementations {
-		if apiRefs[impl.API] {
-			filtered.APIImplementations = append(filtered.APIImplementations, impl)
-		}
-	}
-	
-	for _, doc := range rs.APIDocuments {
-		if apiRefs[doc.API] {
-			filtered.APIDocuments = append(filtered.APIDocuments, doc)
-		}
-	}
-	
-	for _, custom := range rs.PortalCustomizations {
-		if portalRefs[custom.Portal] {
-			filtered.PortalCustomizations = append(filtered.PortalCustomizations, custom)
-		}
-	}
-	
-	for _, domain := range rs.PortalCustomDomains {
-		if portalRefs[domain.Portal] {
-			filtered.PortalCustomDomains = append(filtered.PortalCustomDomains, domain)
-		}
-	}
-	
-	for _, page := range rs.PortalPages {
-		if portalRefs[page.Portal] {
-			filtered.PortalPages = append(filtered.PortalPages, page)
-		}
-	}
-	
-	for _, snippet := range rs.PortalSnippets {
-		if portalRefs[snippet.Portal] {
-			filtered.PortalSnippets = append(filtered.PortalSnippets, snippet)
-		}
-	}
-	
-	return filtered
-}
