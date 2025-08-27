@@ -120,8 +120,8 @@ func (a *APIVersionAdapter) RequiredFields() []string {
 
 // MapUpdateFields maps fields for update operations
 func (a *APIVersionAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext,
-	fields map[string]any, update *kkComps.APIVersion, _ map[string]string) error {
-
+	fields map[string]any, update *kkComps.APIVersion, _ map[string]string,
+) error {
 	// Map version field if changed
 	if version, ok := fields["version"].(string); ok {
 		update.Version = &version
@@ -141,8 +141,8 @@ func (a *APIVersionAdapter) MapUpdateFields(_ context.Context, _ *ExecutionConte
 
 // Update updates an existing API version
 func (a *APIVersionAdapter) Update(ctx context.Context, id string,
-	update kkComps.APIVersion, _ string, execCtx *ExecutionContext) (string, error) {
-
+	update kkComps.APIVersion, _ string, execCtx *ExecutionContext,
+) (string, error) {
 	// Get API ID from execution context
 	apiID, err := a.getAPIIDFromExecutionContext(execCtx)
 	if err != nil {

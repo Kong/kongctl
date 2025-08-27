@@ -127,13 +127,15 @@ func (a *APIPublicationAdapter) RequiredFields() []string {
 // MapUpdateFields maps fields for update operations (not supported for API publications)
 func (a *APIPublicationAdapter) MapUpdateFields(
 	_ context.Context, _ *ExecutionContext, _ map[string]any,
-	_ *kkComps.APIPublication, _ map[string]string) error {
+	_ *kkComps.APIPublication, _ map[string]string,
+) error {
 	return fmt.Errorf("API publications do not support update operations")
 }
 
 // Update is not supported for API publications
 func (a *APIPublicationAdapter) Update(
-	_ context.Context, _ string, _ kkComps.APIPublication, _ string, _ *ExecutionContext) (string, error) {
+	_ context.Context, _ string, _ kkComps.APIPublication, _ string, _ *ExecutionContext,
+) (string, error) {
 	return "", fmt.Errorf("API publications do not support update operations")
 }
 
