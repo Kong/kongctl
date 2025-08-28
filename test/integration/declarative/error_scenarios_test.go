@@ -27,11 +27,12 @@ import (
 
 func TestExecutorAPIErrors(t *testing.T) {
 	testCases := []struct {
-		name          string
-		command       string
-		mockSetup     func(*MockPortalAPI)
-		expectedError string
-		expectFailure bool
+		name               string
+		command            string
+		mockSetup          func(*MockPortalAPI)
+		expectedError      string
+		expectFailure      bool
+		expectSummaryError bool // true when failure occurs during execution stage
 	}{
 		{
 			name:    "Network Error during List",
@@ -40,8 +41,9 @@ func TestExecutorAPIErrors(t *testing.T) {
 				mockAPI.On("ListPortals", mock.Anything, mock.Anything).Return(
 					nil, fmt.Errorf("connection refused"))
 			},
-			expectedError: "connection refused",
-			expectFailure: true,
+			expectedError:      "connection refused",
+			expectFailure:      true,
+			expectSummaryError: false, // fails during plan generation (List)
 		},
 		{
 			name:    "Context Timeout during List",
@@ -50,8 +52,9 @@ func TestExecutorAPIErrors(t *testing.T) {
 				mockAPI.On("ListPortals", mock.Anything, mock.Anything).Return(
 					nil, context.DeadlineExceeded)
 			},
-			expectedError: "context deadline exceeded",
-			expectFailure: true,
+			expectedError:      "context deadline exceeded",
+			expectFailure:      true,
+			expectSummaryError: false, // fails during plan generation (List)
 		},
 		{
 			name:    "API Creation Failure",
@@ -71,8 +74,9 @@ func TestExecutorAPIErrors(t *testing.T) {
 				mockAPI.On("CreatePortal", mock.Anything, mock.Anything).Return(
 					nil, fmt.Errorf("validation failed: name already exists"))
 			},
-			expectedError: "validation failed",
-			expectFailure: true,
+			expectedError:      "validation failed",
+			expectFailure:      true,
+			expectSummaryError: true, // fails during execution (Create)
 		},
 		{
 			name:    "Rate Limit Error during Creation",
@@ -92,8 +96,9 @@ func TestExecutorAPIErrors(t *testing.T) {
 				mockAPI.On("CreatePortal", mock.Anything, mock.Anything).Return(
 					nil, fmt.Errorf("rate limit exceeded"))
 			},
-			expectedError: "rate limit exceeded",
-			expectFailure: true,
+			expectedError:      "rate limit exceeded",
+			expectFailure:      true,
+			expectSummaryError: true, // fails during execution (Create)
 		},
 	}
 
@@ -144,13 +149,14 @@ portals:
 
 			// Verify error handling
 			if tc.expectFailure {
-				if err != nil {
-					// Command returned an error - check error message
-					assert.Contains(t, err.Error(), tc.expectedError)
+				require.Error(t, err)
+				if tc.expectSummaryError {
+					// Execution-stage failure: summary error with count, details in output
+					assert.Regexp(t, `^apply completed with \d+ errors`, err.Error())
+					assert.Contains(t, output.String(), tc.expectedError)
 				} else {
-					// Command succeeded but should have reported errors in output
-					outputStr := output.String()
-					assert.Contains(t, outputStr, tc.expectedError)
+					// Plan-generation failure: underlying error is returned directly
+					assert.Contains(t, err.Error(), tc.expectedError)
 				}
 			} else {
 				require.NoError(t, err)
@@ -267,15 +273,10 @@ portals:
 	assert.Contains(t, outputStr, "Creating portal: success-portal")
 	assert.Contains(t, outputStr, "Creating portal: another-success-portal")
 
-	// The failure should be handled gracefully - either as an error or in the execution result
-	// depending on the executor implementation
-	if err != nil {
-		// If the command returns an error, it should contain information about the failure
-		assert.Contains(t, err.Error(), "failure-portal")
-	} else {
-		// If the command succeeds with partial failure, the output should indicate the failure
-		assert.Contains(t, outputStr, "failure-portal")
-	}
+	// Partial failures return a summary error and include details in output
+	require.Error(t, err)
+	assert.Regexp(t, `^apply completed with \d+ errors`, err.Error())
+	assert.Contains(t, outputStr, "failure-portal")
 
 	// Verify mocks were called as expected
 	mockPortalAPI.AssertExpectations(t)
