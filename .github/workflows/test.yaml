@@ -29,3 +29,9 @@ jobs:
         uses: golangci/golangci-lint-action@v8
         with:
           version: v2.1.2
+      - name: test
+        run: |
+          go test -race -count=1 ./...
+      - name: test integration
+        run: |
+          go test -v -count=1 -tags=integration -race ${GOTESTFLAGS} ./test/integration/...
