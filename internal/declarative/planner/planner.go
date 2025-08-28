@@ -31,26 +31,14 @@ type Planner struct {
 	portalPlanner       PortalPlanner
 	authStrategyPlanner AuthStrategyPlanner
 	apiPlanner          APIPlanner
-<<<<<<< HEAD
-	
+
 	// ResourceSet containing all desired resources
 	resources *resources.ResourceSet
-	
-	// Legacy field access for backward compatibility (provides global access)
-	desiredPortals             []resources.PortalResource
-	desiredPortalPages         []resources.PortalPageResource
-	desiredPortalSnippets      []resources.PortalSnippetResource
-=======
 
-	// Desired resources (set during plan generation)
+	// Legacy field access for backward compatibility (provides global access)
 	desiredPortals              []resources.PortalResource
-	desiredAuthStrategies       []resources.ApplicationAuthStrategyResource
-	desiredAPIs                 []resources.APIResource
-	desiredAPIVersions          []resources.APIVersionResource
-	desiredAPIPublications      []resources.APIPublicationResource
-	desiredAPIImplementations   []resources.APIImplementationResource
-	desiredAPIDocuments         []resources.APIDocumentResource
->>>>>>> 8f805c6 (add gofumpt formatting to project)
+	desiredPortalPages          []resources.PortalPageResource
+	desiredPortalSnippets       []resources.PortalSnippetResource
 	desiredPortalCustomizations []resources.PortalCustomizationResource
 	desiredPortalCustomDomains  []resources.PortalCustomDomainResource
 }
@@ -128,44 +116,17 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.portalPlanner = NewPortalPlanner(base)
 		namespacePlanner.authStrategyPlanner = NewAuthStrategyPlanner(base)
 		namespacePlanner.apiPlanner = NewAPIPlanner(base)
-<<<<<<< HEAD
-		
-		
+
 		// Store full ResourceSet for access by planners (enables both filtered views and global lookups)
 		namespacePlanner.resources = rs
-		
+
 		// Populate legacy field access for backward compatibility
 		namespacePlanner.desiredPortals = rs.Portals
 		namespacePlanner.desiredPortalPages = rs.PortalPages
 		namespacePlanner.desiredPortalSnippets = rs.PortalSnippets
 		namespacePlanner.desiredPortalCustomizations = rs.PortalCustomizations
 		namespacePlanner.desiredPortalCustomDomains = rs.PortalCustomDomains
-		
-=======
 
-		// Filter resources for this namespace
-		var namespaceResources *resources.ResourceSet
-		if namespace == "*" {
-			// Special case for sync mode with empty config
-			namespaceResources = &resources.ResourceSet{}
-		} else {
-			namespaceResources = p.filterResourcesByNamespace(rs, namespace)
-		}
-
-		// Store filtered resources for access by planners
-		namespacePlanner.desiredPortals = namespaceResources.Portals
-		namespacePlanner.desiredAuthStrategies = namespaceResources.ApplicationAuthStrategies
-		namespacePlanner.desiredAPIs = namespaceResources.APIs
-		namespacePlanner.desiredAPIVersions = namespaceResources.APIVersions
-		namespacePlanner.desiredAPIPublications = namespaceResources.APIPublications
-		namespacePlanner.desiredAPIImplementations = namespaceResources.APIImplementations
-		namespacePlanner.desiredAPIDocuments = namespaceResources.APIDocuments
-		namespacePlanner.desiredPortalCustomizations = namespaceResources.PortalCustomizations
-		namespacePlanner.desiredPortalCustomDomains = namespaceResources.PortalCustomDomains
-		namespacePlanner.desiredPortalPages = namespaceResources.PortalPages
-		namespacePlanner.desiredPortalSnippets = namespaceResources.PortalSnippets
-
->>>>>>> 8f805c6 (add gofumpt formatting to project)
 		// Create a plan for this namespace
 		namespacePlan := NewPlan("1.0", "kongctl/dev", opts.Mode)
 
@@ -409,7 +370,7 @@ func (p *Planner) GetDesiredPortalPages() []resources.PortalPageResource {
 	return p.resources.PortalPages
 }
 
-// GetDesiredPortalSnippets returns all desired portal snippet resources (across all namespaces)  
+// GetDesiredPortalSnippets returns all desired portal snippet resources (across all namespaces)
 func (p *Planner) GetDesiredPortalSnippets() []resources.PortalSnippetResource {
 	if p.resources == nil {
 		return nil
@@ -563,94 +524,3 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 
 	return namespaces
 }
-
-
-<<<<<<< HEAD
-=======
-// filterResourcesByNamespace creates a filtered ResourceSet containing only resources from the specified namespace
-func (p *Planner) filterResourcesByNamespace(rs *resources.ResourceSet, namespace string) *resources.ResourceSet {
-	filtered := &resources.ResourceSet{}
-
-	// Filter parent resources by namespace
-	for _, portal := range rs.Portals {
-		if getNamespace(portal.Kongctl) == namespace {
-			filtered.Portals = append(filtered.Portals, portal)
-		}
-	}
-
-	for _, api := range rs.APIs {
-		if getNamespace(api.Kongctl) == namespace {
-			filtered.APIs = append(filtered.APIs, api)
-		}
-	}
-
-	for _, strategy := range rs.ApplicationAuthStrategies {
-		if getNamespace(strategy.Kongctl) == namespace {
-			filtered.ApplicationAuthStrategies = append(filtered.ApplicationAuthStrategies, strategy)
-		}
-	}
-
-	// For child resources, include them if their parent is in the filtered set
-	// This requires building parent resource ref sets for efficient lookup
-	portalRefs := make(map[string]bool)
-	for _, portal := range filtered.Portals {
-		portalRefs[portal.Ref] = true
-	}
-
-	apiRefs := make(map[string]bool)
-	for _, api := range filtered.APIs {
-		apiRefs[api.Ref] = true
-	}
-
-	// Filter child resources based on parent presence
-	for _, version := range rs.APIVersions {
-		if apiRefs[version.API] {
-			filtered.APIVersions = append(filtered.APIVersions, version)
-		}
-	}
-
-	for _, pub := range rs.APIPublications {
-		if apiRefs[pub.API] {
-			filtered.APIPublications = append(filtered.APIPublications, pub)
-		}
-	}
-
-	for _, impl := range rs.APIImplementations {
-		if apiRefs[impl.API] {
-			filtered.APIImplementations = append(filtered.APIImplementations, impl)
-		}
-	}
-
-	for _, doc := range rs.APIDocuments {
-		if apiRefs[doc.API] {
-			filtered.APIDocuments = append(filtered.APIDocuments, doc)
-		}
-	}
-
-	for _, custom := range rs.PortalCustomizations {
-		if portalRefs[custom.Portal] {
-			filtered.PortalCustomizations = append(filtered.PortalCustomizations, custom)
-		}
-	}
-
-	for _, domain := range rs.PortalCustomDomains {
-		if portalRefs[domain.Portal] {
-			filtered.PortalCustomDomains = append(filtered.PortalCustomDomains, domain)
-		}
-	}
-
-	for _, page := range rs.PortalPages {
-		if portalRefs[page.Portal] {
-			filtered.PortalPages = append(filtered.PortalPages, page)
-		}
-	}
-
-	for _, snippet := range rs.PortalSnippets {
-		if portalRefs[snippet.Portal] {
-			filtered.PortalSnippets = append(filtered.PortalSnippets, snippet)
-		}
-	}
-
-	return filtered
-}
->>>>>>> 8f805c6 (add gofumpt formatting to project)
