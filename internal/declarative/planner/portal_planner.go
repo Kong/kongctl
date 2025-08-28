@@ -23,15 +23,14 @@ func NewPortalPlanner(base *BasePlanner) PortalPlanner {
 
 // PlanChanges generates changes for portal resources
 func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
-	desired := p.GetDesiredPortals()
-
+	// Get namespace from planner context
+	namespace := plannerCtx.Namespace
+	desired := p.GetDesiredPortals(namespace)
+  
 	// Skip if no portals to plan and not in sync mode
 	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
 		return nil
 	}
-
-	// Get namespace from planner context
-	namespace := plannerCtx.Namespace
 
 	// Fetch current managed portals from the specific namespace
 	namespaceFilter := []string{namespace}

@@ -24,7 +24,9 @@ func NewAuthStrategyPlanner(base *BasePlanner) AuthStrategyPlanner {
 
 // PlanChanges generates changes for auth strategy resources
 func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
-	desired := p.GetDesiredAuthStrategies()
+	// Get namespace from planner context
+	namespace := plannerCtx.Namespace
+	desired := p.GetDesiredAuthStrategies(namespace)
 
 	// Skip if no auth strategies to plan and not in sync mode
 	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {

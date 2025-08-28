@@ -54,59 +54,59 @@ func (b *BasePlanner) GetClient() *state.Client {
 	return b.planner.client
 }
 
-// GetDesiredPortals returns desired portal resources
-func (b *BasePlanner) GetDesiredPortals() []resources.PortalResource {
-	return b.planner.desiredPortals
+// GetDesiredPortals returns desired portal resources from the specified namespace
+func (b *BasePlanner) GetDesiredPortals(namespace string) []resources.PortalResource {
+	return b.planner.resources.GetPortalsByNamespace(namespace)
 }
 
-// GetDesiredAuthStrategies returns desired auth strategy resources
-func (b *BasePlanner) GetDesiredAuthStrategies() []resources.ApplicationAuthStrategyResource {
-	return b.planner.desiredAuthStrategies
+// GetDesiredAuthStrategies returns desired auth strategy resources from the specified namespace
+func (b *BasePlanner) GetDesiredAuthStrategies(namespace string) []resources.ApplicationAuthStrategyResource {
+	return b.planner.resources.GetAuthStrategiesByNamespace(namespace)
 }
 
-// GetDesiredAPIs returns desired API resources
-func (b *BasePlanner) GetDesiredAPIs() []resources.APIResource {
-	return b.planner.desiredAPIs
+// GetDesiredAPIs returns desired API resources from the specified namespace
+func (b *BasePlanner) GetDesiredAPIs(namespace string) []resources.APIResource {
+	return b.planner.resources.GetAPIsByNamespace(namespace)
 }
 
-// GetDesiredAPIVersions returns desired API version resources
-func (b *BasePlanner) GetDesiredAPIVersions() []resources.APIVersionResource {
-	return b.planner.desiredAPIVersions
+// GetDesiredAPIVersions returns desired API version resources from the specified namespace
+func (b *BasePlanner) GetDesiredAPIVersions(namespace string) []resources.APIVersionResource {
+	return b.planner.resources.GetAPIVersionsByNamespace(namespace)
 }
 
-// GetDesiredAPIPublications returns desired API publication resources
-func (b *BasePlanner) GetDesiredAPIPublications() []resources.APIPublicationResource {
-	return b.planner.desiredAPIPublications
+// GetDesiredAPIPublications returns desired API publication resources from the specified namespace
+func (b *BasePlanner) GetDesiredAPIPublications(namespace string) []resources.APIPublicationResource {
+	return b.planner.resources.GetAPIPublicationsByNamespace(namespace)
 }
 
-// GetDesiredAPIImplementations returns desired API implementation resources
-func (b *BasePlanner) GetDesiredAPIImplementations() []resources.APIImplementationResource {
-	return b.planner.desiredAPIImplementations
+// GetDesiredAPIImplementations returns desired API implementation resources from the specified namespace
+func (b *BasePlanner) GetDesiredAPIImplementations(namespace string) []resources.APIImplementationResource {
+	return b.planner.resources.GetAPIImplementationsByNamespace(namespace)
 }
 
-// GetDesiredAPIDocuments returns desired API document resources
-func (b *BasePlanner) GetDesiredAPIDocuments() []resources.APIDocumentResource {
-	return b.planner.desiredAPIDocuments
+// GetDesiredAPIDocuments returns desired API document resources from the specified namespace
+func (b *BasePlanner) GetDesiredAPIDocuments(namespace string) []resources.APIDocumentResource {
+	return b.planner.resources.GetAPIDocumentsByNamespace(namespace)
 }
 
-// GetDesiredPortalCustomizations returns desired portal customization resources
-func (b *BasePlanner) GetDesiredPortalCustomizations() []resources.PortalCustomizationResource {
-	return b.planner.desiredPortalCustomizations
+// GetDesiredPortalCustomizations returns desired portal customization resources from the specified namespace
+func (b *BasePlanner) GetDesiredPortalCustomizations(namespace string) []resources.PortalCustomizationResource {
+	return b.planner.resources.GetPortalCustomizationsByNamespace(namespace)
 }
 
-// GetDesiredPortalCustomDomains returns desired portal custom domain resources
-func (b *BasePlanner) GetDesiredPortalCustomDomains() []resources.PortalCustomDomainResource {
-	return b.planner.desiredPortalCustomDomains
+// GetDesiredPortalCustomDomains returns desired portal custom domain resources from the specified namespace
+func (b *BasePlanner) GetDesiredPortalCustomDomains(namespace string) []resources.PortalCustomDomainResource {
+	return b.planner.resources.GetPortalCustomDomainsByNamespace(namespace)
 }
 
-// GetDesiredPortalPages returns desired portal page resources
-func (b *BasePlanner) GetDesiredPortalPages() []resources.PortalPageResource {
-	return b.planner.desiredPortalPages
+// GetDesiredPortalPages returns desired portal page resources from the specified namespace
+func (b *BasePlanner) GetDesiredPortalPages(namespace string) []resources.PortalPageResource {
+	return b.planner.resources.GetPortalPagesByNamespace(namespace)
 }
 
-// GetDesiredPortalSnippets returns desired portal snippet resources
-func (b *BasePlanner) GetDesiredPortalSnippets() []resources.PortalSnippetResource {
-	return b.planner.desiredPortalSnippets
+// GetDesiredPortalSnippets returns desired portal snippet resources from the specified namespace
+func (b *BasePlanner) GetDesiredPortalSnippets(namespace string) []resources.PortalSnippetResource {
+	return b.planner.resources.GetPortalSnippetsByNamespace(namespace)
 }
 
 // GetGenericPlanner returns the generic planner instance

@@ -32,18 +32,15 @@ type Planner struct {
 	authStrategyPlanner AuthStrategyPlanner
 	apiPlanner          APIPlanner
 
-	// Desired resources (set during plan generation)
+	// ResourceSet containing all desired resources
+	resources *resources.ResourceSet
+
+	// Legacy field access for backward compatibility (provides global access)
 	desiredPortals              []resources.PortalResource
-	desiredAuthStrategies       []resources.ApplicationAuthStrategyResource
-	desiredAPIs                 []resources.APIResource
-	desiredAPIVersions          []resources.APIVersionResource
-	desiredAPIPublications      []resources.APIPublicationResource
-	desiredAPIImplementations   []resources.APIImplementationResource
-	desiredAPIDocuments         []resources.APIDocumentResource
-	desiredPortalCustomizations []resources.PortalCustomizationResource
-	desiredPortalCustomDomains  []resources.PortalCustomDomainResource
 	desiredPortalPages          []resources.PortalPageResource
 	desiredPortalSnippets       []resources.PortalSnippetResource
+	desiredPortalCustomizations []resources.PortalCustomizationResource
+	desiredPortalCustomDomains  []resources.PortalCustomDomainResource
 }
 
 // NewPlanner creates a new planner
@@ -120,27 +117,15 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.authStrategyPlanner = NewAuthStrategyPlanner(base)
 		namespacePlanner.apiPlanner = NewAPIPlanner(base)
 
-		// Filter resources for this namespace
-		var namespaceResources *resources.ResourceSet
-		if namespace == "*" {
-			// Special case for sync mode with empty config
-			namespaceResources = &resources.ResourceSet{}
-		} else {
-			namespaceResources = p.filterResourcesByNamespace(rs, namespace)
-		}
+		// Store full ResourceSet for access by planners (enables both filtered views and global lookups)
+		namespacePlanner.resources = rs
 
-		// Store filtered resources for access by planners
-		namespacePlanner.desiredPortals = namespaceResources.Portals
-		namespacePlanner.desiredAuthStrategies = namespaceResources.ApplicationAuthStrategies
-		namespacePlanner.desiredAPIs = namespaceResources.APIs
-		namespacePlanner.desiredAPIVersions = namespaceResources.APIVersions
-		namespacePlanner.desiredAPIPublications = namespaceResources.APIPublications
-		namespacePlanner.desiredAPIImplementations = namespaceResources.APIImplementations
-		namespacePlanner.desiredAPIDocuments = namespaceResources.APIDocuments
-		namespacePlanner.desiredPortalCustomizations = namespaceResources.PortalCustomizations
-		namespacePlanner.desiredPortalCustomDomains = namespaceResources.PortalCustomDomains
-		namespacePlanner.desiredPortalPages = namespaceResources.PortalPages
-		namespacePlanner.desiredPortalSnippets = namespaceResources.PortalSnippets
+		// Populate legacy field access for backward compatibility
+		namespacePlanner.desiredPortals = rs.Portals
+		namespacePlanner.desiredPortalPages = rs.PortalPages
+		namespacePlanner.desiredPortalSnippets = rs.PortalSnippets
+		namespacePlanner.desiredPortalCustomizations = rs.PortalCustomizations
+		namespacePlanner.desiredPortalCustomDomains = rs.PortalCustomDomains
 
 		// Create a plan for this namespace
 		namespacePlan := NewPlan("1.0", "kongctl/dev", opts.Mode)
@@ -181,9 +166,8 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	basePlan.UpdateSummary()
 
 	// Note: Orphan portal child resources (those referencing non-existent portals)
-	// are now handled within each namespace's processing. The filterResourcesByNamespace
-	// method ensures child resources are only included if their parent exists in the
-	// same namespace.
+	// are now handled within each namespace's processing using the namespace-filtered
+	// resource access methods.
 
 	// Resolve references for all changes
 	resolveResult, err := p.resolver.ResolveReferences(ctx, basePlan.Changes)
@@ -351,29 +335,47 @@ func getString(s *string) string {
 	return *s
 }
 
-// GetDesiredAPIs returns the desired API resources
+// Legacy methods for backward compatibility - delegate to ResourceSet methods
+// These search across all namespaces since the callers expect global access
+
+// GetDesiredAPIs returns all desired API resources (across all namespaces)
 func (p *Planner) GetDesiredAPIs() []resources.APIResource {
-	return p.desiredAPIs
+	if p.resources == nil {
+		return nil
+	}
+	return p.resources.APIs
 }
 
-// GetDesiredPortalCustomizations returns the desired portal customization resources
+// GetDesiredPortalCustomizations returns all desired portal customization resources (across all namespaces)
 func (p *Planner) GetDesiredPortalCustomizations() []resources.PortalCustomizationResource {
-	return p.desiredPortalCustomizations
+	if p.resources == nil {
+		return nil
+	}
+	return p.resources.PortalCustomizations
 }
 
-// GetDesiredPortalCustomDomains returns the desired portal custom domain resources
+// GetDesiredPortalCustomDomains returns all desired portal custom domain resources (across all namespaces)
 func (p *Planner) GetDesiredPortalCustomDomains() []resources.PortalCustomDomainResource {
-	return p.desiredPortalCustomDomains
+	if p.resources == nil {
+		return nil
+	}
+	return p.resources.PortalCustomDomains
 }
 
-// GetDesiredPortalPages returns the desired portal page resources
+// GetDesiredPortalPages returns all desired portal page resources (across all namespaces)
 func (p *Planner) GetDesiredPortalPages() []resources.PortalPageResource {
-	return p.desiredPortalPages
+	if p.resources == nil {
+		return nil
+	}
+	return p.resources.PortalPages
 }
 
-// GetDesiredPortalSnippets returns the desired portal snippet resources
+// GetDesiredPortalSnippets returns all desired portal snippet resources (across all namespaces)
 func (p *Planner) GetDesiredPortalSnippets() []resources.PortalSnippetResource {
-	return p.desiredPortalSnippets
+	if p.resources == nil {
+		return nil
+	}
+	return p.resources.PortalSnippets
 }
 
 // resolveResourceIdentities pre-resolves Konnect IDs for all resources
@@ -497,17 +499,17 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 
 	// Extract namespaces from parent resources
 	for _, portal := range rs.Portals {
-		ns := getNamespace(portal.Kongctl)
+		ns := resources.GetNamespace(portal.Kongctl)
 		namespaceSet[ns] = true
 	}
 
 	for _, api := range rs.APIs {
-		ns := getNamespace(api.Kongctl)
+		ns := resources.GetNamespace(api.Kongctl)
 		namespaceSet[ns] = true
 	}
 
 	for _, strategy := range rs.ApplicationAuthStrategies {
-		ns := getNamespace(strategy.Kongctl)
+		ns := resources.GetNamespace(strategy.Kongctl)
 		namespaceSet[ns] = true
 	}
 
@@ -521,99 +523,4 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	sort.Strings(namespaces)
 
 	return namespaces
-}
-
-// getNamespace safely extracts namespace from kongctl metadata
-func getNamespace(kongctl *resources.KongctlMeta) string {
-	if kongctl != nil && kongctl.Namespace != nil {
-		return *kongctl.Namespace
-	}
-	return DefaultNamespace
-}
-
-// filterResourcesByNamespace creates a filtered ResourceSet containing only resources from the specified namespace
-func (p *Planner) filterResourcesByNamespace(rs *resources.ResourceSet, namespace string) *resources.ResourceSet {
-	filtered := &resources.ResourceSet{}
-
-	// Filter parent resources by namespace
-	for _, portal := range rs.Portals {
-		if getNamespace(portal.Kongctl) == namespace {
-			filtered.Portals = append(filtered.Portals, portal)
-		}
-	}
-
-	for _, api := range rs.APIs {
-		if getNamespace(api.Kongctl) == namespace {
-			filtered.APIs = append(filtered.APIs, api)
-		}
-	}
-
-	for _, strategy := range rs.ApplicationAuthStrategies {
-		if getNamespace(strategy.Kongctl) == namespace {
-			filtered.ApplicationAuthStrategies = append(filtered.ApplicationAuthStrategies, strategy)
-		}
-	}
-
-	// For child resources, include them if their parent is in the filtered set
-	// This requires building parent resource ref sets for efficient lookup
-	portalRefs := make(map[string]bool)
-	for _, portal := range filtered.Portals {
-		portalRefs[portal.Ref] = true
-	}
-
-	apiRefs := make(map[string]bool)
-	for _, api := range filtered.APIs {
-		apiRefs[api.Ref] = true
-	}
-
-	// Filter child resources based on parent presence
-	for _, version := range rs.APIVersions {
-		if apiRefs[version.API] {
-			filtered.APIVersions = append(filtered.APIVersions, version)
-		}
-	}
-
-	for _, pub := range rs.APIPublications {
-		if apiRefs[pub.API] {
-			filtered.APIPublications = append(filtered.APIPublications, pub)
-		}
-	}
-
-	for _, impl := range rs.APIImplementations {
-		if apiRefs[impl.API] {
-			filtered.APIImplementations = append(filtered.APIImplementations, impl)
-		}
-	}
-
-	for _, doc := range rs.APIDocuments {
-		if apiRefs[doc.API] {
-			filtered.APIDocuments = append(filtered.APIDocuments, doc)
-		}
-	}
-
-	for _, custom := range rs.PortalCustomizations {
-		if portalRefs[custom.Portal] {
-			filtered.PortalCustomizations = append(filtered.PortalCustomizations, custom)
-		}
-	}
-
-	for _, domain := range rs.PortalCustomDomains {
-		if portalRefs[domain.Portal] {
-			filtered.PortalCustomDomains = append(filtered.PortalCustomDomains, domain)
-		}
-	}
-
-	for _, page := range rs.PortalPages {
-		if portalRefs[page.Portal] {
-			filtered.PortalPages = append(filtered.PortalPages, page)
-		}
-	}
-
-	for _, snippet := range rs.PortalSnippets {
-		if portalRefs[snippet.Portal] {
-			filtered.PortalSnippets = append(filtered.PortalSnippets, snippet)
-		}
-	}
-
-	return filtered
 }

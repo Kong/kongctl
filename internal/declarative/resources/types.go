@@ -165,3 +165,174 @@ func (rs *ResourceSet) GetResourceTypeByRef(ref string) (ResourceType, bool) {
 	}
 	return res.GetType(), true
 }
+
+// Global lookup methods - search across all namespaces
+
+// GetPortalByRef returns a portal resource by its ref from any namespace
+func (rs *ResourceSet) GetPortalByRef(ref string) *PortalResource {
+	for i := range rs.Portals {
+		if rs.Portals[i].GetRef() == ref {
+			return &rs.Portals[i]
+		}
+	}
+	return nil
+}
+
+// GetAPIByRef returns an API resource by its ref from any namespace
+func (rs *ResourceSet) GetAPIByRef(ref string) *APIResource {
+	for i := range rs.APIs {
+		if rs.APIs[i].GetRef() == ref {
+			return &rs.APIs[i]
+		}
+	}
+	return nil
+}
+
+// GetAuthStrategyByRef returns an auth strategy resource by its ref from any namespace
+func (rs *ResourceSet) GetAuthStrategyByRef(ref string) *ApplicationAuthStrategyResource {
+	for i := range rs.ApplicationAuthStrategies {
+		if rs.ApplicationAuthStrategies[i].GetRef() == ref {
+			return &rs.ApplicationAuthStrategies[i]
+		}
+	}
+	return nil
+}
+
+// Namespace-filtered access methods
+
+// GetPortalsByNamespace returns all portal resources from the specified namespace
+func (rs *ResourceSet) GetPortalsByNamespace(namespace string) []PortalResource {
+	var filtered []PortalResource
+	for _, portal := range rs.Portals {
+		if GetNamespace(portal.Kongctl) == namespace {
+			filtered = append(filtered, portal)
+		}
+	}
+	return filtered
+}
+
+// GetAPIsByNamespace returns all API resources from the specified namespace
+func (rs *ResourceSet) GetAPIsByNamespace(namespace string) []APIResource {
+	var filtered []APIResource
+	for _, api := range rs.APIs {
+		if GetNamespace(api.Kongctl) == namespace {
+			filtered = append(filtered, api)
+		}
+	}
+	return filtered
+}
+
+// GetAuthStrategiesByNamespace returns all auth strategy resources from the specified namespace
+func (rs *ResourceSet) GetAuthStrategiesByNamespace(namespace string) []ApplicationAuthStrategyResource {
+	var filtered []ApplicationAuthStrategyResource
+	for _, strategy := range rs.ApplicationAuthStrategies {
+		if GetNamespace(strategy.Kongctl) == namespace {
+			filtered = append(filtered, strategy)
+		}
+	}
+	return filtered
+}
+
+// GetAPIVersionsByNamespace returns all API version resources from the specified namespace
+func (rs *ResourceSet) GetAPIVersionsByNamespace(namespace string) []APIVersionResource {
+	var filtered []APIVersionResource
+	for _, version := range rs.APIVersions {
+		// Check if parent API is in the namespace
+		if api := rs.GetAPIByRef(version.API); api != nil && GetNamespace(api.Kongctl) == namespace {
+			filtered = append(filtered, version)
+		}
+	}
+	return filtered
+}
+
+// GetAPIPublicationsByNamespace returns all API publication resources from the specified namespace
+func (rs *ResourceSet) GetAPIPublicationsByNamespace(namespace string) []APIPublicationResource {
+	var filtered []APIPublicationResource
+	for _, pub := range rs.APIPublications {
+		// Check if parent API is in the namespace
+		if api := rs.GetAPIByRef(pub.API); api != nil && GetNamespace(api.Kongctl) == namespace {
+			filtered = append(filtered, pub)
+		}
+	}
+	return filtered
+}
+
+// GetAPIImplementationsByNamespace returns all API implementation resources from the specified namespace
+func (rs *ResourceSet) GetAPIImplementationsByNamespace(namespace string) []APIImplementationResource {
+	var filtered []APIImplementationResource
+	for _, impl := range rs.APIImplementations {
+		// Check if parent API is in the namespace
+		if api := rs.GetAPIByRef(impl.API); api != nil && GetNamespace(api.Kongctl) == namespace {
+			filtered = append(filtered, impl)
+		}
+	}
+	return filtered
+}
+
+// GetAPIDocumentsByNamespace returns all API document resources from the specified namespace
+func (rs *ResourceSet) GetAPIDocumentsByNamespace(namespace string) []APIDocumentResource {
+	var filtered []APIDocumentResource
+	for _, doc := range rs.APIDocuments {
+		// Check if parent API is in the namespace
+		if api := rs.GetAPIByRef(doc.API); api != nil && GetNamespace(api.Kongctl) == namespace {
+			filtered = append(filtered, doc)
+		}
+	}
+	return filtered
+}
+
+// GetPortalCustomizationsByNamespace returns all portal customization resources from the specified namespace
+func (rs *ResourceSet) GetPortalCustomizationsByNamespace(namespace string) []PortalCustomizationResource {
+	var filtered []PortalCustomizationResource
+	for _, custom := range rs.PortalCustomizations {
+		// Check if parent portal is in the namespace
+		if portal := rs.GetPortalByRef(custom.Portal); portal != nil && GetNamespace(portal.Kongctl) == namespace {
+			filtered = append(filtered, custom)
+		}
+	}
+	return filtered
+}
+
+// GetPortalCustomDomainsByNamespace returns all portal custom domain resources from the specified namespace
+func (rs *ResourceSet) GetPortalCustomDomainsByNamespace(namespace string) []PortalCustomDomainResource {
+	var filtered []PortalCustomDomainResource
+	for _, domain := range rs.PortalCustomDomains {
+		// Check if parent portal is in the namespace
+		if portal := rs.GetPortalByRef(domain.Portal); portal != nil && GetNamespace(portal.Kongctl) == namespace {
+			filtered = append(filtered, domain)
+		}
+	}
+	return filtered
+}
+
+// GetPortalPagesByNamespace returns all portal page resources from the specified namespace
+func (rs *ResourceSet) GetPortalPagesByNamespace(namespace string) []PortalPageResource {
+	var filtered []PortalPageResource
+	for _, page := range rs.PortalPages {
+		// Check if parent portal is in the namespace
+		if portal := rs.GetPortalByRef(page.Portal); portal != nil && GetNamespace(portal.Kongctl) == namespace {
+			filtered = append(filtered, page)
+		}
+	}
+	return filtered
+}
+
+// GetPortalSnippetsByNamespace returns all portal snippet resources from the specified namespace
+func (rs *ResourceSet) GetPortalSnippetsByNamespace(namespace string) []PortalSnippetResource {
+	var filtered []PortalSnippetResource
+	for _, snippet := range rs.PortalSnippets {
+		// Check if parent portal is in the namespace
+		if portal := rs.GetPortalByRef(snippet.Portal); portal != nil && GetNamespace(portal.Kongctl) == namespace {
+			filtered = append(filtered, snippet)
+		}
+	}
+	return filtered
+}
+
+// GetNamespace safely extracts namespace from kongctl metadata
+func GetNamespace(kongctl *KongctlMeta) string {
+	if kongctl == nil || kongctl.Namespace == nil {
+		return "default"
+	}
+	return *kongctl.Namespace
+}

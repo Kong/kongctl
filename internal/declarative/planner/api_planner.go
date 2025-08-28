@@ -29,8 +29,11 @@ func NewAPIPlanner(base *BasePlanner) APIPlanner {
 
 // PlanChanges generates changes for API resources and their child resources
 func (a *apiPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
+	// Get namespace from planner context
+	namespace := plannerCtx.Namespace
+
 	// Debug logging
-	desiredAPIs := a.GetDesiredAPIs()
+	desiredAPIs := a.GetDesiredAPIs(namespace)
 	a.planner.logger.Debug("apiPlannerImpl.PlanChanges called", "desiredAPIs", len(desiredAPIs))
 
 	// Plan API resources
@@ -39,21 +42,23 @@ func (a *apiPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, pl
 	}
 
 	// Plan child resources that are defined separately
-	if err := a.planner.planAPIVersionsChanges(ctx, plannerCtx, a.GetDesiredAPIVersions(), plan); err != nil {
+	if err := a.planner.planAPIVersionsChanges(ctx, plannerCtx, a.GetDesiredAPIVersions(namespace), plan); err != nil {
 		return err
 	}
 
-	if err := a.planner.planAPIPublicationsChanges(ctx, plannerCtx, a.GetDesiredAPIPublications(), plan); err != nil {
-		return err
-	}
-
-	if err := a.planner.planAPIImplementationsChanges(
-		ctx, plannerCtx, a.GetDesiredAPIImplementations(), plan,
+	if err := a.planner.planAPIPublicationsChanges(
+		ctx, plannerCtx, a.GetDesiredAPIPublications(namespace), plan,
 	); err != nil {
 		return err
 	}
 
-	if err := a.planner.planAPIDocumentsChanges(ctx, plannerCtx, a.GetDesiredAPIDocuments(), plan); err != nil {
+	if err := a.planner.planAPIImplementationsChanges(
+		ctx, plannerCtx, a.GetDesiredAPIImplementations(namespace), plan,
+	); err != nil {
+		return err
+	}
+
+	if err := a.planner.planAPIDocumentsChanges(ctx, plannerCtx, a.GetDesiredAPIDocuments(namespace), plan); err != nil {
 		return err
 	}
 
@@ -551,7 +556,7 @@ func (p *Planner) planAPIVersionChanges(
 	if plan.Metadata.Mode == PlanModeSync {
 		// Check if there are extracted versions for this API that will be processed later
 		hasExtractedVersions := false
-		for _, ver := range p.desiredAPIVersions {
+		for _, ver := range p.resources.GetAPIVersionsByNamespace(parentNamespace) {
 			if ver.API == apiRef {
 				hasExtractedVersions = true
 				break
@@ -630,11 +635,8 @@ func (p *Planner) planAPIVersionCreate(
 	// Set API reference for executor - find the API name for lookup
 	if apiRef != "" {
 		var apiName string
-		for _, api := range p.desiredAPIs {
-			if api.Ref == apiRef {
-				apiName = api.Name
-				break
-			}
+		if api := p.resources.GetAPIByRef(apiRef); api != nil {
+			apiName = api.Name
 		}
 
 		change.References = map[string]ReferenceInfo{
@@ -697,11 +699,11 @@ func (p *Planner) planAPIPublicationChanges(
 	portalIDToRef := make(map[string]string) // Reverse mapping for deletion display
 
 	p.logger.Debug("Building portal reference mapping",
-		slog.Int("desired_portals", len(p.desiredPortals)),
+		slog.Int("desired_portals", len(p.resources.Portals)),
 	)
 
-	// First, add desired portals to the mapping
-	for _, portal := range p.desiredPortals {
+	// First, add desired portals to the mapping (search all namespaces)
+	for _, portal := range p.resources.Portals {
 		if resolvedID := portal.GetKonnectID(); resolvedID != "" {
 			portalRefToID[portal.Ref] = resolvedID
 			portalIDToRef[resolvedID] = portal.Ref
@@ -725,7 +727,7 @@ func (p *Planner) planAPIPublicationChanges(
 				// Try to find the ref by matching name with desired portals
 				// If not found, use the portal name as a fallback ref
 				portalRef := portal.Name
-				for _, desiredPortal := range p.desiredPortals {
+				for _, desiredPortal := range p.resources.Portals {
 					if desiredPortal.Name == portal.Name {
 						portalRef = desiredPortal.Ref
 						break
@@ -788,7 +790,7 @@ func (p *Planner) planAPIPublicationChanges(
 	if plan.Metadata.Mode == PlanModeSync {
 		// Check if there are extracted publications for this API that will be processed later
 		hasExtractedPublications := false
-		for _, pub := range p.desiredAPIPublications {
+		for _, pub := range p.resources.GetAPIPublicationsByNamespace(parentNamespace) {
 			if pub.API == apiRef {
 				hasExtractedPublications = true
 				break
@@ -878,13 +880,10 @@ func (p *Planner) planAPIPublicationCreate(
 		Namespace:    parentNamespace,
 	}
 
-	// Look up portal name for reference resolution
+	// Look up portal name for reference resolution using global lookup
 	var portalName string
-	for _, portal := range p.desiredPortals {
-		if portal.Ref == publication.PortalID {
-			portalName = portal.Name
-			break
-		}
+	if portal := p.resources.GetPortalByRef(publication.PortalID); portal != nil {
+		portalName = portal.Name
 	}
 
 	// Set up references with lookup fields
@@ -893,11 +892,8 @@ func (p *Planner) planAPIPublicationCreate(
 	// Set API reference for executor - find the API name for lookup
 	if apiRef != "" {
 		var apiName string
-		for _, api := range p.desiredAPIs {
-			if api.Ref == apiRef {
-				apiName = api.Name
-				break
-			}
+		if api := p.resources.GetAPIByRef(apiRef); api != nil {
+			apiName = api.Name
 		}
 
 		change.References["api_id"] = ReferenceInfo{
@@ -924,13 +920,10 @@ func (p *Planner) planAPIPublicationCreate(
 		// Look up names for each auth strategy reference
 		var authStrategyNames []string
 		for _, ref := range publication.AuthStrategyIds {
-			// Find the auth strategy in desired state
+			// Find the auth strategy in desired state using global lookup
 			var strategyName string
-			for _, strategy := range p.desiredAuthStrategies {
-				if strategy.Ref == ref {
-					strategyName = p.getAuthStrategyName(strategy)
-					break
-				}
+			if strategy := p.resources.GetAuthStrategyByRef(ref); strategy != nil {
+				strategyName = p.getAuthStrategyName(*strategy)
 			}
 			authStrategyNames = append(authStrategyNames, strategyName)
 		}
@@ -1006,13 +999,10 @@ func (p *Planner) planAPIPublicationUpdate(
 		Namespace:    parentNamespace,
 	}
 
-	// Look up portal name for reference resolution
+	// Look up portal name for reference resolution using global lookup
 	var portalName string
-	for _, portal := range p.desiredPortals {
-		if portal.Ref == desired.PortalID {
-			portalName = portal.Name
-			break
-		}
+	if portal := p.resources.GetPortalByRef(desired.PortalID); portal != nil {
+		portalName = portal.Name
 	}
 
 	// Set up references with lookup fields
@@ -1021,11 +1011,8 @@ func (p *Planner) planAPIPublicationUpdate(
 	// Set API reference
 	if apiRef != "" {
 		var apiName string
-		for _, api := range p.desiredAPIs {
-			if api.Ref == apiRef {
-				apiName = api.Name
-				break
-			}
+		if api := p.resources.GetAPIByRef(apiRef); api != nil {
+			apiName = api.Name
 		}
 
 		change.References["api_id"] = ReferenceInfo{
@@ -1053,12 +1040,9 @@ func (p *Planner) planAPIPublicationUpdate(
 		// Extract auth strategy names for lookup
 		authStrategyNames := make([]string, 0, len(authStrategyIDs))
 		for _, strategyRef := range authStrategyIDs {
-			// Find the auth strategy by ref to get its name
-			for _, strategy := range p.desiredAuthStrategies {
-				if strategy.GetRef() == strategyRef {
-					authStrategyNames = append(authStrategyNames, p.getAuthStrategyName(strategy))
-					break
-				}
+			// Find the auth strategy by ref to get its name using global lookup
+			if strategy := p.resources.GetAuthStrategyByRef(strategyRef); strategy != nil {
+				authStrategyNames = append(authStrategyNames, p.getAuthStrategyName(*strategy))
 			}
 		}
 
@@ -1219,11 +1203,8 @@ func (p *Planner) planAPIImplementationCreate(
 	// Set API reference for executor - find the API name for lookup
 	if apiRef != "" {
 		var apiName string
-		for _, api := range p.desiredAPIs {
-			if api.Ref == apiRef {
-				apiName = api.Name
-				break
-			}
+		if api := p.resources.GetAPIByRef(apiRef); api != nil {
+			apiName = api.Name
 		}
 
 		change.References = map[string]ReferenceInfo{
@@ -1398,11 +1379,8 @@ func (p *Planner) planAPIVersionUpdate(
 	if apiRef != "" {
 		// Find the API to get its name for lookup
 		var apiName string
-		for _, api := range p.desiredAPIs {
-			if api.Ref == apiRef {
-				apiName = api.Name
-				break
-			}
+		if api := p.resources.GetAPIByRef(apiRef); api != nil {
+			apiName = api.Name
 		}
 
 		change.References = map[string]ReferenceInfo{
@@ -1458,11 +1436,8 @@ func (p *Planner) planAPIDocumentCreate(
 	if apiRef != "" {
 		// Find the API to get its name for lookup
 		var apiName string
-		for _, api := range p.desiredAPIs {
-			if api.Ref == apiRef {
-				apiName = api.Name
-				break
-			}
+		if api := p.resources.GetAPIByRef(apiRef); api != nil {
+			apiName = api.Name
 		}
 
 		change.References = map[string]ReferenceInfo{
@@ -1514,11 +1489,8 @@ func (p *Planner) planAPIDocumentUpdate(
 	if apiRef != "" {
 		// Find the API to get its name for lookup
 		var apiName string
-		for _, api := range p.desiredAPIs {
-			if api.Ref == apiRef {
-				apiName = api.Name
-				break
-			}
+		if api := p.resources.GetAPIByRef(apiRef); api != nil {
+			apiName = api.Name
 		}
 
 		change.References = map[string]ReferenceInfo{
@@ -1555,11 +1527,8 @@ func (p *Planner) planAPIDocumentDelete(apiRef string, apiID string, documentID 
 	if apiRef != "" {
 		// Find the API to get its name for lookup
 		var apiName string
-		for _, api := range p.desiredAPIs {
-			if api.Ref == apiRef {
-				apiName = api.Name
-				break
-			}
+		if api := p.resources.GetAPIByRef(apiRef); api != nil {
+			apiName = api.Name
 		}
 
 		change.References = map[string]ReferenceInfo{
