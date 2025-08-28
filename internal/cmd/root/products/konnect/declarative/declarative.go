@@ -946,6 +946,12 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 		}
 	}
 
+	// Determine if the command should exit with an error
+	var potentialExitErr error
+	if result != nil && result.HasErrors() {
+		potentialExitErr = fmt.Errorf("apply completed with %d errors", result.FailureCount)
+	}
+
 	switch format {
 	case "json":
 		// Use custom JSON encoding to preserve field order
@@ -967,7 +973,7 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 		fmt.Fprintf(out, "  \"summary\": %s\n", summaryJSON)
 
 		fmt.Fprintln(out, "}")
-		return nil
+		return potentialExitErr
 
 	case "yaml":
 		// Build YAML content manually to preserve order
@@ -999,15 +1005,12 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 			fmt.Fprintf(out, "  %s\n", line)
 		}
 
-		return nil
+		return potentialExitErr
 
 	default: // text
-		if err != nil {
-			return err
-		}
 		// Human-readable output already handled by progress reporter
-		// Don't print additional messages as it would be redundant
-		return nil
+		// If there were errors during execution, return a non-nil error to signal failure
+		return potentialExitErr
 	}
 }
 
