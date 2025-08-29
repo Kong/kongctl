@@ -852,9 +852,9 @@ func runApply(command *cobra.Command, args []string) error {
 
 	if result.HasErrors() {
 		return fmt.Errorf("execution completed with %d errors", result.FailureCount)
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 func validateApplyPlan(plan *planner.Plan, command *cobra.Command) error {
@@ -1269,9 +1269,9 @@ func runSync(command *cobra.Command, args []string) error {
 	}
 	if result.HasErrors() {
 		return fmt.Errorf("execution completed with %d errors", result.FailureCount)
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 // createStateClient creates a new state client with all necessary APIs
