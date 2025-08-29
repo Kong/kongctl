@@ -212,7 +212,7 @@ portals:
 
 	// Execute the plan
 	exec := executor.New(stateClient, nil, false)
-	report, err := exec.Execute(ctx, plan)
+	report := exec.Execute(ctx, plan)
 	require.NoError(t, err)
 	assert.Equal(t, 2, report.SuccessCount)
 	assert.Equal(t, 0, report.FailureCount)
@@ -401,7 +401,7 @@ apis:
 
 	// Execute the plan
 	exec := executor.New(stateClient, nil, false)
-	report, err := exec.Execute(ctx, plan)
+	report := exec.Execute(ctx, plan)
 	require.NoError(t, err)
 
 	// Verify all APIs were created
@@ -648,8 +648,7 @@ apis:
 
 	// Execute the plan
 	exec := executor.New(stateClient, nil, false)
-	_, err = exec.Execute(ctx, plan)
-	require.NoError(t, err)
+	_ = exec.Execute(ctx, plan)
 
 	// Verify beta-1 was NOT deleted (namespace isolation)
 	mockAPIAPI.AssertNotCalled(t, "DeleteAPI", mock.Anything, "beta-1")
@@ -895,8 +894,7 @@ apis:
 
 	// Execute the plan
 	exec := executor.New(stateClient, nil, false)
-	report, err := exec.Execute(ctx, plan)
-	require.NoError(t, err)
+	report := exec.Execute(ctx, plan)
 	assert.Equal(t, 2, report.SuccessCount)
 	assert.Equal(t, 0, report.FailureCount)
 

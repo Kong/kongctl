@@ -135,5 +135,5 @@ func TestSyncCommand_WithDeletes(t *testing.T) {
 
 	// Verify execution completed
 	assert.Contains(t, outputStr, "Complete.")
-	assert.Contains(t, outputStr, "Applied 1 changes.")
+	assert.Contains(t, outputStr, "Executed 1 changes.")
 }
