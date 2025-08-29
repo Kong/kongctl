@@ -123,7 +123,7 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 }
 
 // Execute runs the plan and returns the execution result
-func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) (*ExecutionResult, error) {
+func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionResult {
 	result := &ExecutionResult{
 		DryRun: e.dryRun,
 	}
@@ -155,11 +155,8 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) (*ExecutionR
 			continue
 		}
 
-		// Execute the change
-		if err := e.executeChange(ctx, result, change, plan, i); err != nil {
-			// Error already recorded in executeChange
-			continue
-		}
+		// Execute the change, the error will be captured in result
+		_ = e.executeChange(ctx, result, change, plan, i)
 	}
 
 	// Notify reporter of execution completion
@@ -167,7 +164,7 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) (*ExecutionR
 		e.reporter.FinishExecution(result)
 	}
 
-	return result, nil
+	return result
 }
 
 // executeChange executes a single change from the plan

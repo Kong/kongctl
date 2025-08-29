@@ -30,7 +30,7 @@ func TestConsoleReporter_StartExecution(t *testing.T) {
 				},
 			},
 			dryRun:       false,
-			expectedOut:  "Applying changes:\n",
+			expectedOut:  "Executing changes:\n",
 			shouldOutput: true,
 		},
 		{
@@ -57,7 +57,7 @@ func TestConsoleReporter_StartExecution(t *testing.T) {
 					TotalChanges: 2,
 				},
 			},
-			expectedOut:  "Applying changes:\n",
+			expectedOut:  "Executing changes:\n",
 			shouldOutput: true,
 		},
 		{
@@ -206,7 +206,7 @@ func TestConsoleReporter_FinishExecution_Normal(t *testing.T) {
 			},
 			containsStr: []string{
 				"Complete.",
-				"Applied 3 changes.",
+				"Executed 3 changes.",
 			},
 			notContains: []string{
 				"- Failed:",
@@ -231,7 +231,7 @@ func TestConsoleReporter_FinishExecution_Normal(t *testing.T) {
 			},
 			containsStr: []string{
 				"Complete.",
-				"Applied 2 changes.",
+				"Executed 2 changes.",
 				"Errors:",
 				"  • portal bad-portal: validation failed",
 			},
@@ -245,7 +245,7 @@ func TestConsoleReporter_FinishExecution_Normal(t *testing.T) {
 			},
 			containsStr: []string{
 				"Complete.",
-				"Applied 1 changes.",
+				"Executed 1 changes.",
 			},
 		},
 	}
@@ -404,12 +404,12 @@ func TestConsoleReporter_CompleteWorkflow(t *testing.T) {
 	output := buf.String()
 
 	// Verify the complete output
-	assert.Contains(t, output, "Applying changes:")
+	assert.Contains(t, output, "Executing changes:")
 	assert.Contains(t, output, "[1/3] [namespace: default] Creating portal: developer-portal... ✓")
 	assert.Contains(t, output, "[2/3] [namespace: default] Updating portal: staging-portal... ✓")
 	assert.Contains(t, output, "[3/3] [namespace: default] Deleting portal_page: old-docs... ✗ Error: not found")
 	assert.Contains(t, output, "Complete.")
-	assert.Contains(t, output, "Applied 2 changes.")
+	assert.Contains(t, output, "Executed 2 changes.")
 	assert.Contains(t, output, "Errors:")
 	assert.Contains(t, output, "  • portal_page old-docs: not found")
 }

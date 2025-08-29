@@ -152,7 +152,7 @@ portals:
 				require.Error(t, err)
 				if tc.expectSummaryError {
 					// Execution-stage failure: summary error with count, details in output
-					assert.Regexp(t, `^command completed with \d+ errors`, err.Error())
+					assert.Regexp(t, `^execution completed with \d+ errors`, err.Error())
 					assert.Contains(t, output.String(), tc.expectedError)
 				} else {
 					// Plan-generation failure: underlying error is returned directly
@@ -275,7 +275,7 @@ portals:
 
 	// Partial failures return a summary error and include details in output
 	require.Error(t, err)
-	assert.Regexp(t, `^command completed with \d+ errors`, err.Error())
+	assert.Regexp(t, `^execution completed with \d+ errors`, err.Error())
 	assert.Contains(t, outputStr, "failure-portal")
 
 	// Verify mocks were called as expected

@@ -66,7 +66,7 @@ func (r *ConsoleReporter) StartExecution(plan *planner.Plan) {
 	if r.dryRun {
 		fmt.Fprintln(r.writer, "Validating changes:")
 	} else {
-		fmt.Fprintln(r.writer, "Applying changes:")
+		fmt.Fprintln(r.writer, "Executing changes:")
 	}
 }
 
@@ -202,7 +202,7 @@ func (r *ConsoleReporter) FinishExecution(result *ExecutionResult) {
 		// For actual execution, show results
 		fmt.Fprintln(r.writer, "Complete.")
 		if result.SuccessCount > 0 {
-			fmt.Fprintf(r.writer, "Applied %d changes.\n", result.SuccessCount)
+			fmt.Fprintf(r.writer, "Executed %d changes.\n", result.SuccessCount)
 		}
 
 		if result.FailureCount > 0 && len(result.Errors) > 0 {

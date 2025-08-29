@@ -152,8 +152,7 @@ apis:
 
 	// Execute plan
 	exec := executor.New(stateClient, nil, false)
-	report, err := exec.Execute(ctx, plan)
-	require.NoError(t, err)
+	report := exec.Execute(ctx, plan)
 	require.NotNil(t, report)
 	assert.Equal(t, 1, report.SuccessCount)
 	assert.Equal(t, 0, report.FailureCount)
@@ -262,8 +261,7 @@ apis:
 	assert.Equal(t, "my-api", plan.Changes[0].ResourceRef)
 
 	// Execute update (ListApis mock already set up above)
-	report, err = exec.Execute(ctx, plan)
-	require.NoError(t, err)
+	report = exec.Execute(ctx, plan)
 	assert.Equal(t, 1, report.SuccessCount)
 
 	mockAPIAPI.AssertExpectations(t)
@@ -485,8 +483,7 @@ apis:
 
 	// Execute plan
 	exec := executor.New(stateClient, nil, false)
-	report, err := exec.Execute(ctx, plan)
-	require.NoError(t, err)
+	report := exec.Execute(ctx, plan)
 
 	// Debug output
 	t.Logf("Execution report: Success=%d, Failure=%d, Skipped=%d",
@@ -672,7 +669,7 @@ api_versions:
 
 	// Execute plan
 	exec := executor.New(stateClient, nil, false)
-	report, err := exec.Execute(ctx, plan)
+	report := exec.Execute(ctx, plan)
 	require.NoError(t, err)
 	// The planner now correctly includes the API version, but execution may fail
 	// if the API version client is not configured in the mock
@@ -960,7 +957,7 @@ api_documents:
 
 	// Execute plan
 	exec := executor.New(stateClient, nil, false)
-	report, err := exec.Execute(ctx, plan)
+	report := exec.Execute(ctx, plan)
 	require.NoError(t, err)
 
 	// The planner now correctly includes child resources
@@ -1083,7 +1080,7 @@ api_implementations:
 
 	// Execute plan
 	exec := executor.New(stateClient, nil, false)
-	report, err := exec.Execute(ctx, plan)
+	report := exec.Execute(ctx, plan)
 	require.NoError(t, err)
 	assert.Equal(t, 1, report.SuccessCount+report.FailureCount+report.SkippedCount)
 	assert.Equal(t, 1, report.SuccessCount)
