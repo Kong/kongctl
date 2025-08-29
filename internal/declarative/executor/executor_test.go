@@ -73,9 +73,8 @@ func TestExecutor_Execute_EmptyPlan(t *testing.T) {
 	exec := New(nil, reporter, false)
 	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
 
-	result, err := exec.Execute(context.Background(), plan)
+	result := exec.Execute(context.Background(), plan)
 
-	require.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, 0, result.SuccessCount)
 	assert.Equal(t, 0, result.FailureCount)
@@ -114,9 +113,8 @@ func TestExecutor_Execute_DryRun(t *testing.T) {
 	plan.AddChange(change)
 	plan.SetExecutionOrder([]string{"1-c-portal"})
 
-	result, err := exec.Execute(context.Background(), plan)
+	result := exec.Execute(context.Background(), plan)
 
-	require.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, 0, result.SuccessCount)
 	assert.Equal(t, 0, result.FailureCount)
@@ -160,9 +158,8 @@ func TestExecutor_Execute_WithErrors(t *testing.T) {
 	plan.AddChange(change)
 	plan.SetExecutionOrder([]string{"1-c-service"})
 
-	result, err := exec.Execute(context.Background(), plan)
+	result := exec.Execute(context.Background(), plan)
 
-	require.NoError(t, err) // Execute doesn't return error, collects them
 	assert.NotNil(t, result)
 	assert.Equal(t, 0, result.SuccessCount)
 	assert.Equal(t, 1, result.FailureCount)
@@ -181,9 +178,8 @@ func TestExecutor_Execute_NilReporter(t *testing.T) {
 	exec := New(nil, nil, false)
 	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
 
-	result, err := exec.Execute(context.Background(), plan)
+	result := exec.Execute(context.Background(), plan)
 
-	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
@@ -338,8 +334,7 @@ func TestExecutor_ExecutionOrder(t *testing.T) {
 	// Set specific execution order
 	plan.SetExecutionOrder([]string{"1-c-portal", "2-u-portal", "3-d-portal"})
 
-	_, err := exec.Execute(context.Background(), plan)
-	require.NoError(t, err)
+	_ = exec.Execute(context.Background(), plan)
 
 	// Verify execution followed the specified order
 	assert.Equal(t, []string{"1-c-portal", "2-u-portal", "3-d-portal"}, executionOrder)
@@ -373,9 +368,8 @@ func TestExecutor_ContinuesOnError(t *testing.T) {
 	}
 	plan.SetExecutionOrder([]string{"1-c-route", "2-c-route", "3-c-route"})
 
-	result, err := exec.Execute(context.Background(), plan)
+	result := exec.Execute(context.Background(), plan)
 
-	require.NoError(t, err)
 	assert.Equal(t, 0, result.SuccessCount)
 	assert.Equal(t, 3, result.FailureCount) // All failed
 	assert.Equal(t, 0, result.SkippedCount)

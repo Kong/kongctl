@@ -116,7 +116,7 @@ func TestApplyCommand_BasicWorkflow(t *testing.T) {
 	// Verify successful execution
 	assert.NoError(t, err)
 	assert.Contains(t, output.String(), "Complete.")
-	assert.Contains(t, output.String(), "Applied 1 changes.")
+	assert.Contains(t, output.String(), "Executed 1 changes.")
 }
 
 func TestApplyCommand_RejectsDeletes(t *testing.T) {

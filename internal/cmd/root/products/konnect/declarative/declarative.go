@@ -801,7 +801,7 @@ func runApply(command *cobra.Command, args []string) error {
 			DryRun:         dryRun,
 			ChangesApplied: []executor.AppliedChange{},
 		}
-		return outputApplyResults(command, emptyResult, nil, outputFormat)
+		return outputExecutionResult(command, emptyResult, outputFormat)
 	}
 
 	// Show plan summary for text format (both regular and dry-run)
@@ -842,10 +842,19 @@ func runApply(command *cobra.Command, args []string) error {
 	exec := executor.New(stateClient, reporter, dryRun)
 
 	// Execute plan
-	result, err := exec.Execute(ctx, plan)
+	result := exec.Execute(ctx, plan)
 
 	// Output results based on format
-	return outputApplyResults(command, result, err, outputFormat)
+	outputErr := outputExecutionResult(command, result, outputFormat)
+	if outputErr != nil {
+		return outputErr
+	}
+
+	if result.HasErrors() {
+		return fmt.Errorf("execution completed with %d errors", result.FailureCount)
+	} else {
+		return nil
+	}
 }
 
 func validateApplyPlan(plan *planner.Plan, command *cobra.Command) error {
@@ -867,7 +876,16 @@ func validateApplyPlan(plan *planner.Plan, command *cobra.Command) error {
 	return nil
 }
 
-func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult, err error, format string) error {
+// Displays an output for the execution of an apply or sync command.
+// The returned error indicates if the function itself succeeded or not, not if the execution result had errors
+func outputExecutionResult(command *cobra.Command,
+	result *executor.ExecutionResult, format string,
+) error {
+	// Human-readable output already handled by progress reporter
+	if format == "text" {
+		return nil
+	}
+
 	// Get the full plan from context
 	var plan *planner.Plan
 	ctx := command.Context()
@@ -907,20 +925,20 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 		"status":        "success",
 	}
 
-	// Determine appropriate message and status
-	if err != nil {
-		summary["status"] = "error"
-		summary["message"] = fmt.Sprintf("Apply failed: %v", err)
-		summary["error"] = err.Error()
-	} else if result.FailureCount > 0 {
-		summary["status"] = "partial_success"
-		summary["message"] = fmt.Sprintf("Apply completed with %d errors", result.FailureCount)
-	} else if result.SuccessCount > 0 {
-		summary["message"] = fmt.Sprintf("Successfully applied %d changes", result.SuccessCount)
-	} else if result.SkippedCount > 0 && result.DryRun {
-		summary["message"] = fmt.Sprintf("Dry-run complete. %d changes would be applied.", result.SkippedCount)
-	} else {
+	if result.TotalChanges() == 0 {
 		summary["message"] = "No changes needed. All resources match the desired configuration."
+	} else if result.FailureCount > 0 {
+		if result.SuccessCount < 1 {
+			summary["status"] = "error"
+			summary["message"] = fmt.Sprintf("Execution failed with %d errors", result.FailureCount)
+		} else {
+			summary["status"] = "partial_success"
+			summary["message"] = fmt.Sprintf("Execution partially succeeded with %d errors", result.FailureCount)
+		}
+	} else if result.SuccessCount > 0 {
+		summary["message"] = fmt.Sprintf("Execution succeeded with %d changes", result.SuccessCount)
+	} else if result.SkippedCount > 0 && result.DryRun {
+		summary["message"] = fmt.Sprintf("Dry-run complete. %d changes would be executed.", result.SkippedCount)
 	}
 
 	// Check if we need to save execution report to file
@@ -946,12 +964,6 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 		}
 	}
 
-	// Determine if the command should exit with an error
-	var potentialExitErr error
-	if result != nil && result.HasErrors() {
-		potentialExitErr = fmt.Errorf("command completed with %d errors", result.FailureCount)
-	}
-
 	switch format {
 	case "json":
 		// Use custom JSON encoding to preserve field order
@@ -973,7 +985,7 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 		fmt.Fprintf(out, "  \"summary\": %s\n", summaryJSON)
 
 		fmt.Fprintln(out, "}")
-		return potentialExitErr
+		return nil
 
 	case "yaml":
 		// Build YAML content manually to preserve order
@@ -1005,12 +1017,12 @@ func outputApplyResults(command *cobra.Command, result *executor.ExecutionResult
 			fmt.Fprintf(out, "  %s\n", line)
 		}
 
-		return potentialExitErr
+		return nil
 
 	default: // text
 		// Human-readable output already handled by progress reporter
 		// If there were errors during execution, return a non-nil error to signal failure
-		return potentialExitErr
+		return nil
 	}
 }
 
@@ -1207,7 +1219,7 @@ func runSync(command *cobra.Command, args []string) error {
 			DryRun:         dryRun,
 			ChangesApplied: []executor.AppliedChange{},
 		}
-		return outputApplyResults(command, emptyResult, nil, outputFormat)
+		return outputExecutionResult(command, emptyResult, outputFormat)
 	}
 
 	// Show plan summary for text format (both regular and dry-run)
@@ -1248,10 +1260,18 @@ func runSync(command *cobra.Command, args []string) error {
 	exec := executor.New(stateClient, reporter, dryRun)
 
 	// Execute plan
-	result, err := exec.Execute(ctx, plan)
+	result := exec.Execute(ctx, plan)
 
 	// Output results based on format
-	return outputApplyResults(command, result, err, outputFormat)
+	outputErr := outputExecutionResult(command, result, outputFormat)
+	if outputErr != nil {
+		return outputErr
+	}
+	if result.HasErrors() {
+		return fmt.Errorf("execution completed with %d errors", result.FailureCount)
+	} else {
+		return nil
+	}
 }
 
 // createStateClient creates a new state client with all necessary APIs
