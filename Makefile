@@ -1,5 +1,5 @@
 .PHONY: test-all
-test-all: fmt lint test test-integration
+test-all: lint test test-integration
 
 .PHONY: lint
 lint:
