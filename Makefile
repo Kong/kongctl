@@ -36,3 +36,12 @@ test-integration:
 		${GOTESTFLAGS} \
 		./test/integration/...
 
+.PHONY: test-e2e
+test-e2e:
+	go test -v -count=1 -tags=e2e ./test/e2e/...
+	@if [ -n "$$KONGCTL_E2E_ARTIFACTS_DIR" ]; then \
+		echo "E2E artifacts: $$KONGCTL_E2E_ARTIFACTS_DIR"; \
+	elif [ -f .e2e_artifacts_dir ]; then \
+		echo "E2E artifacts: $$(cat .e2e_artifacts_dir)"; \
+		rm -f .e2e_artifacts_dir; \
+	fi

@@ -85,6 +85,7 @@ kongctl get me
 - **[Declarative Configuration](docs/declarative-configuration.md)** - Complete reference guide
 - **[Troubleshooting Guide](docs/troubleshooting.md)** - Common issues and solutions
 - **[Examples](docs/examples/)** - Sample configurations and use cases
+ - **[E2E Test Harness](docs/e2e.md)** - How to run end-to-end tests locally and in CI
 
 ### Advanced Topics
 
