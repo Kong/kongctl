@@ -39,3 +39,4 @@ CLAUDE.local.md
 # Python cache folders
 __pycache__/
 *.pyc
+.e2e_artifacts_dir
