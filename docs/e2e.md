@@ -36,6 +36,8 @@ KONGCTL_E2E_BIN=./kongctl make test-e2e
 - KONGCTL_E2E_JSON_STRICT: When `1`, RunJSON fails on unknown fields. Default: lenient.
 - KONGCTL_E2E_ARTIFACTS_DIR: Root folder to store artifacts for this run. Default: a temp dir.
 - KONGCTL_E2E_BIN: Path to an existing `kongctl` binary to skip building (copied into artifacts/bin when possible).
+- KONGCTL_E2E_RESET: Reset the Konnect org before tests (destructive). Defaults to enabled; set to `0`/`false` to disable.
+- KONGCTL_E2E_KONNECT_BASE_URL: Base URL for Konnect API (default `https://us.api.konghq.com`).
 
 Authentication token:
 
