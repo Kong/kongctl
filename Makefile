@@ -38,10 +38,11 @@ test-integration:
 
 .PHONY: test-e2e
 test-e2e:
-	go test -v -count=1 -tags=e2e ./test/e2e/...
-	@if [ -n "$$KONGCTL_E2E_ARTIFACTS_DIR" ]; then \
-		echo "E2E artifacts: $$KONGCTL_E2E_ARTIFACTS_DIR"; \
-	elif [ -f .e2e_artifacts_dir ]; then \
-		echo "E2E artifacts: $$(cat .e2e_artifacts_dir)"; \
-		rm -f .e2e_artifacts_dir; \
-	fi
+	@ART_DIR="$$KONGCTL_E2E_ARTIFACTS_DIR"; \
+	if [ -z "$$ART_DIR" ]; then \
+		ART_DIR=$$(mktemp -d 2>/dev/null || mktemp -d -t kongctl-e2e); \
+	fi; \
+	( KONGCTL_E2E_ARTIFACTS_DIR="$$ART_DIR" go test -v -count=1 -tags=e2e ./test/e2e/... ; echo $$? > "$$ART_DIR/.exit_code" ) | tee "$$ART_DIR/run.log"; \
+	code=$$(cat "$$ART_DIR/.exit_code"); rm -f "$$ART_DIR/.exit_code"; \
+	echo "E2E artifacts: $$ART_DIR"; \
+	exit $$code

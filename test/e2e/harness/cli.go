@@ -248,7 +248,7 @@ func (c *CLI) TempWorkdir() (string, error) {
 	var dir string
 	var err error
 	if c.TestDir != "" {
-		dir = filepath.Join(c.TestDir, "work")
+		dir = filepath.Join(c.TestDir, "inputs")
 		err = os.MkdirAll(dir, 0o755)
 	} else {
 		dir, err = os.MkdirTemp("", "kongctl-e2e-work-")
@@ -292,7 +292,7 @@ func (c *CLI) captureCommand(cmd *exec.Cmd, args []string, res Result, start, en
 		return
 	}
 	// Write files
-	_ = os.WriteFile(filepath.Join(dir, "args.txt"), []byte(strings.Join(cmd.Args, " ")+"\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "command.txt"), []byte(strings.Join(cmd.Args, " ")+"\n"), 0o644)
 	_ = os.WriteFile(filepath.Join(dir, "stdout.txt"), []byte(res.Stdout), 0o644)
 	_ = os.WriteFile(filepath.Join(dir, "stderr.txt"), []byte(res.Stderr), 0o644)
 	// Sanitized env snapshot
