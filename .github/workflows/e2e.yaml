@@ -1,4 +1,6 @@
 name: E2E
+permissions:
+  contents: read
 
 # Ensure only one Konnect-mutating e2e run at a time across all refs
 concurrency:
