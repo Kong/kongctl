@@ -40,9 +40,10 @@ test-integration:
 test-e2e:
 	@ART_DIR="$$KONGCTL_E2E_ARTIFACTS_DIR"; \
 	if [ -z "$$ART_DIR" ]; then \
-		ART_DIR=$$(mktemp -d 2>/dev/null || mktemp -d -t kongctl-e2e); \
+		ART_DIR=$$(mktemp -d 2>/dev/null || mktemp -d -t kongctl-e2e || echo .e2e_artifacts); \
 	fi; \
-	( KONGCTL_E2E_ARTIFACTS_DIR="$$ART_DIR" go test -v -count=1 -tags=e2e ./test/e2e/... ; echo $$? > "$$ART_DIR/.exit_code" ) | tee "$$ART_DIR/run.log"; \
+	mkdir -p "$$ART_DIR"; \
+	( KONGCTL_E2E_ARTIFACTS_DIR="$$ART_DIR" go test -v -count=1 -tags=e2e $${GOTESTFLAGS} ./test/e2e/... ; echo $$? > "$$ART_DIR/.exit_code" ) | tee "$$ART_DIR/run.log"; \
 	code=$$(cat "$$ART_DIR/.exit_code"); rm -f "$$ART_DIR/.exit_code"; \
 	echo "E2E artifacts: $$ART_DIR"; \
 	exit $$code
