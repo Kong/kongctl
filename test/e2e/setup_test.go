@@ -14,6 +14,10 @@ func TestMain(m *testing.M) {
 	if _, err := harness.BinPath(); err != nil {
 		panic(err)
 	}
+	if err := harness.ResetOrgIfRequested(); err != nil {
+		panic(err)
+	}
+
 	// Continue with tests.
 	m.Run()
 }

@@ -57,7 +57,7 @@ func NewCLI() (*CLI, error) {
 	}
 	// Pre-write a minimal profile config to align artifacts with e2e defaults.
 	_ = writeProfileConfig(cli.ConfigDir, cli.Profile, cli.AutoOutput, cli.AutoLogLevel)
-	Infof("NewCLI: bin=%s configDir=%s profile=%s timeout=%s log-level=%s output=%s", bin, cfgDir, cli.Profile, cli.Timeout, cli.AutoLogLevel, cli.AutoOutput)
+	Infof("TestConfig: bin=%s configDir=%s profile=%s timeout=%s log-level=%s output=%s", bin, cfgDir, cli.Profile, cli.Timeout, cli.AutoLogLevel, cli.AutoOutput)
 	return cli, nil
 }
 
@@ -93,7 +93,7 @@ func NewCLIT(t *testing.T) (*CLI, error) {
 	}
 	// Pre-write a minimal profile config to align artifacts with e2e defaults.
 	_ = writeProfileConfig(cli.ConfigDir, cli.Profile, cli.AutoOutput, cli.AutoLogLevel)
-	Infof("NewCLI: test=%s dir=%s bin=%s configDir=%s log-level=%s output=%s", name, testDir, bin, cfgDir, cli.AutoLogLevel, cli.AutoOutput)
+	Infof("TestConfig: test=%s dir=%s bin=%s configDir=%s log-level=%s output=%s", name, testDir, bin, cfgDir, cli.AutoLogLevel, cli.AutoOutput)
 	return cli, nil
 }
 
