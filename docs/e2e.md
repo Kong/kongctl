@@ -18,17 +18,7 @@ make test-e2e
 - Run with verbose logs and a user PAT (opt-in test):
 
 ```
-KONGCTL_E2E_LOG_LEVEL=debug \
-KONGCTL_E2E_RUN_USER_ME=1 \
-KONGCTL_E2E_KONNECT_PAT=$(cat ~/.konnect/your-user-pat) \
-make test-e2e
-```
-
-- Run with a System Account PAT to validate the denied case:
-
-```
-KONGCTL_E2E_SA_KONNECT_PAT=$(cat ~/.konnect/your-system-pat) \
-make test-e2e
+KONGCTL_E2E_LOG_LEVEL=debug KONGCTL_E2E_RUN_USER_ME=1 KONGCTL_E2E_KONNECT_PAT=$(cat ~/.konnect/your-user-pat) make test-e2e
 ```
 
 - Reuse a prebuilt binary instead of building during tests:
@@ -47,18 +37,15 @@ KONGCTL_E2E_BIN=./kongctl make test-e2e
 - KONGCTL_E2E_ARTIFACTS_DIR: Root folder to store artifacts for this run. Default: a temp dir.
 - KONGCTL_E2E_BIN: Path to an existing `kongctl` binary to skip building (copied into artifacts/bin when possible).
 
-Authentication tokens:
+Authentication token:
 
-- KONGCTL_E2E_KONNECT_PAT: User PAT used by the `e2e` profile for the opt-in `get me` test.
-- KONGCTL_E2E_SA_KONNECT_PAT: System Account PAT (SPAT) used for the “denied” `get me` test.
-
-Note: The harness sets `XDG_CONFIG_HOME=<artifacts_dir>/tests/<test_name>/config`. The CLI then uses `<XDG_CONFIG_HOME>/kongctl/config.yaml` per XDG conventions.
+- KONGCTL_E2E_KONNECT_PAT: PAT used by the `e2e` profile for authenticated tests (e.g., `get me`, declarative apply).
 
 ### Test Selection
 
-- Test_VersionFull_JSON: Always runs. Validates JSON output of `version --full`.
-- Test_GetMe_JSON_UserPAT: Opt-in. Requires both `KONGCTL_E2E_RUN_USER_ME=1` and `KONGCTL_E2E_KONNECT_PAT`.
-- Test_GetMe_JSON_SystemPAT_Denied: Runs when `KONGCTL_E2E_SA_KONNECT_PAT` is set; expects permission/403 error.
+- `Test_VersionFull_JSON`: Always runs. Validates JSON output of `version --full`.
+- `Test_GetMe_JSON_UserPAT`: Opt-in. Requires both `KONGCTL_E2E_RUN_USER_ME=1` and `KONGCTL_E2E_KONNECT_PAT`.
+- `Test_Declarative_Apply_Portal_Basic_JSON`: Runs when `KONGCTL_E2E_KONNECT_PAT` is set; applies the basic portal example and verifies it via `get portals`.
 
 Run only "get me" tests:
 
@@ -68,13 +55,13 @@ go test -v -tags=e2e ./test/e2e -run GetMe
 
 ### Artifacts Layout
 
-Each test run creates a single artifacts directory (printed at the start and recorded in `run.log`). Example structure:
+Each test run creates a single artifacts directory (printed by the Makefile after the run and recorded in `run.log`). Example structure:
 
 ```
 <artifacts_dir>/
   bin/
     kongctl                 # built or copied binary
-  run.log                   # harness logs (also emitted to STDERR)
+  run.log                   # harness logs (also emitted to STDERR when log level allows)
   tests/
     Test_VersionFull_JSON/
       config/
@@ -82,7 +69,7 @@ Each test run creates a single artifacts directory (printed at the start and rec
           config.yaml       # profile config written by the harness
       commands/
         000-version/
-          args.txt
+          command.txt
           stdout.txt
           stderr.txt
           env.json          # sanitized environment snapshot
@@ -92,6 +79,17 @@ Each test run creates a single artifacts directory (printed at the start and rec
       commands/
         000-get_me/
           ...
+    Test_Declarative_Apply_Portal_Basic_JSON/
+      config/
+      inputs/
+        portal.yaml         # manifest written by the test for reproducibility
+      commands/
+        000-apply/
+          command.txt
+          stdout.txt
+          stderr.txt
+          env.json
+          meta.json
 ```
 
 The harness keeps artifacts by default for easy triage and CI upload.
@@ -106,8 +104,8 @@ The harness keeps artifacts by default for easy triage and CI upload.
 
 ### CI Notes (GitHub Actions)
 
-- Provide a System Account PAT as a secret (e.g., `KONGCTL_E2E_SA_KONNECT_PAT`) to enable the denied test by default.
-- Optionally provide a user PAT and set `KONGCTL_E2E_RUN_USER_ME=1` for the user profile test.
+- Provide `KONGCTL_E2E_KONNECT_PAT` as a secret to enable authenticated tests.
+- Optionally set `KONGCTL_E2E_RUN_USER_ME=1` if you want to include the user-profile `get me` test.
 - Upload `<artifacts_dir>` as a workflow artifact for post-run analysis.
 - You can set `KONGCTL_E2E_ARTIFACTS_DIR=$RUNNER_TEMP/kongctl-e2e` to make artifact paths predictable.
 
@@ -115,6 +113,5 @@ The harness keeps artifacts by default for easy triage and CI upload.
 
 - Enable verbose logs: `KONGCTL_E2E_LOG_LEVEL=debug`.
 - Inspect `<artifacts_dir>/run.log` for created paths, command lines, and durations.
-- Check per-command `stderr.txt` and `meta.json` for exit codes and context.
+- Check per-command `command.txt`, `stderr.txt`, and `meta.json` for the invoked command, exit codes, and context.
 - If JSON parsing fails due to extra fields, either add the fields to your test struct, or keep default lenient mode (do not set `KONGCTL_E2E_JSON_STRICT`).
-
