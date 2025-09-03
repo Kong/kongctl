@@ -5,6 +5,7 @@ package harness
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -23,7 +24,7 @@ func RequireBinary(t *testing.T) string {
 // Pattern: KONGCTL_<PROFILE>_KONNECT_PAT
 func RequirePAT(t *testing.T, profile string) string {
 	t.Helper()
-	envName := fmt.Sprintf("KONGCTL_%s_KONNECT_PAT", upper(profile))
+	envName := fmt.Sprintf("KONGCTL_%s_KONNECT_PAT", strings.ToUpper(profile))
 	val := os.Getenv(envName)
 	if val == "" {
 		t.Skipf("skipping: %s not set for e2e", envName)
@@ -32,15 +33,4 @@ func RequirePAT(t *testing.T, profile string) string {
 	return val
 }
 
-func upper(s string) string {
-	// local helper; avoid pulling strings for 1 call-site
-	b := make([]byte, len(s))
-	for i := range s {
-		c := s[i]
-		if c >= 'a' && c <= 'z' {
-			c = c - 'a' + 'A'
-		}
-		b[i] = c
-	}
-	return string(b)
-}
+// no custom upper helper; use strings.ToUpper

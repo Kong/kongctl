@@ -30,7 +30,7 @@ KONGCTL_E2E_BIN=./kongctl make test-e2e
 
 ### Environment Variables
 
-- KONGCTL_E2E_LOG_LEVEL: Harness and CLI log level (trace|debug|info|warn|error). Default: `info`.
+- KONGCTL_E2E_LOG_LEVEL: Harness and CLI log level (trace|debug|info|warn|error). Default: `warn`.
 - KONGCTL_E2E_OUTPUT: Default CLI output (json|yaml|text). Default: `json`.
 - KONGCTL_E2E_CAPTURE: Per-command artifact capture. `0` disables. Default: enabled.
 - KONGCTL_E2E_JSON_STRICT: When `1`, RunJSON fails on unknown fields. Default: lenient.
