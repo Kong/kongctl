@@ -6,7 +6,42 @@ on:
       - 'v*.*'
 
 jobs:
+  e2e:
+    # Ensure E2E runs serialize with other E2E workflows
+    concurrency:
+      group: konnect-e2e
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ fromJSON(vars.GHA_DEFAULT_TIMEOUT) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build
+        run: make build
+      - name: Run E2E tests (Konnect)
+        env:
+          KONGCTL_E2E_KONNECT_PAT: ${{ secrets.KONGCTL_E2E_KONNECT_PAT }}
+          KONGCTL_E2E_KONNECT_BASE_URL: ${{ secrets.KONGCTL_E2E_KONNECT_BASE_URL }}
+          KONGCTL_E2E_RESET: "1"
+          KONGCTL_E2E_LOG_LEVEL: "info"
+          KONGCTL_E2E_ARTIFACTS_DIR: ${{ runner.temp }}/kongctl-e2e-${{ github.run_id }}
+        run: |
+          make test-e2e
+      - name: Upload E2E artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts-${{ github.run_id }}
+          path: ${{ runner.temp }}/kongctl-e2e-${{ github.run_id }}
+
   goreleaser:
+    needs: e2e
     timeout-minutes: ${{ fromJSON(vars.GHA_DEFAULT_TIMEOUT) }}
     runs-on: ubuntu-latest
     steps:
