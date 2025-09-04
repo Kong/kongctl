@@ -84,7 +84,7 @@ Each test run creates a single artifacts directory (printed by the Makefile afte
     Test_Declarative_Apply_Portal_Basic_JSON/
       config/
       steps/
-        001-apply/
+        000-apply/
           inputs/
             portal.yaml     # manifest applied in this step
           commands/
@@ -94,16 +94,14 @@ Each test run creates a single artifacts directory (printed by the Makefile afte
               stderr.txt
               env.json
               meta.json
+              observation.json   # type=apply_summary (execution + summary)
             001-get_portals/
               command.txt
               stdout.txt
               stderr.txt
               env.json
               meta.json
-              observations/
-                all.json    # full parsed result used for assertions
-                target.json # filtered subset matched by the test
-                selector.json# optional filter description
+              observation.json   # type=list_observation (all + optional selector/target)
 ```
 
 The harness keeps artifacts by default for easy triage and CI upload.
@@ -115,7 +113,10 @@ The harness keeps artifacts by default for easy triage and CI upload.
 - Log level: Harness injects `--log-level <KONGCTL_E2E_LOG_LEVEL>` unless you pass one.
 - Profile config: The harness writes `<profile>:{ output:<...>, log-level:<...> }` into `config.yaml` to mirror defaults.
 - Sanitization: Token-like env vars (`PAT`, `TOKEN`, `SECRET`, `PASSWORD`) are redacted in `env.json` and logs.
- - Observations: For read commands used in assertions (e.g., `get portals`), tests write curated JSON under `commands/<seq>-<slug>/observations/` (`all.json`, `target.json`, optional `selector.json`).
+- Observations: One `observation.json` per command under `commands/<seq>-<slug>/`.
+  - type=apply_summary for apply commands (execution + summary)
+  - type=list_observation for read commands (includes full list and optional selector/target)
+  - Step numbering starts at 000; command numbering is per-step and also starts at 000.
 
 ### CI Notes (GitHub Actions)
 
