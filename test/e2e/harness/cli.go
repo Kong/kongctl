@@ -25,6 +25,9 @@ type CLI struct {
 	Timeout   time.Duration
 	TestName  string
 	TestDir   string
+	// Optional step scope: when set, command artifacts are captured under this directory
+	// instead of the test root. Intended to group inputs/commands/snapshots per step.
+	StepDir string
 	// If set, inject --log-level into command args unless caller overrides.
 	AutoLogLevel string
 	AutoOutput   string
@@ -276,8 +279,13 @@ func (c *CLI) captureCommand(cmd *exec.Cmd, args []string, res Result, start, en
 	if c.TestDir == "" || !captureEnabled {
 		return
 	}
+	// Determine the base dir for captures: step dir if present, else test dir
+	baseDir := c.TestDir
+	if c.StepDir != "" {
+		baseDir = c.StepDir
+	}
 	// Ensure commands dir
-	commandsDir := filepath.Join(c.TestDir, "commands")
+	commandsDir := filepath.Join(baseDir, "commands")
 	if err := os.MkdirAll(commandsDir, 0o755); err != nil {
 		Warnf("capture: mkdir commands dir failed: %v", err)
 		return

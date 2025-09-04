@@ -1,0 +1,8 @@
+# E2E Scenario: Portal Edit - Step 002 (modify description)
+
+portals:
+  - ref: e2e-portal-edit
+    name: "E2E Portal Edit"
+    display_name: "E2E Portal Edit"
+    description: "v2"
+

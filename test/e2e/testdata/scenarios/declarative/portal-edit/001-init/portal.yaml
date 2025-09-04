@@ -1,0 +1,8 @@
+# E2E Scenario: Portal Edit - Step 001 (init)
+
+portals:
+  - ref: e2e-portal-edit
+    name: "E2E Portal Edit"
+    display_name: "E2E Portal Edit"
+    description: "v1"
+
