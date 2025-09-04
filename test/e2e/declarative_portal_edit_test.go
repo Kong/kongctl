@@ -3,13 +3,13 @@
 package e2e
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/kong/kongctl/test/e2e/harness"
+	"sigs.k8s.io/yaml"
 )
 
 type portal struct {
@@ -17,18 +17,7 @@ type portal struct {
 	Description *string `json:"description"`
 }
 
-// applyResp matches the JSON shape of apply output used by assertions.
-type applyResp struct {
-	Execution struct {
-		DryRun bool `json:"dry_run"`
-	} `json:"execution"`
-	Summary struct {
-		Applied      int    `json:"applied"`
-		Failed       int    `json:"failed"`
-		Status       string `json:"status"`
-		TotalChanges int    `json:"total_changes"`
-	} `json:"summary"`
-}
+// apply summary shape is provided by harness.Step.Apply
 
 // Test_Declarative_Portal_Edit_Steps validates a simple two-step scenario:
 // 1) create a portal with description v1; 2) modify the description to v2.
@@ -41,8 +30,8 @@ func Test_Declarative_Portal_Edit_Steps(t *testing.T) {
 		t.Fatalf("harness init failed: %v", err)
 	}
 
-	// Step 001: init (v1)
-	step1, err := harness.NewStep(t, cli, "001-init")
+	// Step 000: init (v1)
+	step1, err := harness.NewStep(t, cli, "000-init")
 	if err != nil {
 		t.Fatalf("step init failed: %v", err)
 	}
@@ -57,14 +46,28 @@ func Test_Declarative_Portal_Edit_Steps(t *testing.T) {
 	if wErr := os.WriteFile(dst1, b1, 0o644); wErr != nil {
 		t.Fatalf("write manifest failed: %v", wErr)
 	}
-
-	// Apply v1
-	var applyOut applyResp
-	res, err := cli.RunJSON(context.Background(), &applyOut, "apply", "-f", dst1, "--auto-approve")
-	if err != nil {
-		t.Fatalf("apply v1 failed: exit=%d stderr=%s err=%v", res.ExitCode, res.Stderr, err)
+	// Parse expected values for step1 from manifest
+	var m1 struct {
+		Portals []struct {
+			Name        string `yaml:"name"`
+			Description string `yaml:"description"`
+		} `yaml:"portals"`
 	}
-	_ = step1.SaveJSON("apply.json", applyOut)
+	if err := yaml.Unmarshal(b1, &m1); err != nil {
+		t.Fatalf("parse manifest step1 failed: %v", err)
+	}
+	expectedName1, expectedDesc1 := "", ""
+	if len(m1.Portals) > 0 {
+		expectedName1 = m1.Portals[0].Name
+		expectedDesc1 = m1.Portals[0].Description
+	}
+	_ = step1.SaveJSON("expected.json", map[string]any{"name": expectedName1, "description": expectedDesc1})
+
+	// Apply v1 via helper (records apply_summary observation)
+	applyOut, err := step1.Apply(dst1)
+	if err != nil {
+		t.Fatalf("apply v1 failed: %v", err)
+	}
 	if applyOut.Summary.Failed != 0 {
 		t.Fatalf("apply v1: expected failed=0, got %d", applyOut.Summary.Failed)
 	}
@@ -73,34 +76,39 @@ func Test_Declarative_Portal_Edit_Steps(t *testing.T) {
 	var portals []portal
 	ok := retry(5, 1200*time.Millisecond, func() bool {
 		portals = nil
-		rr, ge := cli.RunJSON(context.Background(), &portals, "get", "portals")
-		if ge != nil {
-			_ = rr // silence linter; retry on error
+		if err := step1.GetAndObserve("portals", &portals, map[string]any{"name": expectedName1, "description": expectedDesc1}); err != nil {
 			return false
 		}
-		return findPortalWithDescription(portals, "E2E Portal Edit", "v1")
+		return findPortalWithDescription(portals, expectedName1, expectedDesc1)
 	})
-	_ = step1.SaveJSON(filepath.Join("snapshots", "portals.json"), portals)
+	// Observation for portals in step1
+	var target1 []portal
+	for _, p := range portals {
+		if p.Name == expectedName1 {
+			if (p.Description == nil && expectedDesc1 == "") || (p.Description != nil && *p.Description == expectedDesc1) {
+				target1 = append(target1, p)
+			}
+		}
+	}
+	_ = step1.WriteObservation(portals, target1, map[string]any{"name": expectedName1, "description": expectedDesc1})
 	if !ok {
 		t.Fatalf("expected to find portal name=E2E Portal Edit with description v1")
 	}
 
 	step1.AppendCheck("PASS: init step found portal with description v1")
 
-	// Idempotency: re-apply v1 should result in 0 changes
-	applyOut = applyResp{}
-	res, err = cli.RunJSON(context.Background(), &applyOut, "apply", "-f", dst1, "--auto-approve")
+	// Idempotency: re-apply v1 should result in 0 changes (records another apply_summary observation)
+	applyOut, err = step1.Apply(dst1)
 	if err != nil {
-		t.Fatalf("idempotent apply v1 failed: exit=%d stderr=%s err=%v", res.ExitCode, res.Stderr, err)
+		t.Fatalf("idempotent apply v1 failed: %v", err)
 	}
-	_ = step1.SaveJSON("apply-idempotent.json", applyOut)
 	if applyOut.Summary.TotalChanges != 0 {
 		t.Fatalf("expected idempotent apply total_changes=0, got %d", applyOut.Summary.TotalChanges)
 	}
 	step1.AppendCheck("PASS: init step idempotent apply has 0 changes")
 
-	// Step 002: modify (v2)
-	step2, err := harness.NewStep(t, cli, "002-modify")
+	// Step 001: modify (v2)
+	step2, err := harness.NewStep(t, cli, "001-modify")
 	if err != nil {
 		t.Fatalf("step init failed: %v", err)
 	}
@@ -114,12 +122,27 @@ func Test_Declarative_Portal_Edit_Steps(t *testing.T) {
 	if w2 := os.WriteFile(dst2, b2, 0o644); w2 != nil {
 		t.Fatalf("write manifest failed: %v", w2)
 	}
-
-	res, err = cli.RunJSON(context.Background(), &applyOut, "apply", "-f", dst2, "--auto-approve")
-	if err != nil {
-		t.Fatalf("apply v2 failed: exit=%d stderr=%s err=%v", res.ExitCode, res.Stderr, err)
+	// Parse expected values for step2 from manifest
+	var m2 struct {
+		Portals []struct {
+			Name        string `yaml:"name"`
+			Description string `yaml:"description"`
+		} `yaml:"portals"`
 	}
-	_ = step2.SaveJSON("apply.json", applyOut)
+	if err := yaml.Unmarshal(b2, &m2); err != nil {
+		t.Fatalf("parse manifest step2 failed: %v", err)
+	}
+	expectedName2, expectedDesc2 := "", ""
+	if len(m2.Portals) > 0 {
+		expectedName2 = m2.Portals[0].Name
+		expectedDesc2 = m2.Portals[0].Description
+	}
+	_ = step2.SaveJSON("expected.json", map[string]any{"name": expectedName2, "description": expectedDesc2})
+
+	applyOut, err = step2.Apply(dst2)
+	if err != nil {
+		t.Fatalf("apply v2 failed: %v", err)
+	}
 	if applyOut.Summary.Failed != 0 {
 		t.Fatalf("apply v2: expected failed=0, got %d", applyOut.Summary.Failed)
 	}
@@ -127,26 +150,31 @@ func Test_Declarative_Portal_Edit_Steps(t *testing.T) {
 	portals = nil
 	ok = retry(5, 1200*time.Millisecond, func() bool {
 		portals = nil
-		rr, ge := cli.RunJSON(context.Background(), &portals, "get", "portals")
-		if ge != nil {
-			_ = rr
+		if err := step2.GetAndObserve("portals", &portals, map[string]any{"name": expectedName2, "description": expectedDesc2}); err != nil {
 			return false
 		}
-		return findPortalWithDescription(portals, "E2E Portal Edit", "v2")
+		return findPortalWithDescription(portals, expectedName2, expectedDesc2)
 	})
-	_ = step2.SaveJSON(filepath.Join("snapshots", "portals.json"), portals)
+	// Observation for portals in step2
+	var target2 []portal
+	for _, p := range portals {
+		if p.Name == expectedName2 {
+			if (p.Description == nil && expectedDesc2 == "") || (p.Description != nil && *p.Description == expectedDesc2) {
+				target2 = append(target2, p)
+			}
+		}
+	}
+	_ = step2.WriteObservation(portals, target2, map[string]any{"name": expectedName2, "description": expectedDesc2})
 	if !ok {
 		t.Fatalf("expected to find portal name=E2E Portal Edit with description v2")
 	}
 	step2.AppendCheck("PASS: modify step found portal with description v2")
 
-	// Idempotency: re-apply v2 should result in 0 changes
-	applyOut = applyResp{}
-	res, err = cli.RunJSON(context.Background(), &applyOut, "apply", "-f", dst2, "--auto-approve")
+	// Idempotency: re-apply v2 should result in 0 changes (records another apply_summary observation)
+	applyOut, err = step2.Apply(dst2)
 	if err != nil {
-		t.Fatalf("idempotent apply v2 failed: exit=%d stderr=%s err=%v", res.ExitCode, res.Stderr, err)
+		t.Fatalf("idempotent apply v2 failed: %v", err)
 	}
-	_ = step2.SaveJSON("apply-idempotent.json", applyOut)
 	if applyOut.Summary.TotalChanges != 0 {
 		t.Fatalf("expected idempotent apply total_changes=0, got %d", applyOut.Summary.TotalChanges)
 	}

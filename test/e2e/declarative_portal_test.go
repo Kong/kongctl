@@ -3,7 +3,6 @@
 package e2e
 
 import (
-	"context"
 	_ "embed"
 	"os"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/kong/kongctl/test/e2e/harness"
+	"sigs.k8s.io/yaml"
 )
 
 //go:embed testdata/declarative/portal/basic/portal.yaml
@@ -29,34 +29,36 @@ func Test_Declarative_Apply_Portal_Basic_JSON(t *testing.T) {
 	}
 	// Token is provided via environment per-profile; no override required.
 
-	// Apply basic portal configuration (JSON output, auto-approve).
-	var applyOut struct {
-		Execution struct {
-			DryRun bool `json:"dry_run"`
-		} `json:"execution"`
-		Summary struct {
-			Applied      int    `json:"applied"`
-			Failed       int    `json:"failed"`
-			Status       string `json:"status"`
-			TotalChanges int    `json:"total_changes"`
-		} `json:"summary"`
-	}
-
-	// Materialize the embedded manifest into the test workdir for reproducibility
-	workdir, err := cli.TempWorkdir()
+	// Establish step scope: 000-apply
+	step, err := harness.NewStep(t, cli, "000-apply")
 	if err != nil {
-		t.Fatalf("workdir init failed: %v", err)
+		t.Fatalf("step init failed: %v", err)
 	}
-	manifestPath := filepath.Join(workdir, "portal.yaml")
+	// Materialize manifest into step inputs
+	manifestPath := filepath.Join(step.InputsDir, "portal.yaml")
 	if werr := os.WriteFile(manifestPath, portalBasicYAML, 0o644); werr != nil {
 		t.Fatalf("failed writing manifest: %v", werr)
 	}
+	// Derive expected fields from the manifest itself
+	var m struct {
+		Portals []struct {
+			Name        string `yaml:"name"`
+			Description string `yaml:"description"`
+		} `yaml:"portals"`
+	}
+	if err := yaml.Unmarshal(portalBasicYAML, &m); err != nil {
+		t.Fatalf("failed to parse manifest for expectations: %v", err)
+	}
+	expectedName := ""
+	if len(m.Portals) > 0 {
+		expectedName = m.Portals[0].Name
+	}
+	_ = step.SaveJSON("expected.json", map[string]any{"name": expectedName, "description": m.Portals[0].Description})
 
-	res, err := cli.RunJSON(context.Background(), &applyOut,
-		"apply", "-f", manifestPath, "--auto-approve",
-	)
+	// Apply via helper; records observation under the apply command
+	applyOut, err := step.Apply(manifestPath)
 	if err != nil {
-		t.Fatalf("apply failed: exit=%d stderr=%s err=%v", res.ExitCode, res.Stderr, err)
+		t.Fatalf("apply failed: %v", err)
 	}
 	if applyOut.Execution.DryRun {
 		t.Fatalf("expected dry_run=false")
@@ -70,7 +72,7 @@ func Test_Declarative_Apply_Portal_Basic_JSON(t *testing.T) {
 
 	// Verify the portal exists by listing portals and searching by name.
 	// Allow for eventual consistency with small retries.
-	const targetName = "My Simple Portal"
+	targetName := expectedName
 	type portal struct {
 		Name string `json:"name"`
 	}
@@ -78,10 +80,7 @@ func Test_Declarative_Apply_Portal_Basic_JSON(t *testing.T) {
 	var listRes []portal
 	ok := retry(5, 1200*time.Millisecond, func() bool {
 		listRes = nil
-		rr, e := cli.RunJSON(context.Background(), &listRes, "get", "portals")
-		if e != nil {
-			// log and retry
-			_ = rr
+		if err := step.GetAndObserve("portals", &listRes, map[string]any{"name": targetName}); err != nil {
 			return false
 		}
 		for _, p := range listRes {
@@ -91,9 +90,19 @@ func Test_Declarative_Apply_Portal_Basic_JSON(t *testing.T) {
 		}
 		return false
 	})
+	// Attach observation to the last get portals command
+	// Filter to just the target portal for clarity
+	var target []portal
+	for _, p := range listRes {
+		if p.Name == targetName {
+			target = append(target, p)
+		}
+	}
+	_ = step.WriteObservation(listRes, target, map[string]any{"name": targetName})
 	if !ok {
 		t.Fatalf("expected to find portal named %q in list", targetName)
 	}
+	step.AppendCheck("PASS: 000-apply found portal named %s", targetName)
 }
 
 func retry(times int, delay time.Duration, f func() bool) bool {

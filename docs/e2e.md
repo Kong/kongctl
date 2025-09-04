@@ -83,15 +83,27 @@ Each test run creates a single artifacts directory (printed by the Makefile afte
           ...
     Test_Declarative_Apply_Portal_Basic_JSON/
       config/
-      inputs/
-        portal.yaml         # manifest written by the test for reproducibility
-      commands/
-        000-apply/
-          command.txt
-          stdout.txt
-          stderr.txt
-          env.json
-          meta.json
+      steps/
+        001-apply/
+          inputs/
+            portal.yaml     # manifest applied in this step
+          commands/
+            000-apply/
+              command.txt
+              stdout.txt
+              stderr.txt
+              env.json
+              meta.json
+            001-get_portals/
+              command.txt
+              stdout.txt
+              stderr.txt
+              env.json
+              meta.json
+              observations/
+                all.json    # full parsed result used for assertions
+                target.json # filtered subset matched by the test
+                selector.json# optional filter description
 ```
 
 The harness keeps artifacts by default for easy triage and CI upload.
@@ -103,6 +115,7 @@ The harness keeps artifacts by default for easy triage and CI upload.
 - Log level: Harness injects `--log-level <KONGCTL_E2E_LOG_LEVEL>` unless you pass one.
 - Profile config: The harness writes `<profile>:{ output:<...>, log-level:<...> }` into `config.yaml` to mirror defaults.
 - Sanitization: Token-like env vars (`PAT`, `TOKEN`, `SECRET`, `PASSWORD`) are redacted in `env.json` and logs.
+ - Observations: For read commands used in assertions (e.g., `get portals`), tests write curated JSON under `commands/<seq>-<slug>/observations/` (`all.json`, `target.json`, optional `selector.json`).
 
 ### CI Notes (GitHub Actions)
 
