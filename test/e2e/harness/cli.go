@@ -28,6 +28,9 @@ type CLI struct {
 	// Optional step scope: when set, command artifacts are captured under this directory
 	// instead of the test root. Intended to group inputs/commands/snapshots per step.
 	StepDir string
+	// LastCommandDir records the directory where the most recent command's artifacts
+	// were captured. Useful for attaching observations to a specific command.
+	LastCommandDir string
 	// If set, inject --log-level into command args unless caller overrides.
 	AutoLogLevel string
 	AutoOutput   string
@@ -337,6 +340,8 @@ func (c *CLI) captureCommand(cmd *exec.Cmd, args []string, res Result, start, en
 	if b, err := json.MarshalIndent(meta, "", "  "); err == nil {
 		_ = os.WriteFile(filepath.Join(dir, "meta.json"), b, 0o644)
 	}
+	// Record the directory for potential observation attachments.
+	c.LastCommandDir = dir
 }
 
 func slugFromArgs(args []string) string {

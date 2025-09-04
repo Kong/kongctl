@@ -40,3 +40,4 @@ CLAUDE.local.md
 __pycache__/
 *.pyc
 .e2e_artifacts_dir
+.gocache/
