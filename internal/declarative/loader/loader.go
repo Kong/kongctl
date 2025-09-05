@@ -1,6 +1,7 @@
 package loader
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -53,6 +54,13 @@ func (l *Loader) getTagRegistry() *tags.ResolverRegistry {
 
 // LoadFromSources loads configuration from multiple sources
 func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.ResourceSet, error) {
+	return l.LoadFromSourcesWithContext(context.Background(), sources, recursive)
+}
+
+// LoadFromSourcesWithContext loads configuration from multiple sources with context support
+func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Source,
+	recursive bool,
+) (*resources.ResourceSet, error) {
 	var allResources resources.ResourceSet
 
 	for _, source := range sources {
@@ -60,11 +68,11 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 
 		switch source.Type {
 		case SourceTypeFile:
-			err = l.loadSingleFile(source.Path, &allResources)
+			err = l.loadSingleFileWithContext(ctx, source.Path, &allResources)
 		case SourceTypeDirectory:
-			err = l.loadDirectorySource(source.Path, recursive, &allResources)
+			err = l.loadDirectorySourceWithContext(ctx, source.Path, recursive, &allResources)
 		case SourceTypeSTDIN:
-			err = l.loadSTDIN(&allResources)
+			err = l.loadSTDINWithContext(ctx, &allResources)
 		default:
 			return nil, errors.FormatConfigurationError(
 				source.Path,
@@ -81,6 +89,11 @@ func (l *Loader) LoadFromSources(sources []Source, recursive bool) (*resources.R
 	// Apply SDK defaults to merged resources
 	// Note: Only namespace defaults are applied per-file in parseYAML
 	l.applyDefaults(&allResources)
+
+	// Resolve references after all resources are loaded
+	if err := ResolveReferences(ctx, &allResources); err != nil {
+		return nil, fmt.Errorf("resolving references: %w", err)
+	}
 
 	// Validate merged resources
 	if err := l.validateResourceSet(&allResources); err != nil {
@@ -798,4 +811,26 @@ func abs(n int) int {
 		return -n
 	}
 	return n
+}
+
+// Context-aware wrapper methods for internal use
+
+func (l *Loader) loadSingleFileWithContext(_ context.Context, path string, accumulated *resources.ResourceSet) error {
+	// For now, we just call the non-context version
+	// The context will be used by ResolveReferences in LoadFromSourcesWithContext
+	return l.loadSingleFile(path, accumulated)
+}
+
+func (l *Loader) loadDirectorySourceWithContext(_ context.Context, dirPath string, recursive bool,
+	accumulated *resources.ResourceSet,
+) error {
+	// For now, we just call the non-context version
+	// The context will be used by ResolveReferences in LoadFromSourcesWithContext
+	return l.loadDirectorySource(dirPath, recursive, accumulated)
+}
+
+func (l *Loader) loadSTDINWithContext(_ context.Context, accumulated *resources.ResourceSet) error {
+	// For now, we just call the non-context version
+	// The context will be used by ResolveReferences in LoadFromSourcesWithContext
+	return l.loadSTDIN(accumulated)
 }
