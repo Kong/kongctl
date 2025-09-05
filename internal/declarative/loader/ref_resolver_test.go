@@ -206,7 +206,7 @@ func TestResolveReferences_ErrorCases(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "reference to non-existent field",
+			name: "reference to non-existent field (deferred to planning)",
 			resourceSet: &resources.ResourceSet{
 				Portals: []resources.PortalResource{
 					createPortal("my-portal", "My Portal"),
@@ -219,7 +219,7 @@ func TestResolveReferences_ErrorCases(t *testing.T) {
 				placeholder := tags.RefPlaceholderPrefix + "my-portal#NonExistentField"
 				rs.APIs[0].Description = &placeholder
 			},
-			wantErr: true,
+			wantErr: false, // Now deferred to planning phase
 		},
 		{
 			name: "invalid placeholder format",
