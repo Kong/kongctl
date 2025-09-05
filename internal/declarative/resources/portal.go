@@ -19,6 +19,9 @@ type PortalResource struct {
 	Pages         []PortalPageResource         `yaml:"pages,omitempty"         json:"pages,omitempty"`
 	Snippets      []PortalSnippetResource      `yaml:"snippets,omitempty"      json:"snippets,omitempty"`
 
+	// External resource marker
+	External *ExternalBlock `yaml:"_external,omitempty" json:"_external,omitempty"`
+
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
 }
@@ -134,6 +137,13 @@ func (p PortalResource) Validate() error {
 		snippetRefs[snippet.GetRef()] = true
 	}
 
+	// Validate external block if present
+	if p.External != nil {
+		if err := p.External.Validate(); err != nil {
+			return fmt.Errorf("invalid _external block: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -179,7 +189,6 @@ func (p PortalResource) GetKonnectMonikerFilter() string {
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
 func (p *PortalResource) TryMatchKonnectResource(konnectResource any) bool {
-	// For portals, we match by name
 	// Use reflection to access fields from state.Portal
 	v := reflect.ValueOf(konnectResource)
 
@@ -193,27 +202,56 @@ func (p *PortalResource) TryMatchKonnectResource(konnectResource any) bool {
 		return false
 	}
 
-	// Look for Name and ID fields
-	nameField := v.FieldByName("Name")
+	// Get ID field (we'll need this regardless of match type)
 	idField := v.FieldByName("ID")
-
-	if !nameField.IsValid() || !idField.IsValid() {
+	if !idField.IsValid() {
 		// Try accessing embedded Portal
 		portalField := v.FieldByName("Portal")
 		if portalField.IsValid() && portalField.Kind() == reflect.Struct {
-			nameField = portalField.FieldByName("Name")
 			idField = portalField.FieldByName("ID")
 		}
 	}
 
-	// Extract values if fields are valid
-	if nameField.IsValid() && idField.IsValid() &&
-		nameField.Kind() == reflect.String && idField.Kind() == reflect.String {
-		if nameField.String() == p.Name {
-			p.konnectID = idField.String()
-			return true
+	if !idField.IsValid() || idField.Kind() != reflect.String {
+		return false
+	}
+
+	// Check match based on configuration
+	matched := false
+
+	if p.IsExternal() && p.External != nil {
+		if p.External.ID != "" {
+			// Direct ID match
+			matched = (idField.String() == p.External.ID)
+		} else if p.External.Selector != nil {
+			// Selector-based match
+			matched = p.External.Selector.Match(konnectResource)
+		}
+	} else {
+		// Non-external: match by name (existing logic)
+		nameField := v.FieldByName("Name")
+		if !nameField.IsValid() {
+			// Try accessing embedded Portal
+			portalField := v.FieldByName("Portal")
+			if portalField.IsValid() && portalField.Kind() == reflect.Struct {
+				nameField = portalField.FieldByName("Name")
+			}
+		}
+
+		if nameField.IsValid() && nameField.Kind() == reflect.String {
+			matched = (nameField.String() == p.Name)
 		}
 	}
 
+	if matched {
+		p.konnectID = idField.String()
+		return true
+	}
+
 	return false
+}
+
+// IsExternal returns true if this portal is externally managed
+func (p *PortalResource) IsExternal() bool {
+	return p.External != nil && p.External.IsExternal()
 }

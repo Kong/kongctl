@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -54,6 +55,16 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 
 	// Compare each desired portal
 	for _, desiredPortal := range desired {
+		// Skip external portals - they're not managed
+		if desiredPortal.IsExternal() {
+			p.planner.logger.Debug("Skipping external portal",
+				slog.String("ref", desiredPortal.GetRef()),
+				slog.String("name", desiredPortal.Name),
+				slog.String("id", desiredPortal.GetKonnectID()),
+			)
+			continue
+		}
+
 		current, exists := currentByName[desiredPortal.Name]
 
 		if !exists {

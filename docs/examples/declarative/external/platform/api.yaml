@@ -1,0 +1,50 @@
+# Platform Team API Configuration
+# This demonstrates an API managed by the platform team and published to their portal
+
+apis:
+  - ref: platform-core-api
+    name: "Platform Core API"
+    description: "Core platform services and utilities managed by the platform team"
+    version: "2.1.0"
+    labels:
+      team: platform
+      category: core
+      protocol: rest
+    
+    versions:
+      - ref: platform-core-v2
+        version: "2.1.0"
+        spec: !file ./specs/platform-core-v2.yaml
+      - ref: platform-core-v1
+        version: "1.0.0"
+        spec: !file ./specs/platform-core-v1.yaml
+       
+    documents:
+      - ref: platform-core-overview
+        title: "Platform Core API: Overview"
+        slug: platform-core-overview
+        status: published
+        content: !file ./docs/overview.md
+        
+      - ref: platform-core-auth
+        title: "Platform Core API: Authentication"
+        slug: platform-core-auth
+        status: published
+        content: !file ./docs/authentication.md
+        
+      - ref: platform-core-webhooks
+        title: "Platform Core API: Webhooks"
+        slug: platform-core-webhooks
+        status: published
+        content: !file ./docs/webhooks.md
+        
+      - ref: platform-core-examples
+        title: "Platform Core API: Code Examples"
+        slug: platform-core-examples
+        status: published
+        content: !file ./docs/examples.md
+        
+    publications:
+      - ref: platform-core-to-shared-portal
+        portal_id: !ref shared-developer-portal#id
+        visibility: public

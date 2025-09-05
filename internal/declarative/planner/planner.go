@@ -436,8 +436,91 @@ func (p *Planner) resolveAPIIdentities(ctx context.Context, apis []resources.API
 
 // resolvePortalIdentities resolves Konnect IDs for Portal resources
 func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resources.PortalResource) error {
+	// First pass: resolve external portals
 	for i := range portals {
 		portal := &portals[i]
+
+		// Skip if not external
+		if !portal.IsExternal() {
+			continue
+		}
+
+		// Skip if already resolved
+		if portal.GetKonnectID() != "" {
+			continue
+		}
+
+		// Resolve external portal
+		var konnectPortal *state.Portal
+		var err error
+
+		if portal.External.ID != "" {
+			// Direct ID lookup - need to find the portal by ID
+			// For now, we'll use ListAllPortals and filter by ID
+			allPortals, err := p.client.ListAllPortals(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to list portals for external lookup: %w", err)
+			}
+
+			for _, p := range allPortals {
+				if p.ID == portal.External.ID {
+					konnectPortal = &p
+					break
+				}
+			}
+
+			if konnectPortal == nil {
+				return fmt.Errorf("external portal not found with ID: %s", portal.External.ID)
+			}
+		} else if portal.External.Selector != nil {
+			// Selector-based lookup
+			if name, ok := portal.External.Selector.MatchFields["name"]; ok {
+				// Name-based lookup
+				allPortals, err := p.client.ListAllPortals(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to list portals for external lookup: %w", err)
+				}
+
+				for _, p := range allPortals {
+					if p.Name == name {
+						konnectPortal = &p
+						break
+					}
+				}
+
+				if konnectPortal == nil {
+					return fmt.Errorf("external portal not found with name: %s", name)
+				}
+			} else {
+				return fmt.Errorf("external portal %s: only 'name' field selector is currently supported", portal.GetRef())
+			}
+		}
+
+		if err != nil {
+			return fmt.Errorf("failed to resolve external portal %s: %w", portal.GetRef(), err)
+		}
+
+		if konnectPortal != nil {
+			// Set the ID directly for external portals
+			// We use reflection via TryMatchKonnectResource to set the konnectID
+			portal.TryMatchKonnectResource(konnectPortal)
+
+			p.logger.Debug("Resolved external portal",
+				slog.String("ref", portal.GetRef()),
+				slog.String("id", portal.GetKonnectID()),
+				slog.String("name", konnectPortal.Name),
+			)
+		}
+	}
+
+	// Second pass: resolve managed portals (existing logic)
+	for i := range portals {
+		portal := &portals[i]
+
+		// Skip external portals (already resolved)
+		if portal.IsExternal() {
+			continue
+		}
 
 		// Skip if already resolved
 		if portal.GetKonnectID() != "" {

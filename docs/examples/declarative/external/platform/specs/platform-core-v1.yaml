@@ -1,0 +1,102 @@
+openapi: 3.0.3
+info:
+  title: Platform Core API
+  description: Essential platform services including authentication and user management (Legacy v1.0)
+  version: 1.0.0
+  contact:
+    name: Platform Team
+    email: platform-team@company.com
+
+servers:
+  - url: https://api.company.com/v1
+    description: Production server (v1 - Legacy)
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns the current health status of the API
+      operationId: getHealth
+      tags:
+        - System
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, error]
+                  version:
+                    type: string
+                required:
+                  - status
+                  - version
+
+  /auth:
+    post:
+      summary: User authentication (Legacy)
+      description: Authenticate a user and return a simple token
+      operationId: authenticate
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user:
+                  type: string
+                pass:
+                  type: string
+              required:
+                - user
+                - pass
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user_id:
+                    type: string
+
+  /user:
+    get:
+      summary: Get current user (Legacy)
+      description: Returns basic user information
+      operationId: getUser
+      tags:
+        - Users
+      responses:
+        '200':
+          description: User information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  email:
+                    type: string
+                  name:
+                    type: string
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer

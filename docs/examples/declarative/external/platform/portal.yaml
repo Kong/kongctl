@@ -1,0 +1,130 @@
+# Platform Team Portal Configuration
+# This portal will be managed by the platform team and referenced by other teams
+# as an external resource using the _external block
+
+portals:
+  - ref: shared-developer-portal
+    name: "Shared Developer Portal"
+    display_name: "Company Developer Portal"
+    description: "The main developer portal managed by the platform team for all company APIs"
+    authentication_enabled: false
+    rbac_enabled: false
+    auto_approve_developers: true
+    auto_approve_applications: false
+    default_api_visibility: "public"
+    default_page_visibility: "public"
+    
+    # Portal customization with company theme
+    customization:
+      ref: platform-customization
+      theme:
+        mode: "light"
+        colors:
+          primary: "#1565D8"
+      layout: "topnav"
+      menu:
+        main:
+          - path: "/getting-started"
+            title: "Getting Started"
+            external: false
+            visibility: "public"
+          - path: "/apis"
+            title: "APIs"
+            external: false
+            visibility: "public"
+          - path: "/guides"
+            title: "Developer Guides"
+            external: false
+            visibility: "public"
+        footer_sections:
+          - title: "Resources"
+            items:
+              - path: "/docs"
+                title: "Documentation"
+                external: false
+                visibility: "public"
+              - path: "/support"
+                title: "Support"
+                external: false
+                visibility: "public"
+          - title: "Company"
+            items:
+              - path: "https://company.com/about"
+                title: "About Us"
+                external: true
+                visibility: "public"
+              - path: "https://company.com/contact"
+                title: "Contact"
+                external: true
+                visibility: "public"
+    
+    # Portal pages
+    pages:
+      # Home page
+      - ref: home
+        slug: "/"
+        title: "Company Developer Portal"
+        description: "Welcome to our unified API platform"
+        visibility: "public"
+        status: "published"
+        content: !file ./pages/home.md
+
+      # APIs page
+      - ref: apis
+        slug: "apis"
+        title: "Available APIs"
+        description: "Browse all APIs available on our platform"
+        visibility: "public"
+        status: "published"
+        content: !file ./pages/apis.md
+
+      # Getting Started page
+      - ref: getting-started-page
+        slug: "getting-started"
+        title: "Getting Started"
+        description: "Start building with our APIs in minutes"
+        visibility: "public"
+        status: "published"
+        content: !file ./pages/getting-started.md
+
+      # Developer Guides page
+      - ref: guides
+        slug: "guides"
+        title: "Developer Guides"
+        description: "Comprehensive guides for API integration"
+        visibility: "public"
+        status: "published"
+        content: !file ./pages/guides.md
+        children:
+          - ref: auth-guide
+            slug: "authentication"
+            title: "Authentication"
+            description: "Learn how to authenticate with our APIs"
+            visibility: "public"
+            status: "published"
+            content: !file ./pages/guides/authentication.md
+          - ref: rate-limits-guide
+            slug: "rate-limits"
+            title: "Rate Limits"
+            description: "Understanding API rate limits and best practices"
+            visibility: "public"
+            status: "published"
+            content: !file ./pages/guides/rate-limits.md
+    
+    # Portal snippets for reusable content
+    snippets:
+      - ref: welcome-banner
+        name: "welcome-banner"
+        title: "Welcome Banner"
+        description: "Company welcome banner for the home page"
+        visibility: "public"
+        status: "published"
+        content: !file ./snippets/welcome-banner.md
+
+      - ref: api-quickstart
+        name: "api-quickstart"
+        title: "API Quickstart"
+        description: "Quick start guide snippet for API usage"
+        visibility: "public"
+        status: "published"
+        content: !file ./snippets/api-quickstart.md
