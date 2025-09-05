@@ -447,6 +447,12 @@ func (l *Loader) validateResourceReferences(resource any, rs *resources.Resource
 			continue
 		}
 
+		// Skip validation for unresolved reference placeholders
+		if strings.HasPrefix(fieldValue, "__REF__:") {
+			// This will be resolved during planning/execution phase
+			continue
+		}
+
 		// Check if the referenced resource exists using RefReader
 		if !rs.HasRef(fieldValue) {
 			return fmt.Errorf("resource %q references unknown %s: %s (field: %s)",

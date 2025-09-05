@@ -370,7 +370,7 @@ func TestResolveReferences_PortalReference(t *testing.T) {
 	client := state.NewClient(state.ClientConfig{
 		PortalAPI: mockAPI,
 	})
-	resolver := NewReferenceResolver(client)
+	resolver := NewReferenceResolver(client, nil)
 
 	// No mock needed - the auth strategy is being created in the same plan
 
@@ -436,7 +436,7 @@ func TestResolveReferences_ExistingPortal(t *testing.T) {
 	client := state.NewClient(state.ClientConfig{
 		PortalAPI: mockAPI,
 	})
-	resolver := NewReferenceResolver(client)
+	resolver := NewReferenceResolver(client, nil)
 
 	// Mock the ListPortals call
 	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
@@ -508,7 +508,7 @@ func TestResolveReferences_MissingPortal(t *testing.T) {
 	client := state.NewClient(state.ClientConfig{
 		PortalAPI: mockAPI,
 	})
-	resolver := NewReferenceResolver(client)
+	resolver := NewReferenceResolver(client, nil)
 
 	// Mock empty ListPortals response
 	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
@@ -558,7 +558,7 @@ func TestResolveReferences_UUIDSkipped(t *testing.T) {
 	client := state.NewClient(state.ClientConfig{
 		PortalAPI: mockAPI,
 	})
-	resolver := NewReferenceResolver(client)
+	resolver := NewReferenceResolver(client, nil)
 
 	changes := []PlannedChange{
 		{
@@ -597,7 +597,7 @@ func TestResolveReferences_FieldChange(t *testing.T) {
 	client := state.NewClient(state.ClientConfig{
 		PortalAPI: mockAPI,
 	})
-	resolver := NewReferenceResolver(client)
+	resolver := NewReferenceResolver(client, nil)
 
 	// Mock the ListPortals call
 	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
@@ -668,7 +668,7 @@ func TestResolveReferences_UnimplementedTypes(t *testing.T) {
 	client := state.NewClient(state.ClientConfig{
 		PortalAPI: mockAPI,
 	})
-	resolver := NewReferenceResolver(client)
+	resolver := NewReferenceResolver(client, nil)
 
 	changes := []PlannedChange{
 		{
@@ -745,7 +745,7 @@ func TestResolveReferences_NetworkError(t *testing.T) {
 	client := state.NewClient(state.ClientConfig{
 		PortalAPI: mockAPI,
 	})
-	resolver := NewReferenceResolver(client)
+	resolver := NewReferenceResolver(client, nil)
 
 	// Mock network error
 	mockAPI.On("ListPortals", ctx, mock.Anything).Return(nil, errors.New("network error"))

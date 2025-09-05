@@ -297,12 +297,13 @@ func walkAndResolve(ctx context.Context, val reflect.Value, rs *resources.Resour
 			// Extract field value
 			value, err := resolver.ResolveField(target, field)
 			if err != nil {
-				logger.LogAttrs(ctx, slog.LevelError, "Failed to extract field",
+				// Field not available in config - keep placeholder for runtime resolution
+				logger.LogAttrs(ctx, slog.LevelDebug, "Field not available in config, deferring resolution",
 					slog.String("resource_ref", refStr),
 					slog.String("field", field),
 					slog.String("error", err.Error()),
 				)
-				return fmt.Errorf("extracting field %s from %s: %w", field, refStr, err)
+				break // Keep the __REF__: placeholder unchanged
 			}
 
 			// Set the resolved value

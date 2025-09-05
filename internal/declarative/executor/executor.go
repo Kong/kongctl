@@ -12,6 +12,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/log"
 )
 
@@ -295,7 +296,17 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 							for refKey, refInfo := range plan.Changes[j].References {
 								// Match based on resource type from the reference key
 								refResourceType := strings.TrimSuffix(refKey, "_id")
-								if refResourceType == change.ResourceType && refInfo.Ref == change.ResourceRef {
+
+								// Extract the actual ref from __REF__ format if present
+								actualRef := refInfo.Ref
+								if strings.HasPrefix(refInfo.Ref, tags.RefPlaceholderPrefix) {
+									parsedRef, _, ok := tags.ParseRefPlaceholder(refInfo.Ref)
+									if ok {
+										actualRef = parsedRef
+									}
+								}
+
+								if refResourceType == change.ResourceType && actualRef == change.ResourceRef {
 									// Update the reference with the created resource ID
 									refInfo.ID = resourceID
 									plan.Changes[j].References[refKey] = refInfo

@@ -9,6 +9,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/util/normalizers"
 )
 
@@ -755,7 +756,14 @@ func (p *Planner) planAPIPublicationChanges(
 	for _, desiredPub := range desired {
 		// Resolve portal reference to ID before comparing
 		resolvedPortalID := desiredPub.PortalID
-		if id, ok := portalRefToID[desiredPub.PortalID]; ok {
+		// Parse __REF__ format if present
+		lookupRef := desiredPub.PortalID
+		if strings.HasPrefix(lookupRef, tags.RefPlaceholderPrefix) {
+			if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok {
+				lookupRef = parsedRef
+			}
+		}
+		if id, ok := portalRefToID[lookupRef]; ok {
 			resolvedPortalID = id
 		}
 
@@ -811,7 +819,14 @@ func (p *Planner) planAPIPublicationChanges(
 		for _, pub := range desired {
 			// Use resolved portal ID for sync mode comparison
 			resolvedPortalID := pub.PortalID
-			if id, ok := portalRefToID[pub.PortalID]; ok {
+			// Parse __REF__ format if present
+			lookupRef := pub.PortalID
+			if strings.HasPrefix(lookupRef, tags.RefPlaceholderPrefix) {
+				if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok {
+					lookupRef = parsedRef
+				}
+			}
+			if id, ok := portalRefToID[lookupRef]; ok {
 				resolvedPortalID = id
 			}
 			desiredPortals[resolvedPortalID] = true
@@ -955,8 +970,15 @@ func (p *Planner) getAuthStrategyName(strategy resources.ApplicationAuthStrategy
 }
 
 func (p *Planner) planAPIPublicationDelete(apiRef string, apiID string, portalID string, portalRef string, plan *Plan) {
+	// Parse __REF__ format if present in portalRef
+	cleanPortalRef := portalRef
+	if strings.HasPrefix(portalRef, tags.RefPlaceholderPrefix) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(portalRef); ok {
+			cleanPortalRef = parsedRef
+		}
+	}
 	// Create a composite reference that includes both API and portal for clarity
-	compositeRef := fmt.Sprintf("%s-to-%s", apiRef, portalRef)
+	compositeRef := fmt.Sprintf("%s-to-%s", apiRef, cleanPortalRef)
 
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionDelete, "api_publication", compositeRef),
@@ -984,13 +1006,10 @@ func (p *Planner) planAPIPublicationUpdate(
 	// Update fields with resolved portal ID
 	updateFields["portal_id"] = current.PortalID
 
-	// Create a composite reference that includes both API and portal for clarity
-	compositeRef := fmt.Sprintf("%s-to-%s", apiRef, desired.PortalID)
-
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionUpdate, "api_publication", compositeRef),
+		ID:           p.nextChangeID(ActionUpdate, "api_publication", desired.GetRef()),
 		ResourceType: "api_publication",
-		ResourceRef:  compositeRef,
+		ResourceRef:  desired.GetRef(),
 		ResourceID:   fmt.Sprintf("%s:%s", apiID, current.PortalID), // Composite ID
 		Parent:       &ParentInfo{Ref: apiRef, ID: apiID},
 		Action:       ActionUpdate,

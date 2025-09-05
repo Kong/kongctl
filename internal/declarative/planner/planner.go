@@ -46,9 +46,9 @@ type Planner struct {
 // NewPlanner creates a new planner
 func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 	p := &Planner{
-		client:      client,
-		logger:      logger,
-		resolver:    NewReferenceResolver(client),
+		client: client,
+		logger: logger,
+		// resolver will be initialized with ResourceSet during planning
 		depResolver: NewDependencyResolver(),
 		changeCount: 0,
 	}
@@ -74,6 +74,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	if err := p.resolveResourceIdentities(ctx, rs); err != nil {
 		return nil, fmt.Errorf("failed to resolve resource identities: %w", err)
 	}
+
+	// Initialize resolver with populated ResourceSet
+	p.resolver = NewReferenceResolver(p.client, rs)
 
 	// Extract all unique namespaces from desired resources
 	namespaces := p.getResourceNamespaces(rs)
