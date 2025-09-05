@@ -119,32 +119,22 @@ Kongctl is a Go-based CLI built with the following key components:
    - Configuration can be overridden via environment variables or flags
 
 3. **Authentication**:
-   - Supports both Personal Access Tokens (PAT) and browser-based device authorization flow
-   - Handles token storage, refresh, and expiration
+   - Supports both Personal Access Tokens (PAT) (--pat flag)
+   - browser-based device authorization flow which handles token storage, refresh, and expiration (kongctl login)
 
 4. **Command Organization**:
-   - Root commands (verbs): get, list, create, delete, login, dump
-   - Product namespaces: konnect, gateway, mesh
-   - Resource types: control-planes, services, routes, etc.
+   - Root commands (verbs): get, list, create, delete, login, dump, apply, plan, diff
+   - Product namespaces: konnect, gateway, mesh (defaults to konnect for "Konnect First" approach)
+   - Resource types: apis, portals, control-planes, services, routes, etc.
 
 5. **I/O Handling**:
    - Supports multiple output formats (text, json, yaml)
-   - Configurable logging levels (trace, debug, info, warn, error)
+   - Configurable logging levels (trace, debug, info, warn, error) --log-level
 
 ## Important Patterns
 
 1. **Profile-Based Configuration**: Commands are executed in the context of a profile, which determines which configuration values to use.
    - Users can switch profiles using the `--profile` flag or environment variable `KONGCTL_PROFILE`.
-
-2. **Konnect Authentication Flow**:
-   - For login (kongctl konnect login) , the device code authorization flow is used
-   - PATs can be provided via flag or environment variable
-   - Auth tokens are stored in profile-specific files (not the config file)
-
-3. **Command Hierarchy**: Commands follow a hierarchical structure:
-   - Verb (get, list, create, delete, login)
-   - Product (konnect, gateway)
-   - Resource type (control-planes, services, routes)
 
 4. **Error Handling**: Structured error handling with consistent logging. In functions prefer to reeturn errors and defer 
      handling to callers. Ideally errors are bubbled as high as possible in the call stack to provide context before reporting.
@@ -247,7 +237,7 @@ func outputResult(data interface{}, format string) error {
 
 ## Testing Approach
 
-- Unit tests for core budiness functionality but only when necessary. Don't test other libaries or SDKs. 
+- Unit tests for core business functionality but only when necessary. Don't test other libaries or SDKs. 
 - Integration tests with the `-tags=integration` build tag
 - Test utilities in `test/` directory
 
@@ -278,15 +268,6 @@ The planning documents in `planning/` track all development efforts for kongctl:
 - **User commands**: [planning/user-guide.md](planning/user-guide.md) - Human developer reference
 
 Each feature has its own folder with requirements, technical approach, and implementation steps.
-
-### External SDKs and Libraries
-
-In the docs-mcp-server, the SDKs are identified with the following names: 
-- For the internal SDK: sdk-konnect-go-internal_components, sdk-konnect-go-internal_operations, sdk-konnect-go-internal_sdkerrors,
-sdk-konnect-go-internal_sdks
-- For the public SDK: sdk-konnect-go_components, sdk-konnect-go_operations, sdk-konnect-go_sdkerrors, sdk-konnect-go_sdks
-
-When querying the docs-mcp-server, use those names for the Konnect SDK library queries.
 
 ### Git process
 

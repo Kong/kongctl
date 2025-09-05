@@ -207,6 +207,56 @@ func (c *Client) ListManagedPortals(ctx context.Context, namespaces []string) ([
 	return PaginateAll(ctx, lister)
 }
 
+// ListAllPortals returns all portals, including non-managed ones
+func (c *Client) ListAllPortals(ctx context.Context) ([]Portal, error) {
+	// Validate API client
+	if err := ValidateAPIClient(c.portalAPI, "Portal API"); err != nil {
+		return nil, err
+	}
+
+	// Create paginated lister function
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]Portal, *PageMeta, error) {
+		req := kkOps.ListPortalsRequest{
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+			// No labels filter - get ALL portals
+		}
+
+		resp, err := c.portalAPI.ListPortals(ctx, req)
+		if err != nil {
+			return nil, nil, WrapAPIError(err, "list all portals", nil)
+		}
+
+		if resp.ListPortalsResponse == nil {
+			return []Portal{}, &PageMeta{Total: 0}, nil
+		}
+
+		var allPortals []Portal
+
+		// Process all portals without filtering
+		for _, p := range resp.ListPortalsResponse.Data {
+			// Labels are already map[string]string in the SDK
+			normalized := p.Labels
+			if normalized == nil {
+				normalized = make(map[string]string)
+			}
+
+			portal := Portal{
+				Portal:           p,
+				NormalizedLabels: normalized,
+			}
+			allPortals = append(allPortals, portal)
+		}
+
+		// Extract pagination metadata
+		meta := &PageMeta{Total: resp.ListPortalsResponse.Meta.Page.Total}
+
+		return allPortals, meta, nil
+	}
+
+	return PaginateAll(ctx, lister)
+}
+
 // GetPortalByName finds a managed portal by name
 func (c *Client) GetPortalByName(ctx context.Context, name string) (*Portal, error) {
 	// Search across all namespaces for backward compatibility

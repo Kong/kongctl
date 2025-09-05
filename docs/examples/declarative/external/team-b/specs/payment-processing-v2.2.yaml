@@ -1,0 +1,125 @@
+openapi: 3.0.3
+info:
+  title: Payment Processing API
+  description: Payment processing services (Legacy v2.2)
+  version: 2.2.0
+  contact:
+    name: Team B
+    email: team-b@company.com
+
+servers:
+  - url: https://api.company.com/payments/v2
+    description: Production server (v2.2 - Legacy)
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /payments:
+    post:
+      summary: Process payment (v2.2)
+      operationId: processPayment
+      tags:
+        - Payments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: integer
+                currency:
+                  type: string
+                  default: USD
+                customer_id:
+                  type: string
+                payment_method:
+                  type: string
+              required:
+                - amount
+                - customer_id
+                - payment_method
+      responses:
+        '201':
+          description: Payment processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [succeeded, failed]
+                  amount:
+                    type: integer
+
+    get:
+      summary: List payments (v2.2)
+      operationId: listPayments
+      tags:
+        - Payments
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: customer_id
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of payments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    amount:
+                      type: integer
+                    status:
+                      type: string
+
+  /customers:
+    post:
+      summary: Create customer (v2.2)
+      operationId: createCustomer
+      tags:
+        - Customers
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                name:
+                  type: string
+      responses:
+        '201':
+          description: Customer created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  email:
+                    type: string
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer

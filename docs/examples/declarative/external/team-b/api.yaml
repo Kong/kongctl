@@ -1,0 +1,68 @@
+# Team B API Configuration
+# This demonstrates an API managed by Team B that publishes to an external portal
+# The portal is managed by the platform team but referenced here as external
+
+apis:
+  - ref: payment-processing-api
+    name: "Payment Processing API"
+    description: "Secure payment processing and billing management services managed by Team B"
+    version: "2.3.0"
+    labels:
+      team: team-b
+      category: payments
+      domain: financial
+      protocol: rest
+    
+    versions:
+      - ref: payment-processing-v2-3
+        version: "2.3.0"
+        spec: !file ./specs/payment-processing-v2.3.yaml
+      - ref: payment-processing-v2-2
+        version: "2.2.0"
+        spec: !file ./specs/payment-processing-v2.2.yaml
+       
+    documents:
+      - ref: payment-processing-overview
+        title: "Payment Processing API: Overview"
+        slug: payment-processing-overview
+        status: published
+        content: !file ./docs/overview.md
+        
+      - ref: payment-processing-quickstart
+        title: "Payment Processing API: Quick Start"
+        slug: payment-processing-quickstart
+        status: published
+        content: !file ./docs/quickstart.md
+        
+      - ref: payment-processing-security
+        title: "Payment Processing API: Security Guide"
+        slug: payment-processing-security
+        status: published
+        content: !file ./docs/security.md
+        
+      - ref: payment-processing-webhooks
+        title: "Payment Processing API: Webhooks"
+        slug: payment-processing-webhooks
+        status: published
+        content: !file ./docs/webhooks.md
+        
+      - ref: payment-processing-examples
+        title: "Payment Processing API: Code Examples"
+        slug: payment-processing-examples
+        status: published
+        content: !file ./docs/examples.md
+        
+    publications:
+      # This references the external portal managed by the platform team
+      - ref: payment-processing-to-shared-portal
+        portal_id: !ref shared-developer-portal#id
+        visibility: public
+
+# External portal definition - this tells kongctl that this portal
+# is managed externally (by the platform team) but we need to reference it
+portals:
+  - ref: shared-developer-portal
+    _external:
+      selector:
+        matchFields:
+          name: "Shared Developer Portal"

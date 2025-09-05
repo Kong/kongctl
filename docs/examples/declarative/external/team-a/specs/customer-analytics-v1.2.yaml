@@ -1,0 +1,587 @@
+openapi: 3.0.3
+info:
+  title: Customer Analytics API
+  description: Real-time customer data and analytics services for understanding customer behavior and driving business insights
+  version: 1.2.0
+  contact:
+    name: Team A
+    email: team-a@company.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.company.com/customer-analytics/v1
+    description: Production server
+  - url: https://api-staging.company.com/customer-analytics/v1
+    description: Staging server
+
+security:
+  - ApiKeyAuth: []
+  - OAuth2: [read, write]
+
+tags:
+  - name: Customers
+    description: Customer profile and behavior data
+  - name: Segments
+    description: Customer segmentation and targeting
+  - name: Analytics
+    description: Analytics queries and reporting
+  - name: Events
+    description: Customer event tracking
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Check the health status of the Customer Analytics API
+      operationId: getHealth
+      tags:
+        - System
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  version:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /customers:
+    get:
+      summary: List customers
+      description: Retrieve a paginated list of customers with optional filtering
+      operationId: listCustomers
+      tags:
+        - Customers
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: segment
+          in: query
+          description: Filter by customer segment
+          schema:
+            type: string
+        - name: created_after
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: List of customers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  customers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Customer'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /customers/{customerId}:
+    get:
+      summary: Get customer details
+      description: Retrieve detailed information about a specific customer
+      operationId: getCustomer
+      tags:
+        - Customers
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Customer details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerDetails'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /customers/{customerId}/events:
+    get:
+      summary: Get customer events
+      description: Retrieve event history for a specific customer
+      operationId: getCustomerEvents
+      tags:
+        - Customers
+        - Events
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: event_type
+          in: query
+          schema:
+            type: string
+            enum: [page_view, purchase, signup, login, download]
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+      responses:
+        '200':
+          description: Customer events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CustomerEvent'
+
+  /segments:
+    get:
+      summary: List customer segments
+      description: Retrieve all available customer segments
+      operationId: listSegments
+      tags:
+        - Segments
+      responses:
+        '200':
+          description: List of segments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  segments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Segment'
+
+    post:
+      summary: Create customer segment
+      description: Create a new customer segment with specified criteria
+      operationId: createSegment
+      tags:
+        - Segments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSegmentRequest'
+      responses:
+        '201':
+          description: Segment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Segment'
+
+  /segments/{segmentId}/customers:
+    get:
+      summary: Get segment customers
+      description: Retrieve customers belonging to a specific segment
+      operationId: getSegmentCustomers
+      tags:
+        - Segments
+        - Customers
+      parameters:
+        - name: segmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Customers in segment
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  customers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Customer'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /analytics/reports:
+    get:
+      summary: Get analytics reports
+      description: Retrieve pre-built analytics reports
+      operationId: getAnalyticsReports
+      tags:
+        - Analytics
+      parameters:
+        - name: report_type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [customer_acquisition, retention, engagement, revenue]
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: segment_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Analytics report data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsReport'
+
+  /events:
+    post:
+      summary: Track customer event
+      description: Record a new customer event for analytics tracking
+      operationId: trackEvent
+      tags:
+        - Events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrackEventRequest'
+      responses:
+        '201':
+          description: Event tracked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  event_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [tracked]
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API_KEY
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.company.com/oauth/authorize
+          tokenUrl: https://auth.company.com/oauth/token
+          scopes:
+            read: Read access to customer data
+            write: Write access for event tracking
+
+  schemas:
+    Customer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        last_active:
+          type: string
+          format: date-time
+        segment_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        total_purchases:
+          type: integer
+        lifetime_value:
+          type: number
+          format: float
+      required:
+        - id
+        - email
+        - created_at
+
+    CustomerDetails:
+      allOf:
+        - $ref: '#/components/schemas/Customer'
+        - type: object
+          properties:
+            profile:
+              type: object
+              properties:
+                age:
+                  type: integer
+                location:
+                  type: string
+                interests:
+                  type: array
+                  items:
+                    type: string
+            purchase_history:
+              type: array
+              items:
+                type: object
+                properties:
+                  purchase_id:
+                    type: string
+                  amount:
+                    type: number
+                  date:
+                    type: string
+                    format: date-time
+                  items:
+                    type: array
+                    items:
+                      type: string
+
+    CustomerEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+        event_type:
+          type: string
+          enum: [page_view, purchase, signup, login, download]
+        timestamp:
+          type: string
+          format: date-time
+        properties:
+          type: object
+          additionalProperties: true
+        session_id:
+          type: string
+        page_url:
+          type: string
+          format: uri
+      required:
+        - id
+        - customer_id
+        - event_type
+        - timestamp
+
+    Segment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        criteria:
+          type: object
+          additionalProperties: true
+        customer_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - criteria
+
+    CreateSegmentRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+        criteria:
+          type: object
+          properties:
+            age_min:
+              type: integer
+            age_max:
+              type: integer
+            location:
+              type: string
+            purchase_count_min:
+              type: integer
+            lifetime_value_min:
+              type: number
+            last_active_days:
+              type: integer
+              description: Active within the last N days
+      required:
+        - name
+        - criteria
+
+    TrackEventRequest:
+      type: object
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+        event_type:
+          type: string
+          enum: [page_view, purchase, signup, login, download]
+        properties:
+          type: object
+          additionalProperties: true
+        session_id:
+          type: string
+        page_url:
+          type: string
+          format: uri
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - customer_id
+        - event_type
+
+    AnalyticsReport:
+      type: object
+      properties:
+        report_type:
+          type: string
+        period:
+          type: object
+          properties:
+            start_date:
+              type: string
+              format: date
+            end_date:
+              type: string
+              format: date
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        summary:
+          type: object
+          additionalProperties: true
+
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+        has_more:
+          type: boolean
+      required:
+        - total
+        - limit
+        - offset
+        - has_more
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        error_description:
+          type: string
+        error_code:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - error
+        - error_description
+        - error_code
+        - timestamp
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: not_found
+            error_description: The requested resource was not found
+            error_code: 4040
+            timestamp: '2024-01-15T10:30:00Z'

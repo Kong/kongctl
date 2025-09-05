@@ -46,7 +46,7 @@ apis:
         
     publications:
       - ref: sms-api-to-getting-started
-        portal_id: getting-started-portal
+        portal_id: !ref getting-started-portal#id
         visibility: public
 
   - ref: voice
@@ -88,5 +88,5 @@ apis:
         
     publications:
       - ref: voice-api-to-getting-started
-        portal_id: getting-started-portal
+        portal_id: !ref getting-started-portal#id
         visibility: public

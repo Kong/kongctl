@@ -1,0 +1,68 @@
+# Team A API Configuration
+# This demonstrates an API managed by Team A that publishes to an external portal
+# The portal is managed by the platform team but referenced here as external
+
+apis:
+  - ref: customer-analytics-api
+    name: "Customer Analytics API"
+    description: "Real-time customer data and analytics services managed by Team A"
+    version: "1.2.0"
+    labels:
+      team: team-a
+      category: analytics
+      domain: customer
+      protocol: rest
+    
+    versions:
+      - ref: customer-analytics-v1-2
+        version: "1.2.0"
+        spec: !file ./specs/customer-analytics-v1.2.yaml
+      - ref: customer-analytics-v1-1
+        version: "1.1.0"
+        spec: !file ./specs/customer-analytics-v1.1.yaml
+       
+    documents:
+      - ref: customer-analytics-overview
+        title: "Customer Analytics API: Overview"
+        slug: customer-analytics-overview
+        status: published
+        content: !file ./docs/overview.md
+        
+      - ref: customer-analytics-quickstart
+        title: "Customer Analytics API: Quick Start"
+        slug: customer-analytics-quickstart
+        status: published
+        content: !file ./docs/quickstart.md
+        
+      - ref: customer-analytics-auth
+        title: "Customer Analytics API: Authentication"
+        slug: customer-analytics-auth
+        status: published
+        content: !file ./docs/authentication.md
+        
+      - ref: customer-analytics-segments
+        title: "Customer Analytics API: Segmentation Guide"
+        slug: customer-analytics-segments
+        status: published
+        content: !file ./docs/segmentation.md
+        
+      - ref: customer-analytics-examples
+        title: "Customer Analytics API: Code Examples"
+        slug: customer-analytics-examples
+        status: published
+        content: !file ./docs/examples.md
+        
+    publications:
+      # This references the external portal managed by the platform team
+      - ref: customer-analytics-to-shared-portal
+        portal_id: !ref shared-developer-portal#id
+        visibility: public
+
+# External portal definition - this tells kongctl that this portal
+# is managed externally (by the platform team) but we need to reference it
+portals:
+  - ref: shared-developer-portal
+    _external:
+      selector:
+        matchFields:
+          name: "Shared Developer Portal"

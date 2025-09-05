@@ -3,20 +3,26 @@ package planner
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/util"
 )
 
 // ReferenceResolver resolves declarative refs to Konnect IDs
 type ReferenceResolver struct {
-	client *state.Client
+	client    *state.Client
+	resources *resources.ResourceSet
 }
 
 // NewReferenceResolver creates a new resolver
-func NewReferenceResolver(client *state.Client) *ReferenceResolver {
+func NewReferenceResolver(client *state.Client, rs *resources.ResourceSet) *ReferenceResolver {
 	return &ReferenceResolver{
-		client: client,
+		client:    client,
+		resources: rs,
 	}
 }
 
@@ -95,6 +101,11 @@ func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []Pla
 
 // extractReference checks if a field value is a reference
 func (r *ReferenceResolver) extractReference(fieldName string, value any) (string, bool) {
+	// Check for __REF__ placeholder format
+	if str, ok := value.(string); ok && strings.HasPrefix(str, "__REF__:") {
+		return str, true // Return full placeholder for resolution
+	}
+
 	// Check if field name suggests a reference
 	if !r.isReferenceField(fieldName) {
 		return "", false
@@ -153,13 +164,49 @@ func (r *ReferenceResolver) getResourceTypeForField(fieldName string) string {
 
 // resolveReference looks up a reference in existing resources
 func (r *ReferenceResolver) resolveReference(ctx context.Context, resourceType, ref string) (string, error) {
+	var targetRef string
+	fieldName := "id" // Default field
+
+	// Parse __REF__ placeholder format
+	if strings.HasPrefix(ref, "__REF__:") {
+		parsedRef, field, ok := tags.ParseRefPlaceholder(ref)
+		if !ok {
+			return "", fmt.Errorf("invalid reference format: %s", ref)
+		}
+		targetRef = parsedRef
+		fieldName = field
+	} else {
+		// Traditional ref (backward compatibility)
+		targetRef = ref
+	}
+
+	// Find resource in ResourceSet by ref
+	if r.resources != nil {
+		resource, exists := r.resources.GetResourceByRef(targetRef)
+		if exists {
+			// Special handling for "id" field - return konnectID
+			if fieldName == "id" || fieldName == "ID" {
+				konnectID := resource.GetKonnectID()
+				if konnectID == "" {
+					// Resource exists but no Konnect ID (will be created)
+					return "[unknown]", nil // Trigger forward reference
+				}
+				return konnectID, nil
+			}
+
+			// For other fields, use reflection to extract value
+			return r.extractFieldFromResource(resource, fieldName)
+		}
+	}
+
+	// Fallback to original resolution for backward compatibility
 	switch resourceType {
 	case "application_auth_strategy":
-		return r.resolveAuthStrategyRef(ctx, ref)
+		return r.resolveAuthStrategyRef(ctx, targetRef)
 	case "control_plane":
-		return r.resolveControlPlaneRef(ctx, ref)
+		return r.resolveControlPlaneRef(ctx, targetRef)
 	case ResourceTypePortal:
-		return r.resolvePortalRef(ctx, ref)
+		return r.resolvePortalRef(ctx, targetRef)
 	default:
 		return "", fmt.Errorf("unknown resource type: %s", resourceType)
 	}
@@ -187,4 +234,92 @@ func (r *ReferenceResolver) resolvePortalRef(ctx context.Context, ref string) (s
 		return "", fmt.Errorf("portal not found")
 	}
 	return portal.ID, nil
+}
+
+// extractFieldFromResource extracts a field value from a resource using reflection
+func (r *ReferenceResolver) extractFieldFromResource(resource resources.Resource, fieldName string) (string, error) {
+	v := reflect.ValueOf(resource)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	// Support dot notation for nested fields
+	parts := strings.Split(fieldName, ".")
+	current := v
+
+	for _, part := range parts {
+		// Dereference pointers
+		for current.Kind() == reflect.Ptr && !current.IsNil() {
+			current = current.Elem()
+		}
+
+		// Handle struct fields
+		if current.Kind() == reflect.Struct {
+			// First try to find by JSON tag
+			fieldVal := r.findFieldByJSONTag(current, part)
+			if !fieldVal.IsValid() {
+				// Fallback to field name
+				fieldVal = current.FieldByName(part)
+			}
+
+			if !fieldVal.IsValid() {
+				return "", fmt.Errorf("field %s not found in %s", part, current.Type())
+			}
+			current = fieldVal
+		} else {
+			return "", fmt.Errorf("cannot access field %s on %s", part, current.Kind())
+		}
+	}
+
+	// Convert to string
+	return r.convertToString(current), nil
+}
+
+// findFieldByJSONTag finds a struct field by its JSON tag
+func (r *ReferenceResolver) findFieldByJSONTag(val reflect.Value, jsonTag string) reflect.Value {
+	t := val.Type()
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		tag := field.Tag.Get("json")
+		if idx := strings.Index(tag, ","); idx != -1 {
+			tag = tag[:idx]
+		}
+		if tag == jsonTag {
+			return val.Field(i)
+		}
+	}
+	return reflect.Value{}
+}
+
+// convertToString converts a reflect.Value to string
+func (r *ReferenceResolver) convertToString(val reflect.Value) string {
+	// Dereference pointers
+	for val.Kind() == reflect.Ptr && !val.IsNil() {
+		val = val.Elem()
+	}
+
+	switch val.Kind() {
+	case reflect.String:
+		return val.String()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return fmt.Sprintf("%d", val.Int())
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return fmt.Sprintf("%d", val.Uint())
+	case reflect.Float32, reflect.Float64:
+		return fmt.Sprintf("%f", val.Float())
+	case reflect.Bool:
+		return fmt.Sprintf("%t", val.Bool())
+	case reflect.Complex64, reflect.Complex128:
+		return fmt.Sprintf("%v", val.Complex())
+	case reflect.Array, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr,
+		reflect.Slice, reflect.Struct, reflect.UnsafePointer:
+		// For composite types, use general interface conversion
+		return fmt.Sprintf("%v", val.Interface())
+	case reflect.Invalid:
+		// Handle invalid reflect values
+		return "<invalid>"
+	default:
+		// This should never be reached as we've covered all reflect.Kind values
+		return fmt.Sprintf("%v", val.Interface())
+	}
 }

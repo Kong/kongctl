@@ -1,0 +1,942 @@
+openapi: 3.0.3
+info:
+  title: Payment Processing API
+  description: Secure payment processing and billing management services with comprehensive financial operations support
+  version: 2.3.0
+  contact:
+    name: Team B
+    email: team-b@company.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.company.com/payments/v2
+    description: Production server
+  - url: https://api-staging.company.com/payments/v2
+    description: Staging server
+
+security:
+  - ApiKeyAuth: []
+  - OAuth2: [payments:read, payments:write]
+
+tags:
+  - name: Payments
+    description: Payment processing and transaction management
+  - name: Subscriptions
+    description: Recurring billing and subscription management
+  - name: Invoices
+    description: Invoice generation and management
+  - name: Customers
+    description: Customer billing profiles and payment methods
+  - name: Webhooks
+    description: Payment event notifications
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Check the health status of the Payment Processing API
+      operationId: getHealth
+      tags:
+        - System
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  version:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+                  processor_status:
+                    type: object
+                    properties:
+                      stripe:
+                        type: string
+                        enum: [operational, degraded, down]
+                      paypal:
+                        type: string
+                        enum: [operational, degraded, down]
+
+  /payments:
+    post:
+      summary: Process payment
+      description: Process a one-time payment
+      operationId: processPayment
+      tags:
+        - Payments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentRequest'
+      responses:
+        '201':
+          description: Payment processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+
+    get:
+      summary: List payments
+      description: Retrieve a paginated list of payments
+      operationId: listPayments
+      tags:
+        - Payments
+      parameters:
+        - name: customer_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, completed, failed, refunded]
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: List of payments
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Payment'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /payments/{paymentId}:
+    get:
+      summary: Get payment details
+      description: Retrieve details of a specific payment
+      operationId: getPayment
+      tags:
+        - Payments
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Payment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentDetails'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /payments/{paymentId}/refund:
+    post:
+      summary: Refund payment
+      description: Issue a full or partial refund for a payment
+      operationId: refundPayment
+      tags:
+        - Payments
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequest'
+      responses:
+        '201':
+          description: Refund processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Refund'
+
+  /customers:
+    post:
+      summary: Create customer
+      description: Create a new billing customer profile
+      operationId: createCustomer
+      tags:
+        - Customers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+      responses:
+        '201':
+          description: Customer created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+
+    get:
+      summary: List customers
+      description: Retrieve a paginated list of billing customers
+      operationId: listCustomers
+      tags:
+        - Customers
+      parameters:
+        - name: email
+          in: query
+          schema:
+            type: string
+            format: email
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: List of customers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  customers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Customer'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /customers/{customerId}/payment-methods:
+    post:
+      summary: Add payment method
+      description: Add a new payment method for a customer
+      operationId: addPaymentMethod
+      tags:
+        - Customers
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddPaymentMethodRequest'
+      responses:
+        '201':
+          description: Payment method added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentMethod'
+
+  /subscriptions:
+    post:
+      summary: Create subscription
+      description: Create a new recurring billing subscription
+      operationId: createSubscription
+      tags:
+        - Subscriptions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubscriptionRequest'
+      responses:
+        '201':
+          description: Subscription created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+    get:
+      summary: List subscriptions
+      description: Retrieve a paginated list of subscriptions
+      operationId: listSubscriptions
+      tags:
+        - Subscriptions
+      parameters:
+        - name: customer_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, paused, cancelled, expired]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of subscriptions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscriptions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Subscription'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /subscriptions/{subscriptionId}/cancel:
+    post:
+      summary: Cancel subscription
+      description: Cancel a recurring subscription
+      operationId: cancelSubscription
+      tags:
+        - Subscriptions
+      parameters:
+        - name: subscriptionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cancel_at_period_end:
+                  type: boolean
+                  default: true
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Subscription cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+  /invoices:
+    post:
+      summary: Create invoice
+      description: Create a new invoice for a customer
+      operationId: createInvoice
+      tags:
+        - Invoices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvoiceRequest'
+      responses:
+        '201':
+          description: Invoice created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+
+    get:
+      summary: List invoices
+      description: Retrieve a paginated list of invoices
+      operationId: listInvoices
+      tags:
+        - Invoices
+      parameters:
+        - name: customer_id
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, open, paid, void, uncollectible]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of invoices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invoices:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Invoice'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /webhooks:
+    post:
+      summary: Create webhook
+      description: Register a webhook endpoint for payment events
+      operationId: createWebhook
+      tags:
+        - Webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWebhookRequest'
+      responses:
+        '201':
+          description: Webhook created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API_KEY
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.company.com/oauth/authorize
+          tokenUrl: https://auth.company.com/oauth/token
+          scopes:
+            payments:read: Read payment data
+            payments:write: Process payments and manage billing
+
+  schemas:
+    CreatePaymentRequest:
+      type: object
+      properties:
+        amount:
+          type: integer
+          description: Amount in cents
+          minimum: 1
+        currency:
+          type: string
+          enum: [USD, EUR, GBP, CAD, AUD]
+          default: USD
+        customer_id:
+          type: string
+          format: uuid
+        payment_method_id:
+          type: string
+          format: uuid
+        description:
+          type: string
+          maxLength: 500
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+        - amount
+        - customer_id
+        - payment_method_id
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        amount:
+          type: integer
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [pending, completed, failed, refunded]
+        customer_id:
+          type: string
+          format: uuid
+        payment_method_id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+        - id
+        - amount
+        - currency
+        - status
+        - customer_id
+        - created_at
+
+    PaymentDetails:
+      allOf:
+        - $ref: '#/components/schemas/Payment'
+        - type: object
+          properties:
+            payment_method:
+              $ref: '#/components/schemas/PaymentMethod'
+            refunds:
+              type: array
+              items:
+                $ref: '#/components/schemas/Refund'
+            fees:
+              type: object
+              properties:
+                processing_fee:
+                  type: integer
+                platform_fee:
+                  type: integer
+
+    RefundRequest:
+      type: object
+      properties:
+        amount:
+          type: integer
+          description: Refund amount in cents. If not provided, full refund is issued
+        reason:
+          type: string
+          enum: [duplicate, fraudulent, requested_by_customer]
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+
+    Refund:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        payment_id:
+          type: string
+          format: uuid
+        amount:
+          type: integer
+        currency:
+          type: string
+        reason:
+          type: string
+        status:
+          type: string
+          enum: [pending, succeeded, failed]
+        created_at:
+          type: string
+          format: date-time
+
+    CreateCustomerRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          maxLength: 100
+        phone:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+        - email
+
+    Customer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        phone:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        payment_methods:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentMethod'
+
+    AddPaymentMethodRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [card, bank_account, paypal]
+        card:
+          type: object
+          properties:
+            number:
+              type: string
+            exp_month:
+              type: integer
+            exp_year:
+              type: integer
+            cvc:
+              type: string
+        bank_account:
+          type: object
+          properties:
+            account_number:
+              type: string
+            routing_number:
+              type: string
+            account_type:
+              type: string
+              enum: [checking, savings]
+      required:
+        - type
+
+    PaymentMethod:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [card, bank_account, paypal]
+        card:
+          type: object
+          properties:
+            last4:
+              type: string
+            brand:
+              type: string
+            exp_month:
+              type: integer
+            exp_year:
+              type: integer
+        bank_account:
+          type: object
+          properties:
+            last4:
+              type: string
+            bank_name:
+              type: string
+            account_type:
+              type: string
+        is_default:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    CreateSubscriptionRequest:
+      type: object
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+        payment_method_id:
+          type: string
+          format: uuid
+        plan_id:
+          type: string
+          format: uuid
+        trial_period_days:
+          type: integer
+          minimum: 0
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+        - customer_id
+        - plan_id
+
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+        plan_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [active, paused, cancelled, expired]
+        current_period_start:
+          type: string
+          format: date-time
+        current_period_end:
+          type: string
+          format: date-time
+        cancel_at_period_end:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateInvoiceRequest:
+      type: object
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+        line_items:
+          type: array
+          items:
+            type: object
+            properties:
+              description:
+                type: string
+              quantity:
+                type: integer
+                minimum: 1
+              unit_amount:
+                type: integer
+                minimum: 1
+        due_date:
+          type: string
+          format: date
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+        - customer_id
+        - line_items
+
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+        amount_due:
+          type: integer
+        amount_paid:
+          type: integer
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [draft, open, paid, void, uncollectible]
+        due_date:
+          type: string
+          format: date
+        created_at:
+          type: string
+          format: date-time
+        paid_at:
+          type: string
+          format: date-time
+
+    CreateWebhookRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+            enum: [payment.succeeded, payment.failed, subscription.created, subscription.cancelled, invoice.paid]
+        active:
+          type: boolean
+          default: true
+      required:
+        - url
+        - events
+
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    Address:
+      type: object
+      properties:
+        line1:
+          type: string
+        line2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        postal_code:
+          type: string
+        country:
+          type: string
+
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+        has_more:
+          type: boolean
+      required:
+        - total
+        - limit
+        - offset
+        - has_more
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        error_description:
+          type: string
+        error_code:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - error
+        - error_description
+        - error_code
+        - timestamp
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    PaymentRequired:
+      description: Payment failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: payment_failed
+            error_description: The payment method was declined
+            error_code: 4020
+            timestamp: '2024-01-15T10:30:00Z'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
