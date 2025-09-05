@@ -7,9 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"sigs.k8s.io/yaml"
 )
@@ -213,4 +216,216 @@ func (s *Step) GetAndObserve(resource string, out any, selector any) error {
 		return err
 	}
 	return s.WriteObservation(out, nil, selector)
+}
+
+// GetKonnectJSON performs an HTTP GET to the Konnect API and records a synthetic command
+// with a single observation.json under the step's commands directory.
+// - name: slug used in the command folder (e.g., "get_publication")
+// - path: request path starting with '/v3/...'
+// - out: decoded JSON target
+// - selector: optional map describing the filter/identifiers used
+func (s *Step) GetKonnectJSON(name string, path string, out any, selector any) error {
+	if s == nil || s.cli == nil {
+		return fmt.Errorf("nil step/cli")
+	}
+	baseDir := s.cli.TestDir
+	if s.cli.StepDir != "" {
+		baseDir = s.cli.StepDir
+	}
+	commandsDir := filepath.Join(baseDir, "commands")
+	if err := os.MkdirAll(commandsDir, 0o755); err != nil {
+		return err
+	}
+	seq := s.cli.cmdSeq
+	s.cli.cmdSeq++
+	slug := sanitizeName(name)
+	dir := filepath.Join(commandsDir, fmt.Sprintf("%03d-%s", seq, slug))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+
+	baseURL := os.Getenv("KONGCTL_E2E_KONNECT_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://us.api.konghq.com"
+	}
+	fullURL := strings.TrimRight(baseURL, "/") + path
+	token := os.Getenv("KONGCTL_E2E_KONNECT_PAT")
+	if token == "" {
+		return fmt.Errorf("KONGCTL_E2E_KONNECT_PAT not set")
+	}
+
+	// Write command.txt
+	_ = os.WriteFile(filepath.Join(dir, "command.txt"), []byte("HTTP GET "+fullURL+"\n"), 0o644)
+
+	// Execute request
+	client := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, fullURL, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/json")
+
+	start := time.Now()
+	resp, err := client.Do(req)
+	dur := time.Since(start)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+
+	// stdout/stderr
+	_ = os.WriteFile(filepath.Join(dir, "stdout.txt"), body, 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "stderr.txt"), []byte{}, 0o644)
+
+	// env.json (sanitized)
+	envMap := map[string]string{}
+	for _, kv := range os.Environ() {
+		if i := strings.IndexByte(kv, '='); i > 0 {
+			k := kv[:i]
+			v := kv[i+1:]
+			ku := strings.ToUpper(k)
+			if strings.Contains(ku, "TOKEN") || strings.Contains(ku, "PAT") || strings.Contains(ku, "PASSWORD") || strings.Contains(ku, "SECRET") {
+				if v != "" {
+					v = "***"
+				}
+			}
+			envMap[k] = v
+		}
+	}
+	if b, err := json.MarshalIndent(envMap, "", "  "); err == nil {
+		_ = os.WriteFile(filepath.Join(dir, "env.json"), b, 0o644)
+	}
+
+	// meta.json
+	meta := map[string]any{
+		"method":   http.MethodGet,
+		"url":      fullURL,
+		"status":   resp.StatusCode,
+		"duration": dur.String(),
+		"started":  start,
+		"finished": time.Now(),
+	}
+	if b, err := json.MarshalIndent(meta, "", "  "); err == nil {
+		_ = os.WriteFile(filepath.Join(dir, "meta.json"), b, 0o644)
+	}
+
+	// Decode body into out (best-effort)
+	var decodeErr error
+	if len(body) > 0 && out != nil {
+		if err := json.Unmarshal(body, out); err != nil {
+			decodeErr = err
+		}
+	}
+
+	// observation.json
+	obs := map[string]any{
+		"type":     "http_observation",
+		"data":     out,
+		"selector": selector,
+		"status":   resp.StatusCode,
+	}
+	if b, err := json.MarshalIndent(obs, "", "  "); err == nil {
+		_ = os.WriteFile(filepath.Join(dir, "observation.json"), b, 0o644)
+	}
+
+	// record LastCommandDir for consistency
+	s.cli.LastCommandDir = dir
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if decodeErr != nil {
+			return fmt.Errorf("http %d; decode error: %v", resp.StatusCode, decodeErr)
+		}
+		return fmt.Errorf("http %d", resp.StatusCode)
+	}
+	if decodeErr != nil {
+		return decodeErr
+	}
+	return nil
+}
+
+// ResetOrg runs the destructive reset with artifacts captured under this step's commands.
+// Returns an error if the reset executes and any endpoint operation fails. Records "skipped"
+// observation when reset is disabled or PAT missing.
+func (s *Step) ResetOrg(stage string) error {
+	if s == nil || s.cli == nil {
+		return fmt.Errorf("nil step/cli")
+	}
+	// Prepare command dir
+	baseDir := s.cli.StepDir
+	if baseDir == "" {
+		baseDir = s.cli.TestDir
+	}
+	commandsDir := filepath.Join(baseDir, "commands")
+	if err := os.MkdirAll(commandsDir, 0o755); err != nil {
+		return err
+	}
+	seq := s.cli.cmdSeq
+	s.cli.cmdSeq++
+	dir := filepath.Join(commandsDir, fmt.Sprintf("%03d-%s", seq, "reset_org"))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+
+	// command.txt
+	_ = os.WriteFile(filepath.Join(dir, "command.txt"), []byte(fmt.Sprintf("RESET ORG (stage=%s)\n", stage)), 0o644)
+
+	// Check env gating
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("KONGCTL_E2E_RESET"))); v != "" && v != "1" && v != "true" && v != "yes" && v != "on" && v != "y" {
+		// Skipped due to env
+		obs := map[string]any{"type": "reset_summary", "executed": false, "status": "skipped", "reason": "reset disabled"}
+		_ = s.writePrettyJSON(filepath.Join(dir, "observation.json"), obs)
+		return nil
+	}
+	baseURL := os.Getenv("KONGCTL_E2E_KONNECT_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://us.api.konghq.com"
+	}
+	token := os.Getenv("KONGCTL_E2E_KONNECT_PAT")
+	if token == "" {
+		obs := map[string]any{"type": "reset_summary", "executed": false, "status": "skipped", "reason": "missing PAT"}
+		_ = s.writePrettyJSON(filepath.Join(dir, "observation.json"), obs)
+		return nil
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	details := []map[string]any{}
+	var firstErr error
+	// application-auth-strategies
+	tot1, del1, err1 := deleteAll(client, baseURL, token, "v2", "application-auth-strategies")
+	if err1 != nil {
+		firstErr = err1
+	}
+	details = append(details, map[string]any{"api_version": "v2", "endpoint": "application-auth-strategies", "total": tot1, "deleted": del1, "error": errorString(err1)})
+	// apis
+	tot2, del2, err2 := deleteAll(client, baseURL, token, "v3", "apis")
+	if err2 != nil && firstErr == nil {
+		firstErr = err2
+	}
+	details = append(details, map[string]any{"api_version": "v3", "endpoint": "apis", "total": tot2, "deleted": del2, "error": errorString(err2)})
+	// portals
+	tot3, del3, err3 := deleteAll(client, baseURL, token, "v3", "portals")
+	if err3 != nil && firstErr == nil {
+		firstErr = err3
+	}
+	details = append(details, map[string]any{"api_version": "v3", "endpoint": "portals", "total": tot3, "deleted": del3, "error": errorString(err3)})
+
+	status := "ok"
+	if firstErr != nil {
+		status = "error"
+	}
+	obs := map[string]any{"type": "reset_summary", "executed": true, "status": status, "base_url": baseURL, "details": details}
+	_ = s.writePrettyJSON(filepath.Join(dir, "observation.json"), obs)
+	if firstErr != nil {
+		return firstErr
+	}
+	return nil
+}
+
+func errorString(err error) string {
+	if err != nil {
+		return err.Error()
+	}
+	return ""
 }
