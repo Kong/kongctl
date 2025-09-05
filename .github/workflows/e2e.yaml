@@ -31,7 +31,7 @@ jobs:
       #     GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
