@@ -116,7 +116,7 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 		logger = slog.Default()
 	}
 
-	logger.LogAttrs(ctx, slog.LevelInfo, "Starting reference resolution",
+	logger.LogAttrs(ctx, slog.LevelDebug, "Starting reference resolution",
 		slog.Int("portals", len(rs.Portals)),
 		slog.Int("apis", len(rs.APIs)),
 		slog.Int("auth_strategies", len(rs.ApplicationAuthStrategies)),
@@ -194,7 +194,7 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 		processCount++
 	}
 
-	logger.LogAttrs(ctx, slog.LevelInfo, "Reference resolution completed",
+	logger.LogAttrs(ctx, slog.LevelDebug, "Reference resolution completed",
 		slog.Int("resources_processed", processCount),
 	)
 
