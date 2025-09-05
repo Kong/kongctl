@@ -1,0 +1,53 @@
+# Team A Configuration - References External Portal
+# This configuration demonstrates how Team A can reference the platform team's portal
+# as an external resource and publish their APIs to it
+
+# External portal reference
+portals:
+  - ref: shared-portal
+    _external:
+      selector:
+        matchFields:
+          name: "Platform Shared Portal"
+
+# API definition managed by Team A
+apis:
+  - ref: test-api
+    name: "Test API"
+    description: "API managed by Team A"
+    version: "1.0.0"
+    labels:
+      team: "team-a"
+      environment: "test"
+    
+    versions:
+      - ref: v1
+        version: "1.0.0"
+        spec:
+          openapi: "3.0.0"
+          info:
+            title: "Test API"
+            version: "1.0.0"
+            description: "A simple test API for external portal validation"
+          paths:
+            /test:
+              get:
+                summary: "Test endpoint"
+                description: "A simple test endpoint to verify API functionality"
+                responses:
+                  '200':
+                    description: "Success response"
+                    content:
+                      application/json:
+                        schema:
+                          type: object
+                          properties:
+                            message:
+                              type: string
+                              example: "Hello, World!"
+    
+    # Publication to external portal using !ref tag
+    publications:
+      - ref: test-api-publication
+        portal_id: !ref shared-portal#id
+        visibility: "public"
