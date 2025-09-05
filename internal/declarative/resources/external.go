@@ -3,7 +3,7 @@ package resources
 import (
 	"fmt"
 	"reflect"
-	"strings"
+	"unicode"
 )
 
 // ExternalBlock marks a resource as externally managed
@@ -47,6 +47,16 @@ func (e *ExternalBlock) Validate() error {
 	return nil
 }
 
+// capitalizeFirst capitalizes the first character of a string
+func capitalizeFirst(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	runes := []rune(s)
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
+}
+
 // Match checks if the given Konnect resource matches this selector
 func (s *ExternalSelector) Match(konnectResource any) bool {
 	if s == nil || len(s.MatchFields) == 0 {
@@ -65,7 +75,7 @@ func (s *ExternalSelector) Match(konnectResource any) bool {
 	// Check all match fields
 	for fieldName, expectedValue := range s.MatchFields {
 		// Convert field name to title case for reflection (e.g., "name" -> "Name")
-		titleFieldName := strings.Title(fieldName)
+		titleFieldName := capitalizeFirst(fieldName)
 		field := v.FieldByName(titleFieldName)
 
 		// Try embedded structs if direct field not found
