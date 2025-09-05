@@ -1,0 +1,15 @@
+# Platform Team Portal Configuration
+# This portal will be managed by the platform team and referenced by other teams
+# as an external resource using the _external block
+
+portals:
+  - ref: shared-portal
+    name: "Platform Shared Portal"
+    display_name: "Shared Portal"
+    description: "Portal managed by platform team for all company APIs"
+    authentication_enabled: false
+    rbac_enabled: false
+    auto_approve_developers: true
+    auto_approve_applications: false
+    default_api_visibility: "public"
+    default_page_visibility: "public"
