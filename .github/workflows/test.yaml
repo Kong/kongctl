@@ -24,7 +24,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
       - name: Setup go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
       - name: Setup golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
