@@ -154,9 +154,10 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceS
 		baseDir = filepath.Dir(sourcePath)
 	}
 
-	// Always register/update file resolver with correct base directory
+	// Always register/update resolvers with correct base directory
 	// This ensures each file gets the correct base directory for relative paths
 	registry.Register(tags.NewFileTagResolver(baseDir))
+	registry.Register(tags.NewRefTagResolver(baseDir))
 
 	if registry.HasResolvers() {
 		processedContent, err := registry.Process(content)
