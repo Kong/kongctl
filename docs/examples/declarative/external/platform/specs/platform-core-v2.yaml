@@ -1,0 +1,251 @@
+openapi: 3.0.3
+info:
+  title: Platform Core API
+  description: Essential platform services including authentication, user management, and configuration
+  version: 2.1.0
+  contact:
+    name: Platform Team
+    email: platform-team@company.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.company.com/v2
+    description: Production server
+  - url: https://api-staging.company.com/v2
+    description: Staging server
+
+security:
+  - ApiKeyAuth: []
+  - OAuth2: []
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns the current health status of the API
+      operationId: getHealth
+      tags:
+        - System
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                required:
+                  - status
+                  - timestamp
+                  - version
+
+  /auth/login:
+    post:
+      summary: User authentication
+      description: Authenticate a user and return access tokens
+      operationId: login
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+              required:
+                - username
+                - password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  token_type:
+                    type: string
+                    default: Bearer
+                  expires_in:
+                    type: integer
+                    description: Token expiration time in seconds
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /users/me:
+    get:
+      summary: Get current user profile
+      description: Returns the profile information for the authenticated user
+      operationId: getCurrentUser
+      tags:
+        - Users
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /users/{userId}:
+    get:
+      summary: Get user by ID
+      description: Returns user information by user ID
+      operationId: getUserById
+      tags:
+        - Users
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /config:
+    get:
+      summary: Get application configuration
+      description: Returns current application configuration settings
+      operationId: getConfig
+      tags:
+        - Configuration
+      responses:
+        '200':
+          description: Configuration settings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  features:
+                    type: object
+                    additionalProperties:
+                      type: boolean
+                  settings:
+                    type: object
+                    additionalProperties: true
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API_KEY
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.company.com/oauth/authorize
+          tokenUrl: https://auth.company.com/oauth/token
+          scopes:
+            read: Read access to resources
+            write: Write access to resources
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+          format: email
+        name:
+          type: string
+        avatar_url:
+          type: string
+          format: uri
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        permissions:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - username
+        - name
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        error_description:
+          type: string
+        error_code:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - error
+        - error_description
+        - error_code
+        - timestamp
+
+  responses:
+    UnauthorizedError:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: unauthorized
+            error_description: Authentication required
+            error_code: 4010
+            timestamp: '2024-01-15T10:30:00Z'
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: not_found
+            error_description: The requested resource was not found
+            error_code: 4040
+            timestamp: '2024-01-15T10:30:00Z'
