@@ -51,8 +51,17 @@ func Test_Declarative_Apply_Portal_Full_JSON(t *testing.T) {
 		t.Fatalf("harness init failed: %v", err)
 	}
 
-	// Establish step scope: 000-apply and copy embedded fixtures into it
-	step, err := harness.NewStep(t, cli, "000-apply")
+	// Step 000: reset org (captured as a step)
+	stepReset, err := harness.NewStep(t, cli, "000-reset_org")
+	if err != nil {
+		t.Fatalf("step init failed: %v", err)
+	}
+	if err := stepReset.ResetOrg("before_test"); err != nil {
+		t.Fatalf("reset failed: %v", err)
+	}
+
+	// Establish step scope: 001-apply and copy embedded fixtures into it
+	step, err := harness.NewStep(t, cli, "001-apply")
 	if err != nil {
 		t.Fatalf("step init failed: %v", err)
 	}
@@ -135,5 +144,5 @@ func Test_Declarative_Apply_Portal_Full_JSON(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected to find at least one API after apply")
 	}
-	step.AppendCheck("PASS: 000-apply found portal and at least one API")
+	step.AppendCheck("PASS: 001-apply found portal and at least one API")
 }
