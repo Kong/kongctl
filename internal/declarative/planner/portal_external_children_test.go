@@ -17,59 +17,103 @@ import (
 // Minimal mocks for PortalPageAPI and PortalSnippetAPI
 type mockPortalPageAPI struct{}
 
-func (m *mockPortalPageAPI) CreatePortalPage(ctx context.Context, portalID string, request kkComps.CreatePortalPageRequest, opts ...kkOps.Option) (*kkOps.CreatePortalPageResponse, error) {
+func (m *mockPortalPageAPI) CreatePortalPage(
+	_ context.Context,
+	_ string,
+	_ kkComps.CreatePortalPageRequest,
+	_ ...kkOps.Option,
+) (*kkOps.CreatePortalPageResponse, error) {
 	return nil, nil
 }
 
-func (m *mockPortalPageAPI) UpdatePortalPage(ctx context.Context, request kkOps.UpdatePortalPageRequest, opts ...kkOps.Option) (*kkOps.UpdatePortalPageResponse, error) {
+func (m *mockPortalPageAPI) UpdatePortalPage(
+	_ context.Context,
+	_ kkOps.UpdatePortalPageRequest,
+	_ ...kkOps.Option,
+) (*kkOps.UpdatePortalPageResponse, error) {
 	return nil, nil
 }
 
-func (m *mockPortalPageAPI) DeletePortalPage(ctx context.Context, portalID string, pageID string, opts ...kkOps.Option) (*kkOps.DeletePortalPageResponse, error) {
+func (m *mockPortalPageAPI) DeletePortalPage(
+	_ context.Context,
+	_ string,
+	_ string,
+	_ ...kkOps.Option,
+) (*kkOps.DeletePortalPageResponse, error) {
 	return nil, nil
 }
 
-func (m *mockPortalPageAPI) ListPortalPages(ctx context.Context, request kkOps.ListPortalPagesRequest, opts ...kkOps.Option) (*kkOps.ListPortalPagesResponse, error) {
+func (m *mockPortalPageAPI) ListPortalPages(
+	_ context.Context,
+	_ kkOps.ListPortalPagesRequest,
+	_ ...kkOps.Option,
+) (*kkOps.ListPortalPagesResponse, error) {
 	// Return empty list
 	return &kkOps.ListPortalPagesResponse{
 		StatusCode: 200,
 		ListPortalPagesResponse: &kkComps.ListPortalPagesResponse{
-			Data: []kkComps.PortalPage{},
-			Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 0}},
+			Data: []kkComps.PortalPageInfo{},
 		},
 	}, nil
 }
 
-func (m *mockPortalPageAPI) GetPortalPage(ctx context.Context, portalID string, pageID string, opts ...kkOps.Option) (*kkOps.GetPortalPageResponse, error) {
+func (m *mockPortalPageAPI) GetPortalPage(
+	_ context.Context,
+	_ string,
+	_ string,
+	_ ...kkOps.Option,
+) (*kkOps.GetPortalPageResponse, error) {
 	return &kkOps.GetPortalPageResponse{StatusCode: 404}, nil
 }
 
 type mockPortalSnippetAPI struct{}
 
-func (m *mockPortalSnippetAPI) CreatePortalSnippet(ctx context.Context, portalID string, request kkComps.CreatePortalSnippetRequest) (*kkOps.CreatePortalSnippetResponse, error) {
+func (m *mockPortalSnippetAPI) CreatePortalSnippet(
+	_ context.Context,
+	_ string,
+	_ kkComps.CreatePortalSnippetRequest,
+	_ ...kkOps.Option,
+) (*kkOps.CreatePortalSnippetResponse, error) {
 	return nil, nil
 }
 
-func (m *mockPortalSnippetAPI) UpdatePortalSnippet(ctx context.Context, portalID string, snippetID string, request kkComps.UpdatePortalSnippetRequest) (*kkOps.UpdatePortalSnippetResponse, error) {
+func (m *mockPortalSnippetAPI) UpdatePortalSnippet(
+	_ context.Context,
+	_ kkOps.UpdatePortalSnippetRequest,
+	_ ...kkOps.Option,
+) (*kkOps.UpdatePortalSnippetResponse, error) {
 	return nil, nil
 }
 
-func (m *mockPortalSnippetAPI) DeletePortalSnippet(ctx context.Context, portalID string, snippetID string) (*kkOps.DeletePortalSnippetResponse, error) {
+func (m *mockPortalSnippetAPI) DeletePortalSnippet(
+	_ context.Context,
+	_ string,
+	_ string,
+	_ ...kkOps.Option,
+) (*kkOps.DeletePortalSnippetResponse, error) {
 	return nil, nil
 }
 
-func (m *mockPortalSnippetAPI) ListPortalSnippets(ctx context.Context, request kkOps.ListPortalSnippetsRequest, opts ...kkOps.Option) (*kkOps.ListPortalSnippetsResponse, error) {
+func (m *mockPortalSnippetAPI) ListPortalSnippets(
+	_ context.Context,
+	_ kkOps.ListPortalSnippetsRequest,
+	_ ...kkOps.Option,
+) (*kkOps.ListPortalSnippetsResponse, error) {
 	// Return empty list
 	return &kkOps.ListPortalSnippetsResponse{
 		StatusCode: 200,
 		ListPortalSnippetsResponse: &kkComps.ListPortalSnippetsResponse{
-			Data: []kkComps.PortalSnippet{},
-			Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 0}},
+			Data: []kkComps.PortalSnippetInfo{},
 		},
 	}, nil
 }
 
-func (m *mockPortalSnippetAPI) GetPortalSnippet(ctx context.Context, portalID string, snippetID string, opts ...kkOps.Option) (*kkOps.GetPortalSnippetResponse, error) {
+func (m *mockPortalSnippetAPI) GetPortalSnippet(
+	_ context.Context,
+	_ string,
+	_ string,
+	_ ...kkOps.Option,
+) (*kkOps.GetPortalSnippetResponse, error) {
 	return &kkOps.GetPortalSnippetResponse{StatusCode: 404}, nil
 }
 

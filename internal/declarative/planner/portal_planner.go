@@ -76,13 +76,19 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 				}
 			} else {
 				// ID not resolved – plan creates for children, executor will resolve portal at runtime
-				p.planner.logger.Debug("External portal without resolved ID; planning child creates only",
+				p.planner.logger.Debug(
+					"External portal without resolved ID; planning child creates only",
 					slog.String("ref", desiredPortal.GetRef()),
 					slog.String("name", desiredPortal.Name),
 				)
 				p.planPortalChildResourcesCreate(ctx, plannerCtx, desiredPortal, "", plan)
-				// Add plan warning to clarify limitations
-				plan.AddWarning("", fmt.Sprintf("external portal %q has no resolved ID; deletes/diffs of children may be incomplete", desiredPortal.GetRef()))
+				// Add plan warning to clarify limitations (wrapped for lll)
+				msg := fmt.Sprintf(
+					"external portal %q has no resolved ID; "+
+						"deletes/diffs of children may be incomplete",
+					desiredPortal.GetRef(),
+				)
+				plan.AddWarning("", msg)
 			}
 			continue
 		}
