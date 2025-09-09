@@ -1003,7 +1003,7 @@ func (p *Planner) planPortalSnippetsChanges(
 }
 
 func (p *Planner) planPortalSnippetCreate(
-	parentNamespace string, snippet resources.PortalSnippetResource, portalRef string, portalID string, plan *Plan,
+	parentNamespace string, snippet resources.PortalSnippetResource, _ string, portalID string, plan *Plan,
 ) {
 	fields := make(map[string]any)
 	fields["name"] = snippet.Name
