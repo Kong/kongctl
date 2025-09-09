@@ -63,7 +63,15 @@ func NewCLI() (*CLI, error) {
 	}
 	// Pre-write a minimal profile config to align artifacts with e2e defaults.
 	_ = writeProfileConfig(cli.ConfigDir, cli.Profile, cli.AutoOutput, cli.AutoLogLevel)
-	Infof("TestConfig: bin=%s configDir=%s profile=%s timeout=%s log-level=%s output=%s", bin, cfgDir, cli.Profile, cli.Timeout, cli.AutoLogLevel, cli.AutoOutput)
+	Infof(
+		"TestConfig: bin=%s configDir=%s profile=%s timeout=%s log-level=%s output=%s",
+		bin,
+		cfgDir,
+		cli.Profile,
+		cli.Timeout,
+		cli.AutoLogLevel,
+		cli.AutoOutput,
+	)
 	return cli, nil
 }
 
@@ -99,7 +107,15 @@ func NewCLIT(t *testing.T) (*CLI, error) {
 	}
 	// Pre-write a minimal profile config to align artifacts with e2e defaults.
 	_ = writeProfileConfig(cli.ConfigDir, cli.Profile, cli.AutoOutput, cli.AutoLogLevel)
-	Infof("TestConfig: test=%s dir=%s bin=%s configDir=%s log-level=%s output=%s", name, testDir, bin, cfgDir, cli.AutoLogLevel, cli.AutoOutput)
+	Infof(
+		"TestConfig: test=%s dir=%s bin=%s configDir=%s log-level=%s output=%s",
+		name,
+		testDir,
+		bin,
+		cfgDir,
+		cli.AutoLogLevel,
+		cli.AutoOutput,
+	)
 	return cli, nil
 }
 
@@ -313,7 +329,8 @@ func (c *CLI) captureCommand(cmd *exec.Cmd, args []string, res Result, start, en
 			k := kv[:i]
 			v := kv[i+1:]
 			ku := strings.ToUpper(k)
-			if strings.Contains(ku, "TOKEN") || strings.Contains(ku, "PAT") || strings.Contains(ku, "PASSWORD") || strings.Contains(ku, "SECRET") {
+			if strings.Contains(ku, "TOKEN") || strings.Contains(ku, "PAT") || strings.Contains(ku, "PASSWORD") ||
+				strings.Contains(ku, "SECRET") {
 				if v != "" {
 					v = "***"
 				}

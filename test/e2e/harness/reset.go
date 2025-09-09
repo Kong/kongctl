@@ -57,19 +57,40 @@ func ResetOrgWithCapture(stage string) error {
 	// Order can matter; follow provided script order.
 	var details []resetEndpoint
 	if tot, del, err := deleteAll(client, baseURL, token, "v2", "application-auth-strategies"); err != nil {
-		captureResetEvent(stage, true, "error", err.Error(), baseURL, append(details, resetEndpoint{"v2", "application-auth-strategies", tot, del, err.Error()}))
+		captureResetEvent(
+			stage,
+			true,
+			"error",
+			err.Error(),
+			baseURL,
+			append(details, resetEndpoint{"v2", "application-auth-strategies", tot, del, err.Error()}),
+		)
 		return err
 	} else {
 		details = append(details, resetEndpoint{"v2", "application-auth-strategies", tot, del, ""})
 	}
 	if tot, del, err := deleteAll(client, baseURL, token, "v3", "apis"); err != nil {
-		captureResetEvent(stage, true, "error", err.Error(), baseURL, append(details, resetEndpoint{"v3", "apis", tot, del, err.Error()}))
+		captureResetEvent(
+			stage,
+			true,
+			"error",
+			err.Error(),
+			baseURL,
+			append(details, resetEndpoint{"v3", "apis", tot, del, err.Error()}),
+		)
 		return err
 	} else {
 		details = append(details, resetEndpoint{"v3", "apis", tot, del, ""})
 	}
 	if tot, del, err := deleteAll(client, baseURL, token, "v3", "portals"); err != nil {
-		captureResetEvent(stage, true, "error", err.Error(), baseURL, append(details, resetEndpoint{"v3", "portals", tot, del, err.Error()}))
+		captureResetEvent(
+			stage,
+			true,
+			"error",
+			err.Error(),
+			baseURL,
+			append(details, resetEndpoint{"v3", "portals", tot, del, err.Error()}),
+		)
 		return err
 	} else {
 		details = append(details, resetEndpoint{"v3", "portals", tot, del, ""})
@@ -119,7 +140,14 @@ type resetEndpoint struct {
 	Error      string `json:"error,omitempty"`
 }
 
-func captureResetEvent(stage string, executed bool, status string, reason string, baseURL string, details []resetEndpoint) {
+func captureResetEvent(
+	stage string,
+	executed bool,
+	status string,
+	reason string,
+	baseURL string,
+	details []resetEndpoint,
+) {
 	// Best-effort capture; never fail tests from here.
 	rd, err := ensureRunDir()
 	if err != nil || rd == "" {
@@ -139,7 +167,11 @@ func captureResetEvent(stage string, executed bool, status string, reason string
 	}
 
 	// command.txt
-	_ = os.WriteFile(dir+string(os.PathSeparator)+"command.txt", []byte(fmt.Sprintf("RESET ORG (stage=%s)\n", stage)), 0o644)
+	_ = os.WriteFile(
+		dir+string(os.PathSeparator)+"command.txt",
+		[]byte(fmt.Sprintf("RESET ORG (stage=%s)\n", stage)),
+		0o644,
+	)
 	// meta.json
 	meta := map[string]any{
 		"stage":    stage,
@@ -158,7 +190,8 @@ func captureResetEvent(stage string, executed bool, status string, reason string
 			k := kv[:i]
 			v := kv[i+1:]
 			ku := strings.ToUpper(k)
-			if strings.Contains(ku, "TOKEN") || strings.Contains(ku, "PAT") || strings.Contains(ku, "PASSWORD") || strings.Contains(ku, "SECRET") {
+			if strings.Contains(ku, "TOKEN") || strings.Contains(ku, "PAT") || strings.Contains(ku, "PASSWORD") ||
+				strings.Contains(ku, "SECRET") {
 				if v != "" {
 					v = "***"
 				}

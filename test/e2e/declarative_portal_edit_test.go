@@ -85,7 +85,8 @@ func Test_Declarative_Portal_Edit_Steps(t *testing.T) {
 	var target1 []portal
 	for _, p := range portals {
 		if p.Name == expectedName1 {
-			if (p.Description == nil && expectedDesc1 == "") || (p.Description != nil && *p.Description == expectedDesc1) {
+			if (p.Description == nil && expectedDesc1 == "") ||
+				(p.Description != nil && *p.Description == expectedDesc1) {
 				target1 = append(target1, p)
 			}
 		}
@@ -159,7 +160,8 @@ func Test_Declarative_Portal_Edit_Steps(t *testing.T) {
 	var target2 []portal
 	for _, p := range portals {
 		if p.Name == expectedName2 {
-			if (p.Description == nil && expectedDesc2 == "") || (p.Description != nil && *p.Description == expectedDesc2) {
+			if (p.Description == nil && expectedDesc2 == "") ||
+				(p.Description != nil && *p.Description == expectedDesc2) {
 				target2 = append(target2, p)
 			}
 		}
