@@ -1,0 +1,10 @@
+# Example: External portal definition (no inline children)
+
+portals:
+  - ref: shared-portal
+    name: "Shared Developer Portal"
+    _external:
+      selector:
+        matchFields:
+          name: "Shared Developer Portal"
+

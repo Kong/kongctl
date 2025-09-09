@@ -706,6 +706,12 @@ func (p *Planner) planPortalPageCreate(
 				},
 			},
 		}
+		// If we already know the Konnect portal ID, include it to avoid name lookup during execution
+		if portalID != "" {
+			ref := change.References["portal_id"]
+			ref.ID = portalID
+			change.References["portal_id"] = ref
+		}
 	}
 
 	// Handle parent page reference
@@ -989,7 +995,7 @@ func (p *Planner) planPortalSnippetsChanges(
 			}
 		} else {
 			// CREATE new snippet
-			p.planPortalSnippetCreate(parentNamespace, desiredSnippet, plan)
+			p.planPortalSnippetCreate(parentNamespace, desiredSnippet, portalRef, portalID, plan)
 		}
 	}
 
@@ -997,7 +1003,7 @@ func (p *Planner) planPortalSnippetsChanges(
 }
 
 func (p *Planner) planPortalSnippetCreate(
-	parentNamespace string, snippet resources.PortalSnippetResource, plan *Plan,
+	parentNamespace string, snippet resources.PortalSnippetResource, portalRef string, portalID string, plan *Plan,
 ) {
 	fields := make(map[string]any)
 	fields["name"] = snippet.Name
@@ -1053,7 +1059,7 @@ func (p *Planner) planPortalSnippetCreate(
 		// Set Parent field for proper display and serialization
 		change.Parent = &ParentInfo{
 			Ref: snippet.Portal,
-			ID:  "", // Will be resolved during execution
+			ID:  portalID, // May be empty if portal ID is not known yet
 		}
 
 		change.References = map[string]ReferenceInfo{
@@ -1063,6 +1069,12 @@ func (p *Planner) planPortalSnippetCreate(
 					"name": portalName,
 				},
 			},
+		}
+		// If we already know the Konnect portal ID, include it to avoid name lookup during execution
+		if portalID != "" {
+			ref := change.References["portal_id"]
+			ref.ID = portalID
+			change.References["portal_id"] = ref
 		}
 	}
 

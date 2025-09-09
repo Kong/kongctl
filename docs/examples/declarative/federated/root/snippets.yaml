@@ -1,0 +1,12 @@
+# Example: Root-level portal_snippets referencing an external portal
+
+portal_snippets:
+  - ref: snippet-welcome
+    portal: shared-portal
+    name: "root-snippet"
+    title: "RoOT! Snippet"
+    description: "Reusable welcome content"
+    visibility: "public"
+    status: "published"
+    content: "Welcome to our snippet from the root of a config!"
+

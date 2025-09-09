@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -55,13 +56,34 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 
 	// Compare each desired portal
 	for _, desiredPortal := range desired {
-		// External portals are not managed by kongctl and exist in Konnect already, so skip planning
+		// External portals are not managed by kongctl and exist in Konnect already.
+		// We still plan their child resources based on the resolved Konnect ID when available.
 		if desiredPortal.IsExternal() {
-			p.planner.logger.Debug("Skipping external portal",
-				slog.String("ref", desiredPortal.GetRef()),
-				slog.String("name", desiredPortal.Name),
-				slog.String("id", desiredPortal.GetKonnectID()),
-			)
+			// If we have a resolved Konnect ID, plan full child diffs (including deletes in sync mode)
+			if portalID := desiredPortal.GetKonnectID(); portalID != "" {
+				// Build a minimal current portal for child planning
+				current := state.Portal{
+					Portal:           kkComps.Portal{ID: portalID, Name: desiredPortal.Name},
+					NormalizedLabels: map[string]string{},
+				}
+				p.planner.logger.Debug("Planning children for external portal",
+					slog.String("ref", desiredPortal.GetRef()),
+					slog.String("name", desiredPortal.Name),
+					slog.String("id", portalID),
+				)
+				if err := p.planPortalChildResourceChanges(ctx, plannerCtx, current, desiredPortal, plan); err != nil {
+					return err
+				}
+			} else {
+				// ID not resolved – plan creates for children, executor will resolve portal at runtime
+				p.planner.logger.Debug("External portal without resolved ID; planning child creates only",
+					slog.String("ref", desiredPortal.GetRef()),
+					slog.String("name", desiredPortal.Name),
+				)
+				p.planPortalChildResourcesCreate(ctx, plannerCtx, desiredPortal, "", plan)
+				// Add plan warning to clarify limitations
+				plan.AddWarning("", fmt.Sprintf("external portal %q has no resolved ID; deletes/diffs of children may be incomplete", desiredPortal.GetRef()))
+			}
 			continue
 		}
 
