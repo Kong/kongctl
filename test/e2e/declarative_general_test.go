@@ -123,7 +123,11 @@ func mutatePublicationVisibility(t *testing.T, apisYAMLPath string, newVisibilit
 				visNode := findMapKey(pubItem, "visibility")
 				if visNode == nil {
 					// append key and value
-					pubItem.Content = append(pubItem.Content, &yamlv3.Node{Kind: yamlv3.ScalarNode, Value: "visibility", Tag: "!!str"}, &yamlv3.Node{Kind: yamlv3.ScalarNode, Value: newVisibility, Tag: "!!str"})
+					pubItem.Content = append(
+						pubItem.Content,
+						&yamlv3.Node{Kind: yamlv3.ScalarNode, Value: "visibility", Tag: "!!str"},
+						&yamlv3.Node{Kind: yamlv3.ScalarNode, Value: newVisibility, Tag: "!!str"},
+					)
 				} else {
 					visNode.Value = newVisibility
 				}
@@ -190,7 +194,10 @@ func Test_Declarative_General(t *testing.T) {
 	_ = step0.SaveJSON("expected.json", map[string]any{"portal_name": portalName})
 
 	// Apply base
-	applyOut, err := step0.Apply(filepath.Join(step0.InputsDir, "portal.yaml"), filepath.Join(step0.InputsDir, "apis.yaml"))
+	applyOut, err := step0.Apply(
+		filepath.Join(step0.InputsDir, "portal.yaml"),
+		filepath.Join(step0.InputsDir, "apis.yaml"),
+	)
 	if err != nil {
 		t.Fatalf("apply base failed: %v", err)
 	}
@@ -244,10 +251,21 @@ func Test_Declarative_General(t *testing.T) {
 	// Mutate apis.yaml to set publication visibility
 	mutatePublicationVisibility(t, filepath.Join(step1.InputsDir, "apis.yaml"), "private", "sms-api-to-getting-started")
 	smsAPIName := readSMSAPIName(t, step1.InputsDir)
-	_ = step1.SaveJSON("expected.json", map[string]any{"portal_name": portalName, "api_name": smsAPIName, "publication_ref": "sms-api-to-getting-started", "visibility": "private"})
+	_ = step1.SaveJSON(
+		"expected.json",
+		map[string]any{
+			"portal_name":     portalName,
+			"api_name":        smsAPIName,
+			"publication_ref": "sms-api-to-getting-started",
+			"visibility":      "private",
+		},
+	)
 
 	// Apply the full configuration again (portal + apis)
-	applyOut, err = step1.Apply(filepath.Join(step1.InputsDir, "portal.yaml"), filepath.Join(step1.InputsDir, "apis.yaml"))
+	applyOut, err = step1.Apply(
+		filepath.Join(step1.InputsDir, "portal.yaml"),
+		filepath.Join(step1.InputsDir, "apis.yaml"),
+	)
 	if err != nil {
 		t.Fatalf("apply publication edit failed: %v", err)
 	}

@@ -286,7 +286,8 @@ func (s *Step) GetKonnectJSON(name string, path string, out any, selector any) e
 			k := kv[:i]
 			v := kv[i+1:]
 			ku := strings.ToUpper(k)
-			if strings.Contains(ku, "TOKEN") || strings.Contains(ku, "PAT") || strings.Contains(ku, "PASSWORD") || strings.Contains(ku, "SECRET") {
+			if strings.Contains(ku, "TOKEN") || strings.Contains(ku, "PAT") || strings.Contains(ku, "PASSWORD") ||
+				strings.Contains(ku, "SECRET") {
 				if v != "" {
 					v = "***"
 				}
@@ -372,9 +373,17 @@ func (s *Step) ResetOrg(stage string) error {
 	_ = os.WriteFile(filepath.Join(dir, "command.txt"), []byte(fmt.Sprintf("RESET ORG (stage=%s)\n", stage)), 0o644)
 
 	// Check env gating
-	if v := strings.ToLower(strings.TrimSpace(os.Getenv("KONGCTL_E2E_RESET"))); v != "" && v != "1" && v != "true" && v != "yes" && v != "on" && v != "y" {
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("KONGCTL_E2E_RESET"))); v != "" && v != "1" && v != "true" &&
+		v != "yes" &&
+		v != "on" &&
+		v != "y" {
 		// Skipped due to env
-		obs := map[string]any{"type": "reset_summary", "executed": false, "status": "skipped", "reason": "reset disabled"}
+		obs := map[string]any{
+			"type":     "reset_summary",
+			"executed": false,
+			"status":   "skipped",
+			"reason":   "reset disabled",
+		}
 		_ = s.writePrettyJSON(filepath.Join(dir, "observation.json"), obs)
 		return nil
 	}
@@ -397,25 +406,58 @@ func (s *Step) ResetOrg(stage string) error {
 	if err1 != nil {
 		firstErr = err1
 	}
-	details = append(details, map[string]any{"api_version": "v2", "endpoint": "application-auth-strategies", "total": tot1, "deleted": del1, "error": errorString(err1)})
+	details = append(
+		details,
+		map[string]any{
+			"api_version": "v2",
+			"endpoint":    "application-auth-strategies",
+			"total":       tot1,
+			"deleted":     del1,
+			"error":       errorString(err1),
+		},
+	)
 	// apis
 	tot2, del2, err2 := deleteAll(client, baseURL, token, "v3", "apis")
 	if err2 != nil && firstErr == nil {
 		firstErr = err2
 	}
-	details = append(details, map[string]any{"api_version": "v3", "endpoint": "apis", "total": tot2, "deleted": del2, "error": errorString(err2)})
+	details = append(
+		details,
+		map[string]any{
+			"api_version": "v3",
+			"endpoint":    "apis",
+			"total":       tot2,
+			"deleted":     del2,
+			"error":       errorString(err2),
+		},
+	)
 	// portals
 	tot3, del3, err3 := deleteAll(client, baseURL, token, "v3", "portals")
 	if err3 != nil && firstErr == nil {
 		firstErr = err3
 	}
-	details = append(details, map[string]any{"api_version": "v3", "endpoint": "portals", "total": tot3, "deleted": del3, "error": errorString(err3)})
+	details = append(
+		details,
+		map[string]any{
+			"api_version": "v3",
+			"endpoint":    "portals",
+			"total":       tot3,
+			"deleted":     del3,
+			"error":       errorString(err3),
+		},
+	)
 
 	status := "ok"
 	if firstErr != nil {
 		status = "error"
 	}
-	obs := map[string]any{"type": "reset_summary", "executed": true, "status": status, "base_url": baseURL, "details": details}
+	obs := map[string]any{
+		"type":     "reset_summary",
+		"executed": true,
+		"status":   status,
+		"base_url": baseURL,
+		"details":  details,
+	}
 	_ = s.writePrettyJSON(filepath.Join(dir, "observation.json"), obs)
 	if firstErr != nil {
 		return firstErr

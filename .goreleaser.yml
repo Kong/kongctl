@@ -27,7 +27,7 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
-brews:
+homebrew_casks:
   - repository:
       owner: kong
       name: homebrew-kongctl
