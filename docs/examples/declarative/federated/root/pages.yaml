@@ -1,0 +1,12 @@
+# Example: Root-level portal_pages referencing an external portal
+
+portal_pages:
+  - ref: page-from-root
+    portal: shared-portal
+    slug: "page-from-root"
+    title: "Page From Root"
+    description: "Welcome page"
+    visibility: "public"
+    status: "published"
+    content: "# Welcome\nThis is the page defined at the root of a configuration file."
+

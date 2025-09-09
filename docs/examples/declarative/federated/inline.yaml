@@ -1,0 +1,30 @@
+# Example: Inline portal children with an external portal
+
+portals:
+  - ref: shared-portal
+    name: "Shared Developer Portal"
+    _external:
+      selector:
+        matchFields:
+          name: "Shared Developer Portal"
+
+    # Inline child page
+    pages:
+      - ref: inline-page
+        slug: "inline-page"
+        title: "Inline Page"
+        description: "Inline page example"
+        visibility: "public"
+        status: "published"
+        content: "# Welcome\nThis is the page defined inline of an external portal."
+
+    # Inline child snippet
+    snippets:
+      - ref: snippet-welcome
+        name: "welcome"
+        title: "Welcome Snippet"
+        description: "Reusable welcome content"
+        visibility: "public"
+        status: "published"
+        content: "Welcome to our developer portal!"
+

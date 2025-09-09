@@ -133,6 +133,14 @@ func (p PortalPageResource) GetType() ResourceType {
 	return ResourceTypePortalPage
 }
 
+// GetReferenceFieldMappings returns cross-resource reference mappings for validation
+func (p PortalPageResource) GetReferenceFieldMappings() map[string]string {
+	return map[string]string{
+		"portal":          "portal",
+		"parent_page_ref": "portal_page",
+	}
+}
+
 // GetMoniker returns the resource moniker (for pages, this is the slug)
 func (p PortalPageResource) GetMoniker() string {
 	return p.Slug
@@ -284,6 +292,13 @@ func (s *PortalSnippetResource) SetDefaults() {
 // GetType returns the resource type
 func (s PortalSnippetResource) GetType() ResourceType {
 	return ResourceTypePortalSnippet
+}
+
+// GetReferenceFieldMappings returns cross-resource reference mappings for validation
+func (s PortalSnippetResource) GetReferenceFieldMappings() map[string]string {
+	return map[string]string{
+		"portal": "portal",
+	}
 }
 
 // GetMoniker returns the resource moniker (for snippets, this is the name)
