@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/declarative/validator"
 )
 
@@ -448,7 +449,7 @@ func (l *Loader) validateResourceReferences(resource any, rs *resources.Resource
 		}
 
 		// Skip validation for unresolved reference placeholders
-		if strings.HasPrefix(fieldValue, "__REF__:") {
+		if strings.HasPrefix(fieldValue, tags.RefPlaceholderPrefix) {
 			// This will be resolved during planning/execution phase
 			continue
 		}

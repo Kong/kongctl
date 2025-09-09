@@ -90,7 +90,8 @@ func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Sourc
 	// Note: Only namespace defaults are applied per-file in parseYAML
 	l.applyDefaults(&allResources)
 
-	// Resolve references after all resources are loaded
+	// Reference resolution must happen after all files are loaded but before validation.
+	// This order is critical for cross-file references to work correctly.
 	if err := ResolveReferences(ctx, &allResources); err != nil {
 		return nil, fmt.Errorf("resolving references: %w", err)
 	}
