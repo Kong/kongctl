@@ -55,7 +55,7 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 
 	// Compare each desired portal
 	for _, desiredPortal := range desired {
-		// Skip external portals - they're not managed
+		// External portals are not managed by kongctl and exist in Konnect already, so skip planning
 		if desiredPortal.IsExternal() {
 			p.planner.logger.Debug("Skipping external portal",
 				slog.String("ref", desiredPortal.GetRef()),

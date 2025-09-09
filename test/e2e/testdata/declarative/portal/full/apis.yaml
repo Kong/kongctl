@@ -46,6 +46,7 @@ apis:
         
     publications:
       - ref: sms-api-to-getting-started
+        # !ref syntax: resource-ref#field-name resolves to the Konnect ID of the referenced portal
         portal_id: !ref getting-started-portal#id
         visibility: public
 
