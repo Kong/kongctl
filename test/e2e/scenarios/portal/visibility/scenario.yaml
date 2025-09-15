@@ -1,0 +1,80 @@
+reset: before
+baseInputsPath: ../../../testdata/declarative/portal/full
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  portalName: "My First Portal"
+  smsAPIName: "SMS API"
+
+defaults:
+  retry:
+    attempts: 6
+    interval: "1500ms"
+  mask:
+    dropKeys: [id, uuid, created_at, createdAt, updated_at, updatedAt, etag, links, href, self, version]
+
+steps:
+  - # auto-named: step-000
+    commands:
+  - # auto-named: cmd-000
+    run:
+      - apply
+      - -f
+      - "{{ .workdir }}/portal.yaml"
+      - -f
+      - "{{ .workdir }}/apis.yaml"
+      - --auto-approve
+    assertions:
+      - # auto-named: assert-000
+        # Demonstrates using a fresh get source under an apply command
+        source: { get: "portals" }
+        select: "[?name=='{{ .vars.portalName }}'] | [0]"
+        expect:
+          file: "expect/portal.json"
+
+  - # auto-named: cmd-001
+    run: ["get", "portals"]
+    assertions:
+      - # auto-named: assert-000
+        select: "[?name=='{{ .vars.portalName }}'] | [0]"
+        expect:
+          file: "expect/portal.json"
+        mask:
+          dropKeys: [organizationId]
+
+  - # auto-named: cmd-002
+    run: ["get", "apis"]
+    assertions:
+      - # auto-named: assert-000
+        select: "[0]"
+        expect:
+          file: "expect/api-first.json"
+
+  - # auto-named: step-001
+    inputOverlayDirs:
+      - "overlays/002-private"
+    commands:
+  - # auto-named: cmd-000
+    run:
+      - apply
+      - -f
+      - "{{ .workdir }}/portal.yaml"
+      - -f
+      - "{{ .workdir }}/apis.yaml"
+      - --auto-approve
+    # no assertions under this apply; key omitted intentionally
+
+  - # auto-named: cmd-001
+    run: ["get", "publications"]
+    assertions:
+      - # auto-named: assert-000
+        select: "[?api.name=='{{ .vars.smsAPIName }}' && portal.name=='{{ .vars.portalName }}'] | [0]"
+        expect:
+          file: "expect/publication.json"
+          overlays:
+            - "overlays/expected-visibility-private.yaml"
+            retry:
+              attempts: 6
+              interval: "1500ms"
