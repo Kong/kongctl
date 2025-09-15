@@ -1,0 +1,9 @@
+apis:
+  - ref: sms
+    # For simplicity in the example, this overlay replaces the publications array
+    # for the SMS API to set visibility to private. In practice, you may copy the
+    # base file into the overlay dir and edit minimally.
+    publications:
+      - ref: sms-api-to-getting-started
+        visibility: private
+
