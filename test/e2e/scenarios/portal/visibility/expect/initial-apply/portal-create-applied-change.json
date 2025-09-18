@@ -1,0 +1,8 @@
+{
+  "change_id": "1:c:portal:getting-started-portal",
+  "resource_type": "portal",
+  "resource_name": "My First Portal",
+  "resource_ref": "getting-started-portal",
+  "action": "CREATE",
+  "resource_id": "326d33eb-c9a2-4809-a10a-8517a417fd59"
+}

@@ -1,0 +1,18 @@
+{
+  "action": "CREATE",
+  "fields": {
+    "authentication_enabled": false,
+    "auto_approve_applications": false,
+    "auto_approve_developers": false,
+    "default_api_visibility": "public",
+    "default_page_visibility": "public",
+    "description": "A comprehensive developer portal with guides, API documentation, and getting started content",
+    "display_name": "A Getting Started Portal",
+    "name": "My First Portal",
+    "rbac_enabled": false
+  },
+  "namespace": "default",
+  "protection": false,
+  "resource_ref": "getting-started-portal",
+  "resource_type": "portal"
+}

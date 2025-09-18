@@ -47,3 +47,18 @@ test-e2e:
 	code=$$(cat "$$ART_DIR/.exit_code"); rm -f "$$ART_DIR/.exit_code"; \
 	echo "E2E artifacts: $$ART_DIR"; \
 	exit $$code
+
+.PHONY: test-e2e-scenarios
+test-e2e-scenarios:
+	@ART_DIR="$$KONGCTL_E2E_ARTIFACTS_DIR"; \
+	if [ -z "$$ART_DIR" ]; then \
+		ART_DIR=$$(mktemp -d 2>/dev/null || mktemp -d -t kongctl-e2e || echo .e2e_artifacts); \
+	fi; \
+	mkdir -p "$$ART_DIR"; \
+	( KONGCTL_E2E_ARTIFACTS_DIR="$$ART_DIR" \
+	  KONGCTL_E2E_SCENARIO="${SCENARIO}" \
+	  go test -v -count=1 -tags=e2e -run '^Test_Scenarios$$' $${GOTESTFLAGS} ./test/e2e ; \
+	  echo $$? > "$$ART_DIR/.exit_code" ) | tee "$$ART_DIR/run.log"; \
+	code=$$(cat "$$ART_DIR/.exit_code"); rm -f "$$ART_DIR/.exit_code"; \
+	echo "E2E artifacts: $$ART_DIR"; \
+	exit $$code
