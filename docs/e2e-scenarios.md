@@ -158,7 +158,13 @@ Library Evaluation: go-cmp / cmpopts
 Golden Files (Terminology)
 
 - We avoid the term “golden”; the DSL uses expect.file and expect.overlays.
-- Update mode (for bootstrapping): set KONGCTL_E2E_UPDATE_EXPECT=1 to write the sanitized observed value into expect.file. Overlays still apply afterward.
+- Update mode (for bootstrapping): set KONGCTL_E2E_UPDATE_EXPECT=1 to write the sanitized observed value into expect.file (file-based assertions only). Overlays still apply afterward. Inline fields (expect.fields) do not write back; the diff is shown in artifacts.
+
+Artifacts Per Assertion
+
+- observed.json: masked selected object from the command output (or subset for fields mode)
+- expected.json: expected payload (file-based or fields map)
+- result.txt: first line pass|fail, separator, then a human-readable diff ("(no diff)" when equal)
 
 Example Scenario (Based on declarative_general_test.go)
 
