@@ -6,9 +6,20 @@ Overview
 - Assertions use the JSON stdout of a command (or a shorthand get) plus a selector and masking to compare against an expected file (optionally merged with small overlays).
 - This document specifies the minimal schema and includes a concrete example mirrored from the existing declarative_general_test.go.
 
+Quickstart
+
+- Place a scenario at `test/e2e/scenarios/<suite>/<name>/scenario.yaml`.
+- Run all scenarios only: `make test-e2e-scenarios`.
+- Run a single scenario by substring or path:
+  - `make test-e2e-scenarios SCENARIO=portal/visibility`
+  - or `KONGCTL_E2E_SCENARIO=test/e2e/scenarios/portal/visibility/scenario.yaml make test-e2e-scenarios`
+- Save observed output to expected files (bootstrap/update):
+  - `KONGCTL_E2E_UPDATE_EXPECT=1 make test-e2e-scenarios SCENARIO=portal/visibility`
+- Artifacts: set `KONGCTL_E2E_ARTIFACTS_DIR=/tmp/kongctl-e2e` to choose a folder; otherwise a temp dir is created and printed at the end.
+
 Key Concepts
 
-- Scenario: Top-level test definition. May reset the organization before/after and sets defaults for masking and retries.
+- Scenario: Top-level test definition. Sets defaults for masking and retries.
 - Step: Creates a working copy of the base inputs and applies one or more overlay directories before running commands.
 - Command: Any kongctl invocation (apply, sync, diff, get, …). Each command can have 0–n assertions.
 - Assertion: Selects data from a JSON source (the parent command’s stdout by default) and compares it to an expected file after masking transient fields.
@@ -23,7 +34,6 @@ Names Are Optional (Indexed From 000)
 
 Schema (YAML)
 
-- reset: one of before | after | both | never (default: before)
 - baseInputsPath: path to the base declarative config directory
 - env: map of environment variables to pass to kongctl
 - vars: free-form variables usable in templates (e.g., for selectors or overlay files)
@@ -36,13 +46,20 @@ Schema (YAML)
 - steps: [
   {
     name?: string,
+    skipInputs?: bool,                      # when true, do not copy baseInputsPath into this step's workdir
     inputOverlayDirs?: [paths],            # merge these dirs into the step workdir (omit if none)
+    inputOverlayOpsFiles?: [paths],        # targeted ops files (match + set/remove) applied to inputs
+    inputOverlayOps?:                      # inline targeted ops (same schema as file entries)
+      - file: "apis.yaml"
+        match: "apis[?ref=='sms'].publications[?ref=='sms-api-to-getting-started'] | [0]"
+        set: { visibility: "private" }
     mask?: { dropKeys: [...] },            # override/extend defaults.mask
     retry?: { attempts, interval },        # override defaults.retry
     commands: [
       {
         name?: string,
-        run: ["apply", "-f", "{{ .workdir }}/portal.yaml", …],  # arbitrary kongctl args
+        run?: ["apply", "-f", "{{ .workdir }}/portal.yaml", …],  # arbitrary kongctl args
+        resetOrg?: true,                              # synthetic harness command to reset org
         mask?: { dropKeys: [...] },
         retry?: { attempts, interval },
         assertions: [
@@ -53,8 +70,9 @@ Schema (YAML)
             source?: { get?: "apis" | "portals" | "…" },
             select: "JMESPath expression",                # isolate object/array/scalar
             expect: {
-              file: path,                                  # expected file (JSON or YAML)
-              overlays?: [paths]                           # small merges applied to expect.file
+              file?: path,                                  # expected file (JSON or YAML); required unless fields is used
+              overlays?: [paths],                           # small merges applied to expect.file
+              fields?: { dotted.path: value, ... }          # inline field expectations against the selected object
             },
             mask?: { dropKeys: [...] },
             retry?: { attempts, interval }
@@ -84,9 +102,27 @@ Overlays
 - Expected overlays: expect.overlays is a list of files merged into the expect.file to form the final expected payload.
 - MVP scopes overlays to steps (inputs) and assertions (expected). There are no command-level overlays.
 
+Overlay Ops (Targeted Edits)
+
+- Use `inputOverlayOps` for targeted field updates without replacing arrays.
+- Ops file format (YAML):
+
+  ops:
+    - file: "apis.yaml"
+      match: "apis[?ref=='sms'].publications[?ref=='sms-api-to-getting-started'] | [0]"
+      set:
+        visibility: "private"
+
+- Semantics:
+  - `file`: target file under the step workdir.
+  - `match`: JMESPath-like expression (limited subset) that chains mapping keys with optional filters `[?field=='value']`. A trailing `| [0]` is allowed to pick the first match.
+  - `set`: deep-merge keys into each matched mapping node (create if absent). Scalars replace, maps merge, arrays replace.
+  - Templates allowed in ops file (same context as overlays).
+  - Inline ops are supported via `inputOverlayOps` with the same schema.
+
 Optional And Empty Fields
 
-- Omit fields that are empty or not needed. For example, if a step has no input overlays, you can omit inputOverlayDirs. If a command has no assertions, you can omit the assertions key entirely.
+- Omit fields that are empty or not needed. For example, if a step has no input overlays, you can omit inputOverlayDirs. If a command has no assertions, you can omit the assertions key entirely. If a command is a reset, omit run and set resetOrg: true.
 
 Selectors and Sources
 
@@ -100,6 +136,11 @@ Selectors and Sources
       source: { get: "portals" }
       expect:
         file: "expect/portal.json"
+
+JMESPath Examples (Nested Fields)
+
+- From apply output: `plan.changes[?resource=='portal' && op=='create' && after.name=='{{ .vars.portalName }}'] | [0]`
+- Nested field: `plan.changes[?op=='update'] | [0].after.visibility`
 
 Comparison Semantics (Simplicity First)
 

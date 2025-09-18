@@ -1,4 +1,3 @@
-reset: before
 baseInputsPath: ../../../testdata/declarative/portal/full
 
 env:
@@ -13,68 +12,82 @@ defaults:
     attempts: 6
     interval: "1500ms"
   mask:
-    dropKeys: [id, uuid, created_at, createdAt, updated_at, updatedAt, etag, links, href, self, version]
+    dropKeys: 
+      - id
+      - created_at
+      - resource_id 
+      - change_id
+      - updated_at
 
 steps:
-  - # auto-named: step-000
+  - name: 000-reset-org
+    skipInputs: true
     commands:
-  - # auto-named: cmd-000
-    run:
-      - apply
-      - -f
-      - "{{ .workdir }}/portal.yaml"
-      - -f
-      - "{{ .workdir }}/apis.yaml"
-      - --auto-approve
-    assertions:
-      - # auto-named: assert-000
-        # Demonstrates using a fresh get source under an apply command
-        source: { get: "portals" }
-        select: "[?name=='{{ .vars.portalName }}'] | [0]"
-        expect:
-          file: "expect/portal.json"
+      - resetOrg: true
 
-  - # auto-named: cmd-001
-    run: ["get", "portals"]
-    assertions:
-      - # auto-named: assert-000
-        select: "[?name=='{{ .vars.portalName }}'] | [0]"
-        expect:
-          file: "expect/portal.json"
-        mask:
-          dropKeys: [organizationId]
-
-  - # auto-named: cmd-002
-    run: ["get", "apis"]
-    assertions:
-      - # auto-named: assert-000
-        select: "[0]"
-        expect:
-          file: "expect/api-first.json"
-
-  - # auto-named: step-001
-    inputOverlayDirs:
-      - "overlays/002-private"
+  - name: 001-initial-apply
     commands:
-  - # auto-named: cmd-000
-    run:
-      - apply
-      - -f
-      - "{{ .workdir }}/portal.yaml"
-      - -f
-      - "{{ .workdir }}/apis.yaml"
-      - --auto-approve
-    # no assertions under this apply; key omitted intentionally
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.changes[?resource_type=='portal' && resource_ref=='getting-started-portal'] | [0]"
+            expect:
+              file: "expect/initial-apply/portal-create-change.json"
+          - select: "execution.applied_changes[?resource_type=='portal' && resource_ref=='getting-started-portal'] | [0]"
+            expect:
+              file: "expect/initial-apply/portal-create-applied-change.json"
 
-  - # auto-named: cmd-001
-    run: ["get", "publications"]
-    assertions:
-      - # auto-named: assert-000
-        select: "[?api.name=='{{ .vars.smsAPIName }}' && portal.name=='{{ .vars.portalName }}'] | [0]"
-        expect:
-          file: "expect/publication.json"
-          overlays:
-            - "overlays/expected-visibility-private.yaml"
-            retry:
-              attempts: 6
-              interval: "1500ms"
+      - name: 001-get-portals
+        run: ["get", "portals"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalName }}'] | [0]"
+            expect:
+              file: "expect/initial-apply/get-portals.json"
+            mask:
+              dropKeys:
+                - canonical_domain
+                - default_domain
+
+      - name: 002-get-apis
+        run: ["get", "apis"]
+        assertions:
+          - select: "[?name=='{{ .vars.smsAPIName }}'] | [0]"
+            expect:
+              file: "expect/initial-apply/get-apis.json"
+            mask:
+              dropKeys:
+                - api_spec_ids
+
+  - name: 002-mutate-publication-visibility
+    inputOverlayOps:
+      - file: "apis.yaml"
+        match: "apis[?ref=='sms'].publications[?ref=='sms-api-to-getting-started'] | [0]"
+        set:
+          visibility: "private"
+    commands:
+      - run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+
+        assertions:
+          - select: >-
+              plan.changes[?resource_type=='api_publication' && 
+                            resource_ref=='sms-api-to-getting-started'] | [0]
+            expect:
+              fields:
+                action: "UPDATE"
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0

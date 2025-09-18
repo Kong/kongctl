@@ -1,0 +1,19 @@
+{
+  "attributes": {},
+  "current_version_summary": null,
+  "description": "With the SMS API you can send SMS from your account and lookup messages both messages that you've sent as well as messages sent to your virtual numbers. Numbers are specified in E.164 format. More SMS API documentation is at \u003chttps://developer.nexmo.com/messaging/sms/overview\u003e",
+  "labels": {
+    "KONGCTL-namespace": "default",
+    "category": "messaging",
+    "protocol": "rest"
+  },
+  "name": "SMS API",
+  "portals": [
+    {
+      "display_name": "A Getting Started Portal",
+      "name": "My First Portal"
+    }
+  ],
+  "slug": "sms-api-3",
+  "version": "3.2.0"
+}
