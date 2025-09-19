@@ -391,7 +391,6 @@ func parseJMESMatch(expr string) ([]pathStep, error) {
 			lk := strings.TrimSpace(cond[:idx])
 			rv := strings.TrimSpace(cond[idx+2:])
 			// strip quotes around rv
-			rv = strings.Trim(rv, " ")
 			if strings.HasPrefix(rv, "'") && strings.HasSuffix(rv, "'") {
 				rv = strings.Trim(rv, "'")
 			} else if strings.HasPrefix(rv, "\"") && strings.HasSuffix(rv, "\"") {
