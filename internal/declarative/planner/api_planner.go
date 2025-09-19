@@ -463,7 +463,7 @@ func (p *Planner) planAPIChildResourcesCreate(
 
 	// Plan document creation - API ID is not yet known
 	for _, document := range api.Documents {
-		p.planAPIDocumentCreate(parentNamespace, api.GetRef(), "", document, []string{apiChangeID}, plan)
+		p.planAPIDocumentCreate(parentNamespace, api.GetRef(), "", document, []string{apiChangeID}, nil, plan)
 	}
 }
 
@@ -1252,28 +1252,20 @@ func (p *Planner) planAPIDocumentChanges(
 		return fmt.Errorf("failed to list current API documents: %w", err)
 	}
 
-	// Index current documents by slug
-	// Normalize slugs by stripping leading slash for consistent matching
-	currentBySlug := make(map[string]state.APIDocument)
-	for _, d := range currentDocuments {
-		normalizedSlug := strings.TrimPrefix(d.Slug, "/")
-		currentBySlug[normalizedSlug] = d
-	}
+	desiredPaths := p.buildAPIDocumentPaths(desired)
+	stateIndex := newAPIDocumentStateIndex(currentDocuments)
 
 	// Compare desired documents
 	for _, desiredDoc := range desired {
-		slug := ""
-		if desiredDoc.Slug != nil {
-			slug = *desiredDoc.Slug
+		desiredPath := desiredPaths[desiredDoc.Ref]
+		if desiredPath == "" && desiredDoc.Slug != nil {
+			desiredPath = strings.TrimPrefix(*desiredDoc.Slug, "/")
 		}
-
-		// Normalize desired slug for matching
-		normalizedSlug := strings.TrimPrefix(slug, "/")
-		current, exists := currentBySlug[normalizedSlug]
+		current, exists := stateIndex.getByPath(desiredPath)
 
 		if !exists {
 			// CREATE
-			p.planAPIDocumentCreate(parentNamespace, apiRef, apiID, desiredDoc, []string{}, plan)
+			p.planAPIDocumentCreate(parentNamespace, apiRef, apiID, desiredDoc, []string{}, desiredPaths, plan)
 		} else {
 			// UPDATE - documents support update
 			// Fetch full document to get content for comparison
@@ -1287,26 +1279,18 @@ func (p *Planner) planAPIDocumentChanges(
 
 			// Now compare with full content
 			if p.shouldUpdateAPIDocument(current, desiredDoc) {
-				p.planAPIDocumentUpdate(parentNamespace, apiRef, apiID, current.ID, desiredDoc, plan)
+				p.planAPIDocumentUpdate(parentNamespace, apiRef, apiID, current.ID, desiredDoc, desiredPaths, plan)
 			}
+
+			stateIndex.markProcessed(desiredPath)
 		}
 	}
 
 	// In sync mode, delete unmanaged documents
 	if plan.Metadata.Mode == PlanModeSync {
-		desiredSlugs := make(map[string]bool)
-		for _, doc := range desired {
-			if doc.Slug != nil {
-				// Normalize desired slug
-				normalizedSlug := strings.TrimPrefix(*doc.Slug, "/")
-				desiredSlugs[normalizedSlug] = true
-			}
-		}
-
-		for slug, current := range currentBySlug {
-			if !desiredSlugs[slug] {
-				p.planAPIDocumentDelete(apiRef, apiID, current.ID, slug, plan)
-			}
+		remaining := stateIndex.unprocessed()
+		for path, current := range remaining {
+			p.planAPIDocumentDelete(apiRef, apiID, current.ID, path, plan)
 		}
 	}
 
@@ -1418,7 +1402,7 @@ func (p *Planner) planAPIVersionUpdate(
 
 func (p *Planner) planAPIDocumentCreate(
 	parentNamespace string, apiRef string, apiID string, document resources.APIDocumentResource,
-	dependsOn []string, plan *Plan,
+	dependsOn []string, docPaths map[string]string, plan *Plan,
 ) {
 	fields := make(map[string]any)
 	fields["content"] = document.Content
@@ -1470,12 +1454,41 @@ func (p *Planner) planAPIDocumentCreate(
 		}
 	}
 
+	// Handle parent document references
+	if document.ParentDocumentRef != "" {
+		lookup := make(map[string]string)
+		if docPaths != nil {
+			if parentPath := docPaths[document.ParentDocumentRef]; parentPath != "" {
+				lookup["slug_path"] = parentPath
+			}
+		}
+		if document.Slug != nil && *document.Slug != "" {
+			lookup["slug"] = strings.Trim(strings.TrimPrefix(*document.Slug, "/"), "/")
+		}
+
+		if change.References == nil {
+			change.References = make(map[string]ReferenceInfo)
+		}
+		change.References["parent_document_id"] = ReferenceInfo{
+			Ref:          document.ParentDocumentRef,
+			LookupFields: lookup,
+		}
+
+		// Ensure the parent document change executes first if present in the plan
+		for _, depChange := range plan.Changes {
+			if depChange.ResourceType == "api_document" && depChange.ResourceRef == document.ParentDocumentRef {
+				change.DependsOn = append(change.DependsOn, depChange.ID)
+				break
+			}
+		}
+	}
+
 	plan.AddChange(change)
 }
 
 func (p *Planner) planAPIDocumentUpdate(
 	parentNamespace string, apiRef string, apiID string, documentID string,
-	document resources.APIDocumentResource, plan *Plan,
+	document resources.APIDocumentResource, docPaths map[string]string, plan *Plan,
 ) {
 	fields := make(map[string]any)
 	fields["content"] = document.Content
@@ -1523,22 +1536,50 @@ func (p *Planner) planAPIDocumentUpdate(
 		}
 	}
 
+	if document.ParentDocumentRef != "" {
+		lookup := make(map[string]string)
+		if docPaths != nil {
+			if parentPath := docPaths[document.ParentDocumentRef]; parentPath != "" {
+				lookup["slug_path"] = parentPath
+			}
+		}
+		if document.Slug != nil && *document.Slug != "" {
+			lookup["slug"] = strings.Trim(strings.TrimPrefix(*document.Slug, "/"), "/")
+		}
+
+		if change.References == nil {
+			change.References = make(map[string]ReferenceInfo)
+		}
+		change.References["parent_document_id"] = ReferenceInfo{
+			Ref:          document.ParentDocumentRef,
+			LookupFields: lookup,
+		}
+
+		// If parent document change exists, ensure it runs before this update
+		for _, depChange := range plan.Changes {
+			if depChange.ResourceType == "api_document" && depChange.ResourceRef == document.ParentDocumentRef {
+				change.DependsOn = append(change.DependsOn, depChange.ID)
+				break
+			}
+		}
+	}
+
 	plan.AddChange(change)
 }
 
-func (p *Planner) planAPIDocumentDelete(apiRef string, apiID string, documentID string, slug string, plan *Plan) {
+func (p *Planner) planAPIDocumentDelete(apiRef string, apiID string, documentID string, path string, plan *Plan) {
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionDelete, "api_document", documentID),
 		ResourceType: "api_document",
 		ResourceRef:  "[unknown]",
 		ResourceID:   documentID,
 		ResourceMonikers: map[string]string{
-			"slug":       slug,
+			"slug":       path,
 			"parent_api": apiRef,
 		},
 		Parent:    &ParentInfo{Ref: apiRef, ID: apiID},
 		Action:    ActionDelete,
-		Fields:    map[string]any{"slug": slug},
+		Fields:    map[string]any{"slug": path},
 		DependsOn: []string{},
 	}
 
@@ -1780,6 +1821,7 @@ func (p *Planner) planAPIDocumentsChanges(
 
 	// For each API, plan document changes
 	for apiRef, documents := range documentsByAPI {
+		docPaths := p.buildAPIDocumentPaths(documents)
 		// Find the API ID from existing changes or state
 		apiID := ""
 		for _, change := range plan.Changes {
@@ -1792,7 +1834,7 @@ func (p *Planner) planAPIDocumentsChanges(
 						parentNamespace = DefaultNamespace
 					}
 					for _, doc := range documents {
-						p.planAPIDocumentCreate(parentNamespace, apiRef, "", doc, []string{change.ID}, plan)
+						p.planAPIDocumentCreate(parentNamespace, apiRef, "", doc, []string{change.ID}, docPaths, plan)
 					}
 					continue
 				}
@@ -1834,4 +1876,169 @@ func (p *Planner) planAPIDocumentsChanges(
 	}
 
 	return nil
+}
+
+// buildAPIDocumentPaths constructs slug paths for desired API documents using their parent references.
+func (p *Planner) buildAPIDocumentPaths(docs []resources.APIDocumentResource) map[string]string {
+	docByRef := make(map[string]resources.APIDocumentResource)
+	for _, doc := range docs {
+		docByRef[doc.Ref] = doc
+	}
+
+	paths := make(map[string]string)
+	visited := make(map[string]bool)
+
+	var resolve func(ref string) string
+	resolve = func(ref string) string {
+		if path, ok := paths[ref]; ok {
+			return path
+		}
+		if visited[ref] {
+			return ""
+		}
+		visited[ref] = true
+
+		doc, ok := docByRef[ref]
+		if !ok {
+			visited[ref] = false
+			return ""
+		}
+
+		slug := ""
+		if doc.Slug != nil {
+			slug = strings.Trim(strings.TrimPrefix(*doc.Slug, "/"), "/")
+		}
+
+		parentRef := doc.ParentDocumentRef
+		if parentRef == "" {
+			paths[ref] = slug
+			visited[ref] = false
+			return slug
+		}
+
+		parentPath := resolve(parentRef)
+		visited[ref] = false
+
+		if parentPath == "" {
+			paths[ref] = slug
+			return slug
+		}
+
+		if slug == "" {
+			paths[ref] = parentPath
+			return parentPath
+		}
+
+		combined := parentPath
+		if combined != "" {
+			combined = combined + "/" + slug
+		} else {
+			combined = slug
+		}
+
+		paths[ref] = combined
+		return combined
+	}
+
+	for ref := range docByRef {
+		resolve(ref)
+	}
+
+	return paths
+}
+
+type apiDocumentStateIndex struct {
+	byPath   map[string]state.APIDocument
+	idToPath map[string]string
+}
+
+func newAPIDocumentStateIndex(docs []state.APIDocument) *apiDocumentStateIndex {
+	docByID := make(map[string]state.APIDocument)
+	for _, doc := range docs {
+		docByID[doc.ID] = doc
+	}
+
+	idToPath := make(map[string]string)
+	visited := make(map[string]bool)
+
+	var resolve func(id string) string
+	resolve = func(id string) string {
+		if path, ok := idToPath[id]; ok {
+			return path
+		}
+		if visited[id] {
+			return ""
+		}
+		visited[id] = true
+
+		doc, ok := docByID[id]
+		if !ok {
+			visited[id] = false
+			return ""
+		}
+
+		slug := strings.Trim(strings.TrimPrefix(doc.Slug, "/"), "/")
+		if doc.ParentDocumentID == "" {
+			idToPath[id] = slug
+			visited[id] = false
+			return slug
+		}
+
+		parentPath := resolve(doc.ParentDocumentID)
+		visited[id] = false
+
+		if parentPath == "" {
+			idToPath[id] = slug
+			return slug
+		}
+
+		if slug == "" {
+			idToPath[id] = parentPath
+			return parentPath
+		}
+
+		combined := parentPath
+		if combined != "" {
+			combined = combined + "/" + slug
+		} else {
+			combined = slug
+		}
+
+		idToPath[id] = combined
+		return combined
+	}
+
+	byPath := make(map[string]state.APIDocument)
+	for id, doc := range docByID {
+		path := resolve(id)
+		byPath[path] = doc
+	}
+
+	return &apiDocumentStateIndex{
+		byPath:   byPath,
+		idToPath: idToPath,
+	}
+}
+
+func (i *apiDocumentStateIndex) getByPath(path string) (state.APIDocument, bool) {
+	if path == "" {
+		return state.APIDocument{}, false
+	}
+	doc, ok := i.byPath[path]
+	return doc, ok
+}
+
+func (i *apiDocumentStateIndex) markProcessed(path string) {
+	if path == "" {
+		return
+	}
+	delete(i.byPath, path)
+}
+
+func (i *apiDocumentStateIndex) unprocessed() map[string]state.APIDocument {
+	remaining := make(map[string]state.APIDocument, len(i.byPath))
+	for path, doc := range i.byPath {
+		remaining[path] = doc
+	}
+	return remaining
 }

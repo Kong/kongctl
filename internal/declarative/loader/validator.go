@@ -279,6 +279,12 @@ func (l *Loader) validateCrossReferences(rs *resources.ResourceSet) error {
 		}
 	}
 
+	for i := range rs.APIDocuments {
+		if err := l.validateResourceReferences(&rs.APIDocuments[i], rs); err != nil {
+			return err
+		}
+	}
+
 	// Note: API versions don't have outbound references, so no validation needed
 
 	return nil
