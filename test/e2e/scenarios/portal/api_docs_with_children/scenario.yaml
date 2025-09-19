@@ -1,0 +1,34 @@
+baseInputsPath: ../../../testdata/declarative/portal/full
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-initial-apply
+    inputOverlayDirs:
+      - overlays/001-initial-apply
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: >-
+              plan.changes[?resource_type=='api_document' &&
+                            resource_ref=='sms-errors'] | [0]
+            mask:
+              dropKeys:
+                - depends_on
+                - content
+                - id
+                - parent.id
+                - references.api_id
+                - references.parent_document_id.id
+            expect:
+              file: "expect/001-initial-apply/change-api-document-sms-errors.json" 

@@ -16,8 +16,10 @@ type APIDocumentResource struct {
 	kkComps.CreateAPIDocumentRequest `       yaml:",inline"                      json:",inline"`
 	Ref                              string `yaml:"ref"                          json:"ref"`
 	// Parent API reference (for root-level definitions)
-	API              string `yaml:"api,omitempty"                json:"api,omitempty"`
-	ParentDocumentID string `yaml:"parent_document_id,omitempty" json:"parent_document_id,omitempty"`
+	API               string                `yaml:"api,omitempty"                   json:"api,omitempty"`
+	ParentDocumentID  string                `yaml:"parent_document_id,omitempty"   json:"parent_document_id,omitempty"`
+	ParentDocumentRef string                `yaml:"parent_document_ref,omitempty"  json:"parent_document_ref,omitempty"`
+	Children          []APIDocumentResource `yaml:"children,omitempty"             json:"children,omitempty"`
 
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
@@ -56,8 +58,14 @@ func (d APIDocumentResource) GetDependencies() []ResourceRef {
 // GetReferenceFieldMappings returns the field mappings for reference validation
 func (d APIDocumentResource) GetReferenceFieldMappings() map[string]string {
 	mappings := make(map[string]string)
+	if d.API != "" {
+		mappings["api"] = "api"
+	}
 	if d.ParentDocumentID != "" {
 		mappings["parent_document_id"] = "api_document"
+	}
+	if d.ParentDocumentRef != "" {
+		mappings["parent_document_ref"] = "api_document"
 	}
 	return mappings
 }
@@ -82,6 +90,16 @@ func (d APIDocumentResource) Validate() error {
 		}
 	}
 
+	// Validate children recursively
+	for i, child := range d.Children {
+		if child.API != "" {
+			return fmt.Errorf("child document[%d] ref=%q should not define api (inherited from parent)", i, child.Ref)
+		}
+		if err := child.Validate(); err != nil {
+			return fmt.Errorf("child document[%d] ref=%q validation failed: %w", i, child.Ref, err)
+		}
+	}
+
 	// Parent API validation happens through dependency system
 	return nil
 }
@@ -99,6 +117,10 @@ func (d *APIDocumentResource) SetDefaults() {
 	if d.Slug == nil && d.Title != nil && *d.Title != "" {
 		slug := util.GenerateSlug(*d.Title)
 		d.Slug = &slug
+	}
+
+	for i := range d.Children {
+		d.Children[i].SetDefaults()
 	}
 }
 
@@ -158,14 +180,16 @@ func (d APIDocumentResource) GetParentRef() *ResourceRef {
 func (d *APIDocumentResource) UnmarshalJSON(data []byte) error {
 	// Temporary struct to capture all fields
 	var temp struct {
-		Ref              string  `json:"ref"`
-		API              string  `json:"api,omitempty"`
-		Content          string  `json:"content"`
-		Title            *string `json:"title,omitempty"`
-		Slug             *string `json:"slug,omitempty"`
-		Status           *string `json:"status,omitempty"`
-		ParentDocumentID string  `json:"parent_document_id,omitempty"`
-		Kongctl          any     `json:"kongctl,omitempty"`
+		Ref               string                `json:"ref"`
+		API               string                `json:"api,omitempty"`
+		Content           string                `json:"content"`
+		Title             *string               `json:"title,omitempty"`
+		Slug              *string               `json:"slug,omitempty"`
+		Status            *string               `json:"status,omitempty"`
+		ParentDocumentID  string                `json:"parent_document_id,omitempty"`
+		ParentDocumentRef string                `json:"parent_document_ref,omitempty"`
+		Children          []APIDocumentResource `json:"children,omitempty"`
+		Kongctl           any                   `json:"kongctl,omitempty"`
 	}
 
 	// Use a decoder with DisallowUnknownFields to catch typos
@@ -180,6 +204,8 @@ func (d *APIDocumentResource) UnmarshalJSON(data []byte) error {
 	d.Ref = temp.Ref
 	d.API = temp.API
 	d.ParentDocumentID = temp.ParentDocumentID
+	d.ParentDocumentRef = temp.ParentDocumentRef
+	d.Children = temp.Children
 
 	// Check if kongctl field was provided and reject it
 	if temp.Kongctl != nil {

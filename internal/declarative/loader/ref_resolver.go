@@ -194,6 +194,13 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 		processCount++
 	}
 
+	for i := range rs.APIDocuments {
+		if err := resolveResourceFields(ctx, &rs.APIDocuments[i], rs, resolver, resolutionPath, logger); err != nil {
+			return fmt.Errorf("resolving api document %s: %w", rs.APIDocuments[i].GetRef(), err)
+		}
+		processCount++
+	}
+
 	logger.LogAttrs(ctx, slog.LevelDebug, "Reference resolution completed",
 		slog.Int("resources_processed", processCount),
 	)

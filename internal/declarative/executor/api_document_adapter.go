@@ -20,7 +20,7 @@ func NewAPIDocumentAdapter(client *state.Client) *APIDocumentAdapter {
 
 // MapCreateFields maps fields to CreateAPIDocumentRequest
 func (a *APIDocumentAdapter) MapCreateFields(
-	_ context.Context, _ *ExecutionContext, fields map[string]any,
+	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	create *kkComps.CreateAPIDocumentRequest,
 ) error {
 	// Required fields
@@ -46,11 +46,25 @@ func (a *APIDocumentAdapter) MapCreateFields(
 		create.Status = &status
 	}
 
+	if execCtx != nil && execCtx.PlannedChange != nil {
+		if parentRef, ok := execCtx.PlannedChange.References["parent_document_id"]; ok {
+			if parentRef.ID != "" && parentRef.ID != "[unknown]" {
+				create.ParentDocumentID = &parentRef.ID
+			}
+		}
+	}
+
+	if create.ParentDocumentID == nil {
+		if parentID, ok := fields["parent_document_id"].(string); ok && parentID != "" {
+			create.ParentDocumentID = &parentID
+		}
+	}
+
 	return nil
 }
 
 // MapUpdateFields maps fields to APIDocument
-func (a *APIDocumentAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, fields map[string]any,
+func (a *APIDocumentAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	update *kkComps.APIDocument, _ map[string]string,
 ) error {
 	// Optional fields - all fields are optional for updates
@@ -69,6 +83,20 @@ func (a *APIDocumentAdapter) MapUpdateFields(_ context.Context, _ *ExecutionCont
 	if statusStr, ok := fields["status"].(string); ok {
 		status := kkComps.APIDocumentStatus(statusStr)
 		update.Status = &status
+	}
+
+	if execCtx != nil && execCtx.PlannedChange != nil {
+		if parentRef, ok := execCtx.PlannedChange.References["parent_document_id"]; ok {
+			if parentRef.ID != "" && parentRef.ID != "[unknown]" {
+				update.ParentDocumentID = &parentRef.ID
+			}
+		}
+	}
+
+	if update.ParentDocumentID == nil {
+		if parentID, ok := fields["parent_document_id"].(string); ok && parentID != "" {
+			update.ParentDocumentID = &parentID
+		}
 	}
 
 	return nil

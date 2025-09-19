@@ -652,6 +652,7 @@ func (l *Loader) extractPortalPages(
 // extractNestedResources extracts nested child resources to root level with parent references
 func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 	// Extract nested API child resources
+	extractedDocuments := make([]resources.APIDocumentResource, 0)
 	for i := range rs.APIs {
 		api := &rs.APIs[i]
 
@@ -676,11 +677,25 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.APIImplementations = append(rs.APIImplementations, implementation)
 		}
 
+		// Extract documents (with recursive flattening)
+		for j := range api.Documents {
+			document := api.Documents[j]
+			l.extractAPIDocuments(&extractedDocuments, document, api.Ref, "")
+		}
+
 		// Clear nested resources from API
 		api.Versions = nil
 		api.Publications = nil
 		api.Implementations = nil
+		api.Documents = nil
 	}
+
+	// Extract root-level API documents (with recursive flattening)
+	for _, document := range rs.APIDocuments {
+		apiRef := document.API
+		l.extractAPIDocuments(&extractedDocuments, document, apiRef, "")
+	}
+	rs.APIDocuments = extractedDocuments
 
 	// Extract nested Portal child resources
 	for i := range rs.Portals {
@@ -720,6 +735,34 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		portal.CustomDomain = nil
 		portal.Pages = nil
 		portal.Snippets = nil
+	}
+}
+
+// extractAPIDocuments recursively extracts and flattens nested API documents
+func (l *Loader) extractAPIDocuments(
+	allDocs *[]resources.APIDocumentResource,
+	doc resources.APIDocumentResource,
+	apiRef string,
+	parentDocRef string,
+) {
+	if apiRef != "" {
+		doc.API = apiRef
+	}
+	if parentDocRef != "" {
+		doc.ParentDocumentRef = parentDocRef
+	}
+
+	children := doc.Children
+	doc.Children = nil
+
+	*allDocs = append(*allDocs, doc)
+
+	for _, child := range children {
+		childAPIRef := apiRef
+		if child.API != "" {
+			childAPIRef = child.API
+		}
+		l.extractAPIDocuments(allDocs, child, childAPIRef, doc.Ref)
 	}
 }
 
