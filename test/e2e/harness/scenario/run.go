@@ -116,7 +116,10 @@ func Run(t *testing.T, scenarioPath string) error {
 			// Parent source JSON (if assertions use it)
 			var parent any
 			if len(res.Stdout) > 0 {
-				_ = json.Unmarshal([]byte(res.Stdout), &parent)
+				if err := json.Unmarshal([]byte(res.Stdout), &parent); err != nil {
+					t.Errorf("failed to unmarshal stdout as JSON for command %s: %v\nstdout: %q", cmdName, err, res.Stdout)
+					return fmt.Errorf("command %s produced invalid JSON: %w", cmdName, err)
+				}
 			}
 
 			// Run assertions
