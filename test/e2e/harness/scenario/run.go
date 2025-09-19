@@ -439,8 +439,17 @@ func contains(ss []string, s string) bool {
 	return false
 }
 
-// normalizeNumbersDeep converts any integer/float32-like values to float64 recursively
-// so that JSON numbers (float64) and YAML ints compare equal in generic maps.
+// normalizeNumbersDeep recursively converts all integer and float32-like values to float64.
+//
+// This normalization is necessary for test assertions that compare data structures
+// deserialized from JSON and YAML, as JSON numbers are always float64, while YAML
+// numbers may be int, uint, or float types. By converting all numeric types to float64,
+// we ensure that numbers compare equal regardless of their original representation.
+//
+// Note: Converting large uint64 values to float64 may result in precision loss,
+// as float64 cannot exactly represent all uint64 values above 2^53. This is
+// acceptable for test assertions, but should be considered if exact numeric
+// fidelity is required.
 func normalizeNumbersDeep(v any) any {
 	switch t := v.(type) {
 	case map[string]any:
