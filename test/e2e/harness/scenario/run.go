@@ -270,12 +270,14 @@ func runAssertion(cli *harness.CLI, scenarioPath, workdir string, sc Scenario, s
 	}
 	// Apply selector
 	var observed any = src
+	selUsed := ""
 	if strings.TrimSpace(as.Select) != "" {
 		// Render template vars inside select before evaluation
 		selTpl := as.Select
 		if b, rerr := renderTemplate([]byte(selTpl), tmplCtx); rerr == nil {
 			selTpl = string(b)
 		}
+		selUsed = selTpl
 		observed, err = jmespath.Search(selTpl, src)
 		if err != nil {
 			return fmt.Errorf("select eval failed: %w", err)
@@ -352,6 +354,10 @@ func runAssertion(cli *harness.CLI, scenarioPath, workdir string, sc Scenario, s
 	}
 	asDir := filepath.Join(baseDir, "assertions", asName)
 	_ = os.MkdirAll(asDir, 0o755)
+	// Persist the selector used for this assertion (post-templating)
+	if selUsed != "" {
+		_ = os.WriteFile(filepath.Join(asDir, "select.txt"), []byte(selUsed+"\n"), 0o644)
+	}
 	_ = writeJSON(filepath.Join(asDir, "observed.json"), observed)
 	_ = writeJSON(filepath.Join(asDir, "expected.json"), exp)
 

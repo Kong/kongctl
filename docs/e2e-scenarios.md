@@ -164,6 +164,7 @@ Artifacts Per Assertion
 
 - observed.json: masked selected object from the command output (or subset for fields mode)
 - expected.json: expected payload (file-based or fields map)
+- select.txt: the JMESPath selector used (after templating) to derive observed.json
 - result.txt: first line pass|fail, separator, then a human-readable diff ("(no diff)" when equal)
 
 Example Scenario (Based on declarative_general_test.go)
