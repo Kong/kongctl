@@ -1,0 +1,42 @@
+apis:
+  - ref: voice
+    name: !file apis/voice/openapi.yaml#info.title
+    description: !file apis/voice/openapi.yaml#info.description
+    labels:
+      category: voice
+      protocol: rest
+    
+    versions:
+      - ref: voice-api-v1
+        version: !file apis/voice/openapi.yaml#info.version
+        spec: !file apis/voice/openapi.yaml
+        
+    documents:
+      - ref: voice-getting-started
+        title: "Voice API: Getting Started"
+        slug: voice-getting-started
+        status: published
+        content: !file apis/voice/docs/getting-started.md
+        
+      - ref: voice-authentication
+        title: "Voice API: Authentication Guide"
+        slug: voice-authentication
+        status: published
+        content: !file apis/voice/docs/authentication.md
+        
+      - ref: voice-errors
+        title: "Voice API: Error Handling"
+        slug: voice-errors
+        status: published
+        content: !file apis/voice/docs/errors.md
+        
+      - ref: voice-ncco
+        title: "Voice API: NCCO Reference"
+        slug: voice-ncco
+        status: published
+        content: !file apis/voice/docs/ncco.md
+        
+    publications:
+      - ref: voice-api-to-getting-started
+        portal_id: !ref getting-started-portal#id
+        visibility: public

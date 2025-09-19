@@ -1,0 +1,95 @@
+baseInputsPath: ../../../testdata/declarative/portal/full
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-initial-sync
+    commands:
+      - name: 000-sync
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: sync
+          - select: >-
+              plan.changes[?resource_type=='portal' && 
+                            resource_ref=='getting-started-portal'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+      - name: 001-get-portals
+        run: ["get", "portals"]
+        assertions:
+          - select: "[?name=='My First Portal'] | [0]"
+            expect:
+              fields:
+                display_name: "A Getting Started Portal"
+
+      - name: 002-get-apis
+        run: ["get", "apis"]
+        assertions:
+          - select: "[?name=='SMS API'] | [0]"
+            expect:
+              fields:
+                version: "3.2.0"
+
+  - name: 002-delete-api
+    inputOverlayDirs:
+      - overlays/002-delete-api
+    commands:
+      - name: 000-sync
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: sync
+          - select: "plan.changes"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "plan.changes[0]"
+            expect:
+              fields:
+                resource_type: api
+                resource_ref: "SMS API"
+                action: DELETE
+          - select: "execution.applied_changes"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "execution.applied_changes[0]"
+            expect:
+              fields:
+                resource_type: api
+                resource_ref: "SMS API"
+                action: DELETE
+                change_id: "1:d:api:SMS API"
+
+      - name: 001-get-apis
+        run: ["get", "apis"]
+        assertions:
+          - select: "[?name=='SMS API']"
+            expect:
+              fields:
+                "length(@)": 0
