@@ -61,9 +61,6 @@ func (d APIDocumentResource) GetReferenceFieldMappings() map[string]string {
 	if d.API != "" {
 		mappings["api"] = "api"
 	}
-	if d.ParentDocumentID != "" {
-		mappings["parent_document_id"] = "api_document"
-	}
 	if d.ParentDocumentRef != "" {
 		mappings["parent_document_ref"] = "api_document"
 	}

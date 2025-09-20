@@ -463,7 +463,7 @@ func (p *Planner) planAPIChildResourcesCreate(
 
 	// Plan document creation - API ID is not yet known
 	for _, document := range api.Documents {
-		p.planAPIDocumentCreate(parentNamespace, api.GetRef(), "", document, []string{apiChangeID}, nil, plan)
+		p.planAPIDocumentCreate(parentNamespace, api.GetRef(), "", document, []string{apiChangeID}, apiDocumentLookup{}, plan)
 	}
 }
 
@@ -1242,6 +1242,11 @@ func (p *Planner) planAPIImplementationCreate(
 
 // API Document planning
 
+type apiDocumentLookup struct {
+	paths map[string]string
+	slugs map[string]string
+}
+
 func (p *Planner) planAPIDocumentChanges(
 	ctx context.Context, _ *Config, parentNamespace string, apiID string, apiRef string,
 	desired []resources.APIDocumentResource, plan *Plan,
@@ -1252,7 +1257,8 @@ func (p *Planner) planAPIDocumentChanges(
 		return fmt.Errorf("failed to list current API documents: %w", err)
 	}
 
-	desiredPaths := p.buildAPIDocumentPaths(desired)
+	lookup := p.buildAPIDocumentLookup(desired)
+	desiredPaths := lookup.paths
 	stateIndex := newAPIDocumentStateIndex(currentDocuments)
 
 	// Compare desired documents
@@ -1265,7 +1271,7 @@ func (p *Planner) planAPIDocumentChanges(
 
 		if !exists {
 			// CREATE
-			p.planAPIDocumentCreate(parentNamespace, apiRef, apiID, desiredDoc, []string{}, desiredPaths, plan)
+			p.planAPIDocumentCreate(parentNamespace, apiRef, apiID, desiredDoc, []string{}, lookup, plan)
 		} else {
 			// UPDATE - documents support update
 			// Fetch full document to get content for comparison
@@ -1279,7 +1285,7 @@ func (p *Planner) planAPIDocumentChanges(
 
 			// Now compare with full content
 			if p.shouldUpdateAPIDocument(current, desiredDoc) {
-				p.planAPIDocumentUpdate(parentNamespace, apiRef, apiID, current.ID, desiredDoc, desiredPaths, plan)
+				p.planAPIDocumentUpdate(parentNamespace, apiRef, apiID, current.ID, desiredDoc, lookup, plan)
 			}
 
 			stateIndex.markProcessed(desiredPath)
@@ -1402,7 +1408,7 @@ func (p *Planner) planAPIVersionUpdate(
 
 func (p *Planner) planAPIDocumentCreate(
 	parentNamespace string, apiRef string, apiID string, document resources.APIDocumentResource,
-	dependsOn []string, docPaths map[string]string, plan *Plan,
+	dependsOn []string, lookup apiDocumentLookup, plan *Plan,
 ) {
 	fields := make(map[string]any)
 	fields["content"] = document.Content
@@ -1456,14 +1462,16 @@ func (p *Planner) planAPIDocumentCreate(
 
 	// Handle parent document references
 	if document.ParentDocumentRef != "" {
-		lookup := make(map[string]string)
-		if docPaths != nil {
-			if parentPath := docPaths[document.ParentDocumentRef]; parentPath != "" {
-				lookup["slug_path"] = parentPath
+		lookupFields := make(map[string]string)
+		if lookup.paths != nil {
+			if parentPath := lookup.paths[document.ParentDocumentRef]; parentPath != "" {
+				lookupFields["slug_path"] = parentPath
 			}
 		}
-		if document.Slug != nil && *document.Slug != "" {
-			lookup["slug"] = strings.Trim(strings.TrimPrefix(*document.Slug, "/"), "/")
+		if lookup.slugs != nil {
+			if parentSlug := lookup.slugs[document.ParentDocumentRef]; parentSlug != "" {
+				lookupFields["slug"] = parentSlug
+			}
 		}
 
 		if change.References == nil {
@@ -1471,7 +1479,7 @@ func (p *Planner) planAPIDocumentCreate(
 		}
 		change.References["parent_document_id"] = ReferenceInfo{
 			Ref:          document.ParentDocumentRef,
-			LookupFields: lookup,
+			LookupFields: lookupFields,
 		}
 
 		// Ensure the parent document change executes first if present in the plan
@@ -1488,7 +1496,7 @@ func (p *Planner) planAPIDocumentCreate(
 
 func (p *Planner) planAPIDocumentUpdate(
 	parentNamespace string, apiRef string, apiID string, documentID string,
-	document resources.APIDocumentResource, docPaths map[string]string, plan *Plan,
+	document resources.APIDocumentResource, lookup apiDocumentLookup, plan *Plan,
 ) {
 	fields := make(map[string]any)
 	fields["content"] = document.Content
@@ -1537,14 +1545,16 @@ func (p *Planner) planAPIDocumentUpdate(
 	}
 
 	if document.ParentDocumentRef != "" {
-		lookup := make(map[string]string)
-		if docPaths != nil {
-			if parentPath := docPaths[document.ParentDocumentRef]; parentPath != "" {
-				lookup["slug_path"] = parentPath
+		lookupFields := make(map[string]string)
+		if lookup.paths != nil {
+			if parentPath := lookup.paths[document.ParentDocumentRef]; parentPath != "" {
+				lookupFields["slug_path"] = parentPath
 			}
 		}
-		if document.Slug != nil && *document.Slug != "" {
-			lookup["slug"] = strings.Trim(strings.TrimPrefix(*document.Slug, "/"), "/")
+		if lookup.slugs != nil {
+			if parentSlug := lookup.slugs[document.ParentDocumentRef]; parentSlug != "" {
+				lookupFields["slug"] = parentSlug
+			}
 		}
 
 		if change.References == nil {
@@ -1552,7 +1562,7 @@ func (p *Planner) planAPIDocumentUpdate(
 		}
 		change.References["parent_document_id"] = ReferenceInfo{
 			Ref:          document.ParentDocumentRef,
-			LookupFields: lookup,
+			LookupFields: lookupFields,
 		}
 
 		// If parent document change exists, ensure it runs before this update
@@ -1821,7 +1831,7 @@ func (p *Planner) planAPIDocumentsChanges(
 
 	// For each API, plan document changes
 	for apiRef, documents := range documentsByAPI {
-		docPaths := p.buildAPIDocumentPaths(documents)
+		lookup := p.buildAPIDocumentLookup(documents)
 		// Find the API ID from existing changes or state
 		apiID := ""
 		for _, change := range plan.Changes {
@@ -1834,7 +1844,7 @@ func (p *Planner) planAPIDocumentsChanges(
 						parentNamespace = DefaultNamespace
 					}
 					for _, doc := range documents {
-						p.planAPIDocumentCreate(parentNamespace, apiRef, "", doc, []string{change.ID}, docPaths, plan)
+						p.planAPIDocumentCreate(parentNamespace, apiRef, "", doc, []string{change.ID}, lookup, plan)
 					}
 					continue
 				}
@@ -1878,14 +1888,15 @@ func (p *Planner) planAPIDocumentsChanges(
 	return nil
 }
 
-// buildAPIDocumentPaths constructs slug paths for desired API documents using their parent references.
-func (p *Planner) buildAPIDocumentPaths(docs []resources.APIDocumentResource) map[string]string {
+// buildAPIDocumentLookup constructs helper metadata for desired API documents using their parent references.
+func (p *Planner) buildAPIDocumentLookup(docs []resources.APIDocumentResource) apiDocumentLookup {
 	docByRef := make(map[string]resources.APIDocumentResource)
 	for _, doc := range docs {
 		docByRef[doc.Ref] = doc
 	}
 
 	paths := make(map[string]string)
+	slugs := make(map[string]string)
 	visited := make(map[string]bool)
 
 	var resolve func(ref string) string
@@ -1908,6 +1919,7 @@ func (p *Planner) buildAPIDocumentPaths(docs []resources.APIDocumentResource) ma
 		if doc.Slug != nil {
 			slug = strings.Trim(strings.TrimPrefix(*doc.Slug, "/"), "/")
 		}
+		slugs[ref] = slug
 
 		parentRef := doc.ParentDocumentRef
 		if parentRef == "" {
@@ -1944,7 +1956,10 @@ func (p *Planner) buildAPIDocumentPaths(docs []resources.APIDocumentResource) ma
 		resolve(ref)
 	}
 
-	return paths
+	return apiDocumentLookup{
+		paths: paths,
+		slugs: slugs,
+	}
 }
 
 type apiDocumentStateIndex struct {
