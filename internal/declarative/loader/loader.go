@@ -651,7 +651,6 @@ func (l *Loader) extractPortalPages(
 
 // extractNestedResources extracts nested child resources to root level with parent references
 func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
-	// Extract nested API child resources
 	for i := range rs.APIs {
 		api := &rs.APIs[i]
 
@@ -676,11 +675,26 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.APIImplementations = append(rs.APIImplementations, implementation)
 		}
 
-		// Clear nested resources from API
+		// Extract documents (with recursive flattening) and reassign to API
+		docs := make([]resources.APIDocumentResource, 0)
+		for j := range api.Documents {
+			document := api.Documents[j]
+			l.extractAPIDocuments(&docs, document, api.Ref, "")
+		}
+		api.Documents = docs
+
+		// Clear other nested resources from API
 		api.Versions = nil
 		api.Publications = nil
 		api.Implementations = nil
 	}
+
+	// Extract root-level API documents (with recursive flattening)
+	flattenedDocs := make([]resources.APIDocumentResource, 0)
+	for _, document := range rs.APIDocuments {
+		l.extractAPIDocuments(&flattenedDocs, document, document.API, "")
+	}
+	rs.APIDocuments = flattenedDocs
 
 	// Extract nested Portal child resources
 	for i := range rs.Portals {
@@ -720,6 +734,34 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		portal.CustomDomain = nil
 		portal.Pages = nil
 		portal.Snippets = nil
+	}
+}
+
+// extractAPIDocuments recursively extracts and flattens nested API documents
+func (l *Loader) extractAPIDocuments(
+	allDocs *[]resources.APIDocumentResource,
+	doc resources.APIDocumentResource,
+	apiRef string,
+	parentDocRef string,
+) {
+	if apiRef != "" {
+		doc.API = apiRef
+	}
+	if parentDocRef != "" {
+		doc.ParentDocumentRef = parentDocRef
+	}
+
+	children := doc.Children
+	doc.Children = nil
+
+	*allDocs = append(*allDocs, doc)
+
+	for _, child := range children {
+		childAPIRef := apiRef
+		if child.API != "" {
+			childAPIRef = child.API
+		}
+		l.extractAPIDocuments(allDocs, child, childAPIRef, doc.Ref)
 	}
 }
 

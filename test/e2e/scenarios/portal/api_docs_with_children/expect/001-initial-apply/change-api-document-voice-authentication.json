@@ -1,0 +1,25 @@
+{
+  "resource_type": "api_document",
+  "resource_ref": "voice-authentication",
+  "action": "CREATE",
+  "fields": {
+    "slug": "voice-authentication",
+    "status": "published",
+    "title": "Voice API: Authentication Guide"
+  },
+  "references": {
+    "api_id": {
+      "ref": "voice",
+      "lookup_fields": {
+        "name": "Voice API"
+      }
+    },
+    "parent_document_id": {
+      "ref": "voice-errors"
+    }
+  },
+  "parent": {
+    "ref": "voice"
+  },
+  "namespace": "default"
+}

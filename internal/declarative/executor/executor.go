@@ -607,6 +607,66 @@ func (e *Executor) populatePortalPages(ctx context.Context, portalID string) err
 	return nil
 }
 
+// populateAPIDocuments fetches and caches all documents for an API
+func (e *Executor) populateAPIDocuments(ctx context.Context, apiID string) error {
+	if apiID == "" {
+		return fmt.Errorf("API ID is required to populate documents")
+	}
+
+	cachedAPI, exists := e.stateCache.APIs[apiID]
+	if !exists {
+		cachedAPI = &state.CachedAPI{
+			Documents:       make(map[string]*state.CachedAPIDocument),
+			Versions:        make(map[string]*state.APIVersion),
+			Publications:    make(map[string]*state.APIPublication),
+			Implementations: make(map[string]*state.APIImplementation),
+		}
+		e.stateCache.APIs[apiID] = cachedAPI
+	}
+
+	if cachedAPI.Documents == nil {
+		cachedAPI.Documents = make(map[string]*state.CachedAPIDocument)
+	}
+
+	if len(cachedAPI.Documents) > 0 {
+		return nil
+	}
+
+	documents, err := e.client.ListAPIDocuments(ctx, apiID)
+	if err != nil {
+		return fmt.Errorf("failed to list API documents: %w", err)
+	}
+
+	docMap := make(map[string]*state.CachedAPIDocument)
+	for _, doc := range documents {
+		cachedDoc := &state.CachedAPIDocument{
+			APIDocument: doc,
+			Children:    make(map[string]*state.CachedAPIDocument),
+		}
+		docMap[doc.ID] = cachedDoc
+	}
+
+	for _, cachedDoc := range docMap {
+		if cachedDoc.ParentDocumentID == "" {
+			cachedAPI.Documents[cachedDoc.ID] = cachedDoc
+			continue
+		}
+
+		parent, ok := docMap[cachedDoc.ParentDocumentID]
+		if !ok {
+			cachedAPI.Documents[cachedDoc.ID] = cachedDoc
+			continue
+		}
+
+		if parent.Children == nil {
+			parent.Children = make(map[string]*state.CachedAPIDocument)
+		}
+		parent.Children[cachedDoc.ID] = cachedDoc
+	}
+
+	return nil
+}
+
 // resolvePortalPageRef resolves a portal page reference to its ID
 func (e *Executor) resolvePortalPageRef(
 	ctx context.Context, portalID string, pageRef string, lookupFields map[string]string,
@@ -658,6 +718,99 @@ func (e *Executor) resolvePortalPageRef(
 	}
 
 	return "", fmt.Errorf("portal page not found: ref=%s in portal=%s", pageRef, portalID)
+}
+
+// resolveAPIDocumentRef resolves an API document reference to its ID
+func (e *Executor) resolveAPIDocumentRef(
+	ctx context.Context, apiID string, refInfo planner.ReferenceInfo,
+) (string, error) {
+	if refInfo.ID != "" && refInfo.ID != "[unknown]" {
+		return refInfo.ID, nil
+	}
+
+	actualRef := refInfo.Ref
+	if strings.HasPrefix(actualRef, tags.RefPlaceholderPrefix) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(actualRef); ok {
+			actualRef = parsedRef
+		}
+	}
+
+	if docs, ok := e.refToID["api_document"]; ok {
+		if id, found := docs[actualRef]; found {
+			return id, nil
+		}
+	}
+
+	if apiID == "" {
+		return "", fmt.Errorf("API ID is required to resolve document reference")
+	}
+
+	if err := e.populateAPIDocuments(ctx, apiID); err != nil {
+		return "", err
+	}
+
+	cachedAPI, ok := e.stateCache.APIs[apiID]
+	if !ok {
+		return "", fmt.Errorf("API %s not found in cache", apiID)
+	}
+
+	if refInfo.LookupFields != nil {
+		if path, ok := refInfo.LookupFields["slug_path"]; ok && path != "" {
+			if doc := findCachedAPIDocumentByPath(cachedAPI.Documents, path); doc != nil {
+				return doc.ID, nil
+			}
+		}
+		if slug, ok := refInfo.LookupFields["slug"]; ok && slug != "" {
+			if doc := findCachedAPIDocumentByPath(cachedAPI.Documents, slug); doc != nil {
+				return doc.ID, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("failed to resolve API document reference %q", actualRef)
+}
+
+func findCachedAPIDocumentByPath(
+	documents map[string]*state.CachedAPIDocument, path string,
+) *state.CachedAPIDocument {
+	cleanPath := strings.Trim(path, "/")
+	if cleanPath == "" {
+		return nil
+	}
+
+	segments := strings.Split(cleanPath, "/")
+	for _, doc := range documents {
+		if found := traverseCachedAPIDocument(doc, segments); found != nil {
+			return found
+		}
+	}
+
+	return nil
+}
+
+func traverseCachedAPIDocument(
+	doc *state.CachedAPIDocument, segments []string,
+) *state.CachedAPIDocument {
+	if doc == nil || len(segments) == 0 {
+		return nil
+	}
+
+	slug := strings.Trim(strings.TrimPrefix(doc.Slug, "/"), "/")
+	if slug != segments[0] {
+		return nil
+	}
+
+	if len(segments) == 1 {
+		return doc
+	}
+
+	for _, child := range doc.Children {
+		if found := traverseCachedAPIDocument(child, segments[1:]); found != nil {
+			return found
+		}
+	}
+
+	return nil
 }
 
 // Resource operations
@@ -770,6 +923,21 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			apiRef.ID = apiID
 			change.References["api_id"] = apiRef
 		}
+		if parentRef, ok := change.References["parent_document_id"]; ok && parentRef.Ref != "" && parentRef.ID == "" {
+			apiID := ""
+			if apiInfo, exists := change.References["api_id"]; exists {
+				apiID = apiInfo.ID
+			}
+			if apiID == "" && change.Parent != nil {
+				apiID = change.Parent.ID
+			}
+			resolvedParentID, err := e.resolveAPIDocumentRef(ctx, apiID, parentRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve parent document reference: %w", err)
+			}
+			parentRef.ID = resolvedParentID
+			change.References["parent_document_id"] = parentRef
+		}
 		return e.apiDocumentExecutor.Create(ctx, *change)
 	case "application_auth_strategy":
 		// No references to resolve for application_auth_strategy
@@ -851,6 +1019,21 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			// Update the reference with the resolved ID
 			apiRef.ID = apiID
 			change.References["api_id"] = apiRef
+		}
+		if parentRef, ok := change.References["parent_document_id"]; ok && parentRef.Ref != "" && parentRef.ID == "" {
+			apiID := ""
+			if apiInfo, exists := change.References["api_id"]; exists {
+				apiID = apiInfo.ID
+			}
+			if apiID == "" && change.Parent != nil {
+				apiID = change.Parent.ID
+			}
+			resolvedParentID, err := e.resolveAPIDocumentRef(ctx, apiID, parentRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve parent document reference: %w", err)
+			}
+			parentRef.ID = resolvedParentID
+			change.References["parent_document_id"] = parentRef
 		}
 		return e.apiDocumentExecutor.Update(ctx, *change)
 	case "api_publication":

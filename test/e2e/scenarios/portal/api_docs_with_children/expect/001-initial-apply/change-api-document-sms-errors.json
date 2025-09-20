@@ -1,0 +1,25 @@
+{
+  "resource_type": "api_document",
+  "resource_ref": "sms-errors",
+  "action": "CREATE",
+  "fields": {
+    "slug": "sms-errors",
+    "status": "published",
+    "title": "SMS API: Error Handling"
+  },
+  "references": {
+    "api_id": {
+      "ref": "sms",
+      "lookup_fields": {
+        "name": "SMS API"
+      }
+    },
+    "parent_document_id": {
+      "ref": "sms-webhooks"
+    }
+  },
+  "parent": {
+    "ref": "sms"
+  },
+  "namespace": "default"
+}
