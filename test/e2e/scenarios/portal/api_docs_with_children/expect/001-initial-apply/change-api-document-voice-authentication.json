@@ -1,25 +1,25 @@
 {
   "resource_type": "api_document",
-  "resource_ref": "sms-errors",
+  "resource_ref": "voice-authentication",
   "action": "CREATE",
   "fields": {
-    "slug": "sms-errors",
+    "slug": "voice-authentication",
     "status": "published",
-    "title": "SMS API: Error Handling"
+    "title": "Voice API: Authentication Guide"
   },
   "references": {
     "api_id": {
-      "ref": "sms",
+      "ref": "voice",
       "lookup_fields": {
-        "name": "SMS API"
+        "name": "Voice API"
       }
     },
     "parent_document_id": {
-      "ref": "sms-webhooks"
+      "ref": "voice-errors"
     }
   },
   "parent": {
-    "ref": "sms"
+    "ref": "voice"
   },
   "namespace": "default"
 }

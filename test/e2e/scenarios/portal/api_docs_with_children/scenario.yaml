@@ -18,17 +18,22 @@ steps:
           - -f
           - "{{ .workdir }}/apis.yaml"
           - --auto-approve
+        mask:
+          dropKeys:
+            - depends_on
+            - content
+            - id
+            - parent.id
+            - references.api_id
+            - references.parent_document_id.id
         assertions:
           - select: >-
               plan.changes[?resource_type=='api_document' &&
                             resource_ref=='sms-errors'] | [0]
-            mask:
-              dropKeys:
-                - depends_on
-                - content
-                - id
-                - parent.id
-                - references.api_id
-                - references.parent_document_id.id
             expect:
               file: "expect/001-initial-apply/change-api-document-sms-errors.json" 
+          - select: >-
+              plan.changes[?resource_type=='api_document' &&
+                            resource_ref=='voice-authentication'] | [0]
+            expect:
+              file: "expect/001-initial-apply/change-api-document-voice-authentication.json" 
