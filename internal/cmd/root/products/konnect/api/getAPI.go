@@ -35,19 +35,10 @@ var (
 	# Get details for an API with a specific ID 
 	%[1]s get api 22cd8a0b-72e7-4212-9099-0764f8e9c5ac
 	# Get details for an API with a specific name
-	%[1]s get api my-api 
-	# List all APIs with version information
-	%[1]s get apis --include-versions
-	# Get an API with publication information
-	%[1]s get api my-api --include-publications
+	%[1]s get api my-api
 	# Get all the APIs using command aliases
-	%[1]s get as
+	%[1]s get apis
 	`, meta.CLIName)))
-)
-
-const (
-	includeVersionsFlagName     = "include-versions"
-	includePublicationsFlagName = "include-publications"
 )
 
 // Represents a text display record for an API
@@ -61,7 +52,7 @@ type textDisplayRecord struct {
 	LocalUpdatedTime string
 }
 
-func apiToDisplayRecord(a *kkComps.APIResponseSchema, _, includePublications bool) textDisplayRecord {
+func apiToDisplayRecord(a *kkComps.APIResponseSchema) textDisplayRecord {
 	missing := "n/a"
 
 	var id, name string
@@ -87,7 +78,7 @@ func apiToDisplayRecord(a *kkComps.APIResponseSchema, _, includePublications boo
 	// It would require a separate API call to list versions
 
 	publicationCount := missing
-	if includePublications && a.Portals != nil {
+	if a.Portals != nil {
 		publicationCount = fmt.Sprintf("%d", len(a.Portals))
 	}
 
@@ -107,11 +98,9 @@ func apiToDisplayRecord(a *kkComps.APIResponseSchema, _, includePublications boo
 
 type getAPICmd struct {
 	*cobra.Command
-	includeVersions     bool
-	includePublications bool
 }
 
-func runListByName(name string, _, _ bool, kkClient helpers.APIAPI, helper cmd.Helper,
+func runListByName(name string, kkClient helpers.APIAPI, helper cmd.Helper,
 	cfg config.Hook,
 ) (*kkComps.APIResponseSchema, error) {
 	var pageNumber int64 = 1
@@ -154,7 +143,7 @@ func runListByName(name string, _, _ bool, kkClient helpers.APIAPI, helper cmd.H
 	return nil, fmt.Errorf("API with name %s not found", name)
 }
 
-func runList(_, _ bool, kkClient helpers.APIAPI, helper cmd.Helper,
+func runList(kkClient helpers.APIAPI, helper cmd.Helper,
 	cfg config.Hook,
 ) ([]kkComps.APIResponseSchema, error) {
 	var pageNumber int64 = 1
@@ -190,7 +179,7 @@ func runList(_, _ bool, kkClient helpers.APIAPI, helper cmd.Helper,
 	return allData, nil
 }
 
-func runGet(id string, _, _ bool, kkClient helpers.APIAPI, helper cmd.Helper,
+func runGet(id string, kkClient helpers.APIAPI, helper cmd.Helper,
 ) (*kkComps.APIResponseSchema, error) {
 	// Note: FetchAPI doesn't support include parameters
 	// Version and publication information would require separate API calls
@@ -270,10 +259,10 @@ func (c *getAPICmd) runE(cobraCmd *cobra.Command, args []string) error {
 		if !isUUID {
 			// If the ID is not a UUID, then it is a name
 			// search for the API by name
-			api, e := runListByName(id, c.includeVersions, c.includePublications, sdk.GetAPIAPI(), helper, cfg)
+			api, e := runListByName(id, sdk.GetAPIAPI(), helper, cfg)
 			if e == nil {
 				if outType == cmdCommon.TEXT {
-					printer.Print(apiToDisplayRecord(api, c.includeVersions, c.includePublications))
+					printer.Print(apiToDisplayRecord(api))
 				} else {
 					printer.Print(api)
 				}
@@ -281,10 +270,10 @@ func (c *getAPICmd) runE(cobraCmd *cobra.Command, args []string) error {
 				return e
 			}
 		} else {
-			api, e := runGet(id, c.includeVersions, c.includePublications, sdk.GetAPIAPI(), helper)
+			api, e := runGet(id, sdk.GetAPIAPI(), helper)
 			if e == nil {
 				if outType == cmdCommon.TEXT {
-					printer.Print(apiToDisplayRecord(api, c.includeVersions, c.includePublications))
+					printer.Print(apiToDisplayRecord(api))
 				} else {
 					printer.Print(api)
 				}
@@ -294,12 +283,12 @@ func (c *getAPICmd) runE(cobraCmd *cobra.Command, args []string) error {
 		}
 	} else { // list all APIs
 		var apis []kkComps.APIResponseSchema
-		apis, e = runList(c.includeVersions, c.includePublications, sdk.GetAPIAPI(), helper, cfg)
+		apis, e = runList(sdk.GetAPIAPI(), helper, cfg)
 		if e == nil {
 			if outType == cmdCommon.TEXT {
 				var displayRecords []textDisplayRecord
 				for _, api := range apis {
-					displayRecords = append(displayRecords, apiToDisplayRecord(&api, c.includeVersions, c.includePublications))
+					displayRecords = append(displayRecords, apiToDisplayRecord(&api))
 				}
 				printer.Print(displayRecords)
 			} else {
@@ -330,16 +319,29 @@ func newGetAPICmd(verb verbs.VerbValue,
 	}
 	rv.RunE = rv.runE
 
-	// Add include flags
-	rv.Flags().BoolVar(&rv.includeVersions, includeVersionsFlagName, false,
-		i18n.T("root.products.konnect.api.includeVersionsDesc",
-			"Include API versions in the response"))
-	rv.Flags().BoolVar(&rv.includePublications, includePublicationsFlagName, false,
-		i18n.T("root.products.konnect.api.includePublicationsDesc",
-			"Include API publications in the response"))
-
+	// Ensure parent-level flags are available on this command
 	if addParentFlags != nil {
 		addParentFlags(verb, rv.Command)
+	}
+
+	if documentsCmd := newGetAPIDocumentsCmd(verb, addParentFlags, parentPreRun); documentsCmd != nil {
+		rv.AddCommand(documentsCmd)
+	}
+
+	if versionsCmd := newGetAPIVersionsCmd(verb, addParentFlags, parentPreRun); versionsCmd != nil {
+		rv.AddCommand(versionsCmd)
+	}
+
+	if publicationsCmd := newGetAPIPublicationsCmd(verb, addParentFlags, parentPreRun); publicationsCmd != nil {
+		rv.AddCommand(publicationsCmd)
+	}
+
+	if attributesCmd := newGetAPIAttributesCmd(verb, addParentFlags, parentPreRun); attributesCmd != nil {
+		rv.AddCommand(attributesCmd)
+	}
+
+	if implementationsCmd := newGetAPIImplementationsCmd(verb, addParentFlags, parentPreRun); implementationsCmd != nil {
+		rv.AddCommand(implementationsCmd)
 	}
 
 	return &rv

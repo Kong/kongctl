@@ -64,12 +64,14 @@ Setting this value overrides tokens obtained from the login command.
   kongctl get apis
   # Get a specific API
   kongctl get api <id|name>
-  # List APIs with version information
-  kongctl get apis --include-versions
-  # Get an API with publication information
-  kongctl get api <id|name> --include-publications
+  # List documents for a specific API
+  kongctl get api documents --api-id <api-id>
+  # List versions for a specific API
+  kongctl get api versions --api-id <api-id>
+  # List publications for a specific API
+  kongctl get api publications --api-id <api-id>
   # List APIs using aliases
-  kongctl get as`
+  kongctl get apis`
 
 	return apiCmd, nil
 }

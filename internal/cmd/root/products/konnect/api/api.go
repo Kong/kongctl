@@ -27,10 +27,14 @@ var (
 	%[1]s get apis
 	# Get a specific Konnect API
 	%[1]s get api <id|name>
-	# List APIs with version information
-	%[1]s get apis --include-versions
-	# Get an API with publication information
-	%[1]s get api <id|name> --include-publications
+	# List API documents for a specific API
+	%[1]s get api documents --api-id <api-id>
+	# List API versions for a specific API
+	%[1]s get api versions --api-id <api-id>
+	# List API publications for a specific API
+	%[1]s get api publications --api-id <api-id>
+	# List API implementations for a specific API
+	%[1]s get api implementations --api-id <api-id>
 	# List APIs using explicit konnect product
 	%[1]s get konnect apis
 	`, meta.CLIName)))
@@ -45,7 +49,7 @@ func NewAPICmd(verb verbs.VerbValue,
 		Short:   apiShort,
 		Long:    apiLong,
 		Example: apiExample,
-		Aliases: []string{"apis", "a", "as", "A", "AS"},
+		Aliases: []string{"apis", "a", "A"},
 	}
 
 	switch verb {

@@ -62,10 +62,14 @@ Setting this value overrides tokens obtained from the login command.
 	// Override the example to show direct usage without "konnect"
 	apiCmd.Example = `  # List all the APIs for the organization
   kongctl list apis
-  # List APIs with version information
-  kongctl list apis --include-versions
+  # List documents for a specific API
+  kongctl list api documents --api-id <api-id>
+  # List versions for a specific API
+  kongctl list api versions --api-id <api-id>
+  # List publications for a specific API
+  kongctl list api publications --api-id <api-id>
   # List APIs using aliases
-  kongctl list as`
+  kongctl list apis`
 
 	return apiCmd, nil
 }
