@@ -1,0 +1,453 @@
+package portal
+
+import (
+	"fmt"
+	"strings"
+
+	kk "github.com/Kong/sdk-konnect-go"
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/kong/kongctl/internal/cmd"
+	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util"
+	"github.com/kong/kongctl/internal/util/i18n"
+	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/segmentio/cli"
+	"github.com/spf13/cobra"
+)
+
+const (
+	applicationsCommandName = "applications"
+)
+
+type portalApplicationSummaryRecord struct {
+	ID                string
+	Name              string
+	Type              string
+	AuthStrategy      string
+	CredentialDetail  string
+	RegistrationCount int
+	LocalCreatedTime  string
+	LocalUpdatedTime  string
+}
+
+type portalApplicationDetailRecord struct {
+	ID                string
+	Name              string
+	Type              string
+	AuthStrategy      string
+	CredentialDetail  string
+	ClientID          string
+	GrantedScopes     string
+	RegistrationCount int
+	LocalCreatedTime  string
+	LocalUpdatedTime  string
+}
+
+var (
+	applicationsUse = applicationsCommandName
+
+	applicationsShort = i18n.T("root.products.konnect.portal.applicationsShort",
+		"Manage portal applications for a Konnect portal")
+	applicationsLong = normalizers.LongDesc(i18n.T("root.products.konnect.portal.applicationsLong",
+		`Use the applications command to list or retrieve applications for a specific Konnect portal.`))
+	applicationsExample = normalizers.Examples(
+		i18n.T("root.products.konnect.portal.applicationsExamples",
+			fmt.Sprintf(`
+# List applications for a portal by ID
+%[1]s get portal applications --portal-id <portal-id>
+# List applications for a portal by name
+%[1]s get portal applications --portal-name my-portal
+# Get a specific application by ID
+%[1]s get portal applications --portal-id <portal-id> <application-id>
+# Get a specific application by name
+%[1]s get portal applications --portal-id <portal-id> checkout-app
+`, meta.CLIName)))
+)
+
+func newGetPortalApplicationsCmd(
+	verb verbs.VerbValue,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     applicationsUse,
+		Short:   applicationsShort,
+		Long:    applicationsLong,
+		Example: applicationsExample,
+		Aliases: []string{"application", "apps"},
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if parentPreRun != nil {
+				if err := parentPreRun(cmd, args); err != nil {
+					return err
+				}
+			}
+			return bindPortalChildFlags(cmd, args)
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			handler := portalApplicationsHandler{cmd: cmd}
+			return handler.run(args)
+		},
+	}
+
+	addPortalChildFlags(cmd)
+
+	if addParentFlags != nil {
+		addParentFlags(verb, cmd)
+	}
+
+	return cmd
+}
+
+type portalApplicationsHandler struct {
+	cmd *cobra.Command
+}
+
+func (h portalApplicationsHandler) run(args []string) error {
+	helper := cmd.BuildHelper(h.cmd, args)
+
+	if len(args) > 1 {
+		return &cmd.ConfigurationError{
+			Err: fmt.Errorf("too many arguments. Listing portal applications requires 0 or 1 arguments (ID or name)"),
+		}
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return err
+	}
+
+	outType, err := helper.GetOutputFormat()
+	if err != nil {
+		return err
+	}
+
+	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
+	if err != nil {
+		return err
+	}
+	defer printer.Flush()
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return err
+	}
+
+	portalID, portalName := getPortalIdentifiers(cfg)
+	if portalID != "" && portalName != "" {
+		return &cmd.ConfigurationError{
+			Err: fmt.Errorf("only one of --%s or --%s can be provided", portalIDFlagName, portalNameFlagName),
+		}
+	}
+
+	if portalID == "" && portalName == "" {
+		return &cmd.ConfigurationError{
+			Err: fmt.Errorf("a portal identifier is required. Provide --%s or --%s", portalIDFlagName, portalNameFlagName),
+		}
+	}
+
+	if portalID == "" {
+		portalID, err = resolvePortalIDByName(portalName, sdk.GetPortalAPI(), helper, cfg)
+		if err != nil {
+			return err
+		}
+	}
+
+	appAPI := sdk.GetPortalApplicationAPI()
+	if appAPI == nil {
+		return &cmd.ExecutionError{
+			Msg: "Portal applications client is not available",
+			Err: fmt.Errorf("portal applications client not configured"),
+		}
+	}
+
+	if len(args) == 1 {
+		return h.getSingleApplication(helper, appAPI, portalID, strings.TrimSpace(args[0]), outType, printer, cfg)
+	}
+
+	return h.listApplications(helper, appAPI, portalID, outType, printer, cfg)
+}
+
+func (h portalApplicationsHandler) listApplications(
+	helper cmd.Helper,
+	appAPI helpers.PortalApplicationAPI,
+	portalID string,
+	outType cmdCommon.OutputFormat,
+	printer cli.Printer,
+	cfg config.Hook,
+) error {
+	apps, err := fetchPortalApplications(helper, appAPI, portalID, cfg)
+	if err != nil {
+		return err
+	}
+
+	if outType == cmdCommon.TEXT {
+		records := make([]portalApplicationSummaryRecord, 0, len(apps))
+		for _, app := range apps {
+			records = append(records, portalApplicationSummaryToRecord(app))
+		}
+		printer.Print(records)
+		return nil
+	}
+
+	printer.Print(apps)
+	return nil
+}
+
+func (h portalApplicationsHandler) getSingleApplication(
+	helper cmd.Helper,
+	appAPI helpers.PortalApplicationAPI,
+	portalID string,
+	identifier string,
+	outType cmdCommon.OutputFormat,
+	printer cli.Printer,
+	cfg config.Hook,
+) error {
+	appID := identifier
+	if !util.IsValidUUID(identifier) {
+		apps, err := fetchPortalApplications(helper, appAPI, portalID, cfg)
+		if err != nil {
+			return err
+		}
+		match := findApplicationByName(apps, identifier)
+		if match == nil {
+			return &cmd.ConfigurationError{
+				Err: fmt.Errorf("application %q not found", identifier),
+			}
+		}
+		appID = matchID(*match)
+	}
+
+	res, err := appAPI.GetApplication(helper.GetContext(), portalID, appID)
+	if err != nil {
+		attrs := cmd.TryConvertErrorToAttrs(err)
+		return cmd.PrepareExecutionError("Failed to get portal application", err, helper.GetCmd(), attrs...)
+	}
+
+	app := res.GetGetApplicationResponse()
+	if app == nil {
+		return &cmd.ExecutionError{
+			Msg: "Portal application response was empty",
+			Err: fmt.Errorf("no application returned for id %s", appID),
+		}
+	}
+
+	if outType == cmdCommon.TEXT {
+		printer.Print(portalApplicationDetailToRecord(app))
+		return nil
+	}
+
+	printer.Print(app)
+	return nil
+}
+
+func fetchPortalApplications(
+	helper cmd.Helper,
+	appAPI helpers.PortalApplicationAPI,
+	portalID string,
+	cfg config.Hook,
+) ([]kkComps.Application, error) {
+	var pageNumber int64 = 1
+	pageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
+	if pageSize < 1 {
+		pageSize = int64(common.DefaultRequestPageSize)
+	}
+
+	var all []kkComps.Application
+
+	for {
+		req := kkOps.ListApplicationsRequest{
+			PortalID:   portalID,
+			PageSize:   kk.Int64(pageSize),
+			PageNumber: kk.Int64(pageNumber),
+		}
+
+		res, err := appAPI.ListApplications(helper.GetContext(), req)
+		if err != nil {
+			attrs := cmd.TryConvertErrorToAttrs(err)
+			return nil, cmd.PrepareExecutionError("Failed to list portal applications", err, helper.GetCmd(), attrs...)
+		}
+
+		if res.GetListApplicationsResponse() == nil {
+			break
+		}
+
+		data := res.GetListApplicationsResponse().GetData()
+		all = append(all, data...)
+
+		total := int(res.GetListApplicationsResponse().GetMeta().Page.Total)
+		if total == 0 || len(all) >= total || len(data) == 0 {
+			break
+		}
+
+		pageNumber++
+	}
+
+	return all, nil
+}
+
+func findApplicationByName(apps []kkComps.Application, identifier string) *kkComps.Application {
+	lowered := strings.ToLower(identifier)
+	for _, app := range apps {
+		id, name := helpers.ApplicationSummary(app)
+		if name != "" && strings.ToLower(name) == lowered {
+			appCopy := app
+			return &appCopy
+		}
+		if id != "" && strings.ToLower(id) == lowered {
+			appCopy := app
+			return &appCopy
+		}
+	}
+	return nil
+}
+
+func portalApplicationSummaryToRecord(app kkComps.Application) portalApplicationSummaryRecord {
+	switch app.Type {
+	case kkComps.ApplicationTypeApplicationKeyAuthApplication:
+		key := app.ApplicationKeyAuthApplication
+		if key == nil {
+			return portalApplicationSummaryRecord{
+				Type:             "key-auth",
+				ID:               valueNA,
+				Name:             valueNA,
+				AuthStrategy:     valueNA,
+				CredentialDetail: valueNA,
+				LocalCreatedTime: valueNA,
+				LocalUpdatedTime: valueNA,
+			}
+		}
+		strategy := key.GetAuthStrategy()
+		return portalApplicationSummaryRecord{
+			ID:                key.GetID(),
+			Name:              key.GetName(),
+			Type:              "key-auth",
+			AuthStrategy:      strategy.Name,
+			CredentialDetail:  joinOrNA(strategy.KeyNames),
+			RegistrationCount: int(key.GetRegistrationCount()),
+			LocalCreatedTime:  formatTime(key.GetCreatedAt()),
+			LocalUpdatedTime:  formatTime(key.GetUpdatedAt()),
+		}
+	case kkComps.ApplicationTypeApplicationClientCredentialsApplication:
+		client := app.ApplicationClientCredentialsApplication
+		if client == nil {
+			return portalApplicationSummaryRecord{
+				Type:             "client-credentials",
+				ID:               valueNA,
+				Name:             valueNA,
+				AuthStrategy:     valueNA,
+				CredentialDetail: valueNA,
+				LocalCreatedTime: valueNA,
+				LocalUpdatedTime: valueNA,
+			}
+		}
+		strategy := client.GetAuthStrategy()
+		return portalApplicationSummaryRecord{
+			ID:                client.GetID(),
+			Name:              client.GetName(),
+			Type:              "client-credentials",
+			AuthStrategy:      strategy.Name,
+			CredentialDetail:  joinOrNA(strategy.AuthMethods),
+			RegistrationCount: int(client.GetRegistrationCount()),
+			LocalCreatedTime:  formatTime(client.GetCreatedAt()),
+			LocalUpdatedTime:  formatTime(client.GetUpdatedAt()),
+		}
+	default:
+		return portalApplicationSummaryRecord{
+			ID:               valueNA,
+			Name:             valueNA,
+			Type:             string(app.Type),
+			AuthStrategy:     valueNA,
+			CredentialDetail: valueNA,
+			LocalCreatedTime: valueNA,
+			LocalUpdatedTime: valueNA,
+		}
+	}
+}
+
+func portalApplicationDetailToRecord(app *kkComps.GetApplicationResponse) portalApplicationDetailRecord {
+	if app.KeyAuthApplication != nil {
+		key := app.KeyAuthApplication
+		strategy := key.GetAuthStrategy()
+		return portalApplicationDetailRecord{
+			ID:                key.GetID(),
+			Name:              key.GetName(),
+			Type:              "key-auth",
+			AuthStrategy:      strategy.Name,
+			CredentialDetail:  joinOrNA(strategy.KeyNames),
+			ClientID:          valueNA,
+			GrantedScopes:     valueNA,
+			RegistrationCount: int(key.GetRegistrationCount()),
+			LocalCreatedTime:  formatTime(key.GetCreatedAt()),
+			LocalUpdatedTime:  formatTime(key.GetUpdatedAt()),
+		}
+	}
+
+	if app.ClientCredentialsApplication != nil {
+		client := app.ClientCredentialsApplication
+		strategy := client.GetAuthStrategy()
+		return portalApplicationDetailRecord{
+			ID:                client.GetID(),
+			Name:              client.GetName(),
+			Type:              "client-credentials",
+			AuthStrategy:      strategy.Name,
+			CredentialDetail:  joinOrNA(strategy.AuthMethods),
+			ClientID:          nonEmptyOrNA(client.GetClientID()),
+			GrantedScopes:     joinOrNA(client.GetGrantedScopes()),
+			RegistrationCount: int(client.GetRegistrationCount()),
+			LocalCreatedTime:  formatTime(client.GetCreatedAt()),
+			LocalUpdatedTime:  formatTime(client.GetUpdatedAt()),
+		}
+	}
+
+	return portalApplicationDetailRecord{
+		ID:                valueNA,
+		Name:              valueNA,
+		Type:              valueNA,
+		AuthStrategy:      valueNA,
+		CredentialDetail:  valueNA,
+		ClientID:          valueNA,
+		GrantedScopes:     valueNA,
+		RegistrationCount: 0,
+		LocalCreatedTime:  valueNA,
+		LocalUpdatedTime:  valueNA,
+	}
+}
+
+func joinOrNA(values []string) string {
+	if len(values) == 0 {
+		return valueNA
+	}
+	joined := strings.Join(values, ", ")
+	if joined == "" {
+		return valueNA
+	}
+	return joined
+}
+
+func nonEmptyOrNA(val string) string {
+	if strings.TrimSpace(val) == "" {
+		return valueNA
+	}
+	return val
+}
+
+func matchID(app kkComps.Application) string {
+	if app.ApplicationClientCredentialsApplication != nil {
+		return app.ApplicationClientCredentialsApplication.GetID()
+	}
+	if app.ApplicationKeyAuthApplication != nil {
+		return app.ApplicationKeyAuthApplication.GetID()
+	}
+	return ""
+}
