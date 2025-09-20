@@ -23,13 +23,17 @@ var (
 	portalExample = normalizers.Examples(
 		i18n.T("root.products.konnect.portal.portalExamples",
 			fmt.Sprintf(`
-	# List all the Konnect portals for the organization
-	%[1]s get portals
-	# Get a specific Konnect portal
-	%[1]s get portal <id|name>
-	# List portals using explicit konnect product
-	%[1]s get konnect portals
-	`, meta.CLIName)))
+# List all the Konnect portals for the organization
+%[1]s get portals
+# Get a specific Konnect portal
+%[1]s get portal <id|name>
+# List portal pages
+%[1]s get portal pages --portal-id <portal-id>
+# List portal applications
+%[1]s get portal applications --portal-id <portal-id>
+# List portals using explicit konnect product
+%[1]s get konnect portals
+`, meta.CLIName)))
 )
 
 func NewPortalCmd(verb verbs.VerbValue,

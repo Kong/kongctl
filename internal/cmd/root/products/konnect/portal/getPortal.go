@@ -347,5 +347,25 @@ func newGetPortalCmd(verb verbs.VerbValue,
 		addParentFlags(verb, rv.Command)
 	}
 
+	if pagesCmd := newGetPortalPagesCmd(verb, addParentFlags, parentPreRun); pagesCmd != nil {
+		rv.AddCommand(pagesCmd)
+	}
+
+	if snippetsCmd := newGetPortalSnippetsCmd(verb, addParentFlags, parentPreRun); snippetsCmd != nil {
+		rv.AddCommand(snippetsCmd)
+	}
+
+	if applicationsCmd := newGetPortalApplicationsCmd(verb, addParentFlags, parentPreRun); applicationsCmd != nil {
+		rv.AddCommand(applicationsCmd)
+	}
+
+	if teamsCmd := newGetPortalTeamsCmd(verb, addParentFlags, parentPreRun); teamsCmd != nil {
+		rv.AddCommand(teamsCmd)
+	}
+
+	if developersCmd := newGetPortalDevelopersCmd(verb, addParentFlags, parentPreRun); developersCmd != nil {
+		rv.AddCommand(developersCmd)
+	}
+
 	return &rv
 }

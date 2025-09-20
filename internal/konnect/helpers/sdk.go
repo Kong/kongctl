@@ -31,6 +31,9 @@ type SDKAPI interface {
 	GetPortalCustomizationAPI() PortalCustomizationAPI
 	GetPortalCustomDomainAPI() PortalCustomDomainAPI
 	GetPortalSnippetAPI() PortalSnippetAPI
+	GetPortalApplicationAPI() PortalApplicationAPI
+	GetPortalDeveloperAPI() PortalDeveloperAPI
+	GetPortalTeamAPI() PortalTeamAPI
 }
 
 // This is the real implementation of the SDKAPI
@@ -144,6 +147,33 @@ func (k *KonnectSDK) GetPortalSnippetAPI() PortalSnippetAPI {
 	}
 
 	return &PortalSnippetAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the PortalApplicationAPI interface
+func (k *KonnectSDK) GetPortalApplicationAPI() PortalApplicationAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &PortalApplicationAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the PortalDeveloperAPI interface
+func (k *KonnectSDK) GetPortalDeveloperAPI() PortalDeveloperAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &PortalDeveloperAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the PortalTeamAPI interface
+func (k *KonnectSDK) GetPortalTeamAPI() PortalTeamAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &PortalTeamAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the MeAPI interface
