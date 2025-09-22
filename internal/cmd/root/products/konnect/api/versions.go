@@ -297,10 +297,9 @@ func findVersionByString(
 	identifier string,
 ) *kkComps.ListAPIVersionResponseAPIVersionSummary {
 	lowered := strings.ToLower(identifier)
-	for _, summary := range summaries {
-		if strings.ToLower(summary.GetVersion()) == lowered {
-			summaryCopy := summary
-			return &summaryCopy
+	for i := range summaries {
+		if strings.ToLower(summaries[i].GetVersion()) == lowered {
+			return &summaries[i]
 		}
 	}
 	return nil
