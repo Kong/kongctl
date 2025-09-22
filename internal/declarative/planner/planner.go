@@ -13,8 +13,11 @@ import (
 
 // Options configures plan generation behavior
 type Options struct {
-	Mode PlanMode
+	Mode      PlanMode
+	Generator string
 }
+
+const defaultGenerator = "kongctl/dev"
 
 // Planner generates execution plans
 type Planner struct {
@@ -67,8 +70,13 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 
 // GeneratePlan creates a plan from declarative configuration
 func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, opts Options) (*Plan, error) {
+	generator := opts.Generator
+	if generator == "" {
+		generator = defaultGenerator
+	}
+
 	// Create base plan
-	basePlan := NewPlan("1.0", "kongctl/dev", opts.Mode)
+	basePlan := NewPlan("1.0", generator, opts.Mode)
 
 	// Pre-resolution phase: Resolve resource identities before planning
 	if err := p.resolveResourceIdentities(ctx, rs); err != nil {
@@ -131,7 +139,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.desiredPortalCustomDomains = rs.PortalCustomDomains
 
 		// Create a plan for this namespace
-		namespacePlan := NewPlan("1.0", "kongctl/dev", opts.Mode)
+		namespacePlan := NewPlan("1.0", generator, opts.Mode)
 
 		// Generate changes using interface-based planners
 		// Pass the specific namespace to planners instead of wildcard
