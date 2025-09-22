@@ -61,7 +61,7 @@ func resolveAPIIDByName(
 	helper cmd.Helper,
 	cfg config.Hook,
 ) (string, error) {
-	api, err := helpers.RunListByName(name, apiClient, helper, cfg)
+	api, err := runListByName(name, apiClient, helper, cfg)
 	if err != nil {
 		var execErr *cmd.ExecutionError
 		if errors.As(err, &execErr) {
