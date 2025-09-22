@@ -17,6 +17,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/kong/kongctl/internal/meta"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
 )
@@ -32,6 +33,20 @@ const (
 	// textOutputFormat is the string constant for text output format
 	textOutputFormat = "text"
 )
+
+func planGenerator(helper cmd.Helper) string {
+	buildInfo, err := helper.GetBuildInfo()
+	if err != nil || buildInfo == nil {
+		return fmt.Sprintf("%s/dev", meta.CLIName)
+	}
+
+	version := strings.TrimSpace(buildInfo.Version)
+	if version == "" {
+		version = "dev"
+	}
+
+	return fmt.Sprintf("%s/%s", meta.CLIName, version)
+}
 
 // NewDeclarativeCmd creates the appropriate declarative command based on the verb
 func NewDeclarativeCmd(verb verbs.VerbValue) (*cobra.Command, error) {
@@ -97,6 +112,7 @@ func runPlan(command *cobra.Command, args []string) error {
 
 	// Build helper
 	helper := cmd.BuildHelper(command, args)
+	generator := planGenerator(helper)
 
 	// Get configuration
 	cfg, err := helper.GetConfig()
@@ -206,7 +222,8 @@ func runPlan(command *cobra.Command, args []string) error {
 
 	// Generate plan
 	opts := planner.Options{
-		Mode: planMode,
+		Mode:      planMode,
+		Generator: generator,
 	}
 	plan, err := p.GeneratePlan(ctx, resourceSet, opts)
 	if err != nil {
@@ -259,6 +276,7 @@ func runDiff(command *cobra.Command, args []string) error {
 
 		// Build helper
 		helper := cmd.BuildHelper(command, args)
+		generator := planGenerator(helper)
 
 		// Get configuration
 		cfg, err := helper.GetConfig()
@@ -313,7 +331,8 @@ func runDiff(command *cobra.Command, args []string) error {
 
 		// Generate plan (default to sync mode for diff)
 		opts := planner.Options{
-			Mode: planner.PlanModeSync,
+			Mode:      planner.PlanModeSync,
+			Generator: generator,
 		}
 		plan, err = p.GeneratePlan(ctx, resourceSet, opts)
 		if err != nil {
@@ -690,6 +709,7 @@ func runApply(command *cobra.Command, args []string) error {
 
 	// Build helper
 	helper := cmd.BuildHelper(command, args)
+	generator := planGenerator(helper)
 
 	// Get configuration
 	cfg, err := helper.GetConfig()
@@ -766,7 +786,8 @@ func runApply(command *cobra.Command, args []string) error {
 
 		// Generate plan in apply mode
 		opts := planner.Options{
-			Mode: planner.PlanModeApply,
+			Mode:      planner.PlanModeApply,
+			Generator: generator,
 		}
 		plan, err = p.GeneratePlan(ctx, resourceSet, opts)
 		if err != nil {
@@ -1100,6 +1121,7 @@ func runSync(command *cobra.Command, args []string) error {
 
 	// Build helper
 	helper := cmd.BuildHelper(command, args)
+	generator := planGenerator(helper)
 
 	// Get configuration
 	cfg, err := helper.GetConfig()
@@ -1189,7 +1211,8 @@ func runSync(command *cobra.Command, args []string) error {
 
 		// Generate plan in sync mode
 		opts := planner.Options{
-			Mode: planner.PlanModeSync,
+			Mode:      planner.PlanModeSync,
+			Generator: generator,
 		}
 		plan, err = p.GeneratePlan(ctx, resourceSet, opts)
 		if err != nil {
