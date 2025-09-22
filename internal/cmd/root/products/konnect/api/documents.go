@@ -335,9 +335,8 @@ func findDocumentBySlugOrTitle(
 	identifier string,
 ) *kkComps.APIDocumentSummaryWithChildren {
 	for _, d := range docs {
-		doc := d
-		if strings.EqualFold(doc.Slug, identifier) || strings.EqualFold(doc.Title, identifier) {
-			return &doc
+		if strings.EqualFold(d.Slug, identifier) || strings.EqualFold(d.Title, identifier) {
+			return &d
 		}
 	}
 	return nil
