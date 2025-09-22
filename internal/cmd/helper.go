@@ -53,7 +53,21 @@ func (r *CommandHelper) GetArgs() []string {
 }
 
 func (r *CommandHelper) GetBuildInfo() (*build.Info, error) {
-	return r.Cmd.Context().Value(build.InfoKey).(*build.Info), nil
+	val := r.Cmd.Context().Value(build.InfoKey)
+	if val == nil {
+		return nil, &ConfigurationError{
+			Err: fmt.Errorf("no build info configured"),
+		}
+	}
+
+	info, ok := val.(*build.Info)
+	if !ok || info == nil {
+		return nil, &ConfigurationError{
+			Err: fmt.Errorf("invalid build info configured"),
+		}
+	}
+
+	return info, nil
 }
 
 func (r *CommandHelper) GetLogger() (*slog.Logger, error) {
