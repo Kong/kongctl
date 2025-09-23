@@ -142,6 +142,8 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 
 	if totalParents == 0 {
 		switch req.Mode {
+		case NamespaceRequirementNone:
+			return nil
 		case NamespaceRequirementAny:
 			if rs.DefaultNamespace == "" {
 				return fmt.Errorf("namespace enforcement requires resources or _defaults.kongctl.namespace to be set")
@@ -172,14 +174,18 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 		}
 
 		switch req.Mode {
+		case NamespaceRequirementNone:
+			return
 		case NamespaceRequirementAny:
-			if meta == nil || meta.Namespace == nil || origin == resources.NamespaceOriginImplicitDefault || origin == resources.NamespaceOriginUnset {
+			if meta == nil || meta.Namespace == nil ||
+				origin == resources.NamespaceOriginImplicitDefault || origin == resources.NamespaceOriginUnset {
 				reason := "missing explicit namespace; add kongctl.namespace or set _defaults.kongctl.namespace"
 				violations = append(violations, fmt.Sprintf("%s '%s': %s", resourceType, ref, reason))
 			}
 		case NamespaceRequirementSpecific:
 			namespace := resources.GetNamespace(meta)
-			if meta == nil || meta.Namespace == nil || origin == resources.NamespaceOriginImplicitDefault || origin == resources.NamespaceOriginUnset {
+			if meta == nil || meta.Namespace == nil ||
+				origin == resources.NamespaceOriginImplicitDefault || origin == resources.NamespaceOriginUnset {
 				reason := fmt.Sprintf(
 					"missing explicit namespace; expected '%s' via kongctl.namespace or _defaults.kongctl.namespace",
 					req.Namespace,
