@@ -44,12 +44,21 @@ type InlineOp struct {
 }
 
 type Command struct {
-	Name       string      `yaml:"name"`
-	Run        []string    `yaml:"run"`
-	ResetOrg   bool        `yaml:"resetOrg"`
-	Mask       Mask        `yaml:"mask"`
-	Retry      Retry       `yaml:"retry"`
-	Assertions []Assertion `yaml:"assertions"`
+	Name       string           `yaml:"name"`
+	Run        []string         `yaml:"run"`
+	ResetOrg   bool             `yaml:"resetOrg"`
+	Mask       Mask             `yaml:"mask"`
+	Retry      Retry            `yaml:"retry"`
+	Assertions []Assertion      `yaml:"assertions"`
+	ExpectFail *ExpectedFailure `yaml:"expectFailure"`
+}
+
+// ExpectedFailure describes the failure conditions that a command is expected to hit.
+// When present, the command harness treats a non-zero exit as success if it matches
+// the provided expectations.
+type ExpectedFailure struct {
+	ExitCode *int   `yaml:"exitCode"`
+	Contains string `yaml:"contains"`
 }
 
 type Assertion struct {

@@ -1,0 +1,13 @@
+_defaults:
+  kongctl:
+    namespace: e2e-require-namespace
+
+portals: []
+#  - ref: simple-portal
+#    name: My Simple Portal 
+#    display_name: Simple Portal ©
+#    description: A simple developer portal for API documentation
+apis:
+  - ref: simple-api
+    name: My Simple API
+    description: The simplest API example 
