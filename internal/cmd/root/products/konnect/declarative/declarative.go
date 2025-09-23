@@ -11,11 +11,13 @@ import (
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/executor"
 	"github.com/kong/kongctl/internal/declarative/loader"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/validator"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/spf13/cobra"
@@ -32,7 +34,56 @@ const (
 	planFileKey contextKey = "plan_file"
 	// textOutputFormat is the string constant for text output format
 	textOutputFormat = "text"
+	// requireNamespaceFlagName is the CLI flag for namespace enforcement
+	requireNamespaceFlagName = "require-namespace"
+	// requireNamespaceConfigPath is the config path backing the namespace flag
+	requireNamespaceConfigPath = "konnect.declarative." + requireNamespaceFlagName
+	// requireNamespaceNoOptValue is the value used when the flag is provided without an argument
+	requireNamespaceNoOptValue = "true"
 )
+
+func addRequireNamespaceFlag(cmd *cobra.Command) {
+	cmd.Flags().String(requireNamespaceFlagName, "",
+		fmt.Sprintf(`Require namespaces for all resources. Provide a namespace value to enforce a specific namespace.
+- Config path: [ %s ]`, requireNamespaceConfigPath))
+	if flag := cmd.Flags().Lookup(requireNamespaceFlagName); flag != nil {
+		flag.NoOptDefVal = requireNamespaceNoOptValue
+	}
+}
+
+func parseNamespaceRequirement(
+	command *cobra.Command,
+	cfg config.Hook,
+	nsValidator *validator.NamespaceValidator,
+) (validator.NamespaceRequirement, error) {
+	flag := command.Flags().Lookup(requireNamespaceFlagName)
+	if flag == nil {
+		return validator.NamespaceRequirement{Mode: validator.NamespaceRequirementNone}, nil
+	}
+
+	if err := cfg.BindFlag(requireNamespaceConfigPath, flag); err != nil {
+		return validator.NamespaceRequirement{}, err
+	}
+
+	raw := cfg.GetString(requireNamespaceConfigPath)
+	if raw == "" {
+		raw = flag.Value.String()
+	}
+
+	return nsValidator.ParseNamespaceRequirement(raw)
+}
+
+func resolveNamespaceRequirement(
+	command *cobra.Command,
+	cfg config.Hook,
+) (*validator.NamespaceValidator, validator.NamespaceRequirement, error) {
+	nsValidator := validator.NewNamespaceValidator()
+	requirement, err := parseNamespaceRequirement(command, cfg, nsValidator)
+	if err != nil {
+		return nil, validator.NamespaceRequirement{}, err
+	}
+	return nsValidator, requirement, nil
+}
 
 func planGenerator(helper cmd.Helper) string {
 	buildInfo, err := helper.GetBuildInfo()
@@ -86,6 +137,7 @@ for review, approval workflows, or as input to sync operations.`,
 		"Process the directory used in -f, --filename recursively")
 	cmd.Flags().String("output-file", "", "Save plan artifact to file")
 	cmd.Flags().String("mode", "sync", "Plan generation mode (sync|apply)")
+	addRequireNamespaceFlag(cmd)
 
 	return cmd
 }
@@ -119,7 +171,6 @@ func runPlan(command *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-
 	// Get logger
 	logger, err := helper.GetLogger()
 	if err != nil {
@@ -130,6 +181,11 @@ func runPlan(command *cobra.Command, args []string) error {
 	kkClient, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Konnect client: %w", err)
+	}
+
+	nsValidator, requirement, err := resolveNamespaceRequirement(command, cfg)
+	if err != nil {
+		return err
 	}
 
 	// Parse sources from filenames
@@ -154,6 +210,10 @@ func runPlan(command *cobra.Command, args []string) error {
 	// Check if configuration is empty
 	totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
 		len(resourceSet.ControlPlanes) + len(resourceSet.APIs)
+
+	if err := nsValidator.ValidateNamespaceRequirement(resourceSet, requirement); err != nil {
+		return err
+	}
 
 	if totalResources == 0 {
 		// Check if we're using default directory (no explicit sources)
@@ -257,79 +317,73 @@ func runDiff(command *cobra.Command, args []string) error {
 	command.SilenceUsage = true
 
 	ctx := command.Context()
+	helper := cmd.BuildHelper(command, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	nsValidator, requirement, err := resolveNamespaceRequirement(command, cfg)
+	if err != nil {
+		return err
+	}
+
+	planFile, _ := command.Flags().GetString("plan")
+	if requirement.Mode != validator.NamespaceRequirementNone && planFile != "" {
+		return fmt.Errorf("--%s cannot be used together with --plan; generate the plan with namespace enforcement enabled instead", requireNamespaceFlagName)
+	}
+
 	var plan *planner.Plan
 
-	// Check if plan file is provided
-	planFile, _ := command.Flags().GetString("plan")
-
 	if planFile != "" {
-		// Load existing plan
-		var err error
 		plan, err = common.LoadPlan(planFile, command.InOrStdin())
 		if err != nil {
 			return err
 		}
 	} else {
-		// Generate new plan from configuration files
 		filenames, _ := command.Flags().GetStringSlice("filename")
 		recursive, _ := command.Flags().GetBool("recursive")
-
-		// Build helper
-		helper := cmd.BuildHelper(command, args)
 		generator := planGenerator(helper)
 
-		// Get configuration
-		cfg, err := helper.GetConfig()
-		if err != nil {
-			return err
-		}
-
-		// Get logger
 		logger, err := helper.GetLogger()
 		if err != nil {
 			return err
 		}
 
-		// Get Konnect SDK
 		kkClient, err := helper.GetKonnectSDK(cfg, logger)
 		if err != nil {
 			return fmt.Errorf("failed to initialize Konnect client: %w", err)
 		}
 
-		// Parse sources from filenames
 		sources, err := loader.ParseSources(filenames)
 		if err != nil {
 			return fmt.Errorf("failed to parse sources: %w", err)
 		}
 
-		// Load configuration
 		ldr := loader.New()
 		resourceSet, err := ldr.LoadFromSources(sources, recursive)
 		if err != nil {
-			// Provide more helpful error message for common cases
 			if len(filenames) == 0 && strings.Contains(err.Error(), "no YAML files found") {
 				return fmt.Errorf("no configuration files found. Use -f to specify files or --plan to use existing plan")
 			}
 			return fmt.Errorf("failed to load configuration: %w", err)
 		}
 
-		// Check if configuration is empty
+		if err := nsValidator.ValidateNamespaceRequirement(resourceSet, requirement); err != nil {
+			return err
+		}
+
 		totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
 			len(resourceSet.ControlPlanes) + len(resourceSet.APIs)
-
 		if totalResources == 0 {
-			// Check if we're using default directory (no explicit sources)
 			if len(filenames) == 0 {
 				return fmt.Errorf("no configuration files found. Use -f to specify files or --plan to use existing plan")
 			}
 			return fmt.Errorf("no resources found in configuration files")
 		}
 
-		// Create planner
 		stateClient := createStateClient(kkClient)
 		p := planner.NewPlanner(stateClient, logger)
-
-		// Generate plan (default to sync mode for diff)
 		opts := planner.Options{
 			Mode:      planner.PlanModeSync,
 			Generator: generator,
@@ -612,6 +666,7 @@ achieve the desired state.`,
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
+	addRequireNamespaceFlag(cmd)
 
 	return cmd
 }
@@ -636,6 +691,7 @@ useful for reviewing changes before synchronization.`,
 	cmd.Flags().String("plan", "", "Path to existing plan file to display")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text, json, or yaml)")
 	cmd.Flags().Bool("full-content", false, "Display full content for large fields instead of summary")
+	addRequireNamespaceFlag(cmd)
 
 	return cmd
 }
@@ -716,7 +772,6 @@ func runApply(command *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-
 	// Get logger
 	logger, err := helper.GetLogger()
 	if err != nil {
@@ -729,8 +784,16 @@ func runApply(command *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize Konnect client: %w", err)
 	}
 
+	nsValidator, requirement, err := resolveNamespaceRequirement(command, cfg)
+	if err != nil {
+		return err
+	}
+
 	// Load or generate plan
 	var plan *planner.Plan
+	if requirement.Mode != validator.NamespaceRequirementNone && planFile != "" {
+		return fmt.Errorf("--%s cannot be used together with --plan; generate the plan with namespace enforcement enabled instead", requireNamespaceFlagName)
+	}
 	if planFile != "" {
 		// Show plan source information early
 		if outputFormat == textOutputFormat {
@@ -766,6 +829,10 @@ func runApply(command *cobra.Command, args []string) error {
 				return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
 			}
 			return fmt.Errorf("failed to load configuration: %w", err)
+		}
+
+		if err := nsValidator.ValidateNamespaceRequirement(resourceSet, requirement); err != nil {
+			return err
 		}
 
 		// Check if configuration is empty
@@ -1069,6 +1136,7 @@ delete resources.`,
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
+	addRequireNamespaceFlag(cmd)
 
 	return cmd
 }
@@ -1141,8 +1209,16 @@ func runSync(command *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize Konnect client: %w", err)
 	}
 
+	nsValidator, requirement, err := resolveNamespaceRequirement(command, cfg)
+	if err != nil {
+		return err
+	}
+
 	// Load or generate plan
 	var plan *planner.Plan
+	if requirement.Mode != validator.NamespaceRequirementNone && planFile != "" {
+		return fmt.Errorf("--%s cannot be used together with --plan; generate the plan with namespace enforcement enabled instead", requireNamespaceFlagName)
+	}
 	if planFile != "" {
 		// Show plan source information early
 		if outputFormat == textOutputFormat {
@@ -1178,6 +1254,10 @@ func runSync(command *cobra.Command, args []string) error {
 				return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
 			}
 			return fmt.Errorf("failed to load configuration: %w", err)
+		}
+
+		if err := nsValidator.ValidateNamespaceRequirement(resourceSet, requirement); err != nil {
+			return err
 		}
 
 		// Check if configuration is empty

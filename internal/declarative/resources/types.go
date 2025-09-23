@@ -49,12 +49,28 @@ type ResourceSet struct {
 	DefaultNamespace string `yaml:"-" json:"-"`
 }
 
+// NamespaceOrigin describes how a namespace value was supplied for a resource
+type NamespaceOrigin int
+
+const (
+	// NamespaceOriginUnset indicates no namespace was resolved for the resource
+	NamespaceOriginUnset NamespaceOrigin = iota
+	// NamespaceOriginExplicit indicates the namespace was explicitly set on the resource
+	NamespaceOriginExplicit
+	// NamespaceOriginFileDefault indicates the namespace was inherited from _defaults.kongctl.namespace
+	NamespaceOriginFileDefault
+	// NamespaceOriginImplicitDefault indicates the namespace fell back to the implicit "default" value
+	NamespaceOriginImplicitDefault
+)
+
 // KongctlMeta contains tool-specific metadata for resources
 type KongctlMeta struct {
 	// Protected prevents accidental deletion of critical resources
 	Protected *bool `yaml:"protected,omitempty" json:"protected,omitempty"`
 	// Namespace for resource isolation and multi-team management
 	Namespace *string `yaml:"namespace,omitempty" json:"namespace,omitempty"`
+	// NamespaceOrigin tracks how the namespace value was derived (not serialized)
+	NamespaceOrigin NamespaceOrigin `yaml:"-" json:"-"`
 }
 
 // FileDefaults holds file-level defaults that apply to all resources in the file

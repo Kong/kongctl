@@ -1,14 +1,12 @@
-# Simple Portal Example (E2E fixture)
-# Minimal configuration for a developer portal
+_defaults:
+  kongctl:
+    #namespace: e2e-require-namespace
 
 portals:
   - ref: simple-portal
     name: My Simple Portal 
     display_name: Simple Portal ©
     description: A simple developer portal for API documentation
-
-# Simple API Example
-# Minimal configuration for an API
 
 apis:
   - ref: simple-api

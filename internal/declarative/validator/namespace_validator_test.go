@@ -3,6 +3,8 @@ package validator
 import (
 	"strings"
 	"testing"
+
+	"github.com/kong/kongctl/internal/declarative/resources"
 )
 
 func TestValidateNamespace(t *testing.T) {
@@ -231,4 +233,204 @@ func TestReservedNamespaces(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseNamespaceRequirement(t *testing.T) {
+	validator := NewNamespaceValidator()
+
+	tests := []struct {
+		name    string
+		input   string
+		expect  NamespaceRequirement
+		wantErr bool
+	}{
+		{
+			name:   "empty",
+			input:  "",
+			expect: NamespaceRequirement{Mode: NamespaceRequirementNone},
+		},
+		{
+			name:   "true",
+			input:  "true",
+			expect: NamespaceRequirement{Mode: NamespaceRequirementAny},
+		},
+		{
+			name:   "any keyword",
+			input:  "any",
+			expect: NamespaceRequirement{Mode: NamespaceRequirementAny},
+		},
+		{
+			name:   "specific namespace",
+			input:  "team-alpha",
+			expect: NamespaceRequirement{Mode: NamespaceRequirementSpecific, Namespace: "team-alpha"},
+		},
+		{
+			name:    "invalid namespace",
+			input:   "Team!",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := validator.ParseNamespaceRequirement(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error but got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if req.Mode != tt.expect.Mode {
+				t.Fatalf("mode mismatch: expected %v, got %v", tt.expect.Mode, req.Mode)
+			}
+			if req.Namespace != tt.expect.Namespace {
+				t.Fatalf("namespace mismatch: expected %q, got %q", tt.expect.Namespace, req.Namespace)
+			}
+		})
+	}
+}
+
+func TestValidateNamespaceRequirementAny(t *testing.T) {
+	validator := NewNamespaceValidator()
+	requirement := NamespaceRequirement{Mode: NamespaceRequirementAny}
+
+	stringPtr := func(s string) *string { return &s }
+
+	t.Run("passes with explicit and file default namespaces", func(t *testing.T) {
+		rs := resources.ResourceSet{
+			APIs: []resources.APIResource{
+				{
+					Ref: "api-explicit",
+					Kongctl: &resources.KongctlMeta{
+						Namespace:       stringPtr("team"),
+						NamespaceOrigin: resources.NamespaceOriginExplicit,
+					},
+				},
+				{
+					Ref: "api-default",
+					Kongctl: &resources.KongctlMeta{
+						Namespace:       stringPtr("team"),
+						NamespaceOrigin: resources.NamespaceOriginFileDefault,
+					},
+				},
+			},
+		}
+		if err := validator.ValidateNamespaceRequirement(&rs, requirement); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("fails when resource relies on implicit default", func(t *testing.T) {
+		rs := resources.ResourceSet{
+			Portals: []resources.PortalResource{
+				{
+					Ref: "portal-implicit",
+					Kongctl: &resources.KongctlMeta{
+						Namespace:       stringPtr("default"),
+						NamespaceOrigin: resources.NamespaceOriginImplicitDefault,
+					},
+				},
+			},
+		}
+		if err := validator.ValidateNamespaceRequirement(&rs, requirement); err == nil {
+			t.Fatalf("expected error but got nil")
+		}
+	})
+
+	t.Run("empty configuration without defaults errors", func(t *testing.T) {
+		rs := resources.ResourceSet{}
+		if err := validator.ValidateNamespaceRequirement(&rs, requirement); err == nil {
+			t.Fatalf("expected error but got nil")
+		}
+	})
+
+	t.Run("empty configuration with defaults passes", func(t *testing.T) {
+		rs := resources.ResourceSet{DefaultNamespace: "team"}
+		if err := validator.ValidateNamespaceRequirement(&rs, requirement); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+func TestValidateNamespaceRequirementSpecific(t *testing.T) {
+	validator := NewNamespaceValidator()
+	requirement := NamespaceRequirement{Mode: NamespaceRequirementSpecific, Namespace: "team"}
+	stringPtr := func(s string) *string { return &s }
+
+	t.Run("passes when all resources match namespace", func(t *testing.T) {
+		rs := resources.ResourceSet{
+			APIs: []resources.APIResource{
+				{
+					Ref: "api-explicit",
+					Kongctl: &resources.KongctlMeta{
+						Namespace:       stringPtr("team"),
+						NamespaceOrigin: resources.NamespaceOriginExplicit,
+					},
+				},
+			},
+			ControlPlanes: []resources.ControlPlaneResource{
+				{
+					Ref: "cp-default",
+					Kongctl: &resources.KongctlMeta{
+						Namespace:       stringPtr("team"),
+						NamespaceOrigin: resources.NamespaceOriginFileDefault,
+					},
+				},
+			},
+		}
+		if err := validator.ValidateNamespaceRequirement(&rs, requirement); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("fails when namespace mismatches", func(t *testing.T) {
+		rs := resources.ResourceSet{
+			APIs: []resources.APIResource{
+				{
+					Ref: "api-wrong",
+					Kongctl: &resources.KongctlMeta{
+						Namespace:       stringPtr("other"),
+						NamespaceOrigin: resources.NamespaceOriginExplicit,
+					},
+				},
+			},
+		}
+		if err := validator.ValidateNamespaceRequirement(&rs, requirement); err == nil {
+			t.Fatalf("expected error but got nil")
+		}
+	})
+
+	t.Run("fails when relying on implicit default", func(t *testing.T) {
+		rs := resources.ResourceSet{
+			ApplicationAuthStrategies: []resources.ApplicationAuthStrategyResource{
+				{
+					Ref: "auth-implicit",
+					Kongctl: &resources.KongctlMeta{
+						Namespace:       stringPtr("default"),
+						NamespaceOrigin: resources.NamespaceOriginImplicitDefault,
+					},
+				},
+			},
+		}
+		if err := validator.ValidateNamespaceRequirement(&rs, requirement); err == nil {
+			t.Fatalf("expected error but got nil")
+		}
+	})
+
+	t.Run("empty configuration with matching default passes", func(t *testing.T) {
+		rs := resources.ResourceSet{DefaultNamespace: "team"}
+		if err := validator.ValidateNamespaceRequirement(&rs, requirement); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("empty configuration with mismatched default errors", func(t *testing.T) {
+		rs := resources.ResourceSet{DefaultNamespace: "other"}
+		if err := validator.ValidateNamespaceRequirement(&rs, requirement); err == nil {
+			t.Fatalf("expected error but got nil")
+		}
+	})
 }

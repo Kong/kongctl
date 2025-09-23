@@ -109,8 +109,37 @@ func Run(t *testing.T, scenarioPath string) error {
 				args = append(args, ra)
 			}
 			res, err := cli.Run(context.Background(), args...)
+			if cmd.ExpectFail != nil {
+				if err == nil {
+					return fmt.Errorf("command %s expected failure but succeeded", cmdName)
+				}
+				if cmd.ExpectFail.ExitCode != nil && res.ExitCode != *cmd.ExpectFail.ExitCode {
+					return fmt.Errorf("command %s expected exit code %d but got %d", cmdName, *cmd.ExpectFail.ExitCode, res.ExitCode)
+				}
+				if substr := strings.TrimSpace(cmd.ExpectFail.Contains); substr != "" {
+					combined := res.Stderr + res.Stdout
+					if !strings.Contains(combined, substr) {
+						return fmt.Errorf("command %s expected failure output to contain %q\nstderr: %s", cmdName, substr, res.Stderr)
+					}
+				}
+				// expected failure satisfied; skip assertions for this command
+				continue
+			}
 			if err != nil {
-				return fmt.Errorf("command %s failed (exit=%d): %w", cmdName, res.ExitCode, err)
+				snippet := strings.TrimSpace(res.Stderr)
+				maxLen := 2048
+				if len(snippet) > maxLen {
+					snippet = snippet[:maxLen] + "…"
+				}
+				artifactHint := cli.LastCommandDir
+				msg := fmt.Sprintf("command %s failed (exit=%d): %v", cmdName, res.ExitCode, err)
+				if snippet != "" {
+					msg += fmt.Sprintf("\nstderr:\n%s", snippet)
+				}
+				if artifactHint != "" {
+					msg += fmt.Sprintf("\nartifacts: %s", artifactHint)
+				}
+				return fmt.Errorf(msg)
 			}
 
 			// Parent source JSON (if assertions use it)

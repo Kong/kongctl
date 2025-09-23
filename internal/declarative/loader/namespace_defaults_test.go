@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -37,6 +38,7 @@ apis:
 		assert.NotNil(t, rs.Portals[0].Kongctl)
 		assert.NotNil(t, rs.Portals[0].Kongctl.Namespace)
 		assert.Equal(t, "team-alpha", *rs.Portals[0].Kongctl.Namespace)
+		assert.Equal(t, resources.NamespaceOriginFileDefault, rs.Portals[0].Kongctl.NamespaceOrigin)
 		assert.NotNil(t, rs.Portals[0].Kongctl.Protected)
 		assert.False(t, *rs.Portals[0].Kongctl.Protected)
 
@@ -45,6 +47,7 @@ apis:
 		assert.NotNil(t, rs.APIs[0].Kongctl)
 		assert.NotNil(t, rs.APIs[0].Kongctl.Namespace)
 		assert.Equal(t, "team-alpha", *rs.APIs[0].Kongctl.Namespace)
+		assert.Equal(t, resources.NamespaceOriginFileDefault, rs.APIs[0].Kongctl.NamespaceOrigin)
 		assert.NotNil(t, rs.APIs[0].Kongctl.Protected)
 		assert.False(t, *rs.APIs[0].Kongctl.Protected)
 	})
@@ -82,6 +85,7 @@ application_auth_strategies:
 		assert.NotNil(t, rs.Portals[0].Kongctl)
 		assert.NotNil(t, rs.Portals[0].Kongctl.Namespace)
 		assert.Equal(t, "production", *rs.Portals[0].Kongctl.Namespace)
+		assert.Equal(t, resources.NamespaceOriginFileDefault, rs.Portals[0].Kongctl.NamespaceOrigin)
 		assert.NotNil(t, rs.Portals[0].Kongctl.Protected)
 		assert.True(t, *rs.Portals[0].Kongctl.Protected)
 
@@ -90,6 +94,7 @@ application_auth_strategies:
 		assert.NotNil(t, rs.ApplicationAuthStrategies[0].Kongctl)
 		assert.NotNil(t, rs.ApplicationAuthStrategies[0].Kongctl.Namespace)
 		assert.Equal(t, "production", *rs.ApplicationAuthStrategies[0].Kongctl.Namespace)
+		assert.Equal(t, resources.NamespaceOriginFileDefault, rs.ApplicationAuthStrategies[0].Kongctl.NamespaceOrigin)
 		assert.NotNil(t, rs.ApplicationAuthStrategies[0].Kongctl.Protected)
 		assert.True(t, *rs.ApplicationAuthStrategies[0].Kongctl.Protected)
 	})
@@ -128,6 +133,7 @@ apis:
 		assert.NotNil(t, rs.Portals[0].Kongctl)
 		assert.NotNil(t, rs.Portals[0].Kongctl.Namespace)
 		assert.Equal(t, "team-beta", *rs.Portals[0].Kongctl.Namespace)
+		assert.Equal(t, resources.NamespaceOriginExplicit, rs.Portals[0].Kongctl.NamespaceOrigin)
 		assert.NotNil(t, rs.Portals[0].Kongctl.Protected)
 		// Now with pointer types, explicit false is preserved
 		assert.False(t, *rs.Portals[0].Kongctl.Protected)
@@ -137,6 +143,7 @@ apis:
 		assert.NotNil(t, rs.APIs[0].Kongctl)
 		assert.NotNil(t, rs.APIs[0].Kongctl.Namespace)
 		assert.Equal(t, "team-gamma", *rs.APIs[0].Kongctl.Namespace)
+		assert.Equal(t, resources.NamespaceOriginExplicit, rs.APIs[0].Kongctl.NamespaceOrigin)
 		assert.NotNil(t, rs.APIs[0].Kongctl.Protected)
 		assert.True(t, *rs.APIs[0].Kongctl.Protected)
 	})
@@ -164,6 +171,7 @@ control_planes:
 		assert.NotNil(t, rs.Portals[0].Kongctl)
 		assert.NotNil(t, rs.Portals[0].Kongctl.Namespace)
 		assert.Equal(t, "default", *rs.Portals[0].Kongctl.Namespace)
+		assert.Equal(t, resources.NamespaceOriginImplicitDefault, rs.Portals[0].Kongctl.NamespaceOrigin)
 		assert.NotNil(t, rs.Portals[0].Kongctl.Protected)
 		assert.False(t, *rs.Portals[0].Kongctl.Protected)
 
@@ -172,6 +180,7 @@ control_planes:
 		assert.NotNil(t, rs.ControlPlanes[0].Kongctl)
 		assert.NotNil(t, rs.ControlPlanes[0].Kongctl.Namespace)
 		assert.Equal(t, "default", *rs.ControlPlanes[0].Kongctl.Namespace)
+		assert.Equal(t, resources.NamespaceOriginImplicitDefault, rs.ControlPlanes[0].Kongctl.NamespaceOrigin)
 		assert.NotNil(t, rs.ControlPlanes[0].Kongctl.Protected)
 		assert.False(t, *rs.ControlPlanes[0].Kongctl.Protected)
 	})

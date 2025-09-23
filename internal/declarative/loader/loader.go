@@ -441,6 +441,7 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 	defaultNamespace := "default"
 	namespaceDefault := &defaultNamespace
 	var protectedDefault *bool
+	hasFileNamespaceDefault := false
 
 	if fileDefaults != nil && fileDefaults.Kongctl != nil {
 		// Validate that namespace default is not empty
@@ -449,25 +450,42 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		}
 		if fileDefaults.Kongctl.Namespace != nil {
 			namespaceDefault = fileDefaults.Kongctl.Namespace
-			// Preserve the namespace from defaults in ResourceSet for planner to use
-			// when no resources are present
 			rs.DefaultNamespace = *namespaceDefault
+			hasFileNamespaceDefault = true
 		}
 		protectedDefault = fileDefaults.Kongctl.Protected
 	}
 
+	assignNamespace := func(meta **resources.KongctlMeta, resourceType, resourceRef string) error {
+		if *meta == nil {
+			*meta = &resources.KongctlMeta{}
+		}
+		m := *meta
+
+		// Validate that explicit namespace is not empty
+		if m.Namespace != nil && *m.Namespace == "" {
+			return fmt.Errorf("%s '%s' cannot have an empty namespace", resourceType, resourceRef)
+		}
+
+		if m.Namespace != nil {
+			m.NamespaceOrigin = resources.NamespaceOriginExplicit
+			return nil
+		}
+
+		m.Namespace = namespaceDefault
+		if hasFileNamespaceDefault {
+			m.NamespaceOrigin = resources.NamespaceOriginFileDefault
+		} else {
+			m.NamespaceOrigin = resources.NamespaceOriginImplicitDefault
+		}
+
+		return nil
+	}
+
 	// Apply defaults to portals (parent resources)
 	for i := range rs.Portals {
-		if rs.Portals[i].Kongctl == nil {
-			rs.Portals[i].Kongctl = &resources.KongctlMeta{}
-		}
-		// Validate that explicit namespace is not empty
-		if rs.Portals[i].Kongctl.Namespace != nil && *rs.Portals[i].Kongctl.Namespace == "" {
-			return fmt.Errorf("portal '%s' cannot have an empty namespace", rs.Portals[i].Ref)
-		}
-		// Apply namespace default if not set
-		if rs.Portals[i].Kongctl.Namespace == nil {
-			rs.Portals[i].Kongctl.Namespace = namespaceDefault
+		if err := assignNamespace(&rs.Portals[i].Kongctl, "portal", rs.Portals[i].Ref); err != nil {
+			return err
 		}
 		// Apply protected default if not set
 		if rs.Portals[i].Kongctl.Protected == nil && protectedDefault != nil {
@@ -482,16 +500,8 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 
 	// Apply defaults to APIs (parent resources)
 	for i := range rs.APIs {
-		if rs.APIs[i].Kongctl == nil {
-			rs.APIs[i].Kongctl = &resources.KongctlMeta{}
-		}
-		// Validate that explicit namespace is not empty
-		if rs.APIs[i].Kongctl.Namespace != nil && *rs.APIs[i].Kongctl.Namespace == "" {
-			return fmt.Errorf("api '%s' cannot have an empty namespace", rs.APIs[i].Ref)
-		}
-		// Apply namespace default if not set
-		if rs.APIs[i].Kongctl.Namespace == nil {
-			rs.APIs[i].Kongctl.Namespace = namespaceDefault
+		if err := assignNamespace(&rs.APIs[i].Kongctl, "api", rs.APIs[i].Ref); err != nil {
+			return err
 		}
 		// Apply protected default if not set
 		if rs.APIs[i].Kongctl.Protected == nil && protectedDefault != nil {
@@ -506,18 +516,9 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 
 	// Apply defaults to ApplicationAuthStrategies (parent resources)
 	for i := range rs.ApplicationAuthStrategies {
-		if rs.ApplicationAuthStrategies[i].Kongctl == nil {
-			rs.ApplicationAuthStrategies[i].Kongctl = &resources.KongctlMeta{}
-		}
-		// Validate that explicit namespace is not empty
-		if rs.ApplicationAuthStrategies[i].Kongctl.Namespace != nil &&
-			*rs.ApplicationAuthStrategies[i].Kongctl.Namespace == "" {
-			return fmt.Errorf("application_auth_strategy '%s' cannot have an empty namespace",
-				rs.ApplicationAuthStrategies[i].Ref)
-		}
-		// Apply namespace default if not set
-		if rs.ApplicationAuthStrategies[i].Kongctl.Namespace == nil {
-			rs.ApplicationAuthStrategies[i].Kongctl.Namespace = namespaceDefault
+		if err := assignNamespace(&rs.ApplicationAuthStrategies[i].Kongctl,
+			"application_auth_strategy", rs.ApplicationAuthStrategies[i].Ref); err != nil {
+			return err
 		}
 		// Apply protected default if not set
 		if rs.ApplicationAuthStrategies[i].Kongctl.Protected == nil && protectedDefault != nil {
@@ -532,16 +533,8 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 
 	// Apply defaults to ControlPlanes (parent resources)
 	for i := range rs.ControlPlanes {
-		if rs.ControlPlanes[i].Kongctl == nil {
-			rs.ControlPlanes[i].Kongctl = &resources.KongctlMeta{}
-		}
-		// Validate that explicit namespace is not empty
-		if rs.ControlPlanes[i].Kongctl.Namespace != nil && *rs.ControlPlanes[i].Kongctl.Namespace == "" {
-			return fmt.Errorf("control_plane '%s' cannot have an empty namespace", rs.ControlPlanes[i].Ref)
-		}
-		// Apply namespace default if not set
-		if rs.ControlPlanes[i].Kongctl.Namespace == nil {
-			rs.ControlPlanes[i].Kongctl.Namespace = namespaceDefault
+		if err := assignNamespace(&rs.ControlPlanes[i].Kongctl, "control_plane", rs.ControlPlanes[i].Ref); err != nil {
+			return err
 		}
 		// Apply protected default if not set
 		if rs.ControlPlanes[i].Kongctl.Protected == nil && protectedDefault != nil {

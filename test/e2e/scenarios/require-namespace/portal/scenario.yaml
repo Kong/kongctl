@@ -1,0 +1,83 @@
+baseInputsPath: ../../../testdata/declarative/portal/basic
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-expected-sync-fail
+    commands:
+      - name: 000-sync
+        run:
+          - sync 
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+          - --require-namespace
+        expectFailure:
+          exitCode: 1
+          contains: "namespace enforcement"
+
+  - name: 002-sync-with-namespaces
+    inputOverlayDirs:
+      - overlays/002-sync-with-namespaces
+    commands:
+      - name: 000-sync
+        run:
+          - sync 
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+          - --require-namespace
+        assertions:
+          - select: >-
+              plan.changes[0]
+            expect:
+              fields:
+                namespace: e2e-require-namespace
+
+  - name: 003-expected-sync-fail
+    inputOverlayDirs:
+      - overlays/003-expected-sync-fail
+    commands:
+      - name: 000-sync
+        run:
+          - sync 
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+          - --require-namespace
+        expectFailure:
+          exitCode: 1
+          contains: "namespace enforcement"
+
+  - name: 004-sync-with-expected-delete
+    inputOverlayDirs:
+      - overlays/004-sync-with-expected-delete
+    commands:
+      - name: 000-sync
+        run:
+          - sync 
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+          - --require-namespace
+        assertions:
+          - select: >-
+              plan.changes[0]
+            expect:
+              fields:
+                action: DELETE
+                namespace: e2e-require-namespace
+                id: "1:d:portal:My Simple Portal"
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+          - select: execution.applied_changes[0]
+            expect:
+              fields:
+                change_id: "1:d:portal:My Simple Portal"
+                action: DELETE
+                resource_name: "My Simple Portal"
