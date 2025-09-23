@@ -139,7 +139,7 @@ func Run(t *testing.T, scenarioPath string) error {
 				if artifactHint != "" {
 					msg += fmt.Sprintf("\nartifacts: %s", artifactHint)
 				}
-				return fmt.Errorf(msg)
+				return fmt.Errorf("%s", msg)
 			}
 
 			// Parent source JSON (if assertions use it)

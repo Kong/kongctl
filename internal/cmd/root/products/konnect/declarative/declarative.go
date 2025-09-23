@@ -330,7 +330,10 @@ func runDiff(command *cobra.Command, args []string) error {
 
 	planFile, _ := command.Flags().GetString("plan")
 	if requirement.Mode != validator.NamespaceRequirementNone && planFile != "" {
-		return fmt.Errorf("--%s cannot be used together with --plan; generate the plan with namespace enforcement enabled instead", requireNamespaceFlagName)
+		return fmt.Errorf(
+			"--%s cannot be used together with --plan; generate the plan with namespace enforcement enabled instead",
+			requireNamespaceFlagName,
+		)
 	}
 
 	var plan *planner.Plan
@@ -792,7 +795,10 @@ func runApply(command *cobra.Command, args []string) error {
 	// Load or generate plan
 	var plan *planner.Plan
 	if requirement.Mode != validator.NamespaceRequirementNone && planFile != "" {
-		return fmt.Errorf("--%s cannot be used together with --plan; generate the plan with namespace enforcement enabled instead", requireNamespaceFlagName)
+		return fmt.Errorf(
+			"--%s cannot be used together with --plan; generate the plan with namespace enforcement enabled instead",
+			requireNamespaceFlagName,
+		)
 	}
 	if planFile != "" {
 		// Show plan source information early
@@ -1217,7 +1223,10 @@ func runSync(command *cobra.Command, args []string) error {
 	// Load or generate plan
 	var plan *planner.Plan
 	if requirement.Mode != validator.NamespaceRequirementNone && planFile != "" {
-		return fmt.Errorf("--%s cannot be used together with --plan; generate the plan with namespace enforcement enabled instead", requireNamespaceFlagName)
+		return fmt.Errorf(
+			"--%s cannot be used together with --plan; generate the plan with namespace enforcement enabled instead",
+			requireNamespaceFlagName,
+		)
 	}
 	if planFile != "" {
 		// Show plan source information early
