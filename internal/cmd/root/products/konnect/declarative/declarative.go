@@ -34,21 +34,33 @@ const (
 	planFileKey contextKey = "plan_file"
 	// textOutputFormat is the string constant for text output format
 	textOutputFormat = "text"
-	// requireNamespaceFlagName is the CLI flag for namespace enforcement
+	// requireNamespaceFlagName is the CLI flag for specific namespace enforcement
 	requireNamespaceFlagName = "require-namespace"
 	// requireNamespaceConfigPath is the config path backing the namespace flag
 	requireNamespaceConfigPath = "konnect.declarative." + requireNamespaceFlagName
-	// requireNamespaceNoOptValue is the value used when the flag is provided without an argument
-	requireNamespaceNoOptValue = "true"
+	// requireAnyNamespaceFlagName is the CLI flag for requiring any namespace
+	requireAnyNamespaceFlagName = "require-any-namespace"
+	// requireAnyNamespaceConfigPath is the config path backing the any namespace flag
+	requireAnyNamespaceConfigPath = "konnect.declarative." + requireAnyNamespaceFlagName
 )
 
-func addRequireNamespaceFlag(cmd *cobra.Command) {
-	cmd.Flags().String(requireNamespaceFlagName, "",
-		fmt.Sprintf(`Require namespaces for all resources. Provide a namespace value to enforce a specific namespace.
+func addRequireNamespaceFlags(cmd *cobra.Command) {
+	// Add require-any-namespace flag (bool)
+	cmd.Flags().Bool(requireAnyNamespaceFlagName, false,
+		fmt.Sprintf(`Require that all resources have an explicit namespace (any value accepted).
+Cannot be used with --require-namespace.
+- Config path: [ %s ]`, requireAnyNamespaceConfigPath))
+
+	// Add require-namespace flag (StringSlice)
+	cmd.Flags().StringSlice(requireNamespaceFlagName, nil,
+		fmt.Sprintf(`Require specific namespaces for all resources. Can be specified multiple times.
+Cannot be used with --require-any-namespace.
+Examples (use = syntax to avoid ambiguity):
+  --require-namespace=foo                          # Allow only 'foo' namespace
+  --require-namespace=foo --require-namespace=bar  # Allow 'foo' or 'bar' namespaces
+  --require-namespace foo bar                      # Alternative: both are namespace values
+Note: When not using =, place namespace values before other flags to avoid confusion.
 - Config path: [ %s ]`, requireNamespaceConfigPath))
-	if flag := cmd.Flags().Lookup(requireNamespaceFlagName); flag != nil {
-		flag.NoOptDefVal = requireNamespaceNoOptValue
-	}
 }
 
 func parseNamespaceRequirement(
@@ -56,21 +68,63 @@ func parseNamespaceRequirement(
 	cfg config.Hook,
 	nsValidator *validator.NamespaceValidator,
 ) (validator.NamespaceRequirement, error) {
-	flag := command.Flags().Lookup(requireNamespaceFlagName)
-	if flag == nil {
-		return validator.NamespaceRequirement{Mode: validator.NamespaceRequirementNone}, nil
+	// Check for mutual exclusivity
+	anyNamespaceSet := command.Flags().Changed(requireAnyNamespaceFlagName)
+	specificNamespacesSet := command.Flags().Changed(requireNamespaceFlagName)
+
+	if anyNamespaceSet && specificNamespacesSet {
+		return validator.NamespaceRequirement{}, fmt.Errorf(
+			"--%s and --%s are mutually exclusive",
+			requireAnyNamespaceFlagName, requireNamespaceFlagName)
 	}
 
-	if err := cfg.BindFlag(requireNamespaceConfigPath, flag); err != nil {
-		return validator.NamespaceRequirement{}, err
+	// Check config for mutual exclusivity as well
+	configAnyNamespace := cfg.GetBool(requireAnyNamespaceConfigPath)
+	configSpecificNamespaces := cfg.GetStringSlice(requireNamespaceConfigPath)
+
+	if !anyNamespaceSet && !specificNamespacesSet {
+		// No command-line flags, check config
+		if configAnyNamespace && len(configSpecificNamespaces) > 0 {
+			return validator.NamespaceRequirement{}, fmt.Errorf(
+				"config has both %s and %s set, but they are mutually exclusive",
+				requireAnyNamespaceConfigPath, requireNamespaceConfigPath)
+		}
 	}
 
-	raw := cfg.GetString(requireNamespaceConfigPath)
-	if raw == "" {
-		raw = flag.Value.String()
+	// Handle --require-any-namespace flag
+	if anyNamespaceSet {
+		anyNamespace, _ := command.Flags().GetBool(requireAnyNamespaceFlagName)
+		if anyNamespace {
+			return validator.NamespaceRequirement{
+				Mode:              validator.NamespaceRequirementAny,
+				AllowedNamespaces: []string{},
+			}, nil
+		}
+	} else if configAnyNamespace && !specificNamespacesSet {
+		// Use config value for any-namespace
+		return validator.NamespaceRequirement{
+			Mode:              validator.NamespaceRequirementAny,
+			AllowedNamespaces: []string{},
+		}, nil
 	}
 
-	return nsValidator.ParseNamespaceRequirement(raw)
+	// Handle --require-namespace flag (specific namespaces)
+	if specificNamespacesSet {
+		namespaces, err := command.Flags().GetStringSlice(requireNamespaceFlagName)
+		if err != nil {
+			return validator.NamespaceRequirement{}, err
+		}
+		if len(namespaces) == 0 {
+			return validator.NamespaceRequirement{Mode: validator.NamespaceRequirementNone}, nil
+		}
+		return nsValidator.ParseNamespaceRequirementSlice(namespaces)
+	} else if len(configSpecificNamespaces) > 0 && !anyNamespaceSet {
+		// Use config value for specific namespaces
+		return nsValidator.ParseNamespaceRequirementSlice(configSpecificNamespaces)
+	}
+
+	// Neither flag set - no namespace requirement
+	return validator.NamespaceRequirement{Mode: validator.NamespaceRequirementNone}, nil
 }
 
 func resolveNamespaceRequirement(
@@ -137,7 +191,7 @@ for review, approval workflows, or as input to sync operations.`,
 		"Process the directory used in -f, --filename recursively")
 	cmd.Flags().String("output-file", "", "Save plan artifact to file")
 	cmd.Flags().String("mode", "sync", "Plan generation mode (sync|apply)")
-	addRequireNamespaceFlag(cmd)
+	addRequireNamespaceFlags(cmd)
 
 	return cmd
 }
@@ -669,7 +723,7 @@ achieve the desired state.`,
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
-	addRequireNamespaceFlag(cmd)
+	addRequireNamespaceFlags(cmd)
 
 	return cmd
 }
@@ -694,7 +748,7 @@ useful for reviewing changes before synchronization.`,
 	cmd.Flags().String("plan", "", "Path to existing plan file to display")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text, json, or yaml)")
 	cmd.Flags().Bool("full-content", false, "Display full content for large fields instead of summary")
-	addRequireNamespaceFlag(cmd)
+	addRequireNamespaceFlags(cmd)
 
 	return cmd
 }
@@ -1142,7 +1196,7 @@ delete resources.`,
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
-	addRequireNamespaceFlag(cmd)
+	addRequireNamespaceFlags(cmd)
 
 	return cmd
 }
