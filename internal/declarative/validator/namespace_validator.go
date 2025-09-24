@@ -47,11 +47,68 @@ const (
 
 // NamespaceRequirement captures the parsed namespace enforcement settings
 type NamespaceRequirement struct {
-	Mode      NamespaceRequirementMode
-	Namespace string
+	Mode              NamespaceRequirementMode
+	AllowedNamespaces []string // Empty means "any namespace", populated means "only these namespaces"
+}
+
+// ParseNamespaceRequirementSlice interprets a slice of namespace values into a requirement structure
+func (v *NamespaceValidator) ParseNamespaceRequirementSlice(namespaces []string) (NamespaceRequirement, error) {
+	// If empty slice, means flag was provided without values - require any namespace
+	if len(namespaces) == 0 {
+		return NamespaceRequirement{
+			Mode:              NamespaceRequirementAny,
+			AllowedNamespaces: []string{},
+		}, nil
+	}
+
+	// Validate and collect unique namespaces
+	seen := make(map[string]bool)
+	unique := make([]string, 0, len(namespaces))
+
+	for _, ns := range namespaces {
+		ns = strings.TrimSpace(ns)
+		if ns == "" {
+			continue // Skip empty strings
+		}
+
+		// Check if this looks like a flag that was accidentally consumed
+		if strings.HasPrefix(ns, "-") {
+			return NamespaceRequirement{}, fmt.Errorf(
+				"'%s' looks like a flag but was interpreted as a namespace value.\n"+
+					"If you meant to require any namespace, use --require-any-namespace instead.\n"+
+					"If you meant to specify a namespace, use --require-namespace=<namespace> or place --require-namespace values before other flags",
+				ns)
+		}
+
+		// Validate the namespace
+		if err := v.ValidateNamespace(ns); err != nil {
+			return NamespaceRequirement{}, fmt.Errorf("invalid namespace '%s': %w", ns, err)
+		}
+
+		// Add to unique list
+		if !seen[ns] {
+			seen[ns] = true
+			unique = append(unique, ns)
+		}
+	}
+
+	// If all entries were empty/invalid, treat as "any"
+	if len(unique) == 0 {
+		return NamespaceRequirement{
+			Mode:              NamespaceRequirementAny,
+			AllowedNamespaces: []string{},
+		}, nil
+	}
+
+	// Return with specific allowed namespaces
+	return NamespaceRequirement{
+		Mode:              NamespaceRequirementSpecific,
+		AllowedNamespaces: unique,
+	}, nil
 }
 
 // ParseNamespaceRequirement interprets a raw flag/config value into a requirement structure
+// Deprecated: Use ParseNamespaceRequirementSlice for new code
 func (v *NamespaceValidator) ParseNamespaceRequirement(raw string) (NamespaceRequirement, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
@@ -68,8 +125,8 @@ func (v *NamespaceValidator) ParseNamespaceRequirement(raw string) (NamespaceReq
 			return NamespaceRequirement{}, err
 		}
 		return NamespaceRequirement{
-			Mode:      NamespaceRequirementSpecific,
-			Namespace: trimmed,
+			Mode:              NamespaceRequirementSpecific,
+			AllowedNamespaces: []string{trimmed},
 		}, nil
 	}
 }
@@ -150,15 +207,25 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 			}
 		case NamespaceRequirementSpecific:
 			if rs.DefaultNamespace == "" {
+				namespaceList := strings.Join(req.AllowedNamespaces, ", ")
 				return fmt.Errorf(
-					"namespace enforcement requires namespace '%s' but no resources or _defaults.kongctl.namespace were provided",
-					req.Namespace,
+					"namespace enforcement requires one of [%s] but no resources or _defaults.kongctl.namespace were provided",
+					namespaceList,
 				)
 			}
-			if rs.DefaultNamespace != req.Namespace {
+			// Check if default namespace is in allowed list
+			allowed := false
+			for _, ns := range req.AllowedNamespaces {
+				if rs.DefaultNamespace == ns {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				namespaceList := strings.Join(req.AllowedNamespaces, ", ")
 				return fmt.Errorf(
-					"namespace enforcement requires namespace '%s' but _defaults.kongctl.namespace is '%s'",
-					req.Namespace, rs.DefaultNamespace,
+					"namespace enforcement requires one of [%s] but _defaults.kongctl.namespace is '%s'",
+					namespaceList, rs.DefaultNamespace,
 				)
 			}
 		}
@@ -186,15 +253,25 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 			namespace := resources.GetNamespace(meta)
 			if meta == nil || meta.Namespace == nil ||
 				origin == resources.NamespaceOriginImplicitDefault || origin == resources.NamespaceOriginUnset {
+				namespaceList := strings.Join(req.AllowedNamespaces, ", ")
 				reason := fmt.Sprintf(
-					"missing explicit namespace; expected '%s' via kongctl.namespace or _defaults.kongctl.namespace",
-					req.Namespace,
+					"missing explicit namespace; expected one of [%s] via kongctl.namespace or _defaults.kongctl.namespace",
+					namespaceList,
 				)
 				violations = append(violations, fmt.Sprintf("%s '%s': %s", resourceType, ref, reason))
 				return
 			}
-			if namespace != req.Namespace {
-				reason := fmt.Sprintf("uses namespace '%s' (expected '%s')", namespace, req.Namespace)
+			// Check if namespace is in allowed list
+			allowed := false
+			for _, ns := range req.AllowedNamespaces {
+				if namespace == ns {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				namespaceList := strings.Join(req.AllowedNamespaces, ", ")
+				reason := fmt.Sprintf("uses namespace '%s' (expected one of [%s])", namespace, namespaceList)
 				violations = append(violations, fmt.Sprintf("%s '%s': %s", resourceType, ref, reason))
 			}
 		}

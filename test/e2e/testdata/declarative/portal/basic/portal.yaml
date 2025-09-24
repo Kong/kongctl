@@ -13,4 +13,4 @@ portals:
 apis:
   - ref: simple-api
     name: My Simple API
-    description: The simplest API example 
+    description: The simplest API example

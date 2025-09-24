@@ -235,6 +235,107 @@ func TestReservedNamespaces(t *testing.T) {
 	}
 }
 
+func TestParseNamespaceRequirementSlice(t *testing.T) {
+	validator := NewNamespaceValidator()
+	tests := []struct {
+		name    string
+		input   []string
+		expect  NamespaceRequirement
+		wantErr bool
+	}{
+		{
+			name:   "empty slice - any namespace required",
+			input:  []string{},
+			expect: NamespaceRequirement{Mode: NamespaceRequirementAny, AllowedNamespaces: []string{}},
+		},
+		{
+			name:   "single namespace",
+			input:  []string{"foo"},
+			expect: NamespaceRequirement{Mode: NamespaceRequirementSpecific, AllowedNamespaces: []string{"foo"}},
+		},
+		{
+			name:   "multiple namespaces",
+			input:  []string{"foo", "bar", "baz"},
+			expect: NamespaceRequirement{Mode: NamespaceRequirementSpecific, AllowedNamespaces: []string{"foo", "bar", "baz"}},
+		},
+		{
+			name:   "duplicate namespaces",
+			input:  []string{"foo", "bar", "foo"},
+			expect: NamespaceRequirement{Mode: NamespaceRequirementSpecific, AllowedNamespaces: []string{"foo", "bar"}},
+		},
+		{
+			name:   "with empty strings",
+			input:  []string{"foo", "", "bar"},
+			expect: NamespaceRequirement{Mode: NamespaceRequirementSpecific, AllowedNamespaces: []string{"foo", "bar"}},
+		},
+		{
+			name:    "invalid namespace",
+			input:   []string{"foo", "Invalid!"},
+			wantErr: true,
+		},
+		{
+			name:   "all empty strings treated as any",
+			input:  []string{"", "", ""},
+			expect: NamespaceRequirement{Mode: NamespaceRequirementAny, AllowedNamespaces: []string{}},
+		},
+		{
+			name:    "flag-like value detected",
+			input:   []string{"--profile"},
+			wantErr: true,
+		},
+		{
+			name:    "short flag detected",
+			input:   []string{"-p"},
+			wantErr: true,
+		},
+		{
+			name:    "mixed with valid namespace",
+			input:   []string{"foo", "--profile"},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := validator.ParseNamespaceRequirementSlice(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error but got nil")
+				}
+				// Check for helpful error message when flag is detected
+				for _, val := range tt.input {
+					if strings.HasPrefix(val, "-") {
+						if !strings.Contains(err.Error(), "looks like a flag") {
+							t.Fatalf("expected error message to mention flag detection, got: %v", err)
+						}
+						if !strings.Contains(err.Error(), "--require-any-namespace") {
+							t.Fatalf("expected error message to suggest --require-any-namespace, got: %v", err)
+						}
+						break
+					}
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if req.Mode != tt.expect.Mode {
+				t.Fatalf("mode mismatch: expected %v, got %v", tt.expect.Mode, req.Mode)
+			}
+			if len(req.AllowedNamespaces) != len(tt.expect.AllowedNamespaces) {
+				t.Fatalf("allowed namespaces count mismatch: expected %d, got %d",
+					len(tt.expect.AllowedNamespaces), len(req.AllowedNamespaces))
+			}
+			for i, ns := range req.AllowedNamespaces {
+				if ns != tt.expect.AllowedNamespaces[i] {
+					t.Fatalf("allowed namespace[%d] mismatch: expected %q, got %q",
+						i, tt.expect.AllowedNamespaces[i], ns)
+				}
+			}
+		})
+	}
+}
+
 func TestParseNamespaceRequirement(t *testing.T) {
 	validator := NewNamespaceValidator()
 
@@ -262,7 +363,7 @@ func TestParseNamespaceRequirement(t *testing.T) {
 		{
 			name:   "specific namespace",
 			input:  "team-alpha",
-			expect: NamespaceRequirement{Mode: NamespaceRequirementSpecific, Namespace: "team-alpha"},
+			expect: NamespaceRequirement{Mode: NamespaceRequirementSpecific, AllowedNamespaces: []string{"team-alpha"}},
 		},
 		{
 			name:    "invalid namespace",
@@ -286,8 +387,15 @@ func TestParseNamespaceRequirement(t *testing.T) {
 			if req.Mode != tt.expect.Mode {
 				t.Fatalf("mode mismatch: expected %v, got %v", tt.expect.Mode, req.Mode)
 			}
-			if req.Namespace != tt.expect.Namespace {
-				t.Fatalf("namespace mismatch: expected %q, got %q", tt.expect.Namespace, req.Namespace)
+			if len(req.AllowedNamespaces) != len(tt.expect.AllowedNamespaces) {
+				t.Fatalf("allowed namespaces count mismatch: expected %d, got %d",
+					len(tt.expect.AllowedNamespaces), len(req.AllowedNamespaces))
+			}
+			for i, ns := range req.AllowedNamespaces {
+				if ns != tt.expect.AllowedNamespaces[i] {
+					t.Fatalf("allowed namespace[%d] mismatch: expected %q, got %q",
+						i, tt.expect.AllowedNamespaces[i], ns)
+				}
 			}
 		})
 	}
@@ -357,7 +465,7 @@ func TestValidateNamespaceRequirementAny(t *testing.T) {
 
 func TestValidateNamespaceRequirementSpecific(t *testing.T) {
 	validator := NewNamespaceValidator()
-	requirement := NamespaceRequirement{Mode: NamespaceRequirementSpecific, Namespace: "team"}
+	requirement := NamespaceRequirement{Mode: NamespaceRequirementSpecific, AllowedNamespaces: []string{"team"}}
 	stringPtr := func(s string) *string { return &s }
 
 	t.Run("passes when all resources match namespace", func(t *testing.T) {

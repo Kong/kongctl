@@ -15,6 +15,7 @@ steps:
           - "{{ .workdir }}/portal.yaml"
           - --auto-approve
           - --require-namespace
+          - "bad-namespace"
         expectFailure:
           exitCode: 1
           contains: "namespace enforcement"
@@ -30,12 +31,13 @@ steps:
           - "{{ .workdir }}/portal.yaml"
           - --auto-approve
           - --require-namespace
+          - "good-namespace"
         assertions:
           - select: >-
               plan.changes[0]
             expect:
               fields:
-                namespace: e2e-require-namespace
+                namespace: good-namespace
 
   - name: 003-expected-sync-fail
     inputOverlayDirs:
@@ -47,7 +49,7 @@ steps:
           - -f
           - "{{ .workdir }}/portal.yaml"
           - --auto-approve
-          - --require-namespace
+          - --require-any-namespace
         expectFailure:
           exitCode: 1
           contains: "namespace enforcement"
@@ -62,14 +64,14 @@ steps:
           - -f
           - "{{ .workdir }}/portal.yaml"
           - --auto-approve
-          - --require-namespace
+          - --require-any-namespace
         assertions:
           - select: >-
               plan.changes[0]
             expect:
               fields:
                 action: DELETE
-                namespace: e2e-require-namespace
+                namespace: good-namespace
                 id: "1:d:portal:My Simple Portal"
           - select: summary
             expect:
@@ -81,3 +83,37 @@ steps:
                 change_id: "1:d:portal:My Simple Portal"
                 action: DELETE
                 resource_name: "My Simple Portal"
+
+  - name: 005-expected-sync-fail-wrong-namespace
+    inputOverlayDirs:
+      - overlays/005-expected-sync-fail-wrong-namespace
+    commands:
+      - name: 000-sync
+        run:
+          - sync 
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+          - --require-namespace
+          - "bad-namespace"
+        expectFailure:
+          exitCode: 1
+          contains: "namespace enforcement"
+
+  - name: 006-sync-with-namespaces
+    inputOverlayDirs:
+      - overlays/002-sync-with-namespaces # intentional reuse
+    commands:
+      - name: 000-sync
+        run:
+          - sync 
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+          - --require-any-namespace
+        assertions:
+          - select: >-
+              plan.changes[0]
+            expect:
+              fields:
+                namespace: good-namespace
