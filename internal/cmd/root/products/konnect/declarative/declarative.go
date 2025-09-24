@@ -47,19 +47,18 @@ const (
 func addRequireNamespaceFlags(cmd *cobra.Command) {
 	// Add require-any-namespace flag (bool)
 	cmd.Flags().Bool(requireAnyNamespaceFlagName, false,
-		fmt.Sprintf(`Require that all resources have an explicit namespace (any value accepted).
+		fmt.Sprintf(`Require explicit namespace on all resources (via kongctl.namespace or _defaults.kongctl.namespace).
 Cannot be used with --require-namespace.
 - Config path: [ %s ]`, requireAnyNamespaceConfigPath))
 
 	// Add require-namespace flag (StringSlice)
 	cmd.Flags().StringSlice(requireNamespaceFlagName, nil,
-		fmt.Sprintf(`Require specific namespaces for all resources. Can be specified multiple times.
+		fmt.Sprintf(`Require specific namespaces. Accepts comma-separated list or repeated flags.
 Cannot be used with --require-any-namespace.
-Examples (use = syntax to avoid ambiguity):
+Examples:
   --require-namespace=foo                          # Allow only 'foo' namespace
-  --require-namespace=foo --require-namespace=bar  # Allow 'foo' or 'bar' namespaces
-  --require-namespace foo bar                      # Alternative: both are namespace values
-Note: When not using =, place namespace values before other flags to avoid confusion.
+  --require-namespace=foo,bar                      # Allow 'foo' or 'bar' (comma-separated)
+  --require-namespace=foo --require-namespace=bar  # Allow 'foo' or 'bar' (repeated flags)
 - Config path: [ %s ]`, requireNamespaceConfigPath))
 }
 
