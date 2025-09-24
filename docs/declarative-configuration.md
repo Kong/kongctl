@@ -51,12 +51,7 @@ kongctl apply -f api-config.yaml
 
 #### Imperative (traditional CLI commands):
 
-_Note: Imperative command support is currently limited. The following 
-is conceptual._
-
-```bash
-kongctl create portal developer-portal
-```
+_Note: Imperative command support is currently focused on inspection workflows. Use declarative commands to provision or update Konnect resources._
 
 #### Declarative (configuration as code):
 ```yaml

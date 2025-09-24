@@ -27,8 +27,8 @@ var (
 	%[1]s get konnect gateway control-planes
 	# Get a specific Konnect control plane
 	%[1]s get konnect gateway control-plane <id|name>
-	# Create a new Konnect control plane
-	%[1]s create konnect gateway control-plane <name>
+	# Use declarative workflows to provision new resources
+	%[1]s apply -f <config-file>
 	`, meta.CLIName)))
 )
 

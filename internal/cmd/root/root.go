@@ -12,7 +12,6 @@ import (
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/apply"
-	"github.com/kong/kongctl/internal/cmd/root/verbs/create"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/del"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/diff"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/dump"
@@ -134,12 +133,6 @@ func addCommands() error {
 	rootCmd.AddCommand(c)
 
 	c, e = list.NewListCmd()
-	if e != nil {
-		return e
-	}
-	rootCmd.AddCommand(c)
-
-	c, e = create.NewCreateCmd()
 	if e != nil {
 		return e
 	}
