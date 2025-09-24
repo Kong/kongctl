@@ -76,7 +76,8 @@ func (v *NamespaceValidator) ParseNamespaceRequirementSlice(namespaces []string)
 			return NamespaceRequirement{}, fmt.Errorf(
 				"'%s' looks like a flag but was interpreted as a namespace value.\n"+
 					"If you meant to require any namespace, use --require-any-namespace instead.\n"+
-					"If you meant to specify a namespace, use --require-namespace=<namespace> or place --require-namespace values before other flags",
+					"If you meant to specify a namespace, use --require-namespace=<namespace> or "+
+					"place --require-namespace values before other flags",
 				ns)
 		}
 
