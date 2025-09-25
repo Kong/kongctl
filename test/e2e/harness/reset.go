@@ -26,17 +26,25 @@ func truthyEnv(v string) bool {
 
 // ResetOrgIfRequested deletes top-level resources (application-auth-strategies, apis, portals)
 // in the target Konnect org when KONGCTL_E2E_RESET is truthy. This is destructive.
-func ResetOrgIfRequested() error { return ResetOrgWithCapture("unspecified") }
+func ResetOrgIfRequested() error { return resetOrg("unspecified", true) }
+
+// ResetOrg performs the destructive reset without recording harness artifacts. Intended for
+// developer utilities that only need to wipe the org state.
+func ResetOrg(stage string) error { return resetOrg(stage, false) }
 
 // ResetOrgWithCapture performs the same destructive reset as ResetOrgIfRequested and
 // records a synthetic command under <run>/global/commands documenting execution.
 // The stage parameter is recorded in artifacts (e.g., "before_suite", "before_test").
-func ResetOrgWithCapture(stage string) error {
+func ResetOrgWithCapture(stage string) error { return resetOrg(stage, true) }
+
+func resetOrg(stage string, capture bool) error {
 	// Default: reset is ON unless explicitly disabled.
 	if v := strings.ToLower(strings.TrimSpace(os.Getenv("KONGCTL_E2E_RESET"))); v != "" {
 		if !truthyEnv(v) { // values like 0,false,off,no
 			Infof("Reset disabled by KONGCTL_E2E_RESET=%s", v)
-			captureResetEvent(stage, false, "skipped", "reset disabled", "", nil)
+			if capture {
+				captureResetEvent(stage, false, "skipped", "reset disabled", "", nil)
+			}
 			return nil
 		}
 	}
@@ -47,7 +55,9 @@ func ResetOrgWithCapture(stage string) error {
 	token := os.Getenv("KONGCTL_E2E_KONNECT_PAT")
 	if token == "" {
 		Warnf("reset requested, but KONGCTL_E2E_KONNECT_PAT is not set; skipping reset")
-		captureResetEvent(stage, false, "skipped", "missing PAT", baseURL, nil)
+		if capture {
+			captureResetEvent(stage, false, "skipped", "missing PAT", baseURL, nil)
+		}
 		return nil
 	}
 
@@ -56,47 +66,74 @@ func ResetOrgWithCapture(stage string) error {
 
 	// Order can matter; follow provided script order.
 	var details []resetEndpoint
-	if tot, del, err := deleteAll(client, baseURL, token, "v2", "application-auth-strategies"); err != nil {
-		captureResetEvent(
-			stage,
-			true,
-			"error",
-			err.Error(),
-			baseURL,
-			append(details, resetEndpoint{"v2", "application-auth-strategies", tot, del, err.Error()}),
-		)
+	tot, del, err := deleteAll(client, baseURL, token, "v2", "application-auth-strategies")
+	if err != nil {
+		if capture {
+			captureResetEvent(
+				stage,
+				true,
+				"error",
+				err.Error(),
+				baseURL,
+				append(details, resetEndpoint{"v2", "application-auth-strategies", tot, del, err.Error()}),
+			)
+		}
 		return err
-	} else {
-		details = append(details, resetEndpoint{"v2", "application-auth-strategies", tot, del, ""})
 	}
-	if tot, del, err := deleteAll(client, baseURL, token, "v3", "apis"); err != nil {
-		captureResetEvent(
-			stage,
-			true,
-			"error",
-			err.Error(),
-			baseURL,
-			append(details, resetEndpoint{"v3", "apis", tot, del, err.Error()}),
-		)
+	details = append(details, resetEndpoint{"v2", "application-auth-strategies", tot, del, ""})
+
+	tot, del, err = deleteAll(client, baseURL, token, "v3", "apis")
+	if err != nil {
+		if capture {
+			captureResetEvent(
+				stage,
+				true,
+				"error",
+				err.Error(),
+				baseURL,
+				append(details, resetEndpoint{"v3", "apis", tot, del, err.Error()}),
+			)
+		}
 		return err
-	} else {
-		details = append(details, resetEndpoint{"v3", "apis", tot, del, ""})
 	}
-	if tot, del, err := deleteAll(client, baseURL, token, "v3", "portals"); err != nil {
-		captureResetEvent(
-			stage,
-			true,
-			"error",
-			err.Error(),
-			baseURL,
-			append(details, resetEndpoint{"v3", "portals", tot, del, err.Error()}),
-		)
+	details = append(details, resetEndpoint{"v3", "apis", tot, del, ""})
+
+	tot, del, err = deleteAll(client, baseURL, token, "v3", "portals")
+	if err != nil {
+		if capture {
+			captureResetEvent(
+				stage,
+				true,
+				"error",
+				err.Error(),
+				baseURL,
+				append(details, resetEndpoint{"v3", "portals", tot, del, err.Error()}),
+			)
+		}
 		return err
-	} else {
-		details = append(details, resetEndpoint{"v3", "portals", tot, del, ""})
 	}
+	details = append(details, resetEndpoint{"v3", "portals", tot, del, ""})
+
+	tot, del, err = deleteAll(client, baseURL, token, "v2", "control-planes")
+	if err != nil {
+		if capture {
+			captureResetEvent(
+				stage,
+				true,
+				"error",
+				err.Error(),
+				baseURL,
+				append(details, resetEndpoint{"v2", "control-planes", tot, del, err.Error()}),
+			)
+		}
+		return err
+	}
+	details = append(details, resetEndpoint{"v2", "control-planes", tot, del, ""})
+
 	Infof("Reset complete")
-	captureResetEvent(stage, true, "ok", "", baseURL, details)
+	if capture {
+		captureResetEvent(stage, true, "ok", "", baseURL, details)
+	}
 	return nil
 }
 

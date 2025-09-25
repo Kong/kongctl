@@ -32,6 +32,7 @@ type Planner struct {
 
 	// Resource-specific planners
 	portalPlanner       PortalPlanner
+	controlPlanePlanner ControlPlanePlanner
 	authStrategyPlanner AuthStrategyPlanner
 	apiPlanner          APIPlanner
 
@@ -62,6 +63,7 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 	// Initialize resource-specific planners
 	base := NewBasePlanner(p)
 	p.portalPlanner = NewPortalPlanner(base)
+	p.controlPlanePlanner = NewControlPlanePlanner(base)
 	p.authStrategyPlanner = NewAuthStrategyPlanner(base)
 	p.apiPlanner = NewAPIPlanner(base)
 
@@ -125,6 +127,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		// the namespace-specific resources, not the parent's empty lists
 		base := NewBasePlanner(namespacePlanner)
 		namespacePlanner.portalPlanner = NewPortalPlanner(base)
+		namespacePlanner.controlPlanePlanner = NewControlPlanePlanner(base)
 		namespacePlanner.authStrategyPlanner = NewAuthStrategyPlanner(base)
 		namespacePlanner.apiPlanner = NewAPIPlanner(base)
 
@@ -154,6 +157,10 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 		if err := namespacePlanner.authStrategyPlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
 			return nil, fmt.Errorf("failed to plan auth strategy changes for namespace %s: %w", namespace, err)
+		}
+
+		if err := namespacePlanner.controlPlanePlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
+			return nil, fmt.Errorf("failed to plan control plane changes for namespace %s: %w", namespace, err)
 		}
 
 		if err := namespacePlanner.portalPlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
@@ -391,6 +398,11 @@ func (p *Planner) GetDesiredPortalSnippets() []resources.PortalSnippetResource {
 
 // resolveResourceIdentities pre-resolves Konnect IDs for all resources
 func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.ResourceSet) error {
+	// Resolve Control Plane identities
+	if err := p.resolveControlPlaneIdentities(ctx, rs.ControlPlanes); err != nil {
+		return fmt.Errorf("failed to resolve control plane identities: %w", err)
+	}
+
 	// Resolve API identities
 	if err := p.resolveAPIIdentities(ctx, rs.APIs); err != nil {
 		return fmt.Errorf("failed to resolve API identities: %w", err)
@@ -436,6 +448,36 @@ func (p *Planner) resolveAPIIdentities(ctx context.Context, apis []resources.API
 		if konnectAPI != nil {
 			// Match found, update the resource
 			api.TryMatchKonnectResource(konnectAPI)
+		}
+	}
+
+	return nil
+}
+
+// resolveControlPlaneIdentities resolves Konnect IDs for control plane resources
+func (p *Planner) resolveControlPlaneIdentities(
+	ctx context.Context,
+	controlPlanes []resources.ControlPlaneResource,
+) error {
+	for i := range controlPlanes {
+		cp := &controlPlanes[i]
+
+		if cp.GetKonnectID() != "" {
+			continue
+		}
+
+		filter := cp.GetKonnectMonikerFilter()
+		if filter == "" {
+			continue
+		}
+
+		konnectCP, err := p.client.GetControlPlaneByFilter(ctx, filter)
+		if err != nil {
+			return fmt.Errorf("failed to lookup control plane %s: %w", cp.GetRef(), err)
+		}
+
+		if konnectCP != nil {
+			cp.TryMatchKonnectResource(konnectCP)
 		}
 	}
 
@@ -594,6 +636,11 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	// Extract namespaces from parent resources
 	for _, portal := range rs.Portals {
 		ns := resources.GetNamespace(portal.Kongctl)
+		namespaceSet[ns] = true
+	}
+
+	for _, cp := range rs.ControlPlanes {
+		ns := resources.GetNamespace(cp.Kongctl)
 		namespaceSet[ns] = true
 	}
 

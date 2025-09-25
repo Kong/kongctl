@@ -30,6 +30,7 @@ type Executor struct {
 
 	// Resource executors
 	portalExecutor       *BaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal]
+	controlPlaneExecutor *BaseExecutor[kkComps.CreateControlPlaneRequest, kkComps.UpdateControlPlaneRequest]
 	apiExecutor          *BaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest]
 	authStrategyExecutor *BaseExecutor[kkComps.CreateAppAuthStrategyRequest, kkComps.UpdateAppAuthStrategyRequest]
 
@@ -62,6 +63,11 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 	// Initialize resource executors
 	e.portalExecutor = NewBaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal](
 		NewPortalAdapter(client),
+		client,
+		dryRun,
+	)
+	e.controlPlaneExecutor = NewBaseExecutor[kkComps.CreateControlPlaneRequest, kkComps.UpdateControlPlaneRequest](
+		NewControlPlaneAdapter(client),
 		client,
 		dryRun,
 	)
@@ -432,6 +438,19 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 				if portal != nil {
 					// Portal already exists - this is an error for CREATE
 					return fmt.Errorf("portal '%s' already exists", resourceName)
+				}
+			}
+		case "control_plane":
+			if e.client != nil {
+				resourceName := common.ExtractResourceName(change.Fields)
+				cp, err := e.client.GetControlPlaneByName(ctx, resourceName)
+				if err != nil {
+					if !strings.Contains(err.Error(), "not found") {
+						return fmt.Errorf("failed to check existing control plane: %w", err)
+					}
+				}
+				if cp != nil {
+					return fmt.Errorf("control_plane '%s' already exists", resourceName)
 				}
 			}
 		case "api":
@@ -822,6 +841,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 	case "portal":
 		// No references to resolve for portal
 		return e.portalExecutor.Create(ctx, *change)
+	case "control_plane":
+		return e.controlPlaneExecutor.Create(ctx, *change)
 	case "api":
 		// No references to resolve for api
 		return e.apiExecutor.Create(ctx, *change)
@@ -1007,6 +1028,8 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 	switch change.ResourceType {
 	case "portal":
 		return e.portalExecutor.Update(ctx, *change)
+	case "control_plane":
+		return e.controlPlaneExecutor.Update(ctx, *change)
 	case "api":
 		return e.apiExecutor.Update(ctx, *change)
 	case "api_document":
@@ -1158,6 +1181,8 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 	case "portal":
 		// No references to resolve for portal
 		return e.portalExecutor.Delete(ctx, *change)
+	case "control_plane":
+		return e.controlPlaneExecutor.Delete(ctx, *change)
 	case "api":
 		// No references to resolve for api
 		return e.apiExecutor.Delete(ctx, *change)

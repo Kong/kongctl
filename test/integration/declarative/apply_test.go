@@ -64,6 +64,11 @@ func TestApplyCommand_BasicWorkflow(t *testing.T) {
 	sdkFactory := ctx.Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
 	konnectSDK, _ := sdkFactory(GetTestConfig(), nil)
 	mockSDK := konnectSDK.(*helpers.MockKonnectSDK)
+	if mockSDK.CPAPIFactory == nil {
+		mockSDK.CPAPIFactory = func() helpers.ControlPlaneAPI {
+			return helpers.NewMockControlPlaneAPI(t)
+		}
+	}
 	mockPortalAPI := mockSDK.GetPortalAPI().(*MockPortalAPI)
 
 	// Mock checking for existing portal (not found)

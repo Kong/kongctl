@@ -10,11 +10,14 @@ import (
 	"os"
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	kongctlconfig "github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
 	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/mock"
 )
 
 // GetSDKFactory returns either a real or mock SDK factory based on environment
@@ -38,11 +41,25 @@ func GetSDKFactory(t *testing.T) helpers.SDKAPIFactory {
 	portalAPI := NewMockPortalAPI(t)
 	authAPI := NewMockAppAuthStrategiesAPI(t)
 	apiAPI := NewMockAPIAPI(t)
+	controlPlaneAPI := helpers.NewMockControlPlaneAPI(t)
+	controlPlaneAPI.
+		On("ListControlPlanes", mock.Anything, mock.Anything).
+		Return(&kkOps.ListControlPlanesResponse{
+			StatusCode: 200,
+			ListControlPlanesResponse: &kkComps.ListControlPlanesResponse{
+				Data: []kkComps.ControlPlane{},
+				Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 0}},
+			},
+		}, nil).
+		Maybe()
 
 	return func(_ kongctlconfig.Hook, _ *slog.Logger) (helpers.SDKAPI, error) {
 		// Return mock SDK with test-specific factories that return the same instances
 		return &helpers.MockKonnectSDK{
 			T: t,
+			CPAPIFactory: func() helpers.ControlPlaneAPI {
+				return controlPlaneAPI
+			},
 			PortalFactory: func() helpers.PortalAPI {
 				return portalAPI
 			},

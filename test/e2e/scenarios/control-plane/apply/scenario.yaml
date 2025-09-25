@@ -1,0 +1,27 @@
+baseInputsPath: ../../../testdata/declarative/control-plane/basic
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-initial-apply
+    commands:
+      - name: 001-000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: apply
+          - select: >-
+              plan.changes[?resource_type=='control_plane' && 
+                            resource_ref=='e2e-cp'] | [0]
+            expect:
+              fields:
+                action: CREATE

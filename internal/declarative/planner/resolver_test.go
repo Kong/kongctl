@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -11,7 +12,9 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // MockPortalAPI is a mock implementation of PortalAPI
@@ -696,23 +699,78 @@ func TestResolveReferences_UnimplementedTypes(t *testing.T) {
 		t.Fatalf("ResolveReferences failed: %v", err)
 	}
 
-	// Should have 2 errors for unimplemented types
 	if len(result.Errors) != 2 {
 		t.Fatalf("Expected 2 errors, got %d", len(result.Errors))
 	}
 
-	// Check error messages
-	expectedAuthErr := "change 1-c-portal: failed to resolve application_auth_strategy " +
-		"reference \"auth-ref\": auth strategy resolution not yet implemented"
-	if result.Errors[0].Error() != expectedAuthErr {
-		t.Errorf("Expected error %q, got %q", expectedAuthErr, result.Errors[0].Error())
+	expected := []string{
+		"application_auth_strategy reference \"auth-ref\": auth strategy resolution not yet implemented",
+		"control_plane reference \"cp-ref\": failed to resolve control plane ref 'cp-ref': " +
+			"Control Plane API client not configured",
 	}
 
-	expectedCPErr := "change 2-c-service: failed to resolve control_plane " +
-		"reference \"cp-ref\": control plane resolution not yet implemented"
-	if result.Errors[1].Error() != expectedCPErr {
-		t.Errorf("Expected error %q, got %q", expectedCPErr, result.Errors[1].Error())
+	for _, expectedSubstr := range expected {
+		found := false
+		for _, err := range result.Errors {
+			if strings.Contains(err.Error(), expectedSubstr) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected error containing %q, but not found", expectedSubstr)
+		}
 	}
+}
+
+func TestResolveControlPlaneReference(t *testing.T) {
+	ctx := context.Background()
+	mockCPAPI := helpers.NewMockControlPlaneAPI(t)
+	resp := &kkOps.ListControlPlanesResponse{
+		ListControlPlanesResponse: &kkComps.ListControlPlanesResponse{
+			Data: []kkComps.ControlPlane{
+				{
+					ID:   "cp-123",
+					Name: "cp-ref",
+					Labels: map[string]string{
+						labels.NamespaceKey: "default",
+					},
+				},
+			},
+			Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+		},
+	}
+
+	mockCPAPI.EXPECT().
+		ListControlPlanes(mock.Anything, mock.Anything).
+		Return(resp, nil).
+		Once()
+
+	client := state.NewClient(state.ClientConfig{ControlPlaneAPI: mockCPAPI})
+	resolver := NewReferenceResolver(client, nil)
+
+	changes := []PlannedChange{
+		{
+			ID:           "1",
+			ResourceType: "service",
+			ResourceRef:  "svc",
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				"control_plane_id": "cp-ref",
+			},
+		},
+	}
+
+	result, err := resolver.ResolveReferences(ctx, changes)
+	require.NoError(t, err)
+	require.Empty(t, result.Errors)
+
+	refs, ok := result.ChangeReferences["1"]
+	require.True(t, ok, "expected resolved references")
+	cpRef, ok := refs["control_plane_id"]
+	require.True(t, ok, "expected control plane reference")
+	assert.Equal(t, "cp-ref", cpRef.Ref)
+	assert.Equal(t, "cp-123", cpRef.ID)
 }
 
 func TestIsUUID(t *testing.T) {
@@ -781,7 +839,7 @@ func TestResolveReferences_NetworkError(t *testing.T) {
 }
 
 func containsSubstring(s, substr string) bool {
-	return len(s) >= len(substr) && s[len(s)-len(substr):] == substr
+	return strings.Contains(s, substr)
 }
 
 // Ensure interfaces are implemented
