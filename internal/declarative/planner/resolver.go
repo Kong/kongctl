@@ -219,9 +219,15 @@ func (r *ReferenceResolver) resolveAuthStrategyRef(_ context.Context, _ string) 
 }
 
 // resolveControlPlaneRef resolves control plane ref to ID
-func (r *ReferenceResolver) resolveControlPlaneRef(_ context.Context, _ string) (string, error) {
-	// TODO: Implement when control plane state client is available
-	return "", fmt.Errorf("control plane resolution not yet implemented")
+func (r *ReferenceResolver) resolveControlPlaneRef(ctx context.Context, ref string) (string, error) {
+	cp, err := r.client.GetControlPlaneByName(ctx, ref)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve control plane ref '%s': %w", ref, err)
+	}
+	if cp == nil {
+		return "", fmt.Errorf("control plane with ref '%s' not found", ref)
+	}
+	return cp.ID, nil
 }
 
 // resolvePortalRef resolves portal ref to ID

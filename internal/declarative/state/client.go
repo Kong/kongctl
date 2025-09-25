@@ -17,9 +17,10 @@ import (
 // ClientConfig contains all the API interfaces needed by the state client
 type ClientConfig struct {
 	// Core APIs
-	PortalAPI  helpers.PortalAPI
-	APIAPI     helpers.APIAPI
-	AppAuthAPI helpers.AppAuthStrategiesAPI
+	PortalAPI       helpers.PortalAPI
+	APIAPI          helpers.APIAPI
+	AppAuthAPI      helpers.AppAuthStrategiesAPI
+	ControlPlaneAPI helpers.ControlPlaneAPI
 
 	// Portal child resource APIs
 	PortalPageAPI          helpers.PortalPageAPI
@@ -37,9 +38,10 @@ type ClientConfig struct {
 // Client wraps Konnect SDK for state management
 type Client struct {
 	// Core APIs
-	portalAPI  helpers.PortalAPI
-	apiAPI     helpers.APIAPI
-	appAuthAPI helpers.AppAuthStrategiesAPI
+	portalAPI       helpers.PortalAPI
+	apiAPI          helpers.APIAPI
+	appAuthAPI      helpers.AppAuthStrategiesAPI
+	controlPlaneAPI helpers.ControlPlaneAPI
 
 	// Portal child resource APIs
 	portalPageAPI          helpers.PortalPageAPI
@@ -58,9 +60,10 @@ type Client struct {
 func NewClient(config ClientConfig) *Client {
 	return &Client{
 		// Core APIs
-		portalAPI:  config.PortalAPI,
-		apiAPI:     config.APIAPI,
-		appAuthAPI: config.AppAuthAPI,
+		portalAPI:       config.PortalAPI,
+		apiAPI:          config.APIAPI,
+		appAuthAPI:      config.AppAuthAPI,
+		controlPlaneAPI: config.ControlPlaneAPI,
 
 		// Portal child resource APIs
 		portalPageAPI:          config.PortalPageAPI,
@@ -85,6 +88,12 @@ type Portal struct {
 // API represents a normalized API for internal use
 type API struct {
 	kkComps.APIResponseSchema
+	NormalizedLabels map[string]string // Non-pointer labels
+}
+
+// ControlPlane represents a normalized control plane for internal use
+type ControlPlane struct {
+	kkComps.ControlPlane
 	NormalizedLabels map[string]string // Non-pointer labels
 }
 
@@ -403,6 +412,273 @@ func (c *Client) DeletePortal(ctx context.Context, id string, force bool) error 
 
 		return errors.EnhanceAPIError(err, ctx)
 	}
+	return nil
+}
+
+// ListManagedControlPlanes returns all KONGCTL-managed control planes in the specified namespaces
+// If namespaces is empty, no resources are returned (breaking change from previous behavior)
+// To get all managed resources across all namespaces, pass []string{"*"}
+func (c *Client) ListManagedControlPlanes(ctx context.Context, namespaces []string) ([]ControlPlane, error) {
+	// Validate API client
+	if err := ValidateAPIClient(c.controlPlaneAPI, "Control Plane API"); err != nil {
+		return nil, err
+	}
+
+	// Create paginated lister function
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]ControlPlane, *PageMeta, error) {
+		req := kkOps.ListControlPlanesRequest{
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.controlPlaneAPI.ListControlPlanes(ctx, req)
+		if err != nil {
+			return nil, nil, WrapAPIError(err, "list control planes", nil)
+		}
+
+		if resp.ListControlPlanesResponse == nil {
+			return []ControlPlane{}, &PageMeta{Total: 0}, nil
+		}
+
+		var filtered []ControlPlane
+
+		for _, cp := range resp.ListControlPlanesResponse.Data {
+			normalized := cp.Labels
+			if normalized == nil {
+				normalized = make(map[string]string)
+			}
+
+			if labels.IsManagedResource(normalized) && shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
+				filtered = append(filtered, ControlPlane{
+					ControlPlane:     cp,
+					NormalizedLabels: normalized,
+				})
+			}
+		}
+
+		meta := &PageMeta{Total: resp.ListControlPlanesResponse.Meta.Page.Total}
+
+		return filtered, meta, nil
+	}
+
+	return PaginateAll(ctx, lister)
+}
+
+// ListAllControlPlanes returns all control planes, including non-managed ones
+func (c *Client) ListAllControlPlanes(ctx context.Context) ([]ControlPlane, error) {
+	if err := ValidateAPIClient(c.controlPlaneAPI, "Control Plane API"); err != nil {
+		return nil, err
+	}
+
+	var (
+		pageNumber int64 = 1
+		pageSize   int64 = 100
+	)
+
+	var all []ControlPlane
+
+	for {
+		req := kkOps.ListControlPlanesRequest{
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.controlPlaneAPI.ListControlPlanes(ctx, req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list control planes: %w", err)
+		}
+
+		if resp.ListControlPlanesResponse == nil || len(resp.ListControlPlanesResponse.Data) == 0 {
+			break
+		}
+
+		for _, cp := range resp.ListControlPlanesResponse.Data {
+			normalized := cp.Labels
+			if normalized == nil {
+				normalized = make(map[string]string)
+			}
+
+			all = append(all, ControlPlane{
+				ControlPlane:     cp,
+				NormalizedLabels: normalized,
+			})
+		}
+
+		if resp.ListControlPlanesResponse.Meta.Page.Total <= float64(pageNumber*pageSize) {
+			break
+		}
+
+		pageNumber++
+	}
+
+	return all, nil
+}
+
+// GetControlPlaneByName finds a managed control plane by name
+func (c *Client) GetControlPlaneByName(ctx context.Context, name string) (*ControlPlane, error) {
+	controlPlanes, err := c.ListManagedControlPlanes(ctx, []string{"*"})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, cp := range controlPlanes {
+		if cp.Name == name {
+			return &cp, nil
+		}
+	}
+
+	// Fallback: look through all control planes and return ones that were previously managed
+	allControlPlanes, err := c.ListAllControlPlanes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("fallback lookup failed: %w", err)
+	}
+
+	for _, cp := range allControlPlanes {
+		if cp.Name == name && c.hasAnyKongctlLabels(cp.Labels) {
+			return &cp, nil
+		}
+	}
+
+	return nil, nil
+}
+
+// GetControlPlaneByFilter finds a managed control plane using a filter expression
+func (c *Client) GetControlPlaneByFilter(ctx context.Context, filter string) (*ControlPlane, error) {
+	if c.controlPlaneAPI == nil {
+		return nil, fmt.Errorf("control plane API client not configured")
+	}
+
+	controlPlanes, err := c.ListManagedControlPlanes(ctx, []string{"*"})
+	if err != nil {
+		return nil, err
+	}
+
+	if strings.HasPrefix(filter, "name[eq]=") {
+		name := strings.TrimPrefix(filter, "name[eq]=")
+		for _, cp := range controlPlanes {
+			if cp.Name == name {
+				return &cp, nil
+			}
+		}
+	}
+
+	return nil, nil
+}
+
+// GetControlPlaneByID finds a control plane by ID (used for fallback during protection changes)
+func (c *Client) GetControlPlaneByID(ctx context.Context, id string) (*ControlPlane, error) {
+	if c.controlPlaneAPI == nil {
+		return nil, fmt.Errorf("control plane API client not configured")
+	}
+
+	resp, err := c.controlPlaneAPI.GetControlPlane(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get control plane by ID: %w", err)
+	}
+
+	if resp.ControlPlane == nil {
+		return nil, nil
+	}
+
+	normalized := resp.ControlPlane.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	return &ControlPlane{
+		ControlPlane:     *resp.ControlPlane,
+		NormalizedLabels: normalized,
+	}, nil
+}
+
+// CreateControlPlane creates a new control plane with management labels
+func (c *Client) CreateControlPlane(
+	ctx context.Context,
+	controlPlane kkComps.CreateControlPlaneRequest,
+	namespace string,
+) (*kkComps.ControlPlane, error) {
+	if err := ValidateAPIClient(c.controlPlaneAPI, "Control Plane API"); err != nil {
+		return nil, err
+	}
+
+	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
+	logger.Debug("CreateControlPlane called",
+		slog.Any("labels", controlPlane.Labels),
+		slog.String("namespace", namespace))
+
+	resp, err := c.controlPlaneAPI.CreateControlPlane(ctx, controlPlane)
+	if err != nil {
+		return nil, WrapAPIError(err, "create control plane", &ErrorWrapperOptions{
+			ResourceType: "control_plane",
+			ResourceName: controlPlane.Name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.ControlPlane == nil {
+		return nil, fmt.Errorf("create control plane response missing control plane data")
+	}
+
+	return resp.ControlPlane, nil
+}
+
+// UpdateControlPlane updates an existing control plane
+func (c *Client) UpdateControlPlane(
+	ctx context.Context,
+	id string,
+	controlPlane kkComps.UpdateControlPlaneRequest,
+	namespace string,
+) (*kkComps.ControlPlane, error) {
+	if err := ValidateAPIClient(c.controlPlaneAPI, "Control Plane API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.controlPlaneAPI.UpdateControlPlane(ctx, id, controlPlane)
+	if err != nil {
+		statusCode := errors.ExtractStatusCodeFromError(err)
+
+		ctx := errors.APIErrorContext{
+			ResourceType: "control_plane",
+			ResourceName: func() string {
+				if controlPlane.Name != nil {
+					return *controlPlane.Name
+				}
+				return ""
+			}(),
+			Operation:  "update",
+			Namespace:  namespace,
+			StatusCode: statusCode,
+		}
+
+		return nil, errors.EnhanceAPIError(err, ctx)
+	}
+
+	if resp.ControlPlane == nil {
+		return nil, fmt.Errorf("update control plane response missing control plane data")
+	}
+
+	return resp.ControlPlane, nil
+}
+
+// DeleteControlPlane deletes a control plane by ID
+func (c *Client) DeleteControlPlane(ctx context.Context, id string) error {
+	if err := ValidateAPIClient(c.controlPlaneAPI, "Control Plane API"); err != nil {
+		return err
+	}
+
+	_, err := c.controlPlaneAPI.DeleteControlPlane(ctx, id)
+	if err != nil {
+		statusCode := errors.ExtractStatusCodeFromError(err)
+		ctx := errors.APIErrorContext{
+			ResourceType: "control_plane",
+			ResourceName: id,
+			Operation:    "delete",
+			StatusCode:   statusCode,
+		}
+		return errors.EnhanceAPIError(err, ctx)
+	}
+
 	return nil
 }
 

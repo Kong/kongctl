@@ -446,6 +446,21 @@ func (s *Step) ResetOrg(stage string) error {
 			"error":       errorString(err3),
 		},
 	)
+	// control-planes
+	tot4, del4, err4 := deleteAll(client, baseURL, token, "v2", "control-planes")
+	if err4 != nil && firstErr == nil {
+		firstErr = err4
+	}
+	details = append(
+		details,
+		map[string]any{
+			"api_version": "v2",
+			"endpoint":    "control-planes",
+			"total":       tot4,
+			"deleted":     del4,
+			"error":       errorString(err4),
+		},
+	)
 
 	status := "ok"
 	if firstErr != nil {

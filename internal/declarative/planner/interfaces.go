@@ -17,6 +17,11 @@ type PortalPlanner interface {
 	// Additional portal-specific methods if needed
 }
 
+// ControlPlanePlanner handles planning for control plane resources
+type ControlPlanePlanner interface {
+	ResourcePlanner
+}
+
 // AuthStrategyPlanner handles planning for auth strategy resources
 type AuthStrategyPlanner interface {
 	ResourcePlanner

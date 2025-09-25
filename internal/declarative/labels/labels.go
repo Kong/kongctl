@@ -311,6 +311,32 @@ func BuildUpdateLabels(
 	return result
 }
 
+// BuildUpdateStringLabels prepares labels for update operations that expect map[string]string
+// Nil values in the pointer-based representation are treated as deletions and thus omitted
+func BuildUpdateStringLabels(
+	desiredLabels, currentLabels map[string]string,
+	namespace string,
+	protection any,
+) map[string]string {
+	updated := BuildUpdateLabels(desiredLabels, currentLabels, namespace, protection)
+	if len(updated) == 0 {
+		return nil
+	}
+
+	result := make(map[string]string)
+	for k, v := range updated {
+		if v != nil {
+			result[k] = *v
+		}
+	}
+
+	if len(result) == 0 {
+		return nil
+	}
+
+	return result
+}
+
 // getProtectionNewValue uses reflection to get the New field from a ProtectionChange
 // This avoids circular dependency with the planner package
 func getProtectionNewValue(protection any) bool {

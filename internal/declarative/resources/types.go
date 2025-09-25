@@ -227,6 +227,17 @@ func (rs *ResourceSet) GetPortalsByNamespace(namespace string) []PortalResource 
 	return filtered
 }
 
+// GetControlPlanesByNamespace returns all control plane resources from the specified namespace
+func (rs *ResourceSet) GetControlPlanesByNamespace(namespace string) []ControlPlaneResource {
+	var filtered []ControlPlaneResource
+	for _, cp := range rs.ControlPlanes {
+		if GetNamespace(cp.Kongctl) == namespace {
+			filtered = append(filtered, cp)
+		}
+	}
+	return filtered
+}
+
 // GetAPIsByNamespace returns all API resources from the specified namespace
 func (rs *ResourceSet) GetAPIsByNamespace(namespace string) []APIResource {
 	var filtered []APIResource

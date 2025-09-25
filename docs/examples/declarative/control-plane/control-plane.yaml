@@ -1,0 +1,32 @@
+_defaults:
+  kongctl:
+    namespace: platform-shared
+    protected: false
+
+control_planes:
+  - ref: prod-cp
+    name: "production-control-plane"
+    description: "Production Konnect runtime group"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    auth_type: "pinned_client_certs"
+    proxy_urls:
+      - host: control.prod.example.com
+        port: 443
+        protocol: https
+    labels:
+      environment: production
+    kongctl:
+      namespace: platform-prod
+      protected: true
+
+  - ref: staging-cp
+    name: "staging-control-plane"
+    description: "Staging environment runtime group"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    cloud_gateway: true
+    proxy_urls:
+      - host: control.staging.example.com
+        port: 8443
+        protocol: https
+    labels:
+      environment: staging

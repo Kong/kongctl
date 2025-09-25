@@ -204,6 +204,26 @@ portals:
     display_name: "Developer Portal"
     description: "API documentation hub"
 
+# Define control planes
+control_planes:
+  - ref: prod-cp
+    name: "prod-control-plane"
+    description: "Production runtime group"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    auth_type: "pinned_client_certs"
+    proxy_urls:
+      - host: runtime.prod.example.com
+        port: 443
+        protocol: https
+    kongctl:
+      namespace: platform-prod
+      protected: true
+
+Control planes describe Konnect runtime control planes. 
+You can specify the cluster type (`CLUSTER_TYPE_CONTROL_PLANE`,`CLUSTER_TYPE_K8S_INGRESS_CONTROLLER`, etc.), 
+the mutual‑TLS authentication mode, whether the runtime should be marked as `cloud_gateway`, and optional `proxy_urls` entries for data plane
+connectivity. Like other parent resources, control planes support the full `kongctl` metadata block for namespace isolation and protection enforcement.
+
 # Define APIs
 apis:
   - ref: users-api
