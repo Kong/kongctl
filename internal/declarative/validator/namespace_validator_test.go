@@ -254,9 +254,12 @@ func TestParseNamespaceRequirementSlice(t *testing.T) {
 			expect: NamespaceRequirement{Mode: NamespaceRequirementSpecific, AllowedNamespaces: []string{"foo"}},
 		},
 		{
-			name:   "multiple namespaces",
-			input:  []string{"foo", "bar", "baz"},
-			expect: NamespaceRequirement{Mode: NamespaceRequirementSpecific, AllowedNamespaces: []string{"foo", "bar", "baz"}},
+			name:  "multiple namespaces",
+			input: []string{"foo", "bar", "baz"},
+			expect: NamespaceRequirement{
+				Mode:              NamespaceRequirementSpecific,
+				AllowedNamespaces: []string{"foo", "bar", "baz"},
+			},
 		},
 		{
 			name:   "duplicate namespaces",

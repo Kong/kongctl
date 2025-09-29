@@ -118,7 +118,11 @@ func TestControlPlanePlanner_PlanUpdate(t *testing.T) {
 	assert.Equal(t, "cp-update", change.ResourceRef)
 	assert.Equal(t, "cp-1", change.ResourceID)
 	assert.Equal(t, "new", change.Fields["description"])
-	assert.Equal(t, []kkComps.ProxyURL{{Host: "example.com", Port: 8443, Protocol: "https"}}, change.Fields["proxy_urls"])
+	assert.Equal(
+		t,
+		[]kkComps.ProxyURL{{Host: "example.com", Port: 8443, Protocol: "https"}},
+		change.Fields["proxy_urls"],
+	)
 	assert.Nil(t, change.Protection)
 }
 

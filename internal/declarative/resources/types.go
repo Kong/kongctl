@@ -70,7 +70,7 @@ type KongctlMeta struct {
 	// Namespace for resource isolation and multi-team management
 	Namespace *string `yaml:"namespace,omitempty" json:"namespace,omitempty"`
 	// NamespaceOrigin tracks how the namespace value was derived (not serialized)
-	NamespaceOrigin NamespaceOrigin `yaml:"-" json:"-"`
+	NamespaceOrigin NamespaceOrigin `yaml:"-"                   json:"-"`
 }
 
 // FileDefaults holds file-level defaults that apply to all resources in the file

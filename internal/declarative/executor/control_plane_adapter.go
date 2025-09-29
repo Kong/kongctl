@@ -90,7 +90,12 @@ func (a *ControlPlaneAdapter) MapUpdateFields(_ context.Context, execCtx *Execut
 	}
 
 	if desiredLabels != nil {
-		update.Labels = labels.BuildUpdateStringLabels(desiredLabels, currentLabels, execCtx.Namespace, execCtx.Protection)
+		update.Labels = labels.BuildUpdateStringLabels(
+			desiredLabels,
+			currentLabels,
+			execCtx.Namespace,
+			execCtx.Protection,
+		)
 	} else if currentLabels != nil {
 		update.Labels = labels.BuildUpdateStringLabels(currentLabels, currentLabels, execCtx.Namespace, execCtx.Protection)
 	}

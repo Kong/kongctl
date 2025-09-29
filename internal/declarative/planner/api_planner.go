@@ -463,7 +463,15 @@ func (p *Planner) planAPIChildResourcesCreate(
 
 	// Plan document creation - API ID is not yet known
 	for _, document := range api.Documents {
-		p.planAPIDocumentCreate(parentNamespace, api.GetRef(), "", document, []string{apiChangeID}, apiDocumentLookup{}, plan)
+		p.planAPIDocumentCreate(
+			parentNamespace,
+			api.GetRef(),
+			"",
+			document,
+			[]string{apiChangeID},
+			apiDocumentLookup{},
+			plan,
+		)
 	}
 }
 

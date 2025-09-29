@@ -448,7 +448,8 @@ func (c *Client) ListManagedControlPlanes(ctx context.Context, namespaces []stri
 				normalized = make(map[string]string)
 			}
 
-			if labels.IsManagedResource(normalized) && shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
+			if labels.IsManagedResource(normalized) &&
+				shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
 				filtered = append(filtered, ControlPlane{
 					ControlPlane:     cp,
 					NormalizedLabels: normalized,

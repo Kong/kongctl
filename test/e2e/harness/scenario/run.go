@@ -114,12 +114,22 @@ func Run(t *testing.T, scenarioPath string) error {
 					return fmt.Errorf("command %s expected failure but succeeded", cmdName)
 				}
 				if cmd.ExpectFail.ExitCode != nil && res.ExitCode != *cmd.ExpectFail.ExitCode {
-					return fmt.Errorf("command %s expected exit code %d but got %d", cmdName, *cmd.ExpectFail.ExitCode, res.ExitCode)
+					return fmt.Errorf(
+						"command %s expected exit code %d but got %d",
+						cmdName,
+						*cmd.ExpectFail.ExitCode,
+						res.ExitCode,
+					)
 				}
 				if substr := strings.TrimSpace(cmd.ExpectFail.Contains); substr != "" {
 					combined := res.Stderr + res.Stdout
 					if !strings.Contains(combined, substr) {
-						return fmt.Errorf("command %s expected failure output to contain %q\nstderr: %s", cmdName, substr, res.Stderr)
+						return fmt.Errorf(
+							"command %s expected failure output to contain %q\nstderr: %s",
+							cmdName,
+							substr,
+							res.Stderr,
+						)
 					}
 				}
 				// expected failure satisfied; skip assertions for this command
@@ -146,7 +156,12 @@ func Run(t *testing.T, scenarioPath string) error {
 			var parent any
 			if len(res.Stdout) > 0 {
 				if err := json.Unmarshal([]byte(res.Stdout), &parent); err != nil {
-					t.Errorf("failed to unmarshal stdout as JSON for command %s: %v\nstdout: %q", cmdName, err, res.Stdout)
+					t.Errorf(
+						"failed to unmarshal stdout as JSON for command %s: %v\nstdout: %q",
+						cmdName,
+						err,
+						res.Stdout,
+					)
 					return fmt.Errorf("command %s produced invalid JSON: %w", cmdName, err)
 				}
 			}
@@ -169,7 +184,20 @@ func Run(t *testing.T, scenarioPath string) error {
 					"workdir":  step.InputsDir,
 				}
 				for atry := 0; atry < attempts; atry++ {
-					lastErr = runAssertion(cli, scenarioPath, step.InputsDir, s, st, cmd, as, parent, asName, atry, parentDir, tmplCtx)
+					lastErr = runAssertion(
+						cli,
+						scenarioPath,
+						step.InputsDir,
+						s,
+						st,
+						cmd,
+						as,
+						parent,
+						asName,
+						atry,
+						parentDir,
+						tmplCtx,
+					)
 					if lastErr == nil {
 						break
 					}
@@ -272,7 +300,19 @@ func copyTree(src, dst string) error {
 	})
 }
 
-func runAssertion(cli *harness.CLI, scenarioPath, workdir string, sc Scenario, st Step, cmd Command, as Assertion, parent any, asName string, attempt int, parentDir string, tmplCtx map[string]any) error {
+func runAssertion(
+	cli *harness.CLI,
+	scenarioPath, workdir string,
+	sc Scenario,
+	st Step,
+	cmd Command,
+	as Assertion,
+	parent any,
+	asName string,
+	attempt int,
+	parentDir string,
+	tmplCtx map[string]any,
+) error {
 	// Resolve source
 	var src any
 	var err error

@@ -13,13 +13,13 @@ import (
 
 // APIDocumentResource represents an API document in declarative configuration
 type APIDocumentResource struct {
-	kkComps.CreateAPIDocumentRequest `       yaml:",inline"                      json:",inline"`
-	Ref                              string `yaml:"ref"                          json:"ref"`
+	kkComps.CreateAPIDocumentRequest `                      yaml:",inline"                       json:",inline"`
+	Ref                              string `yaml:"ref"                           json:"ref"`
 	// Parent API reference (for root-level definitions)
-	API               string                `yaml:"api,omitempty"                   json:"api,omitempty"`
-	ParentDocumentID  string                `yaml:"parent_document_id,omitempty"   json:"parent_document_id,omitempty"`
-	ParentDocumentRef string                `yaml:"parent_document_ref,omitempty"  json:"parent_document_ref,omitempty"`
-	Children          []APIDocumentResource `yaml:"children,omitempty"             json:"children,omitempty"`
+	API               string                `yaml:"api,omitempty"                 json:"api,omitempty"`
+	ParentDocumentID  string                `yaml:"parent_document_id,omitempty"  json:"parent_document_id,omitempty"`
+	ParentDocumentRef string                `yaml:"parent_document_ref,omitempty" json:"parent_document_ref,omitempty"`
+	Children          []APIDocumentResource `yaml:"children,omitempty"            json:"children,omitempty"`
 
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`

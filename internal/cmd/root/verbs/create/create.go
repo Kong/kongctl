@@ -5,9 +5,7 @@ import (
 	"fmt"
 
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
-	onprem "github.com/kong/kongctl/internal/cmd/root/products/on-prem"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
-	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -59,10 +57,6 @@ func NewCreateCmd() (*cobra.Command, error) {
 	}
 
 	cmd.AddCommand(c)
-
-	// Add on-prem product command
-	streams := &iostreams.IOStreams{}
-	cmd.AddCommand(onprem.NewOnPremCmd(streams))
 
 	// Add gateway command directly for Konnect-first pattern
 	gatewayCmd, err := NewDirectGatewayCmd()

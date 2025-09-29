@@ -106,7 +106,9 @@ func (h apiVersionsHandler) run(args []string) error {
 
 	if len(args) > 1 {
 		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("too many arguments. Listing API versions requires 0 or 1 arguments (ID or version string)"),
+			Err: fmt.Errorf(
+				"too many arguments. Listing API versions requires 0 or 1 arguments (ID or version string)",
+			),
 		}
 	}
 

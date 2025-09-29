@@ -152,7 +152,11 @@ func (h portalApplicationsHandler) run(args []string) error {
 
 	if portalID == "" && portalName == "" {
 		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("a portal identifier is required. Provide --%s or --%s", portalIDFlagName, portalNameFlagName),
+			Err: fmt.Errorf(
+				"a portal identifier is required. Provide --%s or --%s",
+				portalIDFlagName,
+				portalNameFlagName,
+			),
 		}
 	}
 
