@@ -199,8 +199,9 @@ func TestMapAuthStrategyToDeclarativeResource_KeyAuth(t *testing.T) {
 		t.Fatalf("expected kongctl metadata to be omitted for key auth strategy")
 	}
 
-	if len(resource.AppAuthStrategyKeyAuthRequest.Labels) != 1 || resource.AppAuthStrategyKeyAuthRequest.Labels["tier"] != "gold" {
-		t.Fatalf("expected only user labels to remain, got %v", resource.AppAuthStrategyKeyAuthRequest.Labels)
+	labels := resource.AppAuthStrategyKeyAuthRequest.Labels
+	if len(labels) != 1 || labels["tier"] != "gold" {
+		t.Fatalf("expected only user labels to remain, got %v", labels)
 	}
 
 	if _, exists := resource.AppAuthStrategyKeyAuthRequest.Labels[decllabels.NamespaceKey]; exists {
@@ -259,7 +260,8 @@ func TestMapAuthStrategyToDeclarativeResource_OIDC(t *testing.T) {
 		t.Fatalf("expected name to be preserved")
 	}
 
-	if resource.AppAuthStrategyOpenIDConnectRequest.DcrProviderID == nil || *resource.AppAuthStrategyOpenIDConnectRequest.DcrProviderID != "provider-123" {
+	providerID := resource.AppAuthStrategyOpenIDConnectRequest.DcrProviderID
+	if providerID == nil || *providerID != "provider-123" {
 		t.Fatalf("expected DCR provider ID to be preserved")
 	}
 
