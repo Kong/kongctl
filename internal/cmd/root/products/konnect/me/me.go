@@ -54,7 +54,8 @@ func NewMeCmd(verb verbs.VerbValue,
 		verbs.Plan,
 		verbs.Sync,
 		verbs.Diff,
-		verbs.Export:
+		verbs.Export,
+		verbs.Adopt:
 		return &baseCmd, nil
 	}
 
