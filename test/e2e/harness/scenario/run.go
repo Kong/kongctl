@@ -112,17 +112,17 @@ func Run(t *testing.T, scenarioPath string) error {
 				if cmd.ExpectFail != nil {
 					return fmt.Errorf("command %s: expectFailure not supported for create commands", cmdName)
 				}
-				if len(cmd.Assertions) > 0 {
-					return fmt.Errorf("command %s: assertions not supported for create commands", cmdName)
-				}
 				attempts, interval := effectiveRetry(s.Defaults.Retry, st.Retry, cmd.Retry, Retry{})
-				var lastErr error
+				var (
+					lastErr error
+					result  harness.CreateResourceResult
+				)
 				for atry := 0; atry < attempts; atry++ {
 					payload, perr := prepareCreatePayload(cmd.Create, scenarioPath, tmplCtx)
 					if perr != nil {
 						return fmt.Errorf("command %s build payload failed: %w", cmdName, perr)
 					}
-					result, cerr := step.CreateResource(
+					result, lastErr = step.CreateResource(
 						cmd.Create.Resource,
 						payload,
 						harness.CreateResourceOptions{
@@ -130,21 +130,40 @@ func Run(t *testing.T, scenarioPath string) error {
 							ExpectStatus: cmd.Create.ExpectStatus,
 						},
 					)
-					if cerr == nil {
+					if lastErr == nil {
 						if err := maybeRecordVar(&s, cmd.Create.RecordVar, result.Parsed, step); err != nil {
 							return fmt.Errorf("command %s recordVar failed: %w", cmdName, err)
 						}
 						step.AppendCheck("PASS: created %s (status=%d)", strings.TrimSpace(cmd.Create.Resource), result.Status)
-						lastErr = nil
 						break
 					}
-					lastErr = cerr
 					if atry+1 < attempts {
 						time.Sleep(interval)
 					}
 				}
 				if lastErr != nil {
 					return fmt.Errorf("command %s create failed: %w", cmdName, lastErr)
+				}
+				parseMode := strings.TrimSpace(cmd.ParseAs)
+				stdout := string(result.Body)
+				if err := writeStdoutFile(cmd.StdoutFile, stdout, tmplCtx, step); err != nil {
+					return fmt.Errorf("command %s stdoutFile failed: %w", cmdName, err)
+				}
+				parentData, err := parseCommandOutput(parseMode, stdout)
+				if err != nil {
+					mode := parseMode
+					if strings.TrimSpace(mode) == "" || strings.EqualFold(mode, "inherit") {
+						mode = "json"
+					}
+					snippet := stdout
+					if len(snippet) > 2048 {
+						snippet = snippet[:2048] + "…"
+					}
+					t.Errorf("failed to parse stdout (parseAs=%s) for command %s: %v\nstdout: %q", mode, cmdName, err, snippet)
+					return fmt.Errorf("command %s produced unparsable output: %w", cmdName, err)
+				}
+				if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName); err != nil {
+					return err
 				}
 				continue
 			}
@@ -208,7 +227,7 @@ func Run(t *testing.T, scenarioPath string) error {
 			}
 
 			// Parent source data (JSON/YAML) used by assertions
-			parent, err := parseCommandOutput(parseMode, res.Stdout)
+			parentData, err := parseCommandOutput(parseMode, res.Stdout)
 			if err != nil {
 				mode := parseMode
 				if strings.TrimSpace(mode) == "" || strings.EqualFold(mode, "inherit") {
@@ -222,48 +241,8 @@ func Run(t *testing.T, scenarioPath string) error {
 				return fmt.Errorf("command %s produced unparsable output: %w", cmdName, err)
 			}
 
-			// Run assertions
-			for k, as := range cmd.Assertions {
-				asName := as.Name
-				if strings.TrimSpace(asName) == "" {
-					asName = fmt.Sprintf("assert-%03d", k)
-				}
-				attempts, interval := effectiveRetry(s.Defaults.Retry, st.Retry, cmd.Retry, as.Retry)
-				var lastErr error
-				// Parent command directory for assertion artifacts
-				parentDir := cli.LastCommandDir
-				// Template context for rendering selects/overlays
-				tmplCtx := map[string]any{
-					"vars":     s.Vars,
-					"scenario": filepath.Dir(scenarioPath),
-					"step":     stepName,
-					"workdir":  step.InputsDir,
-				}
-				for atry := 0; atry < attempts; atry++ {
-					lastErr = runAssertion(
-						cli,
-						scenarioPath,
-						step.InputsDir,
-						s,
-						st,
-						cmd,
-						as,
-						parent,
-						asName,
-						atry,
-						parentDir,
-						tmplCtx,
-					)
-					if lastErr == nil {
-						break
-					}
-					if atry+1 < attempts {
-						time.Sleep(interval)
-					}
-				}
-				if lastErr != nil {
-					return fmt.Errorf("%s/%s/%s: %w", stepName, cmdName, asName, lastErr)
-				}
+			if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName); err != nil {
+				return err
 			}
 		}
 	}
@@ -362,6 +341,53 @@ func maybeRecordVar(s *Scenario, spec *RecordVar, parsed any, step *harness.Step
 	return nil
 }
 
+func executeAssertions(cli *harness.CLI, scenarioPath string, sc Scenario, st Step, cmd Command, parent any, workdir string, stepName, cmdName string) error {
+	if len(cmd.Assertions) == 0 {
+		return nil
+	}
+	for k, as := range cmd.Assertions {
+		asName := as.Name
+		if strings.TrimSpace(asName) == "" {
+			asName = fmt.Sprintf("assert-%03d", k)
+		}
+		attempts, interval := effectiveRetry(sc.Defaults.Retry, st.Retry, cmd.Retry, as.Retry)
+		var lastErr error
+		parentDir := cli.LastCommandDir
+		tmplCtx := map[string]any{
+			"vars":     sc.Vars,
+			"scenario": filepath.Dir(scenarioPath),
+			"step":     stepName,
+			"workdir":  workdir,
+		}
+		for atry := 0; atry < attempts; atry++ {
+			lastErr = runAssertion(
+				cli,
+				scenarioPath,
+				workdir,
+				sc,
+				st,
+				cmd,
+				as,
+				parent,
+				asName,
+				atry,
+				parentDir,
+				tmplCtx,
+			)
+			if lastErr == nil {
+				break
+			}
+			if atry+1 < attempts {
+				time.Sleep(interval)
+			}
+		}
+		if lastErr != nil {
+			return fmt.Errorf("%s/%s/%s: %w", stepName, cmdName, asName, lastErr)
+		}
+	}
+	return nil
+}
+
 func configureCommandOutput(cli *harness.CLI, format string) error {
 	clean := strings.TrimSpace(format)
 	switch strings.ToLower(clean) {
@@ -378,33 +404,49 @@ func configureCommandOutput(cli *harness.CLI, format string) error {
 	}
 }
 
-func parseCommandOutput(mode string, stdout string) (any, error) {
+type assertionData struct {
+	Map   map[string]any
+	Array []any
+}
+
+func (a assertionData) Value() any {
+	if a.Map != nil {
+		return a.Map
+	}
+	return a.Array
+}
+
+func parseCommandOutput(mode string, stdout string) (assertionData, error) {
 	if strings.TrimSpace(stdout) == "" {
-		return nil, nil
+		return assertionData{}, nil
 	}
 	m := strings.ToLower(strings.TrimSpace(mode))
 	switch m {
 	case "", "json", "inherit":
-		var out any
-		if err := json.Unmarshal([]byte(stdout), &out); err != nil {
-			return nil, err
-		}
-		return out, nil
+		return decodeJSONOutput([]byte(stdout))
 	case "yaml":
 		jb, err := yaml.YAMLToJSON([]byte(stdout))
 		if err != nil {
-			return nil, err
+			return assertionData{}, err
 		}
-		var out any
-		if err := json.Unmarshal(jb, &out); err != nil {
-			return nil, err
-		}
-		return out, nil
+		return decodeJSONOutput(jb)
 	case "raw":
-		return stdout, nil
+		return assertionData{Map: map[string]any{"stdout": stdout}}, nil
 	default:
-		return nil, fmt.Errorf("unsupported parseAs %q", mode)
+		return assertionData{}, fmt.Errorf("unsupported parseAs %q", mode)
 	}
+}
+
+func decodeJSONOutput(data []byte) (assertionData, error) {
+	var obj map[string]any
+	if err := json.Unmarshal(data, &obj); err == nil {
+		return assertionData{Map: obj}, nil
+	}
+	var arr []any
+	if err := json.Unmarshal(data, &arr); err == nil {
+		return assertionData{Array: arr}, nil
+	}
+	return assertionData{}, fmt.Errorf("unrecognized structured output")
 }
 
 func writeStdoutFile(pathTemplate, stdout string, tmplCtx map[string]any, step *harness.Step) error {

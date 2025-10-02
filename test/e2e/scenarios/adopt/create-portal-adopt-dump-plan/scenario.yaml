@@ -52,6 +52,7 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.portal_name }}"
+                "kongctl.namespace": team-e2e
           - select: "_defaults.kongctl"
             expect:
               fields:
@@ -60,6 +61,7 @@ steps:
       - name: plan-from-dump
         run:
           - plan
+          - declarative
           - -f
           - "{{ .workdir }}/dump.yaml"
           - --mode
