@@ -36,6 +36,9 @@ func Run(t *testing.T, scenarioPath string) error {
 	if len(s.Env) > 0 {
 		cli.WithEnv(s.Env)
 	}
+	if s.Vars == nil {
+		s.Vars = map[string]any{}
+	}
 
 	// Execute steps
 	startIdx := 0
@@ -102,6 +105,54 @@ func Run(t *testing.T, scenarioPath string) error {
 				// no assertions for reset
 				continue
 			}
+			if cmd.Create != nil {
+				if len(cmd.Run) > 0 {
+					return fmt.Errorf("command %s: create commands cannot set run", cmdName)
+				}
+				if cmd.ExpectFail != nil {
+					return fmt.Errorf("command %s: expectFailure not supported for create commands", cmdName)
+				}
+				if len(cmd.Assertions) > 0 {
+					return fmt.Errorf("command %s: assertions not supported for create commands", cmdName)
+				}
+				attempts, interval := effectiveRetry(s.Defaults.Retry, st.Retry, cmd.Retry, Retry{})
+				var lastErr error
+				for atry := 0; atry < attempts; atry++ {
+					payload, perr := prepareCreatePayload(cmd.Create, scenarioPath, tmplCtx)
+					if perr != nil {
+						return fmt.Errorf("command %s build payload failed: %w", cmdName, perr)
+					}
+					result, cerr := step.CreateResource(
+						cmd.Create.Resource,
+						payload,
+						harness.CreateResourceOptions{
+							Slug:         cmdName,
+							ExpectStatus: cmd.Create.ExpectStatus,
+						},
+					)
+					if cerr == nil {
+						if err := maybeRecordVar(&s, cmd.Create.RecordVar, result.Parsed, step); err != nil {
+							return fmt.Errorf("command %s recordVar failed: %w", cmdName, err)
+						}
+						step.AppendCheck("PASS: created %s (status=%d)", strings.TrimSpace(cmd.Create.Resource), result.Status)
+						lastErr = nil
+						break
+					}
+					lastErr = cerr
+					if atry+1 < attempts {
+						time.Sleep(interval)
+					}
+				}
+				if lastErr != nil {
+					return fmt.Errorf("command %s create failed: %w", cmdName, lastErr)
+				}
+				continue
+			}
+
+			parseMode := strings.TrimSpace(cmd.ParseAs)
+			if err := configureCommandOutput(cli, strings.TrimSpace(cmd.OutputFormat)); err != nil {
+				return fmt.Errorf("command %s outputFormat invalid: %w", cmdName, err)
+			}
 			// Render args
 			args := make([]string, 0, len(cmd.Run))
 			for _, a := range cmd.Run {
@@ -152,18 +203,23 @@ func Run(t *testing.T, scenarioPath string) error {
 				return fmt.Errorf("%s", msg)
 			}
 
-			// Parent source JSON (if assertions use it)
-			var parent any
-			if len(res.Stdout) > 0 {
-				if err := json.Unmarshal([]byte(res.Stdout), &parent); err != nil {
-					t.Errorf(
-						"failed to unmarshal stdout as JSON for command %s: %v\nstdout: %q",
-						cmdName,
-						err,
-						res.Stdout,
-					)
-					return fmt.Errorf("command %s produced invalid JSON: %w", cmdName, err)
+			if err := writeStdoutFile(cmd.StdoutFile, res.Stdout, tmplCtx, step); err != nil {
+				return fmt.Errorf("command %s stdoutFile failed: %w", cmdName, err)
+			}
+
+			// Parent source data (JSON/YAML) used by assertions
+			parent, err := parseCommandOutput(parseMode, res.Stdout)
+			if err != nil {
+				mode := parseMode
+				if strings.TrimSpace(mode) == "" || strings.EqualFold(mode, "inherit") {
+					mode = "json"
 				}
+				snippet := res.Stdout
+				if len(snippet) > 2048 {
+					snippet = snippet[:2048] + "…"
+				}
+				t.Errorf("failed to parse stdout (parseAs=%s) for command %s: %v\nstdout: %q", mode, cmdName, err, snippet)
+				return fmt.Errorf("command %s produced unparsable output: %w", cmdName, err)
 			}
 
 			// Run assertions
@@ -213,6 +269,171 @@ func Run(t *testing.T, scenarioPath string) error {
 	}
 
 	return nil
+}
+
+func prepareCreatePayload(spec *CreateSpec, scenarioPath string, tmplCtx map[string]any) ([]byte, error) {
+	if spec == nil {
+		return nil, fmt.Errorf("create spec missing")
+	}
+	var obj any
+	switch {
+	case strings.TrimSpace(spec.Payload.File) != "":
+		path := spec.Payload.File
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(ScenarioRoot(scenarioPath), path)
+		}
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		b, err = renderTemplate(b, tmplCtx)
+		if err != nil {
+			return nil, err
+		}
+		if strings.HasSuffix(strings.ToLower(path), ".json") {
+			if err := json.Unmarshal(b, &obj); err != nil {
+				return nil, err
+			}
+		} else {
+			if err := yaml.Unmarshal(b, &obj); err != nil {
+				return nil, err
+			}
+		}
+	case len(spec.Payload.Inline) > 0:
+		b, err := yaml.Marshal(spec.Payload.Inline)
+		if err != nil {
+			return nil, err
+		}
+		b, err = renderTemplate(b, tmplCtx)
+		if err != nil {
+			return nil, err
+		}
+		if err := yaml.Unmarshal(b, &obj); err != nil {
+			return nil, err
+		}
+	default:
+		obj = map[string]any{}
+	}
+	body, err := json.Marshal(obj)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+func maybeRecordVar(s *Scenario, spec *RecordVar, parsed any, step *harness.Step) error {
+	if spec == nil {
+		return nil
+	}
+	if strings.TrimSpace(spec.Name) == "" {
+		return fmt.Errorf("recordVar name is required")
+	}
+	if parsed == nil {
+		return fmt.Errorf("response body missing for recordVar %q", spec.Name)
+	}
+	path := strings.TrimSpace(spec.ResponsePath)
+	if path == "" {
+		path = "id"
+	}
+	val, err := jmespath.Search(path, parsed)
+	if err != nil {
+		return err
+	}
+	if val == nil {
+		return fmt.Errorf("recordVar %q path %q not found", spec.Name, path)
+	}
+	strVal := ""
+	switch v := val.(type) {
+	case string:
+		strVal = v
+	default:
+		strVal = fmt.Sprint(v)
+	}
+	if strings.TrimSpace(strVal) == "" {
+		return fmt.Errorf("recordVar %q resolved to empty value", spec.Name)
+	}
+	if s.Vars == nil {
+		s.Vars = map[string]any{}
+	}
+	s.Vars[spec.Name] = strVal
+	if step != nil {
+		step.AppendCheck("SET VAR: %s=%s", spec.Name, strVal)
+	}
+	return nil
+}
+
+func configureCommandOutput(cli *harness.CLI, format string) error {
+	clean := strings.TrimSpace(format)
+	switch strings.ToLower(clean) {
+	case "", "inherit":
+		return nil
+	case "none", "disable":
+		cli.DisableNextOutput()
+		return nil
+	case "json", "yaml", "text":
+		cli.OverrideNextOutput(clean)
+		return nil
+	default:
+		return fmt.Errorf("unsupported output format %q", format)
+	}
+}
+
+func parseCommandOutput(mode string, stdout string) (any, error) {
+	if strings.TrimSpace(stdout) == "" {
+		return nil, nil
+	}
+	m := strings.ToLower(strings.TrimSpace(mode))
+	switch m {
+	case "", "json", "inherit":
+		var out any
+		if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+			return nil, err
+		}
+		return out, nil
+	case "yaml":
+		jb, err := yaml.YAMLToJSON([]byte(stdout))
+		if err != nil {
+			return nil, err
+		}
+		var out any
+		if err := json.Unmarshal(jb, &out); err != nil {
+			return nil, err
+		}
+		return out, nil
+	case "raw":
+		return stdout, nil
+	default:
+		return nil, fmt.Errorf("unsupported parseAs %q", mode)
+	}
+}
+
+func writeStdoutFile(pathTemplate, stdout string, tmplCtx map[string]any, step *harness.Step) error {
+	if strings.TrimSpace(pathTemplate) == "" {
+		return nil
+	}
+	resolved := renderString(pathTemplate, tmplCtx)
+	if strings.TrimSpace(resolved) == "" {
+		return fmt.Errorf("stdoutFile resolved to empty path")
+	}
+	outPath := resolved
+	if !filepath.IsAbs(outPath) {
+		base := ""
+		if step != nil {
+			base = step.Dir
+		}
+		if strings.TrimSpace(base) == "" {
+			var err error
+			base, err = os.Getwd()
+			if err != nil {
+				return err
+			}
+		}
+		outPath = filepath.Join(base, outPath)
+	}
+	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(outPath, []byte(stdout), 0o644)
 }
 
 func renderString(s string, data any) string {

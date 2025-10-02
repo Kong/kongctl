@@ -3,6 +3,7 @@
 package harness
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -26,6 +27,19 @@ type Step struct {
 	InputsDir  string
 	ChecksPath string
 	cli        *CLI
+}
+
+type CreateResourceOptions struct {
+	Slug         string
+	ExpectStatus int
+}
+
+type CreateResourceResult struct {
+	Status int
+	Body   []byte
+	Parsed any
+	Method string
+	URL    string
 }
 
 // NewStep initializes a new step directory under the CLI's TestDir and
@@ -218,6 +232,144 @@ func (s *Step) GetAndObserve(resource string, out any, selector any) error {
 	return s.WriteObservation(out, nil, selector)
 }
 
+type resourceEndpoint struct {
+	Method string
+	Path   string
+}
+
+var createResourceEndpoints = map[string]resourceEndpoint{
+	"portal":        {http.MethodPost, "/v3/portals"},
+	"portals":       {http.MethodPost, "/v3/portals"},
+	"api":           {http.MethodPost, "/v3/apis"},
+	"apis":          {http.MethodPost, "/v3/apis"},
+	"auth-strategy": {http.MethodPost, "/v2/application-auth-strategies"},
+	"auth_strategy": {http.MethodPost, "/v2/application-auth-strategies"},
+	"authstrategy":  {http.MethodPost, "/v2/application-auth-strategies"},
+	"control-plane": {http.MethodPost, "/v2/control-planes"},
+	"control_plane": {http.MethodPost, "/v2/control-planes"},
+	"controlplane":  {http.MethodPost, "/v2/control-planes"},
+}
+
+func defaultStatusForMethod(method string) int {
+	switch method {
+	case http.MethodPost:
+		return http.StatusCreated
+	default:
+		return http.StatusOK
+	}
+}
+
+// CreateResource issues an authenticated Konnect API call to create an unmanaged resource and
+// records artifacts under the current step similar to CLI commands.
+func (s *Step) CreateResource(resource string, body []byte, opts CreateResourceOptions) (CreateResourceResult, error) {
+	var result CreateResourceResult
+	if s == nil || s.cli == nil {
+		return result, fmt.Errorf("nil step/cli")
+	}
+	endpoint, ok := createResourceEndpoints[strings.ToLower(strings.TrimSpace(resource))]
+	if !ok {
+		return result, fmt.Errorf("unsupported resource %q", resource)
+	}
+	slug := opts.Slug
+	if strings.TrimSpace(slug) == "" {
+		slug = fmt.Sprintf("create-%s", sanitizeName(resource))
+	}
+	dir, err := s.cli.allocateCommandDir(slug)
+	if err != nil {
+		return result, err
+	}
+	baseURL := os.Getenv("KONGCTL_E2E_KONNECT_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://us.api.konghq.com"
+	}
+	fullURL := strings.TrimRight(baseURL, "/") + endpoint.Path
+	token := os.Getenv("KONGCTL_E2E_KONNECT_PAT")
+	if token == "" {
+		return result, fmt.Errorf("KONGCTL_E2E_KONNECT_PAT not set")
+	}
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, endpoint.Method, fullURL, bytes.NewReader(body))
+	if err != nil {
+		return result, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{Timeout: 30 * time.Second}
+	start := time.Now()
+	resp, err := client.Do(req)
+	if err != nil {
+		return result, err
+	}
+	defer resp.Body.Close()
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	duration := time.Since(start)
+	end := time.Now()
+	result.Status = resp.StatusCode
+	result.Body = append([]byte(nil), bodyBytes...)
+	result.Method = endpoint.Method
+	result.URL = fullURL
+	if len(bodyBytes) > 0 {
+		var parsed any
+		if err := json.Unmarshal(bodyBytes, &parsed); err == nil {
+			result.Parsed = parsed
+		}
+	}
+	expect := opts.ExpectStatus
+	if expect == 0 {
+		expect = defaultStatusForMethod(endpoint.Method)
+	}
+	if resp.StatusCode != expect {
+		snippet := strings.TrimSpace(string(bodyBytes))
+		if len(snippet) > 2048 {
+			snippet = snippet[:2048] + "…"
+		}
+		return result, fmt.Errorf("unexpected status %d (expected %d): %s", resp.StatusCode, expect, snippet)
+	}
+	if dir != "" {
+		_ = os.WriteFile(filepath.Join(dir, "command.txt"), []byte(fmt.Sprintf("HTTP %s %s\n", endpoint.Method, fullURL)), 0o644)
+		if len(body) > 0 {
+			var reqObj any
+			if err := json.Unmarshal(body, &reqObj); err == nil {
+				_ = s.writePrettyJSON(filepath.Join(dir, "request.json"), reqObj)
+			} else {
+				_ = os.WriteFile(filepath.Join(dir, "request.json"), body, 0o644)
+			}
+		}
+		_ = os.WriteFile(filepath.Join(dir, "stdout.txt"), bodyBytes, 0o644)
+		_ = os.WriteFile(filepath.Join(dir, "stderr.txt"), []byte{}, 0o644)
+		envMap := snapshotEnv(os.Environ())
+		if b, err := json.MarshalIndent(envMap, "", "  "); err == nil {
+			_ = os.WriteFile(filepath.Join(dir, "env.json"), b, 0o644)
+		}
+		meta := map[string]any{
+			"method":   endpoint.Method,
+			"url":      fullURL,
+			"status":   resp.StatusCode,
+			"duration": duration.String(),
+			"started":  start,
+			"finished": end,
+		}
+		if b, err := json.MarshalIndent(meta, "", "  "); err == nil {
+			_ = os.WriteFile(filepath.Join(dir, "meta.json"), b, 0o644)
+		}
+		if result.Parsed != nil {
+			_ = s.writePrettyJSON(filepath.Join(dir, "response.json"), result.Parsed)
+		} else if len(bodyBytes) > 0 {
+			_ = os.WriteFile(filepath.Join(dir, "response.json"), bodyBytes, 0o644)
+		}
+		obs := map[string]any{
+			"type":   "http_observation",
+			"status": resp.StatusCode,
+			"data":   result.Parsed,
+		}
+		_ = s.writePrettyJSON(filepath.Join(dir, "observation.json"), obs)
+		// ensure LastCommandDir reflects this synthetic command
+		s.cli.LastCommandDir = dir
+	}
+	return result, nil
+}
+
 // GetKonnectJSON performs an HTTP GET to the Konnect API and records a synthetic command
 // with a single observation.json under the step's commands directory.
 // - name: slug used in the command folder (e.g., "get_publication")
@@ -280,22 +432,7 @@ func (s *Step) GetKonnectJSON(name string, path string, out any, selector any) e
 	_ = os.WriteFile(filepath.Join(dir, "stderr.txt"), []byte{}, 0o644)
 
 	// env.json (sanitized)
-	envMap := map[string]string{}
-	for _, kv := range os.Environ() {
-		if i := strings.IndexByte(kv, '='); i > 0 {
-			k := kv[:i]
-			v := kv[i+1:]
-			ku := strings.ToUpper(k)
-			if strings.Contains(ku, "TOKEN") || strings.Contains(ku, "PAT") || strings.Contains(ku, "PASSWORD") ||
-				strings.Contains(ku, "SECRET") {
-				if v != "" {
-					v = "***"
-				}
-			}
-			envMap[k] = v
-		}
-	}
-	if b, err := json.MarshalIndent(envMap, "", "  "); err == nil {
+	if b, err := json.MarshalIndent(snapshotEnv(os.Environ()), "", "  "); err == nil {
 		_ = os.WriteFile(filepath.Join(dir, "env.json"), b, 0o644)
 	}
 
@@ -344,6 +481,25 @@ func (s *Step) GetKonnectJSON(name string, path string, out any, selector any) e
 		return decodeErr
 	}
 	return nil
+}
+
+func snapshotEnv(environ []string) map[string]string {
+	envMap := map[string]string{}
+	for _, kv := range environ {
+		if i := strings.IndexByte(kv, '='); i > 0 {
+			k := kv[:i]
+			v := kv[i+1:]
+			ku := strings.ToUpper(k)
+			if strings.Contains(ku, "TOKEN") || strings.Contains(ku, "PAT") || strings.Contains(ku, "PASSWORD") ||
+				strings.Contains(ku, "SECRET") {
+				if v != "" {
+					v = "***"
+				}
+			}
+			envMap[k] = v
+		}
+	}
+	return envMap
 }
 
 // ResetOrg runs the destructive reset with artifacts captured under this step's commands.
