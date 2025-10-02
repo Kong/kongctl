@@ -7,7 +7,7 @@ steps:
     commands:
       - resetOrg: true
 
-  - name: 001-create-adopt-dump
+  - name: 001-create-adopt-dump-plan
     skipInputs: true
     commands:
       - name: create-portal
