@@ -1,0 +1,71 @@
+vars:
+  portal_name: adopt-e2e-portal
+
+steps:
+  - name: 000-reset
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-adopt-dump
+    skipInputs: true
+    commands:
+      - name: create-portal
+        create:
+          resource: portal
+          payload:
+            inline:
+              name: "{{ .vars.portal_name }}"
+              display_name: "Adopt Scenario Portal"
+              authentication_enabled: false
+              rbac_enabled: false
+          recordVar:
+            name: portal_id
+            responsePath: id
+
+      - name: adopt-portal
+        run:
+          - adopt
+          - portal
+          - "{{ .vars.portal_id }}"
+          - --namespace
+          - team-e2e
+        assertions:
+          - expect:
+              fields:
+                namespace: team-e2e
+                id: "{{ .vars.portal_id }}"
+                resource_type: portal
+
+      - name: dump-portals
+        run:
+          - dump
+          - declarative
+          - "--resources=portals"
+          - --default-namespace
+          - team-e2e
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: "portals[?ref=='{{ .vars.portal_id }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.portal_name }}"
+          - select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: team-e2e
+
+      - name: plan-from-dump
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
