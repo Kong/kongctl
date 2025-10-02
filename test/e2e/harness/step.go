@@ -302,7 +302,10 @@ func (s *Step) CreateResource(resource string, body []byte, opts CreateResourceO
 		return result, err
 	}
 	defer resp.Body.Close()
-	bodyBytes, _ := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return result, fmt.Errorf("failed to read response body: %w", err)
+	}
 	duration := time.Since(start)
 	end := time.Now()
 	result.Status = resp.StatusCode
