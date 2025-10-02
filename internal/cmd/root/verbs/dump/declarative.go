@@ -618,10 +618,6 @@ func mapControlPlaneToDeclarativeResource(cp kkComps.ControlPlane) declresources
 		mapped.Kongctl.Protected = &protected
 	}
 
-	if mapped.Labels == nil {
-		mapped.Labels = nil
-	}
-
 	return mapped
 }
 

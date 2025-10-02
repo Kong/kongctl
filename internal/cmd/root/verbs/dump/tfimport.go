@@ -179,17 +179,22 @@ var resourceTypeMap = map[string]string{
 	"control_plane":        "konnect_control_plane",
 }
 
+var (
+	reTerraformNonIdentifier   = regexp.MustCompile(`[^a-z0-9_]`)
+	reTerraformLeadingAlpha    = regexp.MustCompile(`^[a-z]`)
+	reTerraformMultiUnderscore = regexp.MustCompile(`__+`)
+)
+
 func sanitizeTerraformResourceName(name string) string {
 	name = strings.ToLower(name)
 
-	reg := regexp.MustCompile(`[^a-z0-9_]`)
-	name = reg.ReplaceAllString(name, "_")
+	name = reTerraformNonIdentifier.ReplaceAllString(name, "_")
 
-	if len(name) > 0 && !regexp.MustCompile(`^[a-z]`).MatchString(name) {
+	if len(name) > 0 && !reTerraformLeadingAlpha.MatchString(name) {
 		name = "resource_" + name
 	}
 
-	name = regexp.MustCompile(`__+`).ReplaceAllString(name, "_")
+	name = reTerraformMultiUnderscore.ReplaceAllString(name, "_")
 	name = strings.Trim(name, "_")
 	if name == "" {
 		name = "resource"
@@ -855,7 +860,7 @@ func extractResourceFields(resource any, resourceType string) (id string, name s
 	if resMap, isMap := resource.(map[string]any); isMap {
 		id, _ = resMap["id"].(string)
 		name, _ = resMap["name"].(string)
-		return id, name, true
+		return id, name, id != ""
 	}
 
 	resBytes, err := json.Marshal(resource)
