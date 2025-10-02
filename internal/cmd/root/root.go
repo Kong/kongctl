@@ -11,6 +11,7 @@ import (
 	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/adopt"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/apply"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/del"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/diff"
@@ -181,6 +182,12 @@ func addCommands() error {
 	rootCmd.AddCommand(c)
 
 	c, e = apply.NewApplyCmd()
+	if e != nil {
+		return e
+	}
+	rootCmd.AddCommand(c)
+
+	c, e = adopt.NewAdoptCmd()
 	if e != nil {
 		return e
 	}

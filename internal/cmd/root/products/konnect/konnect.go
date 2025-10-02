@@ -6,6 +6,7 @@ import (
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/products"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/api"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/authstrategy"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
@@ -139,6 +140,33 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		cmd.RunE = c.RunE
 		// Copy flags from declarative command
 		cmd.Flags().AddFlagSet(c.Flags())
+		addFlags(verb, cmd)
+		return cmd, nil
+	case verbs.Adopt:
+		portalCmd, err := adopt.NewPortalCmd(verb, &cobra.Command{}, addFlags, preRunE)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(portalCmd)
+
+		controlPlaneCmd, err := adopt.NewControlPlaneCmd(verb, &cobra.Command{}, addFlags, preRunE)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(controlPlaneCmd)
+
+		apiCmd, err := adopt.NewAPICmd(verb, &cobra.Command{}, addFlags, preRunE)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(apiCmd)
+
+		authStrategyCmd, err := adopt.NewAuthStrategyCmd(verb, &cobra.Command{}, addFlags, preRunE)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(authStrategyCmd)
+
 		addFlags(verb, cmd)
 		return cmd, nil
 	case verbs.Add, verbs.Get, verbs.Create, verbs.Dump, verbs.Update,
