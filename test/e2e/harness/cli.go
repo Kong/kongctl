@@ -35,6 +35,11 @@ type CLI struct {
 	AutoLogLevel string
 	AutoOutput   string
 	cmdSeq       int
+	nextOutput   struct {
+		set     bool
+		disable bool
+		value   string
+	}
 }
 
 // NewCLI constructs a CLI instance with a temp config dir and default profile "e2e".
@@ -147,6 +152,22 @@ func (c *CLI) WithProfile(p string) *CLI {
 	return c
 }
 
+// OverrideNextOutput sets the output format used for the next kongctl command
+// executed by Run. The override is cleared after the command completes.
+func (c *CLI) OverrideNextOutput(format string) {
+	c.nextOutput.set = true
+	c.nextOutput.disable = false
+	c.nextOutput.value = format
+}
+
+// DisableNextOutput instructs the CLI to skip injecting any -o/--output flag for
+// the next command executed by Run. The override is cleared after the command completes.
+func (c *CLI) DisableNextOutput() {
+	c.nextOutput.set = true
+	c.nextOutput.disable = true
+	c.nextOutput.value = ""
+}
+
 type Result struct {
 	Stdout   string
 	Stderr   string
@@ -182,16 +203,23 @@ func (c *CLI) Run(ctx context.Context, args ...string) (Result, error) {
 		}
 	}
 
-	// Inject default output format if not provided.
-	if out := c.AutoOutput; out != "" {
-		haveOut := false
-		for i := range args {
-			if args[i] == "-o" || args[i] == "--output" || strings.HasPrefix(args[i], "--output=") {
-				haveOut = true
-				break
-			}
+	// Handle output overrides/injection for this command.
+	outOverride := c.nextOutput
+	c.nextOutput = struct {
+		set     bool
+		disable bool
+		value   string
+	}{}
+	haveOut := hasOutputArg(args)
+	switch {
+	case outOverride.set && outOverride.disable:
+		// Explicitly disable auto output injection for this command.
+	case outOverride.set && !outOverride.disable:
+		if !haveOut && strings.TrimSpace(outOverride.value) != "" {
+			args = append(args, "-o", outOverride.value)
 		}
-		if !haveOut {
+	default:
+		if out := c.AutoOutput; out != "" && !haveOut {
 			args = append(args, "-o", out)
 		}
 	}
@@ -293,29 +321,40 @@ func sanitizeName(s string) string {
 	return repl
 }
 
-// captureCommand writes per-command artifacts (args, stdout, stderr, meta).
-func (c *CLI) captureCommand(cmd *exec.Cmd, args []string, res Result, start, end time.Time) {
-	if c.TestDir == "" || !captureEnabled {
-		return
+func (c *CLI) allocateCommandDir(slug string) (string, error) {
+	seq := c.cmdSeq
+	c.cmdSeq++
+	if !captureEnabled || c.TestDir == "" {
+		return "", nil
 	}
-	// Determine the base dir for captures: step dir if present, else test dir
 	baseDir := c.TestDir
 	if c.StepDir != "" {
 		baseDir = c.StepDir
 	}
-	// Ensure commands dir
 	commandsDir := filepath.Join(baseDir, "commands")
 	if err := os.MkdirAll(commandsDir, 0o755); err != nil {
-		Warnf("capture: mkdir commands dir failed: %v", err)
-		return
+		return "", err
 	}
-	// Sequence and slug
-	seq := c.cmdSeq
-	c.cmdSeq++
-	slug := slugFromArgs(args)
+	if strings.TrimSpace(slug) == "" {
+		slug = "cmd"
+	}
+	slug = sanitizeName(slug)
 	dir := filepath.Join(commandsDir, fmt.Sprintf("%03d-%s", seq, slug))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	c.LastCommandDir = dir
+	return dir, nil
+}
+
+// captureCommand writes per-command artifacts (args, stdout, stderr, meta).
+func (c *CLI) captureCommand(cmd *exec.Cmd, args []string, res Result, start, end time.Time) {
+	dir, err := c.allocateCommandDir(slugFromArgs(args))
+	if err != nil {
 		Warnf("capture: mkdir dir failed: %v", err)
+		return
+	}
+	if dir == "" {
 		return
 	}
 	// Write files
@@ -379,6 +418,25 @@ func slugFromArgs(args []string) string {
 	// sanitize tokens
 	s := strings.Join(parts, "_")
 	return sanitizeName(s)
+}
+
+func hasOutputArg(args []string) bool {
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "-o" {
+			return true
+		}
+		if a == "--output" {
+			return true
+		}
+		if strings.HasPrefix(a, "--output=") {
+			return true
+		}
+		if strings.HasPrefix(a, "-o=") {
+			return true
+		}
+	}
+	return false
 }
 
 // writeProfileConfig writes a minimal config.yaml under <cfgDir>/kongctl with the given profile defaults.

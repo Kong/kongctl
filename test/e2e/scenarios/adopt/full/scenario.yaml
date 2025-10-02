@@ -1,0 +1,131 @@
+vars:
+  portal_name: adopt-e2e-portal
+  api_name: adopt-e2e-api
+  cp_name: adopt-e2e-cp
+
+steps:
+  - name: 000-reset
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create
+    skipInputs: true
+    commands:
+      - name: create-cp
+        create:
+          resource: control_plane
+          payload:
+            inline:
+              name: "{{ .vars.cp_name }}"
+              description: "Adopt Scenario Control Plane"
+              cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+          recordVar:
+            name: cp_id
+            responsePath: id
+      - name: create-portal
+        create:
+          resource: portal
+          payload:
+            inline:
+              name: "{{ .vars.portal_name }}"
+              display_name: "Adopt Scenario Portal"
+          recordVar:
+            name: portal_id
+            responsePath: id
+      - name: create-api
+        create:
+          resource: api
+          payload:
+            inline:
+              name: "{{ .vars.api_name }}"
+              description: "Adopt Scenario API"
+          recordVar:
+            name: api_id
+            responsePath: id
+
+  - name: 002-adopt
+    skipInputs: true
+    commands:
+      - name: adopt-cp
+        run:
+          - adopt
+          - control-plane
+          - "{{ .vars.cp_id }}"
+          - --namespace
+          - team-e2e
+        assertions:
+          - expect:
+              fields:
+                namespace: team-e2e
+                id: "{{ .vars.cp_id }}"
+                resource_type: control_plane
+      - name: adopt-portal
+        run:
+          - adopt
+          - portal
+          - "{{ .vars.portal_id }}"
+          - --namespace
+          - team-e2e
+        assertions:
+          - expect:
+              fields:
+                namespace: team-e2e
+                id: "{{ .vars.portal_id }}"
+                resource_type: portal
+      - name: adopt-api
+        run:
+          - adopt
+          - api
+          - "{{ .vars.api_id }}"
+          - --namespace
+          - team-e2e
+        assertions:
+          - expect:
+              fields:
+                namespace: team-e2e
+                id: "{{ .vars.api_id }}"
+                resource_type: api
+
+  - name: 003-dump-and-plan
+    skipInputs: true
+    commands:
+      - name: dump
+        run:
+          - dump
+          - declarative
+          - "--resources=portals,control_planes,apis"
+          - --default-namespace
+          - team-e2e
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: "control_planes[?ref=='{{ .vars.cp_id }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.cp_name }}"
+          - select: "portals[?ref=='{{ .vars.portal_id }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.portal_name }}"
+          - select: "apis[?ref=='{{ .vars.api_id }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.api_name }}"
+          - select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: team-e2e
+      - name: plan-from-dump
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0

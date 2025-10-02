@@ -44,13 +44,34 @@ type InlineOp struct {
 }
 
 type Command struct {
-	Name       string           `yaml:"name"`
-	Run        []string         `yaml:"run"`
-	ResetOrg   bool             `yaml:"resetOrg"`
-	Mask       Mask             `yaml:"mask"`
-	Retry      Retry            `yaml:"retry"`
-	Assertions []Assertion      `yaml:"assertions"`
-	ExpectFail *ExpectedFailure `yaml:"expectFailure"`
+	Name         string           `yaml:"name"`
+	Run          []string         `yaml:"run"`
+	ResetOrg     bool             `yaml:"resetOrg"`
+	Mask         Mask             `yaml:"mask"`
+	Retry        Retry            `yaml:"retry"`
+	Assertions   []Assertion      `yaml:"assertions"`
+	ExpectFail   *ExpectedFailure `yaml:"expectFailure"`
+	Create       *CreateSpec      `yaml:"create"`
+	OutputFormat string           `yaml:"outputFormat"`
+	ParseAs      string           `yaml:"parseAs"`
+	StdoutFile   string           `yaml:"stdoutFile"`
+}
+
+type CreateSpec struct {
+	Resource     string        `yaml:"resource"`
+	Payload      CreatePayload `yaml:"payload"`
+	ExpectStatus int           `yaml:"expectStatus"`
+	RecordVar    *RecordVar    `yaml:"recordVar"`
+}
+
+type CreatePayload struct {
+	Inline map[string]any `yaml:"inline"`
+	File   string         `yaml:"file"`
+}
+
+type RecordVar struct {
+	Name         string `yaml:"name"`
+	ResponsePath string `yaml:"responsePath"`
 }
 
 // ExpectedFailure describes the failure conditions that a command is expected to hit.

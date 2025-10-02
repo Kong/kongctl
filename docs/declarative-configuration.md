@@ -520,6 +520,34 @@ Get JSON output for scripting:
 kongctl diff -f config.yaml --format json
 ```
 
+### adopt
+
+Add namespace labels to existing Konnect resources without modifying any other fields. This is useful when you
+want to bring previously created assets under kongctl management:
+
+Adopt a portal by name:
+```shell
+kongctl adopt portal my-portal --namespace team-alpha
+```
+
+Adopt a control plane by ID:
+```shell
+kongctl adopt control-plane 22cd8a0b-72e7-4212-9099-0764f8e9c5ac --namespace platform
+```
+
+Adopt an API by name:
+```shell
+kongctl adopt api payments --namespace team-alpha
+```
+
+Adopt an application auth strategy by name:
+```shell
+kongctl adopt auth-strategy key-auth --namespace shared
+```
+
+If the resource already has a `KONGCTL-namespace` label, the command fails without making changes. Only the
+namespace label is applied; protection flags and other metadata remain untouched.
+
 **Use cases**:
 - Quick visual review of pending changes
 - Validating configuration before creating a plan
