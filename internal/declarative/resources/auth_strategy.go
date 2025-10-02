@@ -227,3 +227,24 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+// MarshalJSON ensures the ref field is always included alongside the union payload
+func (a ApplicationAuthStrategyResource) MarshalJSON() ([]byte, error) {
+	// Marshal the union portion to capture the strategy-specific fields
+	unionBytes, err := json.Marshal(a.CreateAppAuthStrategyRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal application auth strategy union: %w", err)
+	}
+
+	payload := map[string]any{}
+	if err := json.Unmarshal(unionBytes, &payload); err != nil {
+		return nil, fmt.Errorf("failed to build application auth strategy payload: %w", err)
+	}
+
+	payload["ref"] = a.Ref
+	if a.Kongctl != nil {
+		payload["kongctl"] = a.Kongctl
+	}
+
+	return json.Marshal(payload)
+}
