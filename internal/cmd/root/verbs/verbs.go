@@ -5,6 +5,7 @@ const (
 	Apply  = VerbValue("apply")
 	Adopt  = VerbValue("adopt")
 	Ask    = VerbValue("ask")
+	API    = VerbValue("api")
 	Get    = VerbValue("get")
 	Create = VerbValue("create")
 	Dump   = VerbValue("dump")

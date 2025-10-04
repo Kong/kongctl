@@ -58,7 +58,11 @@ func NewAPICmd(verb verbs.VerbValue,
 	case verbs.List:
 		return newGetAPICmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
 	case verbs.Create, verbs.Delete, verbs.Add, verbs.Apply, verbs.Dump, verbs.Update, verbs.Help, verbs.Login,
+<<<<<<< HEAD
 		verbs.Plan, verbs.Sync, verbs.Diff, verbs.Export, verbs.Adopt, verbs.Ask:
+=======
+		verbs.Plan, verbs.Sync, verbs.Diff, verbs.Export, verbs.Ask, verbs.API:
+>>>>>>> 00a7631 (feat: Adds api feature)
 		return &baseCmd, nil
 	}
 

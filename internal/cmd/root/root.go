@@ -11,7 +11,11 @@ import (
 	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
+<<<<<<< HEAD
 	"github.com/kong/kongctl/internal/cmd/root/verbs/adopt"
+=======
+	"github.com/kong/kongctl/internal/cmd/root/verbs/api"
+>>>>>>> 00a7631 (feat: Adds api feature)
 	"github.com/kong/kongctl/internal/cmd/root/verbs/apply"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/ask"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/del"
@@ -129,71 +133,77 @@ func newRootCmd() *cobra.Command {
 func addCommands() error {
 	rootCmd.AddCommand(version.NewVersionCmd())
 
-	c, e := ask.NewAskCmd()
-	if e != nil {
-		return e
+	command, err := api.NewAPICmd()
+	if err != nil {
+		return err
 	}
-	rootCmd.AddCommand(c)
+	rootCmd.AddCommand(command)
 
-	c, e = get.NewGetCmd()
-	if e != nil {
-		return e
+	command, err = ask.NewAskCmd()
+	if err != nil {
+		return err
 	}
-	rootCmd.AddCommand(c)
+	rootCmd.AddCommand(command)
 
-	c, e = list.NewListCmd()
-	if e != nil {
-		return e
+	command, err = get.NewGetCmd()
+	if err != nil {
+		return err
 	}
-	rootCmd.AddCommand(c)
+	rootCmd.AddCommand(command)
 
-	c, e = del.NewDeleteCmd()
-	if e != nil {
-		return e
+	command, err = list.NewListCmd()
+	if err != nil {
+		return err
 	}
-	rootCmd.AddCommand(c)
+	rootCmd.AddCommand(command)
 
-	c, e = login.NewLoginCmd()
-	if e != nil {
-		return e
+	command, err = del.NewDeleteCmd()
+	if err != nil {
+		return err
 	}
-	rootCmd.AddCommand(c)
+	rootCmd.AddCommand(command)
 
-	c, e = dump.NewDumpCmd()
-	if e != nil {
-		return e
+	command, err = login.NewLoginCmd()
+	if err != nil {
+		return err
 	}
-	rootCmd.AddCommand(c)
+	rootCmd.AddCommand(command)
 
-	c, e = plan.NewPlanCmd()
-	if e != nil {
-		return e
+	command, err = dump.NewDumpCmd()
+	if err != nil {
+		return err
 	}
-	rootCmd.AddCommand(c)
+	rootCmd.AddCommand(command)
 
-	c, e = sync.NewSyncCmd()
-	if e != nil {
-		return e
+	command, err = plan.NewPlanCmd()
+	if err != nil {
+		return err
 	}
-	rootCmd.AddCommand(c)
+	rootCmd.AddCommand(command)
 
-	c, e = diff.NewDiffCmd()
-	if e != nil {
-		return e
+	command, err = sync.NewSyncCmd()
+	if err != nil {
+		return err
 	}
-	rootCmd.AddCommand(c)
+	rootCmd.AddCommand(command)
 
-	c, e = export.NewExportCmd()
-	if e != nil {
-		return e
+	command, err = diff.NewDiffCmd()
+	if err != nil {
+		return err
 	}
-	rootCmd.AddCommand(c)
+	rootCmd.AddCommand(command)
 
-	c, e = apply.NewApplyCmd()
-	if e != nil {
-		return e
+	command, err = export.NewExportCmd()
+	if err != nil {
+		return err
 	}
-	rootCmd.AddCommand(c)
+	rootCmd.AddCommand(command)
+
+	command, err = apply.NewApplyCmd()
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(command)
 
 	c, e = adopt.NewAdoptCmd()
 	if e != nil {

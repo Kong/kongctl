@@ -170,7 +170,7 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		addFlags(verb, cmd)
 		return cmd, nil
 	case verbs.Add, verbs.Get, verbs.Create, verbs.Dump, verbs.Update,
-		verbs.Delete, verbs.Help, verbs.List, verbs.Login, verbs.Ask:
+		verbs.Delete, verbs.Help, verbs.List, verbs.Login, verbs.Ask, verbs.API:
 		// These verbs don't use declarative configuration, continue below
 	}
 
