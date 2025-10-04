@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/kong/kongctl/internal/cmd"
@@ -51,6 +52,8 @@ func addFlags(cmd *cobra.Command) {
 		fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
 Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`, konnectcommon.PATConfigPath))
+
+	cmd.Flags().String("jq", "", "Filter JSON responses using a limited jq-style expression (dot notation, array indexes)")
 }
 
 func bindFlags(c *cobra.Command, args []string) error {
@@ -109,6 +112,11 @@ func run(helper cmd.Helper) error {
 		return cmd.PrepareExecutionError("endpoint is required", errors.New("endpoint cannot be empty"), helper.GetCmd())
 	}
 
+	jqFilter, err := helper.GetCmd().Flags().GetString("jq")
+	if err != nil {
+		return err
+	}
+
 	cfg, err := helper.GetConfig()
 	if err != nil {
 		return err
@@ -148,6 +156,17 @@ func run(helper cmd.Helper) error {
 		)
 	}
 
+	var bodyToRender []byte
+	bodyToRender = result.Body
+
+	if jqFilter != "" {
+		filtered, err := applyJQFilter(bodyToRender, jqFilter)
+		if err != nil {
+			return cmd.PrepareExecutionError("jq filter failed", err, helper.GetCmd())
+		}
+		bodyToRender = filtered
+	}
+
 	outType, err := helper.GetOutputFormat()
 	if err != nil {
 		return err
@@ -157,13 +176,13 @@ func run(helper cmd.Helper) error {
 
 	switch outType {
 	case cmdcommon.TEXT:
-		_, err = fmt.Fprintln(streams.Out, strings.TrimRight(string(result.Body), "\n"))
+		_, err = fmt.Fprintln(streams.Out, strings.TrimRight(bodyToPrintable(bodyToRender), "\n"))
 		return err
 	case cmdcommon.JSON, cmdcommon.YAML:
 		var payload any
-		if len(result.Body) > 0 {
-			if err := json.Unmarshal(result.Body, &payload); err != nil {
-				payload = string(result.Body)
+		if len(bodyToRender) > 0 {
+			if err := json.Unmarshal(bodyToRender, &payload); err != nil {
+				payload = strings.TrimRight(bodyToPrintable(bodyToRender), "\n")
 			}
 		}
 		printer, err := cli.Format(outType.String(), streams.Out)
@@ -176,4 +195,108 @@ func run(helper cmd.Helper) error {
 	}
 
 	return nil
+}
+
+func applyJQFilter(body []byte, filter string) ([]byte, error) {
+	if len(body) == 0 {
+		return nil, errors.New("response body is empty, cannot apply jq filter")
+	}
+
+	var payload any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, fmt.Errorf("response is not valid JSON: %w", err)
+	}
+
+	result, err := evaluateSimpleJQ(payload, strings.TrimSpace(filter))
+	if err != nil {
+		return nil, err
+	}
+
+	filtered, err := json.Marshal(result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode filtered result: %w", err)
+	}
+
+	return filtered, nil
+}
+
+func evaluateSimpleJQ(data any, filter string) (any, error) {
+	if filter == "" || filter == "." {
+		return data, nil
+	}
+
+	filter = strings.TrimPrefix(filter, ".")
+
+	if filter == "" {
+		return data, nil
+	}
+
+	segments := strings.Split(filter, ".")
+	current := data
+
+	for _, segment := range segments {
+		segment = strings.TrimSpace(segment)
+		if segment == "" {
+			continue
+		}
+
+		var key string
+		var index *int
+
+		if strings.Contains(segment, "[") {
+			if !strings.HasSuffix(segment, "]") {
+				return nil, fmt.Errorf("unsupported jq segment %q", segment)
+			}
+			open := strings.Index(segment, "[")
+			key = segment[:open]
+			idxStr := segment[open+1 : len(segment)-1]
+			if idxStr == "" {
+				return nil, fmt.Errorf("empty array index in segment %q", segment)
+			}
+			i, err := strconv.Atoi(idxStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid array index in segment %q", segment)
+			}
+			index = &i
+		} else {
+			key = segment
+		}
+
+		if key != "" {
+			obj, ok := current.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("segment %q expects object but found %T", key, current)
+			}
+			var exists bool
+			current, exists = obj[key]
+			if !exists {
+				return nil, fmt.Errorf("key %q not found", key)
+			}
+		}
+
+		if index != nil {
+			arr, ok := current.([]any)
+			if !ok {
+				return nil, fmt.Errorf("segment %q expects array but found %T", segment, current)
+			}
+			if *index < 0 || *index >= len(arr) {
+				return nil, fmt.Errorf("index %d out of range for segment %q", *index, segment)
+			}
+			current = arr[*index]
+		}
+	}
+
+	return current, nil
+}
+
+func bodyToPrintable(body []byte) string {
+	var js any
+	if err := json.Unmarshal(body, &js); err != nil {
+		return string(body)
+	}
+	formatted, err := json.MarshalIndent(js, "", "  ")
+	if err != nil {
+		return string(body)
+	}
+	return string(formatted)
 }

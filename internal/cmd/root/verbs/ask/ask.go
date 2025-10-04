@@ -3,9 +3,12 @@ package ask
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 
 	askpkg "github.com/kong/kongctl/internal/ask"
+	"github.com/kong/kongctl/internal/ask/render"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
@@ -13,6 +16,7 @@ import (
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/mattn/go-isatty"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -144,9 +148,18 @@ func run(helper cmd.Helper) error {
 
 	streams := helper.GetStreams()
 
+	colorModeStr := cfg.GetString(cmdcommon.ColorConfigPath)
+	colorMode, err := cmdcommon.ColorModeStringToIota(colorModeStr)
+	if err != nil {
+		return err
+	}
+
+	useColor := shouldUseColor(colorMode, streams.Out)
+
 	switch outType {
 	case cmdcommon.TEXT:
-		if _, err := fmt.Fprintln(streams.Out, result.Response); err != nil {
+		formatted := render.Markdown(result.Response, render.Options{NoColor: !useColor})
+		if _, err := fmt.Fprintln(streams.Out, formatted); err != nil {
 			return err
 		}
 		return nil
@@ -161,4 +174,37 @@ func run(helper cmd.Helper) error {
 	}
 
 	return nil
+}
+
+func shouldUseColor(mode cmdcommon.ColorMode, out io.Writer) bool {
+	switch mode {
+	case cmdcommon.ColorModeAlways:
+		return true
+	case cmdcommon.ColorModeNever:
+		return false
+	case cmdcommon.ColorModeAuto:
+		if _, disabled := os.LookupEnv("NO_COLOR"); disabled {
+			return false
+		}
+		return isTerminal(out)
+	default:
+		if _, disabled := os.LookupEnv("NO_COLOR"); disabled {
+			return false
+		}
+		return isTerminal(out)
+	}
+}
+
+var terminalDetector = func(fd uintptr) bool {
+	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
+}
+
+func isTerminal(w io.Writer) bool {
+	type fdWriter interface {
+		Fd() uintptr
+	}
+	if fw, ok := w.(fdWriter); ok {
+		return terminalDetector(fw.Fd())
+	}
+	return false
 }
