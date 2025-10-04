@@ -3,6 +3,7 @@ package verbs
 const (
 	Add    = VerbValue("add")
 	Apply  = VerbValue("apply")
+	Ask    = VerbValue("ask")
 	Get    = VerbValue("get")
 	Create = VerbValue("create")
 	Dump   = VerbValue("dump")

@@ -12,6 +12,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/apply"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/ask"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/del"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/diff"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/dump"
@@ -126,7 +127,14 @@ func newRootCmd() *cobra.Command {
 // addCommands adds the root subcommands to the command.
 func addCommands() error {
 	rootCmd.AddCommand(version.NewVersionCmd())
-	c, e := get.NewGetCmd()
+
+	c, e := ask.NewAskCmd()
+	if e != nil {
+		return e
+	}
+	rootCmd.AddCommand(c)
+
+	c, e = get.NewGetCmd()
 	if e != nil {
 		return e
 	}
