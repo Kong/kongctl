@@ -83,6 +83,7 @@ func NewAskCmd() (*cobra.Command, error) {
 		Short:   askShort,
 		Long:    askLong,
 		Example: askExamples,
+		Hidden:  true,
 		Args:    cobra.MinimumNArgs(1),
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
 			ctx := c.Context()
