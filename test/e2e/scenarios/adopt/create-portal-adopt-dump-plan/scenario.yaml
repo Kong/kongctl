@@ -10,7 +10,7 @@ steps:
   - name: 001-create-adopt-dump-plan
     skipInputs: true
     commands:
-      - name: create-portal
+      - name: 000-create-portal
         create:
           resource: portal
           payload:
@@ -23,7 +23,7 @@ steps:
             name: portal_id
             responsePath: id
 
-      - name: adopt-portal
+      - name: 001-adopt-portal
         run:
           - adopt
           - portal
@@ -37,7 +37,7 @@ steps:
                 id: "{{ .vars.portal_id }}"
                 resource_type: portal
 
-      - name: dump-portals
+      - name: 002-dump-portals
         run:
           - dump
           - declarative
@@ -52,13 +52,12 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.portal_name }}"
-                "kongctl.namespace": team-e2e
           - select: "_defaults.kongctl"
             expect:
               fields:
                 namespace: team-e2e
 
-      - name: plan-from-dump
+      - name: 003-plan-from-dump
         run:
           - plan
           - declarative

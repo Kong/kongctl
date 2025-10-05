@@ -40,6 +40,10 @@ type CLI struct {
 		disable bool
 		value   string
 	}
+	nextSlug struct {
+		set   bool
+		value string
+	}
 }
 
 // NewCLI constructs a CLI instance with a temp config dir and default profile "e2e".
@@ -166,6 +170,13 @@ func (c *CLI) DisableNextOutput() {
 	c.nextOutput.set = true
 	c.nextOutput.disable = true
 	c.nextOutput.value = ""
+}
+
+// OverrideNextCommandSlug sets the directory slug used for the next captured command.
+// The override is cleared after the command completes.
+func (c *CLI) OverrideNextCommandSlug(name string) {
+	c.nextSlug.set = true
+	c.nextSlug.value = sanitizeName(strings.TrimSpace(name))
 }
 
 type Result struct {
@@ -325,8 +336,27 @@ func (c *CLI) allocateCommandDir(slug string) (string, error) {
 	seq := c.cmdSeq
 	c.cmdSeq++
 	if !captureEnabled || c.TestDir == "" {
+		c.nextSlug = struct {
+			set   bool
+			value string
+		}{}
 		return "", nil
 	}
+	customSlug := false
+	if c.nextSlug.set {
+		if v := strings.TrimSpace(c.nextSlug.value); v != "" {
+			slug = v
+			customSlug = true
+		}
+		c.nextSlug = struct {
+			set   bool
+			value string
+		}{}
+	}
+	if strings.TrimSpace(slug) == "" {
+		slug = "cmd"
+	}
+	slug = sanitizeName(slug)
 	baseDir := c.TestDir
 	if c.StepDir != "" {
 		baseDir = c.StepDir
@@ -335,11 +365,12 @@ func (c *CLI) allocateCommandDir(slug string) (string, error) {
 	if err := os.MkdirAll(commandsDir, 0o755); err != nil {
 		return "", err
 	}
-	if strings.TrimSpace(slug) == "" {
-		slug = "cmd"
+	var dir string
+	if customSlug {
+		dir = filepath.Join(commandsDir, slug)
+	} else {
+		dir = filepath.Join(commandsDir, fmt.Sprintf("%03d-%s", seq, slug))
 	}
-	slug = sanitizeName(slug)
-	dir := filepath.Join(commandsDir, fmt.Sprintf("%03d-%s", seq, slug))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
