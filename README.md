@@ -28,11 +28,13 @@ By using this software, you acknowledge that:
 
 ### macOS
 
-Install using Homebrew:
+Install using Homebrew (distributed as a cask):
 
 ```shell
-brew install kong/kongctl/kongctl
+brew install --cask kong/kongctl/kongctl
 ```
+
+If you previously installed the old formula, remove it first with `brew uninstall kongctl`.
 
 ### Linux
 
