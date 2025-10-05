@@ -118,6 +118,9 @@ func Run(t *testing.T, scenarioPath string) error {
 					result  harness.CreateResourceResult
 				)
 				for atry := 0; atry < attempts; atry++ {
+					if strings.TrimSpace(cmd.Name) != "" {
+						cli.OverrideNextCommandSlug(cmd.Name)
+					}
 					payload, perr := prepareCreatePayload(cmd.Create, scenarioPath, tmplCtx)
 					if perr != nil {
 						return fmt.Errorf("command %s build payload failed: %w", cmdName, perr)
@@ -171,6 +174,9 @@ func Run(t *testing.T, scenarioPath string) error {
 			parseMode := strings.TrimSpace(cmd.ParseAs)
 			if err := configureCommandOutput(cli, strings.TrimSpace(cmd.OutputFormat)); err != nil {
 				return fmt.Errorf("command %s outputFormat invalid: %w", cmdName, err)
+			}
+			if strings.TrimSpace(cmd.Name) != "" {
+				cli.OverrideNextCommandSlug(cmd.Name)
 			}
 			// Render args
 			args := make([]string, 0, len(cmd.Run))
