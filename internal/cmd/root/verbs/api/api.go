@@ -1,10 +1,12 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -27,33 +29,48 @@ const (
 )
 
 var (
-	apiUse = fmt.Sprintf("%s <endpoint>", Verb.String())
+	apiUse = fmt.Sprintf("%s <endpoint> [field=value ...]", Verb.String())
 
 	apiShort = i18n.T("root.verbs.api.apiShort", "Call the Konnect API directly")
 
 	apiLong = normalizers.LongDesc(i18n.T("root.verbs.api.apiLong",
-		"Send an authenticated GET request to a Konnect API endpoint."))
+		"Send authenticated requests to Konnect API endpoints using common HTTP verbs."))
 
 	apiExamples = normalizers.Examples(i18n.T("root.verbs.api.apiExamples",
 		fmt.Sprintf(`
 	# Get the current user
 	%[1]s api /v1/me
 
-	# List declarative sessions
-	%[1]s api /v1/sessions`, meta.CLIName)))
+	# Explicit GET
+	%[1]s api get /v1/me
+
+	# Create a resource with JSON fields
+	%[1]s api post /v1/apis name=my-api config:={"enabled":true}
+
+	# Update a resource
+	%[1]s api put /v1/apis/123 name="my-updated-api"
+
+	# Delete a resource
+	%[1]s api delete /v1/apis/123`, meta.CLIName)))
 )
 
+var requestFn = apiutil.Request
+
 func addFlags(cmd *cobra.Command) {
-	cmd.Flags().String(konnectcommon.BaseURLFlagName, konnectcommon.BaseURLDefault,
+	cmd.PersistentFlags().String(konnectcommon.BaseURLFlagName, konnectcommon.BaseURLDefault,
 		fmt.Sprintf(`Base URL for Konnect API requests.
 - Config path: [ %s ]`, konnectcommon.BaseURLConfigPath))
 
-	cmd.Flags().String(konnectcommon.PATFlagName, "",
+	cmd.PersistentFlags().String(konnectcommon.PATFlagName, "",
 		fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
 Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`, konnectcommon.PATConfigPath))
 
-	cmd.Flags().String("jq", "", "Filter JSON responses using a limited jq-style expression (dot notation, array indexes)")
+	cmd.PersistentFlags().String(
+		"jq",
+		"",
+		"Filter JSON responses using a limited jq-style expression (dot notation, array indexes)",
+	)
 }
 
 func bindFlags(c *cobra.Command, args []string) error {
@@ -79,7 +96,7 @@ func bindFlags(c *cobra.Command, args []string) error {
 }
 
 func NewAPICmd() (*cobra.Command, error) {
-	cmd := &cobra.Command{
+	rootCmd := &cobra.Command{
 		Use:     apiUse,
 		Short:   apiShort,
 		Long:    apiLong,
@@ -94,18 +111,41 @@ func NewAPICmd() (*cobra.Command, error) {
 			c.SetContext(ctx)
 			return bindFlags(c, args)
 		},
-		RunE: func(c *cobra.Command, args []string) error {
-			helper := cmd.BuildHelper(c, args)
-			return run(helper)
-		},
 	}
 
-	addFlags(cmd)
+	addFlags(rootCmd)
 
-	return cmd, nil
+	rootCmd.RunE = func(c *cobra.Command, args []string) error {
+		helper := cmd.BuildHelper(c, args)
+		return run(helper, http.MethodGet, false)
+	}
+
+	rootCmd.AddCommand(newMethodCmd("get", http.MethodGet, false))
+	rootCmd.AddCommand(newMethodCmd("post", http.MethodPost, true))
+	rootCmd.AddCommand(newMethodCmd("put", http.MethodPut, true))
+	rootCmd.AddCommand(newMethodCmd("delete", http.MethodDelete, false))
+
+	return rootCmd, nil
 }
 
-func run(helper cmd.Helper) error {
+func newMethodCmd(name, httpMethod string, allowBody bool) *cobra.Command {
+	use := fmt.Sprintf("%s <endpoint>", name)
+	if allowBody {
+		use += " [field=value ...]"
+	}
+
+	return &cobra.Command{
+		Use:   use,
+		Short: fmt.Sprintf("Send an HTTP %s request to a Konnect endpoint", strings.ToUpper(httpMethod)),
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(c *cobra.Command, args []string) error {
+			helper := cmd.BuildHelper(c, args)
+			return run(helper, httpMethod, allowBody)
+		},
+	}
+}
+
+func run(helper cmd.Helper, method string, allowBody bool) error {
 	args := helper.GetArgs()
 	endpoint := strings.TrimSpace(args[0])
 	if endpoint == "" {
@@ -142,8 +182,34 @@ func run(helper cmd.Helper) error {
 		ctx = context.Background()
 	}
 
+	dataArgs := args[1:]
+	var bodyReader io.Reader
+	headers := map[string]string{}
+
+	if len(dataArgs) > 0 {
+		if !allowBody {
+			return cmd.PrepareExecutionError(
+				"unexpected data arguments",
+				fmt.Errorf("data fields may only be supplied with POST or PUT"),
+				helper.GetCmd(),
+			)
+		}
+		payload, err := parseAssignments(dataArgs)
+		if err != nil {
+			return cmd.PrepareExecutionError("invalid request data", err, helper.GetCmd())
+		}
+		encoded, err := json.Marshal(payload)
+		if err != nil {
+			return cmd.PrepareExecutionError("failed to encode request body", err, helper.GetCmd())
+		}
+		bodyReader = bytes.NewReader(encoded)
+		headers["Content-Type"] = "application/json"
+	} else if !allowBody {
+		headers = nil
+	}
+
 	client := httpclient.NewLoggingHTTPClient(logger)
-	result, err := apiutil.Request(ctx, client, http.MethodGet, baseURL, endpoint, token, nil, nil)
+	result, err := requestFn(ctx, client, method, baseURL, endpoint, token, headers, bodyReader)
 	if err != nil {
 		return cmd.PrepareExecutionError("failed to call Konnect API", err, helper.GetCmd())
 	}
@@ -195,6 +261,57 @@ func run(helper cmd.Helper) error {
 	}
 
 	return nil
+}
+
+func parseAssignments(fields []string) (map[string]any, error) {
+	payload := make(map[string]any, len(fields))
+	for _, field := range fields {
+		if field == "" {
+			return nil, fmt.Errorf("empty assignment is not allowed")
+		}
+
+		var (
+			key       string
+			value     string
+			jsonTyped bool
+		)
+
+		if strings.Contains(field, ":=") {
+			parts := strings.SplitN(field, ":=", 2)
+			if len(parts) != 2 {
+				return nil, fmt.Errorf("malformed assignment %q", field)
+			}
+			key = strings.TrimSpace(parts[0])
+			value = parts[1]
+			jsonTyped = true
+		} else if strings.Contains(field, "=") {
+			parts := strings.SplitN(field, "=", 2)
+			if len(parts) != 2 {
+				return nil, fmt.Errorf("malformed assignment %q", field)
+			}
+			key = strings.TrimSpace(parts[0])
+			value = parts[1]
+		} else {
+			return nil, fmt.Errorf("expected key=value or key:=value, got %q", field)
+		}
+
+		if key == "" {
+			return nil, fmt.Errorf("assignment %q is missing a key", field)
+		}
+
+		if jsonTyped {
+			var decoded any
+			if err := json.Unmarshal([]byte(value), &decoded); err != nil {
+				return nil, fmt.Errorf("failed to parse %s as JSON: %w", key, err)
+			}
+			payload[key] = decoded
+			continue
+		}
+
+		payload[key] = value
+	}
+
+	return payload, nil
 }
 
 func applyJQFilter(body []byte, filter string) ([]byte, error) {
