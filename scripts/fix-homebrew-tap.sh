@@ -22,6 +22,7 @@ if [[ -f "Casks/kongctl.rb" ]]; then
   files+=("Casks/kongctl.rb")
 fi
 if [[ -f "kongctl.rb" ]]; then
+  perl -0pi -e 's/^# typed: false/# typed: strict/' kongctl.rb || true
   files+=("kongctl.rb")
 fi
 
@@ -32,5 +33,6 @@ if [[ ${#files[@]} -eq 0 ]]; then
 fi
 
 brew style --fix "${files[@]}"
+brew style "${files[@]}"
 
 popd >/dev/null
