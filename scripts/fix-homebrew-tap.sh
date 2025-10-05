@@ -3,7 +3,7 @@ set -euo pipefail
 
 REPO_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)
 DEFAULT_TAP_PATH="${REPO_DIR}/dist/homebrew/homebrew-kongctl"
-TAP_PATH="${1:-${DEFAULT_TAP_PATH}}"
+TAP_PATH="${1:-${HOMEBREW_TAP_PATH:-${DEFAULT_TAP_PATH}}}"
 
 if ! command -v brew >/dev/null 2>&1; then
   echo "brew is not installed on this runner; cannot fix tap style" >&2

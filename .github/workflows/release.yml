@@ -67,10 +67,26 @@ jobs:
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@master
+      - name: Fetch Homebrew tap
+        env:
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          rm -rf dist/homebrew-tap
+          mkdir -p dist/homebrew-tap
+          git clone --depth 1 https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/kong/homebrew-kongctl.git dist/homebrew-tap/homebrew-kongctl
+      - name: Sync generated Homebrew files
+        run: |
+          mkdir -p dist/homebrew-tap/homebrew-kongctl/Casks
+          if [[ -f dist/homebrew/Casks/kongctl.rb ]]; then
+            cp dist/homebrew/Casks/kongctl.rb dist/homebrew-tap/homebrew-kongctl/Casks/kongctl.rb
+          fi
+          if [[ -f dist/homebrew/kongctl.rb ]]; then
+            cp dist/homebrew/kongctl.rb dist/homebrew-tap/homebrew-kongctl/kongctl.rb
+          fi
       - name: Fix Homebrew tap style
-        run: ./scripts/fix-homebrew-tap.sh
+        run: ./scripts/fix-homebrew-tap.sh dist/homebrew-tap/homebrew-kongctl
       - name: Commit and push Homebrew tap updates
-        working-directory: dist/homebrew/homebrew-kongctl
+        working-directory: dist/homebrew-tap/homebrew-kongctl
         env:
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
         run: |
