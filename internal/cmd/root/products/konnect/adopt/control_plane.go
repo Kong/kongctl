@@ -98,7 +98,13 @@ func NewControlPlaneCmd(
 			if name == "" {
 				name = result.ID
 			}
-			fmt.Fprintf(streams.Out, "Adopted control plane %q (%s) into namespace %q\n", name, result.ID, result.Namespace)
+			fmt.Fprintf(
+				streams.Out,
+				"Adopted control plane %q (%s) into namespace %q\n",
+				name,
+				result.ID,
+				result.Namespace,
+			)
 			return nil
 		}
 

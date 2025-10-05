@@ -413,7 +413,8 @@ func collectDeclarativeAuthStrategies(
 			return false, fmt.Errorf("failed to list application auth strategies: %w", err)
 		}
 
-		if resp == nil || resp.ListAppAuthStrategiesResponse == nil || len(resp.ListAppAuthStrategiesResponse.Data) == 0 {
+		if resp == nil || resp.ListAppAuthStrategiesResponse == nil ||
+			len(resp.ListAppAuthStrategiesResponse.Data) == 0 {
 			return false, nil
 		}
 

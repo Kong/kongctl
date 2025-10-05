@@ -17,15 +17,15 @@ import (
 
 // ChatEvent represents a single server-sent event emitted by the Doctor Who agent API.
 type ChatEvent struct {
-	Event string `json:"event" yaml:"event"`
+	Event string `json:"event"          yaml:"event"`
 	Data  any    `json:"data,omitempty" yaml:"data,omitempty"`
 }
 
 // Result captures the aggregated chat response and all underlying events.
 type Result struct {
-	Prompt   string      `json:"prompt" yaml:"prompt"`
+	Prompt   string      `json:"prompt"   yaml:"prompt"`
 	Response string      `json:"response" yaml:"response"`
-	Events   []ChatEvent `json:"events" yaml:"events"`
+	Events   []ChatEvent `json:"events"   yaml:"events"`
 }
 
 const (

@@ -137,7 +137,11 @@ func Run(t *testing.T, scenarioPath string) error {
 						if err := maybeRecordVar(&s, cmd.Create.RecordVar, result.Parsed, step); err != nil {
 							return fmt.Errorf("command %s recordVar failed: %w", cmdName, err)
 						}
-						step.AppendCheck("PASS: created %s (status=%d)", strings.TrimSpace(cmd.Create.Resource), result.Status)
+						step.AppendCheck(
+							"PASS: created %s (status=%d)",
+							strings.TrimSpace(cmd.Create.Resource),
+							result.Status,
+						)
 						break
 					}
 					if atry+1 < attempts {
@@ -162,7 +166,13 @@ func Run(t *testing.T, scenarioPath string) error {
 					if len(snippet) > 2048 {
 						snippet = snippet[:2048] + "…"
 					}
-					t.Errorf("failed to parse stdout (parseAs=%s) for command %s: %v\nstdout: %q", mode, cmdName, err, snippet)
+					t.Errorf(
+						"failed to parse stdout (parseAs=%s) for command %s: %v\nstdout: %q",
+						mode,
+						cmdName,
+						err,
+						snippet,
+					)
 					return fmt.Errorf("command %s produced unparsable output: %w", cmdName, err)
 				}
 				if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName); err != nil {
@@ -243,7 +253,13 @@ func Run(t *testing.T, scenarioPath string) error {
 				if len(snippet) > 2048 {
 					snippet = snippet[:2048] + "…"
 				}
-				t.Errorf("failed to parse stdout (parseAs=%s) for command %s: %v\nstdout: %q", mode, cmdName, err, snippet)
+				t.Errorf(
+					"failed to parse stdout (parseAs=%s) for command %s: %v\nstdout: %q",
+					mode,
+					cmdName,
+					err,
+					snippet,
+				)
 				return fmt.Errorf("command %s produced unparsable output: %w", cmdName, err)
 			}
 
@@ -347,7 +363,16 @@ func maybeRecordVar(s *Scenario, spec *RecordVar, parsed any, step *harness.Step
 	return nil
 }
 
-func executeAssertions(cli *harness.CLI, scenarioPath string, sc Scenario, st Step, cmd Command, parent any, workdir string, stepName, cmdName string) error {
+func executeAssertions(
+	cli *harness.CLI,
+	scenarioPath string,
+	sc Scenario,
+	st Step,
+	cmd Command,
+	parent any,
+	workdir string,
+	stepName, cmdName string,
+) error {
 	if len(cmd.Assertions) == 0 {
 		return nil
 	}

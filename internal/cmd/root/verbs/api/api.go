@@ -149,7 +149,11 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 	args := helper.GetArgs()
 	endpoint := strings.TrimSpace(args[0])
 	if endpoint == "" {
-		return cmd.PrepareExecutionError("endpoint is required", errors.New("endpoint cannot be empty"), helper.GetCmd())
+		return cmd.PrepareExecutionError(
+			"endpoint is required",
+			errors.New("endpoint cannot be empty"),
+			helper.GetCmd(),
+		)
 	}
 
 	jqFilter, err := helper.GetCmd().Flags().GetString("jq")

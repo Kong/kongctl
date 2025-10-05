@@ -7,10 +7,10 @@ import (
 )
 
 type adoptResult struct {
-	ResourceType string `json:"resource_type" yaml:"resource_type"`
-	ID           string `json:"id" yaml:"id"`
+	ResourceType string `json:"resource_type"  yaml:"resource_type"`
+	ID           string `json:"id"             yaml:"id"`
 	Name         string `json:"name,omitempty" yaml:"name,omitempty"`
-	Namespace    string `json:"namespace" yaml:"namespace"`
+	Namespace    string `json:"namespace"      yaml:"namespace"`
 }
 
 func pointerLabelMap(existing map[string]string, namespace string) map[string]*string {

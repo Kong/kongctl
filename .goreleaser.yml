@@ -41,5 +41,3 @@ homebrew_casks:
     homepage: "https://github.com/kong/kongctl"
     description: Developer CLI for Kong
     skip_upload: auto
-    test: |
-        system "#{bin}/kongctl", "version"

@@ -330,7 +330,11 @@ func (s *Step) CreateResource(resource string, body []byte, opts CreateResourceO
 		return result, fmt.Errorf("unexpected status %d (expected %d): %s", resp.StatusCode, expect, snippet)
 	}
 	if dir != "" {
-		_ = os.WriteFile(filepath.Join(dir, "command.txt"), []byte(fmt.Sprintf("HTTP %s %s\n", endpoint.Method, fullURL)), 0o644)
+		_ = os.WriteFile(
+			filepath.Join(dir, "command.txt"),
+			[]byte(fmt.Sprintf("HTTP %s %s\n", endpoint.Method, fullURL)),
+			0o644,
+		)
 		if len(body) > 0 {
 			var reqObj any
 			if err := json.Unmarshal(body, &reqObj); err == nil {

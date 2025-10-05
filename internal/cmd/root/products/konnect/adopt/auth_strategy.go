@@ -91,7 +91,13 @@ func NewAuthStrategyCmd(
 			return err
 		}
 
-		result, err := adoptAuthStrategy(helper, sdk.GetAppAuthStrategiesAPI(), cfg, namespace, strings.TrimSpace(args[0]))
+		result, err := adoptAuthStrategy(
+			helper,
+			sdk.GetAppAuthStrategiesAPI(),
+			cfg,
+			namespace,
+			strings.TrimSpace(args[0]),
+		)
 		if err != nil {
 			return err
 		}
@@ -102,7 +108,13 @@ func NewAuthStrategyCmd(
 			if name == "" {
 				name = result.ID
 			}
-			fmt.Fprintf(streams.Out, "Adopted auth strategy %q (%s) into namespace %q\n", name, result.ID, result.Namespace)
+			fmt.Fprintf(
+				streams.Out,
+				"Adopted auth strategy %q (%s) into namespace %q\n",
+				name,
+				result.ID,
+				result.Namespace,
+			)
 			return nil
 		}
 

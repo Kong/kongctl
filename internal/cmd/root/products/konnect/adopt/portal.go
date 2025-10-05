@@ -221,7 +221,11 @@ func resolvePortal(
 				portalResp, err := portalAPI.GetPortal(ctx, p.ID)
 				if err != nil {
 					attrs := cmdpkg.TryConvertErrorToAttrs(err)
-					return nil, cmdpkg.PrepareExecutionError("failed to retrieve portal", err, helper.GetCmd(), attrs...)
+					return nil, cmdpkg.PrepareExecutionError(
+						"failed to retrieve portal",
+						err,
+						helper.GetCmd(),
+						attrs...)
 				}
 				portal := portalResp.GetPortalResponse()
 				if portal == nil {
