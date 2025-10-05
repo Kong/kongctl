@@ -40,4 +40,4 @@ homebrew_casks:
       email: rspurgeon@users.noreply.github.com
     homepage: "https://github.com/kong/kongctl"
     description: Developer CLI for Kong
-    skip_upload: auto
+    skip_upload: true
