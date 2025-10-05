@@ -77,11 +77,9 @@ jobs:
       - name: Sync generated Homebrew files
         run: |
           mkdir -p dist/homebrew-tap/homebrew-kongctl/Casks
+          rm -f dist/homebrew-tap/homebrew-kongctl/kongctl.rb
           if [[ -f dist/homebrew/Casks/kongctl.rb ]]; then
             cp dist/homebrew/Casks/kongctl.rb dist/homebrew-tap/homebrew-kongctl/Casks/kongctl.rb
-          fi
-          if [[ -f dist/homebrew/kongctl.rb ]]; then
-            cp dist/homebrew/kongctl.rb dist/homebrew-tap/homebrew-kongctl/kongctl.rb
           fi
       - name: Fix Homebrew tap style
         run: ./scripts/fix-homebrew-tap.sh dist/homebrew-tap/homebrew-kongctl
