@@ -55,13 +55,9 @@ func NewMeCmd(verb verbs.VerbValue,
 		verbs.Sync,
 		verbs.Diff,
 		verbs.Export,
-<<<<<<< HEAD
 		verbs.Adopt,
-		verbs.Ask:
-=======
 		verbs.Ask,
 		verbs.API:
->>>>>>> 00a7631 (feat: Adds api feature)
 		return &baseCmd, nil
 	}
 

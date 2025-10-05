@@ -11,11 +11,8 @@ import (
 	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/common"
-<<<<<<< HEAD
 	"github.com/kong/kongctl/internal/cmd/root/verbs/adopt"
-=======
 	"github.com/kong/kongctl/internal/cmd/root/verbs/api"
->>>>>>> 00a7631 (feat: Adds api feature)
 	"github.com/kong/kongctl/internal/cmd/root/verbs/apply"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/ask"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/del"
@@ -218,11 +215,11 @@ func addCommands() error {
 	}
 	rootCmd.AddCommand(command)
 
-	c, e = adopt.NewAdoptCmd()
-	if e != nil {
-		return e
+	command, err = adopt.NewAdoptCmd()
+	if err != nil {
+		return err
 	}
-	rootCmd.AddCommand(c)
+	rootCmd.AddCommand(command)
 
 	// Add help command
 	rootCmd.AddCommand(help.NewHelpCmd())
