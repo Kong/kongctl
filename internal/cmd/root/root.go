@@ -66,13 +66,6 @@ var (
 	},
 		common.TEXT.String())
 
-	colorMode = cmd.NewEnum([]string{
-		common.ColorModeAuto.String(),
-		common.ColorModeAlways.String(),
-		common.ColorModeNever.String(),
-	},
-		common.DefaultColorMode)
-
 	logLevel = cmd.NewEnum([]string{
 		common.TRACE.String(),
 		common.DEBUG.String(),
@@ -129,11 +122,6 @@ func newRootCmd() *cobra.Command {
 - Allowed    : [ %s ]`,
 			common.LogLevelConfigPath, strings.Join(logLevel.Allowed, "|")))
 
-	rootCmd.PersistentFlags().Var(colorMode, common.ColorFlagName,
-		fmt.Sprintf(`Controls colorized terminal output.
-- Config path: [ %s ]
-- Allowed    : [ %s ]`,
-			common.ColorConfigPath, strings.Join(colorMode.Allowed, "|")))
 	// -------------------------------------------------------------------------
 
 	return rootCmd
@@ -249,9 +237,6 @@ func bindFlags(config config.Hook) {
 
 	f = rootCmd.Flags().Lookup(common.LogLevelFlagName)
 	util.CheckError(config.BindFlag(common.LogLevelConfigPath, f))
-
-	f = rootCmd.Flags().Lookup(common.ColorFlagName)
-	util.CheckError(config.BindFlag(common.ColorConfigPath, f))
 }
 
 func initConfig() {
