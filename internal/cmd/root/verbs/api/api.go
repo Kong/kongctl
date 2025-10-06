@@ -8,24 +8,37 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
+	"sync"
 
+	"github.com/alecthomas/chroma/formatters"
+	"github.com/alecthomas/chroma/lexers"
+	"github.com/alecthomas/chroma/styles"
+	"github.com/itchyny/gojq"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/iostreams"
 	apiutil "github.com/kong/kongctl/internal/konnect/apiutil"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/mattn/go-isatty"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
 
 const (
-	Verb = verbs.API
+	Verb                       = verbs.API
+	jqColorFlagName            = "jq-color"
+	jqColorPaletteFlagName     = "jq-color-palette"
+	jqColorEnabledConfigPath   = "jq.color.enabled"
+	jqColorPaletteConfigPath   = "jq.color.palette"
+	jqColorDefaultPaletteValue = "github"
 )
 
 var (
@@ -39,38 +52,71 @@ var (
 	apiExamples = normalizers.Examples(i18n.T("root.verbs.api.apiExamples",
 		fmt.Sprintf(`
 	# Get the current user
-	%[1]s api /v1/me
+	%[1]s api /v3/users/me
 
 	# Explicit GET
-	%[1]s api get /v1/me
+	%[1]s api get /v3/users/me
 
 	# Create a resource with JSON fields
-	%[1]s api post /v1/apis name=my-api config:={"enabled":true}
+	%[1]s api post /v3/apis name=my-api config:={"enabled":true}
 
 	# Update a resource
-	%[1]s api put /v1/apis/123 name="my-updated-api"
+	%[1]s api put /v3/apis/123 name="my-updated-api"
 
 	# Delete a resource
-	%[1]s api delete /v1/apis/123`, meta.CLIName)))
+	%[1]s api delete /v3/apis/123`, meta.CLIName)))
+
+	jqQueryCache sync.Map
 )
 
 var requestFn = apiutil.Request
 
-func addFlags(cmd *cobra.Command) {
-	cmd.PersistentFlags().String(konnectcommon.BaseURLFlagName, konnectcommon.BaseURLDefault,
+func addFlags(command *cobra.Command) {
+	command.PersistentFlags().String(konnectcommon.BaseURLFlagName, konnectcommon.BaseURLDefault,
 		fmt.Sprintf(`Base URL for Konnect API requests.
 - Config path: [ %s ]`, konnectcommon.BaseURLConfigPath))
 
-	cmd.PersistentFlags().String(konnectcommon.PATFlagName, "",
+	command.PersistentFlags().String(konnectcommon.PATFlagName, "",
 		fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
 Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`, konnectcommon.PATConfigPath))
 
-	cmd.PersistentFlags().String(
+	command.PersistentFlags().String(
 		"jq",
 		"",
-		"Filter JSON responses using a limited jq-style expression (dot notation, array indexes)",
+		"Filter JSON responses using jq expressions (powered by gojq)",
 	)
+
+	var bodyFileFlagValue string
+	command.PersistentFlags().VarP(
+		newSingleBodyFileValue(&bodyFileFlagValue),
+		"body-file",
+		"f",
+		"Read request body from file ('-' to read from standard input)",
+	)
+
+	jqColor := cmd.NewEnum([]string{
+		cmdcommon.ColorModeAuto.String(),
+		cmdcommon.ColorModeAlways.String(),
+		cmdcommon.ColorModeNever.String(),
+	}, cmdcommon.DefaultColorMode)
+	command.PersistentFlags().Var(
+		jqColor,
+		jqColorFlagName,
+		fmt.Sprintf(`Controls colorized output for jq filter results.
+- Config path: [ %s ]
+- Allowed    : [ auto|always|never ]`, jqColorEnabledConfigPath),
+	)
+
+	command.PersistentFlags().String(
+		jqColorPaletteFlagName,
+		jqColorDefaultPaletteValue,
+		fmt.Sprintf(`Select the color palette used for jq filter results (default %s).
+- Config path: [ %s ]`, jqColorDefaultPaletteValue, jqColorPaletteConfigPath),
+	)
+
+	// Ensure persistent flags are accessible via Flags() for commands without subcommands (tests)
+	command.Flags().AddFlagSet(command.PersistentFlags())
 }
 
 func bindFlags(c *cobra.Command, args []string) error {
@@ -88,6 +134,20 @@ func bindFlags(c *cobra.Command, args []string) error {
 	f = c.Flags().Lookup(konnectcommon.PATFlagName)
 	if f != nil {
 		if err = cfg.BindFlag(konnectcommon.PATConfigPath, f); err != nil {
+			return err
+		}
+	}
+
+	f = c.Flags().Lookup(jqColorFlagName)
+	if f != nil {
+		if err = cfg.BindFlag(jqColorEnabledConfigPath, f); err != nil {
+			return err
+		}
+	}
+
+	f = c.Flags().Lookup(jqColorPaletteFlagName)
+	if f != nil {
+		if err = cfg.BindFlag(jqColorPaletteConfigPath, f); err != nil {
 			return err
 		}
 	}
@@ -156,7 +216,35 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		)
 	}
 
-	jqFilter, err := helper.GetCmd().Flags().GetString("jq")
+	jw := helper.GetCmd().Flags()
+	jqFilter, err := jw.GetString("jq")
+	if err != nil {
+		return err
+	}
+	jFlagChanged := jw.Changed("jq")
+	jqFilter = strings.TrimSpace(jqFilter)
+	if jFlagChanged && jqFilter == "" {
+		jqFilter = "."
+	}
+
+	jqColorValue, err := helper.GetCmd().Flags().GetString(jqColorFlagName)
+	if err != nil {
+		return err
+	}
+	jColorMode, err := cmdcommon.ColorModeStringToIota(strings.ToLower(jqColorValue))
+	if err != nil {
+		return err
+	}
+	jqPaletteValue, err := helper.GetCmd().Flags().GetString(jqColorPaletteFlagName)
+	if err != nil {
+		return err
+	}
+	jqPaletteValue = strings.TrimSpace(jqPaletteValue)
+	if jqPaletteValue == "" {
+		jqPaletteValue = jqColorDefaultPaletteValue
+	}
+
+	bodyFilePath, err := helper.GetCmd().Flags().GetString("body-file")
 	if err != nil {
 		return err
 	}
@@ -186,11 +274,39 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		ctx = context.Background()
 	}
 
+	streams := helper.GetStreams()
+
+	useJQColor := false
+	if jqFilter != "" {
+		useJQColor = shouldUseJQColor(jColorMode, streams.Out)
+	}
+
 	dataArgs := args[1:]
 	var bodyReader io.Reader
 	headers := map[string]string{}
 
-	if len(dataArgs) > 0 {
+	if bodyFilePath != "" {
+		if !allowBody {
+			return cmd.PrepareExecutionError(
+				"unexpected request body",
+				fmt.Errorf("request body is not allowed for %s", strings.ToUpper(method)),
+				helper.GetCmd(),
+			)
+		}
+		if len(dataArgs) > 0 {
+			return cmd.PrepareExecutionError(
+				"conflicting request data",
+				fmt.Errorf("cannot combine --body-file with inline field assignments"),
+				helper.GetCmd(),
+			)
+		}
+		payload, err := loadRequestBody(bodyFilePath, streams)
+		if err != nil {
+			return cmd.PrepareExecutionError("failed to load request body", err, helper.GetCmd())
+		}
+		bodyReader = bytes.NewReader(payload)
+		headers["Content-Type"] = "application/json"
+	} else if len(dataArgs) > 0 {
 		if !allowBody {
 			return cmd.PrepareExecutionError(
 				"unexpected data arguments",
@@ -242,11 +358,13 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		return err
 	}
 
-	streams := helper.GetStreams()
-
 	switch outType {
 	case cmdcommon.TEXT:
-		_, err = fmt.Fprintln(streams.Out, strings.TrimRight(bodyToPrintable(bodyToRender), "\n"))
+		printable := bodyToPrintable(bodyToRender)
+		if jqFilter != "" && useJQColor {
+			printable = maybeColorizeJQOutput(bodyToRender, printable, jqPaletteValue)
+		}
+		_, err = fmt.Fprintln(streams.Out, strings.TrimRight(printable, "\n"))
 		return err
 	case cmdcommon.JSON, cmdcommon.YAML:
 		var payload any
@@ -265,6 +383,182 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 	}
 
 	return nil
+}
+
+type singleBodyFileValue struct {
+	target *string
+	set    bool
+}
+
+func newSingleBodyFileValue(target *string) *singleBodyFileValue {
+	return &singleBodyFileValue{target: target}
+}
+
+func (s *singleBodyFileValue) String() string {
+	if s == nil || s.target == nil {
+		return ""
+	}
+	return *s.target
+}
+
+func (s *singleBodyFileValue) Set(value string) error {
+	if s == nil {
+		return fmt.Errorf("body file flag not initialized")
+	}
+	if s.set {
+		return fmt.Errorf("--body-file may only be provided once")
+	}
+	if s.target == nil {
+		return fmt.Errorf("body file target not configured")
+	}
+	if value == "" {
+		return fmt.Errorf("--body-file requires a filename or '-' for stdin")
+	}
+	*s.target = value
+	s.set = true
+	return nil
+}
+
+func (s *singleBodyFileValue) Type() string { return "string" }
+
+func (s *singleBodyFileValue) Get() any {
+	if s == nil || s.target == nil {
+		return ""
+	}
+	return *s.target
+}
+
+var isTerminalFile = func(fd uintptr) bool {
+	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
+}
+
+func loadRequestBody(path string, streams *iostreams.IOStreams) ([]byte, error) {
+	if path == "-" {
+		if streams == nil || streams.In == nil {
+			return nil, fmt.Errorf("standard input is not available")
+		}
+		reader := streams.In
+		if isInteractiveInput(reader) {
+			return nil, fmt.Errorf("standard input is a terminal; pipe data or provide a file path")
+		}
+		data, err := io.ReadAll(reader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read request body from stdin: %w", err)
+		}
+		closeIfPossible(reader)
+		return data, nil
+	}
+
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open request body file %q: %w", path, err)
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read request body file %q: %w", path, err)
+	}
+
+	return data, nil
+}
+
+type fdProvider interface {
+	Fd() uintptr
+}
+
+func isInteractiveInput(r io.Reader) bool {
+	if provider, ok := r.(fdProvider); ok {
+		fd := provider.Fd()
+		if fd != ^uintptr(0) && isTerminalFile(fd) {
+			return true
+		}
+	}
+	return false
+}
+
+func closeIfPossible(r io.Reader) {
+	if closer, ok := r.(io.Closer); ok {
+		_ = closer.Close()
+	}
+}
+
+var jqTerminalDetector = func(fd uintptr) bool {
+	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
+}
+
+func shouldUseJQColor(mode cmdcommon.ColorMode, out io.Writer) bool {
+	switch mode {
+	case cmdcommon.ColorModeAlways:
+		return true
+	case cmdcommon.ColorModeNever:
+		return false
+	case cmdcommon.ColorModeAuto:
+		if _, disabled := os.LookupEnv("NO_COLOR"); disabled {
+			return false
+		}
+		return isJQTerminal(out)
+	default:
+		if _, disabled := os.LookupEnv("NO_COLOR"); disabled {
+			return false
+		}
+		return isJQTerminal(out)
+	}
+}
+
+func isJQTerminal(out io.Writer) bool {
+	type fdWriter interface {
+		Fd() uintptr
+	}
+	if fw, ok := out.(fdWriter); ok {
+		return jqTerminalDetector(fw.Fd())
+	}
+	return false
+}
+
+func maybeColorizeJQOutput(raw []byte, formatted, palette string) string {
+	var payload any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return formatted
+	}
+	switch payload.(type) {
+	case map[string]any, []any:
+		// acceptable for colorization
+	default:
+		return formatted
+	}
+
+	lexer := lexers.Get("json")
+	if lexer == nil {
+		return formatted
+	}
+	iterator, err := lexer.Tokenise(nil, formatted)
+	if err != nil {
+		return formatted
+	}
+
+	formatter := formatters.Get("terminal256")
+	if formatter == nil {
+		formatter = formatters.Get("terminal")
+	}
+	if formatter == nil {
+		return formatted
+	}
+
+	style := styles.Get(palette)
+	if style == nil {
+		style = styles.Get(jqColorDefaultPaletteValue)
+	}
+	if style == nil {
+		style = styles.Fallback
+	}
+
+	var buf bytes.Buffer
+	if err := formatter.Format(&buf, style, iterator); err != nil {
+		return formatted
+	}
+
+	return buf.String()
 }
 
 func parseAssignments(fields []string) (map[string]any, error) {
@@ -303,22 +597,171 @@ func parseAssignments(fields []string) (map[string]any, error) {
 			return nil, fmt.Errorf("assignment %q is missing a key", field)
 		}
 
+		tokens, err := parseAssignmentPath(key)
+		if err != nil {
+			return nil, err
+		}
+
+		var decoded any
 		if jsonTyped {
-			var decoded any
 			if err := json.Unmarshal([]byte(value), &decoded); err != nil {
 				return nil, fmt.Errorf("failed to parse %s as JSON: %w", key, err)
 			}
-			payload[key] = decoded
-			continue
+		} else {
+			decoded = value
 		}
 
-		payload[key] = value
+		if err := setNestedValue(payload, tokens, key, decoded); err != nil {
+			return nil, err
+		}
 	}
 
 	return payload, nil
 }
 
+type assignmentPathToken struct {
+	key     string
+	isIndex bool
+	index   int
+}
+
+func parseAssignmentPath(path string) ([]assignmentPathToken, error) {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return nil, fmt.Errorf("assignment path cannot be empty")
+	}
+
+	var tokens []assignmentPathToken
+	for i := 0; i < len(trimmed); {
+		switch trimmed[i] {
+		case '.':
+			i++
+			if i >= len(trimmed) {
+				return nil, fmt.Errorf("path %q has trailing dot", path)
+			}
+			continue
+		case '[':
+			end := strings.IndexByte(trimmed[i:], ']')
+			if end < 0 {
+				return nil, fmt.Errorf("path %q has unterminated array segment", path)
+			}
+			end = i + end
+			idxStr := strings.TrimSpace(trimmed[i+1 : end])
+			if idxStr == "" {
+				return nil, fmt.Errorf("path %q has empty array index", path)
+			}
+			idx, err := strconv.Atoi(idxStr)
+			if err != nil {
+				return nil, fmt.Errorf("path %q has invalid array index %q", path, idxStr)
+			}
+			tokens = append(tokens, assignmentPathToken{isIndex: true, index: idx})
+			i = end + 1
+			continue
+		default:
+			start := i
+			for i < len(trimmed) && trimmed[i] != '.' && trimmed[i] != '[' {
+				i++
+			}
+			segment := strings.TrimSpace(trimmed[start:i])
+			if segment == "" {
+				return nil, fmt.Errorf("path %q has empty object key", path)
+			}
+			tokens = append(tokens, assignmentPathToken{key: segment})
+		}
+	}
+
+	if len(tokens) == 0 {
+		return nil, fmt.Errorf("assignment path %q produced no segments", path)
+	}
+
+	if tokens[0].isIndex {
+		return nil, fmt.Errorf("assignment path %q must start with an object key", path)
+	}
+
+	return tokens, nil
+}
+
+func setNestedValue(root map[string]any, tokens []assignmentPathToken, path string, value any) error {
+	first := tokens[0]
+	if len(tokens) == 1 {
+		root[first.key] = value
+		return nil
+	}
+
+	current, exists := root[first.key]
+	if !exists || current == nil {
+		if tokens[1].isIndex {
+			current = []any{}
+		} else {
+			current = map[string]any{}
+		}
+	}
+
+	if err := assignNestedValue(&current, tokens[1:], path, value); err != nil {
+		return err
+	}
+
+	root[first.key] = current
+	return nil
+}
+
+func assignNestedValue(current *any, tokens []assignmentPathToken, path string, value any) error {
+	if len(tokens) == 0 {
+		*current = value
+		return nil
+	}
+
+	segment := tokens[0]
+	if segment.isIndex {
+		if segment.index < 0 {
+			return fmt.Errorf("path %q has negative array index %d", path, segment.index)
+		}
+		var arr []any
+		switch typed := (*current).(type) {
+		case nil:
+			arr = []any{}
+		case []any:
+			arr = typed
+		default:
+			return fmt.Errorf("path %q segment [%d] expects array but found %T", path, segment.index, *current)
+		}
+		if segment.index >= len(arr) {
+			arr = append(arr, make([]any, segment.index-len(arr)+1)...)
+		}
+		next := arr[segment.index]
+		if err := assignNestedValue(&next, tokens[1:], path, value); err != nil {
+			return err
+		}
+		arr[segment.index] = next
+		*current = arr
+		return nil
+	}
+
+	var obj map[string]any
+	switch typed := (*current).(type) {
+	case nil:
+		obj = map[string]any{}
+	case map[string]any:
+		obj = typed
+	default:
+		return fmt.Errorf("path %q segment %q expects object but found %T", path, segment.key, *current)
+	}
+
+	next := obj[segment.key]
+	if err := assignNestedValue(&next, tokens[1:], path, value); err != nil {
+		return err
+	}
+	obj[segment.key] = next
+	*current = obj
+	return nil
+}
+
 func applyJQFilter(body []byte, filter string) ([]byte, error) {
+	filter = strings.TrimSpace(filter)
+	if filter == "" {
+		filter = "."
+	}
+
 	if len(body) == 0 {
 		return nil, errors.New("response body is empty, cannot apply jq filter")
 	}
@@ -328,12 +771,37 @@ func applyJQFilter(body []byte, filter string) ([]byte, error) {
 		return nil, fmt.Errorf("response is not valid JSON: %w", err)
 	}
 
-	result, err := evaluateSimpleJQ(payload, strings.TrimSpace(filter))
+	query, err := getCachedJQQuery(filter)
 	if err != nil {
 		return nil, err
 	}
 
-	filtered, err := json.Marshal(result)
+	iter := query.Run(payload)
+	var results []any
+	for {
+		v, ok := iter.Next()
+		if !ok {
+			break
+		}
+		if err, isErr := v.(error); isErr {
+			return nil, fmt.Errorf("jq filter failed: %w", err)
+		}
+		results = append(results, normalizeGoJQValue(v))
+	}
+
+	if len(results) == 0 {
+		return []byte("null"), nil
+	}
+
+	if len(results) == 1 {
+		filtered, err := json.Marshal(results[0])
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode filtered result: %w", err)
+		}
+		return filtered, nil
+	}
+
+	filtered, err := json.Marshal(results)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode filtered result: %w", err)
 	}
@@ -341,73 +809,41 @@ func applyJQFilter(body []byte, filter string) ([]byte, error) {
 	return filtered, nil
 }
 
-func evaluateSimpleJQ(data any, filter string) (any, error) {
-	if filter == "" || filter == "." {
-		return data, nil
+func getCachedJQQuery(filter string) (*gojq.Code, error) {
+	if code, ok := jqQueryCache.Load(filter); ok {
+		return code.(*gojq.Code), nil
 	}
 
-	filter = strings.TrimPrefix(filter, ".")
-
-	if filter == "" {
-		return data, nil
+	parsed, err := gojq.Parse(filter)
+	if err != nil {
+		return nil, fmt.Errorf("invalid jq expression: %w", err)
 	}
 
-	segments := strings.Split(filter, ".")
-	current := data
-
-	for _, segment := range segments {
-		segment = strings.TrimSpace(segment)
-		if segment == "" {
-			continue
-		}
-
-		var key string
-		var index *int
-
-		if strings.Contains(segment, "[") {
-			if !strings.HasSuffix(segment, "]") {
-				return nil, fmt.Errorf("unsupported jq segment %q", segment)
-			}
-			open := strings.Index(segment, "[")
-			key = segment[:open]
-			idxStr := segment[open+1 : len(segment)-1]
-			if idxStr == "" {
-				return nil, fmt.Errorf("empty array index in segment %q", segment)
-			}
-			i, err := strconv.Atoi(idxStr)
-			if err != nil {
-				return nil, fmt.Errorf("invalid array index in segment %q", segment)
-			}
-			index = &i
-		} else {
-			key = segment
-		}
-
-		if key != "" {
-			obj, ok := current.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("segment %q expects object but found %T", key, current)
-			}
-			var exists bool
-			current, exists = obj[key]
-			if !exists {
-				return nil, fmt.Errorf("key %q not found", key)
-			}
-		}
-
-		if index != nil {
-			arr, ok := current.([]any)
-			if !ok {
-				return nil, fmt.Errorf("segment %q expects array but found %T", segment, current)
-			}
-			if *index < 0 || *index >= len(arr) {
-				return nil, fmt.Errorf("index %d out of range for segment %q", *index, segment)
-			}
-			current = arr[*index]
-		}
+	code, err := gojq.Compile(parsed)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compile jq expression: %w", err)
 	}
 
-	return current, nil
+	jqQueryCache.Store(filter, code)
+	return code, nil
+}
+
+func normalizeGoJQValue(v any) any {
+	switch value := v.(type) {
+	case map[any]any:
+		converted := make(map[string]any, len(value))
+		for k, val := range value {
+			converted[fmt.Sprint(k)] = normalizeGoJQValue(val)
+		}
+		return converted
+	case []any:
+		for i := range value {
+			value[i] = normalizeGoJQValue(value[i])
+		}
+		return value
+	default:
+		return value
+	}
 }
 
 func bodyToPrintable(body []byte) string {

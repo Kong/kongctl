@@ -42,17 +42,30 @@ var (
 	%[1]s ask diagnose latency issues`, meta.CLIName)))
 )
 
-func addFlags(cmd *cobra.Command) {
-	cmd.Flags().String(konnectcommon.BaseURLFlagName, konnectcommon.BaseURLDefault,
+func addFlags(command *cobra.Command) {
+	command.Flags().String(konnectcommon.BaseURLFlagName, konnectcommon.BaseURLDefault,
 		fmt.Sprintf(`Base URL for Konnect API requests.
 - Config path: [ %s ]`,
 			konnectcommon.BaseURLConfigPath))
 
-	cmd.Flags().String(konnectcommon.PATFlagName, "",
+	command.Flags().String(konnectcommon.PATFlagName, "",
 		fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
 Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`,
 			konnectcommon.PATConfigPath))
+
+	colorMode := cmd.NewEnum([]string{
+		cmdcommon.ColorModeAuto.String(),
+		cmdcommon.ColorModeAlways.String(),
+		cmdcommon.ColorModeNever.String(),
+	},
+		cmdcommon.DefaultColorMode)
+
+	command.Flags().Var(colorMode, cmdcommon.ColorFlagName,
+		fmt.Sprintf(`Controls colorized terminal output.
+- Config path: [ %s ]
+- Allowed    : [ %s ]`,
+			cmdcommon.ColorConfigPath, strings.Join(colorMode.Allowed, "|")))
 }
 
 func bindFlags(c *cobra.Command, args []string) error {
@@ -70,6 +83,13 @@ func bindFlags(c *cobra.Command, args []string) error {
 	f = c.Flags().Lookup(konnectcommon.PATFlagName)
 	if f != nil {
 		if err = cfg.BindFlag(konnectcommon.PATConfigPath, f); err != nil {
+			return err
+		}
+	}
+
+	f = c.Flags().Lookup(cmdcommon.ColorFlagName)
+	if f != nil {
+		if err = cfg.BindFlag(cmdcommon.ColorConfigPath, f); err != nil {
 			return err
 		}
 	}
