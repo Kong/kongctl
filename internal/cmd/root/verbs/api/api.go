@@ -84,7 +84,7 @@ Setting this value overrides tokens obtained from the login command.
 	command.PersistentFlags().String(
 		"jq",
 		"",
-		"Filter JSON responses using jq expressions (powered by gojq for full jq compatibility and enhanced filtering capabilities)",
+		"Filter JSON responses using jq expressions (powered by gojq for full jq compatibility)",
 	)
 
 	var bodyFileFlagValue string
