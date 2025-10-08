@@ -448,21 +448,33 @@ func (p *Planner) planAPIChildResourcesCreate(
 ) {
 	// Plan version creation - API ID is not yet known
 	for _, version := range p.getAPIVersionsForAPI(api) {
+		if plan.HasChange("api_version", version.GetRef()) {
+			continue
+		}
 		p.planAPIVersionCreate(parentNamespace, api.GetRef(), "", version, []string{apiChangeID}, plan)
 	}
 
 	// Plan publication creation - API ID is not yet known
 	for _, publication := range p.getAPIPublicationsForAPI(api) {
+		if plan.HasChange("api_publication", publication.GetRef()) {
+			continue
+		}
 		p.planAPIPublicationCreate(parentNamespace, api.GetRef(), "", publication, []string{apiChangeID}, plan)
 	}
 
 	// Plan implementation creation - API ID is not yet known
 	for _, implementation := range p.getAPIImplementationsForAPI(api) {
+		if plan.HasChange("api_implementation", implementation.GetRef()) {
+			continue
+		}
 		p.planAPIImplementationCreate(parentNamespace, api.GetRef(), "", implementation, []string{apiChangeID}, plan)
 	}
 
 	// Plan document creation - API ID is not yet known
 	for _, document := range p.getAPIDocumentsForAPI(api) {
+		if plan.HasChange("api_document", document.GetRef()) {
+			continue
+		}
 		p.planAPIDocumentCreate(
 			parentNamespace,
 			api.GetRef(),
@@ -1903,11 +1915,16 @@ func (p *Planner) planAPIImplementationsChanges(
 		for _, change := range plan.Changes {
 			if change.ResourceType == "api" && change.ResourceRef == apiRef {
 				if change.Action == ActionCreate {
-					// Skip CREATE - SDK doesn't support implementation creation yet
-					// TODO: Enable when SDK adds support
-					// for _, impl := range implementations {
-					//	p.planAPIImplementationCreate(apiRef, "", impl, []string{change.ID}, plan)
-					// }
+					parentNamespace := change.Namespace
+					if parentNamespace == "" {
+						parentNamespace = DefaultNamespace
+					}
+					for _, impl := range implementations {
+						if plan.HasChange("api_implementation", impl.GetRef()) {
+							continue
+						}
+						p.planAPIImplementationCreate(parentNamespace, apiRef, "", impl, []string{change.ID}, plan)
+					}
 					continue
 				}
 				apiID = change.ResourceID
@@ -1977,6 +1994,9 @@ func (p *Planner) planAPIDocumentsChanges(
 						parentNamespace = DefaultNamespace
 					}
 					for _, doc := range documents {
+						if plan.HasChange("api_document", doc.GetRef()) {
+							continue
+						}
 						p.planAPIDocumentCreate(parentNamespace, apiRef, "", doc, []string{change.ID}, lookup, plan)
 					}
 					continue

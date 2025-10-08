@@ -49,6 +49,25 @@ apis:
 	l := loader.New()
 	resourceSet, err := l.LoadFromSources([]loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}, false)
 	require.NoError(t, err)
+	t.Logf("Loaded APIs: %d, APIImplementations: %d", len(resourceSet.APIs), len(resourceSet.APIImplementations))
+	if len(resourceSet.APIImplementations) > 0 {
+		t.Logf("Implementation[0]: ref=%s api=%s serviceID=%s controlPlaneID=%s",
+			resourceSet.APIImplementations[0].GetRef(),
+			resourceSet.APIImplementations[0].API,
+			func() string {
+				if resourceSet.APIImplementations[0].Service != nil {
+					return resourceSet.APIImplementations[0].Service.ID
+				}
+				return "<nil>"
+			}(),
+			func() string {
+				if resourceSet.APIImplementations[0].Service != nil {
+					return resourceSet.APIImplementations[0].Service.ControlPlaneID
+				}
+				return "<nil>"
+			}(),
+		)
+	}
 	require.Len(t, resourceSet.APIs, 1)
 
 	// Set up mocks
@@ -143,6 +162,9 @@ apis:
 	plan, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
 	require.NoError(t, err)
 	require.NotNil(t, plan)
+	for i, change := range plan.Changes {
+		t.Logf("Plan change %d: %s %s %s", i, change.Action, change.ResourceType, change.ResourceRef)
+	}
 	require.Len(t, plan.Changes, 1)
 
 	// Verify CREATE operation
@@ -967,7 +989,7 @@ api_documents:
 	mockAPIAPI.AssertExpectations(t)
 }
 
-func TestAPIImplementationLimitations(t *testing.T) {
+func TestAPIImplementationPlanning(t *testing.T) {
 	ctx := SetupTestContext(t)
 
 	// Create test YAML with API implementation
@@ -981,13 +1003,11 @@ apis:
     version: "1.0.0"
     kongctl:
       namespace: default
-
-api_implementations:
-  - ref: kong-impl
-    api: impl-api
-    service:
-      id: "12345678-1234-1234-1234-123456789012"
-      control_plane_id: "87654321-4321-4321-4321-210987654321"
+    implementations:
+      - ref: kong-impl
+        service:
+          id: "12345678-1234-1234-1234-123456789012"
+          control_plane_id: "87654321-4321-4321-4321-210987654321"
 `
 
 	err := os.WriteFile(configFile, []byte(configContent), 0o600)
@@ -1054,6 +1074,14 @@ api_implementations:
 			},
 		}, nil).Maybe()
 
+	mockAPIAPI.On("CreateAPIImplementation", mock.Anything, "api-impl-123", mock.Anything).
+		Return(&kkOps.CreateAPIImplementationResponse{
+			StatusCode: 201,
+			APIImplementationResponse: &kkComps.APIImplementationResponse{
+				ID: "impl-123",
+			},
+		}, nil).Once()
+
 	// Create state client and planner
 	mockPortalAPI := GetMockPortalAPI(ctx, t)
 	// Mock empty portals list
@@ -1064,26 +1092,58 @@ api_implementations:
 			},
 		}, nil)
 	stateClient := state.NewClient(state.ClientConfig{
-		PortalAPI: mockPortalAPI,
-		APIAPI:    mockAPIAPI,
+		PortalAPI:            mockPortalAPI,
+		APIAPI:               mockAPIAPI,
+		APIImplementationAPI: mockAPIAPI,
 	})
 	p := planner.NewPlanner(stateClient, slog.Default())
 
-	// Generate plan - should only create API, not implementation (SDK limitation)
 	plan, err := p.GeneratePlan(ctx, resourceSet, planner.Options{Mode: planner.PlanModeApply})
 	require.NoError(t, err)
 	require.NotNil(t, plan)
 
-	// Verify only API is created (implementation create not supported)
-	assert.Len(t, plan.Changes, 1)
+	// Verify both API and implementation are planned
+	require.Len(t, plan.Changes, 2)
+	for i, change := range plan.Changes {
+		t.Logf(
+			"plan change %d: %s %s ref=%s deps=%v",
+			i,
+			change.Action,
+			change.ResourceType,
+			change.ResourceRef,
+			change.DependsOn,
+		)
+	}
 	assert.Equal(t, "api", plan.Changes[0].ResourceType)
+	assert.Equal(t, "api_implementation", plan.Changes[1].ResourceType)
 
 	// Execute plan
 	exec := executor.New(stateClient, nil, false)
 	report := exec.Execute(ctx, plan)
+	if report.FailureCount > 0 || len(report.Errors) > 0 {
+		totalChanges := report.TotalChanges()
+		t.Logf(
+			"execution failures: failures=%d skipped=%d total=%d",
+			report.FailureCount,
+			report.SkippedCount,
+			totalChanges,
+		)
+		for _, execErr := range report.Errors {
+			t.Logf(
+				"execution error: change=%s type=%s ref=%s action=%s err=%s",
+				execErr.ChangeID,
+				execErr.ResourceType,
+				execErr.ResourceRef,
+				execErr.Action,
+				execErr.Error,
+			)
+		}
+	}
 	require.NoError(t, err)
-	assert.Equal(t, 1, report.SuccessCount+report.FailureCount+report.SkippedCount)
-	assert.Equal(t, 1, report.SuccessCount)
+	assert.Equal(t, 0, report.FailureCount)
+	assert.Equal(t, 0, report.SkippedCount)
+	assert.Equal(t, 2, report.SuccessCount+report.FailureCount+report.SkippedCount)
+	// assert.Equal(t, 2, report.SuccessCount)
 
 	mockAPIAPI.AssertExpectations(t)
 }

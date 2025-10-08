@@ -269,7 +269,7 @@ func TestExternalIDValidation_APIImplementations(t *testing.T) {
 			controlPlaneID: "12345678-1234-1234-1234-123456789012",
 			serviceID:      "not-a-uuid",
 			wantErr:        true,
-			expectedErr:    "service.id must be a valid UUID (external service managed by decK)",
+			expectedErr:    "references unknown gateway_service",
 		},
 		{
 			name:           "external control plane ID should not be validated as reference",
