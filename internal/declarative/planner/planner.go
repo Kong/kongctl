@@ -528,7 +528,12 @@ func (p *Planner) resolveControlPlaneIdentities(
 					return fmt.Errorf("external control_plane %s: no control plane found with name %q", cp.GetRef(), name)
 				}
 				if len(matches) > 1 {
-					return fmt.Errorf("external control_plane %s: selector matched %d control planes for name %q", cp.GetRef(), len(matches), name)
+					return fmt.Errorf(
+						"external control_plane %s: selector matched %d control planes for name %q",
+						cp.GetRef(),
+						len(matches),
+						name,
+					)
 				}
 				match = matches[0]
 			} else {
@@ -657,7 +662,11 @@ func (p *Planner) resolveGatewayServiceControlPlaneID(
 	}
 
 	if cpResource.GetKonnectID() == "" {
-		return "", fmt.Errorf("gateway_service %s: control_plane %s does not have a resolved Konnect ID", service.GetRef(), cpResource.GetRef())
+		return "", fmt.Errorf(
+			"gateway_service %s: control_plane %s does not have a resolved Konnect ID",
+			service.GetRef(),
+			cpResource.GetRef(),
+		)
 	}
 
 	return cpResource.GetKonnectID(), nil
@@ -681,7 +690,11 @@ func (p *Planner) matchGatewayService(
 			}
 		}
 		if match == nil {
-			return nil, fmt.Errorf("external gateway_service %s: no service found with id %s", service.GetRef(), service.External.ID)
+			return nil, fmt.Errorf(
+				"external gateway_service %s: no service found with id %s",
+				service.GetRef(),
+				service.External.ID,
+			)
 		}
 		return match, nil
 	}
@@ -692,14 +705,22 @@ func (p *Planner) matchGatewayService(
 			candidate := available[i]
 			if service.External.Selector.Match(candidate) {
 				if match != nil {
-					return nil, fmt.Errorf("external gateway_service %s: selector %v matched multiple services", service.GetRef(), matchFields)
+					return nil, fmt.Errorf(
+						"external gateway_service %s: selector %v matched multiple services",
+						service.GetRef(),
+						matchFields,
+					)
 				}
 				match = &available[i]
 			}
 		}
 
 		if match == nil {
-			return nil, fmt.Errorf("external gateway_service %s: selector %v did not match any services", service.GetRef(), matchFields)
+			return nil, fmt.Errorf(
+				"external gateway_service %s: selector %v did not match any services",
+				service.GetRef(),
+				matchFields,
+			)
 		}
 
 		return match, nil
@@ -760,7 +781,12 @@ func (p *Planner) normalizeAPIImplementationService(
 	}
 	impl.Service.ID = resolvedServiceID
 
-	resolvedControlPlaneID, err := p.resolveImplementationControlPlaneID(strings.TrimSpace(impl.Service.ControlPlaneID), linkedService, controlPlaneByRef, implRef)
+	resolvedControlPlaneID, err := p.resolveImplementationControlPlaneID(
+		strings.TrimSpace(impl.Service.ControlPlaneID),
+		linkedService,
+		controlPlaneByRef,
+		implRef,
+	)
 	if err != nil {
 		return err
 	}
@@ -787,7 +813,11 @@ func (p *Planner) resolveGatewayServiceReference(
 			return "", nil, fmt.Errorf("api_implementation %s: gateway_service %s not found", implRef, ref)
 		}
 		if svc.GetKonnectID() == "" {
-			return "", nil, fmt.Errorf("api_implementation %s: gateway_service %s does not have a resolved ID", implRef, svc.GetRef())
+			return "",
+				nil,
+				fmt.Errorf("api_implementation %s: gateway_service %s does not have a resolved ID",
+					implRef,
+					svc.GetRef())
 		}
 		return svc.GetKonnectID(), svc, nil
 	}
@@ -802,7 +832,11 @@ func (p *Planner) resolveGatewayServiceReference(
 	}
 
 	if svc.GetKonnectID() == "" {
-		return "", nil, fmt.Errorf("api_implementation %s: gateway_service %s does not have a resolved ID", implRef, svc.GetRef())
+		return "", nil, fmt.Errorf(
+			"api_implementation %s: gateway_service %s does not have a resolved ID",
+			implRef,
+			svc.GetRef(),
+		)
 	}
 
 	return svc.GetKonnectID(), svc, nil
@@ -843,7 +877,11 @@ func (p *Planner) resolveImplementationControlPlaneID(
 	}
 
 	if cp.GetKonnectID() == "" {
-		return "", fmt.Errorf("api_implementation %s: control_plane %s does not have a resolved Konnect ID", implRef, cp.GetRef())
+		return "", fmt.Errorf(
+			"api_implementation %s: control_plane %s does not have a resolved Konnect ID",
+			implRef,
+			cp.GetRef(),
+		)
 	}
 
 	resolved := cp.GetKonnectID()
