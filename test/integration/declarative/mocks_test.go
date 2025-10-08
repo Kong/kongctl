@@ -250,6 +250,32 @@ func (m *MockAPIAPI) ListAPIImplementations(
 	return args.Get(0).(*kkOps.ListAPIImplementationsResponse), args.Error(1)
 }
 
+func (m *MockAPIAPI) CreateAPIImplementation(
+	ctx context.Context,
+	apiID string,
+	request kkComps.APIImplementation,
+	_ ...kkOps.Option,
+) (*kkOps.CreateAPIImplementationResponse, error) {
+	args := m.Called(ctx, apiID, request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.CreateAPIImplementationResponse), args.Error(1)
+}
+
+func (m *MockAPIAPI) DeleteAPIImplementation(
+	ctx context.Context,
+	apiID string,
+	implementationID string,
+	_ ...kkOps.Option,
+) (*kkOps.DeleteAPIImplementationResponse, error) {
+	args := m.Called(ctx, apiID, implementationID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*kkOps.DeleteAPIImplementationResponse), args.Error(1)
+}
+
 // API Document operations
 func (m *MockAPIAPI) CreateAPIDocument(
 	ctx context.Context,

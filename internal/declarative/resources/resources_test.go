@@ -351,7 +351,7 @@ func TestAPIImplementationResource_Validation(t *testing.T) {
 			errMsg:  "API implementation service.id is required",
 		},
 		{
-			name: "service with invalid id (not UUID)",
+			name: "service with id referencing gateway service resource",
 			implementation: APIImplementationResource{
 				Ref: "api-impl-1",
 				APIImplementation: kkComps.APIImplementation{
@@ -361,8 +361,7 @@ func TestAPIImplementationResource_Validation(t *testing.T) {
 					},
 				},
 			},
-			wantErr: true,
-			errMsg:  "API implementation service.id must be a valid UUID",
+			wantErr: false,
 		},
 		{
 			name: "service with missing control_plane_id",
@@ -383,8 +382,9 @@ func TestAPIImplementationResource_Validation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.implementation.Validate()
 			if tt.wantErr {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.errMsg)
+				if assert.Error(t, err) && tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg)
+				}
 			} else {
 				assert.NoError(t, err)
 			}

@@ -13,6 +13,7 @@ const (
 	ResourceTypeAPIPublication          ResourceType = "api_publication"
 	ResourceTypeAPIImplementation       ResourceType = "api_implementation"
 	ResourceTypeAPIDocument             ResourceType = "api_document"
+	ResourceTypeGatewayService          ResourceType = "gateway_service"
 	ResourceTypePortalCustomization     ResourceType = "portal_customization"
 	ResourceTypePortalCustomDomain      ResourceType = "portal_custom_domain"
 	ResourceTypePortalPage              ResourceType = "portal_page"
@@ -31,8 +32,9 @@ type ResourceSet struct {
 	// ApplicationAuthStrategies contains auth strategy configurations
 	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty" json:"application_auth_strategies,omitempty"` //nolint:lll
 	// ControlPlanes contains control plane configurations
-	ControlPlanes []ControlPlaneResource `yaml:"control_planes,omitempty"              json:"control_planes,omitempty"`
-	APIs          []APIResource          `yaml:"apis,omitempty"                        json:"apis,omitempty"`
+	ControlPlanes   []ControlPlaneResource   `yaml:"control_planes,omitempty"              json:"control_planes,omitempty"`
+	APIs            []APIResource            `yaml:"apis,omitempty"                        json:"apis,omitempty"`
+	GatewayServices []GatewayServiceResource `yaml:"gateway_services,omitempty" json:"gateway_services,omitempty"`
 	// API child resources can be defined at root level (with parent reference) or nested under APIs
 	APIVersions        []APIVersionResource        `yaml:"api_versions,omitempty"                json:"api_versions,omitempty"`        //nolint:lll
 	APIPublications    []APIPublicationResource    `yaml:"api_publications,omitempty"            json:"api_publications,omitempty"`    //nolint:lll
@@ -117,6 +119,13 @@ func (rs *ResourceSet) GetResourceByRef(ref string) (Resource, bool) {
 	for i := range rs.APIs {
 		if rs.APIs[i].GetRef() == ref {
 			return &rs.APIs[i], true
+		}
+	}
+
+	// Check Gateway services
+	for i := range rs.GatewayServices {
+		if rs.GatewayServices[i].GetRef() == ref {
+			return &rs.GatewayServices[i], true
 		}
 	}
 

@@ -26,6 +26,7 @@ type SDKAPI interface {
 	GetAPIImplementationAPI() APIImplementationAPI
 	GetAppAuthStrategiesAPI() AppAuthStrategiesAPI
 	GetMeAPI() MeAPI
+	GetGatewayServiceAPI() GatewayServiceAPI
 	// Portal child resource APIs
 	GetPortalPageAPI() PortalPageAPI
 	GetPortalCustomizationAPI() PortalCustomizationAPI
@@ -111,6 +112,15 @@ func (k *KonnectSDK) GetAppAuthStrategiesAPI() AppAuthStrategiesAPI {
 	}
 
 	return &AppAuthStrategiesAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the GatewayServiceAPI interface
+func (k *KonnectSDK) GetGatewayServiceAPI() GatewayServiceAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return k.SDK.Services
 }
 
 // Returns the implementation of the PortalPageAPI interface

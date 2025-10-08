@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,6 +33,7 @@ type Step struct {
 type CreateResourceOptions struct {
 	Slug         string
 	ExpectStatus int
+	PathParams   map[string]string
 }
 
 type CreateResourceResult struct {
@@ -233,21 +235,54 @@ func (s *Step) GetAndObserve(resource string, out any, selector any) error {
 }
 
 type resourceEndpoint struct {
-	Method string
-	Path   string
+	Method    string
+	Path      string
+	ParamKeys []string
+}
+
+func (re resourceEndpoint) expandPath(params map[string]string) (string, error) {
+	path := re.Path
+	if len(re.ParamKeys) == 0 {
+		if strings.Contains(path, "{") {
+			return "", fmt.Errorf("endpoint path %q contains placeholders but no parameters provided", path)
+		}
+		return path, nil
+	}
+
+	for _, key := range re.ParamKeys {
+		value, ok := params[key]
+		if !ok {
+			return "", fmt.Errorf("missing endpoint parameter %q", key)
+		}
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			return "", fmt.Errorf("endpoint parameter %q resolved to empty string", key)
+		}
+		path = strings.ReplaceAll(path, "{"+key+"}", url.PathEscape(trimmed))
+	}
+
+	if strings.Contains(path, "{") {
+		return "", fmt.Errorf("endpoint path still contains placeholders after substitution: %q", path)
+	}
+
+	return path, nil
 }
 
 var createResourceEndpoints = map[string]resourceEndpoint{
-	"portal":        {http.MethodPost, "/v3/portals"},
-	"portals":       {http.MethodPost, "/v3/portals"},
-	"api":           {http.MethodPost, "/v3/apis"},
-	"apis":          {http.MethodPost, "/v3/apis"},
-	"auth-strategy": {http.MethodPost, "/v2/application-auth-strategies"},
-	"auth_strategy": {http.MethodPost, "/v2/application-auth-strategies"},
-	"authstrategy":  {http.MethodPost, "/v2/application-auth-strategies"},
-	"control-plane": {http.MethodPost, "/v2/control-planes"},
-	"control_plane": {http.MethodPost, "/v2/control-planes"},
-	"controlplane":  {http.MethodPost, "/v2/control-planes"},
+	"portal":              {Method: http.MethodPost, Path: "/v3/portals"},
+	"portals":             {Method: http.MethodPost, Path: "/v3/portals"},
+	"api":                 {Method: http.MethodPost, Path: "/v3/apis"},
+	"apis":                {Method: http.MethodPost, Path: "/v3/apis"},
+	"auth-strategy":       {Method: http.MethodPost, Path: "/v2/application-auth-strategies"},
+	"auth_strategy":       {Method: http.MethodPost, Path: "/v2/application-auth-strategies"},
+	"authstrategy":        {Method: http.MethodPost, Path: "/v2/application-auth-strategies"},
+	"control-plane":       {Method: http.MethodPost, Path: "/v2/control-planes"},
+	"control_plane":       {Method: http.MethodPost, Path: "/v2/control-planes"},
+	"controlplane":        {Method: http.MethodPost, Path: "/v2/control-planes"},
+	"gateway-service":     {Method: http.MethodPost, Path: "/v2/control-planes/{controlPlaneId}/core-entities/services", ParamKeys: []string{"controlPlaneId"}},
+	"gateway_service":     {Method: http.MethodPost, Path: "/v2/control-planes/{controlPlaneId}/core-entities/services", ParamKeys: []string{"controlPlaneId"}},
+	"gatewayservice":      {Method: http.MethodPost, Path: "/v2/control-planes/{controlPlaneId}/core-entities/services", ParamKeys: []string{"controlPlaneId"}},
+	"core-entity-service": {Method: http.MethodPost, Path: "/v2/control-planes/{controlPlaneId}/core-entities/services", ParamKeys: []string{"controlPlaneId"}},
 }
 
 func defaultStatusForMethod(method string) int {
@@ -270,6 +305,14 @@ func (s *Step) CreateResource(resource string, body []byte, opts CreateResourceO
 	if !ok {
 		return result, fmt.Errorf("unsupported resource %q", resource)
 	}
+	pathParams := opts.PathParams
+	if pathParams == nil {
+		pathParams = map[string]string{}
+	}
+	path, err := endpoint.expandPath(pathParams)
+	if err != nil {
+		return result, err
+	}
 	slug := opts.Slug
 	if strings.TrimSpace(slug) == "" {
 		slug = fmt.Sprintf("create-%s", sanitizeName(resource))
@@ -282,7 +325,7 @@ func (s *Step) CreateResource(resource string, body []byte, opts CreateResourceO
 	if baseURL == "" {
 		baseURL = "https://us.api.konghq.com"
 	}
-	fullURL := strings.TrimRight(baseURL, "/") + endpoint.Path
+	fullURL := strings.TrimRight(baseURL, "/") + path
 	token := os.Getenv("KONGCTL_E2E_KONNECT_PAT")
 	if token == "" {
 		return result, fmt.Errorf("KONGCTL_E2E_KONNECT_PAT not set")

@@ -1,0 +1,56 @@
+baseInputsPath: ../../../testdata/declarative/external/core-entities
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-setup-cp-svc
+    skipInputs: true
+    commands:
+      - name: 000-create-cp
+        create:
+          resource: control_plane
+          payload:
+            inline:
+              name: "e2e-cp"
+              description: "E2E Control Plane"
+              cluster_type: "CLUSTER_TYPE_SERVERLESS"
+          recordVar:
+            name: cp_id
+            responsePath: id
+      - name: 001-create-gw-svc
+        create:
+          resource: gateway_service
+          endpointParams:
+              controlPlaneId: "{{ .vars.cp_id }}"
+          payload:
+            inline:
+              name: "e2e-gw-svc"
+              url: https://api.kong-air.com/
+          recordVar:
+            name: gw_svc_id
+            responsePath: id
+
+  - name: 002-apply
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: apply
+          - select: >-
+              plan.changes[?resource_type=='api_implementation' && 
+                            resource_ref=='e2e-api-implementation'] | [0]
+            expect:
+             fields:
+                action: CREATE

@@ -125,12 +125,17 @@ func Run(t *testing.T, scenarioPath string) error {
 					if perr != nil {
 						return fmt.Errorf("command %s build payload failed: %w", cmdName, perr)
 					}
+					pathParams, perr := prepareEndpointParams(cmd.Create, tmplCtx)
+					if perr != nil {
+						return fmt.Errorf("command %s build endpoint params failed: %w", cmdName, perr)
+					}
 					result, lastErr = step.CreateResource(
 						cmd.Create.Resource,
 						payload,
 						harness.CreateResourceOptions{
 							Slug:         cmdName,
 							ExpectStatus: cmd.Create.ExpectStatus,
+							PathParams:   pathParams,
 						},
 					)
 					if lastErr == nil {
@@ -320,6 +325,25 @@ func prepareCreatePayload(spec *CreateSpec, scenarioPath string, tmplCtx map[str
 		return nil, err
 	}
 	return body, nil
+}
+
+func prepareEndpointParams(spec *CreateSpec, tmplCtx map[string]any) (map[string]string, error) {
+	if spec == nil || len(spec.EndpointParams) == 0 {
+		return nil, nil
+	}
+	resolved := make(map[string]string, len(spec.EndpointParams))
+	for key, value := range spec.EndpointParams {
+		b, err := renderTemplate([]byte(value), tmplCtx)
+		if err != nil {
+			return nil, fmt.Errorf("template endpoint param %s: %w", key, err)
+		}
+		val := strings.TrimSpace(string(b))
+		if val == "" {
+			return nil, fmt.Errorf("endpoint param %s resolved to empty string", key)
+		}
+		resolved[key] = val
+	}
+	return resolved, nil
 }
 
 func maybeRecordVar(s *Scenario, spec *RecordVar, parsed any, step *harness.Step) error {

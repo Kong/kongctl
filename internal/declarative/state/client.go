@@ -17,10 +17,11 @@ import (
 // ClientConfig contains all the API interfaces needed by the state client
 type ClientConfig struct {
 	// Core APIs
-	PortalAPI       helpers.PortalAPI
-	APIAPI          helpers.APIAPI
-	AppAuthAPI      helpers.AppAuthStrategiesAPI
-	ControlPlaneAPI helpers.ControlPlaneAPI
+	PortalAPI         helpers.PortalAPI
+	APIAPI            helpers.APIAPI
+	AppAuthAPI        helpers.AppAuthStrategiesAPI
+	ControlPlaneAPI   helpers.ControlPlaneAPI
+	GatewayServiceAPI helpers.GatewayServiceAPI
 
 	// Portal child resource APIs
 	PortalPageAPI          helpers.PortalPageAPI
@@ -38,10 +39,11 @@ type ClientConfig struct {
 // Client wraps Konnect SDK for state management
 type Client struct {
 	// Core APIs
-	portalAPI       helpers.PortalAPI
-	apiAPI          helpers.APIAPI
-	appAuthAPI      helpers.AppAuthStrategiesAPI
-	controlPlaneAPI helpers.ControlPlaneAPI
+	portalAPI         helpers.PortalAPI
+	apiAPI            helpers.APIAPI
+	appAuthAPI        helpers.AppAuthStrategiesAPI
+	controlPlaneAPI   helpers.ControlPlaneAPI
+	gatewayServiceAPI helpers.GatewayServiceAPI
 
 	// Portal child resource APIs
 	portalPageAPI          helpers.PortalPageAPI
@@ -60,10 +62,11 @@ type Client struct {
 func NewClient(config ClientConfig) *Client {
 	return &Client{
 		// Core APIs
-		portalAPI:       config.PortalAPI,
-		apiAPI:          config.APIAPI,
-		appAuthAPI:      config.AppAuthAPI,
-		controlPlaneAPI: config.ControlPlaneAPI,
+		portalAPI:         config.PortalAPI,
+		apiAPI:            config.APIAPI,
+		appAuthAPI:        config.AppAuthAPI,
+		controlPlaneAPI:   config.ControlPlaneAPI,
+		gatewayServiceAPI: config.GatewayServiceAPI,
 
 		// Portal child resource APIs
 		portalPageAPI:          config.PortalPageAPI,
@@ -95,6 +98,14 @@ type API struct {
 type ControlPlane struct {
 	kkComps.ControlPlane
 	NormalizedLabels map[string]string // Non-pointer labels
+}
+
+// GatewayService represents a gateway service for internal use.
+type GatewayService struct {
+	ID             string
+	Name           string
+	ControlPlaneID string
+	Service        kkComps.ServiceOutput
 }
 
 // APIVersion represents an API version for internal use
@@ -513,6 +524,70 @@ func (c *Client) ListAllControlPlanes(ctx context.Context) ([]ControlPlane, erro
 	}
 
 	return all, nil
+}
+
+// ListGatewayServices returns all gateway services for the provided control plane.
+func (c *Client) ListGatewayServices(ctx context.Context, controlPlaneID string) ([]GatewayService, error) {
+	if err := ValidateAPIClient(c.gatewayServiceAPI, "Gateway Service API"); err != nil {
+		return nil, err
+	}
+
+	const defaultPageSize int64 = 100
+	pageSize := defaultPageSize
+	var (
+		services  []GatewayService
+		hasOffset bool
+		offsetVal string
+	)
+
+	for {
+		req := kkOps.ListServiceRequest{
+			ControlPlaneID: controlPlaneID,
+			Size:           &pageSize,
+		}
+
+		if hasOffset {
+			req.Offset = &offsetVal
+		}
+
+		resp, err := c.gatewayServiceAPI.ListService(ctx, req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list gateway services: %w", err)
+		}
+
+		if resp == nil || resp.Object == nil {
+			break
+		}
+
+		for _, svc := range resp.Object.Data {
+			id := ""
+			if svc.ID != nil {
+				id = *svc.ID
+			}
+
+			name := ""
+			if svc.Name != nil {
+				name = *svc.Name
+			}
+
+			services = append(services, GatewayService{
+				ID:             id,
+				Name:           name,
+				ControlPlaneID: controlPlaneID,
+				Service:        svc,
+			})
+		}
+
+		if resp.Object.Offset != nil && *resp.Object.Offset != "" && len(resp.Object.Data) > 0 {
+			offsetVal = *resp.Object.Offset
+			hasOffset = true
+			continue
+		}
+
+		break
+	}
+
+	return services, nil
 }
 
 // GetControlPlaneByName finds a managed control plane by name
@@ -1319,17 +1394,37 @@ func (c *Client) ListAPIImplementations(ctx context.Context, apiID string) ([]AP
 }
 
 // CreateAPIImplementation creates a new API implementation
-// Note: This is a placeholder - SDK doesn't support implementation creation yet
 func (c *Client) CreateAPIImplementation(
-	_ context.Context, _ string, _ any,
+	ctx context.Context, apiID string, implementation kkComps.APIImplementation,
 ) (*kkComps.APIImplementationResponse, error) {
-	return nil, fmt.Errorf("API implementation creation not yet supported by SDK")
+	if err := ValidateAPIClient(c.apiImplementationAPI, "API Implementation API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.apiImplementationAPI.CreateAPIImplementation(ctx, apiID, implementation)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create API implementation: %w", err)
+	}
+
+	if resp == nil || resp.APIImplementationResponse == nil {
+		return nil, fmt.Errorf("API implementation creation returned no response")
+	}
+
+	return resp.APIImplementationResponse, nil
 }
 
 // DeleteAPIImplementation deletes an API implementation
-// Note: This is a placeholder - SDK doesn't support implementation deletion yet
-func (c *Client) DeleteAPIImplementation(_ context.Context, _, _ string) error {
-	return fmt.Errorf("API implementation deletion not yet supported by SDK")
+func (c *Client) DeleteAPIImplementation(ctx context.Context, apiID, implementationID string) error {
+	if err := ValidateAPIClient(c.apiImplementationAPI, "API Implementation API"); err != nil {
+		return err
+	}
+
+	_, err := c.apiImplementationAPI.DeleteAPIImplementation(ctx, apiID, implementationID)
+	if err != nil {
+		return fmt.Errorf("failed to delete API implementation: %w", err)
+	}
+
+	return nil
 }
 
 // API Document methods

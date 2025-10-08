@@ -7,6 +7,7 @@ import (
 	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/util"
 )
 
@@ -61,7 +62,12 @@ func (i APIImplementationResource) GetReferenceFieldMappings() map[string]string
 		}
 	}
 
-	// Note: service.id is always external UUID, not ref-based
+	if i.Service != nil && i.Service.ID != "" {
+		if !util.IsValidUUID(i.Service.ID) && !tags.IsRefPlaceholder(i.Service.ID) {
+			mappings["service.id"] = string(ResourceTypeGatewayService)
+		}
+	}
+
 	return mappings
 }
 
@@ -75,11 +81,6 @@ func (i APIImplementationResource) Validate() error {
 	if i.Service != nil {
 		if i.Service.ID == "" {
 			return fmt.Errorf("API implementation service.id is required")
-		}
-
-		// Validate service.id is a UUID format (external system)
-		if !util.IsValidUUID(i.Service.ID) {
-			return fmt.Errorf("API implementation service.id must be a valid UUID (external service managed by decK)")
 		}
 
 		if i.Service.ControlPlaneID == "" {

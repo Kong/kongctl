@@ -10,8 +10,10 @@ import (
 // ControlPlaneResource represents a control plane in declarative configuration
 type ControlPlaneResource struct {
 	kkComps.CreateControlPlaneRequest `             yaml:",inline"           json:",inline"`
-	Ref                               string       `yaml:"ref"               json:"ref"`
-	Kongctl                           *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+	Ref                               string                   `yaml:"ref"               json:"ref"`
+	Kongctl                           *KongctlMeta             `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+	External                          *ExternalBlock           `yaml:"_external,omitempty" json:"_external,omitempty"`
+	GatewayServices                   []GatewayServiceResource `yaml:"gateway_services,omitempty" json:"gateway_services,omitempty"` //nolint:lll
 
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
@@ -32,6 +34,12 @@ func (c ControlPlaneResource) Validate() error {
 	if err := ValidateRef(c.Ref); err != nil {
 		return fmt.Errorf("invalid control plane ref: %w", err)
 	}
+
+	if c.External != nil {
+		if err := c.External.Validate(); err != nil {
+			return fmt.Errorf("invalid _external block: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -40,6 +48,10 @@ func (c *ControlPlaneResource) SetDefaults() {
 	// If Name is not set, use ref as default
 	if c.Name == "" {
 		c.Name = c.Ref
+	}
+
+	for i := range c.GatewayServices {
+		c.GatewayServices[i].SetDefaults()
 	}
 }
 
@@ -66,6 +78,10 @@ func (c ControlPlaneResource) GetKonnectID() string {
 
 // GetKonnectMonikerFilter returns the filter string for Konnect API lookup
 func (c ControlPlaneResource) GetKonnectMonikerFilter() string {
+	if c.IsExternal() {
+		return ""
+	}
+
 	if c.Name == "" {
 		return ""
 	}
@@ -74,7 +90,6 @@ func (c ControlPlaneResource) GetKonnectMonikerFilter() string {
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
 func (c *ControlPlaneResource) TryMatchKonnectResource(konnectResource any) bool {
-	// For control planes, we match by name
 	// Use reflection to access fields from state.ControlPlane
 	v := reflect.ValueOf(konnectResource)
 
@@ -88,17 +103,40 @@ func (c *ControlPlaneResource) TryMatchKonnectResource(konnectResource any) bool
 		return false
 	}
 
-	// Look for Name and ID fields
-	nameField := v.FieldByName("Name")
+	// Look for ID field for matching
 	idField := v.FieldByName("ID")
+	if !idField.IsValid() {
+		return false
+	}
 
-	// Extract values if fields are valid
-	if nameField.IsValid() && idField.IsValid() &&
-		nameField.Kind() == reflect.String && idField.Kind() == reflect.String {
-		if nameField.String() == c.Name {
+	if c.IsExternal() && c.External != nil {
+		matched := false
+		if c.External.ID != "" {
+			matched = (idField.String() == c.External.ID)
+		} else if c.External.Selector != nil {
+			matched = c.External.Selector.Match(konnectResource)
+		}
+
+		if matched {
 			c.konnectID = idField.String()
 			return true
 		}
+
+		return false
 	}
+
+	// Non-external control planes match by name
+	nameField := v.FieldByName("Name")
+	if nameField.IsValid() && nameField.Kind() == reflect.String &&
+		nameField.String() == c.Name {
+		c.konnectID = idField.String()
+		return true
+	}
+
 	return false
+}
+
+// IsExternal returns true if this control plane is externally managed
+func (c *ControlPlaneResource) IsExternal() bool {
+	return c.External != nil && c.External.IsExternal()
 }

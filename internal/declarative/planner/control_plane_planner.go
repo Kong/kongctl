@@ -45,6 +45,10 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 	protectionErrors := &ProtectionErrorCollector{}
 
 	for _, desiredCP := range desired {
+		if desiredCP.IsExternal() {
+			p.planner.logger.Debug("Skipping external control plane", "ref", desiredCP.GetRef(), "name", desiredCP.Name)
+			continue
+		}
 		current, exists := currentByName[desiredCP.Name]
 		desiredProtected := isProtected(desiredCP)
 
@@ -80,6 +84,9 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 	if plan.Metadata.Mode == PlanModeSync {
 		desiredNames := make(map[string]struct{})
 		for _, cp := range desired {
+			if cp.IsExternal() {
+				continue
+			}
 			desiredNames[cp.Name] = struct{}{}
 		}
 
