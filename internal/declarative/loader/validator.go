@@ -27,6 +27,11 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
+	// Validate gateway services
+	if err := l.validateGatewayServices(rs.GatewayServices, rs); err != nil {
+		return err
+	}
+
 	// Validate APIs and their children
 	if err := l.validateAPIs(rs.APIs, rs); err != nil {
 		return err
@@ -45,6 +50,29 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	// Validate namespaces
 	if err := l.validateNamespaces(rs); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// validateGatewayServices validates gateway service resources
+func (l *Loader) validateGatewayServices(
+	services []resources.GatewayServiceResource,
+	rs *resources.ResourceSet,
+) error {
+	for i := range services {
+		service := &services[i]
+
+		if err := service.Validate(); err != nil {
+			return fmt.Errorf("invalid gateway_service %q: %w", service.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(service.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeGatewayService {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					service.GetRef(), existing.GetType())
+			}
+		}
 	}
 
 	return nil

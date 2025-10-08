@@ -118,6 +118,8 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 
 	logger.LogAttrs(ctx, slog.LevelDebug, "Starting reference resolution",
 		slog.Int("portals", len(rs.Portals)),
+		slog.Int("control_planes", len(rs.ControlPlanes)),
+		slog.Int("gateway_services", len(rs.GatewayServices)),
 		slog.Int("apis", len(rs.APIs)),
 		slog.Int("auth_strategies", len(rs.ApplicationAuthStrategies)),
 	)
@@ -136,6 +138,18 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 				slog.String("error", err.Error()),
 			)
 			return fmt.Errorf("resolving portal %s: %w", rs.Portals[i].GetRef(), err)
+		}
+		processCount++
+	}
+
+	// Process ControlPlanes
+	for i := range rs.ControlPlanes {
+		if err := resolveResourceFields(ctx, &rs.ControlPlanes[i], rs, resolver, resolutionPath, logger); err != nil {
+			logger.LogAttrs(ctx, slog.LevelError, "Failed to resolve control plane references",
+				slog.String("control_plane_ref", rs.ControlPlanes[i].GetRef()),
+				slog.String("error", err.Error()),
+			)
+			return fmt.Errorf("resolving control plane %s: %w", rs.ControlPlanes[i].GetRef(), err)
 		}
 		processCount++
 	}
@@ -190,6 +204,13 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 	for i := range rs.PortalCustomDomains {
 		if err := resolveResourceFields(ctx, &rs.PortalCustomDomains[i], rs, resolver, resolutionPath, logger); err != nil {
 			return fmt.Errorf("resolving portal custom domain %s: %w", rs.PortalCustomDomains[i].GetRef(), err)
+		}
+		processCount++
+	}
+
+	for i := range rs.GatewayServices {
+		if err := resolveResourceFields(ctx, &rs.GatewayServices[i], rs, resolver, resolutionPath, logger); err != nil {
+			return fmt.Errorf("resolving gateway service %s: %w", rs.GatewayServices[i].GetRef(), err)
 		}
 		processCount++
 	}

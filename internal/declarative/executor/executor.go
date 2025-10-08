@@ -46,7 +46,7 @@ type Executor struct {
 	apiPublicationExecutor *BaseCreateDeleteExecutor[kkComps.APIPublication]
 	apiDocumentExecutor    *BaseExecutor[kkComps.CreateAPIDocumentRequest, kkComps.APIDocument]
 	// API implementation is not yet supported by SDK but we include adapter for completeness
-	apiImplementationExecutor *BaseExecutor[kkComps.CreateAPIVersionRequest, kkComps.APIVersion]
+	apiImplementationExecutor *BaseCreateDeleteExecutor[kkComps.APIImplementation]
 }
 
 // New creates a new Executor instance
@@ -119,10 +119,9 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 		client,
 		dryRun,
 	)
-	// API implementation placeholder - not yet supported by SDK
-	e.apiImplementationExecutor = NewBaseExecutor[kkComps.CreateAPIVersionRequest, kkComps.APIVersion](
+
+	e.apiImplementationExecutor = NewBaseCreateDeleteExecutor[kkComps.APIImplementation](
 		NewAPIImplementationAdapter(client),
-		client,
 		dryRun,
 	)
 

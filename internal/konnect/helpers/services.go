@@ -8,6 +8,12 @@ import (
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 )
 
+// GatewayServiceAPI defines the interface for gateway service operations needed by the CLI.
+type GatewayServiceAPI interface {
+	ListService(ctx context.Context, request kkOps.ListServiceRequest,
+		opts ...kkOps.Option) (*kkOps.ListServiceResponse, error)
+}
+
 func GetAllGatewayServices(ctx context.Context, requestPageSize int64, cpID string, kkClient *kk.SDK,
 ) ([]kkComps.ServiceOutput, error) {
 	var allData []kkComps.ServiceOutput

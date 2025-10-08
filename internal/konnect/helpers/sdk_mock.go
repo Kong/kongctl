@@ -15,6 +15,7 @@ type MockKonnectSDK struct {
 	APIImplementationFactory func() APIImplementationAPI
 	AppAuthStrategiesFactory func() AppAuthStrategiesAPI
 	MeFactory                func() MeAPI
+	GatewayServiceFactory    func() GatewayServiceAPI
 	// Portal child resource factories
 	PortalPageFactory          func() PortalPageAPI
 	PortalCustomizationFactory func() PortalCustomizationAPI
@@ -82,6 +83,14 @@ func (m *MockKonnectSDK) GetAPIImplementationAPI() APIImplementationAPI {
 func (m *MockKonnectSDK) GetAppAuthStrategiesAPI() AppAuthStrategiesAPI {
 	if m.AppAuthStrategiesFactory != nil {
 		return m.AppAuthStrategiesFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the GatewayServiceAPI
+func (m *MockKonnectSDK) GetGatewayServiceAPI() GatewayServiceAPI {
+	if m.GatewayServiceFactory != nil {
+		return m.GatewayServiceFactory()
 	}
 	return nil
 }

@@ -358,6 +358,16 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 		accumulated.APIs = append(accumulated.APIs, api)
 	}
 
+	// Check and append gateway services
+	for _, service := range source.GatewayServices {
+		if accumulated.HasRef(service.Ref) {
+			existing, _ := accumulated.GetResourceByRef(service.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
+				service.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.GatewayServices = append(accumulated.GatewayServices, service)
+	}
+
 	// Check and append API child resources
 	for _, version := range source.APIVersions {
 		if accumulated.HasRef(version.Ref) {
@@ -644,6 +654,18 @@ func (l *Loader) extractPortalPages(
 
 // extractNestedResources extracts nested child resources to root level with parent references
 func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
+	for i := range rs.ControlPlanes {
+		cp := &rs.ControlPlanes[i]
+
+		for j := range cp.GatewayServices {
+			service := cp.GatewayServices[j]
+			service.ControlPlane = cp.Ref
+			rs.GatewayServices = append(rs.GatewayServices, service)
+		}
+
+		cp.GatewayServices = nil
+	}
+
 	for i := range rs.APIs {
 		api := &rs.APIs[i]
 

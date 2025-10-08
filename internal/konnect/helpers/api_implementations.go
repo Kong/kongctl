@@ -14,6 +14,10 @@ type APIImplementationAPI interface {
 	// API Implementation operations
 	ListAPIImplementations(ctx context.Context, request kkOps.ListAPIImplementationsRequest,
 		opts ...kkOps.Option) (*kkOps.ListAPIImplementationsResponse, error)
+	CreateAPIImplementation(ctx context.Context, apiID string, apiImplementation kkComponents.APIImplementation,
+		opts ...kkOps.Option) (*kkOps.CreateAPIImplementationResponse, error)
+	DeleteAPIImplementation(ctx context.Context, apiID string, implementationID string,
+		opts ...kkOps.Option) (*kkOps.DeleteAPIImplementationResponse, error)
 }
 
 // APIImplementationAPIImpl provides an implementation of the APIImplementationAPI interface
@@ -35,6 +39,38 @@ func (a *APIImplementationAPIImpl) ListAPIImplementations(ctx context.Context,
 	}
 
 	return a.SDK.APIImplementation.ListAPIImplementations(ctx, request, opts...)
+}
+
+// CreateAPIImplementation implements the APIImplementationAPI interface
+func (a *APIImplementationAPIImpl) CreateAPIImplementation(ctx context.Context,
+	apiID string, apiImplementation kkComponents.APIImplementation,
+	opts ...kkOps.Option,
+) (*kkOps.CreateAPIImplementationResponse, error) {
+	if a.SDK == nil {
+		return nil, fmt.Errorf("SDK is nil")
+	}
+
+	if a.SDK.APIImplementation == nil {
+		return nil, fmt.Errorf("SDK.APIImplementation is nil")
+	}
+
+	return a.SDK.APIImplementation.CreateAPIImplementation(ctx, apiID, apiImplementation, opts...)
+}
+
+// DeleteAPIImplementation implements the APIImplementationAPI interface
+func (a *APIImplementationAPIImpl) DeleteAPIImplementation(ctx context.Context,
+	apiID string, implementationID string,
+	opts ...kkOps.Option,
+) (*kkOps.DeleteAPIImplementationResponse, error) {
+	if a.SDK == nil {
+		return nil, fmt.Errorf("SDK is nil")
+	}
+
+	if a.SDK.APIImplementation == nil {
+		return nil, fmt.Errorf("SDK.APIImplementation is nil")
+	}
+
+	return a.SDK.APIImplementation.DeleteAPIImplementation(ctx, apiID, implementationID, opts...)
 }
 
 // GetImplementationsForAPI fetches all implementation objects for a specific API

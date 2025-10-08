@@ -58,10 +58,11 @@ type Command struct {
 }
 
 type CreateSpec struct {
-	Resource     string        `yaml:"resource"`
-	Payload      CreatePayload `yaml:"payload"`
-	ExpectStatus int           `yaml:"expectStatus"`
-	RecordVar    *RecordVar    `yaml:"recordVar"`
+	Resource       string            `yaml:"resource"`
+	Payload        CreatePayload     `yaml:"payload"`
+	ExpectStatus   int               `yaml:"expectStatus"`
+	RecordVar      *RecordVar        `yaml:"recordVar"`
+	EndpointParams map[string]string `yaml:"endpointParams"`
 }
 
 type CreatePayload struct {

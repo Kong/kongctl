@@ -28,6 +28,9 @@ func (p *Planner) planPortalCustomizationsChanges(
 
 	// For each desired customization
 	for _, desiredCustomization := range desired {
+		if plan.HasChange("portal_customization", desiredCustomization.GetRef()) {
+			continue
+		}
 		// Find the portal ID
 		var portalID string
 		var portalName string
@@ -377,6 +380,9 @@ func (p *Planner) planPortalCustomDomainsChanges(
 ) error { //nolint:unparam // Will return errors when state fetching is added
 	// For each desired custom domain
 	for _, desiredDomain := range desired {
+		if plan.HasChange("portal_custom_domain", desiredDomain.GetRef()) {
+			continue
+		}
 		// Portal custom domains are singleton resources per portal
 		// Always create/update, never fetch current state
 		p.planPortalCustomDomainCreate(parentNamespace, desiredDomain, plan)
@@ -547,6 +553,9 @@ func (p *Planner) planPortalPagesChanges(
 
 	// Process desired pages
 	for _, desiredPage := range desired {
+		if plan.HasChange("portal_page", desiredPage.GetRef()) {
+			continue
+		}
 		// Build the full path for this desired page to check if it exists
 		var fullPath string
 		// Special handling for root page with slug "/"
@@ -972,6 +981,9 @@ func (p *Planner) planPortalSnippetsChanges(
 
 	// Process desired snippets
 	for _, desiredSnippet := range desired {
+		if plan.HasChange("portal_snippet", desiredSnippet.GetRef()) {
+			continue
+		}
 		// Check if snippet exists by name
 		if existingSnippet, exists := existingSnippets[desiredSnippet.Name]; exists {
 			// Check if UPDATE is needed - must fetch full content first

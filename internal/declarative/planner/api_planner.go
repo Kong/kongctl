@@ -447,22 +447,22 @@ func (p *Planner) planAPIChildResourcesCreate(
 	parentNamespace string, api resources.APIResource, apiChangeID string, plan *Plan,
 ) {
 	// Plan version creation - API ID is not yet known
-	for _, version := range api.Versions {
+	for _, version := range p.getAPIVersionsForAPI(api) {
 		p.planAPIVersionCreate(parentNamespace, api.GetRef(), "", version, []string{apiChangeID}, plan)
 	}
 
 	// Plan publication creation - API ID is not yet known
-	for _, publication := range api.Publications {
+	for _, publication := range p.getAPIPublicationsForAPI(api) {
 		p.planAPIPublicationCreate(parentNamespace, api.GetRef(), "", publication, []string{apiChangeID}, plan)
 	}
 
 	// Plan implementation creation - API ID is not yet known
-	for _, implementation := range api.Implementations {
+	for _, implementation := range p.getAPIImplementationsForAPI(api) {
 		p.planAPIImplementationCreate(parentNamespace, api.GetRef(), "", implementation, []string{apiChangeID}, plan)
 	}
 
 	// Plan document creation - API ID is not yet known
-	for _, document := range api.Documents {
+	for _, document := range p.getAPIDocumentsForAPI(api) {
 		p.planAPIDocumentCreate(
 			parentNamespace,
 			api.GetRef(),
@@ -473,6 +473,86 @@ func (p *Planner) planAPIChildResourcesCreate(
 			plan,
 		)
 	}
+}
+
+func (p *Planner) getAPIVersionsForAPI(api resources.APIResource) []resources.APIVersionResource {
+	result := make([]resources.APIVersionResource, 0)
+	seen := make(map[string]struct{})
+	for _, version := range api.Versions {
+		result = append(result, version)
+		seen[version.GetRef()] = struct{}{}
+	}
+	for _, version := range p.resources.APIVersions {
+		if version.API != api.GetRef() {
+			continue
+		}
+		if _, ok := seen[version.GetRef()]; ok {
+			continue
+		}
+		result = append(result, version)
+		seen[version.GetRef()] = struct{}{}
+	}
+	return result
+}
+
+func (p *Planner) getAPIPublicationsForAPI(api resources.APIResource) []resources.APIPublicationResource {
+	result := make([]resources.APIPublicationResource, 0)
+	seen := make(map[string]struct{})
+	for _, pub := range api.Publications {
+		result = append(result, pub)
+		seen[pub.GetRef()] = struct{}{}
+	}
+	for _, pub := range p.resources.APIPublications {
+		if pub.API != api.GetRef() {
+			continue
+		}
+		if _, ok := seen[pub.GetRef()]; ok {
+			continue
+		}
+		result = append(result, pub)
+		seen[pub.GetRef()] = struct{}{}
+	}
+	return result
+}
+
+func (p *Planner) getAPIImplementationsForAPI(api resources.APIResource) []resources.APIImplementationResource {
+	result := make([]resources.APIImplementationResource, 0)
+	seen := make(map[string]struct{})
+	for _, impl := range api.Implementations {
+		result = append(result, impl)
+		seen[impl.GetRef()] = struct{}{}
+	}
+	for _, impl := range p.resources.APIImplementations {
+		if impl.API != api.GetRef() {
+			continue
+		}
+		if _, ok := seen[impl.GetRef()]; ok {
+			continue
+		}
+		result = append(result, impl)
+		seen[impl.GetRef()] = struct{}{}
+	}
+	return result
+}
+
+func (p *Planner) getAPIDocumentsForAPI(api resources.APIResource) []resources.APIDocumentResource {
+	result := make([]resources.APIDocumentResource, 0)
+	seen := make(map[string]struct{})
+	for _, doc := range api.Documents {
+		result = append(result, doc)
+		seen[doc.GetRef()] = struct{}{}
+	}
+	for _, doc := range p.resources.APIDocuments {
+		if doc.API != api.GetRef() {
+			continue
+		}
+		if _, ok := seen[doc.GetRef()]; ok {
+			continue
+		}
+		result = append(result, doc)
+		seen[doc.GetRef()] = struct{}{}
+	}
+	return result
 }
 
 // planAPIChildResourceChanges plans changes for child resources of an existing API
@@ -535,6 +615,9 @@ func (p *Planner) planAPIVersionChanges(
 
 	// Compare desired versions
 	for _, desiredVersion := range desired {
+		if plan.HasChange("api_version", desiredVersion.GetRef()) {
+			continue
+		}
 		versionStr := ""
 		if desiredVersion.Version != nil {
 			versionStr = *desiredVersion.Version
@@ -762,6 +845,9 @@ func (p *Planner) planAPIPublicationChanges(
 
 	// Compare desired publications
 	for _, desiredPub := range desired {
+		if plan.HasChange("api_publication", desiredPub.GetRef()) {
+			continue
+		}
 		// Resolve portal reference to ID before comparing
 		resolvedPortalID := desiredPub.PortalID
 		// Parse __REF__ format if present
@@ -1143,7 +1229,7 @@ func (p *Planner) compareStringSlices(a, b []string) bool {
 // API Implementation planning
 
 func (p *Planner) planAPIImplementationChanges(
-	ctx context.Context, _ *Config, _ string, apiID string, _ string,
+	ctx context.Context, _ *Config, parentNamespace string, apiID string, apiRef string,
 	desired []resources.APIImplementationResource, plan *Plan,
 ) error {
 	// List current implementations
@@ -1163,13 +1249,13 @@ func (p *Planner) planAPIImplementationChanges(
 
 	// Compare desired implementations
 	for _, desiredImpl := range desired {
+		if plan.HasChange("api_implementation", desiredImpl.GetRef()) {
+			continue
+		}
 		if desiredImpl.Service != nil {
 			key := fmt.Sprintf("%s:%s", desiredImpl.Service.ID, desiredImpl.Service.ControlPlaneID)
 			if _, exists := currentByService[key]; !exists {
-				// Skip CREATE - SDK doesn't support implementation creation yet
-				// TODO: Enable when SDK adds support
-				// p.planAPIImplementationCreate(apiRef, apiID, desiredImpl, []string{}, plan)
-				_ = desiredImpl // Acknowledge we'd process this when SDK supports it
+				p.planAPIImplementationCreate(parentNamespace, apiRef, apiID, desiredImpl, []string{}, plan)
 			}
 			// Note: Implementation IDs are managed by the SDK
 		}
@@ -1187,10 +1273,7 @@ func (p *Planner) planAPIImplementationChanges(
 
 		for serviceKey, current := range currentByService {
 			if !desiredServices[serviceKey] {
-				// Skip DELETE - SDK doesn't support implementation deletion yet
-				// TODO: Enable when SDK adds support
-				// p.planAPIImplementationDelete(apiRef, current.ID, plan)
-				_ = current // suppress unused variable warning
+				p.planAPIImplementationDelete(parentNamespace, apiRef, apiID, current, plan)
 			}
 		}
 	}
@@ -1248,6 +1331,39 @@ func (p *Planner) planAPIImplementationCreate(
 	plan.AddChange(change)
 }
 
+func (p *Planner) planAPIImplementationDelete(
+	parentNamespace string, apiRef string, apiID string,
+	implementation state.APIImplementation, plan *Plan,
+) {
+	ref := implementation.ID
+	if ref == "" && implementation.Service != nil {
+		ref = fmt.Sprintf("%s:%s", implementation.Service.ID, implementation.Service.ControlPlaneID)
+	}
+
+	fields := map[string]any{
+		"api_id": apiID,
+	}
+	if implementation.Service != nil {
+		fields["service"] = map[string]any{
+			"id":               implementation.Service.ID,
+			"control_plane_id": implementation.Service.ControlPlaneID,
+		}
+	}
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionDelete, "api_implementation", fmt.Sprintf("%s:%s", apiRef, ref)),
+		ResourceType: "api_implementation",
+		ResourceRef:  fmt.Sprintf("%s:%s", apiRef, ref),
+		ResourceID:   implementation.ID,
+		Parent:       &ParentInfo{Ref: apiRef, ID: apiID},
+		Action:       ActionDelete,
+		Fields:       fields,
+		Namespace:    parentNamespace,
+	}
+
+	plan.AddChange(change)
+}
+
 // API Document planning
 
 type apiDocumentLookup struct {
@@ -1271,6 +1387,9 @@ func (p *Planner) planAPIDocumentChanges(
 
 	// Compare desired documents
 	for _, desiredDoc := range desired {
+		if plan.HasChange("api_document", desiredDoc.GetRef()) {
+			continue
+		}
 		desiredPath := desiredPaths[desiredDoc.Ref]
 		if desiredPath == "" && desiredDoc.Slug != nil {
 			desiredPath = strings.TrimPrefix(*desiredDoc.Slug, "/")
@@ -1647,6 +1766,9 @@ func (p *Planner) planAPIVersionsChanges(
 						parentNamespace = DefaultNamespace
 					}
 					for _, v := range versions {
+						if plan.HasChange("api_version", v.GetRef()) {
+							continue
+						}
 						p.planAPIVersionCreate(parentNamespace, apiRef, "", v, []string{change.ID}, plan)
 					}
 					continue
@@ -1715,6 +1837,9 @@ func (p *Planner) planAPIPublicationsChanges(
 						parentNamespace = DefaultNamespace
 					}
 					for _, pub := range publications {
+						if plan.HasChange("api_publication", pub.GetRef()) {
+							continue
+						}
 						p.planAPIPublicationCreate(parentNamespace, apiRef, "", pub, []string{change.ID}, plan)
 					}
 					continue

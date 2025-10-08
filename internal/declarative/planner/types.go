@@ -132,6 +132,16 @@ func (p *Plan) AddChange(change PlannedChange) {
 	p.UpdateSummary()
 }
 
+// HasChange returns true if the plan already contains a change for the given resource type and ref.
+func (p *Plan) HasChange(resourceType, resourceRef string) bool {
+	for _, change := range p.Changes {
+		if change.ResourceType == resourceType && change.ResourceRef == resourceRef {
+			return true
+		}
+	}
+	return false
+}
+
 // SetExecutionOrder sets the calculated execution order
 func (p *Plan) SetExecutionOrder(order []string) {
 	p.ExecutionOrder = order

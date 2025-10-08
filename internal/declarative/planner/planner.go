@@ -9,6 +9,8 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
+	"github.com/kong/kongctl/internal/util"
 )
 
 // Options configures plan generation behavior
@@ -403,6 +405,14 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 		return fmt.Errorf("failed to resolve control plane identities: %w", err)
 	}
 
+	if err := p.resolveGatewayServiceIdentities(ctx, rs.GatewayServices, rs.ControlPlanes); err != nil {
+		return fmt.Errorf("failed to resolve gateway service identities: %w", err)
+	}
+
+	if err := p.resolveAPIImplementationServiceReferences(rs); err != nil {
+		return fmt.Errorf("failed to resolve API implementation services: %w", err)
+	}
+
 	// Resolve API identities
 	if err := p.resolveAPIIdentities(ctx, rs.APIs); err != nil {
 		return fmt.Errorf("failed to resolve API identities: %w", err)
@@ -459,10 +469,80 @@ func (p *Planner) resolveControlPlaneIdentities(
 	ctx context.Context,
 	controlPlanes []resources.ControlPlaneResource,
 ) error {
+	var (
+		cpByID               map[string]*state.ControlPlane
+		cpByName             map[string][]*state.ControlPlane
+		allControlPlanesInit bool
+	)
+
+	loadAllControlPlanes := func() error {
+		if allControlPlanesInit {
+			return nil
+		}
+
+		cps, err := p.client.ListAllControlPlanes(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list control planes for external lookup: %w", err)
+		}
+
+		cpByID = make(map[string]*state.ControlPlane, len(cps))
+		cpByName = make(map[string][]*state.ControlPlane)
+
+		for i := range cps {
+			cp := &cps[i]
+			cpByID[cp.ID] = cp
+			cpByName[cp.Name] = append(cpByName[cp.Name], cp)
+		}
+
+		allControlPlanesInit = true
+		return nil
+	}
+
 	for i := range controlPlanes {
 		cp := &controlPlanes[i]
 
 		if cp.GetKonnectID() != "" {
+			continue
+		}
+
+		if cp.IsExternal() {
+			if err := loadAllControlPlanes(); err != nil {
+				return err
+			}
+
+			var match *state.ControlPlane
+
+			if cp.External.ID != "" {
+				match = cpByID[cp.External.ID]
+				if match == nil {
+					return fmt.Errorf("external control_plane %s: not found with id %s", cp.GetRef(), cp.External.ID)
+				}
+			} else if cp.External.Selector != nil {
+				name, ok := cp.External.Selector.MatchFields["name"]
+				if !ok {
+					return fmt.Errorf("external control_plane %s: selector currently supports 'name' field", cp.GetRef())
+				}
+
+				matches := cpByName[name]
+				if len(matches) == 0 {
+					return fmt.Errorf("external control_plane %s: no control plane found with name %q", cp.GetRef(), name)
+				}
+				if len(matches) > 1 {
+					return fmt.Errorf("external control_plane %s: selector matched %d control planes for name %q", cp.GetRef(), len(matches), name)
+				}
+				match = matches[0]
+			} else {
+				return fmt.Errorf("external control_plane %s: invalid _external configuration", cp.GetRef())
+			}
+
+			if !cp.TryMatchKonnectResource(match) {
+				return fmt.Errorf("external control_plane %s: failed to bind Konnect resource", cp.GetRef())
+			}
+
+			p.logger.Debug("Resolved external control plane",
+				slog.String("ref", cp.GetRef()),
+				slog.String("id", cp.GetKonnectID()),
+			)
 			continue
 		}
 
@@ -482,6 +562,296 @@ func (p *Planner) resolveControlPlaneIdentities(
 	}
 
 	return nil
+}
+
+func (p *Planner) resolveGatewayServiceIdentities(
+	ctx context.Context,
+	services []resources.GatewayServiceResource,
+	controlPlanes []resources.ControlPlaneResource,
+) error {
+	if len(services) == 0 {
+		return nil
+	}
+
+	cpByRef := make(map[string]*resources.ControlPlaneResource, len(controlPlanes))
+	for i := range controlPlanes {
+		cp := &controlPlanes[i]
+		cpByRef[cp.GetRef()] = cp
+	}
+
+	serviceCache := make(map[string][]state.GatewayService)
+
+	for i := range services {
+		service := &services[i]
+
+		cpID, err := p.resolveGatewayServiceControlPlaneID(service, cpByRef)
+		if err != nil {
+			return err
+		}
+
+		service.SetResolvedControlPlaneID(cpID)
+
+		if !service.IsExternal() {
+			// Managed services will be resolved when supported; for now record CP ID only.
+			continue
+		}
+
+		available, ok := serviceCache[cpID]
+		if !ok {
+			list, err := p.client.ListGatewayServices(ctx, cpID)
+			if err != nil {
+				return fmt.Errorf("failed to list gateway services for control plane %s: %w", cpID, err)
+			}
+			available = list
+			serviceCache[cpID] = available
+		}
+
+		match, err := p.matchGatewayService(service, available)
+		if err != nil {
+			return err
+		}
+
+		if !service.TryMatchKonnectResource(match) {
+			return fmt.Errorf("gateway_service %s: failed to bind Konnect resource", service.GetRef())
+		}
+
+		service.SetResolvedControlPlaneID(match.ControlPlaneID)
+
+		p.logger.Debug("Resolved external gateway service",
+			slog.String("ref", service.GetRef()),
+			slog.String("service_id", service.GetKonnectID()),
+			slog.String("control_plane_id", match.ControlPlaneID),
+		)
+	}
+
+	return nil
+}
+
+func (p *Planner) resolveGatewayServiceControlPlaneID(
+	service *resources.GatewayServiceResource,
+	cpByRef map[string]*resources.ControlPlaneResource,
+) (string, error) {
+	value := service.ControlPlane
+	if value == "" {
+		return "", fmt.Errorf("gateway_service %s: control_plane is required", service.GetRef())
+	}
+
+	if tags.IsRefPlaceholder(value) {
+		ref, field, ok := tags.ParseRefPlaceholder(value)
+		if !ok {
+			return "", fmt.Errorf("gateway_service %s: invalid control_plane reference", service.GetRef())
+		}
+		if field != "id" {
+			return "", fmt.Errorf("gateway_service %s: control_plane references support '#id' only", service.GetRef())
+		}
+		value = ref
+	}
+
+	if util.IsValidUUID(value) {
+		return value, nil
+	}
+
+	cpResource, ok := cpByRef[value]
+	if !ok {
+		return "", fmt.Errorf("gateway_service %s: referenced control_plane %s not found", service.GetRef(), value)
+	}
+
+	if cpResource.GetKonnectID() == "" {
+		return "", fmt.Errorf("gateway_service %s: control_plane %s does not have a resolved Konnect ID", service.GetRef(), cpResource.GetRef())
+	}
+
+	return cpResource.GetKonnectID(), nil
+}
+
+func (p *Planner) matchGatewayService(
+	service *resources.GatewayServiceResource,
+	available []state.GatewayService,
+) (*state.GatewayService, error) {
+	var match *state.GatewayService
+
+	if service.External == nil {
+		return nil, fmt.Errorf("gateway_service %s: _external block required for external resolution", service.GetRef())
+	}
+
+	if service.External.ID != "" {
+		for i := range available {
+			if available[i].ID == service.External.ID {
+				match = &available[i]
+				break
+			}
+		}
+		if match == nil {
+			return nil, fmt.Errorf("external gateway_service %s: no service found with id %s", service.GetRef(), service.External.ID)
+		}
+		return match, nil
+	}
+
+	if service.External.Selector != nil {
+		matchFields := service.External.Selector.MatchFields
+		for i := range available {
+			candidate := available[i]
+			if service.External.Selector.Match(candidate) {
+				if match != nil {
+					return nil, fmt.Errorf("external gateway_service %s: selector %v matched multiple services", service.GetRef(), matchFields)
+				}
+				match = &available[i]
+			}
+		}
+
+		if match == nil {
+			return nil, fmt.Errorf("external gateway_service %s: selector %v did not match any services", service.GetRef(), matchFields)
+		}
+
+		return match, nil
+	}
+
+	return nil, fmt.Errorf("external gateway_service %s: invalid _external configuration", service.GetRef())
+}
+
+func (p *Planner) resolveAPIImplementationServiceReferences(rs *resources.ResourceSet) error {
+	if len(rs.APIImplementations) == 0 {
+		return nil
+	}
+
+	serviceByRef := make(map[string]*resources.GatewayServiceResource, len(rs.GatewayServices))
+	for i := range rs.GatewayServices {
+		svc := &rs.GatewayServices[i]
+		serviceByRef[svc.GetRef()] = svc
+	}
+
+	controlPlaneByRef := make(map[string]*resources.ControlPlaneResource, len(rs.ControlPlanes))
+	for i := range rs.ControlPlanes {
+		cp := &rs.ControlPlanes[i]
+		controlPlaneByRef[cp.GetRef()] = cp
+	}
+
+	for i := range rs.APIImplementations {
+		impl := &rs.APIImplementations[i]
+		if err := p.normalizeAPIImplementationService(impl, serviceByRef, controlPlaneByRef); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *Planner) normalizeAPIImplementationService(
+	impl *resources.APIImplementationResource,
+	serviceByRef map[string]*resources.GatewayServiceResource,
+	controlPlaneByRef map[string]*resources.ControlPlaneResource,
+) error {
+	if impl.Service == nil {
+		return nil
+	}
+
+	implRef := impl.GetRef()
+	if implRef == "" && impl.API != "" {
+		implRef = fmt.Sprintf("%s implementation", impl.API)
+	}
+
+	serviceID := strings.TrimSpace(impl.Service.ID)
+	if serviceID == "" {
+		return fmt.Errorf("api_implementation %s: service.id is required", implRef)
+	}
+
+	resolvedServiceID, linkedService, err := p.resolveGatewayServiceReference(serviceID, serviceByRef, implRef)
+	if err != nil {
+		return err
+	}
+	impl.Service.ID = resolvedServiceID
+
+	resolvedControlPlaneID, err := p.resolveImplementationControlPlaneID(strings.TrimSpace(impl.Service.ControlPlaneID), linkedService, controlPlaneByRef, implRef)
+	if err != nil {
+		return err
+	}
+	impl.Service.ControlPlaneID = resolvedControlPlaneID
+
+	return nil
+}
+
+func (p *Planner) resolveGatewayServiceReference(
+	value string,
+	serviceByRef map[string]*resources.GatewayServiceResource,
+	implRef string,
+) (string, *resources.GatewayServiceResource, error) {
+	if tags.IsRefPlaceholder(value) {
+		ref, field, ok := tags.ParseRefPlaceholder(value)
+		if !ok {
+			return "", nil, fmt.Errorf("api_implementation %s: invalid service.id reference", implRef)
+		}
+		if field != "id" {
+			return "", nil, fmt.Errorf("api_implementation %s: service.id references support '#id' only", implRef)
+		}
+		svc, ok := serviceByRef[ref]
+		if !ok {
+			return "", nil, fmt.Errorf("api_implementation %s: gateway_service %s not found", implRef, ref)
+		}
+		if svc.GetKonnectID() == "" {
+			return "", nil, fmt.Errorf("api_implementation %s: gateway_service %s does not have a resolved ID", implRef, svc.GetRef())
+		}
+		return svc.GetKonnectID(), svc, nil
+	}
+
+	if util.IsValidUUID(value) {
+		return value, nil, nil
+	}
+
+	svc, ok := serviceByRef[value]
+	if !ok {
+		return "", nil, fmt.Errorf("api_implementation %s: gateway_service %s not found", implRef, value)
+	}
+
+	if svc.GetKonnectID() == "" {
+		return "", nil, fmt.Errorf("api_implementation %s: gateway_service %s does not have a resolved ID", implRef, svc.GetRef())
+	}
+
+	return svc.GetKonnectID(), svc, nil
+}
+
+func (p *Planner) resolveImplementationControlPlaneID(
+	value string,
+	linkedService *resources.GatewayServiceResource,
+	controlPlaneByRef map[string]*resources.ControlPlaneResource,
+	implRef string,
+) (string, error) {
+	if tags.IsRefPlaceholder(value) {
+		ref, field, ok := tags.ParseRefPlaceholder(value)
+		if !ok {
+			return "", fmt.Errorf("api_implementation %s: invalid control_plane reference", implRef)
+		}
+		if field != "id" {
+			return "", fmt.Errorf("api_implementation %s: control_plane references support '#id' only", implRef)
+		}
+		value = ref
+	}
+
+	if value == "" && linkedService != nil && linkedService.ResolvedControlPlaneID() != "" {
+		return linkedService.ResolvedControlPlaneID(), nil
+	}
+
+	if util.IsValidUUID(value) {
+		return value, nil
+	}
+
+	if value == "" {
+		return "", fmt.Errorf("api_implementation %s: service.control_plane_id is required", implRef)
+	}
+
+	cp, ok := controlPlaneByRef[value]
+	if !ok {
+		return "", fmt.Errorf("api_implementation %s: control_plane %s not found", implRef, value)
+	}
+
+	if cp.GetKonnectID() == "" {
+		return "", fmt.Errorf("api_implementation %s: control_plane %s does not have a resolved Konnect ID", implRef, cp.GetRef())
+	}
+
+	resolved := cp.GetKonnectID()
+	if linkedService != nil && linkedService.ResolvedControlPlaneID() != "" {
+		resolved = linkedService.ResolvedControlPlaneID()
+	}
+
+	return resolved, nil
 }
 
 // resolvePortalIdentities resolves Konnect IDs for Portal resources
