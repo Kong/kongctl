@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 // portalPlannerImpl implements planning logic for portal resources
@@ -255,6 +257,10 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 		if portal.Kongctl != nil && portal.Kongctl.Namespace != nil {
 			change.Namespace = *portal.Kongctl.Namespace
 		}
+
+		// Check for auth strategy reference
+		p.addAuthStrategyReference(&change, portal)
+
 		plan.AddChange(change)
 		return changeID
 	}
@@ -293,8 +299,51 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 	// Set protection after creation
 	change.Protection = protection
 
+	// Check for auth strategy reference
+	p.addAuthStrategyReference(&change, portal)
+
 	plan.AddChange(change)
 	return change.ID
+}
+
+// addAuthStrategyReference checks for and adds auth strategy reference to the change
+func (p *portalPlannerImpl) addAuthStrategyReference(change *PlannedChange, portal resources.PortalResource) {
+	if portal.DefaultApplicationAuthStrategyID == nil {
+		return
+	}
+
+	authStrategyValue := *portal.DefaultApplicationAuthStrategyID
+
+	// Check if this is a reference placeholder
+	if strings.HasPrefix(authStrategyValue, tags.RefPlaceholderPrefix) {
+		// Parse the placeholder to extract the ref
+		parsedRef, field, ok := tags.ParseRefPlaceholder(authStrategyValue)
+		if !ok {
+			p.planner.logger.Warn("Invalid reference placeholder format",
+				"field", "default_application_auth_strategy_id",
+				"value", authStrategyValue)
+			return
+		}
+
+		// Initialize References map if needed
+		if change.References == nil {
+			change.References = make(map[string]ReferenceInfo)
+		}
+
+		// Add the reference with lookup fields for resolution
+		change.References["default_application_auth_strategy_id"] = ReferenceInfo{
+			Ref: authStrategyValue, // Keep full placeholder for later parsing
+			ID:  "",                // Will be resolved during execution
+			LookupFields: map[string]string{
+				"name": parsedRef, // Use ref as name for lookup
+			},
+		}
+
+		p.planner.logger.Debug("Added auth strategy reference to portal",
+			"portal_ref", portal.GetRef(),
+			"auth_strategy_ref", parsedRef,
+			"field_requested", field)
+	}
 }
 
 // shouldUpdatePortal checks if portal needs update based on configured fields only
@@ -318,9 +367,15 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 	}
 
 	if desired.DefaultApplicationAuthStrategyID != nil {
-		currentAuthID := p.GetString(current.DefaultApplicationAuthStrategyID)
-		if currentAuthID != *desired.DefaultApplicationAuthStrategyID {
-			updates["default_application_auth_strategy_id"] = *desired.DefaultApplicationAuthStrategyID
+		desiredValue := *desired.DefaultApplicationAuthStrategyID
+
+		// Skip comparison if desired value is a reference placeholder
+		// The executor will resolve it and we trust it matches what's in Konnect
+		if !strings.HasPrefix(desiredValue, tags.RefPlaceholderPrefix) {
+			currentAuthID := p.GetString(current.DefaultApplicationAuthStrategyID)
+			if currentAuthID != desiredValue {
+				updates["default_application_auth_strategy_id"] = desiredValue
+			}
 		}
 	}
 

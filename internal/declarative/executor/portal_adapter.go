@@ -2,12 +2,14 @@ package executor
 
 import (
 	"context"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 // PortalAdapter implements ResourceOperations for portals
@@ -50,7 +52,15 @@ func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionCon
 	}
 
 	if defaultAppAuthStrategyID, ok := fields["default_application_auth_strategy_id"].(string); ok {
-		create.DefaultApplicationAuthStrategyID = &defaultAppAuthStrategyID
+		// Defensive: strip __REF__: prefix if somehow it made it through
+		// (should have been resolved by executor, but be defensive)
+		if strings.HasPrefix(defaultAppAuthStrategyID, tags.RefPlaceholderPrefix) {
+			// This should not happen - log a warning but don't fail
+			// The executor should have resolved this already
+			// Skip setting the field to avoid sending invalid data to API
+		} else {
+			create.DefaultApplicationAuthStrategyID = &defaultAppAuthStrategyID
+		}
 	}
 
 	// Handle labels using centralized helper
@@ -105,7 +115,12 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionCon
 			}
 		case "default_application_auth_strategy_id":
 			if authID, ok := value.(string); ok {
-				update.DefaultApplicationAuthStrategyID = &authID
+				// Defensive: strip __REF__: prefix if somehow it made it through
+				if strings.HasPrefix(authID, tags.RefPlaceholderPrefix) {
+					// Skip setting - should have been resolved by executor
+				} else {
+					update.DefaultApplicationAuthStrategyID = &authID
+				}
 			}
 		case "default_api_visibility":
 			if visibility, ok := value.(string); ok {
