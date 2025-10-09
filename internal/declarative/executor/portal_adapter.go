@@ -2,12 +2,14 @@ package executor
 
 import (
 	"context"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 // PortalAdapter implements ResourceOperations for portals
@@ -50,7 +52,12 @@ func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionCon
 	}
 
 	if defaultAppAuthStrategyID, ok := fields["default_application_auth_strategy_id"].(string); ok {
-		create.DefaultApplicationAuthStrategyID = &defaultAppAuthStrategyID
+		// Defensive: skip if this is a reference placeholder that wasn't resolved
+		// (should have been resolved by executor, but be defensive)
+		if !strings.HasPrefix(defaultAppAuthStrategyID, tags.RefPlaceholderPrefix) {
+			create.DefaultApplicationAuthStrategyID = &defaultAppAuthStrategyID
+		}
+		// If it's still a placeholder, skip setting it to avoid sending invalid data to API
 	}
 
 	// Handle labels using centralized helper
@@ -105,7 +112,11 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionCon
 			}
 		case "default_application_auth_strategy_id":
 			if authID, ok := value.(string); ok {
-				update.DefaultApplicationAuthStrategyID = &authID
+				// Defensive: skip if this is a reference placeholder that wasn't resolved
+				if !strings.HasPrefix(authID, tags.RefPlaceholderPrefix) {
+					update.DefaultApplicationAuthStrategyID = &authID
+				}
+				// If it's still a placeholder, skip setting it to avoid sending invalid data to API
 			}
 		case "default_api_visibility":
 			if visibility, ok := value.(string); ok {

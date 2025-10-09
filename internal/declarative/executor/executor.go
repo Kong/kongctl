@@ -838,7 +838,19 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 
 	switch change.ResourceType {
 	case "portal":
-		// No references to resolve for portal
+		// Resolve auth strategy reference if present
+		if authStrategyRef, ok := change.References["default_application_auth_strategy_id"]; ok && authStrategyRef.ID == "" {
+			authStrategyID, err := e.resolveAuthStrategyRef(ctx, authStrategyRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve auth strategy reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			authStrategyRef.ID = authStrategyID
+			change.References["default_application_auth_strategy_id"] = authStrategyRef
+
+			// Also update the field value to use the resolved ID instead of the placeholder
+			change.Fields["default_application_auth_strategy_id"] = authStrategyID
+		}
 		return e.portalExecutor.Create(ctx, *change)
 	case "control_plane":
 		return e.controlPlaneExecutor.Create(ctx, *change)

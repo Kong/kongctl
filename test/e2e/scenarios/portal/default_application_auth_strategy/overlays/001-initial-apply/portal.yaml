@@ -1,0 +1,6 @@
+portals:
+  - ref: simple-portal
+    name: My Simple Portal
+    display_name: Simple Portal ©
+    description: A simple developer portal for API documentation
+    default_application_auth_strategy_id: !ref apikey-app-auth-strategy#id 

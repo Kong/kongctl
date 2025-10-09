@@ -1,0 +1,63 @@
+
+baseInputsPath: ../../../testdata/declarative/portal/basic
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply
+    inputOverlayDirs:
+      - overlays/001-initial-apply
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+        assertions:
+          - select: >-
+              execution.applied_changes[?resource_type=='application_auth_strategy' &&
+                            resource_ref=='apikey-app-auth-strategy'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+          - select: >-
+              execution.applied_changes[?resource_type=='portal' &&
+                            resource_ref=='simple-portal'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+          - select: >-
+              summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                skipped: 0
+                status: "success"
+                total_changes: 2
+      - name: 001-re-apply-no-op
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+        assertions:
+          - select: >-
+              summary
+            expect:
+              fields:
+                applied: 0
+                failed: 0
+                skipped: 0
+                status: "success"
+                total_changes: 0
