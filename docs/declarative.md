@@ -359,7 +359,7 @@ Supported file types: Any text file (`.txt`, `.md`, `.yaml`, `.json`, etc.)
 
 ### Value Extraction
 
-You can extraact specific values from structured data loaded from the `file` tag
+You can extract specific values from structured data loaded from the `file` tag
 with this hash (`#`) notation:
 
 ```yaml
