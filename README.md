@@ -79,20 +79,14 @@ kongctl get me
 
 ### 4. Next Steps
 
-**→ [Read the Getting Started Guide](docs/declarative-getting-started.md)** - Learn how to use declarative configuration to manage your APIs in Konnect
+**→ [Read the Declarative Configuration Guide](docs/declarative.md)** - Learn how to use declarative configuration to manage your APIs in Konnect
 
 ## Documentation Listing
 
-- **[Getting Started Guide](docs/declarative-getting-started.md)** - Step-by-step tutorial for declarative configuration
-- **[Declarative Configuration](docs/declarative-configuration.md)** - Complete reference guide
+- **[Declarative Configuration Guide](docs/declarative.md)** - Complete guide covering quick start, concepts, YAML tags, CI/CD integration, and best practices
 - **[Troubleshooting Guide](docs/troubleshooting.md)** - Common issues and solutions
 - **[Examples](docs/examples/)** - Sample configurations and use cases
- - **[E2E Test Harness](docs/e2e.md)** - How to run end-to-end tests locally and in CI
-
-### Advanced Topics
-
-- **[YAML Tags Reference](docs/declarative-yaml-tags.md)** - Loading external files and value extraction
-- **[CI/CD Integration](docs/declarative-ci-cd.md)** - GitHub Actions, GitLab CI, and Jenkins examples
+- **[E2E Test Harness](docs/e2e.md)** - How to run end-to-end tests locally and in CI
 
 ## Configuration and Profiles
 
