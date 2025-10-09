@@ -541,7 +541,7 @@ kongctl diff --plan plan.json
 ### adopt
 
 `kongctl` declarative configuration engine will only consider resources that
-are part of the list of `kongtl.namespace` values given to it during planning
+are part of the list of `kongctl.namespace` values given to it during planning
 and execution of changes. There may be cases where you want to bring an
 existing Konnect resource into configuration that was created outside of the
 configuration management process. The `adopt` command enables you to
