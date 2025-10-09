@@ -10,10 +10,10 @@ import (
 
 // GatewayServiceResource represents a gateway service within a control plane.
 type GatewayServiceResource struct {
-	kkComps.Service `             yaml:",inline"           json:",inline"`
+	kkComps.Service `               yaml:",inline"                 json:",inline"`
 	Ref             string         `yaml:"ref"                     json:"ref"`
 	ControlPlane    string         `yaml:"control_plane,omitempty" json:"control_plane,omitempty"`
-	External        *ExternalBlock `yaml:"_external,omitempty"    json:"_external,omitempty"`
+	External        *ExternalBlock `yaml:"_external,omitempty"     json:"_external,omitempty"`
 
 	// Resolved Konnect identifiers (not serialized)
 	konnectID             string `yaml:"-" json:"-"`

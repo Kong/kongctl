@@ -8,7 +8,7 @@ resources using the `kongctl` declarative configuration approach.
 - [Overview](#overview)
 - [Quick Start](#quick-start)
 - [Core Concepts](#core-concepts)
-- [Resource Types](#resource-types)
+- [Resource Types](#supported-resource-types)
 - [Configuration Structure](#configuration-structure)
 - [Kongctl Metadata](#kongctl-metadata)
 - [YAML Tags](#yaml-tags)

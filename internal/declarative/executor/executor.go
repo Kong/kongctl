@@ -839,7 +839,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 	switch change.ResourceType {
 	case "portal":
 		// Resolve auth strategy reference if present
-		if authStrategyRef, ok := change.References["default_application_auth_strategy_id"]; ok && authStrategyRef.ID == "" {
+		if authStrategyRef, ok := change.References["default_application_auth_strategy_id"]; ok &&
+			authStrategyRef.ID == "" {
 			authStrategyID, err := e.resolveAuthStrategyRef(ctx, authStrategyRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve auth strategy reference: %w", err)
