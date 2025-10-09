@@ -95,6 +95,12 @@ func newRootCmd() *cobra.Command {
 		},
 	}
 
+	// Disable Cobra's automatic help command since we have our own custom help command
+	rootCmd.SetHelpCommand(&cobra.Command{
+		Use:    "no-help",
+		Hidden: true,
+	})
+
 	// parses all flags not just the target command
 	rootCmd.TraverseChildren = true
 

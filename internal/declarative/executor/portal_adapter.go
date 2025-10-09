@@ -52,15 +52,12 @@ func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionCon
 	}
 
 	if defaultAppAuthStrategyID, ok := fields["default_application_auth_strategy_id"].(string); ok {
-		// Defensive: strip __REF__: prefix if somehow it made it through
+		// Defensive: skip if this is a reference placeholder that wasn't resolved
 		// (should have been resolved by executor, but be defensive)
-		if strings.HasPrefix(defaultAppAuthStrategyID, tags.RefPlaceholderPrefix) {
-			// This should not happen - log a warning but don't fail
-			// The executor should have resolved this already
-			// Skip setting the field to avoid sending invalid data to API
-		} else {
+		if !strings.HasPrefix(defaultAppAuthStrategyID, tags.RefPlaceholderPrefix) {
 			create.DefaultApplicationAuthStrategyID = &defaultAppAuthStrategyID
 		}
+		// If it's still a placeholder, skip setting it to avoid sending invalid data to API
 	}
 
 	// Handle labels using centralized helper
@@ -115,12 +112,11 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionCon
 			}
 		case "default_application_auth_strategy_id":
 			if authID, ok := value.(string); ok {
-				// Defensive: strip __REF__: prefix if somehow it made it through
-				if strings.HasPrefix(authID, tags.RefPlaceholderPrefix) {
-					// Skip setting - should have been resolved by executor
-				} else {
+				// Defensive: skip if this is a reference placeholder that wasn't resolved
+				if !strings.HasPrefix(authID, tags.RefPlaceholderPrefix) {
 					update.DefaultApplicationAuthStrategyID = &authID
 				}
+				// If it's still a placeholder, skip setting it to avoid sending invalid data to API
 			}
 		case "default_api_visibility":
 			if visibility, ok := value.(string); ok {

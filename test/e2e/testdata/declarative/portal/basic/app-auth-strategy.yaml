@@ -1,0 +1,12 @@
+
+application_auth_strategies:
+  - ref: apikey-app-auth-strategy
+    name: apikey-app-auth-strategy 
+    display_name: API Key Authentication
+    strategy_type: key_auth
+    configs:
+      key-auth:
+        key_names:
+          - X-API-Key
+          - Api-Key
+
