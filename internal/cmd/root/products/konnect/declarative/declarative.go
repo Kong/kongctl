@@ -166,7 +166,7 @@ func NewDeclarativeCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	case verbs.Apply:
 		return newDeclarativeApplyCmd(), nil
 	case verbs.Add, verbs.Get, verbs.Create, verbs.Dump, verbs.Update,
-		verbs.Delete, verbs.Help, verbs.List, verbs.Login, verbs.Adopt, verbs.Ask, verbs.API:
+		verbs.Delete, verbs.Help, verbs.List, verbs.Login, verbs.Adopt, verbs.API, verbs.Kai:
 		return nil, fmt.Errorf("verb %s does not support declarative configuration", verb)
 	}
 	return nil, fmt.Errorf("unexpected verb %s", verb)

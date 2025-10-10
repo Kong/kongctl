@@ -64,12 +64,16 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 		return err
 	}
 
-	baseURL := cfg.GetString(common.BaseURLConfigPath)
+	authBaseURL := cfg.GetString(common.AuthBaseURLConfigPath)
+	if authBaseURL == "" {
+		authBaseURL = common.AuthBaseURLDefault
+	}
 	authPath := cfg.GetString(common.AuthPathConfigPath)
-	authURL := baseURL + authPath
+	// Device authorization endpoints default to the global Konnect API host but can be overridden.
+	authURL := authBaseURL + authPath
 
 	pollPath := cfg.GetString(common.TokenURLPathConfigPath)
-	pollURL := baseURL + pollPath
+	pollURL := authBaseURL + pollPath
 
 	clientID := cfg.GetString(common.MachineClientIDConfigPath)
 
@@ -137,6 +141,12 @@ func (c *loginKonnectCmd) preRunE(cobraCmd *cobra.Command, args []string) error 
 		return err
 	}
 
+	f = c.Flags().Lookup(common.AuthBaseURLFlagName)
+	err = cfg.BindFlag(common.AuthBaseURLConfigPath, f)
+	if err != nil {
+		return err
+	}
+
 	f = c.Flags().Lookup(common.RefreshPathFlagName)
 	err = cfg.BindFlag(common.RefreshPathConfigPath, f)
 	if err != nil {
@@ -187,6 +197,12 @@ func newLoginKonnectCmd(verb verbs.VerbValue,
 - Config path: [ %s ]
 -`, // (default ...)
 			common.AuthPathConfigPath))
+
+	rv.Flags().String(common.AuthBaseURLFlagName, common.AuthBaseURLDefault,
+		fmt.Sprintf(`Base URL used for Konnect Authorization requests.
+- Config path: [ %s ]
+-`, // (default ...)
+			common.AuthBaseURLConfigPath))
 
 	rv.Flags().String(common.RefreshPathFlagName, common.RefreshPathDefault,
 		fmt.Sprintf(`URL path used to refresh the Konnect auth token.

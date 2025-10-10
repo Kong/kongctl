@@ -11,8 +11,12 @@ import (
 )
 
 const (
-	BaseURLDefault  = "https://global.api.konghq.com"
+	GlobalBaseURL   = "https://global.api.konghq.com"
+	BaseURLDefault  = "https://us.api.konghq.com"
 	BaseURLFlagName = "base-url"
+
+	AuthBaseURLDefault  = GlobalBaseURL
+	AuthBaseURLFlagName = "base-auth-url"
 
 	AuthPathDefault  = "/v3/internal/oauth/device/authorize"
 	AuthPathFlagName = "auth-path"
@@ -38,6 +42,7 @@ var (
 	RefreshTokenConfigPath = "konnect.refresh-token" // #nosec G101
 
 	BaseURLConfigPath             = "konnect." + BaseURLFlagName
+	AuthBaseURLConfigPath         = "konnect." + AuthBaseURLFlagName
 	AuthPathConfigPath            = "konnect." + AuthPathFlagName
 	AuthMachineClientIDConfigPath = "konnect." + MachineClientIDFlagName
 	TokenURLPathConfigPath        = "konnect." + TokenPathFlagName

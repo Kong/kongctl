@@ -52,6 +52,10 @@ const (
 	LogLevelFlagName   = "log-level"
 	DefaultLogLevel    = "info"
 	LogLevelConfigPath = LogLevelFlagName
+
+	// related to directing logs to a file
+	LogFileFlagName   = "log-file"
+	LogFileConfigPath = LogFileFlagName
 )
 
 func (of OutputFormat) String() string {

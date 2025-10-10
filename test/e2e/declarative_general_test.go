@@ -5,6 +5,7 @@ package e2e
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -227,6 +228,7 @@ func Test_Declarative_General(t *testing.T) {
 	}
 	// apis
 	var apis []struct {
+		ID   string `json:"id,omitempty"`
 		Name string `json:"name"`
 	}
 	ok = retry(6, 1500*time.Millisecond, func() bool {
@@ -279,19 +281,26 @@ func Test_Declarative_General(t *testing.T) {
 	if err := step1.GetAndObserve("apis", &apis, map[string]any{"name": smsAPIName}); err != nil {
 		t.Fatalf("get apis failed: %v", err)
 	}
-	// 'get apis' response structure is a list with 'name' fields; if it doesn't include 'id', we proceed to HTTP fallback
-	// fetch api list via HTTP and find ID by name
-	var apiList struct {
-		Data []struct{ ID, Name string } `json:"data"`
-	}
-	if err := step1.GetKonnectJSON("get_apis_http", "/v3/apis", &apiList, map[string]any{"name": smsAPIName}); err != nil {
-		t.Fatalf("http get apis failed: %v", err)
-	}
 	apiID := ""
-	for _, a := range apiList.Data {
-		if a.Name == smsAPIName {
-			apiID = a.ID
+	for _, a := range apis {
+		if strings.EqualFold(a.Name, smsAPIName) && strings.TrimSpace(a.ID) != "" {
+			apiID = strings.TrimSpace(a.ID)
 			break
+		}
+	}
+	if apiID == "" {
+		// CLI output may lag in propagation; fall back to direct HTTP lookup only if the ID is missing.
+		var apiList struct {
+			Data []struct{ ID, Name string } `json:"data"`
+		}
+		if err := step1.GetKonnectJSON("get_apis_http", "/v3/apis", &apiList, map[string]any{"name": smsAPIName}); err != nil {
+			t.Fatalf("http get apis failed: %v", err)
+		}
+		for _, a := range apiList.Data {
+			if a.Name == smsAPIName {
+				apiID = a.ID
+				break
+			}
 		}
 	}
 	if apiID == "" {
