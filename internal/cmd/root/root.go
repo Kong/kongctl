@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/kong/kongctl/internal/build"
@@ -14,13 +15,12 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs/adopt"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/api"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/apply"
-	"github.com/kong/kongctl/internal/cmd/root/verbs/ask"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/del"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/diff"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/dump"
-	"github.com/kong/kongctl/internal/cmd/root/verbs/export"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/get"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/help"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/kai"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/list"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/login"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/plan"
@@ -77,7 +77,9 @@ var (
 
 	buildInfo *build.Info
 
-	logger *slog.Logger
+	logger      *slog.Logger
+	logFilePath string
+	logFile     *os.File
 )
 
 func newRootCmd() *cobra.Command {
@@ -86,6 +88,12 @@ func newRootCmd() *cobra.Command {
 		Short: rootShort,
 		Long:  rootLong,
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
+			if isKaiCommand(cmd) {
+				log.DisableErrorMirroring()
+			} else {
+				log.EnableErrorMirroring()
+			}
+
 			ctx := context.WithValue(cmd.Context(), config.ConfigKey, currConfig)
 			ctx = context.WithValue(ctx, iostreams.StreamsKey, streams)
 			ctx = context.WithValue(ctx, profile.ProfileManagerKey, pMgr)
@@ -128,6 +136,11 @@ func newRootCmd() *cobra.Command {
 - Allowed    : [ %s ]`,
 			common.LogLevelConfigPath, strings.Join(logLevel.Allowed, "|")))
 
+	rootCmd.PersistentFlags().StringVar(&logFilePath, common.LogFileFlagName, "",
+		fmt.Sprintf(`Write execution logs to the specified file instead of STDERR.
+- Config path: [ %s ]`,
+			common.LogFileConfigPath))
+
 	// -------------------------------------------------------------------------
 
 	return rootCmd
@@ -143,7 +156,7 @@ func addCommands() error {
 	}
 	rootCmd.AddCommand(command)
 
-	command, err = ask.NewAskCmd()
+	command, err = kai.NewKaiCmd()
 	if err != nil {
 		return err
 	}
@@ -197,11 +210,11 @@ func addCommands() error {
 	}
 	rootCmd.AddCommand(command)
 
-	command, err = export.NewExportCmd()
-	if err != nil {
-		return err
-	}
-	rootCmd.AddCommand(command)
+	//command, err = export.NewExportCmd()
+	//if err != nil {
+	//	return err
+	//}
+	//rootCmd.AddCommand(command)
 
 	command, err = apply.NewApplyCmd()
 	if err != nil {
@@ -219,6 +232,20 @@ func addCommands() error {
 	rootCmd.AddCommand(help.NewHelpCmd())
 
 	return nil
+}
+
+func isKaiCommand(cmd *cobra.Command) bool {
+	if cmd == nil {
+		return false
+	}
+
+	for current := cmd; current != nil; current = current.Parent() {
+		if current.Name() == kai.Verb.String() {
+			return true
+		}
+	}
+
+	return false
 }
 
 func init() {
@@ -243,6 +270,9 @@ func bindFlags(config config.Hook) {
 
 	f = rootCmd.Flags().Lookup(common.LogLevelFlagName)
 	util.CheckError(config.BindFlag(common.LogLevelConfigPath, f))
+
+	f = rootCmd.Flags().Lookup(common.LogFileFlagName)
+	util.CheckError(config.BindFlag(common.LogFileConfigPath, f))
 }
 
 func initConfig() {
@@ -261,7 +291,41 @@ func initConfig() {
 		Level: log.ConfigLevelStringToSlogLevel(config.GetString(common.LogLevelConfigPath)),
 	}
 
-	logger = slog.New(slog.NewTextHandler(streams.ErrOut, loggerOpts))
+	if logFile != nil {
+		_ = logFile.Close()
+		logFile = nil
+	}
+
+	logPath := strings.TrimSpace(config.GetString(common.LogFileConfigPath))
+	if logPath == "" {
+		configPath := config.GetPath()
+		configDir := filepath.Dir(configPath)
+		defaultLogPath := filepath.Join(configDir, "logs", meta.CLIName+".log")
+		logPath = defaultLogPath
+		config.SetString(common.LogFileConfigPath, logPath)
+	}
+
+	var handler slog.Handler
+	if logPath != "" {
+		if dir := filepath.Dir(logPath); dir != "" && dir != "." {
+			err := os.MkdirAll(dir, 0o755)
+			util.CheckError(err)
+		}
+		file, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+		util.CheckError(err)
+		logFile = file
+		fileHandler := slog.NewTextHandler(file, loggerOpts)
+
+		errorOpts := *loggerOpts
+		errorOpts.Level = slog.LevelError
+		errorHandler := slog.NewTextHandler(streams.ErrOut, &errorOpts)
+
+		handler = log.NewDualHandler(fileHandler, errorHandler)
+	} else {
+		handler = slog.NewTextHandler(streams.ErrOut, loggerOpts)
+	}
+
+	logger = slog.New(handler)
 }
 
 func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
@@ -270,6 +334,14 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 	cobra.EnableTraverseRunHooks = true
 	streams = s
 	defaultConfigFilePath, err = config.GetDefaultConfigFilePath()
+	if err == nil {
+		if f := rootCmd.PersistentFlags().Lookup(common.ConfigFilePathFlagName); f != nil {
+			displayDefault := fmt.Sprintf("$XDG_CONFIG_HOME/%s/config.yaml", meta.CLIName)
+			f.Usage = fmt.Sprintf(`Path to the configuration file to load.
+- Default: [ %s ]`, displayDefault)
+			f.DefValue = ""
+		}
+	}
 	if err == nil {
 		err = rootCmd.ExecuteContext(ctx)
 	}
@@ -287,6 +359,15 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 				logger.Error(executionError.Err.Error(), executionError.Attrs...)
 			}
 		}
+		closeLogFile()
 		os.Exit(1)
+	}
+	closeLogFile()
+}
+
+func closeLogFile() {
+	if logFile != nil {
+		_ = logFile.Close()
+		logFile = nil
 	}
 }

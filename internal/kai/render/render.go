@@ -1,6 +1,7 @@
 package render
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/charmbracelet/glamour"
@@ -28,7 +29,22 @@ func Markdown(markdown string, opts Options) string {
 	if err != nil {
 		return markdown
 	}
-	return str
+	return normalizeSpacing(str)
+}
+
+func normalizeSpacing(s string) string {
+	trimmed := strings.TrimSpace(s)
+	if trimmed == "" {
+		return trimmed
+	}
+	lines := strings.Split(trimmed, "\n")
+	for i := range lines {
+		lines[i] = strings.TrimRight(lines[i], " ")
+		if i == 0 {
+			lines[i] = strings.TrimLeft(lines[i], " ")
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func getRenderer(opts Options) (*glamour.TermRenderer, error) {

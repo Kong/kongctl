@@ -17,10 +17,12 @@
 - `make test-integration`: Run `-tags=integration` tests. Pass extra flags via `GOTESTFLAGS`.
 - `make test-e2e`: Run end-to-end tests (`-tags=e2e`). Set `KONGCTL_E2E_ARTIFACTS_DIR=/tmp/kongctl-e2e` to capture logs/artifacts.
 - `make coverage`: Generate `coverage.out` (generated files filtered). Example: `go tool cover -html=coverage.out`.
+- `make lint`: Run linters (revive, staticcheck, gosec, etc.).
+- `make format`: Format code with `gofumpt` and `golines -m 120`.
 
 ## Coding Style & Naming Conventions
-- Go 1.24; format with `gofumpt` + `golines` (120 cols). Run `make format` before committing.
-- Lint with `golangci-lint` (e.g., revive, staticcheck, gosec). Keep imports tidy and avoid blocked deps per `gomodguard`.
+- All changes should pass coding standard gates (make format, make lint, make test-all).
+- Coding changes are not complete until the gates pass
 - Packages: lower-case, short, no underscores. Exported identifiers `PascalCase`; internal `camelCase`.
 - Errors: prefer `%w` wrapping; avoid unused/unchecked errors (linters enforce).
 

@@ -1,0 +1,1068 @@
+openapi: 3.0.3
+info:
+  title: Konnect Kai Agent API
+  version: 1.0.0
+  description: This API provides access to the Konnect Kai Agent service.
+  contact:
+    name: Kong
+    url: "https://konghq.com"
+servers:
+  - url: "https://us.api.konghq.com/v1"
+    description: United-States Production region
+  - url: "https://eu.api.konghq.com/v1"
+    description: Europe Production region
+  - url: "https://au.api.konghq.com/v1"
+    description: Australia Production region
+  - url: "https://me.api.konghq.com/v1"
+    description: Middle-East Production region
+  - url: "https://in.api.konghq.com/v1"
+    description: India Production region
+
+paths:
+  /sessions:
+    get:
+      summary: List Sessions
+      x-unstable: true
+      description: List all available sessions
+      operationId: listSessions
+      tags:
+        - sessions
+      responses:
+        "200":
+          $ref: "#/components/responses/ListSessionsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      summary: Create new session
+      x-unstable: true
+      description: Create a new session
+      operationId: createSession
+      tags:
+        - sessions
+      requestBody:
+        $ref: "#/components/requestBodies/CreateSessionPayload"
+      responses:
+        "201":
+          $ref: "#/components/responses/CreateSessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /sessions/{session_id}:
+    get:
+      summary: Get Session history
+      x-unstable: true
+      description: Get session chat history
+      operationId: getSessionHistory
+      tags:
+        - sessions
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+      responses:
+        "200":
+          $ref: "#/components/responses/SessionChatHistoryResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      summary: Update Session
+      x-unstable: true
+      description: Update session details like name
+      operationId: updateSession
+      tags:
+        - sessions
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+      requestBody:
+        $ref: "#/components/requestBodies/UpdateSessionPayload"
+      responses:
+        "200":
+          $ref: "#/components/responses/UpdateSessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      summary: Delete Session
+      x-unstable: true
+      description: Delete Session
+      operationId: deleteSession
+      tags:
+        - sessions
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+      responses:
+        "204":
+          description: "No Content"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /sessions/{session_id}/chat:
+    post:
+      summary: Chat with Kai Agent
+      x-unstable: true
+      description: |
+        Initiate a chat session with the Kai agent.
+        This stores and updates chat history for the session and provides with
+        chat context for the agent.
+      operationId: sessionChatWithDoctorWho
+      tags:
+        - sessions
+        - chat
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+      requestBody:
+        $ref: "#/components/requestBodies/ChatRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/ChatResponse"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal Server Error
+  /sessions/{session_id}/tasks/active:
+    get:
+      summary: Get Active Tasks for Session
+      x-unstable: true
+      description: Get active tasks for a given session
+      operationId: getActiveTasksForSession
+      tags:
+        - sessions
+        - tasks
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+      responses:
+        "200":
+          $ref: "#/components/responses/ActiveTaskResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /sessions/{session_id}/tasks/{task_id}:
+    put:
+      summary: Update Task for Session
+      x-unstable: true
+      description: |
+        Update a specific task for a given session.
+
+        action: start - to start the pending task
+        action: stop - to stop the pending/in_progress task
+      operationId: updateTaskForSession
+      tags:
+        - sessions
+        - tasks
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/TaskID"
+      requestBody:
+        $ref: "#/components/requestBodies/UpdateTaskRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/ActiveTaskResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /sessions/{session_id}/tasks/{task_id}/status:
+    get:
+      summary: Get Task Status for Session
+      x-unstable: true
+      description: |
+        Get the status of a specific task for a given session
+        This returns the current status of the task for every 5 seconds.
+      operationId: getTaskStatusForSession
+      tags:
+        - sessions
+        - tasks
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/TaskID"
+      responses:
+        "200":
+          $ref: "#/components/responses/TaskStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          description: Internal Server Error
+  /sessions/{session_id}/tasks/{task_id}/analyze:
+    post:
+      summary: Analyze Task summary
+      x-unstable: true
+      description: Analyze a completed task summary for a given session
+      operationId: analyzeTaskForSession
+      tags:
+        - sessions
+        - tasks
+      parameters:
+        - $ref: "#/components/parameters/SessionID"
+        - $ref: "#/components/parameters/TaskID"
+      requestBody:
+        content:
+          application/json: {}
+      responses:
+        "200":
+          $ref: "#/components/responses/ChatResponse"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal Server Error
+  /chat:
+    post:
+      summary: Chat with Kai Agent
+      x-unstable: true
+      description: |
+        Initiate a chat session with the Kai agent.
+        This does not store chat history and does not provide chat context.
+        It is a stateless chat interaction.
+      operationId: tempChatWithDoctorWho
+      tags:
+        - chat
+      requestBody:
+        $ref: "#/components/requestBodies/TempChatRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/ChatResponse"
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "500":
+          description: Internal Server Error
+components:
+  parameters:
+    SessionID:
+      name: session_id
+      in: path
+      description: Unique identifier for the session
+      required: true
+      schema:
+        $ref: "#/components/schemas/UUID"
+      example: "5f9fd312-a987-4628-b4c5-bb4f4fddd5f7"
+    TaskID:
+      name: task_id
+      in: path
+      description: Unique identifier for the active task
+      required: true
+      schema:
+        $ref: "#/components/schemas/UUID"
+      example: "3e8fd312-a987-4628-c4c5-db4f4fddd5f7"
+  schemas:
+    BaseError:
+      description: standard error
+      type: object
+      properties:
+        status:
+          description: |
+            The HTTP status code of the error. Useful when passing the response
+            body to child properties in a frontend UI. Must be returned as an integer.
+          type: integer
+          readOnly: true
+        title:
+          description: |
+            A short, human-readable summary of the problem. It should not
+            change between occurences of a problem, except for localization.
+            Should be provided as "Sentence case" for direct use in the UI.
+          type: string
+          readOnly: true
+        type:
+          description: The error type.
+          type: string
+          readOnly: true
+        instance:
+          description: |
+            Used to return the correlation ID back to the user, in the format
+            kong:trace:<correlation_id>. This helps us find the relevant logs
+            when a customer reports an issue.
+          type: string
+          readOnly: true
+        detail:
+          description: |
+            A human readable explanation specific to this occurence of the problem.
+            This field may contain request/entity data to help the user understand
+            what went wrong. Enclose variable values in square brackets. Should be
+            provided as "Sentence case" for direct use in the UI.
+          type: string
+          readOnly: true
+      required:
+        - status
+        - title
+        - instance
+        - detail
+      title: Error
+    InvalidRules:
+      description: invalid parameters rules
+      type: string
+      enum:
+        - required
+        - is_array
+        - is_base64
+        - is_boolean
+        - is_date_time
+        - is_integer
+        - is_null
+        - is_number
+        - is_object
+        - is_string
+        - is_uuid
+        - is_fqdn
+        - is_arn
+        - unknown_property
+        - is_label
+        - matches_regex
+        - invalid
+        - is_supported_network_availability_zone_list
+        - is_supported_network_cidr_block
+        - is_supported_provider_region
+      nullable: true
+      readOnly: true
+    InvalidParameterStandard:
+      type: object
+      properties:
+        field:
+          type: string
+          example: name
+          readOnly: true
+        rule:
+          $ref: "#/components/schemas/InvalidRules"
+        source:
+          type: string
+          example: body
+        reason:
+          type: string
+          example: is a required field
+          readOnly: true
+      additionalProperties: false
+      required:
+        - field
+        - reason
+    InvalidParameterMinimumLength:
+      type: object
+      properties:
+        field:
+          type: string
+          example: name
+          readOnly: true
+        rule:
+          description: invalid parameters rules
+          type: string
+          enum:
+            - min_length
+            - min_digits
+            - min_lowercase
+            - min_uppercase
+            - min_symbols
+            - min_items
+            - min
+          nullable: false
+          readOnly: true
+        minimum:
+          type: integer
+          example: 8
+        source:
+          type: string
+          example: body
+        reason:
+          type: string
+          example: must have at least 8 characters
+          readOnly: true
+      additionalProperties: false
+      required:
+        - field
+        - reason
+        - rule
+        - minimum
+    InvalidParameterMaximumLength:
+      type: object
+      properties:
+        field:
+          type: string
+          example: name
+          readOnly: true
+        rule:
+          description: invalid parameters rules
+          type: string
+          enum:
+            - max_length
+            - max_items
+            - max
+          nullable: false
+          readOnly: true
+        maximum:
+          type: integer
+          example: 8
+        source:
+          type: string
+          example: body
+        reason:
+          type: string
+          example: must not have more than 8 characters
+          readOnly: true
+      additionalProperties: false
+      required:
+        - field
+        - reason
+        - rule
+        - maximum
+    InvalidParameterChoiceItem:
+      type: object
+      properties:
+        field:
+          type: string
+          example: name
+          readOnly: true
+        rule:
+          description: invalid parameters rules
+          type: string
+          enum:
+            - enum
+          nullable: false
+          readOnly: true
+        reason:
+          type: string
+          example: is a required field
+          readOnly: true
+        choices:
+          type: array
+          items: {}
+          minItems: 1
+          nullable: false
+          readOnly: true
+          uniqueItems: true
+        source:
+          type: string
+          example: body
+      additionalProperties: false
+      required:
+        - field
+        - reason
+        - rule
+        - choices
+    InvalidParameterDependentItem:
+      type: object
+      properties:
+        field:
+          type: string
+          example: name
+          readOnly: true
+        rule:
+          description: invalid parameters rules
+          type: string
+          enum:
+            - dependent_fields
+          nullable: true
+          readOnly: true
+        reason:
+          type: string
+          example: is a required field
+          readOnly: true
+        dependents:
+          type: array
+          items: {}
+          nullable: true
+          readOnly: true
+          uniqueItems: true
+        source:
+          type: string
+          example: body
+      additionalProperties: false
+      required:
+        - field
+        - rule
+        - reason
+        - dependents
+    InvalidParameters:
+      description: invalid parameters
+      type: array
+      items:
+        oneOf:
+          - $ref: "#/components/schemas/InvalidParameterStandard"
+          - $ref: "#/components/schemas/InvalidParameterMinimumLength"
+          - $ref: "#/components/schemas/InvalidParameterMaximumLength"
+          - $ref: "#/components/schemas/InvalidParameterChoiceItem"
+          - $ref: "#/components/schemas/InvalidParameterDependentItem"
+      minItems: 1
+      nullable: false
+      uniqueItems: true
+    BadRequestError:
+      allOf:
+        - $ref: "#/components/schemas/BaseError"
+        - type: object
+          required:
+            - invalid_parameters
+          properties:
+            invalid_parameters:
+              $ref: "#/components/schemas/InvalidParameters"
+    UnauthorizedError:
+      allOf:
+        - $ref: "#/components/schemas/BaseError"
+        - type: object
+          properties:
+            status:
+              example: 401
+            title:
+              example: Unauthorized
+            type:
+              example: "https://httpstatuses.com/401"
+            instance:
+              example: "kong:trace:1234567890"
+            detail:
+              example: Invalid credentials
+    ForbiddenError:
+      allOf:
+        - $ref: "#/components/schemas/BaseError"
+        - type: object
+          properties:
+            status:
+              example: 403
+            title:
+              example: Forbidden
+            type:
+              example: "https://httpstatuses.com/403"
+            instance:
+              example: "kong:trace:1234567890"
+            detail:
+              example: Forbidden
+    NotFoundError:
+      allOf:
+        - $ref: "#/components/schemas/BaseError"
+        - type: object
+          properties:
+            status:
+              example: 404
+            title:
+              example: Not Found
+            type:
+              example: "https://httpstatuses.com/404"
+            instance:
+              example: "kong:trace:1234567890"
+            detail:
+              example: Not found
+    UUID:
+      description: Contains a unique identifier used for this resource.
+      type: string
+      format: uuid
+      example: 5f9fd312-a987-4628-b4c5-bb4f4fddd5f7
+      readOnly: true
+    CreatedAt:
+      description: An ISO-8601 timestamp representation of entity creation date.
+      type: string
+      format: date-time
+      example: "2025-08-06T07:20:45.436Z"
+      readOnly: true
+    Timestamp:
+      description: An ISO-8601 timestamp representation of entity creation date.
+      type: string
+      format: date-time
+      example: "2025-08-06T07:20:45.436Z"
+      readOnly: true
+    ChatContextEntityType:
+      type: string
+      description: The entity type of context provided to the Kai agent.
+      enum:
+        - control_plane
+        - data_plane
+        - route
+        - plugin
+        - service
+        - consumer
+        - active_tracing_session
+    ChatContext:
+      type: object
+      properties:
+        type:
+          $ref: "#/components/schemas/ChatContextEntityType"
+        id:
+          type: string
+          description: The unique identifier of the entity to provide context for.
+      required:
+        - type
+        - id
+    ChatRequestPayload:
+      type: object
+      properties:
+        prompt:
+          type: string
+          description: The prompt to send to the Kai agent.
+        context:
+          type: array
+          description: Optional context to provide to the Kai agent to enhance responses.
+          items:
+            $ref: "#/components/schemas/ChatContext"
+      required:
+        - prompt
+    CreateSessionPayload:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: name of the session
+          example: Control Plane Session
+      required:
+        - name
+    UpdateSessionPayload:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: name of the session
+          example: Control Plane Session
+      required:
+        - name
+    SessionMetaData:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        name:
+          type: string
+          description: name
+        created_at:
+          $ref: "#/components/schemas/CreatedAt"
+      required:
+        - id
+        - name
+        - created_at
+    SessionChatToolDetails:
+      type: object
+      description: Details of the tool invoked, if role is 'tool'
+      properties:
+        name:
+          type: string
+          description: Name of the tool invoked
+        arguments:
+          type: string
+          description: Arguments passed to the tool in JSON string format
+      required:
+        - name
+        - arguments
+    SessionChatRoleType:
+      type: string
+      enum:
+        - human
+        - ai
+        - tool
+        - task
+    SessionChatDetails:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        trigger_id:
+          $ref: "#/components/schemas/UUID"
+        role:
+          $ref: "#/components/schemas/SessionChatRoleType"
+        message:
+          type: string
+          description: Chat content
+        timestamp:
+          $ref: "#/components/schemas/Timestamp"
+        tool_details:
+          $ref: "#/components/schemas/SessionChatToolDetails"
+        context:
+          type: array
+          description: Optional context provided to the Kai agent to enhance responses.
+          items:
+            $ref: "#/components/schemas/ChatContext"
+      required:
+        - id
+        - trigger_id
+        - role
+        - message
+    ListSessions:
+      type: array
+      items:
+        type: object
+        $ref: "#/components/schemas/SessionMetaData"
+    SessionChatHistory:
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        name:
+          type: string
+          description: name
+        created_at:
+          $ref: "#/components/schemas/CreatedAt"
+        token_usage:
+          type: integer
+          description: Token usage for the session in Percentage.
+        history:
+          type: array
+          description: Chat history for the session
+          items:
+            $ref: "#/components/schemas/SessionChatDetails"
+      required:
+        - history
+        - id
+        - name
+        - created_at
+    TaskType:
+      type: string
+      description: The type of long running task.
+      enum:
+        - active-tracing
+    TaskStatus:
+      type: string
+      description: The current status of the task.
+      enum:
+        - pending
+        - in_progress
+        - analyzable
+        - done
+        - cancelled
+    TaskToolCallMetadata:
+      type: object
+      description: Metadata about any tool calls made during the task execution.
+      properties:
+        tool_name:
+          type: string
+          description: Name of the tool invoked
+        parameters:
+          type: object
+          additionalProperties: true
+          description: Arguments passed to the tool in JSON string format
+        tool_response:
+          type: object
+          additionalProperties: true
+          description: Response returned by the tool
+      required:
+        - tool_name
+        - parameters
+    TaskDetails:
+      type: object
+      description: Details of an active task
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        session_id:
+          $ref: "#/components/schemas/UUID"
+        trigger_id:
+          $ref: "#/components/schemas/UUID"
+        type:
+          $ref: "#/components/schemas/TaskType"
+        context:
+          type: array
+          description: Optional context to provide to the Kai agent to enhance responses.
+          items:
+            $ref: "#/components/schemas/ChatContext"
+        tool_call_metadata:
+          $ref: "#/components/schemas/TaskToolCallMetadata"
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+        created_at:
+          $ref: "#/components/schemas/CreatedAt"
+        expires_at:
+          $ref: "#/components/schemas/CreatedAt"
+        confirmation_message:
+          type: string
+      required:
+        - id
+        - session_id
+        - trigger_id
+        - type
+        - context
+        - tool_call_metadata
+        - status
+        - created_at
+        - expires_at
+        - confirmation_message
+    UpdateTaskAction:
+      type: string
+      description: The action to perform on the task.
+      enum:
+        - start
+        - stop
+    UpdateTaskPayload:
+      type: object
+      properties:
+        action:
+          $ref: "#/components/schemas/UpdateTaskAction"
+      required:
+        - action
+  requestBodies:
+    TempChatRequest:
+      required: true
+      description: Request body for chat with Kai agent without session context
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ChatRequestPayload"
+          example:
+            prompt: get me information about Lisp Gateway controlplane
+    ChatRequest:
+      required: true
+      description: Request body for chat with Kai agent
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ChatRequestPayload"
+          example:
+            prompt: get me information about Lisp Gateway controlplane
+            context:
+              - type: control_plane
+                id: "5f9fd312-a987-4628-b4c5-bb4f4fddd5f7"
+              - type: route
+                id: "3e8fd312-a987-4628-b4c5-bb4f4fddd5f7"
+    CreateSessionPayload:
+      required: true
+      description: Request body for creating a new session
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/CreateSessionPayload"
+          example:
+            name: Control Plane Session
+    UpdateSessionPayload:
+      required: true
+      description: Request body for updating session details
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/UpdateSessionPayload"
+          example:
+            name: Why is my control plane slow
+    UpdateTaskRequest:
+      required: true
+      description: Request body to update a task for a session.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/UpdateTaskPayload"
+          example:
+            action: start
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/BadRequestError"
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/UnauthorizedError"
+          examples:
+            UnauthorizedExample:
+              value:
+                status: 401
+                title: Unauthorized
+                instance: "kong:trace:8347343766220159418"
+                detail: Unauthorized
+    Forbidden:
+      description: Forbidden
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ForbiddenError"
+          examples:
+            UnauthorizedExample:
+              value:
+                status: 403
+                title: Forbidden
+                instance: "kong:trace:2723154947768991354"
+                detail: You do not have permission to perform this action
+    NotFound:
+      description: Not Found
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/NotFoundError"
+          examples:
+            NotFoundExample:
+              value:
+                status: 404
+                title: Not Found
+                instance: "kong:trace:6816496025408232265"
+                detail: Not Found
+    ChatResponse:
+      description: |
+        A stream of server-sent AI responses.
+        event: 'llm-response' represents a response from the AI.
+        event: 'tool-response' represents a response from a tool invocation.
+        event: 'task' represents a new task created and it needs user consent to continue.
+        event: 'end' indicates the end of the response stream.
+        event: 'error' indicates an error in the response.
+      content:
+        text/event-stream:
+          schema:
+            type: string
+            example: |
+              event: llm-response
+              data: {"data": "The Doctor is in!"}
+
+              event: tool-response
+              data: {"data": {"name": "test"}}
+
+              event: task
+              data: {"data": {"id": "3e8fd312-a987-4628-c4c5-db4f4fddd5f7", "status": "pending"}}
+
+              event: llm-response
+              data: {"data": "What can I do for you today?"}
+
+              event: end
+              data: {"data": "EOF"}
+
+              event: error
+              data: {"error": "An error occurred."}
+    ListSessionsResponse:
+      description: All the available sessions details of the user.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ListSessions"
+          example:
+            - id: 9f1f0297-e6de-49ac-a028-7cd0e7c8e2d9
+              name: Control Plane Session
+              created_at: "2025-08-06T10:36:37.713Z"
+            - id: f5fd8caf-0f0f-443c-b2a0-8f66f0ecabaf
+              name: Kai Session
+              created_at: "2025-08-06T07:18:31.173Z"
+            - id: da6b05d5-d762-45a6-9d48-472b2234956a
+              name: Global Session
+              created_at: "2025-08-06T07:20:45.436Z"
+    CreateSessionResponse:
+      description: Session metadata after creation.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SessionMetaData"
+          example:
+            id: da6b05d5-d762-45a6-9d48-472b2234956a
+            name: Control Plane Session
+            created_at: "2025-08-06T08:08:54.592Z"
+    UpdateSessionResponse:
+      description: Session metadata after update.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SessionMetaData"
+          example:
+            id: da6b05d5-d762-45a6-9d48-472b2234956a
+            name: Why is my control plane slow
+            created_at: "2025-08-06T08:08:54.592Z"
+    SessionChatHistoryResponse:
+      description: Response containing session metadata and all chat history for the session.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/SessionChatHistory"
+          example:
+            id: da6b05d5-d762-45a6-9d48-472b2234956a
+            name: Control Plane Session
+            token_usage: 90
+            created_at: "2025-08-06T08:08:54.592Z"
+            history:
+              - id: 5fbc2b2c-9249-4f2e-aad6-5f220bd18888
+                trigger_id: 1a7c2b2c-9249-4f2e-aad6-5f220bd18888
+                role: human
+                message: hi, how are you
+                timestamp: "2025-08-06T08:18:54.592Z"
+              - id: a20831aa-595d-4220-974b-6cef0b51212e
+                role: tool
+                trigger_id: 1a7c2b2c-9249-4f2e-aad6-5f220bd18888
+                message: '{"name": "test"}'
+                timestamp: "2025-08-06T08:09:14.592Z"
+                tool_details:
+                  name: who_am_i
+                  arguments: '{"name": "test"}'
+              - id: d20831aa-595d-4220-974b-6cef0b51212e
+                role: ai
+                trigger_id: 1a7c2b2c-9249-4f2e-aad6-5f220bd18888
+                message: hello, i am good
+                timestamp: "2025-08-06T08:11:34.592Z"
+    ActiveTaskResponse:
+      description: Response containing active tasks for the session.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/TaskDetails"
+          example:
+            id: 3e8fd312-a987-4628-c4c5-db4f4fddd5f7
+            session_id: 4ab9ad14-8965-453a-a2b8-88291bdfa77a
+            trigger_id: 1a7c2b2c-9249-4f2e-aad6-5f220bd18888
+            type: active-tracing
+            context:
+              - type: control_plane
+                id: 5f9fd312-a987-4628-b4c5-bb4f4fddd5f7
+            tool_call_metadata:
+              tool_name: start_active_tracing
+              parameters:
+                duration: 60
+              tool_response:
+                status: started
+                active_tracing_session_id: 65c3f8a9-39c2-49c9-af8e-5571dccc27ee
+            status: in_progress
+            created_at: "2025-08-06T10:20:30.456Z"
+            expires_at: "2025-08-06T12:45:00.789Z"
+            confirmation_message: "Do you want to start an debug session on XYZ Control plane for 60 seconds?"
+    TaskStatusResponse:
+      description: |
+        A stream of server-sent task status updates.
+        This returns the current status of the task for every 5 seconds.
+
+        status: 'pending' indicates the task is pending.
+        status: 'in_progress' indicates the task is in progress.
+        status: 'analyzable' indicates the task is completed and ready for analysis.
+        status: 'end' indicates the end of the response stream.
+        status: 'error' indicates an error in the response.
+      content:
+        text/event-stream:
+          schema:
+            type: string
+            example: |
+              event: task-status
+              data: {"data": {"status": "pending", "message": "Task is pending."}}
+
+              event: task-status
+              data: {"data": {"status": "in_progress", "message": "Task is in progress."}}
+
+              event: task-status
+              data: {"data": {"status": "analyzable", "message": "Task is completed and ready for analysis."}}
+
+              event: end
+              data: {"data": "EOF"}
+
+              event: error
+              data: {"error": "An error occurred."}

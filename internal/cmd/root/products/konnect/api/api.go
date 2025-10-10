@@ -58,7 +58,7 @@ func NewAPICmd(verb verbs.VerbValue,
 	case verbs.List:
 		return newGetAPICmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
 	case verbs.Create, verbs.Delete, verbs.Add, verbs.Apply, verbs.Dump, verbs.Update, verbs.Help, verbs.Login,
-		verbs.Plan, verbs.Sync, verbs.Diff, verbs.Export, verbs.Adopt, verbs.Ask, verbs.API:
+		verbs.Plan, verbs.Sync, verbs.Diff, verbs.Export, verbs.Adopt, verbs.API, verbs.Kai:
 		return &baseCmd, nil
 	}
 

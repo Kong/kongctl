@@ -63,7 +63,7 @@ func GetConfig(path string, profile string, defaultConfigFilePath string) (*Prof
 		// If the default given config file path does not exist, and it matches the defaultConfigFilePath
 		// then we should initialize the default configuration including creating the directory and file
 		var vip *v.Viper
-		vip, err = viper.InitializeDefaultViper(getDefaultConfig(profile), path)
+		vip, err = viper.InitializeDefaultViper(getDefaultConfig(profile, path), path)
 		if err == nil {
 			rv = BuildProfiledConfig(profile, path, vip)
 		}
@@ -193,11 +193,16 @@ func BuildProfiledConfig(profile string, path string, mainv *v.Viper) *ProfiledC
 	return rv
 }
 
-func getDefaultConfig(profileName string) map[string]any {
+func getDefaultConfig(profileName, configFilePath string) map[string]any {
+	configDir := filepath.Dir(configFilePath)
+	defaultLogFileName := meta.CLIName + ".log"
+	defaultLogPath := filepath.Join(configDir, "logs", defaultLogFileName)
+
 	defaultConfig := map[string]any{
 		profileName: map[string]any{
-			"output":  "text",
-			"konnect": map[string]any{},
+			"output":   "text",
+			"log-file": defaultLogPath,
+			"konnect":  map[string]any{},
 		},
 	}
 	return defaultConfig

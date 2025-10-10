@@ -37,10 +37,12 @@ var (
 )
 
 func addFlags(verb verbs.VerbValue, cmd *cobra.Command) {
-	cmd.Flags().String(common.BaseURLFlagName, common.BaseURLDefault,
-		fmt.Sprintf(`Base URL for Konnect API requests.
+	if verb != verbs.Login {
+		cmd.Flags().String(common.BaseURLFlagName, common.BaseURLDefault,
+			fmt.Sprintf(`Base URL for Konnect API requests.
 - Config path: [ %s ]`,
-			common.BaseURLConfigPath))
+				common.BaseURLConfigPath))
+	}
 
 	if verb != verbs.Login {
 		cmd.Flags().String(common.PATFlagName, "",
@@ -68,9 +70,11 @@ func bindFlags(c *cobra.Command, args []string) error {
 	}
 
 	f := c.Flags().Lookup(common.BaseURLFlagName)
-	err = cfg.BindFlag(common.BaseURLConfigPath, f)
-	if err != nil {
-		return err
+	if f != nil {
+		err = cfg.BindFlag(common.BaseURLConfigPath, f)
+		if err != nil {
+			return err
+		}
 	}
 
 	f = c.Flags().Lookup(common.PATFlagName)
@@ -170,7 +174,7 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		addFlags(verb, cmd)
 		return cmd, nil
 	case verbs.Add, verbs.Get, verbs.Create, verbs.Dump, verbs.Update,
-		verbs.Delete, verbs.Help, verbs.List, verbs.Login, verbs.Ask, verbs.API:
+		verbs.Delete, verbs.Help, verbs.List, verbs.Login, verbs.API, verbs.Kai:
 		// These verbs don't use declarative configuration, continue below
 	}
 
