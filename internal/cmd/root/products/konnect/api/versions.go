@@ -8,8 +8,10 @@ import (
 	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
@@ -127,11 +129,14 @@ func (h apiVersionsHandler) run(args []string) error {
 		return err
 	}
 
-	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
-	if err != nil {
-		return err
+	var printer cli.PrintFlusher
+	if outType != cmdCommon.INTERACTIVE {
+		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
+		}
+		defer printer.Flush()
 	}
-	defer printer.Flush()
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -178,7 +183,7 @@ func (h apiVersionsHandler) listVersions(
 	apiVersionAPI helpers.APIVersionAPI,
 	apiID string,
 	outType cmdCommon.OutputFormat,
-	printer cli.Printer,
+	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
 	summaries, err := fetchVersionSummaries(helper, apiVersionAPI, apiID, cfg)
@@ -195,7 +200,37 @@ func (h apiVersionsHandler) listVersions(
 		return nil
 	}
 
-	printer.Print(summaries)
+	if outType == cmdCommon.INTERACTIVE {
+		displayRecords := make([]apiVersionSummaryRecord, 0, len(summaries))
+		rows := make([]table.Row, 0, len(summaries))
+		for _, summary := range summaries {
+			record := versionSummaryToRecord(summary)
+			displayRecords = append(displayRecords, record)
+			rows = append(rows, table.Row{util.AbbreviateUUID(record.ID), record.Version})
+		}
+
+		detailFn := func(index int) string {
+			if index < 0 || index >= len(summaries) {
+				return ""
+			}
+			return versionSummaryDetailView(&summaries[index])
+		}
+
+		return tableview.RenderForFormat(
+			outType,
+			printer,
+			helper.GetStreams(),
+			displayRecords,
+			summaries,
+			"",
+			tableview.WithCustomTable([]string{"ID", "VERSION"}, rows),
+			tableview.WithDetailRenderer(detailFn),
+		)
+	}
+
+	if printer != nil {
+		printer.Print(summaries)
+	}
 	return nil
 }
 
@@ -205,7 +240,7 @@ func (h apiVersionsHandler) getSingleVersion(
 	apiID string,
 	identifier string,
 	outType cmdCommon.OutputFormat,
-	printer cli.Printer,
+	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
 	var versionID string
@@ -245,7 +280,37 @@ func (h apiVersionsHandler) getSingleVersion(
 		return nil
 	}
 
-	printer.Print(version)
+	if outType == cmdCommon.INTERACTIVE {
+		record := versionDetailToRecord(version)
+		rows := []table.Row{
+			{util.AbbreviateUUID(record.ID), record.Version},
+		}
+
+		detailFn := func(_ int) string {
+			return versionDetailView(version)
+		}
+
+		return tableview.RenderForFormat(
+			outType,
+			printer,
+			helper.GetStreams(),
+			[]apiVersionSummaryRecord{{
+				ID:               record.ID,
+				Version:          record.Version,
+				SpecType:         record.SpecType,
+				LocalCreatedTime: record.LocalCreatedTime,
+				LocalUpdatedTime: record.LocalUpdatedTime,
+			}},
+			version,
+			"",
+			tableview.WithCustomTable([]string{"ID", "VERSION"}, rows),
+			tableview.WithDetailRenderer(detailFn),
+		)
+	}
+
+	if printer != nil {
+		printer.Print(version)
+	}
 	return nil
 }
 
@@ -335,4 +400,44 @@ func versionDetailToRecord(version *kkComps.APIVersionResponse) apiVersionDetail
 		LocalCreatedTime: version.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
 		LocalUpdatedTime: version.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
 	}
+}
+
+func versionSummaryDetailView(summary *kkComps.ListAPIVersionResponseAPIVersionSummary) string {
+	if summary == nil {
+		return ""
+	}
+
+	specType := valueNA
+	if summary.GetSpec() != nil && summary.GetSpec().GetType() != nil {
+		specType = string(*summary.GetSpec().GetType())
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "Version ID: %s\n", summary.GetID())
+	fmt.Fprintf(&b, "Version: %s\n", summary.GetVersion())
+	fmt.Fprintf(&b, "Spec Type: %s\n", specType)
+	fmt.Fprintf(&b, "Created: %s\n", summary.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(&b, "Updated: %s\n", summary.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
+
+	return b.String()
+}
+
+func versionDetailView(version *kkComps.APIVersionResponse) string {
+	if version == nil {
+		return ""
+	}
+
+	specType := valueNA
+	if version.GetSpec() != nil && version.GetSpec().GetType() != nil {
+		specType = string(*version.GetSpec().GetType())
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "Version ID: %s\n", version.GetID())
+	fmt.Fprintf(&b, "Version: %s\n", version.GetVersion())
+	fmt.Fprintf(&b, "Spec Type: %s\n", specType)
+	fmt.Fprintf(&b, "Created: %s\n", version.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(&b, "Updated: %s\n", version.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
+
+	return b.String()
 }
