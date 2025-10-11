@@ -2,14 +2,17 @@ package api
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
@@ -18,6 +21,7 @@ import (
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/muesli/reflow/wordwrap"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -57,7 +61,7 @@ func apiToDisplayRecord(a *kkComps.APIResponseSchema) textDisplayRecord {
 
 	var id, name string
 	if a.ID != "" {
-		id = a.ID
+		id = util.AbbreviateUUID(a.ID)
 	} else {
 		id = missing
 	}
@@ -94,6 +98,125 @@ func apiToDisplayRecord(a *kkComps.APIResponseSchema) textDisplayRecord {
 		LocalCreatedTime: createdAt,
 		LocalUpdatedTime: updatedAt,
 	}
+}
+
+func apiDetailView(api *kkComps.APIResponseSchema) string {
+	if api == nil {
+		return ""
+	}
+
+	const missing = "n/a"
+	name := api.Name
+	if name == "" {
+		name = missing
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "Name: %s\n", name)
+	fmt.Fprintf(&b, "ID: %s\n", api.ID)
+	if slugPtr := api.GetSlug(); slugPtr != nil {
+		if slug := strings.TrimSpace(*slugPtr); slug != "" {
+			fmt.Fprintf(&b, "Slug: %s\n", slug)
+		}
+	}
+	if versionPtr := api.GetVersion(); versionPtr != nil {
+		if version := strings.TrimSpace(*versionPtr); version != "" {
+			fmt.Fprintf(&b, "Version: %s\n", version)
+		}
+	}
+
+	if api.CurrentVersionSummary != nil {
+		if spec := api.CurrentVersionSummary.Spec; spec != nil {
+			if spec.Type != nil {
+				if specType := strings.TrimSpace(string(*spec.Type)); specType != "" {
+					fmt.Fprintf(&b, "Spec Type: %s\n", specType)
+				}
+			}
+		}
+	}
+
+	if specIDs := api.GetAPISpecIds(); len(specIDs) > 0 {
+		ids := make([]string, 0, len(specIDs))
+		for _, id := range specIDs {
+			ids = append(ids, util.AbbreviateUUID(id))
+		}
+		fmt.Fprintf(&b, "Spec IDs: %s\n", strings.Join(ids, ", "))
+	}
+
+	if api.Description != nil && *api.Description != "" {
+		description := strings.TrimSpace(*api.Description)
+		if description != "" {
+			const wrapWidth = 80
+			fmt.Fprintf(&b, "\nDescription:\n%s\n", wordwrap.String(description, wrapWidth))
+		}
+	}
+
+	if attrs := api.Attributes; attrs != nil {
+		switch v := attrs.(type) {
+		case map[string]any:
+			if len(v) > 0 {
+				keys := make([]string, 0, len(v))
+				for k := range v {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				fmt.Fprintf(&b, "\nAttributes:\n")
+				for _, k := range keys {
+					fmt.Fprintf(&b, "  %s: %v\n", k, v[k])
+				}
+			}
+		case map[string]string:
+			if len(v) > 0 {
+				keys := make([]string, 0, len(v))
+				for k := range v {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				fmt.Fprintf(&b, "\nAttributes:\n")
+				for _, k := range keys {
+					fmt.Fprintf(&b, "  %s: %s\n", k, v[k])
+				}
+			}
+		}
+	}
+
+	if portals := api.GetPortals(); len(portals) > 0 {
+		fmt.Fprintf(&b, "\nPortals:\n")
+		for _, portal := range portals {
+			displayName := strings.TrimSpace(portal.DisplayName)
+			name := strings.TrimSpace(portal.Name)
+			var line string
+			switch {
+			case displayName != "" && name != "":
+				line = fmt.Sprintf("%s (%s)", displayName, name)
+			case displayName != "":
+				line = displayName
+			case name != "":
+				line = name
+			default:
+				line = missing
+			}
+			fmt.Fprintf(&b, "  %s - %s\n", line, portal.ID)
+		}
+	}
+
+	if labels := api.GetLabels(); len(labels) > 0 {
+		keys := make([]string, 0, len(labels))
+		for k := range labels {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		fmt.Fprintf(&b, "\nLabels:\n")
+		for _, k := range keys {
+			fmt.Fprintf(&b, "  %s: %s\n", k, labels[k])
+		}
+	}
+
+	fmt.Fprintf(&b, "Publication Count: %d\n", len(api.GetPortals()))
+	fmt.Fprintf(&b, "Created: %s\n", api.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(&b, "Updated: %s\n", api.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
+
+	return b.String()
 }
 
 type getAPICmd struct {
@@ -230,12 +353,14 @@ func (c *getAPICmd) runE(cobraCmd *cobra.Command, args []string) error {
 		return e
 	}
 
-	printer, e := cli.Format(outType.String(), helper.GetStreams().Out)
-	if e != nil {
-		return e
+	var printer cli.PrintFlusher
+	if outType != cmdCommon.INTERACTIVE {
+		printer, e = cli.Format(outType.String(), helper.GetStreams().Out)
+		if e != nil {
+			return e
+		}
+		defer printer.Flush()
 	}
-
-	defer printer.Flush()
 
 	cfg, e := helper.GetConfig()
 	if e != nil {
@@ -260,46 +385,51 @@ func (c *getAPICmd) runE(cobraCmd *cobra.Command, args []string) error {
 			// If the ID is not a UUID, then it is a name
 			// search for the API by name
 			api, e := runListByName(id, sdk.GetAPIAPI(), helper, cfg)
-			if e == nil {
-				if outType == cmdCommon.TEXT {
-					printer.Print(apiToDisplayRecord(api))
-				} else {
-					printer.Print(api)
-				}
-			} else {
+			if e != nil {
 				return e
 			}
-		} else {
-			api, e := runGet(id, sdk.GetAPIAPI(), helper)
-			if e == nil {
-				if outType == cmdCommon.TEXT {
-					printer.Print(apiToDisplayRecord(api))
-				} else {
-					printer.Print(api)
-				}
-			} else {
-				return e
-			}
+			return tableview.RenderForFormat(outType, printer, helper.GetStreams(), apiToDisplayRecord(api), api, "")
 		}
-	} else { // list all APIs
-		var apis []kkComps.APIResponseSchema
-		apis, e = runList(sdk.GetAPIAPI(), helper, cfg)
-		if e == nil {
-			if outType == cmdCommon.TEXT {
-				var displayRecords []textDisplayRecord
-				for _, api := range apis {
-					displayRecords = append(displayRecords, apiToDisplayRecord(&api))
-				}
-				printer.Print(displayRecords)
-			} else {
-				printer.Print(apis)
-			}
-		} else {
+
+		api, e := runGet(id, sdk.GetAPIAPI(), helper)
+		if e != nil {
 			return e
 		}
+
+		return tableview.RenderForFormat(outType, printer, helper.GetStreams(), apiToDisplayRecord(api), api, "")
 	}
 
-	return nil
+	apis, e := runList(sdk.GetAPIAPI(), helper, cfg)
+	if e != nil {
+		return e
+	}
+	displayRecords := make([]textDisplayRecord, 0, len(apis))
+	for i := range apis {
+		displayRecords = append(displayRecords, apiToDisplayRecord(&apis[i]))
+	}
+
+	tableRows := make([]table.Row, 0, len(displayRecords))
+	for _, record := range displayRecords {
+		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(apis) {
+			return ""
+		}
+		return apiDetailView(&apis[index])
+	}
+
+	return tableview.RenderForFormat(
+		outType,
+		printer,
+		helper.GetStreams(),
+		displayRecords,
+		apis,
+		"",
+		tableview.WithCustomTable([]string{"ID", "NAME"}, tableRows),
+		tableview.WithDetailRenderer(detailFn),
+	)
 }
 
 func newGetAPICmd(verb verbs.VerbValue,

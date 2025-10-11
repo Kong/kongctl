@@ -22,7 +22,7 @@ kongctl plan [flags]
 
 - `-r, --recursive`: Process directories recursively (default: false)
 - `-o, --output-file` (string): Save the generated plan to a file
-- `--format` (string): Output format: json, yaml, or text (default: text)
+- `--format` (string): Output format: json, yaml, text, or interactive (default: text)
 - `--log-level` (string): Set logging level: trace, debug, info, warn, error
 
 ## How Planning Works

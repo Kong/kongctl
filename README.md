@@ -108,7 +108,7 @@ in the command help text with a "Config path" note that looks like this:
 ```text
 -o, --output string        Configures the format of data written to STDOUT.
                              - Config path: [ output ]
-                             - Allowed    : [ json|yaml|text ] (default "text")
+                             - Allowed    : [ json|yaml|text|interactive ] (default "text")
 ```
 
 The above help text shows a YAML key path for the `--output` flag which controls the format of output text

@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	kkCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -54,7 +57,7 @@ func serviceToDisplayRecord(s *kkComps.ServiceOutput) textDisplayRecord {
 
 	id := missing
 	if s.ID != nil {
-		id = *s.ID
+		id = util.AbbreviateUUID(*s.ID)
 	}
 
 	enabled := missing
@@ -92,6 +95,69 @@ func serviceToDisplayRecord(s *kkComps.ServiceOutput) textDisplayRecord {
 		Protocol: protocol,
 		Tags:     tags,
 	}
+}
+
+func serviceDetailView(s *kkComps.ServiceOutput) string {
+	if s == nil {
+		return ""
+	}
+
+	missing := "n/a"
+	name := missing
+	if s.Name != nil && *s.Name != "" {
+		name = *s.Name
+	}
+
+	id := missing
+	if s.ID != nil && *s.ID != "" {
+		id = *s.ID
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "Name: %s\n", name)
+	fmt.Fprintf(&b, "ID: %s\n", id)
+	fmt.Fprintf(&b, "Host: %s\n", s.Host)
+
+	port := missing
+	if s.Port != nil {
+		port = strconv.FormatInt(*s.Port, 10)
+	}
+	fmt.Fprintf(&b, "Port: %s\n", port)
+
+	path := missing
+	if s.Path != nil && *s.Path != "" {
+		path = *s.Path
+	}
+	fmt.Fprintf(&b, "Path: %s\n", path)
+
+	protocol := missing
+	if s.Protocol != nil {
+		protocol = string(*s.Protocol)
+	}
+	fmt.Fprintf(&b, "Protocol: %s\n", protocol)
+
+	enabled := missing
+	if s.Enabled != nil {
+		enabled = strconv.FormatBool(*s.Enabled)
+	}
+	fmt.Fprintf(&b, "Enabled: %s\n", enabled)
+
+	if len(s.Tags) > 0 {
+		fmt.Fprintf(&b, "Tags: %s\n", strings.Join(s.Tags, ", "))
+	} else {
+		fmt.Fprintf(&b, "Tags: %s\n", missing)
+	}
+
+	if s.CreatedAt != nil {
+		created := time.Unix(0, *s.CreatedAt*int64(time.Millisecond)).In(time.Local)
+		fmt.Fprintf(&b, "Created: %s\n", created.Format("2006-01-02 15:04:05"))
+	}
+	if s.UpdatedAt != nil {
+		updated := time.Unix(0, *s.UpdatedAt*int64(time.Millisecond)).In(time.Local)
+		fmt.Fprintf(&b, "Updated: %s\n", updated.Format("2006-01-02 15:04:05"))
+	}
+
+	return b.String()
 }
 
 var (
@@ -132,7 +198,7 @@ func (c *getServiceCmd) validate(helper cmd.Helper) error {
 }
 
 func (c *getServiceCmd) runListByName(cpID string, name string,
-	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
+	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.PrintFlusher, outputFormat cmdCommon.OutputFormat,
 ) error {
 	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
 
@@ -144,11 +210,14 @@ func (c *getServiceCmd) runListByName(cpID string, name string,
 
 	for _, service := range allData {
 		if *service.GetName() == name {
-			if outputFormat == cmdCommon.TEXT {
-				printer.Print(serviceToDisplayRecord(&service))
-			} else {
-				printer.Print(service)
-			}
+			return tableview.RenderForFormat(
+				outputFormat,
+				printer,
+				helper.GetStreams(),
+				serviceToDisplayRecord(&service),
+				service,
+				"Gateway Service",
+			)
 		}
 	}
 
@@ -156,7 +225,7 @@ func (c *getServiceCmd) runListByName(cpID string, name string,
 }
 
 func (c *getServiceCmd) runGet(cpID string, id string,
-	kkClient *kk.SDK, helper cmd.Helper, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
+	kkClient *kk.SDK, helper cmd.Helper, printer cli.PrintFlusher, outputFormat cmdCommon.OutputFormat,
 ) error {
 	res, err := kkClient.Services.GetService(helper.GetContext(), cpID, id)
 	if err != nil {
@@ -164,17 +233,18 @@ func (c *getServiceCmd) runGet(cpID string, id string,
 		return cmd.PrepareExecutionError("Failed to get Gateway Service", err, helper.GetCmd(), attrs...)
 	}
 
-	if outputFormat == cmdCommon.TEXT {
-		printer.Print(serviceToDisplayRecord(res.GetService()))
-	} else {
-		printer.Print(res.GetService())
-	}
-
-	return nil
+	return tableview.RenderForFormat(
+		outputFormat,
+		printer,
+		helper.GetStreams(),
+		serviceToDisplayRecord(res.GetService()),
+		res.GetService(),
+		"",
+	)
 }
 
 func (c *getServiceCmd) runList(cpID string,
-	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
+	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.PrintFlusher, outputFormat cmdCommon.OutputFormat,
 ) error {
 	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
 
@@ -186,17 +256,33 @@ func (c *getServiceCmd) runList(cpID string,
 		return cmd.PrepareExecutionError("Failed to list Gateway Services", err, helper.GetCmd(), attrs...)
 	}
 
-	if outputFormat == cmdCommon.TEXT {
-		var displayRecords []textDisplayRecord
-		for _, service := range allData {
-			displayRecords = append(displayRecords, serviceToDisplayRecord(&service))
-		}
-		printer.Print(displayRecords)
-	} else {
-		printer.Print(allData)
+	displayRecords := make([]textDisplayRecord, 0, len(allData))
+	for i := range allData {
+		displayRecords = append(displayRecords, serviceToDisplayRecord(&allData[i]))
 	}
 
-	return nil
+	tableRows := make([]table.Row, 0, len(displayRecords))
+	for _, record := range displayRecords {
+		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(allData) {
+			return ""
+		}
+		return serviceDetailView(&allData[index])
+	}
+
+	return tableview.RenderForFormat(
+		outputFormat,
+		printer,
+		helper.GetStreams(),
+		displayRecords,
+		allData,
+		"",
+		tableview.WithCustomTable([]string{"ID", "NAME"}, tableRows),
+		tableview.WithDetailRenderer(detailFn),
+	)
 }
 
 func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
@@ -220,12 +306,14 @@ func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		return e
 	}
 
-	printer, e := cli.Format(outType.String(), helper.GetStreams().Out)
-	if e != nil {
-		return e
+	var printer cli.PrintFlusher
+	if outType != cmdCommon.INTERACTIVE {
+		printer, e = cli.Format(outType.String(), helper.GetStreams().Out)
+		if e != nil {
+			return e
+		}
+		defer printer.Flush()
 	}
-
-	defer printer.Flush()
 
 	kkClient, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {

@@ -63,6 +63,7 @@ var (
 		common.JSON.String(),
 		common.YAML.String(),
 		common.TEXT.String(),
+		common.INTERACTIVE.String(),
 	},
 		common.TEXT.String())
 

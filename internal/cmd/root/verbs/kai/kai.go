@@ -633,9 +633,15 @@ func runAsk(helper cmd.Helper) error {
 		defer printer.Flush()
 		printer.Print(result)
 		return nil
+	case cmdcommon.INTERACTIVE:
+		return &cmd.ConfigurationError{
+			Err: fmt.Errorf("%s command does not support interactive output", helper.GetCmd().CommandPath()),
+		}
+	default:
+		return &cmd.ConfigurationError{
+			Err: fmt.Errorf("unsupported output format %s", outType.String()),
+		}
 	}
-
-	return nil
 }
 
 func shouldUseColor(mode cmdcommon.ColorMode, out io.Writer) bool {

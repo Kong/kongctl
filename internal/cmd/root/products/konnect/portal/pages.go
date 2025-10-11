@@ -7,8 +7,10 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -130,11 +132,14 @@ func (h portalPagesHandler) run(args []string) error {
 		return err
 	}
 
-	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
-	if err != nil {
-		return err
+	var printer cli.PrintFlusher
+	if outType != cmdCommon.INTERACTIVE {
+		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
+		}
+		defer printer.Flush()
 	}
-	defer printer.Flush()
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -185,25 +190,41 @@ func (h portalPagesHandler) listPages(
 	pageAPI helpers.PortalPageAPI,
 	portalID string,
 	outType cmdCommon.OutputFormat,
-	printer cli.Printer,
+	printer cli.PrintFlusher,
 ) error {
 	pages, err := fetchPortalPageSummaries(helper, pageAPI, portalID)
 	if err != nil {
 		return err
 	}
 
-	if outType == cmdCommon.TEXT {
-		flattened := flattenPortalPages(pages)
-		records := make([]portalPageSummaryRecord, 0, len(flattened))
-		for _, page := range flattened {
-			records = append(records, portalPageSummaryToRecord(page))
-		}
-		printer.Print(records)
-		return nil
+	flattened := flattenPortalPages(pages)
+	records := make([]portalPageSummaryRecord, 0, len(flattened))
+	for _, page := range flattened {
+		records = append(records, portalPageSummaryToRecord(page))
 	}
 
-	printer.Print(pages)
-	return nil
+	tableRows := make([]table.Row, 0, len(records))
+	for _, record := range records {
+		tableRows = append(tableRows, table.Row{record.ID, record.Title})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(flattened) {
+			return ""
+		}
+		return portalPageInfoDetail(flattened[index])
+	}
+
+	return tableview.RenderForFormat(
+		outType,
+		printer,
+		helper.GetStreams(),
+		records,
+		pages,
+		"",
+		tableview.WithCustomTable([]string{"ID", "TITLE"}, tableRows),
+		tableview.WithDetailRenderer(detailFn),
+	)
 }
 
 func (h portalPagesHandler) getSinglePage(
@@ -212,7 +233,7 @@ func (h portalPagesHandler) getSinglePage(
 	portalID string,
 	identifier string,
 	outType cmdCommon.OutputFormat,
-	printer cli.Printer,
+	printer cli.PrintFlusher,
 ) error {
 	pageID := identifier
 	if !util.IsValidUUID(identifier) {
@@ -244,13 +265,14 @@ func (h portalPagesHandler) getSinglePage(
 		}
 	}
 
-	if outType == cmdCommon.TEXT {
-		printer.Print(portalPageDetailToRecord(page))
-		return nil
-	}
-
-	printer.Print(page)
-	return nil
+	return tableview.RenderForFormat(
+		outType,
+		printer,
+		helper.GetStreams(),
+		portalPageDetailToRecord(page),
+		page,
+		"",
+	)
 }
 
 func fetchPortalPageSummaries(
@@ -304,14 +326,37 @@ func findPageBySlugOrTitle(pages []kkComps.PortalPageInfo, identifier string) *k
 	return nil
 }
 
+func portalPageInfoDetail(page kkComps.PortalPageInfo) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "Title: %s\n", nonEmptyStringOrNA(page.GetTitle()))
+	fmt.Fprintf(&b, "ID: %s\n", page.GetID())
+	fmt.Fprintf(&b, "Slug: %s\n", nonEmptyStringOrNA(page.GetSlug()))
+	fmt.Fprintf(&b, "Visibility: %s\n", string(page.GetVisibility()))
+	fmt.Fprintf(&b, "Status: %s\n", string(page.GetStatus()))
+	parent := valueNA
+	if pid := page.GetParentPageID(); pid != nil && *pid != "" {
+		parent = *pid
+	}
+	fmt.Fprintf(&b, "Parent Page ID: %s\n", parent)
+	fmt.Fprintf(&b, "Children: %d\n", len(page.GetChildren()))
+	fmt.Fprintf(&b, "Created: %s\n", formatTime(page.GetCreatedAt()))
+	fmt.Fprintf(&b, "Updated: %s\n", formatTime(page.GetUpdatedAt()))
+	if desc := page.GetDescription(); desc != nil && *desc != "" {
+		fmt.Fprintf(&b, "\nDescription:\n%s\n", *desc)
+	}
+
+	return b.String()
+}
+
 func portalPageSummaryToRecord(page kkComps.PortalPageInfo) portalPageSummaryRecord {
 	parentID := valueNA
 	if parent := page.GetParentPageID(); parent != nil && *parent != "" {
-		parentID = *parent
+		parentID = util.AbbreviateUUID(*parent)
 	}
 
 	return portalPageSummaryRecord{
-		ID:               page.GetID(),
+		ID:               util.AbbreviateUUID(page.GetID()),
 		Title:            page.GetTitle(),
 		Slug:             page.GetSlug(),
 		Visibility:       string(page.GetVisibility()),
@@ -326,11 +371,11 @@ func portalPageSummaryToRecord(page kkComps.PortalPageInfo) portalPageSummaryRec
 func portalPageDetailToRecord(page *kkComps.PortalPageResponse) portalPageDetailRecord {
 	parentID := valueNA
 	if parent := page.GetParentPageID(); parent != nil && *parent != "" {
-		parentID = *parent
+		parentID = util.AbbreviateUUID(*parent)
 	}
 
 	return portalPageDetailRecord{
-		ID:               page.GetID(),
+		ID:               util.AbbreviateUUID(page.GetID()),
 		Title:            page.GetTitle(),
 		Slug:             page.GetSlug(),
 		Visibility:       string(page.GetVisibility()),
@@ -347,4 +392,11 @@ func formatTime(t time.Time) string {
 		return valueNA
 	}
 	return t.In(time.Local).Format("2006-01-02 15:04:05")
+}
+
+func nonEmptyStringOrNA(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return valueNA
+	}
+	return value
 }

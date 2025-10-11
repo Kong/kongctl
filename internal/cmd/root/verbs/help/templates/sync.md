@@ -30,7 +30,7 @@ kongctl sync [flags]
 
 ### Output Flags
 
-- `--format` (string): Output format: json, yaml, or text (default: text)
+- `--format` (string): Output format: json, yaml, text, or interactive (default: text)
 - `--log-level` (string): Set logging level: trace, debug, info, warn, error
 
 ## How Sync Works

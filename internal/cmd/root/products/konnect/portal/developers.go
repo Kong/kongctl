@@ -7,8 +7,10 @@ import (
 	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
@@ -117,11 +119,14 @@ func (h portalDevelopersHandler) run(args []string) error {
 		return err
 	}
 
-	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
-	if err != nil {
-		return err
+	var printer cli.PrintFlusher
+	if outType != cmdCommon.INTERACTIVE {
+		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
+		}
+		defer printer.Flush()
 	}
-	defer printer.Flush()
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -172,7 +177,7 @@ func (h portalDevelopersHandler) listDevelopers(
 	devAPI helpers.PortalDeveloperAPI,
 	portalID string,
 	outType cmdCommon.OutputFormat,
-	printer cli.Printer,
+	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
 	developers, err := fetchPortalDevelopers(helper, devAPI, portalID, cfg)
@@ -180,17 +185,33 @@ func (h portalDevelopersHandler) listDevelopers(
 		return err
 	}
 
-	if outType == cmdCommon.TEXT {
-		records := make([]portalDeveloperSummaryRecord, 0, len(developers))
-		for _, developer := range developers {
-			records = append(records, portalDeveloperSummaryToRecord(developer))
-		}
-		printer.Print(records)
-		return nil
+	records := make([]portalDeveloperSummaryRecord, 0, len(developers))
+	for _, developer := range developers {
+		records = append(records, portalDeveloperSummaryToRecord(developer))
 	}
 
-	printer.Print(developers)
-	return nil
+	tableRows := make([]table.Row, 0, len(records))
+	for _, record := range records {
+		tableRows = append(tableRows, table.Row{record.ID, record.Email})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(developers) {
+			return ""
+		}
+		return portalDeveloperDetailView(developers[index])
+	}
+
+	return tableview.RenderForFormat(
+		outType,
+		printer,
+		helper.GetStreams(),
+		records,
+		developers,
+		"",
+		tableview.WithCustomTable([]string{"ID", "EMAIL"}, tableRows),
+		tableview.WithDetailRenderer(detailFn),
+	)
 }
 
 func (h portalDevelopersHandler) getSingleDeveloper(
@@ -199,7 +220,7 @@ func (h portalDevelopersHandler) getSingleDeveloper(
 	portalID string,
 	identifier string,
 	outType cmdCommon.OutputFormat,
-	printer cli.Printer,
+	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
 	developerID := identifier
@@ -231,13 +252,14 @@ func (h portalDevelopersHandler) getSingleDeveloper(
 		}
 	}
 
-	if outType == cmdCommon.TEXT {
-		printer.Print(portalDeveloperSummaryToRecord(*developer))
-		return nil
-	}
-
-	printer.Print(developer)
-	return nil
+	return tableview.RenderForFormat(
+		outType,
+		printer,
+		helper.GetStreams(),
+		portalDeveloperSummaryToRecord(*developer),
+		developer,
+		"",
+	)
 }
 
 func fetchPortalDevelopers(
@@ -298,11 +320,23 @@ func findDeveloperByEmailOrID(developers []kkComps.PortalDeveloper, identifier s
 
 func portalDeveloperSummaryToRecord(developer kkComps.PortalDeveloper) portalDeveloperSummaryRecord {
 	return portalDeveloperSummaryRecord{
-		ID:               developer.GetID(),
+		ID:               util.AbbreviateUUID(developer.GetID()),
 		Email:            developer.GetEmail(),
 		FullName:         developer.GetFullName(),
 		Status:           string(developer.GetStatus()),
 		LocalCreatedTime: formatTime(developer.GetCreatedAt()),
 		LocalUpdatedTime: formatTime(developer.GetUpdatedAt()),
 	}
+}
+
+func portalDeveloperDetailView(developer kkComps.PortalDeveloper) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Email: %s\n", developer.GetEmail())
+	fmt.Fprintf(&b, "ID: %s\n", developer.GetID())
+	fmt.Fprintf(&b, "Full Name: %s\n", developer.GetFullName())
+	fmt.Fprintf(&b, "Status: %s\n", string(developer.GetStatus()))
+	fmt.Fprintf(&b, "Created: %s\n", formatTime(developer.GetCreatedAt()))
+	fmt.Fprintf(&b, "Updated: %s\n", formatTime(developer.GetUpdatedAt()))
+
+	return b.String()
 }
