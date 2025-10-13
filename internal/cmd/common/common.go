@@ -13,6 +13,7 @@ const (
 	JSON OutputFormat = iota
 	YAML
 	TEXT
+	INTERACTIVE
 )
 
 const (
@@ -41,6 +42,11 @@ const (
 	ColorConfigPath  = ColorFlagName
 	DefaultColorMode = "auto"
 
+	// related to the --color-theme flag
+	ColorThemeFlagName   = "color-theme"
+	ColorThemeConfigPath = "color-theme"
+	DefaultColorTheme    = "kong"
+
 	// related to the --profile flag
 	ProfileFlagName  = "profile"
 	ProfileFlagShort = "p"
@@ -59,7 +65,7 @@ const (
 )
 
 func (of OutputFormat) String() string {
-	return [...]string{"json", "yaml", "text"}[of]
+	return [...]string{"json", "yaml", "text", "interactive"}[of]
 }
 
 func OutputFormatStringToIota(format string) (OutputFormat, error) {
@@ -70,8 +76,11 @@ func OutputFormatStringToIota(format string) (OutputFormat, error) {
 		return YAML, nil
 	case "text":
 		return TEXT, nil
+	case "interactive":
+		return INTERACTIVE, nil
 	default:
-		return TEXT, fmt.Errorf("invalid output format %q, must be one of %v", format, []string{"json", "yaml", "text"})
+		allowed := []string{"json", "yaml", "text", "interactive"}
+		return TEXT, fmt.Errorf("invalid output format %q, must be one of %v", format, allowed)
 	}
 }
 

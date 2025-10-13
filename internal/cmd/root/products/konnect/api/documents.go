@@ -6,8 +6,10 @@ import (
 	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -29,17 +31,6 @@ type apiDocumentSummaryRecord struct {
 	Status           string
 	ParentDocumentID string
 	ChildrenCount    int
-	LocalCreatedTime string
-	LocalUpdatedTime string
-}
-
-type apiDocumentDetailRecord struct {
-	ID               string
-	Title            string
-	Slug             string
-	Status           string
-	ParentDocumentID string
-	Content          string
 	LocalCreatedTime string
 	LocalUpdatedTime string
 }
@@ -127,11 +118,14 @@ func (h apiDocumentsHandler) run(args []string) error {
 		return err
 	}
 
-	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
-	if err != nil {
-		return err
+	var printer cli.PrintFlusher
+	if outType != cmdCommon.INTERACTIVE {
+		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
+		}
+		defer printer.Flush()
 	}
-	defer printer.Flush()
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -178,25 +172,41 @@ func (h apiDocumentsHandler) listDocuments(
 	apiDocAPI helpers.APIDocumentAPI,
 	apiID string,
 	outType cmdCommon.OutputFormat,
-	printer cli.Printer,
+	printer cli.PrintFlusher,
 ) error {
 	docs, err := fetchDocumentSummaries(helper, apiDocAPI, apiID)
 	if err != nil {
 		return err
 	}
 
-	if outType == cmdCommon.TEXT {
-		flattened := flattenDocuments(docs)
-		records := make([]apiDocumentSummaryRecord, 0, len(flattened))
-		for _, doc := range flattened {
-			records = append(records, documentSummaryToRecord(doc))
-		}
-		printer.Print(records)
-		return nil
+	flattened := flattenDocuments(docs)
+
+	records := make([]apiDocumentSummaryRecord, 0, len(flattened))
+	rows := make([]table.Row, 0, len(flattened))
+	for _, doc := range flattened {
+		record := documentSummaryToRecord(doc)
+		records = append(records, record)
+		rows = append(rows, table.Row{record.ID, record.Title})
 	}
 
-	printer.Print(docs)
-	return nil
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(flattened) {
+			return ""
+		}
+		return documentSummaryDetailView(&flattened[index])
+	}
+
+	return tableview.RenderForFormat(
+		outType,
+		printer,
+		helper.GetStreams(),
+		records,
+		flattened,
+		"",
+		tableview.WithCustomTable([]string{"DOCUMENT", "TITLE"}, rows),
+		tableview.WithDetailRenderer(detailFn),
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+	)
 }
 
 func (h apiDocumentsHandler) getSingleDocument(
@@ -205,7 +215,7 @@ func (h apiDocumentsHandler) getSingleDocument(
 	apiID string,
 	identifier string,
 	outType cmdCommon.OutputFormat,
-	printer cli.Printer,
+	printer cli.PrintFlusher,
 ) error {
 	documentID := strings.TrimSpace(identifier)
 
@@ -239,13 +249,46 @@ func (h apiDocumentsHandler) getSingleDocument(
 		}
 	}
 
-	if outType == cmdCommon.TEXT {
-		printer.Print(documentDetailToRecord(doc))
-		return nil
+	record := apiDocumentSummaryRecord{
+		ID:    util.AbbreviateUUID(doc.GetID()),
+		Title: doc.GetTitle(),
+		Slug:  doc.GetSlug(),
+		Status: func() string {
+			if doc.GetStatus() != nil {
+				return string(*doc.GetStatus())
+			}
+			return valueNA
+		}(),
+		ParentDocumentID: func() string {
+			if doc.GetParentDocumentID() != nil && *doc.GetParentDocumentID() != "" {
+				return util.AbbreviateUUID(*doc.GetParentDocumentID())
+			}
+			return valueNA
+		}(),
+		ChildrenCount:    0,
+		LocalCreatedTime: doc.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		LocalUpdatedTime: doc.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
 	}
 
-	printer.Print(doc)
-	return nil
+	rows := []table.Row{
+		{record.ID, record.Title},
+	}
+
+	detailFn := func(_ int) string {
+		return documentDetailView(doc)
+	}
+
+	return tableview.RenderForFormat(
+		outType,
+		printer,
+		helper.GetStreams(),
+		[]apiDocumentSummaryRecord{record},
+		doc,
+		"",
+		tableview.WithCustomTable([]string{"DOCUMENT", "TITLE"}, rows),
+		tableview.WithDetailRenderer(detailFn),
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+	)
 }
 
 func fetchDocumentSummaries(
@@ -296,7 +339,7 @@ func documentSummaryToRecord(doc kkComps.APIDocumentSummaryWithChildren) apiDocu
 	}
 
 	return apiDocumentSummaryRecord{
-		ID:               doc.ID,
+		ID:               util.AbbreviateUUID(doc.ID),
 		Title:            doc.Title,
 		Slug:             doc.Slug,
 		Status:           status,
@@ -304,29 +347,6 @@ func documentSummaryToRecord(doc kkComps.APIDocumentSummaryWithChildren) apiDocu
 		ChildrenCount:    len(doc.Children),
 		LocalCreatedTime: doc.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05"),
 		LocalUpdatedTime: doc.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05"),
-	}
-}
-
-func documentDetailToRecord(doc *kkComps.APIDocumentResponse) apiDocumentDetailRecord {
-	status := valueNA
-	if doc.GetStatus() != nil {
-		status = string(*doc.GetStatus())
-	}
-
-	parentID := valueNA
-	if doc.GetParentDocumentID() != nil && *doc.GetParentDocumentID() != "" {
-		parentID = *doc.GetParentDocumentID()
-	}
-
-	return apiDocumentDetailRecord{
-		ID:               doc.GetID(),
-		Title:            doc.GetTitle(),
-		Slug:             doc.GetSlug(),
-		Status:           status,
-		ParentDocumentID: parentID,
-		Content:          doc.GetContent(),
-		LocalCreatedTime: doc.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
-		LocalUpdatedTime: doc.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
 	}
 }
 
@@ -340,4 +360,69 @@ func findDocumentBySlugOrTitle(
 		}
 	}
 	return nil
+}
+
+func documentSummaryDetailView(doc *kkComps.APIDocumentSummaryWithChildren) string {
+	if doc == nil {
+		return ""
+	}
+
+	const missing = "n/a"
+
+	status := missing
+	if doc.Status != nil {
+		status = string(*doc.Status)
+	}
+
+	parentID := missing
+	if doc.ParentDocumentID != nil && *doc.ParentDocumentID != "" {
+		parentID = *doc.ParentDocumentID
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "Document ID: %s\n", doc.ID)
+	fmt.Fprintf(&b, "Title: %s\n", doc.Title)
+	fmt.Fprintf(&b, "Slug: %s\n", doc.Slug)
+	fmt.Fprintf(&b, "Status: %s\n", status)
+	fmt.Fprintf(&b, "Parent Document ID: %s\n", parentID)
+	fmt.Fprintf(&b, "Children Count: %d\n", len(doc.Children))
+	fmt.Fprintf(&b, "Created: %s\n", doc.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(&b, "Updated: %s\n", doc.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
+
+	return b.String()
+}
+
+func documentDetailView(doc *kkComps.APIDocumentResponse) string {
+	if doc == nil {
+		return ""
+	}
+
+	const missing = "n/a"
+
+	parentID := missing
+	if doc.GetParentDocumentID() != nil && *doc.GetParentDocumentID() != "" {
+		parentID = *doc.GetParentDocumentID()
+	}
+
+	status := missing
+	if doc.GetStatus() != nil {
+		status = string(*doc.GetStatus())
+	}
+
+	content := doc.GetContent()
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "Document ID: %s\n", doc.GetID())
+	fmt.Fprintf(&b, "Title: %s\n", doc.GetTitle())
+	fmt.Fprintf(&b, "Slug: %s\n", doc.GetSlug())
+	fmt.Fprintf(&b, "Status: %s\n", status)
+	fmt.Fprintf(&b, "Parent Document ID: %s\n", parentID)
+	fmt.Fprintf(&b, "\nCreated: %s\n", doc.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(&b, "Updated: %s\n", doc.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
+
+	if strings.TrimSpace(content) != "" {
+		fmt.Fprintf(&b, "\nContent:\n%s\n", content)
+	}
+
+	return b.String()
 }

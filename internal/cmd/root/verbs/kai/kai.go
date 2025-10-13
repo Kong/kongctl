@@ -23,6 +23,7 @@ import (
 	kaistui "github.com/kong/kongctl/internal/kai/tui"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/theme"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/mattn/go-isatty"
@@ -287,6 +288,7 @@ func runInteractiveCore(
 		LookupControlPlane: lookupControlPlane,
 		InitialTasks:       initialTasks,
 		Version:            version,
+		Theme:              theme.FromContext(ctx),
 	})
 }
 
@@ -633,9 +635,15 @@ func runAsk(helper cmd.Helper) error {
 		defer printer.Flush()
 		printer.Print(result)
 		return nil
+	case cmdcommon.INTERACTIVE:
+		return &cmd.ConfigurationError{
+			Err: fmt.Errorf("%s command does not support interactive output", helper.GetCmd().CommandPath()),
+		}
+	default:
+		return &cmd.ConfigurationError{
+			Err: fmt.Errorf("unsupported output format %s", outType.String()),
+		}
 	}
-
-	return nil
 }
 
 func shouldUseColor(mode cmdcommon.ColorMode, out io.Writer) bool {

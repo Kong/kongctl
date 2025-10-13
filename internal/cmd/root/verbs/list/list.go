@@ -89,5 +89,11 @@ func NewListCmd() (*cobra.Command, error) {
 	}
 	cmd.AddCommand(gatewayCmd)
 
+	themesCmd, err := newThemesCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(themesCmd)
+
 	return cmd, nil
 }

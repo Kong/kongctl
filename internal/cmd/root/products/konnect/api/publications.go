@@ -8,8 +8,10 @@ import (
 	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
@@ -115,11 +117,14 @@ func (h apiPublicationsHandler) run(args []string) error {
 		return err
 	}
 
-	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
-	if err != nil {
-		return err
+	var printer cli.PrintFlusher
+	if outType != cmdCommon.INTERACTIVE {
+		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
+		}
+		defer printer.Flush()
 	}
-	defer printer.Flush()
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -170,17 +175,47 @@ func (h apiPublicationsHandler) run(args []string) error {
 		publications = filtered
 	}
 
-	if outType == cmdCommon.TEXT {
+	switch outType {
+	case cmdCommon.TEXT:
 		records := make([]apiPublicationRecord, 0, len(publications))
 		for _, publication := range publications {
 			records = append(records, publicationToRecord(publication))
 		}
 		printer.Print(records)
 		return nil
-	}
+	case cmdCommon.INTERACTIVE:
+		records := make([]apiPublicationRecord, 0, len(publications))
+		rows := make([]table.Row, 0, len(publications))
+		for _, publication := range publications {
+			record := publicationToRecord(publication)
+			records = append(records, record)
+			rows = append(rows, table.Row{util.AbbreviateUUID(record.PortalID), strings.ToUpper(record.Visibility)})
+		}
 
-	printer.Print(publications)
-	return nil
+		detailFn := func(index int) string {
+			if index < 0 || index >= len(publications) {
+				return ""
+			}
+			return publicationDetailView(&publications[index])
+		}
+
+		return tableview.RenderForFormat(
+			outType,
+			printer,
+			helper.GetStreams(),
+			records,
+			publications,
+			"",
+			tableview.WithCustomTable([]string{"PORTAL", "VISIBILITY"}, rows),
+			tableview.WithDetailRenderer(detailFn),
+			tableview.WithRootLabel(helper.GetCmd().Name()),
+		)
+	default:
+		if printer != nil {
+			printer.Print(publications)
+		}
+		return nil
+	}
 }
 
 func fetchPublications(
@@ -275,4 +310,30 @@ func publicationToRecord(publication kkComps.APIPublicationListItem) apiPublicat
 		LocalCreatedTime: publication.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
 		LocalUpdatedTime: publication.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
 	}
+}
+
+func publicationDetailView(publication *kkComps.APIPublicationListItem) string {
+	if publication == nil {
+		return ""
+	}
+
+	visibility := valueNA
+	if publication.GetVisibility() != nil {
+		visibility = string(*publication.GetVisibility())
+	}
+
+	authStrategies := valueNA
+	if ids := publication.GetAuthStrategyIds(); len(ids) > 0 {
+		authStrategies = strings.Join(ids, ", ")
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "API ID: %s\n", publication.GetAPIID())
+	fmt.Fprintf(&b, "Portal ID: %s\n", publication.GetPortalID())
+	fmt.Fprintf(&b, "Visibility: %s\n", visibility)
+	fmt.Fprintf(&b, "Auth Strategy IDs: %s\n", authStrategies)
+	fmt.Fprintf(&b, "Created: %s\n", publication.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(&b, "Updated: %s\n", publication.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
+
+	return b.String()
 }

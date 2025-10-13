@@ -8,8 +8,10 @@ import (
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
@@ -56,7 +58,7 @@ func portalToDisplayRecord(p *kkComps.Portal) textDisplayRecord {
 
 	var id, name string
 	if p.ID != "" {
-		id = p.ID
+		id = util.AbbreviateUUID(p.ID)
 	} else {
 		id = missing
 	}
@@ -93,7 +95,7 @@ func portalResponseToDisplayRecord(p *kkComps.PortalResponse) textDisplayRecord 
 
 	var id, name string
 	if p.ID != "" {
-		id = p.ID
+		id = util.AbbreviateUUID(p.ID)
 	} else {
 		id = missing
 	}
@@ -126,6 +128,45 @@ func portalResponseToDisplayRecord(p *kkComps.PortalResponse) textDisplayRecord 
 		LocalCreatedTime: createdAt,
 		LocalUpdatedTime: updatedAt,
 	}
+}
+
+func portalDetailView(p *kkComps.Portal) string {
+	if p == nil {
+		return ""
+	}
+
+	missing := "n/a"
+
+	name := p.Name
+	if name == "" {
+		name = missing
+	}
+
+	id := p.ID
+	if id == "" {
+		id = missing
+	}
+
+	description := missing
+	if p.Description != nil && *p.Description != "" {
+		description = *p.Description
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "Name: %s\n", name)
+	fmt.Fprintf(&b, "ID: %s\n", id)
+	fmt.Fprintf(&b, "Description: %s\n", description)
+
+	customDomain := missing
+	if p.CanonicalDomain != "" {
+		customDomain = p.CanonicalDomain
+	}
+	fmt.Fprintf(&b, "Canonical Domain: %s\n", customDomain)
+
+	fmt.Fprintf(&b, "Created: %s\n", p.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(&b, "Updated: %s\n", p.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
+
+	return b.String()
 }
 
 type getPortalCmd struct {
@@ -238,37 +279,38 @@ func (c *getPortalCmd) validate(helper cmd.Helper) error {
 }
 
 func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
-	var e error
 	helper := cmd.BuildHelper(cobraCmd, args)
-	if e = c.validate(helper); e != nil {
-		return e
+	if err := c.validate(helper); err != nil {
+		return err
 	}
 
-	logger, e := helper.GetLogger()
-	if e != nil {
-		return e
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return err
 	}
 
-	outType, e := helper.GetOutputFormat()
-	if e != nil {
-		return e
+	outType, err := helper.GetOutputFormat()
+	if err != nil {
+		return err
 	}
 
-	printer, e := cli.Format(outType.String(), helper.GetStreams().Out)
-	if e != nil {
-		return e
+	var printer cli.PrintFlusher
+	if outType != cmdCommon.INTERACTIVE {
+		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
+		}
+		defer printer.Flush()
 	}
 
-	defer printer.Flush()
-
-	cfg, e := helper.GetConfig()
-	if e != nil {
-		return e
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
 	}
 
-	sdk, e := helper.GetKonnectSDK(cfg, logger)
-	if e != nil {
-		return e
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return err
 	}
 
 	// 'get portals' can be run in various ways:
@@ -283,47 +325,67 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		if !isUUID {
 			// If the ID is not a UUID, then it is a name
 			// search for the portal by name
-			portal, e := runListByName(id, sdk.GetPortalAPI(), helper, cfg)
-			if e == nil {
-				if outType == cmdCommon.TEXT {
-					printer.Print(portalToDisplayRecord(portal))
-				} else {
-					printer.Print(portal)
-				}
-			} else {
-				return e
+			portal, err := runListByName(id, sdk.GetPortalAPI(), helper, cfg)
+			if err != nil {
+				return err
 			}
-		} else {
-			portalResponse, e := runGet(id, sdk.GetPortalAPI(), helper)
-			if e == nil {
-				if outType == cmdCommon.TEXT {
-					printer.Print(portalResponseToDisplayRecord(portalResponse))
-				} else {
-					printer.Print(portalResponse)
-				}
-			} else {
-				return e
-			}
+			return tableview.RenderForFormat(
+				outType,
+				printer,
+				helper.GetStreams(),
+				portalToDisplayRecord(portal),
+				portal,
+				"",
+				tableview.WithRootLabel(helper.GetCmd().Name()),
+			)
 		}
-	} else { // list all portals
-		var portals []kkComps.Portal
-		portals, e = runList(sdk.GetPortalAPI(), helper, cfg)
-		if e == nil {
-			if outType == cmdCommon.TEXT {
-				var displayRecords []textDisplayRecord
-				for _, portal := range portals {
-					displayRecords = append(displayRecords, portalToDisplayRecord(&portal))
-				}
-				printer.Print(displayRecords)
-			} else {
-				printer.Print(portals)
-			}
-		} else {
-			return e
+		portalResponse, err := runGet(id, sdk.GetPortalAPI(), helper)
+		if err != nil {
+			return err
 		}
+		return tableview.RenderForFormat(
+			outType,
+			printer,
+			helper.GetStreams(),
+			portalResponseToDisplayRecord(portalResponse),
+			portalResponse,
+			"",
+			tableview.WithRootLabel(helper.GetCmd().Name()),
+		)
 	}
 
-	return nil
+	portals, err := runList(sdk.GetPortalAPI(), helper, cfg)
+	if err != nil {
+		return err
+	}
+	displayRecords := make([]textDisplayRecord, 0, len(portals))
+	for i := range portals {
+		displayRecords = append(displayRecords, portalToDisplayRecord(&portals[i]))
+	}
+
+	tableRows := make([]table.Row, 0, len(displayRecords))
+	for _, record := range displayRecords {
+		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(portals) {
+			return ""
+		}
+		return portalDetailView(&portals[index])
+	}
+
+	return tableview.RenderForFormat(
+		outType,
+		printer,
+		helper.GetStreams(),
+		displayRecords,
+		portals,
+		"",
+		tableview.WithCustomTable([]string{"ID", "NAME"}, tableRows),
+		tableview.WithDetailRenderer(detailFn),
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+	)
 }
 
 func newGetPortalCmd(verb verbs.VerbValue,

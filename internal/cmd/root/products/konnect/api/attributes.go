@@ -6,8 +6,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -107,11 +109,14 @@ func (h apiAttributesHandler) run(args []string) error {
 		return err
 	}
 
-	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
-	if err != nil {
-		return err
+	var printer cli.PrintFlusher
+	if outType != cmdCommon.INTERACTIVE {
+		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
+		}
+		defer printer.Flush()
 	}
-	defer printer.Flush()
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -170,13 +175,15 @@ func (h apiAttributesHandler) run(args []string) error {
 		normalized = map[string][]string{key: values}
 	}
 
-	if outType == cmdCommon.TEXT {
-		records := make([]apiAttributeRecord, 0, len(normalized))
-		keys := make([]string, 0, len(normalized))
-		for key := range normalized {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
+	keys := make([]string, 0, len(normalized))
+	for key := range normalized {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	switch outType {
+	case cmdCommon.TEXT:
+		records := make([]apiAttributeRecord, 0, len(keys))
 		for _, key := range keys {
 			values := append([]string(nil), normalized[key]...)
 			sort.Strings(values)
@@ -189,10 +196,49 @@ func (h apiAttributesHandler) run(args []string) error {
 		}
 		printer.Print(records)
 		return nil
-	}
+	case cmdCommon.INTERACTIVE:
+		records := make([]apiAttributeRecord, 0, len(keys))
+		rows := make([]table.Row, 0, len(keys))
+		for _, key := range keys {
+			values := append([]string(nil), normalized[key]...)
+			sort.Strings(values)
+			record := apiAttributeRecord{
+				Key:        key,
+				Values:     strings.Join(values, ", "),
+				ValueCount: len(values),
+			}
+			records = append(records, record)
+			rows = append(rows, table.Row{key, fmt.Sprintf("%d", record.ValueCount)})
+		}
 
-	printer.Print(normalized)
-	return nil
+		valueLookup := normalized
+		detailFn := func(index int) string {
+			if index < 0 || index >= len(keys) {
+				return ""
+			}
+			key := keys[index]
+			values := append([]string(nil), valueLookup[key]...)
+			sort.Strings(values)
+			return attributeDetailView(key, values)
+		}
+
+		return tableview.RenderForFormat(
+			outType,
+			printer,
+			helper.GetStreams(),
+			records,
+			normalized,
+			"",
+			tableview.WithCustomTable([]string{"KEY", "VALUE COUNT"}, rows),
+			tableview.WithDetailRenderer(detailFn),
+			tableview.WithRootLabel(helper.GetCmd().Name()),
+		)
+	default:
+		if printer != nil {
+			printer.Print(normalized)
+		}
+		return nil
+	}
 }
 
 func normalizeAttributes(attributes any) (map[string][]string, error) {
@@ -238,6 +284,21 @@ func normalizeAttributes(attributes any) (map[string][]string, error) {
 	}
 
 	return result, nil
+}
+
+func attributeDetailView(key string, values []string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Key: %s\n", key)
+	fmt.Fprintf(&b, "Value Count: %d\n", len(values))
+
+	if len(values) > 0 {
+		fmt.Fprintf(&b, "\nValues:\n")
+		for _, v := range values {
+			fmt.Fprintf(&b, "  - %s\n", v)
+		}
+	}
+
+	return b.String()
 }
 
 func coerceToStrings(value any) []string {

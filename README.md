@@ -108,12 +108,30 @@ in the command help text with a "Config path" note that looks like this:
 ```text
 -o, --output string        Configures the format of data written to STDOUT.
                              - Config path: [ output ]
-                             - Allowed    : [ json|yaml|text ] (default "text")
+                             - Allowed    : [ json|yaml|text|interactive ] (default "text")
 ```
 
 The above help text shows a YAML key path for the `--output` flag which controls the format of output text
 from the CLI. The config path is the location in the configuration file where a flag value can be defaulted. 
 In this case it specifies that output formats can be set in the configuration file under an `output` key. 
+
+### Color Themes
+
+Interactive experiences—such as `kongctl kai` or `--output interactive` views—share a configurable Bubble Tea
+color theme. Use the `--color-theme` flag (or set the `color-theme` key in your configuration file) to select a
+palette. The default `kong` theme mirrors the existing brand styling, and you can switch to any
+[`bubbletint`](https://github.com/lrstanley/bubbletint) theme by ID, for example:
+
+```yaml
+default:
+  color-theme: tokyo_night
+```
+
+```shell
+kongctl get apis --output interactive --color-theme tokyo_night
+```
+
+Themes adapt automatically to light and dark terminals and honor the global `--color` mode.
 
 It's called a config _path_ because the key may be nested. For example this `--control-plane-flag` has this 
 nested path:

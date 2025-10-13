@@ -7,8 +7,10 @@ import (
 	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
@@ -131,11 +133,14 @@ func (h portalSnippetsHandler) run(args []string) error {
 		return err
 	}
 
-	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
-	if err != nil {
-		return err
+	var printer cli.PrintFlusher
+	if outType != cmdCommon.INTERACTIVE {
+		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
+		}
+		defer printer.Flush()
 	}
-	defer printer.Flush()
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -186,7 +191,7 @@ func (h portalSnippetsHandler) listSnippets(
 	snippetAPI helpers.PortalSnippetAPI,
 	portalID string,
 	outType cmdCommon.OutputFormat,
-	printer cli.Printer,
+	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
 	snippets, err := fetchPortalSnippetSummaries(helper, snippetAPI, portalID, cfg)
@@ -194,17 +199,34 @@ func (h portalSnippetsHandler) listSnippets(
 		return err
 	}
 
-	if outType == cmdCommon.TEXT {
-		records := make([]portalSnippetSummaryRecord, 0, len(snippets))
-		for _, snippet := range snippets {
-			records = append(records, portalSnippetSummaryToRecord(snippet))
-		}
-		printer.Print(records)
-		return nil
+	records := make([]portalSnippetSummaryRecord, 0, len(snippets))
+	for _, snippet := range snippets {
+		records = append(records, portalSnippetSummaryToRecord(snippet))
 	}
 
-	printer.Print(snippets)
-	return nil
+	tableRows := make([]table.Row, 0, len(records))
+	for _, record := range records {
+		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(snippets) {
+			return ""
+		}
+		return portalSnippetDetailViewFromSummary(snippets[index])
+	}
+
+	return tableview.RenderForFormat(
+		outType,
+		printer,
+		helper.GetStreams(),
+		records,
+		snippets,
+		"",
+		tableview.WithCustomTable([]string{"ID", "NAME"}, tableRows),
+		tableview.WithDetailRenderer(detailFn),
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+	)
 }
 
 func (h portalSnippetsHandler) getSingleSnippet(
@@ -213,7 +235,7 @@ func (h portalSnippetsHandler) getSingleSnippet(
 	portalID string,
 	identifier string,
 	outType cmdCommon.OutputFormat,
-	printer cli.Printer,
+	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
 	snippetID := identifier
@@ -245,13 +267,15 @@ func (h portalSnippetsHandler) getSingleSnippet(
 		}
 	}
 
-	if outType == cmdCommon.TEXT {
-		printer.Print(portalSnippetDetailToRecord(snippet))
-		return nil
-	}
-
-	printer.Print(snippet)
-	return nil
+	return tableview.RenderForFormat(
+		outType,
+		printer,
+		helper.GetStreams(),
+		portalSnippetDetailToRecord(snippet),
+		snippet,
+		"",
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+	)
 }
 
 func fetchPortalSnippetSummaries(
@@ -312,7 +336,7 @@ func findSnippetByNameOrTitle(snippets []kkComps.PortalSnippetInfo, identifier s
 
 func portalSnippetSummaryToRecord(snippet kkComps.PortalSnippetInfo) portalSnippetSummaryRecord {
 	return portalSnippetSummaryRecord{
-		ID:               snippet.GetID(),
+		ID:               util.AbbreviateUUID(snippet.GetID()),
 		Name:             snippet.GetName(),
 		Title:            snippet.GetTitle(),
 		Visibility:       string(snippet.GetVisibility()),
@@ -325,7 +349,7 @@ func portalSnippetSummaryToRecord(snippet kkComps.PortalSnippetInfo) portalSnipp
 
 func portalSnippetDetailToRecord(snippet *kkComps.PortalSnippetResponse) portalSnippetDetailRecord {
 	return portalSnippetDetailRecord{
-		ID:               snippet.GetID(),
+		ID:               util.AbbreviateUUID(snippet.GetID()),
 		Name:             snippet.GetName(),
 		Title:            optionalString(snippet.GetTitle()),
 		Visibility:       string(snippet.GetVisibility()),
@@ -352,4 +376,23 @@ func optionalString(s *string) string {
 		return valueNA
 	}
 	return *s
+}
+
+func portalSnippetDetailViewFromSummary(snippet kkComps.PortalSnippetInfo) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "Name: %s\n", snippet.GetName())
+	fmt.Fprintf(&b, "ID: %s\n", snippet.GetID())
+	title := snippet.GetTitle()
+	if strings.TrimSpace(title) == "" {
+		title = valueNA
+	}
+	fmt.Fprintf(&b, "Title: %s\n", title)
+	fmt.Fprintf(&b, "Visibility: %s\n", string(snippet.GetVisibility()))
+	fmt.Fprintf(&b, "Status: %s\n", string(snippet.GetStatus()))
+	fmt.Fprintf(&b, "Description: %s\n", formatOptionalString(snippet.GetDescription()))
+	fmt.Fprintf(&b, "Created: %s\n", formatTime(snippet.GetCreatedAt()))
+	fmt.Fprintf(&b, "Updated: %s\n", formatTime(snippet.GetUpdatedAt()))
+
+	return b.String()
 }
