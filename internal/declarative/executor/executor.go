@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"sort"
 	"strings"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/log"
+	"github.com/kong/kongctl/internal/util/normalizers"
 )
 
 // Executor handles the execution of declarative configuration plans
@@ -609,7 +609,7 @@ func (e *Executor) syncControlPlaneGroupMembers(
 		}
 	}
 
-	normalized := normalizeMembershipIDs(resolved)
+	normalized := normalizers.NormalizeMemberIDs(resolved)
 	if e.dryRun {
 		return nil
 	}
@@ -704,28 +704,6 @@ func extractMemberIDsFromField(field any) ([]string, error) {
 	default:
 		return nil, nil
 	}
-}
-
-func normalizeMembershipIDs(ids []string) []string {
-	if len(ids) == 0 {
-		return []string{}
-	}
-
-	seen := make(map[string]struct{}, len(ids))
-	unique := make([]string, 0, len(ids))
-	for _, id := range ids {
-		if id == "" {
-			continue
-		}
-		if _, exists := seen[id]; exists {
-			continue
-		}
-		seen[id] = struct{}{}
-		unique = append(unique, id)
-	}
-
-	sort.Strings(unique)
-	return unique
 }
 
 // resolveAPIRef resolves an API reference to its ID

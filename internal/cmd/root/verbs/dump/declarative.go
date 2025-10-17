@@ -3,7 +3,6 @@ package dump
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"reflect"
 	"sort"
 	"strings"
@@ -20,6 +19,7 @@ import (
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/kong/kongctl/internal/util/pagination"
 	"sigs.k8s.io/yaml"
 )
 
@@ -564,7 +564,7 @@ func collectDeclarativeControlPlanes(
 				if err != nil {
 					return false, fmt.Errorf("failed to list group memberships for control plane %s: %w", cp.Name, err)
 				}
-				memberIDs = normalizeMemberIDList(ids)
+				memberIDs = normalizers.NormalizeMemberIDs(ids)
 			}
 
 			mapped := mapControlPlaneToDeclarativeResource(cp, memberIDs)
@@ -686,7 +686,7 @@ func fetchControlPlaneGroupMembers(
 			}
 		}
 
-		nextCursor := extractGroupMembershipCursor(resp.GetListGroupMemberships().GetMeta().Page.Next)
+		nextCursor := pagination.ExtractPageAfterCursor(resp.GetListGroupMemberships().GetMeta().Page.Next)
 		if nextCursor == "" {
 			break
 		}
@@ -694,55 +694,6 @@ func fetchControlPlaneGroupMembers(
 	}
 
 	return members, nil
-}
-
-func extractGroupMembershipCursor(next *string) string {
-	if next == nil {
-		return ""
-	}
-
-	value := strings.TrimSpace(*next)
-	if value == "" {
-		return ""
-	}
-
-	if parsed, err := url.Parse(value); err == nil {
-		if cursor := parsed.Query().Get("page[after]"); cursor != "" {
-			return cursor
-		}
-	}
-
-	if idx := strings.Index(value, "page[after]="); idx >= 0 {
-		cursor := value[idx+len("page[after]="):]
-		if end := strings.Index(cursor, "&"); end >= 0 {
-			cursor = cursor[:end]
-		}
-		return cursor
-	}
-
-	return ""
-}
-
-func normalizeMemberIDList(ids []string) []string {
-	if len(ids) == 0 {
-		return []string{}
-	}
-
-	seen := make(map[string]struct{}, len(ids))
-	normalized := make([]string, 0, len(ids))
-	for _, id := range ids {
-		if id == "" {
-			continue
-		}
-		if _, exists := seen[id]; exists {
-			continue
-		}
-		seen[id] = struct{}{}
-		normalized = append(normalized, id)
-	}
-
-	sort.Strings(normalized)
-	return normalized
 }
 
 func stringPointer(s string) *string {

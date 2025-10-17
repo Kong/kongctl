@@ -3,13 +3,13 @@ package planner
 import (
 	"context"
 	"fmt"
-	"sort"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
+	"github.com/kong/kongctl/internal/util/normalizers"
 )
 
 // controlPlanePlannerImpl implements planning logic for control plane resources
@@ -47,7 +47,7 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 			if err != nil {
 				return fmt.Errorf("failed to list control plane group memberships for %s: %w", cp.Name, err)
 			}
-			cp.GroupMembers = normalizeMemberIDs(memberIDs)
+			cp.GroupMembers = normalizers.NormalizeMemberIDs(memberIDs)
 		}
 		currentByName[cp.Name] = cp
 	}
@@ -127,7 +127,7 @@ func (p *controlPlanePlannerImpl) planControlPlaneCreate(
 	plan *Plan,
 ) {
 	fields := extractControlPlaneFields(desired)
-	memberIDs := normalizeMemberIDs(desired.MemberIDs())
+	memberIDs := normalizers.NormalizeMemberIDs(desired.MemberIDs())
 
 	namespace := resources.GetNamespace(desired.Kongctl)
 	config := CreateConfig{
@@ -391,7 +391,7 @@ func (p *controlPlanePlannerImpl) shouldUpdateControlPlane(
 
 	if desired.IsGroup() {
 		desiredMembers := p.resolveDesiredGroupMemberIDs(desired)
-		currentMembers := normalizeMemberIDs(current.GroupMembers)
+		currentMembers := normalizers.NormalizeMemberIDs(current.GroupMembers)
 		if !equalStringSlices(currentMembers, desiredMembers) {
 			updates["members"] = desiredMembers
 		}
@@ -429,7 +429,7 @@ func extractControlPlaneFields(cp resources.ControlPlaneResource) map[string]any
 	}
 
 	if cp.IsGroup() {
-		members := normalizeMemberIDs(cp.MemberIDs())
+		members := normalizers.NormalizeMemberIDs(cp.MemberIDs())
 		fields["members"] = formatMemberField(members)
 	}
 
@@ -457,28 +457,6 @@ func isProtected(cp resources.ControlPlaneResource) bool {
 		return *cp.Kongctl.Protected
 	}
 	return false
-}
-
-func normalizeMemberIDs(ids []string) []string {
-	if len(ids) == 0 {
-		return []string{}
-	}
-
-	seen := make(map[string]struct{}, len(ids))
-	normalized := make([]string, 0, len(ids))
-	for _, id := range ids {
-		if id == "" {
-			continue
-		}
-		if _, exists := seen[id]; exists {
-			continue
-		}
-		seen[id] = struct{}{}
-		normalized = append(normalized, id)
-	}
-
-	sort.Strings(normalized)
-	return normalized
 }
 
 func formatMemberField(ids []string) []map[string]string {
@@ -562,5 +540,5 @@ func (p *controlPlanePlannerImpl) resolveDesiredGroupMemberIDs(desired resources
 		resolved = append(resolved, memberID)
 	}
 
-	return normalizeMemberIDs(resolved)
+	return normalizers.NormalizeMemberIDs(resolved)
 }

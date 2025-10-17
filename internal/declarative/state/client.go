@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -13,6 +12,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
+	"github.com/kong/kongctl/internal/util/pagination"
 )
 
 // ClientConfig contains all the API interfaces needed by the state client
@@ -575,7 +575,7 @@ func (c *Client) ListControlPlaneGroupMemberships(ctx context.Context, groupID s
 		}
 
 		meta := resp.GetListGroupMemberships().GetMeta()
-		nextCursor := extractMembershipPageAfter(meta.Page.Next)
+		nextCursor := pagination.ExtractPageAfterCursor(meta.Page.Next)
 		if nextCursor == "" {
 			break
 		}
@@ -612,36 +612,6 @@ func (c *Client) UpsertControlPlaneGroupMemberships(ctx context.Context, groupID
 	}
 
 	return nil
-}
-
-func extractMembershipPageAfter(next *string) string {
-	if next == nil {
-		return ""
-	}
-
-	value := strings.TrimSpace(*next)
-	if value == "" {
-		return ""
-	}
-
-	if parsed, err := url.Parse(value); err == nil {
-		if cursor := parsed.Query().Get("page[after]"); cursor != "" {
-			return cursor
-		}
-		if cursor := parsed.Query().Get("page%5Bafter%5D"); cursor != "" {
-			return cursor
-		}
-	}
-
-	if idx := strings.Index(value, "page[after]="); idx >= 0 {
-		cursor := value[idx+len("page[after]="):]
-		if end := strings.Index(cursor, "&"); end >= 0 {
-			cursor = cursor[:end]
-		}
-		return cursor
-	}
-
-	return ""
 }
 
 // ListGatewayServices returns all gateway services for the provided control plane.
