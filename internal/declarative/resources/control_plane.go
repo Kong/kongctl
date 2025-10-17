@@ -3,17 +3,24 @@ package resources
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+// ControlPlaneGroupMember represents a member entry for a control plane group.
+type ControlPlaneGroupMember struct {
+	ID string `yaml:"id" json:"id"`
+}
+
 // ControlPlaneResource represents a control plane in declarative configuration
 type ControlPlaneResource struct {
 	kkComps.CreateControlPlaneRequest `                         yaml:",inline"                    json:",inline"`
-	Ref                               string                   `yaml:"ref"                        json:"ref"`
-	Kongctl                           *KongctlMeta             `yaml:"kongctl,omitempty"          json:"kongctl,omitempty"`
-	External                          *ExternalBlock           `yaml:"_external,omitempty"        json:"_external,omitempty"`        //nolint:lll
-	GatewayServices                   []GatewayServiceResource `yaml:"gateway_services,omitempty" json:"gateway_services,omitempty"` //nolint:lll
+	Ref                               string                    `yaml:"ref"                        json:"ref"`
+	Kongctl                           *KongctlMeta              `yaml:"kongctl,omitempty"          json:"kongctl,omitempty"`
+	External                          *ExternalBlock            `yaml:"_external,omitempty"        json:"_external,omitempty"`        //nolint:lll
+	GatewayServices                   []GatewayServiceResource  `yaml:"gateway_services,omitempty" json:"gateway_services,omitempty"` //nolint:lll
+	Members                           []ControlPlaneGroupMember `yaml:"members,omitempty"          json:"members,omitempty"`
 
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
@@ -33,6 +40,27 @@ func (c ControlPlaneResource) GetReferenceFieldMappings() map[string]string {
 func (c ControlPlaneResource) Validate() error {
 	if err := ValidateRef(c.Ref); err != nil {
 		return fmt.Errorf("invalid control plane ref: %w", err)
+	}
+
+	if len(c.GatewayServices) > 0 && c.IsGroup() {
+		return fmt.Errorf("control plane group %q cannot define gateway_services", c.Ref)
+	}
+
+	if len(c.Members) > 0 && !c.IsGroup() {
+		return fmt.Errorf("control plane %q: members are only supported when cluster_type is %q",
+			c.Ref, kkComps.CreateControlPlaneRequestClusterTypeClusterTypeControlPlaneGroup)
+	}
+
+	seenMemberIDs := make(map[string]struct{})
+	for idx, member := range c.Members {
+		memberID := strings.TrimSpace(member.ID)
+		if memberID == "" {
+			return fmt.Errorf("control plane group %q member at index %d: id cannot be empty", c.Ref, idx)
+		}
+		if _, exists := seenMemberIDs[memberID]; exists {
+			return fmt.Errorf("control plane group %q contains duplicate member id %q", c.Ref, memberID)
+		}
+		seenMemberIDs[memberID] = struct{}{}
 	}
 
 	if c.External != nil {
@@ -139,4 +167,28 @@ func (c *ControlPlaneResource) TryMatchKonnectResource(konnectResource any) bool
 // IsExternal returns true if this control plane is externally managed
 func (c *ControlPlaneResource) IsExternal() bool {
 	return c.External != nil && c.External.IsExternal()
+}
+
+// IsGroup returns true when the control plane represents a control plane group.
+func (c *ControlPlaneResource) IsGroup() bool {
+	if c == nil || c.ClusterType == nil {
+		return false
+	}
+	return *c.ClusterType == kkComps.CreateControlPlaneRequestClusterTypeClusterTypeControlPlaneGroup
+}
+
+// MemberIDs returns the list of member IDs declared for a control plane group.
+func (c *ControlPlaneResource) MemberIDs() []string {
+	if c == nil || len(c.Members) == 0 {
+		return nil
+	}
+
+	memberIDs := make([]string, 0, len(c.Members))
+	for _, member := range c.Members {
+		if member.ID == "" {
+			continue
+		}
+		memberIDs = append(memberIDs, member.ID)
+	}
+	return memberIDs
 }

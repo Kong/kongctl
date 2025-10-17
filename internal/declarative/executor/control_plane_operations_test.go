@@ -115,3 +115,58 @@ func TestControlPlaneAdapter_CreateUpdateDelete(t *testing.T) {
 
 	require.NoError(t, adapter.Delete(testContextWithLogger(), "cp-1", nil))
 }
+
+func TestExecutorSyncControlPlaneGroupMembersOnCreate(t *testing.T) {
+	ctx := testContextWithLogger()
+	mockCPAPI := helpers.NewMockControlPlaneAPI(t)
+	mockGroupsAPI := &helpers.MockControlPlaneGroupsAPI{}
+
+	mockCPAPI.EXPECT().
+		CreateControlPlane(mock.Anything, mock.Anything).
+		Return(&kkOps.CreateControlPlaneResponse{ControlPlane: &kkComps.ControlPlane{ID: "group-id"}}, nil).
+		Once()
+
+	mockGroupsAPI.On(
+		"PutControlPlanesIDGroupMemberships",
+		mock.Anything,
+		"group-id",
+		mock.MatchedBy(func(req *kkComps.GroupMembership) bool {
+			require.NotNil(t, req)
+			require.Len(t, req.Members, 1)
+			assert.Equal(t, "child-id", req.Members[0].ID)
+			return true
+		}),
+	).Return(&kkOps.PutControlPlanesIDGroupMembershipsResponse{}, nil).Once()
+
+	client := state.NewClient(state.ClientConfig{
+		ControlPlaneAPI:       mockCPAPI,
+		ControlPlaneGroupsAPI: mockGroupsAPI,
+	})
+
+	exec := New(client, nil, false)
+	exec.refToID["control_plane"] = map[string]string{
+		"child-cp": "child-id",
+	}
+
+	change := &planner.PlannedChange{
+		ResourceType: "control_plane",
+		Fields: map[string]any{
+			"name":    "group-cp",
+			"members": []map[string]string{{"id": "__REF__:child-cp#id"}},
+		},
+		References: map[string]planner.ReferenceInfo{
+			"members": {
+				Refs:    []string{"__REF__:child-cp#id"},
+				IsArray: true,
+				LookupArrays: map[string][]string{
+					"names": {"child-cp"},
+				},
+			},
+		},
+	}
+
+	id, err := exec.createResource(ctx, change)
+	require.NoError(t, err)
+	assert.Equal(t, "group-id", id)
+	mockGroupsAPI.AssertExpectations(t)
+}

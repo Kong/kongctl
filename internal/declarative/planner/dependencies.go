@@ -3,6 +3,8 @@ package planner
 import (
 	"fmt"
 	"strings"
+
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 // DependencyResolver calculates execution order for plan changes
@@ -103,6 +105,24 @@ func (d *DependencyResolver) findImplicitDependencies(change PlannedChange, allC
 
 	// Check references field
 	for _, refInfo := range change.References {
+		if refInfo.IsArray {
+			for _, ref := range refInfo.Refs {
+				if !tags.IsRefPlaceholder(ref) {
+					continue
+				}
+				parsedRef, _, ok := tags.ParseRefPlaceholder(ref)
+				if !ok {
+					continue
+				}
+				for _, other := range allChanges {
+					if other.ResourceRef == parsedRef && other.Action == ActionCreate {
+						dependencies = append(dependencies, other.ID)
+						break
+					}
+				}
+			}
+			continue
+		}
 		if refInfo.ID == "[unknown]" {
 			// Find the change that creates this resource
 			for _, other := range allChanges {

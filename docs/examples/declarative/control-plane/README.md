@@ -11,6 +11,7 @@ metadata and configuration details.
   - `cluster_type` and `auth_type` fields for runtime configuration
   - optional `proxy_urls` entries that describe data plane endpoints
   - use of `kongctl` metadata for namespaces and protection settings
+- `control-plane-group.yaml` – defines a control plane group and links member runtimes using the `members` list.
 
 ## Usage
 
@@ -30,4 +31,10 @@ Run in sync mode to delete unmanaged control planes in the namespace (use with c
 
 ```bash
 kongctl sync -f control-plane.yaml
+```
+
+Apply the control plane group example:
+
+```bash
+kongctl apply -f control-plane-group.yaml
 ```
