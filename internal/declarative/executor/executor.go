@@ -565,7 +565,11 @@ func (e *Executor) resolveControlPlaneRef(ctx context.Context, refInfo planner.R
 	return cp.ID, nil
 }
 
-func (e *Executor) syncControlPlaneGroupMembers(ctx context.Context, change *planner.PlannedChange, controlPlaneID string) error {
+func (e *Executor) syncControlPlaneGroupMembers(
+	ctx context.Context,
+	change *planner.PlannedChange,
+	controlPlaneID string,
+) error {
 	field, ok := change.Fields["members"]
 	if !ok {
 		return nil
@@ -613,7 +617,12 @@ func (e *Executor) syncControlPlaneGroupMembers(ctx context.Context, change *pla
 	return e.client.UpsertControlPlaneGroupMemberships(ctx, controlPlaneID, normalized)
 }
 
-func (e *Executor) resolveMemberReference(ctx context.Context, placeholder string, refInfo planner.ReferenceInfo, index int) (string, error) {
+func (e *Executor) resolveMemberReference(
+	ctx context.Context,
+	placeholder string,
+	refInfo planner.ReferenceInfo,
+	index int,
+) (string, error) {
 	targetIndex := -1
 	if index < len(refInfo.Refs) && refInfo.Refs[index] == placeholder {
 		targetIndex = index

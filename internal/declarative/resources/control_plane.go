@@ -17,10 +17,10 @@ type ControlPlaneGroupMember struct {
 type ControlPlaneResource struct {
 	kkComps.CreateControlPlaneRequest `                         yaml:",inline"                    json:",inline"`
 	Ref                               string                    `yaml:"ref"                        json:"ref"`
-	Kongctl                           *KongctlMeta              `yaml:"kongctl,omitempty"          json:"kongctl,omitempty"`
-	External                          *ExternalBlock            `yaml:"_external,omitempty"        json:"_external,omitempty"`        //nolint:lll
+	Kongctl                           *KongctlMeta              `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`                   //nolint:lll
+	External                          *ExternalBlock            `yaml:"_external,omitempty" json:"_external,omitempty"`               //nolint:lll
 	GatewayServices                   []GatewayServiceResource  `yaml:"gateway_services,omitempty" json:"gateway_services,omitempty"` //nolint:lll
-	Members                           []ControlPlaneGroupMember `yaml:"members,omitempty"          json:"members,omitempty"`
+	Members                           []ControlPlaneGroupMember `yaml:"members,omitempty" json:"members,omitempty"`                   //nolint:lll
 
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`

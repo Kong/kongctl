@@ -589,7 +589,10 @@ func collectDeclarativeControlPlanes(
 	return results, nil
 }
 
-func mapControlPlaneToDeclarativeResource(cp kkComps.ControlPlane, memberIDs []string) declresources.ControlPlaneResource {
+func mapControlPlaneToDeclarativeResource(
+	cp kkComps.ControlPlane,
+	memberIDs []string,
+) declresources.ControlPlaneResource {
 	mapped := declresources.ControlPlaneResource{
 		CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
 			Name:        cp.Name,
