@@ -6,6 +6,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"sort"
 	"strings"
 	"unicode"
 
@@ -872,6 +873,73 @@ func buildDetailTable(items []detailItem, width, height int, palette theme.Palet
 	return tbl
 }
 
+func buildChildTable(state *childViewState, width, height int, palette theme.Palette) table.Model {
+	if state == nil {
+		return table.New()
+	}
+
+	headers := append([]string(nil), state.headers...)
+	if len(headers) == 0 {
+		headers = []string{""}
+	}
+
+	rows := make([]table.Row, len(state.rows))
+	for i, row := range state.rows {
+		rows[i] = append(table.Row(nil), row...)
+	}
+
+	matrix := rowsToMatrix(rows)
+	colWidths, minWidths := calculateColumnWidths(headers, matrix, width)
+
+	columns := make([]table.Column, len(headers))
+	for i, header := range headers {
+		columns[i] = table.Column{
+			Title: header,
+			Width: colWidths[i],
+		}
+	}
+
+	styles := table.DefaultStyles()
+	styles.Header = styles.Header.
+		Foreground(palette.Adaptive(theme.ColorTextPrimary)).
+		Background(palette.Adaptive(theme.ColorSurface))
+	styles.Cell = styles.Cell.
+		Foreground(palette.Adaptive(theme.ColorTextPrimary))
+	styles.Selected = styles.Selected.
+		Foreground(palette.Adaptive(theme.ColorAccentText)).
+		Background(palette.Adaptive(theme.ColorAccent))
+
+	tbl := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithStyles(styles),
+	)
+
+	paddingWidth := max(
+		lipgloss.Width(styles.Header.Render("")),
+		lipgloss.Width(styles.Cell.Render("")),
+	)
+
+	totalWidth := sum(colWidths) + paddingWidth*len(colWidths)
+	minTotalWidth := sum(minWidths) + paddingWidth*len(minWidths)
+	if width > 0 && totalWidth > width {
+		if minTotalWidth > width {
+			totalWidth = minTotalWidth
+		} else {
+			totalWidth = width
+		}
+	}
+	if totalWidth > 0 {
+		tbl.SetWidth(totalWidth)
+	}
+
+	setTableHeight(&tbl, len(rows), height, true, 0)
+	tbl.Focus()
+
+	return tbl
+}
+
 func quoteBreadcrumbSegment(segment string) string {
 	trimmed := strings.TrimSpace(segment)
 	if trimmed == "" {
@@ -1018,10 +1086,128 @@ func RenderForFormat(
 }
 
 type detailView struct {
-	table  *table.Model
-	items  []detailItem
-	label  string
-	parent any
+	table      *table.Model
+	items      []detailItem
+	label      string
+	parent     any
+	parentType string
+	title      string
+	child      *childViewState
+}
+
+type childViewState struct {
+	headers        []string
+	rows           []table.Row
+	detailRenderer DetailRenderer
+	context        DetailContextProvider
+	parentType     string
+	title          string
+	headerLookup   map[string]int
+}
+
+func newChildViewState(view ChildView) childViewState {
+	rows := make([]table.Row, len(view.Rows))
+	for i, row := range view.Rows {
+		rows[i] = append(table.Row(nil), row...)
+	}
+
+	return childViewState{
+		headers:        append([]string(nil), view.Headers...),
+		rows:           rows,
+		detailRenderer: view.DetailRenderer,
+		context:        view.DetailContext,
+		parentType:     strings.ToLower(strings.TrimSpace(view.ParentType)),
+		title:          strings.TrimSpace(view.Title),
+		headerLookup:   buildHeaderLookup(view.Headers),
+	}
+}
+
+func (c *childViewState) valueForHeader(row table.Row, header string) string {
+	if c == nil || len(row) == 0 {
+		return ""
+	}
+
+	key := normalizeHeaderKey(header)
+	idx, ok := c.headerLookup[key]
+	if !ok {
+		return ""
+	}
+	if idx < 0 || idx >= len(row) {
+		return ""
+	}
+	return strings.TrimSpace(row[idx])
+}
+
+func (c *childViewState) preferredColumnValue(row table.Row) string {
+	if c == nil {
+		return ""
+	}
+
+	priorities := [][]string{
+		{"name"},
+		{"title"},
+		{"display name"},
+		{"slug"},
+	}
+
+	for _, keys := range priorities {
+		for _, key := range keys {
+			if val := c.valueForHeader(row, key); val != "" {
+				return val
+			}
+		}
+	}
+
+	for key, colIdx := range c.headerLookup {
+		if strings.Contains(key, "name") {
+			if colIdx < len(row) {
+				if val := strings.TrimSpace(row[colIdx]); val != "" {
+					return val
+				}
+			}
+		}
+	}
+
+	idCandidates := []string{
+		"id",
+		"uuid",
+		"uid",
+		"identifier",
+	}
+
+	for _, key := range idCandidates {
+		if val := c.valueForHeader(row, key); val != "" {
+			return abbreviateValue(val, 12)
+		}
+	}
+
+	return ""
+}
+
+func (c *childViewState) labelForIndex(index int) string {
+	if c == nil {
+		return ""
+	}
+	if index < 0 || index >= len(c.rows) {
+		return fmt.Sprintf("Item %d", index+1)
+	}
+
+	row := c.rows[index]
+	if len(row) == 0 {
+		return fmt.Sprintf("Item %d", index+1)
+	}
+
+	if val := c.preferredColumnValue(row); val != "" {
+		return val
+	}
+
+	for _, cell := range row {
+		if trimmed := strings.TrimSpace(cell); trimmed != "" {
+			return trimmed
+		}
+	}
+
+	return fmt.Sprintf("Item %d", index+1)
 }
 
 type bubbleModel struct {
@@ -1132,6 +1318,7 @@ func (m *bubbleModel) openDetailView() bool {
 	width := m.detailViewportWidth()
 	height := m.detailViewportHeight()
 	label := m.labelForIndex(index)
+	parentType := m.parentType
 
 	var parent any
 	if m.detailContext != nil {
@@ -1139,14 +1326,14 @@ func (m *bubbleModel) openDetailView() bool {
 	}
 
 	for i := range items {
-		if loader := m.childLoaderFor(items[i].Label); loader != nil {
+		if loader := getChildLoader(parentType, items[i].Label); loader != nil {
 			items[i].Loader = loader
 			items[i].Value = "..."
 		}
 	}
 
-	if m.parentType != "" {
-		for _, reg := range childLoaderFields(m.parentType) {
+	if parentType != "" {
+		for _, reg := range childLoaderFields(parentType) {
 			if reg.loader == nil {
 				continue
 			}
@@ -1160,12 +1347,16 @@ func (m *bubbleModel) openDetailView() bool {
 		}
 	}
 
+	items = reorderDetailItems(items)
+
 	tableModel := buildDetailTable(items, width, height, m.palette)
 	m.detailStack = append(m.detailStack, detailView{
-		table:  &tableModel,
-		items:  items,
-		label:  label,
-		parent: parent,
+		table:      &tableModel,
+		items:      items,
+		label:      label,
+		parent:     parent,
+		parentType: parentType,
+		title:      label,
 	})
 	if label != "" {
 		m.breadcrumbs = append(m.breadcrumbs, label)
@@ -1196,19 +1387,20 @@ func (m *bubbleModel) resizeDetailViews() {
 		if detail.table != nil {
 			cursor = detail.table.Cursor()
 		}
+		if detail.child != nil {
+			newTable := buildChildTable(detail.child, width, height, m.palette)
+			if cursor > 0 && cursor < len(detail.child.rows) {
+				newTable.SetCursor(cursor)
+			}
+			detail.table = &newTable
+			continue
+		}
 		newTable := buildDetailTable(detail.items, width, height, m.palette)
 		if cursor > 0 && cursor < len(detail.items) {
 			newTable.SetCursor(cursor)
 		}
 		detail.table = &newTable
 	}
-}
-
-func (m *bubbleModel) childLoaderFor(field string) ChildLoader {
-	if m.parentType == "" {
-		return nil
-	}
-	return getChildLoader(m.parentType, field)
 }
 
 func detailItemsContain(items []detailItem, label string) bool {
@@ -1221,23 +1413,189 @@ func detailItemsContain(items []detailItem, label string) bool {
 	return false
 }
 
+func reorderDetailItems(items []detailItem) []detailItem {
+	if len(items) == 0 {
+		return items
+	}
+
+	var ids, names, others []detailItem
+	for _, item := range items {
+		switch normalizeHeaderKey(item.Label) {
+		case "id":
+			ids = append(ids, item)
+		case "name":
+			names = append(names, item)
+		default:
+			others = append(others, item)
+		}
+	}
+
+	sort.SliceStable(others, func(i, j int) bool {
+		keyI := normalizeHeaderKey(others[i].Label)
+		keyJ := normalizeHeaderKey(others[j].Label)
+		if keyI == keyJ {
+			return strings.ToLower(strings.TrimSpace(others[i].Label)) < strings.ToLower(strings.TrimSpace(others[j].Label))
+		}
+		return keyI < keyJ
+	})
+
+	result := make([]detailItem, 0, len(items))
+	result = append(result, ids...)
+	result = append(result, names...)
+	result = append(result, others...)
+	return result
+}
+
 func (m *bubbleModel) activateDetailSelection() bool {
 	if len(m.detailStack) == 0 {
 		return false
 	}
 	detail := &m.detailStack[len(m.detailStack)-1]
-	if detail.table == nil || len(detail.items) == 0 {
+	if detail.child != nil {
+		return m.openChildRowDetail(detail)
+	}
+	return m.openChildCollection(detail)
+}
+
+func (m *bubbleModel) openChildCollection(detail *detailView) bool {
+	if detail == nil || detail.table == nil || len(detail.items) == 0 {
 		return false
 	}
+
 	row := detail.table.Cursor()
 	if row < 0 || row >= len(detail.items) {
 		return false
 	}
+
 	if detail.items[row].Loader == nil {
 		return false
 	}
-	// Child loaders will be handled in subsequent steps (nested views).
-	return false
+
+	if m.helper == nil {
+		detail.items[row].Value = "loader unavailable"
+		m.rebuildDetailItemsTable(detail, row)
+		return false
+	}
+
+	childView, err := detail.items[row].Loader(m.helper.GetContext(), m.helper, detail.parent)
+	if err != nil {
+		detail.items[row].Value = fmt.Sprintf("error: %v", err)
+		m.rebuildDetailItemsTable(detail, row)
+		return false
+	}
+
+	state := newChildViewState(childView)
+	childTable := buildChildTable(&state, m.detailViewportWidth(), m.detailViewportHeight(), m.palette)
+
+	label := strings.TrimSpace(detail.items[row].Label)
+	if label == "" {
+		label = state.title
+	}
+	if label == "" {
+		label = fmt.Sprintf("Item %d", row+1)
+	}
+
+	next := detailView{
+		table:      &childTable,
+		label:      label,
+		parent:     detail.parent,
+		parentType: state.parentType,
+		title:      state.title,
+		child:      &state,
+	}
+
+	if next.title == "" {
+		next.title = label
+	}
+	if next.label == "" {
+		next.label = next.title
+	}
+
+	m.detailStack = append(m.detailStack, next)
+	if next.label != "" {
+		m.breadcrumbs = append(m.breadcrumbs, next.label)
+	}
+	return true
+}
+
+func (m *bubbleModel) rebuildDetailItemsTable(detail *detailView, cursor int) {
+	if detail == nil {
+		return
+	}
+	detail.items = reorderDetailItems(detail.items)
+	newTable := buildDetailTable(detail.items, m.detailViewportWidth(), m.detailViewportHeight(), m.palette)
+	if cursor >= 0 && cursor < len(detail.items) {
+		newTable.SetCursor(cursor)
+	}
+	detail.table = &newTable
+}
+
+func (m *bubbleModel) openChildRowDetail(detail *detailView) bool {
+	if detail == nil || detail.child == nil || detail.table == nil {
+		return false
+	}
+
+	row := detail.table.Cursor()
+	if row < 0 || row >= len(detail.child.rows) {
+		return false
+	}
+
+	if detail.child.detailRenderer == nil {
+		return false
+	}
+
+	raw := detail.child.detailRenderer(row)
+	items := parseDetailContent(raw)
+	parentType := detail.child.parentType
+	label := strings.TrimSpace(detail.child.labelForIndex(row))
+	if label == "" {
+		label = fmt.Sprintf("Item %d", row+1)
+	}
+
+	var parent any
+	if detail.child.context != nil {
+		parent = detail.child.context(row)
+	}
+
+	for i := range items {
+		if loader := getChildLoader(parentType, items[i].Label); loader != nil {
+			items[i].Loader = loader
+			items[i].Value = "..."
+		}
+	}
+
+	if parentType != "" {
+		for _, reg := range childLoaderFields(parentType) {
+			if reg.loader == nil {
+				continue
+			}
+			if !detailItemsContain(items, reg.field) {
+				items = append(items, detailItem{
+					Label:  reg.field,
+					Value:  "...",
+					Loader: reg.loader,
+				})
+			}
+		}
+	}
+
+	items = reorderDetailItems(items)
+
+	tableModel := buildDetailTable(items, m.detailViewportWidth(), m.detailViewportHeight(), m.palette)
+	next := detailView{
+		table:      &tableModel,
+		items:      items,
+		label:      label,
+		parent:     parent,
+		parentType: parentType,
+		title:      label,
+	}
+
+	m.detailStack = append(m.detailStack, next)
+	if label != "" {
+		m.breadcrumbs = append(m.breadcrumbs, label)
+	}
+	return true
 }
 
 func (m *bubbleModel) detailViewportWidth() int {

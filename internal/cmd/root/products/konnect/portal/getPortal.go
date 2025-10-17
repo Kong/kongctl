@@ -2,6 +2,7 @@ package portal
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -137,34 +138,66 @@ func portalDetailView(p *kkComps.Portal) string {
 
 	missing := "n/a"
 
-	name := p.Name
-	if name == "" {
-		name = missing
-	}
-
-	id := p.ID
+	id := strings.TrimSpace(p.ID)
 	if id == "" {
 		id = missing
 	}
 
-	description := missing
-	if p.Description != nil && *p.Description != "" {
-		description = *p.Description
+	name := strings.TrimSpace(p.Name)
+	if name == "" {
+		name = missing
 	}
+
+	description := missing
+	if p.Description != nil && strings.TrimSpace(*p.Description) != "" {
+		description = strings.TrimSpace(*p.Description)
+	}
+
+	canonicalDomain := missing
+	if strings.TrimSpace(p.CanonicalDomain) != "" {
+		canonicalDomain = strings.TrimSpace(p.CanonicalDomain)
+	}
+
+	created := p.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+	updated := p.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+
+	type detailField struct {
+		label string
+		value string
+	}
+
+	var fields []detailField
+	addField := func(label, value string) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return
+		}
+		fields = append(fields, detailField{
+			label: label,
+			value: value,
+		})
+	}
+
+	addField("Description", description)
+	addField("Canonical Domain", canonicalDomain)
+	addField("Created", created)
+	addField("Updated", updated)
+
+	sort.Slice(fields, func(i, j int) bool {
+		li := strings.ToLower(fields[i].label)
+		lj := strings.ToLower(fields[j].label)
+		if li == lj {
+			return fields[i].label < fields[j].label
+		}
+		return li < lj
+	})
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "Name: %s\n", name)
 	fmt.Fprintf(&b, "ID: %s\n", id)
-	fmt.Fprintf(&b, "Description: %s\n", description)
-
-	customDomain := missing
-	if p.CanonicalDomain != "" {
-		customDomain = p.CanonicalDomain
+	fmt.Fprintf(&b, "Name: %s\n", name)
+	for _, field := range fields {
+		fmt.Fprintf(&b, "%s: %s\n", field.label, field.value)
 	}
-	fmt.Fprintf(&b, "Canonical Domain: %s\n", customDomain)
-
-	fmt.Fprintf(&b, "Created: %s\n", p.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
-	fmt.Fprintf(&b, "Updated: %s\n", p.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
 
 	return b.String()
 }

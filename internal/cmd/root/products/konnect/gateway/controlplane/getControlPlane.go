@@ -123,39 +123,77 @@ func controlPlaneDetailView(cp *kkComps.ControlPlane) string {
 	}
 
 	missing := "n/a"
-	name := cp.Name
+	name := strings.TrimSpace(cp.Name)
 	if name == "" {
 		name = missing
 	}
 
-	var b strings.Builder
-	fmt.Fprintf(&b, "Name: %s\n", name)
-	fmt.Fprintf(&b, "ID: %s\n", cp.ID)
+	id := strings.TrimSpace(cp.ID)
+	if id == "" {
+		id = missing
+	}
 
 	description := missing
-	if cp.Description != nil && *cp.Description != "" {
-		description = *cp.Description
+	if cp.Description != nil && strings.TrimSpace(*cp.Description) != "" {
+		description = strings.TrimSpace(*cp.Description)
 	}
-	fmt.Fprintf(&b, "Description: %s\n", description)
 
+	labelsValue := missing
 	if len(cp.Labels) > 0 {
 		pairs := make([]string, 0, len(cp.Labels))
 		for k, v := range cp.Labels {
 			pairs = append(pairs, fmt.Sprintf("%s=%s", k, v))
 		}
 		sort.Strings(pairs)
-		fmt.Fprintf(&b, "Labels: %s\n", strings.Join(pairs, ", "))
-	} else {
-		fmt.Fprintf(&b, "Labels: %s\n", missing)
+		labelsValue = strings.Join(pairs, ", ")
 	}
 
 	endpoint := missing
-	if cp.Config.ControlPlaneEndpoint != "" {
-		endpoint = cp.Config.ControlPlaneEndpoint
+	if strings.TrimSpace(cp.Config.ControlPlaneEndpoint) != "" {
+		endpoint = strings.TrimSpace(cp.Config.ControlPlaneEndpoint)
 	}
-	fmt.Fprintf(&b, "Control Plane Endpoint: %s\n", endpoint)
-	fmt.Fprintf(&b, "Created: %s\n", cp.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
-	fmt.Fprintf(&b, "Updated: %s\n", cp.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
+
+	created := cp.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+	updated := cp.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+
+	type detailField struct {
+		label string
+		value string
+	}
+
+	var fields []detailField
+	addField := func(label, value string) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return
+		}
+		fields = append(fields, detailField{
+			label: label,
+			value: value,
+		})
+	}
+
+	addField("Description", description)
+	addField("Labels", labelsValue)
+	addField("Control Plane Endpoint", endpoint)
+	addField("Created", created)
+	addField("Updated", updated)
+
+	sort.Slice(fields, func(i, j int) bool {
+		li := strings.ToLower(fields[i].label)
+		lj := strings.ToLower(fields[j].label)
+		if li == lj {
+			return fields[i].label < fields[j].label
+		}
+		return li < lj
+	})
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "ID: %s\n", id)
+	fmt.Fprintf(&b, "Name: %s\n", name)
+	for _, field := range fields {
+		fmt.Fprintf(&b, "%s: %s\n", field.label, field.value)
+	}
 
 	return b.String()
 }

@@ -2,6 +2,7 @@ package authstrategy
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -115,49 +116,91 @@ func authStrategyToDisplayRecord(strategy kkComps.AppAuthStrategy) textDisplayRe
 }
 
 func authStrategyDetailView(strategy kkComps.AppAuthStrategy) string {
-	var b strings.Builder
-	missing := "n/a"
+	const missing = "n/a"
+
+	valueOrMissing := func(val string) string {
+		val = strings.TrimSpace(val)
+		if val == "" {
+			return missing
+		}
+		return val
+	}
+
+	var (
+		id           = missing
+		name         = missing
+		displayName  = missing
+		strategyType = missing
+		activeValue  = missing
+		dcrProvider  = missing
+		created      = missing
+		updated      = missing
+	)
 
 	if strategy.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse != nil {
 		keyAuth := strategy.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse
-		fmt.Fprintf(&b, "Name: %s\n", keyAuth.Name)
-		fmt.Fprintf(&b, "ID: %s\n", keyAuth.ID)
-		fmt.Fprintf(&b, "Display Name: %s\n", keyAuth.DisplayName)
-		fmt.Fprintf(&b, "Strategy Type: %s\n", keyAuth.StrategyType)
-		fmt.Fprintf(&b, "Active: %t\n", keyAuth.Active)
+		id = valueOrMissing(keyAuth.ID)
+		name = valueOrMissing(keyAuth.Name)
+		displayName = valueOrMissing(keyAuth.DisplayName)
+		strategyType = valueOrMissing(string(keyAuth.StrategyType))
+		activeValue = fmt.Sprintf("%t", keyAuth.Active)
 		if keyAuth.DcrProvider != nil {
-			fmt.Fprintf(&b, "DCR Provider: %s\n", keyAuth.DcrProvider.Name)
-		} else {
-			fmt.Fprintf(&b, "DCR Provider: %s\n", missing)
+			dcrProvider = valueOrMissing(keyAuth.DcrProvider.Name)
 		}
-		fmt.Fprintf(&b, "Created: %s\n", keyAuth.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
-		fmt.Fprintf(&b, "Updated: %s\n", keyAuth.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
-		return b.String()
-	}
-
-	if strategy.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse != nil {
+		if !keyAuth.CreatedAt.IsZero() {
+			created = keyAuth.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+		}
+		if !keyAuth.UpdatedAt.IsZero() {
+			updated = keyAuth.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+		}
+	} else if strategy.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse != nil {
 		openID := strategy.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse
-		fmt.Fprintf(&b, "Name: %s\n", openID.Name)
-		fmt.Fprintf(&b, "ID: %s\n", openID.ID)
-		fmt.Fprintf(&b, "Display Name: %s\n", openID.DisplayName)
-		fmt.Fprintf(&b, "Strategy Type: %s\n", openID.StrategyType)
-		fmt.Fprintf(&b, "Active: %t\n", openID.Active)
+		id = valueOrMissing(openID.ID)
+		name = valueOrMissing(openID.Name)
+		displayName = valueOrMissing(openID.DisplayName)
+		strategyType = valueOrMissing(string(openID.StrategyType))
+		activeValue = fmt.Sprintf("%t", openID.Active)
 		if openID.DcrProvider != nil {
-			fmt.Fprintf(&b, "DCR Provider: %s\n", openID.DcrProvider.Name)
-		} else {
-			fmt.Fprintf(&b, "DCR Provider: %s\n", missing)
+			dcrProvider = valueOrMissing(openID.DcrProvider.Name)
 		}
-		fmt.Fprintf(&b, "Created: %s\n", openID.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
-		fmt.Fprintf(&b, "Updated: %s\n", openID.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
-		return b.String()
+		if !openID.CreatedAt.IsZero() {
+			created = openID.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+		}
+		if !openID.UpdatedAt.IsZero() {
+			updated = openID.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+		}
 	}
 
-	fmt.Fprintf(&b, "Name: %s\n", missing)
-	fmt.Fprintf(&b, "ID: %s\n", missing)
-	fmt.Fprintf(&b, "Display Name: %s\n", missing)
-	fmt.Fprintf(&b, "Strategy Type: %s\n", missing)
-	fmt.Fprintf(&b, "Active: %s\n", missing)
-	fmt.Fprintf(&b, "DCR Provider: %s\n", missing)
+	type detailField struct {
+		label string
+		value string
+	}
+
+	fields := []detailField{
+		{label: "Display Name", value: displayName},
+		{label: "Strategy Type", value: strategyType},
+		{label: "Active", value: activeValue},
+		{label: "DCR Provider", value: dcrProvider},
+		{label: "Created", value: created},
+		{label: "Updated", value: updated},
+	}
+
+	sort.Slice(fields, func(i, j int) bool {
+		li := strings.ToLower(fields[i].label)
+		lj := strings.ToLower(fields[j].label)
+		if li == lj {
+			return fields[i].label < fields[j].label
+		}
+		return li < lj
+	})
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "ID: %s\n", id)
+	fmt.Fprintf(&b, "Name: %s\n", name)
+	for _, field := range fields {
+		fmt.Fprintf(&b, "%s: %s\n", field.label, field.value)
+	}
+
 	return b.String()
 }
 

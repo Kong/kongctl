@@ -18,6 +18,8 @@ type ChildView struct {
 	Rows           []table.Row
 	DetailRenderer DetailRenderer
 	Title          string
+	ParentType     string
+	DetailContext  DetailContextProvider
 }
 
 type resourceKey struct {

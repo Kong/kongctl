@@ -106,22 +106,55 @@ func apiDetailView(api *kkComps.APIResponseSchema) string {
 	}
 
 	const missing = "n/a"
-	name := api.Name
+	id := strings.TrimSpace(api.ID)
+	if id == "" {
+		id = missing
+	}
+	name := strings.TrimSpace(api.Name)
 	if name == "" {
 		name = missing
 	}
 
-	var b strings.Builder
-	fmt.Fprintf(&b, "name: %s\n", name)
-	fmt.Fprintf(&b, "id: %s\n", api.ID)
+	type detailField struct {
+		label     string
+		value     string
+		multiline bool
+	}
+
+	var fields []detailField
+
+	addField := func(label, value string) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return
+		}
+		fields = append(fields, detailField{
+			label: label,
+			value: value,
+		})
+	}
+
+	addMultiline := func(label, value string) {
+		value = strings.TrimRight(value, "\n")
+		if strings.TrimSpace(value) == "" {
+			return
+		}
+		fields = append(fields, detailField{
+			label:     label,
+			value:     value,
+			multiline: true,
+		})
+	}
+
 	if slugPtr := api.GetSlug(); slugPtr != nil {
 		if slug := strings.TrimSpace(*slugPtr); slug != "" {
-			fmt.Fprintf(&b, "slug: %s\n", slug)
+			addField("slug", slug)
 		}
 	}
+
 	if versionPtr := api.GetVersion(); versionPtr != nil {
 		if version := strings.TrimSpace(*versionPtr); version != "" {
-			fmt.Fprintf(&b, "version: %s\n", version)
+			addField("version", version)
 		}
 	}
 
@@ -129,7 +162,7 @@ func apiDetailView(api *kkComps.APIResponseSchema) string {
 		if spec := api.CurrentVersionSummary.Spec; spec != nil {
 			if spec.Type != nil {
 				if specType := strings.TrimSpace(string(*spec.Type)); specType != "" {
-					fmt.Fprintf(&b, "spec_type: %s\n", specType)
+					addField("spec_type", specType)
 				}
 			}
 		}
@@ -137,17 +170,17 @@ func apiDetailView(api *kkComps.APIResponseSchema) string {
 
 	if specIDs := api.GetAPISpecIds(); len(specIDs) > 0 {
 		ids := make([]string, 0, len(specIDs))
-		for _, id := range specIDs {
-			ids = append(ids, util.AbbreviateUUID(id))
+		for _, specID := range specIDs {
+			ids = append(ids, util.AbbreviateUUID(specID))
 		}
-		fmt.Fprintf(&b, "spec_ids: %s\n", strings.Join(ids, ", "))
+		addField("spec_ids", strings.Join(ids, ", "))
 	}
 
 	if api.Description != nil && *api.Description != "" {
 		description := strings.TrimSpace(*api.Description)
 		if description != "" {
 			const wrapWidth = 80
-			fmt.Fprintf(&b, "\ndescription:\n%s\n", wordwrap.String(description, wrapWidth))
+			addMultiline("description", wordwrap.String(description, wrapWidth))
 		}
 	}
 
@@ -160,10 +193,11 @@ func apiDetailView(api *kkComps.APIResponseSchema) string {
 					keys = append(keys, k)
 				}
 				sort.Strings(keys)
-				fmt.Fprintf(&b, "\nattributes:\n")
+				var sb strings.Builder
 				for _, k := range keys {
-					fmt.Fprintf(&b, "  %s: %v\n", k, v[k])
+					fmt.Fprintf(&sb, "  %s: %v\n", k, v[k])
 				}
+				addMultiline("attributes", sb.String())
 			}
 		case map[string]string:
 			if len(v) > 0 {
@@ -172,32 +206,34 @@ func apiDetailView(api *kkComps.APIResponseSchema) string {
 					keys = append(keys, k)
 				}
 				sort.Strings(keys)
-				fmt.Fprintf(&b, "\nattributes:\n")
+				var sb strings.Builder
 				for _, k := range keys {
-					fmt.Fprintf(&b, "  %s: %s\n", k, v[k])
+					fmt.Fprintf(&sb, "  %s: %s\n", k, v[k])
 				}
+				addMultiline("attributes", sb.String())
 			}
 		}
 	}
 
 	if portals := api.GetPortals(); len(portals) > 0 {
-		fmt.Fprintf(&b, "\nportals:\n")
+		var sb strings.Builder
 		for _, portal := range portals {
 			displayName := strings.TrimSpace(portal.DisplayName)
-			name := strings.TrimSpace(portal.Name)
+			portalName := strings.TrimSpace(portal.Name)
 			var line string
 			switch {
-			case displayName != "" && name != "":
-				line = fmt.Sprintf("%s (%s)", displayName, name)
+			case displayName != "" && portalName != "":
+				line = fmt.Sprintf("%s (%s)", displayName, portalName)
 			case displayName != "":
 				line = displayName
-			case name != "":
-				line = name
+			case portalName != "":
+				line = portalName
 			default:
 				line = missing
 			}
-			fmt.Fprintf(&b, "  %s - %s\n", line, portal.ID)
+			fmt.Fprintf(&sb, "  %s - %s\n", line, portal.ID)
 		}
+		addMultiline("portals", sb.String())
 	}
 
 	if labels := api.GetLabels(); len(labels) > 0 {
@@ -206,15 +242,37 @@ func apiDetailView(api *kkComps.APIResponseSchema) string {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
-		fmt.Fprintf(&b, "\nlabels:\n")
+		var sb strings.Builder
 		for _, k := range keys {
-			fmt.Fprintf(&b, "  %s: %s\n", k, labels[k])
+			fmt.Fprintf(&sb, "  %s: %s\n", k, labels[k])
 		}
+		addMultiline("labels", sb.String())
 	}
 
-	fmt.Fprintf(&b, "publication_count: %d\n", len(api.GetPortals()))
-	fmt.Fprintf(&b, "created_at: %s\n", api.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
-	fmt.Fprintf(&b, "updated_at: %s\n", api.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
+	addField("publication_count", fmt.Sprintf("%d", len(api.GetPortals())))
+	addField("created_at", api.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
+	addField("updated_at", api.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
+
+	sort.Slice(fields, func(i, j int) bool {
+		li := strings.ToLower(fields[i].label)
+		lj := strings.ToLower(fields[j].label)
+		if li == lj {
+			return fields[i].label < fields[j].label
+		}
+		return li < lj
+	})
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	for _, field := range fields {
+		if field.multiline {
+			value := strings.TrimRight(field.value, "\n")
+			fmt.Fprintf(&b, "%s:\n%s\n", field.label, value)
+			continue
+		}
+		fmt.Fprintf(&b, "%s: %s\n", field.label, field.value)
+	}
 
 	return b.String()
 }

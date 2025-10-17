@@ -69,5 +69,12 @@ func loadAPIDocuments(ctx context.Context, helper cmd.Helper, parent any) (table
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Documents",
+		ParentType:     "api-document",
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(flattened) {
+				return nil
+			}
+			return &flattened[index]
+		},
 	}, nil
 }
