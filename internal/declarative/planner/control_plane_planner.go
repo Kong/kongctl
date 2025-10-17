@@ -390,7 +390,7 @@ func (p *controlPlanePlannerImpl) shouldUpdateControlPlane(
 	}
 
 	if desired.IsGroup() {
-		desiredMembers := normalizeMemberIDs(desired.MemberIDs())
+		desiredMembers := p.resolveDesiredGroupMemberIDs(desired)
 		currentMembers := normalizeMemberIDs(current.GroupMembers)
 		if !equalStringSlices(currentMembers, desiredMembers) {
 			updates["members"] = desiredMembers
@@ -531,4 +531,36 @@ func (p *controlPlanePlannerImpl) buildMemberReferenceInfo(ids []string) Referen
 	}
 
 	return info
+}
+
+func (p *controlPlanePlannerImpl) resolveDesiredGroupMemberIDs(desired resources.ControlPlaneResource) []string {
+	raw := desired.MemberIDs()
+	if len(raw) == 0 {
+		return []string{}
+	}
+
+	resolved := make([]string, 0, len(raw))
+	for _, memberID := range raw {
+		if !tags.IsRefPlaceholder(memberID) {
+			resolved = append(resolved, memberID)
+			continue
+		}
+
+		ref, field, ok := tags.ParseRefPlaceholder(memberID)
+		if !ok || field != "id" || ref == "" || p.planner == nil || p.planner.resources == nil {
+			resolved = append(resolved, memberID)
+			continue
+		}
+
+		if cp := p.planner.resources.GetControlPlaneByRef(ref); cp != nil {
+			if konnectID := cp.GetKonnectID(); konnectID != "" {
+				resolved = append(resolved, konnectID)
+				continue
+			}
+		}
+
+		resolved = append(resolved, memberID)
+	}
+
+	return normalizeMemberIDs(resolved)
 }
