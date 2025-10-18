@@ -1,6 +1,7 @@
 package tableview
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -68,4 +69,58 @@ func TestFormatHeader(t *testing.T) {
 			t.Fatalf("formatHeader(%q) = %q, expected %q", input, result, expected)
 		}
 	}
+}
+
+func TestEnrichDetailItems_MapField(t *testing.T) {
+	parent := &struct {
+		Labels map[string]string
+	}{
+		Labels: map[string]string{
+			"foo": "bar",
+		},
+	}
+
+	items := []detailItem{
+		{Label: "labels"},
+	}
+
+	enriched := enrichDetailItems(items, "", parent)
+	require.Len(t, enriched, 1)
+	require.Equal(t, complexExpandableIndicator, enriched[0].Value)
+	require.NotNil(t, enriched[0].Loader)
+
+	child, err := enriched[0].Loader(context.Background(), nil, parent)
+	require.NoError(t, err)
+	require.Equal(t, []string{"KEY", "VALUE"}, child.Headers)
+	require.Len(t, child.Rows, 1)
+	require.Equal(t, "foo", child.Rows[0][0])
+	require.Equal(t, "bar", child.Rows[0][1])
+	require.NotNil(t, child.DetailRenderer)
+}
+
+func TestEnrichDetailItems_SliceField(t *testing.T) {
+	parent := &struct {
+		IDs []string
+	}{
+		IDs: []string{"abc", "defg"},
+	}
+
+	items := []detailItem{
+		{Label: "ids"},
+	}
+
+	enriched := enrichDetailItems(items, "", parent)
+	require.Len(t, enriched, 1)
+	require.Equal(t, complexExpandableIndicator, enriched[0].Value)
+	require.NotNil(t, enriched[0].Loader)
+
+	child, err := enriched[0].Loader(context.Background(), nil, parent)
+	require.NoError(t, err)
+	require.Equal(t, []string{"#", "VALUE"}, child.Headers)
+	require.Len(t, child.Rows, 2)
+	require.Equal(t, "1", child.Rows[0][0])
+	require.Equal(t, "abc", child.Rows[0][1])
+	require.Equal(t, "2", child.Rows[1][0])
+	require.Equal(t, "defg", child.Rows[1][1])
+	require.NotNil(t, child.DetailRenderer)
 }

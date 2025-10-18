@@ -2,6 +2,8 @@ package api
 
 import (
 	"fmt"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -370,7 +372,7 @@ func documentSummaryDetailView(doc *kkComps.APIDocumentSummaryWithChildren) stri
 	const missing = "n/a"
 
 	status := missing
-	if doc.Status != nil {
+	if doc.Status != nil && *doc.Status != "" {
 		status = string(*doc.Status)
 	}
 
@@ -379,17 +381,29 @@ func documentSummaryDetailView(doc *kkComps.APIDocumentSummaryWithChildren) stri
 		parentID = *doc.ParentDocumentID
 	}
 
-	var b strings.Builder
-	fmt.Fprintf(&b, "Document ID: %s\n", doc.ID)
-	fmt.Fprintf(&b, "Title: %s\n", doc.Title)
-	fmt.Fprintf(&b, "Slug: %s\n", doc.Slug)
-	fmt.Fprintf(&b, "Status: %s\n", status)
-	fmt.Fprintf(&b, "Parent Document ID: %s\n", parentID)
-	fmt.Fprintf(&b, "Children Count: %d\n", len(doc.Children))
-	fmt.Fprintf(&b, "Created: %s\n", doc.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
-	fmt.Fprintf(&b, "Updated: %s\n", doc.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
+	fields := map[string]string{
+		"children_count":     strconv.Itoa(len(doc.Children)),
+		"created_at":         doc.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05"),
+		"parent_document_id": parentID,
+		"slug":               doc.Slug,
+		"status":             status,
+		"updated_at":         doc.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05"),
+	}
 
-	return b.String()
+	var keys []string
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", doc.ID)
+	fmt.Fprintf(&b, "title: %s\n", doc.Title)
+	for _, key := range keys {
+		fmt.Fprintf(&b, "%s: %s\n", key, fields[key])
+	}
+
+	return strings.TrimRight(b.String(), "\n")
 }
 
 func documentDetailView(doc *kkComps.APIDocumentResponse) string {
@@ -405,24 +419,34 @@ func documentDetailView(doc *kkComps.APIDocumentResponse) string {
 	}
 
 	status := missing
-	if doc.GetStatus() != nil {
+	if doc.GetStatus() != nil && *doc.GetStatus() != "" {
 		status = string(*doc.GetStatus())
 	}
 
-	content := doc.GetContent()
-
-	var b strings.Builder
-	fmt.Fprintf(&b, "Document ID: %s\n", doc.GetID())
-	fmt.Fprintf(&b, "Title: %s\n", doc.GetTitle())
-	fmt.Fprintf(&b, "Slug: %s\n", doc.GetSlug())
-	fmt.Fprintf(&b, "Status: %s\n", status)
-	fmt.Fprintf(&b, "Parent Document ID: %s\n", parentID)
-	fmt.Fprintf(&b, "\nCreated: %s\n", doc.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
-	fmt.Fprintf(&b, "Updated: %s\n", doc.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
-
-	if strings.TrimSpace(content) != "" {
-		fmt.Fprintf(&b, "\nContent:\n%s\n", content)
+	otherFields := map[string]string{
+		"created_at":         doc.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		"parent_document_id": parentID,
+		"slug":               doc.GetSlug(),
+		"status":             status,
+		"updated_at":         doc.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
 	}
 
-	return b.String()
+	keys := make([]string, 0, len(otherFields))
+	for key := range otherFields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", doc.GetID())
+	fmt.Fprintf(&b, "title: %s\n", doc.GetTitle())
+	for _, key := range keys {
+		fmt.Fprintf(&b, "%s: %s\n", key, otherFields[key])
+	}
+
+	if content := strings.TrimSpace(doc.GetContent()); content != "" {
+		fmt.Fprintf(&b, "content:\n%s\n", content)
+	}
+
+	return strings.TrimRight(b.String(), "\n")
 }

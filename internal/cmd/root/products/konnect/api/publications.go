@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -318,7 +319,7 @@ func publicationDetailView(publication *kkComps.APIPublicationListItem) string {
 	}
 
 	visibility := valueNA
-	if publication.GetVisibility() != nil {
+	if publication.GetVisibility() != nil && *publication.GetVisibility() != "" {
 		visibility = string(*publication.GetVisibility())
 	}
 
@@ -327,13 +328,25 @@ func publicationDetailView(publication *kkComps.APIPublicationListItem) string {
 		authStrategies = strings.Join(ids, ", ")
 	}
 
-	var b strings.Builder
-	fmt.Fprintf(&b, "API ID: %s\n", publication.GetAPIID())
-	fmt.Fprintf(&b, "Portal ID: %s\n", publication.GetPortalID())
-	fmt.Fprintf(&b, "Visibility: %s\n", visibility)
-	fmt.Fprintf(&b, "Auth Strategy IDs: %s\n", authStrategies)
-	fmt.Fprintf(&b, "Created: %s\n", publication.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
-	fmt.Fprintf(&b, "Updated: %s\n", publication.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
+	fields := map[string]string{
+		"auth_strategy_ids": authStrategies,
+		"created_at":        publication.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		"visibility":        visibility,
+		"updated_at":        publication.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+	}
 
-	return b.String()
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "api_id: %s\n", publication.GetAPIID())
+	fmt.Fprintf(&b, "portal_id: %s\n", publication.GetPortalID())
+	for _, key := range keys {
+		fmt.Fprintf(&b, "%s: %s\n", key, fields[key])
+	}
+
+	return strings.TrimRight(b.String(), "\n")
 }

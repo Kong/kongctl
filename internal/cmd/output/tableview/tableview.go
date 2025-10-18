@@ -1,13 +1,16 @@
 package tableview
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"math"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -24,6 +27,7 @@ import (
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/theme"
 	"github.com/segmentio/cli"
+	clipboard "golang.design/x/clipboard"
 )
 
 type fdProvider interface {
@@ -257,7 +261,7 @@ func Render(streams *iostreams.IOStreams, data any, opts ...Option) error {
 	}
 
 	cfg := config{
-		footer:        "Press q to quit · arrows navigate",
+		footer:        "Press q or esc to quit · arrows/j/k navigate",
 		staticFooter:  "",
 		quitKeys:      []string{"q", "Q", "ctrl+c"},
 		toggleHelpKey: "?",
@@ -751,6 +755,24 @@ type detailItem struct {
 	Loader ChildLoader
 }
 
+const (
+	childFieldIndicator        = "{...}"
+	complexNilIndicator        = "[nil]"
+	complexEmptyIndicator      = "[]"
+	complexExpandableIndicator = "[...]"
+)
+
+type mapEntry struct {
+	Key     string
+	Value   any
+	Summary string
+}
+
+var (
+	clipboardInitOnce sync.Once
+	clipboardInitErr  error
+)
+
 func parseDetailContent(content string) []detailItem {
 	lines := strings.Split(content, "\n")
 	items := make([]detailItem, 0, len(lines))
@@ -802,6 +824,448 @@ func parseDetailContent(content string) []detailItem {
 		}
 	}
 	return items
+}
+
+func enrichDetailItems(items []detailItem, parentType string, parent any) []detailItem {
+	items = applyRegisteredChildLoaders(items, parentType)
+	items = ensureRegisteredChildFields(items, parentType)
+	items = applyComplexValueLoaders(items, parent)
+	return items
+}
+
+func applyRegisteredChildLoaders(items []detailItem, parentType string) []detailItem {
+	if parentType == "" {
+		return items
+	}
+	for i := range items {
+		if loader := getChildLoader(parentType, items[i].Label); loader != nil {
+			items[i].Loader = loader
+			items[i].Value = childFieldIndicator
+		}
+	}
+	return items
+}
+
+func ensureRegisteredChildFields(items []detailItem, parentType string) []detailItem {
+	if parentType == "" {
+		return items
+	}
+
+	for _, reg := range childLoaderFields(parentType) {
+		if detailItemsContain(items, reg.field) {
+			continue
+		}
+		items = append(items, detailItem{
+			Label:  reg.field,
+			Value:  childFieldIndicator,
+			Loader: reg.loader,
+		})
+	}
+	return items
+}
+
+func applyComplexValueLoaders(items []detailItem, parent any) []detailItem {
+	if parent == nil {
+		return items
+	}
+
+	parentValue := reflect.ValueOf(parent)
+	for i := range items {
+		info, ok := complexValueInfoForItem(parentValue, items[i].Label)
+		if !ok {
+			continue
+		}
+		if info.indicator != "" {
+			items[i].Value = info.indicator
+		}
+		if info.loader != nil {
+			items[i].Loader = info.loader
+		}
+	}
+	return items
+}
+
+type complexValueInfo struct {
+	indicator string
+	loader    ChildLoader
+}
+
+func complexValueInfoForItem(parent reflect.Value, label string) (complexValueInfo, bool) {
+	if !parent.IsValid() {
+		return complexValueInfo{}, false
+	}
+
+	value, ok := valueForLabel(parent, label)
+	if !ok {
+		return complexValueInfo{}, false
+	}
+
+	info, handled := analyzeComplexValue(label, value)
+	return info, handled
+}
+
+func valueForLabel(parent reflect.Value, label string) (reflect.Value, bool) {
+	parent = derefValueDeep(parent)
+	if !parent.IsValid() {
+		return reflect.Value{}, false
+	}
+
+	switch parent.Kind() {
+	case reflect.Struct:
+		target := normalizeHeaderKey(label)
+		typ := parent.Type()
+		targetCompact := strings.ReplaceAll(target, " ", "")
+		for i := 0; i < typ.NumField(); i++ {
+			field := typ.Field(i)
+			if field.PkgPath != "" {
+				continue
+			}
+			fieldLabel := normalizeHeaderKey(formatHeader(field.Name))
+			fieldCompact := strings.ReplaceAll(fieldLabel, " ", "")
+			if fieldLabel == target || fieldCompact == targetCompact {
+				return parent.Field(i), true
+			}
+		}
+	case reflect.Map:
+		iter := parent.MapRange()
+		target := normalizeHeaderKey(label)
+		for iter.Next() {
+			keyStr := normalizeHeaderKey(fmt.Sprint(iter.Key().Interface()))
+			if keyStr == target {
+				return iter.Value(), true
+			}
+		}
+	}
+
+	return reflect.Value{}, false
+}
+
+func derefValueDeep(value reflect.Value) reflect.Value {
+	for value.IsValid() {
+		switch value.Kind() {
+		case reflect.Pointer, reflect.Interface:
+			if value.IsNil() {
+				return reflect.Value{}
+			}
+			value = value.Elem()
+		default:
+			return value
+		}
+	}
+	return value
+}
+
+func analyzeComplexValue(label string, value reflect.Value) (complexValueInfo, bool) {
+	if !value.IsValid() {
+		return complexValueInfo{indicator: complexNilIndicator}, true
+	}
+
+	original := value
+	value = derefValueDeep(value)
+	if !value.IsValid() {
+		return complexValueInfo{indicator: complexNilIndicator}, true
+	}
+
+	switch value.Kind() {
+	case reflect.Map:
+		if value.IsNil() {
+			return complexValueInfo{indicator: complexNilIndicator}, true
+		}
+		entries := mapEntriesFromValue(value)
+		if len(entries) == 0 {
+			return complexValueInfo{indicator: complexEmptyIndicator}, true
+		}
+		return complexValueInfo{
+			indicator: complexExpandableIndicator,
+			loader: func(_ context.Context, _ cmdpkg.Helper, _ any) (ChildView, error) {
+				return buildChildViewForMap(label, entries), nil
+			},
+		}, true
+	case reflect.Slice, reflect.Array:
+		if value.Kind() == reflect.Slice && value.IsNil() {
+			return complexValueInfo{indicator: complexNilIndicator}, true
+		}
+		length := value.Len()
+		if length == 0 {
+			return complexValueInfo{indicator: complexEmptyIndicator}, true
+		}
+		data := original.Interface()
+		return complexValueInfo{
+			indicator: complexExpandableIndicator,
+			loader: func(_ context.Context, _ cmdpkg.Helper, _ any) (ChildView, error) {
+				return buildChildViewFromSliceValue(label, data)
+			},
+		}, true
+	case reflect.Struct:
+		return complexValueInfo{indicator: childFieldIndicator}, true
+	default:
+		return complexValueInfo{}, false
+	}
+}
+
+func mapEntriesFromValue(value reflect.Value) []mapEntry {
+	keys := value.MapKeys()
+	entries := make([]mapEntry, 0, len(keys))
+	for _, key := range keys {
+		val := value.MapIndex(key)
+		entry := mapEntry{
+			Key:   fmt.Sprint(key.Interface()),
+			Value: nil,
+		}
+		if val.IsValid() {
+			entry.Value = val.Interface()
+			entry.Summary = summarizeValue(entry.Value)
+		} else {
+			entry.Summary = "nil"
+		}
+		entries = append(entries, entry)
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return strings.Compare(entries[i].Key, entries[j].Key) < 0
+	})
+	return entries
+}
+
+func writeClipboardText(value string) error {
+	clipboardInitOnce.Do(func() {
+		clipboardInitErr = clipboard.Init()
+	})
+	if clipboardInitErr != nil {
+		return clipboardInitErr
+	}
+	done := clipboard.Write(clipboard.FmtText, []byte(value))
+	if done == nil {
+		return errors.New("clipboard write failed")
+	}
+	go func() {
+		<-done
+	}()
+	return nil
+}
+
+func formatStatusValue(value string) string {
+	clean := strings.TrimSpace(value)
+	if clean == "" {
+		return "(empty)"
+	}
+	clean = strings.ReplaceAll(clean, "\n", " ")
+	clean = strings.Join(strings.Fields(clean), " ")
+	return abbreviateValue(clean, 60)
+}
+
+func buildChildViewForMap(label string, entries []mapEntry) ChildView {
+	rows := make([]table.Row, len(entries))
+	for i, entry := range entries {
+		rows[i] = table.Row{entry.Key, entry.Summary}
+	}
+
+	detail := func(index int) string {
+		if index < 0 || index >= len(entries) {
+			return ""
+		}
+		entry := entries[index]
+		return fmt.Sprintf("key: %s\nvalue: %s", entry.Key, formatDetailValue(entry.Value))
+	}
+
+	contextProvider := func(index int) any {
+		if index < 0 || index >= len(entries) {
+			return nil
+		}
+		return entries[index].Value
+	}
+
+	return ChildView{
+		Headers:        []string{"KEY", "VALUE"},
+		Rows:           rows,
+		DetailRenderer: detail,
+		Title:          titleFromLabel(label),
+		ParentType:     normalizeHeaderKey(label),
+		DetailContext:  contextProvider,
+	}
+}
+
+func buildChildViewFromSliceValue(label string, data any) (ChildView, error) {
+	value := reflect.ValueOf(data)
+	value = derefValueDeep(value)
+	if !value.IsValid() {
+		return ChildView{}, fmt.Errorf("tableview: invalid slice data for %s", label)
+	}
+
+	length := value.Len()
+	if length == 0 {
+		return ChildView{
+			Headers:        []string{"VALUE"},
+			Rows:           nil,
+			DetailRenderer: func(int) string { return "" },
+			Title:          titleFromLabel(label),
+			ParentType:     normalizeHeaderKey(label),
+		}, nil
+	}
+
+	elemType := value.Type().Elem()
+	elemType = derefType(elemType)
+
+	switch elemType.Kind() {
+	case reflect.Struct:
+		headers, matrix, err := buildRows(data)
+		if err != nil {
+			return ChildView{}, err
+		}
+		rows := convertRows(matrix, len(headers))
+		return ChildView{
+			Headers: rowsHeaders(headers),
+			Rows:    rows,
+			DetailRenderer: func(index int) string {
+				if index < 0 || index >= length {
+					return ""
+				}
+				return renderStructDetail(value.Index(index).Interface())
+			},
+			Title:      titleFromLabel(label),
+			ParentType: normalizeHeaderKey(label),
+			DetailContext: func(index int) any {
+				if index < 0 || index >= length {
+					return nil
+				}
+				return value.Index(index).Interface()
+			},
+		}, nil
+	default:
+		rows := make([]table.Row, length)
+		values := make([]any, length)
+		for i := 0; i < length; i++ {
+			entry := value.Index(i)
+			val := entry.Interface()
+			values[i] = val
+			rows[i] = table.Row{
+				strconv.Itoa(i + 1),
+				summarizeValue(val),
+			}
+		}
+		return ChildView{
+			Headers: []string{"#", "VALUE"},
+			Rows:    rows,
+			DetailRenderer: func(index int) string {
+				if index < 0 || index >= len(values) {
+					return ""
+				}
+				return fmt.Sprintf("value: %s", formatDetailValue(values[index]))
+			},
+			Title:      titleFromLabel(label),
+			ParentType: normalizeHeaderKey(label),
+			DetailContext: func(index int) any {
+				if index < 0 || index >= len(values) {
+					return nil
+				}
+				return values[index]
+			},
+		}, nil
+	}
+}
+
+func rowsHeaders(headers []string) []string {
+	copied := make([]string, len(headers))
+	copy(copied, headers)
+	return copied
+}
+
+func titleFromLabel(label string) string {
+	label = strings.TrimSpace(label)
+	if label == "" {
+		return ""
+	}
+	segments := strings.FieldsFunc(label, func(r rune) bool {
+		return r == '_' || r == '-' || unicode.IsSpace(r)
+	})
+	for i := range segments {
+		if segments[i] == "" {
+			continue
+		}
+		segments[i] = strings.ToUpper(segments[i][:1]) + strings.ToLower(segments[i][1:])
+	}
+	return strings.Join(segments, " ")
+}
+
+func summarizeValue(val any) string {
+	if val == nil {
+		return "nil"
+	}
+	switch v := val.(type) {
+	case string:
+		return abbreviateValue(v, 60)
+	default:
+		return abbreviateValue(fmt.Sprint(val), 60)
+	}
+}
+
+func formatDetailValue(val any) string {
+	if val == nil {
+		return "nil"
+	}
+
+	rv := reflect.ValueOf(val)
+	rv = derefValueDeep(rv)
+	if !rv.IsValid() {
+		return "nil"
+	}
+
+	switch rv.Kind() {
+	case reflect.Slice, reflect.Array:
+		if rv.Len() == 0 {
+			return "[]"
+		}
+		var builder strings.Builder
+		for i := 0; i < rv.Len(); i++ {
+			fmt.Fprintf(&builder, "- %v\n", rv.Index(i).Interface())
+		}
+		return strings.TrimRight(builder.String(), "\n")
+	case reflect.Map:
+		if rv.Len() == 0 {
+			return "{}"
+		}
+		keys := rv.MapKeys()
+		sort.Slice(keys, func(i, j int) bool {
+			return fmt.Sprint(keys[i].Interface()) < fmt.Sprint(keys[j].Interface())
+		})
+		var builder strings.Builder
+		for _, key := range keys {
+			fmt.Fprintf(&builder, "%v: %v\n", key.Interface(), rv.MapIndex(key).Interface())
+		}
+		return strings.TrimRight(builder.String(), "\n")
+	case reflect.Struct:
+		return renderStructDetail(rv.Interface())
+	default:
+		return fmt.Sprint(val)
+	}
+}
+
+func renderStructDetail(data any) string {
+	if data == nil {
+		return ""
+	}
+
+	value := reflect.ValueOf(data)
+	value = derefValueDeep(value)
+	if !value.IsValid() {
+		return ""
+	}
+
+	typ := value.Type()
+	var builder strings.Builder
+	for i := 0; i < value.NumField(); i++ {
+		field := typ.Field(i)
+		if field.PkgPath != "" {
+			continue
+		}
+		label := strings.ToLower(strings.ReplaceAll(formatHeader(field.Name), " ", "_"))
+		fieldValue := value.Field(i)
+		builder.WriteString(label)
+		builder.WriteString(": ")
+		builder.WriteString(formatDetailValue(fieldValue.Interface()))
+		builder.WriteString("\n")
+	}
+	return strings.TrimRight(builder.String(), "\n")
 }
 
 func buildDetailTable(items []detailItem, width, height int, palette theme.Palette) table.Model {
@@ -1236,6 +1700,7 @@ type bubbleModel struct {
 	parentType      string
 	detailContext   DetailContextProvider
 	helper          cmdpkg.Helper
+	statusMessage   string
 }
 
 func newBubbleModel(
@@ -1266,7 +1731,7 @@ func newBubbleModel(
 		table:           tbl,
 		title:           cfg.title,
 		footer:          cfg.footer,
-		detailFooter:    "Press enter to select · esc/backspace to go back · arrows navigate",
+		detailFooter:    "Press enter to select · esc/backspace to go back · arrows/j/k navigate",
 		toggleKey:       cfg.toggleHelpKey,
 		quitKeys:        cfg.quitKeys,
 		tableStyle:      tableStyle,
@@ -1325,31 +1790,11 @@ func (m *bubbleModel) openDetailView() bool {
 		parent = m.detailContext(index)
 	}
 
-	for i := range items {
-		if loader := getChildLoader(parentType, items[i].Label); loader != nil {
-			items[i].Loader = loader
-			items[i].Value = "..."
-		}
-	}
-
-	if parentType != "" {
-		for _, reg := range childLoaderFields(parentType) {
-			if reg.loader == nil {
-				continue
-			}
-			if !detailItemsContain(items, reg.field) {
-				items = append(items, detailItem{
-					Label:  reg.field,
-					Value:  "...",
-					Loader: reg.loader,
-				})
-			}
-		}
-	}
-
+	items = enrichDetailItems(items, parentType, parent)
 	items = reorderDetailItems(items)
 
 	tableModel := buildDetailTable(items, width, height, m.palette)
+	m.clearStatus()
 	m.detailStack = append(m.detailStack, detailView{
 		table:      &tableModel,
 		items:      items,
@@ -1372,10 +1817,12 @@ func (m *bubbleModel) popDetailView() {
 	if len(m.breadcrumbs) > 1 {
 		m.breadcrumbs = m.breadcrumbs[:len(m.breadcrumbs)-1]
 	}
+	m.clearStatus()
 }
 
 func (m *bubbleModel) resizeDetailViews() {
 	if len(m.detailStack) == 0 {
+		m.clearStatus()
 		return
 	}
 
@@ -1454,7 +1901,32 @@ func (m *bubbleModel) activateDetailSelection() bool {
 	if detail.child != nil {
 		return m.openChildRowDetail(detail)
 	}
-	return m.openChildCollection(detail)
+	if detail.table == nil || len(detail.items) == 0 {
+		return false
+	}
+	row := detail.table.Cursor()
+	if row < 0 || row >= len(detail.items) {
+		return false
+	}
+	item := detail.items[row]
+	if item.Loader != nil {
+		return m.openChildCollection(detail)
+	}
+	m.copyDetailItemValue(item)
+	return false
+}
+
+func (m *bubbleModel) copyDetailItemValue(item detailItem) {
+	value := strings.TrimSpace(item.Value)
+	if value == "" {
+		m.setStatus("No value to copy.")
+		return
+	}
+	if err := writeClipboardText(value); err != nil {
+		m.setStatus(fmt.Sprintf("Copy failed: %v", err))
+		return
+	}
+	m.setStatus(fmt.Sprintf("Copied '%s' to buffer...", formatStatusValue(value)))
 }
 
 func (m *bubbleModel) openChildCollection(detail *detailView) bool {
@@ -1515,6 +1987,7 @@ func (m *bubbleModel) openChildCollection(detail *detailView) bool {
 	if next.label != "" {
 		m.breadcrumbs = append(m.breadcrumbs, next.label)
 	}
+	m.clearStatus()
 	return true
 }
 
@@ -1557,28 +2030,7 @@ func (m *bubbleModel) openChildRowDetail(detail *detailView) bool {
 		parent = detail.child.context(row)
 	}
 
-	for i := range items {
-		if loader := getChildLoader(parentType, items[i].Label); loader != nil {
-			items[i].Loader = loader
-			items[i].Value = "..."
-		}
-	}
-
-	if parentType != "" {
-		for _, reg := range childLoaderFields(parentType) {
-			if reg.loader == nil {
-				continue
-			}
-			if !detailItemsContain(items, reg.field) {
-				items = append(items, detailItem{
-					Label:  reg.field,
-					Value:  "...",
-					Loader: reg.loader,
-				})
-			}
-		}
-	}
-
+	items = enrichDetailItems(items, parentType, parent)
 	items = reorderDetailItems(items)
 
 	tableModel := buildDetailTable(items, m.detailViewportWidth(), m.detailViewportHeight(), m.palette)
@@ -1595,6 +2047,7 @@ func (m *bubbleModel) openChildRowDetail(detail *detailView) bool {
 	if label != "" {
 		m.breadcrumbs = append(m.breadcrumbs, label)
 	}
+	m.clearStatus()
 	return true
 }
 
@@ -1727,6 +2180,56 @@ func (m *bubbleModel) renderBreadcrumb() string {
 	return builder.String()
 }
 
+func (m *bubbleModel) renderBreadcrumbRow() string {
+	breadcrumb := m.renderBreadcrumb()
+
+	var hint string
+	if !m.showHelp {
+		hint = lipgloss.NewStyle().Faint(true).Render("Press ? for help")
+	}
+
+	if breadcrumb == "" && hint == "" {
+		return ""
+	}
+
+	if m.windowWidth <= 0 {
+		switch {
+		case breadcrumb == "":
+			return hint
+		case hint == "":
+			return breadcrumb
+		default:
+			return breadcrumb + "  " + hint
+		}
+	}
+
+	if hint == "" {
+		return breadcrumb
+	}
+
+	if breadcrumb == "" {
+		spaces := m.windowWidth - lipgloss.Width(hint)
+		if spaces < 0 {
+			spaces = 0
+		}
+		return strings.Repeat(" ", spaces) + hint
+	}
+
+	spaces := m.windowWidth - lipgloss.Width(breadcrumb) - lipgloss.Width(hint)
+	if spaces < 1 {
+		spaces = 1
+	}
+	return breadcrumb + strings.Repeat(" ", spaces) + hint
+}
+
+func (m *bubbleModel) setStatus(msg string) {
+	m.statusMessage = strings.TrimSpace(msg)
+}
+
+func (m *bubbleModel) clearStatus() {
+	m.statusMessage = ""
+}
+
 func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:ireturn
 	var cmds []tea.Cmd
 	tableHandled := false
@@ -1737,6 +2240,9 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 			if key.String() == k {
 				return m, tea.Quit
 			}
+		}
+		if key.String() == "esc" && !m.inDetailMode() {
+			return m, tea.Quit
 		}
 		if key.String() == m.toggleKey {
 			m.showHelp = !m.showHelp
@@ -1809,8 +2315,8 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 func (m *bubbleModel) View() string {
 	var sections []string
 
-	if breadcrumb := m.renderBreadcrumb(); breadcrumb != "" {
-		sections = append(sections, breadcrumb)
+	if row := m.renderBreadcrumbRow(); row != "" {
+		sections = append(sections, row)
 	}
 
 	if m.previewRenderer != nil && !m.inDetailMode() {
@@ -1819,8 +2325,6 @@ func (m *bubbleModel) View() string {
 			sections = append(sections, preview)
 		}
 	}
-
-	footer := m.footer
 
 	if m.inDetailMode() {
 		index := len(m.detailStack) - 1
@@ -1833,9 +2337,6 @@ func (m *bubbleModel) View() string {
 			detailBox := borderedDetailView(m.detailStyle, view)
 			sections = append(sections, detailBox)
 		}
-		if m.detailFooter != "" {
-			footer = m.detailFooter
-		}
 	} else {
 		tableBox := borderedTableView(m.tableStyle, m.table.View(), m.selectedStyle)
 		main := tableBox
@@ -1846,15 +2347,14 @@ func (m *bubbleModel) View() string {
 		sections = append(sections, main)
 	}
 
-	if footer != "" {
-		sections = append(sections, footer)
+	if m.statusMessage != "" {
+		status := lipgloss.NewStyle().Faint(true).Render(m.statusMessage)
+		sections = append(sections, status)
 	}
 
 	if m.showHelp {
-		help := "Use arrows to navigate · q to quit · ? to hide this help"
+		help := "Use arrows or j/k to navigate · q or esc to quit · ? to hide this help"
 		sections = append(sections, lipgloss.NewStyle().Faint(true).Render(help))
-	} else {
-		sections = append(sections, lipgloss.NewStyle().Faint(true).Render("Press ? for help"))
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)

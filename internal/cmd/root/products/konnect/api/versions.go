@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -414,14 +415,26 @@ func versionSummaryDetailView(summary *kkComps.ListAPIVersionResponseAPIVersionS
 		specType = string(*summary.GetSpec().GetType())
 	}
 
-	var b strings.Builder
-	fmt.Fprintf(&b, "Version ID: %s\n", summary.GetID())
-	fmt.Fprintf(&b, "Version: %s\n", summary.GetVersion())
-	fmt.Fprintf(&b, "Spec Type: %s\n", specType)
-	fmt.Fprintf(&b, "Created: %s\n", summary.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
-	fmt.Fprintf(&b, "Updated: %s\n", summary.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
+	fields := map[string]string{
+		"created_at": summary.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		"spec_type":  specType,
+		"updated_at": summary.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+	}
 
-	return b.String()
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", summary.GetID())
+	fmt.Fprintf(&b, "version: %s\n", summary.GetVersion())
+	for _, key := range keys {
+		fmt.Fprintf(&b, "%s: %s\n", key, fields[key])
+	}
+
+	return strings.TrimRight(b.String(), "\n")
 }
 
 func versionDetailView(version *kkComps.APIVersionResponse) string {
@@ -434,12 +447,24 @@ func versionDetailView(version *kkComps.APIVersionResponse) string {
 		specType = string(*version.GetSpec().GetType())
 	}
 
-	var b strings.Builder
-	fmt.Fprintf(&b, "Version ID: %s\n", version.GetID())
-	fmt.Fprintf(&b, "Version: %s\n", version.GetVersion())
-	fmt.Fprintf(&b, "Spec Type: %s\n", specType)
-	fmt.Fprintf(&b, "Created: %s\n", version.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
-	fmt.Fprintf(&b, "Updated: %s\n", version.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
+	fields := map[string]string{
+		"created_at": version.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		"spec_type":  specType,
+		"updated_at": version.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+	}
 
-	return b.String()
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", version.GetID())
+	fmt.Fprintf(&b, "version: %s\n", version.GetVersion())
+	for _, key := range keys {
+		fmt.Fprintf(&b, "%s: %s\n", key, fields[key])
+	}
+
+	return strings.TrimRight(b.String(), "\n")
 }

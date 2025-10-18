@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -316,13 +317,25 @@ func implementationDetailView(implementation *kkComps.APIImplementationListItem)
 		}
 	}
 
-	var b strings.Builder
-	fmt.Fprintf(&b, "Implementation ID: %s\n", implementation.GetID())
-	fmt.Fprintf(&b, "API ID: %s\n", implementation.GetAPIID())
-	fmt.Fprintf(&b, "Service ID: %s\n", serviceID)
-	fmt.Fprintf(&b, "Control Plane ID: %s\n", controlPlaneID)
-	fmt.Fprintf(&b, "Created: %s\n", implementation.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
-	fmt.Fprintf(&b, "Updated: %s\n", implementation.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
+	fields := map[string]string{
+		"api_id":           implementation.GetAPIID(),
+		"control_plane_id": controlPlaneID,
+		"created_at":       implementation.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		"service_id":       serviceID,
+		"updated_at":       implementation.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+	}
 
-	return b.String()
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", implementation.GetID())
+	for _, key := range keys {
+		fmt.Fprintf(&b, "%s: %s\n", key, fields[key])
+	}
+
+	return strings.TrimRight(b.String(), "\n")
 }
