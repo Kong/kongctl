@@ -1,0 +1,80 @@
+baseInputsPath: ../../../testdata/declarative/control-plane/groups
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-initial-sync
+    commands:
+      - name: 001-sync
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: sync
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 3
+
+  - name: 002-update-group-members
+    inputOverlayDirs:
+      - overlays/002-update-members
+    commands:
+      - name: 002-sync
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: sync
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 3
+          - select: >-
+              plan.changes[?resource_type=='control_plane' &&
+                            resource_ref=='groups-staging-runtime'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: >-
+              plan.changes[?resource_type=='control_plane' &&
+                            resource_ref=='groups-emea-runtime'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='control_plane' &&
+                            resource_ref=='groups-shared-group'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+
+  - name: 003-plan-idempotent
+    inputOverlayDirs:
+      - overlays/002-update-members
+    commands:
+      - name: 003-plan
+        run:
+          - plan
+          - --mode
+          - sync
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 0
