@@ -213,6 +213,16 @@ func (rs *ResourceSet) GetAPIByRef(ref string) *APIResource {
 	return nil
 }
 
+// GetControlPlaneByRef returns a control plane resource by its ref from any namespace
+func (rs *ResourceSet) GetControlPlaneByRef(ref string) *ControlPlaneResource {
+	for i := range rs.ControlPlanes {
+		if rs.ControlPlanes[i].GetRef() == ref {
+			return &rs.ControlPlanes[i]
+		}
+	}
+	return nil
+}
+
 // GetAuthStrategyByRef returns an auth strategy resource by its ref from any namespace
 func (rs *ResourceSet) GetAuthStrategyByRef(ref string) *ApplicationAuthStrategyResource {
 	for i := range rs.ApplicationAuthStrategies {

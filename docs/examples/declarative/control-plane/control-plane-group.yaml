@@ -1,0 +1,19 @@
+_defaults:
+  kongctl:
+    namespace: shared-team
+
+control_planes:
+  - ref: prod-us-runtime
+    name: "prod-us-runtime"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+
+  - ref: prod-eu-runtime
+    name: "prod-eu-runtime"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+
+  - ref: shared-group
+    name: "shared-group"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE_GROUP"
+    members:
+      - id: !ref prod-us-runtime#id
+      - id: !ref prod-eu-runtime#id

@@ -1,0 +1,31 @@
+_defaults:
+  kongctl:
+    namespace: team-shared
+
+control_planes:
+  - ref: groups-prod-runtime
+    name: "groups-prod-runtime"
+    description: "Primary runtime for production"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    auth_type: "pinned_client_certs"
+    proxy_urls:
+      - host: groups-prod.example.com
+        port: 443
+        protocol: https
+
+  - ref: groups-emea-runtime
+    name: "groups-emea-runtime"
+    description: "EMEA runtime"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    proxy_urls:
+      - host: groups-emea.example.com
+        port: 443
+        protocol: https
+
+  - ref: groups-shared-group
+    name: "groups-shared-group"
+    description: "Shared configuration group"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE_GROUP"
+    members:
+      - id: !ref groups-prod-runtime#id
+      - id: !ref groups-emea-runtime#id

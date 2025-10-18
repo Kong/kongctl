@@ -3,6 +3,7 @@ package normalizers
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"sigs.k8s.io/yaml"
@@ -69,4 +70,30 @@ func SpecToJSON(spec interface{}) (string, error) {
 	}
 
 	return string(jsonBytes), nil
+}
+
+// NormalizeMemberIDs returns a sorted list of unique member IDs with empty values removed.
+func NormalizeMemberIDs(ids []string) []string {
+	if len(ids) == 0 {
+		return []string{}
+	}
+
+	seen := make(map[string]struct{}, len(ids))
+	unique := make([]string, 0, len(ids))
+
+	for _, id := range ids {
+		if id == "" {
+			continue
+		}
+
+		if _, exists := seen[id]; exists {
+			continue
+		}
+
+		seen[id] = struct{}{}
+		unique = append(unique, id)
+	}
+
+	sort.Strings(unique)
+	return unique
 }

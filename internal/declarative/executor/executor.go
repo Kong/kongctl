@@ -14,6 +14,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/log"
+	"github.com/kong/kongctl/internal/util/normalizers"
 )
 
 // Executor handles the execution of declarative configuration plans
@@ -532,6 +533,179 @@ func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.Referen
 	return portal.ID, nil
 }
 
+func (e *Executor) resolveControlPlaneRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
+	lookupRef := refInfo.Ref
+	if tags.IsRefPlaceholder(lookupRef) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+			lookupRef = parsedRef
+		}
+	}
+
+	if controlPlanes, ok := e.refToID["control_plane"]; ok {
+		if id, found := controlPlanes[lookupRef]; found && id != "" && id != "[unknown]" {
+			return id, nil
+		}
+	}
+
+	lookupValue := lookupRef
+	if refInfo.LookupFields != nil {
+		if name, ok := refInfo.LookupFields["name"]; ok && name != "" {
+			lookupValue = name
+		}
+	}
+
+	cp, err := e.client.GetControlPlaneByName(ctx, lookupValue)
+	if err != nil {
+		return "", fmt.Errorf("failed to get control plane by name: %w", err)
+	}
+	if cp == nil {
+		return "", fmt.Errorf("control plane not found: ref=%s, lookup=%s", refInfo.Ref, lookupValue)
+	}
+
+	return cp.ID, nil
+}
+
+func (e *Executor) syncControlPlaneGroupMembers(
+	ctx context.Context,
+	change *planner.PlannedChange,
+	controlPlaneID string,
+) error {
+	field, ok := change.Fields["members"]
+	if !ok {
+		return nil
+	}
+
+	desiredIDs, err := extractMemberIDsFromField(field)
+	if err != nil {
+		return fmt.Errorf("failed to extract control plane group members: %w", err)
+	}
+	if desiredIDs == nil {
+		return nil
+	}
+
+	resolved := make([]string, len(desiredIDs))
+	copy(resolved, desiredIDs)
+
+	refInfo, hasRefs := change.References["members"]
+	for idx, id := range desiredIDs {
+		if !tags.IsRefPlaceholder(id) {
+			continue
+		}
+
+		if !hasRefs || !refInfo.IsArray {
+			return fmt.Errorf("missing reference information for control plane group member %q", id)
+		}
+
+		resolvedID, err := e.resolveMemberReference(ctx, id, refInfo, idx)
+		if err != nil {
+			return err
+		}
+		resolved[idx] = resolvedID
+	}
+
+	for _, id := range resolved {
+		if tags.IsRefPlaceholder(id) {
+			return fmt.Errorf("unable to resolve control plane group member reference %q", id)
+		}
+	}
+
+	normalized := normalizers.NormalizeMemberIDs(resolved)
+	if e.dryRun {
+		return nil
+	}
+
+	return e.client.UpsertControlPlaneGroupMemberships(ctx, controlPlaneID, normalized)
+}
+
+func (e *Executor) resolveMemberReference(
+	ctx context.Context,
+	placeholder string,
+	refInfo planner.ReferenceInfo,
+	index int,
+) (string, error) {
+	targetIndex := -1
+	if index < len(refInfo.Refs) && refInfo.Refs[index] == placeholder {
+		targetIndex = index
+	} else {
+		for i, ref := range refInfo.Refs {
+			if ref == placeholder {
+				targetIndex = i
+				break
+			}
+		}
+	}
+
+	if targetIndex == -1 {
+		return "", fmt.Errorf("control plane membership reference %q not found", placeholder)
+	}
+
+	lookupFields := buildLookupFieldsForIndex(refInfo, targetIndex)
+	lookupRef := planner.ReferenceInfo{
+		Ref:          refInfo.Refs[targetIndex],
+		LookupFields: lookupFields,
+	}
+
+	return e.resolveControlPlaneRef(ctx, lookupRef)
+}
+
+func buildLookupFieldsForIndex(refInfo planner.ReferenceInfo, index int) map[string]string {
+	if refInfo.LookupArrays == nil {
+		return nil
+	}
+
+	fields := make(map[string]string)
+	if names, ok := refInfo.LookupArrays["names"]; ok {
+		if index < len(names) && names[index] != "" {
+			fields["name"] = names[index]
+		}
+	}
+
+	if len(fields) == 0 {
+		return nil
+	}
+	return fields
+}
+
+func extractMemberIDsFromField(field any) ([]string, error) {
+	switch v := field.(type) {
+	case []map[string]string:
+		ids := make([]string, 0, len(v))
+		for _, item := range v {
+			ids = append(ids, item["id"])
+		}
+		return ids, nil
+	case []map[string]any:
+		ids := make([]string, 0, len(v))
+		for _, item := range v {
+			id, ok := item["id"].(string)
+			if !ok {
+				return nil, fmt.Errorf("control plane member entry missing id")
+			}
+			ids = append(ids, id)
+		}
+		return ids, nil
+	case []any:
+		ids := make([]string, 0, len(v))
+		for _, item := range v {
+			switch entry := item.(type) {
+			case map[string]string:
+				ids = append(ids, entry["id"])
+			case map[string]any:
+				id, ok := entry["id"].(string)
+				if !ok {
+					return nil, fmt.Errorf("control plane member entry missing id")
+				}
+				ids = append(ids, id)
+			default:
+				return nil, fmt.Errorf("unsupported control plane member entry type %T", item)
+			}
+		}
+		return ids, nil
+	default:
+		return nil, nil
+	}
+}
+
 // resolveAPIRef resolves an API reference to its ID
 func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
 	// First check if it was created in this execution
@@ -854,7 +1028,14 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		}
 		return e.portalExecutor.Create(ctx, *change)
 	case "control_plane":
-		return e.controlPlaneExecutor.Create(ctx, *change)
+		id, err := e.controlPlaneExecutor.Create(ctx, *change)
+		if err != nil {
+			return "", err
+		}
+		if err := e.syncControlPlaneGroupMembers(ctx, change, id); err != nil {
+			return "", err
+		}
+		return id, nil
 	case "api":
 		// No references to resolve for api
 		return e.apiExecutor.Create(ctx, *change)
@@ -1041,7 +1222,14 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 	case "portal":
 		return e.portalExecutor.Update(ctx, *change)
 	case "control_plane":
-		return e.controlPlaneExecutor.Update(ctx, *change)
+		id, err := e.controlPlaneExecutor.Update(ctx, *change)
+		if err != nil {
+			return "", err
+		}
+		if err := e.syncControlPlaneGroupMembers(ctx, change, id); err != nil {
+			return "", err
+		}
+		return id, nil
 	case "api":
 		return e.apiExecutor.Update(ctx, *change)
 	case "api_document":

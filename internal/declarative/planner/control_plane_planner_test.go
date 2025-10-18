@@ -61,6 +61,71 @@ func TestControlPlanePlanner_PlanCreate(t *testing.T) {
 	assert.Equal(t, false, change.Protection)
 }
 
+func TestControlPlanePlanner_PlanCreateGroupWithMembers(t *testing.T) {
+	mockAPI := helpers.NewMockControlPlaneAPI(t)
+	mockAPI.EXPECT().
+		ListControlPlanes(mock.Anything, mock.Anything).
+		Return(newListControlPlaneResponse(nil, 0), nil).
+		Once()
+
+	clusterType := kkComps.CreateControlPlaneRequestClusterTypeClusterTypeControlPlaneGroup
+
+	planner := &Planner{
+		client: state.NewClient(state.ClientConfig{ControlPlaneAPI: mockAPI}),
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	planner.genericPlanner = NewGenericPlanner(planner)
+	planner.resources = &resources.ResourceSet{
+		ControlPlanes: []resources.ControlPlaneResource{
+			{
+				CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
+					Name: "child-cp",
+				},
+				Ref:     "child-cp",
+				Kongctl: &resources.KongctlMeta{Namespace: strPtr("default")},
+			},
+			{
+				CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
+					Name:        "group-cp",
+					ClusterType: &clusterType,
+				},
+				Ref: "group-cp",
+				Members: []resources.ControlPlaneGroupMember{
+					{ID: "__REF__:child-cp#id"},
+				},
+				Kongctl: &resources.KongctlMeta{Namespace: strPtr("default")},
+			},
+		},
+	}
+
+	base := NewBasePlanner(planner)
+	cpPlanner := NewControlPlanePlanner(base)
+
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	err := cpPlanner.PlanChanges(context.Background(), NewConfig("default"), plan)
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 2)
+
+	var groupChange PlannedChange
+	for _, change := range plan.Changes {
+		if change.ResourceRef == "group-cp" {
+			groupChange = change
+			break
+		}
+	}
+	require.Equal(t, "group-cp", groupChange.ResourceRef)
+	assert.Equal(t, ActionCreate, groupChange.Action)
+	assert.Equal(t, []map[string]string{{"id": "__REF__:child-cp#id"}}, groupChange.Fields["members"])
+	require.NotNil(t, groupChange.References)
+	refInfo, ok := groupChange.References["members"]
+	require.True(t, ok)
+	assert.True(t, refInfo.IsArray)
+	assert.Equal(t, []string{"__REF__:child-cp#id"}, refInfo.Refs)
+	if names, exists := refInfo.LookupArrays["names"]; exists {
+		assert.Equal(t, "child-cp", names[0])
+	}
+}
+
 func TestControlPlanePlanner_PlanUpdate(t *testing.T) {
 	mockAPI := helpers.NewMockControlPlaneAPI(t)
 	current := kkComps.ControlPlane{
@@ -124,6 +189,107 @@ func TestControlPlanePlanner_PlanUpdate(t *testing.T) {
 		change.Fields["proxy_urls"],
 	)
 	assert.Nil(t, change.Protection)
+}
+
+func TestControlPlanePlanner_PlanUpdateGroupMembers(t *testing.T) {
+	mockAPI := helpers.NewMockControlPlaneAPI(t)
+	mockGroups := &helpers.MockControlPlaneGroupsAPI{}
+
+	groupCurrent := kkComps.ControlPlane{
+		ID:   "group-id",
+		Name: "group-cp",
+		Labels: map[string]string{
+			labels.NamespaceKey: "default",
+		},
+		Config: kkComps.Config{
+			ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup,
+		},
+	}
+
+	childCurrent := kkComps.ControlPlane{
+		ID:   "child-id",
+		Name: "child-cp",
+		Labels: map[string]string{
+			labels.NamespaceKey: "default",
+		},
+		Config: kkComps.Config{ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlane},
+	}
+
+	mockAPI.EXPECT().
+		ListControlPlanes(mock.Anything, mock.Anything).
+		Return(newListControlPlaneResponse([]kkComps.ControlPlane{groupCurrent, childCurrent}, 2), nil).
+		Once()
+
+	mockGroups.On(
+		"GetControlPlanesIDGroupMemberships",
+		mock.Anything,
+		mock.MatchedBy(func(req kkOps.GetControlPlanesIDGroupMembershipsRequest) bool {
+			return req.ID == "group-id"
+		}),
+	).Return(&kkOps.GetControlPlanesIDGroupMembershipsResponse{
+		ListGroupMemberships: &kkComps.ListGroupMemberships{
+			Data: []kkComps.ControlPlane{{ID: "existing-member"}},
+			Meta: kkComps.CursorPaginatedMetaWithSizeAndTotal{
+				Page: kkComps.CursorMetaWithSizeAndTotal{Size: 1},
+			},
+		},
+	}, nil).Once()
+
+	planner := &Planner{
+		client: state.NewClient(state.ClientConfig{
+			ControlPlaneAPI:       mockAPI,
+			ControlPlaneGroupsAPI: mockGroups,
+		}),
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	planner.genericPlanner = NewGenericPlanner(planner)
+	planner.resources = &resources.ResourceSet{
+		ControlPlanes: []resources.ControlPlaneResource{
+			{
+				CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
+					Name: "child-cp",
+				},
+				Ref:     "child-cp",
+				Kongctl: &resources.KongctlMeta{Namespace: strPtr("default")},
+			},
+			{
+				CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
+					Name:        "group-cp",
+					ClusterType: kkComps.CreateControlPlaneRequestClusterTypeClusterTypeControlPlaneGroup.ToPointer(),
+				},
+				Ref: "group-cp",
+				Members: []resources.ControlPlaneGroupMember{
+					{ID: "__REF__:child-cp#id"},
+				},
+				Kongctl: &resources.KongctlMeta{Namespace: strPtr("default")},
+			},
+		},
+	}
+
+	base := NewBasePlanner(planner)
+	cpPlanner := NewControlPlanePlanner(base)
+
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	err := cpPlanner.PlanChanges(context.Background(), NewConfig("default"), plan)
+	require.NoError(t, err)
+
+	var groupChange PlannedChange
+	for _, change := range plan.Changes {
+		if change.ResourceRef == "group-cp" {
+			groupChange = change
+			break
+		}
+	}
+	require.Equal(t, "group-cp", groupChange.ResourceRef)
+	assert.Equal(t, ActionUpdate, groupChange.Action)
+	assert.Equal(t, []map[string]string{{"id": "__REF__:child-cp#id"}}, groupChange.Fields["members"])
+	require.NotNil(t, groupChange.References)
+	refInfo, ok := groupChange.References["members"]
+	require.True(t, ok)
+	assert.Equal(t, []string{"__REF__:child-cp#id"}, refInfo.Refs)
+	if names, exists := refInfo.LookupArrays["names"]; exists {
+		assert.Equal(t, "child-cp", names[0])
+	}
 }
 
 func TestControlPlanePlanner_PlanDeleteSync(t *testing.T) {

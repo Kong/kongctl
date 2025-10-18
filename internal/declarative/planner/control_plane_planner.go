@@ -8,6 +8,8 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
+	"github.com/kong/kongctl/internal/util/normalizers"
 )
 
 // controlPlanePlannerImpl implements planning logic for control plane resources
@@ -38,7 +40,15 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 	}
 
 	currentByName := make(map[string]state.ControlPlane)
-	for _, cp := range currentControlPlanes {
+	for i := range currentControlPlanes {
+		cp := currentControlPlanes[i]
+		if cp.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
+			memberIDs, err := p.GetClient().ListControlPlaneGroupMemberships(ctx, cp.ID)
+			if err != nil {
+				return fmt.Errorf("failed to list control plane group memberships for %s: %w", cp.Name, err)
+			}
+			cp.GroupMembers = normalizers.NormalizeMemberIDs(memberIDs)
+		}
 		currentByName[cp.Name] = cp
 	}
 
@@ -117,6 +127,7 @@ func (p *controlPlanePlannerImpl) planControlPlaneCreate(
 	plan *Plan,
 ) {
 	fields := extractControlPlaneFields(desired)
+	memberIDs := normalizers.NormalizeMemberIDs(desired.MemberIDs())
 
 	namespace := resources.GetNamespace(desired.Kongctl)
 	config := CreateConfig{
@@ -133,6 +144,12 @@ func (p *controlPlanePlannerImpl) planControlPlaneCreate(
 		change, err := generic.PlanCreate(context.Background(), config)
 		if err == nil {
 			change.Protection = protected
+			if desired.IsGroup() && len(memberIDs) > 0 {
+				if change.References == nil {
+					change.References = make(map[string]ReferenceInfo)
+				}
+				change.References["members"] = p.buildMemberReferenceInfo(memberIDs)
+			}
 			plan.AddChange(change)
 			return
 		}
@@ -141,7 +158,7 @@ func (p *controlPlanePlannerImpl) planControlPlaneCreate(
 	}
 
 	changeID := p.NextChangeID(ActionCreate, "control_plane", desired.GetRef())
-	plan.AddChange(PlannedChange{
+	change := PlannedChange{
 		ID:           changeID,
 		ResourceType: "control_plane",
 		ResourceRef:  desired.GetRef(),
@@ -149,7 +166,15 @@ func (p *controlPlanePlannerImpl) planControlPlaneCreate(
 		Fields:       fields,
 		Namespace:    namespace,
 		Protection:   protected,
-	})
+	}
+
+	if desired.IsGroup() && len(memberIDs) > 0 {
+		change.References = map[string]ReferenceInfo{
+			"members": p.buildMemberReferenceInfo(memberIDs),
+		}
+	}
+
+	plan.AddChange(change)
 }
 
 func (p *controlPlanePlannerImpl) planControlPlaneUpdate(
@@ -158,6 +183,14 @@ func (p *controlPlanePlannerImpl) planControlPlaneUpdate(
 	updateFields map[string]any,
 	plan *Plan,
 ) {
+	var memberIDs []string
+	if rawMembers, ok := updateFields["members"]; ok {
+		if ids, ok := rawMembers.([]string); ok {
+			memberIDs = ids
+			updateFields["members"] = formatMemberField(ids)
+		}
+	}
+
 	// Always include name for identification
 	updateFields["name"] = current.Name
 
@@ -182,6 +215,12 @@ func (p *controlPlanePlannerImpl) planControlPlaneUpdate(
 		if err == nil {
 			if labels.IsProtectedResource(current.NormalizedLabels) {
 				change.Protection = true
+			}
+			if len(memberIDs) > 0 {
+				if change.References == nil {
+					change.References = make(map[string]ReferenceInfo)
+				}
+				change.References["members"] = p.buildMemberReferenceInfo(memberIDs)
 			}
 			plan.AddChange(change)
 			return
@@ -209,6 +248,12 @@ func (p *controlPlanePlannerImpl) planControlPlaneUpdate(
 		change.Protection = true
 	}
 
+	if len(memberIDs) > 0 {
+		change.References = map[string]ReferenceInfo{
+			"members": p.buildMemberReferenceInfo(memberIDs),
+		}
+	}
+
 	plan.AddChange(change)
 }
 
@@ -219,6 +264,14 @@ func (p *controlPlanePlannerImpl) planControlPlaneProtectionChangeWithFields(
 	updateFields map[string]any,
 	plan *Plan,
 ) {
+	var memberIDs []string
+	if rawMembers, ok := updateFields["members"]; ok {
+		if ids, ok := rawMembers.([]string); ok {
+			memberIDs = ids
+			updateFields["members"] = formatMemberField(ids)
+		}
+	}
+
 	namespace := resources.GetNamespace(desired.Kongctl)
 	config := ProtectionChangeConfig{
 		ResourceType: "control_plane",
@@ -259,6 +312,12 @@ func (p *controlPlanePlannerImpl) planControlPlaneProtectionChangeWithFields(
 	}
 
 	change.Fields = fields
+	if len(memberIDs) > 0 {
+		if change.References == nil {
+			change.References = make(map[string]ReferenceInfo)
+		}
+		change.References["members"] = p.buildMemberReferenceInfo(memberIDs)
+	}
 	plan.AddChange(change)
 }
 
@@ -330,6 +389,14 @@ func (p *controlPlanePlannerImpl) shouldUpdateControlPlane(
 		}
 	}
 
+	if desired.IsGroup() {
+		desiredMembers := p.resolveDesiredGroupMemberIDs(desired)
+		currentMembers := normalizers.NormalizeMemberIDs(current.GroupMembers)
+		if !equalStringSlices(currentMembers, desiredMembers) {
+			updates["members"] = desiredMembers
+		}
+	}
+
 	return len(updates) > 0, updates
 }
 
@@ -361,6 +428,11 @@ func extractControlPlaneFields(cp resources.ControlPlaneResource) map[string]any
 		fields["labels"] = cp.Labels
 	}
 
+	if cp.IsGroup() {
+		members := normalizers.NormalizeMemberIDs(cp.MemberIDs())
+		fields["members"] = formatMemberField(members)
+	}
+
 	return fields
 }
 
@@ -385,4 +457,88 @@ func isProtected(cp resources.ControlPlaneResource) bool {
 		return *cp.Kongctl.Protected
 	}
 	return false
+}
+
+func formatMemberField(ids []string) []map[string]string {
+	formatted := make([]map[string]string, 0, len(ids))
+	for _, id := range ids {
+		formatted = append(formatted, map[string]string{"id": id})
+	}
+	return formatted
+}
+
+func equalStringSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func (p *controlPlanePlannerImpl) buildMemberReferenceInfo(ids []string) ReferenceInfo {
+	info := ReferenceInfo{
+		Refs:    make([]string, len(ids)),
+		IsArray: true,
+	}
+
+	var names []string
+	for i, id := range ids {
+		info.Refs[i] = id
+
+		if tags.IsRefPlaceholder(id) {
+			ref, field, ok := tags.ParseRefPlaceholder(id)
+			if ok && field == "id" && ref != "" && p.planner != nil && p.planner.resources != nil {
+				if cp := p.planner.resources.GetControlPlaneByRef(ref); cp != nil {
+					if names == nil {
+						names = make([]string, len(ids))
+					}
+					names[i] = cp.Name
+				}
+			}
+		}
+	}
+
+	if names != nil {
+		info.LookupArrays = map[string][]string{
+			"names": names,
+		}
+	}
+
+	return info
+}
+
+func (p *controlPlanePlannerImpl) resolveDesiredGroupMemberIDs(desired resources.ControlPlaneResource) []string {
+	raw := desired.MemberIDs()
+	if len(raw) == 0 {
+		return []string{}
+	}
+
+	resolved := make([]string, 0, len(raw))
+	for _, memberID := range raw {
+		if !tags.IsRefPlaceholder(memberID) {
+			resolved = append(resolved, memberID)
+			continue
+		}
+
+		ref, field, ok := tags.ParseRefPlaceholder(memberID)
+		if !ok || field != "id" || ref == "" || p.planner == nil || p.planner.resources == nil {
+			resolved = append(resolved, memberID)
+			continue
+		}
+
+		if cp := p.planner.resources.GetControlPlaneByRef(ref); cp != nil {
+			if konnectID := cp.GetKonnectID(); konnectID != "" {
+				resolved = append(resolved, konnectID)
+				continue
+			}
+		}
+
+		resolved = append(resolved, memberID)
+	}
+
+	return normalizers.NormalizeMemberIDs(resolved)
 }

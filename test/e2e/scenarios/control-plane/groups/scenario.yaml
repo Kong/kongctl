@@ -1,0 +1,42 @@
+baseInputsPath: ../../../testdata/declarative/control-plane/groups
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-group-members
+    commands:
+      - name: 001-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: apply
+          - select: >-
+              plan.changes[?resource_type=='control_plane' &&
+                            resource_ref=='groups-shared-group'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+  - name: 002-plan-idempotent
+    commands:
+      - name: 002-plan
+        run:
+          - plan
+          - --mode
+          - apply
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 0

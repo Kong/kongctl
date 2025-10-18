@@ -12,16 +12,18 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
+	"github.com/kong/kongctl/internal/util/pagination"
 )
 
 // ClientConfig contains all the API interfaces needed by the state client
 type ClientConfig struct {
 	// Core APIs
-	PortalAPI         helpers.PortalAPI
-	APIAPI            helpers.APIAPI
-	AppAuthAPI        helpers.AppAuthStrategiesAPI
-	ControlPlaneAPI   helpers.ControlPlaneAPI
-	GatewayServiceAPI helpers.GatewayServiceAPI
+	PortalAPI             helpers.PortalAPI
+	APIAPI                helpers.APIAPI
+	AppAuthAPI            helpers.AppAuthStrategiesAPI
+	ControlPlaneAPI       helpers.ControlPlaneAPI
+	GatewayServiceAPI     helpers.GatewayServiceAPI
+	ControlPlaneGroupsAPI helpers.ControlPlaneGroupsAPI
 
 	// Portal child resource APIs
 	PortalPageAPI          helpers.PortalPageAPI
@@ -39,11 +41,12 @@ type ClientConfig struct {
 // Client wraps Konnect SDK for state management
 type Client struct {
 	// Core APIs
-	portalAPI         helpers.PortalAPI
-	apiAPI            helpers.APIAPI
-	appAuthAPI        helpers.AppAuthStrategiesAPI
-	controlPlaneAPI   helpers.ControlPlaneAPI
-	gatewayServiceAPI helpers.GatewayServiceAPI
+	portalAPI             helpers.PortalAPI
+	apiAPI                helpers.APIAPI
+	appAuthAPI            helpers.AppAuthStrategiesAPI
+	controlPlaneAPI       helpers.ControlPlaneAPI
+	gatewayServiceAPI     helpers.GatewayServiceAPI
+	controlPlaneGroupsAPI helpers.ControlPlaneGroupsAPI
 
 	// Portal child resource APIs
 	portalPageAPI          helpers.PortalPageAPI
@@ -62,11 +65,12 @@ type Client struct {
 func NewClient(config ClientConfig) *Client {
 	return &Client{
 		// Core APIs
-		portalAPI:         config.PortalAPI,
-		apiAPI:            config.APIAPI,
-		appAuthAPI:        config.AppAuthAPI,
-		controlPlaneAPI:   config.ControlPlaneAPI,
-		gatewayServiceAPI: config.GatewayServiceAPI,
+		portalAPI:             config.PortalAPI,
+		apiAPI:                config.APIAPI,
+		appAuthAPI:            config.AppAuthAPI,
+		controlPlaneAPI:       config.ControlPlaneAPI,
+		gatewayServiceAPI:     config.GatewayServiceAPI,
+		controlPlaneGroupsAPI: config.ControlPlaneGroupsAPI,
 
 		// Portal child resource APIs
 		portalPageAPI:          config.PortalPageAPI,
@@ -98,6 +102,7 @@ type API struct {
 type ControlPlane struct {
 	kkComps.ControlPlane
 	NormalizedLabels map[string]string // Non-pointer labels
+	GroupMembers     []string
 }
 
 // GatewayService represents a gateway service for internal use.
@@ -524,6 +529,89 @@ func (c *Client) ListAllControlPlanes(ctx context.Context) ([]ControlPlane, erro
 	}
 
 	return all, nil
+}
+
+// ListControlPlaneGroupMemberships returns all child control plane IDs for a control plane group.
+func (c *Client) ListControlPlaneGroupMemberships(ctx context.Context, groupID string) ([]string, error) {
+	if err := ValidateAPIClient(c.controlPlaneGroupsAPI, "Control Plane Groups API"); err != nil {
+		return nil, err
+	}
+
+	const defaultPageSize int64 = 100
+	pageSize := defaultPageSize
+
+	var (
+		memberIDs []string
+		pageAfter *string
+	)
+
+	for {
+		req := kkOps.GetControlPlanesIDGroupMembershipsRequest{
+			ID:       groupID,
+			PageSize: &pageSize,
+		}
+
+		if pageAfter != nil {
+			req.PageAfter = pageAfter
+		}
+
+		resp, err := c.controlPlaneGroupsAPI.GetControlPlanesIDGroupMemberships(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list control plane group memberships", &ErrorWrapperOptions{
+				ResourceType: "control_plane_group",
+				ResourceName: groupID,
+				UseEnhanced:  true,
+			})
+		}
+
+		if resp == nil || resp.GetListGroupMemberships() == nil {
+			break
+		}
+
+		for _, member := range resp.GetListGroupMemberships().GetData() {
+			if member.ID != "" {
+				memberIDs = append(memberIDs, member.ID)
+			}
+		}
+
+		meta := resp.GetListGroupMemberships().GetMeta()
+		nextCursor := pagination.ExtractPageAfterCursor(meta.Page.Next)
+		if nextCursor == "" {
+			break
+		}
+		pageAfter = &nextCursor
+	}
+
+	return memberIDs, nil
+}
+
+// UpsertControlPlaneGroupMemberships replaces the members of a control plane group.
+func (c *Client) UpsertControlPlaneGroupMemberships(ctx context.Context, groupID string, memberIDs []string) error {
+	if err := ValidateAPIClient(c.controlPlaneGroupsAPI, "Control Plane Groups API"); err != nil {
+		return err
+	}
+
+	members := make([]kkComps.Members, 0, len(memberIDs))
+	for _, id := range memberIDs {
+		if strings.TrimSpace(id) == "" {
+			continue
+		}
+		members = append(members, kkComps.Members{ID: id})
+	}
+
+	req := kkComps.GroupMembership{
+		Members: members,
+	}
+
+	if _, err := c.controlPlaneGroupsAPI.PutControlPlanesIDGroupMemberships(ctx, groupID, &req); err != nil {
+		return WrapAPIError(err, "upsert control plane group memberships", &ErrorWrapperOptions{
+			ResourceType: "control_plane_group",
+			ResourceName: groupID,
+			UseEnhanced:  true,
+		})
+	}
+
+	return nil
 }
 
 // ListGatewayServices returns all gateway services for the provided control plane.
