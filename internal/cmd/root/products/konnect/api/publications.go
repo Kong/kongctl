@@ -176,30 +176,15 @@ func (h apiPublicationsHandler) run(args []string) error {
 		publications = filtered
 	}
 
-	switch outType {
-	case cmdCommon.TEXT:
-		records := make([]apiPublicationRecord, 0, len(publications))
-		for _, publication := range publications {
-			records = append(records, publicationToRecord(publication))
-		}
-		printer.Print(records)
-		return nil
-	case cmdCommon.INTERACTIVE:
-		records := make([]apiPublicationRecord, 0, len(publications))
-		rows := make([]table.Row, 0, len(publications))
-		for _, publication := range publications {
-			record := publicationToRecord(publication)
-			records = append(records, record)
-			rows = append(rows, table.Row{util.AbbreviateUUID(record.PortalID), strings.ToUpper(record.Visibility)})
-		}
+	records := make([]apiPublicationRecord, 0, len(publications))
+	rows := make([]table.Row, 0, len(publications))
+	for _, publication := range publications {
+		record := publicationToRecord(publication)
+		records = append(records, record)
+		rows = append(rows, table.Row{util.AbbreviateUUID(record.PortalID), strings.ToUpper(record.Visibility)})
+	}
 
-		detailFn := func(index int) string {
-			if index < 0 || index >= len(publications) {
-				return ""
-			}
-			return publicationDetailView(&publications[index])
-		}
-
+	if outType != cmdCommon.INTERACTIVE {
 		return tableview.RenderForFormat(
 			outType,
 			printer,
@@ -207,16 +192,31 @@ func (h apiPublicationsHandler) run(args []string) error {
 			records,
 			publications,
 			"",
-			tableview.WithCustomTable([]string{"PORTAL", "VISIBILITY"}, rows),
-			tableview.WithDetailRenderer(detailFn),
-			tableview.WithRootLabel(helper.GetCmd().Name()),
 		)
-	default:
-		if printer != nil {
-			printer.Print(publications)
-		}
-		return nil
 	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(publications) {
+			return ""
+		}
+		return publicationDetailView(&publications[index])
+	}
+
+	return tableview.Render(
+		helper.GetStreams(),
+		records,
+		tableview.WithTitle("Publications"),
+		tableview.WithCustomTable([]string{"PORTAL", "VISIBILITY"}, rows),
+		tableview.WithDetailRenderer(detailFn),
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+		tableview.WithDetailContext("api-publication", func(index int) any {
+			if index < 0 || index >= len(publications) {
+				return nil
+			}
+			return &publications[index]
+		}),
+		tableview.WithDetailHelper(helper),
+	)
 }
 
 func fetchPublications(

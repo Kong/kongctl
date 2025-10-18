@@ -192,31 +192,15 @@ func (h apiVersionsHandler) listVersions(
 		return err
 	}
 
-	if outType == cmdCommon.TEXT {
-		records := make([]apiVersionSummaryRecord, 0, len(summaries))
-		for _, summary := range summaries {
-			records = append(records, versionSummaryToRecord(summary))
-		}
-		printer.Print(records)
-		return nil
+	displayRecords := make([]apiVersionSummaryRecord, 0, len(summaries))
+	rows := make([]table.Row, 0, len(summaries))
+	for _, summary := range summaries {
+		record := versionSummaryToRecord(summary)
+		displayRecords = append(displayRecords, record)
+		rows = append(rows, table.Row{util.AbbreviateUUID(record.ID), summary.GetVersion()})
 	}
 
-	if outType == cmdCommon.INTERACTIVE {
-		displayRecords := make([]apiVersionSummaryRecord, 0, len(summaries))
-		rows := make([]table.Row, 0, len(summaries))
-		for _, summary := range summaries {
-			record := versionSummaryToRecord(summary)
-			displayRecords = append(displayRecords, record)
-			rows = append(rows, table.Row{util.AbbreviateUUID(record.ID), record.Version})
-		}
-
-		detailFn := func(index int) string {
-			if index < 0 || index >= len(summaries) {
-				return ""
-			}
-			return versionSummaryDetailView(&summaries[index])
-		}
-
+	if outType != cmdCommon.INTERACTIVE {
 		return tableview.RenderForFormat(
 			outType,
 			printer,
@@ -224,16 +208,31 @@ func (h apiVersionsHandler) listVersions(
 			displayRecords,
 			summaries,
 			"",
-			tableview.WithCustomTable([]string{"ID", "VERSION"}, rows),
-			tableview.WithDetailRenderer(detailFn),
-			tableview.WithRootLabel(helper.GetCmd().Name()),
 		)
 	}
 
-	if printer != nil {
-		printer.Print(summaries)
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(summaries) {
+			return ""
+		}
+		return versionSummaryDetailView(&summaries[index])
 	}
-	return nil
+
+	return tableview.Render(
+		helper.GetStreams(),
+		displayRecords,
+		tableview.WithTitle("Versions"),
+		tableview.WithCustomTable([]string{"ID", "VERSION"}, rows),
+		tableview.WithDetailRenderer(detailFn),
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+		tableview.WithDetailContext("api-version", func(index int) any {
+			if index < 0 || index >= len(summaries) {
+				return nil
+			}
+			return &summaries[index]
+		}),
+		tableview.WithDetailHelper(helper),
+	)
 }
 
 func (h apiVersionsHandler) getSingleVersion(

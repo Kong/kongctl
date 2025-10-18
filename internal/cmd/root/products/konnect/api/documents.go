@@ -182,13 +182,23 @@ func (h apiDocumentsHandler) listDocuments(
 	}
 
 	flattened := flattenDocuments(docs)
-
 	records := make([]apiDocumentSummaryRecord, 0, len(flattened))
 	rows := make([]table.Row, 0, len(flattened))
 	for _, doc := range flattened {
 		record := documentSummaryToRecord(doc)
 		records = append(records, record)
 		rows = append(rows, table.Row{record.ID, record.Title})
+	}
+
+	if outType != cmdCommon.INTERACTIVE {
+		return tableview.RenderForFormat(
+			outType,
+			printer,
+			helper.GetStreams(),
+			records,
+			flattened,
+			"",
+		)
 	}
 
 	detailFn := func(index int) string {
@@ -198,16 +208,20 @@ func (h apiDocumentsHandler) listDocuments(
 		return documentSummaryDetailView(&flattened[index])
 	}
 
-	return tableview.RenderForFormat(
-		outType,
-		printer,
+	return tableview.Render(
 		helper.GetStreams(),
 		records,
-		flattened,
-		"",
+		tableview.WithTitle("Documents"),
 		tableview.WithCustomTable([]string{"DOCUMENT", "TITLE"}, rows),
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
+		tableview.WithDetailContext("api-document", func(index int) any {
+			if index < 0 || index >= len(flattened) {
+				return nil
+			}
+			return &flattened[index]
+		}),
+		tableview.WithDetailHelper(helper),
 	)
 }
 

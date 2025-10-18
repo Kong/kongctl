@@ -131,75 +131,94 @@ func portalResponseToDisplayRecord(p *kkComps.PortalResponse) textDisplayRecord 
 	}
 }
 
+type portalDetailData struct {
+	ID              string
+	Name            string
+	Description     *string
+	CanonicalDomain string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+func renderPortalDetail(data portalDetailData) string {
+	const missing = "n/a"
+
+	id := strings.TrimSpace(data.ID)
+	if id == "" {
+		id = missing
+	}
+
+	name := strings.TrimSpace(data.Name)
+	if name == "" {
+		name = missing
+	}
+
+	description := ""
+	if data.Description != nil {
+		description = strings.TrimSpace(*data.Description)
+	}
+
+	canonicalDomain := strings.TrimSpace(data.CanonicalDomain)
+	if canonicalDomain == "" {
+		canonicalDomain = missing
+	}
+
+	fields := map[string]string{
+		"canonical_domain": canonicalDomain,
+		"created_at":       data.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05"),
+		"updated_at":       data.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05"),
+	}
+
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	for _, key := range keys {
+		fmt.Fprintf(&b, "%s: %s\n", key, fields[key])
+	}
+
+	if description != "" {
+		fmt.Fprintf(&b, "description:\n%s\n", description)
+	}
+
+	return strings.TrimRight(b.String(), "\n")
+}
+
 func portalDetailView(p *kkComps.Portal) string {
 	if p == nil {
 		return ""
 	}
 
-	missing := "n/a"
+	data := portalDetailData{
+		ID:              p.ID,
+		Name:            p.Name,
+		Description:     p.Description,
+		CanonicalDomain: p.CanonicalDomain,
+		CreatedAt:       p.CreatedAt,
+		UpdatedAt:       p.UpdatedAt,
+	}
+	return renderPortalDetail(data)
+}
 
-	id := strings.TrimSpace(p.ID)
-	if id == "" {
-		id = missing
+func portalResponseDetailView(p *kkComps.PortalResponse) string {
+	if p == nil {
+		return ""
 	}
 
-	name := strings.TrimSpace(p.Name)
-	if name == "" {
-		name = missing
+	data := portalDetailData{
+		ID:              p.ID,
+		Name:            p.Name,
+		Description:     p.Description,
+		CanonicalDomain: p.CanonicalDomain,
+		CreatedAt:       p.CreatedAt,
+		UpdatedAt:       p.UpdatedAt,
 	}
-
-	description := missing
-	if p.Description != nil && strings.TrimSpace(*p.Description) != "" {
-		description = strings.TrimSpace(*p.Description)
-	}
-
-	canonicalDomain := missing
-	if strings.TrimSpace(p.CanonicalDomain) != "" {
-		canonicalDomain = strings.TrimSpace(p.CanonicalDomain)
-	}
-
-	created := p.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
-	updated := p.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
-
-	type detailField struct {
-		label string
-		value string
-	}
-
-	var fields []detailField
-	addField := func(label, value string) {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			return
-		}
-		fields = append(fields, detailField{
-			label: label,
-			value: value,
-		})
-	}
-
-	addField("Description", description)
-	addField("Canonical Domain", canonicalDomain)
-	addField("Created", created)
-	addField("Updated", updated)
-
-	sort.Slice(fields, func(i, j int) bool {
-		li := strings.ToLower(fields[i].label)
-		lj := strings.ToLower(fields[j].label)
-		if li == lj {
-			return fields[i].label < fields[j].label
-		}
-		return li < lj
-	})
-
-	var b strings.Builder
-	fmt.Fprintf(&b, "ID: %s\n", id)
-	fmt.Fprintf(&b, "Name: %s\n", name)
-	for _, field := range fields {
-		fmt.Fprintf(&b, "%s: %s\n", field.label, field.value)
-	}
-
-	return b.String()
+	return renderPortalDetail(data)
 }
 
 type getPortalCmd struct {
@@ -362,6 +381,13 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 			if err != nil {
 				return err
 			}
+
+			detailFn := func(index int) string {
+				if index != 0 {
+					return ""
+				}
+				return portalDetailView(portal)
+			}
 			return tableview.RenderForFormat(
 				outType,
 				printer,
@@ -370,11 +396,25 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 				portal,
 				"",
 				tableview.WithRootLabel(helper.GetCmd().Name()),
+				tableview.WithDetailRenderer(detailFn),
+				tableview.WithDetailHelper(helper),
+				tableview.WithDetailContext("portal", func(index int) any {
+					if index != 0 {
+						return nil
+					}
+					return portal
+				}),
 			)
 		}
 		portalResponse, err := runGet(id, sdk.GetPortalAPI(), helper)
 		if err != nil {
 			return err
+		}
+		detailFn := func(index int) string {
+			if index != 0 {
+				return ""
+			}
+			return portalResponseDetailView(portalResponse)
 		}
 		return tableview.RenderForFormat(
 			outType,
@@ -384,6 +424,14 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 			portalResponse,
 			"",
 			tableview.WithRootLabel(helper.GetCmd().Name()),
+			tableview.WithDetailRenderer(detailFn),
+			tableview.WithDetailHelper(helper),
+			tableview.WithDetailContext("portal", func(index int) any {
+				if index != 0 {
+					return nil
+				}
+				return portalResponse
+			}),
 		)
 	}
 
@@ -418,6 +466,13 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		tableview.WithCustomTable([]string{"ID", "NAME"}, tableRows),
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
+		tableview.WithDetailHelper(helper),
+		tableview.WithDetailContext("portal", func(index int) any {
+			if index < 0 || index >= len(portals) {
+				return nil
+			}
+			return &portals[index]
+		}),
 	)
 }
 

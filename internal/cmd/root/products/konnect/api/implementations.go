@@ -187,6 +187,17 @@ func (h apiImplementationsHandler) run(args []string) error {
 		tableRows = append(tableRows, table.Row{record.ImplementationID, record.ServiceID})
 	}
 
+	if outType != cmdCommon.INTERACTIVE {
+		return tableview.RenderForFormat(
+			outType,
+			printer,
+			helper.GetStreams(),
+			displayRecords,
+			implementations,
+			"",
+		)
+	}
+
 	detailFn := func(index int) string {
 		if index < 0 || index >= len(implementations) {
 			return ""
@@ -194,16 +205,20 @@ func (h apiImplementationsHandler) run(args []string) error {
 		return implementationDetailView(&implementations[index])
 	}
 
-	return tableview.RenderForFormat(
-		outType,
-		printer,
+	return tableview.Render(
 		helper.GetStreams(),
 		displayRecords,
-		implementations,
-		"",
+		tableview.WithTitle("Implementations"),
 		tableview.WithCustomTable([]string{"IMPLEMENTATION", "SERVICE"}, tableRows),
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
+		tableview.WithDetailContext("api-implementation", func(index int) any {
+			if index < 0 || index >= len(implementations) {
+				return nil
+			}
+			return &implementations[index]
+		}),
+		tableview.WithDetailHelper(helper),
 	)
 }
 

@@ -132,7 +132,7 @@ func loadAPIVersions(ctx context.Context, helper cmd.Helper, parent any) (tablev
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"VERSION", "SPEC TYPE"},
+		Headers:        []string{"ID", "VERSION"},
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Versions",

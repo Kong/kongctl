@@ -2,6 +2,8 @@ package portal
 
 import (
 	"fmt"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -329,26 +331,51 @@ func findPageBySlugOrTitle(pages []kkComps.PortalPageInfo, identifier string) *k
 }
 
 func portalPageInfoDetail(page kkComps.PortalPageInfo) string {
-	var b strings.Builder
+	const missing = valueNA
 
-	fmt.Fprintf(&b, "Title: %s\n", nonEmptyStringOrNA(page.GetTitle()))
-	fmt.Fprintf(&b, "ID: %s\n", page.GetID())
-	fmt.Fprintf(&b, "Slug: %s\n", nonEmptyStringOrNA(page.GetSlug()))
-	fmt.Fprintf(&b, "Visibility: %s\n", string(page.GetVisibility()))
-	fmt.Fprintf(&b, "Status: %s\n", string(page.GetStatus()))
-	parent := valueNA
+	id := strings.TrimSpace(page.GetID())
+	if id == "" {
+		id = missing
+	}
+
+	title := strings.TrimSpace(page.GetTitle())
+	if title == "" {
+		title = missing
+	}
+
+	parentID := missing
 	if pid := page.GetParentPageID(); pid != nil && *pid != "" {
-		parent = *pid
-	}
-	fmt.Fprintf(&b, "Parent Page ID: %s\n", parent)
-	fmt.Fprintf(&b, "Children: %d\n", len(page.GetChildren()))
-	fmt.Fprintf(&b, "Created: %s\n", formatTime(page.GetCreatedAt()))
-	fmt.Fprintf(&b, "Updated: %s\n", formatTime(page.GetUpdatedAt()))
-	if desc := page.GetDescription(); desc != nil && *desc != "" {
-		fmt.Fprintf(&b, "\nDescription:\n%s\n", *desc)
+		parentID = *pid
 	}
 
-	return b.String()
+	fields := map[string]string{
+		"children_count": strconv.Itoa(len(page.GetChildren())),
+		"created_at":     formatTime(page.GetCreatedAt()),
+		"parent_page_id": parentID,
+		"slug":           nonEmptyStringOrNA(page.GetSlug()),
+		"status":         string(page.GetStatus()),
+		"updated_at":     formatTime(page.GetUpdatedAt()),
+		"visibility":     string(page.GetVisibility()),
+	}
+
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "title: %s\n", title)
+	for _, key := range keys {
+		fmt.Fprintf(&b, "%s: %s\n", key, fields[key])
+	}
+
+	if desc := page.GetDescription(); desc != nil && strings.TrimSpace(*desc) != "" {
+		fmt.Fprintf(&b, "description:\n%s\n", strings.TrimSpace(*desc))
+	}
+
+	return strings.TrimRight(b.String(), "\n")
 }
 
 func portalPageSummaryToRecord(page kkComps.PortalPageInfo) portalPageSummaryRecord {

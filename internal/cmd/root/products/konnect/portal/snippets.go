@@ -2,6 +2,7 @@ package portal
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	kk "github.com/Kong/sdk-konnect-go"
@@ -379,20 +380,49 @@ func optionalString(s *string) string {
 }
 
 func portalSnippetDetailViewFromSummary(snippet kkComps.PortalSnippetInfo) string {
-	var b strings.Builder
+	const missing = valueNA
 
-	fmt.Fprintf(&b, "Name: %s\n", snippet.GetName())
-	fmt.Fprintf(&b, "ID: %s\n", snippet.GetID())
-	title := snippet.GetTitle()
-	if strings.TrimSpace(title) == "" {
-		title = valueNA
+	id := strings.TrimSpace(snippet.GetID())
+	if id == "" {
+		id = missing
 	}
-	fmt.Fprintf(&b, "Title: %s\n", title)
-	fmt.Fprintf(&b, "Visibility: %s\n", string(snippet.GetVisibility()))
-	fmt.Fprintf(&b, "Status: %s\n", string(snippet.GetStatus()))
-	fmt.Fprintf(&b, "Description: %s\n", formatOptionalString(snippet.GetDescription()))
-	fmt.Fprintf(&b, "Created: %s\n", formatTime(snippet.GetCreatedAt()))
-	fmt.Fprintf(&b, "Updated: %s\n", formatTime(snippet.GetUpdatedAt()))
 
-	return b.String()
+	name := strings.TrimSpace(snippet.GetName())
+	if name == "" {
+		name = missing
+	}
+
+	title := strings.TrimSpace(snippet.GetTitle())
+	if title == "" {
+		title = missing
+	}
+
+	description := formatOptionalString(snippet.GetDescription())
+
+	fields := map[string]string{
+		"title":      title,
+		"visibility": string(snippet.GetVisibility()),
+		"status":     string(snippet.GetStatus()),
+		"created_at": formatTime(snippet.GetCreatedAt()),
+		"updated_at": formatTime(snippet.GetUpdatedAt()),
+	}
+
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	for _, key := range keys {
+		fmt.Fprintf(&b, "%s: %s\n", key, fields[key])
+	}
+
+	if description != missing && strings.TrimSpace(description) != "" {
+		fmt.Fprintf(&b, "description:\n%s\n", strings.TrimSpace(description))
+	}
+
+	return strings.TrimRight(b.String(), "\n")
 }

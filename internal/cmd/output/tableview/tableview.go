@@ -2330,12 +2330,35 @@ func (m *bubbleModel) View() string {
 		index := len(m.detailStack) - 1
 		if index >= 0 {
 			detail := m.detailStack[index]
-			var view string
-			if detail.table != nil {
-				view = detail.table.View()
+			if detail.child != nil && detail.table != nil {
+				tableBox := borderedTableView(m.tableStyle, detail.table.View(), m.selectedStyle)
+
+				var detailContent string
+				if detail.child.detailRenderer != nil {
+					row := detail.table.Cursor()
+					if row < 0 || row >= len(detail.child.rows) {
+						row = clamp(row, 0, len(detail.child.rows)-1)
+					}
+					if row >= 0 && row < len(detail.child.rows) {
+						detailContent = detail.child.detailRenderer(row)
+						detailContent = stylizeDetailContent(detailContent, m.palette)
+					}
+				}
+
+				view := tableBox
+				if strings.TrimSpace(detailContent) != "" {
+					detailBox := borderedDetailView(m.detailStyle, detailContent)
+					view = lipgloss.JoinHorizontal(lipgloss.Top, tableBox, detailBox)
+				}
+				sections = append(sections, view)
+			} else {
+				var view string
+				if detail.table != nil {
+					view = detail.table.View()
+				}
+				detailBox := borderedDetailView(m.detailStyle, view)
+				sections = append(sections, detailBox)
 			}
-			detailBox := borderedDetailView(m.detailStyle, view)
-			sections = append(sections, detailBox)
 		}
 	} else {
 		tableBox := borderedTableView(m.tableStyle, m.table.View(), m.selectedStyle)
