@@ -417,8 +417,19 @@ func newGetServiceCmd(verb verbs.VerbValue,
 		addParentFlags(verb, baseCmd)
 	}
 
-	if parentPreRun != nil {
-		baseCmd.PreRunE = parentPreRun
+	originalPreRunE := baseCmd.PreRunE
+	baseCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		if parentPreRun != nil {
+			if err := parentPreRun(cmd, args); err != nil {
+				return err
+			}
+		}
+		if originalPreRunE != nil {
+			if err := originalPreRunE(cmd, args); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 	baseCmd.RunE = rv.runE
 
