@@ -176,7 +176,7 @@ lists the currently supported resources and their relationships.
 - APIs
 - Portals
 - Application Auth Strategies
-- Control Planes
+- Control Planes (including Control Plane Groups)
 
 **Child Resources** (do NOT support kongctl metadata):
 
@@ -251,6 +251,22 @@ api_publications:
     api: users-api
     portal: main-portal
 ```
+
+### Control Plane Groups
+
+Control planes can represent Konnect control plane groups by setting their cluster type to `"CLUSTER_TYPE_CONTROL_PLANE_GROUP"`. Group entries manage membership through the `members` array. Each member must resolve to the Konnect ID of a non-group control plane, so you can provide literal UUIDs or reference other declarative control planes with `!ref`.
+
+```yaml
+control_planes:
+  - ref: shared-group
+    name: "shared-group"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE_GROUP"
+    members:
+      - id: !ref prod-us-runtime#id
+      - id: !ref prod-eu-runtime#id
+```
+
+When you apply or sync this configuration, `kongctl` replaces the entire membership list in Konnect to match the declarative `members` block.
 
 ## Kongctl Metadata
 

@@ -18,6 +18,7 @@ const (
 // allowing for easier testing and mocking
 type SDKAPI interface {
 	GetControlPlaneAPI() ControlPlaneAPI
+	GetControlPlaneGroupsAPI() ControlPlaneGroupsAPI
 	GetPortalAPI() PortalAPI
 	GetAPIAPI() APIFullAPI // TODO: Change to APIAPI once refactoring is complete
 	GetAPIDocumentAPI() APIDocumentAPI
@@ -48,6 +49,15 @@ type KonnectSDK struct {
 // from the Konnect SDK
 func (k *KonnectSDK) GetControlPlaneAPI() ControlPlaneAPI {
 	return k.SDK.ControlPlanes
+}
+
+// Returns the implementation of the ControlPlaneGroupsAPI interface
+func (k *KonnectSDK) GetControlPlaneGroupsAPI() ControlPlaneGroupsAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return k.SDK.ControlPlaneGroups
 }
 
 // Returns the implementation of the PortalAPI interface

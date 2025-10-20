@@ -4,18 +4,19 @@ import "testing"
 
 // This is a mock implementation of the SDKAPI interface
 type MockKonnectSDK struct {
-	Token                    string
-	T                        *testing.T
-	CPAPIFactory             func() ControlPlaneAPI
-	PortalFactory            func() PortalAPI
-	APIFactory               func() APIFullAPI
-	APIDocumentFactory       func() APIDocumentAPI
-	APIVersionFactory        func() APIVersionAPI
-	APIPublicationFactory    func() APIPublicationAPI
-	APIImplementationFactory func() APIImplementationAPI
-	AppAuthStrategiesFactory func() AppAuthStrategiesAPI
-	MeFactory                func() MeAPI
-	GatewayServiceFactory    func() GatewayServiceAPI
+	Token                     string
+	T                         *testing.T
+	CPAPIFactory              func() ControlPlaneAPI
+	ControlPlaneGroupsFactory func() ControlPlaneGroupsAPI
+	PortalFactory             func() PortalAPI
+	APIFactory                func() APIFullAPI
+	APIDocumentFactory        func() APIDocumentAPI
+	APIVersionFactory         func() APIVersionAPI
+	APIPublicationFactory     func() APIPublicationAPI
+	APIImplementationFactory  func() APIImplementationAPI
+	AppAuthStrategiesFactory  func() AppAuthStrategiesAPI
+	MeFactory                 func() MeAPI
+	GatewayServiceFactory     func() GatewayServiceAPI
 	// Portal child resource factories
 	PortalPageFactory          func() PortalPageAPI
 	PortalCustomizationFactory func() PortalCustomizationAPI
@@ -29,6 +30,14 @@ type MockKonnectSDK struct {
 // Returns a mock instance of the ControlPlaneAPI
 func (m *MockKonnectSDK) GetControlPlaneAPI() ControlPlaneAPI {
 	return m.CPAPIFactory()
+}
+
+// Returns a mock instance of the ControlPlaneGroupsAPI
+func (m *MockKonnectSDK) GetControlPlaneGroupsAPI() ControlPlaneGroupsAPI {
+	if m.ControlPlaneGroupsFactory != nil {
+		return m.ControlPlaneGroupsFactory()
+	}
+	return nil
 }
 
 // Returns a mock instance of the PortalAPI

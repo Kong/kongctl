@@ -147,12 +147,93 @@ func TestControlPlaneResource_Validation(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid control plane group with members",
+			cp: func() ControlPlaneResource {
+				clusterType := kkComps.CreateControlPlaneRequestClusterTypeClusterTypeControlPlaneGroup
+				return ControlPlaneResource{
+					CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
+						ClusterType: &clusterType,
+					},
+					Ref: "group-cp",
+					Members: []ControlPlaneGroupMember{
+						{ID: "member-a"},
+						{ID: "member-b"},
+					},
+				}
+			}(),
+			wantErr: false,
+		},
+		{
 			name: "missing ref",
 			cp:   ControlPlaneResource{
 				// No ref field
 			},
 			wantErr: true,
 			errMsg:  "invalid control plane ref: ref cannot be empty",
+		},
+		{
+			name: "control plane group with duplicate members",
+			cp: func() ControlPlaneResource {
+				clusterType := kkComps.CreateControlPlaneRequestClusterTypeClusterTypeControlPlaneGroup
+				return ControlPlaneResource{
+					CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
+						ClusterType: &clusterType,
+					},
+					Ref: "group-cp",
+					Members: []ControlPlaneGroupMember{
+						{ID: "duplicate-id"},
+						{ID: "duplicate-id"},
+					},
+				}
+			}(),
+			wantErr: true,
+			errMsg:  "duplicate member id",
+		},
+		{
+			name: "control plane group with empty member id",
+			cp: func() ControlPlaneResource {
+				clusterType := kkComps.CreateControlPlaneRequestClusterTypeClusterTypeControlPlaneGroup
+				return ControlPlaneResource{
+					CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
+						ClusterType: &clusterType,
+					},
+					Ref: "group-cp",
+					Members: []ControlPlaneGroupMember{
+						{ID: "valid"},
+						{ID: ""},
+					},
+				}
+			}(),
+			wantErr: true,
+			errMsg:  "id cannot be empty",
+		},
+		{
+			name: "non-group control plane with members",
+			cp: ControlPlaneResource{
+				Ref: "standard-cp",
+				Members: []ControlPlaneGroupMember{
+					{ID: "member-a"},
+				},
+			},
+			wantErr: true,
+			errMsg:  "members are only supported when cluster_type",
+		},
+		{
+			name: "control plane group with gateway services",
+			cp: func() ControlPlaneResource {
+				clusterType := kkComps.CreateControlPlaneRequestClusterTypeClusterTypeControlPlaneGroup
+				return ControlPlaneResource{
+					CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
+						ClusterType: &clusterType,
+					},
+					Ref: "group-cp",
+					GatewayServices: []GatewayServiceResource{
+						{Ref: "gw-svc", ControlPlane: "group-cp"},
+					},
+				}
+			}(),
+			wantErr: true,
+			errMsg:  "cannot define gateway_services",
 		},
 	}
 

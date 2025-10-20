@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	kkSDK "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/declarative/labels"
@@ -168,4 +169,99 @@ func TestDeleteControlPlane(t *testing.T) {
 	client := NewClient(ClientConfig{ControlPlaneAPI: mockAPI})
 
 	require.NoError(t, client.DeleteControlPlane(ctx, "cp-123"))
+}
+
+func TestListControlPlaneGroupMemberships(t *testing.T) {
+	ctx := testContextWithLogger()
+	mockGroups := &helpers.MockControlPlaneGroupsAPI{}
+
+	groupID := "group-1"
+	nextURL := "/v2/control-planes/group-1/group-memberships?page[after]=cursor-1"
+	total := 2.0
+
+	firstResp := &kkOps.GetControlPlanesIDGroupMembershipsResponse{
+		ListGroupMemberships: &kkComps.ListGroupMemberships{
+			Data: []kkComps.ControlPlane{
+				{ID: "member-1"},
+			},
+			Meta: kkComps.CursorPaginatedMetaWithSizeAndTotal{
+				Page: kkComps.CursorMetaWithSizeAndTotal{
+					Next:  &nextURL,
+					Size:  100,
+					Total: &total,
+				},
+			},
+		},
+	}
+
+	secondResp := &kkOps.GetControlPlanesIDGroupMembershipsResponse{
+		ListGroupMemberships: &kkComps.ListGroupMemberships{
+			Data: []kkComps.ControlPlane{
+				{ID: "member-2"},
+			},
+			Meta: kkComps.CursorPaginatedMetaWithSizeAndTotal{
+				Page: kkComps.CursorMetaWithSizeAndTotal{
+					Size:  100,
+					Total: kkSDK.Float64(2),
+				},
+			},
+		},
+	}
+
+	mockGroups.On(
+		"GetControlPlanesIDGroupMemberships",
+		mock.Anything,
+		mock.MatchedBy(func(req kkOps.GetControlPlanesIDGroupMembershipsRequest) bool {
+			if req.ID != groupID {
+				return false
+			}
+			return req.PageAfter == nil || (req.PageAfter != nil && *req.PageAfter == "")
+		}),
+	).Return(firstResp, nil).Once()
+
+	mockGroups.On(
+		"GetControlPlanesIDGroupMemberships",
+		mock.Anything,
+		mock.MatchedBy(func(req kkOps.GetControlPlanesIDGroupMembershipsRequest) bool {
+			if req.ID != groupID {
+				return false
+			}
+			return req.PageAfter != nil && *req.PageAfter == "cursor-1"
+		}),
+	).Return(secondResp, nil).Once()
+
+	client := NewClient(ClientConfig{
+		ControlPlaneGroupsAPI: mockGroups,
+	})
+
+	members, err := client.ListControlPlaneGroupMemberships(ctx, groupID)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"member-1", "member-2"}, members)
+	mockGroups.AssertExpectations(t)
+}
+
+func TestUpsertControlPlaneGroupMemberships(t *testing.T) {
+	ctx := testContextWithLogger()
+	mockGroups := &helpers.MockControlPlaneGroupsAPI{}
+
+	mockGroups.On(
+		"PutControlPlanesIDGroupMemberships",
+		mock.Anything,
+		"group-1",
+		mock.MatchedBy(func(req *kkComps.GroupMembership) bool {
+			require.NotNil(t, req)
+			require.Len(t, req.Members, 2)
+			assert.Equal(t, "cp-1", req.Members[0].ID)
+			assert.Equal(t, "cp-2", req.Members[1].ID)
+			return true
+		}),
+	).Return(&kkOps.PutControlPlanesIDGroupMembershipsResponse{}, nil).Once()
+
+	client := NewClient(ClientConfig{
+		ControlPlaneGroupsAPI: mockGroups,
+	})
+
+	err := client.UpsertControlPlaneGroupMemberships(ctx, "group-1", []string{"cp-1", "cp-2"})
+	require.NoError(t, err)
+	mockGroups.AssertExpectations(t)
 }

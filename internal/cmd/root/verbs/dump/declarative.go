@@ -19,6 +19,7 @@ import (
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/kong/kongctl/internal/util/pagination"
 	"sigs.k8s.io/yaml"
 )
 
@@ -147,7 +148,12 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			}
 			resourceSet.ApplicationAuthStrategies = append(resourceSet.ApplicationAuthStrategies, authStrategies...)
 		case "control_planes":
-			controlPlanes, err := collectDeclarativeControlPlanes(ctx, sdk.GetControlPlaneAPI(), requestPageSize)
+			controlPlanes, err := collectDeclarativeControlPlanes(
+				ctx,
+				sdk.GetControlPlaneAPI(),
+				sdk.GetControlPlaneGroupsAPI(),
+				requestPageSize,
+			)
 			if err != nil {
 				return err
 			}
@@ -527,6 +533,7 @@ func buildAuthStrategyRef(id, name string) string {
 func collectDeclarativeControlPlanes(
 	ctx context.Context,
 	api helpers.ControlPlaneAPI,
+	groupsAPI helpers.ControlPlaneGroupsAPI,
 	requestPageSize int64,
 ) ([]declresources.ControlPlaneResource, error) {
 	if api == nil {
@@ -551,7 +558,16 @@ func collectDeclarativeControlPlanes(
 		}
 
 		for _, cp := range resp.ListControlPlanesResponse.Data {
-			mapped := mapControlPlaneToDeclarativeResource(cp)
+			memberIDs := []string{}
+			if groupsAPI != nil && cp.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
+				ids, err := fetchControlPlaneGroupMembers(ctx, groupsAPI, cp.ID)
+				if err != nil {
+					return false, fmt.Errorf("failed to list group memberships for control plane %s: %w", cp.Name, err)
+				}
+				memberIDs = normalizers.NormalizeMemberIDs(ids)
+			}
+
+			mapped := mapControlPlaneToDeclarativeResource(cp, memberIDs)
 			results = append(results, mapped)
 		}
 
@@ -573,7 +589,10 @@ func collectDeclarativeControlPlanes(
 	return results, nil
 }
 
-func mapControlPlaneToDeclarativeResource(cp kkComps.ControlPlane) declresources.ControlPlaneResource {
+func mapControlPlaneToDeclarativeResource(
+	cp kkComps.ControlPlane,
+	memberIDs []string,
+) declresources.ControlPlaneResource {
 	mapped := declresources.ControlPlaneResource{
 		CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
 			Name:        cp.Name,
@@ -619,7 +638,62 @@ func mapControlPlaneToDeclarativeResource(cp kkComps.ControlPlane) declresources
 		mapped.Kongctl.Protected = &protected
 	}
 
+	if len(memberIDs) > 0 && cp.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
+		mapped.Members = make([]declresources.ControlPlaneGroupMember, 0, len(memberIDs))
+		for _, id := range memberIDs {
+			mapped.Members = append(mapped.Members, declresources.ControlPlaneGroupMember{ID: id})
+		}
+	}
+
 	return mapped
+}
+
+func fetchControlPlaneGroupMembers(
+	ctx context.Context,
+	api helpers.ControlPlaneGroupsAPI,
+	controlPlaneID string,
+) ([]string, error) {
+	const defaultPageSize int64 = 100
+	pageSize := defaultPageSize
+
+	var (
+		members   []string
+		pageAfter *string
+	)
+
+	for {
+		req := kkOps.GetControlPlanesIDGroupMembershipsRequest{
+			ID:       controlPlaneID,
+			PageSize: &pageSize,
+		}
+
+		if pageAfter != nil {
+			req.PageAfter = pageAfter
+		}
+
+		resp, err := api.GetControlPlanesIDGroupMemberships(ctx, req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list control plane group memberships: %w", err)
+		}
+
+		if resp == nil || resp.GetListGroupMemberships() == nil {
+			break
+		}
+
+		for _, member := range resp.GetListGroupMemberships().GetData() {
+			if member.ID != "" {
+				members = append(members, member.ID)
+			}
+		}
+
+		nextCursor := pagination.ExtractPageAfterCursor(resp.GetListGroupMemberships().GetMeta().Page.Next)
+		if nextCursor == "" {
+			break
+		}
+		pageAfter = &nextCursor
+	}
+
+	return members, nil
 }
 
 func stringPointer(s string) *string {
