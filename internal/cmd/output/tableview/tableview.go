@@ -2734,7 +2734,13 @@ func (m *bubbleModel) pushChildDetailState(state *childViewState, label string, 
 	items = enrichDetailItems(items, state.parentType, parent)
 	items = reorderDetailItems(items)
 
-	tableModel, decorator := buildDetailTable(items, m.detailViewportWidth(), m.detailViewportHeight(), m.palette, highlight)
+	tableModel, decorator := buildDetailTable(
+		items,
+		m.detailViewportWidth(),
+		m.detailViewportHeight(),
+		m.palette,
+		highlight,
+	)
 	next := detailView{
 		table:      &tableModel,
 		items:      items,

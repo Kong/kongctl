@@ -522,7 +522,7 @@ func portalSnippetInfoDetail(snippet kkComps.PortalSnippetInfo, detail *portalSn
 
 	fmt.Fprintf(&b, "content: %s", portalPageContentIndicator)
 	if detail != nil {
-		if preview := previewPortalPageContent(detail.Content, portalPageContentPreviewLimit); preview != "" {
+		if preview := previewPortalPageContent(detail.Content); preview != "" {
 			fmt.Fprintf(&b, " %s", preview)
 		}
 	}
@@ -569,7 +569,7 @@ func portalSnippetDetailView(record portalSnippetDetailRecord) string {
 	}
 
 	fmt.Fprintf(&b, "content: %s", portalPageContentIndicator)
-	if preview := previewPortalPageContent(record.Content, portalPageContentPreviewLimit); preview != "" {
+	if preview := previewPortalPageContent(record.Content); preview != "" {
 		fmt.Fprintf(&b, " %s", preview)
 	}
 	fmt.Fprintln(&b)

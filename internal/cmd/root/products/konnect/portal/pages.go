@@ -465,7 +465,7 @@ func portalPageInfoDetail(page kkComps.PortalPageInfo, detail *portalPageDetailR
 
 	fmt.Fprintf(&b, "content: %s (press enter to view)", portalPageContentIndicator)
 	if detail != nil {
-		if preview := previewPortalPageContent(detail.Content, portalPageContentPreviewLimit); preview != "" {
+		if preview := previewPortalPageContent(detail.Content); preview != "" {
 			fmt.Fprintf(&b, " %s", preview)
 		}
 	}
@@ -510,7 +510,7 @@ func portalPageDetailView(record portalPageDetailRecord) string {
 	}
 
 	fmt.Fprintf(&b, "content: %s", portalPageContentIndicator)
-	if preview := previewPortalPageContent(record.Content, portalPageContentPreviewLimit); preview != "" {
+	if preview := previewPortalPageContent(record.Content); preview != "" {
 		fmt.Fprintf(&b, " %s", preview)
 	}
 	fmt.Fprintln(&b)
@@ -613,7 +613,7 @@ func normalizePortalPageContent(content string) string {
 	return strings.TrimRight(strings.Join(lines, "\n"), "\n")
 }
 
-func previewPortalPageContent(content string, limit int) string {
+func previewPortalPageContent(content string) string {
 	normalized := normalizePortalPageContent(content)
 	trimmed := strings.TrimSpace(normalized)
 	if trimmed == "" {
@@ -621,12 +621,10 @@ func previewPortalPageContent(content string, limit int) string {
 	}
 	preview := strings.ReplaceAll(normalized, "\n", " ")
 	preview = strings.Join(strings.Fields(preview), " ")
-	if limit <= 0 || len([]rune(preview)) <= limit {
-		return preview
-	}
 	runes := []rune(preview)
-	if limit < 1 {
-		return ""
+	limit := portalPageContentPreviewLimit
+	if limit <= 0 || len(runes) <= limit {
+		return preview
 	}
 	return string(runes[:limit]) + "…"
 }
