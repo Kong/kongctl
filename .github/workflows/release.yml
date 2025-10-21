@@ -64,6 +64,10 @@ jobs:
         run: |
           sudo dpkg --add-architecture i386
           sudo dpkg --add-architecture arm64
+          sudo sed -i -E 's/^deb ([^[])/deb [arch=amd64,i386] \1/' /etc/apt/sources.list
+          if [ -d /etc/apt/sources.list.d ]; then
+            sudo find /etc/apt/sources.list.d -name '*.list' ! -name 'arm64.list' -exec sudo sed -i -E 's/^deb ([^[])/deb [arch=amd64,i386] \1/' {} +
+          fi
           printf '%s\n' \
             'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse' \
             'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse' \
