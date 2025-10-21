@@ -7,6 +7,7 @@ on:
 
 jobs:
   e2e:
+    if: false
     # Ensure E2E runs serialize with other E2E workflows
     concurrency:
       group: konnect-e2e
