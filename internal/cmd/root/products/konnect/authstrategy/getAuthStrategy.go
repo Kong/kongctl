@@ -2,15 +2,19 @@ package authstrategy
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/navigator"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -59,57 +63,165 @@ type textDisplayRecord struct {
 	LocalUpdatedTime string
 }
 
+type authStrategyVariantInfo struct {
+	id           string
+	name         string
+	displayName  string
+	strategyType string
+	active       bool
+	dcrProvider  string
+	createdAt    time.Time
+	updatedAt    time.Time
+	labels       map[string]string
+	rawParent    any
+}
+
+func extractAuthStrategyVariant(strategy kkComps.AppAuthStrategy) authStrategyVariantInfo {
+	if keyAuth := strategy.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse; keyAuth != nil {
+		provider := ""
+		if keyAuth.DcrProvider != nil {
+			provider = strings.TrimSpace(keyAuth.DcrProvider.Name)
+		}
+		return authStrategyVariantInfo{
+			id:           keyAuth.ID,
+			name:         keyAuth.Name,
+			displayName:  keyAuth.DisplayName,
+			strategyType: string(keyAuth.StrategyType),
+			active:       keyAuth.Active,
+			dcrProvider:  provider,
+			createdAt:    keyAuth.CreatedAt,
+			updatedAt:    keyAuth.UpdatedAt,
+			labels:       keyAuth.Labels,
+			rawParent:    keyAuth,
+		}
+	}
+
+	if openID := strategy.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse; openID != nil {
+		provider := ""
+		if openID.DcrProvider != nil {
+			provider = strings.TrimSpace(openID.DcrProvider.Name)
+		}
+		return authStrategyVariantInfo{
+			id:           openID.ID,
+			name:         openID.Name,
+			displayName:  openID.DisplayName,
+			strategyType: string(openID.StrategyType),
+			active:       openID.Active,
+			dcrProvider:  provider,
+			createdAt:    openID.CreatedAt,
+			updatedAt:    openID.UpdatedAt,
+			labels:       openID.Labels,
+			rawParent:    openID,
+		}
+	}
+
+	return authStrategyVariantInfo{}
+}
+
+func summarizeLabels(labels map[string]string, missing string) string {
+	switch {
+	case labels == nil:
+		return missing
+	case len(labels) == 0:
+		return "[]"
+	default:
+		pairs := make([]string, 0, len(labels))
+		for k, v := range labels {
+			pairs = append(pairs, fmt.Sprintf("%s=%s", k, v))
+		}
+		sort.Strings(pairs)
+		return strings.Join(pairs, ", ")
+	}
+}
+
 func authStrategyToDisplayRecord(strategy kkComps.AppAuthStrategy) textDisplayRecord {
 	missing := "n/a"
 
-	var record textDisplayRecord
+	info := extractAuthStrategyVariant(strategy)
+	record := textDisplayRecord{
+		ID:               missing,
+		Name:             missing,
+		DisplayName:      missing,
+		StrategyType:     missing,
+		Active:           missing,
+		DCRProvider:      missing,
+		LocalCreatedTime: missing,
+		LocalUpdatedTime: missing,
+	}
 
-	// Handle the union type - check which variant we have
-	if strategy.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse != nil {
-		keyAuth := strategy.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse
-		record.ID = keyAuth.ID
-		record.Name = keyAuth.Name
-		record.DisplayName = keyAuth.DisplayName
-		record.StrategyType = string(keyAuth.StrategyType)
-		record.Active = fmt.Sprintf("%t", keyAuth.Active)
-
-		if keyAuth.DcrProvider != nil {
-			record.DCRProvider = keyAuth.DcrProvider.Name
-		} else {
-			record.DCRProvider = missing
+	if info.rawParent != nil {
+		if info.id != "" {
+			record.ID = util.AbbreviateUUID(info.id)
 		}
-
-		record.LocalCreatedTime = keyAuth.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
-		record.LocalUpdatedTime = keyAuth.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
-	} else if strategy.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse != nil {
-		openID := strategy.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse
-		record.ID = openID.ID
-		record.Name = openID.Name
-		record.DisplayName = openID.DisplayName
-		record.StrategyType = string(openID.StrategyType)
-		record.Active = fmt.Sprintf("%t", openID.Active)
-
-		if openID.DcrProvider != nil {
-			record.DCRProvider = openID.DcrProvider.Name
-		} else {
-			record.DCRProvider = missing
+		if strings.TrimSpace(info.name) != "" {
+			record.Name = info.name
 		}
-
-		record.LocalCreatedTime = openID.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
-		record.LocalUpdatedTime = openID.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
-	} else {
-		// This shouldn't happen, but handle gracefully
-		record.ID = missing
-		record.Name = missing
-		record.DisplayName = missing
-		record.StrategyType = missing
-		record.Active = missing
-		record.DCRProvider = missing
-		record.LocalCreatedTime = missing
-		record.LocalUpdatedTime = missing
+		if strings.TrimSpace(info.displayName) != "" {
+			record.DisplayName = info.displayName
+		}
+		if strings.TrimSpace(info.strategyType) != "" {
+			record.StrategyType = info.strategyType
+		}
+		record.Active = fmt.Sprintf("%t", info.active)
+		if strings.TrimSpace(info.dcrProvider) != "" {
+			record.DCRProvider = info.dcrProvider
+		}
+		if !info.createdAt.IsZero() {
+			record.LocalCreatedTime = info.createdAt.In(time.Local).Format("2006-01-02 15:04:05")
+		}
+		if !info.updatedAt.IsZero() {
+			record.LocalUpdatedTime = info.updatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+		}
 	}
 
 	return record
+}
+
+func authStrategyDetailView(strategy kkComps.AppAuthStrategy) string {
+	const missing = "n/a"
+
+	info := extractAuthStrategyVariant(strategy)
+	if info.rawParent == nil {
+		return ""
+	}
+
+	valueOrMissing := func(val string) string {
+		val = strings.TrimSpace(val)
+		if val == "" {
+			return missing
+		}
+		return val
+	}
+
+	id := valueOrMissing(info.id)
+	name := valueOrMissing(info.name)
+	displayName := valueOrMissing(info.displayName)
+	strategyType := valueOrMissing(info.strategyType)
+	activeValue := fmt.Sprintf("%t", info.active)
+	dcrProvider := valueOrMissing(info.dcrProvider)
+	created := missing
+	if !info.createdAt.IsZero() {
+		created = info.createdAt.In(time.Local).Format("2006-01-02 15:04:05")
+	}
+	updated := missing
+	if !info.updatedAt.IsZero() {
+		updated = info.updatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+	}
+	labels := summarizeLabels(info.labels, missing)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	fmt.Fprintf(&b, "display_name: %s\n", displayName)
+	fmt.Fprintf(&b, "strategy_type: %s\n", strategyType)
+	fmt.Fprintf(&b, "active: %s\n", activeValue)
+	fmt.Fprintf(&b, "dcr_provider: %s\n", dcrProvider)
+	fmt.Fprintf(&b, "configs: %s\n", missing)
+	fmt.Fprintf(&b, "labels: %s\n", labels)
+	fmt.Fprintf(&b, "created_at: %s\n", created)
+	fmt.Fprintf(&b, "updated_at: %s\n", updated)
+
+	return strings.TrimRight(b.String(), "\n")
 }
 
 type getAuthStrategyCmd struct {
@@ -317,31 +429,38 @@ func (c *getAuthStrategyCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		return e
 	}
 
-	logger, e := helper.GetLogger()
-	if e != nil {
-		return e
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return err
 	}
 
-	outType, e := helper.GetOutputFormat()
-	if e != nil {
-		return e
+	outType, err := helper.GetOutputFormat()
+	if err != nil {
+		return err
 	}
 
-	printer, e := cli.Format(outType.String(), helper.GetStreams().Out)
-	if e != nil {
-		return e
+	interactive, err := helper.IsInteractive()
+	if err != nil {
+		return err
 	}
 
-	defer printer.Flush()
-
-	cfg, e := helper.GetConfig()
-	if e != nil {
-		return e
+	var printer cli.PrintFlusher
+	if !interactive {
+		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
+		}
+		defer printer.Flush()
 	}
 
-	sdk, e := helper.GetKonnectSDK(cfg, logger)
-	if e != nil {
-		return e
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return err
 	}
 
 	// 'get auth-strategies' can be run in various ways:
@@ -356,47 +475,121 @@ func (c *getAuthStrategyCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		if !isUUID {
 			// If the ID is not a UUID, then it is a name
 			// search for the auth strategy by name
-			strategy, e := runListByName(id, c.strategyType, sdk.GetAppAuthStrategiesAPI(), helper, cfg)
-			if e == nil {
-				if outType == cmdCommon.TEXT {
-					printer.Print(authStrategyToDisplayRecord(*strategy))
-				} else {
-					printer.Print(strategy)
-				}
-			} else {
-				return e
+			strategy, err := runListByName(id, c.strategyType, sdk.GetAppAuthStrategiesAPI(), helper, cfg)
+			if err != nil {
+				return err
 			}
-		} else {
-			strategy, e := runGet(id, sdk.GetAppAuthStrategiesAPI(), helper)
-			if e == nil {
-				if outType == cmdCommon.TEXT {
-					printer.Print(authStrategyToDisplayRecord(*strategy))
-				} else {
-					printer.Print(strategy)
-				}
-			} else {
-				return e
-			}
+			return tableview.RenderForFormat(
+				interactive,
+				outType,
+				printer,
+				helper.GetStreams(),
+				authStrategyToDisplayRecord(*strategy),
+				strategy,
+				"",
+				tableview.WithRootLabel(helper.GetCmd().Name()),
+			)
 		}
-	} else { // list all auth strategies
-		var strategies []kkComps.AppAuthStrategy
-		strategies, e = runList(c.strategyType, sdk.GetAppAuthStrategiesAPI(), helper, cfg)
-		if e == nil {
-			if outType == cmdCommon.TEXT {
-				var displayRecords []textDisplayRecord
-				for _, strategy := range strategies {
-					displayRecords = append(displayRecords, authStrategyToDisplayRecord(strategy))
-				}
-				printer.Print(displayRecords)
-			} else {
-				printer.Print(strategies)
-			}
-		} else {
-			return e
+		strategy, err := runGet(id, sdk.GetAppAuthStrategiesAPI(), helper)
+		if err != nil {
+			return err
 		}
+		return tableview.RenderForFormat(
+			interactive,
+			outType,
+			printer,
+			helper.GetStreams(),
+			authStrategyToDisplayRecord(*strategy),
+			strategy,
+			"",
+			tableview.WithRootLabel(helper.GetCmd().Name()),
+		)
 	}
 
-	return nil
+	if interactive {
+		return navigator.Run(helper, navigator.Options{InitialResource: "application-auth-strategies"})
+	}
+
+	strategies, err := runList(c.strategyType, sdk.GetAppAuthStrategiesAPI(), helper, cfg)
+	if err != nil {
+		return err
+	}
+	displayRecords := make([]textDisplayRecord, len(strategies))
+	for i := range strategies {
+		displayRecords[i] = authStrategyToDisplayRecord(strategies[i])
+	}
+	return renderAuthStrategyList(helper, helper.GetCmd().Name(), interactive, outType, printer, strategies)
+}
+
+func renderAuthStrategyList(
+	helper cmd.Helper,
+	rootLabel string,
+	interactive bool,
+	outType cmdCommon.OutputFormat,
+	printer cli.PrintFlusher,
+	strategies []kkComps.AppAuthStrategy,
+) error {
+	displayRecords := make([]textDisplayRecord, 0, len(strategies))
+	for i := range strategies {
+		displayRecords = append(displayRecords, authStrategyToDisplayRecord(strategies[i]))
+	}
+
+	childView := buildAuthStrategyChildView(strategies)
+
+	options := []tableview.Option{
+		tableview.WithCustomTable(childView.Headers, childView.Rows),
+		tableview.WithRootLabel(rootLabel),
+		tableview.WithDetailHelper(helper),
+	}
+	if childView.DetailRenderer != nil {
+		options = append(options, tableview.WithDetailRenderer(childView.DetailRenderer))
+	}
+	if childView.DetailContext != nil {
+		options = append(options, tableview.WithDetailContext(childView.ParentType, childView.DetailContext))
+	} else if childView.ParentType != "" {
+		options = append(options, tableview.WithDetailContext(childView.ParentType, func(int) any { return nil }))
+	}
+
+	return tableview.RenderForFormat(
+		interactive,
+		outType,
+		printer,
+		helper.GetStreams(),
+		displayRecords,
+		strategies,
+		"",
+		options...,
+	)
+}
+
+func buildAuthStrategyChildView(strategies []kkComps.AppAuthStrategy) tableview.ChildView {
+	tableRows := make([]table.Row, 0, len(strategies))
+	for i := range strategies {
+		record := authStrategyToDisplayRecord(strategies[i])
+		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(strategies) {
+			return ""
+		}
+		return authStrategyDetailView(strategies[index])
+	}
+
+	return tableview.ChildView{
+		Headers:        []string{"id", "name"},
+		Rows:           tableRows,
+		DetailRenderer: detailFn,
+		Title:          "Application Auth Strategies",
+		ParentType:     "auth-strategy",
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(strategies) {
+				return nil
+			}
+			info := extractAuthStrategyVariant(strategies[index])
+			return info.rawParent
+		},
+	}
 }
 
 func newGetAuthStrategyCmd(verb verbs.VerbValue,

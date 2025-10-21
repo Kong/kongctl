@@ -7,8 +7,10 @@ import (
 	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
@@ -132,11 +134,19 @@ func (h portalApplicationsHandler) run(args []string) error {
 		return err
 	}
 
-	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
+	interactive, err := helper.IsInteractive()
 	if err != nil {
 		return err
 	}
-	defer printer.Flush()
+
+	var printer cli.PrintFlusher
+	if !interactive {
+		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
+		}
+		defer printer.Flush()
+	}
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -176,18 +186,29 @@ func (h portalApplicationsHandler) run(args []string) error {
 	}
 
 	if len(args) == 1 {
-		return h.getSingleApplication(helper, appAPI, portalID, strings.TrimSpace(args[0]), outType, printer, cfg)
+		appIdentifier := strings.TrimSpace(args[0])
+		return h.getSingleApplication(
+			helper,
+			appAPI,
+			portalID,
+			appIdentifier,
+			interactive,
+			outType,
+			printer,
+			cfg,
+		)
 	}
 
-	return h.listApplications(helper, appAPI, portalID, outType, printer, cfg)
+	return h.listApplications(helper, appAPI, portalID, interactive, outType, printer, cfg)
 }
 
 func (h portalApplicationsHandler) listApplications(
 	helper cmd.Helper,
 	appAPI helpers.PortalApplicationAPI,
 	portalID string,
+	interactive bool,
 	outType cmdCommon.OutputFormat,
-	printer cli.Printer,
+	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
 	apps, err := fetchPortalApplications(helper, appAPI, portalID, cfg)
@@ -195,17 +216,35 @@ func (h portalApplicationsHandler) listApplications(
 		return err
 	}
 
-	if outType == cmdCommon.TEXT {
-		records := make([]portalApplicationSummaryRecord, 0, len(apps))
-		for _, app := range apps {
-			records = append(records, portalApplicationSummaryToRecord(app))
-		}
-		printer.Print(records)
-		return nil
+	records := make([]portalApplicationSummaryRecord, 0, len(apps))
+	for _, app := range apps {
+		records = append(records, portalApplicationSummaryToRecord(app))
 	}
 
-	printer.Print(apps)
-	return nil
+	tableRows := make([]table.Row, 0, len(apps))
+	for _, record := range records {
+		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(apps) {
+			return ""
+		}
+		return portalApplicationDetailViewFromUnion(apps[index])
+	}
+
+	return tableview.RenderForFormat(
+		interactive,
+		outType,
+		printer,
+		helper.GetStreams(),
+		records,
+		apps,
+		"",
+		tableview.WithCustomTable([]string{"ID", "NAME"}, tableRows),
+		tableview.WithDetailRenderer(detailFn),
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+	)
 }
 
 func (h portalApplicationsHandler) getSingleApplication(
@@ -213,8 +252,9 @@ func (h portalApplicationsHandler) getSingleApplication(
 	appAPI helpers.PortalApplicationAPI,
 	portalID string,
 	identifier string,
+	interactive bool,
 	outType cmdCommon.OutputFormat,
-	printer cli.Printer,
+	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
 	appID := identifier
@@ -246,13 +286,16 @@ func (h portalApplicationsHandler) getSingleApplication(
 		}
 	}
 
-	if outType == cmdCommon.TEXT {
-		printer.Print(portalApplicationDetailToRecord(app))
-		return nil
-	}
-
-	printer.Print(app)
-	return nil
+	return tableview.RenderForFormat(
+		interactive,
+		outType,
+		printer,
+		helper.GetStreams(),
+		portalApplicationDetailToRecord(app),
+		app,
+		"",
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+	)
 }
 
 func fetchPortalApplications(
@@ -333,7 +376,7 @@ func portalApplicationSummaryToRecord(app kkComps.Application) portalApplication
 		}
 		strategy := key.GetAuthStrategy()
 		return portalApplicationSummaryRecord{
-			ID:                key.GetID(),
+			ID:                util.AbbreviateUUID(key.GetID()),
 			Name:              key.GetName(),
 			Type:              "key-auth",
 			AuthStrategy:      strategy.Name,
@@ -357,7 +400,7 @@ func portalApplicationSummaryToRecord(app kkComps.Application) portalApplication
 		}
 		strategy := client.GetAuthStrategy()
 		return portalApplicationSummaryRecord{
-			ID:                client.GetID(),
+			ID:                util.AbbreviateUUID(client.GetID()),
 			Name:              client.GetName(),
 			Type:              "client-credentials",
 			AuthStrategy:      strategy.Name,
@@ -384,7 +427,7 @@ func portalApplicationDetailToRecord(app *kkComps.GetApplicationResponse) portal
 		key := app.KeyAuthApplication
 		strategy := key.GetAuthStrategy()
 		return portalApplicationDetailRecord{
-			ID:                key.GetID(),
+			ID:                util.AbbreviateUUID(key.GetID()),
 			Name:              key.GetName(),
 			Type:              "key-auth",
 			AuthStrategy:      strategy.Name,
@@ -401,7 +444,7 @@ func portalApplicationDetailToRecord(app *kkComps.GetApplicationResponse) portal
 		client := app.ClientCredentialsApplication
 		strategy := client.GetAuthStrategy()
 		return portalApplicationDetailRecord{
-			ID:                client.GetID(),
+			ID:                util.AbbreviateUUID(client.GetID()),
 			Name:              client.GetName(),
 			Type:              "client-credentials",
 			AuthStrategy:      strategy.Name,
@@ -454,4 +497,46 @@ func matchID(app kkComps.Application) string {
 		return app.ApplicationKeyAuthApplication.GetID()
 	}
 	return ""
+}
+
+func portalApplicationDetailViewFromUnion(app kkComps.Application) string {
+	var b strings.Builder
+	missing := valueNA
+
+	switch app.Type {
+	case kkComps.ApplicationTypeApplicationKeyAuthApplication:
+		key := app.ApplicationKeyAuthApplication
+		if key == nil {
+			break
+		}
+		fmt.Fprintf(&b, "Name: %s\n", key.GetName())
+		fmt.Fprintf(&b, "ID: %s\n", key.GetID())
+		fmt.Fprintf(&b, "Type: key-auth\n")
+		fmt.Fprintf(&b, "Auth Strategy: %s\n", key.GetAuthStrategy().Name)
+		fmt.Fprintf(&b, "Credential Detail: %s\n", joinOrNA(key.GetAuthStrategy().KeyNames))
+		fmt.Fprintf(&b, "Registration Count: %.0f\n", key.GetRegistrationCount())
+		fmt.Fprintf(&b, "Created: %s\n", formatTime(key.GetCreatedAt()))
+		fmt.Fprintf(&b, "Updated: %s\n", formatTime(key.GetUpdatedAt()))
+	case kkComps.ApplicationTypeApplicationClientCredentialsApplication:
+		client := app.ApplicationClientCredentialsApplication
+		if client == nil {
+			break
+		}
+		fmt.Fprintf(&b, "Name: %s\n", client.GetName())
+		fmt.Fprintf(&b, "ID: %s\n", client.GetID())
+		fmt.Fprintf(&b, "Type: client-credentials\n")
+		fmt.Fprintf(&b, "Auth Strategy: %s\n", client.GetAuthStrategy().Name)
+		fmt.Fprintf(&b, "Credential Detail: %s\n", joinOrNA(client.GetAuthStrategy().AuthMethods))
+		fmt.Fprintf(&b, "Client ID: %s\n", nonEmptyOrNA(client.GetClientID()))
+		fmt.Fprintf(&b, "Granted Scopes: %s\n", joinOrNA(client.GetGrantedScopes()))
+		fmt.Fprintf(&b, "Registration Count: %.0f\n", client.GetRegistrationCount())
+		fmt.Fprintf(&b, "Created: %s\n", formatTime(client.GetCreatedAt()))
+		fmt.Fprintf(&b, "Updated: %s\n", formatTime(client.GetUpdatedAt()))
+	default:
+		fmt.Fprintf(&b, "Type: %s\n", string(app.Type))
+		fmt.Fprintf(&b, "Name: %s\n", missing)
+		fmt.Fprintf(&b, "ID: %s\n", missing)
+	}
+
+	return b.String()
 }

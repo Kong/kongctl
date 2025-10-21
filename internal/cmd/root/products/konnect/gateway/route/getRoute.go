@@ -7,8 +7,10 @@ import (
 
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	kkCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -91,7 +93,7 @@ func jsonRouteToDisplayRecord(r *kkComps.RouteJSON) textDisplayRecord {
 
 	id := missing
 	if r.ID != nil {
-		id = *r.ID
+		id = util.AbbreviateUUID(*r.ID)
 	}
 
 	return textDisplayRecord{
@@ -104,6 +106,78 @@ func jsonRouteToDisplayRecord(r *kkComps.RouteJSON) textDisplayRecord {
 		LocalUpdatedTime: updatedAt,
 		ID:               id,
 	}
+}
+
+func routeDetailView(route kkComps.Route) string {
+	if route.RouteJSON == nil {
+		return ""
+	}
+	r := route.RouteJSON
+
+	missing := "n/a"
+
+	name := missing
+	if r.Name != nil && *r.Name != "" {
+		name = *r.Name
+	}
+
+	id := missing
+	if r.ID != nil {
+		id = *r.ID
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "Name: %s\n", name)
+	fmt.Fprintf(&b, "ID: %s\n", id)
+
+	if len(r.Hosts) > 0 {
+		fmt.Fprintf(&b, "Hosts: %s\n", strings.Join(r.Hosts, ", "))
+	} else {
+		fmt.Fprintf(&b, "Hosts: %s\n", missing)
+	}
+
+	if len(r.Paths) > 0 {
+		fmt.Fprintf(&b, "Paths: %s\n", strings.Join(r.Paths, ", "))
+	} else {
+		fmt.Fprintf(&b, "Paths: %s\n", missing)
+	}
+
+	if len(r.Methods) > 0 {
+		fmt.Fprintf(&b, "Methods: %s\n", strings.Join(r.Methods, ", "))
+	} else {
+		fmt.Fprintf(&b, "Methods: %s\n", missing)
+	}
+
+	if len(r.Protocols) > 0 {
+		protos := make([]string, len(r.Protocols))
+		for i, p := range r.Protocols {
+			protos[i] = string(p)
+		}
+		fmt.Fprintf(&b, "Protocols: %s\n", strings.Join(protos, ", "))
+	} else {
+		fmt.Fprintf(&b, "Protocols: %s\n", missing)
+	}
+
+	fmt.Fprintf(&b, "Strip Path: %s\n", boolPointerString(r.StripPath, missing))
+	fmt.Fprintf(&b, "Preserve Host: %s\n", boolPointerString(r.PreserveHost, missing))
+
+	if r.CreatedAt != nil {
+		created := time.Unix(0, *r.CreatedAt*int64(time.Millisecond)).In(time.Local)
+		fmt.Fprintf(&b, "Created: %s\n", created.Format("2006-01-02 15:04:05"))
+	}
+	if r.UpdatedAt != nil {
+		updated := time.Unix(0, *r.UpdatedAt*int64(time.Millisecond)).In(time.Local)
+		fmt.Fprintf(&b, "Updated: %s\n", updated.Format("2006-01-02 15:04:05"))
+	}
+
+	return b.String()
+}
+
+func boolPointerString(v *bool, missing string) string {
+	if v == nil {
+		return missing
+	}
+	return fmt.Sprintf("%t", *v)
 }
 
 type getRouteCmd struct {
@@ -136,8 +210,15 @@ func (c *getRouteCmd) validate(helper cmd.Helper) error {
 	return nil
 }
 
-func (c *getRouteCmd) runListByName(cpID string, name string,
-	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
+func (c *getRouteCmd) runListByName(
+	cpID string,
+	name string,
+	kkClient *kk.SDK,
+	helper cmd.Helper,
+	cfg config.Hook,
+	interactive bool,
+	printer cli.PrintFlusher,
+	outputFormat cmdCommon.OutputFormat,
 ) error {
 	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
 
@@ -148,22 +229,31 @@ func (c *getRouteCmd) runListByName(cpID string, name string,
 	}
 
 	for _, route := range allData {
-		if route.RouteJSON != nil {
-			if *route.RouteJSON.GetName() == name {
-				if outputFormat == cmdCommon.TEXT {
-					printer.Print(jsonRouteToDisplayRecord(route.RouteJSON))
-				} else {
-					printer.Print(route)
-				}
-			}
+		if route.RouteJSON != nil && *route.RouteJSON.GetName() == name {
+			return tableview.RenderForFormat(
+				interactive,
+				outputFormat,
+				printer,
+				helper.GetStreams(),
+				jsonRouteToDisplayRecord(route.RouteJSON),
+				route,
+				"Gateway Route",
+				tableview.WithRootLabel(helper.GetCmd().Name()),
+			)
 		}
 	}
 
 	return nil
 }
 
-func (c *getRouteCmd) runGet(cpID string, id string,
-	kkClient *kk.SDK, helper cmd.Helper, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
+func (c *getRouteCmd) runGet(
+	cpID string,
+	id string,
+	kkClient *kk.SDK,
+	helper cmd.Helper,
+	interactive bool,
+	printer cli.PrintFlusher,
+	outputFormat cmdCommon.OutputFormat,
 ) error {
 	res, err := kkClient.Routes.GetRoute(helper.GetContext(), cpID, id)
 	if err != nil {
@@ -178,17 +268,26 @@ func (c *getRouteCmd) runGet(cpID string, id string,
 		return cmd.PrepareExecutionError("Failed to get Gateway Route", err, helper.GetCmd(), attrs...)
 	}
 
-	if outputFormat == cmdCommon.TEXT {
-		printer.Print(jsonRouteToDisplayRecord(route.RouteJSON))
-	} else {
-		printer.Print(route.RouteJSON)
-	}
-
-	return nil
+	return tableview.RenderForFormat(
+		interactive,
+		outputFormat,
+		printer,
+		helper.GetStreams(),
+		jsonRouteToDisplayRecord(route.RouteJSON),
+		route.RouteJSON,
+		"",
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+	)
 }
 
-func (c *getRouteCmd) runList(cpID string,
-	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer, outputFormat cmdCommon.OutputFormat,
+func (c *getRouteCmd) runList(
+	cpID string,
+	kkClient *kk.SDK,
+	helper cmd.Helper,
+	cfg config.Hook,
+	interactive bool,
+	printer cli.PrintFlusher,
+	outputFormat cmdCommon.OutputFormat,
 ) error {
 	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
 
@@ -198,17 +297,35 @@ func (c *getRouteCmd) runList(cpID string,
 		return cmd.PrepareExecutionError("Failed to list Gateway Routes", err, helper.GetCmd(), attrs...)
 	}
 
-	if outputFormat == cmdCommon.TEXT {
-		var displayRecords []textDisplayRecord
-		for _, route := range allData {
-			displayRecords = append(displayRecords, jsonRouteToDisplayRecord(route.RouteJSON))
-		}
-		printer.Print(displayRecords)
-	} else {
-		printer.Print(allData)
+	displayRecords := make([]textDisplayRecord, 0, len(allData))
+	for _, route := range allData {
+		displayRecords = append(displayRecords, jsonRouteToDisplayRecord(route.RouteJSON))
 	}
 
-	return nil
+	tableRows := make([]table.Row, 0, len(displayRecords))
+	for _, record := range displayRecords {
+		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(allData) {
+			return ""
+		}
+		return routeDetailView(allData[index])
+	}
+
+	return tableview.RenderForFormat(
+		interactive,
+		outputFormat,
+		printer,
+		helper.GetStreams(),
+		displayRecords,
+		allData,
+		"",
+		tableview.WithCustomTable([]string{"ID", "NAME"}, tableRows),
+		tableview.WithDetailRenderer(detailFn),
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+	)
 }
 
 func (c *getRouteCmd) runE(cobraCmd *cobra.Command, args []string) error {
@@ -232,12 +349,19 @@ func (c *getRouteCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		return e
 	}
 
-	printer, e := cli.Format(outType.String(), helper.GetStreams().Out)
+	interactive, e := helper.IsInteractive()
 	if e != nil {
 		return e
 	}
 
-	defer printer.Flush()
+	var printer cli.PrintFlusher
+	if !interactive {
+		printer, e = cli.Format(outType.String(), helper.GetStreams().Out)
+		if e != nil {
+			return e
+		}
+		defer printer.Flush()
+	}
 
 	kkClient, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -276,13 +400,13 @@ func (c *getRouteCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		if !isUUID {
 			// If the ID is not a UUID, then it is a name
 			// search for the control plane by name
-			return c.runListByName(cpID, id, kkClient.(*helpers.KonnectSDK).SDK, helper, cfg, printer, outType)
+			return c.runListByName(cpID, id, kkClient.(*helpers.KonnectSDK).SDK, helper, cfg, interactive, printer, outType)
 		}
 
-		return c.runGet(cpID, id, kkClient.(*helpers.KonnectSDK).SDK, helper, printer, outType)
+		return c.runGet(cpID, id, kkClient.(*helpers.KonnectSDK).SDK, helper, interactive, printer, outType)
 	}
 
-	return c.runList(cpID, kkClient.(*helpers.KonnectSDK).SDK, helper, cfg, printer, outType)
+	return c.runList(cpID, kkClient.(*helpers.KonnectSDK).SDK, helper, cfg, interactive, printer, outType)
 }
 
 func newGetRouteCmd(verb verbs.VerbValue,

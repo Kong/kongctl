@@ -2,15 +2,19 @@ package api
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/navigator"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -18,6 +22,7 @@ import (
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/muesli/reflow/wordwrap"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -57,7 +62,7 @@ func apiToDisplayRecord(a *kkComps.APIResponseSchema) textDisplayRecord {
 
 	var id, name string
 	if a.ID != "" {
-		id = a.ID
+		id = util.AbbreviateUUID(a.ID)
 	} else {
 		id = missing
 	}
@@ -94,6 +99,183 @@ func apiToDisplayRecord(a *kkComps.APIResponseSchema) textDisplayRecord {
 		LocalCreatedTime: createdAt,
 		LocalUpdatedTime: updatedAt,
 	}
+}
+
+func apiDetailView(api *kkComps.APIResponseSchema) string {
+	if api == nil {
+		return ""
+	}
+
+	const missing = "n/a"
+	id := strings.TrimSpace(api.ID)
+	if id == "" {
+		id = missing
+	}
+	name := strings.TrimSpace(api.Name)
+	if name == "" {
+		name = missing
+	}
+
+	type detailField struct {
+		label     string
+		value     string
+		multiline bool
+	}
+
+	var fields []detailField
+
+	addField := func(label, value string) {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return
+		}
+		fields = append(fields, detailField{
+			label: label,
+			value: value,
+		})
+	}
+
+	addMultiline := func(label, value string) {
+		value = strings.TrimRight(value, "\n")
+		if strings.TrimSpace(value) == "" {
+			return
+		}
+		fields = append(fields, detailField{
+			label:     label,
+			value:     value,
+			multiline: true,
+		})
+	}
+
+	if slugPtr := api.GetSlug(); slugPtr != nil {
+		if slug := strings.TrimSpace(*slugPtr); slug != "" {
+			addField("slug", slug)
+		}
+	}
+
+	if versionPtr := api.GetVersion(); versionPtr != nil {
+		if version := strings.TrimSpace(*versionPtr); version != "" {
+			addField("version", version)
+		}
+	}
+
+	if api.CurrentVersionSummary != nil {
+		if spec := api.CurrentVersionSummary.Spec; spec != nil {
+			if spec.Type != nil {
+				if specType := strings.TrimSpace(string(*spec.Type)); specType != "" {
+					addField("spec_type", specType)
+				}
+			}
+		}
+	}
+
+	if specIDs := api.GetAPISpecIds(); len(specIDs) > 0 {
+		ids := make([]string, 0, len(specIDs))
+		for _, specID := range specIDs {
+			ids = append(ids, util.AbbreviateUUID(specID))
+		}
+		addField("spec_ids", strings.Join(ids, ", "))
+	}
+
+	if api.Description != nil && *api.Description != "" {
+		description := strings.TrimSpace(*api.Description)
+		if description != "" {
+			const wrapWidth = 80
+			addMultiline("description", wordwrap.String(description, wrapWidth))
+		}
+	}
+
+	if attrs := api.Attributes; attrs != nil {
+		switch v := attrs.(type) {
+		case map[string]any:
+			if len(v) > 0 {
+				keys := make([]string, 0, len(v))
+				for k := range v {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				var sb strings.Builder
+				for _, k := range keys {
+					fmt.Fprintf(&sb, "  %s: %v\n", k, v[k])
+				}
+				addMultiline("attributes", sb.String())
+			}
+		case map[string]string:
+			if len(v) > 0 {
+				keys := make([]string, 0, len(v))
+				for k := range v {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				var sb strings.Builder
+				for _, k := range keys {
+					fmt.Fprintf(&sb, "  %s: %s\n", k, v[k])
+				}
+				addMultiline("attributes", sb.String())
+			}
+		}
+	}
+
+	if portals := api.GetPortals(); len(portals) > 0 {
+		var sb strings.Builder
+		for _, portal := range portals {
+			displayName := strings.TrimSpace(portal.DisplayName)
+			portalName := strings.TrimSpace(portal.Name)
+			var line string
+			switch {
+			case displayName != "" && portalName != "":
+				line = fmt.Sprintf("%s (%s)", displayName, portalName)
+			case displayName != "":
+				line = displayName
+			case portalName != "":
+				line = portalName
+			default:
+				line = missing
+			}
+			fmt.Fprintf(&sb, "  %s - %s\n", line, portal.ID)
+		}
+		addMultiline("portals", sb.String())
+	}
+
+	if labels := api.GetLabels(); len(labels) > 0 {
+		keys := make([]string, 0, len(labels))
+		for k := range labels {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		var sb strings.Builder
+		for _, k := range keys {
+			fmt.Fprintf(&sb, "  %s: %s\n", k, labels[k])
+		}
+		addMultiline("labels", sb.String())
+	}
+
+	addField("publication_count", fmt.Sprintf("%d", len(api.GetPortals())))
+	addField("created_at", api.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
+	addField("updated_at", api.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
+
+	sort.Slice(fields, func(i, j int) bool {
+		li := strings.ToLower(fields[i].label)
+		lj := strings.ToLower(fields[j].label)
+		if li == lj {
+			return fields[i].label < fields[j].label
+		}
+		return li < lj
+	})
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	for _, field := range fields {
+		if field.multiline {
+			value := strings.TrimRight(field.value, "\n")
+			fmt.Fprintf(&b, "%s:\n%s\n", field.label, value)
+			continue
+		}
+		fmt.Fprintf(&b, "%s: %s\n", field.label, field.value)
+	}
+
+	return b.String()
 }
 
 type getAPICmd struct {
@@ -230,12 +412,19 @@ func (c *getAPICmd) runE(cobraCmd *cobra.Command, args []string) error {
 		return e
 	}
 
-	printer, e := cli.Format(outType.String(), helper.GetStreams().Out)
+	interactive, e := helper.IsInteractive()
 	if e != nil {
 		return e
 	}
 
-	defer printer.Flush()
+	var printer cli.PrintFlusher
+	if !interactive {
+		printer, e = cli.Format(outType.String(), helper.GetStreams().Out)
+		if e != nil {
+			return e
+		}
+		defer printer.Flush()
+	}
 
 	cfg, e := helper.GetConfig()
 	if e != nil {
@@ -260,46 +449,130 @@ func (c *getAPICmd) runE(cobraCmd *cobra.Command, args []string) error {
 			// If the ID is not a UUID, then it is a name
 			// search for the API by name
 			api, e := runListByName(id, sdk.GetAPIAPI(), helper, cfg)
-			if e == nil {
-				if outType == cmdCommon.TEXT {
-					printer.Print(apiToDisplayRecord(api))
-				} else {
-					printer.Print(api)
-				}
-			} else {
+			if e != nil {
 				return e
 			}
-		} else {
-			api, e := runGet(id, sdk.GetAPIAPI(), helper)
-			if e == nil {
-				if outType == cmdCommon.TEXT {
-					printer.Print(apiToDisplayRecord(api))
-				} else {
-					printer.Print(api)
-				}
-			} else {
-				return e
-			}
+			return tableview.RenderForFormat(
+				interactive,
+				outType,
+				printer,
+				helper.GetStreams(),
+				apiToDisplayRecord(api),
+				api,
+				"",
+				tableview.WithRootLabel(helper.GetCmd().Name()),
+				tableview.WithDetailHelper(helper),
+				tableview.WithDetailContext("api", func(index int) any {
+					if index != 0 {
+						return nil
+					}
+					return api
+				}),
+			)
 		}
-	} else { // list all APIs
-		var apis []kkComps.APIResponseSchema
-		apis, e = runList(sdk.GetAPIAPI(), helper, cfg)
-		if e == nil {
-			if outType == cmdCommon.TEXT {
-				var displayRecords []textDisplayRecord
-				for _, api := range apis {
-					displayRecords = append(displayRecords, apiToDisplayRecord(&api))
-				}
-				printer.Print(displayRecords)
-			} else {
-				printer.Print(apis)
-			}
-		} else {
+
+		api, e := runGet(id, sdk.GetAPIAPI(), helper)
+		if e != nil {
 			return e
 		}
+
+		return tableview.RenderForFormat(
+			interactive,
+			outType,
+			printer,
+			helper.GetStreams(),
+			apiToDisplayRecord(api),
+			api,
+			"",
+			tableview.WithRootLabel(helper.GetCmd().Name()),
+			tableview.WithDetailHelper(helper),
+			tableview.WithDetailContext("api", func(index int) any {
+				if index != 0 {
+					return nil
+				}
+				return api
+			}),
+		)
 	}
 
-	return nil
+	if interactive {
+		return navigator.Run(helper, navigator.Options{InitialResource: "apis"})
+	}
+
+	apis, e := runList(sdk.GetAPIAPI(), helper, cfg)
+	if e != nil {
+		return e
+	}
+
+	return renderAPIList(helper, helper.GetCmd().Name(), interactive, outType, printer, apis)
+}
+
+func renderAPIList(
+	helper cmd.Helper,
+	rootLabel string,
+	interactive bool,
+	outType cmdCommon.OutputFormat,
+	printer cli.PrintFlusher,
+	apis []kkComps.APIResponseSchema,
+) error {
+	displayRecords := make([]textDisplayRecord, 0, len(apis))
+	for i := range apis {
+		displayRecords = append(displayRecords, apiToDisplayRecord(&apis[i]))
+	}
+
+	childView := buildAPIChildView(apis)
+
+	options := []tableview.Option{
+		tableview.WithCustomTable(childView.Headers, childView.Rows),
+		tableview.WithRootLabel(rootLabel),
+		tableview.WithDetailHelper(helper),
+	}
+	if childView.DetailRenderer != nil {
+		options = append(options, tableview.WithDetailRenderer(childView.DetailRenderer))
+	}
+	if childView.DetailContext != nil {
+		options = append(options, tableview.WithDetailContext(childView.ParentType, childView.DetailContext))
+	}
+
+	return tableview.RenderForFormat(
+		interactive,
+		outType,
+		printer,
+		helper.GetStreams(),
+		displayRecords,
+		apis,
+		"",
+		options...,
+	)
+}
+
+func buildAPIChildView(apis []kkComps.APIResponseSchema) tableview.ChildView {
+	tableRows := make([]table.Row, 0, len(apis))
+	for i := range apis {
+		record := apiToDisplayRecord(&apis[i])
+		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(apis) {
+			return ""
+		}
+		return apiDetailView(&apis[index])
+	}
+
+	return tableview.ChildView{
+		Headers:        []string{"ID", "NAME"},
+		Rows:           tableRows,
+		DetailRenderer: detailFn,
+		Title:          "APIs",
+		ParentType:     "api",
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(apis) {
+				return nil
+			}
+			return &apis[index]
+		},
+	}
 }
 
 func newGetAPICmd(verb verbs.VerbValue,

@@ -15,6 +15,7 @@ const (
 	List   = VerbValue("list")
 	Login  = VerbValue("login")
 	Plan   = VerbValue("plan")
+	View   = VerbValue("view")
 	Sync   = VerbValue("sync")
 	Diff   = VerbValue("diff")
 	Export = VerbValue("export")

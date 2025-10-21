@@ -1,14 +1,19 @@
 package portal
 
 import (
+	"context"
 	"fmt"
+	"sort"
 	"strings"
+	"sync"
 
 	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
@@ -46,6 +51,37 @@ type portalSnippetDetailRecord struct {
 	Content          string
 	LocalCreatedTime string
 	LocalUpdatedTime string
+	rawID            string
+}
+
+type portalSnippetContentContext struct {
+	portalID  string
+	snippetID string
+	cache     *portalSnippetDetailCache
+}
+
+type portalSnippetDetailCache struct {
+	mu      sync.RWMutex
+	records map[string]portalSnippetDetailRecord
+}
+
+func newPortalSnippetDetailCache() *portalSnippetDetailCache {
+	return &portalSnippetDetailCache{
+		records: make(map[string]portalSnippetDetailRecord),
+	}
+}
+
+func (c *portalSnippetDetailCache) Get(id string) (portalSnippetDetailRecord, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	rec, ok := c.records[id]
+	return rec, ok
+}
+
+func (c *portalSnippetDetailCache) Set(id string, record portalSnippetDetailRecord) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.records[id] = record
 }
 
 var (
@@ -131,11 +167,19 @@ func (h portalSnippetsHandler) run(args []string) error {
 		return err
 	}
 
-	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
+	interactive, err := helper.IsInteractive()
 	if err != nil {
 		return err
 	}
-	defer printer.Flush()
+
+	var printer cli.PrintFlusher
+	if !interactive {
+		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
+		}
+		defer printer.Flush()
+	}
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -175,18 +219,29 @@ func (h portalSnippetsHandler) run(args []string) error {
 	}
 
 	if len(args) == 1 {
-		return h.getSingleSnippet(helper, snippetAPI, portalID, strings.TrimSpace(args[0]), outType, printer, cfg)
+		snippetIdentifier := strings.TrimSpace(args[0])
+		return h.getSingleSnippet(
+			helper,
+			snippetAPI,
+			portalID,
+			snippetIdentifier,
+			interactive,
+			outType,
+			printer,
+			cfg,
+		)
 	}
 
-	return h.listSnippets(helper, snippetAPI, portalID, outType, printer, cfg)
+	return h.listSnippets(helper, snippetAPI, portalID, interactive, outType, printer, cfg)
 }
 
 func (h portalSnippetsHandler) listSnippets(
 	helper cmd.Helper,
 	snippetAPI helpers.PortalSnippetAPI,
 	portalID string,
+	interactive bool,
 	outType cmdCommon.OutputFormat,
-	printer cli.Printer,
+	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
 	snippets, err := fetchPortalSnippetSummaries(helper, snippetAPI, portalID, cfg)
@@ -194,17 +249,53 @@ func (h portalSnippetsHandler) listSnippets(
 		return err
 	}
 
-	if outType == cmdCommon.TEXT {
-		records := make([]portalSnippetSummaryRecord, 0, len(snippets))
-		for _, snippet := range snippets {
-			records = append(records, portalSnippetSummaryToRecord(snippet))
-		}
-		printer.Print(records)
-		return nil
+	records := make([]portalSnippetSummaryRecord, 0, len(snippets))
+	for _, snippet := range snippets {
+		records = append(records, portalSnippetSummaryToRecord(snippet))
 	}
 
-	printer.Print(snippets)
-	return nil
+	tableRows := make([]table.Row, 0, len(records))
+	for _, record := range records {
+		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+	}
+
+	cache := newPortalSnippetDetailCache()
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(snippets) {
+			return ""
+		}
+		snippet := snippets[index]
+		if detail, ok := cache.Get(snippet.GetID()); ok {
+			return portalSnippetInfoDetail(snippet, &detail)
+		}
+		return portalSnippetInfoDetail(snippet, nil)
+	}
+
+	return tableview.RenderForFormat(
+		interactive,
+		outType,
+		printer,
+		helper.GetStreams(),
+		records,
+		snippets,
+		"",
+		tableview.WithCustomTable([]string{"ID", "NAME"}, tableRows),
+		tableview.WithDetailRenderer(detailFn),
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+		tableview.WithDetailHelper(helper),
+		tableview.WithDetailContext("portal-snippet", func(index int) any {
+			if index < 0 || index >= len(snippets) {
+				return nil
+			}
+			snippet := snippets[index]
+			return &portalSnippetContentContext{
+				portalID:  portalID,
+				snippetID: strings.TrimSpace(snippet.GetID()),
+				cache:     cache,
+			}
+		}),
+	)
 }
 
 func (h portalSnippetsHandler) getSingleSnippet(
@@ -212,8 +303,9 @@ func (h portalSnippetsHandler) getSingleSnippet(
 	snippetAPI helpers.PortalSnippetAPI,
 	portalID string,
 	identifier string,
+	interactive bool,
 	outType cmdCommon.OutputFormat,
-	printer cli.Printer,
+	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
 	snippetID := identifier
@@ -245,13 +337,39 @@ func (h portalSnippetsHandler) getSingleSnippet(
 		}
 	}
 
-	if outType == cmdCommon.TEXT {
-		printer.Print(portalSnippetDetailToRecord(snippet))
-		return nil
+	record := portalSnippetDetailToRecord(snippet)
+	cache := newPortalSnippetDetailCache()
+	cache.Set(snippet.GetID(), record)
+
+	detailRenderer := func(index int) string {
+		if index != 0 {
+			return ""
+		}
+		return portalSnippetDetailView(record)
 	}
 
-	printer.Print(snippet)
-	return nil
+	return tableview.RenderForFormat(
+		interactive,
+		outType,
+		printer,
+		helper.GetStreams(),
+		record,
+		snippet,
+		"",
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+		tableview.WithDetailRenderer(detailRenderer),
+		tableview.WithDetailHelper(helper),
+		tableview.WithDetailContext("portal-snippet", func(index int) any {
+			if index != 0 {
+				return nil
+			}
+			return &portalSnippetContentContext{
+				portalID:  portalID,
+				snippetID: strings.TrimSpace(snippet.GetID()),
+				cache:     cache,
+			}
+		}),
+	)
 }
 
 func fetchPortalSnippetSummaries(
@@ -312,7 +430,7 @@ func findSnippetByNameOrTitle(snippets []kkComps.PortalSnippetInfo, identifier s
 
 func portalSnippetSummaryToRecord(snippet kkComps.PortalSnippetInfo) portalSnippetSummaryRecord {
 	return portalSnippetSummaryRecord{
-		ID:               snippet.GetID(),
+		ID:               util.AbbreviateUUID(snippet.GetID()),
 		Name:             snippet.GetName(),
 		Title:            snippet.GetTitle(),
 		Visibility:       string(snippet.GetVisibility()),
@@ -324,17 +442,20 @@ func portalSnippetSummaryToRecord(snippet kkComps.PortalSnippetInfo) portalSnipp
 }
 
 func portalSnippetDetailToRecord(snippet *kkComps.PortalSnippetResponse) portalSnippetDetailRecord {
-	return portalSnippetDetailRecord{
-		ID:               snippet.GetID(),
+	content := normalizePortalPageContent(snippet.GetContent())
+	record := portalSnippetDetailRecord{
+		ID:               util.AbbreviateUUID(snippet.GetID()),
 		Name:             snippet.GetName(),
 		Title:            optionalString(snippet.GetTitle()),
 		Visibility:       string(snippet.GetVisibility()),
 		Status:           string(snippet.GetStatus()),
 		Description:      formatOptionalString(snippet.GetDescription()),
-		Content:          snippet.GetContent(),
+		Content:          content,
 		LocalCreatedTime: formatTime(snippet.GetCreatedAt()),
 		LocalUpdatedTime: formatTime(snippet.GetUpdatedAt()),
+		rawID:            strings.TrimSpace(snippet.GetID()),
 	}
+	return record
 }
 
 func formatOptionalString(s *string) string {
@@ -352,4 +473,181 @@ func optionalString(s *string) string {
 		return valueNA
 	}
 	return *s
+}
+
+func portalSnippetInfoDetail(snippet kkComps.PortalSnippetInfo, detail *portalSnippetDetailRecord) string {
+	const missing = valueNA
+
+	id := strings.TrimSpace(snippet.GetID())
+	if id == "" {
+		id = missing
+	}
+
+	name := strings.TrimSpace(snippet.GetName())
+	if name == "" {
+		name = missing
+	}
+
+	title := strings.TrimSpace(snippet.GetTitle())
+	if title == "" {
+		title = missing
+	}
+
+	description := formatOptionalString(snippet.GetDescription())
+
+	fields := map[string]string{
+		"title":      title,
+		"visibility": string(snippet.GetVisibility()),
+		"status":     string(snippet.GetStatus()),
+		"created_at": formatTime(snippet.GetCreatedAt()),
+		"updated_at": formatTime(snippet.GetUpdatedAt()),
+	}
+
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	for _, key := range keys {
+		fmt.Fprintf(&b, "%s: %s\n", key, fields[key])
+	}
+
+	if description != missing && strings.TrimSpace(description) != "" {
+		fmt.Fprintf(&b, "description:\n%s\n", strings.TrimSpace(description))
+	}
+
+	fmt.Fprintf(&b, "content: %s", portalPageContentIndicator)
+	if detail != nil {
+		if preview := previewPortalPageContent(detail.Content); preview != "" {
+			fmt.Fprintf(&b, " %s", preview)
+		}
+	}
+	fmt.Fprintln(&b)
+
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func portalSnippetDetailView(record portalSnippetDetailRecord) string {
+	const missing = valueNA
+
+	id := strings.TrimSpace(record.rawID)
+	if id == "" {
+		id = missing
+	}
+
+	name := nonEmptyStringOrNA(record.Name)
+	title := nonEmptyStringOrNA(record.Title)
+
+	fields := map[string]string{
+		"created_at": record.LocalCreatedTime,
+		"status":     record.Status,
+		"updated_at": record.LocalUpdatedTime,
+		"visibility": record.Visibility,
+	}
+
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	fmt.Fprintf(&b, "title: %s\n", title)
+	for _, key := range keys {
+		fmt.Fprintf(&b, "%s: %s\n", key, fields[key])
+	}
+
+	desc := strings.TrimSpace(record.Description)
+	if desc != "" && !strings.EqualFold(desc, valueNA) {
+		fmt.Fprintf(&b, "description:\n%s\n", desc)
+	}
+
+	fmt.Fprintf(&b, "content: %s", portalPageContentIndicator)
+	if preview := previewPortalPageContent(record.Content); preview != "" {
+		fmt.Fprintf(&b, " %s", preview)
+	}
+	fmt.Fprintln(&b)
+
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func loadPortalSnippetContent(ctx context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	contentCtx, ok := parent.(*portalSnippetContentContext)
+	if !ok {
+		return tableview.ChildView{}, fmt.Errorf("unexpected portal snippet context type %T", parent)
+	}
+
+	if strings.TrimSpace(contentCtx.portalID) == "" || strings.TrimSpace(contentCtx.snippetID) == "" {
+		return tableview.ChildView{}, fmt.Errorf("portal snippet identifiers are missing")
+	}
+
+	record, ok := contentCtx.cache.Get(contentCtx.snippetID)
+	if !ok {
+		detail, err := fetchPortalSnippetDetail(ctx, helper, contentCtx.portalID, contentCtx.snippetID)
+		if err != nil {
+			return tableview.ChildView{}, err
+		}
+		contentCtx.cache.Set(contentCtx.snippetID, detail)
+		record = detail
+	}
+
+	raw := normalizePortalPageContent(record.Content)
+	if strings.TrimSpace(raw) == "" {
+		raw = "(content is empty)"
+	}
+
+	return tableview.ChildView{
+		Headers: nil,
+		Rows:    nil,
+		DetailRenderer: func(int) string {
+			return raw
+		},
+		Title: "Snippet Content",
+	}, nil
+}
+
+func fetchPortalSnippetDetail(
+	ctx context.Context,
+	helper cmd.Helper,
+	portalID string,
+	snippetID string,
+) (portalSnippetDetailRecord, error) {
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return portalSnippetDetailRecord{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return portalSnippetDetailRecord{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return portalSnippetDetailRecord{}, err
+	}
+
+	snippetAPI := sdk.GetPortalSnippetAPI()
+	if snippetAPI == nil {
+		return portalSnippetDetailRecord{}, fmt.Errorf("portal snippets client is not available")
+	}
+
+	res, err := snippetAPI.GetPortalSnippet(ctx, portalID, snippetID)
+	if err != nil {
+		return portalSnippetDetailRecord{}, err
+	}
+
+	snippet := res.GetPortalSnippetResponse()
+	if snippet == nil {
+		return portalSnippetDetailRecord{}, fmt.Errorf("no portal snippet returned for id %s", snippetID)
+	}
+
+	record := portalSnippetDetailToRecord(snippet)
+	return record, nil
 }

@@ -25,6 +25,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
       - name: Setup go
         uses: actions/setup-go@v6
+      - name: Install clipboard build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev
       - name: Setup golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:

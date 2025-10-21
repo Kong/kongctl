@@ -281,6 +281,21 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		useJQColor = shouldUseJQColor(jColorMode, streams.Out)
 	}
 
+	outType, err := helper.GetOutputFormat()
+	if err != nil {
+		return err
+	}
+	interactive, err := helper.IsInteractive()
+	if err != nil {
+		return err
+	}
+	if interactive || outType == cmdcommon.TEXT {
+		return &cmd.ConfigurationError{
+			Err: fmt.Errorf("%s command supports only json or yaml output formats (received %q)",
+				helper.GetCmd().CommandPath(), outType.String()),
+		}
+	}
+
 	dataArgs := args[1:]
 	var bodyReader io.Reader
 	headers := map[string]string{}
@@ -353,20 +368,23 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		bodyToRender = filtered
 	}
 
-	outType, err := helper.GetOutputFormat()
-	if err != nil {
-		return err
-	}
-
 	switch outType {
 	case cmdcommon.TEXT:
+		return &cmd.ConfigurationError{
+			Err: fmt.Errorf("unsupported output format %q for %s command", outType.String(),
+				helper.GetCmd().CommandPath()),
+		}
+	case cmdcommon.JSON:
+		if len(bodyToRender) == 0 {
+			return nil
+		}
 		printable := bodyToPrintable(bodyToRender)
-		if jqFilter != "" && useJQColor {
+		if useJQColor {
 			printable = maybeColorizeJQOutput(bodyToRender, printable, jqPaletteValue)
 		}
 		_, err = fmt.Fprintln(streams.Out, strings.TrimRight(printable, "\n"))
 		return err
-	case cmdcommon.JSON, cmdcommon.YAML:
+	case cmdcommon.YAML:
 		var payload any
 		if len(bodyToRender) > 0 {
 			if err := json.Unmarshal(bodyToRender, &payload); err != nil {
@@ -380,9 +398,12 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		defer printer.Flush()
 		printer.Print(payload)
 		return nil
+	default:
+		return &cmd.ConfigurationError{
+			Err: fmt.Errorf("unsupported output format %q for %s command", outType.String(),
+				helper.GetCmd().CommandPath()),
+		}
 	}
-
-	return nil
 }
 
 type singleBodyFileValue struct {

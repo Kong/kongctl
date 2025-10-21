@@ -36,10 +36,19 @@ const (
 	OutputFlagShort     = "o"
 	OutputConfigPath    = OutputFlagName
 
+	// related to the --interactive flag
+	InteractiveFlagName  = "interactive"
+	InteractiveFlagShort = "i"
+
 	// related to the --color flag
 	ColorFlagName    = "color"
 	ColorConfigPath  = ColorFlagName
 	DefaultColorMode = "auto"
+
+	// related to the --color-theme flag
+	ColorThemeFlagName   = "color-theme"
+	ColorThemeConfigPath = "color-theme"
+	DefaultColorTheme    = "kong"
 
 	// related to the --profile flag
 	ProfileFlagName  = "profile"
@@ -71,7 +80,8 @@ func OutputFormatStringToIota(format string) (OutputFormat, error) {
 	case "text":
 		return TEXT, nil
 	default:
-		return TEXT, fmt.Errorf("invalid output format %q, must be one of %v", format, []string{"json", "yaml", "text"})
+		allowed := []string{"json", "yaml", "text"}
+		return TEXT, fmt.Errorf("invalid output format %q, must be one of %v", format, allowed)
 	}
 }
 

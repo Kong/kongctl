@@ -8,8 +8,10 @@ import (
 	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
@@ -117,11 +119,19 @@ func (h portalTeamsHandler) run(args []string) error {
 		return err
 	}
 
-	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
+	interactive, err := helper.IsInteractive()
 	if err != nil {
 		return err
 	}
-	defer printer.Flush()
+
+	var printer cli.PrintFlusher
+	if !interactive {
+		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
+		}
+		defer printer.Flush()
+	}
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -161,18 +171,19 @@ func (h portalTeamsHandler) run(args []string) error {
 	}
 
 	if len(args) == 1 {
-		return h.getSingleTeam(helper, teamAPI, portalID, strings.TrimSpace(args[0]), outType, printer, cfg)
+		return h.getSingleTeam(helper, teamAPI, portalID, strings.TrimSpace(args[0]), interactive, outType, printer, cfg)
 	}
 
-	return h.listTeams(helper, teamAPI, portalID, outType, printer, cfg)
+	return h.listTeams(helper, teamAPI, portalID, interactive, outType, printer, cfg)
 }
 
 func (h portalTeamsHandler) listTeams(
 	helper cmd.Helper,
 	teamAPI helpers.PortalTeamAPI,
 	portalID string,
+	interactive bool,
 	outType cmdCommon.OutputFormat,
-	printer cli.Printer,
+	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
 	teams, err := fetchPortalTeams(helper, teamAPI, portalID, cfg)
@@ -180,17 +191,35 @@ func (h portalTeamsHandler) listTeams(
 		return err
 	}
 
-	if outType == cmdCommon.TEXT {
-		records := make([]portalTeamSummaryRecord, 0, len(teams))
-		for _, team := range teams {
-			records = append(records, portalTeamSummaryToRecord(team))
-		}
-		printer.Print(records)
-		return nil
+	records := make([]portalTeamSummaryRecord, 0, len(teams))
+	for _, team := range teams {
+		records = append(records, portalTeamSummaryToRecord(team))
 	}
 
-	printer.Print(teams)
-	return nil
+	tableRows := make([]table.Row, 0, len(records))
+	for _, record := range records {
+		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(teams) {
+			return ""
+		}
+		return portalTeamDetailView(teams[index])
+	}
+
+	return tableview.RenderForFormat(
+		interactive,
+		outType,
+		printer,
+		helper.GetStreams(),
+		records,
+		teams,
+		"",
+		tableview.WithCustomTable([]string{"ID", "NAME"}, tableRows),
+		tableview.WithDetailRenderer(detailFn),
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+	)
 }
 
 func (h portalTeamsHandler) getSingleTeam(
@@ -198,8 +227,9 @@ func (h portalTeamsHandler) getSingleTeam(
 	teamAPI helpers.PortalTeamAPI,
 	portalID string,
 	identifier string,
+	interactive bool,
 	outType cmdCommon.OutputFormat,
-	printer cli.Printer,
+	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
 	teamID := identifier
@@ -237,13 +267,16 @@ func (h portalTeamsHandler) getSingleTeam(
 		}
 	}
 
-	if outType == cmdCommon.TEXT {
-		printer.Print(portalTeamSummaryToRecord(*team))
-		return nil
-	}
-
-	printer.Print(team)
-	return nil
+	return tableview.RenderForFormat(
+		interactive,
+		outType,
+		printer,
+		helper.GetStreams(),
+		portalTeamSummaryToRecord(*team),
+		team,
+		"",
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+	)
 }
 
 func fetchPortalTeams(
@@ -307,8 +340,12 @@ func findTeamByName(teams []kkComps.PortalTeamResponse, identifier string) *kkCo
 }
 
 func portalTeamSummaryToRecord(team kkComps.PortalTeamResponse) portalTeamSummaryRecord {
+	id := optionalPtr(team.GetID())
+	if id != valueNA {
+		id = util.AbbreviateUUID(id)
+	}
 	return portalTeamSummaryRecord{
-		ID:               optionalPtr(team.GetID()),
+		ID:               id,
 		Name:             optionalPtr(team.GetName()),
 		Description:      optionalPtr(team.GetDescription()),
 		LocalCreatedTime: formatTimePtr(team.GetCreatedAt()),
@@ -328,4 +365,19 @@ func formatTimePtr(value *time.Time) string {
 		return valueNA
 	}
 	return value.In(time.Local).Format("2006-01-02 15:04:05")
+}
+
+func portalTeamDetailView(team kkComps.PortalTeamResponse) string {
+	var b strings.Builder
+	id := optionalPtr(team.GetID())
+	if id != valueNA {
+		id = util.AbbreviateUUID(id)
+	}
+	fmt.Fprintf(&b, "Name: %s\n", optionalPtr(team.GetName()))
+	fmt.Fprintf(&b, "ID: %s\n", id)
+	fmt.Fprintf(&b, "Description: %s\n", optionalPtr(team.GetDescription()))
+	fmt.Fprintf(&b, "Created: %s\n", formatTimePtr(team.GetCreatedAt()))
+	fmt.Fprintf(&b, "Updated: %s\n", formatTimePtr(team.GetUpdatedAt()))
+
+	return b.String()
 }

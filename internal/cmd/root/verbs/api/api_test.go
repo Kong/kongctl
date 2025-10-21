@@ -198,7 +198,7 @@ func TestRunPostBuildsJSONBody(t *testing.T) {
 		GetArgsMock:         func() []string { return args },
 		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
 		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
-		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.TEXT, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.JSON, nil },
 		GetLoggerMock: func() (*slog.Logger, error) {
 			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
 		},
@@ -269,7 +269,7 @@ func TestRunPostReadsBodyFromFile(t *testing.T) {
 		GetArgsMock:         func() []string { return args },
 		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
 		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
-		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.TEXT, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.JSON, nil },
 		GetLoggerMock: func() (*slog.Logger, error) {
 			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
 		},
@@ -283,7 +283,7 @@ func TestRunPostReadsBodyFromFile(t *testing.T) {
 	require.JSONEq(t, content, capturedBody)
 }
 
-func TestRunAppliesJQColorAlways(t *testing.T) {
+func TestRunAppliesJQColorToJSONOutput(t *testing.T) {
 	original := requestFn
 	t.Cleanup(func() { requestFn = original })
 
@@ -303,7 +303,7 @@ func TestRunAppliesJQColorAlways(t *testing.T) {
 	streams := iostreams.NewTestIOStreamsOnly()
 	cmdObj := &cobra.Command{Use: "test"}
 	addFlags(cmdObj)
-	require.NoError(t, cmdObj.Flags().Set("jq", ""))
+	require.NoError(t, cmdObj.Flags().Set("jq", ".foo"))
 	require.NoError(t, cmdObj.Flags().Set("jq-color", "always"))
 	require.NoError(t, cmdObj.Flags().Set("jq-color-palette", "github"))
 
@@ -315,7 +315,7 @@ func TestRunAppliesJQColorAlways(t *testing.T) {
 		GetArgsMock:         func() []string { return args },
 		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
 		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
-		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.TEXT, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.JSON, nil },
 		GetLoggerMock: func() (*slog.Logger, error) {
 			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
 		},
@@ -327,29 +327,26 @@ func TestRunAppliesJQColorAlways(t *testing.T) {
 	require.Contains(t, output, "\x1b[")
 }
 
-func TestRunJQColorNever(t *testing.T) {
+func TestRunRejectsTextOutputFormat(t *testing.T) {
 	original := requestFn
 	t.Cleanup(func() { requestFn = original })
-
 	requestFn = func(
-		_ context.Context,
-		_ apiutil.Doer,
-		_ string,
-		_ string,
-		_ string,
-		_ string,
-		_ map[string]string,
-		_ io.Reader,
+		context.Context,
+		apiutil.Doer,
+		string,
+		string,
+		string,
+		string,
+		map[string]string,
+		io.Reader,
 	) (*apiutil.Result, error) {
-		return &apiutil.Result{StatusCode: http.StatusOK, Body: []byte(`{"foo":{"bar":1}}`)}, nil
+		require.Fail(t, "requestFn should not be called when output format is rejected")
+		return nil, nil
 	}
 
 	streams := iostreams.NewTestIOStreamsOnly()
 	cmdObj := &cobra.Command{Use: "test"}
 	addFlags(cmdObj)
-	require.NoError(t, cmdObj.Flags().Set("jq", ".foo"))
-	require.NoError(t, cmdObj.Flags().Set("jq-color", "never"))
-	require.NoError(t, cmdObj.Flags().Set("jq-color-palette", "github"))
 
 	cfg := newMockAPIConfig()
 
@@ -366,163 +363,84 @@ func TestRunJQColorNever(t *testing.T) {
 		GetContextMock: func() context.Context { return context.Background() },
 	}
 
-	require.NoError(t, run(helper, http.MethodGet, false))
-	output := streams.Out.(*bytes.Buffer).String()
-	require.NotContains(t, output, "\x1b[")
+	err := run(helper, http.MethodGet, false)
+	require.Error(t, err)
+	var cfgErr *cmdpkg.ConfigurationError
+	require.True(t, errors.As(err, &cfgErr))
+	require.Contains(t, err.Error(), "json or yaml")
 }
 
-func TestRunJQColorAutoRespectsTTY(t *testing.T) {
+func TestRunRejectsInteractiveOutputFormat(t *testing.T) {
 	original := requestFn
 	t.Cleanup(func() { requestFn = original })
+	requestFn = func(
+		context.Context,
+		apiutil.Doer,
+		string,
+		string,
+		string,
+		string,
+		map[string]string,
+		io.Reader,
+	) (*apiutil.Result, error) {
+		require.Fail(t, "requestFn should not be called when output format is rejected")
+		return nil, nil
+	}
+
+	streams := iostreams.NewTestIOStreamsOnly()
+	cmdObj := &cobra.Command{Use: "test"}
+	addFlags(cmdObj)
+
+	cfg := newMockAPIConfig()
+
+	args := []string{"/v1/resources"}
+	helper := &cmdtest.MockHelper{
+		GetCmdMock:          func() *cobra.Command { return cmdObj },
+		GetArgsMock:         func() []string { return args },
+		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
+		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.JSON, nil },
+		IsInteractiveMock:   func() (bool, error) { return true, nil },
+		GetLoggerMock: func() (*slog.Logger, error) {
+			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
+		},
+		GetContextMock: func() context.Context { return context.Background() },
+	}
+
+	err := run(helper, http.MethodGet, false)
+	require.Error(t, err)
+	var cfgErr *cmdpkg.ConfigurationError
+	require.True(t, errors.As(err, &cfgErr))
+	require.Contains(t, err.Error(), "json or yaml")
+}
+
+func TestShouldUseJQColorModes(t *testing.T) {
+	tty := &ttyBuffer{}
+	require.True(t, shouldUseJQColor(cmdcommon.ColorModeAlways, tty))
+	require.False(t, shouldUseJQColor(cmdcommon.ColorModeNever, tty))
+
 	originalDetector := jqTerminalDetector
 	jqTerminalDetector = func(uintptr) bool { return true }
 	t.Cleanup(func() { jqTerminalDetector = originalDetector })
 
-	requestFn = func(
-		_ context.Context,
-		_ apiutil.Doer,
-		_ string,
-		_ string,
-		_ string,
-		_ string,
-		_ map[string]string,
-		_ io.Reader,
-	) (*apiutil.Result, error) {
-		return &apiutil.Result{StatusCode: http.StatusOK, Body: []byte(`{"foo":{"bar":1}}`)}, nil
-	}
-
-	streams := &iostreams.IOStreams{
-		In:     &bytes.Buffer{},
-		Out:    &ttyBuffer{},
-		ErrOut: &bytes.Buffer{},
-	}
-	cmdObj := &cobra.Command{Use: "test"}
-	addFlags(cmdObj)
-	require.NoError(t, cmdObj.Flags().Set("jq", ".foo"))
-	require.NoError(t, cmdObj.Flags().Set("jq-color", "auto"))
-	require.NoError(t, cmdObj.Flags().Set("jq-color-palette", "github"))
-
-	cfg := newMockAPIConfig()
-
-	args := []string{"/v1/resources"}
-	helper := &cmdtest.MockHelper{
-		GetCmdMock:          func() *cobra.Command { return cmdObj },
-		GetArgsMock:         func() []string { return args },
-		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
-		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
-		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.TEXT, nil },
-		GetLoggerMock: func() (*slog.Logger, error) {
-			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
-		},
-		GetContextMock: func() context.Context { return context.Background() },
-	}
-
-	require.NoError(t, run(helper, http.MethodGet, false))
-	output := streams.Out.(*ttyBuffer).String()
-	require.Contains(t, output, "\x1b[")
+	require.True(t, shouldUseJQColor(cmdcommon.ColorModeAuto, tty))
 }
 
-func TestRunJQColorAutoHonorsNoColor(t *testing.T) {
-	original := requestFn
-	t.Cleanup(func() { requestFn = original })
+func TestShouldUseJQColorHonorsNoColor(t *testing.T) {
 	originalDetector := jqTerminalDetector
 	jqTerminalDetector = func(uintptr) bool { return true }
 	t.Cleanup(func() { jqTerminalDetector = originalDetector })
 	t.Setenv("NO_COLOR", "1")
 
-	requestFn = func(
-		_ context.Context,
-		_ apiutil.Doer,
-		_ string,
-		_ string,
-		_ string,
-		_ string,
-		_ map[string]string,
-		_ io.Reader,
-	) (*apiutil.Result, error) {
-		return &apiutil.Result{StatusCode: http.StatusOK, Body: []byte(`{"foo":{"bar":1}}`)}, nil
-	}
-
-	streams := &iostreams.IOStreams{
-		In:     &bytes.Buffer{},
-		Out:    &ttyBuffer{},
-		ErrOut: &bytes.Buffer{},
-	}
-	cmdObj := &cobra.Command{Use: "test"}
-	addFlags(cmdObj)
-	require.NoError(t, cmdObj.Flags().Set("jq", ".foo"))
-	require.NoError(t, cmdObj.Flags().Set("jq-color", "auto"))
-	require.NoError(t, cmdObj.Flags().Set("jq-color-palette", "github"))
-
-	cfg := newMockAPIConfig()
-
-	args := []string{"/v1/resources"}
-	helper := &cmdtest.MockHelper{
-		GetCmdMock:          func() *cobra.Command { return cmdObj },
-		GetArgsMock:         func() []string { return args },
-		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
-		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
-		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.TEXT, nil },
-		GetLoggerMock: func() (*slog.Logger, error) {
-			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
-		},
-		GetContextMock: func() context.Context { return context.Background() },
-	}
-
-	require.NoError(t, run(helper, http.MethodGet, false))
-	output := streams.Out.(*ttyBuffer).String()
-	require.NotContains(t, output, "\x1b[")
+	tty := &ttyBuffer{}
+	require.False(t, shouldUseJQColor(cmdcommon.ColorModeAuto, tty))
 }
 
-func TestRunJQColorInvalidPaletteFallsBack(t *testing.T) {
-	original := requestFn
-	t.Cleanup(func() { requestFn = original })
-	originalDetector := jqTerminalDetector
-	jqTerminalDetector = func(uintptr) bool { return true }
-	t.Cleanup(func() { jqTerminalDetector = originalDetector })
-
-	requestFn = func(
-		_ context.Context,
-		_ apiutil.Doer,
-		_ string,
-		_ string,
-		_ string,
-		_ string,
-		_ map[string]string,
-		_ io.Reader,
-	) (*apiutil.Result, error) {
-		return &apiutil.Result{StatusCode: http.StatusOK, Body: []byte(`{"foo":{"bar":1}}`)}, nil
-	}
-
-	streams := &iostreams.IOStreams{
-		In:     &bytes.Buffer{},
-		Out:    &ttyBuffer{},
-		ErrOut: &bytes.Buffer{},
-	}
-	cmdObj := &cobra.Command{Use: "test"}
-	addFlags(cmdObj)
-	require.NoError(t, cmdObj.Flags().Set("jq", ".foo"))
-	require.NoError(t, cmdObj.Flags().Set("jq-color", "always"))
-	require.NoError(t, cmdObj.Flags().Set("jq-color-palette", "not-a-style"))
-
-	cfg := newMockAPIConfig()
-
-	args := []string{"/v1/resources"}
-	helper := &cmdtest.MockHelper{
-		GetCmdMock:          func() *cobra.Command { return cmdObj },
-		GetArgsMock:         func() []string { return args },
-		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
-		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
-		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.TEXT, nil },
-		GetLoggerMock: func() (*slog.Logger, error) {
-			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
-		},
-		GetContextMock: func() context.Context { return context.Background() },
-	}
-
-	require.NoError(t, run(helper, http.MethodGet, false))
-	output := streams.Out.(*ttyBuffer).String()
-	require.Contains(t, output, "\x1b[")
+func TestMaybeColorizeJQOutputUsesFallbackPalette(t *testing.T) {
+	raw := []byte(`{"foo":{"bar":1}}`)
+	formatted := bodyToPrintable(raw)
+	colored := maybeColorizeJQOutput(raw, formatted, "not-a-style")
+	require.Contains(t, colored, "\x1b[")
 }
 
 func TestRunPostBodyFileConflictsWithFields(t *testing.T) {
@@ -558,7 +476,7 @@ func TestRunPostBodyFileConflictsWithFields(t *testing.T) {
 		GetConfigMock: func() (configpkg.Hook, error) {
 			return cfg, nil
 		},
-		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.TEXT, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.JSON, nil },
 		GetLoggerMock: func() (*slog.Logger, error) {
 			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
 		},
@@ -605,7 +523,7 @@ func TestRunPostReadsBodyFromStdin(t *testing.T) {
 		GetArgsMock:         func() []string { return args },
 		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
 		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
-		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.TEXT, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.JSON, nil },
 		GetLoggerMock: func() (*slog.Logger, error) {
 			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
 		},
@@ -653,7 +571,7 @@ func TestRunPostBodyFileFromInteractiveStdinFails(t *testing.T) {
 		GetArgsMock:         func() []string { return args },
 		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
 		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
-		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.TEXT, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.JSON, nil },
 		GetLoggerMock: func() (*slog.Logger, error) {
 			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
 		},
@@ -696,7 +614,7 @@ func TestRunBodyFileRejectedForGet(t *testing.T) {
 		GetArgsMock:         func() []string { return args },
 		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
 		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
-		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.TEXT, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.JSON, nil },
 		GetLoggerMock: func() (*slog.Logger, error) {
 			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
 		},
@@ -774,7 +692,7 @@ func TestRunRejectsUnexpectedPayload(t *testing.T) {
 		GetArgsMock:         func() []string { return args },
 		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
 		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
-		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.TEXT, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.JSON, nil },
 		GetLoggerMock: func() (*slog.Logger, error) {
 			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
 		},

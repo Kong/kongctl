@@ -115,6 +115,34 @@ The above help text shows a YAML key path for the `--output` flag which controls
 from the CLI. The config path is the location in the configuration file where a flag value can be defaulted. 
 In this case it specifies that output formats can be set in the configuration file under an `output` key. 
 
+### Color Themes
+
+Interactive experiences—such as `kongctl kai` or `kongctl get --interactive` views—share a configurable Bubble Tea
+color theme. Use the `--color-theme` flag (or set the `color-theme` key in your configuration file) to select a
+palette. The default `kong` theme mirrors the existing brand styling, and you can switch to any
+[`bubbletint`](https://github.com/lrstanley/bubbletint) theme by ID, for example:
+
+```yaml
+default:
+  color-theme: tokyo_night
+```
+
+```shell
+kongctl get apis --interactive --color-theme tokyo_night
+```
+
+You can also use the shorthand `-i` flag.
+
+When you request the interactive view—using commands like `kongctl get --interactive`
+or `kongctl get konnect --interactive`—the CLI launches a Konnect resource navigator
+home screen. The navigator lists the
+currently supported resources (APIs, application-auth-strategies, gateway control-planes,
+and portals) in alphabetical order. Select a resource to open its existing interactive
+table view, and use `esc`/`backspace` to return to the navigator and switch between
+resources.
+
+Themes adapt automatically to light and dark terminals and honor the global `--color` mode.
+
 It's called a config _path_ because the key may be nested. For example this `--control-plane-flag` has this 
 nested path:
 

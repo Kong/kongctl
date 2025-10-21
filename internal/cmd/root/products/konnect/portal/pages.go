@@ -1,14 +1,20 @@
 package portal
 
 import (
+	"context"
 	"fmt"
+	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -45,6 +51,42 @@ type portalPageDetailRecord struct {
 	Content          string
 	LocalCreatedTime string
 	LocalUpdatedTime string
+	rawID            string
+}
+
+type portalPageContentContext struct {
+	portalID string
+	pageID   string
+	cache    *portalPageDetailCache
+}
+
+type portalPageDetailCache struct {
+	mu      sync.RWMutex
+	records map[string]portalPageDetailRecord
+}
+
+func newPortalPageDetailCache() *portalPageDetailCache {
+	return &portalPageDetailCache{
+		records: make(map[string]portalPageDetailRecord),
+	}
+}
+
+const (
+	portalPageContentIndicator    = "[...]"
+	portalPageContentPreviewLimit = 80
+)
+
+func (c *portalPageDetailCache) Get(id string) (portalPageDetailRecord, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	rec, ok := c.records[id]
+	return rec, ok
+}
+
+func (c *portalPageDetailCache) Set(id string, record portalPageDetailRecord) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.records[id] = record
 }
 
 var (
@@ -130,11 +172,19 @@ func (h portalPagesHandler) run(args []string) error {
 		return err
 	}
 
-	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
+	interactive, err := helper.IsInteractive()
 	if err != nil {
 		return err
 	}
-	defer printer.Flush()
+
+	var printer cli.PrintFlusher
+	if !interactive {
+		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
+		}
+		defer printer.Flush()
+	}
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -174,36 +224,73 @@ func (h portalPagesHandler) run(args []string) error {
 	}
 
 	if len(args) == 1 {
-		return h.getSinglePage(helper, pageAPI, portalID, strings.TrimSpace(args[0]), outType, printer)
+		return h.getSinglePage(helper, pageAPI, portalID, strings.TrimSpace(args[0]), interactive, outType, printer)
 	}
 
-	return h.listPages(helper, pageAPI, portalID, outType, printer)
+	return h.listPages(helper, pageAPI, portalID, interactive, outType, printer)
 }
 
 func (h portalPagesHandler) listPages(
 	helper cmd.Helper,
 	pageAPI helpers.PortalPageAPI,
 	portalID string,
+	interactive bool,
 	outType cmdCommon.OutputFormat,
-	printer cli.Printer,
+	printer cli.PrintFlusher,
 ) error {
 	pages, err := fetchPortalPageSummaries(helper, pageAPI, portalID)
 	if err != nil {
 		return err
 	}
 
-	if outType == cmdCommon.TEXT {
-		flattened := flattenPortalPages(pages)
-		records := make([]portalPageSummaryRecord, 0, len(flattened))
-		for _, page := range flattened {
-			records = append(records, portalPageSummaryToRecord(page))
-		}
-		printer.Print(records)
-		return nil
+	flattened := flattenPortalPages(pages)
+	records := make([]portalPageSummaryRecord, 0, len(flattened))
+	for _, page := range flattened {
+		records = append(records, portalPageSummaryToRecord(page))
 	}
 
-	printer.Print(pages)
-	return nil
+	cache := newPortalPageDetailCache()
+
+	tableRows := make([]table.Row, 0, len(records))
+	for _, record := range records {
+		tableRows = append(tableRows, table.Row{record.ID, record.Title})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(flattened) {
+			return ""
+		}
+		page := flattened[index]
+		if detail, ok := cache.Get(page.GetID()); ok {
+			return portalPageInfoDetail(page, &detail)
+		}
+		return portalPageInfoDetail(page, nil)
+	}
+
+	return tableview.RenderForFormat(
+		interactive,
+		outType,
+		printer,
+		helper.GetStreams(),
+		records,
+		pages,
+		"",
+		tableview.WithCustomTable([]string{"ID", "TITLE"}, tableRows),
+		tableview.WithDetailRenderer(detailFn),
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+		tableview.WithDetailHelper(helper),
+		tableview.WithDetailContext("portal-page", func(index int) any {
+			if index < 0 || index >= len(flattened) {
+				return nil
+			}
+			page := flattened[index]
+			return &portalPageContentContext{
+				portalID: portalID,
+				pageID:   strings.TrimSpace(page.GetID()),
+				cache:    cache,
+			}
+		}),
+	)
 }
 
 func (h portalPagesHandler) getSinglePage(
@@ -211,8 +298,9 @@ func (h portalPagesHandler) getSinglePage(
 	pageAPI helpers.PortalPageAPI,
 	portalID string,
 	identifier string,
+	interactive bool,
 	outType cmdCommon.OutputFormat,
-	printer cli.Printer,
+	printer cli.PrintFlusher,
 ) error {
 	pageID := identifier
 	if !util.IsValidUUID(identifier) {
@@ -244,13 +332,39 @@ func (h portalPagesHandler) getSinglePage(
 		}
 	}
 
-	if outType == cmdCommon.TEXT {
-		printer.Print(portalPageDetailToRecord(page))
-		return nil
+	record := portalPageDetailToRecord(page)
+	cache := newPortalPageDetailCache()
+	cache.Set(page.GetID(), record)
+
+	detailRenderer := func(index int) string {
+		if index != 0 {
+			return ""
+		}
+		return portalPageDetailView(record)
 	}
 
-	printer.Print(page)
-	return nil
+	return tableview.RenderForFormat(
+		interactive,
+		outType,
+		printer,
+		helper.GetStreams(),
+		record,
+		page,
+		"",
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+		tableview.WithDetailRenderer(detailRenderer),
+		tableview.WithDetailHelper(helper),
+		tableview.WithDetailContext("portal-page", func(index int) any {
+			if index != 0 {
+				return nil
+			}
+			return &portalPageContentContext{
+				portalID: portalID,
+				pageID:   strings.TrimSpace(page.GetID()),
+				cache:    cache,
+			}
+		}),
+	)
 }
 
 func fetchPortalPageSummaries(
@@ -304,14 +418,114 @@ func findPageBySlugOrTitle(pages []kkComps.PortalPageInfo, identifier string) *k
 	return nil
 }
 
+func portalPageInfoDetail(page kkComps.PortalPageInfo, detail *portalPageDetailRecord) string {
+	const missing = valueNA
+
+	id := strings.TrimSpace(page.GetID())
+	if id == "" {
+		id = missing
+	}
+
+	title := strings.TrimSpace(page.GetTitle())
+	if title == "" {
+		title = missing
+	}
+
+	parentID := missing
+	if pid := page.GetParentPageID(); pid != nil && *pid != "" {
+		parentID = *pid
+	}
+
+	fields := map[string]string{
+		"children_count": strconv.Itoa(len(page.GetChildren())),
+		"created_at":     formatTime(page.GetCreatedAt()),
+		"parent_page_id": parentID,
+		"slug":           nonEmptyStringOrNA(page.GetSlug()),
+		"status":         string(page.GetStatus()),
+		"updated_at":     formatTime(page.GetUpdatedAt()),
+		"visibility":     string(page.GetVisibility()),
+	}
+
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "title: %s\n", title)
+	for _, key := range keys {
+		fmt.Fprintf(&b, "%s: %s\n", key, fields[key])
+	}
+
+	if desc := page.GetDescription(); desc != nil && strings.TrimSpace(*desc) != "" {
+		fmt.Fprintf(&b, "description:\n%s\n", strings.TrimSpace(*desc))
+	}
+
+	fmt.Fprintf(&b, "content: %s (press enter to view)", portalPageContentIndicator)
+	if detail != nil {
+		if preview := previewPortalPageContent(detail.Content); preview != "" {
+			fmt.Fprintf(&b, " %s", preview)
+		}
+	}
+	fmt.Fprintln(&b)
+
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func portalPageDetailView(record portalPageDetailRecord) string {
+	const missing = valueNA
+
+	id := strings.TrimSpace(record.rawID)
+	if id == "" {
+		id = missing
+	}
+
+	parentID := record.ParentPageID
+	if strings.TrimSpace(parentID) == "" {
+		parentID = missing
+	}
+
+	fields := map[string]string{
+		"created_at":     record.LocalCreatedTime,
+		"parent_page_id": parentID,
+		"slug":           nonEmptyStringOrNA(record.Slug),
+		"status":         record.Status,
+		"updated_at":     record.LocalUpdatedTime,
+		"visibility":     record.Visibility,
+	}
+
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "title: %s\n", nonEmptyStringOrNA(record.Title))
+	for _, key := range keys {
+		fmt.Fprintf(&b, "%s: %s\n", key, fields[key])
+	}
+
+	fmt.Fprintf(&b, "content: %s", portalPageContentIndicator)
+	if preview := previewPortalPageContent(record.Content); preview != "" {
+		fmt.Fprintf(&b, " %s", preview)
+	}
+	fmt.Fprintln(&b)
+
+	return strings.TrimRight(b.String(), "\n")
+}
+
 func portalPageSummaryToRecord(page kkComps.PortalPageInfo) portalPageSummaryRecord {
 	parentID := valueNA
 	if parent := page.GetParentPageID(); parent != nil && *parent != "" {
-		parentID = *parent
+		parentID = util.AbbreviateUUID(*parent)
 	}
 
 	return portalPageSummaryRecord{
-		ID:               page.GetID(),
+		ID:               util.AbbreviateUUID(page.GetID()),
 		Title:            page.GetTitle(),
 		Slug:             page.GetSlug(),
 		Visibility:       string(page.GetVisibility()),
@@ -326,20 +540,22 @@ func portalPageSummaryToRecord(page kkComps.PortalPageInfo) portalPageSummaryRec
 func portalPageDetailToRecord(page *kkComps.PortalPageResponse) portalPageDetailRecord {
 	parentID := valueNA
 	if parent := page.GetParentPageID(); parent != nil && *parent != "" {
-		parentID = *parent
+		parentID = util.AbbreviateUUID(*parent)
 	}
 
-	return portalPageDetailRecord{
-		ID:               page.GetID(),
+	record := portalPageDetailRecord{
+		ID:               util.AbbreviateUUID(page.GetID()),
 		Title:            page.GetTitle(),
 		Slug:             page.GetSlug(),
 		Visibility:       string(page.GetVisibility()),
 		Status:           string(page.GetStatus()),
 		ParentPageID:     parentID,
-		Content:          page.GetContent(),
+		Content:          normalizePortalPageContent(page.GetContent()),
 		LocalCreatedTime: formatTime(page.GetCreatedAt()),
 		LocalUpdatedTime: formatTime(page.GetUpdatedAt()),
 	}
+	record.rawID = strings.TrimSpace(page.GetID())
+	return record
 }
 
 func formatTime(t time.Time) string {
@@ -347,4 +563,141 @@ func formatTime(t time.Time) string {
 		return valueNA
 	}
 	return t.In(time.Local).Format("2006-01-02 15:04:05")
+}
+
+func nonEmptyStringOrNA(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return valueNA
+	}
+	return value
+}
+
+func normalizePortalPageContent(content string) string {
+	if strings.TrimSpace(content) == "" {
+		return ""
+	}
+
+	lines := strings.Split(content, "\n")
+	minIndent := -1
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		leading := len(line) - len(strings.TrimLeft(line, " \t"))
+		if minIndent == -1 || leading < minIndent {
+			minIndent = leading
+		}
+	}
+
+	if minIndent > 0 {
+		for i, line := range lines {
+			if strings.TrimSpace(line) == "" {
+				lines[i] = ""
+				continue
+			}
+			if len(line) > minIndent {
+				lines[i] = line[minIndent:]
+			} else {
+				lines[i] = strings.TrimLeft(line, " \t")
+			}
+		}
+	}
+
+	// normalize tabs to spaces for consistent rendering
+	for i, line := range lines {
+		lines[i] = strings.ReplaceAll(line, "\t", "    ")
+	}
+
+	return strings.TrimRight(strings.Join(lines, "\n"), "\n")
+}
+
+func previewPortalPageContent(content string) string {
+	normalized := normalizePortalPageContent(content)
+	trimmed := strings.TrimSpace(normalized)
+	if trimmed == "" {
+		return ""
+	}
+	preview := strings.ReplaceAll(normalized, "\n", " ")
+	preview = strings.Join(strings.Fields(preview), " ")
+	runes := []rune(preview)
+	limit := portalPageContentPreviewLimit
+	if limit <= 0 || len(runes) <= limit {
+		return preview
+	}
+	return string(runes[:limit]) + "…"
+}
+
+func loadPortalPageContent(ctx context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	contentCtx, ok := parent.(*portalPageContentContext)
+	if !ok {
+		return tableview.ChildView{}, fmt.Errorf("unexpected portal page context type %T", parent)
+	}
+	if strings.TrimSpace(contentCtx.pageID) == "" || strings.TrimSpace(contentCtx.portalID) == "" {
+		return tableview.ChildView{}, fmt.Errorf("portal page identifiers are missing")
+	}
+
+	record, ok := contentCtx.cache.Get(contentCtx.pageID)
+	if !ok {
+		detail, err := fetchPortalPageDetail(ctx, helper, contentCtx.portalID, contentCtx.pageID)
+		if err != nil {
+			return tableview.ChildView{}, err
+		}
+		contentCtx.cache.Set(contentCtx.pageID, detail)
+		record = detail
+	}
+
+	raw := normalizePortalPageContent(record.Content)
+	if strings.TrimSpace(raw) == "" {
+		raw = "(content is empty)"
+	}
+
+	return tableview.ChildView{
+		Headers: nil,
+		Rows:    nil,
+		DetailRenderer: func(int) string {
+			return raw
+		},
+		Title: "Page Content",
+	}, nil
+}
+
+func fetchPortalPageDetail(
+	ctx context.Context,
+	helper cmd.Helper,
+	portalID string,
+	pageID string,
+) (portalPageDetailRecord, error) {
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return portalPageDetailRecord{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return portalPageDetailRecord{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return portalPageDetailRecord{}, err
+	}
+
+	pageAPI := sdk.GetPortalPageAPI()
+	if pageAPI == nil {
+		return portalPageDetailRecord{}, fmt.Errorf("portal pages client is not available")
+	}
+
+	res, err := pageAPI.GetPortalPage(ctx, portalID, pageID)
+	if err != nil {
+		return portalPageDetailRecord{}, err
+	}
+
+	page := res.GetPortalPageResponse()
+	if page == nil {
+		return portalPageDetailRecord{}, fmt.Errorf("no portal page returned for id %s", pageID)
+	}
+
+	return portalPageDetailToRecord(page), nil
 }

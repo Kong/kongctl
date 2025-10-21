@@ -6,10 +6,11 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/cmd"
-	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/segmentio/cli"
@@ -47,7 +48,7 @@ func userToDisplayRecord(u *kkComps.User) textDisplayRecord {
 	var id, email, fullName, preferredName, active, inferredRegion string
 
 	if u.ID != nil && *u.ID != "" {
-		id = *u.ID
+		id = util.AbbreviateUUID(*u.ID)
 	} else {
 		id = missing
 	}
@@ -135,51 +136,60 @@ func (c *getMeCmd) validate(helper cmd.Helper) error {
 }
 
 func (c *getMeCmd) runE(cobraCmd *cobra.Command, args []string) error {
-	var e error
 	helper := cmd.BuildHelper(cobraCmd, args)
-	if e = c.validate(helper); e != nil {
-		return e
+	if err := c.validate(helper); err != nil {
+		return err
 	}
 
-	logger, e := helper.GetLogger()
-	if e != nil {
-		return e
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return err
 	}
 
-	outType, e := helper.GetOutputFormat()
-	if e != nil {
-		return e
+	outType, err := helper.GetOutputFormat()
+	if err != nil {
+		return err
 	}
 
-	printer, e := cli.Format(outType.String(), helper.GetStreams().Out)
-	if e != nil {
-		return e
+	interactive, err := helper.IsInteractive()
+	if err != nil {
+		return err
 	}
 
-	defer printer.Flush()
-
-	cfg, e := helper.GetConfig()
-	if e != nil {
-		return e
+	var printer cli.PrintFlusher
+	if !interactive {
+		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
+		}
+		defer printer.Flush()
 	}
 
-	sdk, e := helper.GetKonnectSDK(cfg, logger)
-	if e != nil {
-		return e
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
 	}
 
-	user, e := runGetMe(sdk.GetMeAPI(), helper)
-	if e != nil {
-		return e
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return err
 	}
 
-	if outType == cmdCommon.TEXT {
-		printer.Print(userToDisplayRecord(user))
-	} else {
-		printer.Print(user)
+	user, err := runGetMe(sdk.GetMeAPI(), helper)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	return tableview.RenderForFormat(
+		interactive,
+		outType,
+		printer,
+		helper.GetStreams(),
+		userToDisplayRecord(user),
+		user,
+		"Current User",
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+	)
 }
 
 func newGetMeCmd(verb verbs.VerbValue,

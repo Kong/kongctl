@@ -25,6 +25,7 @@ import (
 	"github.com/kong/kongctl/internal/kai/render"
 	"github.com/kong/kongctl/internal/kai/storage"
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/theme"
 )
 
 // Options configure the interactive chat experience.
@@ -38,6 +39,7 @@ type Options struct {
 	LookupControlPlane func(context.Context, string) (string, error)
 	InitialTasks       []kai.TaskDetails
 	Version            string
+	Theme              theme.Palette
 }
 
 type message struct {
@@ -127,6 +129,23 @@ type slashCommand struct {
 	description string
 }
 
+type themeStyles struct {
+	statusStyle        lipgloss.Style
+	thinkingStyle      lipgloss.Style
+	questionStyle      lipgloss.Style
+	bannerAccent       lipgloss.AdaptiveColor
+	promptAccent       lipgloss.AdaptiveColor
+	promptPlaceholder  lipgloss.AdaptiveColor
+	promptHelperStyle  lipgloss.Style
+	promptThinking     lipgloss.AdaptiveColor
+	promptSuccess      lipgloss.AdaptiveColor
+	promptError        lipgloss.AdaptiveColor
+	promptBorderStyle  lipgloss.Style
+	bannerHeadingStyle lipgloss.Style
+	taskBorder         lipgloss.AdaptiveColor
+	taskStatusBarStyle lipgloss.Style
+}
+
 const (
 	userSpeaker         = "You"
 	agentSpeaker        = "Kai"
@@ -142,36 +161,36 @@ const (
 	clearTaskStatusHelp = "Use /clear-task-status to clear the task status bar"
 )
 
-var (
-	statusStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#121418", Dark: "#121418"}).
-			Background(lipgloss.AdaptiveColor{Light: "#0C7C51", Dark: "#0C7C51"}).
-			Padding(0)
-
-	thinkingStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#E8EDF4", Dark: "#E8EDF4"})
-
-	questionStyle = lipgloss.NewStyle().
-			Foreground(promptAccentColor)
-
-	bannerAccentColor  = lipgloss.AdaptiveColor{Light: "#0C7C51", Dark: "#0C7C51"}
-	bannerHeadingColor = lipgloss.AdaptiveColor{Light: "#0A0A0A", Dark: "#FFFFFF"}
-
-	promptAccentColor      = lipgloss.AdaptiveColor{Light: "#F8C77E", Dark: "#F8C77E"}
-	promptPlaceholderColor = lipgloss.AdaptiveColor{Light: "#8B8FA3", Dark: "#6A6F85"}
-	promptHelperStyle      = lipgloss.NewStyle().Foreground(promptPlaceholderColor)
-	promptThinkingColor    = lipgloss.AdaptiveColor{Light: "#E8EDF4", Dark: "#E8EDF4"}
-	promptSuccessColor     = lipgloss.AdaptiveColor{Light: "#0C7C51", Dark: "#0C7C51"}
-	promptErrorColor       = lipgloss.AdaptiveColor{Light: "#E25D5D", Dark: "#E25D5D"}
-	promptBorderStyle      = lipgloss.NewStyle().
-				Foreground(lipgloss.AdaptiveColor{Light: "#4A4D65", Dark: "#4A4D65"})
-	bannerHeadingStyle = lipgloss.NewStyle().Foreground(bannerHeadingColor).Bold(true)
-	taskBorderColor    = lipgloss.AdaptiveColor{Light: "#286FEB", Dark: "#286FEB"}
-	taskStatusBarStyle = lipgloss.NewStyle().
-				Background(taskBorderColor).
-				Foreground(lipgloss.AdaptiveColor{Light: "#0A0A0A", Dark: "#F8F8F8"}).
-				Padding(0, 1, 0, 0)
-)
+func buildThemeStyles(p theme.Palette) themeStyles {
+	return themeStyles{
+		statusStyle: lipgloss.NewStyle().
+			Foreground(p.Adaptive(theme.ColorSuccessText)).
+			Background(p.Adaptive(theme.ColorSuccess)).
+			Padding(0),
+		thinkingStyle: lipgloss.NewStyle().
+			Foreground(p.Adaptive(theme.ColorHighlight)),
+		questionStyle: lipgloss.NewStyle().
+			Foreground(p.Adaptive(theme.ColorAccent)),
+		bannerAccent:      p.Adaptive(theme.ColorPrimary),
+		promptAccent:      p.Adaptive(theme.ColorAccent),
+		promptPlaceholder: p.Adaptive(theme.ColorTextMuted),
+		promptHelperStyle: lipgloss.NewStyle().
+			Foreground(p.Adaptive(theme.ColorTextMuted)),
+		promptThinking: p.Adaptive(theme.ColorHighlight),
+		promptSuccess:  p.Adaptive(theme.ColorSuccess),
+		promptError:    p.Adaptive(theme.ColorDanger),
+		promptBorderStyle: lipgloss.NewStyle().
+			Foreground(p.Adaptive(theme.ColorBorder)),
+		bannerHeadingStyle: lipgloss.NewStyle().
+			Foreground(p.Adaptive(theme.ColorTextPrimary)).
+			Bold(true),
+		taskBorder: p.Adaptive(theme.ColorInfo),
+		taskStatusBarStyle: lipgloss.NewStyle().
+			Background(p.Adaptive(theme.ColorInfo)).
+			Foreground(p.Adaptive(theme.ColorInfoText)).
+			Padding(0, 1, 0, 0),
+	}
+}
 
 var defaultSlashCommands = []slashCommand{
 	{name: "/context-control-plane", description: "Load a control plane into the Kai context"},
@@ -184,6 +203,9 @@ var defaultSlashCommands = []slashCommand{
 type model struct {
 	ctx  context.Context
 	opts Options
+
+	palette theme.Palette
+	styles  themeStyles
 
 	input            textarea.Model
 	spinner          spinner.Model
@@ -300,6 +322,15 @@ func Run(ctx context.Context, streams *iostreams.IOStreams, opts Options) error 
 }
 
 func newModel(ctx context.Context, opts Options) *model {
+	pal := opts.Theme
+	if strings.TrimSpace(pal.Name) == "" {
+		pal = theme.FromContext(ctx)
+	}
+	if strings.TrimSpace(pal.Name) == "" {
+		pal = theme.Current()
+	}
+	styles := buildThemeStyles(pal)
+
 	input := textarea.New()
 	input.Placeholder = defaultPrompt
 	input.Prompt = promptSymbol
@@ -317,14 +348,14 @@ func newModel(ctx context.Context, opts Options) *model {
 		style.EndOfBuffer = lipgloss.NewStyle()
 		style.LineNumber = lipgloss.NewStyle()
 		style.Text = lipgloss.NewStyle()
-		style.Placeholder = lipgloss.NewStyle().Foreground(promptPlaceholderColor)
-		style.Prompt = lipgloss.NewStyle().Foreground(promptAccentColor)
+		style.Placeholder = lipgloss.NewStyle().Foreground(styles.promptPlaceholder)
+		style.Prompt = lipgloss.NewStyle().Foreground(styles.promptAccent)
 	}
 	resetTextareaStyle(&focusedStyle)
 	resetTextareaStyle(&blurredStyle)
 	input.FocusedStyle = focusedStyle
 	input.BlurredStyle = blurredStyle
-	input.Cursor.Style = lipgloss.NewStyle().Foreground(promptAccentColor)
+	input.Cursor.Style = lipgloss.NewStyle().Foreground(styles.promptAccent)
 	promptWidth := lipgloss.Width(promptSymbol)
 	input.SetPromptFunc(promptWidth, func(lineIdx int) string {
 		if lineIdx == 0 {
@@ -335,11 +366,13 @@ func newModel(ctx context.Context, opts Options) *model {
 	input.SetWidth(defaultPromptWidth)
 
 	sp := spinner.New()
-	sp.Style = thinkingStyle
+	sp.Style = styles.thinkingStyle
 
 	m := &model{
 		ctx:                ctx,
 		opts:               opts,
+		palette:            pal,
+		styles:             styles,
 		input:              input,
 		spinner:            sp,
 		spinnerActive:      true,
@@ -947,7 +980,7 @@ func (m *model) View() string {
 			lastWasAgent = false
 		default:
 			lastWasAgent = false
-			b.WriteString(renderUserLine(msg.content, m.opts.UseColor))
+			b.WriteString(m.renderUserLine(msg.content))
 		}
 		if i < len(m.messages)-1 {
 			b.WriteString("\n\n")
@@ -1027,8 +1060,8 @@ func (m *model) renderBanner() string {
 	borderStyle := lipgloss.NewStyle()
 	accent := lipgloss.NewStyle().Bold(true)
 	if m.opts.UseColor {
-		borderStyle = borderStyle.Foreground(bannerAccentColor)
-		accent = bannerHeadingStyle
+		borderStyle = borderStyle.Foreground(m.styles.bannerAccent)
+		accent = m.styles.bannerHeadingStyle
 	}
 
 	leftLines := m.bannerLeftPanel(leftWidth, accent)
@@ -1045,9 +1078,9 @@ func (m *model) renderBanner() string {
 	var topLine string
 	var bottomLine string
 	if m.opts.UseColor {
-		nameSegment := bannerHeadingStyle.Render(" " + strings.TrimSpace(meta.CLIName))
-		versionSegment := promptHelperStyle.Render(" (v" + version + ") ")
-		kaiSegment := bannerHeadingStyle.Render("Kai ")
+		nameSegment := m.styles.bannerHeadingStyle.Render(" " + strings.TrimSpace(meta.CLIName))
+		versionSegment := m.styles.promptHelperStyle.Render(" (v" + version + ") ")
+		kaiSegment := m.styles.bannerHeadingStyle.Render("Kai ")
 		titleSegment := lipgloss.JoinHorizontal(lipgloss.Top, nameSegment, versionSegment, kaiSegment)
 		titleWidth := lipgloss.Width(titleSegment)
 		cutoff := innerWidth - 1
@@ -1067,8 +1100,8 @@ func (m *model) renderBanner() string {
 		if dashCount < 0 {
 			dashCount = 0
 		}
-		cornerStyle := lipgloss.NewStyle().Foreground(bannerAccentColor)
-		dashStyle := lipgloss.NewStyle().Foreground(bannerAccentColor)
+		cornerStyle := lipgloss.NewStyle().Foreground(m.styles.bannerAccent)
+		dashStyle := lipgloss.NewStyle().Foreground(m.styles.bannerAccent)
 		topLine = lipgloss.JoinHorizontal(lipgloss.Top,
 			cornerStyle.Render("╭"),
 			dashStyle.Render("─"),
@@ -1324,7 +1357,7 @@ func (m *model) renderStatusLine(left, right string) string {
 	if !m.opts.UseColor {
 		return content
 	}
-	return statusStyle.Render(content)
+	return m.styles.statusStyle.Render(content)
 }
 
 func (m *model) adjustInputHeight() {
@@ -1355,15 +1388,15 @@ func (m *model) renderAgentBanner(streaming bool, duration time.Duration) string
 		message = fmt.Sprintf("Kai worked for %s", formatDuration(duration))
 	}
 	if m.opts.UseColor {
-		message = promptHelperStyle.Render(message)
+		message = m.styles.promptHelperStyle.Render(message)
 	}
 	bullet := "⏺"
 	if m.opts.UseColor {
-		bulletColor := promptPlaceholderColor
+		bulletColor := m.styles.promptPlaceholder
 		if streaming {
-			bulletColor = promptThinkingColor
+			bulletColor = m.styles.promptThinking
 		} else if duration > 0 {
-			bulletColor = promptSuccessColor
+			bulletColor = m.styles.promptSuccess
 		}
 		bullet = lipgloss.NewStyle().Foreground(bulletColor).Render(bullet)
 	}
@@ -1380,7 +1413,7 @@ func (m *model) renderAgentBanner(streaming bool, duration time.Duration) string
 	}
 	dashes := strings.Repeat("─", dashCount)
 	if m.opts.UseColor {
-		dashes = promptBorderStyle.Render(dashes)
+		dashes = m.styles.promptBorderStyle.Render(dashes)
 	}
 	return left + space + dashes
 }
@@ -1408,15 +1441,15 @@ func (m *model) renderTaskHeader(label string) string {
 		}
 		return line + " " + strings.Repeat("-", dashCount)
 	}
-	bullet := lipgloss.NewStyle().Foreground(taskBorderColor).Render("⏺")
-	text := promptHelperStyle.Render(label)
-	line := lipgloss.JoinHorizontal(lipgloss.Top, bullet, promptBorderStyle.Render(" "), text)
+	bullet := lipgloss.NewStyle().Foreground(m.styles.taskBorder).Render("⏺")
+	text := m.styles.promptHelperStyle.Render(label)
+	line := lipgloss.JoinHorizontal(lipgloss.Top, bullet, m.styles.promptBorderStyle.Render(" "), text)
 	dashCount := width - lipgloss.Width(line) - 1
 	if dashCount < 0 {
 		dashCount = 0
 	}
-	dashes := promptBorderStyle.Render(strings.Repeat("─", dashCount))
-	return lipgloss.JoinHorizontal(lipgloss.Top, line, promptBorderStyle.Render(" "), dashes)
+	dashes := m.styles.promptBorderStyle.Render(strings.Repeat("─", dashCount))
+	return lipgloss.JoinHorizontal(lipgloss.Top, line, m.styles.promptBorderStyle.Render(" "), dashes)
 }
 
 func (m *model) renderPrompt() string {
@@ -1441,7 +1474,7 @@ func (m *model) renderPrompt() string {
 	display := padded
 	border := strings.Repeat("─", width)
 	if m.opts.UseColor {
-		border = promptBorderStyle.Render(border)
+		border = m.styles.promptBorderStyle.Render(border)
 	}
 	return fmt.Sprintf("%s\n%s\n%s", border, display, border)
 }
@@ -1535,7 +1568,7 @@ func (m *model) renderTaskStatusBar() string {
 		border := strings.Repeat("-", width)
 		return fmt.Sprintf("+%s+\n|%s|\n|%s|\n+%s+", border, line1, line2, border)
 	}
-	return taskStatusBarStyle.Render(line1 + "\n" + line2)
+	return m.styles.taskStatusBarStyle.Render(line1 + "\n" + line2)
 }
 
 func sanitizeSessionName(name string) string {
@@ -1801,7 +1834,7 @@ func (m *model) renderAnalysisPrompt(task *taskEntry) string {
 	}
 	text := "Task complete. Analyze results? (Y/N)"
 	if m.opts.UseColor {
-		return questionStyle.Render(text)
+		return m.styles.questionStyle.Render(text)
 	}
 	return text
 }
@@ -2241,10 +2274,10 @@ func extractToolError(metadata map[string]any) string {
 	return ""
 }
 
-func renderUserLine(content string, useColor bool) string {
+func (m *model) renderUserLine(content string) string {
 	line := fmt.Sprintf("› %s", content)
-	if useColor {
-		return questionStyle.Render(line)
+	if m.opts.UseColor {
+		return m.styles.questionStyle.Render(line)
 	}
 	return line
 }
@@ -2289,30 +2322,30 @@ func (m *model) renderTaskCard(entry *taskEntry) string {
 	}
 
 	icon := "❓"
-	iconColor := taskBorderColor
+	iconColor := m.styles.taskBorder
 	switch lowerStatus {
 	case "pending":
 		icon = "❓"
-		iconColor = taskBorderColor
+		iconColor = m.styles.taskBorder
 	case "in_progress":
 		icon = "⏳"
-		iconColor = promptThinkingColor
+		iconColor = m.styles.promptThinking
 	case "analyzable", "analyzing":
 		icon = "🧠"
-		iconColor = promptAccentColor
+		iconColor = m.styles.promptAccent
 	case "done":
 		icon = "✅"
-		iconColor = promptSuccessColor
+		iconColor = m.styles.promptSuccess
 	case "cancelled", "stopped":
 		icon = "⛔"
-		iconColor = promptPlaceholderColor
+		iconColor = m.styles.promptPlaceholder
 	case "failed", "error":
 		icon = "❌"
-		iconColor = promptErrorColor
+		iconColor = m.styles.promptError
 	}
 	if entry.toolError != "" && lowerStatus == "" {
 		icon = "❌"
-		iconColor = promptErrorColor
+		iconColor = m.styles.promptError
 	}
 
 	displayLines := make([]string, len(lines))
@@ -2364,7 +2397,7 @@ func (m *model) renderTaskCard(entry *taskEntry) string {
 		}
 		text := content + strings.Repeat(" ", pad)
 		if m.opts.UseColor {
-			padded[i] = promptHelperStyle.Render(text)
+			padded[i] = m.styles.promptHelperStyle.Render(text)
 		} else {
 			padded[i] = text
 		}
@@ -2383,7 +2416,7 @@ func (m *model) renderTaskCard(entry *taskEntry) string {
 
 	card = lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder()).
-		BorderForeground(taskBorderColor).
+		BorderForeground(m.styles.taskBorder).
 		Padding(0, 1).
 		Render(cardContent)
 	if headerLabel != "" {

@@ -25,12 +25,14 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs/login"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/plan"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/sync"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/view"
 	"github.com/kong/kongctl/internal/cmd/root/version"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/profile"
+	"github.com/kong/kongctl/internal/theme"
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -99,6 +101,7 @@ func newRootCmd() *cobra.Command {
 			ctx = context.WithValue(ctx, profile.ProfileManagerKey, pMgr)
 			ctx = context.WithValue(ctx, build.InfoKey, buildInfo)
 			ctx = context.WithValue(ctx, log.LoggerKey, logger)
+			ctx = theme.ContextWithPalette(ctx, theme.Current())
 			cmd.SetContext(ctx)
 		},
 	}
@@ -141,6 +144,13 @@ func newRootCmd() *cobra.Command {
 - Config path: [ %s ]`,
 			common.LogFileConfigPath))
 
+	themeFlag := theme.NewFlag(common.DefaultColorTheme)
+	rootCmd.PersistentFlags().Var(themeFlag, common.ColorThemeFlagName,
+		fmt.Sprintf(`Configures the color theme used in some areas of the CLI outputs and views.
+- Config path: [ %s ]
+- Examples   : [ %s ]`,
+			common.ColorThemeConfigPath, strings.Join(sampleThemeNames(), ", ")))
+
 	// -------------------------------------------------------------------------
 
 	return rootCmd
@@ -163,6 +173,12 @@ func addCommands() error {
 	rootCmd.AddCommand(command)
 
 	command, err = get.NewGetCmd()
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(command)
+
+	command, err = view.NewViewCmd()
 	if err != nil {
 		return err
 	}
@@ -248,6 +264,34 @@ func isKaiCommand(cmd *cobra.Command) bool {
 	return false
 }
 
+func sampleThemeNames() []string {
+	const maxSamples = 5
+
+	names := theme.Available()
+	if len(names) == 0 {
+		return []string{common.DefaultColorTheme}
+	}
+
+	samples := make([]string, 0, maxSamples)
+	defaultIncluded := false
+	for _, name := range names {
+		if name == common.DefaultColorTheme {
+			defaultIncluded = true
+		}
+		if len(samples) < maxSamples {
+			samples = append(samples, name)
+		}
+	}
+
+	if !defaultIncluded {
+		samples = append([]string{common.DefaultColorTheme}, samples...)
+	}
+	if len(samples) > maxSamples {
+		samples = samples[:maxSamples]
+	}
+	return samples
+}
+
 func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd = newRootCmd()
@@ -273,6 +317,9 @@ func bindFlags(config config.Hook) {
 
 	f = rootCmd.Flags().Lookup(common.LogFileFlagName)
 	util.CheckError(config.BindFlag(common.LogFileConfigPath, f))
+
+	f = rootCmd.Flags().Lookup(common.ColorThemeFlagName)
+	util.CheckError(config.BindFlag(common.ColorThemeConfigPath, f))
 }
 
 func initConfig() {
@@ -286,6 +333,20 @@ func initConfig() {
 	pMgr = profile.NewManager(config.Viper)
 
 	bindFlags(currConfig)
+
+	themeName := strings.TrimSpace(currConfig.GetString(common.ColorThemeConfigPath))
+	if themeName == "" {
+		themeName = common.DefaultColorTheme
+	}
+	if err := theme.SetCurrent(themeName); err != nil {
+		if streams != nil && streams.ErrOut != nil {
+			fmt.Fprintf(streams.ErrOut,
+				"warning: %v; falling back to %q theme\n",
+				err, common.DefaultColorTheme)
+		}
+		_ = theme.SetCurrent(common.DefaultColorTheme)
+		currConfig.SetString(common.ColorThemeConfigPath, common.DefaultColorTheme)
+	}
 
 	loggerOpts := &slog.HandlerOptions{
 		Level: log.ConfigLevelStringToSlogLevel(config.GetString(common.LogLevelConfigPath)),

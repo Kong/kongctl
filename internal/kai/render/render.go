@@ -16,11 +16,21 @@ var (
 // Options controls markdown rendering behaviour.
 type Options struct {
 	NoColor bool
+	Width   int
 }
 
 // Markdown renders the provided Markdown string tailored for terminal output.
 func Markdown(markdown string, opts Options) string {
-	r, err := getRenderer(opts)
+	var (
+		r   *glamour.TermRenderer
+		err error
+	)
+
+	if opts.Width > 0 || opts.NoColor {
+		r, err = newRenderer(opts)
+	} else {
+		r, err = getDefaultRenderer()
+	}
 	if err != nil {
 		return markdown
 	}
@@ -47,14 +57,26 @@ func normalizeSpacing(s string) string {
 	return strings.Join(lines, "\n")
 }
 
-func getRenderer(opts Options) (*glamour.TermRenderer, error) {
+func newRenderer(opts Options) (*glamour.TermRenderer, error) {
+	options := []glamour.TermRendererOption{}
 	if opts.NoColor {
-		return glamour.NewTermRenderer(
+		options = append(options,
 			glamour.WithStandardStyle("noColor"),
 			glamour.WithColorProfile(termenv.Ascii),
 		)
+	} else {
+		options = append(options,
+			glamour.WithAutoStyle(),
+			glamour.WithColorProfile(termenv.TrueColor),
+		)
 	}
+	if opts.Width > 0 {
+		options = append(options, glamour.WithWordWrap(opts.Width))
+	}
+	return glamour.NewTermRenderer(options...)
+}
 
+func getDefaultRenderer() (*glamour.TermRenderer, error) {
 	defaultMu.RLock()
 	if defaultRenderer != nil {
 		r := defaultRenderer

@@ -54,7 +54,7 @@ func NewControlPlaneCmd(verb verbs.VerbValue,
 	case verbs.Delete:
 		return newDeleteControlPlaneCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
 	case verbs.Add, verbs.Apply, verbs.Dump, verbs.Update, verbs.Help, verbs.Login,
-		verbs.Plan, verbs.Sync, verbs.Diff, verbs.Export, verbs.Adopt, verbs.API, verbs.Kai:
+		verbs.Plan, verbs.Sync, verbs.Diff, verbs.Export, verbs.Adopt, verbs.API, verbs.Kai, verbs.View:
 		return &baseCmd, nil
 	}
 
