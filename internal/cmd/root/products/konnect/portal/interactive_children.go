@@ -76,7 +76,6 @@ func loadPortalPages(_ context.Context, helper cmd.Helper, parent any) (tablevie
 		DetailRenderer: detail,
 		Title:          "Pages",
 		ParentType:     "portal-page",
-		Mode:           tableview.ChildViewModeDetail,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(flattened) {
 				return nil
@@ -147,7 +146,6 @@ func loadPortalSnippets(_ context.Context, helper cmd.Helper, parent any) (table
 		DetailRenderer: detail,
 		Title:          "Snippets",
 		ParentType:     "portal-snippet",
-		Mode:           tableview.ChildViewModeDetail,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(summaries) {
 				return nil
