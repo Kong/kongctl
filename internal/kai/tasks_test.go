@@ -26,7 +26,14 @@ func TestStreamTaskStatusMarksTransientError(t *testing.T) {
 		}),
 	}
 
-	stream, err := StreamTaskStatus(context.Background(), client, "https://example.com", "tok", "session-123", "task-abc")
+	stream, err := StreamTaskStatus(
+		context.Background(),
+		client,
+		"https://example.com",
+		"tok",
+		"session-123",
+		"task-abc",
+	)
 	require.NoError(err)
 
 	_, ok := <-stream.Events
