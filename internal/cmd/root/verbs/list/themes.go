@@ -130,18 +130,18 @@ func activeThemeName(cfg config.Hook) string {
 }
 
 type themeOutput struct {
-	ID        string `json:"id" yaml:"id"`
-	Active    bool   `json:"active" yaml:"active"`
-	Primary   string `json:"primary" yaml:"primary"`
-	Secondary string `json:"secondary" yaml:"secondary"`
+	ID        string `json:"id"              yaml:"id"`
+	Active    bool   `json:"active"          yaml:"active"`
+	Primary   string `json:"primary"         yaml:"primary"`
+	Secondary string `json:"secondary"       yaml:"secondary"`
 	About     string `json:"about,omitempty" yaml:"about,omitempty"`
 }
 
 type themeRaw struct {
-	ID        string      `json:"id" yaml:"id"`
-	Active    bool        `json:"active" yaml:"active"`
-	Primary   theme.Color `json:"primary" yaml:"primary"`
-	Secondary theme.Color `json:"secondary" yaml:"secondary"`
+	ID        string      `json:"id"              yaml:"id"`
+	Active    bool        `json:"active"          yaml:"active"`
+	Primary   theme.Color `json:"primary"         yaml:"primary"`
+	Secondary theme.Color `json:"secondary"       yaml:"secondary"`
 	About     string      `json:"about,omitempty" yaml:"about,omitempty"`
 }
 

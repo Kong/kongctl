@@ -2549,7 +2549,11 @@ func reorderDetailItems(items []detailItem) []detailItem {
 		keyI := normalizeHeaderKey(others[i].Label)
 		keyJ := normalizeHeaderKey(others[j].Label)
 		if keyI == keyJ {
-			return strings.ToLower(strings.TrimSpace(others[i].Label)) < strings.ToLower(strings.TrimSpace(others[j].Label))
+			return strings.ToLower(
+				strings.TrimSpace(others[i].Label),
+			) < strings.ToLower(
+				strings.TrimSpace(others[j].Label),
+			)
 		}
 		return keyI < keyJ
 	})

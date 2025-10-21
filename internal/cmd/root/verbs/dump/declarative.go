@@ -559,7 +559,8 @@ func collectDeclarativeControlPlanes(
 
 		for _, cp := range resp.ListControlPlanesResponse.Data {
 			memberIDs := []string{}
-			if groupsAPI != nil && cp.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
+			if groupsAPI != nil &&
+				cp.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
 				ids, err := fetchControlPlaneGroupMembers(ctx, groupsAPI, cp.ID)
 				if err != nil {
 					return false, fmt.Errorf("failed to list group memberships for control plane %s: %w", cp.Name, err)

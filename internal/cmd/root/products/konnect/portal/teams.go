@@ -171,7 +171,16 @@ func (h portalTeamsHandler) run(args []string) error {
 	}
 
 	if len(args) == 1 {
-		return h.getSingleTeam(helper, teamAPI, portalID, strings.TrimSpace(args[0]), interactive, outType, printer, cfg)
+		return h.getSingleTeam(
+			helper,
+			teamAPI,
+			portalID,
+			strings.TrimSpace(args[0]),
+			interactive,
+			outType,
+			printer,
+			cfg,
+		)
 	}
 
 	return h.listTeams(helper, teamAPI, portalID, interactive, outType, printer, cfg)

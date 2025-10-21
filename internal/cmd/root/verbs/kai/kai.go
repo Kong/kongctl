@@ -637,7 +637,11 @@ func runAsk(helper cmd.Helper) error {
 		return nil
 	default:
 		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("unsupported output format %s for %s command", outType.String(), helper.GetCmd().CommandPath()),
+			Err: fmt.Errorf(
+				"unsupported output format %s for %s command",
+				outType.String(),
+				helper.GetCmd().CommandPath(),
+			),
 		}
 	}
 }

@@ -171,7 +171,16 @@ func (h portalDevelopersHandler) run(args []string) error {
 	}
 
 	if len(args) == 1 {
-		return h.getSingleDeveloper(helper, devAPI, portalID, strings.TrimSpace(args[0]), interactive, outType, printer, cfg)
+		return h.getSingleDeveloper(
+			helper,
+			devAPI,
+			portalID,
+			strings.TrimSpace(args[0]),
+			interactive,
+			outType,
+			printer,
+			cfg,
+		)
 	}
 
 	return h.listDevelopers(helper, devAPI, portalID, interactive, outType, printer, cfg)

@@ -382,7 +382,16 @@ func (c *getServiceCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		if !isUUID {
 			// If the ID is not a UUID, then it is a name
 			// search for the control plane by name
-			return c.runListByName(cpID, id, kkClient.(*helpers.KonnectSDK).SDK, helper, cfg, interactive, printer, outType)
+			return c.runListByName(
+				cpID,
+				id,
+				kkClient.(*helpers.KonnectSDK).SDK,
+				helper,
+				cfg,
+				interactive,
+				printer,
+				outType,
+			)
 		}
 
 		return c.runGet(cpID, id, kkClient.(*helpers.KonnectSDK).SDK, helper, interactive, printer, outType)
