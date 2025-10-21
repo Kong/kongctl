@@ -16,6 +16,12 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
+type errReader struct{}
+
+func (errReader) Read([]byte) (int, error) {
+	return 0, io.ErrUnexpectedEOF
+}
+
 func TestChatAggregatesResponse(t *testing.T) {
 	require := require.New(t)
 
@@ -224,4 +230,33 @@ func TestChatHandlesHTTPError(t *testing.T) {
 	require.Error(err)
 	require.Contains(err.Error(), "401")
 	require.Contains(err.Error(), "nope")
+}
+
+func TestChatStreamMarksTransientErrors(t *testing.T) {
+	require := require.New(t)
+
+	client := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			require.Equal(http.MethodPost, req.Method)
+			require.Equal("/v1/chat", req.URL.Path)
+			resp := &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(errReader{}),
+			}
+			resp.Header.Set("Content-Type", "text/event-stream")
+			return resp, nil
+		}),
+	}
+
+	stream, err := ChatStream(context.Background(), client, "https://example.com", "tok", "hello")
+	require.NoError(err)
+
+	_, ok := <-stream.Events
+	require.False(ok)
+
+	streamErr := stream.Err()
+	require.Error(streamErr)
+	var transient *TransientError
+	require.ErrorAs(streamErr, &transient)
 }
