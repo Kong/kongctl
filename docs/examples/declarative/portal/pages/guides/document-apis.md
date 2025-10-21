@@ -1,4 +1,6 @@
 ---
+title: "Document APIs"
+description: "Discover best practices, tools, and examples to help developers understand and use your APIs with confidence."
 page-layout:
   sidebar-left: example-guides-page-nav
   sidebar-right: example-page-toc

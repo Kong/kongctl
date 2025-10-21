@@ -1,3 +1,8 @@
+---
+title: "Example Logo Bar"
+description: "An example of a snippet containing a row of SVG logos."
+---
+
 ::page-section
 ---
 full-width: true

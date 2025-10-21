@@ -1,4 +1,6 @@
 ---
+title: "Guides"
+description: "Step-by-step guides to help you build, integrate, and optimize with our platform. Start coding faster with practical examples and best practices."
 page-layout:
   sidebar-left: example-guides-page-nav
 ---

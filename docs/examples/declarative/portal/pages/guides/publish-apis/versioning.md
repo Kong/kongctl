@@ -1,4 +1,6 @@
 ---
+title: "API Versioning"
+description: "Learn best practices for API versioning to manage changes, ensure stability, and support developers over time."
 page-layout:
   sidebar-left: example-guides-page-nav
   sidebar-right: example-page-toc
