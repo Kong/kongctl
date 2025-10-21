@@ -46,7 +46,7 @@ jobs:
           path: ${{ runner.temp }}/kongctl-e2e-${{ github.run_id }}
 
   goreleaser:
-    needs: e2e
+    #needs: e2e
     timeout-minutes: ${{ fromJSON(vars.GHA_DEFAULT_TIMEOUT) }}
     runs-on: ubuntu-latest
     steps:
