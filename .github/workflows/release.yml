@@ -53,7 +53,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - run: git config --global url.https://$GITHUB_TOKEN@github.com/.insteadOf https://github.com/
+      - run: git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf https://github.com/
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
       - name: Set up Go
@@ -64,12 +64,12 @@ jobs:
         run: |
           sudo dpkg --add-architecture i386
           sudo dpkg --add-architecture arm64
-          sudo tee /etc/apt/sources.list.d/arm64.list >/dev/null <<'EOF'
-deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse
-deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse
-deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe multiverse
-deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-backports main restricted universe multiverse
-EOF
+          printf '%s\n' \
+            'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse' \
+            'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse' \
+            'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe multiverse' \
+            'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-backports main restricted universe multiverse' \
+            | sudo tee /etc/apt/sources.list.d/arm64.list >/dev/null
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             gcc-multilib \
@@ -97,7 +97,7 @@ EOF
         run: |
           rm -rf dist/homebrew-tap
           mkdir -p dist/homebrew-tap
-          git clone --depth 1 https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/kong/homebrew-kongctl.git dist/homebrew-tap/homebrew-kongctl
+          git clone --depth 1 "https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/kong/homebrew-kongctl.git" dist/homebrew-tap/homebrew-kongctl
       - name: Sync generated Homebrew files
         run: |
           mkdir -p dist/homebrew-tap/homebrew-kongctl/Casks
@@ -114,7 +114,7 @@ EOF
         run: |
           git config user.name "kongctl Release Bot"
           git config user.email "kongctl@konghq.com"
-          git remote set-url origin https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/kong/homebrew-kongctl.git
+          git remote set-url origin "https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/kong/homebrew-kongctl.git"
           if [[ -n "$(git status --porcelain)" ]]; then
             git add .
             git commit -m "chore: normalize tap files"
