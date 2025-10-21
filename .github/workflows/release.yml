@@ -65,8 +65,10 @@ jobs:
             -e GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
             -e TAP_GITHUB_TOKEN=${{ secrets.TAP_GITHUB_TOKEN }} \
             -e CGO_ENABLED=1 \
+            -e DEBIAN_FRONTEND=noninteractive \
+            --entrypoint /bin/sh \
             goreleaser/goreleaser-cross:v1.25.3 \
-            /bin/sh -lc "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libx11-dev && goreleaser release --clean"
+            -c "set -e; apt-get update; apt-get install -y --no-install-recommends libx11-dev; goreleaser release --clean"
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@master
       - name: Fetch Homebrew tap
