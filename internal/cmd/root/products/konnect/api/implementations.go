@@ -2,19 +2,22 @@ package api
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
 	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
-	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/segmentio/cli"
@@ -118,11 +121,19 @@ func (h apiImplementationsHandler) run(args []string) error {
 		return err
 	}
 
-	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
+	interactive, err := helper.IsInteractive()
 	if err != nil {
 		return err
 	}
-	defer printer.Flush()
+
+	var printer cli.PrintFlusher
+	if !interactive {
+		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
+		}
+		defer printer.Flush()
+	}
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -172,17 +183,41 @@ func (h apiImplementationsHandler) run(args []string) error {
 		}
 	}
 
-	if outType == cmdCommon.TEXT {
-		records := make([]apiImplementationRecord, 0, len(implementations))
-		for _, implementation := range implementations {
-			records = append(records, implementationToRecord(implementation))
-		}
-		printer.Print(records)
-		return nil
+	displayRecords := make([]apiImplementationRecord, 0, len(implementations))
+	tableRows := make([]table.Row, 0, len(implementations))
+	for i := range implementations {
+		record := implementationToRecord(implementations[i])
+		displayRecords = append(displayRecords, record)
+		tableRows = append(tableRows, table.Row{record.ImplementationID, record.ServiceID})
 	}
 
-	printer.Print(implementations)
-	return nil
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(implementations) {
+			return ""
+		}
+		return implementationDetailView(&implementations[index])
+	}
+
+	return tableview.RenderForFormat(
+		interactive,
+		outType,
+		printer,
+		helper.GetStreams(),
+		displayRecords,
+		implementations,
+		"",
+		tableview.WithTitle("Implementations"),
+		tableview.WithCustomTable([]string{"IMPLEMENTATION", "SERVICE"}, tableRows),
+		tableview.WithDetailRenderer(detailFn),
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+		tableview.WithDetailContext("api-implementation", func(index int) any {
+			if index < 0 || index >= len(implementations) {
+				return nil
+			}
+			return &implementations[index]
+		}),
+		tableview.WithDetailHelper(helper),
+	)
 }
 
 func fetchImplementations(
@@ -261,6 +296,33 @@ func implementationToRecord(implementation kkComps.APIImplementationListItem) ap
 	controlPlaneID := "n/a"
 	if svc := implementation.GetService(); svc != nil {
 		if id := svc.GetID(); id != "" {
+			serviceID = util.AbbreviateUUID(id)
+		}
+		if cp := svc.GetControlPlaneID(); cp != "" {
+			controlPlaneID = util.AbbreviateUUID(cp)
+		}
+	}
+
+	return apiImplementationRecord{
+		ImplementationID: util.AbbreviateUUID(implementation.GetID()),
+		ServiceID:        serviceID,
+		ControlPlaneID:   controlPlaneID,
+		LocalCreatedTime: implementation.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		LocalUpdatedTime: implementation.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+	}
+}
+
+func implementationDetailView(implementation *kkComps.APIImplementationListItem) string {
+	if implementation == nil {
+		return ""
+	}
+
+	const missing = "n/a"
+
+	serviceID := missing
+	controlPlaneID := missing
+	if svc := implementation.GetService(); svc != nil {
+		if id := svc.GetID(); id != "" {
 			serviceID = id
 		}
 		if cp := svc.GetControlPlaneID(); cp != "" {
@@ -268,11 +330,25 @@ func implementationToRecord(implementation kkComps.APIImplementationListItem) ap
 		}
 	}
 
-	return apiImplementationRecord{
-		ImplementationID: implementation.GetID(),
-		ServiceID:        serviceID,
-		ControlPlaneID:   controlPlaneID,
-		LocalCreatedTime: implementation.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
-		LocalUpdatedTime: implementation.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+	fields := map[string]string{
+		"api_id":           implementation.GetAPIID(),
+		"control_plane_id": controlPlaneID,
+		"created_at":       implementation.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		"service_id":       serviceID,
+		"updated_at":       implementation.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
 	}
+
+	keys := make([]string, 0, len(fields))
+	for key := range fields {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", implementation.GetID())
+	for _, key := range keys {
+		fmt.Fprintf(&b, "%s: %s\n", key, fields[key])
+	}
+
+	return strings.TrimRight(b.String(), "\n")
 }

@@ -9,9 +9,12 @@ import (
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/navigator"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -53,6 +56,7 @@ type textDisplayRecord struct {
 	Description          string
 	Labels               string
 	ControlPlaneEndpoint string
+	Config               string
 	LocalCreatedTime     string
 	LocalUpdatedTime     string
 	ID                   string
@@ -63,7 +67,7 @@ func controlPlaneToDisplayRecord(c *kkComps.ControlPlane) textDisplayRecord {
 
 	var id, name string
 	if c.ID != "" {
-		id = c.ID
+		id = util.AbbreviateUUID(c.ID)
 	} else {
 		id = missing
 	}
@@ -101,6 +105,8 @@ func controlPlaneToDisplayRecord(c *kkComps.ControlPlane) textDisplayRecord {
 		controlPlaneEndpoint = c.Config.ControlPlaneEndpoint
 	}
 
+	config := "[...]"
+
 	createdAt := c.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
 	updatedAt := c.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
 
@@ -110,9 +116,63 @@ func controlPlaneToDisplayRecord(c *kkComps.ControlPlane) textDisplayRecord {
 		Description:          description,
 		Labels:               labels,
 		ControlPlaneEndpoint: controlPlaneEndpoint,
+		Config:               config,
 		LocalCreatedTime:     createdAt,
 		LocalUpdatedTime:     updatedAt,
 	}
+}
+
+func controlPlaneDetailView(cp *kkComps.ControlPlane) string {
+	if cp == nil {
+		return ""
+	}
+
+	missing := "n/a"
+
+	id := strings.TrimSpace(cp.ID)
+	if id == "" {
+		id = missing
+	}
+
+	name := strings.TrimSpace(cp.Name)
+	if name == "" {
+		name = missing
+	}
+
+	description := missing
+	if cp.Description != nil && strings.TrimSpace(*cp.Description) != "" {
+		description = strings.TrimSpace(*cp.Description)
+	}
+
+	labelsValue := missing
+	if len(cp.Labels) > 0 {
+		pairs := make([]string, 0, len(cp.Labels))
+		for k, v := range cp.Labels {
+			pairs = append(pairs, fmt.Sprintf("%s=%s", k, v))
+		}
+		sort.Strings(pairs)
+		labelsValue = strings.Join(pairs, ", ")
+	}
+
+	endpoint := missing
+	if strings.TrimSpace(cp.Config.ControlPlaneEndpoint) != "" {
+		endpoint = strings.TrimSpace(cp.Config.ControlPlaneEndpoint)
+	}
+
+	created := cp.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+	updated := cp.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	fmt.Fprintf(&b, "description: %s\n", description)
+	fmt.Fprintf(&b, "labels: %s\n", labelsValue)
+	fmt.Fprintf(&b, "control_plane_endpoint: %s\n", endpoint)
+	fmt.Fprintf(&b, "config: [...]\n")
+	fmt.Fprintf(&b, "created_at: %s\n", created)
+	fmt.Fprintf(&b, "updated_at: %s\n", updated)
+
+	return strings.TrimRight(b.String(), "\n")
 }
 
 type getControlPlaneCmd struct {
@@ -228,37 +288,43 @@ func (c *getControlPlaneCmd) validate(helper cmd.Helper) error {
 }
 
 func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error {
-	var e error
 	helper := cmd.BuildHelper(cobraCmd, args)
-	if e = c.validate(helper); e != nil {
-		return e
+	if err := c.validate(helper); err != nil {
+		return err
 	}
 
-	logger, e := helper.GetLogger()
-	if e != nil {
-		return e
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return err
 	}
 
-	outType, e := helper.GetOutputFormat()
-	if e != nil {
-		return e
+	outType, err := helper.GetOutputFormat()
+	if err != nil {
+		return err
 	}
 
-	printer, e := cli.Format(outType.String(), helper.GetStreams().Out)
-	if e != nil {
-		return e
+	interactive, err := helper.IsInteractive()
+	if err != nil {
+		return err
 	}
 
-	defer printer.Flush()
-
-	cfg, e := helper.GetConfig()
-	if e != nil {
-		return e
+	var printer cli.PrintFlusher
+	if !interactive {
+		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
+		}
+		defer printer.Flush()
 	}
 
-	sdk, e := helper.GetKonnectSDK(cfg, logger)
-	if e != nil {
-		return e
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return err
 	}
 
 	// 'get konnect gateway cps' can be run like various ways:
@@ -275,34 +341,108 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		if !isUUID {
 			// If the ID is not a UUID, then it is a name
 			// search for the control plane by name
-			cp, e = runListByName(id, sdk.GetControlPlaneAPI(), helper, cfg)
+			cp, err = runListByName(id, sdk.GetControlPlaneAPI(), helper, cfg)
 		} else {
-			cp, e = runGet(id, sdk.GetControlPlaneAPI(), helper)
+			cp, err = runGet(id, sdk.GetControlPlaneAPI(), helper)
 		}
-		if e == nil {
-			if outType == cmdCommon.TEXT {
-				printer.Print(controlPlaneToDisplayRecord(cp))
-			} else {
-				printer.Print(cp)
-			}
+		if err != nil {
+			return err
 		}
-	} else { // list all cps
-		var cps []kkComps.ControlPlane
-		cps, e = runList(sdk.GetControlPlaneAPI(), helper, cfg)
-		if e == nil {
-			if outType == cmdCommon.TEXT {
-				var displayRecords []textDisplayRecord
-				for _, cp := range cps {
-					displayRecords = append(displayRecords, controlPlaneToDisplayRecord(&cp))
-				}
-				printer.Print(displayRecords)
-			} else {
-				printer.Print(cps)
-			}
-		}
+		return tableview.RenderForFormat(
+			interactive,
+			outType,
+			printer,
+			helper.GetStreams(),
+			controlPlaneToDisplayRecord(cp),
+			cp,
+			"",
+			tableview.WithRootLabel(helper.GetCmd().Name()),
+			tableview.WithDetailContext("control-plane", func(int) any {
+				return cp
+			}),
+			tableview.WithDetailHelper(helper),
+		)
 	}
 
-	return e
+	if interactive {
+		return navigator.Run(helper, navigator.Options{InitialResource: "gateway control-planes"})
+	}
+
+	// list all control planes
+	cps, err := runList(sdk.GetControlPlaneAPI(), helper, cfg)
+	if err != nil {
+		return err
+	}
+
+	return renderControlPlaneList(helper, helper.GetCmd().Name(), interactive, outType, printer, cps)
+}
+
+func renderControlPlaneList(
+	helper cmd.Helper,
+	rootLabel string,
+	interactive bool,
+	outType cmdCommon.OutputFormat,
+	printer cli.PrintFlusher,
+	cps []kkComps.ControlPlane,
+) error {
+	displayRecords := make([]textDisplayRecord, 0, len(cps))
+	for i := range cps {
+		displayRecords = append(displayRecords, controlPlaneToDisplayRecord(&cps[i]))
+	}
+
+	childView := buildControlPlaneChildView(cps)
+
+	options := []tableview.Option{
+		tableview.WithCustomTable(childView.Headers, childView.Rows),
+		tableview.WithRootLabel(rootLabel),
+		tableview.WithDetailHelper(helper),
+	}
+	if childView.DetailRenderer != nil {
+		options = append(options, tableview.WithDetailRenderer(childView.DetailRenderer))
+	}
+	if childView.DetailContext != nil {
+		options = append(options, tableview.WithDetailContext(childView.ParentType, childView.DetailContext))
+	}
+
+	return tableview.RenderForFormat(
+		interactive,
+		outType,
+		printer,
+		helper.GetStreams(),
+		displayRecords,
+		cps,
+		"",
+		options...,
+	)
+}
+
+func buildControlPlaneChildView(cps []kkComps.ControlPlane) tableview.ChildView {
+	tableRows := make([]table.Row, 0, len(cps))
+	for i := range cps {
+		record := controlPlaneToDisplayRecord(&cps[i])
+		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(cps) {
+			return ""
+		}
+		return controlPlaneDetailView(&cps[index])
+	}
+
+	return tableview.ChildView{
+		Headers:        []string{"id", "name"},
+		Rows:           tableRows,
+		DetailRenderer: detailFn,
+		Title:          "Control Planes",
+		ParentType:     "control-plane",
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(cps) {
+				return nil
+			}
+			return &cps[index]
+		},
+	}
 }
 
 func newGetControlPlaneCmd(verb verbs.VerbValue,

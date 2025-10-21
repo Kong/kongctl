@@ -35,6 +35,11 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Install clipboard build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev
+
       # If you later want runs to be opt-in via label, add a guard like this:
       # - name: Require opt-in label to run E2E
       #   if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-e2e')
@@ -61,4 +66,3 @@ jobs:
         with:
           name: e2e-artifacts-${{ github.run_id }}
           path: ${{ runner.temp }}/kongctl-e2e-${{ github.run_id }}
-

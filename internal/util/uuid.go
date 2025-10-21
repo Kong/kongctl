@@ -11,3 +11,19 @@ var uuidRegex = regexp.MustCompile(`^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4
 func IsValidUUID(s string) bool {
 	return uuidRegex.MatchString(s)
 }
+
+const abbreviatedUUIDPrefixLength = 4
+
+// AbbreviateUUID returns a shortened representation of a UUID suitable for text output.
+// When the value is not a UUID, the original value is returned unchanged.
+func AbbreviateUUID(id string) string {
+	if !IsValidUUID(id) {
+		return id
+	}
+
+	if len(id) <= abbreviatedUUIDPrefixLength {
+		return id
+	}
+
+	return id[:abbreviatedUUIDPrefixLength] + "…"
+}

@@ -182,3 +182,20 @@ func TestIsValidUUID_CaseInsensitive(t *testing.T) {
 		})
 	}
 }
+
+func TestAbbreviateUUID(t *testing.T) {
+	t.Run("valid uuid", func(t *testing.T) {
+		input := "12345678-1234-1234-1234-123456789012"
+		assert.Equal(t, "1234…", AbbreviateUUID(input))
+	})
+
+	t.Run("non uuid value", func(t *testing.T) {
+		input := "not-a-uuid"
+		assert.Equal(t, input, AbbreviateUUID(input))
+	})
+
+	t.Run("uppercase uuid retains case prefix", func(t *testing.T) {
+		input := "ABCDEF12-3456-7890-ABCD-EF1234567890"
+		assert.Equal(t, "ABCD…", AbbreviateUUID(input))
+	})
+}

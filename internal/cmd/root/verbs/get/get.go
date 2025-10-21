@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
+	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/navigator"
 	profileCmd "github.com/kong/kongctl/internal/cmd/root/profile"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
@@ -54,6 +57,28 @@ func NewGetCmd() (*cobra.Command, error) {
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))
 		},
+	}
+
+	cmd.PersistentFlags().BoolP(
+		cmdCommon.InteractiveFlagName,
+		cmdCommon.InteractiveFlagShort,
+		false,
+		i18n.T("root.verbs.get.flags.interactive", "Launch the interactive resource browser."),
+	)
+
+	cmd.RunE = func(c *cobra.Command, args []string) error {
+		helper := cmdpkg.BuildHelper(c, args)
+		if _, err := helper.GetOutputFormat(); err != nil {
+			return err
+		}
+		interactive, err := helper.IsInteractive()
+		if err != nil {
+			return err
+		}
+		if interactive {
+			return navigator.Run(helper, navigator.Options{})
+		}
+		return c.Help()
 	}
 
 	c, e := konnect.NewKonnectCmd(Verb)

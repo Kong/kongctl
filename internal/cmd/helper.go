@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strconv"
 
 	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/cmd/common"
@@ -31,6 +32,7 @@ type Helper interface {
 	GetStreams() *iostreams.IOStreams
 	GetConfig() (config.Hook, error)
 	GetOutputFormat() (common.OutputFormat, error)
+	IsInteractive() (bool, error)
 	GetLogger() (*slog.Logger, error)
 	GetBuildInfo() (*build.Info, error)
 	GetContext() context.Context
@@ -125,6 +127,29 @@ func (r *CommandHelper) GetOutputFormat() (common.OutputFormat, error) {
 		return common.TEXT, e
 	}
 	return rv, nil
+}
+
+func (r *CommandHelper) IsInteractive() (bool, error) {
+	flag := r.Cmd.Flags().Lookup(common.InteractiveFlagName)
+	if flag == nil {
+		flag = r.Cmd.InheritedFlags().Lookup(common.InteractiveFlagName)
+	}
+	if flag == nil {
+		return false, nil
+	}
+
+	val := flag.Value.String()
+	if val == "" {
+		return false, nil
+	}
+
+	interactive, err := strconv.ParseBool(val)
+	if err != nil {
+		return false, &ConfigurationError{
+			Err: fmt.Errorf("invalid value %q for --%s flag", val, common.InteractiveFlagName),
+		}
+	}
+	return interactive, nil
 }
 
 func (r *CommandHelper) GetContext() context.Context {

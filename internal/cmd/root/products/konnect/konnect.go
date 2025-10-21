@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kong/kongctl/internal/cmd"
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/api"
@@ -13,6 +13,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/me"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/navigator"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/portal"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -63,7 +64,7 @@ Setting this value overrides tokens obtained from the login command.
 }
 
 func bindFlags(c *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(c, args)
+	helper := cmdpkg.BuildHelper(c, args)
 	cfg, err := helper.GetConfig()
 	if err != nil {
 		return err
@@ -174,7 +175,7 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		addFlags(verb, cmd)
 		return cmd, nil
 	case verbs.Add, verbs.Get, verbs.Create, verbs.Dump, verbs.Update,
-		verbs.Delete, verbs.Help, verbs.List, verbs.Login, verbs.API, verbs.Kai:
+		verbs.Delete, verbs.Help, verbs.List, verbs.Login, verbs.API, verbs.Kai, verbs.View:
 		// These verbs don't use declarative configuration, continue below
 	}
 
@@ -211,6 +212,23 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return nil, e
 	}
 	cmd.AddCommand(mc)
+
+	if verb == verbs.Get {
+		cmd.RunE = func(c *cobra.Command, args []string) error {
+			helper := cmdpkg.BuildHelper(c, args)
+			if _, err := helper.GetOutputFormat(); err != nil {
+				return err
+			}
+			interactive, err := helper.IsInteractive()
+			if err != nil {
+				return err
+			}
+			if interactive {
+				return navigator.Run(helper, navigator.Options{})
+			}
+			return c.Help()
+		}
+	}
 
 	return cmd, e
 }

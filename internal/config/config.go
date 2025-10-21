@@ -200,9 +200,10 @@ func getDefaultConfig(profileName, configFilePath string) map[string]any {
 
 	defaultConfig := map[string]any{
 		profileName: map[string]any{
-			"output":   "text",
-			"log-file": defaultLogPath,
-			"konnect":  map[string]any{},
+			"output":                    "text",
+			"log-file":                  defaultLogPath,
+			"konnect":                   map[string]any{},
+			common.ColorThemeConfigPath: common.DefaultColorTheme,
 		},
 	}
 	return defaultConfig

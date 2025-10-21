@@ -2,9 +2,15 @@ package consumer
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
+	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	kkCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -20,6 +26,15 @@ import (
 
 type getConsumerCmd struct {
 	*cobra.Command
+}
+
+type consumerDisplayRecord struct {
+	ID               string
+	Username         string
+	CustomID         string
+	TagCount         int
+	LocalCreatedTime string
+	LocalUpdatedTime string
 }
 
 var (
@@ -48,56 +63,6 @@ func (c *getConsumerCmd) validate(helper cmd.Helper) error {
 	return nil
 }
 
-func (c *getConsumerCmd) runListByUsername(cpID string, username string,
-	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer,
-) error {
-	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
-
-	allData, err := helpers.GetAllGatewayConsumers(helper.GetContext(), requestPageSize, cpID, kkClient)
-	if err != nil {
-		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to list Gateway Consumers", err, helper.GetCmd(), attrs...)
-	}
-
-	for _, consumer := range allData {
-		if *consumer.GetUsername() == username {
-			printer.Print(consumer)
-		}
-	}
-
-	return nil
-}
-
-func (c *getConsumerCmd) runGet(cpID string, id string,
-	kkClient *kk.SDK, helper cmd.Helper, printer cli.Printer,
-) error {
-	res, err := kkClient.Consumers.GetConsumer(helper.GetContext(), cpID, id)
-	if err != nil {
-		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to get Gateway Consumer", err, helper.GetCmd(), attrs...)
-	}
-
-	printer.Print(res.GetConsumer())
-
-	return nil
-}
-
-func (c *getConsumerCmd) runList(cpID string,
-	kkClient *kk.SDK, helper cmd.Helper, cfg config.Hook, printer cli.Printer,
-) error {
-	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
-
-	allData, err := helpers.GetAllGatewayConsumers(helper.GetContext(), requestPageSize, cpID, kkClient)
-	if err != nil {
-		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to list Gateway Consumers", err, helper.GetCmd(), attrs...)
-	}
-
-	printer.Print(allData)
-
-	return nil
-}
-
 func (c *getConsumerCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	helper := cmd.BuildHelper(cobraCmd, args)
 	if e := c.validate(helper); e != nil {
@@ -119,12 +84,19 @@ func (c *getConsumerCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		return e
 	}
 
-	printer, e := cli.Format(outType.String(), helper.GetStreams().Out)
+	interactive, e := helper.IsInteractive()
 	if e != nil {
 		return e
 	}
 
-	defer printer.Flush()
+	var printer cli.PrintFlusher
+	if !interactive {
+		printer, e = cli.Format(outType.String(), helper.GetStreams().Out)
+		if e != nil {
+			return e
+		}
+		defer printer.Flush()
+	}
 
 	kkClient, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -154,22 +126,30 @@ func (c *getConsumerCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	//	> get konnect gateway consumers <id>				# Get by UUID
 	//  > get konnect gateway consumers <username>	# Get by uname
 	//  > get konnect gateway consumers							# List all
+	internalSDK := kkClient.(*helpers.KonnectSDK).SDK
+
 	if len(helper.GetArgs()) == 1 { // validate above checks that args is 0 or 1
-		id := helper.GetArgs()[0]
+		identifier := strings.TrimSpace(helper.GetArgs()[0])
 
-		isUUID := util.IsValidUUID(id)
-		// TODO: Is capturing the previous blanked error advised?
-
-		if !isUUID {
-			// If the ID is not a UUID, then it is a name
-			// search for the control plane by name
-			return c.runListByUsername(cpID, id, kkClient.(*helpers.KonnectSDK).SDK, helper, cfg, printer)
+		var consumer *kkComps.Consumer
+		if util.IsValidUUID(identifier) {
+			consumer, e = fetchConsumerByID(helper, internalSDK, cpID, identifier)
+		} else {
+			consumer, e = findConsumerByUsername(helper, cfg, internalSDK, cpID, identifier)
+		}
+		if e != nil {
+			return e
 		}
 
-		return c.runGet(cpID, id, kkClient.(*helpers.KonnectSDK).SDK, helper, printer)
+		return renderConsumers(helper, interactive, outType, printer, []kkComps.Consumer{*consumer})
 	}
 
-	return c.runList(cpID, kkClient.(*helpers.KonnectSDK).SDK, helper, cfg, printer)
+	consumers, err := fetchAllConsumers(helper, cfg, internalSDK, cpID)
+	if err != nil {
+		return err
+	}
+
+	return renderConsumers(helper, interactive, outType, printer, consumers)
 }
 
 func newGetConsumerCmd(verb verbs.VerbValue,
@@ -195,4 +175,184 @@ func newGetConsumerCmd(verb verbs.VerbValue,
 	}
 
 	return &rv
+}
+
+func fetchAllConsumers(helper cmd.Helper, cfg config.Hook, sdk *kk.SDK, cpID string) ([]kkComps.Consumer, error) {
+	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
+	return helpers.GetAllGatewayConsumers(helper.GetContext(), requestPageSize, cpID, sdk)
+}
+
+func findConsumerByUsername(
+	helper cmd.Helper,
+	cfg config.Hook,
+	sdk *kk.SDK,
+	cpID string,
+	username string,
+) (*kkComps.Consumer, error) {
+	consumers, err := fetchAllConsumers(helper, cfg, sdk, cpID)
+	if err != nil {
+		attrs := cmd.TryConvertErrorToAttrs(err)
+		return nil, cmd.PrepareExecutionError("Failed to list Gateway Consumers", err, helper.GetCmd(), attrs...)
+	}
+
+	lowered := strings.ToLower(username)
+	for i := range consumers {
+		if u := consumers[i].GetUsername(); u != nil && strings.ToLower(*u) == lowered {
+			return &consumers[i], nil
+		}
+	}
+
+	return nil, &cmd.ConfigurationError{
+		Err: fmt.Errorf("gateway consumer %q not found", username),
+	}
+}
+
+func fetchConsumerByID(helper cmd.Helper, sdk *kk.SDK, cpID, id string) (*kkComps.Consumer, error) {
+	res, err := sdk.Consumers.GetConsumer(helper.GetContext(), cpID, id)
+	if err != nil {
+		attrs := cmd.TryConvertErrorToAttrs(err)
+		return nil, cmd.PrepareExecutionError("Failed to get Gateway Consumer", err, helper.GetCmd(), attrs...)
+	}
+
+	consumer := res.GetConsumer()
+	if consumer == nil {
+		return nil, &cmd.ExecutionError{
+			Msg: "Gateway consumer response was empty",
+			Err: fmt.Errorf("no consumer returned for id %s", id),
+		}
+	}
+
+	return consumer, nil
+}
+
+func renderConsumers(
+	helper cmd.Helper,
+	interactive bool,
+	outType cmdCommon.OutputFormat,
+	printer cli.PrintFlusher,
+	consumers []kkComps.Consumer,
+) error {
+	records := make([]consumerDisplayRecord, 0, len(consumers))
+	rows := make([]table.Row, 0, len(consumers))
+	for i := range consumers {
+		record := consumerToDisplayRecord(&consumers[i])
+		records = append(records, record)
+		rows = append(rows, table.Row{util.AbbreviateUUID(record.ID), record.Username})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(consumers) {
+			return ""
+		}
+		return consumerDetailView(&consumers[index])
+	}
+
+	var raw any
+	if len(consumers) == 1 {
+		raw = consumers[0]
+	} else {
+		raw = consumers
+	}
+
+	return tableview.RenderForFormat(
+		interactive,
+		outType,
+		printer,
+		helper.GetStreams(),
+		records,
+		raw,
+		"",
+		tableview.WithCustomTable([]string{"ID", "USERNAME"}, rows),
+		tableview.WithDetailRenderer(detailFn),
+		tableview.WithRootLabel(helper.GetCmd().Name()),
+	)
+}
+
+func consumerToDisplayRecord(consumer *kkComps.Consumer) consumerDisplayRecord {
+	const missing = "n/a"
+
+	id := missing
+	if consumer.GetID() != nil && *consumer.GetID() != "" {
+		id = *consumer.GetID()
+	}
+
+	username := missing
+	if consumer.GetUsername() != nil && *consumer.GetUsername() != "" {
+		username = *consumer.GetUsername()
+	}
+
+	customID := missing
+	if consumer.GetCustomID() != nil && *consumer.GetCustomID() != "" {
+		customID = *consumer.GetCustomID()
+	}
+
+	created := missing
+	if ts := consumer.GetCreatedAt(); ts != nil {
+		created = time.Unix(0, *ts*int64(time.Millisecond)).In(time.Local).Format("2006-01-02 15:04:05")
+	}
+
+	updated := missing
+	if ts := consumer.GetUpdatedAt(); ts != nil {
+		updated = time.Unix(0, *ts*int64(time.Millisecond)).In(time.Local).Format("2006-01-02 15:04:05")
+	}
+
+	tags := consumer.GetTags()
+
+	return consumerDisplayRecord{
+		ID:               util.AbbreviateUUID(id),
+		Username:         username,
+		CustomID:         customID,
+		TagCount:         len(tags),
+		LocalCreatedTime: created,
+		LocalUpdatedTime: updated,
+	}
+}
+
+func consumerDetailView(consumer *kkComps.Consumer) string {
+	if consumer == nil {
+		return ""
+	}
+
+	const missing = "n/a"
+
+	id := missing
+	if consumer.GetID() != nil && *consumer.GetID() != "" {
+		id = *consumer.GetID()
+	}
+
+	username := missing
+	if consumer.GetUsername() != nil && *consumer.GetUsername() != "" {
+		username = *consumer.GetUsername()
+	}
+
+	customID := missing
+	if consumer.GetCustomID() != nil && *consumer.GetCustomID() != "" {
+		customID = *consumer.GetCustomID()
+	}
+
+	created := missing
+	if ts := consumer.GetCreatedAt(); ts != nil {
+		created = time.Unix(0, *ts*int64(time.Millisecond)).In(time.Local).Format("2006-01-02 15:04:05")
+	}
+
+	updated := missing
+	if ts := consumer.GetUpdatedAt(); ts != nil {
+		updated = time.Unix(0, *ts*int64(time.Millisecond)).In(time.Local).Format("2006-01-02 15:04:05")
+	}
+
+	tags := consumer.GetTags()
+	tagsLine := missing
+	if len(tags) > 0 {
+		tagsLine = strings.Join(tags, ", ")
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "Consumer ID: %s\n", id)
+	fmt.Fprintf(&b, "Username: %s\n", username)
+	fmt.Fprintf(&b, "Custom ID: %s\n", customID)
+	fmt.Fprintf(&b, "Tags: %s\n", tagsLine)
+	fmt.Fprintf(&b, "Created: %s\n", created)
+	fmt.Fprintf(&b, "Updated: %s\n", updated)
+
+	return b.String()
 }

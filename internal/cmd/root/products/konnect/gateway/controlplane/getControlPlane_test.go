@@ -30,6 +30,7 @@ import (
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
+	"github.com/kong/kongctl/internal/util"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
@@ -37,6 +38,9 @@ import (
 )
 
 func TestTextDisplayConversion(t *testing.T) {
+	uuidValue := "12345678-1234-1234-1234-123456789012"
+	timeValue := time.Date(2022, time.March, 14, 15, 9, 26, 0, time.UTC)
+
 	tests := []struct {
 		name     string
 		input    kkComps.ControlPlane
@@ -51,6 +55,7 @@ func TestTextDisplayConversion(t *testing.T) {
 				Description:          "n/a",
 				Labels:               "n/a",
 				ControlPlaneEndpoint: "n/a",
+				Config:               "[...]",
 				LocalCreatedTime:     time.Time{}.In(time.Local).Format("2006-01-02 15:04:05"),
 				LocalUpdatedTime:     time.Time{}.In(time.Local).Format("2006-01-02 15:04:05"),
 			},
@@ -77,10 +82,33 @@ func TestTextDisplayConversion(t *testing.T) {
 				Description:          "description-field",
 				Labels:               "label-1-key: label-1-value, label-2-key: label-2-value",
 				ControlPlaneEndpoint: "config-endpoint-field",
+				Config:               "[...]",
 				LocalCreatedTime: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC).
 					In(time.Local).
 					Format("2006-01-02 15:04:05"),
 				LocalUpdatedTime: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC).
+					In(time.Local).
+					Format("2006-01-02 15:04:05"),
+			},
+		},
+		{
+			name: "uuid truncated",
+			input: kkComps.ControlPlane{
+				ID:        uuidValue,
+				CreatedAt: timeValue,
+				UpdatedAt: timeValue,
+			},
+			expected: textDisplayRecord{
+				ID:                   util.AbbreviateUUID(uuidValue),
+				Name:                 "n/a",
+				Description:          "n/a",
+				Labels:               "n/a",
+				ControlPlaneEndpoint: "n/a",
+				Config:               "[...]",
+				LocalCreatedTime: timeValue.
+					In(time.Local).
+					Format("2006-01-02 15:04:05"),
+				LocalUpdatedTime: timeValue.
 					In(time.Local).
 					Format("2006-01-02 15:04:05"),
 			},
@@ -284,7 +312,7 @@ func TestGetControlPlaneCmd(t *testing.T) {
 			assertions: func(_ *testing.T, ctx context.Context) {
 				out := ctx.Value(iostreams.StreamsKey).(*iostreams.IOStreams).Out
 				result := out.(*bytes.Buffer).String()
-				assert.True(t, strings.Contains(result, "4d9b3f3e-7b1b-4b6b-8b1b-4b6b7b1b4b6b"))
+				assert.True(t, strings.Contains(result, "4d9b…"))
 			},
 		},
 	}

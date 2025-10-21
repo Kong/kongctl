@@ -14,7 +14,7 @@ fmt: format
 
 .PHONY: build
 build:
-	CGO_ENABLED=0 go build -o kongctl
+	go build -o kongctl
 # Kept typing this wrong
 buld: build
 

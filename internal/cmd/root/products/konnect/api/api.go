@@ -60,6 +60,8 @@ func NewAPICmd(verb verbs.VerbValue,
 	case verbs.Create, verbs.Delete, verbs.Add, verbs.Apply, verbs.Dump, verbs.Update, verbs.Help, verbs.Login,
 		verbs.Plan, verbs.Sync, verbs.Diff, verbs.Export, verbs.Adopt, verbs.API, verbs.Kai:
 		return &baseCmd, nil
+	case verbs.View:
+		return &baseCmd, nil
 	}
 
 	return &baseCmd, nil
