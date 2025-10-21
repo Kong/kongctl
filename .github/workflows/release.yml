@@ -68,7 +68,7 @@ jobs:
             -e DEBIAN_FRONTEND=noninteractive \
             --entrypoint /bin/sh \
             goreleaser/goreleaser-cross:v1.25.3 \
-            -c "set -e; apt-get update; apt-get install -y --no-install-recommends libx11-dev; goreleaser release --clean"
+            -c "set -e; apt-get update; apt-get install -y --no-install-recommends libx11-dev; git config --global --add safe.directory /work; goreleaser release --clean"
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@master
       - name: Fetch Homebrew tap
