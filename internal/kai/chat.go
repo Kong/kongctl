@@ -247,6 +247,7 @@ func chatStream(
 
 	resp, err := client.Do(req)
 	if err != nil {
+		err = wrapIfTransient(err)
 		logError(ctx, "kai chat request failed",
 			slog.String("endpoint", endpoint),
 			slog.String("error", err.Error()))
@@ -286,6 +287,7 @@ func chatStream(
 			}
 		})
 		if err != nil {
+			err = wrapIfTransient(err)
 			if !errors.Is(err, context.Canceled) {
 				logError(ctx, "kai chat stream error",
 					slog.String("endpoint", endpoint),
@@ -538,6 +540,7 @@ func GetSessionHistory(
 
 	resp, err := client.Do(req)
 	if err != nil {
+		err = wrapIfTransient(err)
 		logError(ctx, "kai get session history request failed",
 			slog.String("endpoint", endpoint),
 			slog.String("session_id", sessionID),

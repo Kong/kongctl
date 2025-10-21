@@ -84,6 +84,7 @@ func ListActiveTasks(
 
 	resp, err := client.Do(req)
 	if err != nil {
+		err = wrapIfTransient(err)
 		logError(ctx, "kai list active tasks request failed",
 			slog.String("endpoint", endpoint),
 			slog.String("session_id", sessionID),
@@ -192,6 +193,7 @@ func UpdateTask(
 
 	resp, err := client.Do(req)
 	if err != nil {
+		err = wrapIfTransient(err)
 		logError(ctx, "kai update task request failed",
 			slog.String("endpoint", endpoint),
 			slog.String("session_id", sessionID),
@@ -260,6 +262,7 @@ func StreamTaskStatus(
 
 	resp, err := client.Do(req)
 	if err != nil {
+		err = wrapIfTransient(err)
 		logError(ctx, "kai task status stream request failed",
 			slog.String("endpoint", endpoint),
 			slog.String("session_id", sessionID),
@@ -321,6 +324,7 @@ func StreamTaskStatus(
 			return
 		}
 		if err != nil {
+			err = wrapIfTransient(err)
 			if !errors.Is(err, context.Canceled) {
 				logError(ctx, "kai task status stream error",
 					slog.String("session_id", sessionID),
@@ -397,6 +401,7 @@ func AnalyzeTaskStream(
 
 	resp, err := client.Do(req)
 	if err != nil {
+		err = wrapIfTransient(err)
 		logError(ctx, "kai analyze task request failed",
 			slog.String("endpoint", endpoint),
 			slog.String("session_id", sessionID),
@@ -447,11 +452,14 @@ func AnalyzeTaskStream(
 			errCh <- nil
 			return
 		}
-		if err != nil && !errors.Is(err, context.Canceled) {
-			logError(ctx, "kai analyze task stream error",
-				slog.String("session_id", sessionID),
-				slog.String("task_id", taskID),
-				slog.String("error", err.Error()))
+		if err != nil {
+			err = wrapIfTransient(err)
+			if !errors.Is(err, context.Canceled) {
+				logError(ctx, "kai analyze task stream error",
+					slog.String("session_id", sessionID),
+					slog.String("task_id", taskID),
+					slog.String("error", err.Error()))
+			}
 		}
 		errCh <- err
 	}()

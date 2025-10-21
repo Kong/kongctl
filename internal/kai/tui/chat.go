@@ -213,11 +213,14 @@ type model struct {
 	messages         []message
 	history          []exchange
 	pendingPrompt    string
+	pendingContexts  []kai.ChatContext
+	reconnecting     bool
 	sessionID        string
 	sessionName      string
 	sessionCreatedAt time.Time
 	recorder         *storage.SessionRecorder
 	resumed          bool
+	knownHistoryIDs  map[string]struct{}
 
 	streaming      bool
 	stream         *kai.Stream
@@ -263,6 +266,13 @@ type chatStreamFinishedMsg struct{}
 
 type chatStreamErrorMsg struct {
 	err error
+}
+
+type chatRecoveryHistoryMsg struct {
+	history  *kai.SessionHistory
+	prompt   string
+	contexts []kai.ChatContext
+	err      error
 }
 
 type (
@@ -381,6 +391,7 @@ func newModel(ctx context.Context, opts Options) *model {
 		tasks:              make(map[string]*taskEntry),
 		initialTasks:       opts.InitialTasks,
 		resumed:            opts.SessionHistory != nil,
+		knownHistoryIDs:    make(map[string]struct{}),
 	}
 
 	if opts.SessionHistory != nil {
@@ -427,6 +438,9 @@ func (m *model) applyHistory(history *kai.SessionHistory) {
 		m.sessionCreatedAt = history.CreatedAt
 	}
 	for _, item := range history.History {
+		if item.ID != "" {
+			m.knownHistoryIDs[item.ID] = struct{}{}
+		}
 		m.ingestContext(item)
 		role := strings.ToLower(item.Role)
 		content := item.Message
@@ -457,6 +471,65 @@ func (m *model) applyHistory(history *kai.SessionHistory) {
 		}
 		m.messages = append(m.messages, message{sender: sender, content: content, duration: 0})
 	}
+}
+
+func (m *model) ingestHistoryDiff(history *kai.SessionHistory) bool {
+	if history == nil {
+		return false
+	}
+	if history.Name != "" {
+		m.sessionName = sanitizeSessionName(history.Name)
+	}
+	if !history.CreatedAt.IsZero() {
+		m.sessionCreatedAt = history.CreatedAt
+	}
+	agentAdded := false
+	for _, item := range history.History {
+		if item.ID != "" {
+			if _, exists := m.knownHistoryIDs[item.ID]; exists {
+				continue
+			}
+			m.knownHistoryIDs[item.ID] = struct{}{}
+		}
+		if m.ingestHistoryItem(item) {
+			agentAdded = true
+		}
+	}
+	return agentAdded
+}
+
+func (m *model) ingestHistoryItem(item kai.SessionHistoryItem) bool {
+	m.ingestContext(item)
+	role := strings.ToLower(strings.TrimSpace(item.Role))
+	if role != "ai" {
+		return false
+	}
+	if shouldSuppressAIMessage(item) {
+		return false
+	}
+	response := strings.TrimSpace(item.Message)
+	if response == "" {
+		return false
+	}
+	if len(m.messages) > 0 {
+		last := m.messages[len(m.messages)-1]
+		if last.sender == agentSpeaker && strings.TrimSpace(last.content) == response {
+			return false
+		}
+	}
+	m.messages = append(m.messages, message{sender: agentSpeaker, content: response, duration: 0})
+	if len(m.history) > 0 {
+		last := &m.history[len(m.history)-1]
+		if last.response == "" {
+			last.response = response
+		} else {
+			m.history = append(m.history, exchange{prompt: "", response: response})
+		}
+	} else {
+		m.history = append(m.history, exchange{prompt: "", response: response})
+	}
+	m.recordAgentResponse(response, 0)
+	return true
 }
 
 func (m *model) Init() tea.Cmd {
@@ -590,6 +663,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.responseStart = time.Now()
 
 			contexts := m.contextsForRequest()
+			m.pendingContexts = append([]kai.ChatContext(nil), contexts...)
 			m.recordUserMessage(value, contexts)
 
 			prompt := buildPrompt(m.history, value)
@@ -648,12 +722,56 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.cleanupAfterStream()
 		return m, nil
 	case chatStreamErrorMsg:
+		m.recordStreamError(msg.err)
+		if msg.err != nil && kai.IsTransientError(msg.err) && strings.TrimSpace(m.sessionID) != "" {
+			prompt := m.pendingPrompt
+			contexts := append([]kai.ChatContext(nil), m.pendingContexts...)
+			m.cleanupAfterStream()
+			m.pendingPrompt = prompt
+			m.pendingContexts = contexts
+			if prompt != "" {
+				m.reconnecting = true
+				m.notifyKaiMessage("Connection lost. Attempting to recover the latest response...")
+				return m, recoverChatHistoryCmd(m.ctx, m.opts, m.sessionID, prompt, contexts)
+			}
+		}
 		if !errors.Is(msg.err, context.Canceled) {
 			m.notifyError(msg.err)
 		}
-		m.recordStreamError(msg.err)
 		m.cleanupAfterStream()
 		return m, nil
+	case chatRecoveryHistoryMsg:
+		m.reconnecting = false
+		if msg.err != nil {
+			if kai.IsTransientError(msg.err) {
+				m.notifyKaiMessage("Still reconnecting... please retry shortly.")
+			} else {
+				m.notifyError(msg.err)
+			}
+			return m, nil
+		}
+		if msg.history != nil && msg.history.ID != "" && strings.TrimSpace(m.sessionID) == "" {
+			m.sessionID = msg.history.ID
+		}
+		if added := m.ingestHistoryDiff(msg.history); added {
+			m.pendingPrompt = ""
+			m.pendingContexts = nil
+			m.pendingBuilder.Reset()
+			m.notifyKaiMessage("Recovered response from session history.")
+			return m, nil
+		}
+		prompt := strings.TrimSpace(msg.prompt)
+		if prompt == "" {
+			return m, nil
+		}
+		m.pendingPrompt = prompt
+		m.pendingContexts = append([]kai.ChatContext(nil), msg.contexts...)
+		m.pendingBuilder.Reset()
+		m.streamErr = nil
+		m.streaming = true
+		m.responseStart = time.Now()
+		m.notifyKaiMessage("Reconnected. Replaying your last prompt...")
+		return m, startStreamCmd(m.ctx, m.opts, m.sessionID, prompt, msg.contexts)
 	case taskActionResultMsg:
 		m.taskActionInFlight = false
 		entry := m.upsertTask(msg.details)
@@ -812,6 +930,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case taskStatusErrorMsg:
 		m.stopTaskStatusStream()
+		if msg.err != nil && kai.IsTransientError(msg.err) && strings.TrimSpace(m.sessionID) != "" {
+			m.notifyKaiMessage("Lost task status updates. Refreshing...")
+			if cmd := m.loadActiveTasksCmd(); cmd != nil {
+				return m, cmd
+			}
+			return m, nil
+		}
 		m.notifyError(msg.err)
 		entry := m.activeTask
 		if entry == nil {
@@ -836,7 +961,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.pendingAnalysisTask != nil {
 			m.pendingAnalysisTask.status = "analyzing"
 			state := "analyzing"
-			m.updateTaskStatusBar(m.pendingAnalysisTask, state, "Under analysis…", false, false)
+			m.updateTaskStatusBar(m.pendingAnalysisTask, state, "Under analysis...", false, false)
 		}
 		m.analyzeStream = msg.stream
 		m.analyzeCancel = msg.cancel
@@ -847,7 +972,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			entry = m.activeTask
 		}
 		if entry != nil {
-			m.recordTaskStatus(entry, "analyzing", "Under analysis…", false, "")
+			m.recordTaskStatus(entry, "analyzing", "Under analysis...", false, "")
 		}
 		return m, waitForAnalyzeEvent(msg.stream)
 	case taskAnalyzeEventMsg:
@@ -896,6 +1021,15 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case taskAnalyzeErrorMsg:
 		m.stopAnalyzeStream()
+		if msg.err != nil && kai.IsTransientError(msg.err) && strings.TrimSpace(m.sessionID) != "" {
+			if m.pendingAnalysisTask != nil {
+				m.notifyKaiMessage("Analysis stream interrupted. Attempting to resume...")
+				if cmd := m.startAnalyzeTask(m.pendingAnalysisTask); cmd != nil {
+					return m, cmd
+				}
+			}
+			return m, nil
+		}
 		errorMsg := ""
 		if m.pendingAnalysisTask != nil {
 			m.pendingAnalysisTask.status = "analysis_error"
@@ -1167,7 +1301,7 @@ func (m *model) bannerLeftPanel(width int, accent lipgloss.Style) []string {
 
 	heading := "Welcome to Kai"
 	if strings.TrimSpace(m.sessionID) == "" {
-		heading = "Preparing Kai…"
+		heading = "Preparing Kai..."
 	}
 	lines = append(lines, accent.Render(heading))
 	lines = append(lines, "")
@@ -1223,7 +1357,7 @@ func (m *model) bannerSessionLine() string {
 	if id := strings.TrimSpace(m.sessionID); id != "" {
 		return fmt.Sprintf("Session: %s", trimIdentifier(id))
 	}
-	return "Session: establishing…"
+	return "Session: establishing..."
 }
 
 func (m *model) bannerKonnectHost() string {
@@ -1334,7 +1468,7 @@ func (m *model) renderContextLine() string {
 	if m.taskStatus != "" {
 		right = m.taskStatus
 	} else if m.streaming {
-		right = "Streaming…"
+		right = "Streaming..."
 	}
 	return m.renderStatusLine(left, right)
 }
@@ -1581,7 +1715,11 @@ func sanitizeSessionName(name string) string {
 	runes := []rune(collapsed)
 	const maxNameLength = 80
 	if len(runes) > maxNameLength {
-		return string(runes[:maxNameLength]) + "…"
+		const suffix = "..."
+		if maxNameLength > len(suffix) {
+			return string(runes[:maxNameLength-len(suffix)]) + suffix
+		}
+		return suffix
 	}
 	return collapsed
 }
@@ -1767,7 +1905,7 @@ func (m *model) approvePendingTask() tea.Cmd {
 	if m.pendingTask == nil || m.taskActionInFlight {
 		return nil
 	}
-	m.addTaskUpdate(m.pendingTask, "Approving task…", false)
+	m.addTaskUpdate(m.pendingTask, "Approving task...", false)
 	return m.taskActionCmd(kai.TaskActionStart, m.pendingTask)
 }
 
@@ -1775,7 +1913,7 @@ func (m *model) declinePendingTask() tea.Cmd {
 	if m.pendingTask == nil || m.taskActionInFlight {
 		return nil
 	}
-	m.addTaskUpdate(m.pendingTask, "Declining task…", true)
+	m.addTaskUpdate(m.pendingTask, "Declining task...", true)
 	return m.taskActionCmd(kai.TaskActionStop, m.pendingTask)
 }
 
@@ -1784,11 +1922,11 @@ func (m *model) cancelTask() tea.Cmd {
 		return nil
 	}
 	if m.activeTask != nil {
-		m.addTaskUpdate(m.activeTask, "Cancelling task…", true)
+		m.addTaskUpdate(m.activeTask, "Cancelling task...", true)
 		return m.taskActionCmd(kai.TaskActionStop, m.activeTask)
 	}
 	if m.pendingTask != nil {
-		m.addTaskUpdate(m.pendingTask, "Declining task…", true)
+		m.addTaskUpdate(m.pendingTask, "Declining task...", true)
 		return m.taskActionCmd(kai.TaskActionStop, m.pendingTask)
 	}
 	m.notifyKaiMessage("No active task to cancel.")
@@ -1813,7 +1951,7 @@ func (m *model) handleAnalysisDecisionKey(msg tea.KeyMsg) tea.Cmd {
 	key := strings.ToLower(msg.String())
 	switch key {
 	case "y", "enter", "a":
-		m.addTaskUpdate(m.pendingAnalysisTask, "Analyzing task…", false)
+		m.addTaskUpdate(m.pendingAnalysisTask, "Analyzing task...", false)
 		return m.startAnalyzeTask(m.pendingAnalysisTask)
 	case "n", "d":
 		m.addTaskUpdate(m.pendingAnalysisTask, "Skipped task analysis.", true)
@@ -2088,6 +2226,9 @@ func (m *model) refreshPlaceholder() {
 		return
 	}
 	switch {
+	case m.reconnecting:
+		m.input.Placeholder = "Reconnecting..."
+		return
 	case m.awaitingTaskDecision && !m.taskActionInFlight:
 		m.input.Placeholder = "Press Y to approve, N to decline"
 	case m.awaitingAnalysisDecision && m.analyzeStream == nil:
@@ -3174,6 +3315,7 @@ func (m *model) cleanupAfterStream() {
 	m.stopStream()
 	m.pendingBuilder.Reset()
 	m.pendingPrompt = ""
+	m.pendingContexts = nil
 	m.streamErr = nil
 	m.responseStart = time.Time{}
 }
@@ -3221,6 +3363,35 @@ func startStreamCmd(ctx context.Context, opts Options, sessionID, prompt string,
 			return chatStreamErrorMsg{err: err}
 		}
 		return chatStreamStartedMsg{stream: stream, cancel: cancel}
+	}
+}
+
+func recoverChatHistoryCmd(
+	ctx context.Context,
+	opts Options,
+	sessionID, prompt string,
+	contexts []kai.ChatContext,
+) tea.Cmd {
+	if strings.TrimSpace(sessionID) == "" {
+		return nil
+	}
+	baseURL := opts.BaseURL
+	token := opts.Token
+	cloned := append([]kai.ChatContext(nil), contexts...)
+	return func() tea.Msg {
+		history, err := kai.GetSessionHistory(ctx, nil, baseURL, token, sessionID)
+		if err != nil {
+			return chatRecoveryHistoryMsg{
+				prompt:   prompt,
+				contexts: cloned,
+				err:      err,
+			}
+		}
+		return chatRecoveryHistoryMsg{
+			history:  history,
+			prompt:   prompt,
+			contexts: cloned,
+		}
 	}
 }
 
