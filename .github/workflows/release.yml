@@ -56,43 +56,16 @@ jobs:
       - run: git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf https://github.com/
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-      - name: Install clipboard build dependencies
+      - name: Run GoReleaser (goreleaser-cross)
         run: |
-          sudo dpkg --add-architecture i386
-          sudo dpkg --add-architecture arm64
-          sudo sed -i -E 's/^deb ([^[])/deb [arch=amd64,i386] \1/' /etc/apt/sources.list
-          if [ -d /etc/apt/sources.list.d ]; then
-            sudo find /etc/apt/sources.list.d -name '*.list' ! -name 'arm64.list' -exec sudo sed -i -E 's/^deb ([^[])/deb [arch=amd64,i386] \1/' {} +
-          fi
-          printf '%s\n' \
-            'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse' \
-            'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse' \
-            'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe multiverse' \
-            'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-backports main restricted universe multiverse' \
-            | sudo tee /etc/apt/sources.list.d/arm64.list >/dev/null
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            gcc-multilib \
-            libc6-dev \
-            libx11-dev \
-            libc6-dev-i386 \
-            libx11-dev:i386 \
-            gcc-aarch64-linux-gnu \
-            libc6-dev-arm64-cross \
-            libx11-dev:arm64
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: '~> v2' 
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          docker run --rm \
+            -v "${PWD}:/work" \
+            -w /work \
+            -e GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
+            -e TAP_GITHUB_TOKEN=${{ secrets.TAP_GITHUB_TOKEN }} \
+            -e CGO_ENABLED=1 \
+            goreleaser/goreleaser-cross:v1.24.3 \
+            release --clean
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@master
       - name: Fetch Homebrew tap
