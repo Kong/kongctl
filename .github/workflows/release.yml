@@ -59,6 +59,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
       - name: Run GoReleaser (goreleaser-cross)
         run: |
+          HOST_UID="$(id -u)"
+          HOST_GID="$(id -g)"
           docker run --rm \
             -v "${PWD}:/work" \
             -w /work \
@@ -66,9 +68,11 @@ jobs:
             -e TAP_GITHUB_TOKEN=${{ secrets.TAP_GITHUB_TOKEN }} \
             -e CGO_ENABLED=1 \
             -e DEBIAN_FRONTEND=noninteractive \
+            -e HOST_UID="${HOST_UID}" \
+            -e HOST_GID="${HOST_GID}" \
             --entrypoint /bin/sh \
             goreleaser/goreleaser-cross:v1.25.3 \
-            -c "set -e; apt-get update; apt-get install -y --no-install-recommends libx11-dev; git config --global --add safe.directory /work; goreleaser release --clean; if [ -d /work/dist ]; then chown -R \"$(stat -c '%u:%g' /work)\" /work/dist; fi"
+            -c "set -e; apt-get update; apt-get install -y --no-install-recommends libx11-dev; git config --global --add safe.directory /work; goreleaser release --clean; if [ -d /work/dist ]; then chown -R \${HOST_UID:-0}:\${HOST_GID:-0} /work/dist; fi"
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@master
       - name: Fetch Homebrew tap
