@@ -1,0 +1,11 @@
+openapi: 3.0.0
+info:
+  title: E2E SMS API
+  version: "1.0.0"
+paths:
+  /messages:
+    get:
+      summary: List messages
+      responses:
+        "200":
+          description: OK

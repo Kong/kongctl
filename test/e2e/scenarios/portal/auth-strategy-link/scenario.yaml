@@ -1,0 +1,88 @@
+baseInputsPath: ../../../testdata/declarative/portal/publication-auth
+
+env:
+  KONGCTL_LOG_LEVEL: debug
+
+vars:
+  portalRef: e2e-portal
+  portalName: "E2E Publication Portal"
+  apiRef: sms
+  apiName: "E2E SMS API"
+  authStrategyRef: key-auth
+  publicationRef: sms-to-e2e-portal
+
+defaults:
+  retry:
+    attempts: 6
+    interval: "1500ms"
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-auth-strategy-publication
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/auth-strategies.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                applied: 5
+                failed: 0
+          - select: "plan.changes[?resource_type=='portal' && resource_ref=='{{ .vars.portalRef }}'] | [0]"
+            expect:
+              fields:
+                action: "CREATE"
+                "fields.name": "{{ .vars.portalName }}"
+          - select: "plan.changes[?resource_type=='application_auth_strategy' && resource_ref=='{{ .vars.authStrategyRef }}'] | [0]"
+            expect:
+              fields:
+                action: "CREATE"
+                "fields.name": "key-auth"
+          - select: "plan.changes[?resource_type=='api' && resource_ref=='{{ .vars.apiRef }}'] | [0]"
+            expect:
+              fields:
+                action: "CREATE"
+                "fields.name": "{{ .vars.apiName }}"
+          - select: "plan.changes[?resource_type=='api_version' && resource_ref=='sms-v1'] | [0]"
+            expect:
+              fields:
+                action: "CREATE"
+                "fields.version": "1.0.0"
+          - select: "plan.changes[?resource_type=='api_publication' && resource_ref=='{{ .vars.publicationRef }}'] | [0]"
+            expect:
+              fields:
+                action: "CREATE"
+                "fields.auth_strategy_ids | length(@)": 1
+      - name: 001-get-api-publications
+        run:
+          - get
+          - api
+          - publications
+          - --api-name
+          - "{{ .vars.apiName }}"
+        assertions:
+          - select: "[?contains(AuthStrategyIDs, '-')] | [0]"
+            expect:
+              fields:
+                Visibility: "public"
+                "length(PortalID)": 36
+                "contains(AuthStrategyIDs, '-')": true
