@@ -100,7 +100,7 @@ kongctl get me
 ### 4. Switch Konnect Regions
 
 By default `kongctl` uses the `us` region for Konnect API requests. Until a 
-feature is developed to easily switch regions, you need to set 
+feature is developed to easily support region switching, you need to set 
 the `base-url` configuration to route requests to a different region.
 
 You can set the `base-url` using the `--base-url` flag or by configuring it in your
