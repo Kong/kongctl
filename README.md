@@ -25,7 +25,8 @@ By using this software, you acknowledge that:
   - [1. Create a Kong Konnect Account](#1-create-a-kong-konnect-account)
   - [2. Authenticate with Konnect](#2-authenticate-with-konnect)
   - [3. Test the Authentication](#3-test-the-authentication)
-  - [4. Next Steps](#4-next-steps)
+  - [4. Switch Region](#4-switch-region)
+  - [5. Next Steps](#5-next-steps)
 - [Documentation Listing](#documentation-listing)
 - [Configuration and Profiles](#configuration-and-profiles)
   - [Color Themes](#color-themes)
@@ -96,7 +97,22 @@ You can verify that `kongctl` is authenticated and can access information on you
 kongctl get me 
 ```
 
-### 4. Next Steps
+### 4. Switch Region
+
+By default `kongctl` commands will only access resources in the `US` region.
+In order to switch to another region you need to set the `base-url` in your profile file
+
+If you add it to the `default` profile then all commands will use that new base url
+
+```yaml
+default:
+    ...
+    konnect:
+      base-url: https://eu.api.konghq.com
+    ...
+```
+
+### 5. Next Steps
 
 **→ [Read the Declarative Configuration Guide](docs/declarative.md)** - Learn how to use declarative configuration to manage your APIs in Konnect
 
