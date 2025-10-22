@@ -69,6 +69,17 @@ func newTFImportCmd() *cobra.Command {
 	cmd.Flags().StringVar(&opts.outputFile, "output-file", "",
 		"File to write the output to. If not specified, output is written to stdout.")
 
+	cmd.Flags().String(konnectCommon.BaseURLFlagName, konnectCommon.BaseURLDefault,
+		fmt.Sprintf(`Base URL for Konnect API requests.
+- Config path: [ %s ]`,
+			konnectCommon.BaseURLConfigPath))
+
+	cmd.Flags().String(konnectCommon.PATFlagName, "",
+		fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
+Setting this value overrides tokens obtained from the login command.
+- Config path: [ %s ]`,
+			konnectCommon.PATConfigPath))
+
 	cmd.Flags().Int(
 		konnectCommon.RequestPageSizeFlagName,
 		konnectCommon.DefaultRequestPageSize,
@@ -81,6 +92,19 @@ func newTFImportCmd() *cobra.Command {
 		if err != nil {
 			return err
 		}
+
+		if f := c.Flags().Lookup(konnectCommon.BaseURLFlagName); f != nil {
+			if err := cfg.BindFlag(konnectCommon.BaseURLConfigPath, f); err != nil {
+				return err
+			}
+		}
+
+		if f := c.Flags().Lookup(konnectCommon.PATFlagName); f != nil {
+			if err := cfg.BindFlag(konnectCommon.PATConfigPath, f); err != nil {
+				return err
+			}
+		}
+
 		return cfg.BindFlag(konnectCommon.RequestPageSizeConfigPath,
 			c.Flags().Lookup(konnectCommon.RequestPageSizeFlagName))
 	}

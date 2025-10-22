@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -40,10 +41,23 @@ func NewAdoptCmd() (*cobra.Command, error) {
 		Short:   adoptShort,
 		Long:    adoptLong,
 		Example: adoptExamples,
-		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
-			cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))
+		PersistentPreRunE: func(c *cobra.Command, args []string) error {
+			c.SetContext(context.WithValue(c.Context(), verbs.Verb, Verb))
+			return bindKonnectFlags(c, args)
 		},
 	}
+
+	// Add Konnect-specific flags as persistent flags so they appear in help
+	cmd.PersistentFlags().String(common.BaseURLFlagName, common.BaseURLDefault,
+		fmt.Sprintf(`Base URL for Konnect API requests.
+- Config path: [ %s ]`,
+			common.BaseURLConfigPath))
+
+	cmd.PersistentFlags().String(common.PATFlagName, "",
+		fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
+Setting this value overrides tokens obtained from the login command.
+- Config path: [ %s ]`,
+			common.PATConfigPath))
 
 	konnectCmd, err := konnect.NewKonnectCmd(Verb)
 	if err != nil {
