@@ -14,6 +14,25 @@ By using this software, you acknowledge that:
 - Data loss or service disruption may occur
 - No support commitments or SLAs apply
 
+## Table of Contents
+
+- [What is `kongctl`?](#what-is-kongctl)
+- [Installation](#installation)
+  - [macOS](#macos)
+  - [Linux](#linux)
+  - [Verify](#verify)
+- [Getting Started](#getting-started)
+  - [1. Create a Kong Konnect Account](#1-create-a-kong-konnect-account)
+  - [2. Authenticate with Konnect](#2-authenticate-with-konnect)
+  - [3. Test the Authentication](#3-test-the-authentication)
+  - [4. Next Steps](#4-next-steps)
+- [Documentation Listing](#documentation-listing)
+- [Configuration and Profiles](#configuration-and-profiles)
+  - [Color Themes](#color-themes)
+  - [Authentication Options](#authentication-options)
+- [Command Structure](#command-structure)
+- [Support](#support)
+
 ## What is `kongctl`?
 
 `kongctl` is a command-line tool for Kong Konnect that enables you to:
