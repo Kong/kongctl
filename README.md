@@ -25,7 +25,8 @@ By using this software, you acknowledge that:
   - [1. Create a Kong Konnect Account](#1-create-a-kong-konnect-account)
   - [2. Authenticate with Konnect](#2-authenticate-with-konnect)
   - [3. Test the Authentication](#3-test-the-authentication)
-  - [4. Next Steps](#4-next-steps)
+  - [4. Switch Region](#4-switch-konnect-regions)
+  - [5. Next Steps](#5-next-steps)
 - [Documentation Listing](#documentation-listing)
 - [Configuration and Profiles](#configuration-and-profiles)
   - [Color Themes](#color-themes)
@@ -96,7 +97,27 @@ You can verify that `kongctl` is authenticated and can access information on you
 kongctl get me 
 ```
 
-### 4. Next Steps
+### 4. Switch Konnect Regions
+
+By default `kongctl` uses the `us` region for Konnect API requests. Until a 
+feature is developed to easily support region switching, you need to set 
+the `base-url` configuration to route requests to a different region.
+
+You can set the `base-url` using the `--base-url` flag or by configuring it in your
+profile. The `base-url` format is `https://<region>.api.konghq.com`, where `<region>` is
+the region code (for example, `eu` for Europe). The [documentation](https://developer.konghq.com/konnect-platform/geos/)
+provides a list of available regions.
+
+Here is an example configuration snippet to set the `default` profile to use the `eu` region:
+```yaml
+default:
+    ...
+    konnect:
+      base-url: https://eu.api.konghq.com
+    ...
+```
+
+### 5. Next Steps
 
 **→ [Read the Declarative Configuration Guide](docs/declarative.md)** - Learn how to use declarative configuration to manage your APIs in Konnect
 
