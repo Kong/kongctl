@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -24,7 +26,7 @@ var (
 	deleteLong = normalizers.LongDesc(i18n.T("root.verbs.delete.deleteLong",
 		`Use delete to delete a new object.
 
-Further sub-commands are required to determine which remote system is contacted (if necessary). 
+Further sub-commands are required to determine which remote system is contacted (if necessary).
 The command will delete an object and report a result depending on further arguments.
 Output can be formatted in multiple ways to aid in further processing.`))
 
@@ -48,10 +50,23 @@ func NewDeleteCmd() (*cobra.Command, error) {
 		Long:    deleteLong,
 		Example: deleteExamples,
 		Aliases: []string{"d", "D", "del", "rm", "DEL", "RM"},
-		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
-			cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))
+		PersistentPreRunE: func(c *cobra.Command, args []string) error {
+			c.SetContext(context.WithValue(c.Context(), verbs.Verb, Verb))
+			return bindKonnectFlags(c, args)
 		},
 	}
+
+	// Add Konnect-specific flags as persistent flags so they appear in help
+	cmd.PersistentFlags().String(common.BaseURLFlagName, common.BaseURLDefault,
+		fmt.Sprintf(`Base URL for Konnect API requests.
+- Config path: [ %s ]`,
+			common.BaseURLConfigPath))
+
+	cmd.PersistentFlags().String(common.PATFlagName, "",
+		fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
+Setting this value overrides tokens obtained from the login command.
+- Config path: [ %s ]`,
+			common.PATConfigPath))
 
 	c, e := konnect.NewKonnectCmd(Verb)
 	if e != nil {
@@ -74,4 +89,27 @@ func NewDeleteCmd() (*cobra.Command, error) {
 	cmd.AddCommand(portalCmd)
 
 	return cmd, nil
+}
+
+// bindKonnectFlags binds Konnect-specific flags to configuration
+func bindKonnectFlags(c *cobra.Command, args []string) error {
+	helper := cmdpkg.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if f := c.Flags().Lookup(common.BaseURLFlagName); f != nil {
+		if err := cfg.BindFlag(common.BaseURLConfigPath, f); err != nil {
+			return err
+		}
+	}
+
+	if f := c.Flags().Lookup(common.PATFlagName); f != nil {
+		if err := cfg.BindFlag(common.PATConfigPath, f); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
