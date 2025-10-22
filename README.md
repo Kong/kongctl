@@ -14,6 +14,25 @@ By using this software, you acknowledge that:
 - Data loss or service disruption may occur
 - No support commitments or SLAs apply
 
+## Table of Contents
+
+- [What is `kongctl`?](#what-is-kongctl)
+- [Installation](#installation)
+  - [macOS](#macos)
+  - [Linux](#linux)
+  - [Verify](#verify)
+- [Getting Started](#getting-started)
+  - [1. Create a Kong Konnect Account](#1-create-a-kong-konnect-account)
+  - [2. Authenticate with Konnect](#2-authenticate-with-konnect)
+  - [3. Test the Authentication](#3-test-the-authentication)
+  - [4. Next Steps](#4-next-steps)
+- [Documentation Listing](#documentation-listing)
+- [Configuration and Profiles](#configuration-and-profiles)
+  - [Color Themes](#color-themes)
+  - [Authentication Options](#authentication-options)
+- [Command Structure](#command-structure)
+- [Support](#support)
+
 ## What is `kongctl`?
 
 `kongctl` is a command-line tool for Kong Konnect that enables you to:
@@ -90,20 +109,15 @@ kongctl get me
 
 ## Configuration and Profiles
 
-`kongctl` configuration data is read from `$XDG_CONFIG_HOME/kongctl/config.yaml`. The format of the file is YAML,
-and at the root level you can specify profiles. A profile is a named collection of configuration values. By default
-there is a `default` profile, but you can create additional profiles for different environments or configurations.
+`kongctl` configuration data is read from `$XDG_CONFIG_HOME/kongctl` and falls back to 
+`$HOME/.config/kongctl`. The standard configuration file (YAML format) is located in this location and is named 
+`config.yaml`. At the root level you specify profiles where a profile is a named collection of 
+configuration values. By default there is a `default` profile, but you can 
+create additional profiles for different environments or configurations.
 
-The basic example of a configuration file follows:
-
-```yaml
-default:
-  output: text
-```
-
-Some flags and options can be defaulted by providing a value in the configuration file, effectively 
-allowing you to override the default behavior of commands. Flags that support this will be documented
-in the command help text with a "Config path" note that looks like this:
+Some flags and options can be changed by providing a value in the configuration file, effectively 
+allowing you to override the default behavior of command options. Flags that support this will 
+be documented in the command help text with a "Config path" note that looks like this:
 
 ```text
 -o, --output string        Configures the format of data written to STDOUT.
@@ -115,75 +129,17 @@ The above help text shows a YAML key path for the `--output` flag which controls
 from the CLI. The config path is the location in the configuration file where a flag value can be defaulted. 
 In this case it specifies that output formats can be set in the configuration file under an `output` key. 
 
-### Color Themes
-
-Interactive experiences—such as `kongctl kai` or `kongctl get --interactive` views—share a configurable Bubble Tea
-color theme. Use the `--color-theme` flag (or set the `color-theme` key in your configuration file) to select a
-palette. The default `kong` theme mirrors the existing brand styling, and you can switch to any
-[`bubbletint`](https://github.com/lrstanley/bubbletint) theme by ID, for example:
-
-```yaml
-default:
-  color-theme: tokyo_night
-```
-
-```shell
-kongctl get apis --interactive --color-theme tokyo_night
-```
-
-You can also use the shorthand `-i` flag.
-
-When you request the interactive view—using commands like `kongctl get --interactive`
-or `kongctl get konnect --interactive`—the CLI launches a Konnect resource navigator
-home screen. The navigator lists the
-currently supported resources (APIs, application-auth-strategies, gateway control-planes,
-and portals) in alphabetical order. Select a resource to open its existing interactive
-table view, and use `esc`/`backspace` to return to the navigator and switch between
-resources.
-
-Themes adapt automatically to light and dark terminals and honor the global `--color` mode.
-
-It's called a config _path_ because the key may be nested. For example this `--control-plane-flag` has this 
-nested path:
-
-```text
---control-plane-id string     The ID of the control plane to use for a gateway service command.
-                                    - Config path: [ konnect.gateway.control-plane.id ]
-```
-
-To set the default for this, a configuration file might looks like this:
-
-```yaml
-default:
-  konnect:
-    gateway:
-      control-plane:
-        id: <control-plane-id>
-```
-
-You can specify different values under different profiles, like so:
+The basic example of a configuration file follows:
 
 ```yaml
 default:
   output: text
-cicd:
+second-profile:
   output: json
 ```
 
-This configuration file defines two profiles: `default` and `cicd`. 
-The `default` profile will output text, while the `cicd` profile will output JSON.
-
-You can use the `--profile` flag to specify which profile to use when running commands:
-
-```shell
-kongctl get apis --profile cicd
-```
-
-Or you can set the `KONGCTL_PROFILE` environment variable:
-
-```shell
-KONGCTL_PROFILE=cicd kongctl get apis
-```
+Specifying a profile can be done using the `--profile` flag or by setting or exporting
+the `KONGCTL_PROFILE` environment variable.
 
 Configuration values can also be specified using environment variables. `kongctl` looks for environment variables
 which follow the pattern `KONGCTL_<PROFILE>_<PATH>`, where `<PROFILE>` is the profile name in uppercase and `<PATH>` 
@@ -223,6 +179,18 @@ KONGCTL_DEFAULT_OUTPUT=yaml kongctl get apis
    ```
    KONGCTL_DEFAULT_KONNECT_PAT=<token> kongctl get apis
    ```
+
+### Color Themes
+
+Interactive experiences, such as `kongctl kai` or `kongctl view`, share a configurable 
+color theme. Use the `--color-theme` flag (or set the `color-theme` key in your configuration file) 
+to select a palette. The default `kong` theme mirrors the existing brand styling, and you can switch to any
+[`bubbletint`](https://github.com/lrstanley/bubbletint) theme by ID, for example:
+
+```yaml
+default:
+  color-theme: tokyo_night
+```
 
 ## Command Structure
 
