@@ -2426,19 +2426,46 @@ func newBubbleModel(
 }
 
 func (m *bubbleModel) Init() tea.Cmd {
-	return m.initCmd
+	if m.initCmd != nil {
+		return m.initCmd
+	}
+	return func() tea.Msg { return nil }
 }
 
 func (m *bubbleModel) nextDetailIdentifier() int {
 	id := m.nextDetailID
-	if id < 1 {
-		id = 1
-	}
-	m.nextDetailID = id + 1
+	m.nextDetailID++
 	return id
 }
 
-func (m *bubbleModel) beginRequest(kind requestKind, label string, rowIndex, detailID, itemIndex int) (string, tea.Cmd) {
+func (m *bubbleModel) pushDetailView(view detailView) string {
+	if view.id == 0 {
+		view.id = m.nextDetailIdentifier()
+	} else if view.id >= m.nextDetailID {
+		m.nextDetailID = view.id + 1
+	}
+	if strings.TrimSpace(view.title) == "" {
+		view.title = view.label
+	}
+	if strings.TrimSpace(view.label) == "" {
+		view.label = view.title
+	}
+	trimmedLabel := strings.TrimSpace(view.label)
+	m.detailStack = append(m.detailStack, view)
+	if trimmedLabel != "" {
+		m.breadcrumbs = append(m.breadcrumbs, trimmedLabel)
+	}
+	m.clearStatus()
+	return trimmedLabel
+}
+
+func (m *bubbleModel) beginRequest(
+	kind requestKind,
+	label string,
+	rowIndex int,
+	detailID int,
+	itemIndex int,
+) (string, tea.Cmd) {
 	if m.pendingRequest.active {
 		return "", nil
 	}
@@ -2538,28 +2565,14 @@ func (m *bubbleModel) presentRowChild(index int, childView ChildView) string {
 	childHeight := m.detailViewportHeight()
 	childTable := buildChildTable(&state, childWidth, childHeight, m.palette)
 
-	next := detailView{
-		id:         m.nextDetailIdentifier(),
+	return m.pushDetailView(detailView{
 		table:      &childTable,
 		label:      label,
 		parent:     parent,
 		parentType: state.parentType,
 		title:      childView.Title,
 		child:      &state,
-	}
-	if next.title == "" {
-		next.title = label
-	}
-	if next.label == "" {
-		next.label = next.title
-	}
-
-	m.detailStack = append(m.detailStack, next)
-	if next.label != "" {
-		m.breadcrumbs = append(m.breadcrumbs, next.label)
-	}
-	m.clearStatus()
-	return label
+	})
 }
 
 func (m *bubbleModel) openRowChild() (bool, tea.Cmd) {
@@ -2624,9 +2637,7 @@ func (m *bubbleModel) openDetailView() bool {
 	items = reorderDetailItems(items)
 
 	tableModel, decorator := buildDetailTable(items, width, height, m.palette, true)
-	m.clearStatus()
-	next := detailView{
-		id:         m.nextDetailIdentifier(),
+	m.pushDetailView(detailView{
 		table:      &tableModel,
 		items:      items,
 		label:      label,
@@ -2635,11 +2646,7 @@ func (m *bubbleModel) openDetailView() bool {
 		title:      label,
 		decorator:  decorator,
 		highlight:  true,
-	}
-	m.detailStack = append(m.detailStack, next)
-	if label != "" {
-		m.breadcrumbs = append(m.breadcrumbs, label)
-	}
+	})
 	return true
 }
 
@@ -2892,59 +2899,31 @@ func (m *bubbleModel) presentDetailChild(detail *detailView, row int, childView 
 		vp.Height = targetHeight
 		vp.SetContent(rendered)
 
-		next := detailView{
-			id:              m.nextDetailIdentifier(),
+		return m.pushDetailView(detailView{
 			label:           label,
 			parent:          parent,
 			parentType:      state.parentType,
 			title:           state.title,
 			rawContent:      raw,
 			contentViewport: &vp,
-		}
-		if next.title == "" {
-			next.title = label
-		}
-		if next.label == "" {
-			next.label = next.title
-		}
-		m.detailStack = append(m.detailStack, next)
-		if next.label != "" {
-			m.breadcrumbs = append(m.breadcrumbs, next.label)
-		}
-		m.clearStatus()
-		return label
+		})
 	}
 
 	childTable := buildChildTable(&state, m.detailViewportWidth(), m.detailViewportHeight(), m.palette)
 
-	next := detailView{
-		id:         m.nextDetailIdentifier(),
+	return m.pushDetailView(detailView{
 		table:      &childTable,
 		label:      label,
 		parent:     parent,
 		parentType: state.parentType,
 		title:      state.title,
 		child:      &state,
-	}
-
-	if next.title == "" {
-		next.title = label
-	}
-	if next.label == "" {
-		next.label = next.title
-	}
-
-	m.detailStack = append(m.detailStack, next)
-	if next.label != "" {
-		m.breadcrumbs = append(m.breadcrumbs, next.label)
-	}
-	m.clearStatus()
-	return label
+	})
 }
 
-func (m *bubbleModel) pushChildDetailState(state *childViewState, label string, parent any, highlight bool) bool {
+func (m *bubbleModel) pushChildDetailState(state *childViewState, label string, parent any, highlight bool) {
 	if state == nil {
-		return false
+		return
 	}
 
 	raw := ""
@@ -2963,7 +2942,7 @@ func (m *bubbleModel) pushChildDetailState(state *childViewState, label string, 
 		m.palette,
 		highlight,
 	)
-	next := detailView{
+	m.pushDetailView(detailView{
 		table:      &tableModel,
 		items:      items,
 		label:      label,
@@ -2972,21 +2951,7 @@ func (m *bubbleModel) pushChildDetailState(state *childViewState, label string, 
 		title:      state.title,
 		decorator:  decorator,
 		highlight:  highlight,
-	}
-	next.id = m.nextDetailIdentifier()
-	if next.title == "" {
-		next.title = label
-	}
-	if next.label == "" {
-		next.label = next.title
-	}
-
-	m.detailStack = append(m.detailStack, next)
-	if next.label != "" {
-		m.breadcrumbs = append(m.breadcrumbs, next.label)
-	}
-	m.clearStatus()
-	return true
+	})
 }
 
 func (m *bubbleModel) rebuildDetailItemsTable(detail *detailView, cursor int) {
@@ -3035,7 +3000,7 @@ func (m *bubbleModel) openChildRowDetail(detail *detailView) bool {
 	items = reorderDetailItems(items)
 
 	tableModel, decorator := buildDetailTable(items, m.detailViewportWidth(), m.detailViewportHeight(), m.palette, true)
-	next := detailView{
+	m.pushDetailView(detailView{
 		table:      &tableModel,
 		items:      items,
 		label:      label,
@@ -3044,13 +3009,7 @@ func (m *bubbleModel) openChildRowDetail(detail *detailView) bool {
 		title:      label,
 		decorator:  decorator,
 		highlight:  true,
-	}
-
-	m.detailStack = append(m.detailStack, next)
-	if label != "" {
-		m.breadcrumbs = append(m.breadcrumbs, label)
-	}
-	m.clearStatus()
+	})
 	return true
 }
 
@@ -3236,8 +3195,7 @@ func (m *bubbleModel) buildStatusRows(innerWidth int) []string {
 	if m.pendingRequest.active {
 		pending := strings.TrimSpace(m.renderPendingRequestStatus())
 		if pending != "" {
-			rows = append(rows, renderStatusRow(pending, profile, innerWidth))
-			profile = ""
+			appendStatusRow(&rows, pending, &profile, innerWidth)
 		}
 	}
 
@@ -3252,15 +3210,13 @@ func (m *bubbleModel) buildStatusRows(innerWidth int) []string {
 
 	if msg := strings.TrimSpace(m.statusMessage); msg != "" {
 		statusStyle := lipgloss.NewStyle().Faint(true)
-		rows = append(rows, renderStatusRow(statusStyle.Render(msg), profile, innerWidth))
-		profile = ""
+		appendStatusRow(&rows, statusStyle.Render(msg), &profile, innerWidth)
 		return rows
 	}
 
 	if footer := strings.TrimSpace(m.footer); footer != "" {
 		statusStyle := lipgloss.NewStyle().Faint(true)
-		rows = append(rows, renderStatusRow(statusStyle.Render(footer), profile, innerWidth))
-		profile = ""
+		appendStatusRow(&rows, statusStyle.Render(footer), &profile, innerWidth)
 		return rows
 	}
 
@@ -3269,6 +3225,11 @@ func (m *bubbleModel) buildStatusRows(innerWidth int) []string {
 	}
 
 	return rows
+}
+
+func appendStatusRow(rows *[]string, left string, profile *string, width int) {
+	*rows = append(*rows, renderStatusRow(left, *profile, width))
+	*profile = ""
 }
 
 func (m *bubbleModel) renderStatusHint() string {

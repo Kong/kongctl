@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/bubbles/table"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/stretchr/testify/require"
 
@@ -18,6 +19,34 @@ type sampleRecord struct {
 	ID               string
 	DisplayName      string
 	LocalUpdatedTime string
+}
+
+func executeCmd(t *testing.T, model *bubbleModel, cmd tea.Cmd) *bubbleModel {
+	t.Helper()
+	queue := []tea.Cmd{cmd}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		if current == nil {
+			continue
+		}
+		msg := current()
+		switch m := msg.(type) {
+		case tea.BatchMsg:
+			queue = append(queue, []tea.Cmd(m)...)
+			continue
+		case nil:
+			continue
+		}
+		updated, next := model.Update(msg)
+		bm, ok := updated.(*bubbleModel)
+		require.True(t, ok)
+		model = bm
+		if next != nil {
+			queue = append(queue, next)
+		}
+	}
+	return model
 }
 
 func TestRender_StaticOutput(t *testing.T) {
@@ -192,7 +221,9 @@ func TestRowLoaderOpensChildView(t *testing.T) {
 		[]string{"RESOURCE"},
 	)
 
-	require.True(t, model.openRowChild())
+	started, cmd := model.openRowChild()
+	require.True(t, started)
+	model = executeCmd(t, model, cmd)
 	require.Equal(t, 1, loaderCalls)
 	require.Len(t, model.detailStack, 1)
 	require.Equal(t, "APIs", model.detailStack[0].title)
@@ -242,6 +273,7 @@ func TestInitialRowSelectionOpensChildView(t *testing.T) {
 		[]string{"RESOURCE"},
 	)
 
+	model = executeCmd(t, model, model.Init())
 	require.Equal(t, 1, loaderCalls)
 	require.Len(t, model.detailStack, 1)
 	require.Equal(t, []string{"Konnect", "PORTALS"}, model.breadcrumbs)
@@ -297,7 +329,9 @@ func TestRowLoaderProvidesParentContext(t *testing.T) {
 		[]string{"RESOURCE"},
 	)
 
-	require.True(t, model.openRowChild())
+	started, cmd := model.openRowChild()
+	require.True(t, started)
+	model = executeCmd(t, model, cmd)
 	require.Equal(t, parent, model.detailStack[0].parent)
 }
 
