@@ -113,6 +113,7 @@ type detailChildLoadedMsg struct {
 	itemIndex int
 	child     ChildView
 	err       error
+	label     string
 }
 
 func newSpinnerModel(p theme.Palette) spinner.Model {
@@ -128,7 +129,9 @@ func formatElapsed(d time.Duration) string {
 	}
 	seconds := int(d.Round(time.Second).Seconds())
 	if seconds < 1 {
-		return "0s"
+		fraction := d.Round(100 * time.Millisecond)
+		realSeconds := float64(fraction) / float64(time.Second)
+		return fmt.Sprintf("%.1fs", realSeconds)
 	}
 	if seconds < 60 {
 		return fmt.Sprintf("%ds", seconds)
@@ -2804,11 +2807,12 @@ func (m *bubbleModel) openChildCollection(detail *detailView, row int) (bool, te
 		return false, nil
 	}
 
+	label := strings.TrimSpace(detail.items[row].Label)
 	ctx := m.helper.GetContext()
 	helper := m.helper
 	parent := detail.parent
 	loader := detail.items[row].Loader
-	requestID, tickCmd := m.beginRequest(requestKindDetail, detail.items[row].Label, -1, detail.id, row)
+	requestID, tickCmd := m.beginRequest(requestKindDetail, label, -1, detail.id, row)
 	if requestID == "" {
 		return false, nil
 	}
@@ -2821,6 +2825,7 @@ func (m *bubbleModel) openChildCollection(detail *detailView, row int) (bool, te
 			itemIndex: row,
 			child:     childView,
 			err:       err,
+			label:     label,
 		}
 	}
 
@@ -2830,14 +2835,17 @@ func (m *bubbleModel) openChildCollection(detail *detailView, row int) (bool, te
 	return true, loadCmd
 }
 
-func (m *bubbleModel) presentDetailChild(detail *detailView, row int, childView ChildView) string {
+func (m *bubbleModel) presentDetailChild(detail *detailView, row int, childView ChildView, labelHint string) string {
 	if detail == nil {
 		return ""
 	}
 
 	state := newChildViewState(childView)
 
-	label := strings.TrimSpace(detail.items[row].Label)
+	label := strings.TrimSpace(labelHint)
+	if label == "" && row >= 0 && row < len(detail.items) {
+		label = strings.TrimSpace(detail.items[row].Label)
+	}
 	if label == "" {
 		label = state.title
 	}
@@ -3745,6 +3753,9 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 					m.rebuildDetailItemsTable(detail, key.itemIndex)
 					label = formatRequestLabel(detail.items[key.itemIndex].Label)
 				}
+				if trimmed := strings.TrimSpace(key.label); trimmed != "" {
+					label = formatRequestLabel(trimmed)
+				}
 				message := fmt.Sprintf("Unable to load %s: %v", label, key.err)
 				if duration > 0 {
 					message = fmt.Sprintf("%s (after %s)", message, formatElapsed(duration))
@@ -3753,7 +3764,7 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 			} else {
 				label := formatRequestLabel(pr.label)
 				if detail != nil && key.itemIndex >= 0 && key.itemIndex < len(detail.items) {
-					label = formatRequestLabel(m.presentDetailChild(detail, key.itemIndex, key.child))
+					label = formatRequestLabel(m.presentDetailChild(detail, key.itemIndex, key.child, key.label))
 				}
 				m.setStatus(fmt.Sprintf("%s loaded in %s", label, formatElapsed(duration)))
 			}
