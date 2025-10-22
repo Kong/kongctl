@@ -15,6 +15,7 @@ import (
 	"unicode"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -79,6 +80,91 @@ const searchIdleTimeout = 10 * time.Second
 
 type searchTimeoutMsg struct {
 	deadline time.Time
+}
+
+type requestKind int
+
+const (
+	requestKindRow requestKind = iota
+	requestKindDetail
+)
+
+type pendingRequest struct {
+	id        string
+	started   time.Time
+	label     string
+	kind      requestKind
+	rowIndex  int
+	detailID  int
+	itemIndex int
+	active    bool
+}
+
+type rowChildLoadedMsg struct {
+	requestID string
+	index     int
+	child     ChildView
+	err       error
+}
+
+type detailChildLoadedMsg struct {
+	requestID string
+	detailID  int
+	itemIndex int
+	child     ChildView
+	err       error
+	label     string
+}
+
+func newSpinnerModel(p theme.Palette) spinner.Model {
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = p.ForegroundStyle(theme.ColorAccent)
+	return s
+}
+
+func formatElapsed(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	seconds := int(d.Round(time.Second).Seconds())
+	if seconds < 1 {
+		fraction := d.Round(100 * time.Millisecond)
+		realSeconds := float64(fraction) / float64(time.Second)
+		return fmt.Sprintf("%.1fs", realSeconds)
+	}
+	if seconds < 60 {
+		return fmt.Sprintf("%ds", seconds)
+	}
+	minutes := seconds / 60
+	remainder := seconds % 60
+	if remainder == 0 {
+		return fmt.Sprintf("%dmin", minutes)
+	}
+	return fmt.Sprintf("%dmin %ds", minutes, remainder)
+}
+
+func formatRequestLabel(label string) string {
+	trimmed := strings.TrimSpace(label)
+	if trimmed == "" {
+		return "request"
+	}
+	return trimmed
+}
+
+func (pr pendingRequest) inflightMessage() string {
+	label := strings.TrimSpace(pr.label)
+	if label == "" {
+		switch pr.kind {
+		case requestKindRow:
+			label = "selection"
+		case requestKindDetail:
+			label = "detail"
+		default:
+			label = "request"
+		}
+	}
+	return fmt.Sprintf("Loading %s...", label)
 }
 
 func borderedTableView(style lipgloss.Style, content string, selected lipgloss.Style) string {
@@ -2084,6 +2170,7 @@ func RenderForFormat(
 }
 
 type detailView struct {
+	id              int
 	table           *table.Model
 	items           []detailItem
 	label           string
@@ -2250,6 +2337,11 @@ type bubbleModel struct {
 	searchBuffer    []rune
 	searchPrompt    string
 	searchDeadline  time.Time
+	spinner         spinner.Model
+	pendingRequest  pendingRequest
+	nextRequestID   int
+	nextDetailID    int
+	initCmd         tea.Cmd
 }
 
 func newBubbleModel(
@@ -2304,6 +2396,9 @@ func newBubbleModel(
 		detailContext:   cfg.detailContext,
 		helper:          cfg.childHelper,
 		rowLoader:       cfg.rowLoader,
+		spinner:         newSpinnerModel(palette),
+		nextRequestID:   1,
+		nextDetailID:    1,
 	}
 
 	if cfg.hasDetail && cfg.detailViewport != nil {
@@ -2316,13 +2411,107 @@ func newBubbleModel(
 	}
 
 	if cfg.openInitial && m.rowLoader != nil && cfg.initialRow >= 0 && cfg.initialRow < rowCount {
-		m.openRowChild()
+		if started, cmd := m.openRowChild(); started {
+			if cmd != nil {
+				if m.initCmd != nil {
+					m.initCmd = tea.Batch(m.initCmd, cmd)
+				} else {
+					m.initCmd = cmd
+				}
+			}
+		}
 	}
 
 	return m
 }
 
 func (m *bubbleModel) Init() tea.Cmd {
+	if m.initCmd != nil {
+		return m.initCmd
+	}
+	return func() tea.Msg { return nil }
+}
+
+func (m *bubbleModel) nextDetailIdentifier() int {
+	id := m.nextDetailID
+	m.nextDetailID++
+	return id
+}
+
+func (m *bubbleModel) pushDetailView(view detailView) string {
+	if view.id == 0 {
+		view.id = m.nextDetailIdentifier()
+	} else if view.id >= m.nextDetailID {
+		m.nextDetailID = view.id + 1
+	}
+	if strings.TrimSpace(view.title) == "" {
+		view.title = view.label
+	}
+	if strings.TrimSpace(view.label) == "" {
+		view.label = view.title
+	}
+	trimmedLabel := strings.TrimSpace(view.label)
+	m.detailStack = append(m.detailStack, view)
+	if trimmedLabel != "" {
+		m.breadcrumbs = append(m.breadcrumbs, trimmedLabel)
+	}
+	m.clearStatus()
+	return trimmedLabel
+}
+
+func (m *bubbleModel) beginRequest(
+	kind requestKind,
+	label string,
+	rowIndex int,
+	detailID int,
+	itemIndex int,
+) (string, tea.Cmd) {
+	if m.pendingRequest.active {
+		return "", nil
+	}
+	id := fmt.Sprintf("req-%d", m.nextRequestID)
+	m.nextRequestID++
+	m.pendingRequest = pendingRequest{
+		id:        id,
+		started:   time.Now(),
+		label:     label,
+		kind:      kind,
+		rowIndex:  rowIndex,
+		detailID:  detailID,
+		itemIndex: itemIndex,
+		active:    true,
+	}
+	m.spinner = newSpinnerModel(m.palette)
+	m.clearStatus()
+	return id, m.spinner.Tick
+}
+
+func (m *bubbleModel) completeRequest(id string) (pendingRequest, time.Duration, bool) {
+	if !m.pendingRequest.active || m.pendingRequest.id != id {
+		return pendingRequest{}, 0, false
+	}
+	pr := m.pendingRequest
+	duration := time.Since(pr.started)
+	m.pendingRequest = pendingRequest{}
+	m.spinner = newSpinnerModel(m.palette)
+	return pr, duration, true
+}
+
+func (m *bubbleModel) renderPendingRequestStatus() string {
+	if !m.pendingRequest.active {
+		return ""
+	}
+	elapsed := time.Since(m.pendingRequest.started)
+	segments := []string{m.spinner.View(), m.pendingRequest.inflightMessage(), formatElapsed(elapsed)}
+	return strings.Join(segments, " ")
+}
+
+func (m *bubbleModel) findDetailByID(id int) *detailView {
+	for i := range m.detailStack {
+		if m.detailStack[i].id == id {
+			return &m.detailStack[i]
+		}
+	}
 	return nil
 }
 
@@ -2345,22 +2534,7 @@ func (m *bubbleModel) inDetailMode() bool {
 	return len(m.detailStack) > 0
 }
 
-func (m *bubbleModel) openRowChild() bool {
-	if m.rowLoader == nil {
-		return false
-	}
-
-	index := clamp(m.table.Cursor(), 0, m.rowCount-1)
-	if index < 0 {
-		return false
-	}
-
-	childView, err := m.rowLoader(index)
-	if err != nil {
-		m.setStatus(fmt.Sprintf("Unable to open: %v", err))
-		return false
-	}
-
+func (m *bubbleModel) presentRowChild(index int, childView ChildView) string {
 	state := newChildViewState(childView)
 	label := strings.TrimSpace(childView.Title)
 	if label == "" {
@@ -2383,34 +2557,58 @@ func (m *bubbleModel) openRowChild() bool {
 		if label == "" {
 			label = fmt.Sprintf("Item %d", index+1)
 		}
-		return m.pushChildDetailState(&state, label, parent, true)
+		m.pushChildDetailState(&state, label, parent, true)
+		return label
 	}
 
 	childWidth := m.detailViewportWidth()
 	childHeight := m.detailViewportHeight()
 	childTable := buildChildTable(&state, childWidth, childHeight, m.palette)
 
-	next := detailView{
+	return m.pushDetailView(detailView{
 		table:      &childTable,
 		label:      label,
 		parent:     parent,
 		parentType: state.parentType,
 		title:      childView.Title,
 		child:      &state,
+	})
+}
+
+func (m *bubbleModel) openRowChild() (bool, tea.Cmd) {
+	if m.rowLoader == nil {
+		return false, nil
 	}
-	if next.title == "" {
-		next.title = label
-	}
-	if next.label == "" {
-		next.label = next.title
+	if m.pendingRequest.active {
+		return false, nil
 	}
 
-	m.detailStack = append(m.detailStack, next)
-	if next.label != "" {
-		m.breadcrumbs = append(m.breadcrumbs, next.label)
+	index := clamp(m.table.Cursor(), 0, m.rowCount-1)
+	if index < 0 {
+		return false, nil
 	}
-	m.clearStatus()
-	return true
+
+	label := m.labelForIndex(index)
+	requestID, tickCmd := m.beginRequest(requestKindRow, label, index, 0, 0)
+	if requestID == "" {
+		return false, nil
+	}
+
+	loader := m.rowLoader
+	loadCmd := func() tea.Msg {
+		childView, err := loader(index)
+		return rowChildLoadedMsg{
+			requestID: requestID,
+			index:     index,
+			child:     childView,
+			err:       err,
+		}
+	}
+
+	if tickCmd != nil {
+		return true, tea.Batch(tickCmd, loadCmd)
+	}
+	return true, loadCmd
 }
 
 func (m *bubbleModel) openDetailView() bool {
@@ -2439,8 +2637,7 @@ func (m *bubbleModel) openDetailView() bool {
 	items = reorderDetailItems(items)
 
 	tableModel, decorator := buildDetailTable(items, width, height, m.palette, true)
-	m.clearStatus()
-	m.detailStack = append(m.detailStack, detailView{
+	m.pushDetailView(detailView{
 		table:      &tableModel,
 		items:      items,
 		label:      label,
@@ -2450,9 +2647,6 @@ func (m *bubbleModel) openDetailView() bool {
 		decorator:  decorator,
 		highlight:  true,
 	})
-	if label != "" {
-		m.breadcrumbs = append(m.breadcrumbs, label)
-	}
 	return true
 }
 
@@ -2565,27 +2759,27 @@ func reorderDetailItems(items []detailItem) []detailItem {
 	return result
 }
 
-func (m *bubbleModel) activateDetailSelection() bool {
+func (m *bubbleModel) activateDetailSelection() (bool, tea.Cmd) {
 	if len(m.detailStack) == 0 {
-		return false
+		return false, nil
 	}
 	detail := &m.detailStack[len(m.detailStack)-1]
 	if detail.child != nil {
-		return m.openChildRowDetail(detail)
+		return m.openChildRowDetail(detail), nil
 	}
 	if detail.table == nil || len(detail.items) == 0 {
-		return false
+		return false, nil
 	}
 	row := detail.table.Cursor()
 	if row < 0 || row >= len(detail.items) {
-		return false
+		return false, nil
 	}
 	item := detail.items[row]
 	if item.Loader != nil {
-		return m.openChildCollection(detail)
+		return m.openChildCollection(detail, row)
 	}
 	m.copyDetailItemValue(item)
-	return false
+	return false, nil
 }
 
 func (m *bubbleModel) copyDetailItemValue(item detailItem) {
@@ -2601,36 +2795,64 @@ func (m *bubbleModel) copyDetailItemValue(item detailItem) {
 	m.setStatus(fmt.Sprintf("Copied '%s' to buffer...", formatStatusValue(value)))
 }
 
-func (m *bubbleModel) openChildCollection(detail *detailView) bool {
+func (m *bubbleModel) openChildCollection(detail *detailView, row int) (bool, tea.Cmd) {
 	if detail == nil || detail.table == nil || len(detail.items) == 0 {
-		return false
+		return false, nil
 	}
-
-	row := detail.table.Cursor()
 	if row < 0 || row >= len(detail.items) {
-		return false
+		return false, nil
 	}
-
 	if detail.items[row].Loader == nil {
-		return false
+		return false, nil
 	}
-
 	if m.helper == nil {
 		detail.items[row].Value = "loader unavailable"
 		m.rebuildDetailItemsTable(detail, row)
-		return false
+		return false, nil
+	}
+	if m.pendingRequest.active {
+		return false, nil
 	}
 
-	childView, err := detail.items[row].Loader(m.helper.GetContext(), m.helper, detail.parent)
-	if err != nil {
-		detail.items[row].Value = fmt.Sprintf("error: %v", err)
-		m.rebuildDetailItemsTable(detail, row)
-		return false
+	label := strings.TrimSpace(detail.items[row].Label)
+	ctx := m.helper.GetContext()
+	helper := m.helper
+	parent := detail.parent
+	loader := detail.items[row].Loader
+	requestID, tickCmd := m.beginRequest(requestKindDetail, label, -1, detail.id, row)
+	if requestID == "" {
+		return false, nil
+	}
+
+	loadCmd := func() tea.Msg {
+		childView, err := loader(ctx, helper, parent)
+		return detailChildLoadedMsg{
+			requestID: requestID,
+			detailID:  detail.id,
+			itemIndex: row,
+			child:     childView,
+			err:       err,
+			label:     label,
+		}
+	}
+
+	if tickCmd != nil {
+		return true, tea.Batch(tickCmd, loadCmd)
+	}
+	return true, loadCmd
+}
+
+func (m *bubbleModel) presentDetailChild(detail *detailView, row int, childView ChildView, labelHint string) string {
+	if detail == nil {
+		return ""
 	}
 
 	state := newChildViewState(childView)
 
-	label := strings.TrimSpace(detail.items[row].Label)
+	label := strings.TrimSpace(labelHint)
+	if label == "" && row >= 0 && row < len(detail.items) {
+		label = strings.TrimSpace(detail.items[row].Label)
+	}
 	if label == "" {
 		label = state.title
 	}
@@ -2651,7 +2873,8 @@ func (m *bubbleModel) openChildCollection(detail *detailView) bool {
 	}
 
 	if state.mode == ChildViewModeDetail {
-		return m.pushChildDetailState(&state, label, parent, true)
+		m.pushChildDetailState(&state, label, parent, true)
+		return label
 	}
 
 	if len(state.rows) == 0 && childView.DetailRenderer != nil {
@@ -2676,57 +2899,31 @@ func (m *bubbleModel) openChildCollection(detail *detailView) bool {
 		vp.Height = targetHeight
 		vp.SetContent(rendered)
 
-		next := detailView{
+		return m.pushDetailView(detailView{
 			label:           label,
 			parent:          parent,
 			parentType:      state.parentType,
 			title:           state.title,
 			rawContent:      raw,
 			contentViewport: &vp,
-		}
-		if next.title == "" {
-			next.title = label
-		}
-		if next.label == "" {
-			next.label = next.title
-		}
-		m.detailStack = append(m.detailStack, next)
-		if next.label != "" {
-			m.breadcrumbs = append(m.breadcrumbs, next.label)
-		}
-		m.clearStatus()
-		return true
+		})
 	}
 
 	childTable := buildChildTable(&state, m.detailViewportWidth(), m.detailViewportHeight(), m.palette)
 
-	next := detailView{
+	return m.pushDetailView(detailView{
 		table:      &childTable,
 		label:      label,
 		parent:     parent,
 		parentType: state.parentType,
 		title:      state.title,
 		child:      &state,
-	}
-
-	if next.title == "" {
-		next.title = label
-	}
-	if next.label == "" {
-		next.label = next.title
-	}
-
-	m.detailStack = append(m.detailStack, next)
-	if next.label != "" {
-		m.breadcrumbs = append(m.breadcrumbs, next.label)
-	}
-	m.clearStatus()
-	return true
+	})
 }
 
-func (m *bubbleModel) pushChildDetailState(state *childViewState, label string, parent any, highlight bool) bool {
+func (m *bubbleModel) pushChildDetailState(state *childViewState, label string, parent any, highlight bool) {
 	if state == nil {
-		return false
+		return
 	}
 
 	raw := ""
@@ -2745,7 +2942,7 @@ func (m *bubbleModel) pushChildDetailState(state *childViewState, label string, 
 		m.palette,
 		highlight,
 	)
-	next := detailView{
+	m.pushDetailView(detailView{
 		table:      &tableModel,
 		items:      items,
 		label:      label,
@@ -2754,20 +2951,7 @@ func (m *bubbleModel) pushChildDetailState(state *childViewState, label string, 
 		title:      state.title,
 		decorator:  decorator,
 		highlight:  highlight,
-	}
-	if next.title == "" {
-		next.title = label
-	}
-	if next.label == "" {
-		next.label = next.title
-	}
-
-	m.detailStack = append(m.detailStack, next)
-	if next.label != "" {
-		m.breadcrumbs = append(m.breadcrumbs, next.label)
-	}
-	m.clearStatus()
-	return true
+	})
 }
 
 func (m *bubbleModel) rebuildDetailItemsTable(detail *detailView, cursor int) {
@@ -2816,7 +3000,7 @@ func (m *bubbleModel) openChildRowDetail(detail *detailView) bool {
 	items = reorderDetailItems(items)
 
 	tableModel, decorator := buildDetailTable(items, m.detailViewportWidth(), m.detailViewportHeight(), m.palette, true)
-	next := detailView{
+	m.pushDetailView(detailView{
 		table:      &tableModel,
 		items:      items,
 		label:      label,
@@ -2825,13 +3009,7 @@ func (m *bubbleModel) openChildRowDetail(detail *detailView) bool {
 		title:      label,
 		decorator:  decorator,
 		highlight:  true,
-	}
-
-	m.detailStack = append(m.detailStack, next)
-	if label != "" {
-		m.breadcrumbs = append(m.breadcrumbs, label)
-	}
-	m.clearStatus()
+	})
 	return true
 }
 
@@ -3014,6 +3192,13 @@ func (m *bubbleModel) buildStatusRows(innerWidth int) []string {
 
 	profile := m.renderProfileLabel()
 
+	if m.pendingRequest.active {
+		pending := strings.TrimSpace(m.renderPendingRequestStatus())
+		if pending != "" {
+			appendStatusRow(&rows, pending, &profile, innerWidth)
+		}
+	}
+
 	if m.searchActive {
 		prompt := strings.TrimSpace(m.searchPrompt)
 		if prompt != "" {
@@ -3025,13 +3210,13 @@ func (m *bubbleModel) buildStatusRows(innerWidth int) []string {
 
 	if msg := strings.TrimSpace(m.statusMessage); msg != "" {
 		statusStyle := lipgloss.NewStyle().Faint(true)
-		rows = append(rows, renderStatusRow(statusStyle.Render(msg), profile, innerWidth))
+		appendStatusRow(&rows, statusStyle.Render(msg), &profile, innerWidth)
 		return rows
 	}
 
 	if footer := strings.TrimSpace(m.footer); footer != "" {
 		statusStyle := lipgloss.NewStyle().Faint(true)
-		rows = append(rows, renderStatusRow(statusStyle.Render(footer), profile, innerWidth))
+		appendStatusRow(&rows, statusStyle.Render(footer), &profile, innerWidth)
 		return rows
 	}
 
@@ -3040,6 +3225,11 @@ func (m *bubbleModel) buildStatusRows(innerWidth int) []string {
 	}
 
 	return rows
+}
+
+func appendStatusRow(rows *[]string, left string, profile *string, width int) {
+	*rows = append(*rows, renderStatusRow(left, *profile, width))
+	*profile = ""
 }
 
 func (m *bubbleModel) renderStatusHint() string {
@@ -3495,6 +3685,61 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 	}
 
 	switch key := msg.(type) {
+	case rowChildLoadedMsg:
+		if pr, duration, ok := m.completeRequest(key.requestID); ok {
+			if key.err != nil {
+				message := fmt.Sprintf("Unable to open: %v", key.err)
+				if duration > 0 {
+					message = fmt.Sprintf("%s (after %s)", message, formatElapsed(duration))
+				}
+				m.setStatus(message)
+			} else {
+				label := m.presentRowChild(key.index, key.child)
+				if trimmed := strings.TrimSpace(label); trimmed != "" {
+					label = trimmed
+				} else if trimmed := strings.TrimSpace(pr.label); trimmed != "" {
+					label = trimmed
+				}
+				m.setStatus(fmt.Sprintf("%s loaded in %s", formatRequestLabel(label), formatElapsed(duration)))
+			}
+		}
+		return m, tea.Batch(cmds...)
+	case detailChildLoadedMsg:
+		if pr, duration, ok := m.completeRequest(key.requestID); ok {
+			detail := m.findDetailByID(key.detailID)
+			if key.err != nil {
+				label := formatRequestLabel(pr.label)
+				if detail != nil && key.itemIndex >= 0 && key.itemIndex < len(detail.items) {
+					detail.items[key.itemIndex].Value = fmt.Sprintf("error: %v", key.err)
+					m.rebuildDetailItemsTable(detail, key.itemIndex)
+					label = formatRequestLabel(detail.items[key.itemIndex].Label)
+				}
+				if trimmed := strings.TrimSpace(key.label); trimmed != "" {
+					label = formatRequestLabel(trimmed)
+				}
+				message := fmt.Sprintf("Unable to load %s: %v", label, key.err)
+				if duration > 0 {
+					message = fmt.Sprintf("%s (after %s)", message, formatElapsed(duration))
+				}
+				m.setStatus(message)
+			} else {
+				label := formatRequestLabel(pr.label)
+				if detail != nil && key.itemIndex >= 0 && key.itemIndex < len(detail.items) {
+					label = formatRequestLabel(m.presentDetailChild(detail, key.itemIndex, key.child, key.label))
+				}
+				m.setStatus(fmt.Sprintf("%s loaded in %s", label, formatElapsed(duration)))
+			}
+		}
+		return m, tea.Batch(cmds...)
+	case spinner.TickMsg:
+		if m.pendingRequest.active {
+			var tickCmd tea.Cmd
+			m.spinner, tickCmd = m.spinner.Update(key)
+			if tickCmd != nil {
+				cmds = append(cmds, tickCmd)
+			}
+		}
+		return m, tea.Batch(cmds...)
 	case tea.KeyMsg:
 		if skipKeyProcessing {
 			break
@@ -3538,14 +3783,22 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 				m.popDetailView()
 				return m, tea.Batch(cmds...)
 			case "enter":
-				if m.activateDetailSelection() {
+				handled, detailCmd := m.activateDetailSelection()
+				if handled {
+					if detailCmd != nil {
+						cmds = append(cmds, detailCmd)
+					}
 					return m, tea.Batch(cmds...)
 				}
 			}
 		} else {
 			if key.String() == "enter" {
 				if m.rowLoader != nil {
-					if m.openRowChild() {
+					started, loadCmd := m.openRowChild()
+					if started {
+						if loadCmd != nil {
+							cmds = append(cmds, loadCmd)
+						}
 						return m, tea.Batch(cmds...)
 					}
 				}
