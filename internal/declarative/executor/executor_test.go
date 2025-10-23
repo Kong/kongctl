@@ -183,6 +183,17 @@ func TestExecutor_Execute_NilReporter(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestExecutor_resolveAuthStrategyRef_WithPlaceholder(t *testing.T) {
+	exec := New(nil, nil, false)
+	exec.refToID["application_auth_strategy"] = map[string]string{
+		"key-auth": "abc-123",
+	}
+
+	id, err := exec.resolveAuthStrategyRef(context.Background(), planner.ReferenceInfo{Ref: "__REF__:key-auth#id"})
+	require.NoError(t, err)
+	assert.Equal(t, "abc-123", id)
+}
+
 func TestExecutor_ValidateChangePreExecution_Basic(t *testing.T) {
 	tests := []struct {
 		name          string

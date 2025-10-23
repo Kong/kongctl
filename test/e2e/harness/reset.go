@@ -5,7 +5,6 @@ package harness
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -64,76 +63,21 @@ func resetOrg(stage string, capture bool) error {
 	Infof("Resetting Konnect org at %s", baseURL)
 	client := &http.Client{Timeout: 30 * time.Second}
 
-	// Order can matter; follow provided script order.
-	var details []resetEndpoint
-	tot, del, err := deleteAll(client, baseURL, token, "v2", "application-auth-strategies")
-	if err != nil {
-		if capture {
-			captureResetEvent(
-				stage,
-				true,
-				"error",
-				err.Error(),
-				baseURL,
-				append(details, resetEndpoint{"v2", "application-auth-strategies", tot, del, err.Error()}),
-			)
+	result, err := executeReset(client, baseURL, token)
+	if capture {
+		status := "ok"
+		reason := ""
+		if err != nil {
+			status = "error"
+			reason = err.Error()
 		}
+		captureResetEvent(stage, true, status, reason, baseURL, result.Details)
+	}
+	if err != nil {
 		return err
 	}
-	details = append(details, resetEndpoint{"v2", "application-auth-strategies", tot, del, ""})
-
-	tot, del, err = deleteAll(client, baseURL, token, "v3", "apis")
-	if err != nil {
-		if capture {
-			captureResetEvent(
-				stage,
-				true,
-				"error",
-				err.Error(),
-				baseURL,
-				append(details, resetEndpoint{"v3", "apis", tot, del, err.Error()}),
-			)
-		}
-		return err
-	}
-	details = append(details, resetEndpoint{"v3", "apis", tot, del, ""})
-
-	tot, del, err = deleteAll(client, baseURL, token, "v3", "portals")
-	if err != nil {
-		if capture {
-			captureResetEvent(
-				stage,
-				true,
-				"error",
-				err.Error(),
-				baseURL,
-				append(details, resetEndpoint{"v3", "portals", tot, del, err.Error()}),
-			)
-		}
-		return err
-	}
-	details = append(details, resetEndpoint{"v3", "portals", tot, del, ""})
-
-	tot, del, err = deleteAll(client, baseURL, token, "v2", "control-planes")
-	if err != nil {
-		if capture {
-			captureResetEvent(
-				stage,
-				true,
-				"error",
-				err.Error(),
-				baseURL,
-				append(details, resetEndpoint{"v2", "control-planes", tot, del, err.Error()}),
-			)
-		}
-		return err
-	}
-	details = append(details, resetEndpoint{"v2", "control-planes", tot, del, ""})
 
 	Infof("Reset complete")
-	if capture {
-		captureResetEvent(stage, true, "ok", "", baseURL, details)
-	}
 	return nil
 }
 
@@ -147,26 +91,72 @@ func deleteAll(client *http.Client, baseURL, token, apiVersion, endpoint string)
 	url := fmt.Sprintf("%s/%s/%s", strings.TrimRight(baseURL, "/"), apiVersion, endpoint)
 	Infof("Fetching %s for deletion...", endpoint)
 
-	ids, err := listIDs(client, url, token)
-	if err != nil {
-		return 0, 0, err
-	}
-	if len(ids) == 0 {
-		Infof("No %s found", endpoint)
-		return 0, 0, nil
-	}
-	Infof("Found %d %s", len(ids), endpoint)
+	const maxAttempts = 5
+	const retryDelay = 2 * time.Second
 
-	succ := 0
-	for _, id := range ids {
-		if err := deleteOne(client, url, token, id); err != nil {
-			Warnf("delete %s %s failed: %v", endpoint, id, err)
-		} else {
-			Debugf("deleted %s %s", endpoint, id)
-			succ++
+	total := 0
+	deleted := 0
+	attempt := 0
+
+	for {
+		ids, err := listIDs(client, url, token)
+		if err != nil {
+			return total, deleted, err
 		}
+
+		if len(ids) == 0 {
+			if total == 0 {
+				Infof("No %s found", endpoint)
+				return 0, 0, nil
+			}
+			return total, deleted, nil
+		}
+
+		if attempt == 0 {
+			total = len(ids)
+		} else if len(ids)+deleted > total {
+			total = len(ids) + deleted
+		}
+
+		Infof("Attempt %d deleting %d %s", attempt+1, len(ids), endpoint)
+
+		conflicts := 0
+		for _, id := range ids {
+			if err := deleteOne(client, url, token, id); err != nil {
+				Warnf("delete %s %s failed: %v", endpoint, id, err)
+				if he, ok := err.(*httpError); ok && he.status == http.StatusConflict {
+					conflicts++
+				}
+			} else {
+				Debugf("deleted %s %s", endpoint, id)
+				deleted++
+			}
+		}
+
+		if conflicts == 0 {
+			return total, deleted, nil
+		}
+
+		attempt++
+		if attempt >= maxAttempts {
+			return total, deleted, fmt.Errorf("failed to delete all %s after %d attempts (conflicts remain)", endpoint, maxAttempts)
+		}
+
+		Infof("Retrying deletion of %s (%d conflicts remaining)", endpoint, conflicts)
+		time.Sleep(retryDelay)
 	}
-	return len(ids), succ, nil
+}
+
+type httpError struct {
+	status int
+	body   string
+}
+
+func (e *httpError) Error() string {
+	if e == nil {
+		return ""
+	}
+	return fmt.Sprintf("unexpected status %d: %s", e.status, e.body)
 }
 
 type resetEndpoint struct {
@@ -175,6 +165,48 @@ type resetEndpoint struct {
 	Total      int    `json:"total"`
 	Deleted    int    `json:"deleted"`
 	Error      string `json:"error,omitempty"`
+}
+
+type resetResult struct {
+	Details []resetEndpoint
+}
+
+var resetSequence = []struct {
+	Version  string
+	Endpoint string
+}{
+	{"v3", "apis"},
+	{"v3", "portals"},
+	{"v2", "application-auth-strategies"},
+	{"v2", "control-planes"},
+}
+
+func executeReset(client *http.Client, baseURL, token string) (resetResult, error) {
+	var result resetResult
+	var firstErr error
+
+	for _, step := range resetSequence {
+		tot, del, err := deleteAll(client, baseURL, token, step.Version, step.Endpoint)
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
+		result.Details = append(result.Details, resetEndpoint{
+			APIVersion: step.Version,
+			Endpoint:   step.Endpoint,
+			Total:      tot,
+			Deleted:    del,
+			Error:      errorString(err),
+		})
+	}
+
+	return result, firstErr
+}
+
+func errorString(err error) string {
+	if err != nil {
+		return err.Error()
+	}
+	return ""
 }
 
 func captureResetEvent(
@@ -296,7 +328,7 @@ func deleteOne(client *http.Client, baseURL, token, id string) error {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		b, _ := io.ReadAll(resp.Body)
-		return errors.New(fmt.Sprintf("unexpected status %d: %s", resp.StatusCode, strings.TrimSpace(string(b))))
+		return &httpError{status: resp.StatusCode, body: strings.TrimSpace(string(b))}
 	}
 	return nil
 }
