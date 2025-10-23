@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/attributes"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -216,6 +218,9 @@ func extractAPIFields(resource any) map[string]any {
 	if api.Version != nil {
 		fields["version"] = *api.Version
 	}
+	if api.Slug != nil {
+		fields["slug"] = *api.Slug
+	}
 
 	// Copy user-defined labels only (protection label will be added during execution)
 	if len(api.Labels) > 0 {
@@ -224,6 +229,14 @@ func extractAPIFields(resource any) map[string]any {
 			labelsMap[k] = v
 		}
 		fields["labels"] = labelsMap
+	}
+
+	if api.Attributes != nil {
+		if normalized, ok := attributes.NormalizeAPIAttributes(api.Attributes); ok {
+			fields["attributes"] = normalized
+		} else {
+			fields["attributes"] = api.Attributes
+		}
 	}
 
 	return fields
@@ -307,6 +320,23 @@ func (p *Planner) shouldUpdateAPI(
 		}
 	}
 
+	// Check slug differences when configured
+	if desired.Slug != nil {
+		currentSlug := getString(current.Slug)
+		if currentSlug != *desired.Slug {
+			updates["slug"] = *desired.Slug
+		}
+	}
+
+	// Check attributes when provided in desired state
+	if desired.Attributes != nil {
+		desiredAttrs := normalizeAPIAttributesForPlan(desired.Attributes)
+		currentAttrs := normalizeAPIAttributesForPlan(current.Attributes)
+		if !attributesEqual(currentAttrs, desiredAttrs) {
+			updates["attributes"] = desiredAttrs
+		}
+	}
+
 	return len(updates) > 0, updates
 }
 
@@ -352,6 +382,34 @@ func (p *Planner) planAPIUpdateWithFields(
 	}
 
 	plan.AddChange(change)
+}
+
+func normalizeAPIAttributesForPlan(raw any) any {
+	if normalized, ok := attributes.NormalizeAPIAttributes(raw); ok {
+		return normalized
+	}
+	return raw
+}
+
+func attributesEqual(current, desired any) bool {
+	current = normalizeAPIAttributesForPlan(current)
+	desired = normalizeAPIAttributesForPlan(desired)
+
+	if current == nil && desired == nil {
+		return true
+	}
+
+	currentJSON, err := normalizers.SpecToJSON(current)
+	if err != nil {
+		return reflect.DeepEqual(current, desired)
+	}
+
+	desiredJSON, err := normalizers.SpecToJSON(desired)
+	if err != nil {
+		return reflect.DeepEqual(current, desired)
+	}
+
+	return currentJSON == desiredJSON
 }
 
 // planAPIProtectionChangeWithFields creates an UPDATE for protection status with optional field updates

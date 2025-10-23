@@ -30,8 +30,11 @@ steps:
         match: "apis[?ref=='simple-api'] | [0]"
         set:
           attributes:
-            owner: "Portal Team"
-            lifecycle: "ga"
+            owner:
+              - "Portal Team"
+            lifecycle:
+              - "ga"
+          slug: "simple-api-with-attributes"
     commands:
       - name: 000-apply
         run:
@@ -44,14 +47,15 @@ steps:
             select: "plan.changes[?resource_type=='api' && resource_ref=='simple-api'] | [0]"
             expect:
               fields:
-                "fields.attributes.owner": "Portal Team"
-                "fields.attributes.lifecycle": "ga"
+                "fields.attributes.owner": ["Portal Team"]
+                "fields.attributes.lifecycle": ["ga"]
+                "fields.slug": "simple-api-with-attributes"
           - name: api-applied-change
             select: "execution.applied_changes[?resource_type=='api' && resource_ref=='simple-api'] | [0]"
             expect:
               fields:
-                "fields.attributes.owner": "Portal Team"
-                "fields.attributes.lifecycle": "ga"
+                action: "CREATE"
+                resource_name: "Simple API"
       - name: 001-get-apis
         run:
           - get
@@ -60,5 +64,6 @@ steps:
           - select: "[?name=='{{ .vars.apiName }}'] | [0]"
             expect:
               fields:
-                "attributes.owner": "Portal Team"
-                "attributes.lifecycle": "ga"
+                "attributes.owner": ["Portal Team"]
+                "attributes.lifecycle": ["ga"]
+                "slug": "simple-api-with-attributes"

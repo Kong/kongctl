@@ -4,6 +4,7 @@ import (
 	"context"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/attributes"
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
@@ -34,10 +35,19 @@ func (p *APIAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContex
 	// Map optional fields using utilities (SDK uses double pointers)
 	common.MapOptionalStringFieldToPtr(&create.Description, fields, "description")
 	common.MapOptionalStringFieldToPtr(&create.Version, fields, "version")
+	common.MapOptionalStringFieldToPtr(&create.Slug, fields, "slug")
 
 	// Handle labels using centralized helper
 	userLabels := labels.ExtractLabelsFromField(fields["labels"])
 	create.Labels = labels.BuildCreateLabels(userLabels, namespace, protection)
+
+	if attrs, ok := fields["attributes"]; ok {
+		if normalized, ok := attributes.NormalizeAPIAttributes(attrs); ok {
+			create.Attributes = normalized
+		} else {
+			create.Attributes = attrs
+		}
+	}
 
 	return nil
 }
@@ -66,6 +76,10 @@ func (p *APIAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContex
 			if version, ok := value.(string); ok {
 				update.Version = &version
 			}
+		case "slug":
+			if slug, ok := value.(string); ok {
+				update.Slug = &slug
+			}
 			// Skip "labels" as they're handled separately below
 		}
 	}
@@ -84,6 +98,14 @@ func (p *APIAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContex
 	} else if currentLabels != nil {
 		// If no labels in change, preserve existing labels with updated protection
 		update.Labels = labels.BuildUpdateLabels(currentLabels, currentLabels, namespace, protection)
+	}
+
+	if attrs, ok := fields["attributes"]; ok {
+		if normalized, ok := attributes.NormalizeAPIAttributes(attrs); ok {
+			update.Attributes = normalized
+		} else {
+			update.Attributes = attrs
+		}
 	}
 
 	return nil
