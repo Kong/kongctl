@@ -477,15 +477,28 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 
 // resolveAuthStrategyRef resolves an auth strategy reference to its ID
 func (e *Executor) resolveAuthStrategyRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
+	lookupRef := refInfo.Ref
+	if tags.IsRefPlaceholder(lookupRef) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+			lookupRef = parsedRef
+		}
+	}
+
 	// First check if it was created in this execution
 	if authStrategies, ok := e.refToID["application_auth_strategy"]; ok {
-		if id, found := authStrategies[refInfo.Ref]; found {
+		if id, found := authStrategies[lookupRef]; found {
 			return id, nil
+		}
+		// Fallback to original ref in case older executions stored placeholders
+		if lookupRef != refInfo.Ref {
+			if id, found := authStrategies[refInfo.Ref]; found {
+				return id, nil
+			}
 		}
 	}
 
 	// Determine the lookup value - use name from lookup fields if available
-	lookupValue := refInfo.Ref
+	lookupValue := lookupRef
 	if refInfo.LookupFields != nil {
 		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
 			lookupValue = name

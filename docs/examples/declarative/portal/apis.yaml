@@ -48,6 +48,8 @@ apis:
       - ref: sms-api-to-getting-started
         portal_id: !ref getting-started-portal#id
         visibility: public
+        auth_strategy_ids:
+          - !ref key-auth#id 
 
   - ref: voice
     name: !file apis/voice/openapi.yaml#info.title

@@ -621,90 +621,32 @@ func (s *Step) ResetOrg(stage string) error {
 	}
 
 	client := &http.Client{Timeout: 30 * time.Second}
-	details := []map[string]any{}
-	var firstErr error
-	// application-auth-strategies
-	tot1, del1, err1 := deleteAll(client, baseURL, token, "v2", "application-auth-strategies")
-	if err1 != nil {
-		firstErr = err1
+	result, err := executeReset(client, baseURL, token)
+	details := make([]map[string]any, 0, len(result.Details))
+	for _, d := range result.Details {
+		details = append(details, map[string]any{
+			"api_version": d.APIVersion,
+			"endpoint":    d.Endpoint,
+			"total":       d.Total,
+			"deleted":     d.Deleted,
+			"error":       d.Error,
+		})
 	}
-	details = append(
-		details,
-		map[string]any{
-			"api_version": "v2",
-			"endpoint":    "application-auth-strategies",
-			"total":       tot1,
-			"deleted":     del1,
-			"error":       errorString(err1),
-		},
-	)
-	// apis
-	tot2, del2, err2 := deleteAll(client, baseURL, token, "v3", "apis")
-	if err2 != nil && firstErr == nil {
-		firstErr = err2
-	}
-	details = append(
-		details,
-		map[string]any{
-			"api_version": "v3",
-			"endpoint":    "apis",
-			"total":       tot2,
-			"deleted":     del2,
-			"error":       errorString(err2),
-		},
-	)
-	// portals
-	tot3, del3, err3 := deleteAll(client, baseURL, token, "v3", "portals")
-	if err3 != nil && firstErr == nil {
-		firstErr = err3
-	}
-	details = append(
-		details,
-		map[string]any{
-			"api_version": "v3",
-			"endpoint":    "portals",
-			"total":       tot3,
-			"deleted":     del3,
-			"error":       errorString(err3),
-		},
-	)
-	// control-planes
-	tot4, del4, err4 := deleteAll(client, baseURL, token, "v2", "control-planes")
-	if err4 != nil && firstErr == nil {
-		firstErr = err4
-	}
-	details = append(
-		details,
-		map[string]any{
-			"api_version": "v2",
-			"endpoint":    "control-planes",
-			"total":       tot4,
-			"deleted":     del4,
-			"error":       errorString(err4),
-		},
-	)
 
 	status := "ok"
-	if firstErr != nil {
+	reason := ""
+	if err != nil {
 		status = "error"
+		reason = err.Error()
 	}
 	obs := map[string]any{
 		"type":     "reset_summary",
 		"executed": true,
 		"status":   status,
+		"reason":   reason,
 		"base_url": baseURL,
 		"details":  details,
 	}
 	_ = s.writePrettyJSON(filepath.Join(dir, "observation.json"), obs)
-	if firstErr != nil {
-		return firstErr
-	}
-	return nil
-}
-
-func errorString(err error) string {
-	if err != nil {
-		return err.Error()
-	}
-	return ""
+	return err
 }
