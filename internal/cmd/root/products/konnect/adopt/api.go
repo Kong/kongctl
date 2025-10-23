@@ -152,7 +152,7 @@ func adoptAPI(
 
 	updated := resp.APIResponseSchema
 	if updated == nil {
-		return nil, fmt.Errorf("update API response missing data")
+		return nil, cmdpkg.PrepareExecutionErrorMsg(helper, "update API response missing data")
 	}
 
 	ns := namespace
@@ -186,7 +186,7 @@ func resolveAPI(
 		}
 		api := res.GetAPIResponseSchema()
 		if api == nil {
-			return nil, fmt.Errorf("API %s not found", identifier)
+			return nil, cmdpkg.PrepareExecutionErrorMsg(helper, fmt.Sprintf("API %s not found", identifier))
 		}
 		return api, nil
 	}

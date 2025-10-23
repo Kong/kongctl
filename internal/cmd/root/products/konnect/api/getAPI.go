@@ -322,7 +322,8 @@ func runListByName(name string, kkClient helpers.APIAPI, helper cmd.Helper,
 		pageNumber++
 	}
 
-	return nil, fmt.Errorf("API with name %s not found", name)
+	return nil, cmd.PrepareExecutionErrorMsg(helper,
+		fmt.Sprintf("API with name %s not found", name))
 }
 
 func runList(kkClient helpers.APIAPI, helper cmd.Helper,

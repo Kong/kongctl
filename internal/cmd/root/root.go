@@ -376,14 +376,11 @@ func initConfig() {
 		util.CheckError(err)
 		logFile = file
 		fileHandler := slog.NewTextHandler(file, loggerOpts)
-
-		errorOpts := *loggerOpts
-		errorOpts.Level = slog.LevelError
-		errorHandler := slog.NewTextHandler(streams.ErrOut, &errorOpts)
+		errorHandler := log.NewFriendlyErrorHandler(streams.ErrOut)
 
 		handler = log.NewDualHandler(fileHandler, errorHandler)
 	} else {
-		handler = slog.NewTextHandler(streams.ErrOut, loggerOpts)
+		handler = log.NewFriendlyErrorHandler(streams.ErrOut)
 	}
 
 	logger = slog.New(handler)

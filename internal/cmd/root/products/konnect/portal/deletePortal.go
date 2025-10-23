@@ -116,7 +116,7 @@ func (c *deletePortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 			return cmd.PrepareExecutionError("Failed to get portal details", err, helper.GetCmd(), attrs...)
 		}
 		if portalResponse.GetPortalResponse() == nil {
-			return fmt.Errorf("portal not found: %s", portalID)
+			return cmd.PrepareExecutionErrorMsg(helper, fmt.Sprintf("portal not found: %s", portalID))
 		}
 		// Convert PortalResponse to Portal for consistency
 		pr := portalResponse.GetPortalResponse()
@@ -130,7 +130,7 @@ func (c *deletePortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	// Show confirmation prompt unless --auto-approve
 	if !c.autoApprove {
 		if !c.confirmDeletion(portal, helper) {
-			return fmt.Errorf("delete cancelled")
+			return cmd.PrepareExecutionErrorMsg(helper, "delete cancelled")
 		}
 	}
 
@@ -215,7 +215,8 @@ func (c *deletePortalCmd) resolvePortalByName(
 		}
 
 		if len(matches) > 1 {
-			return nil, fmt.Errorf("multiple portals found with name '%s'. Please use ID instead", name)
+			return nil, cmd.PrepareExecutionErrorMsg(helper,
+				fmt.Sprintf("multiple portals found with name '%s'. Please use ID instead", name))
 		}
 
 		if len(matches) == 1 {
@@ -231,7 +232,7 @@ func (c *deletePortalCmd) resolvePortalByName(
 		pageNumber++
 	}
 
-	return nil, fmt.Errorf("portal not found: %s", name)
+	return nil, cmd.PrepareExecutionErrorMsg(helper, fmt.Sprintf("portal not found: %s", name))
 }
 
 func (c *deletePortalCmd) confirmDeletion(portal *kkComps.Portal, helper cmd.Helper) bool {

@@ -79,12 +79,13 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 
 	resp, err := auth.RequestDeviceCode(httpClient, authURL, clientID, logger)
 	if err != nil {
-		return err
+		return cmd.PrepareExecutionErrorWithHelper(helper, "failed to request device code", err)
 	}
 
 	if resp.UserCode == "" || resp.VerificationURI == "" || resp.VerificationURIComplete == "" ||
 		resp.Interval == 0 || resp.ExpiresIn == 0 {
-		return fmt.Errorf("invalid device code request response from Konnect: %v", resp)
+		return cmd.PrepareExecutionErrorMsg(helper,
+			fmt.Sprintf("invalid device code request response from Konnect: %v", resp))
 	}
 
 	displayUserInstructions(resp)
@@ -108,18 +109,17 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 			continue
 		}
 		if err != nil {
-			return err
+			return cmd.PrepareExecutionErrorWithHelper(helper, "failed to poll for token", err)
 		}
 
 		if time.Now().After(expiresAt) {
-			return fmt.Errorf("%s: %w", "device authorization request has expired", err)
+			return cmd.PrepareExecutionErrorMsg(helper, "device authorization request has expired")
 		}
 
 		if pollResp != nil && pollResp.Token.AuthToken != "" {
 			fmt.Println("\nUser successfully authorized")
-			err := auth.SaveAccessToken(cfg, pollResp)
-			if err != nil {
-				return fmt.Errorf("%s: %w", "failed to save tokens", err)
+			if err := auth.SaveAccessToken(cfg, pollResp); err != nil {
+				return cmd.PrepareExecutionErrorWithHelper(helper, "failed to save tokens", err)
 			}
 			break
 		}
