@@ -1,0 +1,64 @@
+baseInputsPath: ../../../testdata/declarative/portal/basic
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  apiName: "Simple API"
+
+defaults:
+  retry:
+    attempts: 6
+    interval: "1500ms"
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - resource_id
+      - change_id
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-with-attributes
+    inputOverlayOps:
+      - file: "api.yaml"
+        match: "apis[?ref=='simple-api'] | [0]"
+        set:
+          attributes:
+            owner: "Portal Team"
+            lifecycle: "ga"
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - --auto-approve
+        assertions:
+          - name: api-plan-change
+            select: "plan.changes[?resource_type=='api' && resource_ref=='simple-api'] | [0]"
+            expect:
+              fields:
+                "fields.attributes.owner": "Portal Team"
+                "fields.attributes.lifecycle": "ga"
+          - name: api-applied-change
+            select: "execution.applied_changes[?resource_type=='api' && resource_ref=='simple-api'] | [0]"
+            expect:
+              fields:
+                "fields.attributes.owner": "Portal Team"
+                "fields.attributes.lifecycle": "ga"
+      - name: 001-get-apis
+        run:
+          - get
+          - apis
+        assertions:
+          - select: "[?name=='{{ .vars.apiName }}'] | [0]"
+            expect:
+              fields:
+                "attributes.owner": "Portal Team"
+                "attributes.lifecycle": "ga"
