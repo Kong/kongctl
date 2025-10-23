@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -85,9 +86,7 @@ func (r *CommandHelper) GetLogger() (*slog.Logger, error) {
 func (r *CommandHelper) GetVerb() (verbs.VerbValue, error) {
 	verbVal := r.Cmd.Context().Value(verbs.Verb)
 	if verbVal == nil {
-		return "", &ExecutionError{
-			Err: fmt.Errorf("no verb found in context"),
-		}
+		return "", PrepareExecutionErrorMsg(r, "no verb found in context")
 	}
 	return verbVal.(verbs.VerbValue), nil
 }
@@ -95,9 +94,7 @@ func (r *CommandHelper) GetVerb() (verbs.VerbValue, error) {
 func (r *CommandHelper) GetProduct() (products.ProductValue, error) {
 	prdVal := r.Cmd.Context().Value(products.Product)
 	if prdVal == nil {
-		return "", &ExecutionError{
-			Err: fmt.Errorf("no product found in context"),
-		}
+		return "", PrepareExecutionErrorMsg(r, "no product found in context")
 	}
 	return prdVal.(products.ProductValue), nil
 }
@@ -109,9 +106,7 @@ func (r *CommandHelper) GetStreams() *iostreams.IOStreams {
 func (r *CommandHelper) GetConfig() (config.Hook, error) {
 	cfgVal := r.Cmd.Context().Value(config.ConfigKey)
 	if cfgVal == nil {
-		return nil, &ExecutionError{
-			Err: fmt.Errorf("no config found in context"),
-		}
+		return nil, PrepareExecutionErrorMsg(r, "no config found in context")
 	}
 	return cfgVal.(config.Hook), nil
 }
@@ -157,7 +152,12 @@ func (r *CommandHelper) GetContext() context.Context {
 }
 
 func (r *CommandHelper) GetKonnectSDK(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
-	return r.Cmd.Context().Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)(cfg, logger)
+	factory := r.Cmd.Context().Value(helpers.SDKAPIFactoryKey).(helpers.SDKAPIFactory)
+	sdk, err := factory(cfg, logger)
+	if err != nil {
+		return nil, PrepareExecutionErrorFromErr(r, err)
+	}
+	return sdk, nil
 }
 
 func BuildHelper(cmd *cobra.Command, args []string) Helper {
@@ -208,10 +208,44 @@ func TryConvertErrorToAttrs(err error) []any {
 	return attrs
 }
 
+// PrepareExecutionErrorWithHelper mirrors PrepareExecutionError but accepts a Helper.
+// It ensures command usage/error output is silenced for runtime failures.
+func PrepareExecutionErrorWithHelper(helper Helper, msg string, err error, attrs ...any) *ExecutionError {
+	if helper == nil {
+		return PrepareExecutionError(msg, err, nil, attrs...)
+	}
+	return PrepareExecutionError(msg, err, helper.GetCmd(), attrs...)
+}
+
+// PrepareExecutionErrorFromErr converts an arbitrary error into an ExecutionError while
+// silencing usage/error output on the associated command. The friendly message defaults
+// to the underlying error string when msg is empty.
+func PrepareExecutionErrorFromErr(helper Helper, err error, attrs ...any) *ExecutionError {
+	if err == nil {
+		return nil
+	}
+	msg := err.Error()
+	return PrepareExecutionErrorWithHelper(helper, msg, err, attrs...)
+}
+
+// PrepareExecutionErrorMsg builds an ExecutionError from a message when a backing error
+// is not already available.
+func PrepareExecutionErrorMsg(helper Helper, msg string, attrs ...any) *ExecutionError {
+	if msg == "" {
+		msg = "an unknown error occurred"
+	}
+	return PrepareExecutionErrorWithHelper(helper, msg, errors.New(msg), attrs...)
+}
+
 // This will construct an execution error AND turn off error and usage output for the command
 func PrepareExecutionError(msg string, err error, cmd *cobra.Command, attrs ...any) *ExecutionError {
-	cmd.SilenceUsage = true
-	cmd.SilenceErrors = true
+	if cmd != nil {
+		cmd.SilenceUsage = true
+		cmd.SilenceErrors = true
+	}
+	if msg == "" && err != nil {
+		msg = err.Error()
+	}
 
 	return &ExecutionError{
 		Msg:   msg,
