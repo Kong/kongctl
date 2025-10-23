@@ -110,7 +110,7 @@ func (h *friendlyHandler) clone() *friendlyHandler {
 }
 
 func (h *friendlyHandler) collectEntries(record slog.Record) []attrEntry {
-	entries := make([]attrEntry, 0, len(h.attrs)+int(record.NumAttrs()))
+	entries := make([]attrEntry, 0, len(h.attrs)+record.NumAttrs())
 
 	for _, attr := range h.attrs {
 		entries = append(entries, attrEntry{
@@ -145,12 +145,21 @@ func (h *friendlyHandler) attrValueToString(val slog.Value) string {
 		return val.String()
 	case slog.KindInt64, slog.KindUint64, slog.KindFloat64, slog.KindBool, slog.KindDuration, slog.KindTime:
 		return val.String()
+	case slog.KindGroup:
+		groupVals := val.Group()
+		parts := make([]string, 0, len(groupVals))
+		for _, attr := range groupVals {
+			parts = append(parts, fmt.Sprintf("%s=%s", attr.Key, h.attrValueToString(attr.Value)))
+		}
+		return strings.Join(parts, ", ")
+	case slog.KindLogValuer:
+		return h.attrValueToString(val.Resolve())
 	case slog.KindAny:
-		any := val.Any()
-		if err, ok := any.(error); ok {
+		raw := val.Any()
+		if err, ok := raw.(error); ok {
 			return err.Error()
 		}
-		return fmt.Sprint(any)
+		return fmt.Sprint(raw)
 	default:
 		return val.String()
 	}
