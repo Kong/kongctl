@@ -330,8 +330,14 @@ func (p *Planner) shouldUpdateAPI(
 
 	// Check attributes when provided in desired state
 	if desired.Attributes != nil {
-		desiredAttrs := normalizeAPIAttributesForPlan(desired.Attributes)
-		currentAttrs := normalizeAPIAttributesForPlan(current.Attributes)
+		desiredAttrs := desired.Attributes
+		if normalized, ok := attributes.NormalizeAPIAttributes(desired.Attributes); ok {
+			desiredAttrs = normalized
+		}
+		currentAttrs := current.Attributes
+		if normalized, ok := attributes.NormalizeAPIAttributes(current.Attributes); ok {
+			currentAttrs = normalized
+		}
 		if !attributesEqual(currentAttrs, desiredAttrs) {
 			updates["attributes"] = desiredAttrs
 		}
@@ -384,16 +390,13 @@ func (p *Planner) planAPIUpdateWithFields(
 	plan.AddChange(change)
 }
 
-func normalizeAPIAttributesForPlan(raw any) any {
-	if normalized, ok := attributes.NormalizeAPIAttributes(raw); ok {
-		return normalized
-	}
-	return raw
-}
-
 func attributesEqual(current, desired any) bool {
-	current = normalizeAPIAttributesForPlan(current)
-	desired = normalizeAPIAttributesForPlan(desired)
+	if normalized, ok := attributes.NormalizeAPIAttributes(current); ok {
+		current = normalized
+	}
+	if normalized, ok := attributes.NormalizeAPIAttributes(desired); ok {
+		desired = normalized
+	}
 
 	if current == nil && desired == nil {
 		return true
