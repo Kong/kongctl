@@ -232,15 +232,20 @@ func PrepareExecutionErrorFromErr(helper Helper, err error, attrs ...any) *Execu
 // is not already available.
 func PrepareExecutionErrorMsg(helper Helper, msg string, attrs ...any) *ExecutionError {
 	if msg == "" {
-		return PrepareExecutionErrorWithHelper(helper, msg, errors.New("an unknown error occurred"), attrs...)
+		msg = "an unknown error occurred"
 	}
 	return PrepareExecutionErrorWithHelper(helper, msg, errors.New(msg), attrs...)
 }
 
 // This will construct an execution error AND turn off error and usage output for the command
 func PrepareExecutionError(msg string, err error, cmd *cobra.Command, attrs ...any) *ExecutionError {
-	cmd.SilenceUsage = true
-	cmd.SilenceErrors = true
+	if cmd != nil {
+		cmd.SilenceUsage = true
+		cmd.SilenceErrors = true
+	}
+	if msg == "" && err != nil {
+		msg = err.Error()
+	}
 
 	return &ExecutionError{
 		Msg:   msg,
