@@ -1,3 +1,8 @@
+---
+title: "Example Page Banner"
+description: "An example of a page banner reusable snippet."
+---
+
 ::page-hero
 ---
 full-width: true
@@ -12,10 +17,10 @@ background-color: "var(--kui-color-background-primary-weakest)"
 padding: "20px 0px"
 ---
 #title
-Explore our APIs
+  Explore our APIs
 
 #description
-Connect, create, and innovate with our easy-to-use APIs.
+  Connect, create, and innovate with our easy-to-use APIs.
 
 #actions
   :::button
@@ -24,7 +29,7 @@ Connect, create, and innovate with our easy-to-use APIs.
   appearance: "primary"
   size: "large"
   ---
-  Start building
+    Start building
   :::
 ::
 
