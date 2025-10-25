@@ -11,11 +11,16 @@ import (
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
+	"github.com/kong/kongctl/internal/util"
 )
 
 // portalPlannerImpl implements planning logic for portal resources
 type portalPlannerImpl struct {
 	*BasePlanner
+}
+
+func resourcePortalName(portal resources.PortalResource) string {
+	return portal.GetMoniker()
 }
 
 // NewPortalPlanner creates a new portal planner
@@ -50,7 +55,11 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 	// Index current portals by name
 	currentByName := make(map[string]state.Portal)
 	for _, portal := range currentPortals {
-		currentByName[portal.Name] = portal
+		name := statePortalDisplayName(portal)
+		if name == "" {
+			continue
+		}
+		currentByName[name] = portal
 	}
 
 	// Collect protection validation errors
@@ -64,13 +73,17 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 			// If we have a resolved Konnect ID, plan full child diffs (including deletes in sync mode)
 			if portalID := desiredPortal.GetKonnectID(); portalID != "" {
 				// Build a minimal current portal for child planning
+				name := resourcePortalName(desiredPortal)
 				current := state.Portal{
-					Portal:           kkComps.Portal{ID: portalID, Name: desiredPortal.Name},
+					ListPortalsResponsePortal: kkComps.ListPortalsResponsePortal{
+						ID:   portalID,
+						Name: &name,
+					},
 					NormalizedLabels: map[string]string{},
 				}
 				p.planner.logger.Debug("Planning children for external portal",
 					slog.String("ref", desiredPortal.GetRef()),
-					slog.String("name", desiredPortal.Name),
+					slog.String("name", name),
 					slog.String("id", portalID),
 				)
 				if err := p.planPortalChildResourceChanges(ctx, plannerCtx, current, desiredPortal, plan); err != nil {
@@ -81,7 +94,7 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 				p.planner.logger.Debug(
 					"External portal without resolved ID; planning child creates only",
 					slog.String("ref", desiredPortal.GetRef()),
-					slog.String("name", desiredPortal.Name),
+					slog.String("name", resourcePortalName(desiredPortal)),
 				)
 				p.planPortalChildResourcesCreate(ctx, plannerCtx, desiredPortal, "", plan)
 				// Add plan warning to clarify limitations (wrapped for lll)
@@ -95,7 +108,8 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 			continue
 		}
 
-		current, exists := currentByName[desiredPortal.Name]
+		desiredName := resourcePortalName(desiredPortal)
+		current, exists := currentByName[desiredName]
 
 		if !exists {
 			// CREATE action
@@ -124,7 +138,7 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 				}
 
 				// Validate protection change
-				err := p.ValidateProtectionWithChange("portal", desiredPortal.Name, isProtected, ActionUpdate,
+				err := p.ValidateProtectionWithChange("portal", desiredName, isProtected, ActionUpdate,
 					protectionChange, needsUpdate)
 				protectionErrors.Add(err)
 				if err == nil {
@@ -135,7 +149,7 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 				needsUpdate, updateFields := p.shouldUpdatePortal(current, desiredPortal)
 				if needsUpdate {
 					// Regular update - check protection
-					err := p.ValidateProtection("portal", desiredPortal.Name, isProtected, ActionUpdate)
+					err := p.ValidateProtection("portal", desiredName, isProtected, ActionUpdate)
 					protectionErrors.Add(err)
 					if err == nil {
 						p.planPortalUpdateWithFields(current, desiredPortal, updateFields, plan)
@@ -155,7 +169,11 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 		// Build set of desired portal names
 		desiredNames := make(map[string]bool)
 		for _, portal := range desired {
-			desiredNames[portal.Name] = true
+			name := resourcePortalName(portal)
+			if name == "" {
+				continue
+			}
+			desiredNames[name] = true
 		}
 
 		// Find managed portals not in desired state
@@ -192,7 +210,7 @@ func extractPortalFields(resource any) map[string]any {
 		return fields
 	}
 
-	fields["name"] = portal.Name
+	fields["name"] = resourcePortalName(portal)
 	if portal.DisplayName != nil {
 		fields["display_name"] = *portal.DisplayName
 	}
@@ -279,7 +297,7 @@ func (p *portalPlannerImpl) planPortalCreate(portal resources.PortalResource, pl
 
 	config := CreateConfig{
 		ResourceType:   "portal",
-		ResourceName:   portal.Name,
+		ResourceName:   resourcePortalName(portal),
 		ResourceRef:    portal.GetRef(),
 		RequiredFields: []string{"name"},
 		FieldExtractor: func(_ any) map[string]any {
@@ -355,12 +373,13 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 
 	// Only compare fields present in desired configuration
 	if desired.DisplayName != nil {
-		if current.DisplayName != *desired.DisplayName {
+		currentDisplayName := util.StringValue(current.GetDisplayName())
+		if currentDisplayName != *desired.DisplayName {
 			updates["display_name"] = *desired.DisplayName
 		}
 	}
 	if desired.Description != nil {
-		currentDesc := p.GetString(current.Description)
+		currentDesc := util.StringValue(current.GetDescription())
 		if currentDesc != *desired.Description {
 			updates["description"] = *desired.Description
 		}
@@ -380,25 +399,25 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 	}
 
 	if desired.AuthenticationEnabled != nil {
-		if current.AuthenticationEnabled != *desired.AuthenticationEnabled {
+		if util.BoolValue(current.GetAuthenticationEnabled()) != *desired.AuthenticationEnabled {
 			updates["authentication_enabled"] = *desired.AuthenticationEnabled
 		}
 	}
 
 	if desired.RbacEnabled != nil {
-		if current.RbacEnabled != *desired.RbacEnabled {
+		if util.BoolValue(current.GetRbacEnabled()) != *desired.RbacEnabled {
 			updates["rbac_enabled"] = *desired.RbacEnabled
 		}
 	}
 
 	if desired.AutoApproveDevelopers != nil {
-		if current.AutoApproveDevelopers != *desired.AutoApproveDevelopers {
+		if util.BoolValue(current.GetAutoApproveDevelopers()) != *desired.AutoApproveDevelopers {
 			updates["auto_approve_developers"] = *desired.AutoApproveDevelopers
 		}
 	}
 
 	if desired.AutoApproveApplications != nil {
-		if current.AutoApproveApplications != *desired.AutoApproveApplications {
+		if util.BoolValue(current.GetAutoApproveApplications()) != *desired.AutoApproveApplications {
 			updates["auto_approve_applications"] = *desired.AutoApproveApplications
 		}
 	}
@@ -454,7 +473,7 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 	plan *Plan,
 ) {
 	// Always include name for identification
-	updateFields["name"] = current.Name
+	updateFields["name"] = statePortalDisplayName(current)
 
 	// Pass current labels so executor can properly handle removals
 	if _, hasLabels := updateFields["labels"]; hasLabels {
@@ -469,7 +488,7 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 
 	config := UpdateConfig{
 		ResourceType:   "portal",
-		ResourceName:   desired.Name,
+		ResourceName:   resourcePortalName(desired),
 		ResourceRef:    desired.GetRef(),
 		ResourceID:     current.ID,
 		CurrentFields:  nil, // Not needed for direct update
@@ -483,7 +502,7 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 		// During tests, generic planner might not be initialized
 		// Fall back to inline implementation
 		fields := make(map[string]any)
-		fields["name"] = current.Name
+		fields["name"] = statePortalDisplayName(current)
 		for field, newValue := range updateFields {
 			fields[field] = newValue
 		}
@@ -544,7 +563,7 @@ func (p *portalPlannerImpl) planPortalProtectionChangeWithFields(
 	// Use generic protection change planner
 	config := ProtectionChangeConfig{
 		ResourceType: "portal",
-		ResourceName: desired.Name,
+		ResourceName: resourcePortalName(desired),
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
 		OldProtected: wasProtected,
@@ -575,7 +594,7 @@ func (p *portalPlannerImpl) planPortalProtectionChangeWithFields(
 
 	// Always include name field for identification
 	fields := make(map[string]any)
-	fields["name"] = current.Name
+	fields["name"] = statePortalDisplayName(current)
 
 	// Include any field updates if unprotecting
 	if wasProtected && !shouldProtect && len(updateFields) > 0 {
@@ -599,22 +618,23 @@ func (p *portalPlannerImpl) planPortalDelete(portal state.Portal, plan *Plan) {
 	generic := p.GetGenericPlanner()
 	var change PlannedChange
 
+	portalName := statePortalDisplayName(portal)
 	if generic != nil {
 		config := DeleteConfig{
 			ResourceType: "portal",
-			ResourceName: portal.Name,
-			ResourceRef:  portal.Name,
+			ResourceName: portalName,
+			ResourceRef:  portalName,
 			ResourceID:   portal.ID,
 			Namespace:    namespace,
 		}
 		change = generic.PlanDelete(context.Background(), config)
 	} else {
 		// Fallback for tests
-		changeID := p.NextChangeID(ActionDelete, "portal", portal.Name)
+		changeID := p.NextChangeID(ActionDelete, "portal", portalName)
 		change = PlannedChange{
 			ID:           changeID,
 			ResourceType: "portal",
-			ResourceRef:  portal.Name,
+			ResourceRef:  portalName,
 			ResourceID:   portal.ID,
 			Action:       ActionDelete,
 			Namespace:    namespace,
@@ -622,7 +642,7 @@ func (p *portalPlannerImpl) planPortalDelete(portal state.Portal, plan *Plan) {
 	}
 
 	// Add the name field for backward compatibility
-	change.Fields = map[string]any{"name": portal.Name}
+	change.Fields = map[string]any{"name": portalName}
 
 	plan.AddChange(change)
 }

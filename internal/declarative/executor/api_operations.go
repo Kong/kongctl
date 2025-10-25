@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"log/slog"
 
+	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/log"
+	"github.com/kong/kongctl/internal/util"
 )
 
 // Use debug env var from labels package
@@ -29,7 +31,7 @@ func (e *Executor) createAPI(ctx context.Context, change planner.PlannedChange) 
 	if err := common.ValidateRequiredFields(change.Fields, []string{"name"}); err != nil {
 		return "", common.WrapWithResourceContext(err, "api", "")
 	}
-	api.Name = common.ExtractResourceName(change.Fields)
+	api.Name = kk.String(common.ExtractResourceName(change.Fields))
 
 	// Map optional fields using utilities (SDK uses double pointers)
 	common.MapOptionalStringFieldToPtr(&api.Description, change.Fields, "description")
@@ -43,11 +45,11 @@ func (e *Executor) createAPI(ctx context.Context, change planner.PlannedChange) 
 
 	// Create the API
 	logger.Debug("Final API before creation",
-		slog.String("name", api.Name),
+		slog.String("name", util.StringValue(api.Name)),
 		slog.Any("labels", api.Labels))
 	resp, err := e.client.CreateAPI(ctx, api, change.Namespace)
 	if err != nil {
-		return "", common.FormatAPIError("api", api.Name, "create", err)
+		return "", common.FormatAPIError("api", util.StringValue(api.Name), "create", err)
 	}
 
 	return resp.ID, nil

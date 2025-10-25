@@ -2,6 +2,8 @@ package resources
 
 import (
 	"testing"
+
+	"github.com/kong/kongctl/internal/util"
 )
 
 // Compile-time interface compliance checks
@@ -20,7 +22,7 @@ func TestPortalResourceInterface(t *testing.T) {
 	portal := &PortalResource{
 		Ref: "test-portal",
 	}
-	portal.Name = "Test Portal"
+	portal.Name = ptr("Test Portal")
 
 	// Test Resource interface methods
 	if got := portal.GetType(); got != ResourceTypePortal {
@@ -31,7 +33,7 @@ func TestPortalResourceInterface(t *testing.T) {
 		t.Errorf("GetRef() = %v, want %v", got, "test-portal")
 	}
 
-	if got := portal.GetName(); got != "Test Portal" {
+	if got := util.StringValue(portal.Name); got != "Test Portal" {
 		t.Errorf("GetName() = %v, want %v", got, "Test Portal")
 	}
 
@@ -94,7 +96,7 @@ func TestPortalResourceSetDefaults(t *testing.T) {
 	portal.SetDefaults()
 
 	// Name should default to ref
-	if portal.Name != "test-portal" {
-		t.Errorf("SetDefaults() Name = %v, want %v", portal.Name, "test-portal")
+	if util.StringValue(portal.Name) != "test-portal" {
+		t.Errorf("SetDefaults() Name = %v, want %v", util.StringValue(portal.Name), "test-portal")
 	}
 }

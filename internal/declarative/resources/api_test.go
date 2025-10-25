@@ -4,13 +4,14 @@ import (
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/util"
 )
 
 func TestAPIResourceInterface(t *testing.T) {
 	api := &APIResource{
 		Ref: "test-api",
 		CreateAPIRequest: kkComps.CreateAPIRequest{
-			Name: "Test API",
+			Name: ptr("Test API"),
 		},
 	}
 
@@ -23,7 +24,7 @@ func TestAPIResourceInterface(t *testing.T) {
 		t.Errorf("GetRef() = %v, want %v", got, "test-api")
 	}
 
-	if got := api.GetName(); got != "Test API" {
+	if got := util.StringValue(api.GetName()); got != "Test API" {
 		t.Errorf("GetName() = %v, want %v", got, "Test API")
 	}
 
@@ -89,7 +90,7 @@ func TestAPIResourceSetDefaults(t *testing.T) {
 			api: APIResource{
 				Ref: "my-api",
 				CreateAPIRequest: kkComps.CreateAPIRequest{
-					Name: "Existing API Name",
+					Name: ptr("Existing API Name"),
 				},
 			},
 			expectedName: "Existing API Name",
@@ -100,9 +101,13 @@ func TestAPIResourceSetDefaults(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			api := tt.api
 			api.SetDefaults()
-			if api.Name != tt.expectedName {
-				t.Errorf("SetDefaults() Name = %v, want %v", api.Name, tt.expectedName)
+			if util.StringValue(api.Name) != tt.expectedName {
+				t.Errorf("SetDefaults() Name = %v, want %v", util.StringValue(api.Name), tt.expectedName)
 			}
 		})
 	}
+}
+
+func ptr(s string) *string {
+	return &s
 }

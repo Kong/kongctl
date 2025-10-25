@@ -28,7 +28,7 @@ func TestGeneratePlan_PortalCustomDomain(t *testing.T) {
 	// Mock empty responses for existing resources
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{},
+			Data: []kkComps.ListPortalsResponsePortal{},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{Total: 0},
 			},
@@ -61,7 +61,7 @@ func TestGeneratePlan_PortalCustomDomain(t *testing.T) {
 		Portals: []resources.PortalResource{
 			{
 				CreatePortal: kkComps.CreatePortal{
-					Name: "dev-portal",
+					Name: ptrString("dev-portal"),
 				},
 				Ref: "dev-portal",
 			},
@@ -73,9 +73,7 @@ func TestGeneratePlan_PortalCustomDomain(t *testing.T) {
 				CreatePortalCustomDomainRequest: kkComps.CreatePortalCustomDomainRequest{
 					Hostname: "developer.example.com",
 					Enabled:  true,
-					Ssl: kkComps.CreatePortalCustomDomainSSL{
-						DomainVerificationMethod: kkComps.PortalCustomDomainVerificationMethodHTTP,
-					},
+					Ssl:      kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{}),
 				},
 			},
 		},

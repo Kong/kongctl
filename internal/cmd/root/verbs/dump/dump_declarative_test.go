@@ -14,18 +14,18 @@ func TestMapPortalToDeclarativeResource(t *testing.T) {
 	description := "Portal description"
 	authID := "auth-strategy"
 
-	portal := kkComps.Portal{
+	portal := kkComps.ListPortalsResponsePortal{
 		ID:                               "portal-id",
-		Name:                             "portal-name",
-		DisplayName:                      "Portal Display",
+		Name:                             stringPtr("portal-name"),
+		DisplayName:                      stringPtr("Portal Display"),
 		Description:                      &description,
-		AuthenticationEnabled:            true,
-		RbacEnabled:                      true,
+		AuthenticationEnabled:            boolPtr(true),
+		RbacEnabled:                      boolPtr(true),
 		DefaultAPIVisibility:             kkComps.ListPortalsResponseDefaultAPIVisibilityPrivate,
 		DefaultPageVisibility:            kkComps.ListPortalsResponseDefaultPageVisibilityPublic,
 		DefaultApplicationAuthStrategyID: &authID,
-		AutoApproveDevelopers:            true,
-		AutoApproveApplications:          false,
+		AutoApproveDevelopers:            boolPtr(true),
+		AutoApproveApplications:          boolPtr(false),
 		Labels: map[string]string{
 			decllabels.NamespaceKey: "team-alpha",
 			decllabels.ProtectedKey: decllabels.TrueValue,
@@ -39,12 +39,12 @@ func TestMapPortalToDeclarativeResource(t *testing.T) {
 		t.Fatalf("expected ref %q, got %q", portal.ID, resource.Ref)
 	}
 
-	if resource.Name != portal.Name {
-		t.Fatalf("expected name %q, got %q", portal.Name, resource.Name)
+	if resource.Name == nil || *resource.Name != "portal-name" {
+		t.Fatalf("expected name %q, got %v", "portal-name", resource.Name)
 	}
 
-	if resource.DisplayName == nil || *resource.DisplayName != portal.DisplayName {
-		t.Fatalf("expected display name pointer with %q", portal.DisplayName)
+	if resource.DisplayName == nil || *resource.DisplayName != "Portal Display" {
+		t.Fatalf("expected display name pointer with %q", "Portal Display")
 	}
 
 	if resource.Description == nil || *resource.Description != description {
@@ -79,11 +79,11 @@ func TestMapPortalToDeclarativeResource(t *testing.T) {
 		t.Fatalf("expected auto approve developers to be true")
 	}
 
-	if resource.AutoApproveApplications == nil {
+	if resource.AutoApproveApplications == nil || portal.AutoApproveApplications == nil {
 		t.Fatalf("expected auto approve applications pointer to be set")
 	}
 
-	if *resource.AutoApproveApplications != portal.AutoApproveApplications {
+	if *resource.AutoApproveApplications != *portal.AutoApproveApplications {
 		t.Fatalf("expected auto approve applications to match input")
 	}
 }
@@ -95,7 +95,7 @@ func TestMapAPIToDeclarativeResource(t *testing.T) {
 
 	api := kkComps.APIResponseSchema{
 		ID:          "api-id",
-		Name:        "api-name",
+		Name:        stringPtr("api-name"),
 		Description: &description,
 		Version:     &version,
 		Slug:        &slug,
@@ -112,8 +112,8 @@ func TestMapAPIToDeclarativeResource(t *testing.T) {
 		t.Fatalf("expected ref %q, got %q", api.ID, resource.Ref)
 	}
 
-	if resource.Name != api.Name {
-		t.Fatalf("expected name %q, got %q", api.Name, resource.Name)
+	if resource.Name == nil || *resource.Name != "api-name" {
+		t.Fatalf("expected name %q, got %v", "api-name", resource.Name)
 	}
 
 	if resource.Description == nil || *resource.Description != description {
@@ -216,6 +216,10 @@ func TestMapAuthStrategyToDeclarativeResource_KeyAuth(t *testing.T) {
 	if !strings.Contains(string(yamlBytes), "ref: "+strategyID) {
 		t.Fatalf("expected yaml to include ref %q, got:\n%s", strategyID, string(yamlBytes))
 	}
+}
+
+func stringPtr(s string) *string {
+	return &s
 }
 
 func TestMapAuthStrategyToDeclarativeResource_OIDC(t *testing.T) {

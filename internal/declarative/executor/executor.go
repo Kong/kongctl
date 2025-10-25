@@ -14,6 +14,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/log"
+	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/normalizers"
 )
 
@@ -1533,7 +1534,7 @@ func (e *Executor) getParentAPIID(ctx context.Context, change planner.PlannedCha
 	}
 
 	logger.Debug("Found parent API by name",
-		slog.String("api_name", parentAPI.Name),
+		slog.String("api_name", util.StringValue(parentAPI.Name)),
 		slog.String("api_id", parentAPI.ID),
 	)
 

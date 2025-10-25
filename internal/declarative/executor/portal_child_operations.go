@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/planner"
@@ -221,11 +222,13 @@ func (e *Executor) createPortalCustomDomain(ctx context.Context, change planner.
 
 	// Handle SSL settings
 	if sslData, ok := change.Fields["ssl"].(map[string]any); ok {
-		ssl := kkComps.CreatePortalCustomDomainSSL{}
-		if method, ok := sslData["domain_verification_method"].(string); ok {
-			ssl.DomainVerificationMethod = kkComps.PortalCustomDomainVerificationMethod(method)
+		ssl, err := buildCreatePortalCustomDomainSSL(sslData)
+		if err != nil {
+			return "", err
 		}
-		req.Ssl = ssl
+		if ssl != nil {
+			req.Ssl = *ssl
+		}
 	}
 
 	// Create the custom domain
@@ -718,4 +721,51 @@ func (e *Executor) deletePortalSnippet(ctx context.Context, change planner.Plann
 	}
 
 	return nil
+}
+
+func buildCreatePortalCustomDomainSSL(data map[string]any) (*kkComps.CreatePortalCustomDomainSSL, error) {
+	if data == nil {
+		return nil, nil
+	}
+
+	method := strings.ToLower(strings.TrimSpace(toString(data["domain_verification_method"])))
+	switch method {
+	case "", "http":
+		cfg := kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{})
+		return &cfg, nil
+	case "custom_certificate":
+		cert := strings.TrimSpace(toString(data["custom_certificate"]))
+		if cert == "" {
+			return nil, fmt.Errorf("custom_certificate is required when using custom_certificate verification")
+		}
+		key := strings.TrimSpace(toString(data["custom_private_key"]))
+		if key == "" {
+			return nil, fmt.Errorf("custom_private_key is required when using custom_certificate verification")
+		}
+		wrapper := kkComps.CustomCertificate{
+			CustomCertificate: cert,
+			CustomPrivateKey:  key,
+		}
+		if skip, ok := data["skip_ca_check"].(bool); ok {
+			wrapper.SkipCaCheck = &skip
+		}
+		cfg := kkComps.CreateCreatePortalCustomDomainSSLCustomCertificate(wrapper)
+		return &cfg, nil
+	default:
+		return nil, fmt.Errorf("unsupported domain_verification_method: %s", method)
+	}
+}
+
+func toString(value any) string {
+	if value == nil {
+		return ""
+	}
+	switch v := value.(type) {
+	case string:
+		return v
+	case fmt.Stringer:
+		return v.String()
+	default:
+		return ""
+	}
 }

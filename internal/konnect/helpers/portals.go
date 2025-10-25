@@ -71,8 +71,8 @@ func (p *PortalAPIImpl) DeletePortal(
 
 // GetAllPortals fetches all portals with pagination
 func GetAllPortals(ctx context.Context, requestPageSize int64, kkClient *kkSDK.SDK,
-) ([]kkComps.Portal, error) {
-	var allData []kkComps.Portal
+) ([]kkComps.ListPortalsResponsePortal, error) {
+	var allData []kkComps.ListPortalsResponsePortal
 
 	var pageNumber int64 = 1
 	for {

@@ -47,10 +47,13 @@ func (a *APIImplementationAdapter) MapCreateFields(
 		return fmt.Errorf("service.control_plane_id is required: %w", err)
 	}
 
-	create.Service = &kkComps.APIImplementationService{
-		ID:             serviceID,
-		ControlPlaneID: controlPlaneID,
+	serviceRef := kkComps.ServiceReference{
+		Service: &kkComps.APIImplementationService{
+			ID:             serviceID,
+			ControlPlaneID: controlPlaneID,
+		},
 	}
+	*create = kkComps.CreateAPIImplementationServiceReference(serviceRef)
 
 	return nil
 }
@@ -69,7 +72,7 @@ func (a *APIImplementationAdapter) Create(ctx context.Context, req kkComps.APIIm
 		return "", err
 	}
 
-	return resp.ID, nil
+	return getImplementationResponseID(resp), nil
 }
 
 // Delete removes an API implementation.
@@ -184,4 +187,14 @@ func getStringField(m map[string]any, key string) (string, error) {
 	default:
 		return "", fmt.Errorf("field %s must be string", key)
 	}
+}
+
+func getImplementationResponseID(resp *kkComps.APIImplementationResponse) string {
+	if resp == nil {
+		return ""
+	}
+	if resp.APIImplementationResponseServiceReference != nil {
+		return resp.APIImplementationResponseServiceReference.GetID()
+	}
+	return ""
 }

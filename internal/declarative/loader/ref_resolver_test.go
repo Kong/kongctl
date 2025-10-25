@@ -54,12 +54,12 @@ func TestLocalFieldResolver_ResolveField(t *testing.T) {
 	portal := resources.PortalResource{
 		Ref: "test-portal",
 	}
-	portal.Name = "Test Portal"
+	portal.Name = stringPtr("Test Portal")
 
 	api := resources.APIResource{
 		Ref: "test-api",
 	}
-	api.Name = "Test API"
+	api.Name = stringPtr("Test API")
 
 	resolver := NewLocalFieldResolver(nil)
 
@@ -124,13 +124,13 @@ func TestLocalFieldResolver_ResolveField(t *testing.T) {
 
 func createPortal(ref, name string) resources.PortalResource {
 	p := resources.PortalResource{Ref: ref}
-	p.Name = name
+	p.Name = stringPtr(name)
 	return p
 }
 
 func createAPI(ref, name string) resources.APIResource {
 	a := resources.APIResource{Ref: ref}
-	a.Name = name
+	a.Name = stringPtr(name)
 	return a
 }
 

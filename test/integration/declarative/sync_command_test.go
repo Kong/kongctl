@@ -48,10 +48,10 @@ func TestSyncCommand_WithDeletes(t *testing.T) {
 		Return(&kkOps.ListPortalsResponse{
 			StatusCode: 200,
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{
+				Data: []kkComps.ListPortalsResponsePortal{
 					{
 						ID:          "portal-to-delete",
-						Name:        "Old Portal",
+						Name:        stringPtr("Old Portal"),
 						Description: stringPtr("This portal should be deleted"),
 						Labels: map[string]string{
 							"KONGCTL-managed":   "true",

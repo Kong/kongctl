@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/util"
 )
 
 // APIResource represents an API in declarative configuration
@@ -35,7 +36,7 @@ func (a APIResource) GetRef() string {
 
 // GetMoniker returns the resource moniker (for APIs, this is the name)
 func (a APIResource) GetMoniker() string {
-	return a.Name
+	return util.StringValue(a.Name)
 }
 
 // GetDependencies returns references to other resources this API depends on
@@ -70,8 +71,9 @@ func (a APIResource) Validate() error {
 // SetDefaults applies default values to API resource
 func (a *APIResource) SetDefaults() {
 	// If Name is not set, use ref as default
-	if a.Name == "" {
-		a.Name = a.Ref
+	if util.StringValue(a.Name) == "" {
+		name := a.Ref
+		a.Name = &name
 	}
 }
 
@@ -82,10 +84,11 @@ func (a APIResource) GetKonnectID() string {
 
 // GetKonnectMonikerFilter returns the filter string for Konnect API lookup
 func (a APIResource) GetKonnectMonikerFilter() string {
-	if a.Name == "" {
+	name := util.StringValue(a.Name)
+	if name == "" {
 		return ""
 	}
-	return fmt.Sprintf("name[eq]=%s", a.Name)
+	return fmt.Sprintf("name[eq]=%s", name)
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
@@ -120,7 +123,7 @@ func (a *APIResource) TryMatchKonnectResource(konnectResource any) bool {
 	// Extract values if fields are valid
 	if nameField.IsValid() && idField.IsValid() &&
 		nameField.Kind() == reflect.String && idField.Kind() == reflect.String {
-		if nameField.String() == a.Name {
+		if nameField.String() == util.StringValue(a.Name) {
 			a.konnectID = idField.String()
 			return true
 		}

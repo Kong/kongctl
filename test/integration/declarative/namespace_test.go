@@ -94,7 +94,7 @@ portals:
 		Return(&kkOps.ListPortalsResponse{
 			StatusCode: 200,
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
 						Total: 0,
@@ -114,7 +114,7 @@ portals:
 		StatusCode: 201,
 		APIResponseSchema: &kkComps.APIResponseSchema{
 			ID:          "api-123",
-			Name:        "Team API",
+			Name:        stringPtr("Team API"),
 			Description: stringPtr("API for team operations"),
 			Labels: map[string]string{
 				labels.NamespaceKey: "team-alpha",
@@ -139,7 +139,7 @@ portals:
 		StatusCode: 201,
 		PortalResponse: &kkComps.PortalResponse{
 			ID:        "portal-123",
-			Name:      "Team Portal",
+			Name:      stringPtr("Team Portal"),
 			CreatedAt: portalTime,
 			UpdatedAt: portalTime,
 		},
@@ -276,12 +276,15 @@ apis:
 	// Mock CREATE operations for each namespace
 	// Mock Alpha API creation
 	mockAPIAPI.On("CreateAPI", mock.Anything, mock.MatchedBy(func(api kkComps.CreateAPIRequest) bool {
-		return api.Name == "Alpha API" && api.Labels != nil && api.Labels[labels.NamespaceKey] == "team-alpha"
+		return api.Name != nil &&
+			*api.Name == "Alpha API" &&
+			api.Labels != nil &&
+			api.Labels[labels.NamespaceKey] == "team-alpha"
 	})).Return(&kkOps.CreateAPIResponse{
 		StatusCode: 201,
 		APIResponseSchema: &kkComps.APIResponseSchema{
 			ID:   "api-alpha",
-			Name: "Alpha API",
+			Name: stringPtr("Alpha API"),
 			Labels: map[string]string{
 				labels.NamespaceKey: "team-alpha",
 			},
@@ -292,12 +295,15 @@ apis:
 
 	// Mock Beta API creation
 	mockAPIAPI.On("CreateAPI", mock.Anything, mock.MatchedBy(func(api kkComps.CreateAPIRequest) bool {
-		return api.Name == "Beta API" && api.Labels != nil && api.Labels[labels.NamespaceKey] == "team-beta"
+		return api.Name != nil &&
+			*api.Name == "Beta API" &&
+			api.Labels != nil &&
+			api.Labels[labels.NamespaceKey] == "team-beta"
 	})).Return(&kkOps.CreateAPIResponse{
 		StatusCode: 201,
 		APIResponseSchema: &kkComps.APIResponseSchema{
 			ID:   "api-beta",
-			Name: "Beta API",
+			Name: stringPtr("Beta API"),
 			Labels: map[string]string{
 				labels.NamespaceKey: "team-beta",
 			},
@@ -308,12 +314,15 @@ apis:
 
 	// Mock Default API creation
 	mockAPIAPI.On("CreateAPI", mock.Anything, mock.MatchedBy(func(api kkComps.CreateAPIRequest) bool {
-		return api.Name == "Default API" && api.Labels != nil && api.Labels[labels.NamespaceKey] == "default"
+		return api.Name != nil &&
+			*api.Name == "Default API" &&
+			api.Labels != nil &&
+			api.Labels[labels.NamespaceKey] == "default"
 	})).Return(&kkOps.CreateAPIResponse{
 		StatusCode: 201,
 		APIResponseSchema: &kkComps.APIResponseSchema{
 			ID:   "api-default",
-			Name: "Default API",
+			Name: stringPtr("Default API"),
 			Labels: map[string]string{
 				labels.NamespaceKey: "default",
 			},
@@ -365,7 +374,7 @@ apis:
 		Return(&kkOps.ListPortalsResponse{
 			StatusCode: 200,
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
 						Total: 0,
@@ -488,21 +497,21 @@ apis:
 	existingAPIs := []kkComps.APIResponseSchema{
 		{
 			ID:   "alpha-1",
-			Name: "Alpha API 1",
+			Name: stringPtr("Alpha API 1"),
 			Labels: map[string]string{
 				labels.NamespaceKey: "team-alpha",
 			},
 		},
 		{
 			ID:   "beta-1",
-			Name: "Beta API 1",
+			Name: stringPtr("Beta API 1"),
 			Labels: map[string]string{
 				labels.NamespaceKey: "team-beta",
 			},
 		},
 		{
 			ID:   "alpha-2",
-			Name: "Alpha API 2",
+			Name: stringPtr("Alpha API 2"),
 			Labels: map[string]string{
 				labels.NamespaceKey: "team-alpha",
 			},
@@ -560,12 +569,12 @@ apis:
 
 	// Mock CREATE for new Alpha API
 	mockAPIAPI.On("CreateAPI", mock.Anything, mock.MatchedBy(func(api kkComps.CreateAPIRequest) bool {
-		return api.Name == "Alpha API" && api.Labels[labels.NamespaceKey] == "team-alpha"
+		return api.Name != nil && *api.Name == "Alpha API" && api.Labels[labels.NamespaceKey] == "team-alpha"
 	})).Return(&kkOps.CreateAPIResponse{
 		StatusCode: 201,
 		APIResponseSchema: &kkComps.APIResponseSchema{
 			ID:   "alpha-new",
-			Name: "Alpha API",
+			Name: stringPtr("Alpha API"),
 			Labels: map[string]string{
 				labels.NamespaceKey: "team-alpha",
 			},
@@ -598,7 +607,7 @@ apis:
 		Return(&kkOps.ListPortalsResponse{
 			StatusCode: 200,
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
 						Total: 0,
@@ -790,7 +799,7 @@ apis:
 	// Mock CREATE operations - verify both namespace and protected labels
 	// Mock Protected Alpha API creation
 	mockAPIAPI.On("CreateAPI", mock.Anything, mock.MatchedBy(func(api kkComps.CreateAPIRequest) bool {
-		return api.Name == "Protected Alpha API" &&
+		return api.Name != nil && *api.Name == "Protected Alpha API" &&
 			api.Labels != nil &&
 			api.Labels[labels.NamespaceKey] == "team-alpha" &&
 			api.Labels[labels.ProtectedKey] == "true"
@@ -798,7 +807,7 @@ apis:
 		StatusCode: 201,
 		APIResponseSchema: &kkComps.APIResponseSchema{
 			ID:   "api-protected",
-			Name: "Protected Alpha API",
+			Name: stringPtr("Protected Alpha API"),
 			Labels: map[string]string{
 				labels.NamespaceKey: "team-alpha",
 				labels.ProtectedKey: "true",
@@ -812,7 +821,7 @@ apis:
 	mockAPIAPI.On("CreateAPI", mock.Anything, mock.MatchedBy(func(api kkComps.CreateAPIRequest) bool {
 		// When protected is false, the label is not added (only namespace label is present)
 		_, hasProtected := api.Labels[labels.ProtectedKey]
-		return api.Name == "Unprotected Alpha API" &&
+		return api.Name != nil && *api.Name == "Unprotected Alpha API" &&
 			api.Labels != nil &&
 			api.Labels[labels.NamespaceKey] == "team-alpha" &&
 			!hasProtected
@@ -820,7 +829,7 @@ apis:
 		StatusCode: 201,
 		APIResponseSchema: &kkComps.APIResponseSchema{
 			ID:   "api-unprotected",
-			Name: "Unprotected Alpha API",
+			Name: stringPtr("Unprotected Alpha API"),
 			Labels: map[string]string{
 				labels.NamespaceKey: "team-alpha",
 			},
@@ -872,7 +881,7 @@ apis:
 		Return(&kkOps.ListPortalsResponse{
 			StatusCode: 200,
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
 						Total: 0,

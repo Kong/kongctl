@@ -9,35 +9,28 @@ import (
 )
 
 func TestAPIVersionResource_UnmarshalYAML_WithSpec(t *testing.T) {
-	// Test with nested API version inside an API resource
 	yamlContent := `
-ref: test-api
-name: "Test API"
-versions:
-  - ref: api-v1
+ref: api-v1
+version: "1.0.0"
+spec:
+  openapi: "3.0.0"
+  info:
+    title: "Test API"
     version: "1.0.0"
-    spec:
-      openapi: "3.0.0"
-      info:
-        title: "Test API"
-        version: "1.0.0"
-        description: "Test API description"
-      paths:
-        /test:
-          get:
-            summary: "Test endpoint"
-            responses:
-              '200':
-                description: "Success"
+    description: "Test API description"
+  paths:
+    /test:
+      get:
+        summary: "Test endpoint"
+        responses:
+          '200':
+            description: "Success"
 `
 
-	// Parse the API resource which will trigger UnmarshalYAML on nested versions
-	var api APIResource
-	err := yaml.Unmarshal([]byte(yamlContent), &api)
+	var apiVersion APIVersionResource
+	err := yaml.Unmarshal([]byte(yamlContent), &apiVersion)
 	require.NoError(t, err)
-	require.Len(t, api.Versions, 1, "API should have one version")
 
-	apiVersion := api.Versions[0]
 	assert.Equal(t, "api-v1", apiVersion.Ref)
 	assert.Equal(t, "1.0.0", *apiVersion.Version)
 	require.NotNil(t, apiVersion.Spec, "Spec should not be nil")

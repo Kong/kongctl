@@ -23,7 +23,11 @@ func (p *Planner) planPortalCustomizationsChanges(
 	existingPortals, _ := p.client.ListManagedPortals(ctx, namespaceFilter)
 	portalNameToID := make(map[string]string)
 	for _, portal := range existingPortals {
-		portalNameToID[portal.Name] = portal.ID
+		name := statePortalDisplayName(portal)
+		if name == "" {
+			continue
+		}
+		portalNameToID[name] = portal.ID
 	}
 
 	// For each desired customization
@@ -36,8 +40,10 @@ func (p *Planner) planPortalCustomizationsChanges(
 		var portalName string
 		for _, portal := range p.desiredPortals {
 			if portal.Ref == desiredCustomization.Portal {
-				portalName = portal.Name
-				portalID = portalNameToID[portalName]
+				portalName = portal.GetMoniker()
+				if portalName != "" {
+					portalID = portalNameToID[portalName]
+				}
 				break
 			}
 		}
@@ -399,10 +405,7 @@ func (p *Planner) planPortalCustomDomainCreate(
 	fields["enabled"] = domain.Enabled
 
 	// Add SSL settings if present
-	// Check if DomainVerificationMethod is set (non-empty string)
-	if domain.Ssl.DomainVerificationMethod != "" {
-		sslFields := make(map[string]any)
-		sslFields["domain_verification_method"] = string(domain.Ssl.DomainVerificationMethod)
+	if sslFields := buildPortalCustomDomainSSLFields(domain.Ssl); len(sslFields) > 0 {
 		fields["ssl"] = sslFields
 	}
 
@@ -434,7 +437,7 @@ func (p *Planner) planPortalCustomDomainCreate(
 		var portalName string
 		for _, portal := range p.desiredPortals {
 			if portal.Ref == domain.Portal {
-				portalName = portal.Name
+				portalName = portal.GetMoniker()
 				break
 			}
 		}
@@ -456,6 +459,27 @@ func (p *Planner) planPortalCustomDomainCreate(
 	}
 
 	plan.AddChange(change)
+}
+
+func buildPortalCustomDomainSSLFields(ssl kkComps.CreatePortalCustomDomainSSL) map[string]any {
+	switch {
+	case ssl.CustomCertificate != nil:
+		fields := map[string]any{
+			"domain_verification_method": ssl.CustomCertificate.GetDomainVerificationMethod(),
+			"custom_certificate":         ssl.CustomCertificate.GetCustomCertificate(),
+			"custom_private_key":         ssl.CustomCertificate.GetCustomPrivateKey(),
+		}
+		if skip := ssl.CustomCertificate.GetSkipCaCheck(); skip != nil {
+			fields["skip_ca_check"] = *skip
+		}
+		return fields
+	case ssl.HTTP != nil:
+		return map[string]any{
+			"domain_verification_method": ssl.HTTP.GetDomainVerificationMethod(),
+		}
+	default:
+		return nil
+	}
 }
 
 // Portal Page planning
@@ -696,7 +720,7 @@ func (p *Planner) planPortalPageCreate(
 		var portalName string
 		for _, portal := range p.desiredPortals {
 			if portal.Ref == page.Portal {
-				portalName = portal.Name
+				portalName = portal.GetMoniker()
 				break
 			}
 		}
@@ -853,7 +877,7 @@ func (p *Planner) planPortalPageUpdate(
 		var portalName string
 		for _, portal := range p.desiredPortals {
 			if portal.Ref == portalRef {
-				portalName = portal.Name
+				portalName = portal.GetMoniker()
 				break
 			}
 		}
@@ -902,7 +926,7 @@ func (p *Planner) planPortalPageDelete(
 		var portalName string
 		for _, portal := range p.desiredPortals {
 			if portal.Ref == portalRef {
-				portalName = portal.Name
+				portalName = portal.GetMoniker()
 				break
 			}
 		}
@@ -1063,7 +1087,7 @@ func (p *Planner) planPortalSnippetCreate(
 		var portalName string
 		for _, portal := range p.desiredPortals {
 			if portal.Ref == snippet.Portal {
-				portalName = portal.Name
+				portalName = portal.GetMoniker()
 				break
 			}
 		}
@@ -1182,7 +1206,7 @@ func (p *Planner) planPortalSnippetUpdate(
 		var portalName string
 		for _, portal := range p.desiredPortals {
 			if portal.Ref == portalRef {
-				portalName = portal.Name
+				portalName = portal.GetMoniker()
 				break
 			}
 		}

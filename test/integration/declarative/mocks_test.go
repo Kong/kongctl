@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
@@ -409,12 +410,14 @@ func (m *MockAPIAPI) HasExpectations() bool {
 }
 
 // CreateManagedPortal creates a portal with KONGCTL labels
-func CreateManagedPortal(name, id, description string) kkComps.Portal {
+func CreateManagedPortal(name, id, description string) kkComps.ListPortalsResponsePortal {
 	descPtr := &description
-	return kkComps.Portal{
+	return kkComps.ListPortalsResponsePortal{
 		ID:          id,
-		Name:        name,
+		Name:        stringPtr(name),
 		Description: descPtr,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 		Labels: map[string]string{
 			labels.NamespaceKey: "default",
 		},

@@ -18,6 +18,7 @@ import (
 	konnectCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
+	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 )
@@ -304,17 +305,22 @@ func dumpPortals(
 		}
 
 		for _, portal := range res.ListPortalsResponse.Data {
-			importBlock := formatTerraformImport("portal", portal.Name, portal.ID, "", "")
+			portalName := util.StringValue(portal.Name)
+			if portalName == "" {
+				portalName = portal.ID
+			}
+
+			importBlock := formatTerraformImport("portal", portalName, portal.ID, "", "")
 			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 				return false, fmt.Errorf("failed to write portal import block: %w", err)
 			}
 
 			if includeChildResources {
-				if err := dumpPortalChildResources(ctx, writer, kkClient, portal.ID, portal.Name, requestPageSize); err != nil {
+				if err := dumpPortalChildResources(ctx, writer, kkClient, portal.ID, portalName, requestPageSize); err != nil {
 					fmt.Fprintf(
 						os.Stderr,
 						"Warning: Failed to dump child resources for portal %s: %v\n",
-						portal.Name,
+						portalName,
 						err,
 					)
 				}
@@ -355,14 +361,19 @@ func dumpAPIs(
 		}
 
 		for _, api := range res.ListAPIResponse.Data {
-			importBlock := formatTerraformImport("api", api.Name, api.ID, "", "")
+			apiName := util.StringValue(api.Name)
+			if apiName == "" {
+				apiName = api.ID
+			}
+
+			importBlock := formatTerraformImport("api", apiName, api.ID, "", "")
 			if _, err := fmt.Fprintln(writer, importBlock); err != nil {
 				return false, fmt.Errorf("failed to write API import block: %w", err)
 			}
 
 			if includeChildResources {
-				if err := dumpAPIChildResources(ctx, writer, kkClient, api.ID, api.Name); err != nil {
-					fmt.Fprintf(os.Stderr, "Warning: Failed to dump child resources for API %s: %v\n", api.Name, err)
+				if err := dumpAPIChildResources(ctx, writer, kkClient, api.ID, apiName); err != nil {
+					fmt.Fprintf(os.Stderr, "Warning: Failed to dump child resources for API %s: %v\n", apiName, err)
 				}
 			}
 		}

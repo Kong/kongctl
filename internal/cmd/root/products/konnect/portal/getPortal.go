@@ -26,6 +26,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type portalListItem = kkComps.ListPortalsResponsePortal
+
 var (
 	getPortalsShort = i18n.T("root.products.konnect.portal.getPortalsShort",
 		"List or get Konnect portals")
@@ -55,7 +57,7 @@ type textDisplayRecord struct {
 	LocalUpdatedTime string
 }
 
-func portalToDisplayRecord(p *kkComps.Portal) textDisplayRecord {
+func portalToDisplayRecord(p *portalListItem) textDisplayRecord {
 	missing := "n/a"
 
 	var id, name string
@@ -65,8 +67,8 @@ func portalToDisplayRecord(p *kkComps.Portal) textDisplayRecord {
 		id = missing
 	}
 
-	if p.Name != "" {
-		name = p.Name
+	if portalName := util.StringValue(p.Name); portalName != "" {
+		name = portalName
 	} else {
 		name = missing
 	}
@@ -102,8 +104,8 @@ func portalResponseToDisplayRecord(p *kkComps.PortalResponse) textDisplayRecord 
 		id = missing
 	}
 
-	if p.Name != "" {
-		name = p.Name
+	if portalName := util.StringValue(p.GetName()); portalName != "" {
+		name = portalName
 	} else {
 		name = missing
 	}
@@ -200,14 +202,14 @@ func renderPortalDetail(data portalDetailData) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
-func portalDetailView(p *kkComps.Portal) string {
+func portalDetailView(p *portalListItem) string {
 	if p == nil {
 		return ""
 	}
 
 	data := portalDetailData{
 		ID:              p.ID,
-		Name:            p.Name,
+		Name:            util.StringValue(p.Name),
 		Description:     p.Description,
 		CanonicalDomain: p.CanonicalDomain,
 		CreatedAt:       p.CreatedAt,
@@ -224,7 +226,7 @@ func portalResponseDetailView(p *kkComps.PortalResponse) string {
 
 	data := portalDetailData{
 		ID:              p.ID,
-		Name:            p.Name,
+		Name:            util.StringValue(p.GetName()),
 		Description:     p.Description,
 		CanonicalDomain: p.CanonicalDomain,
 		CreatedAt:       p.CreatedAt,
@@ -238,13 +240,16 @@ type getPortalCmd struct {
 	*cobra.Command
 }
 
-func runListByName(name string, kkClient helpers.PortalAPI, helper cmd.Helper,
+func runListByName(
+	name string,
+	kkClient helpers.PortalAPI,
+	helper cmd.Helper,
 	cfg config.Hook,
-) (*kkComps.Portal, error) {
+) (*kkComps.PortalResponse, error) {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
 
-	var allData []kkComps.Portal
+	var allData []portalListItem
 
 	for {
 		req := kkOps.ListPortalsRequest{
@@ -260,8 +265,13 @@ func runListByName(name string, kkClient helpers.PortalAPI, helper cmd.Helper,
 
 		// Filter by name since SDK doesn't support name filtering for portals
 		for _, portal := range res.GetListPortalsResponse().Data {
-			if portal.Name == name {
-				return &portal, nil
+			if util.StringValue(portal.Name) == name {
+				resp, err := kkClient.GetPortal(helper.GetContext(), portal.ID)
+				if err != nil {
+					attrs := cmd.TryConvertErrorToAttrs(err)
+					return nil, cmd.PrepareExecutionError("Failed to get Portal", err, helper.GetCmd(), attrs...)
+				}
+				return resp.GetPortalResponse(), nil
 			}
 		}
 
@@ -278,13 +288,15 @@ func runListByName(name string, kkClient helpers.PortalAPI, helper cmd.Helper,
 	return nil, fmt.Errorf("portal with name %s not found", name)
 }
 
-func runList(kkClient helpers.PortalAPI, helper cmd.Helper,
+func runList(
+	kkClient helpers.PortalAPI,
+	helper cmd.Helper,
 	cfg config.Hook,
-) ([]kkComps.Portal, error) {
+) ([]portalListItem, error) {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
 
-	var allData []kkComps.Portal
+	var allData []portalListItem
 
 	for {
 		req := kkOps.ListPortalsRequest{
@@ -393,8 +405,6 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		isUUID := util.IsValidUUID(id)
 
 		if !isUUID {
-			// If the ID is not a UUID, then it is a name
-			// search for the portal by name
 			portal, err := runListByName(id, sdk.GetPortalAPI(), helper, cfg)
 			if err != nil {
 				return err
@@ -404,14 +414,14 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 				if index != 0 {
 					return ""
 				}
-				return portalDetailView(portal)
+				return portalResponseDetailView(portal)
 			}
 			return tableview.RenderForFormat(
 				interactive,
 				outType,
 				printer,
 				helper.GetStreams(),
-				portalToDisplayRecord(portal),
+				portalResponseToDisplayRecord(portal),
 				portal,
 				"",
 				tableview.WithRootLabel(helper.GetCmd().Name()),
@@ -473,7 +483,7 @@ func renderPortalList(
 	interactive bool,
 	outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
-	portals []kkComps.Portal,
+	portals []portalListItem,
 ) error {
 	displayRecords := make([]textDisplayRecord, 0, len(portals))
 	for i := range portals {
@@ -506,7 +516,7 @@ func renderPortalList(
 	)
 }
 
-func buildPortalChildView(portals []kkComps.Portal) tableview.ChildView {
+func buildPortalChildView(portals []portalListItem) tableview.ChildView {
 	tableRows := make([]table.Row, 0, len(portals))
 	for i := range portals {
 		record := portalToDisplayRecord(&portals[i])

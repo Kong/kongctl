@@ -95,13 +95,13 @@ func TestAdoptAPIByNameAssignsNamespaceLabel(t *testing.T) {
 		t: t,
 		fetchResponse: &kkComps.APIResponseSchema{
 			ID:     "22cd8a0b-72e7-4212-9099-0764f8e9c5ac",
-			Name:   "payments",
+			Name:   stringPtr("payments"),
 			Labels: map[string]string{"tier": "gold"},
 		},
 		listResponse: []kkComps.APIResponseSchema{
 			{
 				ID:     "22cd8a0b-72e7-4212-9099-0764f8e9c5ac",
-				Name:   "payments",
+				Name:   stringPtr("payments"),
 				Labels: map[string]string{"tier": "gold"},
 			},
 		},
@@ -132,13 +132,13 @@ func TestAdoptAPIRejectsExistingNamespace(t *testing.T) {
 		t: t,
 		fetchResponse: &kkComps.APIResponseSchema{
 			ID:     "22cd8a0b-72e7-4212-9099-0764f8e9c5ac",
-			Name:   "payments",
+			Name:   stringPtr("payments"),
 			Labels: map[string]string{labels.NamespaceKey: "existing"},
 		},
 		listResponse: []kkComps.APIResponseSchema{
 			{
 				ID:     "22cd8a0b-72e7-4212-9099-0764f8e9c5ac",
-				Name:   "payments",
+				Name:   stringPtr("payments"),
 				Labels: map[string]string{labels.NamespaceKey: "existing"},
 			},
 		},
@@ -163,11 +163,11 @@ func TestResolveAPIDefaultsPageSize(t *testing.T) {
 		t: t,
 		fetchResponse: &kkComps.APIResponseSchema{
 			ID:   "22cd8a0b-72e7-4212-9099-0764f8e9c5ac",
-			Name: "billing",
+			Name: stringPtr("billing"),
 		},
 		listResponse: []kkComps.APIResponseSchema{{
 			ID:   "22cd8a0b-72e7-4212-9099-0764f8e9c5ac",
-			Name: "billing",
+			Name: stringPtr("billing"),
 		}},
 	}
 

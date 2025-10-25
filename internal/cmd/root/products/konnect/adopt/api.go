@@ -130,10 +130,12 @@ func adoptAPI(
 		return nil, err
 	}
 
+	apiName := util.StringValue(api.Name)
+
 	if existing := api.Labels; existing != nil {
 		if currentNamespace, ok := existing[labels.NamespaceKey]; ok && currentNamespace != "" {
 			return nil, &cmdpkg.ConfigurationError{
-				Err: fmt.Errorf("API %q already has namespace label %q", api.Name, currentNamespace),
+				Err: fmt.Errorf("API %q already has namespace label %q", apiName, currentNamespace),
 			}
 		}
 	}
@@ -165,7 +167,7 @@ func adoptAPI(
 	return &adoptResult{
 		ResourceType: "api",
 		ID:           updated.ID,
-		Name:         updated.Name,
+		Name:         util.StringValue(updated.Name),
 		Namespace:    ns,
 	}, nil
 }
@@ -215,7 +217,7 @@ func resolveAPI(
 		}
 
 		for _, api := range list.Data {
-			if api.Name == identifier {
+			if util.StringValue(api.Name) == identifier {
 				apiCopy := api
 				return &apiCopy, nil
 			}
