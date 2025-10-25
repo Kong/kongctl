@@ -64,7 +64,7 @@ func TestExecutorAPIErrors(t *testing.T) {
 				mockAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 					StatusCode: 200,
 					ListPortalsResponse: &kkComps.ListPortalsResponse{
-						Data: []kkComps.Portal{},
+						Data: []kkComps.ListPortalsResponsePortal{},
 						Meta: kkComps.PaginatedMeta{
 							Page: kkComps.PageMeta{Total: 0},
 						},
@@ -86,7 +86,7 @@ func TestExecutorAPIErrors(t *testing.T) {
 				mockAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 					StatusCode: 200,
 					ListPortalsResponse: &kkComps.ListPortalsResponse{
-						Data: []kkComps.Portal{},
+						Data: []kkComps.ListPortalsResponsePortal{},
 						Meta: kkComps.PaginatedMeta{
 							Page: kkComps.PageMeta{Total: 0},
 						},
@@ -200,7 +200,7 @@ portals:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		StatusCode: 200,
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{},
+			Data: []kkComps.ListPortalsResponsePortal{},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{Total: 0},
 			},
@@ -209,14 +209,13 @@ portals:
 
 	// Mock successful creation for first portal
 	mockPortalAPI.On("CreatePortal", mock.Anything, mock.MatchedBy(func(portal kkComps.CreatePortal) bool {
-		return portal.Name == "Success Portal"
+		return portal.Name != nil && *portal.Name == "Success Portal"
 	})).Return(&kkOps.CreatePortalResponse{
 		StatusCode: 201,
 		PortalResponse: &kkComps.PortalResponse{
 			ID:          "success-portal-id",
-			Name:        "Success Portal",
+			Name:        stringPtr("Success Portal"),
 			Description: stringPtr("This portal should be created successfully"),
-			DisplayName: "",
 			Labels:      make(map[string]string),
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
@@ -225,21 +224,20 @@ portals:
 
 	// Mock failure for second portal
 	mockPortalAPI.On("CreatePortal", mock.Anything, mock.MatchedBy(func(portal kkComps.CreatePortal) bool {
-		return portal.Name == "Failure Portal"
+		return portal.Name != nil && *portal.Name == "Failure Portal"
 	})).Return(&kkOps.CreatePortalResponse{
 		StatusCode: 422,
 	}, nil)
 
 	// Mock successful creation for third portal
 	mockPortalAPI.On("CreatePortal", mock.Anything, mock.MatchedBy(func(portal kkComps.CreatePortal) bool {
-		return portal.Name == "Another Success Portal"
+		return portal.Name != nil && *portal.Name == "Another Success Portal"
 	})).Return(&kkOps.CreatePortalResponse{
 		StatusCode: 201,
 		PortalResponse: &kkComps.PortalResponse{
 			ID:          "another-success-portal-id",
-			Name:        "Another Success Portal",
+			Name:        stringPtr("Another Success Portal"),
 			Description: stringPtr("This should also succeed"),
-			DisplayName: "",
 			Labels:      make(map[string]string),
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
@@ -333,7 +331,7 @@ portals:
 			mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 				StatusCode: 200,
 				ListPortalsResponse: &kkComps.ListPortalsResponse{
-					Data: []kkComps.Portal{protectedPortal},
+					Data: []kkComps.ListPortalsResponsePortal{protectedPortal},
 					Meta: kkComps.PaginatedMeta{
 						Page: kkComps.PageMeta{Total: 1},
 					},

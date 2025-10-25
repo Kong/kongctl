@@ -82,7 +82,7 @@ func TestAdoptPortalAssignsNamespaceLabel(t *testing.T) {
 		t: t,
 		fetchResponse: &kkComps.PortalResponse{
 			ID:        "22cd8a0b-72e7-4212-9099-0764f8e9c5ac",
-			Name:      "dev-portal",
+			Name:      stringPtr("dev-portal"),
 			Labels:    existingLabels,
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -114,7 +114,7 @@ func TestAdoptPortalRejectsExistingNamespace(t *testing.T) {
 		t: t,
 		fetchResponse: &kkComps.PortalResponse{
 			ID:     "22cd8a0b-72e7-4212-9099-0764f8e9c5ac",
-			Name:   "dev-portal",
+			Name:   stringPtr("dev-portal"),
 			Labels: map[string]string{labels.NamespaceKey: "existing"},
 		},
 	}
@@ -136,7 +136,7 @@ func TestAdoptPortalDefaultsPageSize(t *testing.T) {
 		t: t,
 		fetchResponse: &kkComps.PortalResponse{
 			ID:        "22cd8a0b-72e7-4212-9099-0764f8e9c5ac",
-			Name:      "dev-portal",
+			Name:      stringPtr("dev-portal"),
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},

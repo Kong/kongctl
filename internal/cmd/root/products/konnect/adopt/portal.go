@@ -132,10 +132,12 @@ func adoptPortal(
 		return nil, err
 	}
 
+	portalName := util.StringValue(portal.Name)
+
 	if existing := portal.Labels; existing != nil {
 		if currentNamespace, ok := existing[labels.NamespaceKey]; ok && currentNamespace != "" {
 			return nil, &cmdpkg.ConfigurationError{
-				Err: fmt.Errorf("portal %q already has namespace label %q", portal.Name, currentNamespace),
+				Err: fmt.Errorf("portal %q already has namespace label %q", portalName, currentNamespace),
 			}
 		}
 	}
@@ -167,7 +169,7 @@ func adoptPortal(
 	return &adoptResult{
 		ResourceType: "portal",
 		ID:           updated.ID,
-		Name:         updated.Name,
+		Name:         util.StringValue(updated.Name),
 		Namespace:    ns,
 	}, nil
 }
@@ -217,7 +219,7 @@ func resolvePortal(
 		}
 
 		for _, p := range list.Data {
-			if p.Name == identifier {
+			if util.StringValue(p.Name) == identifier {
 				portalResp, err := portalAPI.GetPortal(ctx, p.ID)
 				if err != nil {
 					attrs := cmdpkg.TryConvertErrorToAttrs(err)

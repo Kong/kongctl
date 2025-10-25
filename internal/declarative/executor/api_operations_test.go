@@ -94,7 +94,7 @@ func TestExecutor_deleteAPI(t *testing.T) {
 						Data: []kkComps.APIResponseSchema{
 							{
 								ID:   "api-123",
-								Name: "delete-api",
+								Name: stringPtr("delete-api"),
 								Labels: map[string]string{
 									labels.NamespaceKey: "default",
 								},
@@ -128,7 +128,7 @@ func TestExecutor_deleteAPI(t *testing.T) {
 						Data: []kkComps.APIResponseSchema{
 							{
 								ID:   "api-456",
-								Name: "protected-api",
+								Name: stringPtr("protected-api"),
 								Labels: map[string]string{
 									labels.NamespaceKey: "default",
 									labels.ProtectedKey: "true",
@@ -209,7 +209,7 @@ func TestExecutor_deleteAPI(t *testing.T) {
 						Data: []kkComps.APIResponseSchema{
 							{
 								ID:   "api-fail",
-								Name: "fail-api",
+								Name: stringPtr("fail-api"),
 								Labels: map[string]string{
 									labels.NamespaceKey: "default",
 								},
@@ -284,15 +284,15 @@ func TestExecutor_createAPI(t *testing.T) {
 			},
 			setupMock: func(m *MockAPIAPI) {
 				m.On("CreateAPI", mock.Anything, mock.MatchedBy(func(req kkComps.CreateAPIRequest) bool {
-					return req.Name == "new-api" &&
-						*req.Description == "Test API" &&
+					return req.Name != nil && *req.Name == "new-api" &&
+						req.Description != nil && *req.Description == "Test API" &&
 						req.Labels["env"] == "test" &&
 						req.Labels[labels.NamespaceKey] == "default" &&
 						req.Labels[labels.ProtectedKey] == "" // No protected label when false
 				}), mock.Anything).Return(&kkOps.CreateAPIResponse{
 					APIResponseSchema: &kkComps.APIResponseSchema{
 						ID:   "api-created-123",
-						Name: "new-api",
+						Name: stringPtr("new-api"),
 					},
 				}, nil)
 			},
@@ -312,13 +312,13 @@ func TestExecutor_createAPI(t *testing.T) {
 			},
 			setupMock: func(m *MockAPIAPI) {
 				m.On("CreateAPI", mock.Anything, mock.MatchedBy(func(req kkComps.CreateAPIRequest) bool {
-					return req.Name == "protected-api" &&
+					return req.Name != nil && *req.Name == "protected-api" &&
 						req.Labels[labels.ProtectedKey] == "true" &&
 						req.Labels[labels.NamespaceKey] == "default"
 				}), mock.Anything).Return(&kkOps.CreateAPIResponse{
 					APIResponseSchema: &kkComps.APIResponseSchema{
 						ID:   "api-protected-456",
-						Name: "protected-api",
+						Name: stringPtr("protected-api"),
 					},
 				}, nil)
 			},
@@ -352,4 +352,8 @@ func TestExecutor_createAPI(t *testing.T) {
 			mockAPI.AssertExpectations(t)
 		})
 	}
+}
+
+func stringPtr(s string) *string {
+	return &s
 }

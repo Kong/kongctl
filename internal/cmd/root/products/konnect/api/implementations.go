@@ -24,6 +24,90 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func implementationEntityValue(
+	item kkComps.APIImplementationListItem,
+) *kkComps.APIImplementationListItemGatewayServiceEntity {
+	return item.APIImplementationListItemGatewayServiceEntity
+}
+
+func implementationIDValue(item kkComps.APIImplementationListItem) string {
+	if entity := implementationEntityValue(item); entity != nil {
+		return entity.GetID()
+	}
+	return ""
+}
+
+func implementationIDPtr(item *kkComps.APIImplementationListItem) string {
+	if item == nil {
+		return ""
+	}
+	return implementationIDValue(*item)
+}
+
+func implementationServiceValue(
+	item kkComps.APIImplementationListItem,
+) *kkComps.APIImplementationService {
+	if entity := implementationEntityValue(item); entity != nil {
+		return entity.GetService()
+	}
+	return nil
+}
+
+func implementationServicePtr(item *kkComps.APIImplementationListItem) *kkComps.APIImplementationService {
+	if item == nil {
+		return nil
+	}
+	return implementationServiceValue(*item)
+}
+
+func implementationCreatedAtValue(
+	item kkComps.APIImplementationListItem,
+) time.Time {
+	if entity := implementationEntityValue(item); entity != nil {
+		return entity.GetCreatedAt()
+	}
+	return time.Time{}
+}
+
+func implementationCreatedAtPtr(item *kkComps.APIImplementationListItem) time.Time {
+	if item == nil {
+		return time.Time{}
+	}
+	return implementationCreatedAtValue(*item)
+}
+
+func implementationUpdatedAtValue(
+	item kkComps.APIImplementationListItem,
+) time.Time {
+	if entity := implementationEntityValue(item); entity != nil {
+		return entity.GetUpdatedAt()
+	}
+	return time.Time{}
+}
+
+func implementationUpdatedAtPtr(item *kkComps.APIImplementationListItem) time.Time {
+	if item == nil {
+		return time.Time{}
+	}
+	return implementationUpdatedAtValue(*item)
+}
+
+func implementationAPIIDValue(
+	item kkComps.APIImplementationListItem,
+) string {
+	if entity := implementationEntityValue(item); entity != nil {
+		return entity.GetAPIID()
+	}
+	return ""
+}
+
+func implementationAPIIDPtr(item *kkComps.APIImplementationListItem) string {
+	if item == nil {
+		return ""
+	}
+	return implementationAPIIDValue(*item)
+}
+
 const (
 	implementationsCommandName = "implementations"
 )
@@ -277,12 +361,12 @@ func filterImplementations(
 
 	matches := make([]kkComps.APIImplementationListItem, 0)
 	for _, implementation := range implementations {
-		if strings.ToLower(implementation.GetID()) == lowered {
+		if strings.ToLower(implementationIDValue(implementation)) == lowered {
 			matches = append(matches, implementation)
 			continue
 		}
 
-		if implementation.GetService() != nil && strings.ToLower(implementation.GetService().GetID()) == lowered {
+		if svc := implementationServiceValue(implementation); svc != nil && strings.ToLower(svc.GetID()) == lowered {
 			matches = append(matches, implementation)
 			continue
 		}
@@ -294,7 +378,7 @@ func filterImplementations(
 func implementationToRecord(implementation kkComps.APIImplementationListItem) apiImplementationRecord {
 	serviceID := "n/a"
 	controlPlaneID := "n/a"
-	if svc := implementation.GetService(); svc != nil {
+	if svc := implementationServiceValue(implementation); svc != nil {
 		if id := svc.GetID(); id != "" {
 			serviceID = util.AbbreviateUUID(id)
 		}
@@ -304,11 +388,11 @@ func implementationToRecord(implementation kkComps.APIImplementationListItem) ap
 	}
 
 	return apiImplementationRecord{
-		ImplementationID: util.AbbreviateUUID(implementation.GetID()),
+		ImplementationID: util.AbbreviateUUID(implementationIDValue(implementation)),
 		ServiceID:        serviceID,
 		ControlPlaneID:   controlPlaneID,
-		LocalCreatedTime: implementation.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
-		LocalUpdatedTime: implementation.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		LocalCreatedTime: implementationCreatedAtValue(implementation).In(time.Local).Format("2006-01-02 15:04:05"),
+		LocalUpdatedTime: implementationUpdatedAtValue(implementation).In(time.Local).Format("2006-01-02 15:04:05"),
 	}
 }
 
@@ -321,7 +405,7 @@ func implementationDetailView(implementation *kkComps.APIImplementationListItem)
 
 	serviceID := missing
 	controlPlaneID := missing
-	if svc := implementation.GetService(); svc != nil {
+	if svc := implementationServicePtr(implementation); svc != nil {
 		if id := svc.GetID(); id != "" {
 			serviceID = id
 		}
@@ -331,11 +415,11 @@ func implementationDetailView(implementation *kkComps.APIImplementationListItem)
 	}
 
 	fields := map[string]string{
-		"api_id":           implementation.GetAPIID(),
+		"api_id":           implementationAPIIDPtr(implementation),
 		"control_plane_id": controlPlaneID,
-		"created_at":       implementation.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		"created_at":       implementationCreatedAtPtr(implementation).In(time.Local).Format("2006-01-02 15:04:05"),
 		"service_id":       serviceID,
-		"updated_at":       implementation.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		"updated_at":       implementationUpdatedAtPtr(implementation).In(time.Local).Format("2006-01-02 15:04:05"),
 	}
 
 	keys := make([]string, 0, len(fields))
@@ -345,7 +429,7 @@ func implementationDetailView(implementation *kkComps.APIImplementationListItem)
 	sort.Strings(keys)
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "id: %s\n", implementation.GetID())
+	fmt.Fprintf(&b, "id: %s\n", implementationIDPtr(implementation))
 	for _, key := range keys {
 		fmt.Fprintf(&b, "%s: %s\n", key, fields[key])
 	}

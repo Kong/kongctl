@@ -51,18 +51,20 @@ apis:
 	require.NoError(t, err)
 	t.Logf("Loaded APIs: %d, APIImplementations: %d", len(resourceSet.APIs), len(resourceSet.APIImplementations))
 	if len(resourceSet.APIImplementations) > 0 {
+		impl := resourceSet.APIImplementations[0]
+		service := impl.GetService()
 		t.Logf("Implementation[0]: ref=%s api=%s serviceID=%s controlPlaneID=%s",
-			resourceSet.APIImplementations[0].GetRef(),
-			resourceSet.APIImplementations[0].API,
+			impl.GetRef(),
+			impl.API,
 			func() string {
-				if resourceSet.APIImplementations[0].Service != nil {
-					return resourceSet.APIImplementations[0].Service.ID
+				if service != nil {
+					return service.GetID()
 				}
 				return "<nil>"
 			}(),
 			func() string {
-				if resourceSet.APIImplementations[0].Service != nil {
-					return resourceSet.APIImplementations[0].Service.ControlPlaneID
+				if service != nil {
+					return service.GetControlPlaneID()
 				}
 				return "<nil>"
 			}(),
@@ -91,7 +93,7 @@ apis:
 	// Mock CreateAPI
 	createdAPI := kkComps.APIResponseSchema{
 		ID:          "api-123",
-		Name:        "My Test API",
+		Name:        stringPtr("My Test API"),
 		Description: stringPtr("Test API for integration testing"),
 		Version:     stringPtr("1.0.0"),
 		Labels: map[string]string{
@@ -149,7 +151,7 @@ apis:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 			},
 		}, nil)
 	stateClient := state.NewClient(state.ClientConfig{
@@ -241,7 +243,12 @@ apis:
 
 	// Set up mock for the update plan generation - ListApis now returns the created API
 	// Allow multiple calls during update flow
-	t.Logf("Created API - ID: %s, Name: %s, Slug: %s", createdAPI.ID, createdAPI.Name, *createdAPI.Slug)
+	t.Logf(
+		"Created API - ID: %s, Name: %s, Slug: %s",
+		createdAPI.ID,
+		stringValue(createdAPI.Name),
+		stringValue(createdAPI.Slug),
+	)
 	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).
 		Return(&kkOps.ListApisResponse{
 			StatusCode: 200,
@@ -264,7 +271,7 @@ apis:
 	// Debug: log what's in the resource set
 	t.Logf("Updated resource set has %d APIs", len(updatedResourceSet.APIs))
 	if len(updatedResourceSet.APIs) > 0 {
-		t.Logf("API ref: %s, name: %s", updatedResourceSet.APIs[0].Ref, updatedResourceSet.APIs[0].Name)
+		t.Logf("API ref: %s, name: %s", updatedResourceSet.APIs[0].Ref, stringValue(updatedResourceSet.APIs[0].Name))
 	}
 
 	plan, err = p.GeneratePlan(ctx, updatedResourceSet, planner.Options{Mode: planner.PlanModeApply})
@@ -348,7 +355,7 @@ apis:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
 						Total: 0,
@@ -372,9 +379,9 @@ apis:
 
 	// Mock portal creation
 	portalTime := time.Now()
-	createdPortal := kkComps.Portal{
+	createdPortal := kkComps.ListPortalsResponsePortal{
 		ID:        "portal-123",
-		Name:      "Developer Portal",
+		Name:      stringPtr("Developer Portal"),
 		CreatedAt: portalTime,
 		UpdatedAt: portalTime,
 	}
@@ -395,7 +402,7 @@ apis:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{createdPortal},
+				Data: []kkComps.ListPortalsResponsePortal{createdPortal},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
 						Total: 1,
@@ -408,7 +415,7 @@ apis:
 	apiTime := time.Now()
 	createdAPI := kkComps.APIResponseSchema{
 		ID:          "api-456",
-		Name:        "My API",
+		Name:        stringPtr("My API"),
 		Description: stringPtr("API with child resources"),
 		Version:     stringPtr("1.0.0"),
 		Labels: map[string]string{
@@ -429,7 +436,7 @@ apis:
 	versionTime := time.Now()
 	createdVersion := kkComps.APIVersionResponse{
 		ID:        "version-789",
-		Version:   "v1.0.0",
+		Version:   stringPtr("v1.0.0"),
 		CreatedAt: versionTime,
 		UpdatedAt: versionTime,
 	}
@@ -591,7 +598,7 @@ api_versions:
 	// Mock API creation
 	createdAPI := kkComps.APIResponseSchema{
 		ID:      "api-123",
-		Name:    "My API",
+		Name:    stringPtr("My API"),
 		Version: stringPtr("1.0.0"),
 		Labels: map[string]string{
 			"KONGCTL-managed":      "true",
@@ -610,7 +617,7 @@ api_versions:
 	// Mock version creation
 	createdVersion := kkComps.APIVersionResponse{
 		ID:        "version-1",
-		Version:   "v1.0.0",
+		Version:   stringPtr("v1.0.0"),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -656,7 +663,7 @@ api_versions:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
 						Total: 0,
@@ -733,7 +740,7 @@ apis:
 	// Mock existing API (simulating sync mode where API exists but not in config)
 	existingAPI := kkComps.APIResponseSchema{
 		ID:      "api-999",
-		Name:    "Old API",
+		Name:    stringPtr("Old API"),
 		Version: stringPtr("0.1.0"),
 		Labels: map[string]string{
 			"KONGCTL-managed":   "true",
@@ -760,7 +767,7 @@ apis:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 			},
 		}, nil)
 
@@ -846,7 +853,7 @@ api_documents:
 	// Debug output
 	t.Logf("Loaded resources: APIs=%d, APIDocuments=%d", len(resourceSet.APIs), len(resourceSet.APIDocuments))
 	for i, api := range resourceSet.APIs {
-		t.Logf("API[%d]: ref=%s, name=%s", i, api.Ref, api.Name)
+		t.Logf("API[%d]: ref=%s, name=%s", i, api.Ref, stringValue(api.Name))
 	}
 	for i, doc := range resourceSet.APIDocuments {
 		title := ""
@@ -877,7 +884,7 @@ api_documents:
 	// Mock API creation
 	createdAPI := kkComps.APIResponseSchema{
 		ID:   "api-doc-123",
-		Name: "Documented API",
+		Name: stringPtr("Documented API"),
 		Labels: map[string]string{
 			labels.NamespaceKey: "default",
 		},
@@ -957,7 +964,7 @@ api_documents:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 			},
 		}, nil)
 	stateClient := state.NewClient(state.ClientConfig{
@@ -1033,7 +1040,7 @@ apis:
 	// Mock API creation
 	createdAPI := kkComps.APIResponseSchema{
 		ID:   "api-impl-123",
-		Name: "API with Implementation",
+		Name: stringPtr("API with Implementation"),
 		Labels: map[string]string{
 			labels.NamespaceKey: "default",
 		},
@@ -1077,9 +1084,20 @@ apis:
 	mockAPIAPI.On("CreateAPIImplementation", mock.Anything, "api-impl-123", mock.Anything).
 		Return(&kkOps.CreateAPIImplementationResponse{
 			StatusCode: 201,
-			APIImplementationResponse: &kkComps.APIImplementationResponse{
-				ID: "impl-123",
-			},
+			APIImplementationResponse: func() *kkComps.APIImplementationResponse {
+				resp := kkComps.CreateAPIImplementationResponseAPIImplementationResponseServiceReference(
+					kkComps.APIImplementationResponseServiceReference{
+						ID:        "impl-123",
+						CreatedAt: time.Now(),
+						UpdatedAt: time.Now(),
+						Service: &kkComps.APIImplementationService{
+							ID:             "12345678-1234-1234-1234-123456789012",
+							ControlPlaneID: "87654321-4321-4321-4321-210987654321",
+						},
+					},
+				)
+				return &resp
+			}(),
 		}, nil).Once()
 
 	// Create state client and planner
@@ -1088,7 +1106,7 @@ apis:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 			},
 		}, nil)
 	stateClient := state.NewClient(state.ClientConfig{
@@ -1165,4 +1183,11 @@ func GetMockAPIAPI(ctx context.Context, _ *testing.T) *MockAPIAPI {
 
 func stringPtr(s string) *string {
 	return &s
+}
+
+func stringValue(ptr *string) string {
+	if ptr == nil {
+		return ""
+	}
+	return *ptr
 }

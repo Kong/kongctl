@@ -104,24 +104,24 @@ func TestListManagedPortals(t *testing.T) {
 						if *req.PageNumber == 1 {
 							return &kkOps.ListPortalsResponse{
 								ListPortalsResponse: &kkComps.ListPortalsResponse{
-									Data: []kkComps.Portal{
+									Data: []kkComps.ListPortalsResponsePortal{
 										{
 											ID:   "portal-1",
-											Name: "Managed Portal",
+											Name: ptr("Managed Portal"),
 											Labels: map[string]string{
 												labels.NamespaceKey: "default",
 											},
 										},
 										{
 											ID:   "portal-2",
-											Name: "Unmanaged Portal",
+											Name: ptr("Unmanaged Portal"),
 											Labels: map[string]string{
 												"env": "production",
 											},
 										},
 										{
 											ID:   "portal-3",
-											Name: "Another Managed",
+											Name: ptr("Another Managed"),
 											Labels: map[string]string{
 												labels.NamespaceKey: "team-a",
 											},
@@ -138,7 +138,7 @@ func TestListManagedPortals(t *testing.T) {
 						// Subsequent calls return empty
 						return &kkOps.ListPortalsResponse{
 							ListPortalsResponse: &kkComps.ListPortalsResponse{
-								Data: []kkComps.Portal{},
+								Data: []kkComps.ListPortalsResponsePortal{},
 							},
 						}, nil
 					},
@@ -158,10 +158,10 @@ func TestListManagedPortals(t *testing.T) {
 						case 1:
 							return &kkOps.ListPortalsResponse{
 								ListPortalsResponse: &kkComps.ListPortalsResponse{
-									Data: []kkComps.Portal{
+									Data: []kkComps.ListPortalsResponsePortal{
 										{
 											ID:   "portal-1",
-											Name: "Managed 1",
+											Name: ptr("Managed 1"),
 											Labels: map[string]string{
 												labels.NamespaceKey: "default",
 											},
@@ -177,10 +177,10 @@ func TestListManagedPortals(t *testing.T) {
 						case 2:
 							return &kkOps.ListPortalsResponse{
 								ListPortalsResponse: &kkComps.ListPortalsResponse{
-									Data: []kkComps.Portal{
+									Data: []kkComps.ListPortalsResponsePortal{
 										{
 											ID:   "portal-2",
-											Name: "Managed 2",
+											Name: ptr("Managed 2"),
 											Labels: map[string]string{
 												labels.NamespaceKey: "default",
 											},
@@ -196,7 +196,7 @@ func TestListManagedPortals(t *testing.T) {
 						default:
 							return &kkOps.ListPortalsResponse{
 								ListPortalsResponse: &kkComps.ListPortalsResponse{
-									Data: []kkComps.Portal{},
+									Data: []kkComps.ListPortalsResponsePortal{},
 								},
 							}, nil
 						}
@@ -269,17 +269,17 @@ func TestGetPortalByName(t *testing.T) {
 					) (*kkOps.ListPortalsResponse, error) {
 						return &kkOps.ListPortalsResponse{
 							ListPortalsResponse: &kkComps.ListPortalsResponse{
-								Data: []kkComps.Portal{
+								Data: []kkComps.ListPortalsResponsePortal{
 									{
 										ID:   "portal-1",
-										Name: "Other Portal",
+										Name: ptr("Other Portal"),
 										Labels: map[string]string{
 											labels.NamespaceKey: "default",
 										},
 									},
 									{
 										ID:   "portal-2",
-										Name: "Target Portal",
+										Name: ptr("Target Portal"),
 										Labels: map[string]string{
 											labels.NamespaceKey: "default",
 										},
@@ -303,10 +303,10 @@ func TestGetPortalByName(t *testing.T) {
 					) (*kkOps.ListPortalsResponse, error) {
 						return &kkOps.ListPortalsResponse{
 							ListPortalsResponse: &kkComps.ListPortalsResponse{
-								Data: []kkComps.Portal{
+								Data: []kkComps.ListPortalsResponsePortal{
 									{
 										ID:   "portal-1",
-										Name: "Other Portal",
+										Name: ptr("Other Portal"),
 										Labels: map[string]string{
 											labels.NamespaceKey: "default",
 										},
@@ -355,8 +355,8 @@ func TestGetPortalByName(t *testing.T) {
 			if !tt.wantFound && portal != nil {
 				t.Errorf("GetPortalByName() expected nil but got portal %s", portal.ID)
 			}
-			if portal != nil && portal.Name != tt.portalName {
-				t.Errorf("GetPortalByName() got portal name %s, want %s", portal.Name, tt.portalName)
+			if portal != nil && stringPtrValue(portal.Name) != tt.portalName {
+				t.Errorf("GetPortalByName() got portal name %s, want %s", stringPtrValue(portal.Name), tt.portalName)
 			}
 		})
 	}
@@ -373,7 +373,7 @@ func TestCreatePortal(t *testing.T) {
 		{
 			name: "successful create with labels",
 			portal: kkComps.CreatePortal{
-				Name: "New Portal",
+				Name: ptr("New Portal"),
 				Labels: map[string]*string{
 					"env": ptr("production"),
 				},
@@ -417,7 +417,7 @@ func TestCreatePortal(t *testing.T) {
 		{
 			name: "API error",
 			portal: kkComps.CreatePortal{
-				Name: "New Portal",
+				Name: ptr("New Portal"),
 			},
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
@@ -433,7 +433,7 @@ func TestCreatePortal(t *testing.T) {
 		{
 			name: "nil response portal",
 			portal: kkComps.CreatePortal{
-				Name: "New Portal",
+				Name: ptr("New Portal"),
 			},
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
@@ -514,7 +514,7 @@ func TestUpdatePortal(t *testing.T) {
 						return &kkOps.UpdatePortalResponse{
 							PortalResponse: &kkComps.PortalResponse{
 								ID:     id,
-								Name:   *portal.Name,
+								Name:   portal.Name,
 								Labels: respLabels,
 							},
 						}, nil
@@ -526,8 +526,8 @@ func TestUpdatePortal(t *testing.T) {
 				if resp.ID != "portal-123" {
 					t.Errorf("Expected portal ID portal-123, got %s", resp.ID)
 				}
-				if resp.Name != "Updated Portal" {
-					t.Errorf("Expected portal name Updated Portal, got %s", resp.Name)
+				if stringPtrValue(resp.Name) != "Updated Portal" {
+					t.Errorf("Expected portal name Updated Portal, got %s", stringPtrValue(resp.Name))
 				}
 			},
 		},

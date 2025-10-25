@@ -113,7 +113,7 @@ func TestExecutor_createPortal(t *testing.T) {
 			setupMock: func(m *MockPortalAPI) {
 				m.On("CreatePortal", mock.Anything, mock.MatchedBy(func(p kkComps.CreatePortal) bool {
 					// Verify fields
-					if p.Name != "test-portal" {
+					if p.Name == nil || *p.Name != "test-portal" {
 						return false
 					}
 					if p.Description == nil || *p.Description != "Test description" {
@@ -167,7 +167,7 @@ func TestExecutor_createPortal(t *testing.T) {
 			},
 			setupMock: func(m *MockPortalAPI) {
 				m.On("CreatePortal", mock.Anything, mock.MatchedBy(func(p kkComps.CreatePortal) bool {
-					return p.Name == "minimal-portal" &&
+					return p.Name != nil && *p.Name == "minimal-portal" &&
 						p.Labels[labels.NamespaceKey] != nil &&
 						*p.Labels[labels.NamespaceKey] == "default"
 				})).Return(&kkOps.CreatePortalResponse{
@@ -261,10 +261,10 @@ func TestExecutor_updatePortal(t *testing.T) {
 				// Mock GetPortalByName for protection check
 				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 					ListPortalsResponse: &kkComps.ListPortalsResponse{
-						Data: []kkComps.Portal{
+						Data: []kkComps.ListPortalsResponsePortal{
 							{
 								ID:   "portal-123",
-								Name: "updated-portal",
+								Name: stringPtr("updated-portal"),
 								Labels: map[string]string{
 									labels.NamespaceKey: "default",
 									// No protected label
@@ -303,10 +303,10 @@ func TestExecutor_updatePortal(t *testing.T) {
 			setupMock: func(m *MockPortalAPI) {
 				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 					ListPortalsResponse: &kkComps.ListPortalsResponse{
-						Data: []kkComps.Portal{
+						Data: []kkComps.ListPortalsResponsePortal{
 							{
 								ID:   "portal-456",
-								Name: "protected-portal",
+								Name: stringPtr("protected-portal"),
 								Labels: map[string]string{
 									labels.NamespaceKey: "default",
 									labels.ProtectedKey: "true",
@@ -335,7 +335,7 @@ func TestExecutor_updatePortal(t *testing.T) {
 			setupMock: func(m *MockPortalAPI) {
 				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 					ListPortalsResponse: &kkComps.ListPortalsResponse{
-						Data: []kkComps.Portal{},
+						Data: []kkComps.ListPortalsResponsePortal{},
 						Meta: kkComps.PaginatedMeta{
 							Page: kkComps.PageMeta{Total: 0},
 						},
@@ -399,10 +399,10 @@ func TestExecutor_deletePortal(t *testing.T) {
 				// Mock GetPortalByName for protection check
 				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 					ListPortalsResponse: &kkComps.ListPortalsResponse{
-						Data: []kkComps.Portal{
+						Data: []kkComps.ListPortalsResponsePortal{
 							{
 								ID:   "portal-123",
-								Name: "delete-portal",
+								Name: stringPtr("delete-portal"),
 								Labels: map[string]string{
 									labels.NamespaceKey: "default",
 								},
@@ -433,10 +433,10 @@ func TestExecutor_deletePortal(t *testing.T) {
 			setupMock: func(m *MockPortalAPI) {
 				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 					ListPortalsResponse: &kkComps.ListPortalsResponse{
-						Data: []kkComps.Portal{
+						Data: []kkComps.ListPortalsResponsePortal{
 							{
 								ID:   "portal-456",
-								Name: "protected-portal",
+								Name: stringPtr("protected-portal"),
 								Labels: map[string]string{
 									labels.NamespaceKey: "default",
 									labels.ProtectedKey: "true",
@@ -467,7 +467,7 @@ func TestExecutor_deletePortal(t *testing.T) {
 				// because it's not managed (ListManagedPortals filters it out)
 				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 					ListPortalsResponse: &kkComps.ListPortalsResponse{
-						Data: []kkComps.Portal{}, // Empty - unmanaged portal filtered out
+						Data: []kkComps.ListPortalsResponsePortal{}, // Empty - unmanaged portal filtered out
 						Meta: kkComps.PaginatedMeta{
 							Page: kkComps.PageMeta{Total: 0},
 						},
@@ -492,7 +492,7 @@ func TestExecutor_deletePortal(t *testing.T) {
 			setupMock: func(m *MockPortalAPI) {
 				m.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 					ListPortalsResponse: &kkComps.ListPortalsResponse{
-						Data: []kkComps.Portal{},
+						Data: []kkComps.ListPortalsResponsePortal{},
 						Meta: kkComps.PaginatedMeta{
 							Page: kkComps.PageMeta{Total: 0},
 						},
@@ -549,10 +549,10 @@ func TestExecutor_protectionChangeBetweenPlanAndExecution(t *testing.T) {
 	// Simulate portal becoming protected after plan was generated
 	mockAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{
+			Data: []kkComps.ListPortalsResponsePortal{
 				{
 					ID:   "portal-123",
-					Name: "test-portal",
+					Name: stringPtr("test-portal"),
 					Labels: map[string]string{
 						labels.NamespaceKey: "default",
 						labels.ProtectedKey: "true", // Protected after plan generation

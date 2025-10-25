@@ -297,12 +297,9 @@ func (a *AuthStrategyAdapter) buildUpdateConfigs(strategyType string,
 		keyAuth := kkComps.AppAuthStrategyConfigKeyAuth{}
 		keyAuth.KeyNames = a.extractStringSlice(keyAuthConfig["key_names"], nil)
 
-		two := kkComps.Two{
-			KeyAuth: keyAuth,
-		}
-
-		configs := kkComps.CreateConfigsTwo(two)
-		return &configs, nil
+		wrapper := kkComps.UpdateAppAuthStrategyRequestKeyAuth{KeyAuth: keyAuth}
+		cfg := kkComps.CreateConfigsUpdateAppAuthStrategyRequestKeyAuth(wrapper)
+		return &cfg, nil
 
 	case "openid_connect":
 		oidcConfig, ok := configs["openid-connect"].(map[string]any)
@@ -323,12 +320,9 @@ func (a *AuthStrategyAdapter) buildUpdateConfigs(strategyType string,
 		oidc.Scopes = a.extractStringSlice(oidcConfig["scopes"], nil)
 		oidc.AuthMethods = a.extractStringSlice(oidcConfig["auth_methods"], nil)
 
-		one := kkComps.One{
-			OpenidConnect: oidc,
-		}
-
-		configs := kkComps.CreateConfigsOne(one)
-		return &configs, nil
+		wrapper := kkComps.UpdateAppAuthStrategyRequestOpenIDConnect{OpenidConnect: oidc}
+		cfg := kkComps.CreateConfigsUpdateAppAuthStrategyRequestOpenIDConnect(wrapper)
+		return &cfg, nil
 
 	default:
 		return nil, fmt.Errorf("unsupported strategy type: %s", strategyType)

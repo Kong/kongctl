@@ -12,6 +12,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
+	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/pagination"
 )
 
@@ -88,7 +89,7 @@ func NewClient(config ClientConfig) *Client {
 
 // Portal represents a normalized portal for internal use
 type Portal struct {
-	kkComps.Portal
+	kkComps.ListPortalsResponsePortal
 	NormalizedLabels map[string]string // Non-pointer labels
 }
 
@@ -150,6 +151,30 @@ type APIDocument struct {
 	Slug             string
 	Status           string
 	ParentDocumentID string
+}
+
+func stringPtrValue(value *string) string {
+	return util.StringValue(value)
+}
+
+func implementationListItemEntity(
+	item kkComps.APIImplementationListItem,
+) *kkComps.APIImplementationListItemGatewayServiceEntity {
+	return item.APIImplementationListItemGatewayServiceEntity
+}
+
+func implementationListItemID(item kkComps.APIImplementationListItem) string {
+	if entity := implementationListItemEntity(item); entity != nil {
+		return entity.GetID()
+	}
+	return ""
+}
+
+func implementationListItemService(item kkComps.APIImplementationListItem) *kkComps.APIImplementationService {
+	if entity := implementationListItemEntity(item); entity != nil {
+		return entity.GetService()
+	}
+	return nil
 }
 
 // PortalPage represents a portal page for internal use
@@ -215,8 +240,8 @@ func (c *Client) ListManagedPortals(ctx context.Context, namespaces []string) ([
 				// Filter by namespace if specified
 				if shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
 					portal := Portal{
-						Portal:           p,
-						NormalizedLabels: normalized,
+						ListPortalsResponsePortal: p,
+						NormalizedLabels:          normalized,
 					}
 					filteredPortals = append(filteredPortals, portal)
 				}
@@ -267,8 +292,8 @@ func (c *Client) ListAllPortals(ctx context.Context) ([]Portal, error) {
 			}
 
 			portal := Portal{
-				Portal:           p,
-				NormalizedLabels: normalized,
+				ListPortalsResponsePortal: p,
+				NormalizedLabels:          normalized,
 			}
 			allPortals = append(allPortals, portal)
 		}
@@ -291,7 +316,7 @@ func (c *Client) GetPortalByName(ctx context.Context, name string) (*Portal, err
 	}
 
 	for _, p := range portals {
-		if p.Name == name {
+		if stringPtrValue(p.Name) == name {
 			return &p, nil
 		}
 	}
@@ -318,7 +343,7 @@ func (c *Client) GetPortalByFilter(ctx context.Context, filter string) (*Portal,
 	if strings.HasPrefix(filter, "name[eq]=") {
 		name := strings.TrimPrefix(filter, "name[eq]=")
 		for _, p := range portals {
-			if p.Name == name {
+			if stringPtrValue(p.Name) == name {
 				return &p, nil
 			}
 		}
@@ -360,7 +385,7 @@ func (c *Client) CreatePortal(
 	if err != nil {
 		return nil, WrapAPIError(err, "create portal", &ErrorWrapperOptions{
 			ResourceType: "portal",
-			ResourceName: portal.Name,
+			ResourceName: stringPtrValue(portal.Name),
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
@@ -919,7 +944,7 @@ func (c *Client) GetAPIByName(ctx context.Context, name string) (*API, error) {
 	logger.Debug("Found managed APIs", "count", len(apis))
 
 	for _, a := range apis {
-		if a.Name == name {
+		if stringPtrValue(a.Name) == name {
 			logger.Debug("Found API via managed lookup", "name", name, "id", a.ID)
 			return &a, nil
 		}
@@ -938,7 +963,7 @@ func (c *Client) GetAPIByName(ctx context.Context, name string) (*API, error) {
 	logger.Debug("Found total APIs", "count", len(allAPIs))
 
 	for _, a := range allAPIs {
-		if a.Name == name {
+		if stringPtrValue(a.Name) == name {
 			// Check if this resource has any KONGCTL labels (indicating it was managed)
 			if c.hasAnyKongctlLabels(a.Labels) {
 				logger.Warn("Found API via fallback - may indicate protection change issue",
@@ -971,7 +996,7 @@ func (c *Client) GetAPIByFilter(ctx context.Context, filter string) (*API, error
 	if strings.HasPrefix(filter, "name[eq]=") {
 		name := strings.TrimPrefix(filter, "name[eq]=")
 		for _, a := range apis {
-			if a.Name == name {
+			if stringPtrValue(a.Name) == name {
 				return &a, nil
 			}
 		}
@@ -992,7 +1017,7 @@ func (c *Client) GetAPIByRef(ctx context.Context, ref string) (*API, error) {
 	for _, a := range apis {
 		// For now, we'll search by name assuming ref == name
 		// This will be improved with proper identity resolution
-		if a.Name == ref {
+		if stringPtrValue(a.Name) == ref {
 			return &a, nil
 		}
 	}
@@ -1035,7 +1060,7 @@ func (c *Client) CreateAPI(
 		// Create enhanced error with context and hints
 		ctx := errors.APIErrorContext{
 			ResourceType: "api",
-			ResourceName: api.Name,
+			ResourceName: stringPtrValue(api.Name),
 			Namespace:    namespace,
 			Operation:    "create",
 			StatusCode:   statusCode,
@@ -1214,7 +1239,7 @@ func (c *Client) ListAPIVersions(ctx context.Context, apiID string) ([]APIVersio
 		for _, v := range resp.ListAPIVersionResponse.Data {
 			version := APIVersion{
 				ID:      v.ID,
-				Version: v.Version,
+				Version: stringPtrValue(v.Version),
 				// Other fields not available in list response - use defaults
 				PublishStatus: "",
 				Deprecated:    false,
@@ -1266,7 +1291,7 @@ func (c *Client) UpdateAPIVersion(
 	// Create the request object as expected by the SDK
 	req := kkOps.UpdateAPIVersionRequest{
 		APIID:      apiID,
-		SpecID:     versionID,
+		VersionID:  versionID,
 		APIVersion: version,
 	}
 
@@ -1300,7 +1325,7 @@ func (c *Client) FetchAPIVersion(ctx context.Context, apiID, versionID string) (
 	// Convert to our internal type with full content
 	version := &APIVersion{
 		ID:      resp.APIVersionResponse.ID,
-		Version: resp.APIVersionResponse.Version,
+		Version: stringPtrValue(resp.APIVersionResponse.Version),
 	}
 
 	// Set spec content if available
@@ -1455,16 +1480,16 @@ func (c *Client) ListAPIImplementations(ctx context.Context, apiID string) ([]AP
 
 		for _, i := range resp.ListAPIImplementationsResponse.Data {
 			impl := APIImplementation{
-				ID: i.ID,
+				ID: implementationListItemID(i),
 			}
 			// ImplementationURL not available in list response
-			if i.Service != nil {
+			if svc := implementationListItemService(i); svc != nil {
 				impl.Service = &struct {
 					ID             string
 					ControlPlaneID string
 				}{
-					ID:             i.Service.ID,
-					ControlPlaneID: i.Service.ControlPlaneID,
+					ID:             svc.GetID(),
+					ControlPlaneID: svc.GetControlPlaneID(),
 				}
 			}
 			allImplementations = append(allImplementations, impl)

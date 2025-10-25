@@ -53,7 +53,7 @@ portals:
 
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{existingPortal, unmanagedPortal},
+			Data: []kkComps.ListPortalsResponsePortal{existingPortal, unmanagedPortal},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 2,
@@ -67,9 +67,8 @@ portals:
 		StatusCode: 201,
 		PortalResponse: &kkComps.PortalResponse{
 			ID:          "portal-two-id",
-			Name:        "Portal Two",
+			Name:        stringPtr("Portal Two"),
 			Description: stringPtr("Second portal"),
-			DisplayName: "",
 			Labels:      make(map[string]string),
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
@@ -130,7 +129,7 @@ portals: []
 
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{managedPortal},
+			Data: []kkComps.ListPortalsResponsePortal{managedPortal},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 1,
@@ -204,7 +203,7 @@ portals:
 
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{protectedPortal},
+			Data: []kkComps.ListPortalsResponsePortal{protectedPortal},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 1,
@@ -270,7 +269,7 @@ portals:
 
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{keepPortal, deletePortal},
+			Data: []kkComps.ListPortalsResponsePortal{keepPortal, deletePortal},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 2,
@@ -339,7 +338,7 @@ portals:
 
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{deletePortal},
+			Data: []kkComps.ListPortalsResponsePortal{deletePortal},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 1,
@@ -353,9 +352,8 @@ portals:
 		StatusCode: 201,
 		PortalResponse: &kkComps.PortalResponse{
 			ID:          "new-id",
-			Name:        "New Portal",
+			Name:        stringPtr("New Portal"),
 			Description: stringPtr("Newly created"),
-			DisplayName: "",
 			Labels:      make(map[string]string),
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
@@ -434,7 +432,7 @@ portals:
 			// Mock empty current state
 			mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 				ListPortalsResponse: &kkComps.ListPortalsResponse{
-					Data: []kkComps.Portal{},
+					Data: []kkComps.ListPortalsResponsePortal{},
 					Meta: kkComps.PaginatedMeta{
 						Page: kkComps.PageMeta{
 							Total: 0,
@@ -448,9 +446,8 @@ portals:
 				StatusCode: 201,
 				PortalResponse: &kkComps.PortalResponse{
 					ID:          "output-id",
-					Name:        "Output Test",
+					Name:        stringPtr("Output Test"),
 					Description: stringPtr("Test output formats"),
-					DisplayName: "",
 					Labels:      make(map[string]string),
 					CreatedAt:   time.Now(),
 					UpdatedAt:   time.Now(),
@@ -528,7 +525,7 @@ portals:
 	// Mock empty current state
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{},
+			Data: []kkComps.ListPortalsResponsePortal{},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 0,
@@ -572,15 +569,14 @@ portals:
 
 // Helper functions
 
-func CreateUnmanagedPortal(name, id, description string) kkComps.Portal {
-	return kkComps.Portal{
+func CreateUnmanagedPortal(name, id, description string) kkComps.ListPortalsResponsePortal {
+	return kkComps.ListPortalsResponsePortal{
 		ID:          id,
-		Name:        name,
+		Name:        stringPtr(name),
 		Description: stringPtr(description),
-		DisplayName: "",
-		Labels:      map[string]string{
-			// No managed labels - this is unmanaged
-		},
+		Labels:      map[string]string{},
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 }
 

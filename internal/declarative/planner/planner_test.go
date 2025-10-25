@@ -65,7 +65,7 @@ func TestGeneratePlan_CreatePortal(t *testing.T) {
 	// Mock empty portals list (no existing portals)
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{},
+			Data: []kkComps.ListPortalsResponsePortal{},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 0,
@@ -97,8 +97,8 @@ func TestGeneratePlan_CreatePortal(t *testing.T) {
 		Portals: []resources.PortalResource{
 			{
 				CreatePortal: kkComps.CreatePortal{
-					Name:        "dev-portal",
-					DisplayName: &displayName,
+					Name:        ptrString("dev-portal"),
+					DisplayName: ptrString(displayName),
 					Description: &description,
 					Labels:      map[string]*string{},
 				},
@@ -157,11 +157,11 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 	oldDesc := "Old description"
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{
+			Data: []kkComps.ListPortalsResponsePortal{
 				{
 					ID:          "portal-123",
-					Name:        "dev-portal",
-					DisplayName: "Development Portal",
+					Name:        ptrString("dev-portal"),
+					DisplayName: ptrString("Development Portal"),
 					Description: &oldDesc,
 					Labels: map[string]string{
 						labels.NamespaceKey: "default",
@@ -199,8 +199,8 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 		Portals: []resources.PortalResource{
 			{
 				CreatePortal: kkComps.CreatePortal{
-					Name:        "dev-portal",
-					DisplayName: &displayName,
+					Name:        ptrString("dev-portal"),
+					DisplayName: ptrString(displayName),
 					Description: &newDesc,
 					Labels:      map[string]*string{},
 				},
@@ -251,11 +251,11 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 	// Mock existing protected portal
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{
+			Data: []kkComps.ListPortalsResponsePortal{
 				{
 					ID:          "portal-123",
-					Name:        "dev-portal",
-					DisplayName: "Development Portal",
+					Name:        ptrString("dev-portal"),
+					DisplayName: ptrString("Development Portal"),
 					Labels: map[string]string{
 						labels.NamespaceKey: "default",
 						labels.ProtectedKey: "true",
@@ -293,8 +293,8 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 		Portals: []resources.PortalResource{
 			{
 				CreatePortal: kkComps.CreatePortal{
-					Name:        "dev-portal",
-					DisplayName: &displayName,
+					Name:        ptrString("dev-portal"),
+					DisplayName: ptrString(displayName),
 					Labels: map[string]*string{
 						labels.ProtectedKey: &protectedLabel,
 					},
@@ -348,7 +348,7 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 	// Mock empty portals list
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{},
+			Data: []kkComps.ListPortalsResponsePortal{},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 0,
@@ -395,8 +395,8 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 		Portals: []resources.PortalResource{
 			{
 				CreatePortal: kkComps.CreatePortal{
-					Name:                             "dev-portal",
-					DisplayName:                      &displayName,
+					Name:                             ptrString("dev-portal"),
+					DisplayName:                      ptrString(displayName),
 					DefaultApplicationAuthStrategyID: &authRef,
 					Labels:                           map[string]*string{},
 				},
@@ -469,11 +469,11 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 	displayName := "Development Portal"
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{
+			Data: []kkComps.ListPortalsResponsePortal{
 				{
 					ID:          "portal-123",
-					Name:        "dev-portal",
-					DisplayName: displayName,
+					Name:        ptrString("dev-portal"),
+					DisplayName: ptrString(displayName),
 					Labels: map[string]string{
 						labels.NamespaceKey: "default",
 					},
@@ -509,8 +509,8 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 		Portals: []resources.PortalResource{
 			{
 				CreatePortal: kkComps.CreatePortal{
-					Name:        "dev-portal",
-					DisplayName: &displayName,
+					Name:        ptrString("dev-portal"),
+					DisplayName: ptrString(displayName),
 					// Labels not defined - this avoids triggering label updates
 				},
 				Ref: "dev-portal",
@@ -631,11 +631,11 @@ func TestGeneratePlan_ApplyModeNoDeletes(t *testing.T) {
 	// Mock existing managed portals
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{
+			Data: []kkComps.ListPortalsResponsePortal{
 				{
 					ID:          "existing-id",
-					Name:        "existing-portal",
-					DisplayName: "Existing Portal",
+					Name:        ptrString("existing-portal"),
+					DisplayName: ptrString("Existing Portal"),
 					Labels: map[string]string{
 						labels.NamespaceKey: "default",
 					},
@@ -655,8 +655,8 @@ func TestGeneratePlan_ApplyModeNoDeletes(t *testing.T) {
 		Portals: []resources.PortalResource{
 			{
 				CreatePortal: kkComps.CreatePortal{
-					Name:        "new-portal",
-					DisplayName: &displayName,
+					Name:        ptrString("new-portal"),
+					DisplayName: ptrString(displayName),
 					Labels:      map[string]*string{},
 				},
 				Ref: "new-portal",
@@ -697,11 +697,11 @@ func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
 	// Mock existing managed portals
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{
+			Data: []kkComps.ListPortalsResponsePortal{
 				{
 					ID:          "existing-id",
-					Name:        "existing-portal",
-					DisplayName: "Existing Portal",
+					Name:        ptrString("existing-portal"),
+					DisplayName: ptrString("Existing Portal"),
 					Labels: map[string]string{
 						labels.NamespaceKey: "default",
 					},
@@ -771,11 +771,11 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 	protectedStr := "true"
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{
+			Data: []kkComps.ListPortalsResponsePortal{
 				{
 					ID:          "protected-id",
-					Name:        "protected-portal",
-					DisplayName: "Protected Portal",
+					Name:        ptrString("protected-portal"),
+					DisplayName: ptrString("Protected Portal"),
 					Description: ptrString("Old description"),
 					Labels: map[string]string{
 						labels.NamespaceKey: "default",
@@ -814,8 +814,8 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 		Portals: []resources.PortalResource{
 			{
 				CreatePortal: kkComps.CreatePortal{
-					Name:        "protected-portal",
-					DisplayName: &displayName,
+					Name:        ptrString("protected-portal"),
+					DisplayName: ptrString(displayName),
 					Description: &description, // Changed field
 				},
 				Kongctl: &resources.KongctlMeta{
@@ -854,11 +854,11 @@ func TestGeneratePlan_ProtectedResourceFailsDelete(t *testing.T) {
 	protectedStr := "true"
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{
+			Data: []kkComps.ListPortalsResponsePortal{
 				{
 					ID:          "protected-id",
-					Name:        "protected-portal",
-					DisplayName: "Protected Portal",
+					Name:        ptrString("protected-portal"),
+					DisplayName: ptrString("Protected Portal"),
 					Labels: map[string]string{
 						labels.NamespaceKey: "default",
 						labels.ProtectedKey: protectedStr,
@@ -919,11 +919,11 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 	protectedStr := "true"
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{
+			Data: []kkComps.ListPortalsResponsePortal{
 				{
 					ID:          "protected-id",
-					Name:        "protected-portal",
-					DisplayName: "Protected Portal",
+					Name:        ptrString("protected-portal"),
+					DisplayName: ptrString("Protected Portal"),
 					Labels: map[string]string{
 						labels.NamespaceKey: "default",
 						labels.ProtectedKey: protectedStr,
@@ -961,8 +961,8 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 		Portals: []resources.PortalResource{
 			{
 				CreatePortal: kkComps.CreatePortal{
-					Name:        "protected-portal",
-					DisplayName: &displayName,
+					Name:        ptrString("protected-portal"),
+					DisplayName: ptrString(displayName),
 					Labels: map[string]*string{
 						labels.ProtectedKey: &falseStr,
 					},

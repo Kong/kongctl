@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"log/slog"
 
+	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/errors"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/log"
+	"github.com/kong/kongctl/internal/util"
 )
 
 // createPortal handles CREATE operations for portals
@@ -28,7 +30,7 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 	if err := common.ValidateRequiredFields(change.Fields, []string{"name"}); err != nil {
 		return "", common.WrapWithResourceContext(err, "portal", "")
 	}
-	portal.Name = common.ExtractResourceName(change.Fields)
+	portal.Name = kk.String(common.ExtractResourceName(change.Fields))
 
 	// Map optional fields using utilities (SDK uses double pointers)
 	common.MapOptionalStringFieldToPtr(&portal.Description, change.Fields, "description")
@@ -64,11 +66,11 @@ func (e *Executor) createPortal(ctx context.Context, change planner.PlannedChang
 
 	// Create the portal
 	logger.Debug("Final portal before creation",
-		slog.String("name", portal.Name),
+		slog.String("name", util.StringValue(portal.Name)),
 		slog.Any("labels", portal.Labels))
 	resp, err := e.client.CreatePortal(ctx, portal, change.Namespace)
 	if err != nil {
-		return "", common.FormatAPIError("portal", portal.Name, "create", err)
+		return "", common.FormatAPIError("portal", util.StringValue(portal.Name), "create", err)
 	}
 
 	return resp.ID, nil

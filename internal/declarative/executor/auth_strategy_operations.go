@@ -352,12 +352,9 @@ func buildKeyAuthConfigs(keyAuthConfig map[string]any) (*kkComps.Configs, error)
 		keyAuth.KeyNames = names
 	}
 
-	two := kkComps.Two{
-		KeyAuth: keyAuth,
-	}
-
-	configs := kkComps.CreateConfigsTwo(two)
-	return &configs, nil
+	wrapper := kkComps.UpdateAppAuthStrategyRequestKeyAuth{KeyAuth: keyAuth}
+	cfg := kkComps.CreateConfigsUpdateAppAuthStrategyRequestKeyAuth(wrapper)
+	return &cfg, nil
 }
 
 // buildOpenIDConnectConfigs builds OpenID Connect configs for the SDK
@@ -420,10 +417,7 @@ func buildOpenIDConnectConfigs(oidcConfig map[string]any) (*kkComps.Configs, err
 		}
 	}
 
-	one := kkComps.One{
-		OpenidConnect: oidc,
-	}
-
-	configs := kkComps.CreateConfigsOne(one)
-	return &configs, nil
+	wrapper := kkComps.UpdateAppAuthStrategyRequestOpenIDConnect{OpenidConnect: oidc}
+	cfg := kkComps.CreateConfigsUpdateAppAuthStrategyRequestOpenIDConnect(wrapper)
+	return &cfg, nil
 }

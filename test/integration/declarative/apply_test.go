@@ -76,7 +76,7 @@ func TestApplyCommand_BasicWorkflow(t *testing.T) {
 		Return(&kkOps.ListPortalsResponse{
 			StatusCode: 200,
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
 						Total: 0,
@@ -91,7 +91,7 @@ func TestApplyCommand_BasicWorkflow(t *testing.T) {
 			StatusCode: 201,
 			PortalResponse: &kkComps.PortalResponse{
 				ID:          "portal-123",
-				Name:        "Test Portal",
+				Name:        stringPtr("Test Portal"),
 				Description: stringPtr("Test portal for integration testing"),
 				Labels: map[string]string{
 					"KONGCTL-managed":      "true",
@@ -231,7 +231,7 @@ func TestApplyCommand_DryRun(t *testing.T) {
 		Return(&kkOps.ListPortalsResponse{
 			StatusCode: 200,
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
 						Total: 0,

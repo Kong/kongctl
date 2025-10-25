@@ -72,7 +72,7 @@ func TestPortalResource_SetDefaults(t *testing.T) {
 			portal: PortalResource{
 				Ref: "my-portal",
 				CreatePortal: kkComps.CreatePortal{
-					Name: "Existing Portal Name",
+					Name: ptr("Existing Portal Name"),
 				},
 			},
 			expectedName: "Existing Portal Name",
@@ -83,7 +83,7 @@ func TestPortalResource_SetDefaults(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			portal := tt.portal
 			portal.SetDefaults()
-			assert.Equal(t, tt.expectedName, portal.Name)
+			assert.Equal(t, tt.expectedName, util.StringValue(portal.Name))
 		})
 	}
 }
@@ -93,6 +93,13 @@ func TestPortalResource_GetRef(t *testing.T) {
 		Ref: "test-portal-ref",
 	}
 	assert.Equal(t, "test-portal-ref", portal.GetRef())
+}
+
+func apiImplementationWithService(service *kkComps.APIImplementationService) kkComps.APIImplementation {
+	if service == nil {
+		return kkComps.APIImplementation{}
+	}
+	return kkComps.CreateAPIImplementationServiceReference(kkComps.ServiceReference{Service: service})
 }
 
 func TestApplicationAuthStrategyResource_Validation(t *testing.T) {
@@ -388,12 +395,10 @@ func TestAPIImplementationResource_Validation(t *testing.T) {
 			name: "valid api implementation with service and reference control_plane_id",
 			implementation: APIImplementationResource{
 				Ref: "api-impl-1",
-				APIImplementation: kkComps.APIImplementation{
-					Service: &kkComps.APIImplementationService{
-						ID:             "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-						ControlPlaneID: "prod-cp", // Reference to declarative control plane
-					},
-				},
+				APIImplementation: apiImplementationWithService(&kkComps.APIImplementationService{
+					ID:             "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+					ControlPlaneID: "prod-cp",
+				}),
 			},
 			wantErr: false,
 		},
@@ -401,12 +406,10 @@ func TestAPIImplementationResource_Validation(t *testing.T) {
 			name: "valid api implementation with service and UUID control_plane_id",
 			implementation: APIImplementationResource{
 				Ref: "api-impl-1",
-				APIImplementation: kkComps.APIImplementation{
-					Service: &kkComps.APIImplementationService{
-						ID:             "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-						ControlPlaneID: "f9e8d7c6-b5a4-3210-9876-fedcba098765", // External UUID
-					},
-				},
+				APIImplementation: apiImplementationWithService(&kkComps.APIImplementationService{
+					ID:             "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+					ControlPlaneID: "f9e8d7c6-b5a4-3210-9876-fedcba098765",
+				}),
 			},
 			wantErr: false,
 		},
@@ -422,11 +425,9 @@ func TestAPIImplementationResource_Validation(t *testing.T) {
 			name: "service with missing id",
 			implementation: APIImplementationResource{
 				Ref: "api-impl-1",
-				APIImplementation: kkComps.APIImplementation{
-					Service: &kkComps.APIImplementationService{
-						ControlPlaneID: "prod-cp",
-					},
-				},
+				APIImplementation: apiImplementationWithService(
+					&kkComps.APIImplementationService{ControlPlaneID: "prod-cp"},
+				),
 			},
 			wantErr: true,
 			errMsg:  "API implementation service.id is required",
@@ -435,12 +436,10 @@ func TestAPIImplementationResource_Validation(t *testing.T) {
 			name: "service with id referencing gateway service resource",
 			implementation: APIImplementationResource{
 				Ref: "api-impl-1",
-				APIImplementation: kkComps.APIImplementation{
-					Service: &kkComps.APIImplementationService{
-						ID:             "not-a-uuid",
-						ControlPlaneID: "prod-cp",
-					},
-				},
+				APIImplementation: apiImplementationWithService(&kkComps.APIImplementationService{
+					ID:             "not-a-uuid",
+					ControlPlaneID: "prod-cp",
+				}),
 			},
 			wantErr: false,
 		},
@@ -448,11 +447,9 @@ func TestAPIImplementationResource_Validation(t *testing.T) {
 			name: "service with missing control_plane_id",
 			implementation: APIImplementationResource{
 				Ref: "api-impl-1",
-				APIImplementation: kkComps.APIImplementation{
-					Service: &kkComps.APIImplementationService{
-						ID: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-					},
-				},
+				APIImplementation: apiImplementationWithService(&kkComps.APIImplementationService{
+					ID: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+				}),
 			},
 			wantErr: true,
 			errMsg:  "API implementation service.control_plane_id is required",
@@ -505,11 +502,9 @@ func TestReferenceFieldMappings(t *testing.T) {
 		// Test with reference control_plane_id
 		t.Run("with reference control_plane_id", func(t *testing.T) {
 			implementation := APIImplementationResource{
-				APIImplementation: kkComps.APIImplementation{
-					Service: &kkComps.APIImplementationService{
-						ControlPlaneID: "prod-cp", // Not a UUID
-					},
-				},
+				APIImplementation: apiImplementationWithService(&kkComps.APIImplementationService{
+					ControlPlaneID: "prod-cp",
+				}),
 			}
 			mappings := implementation.GetReferenceFieldMappings()
 
@@ -522,11 +517,9 @@ func TestReferenceFieldMappings(t *testing.T) {
 		// Test with UUID control_plane_id
 		t.Run("with UUID control_plane_id", func(t *testing.T) {
 			implementation := APIImplementationResource{
-				APIImplementation: kkComps.APIImplementation{
-					Service: &kkComps.APIImplementationService{
-						ControlPlaneID: "f9e8d7c6-b5a4-3210-9876-fedcba098765", // UUID
-					},
-				},
+				APIImplementation: apiImplementationWithService(&kkComps.APIImplementationService{
+					ControlPlaneID: "f9e8d7c6-b5a4-3210-9876-fedcba098765",
+				}),
 			}
 			mappings := implementation.GetReferenceFieldMappings()
 
@@ -547,11 +540,7 @@ func TestReferenceFieldMappings(t *testing.T) {
 		// Test with empty control_plane_id
 		t.Run("with empty control_plane_id", func(t *testing.T) {
 			implementation := APIImplementationResource{
-				APIImplementation: kkComps.APIImplementation{
-					Service: &kkComps.APIImplementationService{
-						ControlPlaneID: "", // Empty
-					},
-				},
+				APIImplementation: apiImplementationWithService(&kkComps.APIImplementationService{ControlPlaneID: ""}),
 			}
 			mappings := implementation.GetReferenceFieldMappings()
 

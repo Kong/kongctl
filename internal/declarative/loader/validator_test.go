@@ -32,13 +32,13 @@ func TestLoader_validatePortals(t *testing.T) {
 				{
 					Ref: "portal1",
 					CreatePortal: kkComps.CreatePortal{
-						Name: "Portal One",
+						Name: stringPtr("Portal One"),
 					},
 				},
 				{
 					Ref: "portal2",
 					CreatePortal: kkComps.CreatePortal{
-						Name: "Portal Two",
+						Name: stringPtr("Portal Two"),
 					},
 				},
 			},
@@ -50,13 +50,13 @@ func TestLoader_validatePortals(t *testing.T) {
 				{
 					Ref: "portal1",
 					CreatePortal: kkComps.CreatePortal{
-						Name: "Portal One",
+						Name: stringPtr("Portal One"),
 					},
 				},
 				{
 					Ref: "portal1",
 					CreatePortal: kkComps.CreatePortal{
-						Name: "Portal Two", // Different name to avoid name duplicate error
+						Name: stringPtr("Portal Two"), // Different name to avoid name duplicate error
 					},
 				},
 			},
@@ -262,13 +262,13 @@ func TestLoader_validateAPIs(t *testing.T) {
 				{
 					Ref: "api1",
 					CreateAPIRequest: kkComps.CreateAPIRequest{
-						Name: "API One",
+						Name: stringPtr("API One"),
 					},
 				},
 				{
 					Ref: "api2",
 					CreateAPIRequest: kkComps.CreateAPIRequest{
-						Name: "API Two",
+						Name: stringPtr("API Two"),
 					},
 				},
 			},
@@ -280,13 +280,13 @@ func TestLoader_validateAPIs(t *testing.T) {
 				{
 					Ref: "api1",
 					CreateAPIRequest: kkComps.CreateAPIRequest{
-						Name: "API One",
+						Name: stringPtr("API One"),
 					},
 				},
 				{
 					Ref: "api1",
 					CreateAPIRequest: kkComps.CreateAPIRequest{
-						Name: "API Two", // Different name to avoid name duplicate error
+						Name: stringPtr("API Two"), // Different name to avoid name duplicate error
 					},
 				},
 			},
@@ -329,21 +329,25 @@ func TestLoader_validateAPIs(t *testing.T) {
 					Implementations: []resources.APIImplementationResource{
 						{
 							Ref: "impl1",
-							APIImplementation: kkComps.APIImplementation{
-								Service: &kkComps.APIImplementationService{
-									ID:             "12345678-1234-1234-1234-123456789012",
-									ControlPlaneID: "dummy-cp", // Use dummy value for required field
+							APIImplementation: kkComps.CreateAPIImplementationServiceReference(
+								kkComps.ServiceReference{
+									Service: &kkComps.APIImplementationService{
+										ID:             "12345678-1234-1234-1234-123456789012",
+										ControlPlaneID: "dummy-cp", // Use dummy value for required field
+									},
 								},
-							},
+							),
 						},
 						{
 							Ref: "impl1",
-							APIImplementation: kkComps.APIImplementation{
-								Service: &kkComps.APIImplementationService{
-									ID:             "12345678-1234-1234-1234-123456789012",
-									ControlPlaneID: "dummy-cp",
+							APIImplementation: kkComps.CreateAPIImplementationServiceReference(
+								kkComps.ServiceReference{
+									Service: &kkComps.APIImplementationService{
+										ID:             "12345678-1234-1234-1234-123456789012",
+										ControlPlaneID: "dummy-cp",
+									},
 								},
-							},
+							),
 						},
 					},
 				},
@@ -357,7 +361,7 @@ func TestLoader_validateAPIs(t *testing.T) {
 				{
 					Ref: "api1",
 					CreateAPIRequest: kkComps.CreateAPIRequest{
-						Name: "API One",
+						Name: stringPtr("API One"),
 					},
 					Versions: []resources.APIVersionResource{
 						{
@@ -383,7 +387,7 @@ func TestLoader_validateAPIs(t *testing.T) {
 				{
 					Ref: "api1",
 					CreateAPIRequest: kkComps.CreateAPIRequest{
-						Name: "API One",
+						Name: stringPtr("API One"),
 					},
 					Versions: []resources.APIVersionResource{
 						{

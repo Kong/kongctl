@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/util"
 )
 
 // PortalResource represents a portal in declarative configuration
@@ -38,7 +39,7 @@ func (p PortalResource) GetRef() string {
 
 // GetMoniker returns the resource moniker (for portals, this is the name)
 func (p PortalResource) GetMoniker() string {
-	return p.Name
+	return util.StringValue(p.Name)
 }
 
 // GetDependencies returns references to other resources this portal depends on
@@ -46,10 +47,10 @@ func (p PortalResource) GetDependencies() []ResourceRef {
 	deps := []ResourceRef{}
 
 	// Portal may depend on an auth strategy
-	if p.DefaultApplicationAuthStrategyID != nil && *p.DefaultApplicationAuthStrategyID != "" {
+	if authStrategyID := util.StringValue(p.DefaultApplicationAuthStrategyID); authStrategyID != "" {
 		deps = append(deps, ResourceRef{
 			Kind: "application_auth_strategy",
-			Ref:  *p.DefaultApplicationAuthStrategyID,
+			Ref:  authStrategyID,
 		})
 	}
 
@@ -82,7 +83,8 @@ func (p *PortalResource) SetLabels(labels map[string]string) {
 	// Convert from map[string]string to SDK's map[string]*string
 	result := make(map[string]*string)
 	for k, v := range labels {
-		result[k] = &v
+		value := v
+		result[k] = &value
 	}
 	p.Labels = result
 }
@@ -150,8 +152,9 @@ func (p PortalResource) Validate() error {
 // SetDefaults applies default values to portal resource
 func (p *PortalResource) SetDefaults() {
 	// If Name is not set, use ref as default
-	if p.Name == "" {
-		p.Name = p.Ref
+	if util.StringValue(p.Name) == "" {
+		name := p.Ref
+		p.Name = &name
 	}
 
 	// Apply defaults to child resources
@@ -181,10 +184,11 @@ func (p PortalResource) GetKonnectID() string {
 
 // GetKonnectMonikerFilter returns the filter string for Konnect API lookup
 func (p PortalResource) GetKonnectMonikerFilter() string {
-	if p.Name == "" {
+	name := util.StringValue(p.Name)
+	if name == "" {
 		return ""
 	}
-	return fmt.Sprintf("name[eq]=%s", p.Name)
+	return fmt.Sprintf("name[eq]=%s", name)
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
@@ -239,7 +243,7 @@ func (p *PortalResource) TryMatchKonnectResource(konnectResource any) bool {
 		}
 
 		if nameField.IsValid() && nameField.Kind() == reflect.String {
-			matched = (nameField.String() == p.Name)
+			matched = (nameField.String() == util.StringValue(p.Name))
 		}
 	}
 

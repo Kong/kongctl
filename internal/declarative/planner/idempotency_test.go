@@ -34,15 +34,15 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 	autoApproveDev := true
 	autoApproveApp := false
 
-	existingPortal := kkComps.Portal{
+	existingPortal := kkComps.ListPortalsResponsePortal{
 		ID:                      "portal-123",
-		Name:                    "test-portal",
-		DisplayName:             displayName,
+		Name:                    ptrString("test-portal"),
+		DisplayName:             ptrString(displayName),
 		Description:             &description,
-		AuthenticationEnabled:   authEnabled,
-		RbacEnabled:             rbacEnabled,
-		AutoApproveDevelopers:   autoApproveDev,
-		AutoApproveApplications: autoApproveApp,
+		AuthenticationEnabled:   boolPtr(authEnabled),
+		RbacEnabled:             boolPtr(rbacEnabled),
+		AutoApproveDevelopers:   boolPtr(autoApproveDev),
+		AutoApproveApplications: boolPtr(autoApproveApp),
 		Labels: map[string]string{
 			labels.NamespaceKey: "default",
 		},
@@ -51,7 +51,7 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 	// Mock list returns existing portal
 	mockAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{existingPortal},
+			Data: []kkComps.ListPortalsResponsePortal{existingPortal},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 1,
@@ -67,7 +67,7 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 			Portals: []resources.PortalResource{
 				{
 					CreatePortal: kkComps.CreatePortal{
-						Name:        "test-portal",
+						Name:        ptrString("test-portal"),
 						Description: &description, // Only configured field
 					},
 					Ref: "test-portal",
@@ -96,7 +96,7 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 			Portals: []resources.PortalResource{
 				{
 					CreatePortal: kkComps.CreatePortal{
-						Name:        "test-portal",
+						Name:        ptrString("test-portal"),
 						Description: &newDesc, // Changed value
 					},
 					Ref: "test-portal",
@@ -129,9 +129,9 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 			Portals: []resources.PortalResource{
 				{
 					CreatePortal: kkComps.CreatePortal{
-						Name:        "test-portal",
-						Description: &description,    // Existing field
-						DisplayName: &newDisplayName, // New field
+						Name:        ptrString("test-portal"),
+						Description: &description,              // Existing field
+						DisplayName: ptrString(newDisplayName), // New field
 					},
 					Ref: "test-portal",
 					Kongctl: &resources.KongctlMeta{
@@ -164,7 +164,7 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 			Portals: []resources.PortalResource{
 				{
 					CreatePortal: kkComps.CreatePortal{
-						Name:        "test-portal",
+						Name:        ptrString("test-portal"),
 						Description: &description,
 						// Not specifying: DisplayName, AuthenticationEnabled, RbacEnabled, etc.
 					},
@@ -191,11 +191,11 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 			Portals: []resources.PortalResource{
 				{
 					CreatePortal: kkComps.CreatePortal{
-						Name:                  "test-portal",
-						Description:           &description,    // Same
-						DisplayName:           &newDisplayName, // Changed
-						AuthenticationEnabled: &newAuthEnabled, // Changed
-						RbacEnabled:           &rbacEnabled,    // Same
+						Name:                  ptrString("test-portal"),
+						Description:           &description,              // Same
+						DisplayName:           ptrString(newDisplayName), // Changed
+						AuthenticationEnabled: boolPtr(newAuthEnabled),   // Changed
+						RbacEnabled:           boolPtr(rbacEnabled),      // Same
 					},
 					Ref: "test-portal",
 				},

@@ -54,16 +54,15 @@ func (i APIImplementationResource) GetReferenceFieldMappings() map[string]string
 	// Only include control_plane_id mapping if it's not a UUID
 	mappings := make(map[string]string)
 
-	if i.Service != nil && i.Service.ControlPlaneID != "" {
-		// Check if control_plane_id is a UUID - if so, it's an external reference
-		if !util.IsValidUUID(i.Service.ControlPlaneID) {
+	service := i.getService()
+	if service != nil {
+		cpID := service.GetControlPlaneID()
+		if cpID != "" && !util.IsValidUUID(cpID) {
 			// Not a UUID, so it's a reference to a declarative control plane
 			mappings["service.control_plane_id"] = "control_plane"
 		}
-	}
-
-	if i.Service != nil && i.Service.ID != "" {
-		if !util.IsValidUUID(i.Service.ID) && !tags.IsRefPlaceholder(i.Service.ID) {
+		serviceID := service.GetID()
+		if serviceID != "" && !util.IsValidUUID(serviceID) && !tags.IsRefPlaceholder(serviceID) {
 			mappings["service.id"] = string(ResourceTypeGatewayService)
 		}
 	}
@@ -78,12 +77,12 @@ func (i APIImplementationResource) Validate() error {
 	}
 
 	// Validate service information if present
-	if i.Service != nil {
-		if i.Service.ID == "" {
+	if service := i.getService(); service != nil {
+		if service.GetID() == "" {
 			return fmt.Errorf("API implementation service.id is required")
 		}
 
-		if i.Service.ControlPlaneID == "" {
+		if service.GetControlPlaneID() == "" {
 			return fmt.Errorf("API implementation service.control_plane_id is required")
 		}
 
@@ -112,39 +111,19 @@ func (i APIImplementationResource) GetKonnectMonikerFilter() string {
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
 func (i *APIImplementationResource) TryMatchKonnectResource(konnectResource any) bool {
-	// For API implementations, we match by service ID + control plane ID
-	// Use reflection to access fields from state.APIImplementation
-	v := reflect.ValueOf(konnectResource)
-
-	// Handle pointer types
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-
-	// Ensure we have a struct
-	if v.Kind() != reflect.Struct {
+	serviceID, controlPlaneID := i.serviceIdentifiers()
+	if serviceID == "" || controlPlaneID == "" {
 		return false
 	}
 
-	// Look for Service and ID fields
-	serviceField := v.FieldByName("Service")
-	idField := v.FieldByName("ID")
+	if id, ok := matchImplementationKnownTypes(konnectResource, serviceID, controlPlaneID); ok {
+		i.konnectID = id
+		return true
+	}
 
-	if serviceField.IsValid() && !serviceField.IsNil() && idField.IsValid() {
-		// Service is a pointer to struct
-		svc := serviceField.Elem()
-		if svc.Kind() == reflect.Struct {
-			svcIDField := svc.FieldByName("ID")
-			cpIDField := svc.FieldByName("ControlPlaneID")
-
-			if svcIDField.IsValid() && cpIDField.IsValid() && i.Service != nil {
-				if svcIDField.String() == i.Service.ID &&
-					cpIDField.String() == i.Service.ControlPlaneID {
-					i.konnectID = idField.String()
-					return true
-				}
-			}
-		}
+	if id, ok := matchImplementationByReflection(konnectResource, serviceID, controlPlaneID); ok {
+		i.konnectID = id
+		return true
 	}
 
 	return false
@@ -214,4 +193,138 @@ func (i *APIImplementationResource) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+func (i APIImplementationResource) getService() *kkComps.APIImplementationService {
+	if i.ServiceReference == nil {
+		return nil
+	}
+	return i.ServiceReference.GetService()
+}
+
+// GetService returns the gateway service implementing this API, if defined.
+func (i APIImplementationResource) GetService() *kkComps.APIImplementationService {
+	return i.getService()
+}
+
+func (i APIImplementationResource) serviceIdentifiers() (string, string) {
+	service := i.getService()
+	if service == nil {
+		return "", ""
+	}
+	return service.GetID(), service.GetControlPlaneID()
+}
+
+func matchImplementationKnownTypes(konnectResource any, serviceID, controlPlaneID string) (string, bool) {
+	switch res := konnectResource.(type) {
+	case *kkComps.APIImplementationResponse:
+		return matchImplementationResponse(res, serviceID, controlPlaneID)
+	case kkComps.APIImplementationResponse:
+		return matchImplementationResponse(&res, serviceID, controlPlaneID)
+	case *kkComps.APIImplementationListItem:
+		return matchImplementationListItem(res, serviceID, controlPlaneID)
+	case kkComps.APIImplementationListItem:
+		return matchImplementationListItem(&res, serviceID, controlPlaneID)
+	}
+	return "", false
+}
+
+func matchImplementationResponse(
+	res *kkComps.APIImplementationResponse,
+	serviceID, controlPlaneID string,
+) (string, bool) {
+	if res == nil || res.APIImplementationResponseServiceReference == nil {
+		return "", false
+	}
+
+	ref := res.APIImplementationResponseServiceReference
+	service := ref.GetService()
+	if service == nil {
+		return "", false
+	}
+
+	if service.GetID() == serviceID && service.GetControlPlaneID() == controlPlaneID {
+		return ref.GetID(), true
+	}
+
+	return "", false
+}
+
+func matchImplementationListItem(
+	item *kkComps.APIImplementationListItem,
+	serviceID, controlPlaneID string,
+) (string, bool) {
+	if item == nil || item.APIImplementationListItemGatewayServiceEntity == nil {
+		return "", false
+	}
+
+	entity := item.APIImplementationListItemGatewayServiceEntity
+	service := entity.GetService()
+	if service == nil {
+		return "", false
+	}
+
+	if service.GetID() == serviceID && service.GetControlPlaneID() == controlPlaneID {
+		return entity.GetID(), true
+	}
+
+	return "", false
+}
+
+func matchImplementationByReflection(konnectResource any, serviceID, controlPlaneID string) (string, bool) {
+	v := reflect.ValueOf(konnectResource)
+	if !v.IsValid() {
+		return "", false
+	}
+
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return "", false
+		}
+		v = v.Elem()
+	}
+
+	if v.Kind() != reflect.Struct {
+		return "", false
+	}
+
+	serviceField := v.FieldByName("Service")
+	idField := v.FieldByName("ID")
+
+	serviceValue, ok := derefStructValue(serviceField)
+	if !ok || !idField.IsValid() || idField.Kind() != reflect.String {
+		return "", false
+	}
+
+	serviceIDField := serviceValue.FieldByName("ID")
+	cpIDField := serviceValue.FieldByName("ControlPlaneID")
+	if !serviceIDField.IsValid() || !cpIDField.IsValid() ||
+		serviceIDField.Kind() != reflect.String || cpIDField.Kind() != reflect.String {
+		return "", false
+	}
+
+	if serviceIDField.String() == serviceID && cpIDField.String() == controlPlaneID {
+		return idField.String(), true
+	}
+
+	return "", false
+}
+
+func derefStructValue(v reflect.Value) (reflect.Value, bool) {
+	if !v.IsValid() {
+		return reflect.Value{}, false
+	}
+
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return reflect.Value{}, false
+		}
+		v = v.Elem()
+	}
+
+	if v.Kind() != reflect.Struct {
+		return reflect.Value{}, false
+	}
+
+	return v, true
 }

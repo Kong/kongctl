@@ -67,8 +67,8 @@ func apiToDisplayRecord(a *kkComps.APIResponseSchema) textDisplayRecord {
 		id = missing
 	}
 
-	if a.Name != "" {
-		name = a.Name
+	if apiName := util.StringValue(a.Name); apiName != "" {
+		name = apiName
 	} else {
 		name = missing
 	}
@@ -111,7 +111,7 @@ func apiDetailView(api *kkComps.APIResponseSchema) string {
 	if id == "" {
 		id = missing
 	}
-	name := strings.TrimSpace(api.Name)
+	name := strings.TrimSpace(util.StringValue(api.Name))
 	if name == "" {
 		name = missing
 	}
@@ -307,7 +307,7 @@ func runListByName(name string, kkClient helpers.APIAPI, helper cmd.Helper,
 
 		// Filter by name since SDK doesn't support name filtering for APIs
 		for _, api := range res.ListAPIResponse.Data {
-			if api.Name == name {
+			if util.StringValue(api.Name) == name {
 				return &api, nil
 			}
 		}

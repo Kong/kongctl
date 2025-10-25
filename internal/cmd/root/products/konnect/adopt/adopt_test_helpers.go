@@ -9,6 +9,10 @@ type stubConfig struct {
 	pageSize int
 }
 
+func stringPtr(s string) *string {
+	return &s
+}
+
 func (s stubConfig) Save() error                           { return nil }
 func (s stubConfig) GetString(string) string               { return "" }
 func (s stubConfig) GetBool(string) bool                   { return false }

@@ -3,12 +3,14 @@ package executor
 import (
 	"context"
 
+	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/attributes"
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/util"
 )
 
 // APIAdapter implements ResourceOperations for APIs
@@ -30,7 +32,7 @@ func (p *APIAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContex
 	protection := execCtx.Protection
 
 	// Map required fields
-	create.Name = common.ExtractResourceName(fields)
+	create.Name = kk.String(common.ExtractResourceName(fields))
 
 	// Map optional fields using utilities (SDK uses double pointers)
 	common.MapOptionalStringFieldToPtr(&create.Description, fields, "description")
@@ -187,7 +189,7 @@ func (a *APIResourceInfo) GetID() string {
 }
 
 func (a *APIResourceInfo) GetName() string {
-	return a.api.Name
+	return util.StringValue(a.api.Name)
 }
 
 func (a *APIResourceInfo) GetLabels() map[string]string {

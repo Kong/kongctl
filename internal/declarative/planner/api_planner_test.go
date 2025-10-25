@@ -41,7 +41,7 @@ func TestExtractAPIFieldsIncludesSlugAndAttributes(t *testing.T) {
 
 	resource := resources.APIResource{
 		CreateAPIRequest: kkComps.CreateAPIRequest{
-			Name:       name,
+			Name:       ptrString(name),
 			Slug:       &slug,
 			Attributes: attrs,
 		},
@@ -84,7 +84,7 @@ func TestShouldUpdateAPIConsidersSlugAndAttributes(t *testing.T) {
 
 	desired := resources.APIResource{
 		CreateAPIRequest: kkComps.CreateAPIRequest{
-			Name:       name,
+			Name:       ptrString(name),
 			Slug:       &updatedSlug,
 			Attributes: updatedAttrs,
 		},

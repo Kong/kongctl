@@ -4,12 +4,14 @@ import (
 	"context"
 	"strings"
 
+	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
+	"github.com/kong/kongctl/internal/util"
 )
 
 // PortalAdapter implements ResourceOperations for portals
@@ -31,7 +33,7 @@ func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionCon
 	protection := execCtx.Protection
 
 	// Map required fields
-	create.Name = common.ExtractResourceName(fields)
+	create.Name = kk.String(common.ExtractResourceName(fields))
 
 	// Map optional fields using utilities (SDK uses double pointers)
 	common.MapOptionalStringFieldToPtr(&create.Description, fields, "description")
@@ -222,7 +224,7 @@ func (p *PortalResourceInfo) GetID() string {
 }
 
 func (p *PortalResourceInfo) GetName() string {
-	return p.portal.Name
+	return util.StringValue(p.portal.GetName())
 }
 
 func (p *PortalResourceInfo) GetLabels() map[string]string {

@@ -255,7 +255,7 @@ func (h apiVersionsHandler) listVersions(
 	for _, summary := range summaries {
 		record := versionSummaryToRecord(summary)
 		displayRecords = append(displayRecords, record)
-		rows = append(rows, table.Row{summary.GetVersion(), util.AbbreviateUUID(record.ID)})
+		rows = append(rows, table.Row{util.StringValue(summary.GetVersion()), util.AbbreviateUUID(record.ID)})
 	}
 
 	detailFn := func(index int) string {
@@ -436,7 +436,7 @@ func findVersionByString(
 ) *kkComps.ListAPIVersionResponseAPIVersionSummary {
 	lowered := strings.ToLower(identifier)
 	for i := range summaries {
-		if strings.ToLower(summaries[i].GetVersion()) == lowered {
+		if strings.ToLower(util.StringValue(summaries[i].GetVersion())) == lowered {
 			return &summaries[i]
 		}
 	}
@@ -451,7 +451,7 @@ func versionSummaryToRecord(summary kkComps.ListAPIVersionResponseAPIVersionSumm
 
 	return apiVersionSummaryRecord{
 		ID:               summary.GetID(),
-		Version:          summary.GetVersion(),
+		Version:          util.StringValue(summary.GetVersion()),
 		SpecType:         specType,
 		LocalCreatedTime: summary.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
 		LocalUpdatedTime: summary.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
@@ -467,7 +467,7 @@ func versionDetailToRecord(version *kkComps.APIVersionResponse) apiVersionDetail
 	return apiVersionDetailRecord{
 		ID:       util.AbbreviateUUID(version.GetID()),
 		RawID:    strings.TrimSpace(version.GetID()),
-		Version:  version.GetVersion(),
+		Version:  util.StringValue(version.GetVersion()),
 		SpecType: specType,
 		SpecContent: func() string {
 			if version.GetSpec() != nil && version.GetSpec().GetContent() != nil {
@@ -507,7 +507,7 @@ func versionSummaryDetailView(
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "id: %s\n", summary.GetID())
-	fmt.Fprintf(&b, "version: %s\n", summary.GetVersion())
+	fmt.Fprintf(&b, "version: %s\n", util.StringValue(summary.GetVersion()))
 	for _, key := range keys {
 		fmt.Fprintf(&b, "%s: %s\n", key, fields[key])
 	}

@@ -100,12 +100,13 @@ func (l *Loader) validatePortals(portals []resources.PortalResource, rs *resourc
 		}
 
 		// Check name uniqueness (within portal type only)
-		if existingRef, exists := names[portal.Name]; exists {
+		portalName := portal.GetMoniker()
+		if existingRef, exists := names[portalName]; exists {
 			return fmt.Errorf("duplicate portal name '%s' (ref: %s conflicts with ref: %s)",
-				portal.Name, portal.GetRef(), existingRef)
+				portalName, portal.GetRef(), existingRef)
 		}
 
-		names[portal.Name] = portal.GetRef()
+		names[portalName] = portal.GetRef()
 	}
 
 	return nil
@@ -206,12 +207,13 @@ func (l *Loader) validateAPIs(apis []resources.APIResource, rs *resources.Resour
 		}
 
 		// Check API name uniqueness (within API type only)
-		if existingRef, exists := apiNames[api.Name]; exists {
+		apiName := api.GetMoniker()
+		if existingRef, exists := apiNames[apiName]; exists {
 			return fmt.Errorf("duplicate api name '%s' (ref: %s conflicts with ref: %s)",
-				api.Name, api.GetRef(), existingRef)
+				apiName, api.GetRef(), existingRef)
 		}
 
-		apiNames[api.Name] = api.GetRef()
+		apiNames[apiName] = api.GetRef()
 
 		// Validate nested versions (these should be empty after extraction)
 		for j := range api.Versions {

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	kk "github.com/Kong/sdk-konnect-go"
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
@@ -21,6 +20,12 @@ import (
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
+
+type portalSummary struct {
+	ID          string
+	Name        *string
+	Description *string
+}
 
 var (
 	deletePortalShort = i18n.T("root.products.konnect.portal.deletePortalShort",
@@ -94,7 +99,7 @@ func (c *deletePortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 
 	// Get portal ID (resolve name if necessary)
 	portalID := strings.TrimSpace(args[0])
-	var portal *kkComps.Portal
+	var portal *portalSummary
 
 	// Check if argument is UUID
 	isUUID := util.IsValidUUID(portalID)
@@ -120,7 +125,7 @@ func (c *deletePortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		}
 		// Convert PortalResponse to Portal for consistency
 		pr := portalResponse.GetPortalResponse()
-		portal = &kkComps.Portal{
+		portal = &portalSummary{
 			ID:          pr.ID,
 			Name:        pr.Name,
 			Description: pr.Description,
@@ -135,7 +140,8 @@ func (c *deletePortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	}
 
 	// Delete the portal
-	logger.Info(fmt.Sprintf("Deleting portal '%s' (ID: %s)", portal.Name, portalID))
+	portalName := util.StringValue(portal.Name)
+	logger.Info(fmt.Sprintf("Deleting portal '%s' (ID: %s)", portalName, portalID))
 
 	_, err := sdk.GetPortalAPI().DeletePortal(helper.GetContext(), portalID, c.force)
 	if err != nil {
@@ -162,14 +168,14 @@ func (c *deletePortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	// Create success response
 	response := map[string]any{
 		"id":      portalID,
-		"name":    portal.Name,
+		"name":    portalName,
 		"status":  "deleted",
-		"message": fmt.Sprintf("Portal '%s' deleted successfully", portal.Name),
+		"message": fmt.Sprintf("Portal '%s' deleted successfully", portalName),
 	}
 
 	if outType == cmdCommon.TEXT {
 		// For text output, just print the success message
-		fmt.Fprintf(helper.GetStreams().Out, "Portal '%s' deleted successfully\n", portal.Name)
+		fmt.Fprintf(helper.GetStreams().Out, "Portal '%s' deleted successfully\n", portalName)
 	} else {
 		// For JSON/YAML output, print the structured response
 		printer.Print(response)
@@ -183,7 +189,7 @@ func (c *deletePortalCmd) resolvePortalByName(
 	api helpers.PortalAPI,
 	helper cmd.Helper,
 	_ config.Hook,
-) (*kkComps.Portal, error) {
+) (*portalSummary, error) {
 	pageSize := int64(common.DefaultRequestPageSize)
 	pageNumber := int64(1)
 
@@ -205,12 +211,15 @@ func (c *deletePortalCmd) resolvePortalByName(
 		}
 
 		// Look for exact name match
-		var matches []*kkComps.Portal
+		var matches []*portalSummary
 		for _, portal := range listResponse.Data {
-			if portal.Name == name {
+			if util.StringValue(portal.Name) == name {
 				// Create a copy to avoid pointer issues
-				p := portal
-				matches = append(matches, &p)
+				matches = append(matches, &portalSummary{
+					ID:          portal.ID,
+					Name:        portal.Name,
+					Description: portal.Description,
+				})
 			}
 		}
 
@@ -235,12 +244,12 @@ func (c *deletePortalCmd) resolvePortalByName(
 	return nil, cmd.PrepareExecutionErrorMsg(helper, fmt.Sprintf("portal not found: %s", name))
 }
 
-func (c *deletePortalCmd) confirmDeletion(portal *kkComps.Portal, helper cmd.Helper) bool {
+func (c *deletePortalCmd) confirmDeletion(portal *portalSummary, helper cmd.Helper) bool {
 	streams := helper.GetStreams()
 
 	// Print warning
 	fmt.Fprintln(streams.Out, "\nWARNING: This will permanently delete the following portal:")
-	fmt.Fprintf(streams.Out, "\n  Name: %s\n", portal.Name)
+	fmt.Fprintf(streams.Out, "\n  Name: %s\n", util.StringValue(portal.Name))
 	fmt.Fprintf(streams.Out, "  ID:   %s\n", portal.ID)
 
 	// Add warning about published APIs if not using force

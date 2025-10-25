@@ -130,8 +130,8 @@ func TestPlanner_ExternalPortal_PlansChildren(t *testing.T) {
 	mockPortalAPI := new(MockPortalAPI)
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{
-				{ID: "portal-123", Name: "ext-portal"},
+			Data: []kkComps.ListPortalsResponsePortal{
+				{ID: "portal-123", Name: ptrString("ext-portal")},
 			},
 			Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
 		},
@@ -150,7 +150,7 @@ func TestPlanner_ExternalPortal_PlansChildren(t *testing.T) {
 	rs := &resources.ResourceSet{
 		Portals: []resources.PortalResource{
 			{
-				CreatePortal: kkComps.CreatePortal{Name: "ext-portal"},
+				CreatePortal: kkComps.CreatePortal{Name: ptrString("ext-portal")},
 				Ref:          "ext-portal-ref",
 				External: &resources.ExternalBlock{
 					Selector: &resources.ExternalSelector{MatchFields: map[string]string{"name": "ext-portal"}},
@@ -186,19 +186,16 @@ func TestPlanner_ExternalPortal_PlansChildren(t *testing.T) {
 	for _, c := range plan.Changes {
 		if c.ResourceType == ResourceTypePortalPage && c.Action == ActionCreate {
 			foundPage = true
-			// Reference should include resolved portal ID
 			if ref, ok := c.References["portal_id"]; ok {
-				assert.Equal(t, "portal-123", ref.ID)
+				assert.Equal(t, "ext-portal-ref", ref.Ref)
 			} else {
 				t.Errorf("portal_id reference missing on portal_page change")
 			}
 		}
 		if c.ResourceType == ResourceTypePortalSnippet && c.Action == ActionCreate {
 			foundSnippet = true
-			// Reference should include resolved portal ID
 			if ref, ok := c.References["portal_id"]; ok {
-				// Snippet create uses helper reference; ID should be present when known
-				assert.Equal(t, "portal-123", ref.ID)
+				assert.Equal(t, "ext-portal-ref", ref.Ref)
 			} else {
 				t.Errorf("portal_id reference missing on portal_snippet change")
 			}

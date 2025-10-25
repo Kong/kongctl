@@ -72,6 +72,10 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 	return p
 }
 
+func statePortalDisplayName(portal state.Portal) string {
+	return util.StringValue(portal.GetName())
+}
+
 // GeneratePlan creates a plan from declarative configuration
 func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, opts Options) (*Plan, error) {
 	generator := opts.Generator
@@ -761,7 +765,8 @@ func (p *Planner) normalizeAPIImplementationService(
 	serviceByRef map[string]*resources.GatewayServiceResource,
 	controlPlaneByRef map[string]*resources.ControlPlaneResource,
 ) error {
-	if impl.Service == nil {
+	svc := impl.GetService()
+	if svc == nil {
 		return nil
 	}
 
@@ -770,7 +775,7 @@ func (p *Planner) normalizeAPIImplementationService(
 		implRef = fmt.Sprintf("%s implementation", impl.API)
 	}
 
-	serviceID := strings.TrimSpace(impl.Service.ID)
+	serviceID := strings.TrimSpace(svc.GetID())
 	if serviceID == "" {
 		return fmt.Errorf("api_implementation %s: service.id is required", implRef)
 	}
@@ -779,10 +784,10 @@ func (p *Planner) normalizeAPIImplementationService(
 	if err != nil {
 		return err
 	}
-	impl.Service.ID = resolvedServiceID
+	svc.ID = resolvedServiceID
 
 	resolvedControlPlaneID, err := p.resolveImplementationControlPlaneID(
-		strings.TrimSpace(impl.Service.ControlPlaneID),
+		strings.TrimSpace(svc.GetControlPlaneID()),
 		linkedService,
 		controlPlaneByRef,
 		implRef,
@@ -790,7 +795,7 @@ func (p *Planner) normalizeAPIImplementationService(
 	if err != nil {
 		return err
 	}
-	impl.Service.ControlPlaneID = resolvedControlPlaneID
+	svc.ControlPlaneID = resolvedControlPlaneID
 
 	return nil
 }
@@ -940,7 +945,7 @@ func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resourc
 				}
 
 				for _, p := range allPortals {
-					if p.Name == name {
+					if statePortalDisplayName(p) == name {
 						konnectPortal = &p
 						break
 					}
@@ -966,7 +971,7 @@ func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resourc
 			p.logger.Debug("Resolved external portal",
 				slog.String("ref", portal.GetRef()),
 				slog.String("id", portal.GetKonnectID()),
-				slog.String("name", konnectPortal.Name),
+				slog.String("name", statePortalDisplayName(*konnectPortal)),
 			)
 		}
 	}

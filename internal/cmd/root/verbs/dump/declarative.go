@@ -17,6 +17,7 @@ import (
 	decllabels "github.com/kong/kongctl/internal/declarative/labels"
 	declresources "github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/kong/kongctl/internal/util/pagination"
@@ -226,6 +227,10 @@ func buildDeclarativeDefaults(namespace string) *declresources.FileDefaults {
 	}
 }
 
+func stringPtrValue(value *string) string {
+	return util.StringValue(value)
+}
+
 func collectDeclarativePortals(
 	ctx context.Context,
 	portalAPI helpers.PortalAPI,
@@ -263,7 +268,7 @@ func collectDeclarativePortals(
 	}
 
 	sort.Slice(results, func(i, j int) bool {
-		return results[i].Name < results[j].Name
+		return stringPtrValue(results[i].Name) < stringPtrValue(results[j].Name)
 	})
 
 	return results, nil
@@ -311,53 +316,39 @@ func collectDeclarativeAPIs(
 	}
 
 	sort.Slice(results, func(i, j int) bool {
-		return results[i].Name < results[j].Name
+		return stringPtrValue(results[i].Name) < stringPtrValue(results[j].Name)
 	})
 
 	return results, nil
 }
 
-func mapPortalToDeclarativeResource(portal kkComps.Portal) declresources.PortalResource {
+func mapPortalToDeclarativeResource(portal kkComps.ListPortalsResponsePortal) declresources.PortalResource {
 	result := declresources.PortalResource{
-		CreatePortal: kkComps.CreatePortal{
-			Name: portal.Name,
-		},
 		Ref: portal.ID,
 	}
 
-	if portal.DisplayName != "" {
-		displayName := portal.DisplayName
-		result.DisplayName = &displayName
-	}
-
+	result.Name = portal.Name
+	result.DisplayName = portal.DisplayName
 	result.Description = portal.Description
+	result.AuthenticationEnabled = portal.AuthenticationEnabled
+	result.RbacEnabled = portal.RbacEnabled
 
-	authEnabled := portal.AuthenticationEnabled
-	result.AuthenticationEnabled = boolPtr(authEnabled)
-
-	rbacEnabled := portal.RbacEnabled
-	result.RbacEnabled = boolPtr(rbacEnabled)
-
-	if portal.DefaultAPIVisibility != "" {
-		visibility := kkComps.DefaultAPIVisibility(portal.DefaultAPIVisibility)
-		result.DefaultAPIVisibility = &visibility
+	if visibility := portal.DefaultAPIVisibility; visibility != "" {
+		converted := kkComps.DefaultAPIVisibility(visibility)
+		result.DefaultAPIVisibility = &converted
 	}
 
-	if portal.DefaultPageVisibility != "" {
-		visibility := kkComps.DefaultPageVisibility(portal.DefaultPageVisibility)
-		result.DefaultPageVisibility = &visibility
+	if visibility := portal.DefaultPageVisibility; visibility != "" {
+		converted := kkComps.DefaultPageVisibility(visibility)
+		result.DefaultPageVisibility = &converted
 	}
 
 	result.DefaultApplicationAuthStrategyID = portal.DefaultApplicationAuthStrategyID
-
-	autoApproveDevelopers := portal.AutoApproveDevelopers
-	result.AutoApproveDevelopers = boolPtr(autoApproveDevelopers)
-
-	autoApproveApplications := portal.AutoApproveApplications
-	result.AutoApproveApplications = boolPtr(autoApproveApplications)
+	result.AutoApproveDevelopers = portal.AutoApproveDevelopers
+	result.AutoApproveApplications = portal.AutoApproveApplications
 
 	if userLabels := decllabels.GetUserLabels(portal.Labels); len(userLabels) > 0 {
-		result.Labels = decllabels.DenormalizeLabels(userLabels)
+		result.SetLabels(userLabels)
 	}
 
 	return result
