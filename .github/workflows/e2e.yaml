@@ -62,7 +62,7 @@ jobs:
 
       - name: Upload E2E artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: e2e-artifacts-${{ github.run_id }}
           path: ${{ runner.temp }}/kongctl-e2e-${{ github.run_id }}
