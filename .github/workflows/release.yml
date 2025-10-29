@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: ${{ fromJSON(vars.GHA_DEFAULT_TIMEOUT) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
       - name: Install clipboard build dependencies
@@ -23,7 +23,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libx11-dev
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6
         with:
           go-version-file: go.mod
       - name: Build
@@ -39,7 +39,7 @@ jobs:
           make test-e2e
       - name: Upload E2E artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: e2e-artifacts-${{ github.run_id }}
           path: ${{ runner.temp }}/kongctl-e2e-${{ github.run_id }}
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
       - run: git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf https://github.com/
@@ -105,7 +105,7 @@ jobs:
             echo "No tap changes to commit"
           fi
       - name: Upload assets
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: dist
           path: dist/*
