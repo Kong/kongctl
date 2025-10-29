@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": [
+    " [MOVED] This preset has been relocated to 'base/go.json'. It is now an alias that extends",
+    " the new location to preserve backwards compatibility"
+  ],
+  "extends": ["Kong/public-shared-renovate//base/go"],
+  "prBodyNotes": [
+    "---\n> [!WARNING]\n> #### Moved preset: `Kong/public-shared-renovate:go`\n>\n> Your config references a deprecated preset. To prevent disruption, this file temporarily aliases to `Kong/public-shared-renovate//base/go`.\n>\n> #### Action required\n>\n> Update your Renovate config to extend directly from `Kong/public-shared-renovate//base/go`\n>\n> #### Examples\n>\n> Before (any of the following):\n>\n> ```json\n> { \"extends\": [\"Kong/public-shared-renovate:go\"] }\n> { \"extends\": [\"Kong/public-shared-renovate:go.json\"] }\n> { \"extends\": [\"local>Kong/public-shared-renovate:go\"] }\n> { \"extends\": [\"github>Kong/public-shared-renovate:go\"] }\n> ```\n>\n> After:\n>\n> ```json\n> { \"extends\": [\"Kong/public-shared-renovate//base/go\"] }\n> ```\n>\n> #### Timeline\n>\n> This alias will be removed in **January 2026**."
+  ]
+}
