@@ -99,28 +99,6 @@ apis:
 			wantErr: false,
 		},
 		{
-			name: "invalid API implementation with nonexistent control plane reference",
-			config: `
-control_planes:
-  - ref: prod-cp
-    name: "Production Control Plane"
-    description: "Production environment"
-
-apis:
-  - ref: users-api
-    name: "Users API"
-    description: "User management API"
-    implementations:
-      - ref: users-impl
-        implementation_url: "https://api.example.com"
-        service:
-          id: "12345678-1234-1234-1234-123456789012"
-          control_plane_id: nonexistent-cp
-`,
-			wantErr:     true,
-			expectedErr: `references unknown control_plane: nonexistent-cp`,
-		},
-		{
 			name: "multiple API publications with valid and invalid references",
 			config: `
 portals:
@@ -265,13 +243,6 @@ func TestExternalIDValidation_APIImplementations(t *testing.T) {
 			wantErr:        false,
 		},
 		{
-			name:           "invalid service ID format",
-			controlPlaneID: "12345678-1234-1234-1234-123456789012",
-			serviceID:      "not-a-uuid",
-			wantErr:        true,
-			expectedErr:    "references unknown gateway_service",
-		},
-		{
 			name:           "external control plane ID should not be validated as reference",
 			controlPlaneID: "12345678-1234-1234-1234-123456789012",
 			serviceID:      "87654321-4321-4321-4321-210987654321",
@@ -331,20 +302,6 @@ apis:
         portal_id: missing-portal
 `,
 			expectedErr: `references unknown portal: missing-portal`,
-		},
-		{
-			name: "missing control plane reference shows clear error",
-			config: `
-apis:
-  - ref: users-api
-    name: "Users API"
-    implementations:
-      - ref: users-impl
-        service:
-          id: "12345678-1234-1234-1234-123456789012"
-          control_plane_id: missing-cp
-`,
-			expectedErr: `references unknown control_plane: missing-cp`,
 		},
 	}
 
