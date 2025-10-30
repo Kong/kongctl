@@ -34,24 +34,24 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 	autoApproveDev := true
 	autoApproveApp := false
 
-	existingPortal := kkComps.Portal{
-		ID:                      "portal-123",
-		Name:                    "test-portal",
-		DisplayName:             displayName,
-		Description:             &description,
-		AuthenticationEnabled:   authEnabled,
-		RbacEnabled:             rbacEnabled,
-		AutoApproveDevelopers:   autoApproveDev,
-		AutoApproveApplications: autoApproveApp,
+	existingPortal := kkComps.ListPortalsResponsePortal{
+		ID:          "portal-123",
+		Name:        "test-portal",
+		DisplayName: displayName,
 		Labels: map[string]string{
 			labels.NamespaceKey: "default",
 		},
 	}
+	existingPortal.Description = &description
+	existingPortal.AuthenticationEnabled = boolPointer(authEnabled)
+	existingPortal.RbacEnabled = boolPointer(rbacEnabled)
+	existingPortal.AutoApproveDevelopers = boolPointer(autoApproveDev)
+	existingPortal.AutoApproveApplications = boolPointer(autoApproveApp)
 
 	// Mock list returns existing portal
 	mockAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{existingPortal},
+			Data: []kkComps.ListPortalsResponsePortal{existingPortal},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 1,
@@ -226,4 +226,8 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 	})
 
 	mockAPI.AssertExpectations(t)
+}
+
+func boolPointer(v bool) *bool {
+	return &v
 }

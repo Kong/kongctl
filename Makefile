@@ -11,7 +11,6 @@ format:
 	golines -m 120 -w --base-formatter=gofumpt .
 fmt: format
 
-
 .PHONY: build
 build:
 	go build -o kongctl

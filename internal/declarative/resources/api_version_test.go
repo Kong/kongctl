@@ -40,17 +40,14 @@ versions:
 	apiVersion := api.Versions[0]
 	assert.Equal(t, "api-v1", apiVersion.Ref)
 	assert.Equal(t, "1.0.0", *apiVersion.Version)
-	require.NotNil(t, apiVersion.Spec, "Spec should not be nil")
-	if apiVersion.Spec != nil {
-		require.NotNil(t, apiVersion.Spec.Content, "Spec.Content should not be nil")
-		if apiVersion.Spec.Content != nil {
-			t.Logf("Spec content: %q", *apiVersion.Spec.Content)
-			// Check that spec content is a JSON string
-			expectedJSON := `{"info":{"description":"Test API description","title":"Test API","version":"1.0.0"},` +
-				`"openapi":"3.0.0","paths":{"/test":{"get":{"responses":{"200":{"description":"Success"}},` +
-				`"summary":"Test endpoint"}}}}`
-			assert.JSONEq(t, expectedJSON, *apiVersion.Spec.Content)
-		}
+	require.NotNil(t, apiVersion.Spec.Content, "Spec.Content should not be nil")
+	if apiVersion.Spec.Content != nil {
+		t.Logf("Spec content: %q", *apiVersion.Spec.Content)
+		// Check that spec content is a JSON string
+		expectedJSON := `{"info":{"description":"Test API description","title":"Test API","version":"1.0.0"},` +
+			`"openapi":"3.0.0","paths":{"/test":{"get":{"responses":{"200":{"description":"Success"}},` +
+			`"summary":"Test endpoint"}}}}`
+		assert.JSONEq(t, expectedJSON, *apiVersion.Spec.Content)
 	}
 }
 
@@ -66,5 +63,5 @@ version: "2.0.0"
 
 	assert.Equal(t, "api-v1", apiVersion.Ref)
 	assert.Equal(t, "2.0.0", *apiVersion.Version)
-	assert.Nil(t, apiVersion.Spec)
+	assert.Nil(t, apiVersion.Spec.Content)
 }

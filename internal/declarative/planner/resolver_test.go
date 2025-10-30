@@ -444,14 +444,8 @@ func TestResolveReferences_ExistingPortal(t *testing.T) {
 	// Mock the ListPortals call
 	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{
-				{
-					ID:   "portal-existing-123",
-					Name: "existing-portal",
-					Labels: map[string]string{
-						labels.NamespaceKey: "default",
-					},
-				},
+			Data: []kkComps.ListPortalsResponsePortal{
+				newListPortal("portal-existing-123", "existing-portal", map[string]string{labels.NamespaceKey: "default"}),
 			},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
@@ -516,7 +510,7 @@ func TestResolveReferences_MissingPortal(t *testing.T) {
 	// Mock empty ListPortals response
 	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{},
+			Data: []kkComps.ListPortalsResponsePortal{},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 0,
@@ -605,14 +599,8 @@ func TestResolveReferences_FieldChange(t *testing.T) {
 	// Mock the ListPortals call
 	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{
-				{
-					ID:   "portal-456",
-					Name: "new-portal",
-					Labels: map[string]string{
-						labels.NamespaceKey: "default",
-					},
-				},
+			Data: []kkComps.ListPortalsResponsePortal{
+				newListPortal("portal-456", "new-portal", map[string]string{labels.NamespaceKey: "default"}),
 			},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{

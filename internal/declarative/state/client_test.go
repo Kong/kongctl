@@ -104,28 +104,10 @@ func TestListManagedPortals(t *testing.T) {
 						if *req.PageNumber == 1 {
 							return &kkOps.ListPortalsResponse{
 								ListPortalsResponse: &kkComps.ListPortalsResponse{
-									Data: []kkComps.Portal{
-										{
-											ID:   "portal-1",
-											Name: "Managed Portal",
-											Labels: map[string]string{
-												labels.NamespaceKey: "default",
-											},
-										},
-										{
-											ID:   "portal-2",
-											Name: "Unmanaged Portal",
-											Labels: map[string]string{
-												"env": "production",
-											},
-										},
-										{
-											ID:   "portal-3",
-											Name: "Another Managed",
-											Labels: map[string]string{
-												labels.NamespaceKey: "team-a",
-											},
-										},
+									Data: []kkComps.ListPortalsResponsePortal{
+										newListPortal("portal-1", "Managed Portal", map[string]string{labels.NamespaceKey: "default"}),
+										newListPortal("portal-2", "Unmanaged Portal", map[string]string{"env": "production"}),
+										newListPortal("portal-3", "Another Managed", map[string]string{labels.NamespaceKey: "team-a"}),
 									},
 									Meta: kkComps.PaginatedMeta{
 										Page: kkComps.PageMeta{
@@ -138,7 +120,7 @@ func TestListManagedPortals(t *testing.T) {
 						// Subsequent calls return empty
 						return &kkOps.ListPortalsResponse{
 							ListPortalsResponse: &kkComps.ListPortalsResponse{
-								Data: []kkComps.Portal{},
+								Data: []kkComps.ListPortalsResponsePortal{},
 							},
 						}, nil
 					},
@@ -158,14 +140,8 @@ func TestListManagedPortals(t *testing.T) {
 						case 1:
 							return &kkOps.ListPortalsResponse{
 								ListPortalsResponse: &kkComps.ListPortalsResponse{
-									Data: []kkComps.Portal{
-										{
-											ID:   "portal-1",
-											Name: "Managed 1",
-											Labels: map[string]string{
-												labels.NamespaceKey: "default",
-											},
-										},
+									Data: []kkComps.ListPortalsResponsePortal{
+										newListPortal("portal-1", "Managed 1", map[string]string{labels.NamespaceKey: "default"}),
 									},
 									Meta: kkComps.PaginatedMeta{
 										Page: kkComps.PageMeta{
@@ -177,14 +153,8 @@ func TestListManagedPortals(t *testing.T) {
 						case 2:
 							return &kkOps.ListPortalsResponse{
 								ListPortalsResponse: &kkComps.ListPortalsResponse{
-									Data: []kkComps.Portal{
-										{
-											ID:   "portal-2",
-											Name: "Managed 2",
-											Labels: map[string]string{
-												labels.NamespaceKey: "default",
-											},
-										},
+									Data: []kkComps.ListPortalsResponsePortal{
+										newListPortal("portal-2", "Managed 2", map[string]string{labels.NamespaceKey: "default"}),
 									},
 									Meta: kkComps.PaginatedMeta{
 										Page: kkComps.PageMeta{
@@ -196,7 +166,7 @@ func TestListManagedPortals(t *testing.T) {
 						default:
 							return &kkOps.ListPortalsResponse{
 								ListPortalsResponse: &kkComps.ListPortalsResponse{
-									Data: []kkComps.Portal{},
+									Data: []kkComps.ListPortalsResponsePortal{},
 								},
 							}, nil
 						}
@@ -269,21 +239,9 @@ func TestGetPortalByName(t *testing.T) {
 					) (*kkOps.ListPortalsResponse, error) {
 						return &kkOps.ListPortalsResponse{
 							ListPortalsResponse: &kkComps.ListPortalsResponse{
-								Data: []kkComps.Portal{
-									{
-										ID:   "portal-1",
-										Name: "Other Portal",
-										Labels: map[string]string{
-											labels.NamespaceKey: "default",
-										},
-									},
-									{
-										ID:   "portal-2",
-										Name: "Target Portal",
-										Labels: map[string]string{
-											labels.NamespaceKey: "default",
-										},
-									},
+								Data: []kkComps.ListPortalsResponsePortal{
+									newListPortal("portal-1", "Other Portal", map[string]string{labels.NamespaceKey: "default"}),
+									newListPortal("portal-2", "Target Portal", map[string]string{labels.NamespaceKey: "default"}),
 								},
 							},
 						}, nil
@@ -303,14 +261,8 @@ func TestGetPortalByName(t *testing.T) {
 					) (*kkOps.ListPortalsResponse, error) {
 						return &kkOps.ListPortalsResponse{
 							ListPortalsResponse: &kkComps.ListPortalsResponse{
-								Data: []kkComps.Portal{
-									{
-										ID:   "portal-1",
-										Name: "Other Portal",
-										Labels: map[string]string{
-											labels.NamespaceKey: "default",
-										},
-									},
+								Data: []kkComps.ListPortalsResponsePortal{
+									newListPortal("portal-1", "Other Portal", map[string]string{labels.NamespaceKey: "default"}),
 								},
 							},
 						}, nil
@@ -591,4 +543,12 @@ func TestUpdatePortal(t *testing.T) {
 // Helper function
 func ptr(s string) *string {
 	return &s
+}
+
+func newListPortal(id, name string, labels map[string]string) kkComps.ListPortalsResponsePortal {
+	return kkComps.ListPortalsResponsePortal{
+		ID:     id,
+		Name:   name,
+		Labels: labels,
+	}
 }
