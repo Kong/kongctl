@@ -317,46 +317,49 @@ func collectDeclarativeAPIs(
 	return results, nil
 }
 
-func mapPortalToDeclarativeResource(portal kkComps.Portal) declresources.PortalResource {
+func mapPortalToDeclarativeResource(portal kkComps.ListPortalsResponsePortal) declresources.PortalResource {
 	result := declresources.PortalResource{
 		CreatePortal: kkComps.CreatePortal{
-			Name: portal.Name,
+			Name: portal.GetName(),
 		},
-		Ref: portal.ID,
+		Ref: portal.GetID(),
 	}
 
-	if portal.DisplayName != "" {
-		displayName := portal.DisplayName
+	if displayName := portal.GetDisplayName(); displayName != "" {
 		result.DisplayName = &displayName
 	}
 
-	result.Description = portal.Description
+	result.Description = portal.GetDescription()
 
-	authEnabled := portal.AuthenticationEnabled
-	result.AuthenticationEnabled = boolPtr(authEnabled)
-
-	rbacEnabled := portal.RbacEnabled
-	result.RbacEnabled = boolPtr(rbacEnabled)
-
-	if portal.DefaultAPIVisibility != "" {
-		visibility := kkComps.DefaultAPIVisibility(portal.DefaultAPIVisibility)
-		result.DefaultAPIVisibility = &visibility
+	if authEnabled := portal.GetAuthenticationEnabled(); authEnabled != nil {
+		result.AuthenticationEnabled = authEnabled
 	}
 
-	if portal.DefaultPageVisibility != "" {
-		visibility := kkComps.DefaultPageVisibility(portal.DefaultPageVisibility)
-		result.DefaultPageVisibility = &visibility
+	if rbacEnabled := portal.GetRbacEnabled(); rbacEnabled != nil {
+		result.RbacEnabled = rbacEnabled
 	}
 
-	result.DefaultApplicationAuthStrategyID = portal.DefaultApplicationAuthStrategyID
+	if visibility := portal.GetDefaultAPIVisibility(); visibility != "" {
+		apiVisibility := kkComps.DefaultAPIVisibility(visibility)
+		result.DefaultAPIVisibility = &apiVisibility
+	}
 
-	autoApproveDevelopers := portal.AutoApproveDevelopers
-	result.AutoApproveDevelopers = boolPtr(autoApproveDevelopers)
+	if visibility := portal.GetDefaultPageVisibility(); visibility != "" {
+		pageVisibility := kkComps.DefaultPageVisibility(visibility)
+		result.DefaultPageVisibility = &pageVisibility
+	}
 
-	autoApproveApplications := portal.AutoApproveApplications
-	result.AutoApproveApplications = boolPtr(autoApproveApplications)
+	result.DefaultApplicationAuthStrategyID = portal.GetDefaultApplicationAuthStrategyID()
 
-	if userLabels := decllabels.GetUserLabels(portal.Labels); len(userLabels) > 0 {
+	if developers := portal.GetAutoApproveDevelopers(); developers != nil {
+		result.AutoApproveDevelopers = developers
+	}
+
+	if applications := portal.GetAutoApproveApplications(); applications != nil {
+		result.AutoApproveApplications = applications
+	}
+
+	if userLabels := decllabels.GetUserLabels(portal.GetLabels()); len(userLabels) > 0 {
 		result.Labels = decllabels.DenormalizeLabels(userLabels)
 	}
 

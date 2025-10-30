@@ -38,6 +38,13 @@ func (i APIImplementationResource) GetMoniker() string {
 	return ""
 }
 
+func (i APIImplementationResource) getService() *kkComps.APIImplementationService {
+	if i.ServiceReference == nil {
+		return nil
+	}
+	return i.ServiceReference.GetService()
+}
+
 // GetDependencies returns references to other resources this API implementation depends on
 func (i APIImplementationResource) GetDependencies() []ResourceRef {
 	deps := []ResourceRef{}
@@ -54,16 +61,16 @@ func (i APIImplementationResource) GetReferenceFieldMappings() map[string]string
 	// Only include control_plane_id mapping if it's not a UUID
 	mappings := make(map[string]string)
 
-	if i.Service != nil && i.Service.ControlPlaneID != "" {
+	if service := i.getService(); service != nil && service.ControlPlaneID != "" {
 		// Check if control_plane_id is a UUID - if so, it's an external reference
-		if !util.IsValidUUID(i.Service.ControlPlaneID) {
+		if !util.IsValidUUID(service.ControlPlaneID) {
 			// Not a UUID, so it's a reference to a declarative control plane
 			mappings["service.control_plane_id"] = "control_plane"
 		}
 	}
 
-	if i.Service != nil && i.Service.ID != "" {
-		if !util.IsValidUUID(i.Service.ID) && !tags.IsRefPlaceholder(i.Service.ID) {
+	if service := i.getService(); service != nil && service.ID != "" {
+		if !util.IsValidUUID(service.ID) && !tags.IsRefPlaceholder(service.ID) {
 			mappings["service.id"] = string(ResourceTypeGatewayService)
 		}
 	}
@@ -77,13 +84,13 @@ func (i APIImplementationResource) Validate() error {
 		return fmt.Errorf("invalid API implementation ref: %w", err)
 	}
 
-	// Validate service information if present
-	if i.Service != nil {
-		if i.Service.ID == "" {
+	// Validate service information if present.
+	if service := i.getService(); service != nil {
+		if service.ID == "" {
 			return fmt.Errorf("API implementation service.id is required")
 		}
 
-		if i.Service.ControlPlaneID == "" {
+		if service.ControlPlaneID == "" {
 			return fmt.Errorf("API implementation service.control_plane_id is required")
 		}
 
@@ -130,18 +137,44 @@ func (i *APIImplementationResource) TryMatchKonnectResource(konnectResource any)
 	serviceField := v.FieldByName("Service")
 	idField := v.FieldByName("ID")
 
-	if serviceField.IsValid() && !serviceField.IsNil() && idField.IsValid() {
+	if serviceField.IsValid() && serviceField.Kind() == reflect.Ptr && !serviceField.IsNil() && idField.IsValid() {
 		// Service is a pointer to struct
 		svc := serviceField.Elem()
 		if svc.Kind() == reflect.Struct {
 			svcIDField := svc.FieldByName("ID")
 			cpIDField := svc.FieldByName("ControlPlaneID")
 
-			if svcIDField.IsValid() && cpIDField.IsValid() && i.Service != nil {
-				if svcIDField.String() == i.Service.ID &&
-					cpIDField.String() == i.Service.ControlPlaneID {
+			if svcIDField.IsValid() && cpIDField.IsValid() {
+				if service := i.getService(); service != nil &&
+					svcIDField.String() == service.ID &&
+					cpIDField.String() == service.ControlPlaneID {
 					i.konnectID = idField.String()
 					return true
+				}
+			}
+		}
+	}
+
+	// Handle nested ServiceReference for newer SDK models.
+	serviceRefField := v.FieldByName("ServiceReference")
+	if serviceRefField.IsValid() && serviceRefField.Kind() == reflect.Ptr && !serviceRefField.IsNil() && idField.IsValid() {
+		ref := serviceRefField.Elem()
+		if ref.Kind() == reflect.Struct {
+			serviceField = ref.FieldByName("Service")
+			if serviceField.IsValid() && serviceField.Kind() == reflect.Ptr && !serviceField.IsNil() {
+				svc := serviceField.Elem()
+				if svc.Kind() == reflect.Struct {
+					svcIDField := svc.FieldByName("ID")
+					cpIDField := svc.FieldByName("ControlPlaneID")
+
+					if svcIDField.IsValid() && cpIDField.IsValid() {
+						if service := i.getService(); service != nil &&
+							svcIDField.String() == service.ID &&
+							cpIDField.String() == service.ControlPlaneID {
+							i.konnectID = idField.String()
+							return true
+						}
+					}
 				}
 			}
 		}

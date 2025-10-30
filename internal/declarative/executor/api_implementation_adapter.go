@@ -47,10 +47,13 @@ func (a *APIImplementationAdapter) MapCreateFields(
 		return fmt.Errorf("service.control_plane_id is required: %w", err)
 	}
 
-	create.Service = &kkComps.APIImplementationService{
-		ID:             serviceID,
-		ControlPlaneID: controlPlaneID,
+	create.ServiceReference = &kkComps.ServiceReference{
+		Service: &kkComps.APIImplementationService{
+			ID:             serviceID,
+			ControlPlaneID: controlPlaneID,
+		},
 	}
+	create.Type = kkComps.APIImplementationTypeServiceReference
 
 	return nil
 }
@@ -69,7 +72,15 @@ func (a *APIImplementationAdapter) Create(ctx context.Context, req kkComps.APIIm
 		return "", err
 	}
 
-	return resp.ID, nil
+	if resp == nil {
+		return "", fmt.Errorf("create API implementation response missing data")
+	}
+
+	if sr := resp.APIImplementationResponseServiceReference; sr != nil {
+		return sr.GetID(), nil
+	}
+
+	return "", fmt.Errorf("unexpected API implementation response format")
 }
 
 // Delete removes an API implementation.

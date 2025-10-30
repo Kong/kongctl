@@ -761,7 +761,12 @@ func (p *Planner) normalizeAPIImplementationService(
 	serviceByRef map[string]*resources.GatewayServiceResource,
 	controlPlaneByRef map[string]*resources.ControlPlaneResource,
 ) error {
-	if impl.Service == nil {
+	if impl.ServiceReference == nil {
+		return nil
+	}
+
+	service := impl.ServiceReference.GetService()
+	if service == nil {
 		return nil
 	}
 
@@ -770,7 +775,7 @@ func (p *Planner) normalizeAPIImplementationService(
 		implRef = fmt.Sprintf("%s implementation", impl.API)
 	}
 
-	serviceID := strings.TrimSpace(impl.Service.ID)
+	serviceID := strings.TrimSpace(service.ID)
 	if serviceID == "" {
 		return fmt.Errorf("api_implementation %s: service.id is required", implRef)
 	}
@@ -779,10 +784,10 @@ func (p *Planner) normalizeAPIImplementationService(
 	if err != nil {
 		return err
 	}
-	impl.Service.ID = resolvedServiceID
+	service.ID = resolvedServiceID
 
 	resolvedControlPlaneID, err := p.resolveImplementationControlPlaneID(
-		strings.TrimSpace(impl.Service.ControlPlaneID),
+		strings.TrimSpace(service.ControlPlaneID),
 		linkedService,
 		controlPlaneByRef,
 		implRef,
@@ -790,7 +795,7 @@ func (p *Planner) normalizeAPIImplementationService(
 	if err != nil {
 		return err
 	}
-	impl.Service.ControlPlaneID = resolvedControlPlaneID
+	service.ControlPlaneID = resolvedControlPlaneID
 
 	return nil
 }

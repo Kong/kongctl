@@ -221,11 +221,11 @@ func (e *Executor) createPortalCustomDomain(ctx context.Context, change planner.
 
 	// Handle SSL settings
 	if sslData, ok := change.Fields["ssl"].(map[string]any); ok {
-		ssl := kkComps.CreatePortalCustomDomainSSL{}
-		if method, ok := sslData["domain_verification_method"].(string); ok {
-			ssl.DomainVerificationMethod = kkComps.PortalCustomDomainVerificationMethod(method)
+		if ssl, set, err := buildCreatePortalCustomDomainSSL(sslData); err != nil {
+			return "", err
+		} else if set {
+			req.Ssl = ssl
 		}
-		req.Ssl = ssl
 	}
 
 	// Create the custom domain

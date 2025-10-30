@@ -399,11 +399,20 @@ func (p *Planner) planPortalCustomDomainCreate(
 	fields["enabled"] = domain.Enabled
 
 	// Add SSL settings if present
-	// Check if DomainVerificationMethod is set (non-empty string)
-	if domain.Ssl.DomainVerificationMethod != "" {
-		sslFields := make(map[string]any)
-		sslFields["domain_verification_method"] = string(domain.Ssl.DomainVerificationMethod)
+	if domain.Ssl.CustomCertificate != nil {
+		sslFields := map[string]any{
+			"domain_verification_method": domain.Ssl.CustomCertificate.GetDomainVerificationMethod(),
+			"custom_certificate":         domain.Ssl.CustomCertificate.GetCustomCertificate(),
+			"custom_private_key":         domain.Ssl.CustomCertificate.GetCustomPrivateKey(),
+		}
+		if skip := domain.Ssl.CustomCertificate.GetSkipCaCheck(); skip != nil {
+			sslFields["skip_ca_check"] = skip
+		}
 		fields["ssl"] = sslFields
+	} else if domain.Ssl.HTTP != nil {
+		fields["ssl"] = map[string]any{
+			"domain_verification_method": domain.Ssl.HTTP.GetDomainVerificationMethod(),
+		}
 	}
 
 	// Determine dependencies - depends on parent portal

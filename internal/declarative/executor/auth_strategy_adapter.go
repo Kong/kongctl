@@ -297,11 +297,8 @@ func (a *AuthStrategyAdapter) buildUpdateConfigs(strategyType string,
 		keyAuth := kkComps.AppAuthStrategyConfigKeyAuth{}
 		keyAuth.KeyNames = a.extractStringSlice(keyAuthConfig["key_names"], nil)
 
-		two := kkComps.Two{
-			KeyAuth: keyAuth,
-		}
-
-		configs := kkComps.CreateConfigsTwo(two)
+		wrapped := kkComps.UpdateAppAuthStrategyRequestKeyAuth{KeyAuth: keyAuth}
+		configs := kkComps.CreateConfigsUpdateAppAuthStrategyRequestKeyAuth(wrapped)
 		return &configs, nil
 
 	case "openid_connect":
@@ -323,11 +320,8 @@ func (a *AuthStrategyAdapter) buildUpdateConfigs(strategyType string,
 		oidc.Scopes = a.extractStringSlice(oidcConfig["scopes"], nil)
 		oidc.AuthMethods = a.extractStringSlice(oidcConfig["auth_methods"], nil)
 
-		one := kkComps.One{
-			OpenidConnect: oidc,
-		}
-
-		configs := kkComps.CreateConfigsOne(one)
+		wrapped := kkComps.UpdateAppAuthStrategyRequestOpenIDConnect{OpenidConnect: oidc}
+		configs := kkComps.CreateConfigsUpdateAppAuthStrategyRequestOpenIDConnect(wrapped)
 		return &configs, nil
 
 	default:

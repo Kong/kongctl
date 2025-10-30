@@ -55,11 +55,11 @@ var _ PortalApplicationAPI = (*PortalApplicationAPIImpl)(nil)
 
 // ApplicationSummary represents the common fields needed from an application union
 func ApplicationSummary(app kkComponents.Application) (id string, name string) {
-	if app.ApplicationKeyAuthApplication != nil {
-		return app.ApplicationKeyAuthApplication.GetID(), app.ApplicationKeyAuthApplication.GetName()
+	if app.KeyAuthApplication != nil {
+		return app.KeyAuthApplication.GetID(), app.KeyAuthApplication.GetName()
 	}
-	if app.ApplicationClientCredentialsApplication != nil {
-		return app.ApplicationClientCredentialsApplication.GetID(), app.ApplicationClientCredentialsApplication.GetName()
+	if app.ClientCredentialsApplication != nil {
+		return app.ClientCredentialsApplication.GetID(), app.ClientCredentialsApplication.GetName()
 	}
 	return "", ""
 }

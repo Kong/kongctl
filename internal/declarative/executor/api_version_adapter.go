@@ -32,7 +32,7 @@ func (a *APIVersionAdapter) MapCreateFields(_ context.Context, _ *ExecutionConte
 	// Spec field (optional)
 	if spec, ok := fields["spec"].(map[string]any); ok {
 		if content, ok := spec["content"].(string); ok {
-			create.Spec = &kkComps.CreateAPIVersionRequestSpec{
+			create.Spec = kkComps.CreateAPIVersionRequestSpec{
 				Content: &content,
 			}
 		}
