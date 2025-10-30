@@ -3,7 +3,7 @@ module github.com/kong/kongctl
 go 1.24.3
 
 require (
-	github.com/Kong/sdk-konnect-go v0.6.0
+	github.com/Kong/sdk-konnect-go v0.10.1
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/ajg/form v1.5.1
 	github.com/alecthomas/chroma v0.10.0
@@ -26,7 +26,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.19.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	golang.design/x/clipboard v0.7.1
 	golang.org/x/term v0.30.0
 	golang.org/x/text v0.26.0
