@@ -14,7 +14,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.10.2
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
-	github.com/itchyny/gojq v0.12.13
+	github.com/itchyny/gojq v0.12.17
 	github.com/jmespath/go-jmespath v0.4.0
 	github.com/lrstanley/bubbletint v1.0.0
 	github.com/lucasb-eyer/go-colorful v1.3.0
@@ -53,7 +53,7 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/itchyny/timefmt-go v0.1.5 // indirect
+	github.com/itchyny/timefmt-go v0.1.6 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.21 // indirect
