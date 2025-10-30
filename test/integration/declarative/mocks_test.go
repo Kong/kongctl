@@ -413,17 +413,23 @@ func (m *MockAPIAPI) HasExpectations() bool {
 func CreateManagedPortal(name, id, description string) kkComps.ListPortalsResponsePortal {
 	descPtr := &description
 	now := time.Now()
+	authEnabled := true
+	autoApprove := false
 	return kkComps.ListPortalsResponsePortal{
-		ID:                    id,
-		Name:                  name,
-		DisplayName:           name,
-		Description:           descPtr,
-		CreatedAt:             now,
-		UpdatedAt:             now,
-		DefaultAPIVisibility:  kkComps.ListPortalsResponseDefaultAPIVisibilityPublic,
-		DefaultPageVisibility: kkComps.ListPortalsResponseDefaultPageVisibilityPublic,
-		DefaultDomain:         fmt.Sprintf("%s.example.com", id),
-		CanonicalDomain:       fmt.Sprintf("%s.example.com", id),
+		ID:                      id,
+		Name:                    name,
+		DisplayName:             name,
+		Description:             descPtr,
+		CreatedAt:               now,
+		UpdatedAt:               now,
+		DefaultAPIVisibility:    kkComps.ListPortalsResponseDefaultAPIVisibilityPublic,
+		DefaultPageVisibility:   kkComps.ListPortalsResponseDefaultPageVisibilityPublic,
+		DefaultDomain:           fmt.Sprintf("%s.example.com", id),
+		CanonicalDomain:         fmt.Sprintf("%s.example.com", id),
+		AuthenticationEnabled:   &authEnabled,
+		RbacEnabled:             &autoApprove,
+		AutoApproveDevelopers:   &autoApprove,
+		AutoApproveApplications: &autoApprove,
 		Labels: map[string]string{
 			labels.NamespaceKey: "default",
 		},
