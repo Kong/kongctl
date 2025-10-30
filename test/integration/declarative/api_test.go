@@ -55,14 +55,20 @@ apis:
 			resourceSet.APIImplementations[0].GetRef(),
 			resourceSet.APIImplementations[0].API,
 			func() string {
-				if resourceSet.APIImplementations[0].Service != nil {
-					return resourceSet.APIImplementations[0].Service.ID
+				serviceRef := resourceSet.APIImplementations[0].ServiceReference
+				if serviceRef != nil {
+					if service := serviceRef.GetService(); service != nil {
+						return service.ID
+					}
 				}
 				return "<nil>"
 			}(),
 			func() string {
-				if resourceSet.APIImplementations[0].Service != nil {
-					return resourceSet.APIImplementations[0].Service.ControlPlaneID
+				serviceRef := resourceSet.APIImplementations[0].ServiceReference
+				if serviceRef != nil {
+					if service := serviceRef.GetService(); service != nil {
+						return service.ControlPlaneID
+					}
 				}
 				return "<nil>"
 			}(),
@@ -149,7 +155,7 @@ apis:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 			},
 		}, nil)
 	stateClient := state.NewClient(state.ClientConfig{
@@ -348,7 +354,7 @@ apis:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
 						Total: 0,
@@ -372,21 +378,31 @@ apis:
 
 	// Mock portal creation
 	portalTime := time.Now()
-	createdPortal := kkComps.Portal{
-		ID:        "portal-123",
-		Name:      "Developer Portal",
-		CreatedAt: portalTime,
-		UpdatedAt: portalTime,
+	createdPortal := kkComps.ListPortalsResponsePortal{
+		ID:                    "portal-123",
+		Name:                  "Developer Portal",
+		DisplayName:           "Developer Portal",
+		CreatedAt:             portalTime,
+		UpdatedAt:             portalTime,
+		DefaultAPIVisibility:  kkComps.ListPortalsResponseDefaultAPIVisibilityPublic,
+		DefaultPageVisibility: kkComps.ListPortalsResponseDefaultPageVisibilityPublic,
+		DefaultDomain:         "dev-portal.example.com",
+		CanonicalDomain:       "dev-portal.example.com",
 	}
 
 	mockPortalAPI.On("CreatePortal", mock.Anything, mock.Anything).
 		Return(&kkOps.CreatePortalResponse{
 			StatusCode: 201,
 			PortalResponse: &kkComps.PortalResponse{
-				ID:        createdPortal.ID,
-				Name:      createdPortal.Name,
-				CreatedAt: createdPortal.CreatedAt,
-				UpdatedAt: createdPortal.UpdatedAt,
+				ID:                    createdPortal.ID,
+				Name:                  createdPortal.Name,
+				DisplayName:           createdPortal.DisplayName,
+				CreatedAt:             createdPortal.CreatedAt,
+				UpdatedAt:             createdPortal.UpdatedAt,
+				DefaultAPIVisibility:  kkComps.PortalResponseDefaultAPIVisibilityPublic,
+				DefaultPageVisibility: kkComps.PortalResponseDefaultPageVisibilityPublic,
+				DefaultDomain:         createdPortal.DefaultDomain,
+				CanonicalDomain:       createdPortal.CanonicalDomain,
 			},
 		}, nil)
 
@@ -395,7 +411,7 @@ apis:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{createdPortal},
+				Data: []kkComps.ListPortalsResponsePortal{createdPortal},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
 						Total: 1,
@@ -656,7 +672,7 @@ api_versions:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
 						Total: 0,
@@ -760,7 +776,7 @@ apis:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 			},
 		}, nil)
 
@@ -957,7 +973,7 @@ api_documents:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 			},
 		}, nil)
 	stateClient := state.NewClient(state.ClientConfig{
@@ -1077,9 +1093,20 @@ apis:
 	mockAPIAPI.On("CreateAPIImplementation", mock.Anything, "api-impl-123", mock.Anything).
 		Return(&kkOps.CreateAPIImplementationResponse{
 			StatusCode: 201,
-			APIImplementationResponse: &kkComps.APIImplementationResponse{
-				ID: "impl-123",
-			},
+			APIImplementationResponse: func() *kkComps.APIImplementationResponse {
+				response := kkComps.CreateAPIImplementationResponseAPIImplementationResponseServiceReference(
+					kkComps.APIImplementationResponseServiceReference{
+						ID:        "impl-123",
+						CreatedAt: time.Now(),
+						UpdatedAt: time.Now(),
+						Service: &kkComps.APIImplementationService{
+							ID:             "12345678-1234-1234-1234-123456789012",
+							ControlPlaneID: "87654321-4321-4321-4321-210987654321",
+						},
+					},
+				)
+				return &response
+			}(),
 		}, nil).Once()
 
 	// Create state client and planner
@@ -1088,7 +1115,7 @@ apis:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 			},
 		}, nil)
 	stateClient := state.NewClient(state.ClientConfig{

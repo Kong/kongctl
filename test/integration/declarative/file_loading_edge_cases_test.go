@@ -222,7 +222,7 @@ apis:
 		require.Len(t, resourceSet.APIVersions, 1)
 
 		version := resourceSet.APIVersions[0]
-		if version.Spec != nil {
+		if version.Spec.Content != nil {
 			t.Log("Large spec file loaded successfully")
 		}
 	})

@@ -57,7 +57,7 @@ portals:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
 						Total: 0,
@@ -174,7 +174,7 @@ portals:
 
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{
+			Data: []kkComps.ListPortalsResponsePortal{
 				{
 					ID:          existingID,
 					Name:        existingName,
@@ -292,7 +292,7 @@ portals:
 
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{
+			Data: []kkComps.ListPortalsResponsePortal{
 				{
 					ID:          existingID,
 					Name:        existingName,
@@ -411,7 +411,7 @@ portals:
 
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{portal},
+			Data: []kkComps.ListPortalsResponsePortal{portal},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 1,
@@ -670,7 +670,7 @@ portals:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
 						Total: 0,

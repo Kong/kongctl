@@ -94,7 +94,7 @@ func (c *deletePortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 
 	// Get portal ID (resolve name if necessary)
 	portalID := strings.TrimSpace(args[0])
-	portalName := ""
+	var portalName string
 
 	// Check if argument is UUID
 	isUUID := util.IsValidUUID(portalID)

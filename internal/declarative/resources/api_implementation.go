@@ -157,7 +157,10 @@ func (i *APIImplementationResource) TryMatchKonnectResource(konnectResource any)
 
 	// Handle nested ServiceReference for newer SDK models.
 	serviceRefField := v.FieldByName("ServiceReference")
-	if serviceRefField.IsValid() && serviceRefField.Kind() == reflect.Ptr && !serviceRefField.IsNil() && idField.IsValid() {
+	if serviceRefField.IsValid() &&
+		serviceRefField.Kind() == reflect.Ptr &&
+		!serviceRefField.IsNil() &&
+		idField.IsValid() {
 		ref := serviceRefField.Elem()
 		if ref.Kind() == reflect.Struct {
 			serviceField = ref.FieldByName("Service")

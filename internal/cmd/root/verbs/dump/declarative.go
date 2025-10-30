@@ -387,10 +387,6 @@ func mapAPIToDeclarativeResource(api kkComps.APIResponseSchema) declresources.AP
 	return result
 }
 
-func boolPtr(v bool) *bool {
-	return &v
-}
-
 func normalizeAPIResource(api *declresources.APIResource) {
 	if api.Attributes == nil {
 		return

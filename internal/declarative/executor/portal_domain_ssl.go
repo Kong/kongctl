@@ -25,7 +25,10 @@ func buildCreatePortalCustomDomainSSL(data map[string]any) (kkComps.CreatePortal
 		keyValue, _ := data["custom_private_key"].(string)
 		if strings.TrimSpace(certValue) == "" || strings.TrimSpace(keyValue) == "" {
 			return kkComps.CreatePortalCustomDomainSSL{}, false,
-				fmt.Errorf("custom_certificate and custom_private_key are required when domain_verification_method is custom_certificate")
+				fmt.Errorf(
+					"custom_certificate and custom_private_key are required when domain_verification_method is %s",
+					method,
+				)
 		}
 
 		cert := kkComps.CustomCertificate{

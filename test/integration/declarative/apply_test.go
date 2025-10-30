@@ -76,7 +76,7 @@ func TestApplyCommand_BasicWorkflow(t *testing.T) {
 		Return(&kkOps.ListPortalsResponse{
 			StatusCode: 200,
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
 						Total: 0,
@@ -231,7 +231,7 @@ func TestApplyCommand_DryRun(t *testing.T) {
 		Return(&kkOps.ListPortalsResponse{
 			StatusCode: 200,
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
 						Total: 0,

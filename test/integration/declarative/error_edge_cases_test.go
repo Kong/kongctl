@@ -278,7 +278,7 @@ portals:
 			Return(&kkOps.ListPortalsResponse{
 				StatusCode: 200,
 				ListPortalsResponse: &kkComps.ListPortalsResponse{
-					Data: []kkComps.Portal{},
+					Data: []kkComps.ListPortalsResponsePortal{},
 				},
 			}, nil)
 
@@ -471,8 +471,10 @@ apis:
 		// Mock all list operations
 		mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 			Return(&kkOps.ListPortalsResponse{
-				StatusCode:         200,
-				ListPortalResponse: &kkComps.ListPortalResponse{Data: []kkComps.Portal{}},
+				StatusCode: 200,
+				ListPortalsResponse: &kkComps.ListPortalsResponse{
+					Data: []kkComps.ListPortalsResponsePortal{},
+				},
 			}, nil)
 
 		mockControlPlaneAPI.On("ListControlPlanes", mock.Anything, mock.Anything).
@@ -497,9 +499,16 @@ apis:
 		mockPortalAPI.On("CreatePortal", mock.Anything, mock.Anything).
 			Return(&kkOps.CreatePortalResponse{
 				StatusCode: 201,
-				Portal: &kkComps.Portal{
-					ID:   "portal-123",
-					Name: "Concurrent Portal",
+				PortalResponse: &kkComps.PortalResponse{
+					ID:                    "portal-123",
+					Name:                  "Concurrent Portal",
+					DisplayName:           "Concurrent Portal",
+					CreatedAt:             time.Now(),
+					UpdatedAt:             time.Now(),
+					DefaultAPIVisibility:  kkComps.PortalResponseDefaultAPIVisibilityPublic,
+					DefaultPageVisibility: kkComps.PortalResponseDefaultPageVisibilityPublic,
+					DefaultDomain:         "portal-123.example.com",
+					CanonicalDomain:       "portal-123.example.com",
 					Labels: map[string]string{
 						"KONGCTL-managed":      "true",
 						"KONGCTL-last-updated": "20240101-120000Z",
