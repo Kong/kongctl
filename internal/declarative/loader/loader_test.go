@@ -59,6 +59,11 @@ func TestLoader_LoadFile_ValidConfigs(t *testing.T) {
 			file:         "valid/api-multiple-versions.yaml",
 			expectedAPIs: 1,
 		},
+		{
+			name:                  "external control plane references",
+			file:                  "valid/external-control-plane.yaml",
+			expectedControlPlanes: 1,
+		},
 	}
 
 	for _, tt := range tests {
@@ -74,6 +79,15 @@ func TestLoader_LoadFile_ValidConfigs(t *testing.T) {
 			assert.Len(t, rs.ApplicationAuthStrategies, tt.expectedAuthStrats, "Auth strategy count mismatch")
 			assert.Len(t, rs.ControlPlanes, tt.expectedControlPlanes, "Control plane count mismatch")
 			assert.Len(t, rs.APIs, tt.expectedAPIs, "API count mismatch")
+
+			if tt.name == "external control plane references" {
+				require.Len(t, rs.GatewayServices, 1)
+				svc := rs.GatewayServices[0]
+				assert.Equal(t, "ext-gw-svc", svc.GetRef())
+				assert.Equal(t, "ext-cp", svc.ControlPlane)
+				assert.NotNil(t, svc.External)
+				assert.Nil(t, svc.Service, "expected external gateway service to skip embedded service payload")
+			}
 		})
 	}
 }

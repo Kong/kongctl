@@ -1,0 +1,12 @@
+control_planes:
+  - ref: ext-cp
+    _external:
+      selector:
+        matchFields:
+          name: "ext-cp"
+    gateway_services:
+      - ref: ext-gw-svc
+        _external:
+          selector:
+            matchFields:
+              name: "ext-gw-svc"

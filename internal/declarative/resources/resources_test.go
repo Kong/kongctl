@@ -1,6 +1,8 @@
 package resources
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -93,6 +95,42 @@ func TestPortalResource_GetRef(t *testing.T) {
 		Ref: "test-portal-ref",
 	}
 	assert.Equal(t, "test-portal-ref", portal.GetRef())
+}
+
+func TestPortalResource_MarshalJSONIncludesRef(t *testing.T) {
+	portal := PortalResource{
+		CreatePortal: kkComps.CreatePortal{Name: "demo"},
+		Ref:          "portal-123",
+	}
+
+	data, err := json.Marshal(portal)
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+
+	encoded := string(data)
+	if !strings.Contains(encoded, "\"ref\":\"portal-123\"") {
+		t.Fatalf("expected JSON to include ref, got: %s", encoded)
+	}
+}
+
+func TestPortalResource_MarshalYAMLIncludesRef(t *testing.T) {
+	portal := PortalResource{
+		CreatePortal: kkComps.CreatePortal{Name: "demo"},
+		Ref:          "portal-123",
+	}
+
+	out, err := yaml.Marshal(struct {
+		Portals []PortalResource `yaml:"portals"`
+	}{Portals: []PortalResource{portal}})
+	if err != nil {
+		t.Fatalf("marshal failed: %v", err)
+	}
+
+	output := string(out)
+	if !strings.Contains(output, "ref: portal-123") {
+		t.Fatalf("expected YAML to include ref, got:\n%s", output)
+	}
 }
 
 func TestApplicationAuthStrategyResource_Validation(t *testing.T) {
