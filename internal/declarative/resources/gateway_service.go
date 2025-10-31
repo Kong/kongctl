@@ -12,6 +12,10 @@ import (
 
 // GatewayServiceResource represents a gateway service within a control plane.
 type GatewayServiceResource struct {
+	// Service captures inline gateway service properties. It is excluded from direct
+	// YAML/JSON serialization because external services are declared without payloads;
+	// the custom UnmarshalYAML implementation below materializes this struct only when
+	// inline fields are present in the configuration.
 	Service      *kkComps.Service `yaml:"-"                        json:"-"`
 	Ref          string           `yaml:"ref"                     json:"ref"`
 	ControlPlane string           `yaml:"control_plane,omitempty" json:"control_plane,omitempty"`
@@ -87,6 +91,8 @@ func (s GatewayServiceResource) Validate() error {
 }
 
 // UnmarshalYAML customizes decoding so external services without inline fields bypass SDK validation.
+// Inline gateway service attributes populate the embedded SDK struct, while purely external
+// resources leave it nil so serialization continues to emit only the external metadata.
 func (s *GatewayServiceResource) UnmarshalYAML(unmarshal func(any) error) error {
 	type alias struct {
 		Ref          string         `yaml:"ref"`
