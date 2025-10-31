@@ -24,7 +24,7 @@ require (
 	github.com/muesli/termenv v0.16.0
 	github.com/segmentio/cli v0.8.1
 	github.com/spf13/cobra v1.8.1
-	github.com/spf13/pflag v1.0.5
+	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.11.1
 	golang.design/x/clipboard v0.7.1
