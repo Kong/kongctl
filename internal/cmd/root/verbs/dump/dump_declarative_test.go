@@ -14,24 +14,26 @@ func TestMapPortalToDeclarativeResource(t *testing.T) {
 	description := "Portal description"
 	authID := "auth-strategy"
 
-	portal := kkComps.Portal{
+	portal := kkComps.ListPortalsResponsePortal{
 		ID:                               "portal-id",
 		Name:                             "portal-name",
 		DisplayName:                      "Portal Display",
-		Description:                      &description,
-		AuthenticationEnabled:            true,
-		RbacEnabled:                      true,
 		DefaultAPIVisibility:             kkComps.ListPortalsResponseDefaultAPIVisibilityPrivate,
 		DefaultPageVisibility:            kkComps.ListPortalsResponseDefaultPageVisibilityPublic,
 		DefaultApplicationAuthStrategyID: &authID,
-		AutoApproveDevelopers:            true,
-		AutoApproveApplications:          false,
 		Labels: map[string]string{
 			decllabels.NamespaceKey: "team-alpha",
 			decllabels.ProtectedKey: decllabels.TrueValue,
 			"custom":                "value",
 		},
 	}
+	portal.Description = &description
+	authTrue := true
+	authFalse := false
+	portal.AuthenticationEnabled = &authTrue
+	portal.RbacEnabled = &authTrue
+	portal.AutoApproveDevelopers = &authTrue
+	portal.AutoApproveApplications = &authFalse
 
 	resource := mapPortalToDeclarativeResource(portal)
 
@@ -83,7 +85,7 @@ func TestMapPortalToDeclarativeResource(t *testing.T) {
 		t.Fatalf("expected auto approve applications pointer to be set")
 	}
 
-	if *resource.AutoApproveApplications != portal.AutoApproveApplications {
+	if *resource.AutoApproveApplications != *portal.AutoApproveApplications {
 		t.Fatalf("expected auto approve applications to match input")
 	}
 }

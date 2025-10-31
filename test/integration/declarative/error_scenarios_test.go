@@ -64,7 +64,7 @@ func TestExecutorAPIErrors(t *testing.T) {
 				mockAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 					StatusCode: 200,
 					ListPortalsResponse: &kkComps.ListPortalsResponse{
-						Data: []kkComps.Portal{},
+						Data: []kkComps.ListPortalsResponsePortal{},
 						Meta: kkComps.PaginatedMeta{
 							Page: kkComps.PageMeta{Total: 0},
 						},
@@ -86,7 +86,7 @@ func TestExecutorAPIErrors(t *testing.T) {
 				mockAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 					StatusCode: 200,
 					ListPortalsResponse: &kkComps.ListPortalsResponse{
-						Data: []kkComps.Portal{},
+						Data: []kkComps.ListPortalsResponsePortal{},
 						Meta: kkComps.PaginatedMeta{
 							Page: kkComps.PageMeta{Total: 0},
 						},
@@ -200,7 +200,7 @@ portals:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		StatusCode: 200,
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{},
+			Data: []kkComps.ListPortalsResponsePortal{},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{Total: 0},
 			},
@@ -333,7 +333,7 @@ portals:
 			mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 				StatusCode: 200,
 				ListPortalsResponse: &kkComps.ListPortalsResponse{
-					Data: []kkComps.Portal{protectedPortal},
+					Data: []kkComps.ListPortalsResponsePortal{protectedPortal},
 					Meta: kkComps.PaginatedMeta{
 						Page: kkComps.PageMeta{Total: 1},
 					},

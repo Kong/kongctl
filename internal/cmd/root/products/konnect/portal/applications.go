@@ -361,8 +361,8 @@ func findApplicationByName(apps []kkComps.Application, identifier string) *kkCom
 
 func portalApplicationSummaryToRecord(app kkComps.Application) portalApplicationSummaryRecord {
 	switch app.Type {
-	case kkComps.ApplicationTypeApplicationKeyAuthApplication:
-		key := app.ApplicationKeyAuthApplication
+	case kkComps.ApplicationTypeKeyAuthApplication:
+		key := app.KeyAuthApplication
 		if key == nil {
 			return portalApplicationSummaryRecord{
 				Type:             "key-auth",
@@ -379,14 +379,14 @@ func portalApplicationSummaryToRecord(app kkComps.Application) portalApplication
 			ID:                util.AbbreviateUUID(key.GetID()),
 			Name:              key.GetName(),
 			Type:              "key-auth",
-			AuthStrategy:      strategy.Name,
+			AuthStrategy:      stringPtrOrNA(strategy.GetName()),
 			CredentialDetail:  joinOrNA(strategy.KeyNames),
 			RegistrationCount: int(key.GetRegistrationCount()),
 			LocalCreatedTime:  formatTime(key.GetCreatedAt()),
 			LocalUpdatedTime:  formatTime(key.GetUpdatedAt()),
 		}
-	case kkComps.ApplicationTypeApplicationClientCredentialsApplication:
-		client := app.ApplicationClientCredentialsApplication
+	case kkComps.ApplicationTypeClientCredentialsApplication:
+		client := app.ClientCredentialsApplication
 		if client == nil {
 			return portalApplicationSummaryRecord{
 				Type:             "client-credentials",
@@ -403,7 +403,7 @@ func portalApplicationSummaryToRecord(app kkComps.Application) portalApplication
 			ID:                util.AbbreviateUUID(client.GetID()),
 			Name:              client.GetName(),
 			Type:              "client-credentials",
-			AuthStrategy:      strategy.Name,
+			AuthStrategy:      stringPtrOrNA(strategy.GetName()),
 			CredentialDetail:  joinOrNA(strategy.AuthMethods),
 			RegistrationCount: int(client.GetRegistrationCount()),
 			LocalCreatedTime:  formatTime(client.GetCreatedAt()),
@@ -430,7 +430,7 @@ func portalApplicationDetailToRecord(app *kkComps.GetApplicationResponse) portal
 			ID:                util.AbbreviateUUID(key.GetID()),
 			Name:              key.GetName(),
 			Type:              "key-auth",
-			AuthStrategy:      strategy.Name,
+			AuthStrategy:      stringPtrOrNA(strategy.GetName()),
 			CredentialDetail:  joinOrNA(strategy.KeyNames),
 			ClientID:          valueNA,
 			GrantedScopes:     valueNA,
@@ -447,7 +447,7 @@ func portalApplicationDetailToRecord(app *kkComps.GetApplicationResponse) portal
 			ID:                util.AbbreviateUUID(client.GetID()),
 			Name:              client.GetName(),
 			Type:              "client-credentials",
-			AuthStrategy:      strategy.Name,
+			AuthStrategy:      stringPtrOrNA(strategy.GetName()),
 			CredentialDetail:  joinOrNA(strategy.AuthMethods),
 			ClientID:          nonEmptyOrNA(client.GetClientID()),
 			GrantedScopes:     joinOrNA(client.GetGrantedScopes()),
@@ -489,12 +489,19 @@ func nonEmptyOrNA(val string) string {
 	return val
 }
 
-func matchID(app kkComps.Application) string {
-	if app.ApplicationClientCredentialsApplication != nil {
-		return app.ApplicationClientCredentialsApplication.GetID()
+func stringPtrOrNA(val *string) string {
+	if val == nil {
+		return valueNA
 	}
-	if app.ApplicationKeyAuthApplication != nil {
-		return app.ApplicationKeyAuthApplication.GetID()
+	return nonEmptyOrNA(*val)
+}
+
+func matchID(app kkComps.Application) string {
+	if app.ClientCredentialsApplication != nil {
+		return app.ClientCredentialsApplication.GetID()
+	}
+	if app.KeyAuthApplication != nil {
+		return app.KeyAuthApplication.GetID()
 	}
 	return ""
 }
@@ -504,29 +511,31 @@ func portalApplicationDetailViewFromUnion(app kkComps.Application) string {
 	missing := valueNA
 
 	switch app.Type {
-	case kkComps.ApplicationTypeApplicationKeyAuthApplication:
-		key := app.ApplicationKeyAuthApplication
+	case kkComps.ApplicationTypeKeyAuthApplication:
+		key := app.KeyAuthApplication
 		if key == nil {
 			break
 		}
+		strategy := key.GetAuthStrategy()
 		fmt.Fprintf(&b, "Name: %s\n", key.GetName())
 		fmt.Fprintf(&b, "ID: %s\n", key.GetID())
 		fmt.Fprintf(&b, "Type: key-auth\n")
-		fmt.Fprintf(&b, "Auth Strategy: %s\n", key.GetAuthStrategy().Name)
-		fmt.Fprintf(&b, "Credential Detail: %s\n", joinOrNA(key.GetAuthStrategy().KeyNames))
+		fmt.Fprintf(&b, "Auth Strategy: %s\n", stringPtrOrNA(strategy.GetName()))
+		fmt.Fprintf(&b, "Credential Detail: %s\n", joinOrNA(strategy.KeyNames))
 		fmt.Fprintf(&b, "Registration Count: %.0f\n", key.GetRegistrationCount())
 		fmt.Fprintf(&b, "Created: %s\n", formatTime(key.GetCreatedAt()))
 		fmt.Fprintf(&b, "Updated: %s\n", formatTime(key.GetUpdatedAt()))
-	case kkComps.ApplicationTypeApplicationClientCredentialsApplication:
-		client := app.ApplicationClientCredentialsApplication
+	case kkComps.ApplicationTypeClientCredentialsApplication:
+		client := app.ClientCredentialsApplication
 		if client == nil {
 			break
 		}
+		strategy := client.GetAuthStrategy()
 		fmt.Fprintf(&b, "Name: %s\n", client.GetName())
 		fmt.Fprintf(&b, "ID: %s\n", client.GetID())
 		fmt.Fprintf(&b, "Type: client-credentials\n")
-		fmt.Fprintf(&b, "Auth Strategy: %s\n", client.GetAuthStrategy().Name)
-		fmt.Fprintf(&b, "Credential Detail: %s\n", joinOrNA(client.GetAuthStrategy().AuthMethods))
+		fmt.Fprintf(&b, "Auth Strategy: %s\n", stringPtrOrNA(strategy.GetName()))
+		fmt.Fprintf(&b, "Credential Detail: %s\n", joinOrNA(strategy.AuthMethods))
 		fmt.Fprintf(&b, "Client ID: %s\n", nonEmptyOrNA(client.GetClientID()))
 		fmt.Fprintf(&b, "Granted Scopes: %s\n", joinOrNA(client.GetGrantedScopes()))
 		fmt.Fprintf(&b, "Registration Count: %.0f\n", client.GetRegistrationCount())

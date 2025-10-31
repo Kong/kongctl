@@ -55,32 +55,32 @@ type textDisplayRecord struct {
 	LocalUpdatedTime string
 }
 
-func portalToDisplayRecord(p *kkComps.Portal) textDisplayRecord {
+func portalToDisplayRecord(p *kkComps.ListPortalsResponsePortal) textDisplayRecord {
 	missing := "n/a"
 
 	var id, name string
-	if p.ID != "" {
-		id = util.AbbreviateUUID(p.ID)
+	if p.GetID() != "" {
+		id = util.AbbreviateUUID(p.GetID())
 	} else {
 		id = missing
 	}
 
-	if p.Name != "" {
-		name = p.Name
+	if p.GetName() != "" {
+		name = p.GetName()
 	} else {
 		name = missing
 	}
 
 	description := missing
-	if p.Description != nil && *p.Description != "" {
-		description = *p.Description
+	if desc := p.GetDescription(); desc != nil && *desc != "" {
+		description = *desc
 	}
 
 	// CustomDomain field doesn't exist in current SDK
 	customDomain := missing
 
-	createdAt := p.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
-	updatedAt := p.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+	createdAt := p.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05")
+	updatedAt := p.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05")
 
 	return textDisplayRecord{
 		ID:               id,
@@ -200,19 +200,19 @@ func renderPortalDetail(data portalDetailData) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
-func portalDetailView(p *kkComps.Portal) string {
+func portalListDetailView(p *kkComps.ListPortalsResponsePortal) string {
 	if p == nil {
 		return ""
 	}
 
 	data := portalDetailData{
-		ID:              p.ID,
-		Name:            p.Name,
-		Description:     p.Description,
-		CanonicalDomain: p.CanonicalDomain,
-		CreatedAt:       p.CreatedAt,
-		UpdatedAt:       p.UpdatedAt,
-		Labels:          p.Labels,
+		ID:              p.GetID(),
+		Name:            p.GetName(),
+		Description:     p.GetDescription(),
+		CanonicalDomain: p.GetCanonicalDomain(),
+		CreatedAt:       p.GetCreatedAt(),
+		UpdatedAt:       p.GetUpdatedAt(),
+		Labels:          p.GetLabels(),
 	}
 	return renderPortalDetail(data)
 }
@@ -240,11 +240,11 @@ type getPortalCmd struct {
 
 func runListByName(name string, kkClient helpers.PortalAPI, helper cmd.Helper,
 	cfg config.Hook,
-) (*kkComps.Portal, error) {
+) (*kkComps.ListPortalsResponsePortal, error) {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
 
-	var allData []kkComps.Portal
+	var allData []kkComps.ListPortalsResponsePortal
 
 	for {
 		req := kkOps.ListPortalsRequest{
@@ -280,11 +280,11 @@ func runListByName(name string, kkClient helpers.PortalAPI, helper cmd.Helper,
 
 func runList(kkClient helpers.PortalAPI, helper cmd.Helper,
 	cfg config.Hook,
-) ([]kkComps.Portal, error) {
+) ([]kkComps.ListPortalsResponsePortal, error) {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
 
-	var allData []kkComps.Portal
+	var allData []kkComps.ListPortalsResponsePortal
 
 	for {
 		req := kkOps.ListPortalsRequest{
@@ -404,7 +404,7 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 				if index != 0 {
 					return ""
 				}
-				return portalDetailView(portal)
+				return portalListDetailView(portal)
 			}
 			return tableview.RenderForFormat(
 				interactive,
@@ -473,7 +473,7 @@ func renderPortalList(
 	interactive bool,
 	outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
-	portals []kkComps.Portal,
+	portals []kkComps.ListPortalsResponsePortal,
 ) error {
 	displayRecords := make([]textDisplayRecord, 0, len(portals))
 	for i := range portals {
@@ -506,7 +506,7 @@ func renderPortalList(
 	)
 }
 
-func buildPortalChildView(portals []kkComps.Portal) tableview.ChildView {
+func buildPortalChildView(portals []kkComps.ListPortalsResponsePortal) tableview.ChildView {
 	tableRows := make([]table.Row, 0, len(portals))
 	for i := range portals {
 		record := portalToDisplayRecord(&portals[i])
@@ -517,7 +517,7 @@ func buildPortalChildView(portals []kkComps.Portal) tableview.ChildView {
 		if index < 0 || index >= len(portals) {
 			return ""
 		}
-		return portalDetailView(&portals[index])
+		return portalListDetailView(&portals[index])
 	}
 
 	return tableview.ChildView{

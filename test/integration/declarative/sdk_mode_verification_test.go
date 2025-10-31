@@ -80,7 +80,7 @@ portals:
 			Return(&kkOps.ListPortalsResponse{
 				StatusCode: 200,
 				ListPortalsResponse: &kkComps.ListPortalsResponse{
-					Data: []kkComps.Portal{},
+					Data: []kkComps.ListPortalsResponsePortal{},
 				},
 			}, nil)
 
@@ -252,7 +252,7 @@ apis:
 		mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 			Return(&kkOps.ListPortalsResponse{
 				StatusCode:          200,
-				ListPortalsResponse: &kkComps.ListPortalsResponse{Data: []kkComps.Portal{}},
+				ListPortalsResponse: &kkComps.ListPortalsResponse{Data: []kkComps.ListPortalsResponsePortal{}},
 			}, nil)
 
 		mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).

@@ -88,7 +88,7 @@ func NewClient(config ClientConfig) *Client {
 
 // Portal represents a normalized portal for internal use
 type Portal struct {
-	kkComps.Portal
+	kkComps.ListPortalsResponsePortal
 	NormalizedLabels map[string]string // Non-pointer labels
 }
 
@@ -215,8 +215,8 @@ func (c *Client) ListManagedPortals(ctx context.Context, namespaces []string) ([
 				// Filter by namespace if specified
 				if shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
 					portal := Portal{
-						Portal:           p,
-						NormalizedLabels: normalized,
+						ListPortalsResponsePortal: p,
+						NormalizedLabels:          normalized,
 					}
 					filteredPortals = append(filteredPortals, portal)
 				}
@@ -267,8 +267,8 @@ func (c *Client) ListAllPortals(ctx context.Context) ([]Portal, error) {
 			}
 
 			portal := Portal{
-				Portal:           p,
-				NormalizedLabels: normalized,
+				ListPortalsResponsePortal: p,
+				NormalizedLabels:          normalized,
 			}
 			allPortals = append(allPortals, portal)
 		}
@@ -1266,7 +1266,7 @@ func (c *Client) UpdateAPIVersion(
 	// Create the request object as expected by the SDK
 	req := kkOps.UpdateAPIVersionRequest{
 		APIID:      apiID,
-		SpecID:     versionID,
+		VersionID:  versionID,
 		APIVersion: version,
 	}
 
@@ -1453,20 +1453,27 @@ func (c *Client) ListAPIImplementations(ctx context.Context, apiID string) ([]AP
 			break
 		}
 
-		for _, i := range resp.ListAPIImplementationsResponse.Data {
-			impl := APIImplementation{
-				ID: i.ID,
+		for _, item := range resp.ListAPIImplementationsResponse.Data {
+			entity := item.APIImplementationListItemGatewayServiceEntity
+			if entity == nil {
+				continue
 			}
+
+			impl := APIImplementation{
+				ID: entity.GetID(),
+			}
+
 			// ImplementationURL not available in list response
-			if i.Service != nil {
+			if svc := entity.GetService(); svc != nil {
 				impl.Service = &struct {
 					ID             string
 					ControlPlaneID string
 				}{
-					ID:             i.Service.ID,
-					ControlPlaneID: i.Service.ControlPlaneID,
+					ID:             svc.GetID(),
+					ControlPlaneID: svc.GetControlPlaneID(),
 				}
 			}
+
 			allImplementations = append(allImplementations, impl)
 		}
 

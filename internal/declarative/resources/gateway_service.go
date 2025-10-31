@@ -3,17 +3,23 @@ package resources
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/util"
+	"sigs.k8s.io/yaml"
 )
 
 // GatewayServiceResource represents a gateway service within a control plane.
 type GatewayServiceResource struct {
-	kkComps.Service `               yaml:",inline"                 json:",inline"`
-	Ref             string         `yaml:"ref"                     json:"ref"`
-	ControlPlane    string         `yaml:"control_plane,omitempty" json:"control_plane,omitempty"`
-	External        *ExternalBlock `yaml:"_external,omitempty"     json:"_external,omitempty"`
+	// Service captures inline gateway service properties. It is excluded from direct
+	// YAML/JSON serialization because external services are declared without payloads;
+	// the custom UnmarshalYAML implementation below materializes this struct only when
+	// inline fields are present in the configuration.
+	Service      *kkComps.Service `yaml:"-"                        json:"-"`
+	Ref          string           `yaml:"ref"                     json:"ref"`
+	ControlPlane string           `yaml:"control_plane,omitempty" json:"control_plane,omitempty"`
+	External     *ExternalBlock   `yaml:"_external,omitempty"     json:"_external,omitempty"`
 
 	// Resolved Konnect identifiers (not serialized)
 	konnectID             string `yaml:"-" json:"-"`
@@ -32,8 +38,8 @@ func (s GatewayServiceResource) GetRef() string {
 
 // GetMoniker returns a human-friendly identifier (the service name when available).
 func (s GatewayServiceResource) GetMoniker() string {
-	if s.Name != nil {
-		return *s.Name
+	if s.Service != nil && s.Service.Name != nil {
+		return *s.Service.Name
 	}
 	return ""
 }
@@ -66,12 +72,68 @@ func (s GatewayServiceResource) Validate() error {
 		return fmt.Errorf("gateway_service control_plane is required")
 	}
 
+	if !s.IsExternal() {
+		if s.Service == nil {
+			return fmt.Errorf("gateway_service %s: inline configuration is required for managed services", s.Ref)
+		}
+		if strings.TrimSpace(s.Service.Host) == "" {
+			return fmt.Errorf("gateway_service %s: host is required", s.Ref)
+		}
+	}
+
 	if s.External != nil {
 		if err := s.External.Validate(); err != nil {
 			return fmt.Errorf("invalid _external block: %w", err)
 		}
 	}
 
+	return nil
+}
+
+// UnmarshalYAML customizes decoding so external services without inline fields bypass SDK validation.
+// Inline gateway service attributes populate the embedded SDK struct, while purely external
+// resources leave it nil so serialization continues to emit only the external metadata.
+func (s *GatewayServiceResource) UnmarshalYAML(unmarshal func(any) error) error {
+	type alias struct {
+		Ref          string         `yaml:"ref"`
+		ControlPlane string         `yaml:"control_plane"`
+		External     *ExternalBlock `yaml:"_external"`
+		Kongctl      *KongctlMeta   `yaml:"kongctl"`
+		Inline       map[string]any `yaml:",inline"`
+	}
+
+	var raw alias
+	if err := unmarshal(&raw); err != nil {
+		return err
+	}
+
+	s.Ref = raw.Ref
+	s.ControlPlane = raw.ControlPlane
+	s.External = raw.External
+	// Kongctl metadata is stored via dedicated field on resource set when needed; ignore here.
+
+	// Remove known non-service fields that might appear in Inline map if not declared explicitly.
+	delete(raw.Inline, "ref")
+	delete(raw.Inline, "control_plane")
+	delete(raw.Inline, "_external")
+	delete(raw.Inline, "kongctl")
+
+	if len(raw.Inline) == 0 {
+		s.Service = nil
+		return nil
+	}
+
+	// Marshal inline fields back to YAML and decode using SDK struct for consistency.
+	data, err := yaml.Marshal(raw.Inline)
+	if err != nil {
+		return fmt.Errorf("marshal gateway service fields: %w", err)
+	}
+
+	var svc kkComps.Service
+	if err := yaml.Unmarshal(data, &svc); err != nil {
+		return err
+	}
+	s.Service = &svc
 	return nil
 }
 
@@ -120,12 +182,12 @@ func (s *GatewayServiceResource) TryMatchKonnectResource(konnectResource any) bo
 		} else if s.External.Selector != nil {
 			match = s.External.Selector.Match(konnectResource)
 		}
-	} else if s.Name != nil {
+	} else if s.Service != nil && s.Service.Name != nil {
 		nameField := v.FieldByName("Name")
 		if !nameField.IsValid() {
 			return false
 		}
-		match = nameField.Kind() == reflect.String && nameField.String() == *s.Name
+		match = nameField.Kind() == reflect.String && nameField.String() == *s.Service.Name
 	}
 
 	if !match {

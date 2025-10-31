@@ -50,7 +50,7 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 	// Index current portals by name
 	currentByName := make(map[string]state.Portal)
 	for _, portal := range currentPortals {
-		currentByName[portal.Name] = portal
+		currentByName[portal.GetName()] = portal
 	}
 
 	// Collect protection validation errors
@@ -65,8 +65,8 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 			if portalID := desiredPortal.GetKonnectID(); portalID != "" {
 				// Build a minimal current portal for child planning
 				current := state.Portal{
-					Portal:           kkComps.Portal{ID: portalID, Name: desiredPortal.Name},
-					NormalizedLabels: map[string]string{},
+					ListPortalsResponsePortal: kkComps.ListPortalsResponsePortal{ID: portalID, Name: desiredPortal.Name},
+					NormalizedLabels:          map[string]string{},
 				}
 				p.planner.logger.Debug("Planning children for external portal",
 					slog.String("ref", desiredPortal.GetRef()),
@@ -380,25 +380,25 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 	}
 
 	if desired.AuthenticationEnabled != nil {
-		if current.AuthenticationEnabled != *desired.AuthenticationEnabled {
+		if curr := current.GetAuthenticationEnabled(); curr == nil || *curr != *desired.AuthenticationEnabled {
 			updates["authentication_enabled"] = *desired.AuthenticationEnabled
 		}
 	}
 
 	if desired.RbacEnabled != nil {
-		if current.RbacEnabled != *desired.RbacEnabled {
+		if curr := current.GetRbacEnabled(); curr == nil || *curr != *desired.RbacEnabled {
 			updates["rbac_enabled"] = *desired.RbacEnabled
 		}
 	}
 
 	if desired.AutoApproveDevelopers != nil {
-		if current.AutoApproveDevelopers != *desired.AutoApproveDevelopers {
+		if curr := current.GetAutoApproveDevelopers(); curr == nil || *curr != *desired.AutoApproveDevelopers {
 			updates["auto_approve_developers"] = *desired.AutoApproveDevelopers
 		}
 	}
 
 	if desired.AutoApproveApplications != nil {
-		if current.AutoApproveApplications != *desired.AutoApproveApplications {
+		if curr := current.GetAutoApproveApplications(); curr == nil || *curr != *desired.AutoApproveApplications {
 			updates["auto_approve_applications"] = *desired.AutoApproveApplications
 		}
 	}

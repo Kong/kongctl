@@ -133,7 +133,7 @@ func (a *APIAPIImpl) UpdateAPIVersion(ctx context.Context, request kkOps.UpdateA
 func (a *APIAPIImpl) DeleteAPIVersion(ctx context.Context, request kkOps.DeleteAPIVersionRequest,
 	opts ...kkOps.Option,
 ) (*kkOps.DeleteAPIVersionResponse, error) {
-	return a.SDK.APIVersion.DeleteAPIVersion(ctx, request.APIID, request.SpecID, opts...)
+	return a.SDK.APIVersion.DeleteAPIVersion(ctx, request.APIID, request.VersionID, opts...)
 }
 
 // API Publication operations

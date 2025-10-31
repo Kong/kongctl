@@ -130,8 +130,8 @@ func TestPlanner_ExternalPortal_PlansChildren(t *testing.T) {
 	mockPortalAPI := new(MockPortalAPI)
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{
-				{ID: "portal-123", Name: "ext-portal"},
+			Data: []kkComps.ListPortalsResponsePortal{
+				newListPortal("portal-123", "ext-portal", nil),
 			},
 			Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
 		},

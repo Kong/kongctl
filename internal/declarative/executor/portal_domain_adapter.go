@@ -38,11 +38,11 @@ func (p *PortalDomainAdapter) MapCreateFields(
 
 	// Handle SSL settings
 	if sslData, ok := fields["ssl"].(map[string]any); ok {
-		ssl := kkComps.CreatePortalCustomDomainSSL{}
-		if method, ok := sslData["domain_verification_method"].(string); ok {
-			ssl.DomainVerificationMethod = kkComps.PortalCustomDomainVerificationMethod(method)
+		if ssl, set, err := buildCreatePortalCustomDomainSSL(sslData); err != nil {
+			return err
+		} else if set {
+			create.Ssl = ssl
 		}
-		create.Ssl = ssl
 	}
 
 	return nil

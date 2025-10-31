@@ -277,14 +277,15 @@ func filterImplementations(
 
 	matches := make([]kkComps.APIImplementationListItem, 0)
 	for _, implementation := range implementations {
-		if strings.ToLower(implementation.GetID()) == lowered {
-			matches = append(matches, implementation)
-			continue
-		}
-
-		if implementation.GetService() != nil && strings.ToLower(implementation.GetService().GetID()) == lowered {
-			matches = append(matches, implementation)
-			continue
+		if item := implementation.APIImplementationListItemGatewayServiceEntity; item != nil {
+			if strings.ToLower(item.GetID()) == lowered {
+				matches = append(matches, implementation)
+				continue
+			}
+			if svc := item.GetService(); svc != nil && strings.ToLower(svc.GetID()) == lowered {
+				matches = append(matches, implementation)
+				continue
+			}
 		}
 	}
 
@@ -292,9 +293,14 @@ func filterImplementations(
 }
 
 func implementationToRecord(implementation kkComps.APIImplementationListItem) apiImplementationRecord {
+	entity := implementation.APIImplementationListItemGatewayServiceEntity
+	if entity == nil {
+		return apiImplementationRecord{}
+	}
+
 	serviceID := "n/a"
 	controlPlaneID := "n/a"
-	if svc := implementation.GetService(); svc != nil {
+	if svc := entity.GetService(); svc != nil {
 		if id := svc.GetID(); id != "" {
 			serviceID = util.AbbreviateUUID(id)
 		}
@@ -304,11 +310,11 @@ func implementationToRecord(implementation kkComps.APIImplementationListItem) ap
 	}
 
 	return apiImplementationRecord{
-		ImplementationID: util.AbbreviateUUID(implementation.GetID()),
+		ImplementationID: util.AbbreviateUUID(entity.GetID()),
 		ServiceID:        serviceID,
 		ControlPlaneID:   controlPlaneID,
-		LocalCreatedTime: implementation.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
-		LocalUpdatedTime: implementation.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		LocalCreatedTime: entity.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		LocalUpdatedTime: entity.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
 	}
 }
 
@@ -317,11 +323,16 @@ func implementationDetailView(implementation *kkComps.APIImplementationListItem)
 		return ""
 	}
 
+	entity := implementation.APIImplementationListItemGatewayServiceEntity
+	if entity == nil {
+		return ""
+	}
+
 	const missing = "n/a"
 
 	serviceID := missing
 	controlPlaneID := missing
-	if svc := implementation.GetService(); svc != nil {
+	if svc := entity.GetService(); svc != nil {
 		if id := svc.GetID(); id != "" {
 			serviceID = id
 		}
@@ -331,11 +342,11 @@ func implementationDetailView(implementation *kkComps.APIImplementationListItem)
 	}
 
 	fields := map[string]string{
-		"api_id":           implementation.GetAPIID(),
+		"api_id":           entity.GetAPIID(),
 		"control_plane_id": controlPlaneID,
-		"created_at":       implementation.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		"created_at":       entity.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
 		"service_id":       serviceID,
-		"updated_at":       implementation.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		"updated_at":       entity.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
 	}
 
 	keys := make([]string, 0, len(fields))
@@ -345,7 +356,7 @@ func implementationDetailView(implementation *kkComps.APIImplementationListItem)
 	sort.Strings(keys)
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "id: %s\n", implementation.GetID())
+	fmt.Fprintf(&b, "id: %s\n", entity.GetID())
 	for _, key := range keys {
 		fmt.Fprintf(&b, "%s: %s\n", key, fields[key])
 	}

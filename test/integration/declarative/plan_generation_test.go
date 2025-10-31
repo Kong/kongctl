@@ -57,7 +57,7 @@ portals:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
 						Total: 0,
@@ -174,7 +174,7 @@ portals:
 
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{
+			Data: []kkComps.ListPortalsResponsePortal{
 				{
 					ID:          existingID,
 					Name:        existingName,
@@ -292,7 +292,7 @@ portals:
 
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{
+			Data: []kkComps.ListPortalsResponsePortal{
 				{
 					ID:          existingID,
 					Name:        existingName,
@@ -409,9 +409,16 @@ portals:
 	// Mock portal that matches desired state
 	portal := CreateManagedPortal("Existing Portal", "portal-789", "Same description")
 
+	authEnabled := true
+	autoApprove := false
+	portal.AuthenticationEnabled = &authEnabled
+	portal.RbacEnabled = &autoApprove
+	portal.AutoApproveDevelopers = &autoApprove
+	portal.AutoApproveApplications = &autoApprove
+
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{portal},
+			Data: []kkComps.ListPortalsResponsePortal{portal},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 1,
@@ -463,6 +470,12 @@ portals:
 
 	var plan planner.Plan
 	require.NoError(t, json.Unmarshal(planData, &plan))
+
+	if len(plan.Changes) > 0 {
+		debugPlan, err := json.MarshalIndent(plan, "", "  ")
+		require.NoError(t, err)
+		t.Logf("Non-empty plan generated:\n%s", string(debugPlan))
+	}
 
 	assert.True(t, plan.IsEmpty())
 	assert.Len(t, plan.Changes, 0)
@@ -670,7 +683,7 @@ portals:
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
 			ListPortalsResponse: &kkComps.ListPortalsResponse{
-				Data: []kkComps.Portal{},
+				Data: []kkComps.ListPortalsResponsePortal{},
 				Meta: kkComps.PaginatedMeta{
 					Page: kkComps.PageMeta{
 						Total: 0,

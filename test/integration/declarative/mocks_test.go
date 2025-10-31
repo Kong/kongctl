@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
@@ -409,12 +410,26 @@ func (m *MockAPIAPI) HasExpectations() bool {
 }
 
 // CreateManagedPortal creates a portal with KONGCTL labels
-func CreateManagedPortal(name, id, description string) kkComps.Portal {
+func CreateManagedPortal(name, id, description string) kkComps.ListPortalsResponsePortal {
 	descPtr := &description
-	return kkComps.Portal{
-		ID:          id,
-		Name:        name,
-		Description: descPtr,
+	now := time.Now()
+	authEnabled := true
+	autoApprove := false
+	return kkComps.ListPortalsResponsePortal{
+		ID:                      id,
+		Name:                    name,
+		DisplayName:             name,
+		Description:             descPtr,
+		CreatedAt:               now,
+		UpdatedAt:               now,
+		DefaultAPIVisibility:    kkComps.ListPortalsResponseDefaultAPIVisibilityPublic,
+		DefaultPageVisibility:   kkComps.ListPortalsResponseDefaultPageVisibilityPublic,
+		DefaultDomain:           fmt.Sprintf("%s.example.com", id),
+		CanonicalDomain:         fmt.Sprintf("%s.example.com", id),
+		AuthenticationEnabled:   &authEnabled,
+		RbacEnabled:             &autoApprove,
+		AutoApproveDevelopers:   &autoApprove,
+		AutoApproveApplications: &autoApprove,
 		Labels: map[string]string{
 			labels.NamespaceKey: "default",
 		},

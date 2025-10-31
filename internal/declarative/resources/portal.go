@@ -1,8 +1,10 @@
 package resources
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -249,6 +251,167 @@ func (p *PortalResource) TryMatchKonnectResource(konnectResource any) bool {
 	}
 
 	return false
+}
+
+// UnmarshalJSON ensures both the embedded SDK model and portal-specific fields
+// (like ref and kongctl metadata) are populated when decoding from JSON/YAML
+// while still surfacing unknown field errors (used for typo detection).
+func (p *PortalResource) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	allowedKeys := make(map[string]struct{})
+	sdkKeys := make(map[string]struct{})
+
+	// Gather JSON field names from the embedded SDK struct
+	sdkType := reflect.TypeOf(kkComps.CreatePortal{})
+	for i := 0; i < sdkType.NumField(); i++ {
+		field := sdkType.Field(i)
+		tag := field.Tag.Get("json")
+		if tag == "" || tag == "-" {
+			continue
+		}
+		name := strings.Split(tag, ",")[0]
+		if name == "" {
+			continue
+		}
+		allowedKeys[name] = struct{}{}
+		sdkKeys[name] = struct{}{}
+	}
+
+	// Add kongctl-specific fields
+	extraKeys := []string{
+		"ref",
+		"kongctl",
+		"customization",
+		"custom_domain",
+		"pages",
+		"snippets",
+		"_external",
+	}
+	for _, k := range extraKeys {
+		allowedKeys[k] = struct{}{}
+	}
+
+	// Detect unknown fields early so parseYAML can provide suggestions.
+	for key := range raw {
+		if _, ok := allowedKeys[key]; !ok {
+			return fmt.Errorf("json: unknown field %q", key)
+		}
+	}
+
+	// Extract kongctl-specific fields
+	if v, ok := raw["ref"]; ok {
+		if err := json.Unmarshal(v, &p.Ref); err != nil {
+			return err
+		}
+		delete(raw, "ref")
+	}
+
+	if v, ok := raw["kongctl"]; ok {
+		if err := json.Unmarshal(v, &p.Kongctl); err != nil {
+			return err
+		}
+		delete(raw, "kongctl")
+	}
+
+	if v, ok := raw["customization"]; ok {
+		if err := json.Unmarshal(v, &p.Customization); err != nil {
+			return err
+		}
+		delete(raw, "customization")
+	}
+
+	if v, ok := raw["custom_domain"]; ok {
+		if err := json.Unmarshal(v, &p.CustomDomain); err != nil {
+			return err
+		}
+		delete(raw, "custom_domain")
+	}
+
+	if v, ok := raw["pages"]; ok {
+		if err := json.Unmarshal(v, &p.Pages); err != nil {
+			return err
+		}
+		delete(raw, "pages")
+	}
+
+	if v, ok := raw["snippets"]; ok {
+		if err := json.Unmarshal(v, &p.Snippets); err != nil {
+			return err
+		}
+		delete(raw, "snippets")
+	}
+
+	if v, ok := raw["_external"]; ok {
+		if err := json.Unmarshal(v, &p.External); err != nil {
+			return err
+		}
+		delete(raw, "_external")
+	}
+
+	// Remaining fields belong to the embedded SDK struct.
+	sdkPayload := make(map[string]json.RawMessage)
+	for key, value := range raw {
+		if _, ok := sdkKeys[key]; ok {
+			sdkPayload[key] = value
+		}
+	}
+
+	// Marshal back and unmarshal into the embedded CreatePortal struct.
+	if len(sdkPayload) > 0 {
+		encoded, err := json.Marshal(sdkPayload)
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(encoded, &p.CreatePortal); err != nil {
+			return err
+		}
+	} else {
+		// Ensure embedded struct is zeroed if no fields were provided.
+		p.CreatePortal = kkComps.CreatePortal{}
+	}
+
+	return nil
+}
+
+// MarshalJSON ensures the embedded SDK model and Kongctl fields are preserved when serializing.
+func (p PortalResource) MarshalJSON() ([]byte, error) {
+	alias := p.portalAlias()
+	return json.Marshal(alias)
+}
+
+// MarshalYAML ensures YAML output mirrors the custom JSON encoding.
+func (p PortalResource) MarshalYAML() (any, error) {
+	return p.portalAlias(), nil
+}
+
+type portalAlias struct {
+	portalCreateAlias `json:",inline" yaml:",inline"`
+	Ref               string                       `json:"ref" yaml:"ref"`
+	Kongctl           *KongctlMeta                 `json:"kongctl,omitempty" yaml:"kongctl,omitempty"`
+	Customization     *PortalCustomizationResource `json:"customization,omitempty" yaml:"customization,omitempty"`
+	CustomDomain      *PortalCustomDomainResource  `json:"custom_domain,omitempty" yaml:"custom_domain,omitempty"`
+	Pages             []PortalPageResource         `json:"pages,omitempty" yaml:"pages,omitempty"`
+	Snippets          []PortalSnippetResource      `json:"snippets,omitempty" yaml:"snippets,omitempty"`
+	External          *ExternalBlock               `json:"_external,omitempty" yaml:"_external,omitempty"`
+}
+
+type portalCreateAlias kkComps.CreatePortal
+
+func (p PortalResource) portalAlias() portalAlias {
+	return portalAlias{
+		portalCreateAlias: portalCreateAlias(p.CreatePortal),
+		Ref:               p.Ref,
+		Kongctl:           p.Kongctl,
+		Customization:     p.Customization,
+		CustomDomain:      p.CustomDomain,
+		Pages:             p.Pages,
+		Snippets:          p.Snippets,
+		External:          p.External,
+	}
 }
 
 // IsExternal returns true if this portal is externally managed

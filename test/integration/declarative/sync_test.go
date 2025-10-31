@@ -6,6 +6,7 @@ package declarative_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,7 +54,7 @@ portals:
 
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{existingPortal, unmanagedPortal},
+			Data: []kkComps.ListPortalsResponsePortal{existingPortal, unmanagedPortal},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 2,
@@ -130,7 +131,7 @@ portals: []
 
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{managedPortal},
+			Data: []kkComps.ListPortalsResponsePortal{managedPortal},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 1,
@@ -204,7 +205,7 @@ portals:
 
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{protectedPortal},
+			Data: []kkComps.ListPortalsResponsePortal{protectedPortal},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 1,
@@ -270,7 +271,7 @@ portals:
 
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{keepPortal, deletePortal},
+			Data: []kkComps.ListPortalsResponsePortal{keepPortal, deletePortal},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 2,
@@ -339,7 +340,7 @@ portals:
 
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{deletePortal},
+			Data: []kkComps.ListPortalsResponsePortal{deletePortal},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 1,
@@ -434,7 +435,7 @@ portals:
 			// Mock empty current state
 			mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 				ListPortalsResponse: &kkComps.ListPortalsResponse{
-					Data: []kkComps.Portal{},
+					Data: []kkComps.ListPortalsResponsePortal{},
 					Meta: kkComps.PaginatedMeta{
 						Page: kkComps.PageMeta{
 							Total: 0,
@@ -528,7 +529,7 @@ portals:
 	// Mock empty current state
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
-			Data: []kkComps.Portal{},
+			Data: []kkComps.ListPortalsResponsePortal{},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{
 					Total: 0,
@@ -572,15 +573,21 @@ portals:
 
 // Helper functions
 
-func CreateUnmanagedPortal(name, id, description string) kkComps.Portal {
-	return kkComps.Portal{
-		ID:          id,
-		Name:        name,
-		Description: stringPtr(description),
-		DisplayName: "",
-		Labels:      map[string]string{
-			// No managed labels - this is unmanaged
-		},
+func CreateUnmanagedPortal(name, id, description string) kkComps.ListPortalsResponsePortal {
+	descPtr := stringPtr(description)
+	now := time.Now()
+	return kkComps.ListPortalsResponsePortal{
+		ID:                    id,
+		Name:                  name,
+		DisplayName:           name,
+		Description:           descPtr,
+		CreatedAt:             now,
+		UpdatedAt:             now,
+		DefaultAPIVisibility:  kkComps.ListPortalsResponseDefaultAPIVisibilityPublic,
+		DefaultPageVisibility: kkComps.ListPortalsResponseDefaultPageVisibilityPublic,
+		DefaultDomain:         fmt.Sprintf("%s.example.com", id),
+		CanonicalDomain:       fmt.Sprintf("%s.example.com", id),
+		Labels:                map[string]string{},
 	}
 }
 

@@ -773,7 +773,7 @@ func (p *Planner) planAPIVersionCreate(
 	if version.Version != nil {
 		fields["version"] = *version.Version
 	}
-	if version.Spec != nil && version.Spec.Content != nil {
+	if version.Spec.Content != nil {
 		// Store spec as a map with content field for proper JSON serialization
 		fields["spec"] = map[string]any{
 			"content": *version.Spec.Content,
@@ -1325,8 +1325,8 @@ func (p *Planner) planAPIImplementationChanges(
 		if plan.HasChange("api_implementation", desiredImpl.GetRef()) {
 			continue
 		}
-		if desiredImpl.Service != nil {
-			key := fmt.Sprintf("%s:%s", desiredImpl.Service.ID, desiredImpl.Service.ControlPlaneID)
+		if service := desiredImpl.ServiceReference.GetService(); service != nil {
+			key := fmt.Sprintf("%s:%s", service.ID, service.ControlPlaneID)
 			if _, exists := currentByService[key]; !exists {
 				p.planAPIImplementationCreate(parentNamespace, apiRef, apiID, desiredImpl, []string{}, plan)
 			}
@@ -1338,8 +1338,8 @@ func (p *Planner) planAPIImplementationChanges(
 	if plan.Metadata.Mode == PlanModeSync {
 		desiredServices := make(map[string]bool)
 		for _, impl := range desired {
-			if impl.Service != nil {
-				key := fmt.Sprintf("%s:%s", impl.Service.ID, impl.Service.ControlPlaneID)
+			if service := impl.ServiceReference.GetService(); service != nil {
+				key := fmt.Sprintf("%s:%s", service.ID, service.ControlPlaneID)
 				desiredServices[key] = true
 			}
 		}
@@ -1360,10 +1360,10 @@ func (p *Planner) planAPIImplementationCreate(
 ) {
 	fields := make(map[string]any)
 	// APIImplementation only has Service field in the SDK
-	if implementation.Service != nil {
+	if service := implementation.ServiceReference.GetService(); service != nil {
 		fields["service"] = map[string]any{
-			"id":               implementation.Service.ID,
-			"control_plane_id": implementation.Service.ControlPlaneID,
+			"id":               service.ID,
+			"control_plane_id": service.ControlPlaneID,
 		}
 	}
 
@@ -1529,7 +1529,7 @@ func (p *Planner) shouldUpdateAPIVersion(current state.APIVersion, desired resou
 	}
 
 	// Check if spec content changed
-	if desired.Spec != nil && desired.Spec.Content != nil {
+	if desired.Spec.Content != nil {
 		// Both should already be normalized JSON, but ensure consistency
 		currentSpec := strings.TrimSpace(current.Spec)
 		desiredSpec := strings.TrimSpace(*desired.Spec.Content)
@@ -1565,7 +1565,7 @@ func (p *Planner) planAPIVersionUpdate(
 	if version.Version != nil {
 		fields["version"] = *version.Version
 	}
-	if version.Spec != nil && version.Spec.Content != nil {
+	if version.Spec.Content != nil {
 		// Store spec as a map with content field for proper JSON serialization
 		fields["spec"] = map[string]any{
 			"content": *version.Spec.Content,

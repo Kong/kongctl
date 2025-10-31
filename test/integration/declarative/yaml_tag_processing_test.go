@@ -282,7 +282,7 @@ portals:
 		assert.Equal(t, "3600", api.Labels["cache_ttl"])
 
 		version := resourceSet.APIVersions[0]
-		if version.Spec != nil {
+		if version.Spec.Content != nil {
 			t.Log("Complex value extraction spec loaded successfully")
 		}
 

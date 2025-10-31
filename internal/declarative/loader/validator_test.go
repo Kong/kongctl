@@ -330,19 +330,25 @@ func TestLoader_validateAPIs(t *testing.T) {
 						{
 							Ref: "impl1",
 							APIImplementation: kkComps.APIImplementation{
-								Service: &kkComps.APIImplementationService{
-									ID:             "12345678-1234-1234-1234-123456789012",
-									ControlPlaneID: "dummy-cp", // Use dummy value for required field
+								ServiceReference: &kkComps.ServiceReference{
+									Service: &kkComps.APIImplementationService{
+										ID:             "12345678-1234-1234-1234-123456789012",
+										ControlPlaneID: "dummy-cp", // Use dummy value for required field
+									},
 								},
+								Type: kkComps.APIImplementationTypeServiceReference,
 							},
 						},
 						{
 							Ref: "impl1",
 							APIImplementation: kkComps.APIImplementation{
-								Service: &kkComps.APIImplementationService{
-									ID:             "12345678-1234-1234-1234-123456789012",
-									ControlPlaneID: "dummy-cp",
+								ServiceReference: &kkComps.ServiceReference{
+									Service: &kkComps.APIImplementationService{
+										ID:             "12345678-1234-1234-1234-123456789012",
+										ControlPlaneID: "dummy-cp",
+									},
 								},
+								Type: kkComps.APIImplementationTypeServiceReference,
 							},
 						},
 					},
