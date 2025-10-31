@@ -3,7 +3,7 @@ module github.com/kong/kongctl
 go 1.24.3
 
 require (
-	github.com/Kong/sdk-konnect-go v0.12.2-0.20251030142117-2631232241e4
+	github.com/Kong/sdk-konnect-go v0.13.1
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/ajg/form v1.5.1
 	github.com/alecthomas/chroma v0.10.0

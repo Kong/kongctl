@@ -1,7 +1,7 @@
 dario.cat/mergo v1.0.1 h1:Ra4+bf83h2ztPIQYNP99R6m+Y7KfnARDfID+a+vLl4s=
 dario.cat/mergo v1.0.1/go.mod h1:uNxQE+84aUszobStD9th8a29P2fMDhsBdgRYvZOxGmk=
-github.com/Kong/sdk-konnect-go v0.12.2-0.20251030142117-2631232241e4 h1:XLw82k5Ex7rIE015H9XupzXowPiwmab50VcUXIoN7Cg=
-github.com/Kong/sdk-konnect-go v0.12.2-0.20251030142117-2631232241e4/go.mod h1:Q5a5Pa4j6jzMhKgu4CtKQXXcA9jpeuKLQx6FD16tD0w=
+github.com/Kong/sdk-konnect-go v0.13.1 h1:c1WGaOlUt7b/eDsdsmxMFLWRYgroSqvJ7nr2/uCheG4=
+github.com/Kong/sdk-konnect-go v0.13.1/go.mod h1:LOJjA3UyX2fhmJQV10LrC72LF9vZo6pXv5VM03uBDB0=
 github.com/MakeNowJust/heredoc v1.0.0 h1:cXCdzVdstXyiTqTvfqk9SDHpKNjxuom+DOlyEeQ4pzQ=
 github.com/MakeNowJust/heredoc v1.0.0/go.mod h1:mG5amYoWBHf8vpLOuehzbGGw0EHxpZZ6lCpQ4fNJ8LE=
 github.com/Masterminds/goutils v1.1.1 h1:5nUrii3FMTL5diU80unEVvNevw1nH4+ZV4DSLVJLSYI=
