@@ -2,5 +2,21 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "Kong/public-shared-renovate"
+  ],
+  "packageRules": [
+    {
+      "description": "Ignore pre-release versions until a stable tag exists",
+      "matchPackagePatterns": [
+        "*"
+      ],
+      "ignoreUnstable": true
+    },
+    {
+      "description": "Hold lipgloss upgrades until manually approved",
+      "matchPackageNames": [
+        "github.com/charmbracelet/lipgloss"
+      ],
+      "dependencyDashboardApproval": true
+    }
   ]
 }
