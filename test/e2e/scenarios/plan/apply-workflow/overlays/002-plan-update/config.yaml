@@ -1,0 +1,26 @@
+_defaults:
+  kongctl:
+    namespace: plan-apply
+
+portals:
+  - ref: plan-apply-portal
+    name: plan-apply-portal
+    display_name: "Plan Apply Portal (Updated)"
+    description: "Updated portal presentation for plan apply workflow"
+    authentication_enabled: false
+    default_api_visibility: public
+    default_page_visibility: private
+
+apis:
+  - ref: plan-apply-orders
+    name: plan-apply-orders
+    description: "Orders API with updated details"
+    labels:
+      domain: commerce
+      lifecycle: production
+  - ref: plan-apply-analytics
+    name: plan-apply-analytics
+    description: "Analytics API introduced during apply plan workflow"
+    labels:
+      domain: insights
+      lifecycle: beta
