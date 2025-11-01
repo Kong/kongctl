@@ -16,8 +16,8 @@ scenarios, and advanced features**.
 
 ### Key Findings (UPDATED 2025-11-01)
 
-- **Overall Coverage**: ~63% across all features (was 60%)
-- **Commands**: 83% (5/6 tested) - `diff` command has ZERO coverage
+- **Overall Coverage**: ~66% across all features (was 60%)
+- **Commands**: 100% (6/6 tested) ✅ `diff` command now covered end-to-end
 - **Resources**: 89% (12/13 tested) - Portal Custom Domain not tested
 - **Metadata Features**: 100% (2/2 tested) ✅ IMPROVED - `protected` now covered
 - **Field Coverage**: ~50% average across all resource types
@@ -27,7 +27,7 @@ scenarios, and advanced features**.
 1. ~~**protected field** - ZERO e2e coverage despite being documented~~ ✅ RESOLVED
    2025-11-01
 2. ⚠️ **Portal Custom Domain** - Entire resource type untested (NEXT PRIORITY)
-3. ⚠️ **diff command** - ZERO coverage
+3. ~~⚠️ **diff command** - ZERO coverage~~ ✅ RESOLVED 2025-11-01
 4. ⚠️ **Plan artifact workflows** - Two-phase plan/apply not tested
 5. ⚠️ **Error scenarios** - Field validation, tag errors largely untested
 
@@ -84,6 +84,41 @@ KONGCTL_E2E_SCENARIO=protected-resources make test-e2e
 
 **Impact**: Closes the most critical metadata testing gap. Protected resources are
 now validated to prevent accidental production deletions.
+
+---
+
+### 2025-11-01: Diff Command Coverage Scenario
+
+**Scenario Added**: `test/e2e/scenarios/diff/command-coverage/`
+
+**Gap Addressed**: Section 4.1 (Command Coverage Gaps) + Section 5.1 Scenario 2
+
+**Priority**: 🔴 HIGH - Core diff workflow coverage
+
+**Coverage Improvements**:
+- Command Coverage: 83% → 100% (diff command now tested)
+- Overall Coverage: ~63% → ~66% (estimated)
+- Critical Gaps Closed: 2 of 5 high-priority gaps addressed
+
+**What This Tests**:
+- ✅ `kongctl diff -f` surfaces CREATE, UPDATE, DELETE actions
+- ✅ Diff plan persisted to file and reloaded with `--plan`
+- ✅ Portal metadata updates detected (display_name change)
+- ✅ Namespace attribution retained in plan output
+- ✅ Konnect state remains unchanged after diff (read-only validation)
+
+**Files Created**:
+- `test/e2e/scenarios/diff/command-coverage/scenario.yaml`
+- `test/e2e/scenarios/diff/command-coverage/overlays/003-diff/config.yaml`
+- `test/e2e/testdata/declarative/diff/config.yaml`
+
+**Run Scenario**:
+```bash
+KONGCTL_E2E_SCENARIO=diff/command-coverage make test-e2e
+```
+
+**Impact**: Validates diff workflows end-to-end, including plan reuse, closing the
+largest outstanding command coverage gap.
 
 ---
 
@@ -308,13 +343,12 @@ now validated to prevent accidental production deletions.
 | **plan** | ✅ Yes | control-plane/groups, adopt/full, adopt/create-portal-adopt-dump-plan | Only with --mode apply; --mode sync not explicitly tested in isolation |
 | **apply** | ✅ Yes | 9 scenarios | Well covered across resource types |
 | **sync** | ✅ Yes | portal/sync, control-plane/sync, control-plane/sync-groups, require-namespace/portal | Deletion behavior tested |
-| **diff** | ❌ No | None | **NOT tested in e2e scenarios** |
+| **diff** | ✅ Yes | diff/command-coverage | Validates JSON diff output, plan reuse, read-only behavior |
 | **adopt** | ✅ Yes | adopt/full, adopt/create-portal-adopt-dump-plan | Tested for portal, API, control plane |
 | **dump** | ✅ Yes | adopt/full, adopt/create-portal-adopt-dump-plan | Only declarative format tested |
 
 #### Command Coverage Gaps
 
-- **diff command**: ZERO e2e coverage
 - **dump tf-import format**: Not tested
 - **Plan artifact execution**: `apply --plan`, `sync --plan` not tested
 - **dry-run flag**: Not tested for apply or sync
@@ -662,11 +696,11 @@ See **Change Log** section for details.
 
 #### HIGH PRIORITY
 
-**1. diff command** - ZERO coverage
-- No tests for preview functionality
-- No tests for diff with configuration files
-- No tests for diff with plan artifacts
-- No tests for diff output validation
+**1. diff command** - ~~ZERO coverage~~ ✅ Covered by `diff/command-coverage` scenario
+- Preview diff against configuration manifests now validated
+- Plan artifact reload via `diff --plan` exercised
+- Output assertions cover CREATE/UPDATE/DELETE paths and namespace attribution
+- Remaining opportunity: extend to additional resources (control planes, auth strategies)
 
 **2. Plan artifact workflows** - NOT TESTED
 - Two-phase workflow not validated:
@@ -898,35 +932,32 @@ See **Change Log** section for implementation details.
 
 ---
 
-#### Scenario 2: diff-command-coverage (NEXT PRIORITY)
+#### Scenario 2: diff-command-coverage ✅ COMPLETED 2025-11-01
 
 **Purpose**: Test diff command functionality
-**Priority**: 🔴 HIGH
-**Rationale**: Command has ZERO e2e coverage despite being core feature
+**Priority**: 🔴 HIGH (resolved)
+**Rationale**: Implemented at `test/e2e/scenarios/diff/command-coverage/`
 
-**Commands**: diff, apply
+**Commands**: sync, diff
 **Resources**: Portal, API with modifications
 
-**Test Steps**:
-1. Apply initial configuration (portal + API)
-2. Modify configuration (change portal display_name, add new API)
-3. Run `kongctl diff -f modified-config.yaml`
-4. Verify diff output shows:
-   - UPDATE for portal (display_name change)
-   - CREATE for new API
-5. Run `kongctl diff --plan plan.json` with saved plan
-6. Verify diff output matches plan contents
-7. Verify no changes are made to Konnect (diff is read-only)
+**Implemented Steps**:
+1. Bootstrap portal + APIs via `sync`
+2. Baseline `diff` for zero-change verification
+3. Modify configuration (portal display_name, add new API, drop legacy API)
+4. `kongctl diff -f` validates CREATE/UPDATE/DELETE actions and namespace metadata
+5. Persist plan to disk and reload using `diff --plan plan.json`
+6. Assert Konnect state unchanged post-diff
 
-**Fields to Exercise**:
-- Portal: name, display_name, description, authentication_enabled
-- API: name, description, version
+**Fields Exercised**:
+- Portal: name, display_name, description, authentication_enabled, default visibilities
+- API: name, description, labels
 
 **Diff Output Validation**:
-- Verify CREATE operations shown for new resources
-- Verify UPDATE operations shown with field-level diffs
-- Verify DELETE operations shown when using sync mode
-- Verify output is human-readable
+- JSON diff output parsed for CREATE/UPDATE/DELETE counts
+- Verification of `fields.display_name.new` for portal updates
+- Namespace attribution asserted on API changes
+- Confirms read-only behavior by checking live state
 
 ---
 
@@ -1673,11 +1704,11 @@ control_planes:
 
 | Priority | Count | Key Focus |
 |----------|-------|-----------|
-| 🔴 HIGH | 5 scenarios | Protected resources, diff command, plan artifacts, custom domains, error handling |
+| 🔴 HIGH | 5 scenarios | Protected resources ✅, diff command ✅, plan artifacts, custom domains, error handling |
 | 🟡 MEDIUM | 9 scenarios | Comprehensive field coverage, configuration patterns |
 | 🟢 LOW | 7 scenarios | Edge cases, additional error scenarios, advanced features |
 
-**Total Recommended Scenarios**: 21
+**Total Recommended Scenarios**: 21 (2 completed)
 
 ---
 
@@ -1687,12 +1718,12 @@ control_planes:
    safety feature
 2. **Portal Custom Domain** (ZERO coverage) - Entire resource untested (NEXT
    PRIORITY)
-3. **diff command** (ZERO coverage) - Core command missing
+3. ~~**diff command** (ZERO coverage)~~ ✅ RESOLVED 2025-11-01 - Core command covered
 4. **Plan artifact workflows** (NOT tested) - Documented workflow pattern
 5. **!file map format** (NOT tested) - Documented syntax variant
 6. **Error scenarios** (Minimal coverage) - Field validation, tag errors, references
 
-**Progress**: 1 of 6 critical gaps resolved. 5 remaining.
+**Progress**: 2 of 6 critical gaps resolved. 4 remaining.
 
 ---
 
@@ -1712,7 +1743,7 @@ control_planes:
 - ❌ Error scenarios largely untested
 - ❌ ~~Advanced features (protected, custom domains) have critical gaps~~ Custom
   domains still untested
-- ❌ Command coverage missing key features (diff, plan artifacts, dry-run)
+- ❌ Command coverage missing key features (plan artifacts, dry-run)
 - ❌ Limited testing of comprehensive field combinations
 - ❌ Configuration pattern coverage incomplete
 
@@ -1733,9 +1764,9 @@ control_planes:
    - ~~Should be tested before GA release~~
    - **Status**: Implemented at `test/e2e/scenarios/protected-resources/apis/`
 
-2. **Add diff command coverage** (Scenario 2) - NEXT PRIORITY
-   - Core command with no testing
-   - Essential for user workflows
+2. ~~**Add diff command coverage** (Scenario 2)~~ ✅ COMPLETE 2025-11-01
+   - Implemented at `test/e2e/scenarios/diff/command-coverage/`
+   - Validates create/update/delete diff output and plan reuse
 
 3. **Test plan artifact workflows** (Scenario 3)
    - Documented workflow pattern
@@ -1768,9 +1799,9 @@ control_planes:
 ### 6.7 Success Metrics
 
 **Target Coverage Goals**:
-- Commands: 83% → 100% (add diff command testing)
+- Commands: 100% ✅ (diff command covered via diff/command-coverage scenario)
 - Resources: 89% → 100% (add custom domain testing)
-- Metadata: 50% → 100% (add protected field testing)
+- Metadata: 100% ✅ (protected field coverage landed)
 - YAML Tags: 75% → 100% (add map format testing)
 - Field Coverage: ~50% → ~85% average across all resources
 - Error Scenarios: ~10% → ~80% coverage
