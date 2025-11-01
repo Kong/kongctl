@@ -16,7 +16,7 @@ label is present, the resource is considered unprotected.
 
 - `protected: true` flag is added to the resource definition and applied when it is created
 - Subsequent attempts to update or delete protected resources will be flagged and disallowed by `kongctl`
-- A user must remove _only_ the protected flag and syncronize the change before future modifications are allowed
+- A user must remove _only_ the protected flag and synchronize the change before future modifications are allowed
 
 ## Files
 

@@ -111,7 +111,7 @@ Resources have multiple identifiers:
 - **id**: Most Konnect resources have an `id` field which is a Konnect
     assigned UUID. This field is not represented in declarative configuration files.
 - **name**: Many Konnect resources have a `name` field which may or may not be 
-    unique within an organziation for that resoruce type. 
+    unique within an organization for that resource type. 
 
 ```yaml
 application_auth_strategies:
