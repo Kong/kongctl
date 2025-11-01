@@ -1,3 +1,8 @@
+---
+title: "Kong API"
+description: "Start building and innovating with our APIs"
+---
+
 ::page-section
 ---
 full-width: true
@@ -19,14 +24,14 @@ full-width: true
   margin: "clamp(5px, 3vw, 25px) 0 0 0"
   image:
     position: "bottom"
-    align-self: "center"
+  align-self: "center"
   styles: |
     p {
-      color: var(--kui-color-text-neutral-stronger);
+  color: var(--kui-color-text-neutral-stronger);
     }
     svg {
-      max-width: 100%;
-      height: auto;
+  max-width: 100%;
+  height: auto;
     }
   ---
   #title
@@ -84,7 +89,7 @@ full-width: true
   margin: "clamp(10px, 3vw, 50px) 0"
   styles: |
     p {
-      color: var(--kui-color-text-neutral-stronger);
+  color: var(--kui-color-text-neutral-stronger);
     }
   ---
   #title
@@ -107,14 +112,14 @@ full-width: true
   padding: "0 0 clamp(10px, 3vw, 50px) 0"
   image:
     max-width: "50%"
-    position: "right"
+  position: "right"
   styles: |
     p {
-      color: var(--kui-color-text-neutral-stronger);
+  color: var(--kui-color-text-neutral-stronger);
     }
     svg {
-      max-width: 100%;
-      height: auto;
+  max-width: 100%;
+  height: auto;
     }
   ---
   #title
@@ -154,14 +159,14 @@ full-width: true
   max-width: "100%"
   image:
     max-width: "50%"
-    position: 'left'
+  position: 'left'
   styles: |
     p {
-      color: var(--kui-color-text-neutral-stronger)
+  color: var(--kui-color-text-neutral-stronger)
     }
     svg {
-      max-width: 100%;
-      height: auto;
+  max-width: 100%;
+  height: auto;
     }
   ---
   #title
@@ -212,7 +217,7 @@ full-width: true
   description-line-height: "clamp(24px, 3vw, 32px)"
   styles: |
     p {
-      color: var(--kui-color-text-neutral-stronger);
+  color: var(--kui-color-text-neutral-stronger);
     }
   ---
   #title
@@ -230,9 +235,9 @@ full-width: true
     pagination: false
     grid-columns-breakpoints:
       mobile: 3
-      phablet: 3
-      tablet: 3
-      desktop: 3
+    phablet: 3
+    tablet: 3
+    desktop: 3
     ---
     ::
   ::
@@ -254,20 +259,20 @@ margin: "clamp(0, 3vw, 25px) 0"
   color: "var(--kui-color-text)"
   columns-breakpoints:
     mobile: 1
-    phablet: 2
-    tablet: 2
-    laptop: 2
-    desktop: 2
+  phablet: 2
+  tablet: 2
+  laptop: 2
+  desktop: 2
   styles: |
     h3 {
-      font-size: clamp(20px, 4vw, 24px);
-      line-height: "32px";
-      margin: 15px 0 10px 0;
+  font-size: clamp(20px, 4vw, 24px);
+  line-height: "32px";
+  margin: 15px 0 10px 0;
     }
     p {
-      line-height: clamp(16px, 3vw, 24px);
-      line-height: clamp(24px, 3vw, 32px)
-      color: var(--kui-color-text-neutral-stronger);
+  line-height: clamp(16px, 3vw, 24px);
+  line-height: clamp(24px, 3vw, 32px)
+  color: var(--kui-color-text-neutral-stronger);
     }
   ---
 
@@ -344,14 +349,14 @@ full-width: true
   full-width: true
   image:
     position: "right"
-    max-width: "50%"
+  max-width: "50%"
   styles: |
     svg {
-      max-width: 100%;
-      height: auto;
+  max-width: 100%;
+  height: auto;
     }
     p {
-      color: var(--kui-color-text-neutral-stronger);
+  color: var(--kui-color-text-neutral-stronger);
     }
   ---
   #title
