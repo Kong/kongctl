@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/v2"
 	tint "github.com/lrstanley/bubbletint"
 	"github.com/lucasb-eyer/go-colorful"
 )
