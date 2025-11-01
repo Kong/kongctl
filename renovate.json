@@ -6,10 +6,10 @@
   "packageRules": [
     {
       "description": "Ignore pre-release versions until a stable tag exists",
-      "matchPackagePatterns": [
+      "ignoreUnstable": true,
+      "matchPackageNames": [
         "*"
-      ],
-      "ignoreUnstable": true
+      ]
     },
     {
       "description": "Hold lipgloss upgrades until manually approved",
