@@ -1,0 +1,26 @@
+_defaults:
+  kongctl:
+    namespace: plan-sync
+
+portals:
+  - ref: plan-sync-portal
+    name: plan-sync-portal
+    display_name: "Plan Sync Portal (Updated)"
+    description: "Updated portal after sync plan execution"
+    authentication_enabled: false
+    default_api_visibility: private
+    default_page_visibility: private
+
+apis:
+  - ref: plan-sync-orders
+    name: plan-sync-orders
+    description: "Orders API with updated configuration"
+    labels:
+      domain: commerce
+      lifecycle: stable
+  - ref: plan-sync-inventory
+    name: plan-sync-inventory
+    description: "Inventory API added during sync plan workflow"
+    labels:
+      domain: supply
+      lifecycle: beta

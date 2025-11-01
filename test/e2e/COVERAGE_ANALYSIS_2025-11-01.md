@@ -16,8 +16,8 @@ scenarios, and advanced features**.
 
 ### Key Findings (UPDATED 2025-11-01)
 
-- **Overall Coverage**: ~66% across all features (was 60%)
-- **Commands**: 100% (6/6 tested) ✅ `diff` command now covered end-to-end
+- **Overall Coverage**: ~69% across all features (was 60%)
+- **Commands**: 100% (6/6 tested) ✅ `diff` command & plan workflows now covered
 - **Resources**: 89% (12/13 tested) - Portal Custom Domain not tested
 - **Metadata Features**: 100% (2/2 tested) ✅ IMPROVED - `protected` now covered
 - **Field Coverage**: ~50% average across all resource types
@@ -28,7 +28,7 @@ scenarios, and advanced features**.
    2025-11-01
 2. ⚠️ **Portal Custom Domain** - Entire resource type untested (NEXT PRIORITY)
 3. ~~⚠️ **diff command** - ZERO coverage~~ ✅ RESOLVED 2025-11-01
-4. ⚠️ **Plan artifact workflows** - Two-phase plan/apply not tested
+4. ~~⚠️ **Plan artifact workflows** - Two-phase plan/apply not tested~~ ✅ RESOLVED 2025-11-01
 5. ⚠️ **Error scenarios** - Field validation, tag errors largely untested
 
 ---
@@ -119,6 +119,44 @@ KONGCTL_E2E_SCENARIO=diff/command-coverage make test-e2e
 
 **Impact**: Validates diff workflows end-to-end, including plan reuse, closing the
 largest outstanding command coverage gap.
+
+---
+
+### 2025-11-01: Plan Artifact Workflow Scenarios
+
+**Scenarios Added**: `test/e2e/scenarios/plan/apply-workflow/`, `test/e2e/scenarios/plan/sync-workflow/`
+
+**Gap Addressed**: Section 4.1 (Command Coverage Gaps) + Section 5.1 Scenario 3
+
+**Priority**: 🔴 HIGH - Plan artifact generation & execution coverage
+
+**Coverage Improvements**:
+- Plan Workflow Coverage: 0% → 100% (apply & sync modes exercised)
+- Overall Coverage: ~66% → ~69% (estimated)
+- Critical Gaps Closed: 3 of 5 high-priority gaps addressed
+
+**What This Tests**:
+- ✅ `kongctl plan --mode apply` and `--mode sync` produce artifacts with expected summaries
+- ✅ Human-readable `diff --plan` output for CREATE/UPDATE/DELETE actions
+- ✅ `apply --plan` executes stored apply-mode plans end-to-end
+- ✅ `sync --plan` executes stored sync-mode plans including deletions
+- ✅ Post-execution validation via `diff` (no-op) and `plan` (zero changes)
+
+**Files Created**:
+- `test/e2e/scenarios/plan/apply-workflow/scenario.yaml`
+- `test/e2e/scenarios/plan/apply-workflow/overlays/002-plan-update/config.yaml`
+- `test/e2e/testdata/declarative/plan/apply/config.yaml`
+- `test/e2e/scenarios/plan/sync-workflow/scenario.yaml`
+- `test/e2e/scenarios/plan/sync-workflow/overlays/002-plan-sync/config.yaml`
+- `test/e2e/testdata/declarative/plan/sync/config.yaml`
+
+**Run Scenarios**:
+```bash
+KONGCTL_E2E_SCENARIO=plan/apply-workflow make test-e2e
+KONGCTL_E2E_SCENARIO=plan/sync-workflow make test-e2e
+```
+
+**Impact**: Validates two-phase plan workflows, ensuring stored artifacts can be reviewed, diffed, and executed safely for create/update and delete operations.
 
 ---
 
@@ -334,13 +372,39 @@ largest outstanding command coverage gap.
 
 ---
 
+### 1.6 Plan Artifact Scenarios (2 scenarios)
+
+#### **plan/apply-workflow**
+
+- **Location**: `test/e2e/scenarios/plan/apply-workflow/`
+- **Purpose**: Validate apply-mode plan generation, review, and execution
+- **Commands**: plan, diff, apply
+- **Resources**: Portal, API
+- **Fields Exercised**: Portal display_name, authentication flags; API labels and descriptions
+- **Metadata**: namespace (via _defaults)
+- **YAML Tags**: None
+- **Patterns**: Plan artifact saved to file, reused by diff and apply commands
+
+#### **plan/sync-workflow**
+
+- **Location**: `test/e2e/scenarios/plan/sync-workflow/`
+- **Purpose**: Validate sync-mode plan workflows including deletions
+- **Commands**: sync, plan, diff
+- **Resources**: Portal, APIs (create/update/delete mix)
+- **Fields Exercised**: Portal authentication_enable toggle, API labels/descriptions
+- **Metadata**: namespace (via _defaults)
+- **YAML Tags**: None
+- **Patterns**: Stored plan reused for diff + sync execution, post-sync diff no-op verification
+
+---
+
 ## Section 2: Feature Coverage Matrix
 
 ### 2.1 Command Coverage
 
 | Command | Tested? | Scenarios | Coverage Notes |
 |---------|---------|-----------|----------------|
-| **plan** | ✅ Yes | control-plane/groups, adopt/full, adopt/create-portal-adopt-dump-plan | Only with --mode apply; --mode sync not explicitly tested in isolation |
+| **plan** | ✅ Yes | control-plane/groups, adopt/full, adopt/create-portal-adopt-dump-plan, plan/apply-workflow, plan/sync-workflow | Apply and sync modes exercised with stored plan artifacts |
 | **apply** | ✅ Yes | 9 scenarios | Well covered across resource types |
 | **sync** | ✅ Yes | portal/sync, control-plane/sync, control-plane/sync-groups, require-namespace/portal | Deletion behavior tested |
 | **diff** | ✅ Yes | diff/command-coverage | Validates JSON diff output, plan reuse, read-only behavior |
@@ -350,7 +414,6 @@ largest outstanding command coverage gap.
 #### Command Coverage Gaps
 
 - **dump tf-import format**: Not tested
-- **Plan artifact execution**: `apply --plan`, `sync --plan` not tested
 - **dry-run flag**: Not tested for apply or sync
 
 ---
@@ -961,46 +1024,27 @@ See **Change Log** section for implementation details.
 
 ---
 
-#### Scenario 3: plan-artifact-workflow
+#### Scenario 3: plan-artifact-workflow ✅ COMPLETED 2025-11-01
 
 **Purpose**: Test two-phase plan generation and execution
-**Priority**: 🔴 HIGH
-**Rationale**: Documented workflow pattern not validated in e2e tests
+**Priority**: 🔴 HIGH (resolved)
+**Rationale**: Implemented via `plan/apply-workflow` and `plan/sync-workflow`
 
-**Commands**: plan, apply (with --plan), sync (with --plan), diff (with --plan)
-**Resources**: Portal, API, Control Plane
+**Commands**: plan, diff, apply (with --plan), sync (with --plan)
+**Resources**: Portal, APIs (create/update/delete coverage)
 
-**Test Steps**:
+**What Was Implemented**:
+- ✅ `plan --mode apply` and `plan --mode sync` generate artifacts saved to disk
+- ✅ `diff --plan` validates human-readable output for CREATE/UPDATE/DELETE
+- ✅ `apply --plan` executes stored apply-mode plans and verifies resulting state
+- ✅ `sync --plan` executes stored sync-mode plans including deletions
+- ✅ Post-execution `diff`/`plan` show zero changes when configuration matches state
 
-**Phase 1: Plan Generation**
-1. Create configuration with portal, API, control plane
-2. Generate plan: `kongctl plan -f config.yaml --output-file plan.json`
-3. Verify plan.json file is created
-4. Verify plan.json is valid JSON
-5. Verify plan contains expected operations
-
-**Phase 2: Plan Review**
-6. Review plan: `kongctl diff --plan plan.json`
-7. Verify diff output shows planned changes
-8. Verify no changes made to Konnect
-
-**Phase 3: Plan Execution**
-9. Execute plan: `kongctl apply --plan plan.json`
-10. Verify resources created successfully
-11. Verify resource state matches plan
-
-**Phase 4: Sync with Plan**
-12. Generate sync plan (with deletions)
-13. Execute sync plan: `kongctl sync --plan plan.json`
-14. Verify deletions occur as planned
-
-**Fields to Exercise**: Standard fields for all resources
-
-**Plan Artifact Validation**:
-- Plan file is valid JSON
-- Plan contains operation types (CREATE, UPDATE, DELETE)
-- Plan contains resource details
-- Plan can be stored, versioned, and executed later
+**Run Scenarios**:
+```bash
+KONGCTL_E2E_SCENARIO=plan/apply-workflow make test-e2e
+KONGCTL_E2E_SCENARIO=plan/sync-workflow make test-e2e
+```
 
 ---
 
@@ -1704,11 +1748,11 @@ control_planes:
 
 | Priority | Count | Key Focus |
 |----------|-------|-----------|
-| 🔴 HIGH | 5 scenarios | Protected resources ✅, diff command ✅, plan artifacts, custom domains, error handling |
+| 🔴 HIGH | 5 scenarios | Protected resources ✅, diff command ✅, plan artifacts ✅, custom domains, error handling |
 | 🟡 MEDIUM | 9 scenarios | Comprehensive field coverage, configuration patterns |
 | 🟢 LOW | 7 scenarios | Edge cases, additional error scenarios, advanced features |
 
-**Total Recommended Scenarios**: 21 (2 completed)
+**Total Recommended Scenarios**: 21 (3 completed)
 
 ---
 
@@ -1723,7 +1767,7 @@ control_planes:
 5. **!file map format** (NOT tested) - Documented syntax variant
 6. **Error scenarios** (Minimal coverage) - Field validation, tag errors, references
 
-**Progress**: 2 of 6 critical gaps resolved. 4 remaining.
+**Progress**: 3 of 6 critical gaps resolved. 3 remaining.
 
 ---
 
@@ -1743,7 +1787,7 @@ control_planes:
 - ❌ Error scenarios largely untested
 - ❌ ~~Advanced features (protected, custom domains) have critical gaps~~ Custom
   domains still untested
-- ❌ Command coverage missing key features (plan artifacts, dry-run)
+- ❌ Command coverage missing key features (dry-run)
 - ❌ Limited testing of comprehensive field combinations
 - ❌ Configuration pattern coverage incomplete
 
@@ -1768,9 +1812,9 @@ control_planes:
    - Implemented at `test/e2e/scenarios/diff/command-coverage/`
    - Validates create/update/delete diff output and plan reuse
 
-3. **Test plan artifact workflows** (Scenario 3)
-   - Documented workflow pattern
-   - Important for CI/CD integrations
+3. ~~**Test plan artifact workflows** (Scenario 3)~~ ✅ COMPLETE 2025-11-01
+   - Implemented at `test/e2e/scenarios/plan/*-workflow`
+   - Validates stored plan generation, review, and execution paths
 
 4. **Add Portal Custom Domain testing** (Scenario 4)
    - Entire resource type missing

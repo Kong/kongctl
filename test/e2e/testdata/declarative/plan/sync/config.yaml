@@ -1,0 +1,26 @@
+_defaults:
+  kongctl:
+    namespace: plan-sync
+
+portals:
+  - ref: plan-sync-portal
+    name: plan-sync-portal
+    display_name: "Plan Sync Portal"
+    description: "Baseline portal for plan sync workflow"
+    authentication_enabled: true
+    default_api_visibility: private
+    default_page_visibility: private
+
+apis:
+  - ref: plan-sync-orders
+    name: plan-sync-orders
+    description: "Orders API managed via sync plan"
+    labels:
+      domain: commerce
+      lifecycle: active
+  - ref: plan-sync-legacy
+    name: plan-sync-legacy
+    description: "Legacy API scheduled for removal"
+    labels:
+      domain: legacy
+      lifecycle: sunset
