@@ -1,0 +1,9 @@
+# Overlay: Remove all APIs from config
+# This should trigger DELETE plans in sync mode
+# Protected APIs should cause plan generation to fail
+
+_defaults:
+  kongctl:
+    namespace: default
+
+apis: []
