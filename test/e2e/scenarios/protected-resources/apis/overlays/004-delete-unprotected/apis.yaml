@@ -1,0 +1,8 @@
+# Overlay: Empty config to delete all APIs
+# Now that Customer API is unprotected, this should succeed
+
+_defaults:
+  kongctl:
+    namespace: default
+
+apis: []

@@ -99,7 +99,7 @@ func deleteAll(client *http.Client, baseURL, token, apiVersion, endpoint string)
 	attempt := 0
 
 	for {
-		ids, err := listIDs(client, url, token)
+		ids, err := retryListIDs(client, url, token, endpoint)
 		if err != nil {
 			return total, deleted, err
 		}
@@ -122,7 +122,7 @@ func deleteAll(client *http.Client, baseURL, token, apiVersion, endpoint string)
 
 		conflicts := 0
 		for _, id := range ids {
-			if err := deleteOne(client, url, token, id); err != nil {
+			if err := retryDeleteOne(client, url, token, endpoint, id); err != nil {
 				Warnf("delete %s %s failed: %v", endpoint, id, err)
 				if he, ok := err.(*httpError); ok && he.status == http.StatusConflict {
 					conflicts++
@@ -331,4 +331,69 @@ func deleteOne(client *http.Client, baseURL, token, id string) error {
 		return &httpError{status: resp.StatusCode, body: strings.TrimSpace(string(b))}
 	}
 	return nil
+}
+
+func retryListIDs(client *http.Client, url, token, endpoint string) ([]string, error) {
+	cfg := NormalizeBackoffConfig(BackoffConfig{})
+	attempts := cfg.Attempts
+	backoff := BuildBackoffSchedule(cfg)
+	var (
+		ids []string
+		err error
+	)
+	for atry := 0; atry < attempts; atry++ {
+		ids, err = listIDs(client, url, token)
+		if err == nil {
+			return ids, nil
+		}
+		if !ShouldRetry(err, err.Error(), nil, nil) || atry+1 >= attempts {
+			return nil, err
+		}
+		delay := BackoffDelay(backoff, atry)
+		Warnf(
+			"reset: list %s attempt %d/%d failed: %v; retrying in %s",
+			endpoint,
+			atry+1,
+			attempts,
+			err,
+			delay,
+		)
+		if delay > 0 {
+			time.Sleep(delay)
+		}
+	}
+	return nil, err
+}
+
+func retryDeleteOne(client *http.Client, baseURL, token, endpoint, id string) error {
+	cfg := NormalizeBackoffConfig(BackoffConfig{})
+	attempts := cfg.Attempts
+	backoff := BuildBackoffSchedule(cfg)
+	var err error
+	for atry := 0; atry < attempts; atry++ {
+		err = deleteOne(client, baseURL, token, id)
+		if err == nil {
+			return nil
+		}
+		if he, ok := err.(*httpError); ok && he.status == http.StatusConflict {
+			return err
+		}
+		if !ShouldRetry(err, err.Error(), nil, nil) || atry+1 >= attempts {
+			return err
+		}
+		delay := BackoffDelay(backoff, atry)
+		Warnf(
+			"reset: delete %s/%s attempt %d/%d failed: %v; retrying in %s",
+			endpoint,
+			id,
+			atry+1,
+			attempts,
+			err,
+			delay,
+		)
+		if delay > 0 {
+			time.Sleep(delay)
+		}
+	}
+	return err
 }

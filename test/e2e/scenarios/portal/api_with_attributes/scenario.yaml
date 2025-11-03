@@ -7,9 +7,6 @@ vars:
   apiName: "Simple API"
 
 defaults:
-  retry:
-    attempts: 6
-    interval: "1500ms"
   mask:
     dropKeys:
       - id

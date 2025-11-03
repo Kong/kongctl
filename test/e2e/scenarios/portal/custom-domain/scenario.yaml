@@ -1,0 +1,224 @@
+baseInputsPath: ../../../testdata/declarative/portal/custom-domain
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: portal-custom-domain
+  portal1Ref: portal-1
+  portal1DomainRef: portal-1-custom-domain
+  portal1Hostname: portal1-http.kongctl-e2e.io
+  portal2Ref: portal-2
+  portal2DomainRef: portal-2-custom-domain
+  portal2Hostname: portal2-cert.kongctl-e2e.io
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-http-domain
+    commands:
+      - name: 000-plan-http-domain
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-http-domain.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='portal_custom_domain' && resource_ref=='{{ .vars.portal1DomainRef }}'] | [0].fields
+            expect:
+              fields:
+                hostname: "{{ .vars.portal1Hostname }}"
+                enabled: true
+                "ssl.domain_verification_method": http
+      - name: 001-apply-http-domain
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-http-domain.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 002-get-portals-http
+        run:
+          - get
+          - portals
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.portal1Ref }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.portal1Ref }}"
+                canonical_domain: "{{ .vars.portal1Hostname }}"
+
+  - name: 002-plan-apply-custom-certificate
+    inputOverlayDirs:
+      - overlays/002-custom-certificate
+    commands:
+      - name: 000-plan-custom-cert
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-custom-cert.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='portal_custom_domain' && resource_ref=='{{ .vars.portal2DomainRef }}'] | [0].fields
+            expect:
+              fields:
+                hostname: "{{ .vars.portal2Hostname }}"
+                enabled: true
+                "ssl.domain_verification_method": custom_certificate
+                "ssl.skip_ca_check": true
+                "ssl.custom_certificate": |-
+                  -----BEGIN CERTIFICATE-----
+                  MIIC+TCCAeGgAwIBAgIJAO89+6Em2GiJMA0GCSqGSIb3DQEBCwUAMCYxJDAiBgNV
+                  BAMMG3BvcnRhbDItY2VydC5rb25nY3RsLWUyZS5pbzAeFw0yNTExMDMyMzQxMTJa
+                  Fw0yODAyMDYyMzQxMTJaMCYxJDAiBgNVBAMMG3BvcnRhbDItY2VydC5rb25nY3Rs
+                  LWUyZS5pbzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALlGU8D76ixk
+                  7d7zKtxbO04sOnAcPBrkJOK5hNUzk1aklO6T8RgqcJA3QlkzrDL4KkxFs5D+TnL7
+                  VsMtV7ECSdAA54uBTVInXg76ZdzSh/HGXqkW8KYGbAL4rz6Gd0BgghGdCdZppAJx
+                  6o6S1etKTg8d/pLUtb9/Je5ZExAAoifvW2owhLr/ElBF45cZg0dD47GDBE32EXrt
+                  FBuO2w/t4S0KeFRcuOCsmcm4iTPKinjuR5sZvqtORBkQuTdZUTNDPEojF7S0HvXX
+                  dJ0XJVnoVTQ5L2Sb4KvRPdXegVLw5NMv1y0imgLIq2io4MSUWyb21VfXj7/apYvD
+                  C3vWfGUtZ0UCAwEAAaMqMCgwJgYDVR0RBB8wHYIbcG9ydGFsMi1jZXJ0Lmtvbmdj
+                  dGwtZTJlLmlvMA0GCSqGSIb3DQEBCwUAA4IBAQB4uASZmrmlje9aRL3NGvDL+bid
+                  dU6vLG60x+7WS8t1e1KXodx5RDZOiEOOCrVRWTgsPeh4iqqSzbWUAuQpZSC4wjBe
+                  mU9euZR10+Mp/89prOHge5GGMCwOEbqJdFHTHp/h4ko64d4KrECpa21zXUZukXFV
+                  V/k5LByeGpeL6AGDmvJX5bVGaWZYqQ2q8dAxbp+Oeyhs8ZOXt6yuoYKWPj06q4W+
+                  BZbcy+rqszGXUSQlUTW47F2a1QpaFBHwoOwVjQpCwWOivJluTrHIHXL11zxr/iS2
+                  A1IrCOU4wrfOxX2B4Sy5g83LMeqDMMbrbNaLey0YlikDQH1fGc0e1r5/e6F0
+                  -----END CERTIFICATE-----
+                "ssl.custom_private_key": |-
+                  -----BEGIN PRIVATE KEY-----
+                  MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQC5RlPA++osZO3e
+                  8yrcWztOLDpwHDwa5CTiuYTVM5NWpJTuk/EYKnCQN0JZM6wy+CpMRbOQ/k5y+1bD
+                  LVexAknQAOeLgU1SJ14O+mXc0ofxxl6pFvCmBmwC+K8+hndAYIIRnQnWaaQCceqO
+                  ktXrSk4PHf6S1LW/fyXuWRMQAKIn71tqMIS6/xJQReOXGYNHQ+OxgwRN9hF67RQb
+                  jtsP7eEtCnhUXLjgrJnJuIkzyop47kebGb6rTkQZELk3WVEzQzxKIxe0tB7113Sd
+                  FyVZ6FU0OS9km+Cr0T3V3oFS8OTTL9ctIpoCyKtoqODElFsm9tVX14+/2qWLwwt7
+                  1nxlLWdFAgMBAAECggEAPAAyj4UFyWrGPjWx47sH8cERC82ZCXxpFaPPCNyzEpQq
+                  RzlSEulrmsjKi+jYE4ma6SiJhqNU9JfA+WRtyb1b+ijQ07UEPV7SbzdYVbM4o2wC
+                  q+/p71qVEEFJP458gDTA6sNYtD9yBfiuZY3YCWL+9JZaI2MPmPysZAwkyEHsQdIM
+                  hQVBchMUy9xol1zcMX9/qB3PbKn3KWMLUUCBbADfT4J6ti8NDOkfOcPN4s1xQLfq
+                  ++RH/erB82F64O0MXseDBaHZcu5e3F6DN6j3cUk6g41cxctkBt/lgM150OfN28FV
+                  Dz/Xb3n15i5qspbuf0zeObqa1ODLNJPitWRK0aaD4QKBgQDyN2m61PBM2osLRIyu
+                  pccby8Dj9mgq0yvQZwXPoPpVrR1OI7vAFFHiIpIwb2jV4lYOEvY7R+jziInpeYEv
+                  b3rCUG1kB2PoEC/bhi2cKOrRND45MTs4L6ir8V1bWwI2YxAfe5wxBls8DC/VshN/
+                  esaaLij48+96CYblXK2z60MT4wKBgQDD0WRh+2zFR5dIBIRL0kTlhqUu+rW1BEQ/
+                  T6cFr5M0EjDH2qGDBvLW4eDf+QcMUvAWKzkte0sR3ZWYnTrg39DyPfgZ508I7sHA
+                  xVLrM+CFfHWy5+q4SGPceXTD8xaMbdFaqmv8iM9omtpMlHY7B9FPcY92eiTfZ//Z
+                  Mz4CZdQQtwKBgQCfTaClN22ALnAqjgA00WVdu6l2hNZH7DEx1MA2qXpbpQrUHJ5c
+                  G0EriG87mdqKaV0NzpzRql7k5RVHUBmN+DT13e3ETzP/Kb5AFESlIyglRcXy2ZVI
+                  Q9gclhc/gWC4Ink1K5gziimxGZbQZll6i2ZZeyiJa+5CBkgJS+YWohGw3wKBgQDA
+                  fIa2olYLnxIgowABIFLFZRPfGGeh5u3HZl8CgdKrru3wpwN5L01q2WMaB0tcW/LR
+                  d++eu8HRcAXrnTMRdjGIzk2h+PSCDWC8Q7v8pGQiE3QHR149hDtVsLaNH9mcdR8E
+                  ht3bwghQBVhtSsrlwAuKklC539t7GFoxgeOEq+BIBQKBgQCB4VohzJ5gU88F4FKd
+                  8thVjWlrjcqk7lN3zxicVHSXBFVEioO0sVu9c7mKtMtIIdK3FXTO3PQjVSpzhg+q
+                  vuLy7sYlpOFjLNXda72LYIxa024wacOY7YDaVyijdx9dAWg8w+maEIl5HifLQfRC
+                  L5Yx8LySb5LxSetKL5T+V4PRsA==
+                  -----END PRIVATE KEY-----
+      - name: 001-apply-custom-cert
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-custom-cert.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 002-get-portals-custom
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portal2Ref }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.portal2Ref }}"
+                canonical_domain: "{{ .vars.portal2Hostname }}"
+
+  - name: 003-sync-remove-custom-domain
+    inputOverlayDirs:
+      - overlays/003-remove-custom-domain
+    commands:
+      - name: 000-plan-remove-custom
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-remove-custom.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+      - name: 001-sync-remove-custom
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-remove-custom.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-get-portals-post-sync
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portal2Ref }}']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='{{ .vars.portal1Ref }}'] | [0]"
+            expect:
+              fields:
+                canonical_domain: "{{ .vars.portal1Hostname }}"

@@ -1,0 +1,14 @@
+_defaults:
+  kongctl:
+    namespace: declarative-errors
+
+portals:
+  - ref: portal-cycle-a
+    name: portal-cycle-a
+    description: !ref portal-cycle-b#display_name
+    display_name: "Portal Cycle A"
+
+  - ref: portal-cycle-b
+    name: portal-cycle-b
+    description: !ref portal-cycle-a#display_name
+    display_name: "Portal Cycle B"

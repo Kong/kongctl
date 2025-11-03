@@ -1,0 +1,11 @@
+_defaults:
+  kongctl:
+    namespace: declarative-errors
+
+portals:
+  - ref: portal-invalid-extract
+    name: portal-invalid-extract
+    display_name: Portal Invalid Extract
+    description: !file
+      path: ./files/info.yaml
+      extract: portal.tagline

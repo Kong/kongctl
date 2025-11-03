@@ -1,0 +1,33 @@
+_defaults:
+  kongctl:
+    namespace: yaml-file-tags
+
+portals:
+  - ref: portal-1
+    name: portal-1
+    display_name: !file
+      path: ./data/portal-metadata.yaml
+      extract: portal.missing
+    description: !file ./descriptions/portal-intro.md
+    labels:
+      team: !file ./data/portal-metadata.yaml#portal.labels.team
+    pages:
+      - ref: portal-1-page-1
+        slug: "/"
+        title: "Portal 1 Home"
+        content: !file ./pages/home.md
+
+apis:
+  - ref: api-1
+    name: api-1
+    description: !file ./descriptions/api-1.md
+    labels:
+      owner: !file
+        path: ./data/api-metadata.json
+        extract: labels.owner
+    versions:
+      - ref: api-1-v1
+        version: !file
+          path: ./specs/api-1.yaml
+          extract: info.version
+        spec: !file ./specs/api-1.yaml

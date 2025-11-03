@@ -1,0 +1,155 @@
+baseInputsPath: ../../../testdata/declarative/yaml-tags/file
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: yaml-file-tags
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-valid-file-tags
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 4
+          - select: >-
+              changes[?resource_type=='portal' && resource_ref=='portal-1'] | [0]
+            expect:
+              fields:
+                "fields.display_name": "Portal 1 Display"
+                "fields.labels.team": "docs"
+          - select: >-
+              changes[?resource_type=='api' && resource_ref=='api-1'] | [0]
+            expect:
+              fields:
+                "fields.description": "API 1 summary sourced from a Markdown file via !file tag."
+                "fields.labels.owner": "api-team"
+          - select: >-
+              changes[?resource_type=='api_version' && resource_ref=='api-1-v1'] | [0]
+            expect:
+              fields:
+                "fields.version": "1.2.3"
+          - select: >-
+              changes[?resource_type=='portal_page' && resource_ref=='portal-1-page-1'] | [0]
+            expect:
+              fields:
+                "contains(fields.content, 'Portal 1 Home')": true
+      - name: 001-apply-plan
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+      - name: 002-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='portal-1'] | [0]"
+            expect:
+              fields:
+                display_name: "Portal 1 Display"
+                description: "Portal 1 introduction loaded from an external Markdown file."
+                "labels.team": docs
+      - name: 003-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='api-1'] | [0]"
+            expect:
+              fields:
+                description: "API 1 summary sourced from a Markdown file via !file tag."
+                "labels.owner": api-team
+      - name: 004-get-api-versions
+        run:
+          - get
+          - apis
+          - versions
+          - --api-name
+          - "api-1"
+          - -o
+          - json
+        assertions:
+          - select: "[0]"
+            expect:
+              fields:
+                version: "1.2.3"
+                "spec.type": "oas3"
+
+  - name: 002-missing-file-error
+    inputOverlayDirs:
+      - overlays/002-missing-file
+    commands:
+      - name: 000-apply-missing-file
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "file not found"
+
+  - name: 003-invalid-extract-error
+    inputOverlayDirs:
+      - overlays/003-invalid-extract
+    commands:
+      - name: 000-apply-invalid-extract
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "failed to extract"
+
+  - name: 004-path-traversal-error
+    inputOverlayDirs:
+      - overlays/004-path-traversal
+    commands:
+      - name: 000-apply-traversal
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "parent directory traversal is not allowed"
+

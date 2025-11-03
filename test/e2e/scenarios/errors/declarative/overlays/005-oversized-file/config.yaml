@@ -1,0 +1,8 @@
+_defaults:
+  kongctl:
+    namespace: declarative-errors
+
+portals:
+  - ref: portal-big-file
+    name: portal-big-file
+    display_name: !file ./files/oversized.txt

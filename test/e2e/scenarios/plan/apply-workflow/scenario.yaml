@@ -1,0 +1,173 @@
+baseInputsPath: ../../../testdata/declarative/plan/apply
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  portalRef: plan-apply-portal
+  portalName: "Plan Apply Portal"
+  portalUpdatedName: "Plan Apply Portal (Updated)"
+  namespace: plan-apply
+  ordersAPIRef: plan-apply-orders
+  analyticsAPIRef: plan-apply-analytics
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-create
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 2 to add')": true
+                "contains(@, 'portal \"plan-apply-portal\" will be created')": true
+                "contains(@, 'api \"plan-apply-orders\" will be created')": true
+      - name: 002-apply-plan
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 003-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalRef }}'] | [0]"
+            expect:
+              fields:
+                display_name: "{{ .vars.portalName }}"
+                authentication_enabled: false
+      - name: 004-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.ordersAPIRef }}'] | [0]"
+            expect:
+              fields:
+                description: "Orders API for plan apply workflow"
+                labels.domain: commerce
+
+  - name: 002-plan-apply-update
+    inputOverlayDirs:
+      - overlays/002-plan-update
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 1
+                by_action.UPDATE: 2
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add, 2 to change')": true
+                "contains(@, 'portal \"plan-apply-portal\" will be updated')": true
+                "contains(@, 'api \"plan-apply-analytics\" will be created')": true
+      - name: 002-apply-plan
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+          - select: plan.summary
+            expect:
+              fields:
+                by_action.UPDATE: 2
+                by_action.CREATE: 1
+      - name: 003-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalRef }}'] | [0]"
+            expect:
+              fields:
+                display_name: "{{ .vars.portalUpdatedName }}"
+      - name: 004-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.analyticsAPIRef }}'] | [0]"
+            expect:
+              fields:
+                labels.domain: insights
+          - select: "[?name=='{{ .vars.ordersAPIRef }}'] | [0]"
+            expect:
+              fields:
+                description: "Orders API with updated details"
+                labels.lifecycle: production

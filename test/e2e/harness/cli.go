@@ -186,6 +186,26 @@ type Result struct {
 	Duration time.Duration
 }
 
+// CommandError wraps execution failures with the captured Result for richer retry diagnostics.
+type CommandError struct {
+	Result Result
+	Err    error
+}
+
+func (e *CommandError) Error() string {
+	if e == nil {
+		return ""
+	}
+	return e.Err.Error()
+}
+
+func (e *CommandError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
+
 // Run executes kongctl with the provided args and returns a Result.
 func (c *CLI) Run(ctx context.Context, args ...string) (Result, error) {
 	// Auto-append --profile unless already set in args.
@@ -265,7 +285,10 @@ func (c *CLI) Run(ctx context.Context, args ...string) (Result, error) {
 		}
 		Debugf("Run: exit=%d duration=%s stderr=%q", res.ExitCode, dur, res.Stderr)
 		c.captureCommand(cmd, args, res, start, time.Now())
-		return res, err
+		return res, &CommandError{
+			Result: res,
+			Err:    err,
+		}
 	}
 	res.ExitCode = 0
 	Debugf("Run: exit=0 duration=%s", dur)

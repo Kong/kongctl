@@ -8,6 +8,7 @@ type Scenario struct {
 	Env            map[string]string `yaml:"env"`
 	Vars           map[string]any    `yaml:"vars"`
 	Defaults       Defaults          `yaml:"defaults"`
+	Test           ScenarioTest      `yaml:"test"`
 	Steps          []Step            `yaml:"steps"`
 }
 
@@ -16,9 +17,19 @@ type Defaults struct {
 	Mask  Mask  `yaml:"mask"`
 }
 
+type ScenarioTest struct {
+	Enabled *bool  `yaml:"enabled"`
+	Info    string `yaml:"info"`
+}
+
 type Retry struct {
-	Attempts int    `yaml:"attempts"`
-	Interval string `yaml:"interval"`
+	Attempts      int      `yaml:"attempts"`
+	Interval      string   `yaml:"interval"`
+	MaxInterval   string   `yaml:"maxInterval"`
+	BackoffFactor float64  `yaml:"backoffFactor"`
+	Jitter        string   `yaml:"jitter"`
+	Only          []string `yaml:"only"`
+	Never         []string `yaml:"never"`
 }
 
 type Mask struct {
