@@ -2,6 +2,7 @@ package planner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -376,29 +377,98 @@ func (p *Planner) compareModePtr(current, desired *kkComps.Mode) bool {
 // Portal Custom Domain planning
 
 func (p *Planner) planPortalCustomDomainsChanges(
-	_ context.Context, parentNamespace string, desired []resources.PortalCustomDomainResource, plan *Plan,
-) error { //nolint:unparam // Will return errors when state fetching is added
-	// For each desired custom domain
-	for _, desiredDomain := range desired {
-		if plan.HasChange("portal_custom_domain", desiredDomain.GetRef()) {
+	ctx context.Context,
+	parentNamespace string,
+	portalID string,
+	portalRef string,
+	desired []resources.PortalCustomDomainResource,
+	plan *Plan,
+) error {
+	var desiredDomain *resources.PortalCustomDomainResource
+	for i := range desired {
+		if plan.HasChange(ResourceTypePortalCustomDomain, desired[i].GetRef()) {
 			continue
 		}
-		// Portal custom domains are singleton resources per portal
-		// Always create/update, never fetch current state
-		p.planPortalCustomDomainCreate(parentNamespace, desiredDomain, plan)
+		desiredDomain = &desired[i]
+		break
+	}
+
+	portalName := p.findPortalName(portalRef)
+
+	// If the portal does not yet exist, schedule creation based on desired state only.
+	if portalID == "" {
+		if desiredDomain != nil {
+			p.planPortalCustomDomainCreate(parentNamespace, *desiredDomain, portalID, portalRef, portalName, plan)
+		}
+		return nil
+	}
+
+	currentDomain, err := p.client.GetPortalCustomDomain(ctx, portalID)
+	if err != nil {
+		var apiErr *state.APIClientError
+		if errors.As(err, &apiErr) && apiErr.ClientType == "portal custom domain API" {
+			if desiredDomain != nil {
+				changeID := p.planPortalCustomDomainCreate(parentNamespace, *desiredDomain, portalID, portalRef, portalName, plan)
+				plan.AddWarning(changeID, "unable to inspect existing portal custom domain – assuming create is required")
+			}
+			return nil
+		}
+
+		identifier := portalRef
+		if identifier == "" {
+			identifier = portalID
+		}
+
+		return fmt.Errorf("failed to get portal custom domain for portal %q: %w", identifier, err)
+	}
+
+	if desiredDomain == nil {
+		if currentDomain != nil && plan.Metadata.Mode == PlanModeSync {
+			p.planPortalCustomDomainDelete(parentNamespace, portalRef, portalID, portalName, currentDomain, "", plan)
+		}
+		return nil
+	}
+
+	if currentDomain == nil {
+		p.planPortalCustomDomainCreate(parentNamespace, *desiredDomain, portalID, portalRef, portalName, plan)
+		return nil
+	}
+
+	if p.portalCustomDomainNeedsReplacement(currentDomain, *desiredDomain) {
+		deleteID := p.planPortalCustomDomainDelete(
+			parentNamespace,
+			portalRef,
+			portalID,
+			portalName,
+			currentDomain,
+			desiredDomain.Ref,
+			plan,
+		)
+		p.planPortalCustomDomainCreate(parentNamespace, *desiredDomain, portalID, portalRef, portalName, plan, deleteID)
+		return nil
+	}
+
+	if currentDomain.Enabled != desiredDomain.Enabled {
+		p.planPortalCustomDomainUpdate(parentNamespace, *desiredDomain, portalID, portalRef, portalName, plan)
 	}
 
 	return nil
 }
 
 func (p *Planner) planPortalCustomDomainCreate(
-	parentNamespace string, domain resources.PortalCustomDomainResource, plan *Plan,
-) {
-	fields := make(map[string]any)
-	fields["hostname"] = domain.Hostname
-	fields["enabled"] = domain.Enabled
+	parentNamespace string,
+	domain resources.PortalCustomDomainResource,
+	portalID string,
+	portalRef string,
+	portalName string,
+	plan *Plan,
+	extraDeps ...string,
+) string {
+	fields := map[string]any{
+		"hostname": domain.Hostname,
+		"enabled":  domain.Enabled,
+	}
 
-	// Add SSL settings if present
 	switch {
 	case domain.Ssl.CustomCertificate != nil:
 		sslFields := map[string]any{
@@ -407,67 +477,272 @@ func (p *Planner) planPortalCustomDomainCreate(
 			"custom_private_key":         domain.Ssl.CustomCertificate.GetCustomPrivateKey(),
 		}
 		if skip := domain.Ssl.CustomCertificate.GetSkipCaCheck(); skip != nil {
-			sslFields["skip_ca_check"] = skip
+			sslFields["skip_ca_check"] = *skip
 		}
 		fields["ssl"] = sslFields
 	case domain.Ssl.HTTP != nil:
 		fields["ssl"] = map[string]any{
 			"domain_verification_method": domain.Ssl.HTTP.GetDomainVerificationMethod(),
 		}
-	default:
-		// No SSL configuration supplied (union type zero-value); leave unset.
 	}
 
-	// Determine dependencies - depends on parent portal
-	var dependencies []string
-	if domain.Portal != "" {
-		// Find the change ID for the parent portal
-		for _, change := range plan.Changes {
-			if change.ResourceType == ResourceTypePortal && change.ResourceRef == domain.Portal {
-				dependencies = append(dependencies, change.ID)
-				break
-			}
-		}
-	}
-
+	deps := append(p.portalChildDependencies(plan, domain.Portal), extraDeps...)
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, ResourceTypePortalCustomDomain, domain.Ref),
 		ResourceType: ResourceTypePortalCustomDomain,
 		ResourceRef:  domain.Ref,
 		Action:       ActionCreate,
 		Fields:       fields,
-		DependsOn:    dependencies,
+		DependsOn:    uniqueStrings(deps),
 		Namespace:    parentNamespace,
+		ResourceMonikers: map[string]string{
+			"hostname": domain.Hostname,
+		},
 	}
 
-	// Store parent portal reference
-	if domain.Portal != "" {
-		// Find the portal in desiredPortals to get its name
-		var portalName string
-		for _, portal := range p.desiredPortals {
-			if portal.Ref == domain.Portal {
-				portalName = portal.Name
-				break
+	ref := domain.Portal
+	if ref == "" {
+		ref = portalRef
+	}
+	if ref != "" || portalID != "" {
+		change.Parent = &ParentInfo{
+			Ref: ref,
+			ID:  portalID,
+		}
+
+		refInfo := ReferenceInfo{
+			Ref: ref,
+			ID:  portalID,
+		}
+		if portalName != "" {
+			refInfo.LookupFields = map[string]string{
+				"name": portalName,
 			}
 		}
-
-		// Set Parent field for proper display and serialization
-		change.Parent = &ParentInfo{
-			Ref: domain.Portal,
-			ID:  "", // Will be resolved during execution
-		}
-
 		change.References = map[string]ReferenceInfo{
-			"portal_id": {
-				Ref: domain.Portal,
-				LookupFields: map[string]string{
-					"name": portalName,
-				},
-			},
+			"portal_id": refInfo,
 		}
 	}
 
 	plan.AddChange(change)
+	return change.ID
+}
+
+func (p *Planner) planPortalCustomDomainUpdate(
+	parentNamespace string,
+	domain resources.PortalCustomDomainResource,
+	portalID string,
+	portalRef string,
+	portalName string,
+	plan *Plan,
+) string {
+	deps := p.portalChildDependencies(plan, domain.Portal)
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionUpdate, ResourceTypePortalCustomDomain, domain.Ref),
+		ResourceType: ResourceTypePortalCustomDomain,
+		ResourceRef:  domain.Ref,
+		ResourceID:   portalID,
+		Action:       ActionUpdate,
+		Fields: map[string]any{
+			"enabled": domain.Enabled,
+		},
+		DependsOn: uniqueStrings(deps),
+		Namespace: parentNamespace,
+		ResourceMonikers: map[string]string{
+			"hostname": domain.Hostname,
+		},
+	}
+
+	ref := domain.Portal
+	if ref == "" {
+		ref = portalRef
+	}
+	if ref != "" || portalID != "" {
+		change.Parent = &ParentInfo{
+			Ref: ref,
+			ID:  portalID,
+		}
+		refInfo := ReferenceInfo{
+			Ref: ref,
+			ID:  portalID,
+		}
+		if portalName != "" {
+			refInfo.LookupFields = map[string]string{
+				"name": portalName,
+			}
+		}
+		change.References = map[string]ReferenceInfo{
+			"portal_id": refInfo,
+		}
+	}
+
+	plan.AddChange(change)
+	return change.ID
+}
+
+func (p *Planner) planPortalCustomDomainDelete(
+	parentNamespace string,
+	portalRef string,
+	portalID string,
+	portalName string,
+	current *state.PortalCustomDomain,
+	domainRef string,
+	plan *Plan,
+) string {
+	ref := domainRef
+	if ref == "" {
+		if portalRef != "" {
+			ref = fmt.Sprintf("%s__custom_domain", portalRef)
+		} else {
+			ref = fmt.Sprintf("%s__custom_domain", portalID)
+		}
+	}
+
+	deps := p.portalChildDependencies(plan, portalRef)
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionDelete, ResourceTypePortalCustomDomain, ref),
+		ResourceType: ResourceTypePortalCustomDomain,
+		ResourceRef:  ref,
+		ResourceID:   portalID,
+		Action:       ActionDelete,
+		Fields: map[string]any{
+			"hostname": current.Hostname,
+		},
+		DependsOn: uniqueStrings(deps),
+		Namespace: parentNamespace,
+		ResourceMonikers: map[string]string{
+			"hostname": current.Hostname,
+		},
+	}
+
+	if current != nil {
+		change.Fields["domain_verification_method"] = current.DomainVerificationMethod
+		change.Fields["enabled"] = current.Enabled
+	}
+
+	if portalRef != "" || portalID != "" {
+		change.Parent = &ParentInfo{
+			Ref: portalRef,
+			ID:  portalID,
+		}
+
+		refInfo := ReferenceInfo{
+			Ref: portalRef,
+			ID:  portalID,
+		}
+		if portalName != "" {
+			refInfo.LookupFields = map[string]string{
+				"name": portalName,
+			}
+		}
+		change.References = map[string]ReferenceInfo{
+			"portal_id": refInfo,
+		}
+	}
+
+	plan.AddChange(change)
+	return change.ID
+}
+
+func (p *Planner) portalChildDependencies(plan *Plan, portalRef string) []string {
+	if portalRef == "" {
+		return nil
+	}
+
+	for _, change := range plan.Changes {
+		if change.ResourceType == ResourceTypePortal && change.ResourceRef == portalRef {
+			return []string{change.ID}
+		}
+	}
+
+	return nil
+}
+
+func (p *Planner) findPortalName(portalRef string) string {
+	if portalRef == "" {
+		return ""
+	}
+	for _, portal := range p.desiredPortals {
+		if portal.Ref == portalRef {
+			return portal.Name
+		}
+	}
+	return ""
+}
+
+func (p *Planner) portalCustomDomainNeedsReplacement(
+	current *state.PortalCustomDomain,
+	desired resources.PortalCustomDomainResource,
+) bool {
+	if current == nil {
+		return true
+	}
+
+	if desired.Hostname != "" && !strings.EqualFold(current.Hostname, desired.Hostname) {
+		return true
+	}
+
+	desiredMethod, desiredSkip := p.desiredPortalCustomDomainSSLConfig(desired)
+	currentMethod := strings.ToLower(current.DomainVerificationMethod)
+
+	if desiredMethod != "" && !strings.EqualFold(currentMethod, desiredMethod) {
+		return true
+	}
+
+	if desiredSkip != boolValue(current.SkipCACheck) {
+		return true
+	}
+
+	return false
+}
+
+func (p *Planner) desiredPortalCustomDomainSSLConfig(
+	domain resources.PortalCustomDomainResource,
+) (string, bool) {
+	switch {
+	case domain.Ssl.CustomCertificate != nil:
+		skip := false
+		if value := domain.Ssl.CustomCertificate.GetSkipCaCheck(); value != nil {
+			skip = *value
+		}
+		return strings.ToLower(domain.Ssl.CustomCertificate.GetDomainVerificationMethod()), skip
+	case domain.Ssl.HTTP != nil:
+		return strings.ToLower(domain.Ssl.HTTP.GetDomainVerificationMethod()), false
+	default:
+		return "", false
+	}
+}
+
+func boolValue(ptr *bool) bool {
+	if ptr == nil {
+		return false
+	}
+	return *ptr
+}
+
+func uniqueStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }
 
 // Portal Page planning

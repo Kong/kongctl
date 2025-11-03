@@ -851,3 +851,11 @@ Browse the [examples directory](examples/declarative/)
 
 - [Troubleshooting Guide](troubleshooting.md) - Common issues and solutions
 - [E2E Test Harness](e2e.md) - How to run end-to-end tests locally and in CI
+
+## Resource Notes
+
+### Portal Custom Domains
+
+- `kongctl plan` / `apply` diff the live Konnect state before deciding what action to schedule. The portal custom domain API only returns a subset of fields (`hostname`, `enabled`, verification method, CNAME status, `skip_ca_check`, timestamps). The raw certificate and private key are never returned.
+- Because the `UpdatePortalCustomDomain` endpoint only patches the `enabled` flag, the planner emits an `UPDATE` change when the desired `enabled` value differs. Every other drift (hostname, verification method, `skip_ca_check`) is treated as an in-place replace: `DELETE` followed by `CREATE`.
+- Pure certificate rotations that keep the same verification method and `skip_ca_check` setting are invisible to the diff because Konnect does not echo those values. To force a replacement, temporarily change a detectable field (e.g., toggle `skip_ca_check` or switch verification method), or remove the domain from configuration, apply, and then reintroduce it with the new certificate material.
