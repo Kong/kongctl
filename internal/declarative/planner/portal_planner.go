@@ -760,7 +760,14 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			domains = append(domains, domain)
 		}
 	}
-	if err := planner.planPortalCustomDomainsChanges(ctx, parentNamespace, current.ID, desired.Ref, domains, plan); err != nil {
+	if err := planner.planPortalCustomDomainsChanges(
+		ctx,
+		parentNamespace,
+		current.ID,
+		desired.Ref,
+		domains,
+		plan,
+	); err != nil {
 		return fmt.Errorf("failed to plan portal custom domain changes: %w", err)
 	}
 

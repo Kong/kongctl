@@ -20,27 +20,27 @@ type stubPortalCustomDomainAPI struct {
 }
 
 func (s *stubPortalCustomDomainAPI) CreatePortalCustomDomain(
-	ctx context.Context,
-	portalID string,
-	request kkComps.CreatePortalCustomDomainRequest,
-	opts ...kkOps.Option,
+	_ context.Context,
+	_ string,
+	_ kkComps.CreatePortalCustomDomainRequest,
+	_ ...kkOps.Option,
 ) (*kkOps.CreatePortalCustomDomainResponse, error) {
 	return nil, nil
 }
 
 func (s *stubPortalCustomDomainAPI) UpdatePortalCustomDomain(
-	ctx context.Context,
-	portalID string,
-	request kkComps.UpdatePortalCustomDomainRequest,
-	opts ...kkOps.Option,
+	_ context.Context,
+	_ string,
+	_ kkComps.UpdatePortalCustomDomainRequest,
+	_ ...kkOps.Option,
 ) (*kkOps.UpdatePortalCustomDomainResponse, error) {
 	return nil, nil
 }
 
 func (s *stubPortalCustomDomainAPI) DeletePortalCustomDomain(
-	ctx context.Context,
-	portalID string,
-	opts ...kkOps.Option,
+	_ context.Context,
+	_ string,
+	_ ...kkOps.Option,
 ) (*kkOps.DeletePortalCustomDomainResponse, error) {
 	return nil, nil
 }
@@ -153,13 +153,16 @@ func TestGeneratePlan_PortalCustomDomain(t *testing.T) {
 	assert.Contains(t, customDomainChange.DependsOn, "1:c:portal:dev-portal")
 }
 
-func buildPortalCustomDomain(host string, enabled bool, method kkComps.PortalCustomDomainVerificationMethod) *kkComps.PortalCustomDomain {
+func buildPortalCustomDomain(
+	host string,
+	enabled bool,
+) *kkComps.PortalCustomDomain {
 	now := time.Now()
 	return &kkComps.PortalCustomDomain{
 		Hostname: host,
 		Enabled:  enabled,
 		Ssl: kkComps.PortalCustomDomainSSL{
-			DomainVerificationMethod: method,
+			DomainVerificationMethod: kkComps.PortalCustomDomainVerificationMethodHTTP,
 			VerificationStatus:       kkComps.PortalCustomDomainVerificationStatusPending,
 		},
 		CnameStatus: kkComps.PortalCustomDomainCnameStatusPending,
@@ -172,10 +175,17 @@ func TestPlanPortalCustomDomain_NoChangeWhenStateMatches(t *testing.T) {
 	t.Parallel()
 
 	stub := &stubPortalCustomDomainAPI{
-		getFn: func(ctx context.Context, portalID string, opts ...kkOps.Option) (*kkOps.GetPortalCustomDomainResponse, error) {
+		getFn: func(
+			_ context.Context,
+			_ string,
+			_ ...kkOps.Option,
+		) (*kkOps.GetPortalCustomDomainResponse, error) {
 			return &kkOps.GetPortalCustomDomainResponse{
-				StatusCode:         200,
-				PortalCustomDomain: buildPortalCustomDomain("developer.example.com", true, kkComps.PortalCustomDomainVerificationMethodHTTP),
+				StatusCode: 200,
+				PortalCustomDomain: buildPortalCustomDomain(
+					"developer.example.com",
+					true,
+				),
 			}, nil
 		},
 	}
@@ -222,10 +232,17 @@ func TestPlanPortalCustomDomain_UpdateEnabled(t *testing.T) {
 	t.Parallel()
 
 	stub := &stubPortalCustomDomainAPI{
-		getFn: func(ctx context.Context, portalID string, opts ...kkOps.Option) (*kkOps.GetPortalCustomDomainResponse, error) {
+		getFn: func(
+			_ context.Context,
+			_ string,
+			_ ...kkOps.Option,
+		) (*kkOps.GetPortalCustomDomainResponse, error) {
 			return &kkOps.GetPortalCustomDomainResponse{
-				StatusCode:         200,
-				PortalCustomDomain: buildPortalCustomDomain("developer.example.com", false, kkComps.PortalCustomDomainVerificationMethodHTTP),
+				StatusCode: 200,
+				PortalCustomDomain: buildPortalCustomDomain(
+					"developer.example.com",
+					false,
+				),
 			}, nil
 		},
 	}
@@ -286,10 +303,17 @@ func TestPlanPortalCustomDomain_ReplaceOnHostnameChange(t *testing.T) {
 	t.Parallel()
 
 	stub := &stubPortalCustomDomainAPI{
-		getFn: func(ctx context.Context, portalID string, opts ...kkOps.Option) (*kkOps.GetPortalCustomDomainResponse, error) {
+		getFn: func(
+			_ context.Context,
+			_ string,
+			_ ...kkOps.Option,
+		) (*kkOps.GetPortalCustomDomainResponse, error) {
 			return &kkOps.GetPortalCustomDomainResponse{
-				StatusCode:         200,
-				PortalCustomDomain: buildPortalCustomDomain("old.example.com", true, kkComps.PortalCustomDomainVerificationMethodHTTP),
+				StatusCode: 200,
+				PortalCustomDomain: buildPortalCustomDomain(
+					"old.example.com",
+					true,
+				),
 			}, nil
 		},
 	}
@@ -347,10 +371,17 @@ func TestPlanPortalCustomDomain_SyncDeleteWhenOmitted(t *testing.T) {
 	t.Parallel()
 
 	stub := &stubPortalCustomDomainAPI{
-		getFn: func(ctx context.Context, portalID string, opts ...kkOps.Option) (*kkOps.GetPortalCustomDomainResponse, error) {
+		getFn: func(
+			_ context.Context,
+			_ string,
+			_ ...kkOps.Option,
+		) (*kkOps.GetPortalCustomDomainResponse, error) {
 			return &kkOps.GetPortalCustomDomainResponse{
-				StatusCode:         200,
-				PortalCustomDomain: buildPortalCustomDomain("developer.example.com", true, kkComps.PortalCustomDomainVerificationMethodHTTP),
+				StatusCode: 200,
+				PortalCustomDomain: buildPortalCustomDomain(
+					"developer.example.com",
+					true,
+				),
 			}, nil
 		},
 	}
@@ -382,7 +413,11 @@ func TestPlanPortalCustomDomain_CreateWhenAbsent(t *testing.T) {
 	t.Parallel()
 
 	stub := &stubPortalCustomDomainAPI{
-		getFn: func(ctx context.Context, portalID string, opts ...kkOps.Option) (*kkOps.GetPortalCustomDomainResponse, error) {
+		getFn: func(
+			_ context.Context,
+			_ string,
+			_ ...kkOps.Option,
+		) (*kkOps.GetPortalCustomDomainResponse, error) {
 			return nil, &kkErrors.NotFoundError{}
 		},
 	}
