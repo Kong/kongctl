@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
-	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
@@ -1965,23 +1964,9 @@ func (c *Client) GetPortalCustomDomain(ctx context.Context, portalID string) (*P
 
 	domain := resp.PortalCustomDomain
 
-	var skipCACheck *bool
-	if domain.Ssl.SkipCaCheck != nil {
-		value := *domain.Ssl.SkipCaCheck
-		skipCACheck = &value
-	}
-
-	var uploadedAt *time.Time
-	if domain.Ssl.UploadedAt != nil {
-		value := *domain.Ssl.UploadedAt
-		uploadedAt = &value
-	}
-
-	var expiresAt *time.Time
-	if domain.Ssl.ExpiresAt != nil {
-		value := *domain.Ssl.ExpiresAt
-		expiresAt = &value
-	}
+	skipCACheck := domain.Ssl.SkipCaCheck
+	uploadedAt := domain.Ssl.UploadedAt
+	expiresAt := domain.Ssl.ExpiresAt
 
 	validationErrors := append([]string(nil), domain.Ssl.ValidationErrors...)
 	if len(validationErrors) == 0 {

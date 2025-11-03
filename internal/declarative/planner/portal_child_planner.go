@@ -605,19 +605,19 @@ func (p *Planner) planPortalCustomDomainDelete(
 		ResourceRef:  ref,
 		ResourceID:   portalID,
 		Action:       ActionDelete,
-		Fields: map[string]any{
-			"hostname": current.Hostname,
-		},
-		DependsOn: uniqueStrings(deps),
-		Namespace: parentNamespace,
-		ResourceMonikers: map[string]string{
-			"hostname": current.Hostname,
-		},
+		DependsOn:    uniqueStrings(deps),
+		Namespace:    parentNamespace,
 	}
 
 	if current != nil {
-		change.Fields["domain_verification_method"] = current.DomainVerificationMethod
-		change.Fields["enabled"] = current.Enabled
+		change.Fields = map[string]any{
+			"hostname":                   current.Hostname,
+			"domain_verification_method": current.DomainVerificationMethod,
+			"enabled":                    current.Enabled,
+		}
+		change.ResourceMonikers = map[string]string{
+			"hostname": current.Hostname,
+		}
 	}
 
 	if portalRef != "" || portalID != "" {
