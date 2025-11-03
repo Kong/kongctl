@@ -2,13 +2,15 @@ package state
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
-	"github.com/kong/kongctl/internal/declarative/errors"
+	kkErrors "github.com/Kong/sdk-konnect-go/models/sdkerrors"
+	decerrors "github.com/kong/kongctl/internal/declarative/errors"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
@@ -386,10 +388,10 @@ func (c *Client) UpdatePortal(
 	resp, err := c.portalAPI.UpdatePortal(ctx, id, portal)
 	if err != nil {
 		// Extract status code from error if possible
-		statusCode := errors.ExtractStatusCodeFromError(err)
+		statusCode := decerrors.ExtractStatusCodeFromError(err)
 
 		// Create enhanced error with context and hints
-		ctx := errors.APIErrorContext{
+		ctx := decerrors.APIErrorContext{
 			ResourceType: "portal",
 			ResourceName: func() string {
 				if portal.Name != nil {
@@ -401,7 +403,7 @@ func (c *Client) UpdatePortal(
 			StatusCode: statusCode,
 		}
 
-		return nil, errors.EnhanceAPIError(err, ctx)
+		return nil, decerrors.EnhanceAPIError(err, ctx)
 	}
 
 	if resp.PortalResponse == nil {
@@ -416,17 +418,17 @@ func (c *Client) DeletePortal(ctx context.Context, id string, force bool) error 
 	_, err := c.portalAPI.DeletePortal(ctx, id, force)
 	if err != nil {
 		// Extract status code from error if possible
-		statusCode := errors.ExtractStatusCodeFromError(err)
+		statusCode := decerrors.ExtractStatusCodeFromError(err)
 
 		// Create enhanced error with context and hints
-		ctx := errors.APIErrorContext{
+		ctx := decerrors.APIErrorContext{
 			ResourceType: "portal",
 			ResourceName: id, // Using ID since we don't have name in delete context
 			Operation:    "delete",
 			StatusCode:   statusCode,
 		}
 
-		return errors.EnhanceAPIError(err, ctx)
+		return decerrors.EnhanceAPIError(err, ctx)
 	}
 	return nil
 }
@@ -800,9 +802,9 @@ func (c *Client) UpdateControlPlane(
 
 	resp, err := c.controlPlaneAPI.UpdateControlPlane(ctx, id, controlPlane)
 	if err != nil {
-		statusCode := errors.ExtractStatusCodeFromError(err)
+		statusCode := decerrors.ExtractStatusCodeFromError(err)
 
-		ctx := errors.APIErrorContext{
+		ctx := decerrors.APIErrorContext{
 			ResourceType: "control_plane",
 			ResourceName: func() string {
 				if controlPlane.Name != nil {
@@ -815,7 +817,7 @@ func (c *Client) UpdateControlPlane(
 			StatusCode: statusCode,
 		}
 
-		return nil, errors.EnhanceAPIError(err, ctx)
+		return nil, decerrors.EnhanceAPIError(err, ctx)
 	}
 
 	if resp.ControlPlane == nil {
@@ -833,14 +835,14 @@ func (c *Client) DeleteControlPlane(ctx context.Context, id string) error {
 
 	_, err := c.controlPlaneAPI.DeleteControlPlane(ctx, id)
 	if err != nil {
-		statusCode := errors.ExtractStatusCodeFromError(err)
-		ctx := errors.APIErrorContext{
+		statusCode := decerrors.ExtractStatusCodeFromError(err)
+		ctx := decerrors.APIErrorContext{
 			ResourceType: "control_plane",
 			ResourceName: id,
 			Operation:    "delete",
 			StatusCode:   statusCode,
 		}
-		return errors.EnhanceAPIError(err, ctx)
+		return decerrors.EnhanceAPIError(err, ctx)
 	}
 
 	return nil
@@ -1030,10 +1032,10 @@ func (c *Client) CreateAPI(
 	resp, err := c.apiAPI.CreateAPI(ctx, api)
 	if err != nil {
 		// Extract status code from error if possible
-		statusCode := errors.ExtractStatusCodeFromError(err)
+		statusCode := decerrors.ExtractStatusCodeFromError(err)
 
 		// Create enhanced error with context and hints
-		ctx := errors.APIErrorContext{
+		ctx := decerrors.APIErrorContext{
 			ResourceType: "api",
 			ResourceName: api.Name,
 			Namespace:    namespace,
@@ -1041,7 +1043,7 @@ func (c *Client) CreateAPI(
 			StatusCode:   statusCode,
 		}
 
-		return nil, errors.EnhanceAPIError(err, ctx)
+		return nil, decerrors.EnhanceAPIError(err, ctx)
 	}
 
 	if resp.APIResponseSchema == nil {
@@ -1935,6 +1937,57 @@ func (c *Client) UpdatePortalCustomization(
 		return fmt.Errorf("failed to update portal customization: %w", err)
 	}
 	return nil
+}
+
+// GetPortalCustomDomain fetches the current custom domain for a portal.
+func (c *Client) GetPortalCustomDomain(ctx context.Context, portalID string) (*PortalCustomDomain, error) {
+	if err := ValidateAPIClient(c.portalCustomDomainAPI, "portal custom domain API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.portalCustomDomainAPI.GetPortalCustomDomain(ctx, portalID)
+	if err != nil {
+		var notFound *kkErrors.NotFoundError
+		if errors.As(err, &notFound) {
+			return nil, nil
+		}
+		return nil, WrapAPIError(err, "get portal custom domain", nil)
+	}
+
+	if err := ValidateResponse(resp, "get portal custom domain"); err != nil {
+		return nil, err
+	}
+
+	if resp.PortalCustomDomain == nil {
+		return nil, NewResponseValidationError("get portal custom domain", "PortalCustomDomain")
+	}
+
+	domain := resp.PortalCustomDomain
+
+	skipCACheck := domain.Ssl.SkipCaCheck
+	uploadedAt := domain.Ssl.UploadedAt
+	expiresAt := domain.Ssl.ExpiresAt
+
+	validationErrors := append([]string(nil), domain.Ssl.ValidationErrors...)
+	if len(validationErrors) == 0 {
+		validationErrors = nil
+	}
+
+	return &PortalCustomDomain{
+		ID:                       portalID,
+		PortalID:                 portalID,
+		Hostname:                 domain.Hostname,
+		Enabled:                  domain.Enabled,
+		DomainVerificationMethod: string(domain.Ssl.DomainVerificationMethod),
+		VerificationStatus:       string(domain.Ssl.VerificationStatus),
+		ValidationErrors:         validationErrors,
+		SkipCACheck:              skipCACheck,
+		UploadedAt:               uploadedAt,
+		ExpiresAt:                expiresAt,
+		CnameStatus:              string(domain.CnameStatus),
+		CreatedAt:                domain.CreatedAt,
+		UpdatedAt:                domain.UpdatedAt,
+	}, nil
 }
 
 // CreatePortalCustomDomain creates a custom domain for a portal

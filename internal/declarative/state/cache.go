@@ -1,6 +1,9 @@
 package state
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 // Cache represents cached Konnect state with hierarchical structure
 type Cache struct {
@@ -137,7 +140,19 @@ type PortalCustomization struct {
 
 // PortalCustomDomain represents portal custom domain (placeholder for missing type)
 type PortalCustomDomain struct {
-	// TODO: Add fields when implementing portal custom domain support
+	ID                       string
+	PortalID                 string
+	Hostname                 string
+	Enabled                  bool
+	DomainVerificationMethod string
+	VerificationStatus       string
+	ValidationErrors         []string
+	SkipCACheck              *bool
+	UploadedAt               *time.Time
+	ExpiresAt                *time.Time
+	CnameStatus              string
+	CreatedAt                time.Time
+	UpdatedAt                time.Time
 }
 
 // PortalSnippet represents portal snippet

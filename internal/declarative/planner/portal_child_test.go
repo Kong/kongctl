@@ -4,14 +4,57 @@ import (
 	"context"
 	"log/slog"
 	"testing"
+	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	kkErrors "github.com/Kong/sdk-konnect-go/models/sdkerrors"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
+
+type stubPortalCustomDomainAPI struct {
+	getFn func(ctx context.Context, portalID string, opts ...kkOps.Option) (*kkOps.GetPortalCustomDomainResponse, error)
+}
+
+func (s *stubPortalCustomDomainAPI) CreatePortalCustomDomain(
+	_ context.Context,
+	_ string,
+	_ kkComps.CreatePortalCustomDomainRequest,
+	_ ...kkOps.Option,
+) (*kkOps.CreatePortalCustomDomainResponse, error) {
+	return nil, nil
+}
+
+func (s *stubPortalCustomDomainAPI) UpdatePortalCustomDomain(
+	_ context.Context,
+	_ string,
+	_ kkComps.UpdatePortalCustomDomainRequest,
+	_ ...kkOps.Option,
+) (*kkOps.UpdatePortalCustomDomainResponse, error) {
+	return nil, nil
+}
+
+func (s *stubPortalCustomDomainAPI) DeletePortalCustomDomain(
+	_ context.Context,
+	_ string,
+	_ ...kkOps.Option,
+) (*kkOps.DeletePortalCustomDomainResponse, error) {
+	return nil, nil
+}
+
+func (s *stubPortalCustomDomainAPI) GetPortalCustomDomain(
+	ctx context.Context,
+	portalID string,
+	opts ...kkOps.Option,
+) (*kkOps.GetPortalCustomDomainResponse, error) {
+	if s.getFn != nil {
+		return s.getFn(ctx, portalID, opts...)
+	}
+	return nil, nil
+}
 
 func TestGeneratePlan_PortalCustomDomain(t *testing.T) {
 	ctx := context.Background()
@@ -108,4 +151,313 @@ func TestGeneratePlan_PortalCustomDomain(t *testing.T) {
 
 	// Verify dependencies
 	assert.Contains(t, customDomainChange.DependsOn, "1:c:portal:dev-portal")
+}
+
+func buildPortalCustomDomain(
+	host string,
+	enabled bool,
+) *kkComps.PortalCustomDomain {
+	now := time.Now()
+	return &kkComps.PortalCustomDomain{
+		Hostname: host,
+		Enabled:  enabled,
+		Ssl: kkComps.PortalCustomDomainSSL{
+			DomainVerificationMethod: kkComps.PortalCustomDomainVerificationMethodHTTP,
+			VerificationStatus:       kkComps.PortalCustomDomainVerificationStatusPending,
+		},
+		CnameStatus: kkComps.PortalCustomDomainCnameStatusPending,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+}
+
+func TestPlanPortalCustomDomain_NoChangeWhenStateMatches(t *testing.T) {
+	t.Parallel()
+
+	stub := &stubPortalCustomDomainAPI{
+		getFn: func(
+			_ context.Context,
+			_ string,
+			_ ...kkOps.Option,
+		) (*kkOps.GetPortalCustomDomainResponse, error) {
+			return &kkOps.GetPortalCustomDomainResponse{
+				StatusCode: 200,
+				PortalCustomDomain: buildPortalCustomDomain(
+					"developer.example.com",
+					true,
+				),
+			}, nil
+		},
+	}
+
+	planner := &Planner{
+		client: state.NewClient(state.ClientConfig{
+			PortalCustomDomainAPI: stub,
+		}),
+		logger: slog.Default(),
+		desiredPortals: []resources.PortalResource{
+			{
+				CreatePortal: kkComps.CreatePortal{Name: "portal"},
+				Ref:          "portal-1",
+			},
+		},
+	}
+
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	desired := []resources.PortalCustomDomainResource{
+		{
+			Ref:    "domain-1",
+			Portal: "portal-1",
+			CreatePortalCustomDomainRequest: kkComps.CreatePortalCustomDomainRequest{
+				Hostname: "developer.example.com",
+				Enabled:  true,
+				Ssl:      kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{}),
+			},
+		},
+	}
+
+	err := planner.planPortalCustomDomainsChanges(
+		context.Background(),
+		DefaultNamespace,
+		"portal-id",
+		"portal-1",
+		desired,
+		plan,
+	)
+	assert.NoError(t, err)
+	assert.Empty(t, plan.Changes)
+}
+
+func TestPlanPortalCustomDomain_UpdateEnabled(t *testing.T) {
+	t.Parallel()
+
+	stub := &stubPortalCustomDomainAPI{
+		getFn: func(
+			_ context.Context,
+			_ string,
+			_ ...kkOps.Option,
+		) (*kkOps.GetPortalCustomDomainResponse, error) {
+			return &kkOps.GetPortalCustomDomainResponse{
+				StatusCode: 200,
+				PortalCustomDomain: buildPortalCustomDomain(
+					"developer.example.com",
+					false,
+				),
+			}, nil
+		},
+	}
+
+	planner := &Planner{
+		client: state.NewClient(state.ClientConfig{
+			PortalCustomDomainAPI: stub,
+		}),
+		logger: slog.Default(),
+		desiredPortals: []resources.PortalResource{
+			{
+				CreatePortal: kkComps.CreatePortal{Name: "portal"},
+				Ref:          "portal-1",
+			},
+		},
+	}
+
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	desired := []resources.PortalCustomDomainResource{
+		{
+			Ref:    "domain-1",
+			Portal: "portal-1",
+			CreatePortalCustomDomainRequest: kkComps.CreatePortalCustomDomainRequest{
+				Hostname: "developer.example.com",
+				Enabled:  true,
+				Ssl:      kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{}),
+			},
+		},
+	}
+
+	err := planner.planPortalCustomDomainsChanges(
+		context.Background(),
+		DefaultNamespace,
+		"portal-id",
+		"portal-1",
+		desired,
+		plan,
+	)
+	assert.NoError(t, err)
+	assert.Len(t, plan.Changes, 1)
+
+	change := plan.Changes[0]
+	assert.Equal(t, ActionUpdate, change.Action)
+	assert.Equal(t, "domain-1", change.ResourceRef)
+	assert.Equal(t, "portal-id", change.ResourceID)
+	assert.Equal(t, true, change.Fields["enabled"])
+	if assert.NotNil(t, change.Parent) {
+		assert.Equal(t, "portal-1", change.Parent.Ref)
+		assert.Equal(t, "portal-id", change.Parent.ID)
+	}
+	if ref, ok := change.References["portal_id"]; assert.True(t, ok) {
+		assert.Equal(t, "portal-id", ref.ID)
+		assert.Equal(t, "portal-1", ref.Ref)
+	}
+}
+
+func TestPlanPortalCustomDomain_ReplaceOnHostnameChange(t *testing.T) {
+	t.Parallel()
+
+	stub := &stubPortalCustomDomainAPI{
+		getFn: func(
+			_ context.Context,
+			_ string,
+			_ ...kkOps.Option,
+		) (*kkOps.GetPortalCustomDomainResponse, error) {
+			return &kkOps.GetPortalCustomDomainResponse{
+				StatusCode: 200,
+				PortalCustomDomain: buildPortalCustomDomain(
+					"old.example.com",
+					true,
+				),
+			}, nil
+		},
+	}
+
+	planner := &Planner{
+		client: state.NewClient(state.ClientConfig{
+			PortalCustomDomainAPI: stub,
+		}),
+		logger: slog.Default(),
+		desiredPortals: []resources.PortalResource{
+			{
+				CreatePortal: kkComps.CreatePortal{Name: "portal"},
+				Ref:          "portal-1",
+			},
+		},
+	}
+
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	desired := []resources.PortalCustomDomainResource{
+		{
+			Ref:    "domain-1",
+			Portal: "portal-1",
+			CreatePortalCustomDomainRequest: kkComps.CreatePortalCustomDomainRequest{
+				Hostname: "developer.example.com",
+				Enabled:  true,
+				Ssl:      kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{}),
+			},
+		},
+	}
+
+	err := planner.planPortalCustomDomainsChanges(
+		context.Background(),
+		DefaultNamespace,
+		"portal-id",
+		"portal-1",
+		desired,
+		plan,
+	)
+	assert.NoError(t, err)
+	assert.Len(t, plan.Changes, 2)
+
+	deleteChange := plan.Changes[0]
+	createChange := plan.Changes[1]
+
+	assert.Equal(t, ActionDelete, deleteChange.Action)
+	assert.Equal(t, "portal-id", deleteChange.ResourceID)
+	assert.Equal(t, "old.example.com", deleteChange.Fields["hostname"])
+
+	assert.Equal(t, ActionCreate, createChange.Action)
+	assert.Equal(t, "developer.example.com", createChange.Fields["hostname"])
+	assert.Contains(t, createChange.DependsOn, deleteChange.ID)
+}
+
+func TestPlanPortalCustomDomain_SyncDeleteWhenOmitted(t *testing.T) {
+	t.Parallel()
+
+	stub := &stubPortalCustomDomainAPI{
+		getFn: func(
+			_ context.Context,
+			_ string,
+			_ ...kkOps.Option,
+		) (*kkOps.GetPortalCustomDomainResponse, error) {
+			return &kkOps.GetPortalCustomDomainResponse{
+				StatusCode: 200,
+				PortalCustomDomain: buildPortalCustomDomain(
+					"developer.example.com",
+					true,
+				),
+			}, nil
+		},
+	}
+
+	planner := &Planner{
+		client: state.NewClient(state.ClientConfig{
+			PortalCustomDomainAPI: stub,
+		}),
+		logger: slog.Default(),
+	}
+
+	plan := NewPlan("1.0", "test", PlanModeSync)
+
+	err := planner.planPortalCustomDomainsChanges(
+		context.Background(),
+		DefaultNamespace,
+		"portal-id",
+		"portal-1",
+		nil,
+		plan,
+	)
+	assert.NoError(t, err)
+	assert.Len(t, plan.Changes, 1)
+	assert.Equal(t, ActionDelete, plan.Changes[0].Action)
+	assert.Equal(t, "portal-id", plan.Changes[0].ResourceID)
+}
+
+func TestPlanPortalCustomDomain_CreateWhenAbsent(t *testing.T) {
+	t.Parallel()
+
+	stub := &stubPortalCustomDomainAPI{
+		getFn: func(
+			_ context.Context,
+			_ string,
+			_ ...kkOps.Option,
+		) (*kkOps.GetPortalCustomDomainResponse, error) {
+			return nil, &kkErrors.NotFoundError{}
+		},
+	}
+
+	planner := &Planner{
+		client: state.NewClient(state.ClientConfig{
+			PortalCustomDomainAPI: stub,
+		}),
+		logger: slog.Default(),
+		desiredPortals: []resources.PortalResource{
+			{
+				CreatePortal: kkComps.CreatePortal{Name: "portal"},
+				Ref:          "portal-1",
+			},
+		},
+	}
+
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	desired := []resources.PortalCustomDomainResource{
+		{
+			Ref:    "domain-1",
+			Portal: "portal-1",
+			CreatePortalCustomDomainRequest: kkComps.CreatePortalCustomDomainRequest{
+				Hostname: "developer.example.com",
+				Enabled:  true,
+				Ssl:      kkComps.CreateCreatePortalCustomDomainSSLHTTP(kkComps.HTTP{}),
+			},
+		},
+	}
+
+	err := planner.planPortalCustomDomainsChanges(
+		context.Background(),
+		DefaultNamespace,
+		"portal-id",
+		"portal-1",
+		desired,
+		plan,
+	)
+	assert.NoError(t, err)
+	assert.Len(t, plan.Changes, 1)
+	assert.Equal(t, ActionCreate, plan.Changes[0].Action)
+	assert.Equal(t, "developer.example.com", plan.Changes[0].Fields["hostname"])
 }
