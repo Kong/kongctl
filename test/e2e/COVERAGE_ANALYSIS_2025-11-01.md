@@ -232,29 +232,62 @@ KONGCTL_E2E_SCENARIO=errors/declarative make test-e2e
 
 ---
 
+### 2025-11-03: API Top-Level Fields Scenario
+
+**Scenario Added**: `test/e2e/scenarios/apis/comprehensive-fields/`
+
+**Gap Addressed**: Section 3.2 (API parent field coverage) + Section 5.2 Roadmap Item 7
+
+**Priority**: 🟡 MEDIUM → ✅ RESOLVED
+
+**Coverage Improvements**:
+- Direct plan/apply/sync coverage for every writable API top-level field (name, description, version, slug, labels, attributes, namespace metadata)
+- Validates label replacement/removal and attribute normalization during updates
+- API parent field coverage now ~80% (all writable fields exercised; `spec_content` intentionally deferred pending product guidance)
+
+**What This Tests**:
+- ✅ Initial apply creates API, asserts namespace label injection and attribute array handling
+- ✅ Update overlays mutate string fields, replace labels, prune removed keys, and expand attribute arrays
+- ✅ Sync overlay deletes the API and confirms organization cleanup
+
+**Files Created**:
+- `test/e2e/scenarios/apis/comprehensive-fields/scenario.yaml`
+- `test/e2e/testdata/declarative/apis/comprehensive-fields/apis.yaml`
+- `test/e2e/scenarios/apis/comprehensive-fields/overlays/002-update-fields/apis.yaml`
+- `test/e2e/scenarios/apis/comprehensive-fields/overlays/003-sync-delete/apis.yaml`
+
+**Run Scenario**:
+```bash
+KONGCTL_E2E_SCENARIO=apis/comprehensive-fields make test-e2e
+```
+
+**Impact**: Locks in a dedicated regression for API parent fields so upcoming child-resource scenarios can focus on nested coverage gaps.
+
+---
+
 ### 2025-11-03: API Coverage Roadmap
 
 **Purpose**: Document the implementation plan for expanding API parent/child resource coverage ahead of the next coding session.
 
 **Current Snapshot**:
-- API parent field coverage remains ~47% (7/15) with gaps in `deprecated`, `team_id`, published spec metadata, and richer attributes (see Section 3.2).
+- API parent field coverage now ~80% with dedicated top-level field lifecycle testing; remaining gaps are deferred `spec_content` handling and any future Konnect additions.
 - Child resources hover around ~40–50% coverage: versions (~3/6), publications (~4/8), implementations (~2/5), documents (~5/7), with most scenarios embedded inside portal-focused flows.
 - Existing API validation is limited to attributes/slug overlays, basic publication auth strategy linkage, and simple document nesting.
 
 **Scenario Roadmap (`test/e2e/scenarios/apis/`)**:
-1. **comprehensive-fields** – Create/update/delete lifecycle for an API exercising every top-level field (deprecated, team_id, published_spec_ids/labels, expanded attributes) with plan assertions and `kongctl get` verification.
-2. **nested-child-lifecycle** – Single API nesting versions (spec + status), publications (all boolean + label fields), implementations (service refs to control plane/gateway service), and multi-level documents; overlays mutate and remove each child to validate plan/apply/sync behaviour.
-3. **flat-child-lifecycle** – Mirror the above but declare children at the root (`api_versions`, `api_publications`, `api_documents`, `api_implementations`) referencing parents, closing the flat-pattern gap.
-4. **mixed-pattern-regression** *(optional follow-up)* – Blend nested and root children alongside portal snippets to ensure mixed layouts sync cleanly.
+1. ✅ **comprehensive-fields** – Completed 2025-11-03 (see change log entry above); establishes top-level lifecycle coverage.
+2. 🔴 **nested-child-lifecycle** – Single API nesting versions (spec + status), publications (all boolean + label fields), implementations (service refs to control plane/gateway service), and multi-level documents; overlays mutate and remove each child to validate plan/apply/sync behaviour.
+3. 🟠 **flat-child-lifecycle** – Mirror the above but declare children at the root (`api_versions`, `api_publications`, `api_documents`, `api_implementations`) referencing parents, closing the flat-pattern gap.
+4. 🟡 **mixed-pattern-regression** *(optional follow-up)* – Blend nested and root children alongside portal snippets to ensure mixed layouts sync cleanly.
 
 **Testdata & Assertions**:
-- Introduce `test/e2e/testdata/declarative/apis/` with per-scenario baselines plus reusable `files/` for OpenAPI specs and document Markdown.
-- Overlay directories (`overlays/001-create`, `002-update`, `003-sync-delete`, etc.) capture lifecycle steps; store plan expectations under `expect/` with `mask.dropKeys` for IDs/timestamps.
+- Base directory `test/e2e/testdata/declarative/apis/comprehensive-fields/` established for parent resource coverage; future scenarios can add sibling configs (e.g., `nested-child-lifecycle/`).
+- Overlay directories (`overlays/002-update-fields`, `003-sync-delete`, etc.) capture lifecycle steps; store plan expectations under `mask.dropKeys` for IDs/timestamps.
 - Leverage JSONPath assertions for plan deltas and post-apply `kongctl get` filters (API name/version) to confirm field toggles (e.g., `deprecated` flip, publication visibility, implementation control_plane linkage).
 
 **Next Steps**:
-- Scaffold the new scenario directory with a README-style comment describing goals, then implement `comprehensive-fields` first to satisfy Scenario 7 from Section 5.2.
-- After scenarios run green, update this analysis with coverage gains and remove roadmap items as they land.
+- Implement `nested-child-lifecycle` next, reusing the new directory structure while adding version/publication/implementation/document coverage.
+- Follow with `flat-child-lifecycle` to verify reference resolution across mixed declaration styles, then close with the optional mixed-pattern regression once confidence is high.
 
 ---
 
