@@ -125,6 +125,14 @@ The harness keeps artifacts by default for easy triage and CI upload.
 - Upload `<artifacts_dir>` as a workflow artifact for post-run analysis.
 - You can set `KONGCTL_E2E_ARTIFACTS_DIR=$RUNNER_TEMP/kongctl-e2e` to make artifact paths predictable.
 
+### SDK prerelease preview automation
+
+- Workflow `SDK Prerelease Preview` runs on a 30-minute schedule (and manually) to fetch the latest prerelease tag from `Kong/sdk-konnect-go`, bump `go.mod`, and execute `make build`, `make test`, and `make test-e2e`.
+- Requires repository secret `KONGCTL_E2E_KONNECT_PAT`; the run fails early if the secret is missing.
+- The workflow publishes artifacts from the harness and opens/updates a PR under `automation/sdk-preview/<tag>` when dependency changes are detected.
+- Use the **Run workflow** button to target a specific prerelease tag or to force a rerun even when a preview PR already exists.
+- Later we can add a `repository_dispatch` trigger from the SDK repository without altering downstream steps (the workflow already accepts out-of-band inputs).
+
 ### Troubleshooting
 
 - Enable verbose logs: `KONGCTL_E2E_LOG_LEVEL=debug`.
