@@ -1,0 +1,294 @@
+name: SDK Prerelease Preview
+
+on:
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'sdk-konnect-go prerelease tag (default: latest prerelease)'
+        required: false
+      force:
+        description: 'Run even if an existing preview PR is open'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  preview:
+    name: Build and test against prereleases
+    runs-on: ubuntu-latest
+    env:
+      KONGCTL_E2E_ARTIFACTS_DIR: ${{ runner.temp }}/kongctl-e2e
+    steps:
+      - name: Resolve latest prerelease
+        id: release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const core = require('@actions/core');
+            const { context } = require('@actions/github');
+
+            const sdkOwner = 'Kong';
+            const sdkRepo = 'sdk-konnect-go';
+
+            const tagInput = (context.payload.inputs?.tag || '').trim();
+            const forceInput = (context.payload.inputs?.force || '').toLowerCase() === 'true';
+            const eventName = context.eventName;
+
+            let release;
+            let tag = tagInput;
+
+            if (tag) {
+              try {
+                const { data } = await github.rest.repos.getReleaseByTag({
+                  owner: sdkOwner,
+                  repo: sdkRepo,
+                  tag,
+                });
+                release = data;
+                if (!release.prerelease) {
+                  core.warning(`Release ${tag} is not marked as a prerelease.`);
+                }
+              } catch (error) {
+                core.setFailed(`Failed to find release ${tag}: ${error.message}`);
+                return;
+              }
+            } else {
+              const releases = await github.paginate(github.rest.repos.listReleases, {
+                owner: sdkOwner,
+                repo: sdkRepo,
+                per_page: 20,
+              });
+              release = releases.find((item) => item.prerelease);
+              if (!release) {
+                const message = 'No prerelease releases found for Kong/sdk-konnect-go';
+                if (eventName === 'workflow_dispatch') {
+                  core.setFailed(message);
+                } else {
+                  core.info(message);
+                }
+                core.setOutput('found', 'false');
+                core.setOutput('force', forceInput ? 'true' : 'false');
+                return;
+              }
+              tag = release.tag_name;
+            }
+
+            core.setOutput('found', 'true');
+            core.setOutput('tag', tag);
+            core.setOutput('name', release.name || tag);
+            core.setOutput('release_url', release.html_url || '');
+            core.setOutput('published_at', release.published_at || release.created_at || '');
+            core.setOutput('force', forceInput ? 'true' : 'false');
+
+            const headRef = `${context.repo.owner}:automation/sdk-preview/${tag}`;
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: headRef,
+              per_page: 1,
+            });
+
+            if (prs.length > 0) {
+              core.info(`Existing preview PR detected: #${prs[0].number}`);
+              core.setOutput('pr_exists', 'true');
+              core.setOutput('pr_number', String(prs[0].number));
+              core.setOutput('pr_url', prs[0].html_url);
+            } else {
+              core.setOutput('pr_exists', 'false');
+            }
+
+            return tag;
+
+      - name: Decide execution plan
+        id: decision
+        env:
+          FOUND: ${{ steps.release.outputs.found }}
+          PR_EXISTS: ${{ steps.release.outputs.pr_exists }}
+          FORCE: ${{ steps.release.outputs.force }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "${FOUND}" != "true" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${PR_EXISTS}" = "true" ] && [ "${EVENT_NAME}" = "schedule" ] && [ "${FORCE}" != "true" ]; then
+            echo "Existing preview PR detected; skipping scheduled run."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "run=true" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout repository
+        if: steps.decision.outputs.run == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        if: steps.decision.outputs.run == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Bump sdk-konnect-go dependency
+        if: steps.decision.outputs.run == 'true'
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          go get github.com/Kong/sdk-konnect-go@"${TAG}"
+          go mod tidy
+
+      - name: Check for dependency changes
+        if: steps.decision.outputs.run == 'true'
+        id: diff
+        run: |
+          if git diff --quiet -- go.mod go.sum; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git diff --stat -- go.mod go.sum
+          fi
+
+      - name: Decide test execution
+        if: steps.decision.outputs.run == 'true'
+        id: plan
+        env:
+          CHANGED: ${{ steps.diff.outputs.changed }}
+          FORCE: ${{ steps.release.outputs.force }}
+        run: |
+          if [ "${CHANGED}" = "true" ] || [ "${FORCE}" = "true" ]; then
+            echo "test=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No go.mod changes detected and force not requested; skipping tests."
+            echo "test=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install workflow dependencies
+        if: steps.plan.outputs.test == 'true'
+        run: |
+          mkdir -p "${KONGCTL_E2E_ARTIFACTS_DIR}"
+
+      - name: Build kongctl
+        if: steps.plan.outputs.test == 'true'
+        id: build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          make build | tee "${RUNNER_TEMP}/build.log"
+          status=${PIPESTATUS[0]}
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit ${status}
+
+      - name: Run unit tests
+        if: steps.plan.outputs.test == 'true'
+        id: unit
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          make test | tee "${RUNNER_TEMP}/unit.log"
+          status=${PIPESTATUS[0]}
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit ${status}
+
+      - name: Run e2e tests
+        if: steps.plan.outputs.test == 'true'
+        id: e2e
+        continue-on-error: true
+        shell: bash
+        env:
+          KONGCTL_E2E_KONNECT_PAT: ${{ secrets.KONGCTL_E2E_KONNECT_PAT }}
+        run: |
+          if [ -z "${KONGCTL_E2E_KONNECT_PAT}" ]; then
+            echo "::error::KONGCTL_E2E_KONNECT_PAT secret is required for e2e tests."
+            echo "status=1" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          set -o pipefail
+          make test-e2e | tee "${RUNNER_TEMP}/e2e.log"
+          status=${PIPESTATUS[0]}
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          exit ${status}
+
+      - name: Upload e2e artifacts
+        if: steps.plan.outputs.test == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kongctl-e2e-${{ steps.release.outputs.tag }}
+          path: ${{ env.KONGCTL_E2E_ARTIFACTS_DIR }}
+          if-no-files-found: ignore
+
+      - name: Prepare PR body
+        if: steps.diff.outputs.changed == 'true'
+        id: summary
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_NAME: ${{ steps.release.outputs.name }}
+          RELEASE_URL: ${{ steps.release.outputs.release_url }}
+          PUBLISHED_AT: ${{ steps.release.outputs.published_at }}
+          BUILD_STATUS: ${{ steps.build.outputs.status }}
+          UNIT_STATUS: ${{ steps.unit.outputs.status }}
+          E2E_STATUS: ${{ steps.e2e.outputs.status }}
+        run: |
+          status_line() {
+            local label=$1
+            local value=$2
+            if [ -z "${value}" ]; then
+              echo "- ${label}: ⚪️ not run"
+            elif [ "${value}" = "0" ]; then
+              echo "- ${label}: ✅ passed"
+            else
+              echo "- ${label}: ❌ failed (exit ${value})"
+            fi
+          }
+
+          {
+            echo "## Preview: sdk-konnect-go ${TAG}"
+            if [ -n "${RELEASE_URL}" ]; then
+              echo "- Release: [${RELEASE_NAME}](${RELEASE_URL})"
+            else
+              echo "- Release: ${RELEASE_NAME}"
+            fi
+            if [ -n "${PUBLISHED_AT}" ]; then
+              echo "- Published: ${PUBLISHED_AT}"
+            fi
+            echo ""
+            echo "### Test summary"
+            status_line "Build" "${BUILD_STATUS}"
+            status_line "Unit tests" "${UNIT_STATUS}"
+            status_line "E2E tests" "${E2E_STATUS}"
+            echo ""
+            echo "### Notes"
+            echo "- E2E artifacts are attached to this workflow run."
+          } > pr-body.md
+
+          echo "body_path=pr-body.md" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update preview PR
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: automation/sdk-preview/${{ steps.release.outputs.tag }}
+          commit-message: chore: preview sdk-konnect-go ${{ steps.release.outputs.tag }}
+          title: chore: preview sdk-konnect-go ${{ steps.release.outputs.tag }}
+          body-path: ${{ steps.summary.outputs.body_path }}
+          labels: automation,sdk-preview
+          delete-branch: false
+
+      - name: Fail workflow on test failures
+        if: steps.plan.outputs.test == 'true' && ((steps.build.outputs.status != '' && steps.build.outputs.status != '0') || (steps.unit.outputs.status != '' && steps.unit.outputs.status != '0') || (steps.e2e.outputs.status != '' && steps.e2e.outputs.status != '0'))
+        run: |
+          echo "::error::One or more preview checks failed."
+          exit 1
