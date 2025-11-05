@@ -127,7 +127,7 @@ The harness keeps artifacts by default for easy triage and CI upload.
 
 ### SDK prerelease preview automation
 
-- Workflow `SDK Prerelease Preview` runs on a 30-minute schedule (and manually) to fetch the latest prerelease tag from `Kong/sdk-konnect-go`, bump `go.mod`, and execute `make build`, `make test`, and `make test-e2e`.
+- Workflow `SDK Prerelease Preview` runs daily (and on manual dispatch) to fetch the latest prerelease tag from `Kong/sdk-konnect-go`, bump `go.mod`, and execute `make build`, `make test`, and `make test-e2e`.
 - Requires repository secret `KONGCTL_E2E_KONNECT_PAT`; the run fails early if the secret is missing.
 - The workflow publishes artifacts from the harness and opens/updates a PR under `automation/sdk-preview/<tag>` when dependency changes are detected.
 - Use the **Run workflow** button to target a specific prerelease tag or to force a rerun even when a preview PR already exists.

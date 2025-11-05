@@ -2,7 +2,7 @@ name: SDK Prerelease Preview
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '0 9 * * *'
   workflow_dispatch:
     inputs:
       tag:
@@ -35,8 +35,8 @@ jobs:
             const sdkOwner = 'Kong';
             const sdkRepo = 'sdk-konnect-go';
 
-            const tagInput = (core.getInput('tag') || '').trim();
-            const forceInput = (core.getInput('force') || '').toLowerCase() === 'true';
+            const tagInput = (context.payload.inputs?.tag || '').trim();
+            const forceInput = (context.payload.inputs?.force || '').toLowerCase() === 'true';
             const eventName = context.eventName;
 
             let release;
@@ -288,7 +288,7 @@ jobs:
           delete-branch: false
 
       - name: Fail workflow on test failures
-        if: steps.plan.outputs.test == 'true' && (steps.build.outputs.status != '0' || steps.unit.outputs.status != '0' || steps.e2e.outputs.status != '0')
+        if: steps.plan.outputs.test == 'true' && ((steps.build.outputs.status != '' && steps.build.outputs.status != '0') || (steps.unit.outputs.status != '' && steps.unit.outputs.status != '0') || (steps.e2e.outputs.status != '' && steps.e2e.outputs.status != '0'))
         run: |
           echo "::error::One or more preview checks failed."
           exit 1
