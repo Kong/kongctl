@@ -278,7 +278,7 @@ jobs:
 
       - name: Create or update preview PR
         if: steps.diff.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6
+        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6.1.0
         with:
           branch: automation/sdk-preview/${{ steps.release.outputs.tag }}
           commit-message: chore: preview sdk-konnect-go ${{ steps.release.outputs.tag }}
