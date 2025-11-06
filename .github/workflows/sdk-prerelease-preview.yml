@@ -166,7 +166,7 @@ jobs:
           PR_BODY_PATH="${RUNNER_TEMP}/pr-body.md"
 
           {
-            echo "## Preview: sdk-konnect-go ${TAG}"
+            echo "## Pre-release: sdk-konnect-go ${TAG}"
             if [ -n "${RELEASE_URL}" ]; then
               echo "- Release: [${RELEASE_NAME}](${RELEASE_URL})"
             else
