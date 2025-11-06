@@ -1,13 +1,14 @@
 # Kong Konnect Resource Support Matrix
-**Report Date:** November 6, 2025
-**Kongctl Version:** Tech Preview
-**SDK Version:** sdk-konnect-go
+
+- **Report Date:** November 6, 2025
+- **Kongctl Version:** Tech Preview
+- **SDK Version:** `sdk-konnect-go (latest)`
 
 ## Executive Summary
 
 This report provides a comprehensive analysis of resource support across the Kong
-Konnect platform and the kongctl CLI tool. It catalogs all resources available
-in the Kong Konnect SaaS platform and maps their support status in kongctl's
+Konnect platform and the `kongctl` CLI tool. It catalogs all resources available
+in the Kong Konnect SaaS platform and maps their support status in `kongctl`'s
 declarative configuration and imperative command interfaces.
 
 ### Key Findings
