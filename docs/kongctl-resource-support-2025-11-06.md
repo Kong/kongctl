@@ -73,11 +73,13 @@ provide event streaming capabilities built on Apache Kafka.
 
 ### Legend
 
-- ✅ **Full Support**: Complete CRUD operations available
-- 🟡 **Parent**: Declarative parent resource (supports kongctl metadata)
-- 🔵 **Child**: Declarative child resource (nested under parent)
-- 📖 **Read-Only**: Get/list operations only
+- ✅ **Supported**: Resource is supported by kongctl
 - ❌ **Not Supported**: No kongctl support currently
+
+**Notes:**
+- Declarative support includes both parent resources (with kongctl metadata) and child resources (nested under parent)
+- Imperative support is read-only (get/list operations only)
+- See the Notes column for specific command syntax and details
 
 ---
 
@@ -85,17 +87,17 @@ provide event streaming capabilities built on Apache Kafka.
 
 | Resource Name | Kong Konnect SDK | Declarative | Imperative | Notes |
 |--------------|------------------|-------------|------------|-------|
-| api | ✅ | 🟡 Parent | 📖 Get/List | Full declarative support as parent resource |
-| apiversion | ✅ | 🔵 Child | 📖 Get/List | Via `kongctl get api versions --api-id <id>` |
-| apipublication | ✅ | 🔵 Child | 📖 Get/List | Via `kongctl get api publications --api-id <id>` |
-| apiimplementation | ✅ | 🔵 Child | 📖 Get/List | Via `kongctl get api implementations --api-id <id>` |
-| apidocumentation | ✅ | 🔵 Child | 📖 Get/List | Via `kongctl get api documents --api-id <id>` |
+| api | ✅ | ✅ Parent | ✅ Get/List | Full declarative support as parent resource |
+| apiversion | ✅ | ✅ Child | ✅ Get/List | Via `kongctl get api versions --api-id <id>` |
+| apipublication | ✅ | ✅ Child | ✅ Get/List | Via `kongctl get api publications --api-id <id>` |
+| apiimplementation | ✅ | ✅ Child | ✅ Get/List | Via `kongctl get api implementations --api-id <id>` |
+| apidocumentation | ✅ | ✅ Child | ✅ Get/List | Via `kongctl get api documents --api-id <id>` |
 | apispecification | ✅ | ❌ | ❌ | API spec content managed via apiversion |
-| apiattributes | ✅ | ❌ | 📖 Get Only | Via `kongctl get api attributes --api-id <id>` |
+| apiattributes | ✅ | ❌ | ✅ Get Only | Via `kongctl get api attributes --api-id <id>` |
 | apikeys | ✅ | ❌ | ❌ | API key credentials for consumers |
 | applicationregistrations | ✅ | ❌ | ❌ | Developer application registrations |
 | applications | ✅ | ❌ | ❌ | Developer applications |
-| appauthstrategies | ✅ | 🟡 Parent | 📖 Get/List | Declarative uses `application_auth_strategy` |
+| appauthstrategies | ✅ | ✅ Parent | ✅ Get/List | Declarative uses `application_auth_strategy` |
 
 ---
 
@@ -103,11 +105,11 @@ provide event streaming capabilities built on Apache Kafka.
 
 | Resource Name | Kong Konnect SDK | Declarative | Imperative | Notes |
 |--------------|------------------|-------------|------------|-------|
-| controlplanes | ✅ | 🟡 Parent | 📖 Get/List | Via `kongctl get gateway control-planes` |
-| controlplanegroups | ✅ | 🟡 Parent | 📖 Get/List | Managed via cluster_type in control_planes |
-| services | ✅ | 🔵 Child | 📖 Get/List | Via `kongctl get gateway services --control-plane <id>` |
-| routes | ✅ | ❌ | 📖 Get/List | Via `kongctl get gateway routes --control-plane <id>` |
-| consumers | ✅ | ❌ | 📖 Get/List | Via `kongctl get gateway consumers --control-plane <id>` |
+| controlplanes | ✅ | ✅ Parent | ✅ Get/List | Via `kongctl get gateway control-planes` |
+| controlplanegroups | ✅ | ✅ Parent | ✅ Get/List | Managed via cluster_type in control_planes |
+| services | ✅ | ✅ Child | ✅ Get/List | Via `kongctl get gateway services --control-plane <id>` |
+| routes | ✅ | ❌ | ✅ Get/List | Via `kongctl get gateway routes --control-plane <id>` |
+| consumers | ✅ | ❌ | ✅ Get/List | Via `kongctl get gateway consumers --control-plane <id>` |
 | plugins | ✅ | ❌ | ❌ | |
 | upstreams | ✅ | ❌ | ❌ | |
 | targets | ✅ | ❌ | ❌ | |
@@ -128,19 +130,19 @@ provide event streaming capabilities built on Apache Kafka.
 
 | Resource Name | Kong Konnect SDK | Declarative | Imperative | Notes |
 |--------------|------------------|-------------|------------|-------|
-| portals | ✅ | 🟡 Parent | 📖 Get/List | Full declarative support as parent resource |
-| pages | ✅ | 🔵 Child | 📖 Get/List | Via `kongctl get portal pages --portal-id <id>` |
-| snippets | ✅ | 🔵 Child | 📖 Get/List | Via `kongctl get portal snippets --portal-id <id>` |
-| portalcustomization | ✅ | 🔵 Child | ❌ | Nested under portals |
-| portalcustomdomains | ✅ | 🔵 Child | ❌ | Nested under portals, special handling required |
-| portaldevelopers | ✅ | ❌ | 📖 Get/List | Via `kongctl get portal developers --portal-id <id>` |
-| portalteams | ✅ | ❌ | 📖 Get/List | Via `kongctl get portal teams --portal-id <id>` |
+| portals | ✅ | ✅ Parent | ✅ Get/List | Full declarative support as parent resource |
+| pages | ✅ | ✅ Child | ✅ Get/List | Via `kongctl get portal pages --portal-id <id>` |
+| snippets | ✅ | ✅ Child | ✅ Get/List | Via `kongctl get portal snippets --portal-id <id>` |
+| portalcustomization | ✅ | ✅ Child | ❌ | Nested under portals |
+| portalcustomdomains | ✅ | ✅ Child | ❌ | Nested under portals, special handling required |
+| portaldevelopers | ✅ | ❌ | ✅ Get/List | Via `kongctl get portal developers --portal-id <id>` |
+| portalteams | ✅ | ❌ | ✅ Get/List | Via `kongctl get portal teams --portal-id <id>` |
 | portalteammembership | ✅ | ❌ | ❌ | |
 | portalteamroles | ✅ | ❌ | ❌ | |
 | portalauditlogs | ✅ | ❌ | ❌ | Read-only audit logs |
 | portalauthsettings | ✅ | ❌ | ❌ | |
 | portalemails | ✅ | ❌ | ❌ | |
-| applications | ✅ | ❌ | 📖 Get/List | Via `kongctl get portal applications --portal-id <id>` |
+| applications | ✅ | ❌ | ✅ Get/List | Via `kongctl get portal applications --portal-id <id>` |
 | assets | ✅ | ❌ | ❌ | Portal asset management |
 
 ---
@@ -149,7 +151,7 @@ provide event streaming capabilities built on Apache Kafka.
 
 | Resource Name | Kong Konnect SDK | Declarative | Imperative | Notes |
 |--------------|------------------|-------------|------------|-------|
-| me | ✅ | ❌ | 📖 Get Only | Current user information |
+| me | ✅ | ❌ | ✅ Get Only | Current user information |
 | users | ✅ | ❌ | ❌ | Organization users |
 | teams | ✅ | ❌ | ❌ | |
 | teammembership | ✅ | ❌ | ❌ | |
@@ -194,7 +196,7 @@ provide event streaming capabilities built on Apache Kafka.
 
 | Resource Name | Kong Konnect SDK | Declarative | Imperative | Notes |
 |--------------|------------------|-------------|------------|-------|
-| organization | ✅ (via me SDK) | ❌ | 📖 Get Only | Current organization info |
+| organization | ✅ (via me SDK) | ❌ | ✅ Get Only | Current organization info |
 | notifications | ✅ | ❌ | ❌ | Platform notifications |
 | dcrproviders | ✅ | ❌ | ❌ | Dynamic client registration |
 | degraphqlroutes | ✅ | ❌ | ❌ | GraphQL route configuration |
