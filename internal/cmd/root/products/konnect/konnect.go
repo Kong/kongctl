@@ -14,6 +14,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/me"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/navigator"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/portal"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -212,6 +213,13 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return nil, e
 	}
 	cmd.AddCommand(mc)
+
+	// Add organization command
+	oc, e := organization.NewOrganizationCmd(verb, addFlags, preRunE)
+	if e != nil {
+		return nil, e
+	}
+	cmd.AddCommand(oc)
 
 	if verb == verbs.Get {
 		cmd.RunE = func(c *cobra.Command, args []string) error {
