@@ -171,6 +171,9 @@ is the configuration path in uppercase. For example, to set the output format fo
 KONGCTL_DEFAULT_OUTPUT=yaml kongctl get apis 
 ```
 
+To clear saved Konnect credentials for a profile, run `kongctl logout [--profile <name>]`. This removes the local device
+flow token file so that subsequent commands prompt you to authenticate again with `kongctl login`.
+
 ### Authentication Options
 
 `kongctl` makes requests to the Konnect API using API tokens. There are two primary methods for authentication.
