@@ -21,6 +21,9 @@ jobs:
   preview:
     name: Build and test against prereleases
     runs-on: ubuntu-latest
+    concurrency:
+      group: konnect-e2e
+      cancel-in-progress: false
     steps:
       - name: Resolve latest prerelease
         id: release
