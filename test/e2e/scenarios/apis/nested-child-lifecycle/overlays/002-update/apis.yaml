@@ -1,0 +1,103 @@
+_defaults:
+  kongctl:
+    namespace: apis-nested
+
+apis:
+  - ref: api-nested
+    name: "API Nested"
+    description: "API demonstrating nested child updates"
+    version: "2.0.0"
+    labels:
+      owner: "platform-eng"
+      lifecycle: "stage"
+    attributes:
+      domains:
+        - "web"
+        - "mobile"
+      environments:
+        - "stage"
+        - "prod"
+    versions:
+      - ref: api-nested-v1
+        version: "1.0.0"
+        publish_status: "unpublished"
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: API Nested
+              version: 1.0.0
+            paths: {}
+      - ref: api-nested-v2
+        version: "2.0.0"
+        publish_status: "published"
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: API Nested
+              version: 2.0.0
+            paths: {}
+    publications:
+      - ref: api-nested-pub1
+        portal_id: !ref portal-nested#id
+        visibility: "public"
+        auth_strategy_ids:
+          - !ref auth-strategy-nested#id
+        auto_approve_registrations: true
+    implementations:
+      - ref: api-nested-impl1
+        implementation_url: "https://api.example.com/v2"
+        service:
+          control_plane_id: !ref control-plane-nested#id
+          id: !ref gateway-service-nested#id
+    documents:
+      - ref: api-nested-doc-root
+        title: "Root Document"
+        status: "published"
+        content: |
+          # Root Documentation
+          Updated overview for version 2.0.0
+        children:
+          - ref: api-nested-doc-child
+            title: "Child Document"
+            status: "published"
+            content: |
+              ## Child Section
+              Updated details for version 2.0.0
+          - ref: api-nested-doc-new
+            title: "New Document"
+            status: "unpublished"
+            content: |
+              ## New Section
+              Introduced in version 2.0.0
+
+portals:
+  - ref: portal-nested
+    name: "Portal Nested"
+    display_name: "Portal Nested"
+    description: "Portal used for nested API publications"
+
+application_auth_strategies:
+  - ref: auth-strategy-nested
+    name: "auth-strategy-nested"
+    display_name: "Auth Strategy Nested"
+    strategy_type: key_auth
+    configs:
+      key_auth:
+        key_names:
+          - "x-api-key"
+
+control_planes:
+  - ref: control-plane-nested
+    _external:
+      selector:
+        matchFields:
+          name: "nested-control-plane"
+    gateway_services:
+      - ref: gateway-service-nested
+        _external:
+          selector:
+            matchFields:
+              name: "nested-gateway-service"

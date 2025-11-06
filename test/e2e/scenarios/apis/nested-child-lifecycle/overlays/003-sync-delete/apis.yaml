@@ -1,0 +1,8 @@
+_defaults:
+  kongctl:
+    namespace: apis-nested
+
+apis: []
+portals: []
+application_auth_strategies: []
+control_planes: []
