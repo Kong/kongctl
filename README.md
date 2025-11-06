@@ -94,7 +94,8 @@ Follow the instructions given in the terminal to complete the login process.
 You can verify that `kongctl` is authenticated and can access information on your Konnect account by running:
 
 ```shell
-kongctl get me 
+kongctl get me
+kongctl get organization
 ```
 
 ### 4. Switch Konnect Regions
