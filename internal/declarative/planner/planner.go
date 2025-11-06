@@ -213,8 +213,10 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 			}
 		}
 	}
-
 	// Resolve dependencies and calculate execution order
+	// Inject additional dependency constraints that span resource planners
+	adjustAuthStrategyDeleteDependencies(basePlan.Changes)
+
 	executionOrder, err := p.depResolver.ResolveDependencies(basePlan.Changes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve dependencies: %w", err)
@@ -236,6 +238,128 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	}
 
 	return basePlan, nil
+}
+
+// adjustAuthStrategyDeleteDependencies ensures auth strategy DELETE changes execute only
+// after their dependent API and API publication DELETE operations. Without this wiring,
+// the planner can schedule auth strategy removals before the dependent resources are
+// cleaned up, which triggers 409 conflicts from Konnect.
+func adjustAuthStrategyDeleteDependencies(changes []PlannedChange) {
+	var apiDeletes []*PlannedChange
+	var publicationDeletes []*PlannedChange
+
+	for i := range changes {
+		change := &changes[i]
+		if change.Action != ActionDelete {
+			continue
+		}
+
+		switch change.ResourceType {
+		case "api":
+			apiDeletes = append(apiDeletes, change)
+		case "api_publication":
+			publicationDeletes = append(publicationDeletes, change)
+		}
+	}
+
+	for i := range changes {
+		change := &changes[i]
+		if change.Action != ActionDelete || change.ResourceType != "application_auth_strategy" {
+			continue
+		}
+
+		for _, dep := range apiDeletes {
+			if shouldLinkAuthStrategy(change, dep) {
+				change.DependsOn = appendDependsOn(change.DependsOn, dep.ID)
+			}
+		}
+
+		for _, dep := range publicationDeletes {
+			if shouldLinkAuthStrategy(change, dep) {
+				change.DependsOn = appendDependsOn(change.DependsOn, dep.ID)
+			}
+		}
+	}
+}
+
+func appendDependsOn(existing []string, id string) []string {
+	for _, dep := range existing {
+		if dep == id {
+			return existing
+		}
+	}
+	return append(existing, id)
+}
+
+// shouldLinkAuthStrategy determines if the auth strategy DELETE should depend on the
+// provided change. During sync planning some legacy resources may surface without a
+// namespace (empty string). In that case we conservatively treat the namespace as a
+// wildcard so that dependencies are not skipped.
+func shouldLinkAuthStrategy(authDelete, dep *PlannedChange) bool {
+	if authDelete.Namespace != "" && dep.Namespace != "" {
+		return authDelete.Namespace == dep.Namespace
+	}
+
+	if dep.ResourceType == "api_publication" {
+		return publicationReferencesAuthStrategy(dep, authDelete)
+	}
+
+	// Fallback: if we only have one namespace provided (or both empty), fall back to equality
+	return authDelete.Namespace == dep.Namespace
+}
+
+func publicationReferencesAuthStrategy(publication, authDelete *PlannedChange) bool {
+	if len(publication.Fields) == 0 {
+		return false
+	}
+
+	rawIDs, ok := publication.Fields["auth_strategy_ids"]
+	if !ok {
+		return false
+	}
+
+	ids, ok := asStringSlice(rawIDs)
+	if !ok {
+		return false
+	}
+
+	if authDelete.ResourceID != "" && containsString(ids, authDelete.ResourceID) {
+		return true
+	}
+
+	if authDelete.ResourceRef != "" && containsString(ids, authDelete.ResourceRef) {
+		return true
+	}
+
+	return false
+}
+
+func asStringSlice(value any) ([]string, bool) {
+	switch v := value.(type) {
+	case []string:
+		return v, true
+	case []any:
+		result := make([]string, len(v))
+		for i, item := range v {
+			str, ok := item.(string)
+			if !ok {
+				return nil, false
+			}
+			result[i] = str
+		}
+		return result, true
+	default:
+		return nil, false
+	}
+}
+
+func containsString(values []string, target string) bool {
+	for _, v := range values {
+		if v == target {
+			return true
+		}
+	}
+	return false
 }
 
 // nextChangeID generates temporary change IDs during planning phase

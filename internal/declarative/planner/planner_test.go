@@ -2,8 +2,10 @@ package planner
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"testing"
+	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
@@ -12,6 +14,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // MockStateClient for testing
@@ -56,6 +59,193 @@ func newListPortal(id, name string, labels map[string]string) kkComps.ListPortal
 		Name:   name,
 		Labels: labels,
 	}
+}
+
+func findChangeIndex(order []string, id string) int {
+	for idx, candidate := range order {
+		if candidate == id {
+			return idx
+		}
+	}
+	return -1
+}
+
+type stubAPIPublicationAPI struct {
+	response *kkOps.ListAPIPublicationsResponse
+}
+
+func (s *stubAPIPublicationAPI) PublishAPIToPortal(
+	_ context.Context,
+	_ kkOps.PublishAPIToPortalRequest,
+	_ ...kkOps.Option,
+) (*kkOps.PublishAPIToPortalResponse, error) {
+	return nil, fmt.Errorf("PublishAPIToPortal not implemented")
+}
+
+func (s *stubAPIPublicationAPI) DeletePublication(
+	_ context.Context,
+	_ string,
+	_ string,
+	_ ...kkOps.Option,
+) (*kkOps.DeletePublicationResponse, error) {
+	return nil, fmt.Errorf("DeletePublication not implemented")
+}
+
+func (s *stubAPIPublicationAPI) ListAPIPublications(
+	_ context.Context,
+	_ kkOps.ListAPIPublicationsRequest,
+	_ ...kkOps.Option,
+) (*kkOps.ListAPIPublicationsResponse, error) {
+	if s.response != nil {
+		return s.response, nil
+	}
+	return &kkOps.ListAPIPublicationsResponse{
+		ListAPIPublicationResponse: &kkComps.ListAPIPublicationResponse{
+			Data: []kkComps.APIPublicationListItem{},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{Total: 0},
+			},
+		},
+	}, nil
+}
+
+type stubAPIVersionAPI struct{}
+
+func (s *stubAPIVersionAPI) CreateAPIVersion(
+	_ context.Context,
+	_ string,
+	_ kkComps.CreateAPIVersionRequest,
+	_ ...kkOps.Option,
+) (*kkOps.CreateAPIVersionResponse, error) {
+	return nil, fmt.Errorf("CreateAPIVersion not implemented")
+}
+
+func (s *stubAPIVersionAPI) ListAPIVersions(
+	_ context.Context,
+	_ kkOps.ListAPIVersionsRequest,
+	_ ...kkOps.Option,
+) (*kkOps.ListAPIVersionsResponse, error) {
+	return &kkOps.ListAPIVersionsResponse{
+		ListAPIVersionResponse: &kkComps.ListAPIVersionResponse{
+			Data: []kkComps.ListAPIVersionResponseAPIVersionSummary{},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{Total: 0},
+			},
+		},
+	}, nil
+}
+
+func (s *stubAPIVersionAPI) UpdateAPIVersion(
+	_ context.Context,
+	_ kkOps.UpdateAPIVersionRequest,
+	_ ...kkOps.Option,
+) (*kkOps.UpdateAPIVersionResponse, error) {
+	return nil, fmt.Errorf("UpdateAPIVersion not implemented")
+}
+
+func (s *stubAPIVersionAPI) DeleteAPIVersion(
+	_ context.Context,
+	_ string,
+	_ string,
+	_ ...kkOps.Option,
+) (*kkOps.DeleteAPIVersionResponse, error) {
+	return nil, fmt.Errorf("DeleteAPIVersion not implemented")
+}
+
+func (s *stubAPIVersionAPI) FetchAPIVersion(
+	_ context.Context,
+	_ string,
+	_ string,
+	_ ...kkOps.Option,
+) (*kkOps.FetchAPIVersionResponse, error) {
+	return nil, fmt.Errorf("FetchAPIVersion not implemented")
+}
+
+type stubAPIImplementationAPI struct{}
+
+func (s *stubAPIImplementationAPI) ListAPIImplementations(
+	_ context.Context,
+	_ kkOps.ListAPIImplementationsRequest,
+	_ ...kkOps.Option,
+) (*kkOps.ListAPIImplementationsResponse, error) {
+	return &kkOps.ListAPIImplementationsResponse{
+		ListAPIImplementationsResponse: &kkComps.ListAPIImplementationsResponse{
+			Data: []kkComps.APIImplementationListItem{},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{Total: 0},
+			},
+		},
+	}, nil
+}
+
+func (s *stubAPIImplementationAPI) CreateAPIImplementation(
+	_ context.Context,
+	_ string,
+	_ kkComps.APIImplementation,
+	_ ...kkOps.Option,
+) (*kkOps.CreateAPIImplementationResponse, error) {
+	return nil, fmt.Errorf("CreateAPIImplementation not implemented")
+}
+
+func (s *stubAPIImplementationAPI) DeleteAPIImplementation(
+	_ context.Context,
+	_ string,
+	_ string,
+	_ ...kkOps.Option,
+) (*kkOps.DeleteAPIImplementationResponse, error) {
+	return nil, fmt.Errorf("DeleteAPIImplementation not implemented")
+}
+
+type stubAPIDocumentAPI struct{}
+
+func (s *stubAPIDocumentAPI) CreateAPIDocument(
+	_ context.Context,
+	_ string,
+	_ kkComps.CreateAPIDocumentRequest,
+	_ ...kkOps.Option,
+) (*kkOps.CreateAPIDocumentResponse, error) {
+	return nil, fmt.Errorf("CreateAPIDocument not implemented")
+}
+
+func (s *stubAPIDocumentAPI) UpdateAPIDocument(
+	_ context.Context,
+	_ string,
+	_ string,
+	_ kkComps.APIDocument,
+	_ ...kkOps.Option,
+) (*kkOps.UpdateAPIDocumentResponse, error) {
+	return nil, fmt.Errorf("UpdateAPIDocument not implemented")
+}
+
+func (s *stubAPIDocumentAPI) DeleteAPIDocument(
+	_ context.Context,
+	_ string,
+	_ string,
+	_ ...kkOps.Option,
+) (*kkOps.DeleteAPIDocumentResponse, error) {
+	return nil, fmt.Errorf("DeleteAPIDocument not implemented")
+}
+
+func (s *stubAPIDocumentAPI) ListAPIDocuments(
+	_ context.Context,
+	_ string,
+	_ *kkComps.APIDocumentFilterParameters,
+	_ ...kkOps.Option,
+) (*kkOps.ListAPIDocumentsResponse, error) {
+	return &kkOps.ListAPIDocumentsResponse{
+		ListAPIDocumentResponse: &kkComps.ListAPIDocumentResponse{
+			Data: []kkComps.APIDocumentSummaryWithChildren{},
+		},
+	}, nil
+}
+
+func (s *stubAPIDocumentAPI) FetchAPIDocument(
+	_ context.Context,
+	_ string,
+	_ string,
+	_ ...kkOps.Option,
+) (*kkOps.FetchAPIDocumentResponse, error) {
+	return nil, fmt.Errorf("FetchAPIDocument not implemented")
 }
 
 func TestGeneratePlan_CreatePortal(t *testing.T) {
@@ -986,6 +1176,157 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 	mockPortalAPI.AssertExpectations(t)
 	mockAppAuthAPI.AssertExpectations(t)
 	mockAPIAPI.AssertExpectations(t)
+}
+
+func TestGeneratePlan_SyncDeletesRespectAuthStrategyDependencies(t *testing.T) {
+	ctx := context.Background()
+	mockPortalAPI := new(MockPortalAPI)
+	mockAPIAPI := new(MockAPIAPI)
+	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
+
+	now := time.Now()
+	apiID := "api-123"
+	apiName := "nested-api"
+	authStrategyID := "auth-456"
+	authStrategyName := "auth-strategy-nested"
+	portalID := "portal-789"
+
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.ListPortalsResponsePortal{},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{Total: 0},
+			},
+		},
+	}, nil)
+
+	mockAPIAPI.On("ListApis", mock.Anything, mock.Anything).Return(&kkOps.ListApisResponse{
+		ListAPIResponse: &kkComps.ListAPIResponse{
+			Data: []kkComps.APIResponseSchema{
+				{
+					ID:   apiID,
+					Name: apiName,
+					Labels: map[string]string{
+						labels.NamespaceKey: "default",
+					},
+					CreatedAt: now,
+					UpdatedAt: now,
+				},
+			},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{Total: 1},
+			},
+		},
+	}, nil)
+
+	authStrategyResp := &kkComps.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse{
+		ID:          authStrategyID,
+		Name:        authStrategyName,
+		DisplayName: "Nested Auth Strategy",
+		StrategyType: kkComps.
+			AppAuthStrategyKeyAuthResponseAppAuthStrategyStrategyTypeKeyAuth,
+		Configs: kkComps.AppAuthStrategyKeyAuthResponseAppAuthStrategyConfigs{
+			KeyAuth: kkComps.AppAuthStrategyConfigKeyAuth{
+				KeyNames: []string{"api-key"},
+			},
+		},
+		Active: false,
+		Labels: map[string]string{
+			labels.NamespaceKey: "default",
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	mockAppAuthAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).
+		Return(&kkOps.ListAppAuthStrategiesResponse{
+			ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+				Data: []kkComps.AppAuthStrategy{
+					{
+						AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse: authStrategyResp,
+					},
+				},
+				Meta: kkComps.PaginatedMeta{
+					Page: kkComps.PageMeta{Total: 1},
+				},
+			},
+		}, nil)
+
+	publicationResponse := &kkOps.ListAPIPublicationsResponse{
+		ListAPIPublicationResponse: &kkComps.ListAPIPublicationResponse{
+			Data: []kkComps.APIPublicationListItem{
+				{
+					APIID:                    apiID,
+					PortalID:                 portalID,
+					AuthStrategyIds:          []string{authStrategyID},
+					CreatedAt:                now,
+					UpdatedAt:                now,
+					Visibility:               nil,
+					AutoApproveRegistrations: false,
+				},
+			},
+			Meta: kkComps.PaginatedMeta{
+				Page: kkComps.PageMeta{Total: 1},
+			},
+		},
+	}
+
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI:            mockPortalAPI,
+		APIAPI:               mockAPIAPI,
+		AppAuthAPI:           mockAppAuthAPI,
+		APIPublicationAPI:    &stubAPIPublicationAPI{response: publicationResponse},
+		APIVersionAPI:        &stubAPIVersionAPI{},
+		APIImplementationAPI: &stubAPIImplementationAPI{},
+		APIDocumentAPI:       &stubAPIDocumentAPI{},
+	})
+
+	planner := NewPlanner(client, slog.Default())
+
+	opts := Options{Mode: PlanModeSync}
+	plan, err := planner.GeneratePlan(ctx, &resources.ResourceSet{}, opts)
+	require.NoError(t, err)
+
+	var (
+		authDelete        *PlannedChange
+		apiDelete         *PlannedChange
+		publicationDelete *PlannedChange
+	)
+
+	for i := range plan.Changes {
+		change := &plan.Changes[i]
+		if change.Action != ActionDelete {
+			continue
+		}
+		switch change.ResourceType {
+		case "application_auth_strategy":
+			authDelete = change
+		case "api":
+			apiDelete = change
+		case "api_publication":
+			publicationDelete = change
+		}
+	}
+
+	require.NotNil(t, apiDelete, "expected api delete change")
+	require.NotNil(t, authDelete, "expected auth strategy delete change")
+
+	apiIndex := findChangeIndex(plan.ExecutionOrder, apiDelete.ID)
+	authIndex := findChangeIndex(plan.ExecutionOrder, authDelete.ID)
+
+	require.NotEqual(t, -1, apiIndex, "api delete missing from execution order")
+	require.NotEqual(t, -1, authIndex, "auth strategy delete missing from execution order")
+	require.Less(t, apiIndex, authIndex, "api delete should precede auth strategy delete")
+
+	if publicationDelete != nil {
+		publicationIndex := findChangeIndex(plan.ExecutionOrder, publicationDelete.ID)
+		require.NotEqual(t, -1, publicationIndex, "publication delete missing from execution order")
+		require.Less(t, publicationIndex, apiIndex, "publication delete should precede api delete")
+	}
+
+	mockPortalAPI.AssertExpectations(t)
+	mockAPIAPI.AssertExpectations(t)
+	mockAppAuthAPI.AssertExpectations(t)
 }
 
 // Test helpers
