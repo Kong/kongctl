@@ -21,8 +21,6 @@ jobs:
   preview:
     name: Build and test against prereleases
     runs-on: ubuntu-latest
-    env:
-      KONGCTL_E2E_ARTIFACTS_DIR: ${{ runner.temp }}/kongctl-e2e
     steps:
       - name: Resolve latest prerelease
         id: release
@@ -173,10 +171,11 @@ jobs:
             echo "test=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Install workflow dependencies
+      - name: Configure workflow artifacts
         if: steps.plan.outputs.test == 'true'
         run: |
-          mkdir -p "${KONGCTL_E2E_ARTIFACTS_DIR}"
+          echo "KONGCTL_E2E_ARTIFACTS_DIR=${RUNNER_TEMP}/kongctl-e2e" >> "$GITHUB_ENV"
+          mkdir -p "${RUNNER_TEMP}/kongctl-e2e"
 
       - name: Build kongctl
         if: steps.plan.outputs.test == 'true'
