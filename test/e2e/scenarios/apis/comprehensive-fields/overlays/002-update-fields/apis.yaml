@@ -1,0 +1,19 @@
+apis:
+  - ref: api-top-level
+    name: "API Top Level"
+    description: "Updated description to validate API updates across all top-level fields"
+    version: "1.1.0"
+    slug: "api-top-level-v1-1"
+    labels:
+      owner: "platform-eng"
+      tier: "gold"
+    attributes:
+      domains:
+        - "web"
+        - "mobile"
+      environments:
+        - "staging"
+        - "prod"
+    kongctl:
+      namespace: "apis-comprehensive"
+      protected: false

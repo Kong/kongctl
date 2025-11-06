@@ -29,6 +29,15 @@ func Run(t *testing.T, scenarioPath string) error {
 	harness.RequireBinary(t)
 	_ = harness.RequirePAT(t, "e2e")
 
+	if s.Test.Enabled != nil && !*s.Test.Enabled {
+		reason := strings.TrimSpace(s.Test.Info)
+		if reason == "" {
+			reason = "scenario disabled via scenario.yaml"
+		}
+		t.Skip(reason)
+		return nil
+	}
+
 	cli, err := harness.NewCLIT(t)
 	if err != nil {
 		return fmt.Errorf("harness init failed: %w", err)
@@ -112,7 +121,10 @@ func Run(t *testing.T, scenarioPath string) error {
 				if cmd.ExpectFail != nil {
 					return fmt.Errorf("command %s: expectFailure not supported for create commands", cmdName)
 				}
-				attempts, interval := effectiveRetry(s.Defaults.Retry, st.Retry, cmd.Retry, Retry{})
+				retryCfg := effectiveRetry(s.Defaults.Retry, st.Retry, cmd.Retry, Retry{})
+				backoffCfg := harness.NormalizeBackoffConfig(backoffConfigFromRetry(retryCfg))
+				attempts := backoffCfg.Attempts
+				backoff := harness.BuildBackoffSchedule(backoffCfg)
 				var (
 					lastErr error
 					result  harness.CreateResourceResult
@@ -150,7 +162,20 @@ func Run(t *testing.T, scenarioPath string) error {
 						break
 					}
 					if atry+1 < attempts {
-						time.Sleep(interval)
+						detail := createFailureDetail(result, lastErr)
+						if !harness.ShouldRetry(lastErr, detail, retryCfg.Only, retryCfg.Never) {
+							break
+						}
+						delay := harness.BackoffDelay(backoff, atry)
+						harness.Warnf(
+							"command %s create attempt %d/%d failed (%v); retrying in %s",
+							cmdName,
+							atry+1,
+							attempts,
+							lastErr,
+							delay,
+						)
+						time.Sleep(delay)
 					}
 				}
 				if lastErr != nil {
@@ -199,7 +224,16 @@ func Run(t *testing.T, scenarioPath string) error {
 				ra := renderString(a, tmplCtx)
 				args = append(args, ra)
 			}
-			res, err := cli.Run(context.Background(), args...)
+			var (
+				res harness.Result
+				err error
+			)
+			if cmd.ExpectFail != nil {
+				res, err = cli.Run(context.Background(), args...)
+			} else {
+				retryCfg := effectiveRetry(s.Defaults.Retry, st.Retry, cmd.Retry, Retry{})
+				res, err = runCLIWithRetry(cli, cmdName, retryCfg, args)
+			}
 			if cmd.ExpectFail != nil {
 				if err == nil {
 					return fmt.Errorf("command %s expected failure but succeeded", cmdName)
@@ -405,7 +439,10 @@ func executeAssertions(
 		if strings.TrimSpace(asName) == "" {
 			asName = fmt.Sprintf("assert-%03d", k)
 		}
-		attempts, interval := effectiveRetry(sc.Defaults.Retry, st.Retry, cmd.Retry, as.Retry)
+		retryCfg := effectiveRetry(sc.Defaults.Retry, st.Retry, cmd.Retry, as.Retry)
+		backoffCfg := harness.NormalizeBackoffConfig(backoffConfigFromRetry(retryCfg))
+		attempts := backoffCfg.Attempts
+		backoff := harness.BuildBackoffSchedule(backoffCfg)
 		var lastErr error
 		parentDir := cli.LastCommandDir
 		tmplCtx := map[string]any{
@@ -433,7 +470,7 @@ func executeAssertions(
 				break
 			}
 			if atry+1 < attempts {
-				time.Sleep(interval)
+				time.Sleep(harness.BackoffDelay(backoff, atry))
 			}
 		}
 		if lastErr != nil {
@@ -441,6 +478,68 @@ func executeAssertions(
 		}
 	}
 	return nil
+}
+
+func runCLIWithRetry(cli *harness.CLI, cmdName string, retryCfg Retry, args []string) (harness.Result, error) {
+	backoffCfg := harness.NormalizeBackoffConfig(backoffConfigFromRetry(retryCfg))
+	attempts := backoffCfg.Attempts
+	backoff := harness.BuildBackoffSchedule(backoffCfg)
+	var (
+		res harness.Result
+		err error
+	)
+	for atry := 0; atry < attempts; atry++ {
+		res, err = cli.Run(context.Background(), args...)
+		if err == nil {
+			return res, nil
+		}
+
+		detail := commandFailureDetail(res, err)
+		if !harness.ShouldRetry(err, detail, retryCfg.Only, retryCfg.Never) || atry+1 >= attempts {
+			return res, err
+		}
+
+		delay := harness.BackoffDelay(backoff, atry)
+		harness.Warnf(
+			"command %s attempt %d/%d failed (exit=%d): %v; retrying in %s",
+			cmdName,
+			atry+1,
+			attempts,
+			res.ExitCode,
+			err,
+			delay,
+		)
+		time.Sleep(delay)
+	}
+	return res, err
+}
+
+func commandFailureDetail(res harness.Result, err error) string {
+	var parts []string
+	if strings.TrimSpace(res.Stderr) != "" {
+		parts = append(parts, res.Stderr)
+	}
+	if strings.TrimSpace(res.Stdout) != "" {
+		parts = append(parts, res.Stdout)
+	}
+	if err != nil {
+		parts = append(parts, err.Error())
+	}
+	return strings.Join(parts, "\n")
+}
+
+func createFailureDetail(res harness.CreateResourceResult, err error) string {
+	var parts []string
+	if res.Status != 0 {
+		parts = append(parts, fmt.Sprintf("status=%d", res.Status))
+	}
+	if len(res.Body) > 0 {
+		parts = append(parts, string(res.Body))
+	}
+	if err != nil {
+		parts = append(parts, err.Error())
+	}
+	return strings.Join(parts, "\n")
 }
 
 func configureCommandOutput(cli *harness.CLI, format string) error {
@@ -559,31 +658,72 @@ func renderString(s string, data any) string {
 	return s
 }
 
-func effectiveRetry(d, s, c, a Retry) (int, time.Duration) {
-	attempts := d.Attempts
-	interval := parseDur(d.Interval)
-	if s.Attempts != 0 {
-		attempts = s.Attempts
+func effectiveRetry(d, s, c, a Retry) Retry {
+	merged := Retry{
+		Attempts:      d.Attempts,
+		Interval:      d.Interval,
+		MaxInterval:   d.MaxInterval,
+		BackoffFactor: d.BackoffFactor,
+		Jitter:        d.Jitter,
 	}
-	if s.Interval != "" {
-		interval = parseDur(s.Interval)
+	if d.Only != nil {
+		merged.Only = append([]string{}, d.Only...)
 	}
-	if c.Attempts != 0 {
-		attempts = c.Attempts
+	if d.Never != nil {
+		merged.Never = append([]string{}, d.Never...)
 	}
-	if c.Interval != "" {
-		interval = parseDur(c.Interval)
+	merge := func(src Retry) {
+		if src.Attempts != 0 {
+			merged.Attempts = src.Attempts
+		}
+		if src.Interval != "" {
+			merged.Interval = src.Interval
+		}
+		if src.MaxInterval != "" {
+			merged.MaxInterval = src.MaxInterval
+		}
+		if src.BackoffFactor != 0 {
+			merged.BackoffFactor = src.BackoffFactor
+		}
+		if src.Jitter != "" {
+			merged.Jitter = src.Jitter
+		}
+		if src.Only != nil {
+			merged.Only = append([]string{}, src.Only...)
+		}
+		if src.Never != nil {
+			merged.Never = append([]string{}, src.Never...)
+		}
 	}
-	if a.Attempts != 0 {
-		attempts = a.Attempts
+	merge(s)
+	merge(c)
+	merge(a)
+	if merged.Attempts < 1 {
+		merged.Attempts = harness.DefaultRetryAttempts
 	}
-	if a.Interval != "" {
-		interval = parseDur(a.Interval)
+	if strings.TrimSpace(merged.Interval) == "" {
+		merged.Interval = harness.DefaultRetryInterval.String()
 	}
-	if attempts < 1 {
-		attempts = 1
+	if strings.TrimSpace(merged.MaxInterval) == "" {
+		merged.MaxInterval = harness.DefaultRetryMaxInterval.String()
 	}
-	return attempts, interval
+	if merged.BackoffFactor <= 0 {
+		merged.BackoffFactor = harness.DefaultRetryBackoffFactor
+	}
+	if strings.TrimSpace(merged.Jitter) == "" {
+		merged.Jitter = harness.DefaultRetryJitter.String()
+	}
+	return merged
+}
+
+func backoffConfigFromRetry(r Retry) harness.BackoffConfig {
+	return harness.BackoffConfig{
+		Attempts: r.Attempts,
+		Base:     parseDur(r.Interval),
+		Max:      parseDur(r.MaxInterval),
+		Factor:   r.BackoffFactor,
+		Jitter:   parseDur(r.Jitter),
+	}
 }
 
 func parseDur(s string) time.Duration {

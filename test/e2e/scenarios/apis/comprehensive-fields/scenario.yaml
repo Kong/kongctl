@@ -1,0 +1,160 @@
+baseInputsPath: ../../../testdata/declarative/apis/comprehensive-fields
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - created_at
+      - updated_at
+      - api_spec_ids
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-create
+    commands:
+      - name: 000-apply-create
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+          - select: "plan.changes[?resource_type=='api' && resource_ref=='api-top-level'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "API Top Level"
+                fields.description: "Initial description for API Top Level"
+                fields.version: "1.0.0"
+                fields.slug: "api-top-level"
+                fields.labels.owner: "platform"
+                fields.labels.lifecycle: "dev"
+                fields.attributes.domains[0]: "web"
+                fields.attributes.environments[0]: "dev"
+      - name: 001-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='API Top Level'] | [0]"
+            expect:
+              fields:
+                name: "API Top Level"
+                version: "1.0.0"
+                slug: "api-top-level"
+                description: "Initial description for API Top Level"
+                labels.owner: "platform"
+                labels.lifecycle: "dev"
+                labels."KONGCTL-namespace": "apis-comprehensive"
+                attributes.domains[0]: "web"
+                attributes.environments[0]: "dev"
+
+  - name: 002-apply-update
+    inputOverlayDirs:
+      - overlays/002-update-fields
+    commands:
+      - name: 000-apply-update
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+          - select: "plan.changes[?resource_type=='api' && resource_ref=='api-top-level'] | [0]"
+            expect:
+              fields:
+                action: UPDATE
+                fields.description: "Updated description to validate API updates across all top-level fields"
+                fields.version: "1.1.0"
+                fields.slug: "api-top-level-v1-1"
+                fields.labels.owner: "platform-eng"
+                fields.labels.tier: "gold"
+                fields.labels.lifecycle: null
+                "fields.attributes.domains | length(@)": 2
+                "fields.attributes.domains[?@=='web'] | length(@)": 1
+                "fields.attributes.domains[?@=='mobile'] | length(@)": 1
+                "fields.attributes.environments | length(@)": 2
+                "fields.attributes.environments[?@=='staging'] | length(@)": 1
+                "fields.attributes.environments[?@=='prod'] | length(@)": 1
+      - name: 001-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='API Top Level'] | [0]"
+            expect:
+              fields:
+                version: "1.1.0"
+                slug: "api-top-level-v1-1"
+                description: "Updated description to validate API updates across all top-level fields"
+                labels.owner: "platform-eng"
+                labels.tier: "gold"
+                labels.lifecycle: null
+                labels."KONGCTL-namespace": "apis-comprehensive"
+                "attributes.domains | length(@)": 2
+                "attributes.domains[?@=='web'] | length(@)": 1
+                "attributes.domains[?@=='mobile'] | length(@)": 1
+                "attributes.environments | length(@)": 2
+                "attributes.environments[?@=='staging'] | length(@)": 1
+                "attributes.environments[?@=='prod'] | length(@)": 1
+
+  - name: 003-sync-delete
+    inputOverlayDirs:
+      - overlays/003-sync-delete
+    commands:
+      - name: 000-sync-delete
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+          - select: "plan.changes[?resource_type=='api' && resource_ref=='API Top Level'] | [0]"
+            expect:
+              fields:
+                action: DELETE
+      - name: 001-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='API Top Level']"
+            expect:
+              fields:
+                "length(@)": 0

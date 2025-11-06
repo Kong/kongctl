@@ -1,0 +1,9 @@
+_defaults:
+  kongctl:
+    namespace: declarative-errors
+
+portals:
+  - ref: portal-typo
+    name: portal-typo
+    lables:
+      team: docs

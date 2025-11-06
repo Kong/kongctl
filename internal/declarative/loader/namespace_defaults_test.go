@@ -361,4 +361,62 @@ portals:
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "portal 'portal1' cannot have an empty namespace")
 	})
+
+	t.Run("default namespace retained when only defaults provided", func(t *testing.T) {
+		yaml := `
+_defaults:
+  kongctl:
+    namespace: team-alpha
+
+portals: []
+apis: []
+control_planes: []
+application_auth_strategies: []
+`
+		dir := t.TempDir()
+		file := filepath.Join(dir, "defaults-only.yaml")
+		require.NoError(t, os.WriteFile(file, []byte(yaml), 0o600))
+
+		l := New()
+		sources := []Source{
+			{Type: SourceTypeFile, Path: file},
+		}
+		rs, err := l.LoadFromSources(sources, false)
+		require.NoError(t, err)
+
+		assert.Equal(t, "team-alpha", rs.DefaultNamespace)
+		assert.Len(t, rs.Portals, 0)
+		assert.Len(t, rs.APIs, 0)
+		assert.Len(t, rs.ControlPlanes, 0)
+		assert.Len(t, rs.ApplicationAuthStrategies, 0)
+	})
+
+	t.Run("conflicting defaults without resources returns error", func(t *testing.T) {
+		yaml1 := `
+_defaults:
+  kongctl:
+    namespace: team-alpha
+portals: []
+`
+		yaml2 := `
+_defaults:
+  kongctl:
+    namespace: team-beta
+portals: []
+`
+		dir := t.TempDir()
+		file1 := filepath.Join(dir, "alpha.yaml")
+		file2 := filepath.Join(dir, "beta.yaml")
+		require.NoError(t, os.WriteFile(file1, []byte(yaml1), 0o600))
+		require.NoError(t, os.WriteFile(file2, []byte(yaml2), 0o600))
+
+		l := New()
+		sources := []Source{
+			{Type: SourceTypeFile, Path: file1},
+			{Type: SourceTypeFile, Path: file2},
+		}
+		_, err := l.LoadFromSources(sources, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "conflicting _defaults.kongctl.namespace values")
+	})
 }

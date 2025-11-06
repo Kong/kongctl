@@ -106,11 +106,21 @@ func Test_Declarative_Apply_Portal_Basic_JSON(t *testing.T) {
 }
 
 func retry(times int, delay time.Duration, f func() bool) bool {
+	if times < 1 {
+		times = 1
+	}
+	if delay <= 0 {
+		delay = 500 * time.Millisecond
+	}
+	next := delay
 	for i := 0; i < times; i++ {
 		if f() {
 			return true
 		}
-		time.Sleep(delay)
+		if i+1 < times {
+			time.Sleep(next)
+			next *= 2
+		}
 	}
 	return false
 }

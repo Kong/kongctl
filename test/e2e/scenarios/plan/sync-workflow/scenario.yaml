@@ -1,0 +1,181 @@
+baseInputsPath: ../../../testdata/declarative/plan/sync
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  portalRef: plan-sync-portal
+  portalName: "Plan Sync Portal"
+  portalUpdatedName: "Plan Sync Portal (Updated)"
+  namespace: plan-sync
+  ordersAPIRef: plan-sync-orders
+  legacyAPIRef: plan-sync-legacy
+  inventoryAPIRef: plan-sync-inventory
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-bootstrap-sync-state
+    commands:
+      - name: 000-sync-initial
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+          - select: execution.applied_changes
+            expect:
+              fields:
+                "length(@)": 3
+      - name: 001-get-portal
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalRef }}'] | [0]"
+            expect:
+              fields:
+                display_name: "{{ .vars.portalName }}"
+                authentication_enabled: true
+      - name: 002-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.ordersAPIRef }}'] | [0]"
+            expect:
+              fields:
+                labels.domain: commerce
+          - select: "[?name=='{{ .vars.legacyAPIRef }}'] | [0]"
+            expect:
+              fields:
+                labels.lifecycle: sunset
+
+  - name: 002-plan-sync-update
+    inputOverlayDirs:
+      - overlays/002-plan-sync
+    commands:
+      - name: 000-plan-sync
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 1
+                by_action.UPDATE: 2
+                by_action.DELETE: 1
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-sync.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add, 2 to change, 1 to destroy')": true
+                "contains(@, 'portal \"plan-sync-portal\" will be updated')": true
+                "contains(@, 'authentication_enabled: false')": true
+                "contains(@, 'api \"plan-sync-inventory\" will be created')": true
+                "contains(@, 'api \"plan-sync-orders\" will be updated')": true
+                "contains(@, 'api \"plan-sync-legacy\" will be deleted')": true
+      - name: 002-sync-plan
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync.json"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                by_action.CREATE: 1
+                by_action.UPDATE: 2
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+      - name: 003-get-portal
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalRef }}'] | [0]"
+            expect:
+              fields:
+                display_name: "{{ .vars.portalUpdatedName }}"
+                authentication_enabled: false
+      - name: 004-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.inventoryAPIRef }}'] | [0]"
+            expect:
+              fields:
+                labels.domain: supply
+          - select: "[?name=='{{ .vars.legacyAPIRef }}']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='{{ .vars.ordersAPIRef }}'] | [0]"
+            expect:
+              fields:
+                description: "Orders API with updated configuration"
+                labels.lifecycle: stable
+      - name: 005-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+      - name: 006-plan-post-sync
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0

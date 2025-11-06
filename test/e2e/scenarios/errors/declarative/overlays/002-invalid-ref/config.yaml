@@ -1,0 +1,9 @@
+_defaults:
+  kongctl:
+    namespace: declarative-errors
+
+portals:
+  - ref: portal-missing-auth
+    name: portal-missing-auth
+    display_name: Portal Missing Auth
+    default_application_auth_strategy_id: !ref missing-auth#id

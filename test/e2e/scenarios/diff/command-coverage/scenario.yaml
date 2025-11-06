@@ -1,0 +1,178 @@
+baseInputsPath: ../../../testdata/declarative/diff
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  portalRef: commerce-portal
+  portalName: "Commerce Portal"
+  portalUpdatedName: "Commerce Portal (New UI)"
+  namespace: team-commerce
+  existingAPIName: orders-api
+  removedAPIName: legacy-api
+  newAPIRef: analytics-api
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-bootstrap-state
+    commands:
+      - name: 000-sync-initial
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.summary"
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: "summary"
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+          - select: >-
+              plan.changes[?resource_type=='portal' &&
+                            resource_ref=='{{ .vars.portalRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+      - name: 001-get-portals
+        run: ["get", "portals"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalRef }}'] | [0]"
+            expect:
+              fields:
+                display_name: "{{ .vars.portalName }}"
+
+      - name: 002-get-apis
+        run: ["get", "apis"]
+        assertions:
+          - select: "[?name=='{{ .vars.existingAPIName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.existingAPIName }}"
+          - select: "[?name=='{{ .vars.removedAPIName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.removedAPIName }}"
+
+  - name: 002-diff-noop
+    commands:
+      - name: 000-diff
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - -o
+          - json
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 0
+          - select: "changes"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 003-diff-with-modifications
+    inputOverlayDirs:
+      - overlays/003-diff
+    commands:
+      - name: 000-diff-plan
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - -o
+          - json
+        stdoutFile: "{{ .workdir }}/plan.json"
+        assertions:
+          - select: "metadata"
+            expect:
+              fields:
+                mode: sync
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 1
+                by_action.UPDATE: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='portal' &&
+                       resource_ref=='{{ .vars.portalRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.display_name: "{{ .vars.portalUpdatedName }}"
+          - select: >-
+              changes[?resource_type=='api' &&
+                       resource_ref=='{{ .vars.newAPIRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+          - select: >-
+              changes[?resource_type=='api' &&
+                       resource_ref=='{{ .vars.removedAPIName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                namespace: "{{ .vars.namespace }}"
+
+      - name: 001-diff-plan-file
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan.json"
+          - -o
+          - json
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 3
+          - select: >-
+              changes[?resource_ref=='{{ .vars.newAPIRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+      - name: 002-get-portals
+        run: ["get", "portals"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalRef }}'] | [0]"
+            expect:
+              fields:
+                display_name: "{{ .vars.portalName }}"
+
+      - name: 003-get-apis
+        run: ["get", "apis"]
+        assertions:
+          - select: "[?name=='{{ .vars.removedAPIName }}']"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[?name=='{{ .vars.newAPIRef }}']"
+            expect:
+              fields:
+                "length(@)": 0

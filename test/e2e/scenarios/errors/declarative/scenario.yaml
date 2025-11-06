@@ -1,0 +1,91 @@
+baseInputsPath: ../../../testdata/declarative/errors/declarative
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-field-typo-error
+    inputOverlayDirs:
+      - overlays/001-field-typo
+    commands:
+      - name: 000-apply-field-typo
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "unknown field 'lables'"
+
+  - name: 002-invalid-ref-extract
+    inputOverlayDirs:
+      - overlays/002-invalid-ref
+    commands:
+      - name: 000-plan-invalid-ref
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: "resource not found: missing-auth"
+
+  - name: 003-missing-ref
+    inputOverlayDirs:
+      - overlays/003-missing-ref
+    commands:
+      - name: 000-apply-missing-ref
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "failed to extract 'portal.tagline'"
+
+  # - name: 004-circular-ref
+  #   inputOverlayDirs:
+  #     - overlays/004-circular-ref
+  #   commands:
+  #     - name: 000-apply-circular-ref
+  #       run:
+  #         - apply
+  #         - -f
+  #         - "{{ .workdir }}/config.yaml"
+  #         - --auto-approve
+  #       expectFailure:
+  #         exitCode: 1
+  #         contains: "circular reference"
+
+  - name: 005-oversized-file
+    inputOverlayDirs:
+      - overlays/005-oversized-file
+    commands:
+      - name: 000-apply-oversized-file
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "is too large"

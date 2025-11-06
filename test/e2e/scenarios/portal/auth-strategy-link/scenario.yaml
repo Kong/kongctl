@@ -12,9 +12,6 @@ vars:
   publicationRef: sms-to-e2e-portal
 
 defaults:
-  retry:
-    attempts: 6
-    interval: "1500ms"
   mask:
     dropKeys:
       - id

@@ -442,6 +442,26 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 		accumulated.PortalSnippets = append(accumulated.PortalSnippets, snippet)
 	}
 
+	// If this source defines a namespace default without parent resources,
+	// propagate it so sync mode can inspect the correct namespace.
+	if source.DefaultNamespace != "" {
+		parentCount := len(source.Portals) +
+			len(source.ApplicationAuthStrategies) +
+			len(source.ControlPlanes) +
+			len(source.APIs)
+
+		if parentCount == 0 {
+			if accumulated.DefaultNamespace == "" {
+				accumulated.DefaultNamespace = source.DefaultNamespace
+			} else if accumulated.DefaultNamespace != source.DefaultNamespace {
+				return fmt.Errorf(
+					"conflicting _defaults.kongctl.namespace values: '%s' (existing) vs '%s' in %s",
+					accumulated.DefaultNamespace, source.DefaultNamespace, sourcePath,
+				)
+			}
+		}
+	}
+
 	return nil
 }
 
