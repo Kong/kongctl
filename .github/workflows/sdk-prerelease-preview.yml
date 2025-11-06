@@ -27,9 +27,6 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
-            const core = require('@actions/core');
-            const { context } = require('@actions/github');
-
             const sdkOwner = 'Kong';
             const sdkRepo = 'sdk-konnect-go';
 
@@ -185,9 +182,9 @@ jobs:
         run: |
           set -o pipefail
           make build | tee "${RUNNER_TEMP}/build.log"
-          status=${PIPESTATUS[0]}
+          status="${PIPESTATUS[0]}"
           echo "status=${status}" >> "$GITHUB_OUTPUT"
-          exit ${status}
+          exit "${status}"
 
       - name: Run unit tests
         if: steps.plan.outputs.test == 'true'
@@ -197,9 +194,9 @@ jobs:
         run: |
           set -o pipefail
           make test | tee "${RUNNER_TEMP}/unit.log"
-          status=${PIPESTATUS[0]}
+          status="${PIPESTATUS[0]}"
           echo "status=${status}" >> "$GITHUB_OUTPUT"
-          exit ${status}
+          exit "${status}"
 
       - name: Run e2e tests
         if: steps.plan.outputs.test == 'true'
@@ -217,9 +214,9 @@ jobs:
 
           set -o pipefail
           make test-e2e | tee "${RUNNER_TEMP}/e2e.log"
-          status=${PIPESTATUS[0]}
+          status="${PIPESTATUS[0]}"
           echo "status=${status}" >> "$GITHUB_OUTPUT"
-          exit ${status}
+          exit "${status}"
 
       - name: Upload e2e artifacts
         if: steps.plan.outputs.test == 'true'
@@ -242,8 +239,8 @@ jobs:
           E2E_STATUS: ${{ steps.e2e.outputs.status }}
         run: |
           status_line() {
-            local label=$1
-            local value=$2
+            local label="$1"
+            local value="$2"
             if [ -z "${value}" ]; then
               echo "- ${label}: ⚪️ not run"
             elif [ "${value}" = "0" ]; then
