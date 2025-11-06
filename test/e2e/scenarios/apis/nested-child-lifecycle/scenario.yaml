@@ -234,6 +234,8 @@ steps:
           - bash
           - -lc
           - |
+              # NOTE: remove this wrapper when planner ordering in kong/kongctl#158 is fixed,
+              # and revert to a direct `kongctl sync` call (restoring assertions on plan.summary/summary).
               set -euo pipefail
               tmp_stdout="$(mktemp)"
               tmp_stderr="$(mktemp)"
