@@ -15,44 +15,24 @@ declarative configuration and imperative command interfaces.
 
 - **Total Kong Konnect Resources:** 78 resource types (69 standard + 9 Event Gateway)
 - **Declarative Configuration Support:** 13 resource types (16% coverage)
-  - 4 parent resources (with kongctl metadata support)
+  - 4 parent resources (with `kongctl` metadata support)
   - 9 child resources
 - **Imperative Command Support:** 19 resource types (25% coverage)
   - Parent resources with full get/list operations
   - Child resources accessible via parent context
   - Read-only operations for all imperative commands
-- **Event Gateway Resources:** 9 new resource types (0% kongctl support)
+- **Event Gateway Resources:** 9 new resource types (0% `kongctl` support)
   - Event Gateway not yet built into `sdk-konnect-go`
-
-### Coverage Summary
-
-| Support Type | Resources Supported | Coverage |
-|-------------|---------------------|----------|
-| Kong Konnect SDK (Standard) | 69 | 100% (of standard) |
-| Kong Konnect SDK (Event Gateway) | 9 | 0% |
-| Kong Konnect SDK (Total) | 78 | - |
-| Declarative (Parent) | 4 | 5% |
-| Declarative (Child) | 9 | 11% |
-| Declarative (Total) | 13 | 16% |
-| Imperative (Parent) | 6 | 8% |
-| Imperative (Child) | 13 | 17% |
-| Imperative (Total) | 19 | 25% |
 
 ---
 
 ## Comprehensive Resource Support Matrix
 
-### Legend
-
-- ✅ **Supported**: Resource is supported by kongctl
-- ❌ **Not Supported**: No kongctl support currently
-
 **Notes:**
-- Declarative support includes both parent resources (with kongctl metadata) and child resources (nested under parent)
+- Declarative support includes both parent resources 
+  (with kongctl metadata) and child resources (children don't support metadata)
 - Imperative support is read-only (get/list operations only)
 - See the Notes column for specific command syntax and details
-
----
 
 ### APIs and children (10 resources)
 
