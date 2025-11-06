@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -288,6 +289,22 @@ func SaveAccessToken(cfg config.Hook, token *AccessToken) error {
 	credsPath := filepath.Join(cfgPath, getCredentialFileName(profile))
 
 	return saveAccessTokenToDisk(credsPath, token)
+}
+
+func DeleteAccessToken(cfg config.Hook) (bool, error) {
+	profile := cfg.GetProfile()
+	cfgPath := filepath.Dir(cfg.GetPath())
+	credsPath := filepath.Join(cfgPath, getCredentialFileName(profile))
+
+	err := os.Remove(credsPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
 }
 
 func saveAccessTokenToDisk(path string, token *AccessToken) error {

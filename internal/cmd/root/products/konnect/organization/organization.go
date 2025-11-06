@@ -64,7 +64,8 @@ func NewOrganizationCmd(verb verbs.VerbValue,
 		verbs.Adopt,
 		verbs.API,
 		verbs.Kai,
-		verbs.View:
+		verbs.View,
+		verbs.Logout:
 		return &baseCmd, nil
 	}
 

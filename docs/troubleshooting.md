@@ -122,7 +122,8 @@ Ensure using correct profile.
 Clear all auth methods and start fresh:
 ```bash
 unset KONGCTL_DEFAULT_KONNECT_PAT
-rm ~/.config/kongctl/.default-konnect-token.json
+kongctl logout
+# If you manage profiles outside the default path, remove the token file at ~/.config/kongctl/.<profile>-konnect-token.json manually.
 kongctl login
 ```
 

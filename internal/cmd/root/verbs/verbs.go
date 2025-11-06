@@ -14,6 +14,7 @@ const (
 	Help   = VerbValue("help")
 	List   = VerbValue("list")
 	Login  = VerbValue("login")
+	Logout = VerbValue("logout")
 	Plan   = VerbValue("plan")
 	View   = VerbValue("view")
 	Sync   = VerbValue("sync")

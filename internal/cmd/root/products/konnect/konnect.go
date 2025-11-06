@@ -39,14 +39,14 @@ var (
 )
 
 func addFlags(verb verbs.VerbValue, cmd *cobra.Command) {
-	if verb != verbs.Login {
+	if verb != verbs.Login && verb != verbs.Logout {
 		cmd.Flags().String(common.BaseURLFlagName, common.BaseURLDefault,
 			fmt.Sprintf(`Base URL for Konnect API requests.
 - Config path: [ %s ]`,
 				common.BaseURLConfigPath))
 	}
 
-	if verb != verbs.Login {
+	if verb != verbs.Login && verb != verbs.Logout {
 		cmd.Flags().String(common.PATFlagName, "",
 			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
 Setting this value overrides tokens obtained from the login command.
@@ -128,12 +128,12 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		},
 	}
 
-	if verb == verbs.Login {
-		return newLoginKonnectCmd(verb, cmd, addFlags, preRunE).Command, nil
-	}
-
 	// Handle declarative configuration verbs
 	switch verb {
+	case verbs.Login:
+		return newLoginKonnectCmd(verb, cmd, addFlags, preRunE).Command, nil
+	case verbs.Logout:
+		return newLogoutKonnectCmd(verb, cmd, addFlags, preRunE).Command, nil
 	case verbs.Plan, verbs.Sync, verbs.Diff, verbs.Export, verbs.Apply:
 		c, e := declarative.NewDeclarativeCmd(verb)
 		if e != nil {
@@ -176,7 +176,7 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		addFlags(verb, cmd)
 		return cmd, nil
 	case verbs.Add, verbs.Get, verbs.Create, verbs.Dump, verbs.Update,
-		verbs.Delete, verbs.Help, verbs.List, verbs.Login, verbs.API, verbs.Kai, verbs.View:
+		verbs.Delete, verbs.Help, verbs.List, verbs.API, verbs.Kai, verbs.View:
 		// These verbs don't use declarative configuration, continue below
 	}
 
