@@ -61,6 +61,15 @@ func newListPortal(id, name string, labels map[string]string) kkComps.ListPortal
 	}
 }
 
+func findChangeIndex(order []string, id string) int {
+	for idx, candidate := range order {
+		if candidate == id {
+			return idx
+		}
+	}
+	return -1
+}
+
 type stubAPIPublicationAPI struct {
 	response *kkOps.ListAPIPublicationsResponse
 }
@@ -1249,7 +1258,7 @@ func TestGeneratePlan_SyncDeletesRespectAuthStrategyDependencies(t *testing.T) {
 				{
 					APIID:                    apiID,
 					PortalID:                 portalID,
-					AuthStrategyIds:          []string{authStrategyName},
+					AuthStrategyIds:          []string{authStrategyID},
 					CreatedAt:                now,
 					UpdatedAt:                now,
 					Visibility:               nil,
@@ -1302,24 +1311,15 @@ func TestGeneratePlan_SyncDeletesRespectAuthStrategyDependencies(t *testing.T) {
 	require.NotNil(t, apiDelete, "expected api delete change")
 	require.NotNil(t, authDelete, "expected auth strategy delete change")
 
-	findIndex := func(order []string, id string) int {
-		for idx, candidate := range order {
-			if candidate == id {
-				return idx
-			}
-		}
-		return -1
-	}
-
-	apiIndex := findIndex(plan.ExecutionOrder, apiDelete.ID)
-	authIndex := findIndex(plan.ExecutionOrder, authDelete.ID)
+	apiIndex := findChangeIndex(plan.ExecutionOrder, apiDelete.ID)
+	authIndex := findChangeIndex(plan.ExecutionOrder, authDelete.ID)
 
 	require.NotEqual(t, -1, apiIndex, "api delete missing from execution order")
 	require.NotEqual(t, -1, authIndex, "auth strategy delete missing from execution order")
 	require.Less(t, apiIndex, authIndex, "api delete should precede auth strategy delete")
 
 	if publicationDelete != nil {
-		publicationIndex := findIndex(plan.ExecutionOrder, publicationDelete.ID)
+		publicationIndex := findChangeIndex(plan.ExecutionOrder, publicationDelete.ID)
 		require.NotEqual(t, -1, publicationIndex, "publication delete missing from execution order")
 		require.Less(t, publicationIndex, apiIndex, "publication delete should precede api delete")
 	}

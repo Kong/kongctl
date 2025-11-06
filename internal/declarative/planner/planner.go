@@ -291,6 +291,10 @@ func appendDependsOn(existing []string, id string) []string {
 	return append(existing, id)
 }
 
+// shouldLinkAuthStrategy determines if the auth strategy DELETE should depend on the
+// provided change. During sync planning some legacy resources may surface without a
+// namespace (empty string). In that case we conservatively treat the namespace as a
+// wildcard so that dependencies are not skipped.
 func shouldLinkAuthStrategy(authDelete, dep *PlannedChange) bool {
 	if authDelete.Namespace == "" || dep.Namespace == "" {
 		return true
