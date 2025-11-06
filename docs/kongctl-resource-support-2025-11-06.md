@@ -13,11 +13,11 @@ declarative configuration and imperative command interfaces.
 
 ### Key Findings
 
-- **Total Kong Konnect Resources:** 80+ resource types (71 standard + 9 Event Gateway)
+- **Total Kong Konnect Resources:** 78 resource types (69 standard + 9 Event Gateway)
 - **Declarative Configuration Support:** 13 resource types (16% coverage)
   - 4 parent resources (with kongctl metadata support)
   - 9 child resources
-- **Imperative Command Support:** 21 resource types (26% coverage)
+- **Imperative Command Support:** 19 resource types (25% coverage)
   - Parent resources with full get/list operations
   - Child resources accessible via parent context
   - Read-only operations for all imperative commands
@@ -28,16 +28,15 @@ declarative configuration and imperative command interfaces.
 
 | Support Type | Resources Supported | Coverage |
 |-------------|---------------------|----------|
-| Kong Konnect SDK (Standard) | 71 | 100% (of standard) |
+| Kong Konnect SDK (Standard) | 69 | 100% (of standard) |
 | Kong Konnect SDK (Event Gateway) | 9 | 0% |
-| Kong Konnect SDK (Total) | 80 | - |
+| Kong Konnect SDK (Total) | 78 | - |
 | Declarative (Parent) | 4 | 5% |
 | Declarative (Child) | 9 | 11% |
 | Declarative (Total) | 13 | 16% |
 | Imperative (Parent) | 6 | 8% |
-| Imperative (Child) | 13 | 16% |
-| Imperative (Special) | 2 | 3% |
-| Imperative (Total) | 21 | 26% |
+| Imperative (Child) | 13 | 17% |
+| Imperative (Total) | 19 | 25% |
 
 ---
 
@@ -55,7 +54,7 @@ declarative configuration and imperative command interfaces.
 
 ---
 
-### APIs and children (11 resources)
+### APIs and children (10 resources)
 
 | Resource Name | Declarative | Imperative | Notes |
 |--------------|-------------|------------|-------|
@@ -64,8 +63,7 @@ declarative configuration and imperative command interfaces.
 | apipublication | ✅ Child | ✅ Get/List | Via `kongctl get api publications --api-id <id>` |
 | apiimplementation | ✅ Child | ✅ Get/List | Via `kongctl get api implementations --api-id <id>` |
 | apidocumentation | ✅ Child | ✅ Get/List | Via `kongctl get api documents --api-id <id>` |
-| apispecification | ❌ | ❌ | API spec content managed via apiversion |
-| apiattributes | ❌ | ✅ Get Only | Via `kongctl get api attributes --api-id <id>` |
+| apiattributes | ✅ via API | ✅ Get Only | Managed via `attributes` field on API resource; `kongctl get api attributes --api-id <id>` for inspection |
 | apikeys | ❌ | ❌ | API key credentials for consumers |
 | applicationregistrations | ❌ | ❌ | Developer application registrations |
 | applications | ❌ | ❌ | Developer applications |
@@ -138,11 +136,10 @@ workloads. This is a new control plane type in Kong Konnect (v1.0.0 spec).
 
 ---
 
-### Identity & Access Management (14 resources)
+### Identity & Access Management (12 resources)
 
 | Resource Name | Declarative | Imperative | Notes |
 |--------------|-------------|------------|-------|
-| me | ❌ | ✅ Get Only | Current user information |
 | users | ❌ | ❌ | Organization users |
 | teams | ❌ | ❌ | |
 | teammembership | ❌ | ❌ | |
@@ -183,11 +180,10 @@ workloads. This is a new control plane type in Kong Konnect (v1.0.0 spec).
 
 ---
 
-### Organization & Miscellaneous (6 resources)
+### Organization & Miscellaneous (5 resources)
 
 | Resource Name | Declarative | Imperative | Notes |
 |--------------|-------------|------------|-------|
-| organization | ❌ | ✅ Get Only | Current organization info |
 | notifications | ❌ | ❌ | Platform notifications |
 | dcrproviders | ❌ | ❌ | Dynamic client registration |
 | degraphqlroutes | ❌ | ❌ | GraphQL route configuration |
@@ -239,6 +235,7 @@ resource.
 - `api_publications` - Publishing APIs to portals
 - `api_implementations` - Backend implementation configuration
 - `api_documents` - Additional documentation beyond OpenAPI specs
+- `attributes` - API attributes managed via attributes field on API resource (not as separate child resource)
 
 **Portal Child Resources:**
 - `portal_pages` - Custom portal pages
@@ -291,7 +288,7 @@ These resources are accessed via their parent API:
 2. **API Publications** - `kongctl get api publications --api-id <id>`
 3. **API Implementations** - `kongctl get api implementations --api-id <id>`
 4. **API Documents** - `kongctl get api documents --api-id <id>`
-5. **API Attributes** - `kongctl get api attributes --api-id <id>` (read-only metadata)
+5. **API Attributes** - `kongctl get api attributes --api-id <id>` (read-only inspection; managed via `attributes` field on API resource)
 
 #### Portal Child Resources (5 resources)
 
@@ -311,12 +308,14 @@ These resources are accessed via their parent Control Plane:
 2. **Gateway Routes** - `kongctl get gateway routes --control-plane <id|name>`
 3. **Gateway Consumers** - `kongctl get gateway consumers --control-plane <id|name>`
 
-#### Special Resources (2 resources)
+#### Informational Endpoints (Not Counted as Resources)
 
-These resources provide organizational and user context:
+These commands query read-only informational endpoints and are not manageable resources:
 
 1. **Me** - `kongctl get me` (current user information)
 2. **Organization** - `kongctl get organization` (current organization details)
+
+**Note:** These are utility commands for inspecting context, not resource management operations.
 
 #### Command Structure Examples
 
@@ -539,7 +538,6 @@ control_planes:
 #### Medium Impact - New Support
 1. **Upstreams/Targets (Both)** - Load balancing configuration
 2. **Certificates (Both)** - TLS configuration
-3. **API Attributes (Declarative)** - Already has imperative read-only
 
 #### Low Impact - Extend Imperative
 1. **Portal Customizations (Imperative)** - Already has declarative
@@ -672,7 +670,6 @@ declarative configuration:
 | apidocumentation | api_documents | Shorter, more intuitive |
 | apiimplementation | api_implementations | Plural consistency |
 | apipublication | api_publications | Plural consistency |
-| apispecification | (via api_versions) | Spec is part of version |
 | apiversion | api_versions | Plural consistency |
 | pages | portal_pages | Namespace clarity |
 | snippets | portal_snippets | Namespace clarity |
@@ -685,7 +682,7 @@ declarative configuration:
 
 ## Appendix: Complete SDK Resource Listing
 
-### Standard Kong Konnect Resources (71 resources)
+### Standard Kong Konnect Resources (69 resources)
 
 1. acls
 2. api
@@ -694,70 +691,70 @@ declarative configuration:
 5. apiimplementation
 6. apikeys
 7. apipublication
-8. apispecification
-9. apiversion
-10. appauthstrategies
-11. applicationregistrations
-12. applications
-13. assets
-14. authentication
-15. authsettings
-16. basicauthcredentials
-17. cacertificates
-18. certificates
-19. cloudgateways
-20. configstores
-21. configstoresecrets
-22. consumergroups
-23. consumers
-24. controlplanegroups
-25. controlplanes
-26. customplugins
-27. custompluginschemas
-28. dcrproviders
-29. degraphqlroutes
-30. dpcertificates
-31. dpnodes
-32. hmacauthcredentials
-33. impersonationsettings
-34. invites
-35. jwts
-36. keys
-37. keysets
-38. me
-39. mtlsauthcredentials
-40. notifications
-41. pages
-42. partiallinks
-43. partials
-44. personalaccesstokens
-45. plugins
-46. portalauditlogs
-47. portalauthsettings
-48. portalcustomdomains
-49. portalcustomization
-50. portaldevelopers
-51. portalemails
-52. portals
-53. portalteammembership
-54. portalteamroles
-55. portalteams
-56. roles
-57. routes
-58. schemas
-59. services
-60. snippets
-61. snis
-62. systemaccounts
-63. systemaccountsaccesstokens
-64. systemaccountsroles
-65. systemaccountsteammembership
-66. targets
-67. teammembership
-68. teams
-69. upstreams
-70. users
-71. vaults
+8. apiversion
+9. appauthstrategies
+10. applicationregistrations
+11. applications
+12. assets
+13. authentication
+14. authsettings
+15. basicauthcredentials
+16. cacertificates
+17. certificates
+18. cloudgateways
+19. configstores
+20. configstoresecrets
+21. consumergroups
+22. consumers
+23. controlplanegroups
+24. controlplanes
+25. customplugins
+26. custompluginschemas
+27. dcrproviders
+28. degraphqlroutes
+29. dpcertificates
+30. dpnodes
+31. hmacauthcredentials
+32. impersonationsettings
+33. invites
+34. jwts
+35. keys
+36. keysets
+37. mtlsauthcredentials
+38. notifications
+39. pages
+40. partiallinks
+41. partials
+42. personalaccesstokens
+43. plugins
+44. portalauditlogs
+45. portalauthsettings
+46. portalcustomdomains
+47. portalcustomization
+48. portaldevelopers
+49. portalemails
+50. portals
+51. portalteammembership
+52. portalteamroles
+53. portalteams
+54. roles
+55. routes
+56. schemas
+57. services
+58. snippets
+59. snis
+60. systemaccounts
+61. systemaccountsaccesstokens
+62. systemaccountsroles
+63. systemaccountsteammembership
+64. targets
+65. teammembership
+66. teams
+67. upstreams
+68. users
+69. vaults
+
+**Note:** Read-only informational endpoints `me` and `organization` are not included in this count as they are not manageable resources.
 
 ### Event Gateway Resources (9 resources - NEW in v1.0.0)
 
