@@ -85,10 +85,7 @@ func newLogoutKonnectCmd(verb verbs.VerbValue,
 	addParentFlags(verb, rv.Command)
 
 	rv.PersistentPreRunE = func(c *cobra.Command, args []string) error {
-		if err := parentPreRun(c, args); err != nil {
-			return err
-		}
-		return nil
+		return parentPreRun(c, args)
 	}
 
 	rv.RunE = rv.runE
