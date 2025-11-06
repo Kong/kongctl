@@ -38,16 +38,16 @@ declarative configuration and imperative command interfaces.
 
 | Resource Name | Declarative | Imperative | Notes |
 |--------------|-------------|------------|-------|
-| api | ✅ Parent | ✅ Get/List | Full declarative support as parent resource |
-| apiversion | ✅ Child | ✅ Get/List | Via `kongctl get api versions --api-id <id>` |
-| apipublication | ✅ Child | ✅ Get/List | Via `kongctl get api publications --api-id <id>` |
-| apiimplementation | ✅ Child | ✅ Get/List | Via `kongctl get api implementations --api-id <id>` |
-| apidocumentation | ✅ Child | ✅ Get/List | Via `kongctl get api documents --api-id <id>` |
+| api | ✅ Parent | ✅ Get | Full declarative support as parent resource |
+| apiversion | ✅ Child | ✅ Get | Via `kongctl get api versions --api-id <id>` |
+| apipublication | ✅ Child | ✅ Get | Via `kongctl get api publications --api-id <id>` |
+| apiimplementation | ✅ Child | ✅ Get | Via `kongctl get api implementations --api-id <id>` |
+| apidocumentation | ✅ Child | ✅ Get | Via `kongctl get api documents --api-id <id>` |
 | apiattributes | ✅ via API | ✅ Get Only | Managed via `attributes` field on API resource; `kongctl get api attributes --api-id <id>` for inspection |
 | apikeys | ❌ | ❌ | API key credentials for consumers |
 | applicationregistrations | ❌ | ❌ | Developer application registrations |
 | applications | ❌ | ❌ | Developer applications |
-| appauthstrategies | ✅ Parent | ✅ Get/List | Declarative uses `application_auth_strategy` |
+| appauthstrategies | ✅ Parent | ✅ Get | Declarative uses `application_auth_strategy` |
 
 ---
 
@@ -55,11 +55,11 @@ declarative configuration and imperative command interfaces.
 
 | Resource Name | Declarative | Imperative | Notes |
 |--------------|-------------|------------|-------|
-| controlplanes | ✅ Parent | ✅ Get/List | Via `kongctl get gateway control-planes` |
-| controlplanegroups | ✅ Parent | ✅ Get/List | Managed via cluster_type in control_planes |
-| services | ✅ Child | ✅ Get/List | Via `kongctl get gateway services --control-plane <id>` |
-| routes | ❌ | ✅ Get/List | Via `kongctl get gateway routes --control-plane <id>` |
-| consumers | ❌ | ✅ Get/List | Via `kongctl get gateway consumers --control-plane <id>` |
+| controlplanes | ✅ Parent | ✅ Get | Via `kongctl get gateway control-planes` |
+| controlplanegroups | ✅ Parent | ✅ Get | Managed via cluster_type in control_planes |
+| services | ✅ Child | ✅ Get | Via `kongctl get gateway services --control-plane <id>` |
+| routes | ❌ | ✅ Get | Via `kongctl get gateway routes --control-plane <id>` |
+| consumers | ❌ | ✅ Get | Via `kongctl get gateway consumers --control-plane <id>` |
 | plugins | ❌ | ❌ | |
 | upstreams | ❌ | ❌ | |
 | targets | ❌ | ❌ | |
@@ -99,19 +99,19 @@ workloads. This is a new control plane type in Kong Konnect (v1.0.0 spec).
 
 | Resource Name | Declarative | Imperative | Notes |
 |--------------|-------------|------------|-------|
-| portals | ✅ Parent | ✅ Get/List | Full declarative support as parent resource |
-| pages | ✅ Child | ✅ Get/List | Via `kongctl get portal pages --portal-id <id>` |
-| snippets | ✅ Child | ✅ Get/List | Via `kongctl get portal snippets --portal-id <id>` |
+| portals | ✅ Parent | ✅ Get | Full declarative support as parent resource |
+| pages | ✅ Child | ✅ Get | Via `kongctl get portal pages --portal-id <id>` |
+| snippets | ✅ Child | ✅ Get | Via `kongctl get portal snippets --portal-id <id>` |
 | portalcustomization | ✅ Child | ❌ | Nested under portals |
 | portalcustomdomains | ✅ Child | ❌ | Nested under portals, special handling required |
-| portaldevelopers | ❌ | ✅ Get/List | Via `kongctl get portal developers --portal-id <id>` |
-| portalteams | ❌ | ✅ Get/List | Via `kongctl get portal teams --portal-id <id>` |
+| portaldevelopers | ❌ | ✅ Get | Via `kongctl get portal developers --portal-id <id>` |
+| portalteams | ❌ | ✅ Get | Via `kongctl get portal teams --portal-id <id>` |
 | portalteammembership | ❌ | ❌ | |
 | portalteamroles | ❌ | ❌ | |
 | portalauditlogs | ❌ | ❌ | Read-only audit logs |
 | portalauthsettings | ❌ | ❌ | |
 | portalemails | ❌ | ❌ | |
-| applications | ❌ | ✅ Get/List | Via `kongctl get portal applications --portal-id <id>` |
+| applications | ❌ | ✅ Get | Via `kongctl get portal applications --portal-id <id>` |
 | assets | ❌ | ❌ | Portal asset management |
 
 ---
