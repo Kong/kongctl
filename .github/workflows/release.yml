@@ -81,7 +81,7 @@ jobs:
 
   e2e:
     needs: prepare
-    if: needs.prepare.outputs.version != ''
+    if: needs.prepare.outputs.version != '' && needs.prepare.outputs.is_prerelease == 'false'
     concurrency:
       group: konnect-e2e
       cancel-in-progress: false
@@ -155,8 +155,10 @@ jobs:
             goreleaser/goreleaser-cross:v1.25.3 \
             -c "set -e; apt-get update; apt-get install -y --no-install-recommends libx11-dev; git config --global --add safe.directory /work; goreleaser release --clean; if [ -d /work/dist ]; then chown -R \${HOST_UID:-0}:\${HOST_GID:-0} /work/dist; fi"
       - name: Set up Homebrew
+        if: env.IS_PRERELEASE == 'false'
         uses: Homebrew/actions/setup-homebrew@master
       - name: Fetch Homebrew tap
+        if: env.IS_PRERELEASE == 'false'
         env:
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
         run: |
@@ -164,6 +166,7 @@ jobs:
           mkdir -p dist/homebrew-tap
           git clone --depth 1 "https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/kong/homebrew-kongctl.git" dist/homebrew-tap/homebrew-kongctl
       - name: Sync generated Homebrew files
+        if: env.IS_PRERELEASE == 'false'
         run: |
           mkdir -p dist/homebrew-tap/homebrew-kongctl/Casks
           rm -f dist/homebrew-tap/homebrew-kongctl/kongctl.rb
@@ -171,8 +174,10 @@ jobs:
             cp dist/homebrew/Casks/kongctl.rb dist/homebrew-tap/homebrew-kongctl/Casks/kongctl.rb
           fi
       - name: Fix Homebrew tap style
+        if: env.IS_PRERELEASE == 'false'
         run: ./scripts/fix-homebrew-tap.sh dist/homebrew-tap/homebrew-kongctl
       - name: Commit and push Homebrew tap updates
+        if: env.IS_PRERELEASE == 'false'
         working-directory: dist/homebrew-tap/homebrew-kongctl
         env:
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
