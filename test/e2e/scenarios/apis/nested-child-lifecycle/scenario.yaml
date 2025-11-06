@@ -231,30 +231,22 @@ steps:
     commands:
       - name: 000-sync-delete
         run:
-          - bash
-          - -lc
-          - |
-              # NOTE: remove this wrapper when planner ordering in kong/kongctl#158 is fixed,
-              # and revert to a direct `kongctl sync` call (restoring assertions on plan.summary/summary).
-              set -euo pipefail
-              tmp_stdout="$(mktemp)"
-              tmp_stderr="$(mktemp)"
-              if kongctl sync -f "{{ .workdir }}/apis.yaml" --auto-approve 1>"${tmp_stdout}" 2>"${tmp_stderr}"; then
-                cat "${tmp_stdout}"
-                exit 0
-              fi
-
-              status=$?
-              cat "${tmp_stdout}"
-              if grep -q "Auth Strategy in use" "${tmp_stderr}"; then
-                cat "${tmp_stderr}" >&2
-                exit 0
-              fi
-
-              cat "${tmp_stderr}" >&2
-              exit "${status}"
-        parseAs: json
-        # TODO(kong/kongctl#158): planner ordering can still produce an auth strategy 409; wrapper treats that exit as success until fix lands.
+          - sync
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.DELETE: 3
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+                status: success
       - name: 001-get-apis
         run: ["get", "apis", "-o", "json"]
         assertions:
