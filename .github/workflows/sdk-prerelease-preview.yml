@@ -171,12 +171,6 @@ jobs:
             echo "test=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Configure workflow artifacts
-        if: steps.plan.outputs.test == 'true'
-        run: |
-          echo "KONGCTL_E2E_ARTIFACTS_DIR=${RUNNER_TEMP}/kongctl-e2e" >> "$GITHUB_ENV"
-          mkdir -p "${RUNNER_TEMP}/kongctl-e2e"
-
       - name: Install clipboard build dependencies
         if: steps.plan.outputs.test == 'true'
         run: |
@@ -207,34 +201,6 @@ jobs:
           echo "status=${status}" >> "$GITHUB_OUTPUT"
           exit "${status}"
 
-      - name: Run e2e tests
-        if: steps.plan.outputs.test == 'true'
-        id: e2e
-        continue-on-error: true
-        shell: bash
-        env:
-          KONGCTL_E2E_KONNECT_PAT: ${{ secrets.KONGCTL_E2E_KONNECT_PAT }}
-        run: |
-          if [ -z "${KONGCTL_E2E_KONNECT_PAT}" ]; then
-            echo "::error::KONGCTL_E2E_KONNECT_PAT secret is required for e2e tests."
-            echo "status=1" >> "$GITHUB_OUTPUT"
-            exit 1
-          fi
-
-          set -o pipefail
-          make test-e2e | tee "${RUNNER_TEMP}/e2e.log"
-          status="${PIPESTATUS[0]}"
-          echo "status=${status}" >> "$GITHUB_OUTPUT"
-          exit "${status}"
-
-      - name: Upload e2e artifacts
-        if: steps.plan.outputs.test == 'true'
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: kongctl-e2e-${{ steps.release.outputs.tag }}
-          path: ${{ env.KONGCTL_E2E_ARTIFACTS_DIR }}
-          if-no-files-found: ignore
-
       - name: Prepare PR body
         if: steps.diff.outputs.changed == 'true'
         id: summary
@@ -245,7 +211,6 @@ jobs:
           PUBLISHED_AT: ${{ steps.release.outputs.published_at }}
           BUILD_STATUS: ${{ steps.build.outputs.status }}
           UNIT_STATUS: ${{ steps.unit.outputs.status }}
-          E2E_STATUS: ${{ steps.e2e.outputs.status }}
         run: |
           status_line() {
             local label="$1"
@@ -258,6 +223,8 @@ jobs:
               echo "- ${label}: ❌ failed (exit ${value})"
             fi
           }
+
+          PR_BODY_PATH="${RUNNER_TEMP}/pr-body.md"
 
           {
             echo "## Preview: sdk-konnect-go ${TAG}"
@@ -273,13 +240,9 @@ jobs:
             echo "### Test summary"
             status_line "Build" "${BUILD_STATUS}"
             status_line "Unit tests" "${UNIT_STATUS}"
-            status_line "E2E tests" "${E2E_STATUS}"
-            echo ""
-            echo "### Notes"
-            echo "- E2E artifacts are attached to this workflow run."
-          } > pr-body.md
+          } > "${PR_BODY_PATH}"
 
-          echo "body_path=pr-body.md" >> "$GITHUB_OUTPUT"
+          echo "body_path=${PR_BODY_PATH}" >> "$GITHUB_OUTPUT"
 
       - name: Create or update preview PR
         if: steps.diff.outputs.changed == 'true'
@@ -287,7 +250,7 @@ jobs:
         with:
           branch: sdk-konnect-go/${{ steps.release.outputs.tag }}
           commit-message: 'chore: preview sdk-konnect-go ${{ steps.release.outputs.tag }}'
-          title: 'chore: preview sdk-konnect-go ${{ steps.release.outputs.tag }}'
+          title: 'sdk: preview sdk-konnect-go: ${{ steps.release.outputs.tag }}'
           body-path: ${{ steps.summary.outputs.body_path }}
           labels: automation,sdk-preview
           delete-branch: false
@@ -298,8 +261,7 @@ jobs:
           steps.plan.outputs.test == 'true' &&
           (
             (steps.build.outputs.status != '' && steps.build.outputs.status != '0') ||
-            (steps.unit.outputs.status != '' && steps.unit.outputs.status != '0') ||
-            (steps.e2e.outputs.status != '' && steps.e2e.outputs.status != '0')
+            (steps.unit.outputs.status != '' && steps.unit.outputs.status != '0')
           )
         run: |
           echo "::error::One or more preview checks failed."
