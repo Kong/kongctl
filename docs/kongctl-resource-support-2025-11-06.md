@@ -12,27 +12,30 @@ declarative configuration and imperative command interfaces.
 
 ### Key Findings
 
-- **Total Kong Konnect Resources:** 71 resource types
-- **Declarative Configuration Support:** 13 resource types (18% coverage)
+- **Total Kong Konnect Resources:** 80+ resource types (71 standard + 9 Event Gateway)
+- **Declarative Configuration Support:** 13 resource types (16% coverage)
   - 4 parent resources (with kongctl metadata support)
   - 9 child resources
-- **Imperative Command Support:** 21 resource types (30% coverage)
+- **Imperative Command Support:** 21 resource types (26% coverage)
   - Parent resources with full get/list operations
   - Child resources accessible via parent context
   - Read-only operations for all imperative commands
+- **Event Gateway Resources:** 9 new resource types (0% kongctl support)
 
 ### Coverage Summary
 
 | Support Type | Resources Supported | Coverage |
 |-------------|---------------------|----------|
-| Kong Konnect SDK | 71 | 100% |
-| Declarative (Parent) | 4 | 6% |
-| Declarative (Child) | 9 | 13% |
-| Declarative (Total) | 13 | 18% |
+| Kong Konnect SDK (Standard) | 71 | 100% (of standard) |
+| Kong Konnect SDK (Event Gateway) | 9 | 0% |
+| Kong Konnect SDK (Total) | 80 | - |
+| Declarative (Parent) | 4 | 5% |
+| Declarative (Child) | 9 | 11% |
+| Declarative (Total) | 13 | 16% |
 | Imperative (Parent) | 6 | 8% |
-| Imperative (Child) | 13 | 18% |
+| Imperative (Child) | 13 | 16% |
 | Imperative (Special) | 2 | 3% |
-| Imperative (Total) | 21 | 30% |
+| Imperative (Total) | 21 | 26% |
 
 ---
 
@@ -57,6 +60,11 @@ Resources for authentication, authorization, users, teams, and system accounts.
 ### Infrastructure & Operations Category
 Resources for control planes, cloud gateways, certificates, and operational
 configuration.
+
+### Event Gateway Category
+Resources for Kong Event Gateway configuration, including backend clusters,
+listeners, virtual clusters, and event-driven policy management. Event Gateways
+provide event streaming capabilities built on Apache Kafka.
 
 ---
 
@@ -519,7 +527,12 @@ control_planes:
 
 ### For Feature Development
 
-#### High Impact Quick Wins
+#### Highest Impact - Event Gateway Support (NEW)
+1. **Event Gateways (Parent)** - New control plane type for event streaming
+2. **Backend Clusters (Child)** - Kafka backend configuration
+3. **Virtual Clusters (Child)** - Multi-tenancy and routing
+
+#### High Impact Quick Wins - Standard Resources
 1. **Routes (Declarative)** - Already has imperative support, add declarative
 2. **Consumers (Declarative)** - Already has imperative support, add declarative
 3. **Plugins (Both)** - Critical Gateway feature, no support yet
@@ -581,6 +594,95 @@ All kongctl operations use the official `sdk-konnect-go` SDK:
 
 ---
 
+### Event Gateway Resources (9 resources - NEW)
+
+Kong Event Gateway provides event streaming capabilities for Apache Kafka
+workloads. This is a new control plane type in Kong Konnect (v1.0.0 spec).
+
+| Resource Name | Kong Konnect SDK | Declarative | Imperative | Notes |
+|--------------|------------------|-------------|------------|-------|
+| eventgateways | ✅ | ❌ | ❌ | Event Gateway control plane instances |
+| eventgateway-backendclusters | ✅ | ❌ | ❌ | Kafka backend cluster configurations |
+| eventgateway-listeners | ✅ | ❌ | ❌ | Gateway listeners with policy support |
+| eventgateway-virtualclusters | ✅ | ❌ | ❌ | Virtual Kafka clusters with routing |
+| eventgateway-schemaregistries | ✅ | ❌ | ❌ | Schema registry integrations |
+| eventgateway-vaults | ✅ | ❌ | ❌ | Secret vaults for credential management |
+| eventgateway-statickeys | ✅ | ❌ | ❌ | Static encryption keys |
+| eventgateway-nodes | ✅ | ❌ | ❌ | Event Gateway data plane nodes |
+| eventgateway-certificates | ✅ | ❌ | ❌ | Data plane TLS certificates |
+
+#### Event Gateway Resource Hierarchy
+
+Event Gateways follow a hierarchical model similar to Kong Gateway:
+
+```
+Event Gateway (Control Plane)
+├── Backend Clusters (Kafka backends)
+├── Virtual Clusters (Logical Kafka clusters)
+│   ├── Cluster Policies
+│   ├── Produce Policies
+│   └── Consume Policies
+├── Listeners (Gateway entry points)
+│   └── Listener Policies
+├── Schema Registries
+├── Vaults
+│   └── Secrets
+├── Static Keys
+├── Nodes (Data Plane)
+└── Certificates (Data Plane)
+```
+
+#### Event Gateway Capabilities
+
+1. **Multi-Tenancy** - Virtual clusters provide isolated Kafka environments
+2. **Policy-Based Routing** - Cluster, produce, and consume policies control
+   traffic flow
+3. **Schema Validation** - Integrated schema registry support
+4. **Security** - Encryption, ACLs, authentication, and authorization policies
+5. **Expression Language** - DSL for dynamic configuration and routing
+
+#### Event Gateway Policy Types
+
+- **ACL Policies** - Access control for topics and consumer groups
+- **Schema Validation Policies** - Enforce schema compliance for messages
+- **Encryption/Decryption Policies** - Message-level encryption
+- **Authentication Policies** - SASL, API key, and other auth mechanisms
+- **Authorization Policies** - Fine-grained permission control
+- **Rate Limiting Policies** - Throughput and quota management
+
+#### Kongctl Support Status
+
+**Current Status:** No support for Event Gateway resources in kongctl.
+
+**Recommended Implementation Priority:**
+
+1. **High Priority (Parent Resources)**
+   - Event Gateways (control plane type)
+   - Backend Clusters (critical infrastructure)
+   - Virtual Clusters (core multi-tenancy feature)
+
+2. **Medium Priority (Child Resources)**
+   - Listeners and Listener Policies
+   - Schema Registries
+   - Vaults and Secrets
+
+3. **Lower Priority (Operational)**
+   - Nodes (read-only status)
+   - Certificates (similar to Gateway certificates)
+   - Static Keys
+
+**Implementation Approach:**
+
+Event Gateway resources should follow the same pattern as Kong Gateway
+resources:
+- Declarative configuration for Event Gateways, Backend Clusters, Virtual
+  Clusters, and their policies
+- Imperative commands for discovery and debugging
+- Support for both nested and flat configuration styles
+- Namespace isolation for multi-team management
+
+---
+
 ## Appendix: Resource Type Naming
 
 Some resources use different names between Kong Konnect SDK and kongctl
@@ -605,7 +707,7 @@ declarative configuration:
 
 ## Appendix: Complete SDK Resource Listing
 
-All 71 Kong Konnect SDK resources (alphabetical):
+### Standard Kong Konnect Resources (71 resources)
 
 1. acls
 2. api
@@ -679,6 +781,22 @@ All 71 Kong Konnect SDK resources (alphabetical):
 70. users
 71. vaults
 
+### Event Gateway Resources (9 resources - NEW in v1.0.0)
+
+1. eventgateways - Event Gateway control plane instances
+2. eventgateway-backendclusters - Backend Kafka cluster configurations
+3. eventgateway-listeners - Gateway listeners with policy chains
+4. eventgateway-virtualclusters - Virtual Kafka clusters with routing
+5. eventgateway-schemaregistries - Schema registry integrations
+6. eventgateway-vaults - Secret vault management
+7. eventgateway-statickeys - Static encryption keys
+8. eventgateway-nodes - Event Gateway data plane nodes
+9. eventgateway-certificates - Data plane TLS certificates
+
+**Note:** Event Gateway also includes numerous policy resource types
+(cluster-policies, produce-policies, consume-policies, listener-policies) which
+are child resources of their respective parent resources.
+
 ---
 
 ## Conclusion
@@ -692,15 +810,18 @@ Planes) with a clean, namespace-aware model suitable for multi-team
 environments and CI/CD integration. The stateless, plan-based approach and YAML
 tag system provide a modern, Git-friendly infrastructure-as-code experience.
 
-### Imperative Commands (30% coverage)
+### Imperative Commands (26% coverage)
 Extensive read-only access to 21 resource types including all declarative
 resources plus child resources for discovery and debugging. The parent-child
 command structure provides intuitive navigation through resource hierarchies.
 
+**Note:** Coverage percentage decreased from 30% to 26% with the addition of 9
+Event Gateway resources.
+
 ### Combined Strengths
 
-Together, these interfaces provide 30% coverage of Kong Konnect resources with
-strategic overlap:
+Together, these interfaces provide 26% coverage of Kong Konnect resources
+(including new Event Gateway resources) with strategic overlap:
 - **Declare what matters** - APIs, Portals, Auth Strategies, Control Planes,
   and their critical children
 - **Query everything else** - Use imperative commands for discovery, debugging,
@@ -710,11 +831,13 @@ strategic overlap:
 
 ### Future Expansion Priorities
 
-1. **Gateway Configuration** - Plugins, Routes (declarative), Consumers
+1. **Event Gateway Support (NEW)** - Event Gateways, Backend Clusters, Virtual
+   Clusters, Listeners, and Policy management (9 new resources)
+2. **Gateway Configuration** - Plugins, Routes (declarative), Consumers
    (declarative), Upstreams, Certificates
-2. **Developer Experience (Declarative)** - Portal Developers, Applications,
+3. **Developer Experience (Declarative)** - Portal Developers, Applications,
    Teams (already have imperative)
-3. **Bidirectional Parity** - Portal Customizations and Custom Domains
+4. **Bidirectional Parity** - Portal Customizations and Custom Domains
    (imperative), API Attributes (declarative)
 
 The tool successfully balances infrastructure-as-code principles with
