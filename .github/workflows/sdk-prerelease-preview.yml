@@ -19,11 +19,8 @@ permissions:
 
 jobs:
   preview:
-    name: Build and test against prereleases
+    name: Stage prerelease
     runs-on: ubuntu-latest
-    concurrency:
-      group: konnect-e2e
-      cancel-in-progress: false
     steps:
       - name: Resolve latest prerelease
         id: release
@@ -157,50 +154,6 @@ jobs:
             git diff --stat -- go.mod go.sum
           fi
 
-      - name: Decide test execution
-        if: steps.decision.outputs.run == 'true'
-        id: plan
-        env:
-          CHANGED: ${{ steps.diff.outputs.changed }}
-          FORCE: ${{ steps.release.outputs.force }}
-        run: |
-          if [ "${CHANGED}" = "true" ] || [ "${FORCE}" = "true" ]; then
-            echo "test=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No go.mod changes detected and force not requested; skipping tests."
-            echo "test=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Install clipboard build dependencies
-        if: steps.plan.outputs.test == 'true'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libx11-dev
-
-      - name: Build kongctl
-        if: steps.plan.outputs.test == 'true'
-        id: build
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -o pipefail
-          make build | tee "${RUNNER_TEMP}/build.log"
-          status="${PIPESTATUS[0]}"
-          echo "status=${status}" >> "$GITHUB_OUTPUT"
-          exit "${status}"
-
-      - name: Run unit tests
-        if: steps.plan.outputs.test == 'true'
-        id: unit
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -o pipefail
-          make test | tee "${RUNNER_TEMP}/unit.log"
-          status="${PIPESTATUS[0]}"
-          echo "status=${status}" >> "$GITHUB_OUTPUT"
-          exit "${status}"
-
       - name: Prepare PR body
         if: steps.diff.outputs.changed == 'true'
         id: summary
@@ -209,21 +162,7 @@ jobs:
           RELEASE_NAME: ${{ steps.release.outputs.name }}
           RELEASE_URL: ${{ steps.release.outputs.release_url }}
           PUBLISHED_AT: ${{ steps.release.outputs.published_at }}
-          BUILD_STATUS: ${{ steps.build.outputs.status }}
-          UNIT_STATUS: ${{ steps.unit.outputs.status }}
         run: |
-          status_line() {
-            local label="$1"
-            local value="$2"
-            if [ -z "${value}" ]; then
-              echo "- ${label}: ⚪️ not run"
-            elif [ "${value}" = "0" ]; then
-              echo "- ${label}: ✅ passed"
-            else
-              echo "- ${label}: ❌ failed (exit ${value})"
-            fi
-          }
-
           PR_BODY_PATH="${RUNNER_TEMP}/pr-body.md"
 
           {
@@ -237,9 +176,9 @@ jobs:
               echo "- Published: ${PUBLISHED_AT}"
             fi
             echo ""
-            echo "### Test summary"
-            status_line "Build" "${BUILD_STATUS}"
-            status_line "Unit tests" "${UNIT_STATUS}"
+            echo "### Notes"
+            echo "- Dependency bump staged for automated preview validation."
+            echo "- Standard PR workflows (lint/unit/e2e) will run on this branch."
           } > "${PR_BODY_PATH}"
 
           echo "body_path=${PR_BODY_PATH}" >> "$GITHUB_OUTPUT"
@@ -294,14 +233,3 @@ jobs:
             });
 
             core.info('Applied default prerelease label: alpha.');
-
-      - name: Fail workflow on test failures
-        if: >-
-          steps.plan.outputs.test == 'true' &&
-          (
-            (steps.build.outputs.status != '' && steps.build.outputs.status != '0') ||
-            (steps.unit.outputs.status != '' && steps.unit.outputs.status != '0')
-          )
-        run: |
-          echo "::error::One or more preview checks failed."
-          exit 1
