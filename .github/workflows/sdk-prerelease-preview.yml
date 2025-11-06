@@ -1,4 +1,4 @@
-name: SDK Prerelease Preview
+name: sdk-konnect-go pre-release
 
 on:
   schedule:
@@ -9,7 +9,7 @@ on:
         description: 'sdk-konnect-go prerelease tag (default: latest prerelease)'
         required: false
       force:
-        description: 'Run even if an existing preview PR is open'
+        description: 'Run even if an existing PR is open'
         required: false
         default: 'false'
 
@@ -18,7 +18,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  preview:
+  stage:
     name: Stage prerelease
     runs-on: ubuntu-latest
     steps:
@@ -90,7 +90,7 @@ jobs:
             });
 
             if (prs.length > 0) {
-              core.info(`Existing preview PR detected: #${prs[0].number}`);
+              core.info(`Existing PR detected: #${prs[0].number}`);
               core.setOutput('pr_exists', 'true');
               core.setOutput('pr_number', String(prs[0].number));
               core.setOutput('pr_url', prs[0].html_url);
@@ -114,7 +114,7 @@ jobs:
           fi
 
           if [ "${PR_EXISTS}" = "true" ] && [ "${EVENT_NAME}" = "schedule" ] && [ "${FORCE}" != "true" ]; then
-            echo "Existing preview PR detected; skipping scheduled run."
+            echo "Existing PR detected; skipping scheduled run."
             echo "run=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -177,13 +177,13 @@ jobs:
             fi
             echo ""
             echo "### Notes"
-            echo "- Dependency bump staged for automated preview validation."
+            echo "- Dependency bump staged for automated validation."
             echo "- Standard PR workflows (lint/unit/e2e) will run on this branch."
           } > "${PR_BODY_PATH}"
 
           echo "body_path=${PR_BODY_PATH}" >> "$GITHUB_OUTPUT"
 
-      - name: Create or update preview PR
+      - name: Create or update PR
         if: steps.diff.outputs.changed == 'true'
         id: cpr
         uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
@@ -220,7 +220,7 @@ jobs:
             );
 
             if (hasPrerelease) {
-              core.info('Prerelease label already present on preview PR.');
+              core.info('Prerelease label already present on PR.');
               return;
             }
 
