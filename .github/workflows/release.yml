@@ -2,12 +2,86 @@ name: release
 
 on:
   push:
-    tags:
-      - 'v*.*'
+    branches:
+      - main
+    paths:
+      - VERSION
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          fetch-depth: 0
+
+      - name: Read version
+        id: meta
+        run: |
+          set -euo pipefail
+
+          if [ ! -f VERSION ]; then
+            echo "::error::VERSION file not found." >&2
+            exit 1
+          fi
+
+          VERSION=$(tr -d '\n' < VERSION)
+          if [ -z "$VERSION" ]; then
+            echo "::error::VERSION file is empty." >&2
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" == *-* ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ensure release tag
+        id: tag
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+          PAT: ${{ secrets.PAT }}
+        run: |
+          set -euo pipefail
+
+          TAG="v${VERSION}"
+          git fetch origin --tags
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "tag_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            if [ -z "${PAT}" ]; then
+              echo "::error::PAT secret is required to push release tags." >&2
+              exit 1
+            fi
+
+            git config user.name "kongctl Release Bot"
+            git config user.email "kongctl@konghq.com"
+            git remote set-url origin "https://x-access-token:${PAT}@github.com/${{ github.repository }}"
+
+            git tag -a "$TAG" -m "Release $TAG"
+            git push origin "$TAG"
+            echo "tag_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
   e2e:
-    # Ensure E2E runs serialize with other E2E workflows
+    needs: prepare
+    if: needs.prepare.outputs.version != ''
     concurrency:
       group: konnect-e2e
       cancel-in-progress: false
@@ -45,13 +119,22 @@ jobs:
           path: ${{ runner.temp }}/kongctl-e2e-${{ github.run_id }}
 
   goreleaser:
+    needs: prepare
+    if: needs.prepare.outputs.version != ''
     timeout-minutes: ${{ fromJSON(vars.GHA_DEFAULT_TIMEOUT) }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+      IS_PRERELEASE: ${{ needs.prepare.outputs.is_prerelease }}
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
+      - name: Fetch tags
+        run: git fetch origin --tags
       - run: git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf https://github.com/
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}

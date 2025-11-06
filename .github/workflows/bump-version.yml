@@ -1,0 +1,305 @@
+name: Bump Version
+
+on:
+  pull_request:
+    branches:
+      - '*'
+    types:
+      - labeled
+      - unlabeled
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bump-version-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check-semver-label:
+    runs-on: ubuntu-latest
+    outputs:
+      has_version_labels: ${{ steps.label_check.outputs.has_version_labels }}
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Validate label combination
+        id: label_check
+        run: |
+          set -euo pipefail
+
+          LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
+
+          SEMVER_COUNT=$(echo "$LABELS" | jq -r '[.[]| select(test("^(patch|minor|major)$"))] | length')
+          PRERELEASE_COUNT=$(echo "$LABELS" | jq -r '[.[]| select(test("^(rc|alpha|beta)$"))] | length')
+
+          {
+            echo "### Label Validation"
+            echo ""
+            echo "- Semver labels found: $SEMVER_COUNT"
+            echo "- Pre-release labels found: $PRERELEASE_COUNT"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$SEMVER_COUNT" -eq 0 ] && [ "$PRERELEASE_COUNT" -eq 0 ]; then
+            {
+              echo "ℹ️  **No version labels found**"
+              echo ""
+              echo "Add one of these labels to bump the version:"
+              echo "- Stable release: \`patch\`, \`minor\`, or \`major\`"
+              echo "- Pre-release: \`rc\`, \`alpha\`, or \`beta\`"
+              echo ""
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "has_version_labels=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$SEMVER_COUNT" -gt 1 ]; then
+            {
+              echo "❌ **Error:** Multiple semver labels detected"
+              echo ""
+              echo "Use only one of: \`patch\`, \`minor\`, or \`major\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          if [ "$PRERELEASE_COUNT" -gt 1 ]; then
+            {
+              echo "❌ **Error:** Multiple pre-release labels detected"
+              echo ""
+              echo "Use only one of: \`rc\`, \`alpha\`, or \`beta\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          if [ "$PRERELEASE_COUNT" -eq 1 ] && [ "$SEMVER_COUNT" -eq 0 ]; then
+            {
+              echo "ℹ️  Pre-release label without semver label defaults to a patch bump when main is stable."
+              echo ""
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          {
+            echo "✅ **Label combination is valid**"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "has_version_labels=true" >> "$GITHUB_OUTPUT"
+
+  reset-version:
+    if: github.event_name == 'pull_request' && github.event.sender.login != 'github-actions[bot]' && needs.check-semver-label.outputs.has_version_labels == 'false'
+    needs:
+      - check-semver-label
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.PAT }}
+
+      - name: Reset VERSION to match main
+        id: reset
+        run: |
+          set -euo pipefail
+
+          if ! git fetch origin main; then
+            echo "::warning::Unable to fetch origin/main; skipping version reset."
+            echo "needs_reset=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! git show origin/main:VERSION >/tmp/main_version 2>/dev/null; then
+            echo "::warning::VERSION file not found on main; skipping reset."
+            echo "needs_reset=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          MAIN_VERSION=$(tr -d '\n' < /tmp/main_version)
+          BRANCH_VERSION=$(tr -d '\n' < VERSION 2>/dev/null || echo "")
+
+          if [ "$MAIN_VERSION" = "$BRANCH_VERSION" ]; then
+            echo "Version already matches main ($MAIN_VERSION); no reset needed."
+            echo "needs_reset=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          printf '%s\n' "$MAIN_VERSION" > VERSION
+          echo "reset_version=$MAIN_VERSION" >> "$GITHUB_OUTPUT"
+          echo "needs_reset=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit version reset
+        if: steps.reset.outputs.needs_reset == 'true'
+        uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5 # v9.1.4
+        with:
+          add: VERSION
+          default_author: github_actions
+          message: 'chore: reset VERSION to match main'
+
+  bump-version:
+    if: github.event_name == 'pull_request' && github.event.sender.login != 'github-actions[bot]' && needs.check-semver-label.outputs.has_version_labels == 'true'
+    needs:
+      - check-semver-label
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.PAT }}
+
+      - name: Set VERSION based on labels
+        id: bump
+        run: |
+          set -euo pipefail
+
+          LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
+          SEMVER_LABEL=$(echo "$LABELS" | jq -r 'map(select(test("^(patch|minor|major)$")))[0] // ""' | tr '[:upper:]' '[:lower:]')
+          PRERELEASE_LABEL=$(echo "$LABELS" | jq -r 'map(select(test("^(rc|alpha|beta)$")))[0] // ""' | tr '[:upper:]' '[:lower:]')
+
+          git fetch origin main
+
+          if git show origin/main:VERSION >/tmp/main_version 2>/dev/null; then
+            MAIN_VERSION=$(tr -d '\n' < /tmp/main_version)
+          else
+            MAIN_VERSION="0.0.0"
+          fi
+
+          if [ -f VERSION ]; then
+            BRANCH_VERSION=$(tr -d '\n' < VERSION)
+          else
+            BRANCH_VERSION="$MAIN_VERSION"
+          fi
+
+          strip_prerelease() {
+            local version="$1"
+            echo "${version%%-*}"
+          }
+
+          prerelease_label() {
+            local version="$1"
+            if [[ "$version" == *-* ]]; then
+              local suffix="${version#*-}"
+              echo "${suffix%%.*}"
+            else
+              echo ""
+            fi
+          }
+
+          prerelease_number() {
+            local version="$1"
+            if [[ "$version" == *-* && "$version" == *.* ]]; then
+              local suffix="${version#*-}"
+              local number="${suffix##*.}"
+              if [[ "$number" =~ ^[0-9]+$ ]]; then
+                echo "$number"
+                return
+              fi
+            fi
+            echo "0"
+          }
+
+          increment_semver() {
+            local version="$1"
+            local part="$2"
+            local base="${version%%-*}"
+            IFS='.' read -r major minor patch <<< "$base"
+            case "$part" in
+              major)
+                major=$((major + 1)); minor=0; patch=0
+                ;;
+              minor)
+                minor=$((minor + 1)); patch=0
+                ;;
+              patch)
+                patch=$((patch + 1))
+                ;;
+              *)
+                echo "::error::Invalid semver bump '$part'." >&2
+                exit 1
+                ;;
+            esac
+            echo "${major}.${minor}.${patch}"
+          }
+
+          BASE_MAIN=$(strip_prerelease "$MAIN_VERSION")
+          MAIN_PRE_LABEL=$(prerelease_label "$MAIN_VERSION")
+          MAIN_PRE_NUM=$(prerelease_number "$MAIN_VERSION")
+
+          BASE_BRANCH=$(strip_prerelease "$BRANCH_VERSION")
+          BRANCH_PRE_LABEL=$(prerelease_label "$BRANCH_VERSION")
+
+          NEW_VERSION=""
+
+          if [ -n "$PRERELEASE_LABEL" ]; then
+            BASE_VERSION="$BASE_MAIN"
+
+            if [ -n "$SEMVER_LABEL" ]; then
+              BASE_VERSION=$(increment_semver "$BASE_VERSION" "$SEMVER_LABEL")
+            else
+              if [ "$MAIN_PRE_LABEL" = "$PRERELEASE_LABEL" ]; then
+                BASE_VERSION="$BASE_MAIN"
+              elif [ -n "$MAIN_PRE_LABEL" ]; then
+                BASE_VERSION="$BASE_MAIN"
+              else
+                BASE_VERSION=$(increment_semver "$BASE_VERSION" "patch")
+              fi
+            fi
+
+            if [ "$BRANCH_PRE_LABEL" = "$PRERELEASE_LABEL" ] && [ "$BASE_BRANCH" = "$BASE_VERSION" ] && [ "$BRANCH_VERSION" != "$MAIN_VERSION" ]; then
+              NEW_VERSION="$BRANCH_VERSION"
+            else
+              COUNTER=1
+              if [ "$MAIN_PRE_LABEL" = "$PRERELEASE_LABEL" ] && [ "$BASE_MAIN" = "$BASE_VERSION" ]; then
+                COUNTER=$((MAIN_PRE_NUM + 1))
+              fi
+              NEW_VERSION="${BASE_VERSION}-${PRERELEASE_LABEL}.${COUNTER}"
+            fi
+          else
+            if [ -z "$SEMVER_LABEL" ]; then
+              echo "::error::No semver or prerelease label detected." >&2
+              exit 1
+            fi
+            NEW_VERSION=$(increment_semver "$BASE_MAIN" "$SEMVER_LABEL")
+          fi
+
+          if [ -z "$NEW_VERSION" ]; then
+            echo "::error::Failed to compute new version." >&2
+            exit 1
+          fi
+
+          if [ "$BRANCH_VERSION" = "$NEW_VERSION" ]; then
+            echo "VERSION already set to $NEW_VERSION; nothing to update."
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          printf '%s\n' "$NEW_VERSION" > VERSION
+
+          {
+            echo "## ✅ Version Updated"
+            echo ""
+            echo "- Previous (branch): $BRANCH_VERSION"
+            echo "- Base (main): $MAIN_VERSION"
+            echo "- New: $NEW_VERSION"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "bumped=true" >> "$GITHUB_OUTPUT"
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Commit VERSION update
+        if: steps.bump.outputs.bumped == 'true'
+        uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5 # v9.1.4
+        with:
+          add: VERSION
+          default_author: github_actions
+          message: 'chore: bump VERSION to ${{ steps.bump.outputs.version }}'

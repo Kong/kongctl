@@ -246,6 +246,7 @@ jobs:
 
       - name: Create or update preview PR
         if: steps.diff.outputs.changed == 'true'
+        id: cpr
         uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
           branch: sdk-konnect-go/${{ steps.release.outputs.tag }}
@@ -255,6 +256,44 @@ jobs:
           labels: automation,sdk-preview
           delete-branch: false
           token: ${{ secrets.PAT }}
+
+      - name: Apply default prerelease label
+        if: steps.diff.outputs.changed == 'true'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+        with:
+          script: |
+            const prNumber = parseInt(process.env.PR_NUMBER || '0', 10);
+            if (!prNumber) {
+              core.info('No pull request number found; skipping label management.');
+              return;
+            }
+
+            const prereleaseLabels = ['alpha', 'beta', 'rc'];
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+
+            const hasPrerelease = pr.labels.some((label) =>
+              prereleaseLabels.includes(label.name)
+            );
+
+            if (hasPrerelease) {
+              core.info('Prerelease label already present on preview PR.');
+              return;
+            }
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              labels: ['alpha'],
+            });
+
+            core.info('Applied default prerelease label: alpha.');
 
       - name: Fail workflow on test failures
         if: >-
