@@ -16,9 +16,10 @@ declarative configuration and imperative command interfaces.
 - **Declarative Configuration Support:** 13 resource types (18% coverage)
   - 4 parent resources (with kongctl metadata support)
   - 9 child resources
-- **Imperative Command Support:** 9 resource types (13% coverage)
-  - Full CRUD via `get`/`list` commands
-  - Read-only operations for most resources
+- **Imperative Command Support:** 21 resource types (30% coverage)
+  - Parent resources with full get/list operations
+  - Child resources accessible via parent context
+  - Read-only operations for all imperative commands
 
 ### Coverage Summary
 
@@ -28,7 +29,10 @@ declarative configuration and imperative command interfaces.
 | Declarative (Parent) | 4 | 6% |
 | Declarative (Child) | 9 | 13% |
 | Declarative (Total) | 13 | 18% |
-| Imperative | 9 | 13% |
+| Imperative (Parent) | 6 | 8% |
+| Imperative (Child) | 13 | 18% |
+| Imperative (Special) | 2 | 3% |
+| Imperative (Total) | 21 | 30% |
 
 ---
 
@@ -72,17 +76,17 @@ configuration.
 
 | Resource Name | Kong Konnect SDK | Declarative | Imperative | Notes |
 |--------------|------------------|-------------|------------|-------|
-| api | ✅ | 🟡 Parent | ✅ Get/List | Full declarative support as parent resource |
-| apiversion | ✅ | 🔵 Child | ❌ | Nested under apis or standalone with api reference |
-| apipublication | ✅ | 🔵 Child | ❌ | Nested under apis or standalone with api reference |
-| apiimplementation | ✅ | 🔵 Child | ❌ | Nested under apis or standalone with api reference |
-| apidocumentation | ✅ | 🔵 Child | ❌ | Declarative uses `api_document` name |
+| api | ✅ | 🟡 Parent | 📖 Get/List | Full declarative support as parent resource |
+| apiversion | ✅ | 🔵 Child | 📖 Get/List | Via `kongctl get api versions --api-id <id>` |
+| apipublication | ✅ | 🔵 Child | 📖 Get/List | Via `kongctl get api publications --api-id <id>` |
+| apiimplementation | ✅ | 🔵 Child | 📖 Get/List | Via `kongctl get api implementations --api-id <id>` |
+| apidocumentation | ✅ | 🔵 Child | 📖 Get/List | Via `kongctl get api documents --api-id <id>` |
 | apispecification | ✅ | ❌ | ❌ | API spec content managed via apiversion |
-| apiattributes | ✅ | ❌ | ❌ | |
+| apiattributes | ✅ | ❌ | 📖 Get Only | Via `kongctl get api attributes --api-id <id>` |
 | apikeys | ✅ | ❌ | ❌ | API key credentials for consumers |
 | applicationregistrations | ✅ | ❌ | ❌ | Developer application registrations |
 | applications | ✅ | ❌ | ❌ | Developer applications |
-| appauthstrategies | ✅ | 🟡 Parent | ✅ Get/List | Declarative uses `application_auth_strategy` |
+| appauthstrategies | ✅ | 🟡 Parent | 📖 Get/List | Declarative uses `application_auth_strategy` |
 
 ---
 
@@ -90,11 +94,11 @@ configuration.
 
 | Resource Name | Kong Konnect SDK | Declarative | Imperative | Notes |
 |--------------|------------------|-------------|------------|-------|
-| controlplanes | ✅ | 🟡 Parent | ✅ Get/List | Full support including control plane groups |
-| controlplanegroups | ✅ | 🟡 Parent | ✅ Get/List | Managed via cluster_type in control_planes |
-| services | ✅ | 🔵 Child | ✅ Get/List | Declarative uses `gateway_service` name |
-| routes | ✅ | ❌ | ✅ Get/List | Imperative only |
-| consumers | ✅ | ❌ | ✅ Get/List | Imperative only |
+| controlplanes | ✅ | 🟡 Parent | 📖 Get/List | Via `kongctl get gateway control-planes` |
+| controlplanegroups | ✅ | 🟡 Parent | 📖 Get/List | Managed via cluster_type in control_planes |
+| services | ✅ | 🔵 Child | 📖 Get/List | Via `kongctl get gateway services --control-plane <id>` |
+| routes | ✅ | ❌ | 📖 Get/List | Via `kongctl get gateway routes --control-plane <id>` |
+| consumers | ✅ | ❌ | 📖 Get/List | Via `kongctl get gateway consumers --control-plane <id>` |
 | plugins | ✅ | ❌ | ❌ | |
 | upstreams | ✅ | ❌ | ❌ | |
 | targets | ✅ | ❌ | ❌ | |
@@ -115,18 +119,19 @@ configuration.
 
 | Resource Name | Kong Konnect SDK | Declarative | Imperative | Notes |
 |--------------|------------------|-------------|------------|-------|
-| portals | ✅ | 🟡 Parent | ✅ Get/List | Full declarative support as parent resource |
-| pages | ✅ | 🔵 Child | ❌ | Declarative uses `portal_page` name |
-| snippets | ✅ | 🔵 Child | ❌ | Declarative uses `portal_snippet` name |
+| portals | ✅ | 🟡 Parent | 📖 Get/List | Full declarative support as parent resource |
+| pages | ✅ | 🔵 Child | 📖 Get/List | Via `kongctl get portal pages --portal-id <id>` |
+| snippets | ✅ | 🔵 Child | 📖 Get/List | Via `kongctl get portal snippets --portal-id <id>` |
 | portalcustomization | ✅ | 🔵 Child | ❌ | Nested under portals |
 | portalcustomdomains | ✅ | 🔵 Child | ❌ | Nested under portals, special handling required |
-| portaldevelopers | ✅ | ❌ | ❌ | Portal developer accounts |
-| portalteams | ✅ | ❌ | ❌ | |
+| portaldevelopers | ✅ | ❌ | 📖 Get/List | Via `kongctl get portal developers --portal-id <id>` |
+| portalteams | ✅ | ❌ | 📖 Get/List | Via `kongctl get portal teams --portal-id <id>` |
 | portalteammembership | ✅ | ❌ | ❌ | |
 | portalteamroles | ✅ | ❌ | ❌ | |
 | portalauditlogs | ✅ | ❌ | ❌ | Read-only audit logs |
 | portalauthsettings | ✅ | ❌ | ❌ | |
 | portalemails | ✅ | ❌ | ❌ | |
+| applications | ✅ | ❌ | 📖 Get/List | Via `kongctl get portal applications --portal-id <id>` |
 | assets | ✅ | ❌ | ❌ | Portal asset management |
 
 ---
@@ -263,30 +268,85 @@ Control plane groups are managed through the `control_planes` resource with:
 
 ### Imperative Command Support
 
-Imperative commands provide read operations for a subset of resources via
-`kongctl get` and `kongctl list` commands.
+Imperative commands provide read-only operations for resources via
+`kongctl get` and `kongctl list` commands. All imperative commands support
+JSON, YAML, and text output formats.
 
-**Fully Supported Resources:**
-- `apis` - List and get individual APIs
-- `portals` - List and get individual portals
-- `auth-strategies` - List and get auth strategies
-- `gateway control-planes` - List and get control planes
-- `gateway services` - List and get services (requires --control-plane)
-- `gateway routes` - List and get routes (requires --control-plane)
-- `gateway consumers` - List and get consumers (requires --control-plane)
+#### Parent Resources (6 resources)
 
-**Read-Only Resources:**
-- `me` - Get current user information (no list)
-- `organization` - Get current organization (no list)
+These resources can be listed and retrieved individually:
 
-**Command Structure:**
+1. **APIs** - `kongctl get apis` / `kongctl get api <id|name>`
+2. **Portals** - `kongctl get portals` / `kongctl get portal <id|name>`
+3. **Auth Strategies** - `kongctl get auth-strategies` / `kongctl get auth-strategy <id|name>`
+4. **Control Planes** - `kongctl get gateway control-planes` / `kongctl get gateway control-plane <id|name>`
+
+#### API Child Resources (5 resources)
+
+These resources are accessed via their parent API:
+
+1. **API Versions** - `kongctl get api versions --api-id <id>`
+2. **API Publications** - `kongctl get api publications --api-id <id>`
+3. **API Implementations** - `kongctl get api implementations --api-id <id>`
+4. **API Documents** - `kongctl get api documents --api-id <id>`
+5. **API Attributes** - `kongctl get api attributes --api-id <id>` (read-only metadata)
+
+#### Portal Child Resources (5 resources)
+
+These resources are accessed via their parent Portal:
+
+1. **Portal Pages** - `kongctl get portal pages --portal-id <id>` or `--portal-name <name>`
+2. **Portal Snippets** - `kongctl get portal snippets --portal-id <id>`
+3. **Portal Developers** - `kongctl get portal developers --portal-id <id>`
+4. **Portal Teams** - `kongctl get portal teams --portal-id <id>`
+5. **Portal Applications** - `kongctl get portal applications --portal-id <id>`
+
+#### Gateway Child Resources (3 resources)
+
+These resources are accessed via their parent Control Plane:
+
+1. **Gateway Services** - `kongctl get gateway services --control-plane <id|name>`
+2. **Gateway Routes** - `kongctl get gateway routes --control-plane <id|name>`
+3. **Gateway Consumers** - `kongctl get gateway consumers --control-plane <id|name>`
+
+#### Special Resources (2 resources)
+
+These resources provide organizational and user context:
+
+1. **Me** - `kongctl get me` (current user information)
+2. **Organization** - `kongctl get organization` (current organization details)
+
+#### Command Structure Examples
+
 ```bash
-# Konnect-first pattern (implicit konnect product)
+# Parent resources (Konnect-first pattern)
 kongctl get apis
+kongctl get api "Users API"
 kongctl get portals
+kongctl get portal my-portal
 kongctl get auth-strategies
+
+# API child resources
+kongctl get api versions --api-id <uuid>
+kongctl get api publications --api-id <uuid>
+kongctl get api documents --api-id <uuid>
+kongctl get api implementations --api-id <uuid>
+kongctl get api attributes --api-id <uuid>
+
+# Portal child resources
+kongctl get portal pages --portal-name "My Portal"
+kongctl get portal pages --portal-id <uuid>
+kongctl get portal snippets --portal-id <uuid>
+kongctl get portal developers --portal-id <uuid>
+kongctl get portal teams --portal-id <uuid>
+kongctl get portal applications --portal-id <uuid>
+
+# Gateway resources
 kongctl get gateway control-planes
-kongctl get gateway services --control-plane <name|id>
+kongctl get gateway control-plane production
+kongctl get gateway services --control-plane production
+kongctl get gateway routes --control-plane production
+kongctl get gateway consumers --control-plane production
 
 # Explicit product pattern
 kongctl get konnect apis
@@ -295,13 +355,22 @@ kongctl get konnect gateway control-planes
 # Special resources
 kongctl get me
 kongctl get organization
+
+# Output formatting
+kongctl get apis -o json
+kongctl get apis -o yaml
+kongctl get apis -o text  # default
 ```
 
-**Interactive Mode:**
+#### Interactive Mode
+
 All get commands support an interactive browser mode via the `-i` flag:
 ```bash
 kongctl get -i
 ```
+
+This launches a terminal UI for browsing resources hierarchically with
+real-time navigation and filtering.
 
 ---
 
@@ -310,19 +379,22 @@ kongctl get -i
 ### High Priority Gaps
 
 Based on common Kong Konnect usage patterns, the following resources would
-benefit from kongctl support:
+benefit from additional kongctl support:
 
-#### Gateway Configuration (High Value)
-- **Plugins** - Plugin configuration is core to Gateway functionality
-- **Upstreams/Targets** - Load balancing configuration
-- **Certificates/CA Certificates** - TLS/mTLS configuration
-- **Consumer Groups** - Consumer organization and management
-- **Routes** - Currently only imperative support
+#### Gateway Configuration (High Value for Declarative)
+- **Plugins** - Plugin configuration is core to Gateway functionality (no support)
+- **Upstreams/Targets** - Load balancing configuration (no support)
+- **Certificates/CA Certificates** - TLS/mTLS configuration (no support)
+- **Consumer Groups** - Consumer organization and management (no support)
+- **Routes** - Currently only imperative support, need declarative
+- **Consumers** - Currently only imperative support, need declarative
 
-#### Portal & Developer Experience
-- **Portal Developers** - Developer account management
-- **Portal Teams** - Team-based portal access control
-- **Applications** - Developer application lifecycle
+#### Portal & Developer Experience (Need Declarative)
+- **Portal Developers** - Developer account management (imperative only)
+- **Portal Teams** - Team-based portal access control (imperative only)
+- **Applications** - Developer application lifecycle (imperative only)
+- **Portal Customizations** - Currently declarative only, need imperative
+- **Portal Custom Domains** - Currently declarative only, need imperative
 
 #### Identity & Access Management
 - **Teams/Team Membership** - Organization team management
@@ -426,28 +498,45 @@ control_planes:
    - List resources to understand current state
    - Get individual resources for detailed inspection
    - Use `-o json` or `-o yaml` for programmatic processing
+   - Access child resources via parent context (--api-id, --portal-id, etc.)
 
-2. **Interactive Mode for Exploration**
+2. **Parent-Child Navigation**
+   - Start with parent resources: `kongctl get apis`
+   - Navigate to children: `kongctl get api versions --api-id <id>`
+   - Use names or IDs for parent resources: `--portal-name "My Portal"` or `--portal-id <uuid>`
+
+3. **Interactive Mode for Exploration**
    - Use `kongctl get -i` to browse resources interactively
-   - Navigate resource hierarchies
+   - Navigate resource hierarchies visually
    - Quickly find resource IDs and names
+   - Filter and search across resources
 
-3. **Transition to Declarative**
+4. **Transition to Declarative**
    - Use imperative commands to understand current state
    - Export to declarative format using `kongctl dump declarative`
    - Migrate critical resources to version control
+   - Keep imperative for one-off queries and debugging
 
 ### For Feature Development
 
 #### High Impact Quick Wins
 1. **Routes (Declarative)** - Already has imperative support, add declarative
-2. **Plugins (Both)** - Critical Gateway feature
-3. **Consumers (Declarative)** - Already has imperative support
+2. **Consumers (Declarative)** - Already has imperative support, add declarative
+3. **Plugins (Both)** - Critical Gateway feature, no support yet
 
-#### Medium Impact
+#### Medium Impact - Extend Declarative
+1. **Portal Developers (Declarative)** - Already has imperative support
+2. **Portal Teams (Declarative)** - Already has imperative support
+3. **Portal Applications (Declarative)** - Already has imperative support
+
+#### Medium Impact - New Support
 1. **Upstreams/Targets (Both)** - Load balancing configuration
 2. **Certificates (Both)** - TLS configuration
-3. **Portal Developers/Applications (Both)** - Developer experience
+3. **API Attributes (Declarative)** - Already has imperative read-only
+
+#### Low Impact - Extend Imperative
+1. **Portal Customizations (Imperative)** - Already has declarative
+2. **Portal Custom Domains (Imperative)** - Already has declarative
 
 ---
 
@@ -468,9 +557,20 @@ resources between configuration and Konnect:
 ### Imperative Command Implementation
 
 Imperative commands are implemented under:
-- `/internal/cmd/root/verbs/get/` - Get command implementation
-- `/internal/cmd/root/verbs/list/` - List command implementation
-- `/internal/cmd/root/products/konnect/` - Konnect-specific resource commands
+- `/internal/cmd/root/verbs/get/` - Get command verb implementation
+  - `api.go` - API parent command routing
+  - `portal.go` - Portal parent command routing
+  - `gateway.go` - Gateway resources routing
+  - `authstrategy.go` - Auth strategy command routing
+  - `me.go` - Current user command
+  - `organization.go` - Organization command
+- `/internal/cmd/root/verbs/list/` - List command verb implementation
+- `/internal/cmd/root/products/konnect/api/` - API and child resources
+  - `versions.go`, `publications.go`, `implementations.go`, `documents.go`, `attributes.go`
+- `/internal/cmd/root/products/konnect/portal/` - Portal and child resources
+  - `pages.go`, `snippets.go`, `developers.go`, `teams.go`, `applications.go`
+- `/internal/cmd/root/products/konnect/gateway/` - Gateway resources
+  - `controlplane/`, `service/`, `route/`, `consumer/`
 
 ### SDK Integration
 
@@ -583,22 +683,43 @@ All 71 Kong Konnect SDK resources (alphabetical):
 
 ## Conclusion
 
-Kongctl provides strong declarative configuration support for the core Kong
-Konnect resources (APIs, Portals, Auth Strategies, Control Planes) with a
-clean, namespace-aware model suitable for multi-team environments and CI/CD
-integration.
+Kongctl provides comprehensive support for Kong Konnect resource management
+through two complementary interfaces:
 
-The current 18% declarative coverage and 13% imperative coverage represent a
-solid foundation focused on the most commonly used resources. Future expansion
-should prioritize:
+### Declarative Configuration (18% coverage)
+Strong support for core resources (APIs, Portals, Auth Strategies, Control
+Planes) with a clean, namespace-aware model suitable for multi-team
+environments and CI/CD integration. The stateless, plan-based approach and YAML
+tag system provide a modern, Git-friendly infrastructure-as-code experience.
 
-1. **Gateway Configuration** - Plugins, Routes (declarative), Upstreams,
-   Certificates
-2. **Developer Experience** - Portal Developers, Applications, Teams
-3. **Consumer Management** - Consumer Groups, Credentials
+### Imperative Commands (30% coverage)
+Extensive read-only access to 21 resource types including all declarative
+resources plus child resources for discovery and debugging. The parent-child
+command structure provides intuitive navigation through resource hierarchies.
 
-The tool's stateless, plan-based approach and YAML tag system provide a modern,
-Git-friendly infrastructure-as-code experience for Kong Konnect users.
+### Combined Strengths
+
+Together, these interfaces provide 30% coverage of Kong Konnect resources with
+strategic overlap:
+- **Declare what matters** - APIs, Portals, Auth Strategies, Control Planes,
+  and their critical children
+- **Query everything else** - Use imperative commands for discovery, debugging,
+  and accessing resources not yet in declarative format
+- **Best of both worlds** - Version control critical resources while maintaining
+  flexibility to query runtime state
+
+### Future Expansion Priorities
+
+1. **Gateway Configuration** - Plugins, Routes (declarative), Consumers
+   (declarative), Upstreams, Certificates
+2. **Developer Experience (Declarative)** - Portal Developers, Applications,
+   Teams (already have imperative)
+3. **Bidirectional Parity** - Portal Customizations and Custom Domains
+   (imperative), API Attributes (declarative)
+
+The tool successfully balances infrastructure-as-code principles with
+operational flexibility, making it suitable for both day-0 provisioning and
+day-2 operations.
 
 ---
 
