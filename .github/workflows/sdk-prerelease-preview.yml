@@ -281,8 +281,8 @@ jobs:
         uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6.1.0
         with:
           branch: automation/sdk-preview/${{ steps.release.outputs.tag }}
-          commit-message: chore: preview sdk-konnect-go ${{ steps.release.outputs.tag }}
-          title: chore: preview sdk-konnect-go ${{ steps.release.outputs.tag }}
+          commit-message: 'chore: preview sdk-konnect-go ${{ steps.release.outputs.tag }}'
+          title: 'chore: preview sdk-konnect-go ${{ steps.release.outputs.tag }}'
           body-path: ${{ steps.summary.outputs.body_path }}
           labels: automation,sdk-preview
           delete-branch: false
