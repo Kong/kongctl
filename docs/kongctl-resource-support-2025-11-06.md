@@ -22,6 +22,7 @@ declarative configuration and imperative command interfaces.
   - Child resources accessible via parent context
   - Read-only operations for all imperative commands
 - **Event Gateway Resources:** 9 new resource types (0% kongctl support)
+  - Event Gateway not yet built into `sdk-konnect-go`
 
 ### Coverage Summary
 
@@ -40,35 +41,6 @@ declarative configuration and imperative command interfaces.
 
 ---
 
-## Resource Categories
-
-Kong Konnect resources can be organized into the following categories:
-
-### API Products Category
-Resources related to API product management, documentation, and publishing.
-
-### Gateway Configuration Category
-Resources for configuring Kong Gateway instances, including services, routes,
-plugins, and certificates.
-
-### Portal & Developer Experience Category
-Resources for managing developer portals, customization, and developer
-interactions.
-
-### Identity & Access Management Category
-Resources for authentication, authorization, users, teams, and system accounts.
-
-### Infrastructure & Operations Category
-Resources for control planes, cloud gateways, certificates, and operational
-configuration.
-
-### Event Gateway Category
-Resources for Kong Event Gateway configuration, including backend clusters,
-listeners, virtual clusters, and event-driven policy management. Event Gateways
-provide event streaming capabilities built on Apache Kafka.
-
----
-
 ## Comprehensive Resource Support Matrix
 
 ### Legend
@@ -83,7 +55,7 @@ provide event streaming capabilities built on Apache Kafka.
 
 ---
 
-### API Products & Documentation (11 resources)
+### APIs and children (11 resources)
 
 | Resource Name | Declarative | Imperative | Notes |
 |--------------|-------------|------------|-------|
@@ -101,7 +73,7 @@ provide event streaming capabilities built on Apache Kafka.
 
 ---
 
-### Gateway Configuration (18 resources)
+### Gateway Manager & core entities (18 resources)
 
 | Resource Name | Declarative | Imperative | Notes |
 |--------------|-------------|------------|-------|
@@ -126,7 +98,26 @@ provide event streaming capabilities built on Apache Kafka.
 
 ---
 
-### Portal & Developer Experience (13 resources)
+### Event Gateway Resources (9 resources - NEW)
+
+Kong Event Gateway provides event streaming capabilities for Apache Kafka
+workloads. This is a new control plane type in Kong Konnect (v1.0.0 spec).
+
+| Resource Name | Declarative | Imperative | Notes |
+|--------------|-------------|------------|-------|
+| eventgateways | ❌ | ❌ | Event Gateway control plane instances |
+| eventgateway-backendclusters | ❌ | ❌ | Kafka backend cluster configurations |
+| eventgateway-listeners | ❌ | ❌ | Gateway listeners with policy support |
+| eventgateway-virtualclusters | ❌ | ❌ | Virtual Kafka clusters with routing |
+| eventgateway-schemaregistries | ❌ | ❌ | Schema registry integrations |
+| eventgateway-vaults | ❌ | ❌ | Secret vaults for credential management |
+| eventgateway-statickeys | ❌ | ❌ | Static encryption keys |
+| eventgateway-nodes | ❌ | ❌ | Event Gateway data plane nodes |
+| eventgateway-certificates | ❌ | ❌ | Data plane TLS certificates |
+
+---
+
+### Portal (13 resources)
 
 | Resource Name | Declarative | Imperative | Notes |
 |--------------|-------------|------------|-------|
@@ -168,7 +159,7 @@ provide event streaming capabilities built on Apache Kafka.
 
 ---
 
-### Consumer Credentials (5 resources)
+### Consumers (5 resources)
 
 | Resource Name | Declarative | Imperative | Notes |
 |--------------|-------------|------------|-------|
@@ -180,7 +171,7 @@ provide event streaming capabilities built on Apache Kafka.
 
 ---
 
-### Configuration & Schema (4 resources)
+### Custom Plugins (4 resources)
 
 | Resource Name | Declarative | Imperative | Notes |
 |--------------|-------------|------------|-------|
@@ -597,22 +588,6 @@ All kongctl operations use the official `sdk-konnect-go` SDK:
 
 ---
 
-### Event Gateway Resources (9 resources - NEW)
-
-Kong Event Gateway provides event streaming capabilities for Apache Kafka
-workloads. This is a new control plane type in Kong Konnect (v1.0.0 spec).
-
-| Resource Name | Declarative | Imperative | Notes |
-|--------------|-------------|------------|-------|
-| eventgateways | ❌ | ❌ | Event Gateway control plane instances |
-| eventgateway-backendclusters | ❌ | ❌ | Kafka backend cluster configurations |
-| eventgateway-listeners | ❌ | ❌ | Gateway listeners with policy support |
-| eventgateway-virtualclusters | ❌ | ❌ | Virtual Kafka clusters with routing |
-| eventgateway-schemaregistries | ❌ | ❌ | Schema registry integrations |
-| eventgateway-vaults | ❌ | ❌ | Secret vaults for credential management |
-| eventgateway-statickeys | ❌ | ❌ | Static encryption keys |
-| eventgateway-nodes | ❌ | ❌ | Event Gateway data plane nodes |
-| eventgateway-certificates | ❌ | ❌ | Data plane TLS certificates |
 
 #### Event Gateway Resource Hierarchy
 
