@@ -288,7 +288,13 @@ jobs:
           delete-branch: false
 
       - name: Fail workflow on test failures
-        if: steps.plan.outputs.test == 'true' && ((steps.build.outputs.status != '' && steps.build.outputs.status != '0') || (steps.unit.outputs.status != '' && steps.unit.outputs.status != '0') || (steps.e2e.outputs.status != '' && steps.e2e.outputs.status != '0'))
+        if: >-
+          steps.plan.outputs.test == 'true' &&
+          (
+            (steps.build.outputs.status != '' && steps.build.outputs.status != '0') ||
+            (steps.unit.outputs.status != '' && steps.unit.outputs.status != '0') ||
+            (steps.e2e.outputs.status != '' && steps.e2e.outputs.status != '0')
+          )
         run: |
           echo "::error::One or more preview checks failed."
           exit 1
