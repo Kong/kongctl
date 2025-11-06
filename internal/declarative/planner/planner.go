@@ -296,10 +296,70 @@ func appendDependsOn(existing []string, id string) []string {
 // namespace (empty string). In that case we conservatively treat the namespace as a
 // wildcard so that dependencies are not skipped.
 func shouldLinkAuthStrategy(authDelete, dep *PlannedChange) bool {
-	if authDelete.Namespace == "" || dep.Namespace == "" {
+	if authDelete.Namespace != "" && dep.Namespace != "" {
+		return authDelete.Namespace == dep.Namespace
+	}
+
+	if dep.ResourceType == "api_publication" {
+		return publicationReferencesAuthStrategy(dep, authDelete)
+	}
+
+	// Fallback: if we only have one namespace provided (or both empty), fall back to equality
+	return authDelete.Namespace == dep.Namespace
+}
+
+func publicationReferencesAuthStrategy(publication, authDelete *PlannedChange) bool {
+	if len(publication.Fields) == 0 {
+		return false
+	}
+
+	rawIDs, ok := publication.Fields["auth_strategy_ids"]
+	if !ok {
+		return false
+	}
+
+	ids, ok := asStringSlice(rawIDs)
+	if !ok {
+		return false
+	}
+
+	if authDelete.ResourceID != "" && containsString(ids, authDelete.ResourceID) {
 		return true
 	}
-	return authDelete.Namespace == dep.Namespace
+
+	if authDelete.ResourceRef != "" && containsString(ids, authDelete.ResourceRef) {
+		return true
+	}
+
+	return false
+}
+
+func asStringSlice(value any) ([]string, bool) {
+	switch v := value.(type) {
+	case []string:
+		return v, true
+	case []any:
+		result := make([]string, len(v))
+		for i, item := range v {
+			str, ok := item.(string)
+			if !ok {
+				return nil, false
+			}
+			result[i] = str
+		}
+		return result, true
+	default:
+		return nil, false
+	}
+}
+
+func containsString(values []string, target string) bool {
+	for _, v := range values {
+		if v == target {
+			return true
+		}
+	}
+	return false
 }
 
 // nextChangeID generates temporary change IDs during planning phase

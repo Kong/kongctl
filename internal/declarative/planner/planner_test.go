@@ -96,7 +96,7 @@ func (s *stubAPIPublicationAPI) ListAPIPublications(
 	_ kkOps.ListAPIPublicationsRequest,
 	_ ...kkOps.Option,
 ) (*kkOps.ListAPIPublicationsResponse, error) {
-	if s != nil && s.response != nil {
+	if s.response != nil {
 		return s.response, nil
 	}
 	return &kkOps.ListAPIPublicationsResponse{

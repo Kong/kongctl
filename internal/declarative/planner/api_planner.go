@@ -1022,7 +1022,8 @@ func (p *Planner) planAPIPublicationChanges(
 				if portalRef == "" {
 					portalRef = portalID // Fallback to ID if ref not found
 				}
-				p.planAPIPublicationDelete(apiRef, apiID, portalID, portalRef, plan)
+				current := currentByPortal[portalID]
+				p.planAPIPublicationDelete(apiRef, apiID, portalID, portalRef, current, plan)
 			}
 		}
 	}
@@ -1136,7 +1137,14 @@ func (p *Planner) getAuthStrategyName(strategy resources.ApplicationAuthStrategy
 	return ""
 }
 
-func (p *Planner) planAPIPublicationDelete(apiRef string, apiID string, portalID string, portalRef string, plan *Plan) {
+func (p *Planner) planAPIPublicationDelete(
+	apiRef string,
+	apiID string,
+	portalID string,
+	portalRef string,
+	current state.APIPublication,
+	plan *Plan,
+) {
 	// Parse __REF__ format if present in portalRef
 	cleanPortalRef := portalRef
 	if strings.HasPrefix(portalRef, tags.RefPlaceholderPrefix) {
@@ -1159,6 +1167,11 @@ func (p *Planner) planAPIPublicationDelete(apiRef string, apiID string, portalID
 			"portal_id": portalID,
 		},
 		DependsOn: []string{},
+	}
+
+	if len(current.AuthStrategyIDs) > 0 {
+		snapshot := append([]string(nil), current.AuthStrategyIDs...)
+		change.Fields["auth_strategy_ids"] = snapshot
 	}
 
 	plan.AddChange(change)
