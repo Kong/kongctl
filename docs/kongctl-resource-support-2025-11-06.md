@@ -85,123 +85,123 @@ provide event streaming capabilities built on Apache Kafka.
 
 ### API Products & Documentation (11 resources)
 
-| Resource Name | Kong Konnect SDK | Declarative | Imperative | Notes |
-|--------------|------------------|-------------|------------|-------|
-| api | ✅ | ✅ Parent | ✅ Get/List | Full declarative support as parent resource |
-| apiversion | ✅ | ✅ Child | ✅ Get/List | Via `kongctl get api versions --api-id <id>` |
-| apipublication | ✅ | ✅ Child | ✅ Get/List | Via `kongctl get api publications --api-id <id>` |
-| apiimplementation | ✅ | ✅ Child | ✅ Get/List | Via `kongctl get api implementations --api-id <id>` |
-| apidocumentation | ✅ | ✅ Child | ✅ Get/List | Via `kongctl get api documents --api-id <id>` |
-| apispecification | ✅ | ❌ | ❌ | API spec content managed via apiversion |
-| apiattributes | ✅ | ❌ | ✅ Get Only | Via `kongctl get api attributes --api-id <id>` |
-| apikeys | ✅ | ❌ | ❌ | API key credentials for consumers |
-| applicationregistrations | ✅ | ❌ | ❌ | Developer application registrations |
-| applications | ✅ | ❌ | ❌ | Developer applications |
-| appauthstrategies | ✅ | ✅ Parent | ✅ Get/List | Declarative uses `application_auth_strategy` |
+| Resource Name | Declarative | Imperative | Notes |
+|--------------|-------------|------------|-------|
+| api | ✅ Parent | ✅ Get/List | Full declarative support as parent resource |
+| apiversion | ✅ Child | ✅ Get/List | Via `kongctl get api versions --api-id <id>` |
+| apipublication | ✅ Child | ✅ Get/List | Via `kongctl get api publications --api-id <id>` |
+| apiimplementation | ✅ Child | ✅ Get/List | Via `kongctl get api implementations --api-id <id>` |
+| apidocumentation | ✅ Child | ✅ Get/List | Via `kongctl get api documents --api-id <id>` |
+| apispecification | ❌ | ❌ | API spec content managed via apiversion |
+| apiattributes | ❌ | ✅ Get Only | Via `kongctl get api attributes --api-id <id>` |
+| apikeys | ❌ | ❌ | API key credentials for consumers |
+| applicationregistrations | ❌ | ❌ | Developer application registrations |
+| applications | ❌ | ❌ | Developer applications |
+| appauthstrategies | ✅ Parent | ✅ Get/List | Declarative uses `application_auth_strategy` |
 
 ---
 
 ### Gateway Configuration (18 resources)
 
-| Resource Name | Kong Konnect SDK | Declarative | Imperative | Notes |
-|--------------|------------------|-------------|------------|-------|
-| controlplanes | ✅ | ✅ Parent | ✅ Get/List | Via `kongctl get gateway control-planes` |
-| controlplanegroups | ✅ | ✅ Parent | ✅ Get/List | Managed via cluster_type in control_planes |
-| services | ✅ | ✅ Child | ✅ Get/List | Via `kongctl get gateway services --control-plane <id>` |
-| routes | ✅ | ❌ | ✅ Get/List | Via `kongctl get gateway routes --control-plane <id>` |
-| consumers | ✅ | ❌ | ✅ Get/List | Via `kongctl get gateway consumers --control-plane <id>` |
-| plugins | ✅ | ❌ | ❌ | |
-| upstreams | ✅ | ❌ | ❌ | |
-| targets | ✅ | ❌ | ❌ | |
-| certificates | ✅ | ❌ | ❌ | |
-| cacertificates | ✅ | ❌ | ❌ | |
-| snis | ✅ | ❌ | ❌ | |
-| consumergroups | ✅ | ❌ | ❌ | |
-| vaults | ✅ | ❌ | ❌ | |
-| keys | ✅ | ❌ | ❌ | |
-| keysets | ✅ | ❌ | ❌ | |
-| cloudgateways | ✅ | ❌ | ❌ | |
-| dpnodes | ✅ | ❌ | ❌ | Data plane nodes |
-| dpcertificates | ✅ | ❌ | ❌ | Data plane certificates |
+| Resource Name | Declarative | Imperative | Notes |
+|--------------|-------------|------------|-------|
+| controlplanes | ✅ Parent | ✅ Get/List | Via `kongctl get gateway control-planes` |
+| controlplanegroups | ✅ Parent | ✅ Get/List | Managed via cluster_type in control_planes |
+| services | ✅ Child | ✅ Get/List | Via `kongctl get gateway services --control-plane <id>` |
+| routes | ❌ | ✅ Get/List | Via `kongctl get gateway routes --control-plane <id>` |
+| consumers | ❌ | ✅ Get/List | Via `kongctl get gateway consumers --control-plane <id>` |
+| plugins | ❌ | ❌ | |
+| upstreams | ❌ | ❌ | |
+| targets | ❌ | ❌ | |
+| certificates | ❌ | ❌ | |
+| cacertificates | ❌ | ❌ | |
+| snis | ❌ | ❌ | |
+| consumergroups | ❌ | ❌ | |
+| vaults | ❌ | ❌ | |
+| keys | ❌ | ❌ | |
+| keysets | ❌ | ❌ | |
+| cloudgateways | ❌ | ❌ | |
+| dpnodes | ❌ | ❌ | Data plane nodes |
+| dpcertificates | ❌ | ❌ | Data plane certificates |
 
 ---
 
 ### Portal & Developer Experience (13 resources)
 
-| Resource Name | Kong Konnect SDK | Declarative | Imperative | Notes |
-|--------------|------------------|-------------|------------|-------|
-| portals | ✅ | ✅ Parent | ✅ Get/List | Full declarative support as parent resource |
-| pages | ✅ | ✅ Child | ✅ Get/List | Via `kongctl get portal pages --portal-id <id>` |
-| snippets | ✅ | ✅ Child | ✅ Get/List | Via `kongctl get portal snippets --portal-id <id>` |
-| portalcustomization | ✅ | ✅ Child | ❌ | Nested under portals |
-| portalcustomdomains | ✅ | ✅ Child | ❌ | Nested under portals, special handling required |
-| portaldevelopers | ✅ | ❌ | ✅ Get/List | Via `kongctl get portal developers --portal-id <id>` |
-| portalteams | ✅ | ❌ | ✅ Get/List | Via `kongctl get portal teams --portal-id <id>` |
-| portalteammembership | ✅ | ❌ | ❌ | |
-| portalteamroles | ✅ | ❌ | ❌ | |
-| portalauditlogs | ✅ | ❌ | ❌ | Read-only audit logs |
-| portalauthsettings | ✅ | ❌ | ❌ | |
-| portalemails | ✅ | ❌ | ❌ | |
-| applications | ✅ | ❌ | ✅ Get/List | Via `kongctl get portal applications --portal-id <id>` |
-| assets | ✅ | ❌ | ❌ | Portal asset management |
+| Resource Name | Declarative | Imperative | Notes |
+|--------------|-------------|------------|-------|
+| portals | ✅ Parent | ✅ Get/List | Full declarative support as parent resource |
+| pages | ✅ Child | ✅ Get/List | Via `kongctl get portal pages --portal-id <id>` |
+| snippets | ✅ Child | ✅ Get/List | Via `kongctl get portal snippets --portal-id <id>` |
+| portalcustomization | ✅ Child | ❌ | Nested under portals |
+| portalcustomdomains | ✅ Child | ❌ | Nested under portals, special handling required |
+| portaldevelopers | ❌ | ✅ Get/List | Via `kongctl get portal developers --portal-id <id>` |
+| portalteams | ❌ | ✅ Get/List | Via `kongctl get portal teams --portal-id <id>` |
+| portalteammembership | ❌ | ❌ | |
+| portalteamroles | ❌ | ❌ | |
+| portalauditlogs | ❌ | ❌ | Read-only audit logs |
+| portalauthsettings | ❌ | ❌ | |
+| portalemails | ❌ | ❌ | |
+| applications | ❌ | ✅ Get/List | Via `kongctl get portal applications --portal-id <id>` |
+| assets | ❌ | ❌ | Portal asset management |
 
 ---
 
 ### Identity & Access Management (14 resources)
 
-| Resource Name | Kong Konnect SDK | Declarative | Imperative | Notes |
-|--------------|------------------|-------------|------------|-------|
-| me | ✅ | ❌ | ✅ Get Only | Current user information |
-| users | ✅ | ❌ | ❌ | Organization users |
-| teams | ✅ | ❌ | ❌ | |
-| teammembership | ✅ | ❌ | ❌ | |
-| roles | ✅ | ❌ | ❌ | |
-| systemaccounts | ✅ | ❌ | ❌ | |
-| systemaccountsaccesstokens | ✅ | ❌ | ❌ | |
-| systemaccountsroles | ✅ | ❌ | ❌ | |
-| systemaccountsteammembership | ✅ | ❌ | ❌ | |
-| personalaccesstokens | ✅ | ❌ | ❌ | |
-| authentication | ✅ | ❌ | ❌ | Auth configuration |
-| authsettings | ✅ | ❌ | ❌ | |
-| impersonationsettings | ✅ | ❌ | ❌ | |
-| invites | ✅ | ❌ | ❌ | User invitations |
+| Resource Name | Declarative | Imperative | Notes |
+|--------------|-------------|------------|-------|
+| me | ❌ | ✅ Get Only | Current user information |
+| users | ❌ | ❌ | Organization users |
+| teams | ❌ | ❌ | |
+| teammembership | ❌ | ❌ | |
+| roles | ❌ | ❌ | |
+| systemaccounts | ❌ | ❌ | |
+| systemaccountsaccesstokens | ❌ | ❌ | |
+| systemaccountsroles | ❌ | ❌ | |
+| systemaccountsteammembership | ❌ | ❌ | |
+| personalaccesstokens | ❌ | ❌ | |
+| authentication | ❌ | ❌ | Auth configuration |
+| authsettings | ❌ | ❌ | |
+| impersonationsettings | ❌ | ❌ | |
+| invites | ❌ | ❌ | User invitations |
 
 ---
 
 ### Consumer Credentials (5 resources)
 
-| Resource Name | Kong Konnect SDK | Declarative | Imperative | Notes |
-|--------------|------------------|-------------|------------|-------|
-| basicauthcredentials | ✅ | ❌ | ❌ | Basic auth credentials for consumers |
-| hmacauthcredentials | ✅ | ❌ | ❌ | HMAC auth credentials |
-| jwts | ✅ | ❌ | ❌ | JWT credentials |
-| mtlsauthcredentials | ✅ | ❌ | ❌ | mTLS credentials |
-| acls | ✅ | ❌ | ❌ | ACL groups for consumers |
+| Resource Name | Declarative | Imperative | Notes |
+|--------------|-------------|------------|-------|
+| basicauthcredentials | ❌ | ❌ | Basic auth credentials for consumers |
+| hmacauthcredentials | ❌ | ❌ | HMAC auth credentials |
+| jwts | ❌ | ❌ | JWT credentials |
+| mtlsauthcredentials | ❌ | ❌ | mTLS credentials |
+| acls | ❌ | ❌ | ACL groups for consumers |
 
 ---
 
 ### Configuration & Schema (4 resources)
 
-| Resource Name | Kong Konnect SDK | Declarative | Imperative | Notes |
-|--------------|------------------|-------------|------------|-------|
-| schemas | ✅ | ❌ | ❌ | Schema validation |
-| customplugins | ✅ | ❌ | ❌ | Custom plugin management |
-| custompluginschemas | ✅ | ❌ | ❌ | |
-| configstores | ✅ | ❌ | ❌ | Configuration storage |
-| configstoresecrets | ✅ | ❌ | ❌ | Secrets management |
+| Resource Name | Declarative | Imperative | Notes |
+|--------------|-------------|------------|-------|
+| schemas | ❌ | ❌ | Schema validation |
+| customplugins | ❌ | ❌ | Custom plugin management |
+| custompluginschemas | ❌ | ❌ | |
+| configstores | ❌ | ❌ | Configuration storage |
+| configstoresecrets | ❌ | ❌ | Secrets management |
 
 ---
 
 ### Organization & Miscellaneous (6 resources)
 
-| Resource Name | Kong Konnect SDK | Declarative | Imperative | Notes |
-|--------------|------------------|-------------|------------|-------|
-| organization | ✅ (via me SDK) | ❌ | ✅ Get Only | Current organization info |
-| notifications | ✅ | ❌ | ❌ | Platform notifications |
-| dcrproviders | ✅ | ❌ | ❌ | Dynamic client registration |
-| degraphqlroutes | ✅ | ❌ | ❌ | GraphQL route configuration |
-| partials | ✅ | ❌ | ❌ | Partial content management |
-| partiallinks | ✅ | ❌ | ❌ | Partial content linking |
+| Resource Name | Declarative | Imperative | Notes |
+|--------------|-------------|------------|-------|
+| organization | ❌ | ✅ Get Only | Current organization info |
+| notifications | ❌ | ❌ | Platform notifications |
+| dcrproviders | ❌ | ❌ | Dynamic client registration |
+| degraphqlroutes | ❌ | ❌ | GraphQL route configuration |
+| partials | ❌ | ❌ | Partial content management |
+| partiallinks | ❌ | ❌ | Partial content linking |
 
 ---
 
@@ -602,17 +602,17 @@ All kongctl operations use the official `sdk-konnect-go` SDK:
 Kong Event Gateway provides event streaming capabilities for Apache Kafka
 workloads. This is a new control plane type in Kong Konnect (v1.0.0 spec).
 
-| Resource Name | Kong Konnect SDK | Declarative | Imperative | Notes |
-|--------------|------------------|-------------|------------|-------|
-| eventgateways | ✅ | ❌ | ❌ | Event Gateway control plane instances |
-| eventgateway-backendclusters | ✅ | ❌ | ❌ | Kafka backend cluster configurations |
-| eventgateway-listeners | ✅ | ❌ | ❌ | Gateway listeners with policy support |
-| eventgateway-virtualclusters | ✅ | ❌ | ❌ | Virtual Kafka clusters with routing |
-| eventgateway-schemaregistries | ✅ | ❌ | ❌ | Schema registry integrations |
-| eventgateway-vaults | ✅ | ❌ | ❌ | Secret vaults for credential management |
-| eventgateway-statickeys | ✅ | ❌ | ❌ | Static encryption keys |
-| eventgateway-nodes | ✅ | ❌ | ❌ | Event Gateway data plane nodes |
-| eventgateway-certificates | ✅ | ❌ | ❌ | Data plane TLS certificates |
+| Resource Name | Declarative | Imperative | Notes |
+|--------------|-------------|------------|-------|
+| eventgateways | ❌ | ❌ | Event Gateway control plane instances |
+| eventgateway-backendclusters | ❌ | ❌ | Kafka backend cluster configurations |
+| eventgateway-listeners | ❌ | ❌ | Gateway listeners with policy support |
+| eventgateway-virtualclusters | ❌ | ❌ | Virtual Kafka clusters with routing |
+| eventgateway-schemaregistries | ❌ | ❌ | Schema registry integrations |
+| eventgateway-vaults | ❌ | ❌ | Secret vaults for credential management |
+| eventgateway-statickeys | ❌ | ❌ | Static encryption keys |
+| eventgateway-nodes | ❌ | ❌ | Event Gateway data plane nodes |
+| eventgateway-certificates | ❌ | ❌ | Data plane TLS certificates |
 
 #### Event Gateway Resource Hierarchy
 
