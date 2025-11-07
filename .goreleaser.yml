@@ -56,6 +56,9 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+release:
+  prerelease: auto
+  make_latest: false
 homebrew_casks:
   - repository:
       owner: kong

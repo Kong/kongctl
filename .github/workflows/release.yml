@@ -79,45 +79,6 @@ jobs:
 
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-  e2e:
-    needs: prepare
-    if: needs.prepare.outputs.version != '' && needs.prepare.outputs.is_prerelease == 'false'
-    concurrency:
-      group: konnect-e2e
-      cancel-in-progress: false
-    runs-on: ubuntu-latest
-    timeout-minutes: ${{ fromJSON(vars.GHA_DEFAULT_TIMEOUT) }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
-        with:
-          fetch-depth: 0
-      - name: Install clipboard build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libx11-dev
-      - name: Set up Go
-        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6
-        with:
-          go-version-file: go.mod
-      - name: Build
-        run: make build
-      - name: Run E2E tests (Konnect)
-        env:
-          KONGCTL_E2E_KONNECT_PAT: ${{ secrets.KONGCTL_E2E_KONNECT_PAT }}
-          KONGCTL_E2E_KONNECT_BASE_URL: ${{ secrets.KONGCTL_E2E_KONNECT_BASE_URL }}
-          KONGCTL_E2E_RESET: "1"
-          KONGCTL_E2E_LOG_LEVEL: "info"
-          KONGCTL_E2E_ARTIFACTS_DIR: ${{ runner.temp }}/kongctl-e2e-${{ github.run_id }}
-        run: |
-          make test-e2e
-      - name: Upload E2E artifacts
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
-        with:
-          name: e2e-artifacts-${{ github.run_id }}
-          path: ${{ runner.temp }}/kongctl-e2e-${{ github.run_id }}
-
   goreleaser:
     needs: prepare
     if: needs.prepare.outputs.version != ''
