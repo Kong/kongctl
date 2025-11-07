@@ -201,6 +201,7 @@ jobs:
         env:
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
         with:
+          github-token: ${{ secrets.PAT }}
           script: |
             const prNumber = parseInt(process.env.PR_NUMBER || '0', 10);
             if (!prNumber) {
