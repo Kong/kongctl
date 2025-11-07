@@ -1,7 +1,8 @@
 # Kong Konnect API Listing
 
 **Source**: https://developer.konghq.com/api/
-**Date**: 2025-11-07
+
+**Date Generated**: 2025-11-07
 
 ## Konnect APIs
 
