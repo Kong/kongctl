@@ -42,5 +42,3 @@ There are approximately **24 distinct Konnect APIs**, organized by category:
 ## Notes
 
 - API Products (v2) is deprecated and not included in this listing
-- Each API provides OpenAPI specifications and Insomnia integration for testing
-- Version numbers range from v0 (beta) through v3, with some using semantic versioning
