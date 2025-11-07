@@ -12,7 +12,7 @@ builds:
       - CGO_ENABLED=1
     ldflags:
       - -s -w
-      - -X main.version={{ if hasPrefix .Version "v" }}{{ trimPrefix "v" .Version }}{{ else }}{{ .Version }}{{ end }}
+      - -X main.version={{ .Version | trimPrefix "v" }}
       - -X main.commit={{.ShortCommit}}
       - -X main.date={{.Date}}
     goos:
