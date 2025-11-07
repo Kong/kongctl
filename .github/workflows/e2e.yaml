@@ -10,10 +10,22 @@ concurrency:
 on:
   pull_request:
     branches: ['**']
+    paths: &source-files
+      - go.mod
+      - go.sum
+      - VERSION
+      - main.go
+      - '*.go'
+      - internal/**
+      - test/e2e/**
+      - Makefile
+      - .goreleaser.yml
+      - .github/workflows/e2e.yaml
     # If you want PR runs to be opt-in later, you can use labels:
     # types: [opened, synchronize, labeled]
   push:
     branches: ['main']
+    paths: *source-files
   workflow_dispatch: {}
 
 jobs:
