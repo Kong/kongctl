@@ -1,4 +1,4 @@
-# Kongctl Beta Release Plan
+# Kongctl Beta Release - Implementation Work Items
 
 **Date:** 2025-11-07
 **Status:** Planning - Pending Clarifications
@@ -6,552 +6,521 @@
 
 ---
 
-## Executive Summary
+## Summary
 
-This document outlines the implementation work required to achieve a beta
-release of kongctl. The beta release focuses on two primary additions: **Event
-Gateway** and **Service Catalog** support, with potential gaps filled in
-existing Portal Management and API Builder areas.
+This document defines the **delta work** required to achieve a beta release of
+kongctl. The focus is on what needs to be **added or changed**, not what
+already exists.
 
-### Beta Release Scope
+### Work Items for Beta
 
-**Primary Focus Areas:**
-1. **Event Gateway** (NEW) - 0% → 100% coverage
-2. **Service Catalog** (NEW) - 0% → 100% coverage (subset TBD)
+1. **Event Gateway Support** - NEW (can start immediately)
+2. **Service Catalog Support** - NEW (pending scope decision)
+3. **Portal Management Gaps** - TBD (pending scope decision)
+4. **API Builder Verification** - Audit only (likely no work needed)
 
-**Secondary Review Areas:**
-3. **Portal Management** - Identify and fill gaps (pending clarification)
-4. **API Builder** - Verify 100% coverage (likely complete)
-
-**Out of Scope:**
+### Out of Scope for Beta
 - Control Planes Config (v2) / Core-entities → Deferred to Kong decK tool
-- Post-beta items: System Accounts, Teams, Users, Org Auth, Team Mapping, Audit
-  Logs, Analytics, Mesh
+- Post-beta items: System Accounts, Teams, Users, Org Auth, Team Mapping,
+  Audit Logs, Analytics, Mesh
 
 ---
 
-## Current State Analysis
+## Work Item 1: Event Gateway Support (NEW)
 
-### ✅ Complete for Beta
+**Status:** 🟢 Can start immediately - No blockers
 
-#### 1. Gateway Control Planes (v2)
-**Status:** 100% coverage achieved
+**Scope:** Event Gateway instances (control planes) only for initial beta.
+Reevaluate child resources (backend clusters, virtual clusters, listeners, etc.)
+after initial implementation.
 
-**Declarative Support:**
-- ✅ Control planes (parent resource)
-- ✅ Control plane groups (via `cluster_type` field)
-- ✅ Group membership management (via `members` array)
+### What Needs to Be Built
 
-**Imperative Support:**
-- ✅ `kongctl get gateway control-planes`
-- ✅ `kongctl get gateway control-plane <id|name>`
+#### 1.1 Declarative Configuration Support
 
-**API Coverage:**
-- Control Planes (v2) API - 8 endpoints - ✅ Fully supported
-- Control Planes Config (v2) API - 97 endpoints - ❌ Out of scope (decK)
+**New Resource:** `event_gateways` (parent resource)
 
----
+**Files to Create:**
+- `/internal/declarative/resources/eventgateway/eventgateway.go` - Resource
+  handler
+- `/internal/declarative/resources/eventgateway/eventgateway_test.go` - Unit
+  tests
+- Schema definition for YAML validation
 
-### ✅ Likely Complete for Beta (Pending Verification)
+**Implementation Tasks:**
+- [ ] Define `EventGateway` resource struct mapping to API schema
+- [ ] Implement `Create()` method - POST `/v1/event-gateways`
+- [ ] Implement `Read()` method - GET `/v1/event-gateways/{gatewayId}`
+- [ ] Implement `Update()` method - PUT `/v1/event-gateways/{gatewayId}`
+- [ ] Implement `Delete()` method - DELETE `/v1/event-gateways/{gatewayId}`
+- [ ] Implement `List()` method - GET `/v1/event-gateways`
+- [ ] Add namespace isolation (KONGCTL-namespace label)
+- [ ] Add protected flag support (KONGCTL-protected label)
+- [ ] Add field validation
+- [ ] Register resource in declarative engine
+- [ ] Write unit tests
 
-#### 2. API Builder (v3)
-**Status:** ~100% coverage (requires verification)
+**API Endpoints (5 total):**
+- `GET /v1/event-gateways` - List
+- `POST /v1/event-gateways` - Create
+- `GET /v1/event-gateways/{gatewayId}` - Read
+- `PUT /v1/event-gateways/{gatewayId}` - Update
+- `DELETE /v1/event-gateways/{gatewayId}` - Delete
 
-**Declarative Support:**
-- ✅ APIs (parent resource)
-- ✅ API versions (child) - Note: `/specifications` endpoint deprecated
-- ✅ API publications (child)
-- ✅ API implementations (child)
-- ✅ API documents (child)
-- ✅ API attributes (managed via `attributes` field on API resource)
+#### 1.2 Imperative Command Support
 
-**Imperative Support:**
-- ✅ `kongctl get apis`
-- ✅ `kongctl get api <id|name>`
-- ✅ `kongctl get api versions --api-id <id>`
-- ✅ `kongctl get api publications --api-id <id>`
-- ✅ `kongctl get api implementations --api-id <id>`
-- ✅ `kongctl get api documents --api-id <id>`
-- ✅ `kongctl get api attributes --api-id <id>`
+**New Commands:** `kongctl get event-gateways` and `kongctl get event-gateway
+<id|name>`
 
-**API Coverage:**
-- API Builder (v3) API - 18 endpoints
-- `/apis/{apiId}/specifications` - ❌ Deprecated, ignoring
-- All other endpoints - ✅ Covered
+**Files to Create:**
+- `/internal/cmd/root/products/konnect/eventgateway/eventgateway.go` - Command
+  implementation
+- `/internal/cmd/root/products/konnect/eventgateway/eventgateway_test.go` -
+  Command tests
 
-**Verification Needed:**
-- Confirm all fields on API resource are declaratively managed
-- Confirm versions endpoint fully replaces deprecated specifications endpoint
+**Implementation Tasks:**
+- [ ] Create `eventgateway` package under konnect products
+- [ ] Implement `ListEventGateways()` function
+- [ ] Implement `GetEventGateway()` function (by ID or name)
+- [ ] Add JSON output format support
+- [ ] Add YAML output format support
+- [ ] Add text/table output format support
+- [ ] Add interactive mode support (`-i` flag)
+- [ ] Wire commands into `get` verb router
+- [ ] Write command tests
 
----
+#### 1.3 SDK Verification
 
-### ⚠️ Needs Gap Analysis (Pending Clarification)
+**Tasks:**
+- [ ] Verify `sdk-konnect-go` has Event Gateway v1 client
+- [ ] Review Event Gateway schema in SDK
+- [ ] Identify any SDK gaps or missing fields
+- [ ] If SDK missing: Coordinate with SDK team or implement direct HTTP client
 
-#### 3. Portal Management (v3)
-**Status:** Partial coverage (~40-50% estimated)
+#### 1.4 Integration Testing
 
-**Current Declarative Support:**
-- ✅ Portals (parent resource)
-- ✅ Pages (child)
-- ✅ Snippets (child)
-- ✅ Customization (child)
-- ✅ Custom domains (child, with limitations)
+**Files to Create:**
+- `/test/integration/eventgateway_test.go` - E2E integration tests
 
-**Current Imperative Support:**
-- ✅ `kongctl get portals`
-- ✅ `kongctl get portal <id|name>`
-- ✅ `kongctl get portal pages --portal-id <id>`
-- ✅ `kongctl get portal snippets --portal-id <id>`
-- ✅ `kongctl get portal developers --portal-id <id>`
-- ✅ `kongctl get portal teams --portal-id <id>`
-- ✅ `kongctl get portal applications --portal-id <id>`
+**Test Cases:**
+- [ ] Create event gateway via declarative config
+- [ ] Update event gateway via declarative config
+- [ ] Delete event gateway via declarative config
+- [ ] List event gateways via imperative command
+- [ ] Get single event gateway via imperative command
+- [ ] Test namespace isolation
+- [ ] Test protected flag behavior
+- [ ] Test output formats (json/yaml/text)
 
-**Known Gaps:**
+#### 1.5 Documentation
 
-| Resource | Endpoints | Current Support | Recommendation |
-|----------|-----------|-----------------|----------------|
-| Applications | 4 endpoints | Imperative GET only | ✅ Keep as-is (user-created) |
-| Application Registrations | 3 endpoints | None | ⚠️ Add imperative GET only? |
-| Authentication Settings | 2 endpoints (GET/PATCH) | None | ⚠️ Clarify if needed |
-| Identity Providers | 4 endpoints | None | ⚠️ Clarify if needed |
-| Team Group Mappings | 2 endpoints (GET/PATCH) | None | ⚠️ Clarify if needed |
-| Assets (logo/favicon) | 6 endpoints | None | ⚠️ Clarify if needed |
-| Email Domains | 3 endpoints | None | ⚠️ Clarify if needed |
-| Email Delivery | 3 endpoints (GET/PATCH/DELETE) | None | ⚠️ Clarify if needed |
-| Email Config | 4 endpoints | None | ⚠️ Clarify if needed |
-| Email Templates | 6 endpoints | None | ⚠️ Clarify if needed |
-| Audit Log (Portal) | 5 endpoints | None | ⚠️ Clarify if needed |
-| Portal Roles | 1 endpoint (GET) | None | ⚠️ Clarify if needed |
-| Default Content | 1 endpoint (POST) | None | ⚠️ Clarify if needed |
+**Files to Update:**
+- [ ] `docs/declarative.md` - Add event gateway resource documentation
+- [ ] `README.md` - Add event gateway to feature list
+- [ ] `docs/examples/declarative/event-gateway/` - Create example configs
 
-**Clarification Needed:**
-> **Question for decision maker:** Which Portal Management resources beyond the
-> current support (portals, pages, snippets, customization, custom domains,
-> applications, developers, teams) should be added for beta? Consider:
-> authentication settings, identity providers, email configuration, assets, and
-> audit logs.
+**Example Configurations to Create:**
+- [ ] Basic event gateway YAML config
+- [ ] Event gateway with namespace and labels
+- [ ] Protected event gateway example
 
----
-
-## Primary Beta Implementation Work
-
-### 🚧 Implementation Required: Event Gateway (v1)
-
-**Status:** 0% coverage → Target 100%
-
-**Initial Scope (Decision Maker Guidance):**
-- Start with Event Gateway instances (control planes) only
-- Reevaluate child resources after initial implementation
-
-#### Event Gateway Instances (Control Planes)
-
-**API Endpoints:**
-- `GET /event-gateways` - List all event gateways
-- `POST /event-gateways` - Create event gateway
-- `GET /event-gateways/{gatewayId}` - Get event gateway details
-- `PUT /event-gateways/{gatewayId}` - Update event gateway
-- `DELETE /event-gateways/{gatewayId}` - Delete event gateway
-
-**Implementation Requirements:**
-
-1. **Declarative Configuration**
-   - New parent resource: `event_gateways`
-   - Support all fields from Event Gateway resource schema
-   - Namespace isolation (kongctl metadata)
-   - Protected flag support
-   - Label-based management
-
-2. **Imperative Commands**
-   - `kongctl get event-gateways` - List all event gateways
-   - `kongctl get event-gateway <id|name>` - Get specific event gateway
-   - JSON/YAML/text output formats
-   - Interactive mode support (`-i` flag)
-
-3. **SDK Integration**
-   - Verify `sdk-konnect-go` has Event Gateway v1 support
-   - If not, coordinate with SDK team or implement using raw HTTP client
-
-**Estimated Scope:**
-- 5 API endpoints for parent resource
-- 1 declarative resource type
-- 2 imperative commands (list/get)
-- Integration with existing kongctl patterns
-
-#### Event Gateway Child Resources (Post-Initial)
-
-**Deferred until after Event Gateway instances are complete:**
-
-| Resource | Endpoints | Priority | Notes |
-|----------|-----------|----------|-------|
-| Backend Clusters | 4 endpoints | High | Kafka backend configuration |
-| Virtual Clusters | 4 endpoints | High | Multi-tenancy and routing |
-| Listeners | 4 endpoints | Medium | Gateway entry points |
-| Schema Registries | 4 endpoints | Medium | Schema validation |
-| Listener Policies | 5 endpoints | Medium | Policy chains for listeners |
-| Virtual Cluster Policies | 15 endpoints | Medium | Consume, produce, cluster policies |
-| Data Plane Certificates | 4 endpoints | Low | TLS certificates |
-| Static Keys | 3 endpoints | Low | Encryption keys |
-| Nodes | 4 endpoints | Low | Read-only node status |
-
-**Total Event Gateway API:** 51 endpoints (5 parent + 46 child resources)
-
-**Decision Point:**
-> After implementing Event Gateway instances, reevaluate which child resources
-> are critical for beta based on user feedback and use cases.
+### Estimated Effort
+- **Declarative:** 3-4 days
+- **Imperative:** 2-3 days
+- **Testing & Docs:** 2-3 days
+- **Total:** 1-2 weeks
 
 ---
 
-### 🚧 Implementation Required: Service Catalog (v1)
+## Work Item 2: Service Catalog Support (NEW)
 
-**Status:** 0% coverage → Target 100% (subset TBD)
+**Status:** 🔴 BLOCKED - Pending scope decision
 
-**API Resources:**
+### Scope Decision Required
 
-| Resource | Endpoints | Description |
-|----------|-----------|-------------|
-| Catalog Services | 4 endpoints | Service catalog entries (main resource) |
-| Integrations | 1 endpoint | Available integrations (read-only) |
-| Integration Instances | 5 endpoints | Configured integration instances |
-| Resources | 3 endpoints | Resources from integrations |
-| Resource Mappings | 3 endpoints | Map resources to catalog services |
+**Question:** Which Service Catalog resources should be supported for beta?
 
-**Total API:** 16 endpoints across 5 resource types
+**Option 1 - Minimal (4 endpoints):**
+- Catalog Services only
+- Simplest, fastest implementation
+- Limited functionality
 
-**Clarification Needed:**
-> **Question for decision maker:** Which Service Catalog resources should be
-> supported for beta?
->
-> **Options:**
-> 1. **Minimal:** Catalog Services only (4 endpoints)
-> 2. **Standard:** Catalog Services + Resource Mappings (7 endpoints)
-> 3. **Full:** All resources - Catalog Services, Integrations, Integration
->    Instances, Resources, Resource Mappings (16 endpoints)
->
-> **Recommendation:** Start with Option 2 (Standard) as it provides core
-> catalog functionality plus the ability to link external resources.
+**Option 2 - Standard (7-9 endpoints) - RECOMMENDED:**
+- Catalog Services (4 endpoints)
+- Resource Mappings (3 endpoints)
+- Integrations (1 endpoint, read-only)
+- Core catalog functionality + linking external resources
 
-**Implementation Requirements (Assuming Standard Option):**
+**Option 3 - Full (16 endpoints):**
+- All resources: Catalog Services, Integrations, Integration Instances,
+  Resources, Resource Mappings
+- Most comprehensive
+- Longer implementation time
 
-1. **Declarative Configuration**
-   - New parent resource: `catalog_services`
-   - New child resource: `resource_mappings`
-   - Support all fields from resource schemas
-   - Namespace isolation and protection
+### What Needs to Be Built (Assuming Standard Option)
 
-2. **Imperative Commands**
-   - `kongctl get catalog-services`
-   - `kongctl get catalog-service <id|name>`
-   - `kongctl get catalog-service resource-mappings --service-id <id>`
-   - `kongctl get integrations` (read-only, informational)
-   - JSON/YAML/text output formats
+#### 2.1 Declarative Configuration Support
 
-3. **SDK Integration**
-   - Verify `sdk-konnect-go` has Service Catalog v1 support
-   - Implement declarative resource handlers
-   - Implement imperative command handlers
+**New Resources:**
+- `catalog_services` (parent resource)
+- `resource_mappings` (child resource, nested under catalog_services)
 
-**Estimated Scope (Standard Option):**
-- 7 API endpoints (4 catalog-services + 3 resource-mappings)
-- 2 declarative resource types (1 parent + 1 child)
-- 3-4 imperative commands
-- Integration with existing kongctl patterns
+**Files to Create:**
+- `/internal/declarative/resources/catalog/catalogservice.go`
+- `/internal/declarative/resources/catalog/resourcemapping.go`
+- `/internal/declarative/resources/catalog/catalogservice_test.go`
+- `/internal/declarative/resources/catalog/resourcemapping_test.go`
+
+**Implementation Tasks:**
+- [ ] Define `CatalogService` resource struct
+- [ ] Implement CRUD operations for catalog services (4 endpoints)
+- [ ] Define `ResourceMapping` resource struct
+- [ ] Implement CRUD operations for resource mappings (3 endpoints)
+- [ ] Add namespace isolation and protection
+- [ ] Register resources in declarative engine
+- [ ] Write unit tests
+
+#### 2.2 Imperative Command Support
+
+**New Commands:**
+- `kongctl get catalog-services`
+- `kongctl get catalog-service <id|name>`
+- `kongctl get catalog-service resource-mappings --service-id <id>`
+- `kongctl get integrations` (read-only, informational)
+
+**Files to Create:**
+- `/internal/cmd/root/products/konnect/catalog/catalogservice.go`
+- `/internal/cmd/root/products/konnect/catalog/resourcemapping.go`
+- `/internal/cmd/root/products/konnect/catalog/integration.go`
+
+**Implementation Tasks:**
+- [ ] Implement list/get for catalog services
+- [ ] Implement list/get for resource mappings (child resource)
+- [ ] Implement list for integrations (read-only)
+- [ ] Add output format support (json/yaml/text)
+- [ ] Add interactive mode support
+- [ ] Wire commands into `get` verb router
+- [ ] Write command tests
+
+#### 2.3 SDK Verification
+
+**Tasks:**
+- [ ] Verify `sdk-konnect-go` has Service Catalog v1 client
+- [ ] Review Service Catalog schemas in SDK
+- [ ] Identify any SDK gaps
+
+#### 2.4 Integration Testing
+
+**Files to Create:**
+- `/test/integration/catalog_test.go`
+
+**Test Cases:**
+- [ ] Create catalog service via declarative
+- [ ] Create resource mapping via declarative
+- [ ] Update catalog service
+- [ ] Delete catalog service
+- [ ] Test imperative commands
+- [ ] Test namespace isolation
+
+#### 2.5 Documentation
+
+**Files to Update/Create:**
+- [ ] `docs/declarative.md` - Add catalog resources
+- [ ] `README.md` - Add catalog to features
+- [ ] `docs/examples/declarative/catalog/` - Example configs
+
+### Estimated Effort (Standard Option)
+- **Declarative:** 3-5 days
+- **Imperative:** 2-3 days
+- **Testing & Docs:** 2-3 days
+- **Total:** 1-2 weeks
 
 ---
 
-## Implementation Approach
+## Work Item 3: Portal Management Gaps (TBD)
 
-### Phase 1: Event Gateway Instances
-**Goal:** Get Event Gateway control planes working end-to-end
+**Status:** 🟡 BLOCKED - Pending scope decision
 
-1. **SDK Verification & Preparation**
-   - Verify Event Gateway v1 support in `sdk-konnect-go`
-   - Review schema and field mappings
-   - Identify any SDK gaps or issues
+### Scope Decision Required
 
-2. **Declarative Implementation**
-   - Create `/internal/declarative/resources/eventgateway/` package
-   - Implement `EventGateway` resource handler
-   - Add YAML schema support
-   - Implement CRUD operations (create, read, update, delete)
-   - Add namespace and label management
+**Question:** Which Portal Management resources should be added for beta?
 
-3. **Imperative Implementation**
-   - Create `/internal/cmd/root/products/konnect/eventgateway/` package
-   - Implement `get event-gateways` command
-   - Implement `get event-gateway <id|name>` command
-   - Add output formatting (json/yaml/text)
-   - Add interactive mode support
+**Currently NOT Supported (Potential Additions):**
 
-4. **Testing & Validation**
-   - Unit tests for resource handlers
-   - Integration tests for E2E workflows
-   - Manual testing against Konnect API
-   - Documentation updates
+| Resource | Endpoints | Type | Notes |
+|----------|-----------|------|-------|
+| Application Registrations | 3 | GET only | View app registrations |
+| Authentication Settings | 2 | GET/PATCH | Portal auth config |
+| Identity Providers | 4 | CRUD | Portal IdP config |
+| Team Group Mappings | 2 | GET/PATCH | Map IdP groups to teams |
+| Assets (logo/favicon) | 6 | GET/PUT | Portal branding |
+| Email Domains | 3 | CRUD | Email domain management |
+| Email Delivery | 3 | GET/PATCH/DELETE | Email delivery config |
+| Email Config | 4 | CRUD | Email configuration |
+| Email Templates | 6 | CRUD | Custom email templates |
+| Portal Audit Logs | 5 | GET/webhook | Portal audit trail |
+| Portal Roles | 1 | GET | Available roles (read-only) |
+| Default Content | 1 | POST | Initialize default content |
+
+**Recommendation:** Clarify which resources are critical for beta based on user
+workflows.
+
+### What Needs to Be Built (TBD After Scope Decision)
+
+**Implementation approach will depend on which resources are selected. Each
+resource follows similar pattern to Work Items 1 and 2:**
+1. Add declarative resource handler
+2. Add imperative GET commands
+3. SDK integration
+4. Tests
+5. Documentation
+
+**Estimated effort:** 1-3 days per resource (depending on complexity)
+
+---
+
+## Work Item 4: API Builder Verification (Audit Only)
+
+**Status:** 🟢 Can start immediately - Likely no implementation needed
+
+### Verification Tasks
+
+**Goal:** Confirm API Builder is complete for beta (likely already at 100%)
+
+#### 4.1 Field Coverage Audit
+
+**Tasks:**
+- [ ] Review API Builder v3 API schema for all resource types
+- [ ] Verify `apis` resource has all fields in declarative config
+- [ ] Verify `api_versions` resource has all fields
+- [ ] Verify `api_publications` resource has all fields
+- [ ] Verify `api_implementations` resource has all fields
+- [ ] Verify `api_documents` resource has all fields
+- [ ] Verify `api_attributes` properly managed via `attributes` field
+- [ ] Confirm `/apis/{apiId}/specifications` endpoint is properly ignored
+  (deprecated)
+
+#### 4.2 Integration Testing
+
+**Tasks:**
+- [ ] Test complete API Builder workflow end-to-end
+- [ ] Create API with all fields populated
+- [ ] Create version with spec file
+- [ ] Create publication to portal
+- [ ] Create implementation
+- [ ] Create documents
+- [ ] Verify all fields round-trip correctly
+- [ ] Test imperative commands for all resources
+
+#### 4.3 Documentation Review
+
+**Tasks:**
+- [ ] Verify `docs/declarative.md` documents all API Builder resources
+- [ ] Verify examples exist for common API Builder scenarios
+- [ ] Update any outdated references to deprecated specifications endpoint
+
+### Estimated Effort
+- **Audit & Testing:** 2-3 days
+- **Doc updates (if needed):** 1 day
+- **Total:** 3-4 days
+
+**Expected Outcome:** Likely no implementation work needed, just confirmation
+and minor doc updates.
+
+---
+
+## Implementation Phases
+
+### Phase 1: Event Gateway (Can Start Now)
+**Duration:** 1-2 weeks
+
+1. SDK verification
+2. Declarative implementation
+3. Imperative implementation
+4. Integration testing
+5. Documentation
 
 **Quality Gates:**
 - `make build` - Success
 - `make lint` - Zero issues
 - `make test` - All pass
 - `make test-integration` - All pass
-- Manual E2E validation
 
-### Phase 2: Service Catalog (Pending Clarification)
-**Goal:** Implement Service Catalog resources per decision maker guidance
+### Phase 2: Service Catalog (After Scope Decision)
+**Duration:** 1-2 weeks
 
-1. **Scope Confirmation**
-   - Get clarification on which resources to support
-   - Review API schemas and relationships
-   - Plan resource hierarchy (parent/child)
+1. Scope confirmation (BLOCKER)
+2. SDK verification
+3. Declarative implementation
+4. Imperative implementation
+5. Integration testing
+6. Documentation
 
-2. **SDK Verification & Preparation**
-   - Verify Service Catalog v1 support in `sdk-konnect-go`
-   - Review schema and field mappings
+**Quality Gates:** Same as Phase 1
 
-3. **Declarative Implementation**
-   - Create `/internal/declarative/resources/catalog/` package
-   - Implement resource handlers for selected resources
-   - Add YAML schema support
-   - Implement CRUD operations
+### Phase 3: Portal Management Gaps (After Scope Decision)
+**Duration:** 0.5-1 week (varies by scope)
 
-4. **Imperative Implementation**
-   - Create `/internal/cmd/root/products/konnect/catalog/` package
-   - Implement get commands for selected resources
-   - Add output formatting and interactive mode
+1. Scope confirmation (BLOCKER)
+2. Incremental implementation per resource
+3. Testing
+4. Documentation
 
-5. **Testing & Validation**
-   - Same quality gates as Phase 1
+**Quality Gates:** Same as Phase 1
 
-### Phase 3: Portal Management Gap Fill (Pending Clarification)
-**Goal:** Fill any critical gaps in Portal Management for beta
+### Phase 4: API Builder Verification (Can Run in Parallel)
+**Duration:** 3-4 days
 
-1. **Scope Confirmation**
-   - Get clarification on which Portal resources to add
-   - Prioritize based on user value
+1. Field coverage audit
+2. End-to-end testing
+3. Documentation updates (if needed)
 
-2. **Incremental Implementation**
-   - Add declarative support for selected resources
-   - Add imperative GET commands for selected resources
-   - Follow existing portal patterns
-
-3. **Testing & Validation**
-   - Same quality gates as Phase 1 & 2
-
-### Phase 4: API Builder Verification
-**Goal:** Confirm API Builder is complete for beta
-
-1. **Field Coverage Audit**
-   - Review all fields on API resource schema
-   - Confirm declarative support for all fields
-   - Verify versions fully replaced deprecated specifications
-
-2. **Testing & Validation**
-   - Test all API Builder workflows
-   - Verify field coverage with real-world examples
+**Quality Gates:** Testing only, no build/lint needed unless changes made
 
 ---
 
-## Resource Count Summary
+## Critical Blockers
 
-### Current State
-| Area | Resources | Declarative | Imperative |
-|------|-----------|-------------|------------|
-| API Builder | 6 | 6 (100%) | 6 (100%) |
-| Portal Management | 13 | 5 (38%) | 8 (62%) |
-| Gateway Control Planes | 2 | 2 (100%) | 2 (100%) |
-| Event Gateway | 9 | 0 (0%) | 0 (0%) |
-| Service Catalog | 5 | 0 (0%) | 0 (0%) |
+### 🔴 BLOCKER 1: Service Catalog Scope
 
-### Beta Target (After Phase 1 - Event Gateway Instances)
-| Area | Resources | Declarative | Imperative |
-|------|-----------|-------------|------------|
-| API Builder | 6 | 6 (100%) | 6 (100%) |
-| Portal Management | 13 | TBD | TBD |
-| Gateway Control Planes | 2 | 2 (100%) | 2 (100%) |
-| Event Gateway | 1 (instances only) | 1 (100%) | 1 (100%) |
-| Service Catalog | TBD | TBD | TBD |
+**Question:** Which Service Catalog resources should be supported for beta?
+
+**Decision Needed From:** Decision maker / Product owner
+
+**Options:**
+1. Minimal: Catalog Services only (4 endpoints)
+2. Standard: Catalog Services + Resource Mappings (7 endpoints) - RECOMMENDED
+3. Full: All resources (16 endpoints)
+
+**Impact:** Blocks Phase 2 start
+
+**Recommendation:** Choose Option 2 (Standard) for balance of functionality and
+implementation time.
 
 ---
 
-## Open Questions & Blockers
+### 🟡 BLOCKER 2: Portal Management Gaps
 
-### Critical Path Blockers
+**Question:** Which Portal Management resources should be added for beta?
 
-1. **Service Catalog Scope** 🔴 **BLOCKING Phase 2**
-   > Which Service Catalog resources should be supported for beta?
-   > - Catalog Services only?
-   > - Catalog Services + Resource Mappings?
-   > - All resources (Integrations, Integration Instances, Resources)?
+**Decision Needed From:** Decision maker / Product owner
 
-2. **Portal Management Gaps** 🟡 **BLOCKING Phase 3**
-   > Which Portal Management resources beyond current support should be added?
-   > - Authentication settings?
-   > - Identity providers?
-   > - Email configuration (domains, delivery, config, templates)?
-   > - Assets (logo, favicon)?
-   > - Audit logs?
-   > - Portal roles?
-   > - Default content?
+**Resources to Consider:**
+- Application Registrations (imperative GET only)
+- Authentication Settings (declarative + imperative)
+- Identity Providers (declarative + imperative)
+- Team Group Mappings (declarative + imperative)
+- Assets - logo/favicon (declarative + imperative)
+- Email configuration (domains, delivery, config, templates)
+- Portal Audit Logs (imperative GET only)
+- Portal Roles (imperative GET only - read-only)
+- Default Content (imperative POST only)
 
-### Non-Blocking Questions
+**Impact:** Blocks Phase 3 start
 
-3. **Event Gateway Child Resources** 🟢 **Post Phase 1**
-   > After Event Gateway instances are implemented, which child resources
-   > should be prioritized?
-   > - Backend Clusters?
-   > - Virtual Clusters?
-   > - Listeners?
-   > - Policies?
-
-4. **Application Registrations** 🟢 **Portal related**
-   > Should we add imperative GET support for application registrations?
-   > (Currently no support, but applications have GET support)
+**Recommendation:** Clarify based on critical user workflows. Consider starting
+with authentication settings and identity providers as they're core to portal
+functionality.
 
 ---
 
-## Success Criteria for Beta
-
-### Functional Requirements
-- ✅ Event Gateway instances fully supported (declarative + imperative)
-- ✅ Service Catalog resources supported per final scope decision
-- ✅ Portal Management gaps filled per final scope decision
-- ✅ API Builder verified complete (all fields supported)
-- ✅ Gateway Control Planes confirmed complete
-
-### Quality Requirements
-- ✅ All quality gates passing (`make build && make lint && make test`)
-- ✅ Integration tests covering all new resources
-- ✅ Documentation updated (README, declarative.md, planning docs)
-- ✅ Example configurations for all new resources
-- ✅ E2E validation against real Konnect environment
-
-### User Experience Requirements
-- ✅ Consistent command patterns across all resources
-- ✅ Interactive mode support for all get commands
-- ✅ Multi-format output (json/yaml/text) for all commands
-- ✅ Namespace isolation for all declarative resources
-- ✅ Protection flags for all parent resources
-- ✅ YAML tags (!file, !ref) working with all resources
-
----
-
-## Next Steps
-
-### Immediate Actions (Can Start Now)
-
-1. **Phase 1: Event Gateway Instances**
-   - ✅ Begin implementation (no blockers)
-   - Verify SDK support
-   - Implement declarative + imperative support
-   - Test and validate
-
-### Pending Clarifications (Required Before Starting)
-
-2. **Service Catalog Scope Decision**
-   - 🔴 **REQUIRED:** Get decision on which resources to support
-   - Review API schemas once scope confirmed
-   - Plan implementation approach
-
-3. **Portal Management Gap Analysis**
-   - 🟡 **REQUIRED:** Get decision on which gaps to fill
-   - Prioritize based on user value
-   - Plan incremental implementation
-
-### Parallel Work (Can Progress Independently)
-
-4. **API Builder Verification**
-   - Audit field coverage
-   - Test against real-world scenarios
-   - Confirm specifications endpoint properly deprecated
-
-5. **Documentation Preparation**
-   - Start planning docs for Event Gateway
-   - Prepare example configurations
-   - Update architecture diagrams
-
----
-
-## Timeline Estimate (Rough)
+## Timeline Estimate
 
 **Assumptions:**
 - 1 developer working on implementation
 - Scope decisions made within 1 week
 - No major SDK or API issues discovered
 
-| Phase | Estimated Duration | Dependencies |
-|-------|-------------------|--------------|
-| Phase 1: Event Gateway Instances | 1-2 weeks | None (can start now) |
-| Phase 2: Service Catalog | 1-2 weeks | Scope clarification |
-| Phase 3: Portal Management Gaps | 0.5-1 week | Scope clarification |
-| Phase 4: API Builder Verification | 0.5 week | None (parallel) |
-| Testing & Polish | 1 week | All phases complete |
+| Phase | Duration | Dependencies | Can Start |
+|-------|----------|--------------|-----------|
+| Phase 1: Event Gateway | 1-2 weeks | None | ✅ Immediately |
+| Phase 2: Service Catalog | 1-2 weeks | Scope decision | ⚠️ Blocked |
+| Phase 3: Portal Gaps | 0.5-1 week | Scope decision | ⚠️ Blocked |
+| Phase 4: API Builder Audit | 3-4 days | None | ✅ Immediately (parallel) |
+| Final Testing & Polish | 1 week | All phases complete | After phases 1-3 |
 
-**Total Estimated Duration:** 4-6 weeks from start to beta-ready
-
-**Note:** Timeline assumes no major blockers, SDK issues, or scope changes.
-
----
-
-## Appendix: API Endpoint Reference
-
-### Event Gateway (v1) - Full API
-**Base URL:** `https://us.api.konghq.com/v1`
-
-**Event Gateway Instances (Phase 1 Scope):**
-- `GET /event-gateways` - List event gateways
-- `POST /event-gateways` - Create event gateway
-- `GET /event-gateways/{gatewayId}` - Get event gateway
-- `PUT /event-gateways/{gatewayId}` - Update event gateway
-- `DELETE /event-gateways/{gatewayId}` - Delete event gateway
-
-**Child Resources (Future Phases):**
-- Backend Clusters: 4 endpoints
-- Virtual Clusters: 4 endpoints
-- Listeners: 4 endpoints
-- Schema Registries: 4 endpoints
-- Nodes: 4 endpoints (read-only)
-- Data Plane Certificates: 4 endpoints
-- Static Keys: 3 endpoints
-- Listener Policies: 5 endpoints
-- Virtual Cluster Policies: 15 endpoints (consume, produce, cluster)
-
-**Total:** 51 endpoints
-
-### Service Catalog (v1) - Full API
-**Base URL:** `https://us.api.konghq.com/v1`
-
-**Catalog Services:**
-- `POST /catalog-services` - Create catalog service
-- `GET /catalog-services` - List catalog services
-- `GET /catalog-services/{id}` - Get catalog service
-- `PATCH /catalog-services/{id}` - Update catalog service
-- `DELETE /catalog-services/{id}` - Delete catalog service
-
-**Integrations (Read-only):**
-- `GET /integrations` - List available integrations
-
-**Integration Instances:**
-- `POST /integration-instances` - Create integration instance
-- `GET /integration-instances` - List integration instances
-- `GET /integration-instances/{id}` - Get integration instance
-- `PATCH /integration-instances/{id}` - Update integration instance
-- `DELETE /integration-instances/{id}` - Delete integration instance
-
-**Resources:**
-- `GET /resources` - List resources
-- `GET /resources/{id}` - Get resource
-- `PATCH /integration-instances/{instanceId}/resources/{resourceId}` - Update
-  resource
-
-**Resource Mappings:**
-- `POST /resource-mappings` - Create resource mapping
-- `GET /resource-mappings` - List resource mappings
-- `GET /resource-mappings/{id}` - Get resource mapping
-- `DELETE /resource-mappings/{id}` - Delete resource mapping
-
-**Total:** 16 endpoints
+**Best Case (parallel work):** 3-4 weeks
+**Realistic Case (sequential + blockers):** 4-6 weeks
+**Worst Case (scope changes, SDK issues):** 6-8 weeks
 
 ---
 
-**Document Status:** Draft - Pending Scope Clarifications
+## Success Criteria
+
+### Functional Completeness
+- [ ] Event Gateway instances: Full declarative + imperative support
+- [ ] Service Catalog: Full support per scope decision
+- [ ] Portal Management: Gaps filled per scope decision
+- [ ] API Builder: Verified 100% complete
+
+### Quality Standards
+- [ ] All quality gates passing (`make build && make lint && make test &&
+  make test-integration`)
+- [ ] Integration tests for all new resources
+- [ ] Documentation complete and accurate
+- [ ] Example configurations for all new resources
+- [ ] Manual E2E validation against live Konnect environment
+
+### User Experience
+- [ ] Consistent command patterns across all resources
+- [ ] Interactive mode support (`-i`) for all commands
+- [ ] Multi-format output (json/yaml/text) for all commands
+- [ ] Namespace isolation for all declarative resources
+- [ ] Protected flag support for all parent resources
+- [ ] YAML tags (!file, !ref) working with all resources
+
+---
+
+## Next Actions
+
+### Can Start Immediately ✅
+
+1. **Begin Phase 1: Event Gateway Implementation**
+   - No blockers
+   - Verify SDK support
+   - Start declarative implementation
+   - Start imperative implementation
+
+2. **Begin Phase 4: API Builder Verification**
+   - Can run in parallel with Phase 1
+   - Audit field coverage
+   - Run integration tests
+
+### Requires Decision 🔴
+
+3. **Service Catalog Scope Decision**
+   - Product owner decision required
+   - Recommendation: Option 2 (Standard)
+   - Needed to unblock Phase 2
+
+4. **Portal Management Gaps Decision**
+   - Product owner decision required
+   - List of 11 potential resources provided above
+   - Needed to unblock Phase 3
+
+---
+
+## Appendix: Current State (For Reference)
+
+### Already Complete for Beta
+- **Gateway Control Planes (v2):** 100% complete (declarative + imperative)
+- **API Builder (v3):** ~100% complete (pending verification)
+- **Portal Management (v3):** Core resources complete (portals, pages, snippets,
+  customization, custom domains, developers, teams, applications)
+
+### Not Complete for Beta
+- **Event Gateway (v1):** 0% complete → **Work Item 1**
+- **Service Catalog (v1):** 0% complete → **Work Item 2**
+- **Portal Management (v3):** Gaps exist → **Work Item 3**
+
+### Explicitly Out of Scope
+- Control Planes Config (v2) - 97 endpoints for core entities → Deferred to
+  decK tool
+- Post-beta items: System Accounts, Teams, Users, Org Auth, Team Mapping,
+  Audit Logs, Analytics, Mesh
+
+---
+
+**Document Status:** Draft - Ready for Review & Decision
 **Last Updated:** 2025-11-07
-**Next Review:** After clarifications received
+**Next Review:** After scope decisions received from decision maker
