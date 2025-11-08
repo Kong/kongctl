@@ -69,12 +69,6 @@ after initial implementation.
 - Example configurations
 - Feature list updates
 
-### Estimated Effort
-- **Declarative:** 3-4 days
-- **Imperative:** 2-3 days
-- **Testing & Docs:** 2-3 days
-- **Total:** 1-2 weeks
-
 ---
 
 ## Work Item 2: Service Catalog Support (NEW)
@@ -142,12 +136,6 @@ after initial implementation.
 - Example configurations
 - Feature list updates
 
-### Estimated Effort (Standard Option)
-- **Declarative:** 3-5 days
-- **Imperative:** 2-3 days
-- **Testing & Docs:** 2-3 days
-- **Total:** 1-2 weeks
-
 ---
 
 ## Work Item 3: Portal Management Gaps (TBD)
@@ -188,8 +176,6 @@ resource follows similar pattern to Work Items 1 and 2:**
 4. Tests
 5. Documentation
 
-**Estimated effort:** 1-3 days per resource (depending on complexity)
-
 ---
 
 ## Work Item 4: API Builder Verification (Audit Only)
@@ -222,11 +208,6 @@ Ensure documentation is complete and accurate:
 - Example configurations for common scenarios
 - Deprecated endpoint references updated
 
-### Estimated Effort
-- **Audit & Testing:** 2-3 days
-- **Doc updates (if needed):** 1 day
-- **Total:** 3-4 days
-
 **Expected Outcome:** Likely no implementation work needed, just confirmation
 and minor doc updates.
 
@@ -235,7 +216,6 @@ and minor doc updates.
 ## Implementation Phases
 
 ### Phase 1: Event Gateway (Can Start Now)
-**Duration:** 1-2 weeks
 
 1. SDK verification
 2. Declarative implementation
@@ -250,7 +230,6 @@ and minor doc updates.
 - `make test-integration` - All pass
 
 ### Phase 2: Service Catalog (After Scope Decision)
-**Duration:** 1-2 weeks
 
 1. Scope confirmation (BLOCKER)
 2. SDK verification
@@ -262,7 +241,6 @@ and minor doc updates.
 **Quality Gates:** Same as Phase 1
 
 ### Phase 3: Portal Management Gaps (After Scope Decision)
-**Duration:** 0.5-1 week (varies by scope)
 
 1. Scope confirmation (BLOCKER)
 2. Incremental implementation per resource
@@ -272,7 +250,6 @@ and minor doc updates.
 **Quality Gates:** Same as Phase 1
 
 ### Phase 4: API Builder Verification (Can Run in Parallel)
-**Duration:** 3-4 days
 
 1. Field coverage audit
 2. End-to-end testing
@@ -324,27 +301,6 @@ implementation time.
 **Recommendation:** Clarify based on critical user workflows. Consider starting
 with authentication settings and identity providers as they're core to portal
 functionality.
-
----
-
-## Timeline Estimate
-
-**Assumptions:**
-- 1 developer working on implementation
-- Scope decisions made within 1 week
-- No major SDK or API issues discovered
-
-| Phase | Duration | Dependencies | Can Start |
-|-------|----------|--------------|-----------|
-| Phase 1: Event Gateway | 1-2 weeks | None | ✅ Immediately |
-| Phase 2: Service Catalog | 1-2 weeks | Scope decision | ⚠️ Blocked |
-| Phase 3: Portal Gaps | 0.5-1 week | Scope decision | ⚠️ Blocked |
-| Phase 4: API Builder Audit | 3-4 days | None | ✅ Immediately (parallel) |
-| Final Testing & Polish | 1 week | All phases complete | After phases 1-3 |
-
-**Best Case (parallel work):** 3-4 weeks
-**Realistic Case (sequential + blockers):** 4-6 weeks
-**Worst Case (scope changes, SDK issues):** 6-8 weeks
 
 ---
 
