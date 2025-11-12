@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/auth"
@@ -61,7 +62,19 @@ func GetAccessToken(cfg config.Hook, logger *slog.Logger) (string, error) {
 	refreshURL := cfg.GetString(BaseURLConfigPath) + cfg.GetString(RefreshPathConfigPath)
 	tok, err := auth.LoadAccessToken(cfg, refreshURL, logger)
 	if err != nil {
-		return "", err
+		// Provide helpful guidance on authentication options instead of exposing
+		// internal implementation details like file paths
+		profile := cfg.GetProfile()
+		envVar := fmt.Sprintf("KONGCTL_%s_KONNECT_PAT", strings.ToUpper(profile))
+
+		return "", fmt.Errorf(
+			"authentication token not available. Use '%s login' to authenticate, "+
+				"provide a token via the --%s flag, set the %s environment variable, "+
+				"or configure 'konnect.pat' in your config file",
+			meta.CLIName,
+			PATFlagName,
+			envVar,
+		)
 	}
 	return tok.Token.AuthToken, nil
 }
