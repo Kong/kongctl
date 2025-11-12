@@ -22,6 +22,7 @@ import (
 	"github.com/kong/kongctl/internal/kai/render"
 	kaistui "github.com/kong/kongctl/internal/kai/tui"
 	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/theme"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -277,6 +278,11 @@ func runInteractiveCore(
 		}
 		initialTasks = tasks
 	}
+
+	// Disable error mirroring while the TUI is running to prevent errors from
+	// interfering with the UI. Re-enable it after the TUI exits.
+	log.DisableErrorMirroring()
+	defer log.EnableErrorMirroring()
 
 	return kaistui.Run(ctx, streams, kaistui.Options{
 		BaseURL:            baseURL,

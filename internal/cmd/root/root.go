@@ -91,12 +91,6 @@ func newRootCmd() *cobra.Command {
 		Short: rootShort,
 		Long:  rootLong,
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
-			if isKaiCommand(cmd) {
-				log.DisableErrorMirroring()
-			} else {
-				log.EnableErrorMirroring()
-			}
-
 			ctx := context.WithValue(cmd.Context(), config.ConfigKey, currConfig)
 			ctx = context.WithValue(ctx, iostreams.StreamsKey, streams)
 			ctx = context.WithValue(ctx, profile.ProfileManagerKey, pMgr)
@@ -255,20 +249,6 @@ func addCommands() error {
 	rootCmd.AddCommand(help.NewHelpCmd())
 
 	return nil
-}
-
-func isKaiCommand(cmd *cobra.Command) bool {
-	if cmd == nil {
-		return false
-	}
-
-	for current := cmd; current != nil; current = current.Parent() {
-		if current.Name() == kai.Verb.String() {
-			return true
-		}
-	}
-
-	return false
 }
 
 func sampleThemeNames() []string {
