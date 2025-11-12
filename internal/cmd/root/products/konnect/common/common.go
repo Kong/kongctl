@@ -70,10 +70,11 @@ func GetAccessToken(cfg config.Hook, logger *slog.Logger) (string, error) {
 		return "", fmt.Errorf(
 			"authentication token not available. Use '%s login' to authenticate, "+
 				"provide a token via the --%s flag, set the %s environment variable, "+
-				"or configure 'konnect.pat' in your config file",
+				"or configure '%s' in your config file",
 			meta.CLIName,
 			PATFlagName,
 			envVar,
+			PATConfigPath,
 		)
 	}
 	return tok.Token.AuthToken, nil
