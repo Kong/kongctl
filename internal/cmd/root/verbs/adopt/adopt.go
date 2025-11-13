@@ -48,10 +48,16 @@ func NewAdoptCmd() (*cobra.Command, error) {
 	}
 
 	// Add Konnect-specific flags as persistent flags so they appear in help
-	cmd.PersistentFlags().String(common.BaseURLFlagName, common.BaseURLDefault,
+	cmd.PersistentFlags().String(common.BaseURLFlagName, "",
 		fmt.Sprintf(`Base URL for Konnect API requests.
+- Config path: [ %s ]
+- Default   : [ %s ]`,
+			common.BaseURLConfigPath, common.BaseURLDefault))
+
+	cmd.PersistentFlags().String(common.RegionFlagName, "",
+		fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
-			common.BaseURLConfigPath))
+			common.BaseURLFlagName, common.RegionConfigPath))
 
 	cmd.PersistentFlags().String(common.PATFlagName, "",
 		fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.

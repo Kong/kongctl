@@ -18,10 +18,16 @@ import (
 func NewDirectAPICmd() (*cobra.Command, error) {
 	// Define the addFlags function to add Konnect-specific flags
 	addFlags := func(verb verbs.VerbValue, cmd *cobra.Command) {
-		cmd.Flags().String(common.BaseURLFlagName, common.BaseURLDefault,
+		cmd.Flags().String(common.BaseURLFlagName, "",
 			fmt.Sprintf(`Base URL for Konnect API requests.
+- Config path: [ %s ]
+- Default   : [ %s ]`,
+				common.BaseURLConfigPath, common.BaseURLDefault))
+
+		cmd.Flags().String(common.RegionFlagName, "",
+			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
-				common.BaseURLConfigPath))
+				common.BaseURLFlagName, common.RegionConfigPath))
 
 		cmd.Flags().String(common.PATFlagName, "",
 			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
@@ -85,6 +91,14 @@ func bindAPIFlags(c *cobra.Command, args []string) error {
 	f := c.Flags().Lookup(common.BaseURLFlagName)
 	if f != nil {
 		err = cfg.BindFlag(common.BaseURLConfigPath, f)
+		if err != nil {
+			return err
+		}
+	}
+
+	f = c.Flags().Lookup(common.RegionFlagName)
+	if f != nil {
+		err = cfg.BindFlag(common.RegionConfigPath, f)
 		if err != nil {
 			return err
 		}

@@ -63,10 +63,16 @@ func NewViewCmd() (*cobra.Command, error) {
 }
 
 func addKonnectFlags(cmd *cobra.Command) {
-	cmd.Flags().String(konnectcommon.BaseURLFlagName, konnectcommon.BaseURLDefault,
+	cmd.Flags().String(konnectcommon.BaseURLFlagName, "",
 		fmt.Sprintf(`Base URL for Konnect API requests.
+- Config path: [ %s ]
+- Default   : [ %s ]`,
+			konnectcommon.BaseURLConfigPath, konnectcommon.BaseURLDefault))
+
+	cmd.Flags().String(konnectcommon.RegionFlagName, "",
+		fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
-			konnectcommon.BaseURLConfigPath))
+			konnectcommon.BaseURLFlagName, konnectcommon.RegionConfigPath))
 
 	cmd.Flags().String(konnectcommon.PATFlagName, "",
 		fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
@@ -89,6 +95,12 @@ func bindKonnectFlags(cmd *cobra.Command, args []string) error {
 
 	if flag := cmd.Flags().Lookup(konnectcommon.BaseURLFlagName); flag != nil {
 		if err := cfg.BindFlag(konnectcommon.BaseURLConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	if flag := cmd.Flags().Lookup(konnectcommon.RegionFlagName); flag != nil {
+		if err := cfg.BindFlag(konnectcommon.RegionConfigPath, flag); err != nil {
 			return err
 		}
 	}

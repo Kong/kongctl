@@ -58,6 +58,7 @@ type Command struct {
 	Name         string           `yaml:"name"`
 	Run          []string         `yaml:"run"`
 	ResetOrg     bool             `yaml:"resetOrg"`
+	ResetRegions []string         `yaml:"resetOrgRegions"`
 	Mask         Mask             `yaml:"mask"`
 	Retry        Retry            `yaml:"retry"`
 	Assertions   []Assertion      `yaml:"assertions"`

@@ -108,7 +108,7 @@ func Run(t *testing.T, scenarioPath string) error {
 			}
 			// Handle resetOrg synthetic command
 			if cmd.ResetOrg {
-				if err := step.ResetOrg("scenario"); err != nil {
+				if err := step.ResetOrgForRegions("scenario", cmd.ResetRegions); err != nil {
 					return fmt.Errorf("command %s resetOrg failed: %w", cmdName, err)
 				}
 				// no assertions for reset

@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
 
 	"github.com/kong/kongctl/internal/config"
@@ -33,6 +34,8 @@ const (
 
 	PATFlagName = "pat"
 
+	RegionFlagName = "region"
+
 	RequestPageSizeFlagName = "page-size"
 	DefaultRequestPageSize  = 10
 )
@@ -51,7 +54,55 @@ var (
 
 	MachineClientIDConfigPath = "konnect." + MachineClientIDFlagName
 	RequestPageSizeConfigPath = "konnect." + RequestPageSizeFlagName
+
+	RegionConfigPath = "konnect." + RegionFlagName
 )
+
+var regionPattern = regexp.MustCompile(`^[a-z0-9-]+$`)
+
+// BuildBaseURLFromRegion converts a region identifier into the corresponding Konnect API host.
+func BuildBaseURLFromRegion(region string) (string, error) {
+	trimmed := strings.ToLower(strings.TrimSpace(region))
+	if trimmed == "" {
+		return "", fmt.Errorf("konnect region cannot be empty")
+	}
+
+	if trimmed == "global" {
+		return GlobalBaseURL, nil
+	}
+
+	if !regionPattern.MatchString(trimmed) {
+		return "", fmt.Errorf("invalid konnect region %q (expected lowercase letters, numbers, or hyphens)", region)
+	}
+
+	return fmt.Sprintf("https://%s.api.konghq.com", trimmed), nil
+}
+
+// ResolveBaseURL determines the effective Konnect base URL, honoring the precedence rules:
+// 1) Explicit base-url flag/config
+// 2) Region flag/config (converted to a URL)
+// 3) Default US region
+func ResolveBaseURL(cfg config.Hook) (string, error) {
+	baseURL := strings.TrimSpace(cfg.GetString(BaseURLConfigPath))
+	if baseURL != "" {
+		return baseURL, nil
+	}
+
+	region := strings.TrimSpace(cfg.GetString(RegionConfigPath))
+	var resolved string
+	if region != "" {
+		r, err := BuildBaseURLFromRegion(region)
+		if err != nil {
+			return "", err
+		}
+		resolved = r
+	} else {
+		resolved = BaseURLDefault
+	}
+
+	cfg.SetString(BaseURLConfigPath, resolved)
+	return resolved, nil
+}
 
 func GetAccessToken(cfg config.Hook, logger *slog.Logger) (string, error) {
 	pat := cfg.GetString(PATConfigPath)
@@ -59,7 +110,12 @@ func GetAccessToken(cfg config.Hook, logger *slog.Logger) (string, error) {
 		return pat, nil
 	}
 
-	refreshURL := cfg.GetString(BaseURLConfigPath) + cfg.GetString(RefreshPathConfigPath)
+	baseURL, err := ResolveBaseURL(cfg)
+	if err != nil {
+		return "", err
+	}
+
+	refreshURL := baseURL + cfg.GetString(RefreshPathConfigPath)
 	tok, err := auth.LoadAccessToken(cfg, refreshURL, logger)
 	if err != nil {
 		// Provide helpful guidance on authentication options instead of exposing
@@ -95,7 +151,10 @@ func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, er
 		)
 	}
 
-	baseURL := cfg.GetString(BaseURLConfigPath)
+	baseURL, err := ResolveBaseURL(cfg)
+	if err != nil {
+		return nil, err
+	}
 
 	sdk, err := auth.GetAuthenticatedClient(baseURL, token, logger)
 	if err != nil {

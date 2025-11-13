@@ -17,10 +17,16 @@ import (
 // NewDirectOrganizationCmd creates an organization command that works at the root level (Konnect-first)
 func NewDirectOrganizationCmd() (*cobra.Command, error) {
 	addFlags := func(_ verbs.VerbValue, cmd *cobra.Command) {
-		cmd.Flags().String(common.BaseURLFlagName, common.BaseURLDefault,
+		cmd.Flags().String(common.BaseURLFlagName, "",
 			fmt.Sprintf(`Base URL for Konnect API requests.
+- Config path: [ %s ]
+- Default   : [ %s ]`,
+				common.BaseURLConfigPath, common.BaseURLDefault))
+
+		cmd.Flags().String(common.RegionFlagName, "",
+			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
-				common.BaseURLConfigPath))
+				common.BaseURLFlagName, common.RegionConfigPath))
 
 		cmd.Flags().String(common.PATFlagName, "",
 			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
@@ -61,6 +67,12 @@ func bindOrganizationFlags(c *cobra.Command, args []string) error {
 
 	if f := c.Flags().Lookup(common.BaseURLFlagName); f != nil {
 		if err := cfg.BindFlag(common.BaseURLConfigPath, f); err != nil {
+			return err
+		}
+	}
+
+	if f := c.Flags().Lookup(common.RegionFlagName); f != nil {
+		if err := cfg.BindFlag(common.RegionConfigPath, f); err != nil {
 			return err
 		}
 	}

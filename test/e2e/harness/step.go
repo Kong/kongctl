@@ -568,10 +568,14 @@ func snapshotEnv(environ []string) map[string]string {
 	return envMap
 }
 
-// ResetOrg runs the destructive reset with artifacts captured under this step's commands.
-// Returns an error if the reset executes and any endpoint operation fails. Records "skipped"
-// observation when reset is disabled or PAT missing.
+// ResetOrg runs the destructive reset using the default base URL or env overrides.
 func (s *Step) ResetOrg(stage string) error {
+	return s.ResetOrgForRegions(stage, nil)
+}
+
+// ResetOrgForRegions runs the destructive reset across the provided regions/base URLs.
+// If regions is nil or empty, the legacy single-base behavior is used.
+func (s *Step) ResetOrgForRegions(stage string, regions []string) error {
 	if s == nil || s.cli == nil {
 		return fmt.Errorf("nil step/cli")
 	}
@@ -609,10 +613,6 @@ func (s *Step) ResetOrg(stage string) error {
 		_ = s.writePrettyJSON(filepath.Join(dir, "observation.json"), obs)
 		return nil
 	}
-	baseURL := os.Getenv("KONGCTL_E2E_KONNECT_BASE_URL")
-	if baseURL == "" {
-		baseURL = "https://us.api.konghq.com"
-	}
 	token := os.Getenv("KONGCTL_E2E_KONNECT_PAT")
 	if token == "" {
 		obs := map[string]any{"type": "reset_summary", "executed": false, "status": "skipped", "reason": "missing PAT"}
@@ -620,33 +620,92 @@ func (s *Step) ResetOrg(stage string) error {
 		return nil
 	}
 
+	baseURLs, err := resolveResetBaseURLs(regions)
+	if err != nil {
+		return err
+	}
+
 	client := &http.Client{Timeout: 30 * time.Second}
-	result, err := executeReset(client, baseURL, token)
-	details := make([]map[string]any, 0, len(result.Details))
-	for _, d := range result.Details {
-		details = append(details, map[string]any{
-			"api_version": d.APIVersion,
-			"endpoint":    d.Endpoint,
-			"total":       d.Total,
-			"deleted":     d.Deleted,
-			"error":       d.Error,
+	var (
+		summaries []map[string]any
+		firstErr  error
+	)
+
+	for _, baseURL := range baseURLs {
+		result, runErr := executeReset(client, baseURL, token)
+		details := make([]map[string]any, 0, len(result.Details))
+		for _, d := range result.Details {
+			details = append(details, map[string]any{
+				"api_version": d.APIVersion,
+				"endpoint":    d.Endpoint,
+				"total":       d.Total,
+				"deleted":     d.Deleted,
+				"error":       d.Error,
+			})
+		}
+		status := "ok"
+		reason := ""
+		if runErr != nil {
+			status = "error"
+			reason = runErr.Error()
+			if firstErr == nil {
+				firstErr = runErr
+			}
+		}
+		summaries = append(summaries, map[string]any{
+			"base_url": baseURL,
+			"status":   status,
+			"reason":   reason,
+			"details":  details,
 		})
 	}
 
-	status := "ok"
-	reason := ""
-	if err != nil {
-		status = "error"
-		reason = err.Error()
+	overallStatus := "ok"
+	overallReason := ""
+	if firstErr != nil {
+		overallStatus = "error"
+		overallReason = firstErr.Error()
 	}
+
 	obs := map[string]any{
 		"type":     "reset_summary",
 		"executed": true,
-		"status":   status,
-		"reason":   reason,
-		"base_url": baseURL,
-		"details":  details,
+		"status":   overallStatus,
+		"reason":   overallReason,
+		"regions":  summaries,
 	}
 	_ = s.writePrettyJSON(filepath.Join(dir, "observation.json"), obs)
-	return err
+	return firstErr
+}
+
+func resolveResetBaseURLs(regions []string) ([]string, error) {
+	if len(regions) == 0 {
+		baseURL := os.Getenv("KONGCTL_E2E_KONNECT_BASE_URL")
+		if baseURL == "" {
+			baseURL = "https://us.api.konghq.com"
+		}
+		return []string{baseURL}, nil
+	}
+
+	seen := make(map[string]struct{})
+	baseURLs := make([]string, 0, len(regions))
+	for _, region := range regions {
+		r := strings.TrimSpace(region)
+		if r == "" {
+			continue
+		}
+		baseURL := r
+		if !strings.HasPrefix(r, "http://") && !strings.HasPrefix(r, "https://") {
+			baseURL = fmt.Sprintf("https://%s.api.konghq.com", r)
+		}
+		if _, ok := seen[baseURL]; ok {
+			continue
+		}
+		seen[baseURL] = struct{}{}
+		baseURLs = append(baseURLs, baseURL)
+	}
+	if len(baseURLs) == 0 {
+		return nil, fmt.Errorf("no valid regions provided for reset")
+	}
+	return baseURLs, nil
 }
