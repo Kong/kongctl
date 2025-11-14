@@ -1,0 +1,65 @@
+baseInputsPath: ../../../testdata/declarative/external/portal-sync
+
+vars:
+  centralPortalName: central-team-portal
+  centralPortalDisplayName: "Central Team Portal"
+  centralPortalRef: central-portal
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-bootstrap-central-portal
+    skipInputs: true
+    commands:
+      - name: 000-create-portal
+        create:
+          resource: portal
+          payload:
+            inline:
+              name: "{{ .vars.centralPortalName }}"
+              display_name: "{{ .vars.centralPortalDisplayName }}"
+              description: "Central portal owned by the platform team"
+              authentication_enabled: false
+          recordVar:
+            name: central_portal_id
+            responsePath: id
+      - name: 001-adopt-portal-namespace
+        run:
+          - adopt
+          - portal
+          - "{{ .vars.central_portal_id }}"
+          - --namespace
+          - default
+        assertions:
+          - expect:
+              fields:
+                resource_type: portal
+                namespace: default
+                id: "{{ .vars.central_portal_id }}"
+
+  - name: 002-plan-team-sync
+    commands:
+      - name: 000-plan-sync
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/external-portal.yaml"
+          - -f
+          - "{{ .workdir }}/team-apis.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: >-
+              changes[?resource_type=='portal' &&
+                           action=='DELETE' &&
+                           resource_ref=='{{ .vars.centralPortalName }}']
+            expect:
+              fields:
+                "length(@)": 0
