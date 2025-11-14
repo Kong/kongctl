@@ -100,21 +100,19 @@ kongctl get organization
 
 ### 4. Switch Konnect Regions
 
-By default `kongctl` uses the `us` region for Konnect API requests. Until a 
-feature is developed to easily support region switching, you need to set 
-the `base-url` configuration to route requests to a different region.
+By default `kongctl` uses the `us` region for Konnect API requests. You can switch regions in two ways:
 
-You can set the `base-url` using the `--base-url` flag or by configuring it in your
-profile. The `base-url` format is `https://<region>.api.konghq.com`, where `<region>` is
-the region code (for example, `eu` for Europe). The [documentation](https://developer.konghq.com/konnect-platform/geos/)
-provides a list of available regions.
+- Set `--region` (or configure `konnect.region`) to the short region code such as `eu`, `us`, or `au`. `kongctl` automatically builds the matching `https://<region>.api.konghq.com` base URL for you.
+- Provide an explicit `--base-url`/`konnect.base-url`. This always takes precedence over the region value and is useful for testing against bespoke endpoints.
+
+Run `kongctl get regions` to retrieve the list of currently supported regions directly from Konnect. The [Konnect geos documentation](https://developer.konghq.com/konnect-platform/geos/) also tracks new regions as they launch.
 
 Here is an example configuration snippet to set the `default` profile to use the `eu` region:
 ```yaml
 default:
     ...
     konnect:
-      base-url: https://eu.api.konghq.com
+      region: eu
     ...
 ```
 

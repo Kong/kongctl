@@ -16,6 +16,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/navigator"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/portal"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/regions"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -40,10 +41,15 @@ var (
 
 func addFlags(verb verbs.VerbValue, cmd *cobra.Command) {
 	if verb != verbs.Login && verb != verbs.Logout {
-		cmd.Flags().String(common.BaseURLFlagName, common.BaseURLDefault,
+		cmd.Flags().String(common.BaseURLFlagName, "",
 			fmt.Sprintf(`Base URL for Konnect API requests.
+- Config path: [ %s ]
+- Default   : [ %s ]`,
+				common.BaseURLConfigPath, common.BaseURLDefault))
+		cmd.Flags().String(common.RegionFlagName, "",
+			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
-				common.BaseURLConfigPath))
+				common.BaseURLFlagName, common.RegionConfigPath))
 	}
 
 	if verb != verbs.Login && verb != verbs.Logout {
@@ -74,6 +80,14 @@ func bindFlags(c *cobra.Command, args []string) error {
 	f := c.Flags().Lookup(common.BaseURLFlagName)
 	if f != nil {
 		err = cfg.BindFlag(common.BaseURLConfigPath, f)
+		if err != nil {
+			return err
+		}
+	}
+
+	f = c.Flags().Lookup(common.RegionFlagName)
+	if f != nil {
+		err = cfg.BindFlag(common.RegionConfigPath, f)
 		if err != nil {
 			return err
 		}
@@ -220,6 +234,12 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return nil, e
 	}
 	cmd.AddCommand(oc)
+
+	rc, e := regions.NewRegionsCmd(verb, addFlags, preRunE)
+	if e != nil {
+		return nil, e
+	}
+	cmd.AddCommand(rc)
 
 	if verb == verbs.Get {
 		cmd.RunE = func(c *cobra.Command, args []string) error {

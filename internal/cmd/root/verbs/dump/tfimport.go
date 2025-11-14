@@ -69,10 +69,16 @@ func newTFImportCmd() *cobra.Command {
 	cmd.Flags().StringVar(&opts.outputFile, "output-file", "",
 		"File to write the output to. If not specified, output is written to stdout.")
 
-	cmd.Flags().String(konnectCommon.BaseURLFlagName, konnectCommon.BaseURLDefault,
+	cmd.Flags().String(konnectCommon.BaseURLFlagName, "",
 		fmt.Sprintf(`Base URL for Konnect API requests.
+- Config path: [ %s ]
+- Default   : [ %s ]`,
+			konnectCommon.BaseURLConfigPath, konnectCommon.BaseURLDefault))
+
+	cmd.Flags().String(konnectCommon.RegionFlagName, "",
+		fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
-			konnectCommon.BaseURLConfigPath))
+			konnectCommon.BaseURLFlagName, konnectCommon.RegionConfigPath))
 
 	cmd.Flags().String(konnectCommon.PATFlagName, "",
 		fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
@@ -95,6 +101,12 @@ Setting this value overrides tokens obtained from the login command.
 
 		if f := c.Flags().Lookup(konnectCommon.BaseURLFlagName); f != nil {
 			if err := cfg.BindFlag(konnectCommon.BaseURLConfigPath, f); err != nil {
+				return err
+			}
+		}
+
+		if f := c.Flags().Lookup(konnectCommon.RegionFlagName); f != nil {
+			if err := cfg.BindFlag(konnectCommon.RegionConfigPath, f); err != nil {
 				return err
 			}
 		}

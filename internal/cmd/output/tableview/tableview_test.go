@@ -69,12 +69,10 @@ func TestRender_StaticOutput(t *testing.T) {
 		[][]string{{data[0].ID, data[0].DisplayName, data[0].LocalUpdatedTime}},
 		120,
 	)
-	if len(widths) == 3 {
-		require.GreaterOrEqual(t, widths[2], len(data[0].LocalUpdatedTime))
-	}
-	if len(minWidths) == 3 {
-		require.GreaterOrEqual(t, minWidths[2], len("LOCAL UPDATED TIME"))
-	}
+	require.GreaterOrEqual(t, len(widths), 3)
+	require.GreaterOrEqual(t, len(minWidths), 3)
+	require.GreaterOrEqual(t, widths[2], len(data[0].LocalUpdatedTime))
+	require.GreaterOrEqual(t, minWidths[2], len("LOCAL UPDATED TIME"))
 
 	err := Render(streams, data, WithTitle("Sample Results"))
 	require.NoError(t, err)

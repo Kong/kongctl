@@ -1,0 +1,121 @@
+baseInputsPath: ../../../testdata/declarative/apis/region
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 001-reset
+    skipInputs: true
+    commands:
+      - resetOrg: true
+        resetOrgRegions:
+          - us
+          - eu
+
+  - name: 002-apply-us
+    inputOverlayDirs:
+      - overlays/001-us
+    commands:
+      - name: 001-apply-us
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+          - --region
+          - us
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                by_action.CREATE: 1
+                total_changes: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 002-get-us
+        run:
+          - get
+          - apis
+          - --region
+          - us
+          - -o
+          - json
+        assertions:
+          - select: "[?slug=='region-api-us'] | [0]"
+            expect:
+              fields:
+                name: "Region API US"
+                labels."KONGCTL-namespace": "apis-region-us"
+
+  - name: 003-apply-eu
+    inputOverlayDirs:
+      - overlays/002-eu
+    commands:
+      - name: 001-apply-eu
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+          - --region
+          - eu
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                by_action.CREATE: 1
+                total_changes: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 002-get-eu
+        run:
+          - get
+          - apis
+          - --region
+          - eu
+          - -o
+          - json
+        assertions:
+          - select: "[?slug=='region-api-eu'] | [0]"
+            expect:
+              fields:
+                name: "Region API EU"
+                labels."KONGCTL-namespace": "apis-region-eu"
+
+  - name: 004-cleanup
+    inputOverlayDirs:
+      - overlays/003-cleanup
+    commands:
+      - name: 001-sync-us
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+          - --region
+          - us
+      - name: 002-sync-eu
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+          - --region
+          - eu

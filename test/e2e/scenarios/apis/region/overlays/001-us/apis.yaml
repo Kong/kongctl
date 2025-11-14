@@ -1,0 +1,6 @@
+apis:
+  - ref: api-region
+    name: "Region API US"
+    slug: "region-api-us"
+    kongctl:
+      namespace: "apis-region-us"
