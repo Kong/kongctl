@@ -1,5 +1,4 @@
 //go:build integration && disabled
-// +build integration,disabled
 
 package declarative_test
 

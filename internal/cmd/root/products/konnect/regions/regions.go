@@ -42,10 +42,8 @@ func NewRegionsCmd(
 		Example: regionsExample,
 	}
 
-	switch verb {
-	case verbs.Get:
+	if verb == verbs.Get {
 		return newGetRegionsCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
-	default:
-		return &baseCmd, nil
 	}
+	return &baseCmd, nil
 }
