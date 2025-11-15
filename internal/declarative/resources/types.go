@@ -18,6 +18,7 @@ const (
 	ResourceTypePortalCustomDomain      ResourceType = "portal_custom_domain"
 	ResourceTypePortalPage              ResourceType = "portal_page"
 	ResourceTypePortalSnippet           ResourceType = "portal_snippet"
+	ResourceTypePortalTeam              ResourceType = "portal_team"
 )
 
 // ResourceRef represents a reference to another resource
@@ -45,6 +46,7 @@ type ResourceSet struct {
 	PortalCustomDomains  []PortalCustomDomainResource  `yaml:"portal_custom_domains,omitempty"       json:"portal_custom_domains,omitempty"` //nolint:lll
 	PortalPages          []PortalPageResource          `yaml:"portal_pages,omitempty"                json:"portal_pages,omitempty"`          //nolint:lll
 	PortalSnippets       []PortalSnippetResource       `yaml:"portal_snippets,omitempty"             json:"portal_snippets,omitempty"`       //nolint:lll
+	PortalTeams          []PortalTeamResource          `yaml:"portal_teams,omitempty"                json:"portal_teams,omitempty"`          //nolint:lll
 
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
@@ -176,6 +178,12 @@ func (rs *ResourceSet) GetResourceByRef(ref string) (Resource, bool) {
 	for i := range rs.PortalSnippets {
 		if rs.PortalSnippets[i].GetRef() == ref {
 			return &rs.PortalSnippets[i], true
+		}
+	}
+
+	for i := range rs.PortalTeams {
+		if rs.PortalTeams[i].GetRef() == ref {
+			return &rs.PortalTeams[i], true
 		}
 	}
 
@@ -370,6 +378,18 @@ func (rs *ResourceSet) GetPortalSnippetsByNamespace(namespace string) []PortalSn
 		// Check if parent portal is in the namespace
 		if portal := rs.GetPortalByRef(snippet.Portal); portal != nil && GetNamespace(portal.Kongctl) == namespace {
 			filtered = append(filtered, snippet)
+		}
+	}
+	return filtered
+}
+
+// GetPortalTeamsByNamespace returns all portal team resources from the specified namespace
+func (rs *ResourceSet) GetPortalTeamsByNamespace(namespace string) []PortalTeamResource {
+	var filtered []PortalTeamResource
+	for _, team := range rs.PortalTeams {
+		// Check if parent portal is in the namespace
+		if portal := rs.GetPortalByRef(team.Portal); portal != nil && GetNamespace(portal.Kongctl) == namespace {
+			filtered = append(filtered, team)
 		}
 	}
 	return filtered

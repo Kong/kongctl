@@ -28,6 +28,9 @@ const (
 	// ResourceTypePortalSnippet is the resource type for portal snippets
 	ResourceTypePortalSnippet = "portal_snippet"
 
+	// ResourceTypePortalTeam is the resource type for portal teams
+	ResourceTypePortalTeam = "portal_team"
+
 	// ResourceTypePortalCustomization is the resource type for portal customizations
 	ResourceTypePortalCustomization = "portal_customization"
 

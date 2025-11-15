@@ -442,6 +442,15 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 		accumulated.PortalSnippets = append(accumulated.PortalSnippets, snippet)
 	}
 
+	for _, team := range source.PortalTeams {
+		if accumulated.HasRef(team.Ref) {
+			existing, _ := accumulated.GetResourceByRef(team.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
+				team.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.PortalTeams = append(accumulated.PortalTeams, team)
+	}
+
 	// If this source defines a namespace default without parent resources,
 	// propagate it so sync mode can inspect the correct namespace.
 	if source.DefaultNamespace != "" {
@@ -764,11 +773,19 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.PortalSnippets = append(rs.PortalSnippets, snippet)
 		}
 
+		// Extract teams
+		for j := range portal.Teams {
+			team := portal.Teams[j]
+			team.Portal = portal.Ref // Set parent reference
+			rs.PortalTeams = append(rs.PortalTeams, team)
+		}
+
 		// Clear nested resources from Portal
 		portal.Customization = nil
 		portal.CustomDomain = nil
 		portal.Pages = nil
 		portal.Snippets = nil
+		portal.Teams = nil
 	}
 }
 

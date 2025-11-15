@@ -22,6 +22,7 @@ type CachedPortal struct {
 	Customization *PortalCustomization         // singleton
 	CustomDomain  *PortalCustomDomain          // singleton
 	Snippets      map[string]*PortalSnippet    // snippetID -> snippet
+	Teams         map[string]*PortalTeam       // teamID -> team
 }
 
 // CachedPortalPage represents a page with its children
@@ -165,4 +166,11 @@ type PortalSnippet struct {
 	Visibility       string
 	Status           string
 	NormalizedLabels map[string]string
+}
+
+// PortalTeam represents a portal team (developer team)
+type PortalTeam struct {
+	ID          string
+	Name        string
+	Description string
 }

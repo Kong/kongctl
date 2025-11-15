@@ -32,6 +32,7 @@ type ClientConfig struct {
 	PortalCustomizationAPI helpers.PortalCustomizationAPI
 	PortalCustomDomainAPI  helpers.PortalCustomDomainAPI
 	PortalSnippetAPI       helpers.PortalSnippetAPI
+	PortalTeamAPI          helpers.PortalTeamAPI
 
 	// API child resource APIs
 	APIVersionAPI        helpers.APIVersionAPI
@@ -55,6 +56,7 @@ type Client struct {
 	portalCustomizationAPI helpers.PortalCustomizationAPI
 	portalCustomDomainAPI  helpers.PortalCustomDomainAPI
 	portalSnippetAPI       helpers.PortalSnippetAPI
+	portalTeamAPI          helpers.PortalTeamAPI
 
 	// API child resource APIs
 	apiVersionAPI        helpers.APIVersionAPI
@@ -79,6 +81,7 @@ func NewClient(config ClientConfig) *Client {
 		portalCustomizationAPI: config.PortalCustomizationAPI,
 		portalCustomDomainAPI:  config.PortalCustomDomainAPI,
 		portalSnippetAPI:       config.PortalSnippetAPI,
+		portalTeamAPI:          config.PortalTeamAPI,
 
 		// API child resource APIs
 		apiVersionAPI:        config.APIVersionAPI,
@@ -2355,6 +2358,153 @@ func (c *Client) DeletePortalSnippet(ctx context.Context, portalID string, snipp
 	_, err := c.portalSnippetAPI.DeletePortalSnippet(ctx, portalID, snippetID)
 	if err != nil {
 		return fmt.Errorf("failed to delete portal snippet: %w", err)
+	}
+	return nil
+}
+
+// Portal Team Methods
+
+// ListPortalTeams returns all teams for a portal
+func (c *Client) ListPortalTeams(ctx context.Context, portalID string) ([]PortalTeam, error) {
+	if c.portalTeamAPI == nil {
+		return nil, fmt.Errorf("portal team API not configured")
+	}
+
+	var allTeams []PortalTeam
+	var pageNumber int64 = 1
+	pageSize := int64(100)
+
+	for {
+		req := kkOps.ListPortalTeamsRequest{
+			PortalID:   portalID,
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.portalTeamAPI.ListPortalTeams(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list portal teams", &ErrorWrapperOptions{
+				ResourceType: "portal_team",
+				UseEnhanced:  true,
+			})
+		}
+
+		if resp.ListPortalTeamsResponse == nil || len(resp.ListPortalTeamsResponse.Data) == 0 {
+			break
+		}
+
+		// Process teams
+		for _, t := range resp.ListPortalTeamsResponse.Data {
+			team := PortalTeam{
+				ID:   "",
+				Name: "",
+			}
+
+			// Handle optional pointer fields from SDK
+			if t.ID != nil {
+				team.ID = *t.ID
+			}
+			if t.Name != nil {
+				team.Name = *t.Name
+			}
+			if t.Description != nil {
+				team.Description = *t.Description
+			}
+
+			allTeams = append(allTeams, team)
+		}
+
+		pageNumber++
+
+		// Check if we've fetched all pages
+		if resp.ListPortalTeamsResponse.Meta.Page.Total <= float64(pageSize*(pageNumber-1)) {
+			break
+		}
+	}
+
+	return allTeams, nil
+}
+
+// CreatePortalTeam creates a new portal team
+func (c *Client) CreatePortalTeam(
+	ctx context.Context,
+	portalID string,
+	req kkComps.PortalCreateTeamRequest,
+	namespace string,
+) (string, error) {
+	if c.portalTeamAPI == nil {
+		return "", fmt.Errorf("portal team API not configured")
+	}
+
+	resp, err := c.portalTeamAPI.CreatePortalTeam(ctx, portalID, &req)
+	if err != nil {
+		return "", WrapAPIError(err, "create portal team", &ErrorWrapperOptions{
+			ResourceType: "portal_team",
+			ResourceName: req.Name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.PortalTeamResponse == nil {
+		return "", fmt.Errorf("no response data from create portal team")
+	}
+
+	teamID := ""
+	if resp.PortalTeamResponse.ID != nil {
+		teamID = *resp.PortalTeamResponse.ID
+	}
+
+	return teamID, nil
+}
+
+// UpdatePortalTeam updates a portal team
+func (c *Client) UpdatePortalTeam(
+	ctx context.Context,
+	portalID string,
+	teamID string,
+	req kkComps.PortalUpdateTeamRequest,
+	namespace string,
+) error {
+	if c.portalTeamAPI == nil {
+		return fmt.Errorf("portal team API not configured")
+	}
+
+	updateReq := kkOps.UpdatePortalTeamRequest{
+		PortalID:                portalID,
+		TeamID:                  teamID,
+		PortalUpdateTeamRequest: &req,
+	}
+
+	_, err := c.portalTeamAPI.UpdatePortalTeam(ctx, updateReq)
+	if err != nil {
+		teamName := ""
+		if req.Name != nil {
+			teamName = *req.Name
+		}
+		return WrapAPIError(err, "update portal team", &ErrorWrapperOptions{
+			ResourceType: "portal_team",
+			ResourceName: teamName,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	return nil
+}
+
+// DeletePortalTeam deletes a portal team
+func (c *Client) DeletePortalTeam(ctx context.Context, portalID string, teamID string) error {
+	if c.portalTeamAPI == nil {
+		return fmt.Errorf("portal team API not configured")
+	}
+
+	_, err := c.portalTeamAPI.DeletePortalTeam(ctx, teamID, portalID)
+	if err != nil {
+		return WrapAPIError(err, "delete portal team", &ErrorWrapperOptions{
+			ResourceType: "portal_team",
+			UseEnhanced:  true,
+		})
 	}
 	return nil
 }

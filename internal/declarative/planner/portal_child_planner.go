@@ -1486,3 +1486,273 @@ func (p *Planner) planPortalSnippetUpdate(
 
 	plan.AddChange(change)
 }
+
+// Portal Team planning
+
+func (p *Planner) planPortalTeamsChanges(
+	ctx context.Context, parentNamespace string, portalID string, portalRef string,
+	desired []resources.PortalTeamResource, plan *Plan,
+) error {
+	// Fetch existing teams for this portal
+	existingTeams := make(map[string]state.PortalTeam)
+	if portalID != "" {
+		teams, err := p.client.ListPortalTeams(ctx, portalID)
+		if err != nil {
+			// If portal team API is not configured, skip processing
+			if strings.Contains(err.Error(), "portal team API not configured") {
+				return nil
+			}
+			return fmt.Errorf("failed to list existing portal teams for portal %s: %w", portalID, err)
+		}
+		for _, team := range teams {
+			existingTeams[team.Name] = team
+		}
+	}
+
+	// Check for duplicate team names in desired state
+	nameCount := make(map[string]int)
+	for _, team := range desired {
+		nameCount[team.Name]++
+	}
+	for name, count := range nameCount {
+		if count > 1 {
+			return fmt.Errorf("duplicate team name %q found in portal %q: team names must be unique within a portal", name, portalRef)
+		}
+	}
+
+	// Check for duplicate team names in existing teams
+	if len(existingTeams) > 0 {
+		existingNameCount := make(map[string]int)
+		for _, team := range existingTeams {
+			existingNameCount[team.Name]++
+		}
+		for name, count := range existingNameCount {
+			if count > 1 {
+				return fmt.Errorf("multiple existing teams found with name %q in portal %q: cannot manage teams with duplicate names", name, portalRef)
+			}
+		}
+	}
+
+	desiredNames := make(map[string]bool)
+	for _, desiredTeam := range desired {
+		if plan.HasChange(ResourceTypePortalTeam, desiredTeam.GetRef()) {
+			continue
+		}
+		desiredNames[desiredTeam.Name] = true
+
+		if existingTeam, exists := existingTeams[desiredTeam.Name]; exists {
+			// Team exists: check for updates
+			// Since name is the identifier, if name changes, it's a different resource
+			// Only description can be updated
+			if shouldUpdate, updateFields := p.shouldUpdatePortalTeam(existingTeam, desiredTeam); shouldUpdate {
+				p.planPortalTeamUpdate(
+					parentNamespace,
+					existingTeam,
+					desiredTeam,
+					portalRef,
+					updateFields,
+					plan,
+				)
+			}
+		} else {
+			// Team doesn't exist: create
+			p.planPortalTeamCreate(parentNamespace, desiredTeam, portalRef, portalID, plan)
+		}
+	}
+
+	// In SYNC mode: Delete teams not in desired state
+	if plan.Metadata.Mode == PlanModeSync {
+		for _, existingTeam := range existingTeams {
+			if !desiredNames[existingTeam.Name] {
+				p.planPortalTeamDelete(parentNamespace, portalRef, portalID, existingTeam, plan)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (p *Planner) planPortalTeamCreate(
+	parentNamespace string, team resources.PortalTeamResource, _ string, portalID string, plan *Plan,
+) {
+	fields := make(map[string]any)
+	fields["name"] = team.Name
+	if team.Description != nil {
+		fields["description"] = *team.Description
+	}
+
+	// Determine dependencies - depends on parent portal
+	var dependencies []string
+	if team.Portal != "" {
+		// Find the change ID for the parent portal if it's being created
+		for _, change := range plan.Changes {
+			if change.ResourceType == ResourceTypePortal && change.ResourceRef == team.Portal {
+				dependencies = append(dependencies, change.ID)
+				break
+			}
+		}
+	}
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionCreate, ResourceTypePortalTeam, team.GetRef()),
+		ResourceType: ResourceTypePortalTeam,
+		ResourceRef:  team.GetRef(),
+		Action:       ActionCreate,
+		Fields:       fields,
+		DependsOn:    dependencies,
+		Namespace:    parentNamespace,
+	}
+
+	// Store parent portal reference
+	if team.Portal != "" {
+		// Find the portal in desiredPortals to get its name
+		var portalName string
+		for _, portal := range p.desiredPortals {
+			if portal.Ref == team.Portal {
+				portalName = portal.Name
+				break
+			}
+		}
+
+		if portalID != "" {
+			change.Parent = &ParentInfo{
+				Ref:  team.Portal,
+				ID:   portalID,
+			}
+		} else {
+			change.References = map[string]ReferenceInfo{
+				"portal_id": {
+					Ref: team.Portal,
+					LookupFields: map[string]string{
+						"name": portalName,
+					},
+				},
+			}
+		}
+	}
+
+	plan.AddChange(change)
+}
+
+func (p *Planner) shouldUpdatePortalTeam(
+	current state.PortalTeam, desired resources.PortalTeamResource,
+) (bool, map[string]any) {
+	updateFields := make(map[string]any)
+
+	// Only description can be updated (name is the identifier)
+	desiredDesc := ""
+	if desired.Description != nil {
+		desiredDesc = *desired.Description
+	}
+
+	if current.Description != desiredDesc {
+		updateFields["description"] = desiredDesc
+	}
+
+	return len(updateFields) > 0, updateFields
+}
+
+// planPortalTeamUpdate creates an UPDATE change for a portal team
+func (p *Planner) planPortalTeamUpdate(
+	parentNamespace string,
+	current state.PortalTeam,
+	desired resources.PortalTeamResource,
+	portalRef string,
+	updateFields map[string]any,
+	plan *Plan,
+) {
+	fields := make(map[string]any)
+	for field, value := range updateFields {
+		fields[field] = value
+	}
+
+	// Determine dependencies - depends on parent portal
+	var dependencies []string
+	if portalRef != "" {
+		// Find the change ID for the parent portal
+		for _, change := range plan.Changes {
+			if change.ResourceType == ResourceTypePortal && change.ResourceRef == portalRef {
+				dependencies = append(dependencies, change.ID)
+				break
+			}
+		}
+	}
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionUpdate, ResourceTypePortalTeam, desired.GetRef()),
+		ResourceType: ResourceTypePortalTeam,
+		ResourceRef:  desired.GetRef(),
+		ResourceID:   current.ID,
+		Action:       ActionUpdate,
+		Fields:       fields,
+		DependsOn:    dependencies,
+		Namespace:    parentNamespace,
+	}
+
+	// Store parent portal reference
+	if portalRef != "" {
+		// Find the portal in desiredPortals to get its name
+		var portalName string
+		for _, portal := range p.desiredPortals {
+			if portal.Ref == portalRef {
+				portalName = portal.Name
+				break
+			}
+		}
+
+		change.References = map[string]ReferenceInfo{
+			"portal_id": {
+				Ref: portalRef,
+				LookupFields: map[string]string{
+					"name": portalName,
+				},
+			},
+		}
+	}
+
+	plan.AddChange(change)
+}
+
+func (p *Planner) planPortalTeamDelete(
+	parentNamespace string, portalRef string, portalID string, team state.PortalTeam, plan *Plan,
+) {
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionDelete, ResourceTypePortalTeam, team.Name),
+		ResourceType: ResourceTypePortalTeam,
+		ResourceRef:  team.Name,
+		ResourceID:   team.ID,
+		Action:       ActionDelete,
+		Fields:       map[string]any{"name": team.Name},
+		Namespace:    parentNamespace,
+	}
+
+	// Store parent portal reference
+	if portalRef != "" {
+		// Find the portal in desiredPortals to get its name
+		var portalName string
+		for _, portal := range p.desiredPortals {
+			if portal.Ref == portalRef {
+				portalName = portal.Name
+				break
+			}
+		}
+
+		if portalID != "" {
+			change.Parent = &ParentInfo{
+				Ref:  portalRef,
+				ID:   portalID,
+			}
+		} else {
+			change.References = map[string]ReferenceInfo{
+				"portal_id": {
+					Ref: portalRef,
+					LookupFields: map[string]string{
+						"name": portalName,
+					},
+				},
+			}
+		}
+	}
+
+	plan.AddChange(change)
+}

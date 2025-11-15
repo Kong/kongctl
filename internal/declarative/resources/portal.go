@@ -20,6 +20,7 @@ type PortalResource struct {
 	CustomDomain  *PortalCustomDomainResource  `yaml:"custom_domain,omitempty" json:"custom_domain,omitempty"`
 	Pages         []PortalPageResource         `yaml:"pages,omitempty"         json:"pages,omitempty"`
 	Snippets      []PortalSnippetResource      `yaml:"snippets,omitempty"      json:"snippets,omitempty"`
+	Teams         []PortalTeamResource         `yaml:"teams,omitempty"         json:"teams,omitempty"`
 
 	// External resource marker
 	External *ExternalBlock `yaml:"_external,omitempty" json:"_external,omitempty"`
@@ -139,6 +140,18 @@ func (p PortalResource) Validate() error {
 		snippetRefs[snippet.GetRef()] = true
 	}
 
+	// Validate teams
+	teamRefs := make(map[string]bool)
+	for i, team := range p.Teams {
+		if err := team.Validate(); err != nil {
+			return fmt.Errorf("invalid team %d: %w", i, err)
+		}
+		if teamRefs[team.GetRef()] {
+			return fmt.Errorf("duplicate team ref: %s", team.GetRef())
+		}
+		teamRefs[team.GetRef()] = true
+	}
+
 	// Validate external block if present
 	if p.External != nil {
 		if err := p.External.Validate(); err != nil {
@@ -173,6 +186,11 @@ func (p *PortalResource) SetDefaults() {
 	// Apply defaults to snippets
 	for i := range p.Snippets {
 		p.Snippets[i].SetDefaults()
+	}
+
+	// Apply defaults to teams
+	for i := range p.Teams {
+		p.Teams[i].SetDefaults()
 	}
 }
 
@@ -289,6 +307,7 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 		"custom_domain",
 		"pages",
 		"snippets",
+		"teams",
 		"_external",
 	}
 	for _, k := range extraKeys {
@@ -345,6 +364,13 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 		delete(raw, "snippets")
 	}
 
+	if v, ok := raw["teams"]; ok {
+		if err := json.Unmarshal(v, &p.Teams); err != nil {
+			return err
+		}
+		delete(raw, "teams")
+	}
+
 	if v, ok := raw["_external"]; ok {
 		if err := json.Unmarshal(v, &p.External); err != nil {
 			return err
@@ -396,6 +422,7 @@ type portalAlias struct {
 	CustomDomain      *PortalCustomDomainResource  `json:"custom_domain,omitempty" yaml:"custom_domain,omitempty"`
 	Pages             []PortalPageResource         `json:"pages,omitempty" yaml:"pages,omitempty"`
 	Snippets          []PortalSnippetResource      `json:"snippets,omitempty" yaml:"snippets,omitempty"`
+	Teams             []PortalTeamResource         `json:"teams,omitempty" yaml:"teams,omitempty"`
 	External          *ExternalBlock               `json:"_external,omitempty" yaml:"_external,omitempty"`
 }
 
@@ -410,6 +437,7 @@ func (p PortalResource) portalAlias() portalAlias {
 		CustomDomain:      p.CustomDomain,
 		Pages:             p.Pages,
 		Snippets:          p.Snippets,
+		Teams:             p.Teams,
 		External:          p.External,
 	}
 }
