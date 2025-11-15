@@ -1,0 +1,321 @@
+baseInputsPath: ../../../testdata/declarative/portal/teams
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: portal-teams-test
+  portalRef: dev-portal
+  backendTeamRef: backend-team
+  frontendTeamRef: frontend-team
+  mobileTeamRef: mobile-team
+  qaTeamRef: qa-team
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-portal-with-teams
+    commands:
+      - name: 000-plan-initial-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-initial.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 4
+          # Verify portal creation
+          - select: >-
+              changes[?resource_type=='portal' && resource_ref=='{{ .vars.portalRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.portalRef }}"
+          # Verify backend team creation
+          - select: >-
+              changes[?resource_type=='portal_team' && resource_ref=='{{ .vars.backendTeamRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.backendTeamRef }}"
+                fields.name: "Backend Team"
+                fields.description: "Backend developers working on APIs"
+          # Verify frontend team creation
+          - select: >-
+              changes[?resource_type=='portal_team' && resource_ref=='{{ .vars.frontendTeamRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.frontendTeamRef }}"
+                fields.name: "Frontend Team"
+          # Verify mobile team creation
+          - select: >-
+              changes[?resource_type=='portal_team' && resource_ref=='{{ .vars.mobileTeamRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.mobileTeamRef }}"
+                fields.name: "Mobile Team"
+
+      - name: 001-apply-initial-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-initial.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+
+      - name: 002-verify-teams-created
+        run:
+          - get
+          - portal
+          - teams
+          - "{{ .vars.portalRef }}"
+          - -o
+          - json
+        assertions:
+          # Verify we have 3 teams
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 3
+          # Verify backend team
+          - select: "[?name=='Backend Team'] | [0]"
+            expect:
+              fields:
+                name: "Backend Team"
+                description: "Backend developers working on APIs"
+          # Verify frontend team
+          - select: "[?name=='Frontend Team'] | [0]"
+            expect:
+              fields:
+                name: "Frontend Team"
+                description: "Frontend developers building UIs"
+          # Verify mobile team
+          - select: "[?name=='Mobile Team'] | [0]"
+            expect:
+              fields:
+                name: "Mobile Team"
+                description: "Mobile app developers"
+
+  - name: 002-update-team-description
+    inputOverlayDirs:
+      - overlays/002-update-team
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          # Verify only backend team is updated
+          - select: >-
+              changes[?resource_type=='portal_team' && resource_ref=='{{ .vars.backendTeamRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                resource_ref: "{{ .vars.backendTeamRef }}"
+                fields.description: "Updated: Backend API developers"
+
+      - name: 001-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 002-verify-team-updated
+        run:
+          - get
+          - portal
+          - teams
+          - "{{ .vars.portalRef }}"
+          - -o
+          - json
+        assertions:
+          # Verify backend team has updated description
+          - select: "[?name=='Backend Team'] | [0]"
+            expect:
+              fields:
+                name: "Backend Team"
+                description: "Updated: Backend API developers"
+          # Verify other teams unchanged
+          - select: "[?name=='Frontend Team'] | [0]"
+            expect:
+              fields:
+                description: "Frontend developers building UIs"
+
+  - name: 003-sync-delete-team
+    inputOverlayDirs:
+      - overlays/003-sync-delete
+    commands:
+      - name: 000-plan-sync-delete
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          # Verify mobile team is deleted
+          - select: >-
+              changes[?resource_type=='portal_team' && action=='DELETE'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                fields.name: "Mobile Team"
+
+      - name: 001-apply-sync-delete
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 002-verify-team-deleted
+        run:
+          - get
+          - portal
+          - teams
+          - "{{ .vars.portalRef }}"
+          - -o
+          - json
+        assertions:
+          # Verify we now have 2 teams
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 2
+          # Verify mobile team is gone
+          - select: "[?name=='Mobile Team']"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 004-root-level-team-declaration
+    inputOverlayDirs:
+      - overlays/004-root-level
+    commands:
+      - name: 000-plan-root-level
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-root-level.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          # Verify QA team creation at root level
+          - select: >-
+              changes[?resource_type=='portal_team' && resource_ref=='{{ .vars.qaTeamRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.qaTeamRef }}"
+                fields.name: "QA Team"
+                fields.description: "Quality Assurance team"
+
+      - name: 001-apply-root-level
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-root-level.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 002-verify-root-level-team
+        run:
+          - get
+          - portal
+          - teams
+          - "{{ .vars.portalRef }}"
+          - -o
+          - json
+        assertions:
+          # Verify we now have 3 teams (backend, frontend, qa)
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 3
+          # Verify QA team exists
+          - select: "[?name=='QA Team'] | [0]"
+            expect:
+              fields:
+                name: "QA Team"
+                description: "Quality Assurance team"
