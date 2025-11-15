@@ -428,6 +428,7 @@ func (p *Planner) shouldUpdateFoo(current state.Foo, desired resources.FooResour
     }
 
     // Compare labels (only user labels)
+    // NOTE: CompareUserLabels returns TRUE when labels DIFFER (not when equal)
     if desired.Labels != nil {
         if labels.CompareUserLabels(current.NormalizedLabels, desired.GetLabels()) {
             updates["labels"] = desired.GetLabels()
@@ -456,6 +457,11 @@ func (p *Planner) planFooCreate(foo resources.FooResource, plan *Plan) string {
     }
 
     change, err := p.genericPlanner.PlanCreate(context.Background(), config)
+    if err != nil {
+        // Handle error appropriately - this is example code
+        // In real implementation, return or log the error
+        return ""
+    }
     change.Protection = protection
 
     plan.AddChange(change)
@@ -501,6 +507,11 @@ func (p *Planner) planFooUpdateWithFields(
     }
 
     change, err := p.genericPlanner.PlanUpdate(context.Background(), config)
+    if err != nil {
+        // Handle error appropriately - this is example code
+        // In real implementation, return the error
+        return
+    }
     change.Protection = protection
 
     plan.AddChange(change)
@@ -790,9 +801,11 @@ func (f FooChildResource) Validate() error {
     }
 
     // Validate nested children
+    // Children nested under parent automatically inherit the parent reference
+    // and should not redefine it (to avoid conflicts)
     for i, child := range f.Children {
         if child.Foo != "" {
-            return fmt.Errorf("child[%d] should not define foo (inherited)", i)
+            return fmt.Errorf("child[%d] should not define foo (inherited from parent)", i)
         }
         if err := child.Validate(); err != nil {
             return fmt.Errorf("child[%d] validation failed: %w", i, err)
@@ -1128,10 +1141,33 @@ func (p *Planner) shouldUpdateFooChild(current state.FooChild, desired resources
 **CHILD RESOURCES CREATED WITH PARENT**: Add to `planFooCreate`:
 ```go
 func (p *Planner) planFooCreate(foo resources.FooResource, plan *Plan) string {
-    // ... create foo change
-    fooChangeID := // ... change ID
+    // Create the parent foo change (see full implementation earlier in guide)
+    protection := extractProtection(foo.Kongctl)
+    namespace := extractNamespace(foo.Kongctl)
 
-    // Plan nested children
+    config := CreateConfig{
+        ResourceType:   "foo",
+        ResourceName:   foo.Name,
+        ResourceRef:    foo.GetRef(),
+        RequiredFields: []string{"name"},
+        FieldExtractor: func(_ any) map[string]any {
+            return extractFooFields(foo)
+        },
+        Namespace: namespace,
+        DependsOn: []string{},
+    }
+
+    change, err := p.genericPlanner.PlanCreate(context.Background(), config)
+    if err != nil {
+        return ""
+    }
+    change.Protection = protection
+    plan.AddChange(change)
+
+    // Get the change ID of the just-added parent
+    fooChangeID := change.ID
+
+    // Plan nested children with dependency on parent
     p.planFooChildrenCreateWithParent(namespace, foo.GetRef(), foo.Children, fooChangeID, plan)
 
     return fooChangeID
@@ -1566,6 +1602,7 @@ import (
     "context"
     "fmt"
     "sort"
+    "strings"
     "time"
 
     kk "github.com/Kong/sdk-konnect-go"
@@ -1575,6 +1612,7 @@ import (
     "github.com/kong/kongctl/internal/cmd"
     "github.com/kong/kongctl/internal/cmd/output/tableview"
     "github.com/kong/kongctl/internal/konnect/helpers"
+    "github.com/kong/kongctl/internal/util"
     "github.com/spf13/cobra"
 )
 
@@ -1700,6 +1738,12 @@ func listFoos(ctx context.Context, helper *cmd.Helper, client *kk.SDK) error {
         // Text table output
         return outputFooTable(helper, resp.ListFoosResponse.Data)
     }
+}
+
+// Helper function to check if string is a valid UUID
+func isUUID(s string) bool {
+    // Simple UUID format check (8-4-4-4-12 hex digits)
+    return len(s) == 36 && s[8] == '-' && s[13] == '-' && s[18] == '-' && s[23] == '-'
 }
 
 func getFoo(ctx context.Context, helper *cmd.Helper, client *kk.SDK, idOrName string) error {
@@ -1986,9 +2030,34 @@ func outputSingleFooChild(helper *cmd.Helper, child *kkComps.FooChild) error {
 - **Protection changes**: Allowed (can unprotect a resource)
 
 ### REFERENCE RESOLUTION
-- **Planning time**: Resolve refs to existing resources
-- **Execution time**: Resolve refs created in same execution
+
+**Reference Syntax**: `!ref <resource-ref>#<field>`
+- Uses YAML custom tag `!ref` to create cross-resource references
+- Format: `!ref my-resource#id` or `!ref my-resource#name`
+- The `#field` suffix is optional; defaults to `#id` if omitted
+- Processed by loader before parsing into resource structures
+
+**Resolution Phases**:
+- **Planning time**: Resolve refs to existing resources (already in Konnect)
+- **Execution time**: Resolve refs created in same execution (new resources)
 - **Parent ID resolution**: Check References first, then Parent field
+
+**Example**:
+```yaml
+portals:
+  - ref: my-portal
+    name: My Portal
+    default_application_auth_strategy_id: !ref my-auth-strategy#id
+
+auth_strategies:
+  - ref: my-auth-strategy
+    name: My Auth Strategy
+```
+
+**How it works**:
+1. Loader processes `!ref` tags and replaces with placeholder: `__KONGCTL_REF__my-auth-strategy#id__`
+2. Planner detects placeholders and creates Reference entries in PlannedChange
+3. Executor resolves references to actual IDs before making SDK calls
 
 ### FIELD COMPARISON
 - **Sparse updates**: Only include changed fields in update request
