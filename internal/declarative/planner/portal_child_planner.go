@@ -1516,7 +1516,9 @@ func (p *Planner) planPortalTeamsChanges(
 	}
 	for name, count := range nameCount {
 		if count > 1 {
-			return fmt.Errorf("duplicate team name %q found in portal %q: team names must be unique within a portal", name, portalRef)
+			return fmt.Errorf(
+				"duplicate team name %q found in portal %q: team names must be unique within a portal",
+				name, portalRef)
 		}
 	}
 
@@ -1528,7 +1530,9 @@ func (p *Planner) planPortalTeamsChanges(
 		}
 		for name, count := range existingNameCount {
 			if count > 1 {
-				return fmt.Errorf("multiple existing teams found with name %q in portal %q: cannot manage teams with duplicate names", name, portalRef)
+				return fmt.Errorf(
+					"multiple existing teams found with name %q in portal %q: cannot manage teams with duplicate names",
+					name, portalRef)
 			}
 		}
 	}
