@@ -37,14 +37,15 @@ type Mask struct {
 }
 
 type Step struct {
-	Name                 string     `yaml:"name"`
-	SkipInputs           bool       `yaml:"skipInputs"`
-	InputOverlayDirs     []string   `yaml:"inputOverlayDirs"`
-	InputOverlayOpsFiles []string   `yaml:"inputOverlayOpsFiles"`
-	InputOverlayOps      []InlineOp `yaml:"inputOverlayOps"`
-	Mask                 Mask       `yaml:"mask"`
-	Retry                Retry      `yaml:"retry"`
-	Commands             []Command  `yaml:"commands"`
+	Name                 string            `yaml:"name"`
+	SkipInputs           bool              `yaml:"skipInputs"`
+	InputOverlayDirs     []string          `yaml:"inputOverlayDirs"`
+	InputOverlayOpsFiles []string          `yaml:"inputOverlayOpsFiles"`
+	InputOverlayOps      []InlineOp        `yaml:"inputOverlayOps"`
+	Env                  map[string]string `yaml:"env"`
+	Mask                 Mask              `yaml:"mask"`
+	Retry                Retry             `yaml:"retry"`
+	Commands             []Command         `yaml:"commands"`
 }
 
 // InlineOp allows targeted overlay operations to be declared directly in scenario.yaml.
@@ -55,18 +56,19 @@ type InlineOp struct {
 }
 
 type Command struct {
-	Name         string           `yaml:"name"`
-	Run          []string         `yaml:"run"`
-	ResetOrg     bool             `yaml:"resetOrg"`
-	ResetRegions []string         `yaml:"resetOrgRegions"`
-	Mask         Mask             `yaml:"mask"`
-	Retry        Retry            `yaml:"retry"`
-	Assertions   []Assertion      `yaml:"assertions"`
-	ExpectFail   *ExpectedFailure `yaml:"expectFailure"`
-	Create       *CreateSpec      `yaml:"create"`
-	OutputFormat string           `yaml:"outputFormat"`
-	ParseAs      string           `yaml:"parseAs"`
-	StdoutFile   string           `yaml:"stdoutFile"`
+	Name         string            `yaml:"name"`
+	Run          []string          `yaml:"run"`
+	Env          map[string]string `yaml:"env"`
+	ResetOrg     bool              `yaml:"resetOrg"`
+	ResetRegions []string          `yaml:"resetOrgRegions"`
+	Mask         Mask              `yaml:"mask"`
+	Retry        Retry             `yaml:"retry"`
+	Assertions   []Assertion       `yaml:"assertions"`
+	ExpectFail   *ExpectedFailure  `yaml:"expectFailure"`
+	Create       *CreateSpec       `yaml:"create"`
+	OutputFormat string            `yaml:"outputFormat"`
+	ParseAs      string            `yaml:"parseAs"`
+	StdoutFile   string            `yaml:"stdoutFile"`
 }
 
 type CreateSpec struct {

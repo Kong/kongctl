@@ -6,6 +6,7 @@ env:
 vars:
   namespace: portal-teams-test
   portalRef: dev-portal
+  portalName: "Developer Portal"
   backendTeamRef: backend-team
   frontendTeamRef: frontend-team
   mobileTeamRef: mobile-team
@@ -32,6 +33,9 @@ steps:
       - name: 000-plan-initial-create
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-initial.json"
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - plan
           - -f
@@ -83,6 +87,9 @@ steps:
 
       - name: 001-apply-initial-create
         outputFormat: json
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - apply
           - --plan
@@ -96,11 +103,15 @@ steps:
                 failed: 0
 
       - name: 002-verify-teams-created
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - get
           - portal
           - teams
-          - "{{ .vars.portalRef }}"
+          - --portal-name
+          - "{{ .vars.portalName }}"
           - -o
           - json
         assertions:
@@ -135,6 +146,9 @@ steps:
       - name: 000-plan-update
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-update.json"
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - plan
           - -f
@@ -158,6 +172,9 @@ steps:
 
       - name: 001-apply-update
         outputFormat: json
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - apply
           - --plan
@@ -171,11 +188,15 @@ steps:
                 failed: 0
 
       - name: 002-verify-team-updated
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - get
           - portal
           - teams
-          - "{{ .vars.portalRef }}"
+          - --portal-name
+          - "{{ .vars.portalName }}"
           - -o
           - json
         assertions:
@@ -198,6 +219,9 @@ steps:
       - name: 000-plan-sync-delete
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-sync-delete.json"
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - plan
           - -f
@@ -224,8 +248,11 @@ steps:
 
       - name: 001-apply-sync-delete
         outputFormat: json
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
-          - apply
+          - sync
           - --plan
           - "{{ .workdir }}/plan-sync-delete.json"
           - --auto-approve
@@ -241,7 +268,8 @@ steps:
           - get
           - portal
           - teams
-          - "{{ .vars.portalRef }}"
+          - --portal-name
+          - "{{ .vars.portalName }}"
           - -o
           - json
         assertions:
@@ -304,7 +332,8 @@ steps:
           - get
           - portal
           - teams
-          - "{{ .vars.portalRef }}"
+          - --portal-name
+          - "{{ .vars.portalName }}"
           - -o
           - json
         assertions:

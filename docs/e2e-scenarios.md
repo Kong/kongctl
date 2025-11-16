@@ -53,12 +53,14 @@ Schema (YAML)
       - file: "apis.yaml"
         match: "apis[?ref=='sms'].publications[?ref=='sms-api-to-getting-started'] | [0]"
         set: { visibility: "private" }
+    env?: { KEY: value },                  # step-scoped env vars for all commands in this step
     mask?: { dropKeys: [...] },            # override/extend defaults.mask
     retry?: { attempts, interval },        # override defaults.retry
     commands: [
       {
         name?: string,
         run?: ["apply", "-f", "{{ .workdir }}/portal.yaml", …],  # arbitrary kongctl args
+        env?: { KEY: value },                 # command-scoped env vars (override step env)
         resetOrg?: true,                              # synthetic harness command to reset org
         mask?: { dropKeys: [...] },
         retry?: { attempts, interval },
@@ -82,6 +84,14 @@ Schema (YAML)
     ]
   }
 ]
+
+Scoped Environment Variables
+
+- `scenario.env` sets base environment variables for every kongctl command in the scenario.
+- `step.env` extends the scenario env for all commands in that step.
+- `command.env` extends (and overrides) the step env for a single command. Later scopes win on key conflicts.
+- Use this layering to toggle diagnostics narrowly, e.g., enable `KONNECT_SDK_HTTP_DUMP_REQUEST`/`KONNECT_SDK_HTTP_DUMP_RESPONSE` only on a failing command.
+- When those Konnect SDK dump env vars are set, the harness removes the verbose HTTP dumps from stdout (so JSON parsing still works) and writes them to `<step>/commands/<cmd>/http-dumps/request-001.txt`, `response-001.txt`, etc.
 
 Masking (MVP)
 

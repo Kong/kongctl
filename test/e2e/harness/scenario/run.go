@@ -106,6 +106,7 @@ func Run(t *testing.T, scenarioPath string) error {
 			if strings.TrimSpace(cmdName) == "" {
 				cmdName = fmt.Sprintf("command-%03d", j)
 			}
+			envOverrides := mergeEnvScopes(st.Env, cmd.Env)
 			// Handle resetOrg synthetic command
 			if cmd.ResetOrg {
 				if err := step.ResetOrgForRegions("scenario", cmd.ResetRegions); err != nil {
@@ -205,7 +206,7 @@ func Run(t *testing.T, scenarioPath string) error {
 					)
 					return fmt.Errorf("command %s produced unparsable output: %w", cmdName, err)
 				}
-				if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName); err != nil {
+				if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName, envOverrides); err != nil {
 					return err
 				}
 				continue
@@ -229,10 +230,10 @@ func Run(t *testing.T, scenarioPath string) error {
 				err error
 			)
 			if cmd.ExpectFail != nil {
-				res, err = cli.Run(context.Background(), args...)
+				res, err = cli.RunWithEnv(context.Background(), envOverrides, args...)
 			} else {
 				retryCfg := effectiveRetry(s.Defaults.Retry, st.Retry, cmd.Retry, Retry{})
-				res, err = runCLIWithRetry(cli, cmdName, retryCfg, args)
+				res, err = runCLIWithRetry(cli, cmdName, retryCfg, args, envOverrides)
 			}
 			if cmd.ExpectFail != nil {
 				if err == nil {
@@ -302,7 +303,7 @@ func Run(t *testing.T, scenarioPath string) error {
 				return fmt.Errorf("command %s produced unparsable output: %w", cmdName, err)
 			}
 
-			if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName); err != nil {
+			if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName, envOverrides); err != nil {
 				return err
 			}
 		}
@@ -430,6 +431,7 @@ func executeAssertions(
 	parent any,
 	workdir string,
 	stepName, cmdName string,
+	env map[string]string,
 ) error {
 	if len(cmd.Assertions) == 0 {
 		return nil
@@ -465,6 +467,7 @@ func executeAssertions(
 				atry,
 				parentDir,
 				tmplCtx,
+				env,
 			)
 			if lastErr == nil {
 				break
@@ -480,7 +483,7 @@ func executeAssertions(
 	return nil
 }
 
-func runCLIWithRetry(cli *harness.CLI, cmdName string, retryCfg Retry, args []string) (harness.Result, error) {
+func runCLIWithRetry(cli *harness.CLI, cmdName string, retryCfg Retry, args []string, env map[string]string) (harness.Result, error) {
 	backoffCfg := harness.NormalizeBackoffConfig(backoffConfigFromRetry(retryCfg))
 	attempts := backoffCfg.Attempts
 	backoff := harness.BuildBackoffSchedule(backoffCfg)
@@ -489,7 +492,7 @@ func runCLIWithRetry(cli *harness.CLI, cmdName string, retryCfg Retry, args []st
 		err error
 	)
 	for atry := 0; atry < attempts; atry++ {
-		res, err = cli.Run(context.Background(), args...)
+		res, err = cli.RunWithEnv(context.Background(), env, args...)
 		if err == nil {
 			return res, nil
 		}
@@ -737,6 +740,26 @@ func parseDur(s string) time.Duration {
 	return d
 }
 
+func mergeEnvScopes(scopes ...map[string]string) map[string]string {
+	var merged map[string]string
+	for _, scope := range scopes {
+		if len(scope) == 0 {
+			continue
+		}
+		if merged == nil {
+			merged = make(map[string]string, len(scope))
+		}
+		for k, v := range scope {
+			key := strings.TrimSpace(k)
+			if key == "" {
+				continue
+			}
+			merged[key] = v
+		}
+	}
+	return merged
+}
+
 func copyTree(src, dst string) error {
 	return filepath.Walk(src, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -770,6 +793,7 @@ func runAssertion(
 	attempt int,
 	parentDir string,
 	tmplCtx map[string]any,
+	env map[string]string,
 ) error {
 	// Resolve source
 	var src any
@@ -778,7 +802,7 @@ func runAssertion(
 		// run fresh get, carefully tracking the command capture dir to relocate under retries
 		prevCmdDir := cli.LastCommandDir
 		var raw any
-		if _, err = cli.RunJSON(context.Background(), &raw, "get", as.Source.Get); err != nil {
+		if _, err = cli.RunJSONWithEnv(context.Background(), env, &raw, "get", as.Source.Get); err != nil {
 			return fmt.Errorf("source.get %s failed: %w", as.Source.Get, err)
 		}
 		src = raw
