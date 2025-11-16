@@ -1455,6 +1455,7 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		PortalCustomizationAPI: kkClient.GetPortalCustomizationAPI(),
 		PortalCustomDomainAPI:  kkClient.GetPortalCustomDomainAPI(),
 		PortalSnippetAPI:       kkClient.GetPortalSnippetAPI(),
+		PortalTeamAPI:          kkClient.GetPortalTeamAPI(),
 
 		// API child resource APIs
 		APIVersionAPI:        kkClient.GetAPIVersionAPI(),
