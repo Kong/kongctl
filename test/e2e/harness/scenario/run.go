@@ -42,6 +42,9 @@ func Run(t *testing.T, scenarioPath string) error {
 	if err != nil {
 		return fmt.Errorf("harness init failed: %w", err)
 	}
+	if strings.TrimSpace(s.LogLevel) != "" {
+		cli.SetLogLevel(s.LogLevel)
+	}
 	if len(s.Env) > 0 {
 		cli.WithEnv(s.Env)
 	}

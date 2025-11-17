@@ -5,6 +5,7 @@ package scenario
 // Scenario is the top-level schema parsed from scenario.yaml.
 type Scenario struct {
 	BaseInputsPath string            `yaml:"baseInputsPath"`
+	LogLevel       string            `yaml:"log-level"`
 	Env            map[string]string `yaml:"env"`
 	Vars           map[string]any    `yaml:"vars"`
 	Defaults       Defaults          `yaml:"defaults"`

@@ -35,6 +35,7 @@ type CLI struct {
 	AutoLogLevel string
 	AutoOutput   string
 	cmdSeq       int
+	logSeq       int
 	nextOutput   struct {
 		set     bool
 		disable bool
@@ -45,6 +46,17 @@ type CLI struct {
 		value string
 	}
 	pendingHTTPDumps []httpDump
+	pendingLogPath   string
+}
+
+// SetLogLevel overrides the auto log level for subsequent commands and refreshes the profile config.
+func (c *CLI) SetLogLevel(level string) {
+	clean := strings.TrimSpace(level)
+	if clean == "" {
+		return
+	}
+	c.AutoLogLevel = clean
+	_ = writeProfileConfig(c.ConfigDir, c.Profile, c.AutoOutput, c.AutoLogLevel)
 }
 
 type httpDump struct {
@@ -270,6 +282,17 @@ func (c *CLI) runWithEnv(ctx context.Context, env map[string]string, args ...str
 		}
 	}
 
+	if captureEnabled && c.ConfigDir != "" && !hasLogFileArg(args) {
+		if logPath := c.nextCommandLogPath(); logPath != "" {
+			args = append(args, "--log-file", logPath)
+			c.pendingLogPath = logPath
+		} else {
+			c.pendingLogPath = ""
+		}
+	} else {
+		c.pendingLogPath = ""
+	}
+
 	var cancel context.CancelFunc
 	if c.Timeout > 0 {
 		ctx, cancel = context.WithTimeout(ctx, c.Timeout)
@@ -440,8 +463,13 @@ func (c *CLI) captureCommand(cmd *exec.Cmd, args []string, res Result, start, en
 	}
 	// Write files
 	_ = os.WriteFile(filepath.Join(dir, "command.txt"), []byte(strings.Join(cmd.Args, " ")+"\n"), 0o644)
-	_ = os.WriteFile(filepath.Join(dir, "stdout.txt"), []byte(res.Stdout), 0o644)
+	trimmedStdout := strings.TrimSpace(res.Stdout)
+	if trimmedStdout != "" {
+		trimmedStdout += "\n"
+	}
+	_ = os.WriteFile(filepath.Join(dir, "stdout.txt"), []byte(trimmedStdout), 0o644)
 	_ = os.WriteFile(filepath.Join(dir, "stderr.txt"), []byte(res.Stderr), 0o644)
+	c.movePendingLog(dir)
 	c.writeHTTPDumps(dir, dumps)
 	// Sanitized env snapshot
 	envMap := map[string]string{}
@@ -552,6 +580,19 @@ func hasOutputArg(args []string) bool {
 	return false
 }
 
+func hasLogFileArg(args []string) bool {
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "--log-file" {
+			return true
+		}
+		if strings.HasPrefix(a, "--log-file=") {
+			return true
+		}
+	}
+	return false
+}
+
 func mergeEnvSlices(base []string, overrides map[string]string) []string {
 	if len(overrides) == 0 {
 		return base
@@ -604,6 +645,35 @@ func writeProfileConfig(cfgDir, profile, output, logLevel string) error {
 	}
 	Infof("Wrote profile config: %s", path)
 	return nil
+}
+
+func (c *CLI) nextCommandLogPath() string {
+	if strings.TrimSpace(c.ConfigDir) == "" {
+		return ""
+	}
+	base := filepath.Join(c.ConfigDir, "logs")
+	if err := os.MkdirAll(base, 0o755); err != nil {
+		return ""
+	}
+	c.logSeq++
+	return filepath.Join(base, fmt.Sprintf("cmd-%06d.log", c.logSeq))
+}
+
+func (c *CLI) movePendingLog(dir string) {
+	path := c.pendingLogPath
+	c.pendingLogPath = ""
+	if strings.TrimSpace(dir) == "" || strings.TrimSpace(path) == "" {
+		return
+	}
+	dst := filepath.Join(dir, "kongctl.log")
+	if err := os.Rename(path, dst); err == nil {
+		return
+	}
+	data, err := os.ReadFile(path)
+	if err == nil {
+		_ = os.WriteFile(dst, data, 0o644)
+	}
+	_ = os.Remove(path)
 }
 
 func extractHTTPDumps(stdout string) (string, []httpDump) {

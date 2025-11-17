@@ -3,9 +3,11 @@ package executor
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/log"
 )
 
 // PortalTeamAdapter implements ResourceOperations for portal teams
@@ -60,7 +62,33 @@ func (p *PortalTeamAdapter) Create(ctx context.Context, req kkComps.PortalCreate
 		return "", err
 	}
 
-	return p.client.CreatePortalTeam(ctx, portalID, req, namespace)
+	logger := portalTeamLogger(ctx)
+	if logger != nil {
+		logger.LogAttrs(ctx, slog.LevelDebug, "Creating portal team",
+			slog.String("team_name", req.Name),
+			slog.String("portal_id", portalID),
+			slog.String("namespace", namespace))
+	}
+
+	id, err := p.client.CreatePortalTeam(ctx, portalID, req, namespace)
+	if err != nil {
+		if logger != nil {
+			logger.LogAttrs(ctx, slog.LevelError, "Portal team create failed",
+				slog.String("team_name", req.Name),
+				slog.String("portal_id", portalID),
+				slog.Any("error", err))
+		}
+		return "", err
+	}
+
+	if logger != nil {
+		logger.LogAttrs(ctx, slog.LevelDebug, "Portal team created",
+			slog.String("team_name", req.Name),
+			slog.String("portal_id", portalID),
+			slog.String("team_id", id))
+	}
+
+	return id, nil
 }
 
 // Update updates an existing portal team
@@ -73,9 +101,29 @@ func (p *PortalTeamAdapter) Update(ctx context.Context, id string, req kkComps.P
 		return "", err
 	}
 
+	logger := portalTeamLogger(ctx)
+	if logger != nil {
+		logger.LogAttrs(ctx, slog.LevelDebug, "Updating portal team",
+			slog.String("team_id", id),
+			slog.String("portal_id", portalID),
+			slog.String("namespace", namespace))
+	}
+
 	err = p.client.UpdatePortalTeam(ctx, portalID, id, req, namespace)
 	if err != nil {
+		if logger != nil {
+			logger.LogAttrs(ctx, slog.LevelError, "Portal team update failed",
+				slog.String("team_id", id),
+				slog.String("portal_id", portalID),
+				slog.Any("error", err))
+		}
 		return "", err
+	}
+
+	if logger != nil {
+		logger.LogAttrs(ctx, slog.LevelDebug, "Portal team updated",
+			slog.String("team_id", id),
+			slog.String("portal_id", portalID))
 	}
 	return id, nil
 }
@@ -88,7 +136,30 @@ func (p *PortalTeamAdapter) Delete(ctx context.Context, id string, execCtx *Exec
 		return err
 	}
 
-	return p.client.DeletePortalTeam(ctx, portalID, id)
+	logger := portalTeamLogger(ctx)
+	if logger != nil {
+		logger.LogAttrs(ctx, slog.LevelDebug, "Deleting portal team",
+			slog.String("team_id", id),
+			slog.String("portal_id", portalID))
+	}
+
+	if err := p.client.DeletePortalTeam(ctx, portalID, id); err != nil {
+		if logger != nil {
+			logger.LogAttrs(ctx, slog.LevelError, "Portal team delete failed",
+				slog.String("team_id", id),
+				slog.String("portal_id", portalID),
+				slog.Any("error", err))
+		}
+		return err
+	}
+
+	if logger != nil {
+		logger.LogAttrs(ctx, slog.LevelDebug, "Portal team deleted",
+			slog.String("team_id", id),
+			slog.String("portal_id", portalID))
+	}
+
+	return nil
 }
 
 // GetByName gets a portal team by name
@@ -178,4 +249,12 @@ func (p *PortalTeamResourceInfo) GetLabels() map[string]string {
 
 func (p *PortalTeamResourceInfo) GetNormalizedLabels() map[string]string {
 	return make(map[string]string)
+}
+
+func portalTeamLogger(ctx context.Context) *slog.Logger {
+	if ctx == nil {
+		return nil
+	}
+	logger, _ := ctx.Value(log.LoggerKey).(*slog.Logger)
+	return logger
 }

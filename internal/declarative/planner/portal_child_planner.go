@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -1493,6 +1494,13 @@ func (p *Planner) planPortalTeamsChanges(
 	ctx context.Context, parentNamespace string, portalID string, portalRef string,
 	desired []resources.PortalTeamResource, plan *Plan,
 ) error {
+	if p.logger != nil {
+		p.logger.Debug("Planning portal team changes",
+			slog.String("portal_ref", portalRef),
+			slog.String("namespace", parentNamespace),
+			slog.Int("desired_count", len(desired)))
+	}
+
 	// Fetch existing teams for this portal
 	existingTeams := make(map[string]state.PortalTeam)
 	if portalID != "" {
@@ -1507,6 +1515,12 @@ func (p *Planner) planPortalTeamsChanges(
 		for _, team := range teams {
 			existingTeams[team.Name] = team
 		}
+	}
+
+	if p.logger != nil {
+		p.logger.Debug("Fetched existing portal teams",
+			slog.String("portal_ref", portalRef),
+			slog.Int("existing_count", len(existingTeams)))
 	}
 
 	// Check for duplicate team names in desired state
@@ -1579,6 +1593,14 @@ func (p *Planner) planPortalTeamsChanges(
 func (p *Planner) planPortalTeamCreate(
 	parentNamespace string, team resources.PortalTeamResource, _ string, portalID string, plan *Plan,
 ) {
+	if p.logger != nil {
+		p.logger.Debug("Plan portal team create",
+			slog.String("team_ref", team.GetRef()),
+			slog.String("portal_ref", team.Portal),
+			slog.String("namespace", parentNamespace),
+			slog.String("portal_id", portalID))
+	}
+
 	fields := make(map[string]any)
 	fields["name"] = team.Name
 	if team.Description != nil {
@@ -1620,8 +1642,8 @@ func (p *Planner) planPortalTeamCreate(
 
 		if portalID != "" {
 			change.Parent = &ParentInfo{
-				Ref:  team.Portal,
-				ID:   portalID,
+				Ref: team.Portal,
+				ID:  portalID,
 			}
 		} else {
 			change.References = map[string]ReferenceInfo{
@@ -1636,6 +1658,13 @@ func (p *Planner) planPortalTeamCreate(
 	}
 
 	plan.AddChange(change)
+
+	if p.logger != nil {
+		p.logger.Debug("Queued portal team create change",
+			slog.String("change_id", change.ID),
+			slog.String("team_ref", team.GetRef()),
+			slog.String("portal_ref", team.Portal))
+	}
 }
 
 func (p *Planner) shouldUpdatePortalTeam(
@@ -1715,6 +1744,14 @@ func (p *Planner) planPortalTeamUpdate(
 	}
 
 	plan.AddChange(change)
+
+	if p.logger != nil {
+		p.logger.Debug("Queued portal team update change",
+			slog.String("change_id", change.ID),
+			slog.String("team_ref", desired.GetRef()),
+			slog.String("portal_ref", portalRef),
+			slog.Any("fields", fields))
+	}
 }
 
 func (p *Planner) planPortalTeamDelete(
@@ -1743,8 +1780,8 @@ func (p *Planner) planPortalTeamDelete(
 
 		if portalID != "" {
 			change.Parent = &ParentInfo{
-				Ref:  portalRef,
-				ID:   portalID,
+				Ref: portalRef,
+				ID:  portalID,
 			}
 		} else {
 			change.References = map[string]ReferenceInfo{
@@ -1759,4 +1796,12 @@ func (p *Planner) planPortalTeamDelete(
 	}
 
 	plan.AddChange(change)
+
+	if p.logger != nil {
+		p.logger.Debug("Queued portal team delete change",
+			slog.String("change_id", change.ID),
+			slog.String("team_name", team.Name),
+			slog.String("portal_ref", portalRef),
+			slog.String("resource_id", team.ID))
+	}
 }

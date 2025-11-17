@@ -35,6 +35,7 @@ Names Are Optional (Indexed From 000)
 Schema (YAML)
 
 - baseInputsPath: path to the base declarative config directory
+- log-level: optional default `kongctl` log level for every command (trace|debug|info|warn|error)
 - env: map of environment variables to pass to kongctl
 - vars: free-form variables usable in templates (e.g., for selectors or overlay files)
 - defaults:

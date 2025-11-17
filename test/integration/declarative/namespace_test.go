@@ -72,6 +72,15 @@ portals:
 
 	// Set up mocks
 	mockAPIAPI := GetMockAPIAPI(ctx, t)
+	mockAPIAPI.On("FetchAPI", mock.Anything, mock.AnythingOfType("string")).
+		Return(&kkOps.FetchAPIResponse{
+			StatusCode: 200,
+			APIResponseSchema: &kkComps.APIResponseSchema{
+				ID:     "mock-api",
+				Name:   "mock-api",
+				Labels: map[string]string{labels.NamespaceKey: "team-alpha"},
+			},
+		}, nil).Maybe()
 	mockPortalAPI := GetMockPortalAPI(ctx, t)
 
 	// Mock empty lists (no existing resources)
@@ -88,6 +97,18 @@ portals:
 			},
 		}, nil).Maybe() // Use Maybe() for flexible call count
 
+	// Fetch by ID may be invoked during delete to check protection/managed status
+	mockAPIAPI.On("FetchAPI", mock.Anything, mock.AnythingOfType("string")).
+		Return(&kkOps.FetchAPIResponse{
+			StatusCode: 200,
+			APIResponseSchema: &kkComps.APIResponseSchema{
+				ID:          "alpha-1",
+				Name:        "alpha-1",
+				Labels:      map[string]string{labels.NamespaceKey: "team-alpha"},
+				Description: stringPtr("alpha api"),
+			},
+		}, nil).Maybe()
+
 	// Mock portal list - called multiple times: once for main portal plan and 4 times for child resources
 	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).
 		Return(&kkOps.ListPortalsResponse{
@@ -101,6 +122,16 @@ portals:
 				},
 			},
 		}, nil).Maybe() // Use Maybe() for flexible call count
+
+	mockAPIAPI.On("FetchAPI", mock.Anything, mock.AnythingOfType("string")).
+		Return(&kkOps.FetchAPIResponse{
+			StatusCode: 200,
+			APIResponseSchema: &kkComps.APIResponseSchema{
+				ID:     "api-protected",
+				Name:   "Protected Alpha API",
+				Labels: map[string]string{labels.NamespaceKey: "team-alpha", labels.ProtectedKey: "true"},
+			},
+		}, nil).Maybe()
 
 	// Mock CREATE operations - verify namespace label is applied
 	mockAPIAPI.On("CreateAPI", mock.Anything, mock.MatchedBy(func(api kkComps.CreateAPIRequest) bool {
@@ -256,6 +287,15 @@ apis:
 
 	// Set up mocks
 	mockAPIAPI := GetMockAPIAPI(ctx, t)
+	mockAPIAPI.On("FetchAPI", mock.Anything, mock.AnythingOfType("string")).
+		Return(&kkOps.FetchAPIResponse{
+			StatusCode: 200,
+			APIResponseSchema: &kkComps.APIResponseSchema{
+				ID:     "mock-api",
+				Name:   "mock-api",
+				Labels: map[string]string{labels.NamespaceKey: "team-alpha"},
+			},
+		}, nil).Maybe()
 
 	// Mock separate ListApis calls for each namespace
 	// The planner groups by namespace and makes separate calls
@@ -271,6 +311,16 @@ apis:
 				},
 			},
 		}, nil).Maybe() // Multiple calls for 3 namespaces during planning and execution
+
+	mockAPIAPI.On("FetchAPI", mock.Anything, mock.AnythingOfType("string")).
+		Return(&kkOps.FetchAPIResponse{
+			StatusCode: 200,
+			APIResponseSchema: &kkComps.APIResponseSchema{
+				ID:     "api-alpha",
+				Name:   "Alpha API",
+				Labels: map[string]string{labels.NamespaceKey: "team-alpha"},
+			},
+		}, nil).Maybe()
 
 	// Mock CREATE operations for each namespace
 	// Mock Alpha API creation
@@ -481,6 +531,15 @@ apis:
 
 	// Set up mocks
 	mockAPIAPI := GetMockAPIAPI(ctx, t)
+	mockAPIAPI.On("FetchAPI", mock.Anything, mock.AnythingOfType("string")).
+		Return(&kkOps.FetchAPIResponse{
+			StatusCode: 200,
+			APIResponseSchema: &kkComps.APIResponseSchema{
+				ID:     "mock-api",
+				Name:   "mock-api",
+				Labels: map[string]string{labels.NamespaceKey: "team-alpha"},
+			},
+		}, nil).Maybe()
 
 	// Mock ListApis to return APIs from multiple namespaces
 	// This simulates existing resources in Konnect

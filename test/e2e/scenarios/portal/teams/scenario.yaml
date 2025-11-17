@@ -1,7 +1,6 @@
 baseInputsPath: ../../../testdata/declarative/portal/teams
 
-env:
-  KONGCTL_LOG_LEVEL: info
+log-level: debug
 
 vars:
   namespace: portal-teams-test
