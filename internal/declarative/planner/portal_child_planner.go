@@ -1574,7 +1574,7 @@ func (p *Planner) planPortalTeamsChanges(
 			}
 		} else {
 			// Team doesn't exist: create
-			p.planPortalTeamCreate(parentNamespace, desiredTeam, portalRef, portalID, plan)
+			p.planPortalTeamCreate(parentNamespace, desiredTeam, portalID, plan)
 		}
 	}
 
@@ -1591,7 +1591,7 @@ func (p *Planner) planPortalTeamsChanges(
 }
 
 func (p *Planner) planPortalTeamCreate(
-	parentNamespace string, team resources.PortalTeamResource, _ string, portalID string, plan *Plan,
+	parentNamespace string, team resources.PortalTeamResource, portalID string, plan *Plan,
 ) {
 	if p.logger != nil {
 		p.logger.Debug("Plan portal team create",
