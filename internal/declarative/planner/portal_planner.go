@@ -36,15 +36,18 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 		return nil
 	}
 
-	// Fetch current managed portals from the specific namespace
-	namespaceFilter := []string{namespace}
-	currentPortals, err := p.GetClient().ListManagedPortals(ctx, namespaceFilter)
-	if err != nil {
-		// If portal client is not configured, skip portal planning
-		if err.Error() == "Portal client not configured" {
-			return nil
+	var currentPortals []state.Portal
+	if namespace != resources.NamespaceExternal {
+		namespaceFilter := []string{namespace}
+		var err error
+		currentPortals, err = p.GetClient().ListManagedPortals(ctx, namespaceFilter)
+		if err != nil {
+			// If portal client is not configured, skip portal planning
+			if err.Error() == "Portal client not configured" {
+				return nil
+			}
+			return fmt.Errorf("failed to list current portals in namespace %s: %w", namespace, err)
 		}
-		return fmt.Errorf("failed to list current portals in namespace %s: %w", namespace, err)
 	}
 
 	// Index current portals by name

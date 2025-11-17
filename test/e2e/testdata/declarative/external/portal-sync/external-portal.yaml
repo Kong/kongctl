@@ -1,0 +1,9 @@
+# External portal reference without explicit namespace metadata.
+# This mirrors the real-world setup where a central team owns the portal
+# but downstream teams only reference it via `_external`.
+portals:
+  - ref: central-portal
+    _external:
+      selector:
+        matchFields:
+          name: "central-team-portal"

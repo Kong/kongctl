@@ -420,3 +420,22 @@ portals: []
 		assert.Contains(t, err.Error(), "conflicting _defaults.kongctl.namespace values")
 	})
 }
+
+func TestApplyNamespaceDefaultsExternalWithKongctlFails(t *testing.T) {
+	ns := "team-alpha"
+	l := New()
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{
+			{
+				Ref:     "external-portal",
+				Kongctl: &resources.KongctlMeta{Namespace: &ns},
+				External: &resources.ExternalBlock{
+					Selector: &resources.ExternalSelector{MatchFields: map[string]string{"name": "portal"}}},
+			},
+		},
+	}
+
+	err := l.applyNamespaceDefaults(rs, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "portal 'external-portal' is marked as external")
+}

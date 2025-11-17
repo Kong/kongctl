@@ -196,7 +196,26 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 		return nil
 	}
 
-	totalParents := len(rs.Portals) + len(rs.ApplicationAuthStrategies) + len(rs.ControlPlanes) + len(rs.APIs)
+	managedPortals := make([]resources.PortalResource, 0, len(rs.Portals))
+	for _, portal := range rs.Portals {
+		if portal.IsExternal() {
+			continue
+		}
+		managedPortals = append(managedPortals, portal)
+	}
+
+	managedControlPlanes := make([]resources.ControlPlaneResource, 0, len(rs.ControlPlanes))
+	for _, cp := range rs.ControlPlanes {
+		if cp.IsExternal() {
+			continue
+		}
+		managedControlPlanes = append(managedControlPlanes, cp)
+	}
+
+	totalParents := len(managedPortals) +
+		len(rs.ApplicationAuthStrategies) +
+		len(managedControlPlanes) +
+		len(rs.APIs)
 
 	if totalParents == 0 {
 		switch req.Mode {
@@ -278,8 +297,8 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 		}
 	}
 
-	for i := range rs.Portals {
-		check(string(resources.ResourceTypePortal), rs.Portals[i].Ref, rs.Portals[i].Kongctl)
+	for i := range managedPortals {
+		check(string(resources.ResourceTypePortal), managedPortals[i].Ref, managedPortals[i].Kongctl)
 	}
 	for i := range rs.APIs {
 		check(string(resources.ResourceTypeAPI), rs.APIs[i].Ref, rs.APIs[i].Kongctl)
@@ -290,8 +309,8 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 			rs.ApplicationAuthStrategies[i].Kongctl,
 		)
 	}
-	for i := range rs.ControlPlanes {
-		check(string(resources.ResourceTypeControlPlane), rs.ControlPlanes[i].Ref, rs.ControlPlanes[i].Kongctl)
+	for i := range managedControlPlanes {
+		check(string(resources.ResourceTypeControlPlane), managedControlPlanes[i].Ref, managedControlPlanes[i].Kongctl)
 	}
 
 	if len(violations) == 0 {

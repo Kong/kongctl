@@ -353,6 +353,30 @@ are specified or omitted. The following tables summarize the behavior.
 
 Child resources automatically inherit the namespace of their parent resource:
 
+#### External Resources and Namespaces
+
+External resources (`_external` blocks) are references to Konnect objects that are managed elsewhere.
+Because kongctl does not own those objects:
+
+- External resources **cannot** declare `kongctl` metadata. Supplying `kongctl.namespace` or `kongctl.protected`
+  on an external resource results in a parsing error. File-level defaults are ignored for externals.
+- External references do **not** add their namespaces to sync planning. Only namespaces from managed parent
+  resources are considered when sync mode calculates deletes.
+- Child resources (portal pages, customizations, etc.) are still planned by resolving the external parent's Konnect ID.
+  Ensure the owning team labels the parent (for example via `kongctl adopt`) so the ID can be resolved, but you do not
+  need to (and cannot) assign a namespace to the external definition itself.
+
+#### Namespace Enforcement Flags
+
+The `kongctl plan` command provides built-in namespace guardrails:
+
+- `--require-any-namespace` forces every managed resource to declare a namespace via `kongctl.namespace`
+  or `_defaults.kongctl.namespace`.
+- `--require-namespace=<ns>` restricts planning to the provided namespaces (repeat or comma-separate the flag
+  to allow multiple values).
+
+These flags help prevent accidentally operating on unexpected namespaces, especially when running in sync mode.
+
 ## YAML Tags
 
 YAML tags are like preprocessors for YAML file data. They allow you to 
