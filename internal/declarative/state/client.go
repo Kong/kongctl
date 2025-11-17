@@ -1232,7 +1232,7 @@ func (c *Client) ListAPIVersions(ctx context.Context, apiID string) ([]APIVersio
 		pageNumber++
 
 		// Check if we've fetched all pages
-		if resp.ListAPIVersionResponse.Meta.Page.Total <= float64(pageSize*(pageNumber-1)) {
+		if resp.ListAPIVersionResponse.Meta.Page.Total <= float64(pageSize*pageNumber) {
 			break
 		}
 	}
@@ -1378,7 +1378,7 @@ func (c *Client) ListAPIPublications(ctx context.Context, apiID string) ([]APIPu
 		pageNumber++
 
 		// Check if we've fetched all pages
-		if resp.ListAPIPublicationResponse.Meta.Page.Total <= float64(pageSize*(pageNumber-1)) {
+		if resp.ListAPIPublicationResponse.Meta.Page.Total <= float64(pageSize*pageNumber) {
 			break
 		}
 	}
@@ -1485,7 +1485,7 @@ func (c *Client) ListAPIImplementations(ctx context.Context, apiID string) ([]AP
 		pageNumber++
 
 		// Check if we've fetched all pages
-		if resp.ListAPIImplementationsResponse.Meta.Page.Total <= float64(pageSize*(pageNumber-1)) {
+		if resp.ListAPIImplementationsResponse.Meta.Page.Total <= float64(pageSize*pageNumber) {
 			break
 		}
 	}
@@ -2257,7 +2257,7 @@ func (c *Client) ListPortalSnippets(ctx context.Context, portalID string) ([]Por
 		pageNumber++
 
 		// Check if we've fetched all pages
-		if resp.ListPortalSnippetsResponse.Meta.Page.Total <= float64(pageSize*(pageNumber-1)) {
+		if resp.ListPortalSnippetsResponse.Meta.Page.Total <= float64(pageSize*pageNumber) {
 			break
 		}
 	}
@@ -2417,7 +2417,7 @@ func (c *Client) ListPortalTeams(ctx context.Context, portalID string) ([]Portal
 		pageNumber++
 
 		// Check if we've fetched all pages
-		if resp.ListPortalTeamsResponse.Meta.Page.Total <= float64(pageSize*(pageNumber-1)) {
+		if resp.ListPortalTeamsResponse.Meta.Page.Total <= float64(pageSize*pageNumber) {
 			break
 		}
 	}
