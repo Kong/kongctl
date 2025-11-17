@@ -20,6 +20,11 @@ const (
 	ResourceTypePortalSnippet           ResourceType = "portal_snippet"
 )
 
+const (
+	// NamespaceExternal is a sentinel (empty string) used internally when handling external resources.
+	NamespaceExternal = ""
+)
+
 // ResourceRef represents a reference to another resource
 type ResourceRef struct {
 	Kind string `json:"kind" yaml:"kind"`
@@ -239,6 +244,12 @@ func (rs *ResourceSet) GetAuthStrategyByRef(ref string) *ApplicationAuthStrategy
 func (rs *ResourceSet) GetPortalsByNamespace(namespace string) []PortalResource {
 	var filtered []PortalResource
 	for _, portal := range rs.Portals {
+		if portal.IsExternal() {
+			if namespace == NamespaceExternal {
+				filtered = append(filtered, portal)
+			}
+			continue
+		}
 		if GetNamespace(portal.Kongctl) == namespace {
 			filtered = append(filtered, portal)
 		}
@@ -332,8 +343,16 @@ func (rs *ResourceSet) GetPortalCustomizationsByNamespace(namespace string) []Po
 	var filtered []PortalCustomizationResource
 	for _, custom := range rs.PortalCustomizations {
 		// Check if parent portal is in the namespace
-		if portal := rs.GetPortalByRef(custom.Portal); portal != nil && GetNamespace(portal.Kongctl) == namespace {
-			filtered = append(filtered, custom)
+		if portal := rs.GetPortalByRef(custom.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, custom)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, custom)
+			}
 		}
 	}
 	return filtered
@@ -344,8 +363,16 @@ func (rs *ResourceSet) GetPortalCustomDomainsByNamespace(namespace string) []Por
 	var filtered []PortalCustomDomainResource
 	for _, domain := range rs.PortalCustomDomains {
 		// Check if parent portal is in the namespace
-		if portal := rs.GetPortalByRef(domain.Portal); portal != nil && GetNamespace(portal.Kongctl) == namespace {
-			filtered = append(filtered, domain)
+		if portal := rs.GetPortalByRef(domain.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, domain)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, domain)
+			}
 		}
 	}
 	return filtered
@@ -356,8 +383,16 @@ func (rs *ResourceSet) GetPortalPagesByNamespace(namespace string) []PortalPageR
 	var filtered []PortalPageResource
 	for _, page := range rs.PortalPages {
 		// Check if parent portal is in the namespace
-		if portal := rs.GetPortalByRef(page.Portal); portal != nil && GetNamespace(portal.Kongctl) == namespace {
-			filtered = append(filtered, page)
+		if portal := rs.GetPortalByRef(page.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, page)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, page)
+			}
 		}
 	}
 	return filtered
@@ -368,8 +403,16 @@ func (rs *ResourceSet) GetPortalSnippetsByNamespace(namespace string) []PortalSn
 	var filtered []PortalSnippetResource
 	for _, snippet := range rs.PortalSnippets {
 		// Check if parent portal is in the namespace
-		if portal := rs.GetPortalByRef(snippet.Portal); portal != nil && GetNamespace(portal.Kongctl) == namespace {
-			filtered = append(filtered, snippet)
+		if portal := rs.GetPortalByRef(snippet.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, snippet)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, snippet)
+			}
 		}
 	}
 	return filtered

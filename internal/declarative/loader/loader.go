@@ -514,6 +514,12 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 
 	// Apply defaults to portals (parent resources)
 	for i := range rs.Portals {
+		if rs.Portals[i].IsExternal() {
+			if rs.Portals[i].Kongctl != nil {
+				return fmt.Errorf("portal '%s' is marked as external and cannot use kongctl metadata", rs.Portals[i].Ref)
+			}
+			continue
+		}
 		if err := assignNamespace(&rs.Portals[i].Kongctl, "portal", rs.Portals[i].Ref); err != nil {
 			return err
 		}
@@ -563,6 +569,13 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 
 	// Apply defaults to ControlPlanes (parent resources)
 	for i := range rs.ControlPlanes {
+		if rs.ControlPlanes[i].IsExternal() {
+			if rs.ControlPlanes[i].Kongctl != nil {
+				return fmt.Errorf("control_plane '%s' is marked as external and cannot use kongctl metadata",
+					rs.ControlPlanes[i].Ref)
+			}
+			continue
+		}
 		if err := assignNamespace(&rs.ControlPlanes[i].Kongctl, "control_plane", rs.ControlPlanes[i].Ref); err != nil {
 			return err
 		}

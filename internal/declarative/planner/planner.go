@@ -1090,7 +1090,12 @@ func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resourc
 		if konnectPortal != nil {
 			// Set the ID directly for external portals
 			// We use reflection via TryMatchKonnectResource to set the konnectID
-			portal.TryMatchKonnectResource(konnectPortal)
+			if portal.TryMatchKonnectResource(konnectPortal) {
+				// Align the desired portal name with Konnect resource to avoid mismatches in planning.
+				if konnectPortal.Name != "" {
+					portal.Name = konnectPortal.Name
+				}
+			}
 
 			p.logger.Debug("Resolved external portal",
 				slog.String("ref", portal.GetRef()),
@@ -1169,9 +1174,14 @@ func (p *Planner) resolveAuthStrategyIdentities(
 // getResourceNamespaces extracts all unique namespaces from the desired resources
 func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	namespaceSet := make(map[string]bool)
+	hasExternalPortals := false
 
 	// Extract namespaces from parent resources
 	for _, portal := range rs.Portals {
+		if portal.IsExternal() {
+			hasExternalPortals = true
+			continue
+		}
 		ns := resources.GetNamespace(portal.Kongctl)
 		namespaceSet[ns] = true
 	}
@@ -1199,6 +1209,10 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 
 	// Sort for consistent processing order
 	sort.Strings(namespaces)
+
+	if hasExternalPortals {
+		namespaces = append(namespaces, resources.NamespaceExternal)
+	}
 
 	return namespaces
 }
