@@ -1,0 +1,109 @@
+baseInputsPath: ../../../testdata/declarative/require-namespace/external-only
+
+steps:
+  - name: 000-reset
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-bootstrap-portal
+    skipInputs: true
+    commands:
+      - name: 000-create-portal
+        create:
+          resource: portal
+          payload:
+            inline:
+              name: "shared-portal"
+              display_name: "Shared External Portal"
+
+  - name: 002-plan-require-any-fails
+    commands:
+      - name: 000-plan
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/external-portal.yaml"
+          - --mode
+          - sync
+          - --require-any-namespace
+        expectFailure:
+          exitCode: 1
+          contains: "namespace enforcement"
+
+  - name: 003-plan-require-namespace-fails
+    commands:
+      - name: 000-plan
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/external-portal.yaml"
+          - --mode
+          - sync
+          - --require-namespace
+          - team-alpha
+        expectFailure:
+          exitCode: 1
+          contains: "namespace enforcement"
+
+  - name: 004-plan-require-namespace-managed
+    commands:
+      - name: 000-plan
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - sync
+          - --require-namespace
+          - team-alpha
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+
+  - name: 005-plan-require-any-managed
+    commands:
+      - name: 000-plan
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - sync
+          - --require-any-namespace
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+
+  - name: 006-plan-mixed-managed-external
+    commands:
+      - name: 000-plan
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - -f
+          - "{{ .workdir }}/external-portal.yaml"
+          - --mode
+          - sync
+          - --require-namespace
+          - team-alpha
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
