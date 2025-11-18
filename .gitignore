@@ -35,6 +35,7 @@ dist/
 CLAUDE.local.md
 
 .serena/
+.latest-e2e
 
 # Python cache folders
 __pycache__/

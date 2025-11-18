@@ -690,6 +690,19 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			"error", err.Error())
 	}
 
+	// Plan teams
+	teams := make([]resources.PortalTeamResource, 0)
+	for _, team := range planner.desiredPortalTeams {
+		if team.Portal == desired.Ref {
+			teams = append(teams, team)
+		}
+	}
+	if err := planner.planPortalTeamsChanges(ctx, parentNamespace, "", desired.Ref, teams, plan); err != nil {
+		planner.logger.Debug("Failed to plan portal teams for new portal",
+			"portal", desired.Ref,
+			"error", err.Error())
+	}
+
 	// Plan custom domain
 	domains := make([]resources.PortalCustomDomainResource, 0)
 	for _, domain := range planner.desiredPortalCustomDomains {
@@ -754,6 +767,19 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 	}
 	if err := planner.planPortalCustomizationsChanges(ctx, plannerCtx, parentNamespace, customizations, plan); err != nil {
 		return fmt.Errorf("failed to plan portal customization changes: %w", err)
+	}
+
+	// Plan teams
+	teams := make([]resources.PortalTeamResource, 0)
+	for _, team := range planner.desiredPortalTeams {
+		if team.Portal == desired.Ref {
+			teams = append(teams, team)
+		}
+	}
+	if err := planner.planPortalTeamsChanges(
+		ctx, parentNamespace, current.ID, desired.Ref, teams, plan,
+	); err != nil {
+		return fmt.Errorf("failed to plan portal team changes: %w", err)
 	}
 
 	// Plan custom domain (singleton resource)

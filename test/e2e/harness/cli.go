@@ -35,6 +35,7 @@ type CLI struct {
 	AutoLogLevel string
 	AutoOutput   string
 	cmdSeq       int
+	logSeq       int
 	nextOutput   struct {
 		set     bool
 		disable bool
@@ -44,6 +45,23 @@ type CLI struct {
 		set   bool
 		value string
 	}
+	pendingHTTPDumps []httpDump
+	pendingLogPath   string
+}
+
+// SetLogLevel overrides the auto log level for subsequent commands and refreshes the profile config.
+func (c *CLI) SetLogLevel(level string) {
+	clean := strings.TrimSpace(level)
+	if clean == "" {
+		return
+	}
+	c.AutoLogLevel = clean
+	_ = writeProfileConfig(c.ConfigDir, c.Profile, c.AutoOutput, c.AutoLogLevel)
+}
+
+type httpDump struct {
+	Kind string
+	Body string
 }
 
 // NewCLI constructs a CLI instance with a temp config dir and default profile "e2e".
@@ -208,6 +226,15 @@ func (e *CommandError) Unwrap() error {
 
 // Run executes kongctl with the provided args and returns a Result.
 func (c *CLI) Run(ctx context.Context, args ...string) (Result, error) {
+	return c.runWithEnv(ctx, nil, args...)
+}
+
+// RunWithEnv executes kongctl with additional environment variables applied only to this invocation.
+func (c *CLI) RunWithEnv(ctx context.Context, env map[string]string, args ...string) (Result, error) {
+	return c.runWithEnv(ctx, env, args...)
+}
+
+func (c *CLI) runWithEnv(ctx context.Context, env map[string]string, args ...string) (Result, error) {
 	// Auto-append --profile unless already set in args.
 	haveProfile := false
 	for i := range args {
@@ -255,6 +282,17 @@ func (c *CLI) Run(ctx context.Context, args ...string) (Result, error) {
 		}
 	}
 
+	if captureEnabled && c.ConfigDir != "" && !hasLogFileArg(args) {
+		if logPath := c.nextCommandLogPath(); logPath != "" {
+			args = append(args, "--log-file", logPath)
+			c.pendingLogPath = logPath
+		} else {
+			c.pendingLogPath = ""
+		}
+	} else {
+		c.pendingLogPath = ""
+	}
+
 	var cancel context.CancelFunc
 	if c.Timeout > 0 {
 		ctx, cancel = context.WithTimeout(ctx, c.Timeout)
@@ -265,7 +303,7 @@ func (c *CLI) Run(ctx context.Context, args ...string) (Result, error) {
 	if c.WorkDir != "" {
 		cmd.Dir = c.WorkDir
 	}
-	cmd.Env = c.Env
+	cmd.Env = mergeEnvSlices(c.Env, env)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -277,6 +315,7 @@ func (c *CLI) Run(ctx context.Context, args ...string) (Result, error) {
 	dur := time.Since(start)
 
 	res := Result{Stdout: stdout.String(), Stderr: stderr.String(), Duration: dur}
+	res.Stdout, c.pendingHTTPDumps = extractHTTPDumps(res.Stdout)
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok {
 			res.ExitCode = ee.ExitCode()
@@ -298,6 +337,15 @@ func (c *CLI) Run(ctx context.Context, args ...string) (Result, error) {
 
 // RunJSON runs the command forcing JSON output and unmarshals stdout into out.
 func (c *CLI) RunJSON(ctx context.Context, out any, args ...string) (Result, error) {
+	return c.runJSONWithEnv(ctx, nil, out, args...)
+}
+
+// RunJSONWithEnv matches RunJSON but applies additional environment variables.
+func (c *CLI) RunJSONWithEnv(ctx context.Context, env map[string]string, out any, args ...string) (Result, error) {
+	return c.runJSONWithEnv(ctx, env, out, args...)
+}
+
+func (c *CLI) runJSONWithEnv(ctx context.Context, env map[string]string, out any, args ...string) (Result, error) {
 	// ensure -o json is set unless caller already set it
 	hasOut := false
 	for i := range args {
@@ -309,7 +357,7 @@ func (c *CLI) RunJSON(ctx context.Context, out any, args ...string) (Result, err
 	if !hasOut {
 		args = append(args, "-o", "json")
 	}
-	res, err := c.Run(ctx, args...)
+	res, err := c.RunWithEnv(ctx, env, args...)
 	if err != nil {
 		return res, err
 	}
@@ -403,6 +451,8 @@ func (c *CLI) allocateCommandDir(slug string) (string, error) {
 
 // captureCommand writes per-command artifacts (args, stdout, stderr, meta).
 func (c *CLI) captureCommand(cmd *exec.Cmd, args []string, res Result, start, end time.Time) {
+	dumps := c.pendingHTTPDumps
+	c.pendingHTTPDumps = nil
 	dir, err := c.allocateCommandDir(slugFromArgs(args))
 	if err != nil {
 		Warnf("capture: mkdir dir failed: %v", err)
@@ -413,8 +463,14 @@ func (c *CLI) captureCommand(cmd *exec.Cmd, args []string, res Result, start, en
 	}
 	// Write files
 	_ = os.WriteFile(filepath.Join(dir, "command.txt"), []byte(strings.Join(cmd.Args, " ")+"\n"), 0o644)
-	_ = os.WriteFile(filepath.Join(dir, "stdout.txt"), []byte(res.Stdout), 0o644)
+	trimmedStdout := strings.TrimSpace(res.Stdout)
+	if trimmedStdout != "" {
+		trimmedStdout += "\n"
+	}
+	_ = os.WriteFile(filepath.Join(dir, "stdout.txt"), []byte(trimmedStdout), 0o644)
 	_ = os.WriteFile(filepath.Join(dir, "stderr.txt"), []byte(res.Stderr), 0o644)
+	c.movePendingLog(dir)
+	c.writeHTTPDumps(dir, dumps)
 	// Sanitized env snapshot
 	envMap := map[string]string{}
 	for _, kv := range cmd.Env {
@@ -452,6 +508,37 @@ func (c *CLI) captureCommand(cmd *exec.Cmd, args []string, res Result, start, en
 	}
 	// Record the directory for potential observation attachments.
 	c.LastCommandDir = dir
+}
+
+func (c *CLI) writeHTTPDumps(dir string, dumps []httpDump) {
+	if dir == "" || len(dumps) == 0 {
+		return
+	}
+	for i := range dumps {
+		dumps[i].Body = sanitizeHTTPDumpBody(dumps[i].Body)
+	}
+	dumpDir := filepath.Join(dir, "http-dumps")
+	if err := os.MkdirAll(dumpDir, 0o755); err != nil {
+		Warnf("capture: mkdir http-dumps failed: %v", err)
+		return
+	}
+	counters := map[string]int{}
+	for _, d := range dumps {
+		kind := strings.TrimSpace(d.Kind)
+		if kind == "" {
+			kind = "dump"
+		}
+		counters[kind]++
+		name := fmt.Sprintf("%s-%03d.txt", kind, counters[kind])
+		content := d.Body
+		if !strings.HasSuffix(content, "\n") {
+			content += "\n"
+		}
+		outPath := filepath.Join(dumpDir, name)
+		if err := os.WriteFile(outPath, []byte(content), 0o644); err != nil {
+			Warnf("capture: write http dump failed: %v", err)
+		}
+	}
 }
 
 func slugFromArgs(args []string) string {
@@ -493,6 +580,47 @@ func hasOutputArg(args []string) bool {
 	return false
 }
 
+func hasLogFileArg(args []string) bool {
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "--log-file" {
+			return true
+		}
+		if strings.HasPrefix(a, "--log-file=") {
+			return true
+		}
+	}
+	return false
+}
+
+func mergeEnvSlices(base []string, overrides map[string]string) []string {
+	if len(overrides) == 0 {
+		return base
+	}
+	out := make([]string, 0, len(base)+len(overrides))
+	used := make(map[string]bool, len(overrides))
+	for _, kv := range base {
+		key, val, ok := strings.Cut(kv, "=")
+		if !ok {
+			out = append(out, kv)
+			continue
+		}
+		if ov, exists := overrides[key]; exists {
+			out = append(out, fmt.Sprintf("%s=%s", key, ov))
+			used[key] = true
+			continue
+		}
+		out = append(out, fmt.Sprintf("%s=%s", key, val))
+	}
+	for k, v := range overrides {
+		if used[k] {
+			continue
+		}
+		out = append(out, fmt.Sprintf("%s=%s", k, v))
+	}
+	return out
+}
+
 // writeProfileConfig writes a minimal config.yaml under <cfgDir>/kongctl with the given profile defaults.
 func writeProfileConfig(cfgDir, profile, output, logLevel string) error {
 	appDir := filepath.Join(cfgDir, "kongctl")
@@ -517,4 +645,177 @@ func writeProfileConfig(cfgDir, profile, output, logLevel string) error {
 	}
 	Infof("Wrote profile config: %s", path)
 	return nil
+}
+
+func (c *CLI) nextCommandLogPath() string {
+	if strings.TrimSpace(c.ConfigDir) == "" {
+		return ""
+	}
+	base := filepath.Join(c.ConfigDir, "logs")
+	if err := os.MkdirAll(base, 0o755); err != nil {
+		return ""
+	}
+	c.logSeq++
+	return filepath.Join(base, fmt.Sprintf("cmd-%06d.log", c.logSeq))
+}
+
+func (c *CLI) movePendingLog(dir string) {
+	path := c.pendingLogPath
+	c.pendingLogPath = ""
+	if strings.TrimSpace(dir) == "" || strings.TrimSpace(path) == "" {
+		return
+	}
+	dst := filepath.Join(dir, "kongctl.log")
+	if err := os.Rename(path, dst); err == nil {
+		return
+	}
+	// Fallback: copy then remove if rename failed (e.g., cross-device)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return // Don't remove source if we can't read it
+	}
+	if err := os.WriteFile(dst, data, 0o644); err != nil {
+		return // Don't remove source if copy failed
+	}
+	_ = os.Remove(path) // Only remove after successful copy
+}
+
+func extractHTTPDumps(stdout string) (string, []httpDump) {
+	if strings.TrimSpace(stdout) == "" {
+		return stdout, nil
+	}
+	if !strings.Contains(stdout, "request:\n") && !strings.Contains(stdout, "response:\n") &&
+		!strings.Contains(stdout, "Error dumping") {
+		return stdout, nil
+	}
+	var out strings.Builder
+	var dumps []httpDump
+	data := stdout
+	// Only capture generic "Error: " lines when HTTP dumps are present to avoid false positives
+	// from non-HTTP-related error messages in stdout
+	captureGenericErrors := strings.Contains(stdout, "response:\n")
+	for i := 0; i < len(data); {
+		switch {
+		case strings.HasPrefix(data[i:], "request:\n"):
+			body, consumed := consumeHTTPDumpBlock(data[i+len("request:\n"):])
+			if consumed == 0 {
+				out.WriteString("request:\n")
+				i += len("request:\n")
+				continue
+			}
+			if looksLikeHTTPDump("request", body) {
+				dumps = append(dumps, httpDump{Kind: "request", Body: body})
+			} else {
+				out.WriteString("request:\n")
+				out.WriteString(body)
+				if consumed >= 2 {
+					out.WriteString("\n\n")
+				}
+			}
+			i += len("request:\n") + consumed
+			continue
+		case strings.HasPrefix(data[i:], "response:\n"):
+			body, consumed := consumeHTTPDumpBlock(data[i+len("response:\n"):])
+			if consumed == 0 {
+				out.WriteString("response:\n")
+				i += len("response:\n")
+				continue
+			}
+			if looksLikeHTTPDump("response", body) {
+				dumps = append(dumps, httpDump{Kind: "response", Body: body})
+			} else {
+				out.WriteString("response:\n")
+				out.WriteString(body)
+				if consumed >= 2 {
+					out.WriteString("\n\n")
+				}
+			}
+			i += len("response:\n") + consumed
+			continue
+		case strings.HasPrefix(data[i:], "Error dumping"):
+			line, consumed := readLine(data[i:])
+			dumps = append(dumps, httpDump{Kind: "error", Body: line})
+			i += consumed
+			continue
+		case captureGenericErrors && strings.HasPrefix(data[i:], "Error: "):
+			line, consumed := readLine(data[i:])
+			dumps = append(dumps, httpDump{Kind: "error", Body: line})
+			i += consumed
+			continue
+		default:
+			out.WriteByte(data[i])
+			i++
+		}
+	}
+	cleaned := out.String()
+	if cleaned == "" {
+		return "", dumps
+	}
+	return cleaned, dumps
+}
+
+func consumeHTTPDumpBlock(data string) (string, int) {
+	if data == "" {
+		return "", 0
+	}
+	idx := strings.Index(data, "\n\n")
+	if idx == -1 {
+		return data, len(data)
+	}
+	return data[:idx], idx + 2
+}
+
+func looksLikeHTTPDump(kind, payload string) bool {
+	line := payload
+	if idx := strings.IndexAny(line, "\r\n"); idx >= 0 {
+		line = line[:idx]
+	}
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return false
+	}
+	switch strings.ToLower(kind) {
+	case "request":
+		methods := []string{"GET ", "POST ", "PUT ", "PATCH ", "DELETE ", "OPTIONS ", "HEAD "}
+		for _, m := range methods {
+			if strings.HasPrefix(line, m) {
+				return true
+			}
+		}
+		return false
+	case "response":
+		return strings.HasPrefix(line, "HTTP/")
+	default:
+		return true
+	}
+}
+
+func readLine(data string) (string, int) {
+	if data == "" {
+		return "", 0
+	}
+	if idx := strings.IndexByte(data, '\n'); idx >= 0 {
+		return data[:idx], idx + 1
+	}
+	return data, len(data)
+}
+
+func sanitizeHTTPDumpBody(body string) string {
+	if body == "" {
+		return body
+	}
+	lines := strings.Split(body, "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		lower := strings.ToLower(trimmed)
+		if strings.HasPrefix(lower, "authorization:") {
+			prefixLen := len(line) - len(strings.TrimLeft(line, " \t"))
+			prefix := ""
+			if prefixLen > 0 {
+				prefix = line[:prefixLen]
+			}
+			lines[i] = prefix + "Authorization: ***"
+		}
+	}
+	return strings.Join(lines, "\n")
 }

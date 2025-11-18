@@ -41,6 +41,7 @@ type Executor struct {
 		kkComps.UpdatePortalCustomDomainRequest]
 	portalPageExecutor    *BaseExecutor[kkComps.CreatePortalPageRequest, kkComps.UpdatePortalPageRequest]
 	portalSnippetExecutor *BaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest]
+	portalTeamExecutor    *BaseExecutor[kkComps.PortalCreateTeamRequest, kkComps.PortalUpdateTeamRequest]
 
 	// API child resource executors
 	apiVersionExecutor     *BaseExecutor[kkComps.CreateAPIVersionRequest, kkComps.APIVersion]
@@ -101,6 +102,11 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 	)
 	e.portalSnippetExecutor = NewBaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest](
 		NewPortalSnippetAdapter(client),
+		client,
+		dryRun,
+	)
+	e.portalTeamExecutor = NewBaseExecutor[kkComps.PortalCreateTeamRequest, kkComps.PortalUpdateTeamRequest](
+		NewPortalTeamAdapter(client),
 		client,
 		dryRun,
 	)
@@ -1223,6 +1229,18 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References["portal_id"] = portalRef
 		}
 		return e.portalSnippetExecutor.Create(ctx, *change)
+	case "portal_team":
+		// First resolve portal reference if needed
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
+		return e.portalTeamExecutor.Create(ctx, *change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
 	}
@@ -1369,6 +1387,18 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			change.References["portal_id"] = portalRef
 		}
 		return e.portalSnippetExecutor.Update(ctx, *change)
+	case "portal_team":
+		// First resolve portal reference if needed
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
+		return e.portalTeamExecutor.Update(ctx, *change)
 	case "api_version":
 		// First resolve API reference if needed
 		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
@@ -1450,6 +1480,18 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 			change.References["portal_id"] = portalRef
 		}
 		return e.portalSnippetExecutor.Delete(ctx, *change)
+	case "portal_team":
+		// First resolve portal reference if needed
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
+		return e.portalTeamExecutor.Delete(ctx, *change)
 	// Note: portal_customization is a singleton resource and cannot be deleted
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)

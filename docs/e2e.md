@@ -94,6 +94,9 @@ Each test run creates a single artifacts directory (printed by the Makefile afte
               stderr.txt
               env.json
               meta.json
+              http-dumps/            # present when KONNECT_SDK_HTTP_DUMP_* env vars are enabled
+                request-001.txt
+                response-001.txt
               observation.json   # type=apply_summary (execution + summary)
             001-get_portals/
               command.txt
@@ -113,6 +116,7 @@ The harness keeps artifacts by default for easy triage and CI upload.
 - Log level: Harness injects `--log-level <KONGCTL_E2E_LOG_LEVEL>` unless you pass one.
 - Profile config: The harness writes `<profile>:{ output:<...>, log-level:<...> }` into `config.yaml` to mirror defaults.
 - Sanitization: Token-like env vars (`PAT`, `TOKEN`, `SECRET`, `PASSWORD`) are redacted in `env.json` and logs.
+- HTTP dumps: When Konnect SDK dump env vars are enabled, stdout is preserved without the dump noise and each captured HTTP exchange is written under `<command>/http-dumps/` for later inspection.
 - Observations: One `observation.json` per command under `commands/<seq>-<slug>/`.
   - type=apply_summary for apply commands (execution + summary)
   - type=list_observation for read commands (includes full list and optional selector/target)

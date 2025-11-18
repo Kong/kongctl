@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
@@ -164,14 +165,38 @@ func (b *BaseExecutor[TCreate, TUpdate]) Update(ctx context.Context, change plan
 // Delete handles DELETE operations for any resource type
 func (b *BaseExecutor[TCreate, TUpdate]) Delete(ctx context.Context, change planner.PlannedChange) error {
 	resourceName := common.ExtractResourceName(change.Fields)
+	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 
 	// First, validate protection status at execution time
-	resource, err := b.ops.GetByName(ctx, resourceName)
-	if err != nil {
-		return fmt.Errorf("failed to fetch %s for protection check: %w", b.ops.ResourceType(), err)
+	var execCtx *ExecutionContext
+	var resource ResourceInfo
+	var err error
+	if change.ResourceID != "" {
+		execCtx = NewExecutionContext(&change)
+		resource, err = b.ops.GetByID(ctx, change.ResourceID, execCtx)
+		if err != nil {
+			return fmt.Errorf("failed to fetch %s by ID for protection check: %w", b.ops.ResourceType(), err)
+		}
+		if resource != nil {
+			logger.Debug("Resource resolved via ID lookup before delete",
+				slog.String("resource_type", b.ops.ResourceType()),
+				slog.String("name", resourceName),
+				slog.String("id", change.ResourceID))
+		}
 	}
 	if resource == nil {
+		resource, err = b.ops.GetByName(ctx, resourceName)
+		if err != nil {
+			return fmt.Errorf("failed to fetch %s for protection check: %w", b.ops.ResourceType(), err)
+		}
+	}
+
+	if resource == nil {
 		// Resource already deleted, consider this success
+		logger.Warn("Resource not found; treating delete as success",
+			slog.String("resource_type", b.ops.ResourceType()),
+			slog.String("name", resourceName),
+			slog.String("resource_id", change.ResourceID))
 		return nil
 	}
 
@@ -181,8 +206,12 @@ func (b *BaseExecutor[TCreate, TUpdate]) Delete(ctx context.Context, change plan
 		return fmt.Errorf("resource is protected and cannot be deleted")
 	}
 
-	// Verify it's a managed resource
-	if !labels.IsManagedResource(resource.GetNormalizedLabels()) {
+	// Verify it's a managed resource (child resources rely on parent linkage instead of labels)
+	isManaged := labels.IsManagedResource(resource.GetNormalizedLabels())
+	if !isManaged && (change.Parent != nil || strings.TrimSpace(change.Namespace) != "") {
+		isManaged = true
+	}
+	if !isManaged {
 		return fmt.Errorf("cannot delete %s: not a KONGCTL-managed resource", b.ops.ResourceType())
 	}
 
@@ -192,7 +221,9 @@ func (b *BaseExecutor[TCreate, TUpdate]) Delete(ctx context.Context, change plan
 	}
 
 	// Create execution context for operations that need parent references
-	execCtx := NewExecutionContext(&change)
+	if execCtx == nil {
+		execCtx = NewExecutionContext(&change)
+	}
 
 	// Delete the resource
 	err = b.ops.Delete(ctx, change.ResourceID, execCtx)
