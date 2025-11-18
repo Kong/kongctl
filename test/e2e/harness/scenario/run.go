@@ -744,13 +744,10 @@ func parseDur(s string) time.Duration {
 }
 
 func mergeEnvScopes(scopes ...map[string]string) map[string]string {
-	var merged map[string]string
+	merged := make(map[string]string)
 	for _, scope := range scopes {
 		if len(scope) == 0 {
 			continue
-		}
-		if merged == nil {
-			merged = make(map[string]string, len(scope))
 		}
 		for k, v := range scope {
 			key := strings.TrimSpace(k)

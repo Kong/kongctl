@@ -69,8 +69,8 @@ test-e2e-scenarios:
 	  echo $$? > "$$ART_DIR/.exit_code" ) | tee "$$ART_DIR/run.log"; \
 	code=$$(cat "$$ART_DIR/.exit_code"); rm -f "$$ART_DIR/.exit_code"; \
 	echo "E2E artifacts: $$ART_DIR"; \
-		ln -sfn "$$ART_DIR" "$(LATEST_E2E_LINK)" || true; \
-		exit $$code
+	ln -sfn "$$ART_DIR" "$(LATEST_E2E_LINK)" || true; \
+	exit $$code
 
 .PHONY: open-latest-e2e
 open-latest-e2e:

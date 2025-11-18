@@ -34,8 +34,8 @@ Technical guide for coding agents to implement new resources in kongctl's declar
   - Planner: log when you fetch existing resources, how many desired items you saw, and each change you enqueue.
   - Executor/adapters: log before and after every SDK call (create/update/delete) and log input identifiers.
 - Logging is especially important for child resources because they often lack labels and rely on parent metadata.
-- The e2e harness captures `kongctl.log` per command when `--log-level debug` is set, so these logs should be readable
-  in CI artifacts.
+- The e2e harness captures `kongctl.log` per command when debug logging is enabled (i.e., `--log-level debug` or
+  `--log-level trace`), so these logs should be readable in CI artifacts.
 
 ### PARENT RESOURCE
 

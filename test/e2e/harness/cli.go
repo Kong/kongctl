@@ -669,11 +669,15 @@ func (c *CLI) movePendingLog(dir string) {
 	if err := os.Rename(path, dst); err == nil {
 		return
 	}
+	// Fallback: copy then remove if rename failed (e.g., cross-device)
 	data, err := os.ReadFile(path)
-	if err == nil {
-		_ = os.WriteFile(dst, data, 0o644)
+	if err != nil {
+		return // Don't remove source if we can't read it
 	}
-	_ = os.Remove(path)
+	if err := os.WriteFile(dst, data, 0o644); err != nil {
+		return // Don't remove source if copy failed
+	}
+	_ = os.Remove(path) // Only remove after successful copy
 }
 
 func extractHTTPDumps(stdout string) (string, []httpDump) {
@@ -687,6 +691,8 @@ func extractHTTPDumps(stdout string) (string, []httpDump) {
 	var out strings.Builder
 	var dumps []httpDump
 	data := stdout
+	// Only capture generic "Error: " lines when HTTP dumps are present to avoid false positives
+	// from non-HTTP-related error messages in stdout
 	captureGenericErrors := strings.Contains(stdout, "response:\n")
 	for i := 0; i < len(data); {
 		switch {

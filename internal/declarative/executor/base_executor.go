@@ -193,7 +193,6 @@ func (b *BaseExecutor[TCreate, TUpdate]) Delete(ctx context.Context, change plan
 
 	if resource == nil {
 		// Resource already deleted, consider this success
-		logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 		logger.Warn("Resource not found; treating delete as success",
 			slog.String("resource_type", b.ops.ResourceType()),
 			slog.String("name", resourceName),

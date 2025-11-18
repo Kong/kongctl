@@ -88,16 +88,16 @@ Each test run creates a single artifacts directory (printed by the Makefile afte
           inputs/
             portal.yaml     # manifest applied in this step
           commands/
-        000-apply/
-          command.txt
-          stdout.txt
-          stderr.txt
-          env.json
-          meta.json
-          http-dumps/            # present when KONNECT_SDK_HTTP_DUMP_* env vars are enabled
-            request-001.txt
-            response-001.txt
-          observation.json   # type=apply_summary (execution + summary)
+            000-apply/
+              command.txt
+              stdout.txt
+              stderr.txt
+              env.json
+              meta.json
+              http-dumps/            # present when KONNECT_SDK_HTTP_DUMP_* env vars are enabled
+                request-001.txt
+                response-001.txt
+              observation.json   # type=apply_summary (execution + summary)
             001-get_portals/
               command.txt
               stdout.txt
