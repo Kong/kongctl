@@ -298,5 +298,9 @@ func newDeletePortalCmd(
 		addParentFlags(verb, rv.Command)
 	}
 
+	if applicationsCmd := newDeletePortalApplicationsCmd(verb, addParentFlags, parentPreRun); applicationsCmd != nil {
+		rv.AddCommand(applicationsCmd)
+	}
+
 	return &rv
 }
