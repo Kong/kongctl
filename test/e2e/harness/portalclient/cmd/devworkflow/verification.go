@@ -22,22 +22,26 @@ import (
 )
 
 const (
-	gmailTokenEndpoint = "https://oauth2.googleapis.com/token"
-	gmailMessagesURL   = "https://gmail.googleapis.com/gmail/v1/users/me/messages"
-	defaultSubject     = "Please confirm your email address"
+	envGmailTokenEndpoint = "KONGCTL_E2E_GMAIL_TOKEN_ENDPOINT"    // #nosec G101
+	defaultTokenEndpoint  = "https://oauth2.googleapis.com/token" // #nosec G101
+	gmailMessagesURL      = "https://gmail.googleapis.com/gmail/v1/users/me/messages"
+	defaultSubject        = "Please confirm your email address"
 )
 
 var (
-	errMessageNotFound    = errors.New("gmail message not found yet")
-	uuidPattern           = regexp.MustCompile(`[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
+	errMessageNotFound = errors.New("gmail message not found yet")
+	uuidPattern        = regexp.MustCompile(
+		`[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`,
+	)
 	verificationTokenExpr = regexp.MustCompile(`token=([A-Za-z0-9\-_%]+)`)
 )
 
 type gmailClient struct {
-	httpClient   *http.Client
-	clientID     string
-	clientSecret string
-	refreshToken string
+	httpClient    *http.Client
+	clientID      string
+	clientSecret  string
+	refreshToken  string
+	tokenEndpoint string
 
 	cachedAccessToken string
 	tokenExpiry       time.Time
@@ -64,6 +68,12 @@ func newGmailClientFromEnv() (*gmailClient, error) {
 		clientID:     clientID,
 		clientSecret: clientSecret,
 		refreshToken: refreshToken,
+		tokenEndpoint: strings.TrimSpace(func() string {
+			if v := os.Getenv(envGmailTokenEndpoint); v != "" {
+				return v
+			}
+			return defaultTokenEndpoint
+		}()),
 	}, nil
 }
 
@@ -79,7 +89,7 @@ func (g *gmailClient) getAccessToken(ctx context.Context) (string, error) {
 		"grant_type":    {"refresh_token"},
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, gmailTokenEndpoint, strings.NewReader(form.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.tokenEndpoint, strings.NewReader(form.Encode()))
 	if err != nil {
 		return "", err
 	}
@@ -93,7 +103,11 @@ func (g *gmailClient) getAccessToken(ctx context.Context) (string, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<10))
-		return "", fmt.Errorf("gmail token exchange failed: status=%d body=%s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return "", fmt.Errorf(
+			"gmail token exchange failed: status=%d body=%s",
+			resp.StatusCode,
+			strings.TrimSpace(string(body)),
+		)
 	}
 
 	var tokenResp struct {
@@ -158,7 +172,11 @@ func (g *gmailClient) fetchVerificationToken(ctx context.Context, to string, aft
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
-		return "", fmt.Errorf("gmail list failed: status=%d body=%s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return "", fmt.Errorf(
+			"gmail list failed: status=%d body=%s",
+			resp.StatusCode,
+			strings.TrimSpace(string(body)),
+		)
 	}
 
 	var listResp struct {
@@ -189,7 +207,11 @@ func (g *gmailClient) fetchVerificationToken(ctx context.Context, to string, aft
 
 	if msgResp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(msgResp.Body, 8<<10))
-		return "", fmt.Errorf("gmail message fetch failed: status=%d body=%s", msgResp.StatusCode, strings.TrimSpace(string(body)))
+		return "", fmt.Errorf(
+			"gmail message fetch failed: status=%d body=%s",
+			msgResp.StatusCode,
+			strings.TrimSpace(string(body)),
+		)
 	}
 
 	var rawResp struct {
@@ -285,7 +307,13 @@ func trimEncodedPrefix(value string) string {
 	return value
 }
 
-func completeDeveloperVerification(ctx context.Context, api *portalclient.PortalAPI, gmail *gmailClient, email, password string) error {
+func completeDeveloperVerification(
+	ctx context.Context,
+	api *portalclient.PortalAPI,
+	gmail *gmailClient,
+	email,
+	password string,
+) error {
 	token, err := gmail.waitForVerificationToken(ctx, email)
 	if err != nil {
 		return err
@@ -300,13 +328,12 @@ func completeDeveloperVerification(ctx context.Context, api *portalclient.Portal
 }
 
 func verifyDeveloperEmail(ctx context.Context, api *portalclient.PortalAPI, token string) (string, error) {
-	parsed, err := uuid.Parse(token)
+	tokenUUID, err := parseUUID(token)
 	if err != nil {
 		return "", fmt.Errorf("invalid verification token: %w", err)
 	}
-	tokenUUID := openapi_types.UUID(parsed)
 	resp, err := api.Raw().VerifyEmailWithResponse(ctx, portalclient.VerifyEmailRequest{
-		Token: &tokenUUID,
+		Token: tokenUUID,
 	})
 	if err != nil {
 		return "", err
@@ -325,13 +352,12 @@ func verifyDeveloperEmail(ctx context.Context, api *portalclient.PortalAPI, toke
 }
 
 func resetDeveloperPassword(ctx context.Context, api *portalclient.PortalAPI, token, password string) error {
-	parsed, err := uuid.Parse(token)
+	tokenUUID, err := parseUUID(token)
 	if err != nil {
 		return fmt.Errorf("invalid reset token: %w", err)
 	}
-	tokenUUID := openapi_types.UUID(parsed)
 	payload := portalclient.ResetPasswordRequest{
-		Token:    &tokenUUID,
+		Token:    tokenUUID,
 		Password: &password,
 	}
 	resp, err := api.Raw().ResetPasswordWithResponse(ctx, payload)
@@ -342,4 +368,12 @@ func resetDeveloperPassword(ctx context.Context, api *portalclient.PortalAPI, to
 		return fmt.Errorf("reset password unexpected status %d", resp.StatusCode())
 	}
 	return nil
+}
+
+func parseUUID(value string) (*openapi_types.UUID, error) {
+	parsed, err := uuid.Parse(value)
+	if err != nil {
+		return nil, err
+	}
+	return &parsed, nil
 }

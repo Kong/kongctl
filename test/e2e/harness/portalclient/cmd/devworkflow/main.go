@@ -13,14 +13,17 @@ import (
 	sdkkonnectgo "github.com/Kong/sdk-konnect-go"
 	kkcomponents "github.com/Kong/sdk-konnect-go/models/components"
 	kkoperations "github.com/Kong/sdk-konnect-go/models/operations"
-	"github.com/google/uuid"
 	"github.com/kong/kongctl/test/e2e/harness/portalclient"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 func main() {
 	var (
-		baseURL         = flag.String("base-url", "", "Base URL for the developer portal (for example, https://portal.example.com)")
+		baseURL = flag.String(
+			"base-url",
+			"",
+			"Base URL for the developer portal (for example, https://portal.example.com)",
+		)
 		developerEmail  = flag.String("developer-email", "", "Developer email used for registration and authentication")
 		developerName   = flag.String("developer-name", "Test Developer", "Developer full name")
 		developerPass   = flag.String("developer-password", "", "Developer password used for authentication")
@@ -302,7 +305,12 @@ func approveDeveloper(ctx context.Context, portalID, email, baseURLFlag string) 
 	return nil
 }
 
-func retryCreateApplication(ctx context.Context, api *portalclient.PortalAPI, name string, authStrategyID *openapi_types.UUID) (string, error) {
+func retryCreateApplication(
+	ctx context.Context,
+	api *portalclient.PortalAPI,
+	name string,
+	authStrategyID *openapi_types.UUID,
+) (string, error) {
 	var appID string
 	err := retry(ctx, 6, 5*time.Second, func(ctx context.Context) error {
 		payload := portalclient.CreateApplicationPayload{Name: name}
@@ -331,12 +339,11 @@ func retryCreateApplication(ctx context.Context, api *portalclient.PortalAPI, na
 
 func resolveAuthStrategyID(ctx context.Context, api *portalclient.PortalAPI) (*openapi_types.UUID, error) {
 	if env := strings.TrimSpace(os.Getenv("KONGCTL_E2E_AUTH_STRATEGY_ID")); env != "" {
-		parsed, err := uuid.Parse(env)
+		id, err := parseUUID(env)
 		if err != nil {
 			return nil, fmt.Errorf("invalid KONGCTL_E2E_AUTH_STRATEGY_ID: %w", err)
 		}
-		id := openapi_types.UUID(parsed)
-		return &id, nil
+		return id, nil
 	}
 
 	resp, err := api.Raw().ListApplicationAuthStrategiesWithResponse(ctx, nil)
@@ -346,24 +353,25 @@ func resolveAuthStrategyID(ctx context.Context, api *portalclient.PortalAPI) (*o
 	if resp.JSON200 == nil || len(resp.JSON200.Data) == 0 {
 		return nil, fmt.Errorf("no application auth strategies available")
 	}
-	for _, strat := range resp.JSON200.Data {
-		if id := extractAuthStrategyID(strat); id != nil {
+	for _, strategy := range resp.JSON200.Data {
+		if id := extractAuthStrategyID(strategy); id != nil {
 			return id, nil
 		}
 	}
 	return nil, fmt.Errorf("no auth strategy provided IDs")
 }
 
-func extractAuthStrategyID(strat portalclient.PortalAuthStrategy) *openapi_types.UUID {
-	if key, err := strat.AsPortalAuthStrategyKeyAuth(); err == nil && key.Id != nil {
+func extractAuthStrategyID(strategy portalclient.PortalAuthStrategy) *openapi_types.UUID {
+	if key, err := strategy.AsPortalAuthStrategyKeyAuth(); err == nil && key.Id != nil {
 		return key.Id
 	}
-	if cc, err := strat.AsPortalAuthStrategyClientCredentials(); err == nil && cc.Id != nil {
+	if cc, err := strategy.AsPortalAuthStrategyClientCredentials(); err == nil && cc.Id != nil {
 		return cc.Id
 	}
 	return nil
 }
 
+//nolint:unparam // attempts can be variable
 func retry(ctx context.Context, attempts int, delay time.Duration, fn func(context.Context) error) error {
 	if attempts < 1 {
 		attempts = 1
