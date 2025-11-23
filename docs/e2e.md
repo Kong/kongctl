@@ -42,6 +42,14 @@ KONGCTL_E2E_BIN=./kongctl make test-e2e
 Authentication token:
 
 - KONGCTL_E2E_KONNECT_PAT: PAT used by the `e2e` profile for authenticated tests (e.g., `get me`, declarative apply).
+- Gmail automation (portal developer scenarios):
+  - `KONGCTL_E2E_GMAIL_ADDRESS`: Base Gmail inbox. The tests append `+<uuid>` automatically so the mail lands in unique sub-inboxes.
+  - `KONGCTL_E2E_GMAIL_CLIENT_ID` / `KONGCTL_E2E_GMAIL_CLIENT_SECRET` / `KONGCTL_E2E_GMAIL_REFRESH_TOKEN`: 
+     Credentials for the Gmail inbox used by portal developer E2E tests to capture verification emails. 
+     Configure these when running the portal scenarios so the test harness can poll Gmail, 
+     extract the verification link, and complete the password reset workflow automatically.
+  - `KONGCTL_E2E_GMAIL_SUBJECT` (optional): Override the Gmail subject filter; defaults to `Please confirm your email address`.
+  - `KONGCTL_E2E_AUTH_STRATEGY_ID` (optional): Override the application auth strategy ID used when creating developer applications. When unset, the CLI fetches the first available strategy via the portal API.
 
 ### Test Selection
 

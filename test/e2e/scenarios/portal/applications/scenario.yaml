@@ -1,0 +1,166 @@
+baseInputsPath: ../../../testdata/declarative/portal/applications
+
+log-level: debug
+
+vars:
+  portalRef: auto-approve-portal
+  portalName: "Auto Approve Portal"
+  developerEmail: ""
+  developerName: "Portal Applications User"
+  developerPassword: "P@ssword123!"
+  applicationName: "e2e-portal-application"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-init
+    skipInputs: true
+    commands:
+      - name: 000-generate-developer-email
+        parseAs: raw
+        exec:
+          - bash
+          - -c
+          - |
+            set -euo pipefail
+            base="${KONGCTL_E2E_GMAIL_ADDRESS:-}"
+            if [ -z "$base" ]; then
+              echo "KONGCTL_E2E_GMAIL_ADDRESS not set" >&2
+              exit 1
+            fi
+            localpart="${base%@*}"
+            domain="${base##*@}"
+            if [ -z "$localpart" ] || [ -z "$domain" ]; then
+              echo "invalid KONGCTL_E2E_GMAIL_ADDRESS: ${base}" >&2
+              exit 1
+            fi
+            localpart="${localpart%%+*}"
+            printf '%s+portal-applications-%s@%s' "$localpart" "$(date +%s%N)" "$domain"
+        recordVar:
+          name: developerEmail
+          responsePath: "stdout"
+
+  - name: 001-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 002-configure-portal
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-initial.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 6
+                by_action.CREATE: 6
+          - select: >-
+              changes[?resource_type=='portal' && resource_ref=='{{ .vars.portalRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.portalRef }}"
+                fields.auto_approve_developers: true
+                fields.auto_approve_applications: true
+
+      - name: 001-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-initial.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 6
+                failed: 0
+
+      - name: 002-verify-portal
+        outputFormat: json
+        run:
+          - get
+          - portal
+          - "{{ .vars.portalName }}"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.portalName }}"
+        recordVar:
+          name: portalBaseDomain
+          responsePath: "canonical_domain"
+
+      - name: 003-record-portal-id
+        outputFormat: json
+        run:
+          - get
+          - portal
+          - "{{ .vars.portalName }}"
+        recordVar:
+          name: portalID
+          responsePath: "id"
+
+  - name: 003-register-developer-and-application
+    skipInputs: true
+    commands:
+      - name: 000-register-and-create
+        workdir: "{{ .repo_dir }}"
+        exec:
+          - go
+          - run
+          - ./test/e2e/harness/portalclient/cmd/devworkflow
+          - --base-url
+          - "https://{{ .vars.portalBaseDomain }}"
+          - --portal-id
+          - "{{ .vars.portalID }}"
+          - --developer-email
+          - "{{ .vars.developerEmail }}"
+          - --developer-name
+          - "{{ .vars.developerName }}"
+          - --developer-password
+          - "{{ .vars.developerPassword }}"
+          - --application-name
+          - "{{ .vars.applicationName }}"
+
+  - name: 004-verify-portal-applications
+    skipInputs: true
+    commands:
+      - name: 000-get-applications
+        outputFormat: json
+        run:
+          - get
+          - portal
+          - applications
+          - --portal-name
+          - "{{ .vars.portalName }}"
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[?name=='{{ .vars.applicationName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.applicationName }}"

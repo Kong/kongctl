@@ -57,19 +57,22 @@ type InlineOp struct {
 }
 
 type Command struct {
-	Name         string            `yaml:"name"`
-	Run          []string          `yaml:"run"`
-	Env          map[string]string `yaml:"env"`
-	ResetOrg     bool              `yaml:"resetOrg"`
-	ResetRegions []string          `yaml:"resetOrgRegions"`
-	Mask         Mask              `yaml:"mask"`
-	Retry        Retry             `yaml:"retry"`
-	Assertions   []Assertion       `yaml:"assertions"`
-	ExpectFail   *ExpectedFailure  `yaml:"expectFailure"`
-	Create       *CreateSpec       `yaml:"create"`
-	OutputFormat string            `yaml:"outputFormat"`
-	ParseAs      string            `yaml:"parseAs"`
-	StdoutFile   string            `yaml:"stdoutFile"`
+    Name         string            `yaml:"name"`
+    Run          []string          `yaml:"run"`
+    Exec         []string          `yaml:"exec"`
+    Env          map[string]string `yaml:"env"`
+    ResetOrg     bool              `yaml:"resetOrg"`
+    ResetRegions []string          `yaml:"resetOrgRegions"`
+    Workdir      string            `yaml:"workdir"`
+    Mask         Mask              `yaml:"mask"`
+    Retry        Retry             `yaml:"retry"`
+    Assertions   []Assertion       `yaml:"assertions"`
+    ExpectFail   *ExpectedFailure  `yaml:"expectFailure"`
+    Create       *CreateSpec       `yaml:"create"`
+    OutputFormat string            `yaml:"outputFormat"`
+    ParseAs      string            `yaml:"parseAs"`
+    StdoutFile   string            `yaml:"stdoutFile"`
+    RecordVar    *RecordVar        `yaml:"recordVar"`
 }
 
 type CreateSpec struct {

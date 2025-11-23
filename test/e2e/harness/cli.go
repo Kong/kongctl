@@ -235,56 +235,79 @@ func (c *CLI) RunWithEnv(ctx context.Context, env map[string]string, args ...str
 }
 
 func (c *CLI) runWithEnv(ctx context.Context, env map[string]string, args ...string) (Result, error) {
-	// Auto-append --profile unless already set in args.
-	haveProfile := false
-	for i := range args {
-		if args[i] == "--profile" || strings.HasPrefix(args[i], "--profile=") {
-			haveProfile = true
-			break
-		}
-	}
-	if !haveProfile && c.Profile != "" {
-		args = append(args, "--profile", c.Profile)
+	return c.runCommand(ctx, c.BinPath, args, env, true, "")
+}
+
+// RunProgram executes an arbitrary binary with optional env/working directory overrides while
+// still capturing artifacts inside the harness.
+func (c *CLI) RunProgram(ctx context.Context, bin string, args []string, env map[string]string, workdir string) (Result, error) {
+	return c.runCommand(ctx, bin, args, env, false, workdir)
+}
+
+func (c *CLI) runCommand(ctx context.Context, bin string, args []string, env map[string]string, injectFlags bool, workdir string) (Result, error) {
+	if strings.TrimSpace(bin) == "" {
+		return Result{}, fmt.Errorf("binary is required")
 	}
 
-	// Inject --log-level if set at harness level and not provided by caller.
-	if lvl := c.AutoLogLevel; lvl != "" {
-		haveLevel := false
-		for i := range args {
-			if args[i] == "--log-level" || strings.HasPrefix(args[i], "--log-level=") {
-				haveLevel = true
+	finalArgs := append([]string{}, args...)
+
+	if injectFlags {
+		// Auto-append --profile unless already set in args.
+		haveProfile := false
+		for i := range finalArgs {
+			if finalArgs[i] == "--profile" || strings.HasPrefix(finalArgs[i], "--profile=") {
+				haveProfile = true
 				break
 			}
 		}
-		if !haveLevel {
-			args = append(args, "--log-level", lvl)
+		if !haveProfile && c.Profile != "" {
+			finalArgs = append(finalArgs, "--profile", c.Profile)
 		}
+
+		// Inject --log-level if set at harness level and not provided by caller.
+		if lvl := c.AutoLogLevel; lvl != "" {
+			haveLevel := false
+			for i := range finalArgs {
+				if finalArgs[i] == "--log-level" || strings.HasPrefix(finalArgs[i], "--log-level=") {
+					haveLevel = true
+					break
+				}
+			}
+			if !haveLevel {
+				finalArgs = append(finalArgs, "--log-level", lvl)
+			}
+		}
+
+		// Handle output overrides/injection for this command.
+		outOverride := c.nextOutput
+		c.nextOutput = struct {
+			set     bool
+			disable bool
+			value   string
+		}{}
+		haveOut := hasOutputArg(finalArgs)
+		switch {
+		case outOverride.set && outOverride.disable:
+		case outOverride.set && !outOverride.disable:
+			if !haveOut && strings.TrimSpace(outOverride.value) != "" {
+				finalArgs = append(finalArgs, "-o", outOverride.value)
+			}
+		default:
+			if out := c.AutoOutput; out != "" && !haveOut {
+				finalArgs = append(finalArgs, "-o", out)
+			}
+		}
+	} else {
+		c.nextOutput = struct {
+			set     bool
+			disable bool
+			value   string
+		}{}
 	}
 
-	// Handle output overrides/injection for this command.
-	outOverride := c.nextOutput
-	c.nextOutput = struct {
-		set     bool
-		disable bool
-		value   string
-	}{}
-	haveOut := hasOutputArg(args)
-	switch {
-	case outOverride.set && outOverride.disable:
-		// Explicitly disable auto output injection for this command.
-	case outOverride.set && !outOverride.disable:
-		if !haveOut && strings.TrimSpace(outOverride.value) != "" {
-			args = append(args, "-o", outOverride.value)
-		}
-	default:
-		if out := c.AutoOutput; out != "" && !haveOut {
-			args = append(args, "-o", out)
-		}
-	}
-
-	if captureEnabled && c.ConfigDir != "" && !hasLogFileArg(args) {
+	if injectFlags && captureEnabled && c.ConfigDir != "" && !hasLogFileArg(finalArgs) {
 		if logPath := c.nextCommandLogPath(); logPath != "" {
-			args = append(args, "--log-file", logPath)
+			finalArgs = append(finalArgs, "--log-file", logPath)
 			c.pendingLogPath = logPath
 		} else {
 			c.pendingLogPath = ""
@@ -299,8 +322,10 @@ func (c *CLI) runWithEnv(ctx context.Context, env map[string]string, args ...str
 		defer cancel()
 	}
 
-	cmd := exec.CommandContext(ctx, c.BinPath, args...)
-	if c.WorkDir != "" {
+	cmd := exec.CommandContext(ctx, bin, finalArgs...)
+	if strings.TrimSpace(workdir) != "" {
+		cmd.Dir = workdir
+	} else if c.WorkDir != "" {
 		cmd.Dir = c.WorkDir
 	}
 	cmd.Env = mergeEnvSlices(c.Env, env)
@@ -310,7 +335,7 @@ func (c *CLI) runWithEnv(ctx context.Context, env map[string]string, args ...str
 	cmd.Stderr = &stderr
 
 	start := time.Now()
-	Debugf("Run: %s (dir=%s) env[XDG_CONFIG_HOME]=%s", strings.Join(cmd.Args, " "), cmd.Dir, c.ConfigDir)
+	Debugf("Run: %s (dir=%s)", strings.Join(cmd.Args, " "), cmd.Dir)
 	err := cmd.Run()
 	dur := time.Since(start)
 
@@ -322,16 +347,14 @@ func (c *CLI) runWithEnv(ctx context.Context, env map[string]string, args ...str
 		} else {
 			res.ExitCode = -1
 		}
-		Debugf("Run: exit=%d duration=%s stderr=%q", res.ExitCode, dur, res.Stderr)
-		c.captureCommand(cmd, args, res, start, time.Now())
+		c.captureCommand(cmd, finalArgs, res, start, time.Now())
 		return res, &CommandError{
 			Result: res,
 			Err:    err,
 		}
 	}
 	res.ExitCode = 0
-	Debugf("Run: exit=0 duration=%s", dur)
-	c.captureCommand(cmd, args, res, start, time.Now())
+	c.captureCommand(cmd, finalArgs, res, start, time.Now())
 	return res, nil
 }
 
