@@ -243,6 +243,9 @@ func runListByName(name string, kkClient helpers.PortalAPI, helper cmd.Helper,
 ) (*kkComps.ListPortalsResponsePortal, error) {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
+	if requestPageSize < 1 {
+		requestPageSize = int64(common.DefaultRequestPageSize)
+	}
 
 	var allData []kkComps.ListPortalsResponsePortal
 
@@ -283,6 +286,9 @@ func runList(kkClient helpers.PortalAPI, helper cmd.Helper,
 ) ([]kkComps.ListPortalsResponsePortal, error) {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
+	if requestPageSize < 1 {
+		requestPageSize = int64(common.DefaultRequestPageSize)
+	}
 
 	var allData []kkComps.ListPortalsResponsePortal
 
