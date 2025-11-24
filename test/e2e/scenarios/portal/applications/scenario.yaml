@@ -164,3 +164,39 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.applicationName }}"
+
+  - name: 005-delete-portal-application
+    skipInputs: true
+    commands:
+      - name: 000-delete-application
+        outputFormat: json
+        run:
+          - delete
+          - portal
+          - applications
+          - --portal-name
+          - "{{ .vars.portalName }}"
+          - "{{ .vars.applicationName }}"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                status: deleted
+                portal_id: "{{ .vars.portalID }}"
+
+  - name: 006-verify-post-delete
+    skipInputs: true
+    commands:
+      - name: 000-get-applications-after-delete
+        outputFormat: json
+        run:
+          - get
+          - portal
+          - applications
+          - --portal-name
+          - "{{ .vars.portalName }}"
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
