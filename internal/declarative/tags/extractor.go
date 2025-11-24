@@ -13,14 +13,14 @@ func ExtractValue(data any, path string) (any, error) {
 		return data, nil
 	}
 
-	parts := strings.Split(path, ".")
-	current := data
+	parts := strings.Split(path, ".") // split once so we can re-use the same slice during traversal
+	current := data                    // mutable pointer to where we are in the structure
 
-	for i, part := range parts {
+	for i := 0; i < len(parts); {
+		part := parts[i]
+
 		// Convert current to a reflectable value
 		val := reflect.ValueOf(current)
-
-		// Dereference pointers
 		for val.Kind() == reflect.Ptr && !val.IsNil() {
 			val = val.Elem()
 		}
@@ -45,19 +45,20 @@ func ExtractValue(data any, path string) (any, error) {
 
 		case reflect.Interface:
 			// If it's an interface, get the underlying value and retry
-			if !val.IsNil() {
-				current = val.Interface()
-				// Retry this part with the unwrapped value by decrementing the loop counter
-				// Note: The linter may flag this but it's intentional
-				i-- //nolint:ineffassign,wastedassign // Intentionally decrementing to retry with unwrapped value
-				continue
+			if val.IsNil() {
+				return nil, fmt.Errorf("path not found: %s (nil interface at '%s')", path, strings.Join(parts[:i], "."))
 			}
-			return nil, fmt.Errorf("path not found: %s (nil interface at '%s')", path, strings.Join(parts[:i], "."))
+			current = val.Interface()
+			// Retry this part with the unwrapped value without advancing the index.
+			// This avoids wasted assignments and keeps traversal logic consistent.
+			continue
 
 		default:
 			return nil, fmt.Errorf("cannot traverse path %s: unexpected type %v at '%s'",
 				path, val.Kind(), strings.Join(parts[:i], "."))
 		}
+
+		i++
 	}
 
 	return current, nil
