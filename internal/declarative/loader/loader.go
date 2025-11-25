@@ -460,14 +460,7 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 			len(source.APIs)
 
 		if parentCount == 0 {
-			if accumulated.DefaultNamespace == "" {
-				accumulated.DefaultNamespace = source.DefaultNamespace
-			} else if accumulated.DefaultNamespace != source.DefaultNamespace {
-				return fmt.Errorf(
-					"conflicting _defaults.kongctl.namespace values: '%s' (existing) vs '%s' in %s",
-					accumulated.DefaultNamespace, source.DefaultNamespace, sourcePath,
-				)
-			}
+			accumulated.AddDefaultNamespace(source.DefaultNamespace)
 		}
 	}
 
@@ -489,7 +482,7 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		}
 		if fileDefaults.Kongctl.Namespace != nil {
 			namespaceDefault = fileDefaults.Kongctl.Namespace
-			rs.DefaultNamespace = *namespaceDefault
+			rs.AddDefaultNamespace(*namespaceDefault)
 			hasFileNamespaceDefault = true
 		}
 		protectedDefault = fileDefaults.Kongctl.Protected

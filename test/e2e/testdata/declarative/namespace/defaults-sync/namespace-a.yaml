@@ -1,0 +1,9 @@
+_defaults:
+  kongctl:
+    namespace: ns-empty-default-a
+    protected: false
+
+portals:
+  - ref: ns-a-portal
+    name: ns-a-portal
+    display_name: "Namespace A Portal"

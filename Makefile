@@ -46,6 +46,10 @@ test-e2e:
 	@ART_DIR="$$KONGCTL_E2E_ARTIFACTS_DIR"; \
 	if [ -z "$$ART_DIR" ]; then \
 		ART_DIR=$$(mktemp -d 2>/dev/null || mktemp -d -t kongctl-e2e || echo .e2e_artifacts); \
+	else \
+		mkdir -p "$$ART_DIR"; \
+		run_id=$$(date +%Y%m%d-%H%M%S); \
+		ART_DIR="$$ART_DIR/$$run_id"; \
 	fi; \
 	mkdir -p "$$ART_DIR"; \
 	ART_DIR=$$(cd "$$ART_DIR" && pwd); \
@@ -60,6 +64,10 @@ test-e2e-scenarios:
 	@ART_DIR="$$KONGCTL_E2E_ARTIFACTS_DIR"; \
 	if [ -z "$$ART_DIR" ]; then \
 		ART_DIR=$$(mktemp -d 2>/dev/null || mktemp -d -t kongctl-e2e || echo .e2e_artifacts); \
+	else \
+		mkdir -p "$$ART_DIR"; \
+		run_id=$$(date +%Y%m%d-%H%M%S); \
+		ART_DIR="$$ART_DIR/$$run_id"; \
 	fi; \
 	mkdir -p "$$ART_DIR"; \
 	ART_DIR=$$(cd "$$ART_DIR" && pwd); \

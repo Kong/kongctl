@@ -1,0 +1,4 @@
+_defaults:
+  kongctl:
+    namespace: ns-empty-default-a
+    protected: false

@@ -94,16 +94,29 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	// Extract all unique namespaces from desired resources
 	namespaces := p.getResourceNamespaces(rs)
 
-	// If no namespaces found and we're in sync mode, we need to check existing resources
-	if len(namespaces) == 0 && opts.Mode == PlanModeSync {
-		// Check if we have a namespace from _defaults
-		if rs.DefaultNamespace != "" {
-			// Use the namespace specified in _defaults
-			namespaces = []string{rs.DefaultNamespace}
+	// Sync mode needs to account for namespaces supplied via _defaults even when other
+	// resources are present in the input set (e.g., multi-file inputs where one file
+	// is defaults-only). When no resources are present, fall back to the provided
+	// default namespace(s) (or the implicit "default").
+	if opts.Mode == PlanModeSync {
+		defaultNamespaces := rs.DefaultNamespaces
+		if len(defaultNamespaces) == 0 && rs.DefaultNamespace != "" {
+			defaultNamespaces = []string{rs.DefaultNamespace}
+		}
+
+		if len(namespaces) == 0 {
+			if len(defaultNamespaces) > 0 {
+				namespaces = append(namespaces, defaultNamespaces...)
+			} else {
+				namespaces = []string{DefaultNamespace}
+			}
 		} else {
-			// For sync mode with empty config, only check the default namespace
-			// to prevent accidental deletion of resources in other namespaces
-			namespaces = []string{DefaultNamespace}
+			for _, ns := range defaultNamespaces {
+				if ns != "" && !containsString(namespaces, ns) {
+					namespaces = append(namespaces, ns)
+				}
+			}
+			sort.Strings(namespaces)
 		}
 	}
 

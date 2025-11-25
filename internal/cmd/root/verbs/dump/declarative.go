@@ -197,7 +197,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 		}
 	}
 
-	resourceSet.DefaultNamespace = opts.defaultNamespace
+	resourceSet.AddDefaultNamespace(opts.defaultNamespace)
 
 	output := declarativeDumpOutput{
 		Defaults:    buildDeclarativeDefaults(opts.defaultNamespace),

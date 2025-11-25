@@ -459,7 +459,7 @@ func TestValidateNamespaceRequirementAny(t *testing.T) {
 	})
 
 	t.Run("empty configuration with defaults passes", func(t *testing.T) {
-		rs := resources.ResourceSet{DefaultNamespace: "team"}
+		rs := resources.ResourceSet{DefaultNamespaces: []string{"team"}, DefaultNamespace: "team"}
 		if err := validator.ValidateNamespaceRequirement(&rs, requirement); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -532,14 +532,14 @@ func TestValidateNamespaceRequirementSpecific(t *testing.T) {
 	})
 
 	t.Run("empty configuration with matching default passes", func(t *testing.T) {
-		rs := resources.ResourceSet{DefaultNamespace: "team"}
+		rs := resources.ResourceSet{DefaultNamespaces: []string{"team"}, DefaultNamespace: "team"}
 		if err := validator.ValidateNamespaceRequirement(&rs, requirement); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
 
 	t.Run("empty configuration with mismatched default errors", func(t *testing.T) {
-		rs := resources.ResourceSet{DefaultNamespace: "other"}
+		rs := resources.ResourceSet{DefaultNamespaces: []string{"other"}, DefaultNamespace: "other"}
 		if err := validator.ValidateNamespaceRequirement(&rs, requirement); err == nil {
 			t.Fatalf("expected error but got nil")
 		}
