@@ -4,8 +4,8 @@ The Kong Konnect CLI
 
 ## ⚠️ Tech Preview ⚠️
 
-**`kongctl` is a _Tech Preview_ project. This software is provided by Kong, Inc. without warranty and is not recommended for 
-production use. The CLI is under active development - interfaces, commands, and behaviors are subject to change without notice. 
+**`kongctl` is a _Tech Preview_ project. This software is provided by Kong, Inc. without warranty and is not recommended for
+production use. The CLI is under active development - interfaces, commands, and behaviors are subject to change without notice.
 Use at your own risk for evaluation and testing purposes only.**
 
 By using this software, you acknowledge that:
@@ -103,7 +103,7 @@ kongctl get organization
 By default `kongctl` uses the `us` region for Konnect API requests. You can switch regions in two ways:
 
 - Set `--region` (or configure `konnect.region`) to the short region code such as `eu`, `us`, or `au`. `kongctl` automatically builds the matching `https://<region>.api.konghq.com` base URL for you.
-- Provide an explicit `--base-url`/`konnect.base-url`. This always takes precedence over the region value and is useful for testing against bespoke endpoints.
+- Provide an explicit `--base-auth-url`/`konnect.base-auth-url`. This always takes precedence over the region value and is useful for testing against bespoke endpoints.
 
 Run `kongctl get regions` to retrieve the list of currently supported regions directly from Konnect. The [Konnect geos documentation](https://developer.konghq.com/konnect-platform/geos/) also tracks new regions as they launch.
 
