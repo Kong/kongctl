@@ -1,6 +1,7 @@
 package portal
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -111,7 +112,8 @@ func (c *deletePortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		portalResponse, err := sdk.GetPortalAPI().GetPortal(helper.GetContext(), portalID)
 		if err != nil {
 			attrs := cmd.TryConvertErrorToAttrs(err)
-			return cmd.PrepareExecutionError("Failed to get portal details", err, helper.GetCmd(), attrs...)
+			msg := buildDetailedMessage("Failed to get portal details", attrs, err)
+			return cmd.PrepareExecutionError(msg, err, helper.GetCmd(), attrs...)
 		}
 		if portalResponse.GetPortalResponse() == nil {
 			return cmd.PrepareExecutionErrorMsg(helper, fmt.Sprintf("portal not found: %s", portalID))
@@ -144,11 +146,12 @@ func (c *deletePortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	_, err := sdk.GetPortalAPI().DeletePortal(helper.GetContext(), portalID, forceDelete)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
+		msg := buildDetailedMessage("Failed to delete portal", attrs, err)
 		// Check if error is due to published APIs
 		if !forceDelete && (strings.Contains(err.Error(), "published") || strings.Contains(err.Error(), "API")) {
 			attrs = append(attrs, "suggestion", "Use --force to delete portal with published APIs")
 		}
-		return cmd.PrepareExecutionError("Failed to delete portal", err, helper.GetCmd(), attrs...)
+		return cmd.PrepareExecutionError(msg, err, helper.GetCmd(), attrs...)
 	}
 
 	// Format and output response
@@ -237,6 +240,78 @@ func (c *deletePortalCmd) resolvePortalByName(
 	}
 
 	return nil, cmd.PrepareExecutionErrorMsg(helper, fmt.Sprintf("portal not found: %s", name))
+}
+
+func buildDetailedMessage(base string, attrs []any, err error) string {
+	if detail := extractDetailFromAttrs(attrs); detail != "" {
+		return fmt.Sprintf("%s: %s", base, detail)
+	}
+	if err != nil {
+		return fmt.Sprintf("%s: %v", base, err)
+	}
+	return base
+}
+
+func extractDetailFromAttrs(attrs []any) string {
+	for i := 0; i+1 < len(attrs); i += 2 {
+		key, ok := attrs[i].(string)
+		if !ok {
+			continue
+		}
+		if strings.EqualFold(key, "detail") {
+			if value, ok := attrs[i+1].(string); ok {
+				return value
+			}
+		}
+		if strings.EqualFold(key, "error") {
+			if value, ok := attrs[i+1].(string); ok {
+				if detail := parseDetailFromJSON(value); detail != "" {
+					return detail
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func parseDetailFromJSON(errStr string) string {
+	var payload struct {
+		Detail            string `json:"detail"`
+		Status            int    `json:"status"`
+		Title             string `json:"title"`
+		Instance          string `json:"instance"`
+		InvalidParameters []struct {
+			Field  string `json:"field"`
+			Reason string `json:"reason"`
+		} `json:"invalid_parameters"`
+	}
+	if err := json.Unmarshal([]byte(errStr), &payload); err != nil {
+		return ""
+	}
+	var parts []string
+	if payload.Status != 0 {
+		parts = append(parts, fmt.Sprintf("status: %d", payload.Status))
+	}
+	if title := strings.TrimSpace(payload.Title); title != "" {
+		parts = append(parts, fmt.Sprintf("title: %s", title))
+	}
+	if instance := strings.TrimSpace(payload.Instance); instance != "" {
+		parts = append(parts, fmt.Sprintf("instance: %s", instance))
+	}
+	if detail := strings.TrimSpace(payload.Detail); detail != "" {
+		parts = append(parts, fmt.Sprintf("detail: %s", detail))
+	}
+	for _, p := range payload.InvalidParameters {
+		reason := strings.TrimSpace(p.Reason)
+		if reason == "" {
+			continue
+		}
+		if field := strings.TrimSpace(p.Field); field != "" {
+			reason = fmt.Sprintf("%s (field=%s)", reason, field)
+		}
+		parts = append(parts, reason)
+	}
+	return strings.Join(parts, "; ")
 }
 
 func newDeletePortalCmd(
