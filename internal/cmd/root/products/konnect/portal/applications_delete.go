@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	konnectCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -184,7 +185,10 @@ func (h portalApplicationDeleteHandler) run(args []string) error {
 	_, err = appAPI.DeleteApplication(helper.GetContext(), portalID, appID)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to delete portal application", err, helper.GetCmd(), attrs...)
+		details := konnectCommon.ParseAPIErrorDetails(err)
+		attrs = konnectCommon.AppendAPIErrorAttrs(attrs, details)
+		msg := konnectCommon.BuildDetailedMessage("Failed to delete portal application", attrs, err)
+		return cmd.PrepareExecutionError(msg, err, helper.GetCmd(), attrs...)
 	}
 
 	if outType == cmdCommon.TEXT {
