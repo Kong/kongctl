@@ -55,7 +55,8 @@ type ResourceSet struct {
 
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
-	DefaultNamespace string `yaml:"-" json:"-"`
+	DefaultNamespace  string   `yaml:"-" json:"-"`
+	DefaultNamespaces []string `yaml:"-" json:"-"`
 }
 
 // NamespaceOrigin describes how a namespace value was supplied for a resource
@@ -444,4 +445,21 @@ func GetNamespace(kongctl *KongctlMeta) string {
 		return "default"
 	}
 	return *kongctl.Namespace
+}
+
+// AddDefaultNamespace records a default namespace if not already present. The first
+// value encountered is also stored in DefaultNamespace for backward compatibility.
+func (rs *ResourceSet) AddDefaultNamespace(namespace string) {
+	if namespace == "" {
+		return
+	}
+	if rs.DefaultNamespace == "" {
+		rs.DefaultNamespace = namespace
+	}
+	for _, ns := range rs.DefaultNamespaces {
+		if ns == namespace {
+			return
+		}
+	}
+	rs.DefaultNamespaces = append(rs.DefaultNamespaces, namespace)
 }

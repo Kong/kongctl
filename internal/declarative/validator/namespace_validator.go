@@ -195,6 +195,10 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 	if req.Mode == NamespaceRequirementNone || rs == nil {
 		return nil
 	}
+	defaultNamespaces := rs.DefaultNamespaces
+	if len(defaultNamespaces) == 0 && rs.DefaultNamespace != "" {
+		defaultNamespaces = []string{rs.DefaultNamespace}
+	}
 
 	managedPortals := make([]resources.PortalResource, 0, len(rs.Portals))
 	for _, portal := range rs.Portals {
@@ -222,11 +226,11 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 		case NamespaceRequirementNone:
 			return nil
 		case NamespaceRequirementAny:
-			if rs.DefaultNamespace == "" {
+			if len(defaultNamespaces) == 0 {
 				return fmt.Errorf("namespace enforcement requires resources or _defaults.kongctl.namespace to be set")
 			}
 		case NamespaceRequirementSpecific:
-			if rs.DefaultNamespace == "" {
+			if len(defaultNamespaces) == 0 {
 				namespaceList := strings.Join(req.AllowedNamespaces, ", ")
 				return fmt.Errorf(
 					"namespace enforcement requires one of [%s] but no resources or _defaults.kongctl.namespace were provided",
@@ -236,8 +240,13 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 			// Check if default namespace is in allowed list
 			allowed := false
 			for _, ns := range req.AllowedNamespaces {
-				if rs.DefaultNamespace == ns {
-					allowed = true
+				for _, def := range defaultNamespaces {
+					if def == ns {
+						allowed = true
+						break
+					}
+				}
+				if allowed {
 					break
 				}
 			}
@@ -245,7 +254,7 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 				namespaceList := strings.Join(req.AllowedNamespaces, ", ")
 				return fmt.Errorf(
 					"namespace enforcement requires one of [%s] but _defaults.kongctl.namespace is '%s'",
-					namespaceList, rs.DefaultNamespace,
+					namespaceList, strings.Join(defaultNamespaces, ", "),
 				)
 			}
 		}

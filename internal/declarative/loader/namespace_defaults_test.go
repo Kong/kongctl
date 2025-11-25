@@ -385,13 +385,14 @@ application_auth_strategies: []
 		require.NoError(t, err)
 
 		assert.Equal(t, "team-alpha", rs.DefaultNamespace)
+		assert.ElementsMatch(t, []string{"team-alpha"}, rs.DefaultNamespaces)
 		assert.Len(t, rs.Portals, 0)
 		assert.Len(t, rs.APIs, 0)
 		assert.Len(t, rs.ControlPlanes, 0)
 		assert.Len(t, rs.ApplicationAuthStrategies, 0)
 	})
 
-	t.Run("conflicting defaults without resources returns error", func(t *testing.T) {
+	t.Run("multiple defaults without resources are aggregated", func(t *testing.T) {
 		yaml1 := `
 _defaults:
   kongctl:
@@ -415,9 +416,10 @@ portals: []
 			{Type: SourceTypeFile, Path: file1},
 			{Type: SourceTypeFile, Path: file2},
 		}
-		_, err := l.LoadFromSources(sources, false)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "conflicting _defaults.kongctl.namespace values")
+		rs, err := l.LoadFromSources(sources, false)
+		require.NoError(t, err)
+		assert.Equal(t, "team-alpha", rs.DefaultNamespace)
+		assert.ElementsMatch(t, []string{"team-alpha", "team-beta"}, rs.DefaultNamespaces)
 	})
 }
 

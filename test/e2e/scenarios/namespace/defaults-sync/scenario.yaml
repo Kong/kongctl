@@ -1,0 +1,119 @@
+baseInputsPath: ../../../testdata/declarative/namespace/defaults-sync
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+
+vars:
+  nsA: ns-empty-default-a
+  nsB: ns-empty-default-b
+  portalARef: ns-a-portal
+  portalBRef: ns-b-portal
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-bootstrap
+    commands:
+      - name: 000-sync-seed
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/namespace-a.yaml"
+          - -f
+          - "{{ .workdir }}/namespace-b.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                by_action.CREATE: 2
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 001-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalARef }}'] | [0]"
+            expect:
+              fields:
+                display_name: "Namespace A Portal"
+          - select: "[?name=='{{ .vars.portalBRef }}'] | [0]"
+            expect:
+              fields:
+                display_name: "Namespace B Portal"
+
+  - name: 002-sync-defaults-and-resources
+    inputOverlayDirs:
+      - overlays/002-sync-defaults-and-resources
+    commands:
+      - name: 000-sync-mixed
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/namespace-a.yaml"
+          - -f
+          - "{{ .workdir }}/namespace-b.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 001-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalARef }}']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='{{ .vars.portalBRef }}'] | [0]"
+            expect:
+              fields:
+                display_name: "Namespace B Portal"
+
+  - name: 003-sync-defaults-only
+    inputOverlayDirs:
+      - overlays/003-sync-defaults-only
+    commands:
+      - name: 000-sync-defaults-ns-b
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/namespace-a.yaml"
+          - -f
+          - "{{ .workdir }}/namespace-b.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 001-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
