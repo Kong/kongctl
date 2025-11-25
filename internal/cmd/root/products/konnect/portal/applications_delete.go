@@ -169,6 +169,18 @@ func (h portalApplicationDeleteHandler) run(args []string) error {
 		}
 	}
 
+	targetName := applicationName
+	if targetName == "" {
+		targetName = appID
+	}
+	desc := fmt.Sprintf("portal application %q (portal ID: %s)", targetName, portalID)
+	if portalName != "" {
+		desc = fmt.Sprintf("portal application %q in portal %q", targetName, portalName)
+	}
+	if err := cmd.ConfirmDelete(helper, desc); err != nil {
+		return err
+	}
+
 	_, err = appAPI.DeleteApplication(helper.GetContext(), portalID, appID)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)

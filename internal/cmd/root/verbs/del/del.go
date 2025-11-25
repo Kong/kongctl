@@ -44,6 +44,7 @@ Output can be formatted in multiple ways to aid in further processing.`))
 )
 
 func NewDeleteCmd() (*cobra.Command, error) {
+	var force, autoApprove bool
 	cmd := &cobra.Command{
 		Use:     deleteuse,
 		Short:   deleteShort,
@@ -52,7 +53,12 @@ func NewDeleteCmd() (*cobra.Command, error) {
 		Aliases: []string{"d", "D", "del", "rm", "DEL", "RM"},
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
 			c.SetContext(context.WithValue(c.Context(), verbs.Verb, Verb))
-			return bindKonnectFlags(c, args)
+			if err := bindKonnectFlags(c, args); err != nil {
+				return err
+			}
+			cmdpkg.SetDeleteForce(c, force)
+			cmdpkg.SetDeleteAutoApprove(c, autoApprove)
+			return nil
 		},
 	}
 
@@ -73,6 +79,11 @@ func NewDeleteCmd() (*cobra.Command, error) {
 Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`,
 			common.PATConfigPath))
+
+	cmd.PersistentFlags().BoolVar(&force, "force", false,
+		"Force deletion even when related resources exist (not configurable)")
+	cmd.PersistentFlags().BoolVar(&autoApprove, "approve", false,
+		"Skip confirmation prompts for delete operations (not configurable)")
 
 	c, e := konnect.NewKonnectCmd(Verb)
 	if e != nil {

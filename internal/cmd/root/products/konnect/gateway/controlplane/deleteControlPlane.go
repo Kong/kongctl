@@ -2,6 +2,7 @@ package controlplane
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -19,6 +20,9 @@ func (c *deleteControlPlaneCmd) validate(_ cmd.Helper) error {
 
 func (c *deleteControlPlaneCmd) run(helper cmd.Helper) error {
 	id := helper.GetArgs()[0]
+	if err := cmd.ConfirmDelete(helper, fmt.Sprintf("control plane %q", id)); err != nil {
+		return err
+	}
 
 	logger, e := helper.GetLogger()
 	if e != nil {
