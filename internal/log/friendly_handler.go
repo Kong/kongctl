@@ -79,7 +79,7 @@ func (h *friendlyHandler) Handle(_ context.Context, record slog.Record) error {
 	})
 
 	for _, entry := range others {
-		fmt.Fprintf(&sb, "  %s: %s\n", entry.key, entry.value)
+		writeEntry(&sb, entry)
 	}
 
 	_, err := io.WriteString(h.w, sb.String())
@@ -163,4 +163,21 @@ func (h *friendlyHandler) attrValueToString(val slog.Value) string {
 	default:
 		return val.String()
 	}
+}
+
+func writeEntry(sb *strings.Builder, entry attrEntry) {
+	val := strings.TrimSpace(entry.value)
+	if strings.Contains(val, "\n") {
+		lines := strings.Split(val, "\n")
+		fmt.Fprintf(sb, "  %s: %s\n", entry.key, strings.TrimSpace(lines[0]))
+		for _, line := range lines[1:] {
+			trimmed := strings.TrimSpace(line)
+			if trimmed == "" {
+				continue
+			}
+			fmt.Fprintf(sb, "    %s\n", trimmed)
+		}
+		return
+	}
+	fmt.Fprintf(sb, "  %s: %s\n", entry.key, val)
 }

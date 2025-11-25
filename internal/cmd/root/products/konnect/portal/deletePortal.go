@@ -2,7 +2,6 @@ package portal
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	kk "github.com/Kong/sdk-konnect-go"
@@ -31,7 +30,7 @@ var (
 If the portal has published APIs, the deletion will fail unless the --force flag is used.
 Using --force will delete the portal along with all API publications.
 
-A confirmation prompt will be shown before deletion unless --auto-approve is used.`)
+Use --approve to skip the confirmation prompt.`)
 	deletePortalExample = normalizers.Examples(
 		i18n.T("root.products.konnect.portal.deletePortalExamples",
 			fmt.Sprintf(`
@@ -45,14 +44,13 @@ A confirmation prompt will be shown before deletion unless --auto-approve is use
 	%[1]s delete portal my-portal --force
 
 	# Delete without confirmation prompt
-	%[1]s delete portal my-portal --auto-approve
+	%[1]s delete portal my-portal --approve
+
 	`, meta.CLIName)))
 )
 
 type deletePortalCmd struct {
 	*cobra.Command
-	force       bool
-	autoApprove bool
 }
 
 func (c *deletePortalCmd) validate(helper cmd.Helper) error {
@@ -113,7 +111,8 @@ func (c *deletePortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		portalResponse, err := sdk.GetPortalAPI().GetPortal(helper.GetContext(), portalID)
 		if err != nil {
 			attrs := cmd.TryConvertErrorToAttrs(err)
-			return cmd.PrepareExecutionError("Failed to get portal details", err, helper.GetCmd(), attrs...)
+			msg := common.BuildDetailedMessage("Failed to get portal details", attrs, err)
+			return cmd.PrepareExecutionError(msg, err, helper.GetCmd(), attrs...)
 		}
 		if portalResponse.GetPortalResponse() == nil {
 			return cmd.PrepareExecutionErrorMsg(helper, fmt.Sprintf("portal not found: %s", portalID))
@@ -122,24 +121,40 @@ func (c *deletePortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		portalName = pr.GetName()
 	}
 
-	// Show confirmation prompt unless --auto-approve
-	if !c.autoApprove {
-		if !c.confirmDeletion(portalName, portalID, helper) {
-			return cmd.PrepareExecutionErrorMsg(helper, "delete cancelled")
-		}
+	forceDelete := cmd.DeleteForceEnabled(helper)
+	labelWidth := len("Name")
+	warnings := []string{
+		formatPortalDetail("Name", portalName, labelWidth),
+		formatPortalDetail("ID", portalID, labelWidth),
+	}
+	if !forceDelete {
+		warnings = append(warnings,
+			"Note: If this portal has published APIs, use --force to delete them along with the portal.")
+	}
+
+	if err := cmd.ConfirmDelete(
+		helper,
+		fmt.Sprintf("portal %q", portalName),
+		warnings...,
+	); err != nil {
+		return err
 	}
 
 	// Delete the portal
 	logger.Info(fmt.Sprintf("Deleting portal '%s' (ID: %s)", portalName, portalID))
 
-	_, err := sdk.GetPortalAPI().DeletePortal(helper.GetContext(), portalID, c.force)
+	_, err := sdk.GetPortalAPI().DeletePortal(helper.GetContext(), portalID, forceDelete)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
-		// Check if error is due to published APIs
-		if !c.force && (strings.Contains(err.Error(), "published") || strings.Contains(err.Error(), "API")) {
-			attrs = append(attrs, "suggestion", "Use --force to delete portal with published APIs")
+		apiErrDetails := common.ParseAPIErrorDetails(err)
+		attrs = common.AppendAPIErrorAttrs(attrs, apiErrDetails)
+		msg := common.BuildDetailedMessage("Failed to delete portal", attrs, err)
+
+		if !forceDelete && shouldSuggestForce(apiErrDetails, err) {
+			attrs = common.AppendIfMissingAttr(attrs, "suggestion", "Use --force to delete portal with published APIs")
 		}
-		return cmd.PrepareExecutionError("Failed to delete portal", err, helper.GetCmd(), attrs...)
+
+		return cmd.PrepareExecutionError(msg, err, helper.GetCmd(), attrs...)
 	}
 
 	// Format and output response
@@ -230,42 +245,23 @@ func (c *deletePortalCmd) resolvePortalByName(
 	return nil, cmd.PrepareExecutionErrorMsg(helper, fmt.Sprintf("portal not found: %s", name))
 }
 
-func (c *deletePortalCmd) confirmDeletion(portalName, portalID string, helper cmd.Helper) bool {
-	streams := helper.GetStreams()
-
-	// Print warning
-	fmt.Fprintln(streams.Out, "\nWARNING: This will permanently delete the following portal:")
-	fmt.Fprintf(streams.Out, "\n  Name: %s\n", portalName)
-	fmt.Fprintf(streams.Out, "  ID:   %s\n", portalID)
-
-	// Add warning about published APIs if not using force
-	if !c.force {
-		fmt.Fprintln(streams.Out, "\nNote: If this portal has published APIs, the deletion will fail.")
-		fmt.Fprintln(streams.Out, "      Use --force to delete the portal along with all API publications.")
-	}
-
-	fmt.Fprint(streams.Out, "\nDo you want to continue? Type 'yes' to confirm: ")
-
-	// Handle input (check if stdin is piped)
-	input := streams.In
-	if f, ok := input.(*os.File); ok && f.Fd() == 0 {
-		// stdin is piped, try to use /dev/tty
-		tty, err := os.Open("/dev/tty")
-		if err == nil {
-			defer tty.Close()
-			input = tty
+func shouldSuggestForce(details *common.APIErrorDetails, err error) bool {
+	if details != nil {
+		for _, param := range details.InvalidParameters {
+			if strings.EqualFold(strings.TrimSpace(param.Field), "force") {
+				return true
+			}
 		}
 	}
 
-	// Read user input
-	var response string
-	_, err := fmt.Fscanln(input, &response)
-	if err != nil {
-		// If there's an error reading input, treat as non-confirmation
-		return false
-	}
+	return err != nil && (strings.Contains(err.Error(), "published") || strings.Contains(err.Error(), "API"))
+}
 
-	return strings.ToLower(strings.TrimSpace(response)) == "yes"
+func formatPortalDetail(label, value string, width int) string {
+	if width < len(label) {
+		width = len(label)
+	}
+	return fmt.Sprintf("  %-*s %s", width+1, label+":", value)
 }
 
 func newDeletePortalCmd(
@@ -283,12 +279,6 @@ func newDeletePortalCmd(
 	rv.Example = deletePortalExample
 	rv.Args = cobra.ExactArgs(1)
 
-	// Add flags
-	rv.Flags().BoolVar(&rv.force, "force", false,
-		"Force deletion even if the portal has published APIs")
-	rv.Flags().BoolVar(&rv.autoApprove, "auto-approve", false,
-		"Skip confirmation prompt")
-
 	if parentPreRun != nil {
 		rv.PreRunE = parentPreRun
 	}
@@ -296,6 +286,10 @@ func newDeletePortalCmd(
 
 	if addParentFlags != nil {
 		addParentFlags(verb, rv.Command)
+	}
+
+	if applicationsCmd := newDeletePortalApplicationsCmd(verb, addParentFlags, parentPreRun); applicationsCmd != nil {
+		rv.AddCommand(applicationsCmd)
 	}
 
 	return &rv

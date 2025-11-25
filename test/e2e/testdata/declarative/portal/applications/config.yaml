@@ -1,0 +1,62 @@
+_defaults:
+  kongctl:
+    namespace: portal-applications-test
+
+application_auth_strategies:
+  - ref: default-apikey-strategy
+    name: default-apikey-strategy
+    display_name: "Default API Key Strategy"
+    strategy_type: key_auth
+    configs:
+      key_auth:
+        key_names:
+          - X-API-Key
+
+portals:
+  - ref: auto-approve-portal
+    name: "Auto Approve Portal"
+    display_name: "Auto Approve Portal"
+    description: "Portal configured to auto approve developers and applications for e2e testing."
+    authentication_enabled: true
+    rbac_enabled: false
+    auto_approve_developers: true
+    auto_approve_applications: true
+    default_api_visibility: "public"
+    default_page_visibility: "public"
+    default_application_auth_strategy_id: !ref default-apikey-strategy#id
+    kongctl:
+      namespace: portal-applications-test
+
+    pages:
+      - ref: home
+        slug: "/"
+        title: "Welcome"
+        visibility: "public"
+        status: "published"
+        content: |
+          # Auto Approve Portal
+
+          This page exists so the portal can be visited by developer tests.
+
+apis:
+  - ref: auto-applied-api
+    name: "Auto Applied API"
+    version: "1.0.0"
+    versions:
+      - ref: auto-applied-api-v1
+        version: "1.0.0"
+        publish_status: "unpublished"
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: Auto Applied API
+              version: 1.0.0
+            paths: {}
+    publications:
+      - ref: auto-applied-api-pub
+        portal_id: !ref auto-approve-portal#id
+        visibility: "public"
+        auth_strategy_ids:
+          - !ref default-apikey-strategy#id
+        auto_approve_registrations: true

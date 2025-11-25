@@ -79,11 +79,13 @@ func Run(t *testing.T, scenarioPath string) error {
 		}
 
 		// Apply overlays (dirs) only when inputs are present
+		repoRoot := repoRootFromScenario(scenarioPath)
 		tmplCtx := map[string]any{
-			"vars":     s.Vars,
-			"scenario": filepath.Dir(scenarioPath),
-			"step":     stepName,
-			"workdir":  step.InputsDir,
+			"vars":         s.Vars,
+			"scenario_dir": ScenarioRoot(scenarioPath),
+			"repo_dir":     repoRoot,
+			"step":         stepName,
+			"workdir":      step.InputsDir,
 		}
 		if !st.SkipInputs {
 			for _, od := range st.InputOverlayDirs {
@@ -116,6 +118,46 @@ func Run(t *testing.T, scenarioPath string) error {
 					return fmt.Errorf("command %s resetOrg failed: %w", cmdName, err)
 				}
 				// no assertions for reset
+				continue
+			}
+			if len(cmd.Exec) > 0 {
+				if len(cmd.Run) > 0 {
+					return fmt.Errorf("command %s: exec and run cannot both be set", cmdName)
+				}
+				renderedArgs := make([]string, 0, len(cmd.Exec))
+				for _, a := range cmd.Exec {
+					renderedArgs = append(renderedArgs, renderString(a, tmplCtx))
+				}
+				if len(renderedArgs) == 0 {
+					return fmt.Errorf("command %s: exec command is empty", cmdName)
+				}
+				if strings.TrimSpace(cmd.Name) != "" {
+					cli.OverrideNextCommandSlug(cmd.Name)
+				}
+				workdir := renderString(cmd.Workdir, tmplCtx)
+				res, err := cli.RunProgram(context.Background(), renderedArgs[0], renderedArgs[1:], envOverrides, strings.TrimSpace(workdir))
+				if err != nil {
+					return fmt.Errorf("command %s external execution failed: %w", cmdName, err)
+				}
+				parseMode := strings.TrimSpace(cmd.ParseAs)
+				parentData, err := parseCommandOutput(parseMode, res.Stdout)
+				if err != nil {
+					mode := parseMode
+					if strings.TrimSpace(mode) == "" || strings.EqualFold(mode, "inherit") {
+						mode = "json"
+					}
+					snippet := res.Stdout
+					if len(snippet) > 2048 {
+						snippet = snippet[:2048] + "…"
+					}
+					return fmt.Errorf("command %s produced unparsable output (mode=%s): %w\nstdout: %q", cmdName, mode, err, snippet)
+				}
+				if err := maybeRecordVar(&s, cmd.RecordVar, parentData.Value(), step); err != nil {
+					return fmt.Errorf("command %s recordVar failed: %w", cmdName, err)
+				}
+				if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName, envOverrides); err != nil {
+					return err
+				}
 				continue
 			}
 			if cmd.Create != nil {
@@ -306,6 +348,9 @@ func Run(t *testing.T, scenarioPath string) error {
 				return fmt.Errorf("command %s produced unparsable output: %w", cmdName, err)
 			}
 
+			if err := maybeRecordVar(&s, cmd.RecordVar, parentData.Value(), step); err != nil {
+				return fmt.Errorf("command %s recordVar failed: %w", cmdName, err)
+			}
 			if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName, envOverrides); err != nil {
 				return err
 			}
@@ -648,6 +693,20 @@ func renderString(s string, data any) string {
 			}
 		}
 	}
+	if strings.Contains(s, "{{ .scenario_dir }}") {
+		if m, ok := data.(map[string]any); ok {
+			if sp, ok2 := m["scenario_dir"].(string); ok2 {
+				s = strings.ReplaceAll(s, "{{ .scenario_dir }}", sp)
+			}
+		}
+	}
+	if strings.Contains(s, "{{ .repo_dir }}") {
+		if m, ok := data.(map[string]any); ok {
+			if rp, ok2 := m["repo_dir"].(string); ok2 {
+				s = strings.ReplaceAll(s, "{{ .repo_dir }}", rp)
+			}
+		}
+	}
 	// simple vars usage: {{ .vars.KEY }}
 	if strings.Contains(s, "{{ .vars.") {
 		if m, ok := data.(map[string]any); ok {
@@ -779,6 +838,20 @@ func copyTree(src, dst string) error {
 		}
 		return os.WriteFile(out, b, 0o644)
 	})
+}
+
+func repoRootFromScenario(scenarioPath string) string {
+	dir := ScenarioRoot(scenarioPath)
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return dir
+		}
+		dir = parent
+	}
 }
 
 func runAssertion(

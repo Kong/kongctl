@@ -111,7 +111,7 @@ workloads. This is a new control plane type in Kong Konnect (v1.0.0 spec).
 | portal_auditlogs | ❌ | ❌ | Read-only audit logs |
 | portal_authsettings | ❌ | ❌ | |
 | portal_emails | ❌ | ❌ | |
-| applications | ❌ | ✅ Get | Via `kongctl get portal applications --portal-id <id>` |
+| applications | ❌ | ✅ Get/Delete | Via `kongctl get portal applications --portal-id <id>` or `kongctl delete portal application --portal-id <id> <application-id>` |
 | assets | ❌ | ❌ | Portal asset management |
 
 ---

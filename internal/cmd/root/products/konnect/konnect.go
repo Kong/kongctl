@@ -221,12 +221,14 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	}
 	cmd.AddCommand(asc)
 
-	// Add me command
-	mc, e := me.NewMeCmd(verb, addFlags, preRunE)
-	if e != nil {
-		return nil, e
+	// Add me command (read-only)
+	if verb == verbs.Get {
+		mc, e := me.NewMeCmd(verb, addFlags, preRunE)
+		if e != nil {
+			return nil, e
+		}
+		cmd.AddCommand(mc)
 	}
-	cmd.AddCommand(mc)
 
 	// Add organization command
 	oc, e := organization.NewOrganizationCmd(verb, addFlags, preRunE)

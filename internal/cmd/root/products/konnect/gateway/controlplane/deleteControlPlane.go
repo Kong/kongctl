@@ -2,8 +2,10 @@ package controlplane
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/kong/kongctl/internal/cmd"
+	konnectCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
@@ -19,6 +21,9 @@ func (c *deleteControlPlaneCmd) validate(_ cmd.Helper) error {
 
 func (c *deleteControlPlaneCmd) run(helper cmd.Helper) error {
 	id := helper.GetArgs()[0]
+	if err := cmd.ConfirmDelete(helper, fmt.Sprintf("control plane %q", id)); err != nil {
+		return err
+	}
 
 	logger, e := helper.GetLogger()
 	if e != nil {
@@ -39,8 +44,11 @@ func (c *deleteControlPlaneCmd) run(helper cmd.Helper) error {
 
 	res, err := sdk.GetControlPlaneAPI().DeleteControlPlane(ctx, id)
 	if err != nil {
-		attrs := cmd.TryConvertErrorToAttrs(e)
-		return cmd.PrepareExecutionError("Failed to delete Control Plane", e, helper.GetCmd(), attrs...)
+		attrs := cmd.TryConvertErrorToAttrs(err)
+		details := konnectCommon.ParseAPIErrorDetails(err)
+		attrs = konnectCommon.AppendAPIErrorAttrs(attrs, details)
+		msg := konnectCommon.BuildDetailedMessage("Failed to delete control plane", attrs, err)
+		return cmd.PrepareExecutionError(msg, err, helper.GetCmd(), attrs...)
 	}
 
 	outType, err := helper.GetOutputFormat()

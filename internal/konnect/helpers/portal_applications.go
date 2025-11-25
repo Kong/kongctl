@@ -22,6 +22,12 @@ type PortalApplicationAPI interface {
 		applicationID string,
 		opts ...kkOps.Option,
 	) (*kkOps.GetApplicationResponse, error)
+	DeleteApplication(
+		ctx context.Context,
+		portalID string,
+		applicationID string,
+		opts ...kkOps.Option,
+	) (*kkOps.DeleteApplicationResponse, error)
 }
 
 // PortalApplicationAPIImpl provides an implementation of the PortalApplicationAPI interface
@@ -49,6 +55,19 @@ func (p *PortalApplicationAPIImpl) GetApplication(
 		return nil, fmt.Errorf("SDK is nil")
 	}
 	return p.SDK.Applications.GetApplication(ctx, portalID, applicationID, opts...)
+}
+
+// DeleteApplication removes a specific application scoped to a portal
+func (p *PortalApplicationAPIImpl) DeleteApplication(
+	ctx context.Context,
+	portalID string,
+	applicationID string,
+	opts ...kkOps.Option,
+) (*kkOps.DeleteApplicationResponse, error) {
+	if p.SDK == nil {
+		return nil, fmt.Errorf("SDK is nil")
+	}
+	return p.SDK.Applications.DeleteApplication(ctx, portalID, applicationID, opts...)
 }
 
 var _ PortalApplicationAPI = (*PortalApplicationAPIImpl)(nil)
