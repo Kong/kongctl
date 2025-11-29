@@ -292,5 +292,13 @@ func newDeletePortalCmd(
 		rv.AddCommand(applicationsCmd)
 	}
 
+	if registrationsCmd := newDeletePortalApplicationRegistrationsCmd(
+		verb,
+		addParentFlags,
+		parentPreRun,
+	); registrationsCmd != nil {
+		rv.AddCommand(registrationsCmd)
+	}
+
 	return &rv
 }
