@@ -202,3 +202,17 @@ portals:
         visibility: "public"
         status: "published"
         content: !file ./snippets/example-page-toc.md
+
+    # Portal teams for grouping developers
+    teams:
+      - ref: platform-team
+        name: "Platform Team"
+        description: "Internal platform engineering team managing core services."
+
+      - ref: partner-integrators
+        name: "Partner Integrators"
+        description: "External partners who build integrations and need targeted access."
+
+      - ref: beta-testers
+        name: "Beta Testers"
+        description: "Early adopters who preview new APIs and provide feedback."
