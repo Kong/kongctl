@@ -53,12 +53,20 @@ func Run(t *testing.T, scenarioPath string) error {
 	}
 
 	// Execute steps
+	skipPatterns := getSkipPatterns()
 	startIdx := 0
 	for i, st := range s.Steps {
 		stepName := st.Name
 		if strings.TrimSpace(stepName) == "" {
 			stepName = fmt.Sprintf("step-%03d", startIdx+i)
 		}
+
+		// Check if step should be skipped
+		if shouldSkipStep(stepName, skipPatterns) {
+			harness.Infof("Skipping step %s (matched KONGCTL_E2E_SKIP_STEPS pattern)", stepName)
+			continue
+		}
+
 		step, err := harness.NewStep(t, cli, stepName)
 		if err != nil {
 			return err
