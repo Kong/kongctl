@@ -171,7 +171,9 @@ func resolveAPIID(ctx context.Context, api *portalclient.PortalAPI, apiName stri
 	return stringsTrim(id.String()), nil
 }
 
-func createApplicationRegistration(ctx context.Context, api *portalclient.PortalAPI, applicationID, apiID string) (string, error) {
+func createApplicationRegistration(
+	ctx context.Context, api *portalclient.PortalAPI, applicationID, apiID string,
+) (string, error) {
 	appUUID, err := uuid.Parse(applicationID)
 	if err != nil {
 		return "", fmt.Errorf("parse application id: %w", err)
@@ -182,12 +184,12 @@ func createApplicationRegistration(ctx context.Context, api *portalclient.Portal
 	}
 
 	body := portalclient.CreateApplicationRegistrationJSONRequestBody{
-		ApiId: openapi_types.UUID(apiUUID),
+		ApiId: apiUUID,
 	}
 
 	res, err := api.Raw().CreateApplicationRegistrationWithResponse(
 		ctx,
-		portalclient.ApplicationId(appUUID),
+		appUUID,
 		body,
 	)
 	if err != nil {
