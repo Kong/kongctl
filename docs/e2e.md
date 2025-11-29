@@ -38,6 +38,7 @@ KONGCTL_E2E_BIN=./kongctl make test-e2e
 - KONGCTL_E2E_BIN: Path to an existing `kongctl` binary to skip building (copied into artifacts/bin when possible).
 - KONGCTL_E2E_RESET: Reset the Konnect org before tests (destructive). Defaults to enabled; set to `0`/`false` to disable.
 - KONGCTL_E2E_KONNECT_BASE_URL: Base URL for Konnect API (default `https://us.api.konghq.com`).
+- KONGCTL_E2E_SKIP_STEPS: Comma-separated glob patterns to skip scenario steps by name. Use this to skip deletion/cleanup steps and preserve test resources for manual CLI verification. Patterns are case-insensitive and support wildcards (`*` for any characters, `?` for single character). Examples: `*delete*`, `006-*,007-*,008-*`. Default: run all steps.
 
 Authentication token:
 
@@ -61,6 +62,49 @@ Run only "get me" tests:
 
 ```
 go test -v -tags=e2e ./test/e2e -run GetMe
+```
+
+### Skipping Steps
+
+Use `KONGCTL_E2E_SKIP_STEPS` to selectively skip scenario steps. This is
+particularly useful for skipping deletion/cleanup steps to preserve test
+resources for manual CLI verification and testing.
+
+Skip all deletion steps to preserve resources:
+
+```bash
+KONGCTL_E2E_SKIP_STEPS="*delete*" \
+  KONGCTL_E2E_SCENARIO=portal/applications \
+  KONGCTL_E2E_KONNECT_PAT=$(cat ~/.konnect/token) \
+  make test-e2e-scenarios
+```
+
+After the scenario runs, resources remain in Konnect for manual testing:
+
+```bash
+# Verify resources created by the scenario
+./kongctl get portal applications --portal-name "Auto Approve Portal"
+
+# Test CLI commands on preserved resources
+./kongctl delete portal applications "e2e-portal-application" \
+  --portal-name "Auto Approve Portal" --approve
+```
+
+Skip specific numbered steps:
+
+```bash
+# Skip steps 006, 007, and 008 (cleanup steps in portal/applications)
+KONGCTL_E2E_SKIP_STEPS="006-*,007-*,008-*" \
+  KONGCTL_E2E_SCENARIO=portal/applications \
+  make test-e2e-scenarios
+```
+
+Skip multiple pattern types:
+
+```bash
+# Skip both reset and deletion steps
+KONGCTL_E2E_SKIP_STEPS="*reset*,*delete*,*cleanup*" \
+  make test-e2e-scenarios
 ```
 
 ### Artifacts Layout

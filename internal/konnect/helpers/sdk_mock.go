@@ -23,6 +23,7 @@ type MockKonnectSDK struct {
 	PortalCustomDomainFactory  func() PortalCustomDomainAPI
 	PortalSnippetFactory       func() PortalSnippetAPI
 	PortalApplicationFactory   func() PortalApplicationAPI
+	PortalApplicationRegistrationFactory func() PortalApplicationRegistrationAPI
 	PortalDeveloperFactory     func() PortalDeveloperAPI
 	PortalTeamFactory          func() PortalTeamAPI
 }
@@ -140,6 +141,14 @@ func (m *MockKonnectSDK) GetPortalSnippetAPI() PortalSnippetAPI {
 func (m *MockKonnectSDK) GetPortalApplicationAPI() PortalApplicationAPI {
 	if m.PortalApplicationFactory != nil {
 		return m.PortalApplicationFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the PortalApplicationRegistrationAPI
+func (m *MockKonnectSDK) GetPortalApplicationRegistrationAPI() PortalApplicationRegistrationAPI {
+	if m.PortalApplicationRegistrationFactory != nil {
+		return m.PortalApplicationRegistrationFactory()
 	}
 	return nil
 }

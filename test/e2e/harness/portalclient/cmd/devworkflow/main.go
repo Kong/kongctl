@@ -13,6 +13,7 @@ import (
 	sdkkonnectgo "github.com/Kong/sdk-konnect-go"
 	kkcomponents "github.com/Kong/sdk-konnect-go/models/components"
 	kkoperations "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/google/uuid"
 	"github.com/kong/kongctl/test/e2e/harness/portalclient"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
@@ -24,12 +25,17 @@ func main() {
 			"",
 			"Base URL for the developer portal (for example, https://portal.example.com)",
 		)
-		developerEmail  = flag.String("developer-email", "", "Developer email used for registration and authentication")
-		developerName   = flag.String("developer-name", "Test Developer", "Developer full name")
-		developerPass   = flag.String("developer-password", "", "Developer password used for authentication")
-		applicationName = flag.String("application-name", "e2e-portal-application", "Application name to create")
-		portalID        = flag.String("portal-id", "", "Konnect portal ID (used for administrative approval)")
-		konnectBaseURL  = flag.String("konnect-base-url", "", "Konnect API base URL (optional)")
+		developerEmail      = flag.String("developer-email", "", "Developer email used for registration and authentication")
+		developerName       = flag.String("developer-name", "Test Developer", "Developer full name")
+		developerPass       = flag.String("developer-password", "", "Developer password used for authentication")
+		applicationName     = flag.String("application-name", "e2e-portal-application", "Application name to create")
+		portalID            = flag.String("portal-id", "", "Konnect portal ID (used for administrative approval)")
+		konnectBaseURL      = flag.String("konnect-base-url", "", "Konnect API base URL (optional)")
+		registrationAPIName = flag.String(
+			"registration-api-name",
+			"",
+			"API name to register the application to (optional)",
+		)
 	)
 	flag.Parse()
 
@@ -106,14 +112,100 @@ func main() {
 	}
 	log.Printf("application created (id=%s)", appID)
 
+	var registrationID string
+	if name := stringsTrim(*registrationAPIName); name != "" {
+		log.Printf("resolving API %q for registration", name)
+		apiID, err := resolveAPIID(ctx, api, name)
+		if err != nil {
+			log.Fatalf("resolve API for registration failed: %v", err)
+		}
+		log.Printf("creating application registration for API %s", apiID)
+		registrationID, err = createApplicationRegistration(ctx, api, appID, apiID)
+		if err != nil {
+			log.Fatalf("create application registration failed: %v", err)
+		}
+		log.Printf("application registration created (id=%s)", registrationID)
+	}
+
 	result := map[string]string{
 		"developer_email":  emailToUse,
 		"application_name": *applicationName,
 		"application_id":   appID,
 	}
+	if registrationID != "" {
+		result["registration_id"] = registrationID
+	}
 	if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
 		log.Fatalf("failed to write result: %v", err)
 	}
+}
+
+func resolveAPIID(ctx context.Context, api *portalclient.PortalAPI, apiName string) (string, error) {
+	res, err := api.Raw().ListApisWithResponse(ctx, nil)
+	if err != nil {
+		return "", err
+	}
+	if res.JSON200 == nil {
+		return "", fmt.Errorf("list apis returned no data (status %d)", res.StatusCode())
+	}
+
+	matches := make([]portalclient.Api, 0)
+	for _, apiItem := range res.JSON200.Data {
+		if strings.EqualFold(apiItem.Name, apiName) {
+			matches = append(matches, apiItem)
+		}
+	}
+
+	if len(matches) == 0 {
+		return "", fmt.Errorf("api %q not found", apiName)
+	}
+	if len(matches) > 1 {
+		return "", fmt.Errorf("multiple apis found with name %q", apiName)
+	}
+
+	id := matches[0].Id
+	if id == nil || stringsTrim(id.String()) == "" {
+		return "", fmt.Errorf("api %q has no id", apiName)
+	}
+
+	return stringsTrim(id.String()), nil
+}
+
+func createApplicationRegistration(
+	ctx context.Context, api *portalclient.PortalAPI, applicationID, apiID string,
+) (string, error) {
+	appUUID, err := uuid.Parse(applicationID)
+	if err != nil {
+		return "", fmt.Errorf("parse application id: %w", err)
+	}
+	apiUUID, err := uuid.Parse(apiID)
+	if err != nil {
+		return "", fmt.Errorf("parse api id: %w", err)
+	}
+
+	body := portalclient.CreateApplicationRegistrationJSONRequestBody{
+		ApiId: apiUUID,
+	}
+
+	res, err := api.Raw().CreateApplicationRegistrationWithResponse(
+		ctx,
+		appUUID,
+		body,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	if res.JSON201 == nil {
+		return "", fmt.Errorf("unexpected response creating registration: status=%d body=%s",
+			res.StatusCode(), strings.TrimSpace(string(res.Body)))
+	}
+
+	if res.JSON201.Id == nil {
+		return "", fmt.Errorf("registration response missing id")
+	}
+
+	return stringsTrim(res.JSON201.Id.String()), nil
 }
 
 func randomGmailAddress(base string) string {

@@ -9,6 +9,7 @@ vars:
   developerName: "Portal Applications User"
   developerPassword: "P@ssword123!"
   applicationName: "e2e-portal-application"
+  apiName: "Auto Applied API"
 
 defaults:
   mask:
@@ -143,6 +144,8 @@ steps:
           - "{{ .vars.developerPassword }}"
           - --application-name
           - "{{ .vars.applicationName }}"
+          - --registration-api-name
+          - "{{ .vars.apiName }}"
 
   - name: 004-verify-portal-applications
     skipInputs: true
@@ -165,7 +168,49 @@ steps:
               fields:
                 name: "{{ .vars.applicationName }}"
 
-  - name: 005-delete-portal-application
+  - name: 005-verify-application-registrations
+    skipInputs: true
+    commands:
+      - name: 000-get-registrations
+        outputFormat: json
+        run:
+          - get
+          - portal
+          - application-registrations
+          - --portal-name
+          - "{{ .vars.portalName }}"
+          - --application-name
+          - "{{ .vars.applicationName }}"
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                status: approved
+                api.name: "{{ .vars.apiName }}"
+                application.name: "{{ .vars.applicationName }}"
+        recordVar:
+          name: registrationID
+          responsePath: "[0].id"
+
+  - name: 006-delete-application-registration
+    skipInputs: true
+    commands:
+      - name: 000-delete-registration
+        outputFormat: json
+        run:
+          - delete
+          - portal
+          - application-registrations
+          - --approve
+          - --portal-name
+          - "{{ .vars.portalName }}"
+          - "{{ .vars.registrationID }}"
+
+  - name: 007-delete-portal-application
     skipInputs: true
     commands:
       - name: 000-delete-application
@@ -186,7 +231,7 @@ steps:
                 status: deleted
                 portal_id: "{{ .vars.portalID }}"
 
-  - name: 006-verify-post-delete
+  - name: 008-verify-post-delete
     skipInputs: true
     commands:
       - name: 000-get-applications-after-delete
