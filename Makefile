@@ -107,3 +107,8 @@ analyze-latest-e2e:
 	fi; \
 	PROMPT=$$(printf "%s\n\nLatest artifacts: %s (also via .latest-e2e)." "$$(cat "$$PROMPT_FILE")" "$$ART_DIR"); \
 	LATEST_E2E_DIR="$$ART_DIR" codex exec --sandbox read-only --cd "$(CURDIR)" "$$PROMPT"
+
+.PHONY: reset-org
+reset-org:
+	@echo "Resetting Konnect org (requires KONGCTL_E2E_KONNECT_PAT, optional KONGCTL_E2E_KONNECT_BASE_URL, KONGCTL_E2E_RESET)"
+	go run -tags e2e ./test/e2e/harness/cmd/reset-org --stage make-reset
