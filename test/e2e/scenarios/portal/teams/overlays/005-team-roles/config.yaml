@@ -1,0 +1,58 @@
+_defaults:
+  kongctl:
+    namespace: portal-teams-test
+
+apis:
+  - ref: roles-api
+    name: "roles-api"
+    description: "API for testing portal team roles"
+    kongctl:
+      namespace: portal-teams-test
+
+portals:
+  - ref: dev-portal
+    name: "Developer Portal"
+    display_name: "Developer Portal"
+    description: "Portal for testing team management"
+    authentication_enabled: false
+    rbac_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false
+    kongctl:
+      namespace: portal-teams-test
+
+    teams:
+      - ref: backend-team
+        name: "Backend Team"
+        description: "Updated: Backend API developers"
+        roles:
+          - ref: backend-api-viewer
+            role_name: "API Viewer"
+            entity_id: !ref roles-api#id
+            entity_type_name: "Services"
+            entity_region: "us"
+
+      - ref: frontend-team
+        name: "Frontend Team"
+        description: "Frontend developers building UIs"
+        roles:
+          - ref: frontend-api-consumer
+            role_name: "API Consumer"
+            entity_id: !ref roles-api#id
+            entity_type_name: "Services"
+            entity_region: "us"
+
+portal_teams:
+  - ref: qa-team
+    name: "QA Team"
+    description: "Quality Assurance team"
+    portal: dev-portal
+
+portal_team_roles:
+  - ref: qa-api-viewer
+    portal: dev-portal
+    team: qa-team
+    role_name: "API Viewer"
+    entity_id: !ref roles-api#id
+    entity_type_name: "Services"
+    entity_region: "us"

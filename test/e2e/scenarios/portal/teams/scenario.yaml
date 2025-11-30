@@ -10,6 +10,10 @@ vars:
   frontendTeamRef: frontend-team
   mobileTeamRef: mobile-team
   qaTeamRef: qa-team
+  rolesAPIRef: roles-api
+  backendViewerRoleRef: backend-api-viewer
+  frontendConsumerRoleRef: frontend-api-consumer
+  qaViewerRoleRef: qa-api-viewer
 
 defaults:
   mask:
@@ -347,3 +351,135 @@ steps:
               fields:
                 name: "QA Team"
                 description: "Quality Assurance team"
+
+  - name: 005-team-role-assignments
+    inputOverlayDirs:
+      - overlays/005-team-roles
+    commands:
+      - name: 000-plan-team-roles
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-team-roles.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 4
+          - select: >-
+              changes[?resource_type=='api' && resource_ref=='{{ .vars.rolesAPIRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.rolesAPIRef }}"
+          - select: >-
+              changes[?resource_type=='portal_team_role' && resource_ref=='{{ .vars.backendViewerRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.role_name: "API Viewer"
+          - select: >-
+              changes[?resource_type=='portal_team_role' && resource_ref=='{{ .vars.frontendConsumerRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.role_name: "API Consumer"
+          - select: >-
+              changes[?resource_type=='portal_team_role' && resource_ref=='{{ .vars.qaViewerRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.role_name: "API Viewer"
+
+      - name: 001-apply-team-roles
+        outputFormat: json
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-team-roles.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+
+      - name: 002-plan-team-roles-idempotent
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 006-team-role-removal-sync
+    inputOverlayDirs:
+      - overlays/006-remove-team-role
+    commands:
+      - name: 000-plan-team-role-removal
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-team-role-removal.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='portal_team_role' && action=='DELETE'] | [0]
+            expect:
+              fields:
+                resource_type: portal_team_role
+
+      - name: 001-apply-team-role-removal
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-team-role-removal.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 002-plan-post-removal
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0

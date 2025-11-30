@@ -33,6 +33,7 @@ type ClientConfig struct {
 	PortalCustomDomainAPI  helpers.PortalCustomDomainAPI
 	PortalSnippetAPI       helpers.PortalSnippetAPI
 	PortalTeamAPI          helpers.PortalTeamAPI
+	PortalTeamRolesAPI     helpers.PortalTeamRolesAPI
 
 	// API child resource APIs
 	APIVersionAPI        helpers.APIVersionAPI
@@ -57,6 +58,7 @@ type Client struct {
 	portalCustomDomainAPI  helpers.PortalCustomDomainAPI
 	portalSnippetAPI       helpers.PortalSnippetAPI
 	portalTeamAPI          helpers.PortalTeamAPI
+	portalTeamRolesAPI     helpers.PortalTeamRolesAPI
 
 	// API child resource APIs
 	apiVersionAPI        helpers.APIVersionAPI
@@ -82,6 +84,7 @@ func NewClient(config ClientConfig) *Client {
 		portalCustomDomainAPI:  config.PortalCustomDomainAPI,
 		portalSnippetAPI:       config.PortalSnippetAPI,
 		portalTeamAPI:          config.PortalTeamAPI,
+		portalTeamRolesAPI:     config.PortalTeamRolesAPI,
 
 		// API child resource APIs
 		apiVersionAPI:        config.APIVersionAPI,
@@ -2507,6 +2510,136 @@ func (c *Client) DeletePortalTeam(ctx context.Context, portalID string, teamID s
 		})
 	}
 	return nil
+}
+
+// ListPortalTeamRoles returns all assigned roles for a portal team
+func (c *Client) ListPortalTeamRoles(ctx context.Context, portalID string, teamID string) ([]PortalTeamRole, error) {
+	if c.portalTeamRolesAPI == nil {
+		return nil, fmt.Errorf("portal team roles API not configured")
+	}
+
+	var (
+		allRoles   []PortalTeamRole
+		pageNumber int64 = 1
+		pageSize   int64 = 100
+	)
+
+	for {
+		req := kkOps.ListPortalTeamRolesRequest{
+			PortalID:   portalID,
+			TeamID:     teamID,
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.portalTeamRolesAPI.ListPortalTeamRoles(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list portal team roles", &ErrorWrapperOptions{
+				ResourceType: "portal_team_role",
+				UseEnhanced:  true,
+			})
+		}
+
+		if resp.AssignedPortalRoleCollectionResponse == nil || len(resp.AssignedPortalRoleCollectionResponse.Data) == 0 {
+			break
+		}
+
+		for _, r := range resp.AssignedPortalRoleCollectionResponse.Data {
+			role := PortalTeamRole{
+				ID:             getString(r.ID),
+				RoleName:       getString(r.RoleName),
+				EntityID:       getString(r.EntityID),
+				EntityTypeName: getString(r.EntityTypeName),
+				EntityRegion:   string(getEntityRegion(r.EntityRegion)),
+				TeamID:         teamID,
+				PortalID:       portalID,
+			}
+			allRoles = append(allRoles, role)
+		}
+
+		pageNumber++
+		if resp.AssignedPortalRoleCollectionResponse.Meta.Page.Total <= float64(pageSize*pageNumber) {
+			break
+		}
+	}
+
+	return allRoles, nil
+}
+
+// AssignPortalTeamRole assigns a role to a portal team
+func (c *Client) AssignPortalTeamRole(
+	ctx context.Context,
+	portalID string,
+	teamID string,
+	req kkComps.PortalAssignRoleRequest,
+	namespace string,
+) (string, error) {
+	if c.portalTeamRolesAPI == nil {
+		return "", fmt.Errorf("portal team roles API not configured")
+	}
+
+	assignReq := kkOps.AssignRoleToPortalTeamsRequest{
+		PortalID:              portalID,
+		TeamID:                teamID,
+		PortalAssignRoleRequest: &req,
+	}
+
+	resp, err := c.portalTeamRolesAPI.AssignRoleToPortalTeams(ctx, assignReq)
+	if err != nil {
+		roleName := ""
+		if req.RoleName != nil {
+			roleName = *req.RoleName
+		}
+		return "", WrapAPIError(err, "assign portal team role", &ErrorWrapperOptions{
+			ResourceType: "portal_team_role",
+			ResourceName: roleName,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.PortalAssignedRoleResponse == nil {
+		return "", fmt.Errorf("no response data from assign portal team role")
+	}
+
+	return getString(resp.PortalAssignedRoleResponse.ID), nil
+}
+
+// RemovePortalTeamRole removes an assigned role from a portal team
+func (c *Client) RemovePortalTeamRole(ctx context.Context, portalID string, teamID string, roleID string) error {
+	if c.portalTeamRolesAPI == nil {
+		return fmt.Errorf("portal team roles API not configured")
+	}
+
+	removeReq := kkOps.RemoveRoleFromPortalTeamRequest{
+		PortalID: portalID,
+		TeamID:   teamID,
+		RoleID:   roleID,
+	}
+
+	_, err := c.portalTeamRolesAPI.RemoveRoleFromPortalTeam(ctx, removeReq)
+	if err != nil {
+		return WrapAPIError(err, "remove portal team role", &ErrorWrapperOptions{
+			ResourceType: "portal_team_role",
+			UseEnhanced:  true,
+		})
+	}
+
+	return nil
+}
+
+func getString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+func getEntityRegion(value *kkComps.EntityRegion) kkComps.EntityRegion {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 // shouldIncludeNamespace checks if a resource's namespace should be included based on filter

@@ -42,6 +42,7 @@ type Executor struct {
 	portalPageExecutor    *BaseExecutor[kkComps.CreatePortalPageRequest, kkComps.UpdatePortalPageRequest]
 	portalSnippetExecutor *BaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest]
 	portalTeamExecutor    *BaseExecutor[kkComps.PortalCreateTeamRequest, kkComps.PortalUpdateTeamRequest]
+	portalTeamRoleExecutor *BaseExecutor[kkComps.PortalAssignRoleRequest, kkComps.PortalAssignRoleRequest]
 
 	// API child resource executors
 	apiVersionExecutor     *BaseExecutor[kkComps.CreateAPIVersionRequest, kkComps.APIVersion]
@@ -107,6 +108,11 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 	)
 	e.portalTeamExecutor = NewBaseExecutor[kkComps.PortalCreateTeamRequest, kkComps.PortalUpdateTeamRequest](
 		NewPortalTeamAdapter(client),
+		client,
+		dryRun,
+	)
+	e.portalTeamRoleExecutor = NewBaseExecutor[kkComps.PortalAssignRoleRequest, kkComps.PortalAssignRoleRequest](
+		NewPortalTeamRoleAdapter(client),
 		client,
 		dryRun,
 	)
@@ -552,6 +558,42 @@ func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.Referen
 	return portal.ID, nil
 }
 
+func (e *Executor) resolvePortalTeamRef(
+	ctx context.Context,
+	portalID string,
+	refInfo planner.ReferenceInfo,
+) (string, error) {
+	if portalID == "" {
+		return "", fmt.Errorf("portal ID is required to resolve portal team")
+	}
+
+	if teams, ok := e.refToID["portal_team"]; ok {
+		if id, found := teams[refInfo.Ref]; found && id != "" {
+			return id, nil
+		}
+	}
+
+	lookupValue := refInfo.Ref
+	if refInfo.LookupFields != nil {
+		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
+			lookupValue = name
+		}
+	}
+
+	portalTeams, err := e.client.ListPortalTeams(ctx, portalID)
+	if err != nil {
+		return "", fmt.Errorf("failed to list portal teams: %w", err)
+	}
+
+	for _, team := range portalTeams {
+		if team.Name == lookupValue {
+			return team.ID, nil
+		}
+	}
+
+	return "", fmt.Errorf("portal team not found: ref=%s, looked up by name=%s", refInfo.Ref, lookupValue)
+}
+
 func (e *Executor) resolveControlPlaneRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
 	lookupRef := refInfo.Ref
 	if tags.IsRefPlaceholder(lookupRef) {
@@ -727,11 +769,18 @@ func extractMemberIDsFromField(field any) ([]string, error) {
 
 // resolveAPIRef resolves an API reference to its ID
 func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
+	lookupRef := refInfo.Ref
+	if tags.IsRefPlaceholder(lookupRef) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+			lookupRef = parsedRef
+		}
+	}
+
 	// First check if it was created in this execution
 	if apis, ok := e.refToID["api"]; ok {
-		if id, found := apis[refInfo.Ref]; found {
+		if id, found := apis[lookupRef]; found {
 			slog.Debug("Resolved API reference from created resources",
-				"api_ref", refInfo.Ref,
+				"api_ref", lookupRef,
 				"api_id", id,
 			)
 			return id, nil
@@ -739,7 +788,7 @@ func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceI
 	}
 
 	// Determine the lookup value - use name from lookup fields if available
-	lookupValue := refInfo.Ref
+	lookupValue := lookupRef
 	if refInfo.LookupFields != nil {
 		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
 			lookupValue = name
@@ -1241,6 +1290,43 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References["portal_id"] = portalRef
 		}
 		return e.portalTeamExecutor.Create(ctx, *change)
+	case "portal_team_role":
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
+
+		if teamRef, ok := change.References["team_id"]; ok && teamRef.ID == "" {
+			portalID := ""
+			if portalInfo, exists := change.References["portal_id"]; exists {
+				portalID = portalInfo.ID
+			}
+			if portalID == "" && change.Parent != nil {
+				portalID = change.Parent.ID
+			}
+
+			teamID, err := e.resolvePortalTeamRef(ctx, portalID, teamRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal team reference: %w", err)
+			}
+			teamRef.ID = teamID
+			change.References["team_id"] = teamRef
+		}
+
+		if entityRef, ok := change.References["entity_id"]; ok && (entityRef.ID == "" || entityRef.ID == "[unknown]") {
+			apiID, err := e.resolveAPIRef(ctx, entityRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve entity reference: %w", err)
+			}
+			entityRef.ID = apiID
+			change.References["entity_id"] = entityRef
+		}
+
+		return e.portalTeamRoleExecutor.Create(ctx, *change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
 	}
@@ -1492,6 +1578,31 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 			change.References["portal_id"] = portalRef
 		}
 		return e.portalTeamExecutor.Delete(ctx, *change)
+	case "portal_team_role":
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
+		if teamRef, ok := change.References["team_id"]; ok && teamRef.ID == "" {
+			portalID := ""
+			if portalInfo, exists := change.References["portal_id"]; exists {
+				portalID = portalInfo.ID
+			}
+			if portalID == "" && change.Parent != nil {
+				portalID = change.Parent.ID
+			}
+			teamID, err := e.resolvePortalTeamRef(ctx, portalID, teamRef)
+			if err != nil {
+				return fmt.Errorf("failed to resolve portal team reference: %w", err)
+			}
+			teamRef.ID = teamID
+			change.References["team_id"] = teamRef
+		}
+		return e.portalTeamRoleExecutor.Delete(ctx, *change)
 	// Note: portal_customization is a singleton resource and cannot be deleted
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)

@@ -134,6 +134,7 @@ func (r *ReferenceResolver) isReferenceField(fieldName string) bool {
 		"control_plane_id",
 		"portal_id",
 		"auth_strategy_ids",
+		"entity_id",
 		// Add more as needed
 	}
 
@@ -157,6 +158,8 @@ func (r *ReferenceResolver) getResourceTypeForField(fieldName string) string {
 		return "control_plane"
 	case "portal_id":
 		return ResourceTypePortal
+	case "entity_id":
+		return "api"
 	default:
 		return ""
 	}

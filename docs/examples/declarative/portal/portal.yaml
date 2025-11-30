@@ -208,11 +208,29 @@ portals:
       - ref: platform-team
         name: "Platform Team"
         description: "Internal platform engineering team managing core services."
+        roles:
+          - ref: platform-sms-viewer
+            role_name: "API Viewer"
+            entity_id: !ref sms#id
+            entity_type_name: "Services"
+            entity_region: "us"
 
       - ref: partner-integrators
         name: "Partner Integrators"
         description: "External partners who build integrations and need targeted access."
+        roles:
+          - ref: partner-voice-consumer
+            role_name: "API Consumer"
+            entity_id: !ref voice#id
+            entity_type_name: "Services"
+            entity_region: "us"
 
       - ref: beta-testers
         name: "Beta Testers"
         description: "Early adopters who preview new APIs and provide feedback."
+        roles:
+          - ref: beta-sms-viewer
+            role_name: "API Viewer"
+            entity_id: !ref sms#id
+            entity_type_name: "Services"
+            entity_region: "us"

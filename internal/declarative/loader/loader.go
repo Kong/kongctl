@@ -451,6 +451,15 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 		accumulated.PortalTeams = append(accumulated.PortalTeams, team)
 	}
 
+	for _, role := range source.PortalTeamRoles {
+		if accumulated.HasRef(role.Ref) {
+			existing, _ := accumulated.GetResourceByRef(role.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
+				role.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.PortalTeamRoles = append(accumulated.PortalTeamRoles, role)
+	}
+
 	// If this source defines a namespace default without parent resources,
 	// propagate it so sync mode can inspect the correct namespace.
 	if source.DefaultNamespace != "" {
@@ -783,6 +792,13 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		for j := range portal.Teams {
 			team := portal.Teams[j]
 			team.Portal = portal.Ref // Set parent reference
+			for k := range team.Roles {
+				role := team.Roles[k]
+				role.Portal = portal.Ref
+				role.Team = team.Ref
+				rs.PortalTeamRoles = append(rs.PortalTeamRoles, role)
+			}
+			team.Roles = nil
 			rs.PortalTeams = append(rs.PortalTeams, team)
 		}
 
