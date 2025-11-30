@@ -440,8 +440,16 @@ func (rs *ResourceSet) GetPortalTeamsByNamespace(namespace string) []PortalTeamR
 	var filtered []PortalTeamResource
 	for _, team := range rs.PortalTeams {
 		// Check if parent portal is in the namespace
-		if portal := rs.GetPortalByRef(team.Portal); portal != nil && GetNamespace(portal.Kongctl) == namespace {
-			filtered = append(filtered, team)
+		if portal := rs.GetPortalByRef(team.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, team)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, team)
+			}
 		}
 	}
 	return filtered
@@ -451,8 +459,16 @@ func (rs *ResourceSet) GetPortalTeamsByNamespace(namespace string) []PortalTeamR
 func (rs *ResourceSet) GetPortalTeamRolesByNamespace(namespace string) []PortalTeamRoleResource {
 	var filtered []PortalTeamRoleResource
 	for _, role := range rs.PortalTeamRoles {
-		if portal := rs.GetPortalByRef(role.Portal); portal != nil && GetNamespace(portal.Kongctl) == namespace {
-			filtered = append(filtered, role)
+		if portal := rs.GetPortalByRef(role.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, role)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, role)
+			}
 		}
 	}
 	return filtered

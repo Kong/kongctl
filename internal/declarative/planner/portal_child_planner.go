@@ -1885,7 +1885,7 @@ func (p *Planner) planPortalTeamRolesChanges(
 			}
 
 			ref, field, ok := tags.ParseRefPlaceholder(entityID)
-			if !ok || field != "" && field != "id" && field != "ID" {
+			if !ok || (field != "" && field != "id" && field != "ID") {
 				return entityID
 			}
 

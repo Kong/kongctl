@@ -2558,7 +2558,7 @@ func (c *Client) ListPortalTeamRoles(ctx context.Context, portalID string, teamI
 		}
 
 		pageNumber++
-		if resp.AssignedPortalRoleCollectionResponse.Meta.Page.Total <= float64(pageSize*pageNumber) {
+		if float64(pageSize*(pageNumber-1)) >= resp.AssignedPortalRoleCollectionResponse.Meta.Page.Total {
 			break
 		}
 	}
@@ -2579,8 +2579,8 @@ func (c *Client) AssignPortalTeamRole(
 	}
 
 	assignReq := kkOps.AssignRoleToPortalTeamsRequest{
-		PortalID:              portalID,
-		TeamID:                teamID,
+		PortalID:                portalID,
+		TeamID:                  teamID,
 		PortalAssignRoleRequest: &req,
 	}
 
