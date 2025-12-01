@@ -53,6 +53,21 @@ Both flows request the Gmail readonly scope. After you authorize with the test G
 - `Access token` (short-lived)
 - `Refresh token` (long-lived; set this as `KONGCTL_E2E_GMAIL_REFRESH_TOKEN`)
 
+### Push the generated secrets to GitHub
+
+You can push the values from the generated env file into GitHub repo secrets using the helper script (requires `gh` CLI logged in with repo secret write access):
+
+```bash
+# Make the script executable once
+chmod +x test/gmail/push-secrets.sh
+
+# Push to the current repo detected by gh repo view
+./test/gmail/push-secrets.sh --env-file /tmp/gmail-env.sh
+
+# Or push to an explicit repo
+./test/gmail/push-secrets.sh --env-file /tmp/gmail-env.sh --repo kong/kongctl
+```
+
 ## Notes
 
 - Use an incognito/private browser window if multiple Google accounts are signed in so you can pick the correct inbox.
