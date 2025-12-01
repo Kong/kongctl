@@ -50,8 +50,8 @@ python test/gmail/refresh-token.py \
 The output file will contain `export` statements for the refresh token, access token, client id/secret from the JSON, and the Gmail address if provided (otherwise a commented placeholder).
 
 Both flows request the Gmail readonly scope. After you authorize with the test Gmail account, the script prints:
-- `Access token` (short-lived)
-- `Refresh token` (long-lived; set this as `KONGCTL_E2E_GMAIL_REFRESH_TOKEN`)
+- Masked access and refresh tokens for confirmation
+- Use `--output-env` to get the full values written to disk (refresh token is long-lived; set this as `KONGCTL_E2E_GMAIL_REFRESH_TOKEN`)
 
 ### Push the generated secrets to GitHub
 

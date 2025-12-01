@@ -40,6 +40,14 @@ def parse_args():
     return parser.parse_args()
 
 
+def mask_token(value: str | None) -> str:
+    if not value:
+        return ""
+    if len(value) <= 8:
+        return "***"
+    return f"{value[:4]}...{value[-4:]}"
+
+
 def load_client_meta(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as fh:
         data = json.load(fh)
@@ -104,7 +112,10 @@ def main():
         creds = run_local(flow)
 
     print("Access token:", creds.token)
-    print("Refresh token:", creds.refresh_token)
+    print("Access token (masked):", mask_token(creds.token))
+    print("Refresh token (masked):", mask_token(creds.refresh_token))
+    if not args.output_env:
+        print("Full tokens not printed. Use --output-env to write export statements to a file.", file=sys.stderr)
 
     if args.output_env:
         write_exports(
