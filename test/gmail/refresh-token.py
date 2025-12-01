@@ -14,9 +14,9 @@ def parse_args():
         description="Obtain a Gmail access/refresh token using an OAuth client secrets JSON.",
     )
     parser.add_argument(
-        "--client-secret",
+        "--client-config",
         default="client_secret.json",
-        help="Path to the OAuth client secrets JSON (Desktop application).",
+        help="Path to the OAuth client JSON (Desktop application).",
     )
     parser.add_argument(
         "--scope",
@@ -94,16 +94,16 @@ def write_exports(path: Path, client_meta: dict[str, Any], refresh: str, access:
 
 def main():
     args = parse_args()
-    client_secret_path = Path(args.client_secret)
+    client_secret_path = Path(args.client_config)
 
     try:
         client_meta = load_client_meta(client_secret_path)
         flow = InstalledAppFlow.from_client_secrets_file(
-            args.client_secret,
+            args.client_config,
             scopes=[args.scope],
         )
     except Exception as exc:  # pragma: no cover - helper script
-        print(f"Failed to load client secrets from {args.client_secret}: {exc}", file=sys.stderr)
+        print(f"Failed to load client config file at {args.client_config}: {exc}", file=sys.stderr)
         return 1
 
     if args.manual:

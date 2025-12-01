@@ -27,14 +27,14 @@ The script expects a **Desktop application** OAuth client JSON (not a Web client
 ```
 
 ```bash
-python test/gmail/refresh-token.py --client-secret /path/to/client_secret.json
+python test/gmail/refresh-token.py --client-config /path/to/client_secret.json
 ```
 
 By default it starts a local loopback listener and opens the browser. If that fails or you prefer copy/paste, use the manual flow:
 
 ```bash
 python test/gmail/refresh-token.py \
-  --client-secret /path/to/client_secret.json \
+  --client-config /path/to/client_secret.json \
   --manual
 ```
 
@@ -42,7 +42,7 @@ To capture the exports into a file for reuse, add `--output-env`:
 
 ```bash
 python test/gmail/refresh-token.py \
-  --client-secret /path/to/client_secret.json \
+  --client-config /path/to/client_secret.json \
   --output-env /tmp/gmail-env.sh \
   --gmail-address "<your-test-gmail@example.com>"
 ```
