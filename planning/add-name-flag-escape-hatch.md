@@ -731,7 +731,8 @@ For each command type, manually verify:
 
 **Section to add to user guide:**
 
-```markdown
+---
+
 ## Avoiding Name Collisions with Subcommands
 
 Some command names are reserved because they match subcommand names. For
@@ -767,7 +768,8 @@ kongctl get api --name documents
 - application-registrations, registration, registrations
 
 **Tip:** When in doubt, use the `--name` flag for clarity.
-```
+
+---
 
 ## Rollout Plan
 
