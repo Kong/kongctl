@@ -19,6 +19,7 @@ const (
 	ResourceTypePortalPage              ResourceType = "portal_page"
 	ResourceTypePortalSnippet           ResourceType = "portal_snippet"
 	ResourceTypePortalTeam              ResourceType = "portal_team"
+	ResourceTypePortalTeamRole          ResourceType = "portal_team_role"
 )
 
 const (
@@ -52,6 +53,7 @@ type ResourceSet struct {
 	PortalPages          []PortalPageResource          `yaml:"portal_pages,omitempty"                json:"portal_pages,omitempty"`          //nolint:lll
 	PortalSnippets       []PortalSnippetResource       `yaml:"portal_snippets,omitempty"             json:"portal_snippets,omitempty"`       //nolint:lll
 	PortalTeams          []PortalTeamResource          `yaml:"portal_teams,omitempty"                json:"portal_teams,omitempty"`          //nolint:lll
+	PortalTeamRoles      []PortalTeamRoleResource      `yaml:"portal_team_roles,omitempty"           json:"portal_team_roles,omitempty"`     //nolint:lll
 
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
@@ -190,6 +192,12 @@ func (rs *ResourceSet) GetResourceByRef(ref string) (Resource, bool) {
 	for i := range rs.PortalTeams {
 		if rs.PortalTeams[i].GetRef() == ref {
 			return &rs.PortalTeams[i], true
+		}
+	}
+
+	for i := range rs.PortalTeamRoles {
+		if rs.PortalTeamRoles[i].GetRef() == ref {
+			return &rs.PortalTeamRoles[i], true
 		}
 	}
 
@@ -432,8 +440,35 @@ func (rs *ResourceSet) GetPortalTeamsByNamespace(namespace string) []PortalTeamR
 	var filtered []PortalTeamResource
 	for _, team := range rs.PortalTeams {
 		// Check if parent portal is in the namespace
-		if portal := rs.GetPortalByRef(team.Portal); portal != nil && GetNamespace(portal.Kongctl) == namespace {
-			filtered = append(filtered, team)
+		if portal := rs.GetPortalByRef(team.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, team)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, team)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetPortalTeamRolesByNamespace returns all portal team role resources from the specified namespace
+func (rs *ResourceSet) GetPortalTeamRolesByNamespace(namespace string) []PortalTeamRoleResource {
+	var filtered []PortalTeamRoleResource
+	for _, role := range rs.PortalTeamRoles {
+		if portal := rs.GetPortalByRef(role.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, role)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, role)
+			}
 		}
 	}
 	return filtered

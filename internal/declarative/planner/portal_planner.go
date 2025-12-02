@@ -703,6 +703,14 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			"error", err.Error())
 	}
 
+	if err := planner.planPortalTeamRolesChanges(
+		ctx, parentNamespace, "", desired.Ref, desired.Name, plan,
+	); err != nil {
+		planner.logger.Debug("Failed to plan portal team roles for new portal",
+			"portal", desired.Ref,
+			"error", err.Error())
+	}
+
 	// Plan custom domain
 	domains := make([]resources.PortalCustomDomainResource, 0)
 	for _, domain := range planner.desiredPortalCustomDomains {
@@ -780,6 +788,12 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 		ctx, parentNamespace, current.ID, desired.Ref, teams, plan,
 	); err != nil {
 		return fmt.Errorf("failed to plan portal team changes: %w", err)
+	}
+
+	if err := planner.planPortalTeamRolesChanges(
+		ctx, parentNamespace, current.ID, desired.Ref, desired.Name, plan,
+	); err != nil {
+		return fmt.Errorf("failed to plan portal team role changes: %w", err)
 	}
 
 	// Plan custom domain (singleton resource)

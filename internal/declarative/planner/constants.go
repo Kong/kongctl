@@ -31,6 +31,9 @@ const (
 	// ResourceTypePortalTeam is the resource type for portal teams
 	ResourceTypePortalTeam = "portal_team"
 
+	// ResourceTypePortalTeamRole is the resource type for portal team roles
+	ResourceTypePortalTeamRole = "portal_team_role"
+
 	// ResourceTypePortalCustomization is the resource type for portal customizations
 	ResourceTypePortalCustomization = "portal_customization"
 

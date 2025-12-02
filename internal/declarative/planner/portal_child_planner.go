@@ -10,6 +10,7 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 // Portal Customization planning
@@ -1804,4 +1805,339 @@ func (p *Planner) planPortalTeamDelete(
 			slog.String("portal_ref", portalRef),
 			slog.String("resource_id", team.ID))
 	}
+}
+
+// Portal Team Role planning
+
+func (p *Planner) planPortalTeamRolesChanges(
+	ctx context.Context,
+	parentNamespace string,
+	portalID string,
+	portalRef string,
+	portalName string,
+	plan *Plan,
+) error {
+	if p.logger != nil {
+		p.logger.Debug("Planning portal team role changes",
+			slog.String("portal_ref", portalRef),
+			slog.String("namespace", parentNamespace))
+	}
+
+	rolesByTeam := make(map[string][]resources.PortalTeamRoleResource)
+	for _, role := range p.desiredPortalTeamRoles {
+		if role.Portal == portalRef {
+			rolesByTeam[role.Team] = append(rolesByTeam[role.Team], role)
+		}
+	}
+
+	if len(rolesByTeam) == 0 {
+		return nil
+	}
+
+	teamByRef := make(map[string]*resources.PortalTeamResource)
+	for i := range p.desiredPortalTeams {
+		team := p.desiredPortalTeams[i]
+		if team.Portal == portalRef {
+			teamByRef[team.Ref] = &team
+		}
+	}
+
+	if plan.Metadata.Mode == PlanModeSync {
+		for teamRef := range teamByRef {
+			if _, ok := rolesByTeam[teamRef]; !ok {
+				rolesByTeam[teamRef] = []resources.PortalTeamRoleResource{}
+			}
+		}
+	}
+
+	existingTeamsByName := make(map[string]state.PortalTeam)
+	if portalID != "" {
+		teams, err := p.client.ListPortalTeams(ctx, portalID)
+		if err != nil {
+			// If portal team API is not configured, skip processing
+			if strings.Contains(err.Error(), "portal team API not configured") {
+				return nil
+			}
+			return fmt.Errorf("failed to list existing portal teams for portal %s: %w", portalID, err)
+		}
+		for _, team := range teams {
+			existingTeamsByName[team.Name] = team
+		}
+	}
+
+	existingRolesCache := make(map[string]map[string]state.PortalTeamRole)
+	teamsDeleted := make(map[string]bool)
+	for _, change := range plan.Changes {
+		if change.ResourceType == ResourceTypePortalTeam && change.ResourceRef != "" && change.Action == ActionDelete {
+			teamsDeleted[change.ResourceRef] = true
+		}
+	}
+
+	for teamRef, desiredRoles := range rolesByTeam {
+		if teamsDeleted[teamRef] {
+			continue
+		}
+
+		// Build an entity ID for comparison that resolves any ref placeholders
+		resolveEntityID := func(entityID string) string {
+			if p.resources == nil || !tags.IsRefPlaceholder(entityID) {
+				return entityID
+			}
+
+			ref, field, ok := tags.ParseRefPlaceholder(entityID)
+			if !ok || (field != "" && field != "id" && field != "ID") {
+				return entityID
+			}
+
+			if api := p.resources.GetAPIByRef(ref); api != nil && api.GetKonnectID() != "" {
+				return api.GetKonnectID()
+			}
+
+			return entityID
+		}
+
+		teamName := ""
+		if team, ok := teamByRef[teamRef]; ok {
+			teamName = team.Name
+		}
+
+		teamID := ""
+		if teamName != "" {
+			if existingTeam, ok := existingTeamsByName[teamName]; ok {
+				teamID = existingTeam.ID
+			}
+		}
+
+		existingRoles := make(map[string]state.PortalTeamRole)
+		if teamID != "" {
+			if cached, ok := existingRolesCache[teamID]; ok {
+				existingRoles = cached
+			} else {
+				roles, err := p.client.ListPortalTeamRoles(ctx, portalID, teamID)
+				if err != nil {
+					return fmt.Errorf("failed to list portal team roles for team %s: %w", teamID, err)
+				}
+				for _, role := range roles {
+					key := buildPortalTeamRoleKey(role.RoleName, role.EntityID, role.EntityTypeName, role.EntityRegion)
+					existingRoles[key] = role
+				}
+				existingRolesCache[teamID] = existingRoles
+			}
+		}
+
+		desiredKeys := make(map[string]bool)
+		for _, role := range desiredRoles {
+			key := buildPortalTeamRoleKey(
+				role.RoleName,
+				resolveEntityID(role.EntityID),
+				role.EntityTypeName,
+				role.EntityRegion,
+			)
+			if desiredKeys[key] {
+				return fmt.Errorf("duplicate portal team role assignment %q for team %q", key, teamRef)
+			}
+			desiredKeys[key] = true
+
+			if _, exists := existingRoles[key]; exists {
+				continue
+			}
+
+			p.planPortalTeamRoleCreate(
+				parentNamespace,
+				portalRef,
+				portalName,
+				portalID,
+				teamRef,
+				teamName,
+				teamID,
+				findChangeID(plan, ResourceTypePortalTeam, teamRef),
+				role,
+				plan,
+			)
+		}
+
+		if plan.Metadata.Mode == PlanModeSync && teamID != "" {
+			for key, existingRole := range existingRoles {
+				if !desiredKeys[key] {
+					p.planPortalTeamRoleDelete(
+						parentNamespace,
+						portalRef,
+						portalName,
+						portalID,
+						teamRef,
+						teamName,
+						teamID,
+						existingRole,
+						plan,
+					)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (p *Planner) planPortalTeamRoleCreate(
+	parentNamespace string,
+	portalRef string,
+	portalName string,
+	portalID string,
+	teamRef string,
+	teamName string,
+	teamID string,
+	teamChangeID string,
+	role resources.PortalTeamRoleResource,
+	plan *Plan,
+) {
+	fields := map[string]any{
+		"role_name":        role.RoleName,
+		"entity_id":        role.EntityID,
+		"entity_type_name": role.EntityTypeName,
+		"entity_region":    role.EntityRegion,
+	}
+
+	var dependencies []string
+	if teamChangeID != "" {
+		dependencies = append(dependencies, teamChangeID)
+	}
+
+	portalChangeID := findChangeID(plan, ResourceTypePortal, portalRef)
+	if portalChangeID != "" {
+		dependencies = append(dependencies, portalChangeID)
+	}
+
+	if tags.IsRefPlaceholder(role.EntityID) {
+		if apiRef, _, ok := tags.ParseRefPlaceholder(role.EntityID); ok {
+			if apiChangeID := findChangeID(plan, string(resources.ResourceTypeAPI), apiRef); apiChangeID != "" {
+				dependencies = append(dependencies, apiChangeID)
+			}
+		}
+	}
+
+	refs := map[string]ReferenceInfo{
+		"portal_id": {
+			Ref: portalRef,
+			LookupFields: map[string]string{
+				"name": portalName,
+			},
+		},
+		"team_id": {
+			Ref: teamRef,
+			LookupFields: map[string]string{
+				"name": teamName,
+			},
+		},
+	}
+
+	if portalID != "" {
+		refs["portal_id"] = ReferenceInfo{
+			Ref: portalRef,
+			ID:  portalID,
+		}
+	}
+
+	if teamID != "" {
+		refs["team_id"] = ReferenceInfo{
+			Ref: teamRef,
+			ID:  teamID,
+			LookupFields: map[string]string{
+				"name": teamName,
+			},
+		}
+	}
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionCreate, ResourceTypePortalTeamRole, role.GetRef()),
+		ResourceType: ResourceTypePortalTeamRole,
+		ResourceRef:  role.GetRef(),
+		Action:       ActionCreate,
+		Fields:       fields,
+		DependsOn:    dependencies,
+		Namespace:    parentNamespace,
+		References:   refs,
+	}
+
+	plan.AddChange(change)
+
+	if p.logger != nil {
+		p.logger.Debug("Queued portal team role create change",
+			slog.String("change_id", change.ID),
+			slog.String("team_ref", teamRef),
+			slog.String("portal_ref", portalRef),
+			slog.Any("fields", fields))
+	}
+}
+
+func (p *Planner) planPortalTeamRoleDelete(
+	parentNamespace string,
+	portalRef string,
+	portalName string,
+	portalID string,
+	teamRef string,
+	teamName string,
+	teamID string,
+	role state.PortalTeamRole,
+	plan *Plan,
+) {
+	refs := map[string]ReferenceInfo{
+		"portal_id": {
+			Ref: portalRef,
+			ID:  portalID,
+			LookupFields: map[string]string{
+				"name": portalName,
+			},
+		},
+		"team_id": {
+			Ref: teamRef,
+			ID:  teamID,
+			LookupFields: map[string]string{
+				"name": teamName,
+			},
+		},
+	}
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionDelete, ResourceTypePortalTeamRole, role.RoleName),
+		ResourceType: ResourceTypePortalTeamRole,
+		ResourceRef:  role.RoleName,
+		ResourceID:   role.ID,
+		Action:       ActionDelete,
+		Fields: map[string]any{
+			"role_name":        role.RoleName,
+			"entity_id":        role.EntityID,
+			"entity_type_name": role.EntityTypeName,
+			"entity_region":    role.EntityRegion,
+		},
+		DependsOn:  []string{},
+		Namespace:  parentNamespace,
+		References: refs,
+		Parent: &ParentInfo{
+			Ref: teamRef,
+			ID:  teamID,
+		},
+	}
+
+	plan.AddChange(change)
+
+	if p.logger != nil {
+		p.logger.Debug("Queued portal team role delete change",
+			slog.String("change_id", change.ID),
+			slog.String("team_ref", teamRef),
+			slog.String("portal_ref", portalRef),
+			slog.Any("fields", change.Fields))
+	}
+}
+
+func buildPortalTeamRoleKey(roleName, entityID, entityTypeName, entityRegion string) string {
+	return fmt.Sprintf("%s|%s|%s|%s", roleName, entityID, entityTypeName, strings.ToLower(entityRegion))
+}
+
+func findChangeID(plan *Plan, resourceType string, resourceRef string) string {
+	for _, change := range plan.Changes {
+		if change.ResourceType == resourceType && change.ResourceRef == resourceRef {
+			return change.ID
+		}
+	}
+	return ""
 }

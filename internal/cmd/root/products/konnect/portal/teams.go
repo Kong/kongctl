@@ -88,6 +88,10 @@ func newGetPortalTeamsCmd(
 		addParentFlags(verb, cmd)
 	}
 
+	if teamRolesCmd := newGetPortalTeamRolesCmd(verb, addParentFlags, parentPreRun); teamRolesCmd != nil {
+		cmd.AddCommand(teamRolesCmd)
+	}
+
 	return cmd
 }
 

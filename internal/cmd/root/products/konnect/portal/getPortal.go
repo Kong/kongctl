@@ -582,6 +582,10 @@ func newGetPortalCmd(verb verbs.VerbValue,
 		rv.AddCommand(registrationsCmd)
 	}
 
+	if teamRolesCmd := newGetPortalTeamRolesCmd(verb, addParentFlags, parentPreRun); teamRolesCmd != nil {
+		rv.AddCommand(teamRolesCmd)
+	}
+
 	if teamsCmd := newGetPortalTeamsCmd(verb, addParentFlags, parentPreRun); teamsCmd != nil {
 		rv.AddCommand(teamsCmd)
 	}

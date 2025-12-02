@@ -23,6 +23,7 @@ type CachedPortal struct {
 	CustomDomain  *PortalCustomDomain          // singleton
 	Snippets      map[string]*PortalSnippet    // snippetID -> snippet
 	Teams         map[string]*PortalTeam       // teamID -> team
+	TeamRoles     map[string]*PortalTeamRole   // roleAssignmentID -> role
 }
 
 // CachedPortalPage represents a page with its children
@@ -173,4 +174,15 @@ type PortalTeam struct {
 	ID          string
 	Name        string
 	Description string
+}
+
+// PortalTeamRole represents an assigned role for a portal team
+type PortalTeamRole struct {
+	ID             string
+	RoleName       string
+	EntityID       string
+	EntityTypeName string
+	EntityRegion   string
+	TeamID         string
+	PortalID       string
 }

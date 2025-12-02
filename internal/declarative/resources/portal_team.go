@@ -15,6 +15,9 @@ type PortalTeamResource struct {
 	// Parent portal reference
 	Portal string `yaml:"portal,omitempty" json:"portal,omitempty"`
 
+	// Child resources
+	Roles []PortalTeamRoleResource `yaml:"roles,omitempty" json:"roles,omitempty"`
+
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
 }
@@ -56,12 +59,26 @@ func (p PortalTeamResource) Validate() error {
 		return fmt.Errorf("team name is required")
 	}
 
+	roleRefs := make(map[string]bool)
+	for i, role := range p.Roles {
+		if err := role.Validate(); err != nil {
+			return fmt.Errorf("invalid team role %d: %w", i, err)
+		}
+		if roleRefs[role.GetRef()] {
+			return fmt.Errorf("duplicate team role ref: %s", role.GetRef())
+		}
+		roleRefs[role.GetRef()] = true
+	}
+
 	return nil
 }
 
 // SetDefaults applies default values to portal team resource
 func (p *PortalTeamResource) SetDefaults() {
 	// No defaults to apply for portal teams
+	for i := range p.Roles {
+		p.Roles[i].SetDefaults()
+	}
 }
 
 // GetKonnectID returns the resolved Konnect ID if available
@@ -145,11 +162,12 @@ func (p PortalTeamResource) GetParentRef() *ResourceRef {
 // UnmarshalJSON custom unmarshaling to reject kongctl metadata on child resources
 func (p *PortalTeamResource) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Ref         string  `json:"ref"`
-		Portal      string  `json:"portal,omitempty"`
-		Name        string  `json:"name"`
-		Description *string `json:"description,omitempty"`
-		Kongctl     any     `json:"kongctl,omitempty"`
+		Ref         string                    `json:"ref"`
+		Portal      string                    `json:"portal,omitempty"`
+		Name        string                    `json:"name"`
+		Description *string                   `json:"description,omitempty"`
+		Roles       []PortalTeamRoleResource  `json:"roles,omitempty"`
+		Kongctl     any                       `json:"kongctl,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -164,6 +182,7 @@ func (p *PortalTeamResource) UnmarshalJSON(data []byte) error {
 	p.Portal = temp.Portal
 	p.Name = temp.Name
 	p.Description = temp.Description
+	p.Roles = temp.Roles
 
 	return nil
 }
