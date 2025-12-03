@@ -415,6 +415,15 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 		accumulated.PortalCustomizations = append(accumulated.PortalCustomizations, customization)
 	}
 
+	for _, authSettings := range source.PortalAuthSettings {
+		if accumulated.HasRef(authSettings.Ref) {
+			existing, _ := accumulated.GetResourceByRef(authSettings.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
+				authSettings.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.PortalAuthSettings = append(accumulated.PortalAuthSettings, authSettings)
+	}
+
 	for _, domain := range source.PortalCustomDomains {
 		if accumulated.HasRef(domain.Ref) {
 			existing, _ := accumulated.GetResourceByRef(domain.Ref)
@@ -661,6 +670,9 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 	for i := range rs.PortalCustomizations {
 		rs.PortalCustomizations[i].SetDefaults()
 	}
+	for i := range rs.PortalAuthSettings {
+		rs.PortalAuthSettings[i].SetDefaults()
+	}
 	for i := range rs.PortalCustomDomains {
 		rs.PortalCustomDomains[i].SetDefaults()
 	}
@@ -766,6 +778,13 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.PortalCustomizations = append(rs.PortalCustomizations, customization)
 		}
 
+		// Extract auth settings (single resource)
+		if portal.AuthSettings != nil {
+			authSettings := *portal.AuthSettings
+			authSettings.Portal = portal.Ref
+			rs.PortalAuthSettings = append(rs.PortalAuthSettings, authSettings)
+		}
+
 		// Extract custom domain (single resource)
 		if portal.CustomDomain != nil {
 			customDomain := *portal.CustomDomain
@@ -804,6 +823,7 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 
 		// Clear nested resources from Portal
 		portal.Customization = nil
+		portal.AuthSettings = nil
 		portal.CustomDomain = nil
 		portal.Pages = nil
 		portal.Snippets = nil

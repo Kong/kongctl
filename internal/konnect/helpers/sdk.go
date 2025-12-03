@@ -30,6 +30,7 @@ type SDKAPI interface {
 	GetGatewayServiceAPI() GatewayServiceAPI
 	// Portal child resource APIs
 	GetPortalPageAPI() PortalPageAPI
+	GetPortalAuthSettingsAPI() PortalAuthSettingsAPI
 	GetPortalCustomizationAPI() PortalCustomizationAPI
 	GetPortalCustomDomainAPI() PortalCustomDomainAPI
 	GetPortalSnippetAPI() PortalSnippetAPI
@@ -142,6 +143,15 @@ func (k *KonnectSDK) GetPortalPageAPI() PortalPageAPI {
 	}
 
 	return &PortalPageAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the PortalAuthSettingsAPI interface
+func (k *KonnectSDK) GetPortalAuthSettingsAPI() PortalAuthSettingsAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &PortalAuthSettingsAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the PortalCustomizationAPI interface

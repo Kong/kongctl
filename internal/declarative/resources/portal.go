@@ -17,6 +17,7 @@ type PortalResource struct {
 
 	// Child resources that match API endpoints
 	Customization *PortalCustomizationResource `yaml:"customization,omitempty" json:"customization,omitempty"`
+	AuthSettings  *PortalAuthSettingsResource  `yaml:"auth_settings,omitempty"  json:"auth_settings,omitempty"`
 	CustomDomain  *PortalCustomDomainResource  `yaml:"custom_domain,omitempty" json:"custom_domain,omitempty"`
 	Pages         []PortalPageResource         `yaml:"pages,omitempty"         json:"pages,omitempty"`
 	Snippets      []PortalSnippetResource      `yaml:"snippets,omitempty"      json:"snippets,omitempty"`
@@ -109,6 +110,11 @@ func (p PortalResource) Validate() error {
 			return fmt.Errorf("invalid portal customization: %w", err)
 		}
 	}
+	if p.AuthSettings != nil {
+		if err := p.AuthSettings.Validate(); err != nil {
+			return fmt.Errorf("invalid portal auth settings: %w", err)
+		}
+	}
 
 	if p.CustomDomain != nil {
 		if err := p.CustomDomain.Validate(); err != nil {
@@ -172,6 +178,10 @@ func (p *PortalResource) SetDefaults() {
 	// Apply defaults to child resources
 	if p.Customization != nil {
 		p.Customization.SetDefaults()
+	}
+
+	if p.AuthSettings != nil {
+		p.AuthSettings.SetDefaults()
 	}
 
 	if p.CustomDomain != nil {
@@ -304,6 +314,7 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 		"ref",
 		"kongctl",
 		"customization",
+		"auth_settings",
 		"custom_domain",
 		"pages",
 		"snippets",
@@ -341,6 +352,13 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		delete(raw, "customization")
+	}
+
+	if v, ok := raw["auth_settings"]; ok {
+		if err := json.Unmarshal(v, &p.AuthSettings); err != nil {
+			return err
+		}
+		delete(raw, "auth_settings")
 	}
 
 	if v, ok := raw["custom_domain"]; ok {
@@ -419,6 +437,7 @@ type portalAlias struct {
 	Ref               string                       `json:"ref" yaml:"ref"`
 	Kongctl           *KongctlMeta                 `json:"kongctl,omitempty" yaml:"kongctl,omitempty"`
 	Customization     *PortalCustomizationResource `json:"customization,omitempty" yaml:"customization,omitempty"`
+	AuthSettings      *PortalAuthSettingsResource  `json:"auth_settings,omitempty" yaml:"auth_settings,omitempty"`
 	CustomDomain      *PortalCustomDomainResource  `json:"custom_domain,omitempty" yaml:"custom_domain,omitempty"`
 	Pages             []PortalPageResource         `json:"pages,omitempty" yaml:"pages,omitempty"`
 	Snippets          []PortalSnippetResource      `json:"snippets,omitempty" yaml:"snippets,omitempty"`
@@ -434,6 +453,7 @@ func (p PortalResource) portalAlias() portalAlias {
 		Ref:               p.Ref,
 		Kongctl:           p.Kongctl,
 		Customization:     p.Customization,
+		AuthSettings:      p.AuthSettings,
 		CustomDomain:      p.CustomDomain,
 		Pages:             p.Pages,
 		Snippets:          p.Snippets,

@@ -37,11 +37,12 @@ type Executor struct {
 
 	// Portal child resource executors
 	portalCustomizationExecutor *BaseSingletonExecutor[kkComps.PortalCustomization]
+	portalAuthSettingsExecutor  *BaseSingletonExecutor[kkComps.PortalAuthenticationSettingsUpdateRequest]
 	portalDomainExecutor        *BaseExecutor[kkComps.CreatePortalCustomDomainRequest,
 		kkComps.UpdatePortalCustomDomainRequest]
-	portalPageExecutor    *BaseExecutor[kkComps.CreatePortalPageRequest, kkComps.UpdatePortalPageRequest]
-	portalSnippetExecutor *BaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest]
-	portalTeamExecutor    *BaseExecutor[kkComps.PortalCreateTeamRequest, kkComps.PortalUpdateTeamRequest]
+	portalPageExecutor     *BaseExecutor[kkComps.CreatePortalPageRequest, kkComps.UpdatePortalPageRequest]
+	portalSnippetExecutor  *BaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest]
+	portalTeamExecutor     *BaseExecutor[kkComps.PortalCreateTeamRequest, kkComps.PortalUpdateTeamRequest]
 	portalTeamRoleExecutor *BaseExecutor[kkComps.PortalAssignRoleRequest, kkComps.PortalAssignRoleRequest]
 
 	// API child resource executors
@@ -88,6 +89,10 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 	// Initialize portal child resource executors
 	e.portalCustomizationExecutor = NewBaseSingletonExecutor[kkComps.PortalCustomization](
 		NewPortalCustomizationAdapter(client),
+		dryRun,
+	)
+	e.portalAuthSettingsExecutor = NewBaseSingletonExecutor[kkComps.PortalAuthenticationSettingsUpdateRequest](
+		NewPortalAuthSettingsAdapter(client),
 		dryRun,
 	)
 	e.portalDomainExecutor = NewBaseExecutor[kkComps.CreatePortalCustomDomainRequest,
@@ -358,8 +363,10 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 	switch change.Action {
 	case planner.ActionUpdate, planner.ActionDelete:
 		// For update/delete, verify resource still exists and check protection
-		// Special case: portal_customization is a singleton resource without its own ID
-		if change.ResourceID == "" && change.ResourceType != "portal_customization" {
+		// Special case: singleton portal children without their own ID
+		if change.ResourceID == "" &&
+			change.ResourceType != "portal_customization" &&
+			change.ResourceType != "portal_auth_settings" {
 			return fmt.Errorf("resource ID required for %s operation", change.Action)
 		}
 
@@ -1231,6 +1238,12 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.portalCustomizationExecutor.Update(ctx, *change, portalID)
+	case "portal_auth_settings":
+		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
+		if err != nil {
+			return "", err
+		}
+		return e.portalAuthSettingsExecutor.Update(ctx, *change, portalID)
 	case "portal_custom_domain":
 		// Resolve portal reference if needed
 		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
@@ -1436,6 +1449,12 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.portalCustomizationExecutor.Update(ctx, *change, portalID)
+	case "portal_auth_settings":
+		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
+		if err != nil {
+			return "", err
+		}
+		return e.portalAuthSettingsExecutor.Update(ctx, *change, portalID)
 	case "portal_custom_domain":
 		return e.portalDomainExecutor.Update(ctx, *change)
 	case "portal_page":

@@ -1,0 +1,29 @@
+_defaults:
+  kongctl:
+    namespace: portal-auth-settings
+
+portals:
+  - ref: portal-auth
+    name: portal-auth
+    display_name: Portal Auth Settings
+    description: Portal with auth settings managed declaratively
+    kongctl:
+      namespace: portal-auth-settings
+    auth_settings:
+      ref: portal-auth-settings
+      basic_auth_enabled: true
+      oidc_auth_enabled: true
+      saml_auth_enabled: false
+      oidc_team_mapping_enabled: true
+      konnect_mapping_enabled: false
+      idp_mapping_enabled: true
+      oidc_issuer: "https://accounts.google.com"
+      oidc_client_id: "client-id-1"
+      oidc_client_secret: "client-secret-1"
+      oidc_scopes:
+        - openid
+        - profile
+      oidc_claim_mappings:
+        name: name
+        email: email
+        groups: groups
