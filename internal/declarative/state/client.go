@@ -35,6 +35,7 @@ type ClientConfig struct {
 	PortalSnippetAPI       helpers.PortalSnippetAPI
 	PortalTeamAPI          helpers.PortalTeamAPI
 	PortalTeamRolesAPI     helpers.PortalTeamRolesAPI
+	AssetsAPI              helpers.AssetsAPI
 
 	// API child resource APIs
 	APIVersionAPI        helpers.APIVersionAPI
@@ -61,6 +62,7 @@ type Client struct {
 	portalSnippetAPI       helpers.PortalSnippetAPI
 	portalTeamAPI          helpers.PortalTeamAPI
 	portalTeamRolesAPI     helpers.PortalTeamRolesAPI
+	assetsAPI              helpers.AssetsAPI
 
 	// API child resource APIs
 	apiVersionAPI        helpers.APIVersionAPI
@@ -88,6 +90,7 @@ func NewClient(config ClientConfig) *Client {
 		portalSnippetAPI:       config.PortalSnippetAPI,
 		portalTeamAPI:          config.PortalTeamAPI,
 		portalTeamRolesAPI:     config.PortalTeamRolesAPI,
+		assetsAPI:              config.AssetsAPI,
 
 		// API child resource APIs
 		apiVersionAPI:        config.APIVersionAPI,
@@ -1999,6 +2002,94 @@ func (c *Client) UpdatePortalCustomization(
 	if err != nil {
 		return fmt.Errorf("failed to update portal customization: %w", err)
 	}
+	return nil
+}
+
+// GetPortalAssetLogo fetches the logo for a portal as a data URL
+func (c *Client) GetPortalAssetLogo(ctx context.Context, portalID string) (string, error) {
+	if c.assetsAPI == nil {
+		return "", fmt.Errorf("assets API not configured")
+	}
+
+	resp, err := c.assetsAPI.GetPortalAssetLogo(ctx, portalID)
+	if err != nil {
+		return "", WrapAPIError(err, "get portal logo", &ErrorWrapperOptions{
+			ResourceType: "portal_asset_logo",
+			ResourceName: portalID,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.PortalAssetResponse == nil {
+		return "", fmt.Errorf("no portal asset response in logo response")
+	}
+
+	return resp.PortalAssetResponse.Data, nil
+}
+
+// ReplacePortalAssetLogo uploads a new logo for a portal
+func (c *Client) ReplacePortalAssetLogo(ctx context.Context, portalID, dataURL string) error {
+	if c.assetsAPI == nil {
+		return fmt.Errorf("assets API not configured")
+	}
+
+	req := &kkComps.ReplacePortalImageAsset{
+		Data: dataURL,
+	}
+
+	_, err := c.assetsAPI.ReplacePortalAssetLogo(ctx, portalID, req)
+	if err != nil {
+		return WrapAPIError(err, "replace portal logo", &ErrorWrapperOptions{
+			ResourceType: "portal_asset_logo",
+			ResourceName: portalID,
+			UseEnhanced:  true,
+		})
+	}
+
+	return nil
+}
+
+// GetPortalAssetFavicon fetches the favicon for a portal as a data URL
+func (c *Client) GetPortalAssetFavicon(ctx context.Context, portalID string) (string, error) {
+	if c.assetsAPI == nil {
+		return "", fmt.Errorf("assets API not configured")
+	}
+
+	resp, err := c.assetsAPI.GetPortalAssetFavicon(ctx, portalID)
+	if err != nil {
+		return "", WrapAPIError(err, "get portal favicon", &ErrorWrapperOptions{
+			ResourceType: "portal_asset_favicon",
+			ResourceName: portalID,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.PortalAssetResponse == nil {
+		return "", fmt.Errorf("no portal asset response in favicon response")
+	}
+
+	return resp.PortalAssetResponse.Data, nil
+}
+
+// ReplacePortalAssetFavicon uploads a new favicon for a portal
+func (c *Client) ReplacePortalAssetFavicon(ctx context.Context, portalID, dataURL string) error {
+	if c.assetsAPI == nil {
+		return fmt.Errorf("assets API not configured")
+	}
+
+	req := &kkComps.ReplacePortalImageAsset{
+		Data: dataURL,
+	}
+
+	_, err := c.assetsAPI.ReplacePortalAssetFavicon(ctx, portalID, req)
+	if err != nil {
+		return WrapAPIError(err, "replace portal favicon", &ErrorWrapperOptions{
+			ResourceType: "portal_asset_favicon",
+			ResourceName: portalID,
+			UseEnhanced:  true,
+		})
+	}
+
 	return nil
 }
 

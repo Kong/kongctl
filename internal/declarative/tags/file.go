@@ -1,8 +1,10 @@
 package tags
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -86,9 +88,13 @@ func (f *FileTagResolver) loadFile(path string, extractPath string) (any, error)
 	// Resolve the full path
 	fullPath := f.resolvePath(path)
 
-	// Check cache first
+	// Check if this is an image file - image files don't support extraction
+	ext := strings.ToLower(filepath.Ext(fullPath))
+	isImage := isImageFile(ext)
+
+	// For image files, ignore extraction path
 	cacheKey := fullPath
-	if extractPath != "" {
+	if extractPath != "" && !isImage {
 		cacheKey = fmt.Sprintf("%s#%s", fullPath, extractPath)
 	}
 
@@ -108,9 +114,9 @@ func (f *FileTagResolver) loadFile(path string, extractPath string) (any, error)
 		return nil, fmt.Errorf("failed to parse %s: %w", path, err)
 	}
 
-	// Extract value if path is specified
+	// Extract value if path is specified (only for non-image files)
 	result := content
-	if extractPath != "" {
+	if extractPath != "" && !isImage {
 		result, err = ExtractValue(content, extractPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract '%s' from %s: %w", extractPath, path, err)
@@ -184,6 +190,11 @@ func (f *FileTagResolver) readFile(path string) ([]byte, error) {
 func (f *FileTagResolver) parseContent(path string, data []byte) (any, error) {
 	ext := strings.ToLower(filepath.Ext(path))
 
+	// Check if this is an image file
+	if isImageFile(ext) {
+		return f.encodeImageToDataURL(ext, data), nil
+	}
+
 	switch ext {
 	case ".yaml", ".yml":
 		var content any
@@ -203,6 +214,55 @@ func (f *FileTagResolver) parseContent(path string, data []byte) (any, error) {
 	default:
 		// For other files, return as string
 		return string(data), nil
+	}
+}
+
+// isImageFile checks if the file extension indicates an image file
+func isImageFile(ext string) bool {
+	switch ext {
+	case ".png", ".jpg", ".jpeg", ".svg", ".ico", ".gif", ".webp":
+		return true
+	default:
+		return false
+	}
+}
+
+// encodeImageToDataURL encodes binary image data to a data URL
+func (f *FileTagResolver) encodeImageToDataURL(ext string, data []byte) string {
+	// Detect MIME type
+	mimeType := detectMimeType(ext, data)
+
+	// Encode to base64
+	encoded := base64.StdEncoding.EncodeToString(data)
+
+	// Format as data URL
+	return fmt.Sprintf("data:%s;base64,%s", mimeType, encoded)
+}
+
+// detectMimeType determines the MIME type from extension and data
+func detectMimeType(ext string, data []byte) string {
+	// First, try to determine from extension
+	switch ext {
+	case ".png":
+		return "image/png"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".svg":
+		return "image/svg+xml"
+	case ".ico":
+		return "image/x-icon"
+	case ".gif":
+		return "image/gif"
+	case ".webp":
+		return "image/webp"
+	default:
+		// Fallback: use http.DetectContentType for content-based detection
+		detectedType := http.DetectContentType(data)
+		// If it detected as image/*, use it; otherwise default to application/octet-stream
+		if strings.HasPrefix(detectedType, "image/") {
+			return detectedType
+		}
+		return "application/octet-stream"
 	}
 }
 

@@ -28,6 +28,7 @@ type MockKonnectSDK struct {
 	PortalDeveloperFactory               func() PortalDeveloperAPI
 	PortalTeamFactory                    func() PortalTeamAPI
 	PortalTeamRolesFactory               func() PortalTeamRolesAPI
+	AssetsFactory                        func() AssetsAPI
 }
 
 // Returns a mock instance of the ControlPlaneAPI
@@ -191,6 +192,14 @@ func (m *MockKonnectSDK) GetPortalTeamRolesAPI() PortalTeamRolesAPI {
 func (m *MockKonnectSDK) GetMeAPI() MeAPI {
 	if m.MeFactory != nil {
 		return m.MeFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the AssetsAPI
+func (m *MockKonnectSDK) GetAssetsAPI() AssetsAPI {
+	if m.AssetsFactory != nil {
+		return m.AssetsFactory()
 	}
 	return nil
 }

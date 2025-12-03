@@ -890,6 +890,180 @@ func (p *Planner) planPortalCustomDomainDelete(
 	return change.ID
 }
 
+// Portal Asset Logo planning (singleton)
+
+func (p *Planner) planPortalAssetLogosChanges(
+	ctx context.Context, plannerCtx *Config, parentNamespace string,
+	desired []resources.PortalAssetLogoResource, plan *Plan,
+) {
+	namespace := plannerCtx.Namespace
+	existingPortals, _ := p.client.ListManagedPortals(ctx, []string{namespace})
+	portalNameToID := make(map[string]string)
+	for _, portal := range existingPortals {
+		portalNameToID[portal.Name] = portal.ID
+	}
+
+	for _, desiredLogo := range desired {
+		if plan.HasChange(ResourceTypePortalAssetLogo, desiredLogo.GetRef()) {
+			continue
+		}
+
+		var portalName, portalID string
+		for _, portal := range p.desiredPortals {
+			if portal.Ref == desiredLogo.Portal {
+				portalName = portal.Name
+				portalID = portalNameToID[portalName]
+				break
+			}
+		}
+
+		// Assets are singletons - always plan UPDATE (no comparison needed)
+		// If portal doesn't exist, plan with empty ID for runtime resolution
+		p.planPortalAssetLogoUpdate(parentNamespace, desiredLogo.Portal, portalName, portalID, *desiredLogo.File, plan)
+	}
+}
+
+func (p *Planner) planPortalAssetLogoUpdate(
+	parentNamespace, portalRef, portalName, portalID, dataURL string, plan *Plan,
+) {
+	ref := fmt.Sprintf("%s-logo", portalRef)
+
+	fields := map[string]any{
+		"data_url": dataURL,
+	}
+
+	// Find portal creation dependency if portal doesn't exist yet
+	deps := []string{}
+	if portalID == "" {
+		for _, change := range plan.Changes {
+			if change.ResourceType == ResourceTypePortal && change.ResourceRef == portalRef {
+				deps = append(deps, change.ID)
+				break
+			}
+		}
+	}
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionUpdate, ResourceTypePortalAssetLogo, ref),
+		ResourceType: ResourceTypePortalAssetLogo,
+		ResourceRef:  ref,
+		Action:       ActionUpdate, // Always UPDATE for singletons
+		Fields:       fields,
+		Namespace:    parentNamespace,
+		DependsOn:    uniqueStrings(deps),
+	}
+
+	// Set parent info for runtime resolution
+	if portalID != "" {
+		change.Parent = &ParentInfo{
+			Ref: portalRef,
+			ID:  portalID,
+		}
+	} else {
+		refInfo := ReferenceInfo{
+			Ref: portalRef,
+		}
+		if portalName != "" {
+			refInfo.LookupFields = map[string]string{
+				"name": portalName,
+			}
+		}
+		change.References = map[string]ReferenceInfo{
+			"portal_id": refInfo,
+		}
+	}
+
+	plan.AddChange(change)
+}
+
+// Portal Asset Favicon planning (singleton)
+
+func (p *Planner) planPortalAssetFaviconsChanges(
+	ctx context.Context, plannerCtx *Config, parentNamespace string,
+	desired []resources.PortalAssetFaviconResource, plan *Plan,
+) {
+	namespace := plannerCtx.Namespace
+	existingPortals, _ := p.client.ListManagedPortals(ctx, []string{namespace})
+	portalNameToID := make(map[string]string)
+	for _, portal := range existingPortals {
+		portalNameToID[portal.Name] = portal.ID
+	}
+
+	for _, desiredFavicon := range desired {
+		if plan.HasChange(ResourceTypePortalAssetFavicon, desiredFavicon.GetRef()) {
+			continue
+		}
+
+		var portalName, portalID string
+		for _, portal := range p.desiredPortals {
+			if portal.Ref == desiredFavicon.Portal {
+				portalName = portal.Name
+				portalID = portalNameToID[portalName]
+				break
+			}
+		}
+
+		// Assets are singletons - always plan UPDATE (no comparison needed)
+		// If portal doesn't exist, plan with empty ID for runtime resolution
+		p.planPortalAssetFaviconUpdate(
+			parentNamespace, desiredFavicon.Portal, portalName, portalID, *desiredFavicon.File, plan,
+		)
+	}
+}
+
+func (p *Planner) planPortalAssetFaviconUpdate(
+	parentNamespace, portalRef, portalName, portalID, dataURL string, plan *Plan,
+) {
+	ref := fmt.Sprintf("%s-favicon", portalRef)
+
+	fields := map[string]any{
+		"data_url": dataURL,
+	}
+
+	// Find portal creation dependency if portal doesn't exist yet
+	deps := []string{}
+	if portalID == "" {
+		for _, change := range plan.Changes {
+			if change.ResourceType == ResourceTypePortal && change.ResourceRef == portalRef {
+				deps = append(deps, change.ID)
+				break
+			}
+		}
+	}
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionUpdate, ResourceTypePortalAssetFavicon, ref),
+		ResourceType: ResourceTypePortalAssetFavicon,
+		ResourceRef:  ref,
+		Action:       ActionUpdate, // Always UPDATE for singletons
+		Fields:       fields,
+		Namespace:    parentNamespace,
+		DependsOn:    uniqueStrings(deps),
+	}
+
+	// Set parent info for runtime resolution
+	if portalID != "" {
+		change.Parent = &ParentInfo{
+			Ref: portalRef,
+			ID:  portalID,
+		}
+	} else {
+		refInfo := ReferenceInfo{
+			Ref: portalRef,
+		}
+		if portalName != "" {
+			refInfo.LookupFields = map[string]string{
+				"name": portalName,
+			}
+		}
+		change.References = map[string]ReferenceInfo{
+			"portal_id": refInfo,
+		}
+	}
+
+	plan.AddChange(change)
+}
+
 func (p *Planner) portalChildDependencies(plan *Plan, portalRef string) []string {
 	if portalRef == "" {
 		return nil
