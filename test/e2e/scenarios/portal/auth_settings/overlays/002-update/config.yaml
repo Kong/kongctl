@@ -12,9 +12,9 @@ portals:
     auth_settings:
       ref: portal-auth-settings
       basic_auth_enabled: false
-      saml_auth_enabled: false
-      konnect_mapping_enabled: false
       idp_mapping_enabled: true
+      konnect_mapping_enabled: false
+      saml_auth_enabled: false
       oidc_auth_enabled: true
       oidc_team_mapping_enabled: true
       oidc_issuer: "https://login.microsoftonline.com/common/v2.0"

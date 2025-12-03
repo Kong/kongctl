@@ -80,7 +80,7 @@ func (p *Planner) planPortalCustomizationsChanges(
 func (p *Planner) planPortalAuthSettingsChanges(
 	ctx context.Context, plannerCtx *Config, parentNamespace string,
 	desired []resources.PortalAuthSettingsResource, plan *Plan,
-) error { //nolint:unparam
+) error {
 	namespace := plannerCtx.Namespace
 	existingPortals, _ := p.client.ListManagedPortals(ctx, []string{namespace})
 	portalNameToID := make(map[string]string)
@@ -102,24 +102,22 @@ func (p *Planner) planPortalAuthSettingsChanges(
 			}
 		}
 
-		if portalID != "" {
-			current, err := p.client.GetPortalAuthSettings(ctx, portalID)
-			if err != nil {
-				p.logger.Debug("Failed to fetch portal auth settings",
-					"portal_ref", desiredSettings.Portal,
-					"error", err.Error())
-				p.planPortalAuthSettingsUpdate(parentNamespace, desiredSettings, portalName, portalID, plan)
-				continue
-			}
-
-			needsUpdate, updateFields := p.shouldUpdatePortalAuthSettings(current, desiredSettings)
-			if needsUpdate {
-				p.planPortalAuthSettingsUpdateWithFields(
-					parentNamespace, desiredSettings, portalName, portalID, updateFields, plan,
-				)
-			}
-		} else {
+		if portalID == "" {
 			p.planPortalAuthSettingsUpdate(parentNamespace, desiredSettings, portalName, "", plan)
+			continue
+		}
+
+		current, err := p.client.GetPortalAuthSettings(ctx, portalID)
+		if err != nil {
+			return fmt.Errorf("failed to fetch portal auth settings for portal_ref %s: %w",
+				desiredSettings.Portal, err)
+		}
+
+		needsUpdate, updateFields := p.shouldUpdatePortalAuthSettings(current, desiredSettings)
+		if needsUpdate {
+			p.planPortalAuthSettingsUpdateWithFields(
+				parentNamespace, desiredSettings, portalName, portalID, updateFields, plan,
+			)
 		}
 	}
 
@@ -195,30 +193,30 @@ func (p *Planner) shouldUpdatePortalAuthSettings(
 ) (bool, map[string]any) {
 	updates := make(map[string]any)
 
-	if desired.BasicAuthEnabled != nil && !p.compareBoolWithPtr(current.BasicAuthEnabled, desired.BasicAuthEnabled) {
+	if desired.BasicAuthEnabled != nil && !p.compareBoolToPtr(current.BasicAuthEnabled, desired.BasicAuthEnabled) {
 		updates["basic_auth_enabled"] = *desired.BasicAuthEnabled
 	}
 
-	if desired.OidcAuthEnabled != nil && !p.compareBoolWithPtr(current.OidcAuthEnabled, desired.OidcAuthEnabled) {
+	if desired.OidcAuthEnabled != nil && !p.compareBoolToPtr(current.OidcAuthEnabled, desired.OidcAuthEnabled) {
 		updates["oidc_auth_enabled"] = *desired.OidcAuthEnabled
 	}
 
-	if desired.SamlAuthEnabled != nil && !p.compareBoolPtr(current.SamlAuthEnabled, desired.SamlAuthEnabled) {
-		updates["saml_auth_enabled"] = desired.SamlAuthEnabled
+	if desired.SamlAuthEnabled != nil && !p.comparePtrBools(current.SamlAuthEnabled, desired.SamlAuthEnabled) {
+		updates["saml_auth_enabled"] = *desired.SamlAuthEnabled
 	}
 
 	if desired.OidcTeamMappingEnabled != nil &&
-		!p.compareBoolWithPtr(current.OidcTeamMappingEnabled, desired.OidcTeamMappingEnabled) {
+		!p.compareBoolToPtr(current.OidcTeamMappingEnabled, desired.OidcTeamMappingEnabled) {
 		updates["oidc_team_mapping_enabled"] = *desired.OidcTeamMappingEnabled
 	}
 
 	if desired.KonnectMappingEnabled != nil &&
-		!p.compareBoolWithPtr(current.KonnectMappingEnabled, desired.KonnectMappingEnabled) {
+		!p.compareBoolToPtr(current.KonnectMappingEnabled, desired.KonnectMappingEnabled) {
 		updates["konnect_mapping_enabled"] = *desired.KonnectMappingEnabled
 	}
 
-	if desired.IdpMappingEnabled != nil && !p.compareBoolPtr(current.IdpMappingEnabled, desired.IdpMappingEnabled) {
-		updates["idp_mapping_enabled"] = desired.IdpMappingEnabled
+	if desired.IdpMappingEnabled != nil && !p.comparePtrBools(current.IdpMappingEnabled, desired.IdpMappingEnabled) {
+		updates["idp_mapping_enabled"] = *desired.IdpMappingEnabled
 	}
 
 	if desired.OidcIssuer != nil {
@@ -249,22 +247,6 @@ func (p *Planner) shouldUpdatePortalAuthSettings(
 		}
 	}
 
-	// If an update is needed, include the full desired payload for fields the user set.
-	if len(updates) > 0 {
-		if desired.OidcScopes != nil {
-			updates["oidc_scopes"] = desired.OidcScopes
-		}
-		if desired.OidcClaimMappings != nil {
-			updates["oidc_claim_mappings"] = desired.OidcClaimMappings
-		}
-		if desired.OidcTeamMappingEnabled != nil {
-			updates["oidc_team_mapping_enabled"] = *desired.OidcTeamMappingEnabled
-		}
-		if desired.IdpMappingEnabled != nil {
-			updates["idp_mapping_enabled"] = desired.IdpMappingEnabled
-		}
-	}
-
 	return len(updates) > 0, updates
 }
 
@@ -278,7 +260,7 @@ func (p *Planner) buildAllPortalAuthSettingsFields(settings resources.PortalAuth
 		fields["oidc_auth_enabled"] = *settings.OidcAuthEnabled
 	}
 	if settings.SamlAuthEnabled != nil {
-		fields["saml_auth_enabled"] = settings.SamlAuthEnabled
+		fields["saml_auth_enabled"] = *settings.SamlAuthEnabled
 	}
 	if settings.OidcTeamMappingEnabled != nil {
 		fields["oidc_team_mapping_enabled"] = *settings.OidcTeamMappingEnabled
@@ -287,7 +269,7 @@ func (p *Planner) buildAllPortalAuthSettingsFields(settings resources.PortalAuth
 		fields["konnect_mapping_enabled"] = *settings.KonnectMappingEnabled
 	}
 	if settings.IdpMappingEnabled != nil {
-		fields["idp_mapping_enabled"] = settings.IdpMappingEnabled
+		fields["idp_mapping_enabled"] = *settings.IdpMappingEnabled
 	}
 	if settings.OidcIssuer != nil {
 		fields["oidc_issuer"] = *settings.OidcIssuer
@@ -303,13 +285,20 @@ func (p *Planner) buildAllPortalAuthSettingsFields(settings resources.PortalAuth
 	}
 	if settings.OidcClaimMappings != nil {
 		fields["oidc_claim_mappings"] = map[string]any{
-			"name":   settings.OidcClaimMappings.Name,
-			"email":  settings.OidcClaimMappings.Email,
-			"groups": settings.OidcClaimMappings.Groups,
+			"name":   safeString(settings.OidcClaimMappings.Name),
+			"email":  safeString(settings.OidcClaimMappings.Email),
+			"groups": safeString(settings.OidcClaimMappings.Groups),
 		}
 	}
 
 	return fields
+}
+
+func safeString(val *string) string {
+	if val != nil {
+		return *val
+	}
+	return ""
 }
 
 func (p *Planner) planPortalCustomizationUpdate(
@@ -614,7 +603,7 @@ func (p *Planner) compareModePtr(current, desired *kkComps.Mode) bool {
 	return *current == *desired
 }
 
-func (p *Planner) compareBoolPtr(current, desired *bool) bool {
+func (p *Planner) comparePtrBools(current, desired *bool) bool {
 	if current == nil && desired == nil {
 		return true
 	}
@@ -624,7 +613,7 @@ func (p *Planner) compareBoolPtr(current, desired *bool) bool {
 	return *current == *desired
 }
 
-func (p *Planner) compareBoolWithPtr(current bool, desired *bool) bool {
+func (p *Planner) compareBoolToPtr(current bool, desired *bool) bool {
 	if desired == nil {
 		return true
 	}

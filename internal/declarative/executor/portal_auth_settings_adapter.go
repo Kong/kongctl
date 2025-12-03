@@ -38,11 +38,8 @@ func (p *PortalAuthSettingsAdapter) MapUpdateFields(
 	if v, ok := fields["oidc_auth_enabled"].(bool); ok {
 		update.OidcAuthEnabled = &v
 	}
-	switch v := fields["saml_auth_enabled"].(type) {
-	case bool:
+	if v, ok := fields["saml_auth_enabled"].(bool); ok {
 		update.SamlAuthEnabled = &v
-	case *bool:
-		update.SamlAuthEnabled = v
 	}
 	if v, ok := fields["oidc_team_mapping_enabled"].(bool); ok {
 		update.OidcTeamMappingEnabled = &v
@@ -50,11 +47,8 @@ func (p *PortalAuthSettingsAdapter) MapUpdateFields(
 	if v, ok := fields["konnect_mapping_enabled"].(bool); ok {
 		update.KonnectMappingEnabled = &v
 	}
-	switch v := fields["idp_mapping_enabled"].(type) {
-	case bool:
+	if v, ok := fields["idp_mapping_enabled"].(bool); ok {
 		update.IdpMappingEnabled = &v
-	case *bool:
-		update.IdpMappingEnabled = v
 	}
 	if v, ok := fields["oidc_issuer"].(string); ok {
 		update.OidcIssuer = &v

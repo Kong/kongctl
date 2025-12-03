@@ -111,8 +111,6 @@ steps:
             expect:
               fields:
                 basic_auth_enabled: false
-                idp_mapping_enabled: true
-                oidc_team_mapping_enabled: true
                 oidc_issuer: https://login.microsoftonline.com/common/v2.0
                 oidc_claim_mappings.name: full_name
                 oidc_claim_mappings.email: email_address
@@ -148,10 +146,10 @@ steps:
                 basic_auth_enabled: false
                 oidc_auth_enabled: true
                 saml_auth_enabled: false
-                konnect_mapping_enabled: false
                 idp_mapping_enabled: true
+                konnect_mapping_enabled: false
                 oidc_team_mapping_enabled: true
-                #oidc_config.issuer: "https://login.microsoftonline.com/common/v2.0"
+                "contains(oidc_config.issuer, 'login.microsoftonline.com')": true
                 oidc_config.client_id: client-id-2
                 oidc_config.claim_mappings.name: full_name
                 oidc_config.claim_mappings.email: email_address
