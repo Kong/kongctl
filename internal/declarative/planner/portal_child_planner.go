@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -72,6 +73,243 @@ func (p *Planner) planPortalCustomizationsChanges(
 	}
 
 	return nil
+}
+
+// Portal Auth Settings planning (singleton)
+
+func (p *Planner) planPortalAuthSettingsChanges(
+	ctx context.Context, plannerCtx *Config, parentNamespace string,
+	desired []resources.PortalAuthSettingsResource, plan *Plan,
+) error { //nolint:unparam
+	namespace := plannerCtx.Namespace
+	existingPortals, _ := p.client.ListManagedPortals(ctx, []string{namespace})
+	portalNameToID := make(map[string]string)
+	for _, portal := range existingPortals {
+		portalNameToID[portal.Name] = portal.ID
+	}
+
+	for _, desiredSettings := range desired {
+		if plan.HasChange(ResourceTypePortalAuthSettings, desiredSettings.GetRef()) {
+			continue
+		}
+
+		var portalName, portalID string
+		for _, portal := range p.desiredPortals {
+			if portal.Ref == desiredSettings.Portal {
+				portalName = portal.Name
+				portalID = portalNameToID[portalName]
+				break
+			}
+		}
+
+		if portalID != "" {
+			current, err := p.client.GetPortalAuthSettings(ctx, portalID)
+			if err != nil {
+				p.logger.Debug("Failed to fetch portal auth settings",
+					"portal_ref", desiredSettings.Portal,
+					"error", err.Error())
+				p.planPortalAuthSettingsUpdate(parentNamespace, desiredSettings, portalName, portalID, plan)
+				continue
+			}
+
+			needsUpdate, updateFields := p.shouldUpdatePortalAuthSettings(current, desiredSettings)
+			if needsUpdate {
+				p.planPortalAuthSettingsUpdateWithFields(
+					parentNamespace, desiredSettings, portalName, portalID, updateFields, plan,
+				)
+			}
+		} else {
+			p.planPortalAuthSettingsUpdate(parentNamespace, desiredSettings, portalName, "", plan)
+		}
+	}
+
+	return nil
+}
+
+func (p *Planner) planPortalAuthSettingsUpdate(
+	parentNamespace string, settings resources.PortalAuthSettingsResource, portalName string, portalID string,
+	plan *Plan,
+) {
+	fields := p.buildAllPortalAuthSettingsFields(settings)
+	p.planPortalAuthSettingsUpdateWithFields(parentNamespace, settings, portalName, portalID, fields, plan)
+}
+
+func (p *Planner) planPortalAuthSettingsUpdateWithFields(
+	parentNamespace string, settings resources.PortalAuthSettingsResource, portalName string, portalID string,
+	fields map[string]any, plan *Plan,
+) {
+	if len(fields) == 0 {
+		return
+	}
+
+	var dependencies []string
+	if settings.Portal != "" {
+		for _, change := range plan.Changes {
+			if change.ResourceType == ResourceTypePortal && change.ResourceRef == settings.Portal {
+				dependencies = append(dependencies, change.ID)
+				break
+			}
+		}
+	}
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionUpdate, ResourceTypePortalAuthSettings, settings.Ref),
+		ResourceType: ResourceTypePortalAuthSettings,
+		ResourceRef:  settings.Ref,
+		Action:       ActionUpdate,
+		Fields:       fields,
+		DependsOn:    dependencies,
+		Namespace:    parentNamespace,
+	}
+
+	if settings.Portal != "" {
+		lookupName := portalName
+		if lookupName == "" {
+			lookupName = settings.Portal
+		}
+		change.Parent = &ParentInfo{
+			Ref: settings.Portal,
+			ID:  portalID,
+		}
+		change.References = map[string]ReferenceInfo{
+			"portal_id": {
+				Ref: settings.Portal,
+				LookupFields: map[string]string{
+					"name": lookupName,
+				},
+			},
+		}
+	}
+
+	p.logger.Debug("Enqueuing portal auth settings update",
+		"portal_ref", settings.Portal,
+		"settings_ref", settings.Ref,
+		"fields", fields,
+	)
+	plan.AddChange(change)
+}
+
+func (p *Planner) shouldUpdatePortalAuthSettings(
+	current *kkComps.PortalAuthenticationSettingsResponse,
+	desired resources.PortalAuthSettingsResource,
+) (bool, map[string]any) {
+	updates := make(map[string]any)
+
+	if desired.BasicAuthEnabled != nil && !p.compareBoolWithPtr(current.BasicAuthEnabled, desired.BasicAuthEnabled) {
+		updates["basic_auth_enabled"] = *desired.BasicAuthEnabled
+	}
+
+	if desired.OidcAuthEnabled != nil && !p.compareBoolWithPtr(current.OidcAuthEnabled, desired.OidcAuthEnabled) {
+		updates["oidc_auth_enabled"] = *desired.OidcAuthEnabled
+	}
+
+	if desired.SamlAuthEnabled != nil && !p.compareBoolPtr(current.SamlAuthEnabled, desired.SamlAuthEnabled) {
+		updates["saml_auth_enabled"] = desired.SamlAuthEnabled
+	}
+
+	if desired.OidcTeamMappingEnabled != nil &&
+		!p.compareBoolWithPtr(current.OidcTeamMappingEnabled, desired.OidcTeamMappingEnabled) {
+		updates["oidc_team_mapping_enabled"] = *desired.OidcTeamMappingEnabled
+	}
+
+	if desired.KonnectMappingEnabled != nil &&
+		!p.compareBoolWithPtr(current.KonnectMappingEnabled, desired.KonnectMappingEnabled) {
+		updates["konnect_mapping_enabled"] = *desired.KonnectMappingEnabled
+	}
+
+	if desired.IdpMappingEnabled != nil && !p.compareBoolPtr(current.IdpMappingEnabled, desired.IdpMappingEnabled) {
+		updates["idp_mapping_enabled"] = desired.IdpMappingEnabled
+	}
+
+	if desired.OidcIssuer != nil {
+		if current.OidcConfig == nil || current.OidcConfig.Issuer != *desired.OidcIssuer {
+			updates["oidc_issuer"] = *desired.OidcIssuer
+		}
+	}
+
+	if desired.OidcClientID != nil {
+		if current.OidcConfig == nil || current.OidcConfig.ClientID != *desired.OidcClientID {
+			updates["oidc_client_id"] = *desired.OidcClientID
+		}
+	}
+
+	if desired.OidcClientSecret != nil {
+		updates["oidc_client_secret"] = *desired.OidcClientSecret
+	}
+
+	if desired.OidcScopes != nil {
+		if current.OidcConfig == nil || !p.compareStringSlices(current.OidcConfig.Scopes, desired.OidcScopes) {
+			updates["oidc_scopes"] = desired.OidcScopes
+		}
+	}
+
+	if desired.OidcClaimMappings != nil {
+		if current.OidcConfig == nil || !reflect.DeepEqual(current.OidcConfig.ClaimMappings, desired.OidcClaimMappings) {
+			updates["oidc_claim_mappings"] = desired.OidcClaimMappings
+		}
+	}
+
+	// If an update is needed, include the full desired payload for fields the user set.
+	if len(updates) > 0 {
+		if desired.OidcScopes != nil {
+			updates["oidc_scopes"] = desired.OidcScopes
+		}
+		if desired.OidcClaimMappings != nil {
+			updates["oidc_claim_mappings"] = desired.OidcClaimMappings
+		}
+		if desired.OidcTeamMappingEnabled != nil {
+			updates["oidc_team_mapping_enabled"] = *desired.OidcTeamMappingEnabled
+		}
+		if desired.IdpMappingEnabled != nil {
+			updates["idp_mapping_enabled"] = desired.IdpMappingEnabled
+		}
+	}
+
+	return len(updates) > 0, updates
+}
+
+func (p *Planner) buildAllPortalAuthSettingsFields(settings resources.PortalAuthSettingsResource) map[string]any {
+	fields := make(map[string]any)
+
+	if settings.BasicAuthEnabled != nil {
+		fields["basic_auth_enabled"] = *settings.BasicAuthEnabled
+	}
+	if settings.OidcAuthEnabled != nil {
+		fields["oidc_auth_enabled"] = *settings.OidcAuthEnabled
+	}
+	if settings.SamlAuthEnabled != nil {
+		fields["saml_auth_enabled"] = settings.SamlAuthEnabled
+	}
+	if settings.OidcTeamMappingEnabled != nil {
+		fields["oidc_team_mapping_enabled"] = *settings.OidcTeamMappingEnabled
+	}
+	if settings.KonnectMappingEnabled != nil {
+		fields["konnect_mapping_enabled"] = *settings.KonnectMappingEnabled
+	}
+	if settings.IdpMappingEnabled != nil {
+		fields["idp_mapping_enabled"] = settings.IdpMappingEnabled
+	}
+	if settings.OidcIssuer != nil {
+		fields["oidc_issuer"] = *settings.OidcIssuer
+	}
+	if settings.OidcClientID != nil {
+		fields["oidc_client_id"] = *settings.OidcClientID
+	}
+	if settings.OidcClientSecret != nil {
+		fields["oidc_client_secret"] = *settings.OidcClientSecret
+	}
+	if settings.OidcScopes != nil {
+		fields["oidc_scopes"] = settings.OidcScopes
+	}
+	if settings.OidcClaimMappings != nil {
+		fields["oidc_claim_mappings"] = map[string]any{
+			"name":   settings.OidcClaimMappings.Name,
+			"email":  settings.OidcClaimMappings.Email,
+			"groups": settings.OidcClaimMappings.Groups,
+		}
+	}
+
+	return fields
 }
 
 func (p *Planner) planPortalCustomizationUpdate(
@@ -374,6 +612,23 @@ func (p *Planner) compareModePtr(current, desired *kkComps.Mode) bool {
 		return false
 	}
 	return *current == *desired
+}
+
+func (p *Planner) compareBoolPtr(current, desired *bool) bool {
+	if current == nil && desired == nil {
+		return true
+	}
+	if current == nil || desired == nil {
+		return false
+	}
+	return *current == *desired
+}
+
+func (p *Planner) compareBoolWithPtr(current bool, desired *bool) bool {
+	if desired == nil {
+		return true
+	}
+	return current == *desired
 }
 
 // Portal Custom Domain planning

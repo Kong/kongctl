@@ -37,6 +37,9 @@ const (
 	// ResourceTypePortalCustomization is the resource type for portal customizations
 	ResourceTypePortalCustomization = "portal_customization"
 
+	// ResourceTypePortalAuthSettings is the resource type for portal auth settings
+	ResourceTypePortalAuthSettings = "portal_auth_settings"
+
 	// ResourceTypePortalCustomDomain is the resource type for portal custom domains
 	ResourceTypePortalCustomDomain = "portal_custom_domain"
 )

@@ -29,6 +29,7 @@ type ClientConfig struct {
 
 	// Portal child resource APIs
 	PortalPageAPI          helpers.PortalPageAPI
+	PortalAuthSettingsAPI  helpers.PortalAuthSettingsAPI
 	PortalCustomizationAPI helpers.PortalCustomizationAPI
 	PortalCustomDomainAPI  helpers.PortalCustomDomainAPI
 	PortalSnippetAPI       helpers.PortalSnippetAPI
@@ -54,6 +55,7 @@ type Client struct {
 
 	// Portal child resource APIs
 	portalPageAPI          helpers.PortalPageAPI
+	portalAuthSettingsAPI  helpers.PortalAuthSettingsAPI
 	portalCustomizationAPI helpers.PortalCustomizationAPI
 	portalCustomDomainAPI  helpers.PortalCustomDomainAPI
 	portalSnippetAPI       helpers.PortalSnippetAPI
@@ -80,6 +82,7 @@ func NewClient(config ClientConfig) *Client {
 
 		// Portal child resource APIs
 		portalPageAPI:          config.PortalPageAPI,
+		portalAuthSettingsAPI:  config.PortalAuthSettingsAPI,
 		portalCustomizationAPI: config.PortalCustomizationAPI,
 		portalCustomDomainAPI:  config.PortalCustomDomainAPI,
 		portalSnippetAPI:       config.PortalSnippetAPI,
@@ -1906,6 +1909,60 @@ func (c *Client) DeleteApplicationAuthStrategy(ctx context.Context, id string) e
 }
 
 // Portal Child Resource Methods
+
+// GetPortalAuthSettings fetches current auth settings for a portal.
+func (c *Client) GetPortalAuthSettings(
+	ctx context.Context,
+	portalID string,
+) (*kkComps.PortalAuthenticationSettingsResponse, error) {
+	if err := ValidateAPIClient(c.portalAuthSettingsAPI, "portal auth settings API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.portalAuthSettingsAPI.GetPortalAuthenticationSettings(ctx, portalID)
+	if err != nil {
+		return nil, WrapAPIError(err, "get portal auth settings", nil)
+	}
+
+	if resp.PortalAuthenticationSettingsResponse == nil {
+		return nil, fmt.Errorf("no portal auth settings data in response")
+	}
+
+	return resp.PortalAuthenticationSettingsResponse, nil
+}
+
+// UpdatePortalAuthSettings updates portal authentication settings.
+func (c *Client) UpdatePortalAuthSettings(
+	ctx context.Context,
+	portalID string,
+	settings kkComps.PortalAuthenticationSettingsUpdateRequest,
+) error {
+	if err := ValidateAPIClient(c.portalAuthSettingsAPI, "portal auth settings API"); err != nil {
+		return err
+	}
+
+	if logger, ok := ctx.Value(log.LoggerKey).(*slog.Logger); ok && logger != nil {
+		logger.Debug("updating portal auth settings",
+			"portal_id", portalID,
+			"basic_auth_enabled", settings.BasicAuthEnabled,
+			"oidc_auth_enabled", settings.OidcAuthEnabled,
+			"saml_auth_enabled", settings.SamlAuthEnabled,
+			"oidc_team_mapping_enabled", settings.OidcTeamMappingEnabled,
+			"idp_mapping_enabled", settings.IdpMappingEnabled,
+			"konnect_mapping_enabled", settings.KonnectMappingEnabled,
+			"oidc_issuer", settings.OidcIssuer,
+			"oidc_client_id", settings.OidcClientID,
+			"oidc_scopes", settings.OidcScopes,
+			"oidc_claim_mappings", settings.OidcClaimMappings,
+		)
+	}
+
+	_, err := c.portalAuthSettingsAPI.UpdatePortalAuthenticationSettings(ctx, portalID, &settings)
+	if err != nil {
+		return WrapAPIError(err, "update portal auth settings", nil)
+	}
+	return nil
+}
 
 // GetPortalCustomization fetches the current customization for a portal
 func (c *Client) GetPortalCustomization(

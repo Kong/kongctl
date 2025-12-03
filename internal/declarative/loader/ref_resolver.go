@@ -201,6 +201,13 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 		processCount++
 	}
 
+	for i := range rs.PortalAuthSettings {
+		if err := resolveResourceFields(ctx, &rs.PortalAuthSettings[i], rs, resolver, resolutionPath, logger); err != nil {
+			return fmt.Errorf("resolving portal auth settings %s: %w", rs.PortalAuthSettings[i].GetRef(), err)
+		}
+		processCount++
+	}
+
 	for i := range rs.PortalCustomDomains {
 		if err := resolveResourceFields(ctx, &rs.PortalCustomDomains[i], rs, resolver, resolutionPath, logger); err != nil {
 			return fmt.Errorf("resolving portal custom domain %s: %w", rs.PortalCustomDomains[i].GetRef(), err)

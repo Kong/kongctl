@@ -1,0 +1,165 @@
+baseInputsPath: ../../../testdata/declarative/portal/auth-settings
+
+env:
+  KONGCTL_LOG_LEVEL: debug
+
+vars:
+  namespace: portal-auth-settings
+  portalRef: portal-auth
+  authSettingsRef: portal-auth-settings
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-auth-settings
+    commands:
+      - name: 000-plan-auth-settings
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-auth-settings.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_auth_settings' && resource_ref=='{{ .vars.authSettingsRef }}'] | [0].fields
+            expect:
+              fields:
+                basic_auth_enabled: true
+                oidc_auth_enabled: true
+                oidc_issuer: https://accounts.google.com
+                "oidc_claim_mappings.email": email
+                "oidc_claim_mappings.name": name
+                "oidc_claim_mappings.groups": groups
+      - name: 001-apply-auth-settings
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-auth-settings.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 002-get-auth-settings
+        run:
+          - get
+          - portal
+          - auth-settings
+          - --portal-name
+          - "{{ .vars.portalRef }}"
+          - -o
+          - json
+        assertions:
+          - expect:
+              fields:
+                basic_auth_enabled: true
+                oidc_auth_enabled: true
+                oidc_config.issuer: https://accounts.google.com
+                oidc_config.client_id: client-id-1
+                oidc_config.claim_mappings.email: email
+
+  - name: 002-plan-apply-auth-settings-update
+    inputOverlayDirs:
+      - overlays/002-update
+    commands:
+      - name: 000-plan-auth-settings-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-auth-settings-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_auth_settings' && resource_ref=='{{ .vars.authSettingsRef }}'] | [0].fields
+            expect:
+              fields:
+                basic_auth_enabled: false
+                idp_mapping_enabled: true
+                oidc_team_mapping_enabled: true
+                oidc_issuer: https://login.microsoftonline.com/common/v2.0
+                oidc_claim_mappings.name: full_name
+                oidc_claim_mappings.email: email_address
+                oidc_claim_mappings.groups: teams
+      - name: 001-apply-auth-settings-update
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-auth-settings-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-get-auth-settings-updated
+        run:
+          - get
+          - portal
+          - auth-settings
+          - --portal-name
+          - "{{ .vars.portalRef }}"
+          - -o
+          - json
+        assertions:
+          - expect:
+              fields:
+                basic_auth_enabled: false
+                oidc_auth_enabled: true
+                saml_auth_enabled: false
+                konnect_mapping_enabled: false
+                idp_mapping_enabled: true
+                oidc_team_mapping_enabled: true
+                #oidc_config.issuer: "https://login.microsoftonline.com/common/v2.0"
+                oidc_config.client_id: client-id-2
+                oidc_config.claim_mappings.name: full_name
+                oidc_config.claim_mappings.email: email_address
+                oidc_config.claim_mappings.groups: teams
+          - select: oidc_config.scopes
+            expect:
+              fields:
+                "length(@)": 3
+                "contains(@, 'openid')": true
+                "contains(@, 'email')": true
+                "contains(@, 'profile')": true

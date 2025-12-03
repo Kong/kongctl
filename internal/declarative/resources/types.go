@@ -16,6 +16,7 @@ const (
 	ResourceTypeGatewayService          ResourceType = "gateway_service"
 	ResourceTypePortalCustomization     ResourceType = "portal_customization"
 	ResourceTypePortalCustomDomain      ResourceType = "portal_custom_domain"
+	ResourceTypePortalAuthSettings      ResourceType = "portal_auth_settings"
 	ResourceTypePortalPage              ResourceType = "portal_page"
 	ResourceTypePortalSnippet           ResourceType = "portal_snippet"
 	ResourceTypePortalTeam              ResourceType = "portal_team"
@@ -49,6 +50,7 @@ type ResourceSet struct {
 	APIDocuments       []APIDocumentResource       `yaml:"api_documents,omitempty"               json:"api_documents,omitempty"`       //nolint:lll
 	// Portal child resources can be defined at root level (with parent reference) or nested under Portals
 	PortalCustomizations []PortalCustomizationResource `yaml:"portal_customizations,omitempty"       json:"portal_customizations,omitempty"` //nolint:lll
+	PortalAuthSettings   []PortalAuthSettingsResource  `yaml:"portal_auth_settings,omitempty"        json:"portal_auth_settings,omitempty"`  //nolint:lll
 	PortalCustomDomains  []PortalCustomDomainResource  `yaml:"portal_custom_domains,omitempty"       json:"portal_custom_domains,omitempty"` //nolint:lll
 	PortalPages          []PortalPageResource          `yaml:"portal_pages,omitempty"                json:"portal_pages,omitempty"`          //nolint:lll
 	PortalSnippets       []PortalSnippetResource       `yaml:"portal_snippets,omitempty"             json:"portal_snippets,omitempty"`       //nolint:lll
@@ -168,6 +170,11 @@ func (rs *ResourceSet) GetResourceByRef(ref string) (Resource, bool) {
 	for i := range rs.PortalCustomizations {
 		if rs.PortalCustomizations[i].GetRef() == ref {
 			return &rs.PortalCustomizations[i], true
+		}
+	}
+	for i := range rs.PortalAuthSettings {
+		if rs.PortalAuthSettings[i].GetRef() == ref {
+			return &rs.PortalAuthSettings[i], true
 		}
 	}
 
@@ -369,6 +376,25 @@ func (rs *ResourceSet) GetPortalCustomizationsByNamespace(namespace string) []Po
 			}
 			if GetNamespace(portal.Kongctl) == namespace {
 				filtered = append(filtered, custom)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetPortalAuthSettingsByNamespace returns all portal auth settings resources from the specified namespace
+func (rs *ResourceSet) GetPortalAuthSettingsByNamespace(namespace string) []PortalAuthSettingsResource {
+	var filtered []PortalAuthSettingsResource
+	for _, settings := range rs.PortalAuthSettings {
+		if portal := rs.GetPortalByRef(settings.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, settings)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, settings)
 			}
 		}
 	}

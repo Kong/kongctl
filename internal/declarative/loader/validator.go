@@ -432,6 +432,22 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 		}
 	}
 
+	// Validate portal auth settings
+	for i := range rs.PortalAuthSettings {
+		settings := &rs.PortalAuthSettings[i]
+		if err := settings.Validate(); err != nil {
+			return fmt.Errorf("invalid portal_auth_settings %q: %w", settings.GetRef(), err)
+		}
+		for j := i + 1; j < len(rs.PortalAuthSettings); j++ {
+			if rs.PortalAuthSettings[j].GetRef() == settings.GetRef() {
+				return fmt.Errorf(
+					"duplicate ref '%s' (already defined as portal_auth_settings)",
+					settings.GetRef(),
+				)
+			}
+		}
+	}
+
 	// Validate portal custom domains
 	for i := range rs.PortalCustomDomains {
 		domain := &rs.PortalCustomDomains[i]

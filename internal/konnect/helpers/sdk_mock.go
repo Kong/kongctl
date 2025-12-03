@@ -18,15 +18,16 @@ type MockKonnectSDK struct {
 	MeFactory                 func() MeAPI
 	GatewayServiceFactory     func() GatewayServiceAPI
 	// Portal child resource factories
-	PortalPageFactory          func() PortalPageAPI
-	PortalCustomizationFactory func() PortalCustomizationAPI
-	PortalCustomDomainFactory  func() PortalCustomDomainAPI
-	PortalSnippetFactory       func() PortalSnippetAPI
-	PortalApplicationFactory   func() PortalApplicationAPI
+	PortalPageFactory                    func() PortalPageAPI
+	PortalAuthSettingsFactory            func() PortalAuthSettingsAPI
+	PortalCustomizationFactory           func() PortalCustomizationAPI
+	PortalCustomDomainFactory            func() PortalCustomDomainAPI
+	PortalSnippetFactory                 func() PortalSnippetAPI
+	PortalApplicationFactory             func() PortalApplicationAPI
 	PortalApplicationRegistrationFactory func() PortalApplicationRegistrationAPI
-	PortalDeveloperFactory     func() PortalDeveloperAPI
-	PortalTeamFactory          func() PortalTeamAPI
-	PortalTeamRolesFactory     func() PortalTeamRolesAPI
+	PortalDeveloperFactory               func() PortalDeveloperAPI
+	PortalTeamFactory                    func() PortalTeamAPI
+	PortalTeamRolesFactory               func() PortalTeamRolesAPI
 }
 
 // Returns a mock instance of the ControlPlaneAPI
@@ -110,6 +111,14 @@ func (m *MockKonnectSDK) GetGatewayServiceAPI() GatewayServiceAPI {
 func (m *MockKonnectSDK) GetPortalPageAPI() PortalPageAPI {
 	if m.PortalPageFactory != nil {
 		return m.PortalPageFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the PortalAuthSettingsAPI
+func (m *MockKonnectSDK) GetPortalAuthSettingsAPI() PortalAuthSettingsAPI {
+	if m.PortalAuthSettingsFactory != nil {
+		return m.PortalAuthSettingsFactory()
 	}
 	return nil
 }

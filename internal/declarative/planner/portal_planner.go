@@ -677,6 +677,19 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			"error", err.Error())
 	}
 
+	// Plan auth settings
+	settings := make([]resources.PortalAuthSettingsResource, 0)
+	for _, auth := range planner.desiredPortalAuthSettings {
+		if auth.Portal == desired.Ref {
+			settings = append(settings, auth)
+		}
+	}
+	if err := planner.planPortalAuthSettingsChanges(ctx, plannerCtx, parentNamespace, settings, plan); err != nil {
+		planner.logger.Debug("Failed to plan portal auth settings for new portal",
+			"portal", desired.Ref,
+			"error", err.Error())
+	}
+
 	// Plan customization
 	customizations := make([]resources.PortalCustomizationResource, 0)
 	for _, customization := range planner.desiredPortalCustomizations {
@@ -764,6 +777,17 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 		ctx, parentNamespace, current.ID, desired.Ref, snippets, plan,
 	); err != nil {
 		return fmt.Errorf("failed to plan portal snippet changes: %w", err)
+	}
+
+	// Plan auth settings (singleton)
+	authSettings := make([]resources.PortalAuthSettingsResource, 0)
+	for _, auth := range planner.desiredPortalAuthSettings {
+		if auth.Portal == desired.Ref {
+			authSettings = append(authSettings, auth)
+		}
+	}
+	if err := planner.planPortalAuthSettingsChanges(ctx, plannerCtx, parentNamespace, authSettings, plan); err != nil {
+		return fmt.Errorf("failed to plan portal auth settings changes: %w", err)
 	}
 
 	// Plan customization (singleton resource)
