@@ -50,6 +50,8 @@ type Planner struct {
 	desiredPortalCustomizations []resources.PortalCustomizationResource
 	desiredPortalAuthSettings   []resources.PortalAuthSettingsResource
 	desiredPortalCustomDomains  []resources.PortalCustomDomainResource
+	desiredPortalAssetLogos     []resources.PortalAssetLogoResource
+	desiredPortalAssetFavicons  []resources.PortalAssetFaviconResource
 }
 
 // NewPlanner creates a new planner
@@ -161,6 +163,8 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.desiredPortalCustomizations = rs.PortalCustomizations
 		namespacePlanner.desiredPortalAuthSettings = rs.PortalAuthSettings
 		namespacePlanner.desiredPortalCustomDomains = rs.PortalCustomDomains
+		namespacePlanner.desiredPortalAssetLogos = rs.PortalAssetLogos
+		namespacePlanner.desiredPortalAssetFavicons = rs.PortalAssetFavicons
 
 		// Create a plan for this namespace
 		namespacePlan := NewPlan("1.0", generator, opts.Mode)
