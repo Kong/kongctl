@@ -220,6 +220,70 @@ func TestRunPostBuildsJSONBody(t *testing.T) {
 	require.Contains(t, strings.TrimSpace(outBuf.String()), "\"ok\"")
 }
 
+func TestRunPatchBuildsJSONBody(t *testing.T) {
+	original := requestFn
+	t.Cleanup(func() { requestFn = original })
+
+	var (
+		capturedMethod   string
+		capturedEndpoint string
+		capturedBody     string
+	)
+
+	requestFn = func(
+		_ context.Context,
+		client apiutil.Doer,
+		method string,
+		baseURL string,
+		endpoint string,
+		token string,
+		headers map[string]string,
+		body io.Reader,
+	) (*apiutil.Result, error) {
+		require.Equal(t, "https://api.example.com", baseURL)
+		require.NotNil(t, client)
+		capturedMethod = method
+		capturedEndpoint = endpoint
+		require.Equal(t, "application/json", headers["Content-Type"])
+		bytes, err := io.ReadAll(body)
+		require.NoError(t, err)
+		capturedBody = string(bytes)
+		require.Equal(t, "test-token", token)
+		return &apiutil.Result{StatusCode: http.StatusOK, Body: []byte(`{"ok":true}`)}, nil
+	}
+
+	streams := iostreams.NewTestIOStreamsOnly()
+	cmdObj := &cobra.Command{Use: "test"}
+	addFlags(cmdObj)
+
+	cfg := newMockAPIConfig()
+
+	args := []string{"/v1/resources/123", "name=patched"}
+	helper := &cmdtest.MockHelper{
+		GetCmdMock:          func() *cobra.Command { return cmdObj },
+		GetArgsMock:         func() []string { return args },
+		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
+		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.JSON, nil },
+		GetLoggerMock: func() (*slog.Logger, error) {
+			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
+		},
+		GetContextMock:    func() context.Context { return context.Background() },
+		GetVerbMock:       func() (verbs.VerbValue, error) { return verbs.API, nil },
+		GetProductMock:    func() (products.ProductValue, error) { return "", nil },
+		GetKonnectSDKMock: func(configpkg.Hook, *slog.Logger) (helpers.SDKAPI, error) { return nil, nil },
+	}
+
+	err := run(helper, http.MethodPatch, true)
+	require.NoError(t, err)
+	require.Equal(t, http.MethodPatch, capturedMethod)
+	require.Equal(t, "/v1/resources/123", capturedEndpoint)
+	require.JSONEq(t, `{"name":"patched"}`, capturedBody)
+
+	outBuf := streams.Out.(*bytes.Buffer)
+	require.Contains(t, strings.TrimSpace(outBuf.String()), "\"ok\"")
+}
+
 func TestRunPostReadsBodyFromFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	bodyFile, err := os.CreateTemp(tmpDir, "body-*.json")
@@ -535,6 +599,113 @@ func TestRunPostReadsBodyFromStdin(t *testing.T) {
 	require.True(t, stdin.closed)
 }
 
+func TestRunReturnsStatusDetailsOnError(t *testing.T) {
+	original := requestFn
+	t.Cleanup(func() { requestFn = original })
+
+	requestFn = func(
+		context.Context,
+		apiutil.Doer,
+		string,
+		string,
+		string,
+		string,
+		map[string]string,
+		io.Reader,
+	) (*apiutil.Result, error) {
+		return &apiutil.Result{
+			StatusCode: http.StatusNotFound,
+			Body:       []byte(`{"message":"Cannot POST"}`),
+		}, nil
+	}
+
+	streams := iostreams.NewTestIOStreamsOnly()
+	cmdObj := &cobra.Command{Use: "test"}
+	addFlags(cmdObj)
+
+	cfg := newMockAPIConfig()
+	args := []string{"/v1/resources"}
+
+	helper := &cmdtest.MockHelper{
+		GetCmdMock:          func() *cobra.Command { return cmdObj },
+		GetArgsMock:         func() []string { return args },
+		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
+		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.JSON, nil },
+		GetLoggerMock: func() (*slog.Logger, error) {
+			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
+		},
+		GetContextMock: func() context.Context { return context.Background() },
+	}
+
+	err := run(helper, http.MethodGet, false)
+	require.Error(t, err)
+	var execErr *cmdpkg.ExecutionError
+	require.True(t, errors.As(err, &execErr))
+	require.Contains(t, execErr.Msg, "status 404")
+	require.Contains(t, execErr.Err.Error(), "Cannot POST")
+
+	attrMap := attrsToMap(t, execErr.Attrs)
+	require.Equal(t, http.StatusNotFound, attrMap["status"])
+	require.Equal(t, http.MethodGet, attrMap["method"])
+	require.Equal(t, "/v1/resources", attrMap["endpoint"])
+	require.Contains(t, attrMap["response"], "Cannot POST")
+}
+
+func TestRunIncludesHeadersWhenRequested(t *testing.T) {
+	original := requestFn
+	t.Cleanup(func() { requestFn = original })
+
+	requestFn = func(
+		context.Context,
+		apiutil.Doer,
+		string,
+		string,
+		string,
+		string,
+		map[string]string,
+		io.Reader,
+	) (*apiutil.Result, error) {
+		return &apiutil.Result{
+			StatusCode: http.StatusBadRequest,
+			Body:       []byte(`{"message":"bad request"}`),
+			Header: http.Header{
+				"X-Request-Id": {"abc123"},
+			},
+		}, nil
+	}
+
+	streams := iostreams.NewTestIOStreamsOnly()
+	cmdObj := &cobra.Command{Use: "test"}
+	addFlags(cmdObj)
+	require.NoError(t, cmdObj.Flags().Set(responseHeadersFlagName, "true"))
+
+	cfg := newMockAPIConfig()
+	args := []string{"/v1/resources"}
+
+	helper := &cmdtest.MockHelper{
+		GetCmdMock:          func() *cobra.Command { return cmdObj },
+		GetArgsMock:         func() []string { return args },
+		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
+		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.JSON, nil },
+		GetLoggerMock: func() (*slog.Logger, error) {
+			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
+		},
+		GetContextMock: func() context.Context { return context.Background() },
+	}
+
+	err := run(helper, http.MethodGet, false)
+	require.Error(t, err)
+	var execErr *cmdpkg.ExecutionError
+	require.True(t, errors.As(err, &execErr))
+
+	attrMap := attrsToMap(t, execErr.Attrs)
+	require.Equal(t, http.StatusBadRequest, attrMap["status"])
+	require.Equal(t, "/v1/resources", attrMap["endpoint"])
+	require.Equal(t, http.Header{"X-Request-Id": {"abc123"}}, attrMap["headers"])
+}
+
 func TestRunPostBodyFileFromInteractiveStdinFails(t *testing.T) {
 	originalRequest := requestFn
 	t.Cleanup(func() { requestFn = originalRequest })
@@ -662,6 +833,18 @@ func (f *fakeTTYReader) Close() error {
 
 func (f *fakeTTYReader) Fd() uintptr { return 0 }
 
+func attrsToMap(t *testing.T, attrs []any) map[string]any {
+	t.Helper()
+	require.Zero(t, len(attrs)%2, "attrs slice must contain key/value pairs")
+	result := make(map[string]any, len(attrs)/2)
+	for i := 0; i < len(attrs); i += 2 {
+		key, ok := attrs[i].(string)
+		require.True(t, ok, "attr keys must be strings")
+		result[key] = attrs[i+1]
+	}
+	return result
+}
+
 func TestRunRejectsUnexpectedPayload(t *testing.T) {
 	original := requestFn
 	t.Cleanup(func() { requestFn = original })
@@ -706,5 +889,5 @@ func TestRunRejectsUnexpectedPayload(t *testing.T) {
 	require.Error(t, err)
 	var execErr *cmdpkg.ExecutionError
 	require.True(t, errors.As(err, &execErr))
-	require.Contains(t, err.Error(), "data fields may only be supplied with POST or PUT")
+	require.Contains(t, err.Error(), "data fields may only be supplied with POST, PUT, or PATCH")
 }
