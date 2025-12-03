@@ -39,6 +39,7 @@ const (
 	jqColorEnabledConfigPath   = "jq.color.enabled"
 	jqColorPaletteConfigPath   = "jq.color.palette"
 	jqColorDefaultPaletteValue = "github"
+	responseHeadersFlagName    = "include-response-headers"
 )
 
 var (
@@ -62,6 +63,9 @@ var (
 
 	# Update a resource
 	%[1]s api put /v3/apis/123 name="my-updated-api"
+
+	# Partially update a resource
+	%[1]s api patch /v3/apis/123 config:={"enabled":false}
 
 	# Delete a resource
 	%[1]s api delete /v3/apis/123`, meta.CLIName)))
@@ -118,6 +122,12 @@ Setting this value overrides tokens obtained from the login command.
 		jqColorDefaultPaletteValue,
 		fmt.Sprintf(`Select the color palette used for jq filter results (default %s).
 - Config path: [ %s ]`, jqColorDefaultPaletteValue, jqColorPaletteConfigPath),
+	)
+
+	command.PersistentFlags().Bool(
+		responseHeadersFlagName,
+		false,
+		"Include response headers in error output",
 	)
 
 	// Ensure persistent flags are accessible via Flags() for commands without subcommands (tests)
@@ -195,6 +205,7 @@ func NewAPICmd() (*cobra.Command, error) {
 	rootCmd.AddCommand(newMethodCmd("get", http.MethodGet, false))
 	rootCmd.AddCommand(newMethodCmd("post", http.MethodPost, true))
 	rootCmd.AddCommand(newMethodCmd("put", http.MethodPut, true))
+	rootCmd.AddCommand(newMethodCmd("patch", http.MethodPatch, true))
 	rootCmd.AddCommand(newMethodCmd("delete", http.MethodDelete, false))
 
 	return rootCmd, nil
@@ -257,6 +268,11 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 	}
 
 	bodyFilePath, err := helper.GetCmd().Flags().GetString("body-file")
+	if err != nil {
+		return err
+	}
+
+	includeResponseHeaders, err := helper.GetCmd().Flags().GetBool(responseHeadersFlagName)
 	if err != nil {
 		return err
 	}
@@ -337,7 +353,7 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		if !allowBody {
 			return cmd.PrepareExecutionError(
 				"unexpected data arguments",
-				fmt.Errorf("data fields may only be supplied with POST or PUT"),
+				fmt.Errorf("data fields may only be supplied with POST, PUT, or PATCH"),
 				helper.GetCmd(),
 			)
 		}
@@ -362,11 +378,34 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 	}
 
 	if result.StatusCode >= 400 {
-		return cmd.PrepareExecutionError(
-			fmt.Sprintf("request failed with status %d", result.StatusCode),
-			errors.New(string(result.Body)),
-			helper.GetCmd(),
-		)
+		statusText := http.StatusText(result.StatusCode)
+		summary := fmt.Sprintf("request failed with status %d", result.StatusCode)
+		if statusText != "" {
+			summary = fmt.Sprintf("%s %s", summary, statusText)
+		}
+
+		body := strings.TrimSpace(string(result.Body))
+		respErr := errors.New(summary)
+		if body != "" {
+			respErr = fmt.Errorf("%s: %s", summary, body)
+		}
+
+		attrs := []any{
+			"status", result.StatusCode,
+			"method", method,
+			"endpoint", endpoint,
+		}
+		if statusText != "" {
+			attrs = append(attrs, "status_text", statusText)
+		}
+		if body != "" {
+			attrs = append(attrs, "response", body)
+		}
+		if includeResponseHeaders && len(result.Header) > 0 {
+			attrs = append(attrs, "headers", result.Header)
+		}
+
+		return cmd.PrepareExecutionError(summary, respErr, helper.GetCmd(), attrs...)
 	}
 
 	var bodyToRender []byte
