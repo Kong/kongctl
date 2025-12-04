@@ -42,6 +42,12 @@ const (
 
 	// ResourceTypePortalCustomDomain is the resource type for portal custom domains
 	ResourceTypePortalCustomDomain = "portal_custom_domain"
+
+	// ResourceTypePortalAssetLogo is the resource type for portal logo assets
+	ResourceTypePortalAssetLogo = "portal_asset_logo"
+
+	// ResourceTypePortalAssetFavicon is the resource type for portal favicon assets
+	ResourceTypePortalAssetFavicon = "portal_asset_favicon"
 )
 
 // Default values

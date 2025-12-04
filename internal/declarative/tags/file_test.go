@@ -1,8 +1,10 @@
 package tags
 
 import (
+	"encoding/base64"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -411,5 +413,236 @@ func TestFileTagResolver_ConcurrentAccess(t *testing.T) {
 	// Wait for all goroutines
 	for i := 0; i < 10; i++ {
 		<-done
+	}
+}
+
+func TestFileTagResolver_ImageFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create test image files with minimal binary content
+	// PNG: minimal 1x1 PNG file (base64 decoded)
+	pngData := []byte{
+		0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG header
+		0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
+		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // 1x1 pixels
+		0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, // bit depth, color type, etc.
+		0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, // IDAT chunk
+		0x54, 0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00,
+		0x00, 0x03, 0x01, 0x01, 0x00, 0x18, 0xDD, 0x8D,
+		0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, // IEND chunk
+		0x44, 0xAE, 0x42, 0x60, 0x82,
+	}
+	pngFile := filepath.Join(tmpDir, "test.png")
+	require.NoError(t, os.WriteFile(pngFile, pngData, 0o600))
+
+	// JPEG: minimal JPEG file header
+	jpegData := []byte{
+		0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, // JPEG header
+		0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01,
+		0x00, 0x01, 0x00, 0x00, 0xFF, 0xD9, // End of image
+	}
+	jpegFile := filepath.Join(tmpDir, "test.jpg")
+	require.NoError(t, os.WriteFile(jpegFile, jpegData, 0o600))
+
+	// SVG: simple SVG text
+	svgData := []byte(
+		`<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">` +
+			`<rect width="10" height="10" fill="red"/></svg>`,
+	)
+	svgFile := filepath.Join(tmpDir, "test.svg")
+	require.NoError(t, os.WriteFile(svgFile, svgData, 0o600))
+
+	// ICO: minimal ICO file
+	icoData := []byte{
+		0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x10, 0x10, // ICO header
+		0x00, 0x00, 0x01, 0x00, 0x18, 0x00, 0x30, 0x00,
+		0x00, 0x00, 0x16, 0x00, 0x00, 0x00, // Directory entry
+	}
+	icoFile := filepath.Join(tmpDir, "test.ico")
+	require.NoError(t, os.WriteFile(icoFile, icoData, 0o600))
+
+	resolver := NewFileTagResolver(tmpDir)
+
+	tests := []struct {
+		name         string
+		filename     string
+		expectedMIME string
+	}{
+		{
+			name:         "PNG file",
+			filename:     "test.png",
+			expectedMIME: "image/png",
+		},
+		{
+			name:         "JPEG file",
+			filename:     "test.jpg",
+			expectedMIME: "image/jpeg",
+		},
+		{
+			name:         "SVG file",
+			filename:     "test.svg",
+			expectedMIME: "image/svg+xml",
+		},
+		{
+			name:         "ICO file",
+			filename:     "test.ico",
+			expectedMIME: "image/x-icon",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			node := &yaml.Node{
+				Kind:  yaml.ScalarNode,
+				Value: tt.filename,
+			}
+
+			got, err := resolver.Resolve(node)
+			require.NoError(t, err)
+
+			// Result should be a string (data URL)
+			dataURL, ok := got.(string)
+			require.True(t, ok, "Expected string result for image file")
+
+			// Verify data URL format
+			assert.True(t, strings.HasPrefix(dataURL, "data:"),
+				"Data URL should start with 'data:'")
+			assert.Contains(t, dataURL, ";base64,",
+				"Data URL should contain ';base64,'")
+			assert.Contains(t, dataURL, tt.expectedMIME,
+				"Data URL should contain expected MIME type")
+
+			// Extract and verify base64 portion
+			parts := strings.SplitN(dataURL, ",", 2)
+			require.Len(t, parts, 2, "Data URL should have comma separator")
+
+			// Verify base64 decodes successfully
+			_, err = base64.StdEncoding.DecodeString(parts[1])
+			assert.NoError(t, err, "Base64 portion should be valid")
+		})
+	}
+}
+
+func TestFileTagResolver_ImageWithExtraction(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a simple PNG
+	pngData := []byte{
+		0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+		0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+		0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
+		0xDE, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E,
+		0x44, 0xAE, 0x42, 0x60, 0x82,
+	}
+	pngFile := filepath.Join(tmpDir, "logo.png")
+	require.NoError(t, os.WriteFile(pngFile, pngData, 0o600))
+
+	resolver := NewFileTagResolver(tmpDir)
+
+	// Test extraction with image file (extraction should be ignored for images)
+	node := &yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Value: "logo.png#somefield",
+	}
+
+	got, err := resolver.Resolve(node)
+	require.NoError(t, err)
+
+	// Should still return data URL (extraction is ignored for binary images)
+	dataURL, ok := got.(string)
+	require.True(t, ok, "Expected string result for image file")
+	assert.True(t, strings.HasPrefix(dataURL, "data:image/png;base64,"))
+}
+
+func TestIsImageFile(t *testing.T) {
+	tests := []struct {
+		ext  string
+		want bool
+	}{
+		{".png", true},
+		{".jpg", true},
+		{".jpeg", true},
+		{".svg", true},
+		{".ico", true},
+		{".gif", true},
+		{".webp", true},
+		{".yaml", false},
+		{".json", false},
+		{".txt", false},
+		{".pdf", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.ext, func(t *testing.T) {
+			got := isImageFile(tt.ext)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestDetectMimeType(t *testing.T) {
+	tests := []struct {
+		name string
+		ext  string
+		data []byte
+		want string
+	}{
+		{
+			name: "PNG extension",
+			ext:  ".png",
+			data: []byte{0x89, 0x50, 0x4E, 0x47}, // PNG magic bytes
+			want: "image/png",
+		},
+		{
+			name: "JPEG extension",
+			ext:  ".jpg",
+			data: []byte{0xFF, 0xD8, 0xFF}, // JPEG magic bytes
+			want: "image/jpeg",
+		},
+		{
+			name: "SVG extension",
+			ext:  ".svg",
+			data: []byte("<svg"),
+			want: "image/svg+xml",
+		},
+		{
+			name: "ICO extension",
+			ext:  ".ico",
+			data: []byte{0x00, 0x00, 0x01, 0x00},
+			want: "image/x-icon",
+		},
+		{
+			name: "GIF extension",
+			ext:  ".gif",
+			data: []byte("GIF89a"),
+			want: "image/gif",
+		},
+		{
+			name: "WebP extension",
+			ext:  ".webp",
+			data: []byte("RIFF"),
+			want: "image/webp",
+		},
+		{
+			name: "Unknown extension with image data",
+			ext:  ".unknown",
+			data: []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}, // PNG data
+			want: "image/png",
+		},
+		{
+			name: "Unknown extension with non-image data",
+			ext:  ".unknown",
+			data: []byte("plain text"),
+			want: "application/octet-stream",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := detectMimeType(tt.ext, tt.data)
+			assert.Equal(t, tt.want, got)
+		})
 	}
 }

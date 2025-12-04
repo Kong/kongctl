@@ -21,6 +21,8 @@ const (
 	ResourceTypePortalSnippet           ResourceType = "portal_snippet"
 	ResourceTypePortalTeam              ResourceType = "portal_team"
 	ResourceTypePortalTeamRole          ResourceType = "portal_team_role"
+	ResourceTypePortalAssetLogo         ResourceType = "portal_asset_logo"
+	ResourceTypePortalAssetFavicon      ResourceType = "portal_asset_favicon"
 )
 
 const (
@@ -56,6 +58,8 @@ type ResourceSet struct {
 	PortalSnippets       []PortalSnippetResource       `yaml:"portal_snippets,omitempty"             json:"portal_snippets,omitempty"`       //nolint:lll
 	PortalTeams          []PortalTeamResource          `yaml:"portal_teams,omitempty"                json:"portal_teams,omitempty"`          //nolint:lll
 	PortalTeamRoles      []PortalTeamRoleResource      `yaml:"portal_team_roles,omitempty"           json:"portal_team_roles,omitempty"`     //nolint:lll
+	PortalAssetLogos     []PortalAssetLogoResource     `yaml:"portal_asset_logos,omitempty"         json:"portal_asset_logos,omitempty"`    //nolint:lll
+	PortalAssetFavicons  []PortalAssetFaviconResource  `yaml:"portal_asset_favicons,omitempty"      json:"portal_asset_favicons,omitempty"` //nolint:lll
 
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
