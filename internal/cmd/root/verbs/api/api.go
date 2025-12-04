@@ -122,8 +122,8 @@ Setting this value overrides tokens obtained from the login command.
 		jqColorDefaultThemeValue,
 		fmt.Sprintf(`Select the color theme used for jq filter results.
 - Config path: [ %s ]
-- Examples  : [ friendly, github-dark, dracula ]
-- Reference : [ https://xyproto.github.io/splash/docs/ ]`, jqColorThemeConfigPath),
+- Examples   : [ friendly, github-dark, dracula ]
+- Reference  : [ https://xyproto.github.io/splash/docs/ ]`, jqColorThemeConfigPath),
 	)
 
 	command.PersistentFlags().Bool(
