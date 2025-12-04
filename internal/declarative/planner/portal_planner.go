@@ -755,15 +755,17 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 	}
 	planner.planPortalAssetFaviconsChanges(ctx, plannerCtx, parentNamespace, favicons, plan)
 
-	// Plan nested assets (from portal.Logo and portal.Favicon fields)
-	if desired.Logo != nil && *desired.Logo != "" {
-		if !plan.HasChange(ResourceTypePortalAssetLogo, fmt.Sprintf("%s-logo", desired.Ref)) {
-			planner.planPortalAssetLogoUpdate(parentNamespace, desired.Ref, desired.Name, "", *desired.Logo, plan)
+	// Plan nested assets (from portal.Assets.Logo and portal.Assets.Favicon fields)
+	if desired.Assets != nil {
+		if desired.Assets.Logo != nil && *desired.Assets.Logo != "" {
+			if !plan.HasChange(ResourceTypePortalAssetLogo, fmt.Sprintf("%s-logo", desired.Ref)) {
+				planner.planPortalAssetLogoUpdate(parentNamespace, desired.Ref, desired.Name, "", *desired.Assets.Logo, plan)
+			}
 		}
-	}
-	if desired.Favicon != nil && *desired.Favicon != "" {
-		if !plan.HasChange(ResourceTypePortalAssetFavicon, fmt.Sprintf("%s-favicon", desired.Ref)) {
-			planner.planPortalAssetFaviconUpdate(parentNamespace, desired.Ref, desired.Name, "", *desired.Favicon, plan)
+		if desired.Assets.Favicon != nil && *desired.Assets.Favicon != "" {
+			if !plan.HasChange(ResourceTypePortalAssetFavicon, fmt.Sprintf("%s-favicon", desired.Ref)) {
+				planner.planPortalAssetFaviconUpdate(parentNamespace, desired.Ref, desired.Name, "", *desired.Assets.Favicon, plan)
+			}
 		}
 	}
 }
@@ -886,15 +888,21 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 	}
 	planner.planPortalAssetFaviconsChanges(ctx, plannerCtx, parentNamespace, favicons, plan)
 
-	// Plan nested assets (from portal.Logo and portal.Favicon fields)
-	if desired.Logo != nil && *desired.Logo != "" {
-		if !plan.HasChange(ResourceTypePortalAssetLogo, fmt.Sprintf("%s-logo", desired.Ref)) {
-			planner.planPortalAssetLogoUpdate(parentNamespace, desired.Ref, desired.Name, current.ID, *desired.Logo, plan)
+	// Plan nested assets (from portal.Assets.Logo and portal.Assets.Favicon fields)
+	if desired.Assets != nil {
+		if desired.Assets.Logo != nil && *desired.Assets.Logo != "" {
+			if !plan.HasChange(ResourceTypePortalAssetLogo, fmt.Sprintf("%s-logo", desired.Ref)) {
+				planner.planPortalAssetLogoUpdate(
+					parentNamespace, desired.Ref, desired.Name, current.ID, *desired.Assets.Logo, plan,
+				)
+			}
 		}
-	}
-	if desired.Favicon != nil && *desired.Favicon != "" {
-		if !plan.HasChange(ResourceTypePortalAssetFavicon, fmt.Sprintf("%s-favicon", desired.Ref)) {
-			planner.planPortalAssetFaviconUpdate(parentNamespace, desired.Ref, desired.Name, current.ID, *desired.Favicon, plan)
+		if desired.Assets.Favicon != nil && *desired.Assets.Favicon != "" {
+			if !plan.HasChange(ResourceTypePortalAssetFavicon, fmt.Sprintf("%s-favicon", desired.Ref)) {
+				planner.planPortalAssetFaviconUpdate(
+					parentNamespace, desired.Ref, desired.Name, current.ID, *desired.Assets.Favicon, plan,
+				)
+			}
 		}
 	}
 

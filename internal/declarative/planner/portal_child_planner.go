@@ -953,24 +953,20 @@ func (p *Planner) planPortalAssetLogoUpdate(
 		DependsOn:    uniqueStrings(deps),
 	}
 
-	// Set parent info for runtime resolution
-	if portalID != "" {
-		change.Parent = &ParentInfo{
+	// Set parent info for runtime resolution (follows pattern from customization/auth_settings)
+	change.Parent = &ParentInfo{
+		Ref: portalRef,
+		ID:  portalID, // May be empty if portal doesn't exist yet
+	}
+
+	// Also store in References for executor to use
+	change.References = map[string]ReferenceInfo{
+		"portal_id": {
 			Ref: portalRef,
-			ID:  portalID,
-		}
-	} else {
-		refInfo := ReferenceInfo{
-			Ref: portalRef,
-		}
-		if portalName != "" {
-			refInfo.LookupFields = map[string]string{
+			LookupFields: map[string]string{
 				"name": portalName,
-			}
-		}
-		change.References = map[string]ReferenceInfo{
-			"portal_id": refInfo,
-		}
+			},
+		},
 	}
 
 	plan.AddChange(change)
@@ -1041,24 +1037,20 @@ func (p *Planner) planPortalAssetFaviconUpdate(
 		DependsOn:    uniqueStrings(deps),
 	}
 
-	// Set parent info for runtime resolution
-	if portalID != "" {
-		change.Parent = &ParentInfo{
+	// Set parent info for runtime resolution (follows pattern from customization/auth_settings)
+	change.Parent = &ParentInfo{
+		Ref: portalRef,
+		ID:  portalID, // May be empty if portal doesn't exist yet
+	}
+
+	// Also store in References for executor to use
+	change.References = map[string]ReferenceInfo{
+		"portal_id": {
 			Ref: portalRef,
-			ID:  portalID,
-		}
-	} else {
-		refInfo := ReferenceInfo{
-			Ref: portalRef,
-		}
-		if portalName != "" {
-			refInfo.LookupFields = map[string]string{
+			LookupFields: map[string]string{
 				"name": portalName,
-			}
-		}
-		change.References = map[string]ReferenceInfo{
-			"portal_id": refInfo,
-		}
+			},
+		},
 	}
 
 	plan.AddChange(change)
