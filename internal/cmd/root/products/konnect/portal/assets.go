@@ -323,7 +323,10 @@ func runGetPortalAsset(c *cobra.Command, args []string, assetType string) error 
 			}
 		}
 
-		absPath, _ := filepath.Abs(outputFile)
+		absPath := outputFile
+		if ap, err := filepath.Abs(outputFile); err == nil {
+			absPath = ap
+		}
 		fmt.Fprintf(helper.GetStreams().Out, "Successfully saved %s to: %s\n", assetType, absPath)
 	}
 
@@ -352,7 +355,7 @@ func writeDataURLToFile(dataURL, filename string) error {
 	}
 
 	// Write to file
-	if err := os.WriteFile(filename, decodedData, 0600); err != nil {
+	if err := os.WriteFile(filename, decodedData, 0o600); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 
