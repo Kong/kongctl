@@ -33,13 +33,13 @@ import (
 )
 
 const (
-	Verb                       = verbs.API
-	jqColorFlagName            = "jq-color"
-	jqColorPaletteFlagName     = "jq-color-palette"
-	jqColorEnabledConfigPath   = "jq.color.enabled"
-	jqColorPaletteConfigPath   = "jq.color.palette"
-	jqColorDefaultPaletteValue = "github"
-	responseHeadersFlagName    = "include-response-headers"
+	Verb                     = verbs.API
+	jqColorFlagName          = "jq-color"
+	jqColorThemeFlagName     = "jq-color-theme"
+	jqColorEnabledConfigPath = "jq.color.enabled"
+	jqColorThemeConfigPath   = "jq.color.theme"
+	jqColorDefaultThemeValue = "friendly"
+	responseHeadersFlagName  = "include-response-headers"
 )
 
 var (
@@ -118,10 +118,12 @@ Setting this value overrides tokens obtained from the login command.
 	)
 
 	command.PersistentFlags().String(
-		jqColorPaletteFlagName,
-		jqColorDefaultPaletteValue,
-		fmt.Sprintf(`Select the color palette used for jq filter results (default %s).
-- Config path: [ %s ]`, jqColorDefaultPaletteValue, jqColorPaletteConfigPath),
+		jqColorThemeFlagName,
+		jqColorDefaultThemeValue,
+		fmt.Sprintf(`Select the color theme used for jq filter results.
+- Config path: [ %s ]
+- Examples   : [ friendly, github-dark, dracula ]
+- Reference  : [ https://xyproto.github.io/splash/docs/ ]`, jqColorThemeConfigPath),
 	)
 
 	command.PersistentFlags().Bool(
@@ -167,9 +169,9 @@ func bindFlags(c *cobra.Command, args []string) error {
 		}
 	}
 
-	f = c.Flags().Lookup(jqColorPaletteFlagName)
+	f = c.Flags().Lookup(jqColorThemeFlagName)
 	if f != nil {
-		if err = cfg.BindFlag(jqColorPaletteConfigPath, f); err != nil {
+		if err = cfg.BindFlag(jqColorThemeConfigPath, f); err != nil {
 			return err
 		}
 	}
@@ -250,23 +252,6 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		jqFilter = "."
 	}
 
-	jqColorValue, err := helper.GetCmd().Flags().GetString(jqColorFlagName)
-	if err != nil {
-		return err
-	}
-	jColorMode, err := cmdcommon.ColorModeStringToIota(strings.ToLower(jqColorValue))
-	if err != nil {
-		return err
-	}
-	jqPaletteValue, err := helper.GetCmd().Flags().GetString(jqColorPaletteFlagName)
-	if err != nil {
-		return err
-	}
-	jqPaletteValue = strings.TrimSpace(jqPaletteValue)
-	if jqPaletteValue == "" {
-		jqPaletteValue = jqColorDefaultPaletteValue
-	}
-
 	bodyFilePath, err := helper.GetCmd().Flags().GetString("body-file")
 	if err != nil {
 		return err
@@ -280,6 +265,16 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 	cfg, err := helper.GetConfig()
 	if err != nil {
 		return err
+	}
+
+	jqColorValue := cfg.GetString(jqColorEnabledConfigPath)
+	jColorMode, err := cmdcommon.ColorModeStringToIota(strings.ToLower(jqColorValue))
+	if err != nil {
+		return err
+	}
+	jqThemeValue := strings.TrimSpace(cfg.GetString(jqColorThemeConfigPath))
+	if jqThemeValue == "" {
+		jqThemeValue = jqColorDefaultThemeValue
 	}
 
 	logger, err := helper.GetLogger()
@@ -431,7 +426,7 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		}
 		printable := bodyToPrintable(bodyToRender)
 		if useJQColor {
-			printable = maybeColorizeJQOutput(bodyToRender, printable, jqPaletteValue)
+			printable = maybeColorizeJQOutput(bodyToRender, printable, jqThemeValue)
 		}
 		_, err = fmt.Fprintln(streams.Out, strings.TrimRight(printable, "\n"))
 		return err
@@ -588,7 +583,7 @@ func isJQTerminal(out io.Writer) bool {
 	return false
 }
 
-func maybeColorizeJQOutput(raw []byte, formatted, palette string) string {
+func maybeColorizeJQOutput(raw []byte, formatted, theme string) string {
 	var payload any
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		return formatted
@@ -617,9 +612,9 @@ func maybeColorizeJQOutput(raw []byte, formatted, palette string) string {
 		return formatted
 	}
 
-	style := styles.Get(palette)
+	style := styles.Get(theme)
 	if style == nil {
-		style = styles.Get(jqColorDefaultPaletteValue)
+		style = styles.Get(jqColorDefaultThemeValue)
 	}
 	if style == nil {
 		style = styles.Fallback

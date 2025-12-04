@@ -141,9 +141,10 @@ func newRootCmd() *cobra.Command {
 
 	themeFlag := theme.NewFlag(common.DefaultColorTheme)
 	rootCmd.PersistentFlags().Var(themeFlag, common.ColorThemeFlagName,
-		fmt.Sprintf(`Configures the color theme used in some areas of the CLI outputs and views.
+		fmt.Sprintf(`Configures the CLI UI/theme (prompt, tables, TUI elements).
 - Config path: [ %s ]
-- Examples   : [ %s ]`,
+- Examples   : [ %s ]
+- Reference  : [ https://github.com/lrstanley/bubbletint/blob/master/DEFAULT_TINTS.md ]`,
 			common.ColorThemeConfigPath, strings.Join(sampleThemeNames(), ", ")))
 
 	// -------------------------------------------------------------------------
