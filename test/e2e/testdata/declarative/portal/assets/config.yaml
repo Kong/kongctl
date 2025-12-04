@@ -1,0 +1,14 @@
+_defaults:
+  kongctl:
+    namespace: portal-assets
+
+portals:
+  - ref: portal-with-assets
+    name: portal-with-assets
+    display_name: Portal with Assets
+    description: Portal with logo and favicon
+    kongctl:
+      namespace: portal-assets
+    assets:
+      logo: !file logo.png
+      favicon: !file favicon.ico

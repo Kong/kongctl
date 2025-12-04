@@ -1,0 +1,11 @@
+_defaults:
+  kongctl:
+    namespace: portal-assets
+
+portals:
+  - ref: portal-with-assets
+    name: portal-with-assets
+    display_name: Portal with Assets
+    description: Portal without asset definitions
+    kongctl:
+      namespace: portal-assets
