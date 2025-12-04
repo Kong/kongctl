@@ -1,0 +1,191 @@
+baseInputsPath: ../../../testdata/declarative/portal/assets
+
+env:
+  KONGCTL_LOG_LEVEL: debug
+
+vars:
+  namespace: portal-assets
+  portalRef: portal-with-assets
+  logoRef: portal-with-assets-logo
+  faviconRef: portal-with-assets-favicon
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-assets
+    commands:
+      - name: 000-plan-assets
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-assets.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 1
+                by_action.UPDATE: 2
+          # Verify portal asset logo change
+          - select: >-
+              changes[?resource_type=='portal_asset_logo' &&
+              resource_ref=='{{ .vars.portalRef }}-logo'] | [0].fields
+            expect:
+              fields:
+                "starts_with(data_url, 'data:image/')": true
+          # Verify portal asset favicon change
+          - select: >-
+              changes[?resource_type=='portal_asset_favicon' &&
+              resource_ref=='{{ .vars.portalRef }}-favicon'] | [0].fields
+            expect:
+              fields:
+                "starts_with(data_url, 'data:image/')": true
+
+      - name: 001-apply-assets
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-assets.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+
+      - name: 002-get-logo-as-json
+        run:
+          - get
+          - portal
+          - assets
+          - logo
+          - --portal-name
+          - "{{ .vars.portalRef }}"
+          - -o
+          - json
+        assertions:
+          - expect:
+              fields:
+                "starts_with(data, 'data:image/')": true
+                type: logo
+
+      - name: 003-get-favicon-as-json
+        run:
+          - get
+          - portal
+          - assets
+          - favicon
+          - --portal-name
+          - "{{ .vars.portalRef }}"
+          - -o
+          - json
+        assertions:
+          - expect:
+              fields:
+                "starts_with(data, 'data:image/')": true
+                type: favicon
+
+  - name: 002-plan-apply-assets-update
+    inputOverlayDirs:
+      - overlays/002-update
+    commands:
+      - name: 000-plan-assets-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-assets-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.UPDATE: 3
+          # Verify updated logo
+          - select: >-
+              changes[?resource_type=='portal_asset_logo' &&
+              resource_ref=='{{ .vars.portalRef }}-logo'] | [0].fields
+            expect:
+              fields:
+                "starts_with(data_url, 'data:image/')": true
+
+      - name: 001-apply-assets-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-assets-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+
+      - name: 002-verify-updated-logo
+        run:
+          - get
+          - portal
+          - assets
+          - logo
+          - --portal-name
+          - "{{ .vars.portalRef }}"
+          - -o
+          - json
+        assertions:
+          - expect:
+              fields:
+                "starts_with(data, 'data:image/')": true
+                type: logo
+
+  - name: 003-test-sync-mode
+    # Test that assets are NOT deleted in sync mode when omitted from config
+    inputOverlayDirs:
+      - overlays/003-no-assets
+    commands:
+      - name: 000-plan-sync-without-assets
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1 # update portal name and desc
+          # Assets should NOT be deleted (they're singletons)
+          - select: "changes[?action=='DELETE']"
+            expect:
+              fields:
+                "length(@)": 0
