@@ -598,5 +598,9 @@ func newGetPortalCmd(verb verbs.VerbValue,
 		rv.AddCommand(authSettingsCmd)
 	}
 
+	if assetsCmd := newGetPortalAssetsCmd(verb, addParentFlags, parentPreRun); assetsCmd != nil {
+		rv.AddCommand(assetsCmd)
+	}
+
 	return &rv
 }
