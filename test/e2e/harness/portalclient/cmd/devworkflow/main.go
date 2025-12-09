@@ -253,8 +253,6 @@ func registerDeveloper(ctx context.Context, api *portalclient.PortalAPI, email, 
 		Email:    openapi_types.Email(email),
 		FullName: fullName,
 	}
-	payload.Set("password", password)
-	payload.Set("password_confirmation", password)
 
 	res, err := api.Raw().RegisterWithResponse(ctx, payload)
 	if err != nil {
