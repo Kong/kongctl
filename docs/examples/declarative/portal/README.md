@@ -8,6 +8,7 @@ It includes a fully configured portal with APIs, pages, customizations, and reus
 This example creates:
 - A developer portal with authentication disabled and public visibility
 - APIs published to the portal
+- Portal assets including logo and favicon
 - Portal customization with theme colors and navigation menus
 - A hierarchy of pages including home, APIs, getting started, and guides
 - Reusable snippets for common UI components
@@ -15,9 +16,12 @@ This example creates:
 ## Structure
 
 ```
-portal.yaml         # Portal definition 
+portal.yaml         # Portal definition
 apis.yaml           # API definitions
-pages/              # content files
+assets/             # Portal asset files
+├── logo.svg        # Portal logo
+└── favicon.svg     # Portal favicon
+pages/              # Page content files
 ├── home.md
 ├── apis.md
 ├── getting-started.md
@@ -27,13 +31,13 @@ pages/              # content files
     ├── publish-apis.md
     └── publish-apis/
         └── versioning.md
-snippets/            # reusable content snippets 
-    ├── example-guides-page-banner.md
-    ├── example-guides-page-header.md
-    ├── example-guides-page-nav.md
-    ├── example-hero-image.md
-    ├── example-logo-bar.md
-    └── example-page-toc.md
+snippets/           # Reusable content snippets
+├── example-guides-page-banner.md
+├── example-guides-page-header.md
+├── example-guides-page-nav.md
+├── example-hero-image.md
+├── example-logo-bar.md
+└── example-page-toc.md
 ```
 
 ## Key Features
@@ -43,6 +47,23 @@ snippets/            # reusable content snippets
 - **RBAC**: Disabled
 - **Auto-approval**: Disabled for both developers and applications
 - **Default visibility**: All APIs and pages are public by default
+
+### Portal Assets
+Portal assets (logo and favicon) are managed using the `!file` tag to load image
+files:
+```yaml
+assets:
+  logo: !file ./assets/logo.svg
+  favicon: !file ./assets/favicon.svg
+```
+
+The `!file` tag automatically:
+- Detects image files by extension (.png, .jpg, .svg, .ico)
+- Converts binary images to base64-encoded data URLs
+- Handles the proper MIME type for each format
+- Supports up to 10MB per file
+
+Supported formats: PNG, JPEG, SVG, ICO
 
 ### Theme Customization
 - **Primary color**: #8250FF
