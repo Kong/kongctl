@@ -736,6 +736,38 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			"portal", desired.Ref,
 			"error", err.Error())
 	}
+
+	// Plan asset logo
+	logos := make([]resources.PortalAssetLogoResource, 0)
+	for _, logo := range planner.desiredPortalAssetLogos {
+		if logo.Portal == desired.Ref {
+			logos = append(logos, logo)
+		}
+	}
+	planner.planPortalAssetLogosChanges(ctx, plannerCtx, parentNamespace, logos, plan)
+
+	// Plan asset favicon
+	favicons := make([]resources.PortalAssetFaviconResource, 0)
+	for _, favicon := range planner.desiredPortalAssetFavicons {
+		if favicon.Portal == desired.Ref {
+			favicons = append(favicons, favicon)
+		}
+	}
+	planner.planPortalAssetFaviconsChanges(ctx, plannerCtx, parentNamespace, favicons, plan)
+
+	// Plan nested assets (from portal.Assets.Logo and portal.Assets.Favicon fields)
+	if desired.Assets != nil {
+		if desired.Assets.Logo != nil && *desired.Assets.Logo != "" {
+			if !plan.HasChange(ResourceTypePortalAssetLogo, fmt.Sprintf("%s-logo", desired.Ref)) {
+				planner.planPortalAssetLogoUpdate(parentNamespace, desired.Ref, desired.Name, "", *desired.Assets.Logo, plan)
+			}
+		}
+		if desired.Assets.Favicon != nil && *desired.Assets.Favicon != "" {
+			if !plan.HasChange(ResourceTypePortalAssetFavicon, fmt.Sprintf("%s-favicon", desired.Ref)) {
+				planner.planPortalAssetFaviconUpdate(parentNamespace, desired.Ref, desired.Name, "", *desired.Assets.Favicon, plan)
+			}
+		}
+	}
 }
 
 // planPortalChildResourceChanges plans changes for child resources of an existing portal
@@ -836,6 +868,42 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 		plan,
 	); err != nil {
 		return fmt.Errorf("failed to plan portal custom domain changes: %w", err)
+	}
+
+	// Plan asset logo (singleton resource)
+	logos := make([]resources.PortalAssetLogoResource, 0)
+	for _, logo := range planner.desiredPortalAssetLogos {
+		if logo.Portal == desired.Ref {
+			logos = append(logos, logo)
+		}
+	}
+	planner.planPortalAssetLogosChanges(ctx, plannerCtx, parentNamespace, logos, plan)
+
+	// Plan asset favicon (singleton resource)
+	favicons := make([]resources.PortalAssetFaviconResource, 0)
+	for _, favicon := range planner.desiredPortalAssetFavicons {
+		if favicon.Portal == desired.Ref {
+			favicons = append(favicons, favicon)
+		}
+	}
+	planner.planPortalAssetFaviconsChanges(ctx, plannerCtx, parentNamespace, favicons, plan)
+
+	// Plan nested assets (from portal.Assets.Logo and portal.Assets.Favicon fields)
+	if desired.Assets != nil {
+		if desired.Assets.Logo != nil && *desired.Assets.Logo != "" {
+			if !plan.HasChange(ResourceTypePortalAssetLogo, fmt.Sprintf("%s-logo", desired.Ref)) {
+				planner.planPortalAssetLogoUpdate(
+					parentNamespace, desired.Ref, desired.Name, current.ID, *desired.Assets.Logo, plan,
+				)
+			}
+		}
+		if desired.Assets.Favicon != nil && *desired.Assets.Favicon != "" {
+			if !plan.HasChange(ResourceTypePortalAssetFavicon, fmt.Sprintf("%s-favicon", desired.Ref)) {
+				planner.planPortalAssetFaviconUpdate(
+					parentNamespace, desired.Ref, desired.Name, current.ID, *desired.Assets.Favicon, plan,
+				)
+			}
+		}
 	}
 
 	return nil

@@ -23,6 +23,9 @@ type PortalResource struct {
 	Snippets      []PortalSnippetResource      `yaml:"snippets,omitempty"      json:"snippets,omitempty"`
 	Teams         []PortalTeamResource         `yaml:"teams,omitempty"         json:"teams,omitempty"`
 
+	// Assets object containing logo and favicon (data URLs from !file tag)
+	Assets *PortalAssetsResource `yaml:"assets,omitempty" json:"assets,omitempty"`
+
 	// External resource marker
 	External *ExternalBlock `yaml:"_external,omitempty" json:"_external,omitempty"`
 
@@ -319,6 +322,7 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 		"pages",
 		"snippets",
 		"teams",
+		"assets",
 		"_external",
 	}
 	for _, k := range extraKeys {
@@ -389,6 +393,13 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 		delete(raw, "teams")
 	}
 
+	if v, ok := raw["assets"]; ok {
+		if err := json.Unmarshal(v, &p.Assets); err != nil {
+			return err
+		}
+		delete(raw, "assets")
+	}
+
 	if v, ok := raw["_external"]; ok {
 		if err := json.Unmarshal(v, &p.External); err != nil {
 			return err
@@ -442,6 +453,7 @@ type portalAlias struct {
 	Pages             []PortalPageResource         `json:"pages,omitempty" yaml:"pages,omitempty"`
 	Snippets          []PortalSnippetResource      `json:"snippets,omitempty" yaml:"snippets,omitempty"`
 	Teams             []PortalTeamResource         `json:"teams,omitempty" yaml:"teams,omitempty"`
+	Assets            *PortalAssetsResource        `json:"assets,omitempty" yaml:"assets,omitempty"`
 	External          *ExternalBlock               `json:"_external,omitempty" yaml:"_external,omitempty"`
 }
 
@@ -458,6 +470,7 @@ func (p PortalResource) portalAlias() portalAlias {
 		Pages:             p.Pages,
 		Snippets:          p.Snippets,
 		Teams:             p.Teams,
+		Assets:            p.Assets,
 		External:          p.External,
 	}
 }
@@ -465,4 +478,10 @@ func (p PortalResource) portalAlias() portalAlias {
 // IsExternal returns true if this portal is externally managed
 func (p *PortalResource) IsExternal() bool {
 	return p.External != nil && p.External.IsExternal()
+}
+
+// PortalAssetsResource represents portal assets (logo, favicon) in nested definition
+type PortalAssetsResource struct {
+	Logo    *string `yaml:"logo,omitempty"    json:"logo,omitempty"`
+	Favicon *string `yaml:"favicon,omitempty" json:"favicon,omitempty"`
 }

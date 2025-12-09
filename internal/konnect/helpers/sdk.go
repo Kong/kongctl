@@ -39,6 +39,7 @@ type SDKAPI interface {
 	GetPortalDeveloperAPI() PortalDeveloperAPI
 	GetPortalTeamAPI() PortalTeamAPI
 	GetPortalTeamRolesAPI() PortalTeamRolesAPI
+	GetAssetsAPI() AssetsAPI
 }
 
 // This is the real implementation of the SDKAPI
@@ -233,6 +234,15 @@ func (k *KonnectSDK) GetMeAPI() MeAPI {
 	}
 
 	return k.SDK.Me
+}
+
+// Returns the implementation of the AssetsAPI interface
+func (k *KonnectSDK) GetAssetsAPI() AssetsAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &AssetsAPIImpl{SDK: k.SDK}
 }
 
 // A function that can build an SDKAPI with a given configuration

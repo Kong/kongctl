@@ -13,7 +13,12 @@ portals:
     auto_approve_applications: false
     default_api_visibility: "public"
     default_page_visibility: "public"
-    
+
+    # Portal assets (logo and favicon)
+    assets:
+      logo: !file ./assets/logo.png
+      favicon: !file ./assets/favicon.png
+
     # Portal customization with theme and navigation
     customization:
       ref: getting-started-customization

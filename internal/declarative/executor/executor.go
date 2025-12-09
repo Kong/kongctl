@@ -38,6 +38,8 @@ type Executor struct {
 	// Portal child resource executors
 	portalCustomizationExecutor *BaseSingletonExecutor[kkComps.PortalCustomization]
 	portalAuthSettingsExecutor  *BaseSingletonExecutor[kkComps.PortalAuthenticationSettingsUpdateRequest]
+	portalAssetLogoExecutor     *BaseSingletonExecutor[kkComps.ReplacePortalImageAsset]
+	portalAssetFaviconExecutor  *BaseSingletonExecutor[kkComps.ReplacePortalImageAsset]
 	portalDomainExecutor        *BaseExecutor[kkComps.CreatePortalCustomDomainRequest,
 		kkComps.UpdatePortalCustomDomainRequest]
 	portalPageExecutor     *BaseExecutor[kkComps.CreatePortalPageRequest, kkComps.UpdatePortalPageRequest]
@@ -93,6 +95,14 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 	)
 	e.portalAuthSettingsExecutor = NewBaseSingletonExecutor[kkComps.PortalAuthenticationSettingsUpdateRequest](
 		NewPortalAuthSettingsAdapter(client),
+		dryRun,
+	)
+	e.portalAssetLogoExecutor = NewBaseSingletonExecutor[kkComps.ReplacePortalImageAsset](
+		NewPortalAssetLogoAdapter(client),
+		dryRun,
+	)
+	e.portalAssetFaviconExecutor = NewBaseSingletonExecutor[kkComps.ReplacePortalImageAsset](
+		NewPortalAssetFaviconAdapter(client),
 		dryRun,
 	)
 	e.portalDomainExecutor = NewBaseExecutor[kkComps.CreatePortalCustomDomainRequest,
@@ -366,7 +376,9 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 		// Special case: singleton portal children without their own ID
 		if change.ResourceID == "" &&
 			change.ResourceType != "portal_customization" &&
-			change.ResourceType != "portal_auth_settings" {
+			change.ResourceType != "portal_auth_settings" &&
+			change.ResourceType != "portal_asset_logo" &&
+			change.ResourceType != "portal_asset_favicon" {
 			return fmt.Errorf("resource ID required for %s operation", change.Action)
 		}
 
@@ -538,7 +550,12 @@ func (e *Executor) resolveAuthStrategyRef(ctx context.Context, refInfo planner.R
 
 // resolvePortalRef resolves a portal reference to its ID
 func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
-	// First check if it was created in this execution
+	// First check if the reference already has an ID (resolved from dependency)
+	if refInfo.ID != "" {
+		return refInfo.ID, nil
+	}
+
+	// Check if it was created in this execution
 	if portals, ok := e.refToID["portal"]; ok {
 		if id, found := portals[refInfo.Ref]; found {
 			return id, nil
@@ -1244,6 +1261,20 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.portalAuthSettingsExecutor.Update(ctx, *change, portalID)
+	case "portal_asset_logo":
+		// Portal asset logo is a singleton resource - always exists, so we update instead
+		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
+		if err != nil {
+			return "", err
+		}
+		return e.portalAssetLogoExecutor.Update(ctx, *change, portalID)
+	case "portal_asset_favicon":
+		// Portal asset favicon is a singleton resource - always exists, so we update instead
+		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
+		if err != nil {
+			return "", err
+		}
+		return e.portalAssetFaviconExecutor.Update(ctx, *change, portalID)
 	case "portal_custom_domain":
 		// Resolve portal reference if needed
 		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
@@ -1455,6 +1486,18 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.portalAuthSettingsExecutor.Update(ctx, *change, portalID)
+	case "portal_asset_logo":
+		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
+		if err != nil {
+			return "", err
+		}
+		return e.portalAssetLogoExecutor.Update(ctx, *change, portalID)
+	case "portal_asset_favicon":
+		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
+		if err != nil {
+			return "", err
+		}
+		return e.portalAssetFaviconExecutor.Update(ctx, *change, portalID)
 	case "portal_custom_domain":
 		return e.portalDomainExecutor.Update(ctx, *change)
 	case "portal_page":

@@ -70,7 +70,7 @@ func main() {
 
 	log.Printf("registering developer %s", emailToUse)
 	if err := retry(ctx, 6, 5*time.Second, func(ctx context.Context) error {
-		return registerDeveloper(ctx, api, emailToUse, *developerName, *developerPass)
+		return registerDeveloper(ctx, api, emailToUse, *developerName)
 	}); err != nil {
 		log.Fatalf("register developer failed: %v", err)
 	}
@@ -248,13 +248,11 @@ func stringsTrim(s string) string {
 	return strings.TrimSpace(s)
 }
 
-func registerDeveloper(ctx context.Context, api *portalclient.PortalAPI, email, fullName, password string) error {
+func registerDeveloper(ctx context.Context, api *portalclient.PortalAPI, email, fullName string) error {
 	payload := portalclient.RegisterPayload{
 		Email:    openapi_types.Email(email),
 		FullName: fullName,
 	}
-	payload.Set("password", password)
-	payload.Set("password_confirmation", password)
 
 	res, err := api.Raw().RegisterWithResponse(ctx, payload)
 	if err != nil {
