@@ -44,6 +44,9 @@ type ClientConfig struct {
 	APIPublicationAPI    helpers.APIPublicationAPI
 	APIImplementationAPI helpers.APIImplementationAPI
 	APIDocumentAPI       helpers.APIDocumentAPI
+
+	// Event Gateway Control Plane API
+	EGWControlPlaneAPI helpers.EGWControlPlaneAPI
 }
 
 // Client wraps Konnect SDK for state management
@@ -73,6 +76,9 @@ type Client struct {
 	apiPublicationAPI    helpers.APIPublicationAPI
 	apiImplementationAPI helpers.APIImplementationAPI
 	apiDocumentAPI       helpers.APIDocumentAPI
+
+	// Event Gateway Control Plane API
+	egwControlPlaneAPI helpers.EGWControlPlaneAPI
 }
 
 // NewClient creates a new state client with the provided configuration
@@ -103,6 +109,9 @@ func NewClient(config ClientConfig) *Client {
 		apiPublicationAPI:    config.APIPublicationAPI,
 		apiImplementationAPI: config.APIImplementationAPI,
 		apiDocumentAPI:       config.APIDocumentAPI,
+
+		// Event Gateway Control Plane APIs
+		egwControlPlaneAPI: config.EGWControlPlaneAPI,
 	}
 }
 
@@ -216,6 +225,11 @@ type ApplicationAuthStrategy struct {
 	DisplayName      string
 	StrategyType     string
 	Configs          map[string]any
+	NormalizedLabels map[string]string // Non-pointer labels
+}
+
+type EGWControlPlane struct {
+	kkComps.EventGatewayInfo
 	NormalizedLabels map[string]string // Non-pointer labels
 }
 
@@ -3182,6 +3196,22 @@ func (c *Client) RemovePortalTeamRole(ctx context.Context, portalID string, team
 	}
 
 	return nil
+}
+
+func ListManagedEGWControlPlanes(ctx context.Context, namespaces []string) {
+	// Placeholder for future implementation
+}
+
+func CreateEGWControlPlane(ctx context.Context, req kkComps.CreateGatewayRequest, namespace string) {
+	// Placeholder for future implementation
+}
+
+func UpdateEGWControlPlane(ctx context.Context, id string, req kkComps.UpdateGatewayRequest, namespace string) {
+	// Placeholder for future implementation
+}
+
+func DeleteEGWControlPlane(ctx context.Context, id string) {
+	// Placeholder for future implementation
 }
 
 func getString(value *string) string {
