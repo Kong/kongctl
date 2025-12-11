@@ -275,6 +275,16 @@ func convertKeyAuthResponseToStrategy(key *kkComps.AppAuthStrategyKeyAuthRespons
 	if key == nil {
 		return nil
 	}
+
+	// Convert DcrProvider type if present
+	var dcrProvider *kkComps.AppAuthStrategyKeyAuthResponseDcrProvider
+	if key.DcrProvider != nil {
+		dcrProvider = &kkComps.AppAuthStrategyKeyAuthResponseDcrProvider{
+			ID:   key.DcrProvider.ID,
+			Name: key.DcrProvider.Name,
+		}
+	}
+
 	strategy := kkComps.CreateAppAuthStrategyKeyAuth(
 		kkComps.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse{
 			ID:          key.ID,
@@ -286,7 +296,7 @@ func convertKeyAuthResponseToStrategy(key *kkComps.AppAuthStrategyKeyAuthRespons
 				KeyAuth: key.Configs.KeyAuth,
 			},
 			Active:      key.Active,
-			DcrProvider: (*kkComps.AppAuthStrategyKeyAuthResponseDcrProvider)(key.DcrProvider),
+			DcrProvider: dcrProvider,
 			Labels:      key.Labels,
 			CreatedAt:   key.CreatedAt,
 			UpdatedAt:   key.UpdatedAt,
@@ -301,6 +311,16 @@ func convertOpenIDConnectResponseToStrategy(
 	if oidc == nil {
 		return nil
 	}
+
+	// Convert DcrProvider type if present
+	var dcrProvider *kkComps.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyDcrProvider
+	if oidc.DcrProvider != nil {
+		dcrProvider = &kkComps.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyDcrProvider{
+			ID:   oidc.DcrProvider.ID,
+			Name: oidc.DcrProvider.Name,
+		}
+	}
+
 	strategy := kkComps.CreateAppAuthStrategyOpenidConnect(
 		kkComps.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse{
 			ID:          oidc.ID,
@@ -312,7 +332,7 @@ func convertOpenIDConnectResponseToStrategy(
 				OpenidConnect: oidc.Configs.OpenidConnect,
 			},
 			Active:      oidc.Active,
-			DcrProvider: (*kkComps.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyDcrProvider)(oidc.DcrProvider),
+			DcrProvider: dcrProvider,
 			Labels:      oidc.Labels,
 			CreatedAt:   oidc.CreatedAt,
 			UpdatedAt:   oidc.UpdatedAt,

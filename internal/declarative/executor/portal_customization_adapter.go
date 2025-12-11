@@ -30,7 +30,7 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 			theme.Name = &name
 		}
 		if mode, ok := themeData["mode"].(string); ok {
-			modeValue := kkComps.Mode(mode)
+			modeValue := kkComps.PortalCustomizationMode(mode)
 			theme.Mode = &modeValue
 		}
 
@@ -70,7 +70,7 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 				}
 
 				if visibility, ok := itemMap["visibility"].(string); ok {
-					visValue := kkComps.Visibility(visibility)
+					visValue := kkComps.PortalMenuItemVisibility(visibility)
 					menuItem.Visibility = visValue
 				}
 				if external, ok := itemMap["external"].(bool); ok {
@@ -91,7 +91,7 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 					}
 
 					if visibility, ok := itemMap["visibility"].(string); ok {
-						visValue := kkComps.Visibility(visibility)
+						visValue := kkComps.PortalMenuItemVisibility(visibility)
 						menuItem.Visibility = visValue
 					}
 					if external, ok := itemMap["external"].(bool); ok {
@@ -122,7 +122,7 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 						}
 
 						if visibility, ok := itemMap["visibility"].(string); ok {
-							visValue := kkComps.Visibility(visibility)
+							visValue := kkComps.PortalMenuItemVisibility(visibility)
 							footerItem.Visibility = visValue
 						}
 						if external, ok := itemMap["external"].(bool); ok {
@@ -143,7 +143,7 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 							}
 
 							if visibility, ok := itemMap["visibility"].(string); ok {
-								visValue := kkComps.Visibility(visibility)
+								visValue := kkComps.PortalMenuItemVisibility(visibility)
 								footerItem.Visibility = visValue
 							}
 							if external, ok := itemMap["external"].(bool); ok {
@@ -178,7 +178,7 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 							}
 
 							if visibility, ok := itemMap["visibility"].(string); ok {
-								visValue := kkComps.Visibility(visibility)
+								visValue := kkComps.PortalMenuItemVisibility(visibility)
 								footerItem.Visibility = visValue
 							}
 							if external, ok := itemMap["external"].(bool); ok {
@@ -196,7 +196,7 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 								}
 
 								if visibility, ok := itemMap["visibility"].(string); ok {
-									visValue := kkComps.Visibility(visibility)
+									visValue := kkComps.PortalMenuItemVisibility(visibility)
 									footerItem.Visibility = visValue
 								}
 								if external, ok := itemMap["external"].(bool); ok {

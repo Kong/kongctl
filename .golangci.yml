@@ -83,6 +83,9 @@ linters:
           - staticcheck
         text: 'SA1019: rand..*'
       - linters:
+          - staticcheck
+        text: 'SA1019:.*(Oidc|Saml|PortalClaimMappings|OidcConfig).*is deprecated'
+      - linters:
           - revive
         text: avoid meaningless package names
     paths:

@@ -245,7 +245,7 @@ func runListByName(name string, strategyType string, kkClient helpers.AppAuthStr
 
 		// Apply type filter if specified
 		if strategyType != "" {
-			req.Filter = &kkOps.Filter{
+			req.Filter = &kkOps.QueryParamFilter{
 				StrategyType: &kkComps.StringFieldFilter{
 					Eq: kk.String(strategyType),
 				},
@@ -295,7 +295,7 @@ func runList(strategyType string, kkClient helpers.AppAuthStrategiesAPI, helper 
 
 		// Apply type filter if specified
 		if strategyType != "" {
-			req.Filter = &kkOps.Filter{
+			req.Filter = &kkOps.QueryParamFilter{
 				StrategyType: &kkComps.StringFieldFilter{
 					Eq: kk.String(strategyType),
 				},
@@ -339,6 +339,16 @@ func runGet(id string, kkClient helpers.AppAuthStrategiesAPI, helper cmd.Helper,
 	var strategy kkComps.AppAuthStrategy
 	if createResponse.AppAuthStrategyKeyAuthResponse != nil {
 		keyAuthResp := createResponse.AppAuthStrategyKeyAuthResponse
+
+		// Convert DcrProvider type if present
+		var dcrProvider *kkComps.AppAuthStrategyKeyAuthResponseDcrProvider
+		if keyAuthResp.DcrProvider != nil {
+			dcrProvider = &kkComps.AppAuthStrategyKeyAuthResponseDcrProvider{
+				ID:   keyAuthResp.DcrProvider.ID,
+				Name: keyAuthResp.DcrProvider.Name,
+			}
+		}
+
 		strategy = kkComps.CreateAppAuthStrategyKeyAuth(
 			kkComps.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse{
 				ID:          keyAuthResp.ID,
@@ -349,16 +359,25 @@ func runGet(id string, kkClient helpers.AppAuthStrategiesAPI, helper cmd.Helper,
 				Configs: kkComps.AppAuthStrategyKeyAuthResponseAppAuthStrategyConfigs{
 					KeyAuth: keyAuthResp.Configs.KeyAuth,
 				},
-				Active: keyAuthResp.Active,
-				DcrProvider: (*kkComps.AppAuthStrategyKeyAuthResponseDcrProvider)(
-					keyAuthResp.DcrProvider),
-				Labels:    keyAuthResp.Labels,
-				CreatedAt: keyAuthResp.CreatedAt,
-				UpdatedAt: keyAuthResp.UpdatedAt,
+				Active:      keyAuthResp.Active,
+				DcrProvider: dcrProvider,
+				Labels:      keyAuthResp.Labels,
+				CreatedAt:   keyAuthResp.CreatedAt,
+				UpdatedAt:   keyAuthResp.UpdatedAt,
 			},
 		)
 	} else if createResponse.AppAuthStrategyOpenIDConnectResponse != nil {
 		openIDResp := createResponse.AppAuthStrategyOpenIDConnectResponse
+
+		// Convert DcrProvider type if present
+		var dcrProvider *kkComps.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyDcrProvider
+		if openIDResp.DcrProvider != nil {
+			dcrProvider = &kkComps.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyDcrProvider{
+				ID:   openIDResp.DcrProvider.ID,
+				Name: openIDResp.DcrProvider.Name,
+			}
+		}
+
 		strategy = kkComps.CreateAppAuthStrategyOpenidConnect(
 			kkComps.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse{
 				ID:          openIDResp.ID,
@@ -369,12 +388,11 @@ func runGet(id string, kkClient helpers.AppAuthStrategiesAPI, helper cmd.Helper,
 				Configs: kkComps.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyConfigs{
 					OpenidConnect: openIDResp.Configs.OpenidConnect,
 				},
-				Active: openIDResp.Active,
-				DcrProvider: (*kkComps.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyDcrProvider)(
-					openIDResp.DcrProvider),
-				Labels:    openIDResp.Labels,
-				CreatedAt: openIDResp.CreatedAt,
-				UpdatedAt: openIDResp.UpdatedAt,
+				Active:      openIDResp.Active,
+				DcrProvider: dcrProvider,
+				Labels:      openIDResp.Labels,
+				CreatedAt:   openIDResp.CreatedAt,
+				UpdatedAt:   openIDResp.UpdatedAt,
 			},
 		)
 	} else {
