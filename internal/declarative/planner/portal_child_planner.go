@@ -592,8 +592,8 @@ func (p *Planner) compareStringPtr(current, desired *string) bool {
 	return *current == *desired
 }
 
-// compareModePtr compares two Mode pointers
-func (p *Planner) compareModePtr(current, desired *kkComps.Mode) bool {
+// compareModePtr compares two PortalCustomizationMode pointers
+func (p *Planner) compareModePtr(current, desired *kkComps.PortalCustomizationMode) bool {
 	if current == nil && desired == nil {
 		return true
 	}

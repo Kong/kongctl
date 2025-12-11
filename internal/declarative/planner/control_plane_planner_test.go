@@ -135,7 +135,7 @@ func TestControlPlanePlanner_PlanUpdate(t *testing.T) {
 		Labels: map[string]string{
 			labels.NamespaceKey: "default",
 		},
-		Config: kkComps.Config{
+		Config: kkComps.ControlPlaneConfig{
 			AuthType:    kkComps.ControlPlaneAuthTypePinnedClientCerts,
 			ProxyUrls:   []kkComps.ProxyURL{{Host: "example.com", Port: 443, Protocol: "https"}},
 			ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlane,
@@ -201,7 +201,7 @@ func TestControlPlanePlanner_PlanUpdateGroupMembers(t *testing.T) {
 		Labels: map[string]string{
 			labels.NamespaceKey: "default",
 		},
-		Config: kkComps.Config{
+		Config: kkComps.ControlPlaneConfig{
 			ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup,
 		},
 	}
@@ -212,7 +212,7 @@ func TestControlPlanePlanner_PlanUpdateGroupMembers(t *testing.T) {
 		Labels: map[string]string{
 			labels.NamespaceKey: "default",
 		},
-		Config: kkComps.Config{ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlane},
+		Config: kkComps.ControlPlaneConfig{ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlane},
 	}
 
 	mockAPI.EXPECT().

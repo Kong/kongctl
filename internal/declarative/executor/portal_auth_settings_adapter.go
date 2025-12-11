@@ -63,11 +63,23 @@ func (p *PortalAuthSettingsAdapter) MapUpdateFields(
 		update.OidcScopes = v
 	}
 	if v, ok := fields["oidc_claim_mappings"].(*kkComps.PortalClaimMappings); ok {
-		update.OidcClaimMappings = v
+		// Convert PortalClaimMappings to PortalAuthenticationSettingsUpdateRequestPortalClaimMappings
+		converted := &kkComps.PortalAuthenticationSettingsUpdateRequestPortalClaimMappings{
+			Name:   v.Name,
+			Email:  v.Email,
+			Groups: v.Groups,
+		}
+		update.OidcClaimMappings = converted
 	} else if v, ok := fields["oidc_claim_mappings"].(kkComps.PortalClaimMappings); ok {
-		update.OidcClaimMappings = &v
+		// Convert PortalClaimMappings to PortalAuthenticationSettingsUpdateRequestPortalClaimMappings
+		converted := &kkComps.PortalAuthenticationSettingsUpdateRequestPortalClaimMappings{
+			Name:   v.Name,
+			Email:  v.Email,
+			Groups: v.Groups,
+		}
+		update.OidcClaimMappings = converted
 	} else if m, ok := fields["oidc_claim_mappings"].(map[string]any); ok {
-		claim := &kkComps.PortalClaimMappings{}
+		claim := &kkComps.PortalAuthenticationSettingsUpdateRequestPortalClaimMappings{}
 		if name, ok := m["name"].(string); ok {
 			claim.Name = &name
 		}
