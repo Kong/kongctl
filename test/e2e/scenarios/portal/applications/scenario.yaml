@@ -73,8 +73,8 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 6
-                by_action.CREATE: 6
+                total_changes: 8
+                by_action.CREATE: 8
           - select: >-
               changes[?resource_type=='portal' && resource_ref=='{{ .vars.portalRef }}'] | [0]
             expect:
@@ -95,7 +95,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 6
+                applied: 8
                 failed: 0
 
       - name: 002-verify-portal
@@ -123,6 +123,18 @@ steps:
           name: portalID
           responsePath: "id"
 
+      - name: 004-record-team-ids
+        outputFormat: json
+        run:
+          - get
+          - portal
+          - teams
+          - --portal-name
+          - "{{ .vars.portalName }}"
+        recordVar:
+          name: teamAlphaID
+          responsePath: "[?name=='Portal App Team Alpha'] | [0].id"
+
   - name: 003-register-developer-and-application
     skipInputs: true
     commands:
@@ -147,7 +159,55 @@ steps:
           - --registration-api-name
           - "{{ .vars.apiName }}"
 
-  - name: 004-verify-portal-applications
+  - name: 004-assign-developer-team
+    skipInputs: true
+    commands:
+      - name: 000-get-developer-id
+        outputFormat: json
+        run:
+          - get
+          - portal
+          - developers
+          - --portal-name
+          - "{{ .vars.portalName }}"
+          - "{{ .vars.developerEmail }}"
+        recordVar:
+          name: developerID
+          responsePath: "id"
+
+      - name: 001-add-developer-to-team
+        create:
+          resource: portal-team-developer
+          payload:
+            inline:
+              id: "{{ .vars.developerID }}"
+          expectStatus: 201
+          endpointParams:
+            portalId: "{{ .vars.portalID }}"
+            teamId: "{{ .vars.teamAlphaID }}"
+
+      - name: 002-verify-developer-team-membership
+        outputFormat: json
+        run:
+          - get
+          - portal
+          - developers
+          - teams
+          - --portal-name
+          - "{{ .vars.portalName }}"
+          - --team-id
+          - "{{ .vars.teamAlphaID }}"
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                email: "{{ .vars.developerEmail }}"
+
+  - name: 005-verify-portal-applications
     skipInputs: true
     commands:
       - name: 000-get-applications
@@ -168,7 +228,7 @@ steps:
               fields:
                 name: "{{ .vars.applicationName }}"
 
-  - name: 005-verify-team-roles-empty
+  - name: 006-verify-team-roles-empty
     skipInputs: true
     commands:
       - name: 000-get-team-roles
@@ -186,7 +246,7 @@ steps:
               fields:
                 "@": 0
 
-  - name: 006-verify-application-registrations
+  - name: 007-verify-application-registrations
     skipInputs: true
     commands:
       - name: 000-get-registrations
@@ -214,7 +274,7 @@ steps:
           name: registrationID
           responsePath: "[0].id"
 
-  - name: 007-delete-application-registration
+  - name: 008-delete-application-registration
     skipInputs: true
     commands:
       - name: 000-delete-registration
@@ -228,7 +288,7 @@ steps:
           - "{{ .vars.portalName }}"
           - "{{ .vars.registrationID }}"
 
-  - name: 008-delete-portal-application
+  - name: 009-delete-portal-application
     skipInputs: true
     commands:
       - name: 000-delete-application
@@ -249,7 +309,7 @@ steps:
                 status: deleted
                 portal_id: "{{ .vars.portalID }}"
 
-  - name: 009-verify-post-delete
+  - name: 010-verify-post-delete
     skipInputs: true
     commands:
       - name: 000-get-applications-after-delete

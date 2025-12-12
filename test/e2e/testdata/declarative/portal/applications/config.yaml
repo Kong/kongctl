@@ -38,6 +38,15 @@ portals:
 
           This page exists so the portal can be visited by developer tests.
 
+    teams:
+      - ref: portal-app-team-alpha
+        name: "Portal App Team Alpha"
+        description: "Default team for portal application scenario tests."
+
+      - ref: portal-app-team-beta
+        name: "Portal App Team Beta"
+        description: "Secondary team for portal application scenario tests."
+
 apis:
   - ref: auto-applied-api
     name: "Auto Applied API"

@@ -299,6 +299,16 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 		Path:      "/v2/control-planes/{controlPlaneId}/core-entities/services",
 		ParamKeys: []string{"controlPlaneId"},
 	},
+	"portal-team-developer": {
+		Method:    http.MethodPost,
+		Path:      "/v3/portals/{portalId}/teams/{teamId}/developers",
+		ParamKeys: []string{"portalId", "teamId"},
+	},
+	"portal_team_developer": {
+		Method:    http.MethodPost,
+		Path:      "/v3/portals/{portalId}/teams/{teamId}/developers",
+		ParamKeys: []string{"portalId", "teamId"},
+	},
 }
 
 func defaultStatusForMethod(method string) int {
