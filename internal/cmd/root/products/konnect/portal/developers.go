@@ -54,6 +54,8 @@ var (
 %[1]s get portal developers --portal-id <portal-id> <developer-id>
 # Get a specific developer by email
 %[1]s get portal developers --portal-id <portal-id> dev@example.com
+# List developers in a portal team
+%[1]s get portal developers teams --portal-id <portal-id> --team-id <team-id>
 `, meta.CLIName)))
 )
 
@@ -86,6 +88,10 @@ func newGetPortalDevelopersCmd(
 
 	if addParentFlags != nil {
 		addParentFlags(verb, cmd)
+	}
+
+	if developerTeamsCmd := newGetPortalDeveloperTeamsCmd(verb, addParentFlags, parentPreRun); developerTeamsCmd != nil {
+		cmd.AddCommand(developerTeamsCmd)
 	}
 
 	return cmd

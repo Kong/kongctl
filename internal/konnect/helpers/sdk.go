@@ -39,6 +39,7 @@ type SDKAPI interface {
 	GetPortalDeveloperAPI() PortalDeveloperAPI
 	GetPortalTeamAPI() PortalTeamAPI
 	GetPortalTeamRolesAPI() PortalTeamRolesAPI
+	GetPortalTeamMembershipAPI() PortalTeamMembershipAPI
 	GetAssetsAPI() AssetsAPI
 }
 
@@ -225,6 +226,15 @@ func (k *KonnectSDK) GetPortalTeamRolesAPI() PortalTeamRolesAPI {
 	}
 
 	return &PortalTeamRolesAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the PortalTeamMembershipAPI interface
+func (k *KonnectSDK) GetPortalTeamMembershipAPI() PortalTeamMembershipAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &PortalTeamMembershipAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the MeAPI interface
