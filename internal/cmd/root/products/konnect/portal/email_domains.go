@@ -61,7 +61,7 @@ func newGetPortalEmailDomainsCmd(
 		Short:   emailDomainsShort,
 		Long:    emailDomainsLong,
 		Example: emailDomainsExample,
-		Aliases: []string{"email-domain", "domains", "emails"},
+		Aliases: []string{"email-domain", "emails"},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if parentPreRun != nil {
 				if err := parentPreRun(cmd, args); err != nil {
