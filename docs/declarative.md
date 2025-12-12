@@ -190,6 +190,10 @@ lists the currently supported resources and their relationships.
 - Portal Custom Domains
 - Gateway Services 
 
+> Note: Portal email domains are currently **imperative-only** because the Konnect API exposes them at the
+> organization level without labels or namespace scoping. Use `kongctl get portal email-domains` to inspect them;
+> declarative management will be added when Konnect supports namespacing or labels for these resources.
+
 ## Configuration Structure
 
 ### Basic Structure

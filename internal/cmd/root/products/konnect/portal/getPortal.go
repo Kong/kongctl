@@ -602,5 +602,9 @@ func newGetPortalCmd(verb verbs.VerbValue,
 		rv.AddCommand(assetsCmd)
 	}
 
+	if emailDomainsCmd := newGetPortalEmailDomainsCmd(verb, addParentFlags, parentPreRun); emailDomainsCmd != nil {
+		rv.AddCommand(emailDomainsCmd)
+	}
+
 	return &rv
 }
