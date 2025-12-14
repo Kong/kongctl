@@ -193,7 +193,6 @@ func TestResolveMethodAndArgs(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			method, allowBody, remaining := resolveMethodAndArgs(tc.args)
 			require.Equal(t, tc.expectMeth, method)

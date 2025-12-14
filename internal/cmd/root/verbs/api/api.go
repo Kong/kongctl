@@ -70,15 +70,15 @@ var (
 	# Delete a resource
 	%[1]s api delete /v3/apis/123`, meta.CLIName)))
 
+	jqQueryCache sync.Map
+
 	allowBodyByMethod = map[string]bool{
-		http.MethodDelete: false,
 		http.MethodGet:    false,
-		http.MethodPatch:  true,
 		http.MethodPost:   true,
 		http.MethodPut:    true,
+		http.MethodPatch:  true,
+		http.MethodDelete: false,
 	}
-
-	jqQueryCache sync.Map
 )
 
 var requestFn = apiutil.Request
