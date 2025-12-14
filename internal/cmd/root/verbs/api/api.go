@@ -70,6 +70,14 @@ var (
 	# Delete a resource
 	%[1]s api delete /v3/apis/123`, meta.CLIName)))
 
+	allowBodyByMethod = map[string]bool{
+		http.MethodDelete: false,
+		http.MethodGet:    false,
+		http.MethodPatch:  true,
+		http.MethodPost:   true,
+		http.MethodPut:    true,
+	}
+
 	jqQueryCache sync.Map
 )
 
@@ -200,8 +208,16 @@ func NewAPICmd() (*cobra.Command, error) {
 	addFlags(rootCmd)
 
 	rootCmd.RunE = func(c *cobra.Command, args []string) error {
-		helper := cmd.BuildHelper(c, args)
-		return run(helper, http.MethodGet, false)
+		method, allowBody, remainingArgs := resolveMethodAndArgs(args)
+		if len(remainingArgs) == 0 {
+			return cmd.PrepareExecutionError(
+				"endpoint is required",
+				errors.New("endpoint cannot be empty"),
+				c,
+			)
+		}
+		helper := cmd.BuildHelper(c, remainingArgs)
+		return run(helper, method, allowBody)
 	}
 
 	rootCmd.AddCommand(newMethodCmd("get", http.MethodGet, false))
@@ -230,8 +246,28 @@ func newMethodCmd(name, httpMethod string, allowBody bool) *cobra.Command {
 	}
 }
 
+func resolveMethodAndArgs(args []string) (string, bool, []string) {
+	if len(args) == 0 {
+		return http.MethodGet, allowBodyByMethod[http.MethodGet], args
+	}
+
+	method := strings.ToUpper(strings.TrimSpace(args[0]))
+	if allowBody, ok := allowBodyByMethod[method]; ok {
+		return method, allowBody, args[1:]
+	}
+
+	return http.MethodGet, allowBodyByMethod[http.MethodGet], args
+}
+
 func run(helper cmd.Helper, method string, allowBody bool) error {
 	args := helper.GetArgs()
+	if len(args) == 0 {
+		return cmd.PrepareExecutionError(
+			"endpoint is required",
+			errors.New("endpoint cannot be empty"),
+			helper.GetCmd(),
+		)
+	}
 	endpoint := strings.TrimSpace(args[0])
 	if endpoint == "" {
 		return cmd.PrepareExecutionError(

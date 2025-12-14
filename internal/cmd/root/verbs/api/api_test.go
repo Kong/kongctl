@@ -140,6 +140,28 @@ func TestParseAssignmentsNestedConflicts(t *testing.T) {
 	require.Contains(t, err.Error(), "expects object")
 }
 
+func TestResolveMethodAndArgs(t *testing.T) {
+	method, allowBody, remaining := resolveMethodAndArgs([]string{"POST", "/v1/resources"})
+	require.Equal(t, http.MethodPost, method)
+	require.True(t, allowBody)
+	require.Equal(t, []string{"/v1/resources"}, remaining)
+
+	method, allowBody, remaining = resolveMethodAndArgs([]string{"PoSt", "/v1/resources"})
+	require.Equal(t, http.MethodPost, method)
+	require.True(t, allowBody)
+	require.Equal(t, []string{"/v1/resources"}, remaining)
+
+	method, allowBody, remaining = resolveMethodAndArgs([]string{"/v1/resources"})
+	require.Equal(t, http.MethodGet, method)
+	require.False(t, allowBody)
+	require.Equal(t, []string{"/v1/resources"}, remaining)
+
+	method, allowBody, remaining = resolveMethodAndArgs(nil)
+	require.Equal(t, http.MethodGet, method)
+	require.False(t, allowBody)
+	require.Empty(t, remaining)
+}
+
 func TestParseAssignmentsInvalid(t *testing.T) {
 	_, err := parseAssignments([]string{"novalue"})
 	require.Error(t, err)
@@ -986,4 +1008,16 @@ func TestRunRejectsUnexpectedPayload(t *testing.T) {
 	var execErr *cmdpkg.ExecutionError
 	require.True(t, errors.As(err, &execErr))
 	require.Contains(t, err.Error(), "data fields may only be supplied with POST, PUT, or PATCH")
+}
+
+func TestRunRequiresEndpoint(t *testing.T) {
+	cmdObj := &cobra.Command{Use: "test"}
+	helper := &cmdtest.MockHelper{
+		GetCmdMock:  func() *cobra.Command { return cmdObj },
+		GetArgsMock: func() []string { return nil },
+	}
+
+	err := run(helper, http.MethodGet, false)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "endpoint")
 }
