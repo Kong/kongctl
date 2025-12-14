@@ -113,8 +113,28 @@ func (a *PortalEmailConfigAdapter) GetByName(_ context.Context, _ string) (Resou
 	return nil, nil
 }
 
-func (a *PortalEmailConfigAdapter) GetByID(_ context.Context, _ string, _ *ExecutionContext) (ResourceInfo, error) {
-	return nil, nil
+func (a *PortalEmailConfigAdapter) GetByID(
+	ctx context.Context, id string, execCtx *ExecutionContext,
+) (ResourceInfo, error) {
+	portalID := id
+	if execCtx != nil {
+		if ref, ok := execCtx.PlannedChange.References["portal_id"]; ok && ref.ID != "" {
+			portalID = ref.ID
+		} else if execCtx.PlannedChange.Parent != nil && execCtx.PlannedChange.Parent.ID != "" {
+			portalID = execCtx.PlannedChange.Parent.ID
+		}
+	}
+
+	if portalID == "" {
+		return nil, fmt.Errorf("portal ID is required to fetch portal email config")
+	}
+
+	cfg, err := a.client.GetPortalEmailConfig(ctx, portalID)
+	if err != nil || cfg == nil {
+		return nil, err
+	}
+
+	return &portalEmailConfigInfo{cfg: cfg}, nil
 }
 
 func (a *PortalEmailConfigAdapter) ResourceType() string {
@@ -145,4 +165,30 @@ func (a *PortalEmailConfigAdapter) portalID(execCtx *ExecutionContext) (string, 
 	}
 
 	return "", fmt.Errorf("portal ID is required for portal email config operations")
+}
+
+type portalEmailConfigInfo struct {
+	cfg *kkComps.PortalEmailConfig
+}
+
+func (i *portalEmailConfigInfo) GetID() string {
+	if i == nil || i.cfg == nil {
+		return ""
+	}
+	return i.cfg.ID
+}
+
+func (i *portalEmailConfigInfo) GetName() string {
+	if i == nil || i.cfg == nil || i.cfg.DomainName == nil {
+		return ""
+	}
+	return *i.cfg.DomainName
+}
+
+func (i *portalEmailConfigInfo) GetLabels() map[string]string {
+	return nil
+}
+
+func (i *portalEmailConfigInfo) GetNormalizedLabels() map[string]string {
+	return nil
 }

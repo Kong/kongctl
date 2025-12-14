@@ -22,7 +22,7 @@ type PortalResource struct {
 	Pages         []PortalPageResource         `yaml:"pages,omitempty"         json:"pages,omitempty"`
 	Snippets      []PortalSnippetResource      `yaml:"snippets,omitempty"      json:"snippets,omitempty"`
 	Teams         []PortalTeamResource         `yaml:"teams,omitempty"         json:"teams,omitempty"`
-	EmailConfigs  []PortalEmailConfigResource  `yaml:"email_configs,omitempty" json:"email_configs,omitempty"`
+	EmailConfig   *PortalEmailConfigResource   `yaml:"email_config,omitempty" json:"email_config,omitempty"`
 
 	// Assets object containing logo and favicon (data URLs from !file tag)
 	Assets *PortalAssetsResource `yaml:"assets,omitempty" json:"assets,omitempty"`
@@ -162,18 +162,10 @@ func (p PortalResource) Validate() error {
 		teamRefs[team.GetRef()] = true
 	}
 
-	if len(p.EmailConfigs) > 1 {
-		return fmt.Errorf("only one portal email config is allowed per portal")
-	}
-	emailConfigRefs := make(map[string]bool)
-	for i, cfg := range p.EmailConfigs {
-		if err := cfg.Validate(); err != nil {
-			return fmt.Errorf("invalid email config %d: %w", i, err)
+	if p.EmailConfig != nil {
+		if err := p.EmailConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid email config: %w", err)
 		}
-		if emailConfigRefs[cfg.GetRef()] {
-			return fmt.Errorf("duplicate email config ref: %s", cfg.GetRef())
-		}
-		emailConfigRefs[cfg.GetRef()] = true
 	}
 
 	// Validate external block if present
@@ -217,8 +209,8 @@ func (p *PortalResource) SetDefaults() {
 	}
 
 	// Apply defaults to email config
-	for i := range p.EmailConfigs {
-		p.EmailConfigs[i].SetDefaults()
+	if p.EmailConfig != nil {
+		p.EmailConfig.SetDefaults()
 	}
 
 	// Apply defaults to teams
@@ -342,6 +334,7 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 		"pages",
 		"snippets",
 		"teams",
+		"email_config",
 		"assets",
 		"_external",
 	}
@@ -413,6 +406,13 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 		delete(raw, "teams")
 	}
 
+	if v, ok := raw["email_config"]; ok {
+		if err := json.Unmarshal(v, &p.EmailConfig); err != nil {
+			return err
+		}
+		delete(raw, "email_config")
+	}
+
 	if v, ok := raw["assets"]; ok {
 		if err := json.Unmarshal(v, &p.Assets); err != nil {
 			return err
@@ -473,6 +473,7 @@ type portalAlias struct {
 	Pages             []PortalPageResource         `json:"pages,omitempty" yaml:"pages,omitempty"`
 	Snippets          []PortalSnippetResource      `json:"snippets,omitempty" yaml:"snippets,omitempty"`
 	Teams             []PortalTeamResource         `json:"teams,omitempty" yaml:"teams,omitempty"`
+	EmailConfig       *PortalEmailConfigResource   `json:"email_config,omitempty" yaml:"email_config,omitempty"`
 	Assets            *PortalAssetsResource        `json:"assets,omitempty" yaml:"assets,omitempty"`
 	External          *ExternalBlock               `json:"_external,omitempty" yaml:"_external,omitempty"`
 }
@@ -490,6 +491,7 @@ func (p PortalResource) portalAlias() portalAlias {
 		Pages:             p.Pages,
 		Snippets:          p.Snippets,
 		Teams:             p.Teams,
+		EmailConfig:       p.EmailConfig,
 		Assets:            p.Assets,
 		External:          p.External,
 	}

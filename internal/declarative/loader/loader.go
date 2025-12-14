@@ -424,6 +424,15 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 		accumulated.PortalAuthSettings = append(accumulated.PortalAuthSettings, authSettings)
 	}
 
+	for _, cfg := range source.PortalEmailConfigs {
+		if accumulated.HasRef(cfg.Ref) {
+			existing, _ := accumulated.GetResourceByRef(cfg.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
+				cfg.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.PortalEmailConfigs = append(accumulated.PortalEmailConfigs, cfg)
+	}
+
 	for _, domain := range source.PortalCustomDomains {
 		if accumulated.HasRef(domain.Ref) {
 			existing, _ := accumulated.GetResourceByRef(domain.Ref)
@@ -821,9 +830,9 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.PortalTeams = append(rs.PortalTeams, team)
 		}
 
-		// Extract email configs (singleton)
-		for j := range portal.EmailConfigs {
-			cfg := portal.EmailConfigs[j]
+		// Extract email config (singleton)
+		if portal.EmailConfig != nil {
+			cfg := *portal.EmailConfig
 			cfg.Portal = portal.Ref
 			rs.PortalEmailConfigs = append(rs.PortalEmailConfigs, cfg)
 		}
@@ -835,7 +844,7 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		portal.Pages = nil
 		portal.Snippets = nil
 		portal.Teams = nil
-		portal.EmailConfigs = nil
+		portal.EmailConfig = nil
 	}
 }
 
@@ -884,7 +893,7 @@ func (l *Loader) suggestFieldName(fieldName string) string {
 		"customization": {"customize", "custom", "theme"},
 		"pages":         {"page", "content"},
 		"snippets":      {"snippet", "code"},
-		"email_configs": {"email_config", "email-config", "email"},
+		"email_config":  {"email_configs", "email-config", "email"},
 
 		// API fields
 		"versions":        {"version", "api_versions", "api-versions"},

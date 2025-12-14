@@ -128,9 +128,10 @@ steps:
                 total_changes: 1
                 by_action.DELETE: 1
           - select: >-
-              changes[?resource_type=='portal_email_config'] | [0].action
+              changes[?resource_type=='portal_email_config' && resource_ref=='{{ .vars.portalRef }}'] | [0]
             expect:
-              value: DELETE
+              fields:
+                action: DELETE
       - name: 001-sync-remove-email-config
         outputFormat: json
         run:

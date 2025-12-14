@@ -1168,7 +1168,7 @@ func (p *Planner) planPortalEmailConfigsChanges(
 	}
 
 	if p.shouldUpdatePortalEmailConfig(currentCfg, *desiredCfg) {
-		p.planPortalEmailConfigUpdate(parentNamespace, *desiredCfg, portalID, portalRef, portalName, plan)
+		p.planPortalEmailConfigUpdate(parentNamespace, *desiredCfg, portalID, portalRef, portalName, currentCfg.ID, plan)
 	}
 
 	return nil
@@ -1226,6 +1226,7 @@ func (p *Planner) planPortalEmailConfigUpdate(
 	portalID string,
 	portalRef string,
 	portalName string,
+	resourceID string,
 	plan *Plan,
 ) {
 	fields := p.buildPortalEmailConfigFields(cfg)
@@ -1234,7 +1235,7 @@ func (p *Planner) planPortalEmailConfigUpdate(
 		ID:           p.nextChangeID(ActionUpdate, ResourceTypePortalEmailConfig, cfg.Ref),
 		ResourceType: ResourceTypePortalEmailConfig,
 		ResourceRef:  cfg.Ref,
-		ResourceID:   portalID,
+		ResourceID:   resourceID,
 		Action:       ActionUpdate,
 		Fields:       fields,
 		DependsOn:    p.portalChildDependencies(plan, cfg.Portal),
