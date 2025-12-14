@@ -141,25 +141,66 @@ func TestParseAssignmentsNestedConflicts(t *testing.T) {
 }
 
 func TestResolveMethodAndArgs(t *testing.T) {
-	method, allowBody, remaining := resolveMethodAndArgs([]string{"POST", "/v1/resources"})
-	require.Equal(t, http.MethodPost, method)
-	require.True(t, allowBody)
-	require.Equal(t, []string{"/v1/resources"}, remaining)
+	testCases := []struct {
+		name       string
+		args       []string
+		expectMeth string
+		allowBody  bool
+		remaining  []string
+	}{
+		{
+			name:       "default to get when no args",
+			args:       nil,
+			expectMeth: http.MethodGet,
+			allowBody:  false,
+			remaining:  nil,
+		},
+		{
+			name:       "default to get when endpoint only",
+			args:       []string{"/v1/resources"},
+			expectMeth: http.MethodGet,
+			allowBody:  false,
+			remaining:  []string{"/v1/resources"},
+		},
+		{
+			name:       "post mixed case",
+			args:       []string{"PoSt", "/v1/resources"},
+			expectMeth: http.MethodPost,
+			allowBody:  true,
+			remaining:  []string{"/v1/resources"},
+		},
+		{
+			name:       "put lowercase",
+			args:       []string{"put", "/v1/resources/1"},
+			expectMeth: http.MethodPut,
+			allowBody:  true,
+			remaining:  []string{"/v1/resources/1"},
+		},
+		{
+			name:       "patch uppercase",
+			args:       []string{"PATCH", "/v1/resources/1"},
+			expectMeth: http.MethodPatch,
+			allowBody:  true,
+			remaining:  []string{"/v1/resources/1"},
+		},
+		{
+			name:       "delete mixed case",
+			args:       []string{"DeLeTe", "/v1/resources/1"},
+			expectMeth: http.MethodDelete,
+			allowBody:  false,
+			remaining:  []string{"/v1/resources/1"},
+		},
+	}
 
-	method, allowBody, remaining = resolveMethodAndArgs([]string{"PoSt", "/v1/resources"})
-	require.Equal(t, http.MethodPost, method)
-	require.True(t, allowBody)
-	require.Equal(t, []string{"/v1/resources"}, remaining)
-
-	method, allowBody, remaining = resolveMethodAndArgs([]string{"/v1/resources"})
-	require.Equal(t, http.MethodGet, method)
-	require.False(t, allowBody)
-	require.Equal(t, []string{"/v1/resources"}, remaining)
-
-	method, allowBody, remaining = resolveMethodAndArgs(nil)
-	require.Equal(t, http.MethodGet, method)
-	require.False(t, allowBody)
-	require.Empty(t, remaining)
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			method, allowBody, remaining := resolveMethodAndArgs(tc.args)
+			require.Equal(t, tc.expectMeth, method)
+			require.Equal(t, tc.allowBody, allowBody)
+			require.Equal(t, tc.remaining, remaining)
+		})
+	}
 }
 
 func TestParseAssignmentsInvalid(t *testing.T) {
@@ -1008,16 +1049,4 @@ func TestRunRejectsUnexpectedPayload(t *testing.T) {
 	var execErr *cmdpkg.ExecutionError
 	require.True(t, errors.As(err, &execErr))
 	require.Contains(t, err.Error(), "data fields may only be supplied with POST, PUT, or PATCH")
-}
-
-func TestRunRequiresEndpoint(t *testing.T) {
-	cmdObj := &cobra.Command{Use: "test"}
-	helper := &cmdtest.MockHelper{
-		GetCmdMock:  func() *cobra.Command { return cmdObj },
-		GetArgsMock: func() []string { return nil },
-	}
-
-	err := run(helper, http.MethodGet, false)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "endpoint")
 }

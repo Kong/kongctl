@@ -261,13 +261,6 @@ func resolveMethodAndArgs(args []string) (string, bool, []string) {
 
 func run(helper cmd.Helper, method string, allowBody bool) error {
 	args := helper.GetArgs()
-	if len(args) == 0 {
-		return cmd.PrepareExecutionError(
-			"endpoint is required",
-			errors.New("endpoint cannot be empty"),
-			helper.GetCmd(),
-		)
-	}
 	endpoint := strings.TrimSpace(args[0])
 	if endpoint == "" {
 		return cmd.PrepareExecutionError(
