@@ -140,6 +140,69 @@ func TestParseAssignmentsNestedConflicts(t *testing.T) {
 	require.Contains(t, err.Error(), "expects object")
 }
 
+func TestResolveMethodAndArgs(t *testing.T) {
+	testCases := []struct {
+		name       string
+		args       []string
+		expectMeth string
+		allowBody  bool
+		remaining  []string
+	}{
+		{
+			name:       "default to get when no args",
+			args:       nil,
+			expectMeth: http.MethodGet,
+			allowBody:  false,
+			remaining:  nil,
+		},
+		{
+			name:       "default to get when endpoint only",
+			args:       []string{"/v1/resources"},
+			expectMeth: http.MethodGet,
+			allowBody:  false,
+			remaining:  []string{"/v1/resources"},
+		},
+		{
+			name:       "post mixed case",
+			args:       []string{"PoSt", "/v1/resources"},
+			expectMeth: http.MethodPost,
+			allowBody:  true,
+			remaining:  []string{"/v1/resources"},
+		},
+		{
+			name:       "put lowercase",
+			args:       []string{"put", "/v1/resources/1"},
+			expectMeth: http.MethodPut,
+			allowBody:  true,
+			remaining:  []string{"/v1/resources/1"},
+		},
+		{
+			name:       "patch uppercase",
+			args:       []string{"PATCH", "/v1/resources/1"},
+			expectMeth: http.MethodPatch,
+			allowBody:  true,
+			remaining:  []string{"/v1/resources/1"},
+		},
+		{
+			name:       "delete mixed case",
+			args:       []string{"DeLeTe", "/v1/resources/1"},
+			expectMeth: http.MethodDelete,
+			allowBody:  false,
+			remaining:  []string{"/v1/resources/1"},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			method, allowBody, remaining := resolveMethodAndArgs(tc.args)
+			require.Equal(t, tc.expectMeth, method)
+			require.Equal(t, tc.allowBody, allowBody)
+			require.Equal(t, tc.remaining, remaining)
+		})
+	}
+}
+
 func TestParseAssignmentsInvalid(t *testing.T) {
 	_, err := parseAssignments([]string{"novalue"})
 	require.Error(t, err)
