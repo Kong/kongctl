@@ -188,6 +188,7 @@ lists the currently supported resources and their relationships.
 - Portal Snippets
 - Portal Customizations
 - Portal Custom Domains
+- Portal Email Configs
 - Gateway Services 
 
 > Note: Portal email domains are currently **imperative-only** because the Konnect API exposes them at the

@@ -462,6 +462,36 @@ func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) er
 		}
 	}
 
+	// Validate portal email configs (singleton per portal)
+	portalConfigRefs := make(map[string]bool)
+	portalToConfigRef := make(map[string]string)
+	for i := range rs.PortalEmailConfigs {
+		cfg := &rs.PortalEmailConfigs[i]
+		if err := cfg.Validate(); err != nil {
+			return fmt.Errorf("invalid portal_email_config %q: %w", cfg.GetRef(), err)
+		}
+		for j := i + 1; j < len(rs.PortalEmailConfigs); j++ {
+			if rs.PortalEmailConfigs[j].GetRef() == cfg.GetRef() {
+				return fmt.Errorf("duplicate ref '%s' (already defined as portal_email_config)", cfg.GetRef())
+			}
+		}
+		if cfg.Portal == "" {
+			return fmt.Errorf("portal_email_config %q must specify portal", cfg.GetRef())
+		}
+		if portalConfigRefs[cfg.GetRef()] {
+			return fmt.Errorf("duplicate ref '%s' (already defined as portal_email_config)", cfg.GetRef())
+		}
+		portalConfigRefs[cfg.GetRef()] = true
+
+		if existingRef, ok := portalToConfigRef[cfg.Portal]; ok {
+			return fmt.Errorf(
+				"multiple portal_email_config entries target portal %q (%s and %s)",
+				cfg.Portal, existingRef, cfg.GetRef(),
+			)
+		}
+		portalToConfigRef[cfg.Portal] = cfg.GetRef()
+	}
+
 	return nil
 }
 

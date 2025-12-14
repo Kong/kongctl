@@ -690,6 +690,19 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			"error", err.Error())
 	}
 
+	// Plan email config
+	emailConfigs := make([]resources.PortalEmailConfigResource, 0)
+	for _, cfg := range planner.desiredPortalEmailConfigs {
+		if cfg.Portal == desired.Ref {
+			emailConfigs = append(emailConfigs, cfg)
+		}
+	}
+	if err := planner.planPortalEmailConfigsChanges(ctx, parentNamespace, "", desired.Ref, emailConfigs, plan); err != nil {
+		planner.logger.Debug("Failed to plan portal email config for new portal",
+			"portal", desired.Ref,
+			"error", err.Error())
+	}
+
 	// Plan customization
 	customizations := make([]resources.PortalCustomizationResource, 0)
 	for _, customization := range planner.desiredPortalCustomizations {
@@ -820,6 +833,19 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 	}
 	if err := planner.planPortalAuthSettingsChanges(ctx, plannerCtx, parentNamespace, authSettings, plan); err != nil {
 		return fmt.Errorf("failed to plan portal auth settings changes: %w", err)
+	}
+
+	// Plan email config (singleton resource)
+	emailConfigs := make([]resources.PortalEmailConfigResource, 0)
+	for _, cfg := range planner.desiredPortalEmailConfigs {
+		if cfg.Portal == desired.Ref {
+			emailConfigs = append(emailConfigs, cfg)
+		}
+	}
+	if err := planner.planPortalEmailConfigsChanges(
+		ctx, parentNamespace, current.ID, desired.Ref, emailConfigs, plan,
+	); err != nil {
+		return fmt.Errorf("failed to plan portal email config changes: %w", err)
 	}
 
 	// Plan customization (singleton resource)

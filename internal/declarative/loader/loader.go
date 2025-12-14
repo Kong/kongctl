@@ -821,6 +821,13 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.PortalTeams = append(rs.PortalTeams, team)
 		}
 
+		// Extract email configs (singleton)
+		for j := range portal.EmailConfigs {
+			cfg := portal.EmailConfigs[j]
+			cfg.Portal = portal.Ref
+			rs.PortalEmailConfigs = append(rs.PortalEmailConfigs, cfg)
+		}
+
 		// Clear nested resources from Portal
 		portal.Customization = nil
 		portal.AuthSettings = nil
@@ -828,6 +835,7 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		portal.Pages = nil
 		portal.Snippets = nil
 		portal.Teams = nil
+		portal.EmailConfigs = nil
 	}
 }
 
@@ -876,6 +884,7 @@ func (l *Loader) suggestFieldName(fieldName string) string {
 		"customization": {"customize", "custom", "theme"},
 		"pages":         {"page", "content"},
 		"snippets":      {"snippet", "code"},
+		"email_configs": {"email_config", "email-config", "email"},
 
 		// API fields
 		"versions":        {"version", "api_versions", "api-versions"},

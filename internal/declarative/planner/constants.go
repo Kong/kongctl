@@ -48,6 +48,9 @@ const (
 
 	// ResourceTypePortalAssetFavicon is the resource type for portal favicon assets
 	ResourceTypePortalAssetFavicon = "portal_asset_favicon"
+
+	// ResourceTypePortalEmailConfig is the resource type for portal email configs
+	ResourceTypePortalEmailConfig = "portal_email_config"
 )
 
 // Default values

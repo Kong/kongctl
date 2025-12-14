@@ -125,4 +125,5 @@ const (
 	ErrMsgPortalSnippetAPINotConfigured       = "portal snippet API not configured"
 	ErrMsgPortalCustomizationAPINotConfigured = "portal customization API not configured"
 	ErrMsgPortalCustomDomainAPINotConfigured  = "portal custom domain API not configured"
+	ErrMsgPortalEmailsAPINotConfigured        = "portal emails API not configured"
 )

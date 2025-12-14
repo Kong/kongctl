@@ -35,6 +35,7 @@ type ClientConfig struct {
 	PortalSnippetAPI       helpers.PortalSnippetAPI
 	PortalTeamAPI          helpers.PortalTeamAPI
 	PortalTeamRolesAPI     helpers.PortalTeamRolesAPI
+	PortalEmailsAPI        helpers.PortalEmailsAPI
 	AssetsAPI              helpers.AssetsAPI
 
 	// API child resource APIs
@@ -62,6 +63,7 @@ type Client struct {
 	portalSnippetAPI       helpers.PortalSnippetAPI
 	portalTeamAPI          helpers.PortalTeamAPI
 	portalTeamRolesAPI     helpers.PortalTeamRolesAPI
+	portalEmailsAPI        helpers.PortalEmailsAPI
 	assetsAPI              helpers.AssetsAPI
 
 	// API child resource APIs
@@ -90,6 +92,7 @@ func NewClient(config ClientConfig) *Client {
 		portalSnippetAPI:       config.PortalSnippetAPI,
 		portalTeamAPI:          config.PortalTeamAPI,
 		portalTeamRolesAPI:     config.PortalTeamRolesAPI,
+		portalEmailsAPI:        config.PortalEmailsAPI,
 		assetsAPI:              config.AssetsAPI,
 
 		// API child resource APIs
@@ -1963,6 +1966,91 @@ func (c *Client) UpdatePortalAuthSettings(
 	_, err := c.portalAuthSettingsAPI.UpdatePortalAuthenticationSettings(ctx, portalID, &settings)
 	if err != nil {
 		return WrapAPIError(err, "update portal auth settings", nil)
+	}
+	return nil
+}
+
+// GetPortalEmailConfig fetches the current email configuration for a portal.
+func (c *Client) GetPortalEmailConfig(ctx context.Context, portalID string) (*kkComps.PortalEmailConfig, error) {
+	if err := ValidateAPIClient(c.portalEmailsAPI, "portal emails API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.portalEmailsAPI.GetEmailConfig(ctx, portalID)
+	if err != nil {
+		var notFound *kkErrors.NotFoundError
+		if errors.As(err, &notFound) {
+			return nil, nil
+		}
+		return nil, WrapAPIError(err, "get portal email config", nil)
+	}
+
+	if err := ValidateResponse(resp.PortalEmailConfig, "get portal email config"); err != nil {
+		return nil, err
+	}
+
+	return resp.PortalEmailConfig, nil
+}
+
+// CreatePortalEmailConfig creates a new email configuration for a portal.
+func (c *Client) CreatePortalEmailConfig(
+	ctx context.Context,
+	portalID string,
+	body kkComps.PostPortalEmailConfig,
+) (string, error) {
+	if err := ValidateAPIClient(c.portalEmailsAPI, "portal emails API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.portalEmailsAPI.CreatePortalEmailConfig(ctx, portalID, body)
+	if err != nil {
+		return "", WrapAPIError(err, "create portal email config", &ErrorWrapperOptions{
+			ResourceType: "portal_email_config",
+			ResourceName: portalID,
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.PortalEmailConfig == nil {
+		return "", NewResponseValidationError("create portal email config", "PortalEmailConfig")
+	}
+	return resp.PortalEmailConfig.ID, nil
+}
+
+// UpdatePortalEmailConfig updates the email configuration for a portal.
+func (c *Client) UpdatePortalEmailConfig(
+	ctx context.Context,
+	portalID string,
+	body *kkComps.PatchPortalEmailConfig,
+) (string, error) {
+	if err := ValidateAPIClient(c.portalEmailsAPI, "portal emails API"); err != nil {
+		return "", err
+	}
+
+	resp, err := c.portalEmailsAPI.UpdatePortalEmailConfig(ctx, portalID, body)
+	if err != nil {
+		return "", WrapAPIError(err, "update portal email config", &ErrorWrapperOptions{
+			ResourceType: "portal_email_config",
+			ResourceName: portalID,
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil || resp.PortalEmailConfig == nil {
+		return "", NewResponseValidationError("update portal email config", "PortalEmailConfig")
+	}
+	return resp.PortalEmailConfig.ID, nil
+}
+
+// DeletePortalEmailConfig deletes the email configuration for a portal.
+func (c *Client) DeletePortalEmailConfig(ctx context.Context, portalID string) error {
+	if err := ValidateAPIClient(c.portalEmailsAPI, "portal emails API"); err != nil {
+		return err
+	}
+
+	if _, err := c.portalEmailsAPI.DeletePortalEmailConfig(ctx, portalID); err != nil {
+		return WrapAPIError(err, "delete portal email config", &ErrorWrapperOptions{
+			ResourceType: "portal_email_config",
+			ResourceName: portalID,
+		})
 	}
 	return nil
 }
