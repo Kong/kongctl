@@ -697,7 +697,9 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			emailConfigs = append(emailConfigs, cfg)
 		}
 	}
-	if err := planner.planPortalEmailConfigsChanges(ctx, parentNamespace, "", desired.Ref, emailConfigs, plan); err != nil {
+	if err := planner.planPortalEmailConfigsChanges(
+		ctx, parentNamespace, "", desired.Ref, emailConfigs, plan,
+	); err != nil {
 		planner.logger.Debug("Failed to plan portal email config for new portal",
 			"portal", desired.Ref,
 			"error", err.Error())

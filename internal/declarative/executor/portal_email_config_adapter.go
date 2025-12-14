@@ -92,7 +92,7 @@ func (a *PortalEmailConfigAdapter) Create(
 }
 
 func (a *PortalEmailConfigAdapter) Update(
-	ctx context.Context, id string, req kkComps.PatchPortalEmailConfig, _ string, execCtx *ExecutionContext,
+	ctx context.Context, _ string, req kkComps.PatchPortalEmailConfig, _ string, execCtx *ExecutionContext,
 ) (string, error) {
 	portalID, err := a.portalID(execCtx)
 	if err != nil {
@@ -101,7 +101,7 @@ func (a *PortalEmailConfigAdapter) Update(
 	return a.client.UpdatePortalEmailConfig(ctx, portalID, &req)
 }
 
-func (a *PortalEmailConfigAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
+func (a *PortalEmailConfigAdapter) Delete(ctx context.Context, _ string, execCtx *ExecutionContext) error {
 	portalID, err := a.portalID(execCtx)
 	if err != nil {
 		return err

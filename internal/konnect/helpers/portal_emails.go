@@ -4,6 +4,7 @@ import (
 	"context"
 
 	kkSDK "github.com/Kong/sdk-konnect-go"
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 )
 
