@@ -1,0 +1,147 @@
+baseInputsPath: ../../../testdata/declarative/portal/email-config
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: portal-email-config
+  portalRef: portal-email
+  emailConfigRef: portal-email-config
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-email-config
+    commands:
+      - name: 000-plan-email-config
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-email-config.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='portal_email_config' && resource_ref=='{{ .vars.emailConfigRef }}'] | [0].fields
+            expect:
+              fields:
+                domain_name: mail.kongctl-e2e.io
+                from_name: Kong Developer Portal
+                from_email: noreply@mail.kongctl-e2e.io
+                reply_to_email: support@mail.kongctl-e2e.io
+      - name: 001-apply-email-config
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-email-config.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+  - name: 002-plan-apply-email-config-update
+    inputOverlayDirs:
+      - overlays/002-update
+    commands:
+      - name: 000-plan-email-config-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-email-config-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_email_config' && resource_ref=='{{ .vars.emailConfigRef }}'] | [0].fields
+            expect:
+              fields:
+                domain_name: null
+                from_name: Kong Portal Team
+                from_email: team@mail.kongctl-e2e.io
+                reply_to_email: help@mail.kongctl-e2e.io
+      - name: 001-apply-email-config-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-email-config-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+  - name: 003-sync-remove-email-config
+    inputOverlayDirs:
+      - overlays/003-remove
+    commands:
+      - name: 000-plan-remove-email-config
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-remove-email-config.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='portal_email_config' && resource_ref=='{{ .vars.portalRef }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+      - name: 001-sync-remove-email-config
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-remove-email-config.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0

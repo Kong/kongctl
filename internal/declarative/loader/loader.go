@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/errors"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
@@ -424,6 +425,24 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 		accumulated.PortalAuthSettings = append(accumulated.PortalAuthSettings, authSettings)
 	}
 
+	for _, cfg := range source.PortalEmailConfigs {
+		if accumulated.HasRef(cfg.Ref) {
+			existing, _ := accumulated.GetResourceByRef(cfg.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
+				cfg.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.PortalEmailConfigs = append(accumulated.PortalEmailConfigs, cfg)
+	}
+
+	for _, tpl := range source.PortalEmailTemplates {
+		if accumulated.HasRef(tpl.Ref) {
+			existing, _ := accumulated.GetResourceByRef(tpl.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
+				tpl.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.PortalEmailTemplates = append(accumulated.PortalEmailTemplates, tpl)
+	}
+
 	for _, domain := range source.PortalCustomDomains {
 		if accumulated.HasRef(domain.Ref) {
 			existing, _ := accumulated.GetResourceByRef(domain.Ref)
@@ -682,6 +701,12 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 	for i := range rs.PortalSnippets {
 		rs.PortalSnippets[i].SetDefaults()
 	}
+	for i := range rs.PortalEmailConfigs {
+		rs.PortalEmailConfigs[i].SetDefaults()
+	}
+	for i := range rs.PortalEmailTemplates {
+		rs.PortalEmailTemplates[i].SetDefaults()
+	}
 }
 
 // extractPortalPages recursively extracts and flattens nested portal pages
@@ -821,6 +846,25 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.PortalTeams = append(rs.PortalTeams, team)
 		}
 
+		// Extract email config (singleton)
+		if portal.EmailConfig != nil {
+			cfg := *portal.EmailConfig
+			cfg.Portal = portal.Ref
+			rs.PortalEmailConfigs = append(rs.PortalEmailConfigs, cfg)
+		}
+
+		// Extract email templates (map keyed by template name)
+		for key, tpl := range portal.EmailTemplates {
+			if tpl.Name == "" {
+				tpl.Name = kkComps.EmailTemplateName(key)
+			}
+			if tpl.Ref == "" {
+				tpl.Ref = key
+			}
+			tpl.Portal = portal.Ref
+			rs.PortalEmailTemplates = append(rs.PortalEmailTemplates, tpl)
+		}
+
 		// Clear nested resources from Portal
 		portal.Customization = nil
 		portal.AuthSettings = nil
@@ -828,6 +872,8 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		portal.Pages = nil
 		portal.Snippets = nil
 		portal.Teams = nil
+		portal.EmailConfig = nil
+		portal.EmailTemplates = nil
 	}
 }
 
@@ -876,6 +922,7 @@ func (l *Loader) suggestFieldName(fieldName string) string {
 		"customization": {"customize", "custom", "theme"},
 		"pages":         {"page", "content"},
 		"snippets":      {"snippet", "code"},
+		"email_config":  {"email_configs", "email-config", "email"},
 
 		// API fields
 		"versions":        {"version", "api_versions", "api-versions"},

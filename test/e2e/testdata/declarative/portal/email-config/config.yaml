@@ -1,0 +1,17 @@
+_defaults:
+  kongctl:
+    namespace: portal-email-config
+
+portals:
+  - ref: portal-email
+    name: "portal-email"
+    display_name: "Portal Email Config"
+    description: "Portal with custom email configuration"
+    kongctl:
+      namespace: portal-email-config
+    email_config:
+      ref: portal-email-config
+      domain_name: "mail.kongctl-e2e.io"
+      from_name: "Kong Developer Portal"
+      from_email: "noreply@mail.kongctl-e2e.io"
+      reply_to_email: "support@mail.kongctl-e2e.io"

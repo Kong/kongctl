@@ -1,0 +1,25 @@
+_defaults:
+  kongctl:
+    namespace: portal-email-templates
+
+portals:
+  - ref: portal-email-templates
+    name: "portal-email-templates"
+    display_name: "Portal Email Templates"
+    kongctl:
+      namespace: portal-email-templates
+    email_templates:
+      reset-password:
+        ref: reset-password-template
+        enabled: true
+        content:
+          subject: "Reset your password"
+          title: "Reset Password"
+          body: "Click the button to reset your password."
+          button_label: "Reset"
+      app-registration-approved:
+        ref: app-reg-approved-template
+        enabled: true
+        content:
+          subject: "Your app is approved"
+          body: "The application {{ application_name }} has been approved."

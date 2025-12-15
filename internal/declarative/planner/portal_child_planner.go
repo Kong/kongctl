@@ -1108,6 +1108,619 @@ func (p *Planner) portalCustomDomainNeedsReplacement(
 	return false
 }
 
+// Portal Email Config planning
+
+func (p *Planner) planPortalEmailConfigsChanges(
+	ctx context.Context,
+	parentNamespace string,
+	portalID string,
+	portalRef string,
+	desired []resources.PortalEmailConfigResource,
+	plan *Plan,
+) error {
+	var desiredCfg *resources.PortalEmailConfigResource
+	for i := range desired {
+		if plan.HasChange(ResourceTypePortalEmailConfig, desired[i].GetRef()) {
+			continue
+		}
+		desiredCfg = &desired[i]
+		break
+	}
+
+	portalName := p.findPortalName(portalRef)
+
+	if portalID == "" {
+		if desiredCfg != nil {
+			p.planPortalEmailConfigCreate(parentNamespace, *desiredCfg, portalID, portalRef, portalName, plan)
+		}
+		return nil
+	}
+
+	currentCfg, err := p.client.GetPortalEmailConfig(ctx, portalID)
+	if err != nil {
+		var apiErr *state.APIClientError
+		if errors.As(err, &apiErr) && apiErr.ClientType == "portal emails API" {
+			if desiredCfg != nil {
+				changeID := p.planPortalEmailConfigCreate(parentNamespace, *desiredCfg, portalID, portalRef, portalName, plan)
+				plan.AddWarning(changeID, "unable to inspect existing portal email config – assuming create is required")
+			}
+			return nil
+		}
+
+		identifier := portalRef
+		if identifier == "" {
+			identifier = portalID
+		}
+
+		return fmt.Errorf("failed to get portal email config for portal %q: %w", identifier, err)
+	}
+
+	if desiredCfg == nil {
+		if currentCfg != nil && plan.Metadata.Mode == PlanModeSync {
+			p.planPortalEmailConfigDelete(parentNamespace, portalRef, portalID, portalName, plan)
+		}
+		return nil
+	}
+
+	if currentCfg == nil {
+		p.planPortalEmailConfigCreate(parentNamespace, *desiredCfg, portalID, portalRef, portalName, plan)
+		return nil
+	}
+
+	if p.shouldUpdatePortalEmailConfig(currentCfg, *desiredCfg) {
+		p.planPortalEmailConfigUpdate(parentNamespace, *desiredCfg, portalID, portalRef, portalName, currentCfg.ID, plan)
+	}
+
+	return nil
+}
+
+func (p *Planner) planPortalEmailConfigCreate(
+	parentNamespace string,
+	cfg resources.PortalEmailConfigResource,
+	portalID string,
+	portalRef string,
+	portalName string,
+	plan *Plan,
+) string {
+	fields := p.buildPortalEmailConfigFields(cfg)
+
+	deps := p.portalChildDependencies(plan, cfg.Portal)
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionCreate, ResourceTypePortalEmailConfig, cfg.Ref),
+		ResourceType: ResourceTypePortalEmailConfig,
+		ResourceRef:  cfg.Ref,
+		Action:       ActionCreate,
+		Fields:       fields,
+		DependsOn:    uniqueStrings(deps),
+		Namespace:    parentNamespace,
+	}
+
+	ref := cfg.Portal
+	if ref == "" {
+		ref = portalRef
+	}
+	if ref != "" || portalID != "" {
+		change.Parent = &ParentInfo{
+			Ref: ref,
+			ID:  portalID,
+		}
+
+		change.References = map[string]ReferenceInfo{
+			"portal_id": {
+				Ref: ref,
+				ID:  portalID,
+				LookupFields: map[string]string{
+					"name": portalName,
+				},
+			},
+		}
+	}
+
+	plan.AddChange(change)
+	return change.ID
+}
+
+func (p *Planner) planPortalEmailConfigUpdate(
+	parentNamespace string,
+	cfg resources.PortalEmailConfigResource,
+	portalID string,
+	portalRef string,
+	portalName string,
+	resourceID string,
+	plan *Plan,
+) {
+	fields := p.buildPortalEmailConfigFields(cfg)
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionUpdate, ResourceTypePortalEmailConfig, cfg.Ref),
+		ResourceType: ResourceTypePortalEmailConfig,
+		ResourceRef:  cfg.Ref,
+		ResourceID:   resourceID,
+		Action:       ActionUpdate,
+		Fields:       fields,
+		DependsOn:    p.portalChildDependencies(plan, cfg.Portal),
+		Namespace:    parentNamespace,
+	}
+
+	ref := cfg.Portal
+	if ref == "" {
+		ref = portalRef
+	}
+	if ref != "" || portalID != "" {
+		change.Parent = &ParentInfo{
+			Ref: ref,
+			ID:  portalID,
+		}
+		change.References = map[string]ReferenceInfo{
+			"portal_id": {
+				Ref: ref,
+				ID:  portalID,
+				LookupFields: map[string]string{
+					"name": portalName,
+				},
+			},
+		}
+	}
+
+	plan.AddChange(change)
+}
+
+func (p *Planner) planPortalEmailConfigDelete(
+	parentNamespace string,
+	portalRef string,
+	portalID string,
+	portalName string,
+	plan *Plan,
+) {
+	ref := portalRef
+	if ref == "" {
+		ref = fmt.Sprintf("%s__email_config", portalID)
+	}
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionDelete, ResourceTypePortalEmailConfig, ref),
+		ResourceType: ResourceTypePortalEmailConfig,
+		ResourceRef:  ref,
+		ResourceID:   portalID,
+		Action:       ActionDelete,
+		DependsOn:    p.portalChildDependencies(plan, portalRef),
+		Namespace:    parentNamespace,
+	}
+
+	if portalRef != "" || portalID != "" {
+		change.Parent = &ParentInfo{
+			Ref: portalRef,
+			ID:  portalID,
+		}
+		change.References = map[string]ReferenceInfo{
+			"portal_id": {
+				Ref: portalRef,
+				ID:  portalID,
+				LookupFields: map[string]string{
+					"name": portalName,
+				},
+			},
+		}
+	}
+
+	plan.AddChange(change)
+}
+
+func (p *Planner) shouldUpdatePortalEmailConfig(
+	current *kkComps.PortalEmailConfig,
+	desired resources.PortalEmailConfigResource,
+) bool {
+	if current == nil {
+		return true
+	}
+
+	if desired.DomainNameSet {
+		currentDomain := getString(current.DomainName)
+		if desired.DomainName == nil {
+			if currentDomain != "" {
+				return true
+			}
+		} else if currentDomain != *desired.DomainName {
+			return true
+		}
+	}
+
+	if desired.FromNameSet {
+		if desired.FromName == nil {
+			if current.FromName != "" {
+				return true
+			}
+		} else if *desired.FromName != current.FromName {
+			return true
+		}
+	}
+
+	if desired.FromEmailSet {
+		if desired.FromEmail == nil {
+			if current.FromEmail != "" {
+				return true
+			}
+		} else if *desired.FromEmail != current.FromEmail {
+			return true
+		}
+	}
+
+	if desired.ReplyToEmailSet {
+		if desired.ReplyToEmail == nil {
+			if current.ReplyToEmail != "" {
+				return true
+			}
+		} else if *desired.ReplyToEmail != current.ReplyToEmail {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Portal Email Templates planning
+
+func (p *Planner) planPortalEmailTemplatesChanges(
+	ctx context.Context,
+	parentNamespace string,
+	portalID string,
+	portalRef string,
+	portalName string,
+	desired []resources.PortalEmailTemplateResource,
+	plan *Plan,
+) error {
+	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
+		return nil
+	}
+
+	existing := make(map[string]state.PortalEmailTemplate)
+	if portalID != "" {
+		templates, err := p.client.ListPortalCustomEmailTemplates(ctx, portalID)
+		if err != nil {
+			if strings.Contains(err.Error(), "portal emails API") && strings.Contains(err.Error(), "not configured") {
+				return nil
+			}
+			if !strings.Contains(err.Error(), "not found") {
+				return fmt.Errorf("failed to list portal email templates: %w", err)
+			}
+		} else {
+			for _, tpl := range templates {
+				existing[tpl.Name] = tpl
+			}
+		}
+	}
+
+	desiredByName := make(map[string]resources.PortalEmailTemplateResource)
+
+	for _, tpl := range desired {
+		nameKey := string(tpl.Name)
+		desiredByName[nameKey] = tpl
+
+		if plan.HasChange(ResourceTypePortalEmailTemplate, tpl.GetRef()) {
+			continue
+		}
+
+		if current, ok := existing[nameKey]; ok {
+			var currentDetails *state.PortalEmailTemplate
+			if portalID != "" {
+				full, err := p.client.GetPortalCustomEmailTemplate(ctx, portalID, kkComps.EmailTemplateName(current.Name))
+				if err != nil {
+					return fmt.Errorf("failed to fetch portal email template %s for comparison: %w", current.Name, err)
+				}
+				currentDetails = full
+			}
+			if currentDetails == nil {
+				currentDetails = &current
+			}
+
+			needsUpdate, fields := p.shouldUpdatePortalEmailTemplate(currentDetails, tpl)
+			if needsUpdate {
+				p.planPortalEmailTemplateUpdate(
+					parentNamespace,
+					tpl,
+					portalID,
+					portalRef,
+					portalName,
+					fields,
+					plan,
+				)
+			}
+		} else {
+			p.planPortalEmailTemplateCreate(parentNamespace, tpl, portalID, portalRef, portalName, plan)
+		}
+	}
+
+	if plan.Metadata.Mode == PlanModeSync && portalID != "" {
+		for name, tpl := range existing {
+			if _, ok := desiredByName[name]; ok {
+				continue
+			}
+			p.planPortalEmailTemplateDelete(parentNamespace, portalRef, portalID, portalName, tpl, plan)
+		}
+	}
+
+	return nil
+}
+
+func (p *Planner) planPortalEmailTemplateCreate(
+	parentNamespace string,
+	tpl resources.PortalEmailTemplateResource,
+	portalID string,
+	portalRef string,
+	portalName string,
+	plan *Plan,
+) {
+	fields := p.buildPortalEmailTemplateFields(tpl)
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionCreate, ResourceTypePortalEmailTemplate, tpl.Ref),
+		ResourceType: ResourceTypePortalEmailTemplate,
+		ResourceRef:  tpl.Ref,
+		Action:       ActionCreate,
+		Fields:       fields,
+		DependsOn:    p.portalChildDependencies(plan, tpl.Portal),
+		Namespace:    parentNamespace,
+	}
+
+	ref := tpl.Portal
+	if ref == "" {
+		ref = portalRef
+	}
+	if ref != "" || portalID != "" {
+		change.Parent = &ParentInfo{
+			Ref: ref,
+			ID:  portalID,
+		}
+		change.References = map[string]ReferenceInfo{
+			"portal_id": {
+				Ref: ref,
+				ID:  portalID,
+				LookupFields: map[string]string{
+					"name": portalName,
+				},
+			},
+		}
+	}
+
+	plan.AddChange(change)
+}
+
+func (p *Planner) planPortalEmailTemplateUpdate(
+	parentNamespace string,
+	tpl resources.PortalEmailTemplateResource,
+	portalID string,
+	portalRef string,
+	portalName string,
+	updateFields map[string]any,
+	plan *Plan,
+) {
+	fields := map[string]any{
+		"name": tpl.Name,
+	}
+	for k, v := range updateFields {
+		fields[k] = v
+	}
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionUpdate, ResourceTypePortalEmailTemplate, tpl.Ref),
+		ResourceType: ResourceTypePortalEmailTemplate,
+		ResourceRef:  tpl.Ref,
+		ResourceID:   tpl.GetKonnectID(),
+		Action:       ActionUpdate,
+		Fields:       fields,
+		DependsOn:    p.portalChildDependencies(plan, tpl.Portal),
+		Namespace:    parentNamespace,
+	}
+
+	ref := tpl.Portal
+	if ref == "" {
+		ref = portalRef
+	}
+	if ref != "" || portalID != "" {
+		change.Parent = &ParentInfo{
+			Ref: ref,
+			ID:  portalID,
+		}
+		change.References = map[string]ReferenceInfo{
+			"portal_id": {
+				Ref: ref,
+				ID:  portalID,
+				LookupFields: map[string]string{
+					"name": portalName,
+				},
+			},
+		}
+	}
+
+	plan.AddChange(change)
+}
+
+func (p *Planner) planPortalEmailTemplateDelete(
+	parentNamespace string,
+	portalRef string,
+	portalID string,
+	portalName string,
+	current state.PortalEmailTemplate,
+	plan *Plan,
+) {
+	ref := portalRef
+	if ref == "" {
+		ref = fmt.Sprintf("%s__email_template_%s", portalID, current.Name)
+	}
+
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionDelete, ResourceTypePortalEmailTemplate, ref),
+		ResourceType: ResourceTypePortalEmailTemplate,
+		ResourceRef:  ref,
+		ResourceID:   current.Name,
+		Action:       ActionDelete,
+		DependsOn:    p.portalChildDependencies(plan, portalRef),
+		Namespace:    parentNamespace,
+		Fields: map[string]any{
+			"name": current.Name,
+		},
+	}
+
+	if portalRef != "" || portalID != "" {
+		change.Parent = &ParentInfo{
+			Ref: portalRef,
+			ID:  portalID,
+		}
+		change.References = map[string]ReferenceInfo{
+			"portal_id": {
+				Ref: portalRef,
+				ID:  portalID,
+				LookupFields: map[string]string{
+					"name": portalName,
+				},
+			},
+		}
+	}
+
+	plan.AddChange(change)
+}
+
+func (p *Planner) shouldUpdatePortalEmailTemplate(
+	current *state.PortalEmailTemplate,
+	desired resources.PortalEmailTemplateResource,
+) (bool, map[string]any) {
+	updates := make(map[string]any)
+
+	if current == nil {
+		return true, updates
+	}
+
+	if desired.EnabledSet && desired.Enabled != nil && current.Enabled != *desired.Enabled {
+		updates["enabled"] = *desired.Enabled
+	}
+
+	if desired.ContentSet {
+		if desired.Content == nil {
+			if current.Content != nil {
+				updates["content"] = nil
+			}
+		} else {
+			contentUpdates := make(map[string]any)
+			if desired.Content.SubjectSet {
+				currentVal := ""
+				if current.Content != nil && current.Content.Subject != nil {
+					currentVal = *current.Content.Subject
+				}
+				if desired.Content.Subject == nil {
+					if currentVal != "" {
+						contentUpdates["subject"] = nil
+					}
+				} else if currentVal != *desired.Content.Subject {
+					contentUpdates["subject"] = *desired.Content.Subject
+				}
+			}
+			if desired.Content.TitleSet {
+				currentVal := ""
+				if current.Content != nil && current.Content.Title != nil {
+					currentVal = *current.Content.Title
+				}
+				if desired.Content.Title == nil {
+					if currentVal != "" {
+						contentUpdates["title"] = nil
+					}
+				} else if currentVal != *desired.Content.Title {
+					contentUpdates["title"] = *desired.Content.Title
+				}
+			}
+			if desired.Content.BodySet {
+				currentVal := ""
+				if current.Content != nil && current.Content.Body != nil {
+					currentVal = *current.Content.Body
+				}
+				if desired.Content.Body == nil {
+					if currentVal != "" {
+						contentUpdates["body"] = nil
+					}
+				} else if currentVal != *desired.Content.Body {
+					contentUpdates["body"] = *desired.Content.Body
+				}
+			}
+			if desired.Content.ButtonLabelSet {
+				currentVal := ""
+				if current.Content != nil && current.Content.ButtonLabel != nil {
+					currentVal = *current.Content.ButtonLabel
+				}
+				if desired.Content.ButtonLabel == nil {
+					if currentVal != "" {
+						contentUpdates["button_label"] = nil
+					}
+				} else if currentVal != *desired.Content.ButtonLabel {
+					contentUpdates["button_label"] = *desired.Content.ButtonLabel
+				}
+			}
+
+			if len(contentUpdates) > 0 {
+				updates["content"] = contentUpdates
+			}
+		}
+	}
+
+	return len(updates) > 0, updates
+}
+
+func (p *Planner) buildPortalEmailTemplateFields(tpl resources.PortalEmailTemplateResource) map[string]any {
+	fields := map[string]any{
+		"name": tpl.Name,
+	}
+
+	if tpl.EnabledSet && tpl.Enabled != nil {
+		fields["enabled"] = *tpl.Enabled
+	}
+
+	contentSet := tpl.ContentSet || tpl.Content != nil
+	if contentSet {
+		if tpl.Content == nil {
+			fields["content"] = nil
+		} else {
+			contentFields := make(map[string]any)
+			if tpl.Content.SubjectSet || tpl.Content.Subject != nil {
+				contentFields["subject"] = tpl.Content.Subject
+			}
+			if tpl.Content.TitleSet || tpl.Content.Title != nil {
+				contentFields["title"] = tpl.Content.Title
+			}
+			if tpl.Content.BodySet || tpl.Content.Body != nil {
+				contentFields["body"] = tpl.Content.Body
+			}
+			if tpl.Content.ButtonLabelSet || tpl.Content.ButtonLabel != nil {
+				contentFields["button_label"] = tpl.Content.ButtonLabel
+			}
+			if len(contentFields) > 0 {
+				fields["content"] = contentFields
+			}
+		}
+	}
+
+	return fields
+}
+
+func (p *Planner) buildPortalEmailConfigFields(cfg resources.PortalEmailConfigResource) map[string]any {
+	fields := map[string]any{}
+
+	setField := func(set bool, key string, value *string) {
+		if !set {
+			return
+		}
+		if value == nil {
+			fields[key] = nil
+			return
+		}
+		fields[key] = *value
+	}
+
+	setField(cfg.DomainNameSet, "domain_name", cfg.DomainName)
+	setField(cfg.FromNameSet, "from_name", cfg.FromName)
+	setField(cfg.FromEmailSet, "from_email", cfg.FromEmail)
+	setField(cfg.ReplyToEmailSet, "reply_to_email", cfg.ReplyToEmail)
+
+	return fields
+}
+
 func (p *Planner) desiredPortalCustomDomainSSLConfig(
 	domain resources.PortalCustomDomainResource,
 ) (string, bool) {

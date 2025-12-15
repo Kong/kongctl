@@ -188,7 +188,17 @@ lists the currently supported resources and their relationships.
 - Portal Snippets
 - Portal Customizations
 - Portal Custom Domains
+- Portal Email Configs
+- Portal Email Templates
 - Gateway Services 
+
+> Note: Portal email domains are currently **imperative-only** because the Konnect API exposes them at the
+> organization level without labels or namespace scoping. Use `kongctl get portal email-domains` to inspect them;
+> declarative management will be added when Konnect supports namespacing or labels for these resources.
+
+> Portal email templates are customizable per portal. Apply mode creates/updates templates but will not delete any that
+> already exist in Konnect; sync mode plans deletions for customized templates that are absent from the declarative
+> configuration.
 
 ## Configuration Structure
 

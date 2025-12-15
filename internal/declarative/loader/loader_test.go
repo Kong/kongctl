@@ -3,8 +3,10 @@ package loader
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -159,6 +161,83 @@ func TestLoader_LoadFile_DefaultValues(t *testing.T) {
 	portal := rs.Portals[0]
 	assert.Equal(t, "test-portal", portal.GetRef())
 	assert.Equal(t, "Test Portal", portal.Name, "Portal name should be preserved when provided")
+}
+
+func TestLoader_FlattensPortalEmailConfig(t *testing.T) {
+	content := `
+portals:
+  - ref: portal-email
+    name: portal-email
+    email_config:
+      ref: portal-email-config
+      from_name: "Portal Team"
+      from_email: "team@example.com"
+      reply_to_email: "reply@example.com"
+`
+
+	loader := New()
+	rs, err := loader.parseYAML(strings.NewReader(content), "inline")
+	require.NoError(t, err)
+
+	require.Len(t, rs.Portals, 1)
+	require.Len(t, rs.PortalEmailConfigs, 1)
+	assert.Equal(t, "portal-email", rs.PortalEmailConfigs[0].Portal)
+	assert.Equal(t, "portal-email-config", rs.PortalEmailConfigs[0].Ref)
+}
+
+func TestLoader_LoadFile_PortalEmailConfigFlattening(t *testing.T) {
+	loader := New()
+	rs, err := loader.LoadFile(filepath.Join(
+		"..", "..", "..", "test", "e2e", "testdata", "declarative", "portal", "email-config", "config.yaml",
+	))
+	require.NoError(t, err)
+
+	require.Len(t, rs.Portals, 1)
+	require.Len(t, rs.PortalEmailConfigs, 1)
+	assert.Equal(t, "portal-email", rs.PortalEmailConfigs[0].Portal)
+	assert.Equal(t, "portal-email-config", rs.PortalEmailConfigs[0].Ref)
+}
+
+func TestLoader_FlattensPortalEmailTemplates(t *testing.T) {
+	content := `
+portals:
+  - ref: portal-email
+    name: portal-email
+    email_templates:
+      reset-password:
+        enabled: true
+        content:
+          subject: Reset
+      app-registration-approved:
+        ref: approved-template
+        enabled: false
+`
+
+	loader := New()
+	rs, err := loader.parseYAML(strings.NewReader(content), "inline")
+	require.NoError(t, err)
+
+	require.Len(t, rs.Portals, 1)
+	require.Len(t, rs.PortalEmailTemplates, 2)
+
+	templates := make(map[string]resources.PortalEmailTemplateResource)
+	for _, tpl := range rs.PortalEmailTemplates {
+		templates[string(tpl.Name)] = tpl
+	}
+
+	reset, ok := templates["reset-password"]
+	require.True(t, ok)
+	approved, ok := templates["app-registration-approved"]
+	require.True(t, ok)
+
+	assert.Equal(t, "portal-email", reset.Portal)
+	assert.Equal(t, "portal-email", approved.Portal)
+
+	assert.Equal(t, "reset-password", reset.Ref)
+	assert.Equal(t, "reset-password", string(reset.Name))
+
+	assert.Equal(t, "approved-template", approved.Ref)
+	assert.Equal(t, "app-registration-approved", string(approved.Name))
 }
 
 func TestLoader_LoadFile_APIWithChildren(t *testing.T) {

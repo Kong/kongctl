@@ -23,6 +23,8 @@ const (
 	ResourceTypePortalTeamRole          ResourceType = "portal_team_role"
 	ResourceTypePortalAssetLogo         ResourceType = "portal_asset_logo"
 	ResourceTypePortalAssetFavicon      ResourceType = "portal_asset_favicon"
+	ResourceTypePortalEmailConfig       ResourceType = "portal_email_config"
+	ResourceTypePortalEmailTemplate     ResourceType = "portal_email_template"
 )
 
 const (
@@ -58,8 +60,10 @@ type ResourceSet struct {
 	PortalSnippets       []PortalSnippetResource       `yaml:"portal_snippets,omitempty"             json:"portal_snippets,omitempty"`       //nolint:lll
 	PortalTeams          []PortalTeamResource          `yaml:"portal_teams,omitempty"                json:"portal_teams,omitempty"`          //nolint:lll
 	PortalTeamRoles      []PortalTeamRoleResource      `yaml:"portal_team_roles,omitempty"           json:"portal_team_roles,omitempty"`     //nolint:lll
-	PortalAssetLogos     []PortalAssetLogoResource     `yaml:"portal_asset_logos,omitempty"         json:"portal_asset_logos,omitempty"`    //nolint:lll
-	PortalAssetFavicons  []PortalAssetFaviconResource  `yaml:"portal_asset_favicons,omitempty"      json:"portal_asset_favicons,omitempty"` //nolint:lll
+	PortalAssetLogos     []PortalAssetLogoResource     `yaml:"portal_asset_logos,omitempty"         json:"portal_asset_logos,omitempty"`     //nolint:lll
+	PortalAssetFavicons  []PortalAssetFaviconResource  `yaml:"portal_asset_favicons,omitempty"      json:"portal_asset_favicons,omitempty"`  //nolint:lll
+	PortalEmailConfigs   []PortalEmailConfigResource   `yaml:"portal_email_configs,omitempty"       json:"portal_email_configs,omitempty"`   //nolint:lll
+	PortalEmailTemplates []PortalEmailTemplateResource `yaml:"portal_email_templates,omitempty"     json:"portal_email_templates,omitempty"` //nolint:lll
 
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
@@ -209,6 +213,30 @@ func (rs *ResourceSet) GetResourceByRef(ref string) (Resource, bool) {
 	for i := range rs.PortalTeamRoles {
 		if rs.PortalTeamRoles[i].GetRef() == ref {
 			return &rs.PortalTeamRoles[i], true
+		}
+	}
+
+	for i := range rs.PortalAssetLogos {
+		if rs.PortalAssetLogos[i].GetRef() == ref {
+			return &rs.PortalAssetLogos[i], true
+		}
+	}
+
+	for i := range rs.PortalAssetFavicons {
+		if rs.PortalAssetFavicons[i].GetRef() == ref {
+			return &rs.PortalAssetFavicons[i], true
+		}
+	}
+
+	for i := range rs.PortalEmailConfigs {
+		if rs.PortalEmailConfigs[i].GetRef() == ref {
+			return &rs.PortalEmailConfigs[i], true
+		}
+	}
+
+	for i := range rs.PortalEmailTemplates {
+		if rs.PortalEmailTemplates[i].GetRef() == ref {
+			return &rs.PortalEmailTemplates[i], true
 		}
 	}
 
@@ -459,6 +487,44 @@ func (rs *ResourceSet) GetPortalSnippetsByNamespace(namespace string) []PortalSn
 			}
 			if GetNamespace(portal.Kongctl) == namespace {
 				filtered = append(filtered, snippet)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetPortalEmailConfigsByNamespace returns all portal email config resources from the specified namespace
+func (rs *ResourceSet) GetPortalEmailConfigsByNamespace(namespace string) []PortalEmailConfigResource {
+	var filtered []PortalEmailConfigResource
+	for _, cfg := range rs.PortalEmailConfigs {
+		if portal := rs.GetPortalByRef(cfg.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, cfg)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, cfg)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetPortalEmailTemplatesByNamespace returns all portal email template resources from the specified namespace
+func (rs *ResourceSet) GetPortalEmailTemplatesByNamespace(namespace string) []PortalEmailTemplateResource {
+	var filtered []PortalEmailTemplateResource
+	for _, tpl := range rs.PortalEmailTemplates {
+		if portal := rs.GetPortalByRef(tpl.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, tpl)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, tpl)
 			}
 		}
 	}
