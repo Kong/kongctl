@@ -26,6 +26,7 @@ type ClientConfig struct {
 	ControlPlaneAPI       helpers.ControlPlaneAPI
 	GatewayServiceAPI     helpers.GatewayServiceAPI
 	ControlPlaneGroupsAPI helpers.ControlPlaneGroupsAPI
+	CatalogServiceAPI     helpers.CatalogServicesAPI
 
 	// Portal child resource APIs
 	PortalPageAPI          helpers.PortalPageAPI
@@ -54,6 +55,7 @@ type Client struct {
 	controlPlaneAPI       helpers.ControlPlaneAPI
 	gatewayServiceAPI     helpers.GatewayServiceAPI
 	controlPlaneGroupsAPI helpers.ControlPlaneGroupsAPI
+	catalogServiceAPI     helpers.CatalogServicesAPI
 
 	// Portal child resource APIs
 	portalPageAPI          helpers.PortalPageAPI
@@ -83,6 +85,7 @@ func NewClient(config ClientConfig) *Client {
 		controlPlaneAPI:       config.ControlPlaneAPI,
 		gatewayServiceAPI:     config.GatewayServiceAPI,
 		controlPlaneGroupsAPI: config.ControlPlaneGroupsAPI,
+		catalogServiceAPI:     config.CatalogServiceAPI,
 
 		// Portal child resource APIs
 		portalPageAPI:          config.PortalPageAPI,
@@ -128,6 +131,12 @@ type GatewayService struct {
 	Name           string
 	ControlPlaneID string
 	Service        kkComps.ServiceOutput
+}
+
+// CatalogService represents a catalog service for internal use.
+type CatalogService struct {
+	kkComps.CatalogService
+	NormalizedLabels map[string]string
 }
 
 // APIVersion represents an API version for internal use
@@ -1122,6 +1131,170 @@ func (c *Client) DeleteAPI(ctx context.Context, id string) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete API: %w", err)
 	}
+	return nil
+}
+
+// ListManagedCatalogServices returns all KONGCTL-managed catalog services in the specified namespaces.
+// If namespaces is empty, no resources are returned. To get all managed resources, pass []string{"*"}.
+func (c *Client) ListManagedCatalogServices(ctx context.Context, namespaces []string) ([]CatalogService, error) {
+	if err := ValidateAPIClient(c.catalogServiceAPI, "Catalog Service API"); err != nil {
+		return nil, err
+	}
+
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]CatalogService, *PageMeta, error) {
+		req := kkOps.ListCatalogServicesRequest{
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.catalogServiceAPI.ListCatalogServices(ctx, req)
+		if err != nil {
+			return nil, nil, WrapAPIError(err, "list catalog services", nil)
+		}
+
+		if resp.ListCatalogServicesResponse == nil {
+			return []CatalogService{}, &PageMeta{Total: 0}, nil
+		}
+
+		var filtered []CatalogService
+		for _, svc := range resp.ListCatalogServicesResponse.Data {
+			normalized := svc.Labels
+			if normalized == nil {
+				normalized = make(map[string]string)
+			}
+
+			if labels.IsManagedResource(normalized) &&
+				shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
+				filtered = append(filtered, CatalogService{
+					CatalogService:   svc,
+					NormalizedLabels: normalized,
+				})
+			}
+		}
+
+		meta := &PageMeta{Total: resp.ListCatalogServicesResponse.Meta.Page.Total}
+		return filtered, meta, nil
+	}
+
+	return PaginateAll(ctx, lister)
+}
+
+// GetCatalogServiceByName finds a managed catalog service by name.
+func (c *Client) GetCatalogServiceByName(ctx context.Context, name string) (*CatalogService, error) {
+	if c.catalogServiceAPI == nil {
+		return nil, fmt.Errorf("catalog service API not configured")
+	}
+
+	services, err := c.ListManagedCatalogServices(ctx, []string{"*"})
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range services {
+		if services[i].Name == name {
+			return &services[i], nil
+		}
+	}
+
+	return nil, nil
+}
+
+// GetCatalogServiceByID fetches a catalog service by ID.
+func (c *Client) GetCatalogServiceByID(ctx context.Context, id string) (*CatalogService, error) {
+	if c.catalogServiceAPI == nil {
+		return nil, fmt.Errorf("catalog service API not configured")
+	}
+
+	resp, err := c.catalogServiceAPI.FetchCatalogService(ctx, id)
+	if err != nil {
+		return nil, WrapAPIError(err, "fetch catalog service", nil)
+	}
+
+	if resp.CatalogService == nil {
+		return nil, nil
+	}
+
+	normalized := resp.CatalogService.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	return &CatalogService{
+		CatalogService:   *resp.CatalogService,
+		NormalizedLabels: normalized,
+	}, nil
+}
+
+// CreateCatalogService creates a new catalog service with management labels.
+func (c *Client) CreateCatalogService(
+	ctx context.Context,
+	req kkComps.CreateCatalogService,
+	namespace string,
+) (*kkComps.CatalogService, error) {
+	if c.catalogServiceAPI == nil {
+		return nil, fmt.Errorf("catalog service API not configured")
+	}
+
+	resp, err := c.catalogServiceAPI.CreateCatalogService(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "create catalog service", &ErrorWrapperOptions{
+			ResourceType: "catalog_service",
+			ResourceName: req.Name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.CatalogService == nil {
+		return nil, fmt.Errorf("create catalog service response missing data")
+	}
+
+	return resp.CatalogService, nil
+}
+
+// UpdateCatalogService updates an existing catalog service.
+func (c *Client) UpdateCatalogService(
+	ctx context.Context,
+	id string,
+	req kkComps.UpdateCatalogService,
+	namespace string,
+) (*kkComps.CatalogService, error) {
+	if c.catalogServiceAPI == nil {
+		return nil, fmt.Errorf("catalog service API not configured")
+	}
+
+	resp, err := c.catalogServiceAPI.UpdateCatalogService(ctx, id, req)
+	if err != nil {
+		resourceName := ""
+		if req.Name != nil {
+			resourceName = *req.Name
+		}
+		return nil, WrapAPIError(err, "update catalog service", &ErrorWrapperOptions{
+			ResourceType: "catalog_service",
+			ResourceName: resourceName,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.CatalogService == nil {
+		return nil, fmt.Errorf("update catalog service response missing data")
+	}
+
+	return resp.CatalogService, nil
+}
+
+// DeleteCatalogService deletes a catalog service by ID.
+func (c *Client) DeleteCatalogService(ctx context.Context, id string) error {
+	if c.catalogServiceAPI == nil {
+		return fmt.Errorf("catalog service API not configured")
+	}
+
+	_, err := c.catalogServiceAPI.DeleteCatalogService(ctx, id)
+	if err != nil {
+		return WrapAPIError(err, "delete catalog service", nil)
+	}
+
 	return nil
 }
 

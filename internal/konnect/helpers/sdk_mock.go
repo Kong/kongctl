@@ -10,6 +10,7 @@ type MockKonnectSDK struct {
 	ControlPlaneGroupsFactory func() ControlPlaneGroupsAPI
 	PortalFactory             func() PortalAPI
 	APIFactory                func() APIFullAPI
+	CatalogServicesFactory    func() CatalogServicesAPI
 	APIDocumentFactory        func() APIDocumentAPI
 	APIVersionFactory         func() APIVersionAPI
 	APIPublicationFactory     func() APIPublicationAPI
@@ -58,6 +59,14 @@ func (m *MockKonnectSDK) GetPortalAPI() PortalAPI {
 func (m *MockKonnectSDK) GetAPIAPI() APIFullAPI {
 	if m.APIFactory != nil {
 		return m.APIFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the CatalogServicesAPI
+func (m *MockKonnectSDK) GetCatalogServicesAPI() CatalogServicesAPI {
+	if m.CatalogServicesFactory != nil {
+		return m.CatalogServicesFactory()
 	}
 	return nil
 }

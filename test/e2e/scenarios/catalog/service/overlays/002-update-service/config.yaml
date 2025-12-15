@@ -1,0 +1,30 @@
+_defaults:
+  kongctl:
+    namespace: catalog-service-test
+
+catalog_services:
+  - ref: payments-service
+    name: payments
+    display_name: "Payments Service"
+    description: "Updated description for payments service"
+    labels:
+      domain: payments
+      tier: important
+    custom_fields:
+      owner: platform-team
+      cost_center: "Platform"
+      product_manager: "Jordan Kim"
+      jira_project:
+        name: "Payments Platform"
+        link: "https://jira.example.com/projects/PLATPAY"
+      dashboard:
+        name: "Payments Platform Dashboard"
+        link: "https://dashboards.example.com/payments-platform"
+      git_repo:
+        name: "payments-service"
+        link: "https://github.com/example/payments"
+      slack_channel:
+        name: "#payments-platform"
+        link: "https://slack.example.com/archives/payments-platform"
+    kongctl:
+      namespace: catalog-service-test

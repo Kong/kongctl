@@ -1,0 +1,227 @@
+baseInputsPath: ../../../testdata/declarative/catalog/service
+
+log-level: debug
+
+vars:
+  namespace: catalog-service-test
+  serviceRef: payments-service
+  serviceName: payments
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-catalog-service
+    commands:
+      - name: 000-plan-initial-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-initial.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='catalog_service' && resource_ref=='{{ .vars.serviceRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.serviceRef }}"
+                fields.name: "{{ .vars.serviceName }}"
+                fields.custom_fields.owner: payments-team
+                fields.custom_fields.cost_center: "R&D"
+                fields.custom_fields.product_manager: "Alex Smith"
+                fields.custom_fields.jira_project.name: "Payments Project"
+                fields.custom_fields.jira_project.link: "https://jira.example.com/projects/PAY"
+                fields.custom_fields.dashboard.name: "Payments Dashboard"
+                fields.custom_fields.dashboard.link: "https://dashboards.example.com/payments"
+                fields.custom_fields.git_repo.name: "payments-service"
+                fields.custom_fields.git_repo.link: "https://github.com/example/payments"
+                fields.custom_fields.slack_channel.name: "#payments-support"
+                fields.custom_fields.slack_channel.link: "https://slack.example.com/archives/payments-support"
+
+      - name: 001-apply-initial-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-initial.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 002-verify-service-created
+        run:
+          - get
+          - catalog
+          - services
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.serviceName }}"
+                display_name: "Payments Service"
+
+  - name: 002-update-catalog-service
+    inputOverlayDirs:
+      - overlays/002-update-service
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='catalog_service' && resource_ref=='{{ .vars.serviceRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.description: "Updated description for payments service"
+                fields.labels.domain: payments
+                fields.labels.tier: important
+                fields.custom_fields.owner: platform-team
+                fields.custom_fields.cost_center: "Platform"
+                fields.custom_fields.product_manager: "Jordan Kim"
+                fields.custom_fields.jira_project.name: "Payments Platform"
+                fields.custom_fields.jira_project.link: "https://jira.example.com/projects/PLATPAY"
+                fields.custom_fields.dashboard.name: "Payments Platform Dashboard"
+                fields.custom_fields.dashboard.link: "https://dashboards.example.com/payments-platform"
+                fields.custom_fields.git_repo.name: "payments-service"
+                fields.custom_fields.git_repo.link: "https://github.com/example/payments"
+                fields.custom_fields.slack_channel.name: "#payments-platform"
+                fields.custom_fields.slack_channel.link: "https://slack.example.com/archives/payments-platform"
+
+      - name: 001-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 002-verify-service-updated
+        run:
+          - get
+          - catalog
+          - service
+          - "{{ .vars.serviceName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                description: "Updated description for payments service"
+                labels.tier: important
+                custom_fields.owner: platform-team
+                custom_fields.cost_center: "Platform"
+                custom_fields.product_manager: "Jordan Kim"
+                custom_fields.jira_project.name: "Payments Platform"
+                custom_fields.jira_project.link: "https://jira.example.com/projects/PLATPAY"
+                custom_fields.dashboard.name: "Payments Platform Dashboard"
+                custom_fields.dashboard.link: "https://dashboards.example.com/payments-platform"
+                custom_fields.git_repo.name: "payments-service"
+                custom_fields.git_repo.link: "https://github.com/example/payments"
+                custom_fields.slack_channel.name: "#payments-platform"
+                custom_fields.slack_channel.link: "https://slack.example.com/archives/payments-platform"
+
+  - name: 003-sync-delete-catalog-service
+    inputOverlayDirs:
+      - overlays/003-sync-delete
+    commands:
+      - name: 000-plan-sync-delete
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='catalog_service'] | [0]
+            expect:
+              fields:
+                action: DELETE
+
+      - name: 001-apply-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 002-verify-service-removed
+        run:
+          - get
+          - catalog
+          - services
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0

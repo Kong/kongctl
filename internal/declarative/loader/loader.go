@@ -349,6 +349,16 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 		accumulated.ControlPlanes = append(accumulated.ControlPlanes, cp)
 	}
 
+	// Check and append catalog services
+	for _, catalogService := range source.CatalogServices {
+		if accumulated.HasRef(catalogService.Ref) {
+			existing, _ := accumulated.GetResourceByRef(catalogService.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
+				catalogService.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.CatalogServices = append(accumulated.CatalogServices, catalogService)
+	}
+
 	// Check and append APIs
 	for _, api := range source.APIs {
 		if accumulated.HasRef(api.Ref) {
@@ -589,6 +599,20 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		}
 	}
 
+	// Apply defaults to CatalogServices (parent resources)
+	for i := range rs.CatalogServices {
+		if err := assignNamespace(&rs.CatalogServices[i].Kongctl, "catalog_service", rs.CatalogServices[i].Ref); err != nil {
+			return err
+		}
+		if rs.CatalogServices[i].Kongctl.Protected == nil && protectedDefault != nil {
+			rs.CatalogServices[i].Kongctl.Protected = protectedDefault
+		}
+		if rs.CatalogServices[i].Kongctl.Protected == nil {
+			falseVal := false
+			rs.CatalogServices[i].Kongctl.Protected = &falseVal
+		}
+	}
+
 	// Apply defaults to ApplicationAuthStrategies (parent resources)
 	for i := range rs.ApplicationAuthStrategies {
 		if err := assignNamespace(&rs.ApplicationAuthStrategies[i].Kongctl,
@@ -683,6 +707,11 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 	}
 	for i := range rs.APIDocuments {
 		rs.APIDocuments[i].SetDefaults()
+	}
+
+	// Apply defaults to catalog services
+	for i := range rs.CatalogServices {
+		rs.CatalogServices[i].SetDefaults()
 	}
 
 	// Apply defaults to portal child resources

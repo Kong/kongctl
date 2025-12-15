@@ -416,7 +416,7 @@ func isEmptyValue(v any) bool {
 
 	val := reflect.ValueOf(v)
 
-	switch val.Kind() { //nolint:exhaustive
+	switch val.Kind() { //nolint:exhaustive // default case handles all other kinds
 	case reflect.Pointer, reflect.Interface:
 		if val.IsNil() {
 			return true

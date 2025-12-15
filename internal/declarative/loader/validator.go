@@ -27,6 +27,11 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
+	// Validate catalog services
+	if err := l.validateCatalogServices(rs.CatalogServices, rs); err != nil {
+		return err
+	}
+
 	// Validate gateway services
 	if err := l.validateGatewayServices(rs.GatewayServices, rs); err != nil {
 		return err
@@ -179,6 +184,38 @@ func (l *Loader) validateControlPlanes(
 		}
 
 		names[cp.Name] = cp.GetRef()
+	}
+
+	return nil
+}
+
+// validateCatalogServices validates catalog service resources
+func (l *Loader) validateCatalogServices(
+	services []resources.CatalogServiceResource,
+	rs *resources.ResourceSet,
+) error {
+	names := make(map[string]string)
+
+	for i := range services {
+		service := &services[i]
+
+		if err := service.Validate(); err != nil {
+			return fmt.Errorf("invalid catalog_service %q: %w", service.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(service.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeCatalogService {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					service.GetRef(), existing.GetType())
+			}
+		}
+
+		if existingRef, exists := names[service.GetMoniker()]; exists {
+			return fmt.Errorf("duplicate catalog_service name '%s' (ref: %s conflicts with ref: %s)",
+				service.GetMoniker(), service.GetRef(), existingRef)
+		}
+
+		names[service.GetMoniker()] = service.GetRef()
 	}
 
 	return nil

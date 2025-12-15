@@ -25,6 +25,7 @@ const (
 	ResourceTypePortalAssetFavicon      ResourceType = "portal_asset_favicon"
 	ResourceTypePortalEmailConfig       ResourceType = "portal_email_config"
 	ResourceTypePortalEmailTemplate     ResourceType = "portal_email_template"
+	ResourceTypeCatalogService          ResourceType = "catalog_service"
 )
 
 const (
@@ -45,6 +46,7 @@ type ResourceSet struct {
 	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty" json:"application_auth_strategies,omitempty"` //nolint:lll
 	// ControlPlanes contains control plane configurations
 	ControlPlanes   []ControlPlaneResource   `yaml:"control_planes,omitempty"              json:"control_planes,omitempty"`
+	CatalogServices []CatalogServiceResource `yaml:"catalog_services,omitempty" json:"catalog_services,omitempty"`
 	APIs            []APIResource            `yaml:"apis,omitempty"                        json:"apis,omitempty"`
 	GatewayServices []GatewayServiceResource `yaml:"gateway_services,omitempty"            json:"gateway_services,omitempty"` //nolint:lll
 	// API child resources can be defined at root level (with parent reference) or nested under APIs
@@ -132,6 +134,13 @@ func (rs *ResourceSet) GetResourceByRef(ref string) (Resource, bool) {
 	for i := range rs.ControlPlanes {
 		if rs.ControlPlanes[i].GetRef() == ref {
 			return &rs.ControlPlanes[i], true
+		}
+	}
+
+	// Check Catalog Services
+	for i := range rs.CatalogServices {
+		if rs.CatalogServices[i].GetRef() == ref {
+			return &rs.CatalogServices[i], true
 		}
 	}
 
@@ -284,6 +293,16 @@ func (rs *ResourceSet) GetControlPlaneByRef(ref string) *ControlPlaneResource {
 	return nil
 }
 
+// GetCatalogServiceByRef returns a catalog service resource by its ref from any namespace
+func (rs *ResourceSet) GetCatalogServiceByRef(ref string) *CatalogServiceResource {
+	for i := range rs.CatalogServices {
+		if rs.CatalogServices[i].GetRef() == ref {
+			return &rs.CatalogServices[i]
+		}
+	}
+	return nil
+}
+
 // GetAuthStrategyByRef returns an auth strategy resource by its ref from any namespace
 func (rs *ResourceSet) GetAuthStrategyByRef(ref string) *ApplicationAuthStrategyResource {
 	for i := range rs.ApplicationAuthStrategies {
@@ -319,6 +338,17 @@ func (rs *ResourceSet) GetControlPlanesByNamespace(namespace string) []ControlPl
 	for _, cp := range rs.ControlPlanes {
 		if GetNamespace(cp.Kongctl) == namespace {
 			filtered = append(filtered, cp)
+		}
+	}
+	return filtered
+}
+
+// GetCatalogServicesByNamespace returns all catalog service resources from the specified namespace
+func (rs *ResourceSet) GetCatalogServicesByNamespace(namespace string) []CatalogServiceResource {
+	var filtered []CatalogServiceResource
+	for _, svc := range rs.CatalogServices {
+		if GetNamespace(svc.Kongctl) == namespace {
+			filtered = append(filtered, svc)
 		}
 	}
 	return filtered

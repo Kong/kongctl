@@ -693,7 +693,8 @@ func buildRows(data any) ([]string, [][]string, error) {
 	value := reflect.ValueOf(data)
 	value = deref(value)
 
-	switch value.Kind() { //nolint:exhaustive
+	//nolint:exhaustive
+	switch value.Kind() {
 	case reflect.Slice, reflect.Array:
 		return rowsFromSlice(value)
 	case reflect.Struct:
@@ -1469,7 +1470,8 @@ func valueForLabel(parent reflect.Value, label string) (reflect.Value, bool) {
 		return reflect.Value{}, false
 	}
 
-	switch parent.Kind() { //nolint:exhaustive
+	//nolint:exhaustive
+	switch parent.Kind() {
 	case reflect.Struct:
 		target := normalizeHeaderKey(label)
 		typ := parent.Type()
@@ -1525,7 +1527,8 @@ func analyzeComplexValue(label string, value reflect.Value) (complexValueInfo, b
 		return complexValueInfo{indicator: complexNilIndicator}, true
 	}
 
-	switch value.Kind() { //nolint:exhaustive
+	//exhaustive:ignore
+	switch value.Kind() {
 	case reflect.Map:
 		indicator := complexStructIndicator
 		var entries []mapEntry
