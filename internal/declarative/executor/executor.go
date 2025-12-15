@@ -8,6 +8,7 @@ import (
 	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
@@ -42,11 +43,13 @@ type Executor struct {
 	portalAssetFaviconExecutor  *BaseSingletonExecutor[kkComps.ReplacePortalImageAsset]
 	portalDomainExecutor        *BaseExecutor[kkComps.CreatePortalCustomDomainRequest,
 		kkComps.UpdatePortalCustomDomainRequest]
-	portalPageExecutor        *BaseExecutor[kkComps.CreatePortalPageRequest, kkComps.UpdatePortalPageRequest]
-	portalSnippetExecutor     *BaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest]
-	portalTeamExecutor        *BaseExecutor[kkComps.PortalCreateTeamRequest, kkComps.PortalUpdateTeamRequest]
-	portalTeamRoleExecutor    *BaseExecutor[kkComps.PortalAssignRoleRequest, kkComps.PortalAssignRoleRequest]
-	portalEmailConfigExecutor *BaseExecutor[kkComps.PostPortalEmailConfig, kkComps.PatchPortalEmailConfig]
+	portalPageExecutor          *BaseExecutor[kkComps.CreatePortalPageRequest, kkComps.UpdatePortalPageRequest]
+	portalSnippetExecutor       *BaseExecutor[kkComps.CreatePortalSnippetRequest, kkComps.UpdatePortalSnippetRequest]
+	portalTeamExecutor          *BaseExecutor[kkComps.PortalCreateTeamRequest, kkComps.PortalUpdateTeamRequest]
+	portalTeamRoleExecutor      *BaseExecutor[kkComps.PortalAssignRoleRequest, kkComps.PortalAssignRoleRequest]
+	portalEmailConfigExecutor   *BaseExecutor[kkComps.PostPortalEmailConfig, kkComps.PatchPortalEmailConfig]
+	portalEmailTemplateExecutor *BaseExecutor[kkOps.UpdatePortalCustomEmailTemplateRequest,
+		kkOps.UpdatePortalCustomEmailTemplateRequest]
 
 	// API child resource executors
 	apiVersionExecutor     *BaseExecutor[kkComps.CreateAPIVersionRequest, kkComps.APIVersion]
@@ -134,6 +137,12 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 	)
 	e.portalEmailConfigExecutor = NewBaseExecutor[kkComps.PostPortalEmailConfig, kkComps.PatchPortalEmailConfig](
 		NewPortalEmailConfigAdapter(client),
+		client,
+		dryRun,
+	)
+	e.portalEmailTemplateExecutor = NewBaseExecutor[kkOps.UpdatePortalCustomEmailTemplateRequest,
+		kkOps.UpdatePortalCustomEmailTemplateRequest](
+		NewPortalEmailTemplateAdapter(client),
 		client,
 		dryRun,
 	)
@@ -1387,6 +1396,16 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References["portal_id"] = portalRef
 		}
 		return e.portalEmailConfigExecutor.Create(ctx, *change)
+	case "portal_email_template":
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
+		return e.portalEmailTemplateExecutor.Create(ctx, *change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
 	}
@@ -1512,6 +1531,16 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			change.References["portal_id"] = portalRef
 		}
 		return e.portalEmailConfigExecutor.Update(ctx, *change)
+	case "portal_email_template":
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
+		return e.portalEmailTemplateExecutor.Update(ctx, *change)
 	case "portal_asset_logo":
 		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
 		if err != nil {
@@ -1701,6 +1730,16 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 			change.References["portal_id"] = portalRef
 		}
 		return e.portalEmailConfigExecutor.Delete(ctx, *change)
+	case "portal_email_template":
+		if portalRef, ok := change.References["portal_id"]; ok && portalRef.ID == "" {
+			portalID, err := e.resolvePortalRef(ctx, portalRef)
+			if err != nil {
+				return fmt.Errorf("failed to resolve portal reference: %w", err)
+			}
+			portalRef.ID = portalID
+			change.References["portal_id"] = portalRef
+		}
+		return e.portalEmailTemplateExecutor.Delete(ctx, *change)
 	// Note: portal_customization is a singleton resource and cannot be deleted
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)

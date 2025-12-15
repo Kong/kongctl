@@ -1,0 +1,158 @@
+baseInputsPath: ../../../testdata/declarative/portal/email-templates
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: portal-email-templates
+  portalRef: portal-email-templates
+  resetTemplateRef: reset-password-template
+  appTemplateRef: app-reg-approved-template
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-email-templates
+    commands:
+      - name: 000-plan-email-templates
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-email-templates.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: >-
+              changes[?resource_type=='portal_email_template' && resource_ref=='{{ .vars.resetTemplateRef }}'] | [0].fields
+            expect:
+              fields:
+                name: reset-password
+          - select: >-
+              changes[?resource_type=='portal_email_template' && resource_ref=='{{ .vars.appTemplateRef }}'] | [0].fields
+            expect:
+              fields:
+                name: app-registration-approved
+      - name: 001-apply-email-templates
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-email-templates.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+
+  - name: 002-plan-apply-email-templates-update
+    inputOverlayDirs:
+      - overlays/002-update
+    commands:
+      - name: 000-plan-email-templates-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-email-templates-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.UPDATE: 2
+          - select: >-
+              changes[?resource_type=='portal_email_template' && resource_ref=='{{ .vars.resetTemplateRef }}'] | [0].fields
+            expect:
+              fields:
+                content:
+                  body: "Use the link below to reset your credentials."
+                  button_label: null
+                  subject: "Reset your password now"
+          - select: >-
+              changes[?resource_type=='portal_email_template' && resource_ref=='{{ .vars.appTemplateRef }}'] | [0].fields
+            expect:
+              fields:
+                enabled: false
+      - name: 001-apply-email-templates-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-email-templates-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+  - name: 003-sync-remove-email-template
+    inputOverlayDirs:
+      - overlays/003-remove
+    commands:
+      - name: 000-plan-remove-email-template
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-remove-email-template.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_email_template' && fields.name=='app-registration-approved'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: >-
+              changes[?resource_type=='portal_email_template' && resource_ref=='{{ .vars.resetTemplateRef }}'] | [0].fields
+            expect:
+              fields:
+                content:
+                  button_label: null
+      - name: 001-sync-remove-email-template
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-remove-email-template.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0

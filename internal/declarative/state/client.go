@@ -159,6 +159,24 @@ type APIImplementation struct {
 	}
 }
 
+// PortalEmailTemplate represents a customized email template for a portal.
+type PortalEmailTemplate struct {
+	ID        string
+	Name      string
+	Label     string
+	Enabled   bool
+	Content   *PortalEmailTemplateContent
+	Variables []kkComps.EmailTemplateVariableName
+}
+
+// PortalEmailTemplateContent captures the mutable email content fields.
+type PortalEmailTemplateContent struct {
+	Subject     *string
+	Title       *string
+	Body        *string
+	ButtonLabel *string
+}
+
 // APIDocument represents an API document for internal use
 type APIDocument struct {
 	ID               string
@@ -2053,6 +2071,135 @@ func (c *Client) DeletePortalEmailConfig(ctx context.Context, portalID string) e
 		})
 	}
 	return nil
+}
+
+// ListPortalCustomEmailTemplates returns customized templates for a portal.
+func (c *Client) ListPortalCustomEmailTemplates(ctx context.Context, portalID string) ([]PortalEmailTemplate, error) {
+	if err := ValidateAPIClient(c.portalEmailsAPI, "portal emails API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.portalEmailsAPI.ListPortalCustomEmailTemplates(ctx, portalID)
+	if err != nil {
+		return nil, WrapAPIError(err, "list portal email templates", &ErrorWrapperOptions{
+			ResourceType: "portal_email_template",
+			ResourceName: portalID,
+		})
+	}
+
+	if resp == nil || resp.ListEmailTemplates == nil {
+		return nil, nil
+	}
+
+	templates := make([]PortalEmailTemplate, 0, len(resp.ListEmailTemplates.Data))
+	for _, tpl := range resp.ListEmailTemplates.Data {
+		templates = append(templates, normalizePortalEmailTemplate(tpl))
+	}
+	return templates, nil
+}
+
+// GetPortalCustomEmailTemplate fetches a single customized email template.
+func (c *Client) GetPortalCustomEmailTemplate(
+	ctx context.Context,
+	portalID string,
+	name kkComps.EmailTemplateName,
+) (*PortalEmailTemplate, error) {
+	if err := ValidateAPIClient(c.portalEmailsAPI, "portal emails API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.portalEmailsAPI.GetPortalCustomEmailTemplate(ctx, portalID, name)
+	if err != nil {
+		var notFound *kkErrors.NotFoundError
+		if errors.As(err, &notFound) {
+			return nil, nil
+		}
+		return nil, WrapAPIError(err, "get portal email template", &ErrorWrapperOptions{
+			ResourceType: "portal_email_template",
+			ResourceName: string(name),
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp == nil || resp.EmailTemplate == nil {
+		return nil, NewResponseValidationError("get portal email template", "EmailTemplate")
+	}
+
+	tpl := normalizePortalEmailTemplate(*resp.EmailTemplate)
+	return &tpl, nil
+}
+
+// UpdatePortalEmailTemplate creates or updates a customized email template.
+func (c *Client) UpdatePortalEmailTemplate(
+	ctx context.Context,
+	portalID string,
+	name kkComps.EmailTemplateName,
+	payload kkComps.PatchCustomPortalEmailTemplatePayload,
+) (string, error) {
+	if err := ValidateAPIClient(c.portalEmailsAPI, "portal emails API"); err != nil {
+		return "", err
+	}
+
+	req := kkOps.UpdatePortalCustomEmailTemplateRequest{
+		PortalID:                              portalID,
+		TemplateName:                          name,
+		PatchCustomPortalEmailTemplatePayload: payload,
+	}
+
+	resp, err := c.portalEmailsAPI.UpdatePortalCustomEmailTemplate(ctx, req)
+	if err != nil {
+		return "", WrapAPIError(err, "update portal email template", &ErrorWrapperOptions{
+			ResourceType: "portal_email_template",
+			ResourceName: string(name),
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp == nil || resp.EmailTemplate == nil {
+		return "", NewResponseValidationError("update portal email template", "EmailTemplate")
+	}
+
+	return string(resp.EmailTemplate.Name), nil
+}
+
+// DeletePortalEmailTemplate deletes a customized email template.
+func (c *Client) DeletePortalEmailTemplate(
+	ctx context.Context,
+	portalID string,
+	name kkComps.EmailTemplateName,
+) error {
+	if err := ValidateAPIClient(c.portalEmailsAPI, "portal emails API"); err != nil {
+		return err
+	}
+
+	if _, err := c.portalEmailsAPI.DeletePortalCustomEmailTemplate(ctx, portalID, name); err != nil {
+		return WrapAPIError(err, "delete portal email template", &ErrorWrapperOptions{
+			ResourceType: "portal_email_template",
+			ResourceName: string(name),
+		})
+	}
+	return nil
+}
+
+func normalizePortalEmailTemplate(t kkComps.EmailTemplate) PortalEmailTemplate {
+	tpl := PortalEmailTemplate{
+		ID:        string(t.Name),
+		Name:      string(t.Name),
+		Label:     t.Label,
+		Enabled:   t.Enabled,
+		Variables: t.Variables,
+	}
+
+	if t.Content != nil {
+		tpl.Content = &PortalEmailTemplateContent{
+			Subject:     t.Content.Subject,
+			Title:       t.Content.Title,
+			Body:        t.Content.Body,
+			ButtonLabel: t.Content.ButtonLabel,
+		}
+	}
+
+	return tpl
 }
 
 // GetPortalCustomization fetches the current customization for a portal

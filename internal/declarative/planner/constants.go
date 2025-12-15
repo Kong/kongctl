@@ -51,6 +51,9 @@ const (
 
 	// ResourceTypePortalEmailConfig is the resource type for portal email configs
 	ResourceTypePortalEmailConfig = "portal_email_config"
+
+	// ResourceTypePortalEmailTemplate is the resource type for portal email templates
+	ResourceTypePortalEmailTemplate = "portal_email_template"
 )
 
 // Default values

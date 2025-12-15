@@ -22,6 +22,14 @@ type PortalEmailsAPI interface {
 		opts ...kkOps.Option) (*kkOps.UpdatePortalEmailConfigResponse, error)
 	DeletePortalEmailConfig(ctx context.Context, portalID string,
 		opts ...kkOps.Option) (*kkOps.DeletePortalEmailConfigResponse, error)
+	ListPortalCustomEmailTemplates(ctx context.Context, portalID string,
+		opts ...kkOps.Option) (*kkOps.ListPortalCustomEmailTemplatesResponse, error)
+	GetPortalCustomEmailTemplate(ctx context.Context, portalID string, templateName kkComps.EmailTemplateName,
+		opts ...kkOps.Option) (*kkOps.GetPortalCustomEmailTemplateResponse, error)
+	UpdatePortalCustomEmailTemplate(ctx context.Context, request kkOps.UpdatePortalCustomEmailTemplateRequest,
+		opts ...kkOps.Option) (*kkOps.UpdatePortalCustomEmailTemplateResponse, error)
+	DeletePortalCustomEmailTemplate(ctx context.Context, portalID string, templateName kkComps.EmailTemplateName,
+		opts ...kkOps.Option) (*kkOps.DeletePortalCustomEmailTemplateResponse, error)
 }
 
 // PortalEmailsAPIImpl provides a concrete implementation backed by the SDK.
@@ -69,4 +77,32 @@ func (p *PortalEmailsAPIImpl) DeletePortalEmailConfig(
 	ctx context.Context, portalID string, opts ...kkOps.Option,
 ) (*kkOps.DeletePortalEmailConfigResponse, error) {
 	return p.SDK.PortalEmails.DeletePortalEmailConfig(ctx, portalID, opts...)
+}
+
+// ListPortalCustomEmailTemplates delegates to the generated SDK.
+func (p *PortalEmailsAPIImpl) ListPortalCustomEmailTemplates(
+	ctx context.Context, portalID string, opts ...kkOps.Option,
+) (*kkOps.ListPortalCustomEmailTemplatesResponse, error) {
+	return p.SDK.PortalEmails.ListPortalCustomEmailTemplates(ctx, portalID, opts...)
+}
+
+// GetPortalCustomEmailTemplate delegates to the generated SDK.
+func (p *PortalEmailsAPIImpl) GetPortalCustomEmailTemplate(
+	ctx context.Context, portalID string, templateName kkComps.EmailTemplateName, opts ...kkOps.Option,
+) (*kkOps.GetPortalCustomEmailTemplateResponse, error) {
+	return p.SDK.PortalEmails.GetPortalCustomEmailTemplate(ctx, portalID, templateName, opts...)
+}
+
+// UpdatePortalCustomEmailTemplate delegates to the generated SDK.
+func (p *PortalEmailsAPIImpl) UpdatePortalCustomEmailTemplate(
+	ctx context.Context, request kkOps.UpdatePortalCustomEmailTemplateRequest, opts ...kkOps.Option,
+) (*kkOps.UpdatePortalCustomEmailTemplateResponse, error) {
+	return p.SDK.PortalEmails.UpdatePortalCustomEmailTemplate(ctx, request, opts...)
+}
+
+// DeletePortalCustomEmailTemplate delegates to the generated SDK.
+func (p *PortalEmailsAPIImpl) DeletePortalCustomEmailTemplate(
+	ctx context.Context, portalID string, templateName kkComps.EmailTemplateName, opts ...kkOps.Option,
+) (*kkOps.DeletePortalCustomEmailTemplateResponse, error) {
+	return p.SDK.PortalEmails.DeletePortalCustomEmailTemplate(ctx, portalID, templateName, opts...)
 }

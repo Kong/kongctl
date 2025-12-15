@@ -705,6 +705,21 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			"error", err.Error())
 	}
 
+	// Plan email templates
+	templates := make([]resources.PortalEmailTemplateResource, 0)
+	for _, tpl := range planner.desiredPortalEmailTemplates {
+		if tpl.Portal == desired.Ref {
+			templates = append(templates, tpl)
+		}
+	}
+	if err := planner.planPortalEmailTemplatesChanges(
+		ctx, parentNamespace, "", desired.Ref, desired.Name, templates, plan,
+	); err != nil {
+		planner.logger.Debug("Failed to plan portal email templates for new portal",
+			"portal", desired.Ref,
+			"error", err.Error())
+	}
+
 	// Plan customization
 	customizations := make([]resources.PortalCustomizationResource, 0)
 	for _, customization := range planner.desiredPortalCustomizations {
@@ -848,6 +863,19 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 		ctx, parentNamespace, current.ID, desired.Ref, emailConfigs, plan,
 	); err != nil {
 		return fmt.Errorf("failed to plan portal email config changes: %w", err)
+	}
+
+	// Plan email templates (set applies create/update only in apply mode)
+	templates := make([]resources.PortalEmailTemplateResource, 0)
+	for _, tpl := range planner.desiredPortalEmailTemplates {
+		if tpl.Portal == desired.Ref {
+			templates = append(templates, tpl)
+		}
+	}
+	if err := planner.planPortalEmailTemplatesChanges(
+		ctx, parentNamespace, current.ID, desired.Ref, desired.Name, templates, plan,
+	); err != nil {
+		return fmt.Errorf("failed to plan portal email template changes: %w", err)
 	}
 
 	// Plan customization (singleton resource)

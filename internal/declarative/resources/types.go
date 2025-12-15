@@ -24,6 +24,7 @@ const (
 	ResourceTypePortalAssetLogo         ResourceType = "portal_asset_logo"
 	ResourceTypePortalAssetFavicon      ResourceType = "portal_asset_favicon"
 	ResourceTypePortalEmailConfig       ResourceType = "portal_email_config"
+	ResourceTypePortalEmailTemplate     ResourceType = "portal_email_template"
 )
 
 const (
@@ -62,6 +63,7 @@ type ResourceSet struct {
 	PortalAssetLogos     []PortalAssetLogoResource     `yaml:"portal_asset_logos,omitempty"         json:"portal_asset_logos,omitempty"`     //nolint:lll
 	PortalAssetFavicons  []PortalAssetFaviconResource  `yaml:"portal_asset_favicons,omitempty"      json:"portal_asset_favicons,omitempty"`  //nolint:lll
 	PortalEmailConfigs   []PortalEmailConfigResource   `yaml:"portal_email_configs,omitempty"       json:"portal_email_configs,omitempty"`   //nolint:lll
+	PortalEmailTemplates []PortalEmailTemplateResource `yaml:"portal_email_templates,omitempty"     json:"portal_email_templates,omitempty"` //nolint:lll
 
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
@@ -229,6 +231,12 @@ func (rs *ResourceSet) GetResourceByRef(ref string) (Resource, bool) {
 	for i := range rs.PortalEmailConfigs {
 		if rs.PortalEmailConfigs[i].GetRef() == ref {
 			return &rs.PortalEmailConfigs[i], true
+		}
+	}
+
+	for i := range rs.PortalEmailTemplates {
+		if rs.PortalEmailTemplates[i].GetRef() == ref {
+			return &rs.PortalEmailTemplates[i], true
 		}
 	}
 
@@ -498,6 +506,25 @@ func (rs *ResourceSet) GetPortalEmailConfigsByNamespace(namespace string) []Port
 			}
 			if GetNamespace(portal.Kongctl) == namespace {
 				filtered = append(filtered, cfg)
+			}
+		}
+	}
+	return filtered
+}
+
+// GetPortalEmailTemplatesByNamespace returns all portal email template resources from the specified namespace
+func (rs *ResourceSet) GetPortalEmailTemplatesByNamespace(namespace string) []PortalEmailTemplateResource {
+	var filtered []PortalEmailTemplateResource
+	for _, tpl := range rs.PortalEmailTemplates {
+		if portal := rs.GetPortalByRef(tpl.Portal); portal != nil {
+			if portal.IsExternal() {
+				if namespace == NamespaceExternal {
+					filtered = append(filtered, tpl)
+				}
+				continue
+			}
+			if GetNamespace(portal.Kongctl) == namespace {
+				filtered = append(filtered, tpl)
 			}
 		}
 	}
