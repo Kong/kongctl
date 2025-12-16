@@ -6,7 +6,7 @@ catalog_services:
   - ref: payments-service
     name: payments
     display_name: "Payments Service"
-    description: "Service handling customer payments"
+    description: "Protected update should fail"
     labels:
       domain: payments
       tier: critical

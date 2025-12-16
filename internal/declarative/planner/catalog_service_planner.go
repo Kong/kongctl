@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -88,7 +89,7 @@ func (p *Planner) planCatalogServiceChanges(
 			); err != nil {
 				protectionErrors = append(protectionErrors, err)
 			} else {
-				p.planCatalogServiceProtectionChangeWithFields(current, desiredSvc, shouldProtect, updateFields, plan)
+				p.planCatalogServiceProtectionChangeWithFields(current, desiredSvc, updateFields, plan)
 			}
 		} else {
 			needsUpdate, updateFields := p.shouldUpdateCatalogService(current, desiredSvc)
@@ -231,7 +232,10 @@ func (p *Planner) planCatalogServiceUpdateWithFields(
 
 	var protection any
 	if desired.Kongctl != nil && desired.Kongctl.Protected != nil {
-		protection = *desired.Kongctl.Protected
+		protection = ProtectionChange{
+			Old: labels.IsProtectedResource(current.NormalizedLabels),
+			New: *desired.Kongctl.Protected,
+		}
 	}
 
 	if _, ok := updateFields["name"]; !ok {
@@ -294,11 +298,52 @@ func (p *Planner) planCatalogServiceUpdateWithFields(
 func (p *Planner) planCatalogServiceProtectionChangeWithFields(
 	current state.CatalogService,
 	desired resources.CatalogServiceResource,
-	_ bool,
 	updateFields map[string]any,
 	plan *Plan,
 ) {
-	p.planCatalogServiceUpdateWithFields(current, desired, updateFields, plan)
+	namespace := DefaultNamespace
+	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
+		namespace = *desired.Kongctl.Namespace
+	}
+
+	config := ProtectionChangeConfig{
+		ResourceType: "catalog_service",
+		ResourceName: desired.Name,
+		ResourceRef:  desired.GetRef(),
+		ResourceID:   current.ID,
+		OldProtected: labels.IsProtectedResource(current.NormalizedLabels),
+		NewProtected: desired.Kongctl != nil && desired.Kongctl.Protected != nil && *desired.Kongctl.Protected,
+		Namespace:    namespace,
+	}
+
+	change := p.genericPlanner.PlanProtectionChange(context.Background(), config)
+
+	fields := make(map[string]any)
+	for k, v := range updateFields {
+		fields[k] = v
+	}
+	fields["name"] = current.Name
+	fields["display_name"] = current.DisplayName
+	fields["id"] = current.ID
+
+	if ns, ok := current.NormalizedLabels[labels.NamespaceKey]; ok {
+		fields["namespace"] = ns
+	}
+
+	if current.NormalizedLabels != nil {
+		preserved := make(map[string]string)
+		for key, val := range current.NormalizedLabels {
+			if strings.HasPrefix(key, "KONGCTL-") && key != labels.ProtectedKey {
+				preserved[key] = val
+			}
+		}
+		if len(preserved) > 0 {
+			fields["preserved_labels"] = preserved
+		}
+	}
+
+	change.Fields = fields
+	plan.AddChange(change)
 }
 
 func (p *Planner) planCatalogServiceDelete(current state.CatalogService, plan *Plan) {

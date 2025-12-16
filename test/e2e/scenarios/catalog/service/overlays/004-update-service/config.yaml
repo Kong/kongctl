@@ -28,3 +28,4 @@ catalog_services:
         link: "https://slack.example.com/archives/payments-platform"
     kongctl:
       namespace: catalog-service-test
+      protected: false

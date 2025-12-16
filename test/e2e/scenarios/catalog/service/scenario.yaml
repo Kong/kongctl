@@ -97,9 +97,99 @@ steps:
 
   - name: 002-update-catalog-service
     inputOverlayDirs:
-      - overlays/002-update-service
+      - overlays/002-protected-update-fail
     commands:
-      - name: 000-plan-update
+      - name: 000-sync-protected-should-fail
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "protected"
+
+      - name: 001-verify-protected-still-intact
+        run:
+          - get
+          - catalog
+          - services
+          - -o
+          - json
+        assertions:
+          - select: "[0]"
+            expect:
+              fields:
+                description: "Service handling customer payments"
+                labels.tier: critical
+                labels."KONGCTL-protected": "true"
+                custom_fields.owner: payments-team
+                custom_fields.cost_center: "R&D"
+                custom_fields.product_manager: "Alex Smith"
+
+  - name: 003-unprotect-only
+    inputOverlayDirs:
+      - overlays/003-unprotect-only
+    commands:
+      - name: 000-plan-unprotect
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-unprotect.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='catalog_service' && resource_ref=='{{ .vars.serviceRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.labels."KONGCTL-protected": null
+          - select: summary.protection_changes
+            expect:
+              fields:
+                unprotecting: 1
+
+      - name: 001-apply-unprotect
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-unprotect.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 002-verify-unprotected
+        run:
+          - get
+          - catalog
+          - service
+          - "{{ .vars.serviceName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                labels."KONGCTL-protected": null
+
+  - name: 004-update-catalog-service
+    inputOverlayDirs:
+      - overlays/004-update-service
+    commands:
+      - name: 000-plan-field-update
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-update.json"
         run:
@@ -134,7 +224,7 @@ steps:
                 fields.custom_fields.slack_channel.name: "#payments-platform"
                 fields.custom_fields.slack_channel.link: "https://slack.example.com/archives/payments-platform"
 
-      - name: 001-apply-update
+      - name: 001-apply-field-update
         outputFormat: json
         run:
           - apply
@@ -173,10 +263,11 @@ steps:
                 custom_fields.git_repo.link: "https://github.com/example/payments"
                 custom_fields.slack_channel.name: "#payments-platform"
                 custom_fields.slack_channel.link: "https://slack.example.com/archives/payments-platform"
+                labels."KONGCTL-protected": null
 
-  - name: 003-sync-delete-catalog-service
+  - name: 005-sync-delete-catalog-service
     inputOverlayDirs:
-      - overlays/003-sync-delete
+      - overlays/005-sync-delete
     commands:
       - name: 000-plan-sync-delete
         outputFormat: disable

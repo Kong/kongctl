@@ -150,7 +150,7 @@ func listAllCatalogServices(
 	api helpers.CatalogServicesAPI,
 	pageSize int64,
 ) ([]kkComps.CatalogService, error) {
-	var result []kkComps.CatalogService
+	result := make([]kkComps.CatalogService, 0)
 
 	pageNumber := int64(1)
 	for {
