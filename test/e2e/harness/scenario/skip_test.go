@@ -279,3 +279,236 @@ func TestShouldSkipStep(t *testing.T) {
 		})
 	}
 }
+
+func TestShouldStopAfter(t *testing.T) {
+	tests := []struct {
+		name             string
+		stepName         string
+		cmdName          string
+		stopAfterSpec    string
+		isLastCmdInStep  bool
+		want             bool
+	}{
+		// Empty/invalid specs
+		{
+			name:             "empty spec",
+			stepName:         "001-step",
+			cmdName:          "000-cmd",
+			stopAfterSpec:    "",
+			isLastCmdInStep:  true,
+			want:             false,
+		},
+		{
+			name:             "whitespace only spec",
+			stepName:         "001-step",
+			cmdName:          "000-cmd",
+			stopAfterSpec:    "   ",
+			isLastCmdInStep:  true,
+			want:             false,
+		},
+
+		// Step-only format tests
+		{
+			name:             "step-only match last command",
+			stepName:         "001-plan-apply-assets",
+			cmdName:          "003-get-favicon-as-json",
+			stopAfterSpec:    "001-plan-apply-assets",
+			isLastCmdInStep:  true,
+			want:             true,
+		},
+		{
+			name:             "step-only match NOT last command",
+			stepName:         "001-plan-apply-assets",
+			cmdName:          "001-apply-assets",
+			stopAfterSpec:    "001-plan-apply-assets",
+			isLastCmdInStep:  false,
+			want:             false,
+		},
+		{
+			name:             "step-only wrong step",
+			stepName:         "002-different-step",
+			cmdName:          "000-cmd",
+			stopAfterSpec:    "001-plan-apply-assets",
+			isLastCmdInStep:  true,
+			want:             false,
+		},
+		{
+			name:             "step-only case insensitive",
+			stepName:         "001-Plan-Apply-Assets",
+			cmdName:          "003-final-cmd",
+			stopAfterSpec:    "001-PLAN-APPLY-ASSETS",
+			isLastCmdInStep:  true,
+			want:             true,
+		},
+		{
+			name:             "step-only with whitespace",
+			stepName:         "001-step",
+			cmdName:          "final",
+			stopAfterSpec:    "  001-step  ",
+			isLastCmdInStep:  true,
+			want:             true,
+		},
+
+		// Step/command format tests
+		{
+			name:             "step/command exact match",
+			stepName:         "001-plan-apply-assets",
+			cmdName:          "001-apply-assets",
+			stopAfterSpec:    "001-plan-apply-assets/001-apply-assets",
+			isLastCmdInStep:  false,
+			want:             true,
+		},
+		{
+			name:             "step/command exact match is last",
+			stepName:         "001-plan-apply-assets",
+			cmdName:          "003-get-favicon",
+			stopAfterSpec:    "001-plan-apply-assets/003-get-favicon",
+			isLastCmdInStep:  true,
+			want:             true,
+		},
+		{
+			name:             "step/command wrong step",
+			stepName:         "001-plan-apply-assets",
+			cmdName:          "001-apply-assets",
+			stopAfterSpec:    "002-plan-apply-assets/001-apply-assets",
+			isLastCmdInStep:  false,
+			want:             false,
+		},
+		{
+			name:             "step/command wrong command",
+			stepName:         "001-plan-apply-assets",
+			cmdName:          "001-apply-assets",
+			stopAfterSpec:    "001-plan-apply-assets/002-apply-assets",
+			isLastCmdInStep:  false,
+			want:             false,
+		},
+		{
+			name:             "step/command case insensitive",
+			stepName:         "001-plan-apply-assets",
+			cmdName:          "001-apply-assets",
+			stopAfterSpec:    "001-PLAN-APPLY-ASSETS/001-APPLY-ASSETS",
+			isLastCmdInStep:  false,
+			want:             true,
+		},
+		{
+			name:             "step/command with whitespace",
+			stepName:         "001-step",
+			cmdName:          "000-cmd",
+			stopAfterSpec:    "  001-step / 000-cmd  ",
+			isLastCmdInStep:  false,
+			want:             true,
+		},
+		{
+			name:             "step/command missing step name",
+			stepName:         "001-step",
+			cmdName:          "000-cmd",
+			stopAfterSpec:    "/000-cmd",
+			isLastCmdInStep:  false,
+			want:             false,
+		},
+		{
+			name:             "step/command missing command name",
+			stepName:         "001-step",
+			cmdName:          "000-cmd",
+			stopAfterSpec:    "001-step/",
+			isLastCmdInStep:  false,
+			want:             false,
+		},
+
+		// Real-world examples from portal/assets scenario
+		{
+			name:             "portal assets - stop after step 001",
+			stepName:         "001-plan-apply-assets",
+			cmdName:          "003-get-favicon-as-json",
+			stopAfterSpec:    "001-plan-apply-assets",
+			isLastCmdInStep:  true,
+			want:             true,
+		},
+		{
+			name:             "portal assets - stop after specific command",
+			stepName:         "001-plan-apply-assets",
+			cmdName:          "001-apply-assets",
+			stopAfterSpec:    "001-plan-apply-assets/001-apply-assets",
+			isLastCmdInStep:  false,
+			want:             true,
+		},
+		{
+			name:             "portal assets - plan command",
+			stepName:         "001-plan-apply-assets",
+			cmdName:          "000-plan-assets",
+			stopAfterSpec:    "001-plan-apply-assets/000-plan-assets",
+			isLastCmdInStep:  false,
+			want:             true,
+		},
+		{
+			name:             "portal assets - get logo",
+			stepName:         "001-plan-apply-assets",
+			cmdName:          "002-get-logo-as-json",
+			stopAfterSpec:    "001-plan-apply-assets/002-get-logo-as-json",
+			isLastCmdInStep:  false,
+			want:             true,
+		},
+		{
+			name:             "portal assets - update step",
+			stepName:         "002-plan-apply-assets-update",
+			cmdName:          "002-verify-updated-logo",
+			stopAfterSpec:    "002-plan-apply-assets-update",
+			isLastCmdInStep:  true,
+			want:             true,
+		},
+		{
+			name:             "portal assets - reset org",
+			stepName:         "000-reset-org",
+			cmdName:          "command-000",
+			stopAfterSpec:    "000-reset-org",
+			isLastCmdInStep:  true,
+			want:             true,
+		},
+
+		// Edge cases with auto-generated names
+		{
+			name:             "auto-generated step name",
+			stepName:         "step-000",
+			cmdName:          "command-001",
+			stopAfterSpec:    "step-000/command-001",
+			isLastCmdInStep:  false,
+			want:             true,
+		},
+		{
+			name:             "auto-generated command name",
+			stepName:         "001-my-step",
+			cmdName:          "command-000",
+			stopAfterSpec:    "001-my-step/command-000",
+			isLastCmdInStep:  false,
+			want:             true,
+		},
+		{
+			name:             "auto-generated stop after step",
+			stepName:         "step-003",
+			cmdName:          "command-005",
+			stopAfterSpec:    "step-003",
+			isLastCmdInStep:  true,
+			want:             true,
+		},
+
+		// Special characters in names
+		{
+			name:             "names with underscores",
+			stepName:         "001-plan_apply_assets",
+			cmdName:          "001-apply_assets",
+			stopAfterSpec:    "001-plan_apply_assets/001-apply_assets",
+			isLastCmdInStep:  false,
+			want:             true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shouldStopAfter(tt.stepName, tt.cmdName, tt.stopAfterSpec, tt.isLastCmdInStep)
+			if got != tt.want {
+				t.Errorf("shouldStopAfter(%q, %q, %q, %v) = %v, want %v",
+					tt.stepName, tt.cmdName, tt.stopAfterSpec, tt.isLastCmdInStep, got, tt.want)
+			}
+		})
+	}
+}

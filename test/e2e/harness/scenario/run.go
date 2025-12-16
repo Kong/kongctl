@@ -54,6 +54,7 @@ func Run(t *testing.T, scenarioPath string) error {
 
 	// Execute steps
 	skipPatterns := getSkipPatterns()
+	stopAfterSpec := getStopAfter()
 	startIdx := 0
 	for i, st := range s.Steps {
 		stepName := st.Name
@@ -119,6 +120,7 @@ func Run(t *testing.T, scenarioPath string) error {
 			if strings.TrimSpace(cmdName) == "" {
 				cmdName = fmt.Sprintf("command-%03d", j)
 			}
+			isLastCmdInStep := j == len(st.Commands)-1
 			envOverrides := mergeEnvScopes(st.Env, cmd.Env)
 			// Handle resetOrg synthetic command
 			if cmd.ResetOrg {
@@ -126,6 +128,11 @@ func Run(t *testing.T, scenarioPath string) error {
 					return fmt.Errorf("command %s resetOrg failed: %w", cmdName, err)
 				}
 				// no assertions for reset
+				// Check if we should stop after this command
+				if shouldStopAfter(stepName, cmdName, stopAfterSpec, isLastCmdInStep) {
+					harness.Infof("Stopping after step %s, command %s (matched KONGCTL_E2E_STOP_AFTER)", stepName, cmdName)
+					return nil
+				}
 				continue
 			}
 			if len(cmd.Exec) > 0 {
@@ -165,6 +172,11 @@ func Run(t *testing.T, scenarioPath string) error {
 				}
 				if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName, envOverrides); err != nil {
 					return err
+				}
+				// Check if we should stop after this command
+				if shouldStopAfter(stepName, cmdName, stopAfterSpec, isLastCmdInStep) {
+					harness.Infof("Stopping after step %s, command %s (matched KONGCTL_E2E_STOP_AFTER)", stepName, cmdName)
+					return nil
 				}
 				continue
 			}
@@ -262,6 +274,11 @@ func Run(t *testing.T, scenarioPath string) error {
 				if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName, envOverrides); err != nil {
 					return err
 				}
+				// Check if we should stop after this command
+				if shouldStopAfter(stepName, cmdName, stopAfterSpec, isLastCmdInStep) {
+					harness.Infof("Stopping after step %s, command %s (matched KONGCTL_E2E_STOP_AFTER)", stepName, cmdName)
+					return nil
+				}
 				continue
 			}
 
@@ -312,6 +329,11 @@ func Run(t *testing.T, scenarioPath string) error {
 					}
 				}
 				// expected failure satisfied; skip assertions for this command
+				// Check if we should stop after this command
+				if shouldStopAfter(stepName, cmdName, stopAfterSpec, isLastCmdInStep) {
+					harness.Infof("Stopping after step %s, command %s (matched KONGCTL_E2E_STOP_AFTER)", stepName, cmdName)
+					return nil
+				}
 				continue
 			}
 			if err != nil {
@@ -361,6 +383,12 @@ func Run(t *testing.T, scenarioPath string) error {
 			}
 			if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName, envOverrides); err != nil {
 				return err
+			}
+
+			// Check if we should stop after this command
+			if shouldStopAfter(stepName, cmdName, stopAfterSpec, isLastCmdInStep) {
+				harness.Infof("Stopping after step %s, command %s (matched KONGCTL_E2E_STOP_AFTER)", stepName, cmdName)
+				return nil
 			}
 		}
 	}

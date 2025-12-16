@@ -73,12 +73,16 @@ test-e2e-scenarios:
 	ART_DIR=$$(cd "$$ART_DIR" && pwd); \
 	( KONGCTL_E2E_ARTIFACTS_DIR="$$ART_DIR" \
 	  KONGCTL_E2E_SCENARIO="${SCENARIO}" \
+	  KONGCTL_E2E_STOP_AFTER="${STOP_AFTER}" \
 	  go test -v -count=1 -tags=e2e -run '^Test_Scenarios$$' $${GOTESTFLAGS} ./test/e2e ; \
 	  echo $$? > "$$ART_DIR/.exit_code" ) | tee "$$ART_DIR/run.log"; \
 	code=$$(cat "$$ART_DIR/.exit_code"); rm -f "$$ART_DIR/.exit_code"; \
 	echo "E2E artifacts: $$ART_DIR"; \
 	ln -sfn "$$ART_DIR" "$(LATEST_E2E_LINK)" || true; \
 	exit $$code
+
+.PHONY: scenario
+scenario: test-e2e-scenarios
 
 .PHONY: open-latest-e2e
 open-latest-e2e:
