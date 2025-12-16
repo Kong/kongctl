@@ -18,30 +18,14 @@ const (
 	levelError
 )
 
-var harnessLevel = func() int {
-	v := strings.ToLower(strings.TrimSpace(os.Getenv("KONGCTL_E2E_LOG_LEVEL")))
-	switch v {
-	case "trace":
-		return levelTrace
-	case "debug":
-		return levelDebug
-	case "warn":
-		return levelWarn
-	case "error":
-		return levelError
-	case "info":
-		return levelInfo
-	case "":
-		// Default to warn to keep test output minimal by default
-		return levelWarn
-	default:
-		return levelInfo
-	}
-}()
-
 var (
-	runLogFile *os.File
-	runDirPath string
+	// fileLogLevel controls what gets written to run.log (and propagated to kongctl).
+	fileLogLevel = envLogLevel("KONGCTL_E2E_LOG_LEVEL", levelWarn)
+	// consoleLogLevel controls what gets written to stderr; defaults to fileLogLevel for
+	// backward compatibility.
+	consoleLogLevel = envLogLevel("KONGCTL_E2E_CONSOLE_LOG_LEVEL", fileLogLevel)
+	runLogFile      *os.File
+	runDirPath      string
 )
 
 // initRunLogging configures logging to also tee into <runDir>/run.log
@@ -58,33 +42,28 @@ func initRunLogging(runDir string) {
 }
 
 func logf(level string, format string, args ...any) {
-	if !levelEnabled(level) {
+	lvl := levelValue(level)
+	if lvl < 0 {
+		return
+	}
+	writeFile := shouldWrite(lvl, fileLogLevel)
+	writeConsole := shouldWrite(lvl, consoleLogLevel)
+	if !writeFile && !writeConsole {
 		return
 	}
 	ts := time.Now().Format(time.RFC3339)
-	msg := fmt.Sprintf("%s [e2e %s] "+format+"\n", append([]any{ts, level}, args...)...)
-	// Always write to stderr
-	_, _ = os.Stderr.WriteString(msg)
-	// Optionally tee into run.log
-	if runLogFile != nil {
-		_, _ = runLogFile.WriteString(msg)
+	msg := fmt.Sprintf("%s [e2e %s] "+format+"\n", append([]any{ts, strings.ToUpper(level)}, args...)...)
+	if writeConsole {
+		_, _ = os.Stderr.WriteString(msg)
 	}
-}
-
-func levelEnabled(l string) bool {
-	switch strings.ToUpper(l) {
-	case "TRACE":
-		return harnessLevel <= levelTrace
-	case "DEBUG":
-		return harnessLevel <= levelDebug
-	case "INFO":
-		return harnessLevel <= levelInfo
-	case "WARN":
-		return harnessLevel <= levelWarn
-	case "ERROR":
-		return harnessLevel <= levelError
-	default:
-		return true
+	if writeFile {
+		switch {
+		case runLogFile != nil:
+			_, _ = runLogFile.WriteString(msg)
+		case !writeConsole:
+			// Fallback to stderr if the run log is unavailable to avoid losing logs.
+			_, _ = os.Stderr.WriteString(msg)
+		}
 	}
 }
 
@@ -114,20 +93,7 @@ func redactEnv(kv string) string {
 
 // getHarnessLogLevel returns the current harness log level string for propagation to kongctl.
 func getHarnessLogLevel() string {
-	switch harnessLevel {
-	case levelTrace:
-		return "trace"
-	case levelDebug:
-		return "debug"
-	case levelWarn:
-		return "warn"
-	case levelError:
-		return "error"
-	case levelInfo:
-		fallthrough
-	default:
-		return "info"
-	}
+	return logLevelString(fileLogLevel)
 }
 
 // getHarnessDefaultOutput returns the harness default output format (defaults to json).
@@ -152,6 +118,68 @@ func jsonStrictEnabled() bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func envLogLevel(env string, emptyDefault int) int {
+	v := os.Getenv(env)
+	return parseLogLevel(v, emptyDefault)
+}
+
+func parseLogLevel(v string, emptyDefault int) int {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "trace":
+		return levelTrace
+	case "debug":
+		return levelDebug
+	case "warn":
+		return levelWarn
+	case "error":
+		return levelError
+	case "info":
+		return levelInfo
+	case "":
+		return emptyDefault
+	default:
+		return levelInfo
+	}
+}
+
+func shouldWrite(msgLevel, minLevel int) bool {
+	return minLevel <= msgLevel
+}
+
+func levelValue(l string) int {
+	switch strings.ToUpper(strings.TrimSpace(l)) {
+	case "TRACE":
+		return levelTrace
+	case "DEBUG":
+		return levelDebug
+	case "INFO":
+		return levelInfo
+	case "WARN":
+		return levelWarn
+	case "ERROR":
+		return levelError
+	default:
+		return -1
+	}
+}
+
+func logLevelString(level int) string {
+	switch level {
+	case levelTrace:
+		return "trace"
+	case levelDebug:
+		return "debug"
+	case levelWarn:
+		return "warn"
+	case levelError:
+		return "error"
+	case levelInfo:
+		fallthrough
+	default:
+		return "info"
 	}
 }
 
