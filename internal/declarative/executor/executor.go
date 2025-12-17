@@ -31,11 +31,12 @@ type Executor struct {
 	stateCache *state.Cache
 
 	// Resource executors
-	portalExecutor         *BaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal]
-	controlPlaneExecutor   *BaseExecutor[kkComps.CreateControlPlaneRequest, kkComps.UpdateControlPlaneRequest]
-	apiExecutor            *BaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest]
-	authStrategyExecutor   *BaseExecutor[kkComps.CreateAppAuthStrategyRequest, kkComps.UpdateAppAuthStrategyRequest]
-	catalogServiceExecutor *BaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService]
+	portalExecutor                   *BaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal]
+	controlPlaneExecutor             *BaseExecutor[kkComps.CreateControlPlaneRequest, kkComps.UpdateControlPlaneRequest]
+	apiExecutor                      *BaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest]
+	authStrategyExecutor             *BaseExecutor[kkComps.CreateAppAuthStrategyRequest, kkComps.UpdateAppAuthStrategyRequest]
+	catalogServiceExecutor           *BaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService]
+	eventGatewayControlPlaneExecutor *BaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest]
 
 	// Portal child resource executors
 	portalCustomizationExecutor *BaseSingletonExecutor[kkComps.PortalCustomization]
@@ -94,6 +95,11 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 	)
 	e.catalogServiceExecutor = NewBaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService](
 		NewCatalogServiceAdapter(client),
+		client,
+		dryRun,
+	)
+	e.eventGatewayControlPlaneExecutor = NewBaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest](
+		NewEventGatewayControlPlaneControlPlaneAdapter(client),
 		client,
 		dryRun,
 	)
@@ -1414,6 +1420,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References["portal_id"] = portalRef
 		}
 		return e.portalEmailTemplateExecutor.Create(ctx, *change)
+	case "event_gateway_control_plane":
+		return e.eventGatewayControlPlaneExecutor.Create(ctx, *change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
 	}
@@ -1625,6 +1633,8 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 		}
 		return e.apiVersionExecutor.Update(ctx, *change)
 	// Note: api_publication and api_implementation don't support update
+	case "event_gateway_control_plane":
+		return e.eventGatewayControlPlaneExecutor.Update(ctx, *change)
 	default:
 		return "", fmt.Errorf("update operation not yet implemented for %s", change.ResourceType)
 	}
@@ -1753,6 +1763,8 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 		}
 		return e.portalEmailTemplateExecutor.Delete(ctx, *change)
 	// Note: portal_customization is a singleton resource and cannot be deleted
+	case "event_gateway_control_plane":
+		return e.eventGatewayControlPlaneExecutor.Delete(ctx, *change)
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)
 	}

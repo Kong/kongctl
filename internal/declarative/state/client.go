@@ -228,7 +228,7 @@ type ApplicationAuthStrategy struct {
 	NormalizedLabels map[string]string // Non-pointer labels
 }
 
-type EGWControlPlane struct {
+type EventGatewayControlPlane struct {
 	kkComps.EventGatewayInfo
 	NormalizedLabels map[string]string // Non-pointer labels
 }
@@ -3198,20 +3198,70 @@ func (c *Client) RemovePortalTeamRole(ctx context.Context, portalID string, team
 	return nil
 }
 
-func ListManagedEGWControlPlanes(ctx context.Context, namespaces []string) {
-	// Placeholder for future implementation
+func (c *Client) ListManagedEventGatewayControlPlanes(ctx context.Context, namespaces []string) ([]EventGatewayControlPlane, error) {
+	req := kkOps.ListEventGatewaysRequest{}
+
+	resp, err := c.egwControlPlaneAPI.ListEGWControlPlanes(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "list event gateway control planes", nil)
+	}
+
+	var filteredEGWControlPlanes []EventGatewayControlPlane
+	for _, f := range resp.ListEventGatewaysResponse.Data {
+
+		// Filter by managed status and namespace
+		if labels.IsManagedResource(f.Labels) {
+			if shouldIncludeNamespace(f.Labels[labels.NamespaceKey], namespaces) {
+				eventGatewayControlPlane := EventGatewayControlPlane{
+					f,
+					f.Labels,
+				}
+				filteredEGWControlPlanes = append(filteredEGWControlPlanes, eventGatewayControlPlane)
+			}
+		}
+	}
+	return filteredEGWControlPlanes, nil
 }
 
-func CreateEGWControlPlane(ctx context.Context, req kkComps.CreateGatewayRequest, namespace string) {
-	// Placeholder for future implementation
+func (c *Client) CreateEventGatewayControlPlane(ctx context.Context, req kkComps.CreateGatewayRequest, namespace string) (string, error) {
+	resp, err := c.egwControlPlaneAPI.CreateEGWControlPlane(ctx, req)
+	if err != nil {
+		return "", WrapAPIError(err, "create event gateway control plane", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_control_plane",
+			ResourceName: "", // Adjust based on SDK
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.EventGatewayInfo, "create event gateway control plane"); err != nil {
+		return "", err
+	}
+
+	return resp.EventGatewayInfo.ID, nil
 }
 
-func UpdateEGWControlPlane(ctx context.Context, id string, req kkComps.UpdateGatewayRequest, namespace string) {
-	// Placeholder for future implementation
+func (c *Client) UpdateEventGatewayControlPlane(ctx context.Context, id string, req kkComps.UpdateGatewayRequest, namespace string) (string, error) {
+	resp, err := c.egwControlPlaneAPI.UpdateEGWControlPlane(ctx, id, req)
+	if err != nil {
+		return "", WrapAPIError(err, "update event gateway control plane", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_control_plane",
+			ResourceName: "", // Adjust based on SDK
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	return resp.EventGatewayInfo.ID, nil
 }
 
-func DeleteEGWControlPlane(ctx context.Context, id string) {
+func (c *Client) DeleteEventGatewayControlPlane(ctx context.Context, id string) error {
 	// Placeholder for future implementation
+	_, err := c.egwControlPlaneAPI.DeleteEGWControlPlane(ctx, id)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway control plane", nil)
+	}
+	return nil
 }
 
 func getString(value *string) string {
