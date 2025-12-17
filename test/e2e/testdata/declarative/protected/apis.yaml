@@ -14,7 +14,7 @@ apis:
     description: "Production API for customer data"
     version: "1.0.0"
     kongctl:
-      protected: false
+      protected: true
       namespace: default
 
   # Unprotected API - can be deleted without protection flag removal
