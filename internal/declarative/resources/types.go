@@ -602,6 +602,17 @@ func (rs *ResourceSet) GetPortalTeamRolesByNamespace(namespace string) []PortalT
 	return filtered
 }
 
+// GetEventGatewayControlPlanesByNamespace returns all EGW CP resources from the specified namespace
+func (rs *ResourceSet) GetEventGatewayControlPlanesByNamespace(namespace string) []EventGatewayControlPlaneResource {
+	var filtered []EventGatewayControlPlaneResource
+	for _, cp := range rs.EventGatewayControlPlanes {
+		if GetNamespace(cp.Kongctl) == namespace {
+			filtered = append(filtered, cp)
+		}
+	}
+	return filtered
+}
+
 // GetNamespace safely extracts namespace from kongctl metadata
 func GetNamespace(kongctl *KongctlMeta) string {
 	if kongctl == nil || kongctl.Namespace == nil {

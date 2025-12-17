@@ -2,6 +2,7 @@ package planner
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -21,9 +22,7 @@ func NewEGWControlPlanePlanner(planner *BasePlanner, resources *resources.Resour
 }
 
 func (p *EGWControlPlanePlannerImpl) GetDesiredEGWControlPlanes(namespace string) []resources.EventGatewayControlPlaneResource {
-	var result []resources.EventGatewayControlPlaneResource
-
-	return result
+	return p.BasePlanner.GetDesiredEventGatewayControlPlanes(namespace)
 }
 
 func (p *EGWControlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
@@ -37,6 +36,85 @@ func (p *EGWControlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx
 }
 
 func (p *Planner) planEGWControlPlaneChanges(ctx context.Context, plannerCtx *Config, desired []resources.EventGatewayControlPlaneResource, plan *Plan) error {
+	// Skip if no API resources to plan and not in sync mode
+	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
+		p.logger.Debug("Skipping API planning - no desired APIs")
+		return nil
+	}
+
+	// Get namespace from planner context
+	namespace := plannerCtx.Namespace
+
+	// Fetch current managed APIs from the specific namespace
+	namespaceFilter := []string{namespace}
+	currentEGWControlPlanes, err := p.client.ListManagedEventGatewayControlPlanes(ctx, namespaceFilter)
+	if err != nil {
+		// If API client is not configured, skip API planning
+		if err.Error() == "API client not configured" {
+			return nil
+		}
+		return fmt.Errorf("failed to list current Event Gateway Control Planes: %w", err)
+	}
+
+	// Index current APIs by name
+	currentByName := make(map[string]state.EventGatewayControlPlane)
+	for _, cp := range currentEGWControlPlanes {
+		currentByName[cp.Name] = cp
+	}
+
+	// Collect protection validation errors
+	var protectionErrors []error
+
+	// Compare each desired API
+	for _, desiredEGWCP := range desired {
+		current, exists := currentByName[desiredEGWCP.Name]
+
+		if !exists {
+			// CREATE action
+			_ = p.planEGWControlPlaneCreate(desiredEGWCP, plan)
+		} else {
+			// Check if update needed
+			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
+
+			// Get protection status from desired configuration
+			shouldProtect := false
+			if desiredEGWCP.Kongctl != nil && desiredEGWCP.Kongctl.Protected != nil && *desiredEGWCP.Kongctl.Protected {
+				shouldProtect = true
+			}
+
+			// Handle protection changes
+			if isProtected != shouldProtect {
+				// When changing protection status, include any other field updates too
+				needsUpdate, _ := p.shouldUpdateEGWControlPlaneResource(current, desiredEGWCP)
+
+				// Create protection change object
+				protectionChange := &ProtectionChange{
+					Old: isProtected,
+					New: shouldProtect,
+				}
+
+				// Validate protection change
+				err := p.validateProtectionWithChange("api", desiredEGWCP.Name, isProtected, ActionUpdate,
+					protectionChange, needsUpdate)
+				if err != nil {
+					protectionErrors = append(protectionErrors, err)
+				} else {
+					//p.planEGWControlPlaneProtectionChangeWithFields(current, desiredEGWCP, isProtected, shouldProtect, updateFields, plan)
+				}
+			} else {
+				// Check if update needed based on configuration
+				needsUpdate, updateFields := p.shouldUpdateEGWControlPlaneResource(current, desiredEGWCP)
+				if needsUpdate {
+					// Regular update - check protection
+					if err := p.validateProtection("event-gateway-control-plane", desiredEGWCP.Name, isProtected, ActionUpdate); err != nil {
+						protectionErrors = append(protectionErrors, err)
+					} else {
+						p.planEGWControlPlaneUpdateWithFields(current, desiredEGWCP, updateFields, plan)
+					}
+				}
+			}
+		}
+	}
 	return nil
 }
 

@@ -157,6 +157,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.authStrategyPlanner = NewAuthStrategyPlanner(base)
 		namespacePlanner.catalogServicePlanner = NewCatalogServicePlanner(base)
 		namespacePlanner.apiPlanner = NewAPIPlanner(base)
+		namespacePlanner.eventGatewayControlPlanePlanner = NewEGWControlPlanePlanner(base, rs)
 
 		// Store full ResourceSet for access by planners (enables both filtered views and global lookups)
 		namespacePlanner.resources = rs
@@ -1280,6 +1281,11 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 
 	for _, strategy := range rs.ApplicationAuthStrategies {
 		ns := resources.GetNamespace(strategy.Kongctl)
+		namespaceSet[ns] = true
+	}
+
+	for _, cp := range rs.EventGatewayControlPlanes {
+		ns := resources.GetNamespace(cp.Kongctl)
 		namespaceSet[ns] = true
 	}
 
