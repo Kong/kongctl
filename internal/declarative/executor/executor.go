@@ -31,10 +31,11 @@ type Executor struct {
 	stateCache *state.Cache
 
 	// Resource executors
-	portalExecutor       *BaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal]
-	controlPlaneExecutor *BaseExecutor[kkComps.CreateControlPlaneRequest, kkComps.UpdateControlPlaneRequest]
-	apiExecutor          *BaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest]
-	authStrategyExecutor *BaseExecutor[kkComps.CreateAppAuthStrategyRequest, kkComps.UpdateAppAuthStrategyRequest]
+	portalExecutor         *BaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal]
+	controlPlaneExecutor   *BaseExecutor[kkComps.CreateControlPlaneRequest, kkComps.UpdateControlPlaneRequest]
+	apiExecutor            *BaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest]
+	authStrategyExecutor   *BaseExecutor[kkComps.CreateAppAuthStrategyRequest, kkComps.UpdateAppAuthStrategyRequest]
+	catalogServiceExecutor *BaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService]
 
 	// Portal child resource executors
 	portalCustomizationExecutor *BaseSingletonExecutor[kkComps.PortalCustomization]
@@ -88,6 +89,11 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 	)
 	e.authStrategyExecutor = NewBaseExecutor[kkComps.CreateAppAuthStrategyRequest, kkComps.UpdateAppAuthStrategyRequest](
 		NewAuthStrategyAdapter(client),
+		client,
+		dryRun,
+	)
+	e.catalogServiceExecutor = NewBaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService](
+		NewCatalogServiceAdapter(client),
 		client,
 		dryRun,
 	)
@@ -1146,6 +1152,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 	case "api":
 		// No references to resolve for api
 		return e.apiExecutor.Create(ctx, *change)
+	case "catalog_service":
+		return e.catalogServiceExecutor.Create(ctx, *change)
 	case "api_version":
 		// First resolve API reference if needed
 		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
@@ -1428,6 +1436,8 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 		return id, nil
 	case "api":
 		return e.apiExecutor.Update(ctx, *change)
+	case "catalog_service":
+		return e.catalogServiceExecutor.Update(ctx, *change)
 	case "api_document":
 		// First resolve API reference if needed
 		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
@@ -1632,6 +1642,8 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 	case "api":
 		// No references to resolve for api
 		return e.apiExecutor.Delete(ctx, *change)
+	case "catalog_service":
+		return e.catalogServiceExecutor.Delete(ctx, *change)
 	case "api_version":
 		// No references to resolve for api_version delete
 		return e.apiVersionExecutor.Delete(ctx, *change)

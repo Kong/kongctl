@@ -144,6 +144,20 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 				} else if pc.Old {
 					protectedBeingModified++
 				}
+			} else if pc, ok := change.Protection.(map[string]any); ok {
+				// Handle plans loaded from JSON where protection is a map
+				oldVal, hasOld := pc["old"].(bool)
+				newVal, hasNew := pc["new"].(bool)
+				switch {
+				case hasOld && hasNew && oldVal && !newVal:
+					protectedBeingRemoved++
+				case hasOld && oldVal:
+					protectedBeingModified++
+				default:
+					if isProtectedResource(change) {
+						protectedBeingModified++
+					}
+				}
 			} else if isProtectedResource(change) {
 				protectedBeingModified++
 			}

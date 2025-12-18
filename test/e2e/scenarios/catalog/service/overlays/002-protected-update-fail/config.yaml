@@ -1,0 +1,31 @@
+_defaults:
+  kongctl:
+    namespace: catalog-service-test
+
+catalog_services:
+  - ref: payments-service
+    name: payments
+    display_name: "Payments Service"
+    description: "Protected update should fail"
+    labels:
+      domain: payments
+      tier: critical
+    custom_fields:
+      owner: payments-team
+      cost_center: "R&D"
+      product_manager: "Alex Smith"
+      jira_project:
+        name: "Payments Project"
+        link: "https://jira.example.com/projects/PAY"
+      dashboard:
+        name: "Payments Dashboard"
+        link: "https://dashboards.example.com/payments"
+      git_repo:
+        name: "payments-service"
+        link: "https://github.com/example/payments"
+      slack_channel:
+        name: "#payments-support"
+        link: "https://slack.example.com/archives/payments-support"
+    kongctl:
+      namespace: catalog-service-test
+      protected: true

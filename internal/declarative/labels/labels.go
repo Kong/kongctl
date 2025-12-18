@@ -296,6 +296,23 @@ func BuildUpdateLabels(
 				// Remove the label when changing from true to false
 				result[ProtectedKey] = nil
 			}
+		} else if m, ok := protection.(map[string]any); ok {
+			// Handle plans loaded from JSON where protection is a map
+			if newVal, hasNew := m["new"].(bool); hasNew {
+				if newVal {
+					val := TrueValue
+					result[ProtectedKey] = &val
+				} else {
+					result[ProtectedKey] = nil
+				}
+			} else if prot, ok := m["protected"].(bool); ok {
+				if prot {
+					val := TrueValue
+					result[ProtectedKey] = &val
+				} else {
+					result[ProtectedKey] = nil
+				}
+			}
 		} else if prot, ok := protection.(bool); ok {
 			if prot {
 				val := TrueValue

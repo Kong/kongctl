@@ -174,6 +174,7 @@ lists the currently supported resources and their relationships.
 **Parent Resources** (support kongctl metadata):
 
 - APIs
+- Catalog Services
 - Portals
 - Application Auth Strategies
 - Control Planes (including Control Plane Groups)

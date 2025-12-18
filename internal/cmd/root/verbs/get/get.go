@@ -137,6 +137,13 @@ Setting this value overrides tokens obtained from the login command.
 	}
 	cmd.AddCommand(authStrategyCmd)
 
+	// Add catalog command directly for Konnect-first pattern
+	catalogCmd, err := NewDirectCatalogCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(catalogCmd)
+
 	// Add gateway command directly for Konnect-first pattern
 	gatewayCmd, err := NewDirectGatewayCmd()
 	if err != nil {

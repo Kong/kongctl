@@ -33,10 +33,11 @@ type Planner struct {
 	genericPlanner *GenericPlanner
 
 	// Resource-specific planners
-	portalPlanner       PortalPlanner
-	controlPlanePlanner ControlPlanePlanner
-	authStrategyPlanner AuthStrategyPlanner
-	apiPlanner          APIPlanner
+	portalPlanner         PortalPlanner
+	controlPlanePlanner   ControlPlanePlanner
+	authStrategyPlanner   AuthStrategyPlanner
+	apiPlanner            APIPlanner
+	catalogServicePlanner CatalogServicePlanner
 
 	// ResourceSet containing all desired resources
 	resources *resources.ResourceSet
@@ -74,6 +75,7 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 	p.portalPlanner = NewPortalPlanner(base)
 	p.controlPlanePlanner = NewControlPlanePlanner(base)
 	p.authStrategyPlanner = NewAuthStrategyPlanner(base)
+	p.catalogServicePlanner = NewCatalogServicePlanner(base)
 	p.apiPlanner = NewAPIPlanner(base)
 
 	return p
@@ -151,6 +153,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.portalPlanner = NewPortalPlanner(base)
 		namespacePlanner.controlPlanePlanner = NewControlPlanePlanner(base)
 		namespacePlanner.authStrategyPlanner = NewAuthStrategyPlanner(base)
+		namespacePlanner.catalogServicePlanner = NewCatalogServicePlanner(base)
 		namespacePlanner.apiPlanner = NewAPIPlanner(base)
 
 		// Store full ResourceSet for access by planners (enables both filtered views and global lookups)
@@ -194,6 +197,10 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 		if err := namespacePlanner.portalPlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
 			return nil, fmt.Errorf("failed to plan portal changes for namespace %s: %w", namespace, err)
+		}
+
+		if err := namespacePlanner.catalogServicePlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
+			return nil, fmt.Errorf("failed to plan catalog service changes for namespace %s: %w", namespace, err)
 		}
 
 		// Plan API changes (includes child resources)
@@ -568,6 +575,10 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 		return fmt.Errorf("failed to resolve API implementation services: %w", err)
 	}
 
+	if err := p.resolveCatalogServiceIdentities(ctx, rs.CatalogServices); err != nil {
+		return fmt.Errorf("failed to resolve catalog service identities: %w", err)
+	}
+
 	// Resolve API identities
 	if err := p.resolveAPIIdentities(ctx, rs.APIs); err != nil {
 		return fmt.Errorf("failed to resolve API identities: %w", err)
@@ -585,6 +596,35 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 
 	// API child resources are resolved through their parent APIs
 	// so we don't need to resolve them separately here
+
+	return nil
+}
+
+// resolveCatalogServiceIdentities resolves Konnect IDs for catalog services
+func (p *Planner) resolveCatalogServiceIdentities(
+	ctx context.Context,
+	services []resources.CatalogServiceResource,
+) error {
+	for i := range services {
+		svc := &services[i]
+
+		if svc.GetKonnectID() != "" {
+			continue
+		}
+
+		if svc.Name == "" {
+			continue
+		}
+
+		konnectSvc, err := p.client.GetCatalogServiceByName(ctx, svc.Name)
+		if err != nil {
+			return fmt.Errorf("failed to lookup catalog service %s: %w", svc.GetRef(), err)
+		}
+
+		if konnectSvc != nil {
+			svc.TryMatchKonnectResource(konnectSvc)
+		}
+	}
 
 	return nil
 }
@@ -1219,6 +1259,11 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 
 	for _, cp := range rs.ControlPlanes {
 		ns := resources.GetNamespace(cp.Kongctl)
+		namespaceSet[ns] = true
+	}
+
+	for _, svc := range rs.CatalogServices {
+		ns := resources.GetNamespace(svc.Kongctl)
 		namespaceSet[ns] = true
 	}
 

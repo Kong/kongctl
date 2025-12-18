@@ -1,0 +1,5 @@
+_defaults:
+  kongctl:
+    namespace: catalog-service-test
+
+catalog_services: []

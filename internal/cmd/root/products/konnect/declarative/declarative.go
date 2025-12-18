@@ -262,7 +262,7 @@ func runPlan(command *cobra.Command, args []string) error {
 
 	// Check if configuration is empty
 	totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
-		len(resourceSet.ControlPlanes) + len(resourceSet.APIs)
+		len(resourceSet.ControlPlanes) + len(resourceSet.APIs) + len(resourceSet.CatalogServices)
 
 	if err := nsValidator.ValidateNamespaceRequirement(resourceSet, requirement); err != nil {
 		return err
@@ -321,6 +321,13 @@ func runPlan(command *cobra.Command, args []string) error {
 			ns := "default"
 			if api.Kongctl != nil && api.Kongctl.Namespace != nil {
 				ns = *api.Kongctl.Namespace
+			}
+			namespaces[ns] = true
+		}
+		for _, catalogService := range resourceSet.CatalogServices {
+			ns := "default"
+			if catalogService.Kongctl != nil && catalogService.Kongctl.Namespace != nil {
+				ns = *catalogService.Kongctl.Namespace
 			}
 			namespaces[ns] = true
 		}
@@ -434,7 +441,7 @@ func runDiff(command *cobra.Command, args []string) error {
 		}
 
 		totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
-			len(resourceSet.ControlPlanes) + len(resourceSet.APIs)
+			len(resourceSet.ControlPlanes) + len(resourceSet.APIs) + len(resourceSet.CatalogServices)
 		if totalResources == 0 {
 			if len(filenames) == 0 {
 				return fmt.Errorf("no configuration files found. Use -f to specify files or --plan to use existing plan")
@@ -900,7 +907,7 @@ func runApply(command *cobra.Command, args []string) error {
 
 		// Check if configuration is empty
 		totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
-			len(resourceSet.ControlPlanes) + len(resourceSet.APIs)
+			len(resourceSet.ControlPlanes) + len(resourceSet.APIs) + len(resourceSet.CatalogServices)
 
 		if totalResources == 0 {
 			// Check if we're using default directory (no explicit sources)
@@ -1328,7 +1335,7 @@ func runSync(command *cobra.Command, args []string) error {
 
 		// Check if configuration is empty
 		totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
-			len(resourceSet.ControlPlanes) + len(resourceSet.APIs)
+			len(resourceSet.ControlPlanes) + len(resourceSet.APIs) + len(resourceSet.CatalogServices)
 
 		// In sync mode, allow empty configuration to detect resources to delete
 		if totalResources == 0 {
@@ -1457,6 +1464,7 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		ControlPlaneAPI:       kkClient.GetControlPlaneAPI(),
 		ControlPlaneGroupsAPI: kkClient.GetControlPlaneGroupsAPI(),
 		GatewayServiceAPI:     kkClient.GetGatewayServiceAPI(),
+		CatalogServiceAPI:     kkClient.GetCatalogServicesAPI(),
 
 		// Portal child resource APIs
 		PortalPageAPI:          kkClient.GetPortalPageAPI(),

@@ -64,6 +64,11 @@ func (b *BasePlanner) GetDesiredControlPlanes(namespace string) []resources.Cont
 	return b.planner.resources.GetControlPlanesByNamespace(namespace)
 }
 
+// GetDesiredCatalogServices returns desired catalog service resources from the specified namespace
+func (b *BasePlanner) GetDesiredCatalogServices(namespace string) []resources.CatalogServiceResource {
+	return b.planner.resources.GetCatalogServicesByNamespace(namespace)
+}
+
 // GetDesiredAuthStrategies returns desired auth strategy resources from the specified namespace
 func (b *BasePlanner) GetDesiredAuthStrategies(namespace string) []resources.ApplicationAuthStrategyResource {
 	return b.planner.resources.GetAuthStrategiesByNamespace(namespace)

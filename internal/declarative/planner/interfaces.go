@@ -35,3 +35,8 @@ type APIPlanner interface {
 
 	// Additional API-specific methods if needed
 }
+
+// CatalogServicePlanner handles planning for catalog service resources
+type CatalogServicePlanner interface {
+	ResourcePlanner
+}
