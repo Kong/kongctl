@@ -115,6 +115,39 @@ func (p *Planner) planEGWControlPlaneChanges(ctx context.Context, plannerCtx *Co
 			}
 		}
 	}
+
+	// Check for managed resources to delete (sync mode only)
+	if plan.Metadata.Mode == PlanModeSync {
+		// Build set of desired Event gateway names
+		desiredNames := make(map[string]bool)
+		for _, eventGateway := range desired {
+			desiredNames[eventGateway.Name] = true
+		}
+
+		// Find managed Event Gateway Control Planes not in desired state
+		for name, current := range currentByName {
+			if !desiredNames[name] {
+				// Validate protection before adding DELETE
+				isProtected := labels.IsProtectedResource(current.NormalizedLabels)
+				if err := p.validateProtection("event-gateway-control-plane", name, isProtected, ActionDelete); err != nil {
+					protectionErrors = append(protectionErrors, err)
+				} else {
+					p.planEGWControlPlaneDelete(current, plan)
+				}
+			}
+		}
+	}
+
+	// Fail fast if any protected resources would be modified
+	if len(protectionErrors) > 0 {
+		errMsg := "Cannot generate plan due to protected resources:\n"
+		for _, err := range protectionErrors {
+			errMsg += fmt.Sprintf("- %s\n", err.Error())
+		}
+		errMsg += "\nTo proceed, first update these resources to set protected: false"
+		return fmt.Errorf("%s", errMsg)
+	}
+
 	return nil
 }
 
@@ -129,9 +162,8 @@ func (p *Planner) shouldUpdateEGWControlPlaneResource(current state.EventGateway
 	}
 
 	if desired.Description != current.Description {
-		currentDesc := getString(current.Description)
-		if currentDesc != *desired.Description {
-			updates["description"] = *desired.Description
+		if getString(current.Description) != getString(desired.Description) {
+			updates["description"] = getString(desired.Description)
 		}
 	}
 
@@ -214,17 +246,19 @@ func (p *Planner) planEGWControlPlaneUpdateWithFields(
 		namespace = *desired.Kongctl.Namespace
 	}
 
+	// Always include name for identification
+	updateFields["name"] = current.Name
+
 	updateFields[FieldCurrentLabels] = current.NormalizedLabels
 	config := UpdateConfig{
 		ResourceType:   string(desired.GetType()),
 		ResourceName:   desired.Name,
 		ResourceRef:    desired.Ref,
+		ResourceID:     current.ID,
+		CurrentFields:  nil, // Not needed for direct update
+		DesiredFields:  updateFields,
 		RequiredFields: []string{"name"},
-		FieldComparator: func(current, desired map[string]any) bool {
-			// todo
-			return false
-		},
-		Namespace: namespace,
+		Namespace:      namespace,
 	}
 
 	change, err := p.genericPlanner.PlanUpdate(context.Background(), config)

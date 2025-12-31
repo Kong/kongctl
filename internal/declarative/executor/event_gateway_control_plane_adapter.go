@@ -112,9 +112,15 @@ func (a *EventGatewayControlPlaneControlPlaneAdapter) Update(
 }
 
 // GetByID gets a event_gateway_control_plane by ID
-func (a *EventGatewayControlPlaneControlPlaneAdapter) GetByID(_ context.Context, _ string, _ *ExecutionContext) (ResourceInfo, error) {
-	// todo - why and fix
-	return nil, nil
+func (a *EventGatewayControlPlaneControlPlaneAdapter) GetByID(ctx context.Context, id string, _ *ExecutionContext) (ResourceInfo, error) {
+	eventGateway, err := a.client.GetEventGatewayControlPlaneByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if eventGateway == nil {
+		return nil, nil
+	}
+	return &EventGatewayControlPlaneResourceInfo{eventGatewayControlPlane: eventGateway}, nil
 }
 
 // GetByName gets a event_gateway_control_plane by name
@@ -137,4 +143,26 @@ func (a *EventGatewayControlPlaneControlPlaneAdapter) RequiredFields() []string 
 
 func (a *EventGatewayControlPlaneControlPlaneAdapter) SupportsUpdate() bool {
 	return true
+}
+
+// APIResourceInfo wraps an API to implement ResourceInfo
+type EventGatewayControlPlaneResourceInfo struct {
+	eventGatewayControlPlane *state.EventGatewayControlPlane
+}
+
+func (e *EventGatewayControlPlaneResourceInfo) GetID() string {
+	return e.eventGatewayControlPlane.ID
+}
+
+func (e *EventGatewayControlPlaneResourceInfo) GetName() string {
+	return e.eventGatewayControlPlane.Name
+}
+
+func (e *EventGatewayControlPlaneResourceInfo) GetLabels() map[string]string {
+	// API.Labels is already map[string]string
+	return e.eventGatewayControlPlane.Labels
+}
+
+func (e *EventGatewayControlPlaneResourceInfo) GetNormalizedLabels() map[string]string {
+	return e.eventGatewayControlPlane.NormalizedLabels
 }

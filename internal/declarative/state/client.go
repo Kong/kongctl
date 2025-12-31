@@ -3255,6 +3255,34 @@ func (c *Client) UpdateEventGatewayControlPlane(ctx context.Context, id string, 
 	return resp.EventGatewayInfo.ID, nil
 }
 
+func (c *Client) GetEventGatewayControlPlaneByID(ctx context.Context, id string) (*EventGatewayControlPlane, error) {
+	resp, err := c.egwControlPlaneAPI.FetchEGWControlPlane(ctx, id)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway control plane by ID", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_control_plane",
+			ResourceName: "", // Adjust based on SDK
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.EventGatewayInfo == nil {
+		return nil, nil
+	}
+
+	// Labels are already map[string]string in the SDK
+	normalized := resp.EventGatewayInfo.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	eventGateway := &EventGatewayControlPlane{
+		EventGatewayInfo: *resp.EventGatewayInfo,
+		NormalizedLabels: normalized,
+	}
+
+	return eventGateway, nil
+}
+
 func (c *Client) DeleteEventGatewayControlPlane(ctx context.Context, id string) error {
 	// Placeholder for future implementation
 	_, err := c.egwControlPlaneAPI.DeleteEGWControlPlane(ctx, id)
