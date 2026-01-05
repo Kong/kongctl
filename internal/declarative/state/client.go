@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 
+	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	kkErrors "github.com/Kong/sdk-konnect-go/models/sdkerrors"
@@ -3199,15 +3201,38 @@ func (c *Client) RemovePortalTeamRole(ctx context.Context, portalID string, team
 }
 
 func (c *Client) ListManagedEventGatewayControlPlanes(ctx context.Context, namespaces []string) ([]EventGatewayControlPlane, error) {
-	req := kkOps.ListEventGatewaysRequest{}
+	var allData []kkComps.EventGatewayInfo
+	var pageAfter *string
 
-	resp, err := c.egwControlPlaneAPI.ListEGWControlPlanes(ctx, req)
-	if err != nil {
-		return nil, WrapAPIError(err, "list event gateway control planes", nil)
+	for {
+		req := kkOps.ListEventGatewaysRequest{}
+
+		if pageAfter != nil {
+			req.PageAfter = pageAfter
+		}
+
+		res, err := c.egwControlPlaneAPI.ListEGWControlPlanes(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway control planes", nil)
+		}
+
+		allData = append(allData, res.ListEventGatewaysResponse.Data...)
+
+		if res.ListEventGatewaysResponse.Meta.Page.Next == nil {
+			break
+		} else {
+			u, err := url.Parse(*res.ListEventGatewaysResponse.Meta.Page.Next)
+			if err != nil {
+				return nil, WrapAPIError(err, "list event gateway control planes: invalid cursor", nil)
+			}
+
+			values := u.Query()
+			pageAfter = kk.String(values.Get("page[after]"))
+		}
 	}
 
 	var filteredEGWControlPlanes []EventGatewayControlPlane
-	for _, f := range resp.ListEventGatewaysResponse.Data {
+	for _, f := range allData {
 
 		// Filter by managed status and namespace
 		if labels.IsManagedResource(f.Labels) {
