@@ -1,0 +1,10 @@
+event_gateway_control_planes:
+  - ref: egw-top-level
+    name: "My Event Gateway CP"
+    description: "Initial description for My Event Gateway CP"
+    labels:
+      owner: "platform"
+      lifecycle: "dev"
+    kongctl:
+      namespace: "event-gateways-comprehensive"
+      protected: false

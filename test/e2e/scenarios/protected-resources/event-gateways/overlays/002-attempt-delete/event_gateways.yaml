@@ -1,0 +1,9 @@
+# Overlay: Remove all Event Gateway Control Planes from config
+# This should trigger DELETE plans in sync mode
+# Protected Event Gateway Control Planes should cause plan generation to fail
+
+_defaults:
+  kongctl:
+    namespace: default
+
+event_gateway_control_planes: []
