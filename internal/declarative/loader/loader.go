@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/kong/kongctl/internal/declarative/errors"
+	decerrors "github.com/kong/kongctl/internal/declarative/errors"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"sigs.k8s.io/yaml"
@@ -75,7 +75,7 @@ func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Sourc
 		case SourceTypeSTDIN:
 			err = l.loadSTDINWithContext(ctx, &allResources)
 		default:
-			return nil, errors.FormatConfigurationError(
+			return nil, decerrors.FormatConfigurationError(
 				source.Path,
 				0,
 				fmt.Sprintf("unknown source type: %v", source.Type),

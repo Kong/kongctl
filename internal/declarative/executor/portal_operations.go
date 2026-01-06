@@ -7,7 +7,7 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/common"
-	"github.com/kong/kongctl/internal/declarative/errors"
+	decerrors "github.com/kong/kongctl/internal/declarative/errors"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/log"
@@ -83,10 +83,10 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 	portalName := getResourceName(change.Fields)
 	portal, err := e.client.GetPortalByName(ctx, portalName)
 	if err != nil {
-		return "", errors.FormatResourceError("fetch", "portal", portalName, change.Namespace, err)
+		return "", decerrors.FormatResourceError("fetch", "portal", portalName, change.Namespace, err)
 	}
 	if portal == nil {
-		return "", errors.FormatValidationError("portal", portalName, "resource",
+		return "", decerrors.FormatValidationError("portal", portalName, "resource",
 			"no longer exists - it may have been deleted by another process")
 	}
 
@@ -112,7 +112,7 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 
 	if isProtected && !isProtectionChange {
 		// Regular update to a protected resource is not allowed
-		return "", errors.FormatProtectionError("portal", portalName, "update")
+		return "", decerrors.FormatProtectionError("portal", portalName, "update")
 	}
 
 	// Build sparse update request - only include fields that changed

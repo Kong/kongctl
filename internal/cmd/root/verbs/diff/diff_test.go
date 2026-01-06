@@ -25,6 +25,7 @@ func TestNewDiffCmd(t *testing.T) {
 	}
 	if cmd == nil {
 		t.Fatal("NewDiffCmd should return a command")
+		return
 	}
 
 	// Test basic command properties
