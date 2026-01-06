@@ -761,6 +761,10 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 	for i := range rs.PortalEmailTemplates {
 		rs.PortalEmailTemplates[i].SetDefaults()
 	}
+
+	for i := range rs.EventGatewayControlPlanes {
+		rs.EventGatewayControlPlanes[i].SetDefaults()
+	}
 }
 
 // extractPortalPages recursively extracts and flattens nested portal pages

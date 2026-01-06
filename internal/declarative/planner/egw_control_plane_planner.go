@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -85,7 +86,7 @@ func (p *Planner) planEGWControlPlaneChanges(ctx context.Context, plannerCtx *Co
 			// Handle protection changes
 			if isProtected != shouldProtect {
 				// When changing protection status, include any other field updates too
-				needsUpdate, _ := p.shouldUpdateEGWControlPlaneResource(current, desiredEGWCP)
+				needsUpdate, updateFields := p.shouldUpdateEGWControlPlaneResource(current, desiredEGWCP)
 
 				// Create protection change object
 				protectionChange := &ProtectionChange{
@@ -94,12 +95,12 @@ func (p *Planner) planEGWControlPlaneChanges(ctx context.Context, plannerCtx *Co
 				}
 
 				// Validate protection change
-				err := p.validateProtectionWithChange("api", desiredEGWCP.Name, isProtected, ActionUpdate,
+				err := p.validateProtectionWithChange("event_gateway_control_plane", desiredEGWCP.Name, isProtected, ActionUpdate,
 					protectionChange, needsUpdate)
 				if err != nil {
 					protectionErrors = append(protectionErrors, err)
 				} else {
-					//p.planEGWControlPlaneProtectionChangeWithFields(current, desiredEGWCP, isProtected, shouldProtect, updateFields, plan)
+					p.planEGWControlPlaneProtectionChangeWithFields(current, desiredEGWCP, isProtected, shouldProtect, updateFields, plan)
 				}
 			} else {
 				// Check if update needed based on configuration
@@ -149,6 +150,70 @@ func (p *Planner) planEGWControlPlaneChanges(ctx context.Context, plannerCtx *Co
 	}
 
 	return nil
+}
+
+func (p *Planner) planEGWControlPlaneProtectionChangeWithFields(
+	current state.EventGatewayControlPlane,
+	desired resources.EventGatewayControlPlaneResource,
+	wasProtected, shouldProtect bool,
+	updateFields map[string]any,
+	plan *Plan,
+) {
+	// Extract namespace
+	namespace := DefaultNamespace
+	if desired.Kongctl != nil && desired.Kongctl.Namespace != nil {
+		namespace = *desired.Kongctl.Namespace
+	}
+
+	// Use generic protection change planner
+	config := ProtectionChangeConfig{
+		ResourceType: "event_gateway_control_plane",
+		ResourceName: desired.Name,
+		ResourceRef:  desired.GetRef(),
+		ResourceID:   current.ID,
+		OldProtected: wasProtected,
+		NewProtected: shouldProtect,
+		Namespace:    namespace,
+	}
+
+	change := p.genericPlanner.PlanProtectionChange(context.Background(), config)
+
+	// Always include essential fields for protection changes
+	fields := make(map[string]any)
+
+	// Include any field updates if present
+	for field, newValue := range updateFields {
+		fields[field] = newValue
+	}
+
+	// ALWAYS include essential identification fields for protection changes
+	fields["name"] = current.Name
+	fields["id"] = current.ID
+
+	// Preserve namespace context for execution phase
+	if current.Labels != nil {
+		if namespace, exists := current.Labels[labels.NamespaceKey]; exists {
+			fields["namespace"] = namespace
+		}
+	}
+
+	// Preserve other critical labels that identify managed resources
+	if current.Labels != nil {
+		preservedLabels := make(map[string]string)
+		for key, value := range current.Labels {
+			// Preserve all KONGCTL- prefixed labels except protected (which will be updated)
+			if strings.HasPrefix(key, "KONGCTL-") && key != labels.ProtectedKey {
+				preservedLabels[key] = value
+			}
+		}
+		if len(preservedLabels) > 0 {
+			fields["preserved_labels"] = preservedLabels
+		}
+	}
+
+	change.Fields = fields
+
+	plan.AddChange(change)
 }
 
 func (p *Planner) shouldUpdateEGWControlPlaneResource(current state.EventGatewayControlPlane, desired resources.EventGatewayControlPlaneResource) (bool, map[string]any) {
@@ -281,6 +346,7 @@ func (p *Planner) planEGWControlPlaneDelete(egwControlPlane state.EventGatewayCo
 	config := DeleteConfig{
 		ResourceType: string(resources.ResourceTypeEventGatewayControlPlane),
 		ResourceName: egwControlPlane.Name,
+		ResourceRef:  egwControlPlane.Name,
 		ResourceID:   egwControlPlane.ID,
 		Namespace:    namespace,
 	}
