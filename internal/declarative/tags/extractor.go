@@ -25,7 +25,7 @@ func ExtractValue(data any, path string) (any, error) {
 			val = val.Elem()
 		}
 
-		switch val.Kind() { //nolint:exhaustive // We handle relevant types and have a default case
+		switch val.Kind() {
 		case reflect.Map:
 			// Handle map access
 			mapVal := val.MapIndex(reflect.ValueOf(part))
@@ -53,7 +53,30 @@ func ExtractValue(data any, path string) (any, error) {
 			// This avoids wasted assignments and keeps traversal logic consistent.
 			continue
 
-		default:
+		case reflect.Invalid,
+			reflect.Bool,
+			reflect.Int,
+			reflect.Int8,
+			reflect.Int16,
+			reflect.Int32,
+			reflect.Int64,
+			reflect.Uint,
+			reflect.Uint8,
+			reflect.Uint16,
+			reflect.Uint32,
+			reflect.Uint64,
+			reflect.Uintptr,
+			reflect.Float32,
+			reflect.Float64,
+			reflect.Complex64,
+			reflect.Complex128,
+			reflect.Array,
+			reflect.Chan,
+			reflect.Func,
+			reflect.Pointer,
+			reflect.Slice,
+			reflect.String,
+			reflect.UnsafePointer:
 			return nil, fmt.Errorf("cannot traverse path %s: unexpected type %v at '%s'",
 				path, val.Kind(), strings.Join(parts[:i], "."))
 		}
@@ -113,7 +136,7 @@ func GetAvailablePaths(data any, prefix string, maxDepth int) []string {
 		val = val.Elem()
 	}
 
-	switch val.Kind() { //nolint:exhaustive // We handle relevant types and have a default case
+	switch val.Kind() {
 	case reflect.Map:
 		for _, key := range val.MapKeys() {
 			keyStr := fmt.Sprintf("%v", key.Interface())
@@ -163,9 +186,33 @@ func GetAvailablePaths(data any, prefix string, maxDepth int) []string {
 			}
 		}
 
-	default:
-		// For other types (slices, arrays, scalars), we can't extract paths
-		// Just return the current path if any
+	case reflect.Invalid,
+		reflect.Bool,
+		reflect.Int,
+		reflect.Int8,
+		reflect.Int16,
+		reflect.Int32,
+		reflect.Int64,
+		reflect.Uint,
+		reflect.Uint8,
+		reflect.Uint16,
+		reflect.Uint32,
+		reflect.Uint64,
+		reflect.Uintptr,
+		reflect.Float32,
+		reflect.Float64,
+		reflect.Complex64,
+		reflect.Complex128,
+		reflect.Array,
+		reflect.Chan,
+		reflect.Func,
+		reflect.Interface,
+		reflect.Pointer,
+		reflect.Slice,
+		reflect.String,
+		reflect.UnsafePointer:
+		// For other types (slices, arrays, scalars), we can't extract paths.
+		// Just return the current path if any.
 		if prefix != "" {
 			paths = append(paths, prefix)
 		}

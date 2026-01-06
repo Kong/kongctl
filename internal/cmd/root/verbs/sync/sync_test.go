@@ -19,6 +19,7 @@ func TestNewSyncCmd(t *testing.T) {
 	}
 	if cmd == nil {
 		t.Fatal("NewSyncCmd should return a command")
+		return
 	}
 
 	// Test basic command properties

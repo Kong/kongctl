@@ -46,7 +46,7 @@ func (f *FileTagResolver) Resolve(node *yaml.Node) (any, error) {
 	// 2. String scalar with extraction: !file ./path/to/file.yaml#field.path
 	// 3. Mapping: !file {path: ./file.yaml, extract: info.title}
 
-	switch node.Kind { //nolint:exhaustive // We only support scalar and mapping nodes
+	switch node.Kind {
 	case yaml.ScalarNode:
 		// String format - supports both simple path and path#extract syntax
 		path := node.Value
@@ -73,9 +73,11 @@ func (f *FileTagResolver) Resolve(node *yaml.Node) (any, error) {
 
 		return f.loadFile(fileRef.Path, fileRef.Extract)
 
-	default:
+	case yaml.DocumentNode, yaml.SequenceNode, yaml.AliasNode:
 		return nil, fmt.Errorf("!file tag must be used with a string or map, got %v", node.Kind)
 	}
+
+	return nil, fmt.Errorf("!file tag must be used with a string or map, got %v", node.Kind)
 }
 
 // loadFile loads a file and optionally extracts a value
