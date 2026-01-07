@@ -46,7 +46,10 @@ func (a *EGWControlPlaneAPIImpl) CreateEGWControlPlane(ctx context.Context, requ
 	return a.SDK.EventGateways.CreateEventGateway(ctx, request, opts...)
 }
 
-func (a *EGWControlPlaneAPIImpl) UpdateEGWControlPlane(ctx context.Context, gatewayID string, request kkComps.UpdateGatewayRequest,
+func (a *EGWControlPlaneAPIImpl) UpdateEGWControlPlane(
+	ctx context.Context,
+	gatewayID string,
+	request kkComps.UpdateGatewayRequest,
 	opts ...kkOps.Option,
 ) (*kkOps.UpdateEventGatewayResponse, error) {
 	return a.SDK.EventGateways.UpdateEventGateway(ctx, gatewayID, request, opts...)

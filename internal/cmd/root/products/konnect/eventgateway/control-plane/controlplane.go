@@ -45,10 +45,10 @@ func NewEventGatewayControlPlaneCmd(verb verbs.VerbValue,
 	switch verb {
 	case verbs.Get:
 		return newGetEventGatewayControlPlaneCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
-	case verbs.Create, verbs.Add, verbs.Apply, verbs.Dump, verbs.Update, verbs.Help, verbs.Login,
+	case verbs.Create, verbs.Add, verbs.Apply, verbs.Dump, verbs.Update, verbs.Delete, verbs.List, verbs.Help, verbs.Login,
 		verbs.Plan, verbs.Sync, verbs.Diff, verbs.Export, verbs.Adopt, verbs.API, verbs.Kai, verbs.View, verbs.Logout:
 		return &baseCmd, nil
+	default:
+		return &baseCmd, nil
 	}
-
-	return &baseCmd, nil
 }

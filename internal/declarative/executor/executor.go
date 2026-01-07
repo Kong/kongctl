@@ -31,10 +31,13 @@ type Executor struct {
 	stateCache *state.Cache
 
 	// Resource executors
-	portalExecutor                   *BaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal]
-	controlPlaneExecutor             *BaseExecutor[kkComps.CreateControlPlaneRequest, kkComps.UpdateControlPlaneRequest]
-	apiExecutor                      *BaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest]
-	authStrategyExecutor             *BaseExecutor[kkComps.CreateAppAuthStrategyRequest, kkComps.UpdateAppAuthStrategyRequest]
+	portalExecutor       *BaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal]
+	controlPlaneExecutor *BaseExecutor[kkComps.CreateControlPlaneRequest, kkComps.UpdateControlPlaneRequest]
+	apiExecutor          *BaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest]
+	authStrategyExecutor *BaseExecutor[
+		kkComps.CreateAppAuthStrategyRequest,
+		kkComps.UpdateAppAuthStrategyRequest,
+	]
 	catalogServiceExecutor           *BaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService]
 	eventGatewayControlPlaneExecutor *BaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest]
 

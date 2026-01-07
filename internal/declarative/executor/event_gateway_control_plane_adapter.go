@@ -112,7 +112,9 @@ func (a *EventGatewayControlPlaneControlPlaneAdapter) Update(
 }
 
 // GetByID gets a event_gateway_control_plane by ID
-func (a *EventGatewayControlPlaneControlPlaneAdapter) GetByID(ctx context.Context, id string, _ *ExecutionContext) (ResourceInfo, error) {
+func (a *EventGatewayControlPlaneControlPlaneAdapter) GetByID(
+	ctx context.Context, id string, _ *ExecutionContext,
+) (ResourceInfo, error) {
 	eventGateway, err := a.client.GetEventGatewayControlPlaneByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -124,12 +126,16 @@ func (a *EventGatewayControlPlaneControlPlaneAdapter) GetByID(ctx context.Contex
 }
 
 // GetByName gets a event_gateway_control_plane by name
-func (a *EventGatewayControlPlaneControlPlaneAdapter) GetByName(ctx context.Context, name string) (ResourceInfo, error) {
-	// todo - why and fix
+func (a *EventGatewayControlPlaneControlPlaneAdapter) GetByName(
+	_ context.Context, _ string,
+) (ResourceInfo, error) {
+	// TODO - why and fix
 	return nil, nil
 }
 
-func (a *EventGatewayControlPlaneControlPlaneAdapter) Delete(ctx context.Context, id string, _ *ExecutionContext) error {
+func (a *EventGatewayControlPlaneControlPlaneAdapter) Delete(
+	ctx context.Context, id string, _ *ExecutionContext,
+) error {
 	return a.client.DeleteEventGatewayControlPlane(ctx, id)
 }
 

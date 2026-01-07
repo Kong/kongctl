@@ -137,15 +137,15 @@ func runList(kkClient helpers.EGWControlPlaneAPI, helper cmd.Helper,
 
 		if res.ListEventGatewaysResponse.Meta.Page.Next == nil {
 			break
-		} else {
-			u, err := url.Parse(*res.ListEventGatewaysResponse.Meta.Page.Next)
-			if err != nil {
-				return nil, cmd.PrepareExecutionError("Failed to list Event Gateways: invalid cursor", err, helper.GetCmd())
-			}
-
-			values := u.Query()
-			pageAfter = kk.String(values.Get("page[after]"))
 		}
+
+		u, err := url.Parse(*res.ListEventGatewaysResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, cmd.PrepareExecutionError("Failed to list Event Gateways: invalid cursor", err, helper.GetCmd())
+		}
+
+		values := u.Query()
+		pageAfter = kk.String(values.Get("page[after]"))
 	}
 
 	return allData, nil
@@ -156,7 +156,11 @@ func runGet(id string, kkClient helpers.EGWControlPlaneAPI, helper cmd.Helper,
 	res, err := kkClient.FetchEGWControlPlane(helper.GetContext(), id)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
-		return nil, cmd.PrepareExecutionError("Failed to get Event Gateway Control Plane", err, helper.GetCmd(), attrs...)
+		return nil, cmd.PrepareExecutionError(
+			"Failed to get Event Gateway Control Plane",
+			err,
+			helper.GetCmd(),
+			attrs...)
 	}
 
 	return res.GetEventGatewayInfo(), nil

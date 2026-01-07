@@ -3112,7 +3112,8 @@ func (c *Client) ListPortalTeamRoles(ctx context.Context, portalID string, teamI
 			})
 		}
 
-		if resp.AssignedPortalRoleCollectionResponse == nil || len(resp.AssignedPortalRoleCollectionResponse.Data) == 0 {
+		if resp.AssignedPortalRoleCollectionResponse == nil ||
+			len(resp.AssignedPortalRoleCollectionResponse.Data) == 0 {
 			break
 		}
 
@@ -3200,7 +3201,10 @@ func (c *Client) RemovePortalTeamRole(ctx context.Context, portalID string, team
 	return nil
 }
 
-func (c *Client) ListManagedEventGatewayControlPlanes(ctx context.Context, namespaces []string) ([]EventGatewayControlPlane, error) {
+func (c *Client) ListManagedEventGatewayControlPlanes(
+	ctx context.Context,
+	namespaces []string,
+) ([]EventGatewayControlPlane, error) {
 	var allData []kkComps.EventGatewayInfo
 	var pageAfter *string
 
@@ -3220,15 +3224,15 @@ func (c *Client) ListManagedEventGatewayControlPlanes(ctx context.Context, names
 
 		if res.ListEventGatewaysResponse.Meta.Page.Next == nil {
 			break
-		} else {
-			u, err := url.Parse(*res.ListEventGatewaysResponse.Meta.Page.Next)
-			if err != nil {
-				return nil, WrapAPIError(err, "list event gateway control planes: invalid cursor", nil)
-			}
-
-			values := u.Query()
-			pageAfter = kk.String(values.Get("page[after]"))
 		}
+
+		u, err := url.Parse(*res.ListEventGatewaysResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway control planes: invalid cursor", nil)
+		}
+
+		values := u.Query()
+		pageAfter = kk.String(values.Get("page[after]"))
 	}
 
 	var filteredEGWControlPlanes []EventGatewayControlPlane
@@ -3248,7 +3252,11 @@ func (c *Client) ListManagedEventGatewayControlPlanes(ctx context.Context, names
 	return filteredEGWControlPlanes, nil
 }
 
-func (c *Client) CreateEventGatewayControlPlane(ctx context.Context, req kkComps.CreateGatewayRequest, namespace string) (string, error) {
+func (c *Client) CreateEventGatewayControlPlane(
+	ctx context.Context,
+	req kkComps.CreateGatewayRequest,
+	namespace string,
+) (string, error) {
 	resp, err := c.egwControlPlaneAPI.CreateEGWControlPlane(ctx, req)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway control plane", &ErrorWrapperOptions{
@@ -3266,7 +3274,12 @@ func (c *Client) CreateEventGatewayControlPlane(ctx context.Context, req kkComps
 	return resp.EventGatewayInfo.ID, nil
 }
 
-func (c *Client) UpdateEventGatewayControlPlane(ctx context.Context, id string, req kkComps.UpdateGatewayRequest, namespace string) (string, error) {
+func (c *Client) UpdateEventGatewayControlPlane(
+	ctx context.Context,
+	id string,
+	req kkComps.UpdateGatewayRequest,
+	namespace string,
+) (string, error) {
 	resp, err := c.egwControlPlaneAPI.UpdateEGWControlPlane(ctx, id, req)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway control plane", &ErrorWrapperOptions{

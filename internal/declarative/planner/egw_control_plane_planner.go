@@ -22,8 +22,10 @@ func NewEGWControlPlanePlanner(planner *BasePlanner, resources *resources.Resour
 	}
 }
 
-func (p *EGWControlPlanePlannerImpl) GetDesiredEGWControlPlanes(namespace string) []resources.EventGatewayControlPlaneResource {
-	return p.BasePlanner.GetDesiredEventGatewayControlPlanes(namespace)
+func (p *EGWControlPlanePlannerImpl) GetDesiredEGWControlPlanes(
+	namespace string,
+) []resources.EventGatewayControlPlaneResource {
+	return p.GetDesiredEventGatewayControlPlanes(namespace)
 }
 
 func (p *EGWControlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
@@ -36,7 +38,12 @@ func (p *EGWControlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx
 	return nil
 }
 
-func (p *Planner) planEGWControlPlaneChanges(ctx context.Context, plannerCtx *Config, desired []resources.EventGatewayControlPlaneResource, plan *Plan) error {
+func (p *Planner) planEGWControlPlaneChanges(
+	ctx context.Context,
+	plannerCtx *Config,
+	desired []resources.EventGatewayControlPlaneResource,
+	plan *Plan,
+) error {
 	// Skip if no API resources to plan and not in sync mode
 	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
 		p.logger.Debug("Skipping API planning - no desired APIs")
@@ -100,14 +107,17 @@ func (p *Planner) planEGWControlPlaneChanges(ctx context.Context, plannerCtx *Co
 				if err != nil {
 					protectionErrors = append(protectionErrors, err)
 				} else {
-					p.planEGWControlPlaneProtectionChangeWithFields(current, desiredEGWCP, isProtected, shouldProtect, updateFields, plan)
+					p.planEGWControlPlaneProtectionChangeWithFields(
+						current, desiredEGWCP, isProtected, shouldProtect, updateFields, plan)
 				}
 			} else {
 				// Check if update needed based on configuration
 				needsUpdate, updateFields := p.shouldUpdateEGWControlPlaneResource(current, desiredEGWCP)
 				if needsUpdate {
 					// Regular update - check protection
-					if err := p.validateProtection("event-gateway-control-plane", desiredEGWCP.Name, isProtected, ActionUpdate); err != nil {
+					if err := p.validateProtection(
+						"event-gateway-control-plane", desiredEGWCP.Name, isProtected, ActionUpdate,
+					); err != nil {
 						protectionErrors = append(protectionErrors, err)
 					} else {
 						p.planEGWControlPlaneUpdateWithFields(current, desiredEGWCP, updateFields, plan)
@@ -216,7 +226,10 @@ func (p *Planner) planEGWControlPlaneProtectionChangeWithFields(
 	plan.AddChange(change)
 }
 
-func (p *Planner) shouldUpdateEGWControlPlaneResource(current state.EventGatewayControlPlane, desired resources.EventGatewayControlPlaneResource) (bool, map[string]any) {
+func (p *Planner) shouldUpdateEGWControlPlaneResource(
+	current state.EventGatewayControlPlane,
+	desired resources.EventGatewayControlPlaneResource,
+) (bool, map[string]any) {
 	updates := make(map[string]any)
 
 	if desired.Name != current.Name {
@@ -243,7 +256,10 @@ func (p *Planner) shouldUpdateEGWControlPlaneResource(current state.EventGateway
 	return len(updates) > 0, updates
 }
 
-func (p *Planner) planEGWControlPlaneCreate(egwControlPlane resources.EventGatewayControlPlaneResource, plan *Plan) string {
+func (p *Planner) planEGWControlPlaneCreate(
+	egwControlPlane resources.EventGatewayControlPlaneResource,
+	plan *Plan,
+) string {
 	var protection any
 	if egwControlPlane.Kongctl != nil && egwControlPlane.Kongctl.Protected != nil {
 		protection = *egwControlPlane.Kongctl.Protected
