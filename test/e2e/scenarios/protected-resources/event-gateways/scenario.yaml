@@ -61,7 +61,7 @@ steps:
               fields:
                 name: "My Protected Event Gateway CP"
                 labels."KONGCTL-protected": "true"
-                labels."KONGCTL-namespace": "default"
+                labels."KONGCTL-namespace": "egw-protection"
 
   # Step 2: Attempt to delete protected resource (should fail)
   - name: 002-attempt-delete-protected
@@ -134,7 +134,7 @@ steps:
           - select: "[?name=='{{ .vars.protectedEventGatewayName }}'] | [0]"
             expect:
               fields:
-                labels."KONGCTL-namespace": "default"
+                labels."KONGCTL-namespace": "egw-protection"
 
   # Step 4: Delete now-unprotected resource (should succeed)
   - name: 004-delete-unprotected

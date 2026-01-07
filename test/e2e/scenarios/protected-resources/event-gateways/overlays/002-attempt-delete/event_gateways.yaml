@@ -4,6 +4,6 @@
 
 _defaults:
   kongctl:
-    namespace: default
+    namespace: "egw-protection"
 
 event_gateway_control_planes: []

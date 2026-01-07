@@ -3,7 +3,7 @@
 
 _defaults:
   kongctl:
-    namespace: default
+    namespace: "egw-protection"
 
 event_gateway_control_planes:
   - ref: egw-protected-top-level
@@ -13,5 +13,5 @@ event_gateway_control_planes:
       owner: "platform"
       lifecycle: "dev"
     kongctl:
-      namespace: "default"
+      namespace: "egw-protection"
       protected: false

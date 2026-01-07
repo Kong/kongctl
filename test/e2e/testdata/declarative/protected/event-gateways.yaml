@@ -6,5 +6,5 @@ event_gateway_control_planes:
       owner: "platform"
       lifecycle: "dev"
     kongctl:
-      namespace: "default"
+      namespace: "egw-protection"
       protected: true
