@@ -243,8 +243,8 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	}
 	cmd.AddCommand(rc)
 
-	// Add eventGatewayControlPlane command
-	egcpc, e := eventgateway.NewEventGatewayControlPlaneCmd(verb, addFlags, preRunE)
+	// Add EventGateway command
+	egcpc, e := eventgateway.NewEventGatewayCmd(verb, addFlags, preRunE)
 	if e != nil {
 		return nil, e
 	}

@@ -156,7 +156,7 @@ Setting this value overrides tokens obtained from the login command.
 	}
 	cmd.AddCommand(regionsCmd)
 
-	eventGatewayControlPlaneCmd, err := NewDirectEventGatewayControlPlaneCmd()
+	eventGatewayControlPlaneCmd, err := NewDirectEventGatewayCmd()
 	if err != nil {
 		return nil, err
 	}

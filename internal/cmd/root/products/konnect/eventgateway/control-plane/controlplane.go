@@ -1,4 +1,4 @@
-package eventgateway
+package controlplane
 
 import (
 	"fmt"
@@ -11,28 +11,22 @@ import (
 )
 
 const (
-	CommandName = "eventgatewaycontrolplane"
+	CommandName = "control-plane"
 )
 
 var (
 	eventGatewayControlPlaneUse   = CommandName
-	eventGatewayControlPlaneShort = i18n.T("root.products.konnect.eventgateway.eventGatewayControlPlaneShort",
+	eventGatewayControlPlaneShort = i18n.T("root.products.konnect.event-gateway.controlPlaneShort",
 		"Manage Konnect event gateway control plane resources")
-	eventGatewayControlPlaneLong = normalizers.LongDesc(i18n.T("root.products.konnect.eventgateway.eventGatewayControlPlaneLong",
+	eventGatewayControlPlaneLong = normalizers.LongDesc(i18n.T("root.products.konnect.event-gateway.controlPlaneLong",
 		`The event gateway control plane command allows you to work with Konnect event gateway control plane resources.`))
 	eventGatewayControlPlaneExample = normalizers.Examples(
-		i18n.T("root.products.konnect.eventgateway.eventGatewayControlPlaneExamples",
+		i18n.T("root.products.konnect.event-gateway.controlPlaneExamples",
 			fmt.Sprintf(`
 # List all the Konnect event gateway control planes for the organization
-%[1]s get eventgatewaycontrolplanes
+%[1]s get event-gateway control-planes
 # Get a specific Konnect event gateway control plane
-%[1]s get eventgatewaycontrolplane <id|name>
-# List portal pages
-%[1]s get portal pages --portal-id <portal-id>
-# List portal applications
-%[1]s get portal applications --portal-id <portal-id>
-# List portals using explicit konnect product
-%[1]s get konnect portals
+%[1]s get event-gateway control-plane <id|name>
 `, meta.CLIName)))
 )
 
@@ -45,7 +39,7 @@ func NewEventGatewayControlPlaneCmd(verb verbs.VerbValue,
 		Short:   eventGatewayControlPlaneShort,
 		Long:    eventGatewayControlPlaneLong,
 		Example: eventGatewayControlPlaneExample,
-		Aliases: []string{"eventgatewaycontrolplanes", "p", "ps", "P", "PS"},
+		Aliases: []string{"control-planes", "cp", "cps", "CP", "CPS"},
 	}
 
 	switch verb {

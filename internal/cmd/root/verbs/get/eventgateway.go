@@ -14,8 +14,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewDirectEventGatewayControlPlaneCmd creates an Event Gateway Control Plane command that works at the root level (Konnect-first)
-func NewDirectEventGatewayControlPlaneCmd() (*cobra.Command, error) {
+// NewDirectEventGatewayCmd creates an Event Gateway Control Plane command that works at the root level (Konnect-first)
+func NewDirectEventGatewayCmd() (*cobra.Command, error) {
 	// Define the addFlags function to add Konnect-specific flags
 	addFlags := func(verb verbs.VerbValue, cmd *cobra.Command) {
 		cmd.Flags().String(common.BaseURLFlagName, "",
@@ -56,34 +56,27 @@ Setting this value overrides tokens obtained from the login command.
 		c.SetContext(ctx)
 
 		// Bind flags
-		return bindEventGatewayControlPlaneFlags(c, args)
+		return bindEventGatewayFlags(c, args)
 	}
 
 	// Create the Event Gateway Control Plane command using the existing api package
-	eventGatewayCmd, err := eventgateway.NewEventGatewayControlPlaneCmd(verbs.Get, addFlags, preRunE)
+	eventGatewayCmd, err := eventgateway.NewEventGatewayCmd(verbs.Get, addFlags, preRunE)
 	if err != nil {
 		return nil, err
 	}
 
 	// Override the example to show direct usage without "konnect"
 	eventGatewayCmd.Example = `  # List all the Event Gateways for the organization
-  kongctl get eventgatewaycontrolplanes
+  kongctl get event-gateway control-planes
   # Get a specific Event Gateway
-  kongctl get eventgatewaycontrolplane <id|name>
-  # List documents for a specific Event Gateway
-  kongctl get eventgatewaycontrolplane documents --eventgatewaycontrolplane-id <eventgatewaycontrolplane-id>
-  # List versions for a specific API
-  kongctl get api versions --api-id <api-id>
-  # List publications for a specific API
-  kongctl get api publications --api-id <api-id>
-  # List APIs using aliases
-  kongctl get apis`
+  kongctl get event-gateway control-plane <id|name>
+  `
 
 	return eventGatewayCmd, nil
 }
 
-// bindEventGatewayControlPlaneFlags binds Konnect-specific flags to configuration
-func bindEventGatewayControlPlaneFlags(c *cobra.Command, args []string) error {
+// bindEventGatewayFlags binds Konnect-specific flags to configuration
+func bindEventGatewayFlags(c *cobra.Command, args []string) error {
 	helper := cmd.BuildHelper(c, args)
 	cfg, err := helper.GetConfig()
 	if err != nil {

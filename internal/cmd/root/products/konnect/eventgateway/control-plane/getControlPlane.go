@@ -1,4 +1,4 @@
-package eventgateway
+package controlplane
 
 import (
 	"fmt"
@@ -13,7 +13,6 @@ import (
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
-	"github.com/kong/kongctl/internal/cmd/root/products/konnect/navigator"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -26,21 +25,21 @@ import (
 )
 
 var (
-	getEventGatewayControlPlanesShort = i18n.T("root.products.konnect.api.getEventGatewayControlPlanesShort",
-		"List or get Konnect APIs")
-	getEventGatewayControlPlanesLong = i18n.T("root.products.konnect.api.getEventGatewayControlPlanesLong",
-		`Use the get verb with the api command to query Konnect APIs.`)
+	getEventGatewayControlPlanesShort = i18n.T("root.products.konnect.event-gateway.control-plane.getEventGatewayControlPlanesShort",
+		"List or get Konnect Event Gateway Control Planes")
+	getEventGatewayControlPlanesLong = i18n.T("root.products.konnect.event-gateway.control-plane.getEventGatewayControlPlanesLong",
+		`Use the get verb with the event-gateway control-plane command to query Konnect Event Gateway Control Planes.`)
 	getEventGatewayControlPlanesExample = normalizers.Examples(
-		i18n.T("root.products.konnect.api.getEventGatewayControlPlanesExamples",
+		i18n.T("root.products.konnect.event-gateway.control-plane.getEventGatewayControlPlanesExamples",
 			fmt.Sprintf(`
 	# List all the Event gateway control planes for the organization
-	%[1]s get eventgatewaycontrolplanes
+	%[1]s get event-gateway control-planes
 	# Get details for an Event gateway control plane with a specific ID 
-	%[1]s get eventgatewaycontrolplane 22cd8a0b-72e7-4212-9099-0764f8e9c5ac
+	%[1]s get event-gateway control-plane 22cd8a0b-72e7-4212-9099-0764f8e9c5ac
 	# Get details for an Event gateway control plane with a specific name
-	%[1]s get eventgatewaycontrolplane my-eventgatewaycontrolplane
+	%[1]s get event-gateway control-plane my-eventgatewaycontrolplane
 	# Get all the Event gateway control planes using command aliases
-	%[1]s get eventgatewaycontrolplanes
+	%[1]s get egw cp
 	`, meta.CLIName)))
 )
 
@@ -85,106 +84,12 @@ func eventGatewayControlPlaneToDisplayRecord(e *kkComps.EventGatewayInfo) textDi
 	}
 }
 
-/*
-func eventGatewayControlPlaneDetailView(eventGateway *kkComps.EventGatewayInfo) string {
-	if eventGateway == nil {
-		return ""
-	}
-
-	const missing = "n/a"
-	id := strings.TrimSpace(eventGateway.ID)
-	if id == "" {
-		id = missing
-	}
-	name := strings.TrimSpace(eventGateway.Name)
-	if name == "" {
-		name = missing
-	}
-
-	type detailField struct {
-		label     string
-		value     string
-		multiline bool
-	}
-
-	var fields []detailField
-
-	addField := func(label, value string) {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			return
-		}
-		fields = append(fields, detailField{
-			label: label,
-			value: value,
-		})
-	}
-
-	addMultiline := func(label, value string) {
-		value = strings.TrimRight(value, "\n")
-		if strings.TrimSpace(value) == "" {
-			return
-		}
-		fields = append(fields, detailField{
-			label:     label,
-			value:     value,
-			multiline: true,
-		})
-	}
-
-	if eventGateway.Description != nil && *eventGateway.Description != "" {
-		description := strings.TrimSpace(*eventGateway.Description)
-		if description != "" {
-			const wrapWidth = 80
-			addMultiline("description", wordwrap.String(description, wrapWidth))
-		}
-	}
-
-	if labels := eventGateway.GetLabels(); len(labels) > 0 {
-		keys := make([]string, 0, len(labels))
-		for k := range labels {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		var sb strings.Builder
-		for _, k := range keys {
-			fmt.Fprintf(&sb, "  %s: %s\n", k, labels[k])
-		}
-		addMultiline("labels", sb.String())
-	}
-
-	addField("created_at", eventGateway.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
-	addField("updated_at", eventGateway.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05"))
-
-	sort.Slice(fields, func(i, j int) bool {
-		li := strings.ToLower(fields[i].label)
-		lj := strings.ToLower(fields[j].label)
-		if li == lj {
-			return fields[i].label < fields[j].label
-		}
-		return li < lj
-	})
-
-	var b strings.Builder
-	fmt.Fprintf(&b, "id: %s\n", id)
-	fmt.Fprintf(&b, "name: %s\n", name)
-	for _, field := range fields {
-		if field.multiline {
-			value := strings.TrimRight(field.value, "\n")
-			fmt.Fprintf(&b, "%s:\n%s\n", field.label, value)
-			continue
-		}
-		fmt.Fprintf(&b, "%s: %s\n", field.label, field.value)
-	}
-
-	return b.String()
-}
-*/
-
 type getEventGatewayControlPlaneCmd struct {
 	*cobra.Command
 }
 
+// runListByName retrieves an Event Gateway Control Plane by its name
+// Todo: Since the API does not support filtering by name, we fetch all and filter locally
 func runListByName(name string, kkClient helpers.EGWControlPlaneAPI, helper cmd.Helper,
 	cfg config.Hook,
 ) (*kkComps.EventGatewayInfo, error) {
@@ -246,12 +151,10 @@ func runList(kkClient helpers.EGWControlPlaneAPI, helper cmd.Helper,
 
 func runGet(id string, kkClient helpers.EGWControlPlaneAPI, helper cmd.Helper,
 ) (*kkComps.EventGatewayInfo, error) {
-	// Note: FetchAPI doesn't support include parameters
-	// Version and publication information would require separate API calls
 	res, err := kkClient.FetchEGWControlPlane(helper.GetContext(), id)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
-		return nil, cmd.PrepareExecutionError("Failed to get API", err, helper.GetCmd(), attrs...)
+		return nil, cmd.PrepareExecutionError("Failed to get Event Gateway Control Plane", err, helper.GetCmd(), attrs...)
 	}
 
 	return res.GetEventGatewayInfo(), nil
@@ -319,10 +222,10 @@ func (c *getEventGatewayControlPlaneCmd) runE(cobraCmd *cobra.Command, args []st
 		return e
 	}
 
-	// 'get eventgateways' can be run in various ways:
-	//	> get eventgateways <id>    # Get by UUID
-	//  > get eventgateways <name>	# Get by name
-	//  > get eventgateways         # List all
+	// 'get event-gateway control-planes' can be run in various ways:
+	//	> get event-gateway control-planes <id>    # Get by UUID
+	//  > get event-gateway control-planes <name>	# Get by name
+	//  > get event-gateway control-planes         # List all
 	if len(helper.GetArgs()) == 1 { // validate above checks that args is 0 or 1
 		id := strings.TrimSpace(helper.GetArgs()[0])
 
@@ -375,10 +278,6 @@ func (c *getEventGatewayControlPlaneCmd) runE(cobraCmd *cobra.Command, args []st
 				return eventGatewayControlPlane
 			}),
 		)
-	}
-
-	if interactive {
-		return navigator.Run(helper, navigator.Options{InitialResource: "apis"})
 	}
 
 	eventGatewayControlPlanes, e := runList(sdk.GetEventGatewayControlPlaneAPI(), helper, cfg)
