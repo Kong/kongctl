@@ -167,19 +167,11 @@ func (h apiDocumentsHandler) run(args []string) error {
 		return err
 	}
 
-	interactive, err := helper.IsInteractive()
+	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
 	if err != nil {
 		return err
 	}
-
-	var printer cli.PrintFlusher
-	if !interactive {
-		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
-		if err != nil {
-			return err
-		}
-		defer printer.Flush()
-	}
+	defer printer.Flush()
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -215,18 +207,16 @@ func (h apiDocumentsHandler) run(args []string) error {
 	}
 
 	if len(args) == 1 {
-		return h.getSingleDocument(helper, apiDocAPI, apiID, args[0], interactive, outType, printer)
+		return h.getSingleDocument(helper, apiDocAPI, apiID, args[0],  outType, printer)
 	}
 
-	return h.listDocuments(helper, apiDocAPI, apiID, interactive, outType, printer)
+	return h.listDocuments(helper, apiDocAPI, apiID,  outType, printer)
 }
 
 func (h apiDocumentsHandler) listDocuments(
 	helper cmd.Helper,
 	apiDocAPI helpers.APIDocumentAPI,
-	apiID string,
-	interactive bool,
-	outType cmdCommon.OutputFormat,
+	apiID string, outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 ) error {
 	docs, err := fetchDocumentSummaries(helper, apiDocAPI, apiID)
@@ -256,8 +246,8 @@ func (h apiDocumentsHandler) listDocuments(
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
-		outType,
+			false,
+			outType,
 		printer,
 		helper.GetStreams(),
 		records,
@@ -286,9 +276,7 @@ func (h apiDocumentsHandler) getSingleDocument(
 	helper cmd.Helper,
 	apiDocAPI helpers.APIDocumentAPI,
 	apiID string,
-	identifier string,
-	interactive bool,
-	outType cmdCommon.OutputFormat,
+	identifier string, outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 ) error {
 	documentID := strings.TrimSpace(identifier)
@@ -353,8 +341,8 @@ func (h apiDocumentsHandler) getSingleDocument(
 	cache.Set(doc.GetID(), detailRecord)
 
 	return tableview.RenderForFormat(
-		interactive,
-		outType,
+			false,
+			outType,
 		printer,
 		helper.GetStreams(),
 		[]apiDocumentSummaryRecord{record},

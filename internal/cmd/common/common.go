@@ -36,10 +36,6 @@ const (
 	OutputFlagShort     = "o"
 	OutputConfigPath    = OutputFlagName
 
-	// related to the --interactive flag
-	InteractiveFlagName  = "interactive"
-	InteractiveFlagShort = "i"
-
 	// related to the --color flag
 	ColorFlagName    = "color"
 	ColorConfigPath  = ColorFlagName

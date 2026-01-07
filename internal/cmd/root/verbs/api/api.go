@@ -337,11 +337,7 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 	if err != nil {
 		return err
 	}
-	interactive, err := helper.IsInteractive()
-	if err != nil {
-		return err
-	}
-	if interactive || outType == cmdcommon.TEXT {
+	if outType == cmdcommon.TEXT {
 		return &cmd.ConfigurationError{
 			Err: fmt.Errorf("%s command supports only json or yaml output formats (received %q)",
 				helper.GetCmd().CommandPath(), outType.String()),

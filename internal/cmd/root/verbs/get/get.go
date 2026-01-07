@@ -5,10 +5,8 @@ import (
 	"fmt"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
-	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
-	"github.com/kong/kongctl/internal/cmd/root/products/konnect/navigator"
 	profileCmd "github.com/kong/kongctl/internal/cmd/root/profile"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
@@ -86,24 +84,10 @@ Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`,
 			common.RequestPageSizeConfigPath))
 
-	cmd.PersistentFlags().BoolP(
-		cmdCommon.InteractiveFlagName,
-		cmdCommon.InteractiveFlagShort,
-		false,
-		i18n.T("root.verbs.get.flags.interactive", "Launch the interactive resource browser."),
-	)
-
 	cmd.RunE = func(c *cobra.Command, args []string) error {
 		helper := cmdpkg.BuildHelper(c, args)
 		if _, err := helper.GetOutputFormat(); err != nil {
 			return err
-		}
-		interactive, err := helper.IsInteractive()
-		if err != nil {
-			return err
-		}
-		if interactive {
-			return navigator.Run(helper, navigator.Options{})
 		}
 		return c.Help()
 	}

@@ -172,19 +172,11 @@ func (h portalPagesHandler) run(args []string) error {
 		return err
 	}
 
-	interactive, err := helper.IsInteractive()
+	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
 	if err != nil {
 		return err
 	}
-
-	var printer cli.PrintFlusher
-	if !interactive {
-		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
-		if err != nil {
-			return err
-		}
-		defer printer.Flush()
-	}
+	defer printer.Flush()
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -224,18 +216,16 @@ func (h portalPagesHandler) run(args []string) error {
 	}
 
 	if len(args) == 1 {
-		return h.getSinglePage(helper, pageAPI, portalID, strings.TrimSpace(args[0]), interactive, outType, printer)
+		return h.getSinglePage(helper, pageAPI, portalID, strings.TrimSpace(args[0]), outType, printer)
 	}
 
-	return h.listPages(helper, pageAPI, portalID, interactive, outType, printer)
+	return h.listPages(helper, pageAPI, portalID, outType, printer)
 }
 
 func (h portalPagesHandler) listPages(
 	helper cmd.Helper,
 	pageAPI helpers.PortalPageAPI,
-	portalID string,
-	interactive bool,
-	outType cmdCommon.OutputFormat,
+	portalID string, outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 ) error {
 	pages, err := fetchPortalPageSummaries(helper, pageAPI, portalID)
@@ -268,7 +258,7 @@ func (h portalPagesHandler) listPages(
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
+		false,
 		outType,
 		printer,
 		helper.GetStreams(),
@@ -297,9 +287,7 @@ func (h portalPagesHandler) getSinglePage(
 	helper cmd.Helper,
 	pageAPI helpers.PortalPageAPI,
 	portalID string,
-	identifier string,
-	interactive bool,
-	outType cmdCommon.OutputFormat,
+	identifier string, outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 ) error {
 	pageID := identifier
@@ -344,7 +332,7 @@ func (h portalPagesHandler) getSinglePage(
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
+		false,
 		outType,
 		printer,
 		helper.GetStreams(),

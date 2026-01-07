@@ -125,19 +125,11 @@ func (h portalTeamRolesHandler) run(args []string) error {
 		return err
 	}
 
-	interactive, err := helper.IsInteractive()
+	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
 	if err != nil {
 		return err
 	}
-
-	var printer cli.PrintFlusher
-	if !interactive {
-		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
-		if err != nil {
-			return err
-		}
-		defer printer.Flush()
-	}
+	defer printer.Flush()
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -262,13 +254,11 @@ func (h portalTeamRolesHandler) run(args []string) error {
 		}
 	}
 
-	return renderTeamRoles(helper, interactive, outType, printer, records)
+	return renderTeamRoles(helper, outType, printer, records)
 }
 
 func renderTeamRoles(
-	helper cmd.Helper,
-	interactive bool,
-	outType cmdCommon.OutputFormat,
+	helper cmd.Helper, outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	records []portalTeamRoleRecord,
 ) error {
@@ -283,7 +273,7 @@ func renderTeamRoles(
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
+		false,
 		outType,
 		printer,
 		helper.GetStreams(),

@@ -14,7 +14,6 @@ import (
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
-	"github.com/kong/kongctl/internal/cmd/root/products/konnect/navigator"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -365,19 +364,11 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	interactive, err := helper.IsInteractive()
+	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
 	if err != nil {
 		return err
 	}
-
-	var printer cli.PrintFlusher
-	if !interactive {
-		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
-		if err != nil {
-			return err
-		}
-		defer printer.Flush()
-	}
+	defer printer.Flush()
 
 	cfg, err := helper.GetConfig()
 	if err != nil {
@@ -413,7 +404,7 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 				return portalListDetailView(portal)
 			}
 			return tableview.RenderForFormat(
-				interactive,
+				false,
 				outType,
 				printer,
 				helper.GetStreams(),
@@ -442,7 +433,7 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 			return portalResponseDetailView(portalResponse)
 		}
 		return tableview.RenderForFormat(
-			interactive,
+			false,
 			outType,
 			printer,
 			helper.GetStreams(),
@@ -461,22 +452,17 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		)
 	}
 
-	if interactive {
-		return navigator.Run(helper, navigator.Options{InitialResource: "portals"})
-	}
-
 	portals, err := runList(sdk.GetPortalAPI(), helper, cfg)
 	if err != nil {
 		return err
 	}
 
-	return renderPortalList(helper, helper.GetCmd().Name(), interactive, outType, printer, portals)
+	return renderPortalList(helper, helper.GetCmd().Name(), outType, printer, portals)
 }
 
 func renderPortalList(
 	helper cmd.Helper,
 	rootLabel string,
-	interactive bool,
 	outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	portals []kkComps.ListPortalsResponsePortal,
@@ -501,7 +487,7 @@ func renderPortalList(
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
+		false,
 		outType,
 		printer,
 		helper.GetStreams(),

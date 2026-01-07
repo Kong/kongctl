@@ -13,7 +13,6 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/me"
-	"github.com/kong/kongctl/internal/cmd/root/products/konnect/navigator"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/portal"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/regions"
@@ -248,13 +247,6 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 			helper := cmdpkg.BuildHelper(c, args)
 			if _, err := helper.GetOutputFormat(); err != nil {
 				return err
-			}
-			interactive, err := helper.IsInteractive()
-			if err != nil {
-				return err
-			}
-			if interactive {
-				return navigator.Run(helper, navigator.Options{})
 			}
 			return c.Help()
 		}

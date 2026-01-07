@@ -134,19 +134,11 @@ func (h portalApplicationsHandler) run(args []string) error {
 		return err
 	}
 
-	interactive, err := helper.IsInteractive()
+	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
 	if err != nil {
 		return err
 	}
-
-	var printer cli.PrintFlusher
-	if !interactive {
-		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
-		if err != nil {
-			return err
-		}
-		defer printer.Flush()
-	}
+	defer printer.Flush()
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -192,22 +184,19 @@ func (h portalApplicationsHandler) run(args []string) error {
 			appAPI,
 			portalID,
 			appIdentifier,
-			interactive,
 			outType,
 			printer,
 			cfg,
 		)
 	}
 
-	return h.listApplications(helper, appAPI, portalID, interactive, outType, printer, cfg)
+	return h.listApplications(helper, appAPI, portalID, outType, printer, cfg)
 }
 
 func (h portalApplicationsHandler) listApplications(
 	helper cmd.Helper,
 	appAPI helpers.PortalApplicationAPI,
-	portalID string,
-	interactive bool,
-	outType cmdCommon.OutputFormat,
+	portalID string, outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
@@ -234,7 +223,7 @@ func (h portalApplicationsHandler) listApplications(
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
+		false,
 		outType,
 		printer,
 		helper.GetStreams(),
@@ -251,9 +240,7 @@ func (h portalApplicationsHandler) getSingleApplication(
 	helper cmd.Helper,
 	appAPI helpers.PortalApplicationAPI,
 	portalID string,
-	identifier string,
-	interactive bool,
-	outType cmdCommon.OutputFormat,
+	identifier string, outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
@@ -287,7 +274,7 @@ func (h portalApplicationsHandler) getSingleApplication(
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
+		false,
 		outType,
 		printer,
 		helper.GetStreams(),

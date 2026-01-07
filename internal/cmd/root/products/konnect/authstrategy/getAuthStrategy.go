@@ -14,7 +14,6 @@ import (
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
-	"github.com/kong/kongctl/internal/cmd/root/products/konnect/navigator"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -457,19 +456,11 @@ func (c *getAuthStrategyCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		return err
 	}
 
-	interactive, err := helper.IsInteractive()
+	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
 	if err != nil {
 		return err
 	}
-
-	var printer cli.PrintFlusher
-	if !interactive {
-		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
-		if err != nil {
-			return err
-		}
-		defer printer.Flush()
-	}
+	defer printer.Flush()
 
 	cfg, err := helper.GetConfig()
 	if err != nil {
@@ -498,7 +489,7 @@ func (c *getAuthStrategyCmd) runE(cobraCmd *cobra.Command, args []string) error 
 				return err
 			}
 			return tableview.RenderForFormat(
-				interactive,
+				false,
 				outType,
 				printer,
 				helper.GetStreams(),
@@ -513,7 +504,7 @@ func (c *getAuthStrategyCmd) runE(cobraCmd *cobra.Command, args []string) error 
 			return err
 		}
 		return tableview.RenderForFormat(
-			interactive,
+			false,
 			outType,
 			printer,
 			helper.GetStreams(),
@@ -524,9 +515,6 @@ func (c *getAuthStrategyCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		)
 	}
 
-	if interactive {
-		return navigator.Run(helper, navigator.Options{InitialResource: "application-auth-strategies"})
-	}
 
 	strategies, err := runList(c.strategyType, sdk.GetAppAuthStrategiesAPI(), helper, cfg)
 	if err != nil {
@@ -536,14 +524,12 @@ func (c *getAuthStrategyCmd) runE(cobraCmd *cobra.Command, args []string) error 
 	for i := range strategies {
 		displayRecords[i] = authStrategyToDisplayRecord(strategies[i])
 	}
-	return renderAuthStrategyList(helper, helper.GetCmd().Name(), interactive, outType, printer, strategies)
+	return renderAuthStrategyList(helper, helper.GetCmd().Name(), outType, printer, strategies)
 }
 
 func renderAuthStrategyList(
 	helper cmd.Helper,
-	rootLabel string,
-	interactive bool,
-	outType cmdCommon.OutputFormat,
+	rootLabel string, outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	strategies []kkComps.AppAuthStrategy,
 ) error {
@@ -569,7 +555,7 @@ func renderAuthStrategyList(
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
+		false,
 		outType,
 		printer,
 		helper.GetStreams(),

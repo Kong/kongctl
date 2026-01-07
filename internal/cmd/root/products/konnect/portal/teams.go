@@ -123,19 +123,11 @@ func (h portalTeamsHandler) run(args []string) error {
 		return err
 	}
 
-	interactive, err := helper.IsInteractive()
+	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
 	if err != nil {
 		return err
 	}
-
-	var printer cli.PrintFlusher
-	if !interactive {
-		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
-		if err != nil {
-			return err
-		}
-		defer printer.Flush()
-	}
+	defer printer.Flush()
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -180,22 +172,19 @@ func (h portalTeamsHandler) run(args []string) error {
 			teamAPI,
 			portalID,
 			strings.TrimSpace(args[0]),
-			interactive,
 			outType,
 			printer,
 			cfg,
 		)
 	}
 
-	return h.listTeams(helper, teamAPI, portalID, interactive, outType, printer, cfg)
+	return h.listTeams(helper, teamAPI, portalID, outType, printer, cfg)
 }
 
 func (h portalTeamsHandler) listTeams(
 	helper cmd.Helper,
 	teamAPI helpers.PortalTeamAPI,
-	portalID string,
-	interactive bool,
-	outType cmdCommon.OutputFormat,
+	portalID string, outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
@@ -222,7 +211,7 @@ func (h portalTeamsHandler) listTeams(
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
+		false,
 		outType,
 		printer,
 		helper.GetStreams(),
@@ -239,9 +228,7 @@ func (h portalTeamsHandler) getSingleTeam(
 	helper cmd.Helper,
 	teamAPI helpers.PortalTeamAPI,
 	portalID string,
-	identifier string,
-	interactive bool,
-	outType cmdCommon.OutputFormat,
+	identifier string, outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
@@ -281,7 +268,7 @@ func (h portalTeamsHandler) getSingleTeam(
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
+		false,
 		outType,
 		printer,
 		helper.GetStreams(),

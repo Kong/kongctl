@@ -216,7 +216,6 @@ func (c *getRouteCmd) runListByName(
 	kkClient *kk.SDK,
 	helper cmd.Helper,
 	cfg config.Hook,
-	interactive bool,
 	printer cli.PrintFlusher,
 	outputFormat cmdCommon.OutputFormat,
 ) error {
@@ -231,7 +230,7 @@ func (c *getRouteCmd) runListByName(
 	for _, route := range allData {
 		if route.RouteJSON != nil && *route.RouteJSON.GetName() == name {
 			return tableview.RenderForFormat(
-				interactive,
+				false,
 				outputFormat,
 				printer,
 				helper.GetStreams(),
@@ -251,7 +250,6 @@ func (c *getRouteCmd) runGet(
 	id string,
 	kkClient *kk.SDK,
 	helper cmd.Helper,
-	interactive bool,
 	printer cli.PrintFlusher,
 	outputFormat cmdCommon.OutputFormat,
 ) error {
@@ -269,7 +267,7 @@ func (c *getRouteCmd) runGet(
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
+				false,
 		outputFormat,
 		printer,
 		helper.GetStreams(),
@@ -285,7 +283,6 @@ func (c *getRouteCmd) runList(
 	kkClient *kk.SDK,
 	helper cmd.Helper,
 	cfg config.Hook,
-	interactive bool,
 	printer cli.PrintFlusher,
 	outputFormat cmdCommon.OutputFormat,
 ) error {
@@ -315,7 +312,7 @@ func (c *getRouteCmd) runList(
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
+				false,
 		outputFormat,
 		printer,
 		helper.GetStreams(),
@@ -349,19 +346,11 @@ func (c *getRouteCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		return e
 	}
 
-	interactive, e := helper.IsInteractive()
+	printer, e := cli.Format(outType.String(), helper.GetStreams().Out)
 	if e != nil {
 		return e
 	}
-
-	var printer cli.PrintFlusher
-	if !interactive {
-		printer, e = cli.Format(outType.String(), helper.GetStreams().Out)
-		if e != nil {
-			return e
-		}
-		defer printer.Flush()
-	}
+	defer printer.Flush()
 
 	kkClient, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -406,16 +395,15 @@ func (c *getRouteCmd) runE(cobraCmd *cobra.Command, args []string) error {
 				kkClient.(*helpers.KonnectSDK).SDK,
 				helper,
 				cfg,
-				interactive,
 				printer,
 				outType,
 			)
 		}
 
-		return c.runGet(cpID, id, kkClient.(*helpers.KonnectSDK).SDK, helper, interactive, printer, outType)
+		return c.runGet(cpID, id, kkClient.(*helpers.KonnectSDK).SDK, helper, printer, outType)
 	}
 
-	return c.runList(cpID, kkClient.(*helpers.KonnectSDK).SDK, helper, cfg, interactive, printer, outType)
+	return c.runList(cpID, kkClient.(*helpers.KonnectSDK).SDK, helper, cfg, printer, outType)
 }
 
 func newGetRouteCmd(verb verbs.VerbValue,

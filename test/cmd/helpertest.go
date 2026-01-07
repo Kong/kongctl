@@ -22,7 +22,6 @@ type MockHelper struct {
 	GetStreamsMock      func() *iostreams.IOStreams
 	GetConfigMock       func() (config.Hook, error)
 	GetOutputFormatMock func() (common.OutputFormat, error)
-	IsInteractiveMock   func() (bool, error)
 	GetLoggerMock       func() (*slog.Logger, error)
 	GetBuildInfoMock    func() (*build.Info, error)
 	GetContextMock      func() context.Context
@@ -59,13 +58,6 @@ func (m *MockHelper) GetKonnectSDK(cfg config.Hook, logger *slog.Logger) (helper
 
 func (m *MockHelper) GetOutputFormat() (common.OutputFormat, error) {
 	return m.GetOutputFormatMock()
-}
-
-func (m *MockHelper) IsInteractive() (bool, error) {
-	if m.IsInteractiveMock != nil {
-		return m.IsInteractiveMock()
-	}
-	return false, nil
 }
 
 func (m *MockHelper) GetLogger() (*slog.Logger, error) {

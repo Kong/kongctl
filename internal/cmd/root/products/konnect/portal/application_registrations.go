@@ -145,19 +145,11 @@ func (h portalApplicationRegistrationsHandler) run(args []string) error {
 		return err
 	}
 
-	interactive, err := helper.IsInteractive()
+	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
 	if err != nil {
 		return err
 	}
-
-	var printer cli.PrintFlusher
-	if !interactive {
-		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
-		if err != nil {
-			return err
-		}
-		defer printer.Flush()
-	}
+	defer printer.Flush()
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -205,7 +197,6 @@ func (h portalApplicationRegistrationsHandler) run(args []string) error {
 			regAPI,
 			portalID,
 			registrationID,
-			interactive,
 			outType,
 			printer,
 			cfg,
@@ -213,15 +204,13 @@ func (h portalApplicationRegistrationsHandler) run(args []string) error {
 		)
 	}
 
-	return h.listRegistrations(helper, regAPI, portalID, interactive, outType, printer, cfg, filters)
+	return h.listRegistrations(helper, regAPI, portalID, outType, printer, cfg, filters)
 }
 
 func (h portalApplicationRegistrationsHandler) listRegistrations(
 	helper cmd.Helper,
 	regAPI helpers.PortalApplicationRegistrationAPI,
-	portalID string,
-	interactive bool,
-	outType cmdCommon.OutputFormat,
+	portalID string, outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	cfg config.Hook,
 	filters registrationFilters,
@@ -249,7 +238,7 @@ func (h portalApplicationRegistrationsHandler) listRegistrations(
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
+		false,
 		outType,
 		printer,
 		helper.GetStreams(),
@@ -266,9 +255,7 @@ func (h portalApplicationRegistrationsHandler) getSingleRegistration(
 	helper cmd.Helper,
 	regAPI helpers.PortalApplicationRegistrationAPI,
 	portalID string,
-	registrationID string,
-	interactive bool,
-	outType cmdCommon.OutputFormat,
+	registrationID string, outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	cfg config.Hook,
 	filters registrationFilters,
@@ -314,7 +301,7 @@ func (h portalApplicationRegistrationsHandler) getSingleRegistration(
 
 	record := portalApplicationRegistrationDetailRecordFromResponse(res.GetGetApplicationRegistrationResponse())
 	return tableview.RenderForFormat(
-		interactive,
+		false,
 		outType,
 		printer,
 		helper.GetStreams(),

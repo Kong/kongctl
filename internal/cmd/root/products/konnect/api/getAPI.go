@@ -14,7 +14,6 @@ import (
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
-	"github.com/kong/kongctl/internal/cmd/root/products/konnect/navigator"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -413,19 +412,11 @@ func (c *getAPICmd) runE(cobraCmd *cobra.Command, args []string) error {
 		return e
 	}
 
-	interactive, e := helper.IsInteractive()
+	printer, e := cli.Format(outType.String(), helper.GetStreams().Out)
 	if e != nil {
 		return e
 	}
-
-	var printer cli.PrintFlusher
-	if !interactive {
-		printer, e = cli.Format(outType.String(), helper.GetStreams().Out)
-		if e != nil {
-			return e
-		}
-		defer printer.Flush()
-	}
+	defer printer.Flush()
 
 	cfg, e := helper.GetConfig()
 	if e != nil {
@@ -454,7 +445,7 @@ func (c *getAPICmd) runE(cobraCmd *cobra.Command, args []string) error {
 				return e
 			}
 			return tableview.RenderForFormat(
-				interactive,
+				false,
 				outType,
 				printer,
 				helper.GetStreams(),
@@ -478,7 +469,7 @@ func (c *getAPICmd) runE(cobraCmd *cobra.Command, args []string) error {
 		}
 
 		return tableview.RenderForFormat(
-			interactive,
+			false,
 			outType,
 			printer,
 			helper.GetStreams(),
@@ -496,22 +487,17 @@ func (c *getAPICmd) runE(cobraCmd *cobra.Command, args []string) error {
 		)
 	}
 
-	if interactive {
-		return navigator.Run(helper, navigator.Options{InitialResource: "apis"})
-	}
-
 	apis, e := runList(sdk.GetAPIAPI(), helper, cfg)
 	if e != nil {
 		return e
 	}
 
-	return renderAPIList(helper, helper.GetCmd().Name(), interactive, outType, printer, apis)
+	return renderAPIList(helper, helper.GetCmd().Name(), outType, printer, apis)
 }
 
 func renderAPIList(
 	helper cmd.Helper,
 	rootLabel string,
-	interactive bool,
 	outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	apis []kkComps.APIResponseSchema,
@@ -536,7 +522,7 @@ func renderAPIList(
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
+		false,
 		outType,
 		printer,
 		helper.GetStreams(),
