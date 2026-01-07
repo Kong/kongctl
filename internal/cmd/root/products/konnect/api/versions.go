@@ -216,14 +216,14 @@ func (h apiVersionsHandler) run(args []string) error {
 			helper,
 			apiVersionAPI,
 			apiID,
-			versionIdentifier, 
+			versionIdentifier,
 			outType,
 			printer,
 			cfg,
 		)
 	}
 
-	return h.listVersions(helper, apiVersionAPI, apiID,  outType, printer, cfg)
+	return h.listVersions(helper, apiVersionAPI, apiID, outType, printer, cfg)
 }
 
 func (h apiVersionsHandler) listVersions(
@@ -259,8 +259,8 @@ func (h apiVersionsHandler) listVersions(
 	}
 
 	return tableview.RenderForFormat(
-			false,
-			outType,
+		false,
+		outType,
 		printer,
 		helper.GetStreams(),
 		displayRecords,
@@ -337,8 +337,8 @@ func (h apiVersionsHandler) getSingleVersion(
 	display := any(record)
 
 	return tableview.RenderForFormat(
-			false,
-			outType,
+		false,
+		outType,
 		printer,
 		helper.GetStreams(),
 		display,

@@ -247,7 +247,7 @@ func (c *getServiceCmd) runGet(
 	}
 
 	return tableview.RenderForFormat(
-				false,
+		false,
 		outputFormat,
 		printer,
 		helper.GetStreams(),
@@ -294,7 +294,7 @@ func (c *getServiceCmd) runList(
 	}
 
 	return tableview.RenderForFormat(
-				false,
+		false,
 		outputFormat,
 		printer,
 		helper.GetStreams(),

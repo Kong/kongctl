@@ -207,10 +207,10 @@ func (h apiDocumentsHandler) run(args []string) error {
 	}
 
 	if len(args) == 1 {
-		return h.getSingleDocument(helper, apiDocAPI, apiID, args[0],  outType, printer)
+		return h.getSingleDocument(helper, apiDocAPI, apiID, args[0], outType, printer)
 	}
 
-	return h.listDocuments(helper, apiDocAPI, apiID,  outType, printer)
+	return h.listDocuments(helper, apiDocAPI, apiID, outType, printer)
 }
 
 func (h apiDocumentsHandler) listDocuments(
@@ -246,8 +246,8 @@ func (h apiDocumentsHandler) listDocuments(
 	}
 
 	return tableview.RenderForFormat(
-			false,
-			outType,
+		false,
+		outType,
 		printer,
 		helper.GetStreams(),
 		records,
@@ -341,8 +341,8 @@ func (h apiDocumentsHandler) getSingleDocument(
 	cache.Set(doc.GetID(), detailRecord)
 
 	return tableview.RenderForFormat(
-			false,
-			outType,
+		false,
+		outType,
 		printer,
 		helper.GetStreams(),
 		[]apiDocumentSummaryRecord{record},

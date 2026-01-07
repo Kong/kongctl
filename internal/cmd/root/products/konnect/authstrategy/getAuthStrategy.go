@@ -515,7 +515,6 @@ func (c *getAuthStrategyCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		)
 	}
 
-
 	strategies, err := runList(c.strategyType, sdk.GetAppAuthStrategiesAPI(), helper, cfg)
 	if err != nil {
 		return err

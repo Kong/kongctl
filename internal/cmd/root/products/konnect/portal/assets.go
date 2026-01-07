@@ -21,7 +21,7 @@ const (
 	assetLogoName     = "logo"
 	assetFaviconName  = "favicon"
 
-	outputFileFlagName = "output-file"
+	outputFileFlagName   = "output-file"
 	outputFileConfigPath = "konnect.portal.assets.output_file"
 )
 

@@ -267,7 +267,7 @@ func (c *getRouteCmd) runGet(
 	}
 
 	return tableview.RenderForFormat(
-				false,
+		false,
 		outputFormat,
 		printer,
 		helper.GetStreams(),
@@ -312,7 +312,7 @@ func (c *getRouteCmd) runList(
 	}
 
 	return tableview.RenderForFormat(
-				false,
+		false,
 		outputFormat,
 		printer,
 		helper.GetStreams(),

@@ -355,14 +355,13 @@ func (c *getControlPlaneCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		)
 	}
 
-
 	// list all control planes
 	cps, err := runList(sdk.GetControlPlaneAPI(), helper, cfg)
 	if err != nil {
 		return err
 	}
 
-	return renderControlPlaneList(helper, helper.GetCmd().Name(),  outType, printer, cps)
+	return renderControlPlaneList(helper, helper.GetCmd().Name(), outType, printer, cps)
 }
 
 func renderControlPlaneList(
