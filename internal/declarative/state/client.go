@@ -3205,6 +3205,11 @@ func (c *Client) ListManagedEventGatewayControlPlanes(
 	ctx context.Context,
 	namespaces []string,
 ) ([]EventGatewayControlPlane, error) {
+	// Validate API client is initialized
+	if err := ValidateAPIClient(c.egwControlPlaneAPI, "event gateway control plane API"); err != nil {
+		return nil, err
+	}
+
 	var allData []kkComps.EventGatewayInfo
 	var pageAfter *string
 
@@ -3218,6 +3223,11 @@ func (c *Client) ListManagedEventGatewayControlPlanes(
 		res, err := c.egwControlPlaneAPI.ListEGWControlPlanes(ctx, req)
 		if err != nil {
 			return nil, WrapAPIError(err, "list event gateway control planes", nil)
+		}
+
+		// If response is nil, break the loop
+		if res.ListEventGatewaysResponse == nil {
+			return []EventGatewayControlPlane{}, nil
 		}
 
 		allData = append(allData, res.ListEventGatewaysResponse.Data...)

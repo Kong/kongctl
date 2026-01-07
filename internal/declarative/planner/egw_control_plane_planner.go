@@ -30,7 +30,15 @@ func (p *EGWControlPlanePlannerImpl) GetDesiredEGWControlPlanes(
 
 func (p *EGWControlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
 	namespace := plannerCtx.Namespace
-	err := p.planner.planEGWControlPlaneChanges(ctx, plannerCtx, p.GetDesiredEGWControlPlanes(namespace), plan)
+	desired := p.GetDesiredEGWControlPlanes(namespace)
+
+	// Skip if no desired Event Gateway Control Planes and not in sync mode
+	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
+		return nil
+	}
+
+	err := p.planner.planEGWControlPlaneChanges(ctx, plannerCtx, desired, plan)
+
 	if err != nil {
 		return err
 	}
@@ -57,8 +65,8 @@ func (p *Planner) planEGWControlPlaneChanges(
 	namespaceFilter := []string{namespace}
 	currentEGWControlPlanes, err := p.client.ListManagedEventGatewayControlPlanes(ctx, namespaceFilter)
 	if err != nil {
-		// If API client is not configured, skip API planning
-		if err.Error() == "API client not configured" {
+		// If API client is not configured, skip planning
+		if state.IsAPIClientError(err) {
 			return nil
 		}
 		return fmt.Errorf("failed to list current Event Gateway Control Planes: %w", err)
