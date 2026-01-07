@@ -25,9 +25,11 @@ import (
 )
 
 var (
-	getEventGatewayControlPlanesShort = i18n.T("root.products.konnect.event-gateway.control-plane.getEventGatewayControlPlanesShort",
+	getEventGatewayControlPlanesShort = i18n.T(
+		"root.products.konnect.event-gateway.control-plane.getEventGatewayControlPlanesShort",
 		"List or get Konnect Event Gateway Control Planes")
-	getEventGatewayControlPlanesLong = i18n.T("root.products.konnect.event-gateway.control-plane.getEventGatewayControlPlanesLong",
+	getEventGatewayControlPlanesLong = i18n.T(
+		"root.products.konnect.event-gateway.control-plane.getEventGatewayControlPlanesLong",
 		`Use the get verb with the event-gateway control-plane command to query Konnect Event Gateway Control Planes.`)
 	getEventGatewayControlPlanesExample = normalizers.Examples(
 		i18n.T("root.products.konnect.event-gateway.control-plane.getEventGatewayControlPlanesExamples",
@@ -43,7 +45,7 @@ var (
 	`, meta.CLIName)))
 )
 
-// Represents a text display record for an Event gateway control plane
+// textDisplayRecord represents a text display record for an Event gateway control plane
 type textDisplayRecord struct {
 	ID               string
 	Name             string
@@ -89,7 +91,7 @@ type getEventGatewayControlPlaneCmd struct {
 }
 
 // runListByName retrieves an Event Gateway Control Plane by its name
-// Todo: Since the API does not support filtering by name, we fetch all and filter locally
+// TODO: Since the API does not support filtering by name, we fetch all and filter locally
 func runListByName(name string, kkClient helpers.EGWControlPlaneAPI, helper cmd.Helper,
 	cfg config.Hook,
 ) (*kkComps.EventGatewayInfo, error) {
@@ -285,7 +287,14 @@ func (c *getEventGatewayControlPlaneCmd) runE(cobraCmd *cobra.Command, args []st
 		return e
 	}
 
-	return renderEventGatewayControlPlaneList(helper, helper.GetCmd().Name(), interactive, outType, printer, eventGatewayControlPlanes)
+	return renderEventGatewayControlPlaneList(
+		helper,
+		helper.GetCmd().Name(),
+		interactive,
+		outType,
+		printer,
+		eventGatewayControlPlanes,
+	)
 }
 
 func renderEventGatewayControlPlaneList(
