@@ -1,4 +1,4 @@
-event_gateway_control_planes:
+event_gateways:
   - ref: egw-top-level
     name: "My Event Gateway CP"
     description: "Initial description for My Event Gateway CP"

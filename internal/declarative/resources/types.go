@@ -56,18 +56,18 @@ type ResourceSet struct {
 	APIImplementations []APIImplementationResource `yaml:"api_implementations,omitempty"         json:"api_implementations,omitempty"` //nolint:lll
 	APIDocuments       []APIDocumentResource       `yaml:"api_documents,omitempty"               json:"api_documents,omitempty"`       //nolint:lll
 	// Portal child resources can be defined at root level (with parent reference) or nested under Portals
-	PortalCustomizations      []PortalCustomizationResource      `yaml:"portal_customizations,omitempty"       json:"portal_customizations,omitempty"`         //nolint:lll
-	PortalAuthSettings        []PortalAuthSettingsResource       `yaml:"portal_auth_settings,omitempty"        json:"portal_auth_settings,omitempty"`          //nolint:lll
-	PortalCustomDomains       []PortalCustomDomainResource       `yaml:"portal_custom_domains,omitempty"       json:"portal_custom_domains,omitempty"`         //nolint:lll
-	PortalPages               []PortalPageResource               `yaml:"portal_pages,omitempty"                json:"portal_pages,omitempty"`                  //nolint:lll
-	PortalSnippets            []PortalSnippetResource            `yaml:"portal_snippets,omitempty"             json:"portal_snippets,omitempty"`               //nolint:lll
-	PortalTeams               []PortalTeamResource               `yaml:"portal_teams,omitempty"                json:"portal_teams,omitempty"`                  //nolint:lll
-	PortalTeamRoles           []PortalTeamRoleResource           `yaml:"portal_team_roles,omitempty"           json:"portal_team_roles,omitempty"`             //nolint:lll
-	PortalAssetLogos          []PortalAssetLogoResource          `yaml:"portal_asset_logos,omitempty"         json:"portal_asset_logos,omitempty"`             //nolint:lll
-	PortalAssetFavicons       []PortalAssetFaviconResource       `yaml:"portal_asset_favicons,omitempty"      json:"portal_asset_favicons,omitempty"`          //nolint:lll
-	PortalEmailConfigs        []PortalEmailConfigResource        `yaml:"portal_email_configs,omitempty"       json:"portal_email_configs,omitempty"`           //nolint:lll
-	PortalEmailTemplates      []PortalEmailTemplateResource      `yaml:"portal_email_templates,omitempty"     json:"portal_email_templates,omitempty"`         //nolint:lll
-	EventGatewayControlPlanes []EventGatewayControlPlaneResource `yaml:"event_gateway_control_planes,omitempty" json:"event_gateway_control_planes,omitempty"` //nolint:lll
+	PortalCustomizations      []PortalCustomizationResource      `yaml:"portal_customizations,omitempty"       json:"portal_customizations,omitempty"` //nolint:lll
+	PortalAuthSettings        []PortalAuthSettingsResource       `yaml:"portal_auth_settings,omitempty"        json:"portal_auth_settings,omitempty"`  //nolint:lll
+	PortalCustomDomains       []PortalCustomDomainResource       `yaml:"portal_custom_domains,omitempty"       json:"portal_custom_domains,omitempty"` //nolint:lll
+	PortalPages               []PortalPageResource               `yaml:"portal_pages,omitempty"                json:"portal_pages,omitempty"`          //nolint:lll
+	PortalSnippets            []PortalSnippetResource            `yaml:"portal_snippets,omitempty"             json:"portal_snippets,omitempty"`       //nolint:lll
+	PortalTeams               []PortalTeamResource               `yaml:"portal_teams,omitempty"                json:"portal_teams,omitempty"`          //nolint:lll
+	PortalTeamRoles           []PortalTeamRoleResource           `yaml:"portal_team_roles,omitempty"           json:"portal_team_roles,omitempty"`     //nolint:lll
+	PortalAssetLogos          []PortalAssetLogoResource          `yaml:"portal_asset_logos,omitempty"         json:"portal_asset_logos,omitempty"`     //nolint:lll
+	PortalAssetFavicons       []PortalAssetFaviconResource       `yaml:"portal_asset_favicons,omitempty"      json:"portal_asset_favicons,omitempty"`  //nolint:lll
+	PortalEmailConfigs        []PortalEmailConfigResource        `yaml:"portal_email_configs,omitempty"       json:"portal_email_configs,omitempty"`   //nolint:lll
+	PortalEmailTemplates      []PortalEmailTemplateResource      `yaml:"portal_email_templates,omitempty"     json:"portal_email_templates,omitempty"` //nolint:lll
+	EventGatewayControlPlanes []EventGatewayControlPlaneResource `yaml:"event_gateways,omitempty" json:"event_gateways,omitempty"`                     //nolint:lll
 
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions

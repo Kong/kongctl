@@ -2,4 +2,4 @@ _defaults:
   kongctl:
     namespace: "event-gateways-comprehensive"
 
-event_gateway_control_planes: []
+event_gateways: []

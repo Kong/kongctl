@@ -1,4 +1,4 @@
-event_gateway_control_planes:
+event_gateways:
   - ref: egw-protected-top-level
     name: "My Protected Event Gateway CP"
     description: "Initial description for My Protected Event Gateway CP"
