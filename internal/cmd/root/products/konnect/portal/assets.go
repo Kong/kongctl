@@ -21,7 +21,7 @@ const (
 	assetLogoName     = "logo"
 	assetFaviconName  = "favicon"
 
-	outputFileFlagName = "output-file"
+	outputFileFlagName   = "output-file"
 	outputFileConfigPath = "konnect.portal.assets.output_file"
 )
 
@@ -206,11 +206,6 @@ func runGetPortalAsset(c *cobra.Command, args []string, assetType string) error 
 		return err
 	}
 
-	interactive, err := helper.IsInteractive()
-	if err != nil {
-		return err
-	}
-
 	logger, err := helper.GetLogger()
 	if err != nil {
 		return err
@@ -283,14 +278,11 @@ func runGetPortalAsset(c *cobra.Command, args []string, assetType string) error 
 	// Handle output based on format
 	if outType.String() == "json" || outType.String() == "yaml" {
 		// Output as JSON/YAML with data URL
-		var printer cli.PrintFlusher
-		if !interactive {
-			printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
-			if err != nil {
-				return err
-			}
-			defer printer.Flush()
+		printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
+		if err != nil {
+			return err
 		}
+		defer printer.Flush()
 
 		result := map[string]string{
 			"portal_id": portalID,
@@ -298,12 +290,7 @@ func runGetPortalAsset(c *cobra.Command, args []string, assetType string) error 
 			"data":      dataURL,
 		}
 
-		if interactive {
-			// For interactive mode, just print the data URL
-			fmt.Fprintf(helper.GetStreams().Out, "%s\n", dataURL)
-		} else {
-			printer.Print(result)
-		}
+		printer.Print(result)
 	} else {
 		// Output as binary file
 		outputFile := cfg.GetString(outputFileConfigPath)

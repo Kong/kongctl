@@ -167,19 +167,11 @@ func (h portalSnippetsHandler) run(args []string) error {
 		return err
 	}
 
-	interactive, err := helper.IsInteractive()
+	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
 	if err != nil {
 		return err
 	}
-
-	var printer cli.PrintFlusher
-	if !interactive {
-		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
-		if err != nil {
-			return err
-		}
-		defer printer.Flush()
-	}
+	defer printer.Flush()
 
 	sdk, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -225,22 +217,19 @@ func (h portalSnippetsHandler) run(args []string) error {
 			snippetAPI,
 			portalID,
 			snippetIdentifier,
-			interactive,
 			outType,
 			printer,
 			cfg,
 		)
 	}
 
-	return h.listSnippets(helper, snippetAPI, portalID, interactive, outType, printer, cfg)
+	return h.listSnippets(helper, snippetAPI, portalID, outType, printer, cfg)
 }
 
 func (h portalSnippetsHandler) listSnippets(
 	helper cmd.Helper,
 	snippetAPI helpers.PortalSnippetAPI,
-	portalID string,
-	interactive bool,
-	outType cmdCommon.OutputFormat,
+	portalID string, outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
@@ -273,7 +262,7 @@ func (h portalSnippetsHandler) listSnippets(
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
+		false,
 		outType,
 		printer,
 		helper.GetStreams(),
@@ -302,9 +291,7 @@ func (h portalSnippetsHandler) getSingleSnippet(
 	helper cmd.Helper,
 	snippetAPI helpers.PortalSnippetAPI,
 	portalID string,
-	identifier string,
-	interactive bool,
-	outType cmdCommon.OutputFormat,
+	identifier string, outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
@@ -349,7 +336,7 @@ func (h portalSnippetsHandler) getSingleSnippet(
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
+		false,
 		outType,
 		printer,
 		helper.GetStreams(),

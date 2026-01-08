@@ -101,19 +101,11 @@ func (c *getRegionsCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	interactive, err := helper.IsInteractive()
+	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
 	if err != nil {
 		return err
 	}
-
-	var printer cli.PrintFlusher
-	if !interactive {
-		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
-		if err != nil {
-			return err
-		}
-		defer printer.Flush()
-	}
+	defer printer.Flush()
 
 	ctx := helper.GetContext()
 	if ctx == nil {
@@ -132,7 +124,7 @@ func (c *getRegionsCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
+		false,
 		outType,
 		printer,
 		helper.GetStreams(),

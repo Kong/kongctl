@@ -38,7 +38,7 @@ func (_m *MockHelper) EXPECT() *MockHelper_Expecter {
 	return &MockHelper_Expecter{mock: &_m.Mock}
 }
 
-// GetArgs provides a mock function with given fields:
+// GetArgs provides a mock function with no fields
 func (_m *MockHelper) GetArgs() []string {
 	ret := _m.Called()
 
@@ -85,7 +85,7 @@ func (_c *MockHelper_GetArgs_Call) RunAndReturn(run func() []string) *MockHelper
 	return _c
 }
 
-// GetBuildInfo provides a mock function with given fields:
+// GetBuildInfo provides a mock function with no fields
 func (_m *MockHelper) GetBuildInfo() (*build.Info, error) {
 	ret := _m.Called()
 
@@ -142,7 +142,7 @@ func (_c *MockHelper_GetBuildInfo_Call) RunAndReturn(run func() (*build.Info, er
 	return _c
 }
 
-// GetCmd provides a mock function with given fields:
+// GetCmd provides a mock function with no fields
 func (_m *MockHelper) GetCmd() *cobra.Command {
 	ret := _m.Called()
 
@@ -189,7 +189,7 @@ func (_c *MockHelper_GetCmd_Call) RunAndReturn(run func() *cobra.Command) *MockH
 	return _c
 }
 
-// GetConfig provides a mock function with given fields:
+// GetConfig provides a mock function with no fields
 func (_m *MockHelper) GetConfig() (config.Hook, error) {
 	ret := _m.Called()
 
@@ -246,7 +246,7 @@ func (_c *MockHelper_GetConfig_Call) RunAndReturn(run func() (config.Hook, error
 	return _c
 }
 
-// GetContext provides a mock function with given fields:
+// GetContext provides a mock function with no fields
 func (_m *MockHelper) GetContext() context.Context {
 	ret := _m.Called()
 
@@ -331,7 +331,7 @@ type MockHelper_GetKonnectSDK_Call struct {
 // GetKonnectSDK is a helper method to define mock.On call
 //   - cfg config.Hook
 //   - logger *slog.Logger
-func (_e *MockHelper_Expecter) GetKonnectSDK(cfg any, logger any) *MockHelper_GetKonnectSDK_Call {
+func (_e *MockHelper_Expecter) GetKonnectSDK(cfg interface{}, logger interface{}) *MockHelper_GetKonnectSDK_Call {
 	return &MockHelper_GetKonnectSDK_Call{Call: _e.mock.On("GetKonnectSDK", cfg, logger)}
 }
 
@@ -352,7 +352,7 @@ func (_c *MockHelper_GetKonnectSDK_Call) RunAndReturn(run func(config.Hook, *slo
 	return _c
 }
 
-// GetLogger provides a mock function with given fields:
+// GetLogger provides a mock function with no fields
 func (_m *MockHelper) GetLogger() (*slog.Logger, error) {
 	ret := _m.Called()
 
@@ -409,7 +409,7 @@ func (_c *MockHelper_GetLogger_Call) RunAndReturn(run func() (*slog.Logger, erro
 	return _c
 }
 
-// GetOutputFormat provides a mock function with given fields:
+// GetOutputFormat provides a mock function with no fields
 func (_m *MockHelper) GetOutputFormat() (common.OutputFormat, error) {
 	ret := _m.Called()
 
@@ -464,62 +464,7 @@ func (_c *MockHelper_GetOutputFormat_Call) RunAndReturn(run func() (common.Outpu
 	return _c
 }
 
-// IsInteractive provides a mock function with given fields:
-func (_m *MockHelper) IsInteractive() (bool, error) {
-	ret := _m.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for IsInteractive")
-	}
-
-	var r0 bool
-	var r1 error
-	if rf, ok := ret.Get(0).(func() (bool, error)); ok {
-		return rf()
-	}
-	if rf, ok := ret.Get(0).(func() bool); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Bool(0)
-	}
-
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockHelper_IsInteractive_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsInteractive'
-type MockHelper_IsInteractive_Call struct {
-	*mock.Call
-}
-
-// IsInteractive is a helper method to define mock.On call
-func (_e *MockHelper_Expecter) IsInteractive() *MockHelper_IsInteractive_Call {
-	return &MockHelper_IsInteractive_Call{Call: _e.mock.On("IsInteractive")}
-}
-
-func (_c *MockHelper_IsInteractive_Call) Run(run func()) *MockHelper_IsInteractive_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *MockHelper_IsInteractive_Call) Return(_a0 bool, _a1 error) *MockHelper_IsInteractive_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *MockHelper_IsInteractive_Call) RunAndReturn(run func() (bool, error)) *MockHelper_IsInteractive_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetProduct provides a mock function with given fields:
+// GetProduct provides a mock function with no fields
 func (_m *MockHelper) GetProduct() (products.ProductValue, error) {
 	ret := _m.Called()
 
@@ -574,7 +519,7 @@ func (_c *MockHelper_GetProduct_Call) RunAndReturn(run func() (products.ProductV
 	return _c
 }
 
-// GetStreams provides a mock function with given fields:
+// GetStreams provides a mock function with no fields
 func (_m *MockHelper) GetStreams() *iostreams.IOStreams {
 	ret := _m.Called()
 
@@ -621,7 +566,7 @@ func (_c *MockHelper_GetStreams_Call) RunAndReturn(run func() *iostreams.IOStrea
 	return _c
 }
 
-// GetVerb provides a mock function with given fields:
+// GetVerb provides a mock function with no fields
 func (_m *MockHelper) GetVerb() (verbs.VerbValue, error) {
 	ret := _m.Called()
 

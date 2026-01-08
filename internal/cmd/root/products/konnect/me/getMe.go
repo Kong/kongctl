@@ -151,19 +151,11 @@ func (c *getMeCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	interactive, err := helper.IsInteractive()
+	printer, err := cli.Format(outType.String(), helper.GetStreams().Out)
 	if err != nil {
 		return err
 	}
-
-	var printer cli.PrintFlusher
-	if !interactive {
-		printer, err = cli.Format(outType.String(), helper.GetStreams().Out)
-		if err != nil {
-			return err
-		}
-		defer printer.Flush()
-	}
+	defer printer.Flush()
 
 	cfg, err := helper.GetConfig()
 	if err != nil {
@@ -181,7 +173,7 @@ func (c *getMeCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
+		false,
 		outType,
 		printer,
 		helper.GetStreams(),

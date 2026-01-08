@@ -49,27 +49,19 @@ func runListThemes(helper cmd.Helper) error {
 		return err
 	}
 
-	interactive, err := helper.IsInteractive()
+	printer, err := cli.Format(outFormat.String(), streams.Out)
 	if err != nil {
 		return err
 	}
+	defer printer.Flush()
 
-	var printer cli.PrintFlusher
-	if !interactive {
-		printer, err = cli.Format(outFormat.String(), streams.Out)
-		if err != nil {
-			return err
-		}
-		defer printer.Flush()
-	}
-
-	useColor := shouldRenderColor(cfg, interactive, streams.Out)
+	useColor := shouldRenderColor(cfg, streams.Out)
 	activeTheme := activeThemeName(cfg)
 
 	rows := buildThemeRows(useColor, activeTheme)
 
 	return tableview.RenderForFormat(
-		interactive,
+		false,
 		outFormat,
 		printer,
 		streams,
@@ -82,11 +74,7 @@ func runListThemes(helper cmd.Helper) error {
 	)
 }
 
-func shouldRenderColor(cfg config.Hook, interactive bool, outWriter io.Writer) bool {
-	if !interactive {
-		return false
-	}
-
+func shouldRenderColor(cfg config.Hook, outWriter io.Writer) bool {
 	modeStr := strings.ToLower(strings.TrimSpace(cfg.GetString(cmdcommon.ColorConfigPath)))
 	mode, err := cmdcommon.ColorModeStringToIota(modeStr)
 	if err != nil {

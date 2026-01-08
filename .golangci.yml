@@ -88,6 +88,10 @@ linters:
       - linters:
           - revive
         text: avoid meaningless package names
+      - linters:
+          - revive
+        path: internal/declarative/errors/
+        text: avoid package names that conflict with Go standard library package names
     paths:
       - third_party$
       - builtin$

@@ -592,50 +592,6 @@ func TestRunRejectsTextOutputFormat(t *testing.T) {
 	require.Contains(t, err.Error(), "json or yaml")
 }
 
-func TestRunRejectsInteractiveOutputFormat(t *testing.T) {
-	original := requestFn
-	t.Cleanup(func() { requestFn = original })
-	requestFn = func(
-		context.Context,
-		apiutil.Doer,
-		string,
-		string,
-		string,
-		string,
-		map[string]string,
-		io.Reader,
-	) (*apiutil.Result, error) {
-		require.Fail(t, "requestFn should not be called when output format is rejected")
-		return nil, nil
-	}
-
-	streams := iostreams.NewTestIOStreamsOnly()
-	cmdObj := &cobra.Command{Use: "test"}
-	addFlags(cmdObj)
-
-	cfg := newMockAPIConfig()
-
-	args := []string{"/v1/resources"}
-	helper := &cmdtest.MockHelper{
-		GetCmdMock:          func() *cobra.Command { return cmdObj },
-		GetArgsMock:         func() []string { return args },
-		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
-		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
-		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.JSON, nil },
-		IsInteractiveMock:   func() (bool, error) { return true, nil },
-		GetLoggerMock: func() (*slog.Logger, error) {
-			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
-		},
-		GetContextMock: func() context.Context { return context.Background() },
-	}
-
-	err := run(helper, http.MethodGet, false)
-	require.Error(t, err)
-	var cfgErr *cmdpkg.ConfigurationError
-	require.True(t, errors.As(err, &cfgErr))
-	require.Contains(t, err.Error(), "json or yaml")
-}
-
 func TestShouldUseJQColorModes(t *testing.T) {
 	tty := &ttyBuffer{}
 	require.True(t, shouldUseJQColor(cmdcommon.ColorModeAlways, tty))

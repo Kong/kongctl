@@ -84,19 +84,11 @@ func (c *getConsumerCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		return e
 	}
 
-	interactive, e := helper.IsInteractive()
+	printer, e := cli.Format(outType.String(), helper.GetStreams().Out)
 	if e != nil {
 		return e
 	}
-
-	var printer cli.PrintFlusher
-	if !interactive {
-		printer, e = cli.Format(outType.String(), helper.GetStreams().Out)
-		if e != nil {
-			return e
-		}
-		defer printer.Flush()
-	}
+	defer printer.Flush()
 
 	kkClient, err := helper.GetKonnectSDK(cfg, logger)
 	if err != nil {
@@ -141,7 +133,7 @@ func (c *getConsumerCmd) runE(cobraCmd *cobra.Command, args []string) error {
 			return e
 		}
 
-		return renderConsumers(helper, interactive, outType, printer, []kkComps.Consumer{*consumer})
+		return renderConsumers(helper, outType, printer, []kkComps.Consumer{*consumer})
 	}
 
 	consumers, err := fetchAllConsumers(helper, cfg, internalSDK, cpID)
@@ -149,7 +141,7 @@ func (c *getConsumerCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return renderConsumers(helper, interactive, outType, printer, consumers)
+	return renderConsumers(helper, outType, printer, consumers)
 }
 
 func newGetConsumerCmd(verb verbs.VerbValue,
@@ -237,9 +229,7 @@ func fetchConsumerByID(helper cmd.Helper, sdk *kk.SDK, cpID, id string) (*kkComp
 }
 
 func renderConsumers(
-	helper cmd.Helper,
-	interactive bool,
-	outType cmdCommon.OutputFormat,
+	helper cmd.Helper, outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	consumers []kkComps.Consumer,
 ) error {
@@ -266,7 +256,7 @@ func renderConsumers(
 	}
 
 	return tableview.RenderForFormat(
-		interactive,
+		false,
 		outType,
 		printer,
 		helper.GetStreams(),
