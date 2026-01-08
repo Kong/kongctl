@@ -52,27 +52,27 @@ func (p *Planner) planEGWControlPlaneChanges(
 	desired []resources.EventGatewayControlPlaneResource,
 	plan *Plan,
 ) error {
-	// Skip if no API resources to plan and not in sync mode
+	// Skip if no Event Gateway Control Plane resources to plan and not in sync mode
 	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
-		p.logger.Debug("Skipping API planning - no desired APIs")
+		p.logger.Debug("Skipping Event Gateway Control Plane planning - no desired Event Gateway Control Planes")
 		return nil
 	}
 
 	// Get namespace from planner context
 	namespace := plannerCtx.Namespace
 
-	// Fetch current managed APIs from the specific namespace
+	// Fetch current managed Event Gateway Control Planes from the specific namespace
 	namespaceFilter := []string{namespace}
 	currentEGWControlPlanes, err := p.client.ListManagedEventGatewayControlPlanes(ctx, namespaceFilter)
 	if err != nil {
-		// If API client is not configured, skip planning
+		// If API client is not configured, skip Event Gateway Control Plane planning
 		if state.IsAPIClientError(err) {
 			return nil
 		}
 		return fmt.Errorf("failed to list current Event Gateway Control Planes: %w", err)
 	}
 
-	// Index current APIs by name
+	// Index current Event Gateway Control Planes by name
 	currentByName := make(map[string]state.EventGatewayControlPlane)
 	for _, cp := range currentEGWControlPlanes {
 		currentByName[cp.Name] = cp
@@ -81,7 +81,7 @@ func (p *Planner) planEGWControlPlaneChanges(
 	// Collect protection validation errors
 	var protectionErrors []error
 
-	// Compare each desired API
+	// Compare each desired Event Gateway Control Plane
 	for _, desiredEGWCP := range desired {
 		current, exists := currentByName[desiredEGWCP.Name]
 

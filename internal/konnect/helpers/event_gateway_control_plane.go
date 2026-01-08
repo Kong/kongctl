@@ -22,8 +22,8 @@ type EGWControlPlaneAPI interface {
 		opts ...kkOps.Option) (*kkOps.DeleteEventGatewayResponse, error)
 }
 
-// APIAPIImpl provides an implementation of the APIFullAPI interface
-// It implements both APIAPI and all child resource operations for backward compatibility
+// EGWControlPlaneAPIImpl provides an implementation of the EGWControlPlaneAPI interface.
+// It implements all Event Gateway Control Plane operations defined by EGWControlPlaneAPI.
 type EGWControlPlaneAPIImpl struct {
 	SDK *kkSDK.SDK
 }

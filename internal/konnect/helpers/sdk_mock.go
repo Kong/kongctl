@@ -234,7 +234,7 @@ func (m *MockKonnectSDK) GetPortalEmailsAPI() PortalEmailsAPI {
 	return nil
 }
 
-// Returns the implementation of the APIAPI interface
+// Returns a mock instance of the EGWControlPlaneAPI
 func (m *MockKonnectSDK) GetEventGatewayControlPlaneAPI() EGWControlPlaneAPI {
 	if m.EventGatewayControlPlaneFactory != nil {
 		return m.EventGatewayControlPlaneFactory()

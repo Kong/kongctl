@@ -129,7 +129,7 @@ func (a *EventGatewayControlPlaneControlPlaneAdapter) GetByID(
 func (a *EventGatewayControlPlaneControlPlaneAdapter) GetByName(
 	_ context.Context, _ string,
 ) (ResourceInfo, error) {
-	// TODO - why and fix
+	// TODO - find why this is required and fix
 	return nil, nil
 }
 
@@ -151,7 +151,7 @@ func (a *EventGatewayControlPlaneControlPlaneAdapter) SupportsUpdate() bool {
 	return true
 }
 
-// APIResourceInfo wraps an API to implement ResourceInfo
+// EventGatewayControlPlaneResourceInfo wraps an Event Gateway Control Plane to implement ResourceInfo
 type EventGatewayControlPlaneResourceInfo struct {
 	eventGatewayControlPlane *state.EventGatewayControlPlane
 }
@@ -165,7 +165,7 @@ func (e *EventGatewayControlPlaneResourceInfo) GetName() string {
 }
 
 func (e *EventGatewayControlPlaneResourceInfo) GetLabels() map[string]string {
-	// API.Labels is already map[string]string
+	// EventGatewayControlPlane.Labels is already map[string]string
 	return e.eventGatewayControlPlane.Labels
 }
 

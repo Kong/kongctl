@@ -276,7 +276,7 @@ func (k *KonnectSDK) GetPortalEmailsAPI() PortalEmailsAPI {
 	return &PortalEmailsAPIImpl{SDK: k.SDK}
 }
 
-// Returns the implementation of the APIAPI interface
+// Returns the implementation of the EGWControlPlaneAPI interface
 func (k *KonnectSDK) GetEventGatewayControlPlaneAPI() EGWControlPlaneAPI {
 	if k.SDK == nil {
 		return nil
