@@ -38,10 +38,10 @@ func NewEventGatewayControlPlaneCmd(
 		"that is not currently managed by kongctl."
 	cmd.Args = func(_ *cobra.Command, args []string) error {
 		if len(args) != 1 {
-			return fmt.Errorf("exactly one Event Gateway Control Plane identifier (name or ID) is required")
+			return fmt.Errorf("exactly one event gateway control plane identifier (name or ID) is required")
 		}
 		if trimmed := strings.TrimSpace(args[0]); trimmed == "" {
-			return fmt.Errorf("Event Gateway Control Plane identifier cannot be empty")
+			return fmt.Errorf("event gateway control plane identifier cannot be empty")
 		}
 		return nil
 	}
@@ -92,7 +92,13 @@ func NewEventGatewayControlPlaneCmd(
 			return err
 		}
 
-		result, err := adoptEventGatewayControlPlane(helper, sdk.GetEventGatewayControlPlaneAPI(), cfg, namespace, strings.TrimSpace(args[0]))
+		result, err := adoptEventGatewayControlPlane(
+			helper,
+			sdk.GetEventGatewayControlPlaneAPI(),
+			cfg,
+			namespace,
+			strings.TrimSpace(args[0]),
+		)
 		if err != nil {
 			return err
 		}
@@ -103,7 +109,13 @@ func NewEventGatewayControlPlaneCmd(
 			if name == "" {
 				name = result.ID
 			}
-			fmt.Fprintf(streams.Out, "Adopted Event Gateway Control Plane %q (%s) into namespace %q\n", name, result.ID, result.Namespace)
+			fmt.Fprintf(
+				streams.Out,
+				"Adopted Event Gateway Control Plane %q (%s) into namespace %q\n",
+				name,
+				result.ID,
+				result.Namespace,
+			)
 			return nil
 		}
 
@@ -134,7 +146,7 @@ func adoptEventGatewayControlPlane(
 	if existing := egw.Labels; existing != nil {
 		if currentNamespace, ok := existing[labels.NamespaceKey]; ok && currentNamespace != "" {
 			return nil, &cmdpkg.ConfigurationError{
-				Err: fmt.Errorf("Event Gateway Control Plane %q already has namespace label %q", egw.Name, currentNamespace),
+				Err: fmt.Errorf("event gateway control plane %q already has namespace label %q", egw.Name, currentNamespace),
 			}
 		}
 	}
@@ -150,12 +162,17 @@ func adoptEventGatewayControlPlane(
 	resp, err := egwClient.UpdateEGWControlPlane(ctx, egw.ID, updateReq)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
-		return nil, cmdpkg.PrepareExecutionError("failed to update Event Gateway Control Plane", err, helper.GetCmd(), attrs...)
+		return nil, cmdpkg.PrepareExecutionError(
+			"failed to update Event Gateway Control Plane",
+			err,
+			helper.GetCmd(),
+			attrs...,
+		)
 	}
 
 	updated := resp.EventGatewayInfo
 	if updated == nil {
-		return nil, cmdpkg.PrepareExecutionErrorMsg(helper, "Update Event Gateway Control Plane failed.")
+		return nil, cmdpkg.PrepareExecutionErrorMsg(helper, "update Event Gateway Control Plane failed")
 	}
 
 	ns := namespace
@@ -185,11 +202,19 @@ func resolveEventGatewayControlPlane(
 		res, err := egwClient.FetchEGWControlPlane(ctx, identifier)
 		if err != nil {
 			attrs := cmdpkg.TryConvertErrorToAttrs(err)
-			return nil, cmdpkg.PrepareExecutionError("failed to retrieve Event Gateway Control Plane", err, helper.GetCmd(), attrs...)
+			return nil, cmdpkg.PrepareExecutionError(
+				"failed to retrieve Event Gateway Control Plane",
+				err,
+				helper.GetCmd(),
+				attrs...,
+			)
 		}
 		egw := res.EventGatewayInfo
 		if egw == nil {
-			return nil, cmdpkg.PrepareExecutionErrorMsg(helper, fmt.Sprintf("Event Gateway Control Plane %s not found", identifier))
+			return nil, cmdpkg.PrepareExecutionErrorMsg(
+				helper,
+				fmt.Sprintf("event gateway control plane %s not found", identifier),
+			)
 		}
 		return egw, nil
 	}
@@ -212,7 +237,12 @@ func resolveEventGatewayControlPlane(
 		res, err := egwClient.ListEGWControlPlanes(ctx, req)
 		if err != nil {
 			attrs := cmdpkg.TryConvertErrorToAttrs(err)
-			return nil, cmdpkg.PrepareExecutionError("failed to list Event Gateway Control Planes", err, helper.GetCmd(), attrs...)
+			return nil, cmdpkg.PrepareExecutionError(
+				"failed to list Event Gateway Control Planes",
+				err,
+				helper.GetCmd(),
+				attrs...,
+			)
 		}
 
 		list := res.ListEventGatewaysResponse
@@ -250,6 +280,6 @@ func resolveEventGatewayControlPlane(
 	}
 
 	return nil, &cmdpkg.ConfigurationError{
-		Err: fmt.Errorf("Event Gateway Control Plane %q not found", identifier),
+		Err: fmt.Errorf("event gateway control plane %q not found", identifier),
 	}
 }

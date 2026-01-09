@@ -204,19 +204,13 @@ func (c *getEventGatewayControlPlaneCmd) runE(cobraCmd *cobra.Command, args []st
 		return e
 	}
 
-	interactive, e := helper.IsInteractive()
+	var printer cli.PrintFlusher
+
+	printer, e = cli.Format(outType.String(), helper.GetStreams().Out)
 	if e != nil {
 		return e
 	}
-
-	var printer cli.PrintFlusher
-	if !interactive {
-		printer, e = cli.Format(outType.String(), helper.GetStreams().Out)
-		if e != nil {
-			return e
-		}
-		defer printer.Flush()
-	}
+	defer printer.Flush()
 
 	cfg, e := helper.GetConfig()
 	if e != nil {
@@ -244,7 +238,7 @@ func (c *getEventGatewayControlPlaneCmd) runE(cobraCmd *cobra.Command, args []st
 				return e
 			}
 			return tableview.RenderForFormat(
-				interactive,
+				false,
 				outType,
 				printer,
 				helper.GetStreams(),
@@ -268,7 +262,7 @@ func (c *getEventGatewayControlPlaneCmd) runE(cobraCmd *cobra.Command, args []st
 		}
 
 		return tableview.RenderForFormat(
-			interactive,
+			false,
 			outType,
 			printer,
 			helper.GetStreams(),
@@ -294,7 +288,7 @@ func (c *getEventGatewayControlPlaneCmd) runE(cobraCmd *cobra.Command, args []st
 	return renderEventGatewayControlPlaneList(
 		helper,
 		helper.GetCmd().Name(),
-		interactive,
+		false,
 		outType,
 		printer,
 		eventGatewayControlPlanes,

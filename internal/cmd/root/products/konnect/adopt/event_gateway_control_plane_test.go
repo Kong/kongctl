@@ -35,7 +35,11 @@ func (e *egwControlPlaneAPIStub) ListEGWControlPlanes(
 	return resp, nil
 }
 
-func (e *egwControlPlaneAPIStub) FetchEGWControlPlane(_ context.Context, id string, _ ...kkOps.Option) (*kkOps.GetEventGatewayResponse, error) {
+func (e *egwControlPlaneAPIStub) FetchEGWControlPlane(
+	_ context.Context,
+	id string,
+	_ ...kkOps.Option,
+) (*kkOps.GetEventGatewayResponse, error) {
 	if id != e.fetchResponse.ID {
 		e.t.Fatalf("unexpected Event Gateway Control Plane id: %s", id)
 	}
@@ -80,7 +84,11 @@ func (e *egwControlPlaneAPIStub) UpdateEGWControlPlane(
 	return resp, nil
 }
 
-func (e *egwControlPlaneAPIStub) DeleteEGWControlPlane(context.Context, string, ...kkOps.Option) (*kkOps.DeleteEventGatewayResponse, error) {
+func (e *egwControlPlaneAPIStub) DeleteEGWControlPlane(
+	context.Context,
+	string,
+	...kkOps.Option,
+) (*kkOps.DeleteEventGatewayResponse, error) {
 	e.t.Fatalf("unexpected DeleteEGWControlPlane call")
 	return nil, nil
 }

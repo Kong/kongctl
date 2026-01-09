@@ -1,4 +1,0 @@
-_defaults:
-  kongctl:
-    namespace: "apis-comprehensive"
-apis:

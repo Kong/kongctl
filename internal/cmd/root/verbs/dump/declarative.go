@@ -347,7 +347,7 @@ func collectDeclarativeEventGateways(
 	requestPageSize int64,
 ) ([]declresources.EventGatewayControlPlaneResource, error) {
 	if eventGatewayClient == nil {
-		return nil, fmt.Errorf("Event Gateway client is not configured")
+		return nil, fmt.Errorf("event gateway client is not configured")
 	}
 
 	var allData []declresources.EventGatewayControlPlaneResource
