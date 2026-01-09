@@ -24,7 +24,7 @@ func NewEventGatewayCmd(verb verbs.VerbValue,
 		Use:     eventGatewayUse,
 		Short:   eventGatewayShort,
 		Long:    eventGatewayLong,
-		Aliases: []string{"egw", "EGW"},
+		Aliases: []string{"egw", "EGW", "event-gateways"},
 	}
 
 	c, e := controlplane.NewEventGatewayControlPlaneCmd(verb, addParentFlags, parentPreRun)

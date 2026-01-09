@@ -187,6 +187,12 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		}
 		cmd.AddCommand(authStrategyCmd)
 
+		eventGatewayCmd, err := adopt.NewEventGatewayControlPlaneCmd(verb, &cobra.Command{}, addFlags, preRunE)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(eventGatewayCmd)
+
 		addFlags(verb, cmd)
 		return cmd, nil
 	case verbs.Add, verbs.Get, verbs.Create, verbs.Dump, verbs.Update,
