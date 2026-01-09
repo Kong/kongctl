@@ -7,6 +7,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
@@ -111,7 +112,7 @@ func (a *EventGatewayControlPlaneControlPlaneAdapter) Update(
 	return resp, nil
 }
 
-// GetByID gets a event_gateway_control_plane by ID
+// GetByID gets a event_gateway by ID
 func (a *EventGatewayControlPlaneControlPlaneAdapter) GetByID(
 	ctx context.Context, id string, _ *ExecutionContext,
 ) (ResourceInfo, error) {
@@ -125,7 +126,7 @@ func (a *EventGatewayControlPlaneControlPlaneAdapter) GetByID(
 	return &EventGatewayControlPlaneResourceInfo{eventGatewayControlPlane: eventGateway}, nil
 }
 
-// GetByName gets a event_gateway_control_plane by name
+// GetByName gets a event_gateway by name
 func (a *EventGatewayControlPlaneControlPlaneAdapter) GetByName(
 	_ context.Context, _ string,
 ) (ResourceInfo, error) {
@@ -140,7 +141,7 @@ func (a *EventGatewayControlPlaneControlPlaneAdapter) Delete(
 }
 
 func (a *EventGatewayControlPlaneControlPlaneAdapter) ResourceType() string {
-	return "event_gateway_control_plane"
+	return string(resources.ResourceTypeEventGatewayControlPlane)
 }
 
 func (a *EventGatewayControlPlaneControlPlaneAdapter) RequiredFields() []string {

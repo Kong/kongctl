@@ -3270,7 +3270,7 @@ func (c *Client) CreateEventGatewayControlPlane(
 	resp, err := c.egwControlPlaneAPI.CreateEGWControlPlane(ctx, req)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway control plane", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_control_plane",
+			ResourceType: "event_gateway",
 			ResourceName: "", // Adjust based on SDK
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3293,7 +3293,7 @@ func (c *Client) UpdateEventGatewayControlPlane(
 	resp, err := c.egwControlPlaneAPI.UpdateEGWControlPlane(ctx, id, req)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway control plane", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_control_plane",
+			ResourceType: "event_gateway",
 			ResourceName: "", // Adjust based on SDK
 			Namespace:    namespace,
 			UseEnhanced:  true,
@@ -3307,7 +3307,7 @@ func (c *Client) GetEventGatewayControlPlaneByID(ctx context.Context, id string)
 	resp, err := c.egwControlPlaneAPI.FetchEGWControlPlane(ctx, id)
 	if err != nil {
 		return nil, WrapAPIError(err, "get event gateway control plane by ID", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_control_plane",
+			ResourceType: "event_gateway",
 			ResourceName: "", // Adjust based on SDK
 			UseEnhanced:  true,
 		})

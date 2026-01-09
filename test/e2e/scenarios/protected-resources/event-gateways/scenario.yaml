@@ -38,7 +38,7 @@ steps:
 
           # Verify protected Event Gateway created
           - select: >-
-              plan.changes[?resource_type=='event_gateway_control_plane' &&
+              plan.changes[?resource_type=='event_gateway' &&
                             resource_ref=='egw-protected-top-level'] | [0]
             expect:
               fields:
@@ -107,7 +107,7 @@ steps:
         assertions:
           # Should see UPDATE action for protection change
           - select: >-
-              plan.changes[?resource_type=='event_gateway_control_plane' &&
+              plan.changes[?resource_type=='event_gateway' &&
                             resource_ref=='egw-protected-top-level'] | [0]
             expect:
               fields:
@@ -150,7 +150,7 @@ steps:
         assertions:
           # Verify DELETE action planned
           - select: >-
-              plan.changes[?resource_type=='event_gateway_control_plane' &&
+              plan.changes[?resource_type=='event_gateway' &&
                             resource_ref=='My Protected Event Gateway CP'] | [0]
             expect:
               fields:

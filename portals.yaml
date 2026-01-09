@@ -1,0 +1,35 @@
+_defaults:
+  kongctl:
+    namespace: poppycorp
+application_auth_strategies:
+- configs:
+    key-auth:
+      key_names:
+      - apikey
+  display_name: API Key Auth (dev)2
+  labels:
+    env: development
+  name: api-key-auth-dev-2
+  ref: b6acd7df-f326-42a3-839a-f87e3fe4beba
+  strategy_type: key_auth
+portals:
+- authentication_enabled: true
+  auto_approve_applications: false
+  auto_approve_developers: false
+  default_api_visibility: private
+  default_application_auth_strategy_id: b6acd7df-f326-42a3-839a-f87e3fe4beba
+  default_page_visibility: private
+  display_name: Developer Portal
+  name: kctlportal1
+  rbac_enabled: false
+  ref: 3ef26f1f-98e5-4473-bb06-5f631f1c43fb
+- authentication_enabled: true
+  auto_approve_applications: false
+  auto_approve_developers: false
+  default_api_visibility: private
+  default_application_auth_strategy_id: b6acd7df-f326-42a3-839a-f87e3fe4beba
+  default_page_visibility: private
+  display_name: Developer Portal
+  name: yoloportal2
+  rbac_enabled: false
+  ref: aaaaa

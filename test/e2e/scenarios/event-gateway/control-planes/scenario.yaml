@@ -36,7 +36,7 @@ steps:
                 applied: 1
                 failed: 0
                 status: success
-          - select: "plan.changes[?resource_type=='event_gateway_control_plane' && resource_ref=='egw-top-level'] | [0]"
+          - select: "plan.changes[?resource_type=='event_gateway' && resource_ref=='egw-top-level'] | [0]"
             expect:
               fields:
                 action: CREATE
@@ -77,7 +77,7 @@ steps:
                 applied: 1
                 failed: 0
                 status: success
-          - select: "plan.changes[?resource_type=='event_gateway_control_plane' && resource_ref=='egw-top-level'] | [0]"
+          - select: "plan.changes[?resource_type=='event_gateway' && resource_ref=='egw-top-level'] | [0]"
             expect:
               fields:
                 action: UPDATE
@@ -117,7 +117,7 @@ steps:
                 applied: 1
                 failed: 0
                 status: success
-          - select: "plan.changes[?resource_type=='event_gateway_control_plane' && resource_ref=='My Event Gateway CP'] | [0]"
+          - select: "plan.changes[?resource_type=='event_gateway' && resource_ref=='My Event Gateway CP'] | [0]"
             expect:
               fields:
                 action: DELETE

@@ -110,7 +110,7 @@ func (p *Planner) planEGWControlPlaneChanges(
 				}
 
 				// Validate protection change
-				err := p.validateProtectionWithChange("event_gateway_control_plane", desiredEGWCP.Name, isProtected, ActionUpdate,
+				err := p.validateProtectionWithChange(string(resources.ResourceTypeEventGatewayControlPlane), desiredEGWCP.Name, isProtected, ActionUpdate,
 					protectionChange, needsUpdate)
 				if err != nil {
 					protectionErrors = append(protectionErrors, err)
@@ -185,7 +185,7 @@ func (p *Planner) planEGWControlPlaneProtectionChangeWithFields(
 
 	// Use generic protection change planner
 	config := ProtectionChangeConfig{
-		ResourceType: "event_gateway_control_plane",
+		ResourceType: string(resources.ResourceTypeEventGatewayControlPlane),
 		ResourceName: desired.Name,
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,

@@ -26,7 +26,7 @@ const (
 	ResourceTypePortalEmailConfig        ResourceType = "portal_email_config"
 	ResourceTypePortalEmailTemplate      ResourceType = "portal_email_template"
 	ResourceTypeCatalogService           ResourceType = "catalog_service"
-	ResourceTypeEventGatewayControlPlane ResourceType = "event_gateway_control_plane"
+	ResourceTypeEventGatewayControlPlane ResourceType = "event_gateway"
 )
 
 const (
