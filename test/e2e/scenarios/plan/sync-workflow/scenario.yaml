@@ -11,6 +11,10 @@ vars:
   ordersAPIRef: plan-sync-orders
   legacyAPIRef: plan-sync-legacy
   inventoryAPIRef: plan-sync-inventory
+  egwRef: plan-sync-egw
+  egwName: "plan-sync-egw"
+  egwInitialDesc: "Initial description for plan sync workflow"
+  egwUpdatedDesc: "Updated description for plan sync workflow"
 
 defaults:
   mask:
@@ -44,12 +48,12 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 3
+                applied: 4
                 failed: 0
           - select: execution.applied_changes
             expect:
               fields:
-                "length(@)": 3
+                "length(@)": 4
       - name: 001-get-portal
         run: ["get", "portals", "-o", "json"]
         assertions:
@@ -69,6 +73,14 @@ steps:
             expect:
               fields:
                 labels.lifecycle: sunset
+      - name: 003-get-event-gateways
+        run: ["get", "event-gateway", "control-plane", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.egwRef }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.egwName }}"
+                description: "{{ .vars.egwInitialDesc }}"
 
   - name: 002-plan-sync-update
     inputOverlayDirs:
@@ -91,9 +103,9 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 4
+                total_changes: 5
                 by_action.CREATE: 1
-                by_action.UPDATE: 2
+                by_action.UPDATE: 3
                 by_action.DELETE: 1
       - name: 001-diff-plan-text
         outputFormat: text
@@ -106,12 +118,13 @@ steps:
           - select: stdout
             expect:
               fields:
-                "contains(@, 'Plan: 1 to add, 2 to change, 1 to destroy')": true
+                "contains(@, 'Plan: 1 to add, 3 to change, 1 to destroy')": true
                 "contains(@, 'portal \"plan-sync-portal\" will be updated')": true
                 "contains(@, 'authentication_enabled: false')": true
                 "contains(@, 'api \"plan-sync-inventory\" will be created')": true
                 "contains(@, 'api \"plan-sync-orders\" will be updated')": true
                 "contains(@, 'api \"plan-sync-legacy\" will be deleted')": true
+                "contains(@, 'event_gateway \"plan-sync-egw\" will be updated')": true
       - name: 002-sync-plan
         run:
           - sync
@@ -123,12 +136,12 @@ steps:
             expect:
               fields:
                 by_action.CREATE: 1
-                by_action.UPDATE: 2
+                by_action.UPDATE: 3
                 by_action.DELETE: 1
           - select: summary
             expect:
               fields:
-                applied: 4
+                applied: 5
                 failed: 0
       - name: 003-get-portal
         run: ["get", "portals", "-o", "json"]
@@ -154,7 +167,15 @@ steps:
               fields:
                 description: "Orders API with updated configuration"
                 labels.lifecycle: stable
-      - name: 005-diff-no-changes
+      - name: 005-get-event-gateways-updated
+        run: ["get", "event-gateway", "control-plane", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.egwRef }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.egwName }}"
+                description: "{{ .vars.egwUpdatedDesc }}"
+      - name: 006-diff-no-changes
         outputFormat: text
         parseAs: raw
         run:
@@ -166,7 +187,7 @@ steps:
             expect:
               fields:
                 "contains(@, 'No changes detected. Konnect is up to date.')": true
-      - name: 006-plan-post-sync
+      - name: 007-plan-post-sync
         outputFormat: disable
         run:
           - plan

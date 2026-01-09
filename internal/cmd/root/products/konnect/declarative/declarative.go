@@ -262,7 +262,8 @@ func runPlan(command *cobra.Command, args []string) error {
 
 	// Check if configuration is empty
 	totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
-		len(resourceSet.ControlPlanes) + len(resourceSet.APIs) + len(resourceSet.CatalogServices)
+		len(resourceSet.ControlPlanes) + len(resourceSet.APIs) + len(resourceSet.CatalogServices) +
+		len(resourceSet.EventGatewayControlPlanes)
 
 	if err := nsValidator.ValidateNamespaceRequirement(resourceSet, requirement); err != nil {
 		return err
@@ -335,6 +336,13 @@ func runPlan(command *cobra.Command, args []string) error {
 			ns := "default"
 			if authStrategy.Kongctl != nil && authStrategy.Kongctl.Namespace != nil {
 				ns = *authStrategy.Kongctl.Namespace
+			}
+			namespaces[ns] = true
+		}
+		for _, egwControlPlane := range resourceSet.EventGatewayControlPlanes {
+			ns := "default"
+			if egwControlPlane.Kongctl != nil && egwControlPlane.Kongctl.Namespace != nil {
+				ns = *egwControlPlane.Kongctl.Namespace
 			}
 			namespaces[ns] = true
 		}
