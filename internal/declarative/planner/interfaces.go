@@ -40,3 +40,10 @@ type APIPlanner interface {
 type CatalogServicePlanner interface {
 	ResourcePlanner
 }
+
+// EGWControlPlanePlanner handles planning for Event Gateway Control Plane resources
+type EGWControlPlanePlanner interface {
+	ResourcePlanner
+
+	// Additional Event Gateway Control Plane-specific methods if needed
+}

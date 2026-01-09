@@ -24,3 +24,8 @@ apis:
     labels:
       domain: supply
       lifecycle: beta
+
+event_gateways:
+  - ref: plan-sync-egw
+    name: plan-sync-egw
+    description: "Updated description for plan sync workflow"

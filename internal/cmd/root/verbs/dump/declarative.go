@@ -3,6 +3,7 @@ package dump
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"reflect"
 	"sort"
 	"strings"
@@ -35,6 +36,7 @@ var declarativeAllowedResources = map[string]struct{}{
 	"apis":                        {},
 	"application_auth_strategies": {},
 	"control_planes":              {},
+	"event_gateways":              {},
 }
 
 func newDeclarativeCmd() *cobra.Command {
@@ -194,6 +196,16 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				return err
 			}
 			resourceSet.ControlPlanes = append(resourceSet.ControlPlanes, controlPlanes...)
+		case "event_gateways":
+			eventGateways, err := collectDeclarativeEventGateways(
+				ctx,
+				sdk.GetEventGatewayControlPlaneAPI(),
+				requestPageSize,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.EventGatewayControlPlanes = append(resourceSet.EventGatewayControlPlanes, eventGateways...)
 		}
 	}
 
@@ -329,6 +341,56 @@ func collectDeclarativeAPIs(
 	return results, nil
 }
 
+func collectDeclarativeEventGateways(
+	ctx context.Context,
+	eventGatewayClient helpers.EGWControlPlaneAPI,
+	requestPageSize int64,
+) ([]declresources.EventGatewayControlPlaneResource, error) {
+	if eventGatewayClient == nil {
+		return nil, fmt.Errorf("event gateway client is not configured")
+	}
+
+	var allData []declresources.EventGatewayControlPlaneResource
+	var pageAfter *string
+
+	for {
+		req := kkOps.ListEventGatewaysRequest{
+			PageSize: Int64(requestPageSize),
+		}
+
+		if pageAfter != nil {
+			req.PageAfter = pageAfter
+		}
+
+		res, err := eventGatewayClient.ListEGWControlPlanes(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, egw := range res.ListEventGatewaysResponse.Data {
+			allData = append(allData, mapEventGatewayToDeclarativeResource(egw))
+		}
+
+		if res.ListEventGatewaysResponse.Meta.Page.Next == nil {
+			break
+		}
+
+		u, err := url.Parse(*res.ListEventGatewaysResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, err
+		}
+
+		values := u.Query()
+		pageAfter = stringPointer(values.Get("page[after]"))
+	}
+
+	sort.Slice(allData, func(i, j int) bool {
+		return allData[i].Name < allData[j].Name
+	})
+
+	return allData, nil
+}
+
 func mapPortalToDeclarativeResource(portal kkComps.ListPortalsResponsePortal) declresources.PortalResource {
 	result := declresources.PortalResource{
 		CreatePortal: kkComps.CreatePortal{
@@ -395,6 +457,22 @@ func mapAPIToDeclarativeResource(api kkComps.APIResponseSchema) declresources.AP
 	}
 
 	normalizeAPIResource(&result)
+
+	return result
+}
+
+func mapEventGatewayToDeclarativeResource(egw kkComps.EventGatewayInfo) declresources.EventGatewayControlPlaneResource {
+	result := declresources.EventGatewayControlPlaneResource{
+		CreateGatewayRequest: kkComps.CreateGatewayRequest{
+			Name:        egw.Name,
+			Description: egw.Description,
+		},
+		Ref: egw.ID,
+	}
+
+	if labels := decllabels.GetUserLabels(egw.Labels); len(labels) > 0 {
+		result.Labels = labels
+	}
 
 	return result
 }

@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 
+	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	kkErrors "github.com/Kong/sdk-konnect-go/models/sdkerrors"
@@ -44,6 +46,9 @@ type ClientConfig struct {
 	APIPublicationAPI    helpers.APIPublicationAPI
 	APIImplementationAPI helpers.APIImplementationAPI
 	APIDocumentAPI       helpers.APIDocumentAPI
+
+	// Event Gateway Control Plane API
+	EGWControlPlaneAPI helpers.EGWControlPlaneAPI
 }
 
 // Client wraps Konnect SDK for state management
@@ -73,6 +78,9 @@ type Client struct {
 	apiPublicationAPI    helpers.APIPublicationAPI
 	apiImplementationAPI helpers.APIImplementationAPI
 	apiDocumentAPI       helpers.APIDocumentAPI
+
+	// Event Gateway Control Plane API
+	egwControlPlaneAPI helpers.EGWControlPlaneAPI
 }
 
 // NewClient creates a new state client with the provided configuration
@@ -103,6 +111,9 @@ func NewClient(config ClientConfig) *Client {
 		apiPublicationAPI:    config.APIPublicationAPI,
 		apiImplementationAPI: config.APIImplementationAPI,
 		apiDocumentAPI:       config.APIDocumentAPI,
+
+		// Event Gateway Control Plane APIs
+		egwControlPlaneAPI: config.EGWControlPlaneAPI,
 	}
 }
 
@@ -216,6 +227,11 @@ type ApplicationAuthStrategy struct {
 	DisplayName      string
 	StrategyType     string
 	Configs          map[string]any
+	NormalizedLabels map[string]string // Non-pointer labels
+}
+
+type EventGatewayControlPlane struct {
+	kkComps.EventGatewayInfo
 	NormalizedLabels map[string]string // Non-pointer labels
 }
 
@@ -3096,7 +3112,8 @@ func (c *Client) ListPortalTeamRoles(ctx context.Context, portalID string, teamI
 			})
 		}
 
-		if resp.AssignedPortalRoleCollectionResponse == nil || len(resp.AssignedPortalRoleCollectionResponse.Data) == 0 {
+		if resp.AssignedPortalRoleCollectionResponse == nil ||
+			len(resp.AssignedPortalRoleCollectionResponse.Data) == 0 {
 			break
 		}
 
@@ -3181,6 +3198,145 @@ func (c *Client) RemovePortalTeamRole(ctx context.Context, portalID string, team
 		})
 	}
 
+	return nil
+}
+
+func (c *Client) ListManagedEventGatewayControlPlanes(
+	ctx context.Context,
+	namespaces []string,
+) ([]EventGatewayControlPlane, error) {
+	// Validate API client is initialized
+	if err := ValidateAPIClient(c.egwControlPlaneAPI, "event gateway control plane API"); err != nil {
+		return nil, err
+	}
+
+	var allData []kkComps.EventGatewayInfo
+	var pageAfter *string
+
+	for {
+		req := kkOps.ListEventGatewaysRequest{}
+
+		if pageAfter != nil {
+			req.PageAfter = pageAfter
+		}
+
+		res, err := c.egwControlPlaneAPI.ListEGWControlPlanes(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway control planes", nil)
+		}
+
+		// If response is nil, break the loop
+		if res.ListEventGatewaysResponse == nil {
+			return []EventGatewayControlPlane{}, nil
+		}
+
+		allData = append(allData, res.ListEventGatewaysResponse.Data...)
+
+		if res.ListEventGatewaysResponse.Meta.Page.Next == nil {
+			break
+		}
+
+		u, err := url.Parse(*res.ListEventGatewaysResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway control planes: invalid cursor", nil)
+		}
+
+		values := u.Query()
+		pageAfter = kk.String(values.Get("page[after]"))
+	}
+
+	var filteredEGWControlPlanes []EventGatewayControlPlane
+	for _, f := range allData {
+
+		// Filter by managed status and namespace
+		if labels.IsManagedResource(f.Labels) {
+			if shouldIncludeNamespace(f.Labels[labels.NamespaceKey], namespaces) {
+				eventGatewayControlPlane := EventGatewayControlPlane{
+					f,
+					f.Labels,
+				}
+				filteredEGWControlPlanes = append(filteredEGWControlPlanes, eventGatewayControlPlane)
+			}
+		}
+	}
+	return filteredEGWControlPlanes, nil
+}
+
+func (c *Client) CreateEventGatewayControlPlane(
+	ctx context.Context,
+	req kkComps.CreateGatewayRequest,
+	namespace string,
+) (string, error) {
+	resp, err := c.egwControlPlaneAPI.CreateEGWControlPlane(ctx, req)
+	if err != nil {
+		return "", WrapAPIError(err, "create event gateway control plane", &ErrorWrapperOptions{
+			ResourceType: "event_gateway",
+			ResourceName: "", // Adjust based on SDK
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.EventGatewayInfo, "create event gateway control plane"); err != nil {
+		return "", err
+	}
+
+	return resp.EventGatewayInfo.ID, nil
+}
+
+func (c *Client) UpdateEventGatewayControlPlane(
+	ctx context.Context,
+	id string,
+	req kkComps.UpdateGatewayRequest,
+	namespace string,
+) (string, error) {
+	resp, err := c.egwControlPlaneAPI.UpdateEGWControlPlane(ctx, id, req)
+	if err != nil {
+		return "", WrapAPIError(err, "update event gateway control plane", &ErrorWrapperOptions{
+			ResourceType: "event_gateway",
+			ResourceName: "", // Adjust based on SDK
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	return resp.EventGatewayInfo.ID, nil
+}
+
+func (c *Client) GetEventGatewayControlPlaneByID(ctx context.Context, id string) (*EventGatewayControlPlane, error) {
+	resp, err := c.egwControlPlaneAPI.FetchEGWControlPlane(ctx, id)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway control plane by ID", &ErrorWrapperOptions{
+			ResourceType: "event_gateway",
+			ResourceName: "", // Adjust based on SDK
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.EventGatewayInfo == nil {
+		return nil, nil
+	}
+
+	// Labels are already map[string]string in the SDK
+	normalized := resp.EventGatewayInfo.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	eventGateway := &EventGatewayControlPlane{
+		EventGatewayInfo: *resp.EventGatewayInfo,
+		NormalizedLabels: normalized,
+	}
+
+	return eventGateway, nil
+}
+
+func (c *Client) DeleteEventGatewayControlPlane(ctx context.Context, id string) error {
+	// Placeholder for future implementation
+	_, err := c.egwControlPlaneAPI.DeleteEGWControlPlane(ctx, id)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway control plane", nil)
+	}
 	return nil
 }
 

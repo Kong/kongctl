@@ -1,0 +1,8 @@
+# Overlay: Empty config to delete all Event Gateway Control Planes
+# Now that Customer Event Gateway Control Plane is unprotected, this should succeed
+
+_defaults:
+  kongctl:
+    namespace: "egw-protection"
+
+event_gateways: []

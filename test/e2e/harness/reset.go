@@ -180,6 +180,7 @@ var resetSequence = []struct {
 	{"v2", "application-auth-strategies"},
 	{"v2", "control-planes"},
 	{"v1", "catalog-services"},
+	{"v1", "event-gateways"},
 }
 
 func executeReset(client *http.Client, baseURL, token string) (resetResult, error) {

@@ -43,6 +43,7 @@ type SDKAPI interface {
 	GetPortalTeamMembershipAPI() PortalTeamMembershipAPI
 	GetAssetsAPI() AssetsAPI
 	GetPortalEmailsAPI() PortalEmailsAPI
+	GetEventGatewayControlPlaneAPI() EGWControlPlaneAPI
 }
 
 // This is the real implementation of the SDKAPI
@@ -273,6 +274,15 @@ func (k *KonnectSDK) GetPortalEmailsAPI() PortalEmailsAPI {
 	}
 
 	return &PortalEmailsAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the EGWControlPlaneAPI interface
+func (k *KonnectSDK) GetEventGatewayControlPlaneAPI() EGWControlPlaneAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &EGWControlPlaneAPIImpl{SDK: k.SDK}
 }
 
 // A function that can build an SDKAPI with a given configuration

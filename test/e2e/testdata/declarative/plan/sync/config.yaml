@@ -24,3 +24,8 @@ apis:
     labels:
       domain: legacy
       lifecycle: sunset
+
+event_gateways:
+  - ref: plan-sync-egw
+    name: plan-sync-egw
+    description: "Initial description for plan sync workflow"

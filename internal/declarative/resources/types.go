@@ -5,27 +5,28 @@ type ResourceType string
 
 // Resource type constants
 const (
-	ResourceTypePortal                  ResourceType = "portal"
-	ResourceTypeApplicationAuthStrategy ResourceType = "application_auth_strategy"
-	ResourceTypeControlPlane            ResourceType = "control_plane"
-	ResourceTypeAPI                     ResourceType = "api"
-	ResourceTypeAPIVersion              ResourceType = "api_version"
-	ResourceTypeAPIPublication          ResourceType = "api_publication"
-	ResourceTypeAPIImplementation       ResourceType = "api_implementation"
-	ResourceTypeAPIDocument             ResourceType = "api_document"
-	ResourceTypeGatewayService          ResourceType = "gateway_service"
-	ResourceTypePortalCustomization     ResourceType = "portal_customization"
-	ResourceTypePortalCustomDomain      ResourceType = "portal_custom_domain"
-	ResourceTypePortalAuthSettings      ResourceType = "portal_auth_settings"
-	ResourceTypePortalPage              ResourceType = "portal_page"
-	ResourceTypePortalSnippet           ResourceType = "portal_snippet"
-	ResourceTypePortalTeam              ResourceType = "portal_team"
-	ResourceTypePortalTeamRole          ResourceType = "portal_team_role"
-	ResourceTypePortalAssetLogo         ResourceType = "portal_asset_logo"
-	ResourceTypePortalAssetFavicon      ResourceType = "portal_asset_favicon"
-	ResourceTypePortalEmailConfig       ResourceType = "portal_email_config"
-	ResourceTypePortalEmailTemplate     ResourceType = "portal_email_template"
-	ResourceTypeCatalogService          ResourceType = "catalog_service"
+	ResourceTypePortal                   ResourceType = "portal"
+	ResourceTypeApplicationAuthStrategy  ResourceType = "application_auth_strategy"
+	ResourceTypeControlPlane             ResourceType = "control_plane"
+	ResourceTypeAPI                      ResourceType = "api"
+	ResourceTypeAPIVersion               ResourceType = "api_version"
+	ResourceTypeAPIPublication           ResourceType = "api_publication"
+	ResourceTypeAPIImplementation        ResourceType = "api_implementation"
+	ResourceTypeAPIDocument              ResourceType = "api_document"
+	ResourceTypeGatewayService           ResourceType = "gateway_service"
+	ResourceTypePortalCustomization      ResourceType = "portal_customization"
+	ResourceTypePortalCustomDomain       ResourceType = "portal_custom_domain"
+	ResourceTypePortalAuthSettings       ResourceType = "portal_auth_settings"
+	ResourceTypePortalPage               ResourceType = "portal_page"
+	ResourceTypePortalSnippet            ResourceType = "portal_snippet"
+	ResourceTypePortalTeam               ResourceType = "portal_team"
+	ResourceTypePortalTeamRole           ResourceType = "portal_team_role"
+	ResourceTypePortalAssetLogo          ResourceType = "portal_asset_logo"
+	ResourceTypePortalAssetFavicon       ResourceType = "portal_asset_favicon"
+	ResourceTypePortalEmailConfig        ResourceType = "portal_email_config"
+	ResourceTypePortalEmailTemplate      ResourceType = "portal_email_template"
+	ResourceTypeCatalogService           ResourceType = "catalog_service"
+	ResourceTypeEventGatewayControlPlane ResourceType = "event_gateway"
 )
 
 const (
@@ -55,17 +56,18 @@ type ResourceSet struct {
 	APIImplementations []APIImplementationResource `yaml:"api_implementations,omitempty"         json:"api_implementations,omitempty"` //nolint:lll
 	APIDocuments       []APIDocumentResource       `yaml:"api_documents,omitempty"               json:"api_documents,omitempty"`       //nolint:lll
 	// Portal child resources can be defined at root level (with parent reference) or nested under Portals
-	PortalCustomizations []PortalCustomizationResource `yaml:"portal_customizations,omitempty"       json:"portal_customizations,omitempty"` //nolint:lll
-	PortalAuthSettings   []PortalAuthSettingsResource  `yaml:"portal_auth_settings,omitempty"        json:"portal_auth_settings,omitempty"`  //nolint:lll
-	PortalCustomDomains  []PortalCustomDomainResource  `yaml:"portal_custom_domains,omitempty"       json:"portal_custom_domains,omitempty"` //nolint:lll
-	PortalPages          []PortalPageResource          `yaml:"portal_pages,omitempty"                json:"portal_pages,omitempty"`          //nolint:lll
-	PortalSnippets       []PortalSnippetResource       `yaml:"portal_snippets,omitempty"             json:"portal_snippets,omitempty"`       //nolint:lll
-	PortalTeams          []PortalTeamResource          `yaml:"portal_teams,omitempty"                json:"portal_teams,omitempty"`          //nolint:lll
-	PortalTeamRoles      []PortalTeamRoleResource      `yaml:"portal_team_roles,omitempty"           json:"portal_team_roles,omitempty"`     //nolint:lll
-	PortalAssetLogos     []PortalAssetLogoResource     `yaml:"portal_asset_logos,omitempty"         json:"portal_asset_logos,omitempty"`     //nolint:lll
-	PortalAssetFavicons  []PortalAssetFaviconResource  `yaml:"portal_asset_favicons,omitempty"      json:"portal_asset_favicons,omitempty"`  //nolint:lll
-	PortalEmailConfigs   []PortalEmailConfigResource   `yaml:"portal_email_configs,omitempty"       json:"portal_email_configs,omitempty"`   //nolint:lll
-	PortalEmailTemplates []PortalEmailTemplateResource `yaml:"portal_email_templates,omitempty"     json:"portal_email_templates,omitempty"` //nolint:lll
+	PortalCustomizations      []PortalCustomizationResource      `yaml:"portal_customizations,omitempty"       json:"portal_customizations,omitempty"` //nolint:lll
+	PortalAuthSettings        []PortalAuthSettingsResource       `yaml:"portal_auth_settings,omitempty"        json:"portal_auth_settings,omitempty"`  //nolint:lll
+	PortalCustomDomains       []PortalCustomDomainResource       `yaml:"portal_custom_domains,omitempty"       json:"portal_custom_domains,omitempty"` //nolint:lll
+	PortalPages               []PortalPageResource               `yaml:"portal_pages,omitempty"                json:"portal_pages,omitempty"`          //nolint:lll
+	PortalSnippets            []PortalSnippetResource            `yaml:"portal_snippets,omitempty"             json:"portal_snippets,omitempty"`       //nolint:lll
+	PortalTeams               []PortalTeamResource               `yaml:"portal_teams,omitempty"                json:"portal_teams,omitempty"`          //nolint:lll
+	PortalTeamRoles           []PortalTeamRoleResource           `yaml:"portal_team_roles,omitempty"           json:"portal_team_roles,omitempty"`     //nolint:lll
+	PortalAssetLogos          []PortalAssetLogoResource          `yaml:"portal_asset_logos,omitempty"         json:"portal_asset_logos,omitempty"`     //nolint:lll
+	PortalAssetFavicons       []PortalAssetFaviconResource       `yaml:"portal_asset_favicons,omitempty"      json:"portal_asset_favicons,omitempty"`  //nolint:lll
+	PortalEmailConfigs        []PortalEmailConfigResource        `yaml:"portal_email_configs,omitempty"       json:"portal_email_configs,omitempty"`   //nolint:lll
+	PortalEmailTemplates      []PortalEmailTemplateResource      `yaml:"portal_email_templates,omitempty"     json:"portal_email_templates,omitempty"` //nolint:lll
+	EventGatewayControlPlanes []EventGatewayControlPlaneResource `yaml:"event_gateways,omitempty" json:"event_gateways,omitempty"`                     //nolint:lll
 
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
@@ -595,6 +597,17 @@ func (rs *ResourceSet) GetPortalTeamRolesByNamespace(namespace string) []PortalT
 			if GetNamespace(portal.Kongctl) == namespace {
 				filtered = append(filtered, role)
 			}
+		}
+	}
+	return filtered
+}
+
+// GetEventGatewayControlPlanesByNamespace returns all EGW CP resources from the specified namespace
+func (rs *ResourceSet) GetEventGatewayControlPlanesByNamespace(namespace string) []EventGatewayControlPlaneResource {
+	var filtered []EventGatewayControlPlaneResource
+	for _, cp := range rs.EventGatewayControlPlanes {
+		if GetNamespace(cp.Kongctl) == namespace {
+			filtered = append(filtered, cp)
 		}
 	}
 	return filtered

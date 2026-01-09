@@ -33,11 +33,12 @@ type Planner struct {
 	genericPlanner *GenericPlanner
 
 	// Resource-specific planners
-	portalPlanner         PortalPlanner
-	controlPlanePlanner   ControlPlanePlanner
-	authStrategyPlanner   AuthStrategyPlanner
-	apiPlanner            APIPlanner
-	catalogServicePlanner CatalogServicePlanner
+	portalPlanner                   PortalPlanner
+	controlPlanePlanner             ControlPlanePlanner
+	authStrategyPlanner             AuthStrategyPlanner
+	apiPlanner                      APIPlanner
+	catalogServicePlanner           CatalogServicePlanner
+	eventGatewayControlPlanePlanner EGWControlPlanePlanner
 
 	// ResourceSet containing all desired resources
 	resources *resources.ResourceSet
@@ -73,6 +74,7 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 	// Initialize resource-specific planners
 	base := NewBasePlanner(p)
 	p.portalPlanner = NewPortalPlanner(base)
+	p.eventGatewayControlPlanePlanner = NewEGWControlPlanePlanner(base, p.resources)
 	p.controlPlanePlanner = NewControlPlanePlanner(base)
 	p.authStrategyPlanner = NewAuthStrategyPlanner(base)
 	p.catalogServicePlanner = NewCatalogServicePlanner(base)
@@ -155,6 +157,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.authStrategyPlanner = NewAuthStrategyPlanner(base)
 		namespacePlanner.catalogServicePlanner = NewCatalogServicePlanner(base)
 		namespacePlanner.apiPlanner = NewAPIPlanner(base)
+		namespacePlanner.eventGatewayControlPlanePlanner = NewEGWControlPlanePlanner(base, rs)
 
 		// Store full ResourceSet for access by planners (enables both filtered views and global lookups)
 		namespacePlanner.resources = rs
@@ -206,6 +209,10 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		// Plan API changes (includes child resources)
 		if err := namespacePlanner.apiPlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
 			return nil, fmt.Errorf("failed to plan API changes for namespace %s: %w", namespace, err)
+		}
+
+		if err := namespacePlanner.eventGatewayControlPlanePlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
+			return nil, fmt.Errorf("failed to plan Event Gateway Control Plane changes for namespace %s: %w", namespace, err)
 		}
 
 		// Merge namespace plan into base plan
@@ -1274,6 +1281,11 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 
 	for _, strategy := range rs.ApplicationAuthStrategies {
 		ns := resources.GetNamespace(strategy.Kongctl)
+		namespaceSet[ns] = true
+	}
+
+	for _, cp := range rs.EventGatewayControlPlanes {
+		ns := resources.GetNamespace(cp.Kongctl)
 		namespaceSet[ns] = true
 	}
 

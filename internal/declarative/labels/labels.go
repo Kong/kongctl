@@ -381,3 +381,20 @@ func ConvertStringMapToPointerMap(labels map[string]string) map[string]*string {
 	}
 	return result
 }
+
+// ConvertPointerMapsToStringMap converts map[string]*string to map[string]string
+func ConvertPointerMapsToStringMap(labels map[string]*string) map[string]string {
+	if len(labels) == 0 {
+		return nil
+	}
+
+	result := make(map[string]string)
+	for k, v := range labels {
+		val := v
+
+		if val != nil {
+			result[k] = *val
+		}
+	}
+	return result
+}
