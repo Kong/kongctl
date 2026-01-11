@@ -29,6 +29,7 @@ type SDKAPI interface {
 	GetAppAuthStrategiesAPI() AppAuthStrategiesAPI
 	GetMeAPI() MeAPI
 	GetGatewayServiceAPI() GatewayServiceAPI
+	GetSystemAccountAPI() SystemAccountsAPI
 	// Portal child resource APIs
 	GetPortalPageAPI() PortalPageAPI
 	GetPortalAuthSettingsAPI() PortalAuthSettingsAPI
@@ -283,6 +284,14 @@ func (k *KonnectSDK) GetEventGatewayControlPlaneAPI() EGWControlPlaneAPI {
 	}
 
 	return &EGWControlPlaneAPIImpl{SDK: k.SDK}
+}
+
+func (k *KonnectSDK) GetSystemAccountAPI() SystemAccountsAPI {
+	if k.SDK == nil || k.SDK.SystemAccounts == nil {
+		return nil
+	}
+
+	return &SystemAccountsAPIImpl{SDK: k.SDK}
 }
 
 // A function that can build an SDKAPI with a given configuration
