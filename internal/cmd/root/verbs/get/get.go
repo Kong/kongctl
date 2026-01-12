@@ -154,6 +154,12 @@ Setting this value overrides tokens obtained from the login command.
 	}
 	cmd.AddCommand(regionsCmd)
 
+	systemAccountsCmd, err := NewDirectSystemAccountCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(systemAccountsCmd)
+
 	return cmd, nil
 }
 
