@@ -53,7 +53,7 @@ steps:
 
       # Verify resources exist with proper labels
       - name: 001-get-event-gateway-control-planes
-        run: ["get", "event-gateway", "control-planes", "-o", "json"]
+        run: ["get", "event-gateways", "-o", "json"]
         assertions:
           # Verify Protected Event Gateway CP has protected label
           - select: "[?name=='{{ .vars.protectedEventGatewayName }}'] | [0]"
@@ -80,7 +80,7 @@ steps:
 
       # Verify protected resource still exists
       - name: 001-verify-protected-exists
-        run: ["get", "event-gateway", "control-plane", "-o", "json"]
+        run: ["get", "event-gateways", "-o", "json"]
         assertions:
           - select: "[?name=='{{ .vars.protectedEventGatewayName }}']"
             expect:
@@ -129,7 +129,7 @@ steps:
 
       # Verify protected label removed
       - name: 001-verify-unprotected
-        run: ["get", "event-gateway", "control-plane", "-o", "json"]
+        run: ["get", "event-gateways", "-o", "json"]
         assertions:
           - select: "[?name=='{{ .vars.protectedEventGatewayName }}'] | [0]"
             expect:
@@ -165,7 +165,7 @@ steps:
 
       # Verify resource deleted
       - name: 001-verify-deleted
-        run: ["get", "event-gateway", "control-plane", "-o", "json"]
+        run: ["get", "event-gateways", "-o", "json"]
         assertions:
           - select: "[?name=='{{ .vars.protectedEventGatewayName }}']"
             expect:

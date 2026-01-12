@@ -101,7 +101,7 @@ steps:
                 description: "Orders API for plan apply workflow"
                 labels.domain: commerce
       - name: 005-get-event-gateways
-        run: ["get", "event-gateway", "control-plane", "-o", "json"]
+        run: ["get", "event-gateways", "-o", "json"]
         assertions:
           - select: "[?name=='{{ .vars.egwRef }}'] | [0]"
             expect:
@@ -185,7 +185,7 @@ steps:
                 description: "Orders API with updated details"
                 labels.lifecycle: production
       - name: 005-get-event-gateways
-        run: ["get", "event-gateway", "control-plane", "-o", "json"]
+        run: ["get", "event-gateways", "-o", "json"]
         assertions:
           - select: "[?name=='{{ .vars.egwRef }}'] | [0]"
             expect:

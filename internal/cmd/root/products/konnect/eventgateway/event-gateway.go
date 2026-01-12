@@ -1,8 +1,6 @@
 package eventgateway
 
 import (
-	controlplane "github.com/kong/kongctl/internal/cmd/root/products/konnect/eventgateway/control-plane"
-
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -20,18 +18,22 @@ func NewEventGatewayCmd(verb verbs.VerbValue,
 	addParentFlags func(verbs.VerbValue, *cobra.Command),
 	parentPreRun func(*cobra.Command, []string) error,
 ) (*cobra.Command, error) {
-	cmd := &cobra.Command{
+	baseCmd := cobra.Command{
 		Use:     eventGatewayUse,
 		Short:   eventGatewayShort,
 		Long:    eventGatewayLong,
 		Aliases: []string{"egw", "EGW", "event-gateways"},
 	}
 
-	c, e := controlplane.NewEventGatewayControlPlaneCmd(verb, addParentFlags, parentPreRun)
-	if e != nil {
-		return nil, e
+	switch verb {
+	case verbs.Get:
+		return newGetEventGatewayControlPlaneCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
+	case verbs.List:
+		return newGetEventGatewayControlPlaneCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
+	case verbs.Create, verbs.Add, verbs.Apply, verbs.Dump, verbs.Update, verbs.Delete, verbs.Help, verbs.Login,
+		verbs.Plan, verbs.Sync, verbs.Diff, verbs.Export, verbs.Adopt, verbs.API, verbs.Kai, verbs.View, verbs.Logout:
+		return &baseCmd, nil
+	default:
+		return &baseCmd, nil
 	}
-	cmd.AddCommand(c)
-
-	return cmd, nil
 }

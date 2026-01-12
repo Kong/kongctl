@@ -67,9 +67,9 @@ Setting this value overrides tokens obtained from the login command.
 
 	// Override the example to show direct usage without "konnect"
 	eventGatewayCmd.Example = `  # List all the Event Gateways for the organization
-  kongctl get event-gateway control-planes
+  kongctl get event-gateways
   # Get a specific Event Gateway
-  kongctl get event-gateway control-plane <id|name>
+  kongctl get event-gateways <id|name>
   `
 
 	return eventGatewayCmd, nil

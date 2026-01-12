@@ -1,4 +1,4 @@
-package controlplane
+package eventgateway
 
 import (
 	"fmt"
@@ -27,25 +27,23 @@ import (
 var (
 	getEventGatewayControlPlanesShort = i18n.T(
 		"root.products.konnect.event-gateway.control-plane.getEventGatewayControlPlanesShort",
-		"List or get Konnect Event Gateway Control Planes")
+		"List or get Konnect Event Gateways")
 	getEventGatewayControlPlanesLong = i18n.T(
 		"root.products.konnect.event-gateway.control-plane.getEventGatewayControlPlanesLong",
-		`Use the get verb with the event-gateway control-plane command to query Konnect Event Gateway Control Planes.`)
+		`Use the get verb with the event-gateway command to query Konnect Event Gateways.`)
 	getEventGatewayControlPlanesExample = normalizers.Examples(
 		i18n.T("root.products.konnect.event-gateway.control-plane.getEventGatewayControlPlanesExamples",
-			fmt.Sprintf(`
-	# List all the Event gateway control planes for the organization
-	%[1]s get event-gateway control-planes
-	# Get details for an Event gateway control plane with a specific ID 
-	%[1]s get event-gateway control-plane 22cd8a0b-72e7-4212-9099-0764f8e9c5ac
-	# Get details for an Event gateway control plane with a specific name
-	%[1]s get event-gateway control-plane my-eventgatewaycontrolplane
-	# Get all the Event gateway control planes using command aliases
-	%[1]s get egw cp
-	`, meta.CLIName)))
+			fmt.Sprintf(`# List all the Event Gateways for the organization
+%[1]s get event-gateway
+# Get details for an Event Gateway with a specific ID
+%[1]s get event-gateway 22cd8a0b-72e7-4212-9099-0764f8e9c5ac
+# Get details for an Event Gateway with a specific name
+%[1]s get event-gateway my-eventgateway
+# Get all the Event Gateways using command aliases
+%[1]s get egw
+`, meta.CLIName)))
 )
 
-// textDisplayRecord represents a text display record for an Event gateway control plane
 type textDisplayRecord struct {
 	ID               string
 	Name             string
@@ -222,10 +220,10 @@ func (c *getEventGatewayControlPlaneCmd) runE(cobraCmd *cobra.Command, args []st
 		return e
 	}
 
-	// 'get event-gateway control-planes' can be run in various ways:
-	//	> get event-gateway control-planes <id>    # Get by UUID
-	//  > get event-gateway control-planes <name>	# Get by name
-	//  > get event-gateway control-planes         # List all
+	// 'get event-gateway' can be run in various ways:
+	//    > get event-gateway <id>    # Get by UUID
+	//  > get event-gateway <name>  # Get by name
+	//  > get event-gateway         # List all
 	if len(helper.GetArgs()) == 1 { // validate above checks that args is 0 or 1
 		id := strings.TrimSpace(helper.GetArgs()[0])
 

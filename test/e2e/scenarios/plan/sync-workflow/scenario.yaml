@@ -74,7 +74,7 @@ steps:
               fields:
                 labels.lifecycle: sunset
       - name: 003-get-event-gateways
-        run: ["get", "event-gateway", "control-plane", "-o", "json"]
+        run: ["get", "event-gateways", "-o", "json"]
         assertions:
           - select: "[?name=='{{ .vars.egwRef }}'] | [0]"
             expect:
@@ -168,7 +168,7 @@ steps:
                 description: "Orders API with updated configuration"
                 labels.lifecycle: stable
       - name: 005-get-event-gateways-updated
-        run: ["get", "event-gateway", "control-plane", "-o", "json"]
+        run: ["get", "event-gateways", "-o", "json"]
         assertions:
           - select: "[?name=='{{ .vars.egwRef }}'] | [0]"
             expect:

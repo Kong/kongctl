@@ -45,7 +45,7 @@ steps:
                 fields.labels.owner: "platform"
                 fields.labels.lifecycle: "dev"
       - name: 001-get-event-gateways
-        run: ["get", "event-gateway", "control-plane", "-o", "json"]
+        run: ["get", "event-gateways", "-o", "json"]
         assertions:
           - select: "[?name=='My Event Gateway CP'] | [0]"
             expect:
@@ -85,7 +85,7 @@ steps:
                 fields.labels.owner: "platform-eng"
                 fields.labels.lifecycle: "production"
       - name: 001-get-event-gateways
-        run: ["get", "event-gateway", "control-plane", "-o", "json"]
+        run: ["get", "event-gateways", "-o", "json"]
         assertions:
           - select: "[?name=='My Event Gateway CP'] | [0]"
             expect:
@@ -122,7 +122,7 @@ steps:
               fields:
                 action: DELETE
       - name: 001-get-event-gateways
-        run: ["get", "event-gateway", "control-plane", "-o", "json"]
+        run: ["get", "event-gateways", "-o", "json"]
         assertions:
           - select: "[?name=='My Event Gateway CP']"
             expect:
