@@ -24,6 +24,7 @@ type FileTagResolver struct {
 	baseDir     string
 	rootDirAbs  string
 	rootDirReal string
+	rootDirErr  error
 	cache       map[string]any
 	mu          sync.RWMutex
 }
@@ -39,7 +40,9 @@ func NewFileTagResolver(baseDir string, rootDir string) *FileTagResolver {
 	if strings.TrimSpace(rootDir) != "" {
 		absRoot, err := filepath.Abs(rootDir)
 		if err != nil {
-			absRoot = rootDir
+			resolver.rootDirAbs = filepath.Clean(rootDir)
+			resolver.rootDirErr = err
+			return resolver
 		}
 		resolver.rootDirAbs = filepath.Clean(absRoot)
 		if realRoot, err := filepath.EvalSymlinks(resolver.rootDirAbs); err == nil {
@@ -164,6 +167,9 @@ func (f *FileTagResolver) validateResolvedPath(rawPath string, fullPath string) 
 	if f.rootDirAbs == "" {
 		return nil
 	}
+	if f.rootDirErr != nil {
+		return fmt.Errorf("failed to resolve base dir %q: %w", f.rootDirAbs, f.rootDirErr)
+	}
 
 	absPath, err := filepath.Abs(fullPath)
 	if err != nil {
@@ -198,9 +204,10 @@ func pathWithinBase(base string, target string) bool {
 	if err != nil {
 		return false
 	}
-	if rel == "." {
+	if rel == "." || rel == "" {
 		return true
 	}
+	// Only treat ".." path components as traversal; names like "..file" are allowed.
 	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 		return false
 	}

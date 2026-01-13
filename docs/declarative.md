@@ -475,6 +475,8 @@ for example `KONGCTL_DEFAULT_KONNECT_DECLARATIVE_BASE_DIR`).
 ```yaml
 # ❌ These will fail with security errors
 description: !file /etc/passwd
+
+# ❌ This will fail if it resolves outside the base directory
 config: !file ../../../sensitive/file.yaml
 
 # ✅ These are allowed (if they stay within the base directory)
