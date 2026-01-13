@@ -469,7 +469,8 @@ apis:
 `..`, but the resolved path must stay within the base directory boundary. By default,
 the boundary is the root of each `-f` source (file: its parent dir, dir: the directory itself).
 For stdin, the boundary defaults to the current working directory. Set the base directory with
-`--base-dir` or `konnect.declarative.base-dir` (`KONGCTL_KONNECT_DECLARATIVE_BASE_DIR`).
+`--base-dir` or `konnect.declarative.base-dir` (`KONGCTL_<PROFILE>_KONNECT_DECLARATIVE_BASE_DIR`,
+for example `KONGCTL_DEFAULT_KONNECT_DECLARATIVE_BASE_DIR`).
 
 ```yaml
 # ❌ These will fail with security errors

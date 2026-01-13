@@ -227,7 +227,8 @@ Error: failed to process file tag: file not found: ./specs/api.yaml
    ```
 
    If you see `path resolves outside base dir`, set `--base-dir` (or
-   `KONGCTL_KONNECT_DECLARATIVE_BASE_DIR`) so the resolved path stays within
+   `KONGCTL_<PROFILE>_KONNECT_DECLARATIVE_BASE_DIR`, for example
+   `KONGCTL_DEFAULT_KONNECT_DECLARATIVE_BASE_DIR`) so the resolved path stays within
    the allowed boundary.
 
 3. **File permissions**:
