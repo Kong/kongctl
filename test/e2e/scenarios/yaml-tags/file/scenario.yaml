@@ -151,5 +151,4 @@ steps:
           - --auto-approve
         expectFailure:
           exitCode: 1
-          contains: "parent directory traversal is not allowed"
-
+          contains: "path resolves outside base dir"

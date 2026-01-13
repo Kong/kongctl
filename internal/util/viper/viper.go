@@ -41,7 +41,7 @@ func NewViperE(path string) (*v.Viper, error) {
 	rv.SetConfigFile(path)
 	rv.AutomaticEnv()
 	rv.SetEnvPrefix("kongctl")
-	rv.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	rv.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	err := rv.ReadInConfig()
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func NewViper(path string) *v.Viper {
 	rv.SetConfigFile(path)
 	rv.AutomaticEnv()
 	rv.SetEnvPrefix("kongctl")
-	rv.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	rv.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	_ = rv.ReadInConfig()
 	return rv
 }

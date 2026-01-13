@@ -27,6 +27,8 @@ type temporaryParseResult struct {
 type Loader struct {
 	// baseDir is the base directory for resolving relative file paths in tags
 	baseDir string
+	// tagRootDir is the boundary directory for !file tag resolution
+	tagRootDir string
 	// tagRegistry is the registry of tag resolvers (created on demand)
 	tagRegistry *tags.ResolverRegistry
 }
@@ -39,9 +41,18 @@ func New() *Loader {
 }
 
 // NewWithPath creates a new configuration loader with a root path (deprecated, for backward compatibility)
-func NewWithPath(_ string) *Loader {
+func NewWithPath(path string) *Loader {
+	return NewWithBaseDir(path)
+}
+
+// NewWithBaseDir creates a new configuration loader with a base directory for !file boundaries
+func NewWithBaseDir(baseDir string) *Loader {
+	if strings.TrimSpace(baseDir) == "" {
+		baseDir = "."
+	}
 	return &Loader{
-		baseDir: ".",
+		baseDir:    baseDir,
+		tagRootDir: baseDir,
 	}
 }
 
@@ -51,6 +62,23 @@ func (l *Loader) getTagRegistry() *tags.ResolverRegistry {
 		l.tagRegistry = tags.NewResolverRegistry()
 	}
 	return l.tagRegistry
+}
+
+func (l *Loader) resolveSourceRoot(source Source) string {
+	if strings.TrimSpace(l.tagRootDir) != "" {
+		return l.tagRootDir
+	}
+
+	switch source.Type {
+	case SourceTypeFile:
+		return filepath.Dir(source.Path)
+	case SourceTypeDirectory:
+		return source.Path
+	case SourceTypeSTDIN:
+		return l.baseDir
+	default:
+		return ""
+	}
 }
 
 // LoadFromSources loads configuration from multiple sources
@@ -66,14 +94,15 @@ func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Sourc
 
 	for _, source := range sources {
 		var err error
+		rootDir := l.resolveSourceRoot(source)
 
 		switch source.Type {
 		case SourceTypeFile:
-			err = l.loadSingleFileWithContext(ctx, source.Path, &allResources)
+			err = l.loadSingleFileWithContext(ctx, source.Path, rootDir, &allResources)
 		case SourceTypeDirectory:
-			err = l.loadDirectorySourceWithContext(ctx, source.Path, recursive, &allResources)
+			err = l.loadDirectorySourceWithContext(ctx, source.Path, rootDir, recursive, &allResources)
 		case SourceTypeSTDIN:
-			err = l.loadSTDINWithContext(ctx, &allResources)
+			err = l.loadSTDINWithContext(ctx, rootDir, &allResources)
 		default:
 			return nil, decerrors.FormatConfigurationError(
 				source.Path,
@@ -114,7 +143,7 @@ func (l *Loader) Load() (*resources.ResourceSet, error) {
 // LoadFile loads configuration from a single YAML file (deprecated, for backward compatibility)
 func (l *Loader) LoadFile(path string) (*resources.ResourceSet, error) {
 	var rs resources.ResourceSet
-	if err := l.loadSingleFile(path, &rs); err != nil {
+	if err := l.loadSingleFile(path, filepath.Dir(path), &rs); err != nil {
 		return nil, err
 	}
 
@@ -130,7 +159,7 @@ func (l *Loader) LoadFile(path string) (*resources.ResourceSet, error) {
 }
 
 // loadSingleFile loads configuration from a single YAML file
-func (l *Loader) loadSingleFile(path string, accumulated *resources.ResourceSet) error {
+func (l *Loader) loadSingleFile(path string, rootDir string, accumulated *resources.ResourceSet) error {
 	// Validate YAML extension
 	if !ValidateYAMLFile(path) {
 		return fmt.Errorf("file %s does not have .yaml or .yml extension", path)
@@ -142,7 +171,7 @@ func (l *Loader) loadSingleFile(path string, accumulated *resources.ResourceSet)
 	}
 	defer file.Close()
 
-	rs, err := l.parseYAML(file, path)
+	rs, err := l.parseYAML(file, path, rootDir)
 	if err != nil {
 		return err
 	}
@@ -152,7 +181,7 @@ func (l *Loader) loadSingleFile(path string, accumulated *resources.ResourceSet)
 }
 
 // parseYAML parses YAML content into ResourceSet
-func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceSet, error) {
+func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*resources.ResourceSet, error) {
 	var temp temporaryParseResult
 
 	content, err := io.ReadAll(r)
@@ -169,9 +198,14 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceS
 		baseDir = filepath.Dir(sourcePath)
 	}
 
+	tagRootDir := strings.TrimSpace(l.tagRootDir)
+	if tagRootDir == "" {
+		tagRootDir = strings.TrimSpace(rootDir)
+	}
+
 	// Always register/update resolvers with correct base directory
 	// This ensures each file gets the correct base directory for relative paths
-	registry.Register(tags.NewFileTagResolver(baseDir))
+	registry.Register(tags.NewFileTagResolver(baseDir, tagRootDir))
 	registry.Register(tags.NewRefTagResolver(baseDir))
 
 	if registry.HasResolvers() {
@@ -221,7 +255,7 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string) (*resources.ResourceS
 }
 
 // loadSTDIN loads configuration from stdin
-func (l *Loader) loadSTDIN(accumulated *resources.ResourceSet) error {
+func (l *Loader) loadSTDIN(rootDir string, accumulated *resources.ResourceSet) error {
 	// Check if stdin has data
 	stat, err := os.Stdin.Stat()
 	if err != nil {
@@ -232,7 +266,7 @@ func (l *Loader) loadSTDIN(accumulated *resources.ResourceSet) error {
 		return fmt.Errorf("no data provided on stdin")
 	}
 
-	rs, err := l.parseYAML(os.Stdin, "stdin")
+	rs, err := l.parseYAML(os.Stdin, "stdin", rootDir)
 	if err != nil {
 		return err
 	}
@@ -242,7 +276,12 @@ func (l *Loader) loadSTDIN(accumulated *resources.ResourceSet) error {
 }
 
 // loadDirectorySource loads YAML files from a directory
-func (l *Loader) loadDirectorySource(dirPath string, recursive bool, accumulated *resources.ResourceSet) error {
+func (l *Loader) loadDirectorySource(
+	dirPath string,
+	rootDir string,
+	recursive bool,
+	accumulated *resources.ResourceSet,
+) error {
 	yamlCount := 0
 	subdirCount := 0
 
@@ -259,7 +298,7 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool, accumulated
 			subdirCount++
 			if recursive {
 				// Recursively load subdirectory
-				if err := l.loadDirectorySource(path, recursive, accumulated); err != nil {
+				if err := l.loadDirectorySource(path, rootDir, recursive, accumulated); err != nil {
 					return err
 				}
 			}
@@ -279,7 +318,7 @@ func (l *Loader) loadDirectorySource(dirPath string, recursive bool, accumulated
 			return fmt.Errorf("failed to open %s: %w", path, err)
 		}
 
-		rs, err := l.parseYAML(file, path)
+		rs, err := l.parseYAML(file, path, rootDir)
 		file.Close()
 		if err != nil {
 			return fmt.Errorf("failed to parse %s: %w", path, err)
@@ -1028,22 +1067,35 @@ func abs(n int) int {
 
 // Context-aware wrapper methods for internal use
 
-func (l *Loader) loadSingleFileWithContext(_ context.Context, path string, accumulated *resources.ResourceSet) error {
-	// For now, we just call the non-context version
-	// The context will be used by ResolveReferences in LoadFromSourcesWithContext
-	return l.loadSingleFile(path, accumulated)
-}
-
-func (l *Loader) loadDirectorySourceWithContext(_ context.Context, dirPath string, recursive bool,
+func (l *Loader) loadSingleFileWithContext(
+	_ context.Context,
+	path string,
+	rootDir string,
 	accumulated *resources.ResourceSet,
 ) error {
 	// For now, we just call the non-context version
 	// The context will be used by ResolveReferences in LoadFromSourcesWithContext
-	return l.loadDirectorySource(dirPath, recursive, accumulated)
+	return l.loadSingleFile(path, rootDir, accumulated)
 }
 
-func (l *Loader) loadSTDINWithContext(_ context.Context, accumulated *resources.ResourceSet) error {
+func (l *Loader) loadDirectorySourceWithContext(
+	_ context.Context,
+	dirPath string,
+	rootDir string,
+	recursive bool,
+	accumulated *resources.ResourceSet,
+) error {
 	// For now, we just call the non-context version
 	// The context will be used by ResolveReferences in LoadFromSourcesWithContext
-	return l.loadSTDIN(accumulated)
+	return l.loadDirectorySource(dirPath, rootDir, recursive, accumulated)
+}
+
+func (l *Loader) loadSTDINWithContext(
+	_ context.Context,
+	rootDir string,
+	accumulated *resources.ResourceSet,
+) error {
+	// For now, we just call the non-context version
+	// The context will be used by ResolveReferences in LoadFromSourcesWithContext
+	return l.loadSTDIN(rootDir, accumulated)
 }

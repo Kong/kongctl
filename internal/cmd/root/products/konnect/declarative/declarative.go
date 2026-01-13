@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -38,11 +39,22 @@ const (
 	requireNamespaceFlagName = "require-namespace"
 	// requireNamespaceConfigPath is the config path backing the namespace flag
 	requireNamespaceConfigPath = "konnect.declarative." + requireNamespaceFlagName
+	// baseDirFlagName is the CLI flag for the !file base directory boundary
+	baseDirFlagName = "base-dir"
+	// baseDirConfigPath is the config path backing the base-dir flag
+	baseDirConfigPath = "konnect.declarative." + baseDirFlagName
 	// requireAnyNamespaceFlagName is the CLI flag for requiring any namespace
 	requireAnyNamespaceFlagName = "require-any-namespace"
 	// requireAnyNamespaceConfigPath is the config path backing the any namespace flag
 	requireAnyNamespaceConfigPath = "konnect.declarative." + requireAnyNamespaceFlagName
 )
+
+func addBaseDirFlag(cmd *cobra.Command) {
+	cmd.Flags().String(baseDirFlagName, "",
+		fmt.Sprintf(`Base directory boundary for !file resolution.
+Defaults to each -f source root (file: its parent dir, dir: the directory itself). For stdin, defaults to CWD.
+- Config path: [ %s ]`, baseDirConfigPath))
+}
 
 func addRequireNamespaceFlags(cmd *cobra.Command) {
 	// Add require-any-namespace flag (bool)
@@ -60,6 +72,70 @@ Examples:
   --require-namespace=foo,bar                      # Allow 'foo' or 'bar' (comma-separated)
   --require-namespace=foo --require-namespace=bar  # Allow 'foo' or 'bar' (repeated flags)
 - Config path: [ %s ]`, requireNamespaceConfigPath))
+}
+
+func resolveBaseDir(command *cobra.Command, cfg config.Hook) (string, error) {
+	if command.Flags().Changed(baseDirFlagName) {
+		value, err := command.Flags().GetString(baseDirFlagName)
+		if err != nil {
+			return "", err
+		}
+		if strings.TrimSpace(value) == "" {
+			return "", fmt.Errorf("--%s cannot be empty", baseDirFlagName)
+		}
+		return value, nil
+	}
+
+	if cfg == nil {
+		return "", nil
+	}
+
+	value := strings.TrimSpace(cfg.GetString(baseDirConfigPath))
+	if value == "" {
+		return "", nil
+	}
+
+	return value, nil
+}
+
+func normalizeBaseDir(baseDir string) (string, error) {
+	if strings.TrimSpace(baseDir) == "" {
+		return "", fmt.Errorf("--%s cannot be empty", baseDirFlagName)
+	}
+
+	baseDir = filepath.Clean(baseDir)
+	if !filepath.IsAbs(baseDir) {
+		absDir, err := filepath.Abs(baseDir)
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve base dir %q: %w", baseDir, err)
+		}
+		baseDir = absDir
+	}
+
+	info, err := os.Stat(baseDir)
+	if err != nil {
+		return "", fmt.Errorf("base dir %q not found: %w", baseDir, err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("base dir %q is not a directory", baseDir)
+	}
+
+	return baseDir, nil
+}
+
+func newDeclarativeLoader(command *cobra.Command, cfg config.Hook) (*loader.Loader, error) {
+	baseDir, err := resolveBaseDir(command, cfg)
+	if err != nil {
+		return nil, err
+	}
+	if baseDir == "" {
+		return loader.New(), nil
+	}
+	baseDir, err = normalizeBaseDir(baseDir)
+	if err != nil {
+		return nil, err
+	}
+	return loader.NewWithBaseDir(baseDir), nil
 }
 
 func parseNamespaceRequirement(
@@ -188,6 +264,7 @@ for review, approval workflows, or as input to sync operations.`,
 		"Filename or directory to files to use to create the resource (can specify multiple)")
 	cmd.Flags().BoolP("recursive", "R", false,
 		"Process the directory used in -f, --filename recursively")
+	addBaseDirFlag(cmd)
 	cmd.Flags().String("output-file", "", "Save plan artifact to file")
 	cmd.Flags().String("mode", "sync", "Plan generation mode (sync|apply)")
 	addRequireNamespaceFlags(cmd)
@@ -248,7 +325,10 @@ func runPlan(command *cobra.Command, args []string) error {
 	}
 
 	// Load configuration
-	ldr := loader.New()
+	ldr, err := newDeclarativeLoader(command, cfg)
+	if err != nil {
+		return err
+	}
 	resourceSet, err := ldr.LoadFromSources(sources, recursive)
 	if err != nil {
 		// Provide more helpful error message for common cases
@@ -427,7 +507,10 @@ func runDiff(command *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to parse sources: %w", err)
 		}
 
-		ldr := loader.New()
+		ldr, err := newDeclarativeLoader(command, cfg)
+		if err != nil {
+			return err
+		}
 		resourceSet, err := ldr.LoadFromSources(sources, recursive)
 		if err != nil {
 			if len(filenames) == 0 && strings.Contains(err.Error(), "no YAML files found") {
@@ -728,6 +811,7 @@ achieve the desired state.`,
 		"Filename or directory to files to use to create the resource (can specify multiple)")
 	cmd.Flags().BoolP("recursive", "R", false,
 		"Process the directory used in -f, --filename recursively")
+	addBaseDirFlag(cmd)
 	cmd.Flags().String("plan", "", "Path to existing plan file")
 	cmd.Flags().Bool("dry-run", false, "Preview changes without applying them")
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
@@ -755,6 +839,7 @@ useful for reviewing changes before synchronization.`,
 		"Filename or directory to files to use to create the resource (can specify multiple)")
 	cmd.Flags().BoolP("recursive", "R", false,
 		"Process the directory used in -f, --filename recursively")
+	addBaseDirFlag(cmd)
 	cmd.Flags().String("plan", "", "Path to existing plan file to display")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text, json, or yaml)")
 	cmd.Flags().Bool("full-content", false, "Display full content for large fields instead of summary")
@@ -891,7 +976,10 @@ func runApply(command *cobra.Command, args []string) error {
 		}
 
 		// Load configuration
-		ldr := loader.New()
+		ldr, err := newDeclarativeLoader(command, cfg)
+		if err != nil {
+			return err
+		}
 		resourceSet, err := ldr.LoadFromSources(sources, recursive)
 		if err != nil {
 			// Provide more helpful error message for common cases
@@ -1201,6 +1289,7 @@ delete resources.`,
 		"Filename or directory to files to use to create the resource (can specify multiple)")
 	cmd.Flags().BoolP("recursive", "R", false,
 		"Process the directory used in -f, --filename recursively")
+	addBaseDirFlag(cmd)
 	cmd.Flags().String("plan", "", "Path to existing plan file")
 	cmd.Flags().Bool("dry-run", false, "Preview changes without applying")
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
@@ -1319,7 +1408,10 @@ func runSync(command *cobra.Command, args []string) error {
 		}
 
 		// Load configuration
-		ldr := loader.New()
+		ldr, err := newDeclarativeLoader(command, cfg)
+		if err != nil {
+			return err
+		}
 		resourceSet, err := ldr.LoadFromSources(sources, recursive)
 		if err != nil {
 			// Provide more helpful error message for common cases

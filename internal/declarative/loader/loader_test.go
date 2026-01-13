@@ -176,7 +176,7 @@ portals:
 `
 
 	loader := New()
-	rs, err := loader.parseYAML(strings.NewReader(content), "inline")
+	rs, err := loader.parseYAML(strings.NewReader(content), "inline", "")
 	require.NoError(t, err)
 
 	require.Len(t, rs.Portals, 1)
@@ -214,7 +214,7 @@ portals:
 `
 
 	loader := New()
-	rs, err := loader.parseYAML(strings.NewReader(content), "inline")
+	rs, err := loader.parseYAML(strings.NewReader(content), "inline", "")
 	require.NoError(t, err)
 
 	require.Len(t, rs.Portals, 1)
