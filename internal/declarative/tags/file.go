@@ -21,17 +21,33 @@ const (
 
 // FileTagResolver handles !file tags for loading external content
 type FileTagResolver struct {
-	baseDir string
-	cache   map[string]any
-	mu      sync.RWMutex
+	baseDir     string
+	rootDirAbs  string
+	rootDirReal string
+	cache       map[string]any
+	mu          sync.RWMutex
 }
 
-// NewFileTagResolver creates a new file tag resolver
-func NewFileTagResolver(baseDir string) *FileTagResolver {
-	return &FileTagResolver{
-		baseDir: baseDir,
+// NewFileTagResolver creates a new file tag resolver.
+// baseDir resolves relative paths; rootDir defines the allowed boundary for resolved paths.
+func NewFileTagResolver(baseDir string, rootDir string) *FileTagResolver {
+	resolver := &FileTagResolver{
+		baseDir: filepath.Clean(baseDir),
 		cache:   make(map[string]any),
 	}
+
+	if strings.TrimSpace(rootDir) != "" {
+		absRoot, err := filepath.Abs(rootDir)
+		if err != nil {
+			absRoot = rootDir
+		}
+		resolver.rootDirAbs = filepath.Clean(absRoot)
+		if realRoot, err := filepath.EvalSymlinks(resolver.rootDirAbs); err == nil {
+			resolver.rootDirReal = filepath.Clean(realRoot)
+		}
+	}
+
+	return resolver
 }
 
 // Tag returns the YAML tag this resolver handles
@@ -89,6 +105,9 @@ func (f *FileTagResolver) loadFile(path string, extractPath string) (any, error)
 
 	// Resolve the full path
 	fullPath := f.resolvePath(path)
+	if err := f.validateResolvedPath(path, fullPath); err != nil {
+		return nil, err
+	}
 
 	// Check if this is an image file - image files don't support extraction
 	ext := strings.ToLower(filepath.Ext(fullPath))
@@ -133,20 +152,59 @@ func (f *FileTagResolver) loadFile(path string, extractPath string) (any, error)
 
 // validatePath ensures the path is safe to use
 func (f *FileTagResolver) validatePath(path string) error {
-	// Clean the path first
-	cleaned := filepath.Clean(path)
-
 	// Check for absolute paths
 	if filepath.IsAbs(path) {
 		return fmt.Errorf("absolute paths are not allowed: %s", path)
 	}
 
-	// Check for parent directory traversal after cleaning
-	if strings.Contains(cleaned, "..") {
-		return fmt.Errorf("parent directory traversal is not allowed: %s", path)
+	return nil
+}
+
+func (f *FileTagResolver) validateResolvedPath(rawPath string, fullPath string) error {
+	if f.rootDirAbs == "" {
+		return nil
+	}
+
+	absPath, err := filepath.Abs(fullPath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve path %s: %w", rawPath, err)
+	}
+
+	if !pathWithinBase(f.rootDirAbs, absPath) {
+		return fmt.Errorf("path resolves outside base dir %s: %s", f.rootDirAbs, rawPath)
+	}
+
+	if f.rootDirReal == "" {
+		return nil
+	}
+
+	realPath, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("file not found: %s", absPath)
+		}
+		return fmt.Errorf("failed to resolve path %s: %w", rawPath, err)
+	}
+
+	if !pathWithinBase(f.rootDirReal, realPath) {
+		return fmt.Errorf("path resolves outside base dir %s: %s", f.rootDirReal, rawPath)
 	}
 
 	return nil
+}
+
+func pathWithinBase(base string, target string) bool {
+	rel, err := filepath.Rel(base, target)
+	if err != nil {
+		return false
+	}
+	if rel == "." {
+		return true
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return false
+	}
+	return true
 }
 
 // resolvePath resolves a path relative to the base directory

@@ -478,12 +478,12 @@ func TestFileTagSecurityValidation(t *testing.T) {
 		{
 			name:          "parent directory traversal",
 			fileReference: "../../../etc/passwd",
-			expectedError: "parent directory traversal is not allowed",
+			expectedError: "path resolves outside base dir",
 		},
 		{
 			name:          "hidden parent traversal",
 			fileReference: "./safe/../../../etc/passwd",
-			expectedError: "parent directory traversal is not allowed",
+			expectedError: "path resolves outside base dir",
 		},
 		{
 			name:          "allowed relative path",
@@ -527,7 +527,7 @@ portals:
 			require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
 
 			// Attempt to load
-			l := loader.New()
+			l := loader.NewWithBaseDir(tempDir)
 			sources := []loader.Source{{Path: configFile, Type: loader.SourceTypeFile}}
 
 			resourceSet, err := l.LoadFromSources(sources, false)

@@ -465,16 +465,19 @@ apis:
 
 ### Security Features
 
-**Path Traversal Prevention**: Absolute paths and path traversal attempts are
-blocked:
+**Path Traversal Prevention**: Absolute paths are blocked. Relative paths may include
+`..`, but the resolved path must stay within the base directory boundary. By default,
+the boundary is the root of each `-f` source (file: its parent dir, dir: the directory itself).
+For stdin, the boundary defaults to the current working directory. Set the base directory with
+`--base-dir` or `konnect.declarative.base-dir` (`KONGCTL_KONNECT_DECLARATIVE_BASE_DIR`).
 
 ```yaml
 # ❌ These will fail with security errors
 description: !file /etc/passwd
 config: !file ../../../sensitive/file.yaml
 
-# ✅ These are allowed
-description: !file ./docs/description.txt
+# ✅ These are allowed (if they stay within the base directory)
+description: !file ../docs/description.txt
 config: !file ./config/settings.yaml
 ```
 

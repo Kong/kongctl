@@ -13,7 +13,7 @@ import (
 )
 
 func TestFileTagResolver_Tag(t *testing.T) {
-	resolver := NewFileTagResolver(".")
+	resolver := NewFileTagResolver(".", ".")
 	assert.Equal(t, "!file", resolver.Tag())
 }
 
@@ -39,7 +39,7 @@ description: A test API`
 	textFile := filepath.Join(tmpDir, "test.txt")
 	require.NoError(t, os.WriteFile(textFile, []byte(textContent), 0o600))
 
-	resolver := NewFileTagResolver(tmpDir)
+	resolver := NewFileTagResolver(tmpDir, tmpDir)
 
 	tests := []struct {
 		name      string
@@ -111,7 +111,7 @@ servers:
 	yamlFile := filepath.Join(tmpDir, "openapi.yaml")
 	require.NoError(t, os.WriteFile(yamlFile, []byte(yamlContent), 0o600))
 
-	resolver := NewFileTagResolver(tmpDir)
+	resolver := NewFileTagResolver(tmpDir, tmpDir)
 
 	tests := []struct {
 		name    string
@@ -198,7 +198,7 @@ servers:
 
 func TestFileTagResolver_SecurityValidation(t *testing.T) {
 	tmpDir := t.TempDir()
-	resolver := NewFileTagResolver(tmpDir)
+	resolver := NewFileTagResolver(tmpDir, tmpDir)
 
 	tests := []struct {
 		name    string
@@ -208,12 +208,12 @@ func TestFileTagResolver_SecurityValidation(t *testing.T) {
 		{
 			name:    "Parent directory traversal",
 			path:    "../../../etc/passwd",
-			wantErr: "parent directory traversal is not allowed",
+			wantErr: "path resolves outside base dir",
 		},
 		{
 			name:    "Hidden parent traversal",
 			path:    "subdir/../../etc/passwd",
-			wantErr: "parent directory traversal is not allowed",
+			wantErr: "path resolves outside base dir",
 		},
 		{
 			name:    "Absolute path",
@@ -236,6 +236,26 @@ func TestFileTagResolver_SecurityValidation(t *testing.T) {
 	}
 }
 
+func TestFileTagResolver_ParentTraversalWithinRoot(t *testing.T) {
+	tmpDir := t.TempDir()
+	configDir := filepath.Join(tmpDir, "configs")
+	require.NoError(t, os.MkdirAll(configDir, 0o755))
+
+	dataPath := filepath.Join(tmpDir, "data.txt")
+	require.NoError(t, os.WriteFile(dataPath, []byte("data"), 0o600))
+
+	resolver := NewFileTagResolver(configDir, tmpDir)
+
+	node := &yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Value: "../data.txt",
+	}
+
+	got, err := resolver.Resolve(node)
+	require.NoError(t, err)
+	assert.Equal(t, "data", got)
+}
+
 func TestFileTagResolver_Caching(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -244,7 +264,7 @@ func TestFileTagResolver_Caching(t *testing.T) {
 	testFile := filepath.Join(tmpDir, "cached.yaml")
 	require.NoError(t, os.WriteFile(testFile, []byte(content1), 0o600))
 
-	resolver := NewFileTagResolver(tmpDir)
+	resolver := NewFileTagResolver(tmpDir, tmpDir)
 
 	// First load with extraction
 	mapNode := &yaml.Node{
@@ -318,7 +338,7 @@ func TestFileTagResolver_FileSizeLimit(t *testing.T) {
 
 	// For this test, we can't easily test the actual size limit without creating
 	// a very large file, so we'll just ensure the file loads normally
-	resolver := NewFileTagResolver(tmpDir)
+	resolver := NewFileTagResolver(tmpDir, tmpDir)
 
 	node := &yaml.Node{
 		Kind:  yaml.ScalarNode,
@@ -331,7 +351,7 @@ func TestFileTagResolver_FileSizeLimit(t *testing.T) {
 }
 
 func TestFileTagResolver_InvalidNodeKind(t *testing.T) {
-	resolver := NewFileTagResolver(".")
+	resolver := NewFileTagResolver(".", ".")
 
 	// Test with sequence node (not supported)
 	node := &yaml.Node{
@@ -344,7 +364,7 @@ func TestFileTagResolver_InvalidNodeKind(t *testing.T) {
 }
 
 func TestFileTagResolver_EmptyPath(t *testing.T) {
-	resolver := NewFileTagResolver(".")
+	resolver := NewFileTagResolver(".", ".")
 
 	// Map format with empty path
 	node := &yaml.Node{
@@ -372,7 +392,7 @@ func TestFileTagResolver_NestedDirectory(t *testing.T) {
 	content := "api_version: v1"
 	require.NoError(t, os.WriteFile(nestedFile, []byte(content), 0o600))
 
-	resolver := NewFileTagResolver(tmpDir)
+	resolver := NewFileTagResolver(tmpDir, tmpDir)
 
 	node := &yaml.Node{
 		Kind:  yaml.ScalarNode,
@@ -392,7 +412,7 @@ func TestFileTagResolver_ConcurrentAccess(t *testing.T) {
 	content := "value: test"
 	require.NoError(t, os.WriteFile(testFile, []byte(content), 0o600))
 
-	resolver := NewFileTagResolver(tmpDir)
+	resolver := NewFileTagResolver(tmpDir, tmpDir)
 
 	// Run multiple goroutines accessing the same file
 	done := make(chan bool, 10)
@@ -461,7 +481,7 @@ func TestFileTagResolver_ImageFiles(t *testing.T) {
 	icoFile := filepath.Join(tmpDir, "test.ico")
 	require.NoError(t, os.WriteFile(icoFile, icoData, 0o600))
 
-	resolver := NewFileTagResolver(tmpDir)
+	resolver := NewFileTagResolver(tmpDir, tmpDir)
 
 	tests := []struct {
 		name         string
@@ -538,7 +558,7 @@ func TestFileTagResolver_ImageWithExtraction(t *testing.T) {
 	pngFile := filepath.Join(tmpDir, "logo.png")
 	require.NoError(t, os.WriteFile(pngFile, pngData, 0o600))
 
-	resolver := NewFileTagResolver(tmpDir)
+	resolver := NewFileTagResolver(tmpDir, tmpDir)
 
 	// Test extraction with image file (extraction should be ignored for images)
 	node := &yaml.Node{

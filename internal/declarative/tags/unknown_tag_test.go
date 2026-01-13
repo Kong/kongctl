@@ -8,7 +8,7 @@ import (
 func TestResolverRegistry_UnknownTag(t *testing.T) {
 	registry := NewResolverRegistry()
 	// Register only the !file resolver
-	registry.Register(NewFileTagResolver("/tmp"))
+	registry.Register(NewFileTagResolver("/tmp", "/tmp"))
 
 	tests := []struct {
 		name    string

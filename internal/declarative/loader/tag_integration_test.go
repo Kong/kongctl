@@ -31,7 +31,7 @@ portals:
 	require.NoError(t, err)
 
 	// Create a loader
-	loader := New()
+	loader := NewWithBaseDir(tmpDir)
 
 	// Load the file
 	rs, err := loader.LoadFile(tmpfile)
@@ -60,7 +60,7 @@ portals:
 	require.NoError(t, err)
 
 	// Create a loader (file resolver is registered by default)
-	loader := New()
+	loader := NewWithBaseDir(tmpDir)
 
 	// Load should work normally
 	rs, err := loader.LoadFile(tmpfile)
@@ -110,7 +110,7 @@ apis:
 	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
 
 	// Load the configuration
-	loader := New()
+	loader := NewWithBaseDir(tmpDir)
 	rs, err := loader.LoadFile(mainFile)
 	require.NoError(t, err)
 	require.NotNil(t, rs)
@@ -166,7 +166,7 @@ portals:
 	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
 
 	// Load the configuration
-	loader := New()
+	loader := NewWithBaseDir(tmpDir)
 	rs, err := loader.LoadFile(mainFile)
 	require.NoError(t, err)
 	require.NotNil(t, rs)
@@ -209,7 +209,7 @@ portals:
     name: !file
       path: ../../../etc/passwd
       extract: whatever`,
-			wantErr: "parent directory traversal is not allowed",
+			wantErr: "path resolves outside base dir",
 		},
 	}
 
@@ -218,7 +218,7 @@ portals:
 			testFile := filepath.Join(tmpDir, "test.yaml")
 			require.NoError(t, os.WriteFile(testFile, []byte(tt.yamlContent), 0o600))
 
-			loader := New()
+			loader := NewWithBaseDir(tmpDir)
 			_, err := loader.LoadFile(testFile)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
