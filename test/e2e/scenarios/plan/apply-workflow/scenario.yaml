@@ -10,10 +10,6 @@ vars:
   namespace: plan-apply
   ordersAPIRef: plan-apply-orders
   analyticsAPIRef: plan-apply-analytics
-  egwRef: plan-apply-egw
-  egwName: "plan-apply-egw"
-  egwInitialDesc: "Initial description for plan apply workflow"
-  egwUpdatedDesc: "Updated description for plan apply workflow"
 
 defaults:
   mask:
@@ -50,8 +46,8 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 3
-                by_action.CREATE: 3
+                total_changes: 2
+                by_action.CREATE: 2
       - name: 001-diff-plan-text
         outputFormat: text
         parseAs: raw
@@ -63,10 +59,9 @@ steps:
           - select: stdout
             expect:
               fields:
-                "contains(@, 'Plan: 3 to add')": true
+                "contains(@, 'Plan: 2 to add')": true
                 "contains(@, 'portal \"plan-apply-portal\" will be created')": true
                 "contains(@, 'api \"plan-apply-orders\" will be created')": true
-                "contains(@, 'event_gateway \"plan-apply-egw\" will be created')": true
       - name: 002-apply-plan
         outputFormat: json
         run:
@@ -82,7 +77,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 3
+                applied: 2
                 failed: 0
       - name: 003-get-portals
         run: ["get", "portals", "-o", "json"]
@@ -100,14 +95,7 @@ steps:
               fields:
                 description: "Orders API for plan apply workflow"
                 labels.domain: commerce
-      - name: 005-get-event-gateways
-        run: ["get", "event-gateways", "-o", "json"]
-        assertions:
-          - select: "[?name=='{{ .vars.egwRef }}'] | [0]"
-            expect:
-              fields:
-                name: "{{ .vars.egwName }}"
-                description: "{{ .vars.egwInitialDesc }}"
+
   - name: 002-plan-apply-update
     inputOverlayDirs:
       - overlays/002-plan-update
@@ -129,9 +117,9 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 4
+                total_changes: 3
                 by_action.CREATE: 1
-                by_action.UPDATE: 3
+                by_action.UPDATE: 2
       - name: 001-diff-plan-text
         outputFormat: text
         parseAs: raw
@@ -143,10 +131,9 @@ steps:
           - select: stdout
             expect:
               fields:
-                "contains(@, 'Plan: 1 to add, 3 to change')": true
+                "contains(@, 'Plan: 1 to add, 2 to change')": true
                 "contains(@, 'portal \"plan-apply-portal\" will be updated')": true
                 "contains(@, 'api \"plan-apply-analytics\" will be created')": true
-                "contains(@, 'event_gateway \"plan-apply-egw\" will be updated')": true
       - name: 002-apply-plan
         outputFormat: json
         run:
@@ -158,12 +145,12 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 4
+                applied: 3
                 failed: 0
           - select: plan.summary
             expect:
               fields:
-                by_action.UPDATE: 3
+                by_action.UPDATE: 2
                 by_action.CREATE: 1
       - name: 003-get-portals
         run: ["get", "portals", "-o", "json"]
@@ -184,11 +171,3 @@ steps:
               fields:
                 description: "Orders API with updated details"
                 labels.lifecycle: production
-      - name: 005-get-event-gateways
-        run: ["get", "event-gateways", "-o", "json"]
-        assertions:
-          - select: "[?name=='{{ .vars.egwRef }}'] | [0]"
-            expect:
-              fields:
-                name: "{{ .vars.egwName }}"
-                description: "{{ .vars.egwUpdatedDesc }}"

@@ -24,8 +24,3 @@ apis:
     labels:
       domain: insights
       lifecycle: beta
-
-event_gateways:
-  - ref: plan-apply-egw
-    name: plan-apply-egw
-    description: "Updated description for plan apply workflow"

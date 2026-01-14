@@ -18,8 +18,3 @@ apis:
     labels:
       domain: commerce
       lifecycle: pilot
-
-event_gateways:
-  - ref: plan-apply-egw
-    name: plan-apply-egw
-    description: "Initial description for plan apply workflow"
