@@ -12,6 +12,9 @@ type EventGatewayControlPlaneResource struct {
 	Ref     string       `json:"ref" yaml:"ref"`
 	Kongctl *KongctlMeta `json:"kongctl,omitempty" yaml:"kongctl,omitempty"`
 
+	// Nested child resources
+	BackendClusters []EventGatewayBackendClusterResource `yaml:"backend_clusters,omitempty"        json:"backend_clusters,omitempty"`
+
 	// Resolved Konnect ID (not serialized)
 	konnectID string `json:"-" yaml:"-"`
 }
@@ -55,6 +58,12 @@ func (e EventGatewayControlPlaneResource) Validate() error {
 func (e *EventGatewayControlPlaneResource) SetDefaults() {
 	if e.Name == "" {
 		e.Name = e.Ref
+	}
+
+	if e.BackendClusters != nil {
+		for _, bc := range e.BackendClusters {
+			bc.SetDefaults()
+		}
 	}
 }
 
