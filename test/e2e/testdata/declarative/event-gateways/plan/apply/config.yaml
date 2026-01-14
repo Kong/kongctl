@@ -1,0 +1,8 @@
+_defaults:
+  kongctl:
+    namespace: egw-plan-apply
+
+event_gateways:
+  - ref: plan-apply-egw
+    name: plan-apply-egw
+    description: "Initial description for plan apply workflow"
