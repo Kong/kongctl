@@ -342,7 +342,8 @@ func runPlan(command *cobra.Command, args []string) error {
 
 	// Check if configuration is empty
 	totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
-		len(resourceSet.ControlPlanes) + len(resourceSet.APIs) + len(resourceSet.CatalogServices)
+		len(resourceSet.ControlPlanes) + len(resourceSet.APIs) + len(resourceSet.CatalogServices) +
+		len(resourceSet.EventGatewayControlPlanes)
 
 	if err := nsValidator.ValidateNamespaceRequirement(resourceSet, requirement); err != nil {
 		return err
@@ -415,6 +416,13 @@ func runPlan(command *cobra.Command, args []string) error {
 			ns := "default"
 			if authStrategy.Kongctl != nil && authStrategy.Kongctl.Namespace != nil {
 				ns = *authStrategy.Kongctl.Namespace
+			}
+			namespaces[ns] = true
+		}
+		for _, egwControlPlane := range resourceSet.EventGatewayControlPlanes {
+			ns := "default"
+			if egwControlPlane.Kongctl != nil && egwControlPlane.Kongctl.Namespace != nil {
+				ns = *egwControlPlane.Kongctl.Namespace
 			}
 			namespaces[ns] = true
 		}
@@ -524,7 +532,8 @@ func runDiff(command *cobra.Command, args []string) error {
 		}
 
 		totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
-			len(resourceSet.ControlPlanes) + len(resourceSet.APIs) + len(resourceSet.CatalogServices)
+			len(resourceSet.ControlPlanes) + len(resourceSet.APIs) + len(resourceSet.CatalogServices) +
+			len(resourceSet.EventGatewayControlPlanes)
 		if totalResources == 0 {
 			if len(filenames) == 0 {
 				return fmt.Errorf("no configuration files found. Use -f to specify files or --plan to use existing plan")
@@ -995,7 +1004,8 @@ func runApply(command *cobra.Command, args []string) error {
 
 		// Check if configuration is empty
 		totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
-			len(resourceSet.ControlPlanes) + len(resourceSet.APIs) + len(resourceSet.CatalogServices)
+			len(resourceSet.ControlPlanes) + len(resourceSet.APIs) +
+			len(resourceSet.EventGatewayControlPlanes) + len(resourceSet.CatalogServices)
 
 		if totalResources == 0 {
 			// Check if we're using default directory (no explicit sources)
@@ -1574,5 +1584,8 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		APIPublicationAPI:    kkClient.GetAPIPublicationAPI(),
 		APIImplementationAPI: kkClient.GetAPIImplementationAPI(),
 		APIDocumentAPI:       kkClient.GetAPIDocumentAPI(),
+
+		// Event Gateway APIs
+		EGWControlPlaneAPI: kkClient.GetEventGatewayControlPlaneAPI(),
 	})
 }

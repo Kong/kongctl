@@ -129,6 +129,13 @@ func (b *BasePlanner) GetDesiredPortalSnippets(namespace string) []resources.Por
 	return b.planner.resources.GetPortalSnippetsByNamespace(namespace)
 }
 
+// GetDesiredEventGatewayControlPlanes returns desired EGW CP resources from the specified namespace
+func (b *BasePlanner) GetDesiredEventGatewayControlPlanes(
+	namespace string,
+) []resources.EventGatewayControlPlaneResource {
+	return b.planner.resources.GetEventGatewayControlPlanesByNamespace(namespace)
+}
+
 // GetGenericPlanner returns the generic planner instance
 func (b *BasePlanner) GetGenericPlanner() *GenericPlanner {
 	if b == nil || b.planner == nil {

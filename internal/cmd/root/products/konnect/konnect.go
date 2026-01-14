@@ -11,6 +11,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/authstrategy"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/eventgateway"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/me"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
@@ -186,6 +187,12 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		}
 		cmd.AddCommand(authStrategyCmd)
 
+		eventGatewayCmd, err := adopt.NewEventGatewayControlPlaneCmd(verb, &cobra.Command{}, addFlags, preRunE)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(eventGatewayCmd)
+
 		addFlags(verb, cmd)
 		return cmd, nil
 	case verbs.Add, verbs.Get, verbs.Create, verbs.Dump, verbs.Update,
@@ -241,6 +248,13 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return nil, e
 	}
 	cmd.AddCommand(rc)
+
+	// Add EventGateway command
+	egcpc, e := eventgateway.NewEventGatewayCmd(verb, addFlags, preRunE)
+	if e != nil {
+		return nil, e
+	}
+	cmd.AddCommand(egcpc)
 
 	if verb == verbs.Get {
 		cmd.RunE = func(c *cobra.Command, args []string) error {

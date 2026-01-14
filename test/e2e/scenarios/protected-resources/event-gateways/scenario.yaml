@@ -1,0 +1,173 @@
+baseInputsPath: ../../../testdata/declarative/protected
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  protectedEventGatewayName: "My Protected Event Gateway CP"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+
+steps:
+  # Step 0: Clean environment
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  # Step 1: Initial sync - create protected and unprotected resources
+  - name: 001-initial-sync
+    commands:
+      - name: 000-sync
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/event-gateways.yaml"
+          - --auto-approve
+        assertions:
+          # Verify sync mode
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: sync
+
+          # Verify protected Event Gateway created
+          - select: >-
+              plan.changes[?resource_type=='event_gateway' &&
+                            resource_ref=='egw-protected-top-level'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+          # Verify protection changes
+          - select: "plan.summary.protection_changes"
+            expect:
+              fields:
+                protecting: 1
+                unprotecting: 0
+
+      # Verify resources exist with proper labels
+      - name: 001-get-event-gateway-control-planes
+        run: ["get", "event-gateways", "-o", "json"]
+        assertions:
+          # Verify Protected Event Gateway CP has protected label
+          - select: "[?name=='{{ .vars.protectedEventGatewayName }}'] | [0]"
+            expect:
+              fields:
+                name: "My Protected Event Gateway CP"
+                labels."KONGCTL-protected": "true"
+                labels."KONGCTL-namespace": "egw-protection"
+
+  # Step 2: Attempt to delete protected resource (should fail)
+  - name: 002-attempt-delete-protected
+    inputOverlayDirs:
+      - overlays/002-attempt-delete
+    commands:
+      - name: 000-sync-should-fail
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/event_gateways.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "protected"
+
+      # Verify protected resource still exists
+      - name: 001-verify-protected-exists
+        run: ["get", "event-gateways", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.protectedEventGatewayName }}']"
+            expect:
+              fields:
+                "length(@)": 1
+
+          # Verify it still has protected label
+          - select: "[?name=='{{ .vars.protectedEventGatewayName }}'] | [0]"
+            expect:
+              fields:
+                labels."KONGCTL-protected": "true"
+
+  # Step 3: Unprotect the resource
+  - name: 003-unprotect-resource
+    inputOverlayDirs:
+      - overlays/003-unprotect
+    commands:
+      - name: 000-sync-unprotect
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/event_gateways.yaml"
+          - --auto-approve
+        assertions:
+          # Should see UPDATE action for protection change
+          - select: >-
+              plan.changes[?resource_type=='event_gateway' &&
+                            resource_ref=='egw-protected-top-level'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+
+          # Verify execution succeeded
+          - select: "summary"
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+          # Verify protection changes
+          - select: "plan.summary.protection_changes"
+            expect:
+              fields:
+                protecting: 0
+                unprotecting: 1
+
+      # Verify protected label removed
+      - name: 001-verify-unprotected
+        run: ["get", "event-gateways", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.protectedEventGatewayName }}'] | [0]"
+            expect:
+              fields:
+                labels."KONGCTL-namespace": "egw-protection"
+
+  # Step 4: Delete now-unprotected resource (should succeed)
+  - name: 004-delete-unprotected
+    inputOverlayDirs:
+      - overlays/004-delete-unprotected
+    commands:
+      - name: 000-sync-delete
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/event_gateways.yaml"
+          - --auto-approve
+        assertions:
+          # Verify DELETE action planned
+          - select: >-
+              plan.changes[?resource_type=='event_gateway' &&
+                            resource_ref=='My Protected Event Gateway CP'] | [0]
+            expect:
+              fields:
+                action: DELETE
+
+          # Verify execution succeeded
+          - select: "summary"
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      # Verify resource deleted
+      - name: 001-verify-deleted
+        run: ["get", "event-gateways", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.protectedEventGatewayName }}']"
+            expect:
+              fields:
+                "length(@)": 0

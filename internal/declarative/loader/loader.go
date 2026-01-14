@@ -537,6 +537,15 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 		accumulated.PortalTeamRoles = append(accumulated.PortalTeamRoles, role)
 	}
 
+	for _, egwControlPlane := range source.EventGatewayControlPlanes {
+		if accumulated.HasRef(egwControlPlane.Ref) {
+			existing, _ := accumulated.GetResourceByRef(egwControlPlane.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
+				egwControlPlane.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.EventGatewayControlPlanes = append(accumulated.EventGatewayControlPlanes, egwControlPlane)
+	}
+
 	// If this source defines a namespace default without parent resources,
 	// propagate it so sync mode can inspect the correct namespace.
 	if source.DefaultNamespace != "" {
@@ -604,7 +613,10 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 	for i := range rs.Portals {
 		if rs.Portals[i].IsExternal() {
 			if rs.Portals[i].Kongctl != nil {
-				return fmt.Errorf("portal '%s' is marked as external and cannot use kongctl metadata", rs.Portals[i].Ref)
+				return fmt.Errorf(
+					"portal '%s' is marked as external and cannot use kongctl metadata",
+					rs.Portals[i].Ref,
+				)
 			}
 			continue
 		}
@@ -692,6 +704,26 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		}
 	}
 
+	// Apply defaults to ControlPlanes (parent resources)
+	for i := range rs.EventGatewayControlPlanes {
+		if err := assignNamespace(
+			&rs.EventGatewayControlPlanes[i].Kongctl,
+			"control_plane",
+			rs.EventGatewayControlPlanes[i].Ref,
+		); err != nil {
+			return err
+		}
+		// Apply protected default if not set
+		if rs.EventGatewayControlPlanes[i].Kongctl.Protected == nil && protectedDefault != nil {
+			rs.EventGatewayControlPlanes[i].Kongctl.Protected = protectedDefault
+		}
+		// Ensure protected has a value (false if still nil)
+		if rs.EventGatewayControlPlanes[i].Kongctl.Protected == nil {
+			falseVal := false
+			rs.EventGatewayControlPlanes[i].Kongctl.Protected = &falseVal
+		}
+	}
+
 	// Note: Child resources (API versions, publications, etc.) do not get kongctl metadata
 	// as Konnect doesn't support labels on child resources
 	return nil
@@ -774,6 +806,10 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 	}
 	for i := range rs.PortalEmailTemplates {
 		rs.PortalEmailTemplates[i].SetDefaults()
+	}
+
+	for i := range rs.EventGatewayControlPlanes {
+		rs.EventGatewayControlPlanes[i].SetDefaults()
 	}
 }
 

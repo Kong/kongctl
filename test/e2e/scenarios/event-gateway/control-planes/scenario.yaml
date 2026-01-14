@@ -1,0 +1,130 @@
+baseInputsPath: ../../../testdata/declarative/event-gateways/comprehensive-fields
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-create
+    commands:
+      - name: 000-apply-create
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/event-gateways.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+          - select: "plan.changes[?resource_type=='event_gateway' && resource_ref=='egw-top-level'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "My Event Gateway CP"
+                fields.description: "Initial description for My Event Gateway CP"
+                fields.labels.owner: "platform"
+                fields.labels.lifecycle: "dev"
+      - name: 001-get-event-gateways
+        run: ["get", "event-gateways", "-o", "json"]
+        assertions:
+          - select: "[?name=='My Event Gateway CP'] | [0]"
+            expect:
+              fields:
+                name: "My Event Gateway CP"
+                description: "Initial description for My Event Gateway CP"
+                labels.owner: "platform"
+                labels.lifecycle: "dev"
+                labels."KONGCTL-namespace": "event-gateways-comprehensive"
+  - name: 002-apply-update
+    inputOverlayDirs:
+      - overlays/002-update-fields
+    commands:
+      - name: 000-apply-update
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/event-gateways.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+          - select: "plan.changes[?resource_type=='event_gateway' && resource_ref=='egw-top-level'] | [0]"
+            expect:
+              fields:
+                action: UPDATE
+                fields.description: "Updated description for My Event Gateway CP"
+                fields.labels.owner: "platform-eng"
+                fields.labels.lifecycle: "production"
+      - name: 001-get-event-gateways
+        run: ["get", "event-gateways", "-o", "json"]
+        assertions:
+          - select: "[?name=='My Event Gateway CP'] | [0]"
+            expect:
+              fields:
+                name: "My Event Gateway CP"
+                description: "Updated description for My Event Gateway CP"
+                labels.owner: "platform-eng"
+                labels.lifecycle: "production"
+                labels."KONGCTL-namespace": "event-gateways-comprehensive"
+  - name: 003-sync-delete
+    inputOverlayDirs:
+      - overlays/003-sync-delete
+    commands:
+      - name: 000-sync-delete
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/event-gateways.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+          - select: "plan.changes[?resource_type=='event_gateway' && resource_ref=='My Event Gateway CP'] | [0]"
+            expect:
+              fields:
+                action: DELETE
+      - name: 001-get-event-gateways
+        run: ["get", "event-gateways", "-o", "json"]
+        assertions:
+          - select: "[?name=='My Event Gateway CP']"
+            expect:
+              fields:
+                "length(@)": 0

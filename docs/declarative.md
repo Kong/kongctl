@@ -178,6 +178,7 @@ lists the currently supported resources and their relationships.
 - Portals
 - Application Auth Strategies
 - Control Planes (including Control Plane Groups)
+- Event Gateways
 
 **Child Resources** (do NOT support kongctl metadata):
 

@@ -1,0 +1,155 @@
+baseInputsPath: ../../../../testdata/declarative/event-gateways/plan/sync
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  egwRef: plan-sync-egw
+  egwName: plan-sync-egw
+  egwInitialDesc: "Initial description for plan sync workflow"
+  egwUpdatedDesc: "Updated description for plan sync workflow"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-sync-create
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'event_gateway \"plan-sync-egw\" will be created')": true
+      - name: 002-sync-plan
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-get-event-gateways
+        run: ["get", "event-gateways", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.egwRef }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.egwName }}"
+                description: "{{ .vars.egwInitialDesc }}"
+  - name: 002-plan-sync-update
+    inputOverlayDirs:
+      - overlays/001-update
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'event_gateway \"plan-sync-egw\" will be updated')": true
+      - name: 002-sync-plan
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+          - select: plan.summary
+            expect:
+              fields:
+                by_action.UPDATE: 1
+      - name: 003-get-event-gateways
+        run: ["get", "event-gateways", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.egwRef }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.egwName }}"
+                description: "{{ .vars.egwUpdatedDesc }}"
+      - name: 004-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true

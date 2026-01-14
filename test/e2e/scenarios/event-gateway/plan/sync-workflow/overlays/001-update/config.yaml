@@ -1,0 +1,8 @@
+_defaults:
+  kongctl:
+    namespace: egw-plan-sync
+
+event_gateways:
+  - ref: plan-sync-egw
+    name: plan-sync-egw
+    description: "Updated description for plan sync workflow"

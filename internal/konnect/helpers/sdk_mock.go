@@ -32,6 +32,9 @@ type MockKonnectSDK struct {
 	PortalTeamMembershipFactory          func() PortalTeamMembershipAPI
 	AssetsFactory                        func() AssetsAPI
 	PortalEmailsFactory                  func() PortalEmailsAPI
+
+	// Event Gateway Control Plane factory
+	EventGatewayControlPlaneFactory func() EGWControlPlaneAPI
 }
 
 // Returns a mock instance of the ControlPlaneAPI
@@ -227,6 +230,14 @@ func (m *MockKonnectSDK) GetAssetsAPI() AssetsAPI {
 func (m *MockKonnectSDK) GetPortalEmailsAPI() PortalEmailsAPI {
 	if m.PortalEmailsFactory != nil {
 		return m.PortalEmailsFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the EGWControlPlaneAPI
+func (m *MockKonnectSDK) GetEventGatewayControlPlaneAPI() EGWControlPlaneAPI {
+	if m.EventGatewayControlPlaneFactory != nil {
+		return m.EventGatewayControlPlaneFactory()
 	}
 	return nil
 }

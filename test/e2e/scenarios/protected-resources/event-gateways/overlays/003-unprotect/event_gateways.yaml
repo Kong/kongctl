@@ -1,0 +1,17 @@
+# Overlay: Set protected: false on Customer Event Gateway Control Plane
+# This should allow the protection label to be removed
+
+_defaults:
+  kongctl:
+    namespace: "egw-protection"
+
+event_gateways:
+  - ref: egw-protected-top-level
+    name: "My Protected Event Gateway CP"
+    description: "Initial description for My Protected Event Gateway CP"
+    labels:
+      owner: "platform"
+      lifecycle: "dev"
+    kongctl:
+      namespace: "egw-protection"
+      protected: false
