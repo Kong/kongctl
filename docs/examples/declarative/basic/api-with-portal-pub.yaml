@@ -4,12 +4,16 @@ portals:
     name: My Simple Portal 
     display_name: Simple Portal ©
     description: The simplest Portal example 
+    # Portal assets (logo and favicon)
+    assets:
+      #logo: !file ../portal/assets/logo.png
+      favicon: !file ../portal/assets/favicon.png
 
-apis:
-  - ref: simple-api
-    name: My Simple API
-    description: The simplest API example 
-    publications:
-      - ref: simple-api-to-simple-portal 
-        portal_id: !ref simple-portal#id
-        visibility: public
+#apis:
+#  - ref: simple-api
+#    name: My Simple API
+#    description: The simplest API example 
+#    publications:
+#      - ref: simple-api-to-simple-portal 
+#        portal_id: !ref simple-portal#id
+#        visibility: public

@@ -774,7 +774,11 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			logos = append(logos, logo)
 		}
 	}
-	planner.planPortalAssetLogosChanges(ctx, plannerCtx, parentNamespace, logos, plan)
+	if err := planner.planPortalAssetLogosChanges(ctx, plannerCtx, parentNamespace, logos, plan); err != nil {
+		planner.logger.Debug("Failed to plan portal asset logos for new portal",
+			"portal", desired.Ref,
+			"error", err.Error())
+	}
 
 	// Plan asset favicon
 	favicons := make([]resources.PortalAssetFaviconResource, 0)
@@ -783,10 +787,14 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			favicons = append(favicons, favicon)
 		}
 	}
-	planner.planPortalAssetFaviconsChanges(ctx, plannerCtx, parentNamespace, favicons, plan)
+	if err := planner.planPortalAssetFaviconsChanges(ctx, plannerCtx, parentNamespace, favicons, plan); err != nil {
+		planner.logger.Debug("Failed to plan portal asset favicons for new portal",
+			"portal", desired.Ref,
+			"error", err.Error())
+	}
 
 	// Plan nested assets (from portal.Assets.Logo and portal.Assets.Favicon fields)
-	if desired.Assets != nil {
+	if !desired.IsExternal() && desired.Assets != nil {
 		if desired.Assets.Logo != nil && *desired.Assets.Logo != "" {
 			if !plan.HasChange(ResourceTypePortalAssetLogo, fmt.Sprintf("%s-logo", desired.Ref)) {
 				planner.planPortalAssetLogoUpdate(parentNamespace, desired.Ref, desired.Name, "", *desired.Assets.Logo, plan)
@@ -933,7 +941,9 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			logos = append(logos, logo)
 		}
 	}
-	planner.planPortalAssetLogosChanges(ctx, plannerCtx, parentNamespace, logos, plan)
+	if err := planner.planPortalAssetLogosChanges(ctx, plannerCtx, parentNamespace, logos, plan); err != nil {
+		return fmt.Errorf("failed to plan portal asset logo changes: %w", err)
+	}
 
 	// Plan asset favicon (singleton resource)
 	favicons := make([]resources.PortalAssetFaviconResource, 0)
@@ -942,22 +952,54 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 			favicons = append(favicons, favicon)
 		}
 	}
-	planner.planPortalAssetFaviconsChanges(ctx, plannerCtx, parentNamespace, favicons, plan)
+	if err := planner.planPortalAssetFaviconsChanges(ctx, plannerCtx, parentNamespace, favicons, plan); err != nil {
+		return fmt.Errorf("failed to plan portal asset favicon changes: %w", err)
+	}
 
 	// Plan nested assets (from portal.Assets.Logo and portal.Assets.Favicon fields)
-	if desired.Assets != nil {
+	if !desired.IsExternal() && desired.Assets != nil {
 		if desired.Assets.Logo != nil && *desired.Assets.Logo != "" {
 			if !plan.HasChange(ResourceTypePortalAssetLogo, fmt.Sprintf("%s-logo", desired.Ref)) {
-				planner.planPortalAssetLogoUpdate(
-					parentNamespace, desired.Ref, desired.Name, current.ID, *desired.Assets.Logo, plan,
+				needsUpdate, err := planner.portalAssetNeedsUpdate(
+					ctx,
+					current.ID,
+					*desired.Assets.Logo,
+					planner.client.GetPortalAssetLogo,
 				)
+				if err != nil {
+					return fmt.Errorf("failed to compare portal asset logo for portal %q: %w", desired.Ref, err)
+				}
+				if needsUpdate {
+					planner.planPortalAssetLogoUpdate(
+						parentNamespace, desired.Ref, desired.Name, current.ID, *desired.Assets.Logo, plan,
+					)
+				} else {
+					planner.logger.Debug("Skipping portal asset logo update; no changes detected",
+						"portal", desired.Ref,
+					)
+				}
 			}
 		}
 		if desired.Assets.Favicon != nil && *desired.Assets.Favicon != "" {
 			if !plan.HasChange(ResourceTypePortalAssetFavicon, fmt.Sprintf("%s-favicon", desired.Ref)) {
-				planner.planPortalAssetFaviconUpdate(
-					parentNamespace, desired.Ref, desired.Name, current.ID, *desired.Assets.Favicon, plan,
+				needsUpdate, err := planner.portalAssetNeedsUpdate(
+					ctx,
+					current.ID,
+					*desired.Assets.Favicon,
+					planner.client.GetPortalAssetFavicon,
 				)
+				if err != nil {
+					return fmt.Errorf("failed to compare portal asset favicon for portal %q: %w", desired.Ref, err)
+				}
+				if needsUpdate {
+					planner.planPortalAssetFaviconUpdate(
+						parentNamespace, desired.Ref, desired.Name, current.ID, *desired.Assets.Favicon, plan,
+					)
+				} else {
+					planner.logger.Debug("Skipping portal asset favicon update; no changes detected",
+						"portal", desired.Ref,
+					)
+				}
 			}
 		}
 	}
