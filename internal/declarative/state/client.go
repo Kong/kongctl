@@ -3339,6 +3339,26 @@ func (c *Client) GetEventGatewayControlPlaneByID(ctx context.Context, id string)
 	return eventGateway, nil
 }
 
+func (c *Client) GetEventGatewayControlPlaneByName(ctx context.Context, name string) (*EventGatewayControlPlane, error) {
+	// List all event gateways and filter by name
+	gateways, err := c.ListManagedEventGatewayControlPlanes(ctx, []string{})
+	if err != nil {
+		return nil, WrapAPIError(err, "list event gateways to find by name", &ErrorWrapperOptions{
+			ResourceType: "event_gateway",
+			ResourceName: name,
+			UseEnhanced:  true,
+		})
+	}
+
+	for _, gw := range gateways {
+		if gw.Name == name {
+			return &gw, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func (c *Client) DeleteEventGatewayControlPlane(ctx context.Context, id string) error {
 	// Placeholder for future implementation
 	_, err := c.egwControlPlaneAPI.DeleteEGWControlPlane(ctx, id)

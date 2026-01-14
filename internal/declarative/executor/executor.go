@@ -41,6 +41,9 @@ type Executor struct {
 	catalogServiceExecutor           *BaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService]
 	eventGatewayControlPlaneExecutor *BaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest]
 
+	// Event Gateway child resource executors
+	eventGatewayBackendClusterExecutor *BaseExecutor[kkComps.CreateBackendClusterRequest, kkComps.UpdateBackendClusterRequest]
+
 	// Portal child resource executors
 	portalCustomizationExecutor *BaseSingletonExecutor[kkComps.PortalCustomization]
 	portalAuthSettingsExecutor  *BaseSingletonExecutor[kkComps.PortalAuthenticationSettingsUpdateRequest]
@@ -103,6 +106,13 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 	)
 	e.eventGatewayControlPlaneExecutor = NewBaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest](
 		NewEventGatewayControlPlaneControlPlaneAdapter(client),
+		client,
+		dryRun,
+	)
+
+	// Initialize event gateway child resource executors
+	e.eventGatewayBackendClusterExecutor = NewBaseExecutor[kkComps.CreateBackendClusterRequest, kkComps.UpdateBackendClusterRequest](
+		NewEventGatewayBackendClusterAdapter(client),
 		client,
 		dryRun,
 	)
@@ -879,6 +889,58 @@ func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceI
 		refInfo.Ref, lookupValue, lastErr)
 }
 
+// resolveEventGatewayRef resolves an event gateway reference to its ID
+func (e *Executor) resolveEventGatewayRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
+	lookupRef := refInfo.Ref
+	if tags.IsRefPlaceholder(lookupRef) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+			lookupRef = parsedRef
+		}
+	}
+
+	// First check if it was created in this execution
+	if gateways, ok := e.refToID["event_gateway"]; ok {
+		if id, found := gateways[lookupRef]; found {
+			slog.Debug("Resolved event gateway reference from created resources",
+				"gateway_ref", lookupRef,
+				"gateway_id", id,
+			)
+			return id, nil
+		}
+	}
+
+	// Determine the lookup value - use name from lookup fields if available
+	lookupValue := lookupRef
+	if refInfo.LookupFields != nil {
+		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
+			lookupValue = name
+		}
+	}
+
+	// Try to find the event gateway in Konnect
+	gateway, err := e.client.GetEventGatewayControlPlaneByName(ctx, lookupValue)
+	if err != nil {
+		return "", fmt.Errorf("failed to get event gateway by name: %w", err)
+	}
+	if gateway == nil {
+		return "", fmt.Errorf("event gateway not found: ref=%s, looked up by name=%s", refInfo.Ref, lookupValue)
+	}
+
+	gatewayID := gateway.ID
+	slog.Debug("Resolved event gateway reference from Konnect",
+		"gateway_ref", refInfo.Ref,
+		"lookup_value", lookupValue,
+		"gateway_id", gatewayID,
+	)
+
+	// Cache this resolution
+	if gateways, ok := e.refToID["event_gateway"]; ok {
+		gateways[refInfo.Ref] = gatewayID
+	}
+
+	return gatewayID, nil
+}
+
 // populatePortalPages fetches and caches all pages for a portal
 func (e *Executor) populatePortalPages(ctx context.Context, portalID string) error {
 	portal, exists := e.stateCache.Portals[portalID]
@@ -1425,6 +1487,18 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		return e.portalEmailTemplateExecutor.Create(ctx, *change)
 	case "event_gateway":
 		return e.eventGatewayControlPlaneExecutor.Create(ctx, *change)
+	case "event_gateway_backend_cluster":
+		// Resolve event gateway reference if needed
+		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			gatewayRef.ID = gatewayID
+			change.References["event_gateway_id"] = gatewayRef
+		}
+		return e.eventGatewayBackendClusterExecutor.Create(ctx, *change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
 	}
@@ -1638,6 +1712,17 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 	// Note: api_publication and api_implementation don't support update
 	case "event_gateway":
 		return e.eventGatewayControlPlaneExecutor.Update(ctx, *change)
+	case "event_gateway_backend_cluster":
+		// Resolve event gateway reference if needed (typically should already be in Parent)
+		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
+			}
+			gatewayRef.ID = gatewayID
+			change.References["event_gateway_id"] = gatewayRef
+		}
+		return e.eventGatewayBackendClusterExecutor.Update(ctx, *change)
 	default:
 		return "", fmt.Errorf("update operation not yet implemented for %s", change.ResourceType)
 	}
@@ -1768,6 +1853,9 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 	// Note: portal_customization is a singleton resource and cannot be deleted
 	case "event_gateway":
 		return e.eventGatewayControlPlaneExecutor.Delete(ctx, *change)
+	case "event_gateway_backend_cluster":
+		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
+		return e.eventGatewayBackendClusterExecutor.Delete(ctx, *change)
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)
 	}
