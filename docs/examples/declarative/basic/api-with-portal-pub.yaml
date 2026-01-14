@@ -6,7 +6,7 @@ portals:
     description: The simplest Portal example 
     # Portal assets (logo and favicon)
     assets:
-      #logo: !file ../portal/assets/logo.png
+      logo: !file ../portal/assets/logo.png
       favicon: !file ../portal/assets/favicon.png
 
 #apis:
