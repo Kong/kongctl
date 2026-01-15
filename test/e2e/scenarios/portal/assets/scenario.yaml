@@ -125,8 +125,8 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 3
-                by_action.UPDATE: 3
+                total_changes: 2
+                by_action.UPDATE: 2
           # Verify updated logo
           - select: >-
               changes[?resource_type=='portal_asset_logo' &&
@@ -134,6 +134,11 @@ steps:
             expect:
               fields:
                 "starts_with(data_url, 'data:image/')": true
+          # Favicon is intentionally unchanged; no update expected.
+          - select: "changes[?resource_type=='portal_asset_favicon']"
+            expect:
+              fields:
+                "length(@)": 0
 
       - name: 001-apply-assets-update
         outputFormat: json
@@ -146,7 +151,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 3
+                applied: 2
                 failed: 0
 
       - name: 002-verify-updated-logo

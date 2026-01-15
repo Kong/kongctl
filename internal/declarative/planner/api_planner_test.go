@@ -6,7 +6,9 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestAPIVersionConstraintValidation tests that the loader properly validates API version constraints
@@ -95,4 +97,65 @@ func TestShouldUpdateAPIConsidersSlugAndAttributes(t *testing.T) {
 	assert.True(t, needsUpdate)
 	assert.Equal(t, updatedSlug, updateFields["slug"])
 	assert.Equal(t, expectedUpdatedAttrs, updateFields["attributes"])
+}
+
+func TestShouldUpdateAPIPublicationResolvesAuthStrategyRefs(t *testing.T) {
+	t.Parallel()
+
+	authStrategy := resources.ApplicationAuthStrategyResource{
+		CreateAppAuthStrategyRequest: kkComps.CreateCreateAppAuthStrategyRequestKeyAuth(
+			kkComps.AppAuthStrategyKeyAuthRequest{
+				Name:         "my-api-key-auth",
+				StrategyType: kkComps.StrategyTypeKeyAuth,
+			},
+		),
+		Ref: "key-auth",
+	}
+
+	authStrategy.TryMatchKonnectResource(state.ApplicationAuthStrategy{
+		ID:   "auth-id",
+		Name: "my-api-key-auth",
+	})
+
+	planner := &Planner{
+		resources: &resources.ResourceSet{
+			ApplicationAuthStrategies: []resources.ApplicationAuthStrategyResource{authStrategy},
+		},
+	}
+
+	current := state.APIPublication{
+		AuthStrategyIDs: []string{"auth-id"},
+	}
+
+	desired := resources.APIPublicationResource{
+		APIPublication: kkComps.APIPublication{
+			AuthStrategyIds: []string{tags.RefPlaceholderPrefix + "key-auth#id"},
+		},
+		Ref:      "pub",
+		PortalID: "portal-id",
+	}
+
+	needsUpdate, fields := planner.shouldUpdateAPIPublication(current, desired)
+	require.False(t, needsUpdate)
+	assert.Empty(t, fields)
+}
+
+func TestShouldUpdateAPIPublicationIgnoresAuthStrategyWhenUnset(t *testing.T) {
+	t.Parallel()
+
+	planner := &Planner{}
+
+	current := state.APIPublication{
+		AuthStrategyIDs: []string{"auth-id"},
+	}
+
+	desired := resources.APIPublicationResource{
+		APIPublication: kkComps.APIPublication{},
+		Ref:            "pub",
+		PortalID:       "portal-id",
+	}
+
+	needsUpdate, fields := planner.shouldUpdateAPIPublication(current, desired)
+	require.False(t, needsUpdate)
+	assert.Empty(t, fields)
 }

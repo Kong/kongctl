@@ -1,14 +1,19 @@
 package planner
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"net/url"
 	"reflect"
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkErrors "github.com/Kong/sdk-konnect-go/models/sdkerrors"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
@@ -890,12 +895,86 @@ func (p *Planner) planPortalCustomDomainDelete(
 	return change.ID
 }
 
+func (p *Planner) portalAssetNeedsUpdate(
+	ctx context.Context,
+	portalID string,
+	desiredDataURL string,
+	fetchCurrent func(context.Context, string) (string, error),
+) (bool, error) {
+	if portalID == "" {
+		return true, nil
+	}
+
+	currentDataURL, err := fetchCurrent(ctx, portalID)
+	if err != nil {
+		var sdkErr *kkErrors.SDKError
+		if errors.As(err, &sdkErr) && sdkErr.StatusCode == http.StatusNotFound {
+			return true, nil
+		}
+		return false, err
+	}
+
+	if currentDataURL == "" {
+		return true, nil
+	}
+
+	equal, err := dataURLsEqual(desiredDataURL, currentDataURL)
+	if err != nil {
+		return false, err
+	}
+
+	return !equal, nil
+}
+
+func dataURLsEqual(desired string, current string) (bool, error) {
+	desiredBytes, err := decodeDataURL(desired)
+	if err != nil {
+		return false, fmt.Errorf("decode desired data URL: %w", err)
+	}
+
+	currentBytes, err := decodeDataURL(current)
+	if err != nil {
+		return false, fmt.Errorf("decode current data URL: %w", err)
+	}
+
+	return bytes.Equal(desiredBytes, currentBytes), nil
+}
+
+func decodeDataURL(dataURL string) ([]byte, error) {
+	if !strings.HasPrefix(dataURL, "data:") {
+		return nil, fmt.Errorf("invalid data URL: missing data prefix")
+	}
+
+	parts := strings.SplitN(dataURL, ",", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid data URL: missing comma separator")
+	}
+
+	meta := parts[0]
+	payload := parts[1]
+
+	if strings.Contains(meta, ";base64") {
+		decoded, err := base64.StdEncoding.DecodeString(payload)
+		if err != nil {
+			return nil, fmt.Errorf("decode base64 payload: %w", err)
+		}
+		return decoded, nil
+	}
+
+	decoded, err := url.PathUnescape(payload)
+	if err != nil {
+		return nil, fmt.Errorf("decode url-escaped payload: %w", err)
+	}
+
+	return []byte(decoded), nil
+}
+
 // Portal Asset Logo planning (singleton)
 
 func (p *Planner) planPortalAssetLogosChanges(
 	ctx context.Context, plannerCtx *Config, parentNamespace string,
 	desired []resources.PortalAssetLogoResource, plan *Plan,
-) {
+) error {
 	namespace := plannerCtx.Namespace
 	existingPortals, _ := p.client.ListManagedPortals(ctx, []string{namespace})
 	portalNameToID := make(map[string]string)
@@ -908,6 +987,10 @@ func (p *Planner) planPortalAssetLogosChanges(
 			continue
 		}
 
+		if p.isPortalExternal(desiredLogo.Portal) {
+			continue
+		}
+
 		var portalName, portalID string
 		for _, portal := range p.desiredPortals {
 			if portal.Ref == desiredLogo.Portal {
@@ -917,10 +1000,27 @@ func (p *Planner) planPortalAssetLogosChanges(
 			}
 		}
 
-		// Assets are singletons - always plan UPDATE (no comparison needed)
 		// If portal doesn't exist, plan with empty ID for runtime resolution
+		needsUpdate, err := p.portalAssetNeedsUpdate(
+			ctx,
+			portalID,
+			*desiredLogo.File,
+			p.client.GetPortalAssetLogo,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to compare portal asset logo for portal %q: %w", desiredLogo.Portal, err)
+		}
+		if !needsUpdate {
+			p.logger.Debug("Skipping portal asset logo update; no changes detected",
+				slog.String("portal", desiredLogo.Portal),
+			)
+			continue
+		}
+
 		p.planPortalAssetLogoUpdate(parentNamespace, desiredLogo.Portal, portalName, portalID, *desiredLogo.File, plan)
 	}
+
+	return nil
 }
 
 func (p *Planner) planPortalAssetLogoUpdate(
@@ -977,7 +1077,7 @@ func (p *Planner) planPortalAssetLogoUpdate(
 func (p *Planner) planPortalAssetFaviconsChanges(
 	ctx context.Context, plannerCtx *Config, parentNamespace string,
 	desired []resources.PortalAssetFaviconResource, plan *Plan,
-) {
+) error {
 	namespace := plannerCtx.Namespace
 	existingPortals, _ := p.client.ListManagedPortals(ctx, []string{namespace})
 	portalNameToID := make(map[string]string)
@@ -990,6 +1090,10 @@ func (p *Planner) planPortalAssetFaviconsChanges(
 			continue
 		}
 
+		if p.isPortalExternal(desiredFavicon.Portal) {
+			continue
+		}
+
 		var portalName, portalID string
 		for _, portal := range p.desiredPortals {
 			if portal.Ref == desiredFavicon.Portal {
@@ -999,12 +1103,29 @@ func (p *Planner) planPortalAssetFaviconsChanges(
 			}
 		}
 
-		// Assets are singletons - always plan UPDATE (no comparison needed)
 		// If portal doesn't exist, plan with empty ID for runtime resolution
+		needsUpdate, err := p.portalAssetNeedsUpdate(
+			ctx,
+			portalID,
+			*desiredFavicon.File,
+			p.client.GetPortalAssetFavicon,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to compare portal asset favicon for portal %q: %w", desiredFavicon.Portal, err)
+		}
+		if !needsUpdate {
+			p.logger.Debug("Skipping portal asset favicon update; no changes detected",
+				slog.String("portal", desiredFavicon.Portal),
+			)
+			continue
+		}
+
 		p.planPortalAssetFaviconUpdate(
 			parentNamespace, desiredFavicon.Portal, portalName, portalID, *desiredFavicon.File, plan,
 		)
 	}
+
+	return nil
 }
 
 func (p *Planner) planPortalAssetFaviconUpdate(
@@ -1080,6 +1201,18 @@ func (p *Planner) findPortalName(portalRef string) string {
 		}
 	}
 	return ""
+}
+
+func (p *Planner) isPortalExternal(portalRef string) bool {
+	if portalRef == "" {
+		return false
+	}
+	for _, portal := range p.desiredPortals {
+		if portal.Ref == portalRef {
+			return portal.IsExternal()
+		}
+	}
+	return false
 }
 
 func (p *Planner) portalCustomDomainNeedsReplacement(

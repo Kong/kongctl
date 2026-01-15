@@ -9,7 +9,7 @@ portals:
     description: Portal with updated assets
     kongctl:
       namespace: portal-assets
-    # Updated assets
+    # Logo changes; favicon intentionally unchanged to verify byte comparison.
     assets:
       logo: !file logo-updated.png
-      favicon: !file favicon-updated.ico
+      favicon: !file favicon-unchanged.ico
