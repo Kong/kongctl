@@ -84,6 +84,27 @@ steps:
                 "length(portal_id)": 36
                 "length(auth_strategy_ids)": 1
                 "contains(auth_strategy_ids[0], '-')": true
+      - name: 002-plan-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/auth-strategies.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: "changes[?resource_type=='api_publication']"
+            expect:
+              fields:
+                "length(@)": 0
 
   - name: 002-update-publication-visibility
     inputOverlayOps:

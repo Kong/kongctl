@@ -1266,8 +1266,11 @@ func (p *Planner) shouldUpdateAPIPublication(
 	updates := make(map[string]any)
 
 	// Compare auth strategy IDs (order-independent comparison)
-	if !p.compareStringSlices(current.AuthStrategyIDs, desired.AuthStrategyIds) {
-		updates["auth_strategy_ids"] = desired.AuthStrategyIds
+	if desired.AuthStrategyIds != nil {
+		resolvedDesired := p.resolveAuthStrategyIDsForComparison(desired.AuthStrategyIds)
+		if !p.compareStringSlices(current.AuthStrategyIDs, resolvedDesired) {
+			updates["auth_strategy_ids"] = desired.AuthStrategyIds
+		}
 	}
 
 	// Compare auto approve registrations
@@ -1288,6 +1291,33 @@ func (p *Planner) shouldUpdateAPIPublication(
 	}
 
 	return len(updates) > 0, updates
+}
+
+func (p *Planner) resolveAuthStrategyIDsForComparison(desired []string) []string {
+	if p.resources == nil || len(desired) == 0 {
+		return desired
+	}
+
+	resolved := make([]string, 0, len(desired))
+	for _, ref := range desired {
+		lookupRef := ref
+		if tags.IsRefPlaceholder(lookupRef) {
+			if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+				lookupRef = parsedRef
+			}
+		}
+
+		if strategy := p.resources.GetAuthStrategyByRef(lookupRef); strategy != nil {
+			if id := strategy.GetKonnectID(); id != "" {
+				resolved = append(resolved, id)
+				continue
+			}
+		}
+
+		resolved = append(resolved, ref)
+	}
+
+	return resolved
 }
 
 // compareStringSlices compares two string slices for equality (order-independent)

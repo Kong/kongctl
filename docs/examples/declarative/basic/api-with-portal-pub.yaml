@@ -1,3 +1,12 @@
+application_auth_strategies:
+  - ref: simple-auth
+    name: my-api-key-auth
+    display_name: API Key Authentication
+    strategy_type: key_auth
+    configs:
+      key_auth:
+        key_names:
+          - X-API-Key
 
 portals:
   - ref: simple-portal
@@ -9,11 +18,13 @@ portals:
       logo: !file ../portal/assets/logo.png
       favicon: !file ../portal/assets/favicon.png
 
-#apis:
-#  - ref: simple-api
-#    name: My Simple API
-#    description: The simplest API example 
-#    publications:
-#      - ref: simple-api-to-simple-portal 
-#        portal_id: !ref simple-portal#id
-#        visibility: public
+apis:
+  - ref: simple-api
+    name: My Simple API
+    description: The simplest API example 
+    publications:
+      - ref: simple-api-to-simple-portal 
+        portal_id: !ref simple-portal#id
+        visibility: public
+        auth_strategy_ids:
+          - !ref simple-auth#id 
