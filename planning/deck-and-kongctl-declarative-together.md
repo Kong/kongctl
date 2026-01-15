@@ -77,6 +77,10 @@ kongctl sync -f configs/* --isolate-refs my-api-implementation
 - `type:api_implementation` - Match all resources of a type
 - `type:api_implementation,my-portal` - Mix types and refs
 
+**Design decision: Support both refs and types.** For users with large resource
+configuration sets, filtering by type is valuable. For example, ignoring ALL
+api_implementations in one command rather than listing each ref individually.
+
 **Pros:**
 - Simple, explicit control
 - Works with any external tool (not just deck)
