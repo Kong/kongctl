@@ -1,4 +1,4 @@
-package get
+package list
 
 import (
 	"context"
