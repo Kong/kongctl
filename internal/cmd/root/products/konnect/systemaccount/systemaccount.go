@@ -11,20 +11,21 @@ import (
 )
 
 const (
-	CommandName = "system_account"
+	CommandName = "system-account"
 )
 
 var (
 	systemAccountUse   = CommandName
-	systemAccountShort = i18n.T("root.products.konnect.systemAccount.systemAccountShort", "Manage Konnect systemAccount resources")
-	systemAccountLong  = normalizers.LongDesc(i18n.T("root.products.konnect.systemAccount.systemAccountLong",
-		`The systemAccount command allows you to work with Konnect systemAccount resources.`))
-	systemAccountExample = normalizers.Examples(i18n.T("root.products.konnect.systemAccount.systemAccountExamples",
+	systemAccountShort = i18n.T("root.products.konnect.systemaccount.systemAccountShort",
+		"Manage Konnect system account resources")
+	systemAccountLong = normalizers.LongDesc(i18n.T("root.products.konnect.systemaccount.systemAccountLong",
+		`The systemAccount command allows you to work with Konnect system account resources.`))
+	systemAccountExample = normalizers.Examples(i18n.T("root.products.konnect.systemaccount.systemAccountExamples",
 		fmt.Sprintf(`
-# List all system_accounts
-%[1]s get system accounts
+# List all system-accounts
+%[1]s get system-accounts
 # Get a specific system account
-%[1]s get system_account <id|name>
+%[1]s get system-account <id|name>
 `, meta.CLIName)))
 )
 
@@ -38,7 +39,8 @@ func NewSystemAccountCmd(
 		Short:   systemAccountShort,
 		Long:    systemAccountLong,
 		Example: systemAccountExample,
-		Aliases: []string{"systemAccount", "systemAccounts", "system-account", "system-accounts", "sa", "system_accounts"},
+		Aliases: []string{"systemaccount", "systemaccounts", "system-accounts", "system_account", "system_accounts",
+			"sa", "sas", "SA", "SAS"},
 	}
 
 	switch verb {
@@ -46,7 +48,10 @@ func NewSystemAccountCmd(
 		return newGetSystemAccountCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
 	case verbs.List:
 		return newGetSystemAccountCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
-	default:
+	case verbs.Add, verbs.Apply, verbs.Create, verbs.Delete, verbs.Dump, verbs.Update, verbs.Help, verbs.Login,
+		verbs.Plan, verbs.Sync, verbs.Diff, verbs.Export, verbs.Adopt, verbs.API, verbs.Kai, verbs.View, verbs.Logout:
 		return &baseCmd, nil
 	}
+
+	return &baseCmd, nil
 }

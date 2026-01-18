@@ -113,7 +113,6 @@ func renderSystemAccountsList(
 	}
 
 	options := []tableview.Option{
-		// tableview.WithCustomTable(childView.Headers, childView.Rows),
 		tableview.WithRootLabel(rootLabel),
 		tableview.WithDetailHelper(helper),
 	}
@@ -161,7 +160,6 @@ func (s *getSystemAccountCmd) runE(c *cobra.Command, args []string) error {
 
 	// No args: list all
 	if len(args) == 0 {
-		// return fmt.Errorf("provide id or name")
 		systemAccounts, err := runList(sdk.GetSystemAccountAPI(), helper, cfg)
 		if err != nil {
 			return err
@@ -198,7 +196,7 @@ func (s *getSystemAccountCmd) runE(c *cobra.Command, args []string) error {
 			systemAccount,
 			"",
 			tableview.WithRootLabel(helper.GetCmd().Name()),
-			tableview.WithDetailContext("system-account", func(int) any {
+			tableview.WithDetailContext("system_account", func(int) any {
 				return systemAccount
 			}),
 			tableview.WithDetailHelper(helper),
@@ -208,7 +206,7 @@ func (s *getSystemAccountCmd) runE(c *cobra.Command, args []string) error {
 	return fmt.Errorf("too many arguments")
 }
 
-func runGet(id string, kkClient helpers.SystemAccountsAPI, helper cmd.Helper) (*kkComps.SystemAccount, error) {
+func runGet(id string, kkClient helpers.SystemAccountAPI, helper cmd.Helper) (*kkComps.SystemAccount, error) {
 	res, err := kkClient.GetSystemAccount(helper.GetContext(), id)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
@@ -218,7 +216,7 @@ func runGet(id string, kkClient helpers.SystemAccountsAPI, helper cmd.Helper) (*
 	return res.GetSystemAccount(), nil
 }
 
-func runList(kkClient helpers.SystemAccountsAPI, helper cmd.Helper, cfg config.Hook) ([]kkComps.SystemAccount, error) {
+func runList(kkClient helpers.SystemAccountAPI, helper cmd.Helper, cfg config.Hook) ([]kkComps.SystemAccount, error) {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
 	if requestPageSize < 1 {
@@ -252,7 +250,7 @@ func runList(kkClient helpers.SystemAccountsAPI, helper cmd.Helper, cfg config.H
 	return allData, nil
 }
 
-func runListByName(name string, kkClient helpers.SystemAccountsAPI, helper cmd.Helper,
+func runListByName(name string, kkClient helpers.SystemAccountAPI, helper cmd.Helper,
 	cfg config.Hook,
 ) (*kkComps.SystemAccount, error) {
 	var pageNumber int64 = 1
@@ -286,8 +284,6 @@ func runListByName(name string, kkClient helpers.SystemAccountsAPI, helper cmd.H
 		pageNumber++
 	}
 
-	// Making the determination to always take the first element in a list of return values.
-	//    It's possible this logic is flawed ?
 	if len(allData) > 0 {
 		return &allData[0], nil
 	}

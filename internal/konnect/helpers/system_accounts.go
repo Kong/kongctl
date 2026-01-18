@@ -7,7 +7,7 @@ import (
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 )
 
-type SystemAccountsAPI interface {
+type SystemAccountAPI interface {
 	// SystemAccount operations
 	ListSystemAccounts(ctx context.Context,
 		request kkOps.GetSystemAccountsRequest) (*kkOps.GetSystemAccountsResponse, error)
@@ -15,19 +15,19 @@ type SystemAccountsAPI interface {
 		id string) (*kkOps.GetSystemAccountsIDResponse, error)
 }
 
-// SystemAccountsAPIImpl provides a concrete implementation backed by the SDK.
-type SystemAccountsAPIImpl struct {
+// SystemAccountAPIImpl provides a concrete implementation backed by the SDK.
+type SystemAccountAPIImpl struct {
 	SDK *kkSDK.SDK
 }
 
-// ListSystemAccounts implements the SystemAccountsAPI interface
-func (p *SystemAccountsAPIImpl) ListSystemAccounts(ctx context.Context,
+// ListSystemAccounts implements the SystemAccountAPI interface
+func (p *SystemAccountAPIImpl) ListSystemAccounts(ctx context.Context,
 	request kkOps.GetSystemAccountsRequest) (*kkOps.GetSystemAccountsResponse, error) {
 	return p.SDK.SystemAccounts.GetSystemAccounts(ctx, request)
 }
 
-// GetSystemAccount implements the SystemAccountsAPI interface
-func (p *SystemAccountsAPIImpl) GetSystemAccount(ctx context.Context,
+// GetSystemAccount implements the SystemAccountAPI interface
+func (p *SystemAccountAPIImpl) GetSystemAccount(ctx context.Context,
 	id string) (*kkOps.GetSystemAccountsIDResponse, error) {
 	return p.SDK.SystemAccounts.GetSystemAccountsID(ctx, id)
 }
