@@ -8,7 +8,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
-	sysAcc "github.com/kong/kongctl/internal/cmd/root/products/konnect/system_account"
+	sysAcc "github.com/kong/kongctl/internal/cmd/root/products/konnect/systemaccount"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/spf13/cobra"
