@@ -28,6 +28,7 @@ const (
 	ResourceTypeCatalogService             ResourceType = "catalog_service"
 	ResourceTypeEventGatewayControlPlane   ResourceType = "event_gateway"
 	ResourceTypeEventGatewayBackendCluster ResourceType = "event_gateway_backend_cluster"
+	ResourceTypeTeam                       ResourceType = "team"
 )
 
 const (
@@ -70,6 +71,10 @@ type ResourceSet struct {
 	PortalEmailTemplates        []PortalEmailTemplateResource        `yaml:"portal_email_templates,omitempty"     json:"portal_email_templates,omitempty"`             //nolint:lll
 	EventGatewayControlPlanes   []EventGatewayControlPlaneResource   `yaml:"event_gateways,omitempty" json:"event_gateways,omitempty"`                                 //nolint:lll
 	EventGatewayBackendClusters []EventGatewayBackendClusterResource `yaml:"event_gateway_backend_clusters,omitempty" json:"event_gateway_backend_clusters,omitempty"` //nolint:lll
+
+	// Identity resources
+	Teams []TeamResource `yaml:"teams,omitempty" json:"teams,omitempty"`
+
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
 	DefaultNamespace  string   `yaml:"-" json:"-"`
