@@ -27,6 +27,7 @@ const (
 	ResourceTypePortalEmailTemplate      ResourceType = "portal_email_template"
 	ResourceTypeCatalogService           ResourceType = "catalog_service"
 	ResourceTypeEventGatewayControlPlane ResourceType = "event_gateway"
+	ResourceTypeTeam                     ResourceType = "team"
 )
 
 const (
@@ -68,6 +69,9 @@ type ResourceSet struct {
 	PortalEmailConfigs        []PortalEmailConfigResource        `yaml:"portal_email_configs,omitempty"       json:"portal_email_configs,omitempty"`   //nolint:lll
 	PortalEmailTemplates      []PortalEmailTemplateResource      `yaml:"portal_email_templates,omitempty"     json:"portal_email_templates,omitempty"` //nolint:lll
 	EventGatewayControlPlanes []EventGatewayControlPlaneResource `yaml:"event_gateways,omitempty" json:"event_gateways,omitempty"`                     //nolint:lll
+
+	// Identity resources
+	Teams []TeamResource `yaml:"teams,omitempty" json:"teams,omitempty"`
 
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
