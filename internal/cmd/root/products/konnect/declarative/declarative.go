@@ -343,7 +343,7 @@ func runPlan(command *cobra.Command, args []string) error {
 	// Check if configuration is empty
 	totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
 		len(resourceSet.ControlPlanes) + len(resourceSet.APIs) + len(resourceSet.CatalogServices) +
-		len(resourceSet.EventGatewayControlPlanes)
+		len(resourceSet.EventGatewayControlPlanes) + len(resourceSet.Teams)
 
 	if err := nsValidator.ValidateNamespaceRequirement(resourceSet, requirement); err != nil {
 		return err
@@ -533,7 +533,7 @@ func runDiff(command *cobra.Command, args []string) error {
 
 		totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
 			len(resourceSet.ControlPlanes) + len(resourceSet.APIs) + len(resourceSet.CatalogServices) +
-			len(resourceSet.EventGatewayControlPlanes)
+			len(resourceSet.EventGatewayControlPlanes) + len(resourceSet.Teams)
 		if totalResources == 0 {
 			if len(filenames) == 0 {
 				return fmt.Errorf("no configuration files found. Use -f to specify files or --plan to use existing plan")
@@ -1005,7 +1005,7 @@ func runApply(command *cobra.Command, args []string) error {
 		// Check if configuration is empty
 		totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
 			len(resourceSet.ControlPlanes) + len(resourceSet.APIs) +
-			len(resourceSet.EventGatewayControlPlanes) + len(resourceSet.CatalogServices)
+			len(resourceSet.EventGatewayControlPlanes) + len(resourceSet.CatalogServices) + len(resourceSet.Teams)
 
 		if totalResources == 0 {
 			// Check if we're using default directory (no explicit sources)
@@ -1587,5 +1587,8 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 
 		// Event Gateway APIs
 		EGWControlPlaneAPI: kkClient.GetEventGatewayControlPlaneAPI(),
+
+		// Identity APIs
+		TeamAPI: kkClient.GetTeamAPI(),
 	})
 }
