@@ -47,3 +47,10 @@ type EGWControlPlanePlanner interface {
 
 	// Additional Event Gateway Control Plane-specific methods if needed
 }
+
+// TeamPlanner handles planning for team resources
+type TeamPlanner interface {
+	ResourcePlanner
+
+	// Additional Team-specific methods if needed
+}
