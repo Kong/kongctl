@@ -619,6 +619,23 @@ func (rs *ResourceSet) GetEventGatewayControlPlanesByNamespace(namespace string)
 	return filtered
 }
 
+// GetTeamsByNamespace returns all team resources from the specified namespace
+func (rs *ResourceSet) GetTeamsByNamespace(namespace string) []TeamResource {
+	var filtered []TeamResource
+	for _, team := range rs.Teams {
+		if team.IsExternal() {
+			if namespace == NamespaceExternal {
+				filtered = append(filtered, team)
+			}
+			continue
+		}
+		if GetNamespace(team.Kongctl) == namespace {
+			filtered = append(filtered, team)
+		}
+	}
+	return filtered
+}
+
 // GetNamespace safely extracts namespace from kongctl metadata
 func GetNamespace(kongctl *KongctlMeta) string {
 	if kongctl == nil || kongctl.Namespace == nil {
