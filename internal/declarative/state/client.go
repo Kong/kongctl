@@ -3401,6 +3401,50 @@ func (c *Client) ListManagedTeams(ctx context.Context, namespaces []string) ([]T
 	return PaginateAll(ctx, lister)
 }
 
+// GetTeamByName finds a managed team by name
+func (c *Client) GetTeamByName(ctx context.Context, name string) (*Team, error) {
+	// Search across all namespaces for backward compatibility
+	teams, err := c.ListManagedTeams(ctx, []string{"*"})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, t := range teams {
+		if t.Name != nil && *t.Name == name {
+			return &t, nil
+		}
+	}
+
+	return nil, nil // Not found
+}
+
+func (c *Client) GetTeamByID(ctx context.Context, id string) (*Team, error) {
+	resp, err := c.teamAPI.GetTeam(ctx, id)
+	if err != nil {
+		return nil, WrapAPIError(err, "get team by ID", &ErrorWrapperOptions{
+			ResourceType: "team",
+			ResourceName: "",
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.Team == nil {
+		return nil, nil
+	}
+
+	normalized := resp.Team.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	team := &Team{
+		Team:             *resp.Team,
+		NormalizedLabels: normalized,
+	}
+
+	return team, nil
+}
+
 func (c *Client) CreateTeam(ctx context.Context, team *kkComps.CreateTeam, namespace string) (string, error) {
 	resp, err := c.teamAPI.CreateTeam(ctx, team)
 	if err != nil {
@@ -3426,6 +3470,7 @@ func (c *Client) CreateTeam(ctx context.Context, team *kkComps.CreateTeam, names
 
 	return *resp.Team.ID, nil
 }
+
 func (c *Client) UpdateTeam(ctx context.Context, teamID string,
 	team *kkComps.UpdateTeam, namespace string) (string, error) {
 	resp, err := c.teamAPI.UpdateTeam(ctx, teamID, team)
@@ -3453,13 +3498,12 @@ func (c *Client) UpdateTeam(ctx context.Context, teamID string,
 	return *resp.Team.ID, nil
 }
 
-func (c *Client) DeleteTeam(ctx context.Context, teamID string, namespace string) error {
+func (c *Client) DeleteTeam(ctx context.Context, teamID string) error {
 	_, err := c.teamAPI.DeleteTeam(ctx, teamID)
 	if err != nil {
 		return WrapAPIError(err, "delete team", &ErrorWrapperOptions{
 			ResourceType: "team",
 			ResourceName: teamID,
-			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
 	}

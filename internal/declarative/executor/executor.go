@@ -40,6 +40,7 @@ type Executor struct {
 	]
 	catalogServiceExecutor           *BaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService]
 	eventGatewayControlPlaneExecutor *BaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest]
+	teamExecutor                     *BaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam]
 
 	// Portal child resource executors
 	portalCustomizationExecutor *BaseSingletonExecutor[kkComps.PortalCustomization]
@@ -103,6 +104,11 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 	)
 	e.eventGatewayControlPlaneExecutor = NewBaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest](
 		NewEventGatewayControlPlaneControlPlaneAdapter(client),
+		client,
+		dryRun,
+	)
+	e.teamExecutor = NewBaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam](
+		NewTeamAdapter(client),
 		client,
 		dryRun,
 	)
@@ -1425,6 +1431,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		return e.portalEmailTemplateExecutor.Create(ctx, *change)
 	case "event_gateway":
 		return e.eventGatewayControlPlaneExecutor.Create(ctx, *change)
+	case "team":
+		return e.teamExecutor.Create(ctx, *change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
 	}
@@ -1638,6 +1646,8 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 	// Note: api_publication and api_implementation don't support update
 	case "event_gateway":
 		return e.eventGatewayControlPlaneExecutor.Update(ctx, *change)
+	case "team":
+		return e.teamExecutor.Update(ctx, *change)
 	default:
 		return "", fmt.Errorf("update operation not yet implemented for %s", change.ResourceType)
 	}
@@ -1768,6 +1778,8 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 	// Note: portal_customization is a singleton resource and cannot be deleted
 	case "event_gateway":
 		return e.eventGatewayControlPlaneExecutor.Delete(ctx, *change)
+	case "team":
+		return e.teamExecutor.Delete(ctx, *change)
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)
 	}
