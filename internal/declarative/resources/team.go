@@ -90,13 +90,13 @@ func (t *TeamResource) SetLabels(labels map[string]string) {
 }
 
 // GetKonnectMonikerFilter returns the filter string for Konnect API lookup
-// func (t TeamResource) GetKonnectMonikerFilter() string {
-// 	if t.IsExternal() {
-// 		return ""
-// 	}
+func (t TeamResource) GetKonnectMonikerFilter() string {
+	if t.IsExternal() {
+		return ""
+	}
 
-// 	return fmt.Sprintf("name[eq]=%s", t.Name)
-// }
+	return fmt.Sprintf("name[eq]=%s", t.Name)
+}
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
 func (t *TeamResource) TryMatchKonnectResource(konnectResource any) bool {

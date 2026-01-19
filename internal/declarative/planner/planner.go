@@ -1399,6 +1399,14 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 		namespaceSet[ns] = true
 	}
 
+	for _, team := range rs.Teams {
+		if team.IsExternal() {
+			continue
+		}
+		ns := resources.GetNamespace(team.Kongctl)
+		namespaceSet[ns] = true
+	}
+
 	// Convert set to sorted slice for consistent ordering
 	namespaces := make([]string, 0, len(namespaceSet))
 	for ns := range namespaceSet {

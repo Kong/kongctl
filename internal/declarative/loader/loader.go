@@ -347,7 +347,8 @@ func (l *Loader) loadDirectorySource(
 			len(accumulated.APIVersions) > 0 || len(accumulated.APIPublications) > 0 ||
 			len(accumulated.APIImplementations) > 0 || len(accumulated.APIDocuments) > 0 ||
 			len(accumulated.PortalCustomizations) > 0 || len(accumulated.PortalCustomDomains) > 0 ||
-			len(accumulated.PortalPages) > 0 || len(accumulated.PortalSnippets) > 0
+			len(accumulated.PortalPages) > 0 || len(accumulated.PortalSnippets) > 0 ||
+			len(accumulated.Teams) > 0
 
 		if !hasResources {
 			// Only error if no files were found at all (not just empty files)
@@ -541,6 +542,16 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 		accumulated.PortalTeamRoles = append(accumulated.PortalTeamRoles, role)
 	}
 
+	// Check and append Teams (top-level parent resource)
+	for _, team := range source.Teams {
+		if accumulated.HasRef(team.Ref) {
+			existing, _ := accumulated.GetResourceByRef(team.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
+				team.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.Teams = append(accumulated.Teams, team)
+	}
+
 	for _, egwControlPlane := range source.EventGatewayControlPlanes {
 		if accumulated.HasRef(egwControlPlane.Ref) {
 			existing, _ := accumulated.GetResourceByRef(egwControlPlane.Ref)
@@ -565,7 +576,8 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 		parentCount := len(source.Portals) +
 			len(source.ApplicationAuthStrategies) +
 			len(source.ControlPlanes) +
-			len(source.APIs)
+			len(source.APIs) +
+			len(source.Teams)
 
 		if parentCount == 0 {
 			accumulated.AddDefaultNamespace(source.DefaultNamespace)
@@ -737,6 +749,31 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		}
 	}
 
+	// Apply namespace defaults to teams
+	for i := range rs.Teams {
+		if rs.Teams[i].IsExternal() {
+			if rs.Teams[i].Kongctl != nil {
+				return fmt.Errorf(
+					"team '%s' is marked as external and cannot use kongctl metadata",
+					rs.Teams[i].Ref,
+				)
+			}
+			continue
+		}
+		if err := assignNamespace(&rs.Teams[i].Kongctl, "team", rs.Teams[i].Ref); err != nil {
+			return err
+		}
+		// Apply protected default if not set
+		if rs.Teams[i].Kongctl.Protected == nil && protectedDefault != nil {
+			rs.Teams[i].Kongctl.Protected = protectedDefault
+		}
+		// Ensure protected has a value (false if still nil)
+		if rs.Teams[i].Kongctl.Protected == nil {
+			falseVal := false
+			rs.Teams[i].Kongctl.Protected = &falseVal
+		}
+	}
+
 	// Note: Child resources (API versions, publications, etc.) do not get kongctl metadata
 	// as Konnect doesn't support labels on child resources
 	return nil
@@ -823,6 +860,11 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 
 	for i := range rs.EventGatewayControlPlanes {
 		rs.EventGatewayControlPlanes[i].SetDefaults()
+	}
+
+	// Apply defaults to teams
+	for i := range rs.Teams {
+		rs.Teams[i].SetDefaults()
 	}
 }
 

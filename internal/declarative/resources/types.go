@@ -257,6 +257,13 @@ func (rs *ResourceSet) GetResourceByRef(ref string) (Resource, bool) {
 		}
 	}
 
+	// Check Teams
+	for i := range rs.Teams {
+		if rs.Teams[i].GetRef() == ref {
+			return &rs.Teams[i], true
+		}
+	}
+
 	return nil, false
 }
 

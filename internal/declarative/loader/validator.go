@@ -47,6 +47,11 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
+	// Validate teams
+	if err := l.validateTeams(rs.Teams, rs); err != nil {
+		return err
+	}
+
 	// Validate cross-resource references
 	if err := l.validateCrossReferences(rs); err != nil {
 		return err
@@ -55,6 +60,38 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	// Validate namespaces
 	if err := l.validateNamespaces(rs); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// validateTeams validates team resources
+func (l *Loader) validateTeams(teams []resources.TeamResource, rs *resources.ResourceSet) error {
+	names := make(map[string]string) // name -> ref mapping (names unique per type)
+
+	for i := range teams {
+		team := &teams[i]
+
+		// Validate resource
+		if err := team.Validate(); err != nil {
+			return fmt.Errorf("invalid team %q: %w", team.GetRef(), err)
+		}
+
+		// Check global ref uniqueness across different resource types
+		if existing, found := rs.GetResourceByRef(team.GetRef()); found {
+			if existing.GetType() != resources.ResourceTypeTeam {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					team.GetRef(), existing.GetType())
+			}
+		}
+
+		// Check name uniqueness (within team type only)
+		if existingRef, exists := names[team.Name]; exists {
+			return fmt.Errorf("duplicate team name '%s' (ref: %s conflicts with ref: %s)",
+				team.Name, team.GetRef(), existingRef)
+		}
+
+		names[team.Name] = team.GetRef()
 	}
 
 	return nil
