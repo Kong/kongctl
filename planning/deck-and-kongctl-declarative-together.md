@@ -12,7 +12,7 @@ From the below record of planning and design considerations, it is decided that 
 implementation will follow C.2 below: extending the `_external` block and shelling
 out a command to `deck` with a constrained list of capabilities.
 
-- Assume: the user has ran any deck file preprocessing stages prior to running
+- Assume: the user has run any deck file preprocessing stages prior to running
   the kongctl command which will execute the subsequent deck command
 - Assume: required deck select tags are provided _within_ the deck configuration 
   allowing kongctl to execute either a deck sync or deck apply with expected results
@@ -159,7 +159,7 @@ Run deck automatically from within kongctl to achieve single-command execution.
 **Pros:** Single command, best UX for kongctl+deck-centric workflows
 **Cons:** More complex implementation, requires deck availability
 
-See [Detailed Design: Option C](#detailed-design-option-d-deck-integration) below
+See [Detailed Design: Option C](#detailed-design-option-c-deck-integration) below
 
 ---
 
@@ -355,7 +355,7 @@ output, err := cmd.CombinedOutput()
 - Subprocess overhead
 - `--json-output` format not well documented
 - Error handling less granular
-- Users use `deck file` functionality to pipleine behaviors, 
+- Users use `deck file` functionality to pipeline behaviors, 
   it's unclear how this would fit into a kongctl managed workflow
 
 **Implementation Complexity:** Low 
