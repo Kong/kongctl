@@ -6,6 +6,8 @@ Integrate deck execution into the declarative workflow for **external gateway se
 Key decisions:
 - `_external.requires.deck` is allowed **only for `gateway_services`**.
 - `requires.deck` is an **array of step objects** with `args` (string slice).
+- `requires.deck` supports a **mode placeholder** in args that is replaced by the invoking `kongctl` verb (`sync` or `apply`).
+- Only `deck gateway sync|apply` (or `deck gateway {{kongctl.mode}}`) are allowed for now; other gateway verbs are rejected.
 - `requires.deck` **requires** `_external.selector.matchFields.name` (name-only for now).
 - Deck commands **run once per resource** (no deduping).
 - Deck commands **do not run** for `plan`, `diff`, or `apply --dry-run`/`sync --dry-run`.
@@ -23,7 +25,7 @@ gateway_services:
       requires:
         deck:
           - args: ["file", "openapi2kong", "input.yaml", "-o", "kong.yaml"]
-          - args: ["gateway", "sync", "-s", "kong.yaml"]
+          - args: ["gateway", "{{kongctl.mode}}", "-s", "kong.yaml"]
       selector:
         matchFields:
           name: "abc-service"
@@ -46,6 +48,13 @@ Behavior:
     - Allow `Selector` + `Requires` together for gateway services.
     - If `Requires.Deck` is present, require `Selector` and require `selector.matchFields.name` only.
     - Reject `ID` if `Requires.Deck` is present.
+    - Validate `{{kongctl.mode}}` placeholder usage:
+      - Allowed only in `deck gateway` steps.
+      - Must appear exactly once in a step when present.
+      - Error if `{{kongctl.mode}}` is used with any other deck subcommand.
+    - Validate gateway verb:
+      - Allow only `sync` or `apply` (or `{{kongctl.mode}}`).
+      - Reject `diff|dump|ping|reset|validate` in this initial implementation.
     - For non-gateway-services, error if `Requires` is set.
 
 - **File**: `internal/declarative/resources/gateway_service.go`
@@ -78,6 +87,7 @@ Behavior:
     - Be depended on by api_implementation creates that reference the gateway service.
   - During execution of this change:
     - Run deck steps.
+    - Replace `{{kongctl.mode}}` in args with `sync` or `apply` based on the invoking command.
     - Resolve the gateway service by selector (name) using existing `ListGatewayServices` by CP ID.
     - Update plan changes referencing the gateway service (service.id + service.control_plane_id).
 
@@ -85,6 +95,7 @@ Behavior:
 - **Source**: `internal/cmd/root/products/konnect/common/common.go` already resolves token and base URL.
   - Reuse `GetAccessToken()` and `ResolveBaseURL()` to inject `--konnect-token` and `--konnect-addr`.
   - For control plane name, use the resolved control plane name from resource set (or fetch from Konnect if only ID is known).
+  - For `{{kongctl.mode}}`, map `kongctl sync` → `sync`, `kongctl apply` → `apply`. Error on `plan/diff` (should never execute anyway) and on any other verb.
 
 ### 6) Dry-Run Behavior
 - Skip all `requires.deck` execution when dry-run is enabled.
