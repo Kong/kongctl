@@ -6,6 +6,22 @@
 Konnect & Kong GW resources by isolating or ignoring resources in a given
 kongctl run?
 
+### ADR
+
+From the below record of planning and design considerations, it is decided that the initial 
+implementation will follow C.2 below: extending the `_external` block and shelling
+out a command to `deck` with a constrained list of capabilities.
+
+- Assume: the user has ran any deck file preprocessing stages prior to running
+  the kongctl command which will execute the subsequent deck command
+- Assume: required deck select tags are provided _within_ the deck configuration 
+  allowing kongctl to execute either a deck sync or deck apply with expected results
+- Assume: generally that what is required for deck via cli arg is provided within config
+- Considerations
+  - Users may have control plane names embedded in configuration but we need cp id as input
+    to api_implementation resources. Investigate
+- Pass through the `sync` or `apply` command through from `kongctl` to `deck`
+
 ### Context
 
 When using kongctl and deck together for Konnect + Kong Gateway declarative
@@ -279,7 +295,7 @@ This section provides implementation details for running deck from within kongct
 
 ### Bundling Options Analysis
 
-#### Option C.1: Use `go-database-reconciler` Library (Recommended for V2)
+#### Option C.1: Use `go-database-reconciler` Library (NOT recommended)
 
 Kong maintains [go-database-reconciler](https://github.com/Kong/go-database-reconciler), a
 library extracted from deck specifically for programmatic use. This is what deck uses
@@ -315,7 +331,7 @@ differ.CreateAndUpdates(func(event crud.Event) error { ... })
 - May need to handle auth token passing between kongctl and the library
 - Suspect that some functionality is in the deck package itself vs go-database-reconciler
 
-**Implementation Complexity:** Medium 
+**Implementation Complexity:** High
 
 #### Option C.2: Shell Out to Deck Binary (Recommended for MVP)
 
@@ -344,7 +360,7 @@ output, err := cmd.CombinedOutput()
 
 **Implementation Complexity:** Low 
 
-#### Option C.3: Embed Deck Binary
+#### Option C.3: Embed Deck Binary (NOT Recommended)
 
 Ship deck binary as an embedded resource or alongside kongctl.
 
@@ -362,8 +378,7 @@ Ship deck binary as an embedded resource or alongside kongctl.
 
 #### Recommendation
 
-**Start with C.2 (shell out)** for MVP, design interfaces to allow migration to
-**C.1 (go-database-reconciler)** later:
+**Start with C.2 (shell out)**
 
 1. MVP: Shell out to deck with required deck on PATH
 2. V2: Import go-database-reconciler for native integration
