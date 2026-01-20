@@ -12,6 +12,7 @@ Key decisions:
 - Deck commands **run once per resource** (no deduping).
 - Deck commands **do not run** for `plan`, `diff`, or `apply --dry-run`/`sync --dry-run`.
 - Deck commands run in the **process working dir / base-dir**; file paths remain relative to that directory.
+- Apply-from-plan should be run from the same working directory used at plan time (no per-file workdir).
 - When a deck step includes `gateway`, kongctl injects Konnect auth/context (token, control plane name, base URL) and **errors** if the user already supplied `--konnect-token`, `--konnect-control-plane-name`, or `--konnect-addr`.
 
 ## Target UX
@@ -67,6 +68,7 @@ Behavior:
   - Add `DeckDependency` or `ExternalDeckStep` struct for plan persistence.
   - Add `DeckDependencies []DeckDependency` to `Plan`.
     - Fields should include: `GatewayServiceRef`, `ControlPlaneRef`, `ControlPlaneID`, `ControlPlaneName`, `SelectorName`, `Steps`.
+    - Persist steps exactly as configured (args only), no path rewriting.
 
 ### 3) Planner Integration
 - **File**: `internal/declarative/planner/planner.go`
@@ -74,6 +76,8 @@ Behavior:
     - Skip Konnect lookup for the service and record a deck dependency in the plan.
     - Allow gateway services to carry unresolved IDs during planning.
   - Update `resolveAPIImplementationServiceReferences()` to tolerate unresolved gateway service IDs when deck is required (record as pending).
+  - Ensure control plane name is available for deck injection:
+    - If control plane is external and name is not set, set it from the matched Konnect resource.
 
 ### 4) Executor Integration (Deck Steps)
 - **New package**: `internal/declarative/deck/`
@@ -89,13 +93,17 @@ Behavior:
     - Run deck steps.
     - Replace `{{kongctl.mode}}` in args with `sync` or `apply` based on the invoking command.
     - Resolve the gateway service by selector (name) using existing `ListGatewayServices` by CP ID.
-    - Update plan changes referencing the gateway service (service.id + service.control_plane_id).
+    - Update plan changes referencing the gateway service (service.id + service.control_plane_id), including any api_implementation create fields.
+    - If the selector matches multiple services, fail with a clear error.
 
 ### 5) Konnect Context Injection for Deck
 - **Source**: `internal/cmd/root/products/konnect/common/common.go` already resolves token and base URL.
   - Reuse `GetAccessToken()` and `ResolveBaseURL()` to inject `--konnect-token` and `--konnect-addr`.
   - For control plane name, use the resolved control plane name from resource set (or fetch from Konnect if only ID is known).
   - For `{{kongctl.mode}}`, map `kongctl sync` → `sync`, `kongctl apply` → `apply`. Error on `plan/diff` (should never execute anyway) and on any other verb.
+  - For control plane ID resolution during deck steps:
+    - Prefer executor’s `refToID` map (control plane created in the same run).
+    - Otherwise resolve via Konnect (existing `GetControlPlaneByName`).
 
 ### 6) Dry-Run Behavior
 - Skip all `requires.deck` execution when dry-run is enabled.
@@ -112,6 +120,8 @@ Behavior:
   - `_external.requires.deck` validation (requires selector.name, rejects id, gateway services only).
   - Planner capturing deck dependencies in the plan.
   - Executor deck step execution order and reference updates (mock deck runner).
+  - Placeholder validation (only `{{kongctl.mode}}`, only in `deck gateway` steps, sync/apply only).
+  - Dry-run skipping behavior for deck steps.
 
 ## Open Considerations (Out of Scope for MVP)
 - Deduplicating deck steps across resources.
