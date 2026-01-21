@@ -17,6 +17,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/portal"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/regions"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/systemaccount"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -255,6 +256,12 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return nil, e
 	}
 	cmd.AddCommand(egcpc)
+
+	sac, e := systemaccount.NewSystemAccountCmd(verb, addFlags, preRunE)
+	if e != nil {
+		return nil, e
+	}
+	cmd.AddCommand(sac)
 
 	if verb == verbs.Get {
 		cmd.RunE = func(c *cobra.Command, args []string) error {
