@@ -162,12 +162,6 @@ Setting this value overrides tokens obtained from the login command.
 	}
 	cmd.AddCommand(eventGatewayControlPlaneCmd)
 
-	systemAccountsCmd, err := NewDirectSystemAccountCmd()
-	if err != nil {
-		return nil, err
-	}
-	cmd.AddCommand(systemAccountsCmd)
-
 	return cmd, nil
 }
 

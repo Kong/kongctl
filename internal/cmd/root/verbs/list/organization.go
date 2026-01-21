@@ -1,4 +1,4 @@
-package get
+package list
 
 import (
 	"context"
@@ -8,14 +8,14 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
-	sysAcc "github.com/kong/kongctl/internal/cmd/root/products/konnect/systemaccount"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/spf13/cobra"
 )
 
-// NewDirectSystemAccountCmd creates a system account command that works at the root level (Konnect-first)
-func NewDirectSystemAccountCmd() (*cobra.Command, error) {
+// NewDirectOrganizationCmd creates an organization command that works at the root level (Konnect-first)
+func NewDirectOrganizationCmd() (*cobra.Command, error) {
 	// Define the addFlags function to add Konnect-specific flags
 	addFlags := func(verb verbs.VerbValue, cmd *cobra.Command) {
 		cmd.Flags().String(common.BaseURLFlagName, "",
@@ -50,27 +50,26 @@ Setting this value overrides tokens obtained from the login command.
 		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(common.KonnectSDKFactory))
 		c.SetContext(ctx)
 
-		// Bind flags
-		return bindSystemAccountFlags(c, args)
+		return bindOrganizationFlags(c, args)
 	}
 
-	// Create the gateway command using the existing gateway package
-	systemAccountCmd, err := sysAcc.NewSystemAccountCmd(Verb, addFlags, preRunE)
+	// Create the organization command using the existing gateway package
+	organizationCmd, err := organization.NewOrganizationCmd(Verb, addFlags, preRunE)
 	if err != nil {
 		return nil, err
 	}
 
 	// Override the example to show direct usage without "konnect"
-	systemAccountCmd.Example = `  # List all system accounts
-  kongctl get system-accounts
-  # Get a specific system account by ID or name
-  kongctl get system-account <id|name>`
+	organizationCmd.Example = `  # List all system accounts in an organization
+  kongctl list organization system-accounts
+  # Get a specific organization by ID or name
+  kongctl list organization system-account <name>`
 
-	return systemAccountCmd, nil
+	return organizationCmd, nil
 }
 
-// bindSystemAccountFlags binds Konnect-specific flags to configuration
-func bindSystemAccountFlags(c *cobra.Command, args []string) error {
+// bindOrganizationFlags binds Konnect-specific flags to configuration
+func bindOrganizationFlags(c *cobra.Command, args []string) error {
 	helper := cmd.BuildHelper(c, args)
 	cfg, err := helper.GetConfig()
 	if err != nil {

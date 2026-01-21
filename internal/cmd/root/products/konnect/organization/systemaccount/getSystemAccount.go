@@ -39,11 +39,11 @@ func newGetSystemAccountCmd(
 		},
 	}
 
-	cmd.RunE = cmd.runE
-
 	if addParentFlags != nil {
 		addParentFlags(verb, cmd.Command)
 	}
+
+	cmd.RunE = cmd.runE
 
 	return cmd
 }

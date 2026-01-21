@@ -119,12 +119,11 @@ Setting this value overrides tokens obtained from the login command.
 
 	cmd.AddCommand(newThemesCmd())
 
-	systemAccountsCmd, err := NewDirectSystemAccountCmd()
+	organizationCmd, err := NewDirectOrganizationCmd()
 	if err != nil {
 		return nil, err
 	}
-	cmd.AddCommand(systemAccountsCmd)
-
+	cmd.AddCommand(organizationCmd)
 	return cmd, nil
 }
 

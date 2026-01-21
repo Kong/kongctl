@@ -7,6 +7,7 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization/systemaccount"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -189,6 +190,11 @@ func newGetOrganizationCmd(verb verbs.VerbValue,
 
 	if addParentFlags != nil {
 		addParentFlags(verb, cmd.Command)
+	}
+
+	systemAccountCmd, err := systemaccount.NewSystemAccountCmd(verb, addParentFlags, parentPreRun)
+	if err == nil && systemAccountCmd != nil {
+		cmd.AddCommand(systemAccountCmd)
 	}
 
 	return &cmd
