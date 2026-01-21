@@ -22,6 +22,7 @@ type RunOptions struct {
 	KonnectToken            string
 	KonnectControlPlaneName string
 	KonnectAddress          string
+	WorkDir                 string
 }
 
 // RunResult captures deck command output.
@@ -54,6 +55,9 @@ func (r *ExecRunner) Run(ctx context.Context, opts RunOptions) (*RunResult, erro
 	}
 
 	cmd := r.execCommand(ctx, "deck", args...)
+	if strings.TrimSpace(opts.WorkDir) != "" {
+		cmd.Dir = opts.WorkDir
+	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

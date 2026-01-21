@@ -15,4 +15,4 @@ control_planes:
               - args:
                   - "gateway"
                   - "{{kongctl.mode}}"
-                  - "test/e2e/testdata/declarative/external/deck-requires/gateway-service.yaml"
+                  - "gateway-service.yaml"

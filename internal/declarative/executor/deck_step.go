@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/deck"
@@ -74,6 +75,11 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 		slog.Int("steps", len(steps)),
 	)
 
+	workDir, err := e.resolveDeckWorkDir(change.Fields)
+	if err != nil {
+		return err
+	}
+
 	for i, step := range steps {
 		result, err := e.deckRunner.Run(ctx, deck.RunOptions{
 			Args:                    step.Args,
@@ -81,6 +87,7 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 			KonnectToken:            e.konnectToken,
 			KonnectControlPlaneName: cpName,
 			KonnectAddress:          e.konnectBaseURL,
+			WorkDir:                 workDir,
 		})
 		logDeckRunOutput(logger, gatewayRef, i, result, err)
 		if err != nil {
@@ -165,6 +172,27 @@ func (e *Executor) resolveDeckMode(plan *planner.Plan) (string, error) {
 	default:
 		return "", fmt.Errorf("deck steps require apply or sync mode")
 	}
+}
+
+func (e *Executor) resolveDeckWorkDir(fields map[string]any) (string, error) {
+	raw := stringField(fields, "deck_base_dir")
+	if raw == "" {
+		return "", nil
+	}
+
+	if filepath.IsAbs(raw) {
+		return filepath.Clean(raw), nil
+	}
+
+	if e.planBaseDir != "" {
+		return filepath.Clean(filepath.Join(e.planBaseDir, raw)), nil
+	}
+
+	abs, err := filepath.Abs(raw)
+	if err != nil {
+		return "", fmt.Errorf("resolve deck base dir %q: %w", raw, err)
+	}
+	return abs, nil
 }
 
 func parseDeckSteps(raw any) ([]planner.DeckDependencyStep, error) {

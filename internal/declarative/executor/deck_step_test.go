@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"path/filepath"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -50,6 +51,10 @@ func TestExecuteDeckStepUpdatesImplementation(t *testing.T) {
 	cpName := "cp-name"
 	serviceID := "svc-id"
 	selectorName := "svc-name"
+	rootDir := t.TempDir()
+	planBaseDir := filepath.Join(rootDir, "plans")
+	deckBaseDir := filepath.Join("..", "configs", "prod")
+	expectedWorkDir := filepath.Join(rootDir, "configs", "prod")
 
 	runner := &stubDeckRunner{}
 	stateClient := state.NewClient(state.ClientConfig{
@@ -68,6 +73,7 @@ func TestExecuteDeckStepUpdatesImplementation(t *testing.T) {
 		KonnectToken:   "token-123",
 		KonnectBaseURL: "https://api.konghq.com",
 		Mode:           planner.PlanModeApply,
+		PlanBaseDir:    planBaseDir,
 	})
 
 	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
@@ -82,6 +88,7 @@ func TestExecuteDeckStepUpdatesImplementation(t *testing.T) {
 				"control_plane_ref":   cpID,
 				"control_plane_id":    cpID,
 				"control_plane_name":  cpName,
+				"deck_base_dir":       deckBaseDir,
 				"selector": map[string]any{
 					"matchFields": map[string]string{
 						"name": selectorName,
@@ -113,6 +120,7 @@ func TestExecuteDeckStepUpdatesImplementation(t *testing.T) {
 	require.Len(t, runner.calls, 1)
 	require.Equal(t, "apply", runner.calls[0].Mode)
 	require.Equal(t, cpName, runner.calls[0].KonnectControlPlaneName)
+	require.Equal(t, expectedWorkDir, runner.calls[0].WorkDir)
 
 	serviceMap := plan.Changes[1].Fields["service"].(map[string]any)
 	require.Equal(t, serviceID, serviceMap["id"])

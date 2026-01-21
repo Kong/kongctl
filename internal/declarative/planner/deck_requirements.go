@@ -3,6 +3,7 @@ package planner
 import (
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
@@ -49,6 +50,7 @@ func (p *Planner) planDeckDependencies(rs *resources.ResourceSet, plan *Plan) er
 			steps = append(steps, DeckDependencyStep{Args: append([]string{}, step.Args...)})
 		}
 
+		deckBaseDir := strings.TrimSpace(svc.DeckBaseDir())
 		change := PlannedChange{
 			ID:           p.nextChangeID(ActionExternalTool, ResourceTypeDeck, svc.GetRef()),
 			ResourceType: ResourceTypeDeck,
@@ -59,6 +61,7 @@ func (p *Planner) planDeckDependencies(rs *resources.ResourceSet, plan *Plan) er
 				"control_plane_ref":   cpRef,
 				"control_plane_id":    cpID,
 				"control_plane_name":  cpName,
+				"deck_base_dir":       deckBaseDir,
 				"selector": map[string]any{
 					"matchFields": map[string]string{
 						"name": selectorName,

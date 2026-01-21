@@ -72,6 +72,7 @@ type Executor struct {
 	konnectToken   string
 	konnectBaseURL string
 	executionMode  planner.PlanMode
+	planBaseDir    string
 }
 
 // Options configures executor behavior.
@@ -80,6 +81,7 @@ type Options struct {
 	KonnectToken   string
 	KonnectBaseURL string
 	Mode           planner.PlanMode
+	PlanBaseDir    string
 }
 
 // New creates a new Executor instance with default options.
@@ -104,6 +106,7 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		konnectToken:     opts.KonnectToken,
 		konnectBaseURL:   opts.KonnectBaseURL,
 		executionMode:    opts.Mode,
+		planBaseDir:      strings.TrimSpace(opts.PlanBaseDir),
 	}
 
 	// Initialize resource executors

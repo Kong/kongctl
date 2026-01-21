@@ -281,6 +281,7 @@ func runPlan(command *cobra.Command, args []string) error {
 	filenames, _ := command.Flags().GetStringSlice("filename")
 	recursive, _ := command.Flags().GetBool("recursive")
 	mode, _ := command.Flags().GetString("mode")
+	outputFile, _ := command.Flags().GetString("output-file")
 
 	// Validate mode
 	var planMode planner.PlanMode
@@ -365,7 +366,6 @@ func runPlan(command *cobra.Command, args []string) error {
 		}
 
 		// For sync mode, log that we're checking for deletions
-		outputFile, _ := command.Flags().GetString("output-file")
 		if outputFile == "" {
 			namespaces := resourceSet.DefaultNamespaces
 			if len(namespaces) == 0 && resourceSet.DefaultNamespace != "" {
@@ -388,7 +388,6 @@ func runPlan(command *cobra.Command, args []string) error {
 	p := planner.NewPlanner(stateClient, logger)
 
 	// Show namespace processing info if outputting to file
-	outputFile, _ := command.Flags().GetString("output-file")
 	if outputFile != "" && totalResources > 0 {
 		// Count namespaces in resources
 		namespaces := make(map[string]bool)
@@ -443,6 +442,10 @@ func runPlan(command *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to generate plan: %w", err)
 	}
 
+	if err := normalizeDeckBaseDirs(plan, outputFile); err != nil {
+		return err
+	}
+
 	// Marshal plan to JSON
 	planJSON, err := json.MarshalIndent(plan, "", "  ")
 	if err != nil {
@@ -450,8 +453,6 @@ func runPlan(command *cobra.Command, args []string) error {
 	}
 
 	// Handle output
-	outputFile, _ = command.Flags().GetString("output-file")
-
 	if outputFile != "" {
 		// Save to file
 		if err := os.WriteFile(outputFile, planJSON, 0o600); err != nil {
@@ -463,6 +464,76 @@ func runPlan(command *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func normalizeDeckBaseDirs(plan *planner.Plan, outputFile string) error {
+	if plan == nil {
+		return nil
+	}
+
+	var planDir string
+	if strings.TrimSpace(outputFile) != "" {
+		planDir = filepath.Dir(outputFile)
+	} else {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to resolve current working directory: %w", err)
+		}
+		planDir = cwd
+	}
+
+	planDirAbs, err := filepath.Abs(planDir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve plan directory %q: %w", planDir, err)
+	}
+
+	updated := false
+	for i := range plan.Changes {
+		change := &plan.Changes[i]
+		if change.ResourceType != planner.ResourceTypeDeck {
+			continue
+		}
+		raw, ok := change.Fields["deck_base_dir"].(string)
+		if !ok {
+			continue
+		}
+		raw = strings.TrimSpace(raw)
+		if raw == "" || !filepath.IsAbs(raw) {
+			continue
+		}
+		rel, err := filepath.Rel(planDirAbs, raw)
+		if err != nil {
+			return fmt.Errorf("failed to resolve deck base dir for %s: %w", change.ResourceRef, err)
+		}
+		change.Fields["deck_base_dir"] = rel
+		updated = true
+	}
+
+	if updated {
+		plan.UpdateSummary()
+	}
+
+	return nil
+}
+
+func resolvePlanBaseDir(planFile string) string {
+	planFile = strings.TrimSpace(planFile)
+	if planFile == "" {
+		return ""
+	}
+	if planFile == "-" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return ""
+		}
+		return cwd
+	}
+	dir := filepath.Dir(planFile)
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return dir
+	}
+	return abs
 }
 
 func runDiff(command *cobra.Command, args []string) error {
@@ -1121,6 +1192,7 @@ func runApply(command *cobra.Command, args []string) error {
 		KonnectToken:   token,
 		KonnectBaseURL: baseURL,
 		Mode:           planner.PlanModeApply,
+		PlanBaseDir:    resolvePlanBaseDir(planFile),
 	})
 
 	// Execute plan
@@ -1579,6 +1651,7 @@ func runSync(command *cobra.Command, args []string) error {
 		KonnectToken:   token,
 		KonnectBaseURL: baseURL,
 		Mode:           planner.PlanModeSync,
+		PlanBaseDir:    resolvePlanBaseDir(planFile),
 	})
 
 	// Execute plan

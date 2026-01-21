@@ -117,6 +117,7 @@ type ExternalToolDependency struct {
 	ControlPlaneName  string                `json:"control_plane_name,omitempty"`
 	Selector          *ExternalToolSelector `json:"selector,omitempty"`
 	Steps             []DeckDependencyStep  `json:"steps"`
+	DeckBaseDir       string                `json:"deck_base_dir,omitempty"`
 }
 
 // ExternalToolSelector represents selector match fields for external tool dependencies.
@@ -233,6 +234,7 @@ func externalToolDependencyFromChange(change PlannedChange) ExternalToolDependen
 		ControlPlaneName:  stringFromField(fields, "control_plane_name"),
 		Selector:          selectorFromFields(fields),
 		Steps:             externalToolStepsFromField(fields["steps"]),
+		DeckBaseDir:       stringFromField(fields, "deck_base_dir"),
 	}
 
 	if dependency.GatewayServiceRef == "" {

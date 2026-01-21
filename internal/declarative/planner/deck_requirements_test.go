@@ -45,6 +45,7 @@ func (s *stubDeckAPIImplementationAPI) DeleteAPIImplementation(
 
 func TestPlanDeckDependenciesAdded(t *testing.T) {
 	cpID := "11111111-1111-1111-1111-111111111111"
+	deckBaseDir := t.TempDir()
 
 	api := resources.APIResource{
 		CreateAPIRequest: kkComps.CreateAPIRequest{
@@ -83,6 +84,7 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 			},
 		},
 	}
+	gw.SetDeckBaseDir(deckBaseDir)
 
 	rs := &resources.ResourceSet{
 		APIs:               []resources.APIResource{api},
@@ -109,6 +111,7 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 	require.NotNil(t, dep.Selector)
 	require.Equal(t, "svc-name", dep.Selector.MatchFields["name"])
 	require.Equal(t, cpID, dep.ControlPlaneID)
+	require.Equal(t, deckBaseDir, dep.DeckBaseDir)
 
 	var deckChange *PlannedChange
 	var apiChange *PlannedChange

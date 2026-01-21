@@ -24,6 +24,7 @@ type GatewayServiceResource struct {
 	// Resolved Konnect identifiers (not serialized)
 	konnectID             string `yaml:"-" json:"-"`
 	controlPlaneKonnectID string `yaml:"-" json:"-"`
+	deckBaseDir           string `yaml:"-" json:"-"`
 }
 
 // GetType returns the resource type.
@@ -42,6 +43,16 @@ func (s GatewayServiceResource) GetMoniker() string {
 		return *s.Service.Name
 	}
 	return ""
+}
+
+// DeckBaseDir returns the resolved base directory for deck steps (if any).
+func (s GatewayServiceResource) DeckBaseDir() string {
+	return s.deckBaseDir
+}
+
+// SetDeckBaseDir sets the resolved base directory for deck steps.
+func (s *GatewayServiceResource) SetDeckBaseDir(dir string) {
+	s.deckBaseDir = strings.TrimSpace(dir)
 }
 
 // GetDependencies declares the resource dependencies.
