@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/kong/kongctl/internal/cmd"
+	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/declarative/common"
@@ -595,14 +596,19 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 	createCount := plan.Summary.ByAction[planner.ActionCreate]
 	updateCount := plan.Summary.ByAction[planner.ActionUpdate]
 	deleteCount := plan.Summary.ByAction[planner.ActionDelete]
+	externalToolCount := plan.Summary.ByAction[planner.ActionExternalTool]
 
-	if deleteCount > 0 {
-		fmt.Fprintf(out, "Plan: %d to add, %d to change, %d to destroy\n\n",
-			createCount, updateCount, deleteCount)
-	} else {
-		fmt.Fprintf(out, "Plan: %d to add, %d to change\n\n",
-			createCount, updateCount)
+	summaryParts := []string{
+		fmt.Sprintf("%d to add", createCount),
+		fmt.Sprintf("%d to change", updateCount),
 	}
+	if deleteCount > 0 {
+		summaryParts = append(summaryParts, fmt.Sprintf("%d to destroy", deleteCount))
+	}
+	if externalToolCount > 0 {
+		summaryParts = append(summaryParts, fmt.Sprintf("%d external tool step", externalToolCount))
+	}
+	fmt.Fprintf(out, "Plan: %s\n\n", strings.Join(summaryParts, ", "))
 
 	// Display warnings if any
 	if len(plan.Warnings) > 0 {
@@ -717,6 +723,13 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 				// DELETE action (future implementation)
 				fmt.Fprintf(out, "- [%s] %s %q will be deleted\n",
 					change.ID, change.ResourceType, change.ResourceRef)
+			case planner.ActionExternalTool:
+				fmt.Fprintf(out, "> [%s] %s %q will run external tool steps\n",
+					change.ID, change.ResourceType, change.ResourceRef)
+
+				for field, value := range change.Fields {
+					displayField(out, field, value, "  ", fullContent)
+				}
 			}
 
 			// Show dependencies
@@ -1095,7 +1108,20 @@ func runApply(command *cobra.Command, args []string) error {
 		reporter = executor.NewConsoleReporterWithOptions(command.OutOrStderr(), dryRun)
 	}
 
-	exec := executor.New(stateClient, reporter, dryRun)
+	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	if err != nil {
+		return err
+	}
+	baseURL, err := konnectcommon.ResolveBaseURL(cfg)
+	if err != nil {
+		return err
+	}
+
+	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
+		KonnectToken:   token,
+		KonnectBaseURL: baseURL,
+		Mode:           planner.PlanModeApply,
+	})
 
 	// Execute plan
 	result := exec.Execute(ctx, plan)
@@ -1540,7 +1566,20 @@ func runSync(command *cobra.Command, args []string) error {
 		reporter = executor.NewConsoleReporterWithOptions(command.OutOrStderr(), dryRun)
 	}
 
-	exec := executor.New(stateClient, reporter, dryRun)
+	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	if err != nil {
+		return err
+	}
+	baseURL, err := konnectcommon.ResolveBaseURL(cfg)
+	if err != nil {
+		return err
+	}
+
+	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
+		KonnectToken:   token,
+		KonnectBaseURL: baseURL,
+		Mode:           planner.PlanModeSync,
+	})
 
 	// Execute plan
 	result := exec.Execute(ctx, plan)

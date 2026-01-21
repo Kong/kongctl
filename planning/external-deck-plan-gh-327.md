@@ -26,7 +26,7 @@ gateway_services:
       requires:
         deck:
           - args: ["file", "openapi2kong", "input.yaml", "-o", "kong.yaml"]
-          - args: ["gateway", "{{kongctl.mode}}", "-s", "kong.yaml"]
+          - args: ["gateway", "{{kongctl.mode}}", "kong.yaml"]
       selector:
         matchFields:
           name: "abc-service"
@@ -67,7 +67,7 @@ Behavior:
 - **File**: `internal/declarative/planner/types.go`
   - Add `DeckDependency` or `ExternalDeckStep` struct for plan persistence.
   - Add `DeckDependencies []DeckDependency` to `Plan`.
-    - Fields should include: `GatewayServiceRef`, `ControlPlaneRef`, `ControlPlaneID`, `ControlPlaneName`, `SelectorName`, `Steps`.
+    - Fields should include: `GatewayServiceRef`, `ControlPlaneRef`, `ControlPlaneID`, `ControlPlaneName`, `Selector` (matchFields), `Steps`.
     - Persist steps exactly as configured (args only), no path rewriting.
 
 ### 3) Planner Integration
@@ -85,7 +85,7 @@ Behavior:
   - `errors.go`: deck execution errors (missing deck, invalid args, injected flag conflicts).
 
 - **File**: `internal/declarative/executor/executor.go`
-  - Add a new internal “pseudo-change” type (e.g., `resource_type = "deck_step"`) **or** add an execution hook to run deck steps before processing dependent changes.
+  - Add a new internal “pseudo-change” type (e.g., `resource_type = "_deck"`) **or** add an execution hook to run deck steps before processing dependent changes.
   - Recommended: add a **planned change** for each `requires.deck` to honor dependency ordering. These changes should:
     - Depend on control plane creation/update (if CP is in plan).
     - Be depended on by api_implementation creates that reference the gateway service.

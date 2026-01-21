@@ -184,6 +184,9 @@ func (p PortalResource) Validate() error {
 
 	// Validate external block if present
 	if p.External != nil {
+		if p.External.HasDeckRequires() {
+			return fmt.Errorf("portal %s: _external.requires.deck is only supported for gateway_services", p.Ref)
+		}
 		if err := p.External.Validate(); err != nil {
 			return fmt.Errorf("invalid _external block: %w", err)
 		}

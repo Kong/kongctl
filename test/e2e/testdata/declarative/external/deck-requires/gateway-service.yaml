@@ -1,0 +1,5 @@
+_format_version: "3.0"
+
+services:
+  - name: "e2e-gw-svc"
+    url: "https://api.kong-air.com/"

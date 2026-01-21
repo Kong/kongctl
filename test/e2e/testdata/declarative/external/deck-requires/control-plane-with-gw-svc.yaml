@@ -1,0 +1,18 @@
+control_planes:
+  - ref: e2e-cp
+    name: "e2e-cp"
+    description: "E2E Control Plane"
+    cluster_type: "CLUSTER_TYPE_SERVERLESS"
+
+    gateway_services:
+      - ref: e2e-gw-svc
+        _external:
+          selector:
+            matchFields:
+              name: "e2e-gw-svc"
+          requires:
+            deck:
+              - args:
+                  - "gateway"
+                  - "{{kongctl.mode}}"
+                  - "test/e2e/testdata/declarative/external/deck-requires/gateway-service.yaml"

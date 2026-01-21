@@ -82,17 +82,19 @@ type FieldChange struct {
 type ActionType string
 
 const (
-	ActionCreate ActionType = "CREATE"
-	ActionUpdate ActionType = "UPDATE"
-	ActionDelete ActionType = "DELETE" // Future
+	ActionCreate       ActionType = "CREATE"
+	ActionUpdate       ActionType = "UPDATE"
+	ActionDelete       ActionType = "DELETE" // Future
+	ActionExternalTool ActionType = "EXTERNAL_TOOL"
 )
 
 // PlanSummary provides overview statistics
 type PlanSummary struct {
-	TotalChanges      int                `json:"total_changes"`
-	ByAction          map[ActionType]int `json:"by_action"`
-	ByResource        map[string]int     `json:"by_resource"`
-	ProtectionChanges *ProtectionSummary `json:"protection_changes,omitempty"`
+	TotalChanges      int                                 `json:"total_changes"`
+	ByAction          map[ActionType]int                  `json:"by_action"`
+	ByResource        map[string]int                      `json:"by_resource"`
+	ByExternalTools   map[string][]ExternalToolDependency `json:"by_external_tools,omitempty"`
+	ProtectionChanges *ProtectionSummary                  `json:"protection_changes,omitempty"`
 }
 
 // ProtectionSummary tracks protection changes
@@ -105,6 +107,26 @@ type ProtectionSummary struct {
 type PlanWarning struct {
 	ChangeID string `json:"change_id"`
 	Message  string `json:"message"`
+}
+
+// ExternalToolDependency captures external tool execution requirements for summary output.
+type ExternalToolDependency struct {
+	GatewayServiceRef string                `json:"gateway_service_ref"`
+	ControlPlaneRef   string                `json:"control_plane_ref,omitempty"`
+	ControlPlaneID    string                `json:"control_plane_id,omitempty"`
+	ControlPlaneName  string                `json:"control_plane_name,omitempty"`
+	Selector          *ExternalToolSelector `json:"selector,omitempty"`
+	Steps             []DeckDependencyStep  `json:"steps"`
+}
+
+// ExternalToolSelector represents selector match fields for external tool dependencies.
+type ExternalToolSelector struct {
+	MatchFields map[string]string `json:"matchFields"`
+}
+
+// DeckDependencyStep represents a single external tool invocation for plan persistence.
+type DeckDependencyStep struct {
+	Args []string `json:"args"`
 }
 
 // NewPlan creates a new plan with metadata
@@ -162,12 +184,21 @@ func (p *Plan) UpdateSummary() {
 	// Reset counts
 	p.Summary.ByAction = make(map[ActionType]int)
 	p.Summary.ByResource = make(map[string]int)
+	p.Summary.ByExternalTools = nil
 	protectionSummary := &ProtectionSummary{}
+	var externalTools map[string][]ExternalToolDependency
 
 	// Count by action and resource type
 	for _, change := range p.Changes {
 		p.Summary.ByAction[change.Action]++
 		p.Summary.ByResource[change.ResourceType]++
+		if change.Action == ActionExternalTool {
+			dependency := externalToolDependencyFromChange(change)
+			if externalTools == nil {
+				externalTools = make(map[string][]ExternalToolDependency)
+			}
+			externalTools[change.ResourceType] = append(externalTools[change.ResourceType], dependency)
+		}
 
 		// Track protection changes
 		switch v := change.Protection.(type) {
@@ -186,6 +217,166 @@ func (p *Plan) UpdateSummary() {
 
 	if protectionSummary.Protecting > 0 || protectionSummary.Unprotecting > 0 {
 		p.Summary.ProtectionChanges = protectionSummary
+	}
+
+	if len(externalTools) > 0 {
+		p.Summary.ByExternalTools = externalTools
+	}
+}
+
+func externalToolDependencyFromChange(change PlannedChange) ExternalToolDependency {
+	fields := change.Fields
+	dependency := ExternalToolDependency{
+		GatewayServiceRef: stringFromField(fields, "gateway_service_ref"),
+		ControlPlaneRef:   stringFromField(fields, "control_plane_ref"),
+		ControlPlaneID:    stringFromField(fields, "control_plane_id"),
+		ControlPlaneName:  stringFromField(fields, "control_plane_name"),
+		Selector:          selectorFromFields(fields),
+		Steps:             externalToolStepsFromField(fields["steps"]),
+	}
+
+	if dependency.GatewayServiceRef == "" {
+		dependency.GatewayServiceRef = change.ResourceRef
+	}
+
+	return dependency
+}
+
+func selectorFromFields(fields map[string]any) *ExternalToolSelector {
+	if len(fields) == 0 {
+		return nil
+	}
+
+	if name := stringFromField(fields, "selector_name"); name != "" {
+		return &ExternalToolSelector{MatchFields: map[string]string{"name": name}}
+	}
+
+	raw, ok := fields["selector"]
+	if !ok || raw == nil {
+		return nil
+	}
+
+	switch v := raw.(type) {
+	case ExternalToolSelector:
+		return cloneExternalToolSelector(&v)
+	case *ExternalToolSelector:
+		return cloneExternalToolSelector(v)
+	case map[string]any:
+		return selectorFromSelectorMap(v)
+	case map[string]string:
+		matchFields := selectorFromMatchFieldsMap(v)
+		if matchFields == nil {
+			return nil
+		}
+		return &ExternalToolSelector{MatchFields: matchFields}
+	default:
+		return nil
+	}
+}
+
+func cloneExternalToolSelector(selector *ExternalToolSelector) *ExternalToolSelector {
+	if selector == nil {
+		return nil
+	}
+	matchFields := selectorFromMatchFieldsMap(selector.MatchFields)
+	if matchFields == nil {
+		return nil
+	}
+	return &ExternalToolSelector{MatchFields: matchFields}
+}
+
+func selectorFromSelectorMap(selector map[string]any) *ExternalToolSelector {
+	raw := selector["matchFields"]
+	if raw == nil {
+		raw = selector["match_fields"]
+	}
+
+	switch v := raw.(type) {
+	case map[string]string:
+		matchFields := selectorFromMatchFieldsMap(v)
+		if matchFields == nil {
+			return nil
+		}
+		return &ExternalToolSelector{MatchFields: matchFields}
+	case map[string]any:
+		matchFields := selectorMatchFieldsFromAny(v)
+		if matchFields == nil {
+			return nil
+		}
+		return &ExternalToolSelector{MatchFields: matchFields}
+	default:
+		return nil
+	}
+}
+
+func selectorFromMatchFieldsMap(matchFields map[string]string) map[string]string {
+	if len(matchFields) == 0 {
+		return nil
+	}
+	clone := make(map[string]string, len(matchFields))
+	for key, value := range matchFields {
+		if value == "" {
+			continue
+		}
+		clone[key] = value
+	}
+	if len(clone) == 0 {
+		return nil
+	}
+	return clone
+}
+
+func selectorMatchFieldsFromAny(matchFields map[string]any) map[string]string {
+	if len(matchFields) == 0 {
+		return nil
+	}
+	converted := make(map[string]string, len(matchFields))
+	for key, value := range matchFields {
+		str, ok := value.(string)
+		if !ok || str == "" {
+			continue
+		}
+		converted[key] = str
+	}
+	if len(converted) == 0 {
+		return nil
+	}
+	return converted
+}
+
+func stringFromField(fields map[string]any, key string) string {
+	if len(fields) == 0 {
+		return ""
+	}
+	if value, ok := fields[key].(string); ok {
+		return value
+	}
+	return ""
+}
+
+func externalToolStepsFromField(raw any) []DeckDependencyStep {
+	switch v := raw.(type) {
+	case []DeckDependencyStep:
+		steps := make([]DeckDependencyStep, len(v))
+		for i, step := range v {
+			steps[i] = DeckDependencyStep{Args: append([]string{}, step.Args...)}
+		}
+		return steps
+	case []any:
+		steps := make([]DeckDependencyStep, 0, len(v))
+		for _, item := range v {
+			switch step := item.(type) {
+			case DeckDependencyStep:
+				steps = append(steps, DeckDependencyStep{Args: append([]string{}, step.Args...)})
+			case map[string]any:
+				if args, ok := asStringSlice(step["args"]); ok {
+					steps = append(steps, DeckDependencyStep{Args: append([]string{}, args...)})
+				}
+			}
+		}
+		return steps
+	default:
+		return nil
 	}
 }
 

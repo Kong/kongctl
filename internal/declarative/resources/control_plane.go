@@ -64,6 +64,9 @@ func (c ControlPlaneResource) Validate() error {
 	}
 
 	if c.External != nil {
+		if c.External.HasDeckRequires() {
+			return fmt.Errorf("control plane %q: _external.requires.deck is not supported for resource type control_plane", c.Ref)
+		}
 		if err := c.External.Validate(); err != nil {
 			return fmt.Errorf("invalid _external block: %w", err)
 		}

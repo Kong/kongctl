@@ -221,3 +221,8 @@ func (s *GatewayServiceResource) SetResolvedControlPlaneID(id string) {
 func (s *GatewayServiceResource) IsExternal() bool {
 	return s.External != nil && s.External.IsExternal()
 }
+
+// HasDeckRequires returns true when external deck steps are configured.
+func (s *GatewayServiceResource) HasDeckRequires() bool {
+	return s.External != nil && s.External.HasDeckRequires()
+}

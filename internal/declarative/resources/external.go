@@ -3,7 +3,10 @@ package resources
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"unicode"
+
+	"github.com/kong/kongctl/internal/declarative/constants"
 )
 
 // ExternalBlock marks a resource as externally managed
@@ -13,6 +16,9 @@ type ExternalBlock struct {
 
 	// Selector for querying by fields (use to find by name)
 	Selector *ExternalSelector `yaml:"selector,omitempty" json:"selector,omitempty"`
+
+	// Requires declares external steps that must run before resolving this resource.
+	Requires *ExternalRequires `yaml:"requires,omitempty" json:"requires,omitempty"`
 }
 
 // ExternalSelector defines field matching criteria
@@ -21,9 +27,27 @@ type ExternalSelector struct {
 	MatchFields map[string]string `yaml:"matchFields" json:"matchFields"`
 }
 
+// ExternalRequires captures external dependency steps.
+type ExternalRequires struct {
+	Deck []DeckStep `yaml:"deck,omitempty" json:"deck,omitempty"`
+}
+
+// DeckStep represents a single deck invocation.
+type DeckStep struct {
+	Args []string `yaml:"args" json:"args"`
+}
+
 // IsExternal returns true if this resource is externally managed
 func (e *ExternalBlock) IsExternal() bool {
 	return e != nil
+}
+
+// HasDeckRequires returns true when deck steps are configured.
+func (e *ExternalBlock) HasDeckRequires() bool {
+	if e == nil || e.Requires == nil {
+		return false
+	}
+	return len(e.Requires.Deck) > 0
 }
 
 // Validate ensures the external block is properly configured
@@ -42,6 +66,83 @@ func (e *ExternalBlock) Validate() error {
 
 	if e.Selector != nil && len(e.Selector.MatchFields) == 0 {
 		return fmt.Errorf("_external selector must have at least one matchField")
+	}
+
+	if e.HasDeckRequires() {
+		if e.ID != "" {
+			return fmt.Errorf("_external requires.deck cannot be used with 'id'")
+		}
+		if e.Selector == nil {
+			return fmt.Errorf("_external requires.deck requires a selector")
+		}
+		if err := validateDeckRequires(e.Requires); err != nil {
+			return err
+		}
+		if err := validateDeckSelector(e.Selector); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateDeckSelector(selector *ExternalSelector) error {
+	if selector == nil {
+		return fmt.Errorf("_external requires.deck requires selector.matchFields.name")
+	}
+	if len(selector.MatchFields) == 0 {
+		return fmt.Errorf("_external requires.deck requires selector.matchFields.name")
+	}
+	if len(selector.MatchFields) != 1 {
+		return fmt.Errorf("_external requires.deck only supports selector.matchFields.name")
+	}
+	if _, ok := selector.MatchFields["name"]; !ok {
+		return fmt.Errorf("_external requires.deck only supports selector.matchFields.name")
+	}
+	return nil
+}
+
+func validateDeckRequires(requires *ExternalRequires) error {
+	if requires == nil || len(requires.Deck) == 0 {
+		return fmt.Errorf("_external requires.deck must include at least one step")
+	}
+
+	for i, step := range requires.Deck {
+		if len(step.Args) == 0 {
+			return fmt.Errorf("_external requires.deck[%d] args cannot be empty", i)
+		}
+		placeholderCount := 0
+		for _, arg := range step.Args {
+			if arg == constants.DeckModePlaceholder {
+				placeholderCount++
+				continue
+			}
+			if strings.Contains(arg, constants.DeckModePlaceholder) {
+				return fmt.Errorf("_external requires.deck[%d] args contains invalid {{kongctl.mode}} usage", i)
+			}
+		}
+
+		if placeholderCount > 1 {
+			return fmt.Errorf("_external requires.deck[%d] args contains multiple {{kongctl.mode}} entries", i)
+		}
+
+		if step.Args[0] == "gateway" {
+			if len(step.Args) < 2 {
+				return fmt.Errorf("_external requires.deck[%d] gateway step must include a verb", i)
+			}
+			verb := step.Args[1]
+			if verb != "sync" && verb != "apply" && verb != constants.DeckModePlaceholder {
+				return fmt.Errorf("_external requires.deck[%d] gateway verb must be sync, apply, or {{kongctl.mode}}", i)
+			}
+		} else if placeholderCount > 0 {
+			return fmt.Errorf("_external requires.deck[%d] {{kongctl.mode}} is only allowed for gateway steps", i)
+		}
+
+		if placeholderCount > 0 {
+			if step.Args[0] != "gateway" || len(step.Args) < 2 || step.Args[1] != constants.DeckModePlaceholder {
+				return fmt.Errorf("_external requires.deck[%d] {{kongctl.mode}} must be the gateway verb", i)
+			}
+		}
 	}
 
 	return nil

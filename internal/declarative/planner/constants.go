@@ -60,6 +60,8 @@ const (
 
 	// ResourceTypeEventGatewayBackendCluster is the resource type for event gateway backend clusters
 	ResourceTypeEventGatewayBackendCluster = "event_gateway_backend_cluster"
+	// ResourceTypeDeck represents an internal deck execution step.
+	ResourceTypeDeck = "_deck"
 )
 
 // Default values

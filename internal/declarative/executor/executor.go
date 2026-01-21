@@ -10,6 +10,7 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/declarative/common"
+	"github.com/kong/kongctl/internal/declarative/deck"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -66,10 +67,32 @@ type Executor struct {
 	apiDocumentExecutor    *BaseExecutor[kkComps.CreateAPIDocumentRequest, kkComps.APIDocument]
 	// API implementation is not yet supported by SDK but we include adapter for completeness
 	apiImplementationExecutor *BaseCreateDeleteExecutor[kkComps.APIImplementation]
+
+	deckRunner     deck.Runner
+	konnectToken   string
+	konnectBaseURL string
+	executionMode  planner.PlanMode
 }
 
-// New creates a new Executor instance
+// Options configures executor behavior.
+type Options struct {
+	DeckRunner     deck.Runner
+	KonnectToken   string
+	KonnectBaseURL string
+	Mode           planner.PlanMode
+}
+
+// New creates a new Executor instance with default options.
 func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor {
+	return NewWithOptions(client, reporter, dryRun, Options{})
+}
+
+// NewWithOptions creates a new Executor instance.
+func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool, opts Options) *Executor {
+	deckRunner := opts.DeckRunner
+	if deckRunner == nil {
+		deckRunner = deck.NewRunner()
+	}
 	e := &Executor{
 		client:           client,
 		reporter:         reporter,
@@ -77,6 +100,10 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 		createdResources: make(map[string]string),
 		refToID:          make(map[string]map[string]string),
 		stateCache:       state.NewCache(),
+		deckRunner:       deckRunner,
+		konnectToken:     opts.KonnectToken,
+		konnectBaseURL:   opts.KonnectBaseURL,
+		executionMode:    opts.Mode,
 	}
 
 	// Initialize resource executors
@@ -317,7 +344,17 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 
 	switch change.Action {
 	case planner.ActionCreate:
-		resourceID, err = e.createResource(ctx, change)
+		if change.ResourceType == planner.ResourceTypeDeck {
+			err = e.executeDeckStep(ctx, change, plan)
+		} else {
+			resourceID, err = e.createResource(ctx, change)
+		}
+	case planner.ActionExternalTool:
+		if change.ResourceType != planner.ResourceTypeDeck {
+			err = fmt.Errorf("external tool action is only supported for %s resources", planner.ResourceTypeDeck)
+		} else {
+			err = e.executeDeckStep(ctx, change, plan)
+		}
 	case planner.ActionUpdate:
 		resourceID, err = e.updateResource(ctx, change)
 	case planner.ActionDelete:
@@ -1881,6 +1918,8 @@ func actionToVerb(action planner.ActionType) string {
 		return "updated"
 	case planner.ActionDelete:
 		return "deleted"
+	case planner.ActionExternalTool:
+		return "executed"
 	default:
 		return string(action)
 	}

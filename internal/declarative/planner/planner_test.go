@@ -740,8 +740,12 @@ func TestNextChangeID(t *testing.T) {
 	id = planner.nextChangeID(ActionDelete, "portal-page", "delete-me")
 	assert.Equal(t, "temp-3:d:portal-page:delete-me", id)
 
+	// Test EXTERNAL_TOOL
+	id = planner.nextChangeID(ActionExternalTool, "_deck", "gw-svc")
+	assert.Equal(t, "temp-4:e:_deck:gw-svc", id)
+
 	// Check counter increments
-	assert.Equal(t, 3, planner.changeCount)
+	assert.Equal(t, 4, planner.changeCount)
 }
 
 func TestReassignChangeIDs(t *testing.T) {

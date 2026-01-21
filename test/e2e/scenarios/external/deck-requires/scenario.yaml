@@ -1,0 +1,54 @@
+baseInputsPath: ../../../testdata/declarative/external/deck-requires
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply
+    commands:
+      - name: 000-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: apply
+          - select: >-
+              plan.changes[?resource_type=='control_plane' && action=='CREATE'] | [0]
+            expect:
+              fields:
+                resource_ref: e2e-cp
+          - select: >-
+              plan.changes[?resource_type=='_deck'] | [0]
+            expect:
+              fields:
+                action: EXTERNAL_TOOL
+          - select: >-
+              plan.changes[?resource_type=='api_implementation' &&
+                            resource_ref=='e2e-api-implementation'] | [0]
+            expect:
+              fields:
+                action: CREATE
+      - name: 001-get-gateway-services
+        run:
+          - get
+          - gateway
+          - services
+          - --control-plane-name
+          - "e2e-cp"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='e2e-gw-svc'] | [0]"
+            expect:
+              fields:
+                name: "e2e-gw-svc"

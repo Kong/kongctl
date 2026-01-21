@@ -378,6 +378,40 @@ Because kongctl does not own those objects:
   Ensure the owning team labels the parent (for example via `kongctl adopt`) so the ID can be resolved, but you do not
   need to (and cannot) assign a namespace to the external definition itself.
 
+#### Resources managed by decK
+
+External gateway services can declare deck steps that must run before kongctl resolves the service:
+
+```yaml
+control_planes:
+  - ref: prod-cp
+    _external:
+      selector:
+        matchFields:
+          name: "prod-cp"
+
+    gateway_services:
+      - ref: billing-gw
+        control_plane: prod-cp
+        _external:
+          selector:
+            matchFields:
+              name: "billing-service"
+          requires:
+            deck:
+              - args: ["file", "openapi2kong", "openapi.yaml", "-o", "kong.yaml"]
+              - args: ["gateway", "{{kongctl.mode}}", "kong.yaml"]
+```
+
+Notes:
+- `requires.deck` is only supported for `gateway_services`.
+- `_external.selector.matchFields.name` is required and must be the only selector field.
+- `{{kongctl.mode}}` is allowed only as the gateway verb and is replaced with `apply` or `sync`.
+- Only `deck gateway sync|apply` (or `deck gateway {{kongctl.mode}}`) is supported.
+- Deck steps run only during `apply`/`sync` (not `plan`/`diff`, and not `--dry-run`).
+- For gateway steps, kongctl injects Konnect auth flags; do not supply `--konnect-token`,
+  `--konnect-control-plane-name`, or `--konnect-addr` yourself.
+
 #### Namespace Enforcement Flags
 
 The `kongctl plan` command provides built-in namespace guardrails:
