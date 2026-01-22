@@ -693,8 +693,7 @@ func buildRows(data any) ([]string, [][]string, error) {
 	value := reflect.ValueOf(data)
 	value = deref(value)
 
-	//nolint:exhaustive
-	switch value.Kind() {
+	switch value.Kind() { //nolint:exhaustive
 	case reflect.Slice, reflect.Array:
 		return rowsFromSlice(value)
 	case reflect.Struct:
@@ -1470,8 +1469,7 @@ func valueForLabel(parent reflect.Value, label string) (reflect.Value, bool) {
 		return reflect.Value{}, false
 	}
 
-	//nolint:exhaustive
-	switch parent.Kind() {
+	switch parent.Kind() { //nolint:exhaustive
 	case reflect.Struct:
 		target := normalizeHeaderKey(label)
 		typ := parent.Type()

@@ -453,6 +453,8 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 // validateChangePreExecution performs validation before executing a change
 func (e *Executor) validateChangePreExecution(ctx context.Context, change planner.PlannedChange) error {
 	switch change.Action {
+	case planner.ActionExternalTool:
+		return nil
 	case planner.ActionUpdate, planner.ActionDelete:
 		// For update/delete, verify resource still exists and check protection
 		// Special case: singleton portal children without their own ID
