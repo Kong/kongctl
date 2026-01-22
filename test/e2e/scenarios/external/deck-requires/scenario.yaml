@@ -41,7 +41,7 @@ steps:
       - name: 001-get-gateway-services
         run:
           - get
-          - gateway
+          - gw
           - services
           - --control-plane-name
           - "e2e-cp"
@@ -52,3 +52,116 @@ steps:
             expect:
               fields:
                 name: "e2e-gw-svc"
+
+  - name: 002-apply-repeat
+    commands:
+      - name: 000-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.changes[?resource_type=='_deck']"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "plan.changes[?resource_type=='control_plane']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "plan.changes[?resource_type=='api']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "plan.changes[?resource_type=='api_implementation']"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 003-invalid-deck-path
+    inputOverlayDirs:
+      - overlays/003-invalid-deck-path
+    commands:
+      - name: 000-apply-invalid-path
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "reading state file"
+
+  - name: 004-invalid-deck-state
+    inputOverlayDirs:
+      - overlays/004-invalid-deck-state
+    commands:
+      - name: 000-apply-invalid-state
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "deck stderr"
+
+  - name: 005-sync-delete
+    inputOverlayDirs:
+      - overlays/005-sync-delete
+    commands:
+      - name: 000-sync
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: sync
+          - select: "plan.changes[?resource_type=='_deck']"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "plan.changes[?resource_type=='api' && action=='DELETE']"
+            expect:
+              fields:
+                "length(@)": 1
+      - name: 001-get-apis
+        run:
+          - get
+          - apis
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='e2e-api']"
+            expect:
+              fields:
+                "length(@)": 0
+      - name: 002-get-gateway-services
+        run:
+          - get
+          - gw
+          - services
+          - --control-plane-name
+          - "e2e-cp"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='e2e-gw-svc']"
+            expect:
+              fields:
+                "length(@)": 0

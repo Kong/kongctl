@@ -95,6 +95,13 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 		}
 	}
 
+	if !planNeedsGatewayServiceResolution(plan, gatewayRef) {
+		logger.Debug("Skipping gateway service resolution; no dependent changes",
+			slog.String("gateway_service_ref", gatewayRef),
+		)
+		return nil
+	}
+
 	serviceID, err := e.resolveGatewayServiceByName(ctx, cpID, selectorName)
 	if err != nil {
 		return err
@@ -357,6 +364,58 @@ func controlPlaneNameFromPlan(plan *planner.Plan, cpRef string) string {
 		}
 	}
 	return ""
+}
+
+func planNeedsGatewayServiceResolution(plan *planner.Plan, gatewayRef string) bool {
+	if plan == nil || strings.TrimSpace(gatewayRef) == "" {
+		return false
+	}
+
+	for i := range plan.Changes {
+		change := plan.Changes[i]
+		if change.ResourceType != "api_implementation" {
+			continue
+		}
+		if change.Action != planner.ActionCreate && change.Action != planner.ActionUpdate {
+			continue
+		}
+		if gatewayRefMatches(change.Fields, gatewayRef) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func gatewayRefMatches(fields map[string]any, gatewayRef string) bool {
+	if len(fields) == 0 {
+		return false
+	}
+
+	svcValue, ok := fields["service"]
+	if !ok {
+		return false
+	}
+
+	svcMap, ok := svcValue.(map[string]any)
+	if !ok {
+		return false
+	}
+
+	idValue, ok := svcMap["id"].(string)
+	if !ok || strings.TrimSpace(idValue) == "" {
+		return false
+	}
+
+	if tags.IsRefPlaceholder(idValue) {
+		ref, field, ok := tags.ParseRefPlaceholder(idValue)
+		if ok && field == "id" {
+			return ref == gatewayRef
+		}
+		return false
+	}
+
+	return idValue == gatewayRef
 }
 
 func stringField(fields map[string]any, key string) string {

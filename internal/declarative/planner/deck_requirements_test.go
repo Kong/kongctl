@@ -43,6 +43,22 @@ func (s *stubDeckAPIImplementationAPI) DeleteAPIImplementation(
 	return nil, nil
 }
 
+type stubGatewayServiceAPI struct {
+	services []kkComps.ServiceOutput
+}
+
+func (s *stubGatewayServiceAPI) ListService(
+	_ context.Context,
+	_ kkOps.ListServiceRequest,
+	_ ...kkOps.Option,
+) (*kkOps.ListServiceResponse, error) {
+	return &kkOps.ListServiceResponse{
+		Object: &kkComps.ListServiceResponse{
+			Data: s.services,
+		},
+	}, nil
+}
+
 func TestPlanDeckDependenciesAdded(t *testing.T) {
 	cpID := "11111111-1111-1111-1111-111111111111"
 	deckBaseDir := t.TempDir()
@@ -78,9 +94,13 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 		Ref:          "gw-service",
 		ControlPlane: cpID,
 		External: &resources.ExternalBlock{
-			Selector: &resources.ExternalSelector{MatchFields: map[string]string{"name": "svc-name"}},
+			Selector: &resources.ExternalSelector{
+				MatchFields: map[string]string{"name": "svc-name"},
+			},
 			Requires: &resources.ExternalRequires{
-				Deck: []resources.DeckStep{{Args: []string{"gateway", "{{kongctl.mode}}"}}},
+				Deck: []resources.DeckStep{
+					{Args: []string{"gateway", "{{kongctl.mode}}"}},
+				},
 			},
 		},
 	}
@@ -129,4 +149,100 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 	require.Equal(t, ActionExternalTool, deckChange.Action)
 	require.NotNil(t, apiChange)
 	require.Contains(t, apiChange.DependsOn, deckChange.ID)
+}
+
+func TestResolveGatewayServiceIdentitiesDeckRequiresNoMatch(t *testing.T) {
+	cpID := "11111111-1111-1111-1111-111111111111"
+
+	cp := resources.ControlPlaneResource{
+		Ref:  "cp",
+		Name: "cp",
+	}
+	cp.TryMatchKonnectResource(state.ControlPlane{
+		ControlPlane: kkComps.ControlPlane{
+			ID:   cpID,
+			Name: "cp",
+		},
+	})
+
+	gw := resources.GatewayServiceResource{
+		Ref:          "gw-service",
+		ControlPlane: "cp",
+		External: &resources.ExternalBlock{
+			Selector: &resources.ExternalSelector{
+				MatchFields: map[string]string{"name": "svc-name"},
+			},
+			Requires: &resources.ExternalRequires{
+				Deck: []resources.DeckStep{
+					{Args: []string{"gateway", "{{kongctl.mode}}"}},
+				},
+			},
+		},
+	}
+
+	services := []resources.GatewayServiceResource{gw}
+	controlPlanes := []resources.ControlPlaneResource{cp}
+
+	stateClient := state.NewClient(state.ClientConfig{
+		GatewayServiceAPI: &stubGatewayServiceAPI{},
+	})
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	p := NewPlanner(stateClient, logger)
+
+	err := p.resolveGatewayServiceIdentities(context.Background(), services, controlPlanes)
+	require.NoError(t, err)
+	require.Empty(t, services[0].GetKonnectID())
+}
+
+func TestResolveGatewayServiceIdentitiesDeckRequiresMatchesExisting(t *testing.T) {
+	cpID := "11111111-1111-1111-1111-111111111111"
+	serviceID := "22222222-2222-2222-2222-222222222222"
+	serviceName := "svc-name"
+
+	cp := resources.ControlPlaneResource{
+		Ref:  "cp",
+		Name: "cp",
+	}
+	cp.TryMatchKonnectResource(state.ControlPlane{
+		ControlPlane: kkComps.ControlPlane{
+			ID:   cpID,
+			Name: "cp",
+		},
+	})
+
+	gw := resources.GatewayServiceResource{
+		Ref:          "gw-service",
+		ControlPlane: "cp",
+		External: &resources.ExternalBlock{
+			Selector: &resources.ExternalSelector{
+				MatchFields: map[string]string{"name": serviceName},
+			},
+			Requires: &resources.ExternalRequires{
+				Deck: []resources.DeckStep{
+					{Args: []string{"gateway", "{{kongctl.mode}}"}},
+				},
+			},
+		},
+	}
+
+	services := []resources.GatewayServiceResource{gw}
+	controlPlanes := []resources.ControlPlaneResource{cp}
+
+	stateClient := state.NewClient(state.ClientConfig{
+		GatewayServiceAPI: &stubGatewayServiceAPI{
+			services: []kkComps.ServiceOutput{
+				{
+					ID:   &serviceID,
+					Name: &serviceName,
+				},
+			},
+		},
+	})
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	p := NewPlanner(stateClient, logger)
+
+	err := p.resolveGatewayServiceIdentities(context.Background(), services, controlPlanes)
+	require.NoError(t, err)
+	require.Equal(t, serviceID, services[0].GetKonnectID())
+	require.Equal(t, cpID, services[0].ResolvedControlPlaneID())
 }

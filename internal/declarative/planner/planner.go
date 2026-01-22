@@ -2,6 +2,7 @@ package planner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sort"
@@ -20,6 +21,8 @@ type Options struct {
 }
 
 const defaultGenerator = "kongctl/dev"
+
+var errGatewayServiceNotFound = errors.New("gateway service not found")
 
 // Planner generates execution plans
 type Planner struct {
@@ -813,9 +816,45 @@ func (p *Planner) resolveGatewayServiceIdentities(
 		}
 
 		if service.HasDeckRequires() {
-			p.logger.Debug("Skipping gateway service lookup; deck requirements present",
+			if cpID == "" {
+				p.logger.Debug("Skipping gateway service lookup; control plane ID not resolved",
+					slog.String("ref", service.GetRef()),
+				)
+				continue
+			}
+
+			available, ok := serviceCache[cpID]
+			if !ok {
+				list, err := p.client.ListGatewayServices(ctx, cpID)
+				if err != nil {
+					return fmt.Errorf("failed to list gateway services for control plane %s: %w", cpID, err)
+				}
+				available = list
+				serviceCache[cpID] = available
+			}
+
+			match, err := p.matchGatewayService(service, available)
+			if err != nil {
+				if errors.Is(err, errGatewayServiceNotFound) {
+					p.logger.Debug("External gateway service not found; continuing due to deck requirements",
+						slog.String("ref", service.GetRef()),
+						slog.String("control_plane_id", cpID),
+					)
+					continue
+				}
+				return err
+			}
+
+			if !service.TryMatchKonnectResource(match) {
+				return fmt.Errorf("gateway_service %s: failed to bind Konnect resource", service.GetRef())
+			}
+
+			service.SetResolvedControlPlaneID(match.ControlPlaneID)
+
+			p.logger.Debug("Resolved external gateway service",
 				slog.String("ref", service.GetRef()),
-				slog.String("control_plane_id", cpID),
+				slog.String("service_id", service.GetKonnectID()),
+				slog.String("control_plane_id", match.ControlPlaneID),
 			)
 			continue
 		}
@@ -913,7 +952,8 @@ func (p *Planner) matchGatewayService(
 		}
 		if match == nil {
 			return nil, fmt.Errorf(
-				"external gateway_service %s: no service found with id %s",
+				"%w: external gateway_service %s: no service found with id %s",
+				errGatewayServiceNotFound,
 				service.GetRef(),
 				service.External.ID,
 			)
@@ -939,7 +979,8 @@ func (p *Planner) matchGatewayService(
 
 		if match == nil {
 			return nil, fmt.Errorf(
-				"external gateway_service %s: selector %v did not match any services",
+				"%w: external gateway_service %s: selector %v did not match any services",
+				errGatewayServiceNotFound,
 				service.GetRef(),
 				matchFields,
 			)

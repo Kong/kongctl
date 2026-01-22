@@ -161,3 +161,41 @@ func TestExecutorDryRunSkipsDeckRunner(t *testing.T) {
 	require.Len(t, runner.calls, 0)
 	require.Equal(t, 1, result.SkippedCount)
 }
+
+func TestExecuteDeckStepSkipsResolutionWithoutDependencies(t *testing.T) {
+	runner := &stubDeckRunner{}
+	exec := NewWithOptions(nil, nil, false, Options{
+		DeckRunner:     runner,
+		KonnectToken:   "token-123",
+		KonnectBaseURL: "https://api.konghq.com",
+		Mode:           planner.PlanModeSync,
+	})
+
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeSync)
+	plan.Changes = []planner.PlannedChange{
+		{
+			ID:           "1",
+			ResourceType: planner.ResourceTypeDeck,
+			ResourceRef:  "gw-ref",
+			Action:       planner.ActionExternalTool,
+			Fields: map[string]any{
+				"gateway_service_ref": "gw-ref",
+				"control_plane_id":    "11111111-1111-1111-1111-111111111111",
+				"control_plane_name":  "cp-name",
+				"selector": map[string]any{
+					"matchFields": map[string]string{
+						"name": "svc-name",
+					},
+				},
+				"steps": []planner.DeckDependencyStep{
+					{Args: []string{"gateway", "{{kongctl.mode}}"}},
+				},
+			},
+		},
+	}
+
+	ctx := context.WithValue(context.Background(), log.LoggerKey, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	err := exec.executeDeckStep(ctx, &plan.Changes[0], plan)
+	require.NoError(t, err)
+	require.Len(t, runner.calls, 1)
+}
