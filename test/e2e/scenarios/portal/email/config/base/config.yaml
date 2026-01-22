@@ -1,0 +1,11 @@
+_defaults:
+  kongctl:
+    namespace: portal-email-config
+
+portals:
+  - ref: portal-email
+    name: "portal-email"
+    display_name: "Portal Email Config"
+    description: "Portal with custom email configuration"
+    kongctl:
+      namespace: portal-email-config
