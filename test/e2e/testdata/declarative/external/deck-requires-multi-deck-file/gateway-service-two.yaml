@@ -1,0 +1,11 @@
+gateway_services:
+  - ref: e2e-gw-svc-two
+    control_plane: e2e-cp
+    _external:
+      selector:
+        matchFields:
+          name: "e2e-gw-svc-two"
+      requires:
+        deck:
+          files:
+            - "deck-gateway-service-two.yaml"

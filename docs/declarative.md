@@ -380,7 +380,7 @@ Because kongctl does not own those objects:
 
 #### Resources managed by decK
 
-External gateway services can declare deck steps that must run before kongctl resolves the service:
+External gateway services can declare a deck run that must execute before kongctl resolves the service:
 
 ```yaml
 control_planes:
@@ -410,6 +410,10 @@ Notes:
 - `_external.selector.matchFields.name` is required and must be the only selector field.
 - `requires.deck.files` must include at least one state file.
 - `requires.deck.flags` can include additional deck flags (but not Konnect auth or output flags).
+- kongctl runs exactly one `deck gateway apply` or `deck gateway sync` per gateway service that declares
+  `requires.deck` (multiple commands are not supported in config).
+- Deck state files should include `_info.select_tags` and matching `tags` on entities so `sync` does not delete
+  resources owned by other deck files. kongctl does not inject select tags for you.
 - Relative deck file paths are resolved relative to the declarative config file and must remain within the
   `--base-dir` boundary (default: the config file directory).
 - Plan files store deck base directories relative to the plan file location. When emitting a plan to stdout,
@@ -418,6 +422,8 @@ Notes:
 - `kongctl plan`/`diff` runs `deck gateway diff` to decide whether an external tool change is needed.
   `kongctl apply` runs `deck gateway apply` and `kongctl sync` runs `deck gateway sync`.
   For apply mode, deletes reported by deck diff are ignored.
+- If the control plane is being created in the same plan (or the ID is not available), kongctl skips deck diff and
+  includes the external tool step.
 - For gateway steps, kongctl injects Konnect auth flags; do not supply `--konnect-token`,
   `--konnect-control-plane-name`, or `--konnect-addr` yourself.
 

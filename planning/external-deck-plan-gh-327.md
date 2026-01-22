@@ -1,19 +1,25 @@
 # Plan: Deck Requires for External Gateway Services (GH-327)
 
 ## Overview
-Integrate deck execution into the declarative workflow for **external gateway services** only. When a gateway service is marked external and includes `_external.requires.deck`, kongctl should run the deck steps during `apply`/`sync`, then resolve the gateway service by selector (`matchFields.name`). Planning and diff must remain side-effect free, so deck runs only during execution.
+Integrate deck execution into the declarative workflow for **external gateway services** only. When a gateway
+service is marked external and includes `_external.requires.deck`, kongctl runs a deck gateway apply/sync during
+execution, then resolves the gateway service by selector (`matchFields.name`). Planning is side-effect free, but
+`plan`/`diff` uses `deck gateway diff` to decide whether an external tool change is needed.
 
 Key decisions:
 - `_external.requires.deck` is allowed **only for `gateway_services`**.
-- `requires.deck` is an **array of step objects** with `args` (string slice).
-- `requires.deck` supports a **mode placeholder** in args that is replaced by the invoking `kongctl` verb (`sync` or `apply`).
-- Only `deck gateway sync|apply` (or `deck gateway {{kongctl.mode}}`) are allowed for now; other gateway verbs are rejected.
+- `requires.deck` is a single object with `files` and optional `flags` (no array of commands).
+- `{{kongctl.mode}}` is not supported; kongctl selects `apply` or `sync` based on the command.
+- `plan`/`diff` runs `deck gateway diff --json-output --no-color` to decide whether to include an external tool change.
+  For apply mode, delete-only diffs are ignored.
+- `apply` runs `deck gateway apply` and `sync` runs `deck gateway sync`.
 - `requires.deck` **requires** `_external.selector.matchFields.name` (name-only for now).
-- Deck commands **run once per resource** (no deduping).
-- Deck commands **do not run** for `plan`, `diff`, or `apply --dry-run`/`sync --dry-run`.
-- Deck commands run in the **process working dir / base-dir**; file paths remain relative to that directory.
-- Apply-from-plan should be run from the same working directory used at plan time (no per-file workdir).
-- When a deck step includes `gateway`, kongctl injects Konnect auth/context (token, control plane name, base URL) and **errors** if the user already supplied `--konnect-token`, `--konnect-control-plane-name`, or `--konnect-addr`.
+- If `requires.deck` is present, `_external.id` is invalid.
+- Deck runs **once per resource** (no deduping).
+- Deck runs **do not execute** for `plan`, `diff`, or `apply --dry-run`/`sync --dry-run`.
+- Deck files are resolved relative to the declarative config file and constrained by `--base-dir`.
+- Plan files store deck base directories relative to the plan file directory (or CWD when outputting to stdout).
+- kongctl injects Konnect auth/context and output flags; user-supplied `--konnect-*` and output flags are rejected.
 
 ## Target UX
 
@@ -25,38 +31,31 @@ gateway_services:
     _external:
       requires:
         deck:
-          - args: ["file", "openapi2kong", "input.yaml", "-o", "kong.yaml"]
-          - args: ["gateway", "{{kongctl.mode}}", "kong.yaml"]
+          files:
+            - "kong.yaml"
+          flags:
+            - "--select-tag=kongctl"
       selector:
         matchFields:
           name: "abc-service"
 ```
 
 Behavior:
-1. `kongctl plan/diff` records the deck requirements in the plan, but does not execute them.
+1. `kongctl plan/diff` runs `deck gateway diff` and only includes an external tool change when diff reports changes.
+   If the control plane is being created in the same plan (or no control plane ID is known), diff is skipped and an
+   external tool change is included.
 2. `kongctl apply/sync`:
    - Ensures the control plane exists (via normal planner/executor dependencies).
-   - Executes the deck steps for this gateway service.
-   - Resolves the service via selector (`name`), updates plan references for `api_implementation` service fields, then continues execution.
+   - Executes `deck gateway apply|sync` once for this gateway service.
+   - Resolves the service via selector (`name`), updates plan references for `api_implementation` service fields,
+     then continues execution.
 
-## Implementation Plan
+## Implementation Summary
 
 ### 1) Resource Model and Validation
-- **File**: `internal/declarative/resources/external.go`
-  - Add `Requires` to `ExternalBlock` with a nested `DeckRequires` type.
-  - Define `DeckRequires` with `Steps []DeckStep` where `DeckStep` has `Args []string`.
-  - Update `ExternalBlock.Validate()`:
-    - Allow `Selector` + `Requires` together for gateway services.
-    - If `Requires.Deck` is present, require `Selector` and require `selector.matchFields.name` only.
-    - Reject `ID` if `Requires.Deck` is present.
-    - Validate `{{kongctl.mode}}` placeholder usage:
-      - Allowed only in `deck gateway` steps.
-      - Must appear exactly once in a step when present.
-      - Error if `{{kongctl.mode}}` is used with any other deck subcommand.
-    - Validate gateway verb:
-      - Allow only `sync` or `apply` (or `{{kongctl.mode}}`).
-      - Reject `diff|dump|ping|reset|validate` in this initial implementation.
-    - For non-gateway-services, error if `Requires` is set.
+- **Resource model** (`internal/declarative/resources/external.go`)
+  - `ExternalRequires.Deck` stores `Files` and optional `Flags`.
+  - Validation requires selector.matchFields.name (name-only), rejects `_external.id` and output/auth flags.
 
 - **File**: `internal/declarative/resources/gateway_service.go`
   - Add `HasDeckRequires()` or `IsDeckRequired()` helper.
@@ -64,50 +63,33 @@ Behavior:
 - **Validation location**: enforce the “gateway_services only” rule in resource validation (preferably in `GatewayServiceResource.Validate()` once `Requires` is part of the external block).
 
 ### 2) Plan Types for External Deck Steps
-- **File**: `internal/declarative/planner/types.go`
-  - Add `DeckDependency` or `ExternalDeckStep` struct for plan persistence.
-  - Add `DeckDependencies []DeckDependency` to `Plan`.
-    - Fields should include: `GatewayServiceRef`, `ControlPlaneRef`, `ControlPlaneID`, `ControlPlaneName`, `Selector` (matchFields), `Steps`.
-    - Persist steps exactly as configured (args only), no path rewriting.
+- **Planner** (`internal/declarative/planner/deck_requirements.go`)
+  - Adds `_deck` planned changes with `ActionExternalTool`, selector info, control plane info, deck base dir,
+    and `files`/`flags` fields.
+  - Summary includes `by_external_tools` entries for `_deck`.
+  - Runs `deck gateway diff` during plan/diff to decide whether to include the change; skips diff when the control
+    plane is being created in the same plan.
 
 ### 3) Planner Integration
-- **File**: `internal/declarative/planner/planner.go`
-  - Update `resolveGatewayServiceIdentities()` to detect `requires.deck`:
-    - Skip Konnect lookup for the service and record a deck dependency in the plan.
-    - Allow gateway services to carry unresolved IDs during planning.
-  - Update `resolveAPIImplementationServiceReferences()` to tolerate unresolved gateway service IDs when deck is required (record as pending).
-  - Ensure control plane name is available for deck injection:
-    - If control plane is external and name is not set, set it from the matched Konnect resource.
+- **Planner identity resolution**
+  - Best-effort resolves gateway service IDs for deck-managed services when possible.
+  - API implementation references are updated after deck execution if needed.
 
 ### 4) Executor Integration (Deck Steps)
-- **New package**: `internal/declarative/deck/`
-  - `runner.go`: deck runner that accepts steps, injects Konnect flags for `gateway` commands, and executes using `exec.CommandContext`.
-  - `errors.go`: deck execution errors (missing deck, invalid args, injected flag conflicts).
+- **Executor**
+  - Executes `_deck` changes and always runs `deck gateway apply|sync` with `--json-output` and `--no-color`.
+  - Captures deck stdout/stderr and logs stdout at debug, stderr at error on failures.
+  - Resolves gateway service IDs after deck runs and updates dependent changes.
 
-- **File**: `internal/declarative/executor/executor.go`
-  - Add a new internal “pseudo-change” type (e.g., `resource_type = "_deck"`) **or** add an execution hook to run deck steps before processing dependent changes.
-  - Recommended: add a **planned change** for each `requires.deck` to honor dependency ordering. These changes should:
-    - Depend on control plane creation/update (if CP is in plan).
-    - Be depended on by api_implementation creates that reference the gateway service.
-  - During execution of this change:
-    - Run deck steps.
-    - Replace `{{kongctl.mode}}` in args with `sync` or `apply` based on the invoking command.
-    - Resolve the gateway service by selector (name) using existing `ListGatewayServices` by CP ID.
-    - Update plan changes referencing the gateway service (service.id + service.control_plane_id), including any api_implementation create fields.
-    - If the selector matches multiple services, fail with a clear error.
+- **Deck runner**
+  - Executes `deck` via `exec.CommandContext`, captures stdout/stderr, and injects Konnect flags for gateway commands.
 
 ### 5) Konnect Context Injection for Deck
-- **Source**: `internal/cmd/root/products/konnect/common/common.go` already resolves token and base URL.
-  - Reuse `GetAccessToken()` and `ResolveBaseURL()` to inject `--konnect-token` and `--konnect-addr`.
-  - For control plane name, use the resolved control plane name from resource set (or fetch from Konnect if only ID is known).
-  - For `{{kongctl.mode}}`, map `kongctl sync` → `sync`, `kongctl apply` → `apply`. Error on `plan/diff` (should never execute anyway) and on any other verb.
-  - For control plane ID resolution during deck steps:
-    - Prefer executor’s `refToID` map (control plane created in the same run).
-    - Otherwise resolve via Konnect (existing `GetControlPlaneByName`).
+- Uses Konnect token and base URL from the CLI config.
+- Resolves control plane name via config or Konnect when only the ID is known.
 
 ### 6) Dry-Run Behavior
 - Skip all `requires.deck` execution when dry-run is enabled.
-- The deck pseudo-change should be marked skipped with a clear reason.
 
 ### 7) Documentation
 - **File**: `docs/declarative.md`
@@ -124,9 +106,8 @@ Behavior:
   - Dry-run skipping behavior for deck steps.
 
 ## Open Considerations (Out of Scope for MVP)
-- Deduplicating deck steps across resources.
+- Deduplicating deck runs across resources.
 - Supporting other external “requires” command types.
-- `deck diff` integration for plan/diff.
 
 ## Approval Gate
-No code changes until this plan is approved.
+Implemented.
