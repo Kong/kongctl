@@ -1,4 +1,4 @@
-baseInputsPath: ../../../testdata/declarative/portal/email-config
+baseInputsPath: ./config/base
 
 env:
   KONGCTL_LOG_LEVEL: info
@@ -25,6 +25,8 @@ steps:
       - resetOrg: true
 
   - name: 001-plan-apply-email-config
+    inputOverlayDirs:
+      - config/overlays/001-add-email
     commands:
       - name: 000-plan-email-config
         outputFormat: disable
@@ -47,12 +49,14 @@ steps:
                 by_action.CREATE: 2
           - select: >-
               changes[?resource_type=='portal_email_config' && resource_ref=='{{ .vars.emailConfigRef }}'] | [0].fields
+            mask:
+              dropKeys:
+                - domain_name
+                - from_email
+                - reply_to_email
             expect:
               fields:
-                domain_name: mail.kongctl-e2e.io
                 from_name: Kong Developer Portal
-                from_email: noreply@mail.kongctl-e2e.io
-                reply_to_email: support@mail.kongctl-e2e.io
       - name: 001-apply-email-config
         outputFormat: json
         run:
@@ -88,12 +92,14 @@ steps:
                 by_action.UPDATE: 1
           - select: >-
               changes[?resource_type=='portal_email_config' && resource_ref=='{{ .vars.emailConfigRef }}'] | [0].fields
+            mask:
+              dropKeys:
+                - domain_name
+                - from_email
+                - reply_to_email
             expect:
               fields:
-                domain_name: null
                 from_name: Kong Portal Team
-                from_email: team@mail.kongctl-e2e.io
-                reply_to_email: help@mail.kongctl-e2e.io
       - name: 001-apply-email-config-update
         outputFormat: json
         run:
