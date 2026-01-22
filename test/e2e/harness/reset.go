@@ -172,15 +172,17 @@ type resetResult struct {
 }
 
 var resetSequence = []struct {
-	Version  string
-	Endpoint string
+	Version   string
+	Endpoint  string
+	UseGlobal bool // Use global.api.konghq.com instead of regional URL
 }{
-	{"v3", "apis"},
-	{"v3", "portals"},
-	{"v2", "application-auth-strategies"},
-	{"v2", "control-planes"},
-	{"v1", "catalog-services"},
-	{"v1", "event-gateways"},
+	{"v3", "apis", false},
+	{"v3", "portals", false},
+	{"v3", "system-accounts", true},
+	{"v2", "application-auth-strategies", false},
+	{"v2", "control-planes", false},
+	{"v1", "catalog-services", false},
+	{"v1", "event-gateways", false},
 }
 
 func executeReset(client *http.Client, baseURL, token string) (resetResult, error) {
@@ -188,7 +190,11 @@ func executeReset(client *http.Client, baseURL, token string) (resetResult, erro
 	var firstErr error
 
 	for _, step := range resetSequence {
-		tot, del, err := deleteAll(client, baseURL, token, step.Version, step.Endpoint)
+		targetURL := baseURL
+		if step.UseGlobal {
+			targetURL = "https://global.api.konghq.com"
+		}
+		tot, del, err := deleteAll(client, targetURL, token, step.Version, step.Endpoint)
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
