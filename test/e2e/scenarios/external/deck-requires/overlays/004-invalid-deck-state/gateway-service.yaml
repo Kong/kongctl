@@ -1,2 +1,4 @@
 _format_version: "3.0"
-services: [
+services:
+  - name: "e2e-gw-svc"
+    url: 123
