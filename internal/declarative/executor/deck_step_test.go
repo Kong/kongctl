@@ -119,7 +119,14 @@ func TestExecuteDeckStepUpdatesImplementation(t *testing.T) {
 	require.Equal(t, "apply", runner.calls[0].Mode)
 	require.Equal(t, cpName, runner.calls[0].KonnectControlPlaneName)
 	require.Equal(t, expectedWorkDir, runner.calls[0].WorkDir)
-	require.Equal(t, []string{"gateway", "apply", "gateway-service.yaml"}, runner.calls[0].Args)
+	expectedArgs := []string{
+		"gateway",
+		"apply",
+		"--json-output",
+		"--no-color",
+		"gateway-service.yaml",
+	}
+	require.Equal(t, expectedArgs, runner.calls[0].Args)
 
 	serviceMap := plan.Changes[1].Fields["service"].(map[string]any)
 	require.Equal(t, serviceID, serviceMap["id"])

@@ -73,6 +73,7 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 	if err != nil {
 		return fmt.Errorf("deck step %s: %w", gatewayRef, err)
 	}
+	flags = ensureDeckOutputFlags(flags)
 
 	logger.Debug("Executing deck gateway",
 		slog.String("gateway_service_ref", gatewayRef),
@@ -274,6 +275,25 @@ func parseStringSlice(raw any) ([]string, bool) {
 	default:
 		return nil, false
 	}
+}
+
+func ensureDeckOutputFlags(flags []string) []string {
+	if !containsDeckFlag(flags, "--json-output") {
+		flags = append(flags, "--json-output")
+	}
+	if !containsDeckFlag(flags, "--no-color") {
+		flags = append(flags, "--no-color")
+	}
+	return flags
+}
+
+func containsDeckFlag(flags []string, flag string) bool {
+	for _, value := range flags {
+		if value == flag || strings.HasPrefix(value, flag+"=") {
+			return true
+		}
+	}
+	return false
 }
 
 func (e *Executor) resolveGatewayServiceByName(
