@@ -693,7 +693,8 @@ func buildRows(data any) ([]string, [][]string, error) {
 	value := reflect.ValueOf(data)
 	value = deref(value)
 
-	switch value.Kind() { //nolint:exhaustive
+	//nolint:exhaustive
+	switch value.Kind() {
 	case reflect.Slice, reflect.Array:
 		return rowsFromSlice(value)
 	case reflect.Struct:
@@ -1469,7 +1470,8 @@ func valueForLabel(parent reflect.Value, label string) (reflect.Value, bool) {
 		return reflect.Value{}, false
 	}
 
-	switch parent.Kind() { //nolint:exhaustive
+	//nolint:exhaustive
+	switch parent.Kind() {
 	case reflect.Struct:
 		target := normalizeHeaderKey(label)
 		typ := parent.Type()
@@ -1501,7 +1503,8 @@ func valueForLabel(parent reflect.Value, label string) (reflect.Value, bool) {
 
 func derefValueDeep(value reflect.Value) reflect.Value {
 	for value.IsValid() {
-		switch value.Kind() { //nolint:exhaustive
+		//nolint:exhaustive
+		switch value.Kind() {
 		case reflect.Pointer, reflect.Interface:
 			if value.IsNil() {
 				return reflect.Value{}
@@ -1688,7 +1691,8 @@ func buildChildViewFromSliceValue(label string, data any) (ChildView, error) {
 	elemType := value.Type().Elem()
 	elemType = derefType(elemType)
 
-	switch elemType.Kind() { //nolint:exhaustive
+	//nolint:exhaustive
+	switch elemType.Kind() {
 	case reflect.Struct:
 		headers, matrix, err := buildRows(data)
 		if err != nil {
@@ -1817,7 +1821,8 @@ func formatDetailValue(val any) string {
 		return "nil"
 	}
 
-	switch rv.Kind() { //nolint:exhaustive
+	//nolint:exhaustive
+	switch rv.Kind() {
 	case reflect.Slice, reflect.Array:
 		if rv.Len() == 0 {
 			return "[]"

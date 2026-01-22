@@ -399,21 +399,25 @@ control_planes:
               name: "billing-service"
           requires:
             deck:
-              - args: ["file", "openapi2kong", "openapi.yaml", "-o", "kong.yaml"]
-              - args: ["gateway", "{{kongctl.mode}}", "kong.yaml"]
+              files:
+                - "kong.yaml"
+              flags:
+                - "--select-tag=kongctl"
 ```
 
 Notes:
 - `requires.deck` is only supported for `gateway_services`.
 - `_external.selector.matchFields.name` is required and must be the only selector field.
-- `{{kongctl.mode}}` is allowed only as the gateway verb and is replaced with `apply` or `sync`.
-- Only `deck gateway sync|apply` (or `deck gateway {{kongctl.mode}}`) is supported.
+- `requires.deck.files` must include at least one state file.
+- `requires.deck.flags` can include additional deck flags (but not Konnect auth or output flags).
 - Relative deck file paths are resolved relative to the declarative config file and must remain within the
   `--base-dir` boundary (default: the config file directory).
 - Plan files store deck base directories relative to the plan file location. When emitting a plan to stdout,
   the base directory is made relative to the current working directory (use `--output-file` for portable plans).
   Applying a plan resolves them from the plan file directory (or the current working directory when using `--plan -`).
-- Deck steps run only during `apply`/`sync` (not `plan`/`diff`, and not `--dry-run`).
+- `kongctl plan`/`diff` runs `deck gateway diff` to decide whether an external tool change is needed.
+  `kongctl apply` runs `deck gateway apply` and `kongctl sync` runs `deck gateway sync`.
+  For apply mode, deletes reported by deck diff are ignored.
 - For gateway steps, kongctl injects Konnect auth flags; do not supply `--konnect-token`,
   `--konnect-control-plane-name`, or `--konnect-addr` yourself.
 

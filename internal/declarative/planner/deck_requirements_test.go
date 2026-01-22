@@ -8,6 +8,7 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/kong/kongctl/internal/declarative/deck"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/stretchr/testify/require"
@@ -43,6 +44,20 @@ func (s *stubDeckAPIImplementationAPI) DeleteAPIImplementation(
 	return nil, nil
 }
 
+type stubDeckRunner struct {
+	calls  []deck.RunOptions
+	err    error
+	result *deck.RunResult
+}
+
+func (s *stubDeckRunner) Run(_ context.Context, opts deck.RunOptions) (*deck.RunResult, error) {
+	s.calls = append(s.calls, opts)
+	if s.result != nil {
+		return s.result, s.err
+	}
+	return &deck.RunResult{}, s.err
+}
+
 type stubGatewayServiceAPI struct {
 	services []kkComps.ServiceOutput
 }
@@ -53,7 +68,7 @@ func (s *stubGatewayServiceAPI) ListService(
 	_ ...kkOps.Option,
 ) (*kkOps.ListServiceResponse, error) {
 	return &kkOps.ListServiceResponse{
-		Object: &kkComps.ListServiceResponse{
+		Object: &kkOps.ListServiceResponseBody{
 			Data: s.services,
 		},
 	}, nil
@@ -61,6 +76,7 @@ func (s *stubGatewayServiceAPI) ListService(
 
 func TestPlanDeckDependenciesAdded(t *testing.T) {
 	cpID := "11111111-1111-1111-1111-111111111111"
+	cpName := "cp"
 	deckBaseDir := t.TempDir()
 
 	api := resources.APIResource{
@@ -73,6 +89,17 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 		APIResponseSchema: kkComps.APIResponseSchema{
 			ID:   "api-id",
 			Name: "api",
+		},
+	})
+
+	cp := resources.ControlPlaneResource{
+		CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{Name: cpName},
+		Ref:                       "cp",
+	}
+	cp.TryMatchKonnectResource(state.ControlPlane{
+		ControlPlane: kkComps.ControlPlane{
+			ID:   cpID,
+			Name: cpName,
 		},
 	})
 
@@ -92,15 +119,13 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 
 	gw := resources.GatewayServiceResource{
 		Ref:          "gw-service",
-		ControlPlane: cpID,
+		ControlPlane: "cp",
 		External: &resources.ExternalBlock{
 			Selector: &resources.ExternalSelector{
 				MatchFields: map[string]string{"name": "svc-name"},
 			},
 			Requires: &resources.ExternalRequires{
-				Deck: []resources.DeckStep{
-					{Args: []string{"gateway", "{{kongctl.mode}}"}},
-				},
+				Deck: &resources.DeckRequires{Files: []string{"gateway-service.yaml"}},
 			},
 		},
 	}
@@ -109,11 +134,19 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 	rs := &resources.ResourceSet{
 		APIs:               []resources.APIResource{api},
 		APIImplementations: []resources.APIImplementationResource{impl},
+		ControlPlanes:      []resources.ControlPlaneResource{cp},
 		GatewayServices:    []resources.GatewayServiceResource{gw},
+	}
+
+	runner := &stubDeckRunner{
+		result: &deck.RunResult{
+			Stdout: `{"summary":{"creating":1,"updating":0,"deleting":0,"total":1},"errors":[]}`,
+		},
 	}
 
 	stateClient := state.NewClient(state.ClientConfig{
 		APIImplementationAPI: &stubDeckAPIImplementationAPI{},
+		GatewayServiceAPI:    &stubGatewayServiceAPI{},
 	})
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	p := NewPlanner(stateClient, logger)
@@ -121,8 +154,22 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 	plan, err := p.GeneratePlan(context.Background(), rs, Options{
 		Mode:      PlanModeApply,
 		Generator: "test",
+		Deck: DeckOptions{
+			Runner:         runner,
+			KonnectToken:   "token-123",
+			KonnectAddress: "https://api.konghq.com",
+		},
 	})
 	require.NoError(t, err)
+	require.Len(t, runner.calls, 1)
+	expectedArgs := []string{
+		"gateway",
+		"diff",
+		"--json-output",
+		"--no-color",
+		"gateway-service.yaml",
+	}
+	require.Equal(t, expectedArgs, runner.calls[0].Args)
 
 	deps := plan.Summary.ByExternalTools[ResourceTypeDeck]
 	require.Len(t, deps, 1)
@@ -131,7 +178,9 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 	require.NotNil(t, dep.Selector)
 	require.Equal(t, "svc-name", dep.Selector.MatchFields["name"])
 	require.Equal(t, cpID, dep.ControlPlaneID)
+	require.Equal(t, cpName, dep.ControlPlaneName)
 	require.Equal(t, deckBaseDir, dep.DeckBaseDir)
+	require.Equal(t, []string{"gateway-service.yaml"}, dep.Files)
 
 	var deckChange *PlannedChange
 	var apiChange *PlannedChange
@@ -155,8 +204,8 @@ func TestResolveGatewayServiceIdentitiesDeckRequiresNoMatch(t *testing.T) {
 	cpID := "11111111-1111-1111-1111-111111111111"
 
 	cp := resources.ControlPlaneResource{
-		Ref:  "cp",
-		Name: "cp",
+		CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{Name: "cp"},
+		Ref:                       "cp",
 	}
 	cp.TryMatchKonnectResource(state.ControlPlane{
 		ControlPlane: kkComps.ControlPlane{
@@ -173,9 +222,7 @@ func TestResolveGatewayServiceIdentitiesDeckRequiresNoMatch(t *testing.T) {
 				MatchFields: map[string]string{"name": "svc-name"},
 			},
 			Requires: &resources.ExternalRequires{
-				Deck: []resources.DeckStep{
-					{Args: []string{"gateway", "{{kongctl.mode}}"}},
-				},
+				Deck: &resources.DeckRequires{Files: []string{"gateway-service.yaml"}},
 			},
 		},
 	}
@@ -200,8 +247,8 @@ func TestResolveGatewayServiceIdentitiesDeckRequiresMatchesExisting(t *testing.T
 	serviceName := "svc-name"
 
 	cp := resources.ControlPlaneResource{
-		Ref:  "cp",
-		Name: "cp",
+		CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{Name: "cp"},
+		Ref:                       "cp",
 	}
 	cp.TryMatchKonnectResource(state.ControlPlane{
 		ControlPlane: kkComps.ControlPlane{
@@ -218,9 +265,7 @@ func TestResolveGatewayServiceIdentitiesDeckRequiresMatchesExisting(t *testing.T
 				MatchFields: map[string]string{"name": serviceName},
 			},
 			Requires: &resources.ExternalRequires{
-				Deck: []resources.DeckStep{
-					{Args: []string{"gateway", "{{kongctl.mode}}"}},
-				},
+				Deck: &resources.DeckRequires{Files: []string{"gateway-service.yaml"}},
 			},
 		},
 	}

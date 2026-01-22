@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -18,6 +19,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/executor"
 	"github.com/kong/kongctl/internal/declarative/loader"
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/validator"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -432,10 +434,16 @@ func runPlan(command *cobra.Command, args []string) error {
 		}
 	}
 
+	deckOpts, err := deckPlanOptions(resourceSet, cfg, logger)
+	if err != nil {
+		return err
+	}
+
 	// Generate plan
 	opts := planner.Options{
 		Mode:      planMode,
 		Generator: generator,
+		Deck:      deckOpts,
 	}
 	plan, err := p.GeneratePlan(ctx, resourceSet, opts)
 	if err != nil {
@@ -514,6 +522,43 @@ func normalizeDeckBaseDirs(plan *planner.Plan, outputFile string) error {
 	}
 
 	return nil
+}
+
+func deckPlanOptions(
+	resourceSet *resources.ResourceSet,
+	cfg config.Hook,
+	logger *slog.Logger,
+) (planner.DeckOptions, error) {
+	if !resourceSetHasDeckRequires(resourceSet) {
+		return planner.DeckOptions{}, nil
+	}
+
+	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	if err != nil {
+		return planner.DeckOptions{}, err
+	}
+
+	baseURL, err := konnectcommon.ResolveBaseURL(cfg)
+	if err != nil {
+		return planner.DeckOptions{}, err
+	}
+
+	return planner.DeckOptions{
+		KonnectToken:   token,
+		KonnectAddress: baseURL,
+	}, nil
+}
+
+func resourceSetHasDeckRequires(resourceSet *resources.ResourceSet) bool {
+	if resourceSet == nil {
+		return false
+	}
+	for i := range resourceSet.GatewayServices {
+		if resourceSet.GatewayServices[i].HasDeckRequires() {
+			return true
+		}
+	}
+	return false
 }
 
 func resolvePlanBaseDir(planFile string) string {
@@ -615,9 +660,14 @@ func runDiff(command *cobra.Command, args []string) error {
 
 		stateClient := createStateClient(kkClient)
 		p := planner.NewPlanner(stateClient, logger)
+		deckOpts, err := deckPlanOptions(resourceSet, cfg, logger)
+		if err != nil {
+			return err
+		}
 		opts := planner.Options{
 			Mode:      planner.PlanModeSync,
 			Generator: generator,
+			Deck:      deckOpts,
 		}
 		plan, err = p.GeneratePlan(ctx, resourceSet, opts)
 		if err != nil {
@@ -1102,11 +1152,16 @@ func runApply(command *cobra.Command, args []string) error {
 		// Create planner
 		stateClient := createStateClient(kkClient)
 		p := planner.NewPlanner(stateClient, logger)
+		deckOpts, err := deckPlanOptions(resourceSet, cfg, logger)
+		if err != nil {
+			return err
+		}
 
 		// Generate plan in apply mode
 		opts := planner.Options{
 			Mode:      planner.PlanModeApply,
 			Generator: generator,
+			Deck:      deckOpts,
 		}
 		plan, err = p.GeneratePlan(ctx, resourceSet, opts)
 		if err != nil {
@@ -1566,11 +1621,16 @@ func runSync(command *cobra.Command, args []string) error {
 		// Create planner
 		stateClient := createStateClient(kkClient)
 		p := planner.NewPlanner(stateClient, logger)
+		deckOpts, err := deckPlanOptions(resourceSet, cfg, logger)
+		if err != nil {
+			return err
+		}
 
 		// Generate plan in sync mode
 		opts := planner.Options{
 			Mode:      planner.PlanModeSync,
 			Generator: generator,
+			Deck:      deckOpts,
 		}
 		plan, err = p.GeneratePlan(ctx, resourceSet, opts)
 		if err != nil {

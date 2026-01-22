@@ -7,12 +7,10 @@ control_planes:
     gateway_services:
       - ref: e2e-gw-svc
         _external:
+          requires:
+            deck:
+              files:
+                - "gateway-service.yaml"
           selector:
             matchFields:
               name: "e2e-gw-svc"
-          requires:
-            deck:
-              - args:
-                  - "gateway"
-                  - "{{kongctl.mode}}"
-                  - "gateway-service.yaml"

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/deck"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
@@ -18,11 +19,19 @@ import (
 type Options struct {
 	Mode      PlanMode
 	Generator string
+	Deck      DeckOptions
 }
 
 const defaultGenerator = "kongctl/dev"
 
 var errGatewayServiceNotFound = errors.New("gateway service not found")
+
+// DeckOptions provides configuration for deck-based planning.
+type DeckOptions struct {
+	Runner         deck.Runner
+	KonnectToken   string
+	KonnectAddress string
+}
 
 // Planner generates execution plans
 type Planner struct {
@@ -226,7 +235,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		p.changeCount = namespacePlanner.changeCount
 	}
 
-	if err := p.planDeckDependencies(rs, basePlan); err != nil {
+	if err := p.planDeckDependencies(ctx, rs, basePlan, opts); err != nil {
 		return nil, err
 	}
 

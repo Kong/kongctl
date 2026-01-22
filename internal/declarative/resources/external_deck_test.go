@@ -16,11 +16,23 @@ func TestExternalBlockValidateDeckRequires(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name: "valid gateway placeholder",
+			name: "valid requires deck",
 			external: &ExternalBlock{
 				Selector: selectorName,
 				Requires: &ExternalRequires{
-					Deck: []DeckStep{{Args: []string{"gateway", "{{kongctl.mode}}"}}},
+					Deck: &DeckRequires{Files: []string{"gateway-service.yaml"}},
+				},
+			},
+		},
+		{
+			name: "valid requires deck with flags",
+			external: &ExternalBlock{
+				Selector: selectorName,
+				Requires: &ExternalRequires{
+					Deck: &DeckRequires{
+						Files: []string{"gateway-service.yaml"},
+						Flags: []string{"--select-tag=kongctl"},
+					},
 				},
 			},
 		},
@@ -30,7 +42,7 @@ func TestExternalBlockValidateDeckRequires(t *testing.T) {
 				ID:       "abc",
 				Selector: selectorName,
 				Requires: &ExternalRequires{
-					Deck: []DeckStep{{Args: []string{"gateway", "sync"}}},
+					Deck: &DeckRequires{Files: []string{"gateway-service.yaml"}},
 				},
 			},
 			wantErr: true,
@@ -39,7 +51,7 @@ func TestExternalBlockValidateDeckRequires(t *testing.T) {
 			name: "requires selector name",
 			external: &ExternalBlock{
 				Requires: &ExternalRequires{
-					Deck: []DeckStep{{Args: []string{"gateway", "sync"}}},
+					Deck: &DeckRequires{Files: []string{"gateway-service.yaml"}},
 				},
 			},
 			wantErr: true,
@@ -49,7 +61,7 @@ func TestExternalBlockValidateDeckRequires(t *testing.T) {
 			external: &ExternalBlock{
 				Selector: &ExternalSelector{MatchFields: map[string]string{"id": "svc"}},
 				Requires: &ExternalRequires{
-					Deck: []DeckStep{{Args: []string{"gateway", "sync"}}},
+					Deck: &DeckRequires{Files: []string{"gateway-service.yaml"}},
 				},
 			},
 			wantErr: true,
@@ -59,37 +71,53 @@ func TestExternalBlockValidateDeckRequires(t *testing.T) {
 			external: &ExternalBlock{
 				Selector: &ExternalSelector{MatchFields: map[string]string{"name": "svc", "env": "dev"}},
 				Requires: &ExternalRequires{
-					Deck: []DeckStep{{Args: []string{"gateway", "sync"}}},
+					Deck: &DeckRequires{Files: []string{"gateway-service.yaml"}},
 				},
 			},
 			wantErr: true,
 		},
 		{
-			name: "placeholder only allowed for gateway",
+			name: "requires deck needs files",
 			external: &ExternalBlock{
 				Selector: selectorName,
 				Requires: &ExternalRequires{
-					Deck: []DeckStep{{Args: []string{"file", "{{kongctl.mode}}"}}},
+					Deck: &DeckRequires{},
 				},
 			},
 			wantErr: true,
 		},
 		{
-			name: "gateway verb restricted",
+			name: "requires deck file cannot be a flag",
 			external: &ExternalBlock{
 				Selector: selectorName,
 				Requires: &ExternalRequires{
-					Deck: []DeckStep{{Args: []string{"gateway", "diff"}}},
+					Deck: &DeckRequires{Files: []string{"--foo"}},
 				},
 			},
 			wantErr: true,
 		},
 		{
-			name: "placeholder must be gateway verb",
+			name: "requires deck flag must be a flag",
 			external: &ExternalBlock{
 				Selector: selectorName,
 				Requires: &ExternalRequires{
-					Deck: []DeckStep{{Args: []string{"gateway", "sync", "{{kongctl.mode}}"}}},
+					Deck: &DeckRequires{
+						Files: []string{"gateway-service.yaml"},
+						Flags: []string{"not-a-flag"},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "requires deck flag cannot include konnect auth",
+			external: &ExternalBlock{
+				Selector: selectorName,
+				Requires: &ExternalRequires{
+					Deck: &DeckRequires{
+						Files: []string{"gateway-service.yaml"},
+						Flags: []string{"--konnect-token=abc"},
+					},
 				},
 			},
 			wantErr: true,
@@ -115,7 +143,7 @@ func TestControlPlaneValidateRejectsDeckRequires(t *testing.T) {
 		External: &ExternalBlock{
 			Selector: &ExternalSelector{MatchFields: map[string]string{"name": "cp"}},
 			Requires: &ExternalRequires{
-				Deck: []DeckStep{{Args: []string{"gateway", "sync"}}},
+				Deck: &DeckRequires{Files: []string{"gateway-service.yaml"}},
 			},
 		},
 	}
@@ -129,7 +157,7 @@ func TestPortalValidateRejectsDeckRequires(t *testing.T) {
 		External: &ExternalBlock{
 			Selector: &ExternalSelector{MatchFields: map[string]string{"name": "portal"}},
 			Requires: &ExternalRequires{
-				Deck: []DeckStep{{Args: []string{"gateway", "sync"}}},
+				Deck: &DeckRequires{Files: []string{"gateway-service.yaml"}},
 			},
 		},
 	}

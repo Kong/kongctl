@@ -26,7 +26,8 @@ control_planes:
               name: "svc"
           requires:
             deck:
-              - args: ["gateway", "{{kongctl.mode}}", "gateway-service.yaml"]
+              files:
+                - "gateway-service.yaml"
 `
 	configPath := filepath.Join(dir, "config.yaml")
 	require.NoError(t, os.WriteFile(configPath, []byte(config), 0o600))
@@ -36,9 +37,9 @@ control_planes:
 	require.NoError(t, err)
 	require.Len(t, rs.GatewayServices, 1)
 
-	steps := rs.GatewayServices[0].External.Requires.Deck
-	require.Len(t, steps, 1)
-	require.Equal(t, []string{"gateway", "{{kongctl.mode}}", "gateway-service.yaml"}, steps[0].Args)
+	requires := rs.GatewayServices[0].External.Requires.Deck
+	require.NotNil(t, requires)
+	require.Equal(t, []string{"gateway-service.yaml"}, requires.Files)
 	require.Equal(t, dir, rs.GatewayServices[0].DeckBaseDir())
 }
 
@@ -60,7 +61,8 @@ control_planes:
               name: "svc"
           requires:
             deck:
-              - args: ["gateway", "{{kongctl.mode}}", "../../../../outside.yaml"]
+              files:
+                - "../../../../outside.yaml"
 `
 	configPath := filepath.Join(configDir, "config.yaml")
 	require.NoError(t, os.WriteFile(configPath, []byte(config), 0o600))

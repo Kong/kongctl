@@ -65,19 +65,7 @@ steps:
           - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
           - --auto-approve
         assertions:
-          - select: "plan.changes[?resource_type=='_deck']"
-            expect:
-              fields:
-                "length(@)": 1
-          - select: "plan.changes[?resource_type=='control_plane']"
-            expect:
-              fields:
-                "length(@)": 0
-          - select: "plan.changes[?resource_type=='api']"
-            expect:
-              fields:
-                "length(@)": 0
-          - select: "plan.changes[?resource_type=='api_implementation']"
+          - select: "plan.changes"
             expect:
               fields:
                 "length(@)": 0

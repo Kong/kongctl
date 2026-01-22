@@ -29,12 +29,13 @@ type ExternalSelector struct {
 
 // ExternalRequires captures external dependency steps.
 type ExternalRequires struct {
-	Deck []DeckStep `yaml:"deck,omitempty" json:"deck,omitempty"`
+	Deck *DeckRequires `yaml:"deck,omitempty" json:"deck,omitempty"`
 }
 
-// DeckStep represents a single deck invocation.
-type DeckStep struct {
-	Args []string `yaml:"args" json:"args"`
+// DeckRequires describes deck state files to apply or sync.
+type DeckRequires struct {
+	Files []string `yaml:"files"          json:"files"`
+	Flags []string `yaml:"flags,omitempty" json:"flags,omitempty"`
 }
 
 // IsExternal returns true if this resource is externally managed
@@ -42,12 +43,12 @@ func (e *ExternalBlock) IsExternal() bool {
 	return e != nil
 }
 
-// HasDeckRequires returns true when deck steps are configured.
+// HasDeckRequires returns true when deck requirements are configured.
 func (e *ExternalBlock) HasDeckRequires() bool {
 	if e == nil || e.Requires == nil {
 		return false
 	}
-	return len(e.Requires.Deck) > 0
+	return e.Requires.Deck != nil
 }
 
 // Validate ensures the external block is properly configured
@@ -75,7 +76,7 @@ func (e *ExternalBlock) Validate() error {
 		if e.Selector == nil {
 			return fmt.Errorf("_external requires.deck requires a selector")
 		}
-		if err := validateDeckRequires(e.Requires); err != nil {
+		if err := validateDeckRequires(e.Requires.Deck); err != nil {
 			return err
 		}
 		if err := validateDeckSelector(e.Selector); err != nil {
@@ -102,50 +103,59 @@ func validateDeckSelector(selector *ExternalSelector) error {
 	return nil
 }
 
-func validateDeckRequires(requires *ExternalRequires) error {
-	if requires == nil || len(requires.Deck) == 0 {
-		return fmt.Errorf("_external requires.deck must include at least one step")
+func validateDeckRequires(requires *DeckRequires) error {
+	if requires == nil || len(requires.Files) == 0 {
+		return fmt.Errorf("_external requires.deck.files must include at least one state file")
 	}
 
-	for i, step := range requires.Deck {
-		if len(step.Args) == 0 {
-			return fmt.Errorf("_external requires.deck[%d] args cannot be empty", i)
+	for i, file := range requires.Files {
+		value := strings.TrimSpace(file)
+		if value == "" {
+			return fmt.Errorf("_external requires.deck.files[%d] cannot be empty", i)
 		}
-		placeholderCount := 0
-		for _, arg := range step.Args {
-			if arg == constants.DeckModePlaceholder {
-				placeholderCount++
-				continue
-			}
-			if strings.Contains(arg, constants.DeckModePlaceholder) {
-				return fmt.Errorf("_external requires.deck[%d] args contains invalid {{kongctl.mode}} usage", i)
-			}
+		if strings.HasPrefix(value, "-") {
+			return fmt.Errorf("_external requires.deck.files[%d] must be a file path, not a flag", i)
 		}
+		if strings.Contains(value, constants.DeckModePlaceholder) {
+			return fmt.Errorf("_external requires.deck.files[%d] cannot include {{kongctl.mode}}", i)
+		}
+	}
 
-		if placeholderCount > 1 {
-			return fmt.Errorf("_external requires.deck[%d] args contains multiple {{kongctl.mode}} entries", i)
+	for i, flag := range requires.Flags {
+		value := strings.TrimSpace(flag)
+		if value == "" {
+			return fmt.Errorf("_external requires.deck.flags[%d] cannot be empty", i)
 		}
-
-		if step.Args[0] == "gateway" {
-			if len(step.Args) < 2 {
-				return fmt.Errorf("_external requires.deck[%d] gateway step must include a verb", i)
-			}
-			verb := step.Args[1]
-			if verb != "sync" && verb != "apply" && verb != constants.DeckModePlaceholder {
-				return fmt.Errorf("_external requires.deck[%d] gateway verb must be sync, apply, or {{kongctl.mode}}", i)
-			}
-		} else if placeholderCount > 0 {
-			return fmt.Errorf("_external requires.deck[%d] {{kongctl.mode}} is only allowed for gateway steps", i)
+		if !strings.HasPrefix(value, "-") {
+			return fmt.Errorf("_external requires.deck.flags[%d] must be a flag", i)
 		}
-
-		if placeholderCount > 0 {
-			if step.Args[0] != "gateway" || len(step.Args) < 2 || step.Args[1] != constants.DeckModePlaceholder {
-				return fmt.Errorf("_external requires.deck[%d] {{kongctl.mode}} must be the gateway verb", i)
-			}
+		if strings.Contains(value, constants.DeckModePlaceholder) {
+			return fmt.Errorf("_external requires.deck.flags[%d] cannot include {{kongctl.mode}}", i)
+		}
+		if deckFlagConflicts(value) {
+			return fmt.Errorf("_external requires.deck.flags[%d] cannot include %s", i, value)
 		}
 	}
 
 	return nil
+}
+
+func deckFlagConflicts(flag string) bool {
+	denied := []string{
+		"--konnect-token",
+		"--konnect-control-plane-name",
+		"--konnect-addr",
+		"--json-output",
+		"--output",
+	}
+
+	for _, candidate := range denied {
+		if flag == candidate || strings.HasPrefix(flag, candidate+"=") {
+			return true
+		}
+	}
+
+	return false
 }
 
 // capitalizeFirst capitalizes the first character of a string

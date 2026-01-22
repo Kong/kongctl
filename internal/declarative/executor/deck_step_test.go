@@ -94,9 +94,7 @@ func TestExecuteDeckStepUpdatesImplementation(t *testing.T) {
 						"name": selectorName,
 					},
 				},
-				"steps": []planner.DeckDependencyStep{
-					{Args: []string{"gateway", "{{kongctl.mode}}"}},
-				},
+				"files": []string{"gateway-service.yaml"},
 			},
 		},
 		{
@@ -121,6 +119,7 @@ func TestExecuteDeckStepUpdatesImplementation(t *testing.T) {
 	require.Equal(t, "apply", runner.calls[0].Mode)
 	require.Equal(t, cpName, runner.calls[0].KonnectControlPlaneName)
 	require.Equal(t, expectedWorkDir, runner.calls[0].WorkDir)
+	require.Equal(t, []string{"gateway", "apply", "gateway-service.yaml"}, runner.calls[0].Args)
 
 	serviceMap := plan.Changes[1].Fields["service"].(map[string]any)
 	require.Equal(t, serviceID, serviceMap["id"])
@@ -150,9 +149,7 @@ func TestExecutorDryRunSkipsDeckRunner(t *testing.T) {
 					"name": "svc-name",
 				},
 			},
-			"steps": []planner.DeckDependencyStep{
-				{Args: []string{"gateway", "apply"}},
-			},
+			"files": []string{"gateway-service.yaml"},
 		},
 	})
 	plan.SetExecutionOrder([]string{"1"})
@@ -187,9 +184,7 @@ func TestExecuteDeckStepSkipsResolutionWithoutDependencies(t *testing.T) {
 						"name": "svc-name",
 					},
 				},
-				"steps": []planner.DeckDependencyStep{
-					{Args: []string{"gateway", "{{kongctl.mode}}"}},
-				},
+				"files": []string{"gateway-service.yaml"},
 			},
 		},
 	}

@@ -45,12 +45,12 @@ func (s GatewayServiceResource) GetMoniker() string {
 	return ""
 }
 
-// DeckBaseDir returns the resolved base directory for deck steps (if any).
+// DeckBaseDir returns the resolved base directory for deck requirements (if any).
 func (s GatewayServiceResource) DeckBaseDir() string {
 	return s.deckBaseDir
 }
 
-// SetDeckBaseDir sets the resolved base directory for deck steps.
+// SetDeckBaseDir sets the resolved base directory for deck requirements.
 func (s *GatewayServiceResource) SetDeckBaseDir(dir string) {
 	s.deckBaseDir = strings.TrimSpace(dir)
 }
@@ -233,7 +233,7 @@ func (s *GatewayServiceResource) IsExternal() bool {
 	return s.External != nil && s.External.IsExternal()
 }
 
-// HasDeckRequires returns true when external deck steps are configured.
+// HasDeckRequires returns true when external deck requirements are configured.
 func (s *GatewayServiceResource) HasDeckRequires() bool {
 	return s.External != nil && s.External.HasDeckRequires()
 }

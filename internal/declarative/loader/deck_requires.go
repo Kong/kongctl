@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/kong/kongctl/internal/declarative/constants"
 	"github.com/kong/kongctl/internal/declarative/resources"
 )
 
@@ -35,52 +34,41 @@ func (l *Loader) resolveDeckRequiresPaths(rs *resources.ResourceSet, baseDir str
 	for i := range rs.GatewayServices {
 		svc := &rs.GatewayServices[i]
 		svc.SetDeckBaseDir(baseDirAbs)
-		if svc.External == nil || svc.External.Requires == nil {
+		if svc.External == nil || svc.External.Requires == nil || svc.External.Requires.Deck == nil {
 			continue
 		}
-		for j := range svc.External.Requires.Deck {
-			step := &svc.External.Requires.Deck[j]
-			if err := validateDeckStepArgs(step.Args, baseDirAbs, rootDirAbs); err != nil {
-				return fmt.Errorf("gateway_service %q deck step %d: %w", svc.Ref, j, err)
-			}
+		if err := validateDeckFiles(svc.External.Requires.Deck.Files, baseDirAbs, rootDirAbs); err != nil {
+			return fmt.Errorf("gateway_service %q deck files: %w", svc.Ref, err)
 		}
 	}
 
 	return nil
 }
 
-func validateDeckStepArgs(args []string, baseDirAbs string, rootDirAbs string) error {
-	if len(args) == 0 {
+func validateDeckFiles(files []string, baseDirAbs string, rootDirAbs string) error {
+	if len(files) == 0 {
 		return nil
 	}
 
-	startIdx := 2
-	if len(args) < startIdx {
-		startIdx = len(args)
-	}
-
-	for i := startIdx; i < len(args); i++ {
-		arg := strings.TrimSpace(args[i])
-		if arg == "" {
+	for _, file := range files {
+		value := strings.TrimSpace(file)
+		if value == "" {
 			continue
 		}
-		if strings.HasPrefix(arg, "-") {
+		if strings.HasPrefix(value, "-") {
 			continue
 		}
-		if arg == "-" || strings.Contains(arg, constants.DeckModePlaceholder) {
-			continue
-		}
-		if looksLikeURL(arg) {
+		if looksLikeURL(value) {
 			continue
 		}
 
-		candidate := arg
+		candidate := value
 		if !filepath.IsAbs(candidate) {
 			candidate = filepath.Join(baseDirAbs, candidate)
 		}
 		candidate = filepath.Clean(candidate)
 		if rootDirAbs != "" && !pathWithinBase(rootDirAbs, candidate) {
-			return fmt.Errorf("deck state file resolves outside base dir %s: %s", rootDirAbs, arg)
+			return fmt.Errorf("deck state file resolves outside base dir %s: %s", rootDirAbs, file)
 		}
 	}
 

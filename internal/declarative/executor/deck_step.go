@@ -60,19 +60,23 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 	change.Fields["control_plane_id"] = cpID
 	change.Fields["control_plane_name"] = cpName
 
-	steps, err := parseDeckSteps(change.Fields["steps"])
-	if err != nil {
-		return fmt.Errorf("deck step %s: %w", gatewayRef, err)
-	}
-
 	mode, err := e.resolveDeckMode(plan)
 	if err != nil {
 		return err
 	}
 
-	logger.Debug("Executing deck steps",
+	files, err := parseDeckFiles(change.Fields["files"])
+	if err != nil {
+		return fmt.Errorf("deck step %s: %w", gatewayRef, err)
+	}
+	flags, err := parseDeckFlags(change.Fields["flags"])
+	if err != nil {
+		return fmt.Errorf("deck step %s: %w", gatewayRef, err)
+	}
+
+	logger.Debug("Executing deck gateway",
 		slog.String("gateway_service_ref", gatewayRef),
-		slog.Int("steps", len(steps)),
+		slog.Int("files", len(files)),
 	)
 
 	workDir, err := e.resolveDeckWorkDir(change.Fields)
@@ -80,19 +84,20 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 		return err
 	}
 
-	for i, step := range steps {
-		result, err := e.deckRunner.Run(ctx, deck.RunOptions{
-			Args:                    step.Args,
-			Mode:                    mode,
-			KonnectToken:            e.konnectToken,
-			KonnectControlPlaneName: cpName,
-			KonnectAddress:          e.konnectBaseURL,
-			WorkDir:                 workDir,
-		})
-		logDeckRunOutput(logger, gatewayRef, i, result, err)
-		if err != nil {
-			return fmt.Errorf("deck step %d for gateway_service %s failed: %w", i, gatewayRef, err)
-		}
+	args := append([]string{"gateway", mode}, flags...)
+	args = append(args, files...)
+
+	result, err := e.deckRunner.Run(ctx, deck.RunOptions{
+		Args:                    args,
+		Mode:                    mode,
+		KonnectToken:            e.konnectToken,
+		KonnectControlPlaneName: cpName,
+		KonnectAddress:          e.konnectBaseURL,
+		WorkDir:                 workDir,
+	})
+	logDeckRunOutput(logger, gatewayRef, 0, result, err)
+	if err != nil {
+		return fmt.Errorf("deck gateway for gateway_service %s failed: %w", gatewayRef, err)
 	}
 
 	if !planNeedsGatewayServiceResolution(plan, gatewayRef) {
@@ -177,7 +182,7 @@ func (e *Executor) resolveDeckMode(plan *planner.Plan) (string, error) {
 	case planner.PlanModeSync:
 		return "sync", nil
 	default:
-		return "", fmt.Errorf("deck steps require apply or sync mode")
+		return "", fmt.Errorf("deck gateway requires apply or sync mode")
 	}
 }
 
@@ -202,59 +207,72 @@ func (e *Executor) resolveDeckWorkDir(fields map[string]any) (string, error) {
 	return abs, nil
 }
 
-func parseDeckSteps(raw any) ([]planner.DeckDependencyStep, error) {
+func parseDeckFiles(raw any) ([]string, error) {
 	if raw == nil {
-		return nil, fmt.Errorf("steps are required")
+		return nil, fmt.Errorf("files are required")
 	}
-
-	switch v := raw.(type) {
-	case []planner.DeckDependencyStep:
-		steps := make([]planner.DeckDependencyStep, len(v))
-		for i, step := range v {
-			steps[i] = planner.DeckDependencyStep{Args: append([]string{}, step.Args...)}
-		}
-		return steps, nil
-	case []any:
-		steps := make([]planner.DeckDependencyStep, 0, len(v))
-		for i, item := range v {
-			switch step := item.(type) {
-			case planner.DeckDependencyStep:
-				steps = append(steps, planner.DeckDependencyStep{Args: append([]string{}, step.Args...)})
-			case map[string]any:
-				args, err := parseDeckArgs(step["args"], i)
-				if err != nil {
-					return nil, err
-				}
-				steps = append(steps, planner.DeckDependencyStep{Args: args})
-			default:
-				return nil, fmt.Errorf("steps[%d] has unexpected type %T", i, item)
-			}
-		}
-		return steps, nil
-	default:
-		return nil, fmt.Errorf("steps have unexpected type %T", raw)
+	files, ok := parseStringSlice(raw)
+	if !ok {
+		return nil, fmt.Errorf("files must be an array of strings")
 	}
+	cleaned := make([]string, 0, len(files))
+	for i, file := range files {
+		value := strings.TrimSpace(file)
+		if value == "" {
+			return nil, fmt.Errorf("files[%d] cannot be empty", i)
+		}
+		if strings.HasPrefix(value, "-") {
+			return nil, fmt.Errorf("files[%d] must be a file path, not a flag", i)
+		}
+		cleaned = append(cleaned, value)
+	}
+	if len(cleaned) == 0 {
+		return nil, fmt.Errorf("files are required")
+	}
+	return cleaned, nil
 }
 
-func parseDeckArgs(raw any, index int) ([]string, error) {
+func parseDeckFlags(raw any) ([]string, error) {
 	if raw == nil {
-		return nil, fmt.Errorf("steps[%d] args are required", index)
+		return nil, nil
 	}
+	flags, ok := parseStringSlice(raw)
+	if !ok {
+		return nil, fmt.Errorf("flags must be an array of strings")
+	}
+	cleaned := make([]string, 0, len(flags))
+	for i, flag := range flags {
+		value := strings.TrimSpace(flag)
+		if value == "" {
+			return nil, fmt.Errorf("flags[%d] cannot be empty", i)
+		}
+		if !strings.HasPrefix(value, "-") {
+			return nil, fmt.Errorf("flags[%d] must be a flag", i)
+		}
+		cleaned = append(cleaned, value)
+	}
+	if len(cleaned) == 0 {
+		return nil, nil
+	}
+	return cleaned, nil
+}
+
+func parseStringSlice(raw any) ([]string, bool) {
 	switch v := raw.(type) {
 	case []string:
-		return append([]string{}, v...), nil
+		return append([]string{}, v...), true
 	case []any:
-		args := make([]string, len(v))
+		values := make([]string, len(v))
 		for i, item := range v {
 			value, ok := item.(string)
 			if !ok {
-				return nil, fmt.Errorf("steps[%d] args[%d] must be a string", index, i)
+				return nil, false
 			}
-			args[i] = value
+			values[i] = value
 		}
-		return args, nil
+		return values, true
 	default:
-		return nil, fmt.Errorf("steps[%d] args must be an array of strings", index)
+		return nil, false
 	}
 }
 

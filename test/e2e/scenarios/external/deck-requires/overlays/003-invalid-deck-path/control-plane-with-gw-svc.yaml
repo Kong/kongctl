@@ -12,7 +12,5 @@ control_planes:
               name: "e2e-gw-svc"
           requires:
             deck:
-              - args:
-                  - "gateway"
-                  - "{{kongctl.mode}}"
-                  - "missing.yaml"
+              files:
+                - "missing.yaml"

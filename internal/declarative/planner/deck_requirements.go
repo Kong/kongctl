@@ -1,15 +1,18 @@
 package planner
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/deck"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
-func (p *Planner) planDeckDependencies(rs *resources.ResourceSet, plan *Plan) error {
+func (p *Planner) planDeckDependencies(ctx context.Context, rs *resources.ResourceSet, plan *Plan, opts Options) error {
 	if rs == nil || plan == nil {
 		return nil
 	}
@@ -45,12 +48,39 @@ func (p *Planner) planDeckDependencies(rs *resources.ResourceSet, plan *Plan) er
 			}
 		}
 
-		steps := make([]DeckDependencyStep, 0, len(svc.External.Requires.Deck))
-		for _, step := range svc.External.Requires.Deck {
-			steps = append(steps, DeckDependencyStep{Args: append([]string{}, step.Args...)})
+		cpCreateID := findChangeIDByRef(plan.Changes, "control_plane", cpRef, ActionCreate)
+
+		if cpName == "" && cpID != "" {
+			resolved, err := p.resolveDeckControlPlaneName(ctx, cpID)
+			if err != nil {
+				return err
+			}
+			cpName = resolved
 		}
 
+		requires := svc.External.Requires.Deck
+		deckFiles := cloneStringSlice(requires.Files)
+		deckFlags := cloneStringSlice(requires.Flags)
+
 		deckBaseDir := strings.TrimSpace(svc.DeckBaseDir())
+		if cpCreateID == "" && cpID != "" {
+			changes, err := p.deckDiffHasChanges(ctx, svc.GetRef(), cpName, deckBaseDir, deckFiles, deckFlags, opts)
+			if err != nil {
+				return err
+			}
+			if !changes {
+				p.logger.Debug("Deck diff reported no changes; skipping deck plan entry",
+					slog.String("gateway_service_ref", svc.GetRef()),
+				)
+				continue
+			}
+		} else {
+			p.logger.Debug("Skipping deck diff; control plane not yet available",
+				slog.String("gateway_service_ref", svc.GetRef()),
+				slog.String("control_plane_ref", cpRef),
+			)
+		}
+
 		change := PlannedChange{
 			ID:           p.nextChangeID(ActionExternalTool, ResourceTypeDeck, svc.GetRef()),
 			ResourceType: ResourceTypeDeck,
@@ -67,12 +97,13 @@ func (p *Planner) planDeckDependencies(rs *resources.ResourceSet, plan *Plan) er
 						"name": selectorName,
 					},
 				},
-				"steps": steps,
+				"files": deckFiles,
+				"flags": deckFlags,
 			},
 			Namespace: resources.NamespaceExternal,
 		}
 
-		if cpCreateID := findChangeIDByRef(plan.Changes, "control_plane", cpRef, ActionCreate); cpCreateID != "" {
+		if cpCreateID != "" {
 			change.DependsOn = appendDependsOn(change.DependsOn, cpCreateID)
 		}
 
@@ -81,7 +112,7 @@ func (p *Planner) planDeckDependencies(rs *resources.ResourceSet, plan *Plan) er
 
 		p.logger.Debug("Planned deck requirements",
 			slog.String("gateway_service_ref", svc.GetRef()),
-			slog.Int("steps", len(steps)),
+			slog.Int("files", len(deckFiles)),
 		)
 	}
 
@@ -174,4 +205,162 @@ func ensureDeckSelectorName(name string, ref string) error {
 		return fmt.Errorf("gateway_service %s: _external selector.matchFields.name is required", ref)
 	}
 	return nil
+}
+
+type deckDiffOutput struct {
+	Summary deckDiffSummary `json:"summary"`
+	Errors  []any           `json:"errors"`
+}
+
+type deckDiffSummary struct {
+	Creating int `json:"creating"`
+	Updating int `json:"updating"`
+	Deleting int `json:"deleting"`
+	Total    int `json:"total"`
+}
+
+func (p *Planner) deckDiffHasChanges(
+	ctx context.Context,
+	gatewayRef string,
+	controlPlaneName string,
+	deckBaseDir string,
+	files []string,
+	flags []string,
+	opts Options,
+) (bool, error) {
+	mode := opts.Mode
+	switch mode {
+	case PlanModeApply, PlanModeSync:
+	default:
+		return false, fmt.Errorf("gateway_service %s: deck diff requires apply or sync mode", gatewayRef)
+	}
+
+	if len(files) == 0 {
+		return false, fmt.Errorf("gateway_service %s: deck requires at least one state file", gatewayRef)
+	}
+	if strings.TrimSpace(controlPlaneName) == "" {
+		return false, fmt.Errorf("gateway_service %s: control plane name is required for deck diff", gatewayRef)
+	}
+
+	token := strings.TrimSpace(opts.Deck.KonnectToken)
+	if token == "" {
+		return false, fmt.Errorf("gateway_service %s: Konnect token is required for deck diff", gatewayRef)
+	}
+
+	address := strings.TrimSpace(opts.Deck.KonnectAddress)
+	if address == "" {
+		return false, fmt.Errorf("gateway_service %s: Konnect address is required for deck diff", gatewayRef)
+	}
+
+	runner := opts.Deck.Runner
+	if runner == nil {
+		runner = deck.NewRunner()
+	}
+
+	args := []string{"gateway", "diff", "--json-output", "--no-color"}
+	args = append(args, flags...)
+	args = append(args, files...)
+
+	result, err := runner.Run(ctx, deck.RunOptions{
+		Args:                    args,
+		Mode:                    string(mode),
+		KonnectToken:            token,
+		KonnectControlPlaneName: controlPlaneName,
+		KonnectAddress:          address,
+		WorkDir:                 deckBaseDir,
+	})
+	if err != nil {
+		return false, deckDiffRunError(gatewayRef, result, err)
+	}
+	if result == nil {
+		return false, fmt.Errorf("deck diff for gateway_service %s returned no output", gatewayRef)
+	}
+
+	stdout := strings.TrimSpace(result.Stdout)
+	if stdout == "" {
+		return false, fmt.Errorf("deck diff for gateway_service %s returned empty output", gatewayRef)
+	}
+
+	var diff deckDiffOutput
+	if err := json.Unmarshal([]byte(stdout), &diff); err != nil {
+		return false, fmt.Errorf("deck diff for gateway_service %s returned invalid JSON: %w", gatewayRef, err)
+	}
+
+	if len(diff.Errors) > 0 {
+		return false, fmt.Errorf(
+			"deck diff for gateway_service %s reported errors: %s",
+			gatewayRef,
+			formatDeckDiffErrors(diff.Errors),
+		)
+	}
+
+	changes := diff.Summary.Creating + diff.Summary.Updating + diff.Summary.Deleting
+	if mode == PlanModeApply {
+		changes = diff.Summary.Creating + diff.Summary.Updating
+	}
+
+	return changes > 0, nil
+}
+
+func (p *Planner) resolveDeckControlPlaneName(ctx context.Context, cpID string) (string, error) {
+	if strings.TrimSpace(cpID) == "" {
+		return "", fmt.Errorf("deck diff requires a control plane ID to resolve name")
+	}
+	if p.client == nil {
+		return "", fmt.Errorf("state client is required to resolve control plane name")
+	}
+
+	cp, err := p.client.GetControlPlaneByID(ctx, cpID)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve control plane name: %w", err)
+	}
+	if cp == nil || strings.TrimSpace(cp.Name) == "" {
+		return "", fmt.Errorf("control plane %s not found for deck diff", cpID)
+	}
+
+	return cp.Name, nil
+}
+
+func deckDiffRunError(gatewayRef string, result *deck.RunResult, runErr error) error {
+	if result == nil {
+		return fmt.Errorf("deck diff for gateway_service %s failed: %w", gatewayRef, runErr)
+	}
+
+	stderr := strings.TrimSpace(result.Stderr)
+	if stderr == "" {
+		return fmt.Errorf("deck diff for gateway_service %s failed: %w", gatewayRef, runErr)
+	}
+
+	return fmt.Errorf(
+		"deck diff for gateway_service %s failed: %w: deck stderr: %s",
+		gatewayRef,
+		runErr,
+		stderr,
+	)
+}
+
+func formatDeckDiffErrors(errors []any) string {
+	data, err := json.Marshal(errors)
+	if err != nil {
+		return "unknown errors"
+	}
+	return string(data)
+}
+
+func cloneStringSlice(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	cloned := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		cloned = append(cloned, trimmed)
+	}
+	if len(cloned) == 0 {
+		return nil
+	}
+	return cloned
 }

@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"strings"
 	"time"
 )
 
@@ -116,18 +117,14 @@ type ExternalToolDependency struct {
 	ControlPlaneID    string                `json:"control_plane_id,omitempty"`
 	ControlPlaneName  string                `json:"control_plane_name,omitempty"`
 	Selector          *ExternalToolSelector `json:"selector,omitempty"`
-	Steps             []DeckDependencyStep  `json:"steps"`
+	Files             []string              `json:"files,omitempty"`
+	Flags             []string              `json:"flags,omitempty"`
 	DeckBaseDir       string                `json:"deck_base_dir,omitempty"`
 }
 
 // ExternalToolSelector represents selector match fields for external tool dependencies.
 type ExternalToolSelector struct {
 	MatchFields map[string]string `json:"matchFields"`
-}
-
-// DeckDependencyStep represents a single external tool invocation for plan persistence.
-type DeckDependencyStep struct {
-	Args []string `json:"args"`
 }
 
 // NewPlan creates a new plan with metadata
@@ -233,7 +230,8 @@ func externalToolDependencyFromChange(change PlannedChange) ExternalToolDependen
 		ControlPlaneID:    stringFromField(fields, "control_plane_id"),
 		ControlPlaneName:  stringFromField(fields, "control_plane_name"),
 		Selector:          selectorFromFields(fields),
-		Steps:             externalToolStepsFromField(fields["steps"]),
+		Files:             stringSliceFromField(fields, "files"),
+		Flags:             stringSliceFromField(fields, "flags"),
 		DeckBaseDir:       stringFromField(fields, "deck_base_dir"),
 	}
 
@@ -356,30 +354,29 @@ func stringFromField(fields map[string]any, key string) string {
 	return ""
 }
 
-func externalToolStepsFromField(raw any) []DeckDependencyStep {
-	switch v := raw.(type) {
-	case []DeckDependencyStep:
-		steps := make([]DeckDependencyStep, len(v))
-		for i, step := range v {
-			steps[i] = DeckDependencyStep{Args: append([]string{}, step.Args...)}
-		}
-		return steps
-	case []any:
-		steps := make([]DeckDependencyStep, 0, len(v))
-		for _, item := range v {
-			switch step := item.(type) {
-			case DeckDependencyStep:
-				steps = append(steps, DeckDependencyStep{Args: append([]string{}, step.Args...)})
-			case map[string]any:
-				if args, ok := asStringSlice(step["args"]); ok {
-					steps = append(steps, DeckDependencyStep{Args: append([]string{}, args...)})
-				}
-			}
-		}
-		return steps
-	default:
+func stringSliceFromField(fields map[string]any, key string) []string {
+	if len(fields) == 0 {
 		return nil
 	}
+	value, ok := fields[key]
+	if !ok {
+		return nil
+	}
+	items, ok := asStringSlice(value)
+	if !ok {
+		return nil
+	}
+	clone := make([]string, 0, len(items))
+	for _, item := range items {
+		if strings.TrimSpace(item) == "" {
+			continue
+		}
+		clone = append(clone, item)
+	}
+	if len(clone) == 0 {
+		return nil
+	}
+	return clone
 }
 
 // IsEmpty returns true if plan has no changes

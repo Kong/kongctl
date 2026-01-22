@@ -39,7 +39,8 @@ func NewServiceCmd(
 		Aliases: []string{"services", "svc", "svcs"},
 	}
 
-	switch verb { //nolint:exhaustive
+	//nolint:exhaustive
+	switch verb {
 	case verbs.Get, verbs.List:
 		return newGetServiceCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
 	default:
