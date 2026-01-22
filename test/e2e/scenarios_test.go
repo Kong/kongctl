@@ -58,6 +58,11 @@ func scenarioMatches(scenarioPath, filter string) bool {
 	if filter == "" {
 		return true
 	}
+	// Normalize paths to forward slashes for cross-platform compatibility
+	// (filepath.Walk returns backslashes on Windows)
+	scenarioPath = filepath.ToSlash(scenarioPath)
+	filter = filepath.ToSlash(filter)
+
 	// Exact match of full path
 	if scenarioPath == filter {
 		return true
