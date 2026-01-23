@@ -70,7 +70,7 @@ func (t TeamResource) GetMoniker() string {
 
 // GetDependencies returns references to other resources this team depends on
 func (t TeamResource) GetDependencies() []ResourceRef {
-	// teams don't depend on other resources
+	// Teams don't depend on other resources
 	return []ResourceRef{}
 }
 
