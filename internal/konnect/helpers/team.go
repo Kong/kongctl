@@ -8,7 +8,7 @@ import (
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 )
 
-// PortalAPI defines the interface for operations on Teams
+// TeamAPI defines the interface for operations on Teams
 type TeamAPI interface {
 	ListTeams(ctx context.Context, request kkOps.ListTeamsRequest) (*kkOps.ListTeamsResponse, error)
 	GetTeam(ctx context.Context, id string) (*kkOps.GetTeamResponse, error)

@@ -261,7 +261,7 @@ func (m *MockKonnectSDK) GetEventGatewayBackendClusterAPI() EventGatewayBackendC
 	return nil
 }
 
-// Returns a mock instance of the SystemAccountAPI
+// Returns a mock instance of the TeamAPI
 func (m *MockKonnectSDK) GetTeamAPI() TeamAPI {
 	if m.TeamFactory != nil {
 		return m.TeamFactory()

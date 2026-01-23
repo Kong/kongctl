@@ -13,3 +13,10 @@ func InitDir(path string, mode fs.FileMode) error {
 	err := os.MkdirAll(fullPath, mode)
 	return err
 }
+
+func GetString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}

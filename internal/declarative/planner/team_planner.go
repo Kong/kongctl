@@ -7,6 +7,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/util"
 )
 
 // TeamPlannerImpl implements planning logic for teams
@@ -38,7 +39,7 @@ func (t *TeamPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, p
 		currentTeams, err = t.GetClient().ListManagedTeams(ctx, namespaceFilter)
 		if err != nil {
 			// If team client is not configured, skip team planning
-			if err.Error() == "Team client not configured" {
+			if err.Error() == "team API client not configured" {
 				return nil
 			}
 			return fmt.Errorf("failed to list current teams in namespace %s: %w", namespace, err)
@@ -48,11 +49,10 @@ func (t *TeamPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, p
 	// Index current teams by name
 	currentByName := make(map[string]state.Team)
 	for _, team := range currentTeams {
-		teamName := team.GetName()
-		if teamName == nil || *teamName == "" {
+		if team.Name == nil || util.GetString(team.Name) == "" {
 			continue
 		}
-		currentByName[*teamName] = team
+		currentByName[util.GetString(team.Name)] = team
 	}
 
 	// Collect protection validation errors
@@ -153,7 +153,7 @@ func extractTeamFields(resource any) map[string]any {
 
 	fields["name"] = team.Name
 	if team.Description != nil {
-		fields["description"] = *team.Description
+		fields["description"] = util.GetString(team.Description)
 	}
 	// Copy user-defined labels only (protection label will be added during execution)
 	if len(team.GetLabels()) > 0 {
@@ -414,27 +414,27 @@ func (t *TeamPlannerImpl) planTeamDelete(team state.Team, plan *Plan) {
 	if generic != nil {
 		config := DeleteConfig{
 			ResourceType: "team",
-			ResourceName: *team.Name,
-			ResourceRef:  *team.Name,
-			ResourceID:   *team.ID,
+			ResourceName: util.GetString(team.Name),
+			ResourceRef:  util.GetString(team.Name),
+			ResourceID:   util.GetString(team.ID),
 			Namespace:    namespace,
 		}
 		change = generic.PlanDelete(context.Background(), config)
 	} else {
 		// Fallback for tests
-		changeID := t.NextChangeID(ActionDelete, "team", *team.Name)
+		changeID := t.NextChangeID(ActionDelete, "team", util.GetString(team.Name))
 		change = PlannedChange{
 			ID:           changeID,
 			ResourceType: "team",
-			ResourceRef:  *team.Name,
-			ResourceID:   *team.ID,
+			ResourceRef:  util.GetString(team.Name),
+			ResourceID:   util.GetString(team.ID),
 			Action:       ActionDelete,
 			Namespace:    namespace,
 		}
 	}
 
 	// Add the name field for backward compatibility
-	change.Fields = map[string]any{"name": *team.Name}
+	change.Fields = map[string]any{"name": util.GetString(team.Name)}
 
 	plan.AddChange(change)
 }
