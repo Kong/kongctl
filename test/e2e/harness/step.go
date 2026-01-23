@@ -238,6 +238,7 @@ type resourceEndpoint struct {
 	Method    string
 	Path      string
 	ParamKeys []string
+	UseGlobal bool // Use global URL instead of regional URL; necessary for Identity API resources
 }
 
 func (re resourceEndpoint) expandPath(params map[string]string) (string, error) {
@@ -309,6 +310,9 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 		Path:      "/v3/portals/{portalId}/teams/{teamId}/developers",
 		ParamKeys: []string{"portalId", "teamId"},
 	},
+	"system-account": {Method: http.MethodPost, Path: "/v3/system-accounts", UseGlobal: true},
+	"system_account": {Method: http.MethodPost, Path: "/v3/system-accounts", UseGlobal: true},
+	"systemaccount":  {Method: http.MethodPost, Path: "/v3/system-accounts", UseGlobal: true},
 }
 
 func defaultStatusForMethod(method string) int {
@@ -350,6 +354,9 @@ func (s *Step) CreateResource(resource string, body []byte, opts CreateResourceO
 	baseURL := os.Getenv("KONGCTL_E2E_KONNECT_BASE_URL")
 	if baseURL == "" {
 		baseURL = "https://us.api.konghq.com"
+	}
+	if endpoint.UseGlobal {
+		baseURL = "https://global.api.konghq.com"
 	}
 	fullURL := strings.TrimRight(baseURL, "/") + path
 	token := os.Getenv("KONGCTL_E2E_KONNECT_PAT")

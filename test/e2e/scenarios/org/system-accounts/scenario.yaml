@@ -1,0 +1,173 @@
+# System Accounts E2E Test Scenario
+#
+# This scenario tests the kongctl CLI's ability to interact with system accounts.
+# Since the CLI doesn't support create/delete operations for system accounts,
+# this scenario uses direct API calls via the harness to create test accounts,
+# then exercises the CLI's get and list commands.
+#
+# Test flow:
+# 1. Reset org (cleans up any existing system accounts)
+# 2. Create 2 system accounts via API (global.api.konghq.com)
+# 3. Get all system accounts via CLI
+# 4. Get individual accounts by name
+# 5. Get individual accounts by ID
+# 6. List all system accounts (text output)
+# 7. List specific account by name (text output)
+
+vars:
+  account_1_name: e2e-system-account-1
+  account_2_name: e2e-system-account-2
+  account_1_description: "E2E Test System Account 1"
+  account_2_description: "E2E Test System Account 2"
+
+steps:
+  - name: 000-reset
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-system-accounts
+    skipInputs: true
+    commands:
+      - name: 000-create-system-account-1
+        create:
+          resource: system-account
+          payload:
+            inline:
+              name: "{{ .vars.account_1_name }}"
+              description: "{{ .vars.account_1_description }}"
+          recordVar:
+            name: account_1_id
+            responsePath: id
+
+      - name: 001-create-system-account-2
+        create:
+          resource: system-account
+          payload:
+            inline:
+              name: "{{ .vars.account_2_name }}"
+              description: "{{ .vars.account_2_description }}"
+          recordVar:
+            name: account_2_id
+            responsePath: id
+
+  - name: 002-get-all-system-accounts
+    skipInputs: true
+    commands:
+      - name: 000-get-all-system-accounts
+        run:
+          - get
+          - org
+          - system-account
+        assertions:
+          - select: "[?name=='{{ .vars.account_1_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.account_1_name }}"
+                description: "{{ .vars.account_1_description }}"
+                id: "{{ .vars.account_1_id }}"
+          - select: "[?name=='{{ .vars.account_2_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.account_2_name }}"
+                description: "{{ .vars.account_2_description }}"
+                id: "{{ .vars.account_2_id }}"
+
+  - name: 003-get-system-account-by-name
+    skipInputs: true
+    commands:
+      - name: 000-get-by-name-account-1
+        run:
+          - get
+          - org
+          - system-account
+          - "{{ .vars.account_1_name }}"
+        assertions:
+          - expect:
+              fields:
+                name: "{{ .vars.account_1_name }}"
+                description: "{{ .vars.account_1_description }}"
+                id: "{{ .vars.account_1_id }}"
+
+      - name: 001-get-by-name-account-2
+        run:
+          - get
+          - org
+          - system-account
+          - "{{ .vars.account_2_name }}"
+        assertions:
+          - expect:
+              fields:
+                name: "{{ .vars.account_2_name }}"
+                description: "{{ .vars.account_2_description }}"
+                id: "{{ .vars.account_2_id }}"
+
+  - name: 004-get-system-account-by-id
+    skipInputs: true
+    commands:
+      - name: 000-get-by-id-account-1
+        run:
+          - get
+          - org
+          - system-account
+          - "{{ .vars.account_1_id }}"
+        assertions:
+          - expect:
+              fields:
+                name: "{{ .vars.account_1_name }}"
+                description: "{{ .vars.account_1_description }}"
+                id: "{{ .vars.account_1_id }}"
+
+      - name: 001-get-by-id-account-2
+        run:
+          - get
+          - org
+          - system-account
+          - "{{ .vars.account_2_id }}"
+        assertions:
+          - expect:
+              fields:
+                name: "{{ .vars.account_2_name }}"
+                description: "{{ .vars.account_2_description }}"
+                id: "{{ .vars.account_2_id }}"
+
+  - name: 005-list-all-system-accounts
+    skipInputs: true
+    commands:
+      - name: 000-list-all-system-accounts
+        run:
+          - list
+          - org
+          - system-account
+        outputFormat: text  # List commands output formatted tables
+        parseAs: raw        # Parse as {"stdout": "..."} for text validation
+        assertions:
+          # Verify both accounts appear in the list output
+          # JMESPath contains() checks if account name is in the text
+          - name: account-1-in-output
+            expect:
+              fields:
+                "contains(stdout, 'e2e-system-account-1')": true
+          - name: account-2-in-output
+            expect:
+              fields:
+                "contains(stdout, 'e2e-system-account-2')": true
+
+  - name: 006-list-system-account-by-name
+    skipInputs: true
+    commands:
+      - name: 000-list-by-name-account-1
+        run:
+          - list
+          - org
+          - system-account
+          - e2e-system-account-1
+        outputFormat: text  # List commands output formatted tables
+        parseAs: raw        # Parse as {"stdout": "..."} for text validation
+        assertions:
+          # Verify the specific account appears in the filtered list
+          # JMESPath contains() evaluates to true if string is found
+          - name: account-1-in-output
+            expect:
+              fields:
+                "contains(stdout, 'e2e-system-account-1')": true

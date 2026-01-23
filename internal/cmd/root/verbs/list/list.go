@@ -119,6 +119,11 @@ Setting this value overrides tokens obtained from the login command.
 
 	cmd.AddCommand(newThemesCmd())
 
+	organizationCmd, err := NewDirectOrganizationCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(organizationCmd)
 	return cmd, nil
 }
 
