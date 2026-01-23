@@ -345,5 +345,10 @@ func newGetEventGatewayControlPlaneCmd(verb verbs.VerbValue,
 		addParentFlags(verb, rv.Command)
 	}
 
+	// Add child commands
+	if backendClustersCmd := newGetEventGatewayBackendClustersCmd(verb, addParentFlags, parentPreRun); backendClustersCmd != nil {
+		rv.AddCommand(backendClustersCmd)
+	}
+
 	return &rv
 }

@@ -10,8 +10,8 @@ import (
 )
 
 type EventGatewayBackendClusterResource struct {
-	kkComps.CreateBackendClusterRequest `                      yaml:",inline"                       json:",inline"`
-	Ref                                 string `yaml:"ref"           json:"ref"`
+	kkComps.CreateBackendClusterRequest `       yaml:",inline"                 json:",inline"`
+	Ref                                 string `yaml:"ref"                     json:"ref"`
 	// Parent Event Gateway reference (for root-level definitions)
 	EventGateway string `yaml:"event_gateway,omitempty" json:"event_gateway,omitempty"`
 

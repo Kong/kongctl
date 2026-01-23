@@ -338,7 +338,8 @@ func (p *Planner) planEGWControlPlaneUpdateWithFields(
 	current state.EventGatewayControlPlane,
 	desired resources.EventGatewayControlPlaneResource,
 	updateFields map[string]any,
-	plan *Plan) {
+	plan *Plan,
+) {
 	var protection any
 	if desired.Kongctl != nil && desired.Kongctl.Protected != nil {
 		protection = *desired.Kongctl.Protected

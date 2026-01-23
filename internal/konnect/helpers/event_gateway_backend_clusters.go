@@ -16,8 +16,13 @@ type EventGatewayBackendClusterAPI interface {
 		opts ...kkOps.Option) (*kkOps.GetEventGatewayBackendClusterResponse, error)
 	CreateEventGatewayBackendCluster(ctx context.Context, gatewayID string, request kkComps.CreateBackendClusterRequest,
 		opts ...kkOps.Option) (*kkOps.CreateEventGatewayBackendClusterResponse, error)
-	UpdateEventGatewayBackendCluster(ctx context.Context, gatewayID string, clusterID string, request kkComps.UpdateBackendClusterRequest,
-		opts ...kkOps.Option) (*kkOps.UpdateEventGatewayBackendClusterResponse, error)
+	UpdateEventGatewayBackendCluster(
+		ctx context.Context,
+		gatewayID string,
+		clusterID string,
+		request kkComps.UpdateBackendClusterRequest,
+		opts ...kkOps.Option,
+	) (*kkOps.UpdateEventGatewayBackendClusterResponse, error)
 	DeleteEventGatewayBackendCluster(ctx context.Context, gatewayID string, clusterID string,
 		opts ...kkOps.Option) (*kkOps.DeleteEventGatewayBackendClusterResponse, error)
 }
@@ -28,19 +33,27 @@ type EventGatewayBackendClusterAPIImpl struct {
 	SDK *kkSDK.SDK
 }
 
-func (a *EventGatewayBackendClusterAPIImpl) ListEventGatewayBackendClusters(ctx context.Context, request kkOps.ListEventGatewayBackendClustersRequest,
+func (a *EventGatewayBackendClusterAPIImpl) ListEventGatewayBackendClusters(
+	ctx context.Context,
+	request kkOps.ListEventGatewayBackendClustersRequest,
 	opts ...kkOps.Option,
 ) (*kkOps.ListEventGatewayBackendClustersResponse, error) {
 	return a.SDK.EventGatewayBackendClusters.ListEventGatewayBackendClusters(ctx, request, opts...)
 }
 
-func (a *EventGatewayBackendClusterAPIImpl) FetchEventGatewayBackendCluster(ctx context.Context, gatewayID string, clusterID string,
+func (a *EventGatewayBackendClusterAPIImpl) FetchEventGatewayBackendCluster(
+	ctx context.Context,
+	gatewayID string,
+	clusterID string,
 	opts ...kkOps.Option,
 ) (*kkOps.GetEventGatewayBackendClusterResponse, error) {
 	return a.SDK.EventGatewayBackendClusters.GetEventGatewayBackendCluster(ctx, gatewayID, clusterID, opts...)
 }
 
-func (a *EventGatewayBackendClusterAPIImpl) CreateEventGatewayBackendCluster(ctx context.Context, gatewayID string, request kkComps.CreateBackendClusterRequest,
+func (a *EventGatewayBackendClusterAPIImpl) CreateEventGatewayBackendCluster(
+	ctx context.Context,
+	gatewayID string,
+	request kkComps.CreateBackendClusterRequest,
 	opts ...kkOps.Option,
 ) (*kkOps.CreateEventGatewayBackendClusterResponse, error) {
 	return a.SDK.EventGatewayBackendClusters.CreateEventGatewayBackendCluster(ctx, gatewayID, &request, opts...)
@@ -62,7 +75,10 @@ func (a *EventGatewayBackendClusterAPIImpl) UpdateEventGatewayBackendCluster(
 	return a.SDK.EventGatewayBackendClusters.UpdateEventGatewayBackendCluster(ctx, putRequest, opts...)
 }
 
-func (a *EventGatewayBackendClusterAPIImpl) DeleteEventGatewayBackendCluster(ctx context.Context, gatewayID string, clusterID string,
+func (a *EventGatewayBackendClusterAPIImpl) DeleteEventGatewayBackendCluster(
+	ctx context.Context,
+	gatewayID string,
+	clusterID string,
 	opts ...kkOps.Option,
 ) (*kkOps.DeleteEventGatewayBackendClusterResponse, error) {
 	return a.SDK.EventGatewayBackendClusters.DeleteEventGatewayBackendCluster(ctx, gatewayID, clusterID, opts...)

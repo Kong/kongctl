@@ -128,7 +128,9 @@ func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 }
 
 // convertToSensitiveDataAwareAuth converts BackendClusterAuthenticationScheme to BackendClusterAuthenticationSensitiveDataAwareScheme
-func convertToSensitiveDataAwareAuth(auth kkComps.BackendClusterAuthenticationScheme) (kkComps.BackendClusterAuthenticationSensitiveDataAwareScheme, error) {
+func convertToSensitiveDataAwareAuth(
+	auth kkComps.BackendClusterAuthenticationScheme,
+) (kkComps.BackendClusterAuthenticationSensitiveDataAwareScheme, error) {
 	switch auth.Type {
 	case kkComps.BackendClusterAuthenticationSchemeTypeAnonymous:
 		return kkComps.CreateBackendClusterAuthenticationSensitiveDataAwareSchemeAnonymous(

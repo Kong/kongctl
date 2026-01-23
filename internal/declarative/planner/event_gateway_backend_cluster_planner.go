@@ -327,7 +327,10 @@ func (p *Planner) shouldUpdateBackendCluster(
 	}
 
 	// Compare insecure flag
-	if !compareBoolPtrs(current.InsecureAllowAnonymousVirtualClusterAuth, desired.InsecureAllowAnonymousVirtualClusterAuth) {
+	if !compareBoolPtrs(
+		current.InsecureAllowAnonymousVirtualClusterAuth,
+		desired.InsecureAllowAnonymousVirtualClusterAuth,
+	) {
 		needsUpdate = true
 	}
 
@@ -372,7 +375,10 @@ func (p *Planner) shouldUpdateBackendCluster(
 }
 
 // Helper functions for comparisons
-func compareAuthenticationSchemes(a components.BackendClusterAuthenticationSensitiveDataAwareScheme, b components.BackendClusterAuthenticationScheme) bool {
+func compareAuthenticationSchemes(
+	a components.BackendClusterAuthenticationSensitiveDataAwareScheme,
+	b components.BackendClusterAuthenticationScheme,
+) bool {
 	if string(a.Type) != string(b.Type) {
 		return false
 	}
@@ -382,13 +388,15 @@ func compareAuthenticationSchemes(a components.BackendClusterAuthenticationSensi
 		// Nothing to compare within anonynmous
 		return true
 	case components.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeSaslPlain:
-		if a.BackendClusterAuthenticationSaslPlainSensitiveDataAware == nil || b.BackendClusterAuthenticationSaslPlain == nil {
+		if a.BackendClusterAuthenticationSaslPlainSensitiveDataAware == nil ||
+			b.BackendClusterAuthenticationSaslPlain == nil {
 			return false
 		}
 		return a.BackendClusterAuthenticationSaslPlainSensitiveDataAware.Username == b.BackendClusterAuthenticationSaslPlain.Username &&
 			*a.BackendClusterAuthenticationSaslPlainSensitiveDataAware.Password == b.BackendClusterAuthenticationSaslPlain.Password
 	case components.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeSaslScram:
-		if a.BackendClusterAuthenticationSaslScramSensitiveDataAware == nil || b.BackendClusterAuthenticationSaslScram == nil {
+		if a.BackendClusterAuthenticationSaslScramSensitiveDataAware == nil ||
+			b.BackendClusterAuthenticationSaslScram == nil {
 			return false
 		}
 		return a.BackendClusterAuthenticationSaslScramSensitiveDataAware.Username == b.BackendClusterAuthenticationSaslScram.Username &&
