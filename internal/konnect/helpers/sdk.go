@@ -45,6 +45,7 @@ type SDKAPI interface {
 	GetAssetsAPI() AssetsAPI
 	GetPortalEmailsAPI() PortalEmailsAPI
 	GetEventGatewayControlPlaneAPI() EGWControlPlaneAPI
+	GetEventGatewayBackendClusterAPI() EventGatewayBackendClusterAPI
 }
 
 // This is the real implementation of the SDKAPI
@@ -292,6 +293,16 @@ func (k *KonnectSDK) GetSystemAccountAPI() SystemAccountAPI {
 	}
 
 	return &SystemAccountAPIImpl{SDK: k.SDK}
+
+}
+
+// Returns the implementation of the EventGatewayBackendCluster interface
+func (k *KonnectSDK) GetEventGatewayBackendClusterAPI() EventGatewayBackendClusterAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &EventGatewayBackendClusterAPIImpl{SDK: k.SDK}
 }
 
 // A function that can build an SDKAPI with a given configuration

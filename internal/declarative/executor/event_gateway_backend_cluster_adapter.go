@@ -93,7 +93,16 @@ func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 	}
 
 	// Note: Authentication type differs between create and update in SDK
-	// For updates, authentication cannot be changed, so we skip it
+	// Convert from BackendClusterAuthenticationScheme to BackendClusterAuthenticationSensitiveDataAwareScheme
+	if authField, ok := fields["authentication"]; ok {
+		if auth, ok := authField.(kkComps.BackendClusterAuthenticationScheme); ok {
+			sensitiveAuth, err := convertToSensitiveDataAwareAuth(auth)
+			if err != nil {
+				return fmt.Errorf("failed to convert authentication: %w", err)
+			}
+			update.Authentication = sensitiveAuth
+		}
+	}
 
 	if servers, ok := fields["bootstrap_servers"].([]string); ok {
 		update.BootstrapServers = servers
@@ -116,6 +125,44 @@ func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 	}
 
 	return nil
+}
+
+// convertToSensitiveDataAwareAuth converts BackendClusterAuthenticationScheme to BackendClusterAuthenticationSensitiveDataAwareScheme
+func convertToSensitiveDataAwareAuth(auth kkComps.BackendClusterAuthenticationScheme) (kkComps.BackendClusterAuthenticationSensitiveDataAwareScheme, error) {
+	switch auth.Type {
+	case kkComps.BackendClusterAuthenticationSchemeTypeAnonymous:
+		return kkComps.CreateBackendClusterAuthenticationSensitiveDataAwareSchemeAnonymous(
+			kkComps.BackendClusterAuthenticationAnonymous{},
+		), nil
+
+	case kkComps.BackendClusterAuthenticationSchemeTypeSaslPlain:
+		if auth.BackendClusterAuthenticationSaslPlain == nil {
+			return kkComps.BackendClusterAuthenticationSensitiveDataAwareScheme{},
+				fmt.Errorf("SASL Plain authentication data is missing")
+		}
+		return kkComps.CreateBackendClusterAuthenticationSensitiveDataAwareSchemeSaslPlain(
+			kkComps.BackendClusterAuthenticationSaslPlainSensitiveDataAware{
+				Username: auth.BackendClusterAuthenticationSaslPlain.Username,
+				Password: &auth.BackendClusterAuthenticationSaslPlain.Password,
+			},
+		), nil
+
+	case kkComps.BackendClusterAuthenticationSchemeTypeSaslScram:
+		if auth.BackendClusterAuthenticationSaslScram == nil {
+			return kkComps.BackendClusterAuthenticationSensitiveDataAwareScheme{},
+				fmt.Errorf("SASL SCRAM authentication data is missing")
+		}
+		return kkComps.CreateBackendClusterAuthenticationSensitiveDataAwareSchemeSaslScram(
+			kkComps.BackendClusterAuthenticationSaslScramSensitiveDataAware{
+				Username: auth.BackendClusterAuthenticationSaslScram.Username,
+				Password: &auth.BackendClusterAuthenticationSaslScram.Password,
+			},
+		), nil
+
+	default:
+		return kkComps.BackendClusterAuthenticationSensitiveDataAwareScheme{},
+			fmt.Errorf("unsupported authentication type: %s", auth.Type)
+	}
 }
 
 // Create creates a new backend cluster

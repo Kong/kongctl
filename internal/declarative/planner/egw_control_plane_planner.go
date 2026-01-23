@@ -37,89 +37,7 @@ func (p *EGWControlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx
 		return nil
 	}
 
-	err := p.planner.planEGWControlPlaneChanges(ctx, plannerCtx, desired, plan)
-
-	if err != nil {
-		return err
-	}
-
-	// Plan backend clusters nested under gateways
-	if err := p.planNestedBackendClusters(ctx, plannerCtx, namespace, plan); err != nil {
-		return err
-	}
-
-	// Plan root-level backend clusters
-	if err := p.planRootLevelBackendClusters(ctx, plannerCtx, namespace, plan); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// planNestedBackendClusters plans backend clusters nested under event gateways
-func (p *EGWControlPlanePlannerImpl) planNestedBackendClusters(
-	ctx context.Context,
-	plannerCtx *Config,
-	namespace string,
-	plan *Plan,
-) error {
-	var nestedClusters []resources.EventGatewayBackendClusterResource
-
-	// Collect all nested backend clusters from event gateways
-	for _, gateway := range p.resources.EventGatewayControlPlanes {
-		// Skip gateways not in this namespace
-		if gateway.Kongctl == nil || gateway.Kongctl.Namespace == nil || *gateway.Kongctl.Namespace != namespace {
-			continue
-		}
-
-		for _, cluster := range gateway.BackendClusters {
-			// Set parent reference
-			clusterCopy := cluster
-			clusterCopy.EventGateway = gateway.Ref
-			nestedClusters = append(nestedClusters, clusterCopy)
-		}
-	}
-
-	if len(nestedClusters) > 0 {
-		return p.planner.planEventGatewayBackendClusterChanges(ctx, plannerCtx, namespace, nestedClusters, plan)
-	}
-
-	return nil
-}
-
-// planRootLevelBackendClusters plans backend clusters defined at root level
-func (p *EGWControlPlanePlannerImpl) planRootLevelBackendClusters(
-	ctx context.Context,
-	plannerCtx *Config,
-	namespace string,
-	plan *Plan,
-) error {
-	var rootClusters []resources.EventGatewayBackendClusterResource
-
-	// Collect root-level backend clusters
-	for _, cluster := range p.resources.EventGatewayBackendClusters {
-		// Backend clusters inherit namespace from parent gateway
-		// We'll filter by checking if the parent gateway is in this namespace
-		parentInNamespace := false
-		for _, gateway := range p.resources.EventGatewayControlPlanes {
-			if gateway.Ref == cluster.EventGateway {
-				if gateway.Kongctl != nil && gateway.Kongctl.Namespace != nil && *gateway.Kongctl.Namespace == namespace {
-					parentInNamespace = true
-					break
-				}
-			}
-		}
-
-		if parentInNamespace {
-			rootClusters = append(rootClusters, cluster)
-		}
-	}
-
-	if len(rootClusters) > 0 {
-		return p.planner.planEventGatewayBackendClusterChanges(ctx, plannerCtx, namespace, rootClusters, plan)
-	}
-
-	return nil
+	return p.planner.planEGWControlPlaneChanges(ctx, plannerCtx, desired, plan)
 }
 
 func (p *Planner) planEGWControlPlaneChanges(
@@ -213,6 +131,21 @@ func (p *Planner) planEGWControlPlaneChanges(
 						p.planEGWControlPlaneUpdateWithFields(current, desiredEGWCP, updateFields, plan)
 					}
 				}
+			}
+		}
+
+		// Plan backend clusters for this gateway (whether it exists or is being created)
+		backendClusters := p.resources.GetBackendClustersForGateway(desiredEGWCP.Ref)
+		gatewayID := ""
+		if exists {
+			gatewayID = current.ID
+		}
+
+		if len(backendClusters) > 0 || plan.Metadata.Mode == PlanModeSync {
+			if err := p.planEventGatewayBackendClusterChanges(
+				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref, backendClusters, plan,
+			); err != nil {
+				return err
 			}
 		}
 	}

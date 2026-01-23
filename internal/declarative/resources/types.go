@@ -638,3 +638,30 @@ func (rs *ResourceSet) AddDefaultNamespace(namespace string) {
 	}
 	rs.DefaultNamespaces = append(rs.DefaultNamespaces, namespace)
 }
+
+// GetBackendClustersForGateway returns all backend clusters (nested + root-level) for a given gateway ref
+func (rs *ResourceSet) GetBackendClustersForGateway(gatewayRef string) []EventGatewayBackendClusterResource {
+	var clusters []EventGatewayBackendClusterResource
+
+	// Find the gateway to get nested clusters
+	for _, gateway := range rs.EventGatewayControlPlanes {
+		if gateway.Ref == gatewayRef {
+			// Add nested backend clusters
+			for _, cluster := range gateway.BackendClusters {
+				clusterCopy := cluster
+				clusterCopy.EventGateway = gatewayRef
+				clusters = append(clusters, clusterCopy)
+			}
+			break
+		}
+	}
+
+	// Add root-level backend clusters for this gateway
+	for _, cluster := range rs.EventGatewayBackendClusters {
+		if cluster.EventGateway == gatewayRef {
+			clusters = append(clusters, cluster)
+		}
+	}
+
+	return clusters
+}

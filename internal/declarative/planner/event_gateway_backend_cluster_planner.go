@@ -5,78 +5,40 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
-// planEventGatewayBackendClusterChanges plans changes for Event Gateway Backend Clusters (child resources)
+// planEventGatewayBackendClusterChanges plans changes for Event Gateway Backend Clusters for a specific gateway
 func (p *Planner) planEventGatewayBackendClusterChanges(
 	ctx context.Context,
 	plannerCtx *Config,
-	parentNamespace string,
+	namespace string,
+	gatewayName string,
+	gatewayID string,
+	gatewayRef string,
 	desired []resources.EventGatewayBackendClusterResource,
 	plan *Plan,
 ) error {
 	p.logger.Debug("Planning Event Gateway Backend Cluster changes",
+		"gateway_name", gatewayName,
+		"gateway_id", gatewayID,
+		"gateway_ref", gatewayRef,
 		"desired_count", len(desired),
-		"namespace", parentNamespace,
+		"namespace", namespace,
 	)
 
-	// Group backend clusters by parent event gateway
-	clustersByGateway := make(map[string][]resources.EventGatewayBackendClusterResource)
-	for _, cluster := range desired {
-		gatewayRef := cluster.EventGateway
-		clustersByGateway[gatewayRef] = append(clustersByGateway[gatewayRef], cluster)
-	}
-
-	// Get event gateway name to ID mapping
-	namespaceFilter := []string{plannerCtx.Namespace}
-	existingGateways, err := p.client.ListManagedEventGatewayControlPlanes(ctx, namespaceFilter)
-	if err != nil {
-		// If API client is not configured, skip
-		if state.IsAPIClientError(err) {
-			return nil
-		}
-		return fmt.Errorf("failed to list event gateways: %w", err)
-	}
-
-	gatewayNameToID := make(map[string]string)
-	for _, gw := range existingGateways {
-		gatewayNameToID[gw.Name] = gw.ID
-	}
-
-	// Build gateway ref to name mapping from desired resources
-	gatewayRefToName := make(map[string]string)
-	for _, egw := range p.resources.EventGatewayControlPlanes {
-		gatewayRefToName[egw.Ref] = egw.Name
-	}
-
-	// Process backend clusters for each gateway
-	for gatewayRef, clusters := range clustersByGateway {
-		gatewayName := gatewayRefToName[gatewayRef]
-		gatewayID := gatewayNameToID[gatewayName]
-
-		p.logger.Debug("Processing backend clusters for gateway",
-			"gateway_ref", gatewayRef,
-			"gateway_name", gatewayName,
-			"gateway_id", gatewayID,
-			"cluster_count", len(clusters),
+	if gatewayID != "" {
+		// Gateway exists: full diff
+		return p.planBackendClusterChangesForExistingGateway(
+			ctx, namespace, gatewayID, gatewayRef, gatewayName, desired, plan,
 		)
-
-		if gatewayID != "" {
-			// Gateway exists: full diff
-			if err := p.planBackendClusterChangesForExistingGateway(
-				ctx, parentNamespace, gatewayID, gatewayRef, gatewayName, clusters, plan,
-			); err != nil {
-				return err
-			}
-		} else {
-			// Gateway doesn't exist: plan creates only (dependencies will be set up)
-			p.planBackendClusterCreatesForNewGateway(parentNamespace, gatewayRef, gatewayName, clusters, plan)
-		}
+	} else {
+		// Gateway doesn't exist: plan creates only (dependencies will be set up)
+		p.planBackendClusterCreatesForNewGateway(namespace, gatewayRef, gatewayName, desired, plan)
+		return nil
 	}
-
-	return nil
 }
 
 // planBackendClusterChangesForExistingGateway handles full diff for clusters of an existing gateway
@@ -335,57 +297,105 @@ func (p *Planner) shouldUpdateBackendCluster(
 	desired resources.EventGatewayBackendClusterResource,
 ) (bool, map[string]any) {
 	updates := make(map[string]any)
+	needsUpdate := false
 
 	// Compare name
 	if current.Name != desired.Name {
-		updates["name"] = desired.Name
+		needsUpdate = true
 	}
 
 	// Compare description
 	currentDesc := getString(current.Description)
 	desiredDesc := getString(desired.Description)
 	if currentDesc != desiredDesc {
-		updates["description"] = desiredDesc
+		needsUpdate = true
 	}
 
-	// Compare authentication (skip for now as types differ between response and request)
-	// TODO: Add proper authentication comparison
+	// Compare authentication
+	if !compareAuthenticationSchemes(current.Authentication, desired.Authentication) {
+		needsUpdate = true
+	}
 
 	// Compare bootstrap servers
 	if !compareStringSlices(current.BootstrapServers, desired.BootstrapServers) {
-		updates["bootstrap_servers"] = desired.BootstrapServers
+		needsUpdate = true
 	}
 
 	// Compare TLS settings
 	if !compareTLSSettings(current.TLS, desired.TLS) {
-		updates["tls"] = desired.TLS
+		needsUpdate = true
 	}
 
 	// Compare insecure flag
 	if !compareBoolPtrs(current.InsecureAllowAnonymousVirtualClusterAuth, desired.InsecureAllowAnonymousVirtualClusterAuth) {
-		if desired.InsecureAllowAnonymousVirtualClusterAuth != nil {
-			updates["insecure_allow_anonymous_virtual_cluster_auth"] = *desired.InsecureAllowAnonymousVirtualClusterAuth
-		}
+		needsUpdate = true
 	}
 
 	// Compare metadata update interval
 	if !compareInt64Ptrs(current.MetadataUpdateIntervalSeconds, desired.MetadataUpdateIntervalSeconds) {
-		if desired.MetadataUpdateIntervalSeconds != nil {
-			updates["metadata_update_interval_seconds"] = *desired.MetadataUpdateIntervalSeconds
-		}
+		needsUpdate = true
 	}
 
 	// Compare labels (user labels only, ignore KONGCTL labels)
 	if desired.Labels != nil {
 		if !compareStringMaps(current.Labels, desired.Labels) {
+			needsUpdate = true
+		}
+	}
+
+	// If any changes detected, set ALL properties from desired state for PUT request
+	if needsUpdate {
+		updates["name"] = desired.Name
+
+		if desired.Description != nil {
+			updates["description"] = *desired.Description
+		}
+
+		updates["authentication"] = desired.Authentication
+		updates["bootstrap_servers"] = desired.BootstrapServers
+		updates["tls"] = desired.TLS
+
+		if desired.InsecureAllowAnonymousVirtualClusterAuth != nil {
+			updates["insecure_allow_anonymous_virtual_cluster_auth"] = *desired.InsecureAllowAnonymousVirtualClusterAuth
+		}
+
+		if desired.MetadataUpdateIntervalSeconds != nil {
+			updates["metadata_update_interval_seconds"] = *desired.MetadataUpdateIntervalSeconds
+		}
+
+		if len(desired.Labels) > 0 {
 			updates["labels"] = desired.Labels
 		}
 	}
 
-	return len(updates) > 0, updates
+	return needsUpdate, updates
 }
 
 // Helper functions for comparisons
+func compareAuthenticationSchemes(a components.BackendClusterAuthenticationSensitiveDataAwareScheme, b components.BackendClusterAuthenticationScheme) bool {
+	if string(a.Type) != string(b.Type) {
+		return false
+	}
+
+	switch a.Type {
+	case components.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeAnonymous:
+		// Nothing to compare within anonynmous
+		return true
+	case components.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeSaslPlain:
+		if a.BackendClusterAuthenticationSaslPlainSensitiveDataAware == nil || b.BackendClusterAuthenticationSaslPlain == nil {
+			return false
+		}
+		return a.BackendClusterAuthenticationSaslPlainSensitiveDataAware.Username == b.BackendClusterAuthenticationSaslPlain.Username &&
+			*a.BackendClusterAuthenticationSaslPlainSensitiveDataAware.Password == b.BackendClusterAuthenticationSaslPlain.Password
+	case components.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeSaslScram:
+		if a.BackendClusterAuthenticationSaslScramSensitiveDataAware == nil || b.BackendClusterAuthenticationSaslScram == nil {
+			return false
+		}
+		return a.BackendClusterAuthenticationSaslScramSensitiveDataAware.Username == b.BackendClusterAuthenticationSaslScram.Username &&
+			*a.BackendClusterAuthenticationSaslScramSensitiveDataAware.Password == b.BackendClusterAuthenticationSaslScram.Password
+	}
+	return false
+}
 
 func compareStringSlices(a, b []string) bool {
 	if len(a) != len(b) {

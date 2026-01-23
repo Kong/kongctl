@@ -50,10 +50,16 @@ func (a *EventGatewayBackendClusterAPIImpl) UpdateEventGatewayBackendCluster(
 	ctx context.Context,
 	gatewayID string,
 	clusterID string,
-	request kkOps.UpdateEventGatewayBackendClusterRequest,
+	request kkComps.UpdateBackendClusterRequest,
 	opts ...kkOps.Option,
 ) (*kkOps.UpdateEventGatewayBackendClusterResponse, error) {
-	return a.SDK.EventGatewayBackendClusters.UpdateEventGatewayBackendCluster(ctx, request, opts...)
+	putRequest := kkOps.UpdateEventGatewayBackendClusterRequest{
+		BackendClusterID:            clusterID,
+		GatewayID:                   gatewayID,
+		UpdateBackendClusterRequest: &request,
+	}
+
+	return a.SDK.EventGatewayBackendClusters.UpdateEventGatewayBackendCluster(ctx, putRequest, opts...)
 }
 
 func (a *EventGatewayBackendClusterAPIImpl) DeleteEventGatewayBackendCluster(ctx context.Context, gatewayID string, clusterID string,
