@@ -1437,7 +1437,8 @@ func runSync(command *cobra.Command, args []string) error {
 
 		// Check if configuration is empty
 		totalResources := len(resourceSet.Portals) + len(resourceSet.ApplicationAuthStrategies) +
-			len(resourceSet.ControlPlanes) + len(resourceSet.APIs) + len(resourceSet.CatalogServices)
+			len(resourceSet.ControlPlanes) + len(resourceSet.APIs) + len(resourceSet.CatalogServices) +
+			len(resourceSet.EventGatewayControlPlanes)
 
 		// In sync mode, allow empty configuration to detect resources to delete
 		if totalResources == 0 {
