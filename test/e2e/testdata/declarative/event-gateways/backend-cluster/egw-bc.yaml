@@ -15,4 +15,3 @@ event_gateways:
           - "egw-backend-2.example.com:9092"
         authentication:
           type: anonymous
-          anonymous: {}

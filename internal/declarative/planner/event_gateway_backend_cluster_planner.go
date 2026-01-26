@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"reflect"
 
 	"github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -327,7 +328,7 @@ func (p *Planner) shouldUpdateBackendCluster(
 	}
 
 	// Compare insecure flag
-	if !compareBoolPtrs(
+	if desired.InsecureAllowAnonymousVirtualClusterAuth != nil && !compareBoolPtrs(
 		current.InsecureAllowAnonymousVirtualClusterAuth,
 		desired.InsecureAllowAnonymousVirtualClusterAuth,
 	) {
@@ -335,7 +336,8 @@ func (p *Planner) shouldUpdateBackendCluster(
 	}
 
 	// Compare metadata update interval
-	if !compareInt64Ptrs(current.MetadataUpdateIntervalSeconds, desired.MetadataUpdateIntervalSeconds) {
+	if desired.MetadataUpdateIntervalSeconds != nil &&
+		!compareInt64Ptrs(current.MetadataUpdateIntervalSeconds, desired.MetadataUpdateIntervalSeconds) {
 		needsUpdate = true
 	}
 
@@ -392,6 +394,12 @@ func compareAuthenticationSchemes(
 			b.BackendClusterAuthenticationSaslPlain == nil {
 			return false
 		}
+
+		if a.BackendClusterAuthenticationSaslPlainSensitiveDataAware.Password == nil {
+			// Password can be omitted in responses if literal value was used. Treat as unequal in that case.
+			return false
+		}
+
 		return a.BackendClusterAuthenticationSaslPlainSensitiveDataAware.Username == b.BackendClusterAuthenticationSaslPlain.Username &&
 			*a.BackendClusterAuthenticationSaslPlainSensitiveDataAware.Password == b.BackendClusterAuthenticationSaslPlain.Password
 	case components.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeSaslScram:
@@ -452,5 +460,5 @@ func compareStringMaps(a, b map[string]string) bool {
 func compareTLSSettings(a, b interface{}) bool {
 	// For now, do a simple comparison
 	// This can be enhanced to do deep comparison of TLS fields
-	return fmt.Sprintf("%+v", a) == fmt.Sprintf("%+v", b)
+	return reflect.DeepEqual(a, b)
 }

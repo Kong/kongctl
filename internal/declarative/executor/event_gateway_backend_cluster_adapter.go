@@ -154,12 +154,45 @@ func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 		update.Authentication = sensitiveAuth
 	}
 
-	if servers, ok := fields["bootstrap_servers"].([]string); ok {
+	// Handle bootstrap_servers as []interface{} or []string
+	if servers, ok := fields["bootstrap_servers"].([]interface{}); ok {
+		update.BootstrapServers = make([]string, len(servers))
+		for i, srv := range servers {
+			if srvStr, ok := srv.(string); ok {
+				update.BootstrapServers[i] = srvStr
+			} else {
+				return fmt.Errorf("bootstrap_servers must be a list of strings")
+			}
+		}
+	} else if servers, ok := fields["bootstrap_servers"].([]string); ok {
 		update.BootstrapServers = servers
 	}
 
+	// Handle TLS as SDK type or map[string]any
 	if tls, ok := fields["tls"].(kkComps.BackendClusterTLS); ok {
 		update.TLS = tls
+	} else if tlsMap, ok := fields["tls"].(map[string]any); ok {
+		var backendTLS kkComps.BackendClusterTLS
+		if enabled, ok := tlsMap["enabled"].(bool); ok {
+			backendTLS.Enabled = enabled
+		}
+		if insecure, ok := tlsMap["insecure_skip_verify"].(bool); ok {
+			backendTLS.InsecureSkipVerify = &insecure
+		}
+		if caCert, ok := tlsMap["ca_bundle"].(string); ok {
+			backendTLS.CaBundle = &caCert
+		}
+		if versions, ok := tlsMap["tls_versions"].([]interface{}); ok {
+			backendTLS.TLSVersions = make([]kkComps.TLSVersions, len(versions))
+			for i, v := range versions {
+				if vStr, ok := v.(string); ok {
+					backendTLS.TLSVersions[i] = kkComps.TLSVersions(vStr)
+				} else {
+					return fmt.Errorf("tls_versions must be a list of strings")
+				}
+			}
+		}
+		update.TLS = backendTLS
 	}
 
 	if insecure, ok := fields["insecure_allow_anonymous_virtual_cluster_auth"].(bool); ok {
@@ -204,19 +237,13 @@ func buildAuthenticationScheme(authField any) (kkComps.BackendClusterAuthenticat
 		), nil
 
 	case "sasl_plain":
-		plainMap, ok := authMap["sasl_plain"].(map[string]any)
-		if !ok {
-			return kkComps.BackendClusterAuthenticationScheme{},
-				fmt.Errorf("sasl_plain configuration is required for sasl_plain authentication")
-		}
-
-		username, ok := plainMap["username"].(string)
+		username, ok := authMap["username"].(string)
 		if !ok {
 			return kkComps.BackendClusterAuthenticationScheme{},
 				fmt.Errorf("sasl_plain.username is required and must be a string")
 		}
 
-		password, ok := plainMap["password"].(string)
+		password, ok := authMap["password"].(string)
 		if !ok {
 			return kkComps.BackendClusterAuthenticationScheme{},
 				fmt.Errorf("sasl_plain.password is required and must be a string")
