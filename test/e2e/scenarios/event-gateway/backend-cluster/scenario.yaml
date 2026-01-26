@@ -147,10 +147,61 @@ steps:
                   - "tls12"
                   - "tls13"
   - name: 003-sync-delete
+    inputOverlayDirs:
+      - overlays/002-sync-delete
     commands:
-    - name: 001-plan-sync-delete
-    - name: 002-sync-delete
-    - name: 003-verify-delete
+      - name: 001-plan-sync-delete
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/egw-bc.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_backend_cluster' && resource_ref=='default-backend-cluster'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: "default-backend-cluster"
+      - name: 002-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-delete
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - egw-cp-for-bc-test
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
   - name: 004-root-level-backend-cluster
     skipInputs: true
     commands:
