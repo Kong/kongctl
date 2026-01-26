@@ -59,6 +59,10 @@ func (e *EventGatewayBackendClusterResource) SetDefaults() {
 	if e.Name == "" {
 		e.Name = e.Ref
 	}
+
+	// if e.Authentication.Type == "anonymous" && e.Authentication.Anonymous == nil {
+	// 	e.Authentication = BackendClusterAuthenticationAnonymous{}
+	// }
 }
 
 func (e EventGatewayBackendClusterResource) GetKonnectMonikerFilter() string {

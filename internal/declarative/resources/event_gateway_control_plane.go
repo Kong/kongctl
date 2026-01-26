@@ -60,11 +60,11 @@ func (e *EventGatewayControlPlaneResource) SetDefaults() {
 		e.Name = e.Ref
 	}
 
-	if e.BackendClusters != nil {
-		for _, bc := range e.BackendClusters {
-			bc.SetDefaults()
-		}
-	}
+	// if e.BackendClusters != nil {
+	// 	for _, bc := range e.BackendClusters {
+	// 		bc.SetDefaults()
+	// 	}
+	// }
 }
 
 func (e EventGatewayControlPlaneResource) GetKonnectMonikerFilter() string {

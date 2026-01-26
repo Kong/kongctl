@@ -34,22 +34,69 @@ func (a *EventGatewayBackendClusterAdapter) MapCreateFields(
 	create.Name = name
 
 	// Authentication (required)
-	if auth, ok := fields["authentication"].(kkComps.BackendClusterAuthenticationScheme); ok {
-		create.Authentication = auth
-	} else {
+	authField, ok := fields["authentication"]
+	if !ok {
 		return fmt.Errorf("authentication is required")
 	}
 
+	auth, err := buildAuthenticationScheme(authField)
+	if err != nil {
+		return fmt.Errorf("failed to build authentication: %w", err)
+	}
+	create.Authentication = auth
+
 	// Bootstrap servers (required)
-	if servers, ok := fields["bootstrap_servers"].([]string); ok {
+	if servers, ok := fields["bootstrap_servers"].([]interface{}); ok {
+		create.BootstrapServers = make([]string, len(servers))
+		for i, srv := range servers {
+			if srvStr, ok := srv.(string); ok {
+				create.BootstrapServers[i] = srvStr
+			} else {
+				return fmt.Errorf("bootstrap_servers must be a list of strings")
+			}
+		}
+	} else if servers, ok := fields["bootstrap_servers"].([]string); ok {
 		create.BootstrapServers = servers
 	} else {
 		return fmt.Errorf("bootstrap_servers is required")
 	}
 
 	// TLS (required)
-	if tls, ok := fields["tls"].(kkComps.BackendClusterTLS); ok {
-		create.TLS = tls
+	if tls, ok := fields["tls"]; ok {
+		if tlsSdkType, ok := tls.(kkComps.BackendClusterTLS); ok {
+			create.TLS = tlsSdkType
+		} else if tlsMap, ok := tls.(map[string]any); ok {
+			var backendTLS kkComps.BackendClusterTLS
+			if enabled, ok := tlsMap["enabled"].(bool); ok {
+				backendTLS.Enabled = enabled
+			} else {
+				return fmt.Errorf("tls.enabled is required and must be a boolean")
+			}
+			if insecure, ok := tlsMap["insecure_skip_verify"].(bool); ok {
+				backendTLS.InsecureSkipVerify = &insecure
+			}
+
+			if caCert, ok := tlsMap["ca_bundle"].(string); ok {
+				backendTLS.CaBundle = &caCert
+			}
+
+			if versions, ok := tlsMap["tls_versions"].([]interface{}); ok {
+				backendTLS.TLSVersions = make([]kkComps.TLSVersions, len(versions))
+				for i, v := range versions {
+					if vStr, ok := v.(string); ok {
+						backendTLS.TLSVersions[i] = kkComps.TLSVersions(vStr)
+					} else {
+						return fmt.Errorf("tls_versions must be a list of strings")
+					}
+				}
+			}
+
+			create.TLS = backendTLS
+
+		} else {
+			return fmt.Errorf("tls must be an object")
+		}
+
 	} else {
 		return fmt.Errorf("tls is required")
 	}
@@ -95,13 +142,16 @@ func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 	// Note: Authentication type differs between create and update in SDK
 	// Convert from BackendClusterAuthenticationScheme to BackendClusterAuthenticationSensitiveDataAwareScheme
 	if authField, ok := fields["authentication"]; ok {
-		if auth, ok := authField.(kkComps.BackendClusterAuthenticationScheme); ok {
-			sensitiveAuth, err := convertToSensitiveDataAwareAuth(auth)
-			if err != nil {
-				return fmt.Errorf("failed to convert authentication: %w", err)
-			}
-			update.Authentication = sensitiveAuth
+		auth, err := buildAuthenticationScheme(authField)
+		if err != nil {
+			return fmt.Errorf("failed to build authentication: %w", err)
 		}
+
+		sensitiveAuth, err := convertToSensitiveDataAwareAuth(auth)
+		if err != nil {
+			return fmt.Errorf("failed to convert authentication: %w", err)
+		}
+		update.Authentication = sensitiveAuth
 	}
 
 	if servers, ok := fields["bootstrap_servers"].([]string); ok {
@@ -125,6 +175,90 @@ func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 	}
 
 	return nil
+}
+
+// buildAuthenticationScheme constructs BackendClusterAuthenticationScheme from a map or SDK type
+func buildAuthenticationScheme(authField any) (kkComps.BackendClusterAuthenticationScheme, error) {
+	// If it's already the SDK type, return it directly
+	if auth, ok := authField.(kkComps.BackendClusterAuthenticationScheme); ok {
+		return auth, nil
+	}
+
+	// Otherwise, build from map structure
+	authMap, ok := authField.(map[string]any)
+	if !ok {
+		return kkComps.BackendClusterAuthenticationScheme{},
+			fmt.Errorf("authentication must be an object, got %T", authField)
+	}
+
+	authType, ok := authMap["type"].(string)
+	if !ok {
+		return kkComps.BackendClusterAuthenticationScheme{},
+			fmt.Errorf("authentication.type is required and must be a string")
+	}
+
+	switch authType {
+	case "anonymous":
+		return kkComps.CreateBackendClusterAuthenticationSchemeAnonymous(
+			kkComps.BackendClusterAuthenticationAnonymous{},
+		), nil
+
+	case "sasl_plain":
+		plainMap, ok := authMap["sasl_plain"].(map[string]any)
+		if !ok {
+			return kkComps.BackendClusterAuthenticationScheme{},
+				fmt.Errorf("sasl_plain configuration is required for sasl_plain authentication")
+		}
+
+		username, ok := plainMap["username"].(string)
+		if !ok {
+			return kkComps.BackendClusterAuthenticationScheme{},
+				fmt.Errorf("sasl_plain.username is required and must be a string")
+		}
+
+		password, ok := plainMap["password"].(string)
+		if !ok {
+			return kkComps.BackendClusterAuthenticationScheme{},
+				fmt.Errorf("sasl_plain.password is required and must be a string")
+		}
+
+		return kkComps.CreateBackendClusterAuthenticationSchemeSaslPlain(
+			kkComps.BackendClusterAuthenticationSaslPlain{
+				Username: username,
+				Password: password,
+			},
+		), nil
+
+	case "sasl_scram":
+		scramMap, ok := authMap["sasl_scram"].(map[string]any)
+		if !ok {
+			return kkComps.BackendClusterAuthenticationScheme{},
+				fmt.Errorf("sasl_scram configuration is required for sasl_scram authentication")
+		}
+
+		username, ok := scramMap["username"].(string)
+		if !ok {
+			return kkComps.BackendClusterAuthenticationScheme{},
+				fmt.Errorf("sasl_scram.username is required and must be a string")
+		}
+
+		password, ok := scramMap["password"].(string)
+		if !ok {
+			return kkComps.BackendClusterAuthenticationScheme{},
+				fmt.Errorf("sasl_scram.password is required and must be a string")
+		}
+
+		return kkComps.CreateBackendClusterAuthenticationSchemeSaslScram(
+			kkComps.BackendClusterAuthenticationSaslScram{
+				Username: username,
+				Password: password,
+			},
+		), nil
+
+	default:
+		return kkComps.BackendClusterAuthenticationScheme{},
+			fmt.Errorf("unsupported authentication type: %s", authType)
+	}
 }
 
 // convertToSensitiveDataAwareAuth converts BackendClusterAuthenticationScheme to BackendClusterAuthenticationSensitiveDataAwareScheme

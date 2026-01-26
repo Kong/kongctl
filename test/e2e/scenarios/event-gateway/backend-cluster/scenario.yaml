@@ -11,16 +11,72 @@ defaults:
       - updated_at
 
 steps:
-  - name: 000-reset-org
-    skipInputs: true
-    commands:
-      - resetOrg: true
-  
   - name: 001-plan-apply-create
     commands:
-    - name: 001-plan-create
-    - name: 002-apply-create
-    - name: 003-verify-create
+      - name: 001-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/egw-bc.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='event_gateway' && resource_ref=='egw-cp-for-bc-test'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "egw-cp-for-bc-test"
+          - select: >-
+              changes[?resource_type=='event_gateway_backend_cluster' && resource_ref=='default-backend-cluster'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "default-backend-cluster"
+      - name: 002-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+      - name: 003-verify-create
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - egw-cp-for-bc-test
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "default-backend-cluster"
+                description: "First Backend Cluster for Test"
   - name: 002-plan-update
     commands:
     - name: 001-plan-update
