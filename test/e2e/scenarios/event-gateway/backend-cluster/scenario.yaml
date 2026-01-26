@@ -1,0 +1,39 @@
+baseInputsPath: ../../../testdata/declarative/event-gateways/backend-cluster
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+  
+  - name: 001-plan-apply-create
+    commands:
+    - name: 001-plan-create
+    - name: 002-apply-create
+    - name: 003-verify-create
+  - name: 002-plan-update
+    commands:
+    - name: 001-plan-update
+    - name: 002-apply-update
+    - name: 003-verify-update
+  - name: 003-sync-delete
+    commands:
+    - name: 001-plan-sync-delete
+    - name: 002-sync-delete
+    - name: 003-verify-delete
+  - name: 004-root-level-backend-cluster
+    skipInputs: true
+    commands:
+      - name: 001-plan-create
+      - name: 002-apply-create
+      - name: 003-verify-create
