@@ -380,38 +380,33 @@ Because kongctl does not own those objects:
 
 #### Resources managed by decK
 
-External gateway services can declare a deck run that must execute before kongctl resolves the service:
+Deck integration is configured on control planes via the `_deck` pseudo-resource. kongctl runs deck once per
+control plane that declares `_deck`, then resolves external gateway services by selector name.
 
 ```yaml
 control_planes:
   - ref: prod-cp
-    _external:
-      selector:
-        matchFields:
-          name: "prod-cp"
+    name: "prod-cp"
+    _deck:
+      files:
+        - "kong.yaml"
+      flags:
+        - "--select-tag=kongctl"
 
     gateway_services:
       - ref: billing-gw
-        control_plane: prod-cp
         _external:
           selector:
             matchFields:
               name: "billing-service"
-          requires:
-            deck:
-              files:
-                - "kong.yaml"
-              flags:
-                - "--select-tag=kongctl"
 ```
 
 Notes:
-- `requires.deck` is only supported for `gateway_services`.
-- `_external.selector.matchFields.name` is required and must be the only selector field.
-- `requires.deck.files` must include at least one state file.
-- `requires.deck.flags` can include additional deck flags (but not Konnect auth or output flags).
-- kongctl runs exactly one `deck gateway apply` or `deck gateway sync` per gateway service that declares
-  `requires.deck` (multiple commands are not supported in config).
+- `_deck` is allowed only on control planes and only one `_deck` config is allowed per control plane.
+- `_deck.files` must include at least one state file.
+- `_deck.flags` can include additional deck flags (but not Konnect auth or output flags).
+- `_external.selector.matchFields.name` is required for external gateway services and must be the only selector field.
+- kongctl runs exactly one `deck gateway apply` or `deck gateway sync` per control plane that declares `_deck`.
 - Deck state files should include `_info.select_tags` and matching `tags` on entities so `sync` does not delete
   resources owned by other deck files. kongctl does not inject select tags for you.
 - Relative deck file paths are resolved relative to the declarative config file and must remain within the
