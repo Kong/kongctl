@@ -6,7 +6,7 @@ per control plane that declares `_deck`, then resolves external gateway services
 ## Files
 
 - `control-plane.yaml` – creates a control plane, declares `_deck`, and defines an external
-  gateway service selector.
+  gateway service selector (including example `_deck.flags`).
 - `gateway-services.yaml` – decK state file for the gateway service. Uses `_info.select_tags`
   to scope sync operations.
 - `api.yaml` – defines an API implementation that references the gateway service created by decK.

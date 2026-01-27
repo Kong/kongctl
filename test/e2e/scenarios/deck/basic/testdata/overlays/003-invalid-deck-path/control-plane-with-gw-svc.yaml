@@ -6,6 +6,8 @@ control_planes:
     _deck:
       files:
         - "missing.yaml"
+      flags:
+        - "--analytics=false"
 
     gateway_services:
       - ref: e2e-gw-svc

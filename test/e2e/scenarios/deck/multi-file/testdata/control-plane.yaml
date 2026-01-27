@@ -7,3 +7,5 @@ control_planes:
       files:
         - "deck-gateway-service-one.yaml"
         - "deck-gateway-service-two.yaml"
+      flags:
+        - "--analytics=false"

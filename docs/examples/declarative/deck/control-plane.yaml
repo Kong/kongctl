@@ -6,6 +6,8 @@ control_planes:
     _deck:
       files:
         - "gateway-services.yaml"
+      flags:
+        - "--analytics=false"
 
     gateway_services:
       - ref: example-gw-svc
