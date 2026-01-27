@@ -96,7 +96,6 @@ func (a *EventGatewayBackendClusterAdapter) MapCreateFields(
 		} else {
 			return fmt.Errorf("tls must be an object")
 		}
-
 	} else {
 		return fmt.Errorf("tls is required")
 	}
@@ -110,13 +109,14 @@ func (a *EventGatewayBackendClusterAdapter) MapCreateFields(
 		create.InsecureAllowAnonymousVirtualClusterAuth = &insecure
 	}
 
-	if interval, ok := fields["metadata_update_interval_seconds"].(int64); ok {
-		create.MetadataUpdateIntervalSeconds = &interval
+	// Handle metadata_update_interval_seconds with multiple int types (YAML may unmarshal as int)
+	if interval := extractInt64Field(fields, "metadata_update_interval_seconds"); interval != nil {
+		create.MetadataUpdateIntervalSeconds = interval
 	}
 
-	// Labels
-	if labels, ok := fields["labels"].(map[string]string); ok {
-		create.Labels = labels
+	// Labels - handle both map[string]string and map[string]interface{}
+	if labelsMap := extractLabelsField(fields, "labels"); labelsMap != nil {
+		create.Labels = labelsMap
 	}
 
 	return nil
@@ -199,12 +199,65 @@ func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 		update.InsecureAllowAnonymousVirtualClusterAuth = &insecure
 	}
 
-	if interval, ok := fields["metadata_update_interval_seconds"].(int64); ok {
-		update.MetadataUpdateIntervalSeconds = &interval
+	// Handle metadata_update_interval_seconds with multiple int types (YAML may unmarshal as int)
+	if interval := extractInt64Field(fields, "metadata_update_interval_seconds"); interval != nil {
+		update.MetadataUpdateIntervalSeconds = interval
 	}
 
-	if labels, ok := fields["labels"].(map[string]string); ok {
-		update.Labels = labels
+	// Labels - handle both map[string]string and map[string]interface{}
+	if labelsMap := extractLabelsField(fields, "labels"); labelsMap != nil {
+		update.Labels = labelsMap
+	}
+
+	return nil
+}
+
+// extractInt64Field extracts an int64 value from fields, handling various int types
+func extractInt64Field(fields map[string]any, key string) *int64 {
+	val, ok := fields[key]
+	if !ok {
+		return nil
+	}
+
+	switch v := val.(type) {
+	case int64:
+		return &v
+	case int:
+		val64 := int64(v)
+		return &val64
+	case int32:
+		val64 := int64(v)
+		return &val64
+	case float64:
+		// JSON unmarshaling produces float64 for numbers
+		val64 := int64(v)
+		return &val64
+	default:
+		return nil
+	}
+}
+
+// extractLabelsField extracts labels from fields, handling various map types
+func extractLabelsField(fields map[string]any, key string) map[string]string {
+	val, ok := fields[key]
+	if !ok {
+		return nil
+	}
+
+	// Already the right type
+	if labels, ok := val.(map[string]string); ok {
+		return labels
+	}
+
+	// YAML/JSON may unmarshal as map[string]interface{}
+	if labelsAny, ok := val.(map[string]any); ok {
+		labels := make(map[string]string, len(labelsAny))
+		for k, v := range labelsAny {
+			if strVal, ok := v.(string); ok {
+				labels[k] = strVal
+			}
+		}
+		return labels
 	}
 
 	return nil
@@ -257,6 +310,12 @@ func buildAuthenticationScheme(authField any) (kkComps.BackendClusterAuthenticat
 		), nil
 
 	case "sasl_scram":
+		algorithm, ok := authMap["algorithm"].(string)
+		if !ok {
+			return kkComps.BackendClusterAuthenticationScheme{},
+				fmt.Errorf("sasl_scram.algorithm is required and must be a string")
+		}
+
 		username, ok := authMap["username"].(string)
 		if !ok {
 			return kkComps.BackendClusterAuthenticationScheme{},
@@ -271,8 +330,9 @@ func buildAuthenticationScheme(authField any) (kkComps.BackendClusterAuthenticat
 
 		return kkComps.CreateBackendClusterAuthenticationSchemeSaslScram(
 			kkComps.BackendClusterAuthenticationSaslScram{
-				Username: username,
-				Password: password,
+				Algorithm: kkComps.BackendClusterAuthenticationSaslScramAlgorithm(algorithm),
+				Username:  username,
+				Password:  password,
 			},
 		), nil
 
@@ -312,8 +372,9 @@ func convertToSensitiveDataAwareAuth(
 		}
 		return kkComps.CreateBackendClusterAuthenticationSensitiveDataAwareSchemeSaslScram(
 			kkComps.BackendClusterAuthenticationSaslScramSensitiveDataAware{
-				Username: auth.BackendClusterAuthenticationSaslScram.Username,
-				Password: &auth.BackendClusterAuthenticationSaslScram.Password,
+				Algorithm: kkComps.Algorithm(auth.BackendClusterAuthenticationSaslScram.Algorithm),
+				Username:  auth.BackendClusterAuthenticationSaslScram.Username,
+				Password:  &auth.BackendClusterAuthenticationSaslScram.Password,
 			},
 		), nil
 

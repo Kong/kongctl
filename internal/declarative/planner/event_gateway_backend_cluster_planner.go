@@ -480,7 +480,49 @@ func compareStringMaps(a, b map[string]string) bool {
 }
 
 func compareTLSSettings(a, b interface{}) bool {
-	// For now, do a simple comparison
-	// This can be enhanced to do deep comparison of TLS fields
-	return reflect.DeepEqual(a, b)
+	// Type assert to the expected TLS types
+	tlsA, okA := a.(components.BackendClusterTLS)
+	tlsB, okB := b.(components.BackendClusterTLS)
+
+	if !okA || !okB {
+		// If types don't match, fall back to reflect.DeepEqual
+		return reflect.DeepEqual(a, b)
+	}
+
+	// Compare Enabled
+	if tlsA.Enabled != tlsB.Enabled {
+		return false
+	}
+
+	// Compare InsecureSkipVerify
+	if !compareBoolPtrs(tlsA.InsecureSkipVerify, tlsB.InsecureSkipVerify) {
+		return false
+	}
+
+	// Compare CaBundle
+	if !compareStringPtrs(tlsA.CaBundle, tlsB.CaBundle) {
+		return false
+	}
+
+	// Compare TLSVersions
+	if len(tlsA.TLSVersions) != len(tlsB.TLSVersions) {
+		return false
+	}
+	for i := range tlsA.TLSVersions {
+		if tlsA.TLSVersions[i] != tlsB.TLSVersions[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func compareStringPtrs(a, b *string) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
 }
