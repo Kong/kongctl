@@ -82,14 +82,28 @@ func resetOrg(stage string, capture bool) error {
 }
 
 type listResp struct {
-	Data []struct {
-		ID string `json:"id"`
-	} `json:"data"`
+	Data []map[string]any `json:"data"`
 }
 
-func deleteAll(client *http.Client, baseURL, token, apiVersion, endpoint string) (int, int, error) {
+// filterFunc determines whether a resource should be included for deletion.
+// Return true to DELETE the resource, false to SKIP it.
+type filterFunc func(resource map[string]any) bool
+
+// shouldDeleteResource is the default filter that excludes konnect-managed resources.
+func shouldDeleteResource(resource map[string]any) bool {
+	if managed, ok := resource["konnect_managed"].(bool); ok && managed {
+		return false
+	}
+	return true
+}
+
+func deleteAll(client *http.Client, baseURL, token, apiVersion, endpoint string, filter filterFunc) (int, int, error) {
 	url := fmt.Sprintf("%s/%s/%s", strings.TrimRight(baseURL, "/"), apiVersion, endpoint)
 	Infof("Fetching %s for deletion...", endpoint)
+
+	if filter == nil {
+		filter = shouldDeleteResource
+	}
 
 	const maxAttempts = 5
 	const retryDelay = 2 * time.Second
@@ -99,12 +113,12 @@ func deleteAll(client *http.Client, baseURL, token, apiVersion, endpoint string)
 	attempt := 0
 
 	for {
-		ids, err := retryListIDs(client, url, token, endpoint)
+		items, err := retryListItems(client, url, token, endpoint)
 		if err != nil {
 			return total, deleted, err
 		}
 
-		if len(ids) == 0 {
+		if len(items) == 0 {
 			if total == 0 {
 				Infof("No %s found", endpoint)
 				return 0, 0, nil
@@ -112,16 +126,39 @@ func deleteAll(client *http.Client, baseURL, token, apiVersion, endpoint string)
 			return total, deleted, nil
 		}
 
-		if attempt == 0 {
-			total = len(ids)
-		} else if len(ids)+deleted > total {
-			total = len(ids) + deleted
+		// Filter items based on the filter function
+		var idsToDelete []string
+		var skipped int
+		for _, item := range items {
+			id, ok := item["id"].(string)
+			if !ok || id == "" {
+				continue
+			}
+			if filter(item) {
+				idsToDelete = append(idsToDelete, id)
+			} else {
+				skipped++
+			}
 		}
 
-		Infof("Attempt %d deleting %d %s", attempt+1, len(ids), endpoint)
+		if attempt == 0 {
+			total = len(items)
+			if skipped > 0 {
+				Infof("Skipping %d konnect-managed %s", skipped, endpoint)
+			}
+		} else if len(items)+deleted > total {
+			total = len(items) + deleted
+		}
+
+		if len(idsToDelete) == 0 {
+			Infof("No deletable %s remaining (all are konnect-managed or already deleted)", endpoint)
+			return total, deleted, nil
+		}
+
+		Infof("Attempt %d deleting %d %s", attempt+1, len(idsToDelete), endpoint)
 
 		conflicts := 0
-		for _, id := range ids {
+		for _, id := range idsToDelete {
 			if err := retryDeleteOne(client, url, token, endpoint, id); err != nil {
 				Warnf("delete %s %s failed: %v", endpoint, id, err)
 				if he, ok := err.(*httpError); ok && he.status == http.StatusConflict {
@@ -172,17 +209,21 @@ type resetResult struct {
 }
 
 var resetSequence = []struct {
-	Version   string
-	Endpoint  string
-	UseGlobal bool // Use global.api.konghq.com instead of regional URL
+	Version  string
+	Endpoint string
+	// Use global.api.konghq.com instead of regional URL
+	UseGlobal bool
+	// Optional filter to exclude resources from deletion
+	// if nothing is passed default filter that skips konnect-managed resources is used
+	Filter filterFunc
 }{
-	{"v3", "apis", false},
-	{"v3", "portals", false},
-	{"v3", "system-accounts", true},
-	{"v2", "application-auth-strategies", false},
-	{"v2", "control-planes", false},
-	{"v1", "catalog-services", false},
-	{"v1", "event-gateways", false},
+	{"v3", "apis", false, nil},
+	{"v3", "portals", false, nil},
+	{"v3", "system-accounts", true, nil},
+	{"v2", "application-auth-strategies", false, nil},
+	{"v2", "control-planes", false, nil},
+	{"v1", "catalog-services", false, nil},
+	{"v1", "event-gateways", false, nil},
 }
 
 func executeReset(client *http.Client, baseURL, token string) (resetResult, error) {
@@ -194,7 +235,7 @@ func executeReset(client *http.Client, baseURL, token string) (resetResult, erro
 		if step.UseGlobal {
 			targetURL = "https://global.api.konghq.com"
 		}
-		tot, del, err := deleteAll(client, targetURL, token, step.Version, step.Endpoint)
+		tot, del, err := deleteAll(client, targetURL, token, step.Version, step.Endpoint, step.Filter)
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
@@ -292,7 +333,7 @@ func captureResetEvent(
 	}
 }
 
-func listIDs(client *http.Client, url, token string) ([]string, error) {
+func listItems(client *http.Client, url, token string) ([]map[string]any, error) {
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -313,13 +354,7 @@ func listIDs(client *http.Client, url, token string) ([]string, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&lr); err != nil {
 		return nil, err
 	}
-	ids := make([]string, 0, len(lr.Data))
-	for _, d := range lr.Data {
-		if d.ID != "" {
-			ids = append(ids, d.ID)
-		}
-	}
-	return ids, nil
+	return lr.Data, nil
 }
 
 func deleteOne(client *http.Client, baseURL, token, id string) error {
@@ -341,18 +376,18 @@ func deleteOne(client *http.Client, baseURL, token, id string) error {
 	return nil
 }
 
-func retryListIDs(client *http.Client, url, token, endpoint string) ([]string, error) {
+func retryListItems(client *http.Client, url, token, endpoint string) ([]map[string]any, error) {
 	cfg := NormalizeBackoffConfig(BackoffConfig{})
 	attempts := cfg.Attempts
 	backoff := BuildBackoffSchedule(cfg)
 	var (
-		ids []string
-		err error
+		items []map[string]any
+		err   error
 	)
 	for atry := 0; atry < attempts; atry++ {
-		ids, err = listIDs(client, url, token)
+		items, err = listItems(client, url, token)
 		if err == nil {
-			return ids, nil
+			return items, nil
 		}
 		if !ShouldRetry(err, err.Error(), nil, nil) || atry+1 >= attempts {
 			return nil, err
