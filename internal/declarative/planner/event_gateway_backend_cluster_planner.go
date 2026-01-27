@@ -19,6 +19,7 @@ func (p *Planner) planEventGatewayBackendClusterChanges(
 	gatewayName string,
 	gatewayID string,
 	gatewayRef string,
+	gatewayChangeID string,
 	desired []resources.EventGatewayBackendClusterResource,
 	plan *Plan,
 ) error {
@@ -26,6 +27,7 @@ func (p *Planner) planEventGatewayBackendClusterChanges(
 		"gateway_name", gatewayName,
 		"gateway_id", gatewayID,
 		"gateway_ref", gatewayRef,
+		"gateway_change_id", gatewayChangeID,
 		"desired_count", len(desired),
 		"namespace", namespace,
 	)
@@ -37,8 +39,8 @@ func (p *Planner) planEventGatewayBackendClusterChanges(
 		)
 	}
 
-	// Gateway doesn't exist: plan creates only (dependencies will be set up)
-	p.planBackendClusterCreatesForNewGateway(namespace, gatewayRef, gatewayName, desired, plan)
+	// Gateway doesn't exist: plan creates only with dependency on gateway creation
+	p.planBackendClusterCreatesForNewGateway(namespace, gatewayRef, gatewayName, gatewayChangeID, desired, plan)
 	return nil
 }
 
@@ -138,16 +140,24 @@ func (p *Planner) planBackendClusterCreatesForNewGateway(
 	namespace string,
 	gatewayRef string,
 	gatewayName string,
+	gatewayChangeID string,
 	clusters []resources.EventGatewayBackendClusterResource,
 	plan *Plan,
 ) {
 	p.logger.Debug("Planning backend cluster creates for new gateway",
 		"gateway_ref", gatewayRef,
+		"gateway_change_id", gatewayChangeID,
 		"cluster_count", len(clusters),
 	)
 
+	// Build dependencies - backend clusters depend on gateway being created first
+	var dependsOn []string
+	if gatewayChangeID != "" {
+		dependsOn = []string{gatewayChangeID}
+	}
+
 	for _, cluster := range clusters {
-		p.planBackendClusterCreate(namespace, gatewayRef, gatewayName, "", cluster, []string{}, plan)
+		p.planBackendClusterCreate(namespace, gatewayRef, gatewayName, "", cluster, dependsOn, plan)
 	}
 }
 
@@ -205,7 +215,7 @@ func (p *Planner) planBackendClusterCreate(
 		change.References = map[string]ReferenceInfo{
 			"event_gateway_id": {
 				Ref: gatewayRef,
-				ID:  "",
+				ID:  "", // to be resolved at runtime
 				LookupFields: map[string]string{
 					"name": gatewayName,
 				},

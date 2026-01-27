@@ -79,9 +79,12 @@ func (p *Planner) planEGWControlPlaneChanges(
 	for _, desiredEGWCP := range desired {
 		current, exists := currentByName[desiredEGWCP.Name]
 
+		// Track the gateway change ID for dependency resolution
+		var gatewayChangeID string
+
 		if !exists {
 			// CREATE action
-			_ = p.planEGWControlPlaneCreate(desiredEGWCP, plan)
+			gatewayChangeID = p.planEGWControlPlaneCreate(desiredEGWCP, plan)
 		} else {
 			// Check if update needed
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
@@ -143,7 +146,8 @@ func (p *Planner) planEGWControlPlaneChanges(
 
 		if len(backendClusters) > 0 || plan.Metadata.Mode == PlanModeSync {
 			if err := p.planEventGatewayBackendClusterChanges(
-				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref, backendClusters, plan,
+				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
+				gatewayChangeID, backendClusters, plan,
 			); err != nil {
 				return err
 			}
