@@ -6,7 +6,6 @@ import (
 	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	util "github.com/kong/kongctl/internal/util"
 )
 
 type EventGatewayBackendClusterResource struct {
@@ -53,16 +52,10 @@ func (e EventGatewayBackendClusterResource) Validate() error {
 }
 
 func (e *EventGatewayBackendClusterResource) SetDefaults() {
-	_ = util.ApplyDefaults(e)
-
 	// If Name is not set, use ref as default
 	if e.Name == "" {
 		e.Name = e.Ref
 	}
-
-	// if e.Authentication.Type == "anonymous" && e.Authentication.Anonymous == nil {
-	// 	e.Authentication = BackendClusterAuthenticationAnonymous{}
-	// }
 }
 
 func (e EventGatewayBackendClusterResource) GetKonnectMonikerFilter() string {
@@ -113,10 +106,10 @@ func (e *EventGatewayBackendClusterResource) UnmarshalJSON(data []byte) error {
 		Name                                     string                                     `json:"name"`
 		Description                              *string                                    `json:"description,omitempty"`
 		Authentication                           kkComps.BackendClusterAuthenticationScheme `json:"authentication"`
-		InsecureAllowAnonymousVirtualClusterAuth *bool                                      `json:"insecure_allow_anonymous_virtual_cluster_auth,omitempty"`
+		InsecureAllowAnonymousVirtualClusterAuth *bool                                      `json:"insecure_allow_anonymous_virtual_cluster_auth,omitempty"` //nolint:lll
 		BootstrapServers                         []string                                   `json:"bootstrap_servers"`
 		TLS                                      kkComps.BackendClusterTLS                  `json:"tls"`
-		MetadataUpdateIntervalSeconds            *int64                                     `json:"metadata_update_interval_seconds,omitempty"`
+		MetadataUpdateIntervalSeconds            *int64                                     `json:"metadata_update_interval_seconds,omitempty"` //nolint:lll
 		Labels                                   map[string]string                          `json:"labels,omitempty"`
 	}
 

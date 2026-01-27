@@ -13,7 +13,7 @@ type EventGatewayControlPlaneResource struct {
 	Kongctl *KongctlMeta `json:"kongctl,omitempty" yaml:"kongctl,omitempty"`
 
 	// Nested child resources
-	BackendClusters []EventGatewayBackendClusterResource `yaml:"backend_clusters,omitempty" json:"backend_clusters,omitempty"`
+	BackendClusters []EventGatewayBackendClusterResource `yaml:"backend_clusters,omitempty" json:"backend_clusters,omitempty"` //nolint:lll
 
 	// Resolved Konnect ID (not serialized)
 	konnectID string `json:"-" yaml:"-"`

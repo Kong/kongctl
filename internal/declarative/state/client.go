@@ -3339,7 +3339,9 @@ func (c *Client) GetEventGatewayControlPlaneByID(ctx context.Context, id string)
 	return eventGateway, nil
 }
 
-func (c *Client) GetEventGatewayControlPlaneByName(ctx context.Context, name string) (*EventGatewayControlPlane, error) {
+func (c *Client) GetEventGatewayControlPlaneByName(
+	ctx context.Context, name string,
+) (*EventGatewayControlPlane, error) {
 	// List all event gateways and filter by name
 	gateways, err := c.ListManagedEventGatewayControlPlanes(ctx, []string{})
 	if err != nil {

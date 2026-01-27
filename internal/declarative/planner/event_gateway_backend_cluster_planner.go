@@ -14,7 +14,7 @@ import (
 // planEventGatewayBackendClusterChanges plans changes for Event Gateway Backend Clusters for a specific gateway
 func (p *Planner) planEventGatewayBackendClusterChanges(
 	ctx context.Context,
-	plannerCtx *Config,
+	_ *Config,
 	namespace string,
 	gatewayName string,
 	gatewayID string,
@@ -35,11 +35,11 @@ func (p *Planner) planEventGatewayBackendClusterChanges(
 		return p.planBackendClusterChangesForExistingGateway(
 			ctx, namespace, gatewayID, gatewayRef, gatewayName, desired, plan,
 		)
-	} else {
-		// Gateway doesn't exist: plan creates only (dependencies will be set up)
-		p.planBackendClusterCreatesForNewGateway(namespace, gatewayRef, gatewayName, desired, plan)
-		return nil
 	}
+
+	// Gateway doesn't exist: plan creates only (dependencies will be set up)
+	p.planBackendClusterCreatesForNewGateway(namespace, gatewayRef, gatewayName, desired, plan)
+	return nil
 }
 
 // planBackendClusterChangesForExistingGateway handles full diff for clusters of an existing gateway
@@ -110,7 +110,9 @@ func (p *Planner) planBackendClusterChangesForExistingGateway(
 					"cluster_id", current.ID,
 					"update_fields", updateFields,
 				)
-				p.planBackendClusterUpdate(namespace, gatewayRef, gatewayName, gatewayID, current.ID, desiredCluster, updateFields, plan)
+				p.planBackendClusterUpdate(
+					namespace, gatewayRef, gatewayName, gatewayID,
+					current.ID, desiredCluster, updateFields, plan)
 			}
 		}
 	}
@@ -224,7 +226,7 @@ func (p *Planner) planBackendClusterCreate(
 func (p *Planner) planBackendClusterUpdate(
 	namespace string,
 	gatewayRef string,
-	gatewayName string,
+	_ string, // gatewayName - unused but kept for API consistency
 	gatewayID string,
 	clusterID string,
 	cluster resources.EventGatewayBackendClusterResource,
@@ -263,7 +265,7 @@ func (p *Planner) planBackendClusterUpdate(
 // planBackendClusterDelete plans a DELETE change for a backend cluster
 func (p *Planner) planBackendClusterDelete(
 	gatewayRef string,
-	gatewayName string,
+	_ string, // gatewayName - unused but kept for API consistency
 	gatewayID string,
 	clusterID string,
 	clusterName string,
@@ -298,7 +300,7 @@ func (p *Planner) shouldUpdateBackendCluster(
 	desired resources.EventGatewayBackendClusterResource,
 ) (bool, map[string]any) {
 	updates := make(map[string]any)
-	needsUpdate := false
+	var needsUpdate bool
 
 	// Compare name
 	if current.Name != desired.Name {
@@ -400,15 +402,19 @@ func compareAuthenticationSchemes(
 			return false
 		}
 
-		return a.BackendClusterAuthenticationSaslPlainSensitiveDataAware.Username == b.BackendClusterAuthenticationSaslPlain.Username &&
-			*a.BackendClusterAuthenticationSaslPlainSensitiveDataAware.Password == b.BackendClusterAuthenticationSaslPlain.Password
+		plainA := a.BackendClusterAuthenticationSaslPlainSensitiveDataAware
+		plainB := b.BackendClusterAuthenticationSaslPlain
+		return plainA.Username == plainB.Username &&
+			*plainA.Password == plainB.Password
 	case components.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeSaslScram:
 		if a.BackendClusterAuthenticationSaslScramSensitiveDataAware == nil ||
 			b.BackendClusterAuthenticationSaslScram == nil {
 			return false
 		}
-		return a.BackendClusterAuthenticationSaslScramSensitiveDataAware.Username == b.BackendClusterAuthenticationSaslScram.Username &&
-			*a.BackendClusterAuthenticationSaslScramSensitiveDataAware.Password == b.BackendClusterAuthenticationSaslScram.Password
+		scramA := a.BackendClusterAuthenticationSaslScramSensitiveDataAware
+		scramB := b.BackendClusterAuthenticationSaslScram
+		return scramA.Username == scramB.Username &&
+			*scramA.Password == scramB.Password
 	}
 	return false
 }

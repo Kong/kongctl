@@ -42,7 +42,8 @@ type Executor struct {
 	eventGatewayControlPlaneExecutor *BaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest]
 
 	// Event Gateway child resource executors
-	eventGatewayBackendClusterExecutor *BaseExecutor[kkComps.CreateBackendClusterRequest, kkComps.UpdateBackendClusterRequest]
+	eventGatewayBackendClusterExecutor *BaseExecutor[
+		kkComps.CreateBackendClusterRequest, kkComps.UpdateBackendClusterRequest]
 
 	// Portal child resource executors
 	portalCustomizationExecutor *BaseSingletonExecutor[kkComps.PortalCustomization]
@@ -111,7 +112,8 @@ func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor
 	)
 
 	// Initialize event gateway child resource executors
-	e.eventGatewayBackendClusterExecutor = NewBaseExecutor[kkComps.CreateBackendClusterRequest, kkComps.UpdateBackendClusterRequest](
+	e.eventGatewayBackendClusterExecutor = NewBaseExecutor[
+		kkComps.CreateBackendClusterRequest, kkComps.UpdateBackendClusterRequest](
 		NewEventGatewayBackendClusterAdapter(client),
 		client,
 		dryRun,

@@ -22,7 +22,7 @@ func NewEventGatewayBackendClusterAdapter(client *state.Client) *EventGatewayBac
 // MapCreateFields maps fields to CreateBackendClusterRequest
 func (a *EventGatewayBackendClusterAdapter) MapCreateFields(
 	_ context.Context,
-	execCtx *ExecutionContext,
+	_ *ExecutionContext,
 	fields map[string]any,
 	create *kkComps.CreateBackendClusterRequest,
 ) error {
@@ -125,7 +125,7 @@ func (a *EventGatewayBackendClusterAdapter) MapCreateFields(
 // MapUpdateFields maps fields to UpdateBackendClusterRequest
 func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 	_ context.Context,
-	execCtx *ExecutionContext,
+	_ *ExecutionContext,
 	fields map[string]any,
 	update *kkComps.UpdateBackendClusterRequest,
 	_ map[string]string,
@@ -288,7 +288,8 @@ func buildAuthenticationScheme(authField any) (kkComps.BackendClusterAuthenticat
 	}
 }
 
-// convertToSensitiveDataAwareAuth converts BackendClusterAuthenticationScheme to BackendClusterAuthenticationSensitiveDataAwareScheme
+// convertToSensitiveDataAwareAuth converts BackendClusterAuthenticationScheme
+// to BackendClusterAuthenticationSensitiveDataAwareScheme
 func convertToSensitiveDataAwareAuth(
 	auth kkComps.BackendClusterAuthenticationScheme,
 ) (kkComps.BackendClusterAuthenticationSensitiveDataAwareScheme, error) {
