@@ -15,6 +15,11 @@ defaults:
       - updated_at
 
 steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
   - name: 001-plan-apply-create
     commands:
       - name: 001-plan-create
