@@ -99,7 +99,7 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 		)
 	}
 
-	services, err := deckGatewayServicesFromFields(change.Fields)
+	services, err := deckGatewayServicesFromChange(change)
 	if err != nil {
 		return err
 	}
@@ -249,6 +249,46 @@ func parseDeckFiles(raw any) ([]string, error) {
 type deckGatewayServiceRef struct {
 	Ref          string
 	SelectorName string
+}
+
+func deckGatewayServicesFromChange(change *planner.PlannedChange) ([]deckGatewayServiceRef, error) {
+	if change == nil {
+		return nil, nil
+	}
+	if len(change.PostResolutionTargets) > 0 {
+		return deckGatewayServicesFromTargets(change.PostResolutionTargets), nil
+	}
+	return deckGatewayServicesFromFields(change.Fields)
+}
+
+func deckGatewayServicesFromTargets(targets []planner.PostResolutionTarget) []deckGatewayServiceRef {
+	if len(targets) == 0 {
+		return nil
+	}
+
+	services := make([]deckGatewayServiceRef, 0, len(targets))
+	for _, target := range targets {
+		if strings.TrimSpace(target.ResourceRef) == "" {
+			continue
+		}
+		if target.ResourceType != "" && target.ResourceType != "gateway_service" {
+			continue
+		}
+		name := ""
+		if target.Selector != nil {
+			name = target.Selector.MatchFields["name"]
+		}
+		services = append(services, deckGatewayServiceRef{
+			Ref:          target.ResourceRef,
+			SelectorName: name,
+		})
+	}
+
+	if len(services) == 0 {
+		return nil
+	}
+
+	return services
 }
 
 func deckGatewayServicesFromFields(fields map[string]any) ([]deckGatewayServiceRef, error) {
@@ -729,14 +769,14 @@ func intFromAnyDefault(value any) int {
 	return 0
 }
 
-func truncateDeckOutput(value string, max int) string {
-	if max <= 0 {
+func truncateDeckOutput(value string, maxLen int) string {
+	if maxLen <= 0 {
 		return value
 	}
-	if len(value) <= max {
+	if len(value) <= maxLen {
 		return value
 	}
-	return value[:max] + "...(truncated)"
+	return value[:maxLen] + "...(truncated)"
 }
 
 func deckRunErrorSuffix(result *deck.RunResult) string {

@@ -189,6 +189,15 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 
 	require.NotNil(t, deckChange)
 	require.Equal(t, ActionExternalTool, deckChange.Action)
+	require.Len(t, deckChange.PostResolutionTargets, 1)
+	target := deckChange.PostResolutionTargets[0]
+	require.Equal(t, "gateway_service", target.ResourceType)
+	require.Equal(t, "gw-service", target.ResourceRef)
+	require.Equal(t, "cp", target.ControlPlaneRef)
+	require.Equal(t, cpID, target.ControlPlaneID)
+	require.Equal(t, cpName, target.ControlPlaneName)
+	require.NotNil(t, target.Selector)
+	require.Equal(t, "svc-name", target.Selector.MatchFields["name"])
 	require.NotNil(t, apiChange)
 	require.Contains(t, apiChange.DependsOn, deckChange.ID)
 }

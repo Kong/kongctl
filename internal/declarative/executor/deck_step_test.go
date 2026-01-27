@@ -89,13 +89,17 @@ func TestExecuteDeckStepUpdatesImplementation(t *testing.T) {
 				"control_plane_name": cpName,
 				"deck_base_dir":      deckBaseDir,
 				"files":              []string{"gateway-service.yaml"},
-				"gateway_services": []map[string]any{
-					{
-						"ref": "gw-ref",
-						"selector": map[string]any{
-							"matchFields": map[string]string{
-								"name": selectorName,
-							},
+			},
+			PostResolutionTargets: []planner.PostResolutionTarget{
+				{
+					ResourceType:     "gateway_service",
+					ResourceRef:      "gw-ref",
+					ControlPlaneRef:  cpID,
+					ControlPlaneID:   cpID,
+					ControlPlaneName: cpName,
+					Selector: &planner.ExternalToolSelector{
+						MatchFields: map[string]string{
+							"name": selectorName,
 						},
 					},
 				},
@@ -155,13 +159,17 @@ func TestExecutorDryRunSkipsDeckRunner(t *testing.T) {
 			"control_plane_id":   "cp-id",
 			"control_plane_name": "cp-name",
 			"files":              []string{"gateway-service.yaml"},
-			"gateway_services": []map[string]any{
-				{
-					"ref": "gw-ref",
-					"selector": map[string]any{
-						"matchFields": map[string]string{
-							"name": "svc-name",
-						},
+		},
+		PostResolutionTargets: []planner.PostResolutionTarget{
+			{
+				ResourceType:     "gateway_service",
+				ResourceRef:      "gw-ref",
+				ControlPlaneRef:  "cp-id",
+				ControlPlaneID:   "cp-id",
+				ControlPlaneName: "cp-name",
+				Selector: &planner.ExternalToolSelector{
+					MatchFields: map[string]string{
+						"name": "svc-name",
 					},
 				},
 			},
@@ -194,13 +202,17 @@ func TestExecuteDeckStepSkipsResolutionWithoutDependencies(t *testing.T) {
 				"control_plane_id":   "11111111-1111-1111-1111-111111111111",
 				"control_plane_name": "cp-name",
 				"files":              []string{"gateway-service.yaml"},
-				"gateway_services": []map[string]any{
-					{
-						"ref": "gw-ref",
-						"selector": map[string]any{
-							"matchFields": map[string]string{
-								"name": "svc-name",
-							},
+			},
+			PostResolutionTargets: []planner.PostResolutionTarget{
+				{
+					ResourceType:     "gateway_service",
+					ResourceRef:      "gw-ref",
+					ControlPlaneRef:  "cp-ref",
+					ControlPlaneID:   "11111111-1111-1111-1111-111111111111",
+					ControlPlaneName: "cp-name",
+					Selector: &planner.ExternalToolSelector{
+						MatchFields: map[string]string{
+							"name": "svc-name",
 						},
 					},
 				},

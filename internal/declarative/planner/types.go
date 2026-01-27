@@ -37,14 +37,25 @@ type PlannedChange struct {
 	ResourceRef  string `json:"resource_ref"`
 	ResourceID   string `json:"resource_id,omitempty"` // Only for UPDATE/DELETE
 	// Human-readable identifiers for resources without config refs
-	ResourceMonikers map[string]string        `json:"resource_monikers,omitempty"`
-	Action           ActionType               `json:"action"`
-	Fields           map[string]any           `json:"fields"`
-	References       map[string]ReferenceInfo `json:"references,omitempty"`
-	Parent           *ParentInfo              `json:"parent,omitempty"`
-	Protection       any                      `json:"protection,omitempty"` // bool or ProtectionChange
-	Namespace        string                   `json:"namespace"`
-	DependsOn        []string                 `json:"depends_on,omitempty"`
+	ResourceMonikers      map[string]string        `json:"resource_monikers,omitempty"`
+	Action                ActionType               `json:"action"`
+	Fields                map[string]any           `json:"fields"`
+	PostResolutionTargets []PostResolutionTarget   `json:"post_resolution_targets,omitempty"`
+	References            map[string]ReferenceInfo `json:"references,omitempty"`
+	Parent                *ParentInfo              `json:"parent,omitempty"`
+	Protection            any                      `json:"protection,omitempty"` // bool or ProtectionChange
+	Namespace             string                   `json:"namespace"`
+	DependsOn             []string                 `json:"depends_on,omitempty"`
+}
+
+// PostResolutionTarget represents a resource that must be resolved after a change executes.
+type PostResolutionTarget struct {
+	ResourceType     string                `json:"resource_type"`
+	ResourceRef      string                `json:"resource_ref"`
+	ControlPlaneRef  string                `json:"control_plane_ref,omitempty"`
+	ControlPlaneID   string                `json:"control_plane_id,omitempty"`
+	ControlPlaneName string                `json:"control_plane_name,omitempty"`
+	Selector         *ExternalToolSelector `json:"selector,omitempty"`
 }
 
 // ReferenceInfo tracks reference resolution
@@ -233,13 +244,41 @@ func externalToolDependencyFromChange(change PlannedChange) ExternalToolDependen
 		ControlPlaneRef:  stringFromField(fields, "control_plane_ref"),
 		ControlPlaneID:   stringFromField(fields, "control_plane_id"),
 		ControlPlaneName: stringFromField(fields, "control_plane_name"),
-		GatewayServices:  gatewayTargetsFromFields(fields),
+		GatewayServices:  gatewayTargetsFromPostResolutionTargets(change.PostResolutionTargets),
 		Files:            stringSliceFromField(fields, "files"),
 		Flags:            stringSliceFromField(fields, "flags"),
 		DeckBaseDir:      stringFromField(fields, "deck_base_dir"),
 	}
 
+	if len(dependency.GatewayServices) == 0 {
+		dependency.GatewayServices = gatewayTargetsFromFields(fields)
+	}
+
 	return dependency
+}
+
+func gatewayTargetsFromPostResolutionTargets(targets []PostResolutionTarget) []ExternalToolGatewayTarget {
+	if len(targets) == 0 {
+		return nil
+	}
+
+	out := make([]ExternalToolGatewayTarget, 0, len(targets))
+	for _, target := range targets {
+		if strings.TrimSpace(target.ResourceRef) == "" {
+			continue
+		}
+		if target.ResourceType != "" && target.ResourceType != "gateway_service" {
+			continue
+		}
+		out = append(out, ExternalToolGatewayTarget{
+			Ref:      target.ResourceRef,
+			Selector: cloneExternalToolSelector(target.Selector),
+		})
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func gatewayTargetsFromFields(fields map[string]any) []ExternalToolGatewayTarget {

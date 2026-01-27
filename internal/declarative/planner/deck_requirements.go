@@ -78,6 +78,8 @@ func (p *Planner) planDeckDependencies(ctx context.Context, rs *resources.Resour
 			return err
 		}
 
+		postResolutionTargets := deckPostResolutionTargets(gatewayServices, cpRef, cpID, cpName)
+
 		change := PlannedChange{
 			ID:           p.nextChangeID(ActionExternalTool, ResourceTypeDeck, cpRef),
 			ResourceType: ResourceTypeDeck,
@@ -91,10 +93,8 @@ func (p *Planner) planDeckDependencies(ctx context.Context, rs *resources.Resour
 				"files":              deckFiles,
 				"flags":              deckFlags,
 			},
-			Namespace: resources.NamespaceExternal,
-		}
-		if len(gatewayServices) > 0 {
-			change.Fields["gateway_services"] = deckGatewayServiceFields(gatewayServices)
+			PostResolutionTargets: postResolutionTargets,
+			Namespace:             resources.NamespaceExternal,
 		}
 
 		if cpCreateID != "" {
@@ -104,8 +104,11 @@ func (p *Planner) planDeckDependencies(ctx context.Context, rs *resources.Resour
 		plan.AddChange(change)
 		deckChangeIDs[cpRef] = change.ID
 
-		for _, svc := range gatewayServices {
-			serviceToDeckChange[svc.Ref] = change.ID
+		for _, svc := range postResolutionTargets {
+			if svc.ResourceRef == "" {
+				continue
+			}
+			serviceToDeckChange[svc.ResourceRef] = change.ID
 		}
 
 		p.logger.Debug("Planned deck config",
@@ -175,22 +178,29 @@ func collectDeckGatewayServices(
 	return selected, nil
 }
 
-func deckGatewayServiceFields(services []deckGatewayService) []map[string]any {
+func deckPostResolutionTargets(
+	services []deckGatewayService,
+	controlPlaneRef string,
+	controlPlaneID string,
+	controlPlaneName string,
+) []PostResolutionTarget {
 	if len(services) == 0 {
 		return nil
 	}
 
-	result := make([]map[string]any, 0, len(services))
+	result := make([]PostResolutionTarget, 0, len(services))
 	for _, svc := range services {
-		entry := map[string]any{
-			"ref": svc.Ref,
+		target := PostResolutionTarget{
+			ResourceType:     "gateway_service",
+			ResourceRef:      svc.Ref,
+			ControlPlaneRef:  controlPlaneRef,
+			ControlPlaneID:   controlPlaneID,
+			ControlPlaneName: controlPlaneName,
 		}
 		if svc.Selector != nil {
-			entry["selector"] = map[string]any{
-				"matchFields": svc.Selector.MatchFields,
-			}
+			target.Selector = &ExternalToolSelector{MatchFields: svc.Selector.MatchFields}
 		}
-		result = append(result, entry)
+		result = append(result, target)
 	}
 
 	return result
@@ -467,12 +477,12 @@ func deckErrorDetail(value any) string {
 	}
 }
 
-func truncateDeckOutput(value string, max int) string {
-	if max <= 0 {
+func truncateDeckOutput(value string, maxLen int) string {
+	if maxLen <= 0 {
 		return value
 	}
-	if len(value) <= max {
+	if len(value) <= maxLen {
 		return value
 	}
-	return value[:max] + "...(truncated)"
+	return value[:maxLen] + "...(truncated)"
 }
