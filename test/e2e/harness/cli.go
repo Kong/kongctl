@@ -41,6 +41,10 @@ type CLI struct {
 		disable bool
 		value   string
 	}
+	nextStdin struct {
+		set   bool
+		value string
+	}
 	nextSlug struct {
 		set   bool
 		value string
@@ -57,6 +61,14 @@ func (c *CLI) SetLogLevel(level string) {
 	}
 	c.AutoLogLevel = clean
 	_ = writeProfileConfig(c.ConfigDir, c.Profile, c.AutoOutput, c.AutoLogLevel)
+}
+
+// OverrideNextStdin sets the stdin payload for the next command execution.
+func (c *CLI) OverrideNextStdin(value string) {
+	c.nextStdin = struct {
+		set   bool
+		value string
+	}{set: true, value: value}
 }
 
 type httpDump struct {
@@ -333,6 +345,13 @@ func (c *CLI) runCommand(ctx context.Context, bin string, args []string, env map
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+	if c.nextStdin.set {
+		cmd.Stdin = strings.NewReader(c.nextStdin.value)
+		c.nextStdin = struct {
+			set   bool
+			value string
+		}{}
+	}
 
 	start := time.Now()
 	Debugf("Run: %s (dir=%s)", strings.Join(cmd.Args, " "), cmd.Dir)

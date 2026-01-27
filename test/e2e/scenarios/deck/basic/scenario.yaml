@@ -6,39 +6,61 @@ steps:
     commands:
       - resetOrg: true
 
-  - name: 001-apply
+  - name: 001-plan-apply-stdin
     commands:
-      - name: 000-apply
-        outputFormat: json
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
         run:
-          - apply
+          - plan
           - -f
           - "{{ .workdir }}/api.yaml"
           - -f
           - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: "metadata"
+            expect:
+              fields:
+                mode: apply
+          - select: >-
+              changes[?resource_type=='control_plane' && action=='CREATE'] | [0]
+            expect:
+              fields:
+                resource_ref: e2e-cp
+          - select: >-
+              changes[?resource_type=='_deck'] | [0]
+            expect:
+              fields:
+                action: EXTERNAL_TOOL
+          - select: >-
+              changes[?resource_type=='api_implementation' &&
+                      resource_ref=='e2e-api-implementation'] | [0]
+            expect:
+              fields:
+                action: CREATE
+      - name: 001-apply-plan-stdin
+        parseAs: json
+        stdinFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - apply
+          - --plan
+          - "-"
           - --auto-approve
+          - --output
+          - json
         assertions:
           - select: "plan.metadata"
             expect:
               fields:
                 mode: apply
           - select: >-
-              plan.changes[?resource_type=='control_plane' && action=='CREATE'] | [0]
-            expect:
-              fields:
-                resource_ref: e2e-cp
-          - select: >-
               plan.changes[?resource_type=='_deck'] | [0]
             expect:
               fields:
                 action: EXTERNAL_TOOL
-          - select: >-
-              plan.changes[?resource_type=='api_implementation' &&
-                            resource_ref=='e2e-api-implementation'] | [0]
-            expect:
-              fields:
-                action: CREATE
-      - name: 001-get-gateway-services
+      - name: 002-get-gateway-services
         run:
           - get
           - gw
@@ -70,7 +92,24 @@ steps:
               fields:
                 "length(@)": 0
 
-  - name: 003-invalid-deck-path
+  - name: 003-sync-noop
+    commands:
+      - name: 000-sync
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: sync
+
+  - name: 004-invalid-deck-path
     inputOverlayDirs:
       - testdata/overlays/003-invalid-deck-path
     commands:
@@ -86,7 +125,7 @@ steps:
           exitCode: 1
           contains: "reading state file"
 
-  - name: 004-invalid-deck-state
+  - name: 005-invalid-deck-state
     inputOverlayDirs:
       - testdata/overlays/004-invalid-deck-state
     commands:
@@ -102,7 +141,7 @@ steps:
           exitCode: 1
           contains: "validation error"
 
-  - name: 005-sync-delete
+  - name: 006-sync-delete
     inputOverlayDirs:
       - testdata/overlays/005-sync-delete
     commands:
