@@ -3,6 +3,8 @@ package planner
 import (
 	"strings"
 	"time"
+
+	"github.com/kong/kongctl/internal/util"
 )
 
 // Plan represents a declarative configuration plan
@@ -442,7 +444,7 @@ func stringSliceFromField(fields map[string]any, key string) []string {
 	if !ok {
 		return nil
 	}
-	items, ok := asStringSlice(value)
+	items, ok := util.StringSliceFromAny(value)
 	if !ok {
 		return nil
 	}

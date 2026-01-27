@@ -225,7 +225,7 @@ func parseDeckFiles(raw any) ([]string, error) {
 	if raw == nil {
 		return nil, fmt.Errorf("files are required")
 	}
-	files, ok := parseStringSlice(raw)
+	files, ok := util.StringSliceFromAny(raw)
 	if !ok {
 		return nil, fmt.Errorf("files must be an array of strings")
 	}
@@ -365,7 +365,7 @@ func parseDeckFlags(raw any) ([]string, error) {
 	if raw == nil {
 		return nil, nil
 	}
-	flags, ok := parseStringSlice(raw)
+	flags, ok := util.StringSliceFromAny(raw)
 	if !ok {
 		return nil, fmt.Errorf("flags must be an array of strings")
 	}
@@ -384,25 +384,6 @@ func parseDeckFlags(raw any) ([]string, error) {
 		return nil, nil
 	}
 	return cleaned, nil
-}
-
-func parseStringSlice(raw any) ([]string, bool) {
-	switch v := raw.(type) {
-	case []string:
-		return append([]string{}, v...), true
-	case []any:
-		values := make([]string, len(v))
-		for i, item := range v {
-			value, ok := item.(string)
-			if !ok {
-				return nil, false
-			}
-			values[i] = value
-		}
-		return values, true
-	default:
-		return nil, false
-	}
 }
 
 func ensureDeckOutputFlags(flags []string) []string {
