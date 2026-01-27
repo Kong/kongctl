@@ -35,6 +35,7 @@ control_planes:
 - `apply` runs `deck gateway apply`; `sync` runs `deck gateway sync`.
 - External gateway services are resolved by selector **after** the deck run.
 - API implementations referencing those services wait on the `_deck` step.
+- Plans represent deck resolution explicitly with a `post_resolution_targets` list on the `_deck` change.
 
 ### Constraints
 - Only one `_deck` config per control plane.
@@ -50,7 +51,9 @@ select tags.
 
 ### Implementation Notes (High Level)
 - Add `_deck` to `ControlPlaneResource` and validate.
-- Planner emits `_deck` changes per control plane and adds dependencies to API implementation creates.
-- Executor runs deck per control plane and resolves gateway services post-run.
+- Planner emits `_deck` changes per control plane and adds dependencies to API implementation changes.
+- `_deck` plan changes include control plane metadata, deck file/flag info, and `post_resolution_targets`.
+- Executor runs deck per control plane, resolves gateway services post-run, and updates dependent changes.
 - Deck runs are skipped in dry-run.
-
+- Deck base directories are resolved relative to the config file and stored relative in plans for portability.
+- Deck stdout/stderr are captured; logs emit a readable summary while still using JSON output.
