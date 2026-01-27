@@ -381,7 +381,8 @@ Because kongctl does not own those objects:
 #### Resources managed by decK
 
 Deck integration is configured on control planes via the `_deck` pseudo-resource. kongctl runs deck once per
-control plane that declares `_deck`, then resolves external gateway services by selector name.
+control plane that declares `_deck`, then resolves external gateway services by selector name. `_external.requires.deck`
+is not supported.
 
 ```yaml
 control_planes:
@@ -419,8 +420,10 @@ Notes:
   For apply mode, deletes reported by deck diff are ignored.
 - If the control plane is being created in the same plan (or the ID is not available), kongctl skips deck diff and
   includes the external tool step.
-- For gateway steps, kongctl injects Konnect auth flags; do not supply `--konnect-token`,
-  `--konnect-control-plane-name`, or `--konnect-addr` yourself.
+- For gateway steps, kongctl injects Konnect auth flags and output flags (`--json-output --no-color`);
+  do not supply `--konnect-token`, `--konnect-control-plane-name`, `--konnect-addr`, or output flags yourself.
+- Plans represent deck resolution targets explicitly via `post_resolution_targets` on the `_deck` change entry,
+  including control plane identifiers and the gateway service selector.
 
 #### Namespace Enforcement Flags
 
