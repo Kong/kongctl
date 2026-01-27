@@ -144,14 +144,14 @@ func deleteAll(client *http.Client, baseURL, token, apiVersion, endpoint string,
 		if attempt == 0 {
 			total = len(items)
 			if skipped > 0 {
-				Infof("Skipping %d konnect-managed %s", skipped, endpoint)
+				Infof("Skipping %d filtered %s resources", skipped, endpoint)
 			}
 		} else if len(items)+deleted > total {
 			total = len(items) + deleted
 		}
 
 		if len(idsToDelete) == 0 {
-			Infof("No deletable %s remaining (all are konnect-managed or already deleted)", endpoint)
+			Infof("No %s matched deletion filter; nothing to delete", endpoint)
 			return total, deleted, nil
 		}
 
