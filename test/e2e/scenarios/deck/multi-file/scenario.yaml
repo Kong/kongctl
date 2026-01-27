@@ -1,4 +1,4 @@
-baseInputsPath: ../../../testdata/declarative/external/deck-requires-multi-deck-file
+baseInputsPath: testdata
 
 steps:
   - name: 000-reset-org
@@ -29,11 +29,11 @@ steps:
           - select: "plan.changes[?resource_type=='_deck']"
             expect:
               fields:
-                "length(@)": 2
+                "length(@)": 1
           - select: "plan.summary.by_external_tools._deck"
             expect:
               fields:
-                "length(@)": 2
+                "length(@)": 1
       - name: 001-get-gateway-services
         run:
           - get

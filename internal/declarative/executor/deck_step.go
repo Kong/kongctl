@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -27,17 +28,10 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 
 	logger := deckLoggerFromContext(ctx)
 
-	gatewayRef := stringField(change.Fields, "gateway_service_ref")
-	if gatewayRef == "" {
-		gatewayRef = change.ResourceRef
-	}
-
-	selectorName := selectorNameFromFields(change.Fields)
-	if selectorName == "" {
-		return fmt.Errorf("deck step %s: selector.matchFields.name is required", gatewayRef)
-	}
-
 	cpRef := stringField(change.Fields, "control_plane_ref")
+	if cpRef == "" {
+		cpRef = change.ResourceRef
+	}
 	cpID := stringField(change.Fields, "control_plane_id")
 	cpName := stringField(change.Fields, "control_plane_name")
 
@@ -47,7 +41,7 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 	}
 	cpID = resolvedID
 	if cpID == "" {
-		return fmt.Errorf("deck step %s: control plane ID could not be resolved", gatewayRef)
+		return fmt.Errorf("deck step %s: control plane ID could not be resolved", cpRef)
 	}
 
 	if cpName == "" {
@@ -67,16 +61,16 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 
 	files, err := parseDeckFiles(change.Fields["files"])
 	if err != nil {
-		return fmt.Errorf("deck step %s: %w", gatewayRef, err)
+		return fmt.Errorf("deck step %s: %w", cpRef, err)
 	}
 	flags, err := parseDeckFlags(change.Fields["flags"])
 	if err != nil {
-		return fmt.Errorf("deck step %s: %w", gatewayRef, err)
+		return fmt.Errorf("deck step %s: %w", cpRef, err)
 	}
 	flags = ensureDeckOutputFlags(flags)
 
 	logger.Debug("Executing deck gateway",
-		slog.String("gateway_service_ref", gatewayRef),
+		slog.String("control_plane_ref", cpRef),
 		slog.Int("files", len(files)),
 	)
 
@@ -96,31 +90,50 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 		KonnectAddress:          e.konnectBaseURL,
 		WorkDir:                 workDir,
 	})
-	logDeckRunOutput(logger, gatewayRef, 0, result, err)
+	logDeckRunOutput(logger, cpRef, 0, result, err)
 	if err != nil {
-		return fmt.Errorf("deck gateway for gateway_service %s failed: %w", gatewayRef, err)
-	}
-
-	if !planNeedsGatewayServiceResolution(plan, gatewayRef) {
-		logger.Debug("Skipping gateway service resolution; no dependent changes",
-			slog.String("gateway_service_ref", gatewayRef),
+		return fmt.Errorf("deck gateway for control_plane %s failed: %w%s",
+			cpRef,
+			err,
+			deckRunErrorSuffix(result),
 		)
-		return nil
 	}
 
-	serviceID, err := e.resolveGatewayServiceByName(ctx, cpID, selectorName)
+	services, err := deckGatewayServicesFromFields(change.Fields)
 	if err != nil {
 		return err
 	}
 
-	e.storeGatewayServiceRef(gatewayRef, serviceID)
-	e.updateGatewayServiceReferences(plan, gatewayRef, serviceID, cpID)
+	if len(services) == 0 {
+		return nil
+	}
 
-	logger.Debug("Resolved gateway service after deck execution",
-		slog.String("gateway_service_ref", gatewayRef),
-		slog.String("gateway_service_id", serviceID),
-		slog.String("control_plane_id", cpID),
-	)
+	for _, svc := range services {
+		if !planNeedsGatewayServiceResolution(plan, svc.Ref) {
+			logger.Debug("Skipping gateway service resolution; no dependent changes",
+				slog.String("gateway_service_ref", svc.Ref),
+			)
+			continue
+		}
+		if svc.SelectorName == "" {
+			return fmt.Errorf("deck step %s: selector.matchFields.name is required for gateway_service %s",
+				cpRef, svc.Ref)
+		}
+
+		serviceID, err := e.resolveGatewayServiceByName(ctx, cpID, svc.SelectorName)
+		if err != nil {
+			return err
+		}
+
+		e.storeGatewayServiceRef(svc.Ref, serviceID)
+		e.updateGatewayServiceReferences(plan, svc.Ref, serviceID, cpID)
+
+		logger.Debug("Resolved gateway service after deck execution",
+			slog.String("gateway_service_ref", svc.Ref),
+			slog.String("gateway_service_id", serviceID),
+			slog.String("control_plane_id", cpID),
+		)
+	}
 
 	return nil
 }
@@ -231,6 +244,81 @@ func parseDeckFiles(raw any) ([]string, error) {
 		return nil, fmt.Errorf("files are required")
 	}
 	return cleaned, nil
+}
+
+type deckGatewayServiceRef struct {
+	Ref          string
+	SelectorName string
+}
+
+func deckGatewayServicesFromFields(fields map[string]any) ([]deckGatewayServiceRef, error) {
+	if len(fields) == 0 {
+		return nil, nil
+	}
+	raw, ok := fields["gateway_services"]
+	if !ok || raw == nil {
+		return nil, nil
+	}
+
+	services := make([]deckGatewayServiceRef, 0)
+
+	switch v := raw.(type) {
+	case []map[string]any:
+		for _, entry := range v {
+			services = append(services, deckGatewayServiceFromEntry(entry))
+		}
+	case []any:
+		for _, item := range v {
+			entry, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			services = append(services, deckGatewayServiceFromEntry(entry))
+		}
+	default:
+		return nil, fmt.Errorf("gateway_services must be an array of objects")
+	}
+
+	cleaned := services[:0]
+	for _, svc := range services {
+		if strings.TrimSpace(svc.Ref) == "" {
+			continue
+		}
+		cleaned = append(cleaned, svc)
+	}
+
+	return cleaned, nil
+}
+
+func deckGatewayServiceFromEntry(entry map[string]any) deckGatewayServiceRef {
+	svc := deckGatewayServiceRef{
+		Ref: stringField(entry, "ref"),
+	}
+
+	if name := stringField(entry, "selector_name"); name != "" {
+		svc.SelectorName = name
+		return svc
+	}
+
+	raw, ok := entry["selector"]
+	if !ok || raw == nil {
+		return svc
+	}
+
+	switch v := raw.(type) {
+	case map[string]any:
+		if matchFields, ok := v["matchFields"].(map[string]string); ok {
+			svc.SelectorName = matchFields["name"]
+		} else if matchFields, ok := v["matchFields"].(map[string]any); ok {
+			if name, ok := matchFields["name"].(string); ok {
+				svc.SelectorName = name
+			}
+		}
+	case map[string]string:
+		svc.SelectorName = v["name"]
+	}
+
+	return svc
 }
 
 func parseDeckFlags(raw any) ([]string, error) {
@@ -470,7 +558,7 @@ func stringField(fields map[string]any, key string) string {
 	return ""
 }
 
-func logDeckRunOutput(logger *slog.Logger, gatewayRef string, step int, result *deck.RunResult, runErr error) {
+func logDeckRunOutput(logger *slog.Logger, controlPlaneRef string, step int, result *deck.RunResult, runErr error) {
 	if logger == nil || result == nil {
 		return
 	}
@@ -479,11 +567,20 @@ func logDeckRunOutput(logger *slog.Logger, gatewayRef string, step int, result *
 	stderr := strings.TrimSpace(result.Stderr)
 
 	if stdout != "" {
-		logger.Debug("deck stdout",
-			slog.String("gateway_service_ref", gatewayRef),
-			slog.Int("step", step),
-			slog.String("stdout", stdout),
-		)
+		if summary, ok := deckSummaryFromJSON(stdout); ok {
+			logDeckSummary(logger, controlPlaneRef, step, summary)
+		} else if !looksLikeJSON(stdout) {
+			logger.Debug("deck stdout",
+				slog.String("control_plane_ref", controlPlaneRef),
+				slog.Int("step", step),
+				slog.String("stdout", truncateDeckOutput(stdout, 4096)),
+			)
+		} else {
+			logger.Debug("deck stdout omitted (json output)",
+				slog.String("control_plane_ref", controlPlaneRef),
+				slog.Int("step", step),
+			)
+		}
 	}
 
 	if stderr == "" {
@@ -492,7 +589,7 @@ func logDeckRunOutput(logger *slog.Logger, gatewayRef string, step int, result *
 
 	if runErr != nil {
 		logger.Error("deck stderr",
-			slog.String("gateway_service_ref", gatewayRef),
+			slog.String("control_plane_ref", controlPlaneRef),
 			slog.Int("step", step),
 			slog.String("stderr", stderr),
 		)
@@ -500,55 +597,10 @@ func logDeckRunOutput(logger *slog.Logger, gatewayRef string, step int, result *
 	}
 
 	logger.Debug("deck stderr",
-		slog.String("gateway_service_ref", gatewayRef),
+		slog.String("control_plane_ref", controlPlaneRef),
 		slog.Int("step", step),
-		slog.String("stderr", stderr),
+		slog.String("stderr", truncateDeckOutput(stderr, 4096)),
 	)
-}
-
-func selectorNameFromFields(fields map[string]any) string {
-	if name := stringField(fields, "selector_name"); name != "" {
-		return name
-	}
-
-	raw, ok := fields["selector"]
-	if !ok || raw == nil {
-		return ""
-	}
-
-	switch selector := raw.(type) {
-	case map[string]any:
-		return selectorNameFromSelectorMap(selector)
-	case map[string]string:
-		return selectorNameFromMatchFieldsMap(selector)
-	default:
-		return ""
-	}
-}
-
-func selectorNameFromSelectorMap(selector map[string]any) string {
-	raw := selector["matchFields"]
-	if raw == nil {
-		raw = selector["match_fields"]
-	}
-
-	switch matchFields := raw.(type) {
-	case map[string]any:
-		if name, ok := matchFields["name"].(string); ok {
-			return strings.TrimSpace(name)
-		}
-	case map[string]string:
-		return strings.TrimSpace(matchFields["name"])
-	}
-
-	return ""
-}
-
-func selectorNameFromMatchFieldsMap(matchFields map[string]string) string {
-	if len(matchFields) == 0 {
-		return ""
-	}
-	return strings.TrimSpace(matchFields["name"])
 }
 
 func deckLoggerFromContext(ctx context.Context) *slog.Logger {
@@ -558,4 +610,149 @@ func deckLoggerFromContext(ctx context.Context) *slog.Logger {
 		}
 	}
 	return slog.Default()
+}
+
+type deckSummary struct {
+	Kind        string
+	Created     int
+	Updated     int
+	Deleted     int
+	Creating    int
+	Updating    int
+	Deleting    int
+	Total       int
+	Warnings    int
+	Errors      int
+	HasSummary  bool
+	HasWarnings bool
+	HasErrors   bool
+}
+
+func deckSummaryFromJSON(stdout string) (deckSummary, bool) {
+	var payload struct {
+		Summary  map[string]any `json:"summary"`
+		Warnings []any          `json:"warnings"`
+		Errors   []any          `json:"errors"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		return deckSummary{}, false
+	}
+	if payload.Summary == nil {
+		return deckSummary{}, false
+	}
+
+	summary := deckSummary{
+		Warnings: len(payload.Warnings),
+		Errors:   len(payload.Errors),
+	}
+	if summary.Warnings > 0 {
+		summary.HasWarnings = true
+	}
+	if summary.Errors > 0 {
+		summary.HasErrors = true
+	}
+
+	if created, ok := intFromAny(payload.Summary["created"]); ok {
+		summary.Kind = "apply"
+		summary.Created = created
+		summary.Updated = intFromAnyDefault(payload.Summary["updated"])
+		summary.Deleted = intFromAnyDefault(payload.Summary["deleted"])
+		summary.HasSummary = true
+		return summary, true
+	}
+	if creating, ok := intFromAny(payload.Summary["creating"]); ok {
+		summary.Kind = "diff"
+		summary.Creating = creating
+		summary.Updating = intFromAnyDefault(payload.Summary["updating"])
+		summary.Deleting = intFromAnyDefault(payload.Summary["deleting"])
+		summary.Total = intFromAnyDefault(payload.Summary["total"])
+		summary.HasSummary = true
+		return summary, true
+	}
+
+	return deckSummary{}, false
+}
+
+func logDeckSummary(logger *slog.Logger, controlPlaneRef string, step int, summary deckSummary) {
+	if logger == nil || !summary.HasSummary {
+		return
+	}
+	if summary.Kind == "diff" {
+		logger.Debug("deck diff summary",
+			slog.String("control_plane_ref", controlPlaneRef),
+			slog.Int("step", step),
+			slog.Int("creating", summary.Creating),
+			slog.Int("updating", summary.Updating),
+			slog.Int("deleting", summary.Deleting),
+			slog.Int("total", summary.Total),
+			slog.Int("warnings", summary.Warnings),
+			slog.Int("errors", summary.Errors),
+		)
+		return
+	}
+
+	logger.Debug("deck summary",
+		slog.String("control_plane_ref", controlPlaneRef),
+		slog.Int("step", step),
+		slog.Int("created", summary.Created),
+		slog.Int("updated", summary.Updated),
+		slog.Int("deleted", summary.Deleted),
+		slog.Int("warnings", summary.Warnings),
+		slog.Int("errors", summary.Errors),
+	)
+}
+
+func looksLikeJSON(value string) bool {
+	trimmed := strings.TrimSpace(value)
+	return strings.HasPrefix(trimmed, "{") || strings.HasPrefix(trimmed, "[")
+}
+
+func intFromAny(value any) (int, bool) {
+	switch v := value.(type) {
+	case int:
+		return v, true
+	case int64:
+		return int(v), true
+	case float64:
+		return int(v), true
+	case float32:
+		return int(v), true
+	default:
+		return 0, false
+	}
+}
+
+func intFromAnyDefault(value any) int {
+	if val, ok := intFromAny(value); ok {
+		return val
+	}
+	return 0
+}
+
+func truncateDeckOutput(value string, max int) string {
+	if max <= 0 {
+		return value
+	}
+	if len(value) <= max {
+		return value
+	}
+	return value[:max] + "...(truncated)"
+}
+
+func deckRunErrorSuffix(result *deck.RunResult) string {
+	if result == nil {
+		return ""
+	}
+	stderr := strings.TrimSpace(result.Stderr)
+	stdout := strings.TrimSpace(result.Stdout)
+	detail := ""
+	if stderr != "" {
+		detail = stderr
+	} else if stdout != "" {
+		detail = stdout
+	}
+	if detail == "" {
+		return ""
+	}
+	return fmt.Sprintf(": %s", truncateDeckOutput(detail, 2048))
 }

@@ -5,7 +5,3 @@ gateway_services:
       selector:
         matchFields:
           name: "e2e-gw-svc-two"
-      requires:
-        deck:
-          files:
-            - "deck-gateway-service-two.yaml"

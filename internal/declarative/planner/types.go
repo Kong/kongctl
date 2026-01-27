@@ -85,7 +85,7 @@ type ActionType string
 const (
 	ActionCreate       ActionType = "CREATE"
 	ActionUpdate       ActionType = "UPDATE"
-	ActionDelete       ActionType = "DELETE" // Future
+	ActionDelete       ActionType = "DELETE"
 	ActionExternalTool ActionType = "EXTERNAL_TOOL"
 )
 
@@ -112,14 +112,19 @@ type PlanWarning struct {
 
 // ExternalToolDependency captures external tool execution requirements for summary output.
 type ExternalToolDependency struct {
-	GatewayServiceRef string                `json:"gateway_service_ref"`
-	ControlPlaneRef   string                `json:"control_plane_ref,omitempty"`
-	ControlPlaneID    string                `json:"control_plane_id,omitempty"`
-	ControlPlaneName  string                `json:"control_plane_name,omitempty"`
-	Selector          *ExternalToolSelector `json:"selector,omitempty"`
-	Files             []string              `json:"files,omitempty"`
-	Flags             []string              `json:"flags,omitempty"`
-	DeckBaseDir       string                `json:"deck_base_dir,omitempty"`
+	ControlPlaneRef  string                      `json:"control_plane_ref,omitempty"`
+	ControlPlaneID   string                      `json:"control_plane_id,omitempty"`
+	ControlPlaneName string                      `json:"control_plane_name,omitempty"`
+	GatewayServices  []ExternalToolGatewayTarget `json:"gateway_services,omitempty"`
+	Files            []string                    `json:"files,omitempty"`
+	Flags            []string                    `json:"flags,omitempty"`
+	DeckBaseDir      string                      `json:"deck_base_dir,omitempty"`
+}
+
+// ExternalToolGatewayTarget represents a gateway service selector tied to a deck run.
+type ExternalToolGatewayTarget struct {
+	Ref      string                `json:"ref"`
+	Selector *ExternalToolSelector `json:"selector,omitempty"`
 }
 
 // ExternalToolSelector represents selector match fields for external tool dependencies.
@@ -225,37 +230,73 @@ func (p *Plan) UpdateSummary() {
 func externalToolDependencyFromChange(change PlannedChange) ExternalToolDependency {
 	fields := change.Fields
 	dependency := ExternalToolDependency{
-		GatewayServiceRef: stringFromField(fields, "gateway_service_ref"),
-		ControlPlaneRef:   stringFromField(fields, "control_plane_ref"),
-		ControlPlaneID:    stringFromField(fields, "control_plane_id"),
-		ControlPlaneName:  stringFromField(fields, "control_plane_name"),
-		Selector:          selectorFromFields(fields),
-		Files:             stringSliceFromField(fields, "files"),
-		Flags:             stringSliceFromField(fields, "flags"),
-		DeckBaseDir:       stringFromField(fields, "deck_base_dir"),
-	}
-
-	if dependency.GatewayServiceRef == "" {
-		dependency.GatewayServiceRef = change.ResourceRef
+		ControlPlaneRef:  stringFromField(fields, "control_plane_ref"),
+		ControlPlaneID:   stringFromField(fields, "control_plane_id"),
+		ControlPlaneName: stringFromField(fields, "control_plane_name"),
+		GatewayServices:  gatewayTargetsFromFields(fields),
+		Files:            stringSliceFromField(fields, "files"),
+		Flags:            stringSliceFromField(fields, "flags"),
+		DeckBaseDir:      stringFromField(fields, "deck_base_dir"),
 	}
 
 	return dependency
 }
 
-func selectorFromFields(fields map[string]any) *ExternalToolSelector {
+func gatewayTargetsFromFields(fields map[string]any) []ExternalToolGatewayTarget {
 	if len(fields) == 0 {
 		return nil
 	}
 
-	if name := stringFromField(fields, "selector_name"); name != "" {
-		return &ExternalToolSelector{MatchFields: map[string]string{"name": name}}
-	}
-
-	raw, ok := fields["selector"]
+	raw, ok := fields["gateway_services"]
 	if !ok || raw == nil {
 		return nil
 	}
 
+	switch v := raw.(type) {
+	case []ExternalToolGatewayTarget:
+		return v
+	case []map[string]any:
+		out := make([]ExternalToolGatewayTarget, 0, len(v))
+		for _, entry := range v {
+			ref, _ := entry["ref"].(string)
+			selector := selectorFromEntry(entry)
+			if ref == "" {
+				continue
+			}
+			out = append(out, ExternalToolGatewayTarget{Ref: ref, Selector: selector})
+		}
+		return out
+	case []any:
+		out := make([]ExternalToolGatewayTarget, 0, len(v))
+		for _, item := range v {
+			entry, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			ref, _ := entry["ref"].(string)
+			selector := selectorFromEntry(entry)
+			if ref == "" {
+				continue
+			}
+			out = append(out, ExternalToolGatewayTarget{Ref: ref, Selector: selector})
+		}
+		return out
+	}
+
+	return nil
+}
+
+func selectorFromEntry(entry map[string]any) *ExternalToolSelector {
+	if len(entry) == 0 {
+		return nil
+	}
+	if name, ok := entry["selector_name"].(string); ok && name != "" {
+		return &ExternalToolSelector{MatchFields: map[string]string{"name": name}}
+	}
+	raw, ok := entry["selector"]
+	if !ok || raw == nil {
+		return nil
+	}
 	switch v := raw.(type) {
 	case ExternalToolSelector:
 		return cloneExternalToolSelector(&v)

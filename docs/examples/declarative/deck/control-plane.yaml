@@ -1,0 +1,15 @@
+control_planes:
+  - ref: example-cp
+    name: "example-cp"
+    description: "Example Control Plane managed by kongctl"
+    cluster_type: "CLUSTER_TYPE_SERVERLESS"
+    _deck:
+      files:
+        - "gateway-services.yaml"
+
+    gateway_services:
+      - ref: example-gw-svc
+        _external:
+          selector:
+            matchFields:
+              name: "example-gw-svc"

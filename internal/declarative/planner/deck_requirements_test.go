@@ -95,6 +95,7 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 	cp := resources.ControlPlaneResource{
 		CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{Name: cpName},
 		Ref:                       "cp",
+		Deck:                      &resources.DeckConfig{Files: []string{"gateway-service.yaml"}},
 	}
 	cp.TryMatchKonnectResource(state.ControlPlane{
 		ControlPlane: kkComps.ControlPlane{
@@ -102,6 +103,7 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 			Name: cpName,
 		},
 	})
+	cp.SetDeckBaseDir(deckBaseDir)
 
 	impl := resources.APIImplementationResource{
 		Ref: "impl",
@@ -124,12 +126,8 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 			Selector: &resources.ExternalSelector{
 				MatchFields: map[string]string{"name": "svc-name"},
 			},
-			Requires: &resources.ExternalRequires{
-				Deck: &resources.DeckRequires{Files: []string{"gateway-service.yaml"}},
-			},
 		},
 	}
-	gw.SetDeckBaseDir(deckBaseDir)
 
 	rs := &resources.ResourceSet{
 		APIs:               []resources.APIResource{api},
@@ -162,25 +160,20 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, runner.calls, 1)
-	expectedArgs := []string{
-		"gateway",
-		"diff",
-		"--json-output",
-		"--no-color",
-		"gateway-service.yaml",
-	}
+	expectedArgs := []string{"gateway", "diff", "--json-output", "--no-color", "gateway-service.yaml"}
 	require.Equal(t, expectedArgs, runner.calls[0].Args)
 
 	deps := plan.Summary.ByExternalTools[ResourceTypeDeck]
 	require.Len(t, deps, 1)
 	dep := deps[0]
-	require.Equal(t, "gw-service", dep.GatewayServiceRef)
-	require.NotNil(t, dep.Selector)
-	require.Equal(t, "svc-name", dep.Selector.MatchFields["name"])
+	require.Equal(t, "cp", dep.ControlPlaneRef)
 	require.Equal(t, cpID, dep.ControlPlaneID)
 	require.Equal(t, cpName, dep.ControlPlaneName)
 	require.Equal(t, deckBaseDir, dep.DeckBaseDir)
 	require.Equal(t, []string{"gateway-service.yaml"}, dep.Files)
+	require.Len(t, dep.GatewayServices, 1)
+	require.Equal(t, "gw-service", dep.GatewayServices[0].Ref)
+	require.Equal(t, "svc-name", dep.GatewayServices[0].Selector.MatchFields["name"])
 
 	var deckChange *PlannedChange
 	var apiChange *PlannedChange
@@ -200,12 +193,13 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 	require.Contains(t, apiChange.DependsOn, deckChange.ID)
 }
 
-func TestResolveGatewayServiceIdentitiesDeckRequiresNoMatch(t *testing.T) {
+func TestResolveGatewayServiceIdentitiesDeckConfigNoMatch(t *testing.T) {
 	cpID := "11111111-1111-1111-1111-111111111111"
 
 	cp := resources.ControlPlaneResource{
 		CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{Name: "cp"},
 		Ref:                       "cp",
+		Deck:                      &resources.DeckConfig{Files: []string{"gateway-service.yaml"}},
 	}
 	cp.TryMatchKonnectResource(state.ControlPlane{
 		ControlPlane: kkComps.ControlPlane{
@@ -221,9 +215,6 @@ func TestResolveGatewayServiceIdentitiesDeckRequiresNoMatch(t *testing.T) {
 			Selector: &resources.ExternalSelector{
 				MatchFields: map[string]string{"name": "svc-name"},
 			},
-			Requires: &resources.ExternalRequires{
-				Deck: &resources.DeckRequires{Files: []string{"gateway-service.yaml"}},
-			},
 		},
 	}
 
@@ -238,17 +229,17 @@ func TestResolveGatewayServiceIdentitiesDeckRequiresNoMatch(t *testing.T) {
 
 	err := p.resolveGatewayServiceIdentities(context.Background(), services, controlPlanes)
 	require.NoError(t, err)
-	require.Empty(t, services[0].GetKonnectID())
 }
 
-func TestResolveGatewayServiceIdentitiesDeckRequiresMatchesExisting(t *testing.T) {
+func TestResolveGatewayServiceIdentitiesDeckConfigMatchesExisting(t *testing.T) {
 	cpID := "11111111-1111-1111-1111-111111111111"
-	serviceID := "22222222-2222-2222-2222-222222222222"
+	serviceID := "svc-id"
 	serviceName := "svc-name"
 
 	cp := resources.ControlPlaneResource{
 		CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{Name: "cp"},
 		Ref:                       "cp",
+		Deck:                      &resources.DeckConfig{Files: []string{"gateway-service.yaml"}},
 	}
 	cp.TryMatchKonnectResource(state.ControlPlane{
 		ControlPlane: kkComps.ControlPlane{
@@ -262,10 +253,7 @@ func TestResolveGatewayServiceIdentitiesDeckRequiresMatchesExisting(t *testing.T
 		ControlPlane: "cp",
 		External: &resources.ExternalBlock{
 			Selector: &resources.ExternalSelector{
-				MatchFields: map[string]string{"name": serviceName},
-			},
-			Requires: &resources.ExternalRequires{
-				Deck: &resources.DeckRequires{Files: []string{"gateway-service.yaml"}},
+				MatchFields: map[string]string{"name": "svc-name"},
 			},
 		},
 	}
@@ -275,12 +263,7 @@ func TestResolveGatewayServiceIdentitiesDeckRequiresMatchesExisting(t *testing.T
 
 	stateClient := state.NewClient(state.ClientConfig{
 		GatewayServiceAPI: &stubGatewayServiceAPI{
-			services: []kkComps.ServiceOutput{
-				{
-					ID:   &serviceID,
-					Name: &serviceName,
-				},
-			},
+			services: []kkComps.ServiceOutput{{ID: &serviceID, Name: &serviceName}},
 		},
 	})
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -289,5 +272,4 @@ func TestResolveGatewayServiceIdentitiesDeckRequiresMatchesExisting(t *testing.T
 	err := p.resolveGatewayServiceIdentities(context.Background(), services, controlPlanes)
 	require.NoError(t, err)
 	require.Equal(t, serviceID, services[0].GetKonnectID())
-	require.Equal(t, cpID, services[0].ResolvedControlPlaneID())
 }

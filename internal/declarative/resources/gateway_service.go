@@ -24,7 +24,7 @@ type GatewayServiceResource struct {
 	// Resolved Konnect identifiers (not serialized)
 	konnectID             string `yaml:"-" json:"-"`
 	controlPlaneKonnectID string `yaml:"-" json:"-"`
-	deckBaseDir           string `yaml:"-" json:"-"`
+	// deckBaseDir removed (deck config is now control-plane scoped).
 }
 
 // GetType returns the resource type.
@@ -43,16 +43,6 @@ func (s GatewayServiceResource) GetMoniker() string {
 		return *s.Service.Name
 	}
 	return ""
-}
-
-// DeckBaseDir returns the resolved base directory for deck requirements (if any).
-func (s GatewayServiceResource) DeckBaseDir() string {
-	return s.deckBaseDir
-}
-
-// SetDeckBaseDir sets the resolved base directory for deck requirements.
-func (s *GatewayServiceResource) SetDeckBaseDir(dir string) {
-	s.deckBaseDir = strings.TrimSpace(dir)
 }
 
 // GetDependencies declares the resource dependencies.
@@ -95,6 +85,14 @@ func (s GatewayServiceResource) Validate() error {
 	if s.External != nil {
 		if err := s.External.Validate(); err != nil {
 			return fmt.Errorf("invalid _external block: %w", err)
+		}
+		if s.External.Selector != nil {
+			if len(s.External.Selector.MatchFields) != 1 {
+				return fmt.Errorf("gateway_service %s: selector supports matchFields.name only", s.Ref)
+			}
+			if _, ok := s.External.Selector.MatchFields["name"]; !ok {
+				return fmt.Errorf("gateway_service %s: selector supports matchFields.name only", s.Ref)
+			}
 		}
 	}
 
@@ -231,9 +229,4 @@ func (s *GatewayServiceResource) SetResolvedControlPlaneID(id string) {
 // IsExternal returns true when the service is marked as externally managed.
 func (s *GatewayServiceResource) IsExternal() bool {
 	return s.External != nil && s.External.IsExternal()
-}
-
-// HasDeckRequires returns true when external deck requirements are configured.
-func (s *GatewayServiceResource) HasDeckRequires() bool {
-	return s.External != nil && s.External.HasDeckRequires()
 }

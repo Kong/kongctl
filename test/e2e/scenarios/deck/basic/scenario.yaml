@@ -1,4 +1,4 @@
-baseInputsPath: ../../../testdata/declarative/external/deck-requires
+baseInputsPath: testdata
 
 steps:
   - name: 000-reset-org
@@ -72,7 +72,7 @@ steps:
 
   - name: 003-invalid-deck-path
     inputOverlayDirs:
-      - overlays/003-invalid-deck-path
+      - testdata/overlays/003-invalid-deck-path
     commands:
       - name: 000-apply-invalid-path
         run:
@@ -88,7 +88,7 @@ steps:
 
   - name: 004-invalid-deck-state
     inputOverlayDirs:
-      - overlays/004-invalid-deck-state
+      - testdata/overlays/004-invalid-deck-state
     commands:
       - name: 000-apply-invalid-state
         run:
@@ -100,11 +100,11 @@ steps:
           - --auto-approve
         expectFailure:
           exitCode: 1
-          contains: "deck stderr"
+          contains: "validation error"
 
   - name: 005-sync-delete
     inputOverlayDirs:
-      - overlays/005-sync-delete
+      - testdata/overlays/005-sync-delete
     commands:
       - name: 000-sync
         outputFormat: json

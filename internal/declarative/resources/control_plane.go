@@ -17,18 +17,35 @@ type ControlPlaneGroupMember struct {
 type ControlPlaneResource struct {
 	kkComps.CreateControlPlaneRequest `                          yaml:",inline"                    json:",inline"`
 	Ref                               string                    `yaml:"ref"                        json:"ref"`
-	Kongctl                           *KongctlMeta              `yaml:"kongctl,omitempty"          json:"kongctl,omitempty"`          //nolint:lll
-	External                          *ExternalBlock            `yaml:"_external,omitempty"        json:"_external,omitempty"`        //nolint:lll
+	Kongctl                           *KongctlMeta              `yaml:"kongctl,omitempty"          json:"kongctl,omitempty"`   //nolint:lll
+	External                          *ExternalBlock            `yaml:"_external,omitempty"        json:"_external,omitempty"` //nolint:lll
+	Deck                              *DeckConfig               `yaml:"_deck,omitempty"            json:"_deck,omitempty"`
 	GatewayServices                   []GatewayServiceResource  `yaml:"gateway_services,omitempty" json:"gateway_services,omitempty"` //nolint:lll
 	Members                           []ControlPlaneGroupMember `yaml:"members,omitempty"          json:"members,omitempty"`          //nolint:lll
 
 	// Resolved Konnect ID (not serialized)
-	konnectID string `yaml:"-" json:"-"`
+	konnectID   string `yaml:"-" json:"-"`
+	deckBaseDir string `yaml:"-" json:"-"`
 }
 
 // GetRef returns the reference identifier used for cross-resource references
 func (c ControlPlaneResource) GetRef() string {
 	return c.Ref
+}
+
+// DeckBaseDir returns the resolved base directory for deck config (if any).
+func (c ControlPlaneResource) DeckBaseDir() string {
+	return c.deckBaseDir
+}
+
+// SetDeckBaseDir sets the resolved base directory for deck config.
+func (c *ControlPlaneResource) SetDeckBaseDir(dir string) {
+	c.deckBaseDir = strings.TrimSpace(dir)
+}
+
+// HasDeckConfig returns true when a deck config is configured on the control plane.
+func (c ControlPlaneResource) HasDeckConfig() bool {
+	return c.Deck != nil
 }
 
 // GetReferenceFieldMappings returns the field mappings for reference validation
@@ -64,15 +81,14 @@ func (c ControlPlaneResource) Validate() error {
 	}
 
 	if c.External != nil {
-		if c.External.HasDeckRequires() {
-			return fmt.Errorf(
-				"control plane %q: _external.requires.deck is not supported for resource type %s",
-				c.Ref,
-				ResourceTypeControlPlane,
-			)
-		}
 		if err := c.External.Validate(); err != nil {
 			return fmt.Errorf("invalid _external block: %w", err)
+		}
+	}
+
+	if c.Deck != nil {
+		if err := c.Deck.Validate(); err != nil {
+			return fmt.Errorf("control plane %q: invalid _deck config: %w", c.Ref, err)
 		}
 	}
 	return nil

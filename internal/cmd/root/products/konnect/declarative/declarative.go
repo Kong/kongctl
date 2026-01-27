@@ -529,7 +529,7 @@ func deckPlanOptions(
 	cfg config.Hook,
 	logger *slog.Logger,
 ) (planner.DeckOptions, error) {
-	if !resourceSetHasDeckRequires(resourceSet) {
+	if !resourceSetHasDeckConfig(resourceSet) {
 		return planner.DeckOptions{}, nil
 	}
 
@@ -549,12 +549,12 @@ func deckPlanOptions(
 	}, nil
 }
 
-func resourceSetHasDeckRequires(resourceSet *resources.ResourceSet) bool {
+func resourceSetHasDeckConfig(resourceSet *resources.ResourceSet) bool {
 	if resourceSet == nil {
 		return false
 	}
-	for i := range resourceSet.GatewayServices {
-		if resourceSet.GatewayServices[i].HasDeckRequires() {
+	for i := range resourceSet.ControlPlanes {
+		if resourceSet.ControlPlanes[i].HasDeckConfig() {
 			return true
 		}
 	}

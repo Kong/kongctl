@@ -81,20 +81,24 @@ func TestExecuteDeckStepUpdatesImplementation(t *testing.T) {
 		{
 			ID:           "1",
 			ResourceType: planner.ResourceTypeDeck,
-			ResourceRef:  "gw-ref",
+			ResourceRef:  "cp-ref",
 			Action:       planner.ActionExternalTool,
 			Fields: map[string]any{
-				"gateway_service_ref": "gw-ref",
-				"control_plane_ref":   cpID,
-				"control_plane_id":    cpID,
-				"control_plane_name":  cpName,
-				"deck_base_dir":       deckBaseDir,
-				"selector": map[string]any{
-					"matchFields": map[string]string{
-						"name": selectorName,
+				"control_plane_ref":  cpID,
+				"control_plane_id":   cpID,
+				"control_plane_name": cpName,
+				"deck_base_dir":      deckBaseDir,
+				"files":              []string{"gateway-service.yaml"},
+				"gateway_services": []map[string]any{
+					{
+						"ref": "gw-ref",
+						"selector": map[string]any{
+							"matchFields": map[string]string{
+								"name": selectorName,
+							},
+						},
 					},
 				},
-				"files": []string{"gateway-service.yaml"},
 			},
 		},
 		{
@@ -145,18 +149,22 @@ func TestExecutorDryRunSkipsDeckRunner(t *testing.T) {
 	plan.AddChange(planner.PlannedChange{
 		ID:           "1",
 		ResourceType: planner.ResourceTypeDeck,
-		ResourceRef:  "gw-ref",
+		ResourceRef:  "cp-ref",
 		Action:       planner.ActionExternalTool,
 		Fields: map[string]any{
-			"gateway_service_ref": "gw-ref",
-			"control_plane_id":    "cp-id",
-			"control_plane_name":  "cp-name",
-			"selector": map[string]any{
-				"matchFields": map[string]string{
-					"name": "svc-name",
+			"control_plane_id":   "cp-id",
+			"control_plane_name": "cp-name",
+			"files":              []string{"gateway-service.yaml"},
+			"gateway_services": []map[string]any{
+				{
+					"ref": "gw-ref",
+					"selector": map[string]any{
+						"matchFields": map[string]string{
+							"name": "svc-name",
+						},
+					},
 				},
 			},
-			"files": []string{"gateway-service.yaml"},
 		},
 	})
 	plan.SetExecutionOrder([]string{"1"})
@@ -180,18 +188,22 @@ func TestExecuteDeckStepSkipsResolutionWithoutDependencies(t *testing.T) {
 		{
 			ID:           "1",
 			ResourceType: planner.ResourceTypeDeck,
-			ResourceRef:  "gw-ref",
+			ResourceRef:  "cp-ref",
 			Action:       planner.ActionExternalTool,
 			Fields: map[string]any{
-				"gateway_service_ref": "gw-ref",
-				"control_plane_id":    "11111111-1111-1111-1111-111111111111",
-				"control_plane_name":  "cp-name",
-				"selector": map[string]any{
-					"matchFields": map[string]string{
-						"name": "svc-name",
+				"control_plane_id":   "11111111-1111-1111-1111-111111111111",
+				"control_plane_name": "cp-name",
+				"files":              []string{"gateway-service.yaml"},
+				"gateway_services": []map[string]any{
+					{
+						"ref": "gw-ref",
+						"selector": map[string]any{
+							"matchFields": map[string]string{
+								"name": "svc-name",
+							},
+						},
 					},
 				},
-				"files": []string{"gateway-service.yaml"},
 			},
 		},
 	}

@@ -807,6 +807,13 @@ func (p *Planner) resolveGatewayServiceIdentities(
 		cpByRef[cp.GetRef()] = cp
 	}
 
+	deckControlPlanes := make(map[string]bool, len(controlPlanes))
+	for ref, cp := range cpByRef {
+		if cp.HasDeckConfig() {
+			deckControlPlanes[ref] = true
+		}
+	}
+
 	serviceCache := make(map[string][]state.GatewayService)
 
 	for i := range services {
@@ -824,7 +831,7 @@ func (p *Planner) resolveGatewayServiceIdentities(
 			continue
 		}
 
-		if service.HasDeckRequires() {
+		if controlPlaneHasDeck(service, deckControlPlanes) {
 			if cpID == "" {
 				p.logger.Debug("Skipping gateway service lookup; control plane ID not resolved",
 					slog.String("ref", service.GetRef()),
@@ -845,7 +852,7 @@ func (p *Planner) resolveGatewayServiceIdentities(
 			match, err := p.matchGatewayService(service, available)
 			if err != nil {
 				if errors.Is(err, errGatewayServiceNotFound) {
-					p.logger.Debug("External gateway service not found; continuing due to deck requirements",
+					p.logger.Debug("External gateway service not found; continuing due to control plane deck config",
 						slog.String("ref", service.GetRef()),
 						slog.String("control_plane_id", cpID),
 					)
@@ -929,7 +936,7 @@ func (p *Planner) resolveGatewayServiceControlPlaneID(
 	}
 
 	if cpResource.GetKonnectID() == "" {
-		if service.HasDeckRequires() {
+		if cpResource.HasDeckConfig() {
 			return "", nil
 		}
 		return "", fmt.Errorf(
@@ -940,6 +947,17 @@ func (p *Planner) resolveGatewayServiceControlPlaneID(
 	}
 
 	return cpResource.GetKonnectID(), nil
+}
+
+func controlPlaneHasDeck(service *resources.GatewayServiceResource, deckControlPlanes map[string]bool) bool {
+	if service == nil || len(deckControlPlanes) == 0 {
+		return false
+	}
+	cpRef := normalizeControlPlaneRef(service.ControlPlane)
+	if cpRef == "" {
+		return false
+	}
+	return deckControlPlanes[cpRef]
 }
 
 func (p *Planner) matchGatewayService(
@@ -1052,7 +1070,12 @@ func (p *Planner) normalizeAPIImplementationService(
 		return fmt.Errorf("api_implementation %s: service.id is required", implRef)
 	}
 
-	resolvedServiceID, linkedService, err := p.resolveGatewayServiceReference(serviceID, serviceByRef, implRef)
+	resolvedServiceID, linkedService, err := p.resolveGatewayServiceReference(
+		serviceID,
+		serviceByRef,
+		controlPlaneByRef,
+		implRef,
+	)
 	if err != nil {
 		return err
 	}
@@ -1075,6 +1098,7 @@ func (p *Planner) normalizeAPIImplementationService(
 func (p *Planner) resolveGatewayServiceReference(
 	value string,
 	serviceByRef map[string]*resources.GatewayServiceResource,
+	controlPlaneByRef map[string]*resources.ControlPlaneResource,
 	implRef string,
 ) (string, *resources.GatewayServiceResource, error) {
 	if tags.IsRefPlaceholder(value) {
@@ -1090,7 +1114,7 @@ func (p *Planner) resolveGatewayServiceReference(
 			return "", nil, fmt.Errorf("api_implementation %s: gateway_service %s not found", implRef, ref)
 		}
 		if svc.GetKonnectID() == "" {
-			if svc.HasDeckRequires() {
+			if serviceHasDeckConfig(svc, controlPlaneByRef) {
 				return value, svc, nil
 			}
 			return "", nil, fmt.Errorf(
@@ -1112,7 +1136,7 @@ func (p *Planner) resolveGatewayServiceReference(
 	}
 
 	if svc.GetKonnectID() == "" {
-		if svc.HasDeckRequires() {
+		if serviceHasDeckConfig(svc, controlPlaneByRef) {
 			placeholder := fmt.Sprintf("%s%s#id", tags.RefPlaceholderPrefix, svc.GetRef())
 			return placeholder, svc, nil
 		}
@@ -1161,7 +1185,7 @@ func (p *Planner) resolveImplementationControlPlaneID(
 	}
 
 	if cp.GetKonnectID() == "" {
-		if linkedService != nil && linkedService.HasDeckRequires() {
+		if linkedService != nil && serviceHasDeckConfig(linkedService, controlPlaneByRef) {
 			return value, nil
 		}
 		return "", fmt.Errorf(
@@ -1177,6 +1201,24 @@ func (p *Planner) resolveImplementationControlPlaneID(
 	}
 
 	return resolved, nil
+}
+
+func serviceHasDeckConfig(
+	service *resources.GatewayServiceResource,
+	controlPlaneByRef map[string]*resources.ControlPlaneResource,
+) bool {
+	if service == nil || len(controlPlaneByRef) == 0 {
+		return false
+	}
+	cpRef := normalizeControlPlaneRef(service.ControlPlane)
+	if cpRef == "" {
+		return false
+	}
+	cp, ok := controlPlaneByRef[cpRef]
+	if !ok {
+		return false
+	}
+	return cp.HasDeckConfig()
 }
 
 // resolvePortalIdentities resolves Konnect IDs for Portal resources

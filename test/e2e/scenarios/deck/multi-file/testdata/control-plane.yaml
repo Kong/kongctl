@@ -3,3 +3,7 @@ control_planes:
     name: "e2e-cp"
     description: "E2E Control Plane"
     cluster_type: "CLUSTER_TYPE_SERVERLESS"
+    _deck:
+      files:
+        - "deck-gateway-service-one.yaml"
+        - "deck-gateway-service-two.yaml"

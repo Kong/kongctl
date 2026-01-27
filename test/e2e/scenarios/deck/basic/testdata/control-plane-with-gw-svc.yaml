@@ -3,6 +3,9 @@ control_planes:
     name: "e2e-cp"
     description: "E2E Control Plane"
     cluster_type: "CLUSTER_TYPE_SERVERLESS"
+    _deck:
+      files:
+        - "gateway-service.yaml"
 
     gateway_services:
       - ref: e2e-gw-svc
@@ -10,7 +13,3 @@ control_planes:
           selector:
             matchFields:
               name: "e2e-gw-svc"
-          requires:
-            deck:
-              files:
-                - "missing.yaml"

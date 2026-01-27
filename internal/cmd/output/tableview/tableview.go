@@ -693,17 +693,16 @@ func buildRows(data any) ([]string, [][]string, error) {
 	value := reflect.ValueOf(data)
 	value = deref(value)
 
-	//nolint:exhaustive
-	switch value.Kind() {
-	case reflect.Slice, reflect.Array:
+	kind := value.Kind()
+	if kind == reflect.Slice || kind == reflect.Array {
 		return rowsFromSlice(value)
-	case reflect.Struct:
+	}
+	if kind == reflect.Struct {
 		slice := reflect.MakeSlice(reflect.SliceOf(value.Type()), 0, 1)
 		slice = reflect.Append(slice, value)
 		return rowsFromSlice(slice)
-	default:
-		return nil, nil, fmt.Errorf("tableview: unsupported data kind %s", value.Kind())
 	}
+	return nil, nil, fmt.Errorf("tableview: unsupported data kind %s", value.Kind())
 }
 
 func rowsFromSlice(slice reflect.Value) ([]string, [][]string, error) {
@@ -1470,9 +1469,8 @@ func valueForLabel(parent reflect.Value, label string) (reflect.Value, bool) {
 		return reflect.Value{}, false
 	}
 
-	//nolint:exhaustive
-	switch parent.Kind() {
-	case reflect.Struct:
+	kind := parent.Kind()
+	if kind == reflect.Struct {
 		target := normalizeHeaderKey(label)
 		typ := parent.Type()
 		targetCompact := strings.ReplaceAll(target, " ", "")
@@ -1487,7 +1485,7 @@ func valueForLabel(parent reflect.Value, label string) (reflect.Value, bool) {
 				return parent.Field(i), true
 			}
 		}
-	case reflect.Map:
+	} else if kind == reflect.Map {
 		iter := parent.MapRange()
 		target := normalizeHeaderKey(label)
 		for iter.Next() {
@@ -1503,16 +1501,15 @@ func valueForLabel(parent reflect.Value, label string) (reflect.Value, bool) {
 
 func derefValueDeep(value reflect.Value) reflect.Value {
 	for value.IsValid() {
-		//nolint:exhaustive
-		switch value.Kind() {
-		case reflect.Pointer, reflect.Interface:
+		kind := value.Kind()
+		if kind == reflect.Pointer || kind == reflect.Interface {
 			if value.IsNil() {
 				return reflect.Value{}
 			}
 			value = value.Elem()
-		default:
-			return value
+			continue
 		}
+		return value
 	}
 	return value
 }
@@ -1691,9 +1688,7 @@ func buildChildViewFromSliceValue(label string, data any) (ChildView, error) {
 	elemType := value.Type().Elem()
 	elemType = derefType(elemType)
 
-	//nolint:exhaustive
-	switch elemType.Kind() {
-	case reflect.Struct:
+	if elemType.Kind() == reflect.Struct {
 		headers, matrix, err := buildRows(data)
 		if err != nil {
 			return ChildView{}, err
@@ -1717,37 +1712,36 @@ func buildChildViewFromSliceValue(label string, data any) (ChildView, error) {
 				return value.Index(index).Interface()
 			},
 		}, nil
-	default:
-		rows := make([]table.Row, length)
-		values := make([]any, length)
-		for i := 0; i < length; i++ {
-			entry := value.Index(i)
-			val := entry.Interface()
-			values[i] = val
-			rows[i] = table.Row{
-				strconv.Itoa(i + 1),
-				summarizeValue(val),
-			}
-		}
-		return ChildView{
-			Headers: []string{"#", "VALUE"},
-			Rows:    rows,
-			DetailRenderer: func(index int) string {
-				if index < 0 || index >= len(values) {
-					return ""
-				}
-				return fmt.Sprintf("value: %s", formatDetailValue(values[index]))
-			},
-			Title:      titleFromLabel(label),
-			ParentType: normalizeHeaderKey(label),
-			DetailContext: func(index int) any {
-				if index < 0 || index >= len(values) {
-					return nil
-				}
-				return values[index]
-			},
-		}, nil
 	}
+	rows := make([]table.Row, length)
+	values := make([]any, length)
+	for i := 0; i < length; i++ {
+		entry := value.Index(i)
+		val := entry.Interface()
+		values[i] = val
+		rows[i] = table.Row{
+			strconv.Itoa(i + 1),
+			summarizeValue(val),
+		}
+	}
+	return ChildView{
+		Headers: []string{"#", "VALUE"},
+		Rows:    rows,
+		DetailRenderer: func(index int) string {
+			if index < 0 || index >= len(values) {
+				return ""
+			}
+			return fmt.Sprintf("value: %s", formatDetailValue(values[index]))
+		},
+		Title:      titleFromLabel(label),
+		ParentType: normalizeHeaderKey(label),
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(values) {
+				return nil
+			}
+			return values[index]
+		},
+	}, nil
 }
 
 func buildChildViewFromStructValue(label string, data any) (ChildView, error) {
@@ -1821,9 +1815,8 @@ func formatDetailValue(val any) string {
 		return "nil"
 	}
 
-	//nolint:exhaustive
-	switch rv.Kind() {
-	case reflect.Slice, reflect.Array:
+	kind := rv.Kind()
+	if kind == reflect.Slice || kind == reflect.Array {
 		if rv.Len() == 0 {
 			return "[]"
 		}
@@ -1832,7 +1825,8 @@ func formatDetailValue(val any) string {
 			fmt.Fprintf(&builder, "- %v\n", rv.Index(i).Interface())
 		}
 		return strings.TrimRight(builder.String(), "\n")
-	case reflect.Map:
+	}
+	if kind == reflect.Map {
 		if rv.Len() == 0 {
 			return "{}"
 		}
@@ -1845,11 +1839,11 @@ func formatDetailValue(val any) string {
 			fmt.Fprintf(&builder, "%v: %v\n", key.Interface(), rv.MapIndex(key).Interface())
 		}
 		return strings.TrimRight(builder.String(), "\n")
-	case reflect.Struct:
-		return renderStructDetail(rv.Interface())
-	default:
-		return fmt.Sprint(val)
 	}
+	if kind == reflect.Struct {
+		return renderStructDetail(rv.Interface())
+	}
+	return fmt.Sprint(val)
 }
 
 func renderStructDetail(data any) string {
