@@ -257,19 +257,13 @@ func buildAuthenticationScheme(authField any) (kkComps.BackendClusterAuthenticat
 		), nil
 
 	case "sasl_scram":
-		scramMap, ok := authMap["sasl_scram"].(map[string]any)
-		if !ok {
-			return kkComps.BackendClusterAuthenticationScheme{},
-				fmt.Errorf("sasl_scram configuration is required for sasl_scram authentication")
-		}
-
-		username, ok := scramMap["username"].(string)
+		username, ok := authMap["username"].(string)
 		if !ok {
 			return kkComps.BackendClusterAuthenticationScheme{},
 				fmt.Errorf("sasl_scram.username is required and must be a string")
 		}
 
-		password, ok := scramMap["password"].(string)
+		password, ok := authMap["password"].(string)
 		if !ok {
 			return kkComps.BackendClusterAuthenticationScheme{},
 				fmt.Errorf("sasl_scram.password is required and must be a string")

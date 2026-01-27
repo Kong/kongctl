@@ -389,7 +389,7 @@ func compareAuthenticationSchemes(
 
 	switch a.Type {
 	case components.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeAnonymous:
-		// Nothing to compare within anonynmous
+		// Nothing to compare within anonymous
 		return true
 	case components.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeSaslPlain:
 		if a.BackendClusterAuthenticationSaslPlainSensitiveDataAware == nil ||
@@ -411,6 +411,12 @@ func compareAuthenticationSchemes(
 			b.BackendClusterAuthenticationSaslScram == nil {
 			return false
 		}
+
+		if a.BackendClusterAuthenticationSaslScramSensitiveDataAware.Password == nil {
+			// Password can be omitted in responses if literal value was used. Treat as unequal in that case.
+			return false
+		}
+
 		scramA := a.BackendClusterAuthenticationSaslScramSensitiveDataAware
 		scramB := b.BackendClusterAuthenticationSaslScram
 		return scramA.Username == scramB.Username &&

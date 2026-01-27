@@ -3343,7 +3343,7 @@ func (c *Client) GetEventGatewayControlPlaneByName(
 	ctx context.Context, name string,
 ) (*EventGatewayControlPlane, error) {
 	// List all event gateways and filter by name
-	gateways, err := c.ListManagedEventGatewayControlPlanes(ctx, []string{})
+	gateways, err := c.ListManagedEventGatewayControlPlanes(ctx, []string{"*"})
 	if err != nil {
 		return nil, WrapAPIError(err, "list event gateways to find by name", &ErrorWrapperOptions{
 			ResourceType: "event_gateway",

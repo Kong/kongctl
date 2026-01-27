@@ -252,7 +252,7 @@ func (m *MockKonnectSDK) GetSystemAccountAPI() SystemAccountAPI {
 	return nil
 }
 
-// Returns a mock instance of the EGWControlPlaneAPI
+// Returns a mock instance of the EventGatewayBackendClusterAPI
 func (m *MockKonnectSDK) GetEventGatewayBackendClusterAPI() EventGatewayBackendClusterAPI {
 	if m.EventGatewayBackendClusterFactory != nil {
 		return m.EventGatewayBackendClusterFactory()
