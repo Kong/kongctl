@@ -54,6 +54,12 @@ const (
 
 	// ResourceTypePortalEmailTemplate is the resource type for portal email templates
 	ResourceTypePortalEmailTemplate = "portal_email_template"
+
+	// ResourceTypeEventGatewayControlPlane is the resource type for event gateway control planes
+	ResourceTypeEventGatewayControlPlane = "event_gateway"
+
+	// ResourceTypeEventGatewayBackendCluster is the resource type for event gateway backend clusters
+	ResourceTypeEventGatewayBackendCluster = "event_gateway_backend_cluster"
 )
 
 // Default values

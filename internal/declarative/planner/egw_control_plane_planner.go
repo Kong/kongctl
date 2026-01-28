@@ -37,13 +37,7 @@ func (p *EGWControlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx
 		return nil
 	}
 
-	err := p.planner.planEGWControlPlaneChanges(ctx, plannerCtx, desired, plan)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return p.planner.planEGWControlPlaneChanges(ctx, plannerCtx, desired, plan)
 }
 
 func (p *Planner) planEGWControlPlaneChanges(
@@ -85,9 +79,12 @@ func (p *Planner) planEGWControlPlaneChanges(
 	for _, desiredEGWCP := range desired {
 		current, exists := currentByName[desiredEGWCP.Name]
 
+		// Track the gateway change ID for dependency resolution
+		var gatewayChangeID string
+
 		if !exists {
 			// CREATE action
-			_ = p.planEGWControlPlaneCreate(desiredEGWCP, plan)
+			gatewayChangeID = p.planEGWControlPlaneCreate(desiredEGWCP, plan)
 		} else {
 			// Check if update needed
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
@@ -137,6 +134,22 @@ func (p *Planner) planEGWControlPlaneChanges(
 						p.planEGWControlPlaneUpdateWithFields(current, desiredEGWCP, updateFields, plan)
 					}
 				}
+			}
+		}
+
+		// Plan backend clusters for this gateway (whether it exists or is being created)
+		backendClusters := p.resources.GetBackendClustersForGateway(desiredEGWCP.Ref)
+		gatewayID := ""
+		if exists {
+			gatewayID = current.ID
+		}
+
+		if len(backendClusters) > 0 || plan.Metadata.Mode == PlanModeSync {
+			if err := p.planEventGatewayBackendClusterChanges(
+				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
+				gatewayChangeID, backendClusters, plan,
+			); err != nil {
+				return err
 			}
 		}
 	}
@@ -329,7 +342,8 @@ func (p *Planner) planEGWControlPlaneUpdateWithFields(
 	current state.EventGatewayControlPlane,
 	desired resources.EventGatewayControlPlaneResource,
 	updateFields map[string]any,
-	plan *Plan) {
+	plan *Plan,
+) {
 	var protection any
 	if desired.Kongctl != nil && desired.Kongctl.Protected != nil {
 		protection = *desired.Kongctl.Protected

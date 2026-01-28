@@ -1,0 +1,9 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-bc-comprehensive-test
+
+event_gateways:
+  - ref: egw-cp-for-bc-test
+    name: egw-cp-for-bc-test
+    description: "EGW CP for Backend Cluster Test"
+    # No backend_clusters - they will be deleted by sync

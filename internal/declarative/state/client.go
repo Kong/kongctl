@@ -47,8 +47,9 @@ type ClientConfig struct {
 	APIImplementationAPI helpers.APIImplementationAPI
 	APIDocumentAPI       helpers.APIDocumentAPI
 
-	// Event Gateway Control Plane API
-	EGWControlPlaneAPI helpers.EGWControlPlaneAPI
+	// Event Gateway APIs
+	EGWControlPlaneAPI            helpers.EGWControlPlaneAPI
+	EventGatewayBackendClusterAPI helpers.EventGatewayBackendClusterAPI
 }
 
 // Client wraps Konnect SDK for state management
@@ -79,8 +80,9 @@ type Client struct {
 	apiImplementationAPI helpers.APIImplementationAPI
 	apiDocumentAPI       helpers.APIDocumentAPI
 
-	// Event Gateway Control Plane API
-	egwControlPlaneAPI helpers.EGWControlPlaneAPI
+	// Event Gateway APIs
+	egwControlPlaneAPI            helpers.EGWControlPlaneAPI
+	eventGatewayBackendClusterAPI helpers.EventGatewayBackendClusterAPI
 }
 
 // NewClient creates a new state client with the provided configuration
@@ -112,8 +114,9 @@ func NewClient(config ClientConfig) *Client {
 		apiImplementationAPI: config.APIImplementationAPI,
 		apiDocumentAPI:       config.APIDocumentAPI,
 
-		// Event Gateway Control Plane APIs
-		egwControlPlaneAPI: config.EGWControlPlaneAPI,
+		// Event Gateway APIs
+		egwControlPlaneAPI:            config.EGWControlPlaneAPI,
+		eventGatewayBackendClusterAPI: config.EventGatewayBackendClusterAPI,
 	}
 }
 
@@ -232,6 +235,11 @@ type ApplicationAuthStrategy struct {
 
 type EventGatewayControlPlane struct {
 	kkComps.EventGatewayInfo
+	NormalizedLabels map[string]string // Non-pointer labels
+}
+
+type EventGatewayBackendCluster struct {
+	kkComps.BackendCluster
 	NormalizedLabels map[string]string // Non-pointer labels
 }
 
@@ -3331,11 +3339,182 @@ func (c *Client) GetEventGatewayControlPlaneByID(ctx context.Context, id string)
 	return eventGateway, nil
 }
 
+func (c *Client) GetEventGatewayControlPlaneByName(
+	ctx context.Context, name string,
+) (*EventGatewayControlPlane, error) {
+	// List all event gateways and filter by name
+	gateways, err := c.ListManagedEventGatewayControlPlanes(ctx, []string{"*"})
+	if err != nil {
+		return nil, WrapAPIError(err, "list event gateways to find by name", &ErrorWrapperOptions{
+			ResourceType: "event_gateway",
+			ResourceName: name,
+			UseEnhanced:  true,
+		})
+	}
+
+	for _, gw := range gateways {
+		if gw.Name == name {
+			return &gw, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func (c *Client) DeleteEventGatewayControlPlane(ctx context.Context, id string) error {
 	// Placeholder for future implementation
 	_, err := c.egwControlPlaneAPI.DeleteEGWControlPlane(ctx, id)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway control plane", nil)
+	}
+	return nil
+}
+
+func (c *Client) ListEventGatewayBackendClusters(
+	ctx context.Context,
+	gatewayID string,
+) ([]EventGatewayBackendCluster, error) {
+	// Validate API client is initialized
+	if err := ValidateAPIClient(c.eventGatewayBackendClusterAPI, "event gateway backend cluster API"); err != nil {
+		return nil, err
+	}
+
+	var allData []kkComps.BackendCluster
+	var pageAfter *string
+
+	for {
+		req := kkOps.ListEventGatewayBackendClustersRequest{
+			GatewayID: gatewayID,
+		}
+
+		if pageAfter != nil {
+			req.PageAfter = pageAfter
+		}
+
+		res, err := c.eventGatewayBackendClusterAPI.ListEventGatewayBackendClusters(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway backend clusters", nil)
+		}
+
+		// If response is nil, break the loop
+		if res.ListBackendClustersResponse == nil {
+			return []EventGatewayBackendCluster{}, nil
+		}
+
+		allData = append(allData, res.ListBackendClustersResponse.Data...)
+
+		if res.ListBackendClustersResponse.Meta.Page.Next == nil {
+			break
+		}
+
+		u, err := url.Parse(*res.ListBackendClustersResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway backend clusters: invalid cursor", nil)
+		}
+
+		values := u.Query()
+		pageAfter = kk.String(values.Get("page[after]"))
+	}
+
+	var backendClusters []EventGatewayBackendCluster
+	for _, bc := range allData {
+		// Normalize labels
+		normalized := bc.Labels
+		if normalized == nil {
+			normalized = make(map[string]string)
+		}
+
+		backendClusters = append(backendClusters, EventGatewayBackendCluster{
+			BackendCluster:   bc,
+			NormalizedLabels: normalized,
+		})
+	}
+
+	return backendClusters, nil
+}
+
+func (c *Client) CreateEventGatewayBackendCluster(
+	ctx context.Context,
+	gatewayID string,
+	req kkComps.CreateBackendClusterRequest,
+	namespace string,
+) (string, error) {
+	resp, err := c.eventGatewayBackendClusterAPI.CreateEventGatewayBackendCluster(ctx, gatewayID, req)
+	if err != nil {
+		return "", WrapAPIError(err, "create event gateway backend cluster", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_backend_cluster",
+			ResourceName: req.Name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.BackendCluster, "create event gateway backend cluster"); err != nil {
+		return "", err
+	}
+
+	return resp.BackendCluster.ID, nil
+}
+
+func (c *Client) GetEventGatewayBackendCluster(
+	ctx context.Context,
+	gatewayID string,
+	clusterID string,
+) (*EventGatewayBackendCluster, error) {
+	resp, err := c.eventGatewayBackendClusterAPI.FetchEventGatewayBackendCluster(ctx, gatewayID, clusterID)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway backend cluster by ID", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_backend_cluster",
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.BackendCluster == nil {
+		return nil, nil
+	}
+
+	// Normalize labels
+	normalized := resp.BackendCluster.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	backendCluster := &EventGatewayBackendCluster{
+		BackendCluster:   *resp.BackendCluster,
+		NormalizedLabels: normalized,
+	}
+
+	return backendCluster, nil
+}
+
+func (c *Client) UpdateEventGatewayBackendCluster(
+	ctx context.Context,
+	gatewayID string,
+	clusterID string,
+	req kkComps.UpdateBackendClusterRequest,
+	namespace string,
+) (string, error) {
+	resp, err := c.eventGatewayBackendClusterAPI.UpdateEventGatewayBackendCluster(ctx, gatewayID, clusterID, req)
+	if err != nil {
+		return "", WrapAPIError(err, "update event gateway backend cluster", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_backend_cluster",
+			ResourceName: req.Name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	return resp.BackendCluster.ID, nil
+}
+
+func (c *Client) DeleteEventGatewayBackendCluster(
+	ctx context.Context,
+	gatewayID string,
+	clusterID string,
+) error {
+	_, err := c.eventGatewayBackendClusterAPI.DeleteEventGatewayBackendCluster(ctx, gatewayID, clusterID)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway backend cluster", nil)
 	}
 	return nil
 }

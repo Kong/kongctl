@@ -1,0 +1,16 @@
+_defaults:
+  kongctl:
+    namespace: egw-plan-sync
+
+event_gateways:
+  - ref: plan-sync-egw
+    name: plan-sync-egw
+    description: "Updated description for plan sync workflow"
+    backend_clusters:
+      - ref: plan-sync-backend-cluster
+        name: plan-sync-backend-cluster
+        description: "Updated description for plan apply backend cluster"
+        bootstrap_servers:
+          - "egw-backend-1-updated.example.com:9092"
+        authentication:
+          type: anonymous

@@ -63,7 +63,8 @@ func newDeclarativeCmd() *cobra.Command {
 	}
 
 	cmd.Flags().String("resources", "",
-		"Comma separated list of resource types to dump (portals, apis, application_auth_strategies, control_planes).")
+		"Comma separated list of resource types to dump "+
+			"(portals, apis, application_auth_strategies, control_planes, event_gateways).")
 	_ = cmd.MarkFlagRequired("resources")
 
 	cmd.Flags().BoolVar(&opts.includeChildResources, "include-child-resources", false,

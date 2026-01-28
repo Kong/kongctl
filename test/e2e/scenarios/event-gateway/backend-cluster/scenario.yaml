@@ -1,0 +1,282 @@
+baseInputsPath: ../../../testdata/declarative/event-gateways/backend-cluster
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  egwName: egw-cp-for-bc-test
+  bcRef: default-backend-cluster
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-create
+    commands:
+      - name: 001-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/egw-bc.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='event_gateway' && resource_ref=='{{ .vars.egwName }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.egwName }}"
+          - select: >-
+              changes[?resource_type=='event_gateway_backend_cluster' && resource_ref=='{{ .vars.bcRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.bcRef }}"
+      - name: 002-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+      - name: 003-verify-create
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.bcRef }}"
+                description: "First Backend Cluster for Test"
+  - name: 002-plan-update
+    inputOverlayDirs:
+      - overlays/001-update-fields
+    commands:
+      - name: 001-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/egw-bc.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_backend_cluster' && resource_ref=='{{ .vars.bcRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                resource_ref: "{{ .vars.bcRef }}"
+      - name: 002-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-update
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.bcRef }}"
+                description: "First Backend Cluster for Test updated description"
+                metadata_update_interval_seconds: 60
+                labels:
+                  env: production
+                  team: backend
+                bootstrap_servers:
+                  - "egw-backend-1.example.com:9094"
+                  - "egw-backend-2.example.com:9095"
+                authentication.type: "sasl_plain"
+                tls.enabled: true
+                tls.tls_versions:
+                  - "tls12"
+                  - "tls13"
+  - name: 003-sync-delete
+    inputOverlayDirs:
+      - overlays/002-sync-delete
+    commands:
+      - name: 001-plan-sync-delete
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/egw-bc.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_backend_cluster' && resource_ref=='{{ .vars.bcRef }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: "{{ .vars.bcRef }}"
+      - name: 002-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-delete
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+  - name: 004-root-level-backend-cluster
+    inputOverlayDirs:
+      - overlays/003-root-level-declaration
+    commands:
+      - name: 001-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-root-level.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/egw-bc.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_backend_cluster' && resource_ref=='{{ .vars.bcRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.bcRef }}"
+      - name: 002-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-root-level.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-create
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.bcRef }}"
+                description: "First Backend Cluster for Test"
+                bootstrap_servers:
+                  - "egw-backend-1.example.com:9092"
+                  - "egw-backend-2.example.com:9092"
+                authentication.type: "anonymous"

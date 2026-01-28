@@ -8,6 +8,9 @@ vars:
   egwName: plan-sync-egw
   egwInitialDesc: "Initial description for plan sync workflow"
   egwUpdatedDesc: "Updated description for plan sync workflow"
+  bcRef: plan-sync-backend-cluster
+  bcName: plan-sync-backend-cluster
+  bcDesc: "Updated description for plan apply backend cluster"
 
 defaults:
   mask:
@@ -153,3 +156,81 @@ steps:
             expect:
               fields:
                 "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 003-plan-sync-backend-cluster
+    inputOverlayDirs:
+      - overlays/002-backend-cluster
+    commands:
+      - name: 000-plan-create-backend-cluster
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-backend-cluster.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_backend_cluster' && resource_ref=='{{ .vars.bcRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.bcRef }}"
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-backend-cluster.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'event_gateway_backend_cluster \"plan-sync-backend-cluster\" will be created')": true
+      - name: 002-sync-plan
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-backend-cluster.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-backend-cluster
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.bcName }}"
+                description: "{{ .vars.bcDesc }}"
+                bootstrap_servers:
+                  - "egw-backend-1-updated.example.com:9092"
+                authentication.type: "anonymous"
