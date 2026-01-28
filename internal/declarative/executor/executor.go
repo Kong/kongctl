@@ -1861,17 +1861,6 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			change.References["event_gateway_id"] = gatewayRef
 		}
 		return e.eventGatewayBackendClusterExecutor.Update(ctx, *change)
-	case "event_gateway_virtual_cluster":
-		// Resolve event gateway reference if needed (typically should already be in Parent)
-		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References["event_gateway_id"] = gatewayRef
-		}
-		return e.eventGatewayVirtualClusterExecutor.Update(ctx, *change)
 	case "team":
 		return e.organizationTeamExecutor.Update(ctx, *change)
 	default:
