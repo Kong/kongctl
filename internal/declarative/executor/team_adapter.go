@@ -96,7 +96,7 @@ func (a *TeamAdapter) Update(ctx context.Context, id string, req kkComps.UpdateT
 	return resp, nil
 }
 
-// Delete issues an delete call via the state client
+// Delete issues a delete call via the state client
 func (a *TeamAdapter) Delete(ctx context.Context, id string, _ *ExecutionContext) error {
 	return a.client.DeleteTeam(ctx, id)
 }
