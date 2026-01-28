@@ -266,7 +266,7 @@ func (t *TeamPlannerImpl) planTeamUpdateWithFields(
 	plan *Plan,
 ) {
 	// Always include name for identification
-	updateFields["name"] = current.Name
+	updateFields["name"] = util.GetString(current.Name)
 
 	// Pass current labels so executor can properly handle removals
 	if _, hasLabels := updateFields["labels"]; hasLabels {
@@ -295,7 +295,7 @@ func (t *TeamPlannerImpl) planTeamUpdateWithFields(
 		// During tests, generic planner might not be initialized
 		// Fall back to inline implementation
 		fields := make(map[string]any)
-		fields["name"] = current.Name
+		fields["name"] = util.GetString(current.Name)
 		for field, newValue := range updateFields {
 			fields[field] = newValue
 		}
@@ -387,7 +387,7 @@ func (t *TeamPlannerImpl) planTeamProtectionChangeWithFields(
 
 	// Always include name field for identification
 	fields := make(map[string]any)
-	fields["name"] = current.Name
+	fields["name"] = util.GetString(current.Name)
 
 	// Include any field updates if unprotecting
 	if wasProtected && !shouldProtect && len(updateFields) > 0 {

@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/util"
 )
 
 // TeamResource represents a team in declarative configuration
@@ -111,20 +112,21 @@ func (t *TeamResource) TryMatchKonnectResource(konnectResource any) bool {
 
 	// Look for ID field for matching
 	idField := v.FieldByName("ID")
-	if !idField.IsValid() {
+	idValue, err := util.GetStringFromReflectValue(idField)
+	if err != nil || idValue == "" {
 		return false
 	}
 
 	if t.IsExternal() && t.External != nil {
 		matched := false
 		if t.External.ID != "" {
-			matched = (idField.String() == t.External.ID)
+			matched = (idValue == t.External.ID)
 		} else if t.External.Selector != nil {
 			matched = t.External.Selector.Match(konnectResource)
 		}
 
 		if matched {
-			t.konnectID = idField.String()
+			t.konnectID = idValue
 			return true
 		}
 
@@ -133,9 +135,13 @@ func (t *TeamResource) TryMatchKonnectResource(konnectResource any) bool {
 
 	// Non-external teams match by name
 	nameField := v.FieldByName("Name")
-	if nameField.IsValid() && nameField.Kind() == reflect.String &&
-		nameField.String() == t.Name {
-		t.konnectID = idField.String()
+	nameValue, err := util.GetStringFromReflectValue(nameField)
+	if err != nil || nameValue == "" {
+		return false
+	}
+
+	if nameValue == t.Name {
+		t.konnectID = idValue
 		return true
 	}
 
