@@ -6,8 +6,6 @@ import (
 	"errors"
 	"os/exec"
 	"strings"
-
-	"github.com/kong/kongctl/internal/declarative/constants"
 )
 
 // Runner executes deck commands.
@@ -89,23 +87,6 @@ func buildArgs(opts RunOptions) ([]string, error) {
 	}
 
 	args := append([]string{}, opts.Args...)
-
-	for i, arg := range args {
-		if arg == constants.DeckModePlaceholder {
-			mode := strings.TrimSpace(opts.Mode)
-			if mode == "" {
-				return nil, ErrInvalidArgs{Reason: "mode placeholder requires apply or sync"}
-			}
-			if mode != "apply" && mode != "sync" {
-				return nil, ErrInvalidArgs{Reason: "mode must be apply or sync"}
-			}
-			args[i] = mode
-			continue
-		}
-		if strings.Contains(arg, constants.DeckModePlaceholder) {
-			return nil, ErrInvalidArgs{Reason: "mode placeholder must be a standalone argument"}
-		}
-	}
 
 	if len(args) > 0 && args[0] == "gateway" {
 		if err := ensureKonnectContext(opts); err != nil {

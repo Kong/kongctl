@@ -8,7 +8,7 @@ import (
 
 func TestBuildArgsGatewayInjectsKonnect(t *testing.T) {
 	opts := RunOptions{
-		Args:                    []string{"gateway", "{{kongctl.mode}}", "kong.yaml"},
+		Args:                    []string{"gateway", "apply", "kong.yaml"},
 		Mode:                    "apply",
 		KonnectToken:            "token-123",
 		KonnectControlPlaneName: "cp-name",
@@ -53,18 +53,4 @@ func TestBuildArgsRejectsConflictingFlags(t *testing.T) {
 	_, err := buildArgs(opts)
 	var conflict ErrConflictingFlag
 	require.ErrorAs(t, err, &conflict)
-}
-
-func TestBuildArgsRejectsInvalidMode(t *testing.T) {
-	opts := RunOptions{
-		Args:                    []string{"gateway", "{{kongctl.mode}}"},
-		Mode:                    "plan",
-		KonnectToken:            "token-123",
-		KonnectControlPlaneName: "cp-name",
-		KonnectAddress:          "https://api.konghq.com",
-	}
-
-	_, err := buildArgs(opts)
-	var invalid ErrInvalidArgs
-	require.ErrorAs(t, err, &invalid)
 }
