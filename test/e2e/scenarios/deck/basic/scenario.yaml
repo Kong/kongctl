@@ -144,7 +144,26 @@ steps:
           exitCode: 1
           contains: "validation error"
 
-  - name: 006-sync-delete
+  - name: 006-invalid-base-dir
+    inputOverlayDirs:
+      - testdata/overlays/006-invalid-base-dir
+    commands:
+      - name: 000-plan-invalid-base-dir
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
+          - --mode
+          - apply
+          - --base-dir
+          - "{{ .workdir }}"
+        expectFailure:
+          exitCode: 1
+          contains: "deck state file resolves outside base dir"
+
+  - name: 007-sync-delete
     inputOverlayDirs:
       - testdata/overlays/005-sync-delete
     commands:
