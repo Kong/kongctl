@@ -6,12 +6,12 @@ steps:
     commands:
       - resetOrg: true
 
-  - name: 001-apply
+  - name: 001-plan-apply-file
     commands:
-      - name: 000-apply
-        outputFormat: json
+      - name: 000-plan-create
+        outputFormat: disable
         run:
-          - apply
+          - plan
           - -f
           - "{{ .workdir }}/apis.yaml"
           - -f
@@ -20,21 +20,41 @@ steps:
           - "{{ .workdir }}/gateway-service-one.yaml"
           - -f
           - "{{ .workdir }}/gateway-service-two.yaml"
+          - --mode
+          - apply
+          - --output-file
+          - "{{ .workdir }}/plan-create.json"
+      - name: 001-plan-assert
+        parseAs: json
+        exec:
+          - cat
+          - "{{ .workdir }}/plan-create.json"
+        assertions:
+          - select: "metadata"
+            expect:
+              fields:
+                mode: apply
+          - select: "changes[?resource_type=='_deck']"
+            expect:
+              fields:
+                "length(@)": 1
+      - name: 002-apply-plan-file
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
           - --auto-approve
         assertions:
           - select: "plan.metadata"
             expect:
               fields:
                 mode: apply
-          - select: "plan.changes[?resource_type=='_deck']"
+          - select: "summary"
             expect:
               fields:
-                "length(@)": 1
-          - select: "plan.summary.by_external_tools._deck"
-            expect:
-              fields:
-                "length(@)": 1
-      - name: 001-get-gateway-services
+                failed: 0
+      - name: 003-get-gateway-services
         run:
           - get
           - gw

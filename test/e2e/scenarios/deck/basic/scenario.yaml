@@ -34,6 +34,9 @@ steps:
             expect:
               fields:
                 action: EXTERNAL_TOOL
+                "fields.flags[0]": "--analytics=false"
+                "length(post_resolution_targets)": 1
+                "post_resolution_targets[0].control_plane_ref": "e2e-cp"
           - select: >-
               changes[?resource_type=='api_implementation' &&
                       resource_ref=='e2e-api-implementation'] | [0]
