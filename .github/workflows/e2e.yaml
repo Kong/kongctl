@@ -53,7 +53,7 @@ jobs:
           sudo apt-get install -y libx11-dev
 
       - name: Setup deck
-        uses: kong/setup-deck@v1
+        uses: kong/setup-deck@c379e0f67ec1f1363247484a0c3142ae6168f811 # v1.6.0
 
       # If you later want runs to be opt-in via label, add a guard like this:
       # - name: Require opt-in label to run E2E
