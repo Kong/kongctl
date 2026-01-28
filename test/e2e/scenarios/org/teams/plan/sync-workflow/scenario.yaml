@@ -1,0 +1,181 @@
+baseInputsPath: ../../../../../testdata/declarative/teams/plan-sync
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: team-plan-sync
+  devopsTeamRef: devops-team
+  qaTeamRef: qa-team
+  legacyInfraTeamRef: legacy-infra-team
+  securityOpsTeamRef: security-ops-team
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-bootstrap-sync-state
+    commands:
+      - name: 000-sync-initial
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+
+      - name: 001-get-teams
+        run: ["get", "org", "teams", "-o", "json"]
+        assertions:
+          - select: "[?name=='DevOps Team'] | [0]"
+            expect:
+              fields:
+                name: "DevOps Team"
+                description: "DevOps and platform engineering team"
+                labels.tier: "critical"
+          - select: "[?name=='QA Team'] | [0]"
+            expect:
+              fields:
+                name: "QA Team"
+                labels.focus: "quality"
+          - select: "[?name=='Legacy Infrastructure Team'] | [0]"
+            expect:
+              fields:
+                name: "Legacy Infrastructure Team"
+                labels.lifecycle: "sunset"
+
+  - name: 002-plan-sync-update
+    inputOverlayDirs:
+      - overlays/002-plan-sync
+    commands:
+      - name: 000-plan-sync
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 1
+                by_action.UPDATE: 2
+                by_action.DELETE: 1
+
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-sync.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add, 2 to change, 1 to destroy')": true
+                "contains(@, 'team \"devops-team\" will be updated')": true
+                "contains(@, 'Updated: Cloud infrastructure')": true
+                "contains(@, 'team \"security-ops-team\" will be created')": true
+                "contains(@, 'team \"qa-team\" will be updated')": true
+                "contains(@, 'team \"Legacy Infrastructure Team\" will be deleted')": true
+
+      - name: 002-sync-plan
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync.json"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                by_action.CREATE: 1
+                by_action.UPDATE: 2
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+
+      - name: 003-get-teams
+        run: ["get", "org", "teams", "-o", "json"]
+        assertions:
+          - select: "[?name=='DevOps Team'] | [0]"
+            expect:
+              fields:
+                description: "Updated: Cloud infrastructure and SRE team"
+                labels.specialty: "sre"
+          - select: "[?name=='QA Team'] | [0]"
+            expect:
+              fields:
+                description: "Updated: Quality engineering and automation team"
+                labels.specialty: "automation"
+          - select: "[?name=='Security Operations Team'] | [0]"
+            expect:
+              fields:
+                name: "Security Operations Team"
+                description: "Security operations team added during sync plan workflow"
+                labels.department: "security"
+                labels.tier: "critical"
+          - select: "[?name=='Legacy Infrastructure Team']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 004-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+      - name: 005-plan-post-sync
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0

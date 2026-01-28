@@ -72,60 +72,21 @@ steps:
                 name: "Legacy Systems Team"
                 labels.lifecycle: "sunset"
 
-  - name: 002-plan-sync-update
+  - name: 002-sync-update
     inputOverlayDirs:
       - overlays/002-sync-update
     commands:
-      - name: 000-plan-sync
-        outputFormat: disable
-        stdoutFile: "{{ .workdir }}/plan-sync.json"
+      - name: 000-sync-update
         run:
-          - plan
+          - sync
           - -f
           - "{{ .workdir }}/teams.yaml"
-          - --mode
-          - sync
-        assertions:
-          - select: metadata
-            expect:
-              fields:
-                mode: sync
-          - select: summary
-            expect:
-              fields:
-                total_changes: 4
-                by_action.CREATE: 1
-                by_action.UPDATE: 2
-                by_action.DELETE: 1
-
-      - name: 001-diff-plan-text
-        outputFormat: text
-        parseAs: raw
-        run:
-          - diff
-          - --plan
-          - "{{ .workdir }}/plan-sync.json"
-        assertions:
-          - select: stdout
-            expect:
-              fields:
-                "contains(@, 'Plan: 1 to add, 2 to change, 1 to destroy')": true
-                "contains(@, 'team \"platform-team\" will be updated')": true
-                "contains(@, 'Updated: Cloud platform engineering')": true
-                "contains(@, 'team \"data-team\" will be created')": true
-                "contains(@, 'team \"security-team\" will be updated')": true
-                "contains(@, 'team \"Legacy Systems Team\" will be deleted')": true
-
-      - name: 002-sync-plan
-        run:
-          - sync
-          - --plan
-          - "{{ .workdir }}/plan-sync.json"
           - --auto-approve
         assertions:
           - select: plan.summary
             expect:
               fields:
+                total_changes: 4
                 by_action.CREATE: 1
                 by_action.UPDATE: 2
                 by_action.DELETE: 1
@@ -134,8 +95,9 @@ steps:
               fields:
                 applied: 4
                 failed: 0
+                status: success
 
-      - name: 003-get-teams
+      - name: 001-get-teams
         run: ["get", "org", "teams", "-o", "json"]
         assertions:
           - select: "[?name=='Platform Team'] | [0]"
@@ -160,29 +122,20 @@ steps:
               fields:
                 "length(@)": 0
 
-      - name: 004-diff-no-changes
-        outputFormat: text
-        parseAs: raw
+      - name: 002-sync-no-changes
         run:
-          - diff
-          - -f
-          - "{{ .workdir }}/teams.yaml"
-        assertions:
-          - select: stdout
-            expect:
-              fields:
-                "contains(@, 'No changes detected. Konnect is up to date.')": true
-
-      - name: 005-plan-post-sync
-        outputFormat: disable
-        run:
-          - plan
-          - -f
-          - "{{ .workdir }}/teams.yaml"
-          - --mode
           - sync
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --auto-approve
         assertions:
-          - select: summary
+          - select: plan.summary
             expect:
               fields:
                 total_changes: 0
+          - select: summary
+            expect:
+              fields:
+                applied: 0
+                failed: 0
+                status: success
