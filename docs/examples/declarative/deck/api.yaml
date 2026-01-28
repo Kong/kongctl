@@ -1,0 +1,8 @@
+apis:
+  - ref: example-api
+    name: "example-api"
+    implementations:
+      - ref: example-api-impl
+        service:
+          control_plane_id: !ref example-cp#id
+          id: !ref example-gw-svc#id

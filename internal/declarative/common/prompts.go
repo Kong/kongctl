@@ -175,7 +175,7 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 
 		// Count total changes in this namespace
 		namespaceTotal := 0
-		createCount, updateCount, deleteCount := 0, 0, 0
+		createCount, updateCount, deleteCount, externalToolCount := 0, 0, 0, 0
 		for _, changes := range changesByResource {
 			namespaceTotal += len(changes)
 			for _, change := range changes {
@@ -186,6 +186,8 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 					updateCount++
 				case planner.ActionDelete:
 					deleteCount++
+				case planner.ActionExternalTool:
+					externalToolCount++
 				}
 			}
 		}
@@ -206,6 +208,9 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 		}
 		if deleteCount > 0 {
 			actionSummary = append(actionSummary, fmt.Sprintf("%d delete", deleteCount))
+		}
+		if externalToolCount > 0 {
+			actionSummary = append(actionSummary, fmt.Sprintf("%d external tool step", externalToolCount))
 		}
 		fmt.Fprintf(out, "%s)\n", strings.Join(actionSummary, ", "))
 
@@ -423,6 +428,8 @@ func getActionPrefix(action planner.ActionType) string {
 		return "~"
 	case planner.ActionDelete:
 		return "-"
+	case planner.ActionExternalTool:
+		return ">"
 	default:
 		return "?"
 	}
@@ -495,6 +502,7 @@ func displaySummary(plan *planner.Plan, out io.Writer) {
 	createCount := plan.Summary.ByAction[planner.ActionCreate]
 	updateCount := plan.Summary.ByAction[planner.ActionUpdate]
 	deleteCount := plan.Summary.ByAction[planner.ActionDelete]
+	externalToolCount := plan.Summary.ByAction[planner.ActionExternalTool]
 
 	fmt.Fprintf(out, "  Total changes: %d\n", plan.Summary.TotalChanges)
 
@@ -517,6 +525,9 @@ func displaySummary(plan *planner.Plan, out io.Writer) {
 	}
 	if deleteCount > 0 {
 		fmt.Fprintf(out, "  Resources to delete: %d\n", deleteCount)
+	}
+	if externalToolCount > 0 {
+		fmt.Fprintf(out, "  External tool steps to run: %d\n", externalToolCount)
 	}
 
 	// Resource type breakdown

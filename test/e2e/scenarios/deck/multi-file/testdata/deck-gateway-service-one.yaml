@@ -1,0 +1,11 @@
+_format_version: "3.0"
+
+_info:
+  select_tags:
+    - "kongctl-e2e-one"
+
+services:
+  - name: "e2e-gw-svc-one"
+    url: "https://api.kong-air.com/"
+    tags:
+      - "kongctl-e2e-one"

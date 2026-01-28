@@ -1,0 +1,8 @@
+apis:
+  - ref: e2e-api
+    name: "e2e-api"
+    implementations:
+      - ref: e2e-api-implementation
+        service:
+          control_plane_id: !ref e2e-cp#id
+          id: !ref e2e-gw-svc#id

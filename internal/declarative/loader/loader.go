@@ -246,6 +246,10 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 
 	// Extract nested child resources to root level first
 	l.extractNestedResources(&rs)
+	// Resolve deck config paths relative to the source file.
+	if err := l.resolveDeckConfigPaths(&rs, baseDir, tagRootDir); err != nil {
+		return nil, fmt.Errorf("failed to resolve deck config paths in %s: %w", sourcePath, err)
+	}
 
 	// Note: We don't validate here when called from loadDirectory
 	// because cross-references might be in other files.

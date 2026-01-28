@@ -1,0 +1,216 @@
+baseInputsPath: testdata
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-stdin
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: "metadata"
+            expect:
+              fields:
+                mode: apply
+          - select: >-
+              changes[?resource_type=='control_plane' && action=='CREATE'] | [0]
+            expect:
+              fields:
+                resource_ref: e2e-cp
+          - select: >-
+              changes[?resource_type=='_deck'] | [0]
+            expect:
+              fields:
+                action: EXTERNAL_TOOL
+                "fields.flags[0]": "--analytics=false"
+                "length(post_resolution_targets)": 1
+                "post_resolution_targets[0].control_plane_ref": "e2e-cp"
+          - select: >-
+              changes[?resource_type=='api_implementation' &&
+                      resource_ref=='e2e-api-implementation'] | [0]
+            expect:
+              fields:
+                action: CREATE
+      - name: 001-apply-plan-stdin
+        parseAs: json
+        stdinFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - apply
+          - --plan
+          - "-"
+          - --auto-approve
+          - --output
+          - json
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: apply
+          - select: >-
+              plan.changes[?resource_type=='_deck'] | [0]
+            expect:
+              fields:
+                action: EXTERNAL_TOOL
+      - name: 002-get-gateway-services
+        run:
+          - get
+          - gw
+          - services
+          - --control-plane-name
+          - "e2e-cp"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='e2e-gw-svc'] | [0]"
+            expect:
+              fields:
+                name: "e2e-gw-svc"
+
+  - name: 002-apply-repeat
+    commands:
+      - name: 000-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.changes"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 003-sync-noop
+    commands:
+      - name: 000-sync
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: sync
+
+  - name: 004-invalid-deck-path
+    inputOverlayDirs:
+      - testdata/overlays/003-invalid-deck-path
+    commands:
+      - name: 000-apply-invalid-path
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "reading state file"
+
+  - name: 005-invalid-deck-state
+    inputOverlayDirs:
+      - testdata/overlays/004-invalid-deck-state
+    commands:
+      - name: 000-apply-invalid-state
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "validation error"
+
+  - name: 006-invalid-base-dir
+    inputOverlayDirs:
+      - testdata/overlays/006-invalid-base-dir
+    commands:
+      - name: 000-plan-invalid-base-dir
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
+          - --mode
+          - apply
+          - --base-dir
+          - "{{ .workdir }}"
+        expectFailure:
+          exitCode: 1
+          contains: "deck state file resolves outside base dir"
+
+  - name: 007-sync-delete
+    inputOverlayDirs:
+      - testdata/overlays/005-sync-delete
+    commands:
+      - name: 000-sync
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: sync
+          - select: "plan.changes[?resource_type=='_deck']"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "plan.changes[?resource_type=='api' && action=='DELETE']"
+            expect:
+              fields:
+                "length(@)": 1
+      - name: 001-get-apis
+        run:
+          - get
+          - apis
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='e2e-api']"
+            expect:
+              fields:
+                "length(@)": 0
+      - name: 002-get-gateway-services
+        run:
+          - get
+          - gw
+          - services
+          - --control-plane-name
+          - "e2e-cp"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='e2e-gw-svc']"
+            expect:
+              fields:
+                "length(@)": 0

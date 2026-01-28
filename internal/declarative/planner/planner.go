@@ -2,11 +2,13 @@ package planner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sort"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/deck"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
@@ -17,9 +19,19 @@ import (
 type Options struct {
 	Mode      PlanMode
 	Generator string
+	Deck      DeckOptions
 }
 
 const defaultGenerator = "kongctl/dev"
+
+var errGatewayServiceNotFound = errors.New("gateway service not found")
+
+// DeckOptions provides configuration for deck-based planning.
+type DeckOptions struct {
+	Runner         deck.Runner
+	KonnectToken   string
+	KonnectAddress string
+}
 
 // Planner generates execution plans
 type Planner struct {
@@ -223,6 +235,10 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		p.changeCount = namespacePlanner.changeCount
 	}
 
+	if err := p.planDeckDependencies(ctx, rs, basePlan, opts); err != nil {
+		return nil, err
+	}
+
 	// Update the base plan summary after merging all namespace changes
 	basePlan.UpdateSummary()
 
@@ -363,7 +379,7 @@ func publicationReferencesAuthStrategy(publication, authDelete *PlannedChange) b
 		return false
 	}
 
-	ids, ok := asStringSlice(rawIDs)
+	ids, ok := util.StringSliceFromAny(rawIDs)
 	if !ok {
 		return false
 	}
@@ -377,25 +393,6 @@ func publicationReferencesAuthStrategy(publication, authDelete *PlannedChange) b
 	}
 
 	return false
-}
-
-func asStringSlice(value any) ([]string, bool) {
-	switch v := value.(type) {
-	case []string:
-		return v, true
-	case []any:
-		result := make([]string, len(v))
-		for i, item := range v {
-			str, ok := item.(string)
-			if !ok {
-				return nil, false
-			}
-			result[i] = str
-		}
-		return result, true
-	default:
-		return nil, false
-	}
 }
 
 func containsString(values []string, target string) bool {
@@ -418,6 +415,8 @@ func (p *Planner) nextChangeID(action ActionType, resourceType string, ref strin
 		actionChar = "u"
 	case ActionDelete:
 		actionChar = "d"
+	case ActionExternalTool:
+		actionChar = "e"
 	}
 	// Use temporary IDs that will be reassigned based on execution order
 	return fmt.Sprintf("temp-%d:%s:%s:%s", p.changeCount, actionChar, resourceType, ref)
@@ -745,6 +744,9 @@ func (p *Planner) resolveControlPlaneIdentities(
 			if !cp.TryMatchKonnectResource(match) {
 				return fmt.Errorf("external control_plane %s: failed to bind Konnect resource", cp.GetRef())
 			}
+			if cp.Name == "" && match.Name != "" {
+				cp.Name = match.Name
+			}
 
 			p.logger.Debug("Resolved external control plane",
 				slog.String("ref", cp.GetRef()),
@@ -786,6 +788,13 @@ func (p *Planner) resolveGatewayServiceIdentities(
 		cpByRef[cp.GetRef()] = cp
 	}
 
+	deckControlPlanes := make(map[string]bool, len(controlPlanes))
+	for ref, cp := range cpByRef {
+		if cp.HasDeckConfig() {
+			deckControlPlanes[ref] = true
+		}
+	}
+
 	serviceCache := make(map[string][]state.GatewayService)
 
 	for i := range services {
@@ -800,6 +809,50 @@ func (p *Planner) resolveGatewayServiceIdentities(
 
 		if !service.IsExternal() {
 			// Managed services will be resolved when supported; for now record CP ID only.
+			continue
+		}
+
+		if controlPlaneHasDeck(service, deckControlPlanes) {
+			if cpID == "" {
+				p.logger.Debug("Skipping gateway service lookup; control plane ID not resolved",
+					slog.String("ref", service.GetRef()),
+				)
+				continue
+			}
+
+			available, ok := serviceCache[cpID]
+			if !ok {
+				list, err := p.client.ListGatewayServices(ctx, cpID)
+				if err != nil {
+					return fmt.Errorf("failed to list gateway services for control plane %s: %w", cpID, err)
+				}
+				available = list
+				serviceCache[cpID] = available
+			}
+
+			match, err := p.matchGatewayService(service, available)
+			if err != nil {
+				if errors.Is(err, errGatewayServiceNotFound) {
+					p.logger.Debug("External gateway service not found; continuing due to control plane deck config",
+						slog.String("ref", service.GetRef()),
+						slog.String("control_plane_id", cpID),
+					)
+					continue
+				}
+				return err
+			}
+
+			if !service.TryMatchKonnectResource(match) {
+				return fmt.Errorf("gateway_service %s: failed to bind Konnect resource", service.GetRef())
+			}
+
+			service.SetResolvedControlPlaneID(match.ControlPlaneID)
+
+			p.logger.Debug("Resolved external gateway service",
+				slog.String("ref", service.GetRef()),
+				slog.String("service_id", service.GetKonnectID()),
+				slog.String("control_plane_id", match.ControlPlaneID),
+			)
 			continue
 		}
 
@@ -864,6 +917,9 @@ func (p *Planner) resolveGatewayServiceControlPlaneID(
 	}
 
 	if cpResource.GetKonnectID() == "" {
+		if cpResource.HasDeckConfig() {
+			return "", nil
+		}
 		return "", fmt.Errorf(
 			"gateway_service %s: control_plane %s does not have a resolved Konnect ID",
 			service.GetRef(),
@@ -872,6 +928,17 @@ func (p *Planner) resolveGatewayServiceControlPlaneID(
 	}
 
 	return cpResource.GetKonnectID(), nil
+}
+
+func controlPlaneHasDeck(service *resources.GatewayServiceResource, deckControlPlanes map[string]bool) bool {
+	if service == nil || len(deckControlPlanes) == 0 {
+		return false
+	}
+	cpRef := normalizeControlPlaneRef(service.ControlPlane)
+	if cpRef == "" {
+		return false
+	}
+	return deckControlPlanes[cpRef]
 }
 
 func (p *Planner) matchGatewayService(
@@ -893,7 +960,8 @@ func (p *Planner) matchGatewayService(
 		}
 		if match == nil {
 			return nil, fmt.Errorf(
-				"external gateway_service %s: no service found with id %s",
+				"%w: external gateway_service %s: no service found with id %s",
+				errGatewayServiceNotFound,
 				service.GetRef(),
 				service.External.ID,
 			)
@@ -919,7 +987,8 @@ func (p *Planner) matchGatewayService(
 
 		if match == nil {
 			return nil, fmt.Errorf(
-				"external gateway_service %s: selector %v did not match any services",
+				"%w: external gateway_service %s: selector %v did not match any services",
+				errGatewayServiceNotFound,
 				service.GetRef(),
 				matchFields,
 			)
@@ -982,7 +1051,12 @@ func (p *Planner) normalizeAPIImplementationService(
 		return fmt.Errorf("api_implementation %s: service.id is required", implRef)
 	}
 
-	resolvedServiceID, linkedService, err := p.resolveGatewayServiceReference(serviceID, serviceByRef, implRef)
+	resolvedServiceID, linkedService, err := p.resolveGatewayServiceReference(
+		serviceID,
+		serviceByRef,
+		controlPlaneByRef,
+		implRef,
+	)
 	if err != nil {
 		return err
 	}
@@ -1005,6 +1079,7 @@ func (p *Planner) normalizeAPIImplementationService(
 func (p *Planner) resolveGatewayServiceReference(
 	value string,
 	serviceByRef map[string]*resources.GatewayServiceResource,
+	controlPlaneByRef map[string]*resources.ControlPlaneResource,
 	implRef string,
 ) (string, *resources.GatewayServiceResource, error) {
 	if tags.IsRefPlaceholder(value) {
@@ -1020,11 +1095,14 @@ func (p *Planner) resolveGatewayServiceReference(
 			return "", nil, fmt.Errorf("api_implementation %s: gateway_service %s not found", implRef, ref)
 		}
 		if svc.GetKonnectID() == "" {
-			return "",
-				nil,
-				fmt.Errorf("api_implementation %s: gateway_service %s does not have a resolved ID",
-					implRef,
-					svc.GetRef())
+			if serviceHasDeckConfig(svc, controlPlaneByRef) {
+				return value, svc, nil
+			}
+			return "", nil, fmt.Errorf(
+				"api_implementation %s: gateway_service %s does not have a resolved ID",
+				implRef,
+				svc.GetRef(),
+			)
 		}
 		return svc.GetKonnectID(), svc, nil
 	}
@@ -1039,6 +1117,10 @@ func (p *Planner) resolveGatewayServiceReference(
 	}
 
 	if svc.GetKonnectID() == "" {
+		if serviceHasDeckConfig(svc, controlPlaneByRef) {
+			placeholder := fmt.Sprintf("%s%s#id", tags.RefPlaceholderPrefix, svc.GetRef())
+			return placeholder, svc, nil
+		}
 		return "", nil, fmt.Errorf(
 			"api_implementation %s: gateway_service %s does not have a resolved ID",
 			implRef,
@@ -1084,6 +1166,9 @@ func (p *Planner) resolveImplementationControlPlaneID(
 	}
 
 	if cp.GetKonnectID() == "" {
+		if linkedService != nil && serviceHasDeckConfig(linkedService, controlPlaneByRef) {
+			return value, nil
+		}
 		return "", fmt.Errorf(
 			"api_implementation %s: control_plane %s does not have a resolved Konnect ID",
 			implRef,
@@ -1097,6 +1182,24 @@ func (p *Planner) resolveImplementationControlPlaneID(
 	}
 
 	return resolved, nil
+}
+
+func serviceHasDeckConfig(
+	service *resources.GatewayServiceResource,
+	controlPlaneByRef map[string]*resources.ControlPlaneResource,
+) bool {
+	if service == nil || len(controlPlaneByRef) == 0 {
+		return false
+	}
+	cpRef := normalizeControlPlaneRef(service.ControlPlane)
+	if cpRef == "" {
+		return false
+	}
+	cp, ok := controlPlaneByRef[cpRef]
+	if !ok {
+		return false
+	}
+	return cp.HasDeckConfig()
 }
 
 // resolvePortalIdentities resolves Konnect IDs for Portal resources

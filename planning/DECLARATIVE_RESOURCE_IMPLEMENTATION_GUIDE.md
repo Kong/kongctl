@@ -25,6 +25,17 @@ Technical guide for coding agents to implement new resources in kongctl's declar
 - No CREATE/DELETE operations
 - Example: PortalCustomization
 
+### PSEUDO RESOURCES (TOOL-LOCAL CONFIG)
+- Some declarative keys (prefixed with `_`) represent **kongctl-owned configuration**, not Konnect resources.
+- Example: `control_planes[]. _deck` (deck integration). These are **not** part of the Konnect API surface.
+- Implementation pattern:
+  - Add a field on the parent resource struct (e.g., `ControlPlaneResource`) with `yaml:"_deck"`.
+  - Validate the pseudo-resource in the parent resource `Validate()` method.
+  - Emit a `PlannedChange` with `ResourceType` set to a pseudo-type (e.g., `_deck`)
+    and `ActionExternalTool`.
+  - Update plan summaries to include `by_external_tools`.
+  - Add dependencies to ensure external tool steps run in the correct order.
+
 ---
 
 ## IMPLEMENTATION CHECKLIST

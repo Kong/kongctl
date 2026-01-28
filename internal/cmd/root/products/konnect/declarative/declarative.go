@@ -5,18 +5,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/kong/kongctl/internal/cmd"
+	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/executor"
 	"github.com/kong/kongctl/internal/declarative/loader"
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/validator"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -280,6 +283,7 @@ func runPlan(command *cobra.Command, args []string) error {
 	filenames, _ := command.Flags().GetStringSlice("filename")
 	recursive, _ := command.Flags().GetBool("recursive")
 	mode, _ := command.Flags().GetString("mode")
+	outputFile, _ := command.Flags().GetString("output-file")
 
 	// Validate mode
 	var planMode planner.PlanMode
@@ -364,7 +368,6 @@ func runPlan(command *cobra.Command, args []string) error {
 		}
 
 		// For sync mode, log that we're checking for deletions
-		outputFile, _ := command.Flags().GetString("output-file")
 		if outputFile == "" {
 			namespaces := resourceSet.DefaultNamespaces
 			if len(namespaces) == 0 && resourceSet.DefaultNamespace != "" {
@@ -387,7 +390,6 @@ func runPlan(command *cobra.Command, args []string) error {
 	p := planner.NewPlanner(stateClient, logger)
 
 	// Show namespace processing info if outputting to file
-	outputFile, _ := command.Flags().GetString("output-file")
 	if outputFile != "" && totalResources > 0 {
 		// Count namespaces in resources
 		namespaces := make(map[string]bool)
@@ -432,14 +434,24 @@ func runPlan(command *cobra.Command, args []string) error {
 		}
 	}
 
+	deckOpts, err := deckPlanOptions(resourceSet, cfg, logger)
+	if err != nil {
+		return err
+	}
+
 	// Generate plan
 	opts := planner.Options{
 		Mode:      planMode,
 		Generator: generator,
+		Deck:      deckOpts,
 	}
 	plan, err := p.GeneratePlan(ctx, resourceSet, opts)
 	if err != nil {
 		return fmt.Errorf("failed to generate plan: %w", err)
+	}
+
+	if err := normalizeDeckBaseDirs(plan, outputFile); err != nil {
+		return err
 	}
 
 	// Marshal plan to JSON
@@ -449,8 +461,6 @@ func runPlan(command *cobra.Command, args []string) error {
 	}
 
 	// Handle output
-	outputFile, _ = command.Flags().GetString("output-file")
-
 	if outputFile != "" {
 		// Save to file
 		if err := os.WriteFile(outputFile, planJSON, 0o600); err != nil {
@@ -462,6 +472,113 @@ func runPlan(command *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func normalizeDeckBaseDirs(plan *planner.Plan, outputFile string) error {
+	if plan == nil {
+		return nil
+	}
+
+	var planDir string
+	if strings.TrimSpace(outputFile) != "" {
+		planDir = filepath.Dir(outputFile)
+	} else {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to resolve current working directory: %w", err)
+		}
+		planDir = cwd
+	}
+
+	planDirAbs, err := filepath.Abs(planDir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve plan directory %q: %w", planDir, err)
+	}
+
+	updated := false
+	for i := range plan.Changes {
+		change := &plan.Changes[i]
+		if change.ResourceType != planner.ResourceTypeDeck {
+			continue
+		}
+		raw, ok := change.Fields["deck_base_dir"].(string)
+		if !ok {
+			continue
+		}
+		raw = strings.TrimSpace(raw)
+		if raw == "" || !filepath.IsAbs(raw) {
+			continue
+		}
+		rel, err := filepath.Rel(planDirAbs, raw)
+		if err != nil {
+			return fmt.Errorf("failed to resolve deck base dir for %s: %w", change.ResourceRef, err)
+		}
+		change.Fields["deck_base_dir"] = rel
+		updated = true
+	}
+
+	if updated {
+		plan.UpdateSummary()
+	}
+
+	return nil
+}
+
+func deckPlanOptions(
+	resourceSet *resources.ResourceSet,
+	cfg config.Hook,
+	logger *slog.Logger,
+) (planner.DeckOptions, error) {
+	if !resourceSetHasDeckConfig(resourceSet) {
+		return planner.DeckOptions{}, nil
+	}
+
+	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	if err != nil {
+		return planner.DeckOptions{}, err
+	}
+
+	baseURL, err := konnectcommon.ResolveBaseURL(cfg)
+	if err != nil {
+		return planner.DeckOptions{}, err
+	}
+
+	return planner.DeckOptions{
+		KonnectToken:   token,
+		KonnectAddress: baseURL,
+	}, nil
+}
+
+func resourceSetHasDeckConfig(resourceSet *resources.ResourceSet) bool {
+	if resourceSet == nil {
+		return false
+	}
+	for i := range resourceSet.ControlPlanes {
+		if resourceSet.ControlPlanes[i].HasDeckConfig() {
+			return true
+		}
+	}
+	return false
+}
+
+func resolvePlanBaseDir(planFile string) string {
+	planFile = strings.TrimSpace(planFile)
+	if planFile == "" {
+		return ""
+	}
+	if planFile == "-" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return ""
+		}
+		return cwd
+	}
+	dir := filepath.Dir(planFile)
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return dir
+	}
+	return abs
 }
 
 func runDiff(command *cobra.Command, args []string) error {
@@ -543,9 +660,14 @@ func runDiff(command *cobra.Command, args []string) error {
 
 		stateClient := createStateClient(kkClient)
 		p := planner.NewPlanner(stateClient, logger)
+		deckOpts, err := deckPlanOptions(resourceSet, cfg, logger)
+		if err != nil {
+			return err
+		}
 		opts := planner.Options{
 			Mode:      planner.PlanModeSync,
 			Generator: generator,
+			Deck:      deckOpts,
 		}
 		plan, err = p.GeneratePlan(ctx, resourceSet, opts)
 		if err != nil {
@@ -595,14 +717,19 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 	createCount := plan.Summary.ByAction[planner.ActionCreate]
 	updateCount := plan.Summary.ByAction[planner.ActionUpdate]
 	deleteCount := plan.Summary.ByAction[planner.ActionDelete]
+	externalToolCount := plan.Summary.ByAction[planner.ActionExternalTool]
 
-	if deleteCount > 0 {
-		fmt.Fprintf(out, "Plan: %d to add, %d to change, %d to destroy\n\n",
-			createCount, updateCount, deleteCount)
-	} else {
-		fmt.Fprintf(out, "Plan: %d to add, %d to change\n\n",
-			createCount, updateCount)
+	summaryParts := []string{
+		fmt.Sprintf("%d to add", createCount),
+		fmt.Sprintf("%d to change", updateCount),
 	}
+	if deleteCount > 0 {
+		summaryParts = append(summaryParts, fmt.Sprintf("%d to destroy", deleteCount))
+	}
+	if externalToolCount > 0 {
+		summaryParts = append(summaryParts, fmt.Sprintf("%d external tool step", externalToolCount))
+	}
+	fmt.Fprintf(out, "Plan: %s\n\n", strings.Join(summaryParts, ", "))
 
 	// Display warnings if any
 	if len(plan.Warnings) > 0 {
@@ -717,6 +844,13 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 				// DELETE action (future implementation)
 				fmt.Fprintf(out, "- [%s] %s %q will be deleted\n",
 					change.ID, change.ResourceType, change.ResourceRef)
+			case planner.ActionExternalTool:
+				fmt.Fprintf(out, "> [%s] %s %q will run external tool steps\n",
+					change.ID, change.ResourceType, change.ResourceRef)
+
+				for field, value := range change.Fields {
+					displayField(out, field, value, "  ", fullContent)
+				}
 			}
 
 			// Show dependencies
@@ -1018,11 +1152,16 @@ func runApply(command *cobra.Command, args []string) error {
 		// Create planner
 		stateClient := createStateClient(kkClient)
 		p := planner.NewPlanner(stateClient, logger)
+		deckOpts, err := deckPlanOptions(resourceSet, cfg, logger)
+		if err != nil {
+			return err
+		}
 
 		// Generate plan in apply mode
 		opts := planner.Options{
 			Mode:      planner.PlanModeApply,
 			Generator: generator,
+			Deck:      deckOpts,
 		}
 		plan, err = p.GeneratePlan(ctx, resourceSet, opts)
 		if err != nil {
@@ -1095,7 +1234,21 @@ func runApply(command *cobra.Command, args []string) error {
 		reporter = executor.NewConsoleReporterWithOptions(command.OutOrStderr(), dryRun)
 	}
 
-	exec := executor.New(stateClient, reporter, dryRun)
+	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	if err != nil {
+		return err
+	}
+	baseURL, err := konnectcommon.ResolveBaseURL(cfg)
+	if err != nil {
+		return err
+	}
+
+	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
+		KonnectToken:   token,
+		KonnectBaseURL: baseURL,
+		Mode:           planner.PlanModeApply,
+		PlanBaseDir:    resolvePlanBaseDir(planFile),
+	})
 
 	// Execute plan
 	result := exec.Execute(ctx, plan)
@@ -1468,11 +1621,16 @@ func runSync(command *cobra.Command, args []string) error {
 		// Create planner
 		stateClient := createStateClient(kkClient)
 		p := planner.NewPlanner(stateClient, logger)
+		deckOpts, err := deckPlanOptions(resourceSet, cfg, logger)
+		if err != nil {
+			return err
+		}
 
 		// Generate plan in sync mode
 		opts := planner.Options{
 			Mode:      planner.PlanModeSync,
 			Generator: generator,
+			Deck:      deckOpts,
 		}
 		plan, err = p.GeneratePlan(ctx, resourceSet, opts)
 		if err != nil {
@@ -1540,7 +1698,21 @@ func runSync(command *cobra.Command, args []string) error {
 		reporter = executor.NewConsoleReporterWithOptions(command.OutOrStderr(), dryRun)
 	}
 
-	exec := executor.New(stateClient, reporter, dryRun)
+	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	if err != nil {
+		return err
+	}
+	baseURL, err := konnectcommon.ResolveBaseURL(cfg)
+	if err != nil {
+		return err
+	}
+
+	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
+		KonnectToken:   token,
+		KonnectBaseURL: baseURL,
+		Mode:           planner.PlanModeSync,
+		PlanBaseDir:    resolvePlanBaseDir(planFile),
+	})
 
 	// Execute plan
 	result := exec.Execute(ctx, plan)

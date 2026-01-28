@@ -56,6 +56,8 @@ func actionToVerb(action planner.ActionType) string {
 		return "updated"
 	case planner.ActionDelete:
 		return "deleted"
+	case planner.ActionExternalTool:
+		return "executed"
 	default:
 		return string(action)
 	}
@@ -70,6 +72,8 @@ func actionToStringVerb(action string) string {
 		return "updated"
 	case "delete":
 		return "deleted"
+	case "external_tool":
+		return "executed"
 	default:
 		return action
 	}

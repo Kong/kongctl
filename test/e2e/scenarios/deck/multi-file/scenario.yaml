@@ -1,0 +1,74 @@
+baseInputsPath: testdata
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-file
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - -f
+          - "{{ .workdir }}/gateway-service-one.yaml"
+          - -f
+          - "{{ .workdir }}/gateway-service-two.yaml"
+          - --mode
+          - apply
+          - --output-file
+          - "{{ .workdir }}/plan-create.json"
+      - name: 001-plan-assert
+        parseAs: json
+        exec:
+          - cat
+          - "{{ .workdir }}/plan-create.json"
+        assertions:
+          - select: "metadata"
+            expect:
+              fields:
+                mode: apply
+          - select: "changes[?resource_type=='_deck']"
+            expect:
+              fields:
+                "length(@)": 1
+      - name: 002-apply-plan-file
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: apply
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0
+      - name: 003-get-gateway-services
+        run:
+          - get
+          - gw
+          - services
+          - --control-plane-name
+          - "e2e-cp"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='e2e-gw-svc-one'] | [0]"
+            expect:
+              fields:
+                name: "e2e-gw-svc-one"
+          - select: "[?name=='e2e-gw-svc-two'] | [0]"
+            expect:
+              fields:
+                name: "e2e-gw-svc-two"

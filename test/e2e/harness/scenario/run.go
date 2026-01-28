@@ -104,6 +104,7 @@ func Run(t *testing.T, scenarioPath string) error {
 			"vars":         s.Vars,
 			"scenario_dir": ScenarioRoot(scenarioPath),
 			"repo_dir":     repoRoot,
+			"bin":          cli.BinPath,
 			"step":         stepName,
 			"workdir":      step.InputsDir,
 		}
@@ -144,6 +145,25 @@ func Run(t *testing.T, scenarioPath string) error {
 					return nil
 				}
 				continue
+			}
+			if strings.TrimSpace(cmd.Stdin) != "" && strings.TrimSpace(cmd.StdinFile) != "" {
+				return fmt.Errorf("command %s: stdin and stdinFile cannot both be set", cmdName)
+			}
+			if strings.TrimSpace(cmd.Stdin) != "" {
+				cli.OverrideNextStdin(renderString(cmd.Stdin, tmplCtx))
+			} else if strings.TrimSpace(cmd.StdinFile) != "" {
+				stdinPath := renderString(cmd.StdinFile, tmplCtx)
+				if strings.TrimSpace(stdinPath) == "" {
+					return fmt.Errorf("command %s stdinFile resolved to empty path", cmdName)
+				}
+				if !filepath.IsAbs(stdinPath) {
+					stdinPath = filepath.Join(step.Dir, stdinPath)
+				}
+				b, err := os.ReadFile(stdinPath)
+				if err != nil {
+					return fmt.Errorf("command %s stdinFile read failed: %w", cmdName, err)
+				}
+				cli.OverrideNextStdin(string(b))
 			}
 			if len(cmd.Exec) > 0 {
 				if len(cmd.Run) > 0 {
@@ -540,6 +560,7 @@ func executeAssertions(
 		tmplCtx := map[string]any{
 			"vars":     sc.Vars,
 			"scenario": filepath.Dir(scenarioPath),
+			"bin":      cli.BinPath,
 			"step":     stepName,
 			"workdir":  workdir,
 		}

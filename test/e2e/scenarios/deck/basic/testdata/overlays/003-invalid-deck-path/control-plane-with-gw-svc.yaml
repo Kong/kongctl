@@ -1,0 +1,17 @@
+control_planes:
+  - ref: e2e-cp
+    name: "e2e-cp"
+    description: "E2E Control Plane"
+    cluster_type: "CLUSTER_TYPE_SERVERLESS"
+    _deck:
+      files:
+        - "missing.yaml"
+      flags:
+        - "--analytics=false"
+
+    gateway_services:
+      - ref: e2e-gw-svc
+        _external:
+          selector:
+            matchFields:
+              name: "e2e-gw-svc"

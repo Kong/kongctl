@@ -24,6 +24,7 @@ type GatewayServiceResource struct {
 	// Resolved Konnect identifiers (not serialized)
 	konnectID             string `yaml:"-" json:"-"`
 	controlPlaneKonnectID string `yaml:"-" json:"-"`
+	// deckBaseDir removed (deck config is now control-plane scoped).
 }
 
 // GetType returns the resource type.
@@ -84,6 +85,14 @@ func (s GatewayServiceResource) Validate() error {
 	if s.External != nil {
 		if err := s.External.Validate(); err != nil {
 			return fmt.Errorf("invalid _external block: %w", err)
+		}
+		if s.External.Selector != nil {
+			if len(s.External.Selector.MatchFields) != 1 {
+				return fmt.Errorf("gateway_service %s: selector supports matchFields.name only", s.Ref)
+			}
+			if _, ok := s.External.Selector.MatchFields["name"]; !ok {
+				return fmt.Errorf("gateway_service %s: selector supports matchFields.name only", s.Ref)
+			}
 		}
 	}
 

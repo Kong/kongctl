@@ -422,6 +422,7 @@ func TestGetActionVerb(t *testing.T) {
 		{planner.ActionCreate, "Creating"},
 		{planner.ActionUpdate, "Updating"},
 		{planner.ActionDelete, "Deleting"},
+		{planner.ActionExternalTool, "Running"},
 		{planner.ActionType("UNKNOWN"), "UNKNOWNing"},
 	}
 

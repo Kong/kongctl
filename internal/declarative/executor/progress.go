@@ -224,6 +224,8 @@ func getActionVerb(action planner.ActionType) string {
 		return "Updating"
 	case planner.ActionDelete:
 		return "Deleting"
+	case planner.ActionExternalTool:
+		return "Running"
 	default:
 		return string(action) + "ing"
 	}

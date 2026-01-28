@@ -698,6 +698,8 @@ apis:
 		case planner.ActionUpdate:
 			// Should not have any updates in this test
 			t.Errorf("Unexpected UPDATE action for %s", change.ResourceType)
+		case planner.ActionExternalTool:
+			t.Errorf("Unexpected EXTERNAL_TOOL action for %s", change.ResourceType)
 		}
 	}
 
