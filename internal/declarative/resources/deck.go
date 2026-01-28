@@ -24,9 +24,6 @@ func (d *DeckConfig) Validate() error {
 		if strings.HasPrefix(value, "-") {
 			return fmt.Errorf("_deck.files[%d] must be a file path, not a flag", i)
 		}
-		if strings.Contains(value, "{{kongctl.mode}}") {
-			return fmt.Errorf("_deck.files[%d] cannot include {{kongctl.mode}}", i)
-		}
 	}
 
 	for i, flag := range d.Flags {
@@ -36,9 +33,6 @@ func (d *DeckConfig) Validate() error {
 		}
 		if !strings.HasPrefix(value, "-") {
 			return fmt.Errorf("_deck.flags[%d] must be a flag", i)
-		}
-		if strings.Contains(value, "{{kongctl.mode}}") {
-			return fmt.Errorf("_deck.flags[%d] cannot include {{kongctl.mode}}", i)
 		}
 		if deckFlagConflicts(value) {
 			return fmt.Errorf("_deck.flags[%d] cannot include %s", i, value)

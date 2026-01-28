@@ -13,9 +13,6 @@ type ExternalBlock struct {
 
 	// Selector for querying by fields (use to find by name)
 	Selector *ExternalSelector `yaml:"selector,omitempty" json:"selector,omitempty"`
-
-	// Requires captures legacy external dependency declarations (no longer supported).
-	Requires map[string]any `yaml:"requires,omitempty" json:"requires,omitempty"`
 }
 
 // ExternalSelector defines field matching criteria
@@ -45,10 +42,6 @@ func (e *ExternalBlock) Validate() error {
 
 	if e.Selector != nil && len(e.Selector.MatchFields) == 0 {
 		return fmt.Errorf("_external selector must have at least one matchField")
-	}
-
-	if len(e.Requires) > 0 {
-		return fmt.Errorf("_external.requires is no longer supported; use control_planes[]. _deck instead")
 	}
 
 	return nil
