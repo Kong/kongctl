@@ -244,7 +244,7 @@ func (t *TeamPlannerImpl) shouldUpdateTeam(
 
 	// Check if labels are defined in the desired state
 	// If labels are defined (even if empty), we need to send them to ensure proper replacement
-	if len(desired.Labels) != 0 {
+	if desired.Labels != nil {
 		if labels.CompareUserLabels(current.NormalizedLabels, desired.Labels) {
 			// User labels differ, include all labels in update
 			labelsMap := make(map[string]any)
@@ -283,7 +283,7 @@ func (t *TeamPlannerImpl) planTeamUpdateWithFields(
 		ResourceType:   "team",
 		ResourceName:   desired.Name,
 		ResourceRef:    desired.GetRef(),
-		ResourceID:     *current.ID,
+		ResourceID:     util.GetString(current.ID),
 		CurrentFields:  nil, // Not needed for direct update
 		DesiredFields:  updateFields,
 		RequiredFields: []string{"name"},
@@ -308,7 +308,7 @@ func (t *TeamPlannerImpl) planTeamUpdateWithFields(
 			ID:           changeID,
 			ResourceType: "team",
 			ResourceRef:  desired.GetRef(),
-			ResourceID:   *current.ID,
+			ResourceID:   util.GetString(current.ID),
 			Action:       ActionUpdate,
 			Fields:       fields,
 			DependsOn:    []string{},
@@ -358,7 +358,7 @@ func (t *TeamPlannerImpl) planTeamProtectionChangeWithFields(
 		ResourceType: "team",
 		ResourceName: desired.Name,
 		ResourceRef:  desired.GetRef(),
-		ResourceID:   *current.ID,
+		ResourceID:   util.GetString(current.ID),
 		OldProtected: wasProtected,
 		NewProtected: shouldProtect,
 		Namespace:    namespace,
@@ -375,7 +375,7 @@ func (t *TeamPlannerImpl) planTeamProtectionChangeWithFields(
 			ID:           changeID,
 			ResourceType: "team",
 			ResourceRef:  desired.GetRef(),
-			ResourceID:   *current.ID,
+			ResourceID:   util.GetString(current.ID),
 			Action:       ActionUpdate,
 			Protection: ProtectionChange{
 				Old: wasProtected,

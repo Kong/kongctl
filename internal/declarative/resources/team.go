@@ -38,10 +38,6 @@ func (t TeamResource) Validate() error {
 		return fmt.Errorf("name is required")
 	}
 
-	if t.Description == nil || *t.Description == "" {
-		return fmt.Errorf("description is required")
-	}
-
 	if t.External != nil {
 		if err := t.External.Validate(); err != nil {
 			return fmt.Errorf("invalid _external block: %w", err)
