@@ -1764,6 +1764,17 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 	// Note: api_publication and api_implementation don't support update
 	case "event_gateway":
 		return e.eventGatewayControlPlaneExecutor.Update(ctx, *change)
+	case "event_gateway_backend_cluster":
+		// Resolve event gateway reference if needed (typically should already be in Parent)
+		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
+			}
+			gatewayRef.ID = gatewayID
+			change.References["event_gateway_id"] = gatewayRef
+		}
+		return e.eventGatewayBackendClusterExecutor.Update(ctx, *change)
 	case "team":
 		return e.teamExecutor.Update(ctx, *change)
 	default:
@@ -1896,6 +1907,9 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 	// Note: portal_customization is a singleton resource and cannot be deleted
 	case "event_gateway":
 		return e.eventGatewayControlPlaneExecutor.Delete(ctx, *change)
+	case "event_gateway_backend_cluster":
+		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
+		return e.eventGatewayBackendClusterExecutor.Delete(ctx, *change)
 	case "team":
 		return e.teamExecutor.Delete(ctx, *change)
 	default:
