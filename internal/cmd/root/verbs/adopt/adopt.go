@@ -103,5 +103,11 @@ Setting this value overrides tokens obtained from the login command.
 	}
 	cmd.AddCommand(eventGatewayCmd)
 
+	teamCmd, err := NewDirectTeamCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(teamCmd)
+
 	return cmd, nil
 }
