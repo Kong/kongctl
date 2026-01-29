@@ -1,0 +1,42 @@
+_format_version: "3.0"
+services:
+- host: localhost
+  id: 04abab47-0a78-5b8e-ba81-5393ab626242
+  name: code-breakers
+  path: /
+  plugins: []
+  port: 8000
+  protocol: http
+  routes:
+  - id: 1c968bf4-a391-5aa0-a95e-fc7369033d08
+    methods:
+    - POST
+    name: code-breakers_creategame
+    paths:
+    - ~/games$
+    plugins: []
+    regex_priority: 200
+    strip_path: false
+    tags: []
+  - id: 258316b1-ea39-518b-9847-6c15a9fb86bd
+    methods:
+    - GET
+    name: code-breakers_getgame
+    paths:
+    - ~/games/(?<gameid>[^#?/]+)$
+    plugins: []
+    regex_priority: 100
+    strip_path: false
+    tags: []
+  - id: 57c1c03f-2302-5430-a259-ba3f6f63fefb
+    methods:
+    - POST
+    name: code-breakers_createguess
+    paths:
+    - ~/games/(?<gameid>[^#?/]+)/guesses$
+    plugins: []
+    regex_priority: 100
+    strip_path: false
+    tags: []
+  tags: []
+upstreams: []

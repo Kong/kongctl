@@ -1,0 +1,36 @@
+portals:
+  - ref: code-breakers-portal
+    name: "code-breakers"
+    display_name: "Codebreakers"
+    description: "Developer portal for the Codebreakers API example."
+    authentication_enabled: false
+    rbac_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false
+    default_api_visibility: "public"
+    default_page_visibility: "public"
+
+    pages:
+      - ref: home
+        slug: "/"
+        title: "Codebreakers"
+        description: "A Mastermind-style API demo for Kong Konnect."
+        visibility: "public"
+        status: "published"
+        content: !file ../portal/pages/home.md
+
+      - ref: apis
+        slug: "apis"
+        title: "APIs"
+        description: "API products available in this portal."
+        visibility: "public"
+        status: "published"
+        content: !file ../portal/pages/apis.md
+
+      - ref: getting-started
+        slug: "getting-started"
+        title: "Getting Started"
+        description: "How to authenticate and make your first requests."
+        visibility: "public"
+        status: "published"
+        content: !file ../portal/pages/getting-started.md
