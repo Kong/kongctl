@@ -434,10 +434,6 @@ func optionalFieldValue(source any, fieldName string) (string, bool) {
 		field = field.Elem()
 	}
 
-	if !field.IsValid() {
-		return "", false
-	}
-
 	switch field.Kind() {
 	case reflect.String:
 		val := strings.TrimSpace(field.String())
