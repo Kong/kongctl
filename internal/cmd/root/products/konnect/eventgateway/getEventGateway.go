@@ -3,8 +3,11 @@ package eventgateway
 import (
 	"fmt"
 	"net/url"
+	"reflect"
 	"strings"
 	"time"
+
+	"github.com/charmbracelet/bubbles/table"
 
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -321,6 +324,138 @@ func renderEventGatewayControlPlaneList(
 		"",
 		options...,
 	)
+}
+
+func buildEventGatewayChildView(eventGatewayControlPlanes []kkComps.EventGatewayInfo) tableview.ChildView {
+	tableRows := make([]table.Row, 0, len(eventGatewayControlPlanes))
+	for i := range eventGatewayControlPlanes {
+		record := eventGatewayControlPlaneToDisplayRecord(&eventGatewayControlPlanes[i])
+		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(eventGatewayControlPlanes) {
+			return ""
+		}
+		return eventGatewayDetailView(&eventGatewayControlPlanes[index])
+	}
+
+	return tableview.ChildView{
+		Headers:        []string{"ID", "NAME"},
+		Rows:           tableRows,
+		DetailRenderer: detailFn,
+		Title:          "Event Gateways",
+		ParentType:     "event-gateway",
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(eventGatewayControlPlanes) {
+				return nil
+			}
+			return &eventGatewayControlPlanes[index]
+		},
+	}
+}
+
+func eventGatewayDetailView(gateway *kkComps.EventGatewayInfo) string {
+	if gateway == nil {
+		return ""
+	}
+
+	id := strings.TrimSpace(gateway.ID)
+	if id == "" {
+		id = valueNA
+	}
+
+	name := strings.TrimSpace(gateway.Name)
+	if name == "" {
+		name = valueNA
+	}
+
+	description := valueNA
+	if gateway.Description != nil && strings.TrimSpace(*gateway.Description) != "" {
+		description = strings.TrimSpace(*gateway.Description)
+	}
+
+	labels := formatLabelPairs(gateway.Labels)
+
+	createdAt := gateway.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+	updatedAt := gateway.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	fmt.Fprintf(&b, "description: %s\n", description)
+	fmt.Fprintf(&b, "labels: %s\n", labels)
+
+	if value, ok := optionalFieldValue(gateway, "Version"); ok {
+		fmt.Fprintf(&b, "version: %s\n", value)
+	}
+	if value, ok := optionalFieldValue(gateway, "MinRuntimeVersion"); ok {
+		fmt.Fprintf(&b, "min_runtime_version: %s\n", value)
+	}
+	if value, ok := optionalFieldValue(gateway, "NodesTotal"); ok {
+		fmt.Fprintf(&b, "nodes_total: %s\n", value)
+	}
+	if value, ok := optionalFieldValue(gateway, "VirtualClustersTotal"); ok {
+		fmt.Fprintf(&b, "virtual_clusters_total: %s\n", value)
+	}
+
+	fmt.Fprintf(&b, "created_at: %s\n", createdAt)
+	fmt.Fprintf(&b, "updated_at: %s\n", updatedAt)
+
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func optionalFieldValue(source any, fieldName string) (string, bool) {
+	if source == nil || strings.TrimSpace(fieldName) == "" {
+		return "", false
+	}
+
+	value := reflect.ValueOf(source)
+	for value.Kind() == reflect.Pointer || value.Kind() == reflect.Interface {
+		if value.IsNil() {
+			return "", false
+		}
+		value = value.Elem()
+	}
+
+	if value.Kind() != reflect.Struct {
+		return "", false
+	}
+
+	field := value.FieldByName(fieldName)
+	if !field.IsValid() {
+		return "", false
+	}
+
+	for field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return "", false
+		}
+		field = field.Elem()
+	}
+
+	if !field.IsValid() {
+		return "", false
+	}
+
+	switch field.Kind() {
+	case reflect.String:
+		val := strings.TrimSpace(field.String())
+		if val == "" {
+			return "", false
+		}
+		return val, true
+	case reflect.Bool:
+		return fmt.Sprintf("%t", field.Bool()), true
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return fmt.Sprintf("%d", field.Int()), true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return fmt.Sprintf("%d", field.Uint()), true
+	case reflect.Float32, reflect.Float64:
+		return fmt.Sprintf("%v", field.Float()), true
+	default:
+		return fmt.Sprint(field.Interface()), true
+	}
 }
 
 func newGetEventGatewayControlPlaneCmd(verb verbs.VerbValue,

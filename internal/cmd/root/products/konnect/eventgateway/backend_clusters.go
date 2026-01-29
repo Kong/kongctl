@@ -258,6 +258,35 @@ func (h backendClustersHandler) listClusters(
 	)
 }
 
+func buildBackendClusterChildView(clusters []kkComps.BackendCluster) tableview.ChildView {
+	tableRows := make([]table.Row, 0, len(clusters))
+	for i := range clusters {
+		record := backendClusterToRecord(clusters[i])
+		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(clusters) {
+			return ""
+		}
+		return backendClusterDetailView(&clusters[index])
+	}
+
+	return tableview.ChildView{
+		Headers:        []string{"ID", "NAME"},
+		Rows:           tableRows,
+		DetailRenderer: detailFn,
+		Title:          "Backend Clusters",
+		ParentType:     "backend-cluster",
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(clusters) {
+				return nil
+			}
+			return &clusters[index]
+		},
+	}
+}
+
 func (h backendClustersHandler) getSingleCluster(
 	helper cmd.Helper,
 	clusterAPI helpers.EventGatewayBackendClusterAPI,
@@ -414,4 +443,63 @@ func backendClusterToRecord(cluster kkComps.BackendCluster) backendClusterSummar
 		LocalCreatedTime: createdAt,
 		LocalUpdatedTime: updatedAt,
 	}
+}
+
+func backendClusterDetailView(cluster *kkComps.BackendCluster) string {
+	if cluster == nil {
+		return ""
+	}
+
+	id := strings.TrimSpace(cluster.ID)
+	if id == "" {
+		id = valueNA
+	}
+
+	name := strings.TrimSpace(cluster.Name)
+	if name == "" {
+		name = valueNA
+	}
+
+	description := valueNA
+	if cluster.Description != nil && strings.TrimSpace(*cluster.Description) != "" {
+		description = strings.TrimSpace(*cluster.Description)
+	}
+
+	labels := formatLabelPairs(cluster.Labels)
+
+	bootstrapServers := valueNA
+	if len(cluster.BootstrapServers) > 0 {
+		bootstrapServers = strings.Join(cluster.BootstrapServers, ", ")
+	}
+
+	authValue := formatJSONValue(cluster.Authentication)
+	tlsValue := formatJSONValue(cluster.TLS)
+
+	insecureAuth := valueNA
+	if value, ok := optionalFieldValue(cluster, "InsecureAllowAnonymousVirtualClusterAuth"); ok {
+		insecureAuth = value
+	}
+
+	metadataUpdate := valueNA
+	if value, ok := optionalFieldValue(cluster, "MetadataUpdateIntervalSeconds"); ok {
+		metadataUpdate = value
+	}
+
+	createdAt := cluster.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+	updatedAt := cluster.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	fmt.Fprintf(&b, "description: %s\n", description)
+	fmt.Fprintf(&b, "labels: %s\n", labels)
+	fmt.Fprintf(&b, "bootstrap_servers: %s\n", bootstrapServers)
+	fmt.Fprintf(&b, "authentication: %s\n", authValue)
+	fmt.Fprintf(&b, "insecure_allow_anonymous_virtual_cluster_auth: %s\n", insecureAuth)
+	fmt.Fprintf(&b, "metadata_update_interval_seconds: %s\n", metadataUpdate)
+	fmt.Fprintf(&b, "tls: %s\n", tlsValue)
+	fmt.Fprintf(&b, "created_at: %s\n", createdAt)
+	fmt.Fprintf(&b, "updated_at: %s\n", updatedAt)
+
+	return strings.TrimRight(b.String(), "\n")
 }
