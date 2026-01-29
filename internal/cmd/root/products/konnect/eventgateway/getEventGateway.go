@@ -435,6 +435,8 @@ func optionalFieldValue(source any, fieldName string) (string, bool) {
 	}
 
 	switch field.Kind() {
+	case reflect.Invalid:
+		return "", false
 	case reflect.String:
 		val := strings.TrimSpace(field.String())
 		if val == "" {
@@ -445,13 +447,34 @@ func optionalFieldValue(source any, fieldName string) (string, bool) {
 		return fmt.Sprintf("%t", field.Bool()), true
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return fmt.Sprintf("%d", field.Int()), true
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		return fmt.Sprintf("%d", field.Uint()), true
 	case reflect.Float32, reflect.Float64:
 		return fmt.Sprintf("%v", field.Float()), true
-	default:
+	case reflect.Complex64, reflect.Complex128:
+		return fmt.Sprint(field.Complex()), true
+	case reflect.Array, reflect.Slice:
+		if field.Len() == 0 {
+			return "", false
+		}
+		return fmt.Sprint(field.Interface()), true
+	case reflect.Map:
+		if field.Len() == 0 {
+			return "", false
+		}
+		return fmt.Sprint(field.Interface()), true
+	case reflect.Struct:
+		return fmt.Sprint(field.Interface()), true
+	case reflect.Interface, reflect.Pointer:
+		if field.IsNil() {
+			return "", false
+		}
+		return fmt.Sprint(field.Interface()), true
+	case reflect.Chan, reflect.Func, reflect.UnsafePointer:
 		return fmt.Sprint(field.Interface()), true
 	}
+
+	return "", false
 }
 
 func newGetEventGatewayControlPlaneCmd(verb verbs.VerbValue,
