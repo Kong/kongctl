@@ -1,0 +1,69 @@
+baseInputsPath: testdata
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-initial-sync
+    commands:
+      - name: 000-sync
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/konnect/"
+          - --base-dir
+          - "{{ .workdir }}"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: sync
+          - select: "plan.changes[?resource_type=='_deck']"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: >-
+              plan.changes[?resource_type=='api_implementation' &&
+                            resource_ref=='code-breakers-api-impl'] | [0]
+            expect:
+              fields:
+                action: CREATE
+      - name: 001-get-gateway-services
+        run:
+          - get
+          - gw
+          - services
+          - --control-plane-name
+          - "code-breakers"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='code-breakers'] | [0]"
+            expect:
+              fields:
+                name: "code-breakers"
+
+  - name: 002-sync-repeat
+    commands:
+      - name: 000-sync
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/konnect/"
+          - --base-dir
+          - "{{ .workdir }}"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: sync
+          - select: "plan.changes[?resource_type=='api_implementation' && action=='DELETE']"
+            expect:
+              fields:
+                "length(@)": 0

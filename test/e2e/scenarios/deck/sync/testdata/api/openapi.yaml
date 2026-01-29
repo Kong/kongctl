@@ -1,0 +1,279 @@
+openapi: 3.0.3
+info:
+  title: code-breakers
+  version: 0.1.0
+  description: |
+    Minimal Mastermind-style codebreaking game API intended for Kong examples.
+
+    Fixed rules:
+    - codeLength: 4
+    - symbols: "1".."6"
+    - duplicatesAllowed: true
+    - maxAttempts: 10
+
+servers:
+  - url: http://localhost:8000
+
+security:
+  - oidc: []
+
+paths:
+  /games:
+    post:
+      summary: Start a new game
+      operationId: createGame
+      responses:
+        "201":
+          description: Game created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Game"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+  /games/{gameId}:
+    get:
+      summary: Get game state (includes guess history)
+      operationId: getGame
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Game state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Game"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /games/{gameId}/guesses:
+    post:
+      summary: Submit a guess
+      operationId: createGuess
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuessCreateRequest"
+      responses:
+        "201":
+          description: Guess accepted and scored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuessResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+
+components:
+  securitySchemes:
+    oidc:
+      type: openIdConnect
+      openIdConnectUrl: https://YOUR_ISSUER/.well-known/openid-configuration
+      description: |
+        OIDC is enforced at the gateway (Kong). Upstream services should not validate tokens directly.
+
+  schemas:
+    Hint:
+      type: object
+      required: [exact, colorOnly]
+      properties:
+        exact:
+          type: integer
+          minimum: 0
+          maximum: 4
+          description: Correct symbol in the correct position.
+        colorOnly:
+          type: integer
+          minimum: 0
+          maximum: 4
+          description: Correct symbol but in the wrong position.
+
+    Guess:
+      type: object
+      required: [attemptNumber, guess, hint, createdAt]
+      properties:
+        attemptNumber:
+          type: integer
+          minimum: 1
+          maximum: 10
+        guess:
+          type: string
+          pattern: "^[1-6]{4}$"
+          example: "1266"
+        hint:
+          $ref: "#/components/schemas/Hint"
+        createdAt:
+          type: string
+          format: date-time
+
+    Game:
+      type: object
+      required:
+        - id
+        - status
+        - codeLength
+        - symbols
+        - maxAttempts
+        - attemptsUsed
+        - guesses
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+          example: 1
+        status:
+          type: string
+          enum: [active, won, lost]
+        codeLength:
+          type: integer
+          example: 4
+        symbols:
+          type: array
+          items:
+            type: string
+          example: ["1","2","3","4","5","6"]
+        maxAttempts:
+          type: integer
+          example: 10
+        attemptsUsed:
+          type: integer
+          example: 3
+        guesses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Guess"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    GuessCreateRequest:
+      type: object
+      required: [guess]
+      properties:
+        guess:
+          type: string
+          pattern: "^[1-6]{4}$"
+          example: "1234"
+
+    GuessResult:
+      type: object
+      required: [gameId, attemptNumber, guess, hint, statusAfterGuess, remainingAttempts]
+      properties:
+        gameId:
+          type: integer
+          example: 1
+        attemptNumber:
+          type: integer
+          example: 4
+        guess:
+          type: string
+          pattern: "^[1-6]{4}$"
+          example: "1266"
+        hint:
+          $ref: "#/components/schemas/Hint"
+        statusAfterGuess:
+          type: string
+          enum: [active, won, lost]
+          example: active
+        remainingAttempts:
+          type: integer
+          minimum: 0
+          maximum: 10
+          example: 6
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: "invalid_guess"
+        message:
+          type: string
+          example: "Guess must match pattern ^[1-6]{4}$."
+        requestId:
+          type: string
+          description: Optional correlation id for debugging.
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid credentials.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: "unauthorized"
+            message: "Missing or invalid credentials."
+
+    NotFound:
+      description: Resource not found (or not owned by caller).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: "not_found"
+            message: "Game not found."
+
+    Conflict:
+      description: Request conflicts with current state (e.g., guessing after game finished).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: "game_finished"
+            message: "Game is already finished."
+
+    UnprocessableEntity:
+      description: Invalid input (e.g., guess format).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: "invalid_guess"
+            message: "Guess must match pattern ^[1-6]{4}$."
+
+    RateLimited:
+      description: Too many requests.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            code: "rate_limited"
+            message: "Too many requests. Please retry later."

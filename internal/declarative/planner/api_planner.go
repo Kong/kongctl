@@ -1354,14 +1354,31 @@ func (p *Planner) planAPIImplementationChanges(
 		return fmt.Errorf("failed to list current API implementations: %w", err)
 	}
 
+	p.logger.Debug("Planning api_implementation changes",
+		slog.String("api_ref", apiRef),
+		slog.String("api_id", apiID),
+		slog.Int("desired_count", len(desired)),
+		slog.Int("current_count", len(currentImplementations)),
+	)
+
 	// Index current implementations by service ID + control plane ID
 	currentByService := make(map[string]state.APIImplementation)
+	currentWithService := 0
+	currentMissingService := 0
 	for _, i := range currentImplementations {
 		if i.Service != nil {
+			currentWithService++
 			key := fmt.Sprintf("%s:%s", i.Service.ID, i.Service.ControlPlaneID)
 			currentByService[key] = i
+		} else {
+			currentMissingService++
 		}
 	}
+	p.logger.Debug("Indexed current api_implementations by service",
+		slog.String("api_ref", apiRef),
+		slog.Int("current_with_service", currentWithService),
+		slog.Int("current_missing_service", currentMissingService),
+	)
 
 	// Compare desired implementations
 	for _, desiredImpl := range desired {
@@ -1371,14 +1388,42 @@ func (p *Planner) planAPIImplementationChanges(
 		if service := desiredImpl.ServiceReference.GetService(); service != nil {
 			key := fmt.Sprintf("%s:%s", service.ID, service.ControlPlaneID)
 			if _, exists := currentByService[key]; !exists {
+				p.logger.Debug("Planning api_implementation CREATE (service not found)",
+					slog.String("api_ref", apiRef),
+					slog.String("api_implementation_ref", desiredImpl.GetRef()),
+					slog.String("service_key", key),
+				)
 				p.planAPIImplementationCreate(parentNamespace, apiRef, apiID, desiredImpl, []string{}, plan)
 			}
 			// Note: Implementation IDs are managed by the SDK
+		} else {
+			p.logger.Debug("Desired api_implementation missing service reference; skipping match",
+				slog.String("api_ref", apiRef),
+				slog.String("api_implementation_ref", desiredImpl.GetRef()),
+			)
 		}
 	}
 
 	// In sync mode, delete unmanaged implementations
 	if plan.Metadata.Mode == PlanModeSync {
+		// Check if there are extracted implementations for this API that will be processed later
+		hasExtractedImplementations := false
+		for _, impl := range p.resources.GetAPIImplementationsByNamespace(parentNamespace) {
+			if impl.API == apiRef {
+				hasExtractedImplementations = true
+				break
+			}
+		}
+
+		// If there are extracted implementations, skip deletion during child resource planning
+		if hasExtractedImplementations && len(desired) == 0 {
+			p.logger.Debug("Skipping implementation deletion - extracted implementations exist",
+				slog.String("api", apiRef),
+				slog.Int("current_count", len(currentByService)),
+			)
+			return nil
+		}
+
 		desiredServices := make(map[string]bool)
 		for _, impl := range desired {
 			if service := impl.ServiceReference.GetService(); service != nil {
@@ -1387,8 +1432,19 @@ func (p *Planner) planAPIImplementationChanges(
 			}
 		}
 
+		p.logger.Debug("Sync mode api_implementation pruning",
+			slog.String("api_ref", apiRef),
+			slog.Int("desired_services", len(desiredServices)),
+			slog.Int("current_services", len(currentByService)),
+		)
+
 		for serviceKey, current := range currentByService {
 			if !desiredServices[serviceKey] {
+				p.logger.Debug("Planning api_implementation DELETE (service not desired)",
+					slog.String("api_ref", apiRef),
+					slog.String("service_key", serviceKey),
+					slog.String("implementation_id", current.ID),
+				)
 				p.planAPIImplementationDelete(parentNamespace, apiRef, apiID, current, plan)
 			}
 		}

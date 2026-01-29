@@ -229,8 +229,18 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 		processCount++
 	}
 
+	implCount := len(rs.APIImplementations)
+	implMissingService := 0
+	for i := range rs.APIImplementations {
+		if rs.APIImplementations[i].ServiceReference.GetService() == nil {
+			implMissingService++
+		}
+	}
+
 	logger.LogAttrs(ctx, slog.LevelDebug, "Reference resolution completed",
 		slog.Int("resources_processed", processCount),
+		slog.Int("api_implementations", implCount),
+		slog.Int("api_implementations_missing_service", implMissingService),
 	)
 
 	return nil

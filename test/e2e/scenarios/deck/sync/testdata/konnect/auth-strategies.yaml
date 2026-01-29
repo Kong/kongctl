@@ -1,0 +1,11 @@
+application_auth_strategies:
+  - ref: key-auth-strategy
+    name: key-auth
+    display_name: API Key Authentication
+    strategy_type: key_auth
+    configs:
+      key_auth:
+        key_names:
+          - X-API-Key
+          - apikey
+          - api_key
