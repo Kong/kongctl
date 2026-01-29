@@ -104,6 +104,8 @@ func mapResourceName(name string) string {
 		return "application_auth_strategies"
 	case "control-plane", "controlplane", "controlplanes", "control_planes":
 		return "control_planes"
+	case "teams", "team":
+		return "teams"
 	default:
 		return name
 	}
