@@ -1,0 +1,135 @@
+baseInputsPath: ../../../../testdata/declarative/teams/apply
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-create
+    commands:
+      - name: 000-apply-create
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
+          - select: "plan.changes[?resource_type=='team' && resource_ref=='backend-team'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "Backend Engineering Team"
+                fields.description: "Team responsible for backend services and APIs"
+                fields.labels.department: "engineering"
+                fields.labels.focus: "backend"
+          - select: "plan.changes[?resource_type=='team' && resource_ref=='frontend-team'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "Frontend Engineering Team"
+                fields.description: "Team responsible for web and mobile frontends"
+                fields.labels.department: "engineering"
+                fields.labels.focus: "frontend"
+
+      - name: 001-get-teams
+        run: ["get", "org", "teams", "-o", "json"]
+        assertions:
+          - select: "[?name=='Backend Engineering Team'] | [0]"
+            expect:
+              fields:
+                name: "Backend Engineering Team"
+                description: "Team responsible for backend services and APIs"
+                labels.department: "engineering"
+                labels.focus: "backend"
+                labels."KONGCTL-namespace": "teams-e2e"
+          - select: "[?name=='Frontend Engineering Team'] | [0]"
+            expect:
+              fields:
+                name: "Frontend Engineering Team"
+                description: "Team responsible for web and mobile frontends"
+                labels.department: "engineering"
+                labels.focus: "frontend"
+                labels."KONGCTL-namespace": "teams-e2e"
+
+  - name: 002-apply-update
+    inputOverlayDirs:
+      - overlays/002-update-fields
+    commands:
+      - name: 000-apply-update
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.UPDATE: 2
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
+          - select: "plan.changes[?resource_type=='team' && resource_ref=='backend-team'] | [0]"
+            expect:
+              fields:
+                action: UPDATE
+                fields.description: "Updated: Team managing backend infrastructure, services, APIs, and databases"
+                fields.labels.tier: "core"
+          - select: "plan.changes[?resource_type=='team' && resource_ref=='frontend-team'] | [0]"
+            expect:
+              fields:
+                action: UPDATE
+                fields.description: "Updated: Team building responsive web applications and mobile experiences"
+                fields.labels.tier: "core"
+                fields.labels.platform: "web-mobile"
+
+      - name: 001-get-teams
+        run: ["get", "org", "teams", "-o", "json"]
+        assertions:
+          - select: "[?name=='Backend Engineering Team'] | [0]"
+            expect:
+              fields:
+                name: "Backend Engineering Team"
+                description: "Updated: Team managing backend infrastructure, services, APIs, and databases"
+                labels.department: "engineering"
+                labels.focus: "backend"
+                labels.tier: "core"
+                labels."KONGCTL-namespace": "teams-e2e"
+          - select: "[?name=='Frontend Engineering Team'] | [0]"
+            expect:
+              fields:
+                name: "Frontend Engineering Team"
+                description: "Updated: Team building responsive web applications and mobile experiences"
+                labels.department: "engineering"
+                labels.focus: "frontend"
+                labels.tier: "core"
+                labels.platform: "web-mobile"
+                labels."KONGCTL-namespace": "teams-e2e"

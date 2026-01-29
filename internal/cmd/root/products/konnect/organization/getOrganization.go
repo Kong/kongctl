@@ -8,6 +8,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization/systemaccount"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization/team"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -195,6 +196,11 @@ func newGetOrganizationCmd(verb verbs.VerbValue,
 	systemAccountCmd, err := systemaccount.NewSystemAccountCmd(verb, addParentFlags, parentPreRun)
 	if err == nil && systemAccountCmd != nil {
 		cmd.AddCommand(systemAccountCmd)
+	}
+
+	teamCmd, err := team.NewTeamCmd(verb, addParentFlags, parentPreRun)
+	if err == nil && teamCmd != nil {
+		cmd.AddCommand(teamCmd)
 	}
 
 	return &cmd

@@ -28,6 +28,7 @@ const (
 	ResourceTypeCatalogService             ResourceType = "catalog_service"
 	ResourceTypeEventGatewayControlPlane   ResourceType = "event_gateway"
 	ResourceTypeEventGatewayBackendCluster ResourceType = "event_gateway_backend_cluster"
+	ResourceTypeTeam                       ResourceType = "team"
 )
 
 const (
@@ -70,6 +71,10 @@ type ResourceSet struct {
 	PortalEmailTemplates        []PortalEmailTemplateResource        `yaml:"portal_email_templates,omitempty"     json:"portal_email_templates,omitempty"`             //nolint:lll
 	EventGatewayControlPlanes   []EventGatewayControlPlaneResource   `yaml:"event_gateways,omitempty" json:"event_gateways,omitempty"`                                 //nolint:lll
 	EventGatewayBackendClusters []EventGatewayBackendClusterResource `yaml:"event_gateway_backend_clusters,omitempty" json:"event_gateway_backend_clusters,omitempty"` //nolint:lll
+
+	// Identity resources
+	Teams []TeamResource `yaml:"teams,omitempty" json:"teams,omitempty"`
+
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
 	DefaultNamespace  string   `yaml:"-" json:"-"`
@@ -249,6 +254,13 @@ func (rs *ResourceSet) GetResourceByRef(ref string) (Resource, bool) {
 	for i := range rs.PortalEmailTemplates {
 		if rs.PortalEmailTemplates[i].GetRef() == ref {
 			return &rs.PortalEmailTemplates[i], true
+		}
+	}
+
+	// Check Teams
+	for i := range rs.Teams {
+		if rs.Teams[i].GetRef() == ref {
+			return &rs.Teams[i], true
 		}
 	}
 
@@ -609,6 +621,23 @@ func (rs *ResourceSet) GetEventGatewayControlPlanesByNamespace(namespace string)
 	for _, cp := range rs.EventGatewayControlPlanes {
 		if GetNamespace(cp.Kongctl) == namespace {
 			filtered = append(filtered, cp)
+		}
+	}
+	return filtered
+}
+
+// GetTeamsByNamespace returns all team resources from the specified namespace
+func (rs *ResourceSet) GetTeamsByNamespace(namespace string) []TeamResource {
+	var filtered []TeamResource
+	for _, team := range rs.Teams {
+		if team.IsExternal() {
+			if namespace == NamespaceExternal {
+				filtered = append(filtered, team)
+			}
+			continue
+		}
+		if GetNamespace(team.Kongctl) == namespace {
+			filtered = append(filtered, team)
 		}
 	}
 	return filtered

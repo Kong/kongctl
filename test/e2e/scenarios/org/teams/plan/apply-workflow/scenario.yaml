@@ -1,0 +1,179 @@
+baseInputsPath: ../../../../../testdata/declarative/teams/plan-apply
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: team-plan-apply
+  backendTeamRef: backend-team
+  frontendTeamRef: frontend-team
+  mobileTeamRef: mobile-team
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-create
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 2 to add')": true
+                "contains(@, 'team \"backend-team\" will be created')": true
+                "contains(@, 'team \"frontend-team\" will be created')": true
+
+      - name: 002-apply-plan
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+      - name: 003-get-teams
+        run: ["get", "org", "teams", "-o", "json"]
+        assertions:
+          - select: "[?name=='Backend Team'] | [0]"
+            expect:
+              fields:
+                name: "Backend Team"
+                description: "Backend engineering team for plan apply workflow"
+                labels.department: "engineering"
+                labels.focus: "backend"
+                labels.tier: "core"
+          - select: "[?name=='Frontend Team'] | [0]"
+            expect:
+              fields:
+                name: "Frontend Team"
+                description: "Frontend engineering team for plan apply workflow"
+                labels.focus: "frontend"
+
+  - name: 002-plan-apply-update
+    inputOverlayDirs:
+      - overlays/002-plan-update
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 1
+                by_action.UPDATE: 2
+
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add, 2 to change')": true
+                "contains(@, 'team \"backend-team\" will be updated')": true
+                "contains(@, 'team \"mobile-team\" will be created')": true
+
+      - name: 002-apply-plan
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+          - select: plan.summary
+            expect:
+              fields:
+                by_action.UPDATE: 2
+                by_action.CREATE: 1
+
+      - name: 003-get-teams
+        run: ["get", "org", "teams", "-o", "json"]
+        assertions:
+          - select: "[?name=='Mobile Team'] | [0]"
+            expect:
+              fields:
+                name: "Mobile Team"
+                description: "Mobile app development team introduced during plan workflow"
+                labels.focus: "mobile"
+                labels.tier: "growth"
+          - select: "[?name=='Backend Team'] | [0]"
+            expect:
+              fields:
+                description: "Backend engineering team with updated scope and responsibilities"
+                labels.specialty: "microservices"
+          - select: "[?name=='Frontend Team'] | [0]"
+            expect:
+              fields:
+                description: "Frontend engineering team with expanded capabilities"
+                labels.tier: "core"

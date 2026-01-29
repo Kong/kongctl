@@ -50,6 +50,9 @@ type ClientConfig struct {
 	// Event Gateway APIs
 	EGWControlPlaneAPI            helpers.EGWControlPlaneAPI
 	EventGatewayBackendClusterAPI helpers.EventGatewayBackendClusterAPI
+
+	// Identity resources
+	TeamAPI helpers.TeamAPI
 }
 
 // Client wraps Konnect SDK for state management
@@ -83,6 +86,9 @@ type Client struct {
 	// Event Gateway APIs
 	egwControlPlaneAPI            helpers.EGWControlPlaneAPI
 	eventGatewayBackendClusterAPI helpers.EventGatewayBackendClusterAPI
+
+	// Identity resource APIs
+	teamAPI helpers.TeamAPI
 }
 
 // NewClient creates a new state client with the provided configuration
@@ -117,6 +123,9 @@ func NewClient(config ClientConfig) *Client {
 		// Event Gateway APIs
 		egwControlPlaneAPI:            config.EGWControlPlaneAPI,
 		eventGatewayBackendClusterAPI: config.EventGatewayBackendClusterAPI,
+
+		// Identity resource APIs
+		teamAPI: config.TeamAPI,
 	}
 }
 
@@ -240,6 +249,12 @@ type EventGatewayControlPlane struct {
 
 type EventGatewayBackendCluster struct {
 	kkComps.BackendCluster
+	NormalizedLabels map[string]string // Non-pointer labels
+}
+
+// Team represents a normalized team for internal use
+type Team struct {
+	kkComps.Team
 	NormalizedLabels map[string]string // Non-pointer labels
 }
 
@@ -3516,6 +3531,154 @@ func (c *Client) DeleteEventGatewayBackendCluster(
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway backend cluster", nil)
 	}
+	return nil
+}
+
+func (c *Client) ListManagedTeams(ctx context.Context, namespaces []string) ([]Team, error) {
+	if err := ValidateAPIClient(c.teamAPI, "team API"); err != nil {
+		return nil, err
+	}
+
+	// Create paginated lister function
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]Team, *PageMeta, error) {
+		req := kkOps.ListTeamsRequest{
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.teamAPI.ListTeams(ctx, req)
+		if err != nil {
+			return nil, nil, WrapAPIError(err, "list teams", nil)
+		}
+
+		if resp.TeamCollection == nil {
+			return []Team{}, &PageMeta{Total: 0}, nil
+		}
+
+		var filtered []Team
+
+		for _, t := range resp.TeamCollection.Data {
+			normalized := t.Labels
+			if normalized == nil {
+				normalized = make(map[string]string)
+			}
+
+			if labels.IsManagedResource(normalized) &&
+				shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
+				filtered = append(filtered, Team{
+					Team:             t,
+					NormalizedLabels: normalized,
+				})
+			}
+		}
+
+		meta := &PageMeta{Total: resp.TeamCollection.Meta.Page.Total}
+
+		return filtered, meta, nil
+	}
+
+	return PaginateAll(ctx, lister)
+}
+
+// GetTeamByName finds a managed team by name
+func (c *Client) GetTeamByName(ctx context.Context, name string) (*Team, error) {
+	// Search across all namespaces for backward compatibility
+	teams, err := c.ListManagedTeams(ctx, []string{"*"})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, t := range teams {
+		if t.Name != nil && *t.Name == name {
+			return &t, nil
+		}
+	}
+
+	return nil, nil // Not found
+}
+
+func (c *Client) GetTeamByID(ctx context.Context, id string) (*Team, error) {
+	resp, err := c.teamAPI.GetTeam(ctx, id)
+	if err != nil {
+		return nil, WrapAPIError(err, "get team by ID", &ErrorWrapperOptions{
+			ResourceType: "team",
+			ResourceName: "",
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.Team == nil {
+		return nil, nil
+	}
+
+	normalized := resp.Team.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	team := &Team{
+		Team:             *resp.Team,
+		NormalizedLabels: normalized,
+	}
+
+	return team, nil
+}
+
+func (c *Client) CreateTeam(ctx context.Context, team *kkComps.CreateTeam, namespace string) (string, error) {
+	resp, err := c.teamAPI.CreateTeam(ctx, team)
+	if err != nil {
+		return "", WrapAPIError(err, "create team", &ErrorWrapperOptions{
+			ResourceType: "team",
+			ResourceName: team.Name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.Team, "create team"); err != nil {
+		return "", err
+	}
+
+	if resp.Team.ID == nil {
+		return "", NewResponseValidationError("create team", "Team.ID")
+	}
+
+	return *resp.Team.ID, nil
+}
+
+func (c *Client) UpdateTeam(ctx context.Context, teamID string,
+	team *kkComps.UpdateTeam, namespace string) (string, error) {
+	resp, err := c.teamAPI.UpdateTeam(ctx, teamID, team)
+	if err != nil {
+		return "", WrapAPIError(err, "update team", &ErrorWrapperOptions{
+			ResourceType: "team",
+			ResourceName: getString(team.Name),
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.Team, "update team"); err != nil {
+		return "", err
+	}
+
+	if resp.Team.ID == nil {
+		return "", NewResponseValidationError("update team", "Team.ID")
+	}
+
+	return *resp.Team.ID, nil
+}
+
+func (c *Client) DeleteTeam(ctx context.Context, teamID string) error {
+	_, err := c.teamAPI.DeleteTeam(ctx, teamID)
+	if err != nil {
+		return WrapAPIError(err, "delete team", &ErrorWrapperOptions{
+			ResourceType: "team",
+			ResourceName: teamID,
+			UseEnhanced:  true,
+		})
+	}
+
 	return nil
 }
 
