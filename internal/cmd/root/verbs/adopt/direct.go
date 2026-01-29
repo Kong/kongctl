@@ -181,6 +181,43 @@ Setting this value overrides tokens obtained from the login command.
 	return cmd, nil
 }
 
+func NewDirectTeamCmd() (*cobra.Command, error) {
+	addFlags := func(_ verbs.VerbValue, cmd *cobra.Command) {
+		cmd.Flags().String(common.BaseURLFlagName, "",
+			fmt.Sprintf(`Base URL for Konnect API requests.
+- Config path: [ %s ]
+- Default   : [ %s ]`,
+				common.BaseURLConfigPath, common.BaseURLDefault))
+
+		cmd.Flags().String(common.PATFlagName, "",
+			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
+Setting this value overrides tokens obtained from the login command.
+- Config path: [ %s ]`,
+				common.PATConfigPath))
+	}
+
+	preRunE := func(c *cobra.Command, args []string) error {
+		ctx := c.Context()
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		ctx = context.WithValue(ctx, products.Product, konnect.Product)
+		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
+		c.SetContext(ctx)
+		return bindKonnectFlags(c, args)
+	}
+
+	cmd, err := konnectadopt.NewTeamCmd(Verb, &cobra.Command{}, addFlags, preRunE)
+	if err != nil {
+		return nil, err
+	}
+
+	cmd.Example = `  # Adopt a team by id
+  kongctl adopt team 123e4567-e89b-12d3-a456-426614174000 --namespace team-alpha`
+
+	return cmd, nil
+}
+
 func NewDirectAuthStrategyCmd() (*cobra.Command, error) {
 	addFlags := func(_ verbs.VerbValue, cmd *cobra.Command) {
 		cmd.Flags().String(common.BaseURLFlagName, "",
