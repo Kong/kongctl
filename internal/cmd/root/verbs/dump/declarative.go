@@ -430,6 +430,11 @@ func collectDeclarativeTeams(
 		}
 
 		for _, team := range resp.TeamCollection.Data {
+			if team.SystemTeam != nil && *team.SystemTeam {
+				// skip system teams from declarative dump
+				// these can't be updated by users anyway
+				continue
+			}
 			results = append(results, mapTeamToDeclarativeResource(team))
 		}
 

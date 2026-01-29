@@ -1,0 +1,78 @@
+vars:
+  team_name: e2e-adopt-test-team
+  team_description: E2E test team for adopt and dump workflow
+  namespace: team-e2e-test
+
+steps:
+  - name: 000-reset
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-adopt-dump-team
+    skipInputs: true
+    commands:
+      - name: 000-create-team-via-api
+        create:
+          resource: team
+          payload:
+            inline:
+              name: "{{ .vars.team_name }}"
+              description: "{{ .vars.team_description }}"
+          recordVar:
+            name: team_id
+            responsePath: id
+
+      - name: 001-adopt-team
+        run:
+          - adopt
+          - team
+          - "{{ .vars.team_id }}"
+          - --namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+                id: "{{ .vars.team_id }}"
+                resource_type: team
+                name: "{{ .vars.team_name }}"
+
+      - name: 002-dump-teams
+        run:
+          - dump
+          - declarative
+          - "--resources=teams"
+          - --default-namespace
+          - "{{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: "teams[?ref=='{{ .vars.team_id }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.team_name }}"
+                description: "{{ .vars.team_description }}"
+          - select: "teams[?ref=='{{ .vars.team_id }}'] | [0].kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+          - select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+
+      - name: 003-plan-from-dump
+        run:
+          - plan
+          - declarative
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
