@@ -313,6 +313,8 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 	"system-account": {Method: http.MethodPost, Path: "/v3/system-accounts", UseGlobal: true},
 	"system_account": {Method: http.MethodPost, Path: "/v3/system-accounts", UseGlobal: true},
 	"systemaccount":  {Method: http.MethodPost, Path: "/v3/system-accounts", UseGlobal: true},
+	"teams":          {Method: http.MethodPost, Path: "/v3/teams", UseGlobal: true},
+	"team":           {Method: http.MethodPost, Path: "/v3/teams", UseGlobal: true},
 }
 
 func defaultStatusForMethod(method string) int {

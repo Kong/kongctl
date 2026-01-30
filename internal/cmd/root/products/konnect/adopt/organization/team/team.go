@@ -1,4 +1,4 @@
-package adopt
+package team
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/validator"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -17,7 +18,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewControlPlaneCmd(
+func NewTeamCmd(
 	verb verbs.VerbValue,
 	baseCmd *cobra.Command,
 	addParentFlags func(verbs.VerbValue, *cobra.Command),
@@ -28,16 +29,16 @@ func NewControlPlaneCmd(
 		cmd = &cobra.Command{}
 	}
 
-	cmd.Use = "control-plane <control-plane-id|control-plane-name>"
-	cmd.Short = "Adopt an existing Konnect control plane into namespace management"
-	cmd.Long = "Apply the KONGCTL-namespace label to an existing Konnect control plane " +
+	cmd.Use = "team team-id"
+	cmd.Short = "Adopt an existing Konnect team into namespace management"
+	cmd.Long = "Apply the KONGCTL-namespace label to an existing Konnect team " +
 		"that is not currently managed by kongctl."
 	cmd.Args = func(_ *cobra.Command, args []string) error {
 		if len(args) != 1 {
-			return fmt.Errorf("exactly one control plane identifier (name or ID) is required")
+			return fmt.Errorf("exactly one team identifier (ID) is required")
 		}
 		if trimmed := strings.TrimSpace(args[0]); trimmed == "" {
-			return fmt.Errorf("control plane identifier cannot be empty")
+			return fmt.Errorf("team identifier cannot be empty")
 		}
 		return nil
 	}
@@ -88,7 +89,7 @@ func NewControlPlaneCmd(
 			return err
 		}
 
-		result, err := adoptControlPlane(helper, sdk.GetControlPlaneAPI(), namespace, strings.TrimSpace(args[0]))
+		result, err := adoptTeam(helper, sdk.GetOrganizationTeamAPI(), cfg, namespace, strings.TrimSpace(args[0]))
 		if err != nil {
 			return err
 		}
@@ -99,13 +100,7 @@ func NewControlPlaneCmd(
 			if name == "" {
 				name = result.ID
 			}
-			fmt.Fprintf(
-				streams.Out,
-				"Adopted control plane %q (%s) into namespace %q\n",
-				name,
-				result.ID,
-				result.Namespace,
-			)
+			fmt.Fprintf(streams.Out, "Adopted team %q (%s) into namespace %q\n", name, result.ID, result.Namespace)
 			return nil
 		}
 
@@ -121,55 +116,44 @@ func NewControlPlaneCmd(
 	return cmd, nil
 }
 
-func adoptControlPlane(
+func adoptTeam(
 	helper cmdpkg.Helper,
-	controlPlaneAPI helpers.ControlPlaneAPI,
+	teamAPI helpers.OrganizationTeamAPI,
+	cfg config.Hook,
 	namespace string,
 	identifier string,
 ) (*adoptCommon.AdoptResult, error) {
-	ctx := adoptCommon.EnsureContext(helper.GetContext())
-
-	id := strings.TrimSpace(identifier)
-	if !util.IsValidUUID(id) {
-		resolvedID, err := helpers.GetControlPlaneID(ctx, controlPlaneAPI, id)
-		if err != nil {
-			attrs := cmdpkg.TryConvertErrorToAttrs(err)
-			return nil, cmdpkg.PrepareExecutionError("failed to resolve control plane", err, helper.GetCmd(), attrs...)
-		}
-		id = resolvedID
-	}
-
-	res, err := controlPlaneAPI.GetControlPlane(ctx, id)
+	team, err := resolveTeam(helper, teamAPI, cfg, identifier)
 	if err != nil {
-		attrs := cmdpkg.TryConvertErrorToAttrs(err)
-		return nil, cmdpkg.PrepareExecutionError("failed to retrieve control plane", err, helper.GetCmd(), attrs...)
-	}
-	cp := res.GetControlPlane()
-	if cp == nil {
-		return nil, fmt.Errorf("control plane %s not found", id)
+		return nil, err
 	}
 
-	if existing := cp.Labels; existing != nil {
+	if existing := team.Labels; existing != nil {
 		if currentNamespace, ok := existing[labels.NamespaceKey]; ok && currentNamespace != "" {
 			return nil, &cmdpkg.ConfigurationError{
-				Err: fmt.Errorf("control plane %q already has namespace label %q", cp.Name, currentNamespace),
+				Err: fmt.Errorf("team %q already has namespace label %q", *team.Name, currentNamespace),
 			}
 		}
 	}
 
-	updateReq := kkComps.UpdateControlPlaneRequest{
-		Labels: adoptCommon.StringLabelMap(cp.Labels, namespace),
+	updateReq := kkComps.UpdateTeam{
+		Name:        team.Name,
+		Description: team.Description,
+		Labels:      adoptCommon.PointerLabelMap(team.Labels, namespace),
 	}
 
-	updateRes, err := controlPlaneAPI.UpdateControlPlane(ctx, id, updateReq)
+	ctx := adoptCommon.EnsureContext(helper.GetContext())
+
+	resp, err := teamAPI.UpdateTeam(ctx, identifier, &updateReq)
 	if err != nil {
+		fmt.Println("Failed to update team labels:", updateReq.Labels, err)
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
-		return nil, cmdpkg.PrepareExecutionError("failed to update control plane", err, helper.GetCmd(), attrs...)
+		return nil, cmdpkg.PrepareExecutionError("failed to update team", err, helper.GetCmd(), attrs...)
 	}
 
-	updated := updateRes.GetControlPlane()
+	updated := resp.GetTeam()
 	if updated == nil {
-		return nil, fmt.Errorf("update control plane response missing data")
+		return nil, fmt.Errorf("update team response missing team data")
 	}
 
 	ns := namespace
@@ -180,9 +164,35 @@ func adoptControlPlane(
 	}
 
 	return &adoptCommon.AdoptResult{
-		ResourceType: "control_plane",
-		ID:           updated.ID,
-		Name:         updated.Name,
+		ResourceType: "team",
+		ID:           *updated.ID,
+		Name:         *updated.Name,
 		Namespace:    ns,
 	}, nil
+}
+
+func resolveTeam(
+	helper cmdpkg.Helper,
+	teamAPI helpers.OrganizationTeamAPI,
+	_ config.Hook,
+	identifier string,
+) (*kkComps.Team, error) {
+	ctx := adoptCommon.EnsureContext(helper.GetContext())
+
+	if !util.IsValidUUID(identifier) {
+		return nil, &cmdpkg.ConfigurationError{
+			Err: fmt.Errorf("identifier %q is not a valid UUID", identifier),
+		}
+	}
+
+	resp, err := teamAPI.GetTeam(ctx, identifier)
+	if err != nil {
+		attrs := cmdpkg.TryConvertErrorToAttrs(err)
+		return nil, cmdpkg.PrepareExecutionError("failed to retrieve team", err, helper.GetCmd(), attrs...)
+	}
+	team := resp.GetTeam()
+	if team == nil {
+		return nil, fmt.Errorf("team %s not found", identifier)
+	}
+	return team, nil
 }

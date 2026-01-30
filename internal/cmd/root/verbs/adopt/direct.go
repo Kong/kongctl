@@ -9,6 +9,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	konnectadopt "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/spf13/cobra"
@@ -177,6 +178,43 @@ Setting this value overrides tokens obtained from the login command.
 
 	cmd.Example = `  # Adopt an Event Gateway by name
   kongctl adopt event-gateway my-egw --namespace team-alpha`
+
+	return cmd, nil
+}
+
+func NewDirectOrganizationCmd() (*cobra.Command, error) {
+	addFlags := func(_ verbs.VerbValue, cmd *cobra.Command) {
+		cmd.Flags().String(common.BaseURLFlagName, "",
+			fmt.Sprintf(`Base URL for Konnect API requests.
+- Config path: [ %s ]
+- Default   : [ %s ]`,
+				common.BaseURLConfigPath, common.BaseURLDefault))
+
+		cmd.Flags().String(common.PATFlagName, "",
+			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
+Setting this value overrides tokens obtained from the login command.
+- Config path: [ %s ]`,
+				common.PATConfigPath))
+	}
+
+	preRunE := func(c *cobra.Command, _ []string) error {
+		ctx := c.Context()
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		ctx = context.WithValue(ctx, products.Product, konnect.Product)
+		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
+		c.SetContext(ctx)
+		return nil
+	}
+
+	cmd, err := organization.NewOrganizationCmd(Verb, addFlags, preRunE)
+	if err != nil {
+		return nil, err
+	}
+
+	cmd.Example = `  # Adopt an organization team by id
+  kongctl adopt org team 123e4567-e89b-12d3-a456-426614174000 --namespace team-alpha`
 
 	return cmd, nil
 }
