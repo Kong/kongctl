@@ -7,6 +7,7 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/validator"
@@ -49,15 +50,15 @@ func NewControlPlaneCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
-	cmd.Flags().String(NamespaceFlagName, "", "Namespace label to apply to the resource")
-	if err := cmd.MarkFlagRequired(NamespaceFlagName); err != nil {
+	cmd.Flags().String(adoptCommon.NamespaceFlagName, "", "Namespace label to apply to the resource")
+	if err := cmd.MarkFlagRequired(adoptCommon.NamespaceFlagName); err != nil {
 		return nil, err
 	}
 
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
 		helper := cmdpkg.BuildHelper(cobraCmd, args)
 
-		namespace, err := cobraCmd.Flags().GetString(NamespaceFlagName)
+		namespace, err := cobraCmd.Flags().GetString(adoptCommon.NamespaceFlagName)
 		if err != nil {
 			return err
 		}
@@ -125,8 +126,8 @@ func adoptControlPlane(
 	controlPlaneAPI helpers.ControlPlaneAPI,
 	namespace string,
 	identifier string,
-) (*adoptResult, error) {
-	ctx := ensureContext(helper.GetContext())
+) (*adoptCommon.AdoptResult, error) {
+	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
 	id := strings.TrimSpace(identifier)
 	if !util.IsValidUUID(id) {
@@ -157,7 +158,7 @@ func adoptControlPlane(
 	}
 
 	updateReq := kkComps.UpdateControlPlaneRequest{
-		Labels: stringLabelMap(cp.Labels, namespace),
+		Labels: adoptCommon.StringLabelMap(cp.Labels, namespace),
 	}
 
 	updateRes, err := controlPlaneAPI.UpdateControlPlane(ctx, id, updateReq)
@@ -178,7 +179,7 @@ func adoptControlPlane(
 		}
 	}
 
-	return &adoptResult{
+	return &adoptCommon.AdoptResult{
 		ResourceType: "control_plane",
 		ID:           updated.ID,
 		Name:         updated.Name,
