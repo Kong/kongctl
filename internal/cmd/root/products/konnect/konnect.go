@@ -193,6 +193,12 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		}
 		cmd.AddCommand(eventGatewayCmd)
 
+		orgCmd, err := organization.NewOrganizationCmd(verb, addFlags, preRunE)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(orgCmd)
+
 		addFlags(verb, cmd)
 		return cmd, nil
 	case verbs.Add, verbs.Get, verbs.Create, verbs.Dump, verbs.Update,

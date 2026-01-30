@@ -1,4 +1,4 @@
-package adopt
+package common
 
 import (
 	"context"
@@ -6,14 +6,16 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 )
 
-type adoptResult struct {
+const NamespaceFlagName = "namespace"
+
+type AdoptResult struct {
 	ResourceType string `json:"resource_type"  yaml:"resource_type"`
 	ID           string `json:"id"             yaml:"id"`
 	Name         string `json:"name,omitempty" yaml:"name,omitempty"`
 	Namespace    string `json:"namespace"      yaml:"namespace"`
 }
 
-func pointerLabelMap(existing map[string]string, namespace string) map[string]*string {
+func PointerLabelMap(existing map[string]string, namespace string) map[string]*string {
 	cloned := make(map[string]string, len(existing)+1)
 	for k, v := range existing {
 		cloned[k] = v
@@ -29,7 +31,7 @@ func pointerLabelMap(existing map[string]string, namespace string) map[string]*s
 	return result
 }
 
-func stringLabelMap(existing map[string]string, namespace string) map[string]string {
+func StringLabelMap(existing map[string]string, namespace string) map[string]string {
 	cloned := make(map[string]string, len(existing)+1)
 	for k, v := range existing {
 		cloned[k] = v
@@ -38,7 +40,7 @@ func stringLabelMap(existing map[string]string, namespace string) map[string]str
 	return cloned
 }
 
-func ensureContext(ctx context.Context) context.Context {
+func EnsureContext(ctx context.Context) context.Context {
 	if ctx == nil {
 		return context.Background()
 	}

@@ -9,6 +9,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	konnectadopt "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/spf13/cobra"
@@ -181,7 +182,7 @@ Setting this value overrides tokens obtained from the login command.
 	return cmd, nil
 }
 
-func NewDirectTeamCmd() (*cobra.Command, error) {
+func NewDirectOrganizationCmd() (*cobra.Command, error) {
 	addFlags := func(_ verbs.VerbValue, cmd *cobra.Command) {
 		cmd.Flags().String(common.BaseURLFlagName, "",
 			fmt.Sprintf(`Base URL for Konnect API requests.
@@ -204,16 +205,16 @@ Setting this value overrides tokens obtained from the login command.
 		ctx = context.WithValue(ctx, products.Product, konnect.Product)
 		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
 		c.SetContext(ctx)
-		return bindKonnectFlags(c, args)
+		return nil
 	}
 
-	cmd, err := konnectadopt.NewTeamCmd(Verb, &cobra.Command{}, addFlags, preRunE)
+	cmd, err := organization.NewOrganizationCmd(Verb, addFlags, preRunE)
 	if err != nil {
 		return nil, err
 	}
 
-	cmd.Example = `  # Adopt a team by id
-  kongctl adopt team 123e4567-e89b-12d3-a456-426614174000 --namespace team-alpha`
+	cmd.Example = `  # Adopt an organization team by id
+  kongctl adopt org team 123e4567-e89b-12d3-a456-426614174000 --namespace team-alpha`
 
 	return cmd, nil
 }

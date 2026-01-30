@@ -211,7 +211,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 		case "teams":
 			teams, err := collectDeclarativeTeams(
 				ctx,
-				sdk.GetTeamAPI(),
+				sdk.GetOrganizationTeamAPI(),
 				requestPageSize,
 			)
 			if err != nil {
@@ -405,14 +405,14 @@ func collectDeclarativeEventGateways(
 
 func collectDeclarativeTeams(
 	ctx context.Context,
-	teamClient helpers.TeamAPI,
+	teamClient helpers.OrganizationTeamAPI,
 	requestPageSize int64,
-) ([]declresources.TeamResource, error) {
+) ([]declresources.OrganizationTeamResource, error) {
 	if teamClient == nil {
 		return nil, fmt.Errorf("team client is not configured")
 	}
 
-	var results []declresources.TeamResource
+	var results []declresources.OrganizationTeamResource
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListTeamsRequest{
@@ -543,8 +543,8 @@ func mapEventGatewayToDeclarativeResource(egw kkComps.EventGatewayInfo) declreso
 	return result
 }
 
-func mapTeamToDeclarativeResource(team kkComps.Team) declresources.TeamResource {
-	result := declresources.TeamResource{
+func mapTeamToDeclarativeResource(team kkComps.Team) declresources.OrganizationTeamResource {
+	result := declresources.OrganizationTeamResource{
 		CreateTeam: kkComps.CreateTeam{
 			Name:        getString(team.Name),
 			Description: team.Description,

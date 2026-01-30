@@ -26,6 +26,7 @@ steps:
       - name: 001-adopt-team
         run:
           - adopt
+          - org
           - team
           - "{{ .vars.team_id }}"
           - --namespace

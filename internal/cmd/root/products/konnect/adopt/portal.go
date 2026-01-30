@@ -9,6 +9,7 @@ import (
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
@@ -19,8 +20,6 @@ import (
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
-
-const NamespaceFlagName = "namespace"
 
 func NewPortalCmd(
 	verb verbs.VerbValue,
@@ -55,15 +54,15 @@ func NewPortalCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
-	cmd.Flags().String(NamespaceFlagName, "", "Namespace label to apply to the resource")
-	if err := cmd.MarkFlagRequired(NamespaceFlagName); err != nil {
+	cmd.Flags().String(adoptCommon.NamespaceFlagName, "", "Namespace label to apply to the resource")
+	if err := cmd.MarkFlagRequired(adoptCommon.NamespaceFlagName); err != nil {
 		return nil, err
 	}
 
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
 		helper := cmdpkg.BuildHelper(cobraCmd, args)
 
-		namespace, err := cobraCmd.Flags().GetString(NamespaceFlagName)
+		namespace, err := cobraCmd.Flags().GetString(adoptCommon.NamespaceFlagName)
 		if err != nil {
 			return err
 		}
@@ -126,7 +125,7 @@ func adoptPortal(
 	cfg config.Hook,
 	namespace string,
 	identifier string,
-) (*adoptResult, error) {
+) (*adoptCommon.AdoptResult, error) {
 	portal, err := resolvePortal(helper, portalAPI, cfg, identifier)
 	if err != nil {
 		return nil, err
@@ -141,10 +140,10 @@ func adoptPortal(
 	}
 
 	updateReq := kkComps.UpdatePortal{
-		Labels: pointerLabelMap(portal.Labels, namespace),
+		Labels: adoptCommon.PointerLabelMap(portal.Labels, namespace),
 	}
 
-	ctx := ensureContext(helper.GetContext())
+	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
 	resp, err := portalAPI.UpdatePortal(ctx, portal.ID, updateReq)
 	if err != nil {
@@ -164,7 +163,7 @@ func adoptPortal(
 		}
 	}
 
-	return &adoptResult{
+	return &adoptCommon.AdoptResult{
 		ResourceType: "portal",
 		ID:           updated.ID,
 		Name:         updated.Name,
@@ -178,7 +177,7 @@ func resolvePortal(
 	cfg config.Hook,
 	identifier string,
 ) (*kkComps.PortalResponse, error) {
-	ctx := ensureContext(helper.GetContext())
+	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
 	if util.IsValidUUID(identifier) {
 		resp, err := portalAPI.GetPortal(ctx, identifier)

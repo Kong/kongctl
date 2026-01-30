@@ -9,6 +9,7 @@ import (
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
@@ -53,15 +54,15 @@ func NewAPICmd(
 		cmd.PreRunE = parentPreRun
 	}
 
-	cmd.Flags().String(NamespaceFlagName, "", "Namespace label to apply to the resource")
-	if err := cmd.MarkFlagRequired(NamespaceFlagName); err != nil {
+	cmd.Flags().String(adoptCommon.NamespaceFlagName, "", "Namespace label to apply to the resource")
+	if err := cmd.MarkFlagRequired(adoptCommon.NamespaceFlagName); err != nil {
 		return nil, err
 	}
 
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
 		helper := cmdpkg.BuildHelper(cobraCmd, args)
 
-		namespace, err := cobraCmd.Flags().GetString(NamespaceFlagName)
+		namespace, err := cobraCmd.Flags().GetString(adoptCommon.NamespaceFlagName)
 		if err != nil {
 			return err
 		}
@@ -124,7 +125,7 @@ func adoptAPI(
 	cfg config.Hook,
 	namespace string,
 	identifier string,
-) (*adoptResult, error) {
+) (*adoptCommon.AdoptResult, error) {
 	api, err := resolveAPI(helper, apiClient, cfg, identifier)
 	if err != nil {
 		return nil, err
@@ -139,10 +140,10 @@ func adoptAPI(
 	}
 
 	updateReq := kkComps.UpdateAPIRequest{
-		Labels: pointerLabelMap(api.Labels, namespace),
+		Labels: adoptCommon.PointerLabelMap(api.Labels, namespace),
 	}
 
-	ctx := ensureContext(helper.GetContext())
+	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
 	resp, err := apiClient.UpdateAPI(ctx, api.ID, updateReq)
 	if err != nil {
@@ -162,7 +163,7 @@ func adoptAPI(
 		}
 	}
 
-	return &adoptResult{
+	return &adoptCommon.AdoptResult{
 		ResourceType: "api",
 		ID:           updated.ID,
 		Name:         updated.Name,
@@ -176,7 +177,7 @@ func resolveAPI(
 	cfg config.Hook,
 	identifier string,
 ) (*kkComps.APIResponseSchema, error) {
-	ctx := ensureContext(helper.GetContext())
+	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
 	if util.IsValidUUID(identifier) {
 		res, err := apiClient.FetchAPI(ctx, identifier)
