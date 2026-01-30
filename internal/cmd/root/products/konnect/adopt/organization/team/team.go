@@ -1,4 +1,4 @@
-package adopt
+package team
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/declarative/labels"
@@ -50,15 +51,15 @@ func NewTeamCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
-	cmd.Flags().String(NamespaceFlagName, "", "Namespace label to apply to the resource")
-	if err := cmd.MarkFlagRequired(NamespaceFlagName); err != nil {
+	cmd.Flags().String(adoptCommon.NamespaceFlagName, "", "Namespace label to apply to the resource")
+	if err := cmd.MarkFlagRequired(adoptCommon.NamespaceFlagName); err != nil {
 		return nil, err
 	}
 
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
 		helper := cmdpkg.BuildHelper(cobraCmd, args)
 
-		namespace, err := cobraCmd.Flags().GetString(NamespaceFlagName)
+		namespace, err := cobraCmd.Flags().GetString(adoptCommon.NamespaceFlagName)
 		if err != nil {
 			return err
 		}
@@ -88,7 +89,7 @@ func NewTeamCmd(
 			return err
 		}
 
-		result, err := adoptTeam(helper, sdk.GetTeamAPI(), cfg, namespace, strings.TrimSpace(args[0]))
+		result, err := adoptTeam(helper, sdk.GetOrganizationTeamAPI(), cfg, namespace, strings.TrimSpace(args[0]))
 		if err != nil {
 			return err
 		}
@@ -117,11 +118,11 @@ func NewTeamCmd(
 
 func adoptTeam(
 	helper cmdpkg.Helper,
-	teamAPI helpers.TeamAPI,
+	teamAPI helpers.OrganizationTeamAPI,
 	cfg config.Hook,
 	namespace string,
 	identifier string,
-) (*adoptResult, error) {
+) (*adoptCommon.AdoptResult, error) {
 	team, err := resolveTeam(helper, teamAPI, cfg, identifier)
 	if err != nil {
 		return nil, err
@@ -138,10 +139,10 @@ func adoptTeam(
 	updateReq := kkComps.UpdateTeam{
 		Name:        team.Name,
 		Description: team.Description,
-		Labels:      pointerLabelMap(team.Labels, namespace),
+		Labels:      adoptCommon.PointerLabelMap(team.Labels, namespace),
 	}
 
-	ctx := ensureContext(helper.GetContext())
+	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
 	resp, err := teamAPI.UpdateTeam(ctx, identifier, &updateReq)
 	if err != nil {
@@ -162,7 +163,7 @@ func adoptTeam(
 		}
 	}
 
-	return &adoptResult{
+	return &adoptCommon.AdoptResult{
 		ResourceType: "team",
 		ID:           *updated.ID,
 		Name:         *updated.Name,
@@ -172,11 +173,11 @@ func adoptTeam(
 
 func resolveTeam(
 	helper cmdpkg.Helper,
-	teamAPI helpers.TeamAPI,
+	teamAPI helpers.OrganizationTeamAPI,
 	_ config.Hook,
 	identifier string,
 ) (*kkComps.Team, error) {
-	ctx := ensureContext(helper.GetContext())
+	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
 	if !util.IsValidUUID(identifier) {
 		return nil, &cmdpkg.ConfigurationError{

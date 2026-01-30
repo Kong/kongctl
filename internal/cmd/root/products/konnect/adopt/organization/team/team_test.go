@@ -1,4 +1,4 @@
-package adopt
+package team
 
 import (
 	"context"
