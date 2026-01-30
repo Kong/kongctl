@@ -197,7 +197,7 @@ Setting this value overrides tokens obtained from the login command.
 				common.PATConfigPath))
 	}
 
-	preRunE := func(c *cobra.Command, args []string) error {
+	preRunE := func(c *cobra.Command, _ []string) error {
 		ctx := c.Context()
 		if ctx == nil {
 			ctx = context.Background()
