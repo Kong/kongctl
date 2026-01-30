@@ -8,8 +8,8 @@ import (
 	"github.com/kong/kongctl/internal/util"
 )
 
-// TeamResource represents a team in declarative configuration
-type TeamResource struct {
+// OrganizationTeamResource represents a team in declarative configuration
+type OrganizationTeamResource struct {
 	kkComps.CreateTeam `yaml:",inline" json:",inline"`
 	Ref                string         `yaml:"ref" json:"ref"`
 	Kongctl            *KongctlMeta   `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
@@ -20,17 +20,17 @@ type TeamResource struct {
 }
 
 // GetRef returns the reference identifier used for cross-resource references
-func (t TeamResource) GetRef() string {
+func (t OrganizationTeamResource) GetRef() string {
 	return t.Ref
 }
 
 // GetReferenceFieldMappings returns the field mappings for reference validation
-func (t TeamResource) GetReferenceFieldMappings() map[string]string {
+func (t OrganizationTeamResource) GetReferenceFieldMappings() map[string]string {
 	return map[string]string{} // No outbound references
 }
 
 // Validate ensures the team resource is valid
-func (t TeamResource) Validate() error {
+func (t OrganizationTeamResource) Validate() error {
 	if err := ValidateRef(t.Ref); err != nil {
 		return fmt.Errorf("invalid team ref: %w", err)
 	}
@@ -48,7 +48,7 @@ func (t TeamResource) Validate() error {
 }
 
 // SetDefaults applies default values to team resource
-func (t *TeamResource) SetDefaults() {
+func (t *OrganizationTeamResource) SetDefaults() {
 	// If Name is not set, use ref as default
 	if t.Name == "" {
 		t.Name = t.Ref
@@ -56,38 +56,38 @@ func (t *TeamResource) SetDefaults() {
 }
 
 // GetType returns the resource type
-func (t TeamResource) GetType() ResourceType {
+func (t OrganizationTeamResource) GetType() ResourceType {
 	return ResourceTypeTeam
 }
 
 // GetMoniker returns the resource moniker (for teams, this is the name)
-func (t TeamResource) GetMoniker() string {
+func (t OrganizationTeamResource) GetMoniker() string {
 	return t.Name
 }
 
 // GetDependencies returns references to other resources this team depends on
-func (t TeamResource) GetDependencies() []ResourceRef {
+func (t OrganizationTeamResource) GetDependencies() []ResourceRef {
 	// Teams don't depend on other resources
 	return []ResourceRef{}
 }
 
 // GetKonnectID returns the resolved Konnect ID if available
-func (t TeamResource) GetKonnectID() string {
+func (t OrganizationTeamResource) GetKonnectID() string {
 	return t.konnectID
 }
 
 // GetLabels returns the labels for this resource
-func (t TeamResource) GetLabels() map[string]string {
+func (t OrganizationTeamResource) GetLabels() map[string]string {
 	return t.Labels
 }
 
 // SetLabels sets the labels for this resource
-func (t *TeamResource) SetLabels(labels map[string]string) {
+func (t *OrganizationTeamResource) SetLabels(labels map[string]string) {
 	t.Labels = labels
 }
 
 // GetKonnectMonikerFilter returns the filter string for Konnect API lookup
-func (t TeamResource) GetKonnectMonikerFilter() string {
+func (t OrganizationTeamResource) GetKonnectMonikerFilter() string {
 	if t.IsExternal() {
 		return ""
 	}
@@ -96,8 +96,7 @@ func (t TeamResource) GetKonnectMonikerFilter() string {
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
-func (t *TeamResource) TryMatchKonnectResource(konnectResource any) bool {
-	// Use reflection to access fields from state.ControlPlane
+func (t *OrganizationTeamResource) TryMatchKonnectResource(konnectResource any) bool {
 	v := reflect.ValueOf(konnectResource)
 
 	// Handle pointer types
@@ -149,6 +148,6 @@ func (t *TeamResource) TryMatchKonnectResource(konnectResource any) bool {
 }
 
 // IsExternal returns true if this team is externally managed
-func (t *TeamResource) IsExternal() bool {
+func (t *OrganizationTeamResource) IsExternal() bool {
 	return t.External != nil && t.External.IsExternal()
 }

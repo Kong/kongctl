@@ -52,7 +52,7 @@ type ClientConfig struct {
 	EventGatewayBackendClusterAPI helpers.EventGatewayBackendClusterAPI
 
 	// Identity resources
-	TeamAPI helpers.TeamAPI
+	OrganizationTeamAPI helpers.OrganizationTeamAPI
 }
 
 // Client wraps Konnect SDK for state management
@@ -88,7 +88,7 @@ type Client struct {
 	eventGatewayBackendClusterAPI helpers.EventGatewayBackendClusterAPI
 
 	// Identity resource APIs
-	teamAPI helpers.TeamAPI
+	organizationTeamAPI helpers.OrganizationTeamAPI
 }
 
 // NewClient creates a new state client with the provided configuration
@@ -125,7 +125,7 @@ func NewClient(config ClientConfig) *Client {
 		eventGatewayBackendClusterAPI: config.EventGatewayBackendClusterAPI,
 
 		// Identity resource APIs
-		teamAPI: config.TeamAPI,
+		organizationTeamAPI: config.OrganizationTeamAPI,
 	}
 }
 
@@ -3535,7 +3535,7 @@ func (c *Client) DeleteEventGatewayBackendCluster(
 }
 
 func (c *Client) ListManagedTeams(ctx context.Context, namespaces []string) ([]Team, error) {
-	if err := ValidateAPIClient(c.teamAPI, "team API"); err != nil {
+	if err := ValidateAPIClient(c.organizationTeamAPI, "team API"); err != nil {
 		return nil, err
 	}
 
@@ -3546,7 +3546,7 @@ func (c *Client) ListManagedTeams(ctx context.Context, namespaces []string) ([]T
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.teamAPI.ListTeams(ctx, req)
+		resp, err := c.organizationTeamAPI.ListTeams(ctx, req)
 		if err != nil {
 			return nil, nil, WrapAPIError(err, "list teams", nil)
 		}
@@ -3598,7 +3598,7 @@ func (c *Client) GetTeamByName(ctx context.Context, name string) (*Team, error) 
 }
 
 func (c *Client) GetTeamByID(ctx context.Context, id string) (*Team, error) {
-	resp, err := c.teamAPI.GetTeam(ctx, id)
+	resp, err := c.organizationTeamAPI.GetTeam(ctx, id)
 	if err != nil {
 		return nil, WrapAPIError(err, "get team by ID", &ErrorWrapperOptions{
 			ResourceType: "team",
@@ -3625,7 +3625,7 @@ func (c *Client) GetTeamByID(ctx context.Context, id string) (*Team, error) {
 }
 
 func (c *Client) CreateTeam(ctx context.Context, team *kkComps.CreateTeam, namespace string) (string, error) {
-	resp, err := c.teamAPI.CreateTeam(ctx, team)
+	resp, err := c.organizationTeamAPI.CreateTeam(ctx, team)
 	if err != nil {
 		return "", WrapAPIError(err, "create team", &ErrorWrapperOptions{
 			ResourceType: "team",
@@ -3648,7 +3648,7 @@ func (c *Client) CreateTeam(ctx context.Context, team *kkComps.CreateTeam, names
 
 func (c *Client) UpdateTeam(ctx context.Context, teamID string,
 	team *kkComps.UpdateTeam, namespace string) (string, error) {
-	resp, err := c.teamAPI.UpdateTeam(ctx, teamID, team)
+	resp, err := c.organizationTeamAPI.UpdateTeam(ctx, teamID, team)
 	if err != nil {
 		return "", WrapAPIError(err, "update team", &ErrorWrapperOptions{
 			ResourceType: "team",
@@ -3670,7 +3670,7 @@ func (c *Client) UpdateTeam(ctx context.Context, teamID string,
 }
 
 func (c *Client) DeleteTeam(ctx context.Context, teamID string) error {
-	_, err := c.teamAPI.DeleteTeam(ctx, teamID)
+	_, err := c.organizationTeamAPI.DeleteTeam(ctx, teamID)
 	if err != nil {
 		return WrapAPIError(err, "delete team", &ErrorWrapperOptions{
 			ResourceType: "team",

@@ -72,8 +72,8 @@ type ResourceSet struct {
 	EventGatewayControlPlanes   []EventGatewayControlPlaneResource   `yaml:"event_gateways,omitempty" json:"event_gateways,omitempty"`                                 //nolint:lll
 	EventGatewayBackendClusters []EventGatewayBackendClusterResource `yaml:"event_gateway_backend_clusters,omitempty" json:"event_gateway_backend_clusters,omitempty"` //nolint:lll
 
-	// Identity resources
-	Teams []TeamResource `yaml:"teams,omitempty" json:"teams,omitempty"`
+	// Organization Identity resources
+	Teams []OrganizationTeamResource `yaml:"teams,omitempty" json:"teams,omitempty"`
 
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
@@ -627,8 +627,8 @@ func (rs *ResourceSet) GetEventGatewayControlPlanesByNamespace(namespace string)
 }
 
 // GetTeamsByNamespace returns all team resources from the specified namespace
-func (rs *ResourceSet) GetTeamsByNamespace(namespace string) []TeamResource {
-	var filtered []TeamResource
+func (rs *ResourceSet) GetTeamsByNamespace(namespace string) []OrganizationTeamResource {
+	var filtered []OrganizationTeamResource
 	for _, team := range rs.Teams {
 		if team.IsExternal() {
 			if namespace == NamespaceExternal {

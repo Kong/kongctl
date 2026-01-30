@@ -40,12 +40,11 @@ func GetStringFromReflectValue(v reflect.Value) (string, error) {
 			return "", nil
 		}
 		elem := v.Elem()
-		if elem.Kind() == reflect.String {
-			return elem.String(), nil
+		if elem.Kind() != reflect.String {
+			return "", fmt.Errorf("reflect value is not a string or *string")
 		}
+		return elem.String(), nil
 	default:
 		return "", fmt.Errorf("reflect value is not a string or *string")
 	}
-
-	return "", nil
 }

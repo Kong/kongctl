@@ -49,7 +49,7 @@ type EGWControlPlanePlanner interface {
 }
 
 // TeamPlanner handles planning for team resources
-type TeamPlanner interface {
+type OrganizationTeamPlanner interface {
 	ResourcePlanner
 
 	// Additional Team-specific methods if needed

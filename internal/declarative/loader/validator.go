@@ -47,8 +47,8 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
-	// Validate teams
-	if err := l.validateTeams(rs.Teams, rs); err != nil {
+	// Validate organization teams
+	if err := l.validateOrganizationTeams(rs.Teams, rs); err != nil {
 		return err
 	}
 
@@ -65,8 +65,8 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	return nil
 }
 
-// validateTeams validates team resources
-func (l *Loader) validateTeams(teams []resources.TeamResource, rs *resources.ResourceSet) error {
+// validateOrganizationTeams validates organization team resources
+func (l *Loader) validateOrganizationTeams(teams []resources.OrganizationTeamResource, rs *resources.ResourceSet) error {
 	names := make(map[string]string) // name -> ref mapping (names unique per type)
 
 	for i := range teams {

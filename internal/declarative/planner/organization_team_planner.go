@@ -10,20 +10,20 @@ import (
 	"github.com/kong/kongctl/internal/util"
 )
 
-// TeamPlannerImpl implements planning logic for teams
-type TeamPlannerImpl struct {
+// OrganizationTeamPlannerImpl implements planning logic for organization teams
+type OrganizationTeamPlannerImpl struct {
 	*BasePlanner
 }
 
-// NewTeamPlanner creates a new team planner
-func NewTeamPlanner(base *BasePlanner) TeamPlanner {
-	return &TeamPlannerImpl{
+// NewOrganizationTeamPlanner creates a new organization team planner
+func NewOrganizationTeamPlanner(base *BasePlanner) OrganizationTeamPlanner {
+	return &OrganizationTeamPlannerImpl{
 		BasePlanner: base,
 	}
 }
 
 // PlanChanges generates changes for team resources
-func (t *TeamPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
+func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
 	namespace := plannerCtx.Namespace
 	desired := t.GetDesiredTeams(namespace)
 
@@ -146,7 +146,7 @@ func (t *TeamPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, p
 // extractTeamFields extracts fields from a team resource for planner operations
 func extractTeamFields(resource any) map[string]any {
 	fields := make(map[string]any)
-	team, ok := resource.(resources.TeamResource)
+	team, ok := resource.(resources.OrganizationTeamResource)
 	if !ok {
 		return fields
 	}
@@ -164,7 +164,7 @@ func extractTeamFields(resource any) map[string]any {
 }
 
 // planTeamCreate creates a CREATE change for a team
-func (t *TeamPlannerImpl) planTeamCreate(team resources.TeamResource, plan *Plan) string {
+func (t *OrganizationTeamPlannerImpl) planTeamCreate(team resources.OrganizationTeamResource, plan *Plan) string {
 	generic := t.GetGenericPlanner()
 	if generic == nil {
 		// During tests, generic planner might not be initialized
@@ -229,9 +229,9 @@ func (t *TeamPlannerImpl) planTeamCreate(team resources.TeamResource, plan *Plan
 }
 
 // shouldUpdateTeam checks if team needs update based on configured fields only
-func (t *TeamPlannerImpl) shouldUpdateTeam(
+func (t *OrganizationTeamPlannerImpl) shouldUpdateTeam(
 	current state.Team,
-	desired resources.TeamResource,
+	desired resources.OrganizationTeamResource,
 ) (bool, map[string]any) {
 	updates := make(map[string]any)
 
@@ -259,9 +259,9 @@ func (t *TeamPlannerImpl) shouldUpdateTeam(
 }
 
 // planTeamUpdateWithFields creates an UPDATE change with specific fields
-func (t *TeamPlannerImpl) planTeamUpdateWithFields(
+func (t *OrganizationTeamPlannerImpl) planTeamUpdateWithFields(
 	current state.Team,
-	desired resources.TeamResource,
+	desired resources.OrganizationTeamResource,
 	updateFields map[string]any,
 	plan *Plan,
 ) {
@@ -340,9 +340,9 @@ func (t *TeamPlannerImpl) planTeamUpdateWithFields(
 }
 
 // planTeamProtectionChangeWithFields creates an UPDATE for protection status with optional field updates
-func (t *TeamPlannerImpl) planTeamProtectionChangeWithFields(
+func (t *OrganizationTeamPlannerImpl) planTeamProtectionChangeWithFields(
 	current state.Team,
-	desired resources.TeamResource,
+	desired resources.OrganizationTeamResource,
 	wasProtected, shouldProtect bool,
 	updateFields map[string]any,
 	plan *Plan,
@@ -401,7 +401,7 @@ func (t *TeamPlannerImpl) planTeamProtectionChangeWithFields(
 }
 
 // planTeamDelete creates a DELETE change for a team
-func (t *TeamPlannerImpl) planTeamDelete(team state.Team, plan *Plan) {
+func (t *OrganizationTeamPlannerImpl) planTeamDelete(team state.Team, plan *Plan) {
 	// Extract namespace from labels (for existing resources being deleted)
 	namespace := DefaultNamespace
 	if ns, ok := team.NormalizedLabels[labels.NamespaceKey]; ok {

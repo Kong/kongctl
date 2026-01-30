@@ -137,7 +137,7 @@ func (b *BasePlanner) GetDesiredEventGatewayControlPlanes(
 }
 
 // GetDesiredTeams returns desired team resources from the specified namespace
-func (b *BasePlanner) GetDesiredTeams(namespace string) []resources.TeamResource {
+func (b *BasePlanner) GetDesiredTeams(namespace string) []resources.OrganizationTeamResource {
 	return b.planner.resources.GetTeamsByNamespace(namespace)
 }
 

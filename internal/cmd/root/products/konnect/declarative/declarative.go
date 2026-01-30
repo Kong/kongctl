@@ -1763,6 +1763,6 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		EventGatewayBackendClusterAPI: kkClient.GetEventGatewayBackendClusterAPI(),
 
 		// Identity APIs
-		TeamAPI: kkClient.GetTeamAPI(),
+		OrganizationTeamAPI: kkClient.GetOrganizationTeamAPI(),
 	})
 }

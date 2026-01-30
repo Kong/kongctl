@@ -160,7 +160,7 @@ func (t *getTeamCmd) runE(c *cobra.Command, args []string) error {
 
 	// No args: list all
 	if len(args) == 0 {
-		teams, err := runList(sdk.GetTeamAPI(), helper, cfg)
+		teams, err := runList(sdk.GetOrganizationTeamAPI(), helper, cfg)
 		if err != nil {
 			return err
 		}
@@ -177,14 +177,14 @@ func (t *getTeamCmd) runE(c *cobra.Command, args []string) error {
 
 		if !isUUID {
 			// multiple teams can have the same name, so we list by name
-			teams, err := runListByName(id, sdk.GetTeamAPI(), helper, cfg)
+			teams, err := runListByName(id, sdk.GetOrganizationTeamAPI(), helper, cfg)
 			if err != nil {
 				return err
 			}
 			return renderTeamsList(helper, helper.GetCmd().Name(), outType, printer, teams)
 		}
 
-		team, err = runGet(id, sdk.GetTeamAPI(), helper)
+		team, err = runGet(id, sdk.GetOrganizationTeamAPI(), helper)
 		if err != nil {
 			return err
 		}
@@ -208,7 +208,7 @@ func (t *getTeamCmd) runE(c *cobra.Command, args []string) error {
 	return fmt.Errorf("too many arguments")
 }
 
-func runGet(id string, kkClient helpers.TeamAPI, helper cmd.Helper) (*kkComps.Team, error) {
+func runGet(id string, kkClient helpers.OrganizationTeamAPI, helper cmd.Helper) (*kkComps.Team, error) {
 	res, err := kkClient.GetTeam(helper.GetContext(), id)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
@@ -218,7 +218,7 @@ func runGet(id string, kkClient helpers.TeamAPI, helper cmd.Helper) (*kkComps.Te
 	return res.GetTeam(), nil
 }
 
-func runList(kkClient helpers.TeamAPI, helper cmd.Helper, cfg config.Hook) ([]kkComps.Team, error) {
+func runList(kkClient helpers.OrganizationTeamAPI, helper cmd.Helper, cfg config.Hook) ([]kkComps.Team, error) {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
 	if requestPageSize < 1 {
@@ -251,11 +251,14 @@ func runList(kkClient helpers.TeamAPI, helper cmd.Helper, cfg config.Hook) ([]kk
 	return allData, nil
 }
 
-func runListByName(name string, kkClient helpers.TeamAPI, helper cmd.Helper,
+func runListByName(name string, kkClient helpers.OrganizationTeamAPI, helper cmd.Helper,
 	cfg config.Hook,
 ) ([]kkComps.Team, error) {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
+	if requestPageSize < 1 {
+		requestPageSize = int64(common.DefaultRequestPageSize)
+	}
 
 	var allData []kkComps.Team
 	for {
