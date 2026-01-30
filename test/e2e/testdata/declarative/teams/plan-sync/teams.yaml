@@ -1,0 +1,35 @@
+_defaults:
+  kongctl:
+    namespace: team-plan-sync
+
+teams:
+  - ref: devops-team
+    name: "DevOps Team"
+    description: "DevOps and platform engineering team"
+    labels:
+      department: "engineering"
+      focus: "devops"
+      tier: "critical"
+    kongctl:
+      namespace: team-plan-sync
+      protected: false
+
+  - ref: qa-team
+    name: "QA Team"
+    description: "Quality assurance and testing team"
+    labels:
+      department: "engineering"
+      focus: "quality"
+    kongctl:
+      namespace: team-plan-sync
+      protected: false
+
+  - ref: legacy-infra-team
+    name: "Legacy Infrastructure Team"
+    description: "Team managing legacy infrastructure scheduled for decommissioning"
+    labels:
+      department: "engineering"
+      lifecycle: "sunset"
+    kongctl:
+      namespace: team-plan-sync
+      protected: false
