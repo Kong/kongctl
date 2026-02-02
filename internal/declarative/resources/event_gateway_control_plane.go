@@ -14,6 +14,7 @@ type EventGatewayControlPlaneResource struct {
 
 	// Nested child resources
 	BackendClusters []EventGatewayBackendClusterResource `yaml:"backend_clusters,omitempty" json:"backend_clusters,omitempty"` //nolint:lll
+	VirtualClusters []EventGatewayVirtualClusterResource `yaml:"virtual_clusters,omitempty" json:"virtual_clusters,omitempty"` //nolint:lll
 
 	// Resolved Konnect ID (not serialized)
 	konnectID string `json:"-" yaml:"-"`
@@ -52,6 +53,31 @@ func (e EventGatewayControlPlaneResource) Validate() error {
 	if err := ValidateRef(e.Ref); err != nil {
 		return fmt.Errorf("invalid Event Gateway Control Plane ref: %w", err)
 	}
+
+	// Validate backend clusters
+	backendClusterRefs := make(map[string]bool)
+	for i, bc := range e.BackendClusters {
+		if err := bc.Validate(); err != nil {
+			return fmt.Errorf("invalid backend cluster %d: %w", i, err)
+		}
+		if backendClusterRefs[bc.GetRef()] {
+			return fmt.Errorf("duplicate backend cluster ref: %s", bc.GetRef())
+		}
+		backendClusterRefs[bc.GetRef()] = true
+	}
+
+	// Validate virtual clusters
+	virtualClusterRefs := make(map[string]bool)
+	for i, vc := range e.VirtualClusters {
+		if err := vc.Validate(); err != nil {
+			return fmt.Errorf("invalid virtual cluster %d: %w", i, err)
+		}
+		if virtualClusterRefs[vc.GetRef()] {
+			return fmt.Errorf("duplicate virtual cluster ref: %s", vc.GetRef())
+		}
+		virtualClusterRefs[vc.GetRef()] = true
+	}
+
 	return nil
 }
 
@@ -62,6 +88,10 @@ func (e *EventGatewayControlPlaneResource) SetDefaults() {
 
 	for i := range e.BackendClusters {
 		e.BackendClusters[i].SetDefaults()
+	}
+
+	for i := range e.VirtualClusters {
+		e.VirtualClusters[i].SetDefaults()
 	}
 }
 

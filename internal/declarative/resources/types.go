@@ -28,7 +28,8 @@ const (
 	ResourceTypeCatalogService             ResourceType = "catalog_service"
 	ResourceTypeEventGatewayControlPlane   ResourceType = "event_gateway"
 	ResourceTypeEventGatewayBackendCluster ResourceType = "event_gateway_backend_cluster"
-	ResourceTypeTeam                       ResourceType = "organization_team"
+	ResourceTypeEventGatewayVirtualCluster ResourceType = "event_gateway_virtual_cluster"
+	ResourceTypeTeam                       ResourceType = "organization_team" // We should rename this to ResourceTypeOrganizationTeam
 )
 
 const (
@@ -71,14 +72,12 @@ type ResourceSet struct {
 	PortalEmailTemplates        []PortalEmailTemplateResource        `yaml:"portal_email_templates,omitempty"     json:"portal_email_templates,omitempty"`             //nolint:lll
 	EventGatewayControlPlanes   []EventGatewayControlPlaneResource   `yaml:"event_gateways,omitempty" json:"event_gateways,omitempty"`                                 //nolint:lll
 	EventGatewayBackendClusters []EventGatewayBackendClusterResource `yaml:"event_gateway_backend_clusters,omitempty" json:"event_gateway_backend_clusters,omitempty"` //nolint:lll
-
+	EventGatewayVirtualClusters []EventGatewayVirtualClusterResource `yaml:"event_gateway_virtual_clusters,omitempty" json:"event_gateway_virtual_clusters,omitempty"` //nolint:lll
 	// Organization grouping - contains nested resources like teams
 	Organization *OrganizationResource `yaml:"organization,omitempty" json:"organization,omitempty"`
-
 	// Teams is populated internally from OrganizationTeams during loading
 	// It is not exposed in YAML/JSON to enforce the organization grouping format
 	OrganizationTeams []OrganizationTeamResource `yaml:"-" json:"-"`
-
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
 	DefaultNamespace  string   `yaml:"-" json:"-"`
@@ -691,6 +690,33 @@ func (rs *ResourceSet) GetBackendClustersForGateway(gatewayRef string) []EventGa
 
 	// Add root-level backend clusters for this gateway
 	for _, cluster := range rs.EventGatewayBackendClusters {
+		if cluster.EventGateway == gatewayRef {
+			clusters = append(clusters, cluster)
+		}
+	}
+
+	return clusters
+}
+
+// GetVirtualClustersForGateway returns all virtual clusters (nested + root-level) for a given gateway ref
+func (rs *ResourceSet) GetVirtualClustersForGateway(gatewayRef string) []EventGatewayVirtualClusterResource {
+	var clusters []EventGatewayVirtualClusterResource
+
+	// Find the gateway to get nested clusters
+	for _, gateway := range rs.EventGatewayControlPlanes {
+		if gateway.Ref == gatewayRef {
+			// Add nested virtual clusters
+			for _, cluster := range gateway.VirtualClusters {
+				clusterCopy := cluster
+				clusterCopy.EventGateway = gatewayRef
+				clusters = append(clusters, clusterCopy)
+			}
+			break
+		}
+	}
+
+	// Add root-level virtual clusters for this gateway
+	for _, cluster := range rs.EventGatewayVirtualClusters {
 		if cluster.EventGateway == gatewayRef {
 			clusters = append(clusters, cluster)
 		}
