@@ -47,6 +47,7 @@ type SDKAPI interface {
 	GetPortalEmailsAPI() PortalEmailsAPI
 	GetEventGatewayControlPlaneAPI() EGWControlPlaneAPI
 	GetEventGatewayBackendClusterAPI() EventGatewayBackendClusterAPI
+	GetEventGatewayVirtualClusterAPI() EventGatewayVirtualClusterAPI
 }
 
 // This is the real implementation of the SDKAPI
@@ -304,6 +305,15 @@ func (k *KonnectSDK) GetEventGatewayBackendClusterAPI() EventGatewayBackendClust
 	}
 
 	return &EventGatewayBackendClusterAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the EventGatewayVirtualCluster interface
+func (k *KonnectSDK) GetEventGatewayVirtualClusterAPI() EventGatewayVirtualClusterAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &EventGatewayVirtualClusterAPIImpl{SDK: k.SDK}
 }
 
 func (k *KonnectSDK) GetOrganizationTeamAPI() OrganizationTeamAPI {

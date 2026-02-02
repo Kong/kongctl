@@ -152,6 +152,18 @@ func (p *Planner) planEGWControlPlaneChanges(
 				return err
 			}
 		}
+
+		// Plan virtual clusters for this gateway (whether it exists or is being created)
+		virtualClusters := p.resources.GetVirtualClustersForGateway(desiredEGWCP.Ref)
+
+		if len(virtualClusters) > 0 || plan.Metadata.Mode == PlanModeSync {
+			if err := p.planEventGatewayVirtualClusterChanges(
+				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
+				gatewayChangeID, virtualClusters, plan,
+			); err != nil {
+				return err
+			}
+		}
 	}
 
 	// Check for managed resources to delete (sync mode only)
