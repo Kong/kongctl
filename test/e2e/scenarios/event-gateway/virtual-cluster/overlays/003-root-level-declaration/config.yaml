@@ -1,0 +1,34 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-vc-comprehensive-test
+
+event_gateways:
+  - ref: egw-cp-for-bc-vc-test
+    name: egw-cp-for-bc-vc-test
+    description: "EGW CP for Backend and Virtual Cluster Test"
+    backend_clusters:
+      - ref: default-backend-cluster
+        name: default-backend-cluster
+        description: "Backend Cluster for Test"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9092"
+          - "egw-backend-2.example.com:9092"
+        authentication:
+          type: anonymous
+        tls:
+          enabled: true
+          skip_verify: false
+          tls_versions:
+            - tls12
+            - tls13
+event_gateway_virtual_clusters:
+  - ref: default-virtual-cluster
+    name: default-virtual-cluster
+    event_gateway: egw-cp-for-bc-vc-test
+    description: "Virtual Cluster for Test"
+    destination:
+      name: default-backend-cluster
+    authentication:
+      - type: anonymous
+    acl_mode: passthrough
+    dns_label: vc-default
