@@ -37,23 +37,35 @@ func (a *EventGatewayVirtualClusterAdapter) MapCreateFields(
 	create.Name = name
 
 	// Destination (required)
-	destination, ok := fields["destination"].(kkComps.BackendClusterReferenceModify)
+	destField, ok := fields["destination"]
 	if !ok {
 		return fmt.Errorf("destination is required")
+	}
+	destination, err := buildBackendClusterReference(destField)
+	if err != nil {
+		return fmt.Errorf("failed to build destination: %w", err)
 	}
 	create.Destination = destination
 
 	// Authentication (required)
-	authentication, ok := fields["authentication"].([]kkComps.VirtualClusterAuthenticationScheme)
+	authField, ok := fields["authentication"]
 	if !ok {
 		return fmt.Errorf("authentication is required")
+	}
+	authentication, err := buildVirtualClusterAuthentication(authField)
+	if err != nil {
+		return fmt.Errorf("failed to build authentication: %w", err)
 	}
 	create.Authentication = authentication
 
 	// ACL Mode (required)
-	aclMode, ok := fields["acl_mode"].(kkComps.VirtualClusterACLMode)
+	aclModeField, ok := fields["acl_mode"]
 	if !ok {
 		return fmt.Errorf("acl_mode is required")
+	}
+	aclMode, err := buildACLMode(aclModeField)
+	if err != nil {
+		return fmt.Errorf("failed to build acl_mode: %w", err)
 	}
 	create.ACLMode = aclMode
 
@@ -69,7 +81,11 @@ func (a *EventGatewayVirtualClusterAdapter) MapCreateFields(
 		create.Description = &desc
 	}
 
-	if namespace, ok := fields["namespace"].(*kkComps.VirtualClusterNamespace); ok {
+	if nsField, ok := fields["namespace"]; ok {
+		namespace, err := buildVirtualClusterNamespace(nsField)
+		if err != nil {
+			return fmt.Errorf("failed to build namespace: %w", err)
+		}
 		create.Namespace = namespace
 	}
 
@@ -92,10 +108,18 @@ func (a *EventGatewayVirtualClusterAdapter) MapUpdateFields(
 	if name, ok := fieldsToUpdate["name"].(string); ok {
 		update.Name = name
 	}
-	if destination, ok := fieldsToUpdate["destination"].(kkComps.BackendClusterReferenceModify); ok {
+	if destField, ok := fieldsToUpdate["destination"]; ok {
+		destination, err := buildBackendClusterReference(destField)
+		if err != nil {
+			return fmt.Errorf("failed to build destination: %w", err)
+		}
 		update.Destination = destination
 	}
-	if aclMode, ok := fieldsToUpdate["acl_mode"].(kkComps.VirtualClusterACLMode); ok {
+	if aclModeField, ok := fieldsToUpdate["acl_mode"]; ok {
+		aclMode, err := buildACLMode(aclModeField)
+		if err != nil {
+			return fmt.Errorf("failed to build acl_mode: %w", err)
+		}
 		update.ACLMode = aclMode
 	}
 	if dnsLabel, ok := fieldsToUpdate["dns_label"].(string); ok {
@@ -103,14 +127,19 @@ func (a *EventGatewayVirtualClusterAdapter) MapUpdateFields(
 	}
 
 	// Authentication requires conversion from Scheme to SensitiveDataAwareScheme
-	if authentication, ok := fieldsToUpdate["authentication"].([]kkComps.VirtualClusterAuthenticationScheme); ok {
+	if authField, ok := fieldsToUpdate["authentication"]; ok {
+		authentication, err := buildVirtualClusterAuthentication(authField)
+		if err != nil {
+			return fmt.Errorf("failed to build authentication: %w", err)
+		}
 		// Convert to SensitiveDataAwareScheme
 		sensitiveAuth := make([]kkComps.VirtualClusterAuthenticationSensitiveDataAwareScheme, len(authentication))
 		for i, auth := range authentication {
-			// This is a simplified conversion - in production might need more complete logic
-			sensitiveAuth[i] = kkComps.VirtualClusterAuthenticationSensitiveDataAwareScheme{
-				Type: kkComps.VirtualClusterAuthenticationSensitiveDataAwareSchemeType(auth.Type),
+			converted, err := convertToVirtualClusterSensitiveDataAwareAuth(auth)
+			if err != nil {
+				return fmt.Errorf("failed to convert authentication[%d]: %w", i, err)
 			}
+			sensitiveAuth[i] = converted
 		}
 		update.Authentication = sensitiveAuth
 	}
@@ -126,7 +155,11 @@ func (a *EventGatewayVirtualClusterAdapter) MapUpdateFields(
 		}
 	}
 
-	if namespace, ok := fieldsToUpdate["namespace"].(*kkComps.VirtualClusterNamespace); ok {
+	if nsField, ok := fieldsToUpdate["namespace"]; ok {
+		namespace, err := buildVirtualClusterNamespace(nsField)
+		if err != nil {
+			return fmt.Errorf("failed to build namespace: %w", err)
+		}
 		update.Namespace = namespace
 	}
 
@@ -273,4 +306,239 @@ func (e *EventGatewayVirtualClusterResourceInfo) GetLabels() map[string]string {
 
 func (e *EventGatewayVirtualClusterResourceInfo) GetNormalizedLabels() map[string]string {
 	return e.virtualCluster.NormalizedLabels
+}
+
+// buildBackendClusterReference constructs BackendClusterReferenceModify from a map or SDK type
+func buildBackendClusterReference(field any) (kkComps.BackendClusterReferenceModify, error) {
+	// If it's already the SDK type, return it directly
+	if ref, ok := field.(kkComps.BackendClusterReferenceModify); ok {
+		return ref, nil
+	}
+
+	// Otherwise, build from map structure
+	refMap, ok := field.(map[string]any)
+	if !ok {
+		return kkComps.BackendClusterReferenceModify{},
+			fmt.Errorf("destination must be an object, got %T", field)
+	}
+
+	// Check for id or name
+	if id, ok := refMap["id"].(string); ok {
+		return kkComps.BackendClusterReferenceModify{
+			Type: kkComps.BackendClusterReferenceModifyTypeBackendClusterReferenceByID,
+			BackendClusterReferenceByID: &kkComps.BackendClusterReferenceByID{
+				ID: id,
+			},
+		}, nil
+	}
+
+	if name, ok := refMap["name"].(string); ok {
+		return kkComps.BackendClusterReferenceModify{
+			Type: kkComps.BackendClusterReferenceModifyTypeBackendClusterReferenceByName,
+			BackendClusterReferenceByName: &kkComps.BackendClusterReferenceByName{
+				Name: name,
+			},
+		}, nil
+	}
+
+	return kkComps.BackendClusterReferenceModify{},
+		fmt.Errorf("destination must have either 'id' or 'name' field")
+}
+
+// buildVirtualClusterAuthentication constructs VirtualClusterAuthenticationScheme slice from a slice or SDK type
+func buildVirtualClusterAuthentication(field any) ([]kkComps.VirtualClusterAuthenticationScheme, error) {
+	// If it's already the SDK type, return it directly
+	if auth, ok := field.([]kkComps.VirtualClusterAuthenticationScheme); ok {
+		return auth, nil
+	}
+
+	// Otherwise, build from slice of maps
+	authSlice, ok := field.([]any)
+	if !ok {
+		return nil, fmt.Errorf("authentication must be an array, got %T", field)
+	}
+
+	result := make([]kkComps.VirtualClusterAuthenticationScheme, 0, len(authSlice))
+	for i, authItem := range authSlice {
+		authMap, ok := authItem.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("authentication[%d] must be an object, got %T", i, authItem)
+		}
+
+		authType, ok := authMap["type"].(string)
+		if !ok {
+			return nil, fmt.Errorf("authentication[%d].type is required and must be a string", i)
+		}
+
+		switch authType {
+		case "anonymous":
+			result = append(result, kkComps.CreateVirtualClusterAuthenticationSchemeAnonymous(
+				kkComps.VirtualClusterAuthenticationAnonymous{},
+			))
+
+		case "sasl_plain":
+			mediation, ok := authMap["mediation"].(string)
+			if !ok {
+				return nil, fmt.Errorf("authentication[%d].mediation is required for sasl_plain", i)
+			}
+
+			saslPlain := kkComps.VirtualClusterAuthenticationSaslPlain{
+				Mediation: kkComps.VirtualClusterAuthenticationSaslPlainMediation(mediation),
+			}
+
+			// Parse principals if provided (required for "terminate" mediation)
+			if principalsField, ok := authMap["principals"]; ok {
+				principalsSlice, ok := principalsField.([]any)
+				if !ok {
+					return nil, fmt.Errorf("authentication[%d].principals must be an array", i)
+				}
+
+				principals := make([]kkComps.VirtualClusterAuthenticationPrincipal, 0, len(principalsSlice))
+				for j, principalItem := range principalsSlice {
+					principalMap, ok := principalItem.(map[string]any)
+					if !ok {
+						return nil, fmt.Errorf("authentication[%d].principals[%d] must be an object", i, j)
+					}
+
+					username, ok := principalMap["username"].(string)
+					if !ok {
+						return nil, fmt.Errorf("authentication[%d].principals[%d].username is required", i, j)
+					}
+
+					password, ok := principalMap["password"].(string)
+					if !ok {
+						return nil, fmt.Errorf("authentication[%d].principals[%d].password is required", i, j)
+					}
+
+					principals = append(principals, kkComps.VirtualClusterAuthenticationPrincipal{
+						Username: username,
+						Password: password,
+					})
+				}
+				saslPlain.Principals = principals
+			}
+
+			result = append(result, kkComps.CreateVirtualClusterAuthenticationSchemeSaslPlain(saslPlain))
+
+		case "sasl_scram":
+			algorithm, ok := authMap["algorithm"].(string)
+			if !ok {
+				return nil, fmt.Errorf("authentication[%d].algorithm is required for sasl_scram", i)
+			}
+			result = append(result, kkComps.CreateVirtualClusterAuthenticationSchemeSaslScram(
+				kkComps.VirtualClusterAuthenticationSaslScram{
+					Algorithm: kkComps.VirtualClusterAuthenticationSaslScramAlgorithm(algorithm),
+				},
+			))
+
+		default:
+			return nil, fmt.Errorf("unsupported authentication type: %s", authType)
+		}
+	}
+
+	return result, nil
+}
+
+// buildACLMode constructs VirtualClusterACLMode from a string or SDK type
+func buildACLMode(field any) (kkComps.VirtualClusterACLMode, error) {
+	// If it's already the SDK type, return it directly
+	if mode, ok := field.(kkComps.VirtualClusterACLMode); ok {
+		return mode, nil
+	}
+
+	// Otherwise, convert from string
+	modeStr, ok := field.(string)
+	if !ok {
+		return "", fmt.Errorf("acl_mode must be a string, got %T", field)
+	}
+
+	switch modeStr {
+	case "enforce_on_gateway":
+		return kkComps.VirtualClusterACLModeEnforceOnGateway, nil
+	case "passthrough":
+		return kkComps.VirtualClusterACLModePassthrough, nil
+	default:
+		return "", fmt.Errorf("invalid acl_mode: %s (must be 'enforce_on_gateway' or 'passthrough')", modeStr)
+	}
+}
+
+// buildVirtualClusterNamespace constructs VirtualClusterNamespace from a map or SDK type
+func buildVirtualClusterNamespace(field any) (*kkComps.VirtualClusterNamespace, error) {
+	// If it's already the SDK type, return it directly
+	if ns, ok := field.(*kkComps.VirtualClusterNamespace); ok {
+		return ns, nil
+	}
+
+	// Otherwise, build from map structure
+	nsMap, ok := field.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("namespace must be an object, got %T", field)
+	}
+
+	mode, ok := nsMap["mode"].(string)
+	if !ok {
+		return nil, fmt.Errorf("namespace.mode is required and must be a string")
+	}
+
+	namespace := &kkComps.VirtualClusterNamespace{
+		Mode: kkComps.Mode(mode),
+	}
+
+	if prefix, ok := nsMap["prefix"].(string); ok {
+		namespace.Prefix = prefix
+	}
+
+	return namespace, nil
+}
+
+// convertToVirtualClusterSensitiveDataAwareAuth converts VirtualClusterAuthenticationScheme
+// to VirtualClusterAuthenticationSensitiveDataAwareScheme for update operations
+func convertToVirtualClusterSensitiveDataAwareAuth(
+	auth kkComps.VirtualClusterAuthenticationScheme,
+) (kkComps.VirtualClusterAuthenticationSensitiveDataAwareScheme, error) {
+	switch auth.Type {
+	case kkComps.VirtualClusterAuthenticationSchemeTypeAnonymous:
+		return kkComps.CreateVirtualClusterAuthenticationSensitiveDataAwareSchemeAnonymous(
+			kkComps.VirtualClusterAuthenticationAnonymous{},
+		), nil
+
+	case kkComps.VirtualClusterAuthenticationSchemeTypeSaslPlain:
+		if auth.VirtualClusterAuthenticationSaslPlain == nil {
+			return kkComps.VirtualClusterAuthenticationSensitiveDataAwareScheme{},
+				fmt.Errorf("SASL Plain authentication data is missing")
+		}
+
+		saslPlain := kkComps.VirtualClusterAuthenticationSaslPlainSensitiveDataAware{
+			Mediation: kkComps.Mediation(auth.VirtualClusterAuthenticationSaslPlain.Mediation),
+		}
+
+		// Convert principals if present
+		if len(auth.VirtualClusterAuthenticationSaslPlain.Principals) > 0 {
+			principals := make([]kkComps.VirtualClusterAuthenticationPrincipalSensitiveDataAware, 0, len(auth.VirtualClusterAuthenticationSaslPlain.Principals))
+			for _, principal := range auth.VirtualClusterAuthenticationSaslPlain.Principals {
+				principals = append(principals, kkComps.VirtualClusterAuthenticationPrincipalSensitiveDataAware{
+					Username: principal.Username,
+					Password: &principal.Password,
+				})
+			}
+			saslPlain.Principals = principals
+		}
+
+		return kkComps.CreateVirtualClusterAuthenticationSensitiveDataAwareSchemeSaslPlain(saslPlain), nil
+
+	case kkComps.VirtualClusterAuthenticationSchemeTypeSaslScram:
+		if auth.VirtualClusterAuthenticationSaslScram == nil {
+			return kkComps.VirtualClusterAuthenticationSensitiveDataAwareScheme{},
+				fmt.Errorf("SASL SCRAM authentication data is missing")
+		}
+		return kkComps.CreateVirtualClusterAuthenticationSensitiveDataAwareSchemeSaslScram(
+			kkComps.VirtualClusterAuthenticationSaslScram{
+				Algorithm: auth.VirtualClusterAuthenticationSaslScram.Algorithm,
+			},
+		), nil
+
+	default:
+		return kkComps.VirtualClusterAuthenticationSensitiveDataAwareScheme{},
+			fmt.Errorf("unsupported authentication type: %s", auth.Type)
+	}
 }

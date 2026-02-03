@@ -291,51 +291,81 @@ func (p *Planner) shouldUpdateVirtualCluster(
 	desired resources.EventGatewayVirtualClusterResource,
 ) (bool, map[string]any) {
 	updates := make(map[string]any)
+	var needsUpdate bool
+
+	// Compare name
+	if current.Name != desired.Name {
+		needsUpdate = true
+	}
 
 	// Compare description
+	currentDesc := ""
+	if current.Description != nil {
+		currentDesc = *current.Description
+	}
+	desiredDesc := ""
 	if desired.Description != nil {
-		currentDesc := ""
-		if current.Description != nil {
-			currentDesc = *current.Description
-		}
-		if currentDesc != *desired.Description {
-			updates["description"] = *desired.Description
-		}
+		desiredDesc = *desired.Description
+	}
+	if currentDesc != desiredDesc {
+		needsUpdate = true
 	}
 
 	// Compare destination
 	if !compareBackendClusterReferences(current.Destination, desired.Destination) {
-		updates["destination"] = desired.Destination
+		needsUpdate = true
 	}
 
 	// Compare authentication
 	if !compareAuthentication(current.Authentication, desired.Authentication) {
-		updates["authentication"] = desired.Authentication
+		needsUpdate = true
 	}
 
 	// Compare ACL mode
 	if current.ACLMode != desired.ACLMode {
-		updates["acl_mode"] = desired.ACLMode
+		needsUpdate = true
 	}
 
 	// Compare DNS label
 	if current.DNSLabel != desired.DNSLabel {
-		updates["dns_label"] = desired.DNSLabel
+		needsUpdate = true
 	}
 
 	// Compare namespace
 	if !compareVirtualClusterNamespaces(current.Namespace, desired.Namespace) {
-		updates["namespace"] = desired.Namespace
+		needsUpdate = true
 	}
 
 	// Compare labels
 	if desired.Labels != nil {
 		if !compareMaps(current.Labels, desired.Labels) {
+			needsUpdate = true
+		}
+	}
+
+	// If any changes detected, set ALL properties from desired state for PUT request
+	if needsUpdate {
+		updates["name"] = desired.Name
+
+		if desired.Description != nil {
+			updates["description"] = *desired.Description
+		}
+
+		updates["destination"] = desired.Destination
+		updates["authentication"] = desired.Authentication
+		updates["acl_mode"] = desired.ACLMode
+		updates["dns_label"] = desired.DNSLabel
+
+		if desired.Namespace != nil {
+			updates["namespace"] = desired.Namespace
+		}
+
+		if len(desired.Labels) > 0 {
 			updates["labels"] = desired.Labels
 		}
 	}
 
-	return len(updates) > 0, updates
+	return needsUpdate, updates
 }
 
 // compareBackendClusterReferences compares backend cluster references
@@ -369,10 +399,57 @@ func compareAuthentication(
 		return false
 	}
 
-	// Simple comparison - just check types match (can't deep compare sensitive data)
+	// Compare each authentication scheme
 	for i := range current {
 		if string(current[i].Type) != string(desired[i].Type) {
 			return false
+		}
+
+		// Compare type-specific fields
+		switch current[i].Type {
+		case components.VirtualClusterAuthenticationSensitiveDataAwareSchemeTypeAnonymous:
+			// No additional fields to compare for anonymous
+			continue
+
+		case components.VirtualClusterAuthenticationSensitiveDataAwareSchemeTypeSaslPlain:
+			// Compare mediation and principals for sasl_plain
+			if current[i].VirtualClusterAuthenticationSaslPlainSensitiveDataAware == nil ||
+				desired[i].VirtualClusterAuthenticationSaslPlain == nil {
+				return false
+			}
+
+			currPlain := current[i].VirtualClusterAuthenticationSaslPlainSensitiveDataAware
+			desiredPlain := desired[i].VirtualClusterAuthenticationSaslPlain
+
+			// Compare mediation
+			if string(currPlain.Mediation) != string(desiredPlain.Mediation) {
+				return false
+			}
+
+			// Compare principals (username comparison only, password is sensitive)
+			if len(currPlain.Principals) != len(desiredPlain.Principals) {
+				return false
+			}
+			for j := range currPlain.Principals {
+				if currPlain.Principals[j].Username != desiredPlain.Principals[j].Username {
+					return false
+				}
+
+				if *currPlain.Principals[j].Password != desiredPlain.Principals[j].Password {
+					return false
+				}
+			}
+
+		case components.VirtualClusterAuthenticationSensitiveDataAwareSchemeTypeSaslScram:
+			// Compare algorithm for sasl_scram
+			if current[i].VirtualClusterAuthenticationSaslScram == nil ||
+				desired[i].VirtualClusterAuthenticationSaslScram == nil {
+				return false
+			}
+			if current[i].VirtualClusterAuthenticationSaslScram.Algorithm !=
+				desired[i].VirtualClusterAuthenticationSaslScram.Algorithm {
+				return false
+			}
 		}
 	}
 
