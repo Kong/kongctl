@@ -19,3 +19,15 @@ event_gateways:
           tls_versions:
             - tls12
             - tls13
+    virtual_clusters:
+    - ref: default-virtual-cluster
+      name: default-virtual-cluster
+      description: "Virtual Cluster Description"
+      event_gateway: getting-started-event-gateway
+      destination:
+        type: BackendClusterReferenceByName
+        name: default-backend-cluster
+      authentication:
+        - type: anonymous
+      acl_mode: passthrough
+      dns_label: vc-default
