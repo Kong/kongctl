@@ -450,6 +450,62 @@ func compareAuthentication(
 				desired[i].VirtualClusterAuthenticationSaslScram.Algorithm {
 				return false
 			}
+
+		case components.VirtualClusterAuthenticationSensitiveDataAwareSchemeTypeOauthBearer:
+			// Compare oauth_bearer fields
+			if current[i].VirtualClusterAuthenticationOauthBearer == nil ||
+				desired[i].VirtualClusterAuthenticationOauthBearer == nil {
+				return false
+			}
+
+			currOAuth := current[i].VirtualClusterAuthenticationOauthBearer
+			desiredOAuth := desired[i].VirtualClusterAuthenticationOauthBearer
+
+			// Compare mediation
+			if string(currOAuth.Mediation) != string(desiredOAuth.Mediation) {
+				return false
+			}
+
+			// Compare claims_mapping
+			if (currOAuth.ClaimsMapping == nil) != (desiredOAuth.ClaimsMapping == nil) {
+				return false
+			}
+			if currOAuth.ClaimsMapping != nil {
+				if !stringPtrEqual(currOAuth.ClaimsMapping.Sub, desiredOAuth.ClaimsMapping.Sub) ||
+					!stringPtrEqual(currOAuth.ClaimsMapping.Scope, desiredOAuth.ClaimsMapping.Scope) {
+					return false
+				}
+			}
+
+			// Compare jwks
+			if (currOAuth.Jwks == nil) != (desiredOAuth.Jwks == nil) {
+				return false
+			}
+			if currOAuth.Jwks != nil {
+				if currOAuth.Jwks.Endpoint != desiredOAuth.Jwks.Endpoint ||
+					!stringPtrEqual(currOAuth.Jwks.Timeout, desiredOAuth.Jwks.Timeout) ||
+					!stringPtrEqual(currOAuth.Jwks.CacheExpiration, desiredOAuth.Jwks.CacheExpiration) {
+					return false
+				}
+			}
+
+			// Compare validate
+			if (currOAuth.Validate == nil) != (desiredOAuth.Validate == nil) {
+				return false
+			}
+			if currOAuth.Validate != nil {
+				if !stringPtrEqual(currOAuth.Validate.Issuer, desiredOAuth.Validate.Issuer) {
+					return false
+				}
+				if len(currOAuth.Validate.Audiences) != len(desiredOAuth.Validate.Audiences) {
+					return false
+				}
+				for j := range currOAuth.Validate.Audiences {
+					if currOAuth.Validate.Audiences[j].Name != desiredOAuth.Validate.Audiences[j].Name {
+						return false
+					}
+				}
+			}
 		}
 	}
 
@@ -492,4 +548,15 @@ func compareMaps(a, b map[string]string) bool {
 	}
 
 	return true
+}
+
+// stringPtrEqual compares two string pointers for equality
+func stringPtrEqual(a, b *string) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
 }

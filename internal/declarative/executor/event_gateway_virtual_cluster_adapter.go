@@ -431,6 +431,89 @@ func buildVirtualClusterAuthentication(field any) ([]kkComps.VirtualClusterAuthe
 				},
 			))
 
+		case "oauth_bearer":
+			mediation, ok := authMap["mediation"].(string)
+			if !ok {
+				return nil, fmt.Errorf("authentication[%d].mediation is required for oauth_bearer", i)
+			}
+
+			oauthBearer := kkComps.VirtualClusterAuthenticationOauthBearer{
+				Mediation: kkComps.VirtualClusterAuthenticationOauthBearerMediation(mediation),
+			}
+
+			// Parse optional claims_mapping
+			if claimsMappingField, ok := authMap["claims_mapping"]; ok {
+				claimsMappingMap, ok := claimsMappingField.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("authentication[%d].claims_mapping must be an object", i)
+				}
+				claimsMapping := &kkComps.VirtualClusterAuthenticationClaimsMapping{}
+				if sub, ok := claimsMappingMap["sub"].(string); ok {
+					claimsMapping.Sub = &sub
+				}
+				if scope, ok := claimsMappingMap["scope"].(string); ok {
+					claimsMapping.Scope = &scope
+				}
+				oauthBearer.ClaimsMapping = claimsMapping
+			}
+
+			// Parse optional jwks
+			if jwksField, ok := authMap["jwks"]; ok {
+				jwksMap, ok := jwksField.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("authentication[%d].jwks must be an object", i)
+				}
+				endpoint, ok := jwksMap["endpoint"].(string)
+				if !ok {
+					return nil, fmt.Errorf("authentication[%d].jwks.endpoint is required", i)
+				}
+				jwks := &kkComps.VirtualClusterAuthenticationJWKS{
+					Endpoint: endpoint,
+				}
+				if timeout, ok := jwksMap["timeout"].(string); ok {
+					jwks.Timeout = &timeout
+				}
+				if cacheExpiration, ok := jwksMap["cache_expiration"].(string); ok {
+					jwks.CacheExpiration = &cacheExpiration
+				}
+				oauthBearer.Jwks = jwks
+			}
+
+			// Parse optional validate
+			if validateField, ok := authMap["validate"]; ok {
+				validateMap, ok := validateField.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("authentication[%d].validate must be an object", i)
+				}
+				validate := &kkComps.VirtualClusterAuthenticationValidate{}
+				if audiencesField, ok := validateMap["audiences"]; ok {
+					audiencesSlice, ok := audiencesField.([]any)
+					if !ok {
+						return nil, fmt.Errorf("authentication[%d].validate.audiences must be an array", i)
+					}
+					audiences := make([]kkComps.VirtualClusterAuthenticationAudience, 0, len(audiencesSlice))
+					for j, audienceItem := range audiencesSlice {
+						audienceMap, ok := audienceItem.(map[string]any)
+						if !ok {
+							return nil, fmt.Errorf("authentication[%d].validate.audiences[%d] must be an object", i, j)
+						}
+						name, ok := audienceMap["name"].(string)
+						if !ok {
+							return nil, fmt.Errorf("authentication[%d].validate.audiences[%d].name is required", i, j)
+						}
+						audiences = append(audiences, kkComps.VirtualClusterAuthenticationAudience{
+							Name: name,
+						})
+					}
+					validate.Audiences = audiences
+				}
+				if issuer, ok := validateMap["issuer"].(string); ok {
+					validate.Issuer = &issuer
+				}
+				oauthBearer.Validate = validate
+			}
+
+			result = append(result, kkComps.CreateVirtualClusterAuthenticationSchemeOauthBearer(oauthBearer))
 		default:
 			return nil, fmt.Errorf("unsupported authentication type: %s", authType)
 		}
@@ -514,7 +597,8 @@ func convertToVirtualClusterSensitiveDataAwareAuth(
 
 		// Convert principals if present
 		if len(auth.VirtualClusterAuthenticationSaslPlain.Principals) > 0 {
-			principals := make([]kkComps.VirtualClusterAuthenticationPrincipalSensitiveDataAware, 0, len(auth.VirtualClusterAuthenticationSaslPlain.Principals))
+			principals := make([]kkComps.VirtualClusterAuthenticationPrincipalSensitiveDataAware, 0,
+				len(auth.VirtualClusterAuthenticationSaslPlain.Principals))
 			for _, principal := range auth.VirtualClusterAuthenticationSaslPlain.Principals {
 				principals = append(principals, kkComps.VirtualClusterAuthenticationPrincipalSensitiveDataAware{
 					Username: principal.Username,
@@ -535,6 +619,15 @@ func convertToVirtualClusterSensitiveDataAwareAuth(
 			kkComps.VirtualClusterAuthenticationSaslScram{
 				Algorithm: auth.VirtualClusterAuthenticationSaslScram.Algorithm,
 			},
+		), nil
+
+	case kkComps.VirtualClusterAuthenticationSchemeTypeOauthBearer:
+		if auth.VirtualClusterAuthenticationOauthBearer == nil {
+			return kkComps.VirtualClusterAuthenticationSensitiveDataAwareScheme{},
+				fmt.Errorf("OAuth Bearer authentication data is missing")
+		}
+		return kkComps.CreateVirtualClusterAuthenticationSensitiveDataAwareSchemeOauthBearer(
+			*auth.VirtualClusterAuthenticationOauthBearer,
 		), nil
 
 	default:
