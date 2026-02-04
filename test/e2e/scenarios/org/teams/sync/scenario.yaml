@@ -1,4 +1,4 @@
-baseInputsPath: ../../../../testdata/declarative/teams/sync
+baseInputsPath: ./testdata
 
 env:
   KONGCTL_LOG_LEVEL: info

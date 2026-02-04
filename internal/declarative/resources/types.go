@@ -72,8 +72,12 @@ type ResourceSet struct {
 	EventGatewayControlPlanes   []EventGatewayControlPlaneResource   `yaml:"event_gateways,omitempty" json:"event_gateways,omitempty"`                                 //nolint:lll
 	EventGatewayBackendClusters []EventGatewayBackendClusterResource `yaml:"event_gateway_backend_clusters,omitempty" json:"event_gateway_backend_clusters,omitempty"` //nolint:lll
 
-	// Organization Identity resources
-	Teams []OrganizationTeamResource `yaml:"teams,omitempty" json:"teams,omitempty"`
+	// Organization grouping - contains nested resources like teams
+	Organization *OrganizationResource `yaml:"organization,omitempty" json:"organization,omitempty"`
+
+	// Teams is populated internally from organization.teams during loading
+	// It is not exposed in YAML/JSON to enforce the organization grouping format
+	Teams []OrganizationTeamResource `yaml:"-" json:"-"`
 
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions

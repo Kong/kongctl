@@ -363,6 +363,15 @@ func (l *Loader) loadDirectorySource(
 func (l *Loader) appendResourcesWithDuplicateCheck(
 	accumulated, source *resources.ResourceSet, sourcePath string,
 ) error {
+	// Merge organization resources from multiple files
+	// Since organization is just a grouping concept, we combine teams from all organization blocks
+	if source.Organization != nil {
+		if accumulated.Organization == nil {
+			accumulated.Organization = &resources.OrganizationResource{}
+		}
+		accumulated.Organization.Teams = append(accumulated.Organization.Teams, source.Organization.Teams...)
+	}
+
 	// Check and append portals
 	for _, portal := range source.Portals {
 		if accumulated.HasRef(portal.Ref) {
@@ -894,6 +903,15 @@ func (l *Loader) extractPortalPages(
 
 // extractNestedResources extracts nested child resources to root level with parent references
 func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
+	// Extract organization nested resources
+	if rs.Organization != nil {
+		org := rs.Organization
+		// Extract teams from organization
+		rs.Teams = append(rs.Teams, org.Teams...)
+
+		org.Teams = nil
+	}
+
 	for i := range rs.ControlPlanes {
 		cp := &rs.ControlPlanes[i]
 

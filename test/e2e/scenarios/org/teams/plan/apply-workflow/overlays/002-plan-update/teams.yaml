@@ -2,37 +2,38 @@ _defaults:
   kongctl:
     namespace: team-plan-apply
 
-teams:
-  - ref: backend-team
-    name: "Backend Team"
-    description: "Backend engineering team with updated scope and responsibilities"
-    labels:
-      department: "engineering"
-      focus: "backend"
-      tier: "core"
-      specialty: "microservices"
-    kongctl:
-      namespace: team-plan-apply
-      protected: false
+organization:
+  teams:
+      - ref: backend-team
+        name: "Backend Team"
+        description: "Backend engineering team with updated scope and responsibilities"
+        labels:
+          department: "engineering"
+          focus: "backend"
+          tier: "core"
+          specialty: "microservices"
+        kongctl:
+          namespace: team-plan-apply
+          protected: false
 
-  - ref: frontend-team
-    name: "Frontend Team"
-    description: "Frontend engineering team with expanded capabilities"
-    labels:
-      department: "engineering"
-      focus: "frontend"
-      tier: "core"
-    kongctl:
-      namespace: team-plan-apply
-      protected: false
+      - ref: frontend-team
+        name: "Frontend Team"
+        description: "Frontend engineering team with expanded capabilities"
+        labels:
+          department: "engineering"
+          focus: "frontend"
+          tier: "core"
+        kongctl:
+          namespace: team-plan-apply
+          protected: false
 
-  - ref: mobile-team
-    name: "Mobile Team"
-    description: "Mobile app development team introduced during plan workflow"
-    labels:
-      department: "engineering"
-      focus: "mobile"
-      tier: "growth"
-    kongctl:
-      namespace: team-plan-apply
-      protected: false
+      - ref: mobile-team
+        name: "Mobile Team"
+        description: "Mobile app development team introduced during plan workflow"
+        labels:
+          department: "engineering"
+          focus: "mobile"
+          tier: "growth"
+        kongctl:
+          namespace: team-plan-apply
+          protected: false

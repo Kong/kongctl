@@ -6,4 +6,5 @@ _defaults:
   kongctl:
     namespace: default
 
-teams: []
+organization:
+  teams: []

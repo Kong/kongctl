@@ -1,4 +1,3 @@
-# Overlay: Set protected: false on Protected Team
 _defaults:
   kongctl:
     namespace: default
@@ -10,7 +9,7 @@ organization:
         description: This team is protected from deletion
         kongctl:
           namespace: default
-          protected: false
+          protected: true
 
       - ref: unprotected-team
         name: Unprotected Team

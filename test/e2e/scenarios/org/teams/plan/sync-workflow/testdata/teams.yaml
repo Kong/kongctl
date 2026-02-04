@@ -1,39 +1,36 @@
 _defaults:
   kongctl:
-    namespace: team-plan-sync
+      namespace: team-plan-sync
 
 organization:
   teams:
       - ref: devops-team
         name: "DevOps Team"
-        description: "Updated: Cloud infrastructure and SRE team"
+        description: "DevOps and platform engineering team"
         labels:
           department: "engineering"
           focus: "devops"
           tier: "critical"
-          specialty: "sre"
         kongctl:
           namespace: team-plan-sync
           protected: false
 
       - ref: qa-team
         name: "QA Team"
-        description: "Updated: Quality engineering and automation team"
+        description: "Quality assurance and testing team"
         labels:
           department: "engineering"
           focus: "quality"
-          specialty: "automation"
         kongctl:
           namespace: team-plan-sync
           protected: false
 
-      - ref: security-ops-team
-        name: "Security Operations Team"
-        description: "Security operations team added during sync plan workflow"
+      - ref: legacy-infra-team
+        name: "Legacy Infrastructure Team"
+        description: "Team managing legacy infrastructure scheduled for decommissioning"
         labels:
-          department: "security"
-          focus: "operations"
-          tier: "critical"
+          department: "engineering"
+          lifecycle: "sunset"
         kongctl:
           namespace: team-plan-sync
           protected: false

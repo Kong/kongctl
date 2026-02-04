@@ -1,4 +1,4 @@
-baseInputsPath: ../../../testdata/declarative/protected
+baseInputsPath: ./testdata
 
 env:
   KONGCTL_LOG_LEVEL: info

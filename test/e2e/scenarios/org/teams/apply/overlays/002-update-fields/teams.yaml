@@ -1,23 +1,24 @@
-teams:
-  - ref: backend-team
-    name: "Backend Engineering Team"
-    description: "Updated: Team managing backend infrastructure, services, APIs, and databases"
-    labels:
-      department: "engineering"
-      focus: "backend"
-      tier: "core"
-    kongctl:
-      namespace: "teams-e2e"
-      protected: false
+organization:
+  teams:
+      - ref: backend-team
+        name: "Backend Engineering Team"
+        description: "Updated: Team managing backend infrastructure, services, APIs, and databases"
+        labels:
+          department: "engineering"
+          focus: "backend"
+          tier: "core"
+        kongctl:
+          namespace: "teams-e2e"
+          protected: false
 
-  - ref: frontend-team
-    name: "Frontend Engineering Team"
-    description: "Updated: Team building responsive web applications and mobile experiences"
-    labels:
-      department: "engineering"
-      focus: "frontend"
-      tier: "core"
-      platform: "web-mobile"
-    kongctl:
-      namespace: "teams-e2e"
-      protected: false
+      - ref: frontend-team
+        name: "Frontend Engineering Team"
+        description: "Updated: Team building responsive web applications and mobile experiences"
+        labels:
+          department: "engineering"
+          focus: "frontend"
+          tier: "core"
+          platform: "web-mobile"
+        kongctl:
+          namespace: "teams-e2e"
+          protected: false
