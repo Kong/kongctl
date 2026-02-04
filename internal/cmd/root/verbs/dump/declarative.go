@@ -217,7 +217,11 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			if err != nil {
 				return err
 			}
-			resourceSet.Teams = append(resourceSet.Teams, teams...)
+			// Wrap teams in organization grouping for the new format
+			if resourceSet.Organization == nil {
+				resourceSet.Organization = &declresources.OrganizationResource{}
+			}
+			resourceSet.Organization.Teams = append(resourceSet.Organization.Teams, teams...)
 		}
 	}
 

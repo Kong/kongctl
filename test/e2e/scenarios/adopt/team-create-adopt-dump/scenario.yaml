@@ -50,12 +50,12 @@ steps:
         parseAs: yaml
         stdoutFile: "{{ .workdir }}/dump.yaml"
         assertions:
-          - select: "teams[?ref=='{{ .vars.team_id }}'] | [0]"
+          - select: "organization.teams[?ref=='{{ .vars.team_id }}'] | [0]"
             expect:
               fields:
                 name: "{{ .vars.team_name }}"
                 description: "{{ .vars.team_description }}"
-          - select: "teams[?ref=='{{ .vars.team_id }}'] | [0].kongctl"
+          - select: "organization.teams[?ref=='{{ .vars.team_id }}'] | [0].kongctl"
             expect:
               fields:
                 namespace: "{{ .vars.namespace }}"
