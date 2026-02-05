@@ -316,3 +316,15 @@ steps:
                 acl_mode: "passthrough"
                 "length(authentication)": 1
                 authentication[0].type: "anonymous"
+      - name: 004-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true

@@ -629,7 +629,18 @@ func (rs *ResourceSet) GetEventGatewayControlPlanesByNamespace(namespace string)
 	return filtered
 }
 
+// GetBackendClusterByRef returns a backend cluster resource by its ref from any namespace
+func (rs *ResourceSet) GetBackendClusterByRef(ref string) *EventGatewayBackendClusterResource {
+	for i := range rs.EventGatewayBackendClusters {
+		if rs.EventGatewayBackendClusters[i].GetRef() == ref {
+			return &rs.EventGatewayBackendClusters[i]
+		}
+	}
+	return nil
+}
+
 // GetTeamsByNamespace returns all team resources from the specified namespace
+// Should be GetOrganizationTeams...
 func (rs *ResourceSet) GetTeamsByNamespace(namespace string) []OrganizationTeamResource {
 	var filtered []OrganizationTeamResource
 	for _, team := range rs.OrganizationTeams {

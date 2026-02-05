@@ -7,6 +7,7 @@ import (
 	"github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 // planEventGatewayVirtualClusterChanges plans changes for Event Gateway Virtual Clusters for a specific gateway
@@ -211,6 +212,27 @@ func (p *Planner) planVirtualClusterCreate(
 		}
 	}
 
+	if change.References == nil {
+		change.References = make(map[string]ReferenceInfo)
+	}
+
+	// Set backend cluster reference
+	if cluster.Destination.BackendClusterReferenceByID != nil &&
+		tags.IsRefPlaceholder(cluster.Destination.BackendClusterReferenceByID.ID) {
+		var backendClusterName string
+		backendCluster := p.resources.GetBackendClusterByRef(cluster.Destination.BackendClusterReferenceByID.ID)
+		if backendCluster != nil {
+			backendClusterName = backendCluster.Name
+		}
+
+		change.References["event_gateway_backend_cluster_id"] = ReferenceInfo{
+			Ref: cluster.Destination.BackendClusterReferenceByID.ID,
+			LookupFields: map[string]string{
+				"name": backendClusterName,
+			},
+		}
+	}
+
 	p.logger.Debug("Enqueuing virtual cluster CREATE",
 		"cluster_ref", cluster.Ref,
 		"cluster_name", cluster.Name,
@@ -377,6 +399,11 @@ func compareBackendClusterReferences(
 	switch desired.Type {
 	case components.BackendClusterReferenceModifyTypeBackendClusterReferenceByID:
 		if desired.BackendClusterReferenceByID != nil {
+			if tags.IsRefPlaceholder(desired.BackendClusterReferenceByID.ID) {
+				// If !ref placeholder, we assume it will resolve to the correct ID at runtime, so we consider it equal
+				return true
+			}
+
 			return current.ID == desired.BackendClusterReferenceByID.ID
 		}
 		return false

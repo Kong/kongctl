@@ -8,6 +8,7 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/util"
 )
 
 // EventGatewayVirtualClusterAdapter implements ResourceOperations for Event Gateway Virtual Cluster resources
@@ -25,7 +26,7 @@ func NewEventGatewayVirtualClusterAdapter(client *state.Client) *EventGatewayVir
 // MapCreateFields maps fields to CreateVirtualClusterRequest
 func (a *EventGatewayVirtualClusterAdapter) MapCreateFields(
 	_ context.Context,
-	_ *ExecutionContext,
+	execCtx *ExecutionContext,
 	fields map[string]any,
 	create *kkComps.CreateVirtualClusterRequest,
 ) error {
@@ -41,7 +42,7 @@ func (a *EventGatewayVirtualClusterAdapter) MapCreateFields(
 	if !ok {
 		return fmt.Errorf("destination is required")
 	}
-	destination, err := buildBackendClusterReference(destField)
+	destination, err := buildBackendClusterReference(destField, execCtx)
 	if err != nil {
 		return fmt.Errorf("failed to build destination: %w", err)
 	}
@@ -99,7 +100,7 @@ func (a *EventGatewayVirtualClusterAdapter) MapCreateFields(
 // MapUpdateFields maps the fields to update into an UpdateVirtualClusterRequest
 func (a *EventGatewayVirtualClusterAdapter) MapUpdateFields(
 	_ context.Context,
-	_ *ExecutionContext,
+	execCtx *ExecutionContext,
 	fieldsToUpdate map[string]any,
 	update *kkComps.UpdateVirtualClusterRequest,
 	_ map[string]string,
@@ -109,7 +110,7 @@ func (a *EventGatewayVirtualClusterAdapter) MapUpdateFields(
 		update.Name = name
 	}
 	if destField, ok := fieldsToUpdate["destination"]; ok {
-		destination, err := buildBackendClusterReference(destField)
+		destination, err := buildBackendClusterReference(destField, execCtx)
 		if err != nil {
 			return fmt.Errorf("failed to build destination: %w", err)
 		}
@@ -309,10 +310,22 @@ func (e *EventGatewayVirtualClusterResourceInfo) GetNormalizedLabels() map[strin
 }
 
 // buildBackendClusterReference constructs BackendClusterReferenceModify from a map or SDK type
-func buildBackendClusterReference(field any) (kkComps.BackendClusterReferenceModify, error) {
+func buildBackendClusterReference(field any, execCtx *ExecutionContext) (kkComps.BackendClusterReferenceModify, error) {
 	// If it's already the SDK type, return it directly
-	if ref, ok := field.(kkComps.BackendClusterReferenceModify); ok {
-		return ref, nil
+	if bcRef, ok := field.(kkComps.BackendClusterReferenceModify); ok {
+		if bcRef.BackendClusterReferenceByID != nil && util.IsValidUUID(bcRef.BackendClusterReferenceByID.ID) {
+			return bcRef, nil
+		}
+
+		idFromReference, err := getBackendClusterIDFromExecutionContext(execCtx)
+		if err != nil {
+			return kkComps.BackendClusterReferenceModify{},
+				fmt.Errorf("failed to get backend cluster ID from execution context: %w", err)
+		}
+
+		// Use the ID from execution context if not provided in the field
+		bcRef.BackendClusterReferenceByID = &kkComps.BackendClusterReferenceByID{ID: idFromReference}
+		return bcRef, nil
 	}
 
 	// Otherwise, build from map structure
@@ -324,10 +337,25 @@ func buildBackendClusterReference(field any) (kkComps.BackendClusterReferenceMod
 
 	// Check for id or name
 	if id, ok := refMap["id"].(string); ok {
+		if util.IsValidUUID(id) {
+			return kkComps.BackendClusterReferenceModify{
+				Type: kkComps.BackendClusterReferenceModifyTypeBackendClusterReferenceByID,
+				BackendClusterReferenceByID: &kkComps.BackendClusterReferenceByID{
+					ID: id,
+				},
+			}, nil
+		}
+
+		idFromReference, err := getBackendClusterIDFromExecutionContext(execCtx)
+		if err != nil {
+			return kkComps.BackendClusterReferenceModify{},
+				fmt.Errorf("failed to get backend cluster ID from execution context: %w", err)
+		}
+
 		return kkComps.BackendClusterReferenceModify{
 			Type: kkComps.BackendClusterReferenceModifyTypeBackendClusterReferenceByID,
 			BackendClusterReferenceByID: &kkComps.BackendClusterReferenceByID{
-				ID: id,
+				ID: idFromReference,
 			},
 		}, nil
 	}
@@ -343,6 +371,24 @@ func buildBackendClusterReference(field any) (kkComps.BackendClusterReferenceMod
 
 	return kkComps.BackendClusterReferenceModify{},
 		fmt.Errorf("destination must have either 'id' or 'name' field")
+}
+
+// getBackendClusterIDFromExecutionContext extracts the backend cluster ID from ExecutionContext parameter
+func getBackendClusterIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
+	if execCtx == nil || execCtx.PlannedChange == nil {
+		return "", fmt.Errorf("execution context is required for virtual cluster operations")
+	}
+
+	change := *execCtx.PlannedChange
+	if backendClusterRef, ok := change.References["event_gateway_backend_cluster_id"]; ok && backendClusterRef.ID != "" {
+		return backendClusterRef.ID, nil
+	}
+	// Check fields as fallback
+	if backendClusterID, ok := change.Fields["event_gateway_backend_cluster_id"].(string); ok {
+		return backendClusterID, nil
+	}
+
+	return "", fmt.Errorf("backend cluster ID is required for virtual cluster operations")
 }
 
 // buildVirtualClusterAuthentication constructs VirtualClusterAuthenticationScheme slice from a slice or SDK type

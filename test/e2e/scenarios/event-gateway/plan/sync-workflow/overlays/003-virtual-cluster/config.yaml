@@ -25,8 +25,7 @@ event_gateways:
         name: plan-sync-virtual-cluster
         description: "Virtual cluster for plan sync workflow"
         destination:
-          #id: !ref plan-sync-backend-cluster#id
-          name: plan-sync-backend-cluster
+          id: !ref plan-sync-backend-cluster#id
         authentication:
          - type: anonymous
         acl_mode: passthrough

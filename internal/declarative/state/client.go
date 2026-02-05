@@ -3510,6 +3510,28 @@ func (c *Client) GetEventGatewayBackendCluster(
 	return backendCluster, nil
 }
 
+func (c *Client) GetEventGatewayBackendClusterByName(
+	ctx context.Context, gatewayID string, name string,
+) (*EventGatewayBackendCluster, error) {
+	// List all event gateway backend cluster and filter by name
+	backendClusters, err := c.ListEventGatewayBackendClusters(ctx, gatewayID)
+	if err != nil {
+		return nil, WrapAPIError(err, "list event gateway backend clusters to find by name", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_backend_cluster",
+			ResourceName: name,
+			UseEnhanced:  true,
+		})
+	}
+
+	for _, bc := range backendClusters {
+		if bc.Name == name {
+			return &bc, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func (c *Client) UpdateEventGatewayBackendCluster(
 	ctx context.Context,
 	gatewayID string,
