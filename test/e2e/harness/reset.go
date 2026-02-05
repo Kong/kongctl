@@ -98,7 +98,7 @@ func shouldDeleteResource(resource map[string]any) bool {
 }
 
 func skipSystemTeams(resource map[string]any) bool {
-	if managed, ok := resource["system_team"].(bool); ok && managed {
+	if isSystemTeam, ok := resource["system_team"].(bool); ok && isSystemTeam {
 		return false
 	}
 	return true
