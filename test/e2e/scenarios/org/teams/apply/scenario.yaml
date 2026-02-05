@@ -133,3 +133,26 @@ steps:
                 labels.tier: "core"
                 labels.platform: "web-mobile"
                 labels."KONGCTL-namespace": "teams-e2e"
+
+      - name: 002-get-teams-skip-system
+        run: ["get", "org", "teams", "--skip-system-teams", "-o", "json"]
+        assertions:
+          - select: "[?system_team==`true`]"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='Backend Engineering Team'] | [0]"
+            expect:
+              fields:
+                name: "Backend Engineering Team"
+                description: "Updated: Team managing backend infrastructure, services, APIs, and databases"
+                labels.tier: "core"
+                system_team: false
+          - select: "[?name=='Frontend Engineering Team'] | [0]"
+            expect:
+              fields:
+                name: "Frontend Engineering Team"
+                description: "Updated: Team building responsive web applications and mobile experiences"
+                labels.tier: "core"
+                labels.platform: "web-mobile"
+                system_team: false

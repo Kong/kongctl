@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	CommandName = "team"
+	CommandName             = "team"
+	skipSystemTeamsFlagName = "skip-system-teams"
 )
 
 var (

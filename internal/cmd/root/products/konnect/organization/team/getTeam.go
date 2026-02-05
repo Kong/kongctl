@@ -43,6 +43,9 @@ func newGetTeamCmd(
 		addParentFlags(verb, cmd.Command)
 	}
 
+	// Add skip-system-teams flag for list/get operations
+	cmd.Flags().Bool(skipSystemTeamsFlagName, false, "Skip system teams in the output")
+
 	cmd.RunE = cmd.runE
 
 	return cmd
@@ -158,9 +161,12 @@ func (t *getTeamCmd) runE(c *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Read skip-system-teams flag
+	skipSystemTeams, _ := c.Flags().GetBool(skipSystemTeamsFlagName)
+
 	// No args: list all
 	if len(args) == 0 {
-		teams, err := runList(sdk.GetOrganizationTeamAPI(), helper, cfg)
+		teams, err := runList(sdk.GetOrganizationTeamAPI(), helper, cfg, skipSystemTeams)
 		if err != nil {
 			return err
 		}
@@ -177,7 +183,7 @@ func (t *getTeamCmd) runE(c *cobra.Command, args []string) error {
 
 		if !isUUID {
 			// multiple teams can have the same name, so we list by name
-			teams, err := runListByName(id, sdk.GetOrganizationTeamAPI(), helper, cfg)
+			teams, err := runListByName(id, sdk.GetOrganizationTeamAPI(), helper, cfg, skipSystemTeams)
 			if err != nil {
 				return err
 			}
@@ -218,7 +224,8 @@ func runGet(id string, kkClient helpers.OrganizationTeamAPI, helper cmd.Helper) 
 	return res.GetTeam(), nil
 }
 
-func runList(kkClient helpers.OrganizationTeamAPI, helper cmd.Helper, cfg config.Hook) ([]kkComps.Team, error) {
+func runList(kkClient helpers.OrganizationTeamAPI, helper cmd.Helper,
+	cfg config.Hook, skipSystemTeams bool) ([]kkComps.Team, error) {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
 	if requestPageSize < 1 {
@@ -226,6 +233,7 @@ func runList(kkClient helpers.OrganizationTeamAPI, helper cmd.Helper, cfg config
 	}
 
 	var allData []kkComps.Team
+	var totalFetched int
 
 	for {
 		req := kkOps.ListTeamsRequest{
@@ -239,9 +247,19 @@ func runList(kkClient helpers.OrganizationTeamAPI, helper cmd.Helper, cfg config
 			return nil, cmd.PrepareExecutionError("Failed to list Teams", err, helper.GetCmd(), attrs...)
 		}
 
-		allData = append(allData, res.GetTeamCollection().Data...)
+		data := res.GetTeamCollection().Data
+		totalFetched += len(data)
+
+		// Filter out system teams if flag is set
+		for _, team := range data {
+			if skipSystemTeams && team.SystemTeam != nil && *team.SystemTeam {
+				continue
+			}
+			allData = append(allData, team)
+		}
+
 		totalItems := res.GetTeamCollection().Meta.Page.Total
-		if len(allData) >= int(totalItems) {
+		if totalFetched >= int(totalItems) {
 			break
 		}
 
@@ -252,7 +270,7 @@ func runList(kkClient helpers.OrganizationTeamAPI, helper cmd.Helper, cfg config
 }
 
 func runListByName(name string, kkClient helpers.OrganizationTeamAPI, helper cmd.Helper,
-	cfg config.Hook,
+	cfg config.Hook, skipSystemTeams bool,
 ) ([]kkComps.Team, error) {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
@@ -261,6 +279,8 @@ func runListByName(name string, kkClient helpers.OrganizationTeamAPI, helper cmd
 	}
 
 	var allData []kkComps.Team
+	var totalFetched int
+
 	for {
 		req := kkOps.ListTeamsRequest{
 			PageSize:   kk.Int64(requestPageSize),
@@ -278,10 +298,20 @@ func runListByName(name string, kkClient helpers.OrganizationTeamAPI, helper cmd
 			return nil, cmd.PrepareExecutionError("Failed to list Teams", err, helper.GetCmd(), attrs...)
 		}
 
-		allData = append(allData, res.GetTeamCollection().Data...)
+		data := res.GetTeamCollection().Data
+		totalFetched += len(data)
+
+		// Filter out system teams if flag is set
+		for _, team := range data {
+			if skipSystemTeams && team.SystemTeam != nil && *team.SystemTeam {
+				continue
+			}
+			allData = append(allData, team)
+		}
+
 		totalItems := res.GetTeamCollection().Meta.Page.Total
 
-		if len(allData) >= int(totalItems) {
+		if totalFetched >= int(totalItems) {
 			break
 		}
 
