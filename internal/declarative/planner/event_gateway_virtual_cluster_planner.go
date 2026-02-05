@@ -462,6 +462,9 @@ func compareAuthentication(
 					return false
 				}
 
+				if currPlain.Principals[j].Password == nil {
+					return false
+				}
 				if *currPlain.Principals[j].Password != desiredPlain.Principals[j].Password {
 					return false
 				}

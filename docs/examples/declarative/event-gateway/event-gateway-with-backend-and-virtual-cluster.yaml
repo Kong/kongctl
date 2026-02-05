@@ -23,7 +23,6 @@ event_gateways:
     - ref: default-virtual-cluster
       name: default-virtual-cluster
       description: "Virtual Cluster Description"
-      event_gateway: getting-started-event-gateway
       destination:
         id: !ref default-backend-cluster#id
       authentication:
