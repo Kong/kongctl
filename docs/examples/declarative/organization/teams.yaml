@@ -1,0 +1,5 @@
+organization:
+  teams:
+    - ref: my-team
+      name: My Team Foo
+      description: My foo team with foo description
