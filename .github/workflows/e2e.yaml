@@ -26,7 +26,12 @@ on:
   push:
     branches: ['main']
     paths: *source-files
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      run_portal_applications:
+        description: Run Gmail-backed portal applications scenario
+        type: boolean
+        default: false
 
 jobs:
   e2e:
@@ -74,6 +79,7 @@ jobs:
           # Keep debug logs in artifacts while reducing console noise
           KONGCTL_E2E_CONSOLE_LOG_LEVEL: "warn"
           KONGCTL_E2E_ARTIFACTS_DIR: ${{ runner.temp }}/kongctl-e2e-${{ github.run_id }}
+          KONGCTL_E2E_RUN_PORTAL_APPLICATIONS: ${{ github.event_name == 'workflow_dispatch' && inputs.run_portal_applications == 'true' && '1' || '' }}
           KONGCTL_E2E_GMAIL_ACCESS_TOKEN: ${{ secrets.KONGCTL_E2E_GMAIL_ACCESS_TOKEN }}
           KONGCTL_E2E_GMAIL_ADDRESS: ${{ secrets.KONGCTL_E2E_GMAIL_ADDRESS }}
           KONGCTL_E2E_GMAIL_CLIENT_ID: ${{ secrets.KONGCTL_E2E_GMAIL_CLIENT_ID }}

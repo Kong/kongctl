@@ -19,8 +19,10 @@ type Defaults struct {
 }
 
 type ScenarioTest struct {
-	Enabled *bool  `yaml:"enabled"`
-	Info    string `yaml:"info"`
+	Enabled     *bool    `yaml:"enabled"`
+	EnabledEnv  string   `yaml:"enabledEnv"`
+	RequiresEnv []string `yaml:"requiresEnv"`
+	Info        string   `yaml:"info"`
 }
 
 type Retry struct {

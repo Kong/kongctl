@@ -37,17 +37,13 @@ func Run(t *testing.T, scenarioPath string) error {
 		return err
 	}
 
-	harness.RequireBinary(t)
-	_ = harness.RequirePAT(t, "e2e")
-
-	if s.Test.Enabled != nil && !*s.Test.Enabled {
-		reason := strings.TrimSpace(s.Test.Info)
-		if reason == "" {
-			reason = "scenario disabled via scenario.yaml"
-		}
+	if reason := skipScenarioReason(s); reason != "" {
 		t.Skip(reason)
 		return nil
 	}
+
+	harness.RequireBinary(t)
+	_ = harness.RequirePAT(t, "e2e")
 
 	cli, err := harness.NewCLIT(t)
 	if err != nil {

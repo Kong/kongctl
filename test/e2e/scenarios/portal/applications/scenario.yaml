@@ -2,6 +2,16 @@ baseInputsPath: ../../../testdata/declarative/portal/applications
 
 log-level: debug
 
+test:
+  enabledEnv: KONGCTL_E2E_RUN_PORTAL_APPLICATIONS
+  requiresEnv:
+    - KONGCTL_E2E_GMAIL_ADDRESS
+    - KONGCTL_E2E_GMAIL_CLIENT_ID
+    - KONGCTL_E2E_GMAIL_CLIENT_SECRET
+    - KONGCTL_E2E_GMAIL_REFRESH_TOKEN
+  info: >-
+    Requires Gmail credentials; set KONGCTL_E2E_RUN_PORTAL_APPLICATIONS=1 to enable.
+
 vars:
   portalRef: auto-approve-portal
   portalName: "Auto Approve Portal"
