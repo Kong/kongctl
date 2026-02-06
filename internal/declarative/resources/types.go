@@ -28,7 +28,7 @@ const (
 	ResourceTypeCatalogService             ResourceType = "catalog_service"
 	ResourceTypeEventGatewayControlPlane   ResourceType = "event_gateway"
 	ResourceTypeEventGatewayBackendCluster ResourceType = "event_gateway_backend_cluster"
-	ResourceTypeTeam                       ResourceType = "team"
+	ResourceTypeTeam                       ResourceType = "organization_team"
 )
 
 const (
@@ -75,9 +75,9 @@ type ResourceSet struct {
 	// Organization grouping - contains nested resources like teams
 	Organization *OrganizationResource `yaml:"organization,omitempty" json:"organization,omitempty"`
 
-	// Teams is populated internally from organization.teams during loading
+	// Teams is populated internally from OrganizationTeams during loading
 	// It is not exposed in YAML/JSON to enforce the organization grouping format
-	Teams []OrganizationTeamResource `yaml:"-" json:"-"`
+	OrganizationTeams []OrganizationTeamResource `yaml:"-" json:"-"`
 
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
@@ -262,9 +262,9 @@ func (rs *ResourceSet) GetResourceByRef(ref string) (Resource, bool) {
 	}
 
 	// Check Teams
-	for i := range rs.Teams {
-		if rs.Teams[i].GetRef() == ref {
-			return &rs.Teams[i], true
+	for i := range rs.OrganizationTeams {
+		if rs.OrganizationTeams[i].GetRef() == ref {
+			return &rs.OrganizationTeams[i], true
 		}
 	}
 
@@ -633,7 +633,7 @@ func (rs *ResourceSet) GetEventGatewayControlPlanesByNamespace(namespace string)
 // GetTeamsByNamespace returns all team resources from the specified namespace
 func (rs *ResourceSet) GetTeamsByNamespace(namespace string) []OrganizationTeamResource {
 	var filtered []OrganizationTeamResource
-	for _, team := range rs.Teams {
+	for _, team := range rs.OrganizationTeams {
 		if team.IsExternal() {
 			if namespace == NamespaceExternal {
 				filtered = append(filtered, team)

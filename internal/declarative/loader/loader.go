@@ -348,7 +348,7 @@ func (l *Loader) loadDirectorySource(
 			len(accumulated.APIImplementations) > 0 || len(accumulated.APIDocuments) > 0 ||
 			len(accumulated.PortalCustomizations) > 0 || len(accumulated.PortalCustomDomains) > 0 ||
 			len(accumulated.PortalPages) > 0 || len(accumulated.PortalSnippets) > 0 ||
-			len(accumulated.Teams) > 0
+			len(accumulated.OrganizationTeams) > 0
 
 		if !hasResources {
 			// Only error if no files were found at all (not just empty files)
@@ -551,14 +551,13 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 		accumulated.PortalTeamRoles = append(accumulated.PortalTeamRoles, role)
 	}
 
-	// Check and append Teams (top-level parent resource)
-	for _, team := range source.Teams {
+	for _, team := range source.OrganizationTeams {
 		if accumulated.HasRef(team.Ref) {
 			existing, _ := accumulated.GetResourceByRef(team.Ref)
 			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
 				team.Ref, sourcePath, existing.GetType())
 		}
-		accumulated.Teams = append(accumulated.Teams, team)
+		accumulated.OrganizationTeams = append(accumulated.OrganizationTeams, team)
 	}
 
 	for _, egwControlPlane := range source.EventGatewayControlPlanes {
@@ -586,7 +585,7 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 			len(source.ApplicationAuthStrategies) +
 			len(source.ControlPlanes) +
 			len(source.APIs) +
-			len(source.Teams)
+			len(source.OrganizationTeams)
 
 		if parentCount == 0 {
 			accumulated.AddDefaultNamespace(source.DefaultNamespace)
@@ -759,27 +758,27 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 	}
 
 	// Apply namespace defaults to teams
-	for i := range rs.Teams {
-		if rs.Teams[i].IsExternal() {
-			if rs.Teams[i].Kongctl != nil {
+	for i := range rs.OrganizationTeams {
+		if rs.OrganizationTeams[i].IsExternal() {
+			if rs.OrganizationTeams[i].Kongctl != nil {
 				return fmt.Errorf(
 					"team '%s' is marked as external and cannot use kongctl metadata",
-					rs.Teams[i].Ref,
+					rs.OrganizationTeams[i].Ref,
 				)
 			}
 			continue
 		}
-		if err := assignNamespace(&rs.Teams[i].Kongctl, "team", rs.Teams[i].Ref); err != nil {
+		if err := assignNamespace(&rs.OrganizationTeams[i].Kongctl, "team", rs.OrganizationTeams[i].Ref); err != nil {
 			return err
 		}
 		// Apply protected default if not set
-		if rs.Teams[i].Kongctl.Protected == nil && protectedDefault != nil {
-			rs.Teams[i].Kongctl.Protected = protectedDefault
+		if rs.OrganizationTeams[i].Kongctl.Protected == nil && protectedDefault != nil {
+			rs.OrganizationTeams[i].Kongctl.Protected = protectedDefault
 		}
 		// Ensure protected has a value (false if still nil)
-		if rs.Teams[i].Kongctl.Protected == nil {
+		if rs.OrganizationTeams[i].Kongctl.Protected == nil {
 			falseVal := false
-			rs.Teams[i].Kongctl.Protected = &falseVal
+			rs.OrganizationTeams[i].Kongctl.Protected = &falseVal
 		}
 	}
 
@@ -871,9 +870,9 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 		rs.EventGatewayControlPlanes[i].SetDefaults()
 	}
 
-	// Apply defaults to teams
-	for i := range rs.Teams {
-		rs.Teams[i].SetDefaults()
+	// Apply defaults to organization teams
+	for i := range rs.OrganizationTeams {
+		rs.OrganizationTeams[i].SetDefaults()
 	}
 }
 
@@ -906,8 +905,8 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 	// Extract organization nested resources
 	if rs.Organization != nil {
 		org := rs.Organization
-		// Extract teams from organization
-		rs.Teams = append(rs.Teams, org.Teams...)
+		// Extract organization teams from organization
+		rs.OrganizationTeams = append(rs.OrganizationTeams, org.Teams...)
 
 		org.Teams = nil
 	}

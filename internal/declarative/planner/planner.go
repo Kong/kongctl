@@ -1399,7 +1399,7 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 		namespaceSet[ns] = true
 	}
 
-	for _, team := range rs.Teams {
+	for _, team := range rs.OrganizationTeams {
 		if team.IsExternal() {
 			continue
 		}

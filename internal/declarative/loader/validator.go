@@ -48,7 +48,7 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	}
 
 	// Validate organization teams
-	if err := l.validateOrganizationTeams(rs.Teams, rs); err != nil {
+	if err := l.validateOrganizationTeams(rs.OrganizationTeams, rs); err != nil {
 		return err
 	}
 
