@@ -317,6 +317,11 @@ func buildBackendClusterReference(field any, execCtx *ExecutionContext) (kkComps
 			return bcRef, nil
 		}
 
+		if bcRef.BackendClusterReferenceByName != nil {
+			// Referenced by name, no need to check execution context for ID
+			return bcRef, nil
+		}
+
 		idFromReference, err := getBackendClusterIDFromExecutionContext(execCtx)
 		if err != nil {
 			return kkComps.BackendClusterReferenceModify{},
