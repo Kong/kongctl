@@ -30,6 +30,7 @@ const (
 	ResourceTypeEventGatewayBackendCluster ResourceType = "event_gateway_backend_cluster"
 	ResourceTypeEventGatewayVirtualCluster ResourceType = "event_gateway_virtual_cluster"
 	ResourceTypeOrganizationTeam           ResourceType = "organization_team"
+	ResourceTypeEventGatewayListener       ResourceType = "event_gateway_listener"
 )
 
 const (
@@ -49,7 +50,7 @@ type ResourceSet struct {
 	// ApplicationAuthStrategies contains auth strategy configurations
 	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty"    json:"application_auth_strategies,omitempty"` //nolint:lll
 	// ControlPlanes contains control plane configurations
-	ControlPlanes []ControlPlaneResource `yaml:"control_planes,omitempty" json:"control_planes,omitempty"`
+	ControlPlanes   []ControlPlaneResource   `yaml:"control_planes,omitempty" json:"control_planes,omitempty"`
 	CatalogServices []CatalogServiceResource `yaml:"catalog_services,omitempty" json:"catalog_services,omitempty"`
 	APIs            []APIResource            `yaml:"apis,omitempty"                           json:"apis,omitempty"`
 	GatewayServices []GatewayServiceResource `yaml:"gateway_services,omitempty"               json:"gateway_services,omitempty"` //nolint:lll
@@ -77,7 +78,8 @@ type ResourceSet struct {
 	Organization *OrganizationResource `yaml:"organization,omitempty"                   json:"organization,omitempty"`
 	// Teams is populated internally from OrganizationTeams during loading
 	// It is not exposed in YAML/JSON to enforce the organization grouping format
-	OrganizationTeams []OrganizationTeamResource `yaml:"-"                                        json:"-"`
+	OrganizationTeams     []OrganizationTeamResource     `yaml:"-" json:"-"`
+	EventGatewayListeners []EventGatewayListenerResource `yaml:"event_gateway_listeners,omitempty" json:"event_gateway_listeners,omitempty"` //nolint:lll
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
 	DefaultNamespace  string   `yaml:"-"                                        json:"-"`
@@ -733,4 +735,31 @@ func (rs *ResourceSet) GetVirtualClustersForGateway(gatewayRef string) []EventGa
 	}
 
 	return clusters
+}
+
+// GetListenersForEventGateway returns all listeners (nested + root-level) for a specific event gateway
+func (rs *ResourceSet) GetListenersForEventGateway(gatewayRef string) []EventGatewayListenerResource {
+	var listeners []EventGatewayListenerResource
+
+	// Add nested listeners from the event gateway
+	for _, gateway := range rs.EventGatewayControlPlanes {
+		if gateway.Ref == gatewayRef {
+			// Add nested listeners
+			for _, listener := range gateway.Listeners {
+				listenerCopy := listener
+				listenerCopy.EventGateway = gatewayRef
+				listeners = append(listeners, listenerCopy)
+			}
+			break
+		}
+	}
+
+	// Add root-level listeners for this gateway
+	for _, listener := range rs.EventGatewayListeners {
+		if listener.EventGateway == gatewayRef {
+			listeners = append(listeners, listener)
+		}
+	}
+
+	return listeners
 }
