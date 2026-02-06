@@ -6,7 +6,7 @@ require (
 	github.com/Kong/sdk-konnect-go v0.18.2
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/ajg/form v1.5.1
-	github.com/alecthomas/chroma/v2 v2.23.0
+	github.com/alecthomas/chroma/v2 v2.23.1
 	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/glamour v0.10.0
