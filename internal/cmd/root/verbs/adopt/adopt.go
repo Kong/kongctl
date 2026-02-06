@@ -103,5 +103,11 @@ Setting this value overrides tokens obtained from the login command.
 	}
 	cmd.AddCommand(eventGatewayCmd)
 
+	orgCmd, err := NewDirectOrganizationCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(orgCmd)
+
 	return cmd, nil
 }
