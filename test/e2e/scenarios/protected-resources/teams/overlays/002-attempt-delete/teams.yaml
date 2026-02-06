@@ -1,0 +1,10 @@
+# Overlay: Remove all teams from config
+# This should trigger DELETE plans in sync mode
+# Protected teams should cause plan generation to fail
+
+_defaults:
+  kongctl:
+    namespace: default
+
+organization:
+  teams: []

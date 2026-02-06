@@ -19,6 +19,7 @@ type MockKonnectSDK struct {
 	MeFactory                 func() MeAPI
 	GatewayServiceFactory     func() GatewayServiceAPI
 	SystemAccountFactory      func() SystemAccountAPI
+	OrganizationTeamFactory   func() OrganizationTeamAPI
 	// Portal child resource factories
 	PortalPageFactory                    func() PortalPageAPI
 	PortalAuthSettingsFactory            func() PortalAuthSettingsAPI
@@ -256,6 +257,14 @@ func (m *MockKonnectSDK) GetSystemAccountAPI() SystemAccountAPI {
 func (m *MockKonnectSDK) GetEventGatewayBackendClusterAPI() EventGatewayBackendClusterAPI {
 	if m.EventGatewayBackendClusterFactory != nil {
 		return m.EventGatewayBackendClusterFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the OrganizationTeamAPI
+func (m *MockKonnectSDK) GetOrganizationTeamAPI() OrganizationTeamAPI {
+	if m.OrganizationTeamFactory != nil {
+		return m.OrganizationTeamFactory()
 	}
 	return nil
 }

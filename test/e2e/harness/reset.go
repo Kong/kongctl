@@ -97,6 +97,13 @@ func shouldDeleteResource(resource map[string]any) bool {
 	return true
 }
 
+func skipSystemTeams(resource map[string]any) bool {
+	if isSystemTeam, ok := resource["system_team"].(bool); ok && isSystemTeam {
+		return false
+	}
+	return true
+}
+
 func deleteAll(client *http.Client, baseURL, token, apiVersion, endpoint string, filter filterFunc) (int, int, error) {
 	url := fmt.Sprintf("%s/%s/%s", strings.TrimRight(baseURL, "/"), apiVersion, endpoint)
 	Infof("Fetching %s for deletion...", endpoint)
@@ -220,6 +227,7 @@ var resetSequence = []struct {
 	{"v3", "apis", false, nil},
 	{"v3", "portals", false, nil},
 	{"v3", "system-accounts", true, nil},
+	{"v3", "teams", true, skipSystemTeams},
 	{"v2", "application-auth-strategies", false, nil},
 	{"v2", "control-planes", false, nil},
 	{"v1", "catalog-services", false, nil},

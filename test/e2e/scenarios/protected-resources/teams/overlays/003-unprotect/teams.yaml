@@ -1,0 +1,20 @@
+# Overlay: Set protected: false on Protected Team
+_defaults:
+  kongctl:
+    namespace: default
+
+organization:
+  teams:
+      - ref: protected-team
+        name: Protected Team
+        description: This team is protected from deletion
+        kongctl:
+          namespace: default
+          protected: false
+
+      - ref: unprotected-team
+        name: Unprotected Team
+        description: This team is not protected
+        kongctl:
+          namespace: default
+          protected: false

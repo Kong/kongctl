@@ -136,6 +136,11 @@ func (b *BasePlanner) GetDesiredEventGatewayControlPlanes(
 	return b.planner.resources.GetEventGatewayControlPlanesByNamespace(namespace)
 }
 
+// GetDesiredTeams returns desired team resources from the specified namespace
+func (b *BasePlanner) GetDesiredTeams(namespace string) []resources.OrganizationTeamResource {
+	return b.planner.resources.GetTeamsByNamespace(namespace)
+}
+
 // GetGenericPlanner returns the generic planner instance
 func (b *BasePlanner) GetGenericPlanner() *GenericPlanner {
 	if b == nil || b.planner == nil {

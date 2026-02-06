@@ -51,6 +51,7 @@ type Planner struct {
 	apiPlanner                      APIPlanner
 	catalogServicePlanner           CatalogServicePlanner
 	eventGatewayControlPlanePlanner EGWControlPlanePlanner
+	organizationTeamPlanner         OrganizationTeamPlanner
 
 	// ResourceSet containing all desired resources
 	resources *resources.ResourceSet
@@ -91,6 +92,7 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 	p.authStrategyPlanner = NewAuthStrategyPlanner(base)
 	p.catalogServicePlanner = NewCatalogServicePlanner(base)
 	p.apiPlanner = NewAPIPlanner(base)
+	p.organizationTeamPlanner = NewOrganizationTeamPlanner(base)
 
 	return p
 }
@@ -170,6 +172,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.catalogServicePlanner = NewCatalogServicePlanner(base)
 		namespacePlanner.apiPlanner = NewAPIPlanner(base)
 		namespacePlanner.eventGatewayControlPlanePlanner = NewEGWControlPlanePlanner(base, rs)
+		namespacePlanner.organizationTeamPlanner = NewOrganizationTeamPlanner(base)
 
 		// Store full ResourceSet for access by planners (enables both filtered views and global lookups)
 		namespacePlanner.resources = rs
@@ -225,6 +228,10 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 		if err := namespacePlanner.eventGatewayControlPlanePlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
 			return nil, fmt.Errorf("failed to plan Event Gateway Control Plane changes for namespace %s: %w", namespace, err)
+		}
+
+		if err := namespacePlanner.organizationTeamPlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
+			return nil, fmt.Errorf("failed to plan Team changes for namespace %s: %w", namespace, err)
 		}
 
 		// Merge namespace plan into base plan
@@ -1425,6 +1432,14 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 
 	for _, cp := range rs.EventGatewayControlPlanes {
 		ns := resources.GetNamespace(cp.Kongctl)
+		namespaceSet[ns] = true
+	}
+
+	for _, team := range rs.OrganizationTeams {
+		if team.IsExternal() {
+			continue
+		}
+		ns := resources.GetNamespace(team.Kongctl)
 		namespaceSet[ns] = true
 	}
 

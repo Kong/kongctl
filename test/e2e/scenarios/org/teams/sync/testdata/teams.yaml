@@ -1,0 +1,37 @@
+_defaults:
+  kongctl:
+    namespace: teams-sync-e2e
+
+organization:
+  teams:
+    - ref: platform-team
+      name: "Platform Team"
+      description: "Platform engineering and infrastructure team"
+      labels:
+        department: "engineering"
+        tier: "core"
+        focus: "platform"
+      kongctl:
+        namespace: teams-sync-e2e
+        protected: false
+
+    - ref: security-team
+      name: "Security Team"
+      description: "Security and compliance team"
+      labels:
+        department: "security"
+        tier: "critical"
+        focus: "security"
+      kongctl:
+        namespace: teams-sync-e2e
+        protected: false
+
+    - ref: legacy-team
+      name: "Legacy Systems Team"
+      description: "Team managing legacy systems scheduled for sunset"
+      labels:
+        department: "engineering"
+        lifecycle: "sunset"
+      kongctl:
+        namespace: teams-sync-e2e
+        protected: false

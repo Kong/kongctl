@@ -30,6 +30,7 @@ type SDKAPI interface {
 	GetMeAPI() MeAPI
 	GetGatewayServiceAPI() GatewayServiceAPI
 	GetSystemAccountAPI() SystemAccountAPI
+	GetOrganizationTeamAPI() OrganizationTeamAPI
 	// Portal child resource APIs
 	GetPortalPageAPI() PortalPageAPI
 	GetPortalAuthSettingsAPI() PortalAuthSettingsAPI
@@ -303,6 +304,14 @@ func (k *KonnectSDK) GetEventGatewayBackendClusterAPI() EventGatewayBackendClust
 	}
 
 	return &EventGatewayBackendClusterAPIImpl{SDK: k.SDK}
+}
+
+func (k *KonnectSDK) GetOrganizationTeamAPI() OrganizationTeamAPI {
+	if k.SDK == nil || k.SDK.Teams == nil {
+		return nil
+	}
+
+	return &OrganizationTeamAPIImpl{SDK: k.SDK}
 }
 
 // A function that can build an SDKAPI with a given configuration

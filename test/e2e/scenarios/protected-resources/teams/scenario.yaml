@@ -1,0 +1,203 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  protectedTeamName: "Protected Team"
+  unprotectedTeamName: "Unprotected Team"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - resource_id
+      - change_id
+      - updated_at
+
+steps:
+  # Step 0: Clean environment
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  # Step 1: Initial sync - create protected and unprotected teams
+  - name: 001-initial-sync
+    commands:
+      - name: 000-sync
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --auto-approve
+        assertions:
+          # Verify sync mode
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: sync
+
+          # Verify protected team created
+          - select: >-
+              plan.changes[?resource_type=='team' &&
+                            resource_ref=='protected-team'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+          # Verify unprotected team created
+          - select: >-
+              plan.changes[?resource_type=='team' &&
+                            resource_ref=='unprotected-team'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+          # Verify protection changes
+          - select: "plan.summary.protection_changes"
+            expect:
+              fields:
+                protecting: 1
+                unprotecting: 0
+
+      # Verify teams exist with proper labels
+      - name: 001-get-teams
+        run: ["get", "org", "teams", "-o", "json"]
+        assertions:
+          # Verify Protected Team has protected label
+          - select: "[?name=='{{ .vars.protectedTeamName }}'] | [0]"
+            expect:
+              fields:
+                name: "Protected Team"
+                labels."KONGCTL-protected": "true"
+                labels."KONGCTL-namespace": "default"
+
+          # Verify Unprotected Team does NOT have protected label
+          - select: "[?name=='{{ .vars.unprotectedTeamName }}'] | [0]"
+            expect:
+              fields:
+                name: "Unprotected Team"
+                labels."KONGCTL-namespace": "default"
+
+  # Step 2: Attempt to delete protected team (should fail)
+  - name: 002-attempt-delete-protected
+    inputOverlayDirs:
+      - overlays/002-attempt-delete
+    commands:
+      - name: 000-sync-should-fail
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "protected"
+
+      # Verify protected team still exists
+      - name: 001-verify-protected-exists
+        run: ["get", "org", "teams", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.protectedTeamName }}']"
+            expect:
+              fields:
+                "length(@)": 1
+
+          # Verify it still has protected label
+          - select: "[?name=='{{ .vars.protectedTeamName }}'] | [0]"
+            expect:
+              fields:
+                labels."KONGCTL-protected": "true"
+
+  # Step 3: Unprotect the team
+  - name: 003-unprotect-team
+    inputOverlayDirs:
+      - overlays/003-unprotect
+    commands:
+      - name: 000-sync-unprotect
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --auto-approve
+        assertions:
+          # Should see UPDATE action for protection change
+          - select: >-
+              plan.changes[?resource_type=='team' &&
+                            resource_ref=='protected-team'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+
+          # Verify execution succeeded
+          - select: "summary"
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+          # Verify protection changes
+          - select: "plan.summary.protection_changes"
+            expect:
+              fields:
+                protecting: 0
+                unprotecting: 1
+
+      # Verify protected label removed
+      - name: 001-verify-unprotected
+        run: ["get", "org", "teams", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.protectedTeamName }}'] | [0]"
+            expect:
+              fields:
+                labels."KONGCTL-namespace": "default"
+
+  # Step 4: Delete now-unprotected teams (should succeed)
+  - name: 004-delete-unprotected
+    inputOverlayDirs:
+      - overlays/004-delete-unprotected
+    commands:
+      - name: 000-sync-delete
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --auto-approve
+        assertions:
+          # Verify DELETE actions planned
+          - select: >-
+              plan.changes[?resource_type=='team' &&
+                            resource_ref=='Protected Team'] | [0]
+            expect:
+              fields:
+                action: DELETE
+
+          - select: >-
+              plan.changes[?resource_type=='team' &&
+                            resource_ref=='Unprotected Team'] | [0]
+            expect:
+              fields:
+                action: DELETE
+
+          # Verify execution succeeded
+          - select: "summary"
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+      # Verify teams deleted
+      - name: 001-verify-deleted
+        run: ["get", "org", "teams", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.protectedTeamName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+          - select: "[?name=='{{ .vars.unprotectedTeamName }}']"
+            expect:
+              fields:
+                "length(@)": 0

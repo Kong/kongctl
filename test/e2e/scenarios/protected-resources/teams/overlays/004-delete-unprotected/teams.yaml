@@ -1,0 +1,7 @@
+# Overlay: Remove both teams to trigger DELETE
+_defaults:
+  kongctl:
+    namespace: default
+
+organization:
+  teams: []

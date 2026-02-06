@@ -1,0 +1,40 @@
+_defaults:
+  kongctl:
+    namespace: teams-sync-e2e
+
+organization:
+  teams:
+      - ref: platform-team
+        name: "Platform Team"
+        description: "Updated: Cloud platform engineering and DevOps infrastructure team"
+        labels:
+          department: "engineering"
+          tier: "core"
+          focus: "platform"
+          specialty: "cloud-native"
+        kongctl:
+          namespace: teams-sync-e2e
+          protected: false
+
+      - ref: security-team
+        name: "Security Team"
+        description: "Updated: Application security, compliance, and risk management team"
+        labels:
+          department: "security"
+          tier: "critical"
+          focus: "security"
+          specialty: "appsec"
+        kongctl:
+          namespace: teams-sync-e2e
+          protected: false
+
+      - ref: data-team
+        name: "Data Engineering Team"
+        description: "Team focused on data pipelines, analytics, and ML infrastructure"
+        labels:
+          department: "engineering"
+          tier: "core"
+          focus: "data"
+        kongctl:
+          namespace: teams-sync-e2e
+          protected: false

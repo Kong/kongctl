@@ -347,7 +347,8 @@ func (l *Loader) loadDirectorySource(
 			len(accumulated.APIVersions) > 0 || len(accumulated.APIPublications) > 0 ||
 			len(accumulated.APIImplementations) > 0 || len(accumulated.APIDocuments) > 0 ||
 			len(accumulated.PortalCustomizations) > 0 || len(accumulated.PortalCustomDomains) > 0 ||
-			len(accumulated.PortalPages) > 0 || len(accumulated.PortalSnippets) > 0
+			len(accumulated.PortalPages) > 0 || len(accumulated.PortalSnippets) > 0 ||
+			len(accumulated.OrganizationTeams) > 0
 
 		if !hasResources {
 			// Only error if no files were found at all (not just empty files)
@@ -362,6 +363,15 @@ func (l *Loader) loadDirectorySource(
 func (l *Loader) appendResourcesWithDuplicateCheck(
 	accumulated, source *resources.ResourceSet, sourcePath string,
 ) error {
+	// Merge organization resources from multiple files
+	// Since organization is just a grouping concept, we combine teams from all organization blocks
+	if source.Organization != nil {
+		if accumulated.Organization == nil {
+			accumulated.Organization = &resources.OrganizationResource{}
+		}
+		accumulated.Organization.Teams = append(accumulated.Organization.Teams, source.Organization.Teams...)
+	}
+
 	// Check and append portals
 	for _, portal := range source.Portals {
 		if accumulated.HasRef(portal.Ref) {
@@ -541,6 +551,15 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 		accumulated.PortalTeamRoles = append(accumulated.PortalTeamRoles, role)
 	}
 
+	for _, team := range source.OrganizationTeams {
+		if accumulated.HasRef(team.Ref) {
+			existing, _ := accumulated.GetResourceByRef(team.Ref)
+			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
+				team.Ref, sourcePath, existing.GetType())
+		}
+		accumulated.OrganizationTeams = append(accumulated.OrganizationTeams, team)
+	}
+
 	for _, egwControlPlane := range source.EventGatewayControlPlanes {
 		if accumulated.HasRef(egwControlPlane.Ref) {
 			existing, _ := accumulated.GetResourceByRef(egwControlPlane.Ref)
@@ -565,7 +584,8 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 		parentCount := len(source.Portals) +
 			len(source.ApplicationAuthStrategies) +
 			len(source.ControlPlanes) +
-			len(source.APIs)
+			len(source.APIs) +
+			len(source.OrganizationTeams)
 
 		if parentCount == 0 {
 			accumulated.AddDefaultNamespace(source.DefaultNamespace)
@@ -737,6 +757,31 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 		}
 	}
 
+	// Apply namespace defaults to teams
+	for i := range rs.OrganizationTeams {
+		if rs.OrganizationTeams[i].IsExternal() {
+			if rs.OrganizationTeams[i].Kongctl != nil {
+				return fmt.Errorf(
+					"team '%s' is marked as external and cannot use kongctl metadata",
+					rs.OrganizationTeams[i].Ref,
+				)
+			}
+			continue
+		}
+		if err := assignNamespace(&rs.OrganizationTeams[i].Kongctl, "team", rs.OrganizationTeams[i].Ref); err != nil {
+			return err
+		}
+		// Apply protected default if not set
+		if rs.OrganizationTeams[i].Kongctl.Protected == nil && protectedDefault != nil {
+			rs.OrganizationTeams[i].Kongctl.Protected = protectedDefault
+		}
+		// Ensure protected has a value (false if still nil)
+		if rs.OrganizationTeams[i].Kongctl.Protected == nil {
+			falseVal := false
+			rs.OrganizationTeams[i].Kongctl.Protected = &falseVal
+		}
+	}
+
 	// Note: Child resources (API versions, publications, etc.) do not get kongctl metadata
 	// as Konnect doesn't support labels on child resources
 	return nil
@@ -824,6 +869,11 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 	for i := range rs.EventGatewayControlPlanes {
 		rs.EventGatewayControlPlanes[i].SetDefaults()
 	}
+
+	// Apply defaults to organization teams
+	for i := range rs.OrganizationTeams {
+		rs.OrganizationTeams[i].SetDefaults()
+	}
 }
 
 // extractPortalPages recursively extracts and flattens nested portal pages
@@ -852,6 +902,15 @@ func (l *Loader) extractPortalPages(
 
 // extractNestedResources extracts nested child resources to root level with parent references
 func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
+	// Extract organization nested resources
+	if rs.Organization != nil {
+		org := rs.Organization
+		// Extract organization teams from organization
+		rs.OrganizationTeams = append(rs.OrganizationTeams, org.Teams...)
+
+		org.Teams = nil
+	}
+
 	for i := range rs.ControlPlanes {
 		cp := &rs.ControlPlanes[i]
 
