@@ -8,18 +8,21 @@ import (
 	"strings"
 )
 
+// skipScenarioReason applies scenario-level preflight checks declared in scenario.yaml.
+// This keeps optional, external-dependency scenarios (like Gmail-backed flows) from
+// running by default unless explicitly opted in and configured.
 func skipScenarioReason(s Scenario) string {
 	if s.Test.Enabled != nil && !*s.Test.Enabled {
 		return formatSkipReason(s.Test.Info, "scenario disabled via scenario.yaml")
 	}
 
-	if env := strings.TrimSpace(s.Test.EnabledEnv); env != "" {
+	if env := strings.TrimSpace(s.Test.EnabledByEnvVar); env != "" {
 		if !truthyEnvValue(os.Getenv(env)) {
 			return formatSkipReason(s.Test.Info, fmt.Sprintf("%s not enabled", env))
 		}
 	}
 
-	if missing := missingEnvVars(s.Test.RequiresEnv); len(missing) > 0 {
+	if missing := missingEnvVars(s.Test.RequiredEnvVars); len(missing) > 0 {
 		return formatSkipReason(s.Test.Info, fmt.Sprintf("missing required env %s", strings.Join(missing, ", ")))
 	}
 

@@ -158,27 +158,27 @@ func TestSkipScenarioReason(t *testing.T) {
 		}
 	})
 
-	t.Run("enabled env missing", func(t *testing.T) {
+	t.Run("enabled by env var missing", func(t *testing.T) {
 		scenario := Scenario{
 			Test: ScenarioTest{
-				EnabledEnv: "KONGCTL_TEST_OPT_IN",
+				EnabledByEnvVar: "KONGCTL_TEST_OPT_IN",
 			},
 		}
 		want := "skipping: KONGCTL_TEST_OPT_IN not enabled"
 		if got := skipScenarioReason(scenario); got != want {
-			t.Fatalf("skipScenarioReason(enabledEnv missing) = %q, want %q", got, want)
+			t.Fatalf("skipScenarioReason(enabledByEnvVar missing) = %q, want %q", got, want)
 		}
 	})
 
-	t.Run("enabled env present", func(t *testing.T) {
+	t.Run("enabled by env var present", func(t *testing.T) {
 		t.Setenv("KONGCTL_TEST_OPT_IN", "true")
 		scenario := Scenario{
 			Test: ScenarioTest{
-				EnabledEnv: "KONGCTL_TEST_OPT_IN",
+				EnabledByEnvVar: "KONGCTL_TEST_OPT_IN",
 			},
 		}
 		if got := skipScenarioReason(scenario); got != "" {
-			t.Fatalf("skipScenarioReason(enabledEnv present) = %q, want empty", got)
+			t.Fatalf("skipScenarioReason(enabledByEnvVar present) = %q, want empty", got)
 		}
 	})
 
@@ -186,7 +186,7 @@ func TestSkipScenarioReason(t *testing.T) {
 		t.Setenv("KONGCTL_TEST_REQ_A", "1")
 		scenario := Scenario{
 			Test: ScenarioTest{
-				RequiresEnv: []string{"KONGCTL_TEST_REQ_A", "KONGCTL_TEST_REQ_B"},
+				RequiredEnvVars: []string{"KONGCTL_TEST_REQ_A", "KONGCTL_TEST_REQ_B"},
 			},
 		}
 		want := "skipping: missing required env KONGCTL_TEST_REQ_B"

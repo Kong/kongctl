@@ -3,8 +3,8 @@ baseInputsPath: ../../../testdata/declarative/portal/applications
 log-level: debug
 
 test:
-  enabledEnv: KONGCTL_E2E_RUN_PORTAL_APPLICATIONS
-  requiresEnv:
+  enabledByEnvVar: KONGCTL_E2E_RUN_PORTAL_APPLICATIONS
+  requiredEnvVars:
     - KONGCTL_E2E_GMAIL_ADDRESS
     - KONGCTL_E2E_GMAIL_CLIENT_ID
     - KONGCTL_E2E_GMAIL_CLIENT_SECRET
