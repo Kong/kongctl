@@ -29,7 +29,8 @@ const (
 	ResourceTypeEventGatewayControlPlane   ResourceType = "event_gateway"
 	ResourceTypeEventGatewayBackendCluster ResourceType = "event_gateway_backend_cluster"
 	ResourceTypeEventGatewayVirtualCluster ResourceType = "event_gateway_virtual_cluster"
-	ResourceTypeTeam                       ResourceType = "organization_team" // We should rename this to ResourceTypeOrganizationTeam
+	// "Team" should be OrganizationTeam
+	ResourceTypeTeam ResourceType = "organization_team"
 )
 
 const (
