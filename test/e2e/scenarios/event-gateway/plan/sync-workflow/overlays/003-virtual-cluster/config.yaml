@@ -20,3 +20,13 @@ event_gateways:
           tls_versions:
             - tls12
             - tls13
+    virtual_clusters:
+      - ref: plan-sync-virtual-cluster
+        name: plan-sync-virtual-cluster
+        description: "Virtual cluster for plan sync workflow"
+        destination:
+          id: !ref plan-sync-backend-cluster#id
+        authentication:
+         - type: anonymous
+        acl_mode: passthrough
+        dns_label: vc-default

@@ -20,3 +20,15 @@ event_gateways:
           tls_versions:
             - tls12
             - tls13
+    virtual_clusters:
+      - ref: plan-apply-virtual-cluster
+        name: plan-apply-virtual-cluster
+        description: "Virtual cluster for plan apply workflow"
+        destination:
+          name: plan-apply-backend-cluster #id: !ref plan-apply-backend-cluster#id
+        authentication:
+        - type: sasl_scram
+          algorithm: sha512
+        acl_mode: passthrough
+        dns_label: vc-default
+    

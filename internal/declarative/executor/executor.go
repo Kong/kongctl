@@ -46,6 +46,8 @@ type Executor struct {
 	// Event Gateway child resource executors
 	eventGatewayBackendClusterExecutor *BaseExecutor[
 		kkComps.CreateBackendClusterRequest, kkComps.UpdateBackendClusterRequest]
+	eventGatewayVirtualClusterExecutor *BaseExecutor[
+		kkComps.CreateVirtualClusterRequest, kkComps.UpdateVirtualClusterRequest]
 
 	// Portal child resource executors
 	portalCustomizationExecutor *BaseSingletonExecutor[kkComps.PortalCustomization]
@@ -151,6 +153,13 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	e.eventGatewayBackendClusterExecutor = NewBaseExecutor[
 		kkComps.CreateBackendClusterRequest, kkComps.UpdateBackendClusterRequest](
 		NewEventGatewayBackendClusterAdapter(client),
+		client,
+		dryRun,
+	)
+
+	e.eventGatewayVirtualClusterExecutor = NewBaseExecutor[
+		kkComps.CreateVirtualClusterRequest, kkComps.UpdateVirtualClusterRequest](
+		NewEventGatewayVirtualClusterAdapter(client),
 		client,
 		dryRun,
 	)
@@ -991,6 +1000,60 @@ func (e *Executor) resolveEventGatewayRef(ctx context.Context, refInfo planner.R
 	return gatewayID, nil
 }
 
+// resolveEventGatewayBackendClusterRef resolves an event gateway reference to its ID
+func (e *Executor) resolveEventGatewayBackendClusterRef(
+	ctx context.Context, gatewayID string, refInfo planner.ReferenceInfo) (string, error) {
+	lookupRef := refInfo.Ref
+	if tags.IsRefPlaceholder(lookupRef) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+			lookupRef = parsedRef
+		}
+	}
+
+	// First check if it was created in this execution
+	if backendCluster, ok := e.refToID["event_gateway_backend_cluster"]; ok {
+		if id, found := backendCluster[lookupRef]; found {
+			slog.Debug("Resolved event gateway backend cluster reference from created resources",
+				"backend_cluster_ref", lookupRef,
+				"backend_cluster_id", id,
+			)
+			return id, nil
+		}
+	}
+
+	// Determine the lookup value - use name from lookup fields if available
+	lookupValue := lookupRef
+	if refInfo.LookupFields != nil {
+		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
+			lookupValue = name
+		}
+	}
+
+	// Try to find the event gateway backend cluster in Konnect
+	backendCluster, err := e.client.GetEventGatewayBackendClusterByName(ctx, gatewayID, lookupValue)
+	if err != nil {
+		return "", fmt.Errorf("failed to get event gateway backend cluster by name: %w", err)
+	}
+	if backendCluster == nil {
+		return "", fmt.Errorf("event gateway backend cluster not found: ref=%s, looked up by name=%s",
+			refInfo.Ref, lookupValue)
+	}
+
+	backendClusterID := backendCluster.ID
+	slog.Debug("Resolved event gateway backend cluster reference from Konnect",
+		"backend_cluster_ref", refInfo.Ref,
+		"lookup_value", lookupValue,
+		"gateway_id", backendClusterID,
+	)
+
+	// Cache this resolution
+	if backendClusters, ok := e.refToID["event_gateway_backend_cluster"]; ok {
+		backendClusters[refInfo.Ref] = backendClusterID
+	}
+
+	return backendClusterID, nil
+}
+
 // populatePortalPages fetches and caches all pages for a portal
 func (e *Executor) populatePortalPages(ctx context.Context, portalID string) error {
 	portal, exists := e.stateCache.Portals[portalID]
@@ -1549,6 +1612,29 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References["event_gateway_id"] = gatewayRef
 		}
 		return e.eventGatewayBackendClusterExecutor.Create(ctx, *change)
+	case "event_gateway_virtual_cluster":
+		// Resolve event gateway reference if needed
+		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			gatewayRef.ID = gatewayID
+			change.References["event_gateway_id"] = gatewayRef
+		}
+
+		// Resolve event gateway backend cluster reference if needed
+		if backendClusterRef, ok := change.References["event_gateway_backend_cluster_id"]; ok && backendClusterRef.ID == "" {
+			backendClusterID, err := e.resolveEventGatewayBackendClusterRef(ctx, change.Parent.ID, backendClusterRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway backend cluster reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			backendClusterRef.ID = backendClusterID
+			change.References["event_gateway_backend_cluster_id"] = backendClusterRef
+		}
+		return e.eventGatewayVirtualClusterExecutor.Create(ctx, *change)
 	case "team":
 		return e.organizationTeamExecutor.Create(ctx, *change)
 	default:
@@ -1775,6 +1861,17 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			change.References["event_gateway_id"] = gatewayRef
 		}
 		return e.eventGatewayBackendClusterExecutor.Update(ctx, *change)
+	case "event_gateway_virtual_cluster":
+		// Resolve event gateway reference if needed (typically should already be in Parent)
+		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
+			}
+			gatewayRef.ID = gatewayID
+			change.References["event_gateway_id"] = gatewayRef
+		}
+		return e.eventGatewayVirtualClusterExecutor.Update(ctx, *change)
 	case "team":
 		return e.organizationTeamExecutor.Update(ctx, *change)
 	default:
@@ -1910,8 +2007,12 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 	case "event_gateway_backend_cluster":
 		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
 		return e.eventGatewayBackendClusterExecutor.Delete(ctx, *change)
+	// I think this should be organization_team
 	case "team":
 		return e.organizationTeamExecutor.Delete(ctx, *change)
+	case "event_gateway_virtual_cluster":
+		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
+		return e.eventGatewayVirtualClusterExecutor.Delete(ctx, *change)
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)
 	}

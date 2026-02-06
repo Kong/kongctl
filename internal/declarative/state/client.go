@@ -50,6 +50,7 @@ type ClientConfig struct {
 	// Event Gateway APIs
 	EGWControlPlaneAPI            helpers.EGWControlPlaneAPI
 	EventGatewayBackendClusterAPI helpers.EventGatewayBackendClusterAPI
+	EventGatewayVirtualClusterAPI helpers.EventGatewayVirtualClusterAPI
 
 	// Identity resources
 	OrganizationTeamAPI helpers.OrganizationTeamAPI
@@ -86,8 +87,8 @@ type Client struct {
 	// Event Gateway APIs
 	egwControlPlaneAPI            helpers.EGWControlPlaneAPI
 	eventGatewayBackendClusterAPI helpers.EventGatewayBackendClusterAPI
-
-	// Identity resource APIs
+	eventGatewayVirtualClusterAPI helpers.EventGatewayVirtualClusterAPI
+	// Organization resource APIs
 	organizationTeamAPI helpers.OrganizationTeamAPI
 }
 
@@ -123,6 +124,7 @@ func NewClient(config ClientConfig) *Client {
 		// Event Gateway APIs
 		egwControlPlaneAPI:            config.EGWControlPlaneAPI,
 		eventGatewayBackendClusterAPI: config.EventGatewayBackendClusterAPI,
+		eventGatewayVirtualClusterAPI: config.EventGatewayVirtualClusterAPI,
 
 		// Identity resource APIs
 		organizationTeamAPI: config.OrganizationTeamAPI,
@@ -252,7 +254,13 @@ type EventGatewayBackendCluster struct {
 	NormalizedLabels map[string]string // Non-pointer labels
 }
 
+type EventGatewayVirtualCluster struct {
+	kkComps.VirtualCluster
+	NormalizedLabels map[string]string // Non-pointer labels
+}
+
 // Team represents a normalized team for internal use
+// I think this should be OrganizationTeam
 type Team struct {
 	kkComps.Team
 	NormalizedLabels map[string]string // Non-pointer labels
@@ -3502,6 +3510,28 @@ func (c *Client) GetEventGatewayBackendCluster(
 	return backendCluster, nil
 }
 
+func (c *Client) GetEventGatewayBackendClusterByName(
+	ctx context.Context, gatewayID string, name string,
+) (*EventGatewayBackendCluster, error) {
+	// List all event gateway backend cluster and filter by name
+	backendClusters, err := c.ListEventGatewayBackendClusters(ctx, gatewayID)
+	if err != nil {
+		return nil, WrapAPIError(err, "list event gateway backend clusters to find by name", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_backend_cluster",
+			ResourceName: name,
+			UseEnhanced:  true,
+		})
+	}
+
+	for _, bc := range backendClusters {
+		if bc.Name == name {
+			return &bc, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func (c *Client) UpdateEventGatewayBackendCluster(
 	ctx context.Context,
 	gatewayID string,
@@ -3718,4 +3748,155 @@ func shouldIncludeNamespace(resourceNamespace string, namespaces []string) bool 
 	}
 
 	return false
+}
+
+// Event Gateway Virtual Cluster Methods
+
+func (c *Client) ListEventGatewayVirtualClusters(
+	ctx context.Context,
+	gatewayID string,
+) ([]EventGatewayVirtualCluster, error) {
+	// Validate API client is initialized
+	if err := ValidateAPIClient(c.eventGatewayVirtualClusterAPI, "event gateway virtual cluster API"); err != nil {
+		return nil, err
+	}
+
+	var allData []kkComps.VirtualCluster
+	var pageAfter *string
+
+	for {
+		req := kkOps.ListEventGatewayVirtualClustersRequest{
+			GatewayID: gatewayID,
+		}
+
+		if pageAfter != nil {
+			req.PageAfter = pageAfter
+		}
+
+		res, err := c.eventGatewayVirtualClusterAPI.ListEventGatewayVirtualClusters(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway virtual clusters", nil)
+		}
+
+		// If response is nil, break the loop
+		if res.ListVirtualClustersResponse == nil {
+			return []EventGatewayVirtualCluster{}, nil
+		}
+
+		allData = append(allData, res.ListVirtualClustersResponse.Data...)
+
+		if res.ListVirtualClustersResponse.Meta.Page.Next == nil {
+			break
+		}
+
+		u, err := url.Parse(*res.ListVirtualClustersResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway virtual clusters: invalid cursor", nil)
+		}
+
+		values := u.Query()
+		pageAfter = kk.String(values.Get("page[after]"))
+	}
+
+	var virtualClusters []EventGatewayVirtualCluster
+	for _, vc := range allData {
+		// Normalize labels
+		normalized := vc.Labels
+		if normalized == nil {
+			normalized = make(map[string]string)
+		}
+
+		virtualClusters = append(virtualClusters, EventGatewayVirtualCluster{
+			VirtualCluster:   vc,
+			NormalizedLabels: normalized,
+		})
+	}
+
+	return virtualClusters, nil
+}
+
+func (c *Client) CreateEventGatewayVirtualCluster(
+	ctx context.Context,
+	gatewayID string,
+	req kkComps.CreateVirtualClusterRequest,
+	namespace string,
+) (string, error) {
+	resp, err := c.eventGatewayVirtualClusterAPI.CreateEventGatewayVirtualCluster(ctx, gatewayID, req)
+	if err != nil {
+		return "", WrapAPIError(err, "create event gateway virtual cluster", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_virtual_cluster",
+			ResourceName: req.Name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.VirtualCluster, "create event gateway virtual cluster"); err != nil {
+		return "", err
+	}
+
+	return resp.VirtualCluster.ID, nil
+}
+
+func (c *Client) GetEventGatewayVirtualCluster(
+	ctx context.Context,
+	gatewayID string,
+	clusterID string,
+) (*EventGatewayVirtualCluster, error) {
+	resp, err := c.eventGatewayVirtualClusterAPI.FetchEventGatewayVirtualCluster(ctx, gatewayID, clusterID)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway virtual cluster by ID", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_virtual_cluster",
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.VirtualCluster == nil {
+		return nil, nil
+	}
+
+	// Normalize labels
+	normalized := resp.VirtualCluster.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	virtualCluster := &EventGatewayVirtualCluster{
+		VirtualCluster:   *resp.VirtualCluster,
+		NormalizedLabels: normalized,
+	}
+
+	return virtualCluster, nil
+}
+
+func (c *Client) UpdateEventGatewayVirtualCluster(
+	ctx context.Context,
+	gatewayID string,
+	clusterID string,
+	req kkComps.UpdateVirtualClusterRequest,
+	namespace string,
+) (string, error) {
+	resp, err := c.eventGatewayVirtualClusterAPI.UpdateEventGatewayVirtualCluster(ctx, gatewayID, clusterID, req)
+	if err != nil {
+		return "", WrapAPIError(err, "update event gateway virtual cluster", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_virtual_cluster",
+			ResourceName: req.Name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	return resp.VirtualCluster.ID, nil
+}
+
+func (c *Client) DeleteEventGatewayVirtualCluster(
+	ctx context.Context,
+	gatewayID string,
+	clusterID string,
+) error {
+	_, err := c.eventGatewayVirtualClusterAPI.DeleteEventGatewayVirtualCluster(ctx, gatewayID, clusterID)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway virtual cluster", nil)
+	}
+	return nil
 }

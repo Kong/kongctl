@@ -23,6 +23,12 @@ const (
 	backendClusterIDConfigPath   = "konnect.event-gateway.backend-cluster.id"
 	backendClusterNameConfigPath = "konnect.event-gateway.backend-cluster.name"
 
+	virtualClusterIDFlagName   = "virtual-cluster-id"
+	virtualClusterNameFlagName = "virtual-cluster-name"
+
+	virtualClusterIDConfigPath   = "konnect.event-gateway.virtual-cluster.id"
+	virtualClusterNameConfigPath = "konnect.event-gateway.virtual-cluster.name"
+
 	valueNA = "n/a"
 )
 
@@ -96,6 +102,42 @@ func bindBackendClusterChildFlags(c *cobra.Command, args []string) error {
 
 func getBackendClusterIdentifiers(cfg config.Hook) (id string, name string) {
 	return cfg.GetString(backendClusterIDConfigPath), cfg.GetString(backendClusterNameConfigPath)
+}
+
+func addVirtualClusterChildFlags(cmd *cobra.Command) {
+	cmd.Flags().String(virtualClusterIDFlagName, "",
+		fmt.Sprintf(`The ID of the virtual cluster to retrieve.
+- Config path: [ %s ]`, virtualClusterIDConfigPath))
+	cmd.Flags().String(virtualClusterNameFlagName, "",
+		fmt.Sprintf(`The name of the virtual cluster to retrieve.
+- Config path: [ %s ]`, virtualClusterNameConfigPath))
+	cmd.MarkFlagsMutuallyExclusive(virtualClusterIDFlagName, virtualClusterNameFlagName)
+}
+
+func bindVirtualClusterChildFlags(c *cobra.Command, args []string) error {
+	helper := cmd.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if flag := c.Flags().Lookup(virtualClusterIDFlagName); flag != nil {
+		if err := cfg.BindFlag(virtualClusterIDConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	if flag := c.Flags().Lookup(virtualClusterNameFlagName); flag != nil {
+		if err := cfg.BindFlag(virtualClusterNameConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getVirtualClusterIdentifiers(cfg config.Hook) (id string, name string) {
+	return cfg.GetString(virtualClusterIDConfigPath), cfg.GetString(virtualClusterNameConfigPath)
 }
 
 func resolveEventGatewayIDByName(

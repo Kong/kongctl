@@ -11,6 +11,9 @@ vars:
   bcRef: plan-apply-backend-cluster
   bcName: plan-apply-backend-cluster
   bcDesc: "Updated description for plan apply backend cluster"
+  vcRef: plan-apply-virtual-cluster
+  vcName: plan-apply-virtual-cluster
+  vcDesc: "Virtual cluster for plan apply workflow"
 
 defaults:
   mask:
@@ -222,3 +225,82 @@ steps:
                 bootstrap_servers:
                   - "egw-backend-1-updated.example.com:9092"
                 authentication.type: "anonymous"
+
+  - name: 004-plan-apply-virtual-cluster
+    inputOverlayDirs:
+      - overlays/003-virtual-cluster
+    commands:
+      - name: 000-plan-create-virtual-cluster
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-virtual-cluster.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster' && resource_ref=='{{ .vars.vcRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.vcRef }}"
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-virtual-cluster.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'event_gateway_virtual_cluster \"plan-apply-virtual-cluster\" will be created')": true
+      - name: 002-apply-plan
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-virtual-cluster.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-virtual-cluster
+        run:
+          - get
+          - event-gateway
+          - virtual-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.vcName }}"
+                description: "{{ .vars.vcDesc }}"
+                destination.name: "{{ .vars.bcName }}"
+                acl_mode: "passthrough"
+                "length(authentication)": 1
+                authentication[0].type: "sasl_scram"
