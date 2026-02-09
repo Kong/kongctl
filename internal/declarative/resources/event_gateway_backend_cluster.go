@@ -93,6 +93,40 @@ func (e EventGatewayBackendClusterResource) GetParentRef() *ResourceRef {
 	return nil
 }
 
+// MarshalJSON ensures backend cluster metadata (ref, event_gateway) are included.
+// Without this, the embedded CreateBackendClusterRequest's MarshalJSON is promoted and drops metadata fields.
+func (e EventGatewayBackendClusterResource) MarshalJSON() ([]byte, error) {
+	type alias struct {
+		Ref          string `json:"ref"`
+		EventGateway string `json:"event_gateway,omitempty"`
+
+		// Fields from kkComps.CreateBackendClusterRequest
+		Name                                     string                                     `json:"name"`
+		Description                              *string                                    `json:"description,omitempty"`
+		Authentication                           kkComps.BackendClusterAuthenticationScheme `json:"authentication"`
+		InsecureAllowAnonymousVirtualClusterAuth *bool                                      `json:"insecure_allow_anonymous_virtual_cluster_auth,omitempty"` //nolint:lll
+		BootstrapServers                         []string                                   `json:"bootstrap_servers"`
+		TLS                                      kkComps.BackendClusterTLS                  `json:"tls"`
+		MetadataUpdateIntervalSeconds            *int64                                     `json:"metadata_update_interval_seconds,omitempty"` //nolint:lll
+		Labels                                   map[string]string                          `json:"labels,omitempty"`
+	}
+
+	payload := alias{
+		Ref:                                      e.Ref,
+		EventGateway:                             e.EventGateway,
+		Name:                                     e.Name,
+		Description:                              e.Description,
+		Authentication:                           e.Authentication,
+		InsecureAllowAnonymousVirtualClusterAuth: e.InsecureAllowAnonymousVirtualClusterAuth,
+		BootstrapServers:                         e.BootstrapServers,
+		TLS:                                      e.TLS,
+		MetadataUpdateIntervalSeconds:            e.MetadataUpdateIntervalSeconds,
+		Labels:                                   e.Labels,
+	}
+
+	return json.Marshal(payload)
+}
+
 // Custom JSON unmarshaling to reject kongctl metadata
 func (e *EventGatewayBackendClusterResource) UnmarshalJSON(data []byte) error {
 	// Temporary structure for unmarshaling resource metadata together with

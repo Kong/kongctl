@@ -1614,9 +1614,10 @@ func (c *Client) ListAPIPublications(ctx context.Context, apiID string) ([]APIPu
 
 		for _, p := range resp.ListAPIPublicationResponse.Data {
 			pub := APIPublication{
-				ID:              "", // Publications don't have a separate ID
-				PortalID:        p.PortalID,
-				AuthStrategyIDs: p.AuthStrategyIds,
+				ID:                       "", // Publications don't have a separate ID
+				PortalID:                 p.PortalID,
+				AuthStrategyIDs:          p.AuthStrategyIds,
+				AutoApproveRegistrations: p.AutoApproveRegistrations,
 			}
 			if p.Visibility != nil {
 				pub.Visibility = string(*p.Visibility)

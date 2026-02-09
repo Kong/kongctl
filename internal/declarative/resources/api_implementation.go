@@ -194,6 +194,27 @@ func (i APIImplementationResource) GetParentRef() *ResourceRef {
 	return nil
 }
 
+// MarshalJSON ensures implementation metadata (ref, api) are included.
+// Without this, the embedded APIImplementation's MarshalJSON is promoted and drops metadata fields.
+func (i APIImplementationResource) MarshalJSON() ([]byte, error) {
+	payload := make(map[string]any)
+
+	implBytes, err := json.Marshal(i.APIImplementation)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(implBytes, &payload); err != nil {
+		return nil, err
+	}
+
+	payload["ref"] = i.Ref
+	if i.API != "" {
+		payload["api"] = i.API
+	}
+
+	return json.Marshal(payload)
+}
+
 // UnmarshalJSON implements custom JSON unmarshaling to handle SDK types
 func (i *APIImplementationResource) UnmarshalJSON(data []byte) error {
 	// Temporary struct to capture all fields
