@@ -1,0 +1,68 @@
+baseInputsPath: ./testdata
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-portal
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - -f
+          - "{{ .workdir }}/auth-strategies.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+
+  - name: 002-dump-and-plan
+    skipInputs: true
+    commands:
+      - name: 000-dump
+        run:
+          - dump
+          - declarative
+          - "--resources=portals,apis,application_auth_strategies"
+          - --include-child-resources
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: "portals[?name=='My First Portal'] | [0]"
+            expect:
+              fields:
+                display_name: "A Getting Started Portal"
+          - select: "portals[?name=='My First Portal'] | [0].pages[?title=='Kong API'] | [0]"
+            expect:
+              fields:
+                slug: "/"
+          - select: "portals[?name=='My First Portal'] | [0].pages[?title=='APIs'] | [0]"
+            expect:
+              fields:
+                slug: "apis"
+          - select: "portals[?name=='My First Portal'] | [0].pages[?title=='Guides'] | [0].children[?title=='Document APIs'] | [0]"
+            expect:
+              fields:
+                slug: "document-apis"
+
+      - name: 001-plan-from-dump
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
