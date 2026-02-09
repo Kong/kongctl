@@ -2,9 +2,9 @@
 
 The Kong Konnect CLI
 
-## ⚠️ Tech Preview ⚠️
+## ⚠️ BETA SOFTWARE ⚠️
 
-**`kongctl` is a _Tech Preview_ project. This software is provided by Kong, Inc. without warranty and is not recommended for 
+**`kongctl` is a _Beta Release_ staged project. This software is provided by Kong, Inc. without warranty and is not recommended for 
 production use. The CLI is under active development - interfaces, commands, and behaviors are subject to change without notice. 
 Use at your own risk for evaluation and testing purposes only.**
 
