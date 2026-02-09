@@ -163,7 +163,14 @@ func organizationDetailView(org *kkComps.MeOrganization) string {
 	}
 
 	return fmt.Sprintf(
-		"id: %s\nname: %s\nstate: %s\nowner_id: %s\nlogin_path: %s\nretention_period_days: %s\ncreated_at: %s\nupdated_at: %s",
+		"id: %s\n"+
+			"name: %s\n"+
+			"state: %s\n"+
+			"owner_id: %s\n"+
+			"login_path: %s\n"+
+			"retention_period_days: %s\n"+
+			"created_at: %s\n"+
+			"updated_at: %s",
 		id,
 		name,
 		state,
