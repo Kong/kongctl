@@ -166,8 +166,8 @@ func adoptTeam(
 
 	return &adoptCommon.AdoptResult{
 		ResourceType: "organization_team",
-		ID:           *updated.ID,
-		Name:         *updated.Name,
+		ID:           util.GetString(updated.ID),
+		Name:         util.GetString(updated.Name),
 		Namespace:    ns,
 	}, nil
 }

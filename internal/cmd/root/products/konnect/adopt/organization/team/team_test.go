@@ -93,7 +93,7 @@ func TestAdoptTeamAssignsNamespaceLabel(t *testing.T) {
 
 	result, err := adoptTeam(helper, stub, nil, "team-alpha", testTeamID)
 	assert.NoError(t, err)
-	assert.Equal(t, "team", result.ResourceType)
+	assert.Equal(t, "organization_team", result.ResourceType)
 	assert.Equal(t, testTeamID, result.ID)
 	assert.Equal(t, testTeamName, result.Name)
 	assert.Equal(t, "team-alpha", result.Namespace)
@@ -147,7 +147,7 @@ func TestAdoptTeamWithExistingLabels(t *testing.T) {
 
 	result, err := adoptTeam(helper, stub, nil, "team-alpha", testTeamID)
 	assert.NoError(t, err)
-	assert.Equal(t, "team", result.ResourceType)
+	assert.Equal(t, "organization_team", result.ResourceType)
 	assert.Equal(t, testTeamID, result.ID)
 	assert.Equal(t, "team-alpha", result.Namespace)
 
