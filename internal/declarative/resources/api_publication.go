@@ -132,6 +132,30 @@ func (p APIPublicationResource) GetParentRef() *ResourceRef {
 	return nil
 }
 
+// MarshalJSON ensures publication metadata (ref, portal_id, api) are included.
+// Without this, the embedded APIPublication's MarshalJSON is promoted and drops metadata fields.
+func (p APIPublicationResource) MarshalJSON() ([]byte, error) {
+	type alias struct {
+		Ref                      string                            `json:"ref"`
+		API                      string                            `json:"api,omitempty"`
+		PortalID                 string                            `json:"portal_id"`
+		AuthStrategyIDs          []string                          `json:"auth_strategy_ids,omitempty"`
+		AutoApproveRegistrations *bool                             `json:"auto_approve_registrations,omitempty"`
+		Visibility               *kkComps.APIPublicationVisibility `json:"visibility,omitempty"`
+	}
+
+	payload := alias{
+		Ref:                      p.Ref,
+		API:                      p.API,
+		PortalID:                 p.PortalID,
+		AuthStrategyIDs:          p.AuthStrategyIds,
+		AutoApproveRegistrations: p.AutoApproveRegistrations,
+		Visibility:               p.Visibility,
+	}
+
+	return json.Marshal(payload)
+}
+
 // UnmarshalJSON implements custom JSON unmarshaling to handle SDK types
 func (p *APIPublicationResource) UnmarshalJSON(data []byte) error {
 	// Temporary struct to capture all fields

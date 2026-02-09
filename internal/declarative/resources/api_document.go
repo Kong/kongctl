@@ -173,6 +173,36 @@ func (d APIDocumentResource) GetParentRef() *ResourceRef {
 	return nil
 }
 
+// MarshalJSON ensures document metadata (ref, api, parent refs, children) are included.
+// Without this, the embedded CreateAPIDocumentRequest's MarshalJSON is promoted and drops metadata fields.
+func (d APIDocumentResource) MarshalJSON() ([]byte, error) {
+	type alias struct {
+		Ref               string                     `json:"ref"`
+		API               string                     `json:"api,omitempty"`
+		Content           string                     `json:"content"`
+		Title             *string                    `json:"title,omitempty"`
+		Slug              *string                    `json:"slug,omitempty"`
+		Status            *kkComps.APIDocumentStatus `json:"status,omitempty"`
+		ParentDocumentID  string                     `json:"parent_document_id,omitempty"`
+		ParentDocumentRef string                     `json:"parent_document_ref,omitempty"`
+		Children          []APIDocumentResource      `json:"children,omitempty"`
+	}
+
+	payload := alias{
+		Ref:               d.Ref,
+		API:               d.API,
+		Content:           d.Content,
+		Title:             d.Title,
+		Slug:              d.Slug,
+		Status:            d.Status,
+		ParentDocumentID:  d.ParentDocumentID,
+		ParentDocumentRef: d.ParentDocumentRef,
+		Children:          d.Children,
+	}
+
+	return json.Marshal(payload)
+}
+
 // UnmarshalJSON implements custom JSON unmarshaling to handle SDK types
 func (d *APIDocumentResource) UnmarshalJSON(data []byte) error {
 	// Temporary struct to capture all fields

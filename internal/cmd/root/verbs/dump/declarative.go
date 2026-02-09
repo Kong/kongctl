@@ -17,6 +17,7 @@ import (
 	konnectCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	decllabels "github.com/kong/kongctl/internal/declarative/labels"
 	declresources "github.com/kong/kongctl/internal/declarative/resources"
+	declstate "github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -148,8 +149,34 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 		return err
 	}
 
+	var stateClient *declstate.Client
 	if opts.includeChildResources {
-		logger.Warn("include-child-resources is not yet supported for declarative dump; child resources are omitted")
+		stateClient = declstate.NewClient(declstate.ClientConfig{
+			PortalAPI:                     sdk.GetPortalAPI(),
+			APIAPI:                        sdk.GetAPIAPI(),
+			AppAuthAPI:                    sdk.GetAppAuthStrategiesAPI(),
+			ControlPlaneAPI:               sdk.GetControlPlaneAPI(),
+			GatewayServiceAPI:             sdk.GetGatewayServiceAPI(),
+			ControlPlaneGroupsAPI:         sdk.GetControlPlaneGroupsAPI(),
+			CatalogServiceAPI:             sdk.GetCatalogServicesAPI(),
+			PortalPageAPI:                 sdk.GetPortalPageAPI(),
+			PortalAuthSettingsAPI:         sdk.GetPortalAuthSettingsAPI(),
+			PortalCustomizationAPI:        sdk.GetPortalCustomizationAPI(),
+			PortalCustomDomainAPI:         sdk.GetPortalCustomDomainAPI(),
+			PortalSnippetAPI:              sdk.GetPortalSnippetAPI(),
+			PortalTeamAPI:                 sdk.GetPortalTeamAPI(),
+			PortalTeamRolesAPI:            sdk.GetPortalTeamRolesAPI(),
+			PortalEmailsAPI:               sdk.GetPortalEmailsAPI(),
+			AssetsAPI:                     sdk.GetAssetsAPI(),
+			APIVersionAPI:                 sdk.GetAPIVersionAPI(),
+			APIPublicationAPI:             sdk.GetAPIPublicationAPI(),
+			APIImplementationAPI:          sdk.GetAPIImplementationAPI(),
+			APIDocumentAPI:                sdk.GetAPIDocumentAPI(),
+			EGWControlPlaneAPI:            sdk.GetEventGatewayControlPlaneAPI(),
+			EventGatewayBackendClusterAPI: sdk.GetEventGatewayBackendClusterAPI(),
+			EventGatewayVirtualClusterAPI: sdk.GetEventGatewayVirtualClusterAPI(),
+			OrganizationTeamAPI:           sdk.GetOrganizationTeamAPI(),
+		})
 	}
 
 	writer, cleanup, err := getDumpWriter(helper, opts.outputFile)
@@ -174,11 +201,19 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			if err != nil {
 				return err
 			}
+			if opts.includeChildResources {
+				if err := populatePortalChildren(ctx, logger, stateClient, portals); err != nil {
+					return err
+				}
+			}
 			resourceSet.Portals = append(resourceSet.Portals, portals...)
 		case "apis":
 			apis, err := collectDeclarativeAPIs(ctx, sdk.GetAPIAPI(), requestPageSize)
 			if err != nil {
 				return err
+			}
+			if opts.includeChildResources {
+				populateAPIChildren(ctx, logger, stateClient, apis)
 			}
 			resourceSet.APIs = append(resourceSet.APIs, apis...)
 		case "application_auth_strategies":
@@ -197,6 +232,9 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			if err != nil {
 				return err
 			}
+			if opts.includeChildResources {
+				populateControlPlaneChildren(ctx, logger, stateClient, controlPlanes)
+			}
 			resourceSet.ControlPlanes = append(resourceSet.ControlPlanes, controlPlanes...)
 		case "event_gateways":
 			eventGateways, err := collectDeclarativeEventGateways(
@@ -206,6 +244,9 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			)
 			if err != nil {
 				return err
+			}
+			if opts.includeChildResources {
+				populateEventGatewayChildren(ctx, logger, stateClient, eventGateways)
 			}
 			resourceSet.EventGatewayControlPlanes = append(resourceSet.EventGatewayControlPlanes, eventGateways...)
 		case "organization.teams":
