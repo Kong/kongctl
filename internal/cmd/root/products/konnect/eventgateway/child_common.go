@@ -29,6 +29,12 @@ const (
 	virtualClusterIDConfigPath   = "konnect.event-gateway.virtual-cluster.id"
 	virtualClusterNameConfigPath = "konnect.event-gateway.virtual-cluster.name"
 
+	listenerIDFlagName   = "listener-id"
+	listenerNameFlagName = "listener-name"
+
+	listenerIDConfigPath   = "konnect.event-gateway.listener.id"
+	listenerNameConfigPath = "konnect.event-gateway.listener.name"
+
 	valueNA = "n/a"
 )
 
@@ -138,6 +144,42 @@ func bindVirtualClusterChildFlags(c *cobra.Command, args []string) error {
 
 func getVirtualClusterIdentifiers(cfg config.Hook) (id string, name string) {
 	return cfg.GetString(virtualClusterIDConfigPath), cfg.GetString(virtualClusterNameConfigPath)
+}
+
+func addListenerChildFlags(cmd *cobra.Command) {
+	cmd.Flags().String(listenerIDFlagName, "",
+		fmt.Sprintf(`The ID of the listener to retrieve.
+- Config path: [ %s ]`, listenerIDConfigPath))
+	cmd.Flags().String(listenerNameFlagName, "",
+		fmt.Sprintf(`The name of the listener to retrieve.
+- Config path: [ %s ]`, listenerNameConfigPath))
+	cmd.MarkFlagsMutuallyExclusive(listenerIDFlagName, listenerNameFlagName)
+}
+
+func bindListenerChildFlags(c *cobra.Command, args []string) error {
+	helper := cmd.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if flag := c.Flags().Lookup(listenerIDFlagName); flag != nil {
+		if err := cfg.BindFlag(listenerIDConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	if flag := c.Flags().Lookup(listenerNameFlagName); flag != nil {
+		if err := cfg.BindFlag(listenerNameConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getListenerIdentifiers(cfg config.Hook) (id string, name string) {
+	return cfg.GetString(listenerIDConfigPath), cfg.GetString(listenerNameConfigPath)
 }
 
 func resolveEventGatewayIDByName(
