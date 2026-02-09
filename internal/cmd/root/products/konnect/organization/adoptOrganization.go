@@ -29,10 +29,9 @@ func newAdoptOrganizationCmd(
 	}
 
 	teamCmd, err := team.NewTeamCmd(verb, &cobra.Command{}, addParentFlags, parentPreRun)
-	if err != nil {
-		return nil
+	if err == nil && teamCmd != nil {
+		cmd.AddCommand(teamCmd)
 	}
-	cmd.AddCommand(teamCmd)
 
 	return cmd
 }

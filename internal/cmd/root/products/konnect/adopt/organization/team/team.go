@@ -29,7 +29,7 @@ func NewTeamCmd(
 		cmd = &cobra.Command{}
 	}
 
-	cmd.Use = "team team-id"
+	cmd.Use = "team <team-id>"
 	cmd.Aliases = []string{"teams"}
 	cmd.Short = "Adopt an existing Konnect team into namespace management"
 	cmd.Long = "Apply the KONGCTL-namespace label to an existing Konnect team " +
@@ -132,7 +132,7 @@ func adoptTeam(
 	if existing := team.Labels; existing != nil {
 		if currentNamespace, ok := existing[labels.NamespaceKey]; ok && currentNamespace != "" {
 			return nil, &cmdpkg.ConfigurationError{
-				Err: fmt.Errorf("team %q already has namespace label %q", *team.Name, currentNamespace),
+				Err: fmt.Errorf("team %q already has namespace label %q", util.GetString(team.Name), currentNamespace),
 			}
 		}
 	}

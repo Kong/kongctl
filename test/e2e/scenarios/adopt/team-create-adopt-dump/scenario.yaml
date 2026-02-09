@@ -12,9 +12,9 @@ steps:
   - name: 001-create-adopt-dump-team
     skipInputs: true
     commands:
-      - name: 000-create-team-via-api
+      - name: 000-create-org-team-via-api
         create:
-          resource: team
+          resource: organization_team
           payload:
             inline:
               name: "{{ .vars.team_name }}"
