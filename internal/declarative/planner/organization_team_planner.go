@@ -97,7 +97,8 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 				protectionChange, needsUpdate)
 			protectionErrors.Add(err)
 			if err == nil {
-				t.planOrganizationTeamProtectionChangeWithFields(current, desiredTeam, currentProtected, desiredProtected, updateFields, plan)
+				t.planOrganizationTeamProtectionChangeWithFields(current, desiredTeam, currentProtected,
+					desiredProtected, updateFields, plan)
 			}
 		} else {
 			// Check if update needed based on configuration

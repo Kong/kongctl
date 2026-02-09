@@ -3654,7 +3654,8 @@ func (c *Client) GetOrganizationTeamByID(ctx context.Context, id string) (*Organ
 	return team, nil
 }
 
-func (c *Client) CreateOrganizationTeam(ctx context.Context, team *kkComps.CreateTeam, namespace string) (string, error) {
+func (c *Client) CreateOrganizationTeam(ctx context.Context, team *kkComps.CreateTeam,
+	namespace string) (string, error) {
 	resp, err := c.organizationTeamAPI.CreateOrganizationTeam(ctx, team)
 	if err != nil {
 		return "", WrapAPIError(err, "create organization team", &ErrorWrapperOptions{
