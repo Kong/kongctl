@@ -30,6 +30,7 @@ func NewTeamCmd(
 	}
 
 	cmd.Use = "team team-id"
+	cmd.Aliases = []string{"teams"}
 	cmd.Short = "Adopt an existing Konnect team into namespace management"
 	cmd.Long = "Apply the KONGCTL-namespace label to an existing Konnect team " +
 		"that is not currently managed by kongctl."

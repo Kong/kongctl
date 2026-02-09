@@ -37,7 +37,7 @@ var declarativeAllowedResources = map[string]struct{}{
 	"application_auth_strategies": {},
 	"control_planes":              {},
 	"event_gateways":              {},
-	"teams":                       {},
+	"organization.teams":          {},
 }
 
 func newDeclarativeCmd() *cobra.Command {
@@ -65,7 +65,7 @@ func newDeclarativeCmd() *cobra.Command {
 
 	cmd.Flags().String("resources", "",
 		"Comma separated list of resource types to dump "+
-			"(portals, apis, application_auth_strategies, control_planes, event_gateways).")
+			"(portals, apis, application_auth_strategies, control_planes, event_gateways, organization.teams).")
 	_ = cmd.MarkFlagRequired("resources")
 
 	cmd.Flags().BoolVar(&opts.includeChildResources, "include-child-resources", false,
@@ -208,7 +208,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				return err
 			}
 			resourceSet.EventGatewayControlPlanes = append(resourceSet.EventGatewayControlPlanes, eventGateways...)
-		case "teams":
+		case "organization.teams":
 			teams, err := collectDeclarativeTeams(
 				ctx,
 				sdk.GetOrganizationTeamAPI(),

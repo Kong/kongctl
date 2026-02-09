@@ -43,7 +43,7 @@ steps:
         run:
           - dump
           - declarative
-          - "--resources=teams"
+          - "--resources=org.teams"
           - --default-namespace
           - "{{ .vars.namespace }}"
         outputFormat: none
