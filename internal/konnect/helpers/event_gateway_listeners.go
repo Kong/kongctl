@@ -67,9 +67,9 @@ func (a *EventGatewayListenerAPIImpl) UpdateEventGatewayListener(
 	opts ...kkOps.Option,
 ) (*kkOps.UpdateEventGatewayListenerResponse, error) {
 	putRequest := kkOps.UpdateEventGatewayListenerRequest{
-		ListenerID:                         listenerID,
-		GatewayID:                          gatewayID,
-		UpdateEventGatewayListenerRequest1: &request,
+		EventGatewayListenerID:            listenerID,
+		GatewayID:                         gatewayID,
+		UpdateEventGatewayListenerRequest: &request,
 	}
 
 	return a.SDK.EventGatewayListeners.UpdateEventGatewayListener(ctx, putRequest, opts...)
