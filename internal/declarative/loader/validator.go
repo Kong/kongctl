@@ -75,12 +75,12 @@ func (l *Loader) validateOrganizationTeams(teams []resources.OrganizationTeamRes
 
 		// Validate resource
 		if err := team.Validate(); err != nil {
-			return fmt.Errorf("invalid team %q: %w", team.GetRef(), err)
+			return fmt.Errorf("invalid organization_team %q: %w", team.GetRef(), err)
 		}
 
 		// Check global ref uniqueness across different resource types
 		if existing, found := rs.GetResourceByRef(team.GetRef()); found {
-			if existing.GetType() != resources.ResourceTypeTeam {
+			if existing.GetType() != resources.ResourceTypeOrganizationTeam {
 				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
 					team.GetRef(), existing.GetType())
 			}
@@ -88,7 +88,7 @@ func (l *Loader) validateOrganizationTeams(teams []resources.OrganizationTeamRes
 
 		// Check name uniqueness (within team type only)
 		if existingRef, exists := names[team.Name]; exists {
-			return fmt.Errorf("duplicate team name '%s' (ref: %s conflicts with ref: %s)",
+			return fmt.Errorf("duplicate organization_team name '%s' (ref: %s conflicts with ref: %s)",
 				team.Name, team.GetRef(), existingRef)
 		}
 

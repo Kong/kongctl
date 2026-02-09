@@ -29,8 +29,7 @@ const (
 	ResourceTypeEventGatewayControlPlane   ResourceType = "event_gateway"
 	ResourceTypeEventGatewayBackendCluster ResourceType = "event_gateway_backend_cluster"
 	ResourceTypeEventGatewayVirtualCluster ResourceType = "event_gateway_virtual_cluster"
-	// "Team" should be OrganizationTeam
-	ResourceTypeTeam ResourceType = "organization_team"
+	ResourceTypeOrganizationTeam           ResourceType = "organization_team"
 )
 
 const (
@@ -640,9 +639,8 @@ func (rs *ResourceSet) GetBackendClusterByRef(ref string) *EventGatewayBackendCl
 	return nil
 }
 
-// GetTeamsByNamespace returns all team resources from the specified namespace
-// Should be GetOrganizationTeams...
-func (rs *ResourceSet) GetTeamsByNamespace(namespace string) []OrganizationTeamResource {
+// GetOrganizationTeamsByNamespace returns all organization_team resources from the specified namespace
+func (rs *ResourceSet) GetOrganizationTeamsByNamespace(namespace string) []OrganizationTeamResource {
 	var filtered []OrganizationTeamResource
 	for _, team := range rs.OrganizationTeams {
 		if team.IsExternal() {

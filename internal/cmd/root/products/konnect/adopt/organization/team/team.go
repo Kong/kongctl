@@ -101,7 +101,7 @@ func NewTeamCmd(
 			if name == "" {
 				name = result.ID
 			}
-			fmt.Fprintf(streams.Out, "Adopted team %q (%s) into namespace %q\n", name, result.ID, result.Namespace)
+			fmt.Fprintf(streams.Out, "Adopted organization_team %q (%s) into namespace %q\n", name, result.ID, result.Namespace)
 			return nil
 		}
 
@@ -145,16 +145,16 @@ func adoptTeam(
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
-	resp, err := teamAPI.UpdateTeam(ctx, identifier, &updateReq)
+	resp, err := teamAPI.UpdateOrganizationTeam(ctx, identifier, &updateReq)
 	if err != nil {
-		fmt.Println("Failed to update team labels:", updateReq.Labels, err)
+		fmt.Println("Failed to update organization_team labels:", updateReq.Labels, err)
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
-		return nil, cmdpkg.PrepareExecutionError("failed to update team", err, helper.GetCmd(), attrs...)
+		return nil, cmdpkg.PrepareExecutionError("failed to update organization_team", err, helper.GetCmd(), attrs...)
 	}
 
 	updated := resp.GetTeam()
 	if updated == nil {
-		return nil, fmt.Errorf("update team response missing team data")
+		return nil, fmt.Errorf("update organization_team response missing team data")
 	}
 
 	ns := namespace
@@ -165,7 +165,7 @@ func adoptTeam(
 	}
 
 	return &adoptCommon.AdoptResult{
-		ResourceType: "team",
+		ResourceType: "organization_team",
 		ID:           *updated.ID,
 		Name:         *updated.Name,
 		Namespace:    ns,
@@ -186,14 +186,14 @@ func resolveTeam(
 		}
 	}
 
-	resp, err := teamAPI.GetTeam(ctx, identifier)
+	resp, err := teamAPI.GetOrganizationTeam(ctx, identifier)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
-		return nil, cmdpkg.PrepareExecutionError("failed to retrieve team", err, helper.GetCmd(), attrs...)
+		return nil, cmdpkg.PrepareExecutionError("failed to retrieve organization_team", err, helper.GetCmd(), attrs...)
 	}
 	team := resp.GetTeam()
 	if team == nil {
-		return nil, fmt.Errorf("team %s not found", identifier)
+		return nil, fmt.Errorf("organization_team %s not found", identifier)
 	}
 	return team, nil
 }

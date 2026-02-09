@@ -209,7 +209,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			}
 			resourceSet.EventGatewayControlPlanes = append(resourceSet.EventGatewayControlPlanes, eventGateways...)
 		case "organization.teams":
-			teams, err := collectDeclarativeTeams(
+			teams, err := collectDeclarativeOrganizationTeams(
 				ctx,
 				sdk.GetOrganizationTeamAPI(),
 				requestPageSize,
@@ -407,13 +407,13 @@ func collectDeclarativeEventGateways(
 	return allData, nil
 }
 
-func collectDeclarativeTeams(
+func collectDeclarativeOrganizationTeams(
 	ctx context.Context,
 	teamClient helpers.OrganizationTeamAPI,
 	requestPageSize int64,
 ) ([]declresources.OrganizationTeamResource, error) {
 	if teamClient == nil {
-		return nil, fmt.Errorf("team client is not configured")
+		return nil, fmt.Errorf("organization team client is not configured")
 	}
 
 	var results []declresources.OrganizationTeamResource
@@ -424,7 +424,7 @@ func collectDeclarativeTeams(
 			PageNumber: Int64(pageNumber),
 		}
 
-		resp, err := teamClient.ListTeams(ctx, req)
+		resp, err := teamClient.ListOrganizationTeams(ctx, req)
 		if err != nil {
 			return false, fmt.Errorf("failed to list teams: %w", err)
 		}
@@ -439,7 +439,7 @@ func collectDeclarativeTeams(
 				// these can't be updated by users anyway
 				continue
 			}
-			results = append(results, mapTeamToDeclarativeResource(team))
+			results = append(results, mapOrganizationTeamToDeclarativeResource(team))
 		}
 
 		params := paginationParams{
@@ -547,7 +547,7 @@ func mapEventGatewayToDeclarativeResource(egw kkComps.EventGatewayInfo) declreso
 	return result
 }
 
-func mapTeamToDeclarativeResource(team kkComps.Team) declresources.OrganizationTeamResource {
+func mapOrganizationTeamToDeclarativeResource(team kkComps.Team) declresources.OrganizationTeamResource {
 	result := declresources.OrganizationTeamResource{
 		CreateTeam: kkComps.CreateTeam{
 			Name:        getString(team.Name),

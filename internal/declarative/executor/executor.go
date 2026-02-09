@@ -1635,7 +1635,7 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References["event_gateway_backend_cluster_id"] = backendClusterRef
 		}
 		return e.eventGatewayVirtualClusterExecutor.Create(ctx, *change)
-	case "team":
+	case "organization_team":
 		return e.organizationTeamExecutor.Create(ctx, *change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
@@ -1861,7 +1861,18 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			change.References["event_gateway_id"] = gatewayRef
 		}
 		return e.eventGatewayBackendClusterExecutor.Update(ctx, *change)
-	case "team":
+	case "event_gateway_virtual_cluster":
+		// Resolve event gateway reference if needed (typically should already be in Parent)
+		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
+			}
+			gatewayRef.ID = gatewayID
+			change.References["event_gateway_id"] = gatewayRef
+		}
+		return e.eventGatewayVirtualClusterExecutor.Update(ctx, *change)
+	case "organization_team":
 		return e.organizationTeamExecutor.Update(ctx, *change)
 	default:
 		return "", fmt.Errorf("update operation not yet implemented for %s", change.ResourceType)
@@ -1996,12 +2007,11 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 	case "event_gateway_backend_cluster":
 		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
 		return e.eventGatewayBackendClusterExecutor.Delete(ctx, *change)
-	// I think this should be organization_team
-	case "team":
-		return e.organizationTeamExecutor.Delete(ctx, *change)
 	case "event_gateway_virtual_cluster":
 		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
 		return e.eventGatewayVirtualClusterExecutor.Delete(ctx, *change)
+	case "organization_team":
+		return e.organizationTeamExecutor.Delete(ctx, *change)
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)
 	}

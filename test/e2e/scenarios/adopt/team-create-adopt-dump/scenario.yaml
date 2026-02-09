@@ -36,7 +36,7 @@ steps:
               fields:
                 namespace: "{{ .vars.namespace }}"
                 id: "{{ .vars.team_id }}"
-                resource_type: team
+                resource_type: organization_team
                 name: "{{ .vars.team_name }}"
 
       - name: 002-dump-teams
