@@ -16,6 +16,8 @@ func init() {
 	tableview.RegisterChildLoader("portal", "pages", loadPortalPages)
 	tableview.RegisterChildLoader("portal", "snippets", loadPortalSnippets)
 	tableview.RegisterChildLoader("portal", "teams", loadPortalTeams)
+	tableview.RegisterChildLoader("portal", "team-roles", loadPortalTeamRoles)
+	tableview.RegisterChildLoader("portal-team", "team-roles", loadPortalTeamRolesForTeam)
 	tableview.RegisterChildLoader("portal-page", "content", loadPortalPageContent)
 	tableview.RegisterChildLoader("portal-snippet", "content", loadPortalSnippetContent)
 }
@@ -215,9 +217,129 @@ func loadPortalTeams(_ context.Context, helper cmd.Helper, parent any) (tablevie
 			if index < 0 || index >= len(teams) {
 				return nil
 			}
-			return &teams[index]
+			return &portalTeamContext{
+				portalID: portalID,
+				team:     teams[index],
+			}
 		},
 	}, nil
+}
+
+func loadPortalTeamRoles(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	portalID, err := portalIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	teamAPI := sdk.GetPortalTeamAPI()
+	if teamAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("portal teams client is not available")
+	}
+
+	roleAPI := sdk.GetPortalTeamRolesAPI()
+	if roleAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("portal team roles client is not available")
+	}
+
+	teams, err := fetchPortalTeams(helper, teamAPI, portalID, cfg)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	records := make([]portalTeamRoleRecord, 0)
+	for _, team := range teams {
+		teamID := ""
+		if team.GetID() != nil {
+			teamID = *team.GetID()
+		}
+		if teamID == "" {
+			continue
+		}
+		roles, err := fetchPortalTeamRoles(helper, roleAPI, portalID, teamID, cfg)
+		if err != nil {
+			return tableview.ChildView{}, err
+		}
+		teamName := optionalPtr(team.GetName())
+		records = append(records, roleResponsesToRecords(teamName, teamID, roles)...)
+	}
+
+	return buildPortalTeamRolesChildView(records), nil
+}
+
+func loadPortalTeamRolesForTeam(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	portalID, teamID, teamName, err := portalTeamIdentifiersFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	roleAPI := sdk.GetPortalTeamRolesAPI()
+	if roleAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("portal team roles client is not available")
+	}
+
+	roles, err := fetchPortalTeamRoles(helper, roleAPI, portalID, teamID, cfg)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	records := roleResponsesToRecords(teamName, teamID, roles)
+	return buildPortalTeamRolesChildView(records), nil
+}
+
+type portalTeamContext struct {
+	portalID string
+	team     kkComps.PortalTeamResponse
+}
+
+func portalTeamIdentifiersFromParent(parent any) (string, string, string, error) {
+	if parent == nil {
+		return "", "", "", fmt.Errorf("portal team parent is nil")
+	}
+
+	switch p := parent.(type) {
+	case *portalTeamContext:
+		teamID := ""
+		if p.team.GetID() != nil {
+			teamID = strings.TrimSpace(*p.team.GetID())
+		}
+		if teamID == "" {
+			return "", "", "", fmt.Errorf("portal team identifier is missing")
+		}
+		teamName := optionalPtr(p.team.GetName())
+		return strings.TrimSpace(p.portalID), teamID, teamName, nil
+	default:
+		return "", "", "", fmt.Errorf("unexpected parent type %T", parent)
+	}
 }
 
 func portalIDFromParent(parent any) (string, error) {
