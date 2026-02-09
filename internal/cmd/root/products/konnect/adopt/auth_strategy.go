@@ -9,6 +9,7 @@ import (
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
@@ -53,15 +54,15 @@ func NewAuthStrategyCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
-	cmd.Flags().String(NamespaceFlagName, "", "Namespace label to apply to the resource")
-	if err := cmd.MarkFlagRequired(NamespaceFlagName); err != nil {
+	cmd.Flags().String(adoptCommon.NamespaceFlagName, "", "Namespace label to apply to the resource")
+	if err := cmd.MarkFlagRequired(adoptCommon.NamespaceFlagName); err != nil {
 		return nil, err
 	}
 
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
 		helper := cmdpkg.BuildHelper(cobraCmd, args)
 
-		namespace, err := cobraCmd.Flags().GetString(NamespaceFlagName)
+		namespace, err := cobraCmd.Flags().GetString(adoptCommon.NamespaceFlagName)
 		if err != nil {
 			return err
 		}
@@ -136,7 +137,7 @@ func adoptAuthStrategy(
 	cfg config.Hook,
 	namespace string,
 	identifier string,
-) (*adoptResult, error) {
+) (*adoptCommon.AdoptResult, error) {
 	strategy, err := resolveAuthStrategy(helper, api, cfg, identifier)
 	if err != nil {
 		return nil, err
@@ -162,16 +163,16 @@ func adoptAuthStrategy(
 	}
 
 	updateReq := kkComps.UpdateAppAuthStrategyRequest{
-		Labels: pointerLabelMap(existingLabels, namespace),
+		Labels: adoptCommon.PointerLabelMap(existingLabels, namespace),
 	}
 
-	ctx := ensureContext(helper.GetContext())
+	ctx := adoptCommon.EnsureContext(helper.GetContext())
 	if _, err := api.UpdateAppAuthStrategy(ctx, id, updateReq); err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
 		return nil, cmdpkg.PrepareExecutionError("failed to update auth strategy", err, helper.GetCmd(), attrs...)
 	}
 
-	return &adoptResult{
+	return &adoptCommon.AdoptResult{
 		ResourceType: "auth_strategy",
 		ID:           id,
 		Name:         name,
@@ -185,7 +186,7 @@ func resolveAuthStrategy(
 	cfg config.Hook,
 	identifier string,
 ) (*kkComps.AppAuthStrategy, error) {
-	ctx := ensureContext(helper.GetContext())
+	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
 	if util.IsValidUUID(identifier) {
 		resp, err := api.GetAppAuthStrategy(ctx, identifier)

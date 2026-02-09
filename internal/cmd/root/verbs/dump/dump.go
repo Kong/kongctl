@@ -44,6 +44,9 @@ var (
 
         # Export declarative configuration with a default namespace
         %[1]s dump declarative --resources=portal,api --default-namespace=team-alpha
+
+        # Export all organization teams
+        %[1]s dump declarative --resources=organization.teams
         `, meta.CLIName)))
 )
 

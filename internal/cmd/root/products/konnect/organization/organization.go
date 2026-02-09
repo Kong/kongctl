@@ -48,6 +48,8 @@ func NewOrganizationCmd(verb verbs.VerbValue,
 	switch verb {
 	case verbs.Get, verbs.List:
 		return newGetOrganizationCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
+	case verbs.Adopt:
+		return newAdoptOrganizationCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
 	case verbs.Delete,
 		verbs.Create,
 		verbs.Add,
@@ -60,7 +62,6 @@ func NewOrganizationCmd(verb verbs.VerbValue,
 		verbs.Sync,
 		verbs.Diff,
 		verbs.Export,
-		verbs.Adopt,
 		verbs.API,
 		verbs.Kai,
 		verbs.View,

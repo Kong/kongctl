@@ -261,7 +261,7 @@ type EventGatewayVirtualCluster struct {
 
 // Team represents a normalized team for internal use
 // I think this should be OrganizationTeam
-type Team struct {
+type OrganizationTeam struct {
 	kkComps.Team
 	NormalizedLabels map[string]string // Non-pointer labels
 }
@@ -3564,28 +3564,28 @@ func (c *Client) DeleteEventGatewayBackendCluster(
 	return nil
 }
 
-func (c *Client) ListManagedTeams(ctx context.Context, namespaces []string) ([]Team, error) {
-	if err := ValidateAPIClient(c.organizationTeamAPI, "team API"); err != nil {
+func (c *Client) ListManagedOrganizationTeams(ctx context.Context, namespaces []string) ([]OrganizationTeam, error) {
+	if err := ValidateAPIClient(c.organizationTeamAPI, "organization team API"); err != nil {
 		return nil, err
 	}
 
 	// Create paginated lister function
-	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]Team, *PageMeta, error) {
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]OrganizationTeam, *PageMeta, error) {
 		req := kkOps.ListTeamsRequest{
 			PageSize:   &pageSize,
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.organizationTeamAPI.ListTeams(ctx, req)
+		resp, err := c.organizationTeamAPI.ListOrganizationTeams(ctx, req)
 		if err != nil {
 			return nil, nil, WrapAPIError(err, "list teams", nil)
 		}
 
 		if resp.TeamCollection == nil {
-			return []Team{}, &PageMeta{Total: 0}, nil
+			return []OrganizationTeam{}, &PageMeta{Total: 0}, nil
 		}
 
-		var filtered []Team
+		var filtered []OrganizationTeam
 
 		for _, t := range resp.TeamCollection.Data {
 			normalized := t.Labels
@@ -3595,7 +3595,7 @@ func (c *Client) ListManagedTeams(ctx context.Context, namespaces []string) ([]T
 
 			if labels.IsManagedResource(normalized) &&
 				shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
-				filtered = append(filtered, Team{
+				filtered = append(filtered, OrganizationTeam{
 					Team:             t,
 					NormalizedLabels: normalized,
 				})
@@ -3610,10 +3610,10 @@ func (c *Client) ListManagedTeams(ctx context.Context, namespaces []string) ([]T
 	return PaginateAll(ctx, lister)
 }
 
-// GetTeamByName finds a managed team by name
-func (c *Client) GetTeamByName(ctx context.Context, name string) (*Team, error) {
+// GetOrganizationTeamByName finds a managed organization team by name
+func (c *Client) GetOrganizationTeamByName(ctx context.Context, name string) (*OrganizationTeam, error) {
 	// Search across all namespaces for backward compatibility
-	teams, err := c.ListManagedTeams(ctx, []string{"*"})
+	teams, err := c.ListManagedOrganizationTeams(ctx, []string{"*"})
 	if err != nil {
 		return nil, err
 	}
@@ -3627,8 +3627,8 @@ func (c *Client) GetTeamByName(ctx context.Context, name string) (*Team, error) 
 	return nil, nil // Not found
 }
 
-func (c *Client) GetTeamByID(ctx context.Context, id string) (*Team, error) {
-	resp, err := c.organizationTeamAPI.GetTeam(ctx, id)
+func (c *Client) GetOrganizationTeamByID(ctx context.Context, id string) (*OrganizationTeam, error) {
+	resp, err := c.organizationTeamAPI.GetOrganizationTeam(ctx, id)
 	if err != nil {
 		return nil, WrapAPIError(err, "get team by ID", &ErrorWrapperOptions{
 			ResourceType: "team",
@@ -3646,7 +3646,7 @@ func (c *Client) GetTeamByID(ctx context.Context, id string) (*Team, error) {
 		normalized = make(map[string]string)
 	}
 
-	team := &Team{
+	team := &OrganizationTeam{
 		Team:             *resp.Team,
 		NormalizedLabels: normalized,
 	}
@@ -3654,56 +3654,57 @@ func (c *Client) GetTeamByID(ctx context.Context, id string) (*Team, error) {
 	return team, nil
 }
 
-func (c *Client) CreateTeam(ctx context.Context, team *kkComps.CreateTeam, namespace string) (string, error) {
-	resp, err := c.organizationTeamAPI.CreateTeam(ctx, team)
+func (c *Client) CreateOrganizationTeam(ctx context.Context, team *kkComps.CreateTeam,
+	namespace string) (string, error) {
+	resp, err := c.organizationTeamAPI.CreateOrganizationTeam(ctx, team)
 	if err != nil {
-		return "", WrapAPIError(err, "create team", &ErrorWrapperOptions{
-			ResourceType: "team",
+		return "", WrapAPIError(err, "create organization team", &ErrorWrapperOptions{
+			ResourceType: "organization_team",
 			ResourceName: team.Name,
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
 	}
 
-	if err := ValidateResponse(resp.Team, "create team"); err != nil {
+	if err := ValidateResponse(resp.Team, "create organization team"); err != nil {
 		return "", err
 	}
 
 	if resp.Team.ID == nil {
-		return "", NewResponseValidationError("create team", "Team.ID")
+		return "", NewResponseValidationError("create organization team", "Team.ID")
 	}
 
 	return *resp.Team.ID, nil
 }
 
-func (c *Client) UpdateTeam(ctx context.Context, teamID string,
+func (c *Client) UpdateOrganizationTeam(ctx context.Context, teamID string,
 	team *kkComps.UpdateTeam, namespace string) (string, error) {
-	resp, err := c.organizationTeamAPI.UpdateTeam(ctx, teamID, team)
+	resp, err := c.organizationTeamAPI.UpdateOrganizationTeam(ctx, teamID, team)
 	if err != nil {
-		return "", WrapAPIError(err, "update team", &ErrorWrapperOptions{
-			ResourceType: "team",
+		return "", WrapAPIError(err, "update organization team", &ErrorWrapperOptions{
+			ResourceType: "organization_team",
 			ResourceName: getString(team.Name),
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
 	}
 
-	if err := ValidateResponse(resp.Team, "update team"); err != nil {
+	if err := ValidateResponse(resp.Team, "update organization team"); err != nil {
 		return "", err
 	}
 
 	if resp.Team.ID == nil {
-		return "", NewResponseValidationError("update team", "Team.ID")
+		return "", NewResponseValidationError("update organization team", "Team.ID")
 	}
 
 	return *resp.Team.ID, nil
 }
 
-func (c *Client) DeleteTeam(ctx context.Context, teamID string) error {
-	_, err := c.organizationTeamAPI.DeleteTeam(ctx, teamID)
+func (c *Client) DeleteOrganizationTeam(ctx context.Context, teamID string) error {
+	_, err := c.organizationTeamAPI.DeleteOrganizationTeam(ctx, teamID)
 	if err != nil {
-		return WrapAPIError(err, "delete team", &ErrorWrapperOptions{
-			ResourceType: "team",
+		return WrapAPIError(err, "delete organization team", &ErrorWrapperOptions{
+			ResourceType: "organization_team",
 			ResourceName: teamID,
 			UseEnhanced:  true,
 		})

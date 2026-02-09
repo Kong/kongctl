@@ -57,7 +57,7 @@ func (t *OrganizationTeamResource) SetDefaults() {
 
 // GetType returns the resource type
 func (t OrganizationTeamResource) GetType() ResourceType {
-	return ResourceTypeTeam
+	return ResourceTypeOrganizationTeam
 }
 
 // GetMoniker returns the resource moniker (for teams, this is the name)

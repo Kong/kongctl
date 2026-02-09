@@ -215,7 +215,7 @@ func (t *getTeamCmd) runE(c *cobra.Command, args []string) error {
 }
 
 func runGet(id string, kkClient helpers.OrganizationTeamAPI, helper cmd.Helper) (*kkComps.Team, error) {
-	res, err := kkClient.GetTeam(helper.GetContext(), id)
+	res, err := kkClient.GetOrganizationTeam(helper.GetContext(), id)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
 		return nil, cmd.PrepareExecutionError("Failed to get Team", err, helper.GetCmd(), attrs...)
@@ -241,7 +241,7 @@ func runList(kkClient helpers.OrganizationTeamAPI, helper cmd.Helper,
 			PageNumber: kk.Int64(pageNumber),
 		}
 
-		res, err := kkClient.ListTeams(helper.GetContext(), req)
+		res, err := kkClient.ListOrganizationTeams(helper.GetContext(), req)
 		if err != nil {
 			attrs := cmd.TryConvertErrorToAttrs(err)
 			return nil, cmd.PrepareExecutionError("Failed to list Teams", err, helper.GetCmd(), attrs...)
@@ -292,10 +292,10 @@ func runListByName(name string, kkClient helpers.OrganizationTeamAPI, helper cmd
 			},
 		}
 
-		res, err := kkClient.ListTeams(helper.GetContext(), req)
+		res, err := kkClient.ListOrganizationTeams(helper.GetContext(), req)
 		if err != nil {
 			attrs := cmd.TryConvertErrorToAttrs(err)
-			return nil, cmd.PrepareExecutionError("Failed to list Teams", err, helper.GetCmd(), attrs...)
+			return nil, cmd.PrepareExecutionError("Failed to list OrganizationTeams", err, helper.GetCmd(), attrs...)
 		}
 
 		data := res.GetTeamCollection().Data
@@ -322,5 +322,5 @@ func runListByName(name string, kkClient helpers.OrganizationTeamAPI, helper cmd
 		return allData, nil
 	}
 
-	return nil, fmt.Errorf("team with name %s not found", name)
+	return nil, fmt.Errorf("organization_team with name %s not found", name)
 }

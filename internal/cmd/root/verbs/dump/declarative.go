@@ -37,6 +37,7 @@ var declarativeAllowedResources = map[string]struct{}{
 	"application_auth_strategies": {},
 	"control_planes":              {},
 	"event_gateways":              {},
+	"organization.teams":          {},
 }
 
 func newDeclarativeCmd() *cobra.Command {
@@ -64,7 +65,7 @@ func newDeclarativeCmd() *cobra.Command {
 
 	cmd.Flags().String("resources", "",
 		"Comma separated list of resource types to dump "+
-			"(portals, apis, application_auth_strategies, control_planes, event_gateways).")
+			"(portals, apis, application_auth_strategies, control_planes, event_gateways, organization.teams).")
 	_ = cmd.MarkFlagRequired("resources")
 
 	cmd.Flags().BoolVar(&opts.includeChildResources, "include-child-resources", false,
@@ -207,6 +208,20 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				return err
 			}
 			resourceSet.EventGatewayControlPlanes = append(resourceSet.EventGatewayControlPlanes, eventGateways...)
+		case "organization.teams":
+			teams, err := collectDeclarativeOrganizationTeams(
+				ctx,
+				sdk.GetOrganizationTeamAPI(),
+				requestPageSize,
+			)
+			if err != nil {
+				return err
+			}
+			// Wrap teams in organization grouping for the new format
+			if resourceSet.Organization == nil {
+				resourceSet.Organization = &declresources.OrganizationResource{}
+			}
+			resourceSet.Organization.Teams = append(resourceSet.Organization.Teams, teams...)
 		}
 	}
 
@@ -392,6 +407,60 @@ func collectDeclarativeEventGateways(
 	return allData, nil
 }
 
+func collectDeclarativeOrganizationTeams(
+	ctx context.Context,
+	teamClient helpers.OrganizationTeamAPI,
+	requestPageSize int64,
+) ([]declresources.OrganizationTeamResource, error) {
+	if teamClient == nil {
+		return nil, fmt.Errorf("organization team client is not configured")
+	}
+
+	var results []declresources.OrganizationTeamResource
+
+	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
+		req := kkOps.ListTeamsRequest{
+			PageSize:   Int64(requestPageSize),
+			PageNumber: Int64(pageNumber),
+		}
+
+		resp, err := teamClient.ListOrganizationTeams(ctx, req)
+		if err != nil {
+			return false, fmt.Errorf("failed to list teams: %w", err)
+		}
+
+		if resp == nil || resp.TeamCollection == nil || len(resp.TeamCollection.Data) == 0 {
+			return false, nil
+		}
+
+		for _, team := range resp.TeamCollection.Data {
+			if team.SystemTeam != nil && *team.SystemTeam {
+				// skip system teams from declarative dump
+				// these can't be updated by users anyway
+				continue
+			}
+			results = append(results, mapOrganizationTeamToDeclarativeResource(team))
+		}
+
+		params := paginationParams{
+			pageSize:   requestPageSize,
+			pageNumber: pageNumber,
+			totalItems: resp.TeamCollection.Meta.Page.Total,
+		}
+
+		return params.hasMorePages(), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Name < results[j].Name
+	})
+
+	return results, nil
+}
+
 func mapPortalToDeclarativeResource(portal kkComps.ListPortalsResponsePortal) declresources.PortalResource {
 	result := declresources.PortalResource{
 		CreatePortal: kkComps.CreatePortal{
@@ -473,6 +542,33 @@ func mapEventGatewayToDeclarativeResource(egw kkComps.EventGatewayInfo) declreso
 
 	if labels := decllabels.GetUserLabels(egw.Labels); len(labels) > 0 {
 		result.Labels = labels
+	}
+
+	return result
+}
+
+func mapOrganizationTeamToDeclarativeResource(team kkComps.Team) declresources.OrganizationTeamResource {
+	result := declresources.OrganizationTeamResource{
+		CreateTeam: kkComps.CreateTeam{
+			Name:        getString(team.Name),
+			Description: team.Description,
+		},
+		Ref: getString(team.ID),
+	}
+
+	if labels := decllabels.GetUserLabels(team.Labels); len(labels) > 0 {
+		result.Labels = labels
+	}
+
+	if ns := strings.TrimSpace(team.Labels[decllabels.NamespaceKey]); ns != "" {
+		result.Kongctl = &declresources.KongctlMeta{Namespace: stringPointer(ns)}
+	}
+	if team.Labels[decllabels.ProtectedKey] == decllabels.TrueValue {
+		if result.Kongctl == nil {
+			result.Kongctl = &declresources.KongctlMeta{}
+		}
+		protected := true
+		result.Kongctl.Protected = &protected
 	}
 
 	return result
@@ -836,4 +932,11 @@ func stringPointer(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+func getString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

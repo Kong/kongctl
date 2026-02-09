@@ -10,6 +10,7 @@ import (
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
@@ -54,15 +55,15 @@ func NewEventGatewayControlPlaneCmd(
 		cmd.PreRunE = parentPreRun
 	}
 
-	cmd.Flags().String(NamespaceFlagName, "", "Namespace label to apply to the resource")
-	if err := cmd.MarkFlagRequired(NamespaceFlagName); err != nil {
+	cmd.Flags().String(adoptCommon.NamespaceFlagName, "", "Namespace label to apply to the resource")
+	if err := cmd.MarkFlagRequired(adoptCommon.NamespaceFlagName); err != nil {
 		return nil, err
 	}
 
 	cmd.RunE = func(cobraCmd *cobra.Command, args []string) error {
 		helper := cmdpkg.BuildHelper(cobraCmd, args)
 
-		namespace, err := cobraCmd.Flags().GetString(NamespaceFlagName)
+		namespace, err := cobraCmd.Flags().GetString(adoptCommon.NamespaceFlagName)
 		if err != nil {
 			return err
 		}
@@ -137,7 +138,7 @@ func adoptEventGatewayControlPlane(
 	cfg config.Hook,
 	namespace string,
 	identifier string,
-) (*adoptResult, error) {
+) (*adoptCommon.AdoptResult, error) {
 	egw, err := resolveEventGatewayControlPlane(helper, egwClient, cfg, identifier)
 	if err != nil {
 		return nil, err
@@ -154,10 +155,10 @@ func adoptEventGatewayControlPlane(
 	updateReq := kkComps.UpdateGatewayRequest{
 		Name:        &egw.Name,
 		Description: egw.Description,
-		Labels:      stringLabelMap(egw.Labels, namespace),
+		Labels:      adoptCommon.StringLabelMap(egw.Labels, namespace),
 	}
 
-	ctx := ensureContext(helper.GetContext())
+	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
 	resp, err := egwClient.UpdateEGWControlPlane(ctx, egw.ID, updateReq)
 	if err != nil {
@@ -182,7 +183,7 @@ func adoptEventGatewayControlPlane(
 		}
 	}
 
-	return &adoptResult{
+	return &adoptCommon.AdoptResult{
 		ResourceType: "event_gateway",
 		ID:           updated.ID,
 		Name:         updated.Name,
@@ -196,7 +197,7 @@ func resolveEventGatewayControlPlane(
 	cfg config.Hook,
 	identifier string,
 ) (*kkComps.EventGatewayInfo, error) {
-	ctx := ensureContext(helper.GetContext())
+	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
 	if util.IsValidUUID(identifier) {
 		res, err := egwClient.FetchEGWControlPlane(ctx, identifier)

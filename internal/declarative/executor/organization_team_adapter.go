@@ -78,7 +78,7 @@ func (a *OrganizationTeamAdapter) MapUpdateFields(_ context.Context, execCtx *Ex
 func (a *OrganizationTeamAdapter) Create(ctx context.Context, req kkComps.CreateTeam,
 	namespace string, _ *ExecutionContext,
 ) (string, error) {
-	resp, err := a.client.CreateTeam(ctx, &req, namespace)
+	resp, err := a.client.CreateOrganizationTeam(ctx, &req, namespace)
 	if err != nil {
 		return "", err
 	}
@@ -89,7 +89,7 @@ func (a *OrganizationTeamAdapter) Create(ctx context.Context, req kkComps.Create
 func (a *OrganizationTeamAdapter) Update(ctx context.Context, id string, req kkComps.UpdateTeam,
 	namespace string, _ *ExecutionContext,
 ) (string, error) {
-	resp, err := a.client.UpdateTeam(ctx, id, &req, namespace)
+	resp, err := a.client.UpdateOrganizationTeam(ctx, id, &req, namespace)
 	if err != nil {
 		return "", err
 	}
@@ -98,12 +98,12 @@ func (a *OrganizationTeamAdapter) Update(ctx context.Context, id string, req kkC
 
 // Delete issues a delete call via the state client
 func (a *OrganizationTeamAdapter) Delete(ctx context.Context, id string, _ *ExecutionContext) error {
-	return a.client.DeleteTeam(ctx, id)
+	return a.client.DeleteOrganizationTeam(ctx, id)
 }
 
-// GetByName resolves a team by name
+// GetByName resolves a organization_team by name
 func (a *OrganizationTeamAdapter) GetByName(ctx context.Context, name string) (ResourceInfo, error) {
-	team, err := a.client.GetTeamByName(ctx, name)
+	team, err := a.client.GetOrganizationTeamByName(ctx, name)
 	if err != nil {
 		return nil, err
 	}
@@ -113,9 +113,9 @@ func (a *OrganizationTeamAdapter) GetByName(ctx context.Context, name string) (R
 	return &OrganizationTeamResourceInfo{team: team}, nil
 }
 
-// GetByID resolves a team by ID
+// GetByID resolves a organization_team by ID
 func (a *OrganizationTeamAdapter) GetByID(ctx context.Context, id string, _ *ExecutionContext) (ResourceInfo, error) {
-	team, err := a.client.GetTeamByID(ctx, id)
+	team, err := a.client.GetOrganizationTeamByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (a *OrganizationTeamAdapter) GetByID(ctx context.Context, id string, _ *Exe
 
 // ResourceType returns the adapter resource type
 func (a *OrganizationTeamAdapter) ResourceType() string {
-	return "team"
+	return "organization_team"
 }
 
 // RequiredFields lists required fields for create
@@ -140,9 +140,9 @@ func (a *OrganizationTeamAdapter) SupportsUpdate() bool {
 	return true
 }
 
-// OrganizationTeamResourceInfo implements ResourceInfo for teams
+// OrganizationTeamResourceInfo implements ResourceInfo for organization_teams
 type OrganizationTeamResourceInfo struct {
-	team *state.Team
+	team *state.OrganizationTeam
 }
 
 func (c *OrganizationTeamResourceInfo) GetID() string {

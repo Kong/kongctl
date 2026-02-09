@@ -38,7 +38,7 @@ steps:
                 applied: 2
                 failed: 0
                 status: success
-          - select: "plan.changes[?resource_type=='team' && resource_ref=='backend-team'] | [0]"
+          - select: "plan.changes[?resource_type=='organization_team' && resource_ref=='backend-team'] | [0]"
             expect:
               fields:
                 action: CREATE
@@ -46,7 +46,7 @@ steps:
                 fields.description: "Team responsible for backend services and APIs"
                 fields.labels.department: "engineering"
                 fields.labels.focus: "backend"
-          - select: "plan.changes[?resource_type=='team' && resource_ref=='frontend-team'] | [0]"
+          - select: "plan.changes[?resource_type=='organization_team' && resource_ref=='frontend-team'] | [0]"
             expect:
               fields:
                 action: CREATE
@@ -97,13 +97,13 @@ steps:
                 applied: 2
                 failed: 0
                 status: success
-          - select: "plan.changes[?resource_type=='team' && resource_ref=='backend-team'] | [0]"
+          - select: "plan.changes[?resource_type=='organization_team' && resource_ref=='backend-team'] | [0]"
             expect:
               fields:
                 action: UPDATE
                 fields.description: "Updated: Team managing backend infrastructure, services, APIs, and databases"
                 fields.labels.tier: "core"
-          - select: "plan.changes[?resource_type=='team' && resource_ref=='frontend-team'] | [0]"
+          - select: "plan.changes[?resource_type=='organization_team' && resource_ref=='frontend-team'] | [0]"
             expect:
               fields:
                 action: UPDATE
