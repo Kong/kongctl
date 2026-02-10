@@ -12,6 +12,9 @@ import (
 )
 
 func init() {
+	if !eventGatewayViewEnabled() {
+		return
+	}
 	tableview.RegisterChildLoader("event-gateway", "backend-clusters", loadEventGatewayBackendClusters)
 	tableview.RegisterChildLoader("event-gateway", "virtual-clusters", loadEventGatewayVirtualClusters)
 }

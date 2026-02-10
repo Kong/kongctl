@@ -33,6 +33,9 @@ func BuildListView(helper cmd.Helper) (tableview.ChildView, error) {
 }
 
 func init() {
+	if !eventGatewayViewEnabled() {
+		return
+	}
 	navigator.RegisterResource(
 		"event-gateways",
 		[]string{"event-gateway", "event-gateways", "egw"},
