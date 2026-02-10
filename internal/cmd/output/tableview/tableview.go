@@ -247,7 +247,7 @@ func stylizeDetailContent(content string, palette theme.Palette) string {
 
 	labelStyle := palette.ForegroundStyle(theme.ColorTextSecondary)
 	valueStyle := palette.ForegroundStyle(theme.ColorTextPrimary)
-	accentStyle := palette.ForegroundStyle(theme.ColorAccent)
+	accentStyle := palette.ForegroundStyle(theme.ColorInfo)
 
 	lines := strings.Split(content, "\n")
 	for i, line := range lines {
@@ -3122,7 +3122,7 @@ func (m *bubbleModel) renderBreadcrumb() string {
 
 	homeStyle := m.palette.ForegroundStyle(theme.ColorPrimary)
 	baseStyle := m.palette.ForegroundStyle(theme.ColorTextSecondary)
-	activeStyle := m.palette.ForegroundStyle(theme.ColorAccent)
+	activeStyle := m.palette.ForegroundStyle(theme.ColorInfo)
 
 	var builder strings.Builder
 	home := strings.TrimSpace(m.breadcrumbs[0])

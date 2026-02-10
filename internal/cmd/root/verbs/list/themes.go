@@ -110,11 +110,14 @@ type fdProvider interface {
 }
 
 func activeThemeName(cfg config.Hook) string {
-	name := strings.ToLower(strings.TrimSpace(cfg.GetString(cmdcommon.ColorThemeConfigPath)))
+	name := strings.TrimSpace(cfg.GetString(cmdcommon.ColorThemeConfigPath))
 	if name == "" {
 		name = cmdcommon.DefaultColorTheme
 	}
-	return name
+	if pal, ok := theme.Get(name); ok {
+		return pal.Name
+	}
+	return strings.ToLower(name)
 }
 
 type themeOutput struct {
