@@ -1,0 +1,40 @@
+_defaults:
+  kongctl:
+    namespace: egw-plan-sync
+
+event_gateways:
+  - ref: plan-sync-egw
+    name: plan-sync-egw
+    description: "Updated description for plan sync workflow"
+    backend_clusters:
+      - ref: plan-sync-backend-cluster
+        name: plan-sync-backend-cluster
+        description: "Updated description for plan apply backend cluster"
+        bootstrap_servers:
+          - "egw-backend-1-updated.example.com:9092"
+        authentication:
+          type: anonymous
+        tls:
+          enabled: true
+          skip_verify: false
+          tls_versions:
+            - tls12
+            - tls13
+    virtual_clusters:
+      - ref: plan-sync-virtual-cluster
+        name: plan-sync-virtual-cluster
+        description: "Virtual cluster for plan sync workflow"
+        destination:
+          id: !ref plan-sync-backend-cluster#id
+        authentication:
+         - type: anonymous
+        acl_mode: passthrough
+        dns_label: vc-default
+    listeners:
+      - ref: plan-sync-listener
+        name: plan-sync-listener
+        description: "Listener for plan sync workflow"
+        ports:
+          - 9092
+        addresses:
+          - localhost
