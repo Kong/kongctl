@@ -186,6 +186,12 @@ func populateEventGatewayChildren(
 		} else if len(vclusters) > 0 {
 			gateway.VirtualClusters = vclusters
 		}
+
+		if listeners, err := buildEventGatewayListeners(ctx, logger, client, gatewayID); err != nil {
+			logWarn(logger, "failed to load event gateway listeners", gatewayID, gateway.Name, err)
+		} else if len(listeners) > 0 {
+			gateway.Listeners = listeners
+		}
 	}
 }
 
@@ -1040,6 +1046,39 @@ func buildEventGatewayVirtualClusters(
 				Labels:         cluster.Labels,
 			},
 			Ref: cluster.ID,
+		}
+
+		results = append(results, res)
+	}
+
+	return results, nil
+}
+
+func buildEventGatewayListeners(
+	ctx context.Context,
+	_ *slog.Logger,
+	client *declstate.Client,
+	gatewayID string,
+) ([]declresources.EventGatewayListenerResource, error) {
+	listeners, err := client.ListEventGatewayListeners(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	if len(listeners) == 0 {
+		return nil, nil
+	}
+
+	results := make([]declresources.EventGatewayListenerResource, 0, len(listeners))
+	for _, listener := range listeners {
+		res := declresources.EventGatewayListenerResource{
+			CreateEventGatewayListenerRequest: kkComps.CreateEventGatewayListenerRequest{
+				Name:        listener.Name,
+				Description: listener.Description,
+				Addresses:   listener.Addresses,
+				Ports:       listener.Ports,
+				Labels:      listener.Labels,
+			},
+			Ref: listener.ID,
 		}
 
 		results = append(results, res)
