@@ -71,6 +71,7 @@ jobs:
 
       - name: Run E2E tests (Konnect)
         env:
+          KONGCTL_PREVIEW: "1"
           KONGCTL_E2E_KONNECT_PAT: ${{ secrets.KONGCTL_E2E_KONNECT_PAT }}
           KONGCTL_E2E_KONNECT_BASE_URL: ${{ secrets.KONGCTL_E2E_KONNECT_BASE_URL }}
           # Reset is enabled by default in the harness; set explicitly for clarity
