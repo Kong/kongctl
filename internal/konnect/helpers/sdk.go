@@ -316,14 +316,6 @@ func (k *KonnectSDK) GetEventGatewayVirtualClusterAPI() EventGatewayVirtualClust
 	return &EventGatewayVirtualClusterAPIImpl{SDK: k.SDK}
 }
 
-func (k *KonnectSDK) GetOrganizationTeamAPI() OrganizationTeamAPI {
-	if k.SDK == nil || k.SDK.Teams == nil {
-		return nil
-	}
-
-	return &OrganizationTeamAPIImpl{SDK: k.SDK}
-}
-
 // Returns the implementation of the EventGatewayListener interface
 func (k *KonnectSDK) GetEventGatewayListenerAPI() EventGatewayListenerAPI {
 	if k.SDK == nil {
@@ -331,6 +323,14 @@ func (k *KonnectSDK) GetEventGatewayListenerAPI() EventGatewayListenerAPI {
 	}
 
 	return &EventGatewayListenerAPIImpl{SDK: k.SDK}
+}
+
+func (k *KonnectSDK) GetOrganizationTeamAPI() OrganizationTeamAPI {
+	if k.SDK == nil || k.SDK.Teams == nil {
+		return nil
+	}
+
+	return &OrganizationTeamAPIImpl{SDK: k.SDK}
 }
 
 // A function that can build an SDKAPI with a given configuration

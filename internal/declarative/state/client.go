@@ -51,10 +51,10 @@ type ClientConfig struct {
 	EGWControlPlaneAPI            helpers.EGWControlPlaneAPI
 	EventGatewayBackendClusterAPI helpers.EventGatewayBackendClusterAPI
 	EventGatewayVirtualClusterAPI helpers.EventGatewayVirtualClusterAPI
+	EventGatewayListenerAPI       helpers.EventGatewayListenerAPI
 
 	// Identity resources
-	OrganizationTeamAPI     helpers.OrganizationTeamAPI
-	EventGatewayListenerAPI helpers.EventGatewayListenerAPI
+	OrganizationTeamAPI helpers.OrganizationTeamAPI
 }
 
 // Client wraps Konnect SDK for state management

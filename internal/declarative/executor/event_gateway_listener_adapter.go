@@ -45,6 +45,9 @@ func (a *EventGatewayListenerAdapter) MapCreateFields(
 	if err != nil {
 		return fmt.Errorf("failed to build addresses: %w", err)
 	}
+	if len(addresses) == 0 {
+		return fmt.Errorf("at least one address is required")
+	}
 	create.Addresses = addresses
 
 	// Ports (required)
@@ -55,6 +58,9 @@ func (a *EventGatewayListenerAdapter) MapCreateFields(
 	ports, err := buildPorts(portsField)
 	if err != nil {
 		return fmt.Errorf("failed to build ports: %w", err)
+	}
+	if len(ports) == 0 {
+		return fmt.Errorf("at least one port or range of ports is required")
 	}
 	create.Ports = ports
 
@@ -86,6 +92,8 @@ func (a *EventGatewayListenerAdapter) MapUpdateFields(
 		addresses, err := buildAddresses(addressesField)
 		if err != nil {
 			return fmt.Errorf("failed to build addresses: %w", err)
+		} else if len(addresses) == 0 {
+			return fmt.Errorf("at least one address is required")
 		}
 		update.Addresses = addresses
 	}
@@ -93,6 +101,8 @@ func (a *EventGatewayListenerAdapter) MapUpdateFields(
 		ports, err := buildPorts(portsField)
 		if err != nil {
 			return fmt.Errorf("failed to build ports: %w", err)
+		} else if len(ports) == 0 {
+			return fmt.Errorf("at least one port or range of ports is required")
 		}
 		update.Ports = ports
 	}
@@ -108,8 +118,8 @@ func (a *EventGatewayListenerAdapter) MapUpdateFields(
 		}
 	}
 
-	if labels, ok := fieldsToUpdate["labels"].(map[string]string); ok {
-		update.Labels = labels
+	if labelsMap := extractLabelsField(fieldsToUpdate, "labels"); labelsMap != nil {
+		update.Labels = labelsMap
 	}
 
 	return nil
@@ -278,36 +288,48 @@ func buildAddresses(field any) ([]string, error) {
 	return result, nil
 }
 
-// buildPorts constructs EventGatewayListenerPort slice from a slice or []EventGatewayListenerPort
+// buildPorts constructs EventGatewayListenerPort slice from a slice of strings
+// Note: ports are normalized to strings before reaching this function
 func buildPorts(field any) ([]kkComps.EventGatewayListenerPort, error) {
 	// If it's already the SDK type, return it directly
 	if ports, ok := field.([]kkComps.EventGatewayListenerPort); ok {
 		return ports, nil
 	}
 
-	// Otherwise, build from []any
-	portSlice, ok := field.([]any)
-	if !ok {
-		return nil, fmt.Errorf("ports must be an array, got %T", field)
-	}
-
-	result := make([]kkComps.EventGatewayListenerPort, 0, len(portSlice))
-	for i, port := range portSlice {
-		// Port can be a string (e.g., "9092-9094") or an integer
-		switch v := port.(type) {
-		case string:
-			result = append(result, kkComps.CreateEventGatewayListenerPortStr(v))
-		case int:
-			result = append(result, kkComps.CreateEventGatewayListenerPortInteger(int64(v)))
-		case int64:
-			result = append(result, kkComps.CreateEventGatewayListenerPortInteger(v))
-		case float64:
-			// JSON numbers are unmarshaled as float64
-			result = append(result, kkComps.CreateEventGatewayListenerPortInteger(int64(v)))
-		default:
-			return nil, fmt.Errorf("ports[%d] must be a string or integer, got %T", i, port)
+	// Handle []string (all ports normalized to strings)
+	if strPorts, ok := field.([]string); ok {
+		result := make([]kkComps.EventGatewayListenerPort, 0, len(strPorts))
+		for _, portStr := range strPorts {
+			result = append(result, kkComps.CreateEventGatewayListenerPortStr(portStr))
 		}
+		return result, nil
 	}
 
-	return result, nil
+	// Handle []any where each element is a string
+	if portSlice, ok := field.([]any); ok {
+		result := make([]kkComps.EventGatewayListenerPort, 0, len(portSlice))
+		for i, port := range portSlice {
+			portStr, ok := port.(string)
+			if !ok {
+				return nil, fmt.Errorf("ports[%d] must be a string, got %T", i, port)
+			}
+			result = append(result, kkComps.CreateEventGatewayListenerPortStr(portStr))
+		}
+		return result, nil
+	}
+
+	// Handle []interface{} where each element is a string
+	if portSlice, ok := field.([]interface{}); ok {
+		result := make([]kkComps.EventGatewayListenerPort, 0, len(portSlice))
+		for i, port := range portSlice {
+			portStr, ok := port.(string)
+			if !ok {
+				return nil, fmt.Errorf("ports[%d] must be a string, got %T", i, port)
+			}
+			result = append(result, kkComps.CreateEventGatewayListenerPortStr(portStr))
+		}
+		return result, nil
+	}
+
+	return nil, fmt.Errorf("ports must be an array, got %T", field)
 }
