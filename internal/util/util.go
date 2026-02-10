@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 )
 
 // InitDir initializes a directory with the given mode
@@ -49,9 +50,19 @@ func GetStringFromReflectValue(v reflect.Value) (string, error) {
 	}
 }
 
-// IsPreviewEnabled returns true if preview features (like Event Gateway) are enabled
+// IsEventGatewayEnabled returns true if Event Gateway features are enabled
 // via the KONGCTL_ENABLE_EVENT_GATEWAY environment variable.
-func IsPreviewEnabled() bool {
-	preview := os.Getenv("KONGCTL_ENABLE_EVENT_GATEWAY")
-	return preview != ""
+// Accepts standard boolean string values: "1", "t", "T", "TRUE", "true", "True" for true;
+// "0", "f", "F", "FALSE", "false", "False" for false. Empty string is treated as false.
+func IsEventGatewayEnabled() bool {
+	enabled := os.Getenv("KONGCTL_ENABLE_EVENT_GATEWAY")
+	if enabled == "" {
+		return false
+	}
+	val, err := strconv.ParseBool(enabled)
+	if err != nil {
+		// If parsing fails, treat as enabled (any non-empty, non-parseable value)
+		return true
+	}
+	return val
 }

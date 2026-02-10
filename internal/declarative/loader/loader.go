@@ -561,7 +561,7 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 		accumulated.OrganizationTeams = append(accumulated.OrganizationTeams, team)
 	}
 
-	if util.IsPreviewEnabled() {
+	if util.IsEventGatewayEnabled() {
 		for _, egwControlPlane := range source.EventGatewayControlPlanes {
 			if accumulated.HasRef(egwControlPlane.Ref) {
 				existing, _ := accumulated.GetResourceByRef(egwControlPlane.Ref)
@@ -750,7 +750,7 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 	}
 
 	// Apply defaults to ControlPlanes (parent resources)
-	if util.IsPreviewEnabled() {
+	if util.IsEventGatewayEnabled() {
 		for i := range rs.EventGatewayControlPlanes {
 			if err := assignNamespace(
 				&rs.EventGatewayControlPlanes[i].Kongctl,
@@ -880,7 +880,7 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 		rs.PortalEmailTemplates[i].SetDefaults()
 	}
 
-	if util.IsPreviewEnabled() {
+	if util.IsEventGatewayEnabled() {
 		for i := range rs.EventGatewayControlPlanes {
 			rs.EventGatewayControlPlanes[i].SetDefaults()
 		}

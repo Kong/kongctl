@@ -74,7 +74,7 @@ func parseResourceList(resources string) []string {
 func validateResourceList(resources string, allowed map[string]struct{}) error {
 	trimmed := strings.TrimSpace(resources)
 	if trimmed == "" {
-		return &cmdpkg.ConfigurationError{Err: fmt.Errorf("resources cannot be empty")}
+		return &cmdpkg.ConfigurationError{Err: fmt.Errorf("resources must have at least one valid value")}
 	}
 
 	allowedList := make([]string, 0, len(allowed))
@@ -119,7 +119,7 @@ func normalizeResourceList(resources string, allowed map[string]struct{}) ([]str
 	}
 
 	// Filter out event gateway resources if preview is not enabled
-	if !util.IsPreviewEnabled() {
+	if !util.IsEventGatewayEnabled() {
 		filtered := make([]string, 0, len(normalized))
 		for _, resource := range normalized {
 			if !isEventGatewayResource(resource) {

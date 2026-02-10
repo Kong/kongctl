@@ -295,7 +295,7 @@ func init() {
 		currProfile = profileEnvVar
 	}
 
-	// Remove EventGateway commands from root for non-Konnect products
+	// Remove Event Gateway commands from root when not explicitly enabled.
 	// Visibility controlled by KONGCTL_ENABLE_EVENT_GATEWAY environment variable.
 	removeEventGatewayCommands()
 }
@@ -310,7 +310,7 @@ func removeEventGatewayCommands() {
 	}
 
 	// Check if event gateway resources should be hidden
-	if util.IsPreviewEnabled() {
+	if util.IsEventGatewayEnabled() {
 		// If preview is enabled, keep event gateway commands
 		return
 	}
