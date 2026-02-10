@@ -25,6 +25,11 @@ type ConsumerGroupContext struct {
 	ConsumerGroupID string
 }
 
+type UpstreamContext struct {
+	ControlPlaneID string
+	UpstreamID     string
+}
+
 func ServiceContextFromParent(parent any) (*ServiceContext, error) {
 	ctx, ok := parent.(*ServiceContext)
 	if !ok || ctx == nil {
@@ -98,5 +103,24 @@ func ConsumerGroupContextFromParent(parent any) (*ConsumerGroupContext, error) {
 	return &ConsumerGroupContext{
 		ControlPlaneID:  controlPlaneID,
 		ConsumerGroupID: groupID,
+	}, nil
+}
+
+func UpstreamContextFromParent(parent any) (*UpstreamContext, error) {
+	ctx, ok := parent.(*UpstreamContext)
+	if !ok || ctx == nil {
+		return nil, fmt.Errorf("unexpected parent type %T", parent)
+	}
+	controlPlaneID := strings.TrimSpace(ctx.ControlPlaneID)
+	if controlPlaneID == "" {
+		return nil, fmt.Errorf("control plane identifier is missing")
+	}
+	upstreamID := strings.TrimSpace(ctx.UpstreamID)
+	if upstreamID == "" {
+		return nil, fmt.Errorf("upstream identifier is missing")
+	}
+	return &UpstreamContext{
+		ControlPlaneID: controlPlaneID,
+		UpstreamID:     upstreamID,
 	}, nil
 }

@@ -7,6 +7,7 @@ import (
 	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/plugin"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/route"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/service"
+	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/upstream"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
