@@ -269,6 +269,31 @@ func (rs *ResourceSet) GetResourceByRef(ref string) (Resource, bool) {
 		}
 	}
 
+	// Check Event Gateway resources
+	for i := range rs.EventGatewayControlPlanes {
+		if rs.EventGatewayControlPlanes[i].GetRef() == ref {
+			return &rs.EventGatewayControlPlanes[i], true
+		}
+	}
+
+	for i := range rs.EventGatewayBackendClusters {
+		if rs.EventGatewayBackendClusters[i].GetRef() == ref {
+			return &rs.EventGatewayBackendClusters[i], true
+		}
+	}
+
+	for i := range rs.EventGatewayVirtualClusters {
+		if rs.EventGatewayVirtualClusters[i].GetRef() == ref {
+			return &rs.EventGatewayVirtualClusters[i], true
+		}
+	}
+
+	for i := range rs.EventGatewayListeners {
+		if rs.EventGatewayListeners[i].GetRef() == ref {
+			return &rs.EventGatewayListeners[i], true
+		}
+	}
+
 	return nil, false
 }
 
