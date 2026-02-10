@@ -69,7 +69,7 @@ func (a *EventGatewayListenerAdapter) MapCreateFields(
 		create.Description = &desc
 	}
 
-	if labelsMap := extractLabelsField(fields, "labels"); labelsMap != nil {
+	if labelsMap := extractLabelsField(fields); labelsMap != nil {
 		create.Labels = labelsMap
 	}
 
@@ -118,7 +118,7 @@ func (a *EventGatewayListenerAdapter) MapUpdateFields(
 		}
 	}
 
-	if labelsMap := extractLabelsField(fieldsToUpdate, "labels"); labelsMap != nil {
+	if labelsMap := extractLabelsField(fieldsToUpdate); labelsMap != nil {
 		update.Labels = labelsMap
 	}
 
