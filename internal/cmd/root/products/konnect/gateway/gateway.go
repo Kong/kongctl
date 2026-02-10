@@ -2,7 +2,9 @@ package gateway
 
 import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/consumer"
+	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/consumergroup"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/controlplane"
+	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/plugin"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/route"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/service"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"

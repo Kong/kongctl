@@ -127,25 +127,25 @@ func routeDetailView(route kkComps.Route) string {
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "Name: %s\n", name)
-	fmt.Fprintf(&b, "ID: %s\n", id)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	fmt.Fprintf(&b, "id: %s\n", id)
 
 	if len(r.Hosts) > 0 {
-		fmt.Fprintf(&b, "Hosts: %s\n", strings.Join(r.Hosts, ", "))
+		fmt.Fprintf(&b, "hosts: %s\n", strings.Join(r.Hosts, ", "))
 	} else {
-		fmt.Fprintf(&b, "Hosts: %s\n", missing)
+		fmt.Fprintf(&b, "hosts: %s\n", missing)
 	}
 
 	if len(r.Paths) > 0 {
-		fmt.Fprintf(&b, "Paths: %s\n", strings.Join(r.Paths, ", "))
+		fmt.Fprintf(&b, "paths: %s\n", strings.Join(r.Paths, ", "))
 	} else {
-		fmt.Fprintf(&b, "Paths: %s\n", missing)
+		fmt.Fprintf(&b, "paths: %s\n", missing)
 	}
 
 	if len(r.Methods) > 0 {
-		fmt.Fprintf(&b, "Methods: %s\n", strings.Join(r.Methods, ", "))
+		fmt.Fprintf(&b, "methods: %s\n", strings.Join(r.Methods, ", "))
 	} else {
-		fmt.Fprintf(&b, "Methods: %s\n", missing)
+		fmt.Fprintf(&b, "methods: %s\n", missing)
 	}
 
 	if len(r.Protocols) > 0 {
@@ -153,21 +153,27 @@ func routeDetailView(route kkComps.Route) string {
 		for i, p := range r.Protocols {
 			protos[i] = string(p)
 		}
-		fmt.Fprintf(&b, "Protocols: %s\n", strings.Join(protos, ", "))
+		fmt.Fprintf(&b, "protocols: %s\n", strings.Join(protos, ", "))
 	} else {
-		fmt.Fprintf(&b, "Protocols: %s\n", missing)
+		fmt.Fprintf(&b, "protocols: %s\n", missing)
 	}
 
-	fmt.Fprintf(&b, "Strip Path: %s\n", boolPointerString(r.StripPath, missing))
-	fmt.Fprintf(&b, "Preserve Host: %s\n", boolPointerString(r.PreserveHost, missing))
+	if len(r.Tags) > 0 {
+		fmt.Fprintf(&b, "tags: %s\n", strings.Join(r.Tags, ", "))
+	} else {
+		fmt.Fprintf(&b, "tags: %s\n", missing)
+	}
+
+	fmt.Fprintf(&b, "strip_path: %s\n", boolPointerString(r.StripPath, missing))
+	fmt.Fprintf(&b, "preserve_host: %s\n", boolPointerString(r.PreserveHost, missing))
 
 	if r.CreatedAt != nil {
 		created := time.Unix(0, *r.CreatedAt*int64(time.Millisecond)).In(time.Local)
-		fmt.Fprintf(&b, "Created: %s\n", created.Format("2006-01-02 15:04:05"))
+		fmt.Fprintf(&b, "created_at: %s\n", created.Format("2006-01-02 15:04:05"))
 	}
 	if r.UpdatedAt != nil {
 		updated := time.Unix(0, *r.UpdatedAt*int64(time.Millisecond)).In(time.Local)
-		fmt.Fprintf(&b, "Updated: %s\n", updated.Format("2006-01-02 15:04:05"))
+		fmt.Fprintf(&b, "updated_at: %s\n", updated.Format("2006-01-02 15:04:05"))
 	}
 
 	return b.String()

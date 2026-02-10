@@ -245,7 +245,7 @@ func renderConsumers(
 		if index < 0 || index >= len(consumers) {
 			return ""
 		}
-		return consumerDetailView(&consumers[index])
+		return ConsumerDetailView(&consumers[index])
 	}
 
 	var raw any
@@ -309,7 +309,7 @@ func consumerToDisplayRecord(consumer *kkComps.Consumer) consumerDisplayRecord {
 	}
 }
 
-func consumerDetailView(consumer *kkComps.Consumer) string {
+func ConsumerDetailView(consumer *kkComps.Consumer) string {
 	if consumer == nil {
 		return ""
 	}
@@ -348,12 +348,12 @@ func consumerDetailView(consumer *kkComps.Consumer) string {
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "Consumer ID: %s\n", id)
-	fmt.Fprintf(&b, "Username: %s\n", username)
-	fmt.Fprintf(&b, "Custom ID: %s\n", customID)
-	fmt.Fprintf(&b, "Tags: %s\n", tagsLine)
-	fmt.Fprintf(&b, "Created: %s\n", created)
-	fmt.Fprintf(&b, "Updated: %s\n", updated)
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "username: %s\n", username)
+	fmt.Fprintf(&b, "custom_id: %s\n", customID)
+	fmt.Fprintf(&b, "tags: %s\n", tagsLine)
+	fmt.Fprintf(&b, "created_at: %s\n", created)
+	fmt.Fprintf(&b, "updated_at: %s\n", updated)
 
 	return b.String()
 }

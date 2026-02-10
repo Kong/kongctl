@@ -5,7 +5,198 @@ _info:
     - "kongctl-example"
 
 services:
-  - name: "example-gw-svc"
-    url: "https://api.kong-air.com/"
+  - name: example-http-service
+    url: http://httpbin.konghq.com
     tags:
-      - "kongctl-example"
+      - kongctl-example
+    routes:
+      - name: example-http-route
+        paths:
+          - /example
+        protocols:
+          - http
+          - https
+        tags:
+          - kongctl-example
+
+  - name: example-grpc-service
+    protocol: grpc
+    host: grpcb.in
+    port: 9000
+    tags:
+      - kongctl-example
+    routes:
+      - name: example-grpc-http-route
+        protocols:
+          - http
+        paths:
+          - /grpc
+        tags:
+          - kongctl-example
+
+  - name: example-api-service
+    url: http://example-api.com
+    protocol: http
+    host: example-api.com
+    port: 80
+    path: /v1
+    retries: 5
+    connect_timeout: 5000
+    write_timeout: 60000
+    read_timeout: 60000
+    enabled: true
+    tags:
+      - kongctl-example
+    routes:
+      - name: example-api-route
+        methods:
+          - GET
+          - POST
+        hosts:
+          - example.com
+          - another-example.com
+          - yet-another-example.com
+        paths:
+          - ~/v1/example/?$
+          - /v1/another-example
+          - /v1/yet-another-example
+        protocols:
+          - http
+          - https
+        headers:
+          x-my-header:
+            - ~*foos?bar$
+          x-another-header:
+            - first-header-value
+            - second-header-value
+        regex_priority: 1
+        strip_path: false
+        preserve_host: true
+        https_redirect_status_code: 302
+        tags:
+          - kongctl-example
+
+plugins:
+  - name: key-auth
+    config:
+      key_names:
+        - apikey-global
+      key_in_header: true
+      key_in_query: true
+      key_in_body: false
+      hide_credentials: false
+      run_on_preflight: true
+    protocols:
+      - http
+      - https
+      - grpc
+      - grpcs
+    enabled: true
+    tags:
+      - kongctl-example
+
+  - name: rate-limiting
+    service: example-http-service
+    config:
+      minute: 10
+      limit_by: consumer
+      policy: local
+      fault_tolerant: true
+      error_code: 429
+      error_message: "API rate limit exceeded"
+      hide_client_headers: false
+    protocols:
+      - http
+      - https
+    enabled: true
+    tags:
+      - kongctl-example
+
+  - name: cors
+    route: example-api-route
+    config:
+      origins:
+        - example.com
+      methods:
+        - GET
+        - POST
+      headers:
+        - Authorization
+      exposed_headers:
+        - X-My-Header
+      max_age: 3600
+      credentials: true
+    enabled: true
+    tags:
+      - kongctl-example
+
+consumers:
+  - username: alice
+    custom_id: alice123
+    tags:
+      - kongctl-example
+      - alice
+    keyauth_credentials:
+      - key: alicekey
+        tags:
+          - alice
+    jwt_secrets:
+      - algorithm: HS256
+        key: alicejwtkey
+        secret: alicejwtsecret
+    plugins:
+      - name: rate-limiting
+        config:
+          hour: 10
+          limit_by: consumer
+          policy: local
+          fault_tolerant: true
+          error_code: 429
+          error_message: "API rate limit exceeded"
+          hide_client_headers: false
+        enabled: true
+        protocols:
+          - http
+          - https
+          - grpc
+          - grpcs
+
+  # Simpler consumer with only key-auth
+  - username: bob
+    custom_id: bob456
+    tags:
+      - kongctl-example
+      - bob
+    keyauth_credentials:
+      - key: bobkey
+
+consumer_groups:
+  - name: example-consumer-group
+    consumers:
+      - username: alice
+      - username: bob
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 20
+          limit_by: consumer
+          policy: local
+          fault_tolerant: true
+          error_code: 429
+          error_message: "Group rate limit exceeded"
+          hide_client_headers: false
+    tags:
+      - kongctl-example
+
+upstreams:
+  - name: example-upstream
+    algorithm: round-robin
+    hash_on: none
+    hash_fallback: none
+    tags:
+      - kongctl-example
+    targets:
+      - target: 127.0.0.1:9001
+        weight: 100
+      - target: 127.0.0.1:9002
+        weight: 50

@@ -114,47 +114,47 @@ func serviceDetailView(s *kkComps.ServiceOutput) string {
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "Name: %s\n", name)
-	fmt.Fprintf(&b, "ID: %s\n", id)
-	fmt.Fprintf(&b, "Host: %s\n", s.Host)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "host: %s\n", s.Host)
 
 	port := missing
 	if s.Port != nil {
 		port = strconv.FormatInt(*s.Port, 10)
 	}
-	fmt.Fprintf(&b, "Port: %s\n", port)
+	fmt.Fprintf(&b, "port: %s\n", port)
 
 	path := missing
 	if s.Path != nil && *s.Path != "" {
 		path = *s.Path
 	}
-	fmt.Fprintf(&b, "Path: %s\n", path)
+	fmt.Fprintf(&b, "path: %s\n", path)
 
 	protocol := missing
 	if s.Protocol != nil {
 		protocol = string(*s.Protocol)
 	}
-	fmt.Fprintf(&b, "Protocol: %s\n", protocol)
+	fmt.Fprintf(&b, "protocol: %s\n", protocol)
 
 	enabled := missing
 	if s.Enabled != nil {
 		enabled = strconv.FormatBool(*s.Enabled)
 	}
-	fmt.Fprintf(&b, "Enabled: %s\n", enabled)
+	fmt.Fprintf(&b, "enabled: %s\n", enabled)
 
 	if len(s.Tags) > 0 {
-		fmt.Fprintf(&b, "Tags: %s\n", strings.Join(s.Tags, ", "))
+		fmt.Fprintf(&b, "tags: %s\n", strings.Join(s.Tags, ", "))
 	} else {
-		fmt.Fprintf(&b, "Tags: %s\n", missing)
+		fmt.Fprintf(&b, "tags: %s\n", missing)
 	}
 
 	if s.CreatedAt != nil {
 		created := time.Unix(0, *s.CreatedAt*int64(time.Millisecond)).In(time.Local)
-		fmt.Fprintf(&b, "Created: %s\n", created.Format("2006-01-02 15:04:05"))
+		fmt.Fprintf(&b, "created_at: %s\n", created.Format("2006-01-02 15:04:05"))
 	}
 	if s.UpdatedAt != nil {
 		updated := time.Unix(0, *s.UpdatedAt*int64(time.Millisecond)).In(time.Local)
-		fmt.Fprintf(&b, "Updated: %s\n", updated.Format("2006-01-02 15:04:05"))
+		fmt.Fprintf(&b, "updated_at: %s\n", updated.Format("2006-01-02 15:04:05"))
 	}
 
 	return b.String()
