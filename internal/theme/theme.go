@@ -13,7 +13,10 @@ import (
 )
 
 // DefaultName is the built-in theme used when no override is provided.
-const DefaultName = "kong"
+const DefaultName = "kong-light"
+
+// LegacyName is the deprecated theme name kept for backward compatibility.
+const LegacyName = "kong"
 
 // Token represents a semantic color slot within the CLI.
 type Token string
@@ -156,7 +159,7 @@ func Exists(name string) bool {
 	registryMu.RLock()
 	defer registryMu.RUnlock()
 
-	_, ok := palettes[sanitizeName(name)]
+	_, ok := palettes[resolveName(name)]
 	return ok
 }
 
@@ -167,7 +170,7 @@ func Get(name string) (Palette, bool) {
 	registryMu.RLock()
 	defer registryMu.RUnlock()
 
-	p, ok := palettes[sanitizeName(name)]
+	p, ok := palettes[resolveName(name)]
 	return p, ok
 }
 
@@ -175,7 +178,7 @@ func Get(name string) (Palette, bool) {
 func SetCurrent(name string) error {
 	ensureRegistry()
 
-	name = sanitizeName(name)
+	name = resolveName(name)
 	if name == "" {
 		name = DefaultName
 	}
@@ -203,7 +206,7 @@ func Current() Palette {
 
 // CurrentName returns the ID of the active palette.
 func CurrentName() string {
-	return sanitizeName(Current().Name)
+	return resolveName(Current().Name)
 }
 
 // Flag is a pflag.Value implementation for theme IDs.
@@ -213,7 +216,7 @@ type Flag struct {
 
 // NewFlag returns a Flag with the provided default value.
 func NewFlag(defaultValue string) *Flag {
-	name := sanitizeName(defaultValue)
+	name := resolveName(defaultValue)
 	if name == "" || !Exists(name) {
 		name = DefaultName
 	}
@@ -230,7 +233,7 @@ func (f *Flag) String() string {
 
 // Set implements pflag.Value.
 func (f *Flag) Set(v string) error {
-	name := sanitizeName(v)
+	name := resolveName(v)
 	if name == "" {
 		name = DefaultName
 	}
@@ -259,7 +262,8 @@ func ensureRegistry() {
 
 		palettes = make(map[string]Palette)
 
-		registerPalette(kongPalette())
+		registerPalette(kongLightPalette())
+		registerPalette(kongDarkPalette())
 		defaultPal = palettes[DefaultName]
 		current = defaultPal
 
@@ -307,6 +311,18 @@ func fallbackColor(token Token) Color {
 
 func sanitizeName(name string) string {
 	return strings.TrimSpace(strings.ToLower(name))
+}
+
+func resolveName(name string) string {
+	normalized := sanitizeName(name)
+	switch normalized {
+	case "":
+		return ""
+	case LegacyName:
+		return DefaultName
+	default:
+		return normalized
+	}
 }
 
 func paletteFromTint(t tint.Tint) Palette {
@@ -480,31 +496,60 @@ func relativeLuminance(c colorful.Color) float64 {
 	return 0.2126*r + 0.7152*g + 0.0722*b
 }
 
-func kongPalette() Palette {
+func kongLightPalette() Palette {
 	return Palette{
 		Name:        DefaultName,
-		DisplayName: "Kong (Default)",
-		About:       "Kong-branded palette inspired by the Kai experience.",
+		DisplayName: "Kong Light",
+		About:       "Kong light theme based on the 2026 brand guidelines.",
 		Colors: map[Token]Color{
-			ColorTextPrimary:   pairColor("#0A0A0A", "#FFFFFF"),
-			ColorTextSecondary: pairColor("#1F2026", "#D7D9E3"),
-			ColorTextMuted:     pairColor("#8B8FA3", "#6A6F85"),
-			ColorBorder:        pairColor("#4A4D65", "#4A4D65"),
-			ColorSurface:       pairColor("#FFFFFF", "#121418"),
-			ColorSurfaceText:   pairColor("#0A0A0A", "#FFFFFF"),
-			ColorPrimary:       pairColor("#0C7C51", "#0C7C51"),
-			ColorPrimaryText:   pairColor("#121418", "#121418"),
-			ColorAccent:        pairColor("#F8C77E", "#F8C77E"),
-			ColorAccentText:    pairColor("#121418", "#121418"),
-			ColorSuccess:       pairColor("#0C7C51", "#0C7C51"),
-			ColorSuccessText:   pairColor("#121418", "#121418"),
-			ColorInfo:          pairColor("#286FEB", "#286FEB"),
-			ColorInfoText:      pairColor("#0A0A0A", "#F8F8F8"),
-			ColorWarning:       pairColor("#F8C77E", "#F8C77E"),
-			ColorWarningText:   pairColor("#121418", "#121418"),
-			ColorDanger:        pairColor("#E25D5D", "#E25D5D"),
-			ColorDangerText:    pairColor("#121418", "#121418"),
-			ColorHighlight:     pairColor("#E8EDF4", "#E8EDF4"),
+			ColorTextPrimary:   singleColor("#000F06"),
+			ColorTextSecondary: singleColor("#4A4D49"),
+			ColorTextMuted:     singleColor("#676B66"),
+			ColorBorder:        singleColor("#CDD4CB"),
+			ColorSurface:       singleColor("#FFFFFF"),
+			ColorSurfaceText:   singleColor("#000F06"),
+			ColorPrimary:       singleColor("#000F06"),
+			ColorPrimaryText:   singleColor("#FFFFFF"),
+			ColorAccent:        singleColor("#CCFF00"),
+			ColorAccentText:    singleColor("#000F06"),
+			ColorSuccess:       singleColor("#000F06"),
+			ColorSuccessText:   singleColor("#FFFFFF"),
+			ColorInfo:          singleColor("#B7BDB5"),
+			ColorInfoText:      singleColor("#000F06"),
+			ColorWarning:       singleColor("#CCFF00"),
+			ColorWarningText:   singleColor("#000F06"),
+			ColorDanger:        singleColor("#2D2E2C"),
+			ColorDangerText:    singleColor("#FFFFFF"),
+			ColorHighlight:     singleColor("#E7EDE5"),
+		},
+	}
+}
+
+func kongDarkPalette() Palette {
+	return Palette{
+		Name:        "kong-dark",
+		DisplayName: "Kong Dark",
+		About:       "Kong dark theme based on the 2026 brand guidelines.",
+		Colors: map[Token]Color{
+			ColorTextPrimary:   singleColor("#FFFFFF"),
+			ColorTextSecondary: singleColor("#D7DED4"),
+			ColorTextMuted:     singleColor("#B7BDB5"),
+			ColorBorder:        singleColor("#2D2E2C"),
+			ColorSurface:       singleColor("#000F06"),
+			ColorSurfaceText:   singleColor("#FFFFFF"),
+			ColorPrimary:       singleColor("#CCFF00"),
+			ColorPrimaryText:   singleColor("#000F06"),
+			ColorAccent:        singleColor("#B7BDB5"),
+			ColorAccentText:    singleColor("#000F06"),
+			ColorSuccess:       singleColor("#CCFF00"),
+			ColorSuccessText:   singleColor("#000F06"),
+			ColorInfo:          singleColor("#B7BDB5"),
+			ColorInfoText:      singleColor("#000F06"),
+			ColorWarning:       singleColor("#CCFF00"),
+			ColorWarningText:   singleColor("#000F06"),
+			ColorDanger:        singleColor("#4A4D49"),
+			ColorDangerText:    singleColor("#FFFFFF"),
+			ColorHighlight:     singleColor("#2D2E2C"),
 		},
 	}
 }

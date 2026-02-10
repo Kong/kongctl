@@ -205,10 +205,12 @@ flow token file so that subsequent commands prompt you to authenticate again wit
 
 ### Color Themes
 
-Interactive experiences, such as `kongctl kai` or `kongctl view`, share a configurable 
-color theme. Use the `--color-theme` flag (or set the `color-theme` key in your configuration file) 
-to select a palette. The default `kong` theme mirrors the existing brand styling, and you can switch to any
-[`bubbletint`](https://github.com/lrstanley/bubbletint) theme by ID, for example:
+Interactive experiences, such as `kongctl kai` or `kongctl view`, share a configurable
+color theme. Use the `--color-theme` flag (or set the `color-theme` key in your configuration file)
+to select a palette. The default `kong-light` theme reflects the current brand styling, with a
+`kong-dark` option for dark terminals. The legacy `kong` name remains supported as an alias for
+`kong-light`, and you can also switch to any [`bubbletint`](https://github.com/lrstanley/bubbletint)
+theme by ID, for example:
 
 ```yaml
 default:
