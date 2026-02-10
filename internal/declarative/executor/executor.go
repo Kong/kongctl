@@ -1894,9 +1894,8 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			change.References["event_gateway_id"] = gatewayRef
 		}
 		return e.eventGatewayVirtualClusterExecutor.Update(ctx, *change)
-<<<<<<< HEAD
 	case "organization_team":
-=======
+		return e.organizationTeamExecutor.Update(ctx, *change)
 	case "event_gateway_listener":
 		// Resolve event gateway reference if needed (typically should already be in Parent)
 		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
@@ -1908,9 +1907,6 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			change.References["event_gateway_id"] = gatewayRef
 		}
 		return e.eventGatewayListenerExecutor.Update(ctx, *change)
-	case "team":
->>>>>>> 38e66fb (feat: declarative management of event gateway listeners)
-		return e.organizationTeamExecutor.Update(ctx, *change)
 	default:
 		return "", fmt.Errorf("update operation not yet implemented for %s", change.ResourceType)
 	}
