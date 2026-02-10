@@ -1,7 +1,0 @@
-# Note: Not a part of release yet.
-event_gateways:
-  - ref: getting-started-event-gateway
-    name: "My First Event Gateway"
-    description: "My first event gateway control plane for managing event-driven architectures"
-    kongctl:
-      namespace: "default"

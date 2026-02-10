@@ -296,7 +296,7 @@ func init() {
 	}
 
 	// Remove EventGateway commands from root for non-Konnect products
-	// Visibility controlled by KONGCTL_PREVIEW environment variable.
+	// Visibility controlled by KONGCTL_ENABLE_EVENT_GATEWAY environment variable.
 	removeEventGatewayCommands()
 }
 

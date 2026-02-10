@@ -50,8 +50,8 @@ func GetStringFromReflectValue(v reflect.Value) (string, error) {
 }
 
 // IsPreviewEnabled returns true if preview features (like Event Gateway) are enabled
-// via the KONGCTL_PREVIEW environment variable.
+// via the KONGCTL_ENABLE_EVENT_GATEWAY environment variable.
 func IsPreviewEnabled() bool {
-	preview := os.Getenv("KONGCTL_PREVIEW")
+	preview := os.Getenv("KONGCTL_ENABLE_EVENT_GATEWAY")
 	return preview != ""
 }
