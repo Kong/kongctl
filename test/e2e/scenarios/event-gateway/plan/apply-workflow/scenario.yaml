@@ -3,6 +3,9 @@ baseInputsPath: ../../../../testdata/declarative/event-gateways/plan/apply
 env:
   KONGCTL_LOG_LEVEL: info
 
+test:
+  enabledByEnvVar: KONGCTL_PREVIEW
+
 vars:
   egwRef: plan-apply-egw
   egwName: plan-apply-egw

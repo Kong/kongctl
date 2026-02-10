@@ -3,6 +3,9 @@ baseInputsPath: ../../../../testdata/declarative/event-gateways/plan/sync
 env:
   KONGCTL_LOG_LEVEL: info
 
+test:
+  enabledByEnvVar: KONGCTL_PREVIEW
+
 vars:
   egwRef: plan-sync-egw
   egwName: plan-sync-egw
