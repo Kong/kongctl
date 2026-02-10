@@ -1,0 +1,9 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-listener-comprehensive-test
+
+event_gateways:
+  - ref: egw-cp-for-listener-test-ref
+    name: egw-cp-for-listener-test-name
+    description: "EGW CP for Listener Test"
+    # No listeners - they will be deleted by sync
