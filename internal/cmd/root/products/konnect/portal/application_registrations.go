@@ -559,16 +559,16 @@ func portalApplicationRegistrationDetailView(reg *kkComps.ApplicationRegistratio
 	app := reg.GetApplication()
 
 	b := &strings.Builder{}
-	fmt.Fprintf(b, "ID: %s\n", util.AbbreviateUUID(reg.GetID()))
-	fmt.Fprintf(b, "Status: %s\n", reg.GetStatus())
-	fmt.Fprintf(b, "Application: %s (%s)\n", app.GetName(), app.GetID())
-	fmt.Fprintf(b, "API: %s", api.GetName())
+	fmt.Fprintf(b, "id: %s\n", util.AbbreviateUUID(reg.GetID()))
+	fmt.Fprintf(b, "status: %s\n", reg.GetStatus())
+	fmt.Fprintf(b, "application: %s (%s)\n", app.GetName(), app.GetID())
+	fmt.Fprintf(b, "api: %s", api.GetName())
 	if version := api.GetVersion(); version != nil && strings.TrimSpace(*version) != "" {
 		fmt.Fprintf(b, " (%s)", strings.TrimSpace(*version))
 	}
-	fmt.Fprintf(b, "\nEntity Type: %s\n", api.GetEntityType())
-	fmt.Fprintf(b, "Created: %s\n", reg.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
-	fmt.Fprintf(b, "Updated: %s\n", reg.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(b, "\nentity_type: %s\n", api.GetEntityType())
+	fmt.Fprintf(b, "created_at: %s\n", reg.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(b, "updated_at: %s\n", reg.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"))
 
 	return b.String()
 }

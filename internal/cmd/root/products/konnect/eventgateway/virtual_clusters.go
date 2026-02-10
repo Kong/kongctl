@@ -479,3 +479,95 @@ func virtualClusterToRecord(cluster kkComps.VirtualCluster) virtualClusterSummar
 		LocalUpdatedTime: updatedAt,
 	}
 }
+
+func buildVirtualClusterChildView(clusters []kkComps.VirtualCluster) tableview.ChildView {
+	rows := make([]table.Row, 0, len(clusters))
+	for i := range clusters {
+		record := virtualClusterToRecord(clusters[i])
+		rows = append(rows, table.Row{record.ID, record.Name, record.DNSLabel})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(clusters) {
+			return ""
+		}
+		return virtualClusterDetailView(&clusters[index])
+	}
+
+	return tableview.ChildView{
+		Headers:        []string{"ID", "NAME", "DNS LABEL"},
+		Rows:           rows,
+		DetailRenderer: detailFn,
+		Title:          "Virtual Clusters",
+		ParentType:     "virtual-cluster",
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(clusters) {
+				return nil
+			}
+			return &clusters[index]
+		},
+	}
+}
+
+func virtualClusterDetailView(cluster *kkComps.VirtualCluster) string {
+	if cluster == nil {
+		return ""
+	}
+
+	id := strings.TrimSpace(cluster.ID)
+	if id == "" {
+		id = valueNA
+	}
+
+	name := strings.TrimSpace(cluster.Name)
+	if name == "" {
+		name = valueNA
+	}
+
+	description := valueNA
+	if cluster.Description != nil && strings.TrimSpace(*cluster.Description) != "" {
+		description = strings.TrimSpace(*cluster.Description)
+	}
+
+	dnsLabel := strings.TrimSpace(cluster.DNSLabel)
+	if dnsLabel == "" {
+		dnsLabel = valueNA
+	}
+
+	destination := valueNA
+	if strings.TrimSpace(cluster.Destination.ID) != "" {
+		destination = util.AbbreviateUUID(strings.TrimSpace(cluster.Destination.ID))
+		if strings.TrimSpace(cluster.Destination.Name) != "" {
+			destination = fmt.Sprintf("%s (%s)", cluster.Destination.Name, destination)
+		}
+	} else if strings.TrimSpace(cluster.Destination.Name) != "" {
+		destination = strings.TrimSpace(cluster.Destination.Name)
+	}
+
+	labels := formatLabelPairs(cluster.Labels)
+	aclMode := strings.TrimSpace(string(cluster.ACLMode))
+	if aclMode == "" {
+		aclMode = valueNA
+	}
+
+	authValue := formatJSONValue(cluster.Authentication)
+	namespaceValue := formatJSONValue(cluster.Namespace)
+
+	createdAt := cluster.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+	updatedAt := cluster.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	fmt.Fprintf(&b, "description: %s\n", description)
+	fmt.Fprintf(&b, "dns_label: %s\n", dnsLabel)
+	fmt.Fprintf(&b, "destination: %s\n", destination)
+	fmt.Fprintf(&b, "acl_mode: %s\n", aclMode)
+	fmt.Fprintf(&b, "labels: %s\n", labels)
+	fmt.Fprintf(&b, "authentication: %s\n", authValue)
+	fmt.Fprintf(&b, "namespace: %s\n", namespaceValue)
+	fmt.Fprintf(&b, "created_at: %s\n", createdAt)
+	fmt.Fprintf(&b, "updated_at: %s\n", updatedAt)
+
+	return strings.TrimRight(b.String(), "\n")
+}

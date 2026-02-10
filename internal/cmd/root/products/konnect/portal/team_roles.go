@@ -262,16 +262,6 @@ func renderTeamRoles(
 	printer cli.PrintFlusher,
 	records []portalTeamRoleRecord,
 ) error {
-	tableRows := make([]table.Row, 0, len(records))
-	for _, rec := range records {
-		tableRows = append(tableRows, table.Row{
-			rec.Team,
-			rec.RoleName,
-			rec.EntityTypeName,
-			rec.EntityID,
-		})
-	}
-
 	return tableview.RenderForFormat(
 		false,
 		outType,
@@ -282,7 +272,7 @@ func renderTeamRoles(
 		"",
 		tableview.WithCustomTable(
 			[]string{"TEAM", "ROLE", "ENTITY TYPE", "ENTITY ID"},
-			tableRows,
+			portalTeamRoleTableRows(records),
 		),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
@@ -308,6 +298,46 @@ func roleResponsesToRecords(
 		})
 	}
 	return records
+}
+
+func buildPortalTeamRolesChildView(records []portalTeamRoleRecord) tableview.ChildView {
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(records) {
+			return ""
+		}
+		return portalTeamRoleDetailView(records[index])
+	}
+
+	return tableview.ChildView{
+		Headers:        []string{"TEAM", "ROLE", "ENTITY TYPE", "ENTITY ID"},
+		Rows:           portalTeamRoleTableRows(records),
+		DetailRenderer: detailFn,
+		Title:          "Team Roles",
+		ParentType:     "portal-team-role",
+	}
+}
+
+func portalTeamRoleTableRows(records []portalTeamRoleRecord) []table.Row {
+	rows := make([]table.Row, 0, len(records))
+	for _, rec := range records {
+		rows = append(rows, table.Row{
+			rec.Team,
+			rec.RoleName,
+			rec.EntityTypeName,
+			rec.EntityID,
+		})
+	}
+	return rows
+}
+
+func portalTeamRoleDetailView(record portalTeamRoleRecord) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "team: %s\n", strings.TrimSpace(record.Team))
+	fmt.Fprintf(&b, "team_id: %s\n", strings.TrimSpace(record.TeamID))
+	fmt.Fprintf(&b, "role_name: %s\n", strings.TrimSpace(record.RoleName))
+	fmt.Fprintf(&b, "entity_type_name: %s\n", strings.TrimSpace(record.EntityTypeName))
+	fmt.Fprintf(&b, "entity_id: %s\n", strings.TrimSpace(record.EntityID))
+	return strings.TrimRight(b.String(), "\n")
 }
 
 func fetchPortalTeamRoles(

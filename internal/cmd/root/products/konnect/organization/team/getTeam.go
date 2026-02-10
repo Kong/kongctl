@@ -2,11 +2,13 @@ package team
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
@@ -323,4 +325,81 @@ func runListByName(name string, kkClient helpers.OrganizationTeamAPI, helper cmd
 	}
 
 	return nil, fmt.Errorf("organization_team with name %s not found", name)
+}
+
+func buildTeamChildView(teams []kkComps.Team) tableview.ChildView {
+	rows := make([]table.Row, 0, len(teams))
+	for i := range teams {
+		record := teamToDisplayRecord(&teams[i])
+		rows = append(rows, table.Row{record.ID, record.Name})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(teams) {
+			return ""
+		}
+		return teamDetailView(&teams[index])
+	}
+
+	return tableview.ChildView{
+		Headers:        []string{"ID", "NAME"},
+		Rows:           rows,
+		DetailRenderer: detailFn,
+		Title:          "Teams",
+		ParentType:     "team",
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(teams) {
+				return nil
+			}
+			return &teams[index]
+		},
+	}
+}
+
+func teamDetailView(team *kkComps.Team) string {
+	if team == nil {
+		return ""
+	}
+
+	const missing = "n/a"
+
+	id := missing
+	if value := team.GetID(); value != nil && *value != "" {
+		id = util.AbbreviateUUID(*value)
+	}
+
+	name := missing
+	if value := team.GetName(); value != nil && *value != "" {
+		name = *value
+	}
+
+	description := missing
+	if value := team.GetDescription(); value != nil && *value != "" {
+		description = *value
+	}
+
+	isSystem := missing
+	if value := team.GetSystemTeam(); value != nil {
+		isSystem = fmt.Sprintf("%t", *value)
+	}
+
+	createdAt := missing
+	if value := team.GetCreatedAt(); value != nil {
+		createdAt = value.In(time.Local).Format("2006-01-02 15:04:05")
+	}
+
+	updatedAt := missing
+	if value := team.GetUpdatedAt(); value != nil {
+		updatedAt = value.In(time.Local).Format("2006-01-02 15:04:05")
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	fmt.Fprintf(&b, "description: %s\n", description)
+	fmt.Fprintf(&b, "system_team: %s\n", isSystem)
+	fmt.Fprintf(&b, "created_at: %s\n", createdAt)
+	fmt.Fprintf(&b, "updated_at: %s\n", updatedAt)
+
+	return strings.TrimRight(b.String(), "\n")
 }

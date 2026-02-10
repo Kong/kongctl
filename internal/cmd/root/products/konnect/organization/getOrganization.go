@@ -99,6 +99,89 @@ func organizationToDisplayRecord(org *kkComps.MeOrganization) textDisplayRecord 
 	return record
 }
 
+func buildOrganizationChildView(org *kkComps.MeOrganization) tableview.ChildView {
+	detailFn := func(int) string {
+		return organizationDetailView(org)
+	}
+
+	return tableview.ChildView{
+		DetailRenderer: detailFn,
+		Title:          "Organization",
+		ParentType:     "organization",
+		DetailContext: func(int) any {
+			return org
+		},
+		Mode: tableview.ChildViewModeDetail,
+	}
+}
+
+func organizationDetailView(org *kkComps.MeOrganization) string {
+	if org == nil {
+		return ""
+	}
+
+	const missing = "n/a"
+
+	id := missing
+	if value := org.GetID(); value != nil && *value != "" {
+		id = util.AbbreviateUUID(*value)
+	}
+
+	name := missing
+	if value := org.GetName(); value != nil && *value != "" {
+		name = *value
+	}
+
+	state := missing
+	if value := org.GetState(); value != nil && *value != "" {
+		state = string(*value)
+	}
+
+	ownerID := missing
+	if value := org.GetOwnerID(); value != nil && *value != "" {
+		ownerID = util.AbbreviateUUID(*value)
+	}
+
+	loginPath := missing
+	if value := org.GetLoginPath(); value != nil && *value != "" {
+		loginPath = *value
+	}
+
+	retention := missing
+	if value := org.GetRetentionPeriodDays(); value != nil {
+		retention = fmt.Sprintf("%d", *value)
+	}
+
+	createdAt := missing
+	if value := org.GetCreatedAt(); value != nil {
+		createdAt = value.In(time.Local).Format("2006-01-02 15:04:05")
+	}
+
+	updatedAt := missing
+	if value := org.GetUpdatedAt(); value != nil {
+		updatedAt = value.In(time.Local).Format("2006-01-02 15:04:05")
+	}
+
+	return fmt.Sprintf(
+		"id: %s\n"+
+			"name: %s\n"+
+			"state: %s\n"+
+			"owner_id: %s\n"+
+			"login_path: %s\n"+
+			"retention_period_days: %s\n"+
+			"created_at: %s\n"+
+			"updated_at: %s",
+		id,
+		name,
+		state,
+		ownerID,
+		loginPath,
+		retention,
+		createdAt,
+		updatedAt,
+	)
+}
+
 type getOrganizationCmd struct {
 	*cobra.Command
 }

@@ -2,11 +2,13 @@ package systemaccount
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
@@ -288,4 +290,81 @@ func runListByName(name string, kkClient helpers.SystemAccountAPI, helper cmd.He
 		return &allData[0], nil
 	}
 	return nil, fmt.Errorf("system account with name %s not found", name)
+}
+
+func buildSystemAccountChildView(accounts []kkComps.SystemAccount) tableview.ChildView {
+	rows := make([]table.Row, 0, len(accounts))
+	for i := range accounts {
+		record := systemAccountToDisplayRecord(&accounts[i])
+		rows = append(rows, table.Row{record.ID, record.Name})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(accounts) {
+			return ""
+		}
+		return systemAccountDetailView(&accounts[index])
+	}
+
+	return tableview.ChildView{
+		Headers:        []string{"ID", "NAME"},
+		Rows:           rows,
+		DetailRenderer: detailFn,
+		Title:          "System Accounts",
+		ParentType:     "system-account",
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(accounts) {
+				return nil
+			}
+			return &accounts[index]
+		},
+	}
+}
+
+func systemAccountDetailView(account *kkComps.SystemAccount) string {
+	if account == nil {
+		return ""
+	}
+
+	const missing = "n/a"
+
+	id := missing
+	if value := account.GetID(); value != nil && *value != "" {
+		id = util.AbbreviateUUID(*value)
+	}
+
+	name := missing
+	if value := account.GetName(); value != nil && *value != "" {
+		name = *value
+	}
+
+	description := missing
+	if value := account.GetDescription(); value != nil && *value != "" {
+		description = *value
+	}
+
+	konnectManaged := missing
+	if value := account.GetKonnectManaged(); value != nil {
+		konnectManaged = fmt.Sprintf("%t", *value)
+	}
+
+	createdAt := missing
+	if value := account.GetCreatedAt(); value != nil {
+		createdAt = value.In(time.Local).Format("2006-01-02 15:04:05")
+	}
+
+	updatedAt := missing
+	if value := account.GetUpdatedAt(); value != nil {
+		updatedAt = value.In(time.Local).Format("2006-01-02 15:04:05")
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	fmt.Fprintf(&b, "description: %s\n", description)
+	fmt.Fprintf(&b, "konnect_managed: %s\n", konnectManaged)
+	fmt.Fprintf(&b, "created_at: %s\n", createdAt)
+	fmt.Fprintf(&b, "updated_at: %s\n", updatedAt)
+
+	return strings.TrimRight(b.String(), "\n")
 }
