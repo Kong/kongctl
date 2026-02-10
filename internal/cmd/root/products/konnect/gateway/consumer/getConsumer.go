@@ -245,7 +245,7 @@ func renderConsumers(
 		if index < 0 || index >= len(consumers) {
 			return ""
 		}
-		return ConsumerDetailView(&consumers[index])
+		return DetailView(&consumers[index])
 	}
 
 	var raw any
@@ -309,7 +309,7 @@ func consumerToDisplayRecord(consumer *kkComps.Consumer) consumerDisplayRecord {
 	}
 }
 
-func ConsumerDetailView(consumer *kkComps.Consumer) string {
+func DetailView(consumer *kkComps.Consumer) string {
 	if consumer == nil {
 		return ""
 	}

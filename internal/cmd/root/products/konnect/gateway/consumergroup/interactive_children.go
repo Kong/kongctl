@@ -155,7 +155,7 @@ func loadConsumerGroupConsumers(_ context.Context, helper cmd.Helper, parent any
 		if index < 0 || index >= len(consumers) {
 			return ""
 		}
-		return gatewayconsumer.ConsumerDetailView(&consumers[index])
+		return gatewayconsumer.DetailView(&consumers[index])
 	}
 
 	return tableview.ChildView{

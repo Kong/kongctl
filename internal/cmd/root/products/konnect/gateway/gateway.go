@@ -2,12 +2,12 @@ package gateway
 
 import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/consumer"
-	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/consumergroup"
+	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/consumergroup" // register consumer-group child loaders
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/controlplane"
-	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/plugin"
+	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/plugin" // register plugin child loaders
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/route"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/service"
-	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/upstream"
+	_ "github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway/upstream" // register upstream child loaders
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"

@@ -65,7 +65,7 @@ func loadControlPlaneConsumers(_ context.Context, helper cmd.Helper, parent any)
 		if index < 0 || index >= len(consumers) {
 			return ""
 		}
-		return ConsumerDetailView(&consumers[index])
+		return DetailView(&consumers[index])
 	}
 
 	return tableview.ChildView{
