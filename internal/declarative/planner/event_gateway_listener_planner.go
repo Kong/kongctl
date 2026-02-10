@@ -3,7 +3,9 @@ package planner
 import (
 	"context"
 	"fmt"
+	"reflect"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
@@ -171,7 +173,8 @@ func (p *Planner) planListenerCreate(
 		fields["description"] = *listener.Description
 	}
 	fields["addresses"] = listener.Addresses
-	fields["ports"] = listener.Ports
+	// Normalize ports to strings for API compatibility
+	fields["ports"] = normalizePortsToStrings(convertPortsToAny(listener.Ports))
 	if len(listener.Labels) > 0 {
 		fields["labels"] = listener.Labels
 	}
@@ -279,6 +282,91 @@ func (p *Planner) planListenerDelete(
 	plan.AddChange(change)
 }
 
+// convertPortsToAny converts ports field to []any for processing
+// Handles various port types (EventGatewayListenerPort, []any, etc.)
+func convertPortsToAny(ports any) []any {
+	if ports == nil {
+		return []any{}
+	}
+
+	// Check if already []any
+	if portsSlice, ok := ports.([]any); ok {
+		return portsSlice
+	}
+
+	// Use reflection to convert slice to []any
+	val := reflect.ValueOf(ports)
+	if val.Kind() != reflect.Slice {
+		return []any{}
+	}
+
+	result := make([]any, val.Len())
+	for i := 0; i < val.Len(); i++ {
+		result[i] = val.Index(i).Interface()
+	}
+	return result
+}
+
+// extractPortStrings extracts string values from EventGatewayListenerPort array
+// Assumes all ports are already normalized to string type
+func extractPortStrings(ports any) []string {
+	result := []string{}
+
+	// Use reflection to handle the slice
+	val := reflect.ValueOf(ports)
+	if val.Kind() != reflect.Slice {
+		return result
+	}
+
+	for i := 0; i < val.Len(); i++ {
+		portVal := val.Index(i).Interface()
+
+		// Extract string from EventGatewayListenerPort struct
+		if egwPort, ok := portVal.(kkComps.EventGatewayListenerPort); ok {
+			if egwPort.Str != nil {
+				result = append(result, *egwPort.Str)
+			}
+		}
+	}
+
+	return result
+}
+
+// normalizePortsToStrings converts EventGatewayListenerPort array to string array
+// Ports can be either integers or strings (for ranges), so we normalize to strings
+func normalizePortsToStrings(ports []any) []string {
+	result := make([]string, 0, len(ports))
+	for _, port := range ports {
+		// Check if it's an EventGatewayListenerPort struct
+		if egwPort, ok := port.(kkComps.EventGatewayListenerPort); ok {
+			// Extract the actual value based on the Type field
+			if egwPort.Integer != nil {
+				result = append(result, fmt.Sprintf("%d", *egwPort.Integer))
+			} else if egwPort.Str != nil {
+				result = append(result, *egwPort.Str)
+			}
+			continue
+		}
+
+		// Fallback to handle other types (for backwards compatibility)
+		switch v := port.(type) {
+		case string:
+			result = append(result, v)
+		case int:
+			result = append(result, fmt.Sprintf("%d", v))
+		case int64:
+			result = append(result, fmt.Sprintf("%d", v))
+		case float64:
+			// JSON unmarshaling sometimes converts numbers to float64
+			result = append(result, fmt.Sprintf("%.0f", v))
+		default:
+			// Fallback: use fmt.Sprint
+			result = append(result, fmt.Sprint(v))
+		}
+	}
+	return result
+}
+
 // shouldUpdateListener compares current and desired listener state
 func (p *Planner) shouldUpdateListener(
 	current state.EventGatewayListener,
@@ -310,8 +398,11 @@ func (p *Planner) shouldUpdateListener(
 		needsUpdate = true
 	}
 
-	// Compare ports (simplified - full comparison would need deep equality check)
-	if len(current.Ports) != len(desired.Ports) {
+	// Compare ports - extract string values and compare
+	// Ports are normalized to strings during unmarshaling
+	currentPortStrings := extractPortStrings(current.Ports)
+	desiredPortStrings := extractPortStrings(desired.Ports)
+	if !compareStringSlices(currentPortStrings, desiredPortStrings) {
 		needsUpdate = true
 	}
 
@@ -320,6 +411,8 @@ func (p *Planner) shouldUpdateListener(
 		if !compareMaps(current.Labels, desired.Labels) {
 			needsUpdate = true
 		}
+	} else if len(current.Labels) > 0 {
+		needsUpdate = true
 	}
 
 	// If any changes detected, set ALL properties from desired state for PUT request
@@ -331,10 +424,14 @@ func (p *Planner) shouldUpdateListener(
 		}
 
 		updates["addresses"] = desired.Addresses
-		updates["ports"] = desired.Ports
+		// Extract string values from ports for updates
+		updates["ports"] = extractPortStrings(desired.Ports)
 
 		if len(desired.Labels) > 0 {
 			updates["labels"] = desired.Labels
+		} else if len(current.Labels) > 0 {
+			// Clear labels if desired state has no labels but current state has labels
+			updates["labels"] = map[string]string{}
 		}
 	}
 
