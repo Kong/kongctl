@@ -175,6 +175,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			EGWControlPlaneAPI:            sdk.GetEventGatewayControlPlaneAPI(),
 			EventGatewayBackendClusterAPI: sdk.GetEventGatewayBackendClusterAPI(),
 			EventGatewayVirtualClusterAPI: sdk.GetEventGatewayVirtualClusterAPI(),
+			EventGatewayListenerAPI:       sdk.GetEventGatewayListenerAPI(),
 			OrganizationTeamAPI:           sdk.GetOrganizationTeamAPI(),
 		})
 	}
