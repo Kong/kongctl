@@ -504,34 +504,34 @@ func portalApplicationDetailViewFromUnion(app kkComps.Application) string {
 			break
 		}
 		strategy := key.GetAuthStrategy()
-		fmt.Fprintf(&b, "Name: %s\n", key.GetName())
-		fmt.Fprintf(&b, "ID: %s\n", key.GetID())
-		fmt.Fprintf(&b, "Type: key-auth\n")
-		fmt.Fprintf(&b, "Auth Strategy: %s\n", stringPtrOrNA(strategy.GetName()))
-		fmt.Fprintf(&b, "Credential Detail: %s\n", joinOrNA(strategy.KeyNames))
-		fmt.Fprintf(&b, "Registration Count: %.0f\n", key.GetRegistrationCount())
-		fmt.Fprintf(&b, "Created: %s\n", formatTime(key.GetCreatedAt()))
-		fmt.Fprintf(&b, "Updated: %s\n", formatTime(key.GetUpdatedAt()))
+		fmt.Fprintf(&b, "name: %s\n", key.GetName())
+		fmt.Fprintf(&b, "id: %s\n", key.GetID())
+		fmt.Fprintf(&b, "type: key-auth\n")
+		fmt.Fprintf(&b, "auth_strategy: %s\n", stringPtrOrNA(strategy.GetName()))
+		fmt.Fprintf(&b, "credential_detail: %s\n", joinOrNA(strategy.KeyNames))
+		fmt.Fprintf(&b, "registration_count: %.0f\n", key.GetRegistrationCount())
+		fmt.Fprintf(&b, "created_at: %s\n", formatTime(key.GetCreatedAt()))
+		fmt.Fprintf(&b, "updated_at: %s\n", formatTime(key.GetUpdatedAt()))
 	case kkComps.ApplicationTypeClientCredentialsApplication:
 		client := app.ClientCredentialsApplication
 		if client == nil {
 			break
 		}
 		strategy := client.GetAuthStrategy()
-		fmt.Fprintf(&b, "Name: %s\n", client.GetName())
-		fmt.Fprintf(&b, "ID: %s\n", client.GetID())
-		fmt.Fprintf(&b, "Type: client-credentials\n")
-		fmt.Fprintf(&b, "Auth Strategy: %s\n", stringPtrOrNA(strategy.GetName()))
-		fmt.Fprintf(&b, "Credential Detail: %s\n", joinOrNA(strategy.AuthMethods))
-		fmt.Fprintf(&b, "Client ID: %s\n", nonEmptyOrNA(client.GetClientID()))
-		fmt.Fprintf(&b, "Granted Scopes: %s\n", joinOrNA(client.GetGrantedScopes()))
-		fmt.Fprintf(&b, "Registration Count: %.0f\n", client.GetRegistrationCount())
-		fmt.Fprintf(&b, "Created: %s\n", formatTime(client.GetCreatedAt()))
-		fmt.Fprintf(&b, "Updated: %s\n", formatTime(client.GetUpdatedAt()))
+		fmt.Fprintf(&b, "name: %s\n", client.GetName())
+		fmt.Fprintf(&b, "id: %s\n", client.GetID())
+		fmt.Fprintf(&b, "type: client-credentials\n")
+		fmt.Fprintf(&b, "auth_strategy: %s\n", stringPtrOrNA(strategy.GetName()))
+		fmt.Fprintf(&b, "credential_detail: %s\n", joinOrNA(strategy.AuthMethods))
+		fmt.Fprintf(&b, "client_id: %s\n", nonEmptyOrNA(client.GetClientID()))
+		fmt.Fprintf(&b, "granted_scopes: %s\n", joinOrNA(client.GetGrantedScopes()))
+		fmt.Fprintf(&b, "registration_count: %.0f\n", client.GetRegistrationCount())
+		fmt.Fprintf(&b, "created_at: %s\n", formatTime(client.GetCreatedAt()))
+		fmt.Fprintf(&b, "updated_at: %s\n", formatTime(client.GetUpdatedAt()))
 	default:
-		fmt.Fprintf(&b, "Type: %s\n", string(app.Type))
-		fmt.Fprintf(&b, "Name: %s\n", missing)
-		fmt.Fprintf(&b, "ID: %s\n", missing)
+		fmt.Fprintf(&b, "type: %s\n", string(app.Type))
+		fmt.Fprintf(&b, "name: %s\n", missing)
+		fmt.Fprintf(&b, "id: %s\n", missing)
 	}
 
 	return b.String()
