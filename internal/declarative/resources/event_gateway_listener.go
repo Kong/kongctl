@@ -103,11 +103,11 @@ func (e *EventGatewayListenerResource) UnmarshalJSON(data []byte) error {
 		Kongctl      any    `json:"kongctl,omitempty"`
 
 		// Fields from kkComps.CreateEventGatewayListenerRequest
-		Name        string                            `json:"name"`
-		Description *string                           `json:"description,omitempty"`
-		Addresses   []string                          `json:"addresses"`
+		Name        string                             `json:"name"`
+		Description *string                            `json:"description,omitempty"`
+		Addresses   []string                           `json:"addresses"`
 		Ports       []kkComps.EventGatewayListenerPort `json:"ports"`
-		Labels      map[string]string                 `json:"labels,omitempty"`
+		Labels      map[string]string                  `json:"labels,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -126,7 +126,23 @@ func (e *EventGatewayListenerResource) UnmarshalJSON(data []byte) error {
 	e.Name = temp.Name
 	e.Description = temp.Description
 	e.Addresses = temp.Addresses
-	e.Ports = temp.Ports
+
+	// Normalize ports: convert integer ports to string ports
+	e.Ports = make([]kkComps.EventGatewayListenerPort, len(temp.Ports))
+	for i, port := range temp.Ports {
+		if port.Type == kkComps.EventGatewayListenerPortTypeInteger && port.Integer != nil {
+			// Convert integer port to string
+			strValue := fmt.Sprintf("%d", *port.Integer)
+			e.Ports[i] = kkComps.EventGatewayListenerPort{
+				Str:  &strValue,
+				Type: kkComps.EventGatewayListenerPortTypeStr,
+			}
+		} else {
+			// Keep as-is
+			e.Ports[i] = port
+		}
+	}
+
 	e.Labels = temp.Labels
 
 	return nil
