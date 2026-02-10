@@ -13,6 +13,7 @@ import (
 
 func init() {
 	tableview.RegisterChildLoader("event-gateway", "backend-clusters", loadEventGatewayBackendClusters)
+	tableview.RegisterChildLoader("event-gateway", "virtual-clusters", loadEventGatewayVirtualClusters)
 }
 
 func loadEventGatewayBackendClusters(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
@@ -47,6 +48,40 @@ func loadEventGatewayBackendClusters(_ context.Context, helper cmd.Helper, paren
 	}
 
 	return buildBackendClusterChildView(clusters), nil
+}
+
+func loadEventGatewayVirtualClusters(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	gatewayID, err := eventGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	clusterAPI := sdk.GetEventGatewayVirtualClusterAPI()
+	if clusterAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("event gateway virtual clusters client is not available")
+	}
+
+	clusters, err := fetchVirtualClusters(helper, clusterAPI, gatewayID, cfg)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	return buildVirtualClusterChildView(clusters), nil
 }
 
 func eventGatewayIDFromParent(parent any) (string, error) {
