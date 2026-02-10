@@ -43,8 +43,6 @@ Output can be formatted in multiple ways to aid in further processing.`))
 		%[1]s get gateway control-planes
 		# Retrieve Konnect control planes (explicit)
 		%[1]s get konnect gateway control-planes
-		# Retrieve Konnect Event Gateways
-		%[1]s get event-gateways
 		`, meta.CLIName)))
 )
 

@@ -1,3 +1,4 @@
+# Note: Not a part of release yet.
 event_gateways:
   - ref: getting-started-event-gateway
     name: "My First Event Gateway"
