@@ -14,6 +14,9 @@ vars:
   vcRef: plan-sync-virtual-cluster
   vcName: plan-sync-virtual-cluster
   vcDesc: "Virtual cluster for plan sync workflow"
+  listenerRef: plan-sync-listener
+  listenerName: plan-sync-listener
+  listenerDesc: "Listener for plan sync workflow"
 
 defaults:
   mask:
@@ -316,6 +319,97 @@ steps:
                 acl_mode: "passthrough"
                 "length(authentication)": 1
                 authentication[0].type: "anonymous"
+      - name: 004-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 005-plan-sync-listener
+    inputOverlayDirs:
+      - overlays/004-listener
+    commands:
+      - name: 000-plan-create-listener
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-listener.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_listener' && resource_ref=='{{ .vars.listenerRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.listenerRef }}"
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-listener.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'event_gateway_listener \"plan-sync-listener\" will be created')": true
+      - name: 002-sync-plan
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-listener.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-listener
+        run:
+          - get
+          - event-gateway
+          - listeners
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.listenerName }}"
+                description: "{{ .vars.listenerDesc }}"
+                "length(ports)": 1
+                ports[0]: "9092"
+                "length(addresses)": 1
+                addresses[0]: "localhost"
       - name: 004-diff-no-changes
         outputFormat: text
         parseAs: raw

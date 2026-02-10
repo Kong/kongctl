@@ -304,3 +304,82 @@ steps:
                 acl_mode: "passthrough"
                 "length(authentication)": 1
                 authentication[0].type: "sasl_scram"
+
+  - name: 005-plan-apply-listener
+    inputOverlayDirs:
+      - overlays/004-listener
+    commands:
+      - name: 000-plan-create-listener
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-listener.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_listener' && resource_ref=='plan-apply-listener'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "plan-apply-listener"
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-listener.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'event_gateway_listener \"plan-apply-listener\" will be created')": true
+      - name: 002-apply-plan
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-listener.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-listener
+        run:
+          - get
+          - event-gateway
+          - listeners
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "plan-apply-listener"
+                description: "Listener for plan apply workflow"
+                ports:
+                  - "9093-9095"
+                addresses:
+                  - localhost
