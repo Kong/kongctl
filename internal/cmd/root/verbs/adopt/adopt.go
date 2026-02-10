@@ -32,8 +32,6 @@ var (
   %[1]s adopt control-plane 22cd8a0b-72e7-4212-9099-0764f8e9c5ac --namespace platform
   # Adopt an API explicitly via the konnect product
   %[1]s adopt konnect api my-api --namespace team-alpha
-  # Adopt an Event Gateway explicitly via the konnect product
-  %[1]s adopt konnect event-gateway my-egw --namespace team-alpha
 `, meta.CLIName)))
 )
 

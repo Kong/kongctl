@@ -294,6 +294,66 @@ func init() {
 	if found {
 		currProfile = profileEnvVar
 	}
+
+	// Remove Event Gateway commands from root when not explicitly enabled.
+	// Visibility controlled by KONGCTL_ENABLE_EVENT_GATEWAY environment variable.
+	removeEventGatewayCommands()
+}
+
+// removeEventGatewayCommands removes event gateway related subcommands from
+// get, adopt, and dump commands at root level and under konnect.
+func removeEventGatewayCommands() {
+	targetVerbs := map[string]bool{
+		"get":   true,
+		"adopt": true,
+		"dump":  true,
+	}
+
+	// Check if event gateway resources should be hidden
+	if util.IsEventGatewayEnabled() {
+		// If preview is enabled, keep event gateway commands
+		return
+	}
+
+	// Remove from root level commands and nested under konnect
+	// Pattern: get/adopt/dump -> konnect -> event-gateway-*
+	for _, cmd := range rootCmd.Commands() {
+		if targetVerbs[cmd.Name()] {
+			removeEventGatewaySubcommands(cmd)
+
+			// Also check for konnect subcommand under get/adopt/dump
+			// Pattern: get konnect -> event-gateway-*
+			for _, subCmd := range cmd.Commands() {
+				if subCmd.Name() == "konnect" {
+					removeEventGatewaySubcommands(subCmd)
+				}
+			}
+		}
+	}
+}
+
+// removeEventGatewaySubcommands removes event gateway related subcommands from a command.
+func removeEventGatewaySubcommands(cmd *cobra.Command) {
+	var filteredCommands []*cobra.Command
+
+	for _, subCmd := range cmd.Commands() {
+		cmdName := subCmd.Name()
+		// Check if this is an event gateway related command
+		if strings.Contains(cmdName, "event-gateway") ||
+			strings.Contains(cmdName, "event_gateway") {
+			// Skip this command (don't add to filtered list)
+			continue
+		}
+		filteredCommands = append(filteredCommands, subCmd)
+	}
+
+	// Replace the command's subcommands with the filtered list
+	if len(filteredCommands) < len(cmd.Commands()) {
+		cmd.RemoveCommand(cmd.Commands()...)
+		for _, filteredCmd := range filteredCommands {
+			cmd.AddCommand(filteredCmd)
+		}
+	}
 }
 
 func bindFlags(config config.Hook) {

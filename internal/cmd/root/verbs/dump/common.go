@@ -9,6 +9,7 @@ import (
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	konnectCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/util"
 )
 
 type paginationHandler func(pageNumber int64) (bool, error)
@@ -73,7 +74,7 @@ func parseResourceList(resources string) []string {
 func validateResourceList(resources string, allowed map[string]struct{}) error {
 	trimmed := strings.TrimSpace(resources)
 	if trimmed == "" {
-		return &cmdpkg.ConfigurationError{Err: fmt.Errorf("resources cannot be empty")}
+		return &cmdpkg.ConfigurationError{Err: fmt.Errorf("resources must have at least one valid value")}
 	}
 
 	allowedList := make([]string, 0, len(allowed))
@@ -117,12 +118,29 @@ func normalizeResourceList(resources string, allowed map[string]struct{}) ([]str
 		normalized[i] = mapResourceName(normalized[i])
 	}
 
+	// Filter out event gateway resources if preview is not enabled
+	if !util.IsEventGatewayEnabled() {
+		filtered := make([]string, 0, len(normalized))
+		for _, resource := range normalized {
+			if !isEventGatewayResource(resource) {
+				filtered = append(filtered, resource)
+			}
+		}
+		normalized = filtered
+	}
+
 	joined := strings.Join(normalized, ",")
 	if err := validateResourceList(joined, allowed); err != nil {
 		return nil, err
 	}
 
 	return normalized, nil
+}
+
+func isEventGatewayResource(resource string) bool {
+	r := strings.TrimSpace(strings.ToLower(resource))
+	return strings.Contains(r, "event_gateway") ||
+		strings.Contains(r, "event-gateway")
 }
 
 func ensureNonNegativePageSize(helper cmdpkg.Helper) error {

@@ -3,6 +3,9 @@ baseInputsPath: ../../../testdata/declarative/event-gateways/backend-cluster
 env:
   KONGCTL_LOG_LEVEL: info
 
+test:
+  enabledByEnvVar: KONGCTL_ENABLE_EVENT_GATEWAY
+
 vars:
   egwName: egw-cp-for-bc-test
   bcRef: default-backend-cluster

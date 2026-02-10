@@ -3,6 +3,9 @@ baseInputsPath: ../../../testdata/declarative/protected
 env:
   KONGCTL_LOG_LEVEL: info
 
+test:
+  enabledByEnvVar: KONGCTL_ENABLE_EVENT_GATEWAY
+
 vars:
   protectedEventGatewayName: "My Protected Event Gateway CP"
 

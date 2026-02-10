@@ -13,6 +13,7 @@ import (
 	decerrors "github.com/kong/kongctl/internal/declarative/errors"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
+	"github.com/kong/kongctl/internal/util"
 	"sigs.k8s.io/yaml"
 )
 
@@ -560,31 +561,33 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 		accumulated.OrganizationTeams = append(accumulated.OrganizationTeams, team)
 	}
 
-	for _, egwControlPlane := range source.EventGatewayControlPlanes {
-		if accumulated.HasRef(egwControlPlane.Ref) {
-			existing, _ := accumulated.GetResourceByRef(egwControlPlane.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				egwControlPlane.Ref, sourcePath, existing.GetType())
+	if util.IsEventGatewayEnabled() {
+		for _, egwControlPlane := range source.EventGatewayControlPlanes {
+			if accumulated.HasRef(egwControlPlane.Ref) {
+				existing, _ := accumulated.GetResourceByRef(egwControlPlane.Ref)
+				return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
+					egwControlPlane.Ref, sourcePath, existing.GetType())
+			}
+			accumulated.EventGatewayControlPlanes = append(accumulated.EventGatewayControlPlanes, egwControlPlane)
 		}
-		accumulated.EventGatewayControlPlanes = append(accumulated.EventGatewayControlPlanes, egwControlPlane)
-	}
 
-	for _, egwBackendCluster := range source.EventGatewayBackendClusters {
-		if accumulated.HasRef(egwBackendCluster.Ref) {
-			existing, _ := accumulated.GetResourceByRef(egwBackendCluster.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				egwBackendCluster.Ref, sourcePath, existing.GetType())
+		for _, egwBackendCluster := range source.EventGatewayBackendClusters {
+			if accumulated.HasRef(egwBackendCluster.Ref) {
+				existing, _ := accumulated.GetResourceByRef(egwBackendCluster.Ref)
+				return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
+					egwBackendCluster.Ref, sourcePath, existing.GetType())
+			}
+			accumulated.EventGatewayBackendClusters = append(accumulated.EventGatewayBackendClusters, egwBackendCluster)
 		}
-		accumulated.EventGatewayBackendClusters = append(accumulated.EventGatewayBackendClusters, egwBackendCluster)
-	}
 
-	for _, egwVirtualCluster := range source.EventGatewayVirtualClusters {
-		if accumulated.HasRef(egwVirtualCluster.Ref) {
-			existing, _ := accumulated.GetResourceByRef(egwVirtualCluster.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				egwVirtualCluster.Ref, sourcePath, existing.GetType())
+		for _, egwVirtualCluster := range source.EventGatewayVirtualClusters {
+			if accumulated.HasRef(egwVirtualCluster.Ref) {
+				existing, _ := accumulated.GetResourceByRef(egwVirtualCluster.Ref)
+				return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
+					egwVirtualCluster.Ref, sourcePath, existing.GetType())
+			}
+			accumulated.EventGatewayVirtualClusters = append(accumulated.EventGatewayVirtualClusters, egwVirtualCluster)
 		}
-		accumulated.EventGatewayVirtualClusters = append(accumulated.EventGatewayVirtualClusters, egwVirtualCluster)
 	}
 
 	// If this source defines a namespace default without parent resources,
@@ -747,22 +750,24 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 	}
 
 	// Apply defaults to ControlPlanes (parent resources)
-	for i := range rs.EventGatewayControlPlanes {
-		if err := assignNamespace(
-			&rs.EventGatewayControlPlanes[i].Kongctl,
-			"control_plane",
-			rs.EventGatewayControlPlanes[i].Ref,
-		); err != nil {
-			return err
-		}
-		// Apply protected default if not set
-		if rs.EventGatewayControlPlanes[i].Kongctl.Protected == nil && protectedDefault != nil {
-			rs.EventGatewayControlPlanes[i].Kongctl.Protected = protectedDefault
-		}
-		// Ensure protected has a value (false if still nil)
-		if rs.EventGatewayControlPlanes[i].Kongctl.Protected == nil {
-			falseVal := false
-			rs.EventGatewayControlPlanes[i].Kongctl.Protected = &falseVal
+	if util.IsEventGatewayEnabled() {
+		for i := range rs.EventGatewayControlPlanes {
+			if err := assignNamespace(
+				&rs.EventGatewayControlPlanes[i].Kongctl,
+				"control_plane",
+				rs.EventGatewayControlPlanes[i].Ref,
+			); err != nil {
+				return err
+			}
+			// Apply protected default if not set
+			if rs.EventGatewayControlPlanes[i].Kongctl.Protected == nil && protectedDefault != nil {
+				rs.EventGatewayControlPlanes[i].Kongctl.Protected = protectedDefault
+			}
+			// Ensure protected has a value (false if still nil)
+			if rs.EventGatewayControlPlanes[i].Kongctl.Protected == nil {
+				falseVal := false
+				rs.EventGatewayControlPlanes[i].Kongctl.Protected = &falseVal
+			}
 		}
 	}
 
@@ -875,8 +880,10 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 		rs.PortalEmailTemplates[i].SetDefaults()
 	}
 
-	for i := range rs.EventGatewayControlPlanes {
-		rs.EventGatewayControlPlanes[i].SetDefaults()
+	if util.IsEventGatewayEnabled() {
+		for i := range rs.EventGatewayControlPlanes {
+			rs.EventGatewayControlPlanes[i].SetDefaults()
+		}
 	}
 
 	// Apply defaults to organization teams
