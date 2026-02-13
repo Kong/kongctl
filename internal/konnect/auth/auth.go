@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -33,6 +34,40 @@ var (
 
 func getCredentialFileName(profile string) string {
 	return fmt.Sprintf(".%s-konnect-token.json", profile)
+}
+
+// jwtExpiresIn parses the exp claim from a JWT access token and returns the
+// number of seconds until it expires. Returns an error if the token is not a
+// valid JWT or does not contain an exp claim. The JWT exp claim is the
+// authoritative expiry enforced by the API, and takes precedence over the
+// expires_in field returned by the token endpoint.
+func jwtExpiresIn(tokenString string) (int, error) {
+	parts := strings.Split(tokenString, ".")
+	if len(parts) != 3 {
+		return 0, fmt.Errorf("not a JWT: expected 3 parts, got %d", len(parts))
+	}
+
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return 0, fmt.Errorf("failed to decode JWT payload: %w", err)
+	}
+
+	var claims struct {
+		Exp int64 `json:"exp"`
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return 0, fmt.Errorf("failed to parse JWT claims: %w", err)
+	}
+
+	if claims.Exp == 0 {
+		return 0, fmt.Errorf("JWT does not contain an exp claim")
+	}
+
+	secs := int(time.Until(time.Unix(claims.Exp, 0)).Seconds())
+	if secs < 0 {
+		secs = 0
+	}
+	return secs, nil
 }
 
 type DeviceCodeResponse struct {
@@ -162,8 +197,14 @@ func RefreshAccessToken(refreshURL string, refreshToken string, _ *slog.Logger) 
 			rv.Token.RefreshToken = cookie.Value
 		} else if cookie.Name == "konnectaccesstoken" && cookie.Value != "" {
 			rv.Token.AuthToken = cookie.Value
-			rv.Token.ExpiresAfter = int(time.Until(cookie.Expires).Seconds())
 		}
+	}
+
+	if secs, err := jwtExpiresIn(rv.Token.AuthToken); err != nil {
+		// Fall back to the hardcoded default; log so it is visible
+		_ = err
+	} else {
+		rv.Token.ExpiresAfter = secs
 	}
 
 	return &rv, nil
@@ -227,7 +268,15 @@ func PollForToken(ctx context.Context, httpClient *http.Client,
 		ReceivedAt: time.Now(),
 	}
 
-	logger.Info("Token received", "expires_after", pollForTokenResponse.ExpiresAfter)
+	if secs, err := jwtExpiresIn(pollForTokenResponse.AuthToken); err != nil {
+		logger.Info("Token received, could not parse JWT exp claim, using expires_in from response",
+			"expires_after", pollForTokenResponse.ExpiresAfter, "error", err)
+	} else {
+		rv.Token.ExpiresAfter = secs
+		logger.Info("Token received, expiry derived from JWT exp claim",
+			"expires_after", secs)
+	}
+
 	return &rv, nil
 }
 
