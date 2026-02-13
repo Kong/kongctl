@@ -1,12 +1,12 @@
 ---
 description: |
-  This workflow creates daily repo status reports. It gathers recent repository
+  This workflow creates a weekly repo status report. It gathers recent repository
   activity (issues, PRs, discussions, releases, code changes) and generates
-  engaging GitHub issues with productivity insights, community highlights,
+  engaging GitHub discussions with productivity insights, community highlights,
   and project recommendations.
 
 on:
-  schedule: daily
+  schedule: weekly
   workflow_dispatch:
 
 permissions:
@@ -24,15 +24,16 @@ tools:
     lockdown: false
 
 safe-outputs:
-  create-issue:
+  create-discussion:
     title-prefix: "[repo-status] "
-    labels: [report, daily-status]
+    labels: [report, weekly-status]
+    expires: 7 # auto-close after 7 days
 source: githubnext/agentics/workflows/daily-repo-status.md@69b5e3ae5fa7f35fa555b0a22aee14c36ab57ebb
 ---
 
-# Daily Repo Status
+# Weekly Repo Status
 
-Create an upbeat daily status report for the repo as a GitHub issue.
+Create an upbeat weekly status report for the repo as a GitHub Discussion.
 
 ## What to include
 
@@ -44,11 +45,11 @@ Create an upbeat daily status report for the repo as a GitHub issue.
 ## Style
 
 - Be positive, encouraging, and helpful 🌟
-- Use emojis moderately for engagement
+- Use emojis lightly for engagement
 - Keep it concise - adjust length based on actual activity
 
 ## Process
 
 1. Gather recent activity from the repository
 2. Study the repository, its issues and its pull requests
-3. Create a new GitHub issue with your findings and insights
+3. Create a new GitHub discussion with your findings and insights
