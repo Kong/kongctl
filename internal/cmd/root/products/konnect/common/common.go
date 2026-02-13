@@ -115,7 +115,11 @@ func GetAccessToken(cfg config.Hook, logger *slog.Logger) (string, error) {
 		return "", err
 	}
 
-	refreshURL := baseURL + cfg.GetString(RefreshPathConfigPath)
+	refreshPath := cfg.GetString(RefreshPathConfigPath)
+	if refreshPath == "" {
+		refreshPath = RefreshPathDefault
+	}
+	refreshURL := baseURL + refreshPath
 	tok, err := auth.LoadAccessToken(cfg, refreshURL, logger)
 	if err != nil {
 		// Provide helpful guidance on authentication options instead of exposing
