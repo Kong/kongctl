@@ -151,7 +151,7 @@ func RequestDeviceCode(httpClient *http.Client,
 	return deviceCodeResponse, nil
 }
 
-func RefreshAccessToken(refreshURL string, refreshToken string, _ *slog.Logger) (*AccessToken, error) {
+func RefreshAccessToken(refreshURL string, refreshToken string, logger *slog.Logger) (*AccessToken, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, err
@@ -201,10 +201,12 @@ func RefreshAccessToken(refreshURL string, refreshToken string, _ *slog.Logger) 
 	}
 
 	if secs, err := jwtExpiresIn(rv.Token.AuthToken); err != nil {
-		// Fall back to the hardcoded default; log so it is visible
-		_ = err
+		logger.Info("Token refreshed, could not parse JWT exp claim, using default expires_in",
+			"expires_after", rv.Token.ExpiresAfter, "error", err)
 	} else {
 		rv.Token.ExpiresAfter = secs
+		logger.Info("Token refreshed, expiry derived from JWT exp claim",
+			"expires_after", secs)
 	}
 
 	return &rv, nil
