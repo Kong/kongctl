@@ -1,6 +1,6 @@
 # GitHub Copilot Instructions for kongctl
 
-**For comprehensive repository guidelines, see [AGENTS.md](../AGENTS.md)** in the root directory.
+**For comprehensive repository guidelines, see [AGENTS.md](/AGENTS.md)** in the root directory.
 
 The `AGENTS.md` file contains detailed information about:
 
@@ -26,5 +26,5 @@ The `AGENTS.md` file contains detailed information about:
 
 ## Quick Reference
 
-See [AGENTS.md](../AGENTS.md) for detailed commands and examples.
+See [AGENTS.md](/AGENTS.md) for detailed commands and examples.
 
