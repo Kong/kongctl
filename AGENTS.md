@@ -362,7 +362,7 @@ Enable trace logging to see HTTP requests/responses:
 # Via flag
 kongctl apply --plan plan.json --log-level trace
 
-# Via config file (in ~/.config/kongctl/config.yaml)
+# Via config file (in $XDG_CONFIG_HOME/kongctl/config.yaml or $HOME/.config/kongctl/config.yaml)
 log_level: trace
 
 # Via environment variable
