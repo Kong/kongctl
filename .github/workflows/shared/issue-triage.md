@@ -42,11 +42,9 @@ multiple times, but only when specifically triggered by a triage request (/triag
 
 7. Apply the selected labels:
 
+   - IMPORTANT **APPLY THE `triaged` LABEL** after completing the triage work, even if you don't have any other specific labels to apply
    - Use the `update_issue` tool to apply the labels to the issue
    - DO NOT communicate directly with users
-   - If no labels are clearly applicable, do not apply any labels
-   - Apply the 'triaged' label if you have done the triage work, 
-     even if you don't have any other specific labels to apply
 
 8. Add an issue comment to the issue with your analysis:
    - Start with "🎯 Agentic Issue Triage"
