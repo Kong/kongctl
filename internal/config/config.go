@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/meta"
@@ -182,6 +183,11 @@ func BuildProfiledConfig(profile string, path string, mainv *v.Viper) *ProfiledC
 		// in this case the main viper is valid, but there is no
 		// key or data under the key for this profile name
 		subv = v.New()
+		// Configure environment variable handling for the new sub-Viper
+		// so it can still read profile-specific environment variables
+		// even when the profile doesn't exist in the config file
+		envPrefix := "KONGCTL_" + strings.ToUpper(strings.ReplaceAll(profile, "-", "_"))
+		viper.ConfigureEnvVars(subv, envPrefix)
 	}
 
 	rv := &ProfiledConfig{

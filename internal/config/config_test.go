@@ -19,3 +19,18 @@ func TestBuildProfiledConfig_ProfileEnvWithDashes(t *testing.T) {
 		t.Fatalf("expected konnect.pat to be %q, got %q", "token-123", got)
 	}
 }
+
+func TestBuildProfiledConfig_EmptyConfigFileWithEnvVar(t *testing.T) {
+	t.Setenv("KONGCTL_DEFAULT_KONNECT_PAT", "token-from-env")
+
+	profile := "default"
+	// Simulate an empty config file - main viper has no profile keys
+	mainv := utilviper.NewViper("nonexistent.yaml")
+
+	cfg := BuildProfiledConfig(profile, "nonexistent.yaml", mainv)
+
+	// Should still read environment variable even when config file is empty
+	if got := cfg.GetString("konnect.pat"); got != "token-from-env" {
+		t.Fatalf("expected konnect.pat to be %q, got %q", "token-from-env", got)
+	}
+}

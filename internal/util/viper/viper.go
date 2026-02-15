@@ -7,6 +7,14 @@ import (
 	v "github.com/spf13/viper"
 )
 
+// ConfigureEnvVars configures a Viper instance to read environment variables
+// with the specified prefix (e.g., "kongctl" or "kongctl_default")
+func ConfigureEnvVars(vip *v.Viper, envPrefix string) {
+	vip.AutomaticEnv()
+	vip.SetEnvPrefix(envPrefix)
+	vip.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
+}
+
 // InitializeDefaultViper initializes a viper instance with default values and a path to a file
 // If the file does not exist, it will be created with the default values
 func InitializeDefaultViper(defaultValues map[string]any, path string) (*v.Viper, error) {
@@ -39,9 +47,7 @@ func InitializeDefaultViper(defaultValues map[string]any, path string) (*v.Viper
 func NewViperE(path string) (*v.Viper, error) {
 	rv := v.New()
 	rv.SetConfigFile(path)
-	rv.AutomaticEnv()
-	rv.SetEnvPrefix("kongctl")
-	rv.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
+	ConfigureEnvVars(rv, "kongctl")
 	err := rv.ReadInConfig()
 	if err != nil {
 		return nil, err
@@ -52,9 +58,7 @@ func NewViperE(path string) (*v.Viper, error) {
 func NewViper(path string) *v.Viper {
 	rv := v.New()
 	rv.SetConfigFile(path)
-	rv.AutomaticEnv()
-	rv.SetEnvPrefix("kongctl")
-	rv.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
+	ConfigureEnvVars(rv, "kongctl")
 	_ = rv.ReadInConfig()
 	return rv
 }
