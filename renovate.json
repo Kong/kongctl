@@ -4,7 +4,7 @@
     "Kong/public-shared-renovate"
   ],
   "ignorePaths": [
-    "**/*.lock.yml"
+    ".github/workflows/*.lock.yml"
   ],
   "packageRules": [
     {
