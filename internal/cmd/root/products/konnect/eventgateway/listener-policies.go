@@ -1,7 +1,9 @@
 package eventgateway
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -40,6 +42,21 @@ type listenerPolicySummaryRecord struct {
 	Enabled          string
 	LocalCreatedTime string
 	LocalUpdatedTime string
+}
+
+// listenerPolicyWithConfig is a wrapper that includes the full config from raw API response.
+// The SDK's EventGatewayListenerPolicyConfig struct is empty, so we use map[string]any to capture actual config.
+type listenerPolicyWithConfig struct {
+	Type           string            `json:"type" yaml:"type"`
+	Name           *string           `json:"name,omitempty" yaml:"name,omitempty"`
+	Description    *string           `json:"description,omitempty" yaml:"description,omitempty"`
+	Enabled        *bool             `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	Labels         map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	ID             string            `json:"id" yaml:"id"`
+	Config         map[string]any    `json:"config" yaml:"config"`
+	CreatedAt      time.Time         `json:"created_at" yaml:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at" yaml:"updated_at"`
+	ParentPolicyID *string           `json:"parent_policy_id,omitempty" yaml:"parent_policy_id,omitempty"`
 }
 
 var (
@@ -312,7 +329,7 @@ func (h listenerPoliciesHandler) listPolicies(
 	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
-	policies, err := fetchListenerPolicies(helper, policyAPI, gatewayID, listenerID, cfg)
+	policies, rawPolicies, err := fetchListenerPolicies(helper, policyAPI, gatewayID, listenerID, cfg)
 	if err != nil {
 		return err
 	}
@@ -327,13 +344,19 @@ func (h listenerPoliciesHandler) listPolicies(
 		tableRows = append(tableRows, table.Row{record.ID, record.Name, record.Type})
 	}
 
+	// Use raw policies with full config for JSON/YAML output if available
+	var outputData any = policies
+	if len(rawPolicies) > 0 {
+		outputData = rawPolicies
+	}
+
 	return tableview.RenderForFormat(
 		false,
 		outType,
 		printer,
 		helper.GetStreams(),
 		records,
-		policies,
+		outputData,
 		"",
 		tableview.WithCustomTable([]string{"ID", "NAME", "TYPE"}, tableRows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
@@ -353,7 +376,7 @@ func (h listenerPoliciesHandler) getSinglePolicy(
 	policyID := identifier
 	if !util.IsValidUUID(identifier) {
 		// Search by name - fetch all policies and find by name
-		policies, err := fetchListenerPolicies(helper, policyAPI, gatewayID, listenerID, cfg)
+		policies, _, err := fetchListenerPolicies(helper, policyAPI, gatewayID, listenerID, cfg)
 		if err != nil {
 			return err
 		}
@@ -392,6 +415,32 @@ func (h listenerPoliciesHandler) getSinglePolicy(
 		}
 	}
 
+	// Parse raw response to get full config (SDK's EventGatewayListenerPolicyConfig is empty)
+	var policyWithConfig *listenerPolicyWithConfig
+	if res.RawResponse != nil && res.RawResponse.Body != nil {
+		bodyBytes, readErr := io.ReadAll(res.RawResponse.Body)
+		if readErr == nil && len(bodyBytes) > 0 {
+			var parsed listenerPolicyWithConfig
+			if jsonErr := json.Unmarshal(bodyBytes, &parsed); jsonErr == nil {
+				policyWithConfig = &parsed
+			}
+		}
+	}
+
+	// If we successfully parsed the raw response with config, use that
+	if policyWithConfig != nil {
+		return tableview.RenderForFormat(
+			false,
+			outType,
+			printer,
+			helper.GetStreams(),
+			listenerPolicyToRecord(*policy),
+			policyWithConfig,
+			"",
+			tableview.WithRootLabel(helper.GetCmd().Name()),
+		)
+	}
+
 	return tableview.RenderForFormat(
 		false,
 		outType,
@@ -410,7 +459,7 @@ func fetchListenerPolicies(
 	gatewayID string,
 	listenerID string,
 	_ config.Hook,
-) ([]kkComps.EventGatewayListenerPolicy, error) {
+) ([]kkComps.EventGatewayListenerPolicy, []listenerPolicyWithConfig, error) {
 	req := kkOps.ListEventGatewayListenerPoliciesRequest{
 		GatewayID:              gatewayID,
 		EventGatewayListenerID: listenerID,
@@ -419,14 +468,26 @@ func fetchListenerPolicies(
 	res, err := policyAPI.ListEventGatewayListenerPolicies(helper.GetContext(), req)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
-		return nil, cmd.PrepareExecutionError("Failed to list listener policies", err, helper.GetCmd(), attrs...)
+		return nil, nil, cmd.PrepareExecutionError("Failed to list listener policies", err, helper.GetCmd(), attrs...)
 	}
 
 	if res.ListEventGatewayListenerPoliciesResponse == nil {
-		return []kkComps.EventGatewayListenerPolicy{}, nil
+		return []kkComps.EventGatewayListenerPolicy{}, nil, nil
 	}
 
-	return res.ListEventGatewayListenerPoliciesResponse, nil
+	// Try to parse raw response to get full config
+	var rawPolicies []listenerPolicyWithConfig
+	if res.RawResponse != nil && res.RawResponse.Body != nil {
+		bodyBytes, readErr := io.ReadAll(res.RawResponse.Body)
+		if readErr == nil && len(bodyBytes) > 0 {
+			if jsonErr := json.Unmarshal(bodyBytes, &rawPolicies); jsonErr != nil {
+				// If direct unmarshal fails, the response might be empty or malformed
+				rawPolicies = nil
+			}
+		}
+	}
+
+	return res.ListEventGatewayListenerPoliciesResponse, rawPolicies, nil
 }
 
 func findListenerPolicyByName(

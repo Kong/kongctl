@@ -181,28 +181,64 @@ func (e *EventGatewayListenerPolicyResource) UnmarshalJSON(data []byte) error {
 // ensurePolicyTypeDiscriminator checks if the JSON data has a "type" field.
 // If not present, it detects the policy type based on the config structure
 // and injects the appropriate discriminator ("tls_server" or "forward_to_virtual_cluster").
+// For forward_to_virtual_cluster policies, it also ensures the config has a "type" field
+// ("sni" or "port_mapping") since ForwardToVirtualClusterPolicyConfig is also a union type.
 func ensurePolicyTypeDiscriminator(data []byte) ([]byte, error) {
 	var raw map[string]any
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return nil, err
 	}
 
-	// If "type" is already present, return data as-is
-	if _, hasType := raw["type"]; hasType {
-		return data, nil
+	modified := false
+
+	// If "type" is not present, detect and inject it
+	if _, hasType := raw["type"]; !hasType {
+		policyType := detectListenerPolicyType(raw)
+		if policyType == "" {
+			return nil, fmt.Errorf("unable to determine policy type: must have 'type' field " +
+				"or config with 'certificates' (for tls_server) or SNI/port_mapping fields (for forward_to_virtual_cluster)")
+		}
+		raw["type"] = policyType
+		modified = true
 	}
 
-	// Detect the policy type based on config fields
-	policyType := detectListenerPolicyType(raw)
-	if policyType == "" {
-		return nil, fmt.Errorf("unable to determine policy type: must have 'type' field " +
-			"or config with 'certificates' (for tls_server) or SNI/port_mapping fields (for forward_to_virtual_cluster)")
+	// For forward_to_virtual_cluster policies, ensure config has inner "type" discriminator
+	if raw["type"] == "forward_to_virtual_cluster" {
+		if config, hasConfig := raw["config"]; hasConfig {
+			if configMap, ok := config.(map[string]any); ok {
+				if _, hasConfigType := configMap["type"]; !hasConfigType {
+					// Detect inner config type based on fields
+					configType := detectForwardPolicyConfigType(configMap)
+					if configType != "" {
+						configMap["type"] = configType
+						raw["config"] = configMap
+						modified = true
+					}
+				}
+			}
+		}
 	}
 
-	// Inject the type discriminator
-	raw["type"] = policyType
+	if modified {
+		return json.Marshal(raw)
+	}
+	return data, nil
+}
 
-	return json.Marshal(raw)
+// detectForwardPolicyConfigType determines the config type for forward_to_virtual_cluster policies.
+// Returns "sni" if sni_suffix is present, "port_mapping" if port_mappings is present.
+func detectForwardPolicyConfigType(configMap map[string]any) string {
+	if _, hasSNISuffix := configMap["sni_suffix"]; hasSNISuffix {
+		return "sni"
+	}
+	if _, hasPortMappings := configMap["port_mappings"]; hasPortMappings {
+		return "port_mapping"
+	}
+	// Default to sni if advertised_port is present (common in SNI configs)
+	if _, hasAdvertisedPort := configMap["advertised_port"]; hasAdvertisedPort {
+		return "sni"
+	}
+	return ""
 }
 
 // detectListenerPolicyType determines the policy type based on the config structure.
@@ -240,6 +276,9 @@ func detectListenerPolicyType(raw map[string]any) string {
 		return "forward_to_virtual_cluster"
 	}
 	if _, hasPortMappings := configMap["port_mappings"]; hasPortMappings {
+		return "forward_to_virtual_cluster"
+	}
+	if _, hasSNISuffix := configMap["sni_suffix"]; hasSNISuffix {
 		return "forward_to_virtual_cluster"
 	}
 
