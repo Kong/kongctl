@@ -87,8 +87,9 @@ If **files were changed**, proceed to Phase 2.
 ### 2.1 Review Project Standards
 
 Before simplifying, review the project's coding standards from relevant documentation:
-- Check for style guides, coding conventions, or contribution guidelines in the repository
-- Look for language-specific conventions (e.g., `STYLE.md`, `CONTRIBUTING.md`, `README.md`)
+- Start with `AGENTS.md` in the repository root; this is the primary guide for AI agents and coding standards
+- Check for additional style guides, coding conventions, or contribution guidelines in the repository
+- Look for language-specific conventions (e.g., `STYLE.md`, `CONTRIBUTING.md`, `README.md`) and keep them consistent with `AGENTS.md`
 - Identify established patterns in the codebase
 
 ### 2.2 Simplification Principles
