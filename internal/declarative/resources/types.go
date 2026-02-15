@@ -674,6 +674,16 @@ func (rs *ResourceSet) GetBackendClusterByRef(ref string) *EventGatewayBackendCl
 	return nil
 }
 
+// GetVirtualClusterByRef returns a virtual cluster resource by its ref from any namespace
+func (rs *ResourceSet) GetVirtualClusterByRef(ref string) *EventGatewayVirtualClusterResource {
+	for i := range rs.EventGatewayVirtualClusters {
+		if rs.EventGatewayVirtualClusters[i].GetRef() == ref {
+			return &rs.EventGatewayVirtualClusters[i]
+		}
+	}
+	return nil
+}
+
 // GetOrganizationTeamsByNamespace returns all organization_team resources from the specified namespace
 func (rs *ResourceSet) GetOrganizationTeamsByNamespace(namespace string) []OrganizationTeamResource {
 	var filtered []OrganizationTeamResource

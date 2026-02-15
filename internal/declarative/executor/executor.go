@@ -1072,6 +1072,62 @@ func (e *Executor) resolveEventGatewayBackendClusterRef(
 	return backendClusterID, nil
 }
 
+// resolveEventGatewayVirtualClusterRef resolves an event gateway virtual cluster reference to its ID.
+// This requires a gateway ID to search within.
+func (e *Executor) resolveEventGatewayVirtualClusterRef(
+	ctx context.Context, gatewayID string, refInfo planner.ReferenceInfo,
+) (string, error) {
+	lookupRef := refInfo.Ref
+	if tags.IsRefPlaceholder(lookupRef) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+			lookupRef = parsedRef
+		}
+	}
+
+	// First check if it was created in this execution
+	if virtualClusters, ok := e.refToID["event_gateway_virtual_cluster"]; ok {
+		if id, found := virtualClusters[lookupRef]; found {
+			slog.Debug("Resolved event gateway virtual cluster reference from created resources",
+				"virtual_cluster_ref", lookupRef,
+				"virtual_cluster_id", id,
+			)
+			return id, nil
+		}
+	}
+
+	// Determine the lookup value - use name from lookup fields if available
+	lookupValue := lookupRef
+	if refInfo.LookupFields != nil {
+		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
+			lookupValue = name
+		}
+	}
+
+	// Try to find the event gateway virtual cluster in Konnect
+	virtualCluster, err := e.client.GetEventGatewayVirtualClusterByName(ctx, gatewayID, lookupValue)
+	if err != nil {
+		return "", fmt.Errorf("failed to get event gateway virtual cluster by name: %w", err)
+	}
+	if virtualCluster == nil {
+		return "", fmt.Errorf("event gateway virtual cluster not found: ref=%s, looked up by name=%s",
+			refInfo.Ref, lookupValue)
+	}
+
+	virtualClusterID := virtualCluster.ID
+	slog.Debug("Resolved event gateway virtual cluster reference from Konnect",
+		"virtual_cluster_ref", refInfo.Ref,
+		"lookup_value", lookupValue,
+		"virtual_cluster_id", virtualClusterID,
+	)
+
+	// Cache this resolution
+	if virtualClusters, ok := e.refToID["event_gateway_virtual_cluster"]; ok {
+		virtualClusters[refInfo.Ref] = virtualClusterID
+	}
+
+	return virtualClusterID, nil
+}
+
 // resolveEventGatewayListenerRef resolves an event gateway listener reference to its ID.
 // This requires a gateway ID to search within, which must be available in the change references.
 func (e *Executor) resolveEventGatewayListenerRef(
@@ -1759,6 +1815,16 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			listenerRef.ID = listenerID
 			change.References["event_gateway_listener_id"] = listenerRef
 		}
+		// Resolve event gateway virtual cluster reference if needed (for forward_to_virtual_cluster policies)
+		if virtualClusterRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok && virtualClusterRef.ID == "" {
+			gatewayID := change.References["event_gateway_id"].ID
+			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
+			}
+			virtualClusterRef.ID = virtualClusterID
+			change.References["event_gateway_virtual_cluster_id"] = virtualClusterRef
+		}
 		return e.eventGatewayListenerPolicyExecutor.Create(ctx, *change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
@@ -2026,6 +2092,16 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			}
 			listenerRef.ID = listenerID
 			change.References["event_gateway_listener_id"] = listenerRef
+		}
+		// Resolve event gateway virtual cluster reference if needed (for forward_to_virtual_cluster policies)
+		if virtualClusterRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok && virtualClusterRef.ID == "" {
+			gatewayID := change.References["event_gateway_id"].ID
+			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
+			}
+			virtualClusterRef.ID = virtualClusterID
+			change.References["event_gateway_virtual_cluster_id"] = virtualClusterRef
 		}
 		return e.eventGatewayListenerPolicyExecutor.Update(ctx, *change)
 	default:

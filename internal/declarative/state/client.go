@@ -3883,6 +3883,26 @@ func (c *Client) GetEventGatewayVirtualCluster(
 	return virtualCluster, nil
 }
 
+// GetEventGatewayVirtualClusterByName retrieves a virtual cluster by name within a gateway
+func (c *Client) GetEventGatewayVirtualClusterByName(
+	ctx context.Context,
+	gatewayID string,
+	name string,
+) (*EventGatewayVirtualCluster, error) {
+	clusters, err := c.ListEventGatewayVirtualClusters(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+
+	for i, cluster := range clusters {
+		if cluster.Name == name {
+			return &clusters[i], nil
+		}
+	}
+
+	return nil, nil
+}
+
 func (c *Client) UpdateEventGatewayVirtualCluster(
 	ctx context.Context,
 	gatewayID string,

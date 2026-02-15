@@ -226,24 +226,42 @@ func ensurePolicyTypeDiscriminator(data []byte) ([]byte, error) {
 }
 
 // detectForwardPolicyConfigType determines the config type for forward_to_virtual_cluster policies.
-// Returns "sni" if sni_suffix is present, "port_mapping" if port_mappings is present.
+// Returns "sni" if sni_suffix is present, "port_mapping" if destination/port_mappings is present.
 func detectForwardPolicyConfigType(configMap map[string]any) string {
+	// SNI config indicators
 	if _, hasSNISuffix := configMap["sni_suffix"]; hasSNISuffix {
 		return "sni"
+	}
+	if _, hasAdvertisedPort := configMap["advertised_port"]; hasAdvertisedPort {
+		return "sni"
+	}
+	if _, hasBrokerHostFormat := configMap["broker_host_format"]; hasBrokerHostFormat {
+		return "sni"
+	}
+
+	// Port mapping config indicators: destination, advertised_host, port_mappings
+	if _, hasDestination := configMap["destination"]; hasDestination {
+		return "port_mapping"
+	}
+	if _, hasAdvertisedHost := configMap["advertised_host"]; hasAdvertisedHost {
+		return "port_mapping"
 	}
 	if _, hasPortMappings := configMap["port_mappings"]; hasPortMappings {
 		return "port_mapping"
 	}
-	// Default to sni if advertised_port is present (common in SNI configs)
-	if _, hasAdvertisedPort := configMap["advertised_port"]; hasAdvertisedPort {
-		return "sni"
+	if _, hasBootstrapPort := configMap["bootstrap_port"]; hasBootstrapPort {
+		return "port_mapping"
 	}
+	if _, hasMinBrokerID := configMap["min_broker_id"]; hasMinBrokerID {
+		return "port_mapping"
+	}
+
 	return ""
 }
 
 // detectListenerPolicyType determines the policy type based on the config structure.
 // TLS policies have config with "certificates", "versions", "allow_plaintext".
-// Forward policies have config with "type" (sni/port_mapping), "virtual_cluster", etc.
+// Forward policies have config with "destination", "type" (sni/port_mapping), "virtual_cluster", etc.
 func detectListenerPolicyType(raw map[string]any) string {
 	config, hasConfig := raw["config"]
 	if !hasConfig {
@@ -266,7 +284,13 @@ func detectListenerPolicyType(raw map[string]any) string {
 		return "tls_server"
 	}
 
-	// Forward policy indicators: type (sni/port_mapping), virtual_cluster, port_mappings
+	// Forward policy indicators: destination, type (sni/port_mapping), virtual_cluster, port_mappings, advertised_host
+	if _, hasDestination := configMap["destination"]; hasDestination {
+		return "forward_to_virtual_cluster"
+	}
+	if _, hasAdvertisedHost := configMap["advertised_host"]; hasAdvertisedHost {
+		return "forward_to_virtual_cluster"
+	}
 	if configType, hasConfigType := configMap["type"]; hasConfigType {
 		if t, ok := configType.(string); ok && (t == "sni" || t == "port_mapping") {
 			return "forward_to_virtual_cluster"
