@@ -9,6 +9,7 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 // EventGatewayListenerPolicyAdapter implements ResourceOperations for Event Gateway Listener Policy resources.
@@ -29,10 +30,13 @@ func NewEventGatewayListenerPolicyAdapter(client *state.Client) *EventGatewayLis
 // The fields map should contain the full union-typed policy body (serialized from the resource).
 func (a *EventGatewayListenerPolicyAdapter) MapCreateFields(
 	_ context.Context,
-	_ *ExecutionContext,
+	execCtx *ExecutionContext,
 	fields map[string]any,
 	create *kkComps.EventGatewayListenerPolicyCreate,
 ) error {
+	// Resolve virtual cluster reference in config.destination.id if present
+	resolveVirtualClusterDestination(fields, execCtx)
+
 	// The listener policy is a union type. We serialize the fields to JSON
 	// and delegate unmarshaling to the SDK union type which handles discriminating
 	// between TLSServer and ForwardToVirtualCluster.
@@ -52,11 +56,14 @@ func (a *EventGatewayListenerPolicyAdapter) MapCreateFields(
 // The update type uses SensitiveDataAware variants where applicable.
 func (a *EventGatewayListenerPolicyAdapter) MapUpdateFields(
 	_ context.Context,
-	_ *ExecutionContext,
+	execCtx *ExecutionContext,
 	fieldsToUpdate map[string]any,
 	update *kkComps.EventGatewayListenerPolicyUpdate,
 	_ map[string]string,
 ) error {
+	// Resolve virtual cluster reference in config.destination.id if present
+	resolveVirtualClusterDestination(fieldsToUpdate, execCtx)
+
 	// Serialize fields to JSON and delegate to the SDK union type unmarshaler.
 	// The Update union type uses EventGatewayTLSListenerSensitiveDataAwarePolicy
 	// instead of EventGatewayTLSListenerPolicy for the TLS variant.
@@ -70,6 +77,50 @@ func (a *EventGatewayListenerPolicyAdapter) MapUpdateFields(
 	}
 
 	return nil
+}
+
+// resolveVirtualClusterDestination resolves the virtual cluster reference in the config.destination.id field
+// if it contains a ref placeholder. The resolved ID is obtained from the execution context.
+func resolveVirtualClusterDestination(fields map[string]any, execCtx *ExecutionContext) {
+	if execCtx == nil || execCtx.PlannedChange == nil {
+		return
+	}
+
+	config, hasConfig := fields["config"]
+	if !hasConfig {
+		return
+	}
+
+	configMap, ok := config.(map[string]any)
+	if !ok {
+		return
+	}
+
+	destination, hasDestination := configMap["destination"]
+	if !hasDestination {
+		return
+	}
+
+	destMap, ok := destination.(map[string]any)
+	if !ok {
+		return
+	}
+
+	id, hasID := destMap["id"]
+	if !hasID {
+		return
+	}
+
+	idStr, ok := id.(string)
+	if !ok || !tags.IsRefPlaceholder(idStr) {
+		return
+	}
+
+	// Get the resolved virtual cluster ID from execution context
+	change := *execCtx.PlannedChange
+	if virtualClusterRef, refOK := change.References["event_gateway_virtual_cluster_id"]; refOK && virtualClusterRef.ID != "" {
+		destMap["id"] = virtualClusterRef.ID
+	}
 }
 
 // Create creates a new listener policy

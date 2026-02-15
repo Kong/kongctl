@@ -7,6 +7,7 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 // planEventGatewayListenerPolicyChanges plans changes for Event Gateway Listener Policies
@@ -225,6 +226,9 @@ func (p *Planner) planListenerPolicyCreate(
 		},
 	}
 
+	// Add virtual cluster reference if policy config has a destination with ref placeholder
+	p.addVirtualClusterReference(&change, fields)
+
 	p.logger.Debug("Enqueuing listener policy CREATE",
 		"policy_ref", policy.Ref,
 		"policy_name", policy.GetMoniker(),
@@ -273,6 +277,9 @@ func (p *Planner) planListenerPolicyUpdate(
 			},
 		},
 	}
+
+	// Add virtual cluster reference if policy config has a destination with ref placeholder
+	p.addVirtualClusterReference(&change, updateFields)
 
 	p.logger.Debug("Enqueuing listener policy UPDATE",
 		"policy_ref", policy.Ref,
@@ -437,4 +444,61 @@ func (p *Planner) getListenerPolicyEnabled(
 		return *policy.ForwardToVirtualClusterPolicy.Enabled
 	}
 	return true // Default is enabled
+}
+
+// addVirtualClusterReference checks if the policy has a virtual cluster destination with a ref placeholder
+// and adds the appropriate reference to the change for runtime resolution.
+func (p *Planner) addVirtualClusterReference(change *PlannedChange, fields map[string]any) {
+	// Check if the policy has a config.destination.id that is a ref placeholder
+	config, hasConfig := fields["config"]
+	if !hasConfig {
+		return
+	}
+
+	configMap, ok := config.(map[string]any)
+	if !ok {
+		return
+	}
+
+	destination, hasDestination := configMap["destination"]
+	if !hasDestination {
+		return
+	}
+
+	destMap, ok := destination.(map[string]any)
+	if !ok {
+		return
+	}
+
+	// Check for id field with ref placeholder
+	id, hasID := destMap["id"]
+	if !hasID {
+		return
+	}
+
+	idStr, ok := id.(string)
+	if !ok || !tags.IsRefPlaceholder(idStr) {
+		return
+	}
+
+	// Extract the ref and look up the virtual cluster name
+	var virtualClusterName string
+	if parsedRef, _, parseOK := tags.ParseRefPlaceholder(idStr); parseOK && parsedRef != "" {
+		virtualCluster := p.resources.GetVirtualClusterByRef(parsedRef)
+		if virtualCluster != nil {
+			virtualClusterName = virtualCluster.Name
+		}
+	}
+
+	p.logger.Debug("Adding virtual cluster reference to listener policy",
+		"virtual_cluster_ref", idStr,
+		"virtual_cluster_name", virtualClusterName,
+	)
+
+	change.References["event_gateway_virtual_cluster_id"] = ReferenceInfo{
+		Ref: idStr,
+		LookupFields: map[string]string{
+			"name": virtualClusterName,
+		},
+	}
 }
