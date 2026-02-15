@@ -44,3 +44,5 @@ __pycache__/
 .gocache/
 .gomodcache/
 .gopath/
+
+.github/aw/logs/
