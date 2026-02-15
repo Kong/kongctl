@@ -2,8 +2,10 @@ package state
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/url"
 	"strings"
@@ -4088,10 +4090,27 @@ func (c *Client) DeleteEventGatewayListener(
 
 // ---- Event Gateway Listener Policy operations ----
 
-// EventGatewayListenerPolicyInfo wraps an Event Gateway Listener Policy for internal use
+// EventGatewayListenerPolicyInfo wraps an Event Gateway Listener Policy for internal use.
+// RawConfig contains the full config from the raw API response since the SDK's
+// EventGatewayListenerPolicyConfig struct is empty and doesn't capture actual config data.
 type EventGatewayListenerPolicyInfo struct {
 	kkComps.EventGatewayListenerPolicy
 	NormalizedLabels map[string]string
+	RawConfig        map[string]any
+}
+
+// listenerPolicyRawResponse is used to parse the raw API response to get full config.
+type listenerPolicyRawResponse struct {
+	Type           string            `json:"type"`
+	Name           *string           `json:"name,omitempty"`
+	Description    *string           `json:"description,omitempty"`
+	Enabled        *bool             `json:"enabled,omitempty"`
+	Labels         map[string]string `json:"labels,omitempty"`
+	ID             string            `json:"id"`
+	Config         map[string]any    `json:"config"`
+	CreatedAt      string            `json:"created_at"`
+	UpdatedAt      string            `json:"updated_at"`
+	ParentPolicyID *string           `json:"parent_policy_id,omitempty"`
 }
 
 func (c *Client) ListEventGatewayListenerPolicies(
@@ -4117,6 +4136,22 @@ func (c *Client) ListEventGatewayListenerPolicies(
 		return []EventGatewayListenerPolicyInfo{}, nil
 	}
 
+	// Try to parse raw response to get full config data
+	rawConfigByID := make(map[string]map[string]any)
+	if res.RawResponse != nil && res.RawResponse.Body != nil {
+		bodyBytes, readErr := io.ReadAll(res.RawResponse.Body)
+		if readErr == nil && len(bodyBytes) > 0 {
+			var rawPolicies []listenerPolicyRawResponse
+			if jsonErr := json.Unmarshal(bodyBytes, &rawPolicies); jsonErr == nil {
+				for _, rp := range rawPolicies {
+					if rp.ID != "" && rp.Config != nil {
+						rawConfigByID[rp.ID] = rp.Config
+					}
+				}
+			}
+		}
+	}
+
 	var policies []EventGatewayListenerPolicyInfo
 	for _, p := range res.ListEventGatewayListenerPoliciesResponse {
 		normalized := p.Labels
@@ -4126,6 +4161,7 @@ func (c *Client) ListEventGatewayListenerPolicies(
 		policies = append(policies, EventGatewayListenerPolicyInfo{
 			EventGatewayListenerPolicy: p,
 			NormalizedLabels:           normalized,
+			RawConfig:                  rawConfigByID[p.ID],
 		})
 	}
 

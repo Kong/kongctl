@@ -112,6 +112,38 @@ func (e EventGatewayListenerResource) GetParentRef() *ResourceRef {
 	return nil
 }
 
+// MarshalJSON ensures listener metadata (ref, event_gateway, listener_policies) are included.
+// Without this, the embedded CreateEventGatewayListenerRequest's MarshalJSON is promoted and drops metadata fields.
+func (e EventGatewayListenerResource) MarshalJSON() ([]byte, error) {
+	type alias struct {
+		Ref          string `json:"ref"`
+		EventGateway string `json:"event_gateway,omitempty"`
+
+		// Fields from kkComps.CreateEventGatewayListenerRequest
+		Name        string                           `json:"name"`
+		Description *string                          `json:"description,omitempty"`
+		Addresses   []string                         `json:"addresses"`
+		Ports       []kkComps.EventGatewayListenerPort `json:"ports"`
+		Labels      map[string]string                `json:"labels,omitempty"`
+
+		// Child resources
+		ListenerPolicies []EventGatewayListenerPolicyResource `json:"listener_policies,omitempty"`
+	}
+
+	payload := alias{
+		Ref:              e.Ref,
+		EventGateway:     e.EventGateway,
+		Name:             e.Name,
+		Description:      e.Description,
+		Addresses:        e.Addresses,
+		Ports:            e.Ports,
+		Labels:           e.Labels,
+		ListenerPolicies: e.ListenerPolicies,
+	}
+
+	return json.Marshal(payload)
+}
+
 // Custom JSON unmarshaling to reject kongctl metadata
 func (e *EventGatewayListenerResource) UnmarshalJSON(data []byte) error {
 	// Temporary structure for unmarshaling resource metadata together with
