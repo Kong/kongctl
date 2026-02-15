@@ -3,6 +3,9 @@
   "extends": [
     "Kong/public-shared-renovate"
   ],
+  "ignorePaths": [
+    "**/*.lock.yml"
+  ],
   "packageRules": [
     {
       "description": "Ignore pre-release versions until a stable tag exists",
