@@ -247,9 +247,10 @@ Recent changes from:
 
 ### Testing
 
-- ✅ All tests pass (or indicate if no tests exist)
-- ✅ Linting passes (or indicate if no linter configured)
+- ✅ Format passes (make format produces no changes)
 - ✅ Build succeeds (or indicate if no build step)
+- ✅ Linting passes (or indicate if no linter configured)
+- ✅ All tests pass (or indicate if no tests exist)
 - ✅ No functional changes - behavior is identical
 
 ### Review Focus
