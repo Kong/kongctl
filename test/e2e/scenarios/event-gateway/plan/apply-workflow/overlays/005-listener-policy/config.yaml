@@ -1,0 +1,55 @@
+_defaults:
+  kongctl:
+    namespace: egw-plan-apply
+
+event_gateways:
+  - ref: plan-apply-egw
+    name: plan-apply-egw
+    description: "Updated description for plan apply workflow"
+    backend_clusters:
+      - ref: plan-apply-backend-cluster
+        name: plan-apply-backend-cluster
+        description: "Updated description for plan apply backend cluster"
+        bootstrap_servers:
+          - "egw-backend-1-updated.example.com:9092"
+        authentication:
+          type: anonymous
+        tls:
+          enabled: true
+          skip_verify: false
+          tls_versions:
+            - tls12
+            - tls13
+    virtual_clusters:
+      - ref: plan-apply-virtual-cluster
+        name: plan-apply-virtual-cluster
+        description: "Virtual cluster for plan apply workflow"
+        destination:
+          name: plan-apply-backend-cluster #id: !ref plan-apply-backend-cluster#id
+        authentication:
+        - type: sasl_scram
+          algorithm: sha512
+        acl_mode: passthrough
+        dns_label: vc-default
+    listeners:
+      - ref: plan-apply-listener
+        name: plan-apply-listener
+        description: "Listener for plan apply workflow"
+        ports:
+          - "9093-9095"
+        addresses:
+          - localhost
+        listener_policies:
+        - ref: plan-apply-listener-1-policy-1-ref
+          name: plan-apply-listener-1-policy-1-name
+          description: "Plan Apply Listener 1 Policy 1"
+          enabled: true
+          condition: "${ssl_sni} == \"example.com\""
+          labels:
+            env: staging
+            team: payments
+          config:
+            advertised_port: 9092
+            sni_suffix: ".example.com"
+
+    

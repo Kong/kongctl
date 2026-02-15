@@ -1,0 +1,364 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+test:
+  enabledByEnvVar: KONGCTL_ENABLE_EVENT_GATEWAY
+
+
+vars:
+  egwName: egw-cp-for-listener-policy-test-name
+  listenerRef: default-listener-1-ref
+  listenerName: default-listener-1-name
+  listenerPolicyRef: default-listener-1-policy-1-ref
+  listenerPolicyName: default-listener-1-policy-1
+  listenerPolicyDescription: "Default Listener 1 Policy 1"
+  listenerPolicyDescriptionUpdated: "Default Listener 1 Policy 1 Updated"
+  listenerPolicyRootLevelDescription: "Default Listener 1 root level Policy 1"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-create
+    commands:
+      - name: 001-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: >-
+              changes[?resource_type=='event_gateway' && resource_ref=='egw-cp-for-listener-policy-test-ref'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "egw-cp-for-listener-policy-test-ref"
+          - select: >-
+              changes[?resource_type=='event_gateway_listener' && resource_ref=='{{ .vars.listenerRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.listenerRef }}"
+          - select: >-
+              changes[?resource_type=='event_gateway_listener_policy' && resource_ref=='{{ .vars.listenerPolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.listenerPolicyRef }}"
+      - name: 002-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+
+      - name: 003-verify-create
+        run:
+          - get
+          - event-gateway
+          - listener-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --listener-name
+          - "{{ .vars.listenerName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.listenerPolicyName }}"
+                description: "{{ .vars.listenerPolicyDescription }}"
+  - name: 002-plan-update
+    inputOverlayDirs:
+      - overlays/001-update-fields
+    commands:
+      - name: 001-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_listener_policy' && resource_ref=='{{ .vars.listenerPolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                resource_ref: "{{ .vars.listenerPolicyRef }}"
+      - name: 002-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-update
+        run:
+          - get
+          - event-gateway
+          - listener-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --listener-name
+          - "{{ .vars.listenerName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.listenerPolicyName }}"
+                type: tls_server
+                description: "{{ .vars.listenerPolicyDescriptionUpdated }}"
+                enabled: false
+                labels:
+                  env: staging
+                  team: payments
+                config:
+                  allow_plaintext: false
+                  certificates:
+                  - certificate: "-----BEGIN CERTIFICATE-----\nMIIBxjCCAUygAwIBAgIUX9TaLbWF76yQc8IGR+YRbeiDlHkwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAwwPa29uZ19jbHVzdGVyaW5nMB4XDTI0MDMwMTE0MzkxNloXDTI3MDMwMTE0MzkxNlowGjEYMBYGA1UEAwwPa29uZ19jbHVzdGVyaW5nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEcMndCotXzeZ9vGAMfDfZ7UxUuP5bcIrwwUOI8YlpMdvB12HvjtS7O0/ONr3fBeCWagRuitPEqd4b3EJuD8kuFUMt+2A09N6KY1YDJWgKHei7rzKgrefzVt11XgBiDsUBo1MwUTAdBgNVHQ4EFgQUIrdAC8p02h60GZW0Jlh2Vcg/WeMwHwYDVR0jBBgwFoAUIrdAC8p02h60GZW0Jlh2Vcg/WeMwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNoADBlAjBYb+yQf33sItlmsONLc41Agtx73FMEN7LfWA85OtlkMie1N1x0mj08pzS/Xc1VONwCMQDN9sBn3Kody0gse+EXYSuPPj1oo9jmFB9/xrpz35YpDATvuyhH8xwSJ4xMuxQiduc=\n-----END CERTIFICATE-----"
+                  versions:
+                    min: TLSv1.2
+                    max: TLSv1.3
+  - name: 003-sync-delete
+    inputOverlayDirs:
+      - overlays/002-sync-delete
+    commands:
+      - name: 001-plan-sync-delete
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_listener_policy' && resource_ref=='{{ .vars.listenerPolicyName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: "{{ .vars.listenerPolicyName }}"
+      - name: 002-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-delete
+        run:
+          - get
+          - event-gateway
+          - listener-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --listener-name
+          - "{{ .vars.listenerName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+  - name: 004-root-level-listener-policy
+    inputOverlayDirs:
+      - overlays/003-root-level-declaration
+    commands:
+      - name: 001-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-root-level.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_listener_policy' && resource_ref=='{{ .vars.listenerPolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.listenerPolicyRef }}"
+      - name: 002-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-root-level.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-create
+        run:
+          - get
+          - event-gateway
+          - listener-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --listener-name
+          - "{{ .vars.listenerName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.listenerPolicyName }}"
+                description: "{{ .vars.listenerPolicyRootLevelDescription }}"
+                enabled: false
+                labels:
+                  env: staging
+                  team: payments
+  # - name: 005-sync-delete-root-level
+  #   inputOverlayDirs:
+  #     - overlays/004-sync-delete-root-level-declaration
+  #   commands:
+  #     - name: 001-plan-sync-delete-root-level
+  #       outputFormat: disable
+  #       stdoutFile: "{{ .workdir }}/plan-sync-delete-root-level.json"
+  #       run:
+  #         - plan
+  #         - -f
+  #         - "{{ .workdir }}/config.yaml"
+  #         - --mode
+  #         - sync
+  #       assertions:
+  #         - select: metadata
+  #           expect:
+  #             fields:
+  #               mode: sync
+  #         - select: summary
+  #           expect:
+  #             fields:
+  #               total_changes: 1
+  #               by_action.DELETE: 1
+  #         - select: >-
+  #             changes[?resource_type=='event_gateway_listener_policy' && resource_ref=='{{ .vars.listenerPolicyName }}'] | [0]
+  #           expect:
+  #             fields:
+  #               action: DELETE
+  #               resource_ref: "{{ .vars.listenerPolicyName }}"
+  #     - name: 002-sync-delete-root-level
+  #       outputFormat: json
+  #       run:
+  #         - sync
+  #         - --plan
+  #         - "{{ .workdir }}/plan-sync-delete-root-level.json"
+  #         - --auto-approve
+  #       assertions:
+  #         - select: summary
+  #           expect:
+  #             fields:
+  #               applied: 1
+  #               failed: 0
+  #     - name: 003-verify-delete-root-level
+  #       run:
+  #         - get
+  #         - event-gateway
+  #         - listener-policies
+  #         - --gateway-name
+  #         - "{{ .vars.egwName }}"
+  #         - --listener-name
+  #         - "{{ .vars.listenerName }}"
+  #         - -o
+  #         - json
+  #       assertions:
+  #         - select: "length(@)"
+  #           expect:
+  #             fields:
+  #               "@": 0
