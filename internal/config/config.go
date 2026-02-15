@@ -186,11 +186,8 @@ func BuildProfiledConfig(profile string, path string, mainv *v.Viper) *ProfiledC
 		// Configure environment variable handling for the new sub-Viper
 		// so it can still read profile-specific environment variables
 		// even when the profile doesn't exist in the config file
-		subv.AutomaticEnv()
-		// Use profile-specific env prefix (e.g., KONGCTL_DEFAULT_ for "default" profile)
 		envPrefix := "KONGCTL_" + strings.ToUpper(strings.ReplaceAll(profile, "-", "_"))
-		subv.SetEnvPrefix(envPrefix)
-		subv.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
+		viper.ConfigureEnvVars(subv, envPrefix)
 	}
 
 	rv := &ProfiledConfig{
