@@ -15,7 +15,7 @@ type EventGatewayListenerPolicyResource struct {
 	kkComps.EventGatewayListenerPolicyCreate `yaml:",inline" json:",inline"`
 	Ref                                      string `yaml:"ref"                        json:"ref"`
 	// Parent Event Gateway Listener reference (for root-level definitions)
-	EventGatewayListener string `yaml:"listener,omitempty" json:"listener,omitempty"` //nolint:lll
+	EventGatewayListener string `yaml:"listener,omitempty" json:"listener,omitempty"`
 
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`

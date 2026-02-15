@@ -118,7 +118,8 @@ func resolveVirtualClusterDestination(fields map[string]any, execCtx *ExecutionC
 
 	// Get the resolved virtual cluster ID from execution context
 	change := *execCtx.PlannedChange
-	if virtualClusterRef, refOK := change.References["event_gateway_virtual_cluster_id"]; refOK && virtualClusterRef.ID != "" {
+	if virtualClusterRef, refOK := change.References["event_gateway_virtual_cluster_id"]; refOK &&
+		virtualClusterRef.ID != "" {
 		destMap["id"] = virtualClusterRef.ID
 	}
 }

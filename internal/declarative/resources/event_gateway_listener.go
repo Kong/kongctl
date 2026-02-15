@@ -120,11 +120,11 @@ func (e EventGatewayListenerResource) MarshalJSON() ([]byte, error) {
 		EventGateway string `json:"event_gateway,omitempty"`
 
 		// Fields from kkComps.CreateEventGatewayListenerRequest
-		Name        string                           `json:"name"`
-		Description *string                          `json:"description,omitempty"`
-		Addresses   []string                         `json:"addresses"`
+		Name        string                             `json:"name"`
+		Description *string                            `json:"description,omitempty"`
+		Addresses   []string                           `json:"addresses"`
 		Ports       []kkComps.EventGatewayListenerPort `json:"ports"`
-		Labels      map[string]string                `json:"labels,omitempty"`
+		Labels      map[string]string                  `json:"labels,omitempty"`
 
 		// Child resources
 		ListenerPolicies []EventGatewayListenerPolicyResource `json:"listener_policies,omitempty"`
@@ -159,7 +159,7 @@ func (e *EventGatewayListenerResource) UnmarshalJSON(data []byte) error {
 		Addresses        []string                             `json:"addresses"`
 		Ports            []kkComps.EventGatewayListenerPort   `json:"ports"`
 		Labels           map[string]string                    `json:"labels,omitempty"`
-		ListenerPolicies []EventGatewayListenerPolicyResource `json:"listener_policies,omitempty"` //nolint:lll
+		ListenerPolicies []EventGatewayListenerPolicyResource `json:"listener_policies,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
