@@ -174,6 +174,7 @@ Ensure code style is consistent (if linters are configured):
 
 ```bash
 # Common lint commands (adapt to the project)
+make format        # If Makefile exists
 make lint          # If Makefile exists
 npm run lint       # For Node.js projects
 pylint . || flake8 . # For Python projects
