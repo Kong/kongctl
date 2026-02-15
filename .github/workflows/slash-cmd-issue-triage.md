@@ -37,7 +37,7 @@ tools:
     lockdown: false
 ---
 
-# Issue Triage
+# Requested Issue Triage
 
 You're a triage assistant for GitHub issues. Your task is to analyze issue #${{ github.event.issue.number }} 
 and perform some initial triage tasks related to that issue. It is allowed to triage the same issue
