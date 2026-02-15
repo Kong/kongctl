@@ -1,0 +1,17 @@
+_defaults:
+  kongctl:
+    namespace: egw-listener-policy-comprehensive-test
+
+event_gateways:
+  - ref: egw-cp-for-listener-policy-test-ref
+    name: egw-cp-for-listener-policy-test-name
+    description: "EGW CP for Listener Policy Test"
+    listeners:
+      - ref: default-listener-1-ref
+        name: default-listener-1-name
+        description: "Default Listener description"
+        ports:
+          - 9092
+          - "9093-9095"
+        addresses:
+          - localhost

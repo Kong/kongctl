@@ -1,0 +1,30 @@
+_defaults:
+  kongctl:
+    namespace: egw-listener-policy-comprehensive-test
+
+event_gateways:
+  - ref: egw-cp-for-listener-policy-test-ref
+    name: egw-cp-for-listener-policy-test-name
+    description: "EGW CP for Listener Policy Test"
+    listeners:
+      - ref: default-listener-1-ref
+        name: default-listener-1-name
+        description: "Default Listener description"
+        ports:
+          - 9092
+          - "9093-9095"
+        addresses:
+          - localhost
+event_gateway_listener_policies:
+- ref: default-listener-1-policy-1-ref
+  name: default-listener-1-policy-1
+  description: "Default Listener 1 root level Policy 1"
+  event_gateway_listener: default-listener-1-ref
+  event_gateway: egw-cp-for-listener-policy-test-ref
+  enabled: false
+  labels:
+    env: staging
+    team: payments
+  config:
+    advertised_port: 9092
+    sni_suffix: ".example.com"
