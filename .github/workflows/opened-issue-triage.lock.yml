@@ -21,18 +21,21 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
+# Intelligent issue triage assistant that processes new GitHub issues.
+# Analyzes issue content, selects appropriate labels, detects spam, gathers context
+# from similar issues, and provides analysis notes including debugging strategies,
+# reproduction steps, and resource links. Helps maintainers quickly understand and
+# prioritize incoming issues.
 #
 # Source: githubnext/agentics/workflows/issue-triage.md@69b5e3ae5fa7f35fa555b0a22aee14c36ab57ebb
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/issue-triage-fm.md
-#   Includes:
 #     - shared/issue-triage.md
 #
-# frontmatter-hash: 619f7af253c82bb2fc0669e9407f771e072fe191f91924630de3f807fd322fd2
+# frontmatter-hash: 84fe0792f35496d271d7c01b523fb87d4780521104d48151c95625f32a0e409f
 
-name: "Opened Issue Triage"
+name: "Issue Triage"
 "on":
   issues:
     types:
@@ -44,7 +47,7 @@ permissions: {}
 concurrency:
   group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number }}"
 
-run-name: "Opened Issue Triage"
+run-name: "Issue Triage"
 
 jobs:
   activation:
@@ -80,7 +83,7 @@ jobs:
         if: github.event_name == 'issues' || github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'discussion' || github.event_name == 'discussion_comment' || (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.id == github.repository_id)
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_NAME: "Opened Issue Triage"
+          GH_AW_WORKFLOW_NAME: "Issue Triage"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -91,8 +94,7 @@ jobs:
   agent:
     needs: activation
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    permissions: read-all
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -160,7 +162,7 @@ jobs:
               version: "",
               agent_version: "0.0.409",
               cli_version: "v0.43.23",
-              workflow_name: "Opened Issue Triage",
+              workflow_name: "Issue Triage",
               experimental: false,
               supports_tools_allowlist: true,
               supports_http_transport: true,
@@ -569,7 +571,7 @@ jobs:
           </system>
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/shared/issue-triage-fm.md}}
+          {{#runtime-import .github/workflows/shared/issue-triage.md}}
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           {{#runtime-import .github/workflows/opened-issue-triage.md}}
@@ -803,7 +805,7 @@ jobs:
           destination: /opt/gh-aw/actions
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent-output
           path: /tmp/gh-aw/safeoutputs/
@@ -818,7 +820,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Opened Issue Triage"
+          GH_AW_WORKFLOW_NAME: "Issue Triage"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/issue-triage.md@69b5e3ae5fa7f35fa555b0a22aee14c36ab57ebb"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/69b5e3ae5fa7f35fa555b0a22aee14c36ab57ebb/workflows/issue-triage.md"
         with:
@@ -833,7 +835,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Opened Issue Triage"
+          GH_AW_WORKFLOW_NAME: "Issue Triage"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/issue-triage.md@69b5e3ae5fa7f35fa555b0a22aee14c36ab57ebb"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/69b5e3ae5fa7f35fa555b0a22aee14c36ab57ebb/workflows/issue-triage.md"
         with:
@@ -848,7 +850,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Opened Issue Triage"
+          GH_AW_WORKFLOW_NAME: "Issue Triage"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/issue-triage.md@69b5e3ae5fa7f35fa555b0a22aee14c36ab57ebb"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/69b5e3ae5fa7f35fa555b0a22aee14c36ab57ebb/workflows/issue-triage.md"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -868,7 +870,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Opened Issue Triage"
+          GH_AW_WORKFLOW_NAME: "Issue Triage"
           GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/issue-triage.md@69b5e3ae5fa7f35fa555b0a22aee14c36ab57ebb"
           GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/69b5e3ae5fa7f35fa555b0a22aee14c36ab57ebb/workflows/issue-triage.md"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -890,7 +892,7 @@ jobs:
           GH_AW_COMMENT_ID: ${{ needs.activation.outputs.comment_id }}
           GH_AW_COMMENT_REPO: ${{ needs.activation.outputs.comment_repo }}
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GH_AW_WORKFLOW_NAME: "Opened Issue Triage"
+          GH_AW_WORKFLOW_NAME: "Issue Triage"
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.result }}
         with:
@@ -916,13 +918,13 @@ jobs:
           destination: /opt/gh-aw/actions
       - name: Download agent artifacts
         continue-on-error: true
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent-artifacts
           path: /tmp/gh-aw/threat-detection/
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent-output
           path: /tmp/gh-aw/threat-detection/
@@ -934,8 +936,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Opened Issue Triage"
-          WORKFLOW_DESCRIPTION: "No description provided"
+          WORKFLOW_NAME: "Issue Triage"
+          WORKFLOW_DESCRIPTION: "Intelligent issue triage assistant that processes new GitHub issues.\nAnalyzes issue content, selects appropriate labels, detects spam, gathers context\nfrom similar issues, and provides analysis notes including debugging strategies,\nreproduction steps, and resource links. Helps maintainers quickly understand and\nprioritize incoming issues."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1054,7 +1056,7 @@ jobs:
     env:
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_WORKFLOW_ID: "opened-issue-triage"
-      GH_AW_WORKFLOW_NAME: "Opened Issue Triage"
+      GH_AW_WORKFLOW_NAME: "Issue Triage"
       GH_AW_WORKFLOW_SOURCE: "githubnext/agentics/workflows/issue-triage.md@69b5e3ae5fa7f35fa555b0a22aee14c36ab57ebb"
       GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/githubnext/agentics/tree/69b5e3ae5fa7f35fa555b0a22aee14c36ab57ebb/workflows/issue-triage.md"
     outputs:
@@ -1069,7 +1071,7 @@ jobs:
           destination: /opt/gh-aw/actions
       - name: Download agent output artifact
         continue-on-error: true
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: agent-output
           path: /tmp/gh-aw/safeoutputs/
