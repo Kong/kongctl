@@ -14,6 +14,9 @@ type EventGatewayListenerResource struct {
 	// Parent Event Gateway reference (for root-level definitions)
 	EventGateway string `yaml:"event_gateway,omitempty" json:"event_gateway,omitempty"`
 
+	// Nested child resources
+	ListenerPolicies []EventGatewayListenerPolicyResource `yaml:"listener_policies,omitempty" json:"listener_policies,omitempty"` //nolint:lll
+
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
 }
@@ -48,6 +51,18 @@ func (e EventGatewayListenerResource) Validate() error {
 		return fmt.Errorf("invalid child ref: %w", err)
 	}
 
+	// Validate listener policies
+	listenerPolicyRefs := make(map[string]bool)
+	for i, lp := range e.ListenerPolicies {
+		if err := lp.Validate(); err != nil {
+			return fmt.Errorf("invalid listener policy %d: %w", i, err)
+		}
+		if listenerPolicyRefs[lp.GetRef()] {
+			return fmt.Errorf("duplicate listener policy ref: %s", lp.GetRef())
+		}
+		listenerPolicyRefs[lp.GetRef()] = true
+	}
+
 	return nil
 }
 
@@ -55,6 +70,10 @@ func (e *EventGatewayListenerResource) SetDefaults() {
 	// If Name is not set, use ref as default
 	if e.Name == "" {
 		e.Name = e.Ref
+	}
+
+	for i := range e.ListenerPolicies {
+		e.ListenerPolicies[i].SetDefaults()
 	}
 }
 
@@ -103,11 +122,12 @@ func (e *EventGatewayListenerResource) UnmarshalJSON(data []byte) error {
 		Kongctl      any    `json:"kongctl,omitempty"`
 
 		// Fields from kkComps.CreateEventGatewayListenerRequest
-		Name        string                             `json:"name"`
-		Description *string                            `json:"description,omitempty"`
-		Addresses   []string                           `json:"addresses"`
-		Ports       []kkComps.EventGatewayListenerPort `json:"ports"`
-		Labels      map[string]string                  `json:"labels,omitempty"`
+		Name             string                               `json:"name"`
+		Description      *string                              `json:"description,omitempty"`
+		Addresses        []string                             `json:"addresses"`
+		Ports            []kkComps.EventGatewayListenerPort   `json:"ports"`
+		Labels           map[string]string                    `json:"labels,omitempty"`
+		ListenerPolicies []EventGatewayListenerPolicyResource `json:"listener_policies,omitempty"` //nolint:lll
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -144,6 +164,7 @@ func (e *EventGatewayListenerResource) UnmarshalJSON(data []byte) error {
 	}
 
 	e.Labels = temp.Labels
+	e.ListenerPolicies = temp.ListenerPolicies
 
 	return nil
 }

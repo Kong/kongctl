@@ -597,6 +597,16 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 			}
 			accumulated.EventGatewayListeners = append(accumulated.EventGatewayListeners, egwListener)
 		}
+
+		for _, egwListenerPolicy := range source.EventGatewayListenerPolicies {
+			if accumulated.HasRef(egwListenerPolicy.Ref) {
+				existing, _ := accumulated.GetResourceByRef(egwListenerPolicy.Ref)
+				return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
+					egwListenerPolicy.Ref, sourcePath, existing.GetType())
+			}
+			accumulated.EventGatewayListenerPolicies = append(
+				accumulated.EventGatewayListenerPolicies, egwListenerPolicy)
+		}
 	}
 
 	// If this source defines a namespace default without parent resources,

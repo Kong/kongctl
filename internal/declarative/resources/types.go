@@ -31,6 +31,7 @@ const (
 	ResourceTypeEventGatewayVirtualCluster ResourceType = "event_gateway_virtual_cluster"
 	ResourceTypeOrganizationTeam           ResourceType = "organization_team"
 	ResourceTypeEventGatewayListener       ResourceType = "event_gateway_listener"
+	ResourceTypeEventGatewayListenerPolicy ResourceType = "event_gateway_listener_policy"
 )
 
 const (
@@ -78,8 +79,9 @@ type ResourceSet struct {
 	Organization *OrganizationResource `yaml:"organization,omitempty"                   json:"organization,omitempty"`
 	// Teams is populated internally from OrganizationTeams during loading
 	// It is not exposed in YAML/JSON to enforce the organization grouping format
-	OrganizationTeams     []OrganizationTeamResource     `yaml:"-" json:"-"`
-	EventGatewayListeners []EventGatewayListenerResource `yaml:"event_gateway_listeners,omitempty" json:"event_gateway_listeners,omitempty"` //nolint:lll
+	OrganizationTeams            []OrganizationTeamResource           `yaml:"-" json:"-"`
+	EventGatewayListeners        []EventGatewayListenerResource       `yaml:"event_gateway_listeners,omitempty" json:"event_gateway_listeners,omitempty"`                 //nolint:lll
+	EventGatewayListenerPolicies []EventGatewayListenerPolicyResource `yaml:"event_gateway_listener_policies,omitempty" json:"event_gateway_listener_policies,omitempty"` //nolint:lll
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
 	DefaultNamespace  string   `yaml:"-"                                        json:"-"`
@@ -291,6 +293,12 @@ func (rs *ResourceSet) GetResourceByRef(ref string) (Resource, bool) {
 	for i := range rs.EventGatewayListeners {
 		if rs.EventGatewayListeners[i].GetRef() == ref {
 			return &rs.EventGatewayListeners[i], true
+		}
+	}
+
+	for i := range rs.EventGatewayListenerPolicies {
+		if rs.EventGatewayListenerPolicies[i].GetRef() == ref {
+			return &rs.EventGatewayListenerPolicies[i], true
 		}
 	}
 
@@ -787,4 +795,43 @@ func (rs *ResourceSet) GetListenersForEventGateway(gatewayRef string) []EventGat
 	}
 
 	return listeners
+}
+
+// GetPoliciesForListener returns all listener policies (nested + root-level) for a specific listener
+func (rs *ResourceSet) GetPoliciesForListener(listenerRef string) []EventGatewayListenerPolicyResource {
+	var policies []EventGatewayListenerPolicyResource
+
+	// Add nested policies from the listener
+	// Listeners can be nested inside event gateways or at root level
+	for _, gateway := range rs.EventGatewayControlPlanes {
+		for _, listener := range gateway.Listeners {
+			if listener.Ref == listenerRef {
+				for _, policy := range listener.ListenerPolicies {
+					policyCopy := policy
+					policyCopy.EventGatewayListener = listenerRef
+					policies = append(policies, policyCopy)
+				}
+			}
+		}
+	}
+
+	// Check root-level listeners
+	for _, listener := range rs.EventGatewayListeners {
+		if listener.Ref == listenerRef {
+			for _, policy := range listener.ListenerPolicies {
+				policyCopy := policy
+				policyCopy.EventGatewayListener = listenerRef
+				policies = append(policies, policyCopy)
+			}
+		}
+	}
+
+	// Add root-level policies for this listener
+	for _, policy := range rs.EventGatewayListenerPolicies {
+		if policy.EventGatewayListener == listenerRef {
+			policies = append(policies, policy)
+		}
+	}
+
+	return policies
 }
