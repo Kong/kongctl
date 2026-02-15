@@ -64,7 +64,8 @@ multiple times, but only when specifically triggered by a triage request (/triag
    - Components affected
 
 5. Write notes, ideas, nudges, resource links, debugging strategies and/or reproduction steps for the 
-   team to consider relevant to the issue.
+   team to consider relevant to the issue. If you believe more information is needed,
+   ask for clarying information in the issue comments. 
 
 6. Select appropriate labels from the available labels list provided above:
 
@@ -95,3 +96,5 @@ multiple times, but only when specifically triggered by a triage request (/triag
    - If appropriate break the issue down to sub-tasks and write a checklist of things to do.
    - Use collapsed-by-default sections in the GitHub markdown to keep the comment tidy. Collapse all 
      sections except the short main summary at the top.
+   - If it would be helpful, ask the filing user for more information or clarification, 
+     and tag them in the comment to get their attention.
