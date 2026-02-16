@@ -9,7 +9,7 @@ import (
 
 // CatalogServiceResource represents a Service Catalog service in declarative configuration
 type CatalogServiceResource struct {
-	kkComps.CreateCatalogService `yaml:",inline" json:",inline"`
+	kkComps.CreateCatalogService `             yaml:",inline"           json:",inline"`
 	Ref                          string       `yaml:"ref"               json:"ref"`
 	Kongctl                      *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
 

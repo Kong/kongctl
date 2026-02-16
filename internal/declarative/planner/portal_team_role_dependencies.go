@@ -1,8 +1,8 @@
 package planner
 
 import (
-	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 // adjustPortalTeamRoleDependencies wires portal_team_role changes to depend on API creations

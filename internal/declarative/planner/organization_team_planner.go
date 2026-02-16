@@ -63,7 +63,13 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 		// External teams are not managed by kongctl and exist in Konnect already.
 		// We still plan their child resources based on the resolved Konnect ID when available.
 		if desiredTeam.IsExternal() {
-			t.planner.logger.Debug("Skipping external organization team", "ref", desiredTeam.GetRef(), "name", desiredTeam.Name)
+			t.planner.logger.Debug(
+				"Skipping external organization team",
+				"ref",
+				desiredTeam.GetRef(),
+				"name",
+				desiredTeam.Name,
+			)
 			continue
 		}
 

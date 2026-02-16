@@ -25,7 +25,11 @@ func main() {
 			"",
 			"Base URL for the developer portal (for example, https://portal.example.com)",
 		)
-		developerEmail      = flag.String("developer-email", "", "Developer email used for registration and authentication")
+		developerEmail = flag.String(
+			"developer-email",
+			"",
+			"Developer email used for registration and authentication",
+		)
 		developerName       = flag.String("developer-name", "Test Developer", "Developer full name")
 		developerPass       = flag.String("developer-password", "", "Developer password used for authentication")
 		applicationName     = flag.String("application-name", "e2e-portal-application", "Application name to create")

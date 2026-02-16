@@ -276,7 +276,11 @@ func fetchPortalTeamDevelopers(
 		res, err := membershipAPI.ListPortalTeamDevelopers(helper.GetContext(), req)
 		if err != nil {
 			attrs := cmd.TryConvertErrorToAttrs(err)
-			return nil, cmd.PrepareExecutionError("Failed to list portal team developers", err, helper.GetCmd(), attrs...)
+			return nil, cmd.PrepareExecutionError(
+				"Failed to list portal team developers",
+				err,
+				helper.GetCmd(),
+				attrs...)
 		}
 
 		if res.GetListBasicDevelopersResponse() == nil {

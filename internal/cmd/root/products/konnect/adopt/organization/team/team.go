@@ -101,7 +101,13 @@ func NewTeamCmd(
 			if name == "" {
 				name = result.ID
 			}
-			fmt.Fprintf(streams.Out, "Adopted organization_team %q (%s) into namespace %q\n", name, result.ID, result.Namespace)
+			fmt.Fprintf(
+				streams.Out,
+				"Adopted organization_team %q (%s) into namespace %q\n",
+				name,
+				result.ID,
+				result.Namespace,
+			)
 			return nil
 		}
 

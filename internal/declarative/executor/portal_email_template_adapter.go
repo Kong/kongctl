@@ -44,7 +44,11 @@ func (a *PortalEmailTemplateAdapter) Create(
 }
 
 func (a *PortalEmailTemplateAdapter) Update(
-	ctx context.Context, _ string, req kkOps.UpdatePortalCustomEmailTemplateRequest, _ string, execCtx *ExecutionContext,
+	ctx context.Context,
+	_ string,
+	req kkOps.UpdatePortalCustomEmailTemplateRequest,
+	_ string,
+	execCtx *ExecutionContext,
 ) (string, error) {
 	portalID, err := a.portalID(execCtx)
 	if err != nil {

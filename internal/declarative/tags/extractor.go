@@ -14,7 +14,7 @@ func ExtractValue(data any, path string) (any, error) {
 	}
 
 	parts := strings.Split(path, ".") // split once so we can re-use the same slice during traversal
-	current := data                    // mutable pointer to where we are in the structure
+	current := data                   // mutable pointer to where we are in the structure
 
 	for i := 0; i < len(parts); {
 		part := parts[i]

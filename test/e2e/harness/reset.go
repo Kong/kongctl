@@ -183,7 +183,11 @@ func deleteAll(client *http.Client, baseURL, token, apiVersion, endpoint string,
 
 		attempt++
 		if attempt >= maxAttempts {
-			return total, deleted, fmt.Errorf("failed to delete all %s after %d attempts (conflicts remain)", endpoint, maxAttempts)
+			return total, deleted, fmt.Errorf(
+				"failed to delete all %s after %d attempts (conflicts remain)",
+				endpoint,
+				maxAttempts,
+			)
 		}
 
 		Infof("Retrying deletion of %s (%d conflicts remaining)", endpoint, conflicts)

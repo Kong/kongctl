@@ -296,7 +296,11 @@ func (h portalApplicationRegistrationsHandler) getSingleRegistration(
 	res, err := regAPI.GetApplicationRegistration(helper.GetContext(), req)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to get portal application registration", err, helper.GetCmd(), attrs...)
+		return cmd.PrepareExecutionError(
+			"Failed to get portal application registration",
+			err,
+			helper.GetCmd(),
+			attrs...)
 	}
 
 	record := portalApplicationRegistrationDetailRecordFromResponse(res.GetGetApplicationRegistrationResponse())

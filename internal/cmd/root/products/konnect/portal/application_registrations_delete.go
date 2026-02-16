@@ -198,7 +198,11 @@ func (h portalApplicationRegistrationDeleteHandler) run(args []string) error {
 	}
 
 	if outType == cmdCommon.TEXT {
-		fmt.Fprintf(helper.GetStreams().Out, "Portal application registration %q deleted successfully\n", registrationID)
+		fmt.Fprintf(
+			helper.GetStreams().Out,
+			"Portal application registration %q deleted successfully\n",
+			registrationID,
+		)
 		return nil
 	}
 

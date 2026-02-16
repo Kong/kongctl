@@ -26,7 +26,8 @@ func NewDirectPortalCmd() (*cobra.Command, error) {
 		cmd.Flags().String(common.RegionFlagName, "",
 			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
-				common.BaseURLFlagName, common.RegionConfigPath))
+				common.BaseURLFlagName, common.RegionConfigPath),
+		)
 
 		cmd.Flags().String(common.PATFlagName, "",
 			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
@@ -68,7 +69,8 @@ func NewDirectControlPlaneCmd() (*cobra.Command, error) {
 		cmd.Flags().String(common.RegionFlagName, "",
 			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
-				common.BaseURLFlagName, common.RegionConfigPath))
+				common.BaseURLFlagName, common.RegionConfigPath),
+		)
 
 		cmd.Flags().String(common.PATFlagName, "",
 			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
@@ -110,7 +112,8 @@ func NewDirectAPICmd() (*cobra.Command, error) {
 		cmd.Flags().String(common.RegionFlagName, "",
 			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
-				common.BaseURLFlagName, common.RegionConfigPath))
+				common.BaseURLFlagName, common.RegionConfigPath),
+		)
 
 		cmd.Flags().String(common.PATFlagName, "",
 			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
@@ -140,6 +143,7 @@ Setting this value overrides tokens obtained from the login command.
 
 	return cmd, nil
 }
+
 func NewDirectEventGatewayCmd() (*cobra.Command, error) {
 	addFlags := func(_ verbs.VerbValue, cmd *cobra.Command) {
 		cmd.Flags().String(common.BaseURLFlagName, "",
@@ -151,7 +155,8 @@ func NewDirectEventGatewayCmd() (*cobra.Command, error) {
 		cmd.Flags().String(common.RegionFlagName, "",
 			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
-				common.BaseURLFlagName, common.RegionConfigPath))
+				common.BaseURLFlagName, common.RegionConfigPath),
+		)
 
 		cmd.Flags().String(common.PATFlagName, "",
 			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
@@ -230,7 +235,8 @@ func NewDirectAuthStrategyCmd() (*cobra.Command, error) {
 		cmd.Flags().String(common.RegionFlagName, "",
 			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
-				common.BaseURLFlagName, common.RegionConfigPath))
+				common.BaseURLFlagName, common.RegionConfigPath),
+		)
 
 		cmd.Flags().String(common.PATFlagName, "",
 			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 

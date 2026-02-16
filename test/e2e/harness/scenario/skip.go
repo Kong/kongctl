@@ -53,6 +53,7 @@ func getSkipPatterns() string {
 // Examples:
 //   - "001-plan-apply-assets" - stops after the last command in step 001-plan-apply-assets
 //   - "001-plan-apply-assets/001-apply-assets" - stops after specific command 001-apply-assets
+//
 // When set, the scenario will execute up to and including the specified step/command, then stop gracefully.
 func getStopAfter() string {
 	return os.Getenv("KONGCTL_E2E_STOP_AFTER")

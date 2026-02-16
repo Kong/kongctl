@@ -10,8 +10,8 @@ import (
 
 // PortalTeamResource represents a portal team (developer team)
 type PortalTeamResource struct {
-	kkComps.PortalCreateTeamRequest `yaml:",inline" json:",inline"`
-	Ref                             string `yaml:"ref" json:"ref"`
+	kkComps.PortalCreateTeamRequest `       yaml:",inline"          json:",inline"`
+	Ref                             string `yaml:"ref"              json:"ref"`
 	// Parent portal reference
 	Portal string `yaml:"portal,omitempty" json:"portal,omitempty"`
 
@@ -162,12 +162,12 @@ func (p PortalTeamResource) GetParentRef() *ResourceRef {
 // UnmarshalJSON custom unmarshaling to reject kongctl metadata on child resources
 func (p *PortalTeamResource) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Ref         string                    `json:"ref"`
-		Portal      string                    `json:"portal,omitempty"`
-		Name        string                    `json:"name"`
-		Description *string                   `json:"description,omitempty"`
-		Roles       []PortalTeamRoleResource  `json:"roles,omitempty"`
-		Kongctl     any                       `json:"kongctl,omitempty"`
+		Ref         string                   `json:"ref"`
+		Portal      string                   `json:"portal,omitempty"`
+		Name        string                   `json:"name"`
+		Description *string                  `json:"description,omitempty"`
+		Roles       []PortalTeamRoleResource `json:"roles,omitempty"`
+		Kongctl     any                      `json:"kongctl,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {

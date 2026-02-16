@@ -7,9 +7,9 @@ import (
 // PortalAssetFaviconResource represents a portal favicon asset
 // This is a singleton resource - only UPDATE operations are supported
 type PortalAssetFaviconResource struct {
-	Ref    string  `yaml:"ref"                json:"ref"`
-	Portal string  `yaml:"portal"             json:"portal"`            // Parent portal reference
-	File   *string `yaml:"file,omitempty"     json:"file,omitempty"`    // Data URL from !file tag
+	Ref    string  `yaml:"ref"            json:"ref"`
+	Portal string  `yaml:"portal"         json:"portal"`         // Parent portal reference
+	File   *string `yaml:"file,omitempty" json:"file,omitempty"` // Data URL from !file tag
 
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`

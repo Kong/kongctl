@@ -16,7 +16,7 @@ type GatewayServiceResource struct {
 	// YAML/JSON serialization because external services are declared without payloads;
 	// the custom UnmarshalYAML implementation below materializes this struct only when
 	// inline fields are present in the configuration.
-	Service      *kkComps.Service `yaml:"-"                        json:"-"`
+	Service      *kkComps.Service `yaml:"-"                       json:"-"`
 	Ref          string           `yaml:"ref"                     json:"ref"`
 	ControlPlane string           `yaml:"control_plane,omitempty" json:"control_plane,omitempty"`
 	External     *ExternalBlock   `yaml:"_external,omitempty"     json:"_external,omitempty"`

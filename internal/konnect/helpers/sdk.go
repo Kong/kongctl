@@ -295,7 +295,6 @@ func (k *KonnectSDK) GetSystemAccountAPI() SystemAccountAPI {
 	}
 
 	return &SystemAccountAPIImpl{SDK: k.SDK}
-
 }
 
 // Returns the implementation of the EventGatewayBackendCluster interface

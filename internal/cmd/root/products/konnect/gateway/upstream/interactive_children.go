@@ -49,7 +49,12 @@ func loadControlPlaneUpstreams(_ context.Context, helper cmd.Helper, parent any)
 	}
 
 	requestPageSize := int64(cfg.GetInt(kkCommon.RequestPageSizeConfigPath))
-	upstreams, err := helpers.GetAllGatewayUpstreams(helper.GetContext(), requestPageSize, controlPlaneID, konnectSDK.SDK)
+	upstreams, err := helpers.GetAllGatewayUpstreams(
+		helper.GetContext(),
+		requestPageSize,
+		controlPlaneID,
+		konnectSDK.SDK,
+	)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
 		return tableview.ChildView{}, cmd.PrepareExecutionError(

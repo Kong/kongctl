@@ -45,43 +45,43 @@ type ResourceRef struct {
 
 // ResourceSet contains all declarative resources from configuration files
 type ResourceSet struct {
-	Portals []PortalResource `yaml:"portals,omitempty"                     json:"portals,omitempty"`
+	Portals []PortalResource `yaml:"portals,omitempty"                        json:"portals,omitempty"`
 	// ApplicationAuthStrategies contains auth strategy configurations
-	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty" json:"application_auth_strategies,omitempty"` //nolint:lll
+	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty"    json:"application_auth_strategies,omitempty"` //nolint:lll
 	// ControlPlanes contains control plane configurations
-	ControlPlanes   []ControlPlaneResource   `yaml:"control_planes,omitempty"              json:"control_planes,omitempty"`
-	CatalogServices []CatalogServiceResource `yaml:"catalog_services,omitempty" json:"catalog_services,omitempty"`
-	APIs            []APIResource            `yaml:"apis,omitempty"                        json:"apis,omitempty"`
-	GatewayServices []GatewayServiceResource `yaml:"gateway_services,omitempty"            json:"gateway_services,omitempty"` //nolint:lll
+	ControlPlanes   []ControlPlaneResource   `yaml:"control_planes,omitempty"                 json:"control_planes,omitempty"`
+	CatalogServices []CatalogServiceResource `yaml:"catalog_services,omitempty"               json:"catalog_services,omitempty"`
+	APIs            []APIResource            `yaml:"apis,omitempty"                           json:"apis,omitempty"`
+	GatewayServices []GatewayServiceResource `yaml:"gateway_services,omitempty"               json:"gateway_services,omitempty"` //nolint:lll
 	// API child resources can be defined at root level (with parent reference) or nested under APIs
-	APIVersions        []APIVersionResource        `yaml:"api_versions,omitempty"                json:"api_versions,omitempty"`        //nolint:lll
-	APIPublications    []APIPublicationResource    `yaml:"api_publications,omitempty"            json:"api_publications,omitempty"`    //nolint:lll
-	APIImplementations []APIImplementationResource `yaml:"api_implementations,omitempty"         json:"api_implementations,omitempty"` //nolint:lll
-	APIDocuments       []APIDocumentResource       `yaml:"api_documents,omitempty"               json:"api_documents,omitempty"`       //nolint:lll
+	APIVersions        []APIVersionResource        `yaml:"api_versions,omitempty"                   json:"api_versions,omitempty"`        //nolint:lll
+	APIPublications    []APIPublicationResource    `yaml:"api_publications,omitempty"               json:"api_publications,omitempty"`    //nolint:lll
+	APIImplementations []APIImplementationResource `yaml:"api_implementations,omitempty"            json:"api_implementations,omitempty"` //nolint:lll
+	APIDocuments       []APIDocumentResource       `yaml:"api_documents,omitempty"                  json:"api_documents,omitempty"`       //nolint:lll
 	// Portal child resources can be defined at root level (with parent reference) or nested under Portals
-	PortalCustomizations        []PortalCustomizationResource        `yaml:"portal_customizations,omitempty"       json:"portal_customizations,omitempty"`             //nolint:lll
-	PortalAuthSettings          []PortalAuthSettingsResource         `yaml:"portal_auth_settings,omitempty"        json:"portal_auth_settings,omitempty"`              //nolint:lll
-	PortalCustomDomains         []PortalCustomDomainResource         `yaml:"portal_custom_domains,omitempty"       json:"portal_custom_domains,omitempty"`             //nolint:lll
-	PortalPages                 []PortalPageResource                 `yaml:"portal_pages,omitempty"                json:"portal_pages,omitempty"`                      //nolint:lll
-	PortalSnippets              []PortalSnippetResource              `yaml:"portal_snippets,omitempty"             json:"portal_snippets,omitempty"`                   //nolint:lll
-	PortalTeams                 []PortalTeamResource                 `yaml:"portal_teams,omitempty"                json:"portal_teams,omitempty"`                      //nolint:lll
-	PortalTeamRoles             []PortalTeamRoleResource             `yaml:"portal_team_roles,omitempty"           json:"portal_team_roles,omitempty"`                 //nolint:lll
-	PortalAssetLogos            []PortalAssetLogoResource            `yaml:"portal_asset_logos,omitempty"         json:"portal_asset_logos,omitempty"`                 //nolint:lll
-	PortalAssetFavicons         []PortalAssetFaviconResource         `yaml:"portal_asset_favicons,omitempty"      json:"portal_asset_favicons,omitempty"`              //nolint:lll
-	PortalEmailConfigs          []PortalEmailConfigResource          `yaml:"portal_email_configs,omitempty"       json:"portal_email_configs,omitempty"`               //nolint:lll
-	PortalEmailTemplates        []PortalEmailTemplateResource        `yaml:"portal_email_templates,omitempty"     json:"portal_email_templates,omitempty"`             //nolint:lll
-	EventGatewayControlPlanes   []EventGatewayControlPlaneResource   `yaml:"event_gateways,omitempty" json:"event_gateways,omitempty"`                                 //nolint:lll
+	PortalCustomizations        []PortalCustomizationResource        `yaml:"portal_customizations,omitempty"          json:"portal_customizations,omitempty"`          //nolint:lll
+	PortalAuthSettings          []PortalAuthSettingsResource         `yaml:"portal_auth_settings,omitempty"           json:"portal_auth_settings,omitempty"`           //nolint:lll
+	PortalCustomDomains         []PortalCustomDomainResource         `yaml:"portal_custom_domains,omitempty"          json:"portal_custom_domains,omitempty"`          //nolint:lll
+	PortalPages                 []PortalPageResource                 `yaml:"portal_pages,omitempty"                   json:"portal_pages,omitempty"`                   //nolint:lll
+	PortalSnippets              []PortalSnippetResource              `yaml:"portal_snippets,omitempty"                json:"portal_snippets,omitempty"`                //nolint:lll
+	PortalTeams                 []PortalTeamResource                 `yaml:"portal_teams,omitempty"                   json:"portal_teams,omitempty"`                   //nolint:lll
+	PortalTeamRoles             []PortalTeamRoleResource             `yaml:"portal_team_roles,omitempty"              json:"portal_team_roles,omitempty"`              //nolint:lll
+	PortalAssetLogos            []PortalAssetLogoResource            `yaml:"portal_asset_logos,omitempty"             json:"portal_asset_logos,omitempty"`             //nolint:lll
+	PortalAssetFavicons         []PortalAssetFaviconResource         `yaml:"portal_asset_favicons,omitempty"          json:"portal_asset_favicons,omitempty"`          //nolint:lll
+	PortalEmailConfigs          []PortalEmailConfigResource          `yaml:"portal_email_configs,omitempty"           json:"portal_email_configs,omitempty"`           //nolint:lll
+	PortalEmailTemplates        []PortalEmailTemplateResource        `yaml:"portal_email_templates,omitempty"         json:"portal_email_templates,omitempty"`         //nolint:lll
+	EventGatewayControlPlanes   []EventGatewayControlPlaneResource   `yaml:"event_gateways,omitempty"                 json:"event_gateways,omitempty"`                 //nolint:lll
 	EventGatewayBackendClusters []EventGatewayBackendClusterResource `yaml:"event_gateway_backend_clusters,omitempty" json:"event_gateway_backend_clusters,omitempty"` //nolint:lll
 	EventGatewayVirtualClusters []EventGatewayVirtualClusterResource `yaml:"event_gateway_virtual_clusters,omitempty" json:"event_gateway_virtual_clusters,omitempty"` //nolint:lll
 	// Organization grouping - contains nested resources like teams
-	Organization *OrganizationResource `yaml:"organization,omitempty" json:"organization,omitempty"`
+	Organization *OrganizationResource `yaml:"organization,omitempty"                   json:"organization,omitempty"`
 	// Teams is populated internally from OrganizationTeams during loading
 	// It is not exposed in YAML/JSON to enforce the organization grouping format
-	OrganizationTeams []OrganizationTeamResource `yaml:"-" json:"-"`
+	OrganizationTeams []OrganizationTeamResource `yaml:"-"                                        json:"-"`
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
-	DefaultNamespace  string   `yaml:"-" json:"-"`
-	DefaultNamespaces []string `yaml:"-" json:"-"`
+	DefaultNamespace  string   `yaml:"-"                                        json:"-"`
+	DefaultNamespaces []string `yaml:"-"                                        json:"-"`
 }
 
 // NamespaceOrigin describes how a namespace value was supplied for a resource

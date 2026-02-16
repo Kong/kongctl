@@ -25,7 +25,8 @@ func NewDirectRegionsCmd() (*cobra.Command, error) {
 		cmd.Flags().String(common.RegionFlagName, "",
 			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
-				common.BaseURLFlagName, common.RegionConfigPath))
+				common.BaseURLFlagName, common.RegionConfigPath),
+		)
 	}
 
 	preRunE := func(c *cobra.Command, args []string) error {

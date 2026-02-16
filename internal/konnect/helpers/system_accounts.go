@@ -22,12 +22,14 @@ type SystemAccountAPIImpl struct {
 
 // ListSystemAccounts implements the SystemAccountAPI interface
 func (p *SystemAccountAPIImpl) ListSystemAccounts(ctx context.Context,
-	request kkOps.GetSystemAccountsRequest) (*kkOps.GetSystemAccountsResponse, error) {
+	request kkOps.GetSystemAccountsRequest,
+) (*kkOps.GetSystemAccountsResponse, error) {
 	return p.SDK.SystemAccounts.GetSystemAccounts(ctx, request)
 }
 
 // GetSystemAccount implements the SystemAccountAPI interface
 func (p *SystemAccountAPIImpl) GetSystemAccount(ctx context.Context,
-	id string) (*kkOps.GetSystemAccountsIDResponse, error) {
+	id string,
+) (*kkOps.GetSystemAccountsIDResponse, error) {
 	return p.SDK.SystemAccounts.GetSystemAccountsID(ctx, id)
 }

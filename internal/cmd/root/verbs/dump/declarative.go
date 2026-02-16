@@ -87,7 +87,8 @@ func newDeclarativeCmd() *cobra.Command {
 	cmd.Flags().String(konnectCommon.RegionFlagName, "",
 		fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
-			konnectCommon.BaseURLFlagName, konnectCommon.RegionConfigPath))
+			konnectCommon.BaseURLFlagName, konnectCommon.RegionConfigPath),
+	)
 
 	cmd.Flags().String(konnectCommon.PATFlagName, "",
 		fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
