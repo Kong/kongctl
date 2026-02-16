@@ -8,24 +8,25 @@ permissions:
   pull-requests: read
 imports:
 - githubnext/agentics/workflows/shared/reporting.md@eb7950f37d350af6fa09d19827c4883e72947221
+tools:
+  github:
+    github-token: "${{ secrets.GITHUB_TOKEN }}"
+    toolsets: [default]
 safe-outputs:
   create-pull-request:
     expires: 1d
+    title-prefix: "[code-simplifier] "
     labels:
     - refactoring
     - code-quality
     - automation
-    title-prefix: "[code-simplifier] "
+    reviewers: [copilot]
 description: Analyzes recently modified code and creates pull requests with simplifications that improve clarity, consistency, and maintainability while preserving functionality
 engine: claude
 name: Code Simplifier
 source: githubnext/agentics/workflows/code-simplifier.md@eb7950f37d350af6fa09d19827c4883e72947221
 strict: true
 timeout-minutes: 30
-tools:
-  github:
-    toolsets:
-    - default
 tracker-id: code-simplifier
 ---
 <!-- This prompt will be imported in the agentic workflow .github/workflows/code-simplifier.md at runtime. -->
