@@ -17,6 +17,7 @@ safe-outputs:
     - automation
     title-prefix: "[code-simplifier] "
 description: Analyzes recently modified code and creates pull requests with simplifications that improve clarity, consistency, and maintainability while preserving functionality
+engine: claude
 name: Code Simplifier
 source: githubnext/agentics/workflows/code-simplifier.md@eb7950f37d350af6fa09d19827c4883e72947221
 strict: true
