@@ -49,8 +49,8 @@ type ResourceSet struct {
 	// ApplicationAuthStrategies contains auth strategy configurations
 	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty"    json:"application_auth_strategies,omitempty"` //nolint:lll
 	// ControlPlanes contains control plane configurations
-	ControlPlanes   []ControlPlaneResource   `yaml:"control_planes,omitempty"                 json:"control_planes,omitempty"`
-	CatalogServices []CatalogServiceResource `yaml:"catalog_services,omitempty"               json:"catalog_services,omitempty"`
+	ControlPlanes []ControlPlaneResource `yaml:"control_planes,omitempty" json:"control_planes,omitempty"`
+	CatalogServices []CatalogServiceResource `yaml:"catalog_services,omitempty" json:"catalog_services,omitempty"`
 	APIs            []APIResource            `yaml:"apis,omitempty"                           json:"apis,omitempty"`
 	GatewayServices []GatewayServiceResource `yaml:"gateway_services,omitempty"               json:"gateway_services,omitempty"` //nolint:lll
 	// API child resources can be defined at root level (with parent reference) or nested under APIs

@@ -510,7 +510,7 @@ type portalAlias struct {
 	Pages             []PortalPageResource                   `json:"pages,omitempty"           yaml:"pages,omitempty"`
 	Snippets          []PortalSnippetResource                `json:"snippets,omitempty"        yaml:"snippets,omitempty"`
 	Teams             []PortalTeamResource                   `json:"teams,omitempty"           yaml:"teams,omitempty"`
-	EmailConfig       *PortalEmailConfigResource             `json:"email_config,omitempty"    yaml:"email_config,omitempty"`
+	EmailConfig *PortalEmailConfigResource `json:"email_config,omitempty" yaml:"email_config,omitempty"`
 	EmailTemplates    map[string]PortalEmailTemplateResource `json:"email_templates,omitempty" yaml:"email_templates,omitempty"` //nolint:lll
 	Assets            *PortalAssetsResource                  `json:"assets,omitempty"          yaml:"assets,omitempty"`
 	External          *ExternalBlock                         `json:"_external,omitempty"       yaml:"_external,omitempty"`
