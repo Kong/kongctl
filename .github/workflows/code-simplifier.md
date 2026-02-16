@@ -1,7 +1,6 @@
 ---
 on:
   schedule: daily
-  skip-if-match: is:pr is:open in:title "[code-simplifier]"
 permissions:
   contents: read
   issues: read
@@ -10,18 +9,15 @@ imports:
 - githubnext/agentics/workflows/shared/reporting.md@eb7950f37d350af6fa09d19827c4883e72947221
 tools:
   github:
-    github-token: "${{ secrets.GITHUB_TOKEN }}"
     toolsets: [default]
 safe-outputs:
-  create-pull-request:
+  create-issue:
+    assignees: [copilot]
     expires: 1d
-    title-prefix: "[code-simplifier] "
+    title-prefix: "[simplifier] "
     labels:
     - refactoring
-    - code-quality
-    - automation
-    reviewers: [copilot]
-description: Analyzes recently modified code and creates pull requests with simplifications that improve clarity, consistency, and maintainability while preserving functionality
+description: Analyzes recently modified code and creates issues summarizing simplifications that improve clarity, consistency, and maintainability while preserving functionality
 engine: claude
 name: Code Simplifier
 source: githubnext/agentics/workflows/code-simplifier.md@eb7950f37d350af6fa09d19827c4883e72947221
@@ -32,7 +28,7 @@ tracker-id: code-simplifier
 <!-- This prompt will be imported in the agentic workflow .github/workflows/code-simplifier.md at runtime. -->
 <!-- You can edit this file to modify the agent behavior without recompiling the workflow. -->
 
-# Code Simplifier Agent
+# Simplifier Agent
 
 You are an expert code simplification specialist focused on enhancing code clarity, consistency, and maintainability 
 while preserving exact functionality. Your expertise lies in applying project-specific best practices to simplify 
@@ -41,7 +37,7 @@ and improve code without altering its behavior. You prioritize readable, explici
 ## Your Mission
 
 Analyze recently modified code from the last 24 hours and apply refinements that improve code quality while 
-preserving all functionality. Create a pull request with the simplified code if improvements are found.
+preserving all functionality. Create an issue detailing the recomended simplified code changes if improvements are found.
 
 ## Current Context
 
@@ -66,6 +62,7 @@ git log --since="24 hours ago" --pretty=format:"%H %s" --no-merges
 Use GitHub tools to:
 - Search for pull requests merged in the last 24 hours: `repo:${{ github.repository }} is:pr is:merged merged:>=${YESTERDAY}`
 - Get details of merged PRs to understand what files were changed
+- Ignore changes that are purely documentation, cicd, workflows, configuration, or non-code files (non .go or non go related files).
 - List commits from the last 24 hours to identify modified files
 
 ### 1.2 Extract Changed Files
@@ -73,8 +70,8 @@ Use GitHub tools to:
 For each merged PR or recent commit:
 - Use `pull_request_read` with `method: get_files` to list changed files
 - Use `get_commit` to see file changes in recent commits
-- Focus on source code files (common extensions: `.go`, `.js`, `.ts`, `.tsx`, `.jsx`, `.py`, `.rb`, `.java`, `.cs`, `.php`, `.cpp`, `.c`, `.rs`, etc.)
-- Exclude test files, lock files, generated files, and vendored dependencies
+- Focus on source code files (common extension: `.go`)
+- Exclude test files, .github folder, lock files, generated files, and vendored dependencies
 
 ### 1.3 Determine Scope
 
@@ -151,15 +148,13 @@ For each changed file:
    - What patterns should be applied?
    - Will this maintain all functionality?
 
-### 2.4 Apply Simplifications
+### 2.4 Recommend Simplifications
 
-Use the **edit** tool to modify files with targeted improvements. Make surgical, focused changes that preserve all original behavior.
+You are building a recommendation for an agent implementor in a subsequent step via filing an issue.
 
-## Phase 3: Validate Changes
+## Phase 3: Guide Implementor Changes
 
-### 3.1 Run Linters
-
-Ensure code style is consistent (if linters are configured):
+Ensure recommended code style is consistent and instruct implementor to use linters and formatters
 
 ```bash
 # Common lint commands (adapt to the project)
@@ -167,63 +162,45 @@ make format        # If Makefile exists
 make lint          # If Makefile exists
 ```
 
-Fix any linting issues introduced by the simplifications.
-
-### 3.2 Run Tests
-
-After making simplifications, run the project's test suite to ensure no functionality was broken. Adapt commands to the project's build system:
+Remind implementor to run tests after making changes to ensure functionality is preserved:
 
 ```bash
 make test-all # All linters, unit tests, and integration tests
 make test-e2e # End-to-end tests against real environment. This could fail in network sandboxed environments
 ```
 
-If tests fail:
-- Determine if they are functional failures or caused by sandboxed environment or isolation
-- e2e tests that fail due to sandboxing can be ignored, but all unit and integration tests must pass. Tag code maintainers to review e2e test failures that may be caused by sandboxing.
-- Review the failures carefully
-- Revert changes that broke functionality
-- Adjust simplifications to preserve behavior
-- Re-run tests until they pass
-
-
-### 3.3 Check Build
-
-Verify the project still builds successfully:
+Remind implentor to verify the project still builds successfully:
 
 ```bash
 # Common build commands (adapt to the project)
 make build         # If Makefile exists
 ```
 
-## Phase 4: Create Pull Request
+## Phase 4: Create Issue Request
 
-### 4.1 Determine If PR Is Needed
+### 4.1 Determine If changes are Needed
 
-Only create a PR if:
-- ✅ You made actual code simplifications
-- ✅ All tests pass (or no tests exist)
-- ✅ Linting is clean (or no linter configured)
-- ✅ Build succeeds (or no build step exists)
+Only create an issue if:
+- ✅ You recommend actual code simplifications
 - ✅ Changes improve code quality without breaking functionality
 
-If no improvements were made or changes broke tests, exit gracefully:
+If no improvements are needed, exit gracefully:
 
 ```
 ✅ Code analyzed from last 24 hours.
 No simplifications needed - code already meets quality standards.
 ```
 
-### 4.2 Generate PR Description
+### 4.2 Generate Issue
 
-If creating a PR, use this structure:
+Use this structure:
 
 ```markdown
 ## Code Simplification - [Date]
 
-This PR simplifies recently modified code to improve clarity, consistency, and maintainability while preserving all functionality.
+This Issue recommends code simplificaiton to recently modified code to improve clarity, consistency, and maintainability while preserving all functionality.
 
-### Files Simplified
+### Files to simplify
 
 - `path/to/file1.ext` - [Brief description of improvements]
 - `path/to/file2.ext` - [Brief description of improvements]
@@ -245,7 +222,7 @@ Recent changes from:
 - #[PR_NUMBER] - [PR title]
 - Commit [SHORT_SHA] - [Commit message]
 
-### Testing
+### Implementor Must Ensure 
 
 - ✅ Format passes (make format produces no changes)
 - ✅ Build succeeds (or indicate if no build step)
@@ -260,15 +237,16 @@ Please verify:
 - Simplifications improve code quality
 - Changes align with project conventions
 - No unintended side effects
+- Tests are not changed
 
 ---
 
-*Automated by Code Simplifier Agent*
+*Recommended by Code Simplifier Agent*
 ```
 
 ### 4.3 Use Safe Outputs
 
-Create the pull request using the safe-outputs tool with the generated description.
+Create the issue request using the safe-outputs tool with the generated information.
 
 ## Important Guidelines
 
@@ -285,11 +263,9 @@ Create the pull request using the safe-outputs tool with the generated descripti
 - **Clear over clever**: Prioritize readability and maintainability
 
 ### Exit Conditions
-Exit gracefully without creating a PR if:
+Exit gracefully without creating an issue if:
 - No code was changed in the last 24 hours
 - No simplifications are beneficial
-- Tests fail after changes
-- Build fails after changes
 - Changes are too risky or complex
 
 ## Output Requirements
@@ -298,6 +274,6 @@ Your output MUST either:
 
 1. **If no changes in last 24 hours**: Output a brief status message
 2. **If no simplifications beneficial**: Output a brief status message
-3. **If simplifications made**: Create a PR with the changes
+3. **If simplifications made**: Create an issue detailing the changes
 
 Begin your code simplification analysis now.
