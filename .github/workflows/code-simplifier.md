@@ -12,7 +12,6 @@ tools:
     toolsets: [default]
 safe-outputs:
   create-issue:
-    assignees: [copilot]
     expires: 1d
     title-prefix: "[simplifier] "
     labels:
