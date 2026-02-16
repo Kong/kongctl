@@ -3,7 +3,7 @@ module github.com/kong/kongctl
 go 1.24.3
 
 require (
-	github.com/Kong/sdk-konnect-go v0.19.0
+	github.com/Kong/sdk-konnect-go v0.20.2
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/ajg/form v1.6.1
 	github.com/alecthomas/chroma/v2 v2.23.1
@@ -97,7 +97,6 @@ require (
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.46.0 // indirect
-	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 	golang.org/x/exp/shiny v0.0.0-20250606033433-dcc06ee1d476 // indirect
 	golang.org/x/image v0.28.0 // indirect
 	golang.org/x/mobile v0.0.0-20250606033058-a2a15c67f36f // indirect
