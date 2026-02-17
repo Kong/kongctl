@@ -17,8 +17,13 @@ format:
 	golines -m 120 -w --base-formatter=gofumpt .
 fmt: format
 
+.PHONY: mod
+mod:
+	go mod tidy
+	go mod vendor
+
 .PHONY: build
-build:
+build: mod
 	go build -ldflags "$(LDFLAGS)" -o kongctl
 # Kept typing this wrong
 buld: build
