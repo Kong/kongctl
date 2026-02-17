@@ -61,9 +61,9 @@ func (p *PortalAPIImpl) DeletePortal(
 	id string,
 	force bool,
 ) (*kkOps.DeletePortalResponse, error) {
-	var forceParam *kkOps.QueryParamForce
+	var forceParam *kkOps.DeletePortalQueryParamForce
 	if force {
-		forceTrue := kkOps.QueryParamForceTrue
+		forceTrue := kkOps.DeletePortalQueryParamForceTrue
 		forceParam = &forceTrue
 	}
 	return p.SDK.Portals.DeletePortal(ctx, id, forceParam)
