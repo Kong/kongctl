@@ -25,10 +25,10 @@ tools:
 
 safe-outputs:
   create-discussion:
-    title-prefix: "[ai] "        # prefix for titles
+    title-prefix: "[repo-status] "
     category: "announcements"    # category slug, name, or ID (use lowercase, prefer announcement-capable)
-    expires: 3                   # auto-close after 3 days (or false to disable)
-    max: 3                       # max discussions (default: 1)
+    expires: 30                  # auto-close after 30 days (1 month)
+    max: 15                      # max discussions (default: 1)
     fallback-to-issue: true      # fallback to issue creation on permission errors (default: true)
 source: githubnext/agentics/workflows/daily-repo-status.md@69b5e3ae5fa7f35fa555b0a22aee14c36ab57ebb
 ---
