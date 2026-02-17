@@ -24,13 +24,13 @@ import (
 	"github.com/mattn/go-runewidth"
 	"golang.org/x/term"
 
+	"github.com/atotto/clipboard"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/iostreams"
 	kairender "github.com/kong/kongctl/internal/kai/render"
 	"github.com/kong/kongctl/internal/theme"
 	"github.com/segmentio/cli"
-	"github.com/atotto/clipboard"
 )
 
 type fdProvider interface {
