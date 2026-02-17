@@ -16,7 +16,7 @@ type EventGatewayListenerPolicyResource struct {
 	Ref                                      string `yaml:"ref"                        json:"ref"`
 	// Parent Event Gateway Listener reference (for root-level definitions)
 	EventGatewayListener string `yaml:"listener,omitempty" json:"listener,omitempty"`
-	EventGateway         string `yaml:"event_gateway,omitempty" json:"event_gateway,omitempty"` // For easier reference resolution
+	EventGateway         string `yaml:"event_gateway,omitempty" json:"event_gateway,omitempty"`
 
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
