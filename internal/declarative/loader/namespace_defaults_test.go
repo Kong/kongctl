@@ -432,7 +432,8 @@ func TestApplyNamespaceDefaultsExternalWithKongctlFails(t *testing.T) {
 				Ref:     "external-portal",
 				Kongctl: &resources.KongctlMeta{Namespace: &ns},
 				External: &resources.ExternalBlock{
-					Selector: &resources.ExternalSelector{MatchFields: map[string]string{"name": "portal"}}},
+					Selector: &resources.ExternalSelector{MatchFields: map[string]string{"name": "portal"}},
+				},
 			},
 		},
 	}

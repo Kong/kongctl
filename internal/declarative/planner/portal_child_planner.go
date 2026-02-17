@@ -247,7 +247,8 @@ func (p *Planner) shouldUpdatePortalAuthSettings(
 	}
 
 	if desired.OidcClaimMappings != nil {
-		if current.OidcConfig == nil || !reflect.DeepEqual(current.OidcConfig.ClaimMappings, desired.OidcClaimMappings) {
+		if current.OidcConfig == nil ||
+			!reflect.DeepEqual(current.OidcConfig.ClaimMappings, desired.OidcClaimMappings) {
 			updates["oidc_claim_mappings"] = desired.OidcClaimMappings
 		}
 	}
@@ -659,8 +660,18 @@ func (p *Planner) planPortalCustomDomainsChanges(
 		var apiErr *state.APIClientError
 		if errors.As(err, &apiErr) && apiErr.ClientType == "portal custom domain API" {
 			if desiredDomain != nil {
-				changeID := p.planPortalCustomDomainCreate(parentNamespace, *desiredDomain, portalID, portalRef, portalName, plan)
-				plan.AddWarning(changeID, "unable to inspect existing portal custom domain – assuming create is required")
+				changeID := p.planPortalCustomDomainCreate(
+					parentNamespace,
+					*desiredDomain,
+					portalID,
+					portalRef,
+					portalName,
+					plan,
+				)
+				plan.AddWarning(
+					changeID,
+					"unable to inspect existing portal custom domain – assuming create is required",
+				)
 			}
 			return nil
 		}
@@ -1274,8 +1285,18 @@ func (p *Planner) planPortalEmailConfigsChanges(
 		var apiErr *state.APIClientError
 		if errors.As(err, &apiErr) && apiErr.ClientType == "portal emails API" {
 			if desiredCfg != nil {
-				changeID := p.planPortalEmailConfigCreate(parentNamespace, *desiredCfg, portalID, portalRef, portalName, plan)
-				plan.AddWarning(changeID, "unable to inspect existing portal email config – assuming create is required")
+				changeID := p.planPortalEmailConfigCreate(
+					parentNamespace,
+					*desiredCfg,
+					portalID,
+					portalRef,
+					portalName,
+					plan,
+				)
+				plan.AddWarning(
+					changeID,
+					"unable to inspect existing portal email config – assuming create is required",
+				)
 			}
 			return nil
 		}
@@ -1301,7 +1322,15 @@ func (p *Planner) planPortalEmailConfigsChanges(
 	}
 
 	if p.shouldUpdatePortalEmailConfig(currentCfg, *desiredCfg) {
-		p.planPortalEmailConfigUpdate(parentNamespace, *desiredCfg, portalID, portalRef, portalName, currentCfg.ID, plan)
+		p.planPortalEmailConfigUpdate(
+			parentNamespace,
+			*desiredCfg,
+			portalID,
+			portalRef,
+			portalName,
+			currentCfg.ID,
+			plan,
+		)
 	}
 
 	return nil
@@ -1536,7 +1565,11 @@ func (p *Planner) planPortalEmailTemplatesChanges(
 		if current, ok := existing[nameKey]; ok {
 			var currentDetails *state.PortalEmailTemplate
 			if portalID != "" {
-				full, err := p.client.GetPortalCustomEmailTemplate(ctx, portalID, kkComps.EmailTemplateName(current.Name))
+				full, err := p.client.GetPortalCustomEmailTemplate(
+					ctx,
+					portalID,
+					kkComps.EmailTemplateName(current.Name),
+				)
 				if err != nil {
 					return fmt.Errorf("failed to fetch portal email template %s for comparison: %w", current.Name, err)
 				}

@@ -227,7 +227,11 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		}
 
 		if err := namespacePlanner.eventGatewayControlPlanePlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
-			return nil, fmt.Errorf("failed to plan Event Gateway Control Plane changes for namespace %s: %w", namespace, err)
+			return nil, fmt.Errorf(
+				"failed to plan Event Gateway Control Plane changes for namespace %s: %w",
+				namespace,
+				err,
+			)
 		}
 
 		if err := namespacePlanner.organizationTeamPlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {

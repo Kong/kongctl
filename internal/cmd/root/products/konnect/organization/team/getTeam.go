@@ -227,7 +227,8 @@ func runGet(id string, kkClient helpers.OrganizationTeamAPI, helper cmd.Helper) 
 }
 
 func runList(kkClient helpers.OrganizationTeamAPI, helper cmd.Helper,
-	cfg config.Hook, skipSystemTeams bool) ([]kkComps.Team, error) {
+	cfg config.Hook, skipSystemTeams bool,
+) ([]kkComps.Team, error) {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
 	if requestPageSize < 1 {

@@ -39,8 +39,10 @@ func NewSystemAccountCmd(
 		Short:   systemAccountShort,
 		Long:    systemAccountLong,
 		Example: systemAccountExample,
-		Aliases: []string{"systemaccount", "systemaccounts", "system-accounts", "system_account", "system_accounts",
-			"sa", "sas", "SA", "SAS"},
+		Aliases: []string{
+			"systemaccount", "systemaccounts", "system-accounts", "system_account", "system_accounts",
+			"sa", "sas", "SA", "SAS",
+		},
 	}
 
 	switch verb {

@@ -147,7 +147,11 @@ func adoptEventGatewayControlPlane(
 	if existing := egw.Labels; existing != nil {
 		if currentNamespace, ok := existing[labels.NamespaceKey]; ok && currentNamespace != "" {
 			return nil, &cmdpkg.ConfigurationError{
-				Err: fmt.Errorf("event gateway control plane %q already has namespace label %q", egw.Name, currentNamespace),
+				Err: fmt.Errorf(
+					"event gateway control plane %q already has namespace label %q",
+					egw.Name,
+					currentNamespace,
+				),
 			}
 		}
 	}

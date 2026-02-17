@@ -27,7 +27,8 @@ func NewDirectGatewayCmd() (*cobra.Command, error) {
 		cmd.Flags().String(common.RegionFlagName, "",
 			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
-				common.BaseURLFlagName, common.RegionConfigPath))
+				common.BaseURLFlagName, common.RegionConfigPath),
+		)
 
 		cmd.Flags().String(common.PATFlagName, "",
 			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 

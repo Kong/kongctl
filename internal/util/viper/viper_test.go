@@ -2,6 +2,27 @@ package viper
 
 import "testing"
 
+func TestProfileEnvPrefix(t *testing.T) {
+	tests := []struct {
+		profile  string
+		expected string
+	}{
+		{"default", "KONGCTL_DEFAULT"},
+		{"team-a", "KONGCTL_TEAM_A"},
+		{"team-a-b-c", "KONGCTL_TEAM_A_B_C"},
+		{"prod", "KONGCTL_PROD"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.profile, func(t *testing.T) {
+			got := ProfileEnvPrefix(tt.profile)
+			if got != tt.expected {
+				t.Errorf("ProfileEnvPrefix(%q) = %q, want %q", tt.profile, got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestNewViperEnvKeyReplacer(t *testing.T) {
 	t.Setenv("KONGCTL_LOG_LEVEL", "debug")
 	t.Setenv("KONGCTL_KONNECT_DECLARATIVE_BASE_DIR", "/tmp")

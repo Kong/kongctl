@@ -1002,7 +1002,8 @@ func (e *Executor) resolveEventGatewayRef(ctx context.Context, refInfo planner.R
 
 // resolveEventGatewayBackendClusterRef resolves an event gateway reference to its ID
 func (e *Executor) resolveEventGatewayBackendClusterRef(
-	ctx context.Context, gatewayID string, refInfo planner.ReferenceInfo) (string, error) {
+	ctx context.Context, gatewayID string, refInfo planner.ReferenceInfo,
+) (string, error) {
 	lookupRef := refInfo.Ref
 	if tags.IsRefPlaceholder(lookupRef) {
 		if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
@@ -1625,7 +1626,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		}
 
 		// Resolve event gateway backend cluster reference if needed
-		if backendClusterRef, ok := change.References["event_gateway_backend_cluster_id"]; ok && backendClusterRef.ID == "" {
+		if backendClusterRef, ok := change.References["event_gateway_backend_cluster_id"]; ok &&
+			backendClusterRef.ID == "" {
 			backendClusterID, err := e.resolveEventGatewayBackendClusterRef(ctx, change.Parent.ID, backendClusterRef)
 			if err != nil {
 				return "", fmt.Errorf("failed to resolve event gateway backend cluster reference: %w", err)

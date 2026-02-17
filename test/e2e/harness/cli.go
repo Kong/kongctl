@@ -252,11 +252,24 @@ func (c *CLI) runWithEnv(ctx context.Context, env map[string]string, args ...str
 
 // RunProgram executes an arbitrary binary with optional env/working directory overrides while
 // still capturing artifacts inside the harness.
-func (c *CLI) RunProgram(ctx context.Context, bin string, args []string, env map[string]string, workdir string) (Result, error) {
+func (c *CLI) RunProgram(
+	ctx context.Context,
+	bin string,
+	args []string,
+	env map[string]string,
+	workdir string,
+) (Result, error) {
 	return c.runCommand(ctx, bin, args, env, false, workdir)
 }
 
-func (c *CLI) runCommand(ctx context.Context, bin string, args []string, env map[string]string, injectFlags bool, workdir string) (Result, error) {
+func (c *CLI) runCommand(
+	ctx context.Context,
+	bin string,
+	args []string,
+	env map[string]string,
+	injectFlags bool,
+	workdir string,
+) (Result, error) {
 	if strings.TrimSpace(bin) == "" {
 		return Result{}, fmt.Errorf("binary is required")
 	}

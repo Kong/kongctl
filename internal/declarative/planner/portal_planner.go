@@ -68,8 +68,11 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 			if portalID := desiredPortal.GetKonnectID(); portalID != "" {
 				// Build a minimal current portal for child planning
 				current := state.Portal{
-					ListPortalsResponsePortal: kkComps.ListPortalsResponsePortal{ID: portalID, Name: desiredPortal.Name},
-					NormalizedLabels:          map[string]string{},
+					ListPortalsResponsePortal: kkComps.ListPortalsResponsePortal{
+						ID:   portalID,
+						Name: desiredPortal.Name,
+					},
+					NormalizedLabels: map[string]string{},
 				}
 				p.planner.logger.Debug("Planning children for external portal",
 					slog.String("ref", desiredPortal.GetRef()),
@@ -797,12 +800,26 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 	if !desired.IsExternal() && desired.Assets != nil {
 		if desired.Assets.Logo != nil && *desired.Assets.Logo != "" {
 			if !plan.HasChange(ResourceTypePortalAssetLogo, fmt.Sprintf("%s-logo", desired.Ref)) {
-				planner.planPortalAssetLogoUpdate(parentNamespace, desired.Ref, desired.Name, "", *desired.Assets.Logo, plan)
+				planner.planPortalAssetLogoUpdate(
+					parentNamespace,
+					desired.Ref,
+					desired.Name,
+					"",
+					*desired.Assets.Logo,
+					plan,
+				)
 			}
 		}
 		if desired.Assets.Favicon != nil && *desired.Assets.Favicon != "" {
 			if !plan.HasChange(ResourceTypePortalAssetFavicon, fmt.Sprintf("%s-favicon", desired.Ref)) {
-				planner.planPortalAssetFaviconUpdate(parentNamespace, desired.Ref, desired.Name, "", *desired.Assets.Favicon, plan)
+				planner.planPortalAssetFaviconUpdate(
+					parentNamespace,
+					desired.Ref,
+					desired.Name,
+					"",
+					*desired.Assets.Favicon,
+					plan,
+				)
 			}
 		}
 	}

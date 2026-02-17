@@ -15,13 +15,13 @@ type PortalTeamRoleResource struct {
 
 	// Parent references
 	Portal string `yaml:"portal,omitempty" json:"portal,omitempty"`
-	Team   string `yaml:"team,omitempty" json:"team,omitempty"`
+	Team   string `yaml:"team,omitempty"   json:"team,omitempty"`
 
 	// Role assignment fields (API expects literal values)
-	RoleName       string `yaml:"role_name" json:"role_name"`
-	EntityID       string `yaml:"entity_id" json:"entity_id"`
+	RoleName       string `yaml:"role_name"        json:"role_name"`
+	EntityID       string `yaml:"entity_id"        json:"entity_id"`
 	EntityTypeName string `yaml:"entity_type_name" json:"entity_type_name"`
-	EntityRegion   string `yaml:"entity_region" json:"entity_region"`
+	EntityRegion   string `yaml:"entity_region"    json:"entity_region"`
 
 	// Resolved Konnect assignment ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`

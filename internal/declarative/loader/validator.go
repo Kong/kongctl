@@ -67,7 +67,8 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 
 // validateOrganizationTeams validates organization team resources
 func (l *Loader) validateOrganizationTeams(teams []resources.OrganizationTeamResource,
-	rs *resources.ResourceSet) error {
+	rs *resources.ResourceSet,
+) error {
 	names := make(map[string]string) // name -> ref mapping (names unique per type)
 
 	for i := range teams {

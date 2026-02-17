@@ -57,7 +57,8 @@ func addBaseFlags(command *cobra.Command) {
 	command.Flags().String(konnectcommon.RegionFlagName, "",
 		fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
 - Config path: [ %s ]`,
-			konnectcommon.BaseURLFlagName, konnectcommon.RegionConfigPath))
+			konnectcommon.BaseURLFlagName, konnectcommon.RegionConfigPath),
+	)
 
 	command.Flags().String(konnectcommon.PATFlagName, "",
 		fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.

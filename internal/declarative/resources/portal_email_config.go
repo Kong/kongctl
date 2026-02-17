@@ -10,8 +10,8 @@ import (
 
 // PortalEmailConfigResource represents the portal email configuration (singleton child).
 type PortalEmailConfigResource struct {
-	kkComps.PostPortalEmailConfig `yaml:",inline" json:",inline"`
-	Ref                           string `yaml:"ref"            json:"ref"`
+	kkComps.PostPortalEmailConfig `       yaml:",inline"          json:",inline"`
+	Ref                           string `yaml:"ref"              json:"ref"`
 	Portal                        string `yaml:"portal,omitempty" json:"portal,omitempty"`
 
 	DomainNameSet   bool `yaml:"-" json:"-"`

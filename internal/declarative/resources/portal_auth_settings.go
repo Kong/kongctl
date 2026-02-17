@@ -9,7 +9,7 @@ import (
 
 // PortalAuthSettingsResource represents portal authentication settings (singleton child).
 type PortalAuthSettingsResource struct {
-	kkComps.PortalAuthenticationSettingsUpdateRequest `yaml:",inline" json:",inline"`
+	kkComps.PortalAuthenticationSettingsUpdateRequest `       yaml:",inline"          json:",inline"`
 	Ref                                               string `yaml:"ref,omitempty"    json:"ref,omitempty"`
 	Portal                                            string `yaml:"portal,omitempty" json:"portal,omitempty"`
 

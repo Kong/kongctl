@@ -385,7 +385,8 @@ func getBackendClusterIDFromExecutionContext(execCtx *ExecutionContext) (string,
 	}
 
 	change := *execCtx.PlannedChange
-	if backendClusterRef, ok := change.References["event_gateway_backend_cluster_id"]; ok && backendClusterRef.ID != "" {
+	if backendClusterRef, ok := change.References["event_gateway_backend_cluster_id"]; ok &&
+		backendClusterRef.ID != "" {
 		return backendClusterRef.ID, nil
 	}
 	// Check fields as fallback

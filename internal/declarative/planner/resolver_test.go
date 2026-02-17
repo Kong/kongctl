@@ -445,7 +445,11 @@ func TestResolveReferences_ExistingPortal(t *testing.T) {
 	mockAPI.On("ListPortals", ctx, mock.Anything).Return(&kkOps.ListPortalsResponse{
 		ListPortalsResponse: &kkComps.ListPortalsResponse{
 			Data: []kkComps.ListPortalsResponsePortal{
-				newListPortal("portal-existing-123", "existing-portal", map[string]string{labels.NamespaceKey: "default"}),
+				newListPortal(
+					"portal-existing-123",
+					"existing-portal",
+					map[string]string{labels.NamespaceKey: "default"},
+				),
 			},
 			Meta: kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{

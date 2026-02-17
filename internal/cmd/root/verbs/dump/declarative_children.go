@@ -551,7 +551,13 @@ func buildPortalCustomDomain(
 		if method == "" {
 			return nil, nil
 		}
-		logWarn(logger, "portal custom domain uses unsupported verification method; skipping", portalID, portalName, nil)
+		logWarn(
+			logger,
+			"portal custom domain uses unsupported verification method; skipping",
+			portalID,
+			portalName,
+			nil,
+		)
 		return nil, nil
 	}
 }

@@ -7,6 +7,12 @@ import (
 	v "github.com/spf13/viper"
 )
 
+// ProfileEnvPrefix converts a profile name to its environment variable prefix.
+// For example, "team-a" becomes "KONGCTL_TEAM_A".
+func ProfileEnvPrefix(profile string) string {
+	return "KONGCTL_" + strings.ToUpper(strings.ReplaceAll(profile, "-", "_"))
+}
+
 // ConfigureEnvVars configures a Viper instance to read environment variables
 // with the specified prefix (e.g., "kongctl" or "kongctl_default")
 func ConfigureEnvVars(vip *v.Viper, envPrefix string) {

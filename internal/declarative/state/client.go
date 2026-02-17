@@ -3279,7 +3279,6 @@ func (c *Client) ListManagedEventGatewayControlPlanes(
 
 	var filteredEGWControlPlanes []EventGatewayControlPlane
 	for _, f := range allData {
-
 		// Filter by managed status and namespace
 		if labels.IsManagedResource(f.Labels) {
 			if shouldIncludeNamespace(f.Labels[labels.NamespaceKey], namespaces) {
@@ -3656,7 +3655,8 @@ func (c *Client) GetOrganizationTeamByID(ctx context.Context, id string) (*Organ
 }
 
 func (c *Client) CreateOrganizationTeam(ctx context.Context, team *kkComps.CreateTeam,
-	namespace string) (string, error) {
+	namespace string,
+) (string, error) {
 	resp, err := c.organizationTeamAPI.CreateOrganizationTeam(ctx, team)
 	if err != nil {
 		return "", WrapAPIError(err, "create organization team", &ErrorWrapperOptions{
@@ -3679,7 +3679,8 @@ func (c *Client) CreateOrganizationTeam(ctx context.Context, team *kkComps.Creat
 }
 
 func (c *Client) UpdateOrganizationTeam(ctx context.Context, teamID string,
-	team *kkComps.UpdateTeam, namespace string) (string, error) {
+	team *kkComps.UpdateTeam, namespace string,
+) (string, error) {
 	resp, err := c.organizationTeamAPI.UpdateOrganizationTeam(ctx, teamID, team)
 	if err != nil {
 		return "", WrapAPIError(err, "update organization team", &ErrorWrapperOptions{

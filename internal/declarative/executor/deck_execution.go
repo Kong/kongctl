@@ -434,7 +434,11 @@ func (e *Executor) resolveGatewayServiceByName(
 	}
 
 	if matchID == "" {
-		return "", fmt.Errorf("gateway_service not found with name %q in control plane %s", selectorName, controlPlaneID)
+		return "", fmt.Errorf(
+			"gateway_service not found with name %q in control plane %s",
+			selectorName,
+			controlPlaneID,
+		)
 	}
 
 	return matchID, nil

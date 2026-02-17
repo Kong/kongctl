@@ -145,7 +145,13 @@ func TestAdoptEventGatewayControlPlaneById(t *testing.T) {
 
 	cfg := stubConfig{pageSize: 50}
 
-	result, err := adoptEventGatewayControlPlane(helper, egw, cfg, "team-events", "f3b8c0d1-9a2e-4f12-8d3c-1e4a5b6c7d8e")
+	result, err := adoptEventGatewayControlPlane(
+		helper,
+		egw,
+		cfg,
+		"team-events",
+		"f3b8c0d1-9a2e-4f12-8d3c-1e4a5b6c7d8e",
+	)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, "event_gateway", result.ResourceType)

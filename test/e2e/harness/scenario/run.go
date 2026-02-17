@@ -176,7 +176,13 @@ func Run(t *testing.T, scenarioPath string) error {
 					cli.OverrideNextCommandSlug(cmd.Name)
 				}
 				workdir := renderString(cmd.Workdir, tmplCtx)
-				res, err := cli.RunProgram(context.Background(), renderedArgs[0], renderedArgs[1:], envOverrides, strings.TrimSpace(workdir))
+				res, err := cli.RunProgram(
+					context.Background(),
+					renderedArgs[0],
+					renderedArgs[1:],
+					envOverrides,
+					strings.TrimSpace(workdir),
+				)
 				if err != nil {
 					return fmt.Errorf("command %s external execution failed: %w", cmdName, err)
 				}
@@ -191,7 +197,13 @@ func Run(t *testing.T, scenarioPath string) error {
 					if len(snippet) > 2048 {
 						snippet = snippet[:2048] + "…"
 					}
-					return fmt.Errorf("command %s produced unparsable output (mode=%s): %w\nstdout: %q", cmdName, mode, err, snippet)
+					return fmt.Errorf(
+						"command %s produced unparsable output (mode=%s): %w\nstdout: %q",
+						cmdName,
+						mode,
+						err,
+						snippet,
+					)
 				}
 				if err := maybeRecordVar(&s, cmd.RecordVar, parentData.Value(), step); err != nil {
 					return fmt.Errorf("command %s recordVar failed: %w", cmdName, err)
@@ -590,7 +602,13 @@ func executeAssertions(
 	return nil
 }
 
-func runCLIWithRetry(cli *harness.CLI, cmdName string, retryCfg Retry, args []string, env map[string]string) (harness.Result, error) {
+func runCLIWithRetry(
+	cli *harness.CLI,
+	cmdName string,
+	retryCfg Retry,
+	args []string,
+	env map[string]string,
+) (harness.Result, error) {
 	backoffCfg := harness.NormalizeBackoffConfig(backoffConfigFromRetry(retryCfg))
 	attempts := backoffCfg.Attempts
 	backoff := harness.BuildBackoffSchedule(backoffCfg)

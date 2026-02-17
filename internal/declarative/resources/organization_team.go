@@ -10,9 +10,9 @@ import (
 
 // OrganizationTeamResource represents a team in declarative configuration
 type OrganizationTeamResource struct {
-	kkComps.CreateTeam `yaml:",inline" json:",inline"`
-	Ref                string         `yaml:"ref" json:"ref"`
-	Kongctl            *KongctlMeta   `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+	kkComps.CreateTeam `               yaml:",inline"             json:",inline"`
+	Ref                string         `yaml:"ref"                 json:"ref"`
+	Kongctl            *KongctlMeta   `yaml:"kongctl,omitempty"   json:"kongctl,omitempty"`
 	External           *ExternalBlock `yaml:"_external,omitempty" json:"_external,omitempty"`
 
 	// Resolved Konnect ID (not serialized)
