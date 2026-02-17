@@ -57,12 +57,12 @@ func GetStringFromReflectValue(v reflect.Value) (string, error) {
 func IsEventGatewayEnabled() bool {
 	enabled := os.Getenv("KONGCTL_ENABLE_EVENT_GATEWAY")
 	if enabled == "" {
-		return true
+		return false
 	}
-	_, err := strconv.ParseBool(enabled)
+	val, err := strconv.ParseBool(enabled)
 	if err != nil {
 		// If parsing fails, treat as enabled (any non-empty, non-parseable value)
 		return true
 	}
-	return true
+	return val
 }

@@ -104,6 +104,14 @@ steps:
               fields:
                 name: "{{ .vars.listenerPolicyName }}"
                 description: "{{ .vars.listenerPolicyDescription }}"
+                enabled: true
+                config:
+                  allow_plaintext: true
+                  certificates:
+                  - certificate: "-----BEGIN CERTIFICATE-----\nMIIBxjCCAUygAwIBAgIUX9TaLbWF76yQc8IGR+YRbeiDlHkwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAwwPa29uZ19jbHVzdGVyaW5nMB4XDTI0MDMwMTE0MzkxNloXDTI3MDMwMTE0MzkxNlowGjEYMBYGA1UEAwwPa29uZ19jbHVzdGVyaW5nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEcMndCotXzeZ9vGAMfDfZ7UxUuP5bcIrwwUOI8YlpMdvB12HvjtS7O0/ONr3fBeCWagRuitPEqd4b3EJuD8kuFUMt+2A09N6KY1YDJWgKHei7rzKgrefzVt11XgBiDsUBo1MwUTAdBgNVHQ4EFgQUIrdAC8p02h60GZW0Jlh2Vcg/WeMwHwYDVR0jBBgwFoAUIrdAC8p02h60GZW0Jlh2Vcg/WeMwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNoADBlAjBYb+yQf33sItlmsONLc41Agtx73FMEN7LfWA85OtlkMie1N1x0mj08pzS/Xc1VONwCMQDN9sBn3Kody0gse+EXYSuPPj1oo9jmFB9/xrpz35YpDATvuyhH8xwSJ4xMuxQiduc=\n-----END CERTIFICATE-----"
+                  versions:
+                    min: TLSv1.2
+                    max: TLSv1.3
   - name: 002-plan-update
     inputOverlayDirs:
       - overlays/001-update-fields
@@ -304,61 +312,61 @@ steps:
                 labels:
                   env: staging
                   team: payments
-  # - name: 005-sync-delete-root-level
-  #   inputOverlayDirs:
-  #     - overlays/004-sync-delete-root-level-declaration
-  #   commands:
-  #     - name: 001-plan-sync-delete-root-level
-  #       outputFormat: disable
-  #       stdoutFile: "{{ .workdir }}/plan-sync-delete-root-level.json"
-  #       run:
-  #         - plan
-  #         - -f
-  #         - "{{ .workdir }}/config.yaml"
-  #         - --mode
-  #         - sync
-  #       assertions:
-  #         - select: metadata
-  #           expect:
-  #             fields:
-  #               mode: sync
-  #         - select: summary
-  #           expect:
-  #             fields:
-  #               total_changes: 1
-  #               by_action.DELETE: 1
-  #         - select: >-
-  #             changes[?resource_type=='event_gateway_listener_policy' && resource_ref=='{{ .vars.listenerPolicyName }}'] | [0]
-  #           expect:
-  #             fields:
-  #               action: DELETE
-  #               resource_ref: "{{ .vars.listenerPolicyName }}"
-  #     - name: 002-sync-delete-root-level
-  #       outputFormat: json
-  #       run:
-  #         - sync
-  #         - --plan
-  #         - "{{ .workdir }}/plan-sync-delete-root-level.json"
-  #         - --auto-approve
-  #       assertions:
-  #         - select: summary
-  #           expect:
-  #             fields:
-  #               applied: 1
-  #               failed: 0
-  #     - name: 003-verify-delete-root-level
-  #       run:
-  #         - get
-  #         - event-gateway
-  #         - listener-policies
-  #         - --gateway-name
-  #         - "{{ .vars.egwName }}"
-  #         - --listener-name
-  #         - "{{ .vars.listenerName }}"
-  #         - -o
-  #         - json
-  #       assertions:
-  #         - select: "length(@)"
-  #           expect:
-  #             fields:
-  #               "@": 0
+  - name: 005-sync-delete-root-level
+    inputOverlayDirs:
+      - overlays/004-sync-delete-root-level-declaration
+    commands:
+      - name: 001-plan-sync-delete-root-level
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete-root-level.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_listener_policy' && resource_ref=='{{ .vars.listenerPolicyName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: "{{ .vars.listenerPolicyName }}"
+      - name: 002-sync-delete-root-level
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete-root-level.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-delete-root-level
+        run:
+          - get
+          - event-gateway
+          - listener-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --listener-name
+          - "{{ .vars.listenerName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0

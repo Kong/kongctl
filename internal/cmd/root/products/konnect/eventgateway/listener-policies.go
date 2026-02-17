@@ -496,10 +496,6 @@ func findListenerPolicyByName(
 ) *kkComps.EventGatewayListenerPolicy {
 	lowered := strings.ToLower(identifier)
 	for _, policy := range policies {
-		if policy.ID != "" && strings.ToLower(policy.ID) == lowered {
-			policyCopy := policy
-			return &policyCopy
-		}
 		if policy.Name != nil && strings.ToLower(*policy.Name) == lowered {
 			policyCopy := policy
 			return &policyCopy
