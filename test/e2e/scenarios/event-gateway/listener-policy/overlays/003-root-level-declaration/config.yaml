@@ -19,7 +19,7 @@ event_gateway_listener_policies:
 - ref: default-listener-1-policy-1-ref
   name: default-listener-1-policy-1
   description: "Default Listener 1 root level Policy 1"
-  event_gateway_listener: default-listener-1-ref
+  listener: default-listener-1-ref
   event_gateway: egw-cp-for-listener-policy-test-ref
   enabled: false
   labels:

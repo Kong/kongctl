@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
@@ -412,6 +413,11 @@ func (p *Planner) shouldUpdateListenerPolicy(
 		needsUpdate = true
 	}
 
+	// Compare config based on policy type
+	if p.listenerPolicyConfigNeedsUpdate(current, desired) {
+		needsUpdate = true
+	}
+
 	// If any changes detected, serialize ALL fields from desired state for PUT request
 	if needsUpdate {
 		return true, p.listenerPolicyToFields(desired)
@@ -444,6 +450,264 @@ func (p *Planner) getListenerPolicyEnabled(
 		return *policy.ForwardToVirtualClusterPolicy.Enabled
 	}
 	return true // Default is enabled
+}
+
+// listenerPolicyConfigNeedsUpdate compares config based on the policy type.
+// This avoids false positives from API-supplied defaults by comparing only desired fields.
+func (p *Planner) listenerPolicyConfigNeedsUpdate(
+	current state.EventGatewayListenerPolicyInfo,
+	desired resources.EventGatewayListenerPolicyResource,
+) bool {
+	if current.RawConfig == nil {
+		// No current config means we need to set it if desired has config
+		return desired.EventGatewayTLSListenerPolicy != nil || desired.ForwardToVirtualClusterPolicy != nil
+	}
+
+	policyType := current.Type
+
+	switch policyType {
+	case "tls_server":
+		return p.tlsPolicyConfigNeedsUpdate(current.RawConfig, desired)
+	case "forward_to_virtual_cluster":
+		return p.forwardToVCPolicyConfigNeedsUpdate(current.RawConfig, desired)
+	default:
+		p.logger.Warn("Unknown listener policy type", "type", policyType)
+		return false
+	}
+}
+
+// tlsPolicyConfigNeedsUpdate compares TLS policy config fields.
+func (p *Planner) tlsPolicyConfigNeedsUpdate(
+	currentConfig map[string]any,
+	desired resources.EventGatewayListenerPolicyResource,
+) bool {
+	if desired.EventGatewayTLSListenerPolicy == nil {
+		return true // Type mismatch
+	}
+
+	desiredTLS := desired.EventGatewayTLSListenerPolicy
+
+	// Compare certificates
+	currentCerts := getNestedSlice(currentConfig, "config", "certificates")
+	if len(desiredTLS.Config.Certificates) != len(currentCerts) {
+		return true
+	}
+	for i, desiredCert := range desiredTLS.Config.Certificates {
+		if i >= len(currentCerts) {
+			return true
+		}
+		currentCert, ok := currentCerts[i].(map[string]any)
+		if !ok {
+			return true
+		}
+		// Compare certificate and key
+		if desiredCert.Certificate != getStringFromMap(currentCert, "certificate") {
+			return true
+		}
+		if desiredCert.Key != getStringFromMap(currentCert, "key") {
+			return true
+		}
+	}
+
+	// Compare versions if specified
+	if desiredTLS.Config.Versions != nil {
+		currentVersions := getNestedMap(currentConfig, "config", "versions")
+		if currentVersions == nil {
+			return true
+		}
+		if desiredTLS.Config.Versions.Min != nil {
+			if string(*desiredTLS.Config.Versions.Min) != getStringFromMap(currentVersions, "min") {
+				return true
+			}
+		}
+		if desiredTLS.Config.Versions.Max != nil {
+			if string(*desiredTLS.Config.Versions.Max) != getStringFromMap(currentVersions, "max") {
+				return true
+			}
+		}
+	}
+
+	// Compare allow_plaintext if specified
+	if desiredTLS.Config.AllowPlaintext != nil {
+		currentAllowPlaintext := getBoolFromNestedMap(currentConfig, "config", "allow_plaintext")
+		if *desiredTLS.Config.AllowPlaintext != currentAllowPlaintext {
+			return true
+		}
+	}
+
+	return false
+}
+
+// forwardToVCPolicyConfigNeedsUpdate compares forward_to_virtual_cluster policy config fields.
+func (p *Planner) forwardToVCPolicyConfigNeedsUpdate(
+	currentConfig map[string]any,
+	desired resources.EventGatewayListenerPolicyResource,
+) bool {
+	if desired.ForwardToVirtualClusterPolicy == nil {
+		return true // Policy type mismatch
+	}
+
+	desiredFwd := desired.ForwardToVirtualClusterPolicy
+	desiredConfig := desiredFwd.Config
+
+	// Get the inner config type from current config
+	currentConfigType := getNestedString(currentConfig, "type")
+
+	// Check desired config type and compare with current
+	if desiredConfig.ForwardToClusterBySNIConfig != nil {
+		if currentConfigType != "sni" {
+			return true // Config type mismatch
+		}
+		return p.sniConfigNeedsUpdate(currentConfig, desiredConfig.ForwardToClusterBySNIConfig)
+	}
+	if desiredConfig.ForwardToClusterByPortMappingConfig != nil {
+		if currentConfigType != "port_mapping" {
+			return true // Config type mismatch
+		}
+		return p.portMappingConfigNeedsUpdate(currentConfig, desiredConfig.ForwardToClusterByPortMappingConfig)
+	}
+
+	return false
+}
+
+// sniConfigNeedsUpdate compares SNI-based forwarding config.
+func (p *Planner) sniConfigNeedsUpdate(
+	currentConfig map[string]any,
+	desired *kkComps.ForwardToClusterBySNIConfig,
+) bool {
+	// Compare sni_suffix if specified
+	if desired.SniSuffix != nil {
+		currentSuffix := getNestedString(currentConfig, "sni_suffix")
+		if *desired.SniSuffix != currentSuffix {
+			return true
+		}
+	}
+
+	// Compare advertised_port if specified
+	if desired.AdvertisedPort != nil {
+		currentPort := getNestedInt64(currentConfig, "advertised_port")
+		if *desired.AdvertisedPort != currentPort {
+			return true
+		}
+	}
+
+	// Compare broker_host_format if specified
+	if desired.BrokerHostFormat != nil && desired.BrokerHostFormat.Type != nil {
+		currentFormat := getNestedString(currentConfig, "broker_host_format", "type")
+		if string(*desired.BrokerHostFormat.Type) != currentFormat {
+			return true
+		}
+	}
+
+	return false
+}
+
+// portMappingConfigNeedsUpdate compares port_mapping-based forwarding config.
+func (p *Planner) portMappingConfigNeedsUpdate(
+	currentConfig map[string]any,
+	desired *kkComps.ForwardToClusterByPortMappingConfig,
+) bool {
+	// Compare destination.id - VirtualClusterReference is a union type
+	if desired.Destination.VirtualClusterReferenceByID != nil {
+		desiredDestID := desired.Destination.VirtualClusterReferenceByID.ID
+		// If !ref placeholder, skip comparison - it will be resolved at runtime
+		if !tags.IsRefPlaceholder(desiredDestID) {
+			currentDestID := getNestedString(currentConfig, "destination", "id")
+			if desiredDestID != currentDestID {
+				return true
+			}
+		}
+	}
+
+	// Compare advertised_host
+	currentAdvHost := getNestedString(currentConfig, "advertised_host")
+	if desired.AdvertisedHost != currentAdvHost {
+		return true
+	}
+
+	// Compare bootstrap_port if specified
+	if desired.BootstrapPort != nil {
+		currentBootstrap := getNestedString(currentConfig, "bootstrap_port")
+		if string(*desired.BootstrapPort) != currentBootstrap {
+			return true
+		}
+	}
+
+	// Compare min_broker_id if specified
+	if desired.MinBrokerID != nil {
+		currentMinBrokerID := getNestedInt64(currentConfig, "min_broker_id")
+		if *desired.MinBrokerID != currentMinBrokerID {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Helper functions for nested config access
+
+func getNestedString(m map[string]any, keys ...string) string {
+	val := getNestedValue(m, keys...)
+	if s, ok := val.(string); ok {
+		return s
+	}
+	return ""
+}
+
+func getNestedInt64(m map[string]any, keys ...string) int64 {
+	val := getNestedValue(m, keys...)
+	switch v := val.(type) {
+	case int64:
+		return v
+	case float64:
+		return int64(v)
+	case int:
+		return int64(v)
+	}
+	return 0
+}
+
+func getNestedSlice(m map[string]any, keys ...string) []any {
+	val := getNestedValue(m, keys...)
+	if arr, ok := val.([]any); ok {
+		return arr
+	}
+	return nil
+}
+
+func getNestedMap(m map[string]any, keys ...string) map[string]any {
+	val := getNestedValue(m, keys...)
+	if mp, ok := val.(map[string]any); ok {
+		return mp
+	}
+	return nil
+}
+
+func getNestedValue(m map[string]any, keys ...string) any {
+	current := any(m)
+	for _, key := range keys {
+		if currentMap, ok := current.(map[string]any); ok {
+			current = currentMap[key]
+		} else {
+			return nil
+		}
+	}
+	return current
+}
+
+func getStringFromMap(m map[string]any, key string) string {
+	if v, ok := m[key].(string); ok {
+		return v
+	}
+	return ""
+}
+
+func getBoolFromNestedMap(m map[string]any, keys ...string) bool {
+	val := getNestedValue(m, keys...)
+	if b, ok := val.(bool); ok {
+		return b
+	}
+	return false
 }
 
 // addVirtualClusterReference checks if the policy has a virtual cluster destination with a ref placeholder

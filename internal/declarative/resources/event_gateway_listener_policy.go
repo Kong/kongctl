@@ -16,6 +16,7 @@ type EventGatewayListenerPolicyResource struct {
 	Ref                                      string `yaml:"ref"                        json:"ref"`
 	// Parent Event Gateway Listener reference (for root-level definitions)
 	EventGatewayListener string `yaml:"listener,omitempty" json:"listener,omitempty"`
+	EventGateway         string `yaml:"event_gateway,omitempty" json:"event_gateway,omitempty"` // For easier reference resolution
 
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
@@ -133,7 +134,7 @@ func (e EventGatewayListenerPolicyResource) MarshalJSON() ([]byte, error) {
 
 	result["ref"] = e.Ref
 	if e.EventGatewayListener != "" {
-		result["event_gateway_listener"] = e.EventGatewayListener
+		result["listener"] = e.EventGatewayListener
 	}
 
 	return json.Marshal(result)
@@ -148,7 +149,7 @@ func (e *EventGatewayListenerPolicyResource) UnmarshalJSON(data []byte) error {
 	// First extract our metadata fields
 	var meta struct {
 		Ref                  string `json:"ref"`
-		EventGatewayListener string `json:"event_gateway_listener,omitempty"`
+		EventGatewayListener string `json:"listener,omitempty"`
 		Kongctl              any    `json:"kongctl,omitempty"`
 	}
 
