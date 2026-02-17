@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 	"unicode"
 
@@ -31,7 +30,7 @@ import (
 	kairender "github.com/kong/kongctl/internal/kai/render"
 	"github.com/kong/kongctl/internal/theme"
 	"github.com/segmentio/cli"
-	clipboard "golang.design/x/clipboard"
+	"github.com/atotto/clipboard"
 )
 
 type fdProvider interface {
@@ -1234,11 +1233,6 @@ type mapEntry struct {
 	Summary string
 }
 
-var (
-	clipboardInitOnce sync.Once
-	clipboardInitErr  error
-)
-
 func parseDetailContent(content string) []detailItem {
 	lines := strings.Split(content, "\n")
 	items := make([]detailItem, 0, len(lines))
@@ -1608,20 +1602,7 @@ func mapEntriesFromValue(value reflect.Value) []mapEntry {
 }
 
 func writeClipboardText(value string) error {
-	clipboardInitOnce.Do(func() {
-		clipboardInitErr = clipboard.Init()
-	})
-	if clipboardInitErr != nil {
-		return clipboardInitErr
-	}
-	done := clipboard.Write(clipboard.FmtText, []byte(value))
-	if done == nil {
-		return errors.New("clipboard write failed")
-	}
-	go func() {
-		<-done
-	}()
-	return nil
+	return clipboard.WriteAll(value)
 }
 
 func formatStatusValue(value string) string {

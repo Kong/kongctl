@@ -9,7 +9,7 @@ before:
     - go generate ./...
 builds:
   - env:
-      - CGO_ENABLED=1
+      - CGO_ENABLED=0
     ldflags:
       - -s -w
       - -X main.version={{.Version}}
@@ -22,27 +22,6 @@ builds:
     goarch:
       - amd64
       - arm64
-    overrides:
-      - goos: linux
-        goarch: arm64
-        env:
-          - CC=aarch64-linux-gnu-gcc
-      - goos: darwin
-        goarch: amd64
-        env:
-          - CC=o64-clang
-      - goos: darwin
-        goarch: arm64
-        env:
-          - CC=oa64-clang
-      - goos: windows
-        goarch: amd64
-        env:
-          - CC=x86_64-w64-mingw32-gcc
-      - goos: windows
-        goarch: arm64
-        env:
-          - CC=/llvm-mingw/bin/aarch64-w64-mingw32-gcc
 archives:
   - name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     formats: ['zip']
