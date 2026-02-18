@@ -56,10 +56,10 @@ with existing deck patch files, but it is not required.`))
         %[1]s patch file kong.yaml base.yaml env.yaml team.yaml
 
         # Read from stdin, write to a file
-        cat kong.yaml | %[1]s patch file - -s '$' -v 'version:"2.0"' -o output.yaml
+        cat kong.yaml | %[1]s patch file - -s '$' -v 'version:"2.0"' --output-file output.yaml
 
         # Output as JSON
-        %[1]s patch file kong.yaml patches.yaml --format json -o output.json
+        %[1]s patch file kong.yaml patches.yaml --format json --output-file output.json
         `, meta.CLIName)))
 )
 
