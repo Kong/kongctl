@@ -8,6 +8,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/api"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/auditlogs"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/authstrategy"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
@@ -151,6 +152,16 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	// Handle Logout verb
 	if verb == verbs.Logout {
 		return newLogoutKonnectCmd(verb, cmd, addFlags, preRunE).Command, nil
+	}
+
+	if verb = verbs.Listen:
+		alc, err := auditlogs.NewAuditLogsCmd(verb, addFlags, preRunE)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(alc)
+		addFlags(verb, cmd)
+		return cmd, nil
 	}
 
 	// Handle declarative configuration verbs
