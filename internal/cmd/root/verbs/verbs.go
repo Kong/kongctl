@@ -2,6 +2,7 @@ package verbs
 
 const (
 	Add    = VerbValue("add")
+	Listen = VerbValue("listen")
 	Apply  = VerbValue("apply")
 	Adopt  = VerbValue("adopt")
 	Kai    = VerbValue("kai")
