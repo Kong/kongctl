@@ -588,6 +588,15 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 			}
 			accumulated.EventGatewayVirtualClusters = append(accumulated.EventGatewayVirtualClusters, egwVirtualCluster)
 		}
+
+		for _, egwListener := range source.EventGatewayListeners {
+			if accumulated.HasRef(egwListener.Ref) {
+				existing, _ := accumulated.GetResourceByRef(egwListener.Ref)
+				return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
+					egwListener.Ref, sourcePath, existing.GetType())
+			}
+			accumulated.EventGatewayListeners = append(accumulated.EventGatewayListeners, egwListener)
+		}
 	}
 
 	// If this source defines a namespace default without parent resources,

@@ -48,6 +48,8 @@ type Executor struct {
 		kkComps.CreateBackendClusterRequest, kkComps.UpdateBackendClusterRequest]
 	eventGatewayVirtualClusterExecutor *BaseExecutor[
 		kkComps.CreateVirtualClusterRequest, kkComps.UpdateVirtualClusterRequest]
+	eventGatewayListenerExecutor *BaseExecutor[
+		kkComps.CreateEventGatewayListenerRequest, kkComps.UpdateEventGatewayListenerRequest]
 
 	// Portal child resource executors
 	portalCustomizationExecutor *BaseSingletonExecutor[kkComps.PortalCustomization]
@@ -160,6 +162,13 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	e.eventGatewayVirtualClusterExecutor = NewBaseExecutor[
 		kkComps.CreateVirtualClusterRequest, kkComps.UpdateVirtualClusterRequest](
 		NewEventGatewayVirtualClusterAdapter(client),
+		client,
+		dryRun,
+	)
+
+	e.eventGatewayListenerExecutor = NewBaseExecutor[
+		kkComps.CreateEventGatewayListenerRequest, kkComps.UpdateEventGatewayListenerRequest](
+		NewEventGatewayListenerAdapter(client),
 		client,
 		dryRun,
 	)
@@ -1639,6 +1648,19 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		return e.eventGatewayVirtualClusterExecutor.Create(ctx, *change)
 	case "organization_team":
 		return e.organizationTeamExecutor.Create(ctx, *change)
+
+	case planner.ResourceTypeEventGatewayListener:
+		// Resolve event gateway reference if needed
+		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
+			}
+			// Update the reference with the resolved ID
+			gatewayRef.ID = gatewayID
+			change.References["event_gateway_id"] = gatewayRef
+		}
+		return e.eventGatewayListenerExecutor.Create(ctx, *change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
 	}
@@ -1876,6 +1898,17 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 		return e.eventGatewayVirtualClusterExecutor.Update(ctx, *change)
 	case "organization_team":
 		return e.organizationTeamExecutor.Update(ctx, *change)
+	case "event_gateway_listener":
+		// Resolve event gateway reference if needed (typically should already be in Parent)
+		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
+			}
+			gatewayRef.ID = gatewayID
+			change.References["event_gateway_id"] = gatewayRef
+		}
+		return e.eventGatewayListenerExecutor.Update(ctx, *change)
 	default:
 		return "", fmt.Errorf("update operation not yet implemented for %s", change.ResourceType)
 	}
@@ -2012,6 +2045,9 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 	case "event_gateway_virtual_cluster":
 		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
 		return e.eventGatewayVirtualClusterExecutor.Delete(ctx, *change)
+	case "event_gateway_listener":
+		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
+		return e.eventGatewayListenerExecutor.Delete(ctx, *change)
 	case "organization_team":
 		return e.organizationTeamExecutor.Delete(ctx, *change)
 	default:

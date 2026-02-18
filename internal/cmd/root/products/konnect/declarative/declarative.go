@@ -1762,6 +1762,7 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		EGWControlPlaneAPI:            kkClient.GetEventGatewayControlPlaneAPI(),
 		EventGatewayBackendClusterAPI: kkClient.GetEventGatewayBackendClusterAPI(),
 		EventGatewayVirtualClusterAPI: kkClient.GetEventGatewayVirtualClusterAPI(),
+		EventGatewayListenerAPI:       kkClient.GetEventGatewayListenerAPI(),
 
 		// Organization APIs
 		OrganizationTeamAPI: kkClient.GetOrganizationTeamAPI(),

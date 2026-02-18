@@ -90,7 +90,7 @@ func (a *EventGatewayVirtualClusterAdapter) MapCreateFields(
 		create.Namespace = namespace
 	}
 
-	if labelsMap := extractLabelsField(fields, "labels"); labelsMap != nil {
+	if labelsMap := extractLabelsField(fields); labelsMap != nil {
 		create.Labels = labelsMap
 	}
 

@@ -164,6 +164,18 @@ func (p *Planner) planEGWControlPlaneChanges(
 				return err
 			}
 		}
+
+		// Plan listeners for this gateway (whether it exists or is being created)
+		listeners := p.resources.GetListenersForEventGateway(desiredEGWCP.Ref)
+
+		if len(listeners) > 0 || plan.Metadata.Mode == PlanModeSync {
+			if err := p.planEventGatewayListenerChanges(
+				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
+				gatewayChangeID, listeners, plan,
+			); err != nil {
+				return err
+			}
+		}
 	}
 
 	// Check for managed resources to delete (sync mode only)

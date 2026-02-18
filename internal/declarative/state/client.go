@@ -51,6 +51,7 @@ type ClientConfig struct {
 	EGWControlPlaneAPI            helpers.EGWControlPlaneAPI
 	EventGatewayBackendClusterAPI helpers.EventGatewayBackendClusterAPI
 	EventGatewayVirtualClusterAPI helpers.EventGatewayVirtualClusterAPI
+	EventGatewayListenerAPI       helpers.EventGatewayListenerAPI
 
 	// Identity resources
 	OrganizationTeamAPI helpers.OrganizationTeamAPI
@@ -88,6 +89,8 @@ type Client struct {
 	egwControlPlaneAPI            helpers.EGWControlPlaneAPI
 	eventGatewayBackendClusterAPI helpers.EventGatewayBackendClusterAPI
 	eventGatewayVirtualClusterAPI helpers.EventGatewayVirtualClusterAPI
+	eventGatewayListenerAPI       helpers.EventGatewayListenerAPI
+
 	// Organization resource APIs
 	organizationTeamAPI helpers.OrganizationTeamAPI
 }
@@ -125,6 +128,7 @@ func NewClient(config ClientConfig) *Client {
 		egwControlPlaneAPI:            config.EGWControlPlaneAPI,
 		eventGatewayBackendClusterAPI: config.EventGatewayBackendClusterAPI,
 		eventGatewayVirtualClusterAPI: config.EventGatewayVirtualClusterAPI,
+		eventGatewayListenerAPI:       config.EventGatewayListenerAPI,
 
 		// Identity resource APIs
 		organizationTeamAPI: config.OrganizationTeamAPI,
@@ -263,6 +267,11 @@ type EventGatewayVirtualCluster struct {
 // I think this should be OrganizationTeam
 type OrganizationTeam struct {
 	kkComps.Team
+	NormalizedLabels map[string]string // Non-pointer labels
+}
+
+type EventGatewayListener struct {
+	kkComps.EventGatewayListener
 	NormalizedLabels map[string]string // Non-pointer labels
 }
 
@@ -3900,6 +3909,157 @@ func (c *Client) DeleteEventGatewayVirtualCluster(
 	_, err := c.eventGatewayVirtualClusterAPI.DeleteEventGatewayVirtualCluster(ctx, gatewayID, clusterID)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway virtual cluster", nil)
+	}
+	return nil
+}
+
+// Event Gateway Listener Methods
+
+func (c *Client) ListEventGatewayListeners(
+	ctx context.Context,
+	gatewayID string,
+) ([]EventGatewayListener, error) {
+	// Validate API client is initialized
+	if err := ValidateAPIClient(c.eventGatewayListenerAPI, "event gateway listener API"); err != nil {
+		return nil, err
+	}
+
+	var allData []kkComps.EventGatewayListener
+	var pageAfter *string
+
+	for {
+		req := kkOps.ListEventGatewayListenersRequest{
+			GatewayID: gatewayID,
+		}
+
+		if pageAfter != nil {
+			req.PageAfter = pageAfter
+		}
+
+		res, err := c.eventGatewayListenerAPI.ListEventGatewayListeners(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway listeners", nil)
+		}
+
+		// If response is nil, break the loop
+		if res.ListEventGatewayListenersResponse == nil {
+			return []EventGatewayListener{}, nil
+		}
+
+		allData = append(allData, res.ListEventGatewayListenersResponse.Data...)
+
+		if res.ListEventGatewayListenersResponse.Meta.Page.Next == nil {
+			break
+		}
+
+		u, err := url.Parse(*res.ListEventGatewayListenersResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway listeners: invalid cursor", nil)
+		}
+
+		values := u.Query()
+		pageAfter = kk.String(values.Get("page[after]"))
+	}
+
+	var listeners []EventGatewayListener
+	for _, l := range allData {
+		// Normalize labels
+		normalized := l.Labels
+		if normalized == nil {
+			normalized = make(map[string]string)
+		}
+
+		listeners = append(listeners, EventGatewayListener{
+			EventGatewayListener: l,
+			NormalizedLabels:     normalized,
+		})
+	}
+
+	return listeners, nil
+}
+
+func (c *Client) CreateEventGatewayListener(
+	ctx context.Context,
+	gatewayID string,
+	req kkComps.CreateEventGatewayListenerRequest,
+	namespace string,
+) (string, error) {
+	resp, err := c.eventGatewayListenerAPI.CreateEventGatewayListener(ctx, gatewayID, req)
+	if err != nil {
+		return "", WrapAPIError(err, "create event gateway listener", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_listener",
+			ResourceName: req.Name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.EventGatewayListener, "create event gateway listener"); err != nil {
+		return "", err
+	}
+
+	return resp.EventGatewayListener.ID, nil
+}
+
+func (c *Client) GetEventGatewayListener(
+	ctx context.Context,
+	gatewayID string,
+	listenerID string,
+) (*EventGatewayListener, error) {
+	resp, err := c.eventGatewayListenerAPI.FetchEventGatewayListener(ctx, gatewayID, listenerID)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway listener by ID", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_listener",
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.EventGatewayListener == nil {
+		return nil, nil
+	}
+
+	// Normalize labels
+	normalized := resp.EventGatewayListener.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	listener := &EventGatewayListener{
+		EventGatewayListener: *resp.EventGatewayListener,
+		NormalizedLabels:     normalized,
+	}
+
+	return listener, nil
+}
+
+func (c *Client) UpdateEventGatewayListener(
+	ctx context.Context,
+	gatewayID string,
+	listenerID string,
+	req kkComps.UpdateEventGatewayListenerRequest,
+	namespace string,
+) (string, error) {
+	resp, err := c.eventGatewayListenerAPI.UpdateEventGatewayListener(ctx, gatewayID, listenerID, req)
+	if err != nil {
+		return "", WrapAPIError(err, "update event gateway listener", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_listener",
+			ResourceName: req.Name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	return resp.EventGatewayListener.ID, nil
+}
+
+func (c *Client) DeleteEventGatewayListener(
+	ctx context.Context,
+	gatewayID string,
+	listenerID string,
+) error {
+	_, err := c.eventGatewayListenerAPI.DeleteEventGatewayListener(ctx, gatewayID, listenerID)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway listener", nil)
 	}
 	return nil
 }

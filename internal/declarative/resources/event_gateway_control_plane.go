@@ -15,6 +15,7 @@ type EventGatewayControlPlaneResource struct {
 	// Nested child resources
 	BackendClusters []EventGatewayBackendClusterResource `yaml:"backend_clusters,omitempty" json:"backend_clusters,omitempty"` //nolint:lll
 	VirtualClusters []EventGatewayVirtualClusterResource `yaml:"virtual_clusters,omitempty" json:"virtual_clusters,omitempty"` //nolint:lll
+	Listeners       []EventGatewayListenerResource       `yaml:"listeners,omitempty"        json:"listeners,omitempty"`        //nolint:lll
 
 	// Resolved Konnect ID (not serialized)
 	konnectID string `json:"-" yaml:"-"`
@@ -78,6 +79,18 @@ func (e EventGatewayControlPlaneResource) Validate() error {
 		virtualClusterRefs[vc.GetRef()] = true
 	}
 
+	// Validate listeners
+	listenerRefs := make(map[string]bool)
+	for i, l := range e.Listeners {
+		if err := l.Validate(); err != nil {
+			return fmt.Errorf("invalid listener %d: %w", i, err)
+		}
+		if listenerRefs[l.GetRef()] {
+			return fmt.Errorf("duplicate listener ref: %s", l.GetRef())
+		}
+		listenerRefs[l.GetRef()] = true
+	}
+
 	return nil
 }
 
@@ -92,6 +105,10 @@ func (e *EventGatewayControlPlaneResource) SetDefaults() {
 
 	for i := range e.VirtualClusters {
 		e.VirtualClusters[i].SetDefaults()
+	}
+
+	for i := range e.Listeners {
+		e.Listeners[i].SetDefaults()
 	}
 }
 
