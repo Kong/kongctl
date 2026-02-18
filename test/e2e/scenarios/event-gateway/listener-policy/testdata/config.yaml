@@ -18,6 +18,7 @@ event_gateways:
         listener_policies:
         - ref: default-listener-1-policy-1-ref
           name: default-listener-1-policy-1
+          type: tls_server
           description: "Default Listener 1 Policy 1"
           enabled: true
           config:

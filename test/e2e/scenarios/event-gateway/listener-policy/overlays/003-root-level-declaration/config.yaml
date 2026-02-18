@@ -18,6 +18,7 @@ event_gateways:
 event_gateway_listener_policies:
 - ref: default-listener-1-policy-1-ref
   name: default-listener-1-policy-1
+  type: forward_to_virtual_cluster
   description: "Default Listener 1 root level Policy 1"
   listener: default-listener-1-ref
   event_gateway: egw-cp-for-listener-policy-test-ref
@@ -26,5 +27,6 @@ event_gateway_listener_policies:
     env: staging
     team: payments
   config:
+    type: sni
     advertised_port: 9092
     sni_suffix: ".example.com"

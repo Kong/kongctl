@@ -42,6 +42,7 @@ event_gateways:
         listener_policies:
         - ref: plan-apply-listener-1-policy-1-ref
           name: plan-apply-listener-1-policy-1-name
+          type: forward_to_virtual_cluster
           description: "Plan Apply Listener 1 Policy 1"
           enabled: true
           condition: "${ssl_sni} == \"example.com\""
@@ -49,6 +50,7 @@ event_gateways:
             env: staging
             team: payments
           config:
+            type: sni
             advertised_port: 9092
             sni_suffix: ".example.com"
 

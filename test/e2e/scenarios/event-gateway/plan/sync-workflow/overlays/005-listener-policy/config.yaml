@@ -41,6 +41,7 @@ event_gateways:
         listener_policies:
         - ref: plan-sync-listener-1-policy-1-ref
           name: plan-sync-listener-1-policy-1-name
+          type: forward_to_virtual_cluster
           description: "Plan Sync Listener 1 Policy 1"
           enabled: true
           condition: "${ssl_sni} == \"example.com\""
@@ -48,6 +49,7 @@ event_gateways:
             env: staging
             team: payments
           config:
+            type: port_mapping
             destination:
               id: !ref plan-sync-virtual-cluster#id
             advertised_host: "example.com"

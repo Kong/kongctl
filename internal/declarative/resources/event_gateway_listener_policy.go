@@ -143,8 +143,9 @@ func (e EventGatewayListenerPolicyResource) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON handles the union type correctly.
 // It rejects kongctl metadata and delegates to the SDK union type for the policy body.
 // The SDK union type requires a "type" discriminator field to determine which variant
-// (tls_server or forward_to_virtual_cluster) to use. If not present, we detect the
-// policy type based on the config fields and inject the discriminator.
+// (tls_server or forward_to_virtual_cluster) to use.
+// For forward_to_virtual_cluster policies, the config must also have a "type" field
+// ("sni" or "port_mapping") since ForwardToVirtualClusterPolicyConfig is also a union type.
 func (e *EventGatewayListenerPolicyResource) UnmarshalJSON(data []byte) error {
 	// First extract our metadata fields
 	var meta struct {
@@ -164,148 +165,77 @@ func (e *EventGatewayListenerPolicyResource) UnmarshalJSON(data []byte) error {
 	e.Ref = meta.Ref
 	e.EventGatewayListener = meta.EventGatewayListener
 
-	// Check if the "type" discriminator is present. If not, detect and inject it.
-	// The SDK requires "type" to be "tls_server" or "forward_to_virtual_cluster".
-	dataWithType, err := ensurePolicyTypeDiscriminator(data)
-	if err != nil {
-		return fmt.Errorf("failed to determine listener policy type: %w", err)
+	// Validate required type fields
+	if err := validatePolicyTypeFields(data); err != nil {
+		return err
 	}
 
 	// Delegate the policy-specific fields to the SDK union type's UnmarshalJSON.
-	if err := json.Unmarshal(dataWithType, &e.EventGatewayListenerPolicyCreate); err != nil {
+	if err := json.Unmarshal(data, &e.EventGatewayListenerPolicyCreate); err != nil {
 		return fmt.Errorf("failed to unmarshal listener policy: %w", err)
 	}
 
 	return nil
 }
 
-// ensurePolicyTypeDiscriminator checks if the JSON data has a "type" field.
-// If not present, it detects the policy type based on the config structure
-// and injects the appropriate discriminator ("tls_server" or "forward_to_virtual_cluster").
-// For forward_to_virtual_cluster policies, it also ensures the config has a "type" field
-// ("sni" or "port_mapping") since ForwardToVirtualClusterPolicyConfig is also a union type.
-func ensurePolicyTypeDiscriminator(data []byte) ([]byte, error) {
+// validatePolicyTypeFields ensures required type discriminators are present.
+// - Policy level: "type" is always required (uses SDK's EventGatewayListenerPolicyCreateType)
+// - Config level: "config.type" is required only for forward_to_virtual_cluster (uses SDK's ForwardToVirtualClusterPolicyConfigType)
+func validatePolicyTypeFields(data []byte) error {
 	var raw map[string]any
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, err
+		return err
 	}
 
-	modified := false
+	// Define allowed types from SDK constants
+	tlsServerType := string(kkComps.EventGatewayListenerPolicyCreateTypeTLSServer)
+	forwardToVCType := string(kkComps.EventGatewayListenerPolicyCreateTypeForwardToVirtualCluster)
+	sniConfigType := string(kkComps.ForwardToVirtualClusterPolicyConfigTypeSni)
+	portMappingConfigType := string(kkComps.ForwardToVirtualClusterPolicyConfigTypePortMapping)
 
-	// If "type" is not present, detect and inject it
-	if _, hasType := raw["type"]; !hasType {
-		policyType := detectListenerPolicyType(raw)
-		if policyType == "" {
-			return nil, fmt.Errorf("unable to determine policy type: must have 'type' field " +
-				"or config with 'certificates' (for tls_server) or SNI/port_mapping fields (for forward_to_virtual_cluster)")
-		}
-		raw["type"] = policyType
-		modified = true
-	}
-
-	// For forward_to_virtual_cluster policies, ensure config has inner "type" discriminator
-	if raw["type"] == "forward_to_virtual_cluster" {
-		if config, hasConfig := raw["config"]; hasConfig {
-			if configMap, ok := config.(map[string]any); ok {
-				if _, hasConfigType := configMap["type"]; !hasConfigType {
-					// Detect inner config type based on fields
-					configType := detectForwardPolicyConfigType(configMap)
-					if configType != "" {
-						configMap["type"] = configType
-						raw["config"] = configMap
-						modified = true
-					}
-				}
-			}
-		}
+	// Validate policy type
+	policyType, hasType := raw["type"]
+	if !hasType {
+		return fmt.Errorf("listener policy requires 'type' field ('%s' or '%s')", tlsServerType, forwardToVCType)
 	}
 
-	if modified {
-		return json.Marshal(raw)
-	}
-	return data, nil
-}
-
-// detectForwardPolicyConfigType determines the config type for forward_to_virtual_cluster policies.
-// Returns "sni" if sni_suffix is present, "port_mapping" if destination/port_mappings is present.
-func detectForwardPolicyConfigType(configMap map[string]any) string {
-	// SNI config indicators
-	if _, hasSNISuffix := configMap["sni_suffix"]; hasSNISuffix {
-		return "sni"
-	}
-	if _, hasAdvertisedPort := configMap["advertised_port"]; hasAdvertisedPort {
-		return "sni"
-	}
-	if _, hasBrokerHostFormat := configMap["broker_host_format"]; hasBrokerHostFormat {
-		return "sni"
-	}
-
-	// Port mapping config indicators: destination, advertised_host, port_mappings
-	if _, hasDestination := configMap["destination"]; hasDestination {
-		return "port_mapping"
-	}
-	if _, hasAdvertisedHost := configMap["advertised_host"]; hasAdvertisedHost {
-		return "port_mapping"
-	}
-	if _, hasPortMappings := configMap["port_mappings"]; hasPortMappings {
-		return "port_mapping"
-	}
-	if _, hasBootstrapPort := configMap["bootstrap_port"]; hasBootstrapPort {
-		return "port_mapping"
-	}
-	if _, hasMinBrokerID := configMap["min_broker_id"]; hasMinBrokerID {
-		return "port_mapping"
-	}
-
-	return ""
-}
-
-// detectListenerPolicyType determines the policy type based on the config structure.
-// TLS policies have config with "certificates", "versions", "allow_plaintext".
-// Forward policies have config with "destination", "type" (sni/port_mapping), "virtual_cluster", etc.
-func detectListenerPolicyType(raw map[string]any) string {
-	config, hasConfig := raw["config"]
-	if !hasConfig {
-		return ""
-	}
-
-	configMap, ok := config.(map[string]any)
+	policyTypeStr, ok := policyType.(string)
 	if !ok {
-		return ""
+		return fmt.Errorf("listener policy 'type' must be a string")
 	}
 
-	// TLS policy indicators: certificates, versions, allow_plaintext
-	if _, hasCerts := configMap["certificates"]; hasCerts {
-		return "tls_server"
-	}
-	if _, hasVersions := configMap["versions"]; hasVersions {
-		return "tls_server"
-	}
-	if _, hasAllowPlaintext := configMap["allow_plaintext"]; hasAllowPlaintext {
-		return "tls_server"
+	if policyTypeStr != tlsServerType && policyTypeStr != forwardToVCType {
+		return fmt.Errorf("listener policy 'type' must be '%s' or '%s', got '%s'", tlsServerType, forwardToVCType, policyTypeStr)
 	}
 
-	// Forward policy indicators: destination, type (sni/port_mapping), virtual_cluster, port_mappings, advertised_host
-	if _, hasDestination := configMap["destination"]; hasDestination {
-		return "forward_to_virtual_cluster"
-	}
-	if _, hasAdvertisedHost := configMap["advertised_host"]; hasAdvertisedHost {
-		return "forward_to_virtual_cluster"
-	}
-	if configType, hasConfigType := configMap["type"]; hasConfigType {
-		if t, ok := configType.(string); ok && (t == "sni" || t == "port_mapping") {
-			return "forward_to_virtual_cluster"
+	// For forward_to_virtual_cluster, validate config.type
+	if policyTypeStr == forwardToVCType {
+		config, hasConfig := raw["config"]
+		if !hasConfig {
+			return fmt.Errorf("%s policy requires 'config' field", forwardToVCType)
+		}
+
+		configMap, ok := config.(map[string]any)
+		if !ok {
+			return fmt.Errorf("listener policy 'config' must be an object")
+		}
+
+		configType, hasConfigType := configMap["type"]
+		if !hasConfigType {
+			return fmt.Errorf("%s policy config requires 'type' field ('%s' or '%s')",
+				forwardToVCType, sniConfigType, portMappingConfigType)
+		}
+
+		configTypeStr, ok := configType.(string)
+		if !ok {
+			return fmt.Errorf("listener policy config 'type' must be a string")
+		}
+
+		if configTypeStr != sniConfigType && configTypeStr != portMappingConfigType {
+			return fmt.Errorf("%s config 'type' must be '%s' or '%s', got '%s'",
+				forwardToVCType, sniConfigType, portMappingConfigType, configTypeStr)
 		}
 	}
-	if _, hasVC := configMap["virtual_cluster"]; hasVC {
-		return "forward_to_virtual_cluster"
-	}
-	if _, hasPortMappings := configMap["port_mappings"]; hasPortMappings {
-		return "forward_to_virtual_cluster"
-	}
-	if _, hasSNISuffix := configMap["sni_suffix"]; hasSNISuffix {
-		return "forward_to_virtual_cluster"
-	}
 
-	return ""
+	return nil
 }
