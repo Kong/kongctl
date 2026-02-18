@@ -180,7 +180,7 @@ func (e *EventGatewayListenerPolicyResource) UnmarshalJSON(data []byte) error {
 
 // validatePolicyTypeFields ensures required type discriminators are present.
 // - Policy level: "type" is always required (uses SDK's EventGatewayListenerPolicyCreateType)
-// - Config level: "config.type" is required only for forward_to_virtual_cluster (uses SDK's ForwardToVirtualClusterPolicyConfigType)
+// - Config level: "config.type" is required only for forward_to_virtual_cluster
 func validatePolicyTypeFields(data []byte) error {
 	var raw map[string]any
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -205,7 +205,8 @@ func validatePolicyTypeFields(data []byte) error {
 	}
 
 	if policyTypeStr != tlsServerType && policyTypeStr != forwardToVCType {
-		return fmt.Errorf("listener policy 'type' must be '%s' or '%s', got '%s'", tlsServerType, forwardToVCType, policyTypeStr)
+		return fmt.Errorf(
+			"listener policy 'type' must be '%s' or '%s', got '%s'", tlsServerType, forwardToVCType, policyTypeStr)
 	}
 
 	// For forward_to_virtual_cluster, validate config.type
