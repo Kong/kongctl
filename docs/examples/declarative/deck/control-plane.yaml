@@ -14,4 +14,4 @@ control_planes:
         _external:
           selector:
             matchFields:
-              name: "example-gw-svc"
+              name: "example-http-service"
