@@ -929,6 +929,20 @@ func isIDHeaderKey(key string) bool {
 	return false
 }
 
+func truncateWithEllipsis(s string, maxLen int) string {
+	if maxLen <= 0 {
+		return s
+	}
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+	if maxLen == 1 {
+		return "…"
+	}
+	return string(runes[:maxLen-1]) + "…"
+}
+
 func abbreviateIDValue(value string) string {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
@@ -937,11 +951,7 @@ func abbreviateIDValue(value string) string {
 	if !isLikelyUUID(trimmed) {
 		return value
 	}
-	runes := []rune(trimmed)
-	if len(runes) <= 4 {
-		return trimmed
-	}
-	return string(runes[:4]) + "…"
+	return truncateWithEllipsis(trimmed, 5)
 }
 
 func rowsToMatrix(rows []table.Row) [][]string {
@@ -989,14 +999,14 @@ func abbreviateValue(value string, limit int) string {
 	}
 
 	if isLikelyUUID(value) && limit >= 5 {
-		return string(runes[:4]) + "…"
+		return truncateWithEllipsis(value, 5)
 	}
 
 	if limit <= 1 {
 		return string(runes[:limit])
 	}
 
-	return string(runes[:limit-1]) + "…"
+	return truncateWithEllipsis(value, limit)
 }
 
 func isLikelyUUID(value string) bool {
@@ -1496,16 +1506,15 @@ func valueForLabel(parent reflect.Value, label string) (reflect.Value, bool) {
 func derefValueDeep(value reflect.Value) reflect.Value {
 	for value.IsValid() {
 		kind := value.Kind()
-		if kind == reflect.Pointer || kind == reflect.Interface {
-			if value.IsNil() {
-				return reflect.Value{}
-			}
-			value = value.Elem()
-			continue
+		if kind != reflect.Pointer && kind != reflect.Interface {
+			return value
 		}
-		return value
+		if value.IsNil() {
+			return reflect.Value{}
+		}
+		value = value.Elem()
 	}
-	return value
+	return reflect.Value{}
 }
 
 func analyzeComplexValue(label string, value reflect.Value) (complexValueInfo, bool) {
@@ -1679,7 +1688,7 @@ func buildChildViewFromSliceValue(label string, data any) (ChildView, error) {
 			Headers: rowsHeaders(headers),
 			Rows:    rows,
 			DetailRenderer: func(index int) string {
-				if index < 0 || index >= length {
+				if !isValidIndex(index, length) {
 					return ""
 				}
 				return renderStructDetail(value.Index(index).Interface())
@@ -1687,7 +1696,7 @@ func buildChildViewFromSliceValue(label string, data any) (ChildView, error) {
 			Title:      titleFromLabel(label),
 			ParentType: normalizeHeaderKey(label),
 			DetailContext: func(index int) any {
-				if index < 0 || index >= length {
+				if !isValidIndex(index, length) {
 					return nil
 				}
 				return value.Index(index).Interface()
@@ -1709,7 +1718,7 @@ func buildChildViewFromSliceValue(label string, data any) (ChildView, error) {
 		Headers: []string{"#", "VALUE"},
 		Rows:    rows,
 		DetailRenderer: func(index int) string {
-			if index < 0 || index >= len(values) {
+			if !isValidIndex(index, len(values)) {
 				return ""
 			}
 			return fmt.Sprintf("value: %s", formatDetailValue(values[index]))
@@ -1717,7 +1726,7 @@ func buildChildViewFromSliceValue(label string, data any) (ChildView, error) {
 		Title:      titleFromLabel(label),
 		ParentType: normalizeHeaderKey(label),
 		DetailContext: func(index int) any {
-			if index < 0 || index >= len(values) {
+			if !isValidIndex(index, len(values)) {
 				return nil
 			}
 			return values[index]
@@ -1812,12 +1821,23 @@ func formatDetailValue(val any) string {
 			return "{}"
 		}
 		keys := rv.MapKeys()
-		sort.Slice(keys, func(i, j int) bool {
-			return fmt.Sprint(keys[i].Interface()) < fmt.Sprint(keys[j].Interface())
+		type keyValue struct {
+			keyStr string
+			key    reflect.Value
+		}
+		kvs := make([]keyValue, len(keys))
+		for i, k := range keys {
+			kvs[i] = keyValue{
+				keyStr: fmt.Sprint(k.Interface()),
+				key:    k,
+			}
+		}
+		sort.Slice(kvs, func(i, j int) bool {
+			return kvs[i].keyStr < kvs[j].keyStr
 		})
 		var builder strings.Builder
-		for _, key := range keys {
-			fmt.Fprintf(&builder, "%v: %v\n", key.Interface(), rv.MapIndex(key).Interface())
+		for _, kv := range kvs {
+			fmt.Fprintf(&builder, "%v: %v\n", kv.key.Interface(), rv.MapIndex(kv.key).Interface())
 		}
 		return strings.TrimRight(builder.String(), "\n")
 	}
@@ -2086,6 +2106,10 @@ func clamp(val, minVal, maxVal int) int {
 	return val
 }
 
+func isValidIndex(index, length int) bool {
+	return index >= 0 && index < length
+}
+
 func setTableHeight(tbl *table.Model, rowCount, termHeight int, interactive bool, reservedHeight int) {
 	if tbl == nil {
 		return
@@ -2106,9 +2130,6 @@ func setTableHeight(tbl *table.Model, rowCount, termHeight int, interactive bool
 			available = minHeight
 		}
 		target = clamp(target, minHeight, available)
-	}
-	if target < minHeight {
-		target = minHeight
 	}
 	tbl.SetHeight(target)
 }
@@ -2261,7 +2282,7 @@ func (c *childViewState) labelForIndex(index int) string {
 	if c == nil {
 		return ""
 	}
-	if index < 0 || index >= len(c.rows) {
+	if !isValidIndex(index, len(c.rows)) {
 		return fmt.Sprintf("Item %d", index+1)
 	}
 
@@ -3012,7 +3033,7 @@ func (m *bubbleModel) detailViewportHeight() int {
 
 func (m *bubbleModel) labelForIndex(index int) string {
 	rows := m.table.Rows()
-	if index < 0 || index >= len(rows) {
+	if !isValidIndex(index, len(rows)) {
 		return fmt.Sprintf("Item %d", index+1)
 	}
 	return m.friendlyLabel(rows[index], index)
@@ -3631,7 +3652,7 @@ func fuzzyContains(text, needle string) bool {
 }
 
 func fallbackRowLabel(rows []table.Row, index int) string {
-	if index < 0 || index >= len(rows) {
+	if !isValidIndex(index, len(rows)) {
 		return fmt.Sprintf("Item %d", index+1)
 	}
 
