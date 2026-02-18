@@ -191,7 +191,11 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 
 	token, err := konnectcommon.GetAccessToken(cfg, logger)
 	if err != nil {
-		return createDestinationOutput{}, cmd.PrepareExecutionError("failed to resolve Konnect access token", err, helper.GetCmd())
+		return createDestinationOutput{}, cmd.PrepareExecutionError(
+			"failed to resolve Konnect access token",
+			err,
+			helper.GetCmd(),
+		)
 	}
 
 	ctx := helper.GetContext()
@@ -253,7 +257,11 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 
 	encoded, err := json.Marshal(requestBody)
 	if err != nil {
-		return createDestinationOutput{}, cmd.PrepareExecutionError("failed to encode destination request", err, helper.GetCmd())
+		return createDestinationOutput{}, cmd.PrepareExecutionError(
+			"failed to encode destination request",
+			err,
+			helper.GetCmd(),
+		)
 	}
 
 	destinationResult, err := apiutil.Request(
@@ -423,7 +431,11 @@ func renderCreateDestinationOutput(helper cmd.Helper, output createDestinationOu
 		if _, err := fmt.Fprintf(streams.Out, "  skip ssl verification: %t\n", output.SkipSSLVerification); err != nil {
 			return err
 		}
-		if _, err := fmt.Fprintf(streams.Out, "  authorization configured: %t\n", output.AuthorizationConfigured); err != nil {
+		if _, err := fmt.Fprintf(
+			streams.Out,
+			"  authorization configured: %t\n",
+			output.AuthorizationConfigured,
+		); err != nil {
 			return err
 		}
 		if _, err := fmt.Fprintf(streams.Out, "  webhook configured: %t\n", output.WebhookConfigured); err != nil {
@@ -593,7 +605,13 @@ func releaseRegionalWebhook(
 	return webhookErr
 }
 
-func destinationNameExists(ctx context.Context, client apiutil.Doer, token, name string, logger *slog.Logger) (bool, error) {
+func destinationNameExists(
+	ctx context.Context,
+	client apiutil.Doer,
+	token,
+	name string,
+	logger *slog.Logger,
+) (bool, error) {
 	if strings.TrimSpace(name) == "" {
 		return false, nil
 	}
@@ -681,7 +699,8 @@ func ensureNoActiveRegionalWebhook(
 
 	safeEndpoint := sanitizeEndpointForLog(endpoint)
 	return fmt.Errorf(
-		"regional audit-log webhook is already configured (enabled=%t endpoint=%q); expected enabled=false and endpoint=\"unconfigured\"",
+		"regional audit-log webhook is already configured "+
+			"(enabled=%t endpoint=%q); expected enabled=false and endpoint=\"unconfigured\"",
 		enabled,
 		safeEndpoint,
 	)
