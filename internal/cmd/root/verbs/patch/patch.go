@@ -35,7 +35,7 @@ nodes in the document tree.`))
         %[1]s patch file input.yaml patches.yaml
 
         # Read from stdin, write to a file
-        cat input.yaml | %[1]s patch file - -s '$' -v 'version:"2.0"' -o output.yaml
+        cat input.yaml | %[1]s patch file - -s '$' -v 'version:"2.0"' --output-file output.yaml
         `, meta.CLIName)))
 )
 
