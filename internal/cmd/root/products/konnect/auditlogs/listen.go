@@ -1,6 +1,7 @@
 package auditlogs
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -233,23 +234,25 @@ func ExecuteListenAuditLogs(cmdObj *cobra.Command, args []string, options Listen
 
 	cleanupErr := deleteDestinationForHelper(helper, destOutput.DestinationID, destOutput.WebhookConfigured)
 	if cleanupErr == nil {
-		var err error
 		if tailEnabled {
-			err = renderTailStoppedOutput(logger, destOutput.DestinationID)
+			renderTailStoppedOutput(logger, destOutput.DestinationID)
 		} else {
-			err = renderListenStoppedOutput(helper, destOutput.DestinationID)
-		}
-		if err != nil {
-			return err
+			if err := renderListenStoppedOutput(helper, destOutput.DestinationID); err != nil {
+				return err
+			}
 		}
 	}
 
 	if listenerErr != nil {
 		if cleanupErr != nil {
-			logger.Debug("listener error and destination cleanup error", "listener_error", listenerErr, "cleanup_error", cleanupErr)
+			logger.Debug(
+				"listener error and destination cleanup error",
+				"listener_error", listenerErr,
+				"cleanup_error", cleanupErr,
+			)
 			return cmd.PrepareExecutionError(
 				"listener terminated and destination cleanup failed",
-				fmt.Errorf("%v; cleanup error: %w", listenerErr, cleanupErr),
+				errors.Join(listenerErr, fmt.Errorf("cleanup error: %w", cleanupErr)),
 				helper.GetCmd(),
 			)
 		}
@@ -394,16 +397,15 @@ func renderTailStartedOutput(
 	return nil
 }
 
-func renderTailStoppedOutput(logger *slog.Logger, destinationID string) error {
+func renderTailStoppedOutput(logger *slog.Logger, destinationID string) {
 	if logger == nil {
-		return nil
+		return
 	}
 
 	logger.Info(
 		"Listener stopped. Deleted audit-log destination (tail mode).",
 		"destination_id", destinationID,
 	)
-	return nil
 }
 
 func buildEndpointFromPublicURL(publicBaseURL, listenPath string) (string, error) {

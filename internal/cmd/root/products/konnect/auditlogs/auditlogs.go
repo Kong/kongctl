@@ -19,7 +19,8 @@ var (
 	auditLogsShort = i18n.T("root.products.konnect.auditlogs.short",
 		"Manage Konnect audit-log integrations")
 	auditLogsLong = normalizers.LongDesc(i18n.T("root.products.konnect.auditlogs.long",
-		`The audit-logs command provides developer-focused helpers for receiving and configuring Konnect audit-log webhooks.`))
+		`The audit-logs command provides developer-focused helpers for
+receiving and configuring Konnect audit-log webhooks.`))
 	auditLogsExample = normalizers.Examples(i18n.T("root.products.konnect.auditlogs.examples",
 		fmt.Sprintf(`
 # Start a local listener and create destination in one command
