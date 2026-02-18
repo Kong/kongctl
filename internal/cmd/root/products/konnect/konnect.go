@@ -143,13 +143,18 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		},
 	}
 
-	// Handle declarative configuration verbs
-	switch verb {
-	case verbs.Login:
+	// Handle Login verb
+	if verb == verbs.Login {
 		return newLoginKonnectCmd(verb, cmd, addFlags, preRunE).Command, nil
-	case verbs.Logout:
+	}
+
+	// Handle Logout verb
+	if verb == verbs.Logout {
 		return newLogoutKonnectCmd(verb, cmd, addFlags, preRunE).Command, nil
-	case verbs.Plan, verbs.Sync, verbs.Diff, verbs.Export, verbs.Apply:
+	}
+
+	// Handle declarative configuration verbs
+	if verb == verbs.Plan || verb == verbs.Sync || verb == verbs.Diff || verb == verbs.Export || verb == verbs.Apply {
 		c, e := declarative.NewDeclarativeCmd(verb)
 		if e != nil {
 			return nil, e
@@ -163,7 +168,10 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		cmd.Flags().AddFlagSet(c.Flags())
 		addFlags(verb, cmd)
 		return cmd, nil
-	case verbs.Adopt:
+	}
+
+	// Handle Adopt verb with specific subcommands
+	if verb == verbs.Adopt {
 		portalCmd, err := adopt.NewPortalCmd(verb, &cobra.Command{}, addFlags, preRunE)
 		if err != nil {
 			return nil, err
@@ -202,10 +210,15 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 
 		addFlags(verb, cmd)
 		return cmd, nil
+<<<<<<< HEAD
 	case verbs.Add, verbs.Get, verbs.Create, verbs.Dump, verbs.Update,
 		verbs.Delete, verbs.Help, verbs.List, verbs.API, verbs.Kai, verbs.View, verbs.Patch:
 		// These verbs don't use declarative configuration, continue below
+=======
+>>>>>>> c49bd56 (Refactor verb-based switch statements to targeted conditionals)
 	}
+
+	// For all other verbs, build the standard command tree
 
 	c, e := gateway.NewGatewayCmd(verb, addFlags, preRunE)
 	if e != nil {

@@ -45,11 +45,13 @@ func NewOrganizationCmd(verb verbs.VerbValue,
 		Aliases: []string{"org", "orgs"},
 	}
 
-	switch verb {
-	case verbs.Get, verbs.List:
+	// Handle supported verbs
+	if verb == verbs.Get || verb == verbs.List {
 		return newGetOrganizationCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
-	case verbs.Adopt:
+	}
+	if verb == verbs.Adopt {
 		return newAdoptOrganizationCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
+<<<<<<< HEAD
 	case verbs.Delete,
 		verbs.Create,
 		verbs.Add,
@@ -68,7 +70,10 @@ func NewOrganizationCmd(verb verbs.VerbValue,
 		verbs.Logout,
 		verbs.Patch:
 		return &baseCmd, nil
+=======
+>>>>>>> c49bd56 (Refactor verb-based switch statements to targeted conditionals)
 	}
 
+	// Return base command for unsupported verbs
 	return &baseCmd, nil
 }
