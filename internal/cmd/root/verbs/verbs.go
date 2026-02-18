@@ -20,6 +20,7 @@ const (
 	Sync   = VerbValue("sync")
 	Diff   = VerbValue("diff")
 	Export = VerbValue("export")
+	Patch  = VerbValue("patch")
 )
 
 // Empty type to represent the _type_ Verb. Genesis is to support a key in a Context

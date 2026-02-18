@@ -59,7 +59,8 @@ func NewMeCmd(verb verbs.VerbValue,
 		verbs.API,
 		verbs.Kai,
 		verbs.View,
-		verbs.Logout:
+		verbs.Logout,
+		verbs.Patch:
 		return &baseCmd, nil
 	}
 
