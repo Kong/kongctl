@@ -51,27 +51,6 @@ func NewOrganizationCmd(verb verbs.VerbValue,
 	}
 	if verb == verbs.Adopt {
 		return newAdoptOrganizationCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
-<<<<<<< HEAD
-	case verbs.Delete,
-		verbs.Create,
-		verbs.Add,
-		verbs.Apply,
-		verbs.Dump,
-		verbs.Update,
-		verbs.Help,
-		verbs.Login,
-		verbs.Plan,
-		verbs.Sync,
-		verbs.Diff,
-		verbs.Export,
-		verbs.API,
-		verbs.Kai,
-		verbs.View,
-		verbs.Logout,
-		verbs.Patch:
-		return &baseCmd, nil
-=======
->>>>>>> c49bd56 (Refactor verb-based switch statements to targeted conditionals)
 	}
 
 	// Return base command for unsupported verbs

@@ -210,12 +210,6 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 
 		addFlags(verb, cmd)
 		return cmd, nil
-<<<<<<< HEAD
-	case verbs.Add, verbs.Get, verbs.Create, verbs.Dump, verbs.Update,
-		verbs.Delete, verbs.Help, verbs.List, verbs.API, verbs.Kai, verbs.View, verbs.Patch:
-		// These verbs don't use declarative configuration, continue below
-=======
->>>>>>> c49bd56 (Refactor verb-based switch statements to targeted conditionals)
 	}
 
 	// For all other verbs, build the standard command tree
