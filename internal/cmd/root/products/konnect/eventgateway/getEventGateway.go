@@ -238,7 +238,7 @@ func (c *getEventGatewayControlPlaneCmd) runE(cobraCmd *cobra.Command, args []st
 			if e != nil {
 				return e
 			}
-			return tableview.RenderForFormat(
+			return tableview.RenderForFormat(helper,
 				false,
 				outType,
 				printer,
@@ -262,7 +262,7 @@ func (c *getEventGatewayControlPlaneCmd) runE(cobraCmd *cobra.Command, args []st
 			return e
 		}
 
-		return tableview.RenderForFormat(
+		return tableview.RenderForFormat(helper,
 			false,
 			outType,
 			printer,
@@ -314,7 +314,7 @@ func renderEventGatewayControlPlaneList(
 		tableview.WithDetailHelper(helper),
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		interactive,
 		outType,
 		printer,

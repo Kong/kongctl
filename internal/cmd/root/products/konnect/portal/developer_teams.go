@@ -236,7 +236,7 @@ func (h portalDeveloperTeamsHandler) run(args []string) error {
 		rootLabel = fmt.Sprintf("%s (%s)", rootLabel, teamName)
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

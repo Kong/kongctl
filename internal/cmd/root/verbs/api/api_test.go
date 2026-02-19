@@ -13,6 +13,7 @@ import (
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
+	jqoutput "github.com/kong/kongctl/internal/cmd/output/jq"
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -75,10 +76,10 @@ func newMockAPIConfig() *configtest.MockConfigHook {
 				return "/refresh"
 			case cmdcommon.OutputConfigPath:
 				return "text"
-			case jqColorEnabledConfigPath:
+			case jqoutput.ColorEnabledConfigPath:
 				return cmdcommon.ColorModeAuto.String()
-			case jqColorThemeConfigPath:
-				return jqColorDefaultThemeValue
+			case jqoutput.ColorThemeConfigPath:
+				return jqoutput.DefaultTheme
 			default:
 				return ""
 			}
@@ -442,10 +443,10 @@ func TestRunAppliesJQColorToJSONOutput(t *testing.T) {
 				return "test-token"
 			case cmdcommon.OutputConfigPath:
 				return "json"
-			case jqColorEnabledConfigPath:
+			case jqoutput.ColorEnabledConfigPath:
 				return cmdcommon.ColorModeAlways.String()
-			case jqColorThemeConfigPath:
-				return jqColorDefaultThemeValue
+			case jqoutput.ColorThemeConfigPath:
+				return jqoutput.DefaultTheme
 			default:
 				return ""
 			}
@@ -511,9 +512,9 @@ func TestRunLoadsJQColorSettingsFromConfig(t *testing.T) {
 				return "test-token"
 			case cmdcommon.OutputConfigPath:
 				return "json"
-			case jqColorEnabledConfigPath:
+			case jqoutput.ColorEnabledConfigPath:
 				return cmdcommon.ColorModeAlways.String()
-			case jqColorThemeConfigPath:
+			case jqoutput.ColorThemeConfigPath:
 				return "monokai"
 			default:
 				return ""
@@ -547,6 +548,310 @@ func TestRunLoadsJQColorSettingsFromConfig(t *testing.T) {
 	require.NoError(t, run(helper, http.MethodGet, false))
 	output := streams.Out.(*bytes.Buffer).String()
 	require.Contains(t, output, "\x1b[")
+}
+
+func TestRunUsesJQDefaultExpressionFromConfig(t *testing.T) {
+	original := requestFn
+	t.Cleanup(func() { requestFn = original })
+
+	requestFn = func(
+		_ context.Context,
+		_ apiutil.Doer,
+		_ string,
+		_ string,
+		_ string,
+		_ string,
+		_ map[string]string,
+		_ io.Reader,
+	) (*apiutil.Result, error) {
+		return &apiutil.Result{
+			StatusCode: http.StatusOK,
+			Body:       []byte(`{"foo":{"bar":1},"other":{"name":"keep-out"}}`),
+		}, nil
+	}
+
+	streams := iostreams.NewTestIOStreamsOnly()
+	cmdObj := &cobra.Command{Use: "test"}
+	addFlags(cmdObj)
+
+	cfg := &configtest.MockConfigHook{
+		GetStringMock: func(key string) string {
+			switch key {
+			case konnectcommon.BaseURLConfigPath:
+				return "https://api.example.com"
+			case konnectcommon.PATConfigPath:
+				return "test-token"
+			case cmdcommon.OutputConfigPath:
+				return "json"
+			case jqoutput.ColorEnabledConfigPath:
+				return cmdcommon.ColorModeNever.String()
+			case jqoutput.ColorThemeConfigPath:
+				return jqoutput.DefaultTheme
+			case jqoutput.DefaultExpressionConfigPath:
+				return ".foo"
+			default:
+				return ""
+			}
+		},
+		GetBoolMock:        func(string) bool { return false },
+		GetIntMock:         func(string) int { return 0 },
+		SaveMock:           func() error { return nil },
+		BindFlagMock:       func(string, *pflag.Flag) error { return nil },
+		GetProfileMock:     func() string { return "default" },
+		GetStringSlickMock: func(string) []string { return nil },
+		SetStringMock:      func(string, string) {},
+		SetMock:            func(string, any) {},
+		GetMock:            func(string) any { return nil },
+		GetPathMock:        func() string { return "" },
+	}
+
+	args := []string{"/v1/resources"}
+	helper := &cmdtest.MockHelper{
+		GetCmdMock:          func() *cobra.Command { return cmdObj },
+		GetArgsMock:         func() []string { return args },
+		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
+		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.JSON, nil },
+		GetLoggerMock: func() (*slog.Logger, error) {
+			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
+		},
+		GetContextMock: func() context.Context { return context.Background() },
+	}
+
+	require.NoError(t, run(helper, http.MethodGet, false))
+	output := streams.Out.(*bytes.Buffer).String()
+	require.Contains(t, output, "\"bar\": 1")
+	require.NotContains(t, output, "keep-out")
+}
+
+func TestAddFlagsSupportsJQRawOutputShortFlag(t *testing.T) {
+	cmdObj := &cobra.Command{Use: "test"}
+	addFlags(cmdObj)
+
+	require.NoError(t, cmdObj.Flags().Parse([]string{"-r"}))
+	rawEnabled, err := cmdObj.Flags().GetBool(jqoutput.RawOutputFlagName)
+	require.NoError(t, err)
+	require.True(t, rawEnabled)
+}
+
+func TestRunAppliesJQRawOutput(t *testing.T) {
+	original := requestFn
+	t.Cleanup(func() { requestFn = original })
+
+	requestFn = func(
+		_ context.Context,
+		_ apiutil.Doer,
+		_ string,
+		_ string,
+		_ string,
+		_ string,
+		_ map[string]string,
+		_ io.Reader,
+	) (*apiutil.Result, error) {
+		return &apiutil.Result{StatusCode: http.StatusOK, Body: []byte(`{"foo":"example-api"}`)}, nil
+	}
+
+	streams := iostreams.NewTestIOStreamsOnly()
+	cmdObj := &cobra.Command{Use: "test"}
+	addFlags(cmdObj)
+	require.NoError(t, cmdObj.Flags().Set("jq", ".foo"))
+	require.NoError(t, cmdObj.Flags().Parse([]string{"-r"}))
+
+	cfg := &configtest.MockConfigHook{
+		GetStringMock: func(key string) string {
+			switch key {
+			case konnectcommon.BaseURLConfigPath:
+				return "https://api.example.com"
+			case konnectcommon.PATConfigPath:
+				return "test-token"
+			case cmdcommon.OutputConfigPath:
+				return "json"
+			case jqoutput.ColorEnabledConfigPath:
+				return cmdcommon.ColorModeNever.String()
+			case jqoutput.ColorThemeConfigPath:
+				return jqoutput.DefaultTheme
+			default:
+				return ""
+			}
+		},
+		GetBoolMock: func(key string) bool {
+			return key == jqoutput.RawOutputConfigPath
+		},
+		GetIntMock:         func(string) int { return 0 },
+		SaveMock:           func() error { return nil },
+		BindFlagMock:       func(string, *pflag.Flag) error { return nil },
+		GetProfileMock:     func() string { return "default" },
+		GetStringSlickMock: func(string) []string { return nil },
+		SetStringMock:      func(string, string) {},
+		SetMock:            func(string, any) {},
+		GetMock:            func(string) any { return nil },
+		GetPathMock:        func() string { return "" },
+	}
+
+	args := []string{"/v1/resources"}
+	helper := &cmdtest.MockHelper{
+		GetCmdMock:          func() *cobra.Command { return cmdObj },
+		GetArgsMock:         func() []string { return args },
+		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
+		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.JSON, nil },
+		GetLoggerMock: func() (*slog.Logger, error) {
+			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
+		},
+		GetContextMock: func() context.Context { return context.Background() },
+	}
+
+	require.NoError(t, run(helper, http.MethodGet, false))
+	require.Equal(t, "example-api\n", streams.Out.(*bytes.Buffer).String())
+}
+
+func TestRunRejectsJQRawOutputWithoutJQ(t *testing.T) {
+	original := requestFn
+	t.Cleanup(func() { requestFn = original })
+
+	requestFn = func(
+		_ context.Context,
+		_ apiutil.Doer,
+		_ string,
+		_ string,
+		_ string,
+		_ string,
+		_ map[string]string,
+		_ io.Reader,
+	) (*apiutil.Result, error) {
+		require.Fail(t, "requestFn should not be called when jq raw output is invalid")
+		return nil, nil
+	}
+
+	streams := iostreams.NewTestIOStreamsOnly()
+	cmdObj := &cobra.Command{Use: "test"}
+	addFlags(cmdObj)
+	require.NoError(t, cmdObj.Flags().Parse([]string{"-r"}))
+
+	cfg := &configtest.MockConfigHook{
+		GetStringMock: func(key string) string {
+			switch key {
+			case konnectcommon.BaseURLConfigPath:
+				return "https://api.example.com"
+			case konnectcommon.PATConfigPath:
+				return "test-token"
+			case cmdcommon.OutputConfigPath:
+				return "json"
+			case jqoutput.ColorEnabledConfigPath:
+				return cmdcommon.ColorModeNever.String()
+			case jqoutput.ColorThemeConfigPath:
+				return jqoutput.DefaultTheme
+			default:
+				return ""
+			}
+		},
+		GetBoolMock: func(key string) bool {
+			return key == jqoutput.RawOutputConfigPath
+		},
+		GetIntMock:         func(string) int { return 0 },
+		SaveMock:           func() error { return nil },
+		BindFlagMock:       func(string, *pflag.Flag) error { return nil },
+		GetProfileMock:     func() string { return "default" },
+		GetStringSlickMock: func(string) []string { return nil },
+		SetStringMock:      func(string, string) {},
+		SetMock:            func(string, any) {},
+		GetMock:            func(string) any { return nil },
+		GetPathMock:        func() string { return "" },
+	}
+
+	args := []string{"/v1/resources"}
+	helper := &cmdtest.MockHelper{
+		GetCmdMock:          func() *cobra.Command { return cmdObj },
+		GetArgsMock:         func() []string { return args },
+		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
+		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.JSON, nil },
+		GetLoggerMock: func() (*slog.Logger, error) {
+			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
+		},
+		GetContextMock: func() context.Context { return context.Background() },
+	}
+
+	err := run(helper, http.MethodGet, false)
+	require.Error(t, err)
+	var cfgErr *cmdpkg.ConfigurationError
+	require.True(t, errors.As(err, &cfgErr))
+	require.Contains(t, err.Error(), "--jq")
+}
+
+func TestRunRejectsJQRawOutputWithYAMLOutput(t *testing.T) {
+	original := requestFn
+	t.Cleanup(func() { requestFn = original })
+
+	requestFn = func(
+		_ context.Context,
+		_ apiutil.Doer,
+		_ string,
+		_ string,
+		_ string,
+		_ string,
+		_ map[string]string,
+		_ io.Reader,
+	) (*apiutil.Result, error) {
+		require.Fail(t, "requestFn should not be called when jq raw output format is invalid")
+		return nil, nil
+	}
+
+	streams := iostreams.NewTestIOStreamsOnly()
+	cmdObj := &cobra.Command{Use: "test"}
+	addFlags(cmdObj)
+	require.NoError(t, cmdObj.Flags().Set("jq", ".foo"))
+	require.NoError(t, cmdObj.Flags().Parse([]string{"-r"}))
+
+	cfg := &configtest.MockConfigHook{
+		GetStringMock: func(key string) string {
+			switch key {
+			case konnectcommon.BaseURLConfigPath:
+				return "https://api.example.com"
+			case konnectcommon.PATConfigPath:
+				return "test-token"
+			case cmdcommon.OutputConfigPath:
+				return "yaml"
+			case jqoutput.ColorEnabledConfigPath:
+				return cmdcommon.ColorModeNever.String()
+			case jqoutput.ColorThemeConfigPath:
+				return jqoutput.DefaultTheme
+			default:
+				return ""
+			}
+		},
+		GetBoolMock: func(key string) bool {
+			return key == jqoutput.RawOutputConfigPath
+		},
+		GetIntMock:         func(string) int { return 0 },
+		SaveMock:           func() error { return nil },
+		BindFlagMock:       func(string, *pflag.Flag) error { return nil },
+		GetProfileMock:     func() string { return "default" },
+		GetStringSlickMock: func(string) []string { return nil },
+		SetStringMock:      func(string, string) {},
+		SetMock:            func(string, any) {},
+		GetMock:            func(string) any { return nil },
+		GetPathMock:        func() string { return "" },
+	}
+
+	args := []string{"/v1/resources"}
+	helper := &cmdtest.MockHelper{
+		GetCmdMock:          func() *cobra.Command { return cmdObj },
+		GetArgsMock:         func() []string { return args },
+		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
+		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.YAML, nil },
+		GetLoggerMock: func() (*slog.Logger, error) {
+			return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{})), nil
+		},
+		GetContextMock: func() context.Context { return context.Background() },
+	}
+
+	err := run(helper, http.MethodGet, false)
+	require.Error(t, err)
+	var cfgErr *cmdpkg.ConfigurationError
+	require.True(t, errors.As(err, &cfgErr))
+	require.Contains(t, err.Error(), "--output json")
 }
 
 func TestRunRejectsTextOutputFormat(t *testing.T) {
@@ -593,6 +898,16 @@ func TestRunRejectsTextOutputFormat(t *testing.T) {
 }
 
 func TestShouldUseJQColorModes(t *testing.T) {
+	origNoColor, hadNoColor := os.LookupEnv("NO_COLOR")
+	_ = os.Unsetenv("NO_COLOR")
+	t.Cleanup(func() {
+		if hadNoColor {
+			_ = os.Setenv("NO_COLOR", origNoColor)
+			return
+		}
+		_ = os.Unsetenv("NO_COLOR")
+	})
+
 	tty := &ttyBuffer{}
 	require.True(t, shouldUseJQColor(cmdcommon.ColorModeAlways, tty))
 	require.False(t, shouldUseJQColor(cmdcommon.ColorModeNever, tty))

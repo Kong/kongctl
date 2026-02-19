@@ -257,7 +257,7 @@ func (h portalPagesHandler) listPages(
 		return portalPageInfoDetail(page, nil)
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -331,7 +331,7 @@ func (h portalPagesHandler) getSinglePage(
 		return portalPageDetailView(record)
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

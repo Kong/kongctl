@@ -60,7 +60,7 @@ func runListThemes(helper cmd.Helper) error {
 
 	rows := buildThemeRows(useColor, activeTheme)
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outFormat,
 		printer,

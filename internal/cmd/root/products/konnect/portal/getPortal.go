@@ -403,7 +403,7 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 				}
 				return portalListDetailView(portal)
 			}
-			return tableview.RenderForFormat(
+			return tableview.RenderForFormat(helper,
 				false,
 				outType,
 				printer,
@@ -432,7 +432,7 @@ func (c *getPortalCmd) runE(cobraCmd *cobra.Command, args []string) error {
 			}
 			return portalResponseDetailView(portalResponse)
 		}
-		return tableview.RenderForFormat(
+		return tableview.RenderForFormat(helper,
 			false,
 			outType,
 			printer,
@@ -486,7 +486,7 @@ func renderPortalList(
 		options = append(options, tableview.WithDetailContext(childView.ParentType, childView.DetailContext))
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

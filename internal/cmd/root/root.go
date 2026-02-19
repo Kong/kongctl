@@ -39,6 +39,7 @@ import (
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 var (
@@ -86,6 +87,44 @@ var (
 	logFile     *os.File
 )
 
+const mergedFlagsUsageTemplate = `Usage:{{if .Runnable}}
+  {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
+  {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
+
+Aliases:
+  {{.NameAndAliases}}{{end}}{{if .HasExample}}
+
+Examples:
+{{.Example}}{{end}}{{if .HasAvailableSubCommands}}{{$cmds := .Commands}}{{if eq (len .Groups) 0}}
+
+Available Commands:{{range $cmds}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
+  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{else}}{{range $group := .Groups}}
+
+{{.Title}}{{range $cmds}}{{if (and (eq .GroupID $group.ID) (or .IsAvailableCommand (eq .Name "help")))}}
+  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if not .AllChildCommandsHaveGroup}}
+
+Additional Commands:{{range $cmds}}{{if (and (eq .GroupID "") (or .IsAvailableCommand (eq .Name "help")))}}
+  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{end}}{{end}}
+{{if or .HasAvailableLocalFlags .HasAvailableInheritedFlags}}
+
+Flags:
+{{mergedFlagUsages . | trimTrailingWhitespaces}}{{end}}{{if .HasHelpSubCommands}}
+
+Additional help topics:{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
+  {{rpad .CommandPath .CommandPathPadding}} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableSubCommands}}
+
+Use "{{.CommandPath}} [command] --help" for more information about a command.{{end}}
+`
+
+func mergedFlagUsages(cmd *cobra.Command) string {
+	flags := pflag.NewFlagSet(cmd.DisplayName(), pflag.ContinueOnError)
+	flags.SortFlags = true
+	flags.AddFlagSet(cmd.LocalFlags())
+	flags.AddFlagSet(cmd.InheritedFlags())
+
+	return strings.TrimRight(flags.FlagUsages(), "\n")
+}
+
 func newRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   meta.CLIName,
@@ -107,6 +146,8 @@ func newRootCmd() *cobra.Command {
 		Use:    "no-help",
 		Hidden: true,
 	})
+	cobra.AddTemplateFunc("mergedFlagUsages", mergedFlagUsages)
+	rootCmd.SetUsageTemplate(mergedFlagsUsageTemplate)
 
 	// parses all flags not just the target command
 	rootCmd.TraverseChildren = true

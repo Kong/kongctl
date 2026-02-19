@@ -262,7 +262,7 @@ func renderTeamRoles(
 	printer cli.PrintFlusher,
 	records []portalTeamRoleRecord,
 ) error {
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

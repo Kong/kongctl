@@ -203,7 +203,7 @@ func (h apiAttributesHandler) run(args []string) error {
 		return attributeDetailView(key, values)
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

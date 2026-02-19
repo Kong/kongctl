@@ -235,7 +235,7 @@ func (c *getRouteCmd) runListByName(
 
 	for _, route := range allData {
 		if route.RouteJSON != nil && *route.RouteJSON.GetName() == name {
-			return tableview.RenderForFormat(
+			return tableview.RenderForFormat(helper,
 				false,
 				outputFormat,
 				printer,
@@ -272,7 +272,7 @@ func (c *getRouteCmd) runGet(
 		return cmd.PrepareExecutionError("Failed to get Gateway Route", err, helper.GetCmd(), attrs...)
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outputFormat,
 		printer,
@@ -317,7 +317,7 @@ func (c *getRouteCmd) runList(
 		return routeDetailView(allData[index])
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outputFormat,
 		printer,

@@ -19,6 +19,7 @@ import (
 	"github.com/itchyny/gojq"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
+	jqoutput "github.com/kong/kongctl/internal/cmd/output/jq"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/iostreams"
@@ -33,13 +34,8 @@ import (
 )
 
 const (
-	Verb                     = verbs.API
-	jqColorFlagName          = "jq-color"
-	jqColorThemeFlagName     = "jq-color-theme"
-	jqColorEnabledConfigPath = "jq.color.enabled"
-	jqColorThemeConfigPath   = "jq.color.theme"
-	jqColorDefaultThemeValue = "friendly"
-	responseHeadersFlagName  = "include-response-headers"
+	Verb                    = verbs.API
+	responseHeadersFlagName = "include-response-headers"
 )
 
 var (
@@ -99,11 +95,7 @@ func addFlags(command *cobra.Command) {
 Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`, konnectcommon.PATConfigPath))
 
-	command.PersistentFlags().String(
-		"jq",
-		"",
-		"Filter JSON responses using jq expressions (powered by gojq for full jq compatibility)",
-	)
+	jqoutput.AddFlags(command.PersistentFlags())
 
 	var bodyFileFlagValue string
 	command.PersistentFlags().VarP(
@@ -111,28 +103,6 @@ Setting this value overrides tokens obtained from the login command.
 		"body-file",
 		"f",
 		"Read request body from file ('-' to read from standard input)",
-	)
-
-	jqColor := cmd.NewEnum([]string{
-		cmdcommon.ColorModeAuto.String(),
-		cmdcommon.ColorModeAlways.String(),
-		cmdcommon.ColorModeNever.String(),
-	}, cmdcommon.DefaultColorMode)
-	command.PersistentFlags().Var(
-		jqColor,
-		jqColorFlagName,
-		fmt.Sprintf(`Controls colorized output for jq filter results.
-- Config path: [ %s ]
-- Allowed    : [ auto|always|never ]`, jqColorEnabledConfigPath),
-	)
-
-	command.PersistentFlags().String(
-		jqColorThemeFlagName,
-		jqColorDefaultThemeValue,
-		fmt.Sprintf(`Select the color theme used for jq filter results.
-- Config path: [ %s ]
-- Examples   : [ friendly, github-dark, dracula ]
-- Reference  : [ https://xyproto.github.io/splash/docs/ ]`, jqColorThemeConfigPath),
 	)
 
 	command.PersistentFlags().Bool(
@@ -171,21 +141,7 @@ func bindFlags(c *cobra.Command, args []string) error {
 		}
 	}
 
-	f = c.Flags().Lookup(jqColorFlagName)
-	if f != nil {
-		if err = cfg.BindFlag(jqColorEnabledConfigPath, f); err != nil {
-			return err
-		}
-	}
-
-	f = c.Flags().Lookup(jqColorThemeFlagName)
-	if f != nil {
-		if err = cfg.BindFlag(jqColorThemeConfigPath, f); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return jqoutput.BindFlags(cfg, c.Flags())
 }
 
 func NewAPICmd() (*cobra.Command, error) {
@@ -271,17 +227,6 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		)
 	}
 
-	jw := helper.GetCmd().Flags()
-	jqFilter, err := jw.GetString("jq")
-	if err != nil {
-		return err
-	}
-	jFlagChanged := jw.Changed("jq")
-	jqFilter = strings.TrimSpace(jqFilter)
-	if jFlagChanged && jqFilter == "" {
-		jqFilter = "."
-	}
-
 	bodyFilePath, err := helper.GetCmd().Flags().GetString("body-file")
 	if err != nil {
 		return err
@@ -295,16 +240,6 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 	cfg, err := helper.GetConfig()
 	if err != nil {
 		return err
-	}
-
-	jqColorValue := cfg.GetString(jqColorEnabledConfigPath)
-	jColorMode, err := cmdcommon.ColorModeStringToIota(strings.ToLower(jqColorValue))
-	if err != nil {
-		return err
-	}
-	jqThemeValue := strings.TrimSpace(cfg.GetString(jqColorThemeConfigPath))
-	if jqThemeValue == "" {
-		jqThemeValue = jqColorDefaultThemeValue
 	}
 
 	logger, err := helper.GetLogger()
@@ -329,11 +264,6 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 
 	streams := helper.GetStreams()
 
-	useJQColor := false
-	if jqFilter != "" {
-		useJQColor = shouldUseJQColor(jColorMode, streams.Out)
-	}
-
 	outType, err := helper.GetOutputFormat()
 	if err != nil {
 		return err
@@ -343,6 +273,19 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 			Err: fmt.Errorf("%s command supports only json or yaml output formats (received %q)",
 				helper.GetCmd().CommandPath(), outType.String()),
 		}
+	}
+
+	jqSettings, err := jqoutput.ResolveSettings(helper.GetCmd(), cfg)
+	if err != nil {
+		return err
+	}
+	if err := jqoutput.ValidateOutputFormat(outType, jqSettings); err != nil {
+		return err
+	}
+
+	useJQColor := false
+	if jqoutput.HasFilter(jqSettings) && !jqSettings.RawOutput {
+		useJQColor = shouldUseJQColor(jqSettings.ColorMode, streams.Out)
 	}
 
 	dataArgs := args[1:]
@@ -432,8 +375,15 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 	var bodyToRender []byte
 	bodyToRender = result.Body
 
-	if jqFilter != "" {
-		filtered, err := applyJQFilter(bodyToRender, jqFilter)
+	if jqoutput.HasFilter(jqSettings) {
+		if jqSettings.RawOutput {
+			if err := jqoutput.ApplyRawFilter(bodyToRender, jqSettings.Filter, streams.Out); err != nil {
+				return cmd.PrepareExecutionError("jq filter failed", err, helper.GetCmd())
+			}
+			return nil
+		}
+
+		filtered, err := jqoutput.ApplyFilter(bodyToRender, jqSettings.Filter)
 		if err != nil {
 			return cmd.PrepareExecutionError("jq filter failed", err, helper.GetCmd())
 		}
@@ -452,7 +402,7 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		}
 		printable := bodyToPrintable(bodyToRender)
 		if useJQColor {
-			printable = maybeColorizeJQOutput(bodyToRender, printable, jqThemeValue)
+			printable = maybeColorizeJQOutput(bodyToRender, printable, jqSettings.Theme)
 		}
 		_, err = fmt.Fprintln(streams.Out, strings.TrimRight(printable, "\n"))
 		return err
@@ -640,7 +590,7 @@ func maybeColorizeJQOutput(raw []byte, formatted, theme string) string {
 
 	style := styles.Get(theme)
 	if style == nil {
-		style = styles.Get(jqColorDefaultThemeValue)
+		style = styles.Get(jqoutput.DefaultTheme)
 	}
 	if style == nil {
 		style = styles.Fallback

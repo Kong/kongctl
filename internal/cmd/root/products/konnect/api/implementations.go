@@ -190,7 +190,7 @@ func (h apiImplementationsHandler) run(args []string) error {
 		return implementationDetailView(&implementations[index])
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

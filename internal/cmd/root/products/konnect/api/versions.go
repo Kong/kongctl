@@ -258,7 +258,7 @@ func (h apiVersionsHandler) listVersions(
 		return versionSummaryDetailView(summary, nil)
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -336,7 +336,7 @@ func (h apiVersionsHandler) getSingleVersion(
 
 	display := any(record)
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

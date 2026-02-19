@@ -134,7 +134,7 @@ func runGetPortalAuthSettings(c *cobra.Command, args []string) error {
 	}
 
 	settings := res.PortalAuthenticationSettingsResponse
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

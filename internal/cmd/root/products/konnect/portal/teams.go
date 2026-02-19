@@ -210,7 +210,7 @@ func (h portalTeamsHandler) listTeams(
 		return portalTeamDetailView(teams[index])
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -267,7 +267,7 @@ func (h portalTeamsHandler) getSingleTeam(
 		}
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

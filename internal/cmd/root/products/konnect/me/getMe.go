@@ -172,7 +172,7 @@ func (c *getMeCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

@@ -119,7 +119,7 @@ func renderSystemAccountsList(
 		tableview.WithDetailHelper(helper),
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -189,7 +189,7 @@ func (s *getSystemAccountCmd) runE(c *cobra.Command, args []string) error {
 			}
 		}
 
-		return tableview.RenderForFormat(
+		return tableview.RenderForFormat(helper,
 			false,
 			outType,
 			printer,
