@@ -2,8 +2,10 @@ package state
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/url"
 	"strings"
@@ -52,6 +54,7 @@ type ClientConfig struct {
 	EventGatewayBackendClusterAPI helpers.EventGatewayBackendClusterAPI
 	EventGatewayVirtualClusterAPI helpers.EventGatewayVirtualClusterAPI
 	EventGatewayListenerAPI       helpers.EventGatewayListenerAPI
+	EventGatewayListenerPolicyAPI helpers.EventGatewayListenerPolicyAPI
 
 	// Identity resources
 	OrganizationTeamAPI helpers.OrganizationTeamAPI
@@ -90,6 +93,7 @@ type Client struct {
 	eventGatewayBackendClusterAPI helpers.EventGatewayBackendClusterAPI
 	eventGatewayVirtualClusterAPI helpers.EventGatewayVirtualClusterAPI
 	eventGatewayListenerAPI       helpers.EventGatewayListenerAPI
+	eventGatewayListenerPolicyAPI helpers.EventGatewayListenerPolicyAPI
 
 	// Organization resource APIs
 	organizationTeamAPI helpers.OrganizationTeamAPI
@@ -129,6 +133,7 @@ func NewClient(config ClientConfig) *Client {
 		eventGatewayBackendClusterAPI: config.EventGatewayBackendClusterAPI,
 		eventGatewayVirtualClusterAPI: config.EventGatewayVirtualClusterAPI,
 		eventGatewayListenerAPI:       config.EventGatewayListenerAPI,
+		eventGatewayListenerPolicyAPI: config.EventGatewayListenerPolicyAPI,
 
 		// Identity resource APIs
 		organizationTeamAPI: config.OrganizationTeamAPI,
@@ -3881,6 +3886,26 @@ func (c *Client) GetEventGatewayVirtualCluster(
 	return virtualCluster, nil
 }
 
+// GetEventGatewayVirtualClusterByName retrieves a virtual cluster by name within a gateway
+func (c *Client) GetEventGatewayVirtualClusterByName(
+	ctx context.Context,
+	gatewayID string,
+	name string,
+) (*EventGatewayVirtualCluster, error) {
+	clusters, err := c.ListEventGatewayVirtualClusters(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+
+	for i, cluster := range clusters {
+		if cluster.Name == name {
+			return &clusters[i], nil
+		}
+	}
+
+	return nil, nil
+}
+
 func (c *Client) UpdateEventGatewayVirtualCluster(
 	ctx context.Context,
 	gatewayID string,
@@ -4062,4 +4087,191 @@ func (c *Client) DeleteEventGatewayListener(
 		return WrapAPIError(err, "delete event gateway listener", nil)
 	}
 	return nil
+}
+
+// ---- Event Gateway Listener Policy operations ----
+
+// EventGatewayListenerPolicyInfo wraps an Event Gateway Listener Policy for internal use.
+// RawConfig contains the full config from the raw API response since the SDK's
+// EventGatewayListenerPolicyConfig struct is empty and doesn't capture actual config data.
+type EventGatewayListenerPolicyInfo struct {
+	kkComps.EventGatewayListenerPolicy
+	NormalizedLabels map[string]string
+	RawConfig        map[string]any
+}
+
+// listenerPolicyRawResponse is used to parse the raw API response to get full config.
+type listenerPolicyRawResponse struct {
+	Type           string            `json:"type"`
+	Name           *string           `json:"name,omitempty"`
+	Description    *string           `json:"description,omitempty"`
+	Enabled        *bool             `json:"enabled,omitempty"`
+	Labels         map[string]string `json:"labels,omitempty"`
+	ID             string            `json:"id"`
+	Config         map[string]any    `json:"config"`
+	CreatedAt      string            `json:"created_at"`
+	UpdatedAt      string            `json:"updated_at"`
+	ParentPolicyID *string           `json:"parent_policy_id,omitempty"`
+}
+
+func (c *Client) ListEventGatewayListenerPolicies(
+	ctx context.Context,
+	gatewayID string,
+	listenerID string,
+) ([]EventGatewayListenerPolicyInfo, error) {
+	if err := ValidateAPIClient(c.eventGatewayListenerPolicyAPI, "event gateway listener policy API"); err != nil {
+		return nil, err
+	}
+
+	req := kkOps.ListEventGatewayListenerPoliciesRequest{
+		GatewayID:              gatewayID,
+		EventGatewayListenerID: listenerID,
+	}
+
+	res, err := c.eventGatewayListenerPolicyAPI.ListEventGatewayListenerPolicies(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "list event gateway listener policies", nil)
+	}
+
+	if res.ListEventGatewayListenerPoliciesResponse == nil {
+		return []EventGatewayListenerPolicyInfo{}, nil
+	}
+
+	// Try to parse raw response to get full config data
+	rawConfigByID := make(map[string]map[string]any)
+	if res.RawResponse != nil && res.RawResponse.Body != nil {
+		bodyBytes, readErr := io.ReadAll(res.RawResponse.Body)
+		if readErr == nil && len(bodyBytes) > 0 {
+			var rawPolicies []listenerPolicyRawResponse
+			if jsonErr := json.Unmarshal(bodyBytes, &rawPolicies); jsonErr == nil {
+				for _, rp := range rawPolicies {
+					if rp.ID != "" && rp.Config != nil {
+						rawConfigByID[rp.ID] = rp.Config
+					}
+				}
+			}
+		}
+	}
+
+	var policies []EventGatewayListenerPolicyInfo
+	for _, p := range res.ListEventGatewayListenerPoliciesResponse {
+		normalized := p.Labels
+		if normalized == nil {
+			normalized = make(map[string]string)
+		}
+		policies = append(policies, EventGatewayListenerPolicyInfo{
+			EventGatewayListenerPolicy: p,
+			NormalizedLabels:           normalized,
+			RawConfig:                  rawConfigByID[p.ID],
+		})
+	}
+
+	return policies, nil
+}
+
+func (c *Client) CreateEventGatewayListenerPolicy(
+	ctx context.Context,
+	gatewayID string,
+	listenerID string,
+	req kkComps.EventGatewayListenerPolicyCreate,
+	namespace string,
+) (string, error) {
+	createReq := kkOps.CreateEventGatewayListenerPolicyRequest{
+		GatewayID:                        gatewayID,
+		EventGatewayListenerID:           listenerID,
+		EventGatewayListenerPolicyCreate: req,
+	}
+
+	resp, err := c.eventGatewayListenerPolicyAPI.CreateEventGatewayListenerPolicy(ctx, createReq)
+	if err != nil {
+		return "", WrapAPIError(err, "create event gateway listener policy", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_listener_policy",
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.EventGatewayListenerPolicy, "create event gateway listener policy"); err != nil {
+		return "", err
+	}
+
+	return resp.EventGatewayListenerPolicy.ID, nil
+}
+
+func (c *Client) UpdateEventGatewayListenerPolicy(
+	ctx context.Context,
+	gatewayID string,
+	listenerID string,
+	policyID string,
+	req kkComps.EventGatewayListenerPolicyUpdate,
+	namespace string,
+) (string, error) {
+	updateReq := kkOps.UpdateEventGatewayListenerPolicyRequest{
+		GatewayID:                        gatewayID,
+		EventGatewayListenerID:           listenerID,
+		PolicyID:                         policyID,
+		EventGatewayListenerPolicyUpdate: req,
+	}
+
+	resp, err := c.eventGatewayListenerPolicyAPI.UpdateEventGatewayListenerPolicy(ctx, updateReq)
+	if err != nil {
+		return "", WrapAPIError(err, "update event gateway listener policy", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_listener_policy",
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	return resp.EventGatewayListenerPolicy.ID, nil
+}
+
+func (c *Client) DeleteEventGatewayListenerPolicy(
+	ctx context.Context,
+	gatewayID string,
+	listenerID string,
+	policyID string,
+) error {
+	deleteReq := kkOps.DeleteEventGatewayListenerPolicyRequest{
+		GatewayID:              gatewayID,
+		EventGatewayListenerID: listenerID,
+		PolicyID:               policyID,
+	}
+
+	_, err := c.eventGatewayListenerPolicyAPI.DeleteEventGatewayListenerPolicy(ctx, deleteReq)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway listener policy", nil)
+	}
+	return nil
+}
+
+func (c *Client) GetEventGatewayListenerPolicy(
+	ctx context.Context,
+	gatewayID string,
+	listenerID string,
+	policyID string,
+) (*EventGatewayListenerPolicyInfo, error) {
+	req := kkOps.GetEventGatewayListenerPolicyRequest{
+		GatewayID:              gatewayID,
+		EventGatewayListenerID: listenerID,
+		PolicyID:               policyID,
+	}
+
+	resp, err := c.eventGatewayListenerPolicyAPI.GetEventGatewayListenerPolicy(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway listener policy", nil)
+	}
+
+	if resp.EventGatewayListenerPolicy == nil {
+		return nil, nil
+	}
+
+	normalized := resp.EventGatewayListenerPolicy.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	return &EventGatewayListenerPolicyInfo{
+		EventGatewayListenerPolicy: *resp.EventGatewayListenerPolicy,
+		NormalizedLabels:           normalized,
+	}, nil
 }

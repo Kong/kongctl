@@ -93,6 +93,40 @@ func (e EventGatewayVirtualClusterResource) GetParentRef() *ResourceRef {
 	return nil
 }
 
+// MarshalJSON ensures virtual cluster metadata (ref, event_gateway) are included.
+// Without this, the embedded CreateVirtualClusterRequest's MarshalJSON is promoted and drops metadata fields.
+func (e EventGatewayVirtualClusterResource) MarshalJSON() ([]byte, error) {
+	type alias struct {
+		Ref          string `json:"ref"`
+		EventGateway string `json:"event_gateway,omitempty"`
+
+		// Fields from kkComps.CreateVirtualClusterRequest
+		Name           string                                   `json:"name"`
+		Description    *string                                  `json:"description,omitempty"`
+		Destination    kkComps.BackendClusterReferenceModify    `json:"destination"`
+		Authentication []kkComps.VirtualClusterAuthenticationScheme `json:"authentication"`
+		Namespace      *kkComps.VirtualClusterNamespace         `json:"namespace,omitempty"`
+		ACLMode        kkComps.VirtualClusterACLMode            `json:"acl_mode"`
+		DNSLabel       string                                   `json:"dns_label"`
+		Labels         map[string]string                        `json:"labels,omitempty"`
+	}
+
+	payload := alias{
+		Ref:            e.Ref,
+		EventGateway:   e.EventGateway,
+		Name:           e.Name,
+		Description:    e.Description,
+		Destination:    e.Destination,
+		Authentication: e.Authentication,
+		Namespace:      e.Namespace,
+		ACLMode:        e.ACLMode,
+		DNSLabel:       e.DNSLabel,
+		Labels:         e.Labels,
+	}
+
+	return json.Marshal(payload)
+}
+
 // Custom JSON unmarshaling to reject kongctl metadata
 func (e *EventGatewayVirtualClusterResource) UnmarshalJSON(data []byte) error {
 	// Temporary structure for unmarshaling resource metadata together with

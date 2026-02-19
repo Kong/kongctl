@@ -50,6 +50,8 @@ type Executor struct {
 		kkComps.CreateVirtualClusterRequest, kkComps.UpdateVirtualClusterRequest]
 	eventGatewayListenerExecutor *BaseExecutor[
 		kkComps.CreateEventGatewayListenerRequest, kkComps.UpdateEventGatewayListenerRequest]
+	eventGatewayListenerPolicyExecutor *BaseExecutor[
+		kkComps.EventGatewayListenerPolicyCreate, kkComps.EventGatewayListenerPolicyUpdate]
 
 	// Portal child resource executors
 	portalCustomizationExecutor *BaseSingletonExecutor[kkComps.PortalCustomization]
@@ -169,6 +171,13 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	e.eventGatewayListenerExecutor = NewBaseExecutor[
 		kkComps.CreateEventGatewayListenerRequest, kkComps.UpdateEventGatewayListenerRequest](
 		NewEventGatewayListenerAdapter(client),
+		client,
+		dryRun,
+	)
+
+	e.eventGatewayListenerPolicyExecutor = NewBaseExecutor[
+		kkComps.EventGatewayListenerPolicyCreate, kkComps.EventGatewayListenerPolicyUpdate](
+		NewEventGatewayListenerPolicyAdapter(client),
 		client,
 		dryRun,
 	)
@@ -1064,6 +1073,134 @@ func (e *Executor) resolveEventGatewayBackendClusterRef(
 	return backendClusterID, nil
 }
 
+// resolveEventGatewayVirtualClusterRef resolves an event gateway virtual cluster reference to its ID.
+// This requires a gateway ID to search within.
+func (e *Executor) resolveEventGatewayVirtualClusterRef(
+	ctx context.Context, gatewayID string, refInfo planner.ReferenceInfo,
+) (string, error) {
+	lookupRef := refInfo.Ref
+	if tags.IsRefPlaceholder(lookupRef) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+			lookupRef = parsedRef
+		}
+	}
+
+	// First check if it was created in this execution
+	if virtualClusters, ok := e.refToID["event_gateway_virtual_cluster"]; ok {
+		if id, found := virtualClusters[lookupRef]; found {
+			slog.Debug("Resolved event gateway virtual cluster reference from created resources",
+				"virtual_cluster_ref", lookupRef,
+				"virtual_cluster_id", id,
+			)
+			return id, nil
+		}
+	}
+
+	// Determine the lookup value - use name from lookup fields if available
+	lookupValue := lookupRef
+	if refInfo.LookupFields != nil {
+		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
+			lookupValue = name
+		}
+	}
+
+	// Try to find the event gateway virtual cluster in Konnect
+	virtualCluster, err := e.client.GetEventGatewayVirtualClusterByName(ctx, gatewayID, lookupValue)
+	if err != nil {
+		return "", fmt.Errorf("failed to get event gateway virtual cluster by name: %w", err)
+	}
+	if virtualCluster == nil {
+		return "", fmt.Errorf("event gateway virtual cluster not found: ref=%s, looked up by name=%s",
+			refInfo.Ref, lookupValue)
+	}
+
+	virtualClusterID := virtualCluster.ID
+	slog.Debug("Resolved event gateway virtual cluster reference from Konnect",
+		"virtual_cluster_ref", refInfo.Ref,
+		"lookup_value", lookupValue,
+		"virtual_cluster_id", virtualClusterID,
+	)
+
+	// Cache this resolution
+	if virtualClusters, ok := e.refToID["event_gateway_virtual_cluster"]; ok {
+		virtualClusters[refInfo.Ref] = virtualClusterID
+	}
+
+	return virtualClusterID, nil
+}
+
+// resolveEventGatewayListenerRef resolves an event gateway listener reference to its ID.
+// This requires a gateway ID to search within, which must be available in the change references.
+func (e *Executor) resolveEventGatewayListenerRef(
+	ctx context.Context, change *planner.PlannedChange, refInfo planner.ReferenceInfo,
+) (string, error) {
+	lookupRef := refInfo.Ref
+	if tags.IsRefPlaceholder(lookupRef) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+			lookupRef = parsedRef
+		}
+	}
+
+	// First check if it was created in this execution
+	if listeners, ok := e.refToID["event_gateway_listener"]; ok {
+		if id, found := listeners[lookupRef]; found {
+			slog.Debug("Resolved event gateway listener reference from created resources",
+				"listener_ref", lookupRef,
+				"listener_id", id,
+			)
+			return id, nil
+		}
+	}
+
+	// Need the gateway ID to look up listeners
+	var gatewayID string
+	if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID != "" {
+		gatewayID = gatewayRef.ID
+	}
+	if gatewayID == "" && change.Parent != nil && change.Parent.ID != "" {
+		gatewayID = change.Parent.ID
+	}
+	if gatewayID == "" {
+		return "", fmt.Errorf("cannot resolve listener ref without gateway ID")
+	}
+
+	// Determine the lookup value - use name from lookup fields if available
+	lookupValue := lookupRef
+	if refInfo.LookupFields != nil {
+		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
+			lookupValue = name
+		}
+	}
+
+	// Try to find the listener in Konnect by listing and matching by name
+	listeners, err := e.client.ListEventGatewayListeners(ctx, gatewayID)
+	if err != nil {
+		return "", fmt.Errorf("failed to list event gateway listeners: %w", err)
+	}
+
+	for _, listener := range listeners {
+		if listener.Name == lookupValue {
+			slog.Debug("Resolved event gateway listener reference from Konnect",
+				"listener_ref", refInfo.Ref,
+				"lookup_value", lookupValue,
+				"listener_id", listener.ID,
+			)
+
+			// Cache this resolution
+			if listenerMap, ok := e.refToID["event_gateway_listener"]; ok {
+				listenerMap[refInfo.Ref] = listener.ID
+			}
+
+			return listener.ID, nil
+		}
+	}
+
+	return "", fmt.Errorf(
+		"event gateway listener not found: ref=%s, looked up by name=%s in gateway=%s",
+		refInfo.Ref, lookupValue, gatewayID,
+	)
+}
+
 // populatePortalPages fetches and caches all pages for a portal
 func (e *Executor) populatePortalPages(ctx context.Context, portalID string) error {
 	portal, exists := e.stateCache.Portals[portalID]
@@ -1661,6 +1798,36 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References["event_gateway_id"] = gatewayRef
 		}
 		return e.eventGatewayListenerExecutor.Create(ctx, *change)
+	case planner.ResourceTypeEventGatewayListenerPolicy:
+		// Resolve event gateway reference if needed
+		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
+			}
+			gatewayRef.ID = gatewayID
+			change.References["event_gateway_id"] = gatewayRef
+		}
+		// Resolve event gateway listener reference if needed
+		if listenerRef, ok := change.References["event_gateway_listener_id"]; ok && listenerRef.ID == "" {
+			listenerID, err := e.resolveEventGatewayListenerRef(ctx, change, listenerRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway listener reference: %w", err)
+			}
+			listenerRef.ID = listenerID
+			change.References["event_gateway_listener_id"] = listenerRef
+		}
+		// Resolve event gateway virtual cluster reference if needed (for forward_to_virtual_cluster policies)
+		if virtualClusterRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok && virtualClusterRef.ID == "" {
+			gatewayID := change.References["event_gateway_id"].ID
+			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
+			}
+			virtualClusterRef.ID = virtualClusterID
+			change.References["event_gateway_virtual_cluster_id"] = virtualClusterRef
+		}
+		return e.eventGatewayListenerPolicyExecutor.Create(ctx, *change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
 	}
@@ -1909,6 +2076,36 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			change.References["event_gateway_id"] = gatewayRef
 		}
 		return e.eventGatewayListenerExecutor.Update(ctx, *change)
+	case planner.ResourceTypeEventGatewayListenerPolicy:
+		// Resolve event gateway reference if needed
+		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
+			}
+			gatewayRef.ID = gatewayID
+			change.References["event_gateway_id"] = gatewayRef
+		}
+		// Resolve event gateway listener reference if needed
+		if listenerRef, ok := change.References["event_gateway_listener_id"]; ok && listenerRef.ID == "" {
+			listenerID, err := e.resolveEventGatewayListenerRef(ctx, change, listenerRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway listener reference: %w", err)
+			}
+			listenerRef.ID = listenerID
+			change.References["event_gateway_listener_id"] = listenerRef
+		}
+		// Resolve event gateway virtual cluster reference if needed (for forward_to_virtual_cluster policies)
+		if virtualClusterRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok && virtualClusterRef.ID == "" {
+			gatewayID := change.References["event_gateway_id"].ID
+			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
+			}
+			virtualClusterRef.ID = virtualClusterID
+			change.References["event_gateway_virtual_cluster_id"] = virtualClusterRef
+		}
+		return e.eventGatewayListenerPolicyExecutor.Update(ctx, *change)
 	default:
 		return "", fmt.Errorf("update operation not yet implemented for %s", change.ResourceType)
 	}
@@ -2048,6 +2245,9 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 	case "event_gateway_listener":
 		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
 		return e.eventGatewayListenerExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeEventGatewayListenerPolicy:
+		// Both gateway ID and listener ID should be in References for delete
+		return e.eventGatewayListenerPolicyExecutor.Delete(ctx, *change)
 	case "organization_team":
 		return e.organizationTeamExecutor.Delete(ctx, *change)
 	default:
