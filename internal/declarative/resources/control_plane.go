@@ -128,7 +128,14 @@ func (c *ControlPlaneResource) IsExternal() bool {
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
 func (c *ControlPlaneResource) TryMatchKonnectResource(konnectResource any) bool {
-	return c.TryMatchByName(c.Name, konnectResource, matchOptions{})
+	id, ok := tryMatchByNameWithExternal(c.Name, konnectResource, matchOptions{
+		sdkType: "ControlPlane",
+	}, c.External)
+
+	if ok {
+		c.SetKonnectID(id)
+	}
+	return ok
 }
 
 // IsGroup returns true when the control plane represents a control plane group.
