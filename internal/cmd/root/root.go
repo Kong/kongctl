@@ -21,6 +21,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs/get"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/help"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/kai"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/lint"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/list"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/login"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/logout"
@@ -235,6 +236,12 @@ func addCommands() error {
 	rootCmd.AddCommand(command)
 
 	command, err = login.NewLoginCmd()
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(command)
+
+	command, err = lint.NewLintCmd()
 	if err != nil {
 		return err
 	}
