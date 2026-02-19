@@ -51,3 +51,35 @@ func TestBuildEndpointFromPublicURL(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateListenAuditLogsOptions(t *testing.T) {
+	t.Parallel()
+
+	t.Run("jq requires tail", func(t *testing.T) {
+		t.Parallel()
+
+		err := validateListenAuditLogsOptions(ListenAuditLogsOptions{
+			Tail: false,
+			JQ:   ".request",
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "--jq requires --tail")
+	})
+
+	t.Run("jq with tail is valid", func(t *testing.T) {
+		t.Parallel()
+
+		err := validateListenAuditLogsOptions(ListenAuditLogsOptions{
+			Tail: true,
+			JQ:   ".request",
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("empty jq without tail is valid", func(t *testing.T) {
+		t.Parallel()
+
+		err := validateListenAuditLogsOptions(ListenAuditLogsOptions{Tail: false})
+		require.NoError(t, err)
+	})
+}

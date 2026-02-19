@@ -230,6 +230,12 @@ func addCommands() error {
 	}
 	rootCmd.AddCommand(command)
 
+	command, err = listen.NewTailCmd()
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(command)
+
 	command, err = view.NewViewCmd()
 	if err != nil {
 		return err
