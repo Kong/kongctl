@@ -12,6 +12,7 @@ const (
 	Apply  = VerbValue("apply")
 	Adopt  = VerbValue("adopt")
 	Kai    = VerbValue("kai")
+	Lint   = VerbValue("lint")
 	API    = VerbValue("api")
 	Get    = VerbValue("get")
 	Create = VerbValue("create")
