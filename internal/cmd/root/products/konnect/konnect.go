@@ -154,7 +154,7 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return newLogoutKonnectCmd(verb, cmd, addFlags, preRunE).Command, nil
 	}
 
-	if verb = verbs.Listen:
+	if verb == verbs.Listen {
 		alc, err := auditlogs.NewAuditLogsCmd(verb, addFlags, preRunE)
 		if err != nil {
 			return nil, err

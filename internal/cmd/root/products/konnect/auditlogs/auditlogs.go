@@ -45,16 +45,12 @@ func NewAuditLogsCmd(
 		Aliases: []string{"audit-log", "al", "AL"},
 	}
 
-	switch verb {
-	case verbs.Listen:
+	if verb == verbs.Listen {
 		return newListenAuditLogsCmd(verb, baseCmd, addParentFlags, parentPreRun), nil
-	case verbs.Create:
-		return newCreateAuditLogsCmd(verb, baseCmd, addParentFlags, parentPreRun), nil
-	case verbs.Get, verbs.List, verbs.Delete, verbs.Add, verbs.Apply, verbs.Dump, verbs.Update, verbs.Help,
-		verbs.Login, verbs.Plan, verbs.Sync, verbs.Diff, verbs.Export, verbs.Adopt, verbs.API, verbs.Kai,
-		verbs.View, verbs.Logout:
-		return baseCmd, nil
-	default:
-		return baseCmd, nil
 	}
+	if verb == verbs.Create {
+		return newCreateAuditLogsCmd(verb, baseCmd, addParentFlags, parentPreRun), nil
+	}
+
+	return baseCmd, nil
 }
