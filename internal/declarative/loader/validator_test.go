@@ -30,13 +30,17 @@ func TestLoader_validatePortals(t *testing.T) {
 			name: "valid portals",
 			portals: []resources.PortalResource{
 				{
-					Ref: "portal1",
+					BaseResource: resources.BaseResource{
+						Ref: "portal1",
+					},
 					CreatePortal: kkComps.CreatePortal{
 						Name: "Portal One",
 					},
 				},
 				{
-					Ref: "portal2",
+					BaseResource: resources.BaseResource{
+						Ref: "portal2",
+					},
 					CreatePortal: kkComps.CreatePortal{
 						Name: "Portal Two",
 					},
@@ -48,13 +52,17 @@ func TestLoader_validatePortals(t *testing.T) {
 			name: "duplicate refs within same type not detected by validator",
 			portals: []resources.PortalResource{
 				{
-					Ref: "portal1",
+					BaseResource: resources.BaseResource{
+						Ref: "portal1",
+					},
 					CreatePortal: kkComps.CreatePortal{
 						Name: "Portal One",
 					},
 				},
 				{
-					Ref: "portal1",
+					BaseResource: resources.BaseResource{
+						Ref: "portal1",
+					},
 					CreatePortal: kkComps.CreatePortal{
 						Name: "Portal Two", // Different name to avoid name duplicate error
 					},
@@ -66,7 +74,11 @@ func TestLoader_validatePortals(t *testing.T) {
 		{
 			name: "missing ref",
 			portals: []resources.PortalResource{
-				{Ref: ""},
+				{
+					BaseResource: resources.BaseResource{
+						Ref: "",
+					},
+				},
 			},
 			wantErr:     true,
 			expectedErr: "invalid portal ref: ref cannot be empty",
@@ -108,7 +120,7 @@ func TestLoader_validateAuthStrategies(t *testing.T) {
 			name: "valid strategies",
 			strategies: []resources.ApplicationAuthStrategyResource{
 				{
-					Ref: "oauth1",
+					BaseResource: resources.BaseResource{Ref: "oauth1"},
 					CreateAppAuthStrategyRequest: kkComps.CreateAppAuthStrategyRequest{
 						Type: kkComps.CreateAppAuthStrategyRequestTypeKeyAuth,
 						AppAuthStrategyKeyAuthRequest: &kkComps.AppAuthStrategyKeyAuthRequest{
@@ -117,7 +129,7 @@ func TestLoader_validateAuthStrategies(t *testing.T) {
 					},
 				},
 				{
-					Ref: "oauth2",
+					BaseResource: resources.BaseResource{Ref: "oauth2"},
 					CreateAppAuthStrategyRequest: kkComps.CreateAppAuthStrategyRequest{
 						Type: kkComps.CreateAppAuthStrategyRequestTypeKeyAuth,
 						AppAuthStrategyKeyAuthRequest: &kkComps.AppAuthStrategyKeyAuthRequest{
@@ -132,7 +144,7 @@ func TestLoader_validateAuthStrategies(t *testing.T) {
 			name: "duplicate refs within same type not detected by validator",
 			strategies: []resources.ApplicationAuthStrategyResource{
 				{
-					Ref: "oauth1",
+					BaseResource: resources.BaseResource{Ref: "oauth1"},
 					CreateAppAuthStrategyRequest: kkComps.CreateAppAuthStrategyRequest{
 						Type: kkComps.CreateAppAuthStrategyRequestTypeKeyAuth,
 						AppAuthStrategyKeyAuthRequest: &kkComps.AppAuthStrategyKeyAuthRequest{
@@ -141,7 +153,7 @@ func TestLoader_validateAuthStrategies(t *testing.T) {
 					},
 				},
 				{
-					Ref: "oauth1",
+					BaseResource: resources.BaseResource{Ref: "oauth1"},
 					CreateAppAuthStrategyRequest: kkComps.CreateAppAuthStrategyRequest{
 						Type: kkComps.CreateAppAuthStrategyRequestTypeKeyAuth,
 						AppAuthStrategyKeyAuthRequest: &kkComps.AppAuthStrategyKeyAuthRequest{
@@ -190,13 +202,17 @@ func TestLoader_validateControlPlanes(t *testing.T) {
 			name: "valid control planes",
 			cps: []resources.ControlPlaneResource{
 				{
-					Ref: "cp1",
+					BaseResource: resources.BaseResource{
+						Ref: "cp1",
+					},
 					CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
 						Name: "Control Plane One",
 					},
 				},
 				{
-					Ref: "cp2",
+					BaseResource: resources.BaseResource{
+						Ref: "cp2",
+					},
 					CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
 						Name: "Control Plane Two",
 					},
@@ -208,13 +224,17 @@ func TestLoader_validateControlPlanes(t *testing.T) {
 			name: "duplicate refs within same type not detected by validator",
 			cps: []resources.ControlPlaneResource{
 				{
-					Ref: "cp1",
+					BaseResource: resources.BaseResource{
+						Ref: "cp1",
+					},
 					CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
 						Name: "Control Plane One",
 					},
 				},
 				{
-					Ref: "cp1",
+					BaseResource: resources.BaseResource{
+						Ref: "cp1",
+					},
 					CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
 						Name: "Control Plane Two", // Different name to avoid name duplicate error
 					},
@@ -260,13 +280,13 @@ func TestLoader_validateAPIs(t *testing.T) {
 			name: "valid APIs",
 			apis: []resources.APIResource{
 				{
-					Ref: "api1",
+					BaseResource: resources.BaseResource{Ref: "api1"},
 					CreateAPIRequest: kkComps.CreateAPIRequest{
 						Name: "API One",
 					},
 				},
 				{
-					Ref: "api2",
+					BaseResource: resources.BaseResource{Ref: "api2"},
 					CreateAPIRequest: kkComps.CreateAPIRequest{
 						Name: "API Two",
 					},
@@ -278,13 +298,13 @@ func TestLoader_validateAPIs(t *testing.T) {
 			name: "duplicate API refs within same type not detected by validator",
 			apis: []resources.APIResource{
 				{
-					Ref: "api1",
+					BaseResource: resources.BaseResource{Ref: "api1"},
 					CreateAPIRequest: kkComps.CreateAPIRequest{
 						Name: "API One",
 					},
 				},
 				{
-					Ref: "api1",
+					BaseResource: resources.BaseResource{Ref: "api1"},
 					CreateAPIRequest: kkComps.CreateAPIRequest{
 						Name: "API Two", // Different name to avoid name duplicate error
 					},
@@ -297,7 +317,7 @@ func TestLoader_validateAPIs(t *testing.T) {
 			name: "API with duplicate version refs",
 			apis: []resources.APIResource{
 				{
-					Ref: "api1",
+					BaseResource: resources.BaseResource{Ref: "api1"},
 					Versions: []resources.APIVersionResource{
 						{Ref: "v1"},
 						{Ref: "v1"},
@@ -311,7 +331,7 @@ func TestLoader_validateAPIs(t *testing.T) {
 			name: "API with duplicate publication refs",
 			apis: []resources.APIResource{
 				{
-					Ref: "api1",
+					BaseResource: resources.BaseResource{Ref: "api1"},
 					Publications: []resources.APIPublicationResource{
 						{Ref: "pub1", PortalID: "dummy-portal"}, // Use dummy value for required field
 						{Ref: "pub1", PortalID: "dummy-portal"},
@@ -325,7 +345,7 @@ func TestLoader_validateAPIs(t *testing.T) {
 			name: "API with duplicate implementation refs",
 			apis: []resources.APIResource{
 				{
-					Ref: "api1",
+					BaseResource: resources.BaseResource{Ref: "api1"},
 					Implementations: []resources.APIImplementationResource{
 						{
 							Ref: "impl1",
@@ -361,7 +381,9 @@ func TestLoader_validateAPIs(t *testing.T) {
 			name: "API with multiple versions - should pass",
 			apis: []resources.APIResource{
 				{
-					Ref: "api1",
+					BaseResource: resources.BaseResource{
+						Ref: "api1",
+					},
 					CreateAPIRequest: kkComps.CreateAPIRequest{
 						Name: "API One",
 					},
@@ -387,7 +409,9 @@ func TestLoader_validateAPIs(t *testing.T) {
 			name: "API with single version - should pass",
 			apis: []resources.APIResource{
 				{
-					Ref: "api1",
+					BaseResource: resources.BaseResource{
+						Ref: "api1",
+					},
 					CreateAPIRequest: kkComps.CreateAPIRequest{
 						Name: "API One",
 					},
@@ -415,10 +439,14 @@ func TestLoader_validateAPIs(t *testing.T) {
 			// Add dummy resources for cross-reference validation
 			// These are needed because validateCrossReferences checks that references exist
 			rs.Portals = []resources.PortalResource{
-				{Ref: "dummy-portal"},
+				{BaseResource: resources.BaseResource{
+					Ref: "dummy-portal",
+				}},
 			}
 			rs.ControlPlanes = []resources.ControlPlaneResource{
-				{Ref: "dummy-cp"},
+				{BaseResource: resources.BaseResource{
+					Ref: "dummy-cp",
+				}},
 			}
 
 			// Extract nested resources to match real loader behavior
@@ -448,13 +476,25 @@ func TestLoader_validateCrossReferences(t *testing.T) {
 	// Create a base ResourceSet with some resources for reference validation
 	baseResources := &resources.ResourceSet{
 		Portals: []resources.PortalResource{
-			{Ref: "portal1"},
+			{
+				BaseResource: resources.BaseResource{
+					Ref: "portal1",
+				},
+			},
 		},
 		ApplicationAuthStrategies: []resources.ApplicationAuthStrategyResource{
-			{Ref: "oauth1"},
+			{
+				BaseResource: resources.BaseResource{
+					Ref: "oauth1",
+				},
+			},
 		},
 		ControlPlanes: []resources.ControlPlaneResource{
-			{Ref: "cp1"},
+			{
+				BaseResource: resources.BaseResource{
+					Ref: "cp1",
+				},
+			},
 		},
 	}
 
@@ -469,7 +509,9 @@ func TestLoader_validateCrossReferences(t *testing.T) {
 			rs: &resources.ResourceSet{
 				Portals: []resources.PortalResource{
 					{
-						Ref: "portal1",
+						BaseResource: resources.BaseResource{
+							Ref: "portal1",
+						},
 						CreatePortal: kkComps.CreatePortal{
 							DefaultApplicationAuthStrategyID: stringPtr("oauth1"),
 						},
@@ -483,7 +525,9 @@ func TestLoader_validateCrossReferences(t *testing.T) {
 			rs: &resources.ResourceSet{
 				Portals: []resources.PortalResource{
 					{
-						Ref: "portal1",
+						BaseResource: resources.BaseResource{
+							Ref: "portal1",
+						},
 						CreatePortal: kkComps.CreatePortal{
 							DefaultApplicationAuthStrategyID: stringPtr("nonexistent"),
 						},
@@ -498,7 +542,9 @@ func TestLoader_validateCrossReferences(t *testing.T) {
 			rs: &resources.ResourceSet{
 				Portals: []resources.PortalResource{
 					{
-						Ref: "portal1",
+						BaseResource: resources.BaseResource{
+							Ref: "portal1",
+						},
 						// No default auth strategy - should be fine
 					},
 				},

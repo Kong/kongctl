@@ -300,9 +300,11 @@ func TestGeneratePlan_CreatePortal(t *testing.T) {
 					Description: &description,
 					Labels:      map[string]*string{},
 				},
-				Ref: "dev-portal",
-				Kongctl: &resources.KongctlMeta{
-					Namespace: &[]string{"default"}[0],
+				BaseResource: resources.BaseResource{
+					Ref: "dev-portal",
+					Kongctl: &resources.KongctlMeta{
+						Namespace: &[]string{"default"}[0],
+					},
 				},
 			},
 		},
@@ -399,7 +401,9 @@ func TestGeneratePlan_UpdatePortal(t *testing.T) {
 					Description: &newDesc,
 					Labels:      map[string]*string{},
 				},
-				Ref: "dev-portal",
+				BaseResource: resources.BaseResource{
+					Ref: "dev-portal",
+				},
 			},
 		},
 		ApplicationAuthStrategies: []resources.ApplicationAuthStrategyResource{},
@@ -493,7 +497,9 @@ func TestGeneratePlan_ProtectionChange(t *testing.T) {
 						labels.ProtectedKey: &protectedLabel,
 					},
 				},
-				Ref: "dev-portal",
+				BaseResource: resources.BaseResource{
+					Ref: "dev-portal",
+				},
 			},
 		},
 		ApplicationAuthStrategies: []resources.ApplicationAuthStrategyResource{},
@@ -583,7 +589,9 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 						},
 					},
 				),
-				Ref: "basic-auth",
+				BaseResource: resources.BaseResource{
+					Ref: "basic-auth",
+				},
 			},
 		},
 		Portals: []resources.PortalResource{
@@ -594,7 +602,9 @@ func TestGeneratePlan_WithReferences(t *testing.T) {
 					DefaultApplicationAuthStrategyID: &authRef,
 					Labels:                           map[string]*string{},
 				},
-				Ref: "dev-portal",
+				BaseResource: resources.BaseResource{
+					Ref: "dev-portal",
+				},
 			},
 		},
 	}
@@ -704,7 +714,9 @@ func TestGeneratePlan_NoChangesNeeded(t *testing.T) {
 					DisplayName: &displayName,
 					// Labels not defined - this avoids triggering label updates
 				},
-				Ref: "dev-portal",
+				BaseResource: resources.BaseResource{
+					Ref: "dev-portal",
+				},
 			},
 		},
 		ApplicationAuthStrategies: []resources.ApplicationAuthStrategyResource{},
@@ -854,7 +866,9 @@ func TestGeneratePlan_ApplyModeNoDeletes(t *testing.T) {
 					DisplayName: &displayName,
 					Labels:      map[string]*string{},
 				},
-				Ref: "new-portal",
+				BaseResource: resources.BaseResource{
+					Ref: "new-portal",
+				},
 			},
 		},
 	}
@@ -1012,10 +1026,12 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 					DisplayName: &displayName,
 					Description: &description, // Changed field
 				},
-				Kongctl: &resources.KongctlMeta{
-					Protected: &[]bool{true}[0], // Keep it protected
+				BaseResource: resources.BaseResource{
+					Kongctl: &resources.KongctlMeta{
+						Protected: &[]bool{true}[0], // Keep it protected
+					},
+					Ref: "protected-portal",
 				},
-				Ref: "protected-portal",
 			},
 		},
 	}
@@ -1161,7 +1177,9 @@ func TestGeneratePlan_ProtectionChangeAllowed(t *testing.T) {
 						labels.ProtectedKey: &falseStr,
 					},
 				},
-				Ref: "protected-portal",
+				BaseResource: resources.BaseResource{
+					Ref: "protected-portal",
+				},
 			},
 		},
 	}

@@ -106,7 +106,9 @@ func TestGeneratePlan_PortalCustomDomain(t *testing.T) {
 				CreatePortal: kkComps.CreatePortal{
 					Name: "dev-portal",
 				},
-				Ref: "dev-portal",
+				BaseResource: resources.BaseResource{
+					Ref: "dev-portal",
+				},
 			},
 		},
 		PortalCustomDomains: []resources.PortalCustomDomainResource{
@@ -198,7 +200,9 @@ func TestPlanPortalCustomDomain_NoChangeWhenStateMatches(t *testing.T) {
 		desiredPortals: []resources.PortalResource{
 			{
 				CreatePortal: kkComps.CreatePortal{Name: "portal"},
-				Ref:          "portal-1",
+				BaseResource: resources.BaseResource{
+					Ref: "portal-1",
+				},
 			},
 		},
 	}
@@ -255,7 +259,9 @@ func TestPlanPortalCustomDomain_UpdateEnabled(t *testing.T) {
 		desiredPortals: []resources.PortalResource{
 			{
 				CreatePortal: kkComps.CreatePortal{Name: "portal"},
-				Ref:          "portal-1",
+				BaseResource: resources.BaseResource{
+					Ref: "portal-1",
+				},
 			},
 		},
 	}
@@ -326,7 +332,9 @@ func TestPlanPortalCustomDomain_ReplaceOnHostnameChange(t *testing.T) {
 		desiredPortals: []resources.PortalResource{
 			{
 				CreatePortal: kkComps.CreatePortal{Name: "portal"},
-				Ref:          "portal-1",
+				BaseResource: resources.BaseResource{
+					Ref: "portal-1",
+				},
 			},
 		},
 	}
@@ -430,7 +438,9 @@ func TestPlanPortalCustomDomain_CreateWhenAbsent(t *testing.T) {
 		desiredPortals: []resources.PortalResource{
 			{
 				CreatePortal: kkComps.CreatePortal{Name: "portal"},
-				Ref:          "portal-1",
+				BaseResource: resources.BaseResource{
+					Ref: "portal-1",
+				},
 			},
 		},
 	}

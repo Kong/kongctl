@@ -8,7 +8,9 @@ import (
 
 func TestAPIResourceInterface(t *testing.T) {
 	api := &APIResource{
-		Ref: "test-api",
+		BaseResource: BaseResource{
+			Ref: "test-api",
+		},
 		CreateAPIRequest: kkComps.CreateAPIRequest{
 			Name: "Test API",
 		},
@@ -35,7 +37,9 @@ func TestAPIResourceInterface(t *testing.T) {
 
 func TestAPIResourceLabels(t *testing.T) {
 	api := &APIResource{
-		Ref: "test-api",
+		BaseResource: BaseResource{
+			Ref: "test-api",
+		},
 	}
 
 	// Test setting and getting labels
@@ -65,7 +69,7 @@ func TestAPIResourceLabels(t *testing.T) {
 	}
 
 	// Test getting labels when not set
-	api2 := &APIResource{Ref: "test-api-2"}
+	api2 := &APIResource{BaseResource: BaseResource{Ref: "test-api-2"}}
 	if gotLabels := api2.GetLabels(); gotLabels != nil {
 		t.Errorf("GetLabels() = %v, want nil for unset labels", gotLabels)
 	}
@@ -80,14 +84,14 @@ func TestAPIResourceSetDefaults(t *testing.T) {
 		{
 			name: "name from ref when name is empty",
 			api: APIResource{
-				Ref: "my-api",
+				BaseResource: BaseResource{Ref: "my-api"},
 			},
 			expectedName: "my-api",
 		},
 		{
 			name: "existing name is preserved",
 			api: APIResource{
-				Ref: "my-api",
+				BaseResource: BaseResource{Ref: "my-api"},
 				CreateAPIRequest: kkComps.CreateAPIRequest{
 					Name: "Existing API Name",
 				},

@@ -15,28 +15,36 @@ func TestResourceValidation_RejectsColonsInRefs(t *testing.T) {
 		{
 			name: "portal with colon in ref",
 			resource: &PortalResource{
-				Ref: "my:portal",
+				BaseResource: BaseResource{
+					Ref: "my:portal",
+				},
 			},
 			expectedErr: "invalid portal ref: ref cannot contain colons (:)",
 		},
 		{
 			name: "api with colon in ref",
 			resource: &APIResource{
-				Ref: "api:v1",
+				BaseResource: BaseResource{
+					Ref: "api:v1",
+				},
 			},
 			expectedErr: "invalid API ref: ref cannot contain colons (:)",
 		},
 		{
 			name: "auth strategy with colon in ref",
 			resource: &ApplicationAuthStrategyResource{
-				Ref: "auth:basic",
+				BaseResource: BaseResource{
+					Ref: "auth:basic",
+				},
 			},
 			expectedErr: "invalid application auth strategy ref: ref cannot contain colons (:)",
 		},
 		{
 			name: "control plane with colon in ref",
 			resource: &ControlPlaneResource{
-				Ref: "cp:prod",
+				BaseResource: BaseResource{
+					Ref: "cp:prod",
+				},
 			},
 			expectedErr: "invalid control plane ref: ref cannot contain colons (:)",
 		},
@@ -117,19 +125,25 @@ func TestResourceValidation_AcceptsValidRefs(t *testing.T) {
 		{
 			name: "portal with valid ref",
 			resource: &PortalResource{
-				Ref: "my-portal",
+				BaseResource: BaseResource{
+					Ref: "my-portal",
+				},
 			},
 		},
 		{
 			name: "api with underscore",
 			resource: &APIResource{
-				Ref: "api_v1",
+				BaseResource: BaseResource{
+					Ref: "api_v1",
+				},
 			},
 		},
 		{
 			name: "auth strategy with numbers",
 			resource: &ApplicationAuthStrategyResource{
-				Ref: "auth123",
+				BaseResource: BaseResource{
+					Ref: "auth123",
+				},
 			},
 		},
 	}

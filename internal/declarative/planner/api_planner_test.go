@@ -47,7 +47,9 @@ func TestExtractAPIFieldsIncludesSlugAndAttributes(t *testing.T) {
 			Slug:       &slug,
 			Attributes: attrs,
 		},
-		Ref: "simple-api",
+		BaseResource: resources.BaseResource{
+			Ref: "simple-api",
+		},
 	}
 
 	fields := extractAPIFields(resource)
@@ -90,7 +92,9 @@ func TestShouldUpdateAPIConsidersSlugAndAttributes(t *testing.T) {
 			Slug:       &updatedSlug,
 			Attributes: updatedAttrs,
 		},
-		Ref: "simple-api",
+		BaseResource: resources.BaseResource{
+			Ref: "simple-api",
+		},
 	}
 
 	needsUpdate, updateFields := p.shouldUpdateAPI(current, desired)
@@ -109,7 +113,9 @@ func TestShouldUpdateAPIPublicationResolvesAuthStrategyRefs(t *testing.T) {
 				StrategyType: kkComps.StrategyTypeKeyAuth,
 			},
 		),
-		Ref: "key-auth",
+		BaseResource: resources.BaseResource{
+			Ref: "key-auth",
+		},
 	}
 
 	authStrategy.TryMatchKonnectResource(state.ApplicationAuthStrategy{

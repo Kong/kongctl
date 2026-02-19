@@ -151,7 +151,9 @@ func TestPlanner_ExternalPortal_PlansChildren(t *testing.T) {
 		Portals: []resources.PortalResource{
 			{
 				CreatePortal: kkComps.CreatePortal{Name: "ext-portal"},
-				Ref:          "ext-portal-ref",
+				BaseResource: resources.BaseResource{
+					Ref: "ext-portal-ref",
+				},
 				External: &resources.ExternalBlock{
 					Selector: &resources.ExternalSelector{MatchFields: map[string]string{"name": "ext-portal"}},
 				},

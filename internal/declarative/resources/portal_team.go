@@ -3,7 +3,6 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -98,56 +97,10 @@ func (p PortalTeamResource) GetKonnectMonikerFilter() string {
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
 func (p *PortalTeamResource) TryMatchKonnectResource(konnectResource any) bool {
-	// Use reflection to access fields from state.PortalTeam
-	v := reflect.ValueOf(konnectResource)
-
-	// Handle pointer types
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-
-	// Ensure we have a struct
-	if v.Kind() != reflect.Struct {
-		return false
-	}
-
-	// Get Name field for matching
-	nameField := v.FieldByName("Name")
-	idField := v.FieldByName("ID")
-
-	if !nameField.IsValid() || !idField.IsValid() {
-		return false
-	}
-
-	// Handle pointer types for name
-	var nameValue string
-	if nameField.Kind() == reflect.Ptr {
-		if nameField.IsNil() {
-			return false
-		}
-		nameValue = nameField.Elem().String()
-	} else if nameField.Kind() == reflect.String {
-		nameValue = nameField.String()
-	} else {
-		return false
-	}
-
-	// Match by name
-	if nameValue == p.Name {
-		// Extract ID
-		var idValue string
-		if idField.Kind() == reflect.Ptr {
-			if !idField.IsNil() {
-				idValue = idField.Elem().String()
-			}
-		} else if idField.Kind() == reflect.String {
-			idValue = idField.String()
-		}
-
-		p.konnectID = idValue
+	if id := tryMatchByField(konnectResource, "Name", p.Name); id != "" {
+		p.konnectID = id
 		return true
 	}
-
 	return false
 }
 

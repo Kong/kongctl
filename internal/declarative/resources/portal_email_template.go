@@ -3,7 +3,6 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -132,24 +131,10 @@ func (t PortalEmailTemplateResource) GetKonnectMonikerFilter() string {
 }
 
 func (t *PortalEmailTemplateResource) TryMatchKonnectResource(konnectResource any) bool {
-	v := reflect.ValueOf(konnectResource)
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-	if v.Kind() != reflect.Struct {
-		return false
-	}
-
-	idField := v.FieldByName("ID")
-	nameField := v.FieldByName("Name")
-
-	if nameField.IsValid() && nameField.Kind() == reflect.String && string(t.Name) == nameField.String() {
-		if idField.IsValid() && idField.Kind() == reflect.String {
-			t.konnectID = idField.String()
-		}
+	if id := tryMatchByField(konnectResource, "Name", string(t.Name)); id != "" {
+		t.konnectID = id
 		return true
 	}
-
 	return false
 }
 

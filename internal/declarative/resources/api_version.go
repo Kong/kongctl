@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -83,33 +82,13 @@ func (v APIVersionResource) GetKonnectMonikerFilter() string {
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
 func (v *APIVersionResource) TryMatchKonnectResource(konnectResource any) bool {
-	// For API versions, we match by version string
-	// Use reflection to access fields from state.APIVersion
-	val := reflect.ValueOf(konnectResource)
-
-	// Handle pointer types
-	if val.Kind() == reflect.Ptr {
-		val = val.Elem()
-	}
-
-	// Ensure we have a struct
-	if val.Kind() != reflect.Struct {
+	if v.Version == nil {
 		return false
 	}
-
-	// Look for Version and ID fields
-	versionField := val.FieldByName("Version")
-	idField := val.FieldByName("ID")
-
-	// Extract values if fields are valid
-	if versionField.IsValid() && idField.IsValid() &&
-		versionField.Kind() == reflect.String && idField.Kind() == reflect.String {
-		if v.Version != nil && versionField.String() == *v.Version {
-			v.konnectID = idField.String()
-			return true
-		}
+	if id := tryMatchByField(konnectResource, "Version", *v.Version); id != "" {
+		v.konnectID = id
+		return true
 	}
-
 	return false
 }
 

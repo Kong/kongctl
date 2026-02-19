@@ -70,9 +70,11 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 						Name:        "test-portal",
 						Description: &description, // Only configured field
 					},
-					Ref: "test-portal",
-					Kongctl: &resources.KongctlMeta{
-						Namespace: &namespace,
+					BaseResource: resources.BaseResource{
+						Ref: "test-portal",
+						Kongctl: &resources.KongctlMeta{
+							Namespace: &namespace,
+						},
 					},
 				},
 			},
@@ -99,9 +101,11 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 						Name:        "test-portal",
 						Description: &newDesc, // Changed value
 					},
-					Ref: "test-portal",
-					Kongctl: &resources.KongctlMeta{
-						Namespace: &namespace,
+					BaseResource: resources.BaseResource{
+						Ref: "test-portal",
+						Kongctl: &resources.KongctlMeta{
+							Namespace: &namespace,
+						},
 					},
 				},
 			},
@@ -133,9 +137,11 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 						Description: &description,    // Existing field
 						DisplayName: &newDisplayName, // New field
 					},
-					Ref: "test-portal",
-					Kongctl: &resources.KongctlMeta{
-						Namespace: &namespace,
+					BaseResource: resources.BaseResource{
+						Ref: "test-portal",
+						Kongctl: &resources.KongctlMeta{
+							Namespace: &namespace,
+						},
 					},
 				},
 			},
@@ -168,7 +174,9 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 						Description: &description,
 						// Not specifying: DisplayName, AuthenticationEnabled, RbacEnabled, etc.
 					},
-					Ref: "test-portal",
+					BaseResource: resources.BaseResource{
+						Ref: "test-portal",
+					},
 				},
 			},
 		}
@@ -197,7 +205,9 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 						AuthenticationEnabled: &newAuthEnabled, // Changed
 						RbacEnabled:           &rbacEnabled,    // Same
 					},
-					Ref: "test-portal",
+					BaseResource: resources.BaseResource{
+						Ref: "test-portal",
+					},
 				},
 			},
 		}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"regexp"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -135,33 +134,13 @@ func (d APIDocumentResource) GetKonnectMonikerFilter() string {
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
 func (d *APIDocumentResource) TryMatchKonnectResource(konnectResource any) bool {
-	// For API documents, we match by slug
-	// Use reflection to access fields from state.APIDocument
-	v := reflect.ValueOf(konnectResource)
-
-	// Handle pointer types
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-
-	// Ensure we have a struct
-	if v.Kind() != reflect.Struct {
+	if d.Slug == nil {
 		return false
 	}
-
-	// Look for Slug and ID fields
-	slugField := v.FieldByName("Slug")
-	idField := v.FieldByName("ID")
-
-	// Extract values if fields are valid
-	if slugField.IsValid() && idField.IsValid() &&
-		slugField.Kind() == reflect.String && idField.Kind() == reflect.String {
-		if d.Slug != nil && slugField.String() == *d.Slug {
-			d.konnectID = idField.String()
-			return true
-		}
+	if id := tryMatchByField(konnectResource, "Slug", *d.Slug); id != "" {
+		d.konnectID = id
+		return true
 	}
-
 	return false
 }
 
