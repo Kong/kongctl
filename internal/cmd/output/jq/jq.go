@@ -179,10 +179,21 @@ func HasFilter(settings Settings) bool {
 }
 
 func ValidateOutputFormat(outType cmdcommon.OutputFormat, settings Settings) error {
-	if settings.RawOutput && !HasFilter(settings) {
-		return &cmdpkg.ConfigurationError{
-			Err: fmt.Errorf("--%s requires --%s", RawOutputFlagName, FlagName),
+	if settings.RawOutput {
+		if !HasFilter(settings) {
+			return &cmdpkg.ConfigurationError{
+				Err: fmt.Errorf("--%s requires --%s", RawOutputFlagName, FlagName),
+			}
 		}
+
+		if outType != cmdcommon.JSON {
+			return &cmdpkg.ConfigurationError{
+				Err: fmt.Errorf("--%s is only supported with --output json when used with --%s",
+					RawOutputFlagName, FlagName),
+			}
+		}
+
+		return nil
 	}
 
 	if !HasFilter(settings) {

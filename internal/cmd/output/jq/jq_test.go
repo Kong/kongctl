@@ -158,6 +158,23 @@ func TestValidateOutputFormatRejectsRawOutputWithoutFilter(t *testing.T) {
 	require.Contains(t, err.Error(), "requires")
 }
 
+func TestValidateOutputFormatRejectsRawOutputWithYAML(t *testing.T) {
+	err := ValidateOutputFormat(cmdcommon.YAML, Settings{
+		Filter:    ".",
+		RawOutput: true,
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "--output json")
+}
+
+func TestValidateOutputFormatAllowsRawOutputWithJSON(t *testing.T) {
+	err := ValidateOutputFormat(cmdcommon.JSON, Settings{
+		Filter:    ".",
+		RawOutput: true,
+	})
+	require.NoError(t, err)
+}
+
 func TestApplyToRawJSON(t *testing.T) {
 	payload := map[string]any{"foo": map[string]any{"bar": 42}, "baz": "x"}
 	settings := Settings{
@@ -218,6 +235,21 @@ func TestApplyToRawRawOutputWritesUnquotedStrings(t *testing.T) {
 	require.True(t, handled)
 	require.Nil(t, result)
 	require.Equal(t, "example-api\nother-api\n", buf.String())
+}
+
+func TestApplyToRawRawOutputRejectsYAML(t *testing.T) {
+	payload := []map[string]any{{"name": "example-api"}}
+	settings := Settings{
+		Filter:    ".[].name",
+		RawOutput: true,
+	}
+
+	buf := &bytes.Buffer{}
+	result, handled, err := ApplyToRaw(payload, cmdcommon.YAML, settings, buf)
+	require.Error(t, err)
+	require.False(t, handled)
+	require.Nil(t, result)
+	require.Contains(t, err.Error(), "--output json")
 }
 
 func TestApplyRawFilterMixedValues(t *testing.T) {
