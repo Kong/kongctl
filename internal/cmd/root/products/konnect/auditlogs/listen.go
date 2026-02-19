@@ -64,7 +64,8 @@ func AddListenAuditLogsFlags(cmdObj *cobra.Command, options *ListenAuditLogsOpti
 	cmdObj.Flags().BoolVar(&options.SkipSSLVerification, "skip-ssl-verification", options.SkipSSLVerification,
 		"Skip TLS certificate verification for destination delivery.")
 	cmdObj.Flags().StringVar(&options.Authorization, "authorization", options.Authorization,
-		"Value for the Authorization header Konnect includes when sending audit logs.")
+		"Value for the Authorization header Konnect includes when sending audit logs. "+
+			"The local listener validates this same value when provided.")
 	cmdObj.Flags().BoolVar(&options.ConfigureWebhook, "configure-webhook", options.ConfigureWebhook,
 		"Automatically bind and enable the organization webhook with the created destination.")
 	cmdObj.Flags().BoolVar(&options.Tail, "tail", options.Tail,
@@ -210,10 +211,11 @@ func ExecuteListenAuditLogs(cmdObj *cobra.Command, args []string, options Listen
 	}
 
 	listenerCmd := &createListenerCmd{
-		listenAddress: strings.TrimSpace(options.ListenAddress),
-		listenPath:    listenPath,
-		publicURL:     publicURL,
-		maxBodyBytes:  options.MaxBodyBytes,
+		listenAddress:         strings.TrimSpace(options.ListenAddress),
+		listenPath:            listenPath,
+		publicURL:             publicURL,
+		maxBodyBytes:          options.MaxBodyBytes,
+		expectedAuthorization: strings.TrimSpace(options.Authorization),
 		onStarted: func(helper cmd.Helper, state createListenerState) error {
 			if tailEnabled {
 				return renderTailStartedOutput(logger, destOutput, state)

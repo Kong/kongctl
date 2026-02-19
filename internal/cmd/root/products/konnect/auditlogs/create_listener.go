@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"io"
@@ -45,12 +46,13 @@ type createListenerState struct {
 type createListenerCmd struct {
 	*cobra.Command
 
-	listenAddress string
-	listenPath    string
-	publicURL     string
-	maxBodyBytes  int
-	onStarted     func(helper cmd.Helper, state createListenerState) error
-	onRecords     func(records [][]byte) error
+	listenAddress         string
+	listenPath            string
+	publicURL             string
+	maxBodyBytes          int
+	expectedAuthorization string
+	onStarted             func(helper cmd.Helper, state createListenerState) error
+	onRecords             func(records [][]byte) error
 }
 
 func newCreateListenerCmd(
@@ -81,6 +83,8 @@ and persists each payload under the current profile in XDG config storage.`,
 		"Externally reachable base URL for this listener (used for operator guidance).")
 	c.Flags().IntVar(&c.maxBodyBytes, "max-body-bytes", defaultMaxBodyBytes,
 		"Maximum accepted request body size in bytes.")
+	c.Flags().StringVar(&c.expectedAuthorization, "authorization", "",
+		"Expected Authorization header value for incoming audit-log webhook requests.")
 
 	if parentPreRun != nil {
 		c.PreRunE = parentPreRun
@@ -111,6 +115,7 @@ func (c *createListenerCmd) runE(cmdObj *cobra.Command, args []string) error {
 		}
 	}
 	listenPath := normalizePath(c.listenPath)
+	expectedAuthorization := strings.TrimSpace(c.expectedAuthorization)
 	if !strings.HasPrefix(listenPath, "/") {
 		return &cmd.ConfigurationError{
 			Err: fmt.Errorf("path must start with '/'"),
@@ -139,7 +144,7 @@ func (c *createListenerCmd) runE(cmdObj *cobra.Command, args []string) error {
 	)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", c.newListenerHandler(listenPath, store, logger))
+	mux.HandleFunc("/", c.newListenerHandler(listenPath, store, expectedAuthorization, logger))
 
 	server := &http.Server{
 		ReadHeaderTimeout: 10 * time.Second,
@@ -171,6 +176,7 @@ func (c *createListenerCmd) runE(cmdObj *cobra.Command, args []string) error {
 		"listen_path", state.ListenPath,
 		"local_endpoint", state.LocalEndpoint,
 		"public_url_provided", strings.TrimSpace(state.PublicURL) != "",
+		"authorization_required", expectedAuthorization != "",
 	)
 
 	if c.onStarted != nil {
@@ -260,6 +266,7 @@ func (c *createListenerCmd) printStartup(helper cmd.Helper, state createListener
 func (c *createListenerCmd) newListenerHandler(
 	listenPath string,
 	store *auditlogs.Store,
+	expectedAuthorization string,
 	logger *slog.Logger,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -287,6 +294,21 @@ func (c *createListenerCmd) newListenerHandler(
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+
+		authorized, headerPresent := requestHasExpectedAuthorization(r, expectedAuthorization)
+		if !authorized {
+			if logger != nil {
+				logger.Debug(
+					"rejecting request with invalid authorization header",
+					"listen_path", listenPath,
+					"authorization_required", true,
+					"authorization_header_present", headerPresent,
+				)
+			}
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		defer r.Body.Close()
 
 		body, err := io.ReadAll(io.LimitReader(r.Body, int64(c.maxBodyBytes+1)))
@@ -358,6 +380,23 @@ func (c *createListenerCmd) newListenerHandler(
 
 		w.WriteHeader(http.StatusAccepted)
 	}
+}
+
+func requestHasExpectedAuthorization(r *http.Request, expectedAuthorization string) (bool, bool) {
+	if strings.TrimSpace(expectedAuthorization) == "" {
+		return true, true
+	}
+
+	headerValue := strings.TrimSpace(r.Header.Get("Authorization"))
+	if headerValue == "" {
+		return false, false
+	}
+
+	if subtle.ConstantTimeCompare([]byte(headerValue), []byte(expectedAuthorization)) == 1 {
+		return true, true
+	}
+
+	return false, true
 }
 
 func maybeDecodeRequestBody(contentEncoding string, body []byte, maxBodyBytes int) ([]byte, bool, error) {
