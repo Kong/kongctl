@@ -6,6 +6,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypeAPI,
+		func(rs *ResourceSet) *[]APIResource { return &rs.APIs },
+	)
+}
+
 // APIResource represents an API in declarative configuration
 type APIResource struct {
 	BaseResource

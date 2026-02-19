@@ -6,6 +6,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypeOrganizationTeam,
+		func(rs *ResourceSet) *[]OrganizationTeamResource { return &rs.OrganizationTeams },
+	)
+}
+
 // OrganizationTeamResource represents a team in declarative configuration
 type OrganizationTeamResource struct {
 	BaseResource

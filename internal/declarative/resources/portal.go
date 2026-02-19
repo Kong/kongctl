@@ -9,6 +9,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypePortal,
+		func(rs *ResourceSet) *[]PortalResource { return &rs.Portals },
+	)
+}
+
 // PortalResource represents a portal in declarative configuration
 type PortalResource struct {
 	BaseResource

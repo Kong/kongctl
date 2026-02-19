@@ -8,6 +8,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypePortalCustomDomain,
+		func(rs *ResourceSet) *[]PortalCustomDomainResource { return &rs.PortalCustomDomains },
+	)
+}
+
 // PortalCustomDomainResource represents a portal custom domain configuration
 type PortalCustomDomainResource struct {
 	// Use CreatePortalCustomDomainRequest which contains only user-configurable fields

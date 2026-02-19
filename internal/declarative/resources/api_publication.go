@@ -8,6 +8,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypeAPIPublication,
+		func(rs *ResourceSet) *[]APIPublicationResource { return &rs.APIPublications },
+	)
+}
+
 // APIPublicationResource represents an API publication in declarative configuration
 type APIPublicationResource struct {
 	kkComps.APIPublication `       yaml:",inline"       json:",inline"`

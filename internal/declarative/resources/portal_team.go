@@ -7,6 +7,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypePortalTeam,
+		func(rs *ResourceSet) *[]PortalTeamResource { return &rs.PortalTeams },
+	)
+}
+
 // PortalTeamResource represents a portal team (developer team)
 type PortalTeamResource struct {
 	kkComps.PortalCreateTeamRequest `       yaml:",inline"          json:",inline"`

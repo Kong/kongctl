@@ -7,6 +7,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypePortalAuthSettings,
+		func(rs *ResourceSet) *[]PortalAuthSettingsResource { return &rs.PortalAuthSettings },
+	)
+}
+
 // PortalAuthSettingsResource represents portal authentication settings (singleton child).
 type PortalAuthSettingsResource struct {
 	kkComps.PortalAuthenticationSettingsUpdateRequest `       yaml:",inline"          json:",inline"`

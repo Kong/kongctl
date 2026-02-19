@@ -11,6 +11,13 @@ import (
 	"github.com/kong/kongctl/internal/util"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypeAPIImplementation,
+		func(rs *ResourceSet) *[]APIImplementationResource { return &rs.APIImplementations },
+	)
+}
+
 // APIImplementationResource represents an API implementation in declarative configuration
 type APIImplementationResource struct {
 	kkComps.APIImplementation `       yaml:",inline"       json:",inline"`

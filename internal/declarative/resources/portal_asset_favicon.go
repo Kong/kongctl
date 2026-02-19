@@ -4,6 +4,13 @@ import (
 	"fmt"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypePortalAssetFavicon,
+		func(rs *ResourceSet) *[]PortalAssetFaviconResource { return &rs.PortalAssetFavicons },
+	)
+}
+
 // PortalAssetFaviconResource represents a portal favicon asset
 // This is a singleton resource - only UPDATE operations are supported
 type PortalAssetFaviconResource struct {

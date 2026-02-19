@@ -10,6 +10,13 @@ import (
 	"github.com/kong/kongctl/internal/util"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypeAPIDocument,
+		func(rs *ResourceSet) *[]APIDocumentResource { return &rs.APIDocuments },
+	)
+}
+
 // APIDocumentResource represents an API document in declarative configuration
 type APIDocumentResource struct {
 	kkComps.CreateAPIDocumentRequest `                      yaml:",inline"                       json:",inline"`

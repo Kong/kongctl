@@ -7,6 +7,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypeControlPlane,
+		func(rs *ResourceSet) *[]ControlPlaneResource { return &rs.ControlPlanes },
+	)
+}
+
 // ControlPlaneGroupMember represents a member entry for a control plane group.
 type ControlPlaneGroupMember struct {
 	ID string `yaml:"id" json:"id"`

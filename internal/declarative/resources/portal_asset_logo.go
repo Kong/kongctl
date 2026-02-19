@@ -5,6 +5,13 @@ import (
 	"strings"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypePortalAssetLogo,
+		func(rs *ResourceSet) *[]PortalAssetLogoResource { return &rs.PortalAssetLogos },
+	)
+}
+
 // PortalAssetLogoResource represents a portal logo asset
 // This is a singleton resource - only UPDATE operations are supported
 type PortalAssetLogoResource struct {

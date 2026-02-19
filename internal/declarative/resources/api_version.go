@@ -9,6 +9,13 @@ import (
 	"github.com/kong/kongctl/internal/util/normalizers"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypeAPIVersion,
+		func(rs *ResourceSet) *[]APIVersionResource { return &rs.APIVersions },
+	)
+}
+
 // APIVersionResource represents an API version in declarative configuration
 type APIVersionResource struct {
 	kkComps.CreateAPIVersionRequest `       yaml:",inline"       json:",inline"`

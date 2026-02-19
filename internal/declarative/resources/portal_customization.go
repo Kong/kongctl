@@ -6,6 +6,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypePortalCustomization,
+		func(rs *ResourceSet) *[]PortalCustomizationResource { return &rs.PortalCustomizations },
+	)
+}
+
 // PortalCustomizationResource represents portal customization settings
 type PortalCustomizationResource struct {
 	kkComps.PortalCustomization `       yaml:",inline"          json:",inline"`

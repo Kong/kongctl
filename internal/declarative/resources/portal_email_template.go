@@ -7,6 +7,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypePortalEmailTemplate,
+		func(rs *ResourceSet) *[]PortalEmailTemplateResource { return &rs.PortalEmailTemplates },
+	)
+}
+
 // PortalEmailTemplateResource represents a customizable portal email template.
 type PortalEmailTemplateResource struct {
 	Ref     string                      `yaml:"ref"               json:"ref"`
