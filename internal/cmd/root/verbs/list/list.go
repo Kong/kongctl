@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
+	"github.com/kong/kongctl/internal/cmd/output/jq"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -84,6 +85,8 @@ Setting this value overrides tokens obtained from the login command.
 - Config path: [ %s ]`,
 			common.RequestPageSizeConfigPath))
 
+	jq.AddFlags(cmd.PersistentFlags())
+
 	c, e := konnect.NewKonnectCmd(Verb)
 	if e != nil {
 		return nil, e
@@ -159,6 +162,10 @@ func bindKonnectFlags(c *cobra.Command, args []string) error {
 		if err := cfg.BindFlag(common.RequestPageSizeConfigPath, f); err != nil {
 			return err
 		}
+	}
+
+	if err := jq.BindFlags(cfg, c.Flags()); err != nil {
+		return err
 	}
 
 	return nil

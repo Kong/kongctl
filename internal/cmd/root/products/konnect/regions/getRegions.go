@@ -123,7 +123,7 @@ func (c *getRegionsCmd) runE(cobraCmd *cobra.Command, args []string) error {
 		{Category: "Beta", Regions: strings.Join(payload.Regions.Beta, ", ")},
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

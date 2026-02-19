@@ -187,7 +187,7 @@ func (h apiPublicationsHandler) run(args []string) error {
 		return publicationDetailView(&publications[index])
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

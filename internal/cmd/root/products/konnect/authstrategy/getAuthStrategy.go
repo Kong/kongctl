@@ -488,7 +488,7 @@ func (c *getAuthStrategyCmd) runE(cobraCmd *cobra.Command, args []string) error 
 			if err != nil {
 				return err
 			}
-			return tableview.RenderForFormat(
+			return tableview.RenderForFormat(helper,
 				false,
 				outType,
 				printer,
@@ -503,7 +503,7 @@ func (c *getAuthStrategyCmd) runE(cobraCmd *cobra.Command, args []string) error 
 		if err != nil {
 			return err
 		}
-		return tableview.RenderForFormat(
+		return tableview.RenderForFormat(helper,
 			false,
 			outType,
 			printer,
@@ -553,7 +553,7 @@ func renderAuthStrategyList(
 		options = append(options, tableview.WithDetailContext(childView.ParentType, func(int) any { return nil }))
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

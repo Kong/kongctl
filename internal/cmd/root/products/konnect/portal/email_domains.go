@@ -153,7 +153,7 @@ func (h portalEmailDomainsHandler) run(args []string) error {
 
 		record := portalEmailDomainToRecord(*res.EmailDomain)
 
-		return tableview.RenderForFormat(
+		return tableview.RenderForFormat(helper,
 			false,
 			outType,
 			printer,
@@ -175,7 +175,7 @@ func (h portalEmailDomainsHandler) run(args []string) error {
 		records = append(records, portalEmailDomainToRecord(domain))
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/kong/kongctl/internal/cmd"
+	"github.com/kong/kongctl/internal/cmd/output/jq"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/profile"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -79,6 +80,32 @@ func runGet(helper cmd.Helper) error {
 			Err: err,
 		}
 	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	jqSettings, err := jq.ResolveSettings(helper.GetCmd(), cfg)
+	if err != nil {
+		return err
+	}
+	if err := jq.ValidateOutputFormat(outType, jqSettings); err != nil {
+		return err
+	}
+
+	payload := any(profileManager.GetProfiles())
+	if jq.HasFilter(jqSettings) {
+		filteredPayload, handled, err := jq.ApplyToRaw(payload, outType, jqSettings, helper.GetStreams().Out)
+		if err != nil {
+			return cmd.PrepareExecutionErrorWithHelper(helper, "jq filter failed", err)
+		}
+		if handled {
+			return nil
+		}
+		payload = filteredPayload
+	}
+
 	p, err := cli.Format(outType.String(),
 		helper.GetStreams().Out)
 	if err != nil {
@@ -86,7 +113,7 @@ func runGet(helper cmd.Helper) error {
 	}
 	defer p.Flush()
 
-	p.Print(profileManager.GetProfiles())
+	p.Print(payload)
 
 	return nil
 }

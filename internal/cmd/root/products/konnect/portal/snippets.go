@@ -261,7 +261,7 @@ func (h portalSnippetsHandler) listSnippets(
 		return portalSnippetInfoDetail(snippet, nil)
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -335,7 +335,7 @@ func (h portalSnippetsHandler) getSingleSnippet(
 		return portalSnippetDetailView(record)
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

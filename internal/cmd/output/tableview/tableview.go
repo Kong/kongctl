@@ -27,6 +27,7 @@ import (
 	"github.com/atotto/clipboard"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	jqoutput "github.com/kong/kongctl/internal/cmd/output/jq"
 	"github.com/kong/kongctl/internal/iostreams"
 	kairender "github.com/kong/kongctl/internal/kai/render"
 	"github.com/kong/kongctl/internal/theme"
@@ -2137,6 +2138,7 @@ func setTableHeight(tbl *table.Model, rowCount, termHeight int, interactive bool
 // RenderForFormat renders structured data according to the requested output format.
 // For interactive output it delegates to Render, otherwise it uses the provided printer.
 func RenderForFormat(
+	helper cmdpkg.Helper,
 	interactive bool,
 	outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
@@ -2146,6 +2148,42 @@ func RenderForFormat(
 	title string,
 	extraOpts ...Option,
 ) error {
+	if helper != nil {
+		cfg, err := helper.GetConfig()
+		if err != nil {
+			return err
+		}
+
+		settings, err := jqoutput.ResolveSettings(helper.GetCmd(), cfg)
+		if err != nil {
+			return err
+		}
+
+		if err := jqoutput.ValidateOutputFormat(outType, settings); err != nil {
+			return err
+		}
+
+		if jqoutput.HasFilter(settings) {
+			if interactive {
+				return &cmdpkg.ConfigurationError{
+					Err: fmt.Errorf(
+						"--%s is not supported for interactive output; use --output json or --output yaml",
+						jqoutput.FlagName,
+					),
+				}
+			}
+
+			filteredRaw, handled, err := jqoutput.ApplyToRaw(raw, outType, settings, streams.Out)
+			if err != nil {
+				return cmdpkg.PrepareExecutionErrorWithHelper(helper, "jq filter failed", err)
+			}
+			if handled {
+				return nil
+			}
+			raw = filteredRaw
+		}
+	}
+
 	if interactive {
 		var opts []Option
 		if title != "" {

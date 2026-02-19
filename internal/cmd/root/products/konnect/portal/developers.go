@@ -212,7 +212,7 @@ func (h portalDevelopersHandler) listDevelopers(
 		return portalDeveloperDetailView(developers[index])
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -263,7 +263,7 @@ func (h portalDevelopersHandler) getSingleDeveloper(
 		}
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

@@ -255,7 +255,7 @@ func renderConsumers(
 		raw = consumers
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

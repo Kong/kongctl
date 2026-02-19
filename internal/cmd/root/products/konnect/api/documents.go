@@ -245,7 +245,7 @@ func (h apiDocumentsHandler) listDocuments(
 		return documentSummaryDetailView(summary, nil)
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -340,7 +340,7 @@ func (h apiDocumentsHandler) getSingleDocument(
 	cache := newAPIDocumentDetailCache()
 	cache.Set(doc.GetID(), detailRecord)
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

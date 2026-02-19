@@ -245,7 +245,7 @@ func (h backendClustersHandler) listClusters(
 		tableRows = append(tableRows, table.Row{record.ID, record.Name})
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -330,7 +330,7 @@ func (h backendClustersHandler) getSingleCluster(
 		}
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

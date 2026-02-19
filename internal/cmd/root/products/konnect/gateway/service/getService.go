@@ -216,7 +216,7 @@ func (c *getServiceCmd) runListByName(
 
 	for _, service := range allData {
 		if *service.GetName() == name {
-			return tableview.RenderForFormat(
+			return tableview.RenderForFormat(helper,
 				false,
 				outputFormat,
 				printer,
@@ -246,7 +246,7 @@ func (c *getServiceCmd) runGet(
 		return cmd.PrepareExecutionError("Failed to get Gateway Service", err, helper.GetCmd(), attrs...)
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outputFormat,
 		printer,
@@ -293,7 +293,7 @@ func (c *getServiceCmd) runList(
 		return serviceDetailView(&allData[index])
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outputFormat,
 		printer,

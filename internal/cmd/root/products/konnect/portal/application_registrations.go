@@ -237,7 +237,7 @@ func (h portalApplicationRegistrationsHandler) listRegistrations(
 		return portalApplicationRegistrationDetailView(&regs[index])
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -304,7 +304,7 @@ func (h portalApplicationRegistrationsHandler) getSingleRegistration(
 	}
 
 	record := portalApplicationRegistrationDetailRecordFromResponse(res.GetGetApplicationRegistrationResponse())
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,

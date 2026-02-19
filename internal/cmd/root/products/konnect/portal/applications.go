@@ -222,7 +222,7 @@ func (h portalApplicationsHandler) listApplications(
 		return portalApplicationDetailViewFromUnion(apps[index])
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
@@ -273,7 +273,7 @@ func (h portalApplicationsHandler) getSingleApplication(
 		}
 	}
 
-	return tableview.RenderForFormat(
+	return tableview.RenderForFormat(helper,
 		false,
 		outType,
 		printer,
