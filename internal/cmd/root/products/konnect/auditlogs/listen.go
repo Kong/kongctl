@@ -131,6 +131,10 @@ func ExecuteListenAuditLogs(cmdObj *cobra.Command, args []string, options Listen
 		return err
 	}
 
+	if err := validateListenAuditLogsOptions(options); err != nil {
+		return &cmd.ConfigurationError{Err: err}
+	}
+
 	listenPath := normalizePath(options.ListenPath)
 	endpoint := strings.TrimSpace(options.Endpoint)
 	publicURL := strings.TrimSpace(options.PublicURL)
@@ -268,6 +272,14 @@ func ExecuteListenAuditLogs(cmdObj *cobra.Command, args []string, options Listen
 		)
 	}
 	logger.Debug("listen audit-logs command completed successfully", "destination_id", destOutput.DestinationID)
+
+	return nil
+}
+
+func validateListenAuditLogsOptions(options ListenAuditLogsOptions) error {
+	if strings.TrimSpace(options.JQ) != "" && !options.Tail {
+		return fmt.Errorf("--jq requires --tail")
+	}
 
 	return nil
 }
