@@ -39,30 +39,11 @@ func NewMeCmd(verb verbs.VerbValue,
 		Example: meExample,
 	}
 
-	switch verb {
-	case verbs.Get:
+	// Handle supported verbs
+	if verb == verbs.Get {
 		return newGetMeCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
-	case verbs.List,
-		verbs.Delete,
-		verbs.Create,
-		verbs.Add,
-		verbs.Apply,
-		verbs.Dump,
-		verbs.Update,
-		verbs.Help,
-		verbs.Login,
-		verbs.Plan,
-		verbs.Sync,
-		verbs.Diff,
-		verbs.Export,
-		verbs.Adopt,
-		verbs.API,
-		verbs.Kai,
-		verbs.View,
-		verbs.Logout,
-		verbs.Patch:
-		return &baseCmd, nil
 	}
 
+	// Return base command for unsupported verbs
 	return &baseCmd, nil
 }

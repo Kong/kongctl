@@ -233,23 +233,25 @@ func planGenerator(helper cmd.Helper) string {
 
 // NewDeclarativeCmd creates the appropriate declarative command based on the verb
 func NewDeclarativeCmd(verb verbs.VerbValue) (*cobra.Command, error) {
-	switch verb {
-	case verbs.Plan:
+	// Handle supported declarative verbs
+	if verb == verbs.Plan {
 		return newDeclarativePlanCmd(), nil
-	case verbs.Sync:
-		return newDeclarativeSyncCmd(), nil
-	case verbs.Diff:
-		return newDeclarativeDiffCmd(), nil
-	case verbs.Export:
-		return newDeclarativeExportCmd(), nil
-	case verbs.Apply:
-		return newDeclarativeApplyCmd(), nil
-	case verbs.Add, verbs.Get, verbs.Create, verbs.Dump, verbs.Update,
-		verbs.Delete, verbs.Help, verbs.List, verbs.Login, verbs.Adopt, verbs.API, verbs.Kai, verbs.View, verbs.Logout,
-		verbs.Patch:
-		return nil, fmt.Errorf("verb %s does not support declarative configuration", verb)
 	}
-	return nil, fmt.Errorf("unexpected verb %s", verb)
+	if verb == verbs.Sync {
+		return newDeclarativeSyncCmd(), nil
+	}
+	if verb == verbs.Diff {
+		return newDeclarativeDiffCmd(), nil
+	}
+	if verb == verbs.Export {
+		return newDeclarativeExportCmd(), nil
+	}
+	if verb == verbs.Apply {
+		return newDeclarativeApplyCmd(), nil
+	}
+
+	// Unsupported verbs
+	return nil, fmt.Errorf("verb %s does not support declarative configuration", verb)
 }
 
 func newDeclarativePlanCmd() *cobra.Command {

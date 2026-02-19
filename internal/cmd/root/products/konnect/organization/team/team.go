@@ -43,16 +43,11 @@ func NewTeamCmd(
 		Aliases: []string{"teams", "Team", "Teams", "TEAM", "TEAMS"},
 	}
 
-	switch verb {
-	case verbs.Get:
+	// Handle supported verbs
+	if verb == verbs.Get || verb == verbs.List {
 		return newGetTeamCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
-	case verbs.List:
-		return newGetTeamCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
-	case verbs.Add, verbs.Apply, verbs.Create, verbs.Delete, verbs.Dump, verbs.Update, verbs.Help, verbs.Login,
-		verbs.Plan, verbs.Sync, verbs.Diff, verbs.Export, verbs.Adopt, verbs.API, verbs.Kai, verbs.View, verbs.Logout,
-		verbs.Patch:
-		return &baseCmd, nil
 	}
 
+	// Return base command for unsupported verbs
 	return &baseCmd, nil
 }
