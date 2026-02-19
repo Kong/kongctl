@@ -40,6 +40,7 @@ type MockKonnectSDK struct {
 	EventGatewayBackendClusterFactory func() EventGatewayBackendClusterAPI
 	EventGatewayVirtualClusterFactory func() EventGatewayVirtualClusterAPI
 	EventGatewayListenerFactory       func() EventGatewayListenerAPI
+	EventGatewayListenerPolicyFactory func() EventGatewayListenerPolicyAPI
 }
 
 // Returns a mock instance of the ControlPlaneAPI
@@ -283,6 +284,14 @@ func (m *MockKonnectSDK) GetEventGatewayVirtualClusterAPI() EventGatewayVirtualC
 func (m *MockKonnectSDK) GetEventGatewayListenerAPI() EventGatewayListenerAPI {
 	if m.EventGatewayListenerFactory != nil {
 		return m.EventGatewayListenerFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the EventGatewayListenerPolicyAPI
+func (m *MockKonnectSDK) GetEventGatewayListenerPolicyAPI() EventGatewayListenerPolicyAPI {
+	if m.EventGatewayListenerPolicyFactory != nil {
+		return m.EventGatewayListenerPolicyFactory()
 	}
 	return nil
 }

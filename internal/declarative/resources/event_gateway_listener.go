@@ -14,6 +14,9 @@ type EventGatewayListenerResource struct {
 	// Parent Event Gateway reference (for root-level definitions)
 	EventGateway string `yaml:"event_gateway,omitempty" json:"event_gateway,omitempty"`
 
+	// Nested child resources
+	Policies []EventGatewayListenerPolicyResource `yaml:"policies,omitempty" json:"policies,omitempty"`
+
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
 }
@@ -48,6 +51,18 @@ func (e EventGatewayListenerResource) Validate() error {
 		return fmt.Errorf("invalid child ref: %w", err)
 	}
 
+	// Validate listener policies
+	listenerPolicyRefs := make(map[string]bool)
+	for i, lp := range e.Policies {
+		if err := lp.Validate(); err != nil {
+			return fmt.Errorf("invalid listener policy %d: %w", i, err)
+		}
+		if listenerPolicyRefs[lp.GetRef()] {
+			return fmt.Errorf("duplicate listener policy ref: %s", lp.GetRef())
+		}
+		listenerPolicyRefs[lp.GetRef()] = true
+	}
+
 	return nil
 }
 
@@ -55,6 +70,10 @@ func (e *EventGatewayListenerResource) SetDefaults() {
 	// If Name is not set, use ref as default
 	if e.Name == "" {
 		e.Name = e.Ref
+	}
+
+	for i := range e.Policies {
+		e.Policies[i].SetDefaults()
 	}
 }
 
@@ -93,6 +112,38 @@ func (e EventGatewayListenerResource) GetParentRef() *ResourceRef {
 	return nil
 }
 
+// MarshalJSON ensures listener metadata (ref, event_gateway, policies) are included.
+// Without this, the embedded CreateEventGatewayListenerRequest's MarshalJSON is promoted and drops metadata fields.
+func (e EventGatewayListenerResource) MarshalJSON() ([]byte, error) {
+	type alias struct {
+		Ref          string `json:"ref"`
+		EventGateway string `json:"event_gateway,omitempty"`
+
+		// Fields from kkComps.CreateEventGatewayListenerRequest
+		Name        string                             `json:"name"`
+		Description *string                            `json:"description,omitempty"`
+		Addresses   []string                           `json:"addresses"`
+		Ports       []kkComps.EventGatewayListenerPort `json:"ports"`
+		Labels      map[string]string                  `json:"labels,omitempty"`
+
+		// Child resources
+		Policies []EventGatewayListenerPolicyResource `json:"policies,omitempty"`
+	}
+
+	payload := alias{
+		Ref:          e.Ref,
+		EventGateway: e.EventGateway,
+		Name:         e.Name,
+		Description:  e.Description,
+		Addresses:    e.Addresses,
+		Ports:        e.Ports,
+		Labels:       e.Labels,
+		Policies:     e.Policies,
+	}
+
+	return json.Marshal(payload)
+}
+
 // Custom JSON unmarshaling to reject kongctl metadata
 func (e *EventGatewayListenerResource) UnmarshalJSON(data []byte) error {
 	// Temporary structure for unmarshaling resource metadata together with
@@ -103,11 +154,12 @@ func (e *EventGatewayListenerResource) UnmarshalJSON(data []byte) error {
 		Kongctl      any    `json:"kongctl,omitempty"`
 
 		// Fields from kkComps.CreateEventGatewayListenerRequest
-		Name        string                             `json:"name"`
-		Description *string                            `json:"description,omitempty"`
-		Addresses   []string                           `json:"addresses"`
-		Ports       []kkComps.EventGatewayListenerPort `json:"ports"`
-		Labels      map[string]string                  `json:"labels,omitempty"`
+		Name        string                               `json:"name"`
+		Description *string                              `json:"description,omitempty"`
+		Addresses   []string                             `json:"addresses"`
+		Ports       []kkComps.EventGatewayListenerPort   `json:"ports"`
+		Labels      map[string]string                    `json:"labels,omitempty"`
+		Policies    []EventGatewayListenerPolicyResource `json:"policies,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -144,6 +196,7 @@ func (e *EventGatewayListenerResource) UnmarshalJSON(data []byte) error {
 	}
 
 	e.Labels = temp.Labels
+	e.Policies = temp.Policies
 
 	return nil
 }

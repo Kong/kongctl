@@ -87,7 +87,21 @@ func (p *Planner) planListenerChangesForExistingGateway(
 				"listener_name", desiredListener.Name,
 				"gateway_ref", gatewayRef,
 			)
-			p.planListenerCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredListener, []string{}, plan)
+			listenerChangeID := p.planListenerCreate(
+				namespace, gatewayRef, gatewayName, gatewayID, desiredListener, []string{}, plan,
+			)
+
+			// Plan listener policies for this new listener (depends on listener creation)
+			listenerPolicies := p.resources.GetPoliciesForListener(desiredListener.Ref)
+			if len(listenerPolicies) > 0 {
+				if err := p.planEventGatewayListenerPolicyChanges(
+					ctx, nil, namespace, gatewayID, gatewayRef,
+					desiredListener.Name, "", desiredListener.Ref,
+					listenerChangeID, listenerPolicies, plan,
+				); err != nil {
+					return err
+				}
+			}
 		} else {
 			// CHECK UPDATE
 			p.logger.Debug("Checking if listener needs update",
@@ -111,6 +125,18 @@ func (p *Planner) planListenerChangesForExistingGateway(
 				p.planListenerUpdate(
 					namespace, gatewayRef, gatewayName, gatewayID,
 					current.ID, desiredListener, updateFields, plan)
+			}
+
+			// Plan listener policies for this existing listener
+			listenerPolicies := p.resources.GetPoliciesForListener(desiredListener.Ref)
+			if len(listenerPolicies) > 0 || plan.Metadata.Mode == PlanModeSync {
+				if err := p.planEventGatewayListenerPolicyChanges(
+					ctx, nil, namespace, gatewayID, gatewayRef,
+					desiredListener.Name, current.ID, desiredListener.Ref,
+					"", listenerPolicies, plan,
+				); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -153,11 +179,22 @@ func (p *Planner) planListenerCreatesForNewGateway(
 	}
 
 	for _, listener := range listeners {
-		p.planListenerCreate(namespace, gatewayRef, gatewayName, "", listener, dependsOn, plan)
+		listenerChangeID := p.planListenerCreate(
+			namespace, gatewayRef, gatewayName, "", listener, dependsOn, plan,
+		)
+
+		// Plan listener policies for this new listener (depends on listener creation)
+		listenerPolicies := p.resources.GetPoliciesForListener(listener.Ref)
+		if len(listenerPolicies) > 0 {
+			p.planListenerPolicyCreatesForNewListener(
+				namespace, gatewayRef, listener.Ref, listener.Name,
+				listenerChangeID, listenerPolicies, plan,
+			)
+		}
 	}
 }
 
-// planListenerCreate plans a CREATE change for a listener
+// planListenerCreate plans a CREATE change for a listener and returns the change ID
 func (p *Planner) planListenerCreate(
 	namespace string,
 	gatewayRef string,
@@ -166,7 +203,7 @@ func (p *Planner) planListenerCreate(
 	listener resources.EventGatewayListenerResource,
 	dependsOn []string,
 	plan *Plan,
-) {
+) string {
 	fields := make(map[string]any)
 	fields["name"] = listener.Name
 	if listener.Description != nil {
@@ -214,6 +251,7 @@ func (p *Planner) planListenerCreate(
 		"gateway_ref", gatewayRef,
 	)
 	plan.AddChange(change)
+	return change.ID
 }
 
 // planListenerUpdate plans an UPDATE change for a listener

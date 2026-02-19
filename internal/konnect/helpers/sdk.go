@@ -49,6 +49,7 @@ type SDKAPI interface {
 	GetEventGatewayBackendClusterAPI() EventGatewayBackendClusterAPI
 	GetEventGatewayVirtualClusterAPI() EventGatewayVirtualClusterAPI
 	GetEventGatewayListenerAPI() EventGatewayListenerAPI
+	GetEventGatewayListenerPolicyAPI() EventGatewayListenerPolicyAPI
 }
 
 // This is the real implementation of the SDKAPI
@@ -323,6 +324,15 @@ func (k *KonnectSDK) GetEventGatewayListenerAPI() EventGatewayListenerAPI {
 	}
 
 	return &EventGatewayListenerAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the EventGatewayListenerPolicyAPI interface
+func (k *KonnectSDK) GetEventGatewayListenerPolicyAPI() EventGatewayListenerPolicyAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &EventGatewayListenerPolicyAPIImpl{SDK: k.SDK}
 }
 
 func (k *KonnectSDK) GetOrganizationTeamAPI() OrganizationTeamAPI {

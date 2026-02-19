@@ -381,13 +381,9 @@ func fetchListeners(
 	return allData, nil
 }
 
-func findListenerByName(listeners []kkComps.EventGatewayListener, identifier string) *kkComps.EventGatewayListener {
-	lowered := strings.ToLower(identifier)
+func findListenerByName(listeners []kkComps.EventGatewayListener, name string) *kkComps.EventGatewayListener {
+	lowered := strings.ToLower(name)
 	for _, listener := range listeners {
-		if listener.ID != "" && strings.ToLower(listener.ID) == lowered {
-			listenerCopy := listener
-			return &listenerCopy
-		}
 		if listener.Name != "" && strings.ToLower(listener.Name) == lowered {
 			listenerCopy := listener
 			return &listenerCopy
