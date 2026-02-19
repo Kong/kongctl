@@ -1085,7 +1085,7 @@ func buildEventGatewayListeners(
 		if policies, err := buildEventGatewayListenerPolicies(ctx, logger, client, gatewayID, listener.ID); err != nil {
 			logWarn(logger, "failed to load listener policies", listener.ID, listener.Name, err)
 		} else if len(policies) > 0 {
-			res.ListenerPolicies = policies
+			res.Policies = policies
 		}
 
 		results = append(results, res)
@@ -1133,11 +1133,11 @@ func convertListenerPolicyToResource(
 ) (declresources.EventGatewayListenerPolicyResource, error) {
 	// Build a map with policy fields plus the raw config
 	policyMap := map[string]any{
-		"type":        policy.Type,
-		"id":          policy.ID,
-		"created_at":  policy.CreatedAt,
-		"updated_at":  policy.UpdatedAt,
-		"config":      rawConfig,
+		"type":       policy.Type,
+		"id":         policy.ID,
+		"created_at": policy.CreatedAt,
+		"updated_at": policy.UpdatedAt,
+		"config":     rawConfig,
 	}
 	if policy.Name != nil {
 		policyMap["name"] = *policy.Name

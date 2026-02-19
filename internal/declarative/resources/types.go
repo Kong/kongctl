@@ -816,7 +816,7 @@ func (rs *ResourceSet) GetPoliciesForListener(listenerRef string) []EventGateway
 	for _, gateway := range rs.EventGatewayControlPlanes {
 		for _, listener := range gateway.Listeners {
 			if listener.Ref == listenerRef {
-				for _, policy := range listener.ListenerPolicies {
+				for _, policy := range listener.Policies {
 					policyCopy := policy
 					policyCopy.EventGatewayListener = listenerRef
 					policies = append(policies, policyCopy)
@@ -828,7 +828,7 @@ func (rs *ResourceSet) GetPoliciesForListener(listenerRef string) []EventGateway
 	// Check root-level listeners
 	for _, listener := range rs.EventGatewayListeners {
 		if listener.Ref == listenerRef {
-			for _, policy := range listener.ListenerPolicies {
+			for _, policy := range listener.Policies {
 				policyCopy := policy
 				policyCopy.EventGatewayListener = listenerRef
 				policies = append(policies, policyCopy)

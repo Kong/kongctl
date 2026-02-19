@@ -15,7 +15,7 @@ event_gateways:
           - "9093-9095"
         addresses:
           - localhost
-        listener_policies:
+        policies:
         - ref: default-listener-1-policy-1-ref
           name: default-listener-1-policy-1
           type: tls_server

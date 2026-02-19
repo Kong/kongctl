@@ -39,7 +39,7 @@ event_gateways:
           - "9093-9095"
         addresses:
           - localhost
-        listener_policies:
+        policies:
         - ref: plan-apply-listener-1-policy-1-ref
           name: plan-apply-listener-1-policy-1-name
           type: forward_to_virtual_cluster
