@@ -210,7 +210,7 @@ func (c *createListenerCmd) runE(cmdObj *cobra.Command, args []string) error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if shutdownErr := server.Shutdown(shutdownCtx); shutdownErr != nil {
-			logger.Error("audit-log listener shutdown failed", "error", shutdownErr)
+			return cmd.PrepareExecutionError("audit-log listener shutdown failed", shutdownErr, helper.GetCmd())
 		}
 		logger.Debug("audit-log listener shut down")
 		return nil
