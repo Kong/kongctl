@@ -51,6 +51,9 @@ func NewAuditLogsCmd(
 	if verb == verbs.Create {
 		return newCreateAuditLogsCmd(verb, baseCmd, addParentFlags, parentPreRun), nil
 	}
+	if verb == verbs.Get {
+		return newGetAuditLogsCmd(verb, baseCmd, addParentFlags, parentPreRun), nil
+	}
 
 	return baseCmd, nil
 }

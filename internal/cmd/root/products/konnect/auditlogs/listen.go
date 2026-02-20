@@ -441,20 +441,18 @@ func renderDetachedStartedOutput(
 		return nil
 	}
 
-	if _, err := fmt.Fprintln(out, "Detached Konnect audit-log listener started."); err != nil {
-		return err
+	lines := []string{
+		"Detached Konnect audit-log listener started.",
+		"  pid: " + sanitizeTerminalOutputValue(strconv.Itoa(childPID)),
+		"  log file: " + sanitizeTerminalOutputValue(childLogFile),
+		"  process record: " + sanitizeTerminalOutputValue(processRecordPath),
+		"Use the log file to inspect listener startup and runtime details.",
 	}
-	if _, err := io.WriteString(out, "  pid: "+strconv.Itoa(childPID)+"\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "  log file: "+childLogFile+"\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "  process record: "+processRecordPath+"\n"); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintln(out, "Use the log file to inspect listener startup and runtime details."); err != nil {
-		return err
+
+	for _, line := range lines {
+		if err := writeTerminalLine(out, line); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -541,6 +539,25 @@ func isBoolLiteral(value string) bool {
 	default:
 		return false
 	}
+}
+
+func sanitizeTerminalOutputValue(value string) string {
+	sanitized := strings.TrimSpace(value)
+	sanitized = strings.ReplaceAll(sanitized, "\r", "")
+	sanitized = strings.ReplaceAll(sanitized, "\n", "")
+	if sanitized == "" {
+		return "n/a"
+	}
+	return sanitized
+}
+
+func writeTerminalLine(out io.Writer, line string) error {
+	if out == nil {
+		return nil
+	}
+
+	_, err := out.Write([]byte(line + "\n"))
+	return err
 }
 
 func cleanupDetachedProcessRecord(logger *slog.Logger, remove bool) {

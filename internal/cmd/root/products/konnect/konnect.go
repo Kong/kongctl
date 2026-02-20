@@ -154,8 +154,8 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return newLogoutKonnectCmd(verb, cmd, addFlags, preRunE).Command, nil
 	}
 
-	// Audit logs are currently listen-only. Do not expose audit-logs under
-	// `create`, which is reserved for resource creation flows.
+	// Do not expose audit-logs under `create`, which is reserved for
+	// resource creation flows.
 	if verb == verbs.Listen {
 		alc, err := auditlogs.NewAuditLogsCmd(verb, addFlags, preRunE)
 		if err != nil {
@@ -261,6 +261,12 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 			return nil, e
 		}
 		cmd.AddCommand(mc)
+
+		alc, e := auditlogs.NewAuditLogsCmd(verb, addFlags, preRunE)
+		if e != nil {
+			return nil, e
+		}
+		cmd.AddCommand(alc)
 	}
 
 	// Add organization command
