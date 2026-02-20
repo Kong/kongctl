@@ -524,7 +524,7 @@ func (m selectModel) View() string {
 			marker = "›"
 		}
 		line := renderSessionLine(session)
-		b.WriteString(fmt.Sprintf("%s %s\n", marker, line))
+		fmt.Fprintf(&b, "%s %s\n", marker, line)
 	}
 
 	if m.confirmDel && len(m.sessions) > 0 {
