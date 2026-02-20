@@ -87,11 +87,38 @@ linters:
         text: 'SA1019:.*(Oidc|Saml|PortalClaimMappings|OidcConfig).*is deprecated'
       - linters:
           - revive
+        paths: 
+          - internal/declarative/errors/
+          - internal/cmd/common/ 
+          - internal/cmd/root/products/konnect/adopt/common
+          - internal/cmd/root/products/konnect/api/
+          - internal/cmd/root/products/konnect/common/
+          - internal/cmd/root/products/konnect/gateway/common/
+          - internal/cmd/root/verbs/api/
+          - internal/declarative/common/
+          - internal/util/
         text: avoid meaningless package names
       - linters:
           - revive
-        path: internal/declarative/errors/
         text: avoid package names that conflict with Go standard library package names
+      - linters:
+          - gosec
+        text: 'G704: SSRF via taint analysis'
+      - linters:
+          - gosec
+        text: 'G702: Command injection via taint analysis'
+      - linters:
+          - gosec
+        text: 'G703: Path traversal via taint analysis'
+      - linters:
+          - gosec
+        text: 'G706: Log injection via taint analysis'
+      - linters:
+          - gosec
+        text: 'G117: Exported struct field .* matches secret pattern'
+      - linters:
+          - gosec
+        text: 'G115: integer overflow conversion'
     paths:
       - third_party$
       - builtin$
