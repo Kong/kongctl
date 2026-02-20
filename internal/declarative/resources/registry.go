@@ -3,9 +3,11 @@ package resources
 // ResourceRegistry provides a central lookup for resource type metadata and iteration.
 // This enables adding new resources without modifying switch statements across the codebase.
 // Adding a new resource:
-//  1. Define the resource struct (embed BaseResource or BaseResourceCore)
+//  1. Define the resource struct and embed BaseResource
 //  2. Add init() with registerResourceType() in the resource file
 //  3. Add the field to ResourceSet
+//     For example:
+//       APIs []APIResource `yaml:"apis,omitempty" json:"apis,omitempty"`
 
 // resourceOps provides operations for a specific resource type within a ResourceSet.
 type resourceOps struct {
