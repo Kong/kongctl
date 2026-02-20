@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -443,13 +444,13 @@ func renderDetachedStartedOutput(
 	if _, err := fmt.Fprintln(out, "Detached Konnect audit-log listener started."); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(out, "  pid: %d\n", childPID); err != nil {
+	if _, err := io.WriteString(out, "  pid: "+strconv.Itoa(childPID)+"\n"); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(out, "  log file: %s\n", childLogFile); err != nil {
+	if _, err := io.WriteString(out, "  log file: "+childLogFile+"\n"); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(out, "  process record: %s\n", processRecordPath); err != nil {
+	if _, err := io.WriteString(out, "  process record: "+processRecordPath+"\n"); err != nil {
 		return err
 	}
 	if _, err := fmt.Fprintln(out, "Use the log file to inspect listener startup and runtime details."); err != nil {
