@@ -11,9 +11,8 @@ import (
 
 // PortalResource represents a portal in declarative configuration
 type PortalResource struct {
-	kkComps.CreatePortal `             yaml:",inline"           json:",inline"`
-	Ref                  string       `yaml:"ref"               json:"ref"`
-	Kongctl              *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+	BaseResource
+	kkComps.CreatePortal `yaml:",inline" json:",inline"`
 
 	// Child resources that match API endpoints
 	Customization  *PortalCustomizationResource           `yaml:"customization,omitempty"   json:"customization,omitempty"`
@@ -30,19 +29,11 @@ type PortalResource struct {
 
 	// External resource marker
 	External *ExternalBlock `yaml:"_external,omitempty" json:"_external,omitempty"`
-
-	// Resolved Konnect ID (not serialized)
-	konnectID string `yaml:"-" json:"-"`
 }
 
 // GetType returns the resource type
 func (p PortalResource) GetType() ResourceType {
 	return ResourceTypePortal
-}
-
-// GetRef returns the reference identifier used for cross-resource references
-func (p PortalResource) GetRef() string {
-	return p.Ref
 }
 
 // GetMoniker returns the resource moniker (for portals, this is the name)
@@ -239,81 +230,21 @@ func (p *PortalResource) SetDefaults() {
 	}
 }
 
-// GetKonnectID returns the resolved Konnect ID if available
-func (p PortalResource) GetKonnectID() string {
-	return p.konnectID
-}
-
 // GetKonnectMonikerFilter returns the filter string for Konnect API lookup
 func (p PortalResource) GetKonnectMonikerFilter() string {
-	if p.Name == "" {
-		return ""
-	}
-	return fmt.Sprintf("name[eq]=%s", p.Name)
+	return p.BaseResource.GetKonnectMonikerFilter(p.Name)
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
 func (p *PortalResource) TryMatchKonnectResource(konnectResource any) bool {
-	// Use reflection to access fields from state.Portal
-	v := reflect.ValueOf(konnectResource)
+	id, ok := tryMatchByNameWithExternal(p.Name, konnectResource, matchOptions{
+		sdkType: "Portal",
+	}, p.External)
 
-	// Handle pointer types
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
+	if ok {
+		p.SetKonnectID(id)
 	}
-
-	// Ensure we have a struct
-	if v.Kind() != reflect.Struct {
-		return false
-	}
-
-	// Get ID field (we'll need this regardless of match type)
-	idField := v.FieldByName("ID")
-	if !idField.IsValid() {
-		// Try accessing embedded Portal
-		portalField := v.FieldByName("Portal")
-		if portalField.IsValid() && portalField.Kind() == reflect.Struct {
-			idField = portalField.FieldByName("ID")
-		}
-	}
-
-	if !idField.IsValid() || idField.Kind() != reflect.String {
-		return false
-	}
-
-	// Check match based on configuration
-	matched := false
-
-	if p.IsExternal() && p.External != nil {
-		if p.External.ID != "" {
-			// Direct ID match
-			matched = (idField.String() == p.External.ID)
-		} else if p.External.Selector != nil {
-			// Selector-based match
-			matched = p.External.Selector.Match(konnectResource)
-		}
-	} else {
-		// Non-external: match by name (existing logic)
-		nameField := v.FieldByName("Name")
-		if !nameField.IsValid() {
-			// Try accessing embedded Portal
-			portalField := v.FieldByName("Portal")
-			if portalField.IsValid() && portalField.Kind() == reflect.Struct {
-				nameField = portalField.FieldByName("Name")
-			}
-		}
-
-		if nameField.IsValid() && nameField.Kind() == reflect.String {
-			matched = (nameField.String() == p.Name)
-		}
-	}
-
-	if matched {
-		p.konnectID = idField.String()
-		return true
-	}
-
-	return false
+	return ok
 }
 
 // UnmarshalJSON ensures both the embedded SDK model and portal-specific fields

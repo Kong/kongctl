@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -94,33 +93,10 @@ func (p APIPublicationResource) GetKonnectMonikerFilter() string {
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
 func (p *APIPublicationResource) TryMatchKonnectResource(konnectResource any) bool {
-	// For API publications, we match by portal ID
-	// Use reflection to access fields from state.APIPublication
-	v := reflect.ValueOf(konnectResource)
-
-	// Handle pointer types
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
+	if id := tryMatchByField(konnectResource, "PortalID", p.PortalID); id != "" {
+		p.konnectID = id
+		return true
 	}
-
-	// Ensure we have a struct
-	if v.Kind() != reflect.Struct {
-		return false
-	}
-
-	// Look for PortalID and ID fields
-	portalIDField := v.FieldByName("PortalID")
-	idField := v.FieldByName("ID")
-
-	// Extract values if fields are valid
-	if portalIDField.IsValid() && idField.IsValid() &&
-		portalIDField.Kind() == reflect.String && idField.Kind() == reflect.String {
-		if portalIDField.String() == p.PortalID {
-			p.konnectID = idField.String()
-			return true
-		}
-	}
-
 	return false
 }
 

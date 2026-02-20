@@ -11,14 +11,16 @@ func TestGetPortalsByNamespaceIncludesExternalsWhenRequested(t *testing.T) {
 	rs := &ResourceSet{
 		Portals: []PortalResource{
 			{
-				Ref: "managed",
-				Kongctl: &KongctlMeta{
-					Namespace: &team,
+				BaseResource: BaseResource{
+					Ref: "managed",
+					Kongctl: &KongctlMeta{
+						Namespace: &team,
+					},
 				},
 			},
 			{
-				Ref:      "external",
-				External: &ExternalBlock{Selector: &ExternalSelector{MatchFields: map[string]string{"name": "ext"}}},
+				BaseResource: BaseResource{Ref: "external"},
+				External:     &ExternalBlock{Selector: &ExternalSelector{MatchFields: map[string]string{"name": "ext"}}},
 			},
 		},
 		PortalPages: []PortalPageResource{

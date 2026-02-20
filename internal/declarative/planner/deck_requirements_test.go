@@ -83,7 +83,9 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 		CreateAPIRequest: kkComps.CreateAPIRequest{
 			Name: "api",
 		},
-		Ref: "api",
+		BaseResource: resources.BaseResource{
+			Ref: "api",
+		},
 	}
 	api.TryMatchKonnectResource(state.API{
 		APIResponseSchema: kkComps.APIResponseSchema{
@@ -94,8 +96,10 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 
 	cp := resources.ControlPlaneResource{
 		CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{Name: cpName},
-		Ref:                       "cp",
-		Deck:                      &resources.DeckConfig{Files: []string{"gateway-service.yaml"}},
+		BaseResource: resources.BaseResource{
+			Ref: "cp",
+		},
+		Deck: &resources.DeckConfig{Files: []string{"gateway-service.yaml"}},
 	}
 	cp.TryMatchKonnectResource(state.ControlPlane{
 		ControlPlane: kkComps.ControlPlane{
@@ -207,8 +211,10 @@ func TestResolveGatewayServiceIdentitiesDeckConfigNoMatch(t *testing.T) {
 
 	cp := resources.ControlPlaneResource{
 		CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{Name: "cp"},
-		Ref:                       "cp",
-		Deck:                      &resources.DeckConfig{Files: []string{"gateway-service.yaml"}},
+		BaseResource: resources.BaseResource{
+			Ref: "cp",
+		},
+		Deck: &resources.DeckConfig{Files: []string{"gateway-service.yaml"}},
 	}
 	cp.TryMatchKonnectResource(state.ControlPlane{
 		ControlPlane: kkComps.ControlPlane{
@@ -247,8 +253,10 @@ func TestResolveGatewayServiceIdentitiesDeckConfigMatchesExisting(t *testing.T) 
 
 	cp := resources.ControlPlaneResource{
 		CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{Name: "cp"},
-		Ref:                       "cp",
-		Deck:                      &resources.DeckConfig{Files: []string{"gateway-service.yaml"}},
+		BaseResource: resources.BaseResource{
+			Ref: "cp",
+		},
+		Deck: &resources.DeckConfig{Files: []string{"gateway-service.yaml"}},
 	}
 	cp.TryMatchKonnectResource(state.ControlPlane{
 		ControlPlane: kkComps.ControlPlane{

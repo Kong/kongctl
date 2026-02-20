@@ -12,8 +12,8 @@ func TestControlPlaneValidateDeckConfig(t *testing.T) {
 		CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
 			Name: "cp",
 		},
-		Ref:  "cp",
-		Deck: &DeckConfig{Files: []string{"gateway-service.yaml"}},
+		BaseResource: BaseResource{Ref: "cp"},
+		Deck:         &DeckConfig{Files: []string{"gateway-service.yaml"}},
 	}
 
 	require.NoError(t, cp.Validate())

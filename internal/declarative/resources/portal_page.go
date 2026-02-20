@@ -2,7 +2,6 @@ package resources
 
 import (
 	"fmt"
-	"reflect"
 	"regexp"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -167,31 +166,9 @@ func (p PortalPageResource) GetKonnectMonikerFilter() string {
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
 func (p *PortalPageResource) TryMatchKonnectResource(konnectResource any) bool {
-	// For portal pages, we match by slug
-	// Use reflection to access fields from state.PortalPage
-	v := reflect.ValueOf(konnectResource)
-
-	// Handle pointer types
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-
-	// Ensure we have a struct
-	if v.Kind() != reflect.Struct {
-		return false
-	}
-
-	// Look for Slug and ID fields
-	slugField := v.FieldByName("Slug")
-	idField := v.FieldByName("ID")
-
-	// Extract values if fields are valid
-	if slugField.IsValid() && idField.IsValid() &&
-		slugField.Kind() == reflect.String && idField.Kind() == reflect.String {
-		if slugField.String() == p.Slug {
-			p.konnectID = idField.String()
-			return true
-		}
+	if id := tryMatchByField(konnectResource, "Slug", p.Slug); id != "" {
+		p.konnectID = id
+		return true
 	}
 	return false
 }
@@ -327,31 +304,9 @@ func (s PortalSnippetResource) GetKonnectMonikerFilter() string {
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
 func (s *PortalSnippetResource) TryMatchKonnectResource(konnectResource any) bool {
-	// For portal snippets, we match by name
-	// Use reflection to access fields from state.PortalSnippet
-	v := reflect.ValueOf(konnectResource)
-
-	// Handle pointer types
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-
-	// Ensure we have a struct
-	if v.Kind() != reflect.Struct {
-		return false
-	}
-
-	// Look for Name and ID fields
-	nameField := v.FieldByName("Name")
-	idField := v.FieldByName("ID")
-
-	// Extract values if fields are valid
-	if nameField.IsValid() && idField.IsValid() &&
-		nameField.Kind() == reflect.String && idField.Kind() == reflect.String {
-		if nameField.String() == s.Name {
-			s.konnectID = idField.String()
-			return true
-		}
+	if id := tryMatchByField(konnectResource, "Name", s.Name); id != "" {
+		s.konnectID = id
+		return true
 	}
 	return false
 }

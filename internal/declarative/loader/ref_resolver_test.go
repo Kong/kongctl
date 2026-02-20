@@ -52,13 +52,16 @@ func TestLocalFieldResolver_CanResolve(t *testing.T) {
 func TestLocalFieldResolver_ResolveField(t *testing.T) {
 	// Create test resources with minimal fields we know exist
 	portal := resources.PortalResource{
-		Ref: "test-portal",
+		BaseResource: resources.BaseResource{
+			Ref: "test-portal",
+		},
 	}
 	portal.Name = "Test Portal"
 
 	api := resources.APIResource{
-		Ref: "test-api",
+		BaseResource: resources.BaseResource{Ref: "test-api"},
 	}
+
 	api.Name = "Test API"
 
 	resolver := NewLocalFieldResolver(nil)
@@ -123,13 +126,17 @@ func TestLocalFieldResolver_ResolveField(t *testing.T) {
 }
 
 func createPortal(ref, name string) resources.PortalResource {
-	p := resources.PortalResource{Ref: ref}
+	p := resources.PortalResource{
+		BaseResource: resources.BaseResource{
+			Ref: ref,
+		},
+	}
 	p.Name = name
 	return p
 }
 
 func createAPI(ref, name string) resources.APIResource {
-	a := resources.APIResource{Ref: ref}
+	a := resources.APIResource{BaseResource: resources.BaseResource{Ref: ref}}
 	a.Name = name
 	return a
 }

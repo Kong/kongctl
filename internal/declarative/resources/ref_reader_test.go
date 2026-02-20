@@ -18,7 +18,7 @@ func TestResourceSet_RefReader(t *testing.T) {
 			name: "find portal by ref",
 			resourceSet: &ResourceSet{
 				Portals: []PortalResource{
-					{Ref: "portal1"},
+					{BaseResource: BaseResource{Ref: "portal1"}},
 				},
 			},
 			searchRef:   "portal1",
@@ -29,7 +29,7 @@ func TestResourceSet_RefReader(t *testing.T) {
 			name: "find api by ref",
 			resourceSet: &ResourceSet{
 				APIs: []APIResource{
-					{Ref: "api1"},
+					{BaseResource: BaseResource{Ref: "api1"}},
 				},
 			},
 			searchRef:   "api1",
@@ -51,7 +51,7 @@ func TestResourceSet_RefReader(t *testing.T) {
 			name: "ref not found",
 			resourceSet: &ResourceSet{
 				Portals: []PortalResource{
-					{Ref: "portal1"},
+					{BaseResource: BaseResource{Ref: "portal1"}},
 				},
 			},
 			searchRef:   "nonexistent",
@@ -61,13 +61,13 @@ func TestResourceSet_RefReader(t *testing.T) {
 			name: "check across multiple resource types",
 			resourceSet: &ResourceSet{
 				Portals: []PortalResource{
-					{Ref: "portal1"},
+					{BaseResource: BaseResource{Ref: "portal1"}},
 				},
 				APIs: []APIResource{
-					{Ref: "api1"},
+					{BaseResource: BaseResource{Ref: "api1"}},
 				},
 				ApplicationAuthStrategies: []ApplicationAuthStrategyResource{
-					{Ref: "auth1"},
+					{BaseResource: BaseResource{Ref: "auth1"}},
 				},
 			},
 			searchRef:   "auth1",
@@ -129,10 +129,10 @@ func TestResourceSet_RefReader_GlobalUniqueness(t *testing.T) {
 	// Test that refs are checked globally across all resource types
 	rs := &ResourceSet{
 		Portals: []PortalResource{
-			{Ref: "shared-ref"},
+			{BaseResource: BaseResource{Ref: "shared-ref"}},
 		},
 		APIs: []APIResource{
-			{Ref: "different-ref"},
+			{BaseResource: BaseResource{Ref: "different-ref"}},
 		},
 	}
 
@@ -179,7 +179,7 @@ func TestResourceSet_RefReader_EmptyResourceSet(t *testing.T) {
 
 func TestResourceSet_RefReader_InterfaceMethods(t *testing.T) {
 	// Test that ResourceSet implements RefReader interface
-	portal := PortalResource{Ref: "portal1"}
+	portal := PortalResource{BaseResource: BaseResource{Ref: "portal1"}}
 	portal.SetDefaults() // This sets Name from Ref if not set
 
 	var refReader RefReader = &ResourceSet{
@@ -207,10 +207,10 @@ func TestResourceSet_RefReader_InterfaceMethods(t *testing.T) {
 func TestAllResourceTypes_ImplementResourceInterface(t *testing.T) {
 	// Test that all resource types properly implement the Resource interface
 	rs := &ResourceSet{
-		Portals:                   []PortalResource{{Ref: "portal1"}},
-		ApplicationAuthStrategies: []ApplicationAuthStrategyResource{{Ref: "auth1"}},
-		ControlPlanes:             []ControlPlaneResource{{Ref: "cp1"}},
-		APIs:                      []APIResource{{Ref: "api1"}},
+		Portals:                   []PortalResource{{BaseResource: BaseResource{Ref: "portal1"}}},
+		ApplicationAuthStrategies: []ApplicationAuthStrategyResource{{BaseResource: BaseResource{Ref: "auth1"}}},
+		ControlPlanes:             []ControlPlaneResource{{BaseResource: BaseResource{Ref: "cp1"}}},
+		APIs:                      []APIResource{{BaseResource: BaseResource{Ref: "api1"}}},
 		APIVersions:               []APIVersionResource{{Ref: "v1", API: "api1"}},
 		APIPublications:           []APIPublicationResource{{Ref: "pub1", PortalID: "portal1"}},
 		APIImplementations:        []APIImplementationResource{{Ref: "impl1"}},

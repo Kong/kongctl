@@ -505,10 +505,10 @@ func collectDeclarativeOrganizationTeams(
 
 func mapPortalToDeclarativeResource(portal kkComps.ListPortalsResponsePortal) declresources.PortalResource {
 	result := declresources.PortalResource{
+		BaseResource: declresources.BaseResource{Ref: portal.GetID()},
 		CreatePortal: kkComps.CreatePortal{
 			Name: portal.GetName(),
 		},
-		Ref: portal.GetID(),
 	}
 
 	if displayName := portal.GetDisplayName(); displayName != "" {
@@ -554,6 +554,7 @@ func mapPortalToDeclarativeResource(portal kkComps.ListPortalsResponsePortal) de
 
 func mapAPIToDeclarativeResource(api kkComps.APIResponseSchema) declresources.APIResource {
 	result := declresources.APIResource{
+		BaseResource: declresources.BaseResource{Ref: api.ID},
 		CreateAPIRequest: kkComps.CreateAPIRequest{
 			Name:        api.Name,
 			Description: api.Description,
@@ -561,7 +562,6 @@ func mapAPIToDeclarativeResource(api kkComps.APIResponseSchema) declresources.AP
 			Slug:        api.Slug,
 			Attributes:  api.Attributes,
 		},
-		Ref: api.ID,
 	}
 
 	if labels := decllabels.GetUserLabels(api.Labels); len(labels) > 0 {
@@ -575,11 +575,11 @@ func mapAPIToDeclarativeResource(api kkComps.APIResponseSchema) declresources.AP
 
 func mapEventGatewayToDeclarativeResource(egw kkComps.EventGatewayInfo) declresources.EventGatewayControlPlaneResource {
 	result := declresources.EventGatewayControlPlaneResource{
+		BaseResource: declresources.BaseResource{Ref: egw.ID},
 		CreateGatewayRequest: kkComps.CreateGatewayRequest{
 			Name:        egw.Name,
 			Description: egw.Description,
 		},
-		Ref: egw.ID,
 	}
 
 	if labels := decllabels.GetUserLabels(egw.Labels); len(labels) > 0 {
@@ -591,11 +591,11 @@ func mapEventGatewayToDeclarativeResource(egw kkComps.EventGatewayInfo) declreso
 
 func mapOrganizationTeamToDeclarativeResource(team kkComps.Team) declresources.OrganizationTeamResource {
 	result := declresources.OrganizationTeamResource{
+		BaseResource: declresources.BaseResource{Ref: getString(team.ID)},
 		CreateTeam: kkComps.CreateTeam{
 			Name:        getString(team.Name),
 			Description: team.Description,
 		},
-		Ref: getString(team.ID),
 	}
 
 	if labels := decllabels.GetUserLabels(team.Labels); len(labels) > 0 {
@@ -755,8 +755,8 @@ func mapKeyAuthStrategyToDeclarativeResource(
 	}
 
 	resource := declresources.ApplicationAuthStrategyResource{
+		BaseResource:                 declresources.BaseResource{Ref: buildAuthStrategyRef(resp.ID, resp.Name)},
 		CreateAppAuthStrategyRequest: kkComps.CreateCreateAppAuthStrategyRequestKeyAuth(req),
-		Ref:                          buildAuthStrategyRef(resp.ID, resp.Name),
 	}
 
 	return resource, nil
@@ -788,8 +788,8 @@ func mapOIDCStrategyToDeclarativeResource(
 	}
 
 	resource := declresources.ApplicationAuthStrategyResource{
+		BaseResource:                 declresources.BaseResource{Ref: buildAuthStrategyRef(resp.ID, resp.Name)},
 		CreateAppAuthStrategyRequest: kkComps.CreateCreateAppAuthStrategyRequestOpenidConnect(req),
-		Ref:                          buildAuthStrategyRef(resp.ID, resp.Name),
 	}
 
 	return resource, nil
@@ -867,11 +867,11 @@ func mapControlPlaneToDeclarativeResource(
 	memberIDs []string,
 ) declresources.ControlPlaneResource {
 	mapped := declresources.ControlPlaneResource{
+		BaseResource: declresources.BaseResource{Ref: cp.ID},
 		CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
 			Name:        cp.Name,
 			Description: cp.Description,
 		},
-		Ref: cp.ID,
 	}
 
 	config := cp.Config

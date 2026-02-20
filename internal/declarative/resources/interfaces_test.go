@@ -18,7 +18,7 @@ var (
 
 func TestPortalResourceInterface(t *testing.T) {
 	portal := &PortalResource{
-		Ref: "test-portal",
+		BaseResource: BaseResource{Ref: "test-portal"},
 	}
 	portal.Name = "Test Portal"
 
@@ -46,7 +46,9 @@ func TestPortalResourceInterface(t *testing.T) {
 
 func TestApplicationAuthStrategyResourceInterface(t *testing.T) {
 	strategy := &ApplicationAuthStrategyResource{
-		Ref: "test-strategy",
+		BaseResource: BaseResource{
+			Ref: "test-strategy",
+		},
 	}
 
 	// Test Resource interface methods
@@ -67,7 +69,7 @@ func TestApplicationAuthStrategyResourceInterface(t *testing.T) {
 func TestPortalResourceDependencies(t *testing.T) {
 	authStrategyID := "my-auth-strategy"
 	portal := &PortalResource{
-		Ref: "test-portal",
+		BaseResource: BaseResource{Ref: "test-portal"},
 	}
 	portal.DefaultApplicationAuthStrategyID = &authStrategyID
 
@@ -87,7 +89,7 @@ func TestPortalResourceDependencies(t *testing.T) {
 
 func TestPortalResourceSetDefaults(t *testing.T) {
 	portal := &PortalResource{
-		Ref: "test-portal",
+		BaseResource: BaseResource{Ref: "test-portal"},
 		// Name is not set
 	}
 

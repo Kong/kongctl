@@ -2,7 +2,6 @@ package resources
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -15,22 +14,14 @@ type ControlPlaneGroupMember struct {
 
 // ControlPlaneResource represents a control plane in declarative configuration
 type ControlPlaneResource struct {
+	BaseResource
 	kkComps.CreateControlPlaneRequest `                          yaml:",inline"                    json:",inline"`
-	Ref                               string                    `yaml:"ref"                        json:"ref"`
-	Kongctl                           *KongctlMeta              `yaml:"kongctl,omitempty"          json:"kongctl,omitempty"`   //nolint:lll
 	External                          *ExternalBlock            `yaml:"_external,omitempty"        json:"_external,omitempty"` //nolint:lll
 	Deck                              *DeckConfig               `yaml:"_deck,omitempty"            json:"_deck,omitempty"`
 	GatewayServices                   []GatewayServiceResource  `yaml:"gateway_services,omitempty" json:"gateway_services,omitempty"` //nolint:lll
 	Members                           []ControlPlaneGroupMember `yaml:"members,omitempty"          json:"members,omitempty"`          //nolint:lll
 
-	// Resolved Konnect ID (not serialized)
-	konnectID   string `yaml:"-" json:"-"`
 	deckBaseDir string `yaml:"-" json:"-"`
-}
-
-// GetRef returns the reference identifier used for cross-resource references
-func (c ControlPlaneResource) GetRef() string {
-	return c.Ref
 }
 
 // DeckBaseDir returns the resolved base directory for deck config (if any).
@@ -122,74 +113,29 @@ func (c ControlPlaneResource) GetDependencies() []ResourceRef {
 	return []ResourceRef{}
 }
 
-// GetKonnectID returns the resolved Konnect ID if available
-func (c ControlPlaneResource) GetKonnectID() string {
-	return c.konnectID
-}
-
 // GetKonnectMonikerFilter returns the filter string for Konnect API lookup
 func (c ControlPlaneResource) GetKonnectMonikerFilter() string {
 	if c.IsExternal() {
 		return ""
 	}
-
-	if c.Name == "" {
-		return ""
-	}
-	return fmt.Sprintf("name[eq]=%s", c.Name)
-}
-
-// TryMatchKonnectResource attempts to match this resource with a Konnect resource
-func (c *ControlPlaneResource) TryMatchKonnectResource(konnectResource any) bool {
-	// Use reflection to access fields from state.ControlPlane
-	v := reflect.ValueOf(konnectResource)
-
-	// Handle pointer types
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-
-	// Ensure we have a struct
-	if v.Kind() != reflect.Struct {
-		return false
-	}
-
-	// Look for ID field for matching
-	idField := v.FieldByName("ID")
-	if !idField.IsValid() {
-		return false
-	}
-
-	if c.IsExternal() && c.External != nil {
-		matched := false
-		if c.External.ID != "" {
-			matched = (idField.String() == c.External.ID)
-		} else if c.External.Selector != nil {
-			matched = c.External.Selector.Match(konnectResource)
-		}
-
-		if matched {
-			c.konnectID = idField.String()
-			return true
-		}
-
-		return false
-	}
-
-	// Non-external control planes match by name
-	nameField := v.FieldByName("Name")
-	if nameField.IsValid() && nameField.Kind() == reflect.String &&
-		nameField.String() == c.Name {
-		c.konnectID = idField.String()
-		return true
-	}
-
-	return false
+	return c.BaseResource.GetKonnectMonikerFilter(c.Name)
 }
 
 // IsExternal returns true if this control plane is externally managed
 func (c *ControlPlaneResource) IsExternal() bool {
 	return c.External != nil && c.External.IsExternal()
+}
+
+// TryMatchKonnectResource attempts to match this resource with a Konnect resource
+func (c *ControlPlaneResource) TryMatchKonnectResource(konnectResource any) bool {
+	id, ok := tryMatchByNameWithExternal(c.Name, konnectResource, matchOptions{
+		sdkType: "ControlPlane",
+	}, c.External)
+
+	if ok {
+		c.SetKonnectID(id)
+	}
+	return ok
 }
 
 // IsGroup returns true when the control plane represents a control plane group.

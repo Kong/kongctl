@@ -414,17 +414,21 @@ func TestValidateNamespaceRequirementAny(t *testing.T) {
 		rs := resources.ResourceSet{
 			APIs: []resources.APIResource{
 				{
-					Ref: "api-explicit",
-					Kongctl: &resources.KongctlMeta{
-						Namespace:       stringPtr("team"),
-						NamespaceOrigin: resources.NamespaceOriginExplicit,
+					BaseResource: resources.BaseResource{
+						Ref: "api-explicit",
+						Kongctl: &resources.KongctlMeta{
+							Namespace:       stringPtr("team"),
+							NamespaceOrigin: resources.NamespaceOriginExplicit,
+						},
 					},
 				},
 				{
-					Ref: "api-default",
-					Kongctl: &resources.KongctlMeta{
-						Namespace:       stringPtr("team"),
-						NamespaceOrigin: resources.NamespaceOriginFileDefault,
+					BaseResource: resources.BaseResource{
+						Ref: "api-default",
+						Kongctl: &resources.KongctlMeta{
+							Namespace:       stringPtr("team"),
+							NamespaceOrigin: resources.NamespaceOriginFileDefault,
+						},
 					},
 				},
 			},
@@ -438,10 +442,12 @@ func TestValidateNamespaceRequirementAny(t *testing.T) {
 		rs := resources.ResourceSet{
 			Portals: []resources.PortalResource{
 				{
-					Ref: "portal-implicit",
-					Kongctl: &resources.KongctlMeta{
-						Namespace:       stringPtr("default"),
-						NamespaceOrigin: resources.NamespaceOriginImplicitDefault,
+					BaseResource: resources.BaseResource{
+						Ref: "portal-implicit",
+						Kongctl: &resources.KongctlMeta{
+							Namespace:       stringPtr("default"),
+							NamespaceOrigin: resources.NamespaceOriginImplicitDefault,
+						},
 					},
 				},
 			},
@@ -475,19 +481,24 @@ func TestValidateNamespaceRequirementSpecific(t *testing.T) {
 		rs := resources.ResourceSet{
 			APIs: []resources.APIResource{
 				{
-					Ref: "api-explicit",
-					Kongctl: &resources.KongctlMeta{
-						Namespace:       stringPtr("team"),
-						NamespaceOrigin: resources.NamespaceOriginExplicit,
+					BaseResource: resources.BaseResource{
+						Ref: "api-explicit",
+						Kongctl: &resources.KongctlMeta{
+							Namespace:       stringPtr("team"),
+							NamespaceOrigin: resources.NamespaceOriginExplicit,
+						},
 					},
 				},
 			},
 			ControlPlanes: []resources.ControlPlaneResource{
 				{
-					Ref: "cp-default",
-					Kongctl: &resources.KongctlMeta{
-						Namespace:       stringPtr("team"),
-						NamespaceOrigin: resources.NamespaceOriginFileDefault,
+					BaseResource: resources.BaseResource{
+
+						Ref: "cp-default",
+						Kongctl: &resources.KongctlMeta{
+							Namespace:       stringPtr("team"),
+							NamespaceOrigin: resources.NamespaceOriginFileDefault,
+						},
 					},
 				},
 			},
@@ -501,10 +512,12 @@ func TestValidateNamespaceRequirementSpecific(t *testing.T) {
 		rs := resources.ResourceSet{
 			APIs: []resources.APIResource{
 				{
-					Ref: "api-wrong",
-					Kongctl: &resources.KongctlMeta{
-						Namespace:       stringPtr("other"),
-						NamespaceOrigin: resources.NamespaceOriginExplicit,
+					BaseResource: resources.BaseResource{
+						Ref: "api-wrong",
+						Kongctl: &resources.KongctlMeta{
+							Namespace:       stringPtr("other"),
+							NamespaceOrigin: resources.NamespaceOriginExplicit,
+						},
 					},
 				},
 			},
@@ -518,10 +531,12 @@ func TestValidateNamespaceRequirementSpecific(t *testing.T) {
 		rs := resources.ResourceSet{
 			ApplicationAuthStrategies: []resources.ApplicationAuthStrategyResource{
 				{
-					Ref: "auth-implicit",
-					Kongctl: &resources.KongctlMeta{
-						Namespace:       stringPtr("default"),
-						NamespaceOrigin: resources.NamespaceOriginImplicitDefault,
+					BaseResource: resources.BaseResource{
+						Ref: "auth-implicit",
+						Kongctl: &resources.KongctlMeta{
+							Namespace:       stringPtr("default"),
+							NamespaceOrigin: resources.NamespaceOriginImplicitDefault,
+						},
 					},
 				},
 			},
