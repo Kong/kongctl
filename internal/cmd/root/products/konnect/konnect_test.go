@@ -24,6 +24,14 @@ func TestNewKonnectCmdListenExposesAuditLogs(t *testing.T) {
 	require.True(t, hasSubcommandNamed(cmd, "audit-logs"))
 }
 
+func TestNewKonnectCmdGetExposesAuditLogs(t *testing.T) {
+	t.Parallel()
+
+	cmd, err := NewKonnectCmd(verbs.Get)
+	require.NoError(t, err)
+	require.True(t, hasSubcommandNamed(cmd, "audit-logs"))
+}
+
 func hasSubcommandNamed(cmd *cobra.Command, name string) bool {
 	if cmd == nil {
 		return false
