@@ -7,6 +7,17 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypePortalPage,
+		func(rs *ResourceSet) *[]PortalPageResource { return &rs.PortalPages },
+	)
+	registerResourceType(
+		ResourceTypePortalSnippet,
+		func(rs *ResourceSet) *[]PortalSnippetResource { return &rs.PortalSnippets },
+	)
+}
+
 // PortalPageResource represents a portal page
 type PortalPageResource struct {
 	kkComps.CreatePortalPageRequest `                     yaml:",inline"                   json:",inline"`

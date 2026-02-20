@@ -6,6 +6,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypeEventGatewayControlPlane,
+		func(rs *ResourceSet) *[]EventGatewayControlPlaneResource { return &rs.EventGatewayControlPlanes },
+	)
+}
+
 type EventGatewayControlPlaneResource struct {
 	BaseResource
 	kkComps.CreateGatewayRequest `yaml:",inline" json:",inline"`

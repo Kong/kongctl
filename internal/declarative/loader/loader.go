@@ -92,6 +92,8 @@ func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Sourc
 	recursive bool,
 ) (*resources.ResourceSet, error) {
 	var allResources resources.ResourceSet
+	// Running index of refs for O(1) duplicate checking across files
+	refIndex := make(map[string]resources.ResourceType)
 
 	for _, source := range sources {
 		var err error
@@ -99,11 +101,11 @@ func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Sourc
 
 		switch source.Type {
 		case SourceTypeFile:
-			err = l.loadSingleFileWithContext(ctx, source.Path, rootDir, &allResources)
+			err = l.loadSingleFileWithContext(ctx, source.Path, rootDir, &allResources, refIndex)
 		case SourceTypeDirectory:
-			err = l.loadDirectorySourceWithContext(ctx, source.Path, rootDir, recursive, &allResources)
+			err = l.loadDirectorySourceWithContext(ctx, source.Path, rootDir, recursive, &allResources, refIndex)
 		case SourceTypeSTDIN:
-			err = l.loadSTDINWithContext(ctx, rootDir, &allResources)
+			err = l.loadSTDINWithContext(ctx, rootDir, &allResources, refIndex)
 		default:
 			return nil, decerrors.FormatConfigurationError(
 				source.Path,
@@ -144,7 +146,8 @@ func (l *Loader) Load() (*resources.ResourceSet, error) {
 // LoadFile loads configuration from a single YAML file (deprecated, for backward compatibility)
 func (l *Loader) LoadFile(path string) (*resources.ResourceSet, error) {
 	var rs resources.ResourceSet
-	if err := l.loadSingleFile(path, filepath.Dir(path), &rs); err != nil {
+	refIndex := make(map[string]resources.ResourceType)
+	if err := l.loadSingleFile(path, filepath.Dir(path), &rs, refIndex); err != nil {
 		return nil, err
 	}
 
@@ -160,7 +163,12 @@ func (l *Loader) LoadFile(path string) (*resources.ResourceSet, error) {
 }
 
 // loadSingleFile loads configuration from a single YAML file
-func (l *Loader) loadSingleFile(path string, rootDir string, accumulated *resources.ResourceSet) error {
+func (l *Loader) loadSingleFile(
+	path string,
+	rootDir string,
+	accumulated *resources.ResourceSet,
+	refIndex map[string]resources.ResourceType,
+) error {
 	// Validate YAML extension
 	if !ValidateYAMLFile(path) {
 		return fmt.Errorf("file %s does not have .yaml or .yml extension", path)
@@ -178,7 +186,7 @@ func (l *Loader) loadSingleFile(path string, rootDir string, accumulated *resour
 	}
 
 	// Append resources with duplicate checking
-	return l.appendResourcesWithDuplicateCheck(accumulated, rs, path)
+	return l.appendResourcesWithDuplicateCheck(accumulated, rs, path, refIndex)
 }
 
 // parseYAML parses YAML content into ResourceSet
@@ -260,7 +268,11 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 }
 
 // loadSTDIN loads configuration from stdin
-func (l *Loader) loadSTDIN(rootDir string, accumulated *resources.ResourceSet) error {
+func (l *Loader) loadSTDIN(
+	rootDir string,
+	accumulated *resources.ResourceSet,
+	refIndex map[string]resources.ResourceType,
+) error {
 	// Check if stdin has data
 	stat, err := os.Stdin.Stat()
 	if err != nil {
@@ -277,7 +289,7 @@ func (l *Loader) loadSTDIN(rootDir string, accumulated *resources.ResourceSet) e
 	}
 
 	// Append resources with duplicate checking
-	return l.appendResourcesWithDuplicateCheck(accumulated, rs, "stdin")
+	return l.appendResourcesWithDuplicateCheck(accumulated, rs, "stdin", refIndex)
 }
 
 // loadDirectorySource loads YAML files from a directory
@@ -286,6 +298,7 @@ func (l *Loader) loadDirectorySource(
 	rootDir string,
 	recursive bool,
 	accumulated *resources.ResourceSet,
+	refIndex map[string]resources.ResourceType,
 ) error {
 	yamlCount := 0
 	subdirCount := 0
@@ -303,7 +316,7 @@ func (l *Loader) loadDirectorySource(
 			subdirCount++
 			if recursive {
 				// Recursively load subdirectory
-				if err := l.loadDirectorySource(path, rootDir, recursive, accumulated); err != nil {
+				if err := l.loadDirectorySource(path, rootDir, recursive, accumulated, refIndex); err != nil {
 					return err
 				}
 			}
@@ -330,7 +343,7 @@ func (l *Loader) loadDirectorySource(
 		}
 
 		// Append resources with duplicate checking
-		if err := l.appendResourcesWithDuplicateCheck(accumulated, rs, path); err != nil {
+		if err := l.appendResourcesWithDuplicateCheck(accumulated, rs, path, refIndex); err != nil {
 			return err
 		}
 
@@ -341,17 +354,8 @@ func (l *Loader) loadDirectorySource(
 		return fmt.Errorf("no YAML files found in directory '%s'. Found %d subdirectories. "+
 			"Use -R to search subdirectories", dirPath, subdirCount)
 	} else if yamlCount == 0 {
-		// Check if accumulated has any resources
-		hasResources := len(accumulated.Portals) > 0 ||
-			len(accumulated.ApplicationAuthStrategies) > 0 ||
-			len(accumulated.ControlPlanes) > 0 || len(accumulated.APIs) > 0 ||
-			len(accumulated.APIVersions) > 0 || len(accumulated.APIPublications) > 0 ||
-			len(accumulated.APIImplementations) > 0 || len(accumulated.APIDocuments) > 0 ||
-			len(accumulated.PortalCustomizations) > 0 || len(accumulated.PortalCustomDomains) > 0 ||
-			len(accumulated.PortalPages) > 0 || len(accumulated.PortalSnippets) > 0 ||
-			len(accumulated.OrganizationTeams) > 0
-
-		if !hasResources {
+		// Check if accumulated has any resources using the registry
+		if accumulated.IsEmpty() {
 			// Only error if no files were found at all (not just empty files)
 			return fmt.Errorf("no YAML files found in directory '%s'", dirPath)
 		}
@@ -360,234 +364,51 @@ func (l *Loader) loadDirectorySource(
 	return nil
 }
 
-// appendResourcesWithDuplicateCheck appends resources from source to accumulated with global duplicate checking
+// appendResourcesWithDuplicateCheck appends resources from source to accumulated with global duplicate checking.
+// The refIndex is a running index maintained across all files for O(1) duplicate lookups.
 func (l *Loader) appendResourcesWithDuplicateCheck(
-	accumulated, source *resources.ResourceSet, sourcePath string,
+	accumulated, source *resources.ResourceSet,
+	sourcePath string,
+	refIndex map[string]resources.ResourceType,
 ) error {
-	// Merge organization resources from multiple files
-	// Since organization is just a grouping concept, we combine teams from all organization blocks
-	if source.Organization != nil {
-		if accumulated.Organization == nil {
-			accumulated.Organization = &resources.OrganizationResource{}
+	// Check for duplicate refs
+	// We need to check both:
+	// 1. Duplicates within the source file itself
+	// 2. Duplicates between source and accumulated (using refIndex)
+	seenRefs := make(map[string]resources.ResourceType, source.ResourceCount())
+	var duplicateErr error
+
+	source.ForEachResource(func(r resources.Resource) bool {
+		ref := r.GetRef()
+		resourceType := r.GetType()
+
+		// Check for duplicate within the same source file
+		if existingType, exists := seenRefs[ref]; exists {
+			duplicateErr = fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
+				ref, sourcePath, existingType)
+			return false
 		}
-		accumulated.Organization.Teams = append(accumulated.Organization.Teams, source.Organization.Teams...)
+		seenRefs[ref] = resourceType
+
+		// Check for duplicate against accumulated resources - O(1) lookup using running index
+		if existingType, exists := refIndex[ref]; exists {
+			duplicateErr = fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
+				ref, sourcePath, existingType)
+			return false
+		}
+		return true
+	})
+
+	if duplicateErr != nil {
+		return duplicateErr
 	}
 
-	// Check and append portals
-	for _, portal := range source.Portals {
-		if accumulated.HasRef(portal.Ref) {
-			existing, _ := accumulated.GetResourceByRef(portal.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				portal.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.Portals = append(accumulated.Portals, portal)
-	}
+	// Append all resources from source to accumulated using the registry
+	accumulated.AppendAll(source)
 
-	// Check and append auth strategies
-	for _, authStrat := range source.ApplicationAuthStrategies {
-		if accumulated.HasRef(authStrat.Ref) {
-			existing, _ := accumulated.GetResourceByRef(authStrat.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				authStrat.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.ApplicationAuthStrategies = append(accumulated.ApplicationAuthStrategies, authStrat)
-	}
-
-	// Check and append control planes
-	for _, cp := range source.ControlPlanes {
-		if accumulated.HasRef(cp.Ref) {
-			existing, _ := accumulated.GetResourceByRef(cp.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				cp.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.ControlPlanes = append(accumulated.ControlPlanes, cp)
-	}
-
-	// Check and append catalog services
-	for _, catalogService := range source.CatalogServices {
-		if accumulated.HasRef(catalogService.Ref) {
-			existing, _ := accumulated.GetResourceByRef(catalogService.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				catalogService.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.CatalogServices = append(accumulated.CatalogServices, catalogService)
-	}
-
-	// Check and append APIs
-	for _, api := range source.APIs {
-		if accumulated.HasRef(api.Ref) {
-			existing, _ := accumulated.GetResourceByRef(api.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				api.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.APIs = append(accumulated.APIs, api)
-	}
-
-	// Check and append gateway services
-	for _, service := range source.GatewayServices {
-		if accumulated.HasRef(service.Ref) {
-			existing, _ := accumulated.GetResourceByRef(service.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				service.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.GatewayServices = append(accumulated.GatewayServices, service)
-	}
-
-	// Check and append API child resources
-	for _, version := range source.APIVersions {
-		if accumulated.HasRef(version.Ref) {
-			existing, _ := accumulated.GetResourceByRef(version.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				version.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.APIVersions = append(accumulated.APIVersions, version)
-	}
-
-	for _, pub := range source.APIPublications {
-		if accumulated.HasRef(pub.Ref) {
-			existing, _ := accumulated.GetResourceByRef(pub.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				pub.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.APIPublications = append(accumulated.APIPublications, pub)
-	}
-
-	for _, impl := range source.APIImplementations {
-		if accumulated.HasRef(impl.Ref) {
-			existing, _ := accumulated.GetResourceByRef(impl.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				impl.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.APIImplementations = append(accumulated.APIImplementations, impl)
-	}
-
-	for _, doc := range source.APIDocuments {
-		if accumulated.HasRef(doc.Ref) {
-			existing, _ := accumulated.GetResourceByRef(doc.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				doc.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.APIDocuments = append(accumulated.APIDocuments, doc)
-	}
-
-	// Check and append Portal child resources
-	for _, customization := range source.PortalCustomizations {
-		if accumulated.HasRef(customization.Ref) {
-			existing, _ := accumulated.GetResourceByRef(customization.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				customization.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.PortalCustomizations = append(accumulated.PortalCustomizations, customization)
-	}
-
-	for _, authSettings := range source.PortalAuthSettings {
-		if accumulated.HasRef(authSettings.Ref) {
-			existing, _ := accumulated.GetResourceByRef(authSettings.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				authSettings.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.PortalAuthSettings = append(accumulated.PortalAuthSettings, authSettings)
-	}
-
-	for _, cfg := range source.PortalEmailConfigs {
-		if accumulated.HasRef(cfg.Ref) {
-			existing, _ := accumulated.GetResourceByRef(cfg.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				cfg.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.PortalEmailConfigs = append(accumulated.PortalEmailConfigs, cfg)
-	}
-
-	for _, tpl := range source.PortalEmailTemplates {
-		if accumulated.HasRef(tpl.Ref) {
-			existing, _ := accumulated.GetResourceByRef(tpl.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				tpl.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.PortalEmailTemplates = append(accumulated.PortalEmailTemplates, tpl)
-	}
-
-	for _, domain := range source.PortalCustomDomains {
-		if accumulated.HasRef(domain.Ref) {
-			existing, _ := accumulated.GetResourceByRef(domain.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				domain.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.PortalCustomDomains = append(accumulated.PortalCustomDomains, domain)
-	}
-
-	for _, page := range source.PortalPages {
-		if accumulated.HasRef(page.Ref) {
-			existing, _ := accumulated.GetResourceByRef(page.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				page.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.PortalPages = append(accumulated.PortalPages, page)
-	}
-
-	for _, snippet := range source.PortalSnippets {
-		if accumulated.HasRef(snippet.Ref) {
-			existing, _ := accumulated.GetResourceByRef(snippet.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				snippet.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.PortalSnippets = append(accumulated.PortalSnippets, snippet)
-	}
-
-	for _, team := range source.PortalTeams {
-		if accumulated.HasRef(team.Ref) {
-			existing, _ := accumulated.GetResourceByRef(team.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				team.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.PortalTeams = append(accumulated.PortalTeams, team)
-	}
-
-	for _, role := range source.PortalTeamRoles {
-		if accumulated.HasRef(role.Ref) {
-			existing, _ := accumulated.GetResourceByRef(role.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				role.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.PortalTeamRoles = append(accumulated.PortalTeamRoles, role)
-	}
-
-	for _, team := range source.OrganizationTeams {
-		if accumulated.HasRef(team.Ref) {
-			existing, _ := accumulated.GetResourceByRef(team.Ref)
-			return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-				team.Ref, sourcePath, existing.GetType())
-		}
-		accumulated.OrganizationTeams = append(accumulated.OrganizationTeams, team)
-	}
-
-	if util.IsEventGatewayEnabled() {
-		for _, egwControlPlane := range source.EventGatewayControlPlanes {
-			if accumulated.HasRef(egwControlPlane.Ref) {
-				existing, _ := accumulated.GetResourceByRef(egwControlPlane.Ref)
-				return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-					egwControlPlane.Ref, sourcePath, existing.GetType())
-			}
-			accumulated.EventGatewayControlPlanes = append(accumulated.EventGatewayControlPlanes, egwControlPlane)
-		}
-
-		for _, egwBackendCluster := range source.EventGatewayBackendClusters {
-			if accumulated.HasRef(egwBackendCluster.Ref) {
-				existing, _ := accumulated.GetResourceByRef(egwBackendCluster.Ref)
-				return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-					egwBackendCluster.Ref, sourcePath, existing.GetType())
-			}
-			accumulated.EventGatewayBackendClusters = append(accumulated.EventGatewayBackendClusters, egwBackendCluster)
-		}
-
-		for _, egwVirtualCluster := range source.EventGatewayVirtualClusters {
-			if accumulated.HasRef(egwVirtualCluster.Ref) {
-				existing, _ := accumulated.GetResourceByRef(egwVirtualCluster.Ref)
-				return fmt.Errorf("duplicate ref '%s' found in %s (already defined as %s)",
-					egwVirtualCluster.Ref, sourcePath, existing.GetType())
-			}
-			accumulated.EventGatewayVirtualClusters = append(accumulated.EventGatewayVirtualClusters, egwVirtualCluster)
-		}
+	// Update the running index with newly added refs
+	for ref, resourceType := range seenRefs {
+		refIndex[ref] = resourceType
 	}
 
 	// If this source defines a namespace default without parent resources,
@@ -801,94 +622,21 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 	return nil
 }
 
-// applyDefaults applies SDK default values to all resources in the set
+// applyDefaults applies SDK default values to all resources in the set.
+// Uses the registry to iterate all registered resource types.
 func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
-	// Apply SDK defaults to portals
-	for i := range rs.Portals {
-		rs.Portals[i].SetDefaults()
-	}
+	// Apply defaults to all registered resources via registry (zero allocation)
+	rs.ForEachResource(func(r resources.Resource) bool {
+		r.SetDefaults()
+		return true
+	})
 
-	// Apply defaults to auth strategies
-	for i := range rs.ApplicationAuthStrategies {
-		rs.ApplicationAuthStrategies[i].SetDefaults()
-	}
-
-	// Apply defaults to control planes
-	for i := range rs.ControlPlanes {
-		rs.ControlPlanes[i].SetDefaults()
-	}
-
-	// Apply defaults to APIs and their children
+	// Special case: API Documents are flattened but kept nested under APIs
+	// (extractNestedResources reassigns them rather than moving to rs.APIDocuments)
 	for i := range rs.APIs {
-		api := &rs.APIs[i]
-		api.SetDefaults()
-
-		// Apply defaults to nested resources
-		for j := range api.Versions {
-			api.Versions[j].SetDefaults()
+		for j := range rs.APIs[i].Documents {
+			rs.APIs[i].Documents[j].SetDefaults()
 		}
-		for j := range api.Publications {
-			api.Publications[j].SetDefaults()
-		}
-		for j := range api.Implementations {
-			api.Implementations[j].SetDefaults()
-		}
-		for j := range api.Documents {
-			api.Documents[j].SetDefaults()
-		}
-	}
-
-	// Apply defaults to root-level API child resources
-	for i := range rs.APIVersions {
-		rs.APIVersions[i].SetDefaults()
-	}
-	for i := range rs.APIPublications {
-		rs.APIPublications[i].SetDefaults()
-	}
-	for i := range rs.APIImplementations {
-		rs.APIImplementations[i].SetDefaults()
-	}
-	for i := range rs.APIDocuments {
-		rs.APIDocuments[i].SetDefaults()
-	}
-
-	// Apply defaults to catalog services
-	for i := range rs.CatalogServices {
-		rs.CatalogServices[i].SetDefaults()
-	}
-
-	// Apply defaults to portal child resources
-	for i := range rs.PortalCustomizations {
-		rs.PortalCustomizations[i].SetDefaults()
-	}
-	for i := range rs.PortalAuthSettings {
-		rs.PortalAuthSettings[i].SetDefaults()
-	}
-	for i := range rs.PortalCustomDomains {
-		rs.PortalCustomDomains[i].SetDefaults()
-	}
-	for i := range rs.PortalPages {
-		rs.PortalPages[i].SetDefaults()
-	}
-	for i := range rs.PortalSnippets {
-		rs.PortalSnippets[i].SetDefaults()
-	}
-	for i := range rs.PortalEmailConfigs {
-		rs.PortalEmailConfigs[i].SetDefaults()
-	}
-	for i := range rs.PortalEmailTemplates {
-		rs.PortalEmailTemplates[i].SetDefaults()
-	}
-
-	if util.IsEventGatewayEnabled() {
-		for i := range rs.EventGatewayControlPlanes {
-			rs.EventGatewayControlPlanes[i].SetDefaults()
-		}
-	}
-
-	// Apply defaults to organization teams
-	for i := range rs.OrganizationTeams {
-		rs.OrganizationTeams[i].SetDefaults()
 	}
 }
 
@@ -1190,16 +938,16 @@ func abs(n int) int {
 }
 
 // Context-aware wrapper methods for internal use
-
 func (l *Loader) loadSingleFileWithContext(
 	_ context.Context,
 	path string,
 	rootDir string,
 	accumulated *resources.ResourceSet,
+	refIndex map[string]resources.ResourceType,
 ) error {
 	// For now, we just call the non-context version
 	// The context will be used by ResolveReferences in LoadFromSourcesWithContext
-	return l.loadSingleFile(path, rootDir, accumulated)
+	return l.loadSingleFile(path, rootDir, accumulated, refIndex)
 }
 
 func (l *Loader) loadDirectorySourceWithContext(
@@ -1208,18 +956,20 @@ func (l *Loader) loadDirectorySourceWithContext(
 	rootDir string,
 	recursive bool,
 	accumulated *resources.ResourceSet,
+	refIndex map[string]resources.ResourceType,
 ) error {
 	// For now, we just call the non-context version
 	// The context will be used by ResolveReferences in LoadFromSourcesWithContext
-	return l.loadDirectorySource(dirPath, rootDir, recursive, accumulated)
+	return l.loadDirectorySource(dirPath, rootDir, recursive, accumulated, refIndex)
 }
 
 func (l *Loader) loadSTDINWithContext(
 	_ context.Context,
 	rootDir string,
 	accumulated *resources.ResourceSet,
+	refIndex map[string]resources.ResourceType,
 ) error {
 	// For now, we just call the non-context version
 	// The context will be used by ResolveReferences in LoadFromSourcesWithContext
-	return l.loadSTDIN(rootDir, accumulated)
+	return l.loadSTDIN(rootDir, accumulated, refIndex)
 }

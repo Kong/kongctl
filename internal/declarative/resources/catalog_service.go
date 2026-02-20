@@ -6,6 +6,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypeCatalogService,
+		func(rs *ResourceSet) *[]CatalogServiceResource { return &rs.CatalogServices },
+	)
+}
+
 // CatalogServiceResource represents a Service Catalog service in declarative configuration
 type CatalogServiceResource struct {
 	BaseResource

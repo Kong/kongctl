@@ -7,6 +7,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypeEventGatewayBackendCluster,
+		func(rs *ResourceSet) *[]EventGatewayBackendClusterResource { return &rs.EventGatewayBackendClusters },
+	)
+}
+
 type EventGatewayBackendClusterResource struct {
 	kkComps.CreateBackendClusterRequest `       yaml:",inline"                 json:",inline"`
 	Ref                                 string `yaml:"ref"                     json:"ref"`

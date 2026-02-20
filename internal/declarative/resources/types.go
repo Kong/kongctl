@@ -127,147 +127,15 @@ func (rs *ResourceSet) HasRef(ref string) bool {
 
 // GetResourceByRef returns the resource for a given ref
 func (rs *ResourceSet) GetResourceByRef(ref string) (Resource, bool) {
-	// Check Portals
-	for i := range rs.Portals {
-		if rs.Portals[i].GetRef() == ref {
-			return &rs.Portals[i], true
+	var found Resource
+	rs.ForEachResource(func(r Resource) bool {
+		if r.GetRef() == ref {
+			found = r
+			return false // stop iteration
 		}
-	}
-
-	// Check ApplicationAuthStrategies
-	for i := range rs.ApplicationAuthStrategies {
-		if rs.ApplicationAuthStrategies[i].GetRef() == ref {
-			return &rs.ApplicationAuthStrategies[i], true
-		}
-	}
-
-	// Check ControlPlanes
-	for i := range rs.ControlPlanes {
-		if rs.ControlPlanes[i].GetRef() == ref {
-			return &rs.ControlPlanes[i], true
-		}
-	}
-
-	// Check Catalog Services
-	for i := range rs.CatalogServices {
-		if rs.CatalogServices[i].GetRef() == ref {
-			return &rs.CatalogServices[i], true
-		}
-	}
-
-	// Check APIs
-	for i := range rs.APIs {
-		if rs.APIs[i].GetRef() == ref {
-			return &rs.APIs[i], true
-		}
-	}
-
-	// Check Gateway services
-	for i := range rs.GatewayServices {
-		if rs.GatewayServices[i].GetRef() == ref {
-			return &rs.GatewayServices[i], true
-		}
-	}
-
-	// Check API child resources
-	for i := range rs.APIVersions {
-		if rs.APIVersions[i].GetRef() == ref {
-			return &rs.APIVersions[i], true
-		}
-	}
-
-	for i := range rs.APIPublications {
-		if rs.APIPublications[i].GetRef() == ref {
-			return &rs.APIPublications[i], true
-		}
-	}
-
-	for i := range rs.APIImplementations {
-		if rs.APIImplementations[i].GetRef() == ref {
-			return &rs.APIImplementations[i], true
-		}
-	}
-
-	for i := range rs.APIDocuments {
-		if rs.APIDocuments[i].GetRef() == ref {
-			return &rs.APIDocuments[i], true
-		}
-	}
-
-	// Check Portal child resources
-	for i := range rs.PortalCustomizations {
-		if rs.PortalCustomizations[i].GetRef() == ref {
-			return &rs.PortalCustomizations[i], true
-		}
-	}
-	for i := range rs.PortalAuthSettings {
-		if rs.PortalAuthSettings[i].GetRef() == ref {
-			return &rs.PortalAuthSettings[i], true
-		}
-	}
-
-	for i := range rs.PortalCustomDomains {
-		if rs.PortalCustomDomains[i].GetRef() == ref {
-			return &rs.PortalCustomDomains[i], true
-		}
-	}
-
-	for i := range rs.PortalPages {
-		if rs.PortalPages[i].GetRef() == ref {
-			return &rs.PortalPages[i], true
-		}
-	}
-
-	for i := range rs.PortalSnippets {
-		if rs.PortalSnippets[i].GetRef() == ref {
-			return &rs.PortalSnippets[i], true
-		}
-	}
-
-	for i := range rs.PortalTeams {
-		if rs.PortalTeams[i].GetRef() == ref {
-			return &rs.PortalTeams[i], true
-		}
-	}
-
-	for i := range rs.PortalTeamRoles {
-		if rs.PortalTeamRoles[i].GetRef() == ref {
-			return &rs.PortalTeamRoles[i], true
-		}
-	}
-
-	for i := range rs.PortalAssetLogos {
-		if rs.PortalAssetLogos[i].GetRef() == ref {
-			return &rs.PortalAssetLogos[i], true
-		}
-	}
-
-	for i := range rs.PortalAssetFavicons {
-		if rs.PortalAssetFavicons[i].GetRef() == ref {
-			return &rs.PortalAssetFavicons[i], true
-		}
-	}
-
-	for i := range rs.PortalEmailConfigs {
-		if rs.PortalEmailConfigs[i].GetRef() == ref {
-			return &rs.PortalEmailConfigs[i], true
-		}
-	}
-
-	for i := range rs.PortalEmailTemplates {
-		if rs.PortalEmailTemplates[i].GetRef() == ref {
-			return &rs.PortalEmailTemplates[i], true
-		}
-	}
-
-	// Check Teams
-	for i := range rs.OrganizationTeams {
-		if rs.OrganizationTeams[i].GetRef() == ref {
-			return &rs.OrganizationTeams[i], true
-		}
-	}
-
-	return nil, false
+		return true
+	})
+	return found, found != nil
 }
 
 // GetResourceTypeByRef returns the resource type for a given ref

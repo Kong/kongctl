@@ -7,6 +7,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypeEventGatewayVirtualCluster,
+		func(rs *ResourceSet) *[]EventGatewayVirtualClusterResource { return &rs.EventGatewayVirtualClusters },
+	)
+}
+
 type EventGatewayVirtualClusterResource struct {
 	kkComps.CreateVirtualClusterRequest `       yaml:",inline"                 json:",inline"`
 	Ref                                 string `yaml:"ref"                     json:"ref"`

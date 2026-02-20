@@ -10,6 +10,13 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypeGatewayService,
+		func(rs *ResourceSet) *[]GatewayServiceResource { return &rs.GatewayServices },
+	)
+}
+
 // GatewayServiceResource represents a gateway service within a control plane.
 type GatewayServiceResource struct {
 	// Service captures inline gateway service properties. It is excluded from direct

@@ -8,6 +8,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypeApplicationAuthStrategy,
+		func(rs *ResourceSet) *[]ApplicationAuthStrategyResource { return &rs.ApplicationAuthStrategies },
+	)
+}
+
 // ApplicationAuthStrategyResource represents an application auth strategy in declarative configuration
 type ApplicationAuthStrategyResource struct {
 	BaseResource

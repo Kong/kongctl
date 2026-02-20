@@ -8,6 +8,13 @@ import (
 	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypePortalTeamRole,
+		func(rs *ResourceSet) *[]PortalTeamRoleResource { return &rs.PortalTeamRoles },
+	)
+}
+
 // PortalTeamRoleResource represents an assigned role on a portal team
 // This is a child resource (no kongctl metadata support).
 type PortalTeamRoleResource struct {

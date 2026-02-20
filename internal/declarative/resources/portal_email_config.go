@@ -8,6 +8,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypePortalEmailConfig,
+		func(rs *ResourceSet) *[]PortalEmailConfigResource { return &rs.PortalEmailConfigs },
+	)
+}
+
 // PortalEmailConfigResource represents the portal email configuration (singleton child).
 type PortalEmailConfigResource struct {
 	kkComps.PostPortalEmailConfig `       yaml:",inline"          json:",inline"`
