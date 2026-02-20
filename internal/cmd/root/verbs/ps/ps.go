@@ -247,6 +247,14 @@ func stopDetachedProcess(record processes.StoredRecord, timeout time.Duration) p
 		result.Success = true
 		result.Detail = "removed stale process record"
 		return result
+	case processes.StatusUnknown:
+		result.Action = "inspect"
+		if state.CheckError != "" {
+			result.Detail = state.CheckError
+			return result
+		}
+		result.Detail = "unable to determine process state"
+		return result
 	default:
 		result.Action = "inspect"
 		if state.CheckError != "" {
