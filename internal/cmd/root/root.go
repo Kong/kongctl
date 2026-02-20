@@ -28,6 +28,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs/logout"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/patch"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/plan"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/ps"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/sync"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/view"
 	"github.com/kong/kongctl/internal/cmd/root/version"
@@ -117,6 +118,8 @@ Additional help topics:{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
 
 Use "{{.CommandPath}} [command] --help" for more information about a command.{{end}}
 `
+
+const logFilePIDToken = "%PID%"
 
 func mergedFlagUsages(cmd *cobra.Command) string {
 	flags := pflag.NewFlagSet(cmd.DisplayName(), pflag.ContinueOnError)
@@ -249,6 +252,12 @@ func addCommands() error {
 	rootCmd.AddCommand(command)
 
 	command, err = del.NewDeleteCmd()
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(command)
+
+	command, err = ps.NewPSCmd()
 	if err != nil {
 		return err
 	}
@@ -479,6 +488,10 @@ func initConfig() {
 		configDir := filepath.Dir(configPath)
 		defaultLogPath := filepath.Join(configDir, "logs", meta.CLIName+".log")
 		logPath = defaultLogPath
+		config.SetString(common.LogFileConfigPath, logPath)
+	}
+	if strings.Contains(logPath, logFilePIDToken) {
+		logPath = strings.ReplaceAll(logPath, logFilePIDToken, fmt.Sprintf("%d", os.Getpid()))
 		config.SetString(common.LogFileConfigPath, logPath)
 	}
 

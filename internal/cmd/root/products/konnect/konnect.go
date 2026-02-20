@@ -154,6 +154,8 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return newLogoutKonnectCmd(verb, cmd, addFlags, preRunE).Command, nil
 	}
 
+	// Audit logs are currently listen-only. Do not expose audit-logs under
+	// `create`, which is reserved for resource creation flows.
 	if verb == verbs.Listen {
 		alc, err := auditlogs.NewAuditLogsCmd(verb, addFlags, preRunE)
 		if err != nil {

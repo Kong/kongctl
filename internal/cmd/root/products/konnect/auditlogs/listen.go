@@ -6,11 +6,24 @@ import (
 	"io"
 	"log/slog"
 	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/kong/kongctl/internal/cmd"
+	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/processes"
 	"github.com/spf13/cobra"
+)
+
+const (
+	detachedListenerPIDToken        = "%PID%"
+	detachedListenerLogFileTemplate = "kongctl-listener-" + detachedListenerPIDToken + ".log"
+	detachedListenerProcessKind     = "konnect.audit-logs.listen"
 )
 
 // ListenAuditLogsOptions controls listen/audit-log command behavior.
@@ -26,6 +39,7 @@ type ListenAuditLogsOptions struct {
 	Authorization       string
 	ConfigureWebhook    bool
 	Tail                bool
+	Detach              bool
 	JQ                  string
 }
 
@@ -70,6 +84,8 @@ func AddListenAuditLogsFlags(cmdObj *cobra.Command, options *ListenAuditLogsOpti
 		"Automatically bind and enable the organization webhook with the created destination.")
 	cmdObj.Flags().BoolVar(&options.Tail, "tail", options.Tail,
 		"Stream received audit-log records to stdout.")
+	cmdObj.Flags().BoolVarP(&options.Detach, "detach", "d", options.Detach,
+		"Run listener in background as a detached kongctl process (not compatible with --tail).")
 	cmdObj.Flags().StringVar(&options.JQ, "jq", options.JQ,
 		"Filter streamed JSON records using a jq expression (only used with --tail).")
 }
@@ -131,6 +147,10 @@ func ExecuteListenAuditLogs(cmdObj *cobra.Command, args []string, options Listen
 	if err != nil {
 		return err
 	}
+	removeDetachedProcessRecord := false
+	defer func() {
+		cleanupDetachedProcessRecord(logger, removeDetachedProcessRecord)
+	}()
 
 	if err := validateListenAuditLogsOptions(options); err != nil {
 		return &cmd.ConfigurationError{Err: err}
@@ -153,6 +173,7 @@ func ExecuteListenAuditLogs(cmdObj *cobra.Command, args []string, options Listen
 		"authorization_configured", strings.TrimSpace(options.Authorization) != "",
 		"configure_webhook", options.ConfigureWebhook,
 		"tail_enabled", tailEnabled,
+		"detach_enabled", options.Detach,
 		"jq_configured", strings.TrimSpace(options.JQ) != "",
 	)
 
@@ -180,6 +201,10 @@ func ExecuteListenAuditLogs(cmdObj *cobra.Command, args []string, options Listen
 		}
 		endpoint = derived
 		logger.Debug("resolved destination endpoint from public URL", "endpoint", sanitizeEndpointForLog(endpoint))
+	}
+
+	if options.Detach {
+		return launchDetachedListenProcess(helper, logger)
 	}
 
 	destCmd := &createDestinationCmd{
@@ -274,16 +299,284 @@ func ExecuteListenAuditLogs(cmdObj *cobra.Command, args []string, options Listen
 		)
 	}
 	logger.Debug("listen audit-logs command completed successfully", "destination_id", destOutput.DestinationID)
+	removeDetachedProcessRecord = true
 
 	return nil
 }
 
 func validateListenAuditLogsOptions(options ListenAuditLogsOptions) error {
+	if options.Detach && options.Tail {
+		return fmt.Errorf("--detach is not supported with --tail")
+	}
+
 	if strings.TrimSpace(options.JQ) != "" && !options.Tail {
 		return fmt.Errorf("--jq requires --tail")
 	}
 
 	return nil
+}
+
+func launchDetachedListenProcess(helper cmd.Helper, logger *slog.Logger) error {
+	childLogTemplate, err := resolveDetachedChildLogTemplate(helper)
+	if err != nil {
+		return cmd.PrepareExecutionError(
+			"failed to resolve detached listener log file",
+			err,
+			helper.GetCmd(),
+		)
+	}
+	processRecordTemplate, err := processes.ResolvePathTemplate()
+	if err != nil {
+		return cmd.PrepareExecutionError(
+			"failed to resolve detached process record path",
+			err,
+			helper.GetCmd(),
+		)
+	}
+
+	childArgs := buildDetachedChildArgs(os.Args[1:], childLogTemplate)
+	execPath, err := os.Executable()
+	if err != nil {
+		return cmd.PrepareExecutionError(
+			"failed to determine executable path for detached listener",
+			err,
+			helper.GetCmd(),
+		)
+	}
+
+	logger.Debug(
+		"launching detached audit-log listener process",
+		"executable", execPath,
+		"child_log_file_template", childLogTemplate,
+		"process_record_template", processRecordTemplate,
+	)
+
+	child := exec.Command(execPath, childArgs...)
+	stdioSink, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	if err != nil {
+		return cmd.PrepareExecutionError(
+			"failed to open detached listener stdio sink",
+			err,
+			helper.GetCmd(),
+		)
+	}
+	defer stdioSink.Close()
+
+	child.Stdout = stdioSink
+	child.Stderr = stdioSink
+	child.Stdin = nil
+	child.Env = withEnvVar(
+		os.Environ(),
+		processes.ProcessRecordPathEnv,
+		processRecordTemplate,
+	)
+
+	if err := child.Start(); err != nil {
+		return cmd.PrepareExecutionError(
+			"failed to start detached listener process",
+			err,
+			helper.GetCmd(),
+		)
+	}
+
+	childPID := child.Process.Pid
+	childLogFile := detachedLogFileForPID(childLogTemplate, childPID)
+	processRecordPath := processes.ResolvePathFromTemplate(processRecordTemplate, childPID)
+	startTicks := processes.WaitForStartTimeTicks(childPID, 500*time.Millisecond)
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		_ = child.Process.Kill()
+		return err
+	}
+
+	processRecord := processes.Record{
+		PID:            childPID,
+		Kind:           detachedListenerProcessKind,
+		Profile:        cfg.GetProfile(),
+		CreatedAt:      time.Now().UTC(),
+		LogFile:        childLogFile,
+		Args:           childArgs,
+		StartTimeTicks: startTicks,
+	}
+	if err := processes.WriteRecord(processRecordPath, processRecord); err != nil {
+		_ = child.Process.Kill()
+		return cmd.PrepareExecutionError(
+			"failed to write detached process record",
+			err,
+			helper.GetCmd(),
+		)
+	}
+
+	if err := child.Process.Release(); err != nil {
+		logger.Debug(
+			"failed to release detached child process handle",
+			"error", err,
+			"child_pid", childPID,
+		)
+	}
+
+	logger.Info(
+		"launched detached audit-log listener process",
+		"child_pid", childPID,
+		"child_log_file", childLogFile,
+		"process_record_file", processRecordPath,
+	)
+
+	if err := renderDetachedStartedOutput(helper, childPID, childLogFile, processRecordPath); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func renderDetachedStartedOutput(
+	helper cmd.Helper,
+	childPID int,
+	childLogFile, processRecordPath string,
+) error {
+	out := helper.GetStreams().Out
+	if out == nil {
+		return nil
+	}
+
+	if _, err := fmt.Fprintln(out, "Detached Konnect audit-log listener started."); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(out, "  pid: %d\n", childPID); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(out, "  log file: %s\n", childLogFile); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(out, "  process record: %s\n", processRecordPath); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(out, "Use the log file to inspect listener startup and runtime details."); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func resolveDetachedChildLogTemplate(helper cmd.Helper) (string, error) {
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return "", err
+	}
+
+	logPath := strings.TrimSpace(cfg.GetString(cmdcommon.LogFileConfigPath))
+	if logPath == "" {
+		configPath := cfg.GetPath()
+		configDir := filepath.Dir(configPath)
+		logPath = filepath.Join(configDir, "logs", meta.CLIName+".log")
+	}
+
+	logDir := filepath.Dir(logPath)
+	if logDir == "" {
+		logDir = "."
+	}
+	if err := os.MkdirAll(logDir, 0o755); err != nil {
+		return "", err
+	}
+
+	return filepath.Join(logDir, detachedListenerLogFileTemplate), nil
+}
+
+func detachedLogFileForPID(template string, pid int) string {
+	return strings.ReplaceAll(template, detachedListenerPIDToken, fmt.Sprintf("%d", pid))
+}
+
+func buildDetachedChildArgs(parentArgs []string, childLogTemplate string) []string {
+	args := removeBooleanFlag(parentArgs, "--detach", "-d")
+	args = removeStringFlag(args, "--"+cmdcommon.LogFileFlagName)
+	args = append(args, "--"+cmdcommon.LogFileFlagName, childLogTemplate)
+
+	return args
+}
+
+func removeBooleanFlag(args []string, longFlag, shortFlag string) []string {
+	filtered := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		value := args[i]
+		if value == longFlag || value == shortFlag {
+			if i+1 < len(args) && isBoolLiteral(args[i+1]) {
+				i++
+			}
+			continue
+		}
+		if strings.HasPrefix(value, longFlag+"=") || strings.HasPrefix(value, shortFlag+"=") {
+			continue
+		}
+		filtered = append(filtered, value)
+	}
+
+	return filtered
+}
+
+func removeStringFlag(args []string, longFlag string) []string {
+	filtered := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		value := args[i]
+		if value == longFlag {
+			if i+1 < len(args) {
+				i++
+			}
+			continue
+		}
+		if strings.HasPrefix(value, longFlag+"=") {
+			continue
+		}
+		filtered = append(filtered, value)
+	}
+
+	return filtered
+}
+
+func isBoolLiteral(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "0", "t", "f", "true", "false":
+		return true
+	default:
+		return false
+	}
+}
+
+func cleanupDetachedProcessRecord(logger *slog.Logger, remove bool) {
+	recordPath := processes.ResolvePathFromEnv(os.Getpid())
+	if strings.TrimSpace(recordPath) == "" {
+		return
+	}
+	if !remove {
+		if logger != nil {
+			logger.Debug("keeping detached process record due command error", "record_file", recordPath)
+		}
+		return
+	}
+
+	if err := processes.RemoveRecordByPath(recordPath); err != nil {
+		if logger != nil {
+			logger.Debug("failed to remove detached process record", "record_file", recordPath, "error", err)
+		}
+		return
+	}
+
+	if logger != nil {
+		logger.Debug("removed detached process record", "record_file", recordPath)
+	}
+}
+
+func withEnvVar(env []string, key, value string) []string {
+	prefix := key + "="
+	updated := make([]string, 0, len(env)+1)
+	for _, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			continue
+		}
+		updated = append(updated, entry)
+	}
+	updated = append(updated, prefix+value)
+	return updated
 }
 
 func renderListenStartedOutput(

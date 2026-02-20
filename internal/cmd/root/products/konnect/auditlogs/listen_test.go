@@ -76,10 +76,94 @@ func TestValidateListenAuditLogsOptions(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("detach is not allowed with tail", func(t *testing.T) {
+		t.Parallel()
+
+		err := validateListenAuditLogsOptions(ListenAuditLogsOptions{
+			Tail:   true,
+			Detach: true,
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "--detach is not supported with --tail")
+	})
+
 	t.Run("empty jq without tail is valid", func(t *testing.T) {
 		t.Parallel()
 
 		err := validateListenAuditLogsOptions(ListenAuditLogsOptions{Tail: false})
 		require.NoError(t, err)
 	})
+}
+
+func TestBuildDetachedChildArgs(t *testing.T) {
+	t.Parallel()
+
+	const childLogTemplate = "/tmp/kongctl-listener-%PID%.log"
+
+	t.Run("strips detach and appends child log file", func(t *testing.T) {
+		t.Parallel()
+
+		parentArgs := []string{"listen", "--detach", "--endpoint", "https://example.test/audit-logs"}
+		got := buildDetachedChildArgs(parentArgs, childLogTemplate)
+
+		require.Equal(t,
+			[]string{"listen", "--endpoint", "https://example.test/audit-logs", "--log-file", childLogTemplate},
+			got,
+		)
+	})
+
+	t.Run("strips short detach with explicit bool literal", func(t *testing.T) {
+		t.Parallel()
+
+		parentArgs := []string{"listen", "-d", "true", "--endpoint", "https://example.test/audit-logs"}
+		got := buildDetachedChildArgs(parentArgs, childLogTemplate)
+
+		require.Equal(t,
+			[]string{"listen", "--endpoint", "https://example.test/audit-logs", "--log-file", childLogTemplate},
+			got,
+		)
+	})
+
+	t.Run("removes any user supplied log file path", func(t *testing.T) {
+		t.Parallel()
+
+		parentArgs := []string{
+			"listen",
+			"--endpoint",
+			"https://example.test/audit-logs",
+			"--log-file",
+			"/tmp/kongctl.log",
+			"--detach",
+		}
+		got := buildDetachedChildArgs(parentArgs, childLogTemplate)
+
+		require.Equal(t,
+			[]string{"listen", "--endpoint", "https://example.test/audit-logs", "--log-file", childLogTemplate},
+			got,
+		)
+	})
+
+	t.Run("strips equals syntax for detach and log file flags", func(t *testing.T) {
+		t.Parallel()
+
+		parentArgs := []string{
+			"listen",
+			"--detach=false",
+			"--endpoint=https://example.test/audit-logs",
+			"--log-file=/tmp/kongctl.log",
+		}
+		got := buildDetachedChildArgs(parentArgs, childLogTemplate)
+
+		require.Equal(t,
+			[]string{"listen", "--endpoint=https://example.test/audit-logs", "--log-file", childLogTemplate},
+			got,
+		)
+	})
+}
+
+func TestDetachedLogFileForPID(t *testing.T) {
+	t.Parallel()
+
+	got := detachedLogFileForPID("/tmp/kongctl-listener-%PID%.log", 4242)
+	require.Equal(t, "/tmp/kongctl-listener-4242.log", got)
 }
