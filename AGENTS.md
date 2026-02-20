@@ -263,7 +263,7 @@ The repository runs these checks on PRs:
 2. **test.yaml**: Unit and integration tests
    - Runs `go test -race -count=1 ./...`
    - Runs integration tests with `-tags=integration`
-   - Requires golangci-lint v2.1.2
+   - Requires golangci-lint v2.10.1
 
 ### Pre-commit Hooks
 
