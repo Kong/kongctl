@@ -103,6 +103,8 @@ func (rs *ResourceSet) AllResources() []Resource {
 // The callback returns false to stop iteration early.
 // Returns true if all resources were visited, false if stopped early.
 func (rs *ResourceSet) ForEachResource(fn func(Resource) bool) bool {
+	// Registry map is used for aggregate operations where visit order
+	// is irrelevant. Thus, we are not defining an iteration order here.
 	for _, ops := range registry {
 		if !ops.forEach(rs, fn) {
 			return false
