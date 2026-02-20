@@ -83,29 +83,80 @@ func AddFlags(flags *pflag.FlagSet) {
 	)
 }
 
+func bindFlag(cfg config.Hook, flags *pflag.FlagSet, flagName, configPath string) error {
+	if f := flags.Lookup(flagName); f != nil {
+		return cfg.BindFlag(configPath, f)
+	}
+	return nil
+}
+
 func BindFlags(cfg config.Hook, flags *pflag.FlagSet) error {
 	if cfg == nil || flags == nil {
 		return nil
 	}
 
-	if f := flags.Lookup(ColorFlagName); f != nil {
-		if err := cfg.BindFlag(ColorEnabledConfigPath, f); err != nil {
+	bindings := []struct{ flag, cfgPath string }{
+		{ColorFlagName, ColorEnabledConfigPath},
+		{ColorThemeFlagName, ColorThemeConfigPath},
+		{RawOutputFlagName, RawOutputConfigPath},
+	}
+
+	for _, b := range bindings {
+		if err := bindFlag(cfg, flags, b.flag, b.cfgPath); err != nil {
 			return err
 		}
 	}
+	return nil
+}
 
-	if f := flags.Lookup(ColorThemeFlagName); f != nil {
-		if err := cfg.BindFlag(ColorThemeConfigPath, f); err != nil {
-			return err
-		}
+func applyDefaultExpression(settings *Settings, cfg config.Hook, flags *pflag.FlagSet) {
+	if flags.Changed(FlagName) {
+		return
+	}
+	defaultExpression := strings.TrimSpace(cfg.GetString(DefaultExpressionConfigPath))
+	if defaultExpression != "" {
+		settings.Filter = defaultExpression
+	}
+}
+
+func applyColorSettings(settings *Settings, cfg config.Hook) error {
+	colorValue := strings.ToLower(strings.TrimSpace(cfg.GetString(ColorEnabledConfigPath)))
+	colorMode, err := cmdcommon.ColorModeStringToIota(colorValue)
+	if err != nil {
+		return err
+	}
+	settings.ColorMode = colorMode
+
+	themeValue := strings.TrimSpace(cfg.GetString(ColorThemeConfigPath))
+	if themeValue != "" {
+		settings.Theme = themeValue
+	}
+	return nil
+}
+
+func applyFallbackSettings(settings *Settings, flags *pflag.FlagSet) error {
+	if flags.Lookup(RawOutputFlagName) == nil {
+		return nil
+	}
+	rawOutput, err := flags.GetBool(RawOutputFlagName)
+	if err != nil {
+		return err
+	}
+	settings.RawOutput = rawOutput
+	return nil
+}
+
+func applyConfigSettings(settings *Settings, cfg config.Hook, flags *pflag.FlagSet) error {
+	if cfg == nil {
+		return applyFallbackSettings(settings, flags)
 	}
 
-	if f := flags.Lookup(RawOutputFlagName); f != nil {
-		if err := cfg.BindFlag(RawOutputConfigPath, f); err != nil {
-			return err
-		}
-	}
+	applyDefaultExpression(settings, cfg, flags)
 
+	if err := applyColorSettings(settings, cfg); err != nil {
+		return err
+	}
+	settings.RawOutput = cfg.GetBool(RawOutputConfigPath)
 	return nil
 }
 
@@ -140,35 +191,8 @@ func ResolveSettings(command *cobra.Command, cfg config.Hook) (Settings, error) 
 	}
 	settings.Filter = jqFilter
 
-	if cfg != nil {
-		if !flags.Changed(FlagName) {
-			defaultExpression := strings.TrimSpace(cfg.GetString(DefaultExpressionConfigPath))
-			if defaultExpression != "" {
-				settings.Filter = defaultExpression
-			}
-		}
-
-		jqColorValue := strings.ToLower(strings.TrimSpace(cfg.GetString(ColorEnabledConfigPath)))
-		jColorMode, err := cmdcommon.ColorModeStringToIota(jqColorValue)
-		if err != nil {
-			return Settings{}, err
-		}
-		settings.ColorMode = jColorMode
-
-		jqThemeValue := strings.TrimSpace(cfg.GetString(ColorThemeConfigPath))
-		if jqThemeValue != "" {
-			settings.Theme = jqThemeValue
-		}
-
-		settings.RawOutput = cfg.GetBool(RawOutputConfigPath)
-	} else {
-		if flags.Lookup(RawOutputFlagName) != nil {
-			rawOutput, err := flags.GetBool(RawOutputFlagName)
-			if err != nil {
-				return Settings{}, err
-			}
-			settings.RawOutput = rawOutput
-		}
+	if err := applyConfigSettings(&settings, cfg, flags); err != nil {
+		return Settings{}, err
 	}
 
 	return settings, nil

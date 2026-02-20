@@ -77,14 +77,21 @@ Examples:
 - Config path: [ %s ]`, requireNamespaceConfigPath))
 }
 
+func validateNonEmpty(value, flagName string) error {
+	if strings.TrimSpace(value) == "" {
+		return fmt.Errorf("--%s cannot be empty", flagName)
+	}
+	return nil
+}
+
 func resolveBaseDir(command *cobra.Command, cfg config.Hook) (string, error) {
 	if command.Flags().Changed(baseDirFlagName) {
 		value, err := command.Flags().GetString(baseDirFlagName)
 		if err != nil {
 			return "", err
 		}
-		if strings.TrimSpace(value) == "" {
-			return "", fmt.Errorf("--%s cannot be empty", baseDirFlagName)
+		if err := validateNonEmpty(value, baseDirFlagName); err != nil {
+			return "", err
 		}
 		return value, nil
 	}
@@ -102,8 +109,8 @@ func resolveBaseDir(command *cobra.Command, cfg config.Hook) (string, error) {
 }
 
 func normalizeBaseDir(baseDir string) (string, error) {
-	if strings.TrimSpace(baseDir) == "" {
-		return "", fmt.Errorf("--%s cannot be empty", baseDirFlagName)
+	if err := validateNonEmpty(baseDir, baseDirFlagName); err != nil {
+		return "", err
 	}
 
 	baseDir = filepath.Clean(baseDir)

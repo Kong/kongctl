@@ -96,6 +96,19 @@ func newFileCmd() *cobra.Command {
 	return fileCmd
 }
 
+func validatePatchInputs(selectors, patchFiles []string) error {
+	hasInlineFlags := len(selectors) > 0
+	hasPatchFiles := len(patchFiles) > 0
+
+	if hasInlineFlags && hasPatchFiles {
+		return fmt.Errorf("cannot combine --selector/--value flags with patch file arguments")
+	}
+	if !hasInlineFlags && !hasPatchFiles {
+		return fmt.Errorf("provide either patch file arguments or --selector/--value flags")
+	}
+	return nil
+}
+
 func runFilePatch(
 	args []string,
 	selectors []string,
@@ -107,15 +120,8 @@ func runFilePatch(
 	patchFiles := args[1:]
 
 	// Validate mutual exclusivity: inline flags vs patch files
-	if len(selectors) > 0 && len(patchFiles) > 0 {
-		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("cannot combine --selector/--value flags with patch file arguments"),
-		}
-	}
-	if len(selectors) == 0 && len(patchFiles) == 0 {
-		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("provide either patch file arguments or --selector/--value flags"),
-		}
+	if err := validatePatchInputs(selectors, patchFiles); err != nil {
+		return &cmd.ConfigurationError{Err: err}
 	}
 
 	// Validate output format
