@@ -25,6 +25,8 @@ type planningResourceCache struct {
 	managedAPIsByKey  map[string][]state.API
 	managedAPIsAll    []state.API
 	managedAPIsLoaded bool
+
+	portalTeamsByPortalID map[string][]state.PortalTeam
 }
 
 func newPlanningResourceCache() *planningResourceCache {
@@ -33,6 +35,7 @@ func newPlanningResourceCache() *planningResourceCache {
 		managedPortalsByKey:        make(map[string][]state.Portal),
 		managedAuthStrategiesByKey: make(map[string][]state.ApplicationAuthStrategy),
 		managedAPIsByKey:           make(map[string][]state.API),
+		portalTeamsByPortalID:      make(map[string][]state.PortalTeam),
 	}
 }
 
@@ -184,6 +187,30 @@ func (p *Planner) listManagedAPIs(ctx context.Context, namespaces []string) ([]s
 	}
 
 	return apis, nil
+}
+
+func (p *Planner) listPortalTeams(ctx context.Context, portalID string) ([]state.PortalTeam, error) {
+	if portalID == "" {
+		return []state.PortalTeam{}, nil
+	}
+
+	cache := p.resourceCache
+	if cache != nil {
+		if cached, ok := cache.portalTeamsByPortalID[portalID]; ok {
+			return cached, nil
+		}
+	}
+
+	teams, err := p.client.ListPortalTeams(ctx, portalID)
+	if err != nil {
+		return nil, err
+	}
+
+	if cache != nil {
+		cache.portalTeamsByPortalID[portalID] = teams
+	}
+
+	return teams, nil
 }
 
 func normalizeNamespaces(namespaces []string) []string {
