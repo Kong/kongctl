@@ -302,7 +302,7 @@ for review, approval workflows, or as input to sync operations.`,
 		"Process the directory used in -f, --filename recursively")
 	addBaseDirFlag(cmd)
 	cmd.Flags().String("output-file", "", "Save plan artifact to file")
-	cmd.Flags().String("mode", "sync", "Plan generation mode (sync|apply)")
+	cmd.Flags().String("mode", "sync", "Plan generation mode (sync|apply|delete)")
 	addRequireNamespaceFlags(cmd)
 
 	return cmd
@@ -333,8 +333,10 @@ func runPlan(command *cobra.Command, args []string) error {
 		planMode = planner.PlanModeSync
 	case "apply":
 		planMode = planner.PlanModeApply
+	case "delete":
+		planMode = planner.PlanModeDelete
 	default:
-		return fmt.Errorf("invalid mode %q: must be 'sync' or 'apply'", mode)
+		return fmt.Errorf("invalid mode %q: must be 'sync', 'apply', or 'delete'", mode)
 	}
 
 	ctx = withDeclarativeHTTPLogContext(ctx, command, verbs.Plan, planMode)
@@ -404,8 +406,8 @@ func runPlan(command *cobra.Command, args []string) error {
 		}
 
 		// In sync mode, empty config is valid - it means delete all managed resources
-		// In apply mode, we need at least one resource to apply
-		if planMode == planner.PlanModeApply {
+		// In apply and delete modes, we need at least one resource
+		if planMode == planner.PlanModeApply || planMode == planner.PlanModeDelete {
 			return fmt.Errorf("no resources found in configuration files")
 		}
 

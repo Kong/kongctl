@@ -40,6 +40,11 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 		return nil
 	}
 
+	// Delete mode: plan DELETE for desired resources that exist, warn if not found
+	if plan.Metadata.Mode == PlanModeDelete {
+		return p.planPortalDeletes(ctx, plannerCtx, desired, plan)
+	}
+
 	var currentPortals []state.Portal
 	if namespace != resources.NamespaceExternal {
 		namespaceFilter := []string{namespace}
@@ -189,6 +194,60 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 
 	// Note: Portal child resources are already planned when processing each portal above
 	// No need to plan them again here
+
+	return nil
+}
+
+// planPortalDeletes handles delete mode by planning DELETE for desired portals that exist in Konnect.
+func (p *portalPlannerImpl) planPortalDeletes(
+	ctx context.Context, plannerCtx *Config, desired []resources.PortalResource, plan *Plan,
+) error {
+	namespace := plannerCtx.Namespace
+
+	var currentPortals []state.Portal
+	if namespace != resources.NamespaceExternal {
+		namespaceFilter := []string{namespace}
+		var err error
+		currentPortals, err = p.GetClient().ListManagedPortals(ctx, namespaceFilter)
+		if err != nil {
+			if err.Error() == "Portal client not configured" {
+				return nil
+			}
+			return fmt.Errorf("failed to list current portals in namespace %s: %w", namespace, err)
+		}
+	}
+
+	currentByName := make(map[string]state.Portal)
+	for _, portal := range currentPortals {
+		currentByName[portal.GetName()] = portal
+	}
+
+	protectionErrors := &ProtectionErrorCollector{}
+
+	for _, desiredPortal := range desired {
+		// External portals are not managed by kongctl - skip
+		if desiredPortal.IsExternal() {
+			continue
+		}
+
+		current, exists := currentByName[desiredPortal.Name]
+		if !exists {
+			plan.AddWarning("", fmt.Sprintf(
+				"portal %q not found in Konnect, skipping delete", desiredPortal.Name))
+			continue
+		}
+
+		isProtected := labels.IsProtectedResource(current.NormalizedLabels)
+		err := p.ValidateProtection("portal", desiredPortal.Name, isProtected, ActionDelete)
+		protectionErrors.Add(err)
+		if err == nil {
+			p.planPortalDelete(current, plan)
+		}
+	}
+
+	if protectionErrors.HasErrors() {
+		return protectionErrors.Error()
+	}
 
 	return nil
 }
