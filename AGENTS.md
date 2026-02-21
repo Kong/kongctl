@@ -197,6 +197,42 @@ Configuration locations:
 - `$HOME/.config/kongctl/config.yaml`
 - Environment variables: `KONGCTL_<PROFILE>_<PATH>`
 
+### Flag Binding Pattern
+
+When binding cobra flags to config paths, use the `bindFlag` helper and a
+bindings loop to avoid repetitive flag-lookup-and-bind blocks:
+
+```go
+func bindFlag(
+    cfg config.Hook,
+    flags *pflag.FlagSet,
+    flagName, configPath string,
+) error {
+    if f := flags.Lookup(flagName); f != nil {
+        return cfg.BindFlag(configPath, f)
+    }
+    return nil
+}
+
+func BindFlags(cfg config.Hook, flags *pflag.FlagSet) error {
+    if cfg == nil || flags == nil {
+        return nil
+    }
+
+    bindings := []struct{ flag, config string }{
+        {FlagName1, ConfigPath1},
+        {FlagName2, ConfigPath2},
+    }
+
+    for _, b := range bindings {
+        if err := bindFlag(cfg, flags, b.flag, b.config); err != nil {
+            return err
+        }
+    }
+    return nil
+}
+```
+
 ### Output Formatting
 
 Support multiple output formats consistently:
