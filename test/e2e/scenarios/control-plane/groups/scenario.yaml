@@ -29,6 +29,7 @@ steps:
   - name: 002-plan-idempotent
     commands:
       - name: 002-plan
+        outputFormat: disable
         run:
           - plan
           - --mode

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/kong/kongctl/internal/cmd"
+	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
@@ -310,6 +311,14 @@ for review, approval workflows, or as input to sync operations.`,
 func runPlan(command *cobra.Command, args []string) error {
 	// Silence usage for all runtime errors (command syntax is already valid at this point)
 	command.SilenceUsage = true
+
+	// Reject --output/-o flag: plan always outputs JSON; use --output-file to save to a file
+	if outputFlag := command.Flag(cmdcommon.OutputFlagName); outputFlag != nil && outputFlag.Changed {
+		return fmt.Errorf(
+			"flags -o/--%s are not supported for the plan command; use --output-file to save the plan to a file",
+			cmdcommon.OutputFlagName,
+		)
+	}
 
 	ctx := command.Context()
 	filenames, _ := command.Flags().GetStringSlice("filename")

@@ -65,6 +65,7 @@ steps:
                 namespace: "{{ .vars.namespace }}"
 
       - name: 003-plan-from-dump
+        outputFormat: disable
         run:
           - plan
           - declarative

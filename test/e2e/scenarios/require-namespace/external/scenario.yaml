@@ -20,6 +20,7 @@ steps:
   - name: 002-plan-require-any-fails
     commands:
       - name: 000-plan
+        outputFormat: disable
         run:
           - plan
           - -f
@@ -34,6 +35,7 @@ steps:
   - name: 003-plan-require-namespace-fails
     commands:
       - name: 000-plan
+        outputFormat: disable
         run:
           - plan
           - -f
@@ -49,6 +51,7 @@ steps:
   - name: 004-plan-require-namespace-managed
     commands:
       - name: 000-plan
+        outputFormat: disable
         run:
           - plan
           - -f
@@ -70,6 +73,7 @@ steps:
   - name: 005-plan-require-any-managed
     commands:
       - name: 000-plan
+        outputFormat: disable
         run:
           - plan
           - -f
@@ -86,6 +90,7 @@ steps:
   - name: 006-plan-mixed-managed-external
     commands:
       - name: 000-plan
+        outputFormat: disable
         run:
           - plan
           - -f

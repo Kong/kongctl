@@ -43,6 +43,7 @@ steps:
   - name: 002-plan-team-sync
     commands:
       - name: 000-plan-sync
+        outputFormat: disable
         run:
           - plan
           - -f

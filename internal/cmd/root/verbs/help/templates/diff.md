@@ -123,11 +123,11 @@ cat config.yaml | kongctl diff -f -
 
 ```bash
 # Generate plan and show diff
-kongctl plan -f config.yaml -o plan.json
+kongctl plan -f config.yaml --output-file plan.json
 kongctl diff --plan plan.json
 
 # One-liner
-kongctl plan -f config.yaml -o - | kongctl diff --plan -
+kongctl plan -f config.yaml | kongctl diff --plan -
 ```
 
 ### Output Processing
