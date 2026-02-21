@@ -344,6 +344,9 @@ func (p *Planner) deckDiffHasChanges(
 	mode := opts.Mode
 	switch mode {
 	case PlanModeApply, PlanModeSync:
+		// valid modes for deck operations
+	case PlanModeDelete:
+		return false, fmt.Errorf("control_plane %s: deck diff does not support delete mode", controlPlaneRef)
 	default:
 		return false, fmt.Errorf("control_plane %s: deck diff requires apply or sync mode", controlPlaneRef)
 	}
