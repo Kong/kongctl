@@ -69,7 +69,7 @@ func NewPlanCmd() (*cobra.Command, error) {
 		"flags -o/--%s are not supported for the plan command; use --output-file to save the plan to a file",
 		cmdcommon.OutputFlagName,
 	)
-	cmd.SetFlagErrorFunc(func(c *cobra.Command, err error) error {
+	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
 		if strings.Contains(err.Error(), fmt.Sprintf("--%s", cmdcommon.OutputFlagName)) ||
 			strings.Contains(err.Error(), fmt.Sprintf("-%s", cmdcommon.OutputFlagShort)) {
 			return fmt.Errorf("%s", outputFlagMsg)
