@@ -23,6 +23,13 @@ func (p *Planner) planDeckDependencies(ctx context.Context, rs *resources.Resour
 		return nil
 	}
 
+	// In delete mode, skip deck dependency planning entirely.
+	// Deleting the control plane cascades removal of all core entities
+	// that deck would otherwise manage, so running deck diff is unnecessary.
+	if opts.Mode == PlanModeDelete {
+		return nil
+	}
+
 	deckChangeIDs := make(map[string]string)
 	serviceToDeckChange := make(map[string]string)
 	neededGatewayServices := referencedGatewayServiceRefs(plan.Changes)
@@ -346,7 +353,9 @@ func (p *Planner) deckDiffHasChanges(
 	case PlanModeApply, PlanModeSync:
 		// valid modes for deck operations
 	case PlanModeDelete:
-		return false, fmt.Errorf("control_plane %s: deck diff does not support delete mode", controlPlaneRef)
+		// Delete mode skips deck operations; the control plane deletion
+		// cascades removal of all core entities deck would manage.
+		return false, nil
 	default:
 		return false, fmt.Errorf("control_plane %s: deck diff requires apply or sync mode", controlPlaneRef)
 	}
