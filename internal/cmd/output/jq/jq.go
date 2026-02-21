@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -231,6 +232,20 @@ func ValidateOutputFormat(outType cmdcommon.OutputFormat, settings Settings) err
 	}
 }
 
+// marshalForJQ marshals v to JSON for jq processing, treating nil slices as
+// empty arrays ([]) rather than null. Go's json.Marshal encodes nil slices as
+// null, but a nil slice semantically represents an empty collection, so callers
+// expect "[]" when a list command returns no items.
+func marshalForJQ(v any) ([]byte, error) {
+	if v != nil {
+		rv := reflect.ValueOf(v)
+		if rv.Kind() == reflect.Slice && rv.IsNil() {
+			return []byte("[]"), nil
+		}
+	}
+	return json.Marshal(v)
+}
+
 func ApplyToRaw(raw any, outType cmdcommon.OutputFormat, settings Settings, out io.Writer) (any, bool, error) {
 	if !HasFilter(settings) {
 		return raw, false, nil
@@ -240,7 +255,7 @@ func ApplyToRaw(raw any, outType cmdcommon.OutputFormat, settings Settings, out 
 		return nil, false, err
 	}
 
-	body, err := json.Marshal(raw)
+	body, err := marshalForJQ(raw)
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to encode output before applying jq filter: %w", err)
 	}
