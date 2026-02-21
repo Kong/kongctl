@@ -24,7 +24,6 @@ import (
 
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
-	"github.com/kong/kongctl/internal/log"
 )
 
 var (
@@ -380,8 +379,8 @@ func GetAuthenticatedClient(baseURL string, token string, logger *slog.Logger) (
 		}),
 	}
 
-	// Add logging client if logger is provided and trace level is enabled
-	if logger != nil && logger.Enabled(context.Background(), log.LevelTrace) {
+	// Add logging client if logger is provided and debug or trace logging is enabled.
+	if logger != nil && logger.Enabled(context.Background(), slog.LevelDebug) {
 		loggingClient := httpclient.NewLoggingHTTPClient(logger)
 		opts = append(opts, kk.WithClient(loggingClient))
 	}

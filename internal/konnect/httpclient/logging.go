@@ -2,20 +2,59 @@ package httpclient
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"github.com/kong/kongctl/internal/log"
 )
 
-// LoggingHTTPClient wraps an HTTP client to add trace logging
+const (
+	httpSource           = "sdk-konnect-go"
+	logTypeRequest       = "http_request"
+	logTypeResponse      = "http_response"
+	logTypeError         = "http_error"
+	redactedValue        = "[REDACTED]"
+	maxBodyLogChars      = 4096
+	omittedBinaryMessage = "[OMITTED: non-text body]"
+)
+
+type redactionPattern struct {
+	regex       *regexp.Regexp
+	replacement string
+}
+
+var plainTextRedactionPatterns = []redactionPattern{
+	{
+		regex:       regexp.MustCompile(`(?i)(bearer\s+)[A-Za-z0-9\-._~+/]+=*`),
+		replacement: `${1}` + redactedValue,
+	},
+	{
+		regex: regexp.MustCompile(`(?i)("?(?:access[_-]?token|refresh[_-]?token|token|password|secret|` +
+			`api[_-]?key|apikey|client[_-]?secret|authorization|cookie)"?\s*[:=]\s*")([^"]*)(")`),
+		replacement: `${1}` + redactedValue + `${3}`,
+	},
+	{
+		regex: regexp.MustCompile(`(?i)((?:access[_-]?token|refresh[_-]?token|token|password|secret|` +
+			`api[_-]?key|apikey|client[_-]?secret|authorization|cookie)\s*[=:]\s*)([^\s&,;]+)`),
+		replacement: `${1}` + redactedValue,
+	},
+}
+
+// LoggingHTTPClient wraps an HTTP client to add centralized request/response logging.
 type LoggingHTTPClient struct {
-	wrapped *http.Client
-	logger  *slog.Logger
+	wrapped        *http.Client
+	logger         *slog.Logger
+	requestCounter atomic.Uint64
 }
 
 // NewLoggingHTTPClient creates a new logging HTTP client
@@ -38,117 +77,426 @@ func NewLoggingHTTPClientWithClient(client *http.Client, logger *slog.Logger) *L
 
 // Do implements the HTTPClient interface with logging
 func (c *LoggingHTTPClient) Do(req *http.Request) (*http.Response, error) {
-	// Only log if trace level is enabled
-	if !c.logger.Enabled(req.Context(), log.LevelTrace) {
+	if c == nil || c.wrapped == nil {
+		return nil, fmt.Errorf("http client is not configured")
+	}
+	if req == nil {
+		return nil, fmt.Errorf("request is nil")
+	}
+
+	ctx := requestContext(req, context.Background())
+	debugEnabled := c.logger != nil && c.logger.Enabled(ctx, slog.LevelDebug)
+	traceEnabled := c.logger != nil && c.logger.Enabled(ctx, log.LevelTrace)
+	if !debugEnabled && !traceEnabled {
 		return c.wrapped.Do(req)
 	}
 
+	requestID := c.nextRequestID()
 	start := time.Now()
 
-	// Log request
-	c.logRequest(req)
+	var requestBody []byte
+	var requestBodyErr error
+	if traceEnabled {
+		requestBody, requestBodyErr = c.peekRequestBody(req)
+	}
+	c.logRequest(ctx, req, requestID, traceEnabled, requestBody, requestBodyErr)
 
-	// Perform the actual request
 	resp, err := c.wrapped.Do(req)
-
-	// Log response or error
 	duration := time.Since(start)
 	if err != nil {
-		c.logger.LogAttrs(req.Context(), log.LevelTrace, "HTTP request failed",
-			slog.String("method", req.Method),
-			slog.String("url", req.URL.String()),
-			slog.Duration("duration", duration),
-			slog.String("error", err.Error()),
-		)
+		c.logRequestError(ctx, req, requestID, duration, err)
 		return nil, err
 	}
 
-	c.logResponse(resp, duration)
+	var responseBody []byte
+	var responseBodyErr error
+	if traceEnabled {
+		responseBody, responseBodyErr = c.peekResponseBody(resp)
+	}
 
+	c.logResponse(
+		requestContext(resp.Request, ctx),
+		resp,
+		requestID,
+		duration,
+		traceEnabled,
+		responseBody,
+		responseBodyErr,
+	)
 	return resp, nil
 }
 
-func (c *LoggingHTTPClient) logRequest(req *http.Request) {
+func (c *LoggingHTTPClient) logRequest(
+	ctx context.Context,
+	req *http.Request,
+	requestID string,
+	traceEnabled bool,
+	body []byte,
+	bodyErr error,
+) {
 	attrs := []slog.Attr{
+		slog.String("log_type", logTypeRequest),
+		slog.String("http_source", httpSource),
+		slog.String("request_id", requestID),
 		slog.String("method", req.Method),
-		slog.String("url", req.URL.String()),
-		slog.String("host", req.Host),
+		slog.String("route", routeFromURL(req.URL)),
 	}
 
-	// Log headers (with redaction)
-	headers := make(map[string]string)
-	for k, v := range req.Header {
-		key := strings.ToLower(k)
-		if key == "authorization" || key == "x-api-key" || strings.Contains(key, "token") {
-			headers[k] = "[REDACTED]"
-		} else {
-			headers[k] = strings.Join(v, ", ")
+	if req.URL != nil {
+		attrs = append(attrs, slog.String("host", req.URL.Host))
+		if query := sanitizeQuery(req.URL.Query()); len(query) > 0 {
+			attrs = append(attrs, slog.Any("query_params", query))
 		}
 	}
-	attrs = append(attrs, slog.Any("headers", headers))
 
-	// Log body size if present
-	if req.Body != nil && req.ContentLength > 0 {
-		attrs = append(attrs, slog.Int64("content_length", req.ContentLength))
+	if req.ContentLength > 0 {
+		attrs = append(attrs, slog.Int64("request_content_length", req.ContentLength))
 	}
 
-	c.logger.LogAttrs(req.Context(), log.LevelTrace, "HTTP request", attrs...)
+	if traceEnabled {
+		if headers := sanitizeHeaders(req.Header); len(headers) > 0 {
+			attrs = append(attrs, slog.Any("request_headers", headers))
+		}
+		contentType := req.Header.Get("Content-Type")
+		if contentType != "" {
+			attrs = append(attrs, slog.String("request_content_type", contentType))
+		}
+		if bodyErr != nil {
+			attrs = append(attrs, slog.String("request_body_error", bodyErr.Error()))
+		} else if len(body) > 0 {
+			attrs = append(attrs, slog.String("request_body", redactBody(body, contentType)))
+		}
+	}
+
+	c.logger.LogAttrs(ctx, slog.LevelDebug, "request", attrs...)
 }
 
-func (c *LoggingHTTPClient) logResponse(resp *http.Response, duration time.Duration) {
+func (c *LoggingHTTPClient) logRequestError(
+	ctx context.Context,
+	req *http.Request,
+	requestID string,
+	duration time.Duration,
+	reqErr error,
+) {
 	attrs := []slog.Attr{
-		slog.Int("status", resp.StatusCode),
+		slog.String("log_type", logTypeError),
+		slog.String("http_source", httpSource),
+		slog.String("request_id", requestID),
+		slog.String("method", req.Method),
+		slog.String("route", routeFromURL(req.URL)),
+		slog.Duration("duration", duration),
+		slog.String("error", reqErr.Error()),
+	}
+
+	if req.URL != nil {
+		attrs = append(attrs, slog.String("host", req.URL.Host))
+		if query := sanitizeQuery(req.URL.Query()); len(query) > 0 {
+			attrs = append(attrs, slog.Any("query_params", query))
+		}
+	}
+
+	c.logger.LogAttrs(ctx, slog.LevelWarn, "request failed", attrs...)
+}
+
+func (c *LoggingHTTPClient) logResponse(
+	ctx context.Context,
+	resp *http.Response,
+	requestID string,
+	duration time.Duration,
+	traceEnabled bool,
+	body []byte,
+	bodyErr error,
+) {
+	attrs := []slog.Attr{
+		slog.String("log_type", logTypeResponse),
+		slog.String("http_source", httpSource),
+		slog.String("request_id", requestID),
+		slog.Int("status_code", resp.StatusCode),
 		slog.String("status_text", resp.Status),
 		slog.Duration("duration", duration),
 	}
 
-	// Log headers (with redaction)
-	headers := make(map[string]string)
-	for k, v := range resp.Header {
-		key := strings.ToLower(k)
-		if key == "set-cookie" || strings.Contains(key, "token") {
-			headers[k] = "[REDACTED]"
-		} else {
-			headers[k] = strings.Join(v, ", ")
-		}
-	}
-	attrs = append(attrs, slog.Any("headers", headers))
-
-	// Log body size if present
 	if resp.ContentLength > 0 {
-		attrs = append(attrs, slog.Int64("content_length", resp.ContentLength))
+		attrs = append(attrs, slog.Int64("response_content_length", resp.ContentLength))
+	}
+	contentType := resp.Header.Get("Content-Type")
+	if contentType != "" {
+		attrs = append(attrs, slog.String("response_content_type", contentType))
 	}
 
-	// For trace logging of error responses, try to read and log the body
-	if resp.StatusCode >= 400 && c.logger.Enabled(resp.Request.Context(), log.LevelTrace) {
-		body, err := c.peekResponseBody(resp)
-		if err == nil && len(body) > 0 {
-			// Truncate large bodies
-			maxLen := 1000
-			if len(body) > maxLen {
-				body = fmt.Sprintf("%s... [truncated, total %d bytes]", body[:maxLen], len(body))
+	if resp.Request != nil {
+		attrs = append(attrs,
+			slog.String("method", resp.Request.Method),
+			slog.String("route", routeFromURL(resp.Request.URL)),
+		)
+		if resp.Request.URL != nil {
+			attrs = append(attrs, slog.String("host", resp.Request.URL.Host))
+			if query := sanitizeQuery(resp.Request.URL.Query()); len(query) > 0 {
+				attrs = append(attrs, slog.Any("query_params", query))
 			}
-			attrs = append(attrs, slog.String("error_body", body))
 		}
 	}
 
-	c.logger.LogAttrs(resp.Request.Context(), log.LevelTrace, "HTTP response", attrs...)
+	if traceEnabled {
+		if headers := sanitizeHeaders(resp.Header); len(headers) > 0 {
+			attrs = append(attrs, slog.Any("response_headers", headers))
+		}
+		if bodyErr != nil {
+			attrs = append(attrs, slog.String("response_body_error", bodyErr.Error()))
+		} else if len(body) > 0 {
+			attrs = append(attrs, slog.String("response_body", redactBody(body, contentType)))
+		}
+	}
+
+	c.logger.LogAttrs(ctx, slog.LevelDebug, "response", attrs...)
 }
 
-// peekResponseBody reads the response body without consuming it
-func (c *LoggingHTTPClient) peekResponseBody(resp *http.Response) (string, error) {
-	if resp.Body == nil {
-		return "", nil
+func (c *LoggingHTTPClient) nextRequestID() string {
+	return fmt.Sprintf("khttp-%06d", c.requestCounter.Add(1))
+}
+
+func requestContext(req *http.Request, fallback context.Context) context.Context {
+	if req != nil && req.Context() != nil {
+		return req.Context()
+	}
+	return fallback
+}
+
+func routeFromURL(parsedURL *url.URL) string {
+	if parsedURL == nil {
+		return ""
+	}
+	if parsedURL.Path == "" {
+		return "/"
+	}
+	return parsedURL.Path
+}
+
+func sanitizeQuery(values url.Values) map[string]string {
+	if len(values) == 0 {
+		return nil
 	}
 
-	// Read the body
+	sanitized := make(map[string]string, len(values))
+	for key, currentValues := range values {
+		if isSensitiveFieldKey(key) {
+			sanitized[key] = redactedValue
+			continue
+		}
+		sanitized[key] = strings.Join(currentValues, ",")
+	}
+	return sanitized
+}
+
+func sanitizeHeaders(headers http.Header) map[string]string {
+	if len(headers) == 0 {
+		return nil
+	}
+
+	sanitized := make(map[string]string, len(headers))
+	for key, values := range headers {
+		if isSensitiveHeaderKey(key) {
+			sanitized[key] = redactedValue
+			continue
+		}
+		sanitized[key] = strings.Join(values, ", ")
+	}
+	return sanitized
+}
+
+func isSensitiveHeaderKey(key string) bool {
+	normalized := normalizeKey(key)
+	if normalized == "authorization" || normalized == "proxy_authorization" ||
+		normalized == "cookie" || normalized == "set_cookie" || normalized == "x_api_key" {
+		return true
+	}
+	return isSensitiveFieldKey(normalized)
+}
+
+func isSensitiveFieldKey(key string) bool {
+	normalized := normalizeKey(key)
+	sensitiveSubstrings := []string{
+		"access_token",
+		"refresh_token",
+		"token",
+		"secret",
+		"password",
+		"api_key",
+		"apikey",
+		"authorization",
+		"cookie",
+		"credential",
+		"private_key",
+		"passphrase",
+	}
+	for _, marker := range sensitiveSubstrings {
+		if strings.Contains(normalized, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeKey(key string) string {
+	normalized := strings.ToLower(strings.TrimSpace(key))
+	normalized = strings.ReplaceAll(normalized, "-", "_")
+	normalized = strings.ReplaceAll(normalized, " ", "_")
+	return normalized
+}
+
+func (c *LoggingHTTPClient) peekRequestBody(req *http.Request) ([]byte, error) {
+	if req == nil || req.Body == nil || req.Body == http.NoBody {
+		return nil, nil
+	}
+
+	bodyBytes, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	if req.GetBody == nil {
+		req.GetBody = func() (io.ReadCloser, error) {
+			return io.NopCloser(bytes.NewReader(bodyBytes)), nil
+		}
+	}
+	return bodyBytes, nil
+}
+
+// peekResponseBody reads the response body without consuming it.
+func (c *LoggingHTTPClient) peekResponseBody(resp *http.Response) ([]byte, error) {
+	if resp == nil || resp.Body == nil || resp.Body == http.NoBody {
+		return nil, nil
+	}
+
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return nil, err
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	return bodyBytes, nil
+}
+
+func redactBody(body []byte, contentType string) string {
+	if len(body) == 0 {
+		return ""
 	}
 
-	// Restore the body for the SDK to read
-	resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	if !isTextualBody(body, contentType) {
+		return fmt.Sprintf("%s (%d bytes)", omittedBinaryMessage, len(body))
+	}
 
-	return string(bodyBytes), nil
+	contentType = normalizeContentType(contentType)
+	if strings.Contains(contentType, "json") {
+		if redacted, ok := redactJSONBody(body); ok {
+			return truncateBody(redacted)
+		}
+	}
+	if strings.Contains(contentType, "x-www-form-urlencoded") {
+		if redacted, ok := redactFormBody(body); ok {
+			return truncateBody(redacted)
+		}
+	}
+
+	redacted := redactPlainTextBody(string(body))
+	return truncateBody(redacted)
+}
+
+func isTextualBody(body []byte, contentType string) bool {
+	contentType = normalizeContentType(contentType)
+	if contentType == "" {
+		return utf8.Valid(body)
+	}
+
+	if strings.HasPrefix(contentType, "text/") {
+		return true
+	}
+
+	textualMarkers := []string{
+		"json",
+		"xml",
+		"yaml",
+		"javascript",
+		"x-www-form-urlencoded",
+		"html",
+		"csv",
+		"x-ndjson",
+	}
+	for _, marker := range textualMarkers {
+		if strings.Contains(contentType, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeContentType(contentType string) string {
+	contentType = strings.TrimSpace(contentType)
+	if idx := strings.Index(contentType, ";"); idx >= 0 {
+		contentType = contentType[:idx]
+	}
+	return strings.ToLower(strings.TrimSpace(contentType))
+}
+
+func redactJSONBody(body []byte) (string, bool) {
+	var payload any
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	decoder.UseNumber()
+	if err := decoder.Decode(&payload); err != nil {
+		return "", false
+	}
+
+	payload = redactJSONValue(payload)
+	redactedBody, err := json.Marshal(payload)
+	if err != nil {
+		return "", false
+	}
+
+	return string(redactedBody), true
+}
+
+func redactJSONValue(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, nested := range typed {
+			if isSensitiveFieldKey(key) {
+				typed[key] = redactedValue
+				continue
+			}
+			typed[key] = redactJSONValue(nested)
+		}
+	case []any:
+		for idx, nested := range typed {
+			typed[idx] = redactJSONValue(nested)
+		}
+	}
+	return value
+}
+
+func redactFormBody(body []byte) (string, bool) {
+	values, err := url.ParseQuery(string(body))
+	if err != nil {
+		return "", false
+	}
+	for key := range values {
+		if isSensitiveFieldKey(key) {
+			values[key] = []string{redactedValue}
+		}
+	}
+	return values.Encode(), true
+}
+
+func redactPlainTextBody(body string) string {
+	redacted := body
+	for _, pattern := range plainTextRedactionPatterns {
+		redacted = pattern.regex.ReplaceAllString(redacted, pattern.replacement)
+	}
+	return redacted
+}
+
+func truncateBody(body string) string {
+	if len(body) <= maxBodyLogChars {
+		return body
+	}
+	return fmt.Sprintf("%s... [truncated, total %d bytes]", body[:maxBodyLogChars], len(body))
 }
