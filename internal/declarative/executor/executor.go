@@ -614,22 +614,6 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 					return fmt.Errorf("control_plane '%s' already exists", resourceName)
 				}
 			}
-		case "api":
-			if e.client != nil {
-				resourceName := common.ExtractResourceName(change.Fields)
-				api, err := e.client.GetAPIByName(ctx, resourceName)
-				if err != nil {
-					// API error is acceptable here - might mean not found
-					// Only fail if it's a real API error (not 404)
-					if !strings.Contains(err.Error(), "not found") {
-						return common.FormatAPIError("api", resourceName, "check existence", err)
-					}
-				}
-				if api != nil {
-					// API already exists - this is an error for CREATE
-					return common.FormatResourceExistsError("api", resourceName)
-				}
-			}
 		}
 	}
 

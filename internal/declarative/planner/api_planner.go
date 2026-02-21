@@ -90,7 +90,7 @@ func (p *Planner) planAPIChanges(
 
 	// Fetch current managed APIs from the specific namespace
 	namespaceFilter := []string{namespace}
-	currentAPIs, err := p.client.ListManagedAPIs(ctx, namespaceFilter)
+	currentAPIs, err := p.listManagedAPIs(ctx, namespaceFilter)
 	if err != nil {
 		// If API client is not configured, skip API planning
 		if err.Error() == "API client not configured" {
