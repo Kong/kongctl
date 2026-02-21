@@ -1,0 +1,8 @@
+portals:
+  - ref: partial-delete-portal
+    name: "partial-delete-portal"
+    display_name: "Partial Delete Portal"
+    description: "Portal used for partial-delete e2e scenario"
+    authentication_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false

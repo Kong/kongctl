@@ -1,0 +1,14 @@
+apis:
+  - ref: idempotent-delete-api-alpha
+    name: "idempotent-delete-api-alpha"
+    description: "Alpha API for idempotent delete e2e scenario"
+    version: "1.0.0"
+    labels:
+      team: alpha
+
+  - ref: idempotent-delete-api-beta
+    name: "idempotent-delete-api-beta"
+    description: "Beta API for idempotent delete e2e scenario"
+    version: "2.0.0"
+    labels:
+      team: beta

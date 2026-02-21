@@ -1,0 +1,14 @@
+apis:
+  - ref: partial-delete-api-alpha
+    name: "partial-delete-api-alpha"
+    description: "Alpha API for partial-delete e2e scenario"
+    version: "1.0.0"
+    labels:
+      team: alpha
+
+  - ref: partial-delete-api-beta
+    name: "partial-delete-api-beta"
+    description: "Beta API for partial-delete e2e scenario"
+    version: "2.0.0"
+    labels:
+      team: beta
