@@ -5,9 +5,12 @@ import (
 	"fmt"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
+	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -24,14 +27,21 @@ var (
 	deleteShort = i18n.T("root.verbs.delete.deleteShort", "Delete objects")
 
 	deleteLong = normalizers.LongDesc(i18n.T("root.verbs.delete.deleteLong",
-		`Use delete to delete a new object.
+		`Use delete to delete objects.
 
-Further sub-commands are required to determine which remote system is contacted (if necessary).
-The command will delete an object and report a result depending on further arguments.
+When used with -f, deletes all resources defined in the declarative configuration
+files from Konnect. This is equivalent to running:
+  kongctl plan --mode delete -f <files> | kongctl sync --plan -
+
+Without -f, further sub-commands are required to determine which resource to delete.
 Output can be formatted in multiple ways to aid in further processing.`))
 
 	deleteExamples = normalizers.Examples(i18n.T("root.verbs.delete.deleteExamples",
 		fmt.Sprintf(`
+		# Delete resources defined in declarative configuration
+		%[1]s delete -f config.yaml
+		%[1]s delete -f ./configs/ --recursive
+		%[1]s delete -f config.yaml --dry-run
 		# Delete a Konnect Kong Gateway control plane (Konnect-first)
 		%[1]s delete gateway control-plane <id>
 		# Delete a Konnect Kong Gateway control plane (explicit)
@@ -45,14 +55,38 @@ Output can be formatted in multiple ways to aid in further processing.`))
 
 func NewDeleteCmd() (*cobra.Command, error) {
 	var force, autoApprove bool
+
+	// Create the declarative delete command to get its implementation
+	declDeleteCmd, err := declarative.NewDeclarativeCmd(Verb)
+	if err != nil {
+		return nil, err
+	}
+
 	cmd := &cobra.Command{
 		Use:     deleteuse,
 		Short:   deleteShort,
 		Long:    deleteLong,
 		Example: deleteExamples,
 		Aliases: []string{"d", "D", "del", "rm", "DEL", "RM"},
+		// When -f is provided, run declarative delete; otherwise show help
+		RunE: func(c *cobra.Command, args []string) error {
+			filenames, _ := c.Flags().GetStringSlice("filename")
+			planFile, _ := c.Flags().GetString("plan")
+			if len(filenames) > 0 || planFile != "" {
+				return declDeleteCmd.RunE(c, args)
+			}
+			return c.Help()
+		},
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
-			c.SetContext(context.WithValue(c.Context(), verbs.Verb, Verb))
+			ctx := c.Context()
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			ctx = context.WithValue(ctx, verbs.Verb, Verb)
+			ctx = context.WithValue(ctx, products.Product, konnect.Product)
+			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
+			c.SetContext(ctx)
+
 			if err := bindKonnectFlags(c, args); err != nil {
 				return err
 			}
@@ -85,6 +119,9 @@ Setting this value overrides tokens obtained from the login command.
 		"Force deletion even when related resources exist (not configurable)")
 	cmd.PersistentFlags().BoolVar(&autoApprove, "approve", false,
 		"Skip confirmation prompts for delete operations (not configurable)")
+
+	// Add declarative flags from the declarative delete command
+	cmd.Flags().AddFlagSet(declDeleteCmd.Flags())
 
 	c, e := konnect.NewKonnectCmd(Verb)
 	if e != nil {
