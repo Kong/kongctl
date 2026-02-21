@@ -118,6 +118,7 @@ steps:
               fields:
                 namespace: team-e2e
       - name: plan-from-dump
+        outputFormat: disable
         run:
           - plan
           - -f

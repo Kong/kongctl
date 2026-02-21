@@ -58,6 +58,7 @@ steps:
                 namespace: team-e2e
 
       - name: 003-plan-from-dump
+        outputFormat: disable
         run:
           - plan
           - declarative

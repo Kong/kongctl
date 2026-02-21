@@ -149,6 +149,7 @@ steps:
       - testdata/overlays/006-invalid-base-dir
     commands:
       - name: 000-plan-invalid-base-dir
+        outputFormat: disable
         run:
           - plan
           - -f

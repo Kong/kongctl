@@ -67,6 +67,7 @@ steps:
       - overlays/002-update-members
     commands:
       - name: 003-plan
+        outputFormat: disable
         run:
           - plan
           - --mode

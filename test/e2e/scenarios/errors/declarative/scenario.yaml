@@ -38,6 +38,7 @@ steps:
       - overlays/002-invalid-ref
     commands:
       - name: 000-plan-invalid-ref
+        outputFormat: disable
         run:
           - plan
           - -f

@@ -55,6 +55,7 @@ steps:
                 slug: "document-apis"
 
       - name: 001-plan-from-dump
+        outputFormat: disable
         run:
           - plan
           - -f
