@@ -499,6 +499,10 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 // validateChangePreExecution performs validation before executing a change
 func (e *Executor) validateChangePreExecution(ctx context.Context, change planner.PlannedChange) error {
 	switch change.Action {
+	case planner.ActionCreate:
+		// Create operations proceed directly to execution. Resource-specific
+		// create handlers are responsible for any required validation.
+		return nil
 	case planner.ActionExternalTool:
 		return nil
 	case planner.ActionUpdate, planner.ActionDelete:
