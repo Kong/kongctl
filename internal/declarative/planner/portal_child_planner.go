@@ -29,7 +29,7 @@ func (p *Planner) planPortalCustomizationsChanges(
 	// Use planner context to get namespace filter for API calls
 	namespace := plannerCtx.Namespace
 	namespaceFilter := []string{namespace}
-	existingPortals, _ := p.client.ListManagedPortals(ctx, namespaceFilter)
+	existingPortals, _ := p.listManagedPortals(ctx, namespaceFilter)
 	portalNameToID := make(map[string]string)
 	for _, portal := range existingPortals {
 		portalNameToID[portal.Name] = portal.ID
@@ -87,7 +87,7 @@ func (p *Planner) planPortalAuthSettingsChanges(
 	desired []resources.PortalAuthSettingsResource, plan *Plan,
 ) error {
 	namespace := plannerCtx.Namespace
-	existingPortals, _ := p.client.ListManagedPortals(ctx, []string{namespace})
+	existingPortals, _ := p.listManagedPortals(ctx, []string{namespace})
 	portalNameToID := make(map[string]string)
 	for _, portal := range existingPortals {
 		portalNameToID[portal.Name] = portal.ID
@@ -987,7 +987,7 @@ func (p *Planner) planPortalAssetLogosChanges(
 	desired []resources.PortalAssetLogoResource, plan *Plan,
 ) error {
 	namespace := plannerCtx.Namespace
-	existingPortals, _ := p.client.ListManagedPortals(ctx, []string{namespace})
+	existingPortals, _ := p.listManagedPortals(ctx, []string{namespace})
 	portalNameToID := make(map[string]string)
 	for _, portal := range existingPortals {
 		portalNameToID[portal.Name] = portal.ID
@@ -1090,7 +1090,7 @@ func (p *Planner) planPortalAssetFaviconsChanges(
 	desired []resources.PortalAssetFaviconResource, plan *Plan,
 ) error {
 	namespace := plannerCtx.Namespace
-	existingPortals, _ := p.client.ListManagedPortals(ctx, []string{namespace})
+	existingPortals, _ := p.listManagedPortals(ctx, []string{namespace})
 	portalNameToID := make(map[string]string)
 	for _, portal := range existingPortals {
 		portalNameToID[portal.Name] = portal.ID

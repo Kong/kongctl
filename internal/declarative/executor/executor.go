@@ -583,24 +583,8 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 		}
 
 	case planner.ActionCreate:
-		// For create, verify resource doesn't already exist
+		// For create, verify selected resources don't already exist
 		switch change.ResourceType {
-		case "portal":
-			if e.client != nil {
-				resourceName := getResourceName(change.Fields)
-				portal, err := e.client.GetPortalByName(ctx, resourceName)
-				if err != nil {
-					// API error is acceptable here - might mean not found
-					// Only fail if it's a real API error (not 404)
-					if !strings.Contains(err.Error(), "not found") {
-						return fmt.Errorf("failed to check existing portal: %w", err)
-					}
-				}
-				if portal != nil {
-					// Portal already exists - this is an error for CREATE
-					return fmt.Errorf("portal '%s' already exists", resourceName)
-				}
-			}
 		case "control_plane":
 			if e.client != nil {
 				resourceName := common.ExtractResourceName(change.Fields)

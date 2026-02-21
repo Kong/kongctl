@@ -885,7 +885,7 @@ func (p *Planner) planAPIPublicationChanges(
 
 	// Also fetch managed portals from the same namespace to ensure complete mapping
 	// This handles cases where publications exist for portals not in current desired state
-	allPortals, err := p.client.ListManagedPortals(ctx, namespaceFilter)
+	allPortals, err := p.listManagedPortals(ctx, namespaceFilter)
 	if err == nil {
 		p.logger.Debug("Fetched all managed portals",
 			slog.Int("count", len(allPortals)),
