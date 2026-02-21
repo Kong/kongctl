@@ -1610,6 +1610,37 @@ func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resourc
 func (p *Planner) resolveAuthStrategyIdentities(
 	ctx context.Context, strategies []resources.ApplicationAuthStrategyResource,
 ) error {
+	var (
+		managedByName map[string]*state.ApplicationAuthStrategy
+		managedLoaded bool
+	)
+
+	loadManagedStrategies := func() error {
+		if managedLoaded {
+			return nil
+		}
+
+		managedStrategies, err := p.listManagedAuthStrategies(ctx, []string{"*"})
+		if err != nil {
+			return err
+		}
+
+		managedByName = make(map[string]*state.ApplicationAuthStrategy, len(managedStrategies))
+		for i := range managedStrategies {
+			current := &managedStrategies[i]
+			if current.Name == "" {
+				continue
+			}
+			// Keep first match to preserve stable behavior in case of unexpected duplicates.
+			if _, exists := managedByName[current.Name]; !exists {
+				managedByName[current.Name] = current
+			}
+		}
+
+		managedLoaded = true
+		return nil
+	}
+
 	for i := range strategies {
 		strategy := &strategies[i]
 
@@ -1621,6 +1652,19 @@ func (p *Planner) resolveAuthStrategyIdentities(
 		// Try to find the strategy using filter
 		filter := strategy.GetKonnectMonikerFilter()
 		if filter == "" {
+			continue
+		}
+
+		if strings.HasPrefix(filter, "name[eq]=") {
+			if err := loadManagedStrategies(); err != nil {
+				return fmt.Errorf("failed to list managed auth strategies: %w", err)
+			}
+
+			name := strings.TrimPrefix(filter, "name[eq]=")
+			if konnectStrategy, ok := managedByName[name]; ok {
+				strategy.TryMatchKonnectResource(konnectStrategy)
+			}
+
 			continue
 		}
 

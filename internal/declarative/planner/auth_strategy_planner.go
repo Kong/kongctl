@@ -39,7 +39,7 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 
 	// Fetch current managed auth strategies from the specific namespace
 	namespaceFilter := []string{namespace}
-	currentStrategies, err := p.GetClient().ListManagedAuthStrategies(ctx, namespaceFilter)
+	currentStrategies, err := p.planner.listManagedAuthStrategies(ctx, namespaceFilter)
 	if err != nil {
 		// If app auth client is not configured, skip auth strategy planning
 		if err.Error() == "AppAuth client not configured" {

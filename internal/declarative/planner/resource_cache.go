@@ -14,6 +14,10 @@ type planningResourceCache struct {
 	managedPortalsAll    []state.Portal
 	managedPortalsLoaded bool
 
+	managedAuthStrategiesByKey  map[string][]state.ApplicationAuthStrategy
+	managedAuthStrategiesAll    []state.ApplicationAuthStrategy
+	managedAuthStrategiesLoaded bool
+
 	managedAPIsByKey  map[string][]state.API
 	managedAPIsAll    []state.API
 	managedAPIsLoaded bool
@@ -21,8 +25,9 @@ type planningResourceCache struct {
 
 func newPlanningResourceCache() *planningResourceCache {
 	return &planningResourceCache{
-		managedPortalsByKey: make(map[string][]state.Portal),
-		managedAPIsByKey:    make(map[string][]state.API),
+		managedPortalsByKey:        make(map[string][]state.Portal),
+		managedAuthStrategiesByKey: make(map[string][]state.ApplicationAuthStrategy),
+		managedAPIsByKey:           make(map[string][]state.API),
 	}
 }
 
@@ -60,6 +65,48 @@ func (p *Planner) listManagedPortals(ctx context.Context, namespaces []string) (
 	}
 
 	return portals, nil
+}
+
+func (p *Planner) listManagedAuthStrategies(
+	ctx context.Context,
+	namespaces []string,
+) ([]state.ApplicationAuthStrategy, error) {
+	normalizedNamespaces := normalizeNamespaces(namespaces)
+	if len(normalizedNamespaces) == 0 {
+		return []state.ApplicationAuthStrategy{}, nil
+	}
+
+	cache := p.resourceCache
+	cacheKey := namespaceCacheKey(normalizedNamespaces)
+	if cache != nil {
+		if cached, ok := cache.managedAuthStrategiesByKey[cacheKey]; ok {
+			return cached, nil
+		}
+
+		if cacheKey != "*" && cache.managedAuthStrategiesLoaded {
+			filtered := filterAuthStrategiesByNamespaces(
+				cache.managedAuthStrategiesAll,
+				normalizedNamespaces,
+			)
+			cache.managedAuthStrategiesByKey[cacheKey] = filtered
+			return filtered, nil
+		}
+	}
+
+	strategies, err := p.client.ListManagedAuthStrategies(ctx, normalizedNamespaces)
+	if err != nil {
+		return nil, err
+	}
+
+	if cache != nil {
+		cache.managedAuthStrategiesByKey[cacheKey] = strategies
+		if cacheKey == "*" {
+			cache.managedAuthStrategiesAll = strategies
+			cache.managedAuthStrategiesLoaded = true
+		}
+	}
+
+	return strategies, nil
 }
 
 func (p *Planner) listManagedAPIs(ctx context.Context, namespaces []string) ([]state.API, error) {
@@ -154,6 +201,33 @@ func filterPortalsByNamespaces(portals []state.Portal, namespaces []string) []st
 			filtered = append(filtered, portal)
 		}
 	}
+	return filtered
+}
+
+func filterAuthStrategiesByNamespaces(
+	strategies []state.ApplicationAuthStrategy,
+	namespaces []string,
+) []state.ApplicationAuthStrategy {
+	if len(namespaces) == 0 {
+		return []state.ApplicationAuthStrategy{}
+	}
+	if len(namespaces) == 1 && namespaces[0] == "*" {
+		return strategies
+	}
+
+	allowed := make(map[string]struct{}, len(namespaces))
+	for _, ns := range namespaces {
+		allowed[ns] = struct{}{}
+	}
+
+	filtered := make([]state.ApplicationAuthStrategy, 0, len(strategies))
+	for _, strategy := range strategies {
+		namespace := strategy.NormalizedLabels[labels.NamespaceKey]
+		if _, ok := allowed[namespace]; ok {
+			filtered = append(filtered, strategy)
+		}
+	}
+
 	return filtered
 }
 

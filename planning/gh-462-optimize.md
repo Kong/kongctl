@@ -114,3 +114,73 @@ portal create.
 - Request count: `8 -> 2` (75% reduction)
 - Redundant portal list calls removed from planner+executor path for this case.
 - Elapsed time: `778 ms -> 407 ms` (~48% reduction in this run)
+
+## Optimization Pass 3: API + Portal + Publication (`api-with-portal-pub.yaml`)
+
+### Goal
+
+Reduce redundant auth strategy list calls in multi-resource apply flows.
+
+### Baseline (before)
+
+- Command:
+  ```sh
+  ./scripts/command-analyzer.sh -- apply \
+    -f docs/examples/declarative/basic/api-with-portal-pub.yaml \
+    --base-dir . \
+    --auto-approve
+  ```
+- Log file: `/tmp/kongctl-http.UXPN.log`
+- Requests: 10 total
+- Route/method counts:
+  - `GET /v2/application-auth-strategies`: 2
+  - `GET /v3/apis`: 1
+  - `GET /v3/portals`: 1
+  - `POST /v2/application-auth-strategies`: 1
+  - `POST /v3/apis`: 1
+  - `POST /v3/portals`: 1
+  - `PUT /v3/apis/<id>/publications/<id>`: 1
+  - `PUT /v3/portals/<id>/assets/logo`: 1
+  - `PUT /v3/portals/<id>/assets/favicon`: 1
+- Elapsed: 1583 ms
+
+### Changes made
+
+- Added planner-scoped managed auth strategy cache (namespace-aware,
+  per-plan-run).
+  - `internal/declarative/planner/resource_cache.go`
+- Updated auth strategy planner to use cached managed auth strategy listing.
+  - `internal/declarative/planner/auth_strategy_planner.go`
+- Updated auth strategy identity resolution to use cached managed list for
+  `name[eq]=...` filter lookups.
+  - `internal/declarative/planner/planner.go`
+
+### Result (after)
+
+- Command:
+  ```sh
+  ./scripts/command-analyzer.sh -- apply \
+    -f docs/examples/declarative/basic/api-with-portal-pub.yaml \
+    --base-dir . \
+    --auto-approve
+  ```
+- Log file: `/tmp/kongctl-http.lFEz.log`
+- Requests: 9 total
+- Route/method counts:
+  - `GET /v2/application-auth-strategies`: 1
+  - `GET /v3/apis`: 1
+  - `GET /v3/portals`: 1
+  - `POST /v2/application-auth-strategies`: 1
+  - `POST /v3/apis`: 1
+  - `POST /v3/portals`: 1
+  - `PUT /v3/apis/<id>/publications/<id>`: 1
+  - `PUT /v3/portals/<id>/assets/logo`: 1
+  - `PUT /v3/portals/<id>/assets/favicon`: 1
+- Elapsed: 1576 ms
+
+### Net improvement
+
+- Request count: `10 -> 9` (10% reduction)
+- Removed duplicate auth strategy list call between identity resolution and
+  auth strategy planner.
+- Latency impact in this run is minimal because saved request was a fast GET.
