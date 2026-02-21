@@ -279,3 +279,37 @@ single control plane create.
 - Redundant control plane list calls removed from planner+executor path for
   this case.
 - Elapsed time: `647 ms -> 512 ms` (~21% reduction in this run)
+
+## Optimization Pass 5: Organization Team apply (`organization/teams.yaml`)
+
+### Goal
+
+Identify whether any redundant requests remain for single team create flows.
+
+### Baseline observed
+
+- Command:
+  ```sh
+  ./scripts/command-analyzer.sh -- apply \
+    -f docs/examples/declarative/organization/teams.yaml \
+    --auto-approve
+  ```
+- Log file: `/tmp/kongctl-http.KaVL.log`
+- Requests: 2 total
+- Route/method counts:
+  - `GET /v3/teams`: 1
+  - `POST /v3/teams`: 1
+- Elapsed: 289 ms
+
+### Analysis
+
+- The single `GET /v3/teams` is used in planner diffing for the
+  `organization_team` resource.
+- The `POST /v3/teams` is the create operation.
+- No duplicate `GET` calls are present in this flow.
+
+### Changes made
+
+- None.
+- Current behavior is already at expected minimum request count for this
+  apply scenario.
