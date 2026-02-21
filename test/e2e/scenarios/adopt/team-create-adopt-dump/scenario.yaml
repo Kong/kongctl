@@ -67,7 +67,6 @@ steps:
       - name: 003-plan-from-dump
         run:
           - plan
-          - declarative
           - -f
           - "{{ .workdir }}/dump.yaml"
           - --mode
