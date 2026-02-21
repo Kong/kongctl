@@ -54,6 +54,9 @@ type Planner struct {
 	depResolver *DependencyResolver
 	changeCount int
 
+	// Cache for managed resources fetched during a single GeneratePlan run.
+	resourceCache *planningResourceCache
+
 	// Generic planner for common operations
 	genericPlanner *GenericPlanner
 
@@ -90,8 +93,9 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 		client: client,
 		logger: logger,
 		// resolver will be initialized with ResourceSet during planning
-		depResolver: NewDependencyResolver(),
-		changeCount: 0,
+		depResolver:   NewDependencyResolver(),
+		changeCount:   0,
+		resourceCache: newPlanningResourceCache(),
 	}
 
 	// Initialize generic planner
@@ -113,6 +117,9 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 // GeneratePlan creates a plan from declarative configuration
 func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, opts Options) (*Plan, error) {
 	ctx = withPlannerHTTPLogContext(ctx, opts, plannerComponentMain, "")
+
+	// Reset per-run caches in case this planner instance is reused.
+	p.resourceCache = newPlanningResourceCache()
 
 	generator := opts.Generator
 	if generator == "" {
@@ -173,11 +180,12 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 		// Create a namespace-specific planner context
 		namespacePlanner := &Planner{
-			client:      p.client,
-			logger:      p.logger,
-			resolver:    p.resolver,
-			depResolver: p.depResolver,
-			changeCount: p.changeCount,
+			client:        p.client,
+			logger:        p.logger,
+			resolver:      p.resolver,
+			depResolver:   p.depResolver,
+			changeCount:   p.changeCount,
+			resourceCache: p.resourceCache,
 		}
 
 		// Initialize generic planner for namespace-specific planner
@@ -791,6 +799,37 @@ func (p *Planner) resolveCatalogServiceIdentities(
 
 // resolveAPIIdentities resolves Konnect IDs for API resources
 func (p *Planner) resolveAPIIdentities(ctx context.Context, apis []resources.APIResource) error {
+	var (
+		managedByName map[string]*state.API
+		managedLoaded bool
+	)
+
+	loadManagedAPIs := func() error {
+		if managedLoaded {
+			return nil
+		}
+
+		managedAPIs, err := p.listManagedAPIs(ctx, []string{"*"})
+		if err != nil {
+			return err
+		}
+
+		managedByName = make(map[string]*state.API, len(managedAPIs))
+		for i := range managedAPIs {
+			current := &managedAPIs[i]
+			if current.Name == "" {
+				continue
+			}
+			// Keep first match to preserve stable behavior in case of unexpected duplicates.
+			if _, exists := managedByName[current.Name]; !exists {
+				managedByName[current.Name] = current
+			}
+		}
+
+		managedLoaded = true
+		return nil
+	}
+
 	for i := range apis {
 		api := &apis[i]
 
@@ -802,6 +841,19 @@ func (p *Planner) resolveAPIIdentities(ctx context.Context, apis []resources.API
 		// Try to find the API using filter
 		filter := api.GetKonnectMonikerFilter()
 		if filter == "" {
+			continue
+		}
+
+		if strings.HasPrefix(filter, "name[eq]=") {
+			if err := loadManagedAPIs(); err != nil {
+				return fmt.Errorf("failed to list managed APIs: %w", err)
+			}
+
+			name := strings.TrimPrefix(filter, "name[eq]=")
+			if konnectAPI, ok := managedByName[name]; ok {
+				api.TryMatchKonnectResource(konnectAPI)
+			}
+
 			continue
 		}
 
