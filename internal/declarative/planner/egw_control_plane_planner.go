@@ -22,6 +22,10 @@ func NewEGWControlPlanePlanner(planner *BasePlanner, resources *resources.Resour
 	}
 }
 
+func (p *EGWControlPlanePlannerImpl) PlannerComponent() string {
+	return string(resources.ResourceTypeEventGatewayControlPlane)
+}
+
 func (p *EGWControlPlanePlannerImpl) GetDesiredEGWControlPlanes(
 	namespace string,
 ) []resources.EventGatewayControlPlaneResource {

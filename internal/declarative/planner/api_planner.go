@@ -30,6 +30,10 @@ func NewAPIPlanner(base *BasePlanner) APIPlanner {
 	}
 }
 
+func (a *apiPlannerImpl) PlannerComponent() string {
+	return string(resources.ResourceTypeAPI)
+}
+
 // PlanChanges generates changes for API resources and their child resources
 func (a *apiPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
 	// Get namespace from planner context

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/kong/kongctl/internal/log"
@@ -33,9 +34,13 @@ type redactionPattern struct {
 	replacement string
 }
 
+// NOTE: MustCompile is intentional here. If these patterns become invalid we should fail fast
+// rather than run without redaction safeguards.
+// These are only applied for trace-level body logging, and body content is bounded by
+// maxBodyLogChars before it is written to logs.
 var plainTextRedactionPatterns = []redactionPattern{
 	{
-		regex:       regexp.MustCompile(`(?i)(bearer\s+)[A-Za-z0-9\-._~+/]+=*`),
+		regex:       regexp.MustCompile(`(?i)(\bbearer\s+)([A-Za-z0-9\-._~+/]{8,}=*)\b`),
 		replacement: `${1}` + redactedValue,
 	},
 	{
@@ -48,6 +53,32 @@ var plainTextRedactionPatterns = []redactionPattern{
 			`api[_-]?key|apikey|client[_-]?secret|authorization|cookie)\s*[=:]\s*)([^\s&,;]+)`),
 		replacement: `${1}` + redactedValue,
 	},
+}
+
+var sensitiveExactFieldKeys = map[string]struct{}{
+	"access_token":        {},
+	"refresh_token":       {},
+	"id_token":            {},
+	"token":               {},
+	"api_key":             {},
+	"apikey":              {},
+	"x_api_key":           {},
+	"secret":              {},
+	"password":            {},
+	"authorization":       {},
+	"cookie":              {},
+	"credential":          {},
+	"private_key":         {},
+	"passphrase":          {},
+	"client_secret":       {},
+	"set_cookie":          {},
+	"konnectaccesstoken":  {},
+	"konnectrefreshtoken": {},
+}
+
+var nonSensitiveTokenFieldKeys = map[string]struct{}{
+	"token_count": {},
+	"token_type":  {},
 }
 
 // LoggingHTTPClient wraps an HTTP client to add centralized request/response logging.
@@ -141,6 +172,7 @@ func (c *LoggingHTTPClient) logRequest(
 		slog.String("method", req.Method),
 		slog.String("route", routeFromURL(req.URL)),
 	}
+	attrs = append(attrs, log.HTTPLogContextAttrs(ctx)...)
 
 	if req.URL != nil {
 		attrs = append(attrs, slog.String("host", req.URL.Host))
@@ -187,6 +219,7 @@ func (c *LoggingHTTPClient) logRequestError(
 		slog.Duration("duration", duration),
 		slog.String("error", reqErr.Error()),
 	}
+	attrs = append(attrs, log.HTTPLogContextAttrs(ctx)...)
 
 	if req.URL != nil {
 		attrs = append(attrs, slog.String("host", req.URL.Host))
@@ -215,6 +248,7 @@ func (c *LoggingHTTPClient) logResponse(
 		slog.String("status_text", resp.Status),
 		slog.Duration("duration", duration),
 	}
+	attrs = append(attrs, log.HTTPLogContextAttrs(ctx)...)
 
 	if resp.ContentLength > 0 {
 		attrs = append(attrs, slog.Int64("response_content_length", resp.ContentLength))
@@ -225,6 +259,8 @@ func (c *LoggingHTTPClient) logResponse(
 	}
 
 	if resp.Request != nil {
+		// Keep route metadata on responses for easy filtering/aggregation without joining to request
+		// logs via request_id (for example: response-only analysis by method/route/status).
 		attrs = append(attrs,
 			slog.String("method", resp.Request.Method),
 			slog.String("route", routeFromURL(resp.Request.URL)),
@@ -315,22 +351,52 @@ func isSensitiveHeaderKey(key string) bool {
 
 func isSensitiveFieldKey(key string) bool {
 	normalized := normalizeKey(key)
-	sensitiveSubstrings := []string{
-		"access_token",
-		"refresh_token",
-		"token",
-		"secret",
-		"password",
-		"api_key",
-		"apikey",
-		"authorization",
-		"cookie",
-		"credential",
-		"private_key",
-		"passphrase",
+	if normalized == "" {
+		return false
 	}
-	for _, marker := range sensitiveSubstrings {
-		if strings.Contains(normalized, marker) {
+
+	if _, ok := sensitiveExactFieldKeys[normalized]; ok {
+		return true
+	}
+
+	// Preserve useful diagnostics for metadata fields like token_count/token_type.
+	if _, ok := nonSensitiveTokenFieldKeys[normalized]; ok {
+		return false
+	}
+
+	if containsSegment(normalized, "secret") ||
+		containsSegment(normalized, "password") ||
+		containsSegment(normalized, "credential") ||
+		containsSegment(normalized, "passphrase") ||
+		hasSegmentPair(normalized, "private", "key") ||
+		hasSegmentPair(normalized, "api", "key") ||
+		hasSegmentPair(normalized, "client", "secret") {
+		return true
+	}
+
+	if strings.Contains(normalized, "access_token") || strings.Contains(normalized, "refresh_token") {
+		return true
+	}
+	if strings.HasSuffix(normalized, "_token") {
+		return true
+	}
+
+	return false
+}
+
+func containsSegment(normalized, segment string) bool {
+	for _, current := range strings.Split(normalized, "_") {
+		if current == segment {
+			return true
+		}
+	}
+	return false
+}
+
+func hasSegmentPair(normalized, first, second string) bool {
+	parts := strings.Split(normalized, "_")
+	for idx := 0; idx < len(parts)-1; idx++ {
+		if parts[idx] == first && parts[idx+1] == second {
 			return true
 		}
 	}
@@ -338,10 +404,38 @@ func isSensitiveFieldKey(key string) bool {
 }
 
 func normalizeKey(key string) string {
-	normalized := strings.ToLower(strings.TrimSpace(key))
-	normalized = strings.ReplaceAll(normalized, "-", "_")
-	normalized = strings.ReplaceAll(normalized, " ", "_")
-	return normalized
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return ""
+	}
+
+	runes := []rune(key)
+	out := make([]rune, 0, len(runes))
+	appendUnderscore := func() {
+		if len(out) > 0 && out[len(out)-1] != '_' {
+			out = append(out, '_')
+		}
+	}
+
+	for idx, current := range runes {
+		switch {
+		case current == '_' || current == '-' || unicode.IsSpace(current):
+			appendUnderscore()
+		case unicode.IsUpper(current):
+			if idx > 0 {
+				prev := runes[idx-1]
+				nextIsLower := idx+1 < len(runes) && unicode.IsLower(runes[idx+1])
+				if unicode.IsLower(prev) || unicode.IsDigit(prev) || (unicode.IsUpper(prev) && nextIsLower) {
+					appendUnderscore()
+				}
+			}
+			out = append(out, unicode.ToLower(current))
+		default:
+			out = append(out, unicode.ToLower(current))
+		}
+	}
+
+	return strings.Trim(string(out), "_")
 }
 
 func (c *LoggingHTTPClient) peekRequestBody(req *http.Request) ([]byte, error) {

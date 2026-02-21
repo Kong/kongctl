@@ -22,6 +22,10 @@ func NewAuthStrategyPlanner(base *BasePlanner) AuthStrategyPlanner {
 	}
 }
 
+func (p *authStrategyPlannerImpl) PlannerComponent() string {
+	return string(resources.ResourceTypeApplicationAuthStrategy)
+}
+
 // PlanChanges generates changes for auth strategy resources
 func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
 	// Get namespace from planner context
