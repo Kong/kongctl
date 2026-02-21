@@ -63,6 +63,38 @@ func (p *Planner) planCatalogServiceChanges(
 		currentByName[svc.Name] = svc
 	}
 
+	// Handle delete mode - plan DELETE for desired resources that exist in Konnect
+	if plan.Metadata.Mode == PlanModeDelete {
+		var protectionErrors []error
+		for _, desiredSvc := range desired {
+			current, exists := currentByName[desiredSvc.Name]
+			if !exists {
+				plan.AddWarning("", fmt.Sprintf(
+					"catalog_service %q not found in Konnect, skipping delete", desiredSvc.Name))
+				continue
+			}
+
+			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
+			if err := p.validateProtection(
+				"catalog_service", desiredSvc.Name, isProtected, ActionDelete,
+			); err != nil {
+				protectionErrors = append(protectionErrors, err)
+			} else {
+				p.planCatalogServiceDelete(current, plan)
+			}
+		}
+
+		if len(protectionErrors) > 0 {
+			errMsg := "Cannot generate plan due to protected resources:\n"
+			for _, err := range protectionErrors {
+				errMsg += fmt.Sprintf("- %s\n", err.Error())
+			}
+			errMsg += "\nTo proceed, first update these resources to set protected: false"
+			return fmt.Errorf("%s", errMsg)
+		}
+		return nil
+	}
+
 	var protectionErrors []error
 	desiredNames := make(map[string]bool)
 
