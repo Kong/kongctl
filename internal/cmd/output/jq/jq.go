@@ -443,12 +443,7 @@ func ShouldUseColor(mode cmdcommon.ColorMode, out io.Writer) bool {
 		return true
 	case cmdcommon.ColorModeNever:
 		return false
-	case cmdcommon.ColorModeAuto:
-		if _, disabled := os.LookupEnv("NO_COLOR"); disabled {
-			return false
-		}
-		return isTerminal(out)
-	default:
+	default: // ColorModeAuto or unknown modes
 		if _, disabled := os.LookupEnv("NO_COLOR"); disabled {
 			return false
 		}
