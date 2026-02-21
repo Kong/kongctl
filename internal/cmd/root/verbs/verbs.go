@@ -1,5 +1,11 @@
 package verbs
 
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+)
+
 const (
 	Add    = VerbValue("add")
 	Apply  = VerbValue("apply")
@@ -34,4 +40,14 @@ type VerbValue string
 
 func (v VerbValue) String() string {
 	return string(v)
+}
+
+// NoPositionalArgs returns an Args validator that rejects positional arguments
+// with a helpful message directing users to use the -f/--filename flag instead.
+// Use this for commands (e.g. plan, diff, sync) that accept input only via flags.
+func NoPositionalArgs(cmd *cobra.Command, args []string) error {
+	if len(args) > 0 {
+		return fmt.Errorf("unexpected argument %q: use -f/--filename to specify input files", args[0])
+	}
+	return nil
 }

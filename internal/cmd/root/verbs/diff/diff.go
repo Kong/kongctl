@@ -45,6 +45,7 @@ func NewDiffCmd() (*cobra.Command, error) {
 		Short:   diffShort,
 		Long:    diffLong,
 		Example: diffExamples,
+		Args: verbs.NoPositionalArgs,
 		// Use the konnect command's RunE directly for Konnect-first pattern
 		RunE: konnectCmd.RunE,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {

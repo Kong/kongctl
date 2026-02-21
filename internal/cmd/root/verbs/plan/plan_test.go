@@ -7,6 +7,7 @@ import (
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewPlanCmd(t *testing.T) {
@@ -71,4 +72,24 @@ func TestPlanCmdSubcommandAccess(t *testing.T) {
 		t.Fatal("Should have konnect subcommand")
 	}
 	assert.Equal(t, "konnect", konnectCmd.Name(), "Subcommand name should be konnect")
+}
+
+func TestPlanCmd_RejectsPositionalArgs(t *testing.T) {
+	cmd, err := NewPlanCmd()
+	require.NoError(t, err)
+
+	// Positional arguments should be rejected with a helpful error
+	err = cmd.Args(cmd, []string{"./some-file.yaml"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "-f/--filename", "Error should suggest using -f/--filename flag")
+	assert.Contains(t, err.Error(), "./some-file.yaml", "Error should include the unexpected argument")
+}
+
+func TestPlanCmd_AcceptsNoArgs(t *testing.T) {
+	cmd, err := NewPlanCmd()
+	require.NoError(t, err)
+
+	// No positional arguments should be accepted
+	err = cmd.Args(cmd, []string{})
+	assert.NoError(t, err)
 }

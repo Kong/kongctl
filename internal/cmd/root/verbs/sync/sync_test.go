@@ -271,3 +271,23 @@ apis:
 	// The flag should accept multiple values
 	assert.Equal(t, "stringSlice", fileFlag.Value.Type())
 }
+
+func TestSyncCmd_RejectsPositionalArgs(t *testing.T) {
+	cmd, err := NewSyncCmd()
+	require.NoError(t, err)
+
+	// Positional arguments should be rejected with a helpful error
+	err = cmd.Args(cmd, []string{"./some-file.yaml"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "-f/--filename", "Error should suggest using -f/--filename flag")
+	assert.Contains(t, err.Error(), "./some-file.yaml", "Error should include the unexpected argument")
+}
+
+func TestSyncCmd_AcceptsNoArgs(t *testing.T) {
+	cmd, err := NewSyncCmd()
+	require.NoError(t, err)
+
+	// No positional arguments should be accepted
+	err = cmd.Args(cmd, []string{})
+	assert.NoError(t, err)
+}
