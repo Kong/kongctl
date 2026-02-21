@@ -3,7 +3,9 @@ package plan
 import (
 	"context"
 	"fmt"
+	"strings"
 
+	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
@@ -59,6 +61,21 @@ func NewPlanCmd() (*cobra.Command, error) {
 
 	// Copy flags from konnect command to parent
 	cmd.Flags().AddFlagSet(konnectCmd.Flags())
+
+	// Intercept parse-time errors for -o/--output and replace with an actionable message.
+	// (pflag rejects non-enum values before RunE runs, so this is the only way to catch
+	// e.g. `kongctl plan -o plan.json`.)
+	outputFlagMsg := fmt.Sprintf(
+		"flags -o/--%s are not supported for the plan command; use --output-file to save the plan to a file",
+		cmdcommon.OutputFlagName,
+	)
+	cmd.SetFlagErrorFunc(func(c *cobra.Command, err error) error {
+		if strings.Contains(err.Error(), fmt.Sprintf("--%s", cmdcommon.OutputFlagName)) ||
+			strings.Contains(err.Error(), fmt.Sprintf("-%s", cmdcommon.OutputFlagShort)) {
+			return fmt.Errorf("%s", outputFlagMsg)
+		}
+		return err
+	})
 
 	// Also add konnect as a subcommand for explicit usage
 	cmd.AddCommand(konnectCmd)

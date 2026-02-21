@@ -75,26 +75,9 @@ kongctl plan -f config.yaml | jq '.changes[] | select(.operation == "CREATE")'
 
 ## Understanding Plan Output
 
-### Text Format (Default)
+### JSON Format (Default)
 
-```
-Planning changes...
-
-Changes to be made:
-
-CREATE portal "developer-portal"
-  - name: developer-portal
-  - display_name: Developer Portal
-  - authentication_enabled: true
-
-UPDATE api "users-api"
-  - description: "User management API" → "User management and authentication API"
-  - version: "v1.0.0" → "v2.0.0"
-
-Total: 2 changes (1 create, 1 update, 0 delete)
-```
-
-### JSON Format
+The `plan` command always outputs JSON. Example output:
 
 ```json
 {
