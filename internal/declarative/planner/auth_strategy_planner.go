@@ -53,6 +53,46 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 	// Collect protection validation errors
 	protectionErrors := &ProtectionErrorCollector{}
 
+	// Handle delete mode - plan DELETE for desired resources that exist in Konnect
+	if plan.Metadata.Mode == PlanModeDelete {
+		for _, desiredStrategy := range desired {
+			var name string
+			switch desiredStrategy.Type {
+			case kkComps.CreateAppAuthStrategyRequestTypeKeyAuth:
+				if desiredStrategy.AppAuthStrategyKeyAuthRequest != nil {
+					name = desiredStrategy.AppAuthStrategyKeyAuthRequest.Name
+				}
+			case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
+				if desiredStrategy.AppAuthStrategyOpenIDConnectRequest != nil {
+					name = desiredStrategy.AppAuthStrategyOpenIDConnectRequest.Name
+				}
+			}
+
+			if name == "" {
+				continue
+			}
+
+			current, exists := currentByName[name]
+			if !exists {
+				plan.AddWarning("", fmt.Sprintf(
+					"application_auth_strategy %q not found in Konnect, skipping delete", name))
+				continue
+			}
+
+			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
+			err := p.ValidateProtection("auth_strategy", name, isProtected, ActionDelete)
+			protectionErrors.Add(err)
+			if err == nil {
+				p.planAuthStrategyDelete(current, plan)
+			}
+		}
+
+		if protectionErrors.HasErrors() {
+			return protectionErrors.Error()
+		}
+		return nil
+	}
+
 	// Compare each desired auth strategy
 	for _, desiredStrategy := range desired {
 		// Extract name based on strategy type

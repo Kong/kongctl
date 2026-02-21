@@ -58,6 +58,35 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 	// Collect protection validation errors
 	protectionErrors := &ProtectionErrorCollector{}
 
+	// Handle delete mode - plan DELETE for desired resources that exist in Konnect
+	if plan.Metadata.Mode == PlanModeDelete {
+		for _, desiredTeam := range desired {
+			// External teams are not managed by kongctl - skip
+			if desiredTeam.IsExternal() {
+				continue
+			}
+
+			current, exists := currentByName[desiredTeam.Name]
+			if !exists {
+				plan.AddWarning("", fmt.Sprintf(
+					"organization_team %q not found in Konnect, skipping delete", desiredTeam.Name))
+				continue
+			}
+
+			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
+			err := t.ValidateProtection("organization_team", desiredTeam.Name, isProtected, ActionDelete)
+			protectionErrors.Add(err)
+			if err == nil {
+				t.planOrganizationTeamDelete(current, plan)
+			}
+		}
+
+		if protectionErrors.HasErrors() {
+			return protectionErrors.Error()
+		}
+		return nil
+	}
+
 	// Compare each desired team
 	for _, desiredTeam := range desired {
 		// External teams are not managed by kongctl and exist in Konnect already.
