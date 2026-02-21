@@ -1,0 +1,5 @@
+control_planes:
+  - ref: delete-test-cp
+    name: "delete-test-cp"
+    description: "Control plane for delete e2e scenario"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
