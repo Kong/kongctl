@@ -582,23 +582,6 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 			}
 		}
 
-	case planner.ActionCreate:
-		// For create, verify selected resources don't already exist
-		switch change.ResourceType {
-		case "control_plane":
-			if e.client != nil {
-				resourceName := common.ExtractResourceName(change.Fields)
-				cp, err := e.client.GetControlPlaneByName(ctx, resourceName)
-				if err != nil {
-					if !strings.Contains(err.Error(), "not found") {
-						return fmt.Errorf("failed to check existing control plane: %w", err)
-					}
-				}
-				if cp != nil {
-					return fmt.Errorf("control_plane '%s' already exists", resourceName)
-				}
-			}
-		}
 	}
 
 	return nil
