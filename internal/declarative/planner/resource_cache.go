@@ -10,6 +10,10 @@ import (
 )
 
 type planningResourceCache struct {
+	managedControlPlanesByKey  map[string][]state.ControlPlane
+	managedControlPlanesAll    []state.ControlPlane
+	managedControlPlanesLoaded bool
+
 	managedPortalsByKey  map[string][]state.Portal
 	managedPortalsAll    []state.Portal
 	managedPortalsLoaded bool
@@ -25,10 +29,47 @@ type planningResourceCache struct {
 
 func newPlanningResourceCache() *planningResourceCache {
 	return &planningResourceCache{
+		managedControlPlanesByKey:  make(map[string][]state.ControlPlane),
 		managedPortalsByKey:        make(map[string][]state.Portal),
 		managedAuthStrategiesByKey: make(map[string][]state.ApplicationAuthStrategy),
 		managedAPIsByKey:           make(map[string][]state.API),
 	}
+}
+
+func (p *Planner) listManagedControlPlanes(ctx context.Context, namespaces []string) ([]state.ControlPlane, error) {
+	normalizedNamespaces := normalizeNamespaces(namespaces)
+	if len(normalizedNamespaces) == 0 {
+		return []state.ControlPlane{}, nil
+	}
+
+	cache := p.resourceCache
+	cacheKey := namespaceCacheKey(normalizedNamespaces)
+	if cache != nil {
+		if cached, ok := cache.managedControlPlanesByKey[cacheKey]; ok {
+			return cached, nil
+		}
+
+		if cacheKey != "*" && cache.managedControlPlanesLoaded {
+			filtered := filterControlPlanesByNamespaces(cache.managedControlPlanesAll, normalizedNamespaces)
+			cache.managedControlPlanesByKey[cacheKey] = filtered
+			return filtered, nil
+		}
+	}
+
+	controlPlanes, err := p.client.ListManagedControlPlanes(ctx, normalizedNamespaces)
+	if err != nil {
+		return nil, err
+	}
+
+	if cache != nil {
+		cache.managedControlPlanesByKey[cacheKey] = controlPlanes
+		if cacheKey == "*" {
+			cache.managedControlPlanesAll = controlPlanes
+			cache.managedControlPlanesLoaded = true
+		}
+	}
+
+	return controlPlanes, nil
 }
 
 func (p *Planner) listManagedPortals(ctx context.Context, namespaces []string) ([]state.Portal, error) {
@@ -179,6 +220,30 @@ func namespaceCacheKey(normalizedNamespaces []string) string {
 		return ""
 	}
 	return strings.Join(normalizedNamespaces, ",")
+}
+
+func filterControlPlanesByNamespaces(controlPlanes []state.ControlPlane, namespaces []string) []state.ControlPlane {
+	if len(namespaces) == 0 {
+		return []state.ControlPlane{}
+	}
+	if len(namespaces) == 1 && namespaces[0] == "*" {
+		return controlPlanes
+	}
+
+	allowed := make(map[string]struct{}, len(namespaces))
+	for _, ns := range namespaces {
+		allowed[ns] = struct{}{}
+	}
+
+	filtered := make([]state.ControlPlane, 0, len(controlPlanes))
+	for _, controlPlane := range controlPlanes {
+		namespace := controlPlane.NormalizedLabels[labels.NamespaceKey]
+		if _, ok := allowed[namespace]; ok {
+			filtered = append(filtered, controlPlane)
+		}
+	}
+
+	return filtered
 }
 
 func filterPortalsByNamespaces(portals []state.Portal, namespaces []string) []state.Portal {

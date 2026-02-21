@@ -877,10 +877,38 @@ func (p *Planner) resolveControlPlaneIdentities(
 	controlPlanes []resources.ControlPlaneResource,
 ) error {
 	var (
+		managedByName        map[string]*state.ControlPlane
+		managedLoaded        bool
 		cpByID               map[string]*state.ControlPlane
 		cpByName             map[string][]*state.ControlPlane
 		allControlPlanesInit bool
 	)
+
+	loadManagedControlPlanes := func() error {
+		if managedLoaded {
+			return nil
+		}
+
+		cps, err := p.listManagedControlPlanes(ctx, []string{"*"})
+		if err != nil {
+			return err
+		}
+
+		managedByName = make(map[string]*state.ControlPlane, len(cps))
+		for i := range cps {
+			cp := &cps[i]
+			if cp.Name == "" {
+				continue
+			}
+			// Keep first match to preserve stable behavior in case of unexpected duplicates.
+			if _, exists := managedByName[cp.Name]; !exists {
+				managedByName[cp.Name] = cp
+			}
+		}
+
+		managedLoaded = true
+		return nil
+	}
 
 	loadAllControlPlanes := func() error {
 		if allControlPlanesInit {
@@ -963,6 +991,19 @@ func (p *Planner) resolveControlPlaneIdentities(
 
 		filter := cp.GetKonnectMonikerFilter()
 		if filter == "" {
+			continue
+		}
+
+		if strings.HasPrefix(filter, "name[eq]=") {
+			if err := loadManagedControlPlanes(); err != nil {
+				return fmt.Errorf("failed to list managed control planes: %w", err)
+			}
+
+			name := strings.TrimPrefix(filter, "name[eq]=")
+			if konnectCP, ok := managedByName[name]; ok {
+				cp.TryMatchKonnectResource(konnectCP)
+			}
+
 			continue
 		}
 
