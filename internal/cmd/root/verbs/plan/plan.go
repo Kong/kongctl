@@ -28,7 +28,7 @@ var (
 	planExamples = normalizers.Examples(i18n.T("root.verbs.plan.planExamples",
 		fmt.Sprintf(`  %[1]s plan -f api.yaml
   %[1]s plan -f ./configs/ --recursive
-  %[1]s plan -f config.yaml -o plan.json
+  %[1]s plan -f config.yaml --output-file plan.json
 
 Use "%[1]s help plan" for detailed documentation`, meta.CLIName)))
 )

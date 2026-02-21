@@ -21,8 +21,7 @@ kongctl plan [flags]
 ### Optional Flags
 
 - `-r, --recursive`: Process directories recursively (default: false)
-- `-o, --output-file` (string): Save the generated plan to a file
-- `--format` (string): Output format: json, yaml, or text (default: text)
+- `--output-file` (string): Save the generated plan to a file
 - `--log-level` (string): Set logging level: trace, debug, info, warn, error
 
 ## How Planning Works
@@ -55,10 +54,7 @@ kongctl plan -f ./configs/ --recursive
 
 ```bash
 # Save plan to file for review
-kongctl plan -f config.yaml -o plan.json
-
-# Save plan in YAML format
-kongctl plan -f config.yaml -o plan.yaml --format yaml
+kongctl plan -f config.yaml --output-file plan.json
 
 # Use saved plan with apply
 kongctl apply --plan plan.json
@@ -71,10 +67,10 @@ kongctl apply --plan plan.json
 cat config.yaml | kongctl plan -f -
 
 # Generate plan and pipe to jq for processing
-kongctl plan -f config.yaml --format json | jq '.changes[]'
+kongctl plan -f config.yaml | jq '.changes[]'
 
 # Generate plan and review specific changes
-kongctl plan -f config.yaml --format json | jq '.changes[] | select(.operation == "CREATE")'
+kongctl plan -f config.yaml | jq '.changes[] | select(.operation == "CREATE")'
 ```
 
 ## Understanding Plan Output
@@ -168,14 +164,14 @@ kongctl plan -f api-config.yaml
 kongctl apply -f api-config.yaml
 
 # 4. Or save plan for team review
-kongctl plan -f api-config.yaml -o proposed-changes.json
+kongctl plan -f api-config.yaml --output-file proposed-changes.json
 ```
 
 ### CI/CD Workflow
 
 ```bash
 # In CI pipeline
-kongctl plan -f ./configs/ -o plan.json
+kongctl plan -f ./configs/ --output-file plan.json
 
 # Review plan (automated checks)
 ./scripts/validate-plan.sh plan.json
