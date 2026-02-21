@@ -68,7 +68,6 @@ steps:
         outputFormat: disable
         run:
           - plan
-          - declarative
           - -f
           - "{{ .workdir }}/dump.yaml"
           - --mode
