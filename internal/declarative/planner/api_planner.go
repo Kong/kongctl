@@ -44,6 +44,11 @@ func (a *apiPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, pl
 		return err
 	}
 
+	// In delete mode, skip child resource planning (rely on cascade)
+	if plan.Metadata.Mode == PlanModeDelete {
+		return nil
+	}
+
 	// Plan child resources that are defined separately
 	if err := a.planner.planAPIVersionsChanges(ctx, plannerCtx, a.GetDesiredAPIVersions(namespace), plan); err != nil {
 		return err
@@ -99,6 +104,36 @@ func (p *Planner) planAPIChanges(
 	currentByName := make(map[string]state.API)
 	for _, api := range currentAPIs {
 		currentByName[api.Name] = api
+	}
+
+	// Handle delete mode - plan DELETE for desired resources that exist in Konnect
+	if plan.Metadata.Mode == PlanModeDelete {
+		var protectionErrors []error
+		for _, desiredAPI := range desired {
+			current, exists := currentByName[desiredAPI.Name]
+			if !exists {
+				plan.AddWarning("", fmt.Sprintf(
+					"api %q not found in Konnect, skipping delete", desiredAPI.Name))
+				continue
+			}
+
+			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
+			if err := p.validateProtection("api", desiredAPI.Name, isProtected, ActionDelete); err != nil {
+				protectionErrors = append(protectionErrors, err)
+			} else {
+				p.planAPIDelete(current, plan)
+			}
+		}
+
+		if len(protectionErrors) > 0 {
+			errMsg := "Cannot generate plan due to protected resources:\n"
+			for _, err := range protectionErrors {
+				errMsg += fmt.Sprintf("- %s\n", err.Error())
+			}
+			errMsg += "\nTo proceed, first update these resources to set protected: false"
+			return fmt.Errorf("%s", errMsg)
+		}
+		return nil
 	}
 
 	// Collect protection validation errors

@@ -54,6 +54,34 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 
 	protectionErrors := &ProtectionErrorCollector{}
 
+	// Handle delete mode - plan DELETE for desired resources that exist in Konnect
+	if plan.Metadata.Mode == PlanModeDelete {
+		for _, desiredCP := range desired {
+			if desiredCP.IsExternal() {
+				continue
+			}
+
+			current, exists := currentByName[desiredCP.Name]
+			if !exists {
+				plan.AddWarning("", fmt.Sprintf(
+					"control_plane %q not found in Konnect, skipping delete", desiredCP.Name))
+				continue
+			}
+
+			currentProtected := labels.IsProtectedResource(current.NormalizedLabels)
+			err := p.ValidateProtection("control_plane", desiredCP.Name, currentProtected, ActionDelete)
+			protectionErrors.Add(err)
+			if err == nil {
+				p.planControlPlaneDelete(current, plan)
+			}
+		}
+
+		if protectionErrors.HasErrors() {
+			return protectionErrors.Error()
+		}
+		return nil
+	}
+
 	for _, desiredCP := range desired {
 		if desiredCP.IsExternal() {
 			p.planner.logger.Debug("Skipping external control plane", "ref", desiredCP.GetRef(), "name", desiredCP.Name)
