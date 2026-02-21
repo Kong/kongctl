@@ -1,0 +1,5 @@
+control_planes:
+  - ref: partial-delete-cp
+    name: "partial-delete-cp"
+    description: "Control plane for partial-delete e2e scenario"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"

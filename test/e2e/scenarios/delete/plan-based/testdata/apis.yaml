@@ -1,0 +1,14 @@
+apis:
+  - ref: plan-based-delete-api-alpha
+    name: "plan-based-delete-api-alpha"
+    description: "Alpha API for plan-based delete e2e scenario"
+    version: "1.0.0"
+    labels:
+      team: alpha
+
+  - ref: plan-based-delete-api-beta
+    name: "plan-based-delete-api-beta"
+    description: "Beta API for plan-based delete e2e scenario"
+    version: "2.0.0"
+    labels:
+      team: beta
