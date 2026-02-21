@@ -268,3 +268,37 @@ func TestApplyFilterRejectsInvalidExpression(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "invalid jq expression")
 }
+
+func TestApplyToRawNilSliceIdentityReturnsEmptyArray(t *testing.T) {
+	// A nil typed slice should be treated as an empty array, not null.
+	// This mirrors the behaviour of list commands that return zero items.
+	type item struct{ Name string }
+	var raw []item // nil slice
+
+	settings := Settings{
+		Filter:    ".",
+		ColorMode: cmdcommon.ColorModeNever,
+		Theme:     DefaultTheme,
+	}
+
+	result, handled, err := ApplyToRaw(raw, cmdcommon.JSON, settings, &bytes.Buffer{})
+	require.NoError(t, err)
+	require.False(t, handled)
+	require.Equal(t, []interface{}{}, result)
+}
+
+func TestApplyToRawEmptySliceIdentityReturnsEmptyArray(t *testing.T) {
+	type item struct{ Name string }
+	raw := []item{}
+
+	settings := Settings{
+		Filter:    ".",
+		ColorMode: cmdcommon.ColorModeNever,
+		Theme:     DefaultTheme,
+	}
+
+	result, handled, err := ApplyToRaw(raw, cmdcommon.JSON, settings, &bytes.Buffer{})
+	require.NoError(t, err)
+	require.False(t, handled)
+	require.Equal(t, []interface{}{}, result)
+}
