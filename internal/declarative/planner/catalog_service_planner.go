@@ -23,6 +23,10 @@ func NewCatalogServicePlanner(base *BasePlanner) CatalogServicePlanner {
 	}
 }
 
+func (p *catalogServicePlannerImpl) PlannerComponent() string {
+	return string(resources.ResourceTypeCatalogService)
+}
+
 // PlanChanges generates changes for catalog service resources.
 func (p *catalogServicePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
 	namespace := plannerCtx.Namespace

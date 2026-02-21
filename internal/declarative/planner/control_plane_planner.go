@@ -22,6 +22,10 @@ func NewControlPlanePlanner(base *BasePlanner) ControlPlanePlanner {
 	return &controlPlanePlannerImpl{BasePlanner: base}
 }
 
+func (p *controlPlanePlannerImpl) PlannerComponent() string {
+	return string(resources.ResourceTypeControlPlane)
+}
+
 // PlanChanges generates changes for control plane resources
 func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
 	namespace := plannerCtx.Namespace

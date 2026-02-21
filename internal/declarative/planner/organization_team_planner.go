@@ -22,6 +22,10 @@ func NewOrganizationTeamPlanner(base *BasePlanner) OrganizationTeamPlanner {
 	}
 }
 
+func (t *OrganizationTeamPlannerImpl) PlannerComponent() string {
+	return string(resources.ResourceTypeOrganizationTeam)
+}
+
 // PlanChanges generates changes for organization_team resources
 func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
 	namespace := plannerCtx.Namespace

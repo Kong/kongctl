@@ -25,6 +25,10 @@ func NewPortalPlanner(base *BasePlanner) PortalPlanner {
 	}
 }
 
+func (p *portalPlannerImpl) PlannerComponent() string {
+	return string(resources.ResourceTypePortal)
+}
+
 // PlanChanges generates changes for portal resources
 func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
 	// Get namespace from planner context

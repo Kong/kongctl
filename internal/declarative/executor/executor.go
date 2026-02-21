@@ -245,6 +245,8 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 
 // Execute runs the plan and returns the execution result
 func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionResult {
+	ctx = withExecutorHTTPLogContext(ctx, e.executionMode)
+
 	result := &ExecutionResult{
 		DryRun: e.dryRun,
 	}
@@ -277,7 +279,8 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 		}
 
 		// Execute the change, the error will be captured in result
-		_ = e.executeChange(ctx, result, change, plan, i)
+		changeCtx := withExecutorChangeHTTPLogContext(ctx, change)
+		_ = e.executeChange(changeCtx, result, change, plan, i)
 	}
 
 	// Notify reporter of execution completion
@@ -286,6 +289,34 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 	}
 
 	return result
+}
+
+func withExecutorHTTPLogContext(ctx context.Context, mode planner.PlanMode) context.Context {
+	return log.WithHTTPLogContext(ctx, log.HTTPLogContext{
+		Workflow:      "declarative",
+		WorkflowPhase: "executor",
+		WorkflowMode:  string(mode),
+	})
+}
+
+func withExecutorChangeHTTPLogContext(ctx context.Context, change *planner.PlannedChange) context.Context {
+	if change == nil {
+		return ctx
+	}
+
+	update := log.HTTPLogContext{
+		WorkflowComponent: change.ResourceType,
+		WorkflowAction:    strings.ToLower(string(change.Action)),
+		WorkflowChangeID:  change.ID,
+		WorkflowResource:  change.ResourceType,
+		WorkflowRef:       change.ResourceRef,
+	}
+
+	if namespace := strings.TrimSpace(change.Namespace); namespace != "" {
+		update.WorkflowNamespace = namespace
+	}
+
+	return log.WithHTTPLogContext(ctx, update)
 }
 
 // executeChange executes a single change from the plan

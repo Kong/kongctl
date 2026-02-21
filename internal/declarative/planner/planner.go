@@ -5,13 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/kong/kongctl/internal/declarative/deck"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
+	applog "github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/util"
 )
 
@@ -22,7 +25,17 @@ type Options struct {
 	Deck      DeckOptions
 }
 
-const defaultGenerator = "kongctl/dev"
+const (
+	defaultGenerator = "kongctl/dev"
+
+	plannerWorkflowName  = "declarative"
+	plannerPhaseName     = "planner"
+	plannerComponentMain = "generate_plan"
+
+	plannerComponentIdentityResolution  = "identity_resolution"
+	plannerComponentReferenceResolution = "reference_resolution"
+	plannerComponentDeck                = "deck"
+)
 
 var errGatewayServiceNotFound = errors.New("gateway service not found")
 
@@ -99,6 +112,8 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 
 // GeneratePlan creates a plan from declarative configuration
 func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, opts Options) (*Plan, error) {
+	ctx = withPlannerHTTPLogContext(ctx, opts, plannerComponentMain, "")
+
 	generator := opts.Generator
 	if generator == "" {
 		generator = defaultGenerator
@@ -108,7 +123,10 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	basePlan := NewPlan("1.0", generator, opts.Mode)
 
 	// Pre-resolution phase: Resolve resource identities before planning
-	if err := p.resolveResourceIdentities(ctx, rs); err != nil {
+	if err := p.resolveResourceIdentities(
+		withPlannerHTTPLogContext(ctx, opts, plannerComponentIdentityResolution, ""),
+		rs,
+	); err != nil {
 		return nil, fmt.Errorf("failed to resolve resource identities: %w", err)
 	}
 
@@ -151,6 +169,8 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 	// Process each namespace independently
 	for _, namespace := range namespaces {
+		namespaceCtx := withPlannerHTTPLogContext(ctx, opts, "", namespace)
+
 		// Create a namespace-specific planner context
 		namespacePlanner := &Planner{
 			client:      p.client,
@@ -205,28 +225,57 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		// Create planner context with namespace
 		plannerCtx := NewConfig(actualNamespace)
 
-		if err := namespacePlanner.authStrategyPlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
+		if err := namespacePlanner.authStrategyPlanner.PlanChanges(
+			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.authStrategyPlanner), ""),
+			plannerCtx,
+			namespacePlan,
+		); err != nil {
 			return nil, fmt.Errorf("failed to plan auth strategy changes for namespace %s: %w", namespace, err)
 		}
 
-		if err := namespacePlanner.controlPlanePlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
+		if err := namespacePlanner.controlPlanePlanner.PlanChanges(
+			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.controlPlanePlanner), ""),
+			plannerCtx,
+			namespacePlan,
+		); err != nil {
 			return nil, fmt.Errorf("failed to plan control plane changes for namespace %s: %w", namespace, err)
 		}
 
-		if err := namespacePlanner.portalPlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
+		if err := namespacePlanner.portalPlanner.PlanChanges(
+			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.portalPlanner), ""),
+			plannerCtx,
+			namespacePlan,
+		); err != nil {
 			return nil, fmt.Errorf("failed to plan portal changes for namespace %s: %w", namespace, err)
 		}
 
-		if err := namespacePlanner.catalogServicePlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
+		if err := namespacePlanner.catalogServicePlanner.PlanChanges(
+			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.catalogServicePlanner), ""),
+			plannerCtx,
+			namespacePlan,
+		); err != nil {
 			return nil, fmt.Errorf("failed to plan catalog service changes for namespace %s: %w", namespace, err)
 		}
 
 		// Plan API changes (includes child resources)
-		if err := namespacePlanner.apiPlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
+		if err := namespacePlanner.apiPlanner.PlanChanges(
+			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.apiPlanner), ""),
+			plannerCtx,
+			namespacePlan,
+		); err != nil {
 			return nil, fmt.Errorf("failed to plan API changes for namespace %s: %w", namespace, err)
 		}
 
-		if err := namespacePlanner.eventGatewayControlPlanePlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
+		if err := namespacePlanner.eventGatewayControlPlanePlanner.PlanChanges(
+			withPlannerHTTPLogContext(
+				namespaceCtx,
+				opts,
+				plannerComponent(namespacePlanner.eventGatewayControlPlanePlanner),
+				"",
+			),
+			plannerCtx,
+			namespacePlan,
+		); err != nil {
 			return nil, fmt.Errorf(
 				"failed to plan Event Gateway Control Plane changes for namespace %s: %w",
 				namespace,
@@ -234,7 +283,11 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 			)
 		}
 
-		if err := namespacePlanner.organizationTeamPlanner.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
+		if err := namespacePlanner.organizationTeamPlanner.PlanChanges(
+			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.organizationTeamPlanner), ""),
+			plannerCtx,
+			namespacePlan,
+		); err != nil {
 			return nil, fmt.Errorf("failed to plan Team changes for namespace %s: %w", namespace, err)
 		}
 
@@ -246,7 +299,12 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		p.changeCount = namespacePlanner.changeCount
 	}
 
-	if err := p.planDeckDependencies(ctx, rs, basePlan, opts); err != nil {
+	if err := p.planDeckDependencies(
+		withPlannerHTTPLogContext(ctx, opts, plannerComponentDeck, ""),
+		rs,
+		basePlan,
+		opts,
+	); err != nil {
 		return nil, err
 	}
 
@@ -258,7 +316,10 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	// resource access methods.
 
 	// Resolve references for all changes
-	resolveResult, err := p.resolver.ResolveReferences(ctx, basePlan.Changes)
+	resolveResult, err := p.resolver.ResolveReferences(
+		withPlannerHTTPLogContext(ctx, opts, plannerComponentReferenceResolution, ""),
+		basePlan.Changes,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve references: %w", err)
 	}
@@ -310,6 +371,88 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	}
 
 	return basePlan, nil
+}
+
+func withPlannerHTTPLogContext(
+	ctx context.Context,
+	opts Options,
+	component string,
+	namespace string,
+) context.Context {
+	update := applog.HTTPLogContext{
+		Workflow:      plannerWorkflowName,
+		WorkflowPhase: plannerPhaseName,
+		WorkflowMode:  string(opts.Mode),
+	}
+
+	if strings.TrimSpace(component) != "" {
+		update.WorkflowComponent = component
+	}
+	if strings.TrimSpace(namespace) != "" {
+		update.WorkflowNamespace = namespace
+	}
+
+	return applog.WithHTTPLogContext(ctx, update)
+}
+
+func plannerComponent(resourcePlanner ResourcePlanner) string {
+	if resourcePlanner == nil {
+		return ""
+	}
+
+	if provider, ok := resourcePlanner.(ComponentProvider); ok {
+		if component := strings.TrimSpace(provider.PlannerComponent()); component != "" {
+			return component
+		}
+	}
+
+	typ := reflect.TypeOf(resourcePlanner)
+	if typ == nil {
+		return ""
+	}
+	for typ.Kind() == reflect.Pointer {
+		typ = typ.Elem()
+	}
+
+	name := strings.TrimSpace(typ.Name())
+	name = strings.TrimSuffix(name, "PlannerImpl")
+	name = strings.TrimSuffix(name, "Planner")
+	name = strings.TrimSuffix(name, "Impl")
+
+	return toSnakeCase(name)
+}
+
+func toSnakeCase(value string) string {
+	runes := []rune(strings.TrimSpace(value))
+	if len(runes) == 0 {
+		return ""
+	}
+
+	var out []rune
+	for idx, current := range runes {
+		if unicode.IsUpper(current) {
+			if idx > 0 {
+				prev := runes[idx-1]
+				nextIsLower := idx+1 < len(runes) && unicode.IsLower(runes[idx+1])
+				if unicode.IsLower(prev) || unicode.IsDigit(prev) || (unicode.IsUpper(prev) && nextIsLower) {
+					out = append(out, '_')
+				}
+			}
+			out = append(out, unicode.ToLower(current))
+			continue
+		}
+
+		if current == '-' || unicode.IsSpace(current) {
+			if len(out) > 0 && out[len(out)-1] != '_' {
+				out = append(out, '_')
+			}
+			continue
+		}
+
+		out = append(out, unicode.ToLower(current))
+	}
+
+	return strings.Trim(string(out), "_")
 }
 
 // adjustAuthStrategyDeleteDependencies ensures auth strategy DELETE changes execute only

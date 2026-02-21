@@ -23,6 +23,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/validator"
 	"github.com/kong/kongctl/internal/konnect/helpers"
+	applog "github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
@@ -238,6 +239,27 @@ func planGenerator(helper cmd.Helper) string {
 	return fmt.Sprintf("%s/%s", meta.CLIName, version)
 }
 
+func withDeclarativeHTTPLogContext(
+	ctx context.Context,
+	command *cobra.Command,
+	verb verbs.VerbValue,
+	mode planner.PlanMode,
+) context.Context {
+	commandPath := ""
+	if command != nil {
+		commandPath = strings.TrimSpace(command.CommandPath())
+	}
+
+	return applog.WithHTTPLogContext(ctx, applog.HTTPLogContext{
+		CommandPath:    commandPath,
+		CommandVerb:    verb.String(),
+		CommandMode:    string(mode),
+		CommandProduct: "konnect",
+		Workflow:       "declarative",
+		WorkflowMode:   string(mode),
+	})
+}
+
 // NewDeclarativeCmd creates the appropriate declarative command based on the verb
 func NewDeclarativeCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	// Handle supported declarative verbs
@@ -305,6 +327,9 @@ func runPlan(command *cobra.Command, args []string) error {
 	default:
 		return fmt.Errorf("invalid mode %q: must be 'sync' or 'apply'", mode)
 	}
+
+	ctx = withDeclarativeHTTPLogContext(ctx, command, verbs.Plan, planMode)
+	command.SetContext(ctx)
 
 	// Build helper
 	helper := cmd.BuildHelper(command, args)
@@ -594,6 +619,9 @@ func runDiff(command *cobra.Command, args []string) error {
 	command.SilenceUsage = true
 
 	ctx := command.Context()
+	ctx = withDeclarativeHTTPLogContext(ctx, command, verbs.Diff, planner.PlanModeSync)
+	command.SetContext(ctx)
+
 	helper := cmd.BuildHelper(command, args)
 	cfg, err := helper.GetConfig()
 	if err != nil {
@@ -1023,6 +1051,9 @@ func runApply(command *cobra.Command, args []string) error {
 	command.SilenceUsage = true
 
 	ctx := command.Context()
+	ctx = withDeclarativeHTTPLogContext(ctx, command, verbs.Apply, planner.PlanModeApply)
+	command.SetContext(ctx)
+
 	planFile, _ := command.Flags().GetString("plan")
 	dryRun, _ := command.Flags().GetBool("dry-run")
 	autoApprove, _ := command.Flags().GetBool("auto-approve")
@@ -1472,6 +1503,9 @@ func runSync(command *cobra.Command, args []string) error {
 	command.SilenceUsage = true
 
 	ctx := command.Context()
+	ctx = withDeclarativeHTTPLogContext(ctx, command, verbs.Sync, planner.PlanModeSync)
+	command.SetContext(ctx)
+
 	planFile, _ := command.Flags().GetString("plan")
 	dryRun, _ := command.Flags().GetBool("dry-run")
 	autoApprove, _ := command.Flags().GetBool("auto-approve")
