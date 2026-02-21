@@ -10,9 +10,9 @@ type ResourcePlanner interface {
 	PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error
 }
 
-// PlannerComponentProvider optionally exposes the workflow component name to use in HTTP logging.
+// ComponentProvider optionally exposes the workflow component name to use in HTTP logging.
 // Implementations should return the canonical resource-style identifier (for example: "portal").
-type PlannerComponentProvider interface {
+type ComponentProvider interface {
 	PlannerComponent() string
 }
 

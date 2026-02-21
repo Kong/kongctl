@@ -400,7 +400,7 @@ func plannerComponent(resourcePlanner ResourcePlanner) string {
 		return ""
 	}
 
-	if provider, ok := resourcePlanner.(PlannerComponentProvider); ok {
+	if provider, ok := resourcePlanner.(ComponentProvider); ok {
 		if component := strings.TrimSpace(provider.PlannerComponent()); component != "" {
 			return component
 		}

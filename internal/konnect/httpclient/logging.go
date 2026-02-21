@@ -115,7 +115,7 @@ func (c *LoggingHTTPClient) Do(req *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("request is nil")
 	}
 
-	ctx := requestContext(req, context.Background())
+	ctx := requestContext(context.Background(), req)
 	debugEnabled := c.logger != nil && c.logger.Enabled(ctx, slog.LevelDebug)
 	traceEnabled := c.logger != nil && c.logger.Enabled(ctx, log.LevelTrace)
 	if !debugEnabled && !traceEnabled {
@@ -146,7 +146,7 @@ func (c *LoggingHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	}
 
 	c.logResponse(
-		requestContext(resp.Request, ctx),
+		requestContext(ctx, resp.Request),
 		resp,
 		requestID,
 		duration,
@@ -291,11 +291,11 @@ func (c *LoggingHTTPClient) nextRequestID() string {
 	return fmt.Sprintf("khttp-%06d", c.requestCounter.Add(1))
 }
 
-func requestContext(req *http.Request, fallback context.Context) context.Context {
+func requestContext(ctx context.Context, req *http.Request) context.Context {
 	if req != nil && req.Context() != nil {
 		return req.Context()
 	}
-	return fallback
+	return ctx
 }
 
 func routeFromURL(parsedURL *url.URL) string {
