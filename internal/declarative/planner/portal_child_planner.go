@@ -2694,7 +2694,7 @@ func (p *Planner) planPortalTeamsChanges(
 	// Fetch existing teams for this portal
 	existingTeams := make(map[string]state.PortalTeam)
 	if portalID != "" {
-		teams, err := p.client.ListPortalTeams(ctx, portalID)
+		teams, err := p.listPortalTeams(ctx, portalID)
 		if err != nil {
 			// If portal team API is not configured, skip processing
 			if strings.Contains(err.Error(), "portal team API not configured") {
@@ -3041,7 +3041,7 @@ func (p *Planner) planPortalTeamRolesChanges(
 
 	existingTeamsByName := make(map[string]state.PortalTeam)
 	if portalID != "" {
-		teams, err := p.client.ListPortalTeams(ctx, portalID)
+		teams, err := p.listPortalTeams(ctx, portalID)
 		if err != nil {
 			// If portal team API is not configured, skip processing
 			if strings.Contains(err.Error(), "portal team API not configured") {

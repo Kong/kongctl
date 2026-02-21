@@ -713,6 +713,10 @@ func (p *Planner) planAPIVersionChanges(
 	ctx context.Context, _ *Config, parentNamespace string, apiID string, apiRef string,
 	desired []resources.APIVersionResource, plan *Plan,
 ) error {
+	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
+		return nil
+	}
+
 	// List current versions
 	currentVersions, err := p.client.ListAPIVersions(ctx, apiID)
 	if err != nil {
@@ -882,6 +886,10 @@ func (p *Planner) planAPIPublicationChanges(
 	ctx context.Context, plannerCtx *Config, parentNamespace string, apiID string, apiRef string,
 	desired []resources.APIPublicationResource, plan *Plan,
 ) error {
+	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
+		return nil
+	}
+
 	// Get namespace from planner context
 	namespace := plannerCtx.Namespace
 	namespaceFilter := []string{namespace}
@@ -1387,6 +1395,10 @@ func (p *Planner) planAPIImplementationChanges(
 	ctx context.Context, _ *Config, parentNamespace string, apiID string, apiRef string,
 	desired []resources.APIImplementationResource, plan *Plan,
 ) error {
+	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
+		return nil
+	}
+
 	// List current implementations
 	currentImplementations, err := p.client.ListAPIImplementations(ctx, apiID)
 	if err != nil {
@@ -1586,6 +1598,10 @@ func (p *Planner) planAPIDocumentChanges(
 	ctx context.Context, _ *Config, parentNamespace string, apiID string, apiRef string,
 	desired []resources.APIDocumentResource, plan *Plan,
 ) error {
+	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
+		return nil
+	}
+
 	// List current documents
 	currentDocuments, err := p.client.ListAPIDocuments(ctx, apiID)
 	if err != nil {

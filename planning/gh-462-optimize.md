@@ -313,3 +313,148 @@ Identify whether any redundant requests remain for single team create flows.
 - None.
 - Current behavior is already at expected minimum request count for this
   apply scenario.
+
+## Optimization Pass 6: Large Developer Portal apply (`portal/*`)
+
+### Goal
+
+Evaluate whether multi-resource portal apply still has redundant reads after
+single-resource optimizations.
+
+### Baseline observed
+
+- Command:
+  ```sh
+  ./scripts/command-analyzer.sh -- apply \
+    -f docs/examples/declarative/portal/apis.yaml \
+    -f docs/examples/declarative/portal/portal.yaml \
+    -f docs/examples/declarative/portal/auth-strategies.yaml \
+    --auto-approve
+  ```
+- Log file: `/tmp/kongctl-http.LYi0.log`
+- Requests: 42 total
+- Elapsed: 5002 ms
+
+### Request profile summary
+
+- Reads (`GET`): 3 total
+  - `GET /v3/apis`: 1
+  - `GET /v3/portals`: 1
+  - `GET /v2/application-auth-strategies`: 1
+- Writes (`POST`/`PUT`/`PATCH`): 39 total
+  - Match planned creates/updates for API, portal, versions, documents,
+    publications, pages, snippets, teams, roles, and assets.
+
+### Analysis
+
+- No duplicate read calls remain in this flow.
+- Request volume is dominated by required writes for 39 planned changes.
+- Current behavior appears near-minimal for this declarative input because each
+  child resource create/update maps to its own Konnect API operation.
+
+### Changes made
+
+- None in this pass.
+- No clear request-deduplication target identified from this baseline alone.
+
+## Optimization Pass 7: Portal consecutive apply (no changes)
+
+### Goal
+
+Reduce planner-only read amplification on consecutive apply runs where no
+resource changes are needed.
+
+### Baseline observed (before)
+
+- Commands (run back-to-back):
+  ```sh
+  ./scripts/command-analyzer.sh -- apply \
+    -f docs/examples/declarative/portal/apis.yaml \
+    -f docs/examples/declarative/portal/portal.yaml \
+    -f docs/examples/declarative/portal/auth-strategies.yaml \
+    --auto-approve
+  ```
+- First run log: `/tmp/kongctl-http.RQlg.log`
+  - Requests: 42 (write-dominant create/update run)
+- Second run log: `/tmp/kongctl-http.umex.log`
+  - Requests: 51 (`No changes needed`)
+
+### Duplicate/no-op patterns in second run
+
+- Duplicate API child list reads per API:
+  - `GET /v3/apis/<id>/versions` repeated twice per API
+  - `GET /v3/api-publications` repeated twice per API
+- No-op API child list reads:
+  - `GET /v3/api-implementations` called once per API even when no desired
+    `api_implementation` resources exist
+- Separate portal duplication remains:
+  - `GET /v3/portals/<id>/teams` called twice (team planner + team role planner)
+
+### Changes made
+
+- Added early exit guards in API child planners:
+  - if `len(desired) == 0` and mode is not `sync`, skip list/diff call.
+- Updated:
+  - `internal/declarative/planner/api_planner.go`
+    - `planAPIVersionChanges`
+    - `planAPIPublicationChanges`
+    - `planAPIImplementationChanges`
+    - `planAPIDocumentChanges`
+
+### Result (after)
+
+- Command:
+  ```sh
+  ./scripts/command-analyzer.sh -- apply \
+    -f docs/examples/declarative/portal/apis.yaml \
+    -f docs/examples/declarative/portal/portal.yaml \
+    -f docs/examples/declarative/portal/auth-strategies.yaml \
+    --auto-approve
+  ```
+- Log file: `/tmp/kongctl-http.PUJf.log`
+- Requests: 45 total (`No changes needed`)
+
+### Net improvement
+
+- No-change request count: `51 -> 45` (6 fewer calls, ~11.8% reduction).
+- The removed calls match the pass target:
+  - duplicate API version list reads
+  - duplicate API publication list reads
+  - API implementation list reads with empty desired set
+
+## Optimization Pass 8: Portal team list deduplication
+
+### Goal
+
+Remove the duplicate portal-team list call shared by team and team-role
+planners in no-change runs.
+
+### Baseline observed (before)
+
+- Command:
+  ```sh
+  ./scripts/command-analyzer.sh -- apply \
+    -f docs/examples/declarative/portal/apis.yaml \
+    -f docs/examples/declarative/portal/portal.yaml \
+    -f docs/examples/declarative/portal/auth-strategies.yaml \
+    --auto-approve
+  ```
+- Log file: `/tmp/kongctl-http.PUJf.log`
+- Requests: 45 total
+- Duplicate pattern:
+  - `GET /v3/portals/<id>/teams`: 2
+
+### Changes made
+
+- Added planner-run portal team cache keyed by `portalID`.
+  - `internal/declarative/planner/resource_cache.go`
+- Added cached helper:
+  - `listPortalTeams(ctx, portalID)`
+- Updated portal child planning call sites to use cached helper:
+  - `internal/declarative/planner/portal_child_planner.go`
+    - `planPortalTeamsChanges`
+    - `planPortalTeamRolesChanges`
+
+### Expected impact
+
+- Expected no-change request count for this scenario: `45 -> ~44` requests.
