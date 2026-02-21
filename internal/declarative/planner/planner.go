@@ -1529,6 +1529,37 @@ func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resourc
 	}
 
 	// Second pass: resolve managed portals (existing logic)
+	var (
+		managedByName map[string]*state.Portal
+		managedLoaded bool
+	)
+
+	loadManagedPortals := func() error {
+		if managedLoaded {
+			return nil
+		}
+
+		managedPortals, err := p.listManagedPortals(ctx, []string{"*"})
+		if err != nil {
+			return err
+		}
+
+		managedByName = make(map[string]*state.Portal, len(managedPortals))
+		for i := range managedPortals {
+			current := &managedPortals[i]
+			if current.Name == "" {
+				continue
+			}
+			// Keep first match to preserve stable behavior in case of unexpected duplicates.
+			if _, exists := managedByName[current.Name]; !exists {
+				managedByName[current.Name] = current
+			}
+		}
+
+		managedLoaded = true
+		return nil
+	}
+
 	for i := range portals {
 		portal := &portals[i]
 
@@ -1545,6 +1576,19 @@ func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resourc
 		// Try to find the portal using filter
 		filter := portal.GetKonnectMonikerFilter()
 		if filter == "" {
+			continue
+		}
+
+		if strings.HasPrefix(filter, "name[eq]=") {
+			if err := loadManagedPortals(); err != nil {
+				return fmt.Errorf("failed to list managed portals: %w", err)
+			}
+
+			name := strings.TrimPrefix(filter, "name[eq]=")
+			if konnectPortal, ok := managedByName[name]; ok {
+				portal.TryMatchKonnectResource(konnectPortal)
+			}
+
 			continue
 		}
 
