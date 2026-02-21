@@ -99,12 +99,13 @@ func (p Palette) BackgroundStyle(token Token) lipgloss.Style {
 type contextKey struct{}
 
 var (
-	registryOnce sync.Once
-	registryMu   sync.RWMutex
-	palettes     map[string]Palette
-	current      Palette
-	defaultPal   Palette
-	themeKey     contextKey
+	registryOnce        sync.Once
+	registryMu          sync.RWMutex
+	palettes            map[string]Palette
+	current             Palette
+	defaultPal          Palette
+	themeKey            contextKey
+	configuredExplicitly bool
 )
 
 // ContextWithPalette stores the palette on the context.
@@ -192,6 +193,22 @@ func SetCurrent(name string) error {
 	}
 	current = p
 	return nil
+}
+
+// SetConfiguredExplicitly records whether the active theme was set by the user
+// (via config file, environment variable, or flag) rather than falling back to
+// the built-in default.
+func SetConfiguredExplicitly(v bool) {
+	registryMu.Lock()
+	defer registryMu.Unlock()
+	configuredExplicitly = v
+}
+
+// IsConfiguredExplicitly reports whether the user has explicitly chosen a theme.
+func IsConfiguredExplicitly() bool {
+	registryMu.RLock()
+	defer registryMu.RUnlock()
+	return configuredExplicitly
 }
 
 // Current returns the active palette.

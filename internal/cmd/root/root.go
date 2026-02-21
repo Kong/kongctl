@@ -442,7 +442,11 @@ func initConfig() {
 		}
 		_ = theme.SetCurrent(common.DefaultColorTheme)
 		currConfig.SetString(common.ColorThemeConfigPath, common.DefaultColorTheme)
+		themeName = common.DefaultColorTheme
 	}
+	// Show the hint whenever the active theme is the built-in default.
+	// Users who have chosen any other theme have already discovered the feature.
+	theme.SetConfiguredExplicitly(themeName != common.DefaultColorTheme)
 
 	loggerOpts := &slog.HandlerOptions{
 		Level: log.ConfigLevelStringToSlogLevel(config.GetString(common.LogLevelConfigPath)),

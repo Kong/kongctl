@@ -390,3 +390,96 @@ func TestFilterPreviewDetailItems_RemovesChildRows(t *testing.T) {
 	require.Len(t, filtered, 1)
 	require.Equal(t, "id", filtered[0].Label)
 }
+
+func newMinimalBubbleModel(t *testing.T) *bubbleModel {
+	t.Helper()
+	columns := []table.Column{{Title: "NAME", Width: 12}}
+	rows := []table.Row{{"alpha"}, {"beta"}}
+	tbl := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+	)
+	palette := theme.Current()
+	return newBubbleModel(
+		tbl,
+		config{rootLabel: "Root"},
+		lipgloss.NewStyle(),
+		lipgloss.NewStyle(),
+		lipgloss.NewStyle(),
+		lipgloss.NewStyle(),
+		nil,
+		palette,
+		80,
+		24,
+		len(rows),
+		[]string{"NAME"},
+	)
+}
+
+func sendKey(t *testing.T, model *bubbleModel, key string) *bubbleModel {
+	t.Helper()
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(key)}
+	updated, _ := model.Update(msg)
+	bm, ok := updated.(*bubbleModel)
+	require.True(t, ok)
+	return bm
+}
+
+func TestThemeCycling_AdvancesPaletteAndSetsStatus(t *testing.T) {
+	model := newMinimalBubbleModel(t)
+
+	available := theme.Available()
+	require.NotEmpty(t, available, "at least one theme must be registered")
+
+	initialPaletteName := model.palette.Name
+	initialIndex := model.themeIndex
+
+	model = sendKey(t, model, "t")
+
+	expectedIndex := (initialIndex + 1) % len(available)
+	expectedName := available[expectedIndex]
+
+	require.Equal(t, expectedIndex, model.themeIndex)
+	require.Equal(t, expectedName, model.palette.Name)
+	if len(available) > 1 {
+		require.NotEqual(t, initialPaletteName, model.palette.Name)
+	}
+	require.Contains(t, model.statusMessage, expectedName)
+	require.Contains(t, model.statusMessage, "color-theme")
+}
+
+func TestThemeCycling_ReversesWithShiftT(t *testing.T) {
+	model := newMinimalBubbleModel(t)
+
+	available := theme.Available()
+	require.NotEmpty(t, available, "at least one theme must be registered")
+
+	initialIndex := model.themeIndex
+
+	model = sendKey(t, model, "T")
+
+	expectedIndex := (initialIndex - 1 + len(available)) % len(available)
+	expectedName := available[expectedIndex]
+
+	require.Equal(t, expectedIndex, model.themeIndex)
+	require.Equal(t, expectedName, model.palette.Name)
+	require.Contains(t, model.statusMessage, expectedName)
+	require.Contains(t, model.statusMessage, "color-theme")
+}
+
+func TestThemeCycling_IgnoredWhenSearchActive(t *testing.T) {
+	model := newMinimalBubbleModel(t)
+
+	model.searchActive = true
+	initialIndex := model.themeIndex
+	initialPaletteName := model.palette.Name
+
+	model = sendKey(t, model, "t")
+	require.Equal(t, initialIndex, model.themeIndex)
+	require.Equal(t, initialPaletteName, model.palette.Name)
+
+	model = sendKey(t, model, "T")
+	require.Equal(t, initialIndex, model.themeIndex)
+	require.Equal(t, initialPaletteName, model.palette.Name)
+}

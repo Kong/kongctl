@@ -409,6 +409,9 @@ func Render(streams *iostreams.IOStreams, data any, opts ...Option) error {
 	for _, opt := range opts {
 		opt(&cfg)
 	}
+	if !theme.IsConfiguredExplicitly() && cfg.footer == "" {
+		cfg.footer = "Colors hard to read? Press t / T to cycle themes"
+	}
 
 	palette := theme.Current()
 	tableStyle := newTableBoxStyle(palette)
@@ -2382,6 +2385,8 @@ type bubbleModel struct {
 	nextRequestID   int
 	nextDetailID    int
 	initCmd         tea.Cmd
+	availableThemes []string
+	themeIndex      int
 }
 
 func newBubbleModel(
@@ -2408,6 +2413,8 @@ func newBubbleModel(
 	}
 
 	parentType := strings.ToLower(strings.TrimSpace(cfg.childParentType))
+
+	availableThemeNames := theme.Available()
 
 	m := &bubbleModel{
 		table:           tbl,
@@ -2439,6 +2446,8 @@ func newBubbleModel(
 		spinner:         newSpinnerModel(palette),
 		nextRequestID:   1,
 		nextDetailID:    1,
+		availableThemes: availableThemeNames,
+		themeIndex:      themeIndexOf(availableThemeNames, palette.Name),
 	}
 
 	if cfg.hasDetail && cfg.detailViewport != nil {
@@ -2463,6 +2472,69 @@ func newBubbleModel(
 	}
 
 	return m
+}
+
+func themeIndexOf(names []string, name string) int {
+	for i, n := range names {
+		if n == name {
+			return i
+		}
+	}
+	return 0
+}
+
+// applyPalette updates all palette-sensitive styles and redraws the table and
+// any open detail views with the new theme.
+func (m *bubbleModel) applyPalette(p theme.Palette) {
+	m.palette = p
+	m.tableStyle = newTableBoxStyle(p)
+	m.detailStyle = newDetailBoxStyle(p)
+	m.statusStyle = newStatusBoxStyle(p)
+	m.spinner = newSpinnerModel(p)
+
+	styles := table.DefaultStyles()
+	styles.Header = styles.Header.
+		Foreground(p.Adaptive(theme.ColorTextPrimary)).
+		Background(p.Adaptive(theme.ColorSurface))
+	styles.Cell = styles.Cell.
+		Foreground(p.Adaptive(theme.ColorTextPrimary))
+	styles.Selected = styles.Selected.
+		Foreground(p.Adaptive(theme.ColorAccentText)).
+		Background(p.Adaptive(theme.ColorAccent))
+	m.selectedStyle = styles.Selected
+	m.table.SetStyles(styles)
+
+	for i := range m.detailStack {
+		dv := &m.detailStack[i]
+
+		prevCursor := 0
+		if dv.table != nil {
+			prevCursor = dv.table.Cursor()
+		}
+
+		if dv.table != nil && dv.child != nil {
+			newTbl := buildChildTable(dv.child, m.detailViewportWidth(), m.detailViewportHeight(), p)
+			rows := newTbl.Rows()
+			if len(rows) > 0 {
+				if prevCursor >= len(rows) {
+					prevCursor = len(rows) - 1
+				}
+				newTbl.SetCursor(prevCursor)
+			}
+			dv.table = &newTbl
+		} else if dv.items != nil {
+			newTbl, dec := buildDetailTable(dv.items, m.detailViewportWidth(), m.detailViewportHeight(), p, dv.highlight)
+			rows := newTbl.Rows()
+			if len(rows) > 0 {
+				if prevCursor >= len(rows) {
+					prevCursor = len(rows) - 1
+				}
+				newTbl.SetCursor(prevCursor)
+			}
+			dv.table = &newTbl
+			dv.decorator = dec
+		}
+	}
 }
 
 func (m *bubbleModel) Init() tea.Cmd {
@@ -3297,6 +3369,7 @@ func (m *bubbleModel) renderHelpContent(innerWidth int) string {
 		"/<text>         : jump to matching text",
 		"Backspace / Esc : go to parent",
 		"Ctrl+W          : toggle full screen",
+		"t / T           : cycle color theme forward / backward",
 		"?               : toggle this help",
 		"q               : quit",
 	}
@@ -3815,6 +3888,23 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 		if key.String() == m.toggleKey {
 			m.showHelp = !m.showHelp
 			return m, nil
+		}
+		if (key.String() == "t" || key.String() == "T") && !m.searchActive && len(m.availableThemes) > 0 {
+			n := len(m.availableThemes)
+			if key.String() == "T" {
+				m.themeIndex = (m.themeIndex - 1 + n) % n
+			} else {
+				m.themeIndex = (m.themeIndex + 1) % n
+			}
+			nextName := m.availableThemes[m.themeIndex]
+			if p, ok := theme.Get(nextName); ok {
+				m.applyPalette(p)
+				m.setStatus(
+					fmt.Sprintf("Theme: %s (set 'color-theme: %s' in config to persist)", p.DisplayName, nextName),
+				)
+			}
+			tableHandled = true
+			break
 		}
 
 		if m.inDetailMode() {
