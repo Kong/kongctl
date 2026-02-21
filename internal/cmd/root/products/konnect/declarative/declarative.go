@@ -279,6 +279,9 @@ func NewDeclarativeCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	if verb == verbs.Apply {
 		return newDeclarativeApplyCmd(), nil
 	}
+	if verb == verbs.Delete {
+		return newDeclarativeDeleteCmd(), nil
+	}
 
 	// Unsupported verbs
 	return nil, fmt.Errorf("verb %s does not support declarative configuration", verb)
@@ -1507,6 +1510,272 @@ delete resources.`,
 	addRequireNamespaceFlags(cmd)
 
 	return cmd
+}
+
+func newDeclarativeDeleteCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "konnect",
+		Short: "Delete resources defined in declarative configuration",
+		Long: `Delete Konnect resources defined in declarative configuration files.
+
+The delete command generates a delete plan from the configuration files and
+executes it, removing matching resources from Konnect. Resources not found
+in Konnect are skipped with a warning. Child resources are removed via
+cascade deletion.
+
+This is equivalent to running:
+  kongctl plan --mode delete -f <files> | kongctl sync --plan -`,
+		RunE: runDelete,
+	}
+
+	// Add declarative config flags
+	cmd.Flags().StringSliceP("filename", "f", []string{},
+		"Filename or directory to files to use to create the resource (can specify multiple)")
+	cmd.Flags().BoolP("recursive", "R", false,
+		"Process the directory used in -f, --filename recursively")
+	addBaseDirFlag(cmd)
+	cmd.Flags().String("plan", "", "Path to existing delete plan file")
+	cmd.Flags().Bool("dry-run", false, "Preview deletions without executing them")
+	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
+	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
+	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
+	addRequireNamespaceFlags(cmd)
+
+	return cmd
+}
+
+func runDelete(command *cobra.Command, args []string) error {
+	// Silence usage for all runtime errors (command syntax is already valid at this point)
+	command.SilenceUsage = true
+
+	ctx := command.Context()
+	planFile, _ := command.Flags().GetString("plan")
+	dryRun, _ := command.Flags().GetBool("dry-run")
+	autoApprove, _ := command.Flags().GetBool("auto-approve")
+	outputFormat, _ := command.Flags().GetString("output")
+	filenames, _ := command.Flags().GetStringSlice("filename")
+
+	// Early check for non-text output without auto-approve
+	if !dryRun && !autoApprove && outputFormat != textOutputFormat {
+		return fmt.Errorf("cannot use %s output format without --auto-approve or --dry-run flag "+
+			"(interactive confirmation not available with structured output)", outputFormat)
+	}
+
+	// Early check for stdin usage without auto-approve
+	var usingStdinForInput bool
+	if !dryRun && !autoApprove {
+		if planFile == "-" {
+			usingStdinForInput = true
+		} else if planFile == "" {
+			for _, filename := range filenames {
+				if filename == "-" {
+					usingStdinForInput = true
+					break
+				}
+			}
+		}
+
+		if usingStdinForInput {
+			tty, err := os.Open("/dev/tty")
+			if err != nil {
+				return fmt.Errorf("cannot use stdin for input without --auto-approve flag " +
+					"(no terminal available for interactive confirmation). " +
+					"Use --auto-approve to skip confirmation when piping commands")
+			}
+			tty.Close()
+		}
+	}
+
+	// Build helper
+	helper := cmd.BuildHelper(command, args)
+	generator := planGenerator(helper)
+
+	// Get configuration
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	// Get logger
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return err
+	}
+
+	// Get Konnect SDK
+	kkClient, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return fmt.Errorf("failed to initialize Konnect client: %w", err)
+	}
+
+	nsValidator, requirement, err := resolveNamespaceRequirement(command, cfg)
+	if err != nil {
+		return err
+	}
+
+	// Load or generate plan
+	var plan *planner.Plan
+	if requirement.Mode != validator.NamespaceRequirementNone && planFile != "" {
+		return fmt.Errorf(
+			"--%s cannot be used together with --plan; "+
+				"generate the plan with namespace enforcement enabled instead",
+			requireNamespaceFlagName,
+		)
+	}
+	if planFile != "" {
+		if outputFormat == textOutputFormat {
+			if planFile == "-" {
+				fmt.Fprintf(command.OutOrStderr(), "Using plan from: stdin\n")
+			} else {
+				fmt.Fprintf(command.OutOrStderr(), "Using plan from: %s\n", planFile)
+			}
+		}
+
+		plan, err = common.LoadPlan(planFile, command.InOrStdin())
+		if err != nil {
+			return err
+		}
+	} else {
+		// Generate plan from configuration files
+		recursive, _ := command.Flags().GetBool("recursive")
+
+		sources, err := loader.ParseSources(filenames)
+		if err != nil {
+			return fmt.Errorf("failed to parse sources: %w", err)
+		}
+
+		ldr, err := newDeclarativeLoader(command, cfg)
+		if err != nil {
+			return err
+		}
+		resourceSet, err := ldr.LoadFromSources(sources, recursive)
+		if err != nil {
+			if len(filenames) == 0 && strings.Contains(err.Error(), "no YAML files found") {
+				return fmt.Errorf(
+					"no configuration files found in current directory. " +
+						"Use -f to specify files or directories")
+			}
+			return fmt.Errorf("failed to load configuration: %w", err)
+		}
+
+		if err := nsValidator.ValidateNamespaceRequirement(resourceSet, requirement); err != nil {
+			return err
+		}
+
+		totalResources := resourceSet.ResourceCount()
+		if totalResources == 0 {
+			if len(filenames) == 0 {
+				return fmt.Errorf(
+					"no configuration files found in current directory. " +
+						"Use -f to specify files or directories")
+			}
+			return fmt.Errorf("no resources found in configuration files")
+		}
+
+		// Create planner
+		stateClient := createStateClient(kkClient)
+		p := planner.NewPlanner(stateClient, logger)
+		deckOpts, err := deckPlanOptions(resourceSet, cfg, logger)
+		if err != nil {
+			return err
+		}
+
+		// Generate plan in delete mode
+		opts := planner.Options{
+			Mode:      planner.PlanModeDelete,
+			Generator: generator,
+			Deck:      deckOpts,
+		}
+		plan, err = p.GeneratePlan(ctx, resourceSet, opts)
+		if err != nil {
+			return fmt.Errorf("failed to generate plan: %w", err)
+		}
+	}
+
+	// Store plan in context for output formatting
+	ctx = context.WithValue(ctx, currentPlanKey, plan)
+	if planFile != "" {
+		ctx = context.WithValue(ctx, planFileKey, planFile)
+	}
+	command.SetContext(ctx)
+
+	// Check if plan is empty (no changes needed)
+	if plan.IsEmpty() {
+		if outputFormat == textOutputFormat {
+			fmt.Fprintln(command.OutOrStderr(),
+				"No changes needed. No matching resources found to delete.")
+			return nil
+		}
+		emptyResult := &executor.ExecutionResult{
+			SuccessCount:   0,
+			FailureCount:   0,
+			SkippedCount:   0,
+			DryRun:         dryRun,
+			ChangesApplied: []executor.AppliedChange{},
+		}
+		return outputExecutionResult(command, emptyResult, outputFormat)
+	}
+
+	// Show plan summary for text format
+	if outputFormat == textOutputFormat {
+		common.DisplayPlanSummary(plan, command.OutOrStderr())
+
+		if !dryRun && !autoApprove {
+			inputReader := command.InOrStdin()
+			if usingStdinForInput {
+				tty, err := os.Open("/dev/tty")
+				if err != nil {
+					return fmt.Errorf("cannot open terminal for confirmation: %w", err)
+				}
+				defer tty.Close()
+				inputReader = tty
+			}
+
+			if !common.ConfirmExecution(plan, command.OutOrStdout(), command.OutOrStderr(), inputReader) {
+				return fmt.Errorf("delete cancelled")
+			}
+		}
+
+		fmt.Fprintln(command.OutOrStderr())
+	}
+
+	// Create executor
+	stateClient := createStateClient(kkClient)
+
+	var reporter executor.ProgressReporter
+	if outputFormat == textOutputFormat {
+		reporter = executor.NewConsoleReporterWithOptions(command.OutOrStderr(), dryRun)
+	}
+
+	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	if err != nil {
+		return err
+	}
+	baseURL, err := konnectcommon.ResolveBaseURL(cfg)
+	if err != nil {
+		return err
+	}
+
+	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
+		KonnectToken:   token,
+		KonnectBaseURL: baseURL,
+		Mode:           planner.PlanModeDelete,
+		PlanBaseDir:    resolvePlanBaseDir(planFile),
+	})
+
+	// Execute plan
+	result := exec.Execute(ctx, plan)
+
+	// Output results based on format
+	outputErr := outputExecutionResult(command, result, outputFormat)
+	if outputErr != nil {
+		return outputErr
+	}
+	if result.HasErrors() {
+		return fmt.Errorf("execution completed with %d errors", result.FailureCount)
+	}
+
+	return nil
 }
 
 func runSync(command *cobra.Command, args []string) error {
