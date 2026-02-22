@@ -60,7 +60,9 @@ If webhook state is already configured, startup fails fast.
 
 Default config profile-scoped storage directory:
 
-- `~/.config/kongctl/audit-logs/<profile>/`
+- `~/.config/kongctl/audit-logs/<sanitized-profile>/`
+- `<sanitized-profile>` is the profile name with unsupported path
+  characters replaced by `_`.
 
 Files:
 
