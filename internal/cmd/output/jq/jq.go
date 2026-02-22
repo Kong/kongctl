@@ -459,16 +459,18 @@ func ShouldUseColor(mode cmdcommon.ColorMode, out io.Writer) bool {
 	case cmdcommon.ColorModeNever:
 		return false
 	case cmdcommon.ColorModeAuto:
-		if _, disabled := os.LookupEnv("NO_COLOR"); disabled {
-			return false
-		}
-		return isTerminal(out)
+		// fallthrough to shared logic below
 	default:
-		if _, disabled := os.LookupEnv("NO_COLOR"); disabled {
-			return false
-		}
-		return isTerminal(out)
+		// unknown modes: safest behavior is usually "no color"
+		// but make it explicit so tests can cover it.
+		return false
 	}
+
+	// Auto logic (only reached for ColorModeAuto)
+	if _, disabled := os.LookupEnv("NO_COLOR"); disabled {
+		return false
+	}
+	return isTerminal(out)
 }
 
 func isTerminal(out io.Writer) bool {
