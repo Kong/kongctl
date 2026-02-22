@@ -499,6 +499,10 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 // validateChangePreExecution performs validation before executing a change
 func (e *Executor) validateChangePreExecution(ctx context.Context, change planner.PlannedChange) error {
 	switch change.Action {
+	case planner.ActionCreate:
+		// Create operations proceed directly to execution. Resource-specific
+		// create handlers are responsible for any required validation.
+		return nil
 	case planner.ActionExternalTool:
 		return nil
 	case planner.ActionUpdate, planner.ActionDelete:
@@ -582,55 +586,6 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 			}
 		}
 
-	case planner.ActionCreate:
-		// For create, verify resource doesn't already exist
-		switch change.ResourceType {
-		case "portal":
-			if e.client != nil {
-				resourceName := getResourceName(change.Fields)
-				portal, err := e.client.GetPortalByName(ctx, resourceName)
-				if err != nil {
-					// API error is acceptable here - might mean not found
-					// Only fail if it's a real API error (not 404)
-					if !strings.Contains(err.Error(), "not found") {
-						return fmt.Errorf("failed to check existing portal: %w", err)
-					}
-				}
-				if portal != nil {
-					// Portal already exists - this is an error for CREATE
-					return fmt.Errorf("portal '%s' already exists", resourceName)
-				}
-			}
-		case "control_plane":
-			if e.client != nil {
-				resourceName := common.ExtractResourceName(change.Fields)
-				cp, err := e.client.GetControlPlaneByName(ctx, resourceName)
-				if err != nil {
-					if !strings.Contains(err.Error(), "not found") {
-						return fmt.Errorf("failed to check existing control plane: %w", err)
-					}
-				}
-				if cp != nil {
-					return fmt.Errorf("control_plane '%s' already exists", resourceName)
-				}
-			}
-		case "api":
-			if e.client != nil {
-				resourceName := common.ExtractResourceName(change.Fields)
-				api, err := e.client.GetAPIByName(ctx, resourceName)
-				if err != nil {
-					// API error is acceptable here - might mean not found
-					// Only fail if it's a real API error (not 404)
-					if !strings.Contains(err.Error(), "not found") {
-						return common.FormatAPIError("api", resourceName, "check existence", err)
-					}
-				}
-				if api != nil {
-					// API already exists - this is an error for CREATE
-					return common.FormatResourceExistsError("api", resourceName)
-				}
-			}
-		}
 	}
 
 	return nil

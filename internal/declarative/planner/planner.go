@@ -54,6 +54,9 @@ type Planner struct {
 	depResolver *DependencyResolver
 	changeCount int
 
+	// Cache for managed resources fetched during a single GeneratePlan run.
+	resourceCache *planningResourceCache
+
 	// Generic planner for common operations
 	genericPlanner *GenericPlanner
 
@@ -90,8 +93,9 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 		client: client,
 		logger: logger,
 		// resolver will be initialized with ResourceSet during planning
-		depResolver: NewDependencyResolver(),
-		changeCount: 0,
+		depResolver:   NewDependencyResolver(),
+		changeCount:   0,
+		resourceCache: newPlanningResourceCache(),
 	}
 
 	// Initialize generic planner
@@ -113,6 +117,9 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 // GeneratePlan creates a plan from declarative configuration
 func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, opts Options) (*Plan, error) {
 	ctx = withPlannerHTTPLogContext(ctx, opts, plannerComponentMain, "")
+
+	// Reset per-run caches in case this planner instance is reused.
+	p.resourceCache = newPlanningResourceCache()
 
 	generator := opts.Generator
 	if generator == "" {
@@ -173,11 +180,12 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 		// Create a namespace-specific planner context
 		namespacePlanner := &Planner{
-			client:      p.client,
-			logger:      p.logger,
-			resolver:    p.resolver,
-			depResolver: p.depResolver,
-			changeCount: p.changeCount,
+			client:        p.client,
+			logger:        p.logger,
+			resolver:      p.resolver,
+			depResolver:   p.depResolver,
+			changeCount:   p.changeCount,
+			resourceCache: p.resourceCache,
 		}
 
 		// Initialize generic planner for namespace-specific planner
@@ -791,6 +799,37 @@ func (p *Planner) resolveCatalogServiceIdentities(
 
 // resolveAPIIdentities resolves Konnect IDs for API resources
 func (p *Planner) resolveAPIIdentities(ctx context.Context, apis []resources.APIResource) error {
+	var (
+		managedByName map[string]*state.API
+		managedLoaded bool
+	)
+
+	loadManagedAPIs := func() error {
+		if managedLoaded {
+			return nil
+		}
+
+		managedAPIs, err := p.listManagedAPIs(ctx, []string{"*"})
+		if err != nil {
+			return err
+		}
+
+		managedByName = make(map[string]*state.API, len(managedAPIs))
+		for i := range managedAPIs {
+			current := &managedAPIs[i]
+			if current.Name == "" {
+				continue
+			}
+			// Keep first match to preserve stable behavior in case of unexpected duplicates.
+			if _, exists := managedByName[current.Name]; !exists {
+				managedByName[current.Name] = current
+			}
+		}
+
+		managedLoaded = true
+		return nil
+	}
+
 	for i := range apis {
 		api := &apis[i]
 
@@ -802,6 +841,19 @@ func (p *Planner) resolveAPIIdentities(ctx context.Context, apis []resources.API
 		// Try to find the API using filter
 		filter := api.GetKonnectMonikerFilter()
 		if filter == "" {
+			continue
+		}
+
+		if strings.HasPrefix(filter, "name[eq]=") {
+			if err := loadManagedAPIs(); err != nil {
+				return fmt.Errorf("failed to list managed APIs: %w", err)
+			}
+
+			name := strings.TrimPrefix(filter, "name[eq]=")
+			if konnectAPI, ok := managedByName[name]; ok {
+				api.TryMatchKonnectResource(konnectAPI)
+			}
+
 			continue
 		}
 
@@ -825,10 +877,38 @@ func (p *Planner) resolveControlPlaneIdentities(
 	controlPlanes []resources.ControlPlaneResource,
 ) error {
 	var (
+		managedByName        map[string]*state.ControlPlane
+		managedLoaded        bool
 		cpByID               map[string]*state.ControlPlane
 		cpByName             map[string][]*state.ControlPlane
 		allControlPlanesInit bool
 	)
+
+	loadManagedControlPlanes := func() error {
+		if managedLoaded {
+			return nil
+		}
+
+		cps, err := p.listManagedControlPlanes(ctx, []string{"*"})
+		if err != nil {
+			return err
+		}
+
+		managedByName = make(map[string]*state.ControlPlane, len(cps))
+		for i := range cps {
+			cp := &cps[i]
+			if cp.Name == "" {
+				continue
+			}
+			// Keep first match to preserve stable behavior in case of unexpected duplicates.
+			if _, exists := managedByName[cp.Name]; !exists {
+				managedByName[cp.Name] = cp
+			}
+		}
+
+		managedLoaded = true
+		return nil
+	}
 
 	loadAllControlPlanes := func() error {
 		if allControlPlanesInit {
@@ -911,6 +991,19 @@ func (p *Planner) resolveControlPlaneIdentities(
 
 		filter := cp.GetKonnectMonikerFilter()
 		if filter == "" {
+			continue
+		}
+
+		if strings.HasPrefix(filter, "name[eq]=") {
+			if err := loadManagedControlPlanes(); err != nil {
+				return fmt.Errorf("failed to list managed control planes: %w", err)
+			}
+
+			name := strings.TrimPrefix(filter, "name[eq]=")
+			if konnectCP, ok := managedByName[name]; ok {
+				cp.TryMatchKonnectResource(konnectCP)
+			}
+
 			continue
 		}
 
@@ -1477,6 +1570,37 @@ func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resourc
 	}
 
 	// Second pass: resolve managed portals (existing logic)
+	var (
+		managedByName map[string]*state.Portal
+		managedLoaded bool
+	)
+
+	loadManagedPortals := func() error {
+		if managedLoaded {
+			return nil
+		}
+
+		managedPortals, err := p.listManagedPortals(ctx, []string{"*"})
+		if err != nil {
+			return err
+		}
+
+		managedByName = make(map[string]*state.Portal, len(managedPortals))
+		for i := range managedPortals {
+			current := &managedPortals[i]
+			if current.Name == "" {
+				continue
+			}
+			// Keep first match to preserve stable behavior in case of unexpected duplicates.
+			if _, exists := managedByName[current.Name]; !exists {
+				managedByName[current.Name] = current
+			}
+		}
+
+		managedLoaded = true
+		return nil
+	}
+
 	for i := range portals {
 		portal := &portals[i]
 
@@ -1493,6 +1617,19 @@ func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resourc
 		// Try to find the portal using filter
 		filter := portal.GetKonnectMonikerFilter()
 		if filter == "" {
+			continue
+		}
+
+		if strings.HasPrefix(filter, "name[eq]=") {
+			if err := loadManagedPortals(); err != nil {
+				return fmt.Errorf("failed to list managed portals: %w", err)
+			}
+
+			name := strings.TrimPrefix(filter, "name[eq]=")
+			if konnectPortal, ok := managedByName[name]; ok {
+				portal.TryMatchKonnectResource(konnectPortal)
+			}
+
 			continue
 		}
 
@@ -1514,6 +1651,37 @@ func (p *Planner) resolvePortalIdentities(ctx context.Context, portals []resourc
 func (p *Planner) resolveAuthStrategyIdentities(
 	ctx context.Context, strategies []resources.ApplicationAuthStrategyResource,
 ) error {
+	var (
+		managedByName map[string]*state.ApplicationAuthStrategy
+		managedLoaded bool
+	)
+
+	loadManagedStrategies := func() error {
+		if managedLoaded {
+			return nil
+		}
+
+		managedStrategies, err := p.listManagedAuthStrategies(ctx, []string{"*"})
+		if err != nil {
+			return err
+		}
+
+		managedByName = make(map[string]*state.ApplicationAuthStrategy, len(managedStrategies))
+		for i := range managedStrategies {
+			current := &managedStrategies[i]
+			if current.Name == "" {
+				continue
+			}
+			// Keep first match to preserve stable behavior in case of unexpected duplicates.
+			if _, exists := managedByName[current.Name]; !exists {
+				managedByName[current.Name] = current
+			}
+		}
+
+		managedLoaded = true
+		return nil
+	}
+
 	for i := range strategies {
 		strategy := &strategies[i]
 
@@ -1525,6 +1693,19 @@ func (p *Planner) resolveAuthStrategyIdentities(
 		// Try to find the strategy using filter
 		filter := strategy.GetKonnectMonikerFilter()
 		if filter == "" {
+			continue
+		}
+
+		if strings.HasPrefix(filter, "name[eq]=") {
+			if err := loadManagedStrategies(); err != nil {
+				return fmt.Errorf("failed to list managed auth strategies: %w", err)
+			}
+
+			name := strings.TrimPrefix(filter, "name[eq]=")
+			if konnectStrategy, ok := managedByName[name]; ok {
+				strategy.TryMatchKonnectResource(konnectStrategy)
+			}
+
 			continue
 		}
 

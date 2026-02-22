@@ -44,7 +44,7 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 	if namespace != resources.NamespaceExternal {
 		namespaceFilter := []string{namespace}
 		var err error
-		currentPortals, err = p.GetClient().ListManagedPortals(ctx, namespaceFilter)
+		currentPortals, err = p.planner.listManagedPortals(ctx, namespaceFilter)
 		if err != nil {
 			// If portal client is not configured, skip portal planning
 			if err.Error() == "Portal client not configured" {

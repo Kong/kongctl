@@ -90,7 +90,7 @@ func (p *Planner) planAPIChanges(
 
 	// Fetch current managed APIs from the specific namespace
 	namespaceFilter := []string{namespace}
-	currentAPIs, err := p.client.ListManagedAPIs(ctx, namespaceFilter)
+	currentAPIs, err := p.listManagedAPIs(ctx, namespaceFilter)
 	if err != nil {
 		// If API client is not configured, skip API planning
 		if err.Error() == "API client not configured" {
@@ -678,6 +678,10 @@ func (p *Planner) planAPIVersionChanges(
 	ctx context.Context, _ *Config, parentNamespace string, apiID string, apiRef string,
 	desired []resources.APIVersionResource, plan *Plan,
 ) error {
+	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
+		return nil
+	}
+
 	// List current versions
 	currentVersions, err := p.client.ListAPIVersions(ctx, apiID)
 	if err != nil {
@@ -847,6 +851,10 @@ func (p *Planner) planAPIPublicationChanges(
 	ctx context.Context, plannerCtx *Config, parentNamespace string, apiID string, apiRef string,
 	desired []resources.APIPublicationResource, plan *Plan,
 ) error {
+	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
+		return nil
+	}
+
 	// Get namespace from planner context
 	namespace := plannerCtx.Namespace
 	namespaceFilter := []string{namespace}
@@ -885,7 +893,7 @@ func (p *Planner) planAPIPublicationChanges(
 
 	// Also fetch managed portals from the same namespace to ensure complete mapping
 	// This handles cases where publications exist for portals not in current desired state
-	allPortals, err := p.client.ListManagedPortals(ctx, namespaceFilter)
+	allPortals, err := p.listManagedPortals(ctx, namespaceFilter)
 	if err == nil {
 		p.logger.Debug("Fetched all managed portals",
 			slog.Int("count", len(allPortals)),
@@ -1352,6 +1360,10 @@ func (p *Planner) planAPIImplementationChanges(
 	ctx context.Context, _ *Config, parentNamespace string, apiID string, apiRef string,
 	desired []resources.APIImplementationResource, plan *Plan,
 ) error {
+	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
+		return nil
+	}
+
 	// List current implementations
 	currentImplementations, err := p.client.ListAPIImplementations(ctx, apiID)
 	if err != nil {
@@ -1551,6 +1563,10 @@ func (p *Planner) planAPIDocumentChanges(
 	ctx context.Context, _ *Config, parentNamespace string, apiID string, apiRef string,
 	desired []resources.APIDocumentResource, plan *Plan,
 ) error {
+	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
+		return nil
+	}
+
 	// List current documents
 	currentDocuments, err := p.client.ListAPIDocuments(ctx, apiID)
 	if err != nil {

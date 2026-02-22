@@ -35,7 +35,7 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 		return nil
 	}
 
-	currentControlPlanes, err := p.GetClient().ListManagedControlPlanes(ctx, []string{namespace})
+	currentControlPlanes, err := p.planner.listManagedControlPlanes(ctx, []string{namespace})
 	if err != nil {
 		if state.IsAPIClientError(err) {
 			return nil
