@@ -103,7 +103,7 @@ func WaitForStartTimeTicks(pid int, timeout time.Duration) uint64 {
 		if time.Now().After(deadline) {
 			return 0
 		}
-		time.Sleep(defaultStartProbePeriod)
+		time.Sleep(defaultStartProbeInterval)
 	}
 }
 
