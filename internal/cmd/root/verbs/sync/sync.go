@@ -4,11 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
-	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
-	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -52,16 +49,8 @@ func NewSyncCmd() (*cobra.Command, error) {
 		// Use the konnect command's RunE directly for Konnect-first pattern
 		RunE: konnectCmd.RunE,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			if ctx == nil {
-				ctx = context.Background()
-			}
-			ctx = context.WithValue(ctx, verbs.Verb, Verb)
-			ctx = context.WithValue(ctx, products.Product, konnect.Product)
-			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
-			cmd.SetContext(ctx)
-
-			// Also call the konnect command's PersistentPreRunE to set up binding
+			cmd.SetContext(context.WithValue(cmd.Context(), verbs.Verb, Verb))
+			// Also run the konnect command's PersistentPreRunE to set up SDKAPIFactory
 			if konnectCmd.PersistentPreRunE != nil {
 				return konnectCmd.PersistentPreRunE(cmd, args)
 			}
