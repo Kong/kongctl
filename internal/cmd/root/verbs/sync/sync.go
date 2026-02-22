@@ -52,11 +52,8 @@ func NewSyncCmd() (*cobra.Command, error) {
 		// Use the konnect command's RunE directly for Konnect-first pattern
 		RunE: konnectCmd.RunE,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			if ctx == nil {
-				ctx = context.Background()
-			}
-			ctx = context.WithValue(ctx, verbs.Verb, Verb)
+			// Set up context with all required values
+			ctx := context.WithValue(cmd.Context(), verbs.Verb, Verb)
 			ctx = context.WithValue(ctx, products.Product, konnect.Product)
 			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
 			cmd.SetContext(ctx)
