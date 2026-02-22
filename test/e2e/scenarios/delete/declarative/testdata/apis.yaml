@@ -1,0 +1,36 @@
+apis:
+  - ref: delete-test-api-alpha
+    name: "delete-test-api-alpha"
+    description: "Alpha API for delete e2e scenario"
+    version: "1.0.0"
+    labels:
+      team: alpha
+    documents:
+      - ref: alpha-getting-started
+        title: "Alpha Getting Started"
+        slug: alpha-getting-started
+        status: published
+        content: "# Getting Started\n\nWelcome to the Alpha API."
+      - ref: alpha-reference
+        title: "Alpha Reference"
+        slug: alpha-reference
+        status: published
+        content: "# Reference\n\nAlpha API reference documentation."
+
+  - ref: delete-test-api-beta
+    name: "delete-test-api-beta"
+    description: "Beta API for delete e2e scenario"
+    version: "2.0.0"
+    labels:
+      team: beta
+    documents:
+      - ref: beta-getting-started
+        title: "Beta Getting Started"
+        slug: beta-getting-started
+        status: published
+        content: "# Getting Started\n\nWelcome to the Beta API."
+      - ref: beta-reference
+        title: "Beta Reference"
+        slug: beta-reference
+        status: published
+        content: "# Reference\n\nBeta API reference documentation."

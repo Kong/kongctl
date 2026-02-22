@@ -1,0 +1,183 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  portalName: "delete-test-portal"
+  apiAlphaName: "delete-test-api-alpha"
+  apiBetaName: "delete-test-api-beta"
+  controlPlaneName: "delete-test-cp"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - resource_id
+      - change_id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  # Step 1: Apply all resources to establish baseline state
+  - name: 001-apply-resources
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      # Verify portal exists
+      - name: 001-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.portalName }}"
+                display_name: "Delete Test Portal"
+
+      # Verify APIs exist
+      - name: 002-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.apiAlphaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.apiAlphaName }}"
+                version: "1.0.0"
+          - select: "[?name=='{{ .vars.apiBetaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.apiBetaName }}"
+                version: "2.0.0"
+
+      # Verify API documents exist
+      - name: 003-get-alpha-docs
+        run:
+          - get
+          - api
+          - documents
+          - --api-name
+          - "{{ .vars.apiAlphaName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?title=='Alpha Getting Started'] | [0]"
+            expect:
+              fields:
+                title: "Alpha Getting Started"
+          - select: "[?title=='Alpha Reference'] | [0]"
+            expect:
+              fields:
+                title: "Alpha Reference"
+
+      - name: 004-get-beta-docs
+        run:
+          - get
+          - api
+          - documents
+          - --api-name
+          - "{{ .vars.apiBetaName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?title=='Beta Getting Started'] | [0]"
+            expect:
+              fields:
+                title: "Beta Getting Started"
+          - select: "[?title=='Beta Reference'] | [0]"
+            expect:
+              fields:
+                title: "Beta Reference"
+
+      # Verify control plane exists
+      - name: 005-get-control-planes
+        run: ["get", "gateway", "control-planes", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.controlPlaneName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.controlPlaneName }}"
+
+  # Step 2: Delete all resources using delete -f
+  - name: 002-delete-resources
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.DELETE: 4
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  # Step 3: Verify all resources are deleted
+  - name: 003-verify-deleted
+    skipInputs: true
+    commands:
+      - name: 000-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 001-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.apiAlphaName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='{{ .vars.apiBetaName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 002-get-control-planes
+        run: ["get", "gateway", "control-planes", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.controlPlaneName }}']"
+            expect:
+              fields:
+                "length(@)": 0

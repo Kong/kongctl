@@ -79,6 +79,38 @@ func (p *Planner) planEGWControlPlaneChanges(
 	// Collect protection validation errors
 	var protectionErrors []error
 
+	// Handle delete mode - plan DELETE for desired resources that exist in Konnect
+	if plan.Metadata.Mode == PlanModeDelete {
+		for _, desiredEGWCP := range desired {
+			current, exists := currentByName[desiredEGWCP.Name]
+			if !exists {
+				plan.AddWarning("", fmt.Sprintf(
+					"event_gateway_control_plane %q not found in Konnect, skipping delete",
+					desiredEGWCP.Name))
+				continue
+			}
+
+			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
+			if err := p.validateProtection(
+				"event-gateway-control-plane", desiredEGWCP.Name, isProtected, ActionDelete,
+			); err != nil {
+				protectionErrors = append(protectionErrors, err)
+			} else {
+				p.planEGWControlPlaneDelete(current, plan)
+			}
+		}
+
+		if len(protectionErrors) > 0 {
+			errMsg := "Cannot generate plan due to protected resources:\n"
+			for _, err := range protectionErrors {
+				errMsg += fmt.Sprintf("- %s\n", err.Error())
+			}
+			errMsg += "\nTo proceed, first update these resources to set protected: false"
+			return fmt.Errorf("%s", errMsg)
+		}
+		return nil
+	}
+
 	// Compare each desired Event Gateway Control Plane
 	for _, desiredEGWCP := range desired {
 		current, exists := currentByName[desiredEGWCP.Name]

@@ -1,0 +1,251 @@
+baseInputsPath: testdata
+
+# Partial-delete scenario: verifies that delete -f is strictly scoped to the
+# files provided and does not touch resources not listed in those files.
+#
+# Contrast with sync: `sync -f config.yaml` would delete any resource of the
+# same type NOT in the config (implicit delete). `delete -f config.yaml`
+# deletes only resources that ARE listed in the config (explicit delete by
+# name), leaving all other resources untouched.
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  portalName: "partial-delete-portal"
+  apiAlphaName: "partial-delete-api-alpha"
+  apiBetaName: "partial-delete-api-beta"
+  controlPlaneName: "partial-delete-cp"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - resource_id
+      - change_id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  # Step 1: Apply all resources to establish baseline state
+  - name: 001-apply-all
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      - name: 001-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.portalName }}"
+                display_name: "Partial Delete Portal"
+
+      - name: 002-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.apiAlphaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.apiAlphaName }}"
+                version: "1.0.0"
+          - select: "[?name=='{{ .vars.apiBetaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.apiBetaName }}"
+                version: "2.0.0"
+
+      - name: 003-get-control-planes
+        run: ["get", "gateway", "control-planes", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.controlPlaneName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.controlPlaneName }}"
+
+  # Step 2: Delete only the portal; verify APIs and control-plane survive
+  - name: 002-delete-portal-only
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  # Step 3: Verify portal is gone but APIs and control-plane still exist
+  - name: 003-verify-portal-gone-others-survive
+    skipInputs: true
+    commands:
+      - name: 000-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 001-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.apiAlphaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.apiAlphaName }}"
+          - select: "[?name=='{{ .vars.apiBetaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.apiBetaName }}"
+
+      - name: 002-get-control-planes
+        run: ["get", "gateway", "control-planes", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.controlPlaneName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.controlPlaneName }}"
+
+  # Step 4: Delete only the APIs; verify control-plane still survives
+  - name: 004-delete-apis-only
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  # Step 5: Verify both APIs are gone but control-plane still exists
+  - name: 005-verify-apis-gone-cp-survives
+    skipInputs: true
+    commands:
+      - name: 000-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.apiAlphaName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='{{ .vars.apiBetaName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 001-get-control-planes
+        run: ["get", "gateway", "control-planes", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.controlPlaneName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.controlPlaneName }}"
+
+  # Step 6: Delete the remaining control-plane
+  - name: 006-delete-control-plane
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  # Step 7: Verify all resources are gone
+  - name: 007-verify-all-gone
+    skipInputs: true
+    commands:
+      - name: 000-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 001-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.apiAlphaName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='{{ .vars.apiBetaName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 002-get-control-planes
+        run: ["get", "gateway", "control-planes", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.controlPlaneName }}']"
+            expect:
+              fields:
+                "length(@)": 0
