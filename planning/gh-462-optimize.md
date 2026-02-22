@@ -458,3 +458,51 @@ planners in no-change runs.
 ### Expected impact
 
 - Expected no-change request count for this scenario: `45 -> ~44` requests.
+
+## Optimization Pass 9: Organization Team sync (`organization/teams.yaml`)
+
+### Goal
+
+Evaluate request count for `sync` and determine whether extra requests are
+duplicates or required by current sync semantics.
+
+### Baseline observed
+
+- Command:
+  ```sh
+  ./scripts/command-analyzer.sh -- sync \
+    -f docs/examples/declarative/organization/teams.yaml \
+    --auto-approve
+  ```
+- Log file: `/tmp/kongctl-http.iEl8.log`
+- Requests: 8 total
+- Route/method counts:
+  - `GET /v3/teams`: 1
+  - `POST /v3/teams`: 1
+  - `GET /v3/portals`: 1
+  - `GET /v3/apis`: 1
+  - `GET /v2/control-planes`: 1
+  - `GET /v2/application-auth-strategies`: 1
+  - `GET /v1/event-gateways`: 1
+  - `GET /v1/catalog-services`: 1
+- Elapsed: 1531 ms
+
+### Analysis
+
+- There are no duplicate requests in this run; each cross-resource `GET` appears
+  once.
+- The additional `GET`s come from sync behavior: all top-level planners are
+  executed, and each planner lists managed resources to detect deletions for
+  omitted resource types in the namespace.
+- Effective comparison for this file:
+  - `apply` baseline is 2 requests (`GET /v3/teams`, `POST /v3/teams`)
+  - `sync` baseline is 8 requests due to multi-resource delete checks
+- With current sync semantics, this run is near expected minimum for a clean
+  namespace.
+
+### Changes made
+
+- None in this pass.
+- Any further reduction here likely requires a scoped-sync behavior change
+  (for example, syncing only declared resource types), which has semantic and
+  compatibility tradeoffs.

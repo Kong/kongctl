@@ -1,5 +1,17 @@
 organization:
   teams:
-    - ref: my-team
-      name: My Team Foo
-      description: My foo team with foo description
+    - ref: team-a
+      name: team-a
+      description: team-a with foo description
+      kongctl:
+        namespace: a-team
+    - ref: team-b
+      name: team-b
+      description: team-b with bar description
+      kongctl:
+        namespace: a-team
+    - ref: 
+      name: team-c
+      description: teacm-c with foo description
+      kongctl:
+        namespace: c-team
