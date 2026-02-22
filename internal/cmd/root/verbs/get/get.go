@@ -44,6 +44,8 @@ Output can be formatted in multiple ways to aid in further processing.`))
 		%[1]s get gateway control-planes
 		# Retrieve Konnect control planes (explicit)
 		%[1]s get konnect gateway control-planes
+		# Retrieve Konnect audit-log destinations
+		%[1]s get audit-logs destinations
 		`, meta.CLIName)))
 )
 
@@ -163,6 +165,12 @@ Setting this value overrides tokens obtained from the login command.
 		return nil, err
 	}
 	cmd.AddCommand(eventGatewayControlPlaneCmd)
+
+	auditLogsCmd, err := NewDirectAuditLogsCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(auditLogsCmd)
 
 	return cmd, nil
 }

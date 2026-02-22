@@ -8,6 +8,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/api"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/auditlogs"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/authstrategy"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
@@ -153,6 +154,18 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return newLogoutKonnectCmd(verb, cmd, addFlags, preRunE).Command, nil
 	}
 
+	// Do not expose audit-logs under `create`, which is reserved for
+	// resource creation flows.
+	if verb == verbs.Listen {
+		alc, err := auditlogs.NewAuditLogsCmd(verb, addFlags, preRunE)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(alc)
+		addFlags(verb, cmd)
+		return cmd, nil
+	}
+
 	// Handle declarative configuration verbs
 	if verb == verbs.Plan || verb == verbs.Sync || verb == verbs.Diff || verb == verbs.Export || verb == verbs.Apply {
 		c, e := declarative.NewDeclarativeCmd(verb)
@@ -248,6 +261,12 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 			return nil, e
 		}
 		cmd.AddCommand(mc)
+
+		alc, e := auditlogs.NewAuditLogsCmd(verb, addFlags, preRunE)
+		if e != nil {
+			return nil, e
+		}
+		cmd.AddCommand(alc)
 	}
 
 	// Add organization command
