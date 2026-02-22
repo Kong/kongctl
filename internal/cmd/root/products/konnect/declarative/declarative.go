@@ -1315,6 +1315,17 @@ func runApply(command *cobra.Command, args []string) error {
 	return nil
 }
 
+func validateDeletePlan(plan *planner.Plan) error {
+	if plan.Metadata.Mode != planner.PlanModeDelete {
+		return fmt.Errorf(
+			"delete command requires a plan generated in delete mode, got %q mode. "+
+				"Generate a delete plan with: kongctl plan --mode delete -f <files>",
+			plan.Metadata.Mode,
+		)
+	}
+	return nil
+}
+
 func validateApplyPlan(plan *planner.Plan, command *cobra.Command) error {
 	// Check if plan contains DELETE operations
 	for _, change := range plan.Changes {
@@ -1698,6 +1709,11 @@ func runDelete(command *cobra.Command, args []string) error {
 		ctx = context.WithValue(ctx, planFileKey, planFile)
 	}
 	command.SetContext(ctx)
+
+	// Validate that the plan was generated in delete mode
+	if err := validateDeletePlan(plan); err != nil {
+		return err
+	}
 
 	// Check if plan is empty (no changes needed)
 	if plan.IsEmpty() {
