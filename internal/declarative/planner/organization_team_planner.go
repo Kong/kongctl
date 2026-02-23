@@ -40,7 +40,7 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 	if namespace != resources.NamespaceExternal {
 		namespaceFilter := []string{namespace}
 		var err error
-		currentTeams, err = t.GetClient().ListManagedOrganizationTeams(ctx, namespaceFilter)
+		currentTeams, err = t.planner.listManagedOrganizationTeams(ctx, namespaceFilter)
 		if err != nil {
 			// If team client is not configured, skip team planning
 			if err.Error() == "organization team API client not configured" {

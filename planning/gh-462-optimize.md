@@ -506,3 +506,170 @@ duplicates or required by current sync semantics.
 - Any further reduction here likely requires a scoped-sync behavior change
   (for example, syncing only declared resource types), which has semantic and
   compatibility tradeoffs.
+
+## Optimization Pass 10: Multi-namespace Team sync fanout reduction
+
+### Goal
+
+Reduce per-namespace duplicated `GET` discovery calls in `sync` when one
+configuration spans multiple namespaces.
+
+### Baseline observed (before)
+
+- Command:
+  ```sh
+  ./scripts/command-analyzer.sh -- sync \
+    -f docs/examples/declarative/organization/teams.yaml \
+    --auto-approve
+  ```
+- Log file: `/tmp/kongctl-http.wr0b.log`
+- Config shape:
+  - `organization_team`: 3 creates across namespaces `a-team` and `c-team`
+- Requests: 17 total
+- Route/method counts:
+  - `POST /v3/teams`: 3
+  - `GET /v3/teams`: 2
+  - `GET /v3/portals`: 2
+  - `GET /v3/apis`: 2
+  - `GET /v2/control-planes`: 2
+  - `GET /v2/application-auth-strategies`: 2
+  - `GET /v1/event-gateways`: 2
+  - `GET /v1/catalog-services`: 2
+- Elapsed: 1154 ms
+
+### Analysis
+
+- In sync mode, planners run once per namespace and perform managed-resource
+  list calls for delete detection.
+- With two namespaces, each top-level resource type list is repeated twice.
+- These are not duplicates within one namespace; they are namespace fanout
+  repeats.
+
+### Changes made
+
+- Added planner run flag to detect sync fanout (`sync` with more than one
+  namespace):
+  - `internal/declarative/planner/planner.go`
+- Extended planner cache to support:
+  - `organization_team`
+  - `catalog_service`
+  - `event_gateway_control_plane`
+  - plus fanout-aware reuse for existing cached types
+    (`api`, `portal`, `control_plane`, `application_auth_strategy`)
+  - `internal/declarative/planner/resource_cache.go`
+- For sync fanout runs, first namespace request per resource type now performs
+  one `*` (all-namespaces) managed list, then later namespace reads are filtered
+  from cache in-memory.
+- Updated planners to use cache-backed list helpers:
+  - `internal/declarative/planner/organization_team_planner.go`
+  - `internal/declarative/planner/catalog_service_planner.go`
+  - `internal/declarative/planner/egw_control_plane_planner.go`
+
+### Result (after)
+
+- Command:
+  ```sh
+  ./scripts/command-analyzer.sh -- sync \
+    -f docs/examples/declarative/organization/teams.yaml \
+    --auto-approve
+  ```
+- Log file: `/tmp/kongctl-http.N5Bz.log`
+- Requests: 10 total
+- Route/method counts:
+  - `POST /v3/teams`: 3
+  - `GET /v3/teams`: 1
+  - `GET /v3/portals`: 1
+  - `GET /v3/apis`: 1
+  - `GET /v2/control-planes`: 1
+  - `GET /v2/application-auth-strategies`: 1
+  - `GET /v1/event-gateways`: 1
+  - `GET /v1/catalog-services`: 1
+- Elapsed: 667 ms
+
+### Net improvement
+
+- Request count: `17 -> 10` (7 fewer calls, ~41.2% reduction).
+- Each top-level sync discovery list call now runs once across namespaces
+  instead of once per namespace in this scenario.
+- Elapsed time: `1154 ms -> 667 ms` (~42.2% reduction in this run).
+
+## Optimization Pass 11: Multi-namespace Team apply behavior
+
+### Goal
+
+Determine whether the namespace fanout optimization also applies to `apply`.
+
+### Observed run
+
+- Command:
+  ```sh
+  ./scripts/command-analyzer.sh -- apply \
+    -f docs/examples/declarative/organization/teams.yaml \
+    --auto-approve
+  ```
+- Log file: `/tmp/kongctl-http.9C61.log`
+- Requests: 4 total
+- Route/method counts:
+  - `POST /v3/teams`: 2
+  - `GET /v3/teams`: 2
+- Elapsed: 476 ms
+
+### Analysis
+
+- This confirms current fanout optimization is `sync`-only.
+- In `apply`, resource planning still lists current managed teams once per
+  namespace (here: two namespaces -> two `GET /v3/teams` calls).
+- `apply` correctly avoids cross-resource discovery calls; only
+  `organization_team` endpoints are touched.
+
+## Optimization Pass 12: Generalize namespace fanout to apply + sync
+
+### Goal
+
+Use the same all-namespace list + in-memory filter strategy for any
+multi-namespace declarative planning run, not only `sync`.
+
+### Changes made
+
+- Renamed planner flag from sync-specific to mode-agnostic:
+  - `syncNamespaceFanout` -> `namespaceFanout`
+  - `internal/declarative/planner/planner.go`
+- Enabled fanout whenever `len(namespaces) > 1` in plan generation:
+  - `internal/declarative/planner/planner.go`
+- Updated planner cache helpers to honor the generalized flag:
+  - `internal/declarative/planner/resource_cache.go`
+
+### Validation
+
+- `go test ./internal/declarative/...` passed.
+- `go test ./...` passed.
+
+### Expected impact
+
+- Multi-namespace `apply` should now avoid per-namespace repeated list calls for
+  planned resource types.
+- For the current team scenario, expected `apply` request profile change:
+  - before: `POST /v3/teams` + `GET /v3/teams` per namespace
+  - after: same `POST` count, but `GET /v3/teams` reduced to one call per run.
+
+### Result (after)
+
+- Command:
+  ```sh
+  ./scripts/command-analyzer.sh -- apply \
+    -f docs/examples/declarative/organization/teams.yaml \
+    --auto-approve
+  ```
+- Log file: `/tmp/kongctl-http.yeLM.log`
+- Requests: 3 total
+- Route/method counts:
+  - `POST /v3/teams`: 2
+  - `GET /v3/teams`: 1
+- Elapsed: 338 ms
+
+### Net improvement
+
+- Request count for this run: `4 -> 3` (25% reduction).
+- `GET /v3/teams` fanout reduced from `2 -> 1` in multi-namespace apply.
+- Note: this run planned only `a-team` creates because `c-team` already
+  existed from prior runs.

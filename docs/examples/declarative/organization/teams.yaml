@@ -10,7 +10,7 @@ organization:
       description: team-b with bar description
       kongctl:
         namespace: a-team
-    - ref: 
+    - ref: team-c 
       name: team-c
       description: teacm-c with foo description
       kongctl:

@@ -57,6 +57,10 @@ type Planner struct {
 	// Cache for managed resources fetched during a single GeneratePlan run.
 	resourceCache *planningResourceCache
 
+	// For multi-namespace runs, prefer one all-namespace read per resource type
+	// and filter in-memory per namespace to reduce API calls.
+	namespaceFanout bool
+
 	// Generic planner for common operations
 	genericPlanner *GenericPlanner
 
@@ -120,6 +124,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 	// Reset per-run caches in case this planner instance is reused.
 	p.resourceCache = newPlanningResourceCache()
+	p.namespaceFanout = false
 
 	generator := opts.Generator
 	if generator == "" {
@@ -174,18 +179,23 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		slog.Int("count", len(namespaces)),
 		slog.Any("namespaces", namespaces))
 
+	if len(namespaces) > 1 {
+		p.namespaceFanout = true
+	}
+
 	// Process each namespace independently
 	for _, namespace := range namespaces {
 		namespaceCtx := withPlannerHTTPLogContext(ctx, opts, "", namespace)
 
 		// Create a namespace-specific planner context
 		namespacePlanner := &Planner{
-			client:        p.client,
-			logger:        p.logger,
-			resolver:      p.resolver,
-			depResolver:   p.depResolver,
-			changeCount:   p.changeCount,
-			resourceCache: p.resourceCache,
+			client:          p.client,
+			logger:          p.logger,
+			resolver:        p.resolver,
+			depResolver:     p.depResolver,
+			changeCount:     p.changeCount,
+			resourceCache:   p.resourceCache,
+			namespaceFanout: p.namespaceFanout,
 		}
 
 		// Initialize generic planner for namespace-specific planner
