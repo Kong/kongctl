@@ -8,6 +8,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypeEventGatewayListener,
+		func(rs *ResourceSet) *[]EventGatewayListenerResource { return &rs.EventGatewayListeners },
+	)
+}
+
 type EventGatewayListenerResource struct {
 	kkComps.CreateEventGatewayListenerRequest `       yaml:",inline"                 json:",inline"`
 	Ref                                       string `yaml:"ref"                     json:"ref"`

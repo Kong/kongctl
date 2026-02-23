@@ -8,6 +8,13 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+	registerResourceType(
+		ResourceTypeEventGatewayListenerPolicy,
+		func(rs *ResourceSet) *[]EventGatewayListenerPolicyResource { return &rs.EventGatewayListenerPolicies },
+	)
+}
+
 // EventGatewayListenerPolicyResource represents a listener policy in declarative configuration.
 // The SDK represents listener policies as a union type (EventGatewayListenerPolicyCreate)
 // with two variants: TLSServer and ForwardToVirtualCluster.

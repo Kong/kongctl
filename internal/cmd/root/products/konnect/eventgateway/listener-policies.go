@@ -351,6 +351,7 @@ func (h listenerPoliciesHandler) listPolicies(
 	}
 
 	return tableview.RenderForFormat(
+		helper,
 		false,
 		outType,
 		printer,
@@ -430,6 +431,7 @@ func (h listenerPoliciesHandler) getSinglePolicy(
 	// If we successfully parsed the raw response with config, use that
 	if policyWithConfig != nil {
 		return tableview.RenderForFormat(
+			helper,
 			false,
 			outType,
 			printer,
@@ -442,6 +444,7 @@ func (h listenerPoliciesHandler) getSinglePolicy(
 	}
 
 	return tableview.RenderForFormat(
+		helper,
 		false,
 		outType,
 		printer,

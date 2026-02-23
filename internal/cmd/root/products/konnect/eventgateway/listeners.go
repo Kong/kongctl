@@ -246,6 +246,7 @@ func (h listenersHandler) listListeners(
 	}
 
 	return tableview.RenderForFormat(
+		helper,
 		false,
 		outType,
 		printer,
@@ -303,6 +304,7 @@ func (h listenersHandler) getSingleListener(
 	}
 
 	return tableview.RenderForFormat(
+		helper,
 		false,
 		outType,
 		printer,
