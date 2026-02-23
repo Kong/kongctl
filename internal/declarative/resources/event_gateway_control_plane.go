@@ -21,9 +21,6 @@ type EventGatewayControlPlaneResource struct {
 	BackendClusters []EventGatewayBackendClusterResource `yaml:"backend_clusters,omitempty" json:"backend_clusters,omitempty"` //nolint:lll
 	VirtualClusters []EventGatewayVirtualClusterResource `yaml:"virtual_clusters,omitempty" json:"virtual_clusters,omitempty"` //nolint:lll
 	Listeners       []EventGatewayListenerResource       `yaml:"listeners,omitempty"        json:"listeners,omitempty"`        //nolint:lll
-
-	// Resolved Konnect ID (not serialized)
-	konnectID string `json:"-" yaml:"-"`
 }
 
 func (e EventGatewayControlPlaneResource) GetType() ResourceType {
