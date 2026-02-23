@@ -36,11 +36,12 @@ type MockKonnectSDK struct {
 	PortalEmailsFactory                  func() PortalEmailsAPI
 
 	// Event Gateway Control Plane factory
-	EventGatewayControlPlaneFactory   func() EGWControlPlaneAPI
-	EventGatewayBackendClusterFactory func() EventGatewayBackendClusterAPI
-	EventGatewayVirtualClusterFactory func() EventGatewayVirtualClusterAPI
-	EventGatewayListenerFactory       func() EventGatewayListenerAPI
-	EventGatewayListenerPolicyFactory func() EventGatewayListenerPolicyAPI
+	EventGatewayControlPlaneFactory         func() EGWControlPlaneAPI
+	EventGatewayBackendClusterFactory       func() EventGatewayBackendClusterAPI
+	EventGatewayVirtualClusterFactory       func() EventGatewayVirtualClusterAPI
+	EventGatewayListenerFactory             func() EventGatewayListenerAPI
+	EventGatewayListenerPolicyFactory       func() EventGatewayListenerPolicyAPI
+	EventGatewayDataPlaneCertificateFactory func() EventGatewayDataPlaneCertificateAPI
 }
 
 // Returns a mock instance of the ControlPlaneAPI
@@ -292,6 +293,14 @@ func (m *MockKonnectSDK) GetEventGatewayListenerAPI() EventGatewayListenerAPI {
 func (m *MockKonnectSDK) GetEventGatewayListenerPolicyAPI() EventGatewayListenerPolicyAPI {
 	if m.EventGatewayListenerPolicyFactory != nil {
 		return m.EventGatewayListenerPolicyFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the EventGatewayDataPlaneCertificateAPI
+func (m *MockKonnectSDK) GetEventGatewayDataPlaneCertificateAPI() EventGatewayDataPlaneCertificateAPI {
+	if m.EventGatewayDataPlaneCertificateFactory != nil {
+		return m.EventGatewayDataPlaneCertificateFactory()
 	}
 	return nil
 }

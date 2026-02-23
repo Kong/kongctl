@@ -18,9 +18,10 @@ type EventGatewayControlPlaneResource struct {
 	kkComps.CreateGatewayRequest `yaml:",inline" json:",inline"`
 
 	// Nested child resources
-	BackendClusters []EventGatewayBackendClusterResource `yaml:"backend_clusters,omitempty" json:"backend_clusters,omitempty"` //nolint:lll
-	VirtualClusters []EventGatewayVirtualClusterResource `yaml:"virtual_clusters,omitempty" json:"virtual_clusters,omitempty"` //nolint:lll
-	Listeners       []EventGatewayListenerResource       `yaml:"listeners,omitempty"        json:"listeners,omitempty"`        //nolint:lll
+	BackendClusters       []EventGatewayBackendClusterResource       `yaml:"backend_clusters,omitempty" json:"backend_clusters,omitempty"`               //nolint:lll
+	VirtualClusters       []EventGatewayVirtualClusterResource       `yaml:"virtual_clusters,omitempty" json:"virtual_clusters,omitempty"`               //nolint:lll
+	Listeners             []EventGatewayListenerResource             `yaml:"listeners,omitempty"        json:"listeners,omitempty"`                      //nolint:lll
+	DataPlaneCertificates []EventGatewayDataPlaneCertificateResource `yaml:"data_plane_certificates,omitempty" json:"data_plane_certificates,omitempty"` //nolint:lll
 }
 
 func (e EventGatewayControlPlaneResource) GetType() ResourceType {
@@ -85,6 +86,18 @@ func (e EventGatewayControlPlaneResource) Validate() error {
 		listenerRefs[l.GetRef()] = true
 	}
 
+	// Validate data plane certificates
+	dataPlaneCertRefs := make(map[string]bool)
+	for i, dpc := range e.DataPlaneCertificates {
+		if err := dpc.Validate(); err != nil {
+			return fmt.Errorf("invalid data plane certificate %d: %w", i, err)
+		}
+		if dataPlaneCertRefs[dpc.GetRef()] {
+			return fmt.Errorf("duplicate data plane certificate ref: %s", dpc.GetRef())
+		}
+		dataPlaneCertRefs[dpc.GetRef()] = true
+	}
+
 	return nil
 }
 
@@ -103,6 +116,10 @@ func (e *EventGatewayControlPlaneResource) SetDefaults() {
 
 	for i := range e.Listeners {
 		e.Listeners[i].SetDefaults()
+	}
+
+	for i := range e.DataPlaneCertificates {
+		e.DataPlaneCertificates[i].SetDefaults()
 	}
 }
 

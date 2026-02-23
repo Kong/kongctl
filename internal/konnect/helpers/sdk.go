@@ -50,6 +50,7 @@ type SDKAPI interface {
 	GetEventGatewayVirtualClusterAPI() EventGatewayVirtualClusterAPI
 	GetEventGatewayListenerAPI() EventGatewayListenerAPI
 	GetEventGatewayListenerPolicyAPI() EventGatewayListenerPolicyAPI
+	GetEventGatewayDataPlaneCertificateAPI() EventGatewayDataPlaneCertificateAPI
 }
 
 // This is the real implementation of the SDKAPI
@@ -333,6 +334,15 @@ func (k *KonnectSDK) GetEventGatewayListenerPolicyAPI() EventGatewayListenerPoli
 	}
 
 	return &EventGatewayListenerPolicyAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the EventGatewayDataPlaneCertificateAPI interface
+func (k *KonnectSDK) GetEventGatewayDataPlaneCertificateAPI() EventGatewayDataPlaneCertificateAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &EventGatewayDataPlaneCertificateAPIImpl{SDK: k.SDK}
 }
 
 func (k *KonnectSDK) GetOrganizationTeamAPI() OrganizationTeamAPI {
