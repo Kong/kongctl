@@ -16,6 +16,14 @@ on:
           - patch
           - minor
           - major
+      build_mode:
+        description: Build mode (full release or smoke test)
+        default: full
+        required: false
+        type: choice
+        options:
+          - full
+          - smoke
 permissions:
   contents: read
   pull-requests: read
@@ -173,6 +181,27 @@ jobs:
           echo "RELEASE_TAG=${{ needs.config.outputs.release_tag }}" >> "$GITHUB_ENV"
           echo "RELEASE_VERSION=${{ needs.config.outputs.release_version }}" >> "$GITHUB_ENV"
 
+      - name: Determine build mode
+        env:
+          REQUESTED_BUILD_MODE: ${{ github.event.inputs.build_mode || 'full' }}
+        run: |
+          set -euo pipefail
+
+          RELEASE_BUILD_MODE="${REQUESTED_BUILD_MODE}"
+          if [[ "${GITHUB_REPOSITORY,,}" == *"trial"* ]]; then
+            RELEASE_BUILD_MODE="smoke"
+          fi
+
+          case "$RELEASE_BUILD_MODE" in
+            full|smoke) ;;
+            *)
+              echo "::error::Unsupported build mode: $RELEASE_BUILD_MODE"
+              exit 1
+              ;;
+          esac
+
+          echo "RELEASE_BUILD_MODE=$RELEASE_BUILD_MODE" >> "$GITHUB_ENV"
+
       - name: Create and push tag
         run: |
           set -euo pipefail
@@ -203,6 +232,7 @@ jobs:
           fi
 
       - name: Run GoReleaser (goreleaser-cross)
+        if: env.RELEASE_BUILD_MODE == 'full'
         run: |
           set -euo pipefail
 
@@ -222,9 +252,11 @@ jobs:
             -c "set -e; git config --global --add safe.directory /work; goreleaser release --clean; if [ -d /work/dist ]; then chown -R \${HOST_UID:-0}:\${HOST_GID:-0} /work/dist; fi"
 
       - name: Set up Homebrew
+        if: env.RELEASE_BUILD_MODE == 'full'
         uses: Homebrew/actions/setup-homebrew@master
 
       - name: Fetch Homebrew tap
+        if: env.RELEASE_BUILD_MODE == 'full'
         env:
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
         run: |
@@ -234,6 +266,7 @@ jobs:
           git clone --depth 1 "https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/kong/homebrew-kongctl.git" dist/homebrew-tap/homebrew-kongctl
 
       - name: Sync generated Homebrew files
+        if: env.RELEASE_BUILD_MODE == 'full'
         run: |
           set -euo pipefail
           mkdir -p dist/homebrew-tap/homebrew-kongctl/Casks
@@ -243,9 +276,11 @@ jobs:
           fi
 
       - name: Fix Homebrew tap style
+        if: env.RELEASE_BUILD_MODE == 'full'
         run: ./scripts/fix-homebrew-tap.sh dist/homebrew-tap/homebrew-kongctl
 
       - name: Commit and push Homebrew tap updates
+        if: env.RELEASE_BUILD_MODE == 'full'
         working-directory: dist/homebrew-tap/homebrew-kongctl
         env:
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
@@ -260,6 +295,48 @@ jobs:
             git push origin HEAD:main
           else
             echo "No tap changes to commit"
+          fi
+
+      - name: Setup Go (smoke mode)
+        if: env.RELEASE_BUILD_MODE == 'smoke'
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Build smoke artifact
+        if: env.RELEASE_BUILD_MODE == 'smoke'
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist
+          COMMIT="$(git rev-parse --short HEAD)"
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          SMOKE_BIN="kongctl-linux-amd64"
+          SMOKE_TAR="kongctl-${RELEASE_TAG#v}-linux-amd64-smoke.tar.gz"
+
+          CGO_ENABLED=0 go build \
+            -trimpath \
+            -ldflags="-s -w -X main.version=${RELEASE_VERSION} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}" \
+            -o "dist/${SMOKE_BIN}" \
+            .
+
+          tar -czf "dist/${SMOKE_TAR}" -C dist "${SMOKE_BIN}"
+
+      - name: Create GitHub release (smoke mode)
+        if: env.RELEASE_BUILD_MODE == 'smoke'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          SMOKE_TAR="dist/kongctl-${RELEASE_TAG#v}-linux-amd64-smoke.tar.gz"
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "$SMOKE_TAR" --clobber
+          else
+            gh release create "$RELEASE_TAG" "$SMOKE_TAR" \
+              --title "$RELEASE_TAG" \
+              --generate-notes
           fi
 
       - name: Capture release id

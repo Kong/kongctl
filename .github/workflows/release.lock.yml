@@ -23,7 +23,7 @@
 #
 # Build and release kongctl, then prepend agent-generated release highlights
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"23a5baa19eb339062ce8c457f110810445d0858ae7bde803341299f67fa6e3da","compiler_version":"v0.50.1"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c78f31abef00063277ea18b2f96ec1ebce198ba7e29b2f86f0d89f12cd84e89e","compiler_version":"v0.50.1"}
 
 name: "Release"
 "on":
@@ -32,6 +32,14 @@ name: "Release"
   # - maintainer # Roles processed as role check in pre-activation job
   workflow_dispatch:
     inputs:
+      build_mode:
+        default: full
+        description: Build mode (full release or smoke test)
+        options:
+        - full
+        - smoke
+        required: false
+        type: choice
       release_type:
         default: patch
         description: Release type (patch, minor, or major)
@@ -1186,6 +1194,26 @@ jobs:
           set -euo pipefail
           echo "RELEASE_TAG=${{ needs.config.outputs.release_tag }}" >> "$GITHUB_ENV"
           echo "RELEASE_VERSION=${{ needs.config.outputs.release_version }}" >> "$GITHUB_ENV"
+      - name: Determine build mode
+        run: |
+          set -euo pipefail
+
+          RELEASE_BUILD_MODE="${REQUESTED_BUILD_MODE}"
+          if [[ "${GITHUB_REPOSITORY,,}" == *"trial"* ]]; then
+            RELEASE_BUILD_MODE="smoke"
+          fi
+
+          case "$RELEASE_BUILD_MODE" in
+            full|smoke) ;;
+            *)
+              echo "::error::Unsupported build mode: $RELEASE_BUILD_MODE"
+              exit 1
+              ;;
+          esac
+
+          echo "RELEASE_BUILD_MODE=$RELEASE_BUILD_MODE" >> "$GITHUB_ENV"
+        env:
+          REQUESTED_BUILD_MODE: ${{ github.event.inputs.build_mode || 'full' }}
       - name: Create and push tag
         run: |
           set -euo pipefail
@@ -1213,6 +1241,7 @@ jobs:
         env:
           GH_PRIVATE_READ_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
       - name: Run GoReleaser (goreleaser-cross)
+        if: env.RELEASE_BUILD_MODE == 'full'
         run: |
           set -euo pipefail
 
@@ -1231,8 +1260,10 @@ jobs:
             goreleaser/goreleaser-cross:v1.25.3 \
             -c "set -e; git config --global --add safe.directory /work; goreleaser release --clean; if [ -d /work/dist ]; then chown -R \${HOST_UID:-0}:\${HOST_GID:-0} /work/dist; fi"
       - name: Set up Homebrew
+        if: env.RELEASE_BUILD_MODE == 'full'
         uses: Homebrew/actions/setup-homebrew@master
       - name: Fetch Homebrew tap
+        if: env.RELEASE_BUILD_MODE == 'full'
         run: |
           set -euo pipefail
           rm -rf dist/homebrew-tap
@@ -1241,6 +1272,7 @@ jobs:
         env:
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
       - name: Sync generated Homebrew files
+        if: env.RELEASE_BUILD_MODE == 'full'
         run: |
           set -euo pipefail
           mkdir -p dist/homebrew-tap/homebrew-kongctl/Casks
@@ -1249,8 +1281,10 @@ jobs:
             cp dist/homebrew/Casks/kongctl.rb dist/homebrew-tap/homebrew-kongctl/Casks/kongctl.rb
           fi
       - name: Fix Homebrew tap style
+        if: env.RELEASE_BUILD_MODE == 'full'
         run: ./scripts/fix-homebrew-tap.sh dist/homebrew-tap/homebrew-kongctl
       - name: Commit and push Homebrew tap updates
+        if: env.RELEASE_BUILD_MODE == 'full'
         run: |
           set -euo pipefail
           git config user.name "kongctl Release Bot"
@@ -1266,6 +1300,45 @@ jobs:
         env:
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
         working-directory: dist/homebrew-tap/homebrew-kongctl
+      - name: Setup Go (smoke mode)
+        if: env.RELEASE_BUILD_MODE == 'smoke'
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
+        with:
+          cache: false
+          go-version-file: go.mod
+      - name: Build smoke artifact
+        if: env.RELEASE_BUILD_MODE == 'smoke'
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist
+          COMMIT="$(git rev-parse --short HEAD)"
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          SMOKE_BIN="kongctl-linux-amd64"
+          SMOKE_TAR="kongctl-${RELEASE_TAG#v}-linux-amd64-smoke.tar.gz"
+
+          CGO_ENABLED=0 go build \
+            -trimpath \
+            -ldflags="-s -w -X main.version=${RELEASE_VERSION} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}" \
+            -o "dist/${SMOKE_BIN}" \
+            .
+
+          tar -czf "dist/${SMOKE_TAR}" -C dist "${SMOKE_BIN}"
+      - name: Create GitHub release (smoke mode)
+        if: env.RELEASE_BUILD_MODE == 'smoke'
+        run: |
+          set -euo pipefail
+
+          SMOKE_TAR="dist/kongctl-${RELEASE_TAG#v}-linux-amd64-smoke.tar.gz"
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "$SMOKE_TAR" --clobber
+          else
+            gh release create "$RELEASE_TAG" "$SMOKE_TAR" \
+              --title "$RELEASE_TAG" \
+              --generate-notes
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Capture release id
         id: get_release
         run: |
