@@ -23,7 +23,7 @@
 #
 # Build and release kongctl, then prepend agent-generated release highlights
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"80d794d10226af23de1850abb085c5aa2477976394e6015711a40088a74a7657","compiler_version":"v0.50.1"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"386b96fc3187c49727b3712198e9867238aff0450aba56b7bf230b12d89c989b","compiler_version":"v0.50.1"}
 
 name: "Release"
 "on":
@@ -1030,6 +1030,9 @@ jobs:
       - activation
       - pre_activation
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
     outputs:
       release_tag: ${{ steps.compute_config.outputs.release_tag }}
       release_version: ${{ steps.compute_config.outputs.release_version }}

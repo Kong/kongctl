@@ -39,6 +39,8 @@ jobs:
   config:
     needs: ["pre_activation", "activation"]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       release_tag: ${{ steps.compute_config.outputs.release_tag }}
       release_version: ${{ steps.compute_config.outputs.release_version }}
