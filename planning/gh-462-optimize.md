@@ -673,3 +673,32 @@ multi-namespace declarative planning run, not only `sync`.
 - `GET /v3/teams` fanout reduced from `2 -> 1` in multi-namespace apply.
 - Note: this run planned only `a-team` creates because `c-team` already
   existed from prior runs.
+
+## Optimization Pass 13: PR feedback cleanup and regression tests
+
+### Goal
+
+Address PR review feedback:
+- fix example YAML nits
+- add tests for cache reuse + namespace fanout filtering
+
+### Changes made
+
+- Fixed `teams.yaml` formatting/content nits:
+  - removed trailing whitespace in `ref: team-c`
+  - corrected typo `teacm-c` -> `team-c`
+  - `docs/examples/declarative/organization/teams.yaml`
+- Added planner cache regression tests:
+  - `internal/declarative/planner/resource_cache_test.go`
+  - `TestListManagedOrganizationTeams_NamespaceFanoutCachesAcrossNamespaces`
+    verifies one API list call is reused across two namespaces and correctly
+    filtered in-memory.
+  - `TestGeneratePlan_ApplyMultiNamespaceTeams_UsesSingleListTeamsCall`
+    verifies multi-namespace `apply` planning performs a single teams list call.
+
+### Validation
+
+- `GOFLAGS=-mod=mod go test ./internal/declarative/planner` passed.
+- `GOFLAGS=-mod=mod go test ./internal/declarative/...` passed.
+- Full `go test ./...` in this environment failed due `/tmp` disk quota during
+  unrelated package builds.
