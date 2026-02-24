@@ -61,7 +61,7 @@ func (p *Planner) planEGWControlPlaneChanges(
 
 	// Fetch current managed Event Gateway Control Planes from the specific namespace
 	namespaceFilter := []string{namespace}
-	currentEGWControlPlanes, err := p.client.ListManagedEventGatewayControlPlanes(ctx, namespaceFilter)
+	currentEGWControlPlanes, err := p.listManagedEventGatewayControlPlanes(ctx, namespaceFilter)
 	if err != nil {
 		// If API client is not configured, skip Event Gateway Control Plane planning
 		if state.IsAPIClientError(err) {

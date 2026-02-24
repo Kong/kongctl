@@ -50,7 +50,7 @@ func (p *Planner) planCatalogServiceChanges(
 		slog.Int("desiredCount", len(desired)),
 		slog.String("namespace", plannerCtx.Namespace))
 
-	currentServices, err := p.client.ListManagedCatalogServices(ctx, []string{plannerCtx.Namespace})
+	currentServices, err := p.listManagedCatalogServices(ctx, []string{plannerCtx.Namespace})
 	if err != nil {
 		if state.IsAPIClientError(err) {
 			return nil
