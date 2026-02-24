@@ -117,8 +117,8 @@ Setting this value overrides tokens obtained from the login command.
 
 	cmd.PersistentFlags().BoolVar(&force, "force", false,
 		"Force deletion even when related resources exist (not configurable)")
-	cmd.PersistentFlags().BoolVar(&autoApprove, "approve", false,
-		"Skip confirmation prompts for delete operations (not configurable)")
+	cmd.PersistentFlags().BoolVar(&autoApprove, "auto-approve", false,
+		"Skip confirmation prompts for delete operations")
 
 	// Add declarative flags from the declarative delete command
 	cmd.Flags().AddFlagSet(declDeleteCmd.Flags())

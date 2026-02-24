@@ -30,7 +30,7 @@ var (
 If the portal has published APIs, the deletion will fail unless the --force flag is used.
 Using --force will delete the portal along with all API publications.
 
-Use --approve to skip the confirmation prompt.`)
+Use --auto-approve to skip the confirmation prompt.`)
 	deletePortalExample = normalizers.Examples(
 		i18n.T("root.products.konnect.portal.deletePortalExamples",
 			fmt.Sprintf(`
@@ -44,7 +44,7 @@ Use --approve to skip the confirmation prompt.`)
 	%[1]s delete portal my-portal --force
 
 	# Delete without confirmation prompt
-	%[1]s delete portal my-portal --approve
+	%[1]s delete portal my-portal --auto-approve
 
 	`, meta.CLIName)))
 )
