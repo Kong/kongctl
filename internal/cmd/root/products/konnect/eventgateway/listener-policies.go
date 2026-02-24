@@ -333,17 +333,6 @@ func (h listenerPoliciesHandler) run(args []string) error {
 		policyIdentifier = policyName
 	}
 
-	// Validate mutual exclusivity of policy ID and name flags
-	if policyID != "" && policyName != "" {
-		return &cmd.ConfigurationError{
-			Err: fmt.Errorf(
-				"only one of --%s or --%s can be provided",
-				policyIDFlagName,
-				policyNameFlagName,
-			),
-		}
-	}
-
 	if policyIdentifier != "" {
 		return h.getSinglePolicy(
 			helper,
