@@ -13,7 +13,6 @@ on:
     paths: &source-files
       - go.mod
       - go.sum
-      - VERSION
       - main.go
       - '*.go'
       - internal/**
