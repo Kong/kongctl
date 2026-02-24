@@ -1395,7 +1395,11 @@ func outputExecutionResult(command *cobra.Command,
 	}
 
 	if result.TotalChanges() == 0 {
-		summary["message"] = "No changes needed. All resources match the desired configuration."
+		if plan != nil && plan.Metadata.Mode == planner.PlanModeDelete {
+			summary["message"] = "No changes needed. No matching resources found to delete."
+		} else {
+			summary["message"] = "No changes needed. All resources match the desired configuration."
+		}
 	} else if result.FailureCount > 0 {
 		if result.SuccessCount < 1 {
 			summary["status"] = "error"
