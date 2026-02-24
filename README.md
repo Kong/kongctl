@@ -17,6 +17,7 @@ By using this software, you acknowledge that:
 ## Table of Contents
 
 - [What is `kongctl`?](#what-is-kongctl)
+- [Documentation](#documentation)
 - [Installation](#installation)
   - [macOS](#macos)
   - [Linux](#linux)
