@@ -123,10 +123,11 @@ rules:
 	// Without onlyFailures, should include both
 	outputAll := Bytes(input, rs, "error", false, "test.yaml")
 
-	// With onlyFailures and fail-severity=error, should exclude info
+	// With onlyFailures and fail-severity=error, should exclude info; only the error-level result remains
 	outputFailOnly := Bytes(input, rs, "error", true, "test.yaml")
 
-	assert.GreaterOrEqual(t, outputAll.TotalCount, outputFailOnly.TotalCount)
+	assert.Equal(t, 1, outputFailOnly.TotalCount)
+	assert.Greater(t, outputAll.TotalCount, outputFailOnly.TotalCount)
 }
 
 func TestFile(t *testing.T) {

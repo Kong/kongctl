@@ -75,7 +75,7 @@ func NewLintCmd() (*cobra.Command, error) {
 		Short:   lintShort,
 		Long:    lintLong,
 		Example: lintExamples,
-		Aliases: []string{"l"},
+		Aliases: []string{"li"},
 		PersistentPreRun: func(c *cobra.Command, _ []string) {
 			c.SetContext(context.WithValue(c.Context(), verbs.Verb, Verb))
 		},

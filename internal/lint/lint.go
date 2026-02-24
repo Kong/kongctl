@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 
 	"github.com/daveshanley/vacuum/motor"
@@ -60,7 +61,9 @@ type Output struct {
 }
 
 // ParseSeverity converts a severity string to its Severity enum value.
-// Returns SeverityWarn if the string is not recognized.
+// Returns SeverityWarn for unrecognized or empty strings, which is a
+// conservative middle-ground: results without a severity are treated as
+// warnings rather than being silently ignored or incorrectly elevated.
 func ParseSeverity(s string) Severity {
 	for i, str := range severityStrings {
 		if s == str {
@@ -116,7 +119,7 @@ func Bytes(
 	var (
 		failingCount int
 		totalCount   int
-		results      []Result
+		results      = []Result{}
 	)
 
 	failSev := ParseSeverity(failSeverity)
@@ -167,17 +170,6 @@ func Bytes(
 		})
 	}
 
-	// Sort results by file, then line, then column for consistent output
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].File != results[j].File {
-			return results[i].File < results[j].File
-		}
-		if results[i].Line != results[j].Line {
-			return results[i].Line < results[j].Line
-		}
-		return results[i].Column < results[j].Column
-	})
-
 	return &Output{
 		TotalCount: totalCount,
 		FailCount:  failingCount,
@@ -213,12 +205,19 @@ func File(
 		return nil, err
 	}
 
-	fileBytes, err := readFile(filePath)
+	fileBytes, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read input file %q: %w", filePath, err)
 	}
 
-	return Bytes(fileBytes, ruleSet, failSeverity, onlyFailures, filePath), nil
+	out := Bytes(fileBytes, ruleSet, failSeverity, onlyFailures, filePath)
+	sort.Slice(out.Results, func(i, j int) bool {
+		if out.Results[i].Line != out.Results[j].Line {
+			return out.Results[i].Line < out.Results[j].Line
+		}
+		return out.Results[i].Column < out.Results[j].Column
+	})
+	return out, nil
 }
 
 // Files lints multiple files against the same ruleset, returning
@@ -239,7 +238,7 @@ func Files(
 	}
 
 	for _, fp := range filePaths {
-		fileBytes, err := readFile(fp)
+		fileBytes, err := os.ReadFile(fp)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read input file %q: %w", fp, err)
 		}

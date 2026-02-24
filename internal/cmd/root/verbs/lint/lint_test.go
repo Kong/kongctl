@@ -105,7 +105,7 @@ func TestLintCmd_Aliases(t *testing.T) {
 	cmd, err := NewLintCmd()
 	require.NoError(t, err)
 
-	assert.Contains(t, cmd.Aliases, "l")
+	assert.Contains(t, cmd.Aliases, "li")
 }
 
 func TestLintCmd_RequiresRuleset(t *testing.T) {
@@ -242,7 +242,9 @@ rules:
 	root.SetContext(context.Background())
 	root.SetArgs([]string{"lint", "-f", inputFile, "-r", rulesetFile, "--output", "json"})
 
-	_ = root.Execute()
+	err = root.Execute()
+	require.Error(t, err, "should fail when violations exist")
+	assert.Contains(t, err.Error(), "linting violation")
 	assert.Contains(t, output.String(), `"total_count"`)
 	assert.Contains(t, output.String(), `"results"`)
 }
@@ -275,7 +277,9 @@ rules:
 	root.SetContext(context.Background())
 	root.SetArgs([]string{"lint", "-f", inputFile, "-r", rulesetFile, "--output", "yaml"})
 
-	_ = root.Execute()
+	err = root.Execute()
+	require.Error(t, err, "should fail when violations exist")
+	assert.Contains(t, err.Error(), "linting violation")
 	assert.Contains(t, output.String(), "total_count:")
 	assert.Contains(t, output.String(), "results:")
 }

@@ -8,15 +8,6 @@ import (
 	"strings"
 )
 
-// readFile reads a file from disk and returns its bytes.
-func readFile(path string) ([]byte, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("reading file %q: %w", path, err)
-	}
-	return data, nil
-}
-
 // CollectFiles resolves file paths from the provided sources. If a
 // path is a directory, it collects all YAML/YML files within it.
 // When recursive is true, it walks subdirectories as well.
@@ -30,6 +21,9 @@ func CollectFiles(paths []string, recursive bool) ([]string, error) {
 		}
 
 		if !info.IsDir() {
+			// Files specified directly are included regardless of extension.
+			// This allows linting non-YAML formats (e.g. JSON OpenAPI specs)
+			// when the caller explicitly provides the path.
 			files = append(files, p)
 			continue
 		}
