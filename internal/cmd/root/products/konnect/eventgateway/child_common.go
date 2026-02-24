@@ -35,6 +35,12 @@ const (
 	listenerIDConfigPath   = "konnect.event-gateway.listener.id"
 	listenerNameConfigPath = "konnect.event-gateway.listener.name"
 
+	dataPlaneCertIDFlagName   = "data-plane-certificate-id"
+	dataPlaneCertNameFlagName = "data-plane-certificate-name"
+
+	dataPlaneCertIDConfigPath   = "konnect.event-gateway.data-plane-certificate.id"
+	dataPlaneCertNameConfigPath = "konnect.event-gateway.data-plane-certificate.name"
+
 	valueNA = "n/a"
 )
 
@@ -180,6 +186,42 @@ func bindListenerChildFlags(c *cobra.Command, args []string) error {
 
 func getListenerIdentifiers(cfg config.Hook) (id string, name string) {
 	return cfg.GetString(listenerIDConfigPath), cfg.GetString(listenerNameConfigPath)
+}
+
+func addDataPlaneCertChildFlags(cmd *cobra.Command) {
+	cmd.Flags().String(dataPlaneCertIDFlagName, "",
+		fmt.Sprintf(`The ID of the data plane certificate to retrieve.
+- Config path: [ %s ]`, dataPlaneCertIDConfigPath))
+	cmd.Flags().String(dataPlaneCertNameFlagName, "",
+		fmt.Sprintf(`The name of the data plane certificate to retrieve.
+- Config path: [ %s ]`, dataPlaneCertNameConfigPath))
+	cmd.MarkFlagsMutuallyExclusive(dataPlaneCertIDFlagName, dataPlaneCertNameFlagName)
+}
+
+func bindDataPlaneCertChildFlags(c *cobra.Command, args []string) error {
+	helper := cmd.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if flag := c.Flags().Lookup(dataPlaneCertIDFlagName); flag != nil {
+		if err := cfg.BindFlag(dataPlaneCertIDConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	if flag := c.Flags().Lookup(dataPlaneCertNameFlagName); flag != nil {
+		if err := cfg.BindFlag(dataPlaneCertNameConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getDataPlaneCertIdentifiers(cfg config.Hook) (id string, name string) {
+	return cfg.GetString(dataPlaneCertIDConfigPath), cfg.GetString(dataPlaneCertNameConfigPath)
 }
 
 func resolveEventGatewayIDByName(
