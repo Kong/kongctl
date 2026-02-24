@@ -535,11 +535,12 @@ You MUST call the `safeoutputs/update_release` MCP tool exactly once:
 - `tag`: `${RELEASE_TAG}`
 - `operation`: `prepend`
 - `body`: full markdown for the highlights section
+- Mark the release as the latest
 
 The body should begin with:
 
 ```markdown
-## <img src="https://github.com/${{ github.repository }}/blob/main/brand/logo/dark/Kong-Logomark.svg?raw=1" alt="Kong logo" width="20" /> kongctl Release Highlights
+## <img src="https://raw.githubusercontent.com/Kong/kongctl/main/brand/logo/dark/Kong-Logomark.svg" alt="Kong logo" width="20" /> kongctl Release Highlights
 ```
 
 If HTML image rendering is unavailable in the release markdown renderer, fall
