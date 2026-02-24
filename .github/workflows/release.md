@@ -347,7 +347,7 @@ All data is pre-fetched in `/tmp/gh-aw/release-data/`:
 
 ## Objective
 
-Create a **"🌟 Release Highlights"** section to prepend to the existing release
+Create a **"kongctl Release Highlights"** section to prepend to the existing release
 notes so users can quickly understand what changed and why it matters.
 
 The highlights should be:
@@ -403,7 +403,14 @@ You MUST call the `safeoutputs/update_release` MCP tool exactly once:
 The body should begin with:
 
 ```markdown
-## 🌟 Release Highlights
+## <img src="https://github.com/${{ github.repository }}/blob/main/brand/logo/dark/Kong-Logomark.svg?raw=1" alt="Kong logo" width="20" /> kongctl Release Highlights
+```
+
+If HTML image rendering is unavailable in the release markdown renderer, fall
+back to:
+
+```markdown
+## kongctl Release Highlights
 ```
 
 End with a divider and a short pointer to full release notes, for example:
