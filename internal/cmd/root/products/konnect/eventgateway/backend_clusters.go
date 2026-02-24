@@ -226,7 +226,8 @@ func (h backendClustersHandler) run(args []string) error {
 func (h backendClustersHandler) listClusters(
 	helper cmd.Helper,
 	clusterAPI helpers.EventGatewayBackendClusterAPI,
-	gatewayID string, outType cmdCommon.OutputFormat,
+	gatewayID string,
+	outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
@@ -291,7 +292,8 @@ func (h backendClustersHandler) getSingleCluster(
 	helper cmd.Helper,
 	clusterAPI helpers.EventGatewayBackendClusterAPI,
 	gatewayID string,
-	identifier string, outType cmdCommon.OutputFormat,
+	identifier string,
+	outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {

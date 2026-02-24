@@ -320,7 +320,8 @@ func (h virtualClustersHandler) getSingleCluster(
 	helper cmd.Helper,
 	clusterAPI helpers.EventGatewayVirtualClusterAPI,
 	gatewayID string,
-	identifier string, outType cmdCommon.OutputFormat,
+	identifier string,
+	outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {

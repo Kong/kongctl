@@ -64,6 +64,12 @@ const (
 	// ResourceTypeEventGatewayVirtualCluster is the resource type for event gateway virtual clusters
 	ResourceTypeEventGatewayVirtualCluster = "event_gateway_virtual_cluster"
 
+	// ResourceTypeEventGatewayListener is the resource type for event gateway listeners
+	ResourceTypeEventGatewayListener = "event_gateway_listener"
+
+	// ResourceTypeEventGatewayListenerPolicy is the resource type for event gateway listener policies
+	ResourceTypeEventGatewayListenerPolicy = "event_gateway_listener_policy"
+
 	// ResourceTypeDeck represents an internal deck execution step.
 	ResourceTypeDeck = "_deck"
 )

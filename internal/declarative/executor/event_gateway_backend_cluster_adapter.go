@@ -115,7 +115,7 @@ func (a *EventGatewayBackendClusterAdapter) MapCreateFields(
 	}
 
 	// Labels - handle both map[string]string and map[string]interface{}
-	if labelsMap := extractLabelsField(fields, "labels"); labelsMap != nil {
+	if labelsMap := extractLabelsField(fields); labelsMap != nil {
 		create.Labels = labelsMap
 	}
 
@@ -205,7 +205,7 @@ func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 	}
 
 	// Labels - handle both map[string]string and map[string]interface{}
-	if labelsMap := extractLabelsField(fields, "labels"); labelsMap != nil {
+	if labelsMap := extractLabelsField(fields); labelsMap != nil {
 		update.Labels = labelsMap
 	}
 
@@ -238,8 +238,8 @@ func extractInt64Field(fields map[string]any, key string) *int64 {
 }
 
 // extractLabelsField extracts labels from fields, handling various map types
-func extractLabelsField(fields map[string]any, key string) map[string]string {
-	val, ok := fields[key]
+func extractLabelsField(fields map[string]any) map[string]string {
+	val, ok := fields["labels"]
 	if !ok {
 		return nil
 	}

@@ -1,0 +1,21 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-listener-comprehensive-test
+
+event_gateways:
+  - ref: egw-cp-for-listener-test-ref
+    name: egw-cp-for-listener-test-name
+    description: "EGW CP for Listener Test"
+event_gateway_listeners:
+  - ref: default-listener-1-ref
+    name: default-listener-1-name
+    event_gateway:  egw-cp-for-listener-test-ref
+    description: "Default Listener Updated Name"
+    ports:
+      - "9093-9095"
+    addresses:
+      - localhost
+      - example.com
+    labels:
+      env: staging
+      team: backend

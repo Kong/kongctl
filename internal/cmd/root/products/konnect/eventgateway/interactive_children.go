@@ -17,6 +17,8 @@ func init() {
 	}
 	tableview.RegisterChildLoader("event-gateway", "backend-clusters", loadEventGatewayBackendClusters)
 	tableview.RegisterChildLoader("event-gateway", "virtual-clusters", loadEventGatewayVirtualClusters)
+	tableview.RegisterChildLoader("event-gateway", "listeners", loadEventGatewayListeners)
+	tableview.RegisterChildLoader("listener", "policies", loadEventGatewayListenerPolicies)
 }
 
 func loadEventGatewayBackendClusters(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
@@ -107,5 +109,110 @@ func eventGatewayIDFromParent(parent any) (string, error) {
 		return id, nil
 	default:
 		return "", fmt.Errorf("unexpected parent type %T", parent)
+	}
+}
+
+func loadEventGatewayListeners(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	gatewayID, err := eventGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	listenerAPI := sdk.GetEventGatewayListenerAPI()
+	if listenerAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("event gateway listener client is not available")
+	}
+
+	listeners, err := fetchListeners(helper, listenerAPI, gatewayID, cfg, "")
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	return buildListenerChildView(listeners, gatewayID), nil
+}
+
+func loadEventGatewayListenerPolicies(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	gatewayID, listenerID, err := listenerIDsFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	policyAPI := sdk.GetEventGatewayListenerPolicyAPI()
+	if policyAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("event gateway listener policy client is not available")
+	}
+
+	_, rawPolicies, err := fetchListenerPolicies(helper, policyAPI, gatewayID, listenerID, cfg, "")
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	return buildListenerPolicyChildView(rawPolicies), nil
+}
+
+func listenerIDsFromParent(parent any) (string, string, error) {
+	if parent == nil {
+		return "", "", fmt.Errorf("listener parent is nil")
+	}
+
+	switch p := parent.(type) {
+	case *ListenerWithGateway:
+		if p.EventGatewayListener == nil {
+			return "", "", fmt.Errorf("listener is nil")
+		}
+		gatewayID := strings.TrimSpace(p.EventGatewayID)
+		if gatewayID == "" {
+			return "", "", fmt.Errorf("event gateway identifier is missing from listener")
+		}
+		listenerID := strings.TrimSpace(p.ID)
+		if listenerID == "" {
+			return "", "", fmt.Errorf("listener identifier is missing")
+		}
+		return gatewayID, listenerID, nil
+	case ListenerWithGateway:
+		if p.EventGatewayListener == nil {
+			return "", "", fmt.Errorf("listener is nil")
+		}
+		gatewayID := strings.TrimSpace(p.EventGatewayID)
+		if gatewayID == "" {
+			return "", "", fmt.Errorf("event gateway identifier is missing from listener")
+		}
+		listenerID := strings.TrimSpace(p.ID)
+		if listenerID == "" {
+			return "", "", fmt.Errorf("listener identifier is missing")
+		}
+		return gatewayID, listenerID, nil
+	default:
+		return "", "", fmt.Errorf("unexpected parent type %T", parent)
 	}
 }
