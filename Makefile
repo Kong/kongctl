@@ -9,7 +9,7 @@ LATEST_E2E_LINK ?= .latest-e2e
 
 .PHONY: lint
 lint:
-	golangci-lint run -v ./...
+	golangci-lint run -v
 
 .PHONY: format fmt
 format:

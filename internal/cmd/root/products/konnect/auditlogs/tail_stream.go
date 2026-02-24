@@ -68,7 +68,11 @@ func (e *tailEventEmitter) EmitRecords(records [][]byte) error {
 			outputRecord = filtered
 		}
 
-		if _, err := fmt.Fprintln(e.out, strings.TrimRight(string(outputRecord), "\n")); err != nil {
+		// #nosec G705 -- audit logs are intentionally streamed as raw CLI output.
+		if _, err := fmt.Fprintln(
+			e.out,
+			strings.TrimRight(string(outputRecord), "\n"),
+		); err != nil {
 			return err
 		}
 	}
@@ -80,7 +84,7 @@ func (e *tailEventEmitter) warn(format string, args ...any) {
 	if e == nil || e.errOut == nil {
 		return
 	}
-	_, _ = fmt.Fprintf(e.errOut, format+"\n", args...)
+	_, _ = fmt.Fprintf(e.errOut, format+"\n", args...) // #nosec G705 -- terminal warning text is intentionally unescaped.
 }
 
 func applyJQCodeToJSONRecord(record []byte, code *gojq.Code) ([]byte, error) {
