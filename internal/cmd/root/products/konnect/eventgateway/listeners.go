@@ -197,17 +197,6 @@ func (h listenersHandler) run(args []string) error {
 		listenerIdentifier = listenerName
 	}
 
-	// Validate mutual exclusivity of listener ID and name flags
-	if listenerID != "" && listenerName != "" {
-		return &cmd.ConfigurationError{
-			Err: fmt.Errorf(
-				"only one of --%s or --%s can be provided",
-				listenerIDFlagName,
-				listenerNameFlagName,
-			),
-		}
-	}
-
 	if listenerIdentifier != "" {
 		return h.getSingleListener(
 			helper,
@@ -226,7 +215,8 @@ func (h listenersHandler) run(args []string) error {
 func (h listenersHandler) listListeners(
 	helper cmd.Helper,
 	listenerAPI helpers.EventGatewayListenerAPI,
-	gatewayID string, outType cmdCommon.OutputFormat,
+	gatewayID string,
+	outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
@@ -263,7 +253,8 @@ func (h listenersHandler) getSingleListener(
 	helper cmd.Helper,
 	listenerAPI helpers.EventGatewayListenerAPI,
 	gatewayID string,
-	identifier string, outType cmdCommon.OutputFormat,
+	identifier string,
+	outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
@@ -422,5 +413,89 @@ func listenerToRecord(listener kkComps.EventGatewayListener) listenerSummaryReco
 		Description:      description,
 		LocalCreatedTime: createdAt,
 		LocalUpdatedTime: updatedAt,
+	}
+}
+
+func listenerDetailView(listener *kkComps.EventGatewayListener) string {
+	if listener == nil {
+		return ""
+	}
+
+	id := strings.TrimSpace(listener.ID)
+	if id == "" {
+		id = valueNA
+	}
+
+	name := strings.TrimSpace(listener.Name)
+	if name == "" {
+		name = valueNA
+	}
+
+	description := valueNA
+	if listener.Description != nil && strings.TrimSpace(*listener.Description) != "" {
+		description = strings.TrimSpace(*listener.Description)
+	}
+
+	labels := formatLabelPairs(listener.Labels)
+
+	addresses := valueNA
+	if len(listener.Addresses) > 0 {
+		addresses = strings.Join(listener.Addresses, ", ")
+	}
+
+	ports := formatListenerPorts(listener.Ports)
+
+	createdAt := listener.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+	updatedAt := listener.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	fmt.Fprintf(&b, "description: %s\n", description)
+	fmt.Fprintf(&b, "labels: %s\n", labels)
+	fmt.Fprintf(&b, "addresses: %s\n", addresses)
+	fmt.Fprintf(&b, "ports: %s\n", ports)
+	fmt.Fprintf(&b, "created_at: %s\n", createdAt)
+	fmt.Fprintf(&b, "updated_at: %s\n", updatedAt)
+
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// ListenerWithGateway wraps a listener with its parent event gateway ID
+// for navigation to child resources like listener-policies.
+type ListenerWithGateway struct {
+	*kkComps.EventGatewayListener
+	EventGatewayID string
+}
+
+func buildListenerChildView(listeners []kkComps.EventGatewayListener, gatewayID string) tableview.ChildView {
+	tableRows := make([]table.Row, 0, len(listeners))
+	for i := range listeners {
+		record := listenerToRecord(listeners[i])
+		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(listeners) {
+			return ""
+		}
+		return listenerDetailView(&listeners[index])
+	}
+
+	return tableview.ChildView{
+		Headers:        []string{"ID", "NAME"},
+		Rows:           tableRows,
+		DetailRenderer: detailFn,
+		Title:          "Listeners",
+		ParentType:     "listener",
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(listeners) {
+				return nil
+			}
+			return &ListenerWithGateway{
+				EventGatewayListener: &listeners[index],
+				EventGatewayID:       gatewayID,
+			}
+		},
 	}
 }

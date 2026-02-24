@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
 func formatLabelPairs(labels map[string]string) string {
@@ -36,4 +38,30 @@ func formatJSONValue(value any) string {
 	}
 
 	return trimmed
+}
+
+func formatListenerPorts(ports []kkComps.EventGatewayListenerPort) string {
+	if len(ports) == 0 {
+		return valueNA
+	}
+
+	portStrs := make([]string, 0, len(ports))
+	for _, p := range ports {
+		switch p.Type {
+		case kkComps.EventGatewayListenerPortTypeStr:
+			if p.Str != nil {
+				portStrs = append(portStrs, *p.Str)
+			}
+		case kkComps.EventGatewayListenerPortTypeInteger:
+			if p.Integer != nil {
+				portStrs = append(portStrs, fmt.Sprintf("%d", *p.Integer))
+			}
+		}
+	}
+
+	if len(portStrs) == 0 {
+		return valueNA
+	}
+
+	return strings.Join(portStrs, ", ")
 }
