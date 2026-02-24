@@ -1,0 +1,91 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+test:
+  enabledByEnvVar: KONGCTL_ENABLE_EVENT_GATEWAY
+
+vars:
+  egwName: egw-cp-for-dataplane-cert-test-name
+  dataplaneCertRef: default-dataplane-certificate-ref
+  dataplaneCertName: default-dataplane-certificate-name
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+  - name: 001-plan-apply-create
+    commands:
+      - name: 001-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='event_gateway' && resource_ref=='egw-cp-for-dataplane-cert-test-ref'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "egw-cp-for-dataplane-cert-test-ref"
+          - select: >-
+              changes[?resource_type=='event_gateway_data_plane_certificate' && resource_ref=='{{ .vars.dataplaneCertRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.dataplaneCertRef }}"
+      - name: 002-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+      - name: 003-verify-create
+        run:
+          - get
+          - event-gateway
+          - data-plane-certificates
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: default-dataplane-certificate-name
+                description: "Default Dataplane Certificate description"
