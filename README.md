@@ -17,6 +17,7 @@ By using this software, you acknowledge that:
 ## Table of Contents
 
 - [What is `kongctl`?](#what-is-kongctl)
+- [Documentation](#documentation)
 - [Installation](#installation)
   - [macOS](#macos)
   - [Linux](#linux)
@@ -43,6 +44,12 @@ By using this software, you acknowledge that:
 - Automate API lifecycle management
 
 *Note: Future releases may include support for Kong Gateway on-premise deployments.*
+
+## Documentation
+
+For complete documentation and guides, see the documentation on the Kong Developer site:
+
+[https://developer.konghq.com/kongctl/](https://developer.konghq.com/kongctl/)
 
 ## Installation
 
