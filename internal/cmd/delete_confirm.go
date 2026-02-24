@@ -43,7 +43,7 @@ func DeleteForceEnabled(helper Helper) bool {
 	return force
 }
 
-// SetDeleteAutoApprove stores the --yes/--approve flag state.
+// SetDeleteAutoApprove stores the --auto-approve flag state.
 func SetDeleteAutoApprove(cmd *cobra.Command, approved bool) {
 	ctx := cmd.Context()
 	if ctx == nil {

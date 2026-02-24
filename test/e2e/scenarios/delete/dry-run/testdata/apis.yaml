@@ -1,0 +1,14 @@
+apis:
+  - ref: dry-run-delete-api-alpha
+    name: "dry-run-delete-api-alpha"
+    description: "Alpha API for dry-run delete e2e scenario"
+    version: "1.0.0"
+    labels:
+      team: alpha
+
+  - ref: dry-run-delete-api-beta
+    name: "dry-run-delete-api-beta"
+    description: "Beta API for dry-run delete e2e scenario"
+    version: "2.0.0"
+    labels:
+      team: beta

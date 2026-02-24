@@ -87,7 +87,7 @@ After the scenario runs, resources remain in Konnect for manual testing:
 
 # Test CLI commands on preserved resources
 ./kongctl delete portal applications "e2e-portal-application" \
-  --portal-name "Auto Approve Portal" --approve
+  --portal-name "Auto Approve Portal" --auto-approve
 ```
 
 Skip specific numbered steps:

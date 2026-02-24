@@ -20,8 +20,9 @@ type Plan struct {
 type PlanMode string
 
 const (
-	PlanModeSync  PlanMode = "sync"
-	PlanModeApply PlanMode = "apply"
+	PlanModeSync   PlanMode = "sync"
+	PlanModeApply  PlanMode = "apply"
+	PlanModeDelete PlanMode = "delete"
 )
 
 // PlanMetadata contains plan generation information

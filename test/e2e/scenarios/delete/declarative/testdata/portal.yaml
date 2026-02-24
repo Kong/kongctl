@@ -1,0 +1,8 @@
+portals:
+  - ref: delete-test-portal
+    name: "delete-test-portal"
+    display_name: "Delete Test Portal"
+    description: "Portal used for delete -f e2e scenario"
+    authentication_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false

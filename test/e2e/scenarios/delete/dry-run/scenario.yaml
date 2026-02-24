@@ -1,0 +1,126 @@
+baseInputsPath: testdata
+
+# Dry-run delete scenario: verifies that --dry-run previews what would be
+# deleted without actually deleting anything. This is a critical safety
+# feature — the most important invariant is that resources still exist
+# after a dry-run.
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  portalName: "dry-run-delete-portal"
+  apiAlphaName: "dry-run-delete-api-alpha"
+  apiBetaName: "dry-run-delete-api-beta"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - resource_id
+      - change_id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  # Step 1: Apply resources to establish baseline state
+  - name: 001-apply-resources
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      - name: 001-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.portalName }}"
+
+      - name: 002-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.apiAlphaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.apiAlphaName }}"
+          - select: "[?name=='{{ .vars.apiBetaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.apiBetaName }}"
+
+  # Step 2: Dry-run delete — shows what would be deleted without deleting
+  - name: 002-dry-run-delete
+    commands:
+      - name: 000-delete-dry-run
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --dry-run
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.DELETE: 3
+          - select: summary
+            expect:
+              fields:
+                skipped: 3
+                applied: 0
+                failed: 0
+                status: success
+
+  # Step 3: Verify resources still exist — dry-run must not have deleted anything
+  - name: 003-verify-still-exist
+    skipInputs: true
+    commands:
+      - name: 000-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.portalName }}"
+                display_name: "Dry Run Delete Portal"
+
+      - name: 001-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.apiAlphaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.apiAlphaName }}"
+          - select: "[?name=='{{ .vars.apiBetaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.apiBetaName }}"

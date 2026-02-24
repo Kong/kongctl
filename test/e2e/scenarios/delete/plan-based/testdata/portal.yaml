@@ -1,0 +1,8 @@
+portals:
+  - ref: plan-based-delete-portal
+    name: "plan-based-delete-portal"
+    display_name: "Plan Based Delete Portal"
+    description: "Portal used for plan-based delete e2e scenario"
+    authentication_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false

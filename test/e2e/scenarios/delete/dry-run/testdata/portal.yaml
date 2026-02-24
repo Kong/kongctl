@@ -1,0 +1,8 @@
+portals:
+  - ref: dry-run-delete-portal
+    name: "dry-run-delete-portal"
+    display_name: "Dry Run Delete Portal"
+    description: "Portal used for dry-run delete e2e scenario"
+    authentication_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false

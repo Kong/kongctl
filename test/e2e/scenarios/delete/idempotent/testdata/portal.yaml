@@ -1,0 +1,8 @@
+portals:
+  - ref: idempotent-delete-portal
+    name: "idempotent-delete-portal"
+    display_name: "Idempotent Delete Portal"
+    description: "Portal used for idempotent delete e2e scenario"
+    authentication_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false

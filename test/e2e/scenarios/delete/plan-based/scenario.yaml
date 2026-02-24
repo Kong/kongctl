@@ -1,0 +1,163 @@
+baseInputsPath: testdata
+
+# Plan-based delete scenario: verifies the two-step plan-file workflow for
+# delete operations. This is important for users who want to inspect or audit
+# the plan before executing it.
+#
+# Workflow:
+#   kongctl plan --mode delete -f <files> > delete-plan.json
+#   kongctl diff --plan delete-plan.json
+#   kongctl delete --plan delete-plan.json --auto-approve
+#
+# Note: all commands that share the plan file must be in the same step so that
+# {{ .workdir }} resolves to the same directory for reading and writing.
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  portalName: "plan-based-delete-portal"
+  apiAlphaName: "plan-based-delete-api-alpha"
+  apiBetaName: "plan-based-delete-api-beta"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - resource_id
+      - change_id
+      - created_at
+      - updated_at
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  # Step 1: Apply resources to establish baseline state
+  - name: 001-apply-resources
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      - name: 001-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.portalName }}"
+
+      - name: 002-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.apiAlphaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.apiAlphaName }}"
+          - select: "[?name=='{{ .vars.apiBetaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.apiBetaName }}"
+
+  # Step 2: Generate, inspect, and execute the delete plan — all in one step
+  # so {{ .workdir }} resolves to the same directory for all commands.
+  - name: 002-plan-inspect-execute
+    commands:
+      # Generate delete plan and save to file for inspection
+      - name: 000-plan-delete
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/delete-plan.json"
+        run:
+          - plan
+          - --mode
+          - delete
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.DELETE: 3
+
+      # Inspect the plan via diff to confirm human-readable delete summary
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/delete-plan.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, '3 to destroy')": true
+                "contains(@, 'will be deleted')": true
+
+      # Execute the saved delete plan
+      - name: 002-execute-delete-plan
+        run:
+          - delete
+          - --plan
+          - "{{ .workdir }}/delete-plan.json"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  # Step 3: Verify all resources are deleted
+  - name: 003-verify-deleted
+    skipInputs: true
+    commands:
+      - name: 000-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 001-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.apiAlphaName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='{{ .vars.apiBetaName }}']"
+            expect:
+              fields:
+                "length(@)": 0

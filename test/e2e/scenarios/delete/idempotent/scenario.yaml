@@ -1,0 +1,88 @@
+baseInputsPath: testdata
+
+# Idempotent delete scenario: verifies graceful handling when deleting resources
+# that do not exist in Konnect. This is a common real-world case (e.g., running
+# delete twice, or running delete before apply).
+#
+# The planner adds warnings for not-found resources but the overall execution
+# should succeed with status: success and failed: 0. The plan has no changes
+# (total_changes: 0) because there is nothing to delete.
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  portalName: "idempotent-delete-portal"
+  apiAlphaName: "idempotent-delete-api-alpha"
+  apiBetaName: "idempotent-delete-api-beta"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - resource_id
+      - change_id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  # Step 1: Delete non-existent resources without any prior apply.
+  # The planner adds warnings for each missing resource but reports success.
+  - name: 001-delete-nonexistent
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: plan.warnings
+            expect:
+              fields:
+                "length(@)": 3
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  # Step 2: Verify no resources were created (idempotent — delete did not create
+  # anything either)
+  - name: 002-verify-nothing-exists
+    skipInputs: true
+    commands:
+      - name: 000-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 001-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.apiAlphaName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='{{ .vars.apiBetaName }}']"
+            expect:
+              fields:
+                "length(@)": 0

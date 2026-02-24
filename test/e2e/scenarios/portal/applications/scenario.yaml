@@ -293,7 +293,7 @@ steps:
           - delete
           - portal
           - application-registrations
-          - --approve
+          - --auto-approve
           - --portal-name
           - "{{ .vars.portalName }}"
           - "{{ .vars.registrationID }}"
@@ -307,7 +307,7 @@ steps:
           - delete
           - portal
           - applications
-          - --approve
+          - --auto-approve
           - --force
           - --portal-name
           - "{{ .vars.portalName }}"
