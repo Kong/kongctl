@@ -47,7 +47,7 @@ By using this software, you acknowledge that:
 
 ## Documentation
 
-For complete documenation and guides, see the documentation on the Kong Developer site:
+For complete documentation and guides, see the documentation on the Kong Developer site:
 
 [https://developer.konghq.com/kongctl/](https://developer.konghq.com/kongctl/)
 
