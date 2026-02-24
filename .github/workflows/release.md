@@ -268,12 +268,12 @@ jobs:
             -e HOST_UID="${HOST_UID}" \
             -e HOST_GID="${HOST_GID}" \
             --entrypoint /bin/sh \
-            goreleaser/goreleaser-cross:v1.25.3 \
+            goreleaser/goreleaser-cross:v1.25.3@sha256:f37a98cb1f3543c595e6d70808044f0f221ae5522911357d40cbde81d05e3786 \
             -c "set -e; git config --global --add safe.directory /work; goreleaser release --clean; if [ -d /work/dist ]; then chown -R \${HOST_UID:-0}:\${HOST_GID:-0} /work/dist; fi"
 
       - name: Set up Homebrew
         if: env.RELEASE_BUILD_MODE == 'full'
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@cced187498280712e078aaba62dc13a3e9cd80bf
 
       - name: Fetch Homebrew tap
         if: env.RELEASE_BUILD_MODE == 'full'
