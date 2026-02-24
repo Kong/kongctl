@@ -70,7 +70,12 @@ type sdkResponseWithRawBody interface {
 // Note: we are not reading the response body a second time here. The SDK response types have a RawResponse
 // field that contains the original HTTP response, which is intended for custom response parsing.
 // Returns false if parsing fails or body is empty.
-func parseRawPolicyResponse[T any](sdkResponse sdkResponseWithRawBody, target *T) bool {
+func parseRawPolicyResponse[T any](helper cmd.Helper, sdkResponse sdkResponseWithRawBody, target *T) bool {
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return false
+	}
+
 	if sdkResponse == nil {
 		return false
 	}
@@ -82,10 +87,12 @@ func parseRawPolicyResponse[T any](sdkResponse sdkResponseWithRawBody, target *T
 
 	bodyBytes, readErr := io.ReadAll(rawResponse.Body)
 	if readErr != nil || len(bodyBytes) == 0 {
+		logger.Debug("failed to read raw listener policies", "error", readErr)
 		return false
 	}
 
 	if jsonErr := json.Unmarshal(bodyBytes, target); jsonErr != nil {
+		logger.Debug("failed to unmarshal raw listener policies", "error", jsonErr)
 		return false
 	}
 
@@ -452,7 +459,7 @@ func (h listenerPoliciesHandler) getSinglePolicy(
 	// Parse raw response to get full config (SDK's EventGatewayListenerPolicyConfig is empty)
 	var policyWithConfig *listenerPolicyWithConfig
 	var parsed listenerPolicyWithConfig
-	if parseRawPolicyResponse(res, &parsed) {
+	if parseRawPolicyResponse(helper, res, &parsed) {
 		policyWithConfig = &parsed
 	}
 
@@ -518,7 +525,7 @@ func fetchListenerPolicies(
 
 	// Parse raw response to get full config (SDK's EventGatewayListenerPolicyConfig is empty)
 	var rawPolicies []listenerPolicyWithConfig
-	parseRawPolicyResponse(res, &rawPolicies)
+	parseRawPolicyResponse(helper, res, &rawPolicies)
 
 	return res.ListEventGatewayListenerPoliciesResponse, rawPolicies, nil
 }
