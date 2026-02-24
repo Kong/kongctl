@@ -23,7 +23,7 @@
 #
 # Build and release kongctl, then prepend agent-generated release highlights
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"4ca8a0aef924098337fa1d941c886838c2774cda0b13cb0e900a6571ab7cdd66","compiler_version":"v0.50.1"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"80d794d10226af23de1850abb085c5aa2477976394e6015711a40088a74a7657","compiler_version":"v0.50.1"}
 
 name: "Release"
 "on":
@@ -33,12 +33,13 @@ name: "Release"
   workflow_dispatch:
     inputs:
       release_type:
+        default: patch
         description: Release type (patch, minor, or major)
         options:
         - patch
         - minor
         - major
-        required: true
+        required: false
         type: choice
 
 permissions: {}
@@ -1043,7 +1044,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
-            const releaseType = context.payload.inputs.release_type;
+            const releaseType = context.payload.inputs.release_type || "patch";
 
             console.log(`Computing next version for release type: ${releaseType}`);
 

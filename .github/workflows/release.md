@@ -9,7 +9,8 @@ on:
     inputs:
       release_type:
         description: Release type (patch, minor, or major)
-        required: true
+        default: patch
+        required: false
         type: choice
         options:
           - patch
@@ -53,7 +54,7 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            const releaseType = context.payload.inputs.release_type;
+            const releaseType = context.payload.inputs.release_type || "patch";
 
             console.log(`Computing next version for release type: ${releaseType}`);
 
