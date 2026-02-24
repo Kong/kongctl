@@ -68,10 +68,7 @@ func (e *tailEventEmitter) EmitRecords(records [][]byte) error {
 			outputRecord = filtered
 		}
 
-		if _, err := io.WriteString(e.out, strings.TrimRight(string(outputRecord), "\n")); err != nil {
-			return err
-		}
-		if _, err := io.WriteString(e.out, "\n"); err != nil {
+		if _, err := fmt.Fprintln(e.out, strings.TrimRight(string(outputRecord), "\n")); err != nil { // #nosec G705 -- audit logs are intentionally streamed as raw CLI output.
 			return err
 		}
 	}
