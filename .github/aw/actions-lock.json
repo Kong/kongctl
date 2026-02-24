@@ -1,9 +1,29 @@
 {
   "entries": {
+    "actions/checkout@v6.0.2": {
+      "repo": "actions/checkout",
+      "version": "v6.0.2",
+      "sha": "de0fac2e4500dabe0009e67214ff5f5447ce83dd"
+    },
+    "actions/download-artifact@v6": {
+      "repo": "actions/download-artifact",
+      "version": "v6",
+      "sha": "018cc2cf5baa6db3ef3c5f8a56943fffe632ef53"
+    },
     "actions/github-script@v8": {
       "repo": "actions/github-script",
       "version": "v8",
       "sha": "ed597411d8f924073f98dfc5c65a23a2325f34cd"
+    },
+    "actions/setup-go@v6": {
+      "repo": "actions/setup-go",
+      "version": "v6",
+      "sha": "7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5"
+    },
+    "actions/upload-artifact@v6": {
+      "repo": "actions/upload-artifact",
+      "version": "v6",
+      "sha": "b7c566a772e6b6bfb58ed0dc250532a479d7789f"
     },
     "github/gh-aw/actions/setup@v0.43.20": {
       "repo": "github/gh-aw/actions/setup",
@@ -14,6 +34,11 @@
       "repo": "github/gh-aw/actions/setup",
       "version": "v0.45.4",
       "sha": "ac090214a48a1938f7abafe132460b66752261af"
+    },
+    "github/gh-aw/actions/setup@v0.50.1": {
+      "repo": "github/gh-aw/actions/setup",
+      "version": "v0.50.1",
+      "sha": "fad43e3c91a4e1d43e458f68e96574127934e7d1"
     }
   }
 }

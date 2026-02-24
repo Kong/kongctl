@@ -1,7 +1,7 @@
 .PHONY: test-all
 test-all: lint test test-integration
 
-VERSION ?= $(shell if [ -f VERSION ]; then tr -d '\n' < VERSION; else echo dev; fi)
+VERSION ?= $(shell (git describe --tags --exact-match 2>/dev/null || echo dev) | sed 's/^v//')
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(GIT_COMMIT) -X main.date=$(BUILD_DATE)
