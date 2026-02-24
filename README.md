@@ -44,6 +44,12 @@ By using this software, you acknowledge that:
 
 *Note: Future releases may include support for Kong Gateway on-premise deployments.*
 
+## Documentation
+
+For complete documenation and guides, see the documentation on the Kong Developer site:
+
+[https://developer.konghq.com/kongctl/](https://developer.konghq.com/kongctl/)
+
 ## Installation
 
 ### macOS
