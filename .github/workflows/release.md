@@ -167,6 +167,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
+      - name: Export release variables
+        run: |
+          set -euo pipefail
+          echo "RELEASE_TAG=${{ needs.config.outputs.release_tag }}" >> "$GITHUB_ENV"
+          echo "RELEASE_VERSION=${{ needs.config.outputs.release_version }}" >> "$GITHUB_ENV"
+
       - name: Create and push tag
         run: |
           set -euo pipefail

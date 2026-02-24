@@ -23,7 +23,7 @@
 #
 # Build and release kongctl, then prepend agent-generated release highlights
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"386b96fc3187c49727b3712198e9867238aff0450aba56b7bf230b12d89c989b","compiler_version":"v0.50.1"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"23a5baa19eb339062ce8c457f110810445d0858ae7bde803341299f67fa6e3da","compiler_version":"v0.50.1"}
 
 name: "Release"
 "on":
@@ -1181,6 +1181,11 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: true
+      - name: Export release variables
+        run: |
+          set -euo pipefail
+          echo "RELEASE_TAG=${{ needs.config.outputs.release_tag }}" >> "$GITHUB_ENV"
+          echo "RELEASE_VERSION=${{ needs.config.outputs.release_version }}" >> "$GITHUB_ENV"
       - name: Create and push tag
         run: |
           set -euo pipefail
