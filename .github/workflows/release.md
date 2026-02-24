@@ -480,12 +480,51 @@ Use only relevant sections:
 
 When helpful, include short command examples in fenced `bash` blocks.
 
-### 4. Community Acknowledgements
+### 4. Build Commit Reference List
+
+Use `compare.json` to generate a complete commit reference section with direct
+links, sorted in this order:
+1. Features
+2. Fixes
+3. Other changes
+
+```bash
+cat /tmp/gh-aw/release-data/compare.json | jq -r '
+  def subject: ((.commit.message // "") | split("\n")[0]);
+  def category:
+    (subject | ascii_downcase) as $s |
+    if ($s | test("^(feat|feature)(\\(|:|\\b)")) or ($s | test("^(add|introduce)\\b")) then "feature"
+    elif ($s | test("^(fix|bugfix|hotfix)(\\(|:|\\b)")) or ($s | test("\\bfix(es|ed)?\\b")) then "fix"
+    else "other" end;
+  [(.commits // [])[] | {
+    sha,
+    html_url,
+    date: (.commit.author.date // ""),
+    subject: subject,
+    category: category
+  }]
+  | sort_by(.date)
+  | reverse
+  | ([.[] | select(.category == "feature")]
+     + [.[] | select(.category == "fix")]
+     + [.[] | select(.category == "other")])
+  | .[]
+  | "- [`\(.sha[0:7])`](\(.html_url)) \(.subject)"'
+```
+
+Requirements for this section:
+- Include all commits from `compare.json` when present.
+- Keep each line to one commit with a clickable short SHA link.
+- Use only the first line of the commit message.
+- Order the final list by category first: Features, then Fixes, then Other.
+- If there are no commits, omit this section.
+
+### 5. Community Acknowledgements
 
 If contributor PRs are present, include a short thanks section with links.
 Only include this section when there is meaningful community activity.
 
-### 5. First-Release or Low-Change Cases
+### 6. First-Release or Low-Change Cases
 
 If this appears to be the first release or has very small surface area,
 produce a short, accurate summary rather than forcing all sections.
@@ -510,11 +549,38 @@ back to:
 ## kongctl Release Highlights
 ```
 
+When commits are available, include this section near the end:
+
+```markdown
+### 🔗 Commit References
+#### Features
+- [`abc1234`](https://github.com/OWNER/REPO/commit/abc1234...) Add support for X
+
+#### Fixes
+- [`def5678`](https://github.com/OWNER/REPO/commit/def5678...) Fix Y in Z flow
+
+#### Other Changes
+- [`0123abc`](https://github.com/OWNER/REPO/commit/0123abc...) Chore/doc update
+```
+
 End with a divider and a short pointer to full release notes, for example:
 
 ```markdown
 ---
 For full details, review the generated changelog entries below.
+```
+
+When `PREV_RELEASE_TAG` is present, you MUST also include this exact style line
+at the end of the generated highlights:
+
+```markdown
+Full Changelog: https://github.com/${{ github.repository }}/compare/${PREV_RELEASE_TAG}...${RELEASE_TAG}
+```
+
+When there is no previous release/tag (first release), include:
+
+```markdown
+Full Changelog: Initial release
 ```
 
 If there are no meaningful user-facing changes, still prepend a concise
