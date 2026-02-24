@@ -74,6 +74,12 @@ jobs:
               per_page: 100,
             });
 
+            const { data: tags } = await github.rest.repos.listTags({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+
             // Parse stable semver tags only, e.g. v1.2.3
             const parseSemver = (tag) => {
               const match = tag.match(/^v?(\d+)\.(\d+)\.(\d+)$/);
@@ -85,6 +91,20 @@ jobs:
                 patch: parseInt(match[3], 10),
               };
             };
+
+            const sortedVersions = [...new Set(
+              [
+                ...releases.filter((r) => !r.draft).map((r) => r.tag_name),
+                ...tags.map((t) => t.name),
+              ],
+            )]
+              .map((tag) => parseSemver(tag))
+              .filter((v) => v !== null)
+              .sort((a, b) => {
+                if (a.major !== b.major) return b.major - a.major;
+                if (a.minor !== b.minor) return b.minor - a.minor;
+                return b.patch - a.patch;
+              });
 
             const sortedReleases = releases
               .filter((r) => !r.draft)
@@ -101,13 +121,13 @@ jobs:
             let minor = 0;
             let patch = 0;
 
-            if (sortedReleases.length > 0) {
-              const latestTag = sortedReleases[0].tag;
+            if (sortedVersions.length > 0) {
+              const latestTag = sortedVersions[0].tag;
               const version = latestTag.replace(/^v/, "");
               [major, minor, patch] = version.split(".").map(Number);
-              console.log(`Latest stable release tag: ${latestTag}`);
+              console.log(`Latest stable version from releases/tags: ${latestTag}`);
             } else {
-              console.log("No prior stable release found, using base 0.0.0");
+              console.log("No prior stable release or tag found, using base 0.0.0");
             }
 
             switch (releaseType) {

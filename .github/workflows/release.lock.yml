@@ -23,7 +23,7 @@
 #
 # Build and release kongctl, then prepend agent-generated release highlights
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c78f31abef00063277ea18b2f96ec1ebce198ba7e29b2f86f0d89f12cd84e89e","compiler_version":"v0.50.1"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"8c869e2d5840255a3f282c05d6118a99fa744a2550b49944f42106bfa5f65585","compiler_version":"v0.50.1"}
 
 name: "Release"
 "on":
@@ -1065,6 +1065,12 @@ jobs:
               per_page: 100,
             });
 
+            const { data: tags } = await github.rest.repos.listTags({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+
             // Parse stable semver tags only, e.g. v1.2.3
             const parseSemver = (tag) => {
               const match = tag.match(/^v?(\d+)\.(\d+)\.(\d+)$/);
@@ -1076,6 +1082,20 @@ jobs:
                 patch: parseInt(match[3], 10),
               };
             };
+
+            const sortedVersions = [...new Set(
+              [
+                ...releases.filter((r) => !r.draft).map((r) => r.tag_name),
+                ...tags.map((t) => t.name),
+              ],
+            )]
+              .map((tag) => parseSemver(tag))
+              .filter((v) => v !== null)
+              .sort((a, b) => {
+                if (a.major !== b.major) return b.major - a.major;
+                if (a.minor !== b.minor) return b.minor - a.minor;
+                return b.patch - a.patch;
+              });
 
             const sortedReleases = releases
               .filter((r) => !r.draft)
@@ -1092,13 +1112,13 @@ jobs:
             let minor = 0;
             let patch = 0;
 
-            if (sortedReleases.length > 0) {
-              const latestTag = sortedReleases[0].tag;
+            if (sortedVersions.length > 0) {
+              const latestTag = sortedVersions[0].tag;
               const version = latestTag.replace(/^v/, "");
               [major, minor, patch] = version.split(".").map(Number);
-              console.log(`Latest stable release tag: ${latestTag}`);
+              console.log(`Latest stable version from releases/tags: ${latestTag}`);
             } else {
-              console.log("No prior stable release found, using base 0.0.0");
+              console.log("No prior stable release or tag found, using base 0.0.0");
             }
 
             switch (releaseType) {
