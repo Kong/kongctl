@@ -9,7 +9,7 @@ import (
 func TestExtractNameAndID(t *testing.T) {
 	tests := []struct {
 		name         string
-		konnectRes   interface{}
+		konnectRes   any
 		embeddedName string
 		wantName     string
 		wantID       string
@@ -41,7 +41,7 @@ func TestExtractNameAndID(t *testing.T) {
 		},
 		{
 			name: "pointer fields",
-			konnectRes: func() interface{} {
+			konnectRes: func() any {
 				name := "ptr-name"
 				id := "ptr-id"
 				return struct {

@@ -247,7 +247,7 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 }
 
 // resolveResourceFields walks a resource struct and resolves placeholder strings
-func resolveResourceFields(ctx context.Context, resource interface{}, rs *resources.ResourceSet,
+func resolveResourceFields(ctx context.Context, resource any, rs *resources.ResourceSet,
 	resolver FieldResolver, resolutionPath []string, logger *slog.Logger,
 ) error {
 	val := reflect.ValueOf(resource)

@@ -381,7 +381,7 @@ func TestRunFilePatch_JSONOutput(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify it's valid JSON
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(result, &parsed))
 	assert.Equal(t, "test", parsed["name"])
 	assert.Equal(t, "dev", parsed["env"])
