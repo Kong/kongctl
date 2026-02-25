@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"slices"
 )
 
 type FlagEnum struct {
@@ -22,12 +23,7 @@ func (a FlagEnum) String() string {
 
 func (a *FlagEnum) Set(p string) error {
 	isIncluded := func(opts []string, val string) bool {
-		for _, opt := range opts {
-			if opt == val {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(opts, val)
 	}
 	if !isIncluded(a.Allowed, p) {
 		return fmt.Errorf("invalid value %q, must be one of %v", p, a.Allowed)

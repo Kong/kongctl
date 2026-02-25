@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/url"
+	"slices"
 	"strings"
 
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
@@ -3751,20 +3752,12 @@ func shouldIncludeNamespace(resourceNamespace string, namespaces []string) bool 
 	}
 
 	// Check for wildcard (all namespaces)
-	for _, ns := range namespaces {
-		if ns == "*" {
-			return true
-		}
+	if slices.Contains(namespaces, "*") {
+		return true
 	}
 
 	// Check if resource's namespace is in the filter list
-	for _, ns := range namespaces {
-		if resourceNamespace == ns {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(namespaces, resourceNamespace)
 }
 
 // Event Gateway Virtual Cluster Methods

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"unicode"
@@ -516,10 +517,8 @@ func adjustAuthStrategyDeleteDependencies(changes []PlannedChange) {
 }
 
 func appendDependsOn(existing []string, id string) []string {
-	for _, dep := range existing {
-		if dep == id {
-			return existing
-		}
+	if slices.Contains(existing, id) {
+		return existing
 	}
 	return append(existing, id)
 }
@@ -568,12 +567,7 @@ func publicationReferencesAuthStrategy(publication, authDelete *PlannedChange) b
 }
 
 func containsString(values []string, target string) bool {
-	for _, v := range values {
-		if v == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(values, target)
 }
 
 // nextChangeID generates temporary change IDs during planning phase

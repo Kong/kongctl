@@ -2,6 +2,7 @@ package planner
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/tags"
@@ -166,12 +167,7 @@ func (d *DependencyResolver) getParentType(childType string) string {
 
 // contains checks if string is in slice
 func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, item)
 }
 
 // findCycleDetails finds and returns detailed information about circular dependencies

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -1089,11 +1090,8 @@ func runApply(command *cobra.Command, args []string) error {
 			usingStdinForInput = true
 		} else if planFile == "" {
 			// Check if stdin will be used for configuration
-			for _, filename := range filenames {
-				if filename == "-" {
-					usingStdinForInput = true
-					break
-				}
+			if slices.Contains(filenames, "-") {
+				usingStdinForInput = true
 			}
 		}
 
@@ -1582,11 +1580,8 @@ func runDelete(command *cobra.Command, args []string) error {
 		if planFile == "-" {
 			usingStdinForInput = true
 		} else if planFile == "" {
-			for _, filename := range filenames {
-				if filename == "-" {
-					usingStdinForInput = true
-					break
-				}
+			if slices.Contains(filenames, "-") {
+				usingStdinForInput = true
 			}
 		}
 
@@ -1827,11 +1822,8 @@ func runSync(command *cobra.Command, args []string) error {
 			usingStdinForInput = true
 		} else if planFile == "" {
 			// Check if stdin will be used for configuration
-			for _, filename := range filenames {
-				if filename == "-" {
-					usingStdinForInput = true
-					break
-				}
+			if slices.Contains(filenames, "-") {
+				usingStdinForInput = true
 			}
 		}
 

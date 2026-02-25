@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -838,10 +839,8 @@ func payloadContainsDestinationName(value any, expectedName string) bool {
 				}
 			}
 		case []any:
-			for _, child := range typed {
-				if walk(child) {
-					return true
-				}
+			if slices.ContainsFunc(typed, walk) {
+				return true
 			}
 		}
 		return false
