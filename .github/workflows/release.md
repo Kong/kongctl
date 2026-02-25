@@ -444,8 +444,8 @@ All data is pre-fetched in `/tmp/gh-aw/release-data/`:
 
 ## Objective
 
-Create a **"kongctl Release Highlights"** section to prepend to the existing release
-notes so users can quickly understand what changed and why it matters.
+Generate complete release notes that replace the existing release content,
+so users can quickly understand what changed and why it matters.
 
 The highlights should be:
 - User-impact focused, not a raw changelog dump
