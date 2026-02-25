@@ -19,10 +19,10 @@ func init() {
 // The SDK represents listener policies as a union type (EventGatewayListenerPolicyCreate)
 // with two variants: TLSServer and ForwardToVirtualCluster.
 type EventGatewayListenerPolicyResource struct {
-	kkComps.EventGatewayListenerPolicyCreate `       yaml:",inline"                 json:",inline"`
-	Ref                                      string `yaml:"ref"                     json:"ref"`
+	kkComps.EventGatewayListenerPolicyCreate `yaml:",inline" json:",inline"`
+	Ref                                      string `yaml:"ref"                        json:"ref"`
 	// Parent Event Gateway Listener reference (for root-level definitions)
-	EventGatewayListener string `yaml:"listener,omitempty"      json:"listener,omitempty"`
+	EventGatewayListener string `yaml:"listener,omitempty" json:"listener,omitempty"`
 	EventGateway         string `yaml:"event_gateway,omitempty" json:"event_gateway,omitempty"`
 
 	// Resolved Konnect ID (not serialized)

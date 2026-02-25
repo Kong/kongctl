@@ -99,12 +99,12 @@ func (p Palette) BackgroundStyle(token Token) lipgloss.Style {
 type contextKey struct{}
 
 var (
-	registryOnce         sync.Once
-	registryMu           sync.RWMutex
-	palettes             map[string]Palette
-	current              Palette
-	defaultPal           Palette
-	themeKey             contextKey
+	registryOnce        sync.Once
+	registryMu          sync.RWMutex
+	palettes            map[string]Palette
+	current             Palette
+	defaultPal          Palette
+	themeKey            contextKey
 	configuredExplicitly bool
 )
 

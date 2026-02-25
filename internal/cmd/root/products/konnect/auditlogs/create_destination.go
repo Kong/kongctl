@@ -53,27 +53,27 @@ var allowedLogFormatsSet = map[string]struct{}{
 }
 
 type createDestinationRequest struct {
-	Name                string `json:"name,omitempty"          yaml:"name,omitempty"`
-	Endpoint            string `json:"endpoint"                yaml:"endpoint"`
-	LogFormat           string `json:"log_format,omitempty"    yaml:"log_format,omitempty"`
-	SkipSSLVerification bool   `json:"skip_ssl_verification"   yaml:"skip_ssl_verification"`
+	Name                string `json:"name,omitempty" yaml:"name,omitempty"`
+	Endpoint            string `json:"endpoint" yaml:"endpoint"`
+	LogFormat           string `json:"log_format,omitempty" yaml:"log_format,omitempty"`
+	SkipSSLVerification bool   `json:"skip_ssl_verification" yaml:"skip_ssl_verification"`
 	Authorization       string `json:"authorization,omitempty" yaml:"authorization,omitempty"`
 }
 
 type createDestinationOutput struct {
-	CreatedAt               time.Time `json:"created_at"                     yaml:"created_at"`
-	Profile                 string    `json:"profile"                        yaml:"profile"`
-	DestinationID           string    `json:"destination_id,omitempty"       yaml:"destination_id,omitempty"`
-	DestinationName         string    `json:"destination_name"               yaml:"destination_name"`
-	DestinationEndpoint     string    `json:"destination_endpoint"           yaml:"destination_endpoint"`
-	LogFormat               string    `json:"log_format,omitempty"           yaml:"log_format,omitempty"`
-	SkipSSLVerification     bool      `json:"skip_ssl_verification"          yaml:"skip_ssl_verification"`
-	AuthorizationConfigured bool      `json:"authorization_configured"       yaml:"authorization_configured"`
-	WebhookConfigured       bool      `json:"webhook_configured"             yaml:"webhook_configured"`
-	EventsFile              string    `json:"events_file"                    yaml:"events_file"`
-	DestinationStateFile    string    `json:"destination_state_file"         yaml:"destination_state_file"`
+	CreatedAt               time.Time `json:"created_at" yaml:"created_at"`
+	Profile                 string    `json:"profile" yaml:"profile"`
+	DestinationID           string    `json:"destination_id,omitempty" yaml:"destination_id,omitempty"`
+	DestinationName         string    `json:"destination_name" yaml:"destination_name"`
+	DestinationEndpoint     string    `json:"destination_endpoint" yaml:"destination_endpoint"`
+	LogFormat               string    `json:"log_format,omitempty" yaml:"log_format,omitempty"`
+	SkipSSLVerification     bool      `json:"skip_ssl_verification" yaml:"skip_ssl_verification"`
+	AuthorizationConfigured bool      `json:"authorization_configured" yaml:"authorization_configured"`
+	WebhookConfigured       bool      `json:"webhook_configured" yaml:"webhook_configured"`
+	EventsFile              string    `json:"events_file" yaml:"events_file"`
+	DestinationStateFile    string    `json:"destination_state_file" yaml:"destination_state_file"`
 	RawDestination          any       `json:"destination_response,omitempty" yaml:"destination_response,omitempty"`
-	RawWebhook              any       `json:"webhook_response,omitempty"     yaml:"webhook_response,omitempty"`
+	RawWebhook              any       `json:"webhook_response,omitempty" yaml:"webhook_response,omitempty"`
 }
 
 type createDestinationCmd struct {
@@ -857,11 +857,7 @@ func normalizeLogFormat(raw string) (string, error) {
 	}
 
 	if _, ok := allowedLogFormatsSet[normalized]; !ok {
-		return "", fmt.Errorf(
-			"invalid log-format %q, allowed values are: %s",
-			raw,
-			strings.Join(allowedLogFormats, ", "),
-		)
+		return "", fmt.Errorf("invalid log-format %q, allowed values are: %s", raw, strings.Join(allowedLogFormats, ", "))
 	}
 
 	return normalized, nil

@@ -16,7 +16,7 @@ func init() {
 // OrganizationTeamResource represents a team in declarative configuration
 type OrganizationTeamResource struct {
 	BaseResource
-	kkComps.CreateTeam `               yaml:",inline"             json:",inline"`
+	kkComps.CreateTeam `yaml:",inline" json:",inline"`
 	External           *ExternalBlock `yaml:"_external,omitempty" json:"_external,omitempty"`
 }
 

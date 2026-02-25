@@ -20,9 +20,7 @@ func TestGetPortalsByNamespaceIncludesExternalsWhenRequested(t *testing.T) {
 			},
 			{
 				BaseResource: BaseResource{Ref: "external"},
-				External: &ExternalBlock{
-					Selector: &ExternalSelector{MatchFields: map[string]string{"name": "ext"}},
-				},
+				External:     &ExternalBlock{Selector: &ExternalSelector{MatchFields: map[string]string{"name": "ext"}}},
 			},
 		},
 		PortalPages: []PortalPageResource{

@@ -41,8 +41,7 @@ func TestControlPlanePlanner_PlanCreate(t *testing.T) {
 					Ref: "cp-create",
 					Kongctl: &resources.KongctlMeta{
 						Namespace: strPtr("default"),
-					},
-				},
+					}},
 			},
 		},
 	}
@@ -172,8 +171,7 @@ func TestControlPlanePlanner_PlanUpdate(t *testing.T) {
 					Ref: "cp-update",
 					Kongctl: &resources.KongctlMeta{
 						Namespace: strPtr("default"),
-					},
-				},
+					}},
 			},
 		},
 	}
@@ -372,8 +370,7 @@ func TestControlPlanePlanner_ProtectionChange(t *testing.T) {
 					Kongctl: &resources.KongctlMeta{
 						Namespace: strPtr("default"),
 						Protected: boolPtr(true),
-					},
-				},
+					}},
 			},
 		},
 	}

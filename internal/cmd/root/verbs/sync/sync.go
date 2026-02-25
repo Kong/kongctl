@@ -45,7 +45,7 @@ func NewSyncCmd() (*cobra.Command, error) {
 		Short:   syncShort,
 		Long:    syncLong,
 		Example: syncExamples,
-		Args:    verbs.NoPositionalArgs,
+		Args: verbs.NoPositionalArgs,
 		// Use the konnect command's RunE directly for Konnect-first pattern
 		RunE: konnectCmd.RunE,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {

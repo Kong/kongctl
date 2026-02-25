@@ -92,14 +92,14 @@ func (e EventGatewayVirtualClusterResource) MarshalJSON() ([]byte, error) {
 		EventGateway string `json:"event_gateway,omitempty"`
 
 		// Fields from kkComps.CreateVirtualClusterRequest
-		Name           string                                       `json:"name"`
-		Description    *string                                      `json:"description,omitempty"`
-		Destination    kkComps.BackendClusterReferenceModify        `json:"destination"`
+		Name           string                                   `json:"name"`
+		Description    *string                                  `json:"description,omitempty"`
+		Destination    kkComps.BackendClusterReferenceModify    `json:"destination"`
 		Authentication []kkComps.VirtualClusterAuthenticationScheme `json:"authentication"`
-		Namespace      *kkComps.VirtualClusterNamespace             `json:"namespace,omitempty"`
-		ACLMode        kkComps.VirtualClusterACLMode                `json:"acl_mode"`
-		DNSLabel       string                                       `json:"dns_label"`
-		Labels         map[string]string                            `json:"labels,omitempty"`
+		Namespace      *kkComps.VirtualClusterNamespace         `json:"namespace,omitempty"`
+		ACLMode        kkComps.VirtualClusterACLMode            `json:"acl_mode"`
+		DNSLabel       string                                   `json:"dns_label"`
+		Labels         map[string]string                        `json:"labels,omitempty"`
 	}
 
 	payload := alias{

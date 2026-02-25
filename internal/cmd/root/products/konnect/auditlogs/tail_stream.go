@@ -84,10 +84,7 @@ func (e *tailEventEmitter) warn(format string, args ...any) {
 	if e == nil || e.errOut == nil {
 		return
 	}
-	_, _ = fmt.Fprintf(
-		e.errOut,
-		format+"\n",
-		args...) // #nosec G705 -- terminal warning text is intentionally unescaped.
+	_, _ = fmt.Fprintf(e.errOut, format+"\n", args...) // #nosec G705 -- terminal warning text is intentionally unescaped.
 }
 
 func applyJQCodeToJSONRecord(record []byte, code *gojq.Code) ([]byte, error) {

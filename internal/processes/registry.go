@@ -26,12 +26,12 @@ const (
 
 // Record describes a detached kongctl process.
 type Record struct {
-	PID            int       `json:"pid"                        yaml:"pid"`
-	Kind           string    `json:"kind"                       yaml:"kind"`
-	Profile        string    `json:"profile,omitempty"          yaml:"profile,omitempty"`
-	CreatedAt      time.Time `json:"created_at"                 yaml:"created_at"`
-	LogFile        string    `json:"log_file,omitempty"         yaml:"log_file,omitempty"`
-	Args           []string  `json:"args,omitempty"             yaml:"args,omitempty"`
+	PID            int       `json:"pid" yaml:"pid"`
+	Kind           string    `json:"kind" yaml:"kind"`
+	Profile        string    `json:"profile,omitempty" yaml:"profile,omitempty"`
+	CreatedAt      time.Time `json:"created_at" yaml:"created_at"`
+	LogFile        string    `json:"log_file,omitempty" yaml:"log_file,omitempty"`
+	Args           []string  `json:"args,omitempty" yaml:"args,omitempty"`
 	StartTimeTicks uint64    `json:"start_time_ticks,omitempty" yaml:"start_time_ticks,omitempty"`
 }
 
