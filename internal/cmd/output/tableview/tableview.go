@@ -733,7 +733,7 @@ func rowsFromSlice(slice reflect.Value) ([]string, [][]string, error) {
 	rowCount := slice.Len()
 	rows := make([][]string, 0, rowCount)
 
-	for i := 0; i < rowCount; i++ {
+	for i := range rowCount {
 		item := deref(slice.Index(i))
 		if !item.IsValid() {
 			continue
@@ -870,7 +870,7 @@ func convertRows(rows [][]string, columnCount int) []table.Row {
 	renderRows := make([]table.Row, len(rows))
 	for i, row := range rows {
 		record := make(table.Row, columnCount)
-		for j := 0; j < columnCount; j++ {
+		for j := range columnCount {
 			if j < len(row) {
 				record[j] = row[j]
 			} else {
@@ -1709,7 +1709,7 @@ func buildChildViewFromSliceValue(label string, data any) (ChildView, error) {
 	}
 	rows := make([]table.Row, length)
 	values := make([]any, length)
-	for i := 0; i < length; i++ {
+	for i := range length {
 		entry := value.Index(i)
 		val := entry.Interface()
 		values[i] = val
@@ -3705,7 +3705,7 @@ func findMatchIndex(query string, cursor, total int, label func(int) string) (in
 
 	bestIdx := -1
 	bestScore := 0
-	for offset := 0; offset < total; offset++ {
+	for offset := range total {
 		idx := (cursor + offset) % total
 		text := strings.ToLower(strings.TrimSpace(label(idx)))
 		if text == "" {

@@ -160,7 +160,7 @@ func TestIsValidUUID_Performance(t *testing.T) {
 	validUUID := "12345678-1234-1234-1234-123456789012"
 
 	// Run validation many times to ensure no performance regression
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		result := IsValidUUID(validUUID)
 		assert.True(t, result)
 	}
