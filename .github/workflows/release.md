@@ -533,8 +533,8 @@ produce a short, accurate summary rather than forcing all sections.
 
 You MUST call the `safeoutputs/update_release` MCP tool exactly once:
 - `tag`: `${RELEASE_TAG}`
-- `operation`: `prepend`
-- `body`: full markdown for the highlights section
+- `operation`: `replace`
+- `body`: full markdown for the complete release notes (highlights + all commit references)
 - Mark the release as the latest
 
 The body should begin with:
@@ -564,11 +564,10 @@ When commits are available, include this section near the end:
 - [`0123abc`](https://github.com/OWNER/REPO/commit/0123abc...) Chore/doc update
 ```
 
-End with a divider and a short pointer to full release notes, for example:
+End with a divider, for example:
 
 ```markdown
 ---
-For full details, review the generated changelog entries below.
 ```
 
 When `PREV_RELEASE_TAG` is present, you MUST also include this exact style line
@@ -584,5 +583,5 @@ When there is no previous release/tag (first release), include:
 Full Changelog: Initial release
 ```
 
-If there are no meaningful user-facing changes, still prepend a concise
+If there are no meaningful user-facing changes, still replace with a concise
 maintenance summary instead of skipping the update.
