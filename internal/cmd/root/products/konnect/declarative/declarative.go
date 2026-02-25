@@ -1086,9 +1086,10 @@ func runApply(command *cobra.Command, args []string) error {
 	var usingStdinForInput bool
 	if !dryRun && !autoApprove {
 		// Check if stdin will be used for plan or configuration
-		if planFile == "-" {
+		switch planFile {
+		case "-":
 			usingStdinForInput = true
-		} else if planFile == "" {
+		case "":
 			// Check if stdin will be used for configuration
 			if slices.Contains(filenames, "-") {
 				usingStdinForInput = true
@@ -1577,9 +1578,10 @@ func runDelete(command *cobra.Command, args []string) error {
 	// Early check for stdin usage without auto-approve
 	var usingStdinForInput bool
 	if !dryRun && !autoApprove {
-		if planFile == "-" {
+		switch planFile {
+		case "-":
 			usingStdinForInput = true
-		} else if planFile == "" {
+		case "":
 			if slices.Contains(filenames, "-") {
 				usingStdinForInput = true
 			}
@@ -1818,9 +1820,10 @@ func runSync(command *cobra.Command, args []string) error {
 	var usingStdinForInput bool
 	if !dryRun && !autoApprove {
 		// Check if stdin will be used for plan or configuration
-		if planFile == "-" {
+		switch planFile {
+		case "-":
 			usingStdinForInput = true
-		} else if planFile == "" {
+		case "":
 			// Check if stdin will be used for configuration
 			if slices.Contains(filenames, "-") {
 				usingStdinForInput = true
