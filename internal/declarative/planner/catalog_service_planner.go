@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"reflect"
 	"strings"
 
@@ -303,9 +304,7 @@ func (p *Planner) planCatalogServiceUpdateWithFields(
 	if err != nil {
 		p.logger.Error("Failed to plan catalog service update", slog.String("error", err.Error()))
 		fields := make(map[string]any, len(updateFields))
-		for k, v := range updateFields {
-			fields[k] = v
-		}
+		maps.Copy(fields, updateFields)
 		changeID := p.nextChangeID(ActionUpdate, "catalog_service", desired.GetRef())
 		fallback := PlannedChange{
 			ID:           changeID,
@@ -355,9 +354,7 @@ func (p *Planner) planCatalogServiceProtectionChangeWithFields(
 	change := p.genericPlanner.PlanProtectionChange(context.Background(), config)
 
 	fields := make(map[string]any)
-	for k, v := range updateFields {
-		fields[k] = v
-	}
+	maps.Copy(fields, updateFields)
 	fields["name"] = current.Name
 	fields["display_name"] = current.DisplayName
 	fields["id"] = current.ID

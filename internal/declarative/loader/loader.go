@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -407,9 +408,7 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 	accumulated.AppendAll(source)
 
 	// Update the running index with newly added refs
-	for ref, resourceType := range seenRefs {
-		refIndex[ref] = resourceType
-	}
+	maps.Copy(refIndex, seenRefs)
 
 	// If this source defines a namespace default without parent resources,
 	// propagate it so sync mode can inspect the correct namespace.

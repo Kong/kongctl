@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/labels"
@@ -574,9 +575,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyProtectionChangeWithFields(
 
 	// Include any field updates if unprotecting
 	if wasProtected && !shouldProtect && len(updateFields) > 0 {
-		for field, newValue := range updateFields {
-			fields[field] = newValue
-		}
+		maps.Copy(fields, updateFields)
 	}
 
 	// Always include name for identification

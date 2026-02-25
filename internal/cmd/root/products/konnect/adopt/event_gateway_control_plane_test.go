@@ -2,6 +2,7 @@ package adopt
 
 import (
 	"context"
+	"maps"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -69,9 +70,7 @@ func (e *egwControlPlaneAPIStub) UpdateEGWControlPlane(
 
 	labels := make(map[string]string)
 	if req.Labels != nil {
-		for k, v := range req.Labels {
-			labels[k] = v
-		}
+		maps.Copy(labels, req.Labels)
 	}
 
 	resp := &kkOps.UpdateEventGatewayResponse{

@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"maps"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 )
@@ -17,9 +18,7 @@ type AdoptResult struct {
 
 func PointerLabelMap(existing map[string]string, namespace string) map[string]*string {
 	cloned := make(map[string]string, len(existing)+1)
-	for k, v := range existing {
-		cloned[k] = v
-	}
+	maps.Copy(cloned, existing)
 	cloned[labels.NamespaceKey] = namespace
 
 	result := make(map[string]*string, len(cloned))
@@ -33,9 +32,7 @@ func PointerLabelMap(existing map[string]string, namespace string) map[string]*s
 
 func StringLabelMap(existing map[string]string, namespace string) map[string]string {
 	cloned := make(map[string]string, len(existing)+1)
-	for k, v := range existing {
-		cloned[k] = v
-	}
+	maps.Copy(cloned, existing)
 	cloned[labels.NamespaceKey] = namespace
 	return cloned
 }
