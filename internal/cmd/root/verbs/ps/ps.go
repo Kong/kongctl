@@ -42,20 +42,20 @@ var (
 )
 
 type processListItem struct {
-	PID       int              `json:"pid" yaml:"pid"`
-	Status    processes.Status `json:"status" yaml:"status"`
-	Kind      string           `json:"kind" yaml:"kind"`
-	Profile   string           `json:"profile,omitempty" yaml:"profile,omitempty"`
-	CreatedAt time.Time        `json:"created_at" yaml:"created_at"`
+	PID       int              `json:"pid"                yaml:"pid"`
+	Status    processes.Status `json:"status"             yaml:"status"`
+	Kind      string           `json:"kind"               yaml:"kind"`
+	Profile   string           `json:"profile,omitempty"  yaml:"profile,omitempty"`
+	CreatedAt time.Time        `json:"created_at"         yaml:"created_at"`
 	LogFile   string           `json:"log_file,omitempty" yaml:"log_file,omitempty"`
-	Record    string           `json:"record_file" yaml:"record_file"`
+	Record    string           `json:"record_file"        yaml:"record_file"`
 }
 
 type processStopResult struct {
-	PID     int    `json:"pid" yaml:"pid"`
-	Kind    string `json:"kind" yaml:"kind"`
-	Action  string `json:"action" yaml:"action"`
-	Success bool   `json:"success" yaml:"success"`
+	PID     int    `json:"pid"              yaml:"pid"`
+	Kind    string `json:"kind"             yaml:"kind"`
+	Action  string `json:"action"           yaml:"action"`
+	Success bool   `json:"success"          yaml:"success"`
 	Detail  string `json:"detail,omitempty" yaml:"detail,omitempty"`
 }
 

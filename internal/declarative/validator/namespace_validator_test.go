@@ -493,7 +493,6 @@ func TestValidateNamespaceRequirementSpecific(t *testing.T) {
 			ControlPlanes: []resources.ControlPlaneResource{
 				{
 					BaseResource: resources.BaseResource{
-
 						Ref: "cp-default",
 						Kongctl: &resources.KongctlMeta{
 							Namespace:       stringPtr("team"),

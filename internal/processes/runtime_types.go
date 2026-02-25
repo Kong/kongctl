@@ -21,8 +21,8 @@ const (
 
 // RuntimeState captures live process status for a stored record.
 type RuntimeState struct {
-	Status                 Status `json:"status" yaml:"status"`
-	Running                bool   `json:"running" yaml:"running"`
+	Status                 Status `json:"status"                              yaml:"status"`
+	Running                bool   `json:"running"                             yaml:"running"`
 	ObservedStartTimeTicks uint64 `json:"observed_start_time_ticks,omitempty" yaml:"observed_start_time_ticks,omitempty"`
-	CheckError             string `json:"check_error,omitempty" yaml:"check_error,omitempty"`
+	CheckError             string `json:"check_error,omitempty"               yaml:"check_error,omitempty"`
 }

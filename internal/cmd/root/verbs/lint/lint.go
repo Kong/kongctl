@@ -102,24 +102,24 @@ func NewLintCmd() (*cobra.Command, error) {
 }
 
 func runLint(command *cobra.Command, _ []string) error {
+	flagErr := func(name string, err error) error {
+		return &cmd.ConfigurationError{
+			Err: fmt.Errorf("failed to parse --%s flag: %w", name, err),
+		}
+	}
+
 	// Parse flags with error handling
 	filenames, err := command.Flags().GetStringSlice(filenameFlagName)
 	if err != nil {
-		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("failed to parse --%s flag: %w", filenameFlagName, err),
-		}
+		return flagErr(filenameFlagName, err)
 	}
 	recursive, err := command.Flags().GetBool(recursiveFlagName)
 	if err != nil {
-		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("failed to parse --%s flag: %w", recursiveFlagName, err),
-		}
+		return flagErr(recursiveFlagName, err)
 	}
 	rulesetPath, err := command.Flags().GetString(rulesetFlagName)
 	if err != nil {
-		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("failed to parse --%s flag: %w", rulesetFlagName, err),
-		}
+		return flagErr(rulesetFlagName, err)
 	}
 	outputFmt, err := cmd.BuildHelper(command, nil).GetOutputFormat()
 	if err != nil {
@@ -128,15 +128,11 @@ func runLint(command *cobra.Command, _ []string) error {
 	outputFormat := outputFmt.String()
 	failSeverity, err := command.Flags().GetString(failSeverityFlagName)
 	if err != nil {
-		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("failed to parse --%s flag: %w", failSeverityFlagName, err),
-		}
+		return flagErr(failSeverityFlagName, err)
 	}
 	onlyFailures, err := command.Flags().GetBool(displayOnlyFailuresFlagName)
 	if err != nil {
-		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("failed to parse --%s flag: %w", displayOnlyFailuresFlagName, err),
-		}
+		return flagErr(displayOnlyFailuresFlagName, err)
 	}
 
 	// Validate fail-severity value
