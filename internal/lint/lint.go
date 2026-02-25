@@ -211,12 +211,7 @@ func File(
 	}
 
 	out := Bytes(fileBytes, ruleSet, failSeverity, onlyFailures, filePath)
-	sort.Slice(out.Results, func(i, j int) bool {
-		if out.Results[i].Line != out.Results[j].Line {
-			return out.Results[i].Line < out.Results[j].Line
-		}
-		return out.Results[i].Column < out.Results[j].Column
-	})
+	sortResults(out.Results)
 	return out, nil
 }
 
@@ -250,17 +245,23 @@ func Files(
 	}
 
 	// Sort the aggregated results globally for deterministic output
-	sort.Slice(aggregated.Results, func(i, j int) bool {
-		if aggregated.Results[i].File != aggregated.Results[j].File {
-			return aggregated.Results[i].File < aggregated.Results[j].File
-		}
-		if aggregated.Results[i].Line != aggregated.Results[j].Line {
-			return aggregated.Results[i].Line < aggregated.Results[j].Line
-		}
-		return aggregated.Results[i].Column < aggregated.Results[j].Column
-	})
+	sortResults(aggregated.Results)
 
 	return aggregated, nil
+}
+
+// sortResults sorts linting results by file, then line, then column for
+// deterministic output.
+func sortResults(results []Result) {
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].File != results[j].File {
+			return results[i].File < results[j].File
+		}
+		if results[i].Line != results[j].Line {
+			return results[i].Line < results[j].Line
+		}
+		return results[i].Column < results[j].Column
+	})
 }
 
 // FormatPlain writes the linting output in plain text format to the writer.

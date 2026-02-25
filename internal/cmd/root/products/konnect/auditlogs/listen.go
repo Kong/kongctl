@@ -495,40 +495,32 @@ func buildDetachedChildArgs(parentArgs []string, childLogTemplate string) []stri
 }
 
 func removeBooleanFlag(args []string, longFlag, shortFlag string) []string {
-	filtered := make([]string, 0, len(args))
-	for i := 0; i < len(args); i++ {
-		value := args[i]
-		if value == longFlag || value == shortFlag {
-			if i+1 < len(args) && isBoolLiteral(args[i+1]) {
-				i++
-			}
-			continue
-		}
-		if strings.HasPrefix(value, longFlag+"=") || strings.HasPrefix(value, shortFlag+"=") {
-			continue
-		}
-		filtered = append(filtered, value)
-	}
-
-	return filtered
+	return removeFlag(args, longFlag, shortFlag, false)
 }
 
 func removeStringFlag(args []string, longFlag string) []string {
+	return removeFlag(args, longFlag, "", true)
+}
+
+func removeFlag(args []string, longFlag, shortFlag string, hasValue bool) []string {
 	filtered := make([]string, 0, len(args))
 	for i := 0; i < len(args); i++ {
 		value := args[i]
-		if value == longFlag {
-			if i+1 < len(args) {
+		if value == longFlag || (shortFlag != "" && value == shortFlag) {
+			if hasValue {
+				if i+1 < len(args) {
+					i++
+				}
+			} else if i+1 < len(args) && isBoolLiteral(args[i+1]) {
 				i++
 			}
 			continue
 		}
-		if strings.HasPrefix(value, longFlag+"=") {
+		if strings.HasPrefix(value, longFlag+"=") || (shortFlag != "" && strings.HasPrefix(value, shortFlag+"=")) {
 			continue
 		}
 		filtered = append(filtered, value)
 	}
-
 	return filtered
 }
 
@@ -597,6 +589,11 @@ func withEnvVar(env []string, key, value string) []string {
 	return updated
 }
 
+func writeFormattedLine(w io.Writer, format string, args ...any) error {
+	_, err := fmt.Fprintf(w, format+"\n", args...)
+	return err
+}
+
 func renderListenStartedOutput(
 	helper cmd.Helper,
 	destination createDestinationOutput,
@@ -615,72 +612,66 @@ func renderListenStartedOutputToWriter(
 		return nil
 	}
 
-	if _, err := fmt.Fprintln(out, "Konnect Audit-Log Listener Started"); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintln(out, ""); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintln(out, "Destination"); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  name: %s\n", destination.DestinationName); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  id: %s\n", destination.DestinationID); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  endpoint: %s\n", destination.DestinationEndpoint); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  log format: %s\n", destination.LogFormat); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  skip ssl verification: %t\n", destination.SkipSSLVerification); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  authorization configured: %t\n", destination.AuthorizationConfigured); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  webhook configured: %t\n", destination.WebhookConfigured); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintln(out, ""); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintln(out, "Listener"); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  local endpoint: %s\n", listener.LocalEndpoint); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  listen address: %s\n", listener.ListenAddress); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(out, "  path: %s\n", listener.ListenPath); err != nil {
-		return err
-	}
-	if strings.TrimSpace(listener.PublicURL) != "" {
-		if _, err := fmt.Fprintf(out, "  public base URL: %s\n", listener.PublicURL); err != nil {
+	for _, line := range []string{
+		"Konnect Audit-Log Listener Started",
+		"",
+		"Destination",
+	} {
+		if err := writeFormattedLine(out, "%s", line); err != nil {
 			return err
 		}
 	}
-	if _, err := fmt.Fprintf(out, "  events file: %s\n", listener.EventsFile); err != nil {
+	for _, kv := range []struct {
+		key string
+		val any
+	}{
+		{"name", destination.DestinationName},
+		{"id", destination.DestinationID},
+		{"endpoint", destination.DestinationEndpoint},
+		{"log format", destination.LogFormat},
+		{"skip ssl verification", destination.SkipSSLVerification},
+		{"authorization configured", destination.AuthorizationConfigured},
+		{"webhook configured", destination.WebhookConfigured},
+	} {
+		if err := writeFormattedLine(out, "  %s: %v", kv.key, kv.val); err != nil {
+			return err
+		}
+	}
+	if err := writeFormattedLine(out, ""); err != nil {
+		return err
+	}
+	if err := writeFormattedLine(out, "%s", "Listener"); err != nil {
+		return err
+	}
+	for _, kv := range []struct {
+		key string
+		val any
+	}{
+		{"local endpoint", listener.LocalEndpoint},
+		{"listen address", listener.ListenAddress},
+		{"path", listener.ListenPath},
+	} {
+		if err := writeFormattedLine(out, "  %s: %v", kv.key, kv.val); err != nil {
+			return err
+		}
+	}
+	if strings.TrimSpace(listener.PublicURL) != "" {
+		if err := writeFormattedLine(out, "  public base URL: %s", listener.PublicURL); err != nil {
+			return err
+		}
+	}
+	if err := writeFormattedLine(out, "  events file: %s", listener.EventsFile); err != nil {
 		return err
 	}
 	if destination.DestinationStateFile != "" {
-		if _, err := fmt.Fprintf(out, "  destination state file: %s\n", destination.DestinationStateFile); err != nil {
+		if err := writeFormattedLine(out, "  destination state file: %s", destination.DestinationStateFile); err != nil {
 			return err
 		}
 	}
-	if _, err := fmt.Fprintln(out, ""); err != nil {
+	if err := writeFormattedLine(out, ""); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintln(out, "Listening for audit-log events. Press Ctrl+C to stop."); err != nil {
-		return err
-	}
-
-	return nil
+	return writeFormattedLine(out, "%s", "Listening for audit-log events. Press Ctrl+C to stop.")
 }
 
 func renderListenStoppedOutput(helper cmd.Helper, destinationID string) error {
