@@ -625,7 +625,7 @@ func mapBoolField(value map[string]any, key string) *bool {
 		return nil
 	}
 
-	return boolPtr(boolVal)
+	return new(boolVal)
 }
 
 func findDestinationRecord(records []auditLogDestinationRecord, selector string) (auditLogDestinationRecord, error) {
@@ -690,7 +690,7 @@ func findOptionalBool(value any, keys ...string) *bool {
 				normalized := strings.ToLower(strings.TrimSpace(key))
 				if _, ok := keySet[normalized]; ok {
 					if boolVal, ok := child.(bool); ok {
-						return boolPtr(boolVal), true
+						return new(boolVal), true
 					}
 				}
 			}
@@ -717,8 +717,9 @@ func findOptionalBool(value any, keys ...string) *bool {
 	return boolVal
 }
 
+//go:fix inline
 func boolPtr(value bool) *bool {
-	return &value
+	return new(value)
 }
 
 func formatOptionalBool(value *bool) string {

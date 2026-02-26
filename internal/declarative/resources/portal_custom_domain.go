@@ -95,7 +95,7 @@ func (d *PortalCustomDomainResource) TryMatchKonnectResource(konnectResource any
 	v := reflect.ValueOf(konnectResource)
 
 	// Handle pointer types
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 

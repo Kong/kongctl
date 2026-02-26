@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
@@ -200,8 +199,8 @@ func resolveAPI(
 	var pageNumber int64 = 1
 	for {
 		req := kkOps.ListApisRequest{
-			PageSize:   kk.Int64(int64(pageSize)),
-			PageNumber: kk.Int64(pageNumber),
+			PageSize:   new(int64(pageSize)),
+			PageNumber: new(pageNumber),
 		}
 
 		res, err := apiClient.ListApis(ctx, req)

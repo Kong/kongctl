@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/charmbracelet/bubbles/table"
@@ -269,8 +268,8 @@ func fetchPortalTeamDevelopers(
 		req := kkOps.ListPortalTeamDevelopersRequest{
 			PortalID:   portalID,
 			TeamID:     teamID,
-			PageSize:   kk.Int64(pageSize),
-			PageNumber: kk.Int64(pageNumber),
+			PageSize:   new(pageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		res, err := membershipAPI.ListPortalTeamDevelopers(helper.GetContext(), req)

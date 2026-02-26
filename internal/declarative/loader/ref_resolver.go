@@ -59,7 +59,7 @@ func (r *LocalFieldResolver) ResolveField(resource resources.Resource, field str
 		)
 
 		// Dereference pointers
-		for current.Kind() == reflect.Ptr && !current.IsNil() {
+		for current.Kind() == reflect.Pointer && !current.IsNil() {
 			current = current.Elem()
 		}
 
@@ -252,7 +252,7 @@ func resolveResourceFields(ctx context.Context, resource any, rs *resources.Reso
 	resolver FieldResolver, resolutionPath []string, logger *slog.Logger,
 ) error {
 	val := reflect.ValueOf(resource)
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		val = val.Elem()
 	}
 
@@ -286,7 +286,7 @@ func walkAndResolve(ctx context.Context, val reflect.Value, rs *resources.Resour
 	resolver FieldResolver, resolutionPath []string, currentResourceRef string, logger *slog.Logger,
 ) error {
 	// Dereference pointers
-	if val.Kind() == reflect.Ptr {
+	if val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			return nil
 		}
@@ -363,8 +363,8 @@ func walkAndResolve(ctx context.Context, val reflect.Value, rs *resources.Resour
 		}
 
 	case reflect.Struct:
-		for i := 0; i < val.NumField(); i++ {
-			fieldVal := val.Field(i)
+		for _, fieldVal := range val.Fields() {
+			fieldVal := fieldVal
 			if fieldVal.CanSet() {
 				if err := walkAndResolve(ctx, fieldVal, rs, resolver, resolutionPath, currentResourceRef, logger); err != nil {
 					return err
@@ -386,7 +386,7 @@ func walkAndResolve(ctx context.Context, val reflect.Value, rs *resources.Resour
 			// For now, skip map resolution as it requires special handling
 			// This can be enhanced in Phase 2
 		}
-	case reflect.Ptr:
+	case reflect.Pointer:
 		// Handle pointer types by dereferencing and processing
 		if !val.IsNil() {
 			if err := walkAndResolve(ctx, val.Elem(), rs, resolver, resolutionPath, currentResourceRef, logger); err != nil {
@@ -428,7 +428,7 @@ func findFieldByJSONTag(val reflect.Value, jsonTag string) reflect.Value {
 // convertToString converts a reflect.Value to string
 func convertToString(val reflect.Value) string {
 	// Dereference pointers
-	for val.Kind() == reflect.Ptr && !val.IsNil() {
+	for val.Kind() == reflect.Pointer && !val.IsNil() {
 		val = val.Elem()
 	}
 
@@ -445,7 +445,7 @@ func convertToString(val reflect.Value) string {
 		return fmt.Sprintf("%t", val.Bool())
 	case reflect.Complex64, reflect.Complex128:
 		return fmt.Sprintf("%v", val.Complex())
-	case reflect.Array, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr,
+	case reflect.Array, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer,
 		reflect.Slice, reflect.Struct, reflect.UnsafePointer:
 		// For composite types, use general interface conversion
 		return fmt.Sprintf("%v", val.Interface())

@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"strings"
 
-	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
@@ -232,7 +231,7 @@ func resolveEventGatewayControlPlane(
 	var pageAfter *string
 	for {
 		req := kkOps.ListEventGatewaysRequest{
-			PageSize: kk.Int64(int64(pageSize)),
+			PageSize: new(int64(pageSize)),
 		}
 
 		if pageAfter != nil {

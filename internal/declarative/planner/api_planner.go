@@ -131,12 +131,13 @@ func (p *Planner) planAPIChanges(
 		}
 
 		if len(protectionErrors) > 0 {
-			errMsg := "Cannot generate plan due to protected resources:\n"
+			var errMsg strings.Builder
+			errMsg.WriteString("Cannot generate plan due to protected resources:\n")
 			for _, err := range protectionErrors {
-				errMsg += fmt.Sprintf("- %s\n", err.Error())
+				errMsg.WriteString(fmt.Sprintf("- %s\n", err.Error()))
 			}
-			errMsg += "\nTo proceed, first update these resources to set protected: false"
-			return fmt.Errorf("%s", errMsg)
+			errMsg.WriteString("\nTo proceed, first update these resources to set protected: false")
+			return fmt.Errorf("%s", errMsg.String())
 		}
 		return nil
 	}
@@ -231,12 +232,13 @@ func (p *Planner) planAPIChanges(
 
 	// Fail fast if any protected resources would be modified
 	if len(protectionErrors) > 0 {
-		errMsg := "Cannot generate plan due to protected resources:\n"
+		var errMsg strings.Builder
+		errMsg.WriteString("Cannot generate plan due to protected resources:\n")
 		for _, err := range protectionErrors {
-			errMsg += fmt.Sprintf("- %s\n", err.Error())
+			errMsg.WriteString(fmt.Sprintf("- %s\n", err.Error()))
 		}
-		errMsg += "\nTo proceed, first update these resources to set protected: false"
-		return fmt.Errorf("%s", errMsg)
+		errMsg.WriteString("\nTo proceed, first update these resources to set protected: false")
+		return fmt.Errorf("%s", errMsg.String())
 	}
 
 	return nil

@@ -87,7 +87,7 @@ func (e EventGatewayListenerPolicyResource) GetKonnectMonikerFilter() string {
 
 func (e *EventGatewayListenerPolicyResource) TryMatchKonnectResource(konnectResource any) bool {
 	v := reflect.ValueOf(konnectResource)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 	if v.Kind() != reflect.Struct {
@@ -100,7 +100,7 @@ func (e *EventGatewayListenerPolicyResource) TryMatchKonnectResource(konnectReso
 	if nameField.IsValid() && idField.IsValid() {
 		var konnectName string
 		// Name may be *string in the response type
-		if nameField.Kind() == reflect.Ptr && !nameField.IsNil() {
+		if nameField.Kind() == reflect.Pointer && !nameField.IsNil() {
 			konnectName = nameField.Elem().String()
 		} else if nameField.Kind() == reflect.String {
 			konnectName = nameField.String()

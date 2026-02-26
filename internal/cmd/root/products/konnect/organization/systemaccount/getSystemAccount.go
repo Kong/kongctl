@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/charmbracelet/bubbles/table"
@@ -229,8 +228,8 @@ func runList(kkClient helpers.SystemAccountAPI, helper cmd.Helper, cfg config.Ho
 
 	for {
 		req := kkOps.GetSystemAccountsRequest{
-			PageSize:   kk.Int64(requestPageSize),
-			PageNumber: kk.Int64(pageNumber),
+			PageSize:   new(requestPageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		res, err := kkClient.ListSystemAccounts(helper.GetContext(), req)
@@ -261,11 +260,11 @@ func runListByName(name string, kkClient helpers.SystemAccountAPI, helper cmd.He
 	var allData []kkComps.SystemAccount
 	for {
 		req := kkOps.GetSystemAccountsRequest{
-			PageSize:   kk.Int64(requestPageSize),
-			PageNumber: kk.Int64(pageNumber),
+			PageSize:   new(requestPageSize),
+			PageNumber: new(pageNumber),
 			Filter: &kkOps.GetSystemAccountsQueryParamFilter{
 				Name: &kkComps.LegacyStringFieldFilter{
-					Eq: kk.String(name),
+					Eq: new(name),
 				},
 			},
 		}

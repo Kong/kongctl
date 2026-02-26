@@ -107,10 +107,7 @@ func buildArgs(opts RunOptions) ([]string, error) {
 			"--konnect-control-plane-name", opts.KonnectControlPlaneName,
 			"--konnect-addr", opts.KonnectAddress,
 		}
-		insertAt := 2
-		if insertAt > len(args) {
-			insertAt = len(args)
-		}
+		insertAt := min(2, len(args))
 		args = append(args[:insertAt], append(injected, args[insertAt:]...)...)
 	}
 

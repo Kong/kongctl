@@ -43,10 +43,10 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 		},
 	}
 	existingPortal.Description = &description
-	existingPortal.AuthenticationEnabled = boolPointer(authEnabled)
-	existingPortal.RbacEnabled = boolPointer(rbacEnabled)
-	existingPortal.AutoApproveDevelopers = boolPointer(autoApproveDev)
-	existingPortal.AutoApproveApplications = boolPointer(autoApproveApp)
+	existingPortal.AuthenticationEnabled = new(authEnabled)
+	existingPortal.RbacEnabled = new(rbacEnabled)
+	existingPortal.AutoApproveDevelopers = new(autoApproveDev)
+	existingPortal.AutoApproveApplications = new(autoApproveApp)
 
 	// Mock list returns existing portal
 	mockAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
@@ -238,6 +238,7 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 	mockAPI.AssertExpectations(t)
 }
 
+//go:fix inline
 func boolPointer(v bool) *bool {
-	return &v
+	return new(v)
 }

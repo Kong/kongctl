@@ -987,7 +987,7 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 						labels.ProtectedKey: protectedStr,
 					})
 					p.DisplayName = "Protected Portal"
-					p.Description = ptrString("Old description")
+					p.Description = new("Old description")
 					return p
 				}(),
 			},
@@ -1352,6 +1352,8 @@ func TestGeneratePlan_SyncDeletesRespectAuthStrategyDependencies(t *testing.T) {
 }
 
 // Test helpers
+//
+//go:fix inline
 func ptrString(s string) *string {
-	return &s
+	return new(s)
 }

@@ -920,10 +920,7 @@ func levenshteinClose(s1, s2 string) bool {
 	}
 
 	// If more than 70% characters match in order, consider it close
-	minLen := len(s1)
-	if len(s2) < minLen {
-		minLen = len(s2)
-	}
+	minLen := min(len(s2), len(s1))
 	return float64(matches)/float64(minLen) > 0.7
 }
 

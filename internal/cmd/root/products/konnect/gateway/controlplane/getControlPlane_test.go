@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	kkErrs "github.com/Kong/sdk-konnect-go/models/sdkerrors"
@@ -65,7 +64,7 @@ func TestTextDisplayConversion(t *testing.T) {
 			input: kkComps.ControlPlane{
 				ID:          "id-field",
 				Name:        "name-field",
-				Description: kk.String("description-field"),
+				Description: new("description-field"),
 				Config: kkComps.ControlPlaneConfig{
 					ControlPlaneEndpoint: "config-endpoint-field",
 				},
@@ -269,7 +268,7 @@ func TestGetControlPlaneCmd(t *testing.T) {
 								{
 									ID:          "4d9b3f3e-7b1b-4b6b-8b1b-4b6b7b1b4b6b",
 									Name:        "foo",
-									Description: kk.String("blah"),
+									Description: new("blah"),
 									Config: kkComps.ControlPlaneConfig{
 										ControlPlaneEndpoint: "https://foo.bar",
 									},

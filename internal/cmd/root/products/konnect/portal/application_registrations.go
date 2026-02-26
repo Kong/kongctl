@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/charmbracelet/bubbles/table"
@@ -392,8 +391,8 @@ func fetchPortalApplicationRegistrations(
 	for {
 		req := kkOps.ListRegistrationsRequest{
 			PortalID:   portalID,
-			PageSize:   kk.Int64(pageSize),
-			PageNumber: kk.Int64(pageNumber),
+			PageSize:   new(pageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		filter := buildRegistrationFilter(filters)
@@ -466,17 +465,17 @@ func buildRegistrationFilter(filters registrationFilters) *kkOps.ListRegistratio
 	var hasFilter bool
 
 	if filters.ApplicationName != "" {
-		out.ApplicationName = &kkComps.StringFieldFilter{Eq: kk.String(filters.ApplicationName)}
+		out.ApplicationName = &kkComps.StringFieldFilter{Eq: new(filters.ApplicationName)}
 		hasFilter = true
 	}
 
 	if filters.DeveloperID != "" {
-		out.DeveloperID = &kkComps.UUIDFieldFilter{Eq: kk.String(filters.DeveloperID)}
+		out.DeveloperID = &kkComps.UUIDFieldFilter{Eq: new(filters.DeveloperID)}
 		hasFilter = true
 	}
 
 	if filters.Status != "" {
-		out.Status = &kkComps.StringFieldFilter{Eq: kk.String(filters.Status)}
+		out.Status = &kkComps.StringFieldFilter{Eq: new(filters.Status)}
 		hasFilter = true
 	}
 

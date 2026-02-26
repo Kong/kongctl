@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/charmbracelet/bubbles/table"
@@ -376,8 +375,8 @@ func fetchPortalSnippetSummaries(
 	for {
 		req := kkOps.ListPortalSnippetsRequest{
 			PortalID:   portalID,
-			PageSize:   kk.Int64(pageSize),
-			PageNumber: kk.Int64(pageNumber),
+			PageSize:   new(pageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		res, err := snippetAPI.ListPortalSnippets(helper.GetContext(), req)

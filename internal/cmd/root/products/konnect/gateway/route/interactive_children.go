@@ -210,10 +210,10 @@ func listGatewayRoutesForService(
 		req := kkOps.ListRouteWithServiceRequest{
 			ControlPlaneID: controlPlaneID,
 			ServiceID:      serviceID,
-			Size:           kk.Int64(requestPageSize),
+			Size:           new(requestPageSize),
 		}
 		if offset != "" {
-			req.Offset = kk.String(offset)
+			req.Offset = new(offset)
 		}
 
 		res, err := kkClient.Routes.ListRouteWithService(ctx, req)

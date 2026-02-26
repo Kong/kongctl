@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/charmbracelet/bubbles/table"
@@ -224,13 +223,13 @@ func fetchPublications(
 	var all []kkComps.APIPublicationListItem
 
 	filter := &kkComps.APIPublicationFilterParameters{
-		APIID: &kkComps.UUIDFieldFilter{Eq: kk.String(apiID)},
+		APIID: &kkComps.UUIDFieldFilter{Eq: new(apiID)},
 	}
 
 	for {
 		req := kkOps.ListAPIPublicationsRequest{
-			PageSize:   kk.Int64(pageSize),
-			PageNumber: kk.Int64(pageNumber),
+			PageSize:   new(pageSize),
+			PageNumber: new(pageNumber),
 			Filter:     filter,
 		}
 

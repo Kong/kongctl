@@ -391,13 +391,13 @@ func TestLoader_validateAPIs(t *testing.T) {
 						{
 							Ref: "v1",
 							CreateAPIVersionRequest: kkComps.CreateAPIVersionRequest{
-								Version: stringPtr("v1.0"),
+								Version: new("v1.0"),
 							},
 						},
 						{
 							Ref: "v2",
 							CreateAPIVersionRequest: kkComps.CreateAPIVersionRequest{
-								Version: stringPtr("v2.0"),
+								Version: new("v2.0"),
 							},
 						},
 					},
@@ -419,7 +419,7 @@ func TestLoader_validateAPIs(t *testing.T) {
 						{
 							Ref: "v1",
 							CreateAPIVersionRequest: kkComps.CreateAPIVersionRequest{
-								Version: stringPtr("v1.0"),
+								Version: new("v1.0"),
 							},
 						},
 					},
@@ -513,7 +513,7 @@ func TestLoader_validateCrossReferences(t *testing.T) {
 							Ref: "portal1",
 						},
 						CreatePortal: kkComps.CreatePortal{
-							DefaultApplicationAuthStrategyID: stringPtr("oauth1"),
+							DefaultApplicationAuthStrategyID: new("oauth1"),
 						},
 					},
 				},
@@ -529,7 +529,7 @@ func TestLoader_validateCrossReferences(t *testing.T) {
 							Ref: "portal1",
 						},
 						CreatePortal: kkComps.CreatePortal{
-							DefaultApplicationAuthStrategyID: stringPtr("nonexistent"),
+							DefaultApplicationAuthStrategyID: new("nonexistent"),
 						},
 					},
 				},
@@ -711,6 +711,8 @@ func extractNestedResourcesForTest(rs *resources.ResourceSet) {
 }
 
 // Helper function for tests
+//
+//go:fix inline
 func stringPtr(s string) *string {
-	return &s
+	return new(s)
 }

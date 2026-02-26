@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/charmbracelet/bubbles/table"
@@ -302,8 +301,8 @@ func fetchPortalApplications(
 	for {
 		req := kkOps.ListApplicationsRequest{
 			PortalID:   portalID,
-			PageSize:   kk.Int64(pageSize),
-			PageNumber: kk.Int64(pageNumber),
+			PageSize:   new(pageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		res, err := appAPI.ListApplications(helper.GetContext(), req)

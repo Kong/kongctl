@@ -599,10 +599,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		if msg.Width > 0 {
 			m.width = msg.Width
-			width := msg.Width - 4
-			if width < 20 {
-				width = 20
-			}
+			width := max(msg.Width-4, 20)
 			m.input.SetWidth(width)
 			m.adjustInputHeight()
 		}
@@ -1178,10 +1175,7 @@ func (m *model) renderBanner() string {
 		return m.renderBannerFallback(width)
 	}
 
-	leftWidth := (innerWidth - separatorWidth) * 35 / 100
-	if leftWidth < minLeftWidth {
-		leftWidth = minLeftWidth
-	}
+	leftWidth := max((innerWidth-separatorWidth)*35/100, minLeftWidth)
 	rightWidth := innerWidth - separatorWidth - leftWidth
 	if rightWidth < minRightWidth {
 		adjust := minRightWidth - rightWidth
@@ -1231,10 +1225,7 @@ func (m *model) renderBanner() string {
 			titleSegment = plain
 			titleWidth = lipgloss.Width(titleSegment)
 		}
-		dashCount := innerWidth - 1 - titleWidth
-		if dashCount < 0 {
-			dashCount = 0
-		}
+		dashCount := max(innerWidth-1-titleWidth, 0)
 		cornerStyle := lipgloss.NewStyle().Foreground(m.styles.bannerAccent)
 		dashStyle := lipgloss.NewStyle().Foreground(m.styles.bannerAccent)
 		topLine = lipgloss.JoinHorizontal(lipgloss.Top,
@@ -1257,10 +1248,7 @@ func (m *model) renderBanner() string {
 		} else if lipgloss.Width(titleText) > cutoff {
 			titleText = truncate.String(titleText, uint(cutoff))
 		}
-		padding := innerWidth - 1 - lipgloss.Width(titleText)
-		if padding < 0 {
-			padding = 0
-		}
+		padding := max(innerWidth-1-lipgloss.Width(titleText), 0)
 		topLine = "╭─" + titleText + strings.Repeat("─", padding) + "╮"
 		bottomLine = "╰" + strings.Repeat("─", innerWidth) + "╯"
 	}
@@ -1570,19 +1558,13 @@ func (m *model) renderTaskHeader(label string) string {
 	if !m.opts.UseColor {
 		bullet := "•"
 		line := bullet + " " + label
-		dashCount := width - lipgloss.Width(line) - 1
-		if dashCount < 0 {
-			dashCount = 0
-		}
+		dashCount := max(width-lipgloss.Width(line)-1, 0)
 		return line + " " + strings.Repeat("-", dashCount)
 	}
 	bullet := lipgloss.NewStyle().Foreground(m.styles.taskBorder).Render("⏺")
 	text := m.styles.promptHelperStyle.Render(label)
 	line := lipgloss.JoinHorizontal(lipgloss.Top, bullet, m.styles.promptBorderStyle.Render(" "), text)
-	dashCount := width - lipgloss.Width(line) - 1
-	if dashCount < 0 {
-		dashCount = 0
-	}
+	dashCount := max(width-lipgloss.Width(line)-1, 0)
 	dashes := m.styles.promptBorderStyle.Render(strings.Repeat("─", dashCount))
 	return lipgloss.JoinHorizontal(lipgloss.Top, line, m.styles.promptBorderStyle.Render(" "), dashes)
 }
@@ -2529,10 +2511,7 @@ func (m *model) renderTaskCard(entry *taskEntry) string {
 		if i == firstContentIdx {
 			content = iconStyled + line
 		}
-		pad := maxWidth - lipgloss.Width(content)
-		if pad < 0 {
-			pad = 0
-		}
+		pad := max(maxWidth-lipgloss.Width(content), 0)
 		if line == "" {
 			padded[i] = ""
 			continue

@@ -21,9 +21,9 @@ func GetAllGatewayServices(ctx context.Context, requestPageSize int64, cpID stri
 	offset := ""
 	for {
 		req := kkOps.ListServiceRequest{
-			Size:           kk.Int64(requestPageSize),
+			Size:           new(requestPageSize),
 			ControlPlaneID: cpID,
-			Offset:         kk.String(offset),
+			Offset:         new(offset),
 		}
 
 		res, err := kkClient.Services.ListService(ctx, req)

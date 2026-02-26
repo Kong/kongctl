@@ -37,7 +37,7 @@ func (s source) trim() source {
 
 func (s source) indent() source {
 	indentedLines := []string{}
-	for _, line := range strings.Split(s.string, "\n") {
+	for line := range strings.SplitSeq(s.string, "\n") {
 		trimmed := strings.TrimSpace(line)
 		indented := Indentation + trimmed
 		indentedLines = append(indentedLines, indented)

@@ -462,11 +462,11 @@ func buildPortalAuthSettings(
 	resource := declresources.PortalAuthSettingsResource{
 		Ref: ref,
 		PortalAuthenticationSettingsUpdateRequest: kkComps.PortalAuthenticationSettingsUpdateRequest{
-			BasicAuthEnabled:       boolPointer(settings.BasicAuthEnabled),
-			OidcAuthEnabled:        boolPointer(settings.OidcAuthEnabled),
+			BasicAuthEnabled:       new(settings.BasicAuthEnabled),
+			OidcAuthEnabled:        new(settings.OidcAuthEnabled),
 			SamlAuthEnabled:        settings.SamlAuthEnabled,
-			OidcTeamMappingEnabled: boolPointer(settings.OidcTeamMappingEnabled),
-			KonnectMappingEnabled:  boolPointer(settings.KonnectMappingEnabled),
+			OidcTeamMappingEnabled: new(settings.OidcTeamMappingEnabled),
+			KonnectMappingEnabled:  new(settings.KonnectMappingEnabled),
 			IdpMappingEnabled:      settings.IdpMappingEnabled,
 		},
 	}
@@ -627,7 +627,7 @@ func buildPortalEmailTemplates(
 		resource := declresources.PortalEmailTemplateResource{
 			Ref:     buildChildRef("portal-email-template", portalID, name),
 			Name:    kkComps.EmailTemplateName(name),
-			Enabled: boolPointer(tpl.Enabled),
+			Enabled: new(tpl.Enabled),
 		}
 
 		if tpl.Content != nil {
@@ -749,7 +749,7 @@ func buildAPIPublications(
 		res := declresources.APIPublicationResource{
 			APIPublication: kkComps.APIPublication{
 				AuthStrategyIds:          publication.AuthStrategyIDs,
-				AutoApproveRegistrations: boolPointer(publication.AutoApproveRegistrations),
+				AutoApproveRegistrations: new(publication.AutoApproveRegistrations),
 			},
 			Ref:      ref,
 			PortalID: strings.TrimSpace(publication.PortalID),
@@ -1219,8 +1219,9 @@ func convertBackendClusterDestination(dest kkComps.BackendClusterReference) kkCo
 	)
 }
 
+//go:fix inline
 func boolPointer(val bool) *bool {
-	return &val
+	return new(val)
 }
 
 func buildChildRef(prefix string, parts ...string) string {

@@ -30,8 +30,8 @@ func ParseSources(filenames []string) ([]Source, error) {
 
 	for _, filename := range filenames {
 		// Handle comma-separated values
-		parts := strings.Split(filename, ",")
-		for _, part := range parts {
+		parts := strings.SplitSeq(filename, ",")
+		for part := range parts {
 			part = strings.TrimSpace(part)
 			if part == "" {
 				continue

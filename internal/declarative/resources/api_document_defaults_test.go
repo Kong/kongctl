@@ -17,7 +17,7 @@ func TestAPIDocumentResource_SetDefaults(t *testing.T) {
 			name: "generates slug from title when slug not provided",
 			doc: &APIDocumentResource{
 				CreateAPIDocumentRequest: kkComps.CreateAPIDocumentRequest{
-					Title:   stringPtr("Main Document"),
+					Title:   new("Main Document"),
 					Content: "Content here",
 				},
 			},
@@ -28,8 +28,8 @@ func TestAPIDocumentResource_SetDefaults(t *testing.T) {
 			name: "does not override existing slug",
 			doc: &APIDocumentResource{
 				CreateAPIDocumentRequest: kkComps.CreateAPIDocumentRequest{
-					Title:   stringPtr("Main Document"),
-					Slug:    stringPtr("custom-slug"),
+					Title:   new("Main Document"),
+					Slug:    new("custom-slug"),
 					Content: "Content here",
 				},
 			},
@@ -49,7 +49,7 @@ func TestAPIDocumentResource_SetDefaults(t *testing.T) {
 			name: "does not generate slug when title is empty",
 			doc: &APIDocumentResource{
 				CreateAPIDocumentRequest: kkComps.CreateAPIDocumentRequest{
-					Title:   stringPtr(""),
+					Title:   new(""),
 					Content: "Content here",
 				},
 			},
@@ -59,7 +59,7 @@ func TestAPIDocumentResource_SetDefaults(t *testing.T) {
 			name: "handles special characters in title",
 			doc: &APIDocumentResource{
 				CreateAPIDocumentRequest: kkComps.CreateAPIDocumentRequest{
-					Title:   stringPtr("API v2.0 (Beta)"),
+					Title:   new("API v2.0 (Beta)"),
 					Content: "Content here",
 				},
 			},
@@ -93,6 +93,7 @@ func TestAPIDocumentResource_SetDefaults(t *testing.T) {
 	}
 }
 
+//go:fix inline
 func stringPtr(s string) *string {
-	return &s
+	return new(s)
 }

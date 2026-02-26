@@ -14,7 +14,7 @@ func resolveStringField(v reflect.Value, fieldName string) string {
 		switch field.Kind() {
 		case reflect.String:
 			return field.String()
-		case reflect.Ptr:
+		case reflect.Pointer:
 			if !field.IsNil() && field.Elem().Kind() == reflect.String {
 				return field.Elem().String()
 			}
@@ -55,7 +55,7 @@ func resolveStringField(v reflect.Value, fieldName string) string {
 //	}
 func extractNameAndID(konnectResource any, embeddedStructName string) (name, id string) {
 	kv := reflect.ValueOf(konnectResource)
-	if kv.Kind() == reflect.Ptr {
+	if kv.Kind() == reflect.Pointer {
 		kv = kv.Elem()
 	}
 
@@ -98,7 +98,7 @@ func extractNameAndID(konnectResource any, embeddedStructName string) (name, id 
 //	}
 func tryMatchByField(konnectResource any, fieldName, expectedValue string) string {
 	v := reflect.ValueOf(konnectResource)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 	if v.Kind() != reflect.Struct {

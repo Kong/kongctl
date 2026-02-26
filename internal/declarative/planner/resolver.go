@@ -248,7 +248,7 @@ func (r *ReferenceResolver) resolvePortalRef(ctx context.Context, ref string) (s
 // extractFieldFromResource extracts a field value from a resource using reflection
 func (r *ReferenceResolver) extractFieldFromResource(resource resources.Resource, fieldName string) (string, error) {
 	v := reflect.ValueOf(resource)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 
@@ -258,7 +258,7 @@ func (r *ReferenceResolver) extractFieldFromResource(resource resources.Resource
 
 	for _, part := range parts {
 		// Dereference pointers
-		for current.Kind() == reflect.Ptr && !current.IsNil() {
+		for current.Kind() == reflect.Pointer && !current.IsNil() {
 			current = current.Elem()
 		}
 
@@ -303,7 +303,7 @@ func (r *ReferenceResolver) findFieldByJSONTag(val reflect.Value, jsonTag string
 // convertToString converts a reflect.Value to string
 func (r *ReferenceResolver) convertToString(val reflect.Value) string {
 	// Dereference pointers
-	for val.Kind() == reflect.Ptr && !val.IsNil() {
+	for val.Kind() == reflect.Pointer && !val.IsNil() {
 		val = val.Elem()
 	}
 
@@ -320,7 +320,7 @@ func (r *ReferenceResolver) convertToString(val reflect.Value) string {
 		return fmt.Sprintf("%t", val.Bool())
 	case reflect.Complex64, reflect.Complex128:
 		return fmt.Sprintf("%v", val.Complex())
-	case reflect.Array, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr,
+	case reflect.Array, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer,
 		reflect.Slice, reflect.Struct, reflect.UnsafePointer:
 		// For composite types, use general interface conversion
 		return fmt.Sprintf("%v", val.Interface())

@@ -21,7 +21,7 @@ func ExtractValue(data any, path string) (any, error) {
 
 		// Convert current to a reflectable value
 		val := reflect.ValueOf(current)
-		for val.Kind() == reflect.Ptr && !val.IsNil() {
+		for val.Kind() == reflect.Pointer && !val.IsNil() {
 			val = val.Elem()
 		}
 
@@ -132,7 +132,7 @@ func GetAvailablePaths(data any, prefix string, maxDepth int) []string {
 	val := reflect.ValueOf(data)
 
 	// Dereference pointers
-	for val.Kind() == reflect.Ptr && !val.IsNil() {
+	for val.Kind() == reflect.Pointer && !val.IsNil() {
 		val = val.Elem()
 	}
 

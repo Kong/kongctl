@@ -155,8 +155,8 @@ func listAllCatalogServices(
 	pageNumber := int64(1)
 	for {
 		req := kkOps.ListCatalogServicesRequest{
-			PageSize:   kk.Int64(pageSize),
-			PageNumber: kk.Int64(pageNumber),
+			PageSize:   new(pageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		resp, err := api.ListCatalogServices(ctx, req)
@@ -197,13 +197,13 @@ func fetchCatalogService(
 	// Fallback to name lookup using filter
 	filter := kkComps.CatalogServiceFilterParameters{
 		Name: &kkComps.StringFieldFilter{
-			Eq: kk.String(identifier),
+			Eq: new(identifier),
 		},
 	}
 
 	req := kkOps.ListCatalogServicesRequest{
 		Filter:     &filter,
-		PageSize:   kk.Int64(pageSize),
+		PageSize:   new(pageSize),
 		PageNumber: kk.Int64(1),
 	}
 

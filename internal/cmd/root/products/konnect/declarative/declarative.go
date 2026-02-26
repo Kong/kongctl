@@ -1467,8 +1467,8 @@ func outputExecutionResult(command *cobra.Command,
 		if plan != nil {
 			fmt.Fprintln(out, "plan:")
 			planYAML, _ := yaml.Marshal(plan)
-			planLines := strings.Split(strings.TrimSpace(string(planYAML)), "\n")
-			for _, line := range planLines {
+			planLines := strings.SplitSeq(strings.TrimSpace(string(planYAML)), "\n")
+			for line := range planLines {
 				fmt.Fprintf(out, "  %s\n", line)
 			}
 		}

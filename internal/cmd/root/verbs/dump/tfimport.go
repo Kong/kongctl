@@ -303,8 +303,8 @@ func dumpPortals(
 ) error {
 	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListPortalsRequest{
-			PageSize:   Int64(requestPageSize),
-			PageNumber: Int64(pageNumber),
+			PageSize:   new(requestPageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		res, err := kkClient.ListPortals(ctx, req)
@@ -354,8 +354,8 @@ func dumpAPIs(
 
 	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListApisRequest{
-			PageSize:   Int64(requestPageSize),
-			PageNumber: Int64(pageNumber),
+			PageSize:   new(requestPageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		res, err := kkClient.ListApis(ctx, req)
@@ -812,8 +812,8 @@ func dumpAppAuthStrategies(
 
 	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListAppAuthStrategiesRequest{
-			PageSize:   Int64(requestPageSize),
-			PageNumber: Int64(pageNumber),
+			PageSize:   new(requestPageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		res, err := kkClient.ListAppAuthStrategies(ctx, req)
@@ -864,8 +864,8 @@ func dumpControlPlanes(
 
 	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListControlPlanesRequest{
-			PageSize:   Int64(requestPageSize),
-			PageNumber: Int64(pageNumber),
+			PageSize:   new(requestPageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		res, err := kkClient.ListControlPlanes(ctx, req)

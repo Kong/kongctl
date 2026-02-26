@@ -417,8 +417,8 @@ func hasGzipContentEncoding(contentEncoding string) bool {
 		return false
 	}
 
-	parts := strings.Split(strings.ToLower(contentEncoding), ",")
-	for _, part := range parts {
+	parts := strings.SplitSeq(strings.ToLower(contentEncoding), ",")
+	for part := range parts {
 		if strings.TrimSpace(part) == "gzip" {
 			return true
 		}

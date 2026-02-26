@@ -323,8 +323,8 @@ func collectDeclarativePortals(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListPortalsRequest{
-			PageSize:   Int64(requestPageSize),
-			PageNumber: Int64(pageNumber),
+			PageSize:   new(requestPageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		resp, err := portalAPI.ListPortals(ctx, req)
@@ -366,8 +366,8 @@ func collectDeclarativeAPIs(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListApisRequest{
-			PageSize:   Int64(requestPageSize),
-			PageNumber: Int64(pageNumber),
+			PageSize:   new(requestPageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		resp, err := apiClient.ListApis(ctx, req)
@@ -415,7 +415,7 @@ func collectDeclarativeEventGateways(
 
 	for {
 		req := kkOps.ListEventGatewaysRequest{
-			PageSize: Int64(requestPageSize),
+			PageSize: new(requestPageSize),
 		}
 
 		if pageAfter != nil {
@@ -464,8 +464,8 @@ func collectDeclarativeOrganizationTeams(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListTeamsRequest{
-			PageSize:   Int64(requestPageSize),
-			PageNumber: Int64(pageNumber),
+			PageSize:   new(requestPageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		resp, err := teamClient.ListOrganizationTeams(ctx, req)
@@ -684,8 +684,8 @@ func collectDeclarativeAuthStrategies(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListAppAuthStrategiesRequest{
-			PageSize:   Int64(requestPageSize),
-			PageNumber: Int64(pageNumber),
+			PageSize:   new(requestPageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		resp, err := api.ListAppAuthStrategies(ctx, req)
@@ -818,8 +818,8 @@ func collectDeclarativeControlPlanes(
 
 	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListControlPlanesRequest{
-			PageSize:   Int64(requestPageSize),
-			PageNumber: Int64(pageNumber),
+			PageSize:   new(requestPageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		resp, err := api.ListControlPlanes(ctx, req)

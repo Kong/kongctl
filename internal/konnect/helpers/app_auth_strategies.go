@@ -68,8 +68,8 @@ func GetAllAppAuthStrategies(ctx context.Context, kkClient AppAuthStrategiesAPI)
 
 	for {
 		req := kkOPS.ListAppAuthStrategiesRequest{
-			PageSize:   kkSDK.Int64(requestPageSize),
-			PageNumber: kkSDK.Int64(pageNumber),
+			PageSize:   new(requestPageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		res, err := kkClient.ListAppAuthStrategies(ctx, req)
