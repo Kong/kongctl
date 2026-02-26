@@ -4,6 +4,7 @@ test-all: lint test test-integration
 VERSION ?= $(shell (git describe --tags --exact-match 2>/dev/null || echo dev) | sed 's/^v//')
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+GO_VERSION ?= $(shell cat .go-version 2>/dev/null | tr -d '[:space:]')
 LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(GIT_COMMIT) -X main.date=$(BUILD_DATE)
 LATEST_E2E_LINK ?= .latest-e2e
 
@@ -27,6 +28,16 @@ build: mod
 	go build -ldflags "$(LDFLAGS)" -o kongctl
 # Kept typing this wrong
 buld: build
+
+.PHONY: build-docker
+build-docker:
+	docker build \
+	  --build-arg GO_VERSION=$(GO_VERSION) \
+	  --build-arg TAG=$(VERSION) \
+	  --build-arg COMMIT=$(GIT_COMMIT) \
+	  --build-arg BUILD_DATE=$(BUILD_DATE) \
+	  -t kongctl:$(VERSION) \
+	  .
 
 .PHONY: coverage
 coverage:
