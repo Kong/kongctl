@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Image tag to use (e.g. 0.0.13)"
-        required: false
+        description: "Release tag to publish (format: vMAJOR.MINOR.PATCH, e.g. v0.5.0)"
+        required: true
 
 permissions:
   contents: read
@@ -22,16 +22,86 @@ jobs:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
+      - name: Resolve and validate release tag
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${{ github.event.release.tag_name }}"
+          fi
+
+          if ! echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Invalid tag '$TAG'. Expected vMAJOR.MINOR.PATCH (example: v0.5.0)."
+            exit 1
+          fi
+
+          VERSION="${TAG#v}"
+          MAJOR_MINOR="${VERSION%.*}"
+
+          echo "RESOLVED_TAG=$TAG" >> "$GITHUB_ENV"
+          echo "RESOLVED_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "RESOLVED_MAJOR_MINOR=$MAJOR_MINOR" >> "$GITHUB_ENV"
+
+      - name: Download released binaries
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          AMD64_ASSET="$(gh release view "$RESOLVED_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json assets \
+            --jq '.assets[] | select(.name | test("linux_amd64\\.zip$")) | .name' \
+            | head -n1)"
+          ARM64_ASSET="$(gh release view "$RESOLVED_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json assets \
+            --jq '.assets[] | select(.name | test("linux_arm64\\.zip$")) | .name' \
+            | head -n1)"
+
+          if [ -z "$AMD64_ASSET" ] || [ -z "$ARM64_ASSET" ]; then
+            echo "::error::Missing linux amd64/arm64 zip assets for release $RESOLVED_TAG."
+            exit 1
+          fi
+
+          rm -rf .docker-release /tmp/kongctl-release-assets
+          mkdir -p .docker-release /tmp/kongctl-release-assets/amd64 /tmp/kongctl-release-assets/arm64
+
+          gh release download "$RESOLVED_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "$AMD64_ASSET" \
+            --dir /tmp/kongctl-release-assets/amd64
+          gh release download "$RESOLVED_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "$ARM64_ASSET" \
+            --dir /tmp/kongctl-release-assets/arm64
+
+          unzip -o "/tmp/kongctl-release-assets/amd64/$AMD64_ASSET" -d /tmp/kongctl-release-assets/amd64/unpacked
+          unzip -o "/tmp/kongctl-release-assets/arm64/$ARM64_ASSET" -d /tmp/kongctl-release-assets/arm64/unpacked
+
+          AMD64_BIN="$(find /tmp/kongctl-release-assets/amd64/unpacked -type f -name kongctl | head -n1)"
+          ARM64_BIN="$(find /tmp/kongctl-release-assets/arm64/unpacked -type f -name kongctl | head -n1)"
+
+          if [ -z "$AMD64_BIN" ] || [ -z "$ARM64_BIN" ]; then
+            echo "::error::Downloaded release assets did not contain expected kongctl binary."
+            exit 1
+          fi
+
+          install -m 0755 "$AMD64_BIN" .docker-release/kongctl-linux-amd64
+          install -m 0755 "$ARM64_BIN" .docker-release/kongctl-linux-arm64
+
       - name: Docker metadata (GHCR)
         id: meta-ghcr
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: ghcr.io/kong/kongctl
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=${{ env.RESOLVED_TAG }}
+            type=raw,value=${{ env.RESOLVED_VERSION }}
+            type=raw,value=${{ env.RESOLVED_MAJOR_MINOR }}
             type=raw,value=latest,enable=${{ github.event_name == 'release' && !github.event.release.prerelease }}
-            type=raw,value=${{ inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' }}
 
       - name: Docker metadata (Docker Hub)
         id: meta-dockerhub
@@ -40,10 +110,10 @@ jobs:
         with:
           images: kong/kongctl
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=${{ env.RESOLVED_TAG }}
+            type=raw,value=${{ env.RESOLVED_VERSION }}
+            type=raw,value=${{ env.RESOLVED_MAJOR_MINOR }}
             type=raw,value=latest,enable=${{ github.event_name == 'release' && !github.event.release.prerelease }}
-            type=raw,value=${{ inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
@@ -65,24 +135,15 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Read Go version and compute build date
-        run: |
-          echo "GO_VERSION=$(cat .go-version | tr -d '[:space:]')" >> "$GITHUB_ENV"
-          echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
-
       - name: Build and push to GHCR
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
+          file: ./Dockerfile.release
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta-ghcr.outputs.tags }}
           labels: ${{ steps.meta-ghcr.outputs.labels }}
-          build-args: |
-            GO_VERSION=${{ env.GO_VERSION }}
-            TAG=${{ inputs.tag || github.event.release.tag_name || 'dev' }}
-            COMMIT=${{ github.sha }}
-            BUILD_DATE=${{ env.BUILD_DATE }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -91,14 +152,10 @@ jobs:
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
+          file: ./Dockerfile.release
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta-dockerhub.outputs.tags }}
           labels: ${{ steps.meta-dockerhub.outputs.labels }}
-          build-args: |
-            GO_VERSION=${{ env.GO_VERSION }}
-            TAG=${{ inputs.tag || github.event.release.tag_name || 'dev' }}
-            COMMIT=${{ github.sha }}
-            BUILD_DATE=${{ env.BUILD_DATE }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
