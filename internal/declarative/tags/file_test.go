@@ -416,7 +416,7 @@ func TestFileTagResolver_ConcurrentAccess(t *testing.T) {
 
 	// Run multiple goroutines accessing the same file
 	done := make(chan bool, 10)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		go func() {
 			node := &yaml.Node{
 				Kind:  yaml.ScalarNode,
@@ -431,7 +431,7 @@ func TestFileTagResolver_ConcurrentAccess(t *testing.T) {
 	}
 
 	// Wait for all goroutines
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		<-done
 	}
 }

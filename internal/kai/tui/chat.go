@@ -1265,7 +1265,7 @@ func (m *model) renderBanner() string {
 	}
 
 	var body strings.Builder
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		if i > 0 {
 			body.WriteString("\n")
 		}
