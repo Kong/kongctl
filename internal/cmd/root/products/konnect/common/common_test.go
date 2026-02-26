@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"maps"
 	"testing"
 
 	configtest "github.com/kong/kongctl/test/config"
@@ -11,9 +12,7 @@ import (
 
 func newTestConfig(initial map[string]string) (*configtest.MockConfigHook, map[string]string) {
 	store := make(map[string]string)
-	for k, v := range initial {
-		store[k] = v
-	}
+	maps.Copy(store, initial)
 
 	cfg := &configtest.MockConfigHook{
 		GetStringMock: func(key string) string {

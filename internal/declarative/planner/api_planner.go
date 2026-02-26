@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"reflect"
 	"strings"
 
@@ -485,9 +486,7 @@ func (p *Planner) planAPIProtectionChangeWithFields(
 	fields := make(map[string]any)
 
 	// Include any field updates if present
-	for field, newValue := range updateFields {
-		fields[field] = newValue
-	}
+	maps.Copy(fields, updateFields)
 
 	// ALWAYS include essential identification fields for protection changes
 	fields["name"] = current.Name
@@ -2420,8 +2419,6 @@ func (i *apiDocumentStateIndex) markProcessed(path string) {
 
 func (i *apiDocumentStateIndex) unprocessed() map[string]state.APIDocument {
 	remaining := make(map[string]state.APIDocument, len(i.byPath))
-	for path, doc := range i.byPath {
-		remaining[path] = doc
-	}
+	maps.Copy(remaining, i.byPath)
 	return remaining
 }

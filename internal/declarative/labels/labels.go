@@ -2,6 +2,7 @@ package labels
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
 	"strings"
 )
@@ -71,9 +72,7 @@ func AddManagedLabels(labels map[string]string, namespace string) map[string]str
 
 	// Preserve existing labels
 	result := make(map[string]string)
-	for k, v := range labels {
-		result[k] = v
-	}
+	maps.Copy(result, labels)
 
 	// Add namespace label (required)
 	result[NamespaceKey] = namespace
@@ -183,9 +182,7 @@ func AddManagedLabelsToPointerMap(labels map[string]*string, namespace string) m
 
 	// Create result map preserving all existing entries including nil values
 	result := make(map[string]*string)
-	for k, v := range labels {
-		result[k] = v
-	}
+	maps.Copy(result, labels)
 
 	// Add namespace label as pointer
 	result[NamespaceKey] = &namespace
@@ -215,9 +212,7 @@ func ExtractLabelsFromField(field any) map[string]string {
 		}
 	case map[string]string:
 		// Handle map[string]string case
-		for k, v := range labels {
-			result[k] = v
-		}
+		maps.Copy(result, labels)
 	}
 
 	// Return nil for empty maps to be consistent

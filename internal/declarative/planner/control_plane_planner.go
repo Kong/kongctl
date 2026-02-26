@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/labels"
@@ -261,9 +262,7 @@ func (p *controlPlanePlannerImpl) planControlPlaneUpdate(
 	}
 
 	fields := make(map[string]any)
-	for key, value := range updateFields {
-		fields[key] = value
-	}
+	maps.Copy(fields, updateFields)
 
 	changeID := p.NextChangeID(ActionUpdate, "control_plane", desired.GetRef())
 	change := PlannedChange{
@@ -335,9 +334,7 @@ func (p *controlPlanePlannerImpl) planControlPlaneProtectionChangeWithFields(
 	fields := map[string]any{"name": current.Name}
 
 	if protectionChange.Old && !protectionChange.New && len(updateFields) > 0 {
-		for key, value := range updateFields {
-			fields[key] = value
-		}
+		maps.Copy(fields, updateFields)
 		if _, hasLabels := updateFields["labels"]; hasLabels {
 			fields[FieldCurrentLabels] = current.NormalizedLabels
 		}

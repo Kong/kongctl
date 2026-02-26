@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/url"
 	"sort"
 	"strings"
@@ -2989,9 +2990,7 @@ func cloneMetadataMap(input map[string]any) map[string]any {
 		return nil
 	}
 	clone := make(map[string]any, len(input))
-	for k, v := range input {
-		clone[k] = v
-	}
+	maps.Copy(clone, input)
 	return clone
 }
 

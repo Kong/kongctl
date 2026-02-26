@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -553,9 +554,7 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 		// Fall back to inline implementation
 		fields := make(map[string]any)
 		fields["name"] = current.Name
-		for field, newValue := range updateFields {
-			fields[field] = newValue
-		}
+		maps.Copy(fields, updateFields)
 		if _, hasLabels := updateFields["labels"]; hasLabels {
 			fields[FieldCurrentLabels] = current.NormalizedLabels
 		}
@@ -648,9 +647,7 @@ func (p *portalPlannerImpl) planPortalProtectionChangeWithFields(
 
 	// Include any field updates if unprotecting
 	if wasProtected && !shouldProtect && len(updateFields) > 0 {
-		for field, newValue := range updateFields {
-			fields[field] = newValue
-		}
+		maps.Copy(fields, updateFields)
 	}
 
 	change.Fields = fields

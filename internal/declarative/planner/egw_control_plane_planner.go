@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
@@ -279,9 +280,7 @@ func (p *Planner) planEGWControlPlaneProtectionChangeWithFields(
 	fields := make(map[string]any)
 
 	// Include any field updates if present
-	for field, newValue := range updateFields {
-		fields[field] = newValue
-	}
+	maps.Copy(fields, updateFields)
 
 	// ALWAYS include essential identification fields for protection changes
 	fields["name"] = current.Name
