@@ -251,25 +251,24 @@ jobs:
             echo "GH_TOKEN_PRIVATE_READ not set; using default git auth"
           fi
 
-      - name: Run GoReleaser (goreleaser-cross)
+      - name: Setup Go (full mode)
         if: env.RELEASE_BUILD_MODE == 'full'
-        run: |
-          set -euo pipefail
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false
 
-          HOST_UID="$(id -u)"
-          HOST_GID="$(id -g)"
-          docker run --rm \
-            -v "${PWD}:/work" \
-            -w /work \
-            -e GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}" \
-            -e TAP_GITHUB_TOKEN="${{ secrets.TAP_GITHUB_TOKEN }}" \
-            -e CGO_ENABLED=0 \
-            -e DEBIAN_FRONTEND=noninteractive \
-            -e HOST_UID="${HOST_UID}" \
-            -e HOST_GID="${HOST_GID}" \
-            --entrypoint /bin/sh \
-            goreleaser/goreleaser-cross:v1.25.3@sha256:f37a98cb1f3543c595e6d70808044f0f221ae5522911357d40cbde81d05e3786 \
-            -c "set -e; git config --global --add safe.directory /work; goreleaser release --clean; if [ -d /work/dist ]; then chown -R \${HOST_UID:-0}:\${HOST_GID:-0} /work/dist; fi"
+      - name: Run GoReleaser (full mode)
+        if: env.RELEASE_BUILD_MODE == 'full'
+        uses: goreleaser/goreleaser-action@605f2f8fe33b6daa57290d335d127dada4284d40 # v6.4.0
+        with:
+          distribution: goreleaser
+          version: v2.13.3
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          CGO_ENABLED: "0"
 
       - name: Set up Homebrew
         if: env.RELEASE_BUILD_MODE == 'full'
