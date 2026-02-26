@@ -3,6 +3,7 @@ package resources
 import (
 	"fmt"
 	"regexp"
+	"slices"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -71,16 +72,10 @@ func (p PortalPageResource) Validate() error {
 
 	// Validate visibility if set
 	if p.Visibility != nil {
-		validVisibility := false
-		for _, v := range []kkComps.PageVisibilityStatus{
+		validVisibility := slices.Contains([]kkComps.PageVisibilityStatus{
 			kkComps.PageVisibilityStatusPublic,
 			kkComps.PageVisibilityStatusPrivate,
-		} {
-			if *p.Visibility == v {
-				validVisibility = true
-				break
-			}
-		}
+		}, *p.Visibility)
 		if !validVisibility {
 			return fmt.Errorf("page visibility must be 'public' or 'private'")
 		}
@@ -88,16 +83,10 @@ func (p PortalPageResource) Validate() error {
 
 	// Validate status if set
 	if p.Status != nil {
-		validStatus := false
-		for _, s := range []kkComps.PublishedStatus{
+		validStatus := slices.Contains([]kkComps.PublishedStatus{
 			kkComps.PublishedStatusPublished,
 			kkComps.PublishedStatusUnpublished,
-		} {
-			if *p.Status == s {
-				validStatus = true
-				break
-			}
-		}
+		}, *p.Status)
 		if !validStatus {
 			return fmt.Errorf("page status must be 'published' or 'unpublished'")
 		}
@@ -221,16 +210,10 @@ func (s PortalSnippetResource) Validate() error {
 
 	// Validate visibility if set
 	if s.Visibility != nil {
-		validVisibility := false
-		for _, v := range []kkComps.SnippetVisibilityStatus{
+		validVisibility := slices.Contains([]kkComps.SnippetVisibilityStatus{
 			kkComps.SnippetVisibilityStatusPublic,
 			kkComps.SnippetVisibilityStatusPrivate,
-		} {
-			if *s.Visibility == v {
-				validVisibility = true
-				break
-			}
-		}
+		}, *s.Visibility)
 		if !validVisibility {
 			return fmt.Errorf("snippet visibility must be 'public' or 'private'")
 		}
@@ -238,16 +221,10 @@ func (s PortalSnippetResource) Validate() error {
 
 	// Validate status if set
 	if s.Status != nil {
-		validStatus := false
-		for _, st := range []kkComps.PublishedStatus{
+		validStatus := slices.Contains([]kkComps.PublishedStatus{
 			kkComps.PublishedStatusPublished,
 			kkComps.PublishedStatusUnpublished,
-		} {
-			if *s.Status == st {
-				validStatus = true
-				break
-			}
-		}
+		}, *s.Status)
 		if !validStatus {
 			return fmt.Errorf("snippet status must be 'published' or 'unpublished'")
 		}

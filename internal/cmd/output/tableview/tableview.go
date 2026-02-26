@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -3867,15 +3868,13 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 			tableHandled = true
 			break
 		}
-		for _, k := range m.quitKeys {
-			if key.String() == k {
-				if m.useAltScreen {
-					cmds = append(cmds, tea.ExitAltScreen)
-					m.useAltScreen = false
-				}
-				cmds = append(cmds, tea.Quit)
-				return m, tea.Batch(cmds...)
+		if slices.Contains(m.quitKeys, key.String()) {
+			if m.useAltScreen {
+				cmds = append(cmds, tea.ExitAltScreen)
+				m.useAltScreen = false
 			}
+			cmds = append(cmds, tea.Quit)
+			return m, tea.Batch(cmds...)
 		}
 		if key.String() == "esc" && !m.inDetailMode() {
 			if m.useAltScreen {

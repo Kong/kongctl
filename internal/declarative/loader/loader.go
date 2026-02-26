@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -883,10 +884,8 @@ func (l *Loader) suggestFieldName(fieldName string) string {
 
 	// Check if the misspelled field matches any known misspellings
 	for correct, misspellings := range knownFields {
-		for _, misspelling := range misspellings {
-			if fieldLower == misspelling {
-				return correct
-			}
+		if slices.Contains(misspellings, fieldLower) {
+			return correct
 		}
 	}
 

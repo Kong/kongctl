@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -314,13 +315,11 @@ func walkAndResolve(ctx context.Context, val reflect.Value, rs *resources.Resour
 
 			// Check for circular dependency
 			pathKey := fmt.Sprintf("%s->%s#%s", currentResourceRef, refStr, field)
-			for _, p := range resolutionPath {
-				if p == pathKey {
-					logger.LogAttrs(ctx, slog.LevelError, "Circular reference detected",
-						slog.String("path", strings.Join(append(resolutionPath, pathKey), " -> ")),
-					)
-					return fmt.Errorf("circular reference: %s", strings.Join(append(resolutionPath, pathKey), " -> "))
-				}
+			if slices.Contains(resolutionPath, pathKey) {
+				logger.LogAttrs(ctx, slog.LevelError, "Circular reference detected",
+					slog.String("path", strings.Join(append(resolutionPath, pathKey), " -> ")),
+				)
+				return fmt.Errorf("circular reference: %s", strings.Join(append(resolutionPath, pathKey), " -> "))
 			}
 
 			// Resolve the reference

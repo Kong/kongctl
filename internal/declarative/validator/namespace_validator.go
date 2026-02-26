@@ -3,6 +3,7 @@ package validator
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -240,11 +241,8 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 			// Check if default namespace is in allowed list
 			allowed := false
 			for _, ns := range req.AllowedNamespaces {
-				for _, def := range defaultNamespaces {
-					if def == ns {
-						allowed = true
-						break
-					}
+				if slices.Contains(defaultNamespaces, ns) {
+					allowed = true
 				}
 				if allowed {
 					break
@@ -291,13 +289,7 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 				return
 			}
 			// Check if namespace is in allowed list
-			allowed := false
-			for _, ns := range req.AllowedNamespaces {
-				if namespace == ns {
-					allowed = true
-					break
-				}
-			}
+			allowed := slices.Contains(req.AllowedNamespaces, namespace)
 			if !allowed {
 				namespaceList := strings.Join(req.AllowedNamespaces, ", ")
 				reason := fmt.Sprintf("uses namespace '%s' (expected one of [%s])", namespace, namespaceList)
