@@ -402,13 +402,3 @@ func newListControlPlaneResponse(data []kkComps.ControlPlane, total float64) *kk
 		},
 	}
 }
-
-//go:fix inline
-func strPtr(s string) *string {
-	return new(s)
-}
-
-//go:fix inline
-func boolPtr(b bool) *bool {
-	return new(b)
-}

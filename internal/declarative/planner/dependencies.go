@@ -191,7 +191,7 @@ func (d *DependencyResolver) findCycleDetails(
 
 	// Build detailed message
 	var details strings.Builder
-	details.WriteString(fmt.Sprintf("The following resources form a circular dependency (%d resources):\n", len(cycleNodes)))
+	fmt.Fprintf(&details, "The following resources form a circular dependency (%d resources):\n", len(cycleNodes))
 	for _, node := range cycleNodes {
 		resourceInfo := changeDetails[node]
 
@@ -212,7 +212,7 @@ func (d *DependencyResolver) findCycleDetails(
 		// Find what depends on this node (outgoing edges)
 		deps := graph[node]
 		if len(waitingFor) > 0 {
-			details.WriteString(fmt.Sprintf("  - %s (%s) is waiting for: %v\n", node, resourceInfo, waitingFor))
+			fmt.Fprintf(&details, "  - %s (%s) is waiting for: %v\n", node, resourceInfo, waitingFor)
 		} else if len(deps) > 0 {
 			var depDetails []string
 			for _, dep := range deps {
@@ -222,9 +222,9 @@ func (d *DependencyResolver) findCycleDetails(
 					depDetails = append(depDetails, dep)
 				}
 			}
-			details.WriteString(fmt.Sprintf("  - %s (%s) has dependents: %v\n", node, resourceInfo, depDetails))
+			fmt.Fprintf(&details, "  - %s (%s) has dependents: %v\n", node, resourceInfo, depDetails)
 		} else {
-			details.WriteString(fmt.Sprintf("  - %s (%s) has %d unresolved incoming dependencies\n", node, resourceInfo, inDegree[node]))
+			fmt.Fprintf(&details, "  - %s (%s) has %d unresolved incoming dependencies\n", node, resourceInfo, inDegree[node])
 		}
 	}
 
@@ -239,7 +239,7 @@ func (d *DependencyResolver) findCycleDetails(
 				pathDetails = append(pathDetails, node)
 			}
 		}
-		details.WriteString(fmt.Sprintf("\nDetected cycle: %s", strings.Join(pathDetails, " → ")))
+		fmt.Fprintf(&details, "\nDetected cycle: %s", strings.Join(pathDetails, " → "))
 	}
 
 	return details.String()

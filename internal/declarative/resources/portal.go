@@ -269,7 +269,6 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 	// Gather JSON field names from the embedded SDK struct
 	sdkType := reflect.TypeFor[kkComps.CreatePortal]()
 	for field := range sdkType.Fields() {
-		field := field
 		tag := field.Tag.Get("json")
 		if tag == "" || tag == "-" {
 			continue

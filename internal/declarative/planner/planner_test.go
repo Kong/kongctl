@@ -1350,10 +1350,3 @@ func TestGeneratePlan_SyncDeletesRespectAuthStrategyDependencies(t *testing.T) {
 	mockAPIAPI.AssertExpectations(t)
 	mockAppAuthAPI.AssertExpectations(t)
 }
-
-// Test helpers
-//
-//go:fix inline
-func ptrString(s string) *string {
-	return new(s)
-}

@@ -89,7 +89,7 @@ func (p *Planner) planCatalogServiceChanges(
 			var errMsg strings.Builder
 			errMsg.WriteString("Cannot generate plan due to protected resources:\n")
 			for _, err := range protectionErrors {
-				errMsg.WriteString(fmt.Sprintf("- %s\n", err.Error()))
+				fmt.Fprintf(&errMsg, "- %s\n", err.Error())
 			}
 			errMsg.WriteString("\nTo proceed, first update these resources to set protected: false")
 			return fmt.Errorf("%s", errMsg.String())
@@ -160,7 +160,7 @@ func (p *Planner) planCatalogServiceChanges(
 		var errMsg strings.Builder
 		errMsg.WriteString("Cannot generate plan due to protected resources:\n")
 		for _, err := range protectionErrors {
-			errMsg.WriteString(fmt.Sprintf("- %s\n", err.Error()))
+			fmt.Fprintf(&errMsg, "- %s\n", err.Error())
 		}
 		errMsg.WriteString("\nTo proceed, first update these resources to set protected: false")
 		return fmt.Errorf("%s", errMsg.String())

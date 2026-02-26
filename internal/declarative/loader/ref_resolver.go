@@ -364,7 +364,6 @@ func walkAndResolve(ctx context.Context, val reflect.Value, rs *resources.Resour
 
 	case reflect.Struct:
 		for _, fieldVal := range val.Fields() {
-			fieldVal := fieldVal
 			if fieldVal.CanSet() {
 				if err := walkAndResolve(ctx, fieldVal, rs, resolver, resolutionPath, currentResourceRef, logger); err != nil {
 					return err

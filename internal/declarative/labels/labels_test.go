@@ -373,13 +373,6 @@ func TestValidateLabel(t *testing.T) {
 	}
 }
 
-// Helper functions
-
-//go:fix inline
-func ptr(s string) *string {
-	return new(s)
-}
-
 func mapsEqual(a, b map[string]string) bool {
 	if len(a) != len(b) {
 		return false

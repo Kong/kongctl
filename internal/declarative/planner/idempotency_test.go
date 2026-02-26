@@ -237,8 +237,3 @@ func TestGeneratePlan_Idempotency(t *testing.T) {
 
 	mockAPI.AssertExpectations(t)
 }
-
-//go:fix inline
-func boolPointer(v bool) *bool {
-	return new(v)
-}

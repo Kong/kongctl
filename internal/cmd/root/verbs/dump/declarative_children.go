@@ -1219,11 +1219,6 @@ func convertBackendClusterDestination(dest kkComps.BackendClusterReference) kkCo
 	)
 }
 
-//go:fix inline
-func boolPointer(val bool) *bool {
-	return new(val)
-}
-
 func buildChildRef(prefix string, parts ...string) string {
 	cleanPrefix := sanitizeRefPart(prefix)
 	base := cleanPrefix

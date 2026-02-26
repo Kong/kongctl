@@ -572,13 +572,6 @@ func TestUpdatePortal(t *testing.T) {
 	}
 }
 
-// Helper function
-//
-//go:fix inline
-func ptr(s string) *string {
-	return new(s)
-}
-
 func newListPortal(id, name string, labels map[string]string) kkComps.ListPortalsResponsePortal {
 	return kkComps.ListPortalsResponsePortal{
 		ID:     id,

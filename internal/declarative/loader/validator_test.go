@@ -709,10 +709,3 @@ func extractNestedResourcesForTest(rs *resources.ResourceSet) {
 		api.Implementations = nil
 	}
 }
-
-// Helper function for tests
-//
-//go:fix inline
-func stringPtr(s string) *string {
-	return new(s)
-}

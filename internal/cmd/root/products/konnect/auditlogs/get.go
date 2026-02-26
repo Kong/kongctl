@@ -717,11 +717,6 @@ func findOptionalBool(value any, keys ...string) *bool {
 	return boolVal
 }
 
-//go:fix inline
-func boolPtr(value bool) *bool {
-	return new(value)
-}
-
 func formatOptionalBool(value *bool) string {
 	if value == nil {
 		return "n/a"

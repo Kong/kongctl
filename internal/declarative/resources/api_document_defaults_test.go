@@ -92,8 +92,3 @@ func TestAPIDocumentResource_SetDefaults(t *testing.T) {
 		})
 	}
 }
-
-//go:fix inline
-func stringPtr(s string) *string {
-	return new(s)
-}
