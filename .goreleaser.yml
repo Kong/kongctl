@@ -8,7 +8,8 @@ before:
     # you may remove this if you don't need go generate
     - go generate ./...
 builds:
-  - env:
+  - id: kongctl
+    env:
       - CGO_ENABLED=0
     ldflags:
       - -s -w
@@ -38,6 +39,21 @@ changelog:
 release:
   prerelease: auto
   make_latest: false
+dockers_v2:
+  - dockerfile: Dockerfile
+    ids:
+      - kongctl
+    images:
+      - ghcr.io/kong/kongctl
+      - kong/kongctl
+    tags:
+      - v{{ .Version }}
+      - '{{ .Version }}'
+      - '{{ .Major }}.{{ .Minor }}'
+      - '{{ if not .Prerelease }}latest{{ end }}'
+    platforms:
+      - linux/amd64
+      - linux/arm64
 homebrew_casks:
   - repository:
       owner: kong

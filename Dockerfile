@@ -1,29 +1,18 @@
-# check=skip=InvalidDefaultArgInFrom
-ARG GO_VERSION
+ARG BUILDPLATFORM
 
-FROM golang:${GO_VERSION}-alpine AS builder
-
-ARG TAG=dev
-ARG COMMIT=unknown
-ARG BUILD_DATE=unknown
-
-WORKDIR /workspace
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build \
-    -trimpath \
-    -ldflags="-s -w \
-      -X main.version=${TAG} \
-      -X main.commit=${COMMIT} \
-      -X main.date=${BUILD_DATE}" \
-    -o kongctl .
-
-FROM alpine:3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
+FROM --platform=$BUILDPLATFORM alpine:3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659 AS basefs
 
 RUN addgroup -S kongctl && adduser -S kongctl -G kongctl && apk add --no-cache ca-certificates
 
-COPY --from=builder /workspace/kongctl /kongctl
+FROM alpine:3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
+
+ARG TARGETPLATFORM
+
+COPY --from=basefs /etc/passwd /etc/passwd
+COPY --from=basefs /etc/group /etc/group
+COPY --from=basefs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
+COPY $TARGETPLATFORM/kongctl /kongctl
 
 USER kongctl
 ENTRYPOINT ["/kongctl"]
