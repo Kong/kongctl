@@ -1,0 +1,8 @@
+.git
+vendor
+dist
+kongctl
+*.out
+*.log
+.latest-e2e
+.e2e_artifacts*
