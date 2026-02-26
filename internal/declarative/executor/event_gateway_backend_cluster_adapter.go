@@ -46,7 +46,7 @@ func (a *EventGatewayBackendClusterAdapter) MapCreateFields(
 	create.Authentication = auth
 
 	// Bootstrap servers (required)
-	if servers, ok := fields["bootstrap_servers"].([]interface{}); ok {
+	if servers, ok := fields["bootstrap_servers"].([]any); ok {
 		create.BootstrapServers = make([]string, len(servers))
 		for i, srv := range servers {
 			if srvStr, ok := srv.(string); ok {
@@ -80,7 +80,7 @@ func (a *EventGatewayBackendClusterAdapter) MapCreateFields(
 				backendTLS.CaBundle = &caCert
 			}
 
-			if versions, ok := tlsMap["tls_versions"].([]interface{}); ok {
+			if versions, ok := tlsMap["tls_versions"].([]any); ok {
 				backendTLS.TLSVersions = make([]kkComps.TLSVersions, len(versions))
 				for i, v := range versions {
 					if vStr, ok := v.(string); ok {
@@ -155,7 +155,7 @@ func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 	}
 
 	// Handle bootstrap_servers as []interface{} or []string
-	if servers, ok := fields["bootstrap_servers"].([]interface{}); ok {
+	if servers, ok := fields["bootstrap_servers"].([]any); ok {
 		update.BootstrapServers = make([]string, len(servers))
 		for i, srv := range servers {
 			if srvStr, ok := srv.(string); ok {
@@ -182,7 +182,7 @@ func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 		if caCert, ok := tlsMap["ca_bundle"].(string); ok {
 			backendTLS.CaBundle = &caCert
 		}
-		if versions, ok := tlsMap["tls_versions"].([]interface{}); ok {
+		if versions, ok := tlsMap["tls_versions"].([]any); ok {
 			backendTLS.TLSVersions = make([]kkComps.TLSVersions, len(versions))
 			for i, v := range versions {
 				if vStr, ok := v.(string); ok {

@@ -319,7 +319,7 @@ func buildPorts(field any) ([]kkComps.EventGatewayListenerPort, error) {
 	}
 
 	// Handle []interface{} where each element is a string
-	if portSlice, ok := field.([]interface{}); ok {
+	if portSlice, ok := field.([]any); ok {
 		result := make([]kkComps.EventGatewayListenerPort, 0, len(portSlice))
 		for i, port := range portSlice {
 			portStr, ok := port.(string)

@@ -479,7 +479,7 @@ func compareStringMaps(a, b map[string]string) bool {
 	return true
 }
 
-func compareTLSSettings(a, b interface{}) bool {
+func compareTLSSettings(a, b any) bool {
 	// Type assert to the expected TLS types
 	tlsA, okA := a.(components.BackendClusterTLS)
 	tlsB, okB := b.(components.BackendClusterTLS)
