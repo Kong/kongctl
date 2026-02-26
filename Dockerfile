@@ -19,7 +19,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
       -X main.date=${BUILD_DATE}" \
     -o kongctl .
 
-FROM alpine:3
+FROM alpine:3@sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
 
 RUN addgroup -S kongctl && adduser -S kongctl -G kongctl && apk add --no-cache ca-certificates
 
