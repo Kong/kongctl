@@ -28,7 +28,8 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' && !github.event.release.prerelease }}
+            type=raw,value=${{ inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' }}
 
       - name: Docker metadata (Docker Hub)
         id: meta-dockerhub
@@ -39,7 +40,8 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ !github.event.release.prerelease }}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' && !github.event.release.prerelease }}
+            type=raw,value=${{ inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -61,8 +63,10 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Read Go version
-        run: echo "GO_VERSION=$(cat .go-version | tr -d '[:space:]')" >> "$GITHUB_ENV"
+      - name: Read Go version and compute build date
+        run: |
+          echo "GO_VERSION=$(cat .go-version | tr -d '[:space:]')" >> "$GITHUB_ENV"
+          echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
       - name: Build and push to GHCR
         uses: docker/build-push-action@v6
@@ -74,9 +78,9 @@ jobs:
           labels: ${{ steps.meta-ghcr.outputs.labels }}
           build-args: |
             GO_VERSION=${{ env.GO_VERSION }}
-            TAG=${{ github.event.release.tag_name }}
+            TAG=${{ inputs.tag || github.event.release.tag_name || 'dev' }}
             COMMIT=${{ github.sha }}
-            BUILD_DATE=${{ github.event.release.created_at }}
+            BUILD_DATE=${{ env.BUILD_DATE }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -91,8 +95,8 @@ jobs:
           labels: ${{ steps.meta-dockerhub.outputs.labels }}
           build-args: |
             GO_VERSION=${{ env.GO_VERSION }}
-            TAG=${{ github.event.release.tag_name }}
+            TAG=${{ inputs.tag || github.event.release.tag_name || 'dev' }}
             COMMIT=${{ github.sha }}
-            BUILD_DATE=${{ github.event.release.created_at }}
+            BUILD_DATE=${{ env.BUILD_DATE }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

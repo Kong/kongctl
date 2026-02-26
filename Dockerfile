@@ -21,8 +21,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 
 FROM alpine:3
 
-RUN addgroup -S kongctl && adduser -S kongctl -G kongctl
-RUN apk add --no-cache ca-certificates
+RUN addgroup -S kongctl && adduser -S kongctl -G kongctl && apk add --no-cache ca-certificates
 
 COPY --from=builder /workspace/kongctl /kongctl
 
