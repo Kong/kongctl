@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to publish (manual fallback only, format: vMAJOR.MINOR.PATCH, e.g. v0.5.0)"
+        description: "Release tag to publish (manual fallback only; must match an existing GitHub release tag)"
         required: true
 
 permissions:
@@ -20,23 +20,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - name: Resolve and validate release tag
+      - name: Resolve release tag
         run: |
           set -euo pipefail
 
           TAG="${{ inputs.tag }}"
 
-          if ! echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::Invalid tag '$TAG'. Expected vMAJOR.MINOR.PATCH (example: v0.5.0)."
+          if [ -z "${TAG//[[:space:]]/}" ]; then
+            echo "::error::Tag input cannot be empty."
             exit 1
           fi
 
-          VERSION="${TAG#v}"
-          MAJOR_MINOR="${VERSION%.*}"
-
           echo "RESOLVED_TAG=$TAG" >> "$GITHUB_ENV"
-          echo "RESOLVED_VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "RESOLVED_MAJOR_MINOR=$MAJOR_MINOR" >> "$GITHUB_ENV"
+          echo "SEMVER_TAGS_ENABLED=false" >> "$GITHUB_ENV"
+
+          if echo "$TAG" | grep -Eq '^v?[0-9]+\.[0-9]+\.[0-9]+([-.+][0-9A-Za-z.-]+)?$'; then
+            VERSION="${TAG#v}"
+            MAJOR_MINOR="$(echo "$VERSION" | sed -E 's/^([0-9]+\.[0-9]+)\..*$/\1/')"
+            echo "RESOLVED_VERSION=$VERSION" >> "$GITHUB_ENV"
+            echo "RESOLVED_MAJOR_MINOR=$MAJOR_MINOR" >> "$GITHUB_ENV"
+            echo "SEMVER_TAGS_ENABLED=true" >> "$GITHUB_ENV"
+          fi
 
       - name: Download released binaries
         env:
@@ -94,8 +98,8 @@ jobs:
           images: ghcr.io/kong/kongctl
           tags: |
             type=raw,value=${{ env.RESOLVED_TAG }}
-            type=raw,value=${{ env.RESOLVED_VERSION }}
-            type=raw,value=${{ env.RESOLVED_MAJOR_MINOR }}
+            type=raw,value=${{ env.RESOLVED_VERSION }},enable=${{ env.SEMVER_TAGS_ENABLED == 'true' }}
+            type=raw,value=${{ env.RESOLVED_MAJOR_MINOR }},enable=${{ env.SEMVER_TAGS_ENABLED == 'true' }}
 
       - name: Docker metadata (Docker Hub)
         id: meta-dockerhub
@@ -105,8 +109,8 @@ jobs:
           images: kong/kongctl
           tags: |
             type=raw,value=${{ env.RESOLVED_TAG }}
-            type=raw,value=${{ env.RESOLVED_VERSION }}
-            type=raw,value=${{ env.RESOLVED_MAJOR_MINOR }}
+            type=raw,value=${{ env.RESOLVED_VERSION }},enable=${{ env.SEMVER_TAGS_ENABLED == 'true' }}
+            type=raw,value=${{ env.RESOLVED_MAJOR_MINOR }},enable=${{ env.SEMVER_TAGS_ENABLED == 'true' }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
