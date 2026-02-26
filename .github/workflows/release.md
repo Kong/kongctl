@@ -183,6 +183,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      packages: write
     outputs:
       release_id: ${{ steps.get_release.outputs.release_id }}
     env:
@@ -257,6 +258,29 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
+
+      - name: Set up QEMU (full mode)
+        if: env.RELEASE_BUILD_MODE == 'full'
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+
+      - name: Set up Docker Buildx (full mode)
+        if: env.RELEASE_BUILD_MODE == 'full'
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Login to GHCR (full mode)
+        if: env.RELEASE_BUILD_MODE == 'full'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Docker Hub (full mode)
+        if: env.RELEASE_BUILD_MODE == 'full' && secrets.DOCKER_USERNAME != ''
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Run GoReleaser (full mode)
         if: env.RELEASE_BUILD_MODE == 'full'

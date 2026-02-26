@@ -1,12 +1,10 @@
 name: Docker Publish
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to publish (format: vMAJOR.MINOR.PATCH, e.g. v0.5.0)"
+        description: "Release tag to publish (manual fallback only, format: vMAJOR.MINOR.PATCH, e.g. v0.5.0)"
         required: true
 
 permissions:
@@ -26,11 +24,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ inputs.tag }}"
-          else
-            TAG="${{ github.event.release.tag_name }}"
-          fi
+          TAG="${{ inputs.tag }}"
 
           if ! echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "::error::Invalid tag '$TAG'. Expected vMAJOR.MINOR.PATCH (example: v0.5.0)."
@@ -66,8 +60,9 @@ jobs:
             exit 1
           fi
 
-          rm -rf .docker-release /tmp/kongctl-release-assets
-          mkdir -p .docker-release /tmp/kongctl-release-assets/amd64 /tmp/kongctl-release-assets/arm64
+          rm -rf /tmp/kongctl-release-assets
+          mkdir -p linux/amd64 linux/arm64 /tmp/kongctl-release-assets/amd64 /tmp/kongctl-release-assets/arm64
+          rm -f linux/amd64/kongctl linux/arm64/kongctl
 
           gh release download "$RESOLVED_TAG" \
             --repo "$GITHUB_REPOSITORY" \
@@ -89,8 +84,8 @@ jobs:
             exit 1
           fi
 
-          install -m 0755 "$AMD64_BIN" .docker-release/kongctl-linux-amd64
-          install -m 0755 "$ARM64_BIN" .docker-release/kongctl-linux-arm64
+          install -m 0755 "$AMD64_BIN" linux/amd64/kongctl
+          install -m 0755 "$ARM64_BIN" linux/arm64/kongctl
 
       - name: Docker metadata (GHCR)
         id: meta-ghcr
@@ -101,7 +96,6 @@ jobs:
             type=raw,value=${{ env.RESOLVED_TAG }}
             type=raw,value=${{ env.RESOLVED_VERSION }}
             type=raw,value=${{ env.RESOLVED_MAJOR_MINOR }}
-            type=raw,value=latest,enable=${{ github.event_name == 'release' && !github.event.release.prerelease }}
 
       - name: Docker metadata (Docker Hub)
         id: meta-dockerhub
@@ -113,7 +107,6 @@ jobs:
             type=raw,value=${{ env.RESOLVED_TAG }}
             type=raw,value=${{ env.RESOLVED_VERSION }}
             type=raw,value=${{ env.RESOLVED_MAJOR_MINOR }}
-            type=raw,value=latest,enable=${{ github.event_name == 'release' && !github.event.release.prerelease }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
@@ -139,7 +132,7 @@ jobs:
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
-          file: ./Dockerfile.release
+          file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta-ghcr.outputs.tags }}
@@ -152,7 +145,7 @@ jobs:
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
-          file: ./Dockerfile.release
+          file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta-dockerhub.outputs.tags }}
