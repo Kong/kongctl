@@ -32,7 +32,8 @@ buld: build
 build-docker:
 	@set -eu; \
 	mkdir -p linux/amd64; \
-	trap 'rm -f linux/amd64/kongctl' 0; \
+	rm -rf linux/amd64/kongctl; \
+	trap 'rm -rf linux/amd64/kongctl' 0; \
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o linux/amd64/kongctl .; \
 	docker buildx build --platform linux/amd64 --load -t kongctl:$(VERSION) .
 
