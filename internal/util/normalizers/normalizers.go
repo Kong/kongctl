@@ -37,7 +37,7 @@ func (s source) trim() source {
 
 func (s source) indent() source {
 	indentedLines := []string{}
-	for _, line := range strings.Split(s.string, "\n") {
+	for line := range strings.SplitSeq(s.string, "\n") {
 		trimmed := strings.TrimSpace(line)
 		indented := Indentation + trimmed
 		indentedLines = append(indentedLines, indented)
@@ -47,8 +47,8 @@ func (s source) indent() source {
 }
 
 // SpecToJSON converts a spec (YAML/JSON string or object) to normalized JSON string
-func SpecToJSON(spec interface{}) (string, error) {
-	var data interface{}
+func SpecToJSON(spec any) (string, error) {
+	var data any
 
 	switch v := spec.(type) {
 	case string:
@@ -56,7 +56,7 @@ func SpecToJSON(spec interface{}) (string, error) {
 		if err := yaml.Unmarshal([]byte(v), &data); err != nil {
 			return "", fmt.Errorf("failed to parse spec: %w", err)
 		}
-	case map[string]interface{}:
+	case map[string]any:
 		data = v
 	default:
 		// For any other type, use it directly

@@ -62,10 +62,7 @@ func jwtExpiresIn(tokenString string) (int, error) {
 		return 0, fmt.Errorf("JWT does not contain an exp claim")
 	}
 
-	secs := int(time.Until(time.Unix(claims.Exp, 0)).Seconds())
-	if secs < 0 {
-		secs = 0
-	}
+	secs := max(int(time.Until(time.Unix(claims.Exp, 0)).Seconds()), 0)
 	return secs, nil
 }
 
@@ -375,7 +372,7 @@ func GetAuthenticatedClient(baseURL string, token string, logger *slog.Logger) (
 	opts := []kk.SDKOption{
 		kk.WithServerURL(baseURL),
 		kk.WithSecurity(kkComps.Security{
-			PersonalAccessToken: kk.String(token),
+			PersonalAccessToken: new(token),
 		}),
 	}
 

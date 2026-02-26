@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -407,9 +409,7 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 	accumulated.AppendAll(source)
 
 	// Update the running index with newly added refs
-	for ref, resourceType := range seenRefs {
-		refIndex[ref] = resourceType
-	}
+	maps.Copy(refIndex, seenRefs)
 
 	// If this source defines a namespace default without parent resources,
 	// propagate it so sync mode can inspect the correct namespace.
@@ -883,10 +883,8 @@ func (l *Loader) suggestFieldName(fieldName string) string {
 
 	// Check if the misspelled field matches any known misspellings
 	for correct, misspellings := range knownFields {
-		for _, misspelling := range misspellings {
-			if fieldLower == misspelling {
-				return correct
-			}
+		if slices.Contains(misspellings, fieldLower) {
+			return correct
 		}
 	}
 
@@ -922,10 +920,7 @@ func levenshteinClose(s1, s2 string) bool {
 	}
 
 	// If more than 70% characters match in order, consider it close
-	minLen := len(s1)
-	if len(s2) < minLen {
-		minLen = len(s2)
-	}
+	minLen := min(len(s2), len(s1))
 	return float64(matches)/float64(minLen) > 0.7
 }
 

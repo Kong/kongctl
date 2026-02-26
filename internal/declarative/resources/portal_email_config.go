@@ -72,7 +72,7 @@ func (c PortalEmailConfigResource) GetKonnectMonikerFilter() string {
 
 func (c *PortalEmailConfigResource) TryMatchKonnectResource(konnectResource any) bool {
 	v := reflect.ValueOf(konnectResource)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 	if v.Kind() != reflect.Struct {

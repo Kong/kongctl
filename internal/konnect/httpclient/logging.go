@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -385,12 +386,7 @@ func isSensitiveFieldKey(key string) bool {
 }
 
 func containsSegment(normalized, segment string) bool {
-	for _, current := range strings.Split(normalized, "_") {
-		if current == segment {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(strings.Split(normalized, "_"), segment)
 }
 
 func hasSegmentPair(normalized, first, second string) bool {

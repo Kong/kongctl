@@ -43,8 +43,9 @@ func processPaginatedRequests(handler paginationHandler) error {
 	return nil
 }
 
+//go:fix inline
 func Int64(v int64) *int64 {
-	return &v
+	return new(v)
 }
 
 func getDumpWriter(helper cmdpkg.Helper, outputFile string) (io.Writer, func() error, error) {

@@ -131,7 +131,7 @@ func (i *APIImplementationResource) TryMatchKonnectResource(konnectResource any)
 	v := reflect.ValueOf(konnectResource)
 
 	// Handle pointer types
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 
@@ -144,7 +144,7 @@ func (i *APIImplementationResource) TryMatchKonnectResource(konnectResource any)
 	serviceField := v.FieldByName("Service")
 	idField := v.FieldByName("ID")
 
-	if serviceField.IsValid() && serviceField.Kind() == reflect.Ptr && !serviceField.IsNil() && idField.IsValid() {
+	if serviceField.IsValid() && serviceField.Kind() == reflect.Pointer && !serviceField.IsNil() && idField.IsValid() {
 		// Service is a pointer to struct
 		svc := serviceField.Elem()
 		if svc.Kind() == reflect.Struct {
@@ -165,13 +165,13 @@ func (i *APIImplementationResource) TryMatchKonnectResource(konnectResource any)
 	// Handle nested ServiceReference for newer SDK models.
 	serviceRefField := v.FieldByName("ServiceReference")
 	if serviceRefField.IsValid() &&
-		serviceRefField.Kind() == reflect.Ptr &&
+		serviceRefField.Kind() == reflect.Pointer &&
 		!serviceRefField.IsNil() &&
 		idField.IsValid() {
 		ref := serviceRefField.Elem()
 		if ref.Kind() == reflect.Struct {
 			serviceField = ref.FieldByName("Service")
-			if serviceField.IsValid() && serviceField.Kind() == reflect.Ptr && !serviceField.IsNil() {
+			if serviceField.IsValid() && serviceField.Kind() == reflect.Pointer && !serviceField.IsNil() {
 				svc := serviceField.Elem()
 				if svc.Kind() == reflect.Struct {
 					svcIDField := svc.FieldByName("ID")

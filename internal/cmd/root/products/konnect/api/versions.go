@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/charmbracelet/bubbles/table"
@@ -380,8 +379,8 @@ func fetchVersionSummaries(
 	for {
 		req := kkOps.ListAPIVersionsRequest{
 			APIID:      apiID,
-			PageSize:   kk.Int64(pageSize),
-			PageNumber: kk.Int64(pageNumber),
+			PageSize:   new(pageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		res, err := apiVersionAPI.ListAPIVersions(helper.GetContext(), req)

@@ -40,7 +40,7 @@ func ValidateResponse[T any](response *T, operation string) error {
 	if response == nil {
 		return &ResponseValidationError{
 			Operation:    operation,
-			ExpectedType: reflect.TypeOf((*T)(nil)).Elem().Name(),
+			ExpectedType: reflect.TypeFor[T]().Name(),
 		}
 	}
 	return nil

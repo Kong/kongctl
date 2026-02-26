@@ -284,7 +284,7 @@ func TestApplyToRawNilSliceIdentityReturnsEmptyArray(t *testing.T) {
 	result, handled, err := ApplyToRaw(raw, cmdcommon.JSON, settings, &bytes.Buffer{})
 	require.NoError(t, err)
 	require.False(t, handled)
-	require.Equal(t, []interface{}{}, result)
+	require.Equal(t, []any{}, result)
 }
 
 func TestApplyToRawEmptySliceIdentityReturnsEmptyArray(t *testing.T) {
@@ -300,5 +300,5 @@ func TestApplyToRawEmptySliceIdentityReturnsEmptyArray(t *testing.T) {
 	result, handled, err := ApplyToRaw(raw, cmdcommon.JSON, settings, &bytes.Buffer{})
 	require.NoError(t, err)
 	require.False(t, handled)
-	require.Equal(t, []interface{}{}, result)
+	require.Equal(t, []any{}, result)
 }

@@ -221,7 +221,7 @@ func parseOutputFormat(format string) (filebasics.OutputFormat, error) {
 
 // safeConvertToYamlNode wraps jsonbasics.ConvertToYamlNode with panic recovery
 // since the upstream function panics on errors instead of returning them.
-func safeConvertToYamlNode(data interface{}) (result *yaml.Node, err error) {
+func safeConvertToYamlNode(data any) (result *yaml.Node, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%v", r)
@@ -232,7 +232,7 @@ func safeConvertToYamlNode(data interface{}) (result *yaml.Node, err error) {
 
 // safeConvertToJSONObject wraps jsonbasics.ConvertToJSONobject with panic recovery
 // since the upstream function panics on errors instead of returning them.
-func safeConvertToJSONObject(data *yaml.Node) (result map[string]interface{}, err error) {
+func safeConvertToJSONObject(data *yaml.Node) (result map[string]any, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%v", r)

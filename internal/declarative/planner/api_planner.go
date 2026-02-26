@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"reflect"
 	"strings"
 
@@ -130,12 +131,13 @@ func (p *Planner) planAPIChanges(
 		}
 
 		if len(protectionErrors) > 0 {
-			errMsg := "Cannot generate plan due to protected resources:\n"
+			var errMsg strings.Builder
+			errMsg.WriteString("Cannot generate plan due to protected resources:\n")
 			for _, err := range protectionErrors {
-				errMsg += fmt.Sprintf("- %s\n", err.Error())
+				fmt.Fprintf(&errMsg, "- %s\n", err.Error())
 			}
-			errMsg += "\nTo proceed, first update these resources to set protected: false"
-			return fmt.Errorf("%s", errMsg)
+			errMsg.WriteString("\nTo proceed, first update these resources to set protected: false")
+			return fmt.Errorf("%s", errMsg.String())
 		}
 		return nil
 	}
@@ -230,12 +232,13 @@ func (p *Planner) planAPIChanges(
 
 	// Fail fast if any protected resources would be modified
 	if len(protectionErrors) > 0 {
-		errMsg := "Cannot generate plan due to protected resources:\n"
+		var errMsg strings.Builder
+		errMsg.WriteString("Cannot generate plan due to protected resources:\n")
 		for _, err := range protectionErrors {
-			errMsg += fmt.Sprintf("- %s\n", err.Error())
+			fmt.Fprintf(&errMsg, "- %s\n", err.Error())
 		}
-		errMsg += "\nTo proceed, first update these resources to set protected: false"
-		return fmt.Errorf("%s", errMsg)
+		errMsg.WriteString("\nTo proceed, first update these resources to set protected: false")
+		return fmt.Errorf("%s", errMsg.String())
 	}
 
 	return nil
@@ -485,9 +488,7 @@ func (p *Planner) planAPIProtectionChangeWithFields(
 	fields := make(map[string]any)
 
 	// Include any field updates if present
-	for field, newValue := range updateFields {
-		fields[field] = newValue
-	}
+	maps.Copy(fields, updateFields)
 
 	// ALWAYS include essential identification fields for protection changes
 	fields["name"] = current.Name
@@ -2420,8 +2421,6 @@ func (i *apiDocumentStateIndex) markProcessed(path string) {
 
 func (i *apiDocumentStateIndex) unprocessed() map[string]state.APIDocument {
 	remaining := make(map[string]state.APIDocument, len(i.byPath))
-	for path, doc := range i.byPath {
-		remaining[path] = doc
-	}
+	maps.Copy(remaining, i.byPath)
 	return remaining
 }

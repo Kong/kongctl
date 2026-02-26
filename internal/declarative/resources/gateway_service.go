@@ -172,7 +172,7 @@ func (s GatewayServiceResource) GetKonnectMonikerFilter() string {
 // TryMatchKonnectResource attempts to match this resource with a Konnect service object.
 func (s *GatewayServiceResource) TryMatchKonnectResource(konnectResource any) bool {
 	v := reflect.ValueOf(konnectResource)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 

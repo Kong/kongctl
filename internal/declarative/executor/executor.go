@@ -924,7 +924,7 @@ func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceI
 
 	// Try to find the API in Konnect with retry for eventual consistency
 	var lastErr error
-	for attempt := 0; attempt < 3; attempt++ {
+	for attempt := range 3 {
 		if attempt > 0 {
 			time.Sleep(time.Duration(attempt) * time.Second)
 		}

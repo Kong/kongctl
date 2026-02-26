@@ -8,9 +8,10 @@ import (
 	"io"
 	"log/slog"
 	"net/url"
+	"slices"
 	"strings"
 
-	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
+	// kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	kkErrors "github.com/Kong/sdk-konnect-go/models/sdkerrors"
@@ -420,8 +421,8 @@ func (c *Client) GetPortalByFilter(ctx context.Context, filter string) (*Portal,
 	}
 
 	// Parse filter (e.g., "name[eq]=foo")
-	if strings.HasPrefix(filter, "name[eq]=") {
-		name := strings.TrimPrefix(filter, "name[eq]=")
+	if after, ok := strings.CutPrefix(filter, "name[eq]="); ok {
+		name := after
 		for _, p := range portals {
 			if p.Name == name {
 				return &p, nil
@@ -822,8 +823,8 @@ func (c *Client) GetControlPlaneByFilter(ctx context.Context, filter string) (*C
 		return nil, err
 	}
 
-	if strings.HasPrefix(filter, "name[eq]=") {
-		name := strings.TrimPrefix(filter, "name[eq]=")
+	if after, ok := strings.CutPrefix(filter, "name[eq]="); ok {
+		name := after
 		for _, cp := range controlPlanes {
 			if cp.Name == name {
 				return &cp, nil
@@ -1073,8 +1074,8 @@ func (c *Client) GetAPIByFilter(ctx context.Context, filter string) (*API, error
 	}
 
 	// Parse filter (e.g., "name[eq]=foo")
-	if strings.HasPrefix(filter, "name[eq]=") {
-		name := strings.TrimPrefix(filter, "name[eq]=")
+	if after, ok := strings.CutPrefix(filter, "name[eq]="); ok {
+		name := after
 		for _, a := range apis {
 			if a.Name == name {
 				return &a, nil
@@ -2120,8 +2121,8 @@ func (c *Client) GetAuthStrategyByFilter(ctx context.Context, filter string) (*A
 	}
 
 	// Parse filter (e.g., "name[eq]=foo")
-	if strings.HasPrefix(filter, "name[eq]=") {
-		name := strings.TrimPrefix(filter, "name[eq]=")
+	if after, ok := strings.CutPrefix(filter, "name[eq]="); ok {
+		name := after
 		for _, s := range strategies {
 			if s.Name == name {
 				return &s, nil
@@ -3288,7 +3289,7 @@ func (c *Client) ListManagedEventGatewayControlPlanes(
 		}
 
 		values := u.Query()
-		pageAfter = kk.String(values.Get("page[after]"))
+		pageAfter = new(values.Get("page[after]"))
 	}
 
 	var filteredEGWControlPlanes []EventGatewayControlPlane
@@ -3450,7 +3451,7 @@ func (c *Client) ListEventGatewayBackendClusters(
 		}
 
 		values := u.Query()
-		pageAfter = kk.String(values.Get("page[after]"))
+		pageAfter = new(values.Get("page[after]"))
 	}
 
 	var backendClusters []EventGatewayBackendCluster
@@ -3751,20 +3752,12 @@ func shouldIncludeNamespace(resourceNamespace string, namespaces []string) bool 
 	}
 
 	// Check for wildcard (all namespaces)
-	for _, ns := range namespaces {
-		if ns == "*" {
-			return true
-		}
+	if slices.Contains(namespaces, "*") {
+		return true
 	}
 
 	// Check if resource's namespace is in the filter list
-	for _, ns := range namespaces {
-		if resourceNamespace == ns {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(namespaces, resourceNamespace)
 }
 
 // Event Gateway Virtual Cluster Methods
@@ -3812,7 +3805,7 @@ func (c *Client) ListEventGatewayVirtualClusters(
 		}
 
 		values := u.Query()
-		pageAfter = kk.String(values.Get("page[after]"))
+		pageAfter = new(values.Get("page[after]"))
 	}
 
 	var virtualClusters []EventGatewayVirtualCluster
@@ -3983,7 +3976,7 @@ func (c *Client) ListEventGatewayListeners(
 		}
 
 		values := u.Query()
-		pageAfter = kk.String(values.Get("page[after]"))
+		pageAfter = new(values.Get("page[after]"))
 	}
 
 	var listeners []EventGatewayListener

@@ -36,7 +36,7 @@ func GetStringFromReflectValue(v reflect.Value) (string, error) {
 	switch v.Kind() {
 	case reflect.String:
 		return v.String(), nil
-	case reflect.Ptr:
+	case reflect.Pointer:
 		if v.IsNil() {
 			return "", nil
 		}

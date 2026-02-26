@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	kkErrs "github.com/Kong/sdk-konnect-go/models/sdkerrors"
@@ -46,10 +45,10 @@ func TestOrganizationToDisplayRecord(t *testing.T) {
 		{
 			name: "populated organization",
 			input: &kkComps.MeOrganization{
-				ID:                  kk.String(id),
-				Name:                kk.String(name),
+				ID:                  new(id),
+				Name:                new(name),
 				State:               state.ToPointer(),
-				OwnerID:             kk.String(ownerID),
+				OwnerID:             new(ownerID),
 				LoginPath:           &loginPath,
 				RetentionPeriodDays: &retention,
 				CreatedAt:           &now,
@@ -96,7 +95,7 @@ func (s *stubMeAPI) GetOrganizationsMe(
 func TestRunGetOrganization(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		expected := &kkComps.MeOrganization{
-			ID: kk.String("org-id"),
+			ID: new("org-id"),
 		}
 
 		api := &stubMeAPI{

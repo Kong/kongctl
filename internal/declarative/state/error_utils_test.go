@@ -263,7 +263,7 @@ func TestWrapAPIError_Concurrent(t *testing.T) {
 	done := make(chan bool, 100)
 
 	// Create 100 concurrent error wrappings
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		go func(id int) {
 			defer func() { done <- true }()
 
@@ -281,7 +281,7 @@ func TestWrapAPIError_Concurrent(t *testing.T) {
 	}
 
 	// Wait for all goroutines to complete
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		<-done
 	}
 }

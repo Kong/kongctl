@@ -359,7 +359,7 @@ func TestCreatePortal(t *testing.T) {
 			portal: kkComps.CreatePortal{
 				Name: "New Portal",
 				Labels: map[string]*string{
-					"env": ptr("production"),
+					"env": new("production"),
 				},
 			},
 			setupMock: func() helpers.PortalAPI {
@@ -466,9 +466,9 @@ func TestUpdatePortal(t *testing.T) {
 			name:     "successful update with labels",
 			portalID: "portal-123",
 			portal: kkComps.UpdatePortal{
-				Name: ptr("Updated Portal"),
+				Name: new("Updated Portal"),
 				Labels: map[string]*string{
-					"env": ptr("staging"),
+					"env": new("staging"),
 				},
 			},
 			setupMock: func() helpers.PortalAPI {
@@ -519,7 +519,7 @@ func TestUpdatePortal(t *testing.T) {
 			name:     "API error",
 			portalID: "portal-123",
 			portal: kkComps.UpdatePortal{
-				Name: ptr("Updated Portal"),
+				Name: new("Updated Portal"),
 			},
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
@@ -536,7 +536,7 @@ func TestUpdatePortal(t *testing.T) {
 			name:     "nil response portal",
 			portalID: "portal-123",
 			portal: kkComps.UpdatePortal{
-				Name: ptr("Updated Portal"),
+				Name: new("Updated Portal"),
 			},
 			setupMock: func() helpers.PortalAPI {
 				return &mockPortalAPI{
@@ -570,11 +570,6 @@ func TestUpdatePortal(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Helper function
-func ptr(s string) *string {
-	return &s
 }
 
 func newListPortal(id, name string, labels map[string]string) kkComps.ListPortalsResponsePortal {

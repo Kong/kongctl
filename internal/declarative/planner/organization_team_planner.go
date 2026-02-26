@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -336,9 +337,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamUpdateWithFields(
 		// Fall back to inline implementation
 		fields := make(map[string]any)
 		fields["name"] = util.GetString(current.Name)
-		for field, newValue := range updateFields {
-			fields[field] = newValue
-		}
+		maps.Copy(fields, updateFields)
 		if _, hasLabels := updateFields["labels"]; hasLabels {
 			fields[FieldCurrentLabels] = current.NormalizedLabels
 		}
@@ -431,9 +430,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamProtectionChangeWithFi
 
 	// Include any field updates if unprotecting
 	if wasProtected && !shouldProtect && len(updateFields) > 0 {
-		for field, newValue := range updateFields {
-			fields[field] = newValue
-		}
+		maps.Copy(fields, updateFields)
 	}
 
 	change.Fields = fields

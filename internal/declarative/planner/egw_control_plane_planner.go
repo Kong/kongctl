@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
@@ -101,12 +102,13 @@ func (p *Planner) planEGWControlPlaneChanges(
 		}
 
 		if len(protectionErrors) > 0 {
-			errMsg := "Cannot generate plan due to protected resources:\n"
+			var errMsg strings.Builder
+			errMsg.WriteString("Cannot generate plan due to protected resources:\n")
 			for _, err := range protectionErrors {
-				errMsg += fmt.Sprintf("- %s\n", err.Error())
+				fmt.Fprintf(&errMsg, "- %s\n", err.Error())
 			}
-			errMsg += "\nTo proceed, first update these resources to set protected: false"
-			return fmt.Errorf("%s", errMsg)
+			errMsg.WriteString("\nTo proceed, first update these resources to set protected: false")
+			return fmt.Errorf("%s", errMsg.String())
 		}
 		return nil
 	}
@@ -238,12 +240,13 @@ func (p *Planner) planEGWControlPlaneChanges(
 
 	// Fail fast if any protected resources would be modified
 	if len(protectionErrors) > 0 {
-		errMsg := "Cannot generate plan due to protected resources:\n"
+		var errMsg strings.Builder
+		errMsg.WriteString("Cannot generate plan due to protected resources:\n")
 		for _, err := range protectionErrors {
-			errMsg += fmt.Sprintf("- %s\n", err.Error())
+			fmt.Fprintf(&errMsg, "- %s\n", err.Error())
 		}
-		errMsg += "\nTo proceed, first update these resources to set protected: false"
-		return fmt.Errorf("%s", errMsg)
+		errMsg.WriteString("\nTo proceed, first update these resources to set protected: false")
+		return fmt.Errorf("%s", errMsg.String())
 	}
 
 	return nil
@@ -279,9 +282,7 @@ func (p *Planner) planEGWControlPlaneProtectionChangeWithFields(
 	fields := make(map[string]any)
 
 	// Include any field updates if present
-	for field, newValue := range updateFields {
-		fields[field] = newValue
-	}
+	maps.Copy(fields, updateFields)
 
 	// ALWAYS include essential identification fields for protection changes
 	fields["name"] = current.Name

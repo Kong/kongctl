@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -508,11 +509,7 @@ func Render(streams *iostreams.IOStreams, data any, opts ...Option) error {
 	totalWidth := sum(colWidths) + paddingWidth*len(colWidths)
 	minTotalWidth := sum(minWidths) + paddingWidth*len(minWidths)
 	if termWidth > 0 && totalWidth > termWidth {
-		if minTotalWidth > termWidth {
-			totalWidth = minTotalWidth
-		} else {
-			totalWidth = termWidth
-		}
+		totalWidth = max(minTotalWidth, termWidth)
 	}
 	if totalWidth > 0 {
 		tbl.SetWidth(totalWidth)
@@ -733,7 +730,7 @@ func rowsFromSlice(slice reflect.Value) ([]string, [][]string, error) {
 	rowCount := slice.Len()
 	rows := make([][]string, 0, rowCount)
 
-	for i := 0; i < rowCount; i++ {
+	for i := range rowCount {
 		item := deref(slice.Index(i))
 		if !item.IsValid() {
 			continue
@@ -870,7 +867,7 @@ func convertRows(rows [][]string, columnCount int) []table.Row {
 	renderRows := make([]table.Row, len(rows))
 	for i, row := range rows {
 		record := make(table.Row, columnCount)
-		for j := 0; j < columnCount; j++ {
+		for j := range columnCount {
 			if j < len(row) {
 				record[j] = row[j]
 			} else {
@@ -1709,7 +1706,7 @@ func buildChildViewFromSliceValue(label string, data any) (ChildView, error) {
 	}
 	rows := make([]table.Row, length)
 	values := make([]any, length)
-	for i := 0; i < length; i++ {
+	for i := range length {
 		entry := value.Index(i)
 		val := entry.Interface()
 		values[i] = val
@@ -1908,10 +1905,7 @@ func buildDetailTable(
 		width = labelWidth + 40
 	}
 
-	valueWidth := width - labelWidth - 4
-	if valueWidth < 20 {
-		valueWidth = 20
-	}
+	valueWidth := max(width-labelWidth-4, 20)
 
 	columns := []table.Column{
 		{Title: "FIELD", Width: labelWidth},
@@ -2010,11 +2004,7 @@ func buildChildTable(state *childViewState, width, height int, palette theme.Pal
 	totalWidth := sum(colWidths) + paddingWidth*len(colWidths)
 	minTotalWidth := sum(minWidths) + paddingWidth*len(minWidths)
 	if width > 0 && totalWidth > width {
-		if minTotalWidth > width {
-			totalWidth = minTotalWidth
-		} else {
-			totalWidth = width
-		}
+		totalWidth = max(minTotalWidth, width)
 	}
 	if totalWidth > 0 {
 		tbl.SetWidth(totalWidth)
@@ -2056,10 +2046,7 @@ func calculateColumnWidths(headers []string, rows [][]string, widthLimit int) ([
 				}
 			}
 		}
-		maxWidth = clamp(maxWidth, minColumnWidth, maxColumnWidth)
-		if maxWidth < minWidth {
-			maxWidth = minWidth
-		}
+		maxWidth = max(clamp(maxWidth, minColumnWidth, maxColumnWidth), minWidth)
 		widths[i] = maxWidth
 	}
 
@@ -2129,10 +2116,7 @@ func setTableHeight(tbl *table.Model, rowCount, termHeight int, interactive bool
 
 	target := rowCount + 1
 	if termHeight > 0 {
-		available := termHeight - margin - reservedHeight
-		if available < minHeight {
-			available = minHeight
-		}
+		available := max(termHeight-margin-reservedHeight, minHeight)
 		target = clamp(target, minHeight, available)
 	}
 	tbl.SetHeight(target)
@@ -3276,10 +3260,7 @@ func (m *bubbleModel) renderStatusArea(widthHint int) string {
 	}
 
 	frameWidth, _ := m.statusStyle.GetFrameSize()
-	innerWidth := width - frameWidth
-	if innerWidth < 1 {
-		innerWidth = 1
-	}
+	innerWidth := max(width-frameWidth, 1)
 
 	var content string
 	if m.showHelp {
@@ -3386,10 +3367,7 @@ func renderStatusRow(left, right string, width int) string {
 	rightWidth := lipgloss.Width(right)
 
 	if width < 1 {
-		width = leftWidth + rightWidth
-		if width < 1 {
-			width = 1
-		}
+		width = max(leftWidth+rightWidth, 1)
 	}
 
 	switch {
@@ -3406,10 +3384,7 @@ func renderStatusRow(left, right string, width int) string {
 		}
 		return strings.Repeat(" ", width-rightWidth) + right
 	default:
-		gap := width - leftWidth - rightWidth
-		if gap < 1 {
-			gap = 1
-		}
+		gap := max(width-leftWidth-rightWidth, 1)
 		return left + strings.Repeat(" ", gap) + right
 	}
 }
@@ -3440,19 +3415,10 @@ func matchPanelHeights(
 	_, leftFrameHeight := leftStyle.GetFrameSize()
 	_, rightFrameHeight := rightStyle.GetFrameSize()
 
-	leftInner := leftHeight - leftFrameHeight
-	if leftInner < 0 {
-		leftInner = 0
-	}
-	rightInner := rightHeight - rightFrameHeight
-	if rightInner < 0 {
-		rightInner = 0
-	}
+	leftInner := max(leftHeight-leftFrameHeight, 0)
+	rightInner := max(rightHeight-rightFrameHeight, 0)
 
-	targetInner := leftInner
-	if rightInner > targetInner {
-		targetInner = rightInner
-	}
+	targetInner := max(rightInner, leftInner)
 
 	if leftInner < targetInner {
 		leftBox = borderedTableView(leftStyle.Height(targetInner), leftContent, selected)
@@ -3705,7 +3671,7 @@ func findMatchIndex(query string, cursor, total int, label func(int) string) (in
 
 	bestIdx := -1
 	bestScore := 0
-	for offset := 0; offset < total; offset++ {
+	for offset := range total {
 		idx := (cursor + offset) % total
 		text := strings.ToLower(strings.TrimSpace(label(idx)))
 		if text == "" {
@@ -3867,15 +3833,13 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 			tableHandled = true
 			break
 		}
-		for _, k := range m.quitKeys {
-			if key.String() == k {
-				if m.useAltScreen {
-					cmds = append(cmds, tea.ExitAltScreen)
-					m.useAltScreen = false
-				}
-				cmds = append(cmds, tea.Quit)
-				return m, tea.Batch(cmds...)
+		if slices.Contains(m.quitKeys, key.String()) {
+			if m.useAltScreen {
+				cmds = append(cmds, tea.ExitAltScreen)
+				m.useAltScreen = false
 			}
+			cmds = append(cmds, tea.Quit)
+			return m, tea.Batch(cmds...)
 		}
 		if key.String() == "esc" && !m.inDetailMode() {
 			if m.useAltScreen {
@@ -3995,10 +3959,7 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 		m.detail.SetContent(content)
 		contentHeight := lipgloss.Height(content)
 		if contentHeight > 0 && (m.detail.Height <= 0 || contentHeight < m.detail.Height) {
-			m.detail.Height = contentHeight
-			if m.detail.Height < 1 {
-				m.detail.Height = 1
-			}
+			m.detail.Height = max(contentHeight, 1)
 		}
 	}
 
@@ -4029,10 +3990,7 @@ func (m *bubbleModel) View() string {
 				tableBox := borderedTableView(m.tableStyle, tableView, m.selectedStyle)
 
 				detailFrameWidth, _ := m.detailStyle.GetFrameSize()
-				available := m.windowWidth - lipgloss.Width(tableBox) - detailFrameWidth
-				if available < 10 {
-					available = 10
-				}
+				available := max(m.windowWidth-lipgloss.Width(tableBox)-detailFrameWidth, 10)
 				var detailContent string
 				if detail.child.detailRenderer != nil {
 					row := detail.table.Cursor()

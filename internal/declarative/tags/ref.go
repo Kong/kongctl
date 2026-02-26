@@ -39,9 +39,9 @@ func (r *RefTagResolver) Resolve(node *yaml.Node) (any, error) {
 	resourceRef := refStr
 	field := "id" // default field
 
-	if idx := strings.Index(refStr, "#"); idx != -1 {
-		field = refStr[idx+1:]
-		resourceRef = refStr[:idx]
+	if before, after, ok := strings.Cut(refStr, "#"); ok {
+		field = after
+		resourceRef = before
 	}
 
 	// Validate
@@ -68,8 +68,8 @@ func ParseRefPlaceholder(placeholder string) (resourceRef, field string, ok bool
 	}
 
 	refPart := strings.TrimPrefix(placeholder, RefPlaceholderPrefix)
-	if idx := strings.Index(refPart, "#"); idx != -1 {
-		return refPart[:idx], refPart[idx+1:], true
+	if before, after, ok0 := strings.Cut(refPart, "#"); ok0 {
+		return before, after, true
 	}
 	return "", "", false
 }

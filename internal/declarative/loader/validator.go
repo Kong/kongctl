@@ -663,7 +663,7 @@ func (l *Loader) validateResourceReferences(resource any, rs *resources.Resource
 // getFieldValue extracts field value using reflection, supporting qualified field names
 func (l *Loader) getFieldValue(resource any, fieldPath string) string {
 	v := reflect.ValueOf(resource)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 
@@ -683,7 +683,7 @@ func (l *Loader) getFieldValue(resource any, fieldPath string) string {
 		if i == len(parts)-1 {
 			if field.Kind() == reflect.String {
 				return field.String()
-			} else if field.Kind() == reflect.Ptr && !field.IsNil() {
+			} else if field.Kind() == reflect.Pointer && !field.IsNil() {
 				elem := field.Elem()
 				if elem.Kind() == reflect.String {
 					return elem.String()
@@ -693,7 +693,7 @@ func (l *Loader) getFieldValue(resource any, fieldPath string) string {
 		}
 
 		// For intermediate parts, navigate deeper
-		if field.Kind() == reflect.Ptr {
+		if field.Kind() == reflect.Pointer {
 			if field.IsNil() {
 				return ""
 			}

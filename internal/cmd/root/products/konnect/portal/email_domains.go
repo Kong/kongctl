@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/cmd"
@@ -202,8 +201,8 @@ func fetchPortalEmailDomains(
 
 	for {
 		req := kkOps.ListEmailDomainsRequest{
-			PageSize:   kk.Int64(pageSize),
-			PageNumber: kk.Int64(pageNumber),
+			PageSize:   new(pageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		res, err := emailAPI.ListEmailDomains(helper.GetContext(), req)

@@ -14,7 +14,7 @@ func TestPaginateAll_Success(t *testing.T) {
 		case 1:
 			// Return a full page to trigger continuation
 			items := make([]string, pageSize)
-			for i := int64(0); i < pageSize; i++ {
+			for i := range pageSize {
 				items[i] = fmt.Sprintf("item%d", i+1)
 			}
 			return items, &PageMeta{Total: float64(pageSize + 5)}, nil
@@ -102,7 +102,7 @@ func TestPaginateAll_PartialError(t *testing.T) {
 		if pageNumber == 1 {
 			// Return full page to trigger second page request
 			items := make([]string, pageSize)
-			for i := int64(0); i < pageSize; i++ {
+			for i := range pageSize {
 				items[i] = fmt.Sprintf("item%d", i+1)
 			}
 			return items, &PageMeta{Total: float64(pageSize + 5)}, nil

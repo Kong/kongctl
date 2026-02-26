@@ -93,7 +93,7 @@ func getRuleSet(ruleSetBytes []byte) (*rulesets.RuleSet, error) {
 // isOpenAPISpec checks whether the given bytes represent an OpenAPI
 // specification by looking for the "openapi" top-level key.
 func isOpenAPISpec(fileBytes []byte) bool {
-	var contents map[string]interface{}
+	var contents map[string]any
 	if err := yaml.Unmarshal(fileBytes, &contents); err != nil {
 		return false
 	}

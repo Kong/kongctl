@@ -24,8 +24,8 @@ func TestNormalizeLabels(t *testing.T) {
 		{
 			name: "map with values",
 			input: map[string]*string{
-				"env":  ptr("production"),
-				"team": ptr("platform"),
+				"env":  new("production"),
+				"team": new("platform"),
 			},
 			expected: map[string]string{
 				"env":  "production",
@@ -35,9 +35,9 @@ func TestNormalizeLabels(t *testing.T) {
 		{
 			name: "map with nil values",
 			input: map[string]*string{
-				"env":  ptr("production"),
+				"env":  new("production"),
 				"team": nil,
-				"app":  ptr("api"),
+				"app":  new("api"),
 			},
 			expected: map[string]string{
 				"env": "production",
@@ -371,12 +371,6 @@ func TestValidateLabel(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Helper functions
-
-func ptr(s string) *string {
-	return &s
 }
 
 func mapsEqual(a, b map[string]string) bool {

@@ -987,7 +987,7 @@ func TestGeneratePlan_ProtectedResourceFailsUpdate(t *testing.T) {
 						labels.ProtectedKey: protectedStr,
 					})
 					p.DisplayName = "Protected Portal"
-					p.Description = ptrString("Old description")
+					p.Description = new("Old description")
 					return p
 				}(),
 			},
@@ -1349,9 +1349,4 @@ func TestGeneratePlan_SyncDeletesRespectAuthStrategyDependencies(t *testing.T) {
 	mockPortalAPI.AssertExpectations(t)
 	mockAPIAPI.AssertExpectations(t)
 	mockAppAuthAPI.AssertExpectations(t)
-}
-
-// Test helpers
-func ptrString(s string) *string {
-	return &s
 }

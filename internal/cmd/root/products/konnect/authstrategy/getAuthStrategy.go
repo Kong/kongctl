@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
+	// kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/charmbracelet/bubbles/table"
@@ -238,15 +238,15 @@ func runListByName(name string, strategyType string, kkClient helpers.AppAuthStr
 
 	for {
 		req := kkOps.ListAppAuthStrategiesRequest{
-			PageSize:   kk.Int64(requestPageSize),
-			PageNumber: kk.Int64(pageNumber),
+			PageSize:   new(requestPageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		// Apply type filter if specified
 		if strategyType != "" {
 			req.Filter = &kkOps.QueryParamFilter{
 				StrategyType: &kkComps.StringFieldFilter{
-					Eq: kk.String(strategyType),
+					Eq: new(strategyType),
 				},
 			}
 		}
@@ -288,15 +288,15 @@ func runList(strategyType string, kkClient helpers.AppAuthStrategiesAPI, helper 
 
 	for {
 		req := kkOps.ListAppAuthStrategiesRequest{
-			PageSize:   kk.Int64(requestPageSize),
-			PageNumber: kk.Int64(pageNumber),
+			PageSize:   new(requestPageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		// Apply type filter if specified
 		if strategyType != "" {
 			req.Filter = &kkOps.QueryParamFilter{
 				StrategyType: &kkComps.StringFieldFilter{
-					Eq: kk.String(strategyType),
+					Eq: new(strategyType),
 				},
 			}
 		}

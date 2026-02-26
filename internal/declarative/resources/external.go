@@ -64,7 +64,7 @@ func (s *ExternalSelector) Match(konnectResource any) bool {
 	}
 
 	v := reflect.ValueOf(konnectResource)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 

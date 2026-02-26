@@ -16,7 +16,7 @@ with the kongctl codebase.
 **kongctl** is a command-line interface (CLI) tool for operating Kong Konnect
 and (eventually) Kong Gateway on-prem. The tool is currently in beta.
 
-- **Language**: Go 1.23+
+- **Language**: Go 1.26
 - **CLI Framework**: Cobra for command-line processing
 - **Configuration**: Viper for profile-based configuration management
 - **Project Size**: Medium (~14 internal packages, comprehensive test suite)
@@ -91,11 +91,12 @@ make coverage
 
 All code changes must pass these gates in order:
 
-1. **Format check**: `make format` (must produce no changes)
-2. **Build check**: `make build` (must succeed)
-3. **Lint check**: `make lint` (zero issues)
-4. **Unit tests**: `make test` (all pass)
-5. **Integration tests**: `make test-integration` (when applicable)
+1. **Modernize**: `go fix ./...` (apply Go 1.26 modernizations; no regressions)
+2. **Format check**: `make format` (must produce no changes)
+3. **Build check**: `make build` (must succeed)
+4. **Lint check**: `make lint` (zero issues)
+5. **Unit tests**: `make test` (all pass)
+6. **Integration tests**: `make test-integration` (when applicable)
 
 ### Common Build Issues and Solutions
 
@@ -249,6 +250,35 @@ func outputResult(data interface{}, format string) error {
     }
 }
 ```
+
+## Go 1.26 Modernization Standards
+
+The codebase has been fully modernized to Go 1.26 idioms using `go fix`. All
+new code must conform to these standards, and `go fix ./...` should be run
+after making changes to catch regressions.
+
+**Required idioms (enforced by linters and `go fix`):**
+
+- Use `any` instead of `interface{}`
+- Use range-over-integer: `for i := range n` not `for i := 0; i < n; i++`
+- Use `slices` package: `slices.Contains`, `slices.Sort`, etc. instead of
+  manual loops or `sort.Slice`
+- Use `maps` package: `maps.Keys`, `maps.Values`, etc. instead of explicit
+  iteration loops that build slices
+- No redundant loop variable copies: `x := x` inside a loop body is dead code
+  in Go 1.22+ and must not be written
+- Use `strings.Builder` with `fmt.Fprintf(&b, ...)` not
+  `b.WriteString(fmt.Sprintf(...))`
+- Use `fmt.Appendf` over `[]byte(fmt.Sprintf(...))`
+- Use `min`/`max` builtins instead of if/else comparisons
+- Use `strings.Cut` over `strings.Index`/`strings.Split` for splitting on a
+  delimiter
+- Use `t.Context()` in tests instead of `context.WithCancel`
+
+**Available modernizers** (run via `go fix ./...`):
+`any`, `forvar`, `fmtappendf`, `inline`, `mapsloop`, `minmax`, `rangeint`,
+`slicescontains`, `slicessort`, `stringsbuilder`, `stringscut`, `stringsseq`,
+`testingcontext`, `waitgroup`
 
 ## Coding Style & Naming Conventions
 

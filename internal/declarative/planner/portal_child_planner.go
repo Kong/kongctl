@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -1663,9 +1664,7 @@ func (p *Planner) planPortalEmailTemplateUpdate(
 	fields := map[string]any{
 		"name": tpl.Name,
 	}
-	for k, v := range updateFields {
-		fields[k] = v
-	}
+	maps.Copy(fields, updateFields)
 
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionUpdate, ResourceTypePortalEmailTemplate, tpl.Ref),
@@ -2298,9 +2297,7 @@ func (p *Planner) planPortalPageUpdate(
 	fields["slug"] = current.Slug
 
 	// Add fields that need updating
-	for field, value := range updateFields {
-		fields[field] = value
-	}
+	maps.Copy(fields, updateFields)
 
 	// Determine dependencies - depends on parent portal
 	var dependencies []string
@@ -2627,9 +2624,7 @@ func (p *Planner) planPortalSnippetUpdate(
 	fields["name"] = current.Name
 
 	// Add fields that need updating
-	for field, value := range updateFields {
-		fields[field] = value
-	}
+	maps.Copy(fields, updateFields)
 
 	// Determine dependencies - depends on parent portal
 	var dependencies []string
@@ -2885,9 +2880,7 @@ func (p *Planner) planPortalTeamUpdate(
 	plan *Plan,
 ) {
 	fields := make(map[string]any)
-	for field, value := range updateFields {
-		fields[field] = value
-	}
+	maps.Copy(fields, updateFields)
 
 	// Determine dependencies - depends on parent portal
 	var dependencies []string

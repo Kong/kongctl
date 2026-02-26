@@ -15,9 +15,9 @@ func GetAllGatewayPlugins(ctx context.Context, requestPageSize int64, cpID strin
 	offset := ""
 	for {
 		req := kkOps.ListPluginRequest{
-			Size:           kk.Int64(requestPageSize),
+			Size:           new(requestPageSize),
 			ControlPlaneID: cpID,
-			Offset:         kk.String(offset),
+			Offset:         new(offset),
 		}
 
 		res, err := kkClient.Plugins.ListPlugin(ctx, req)
@@ -55,10 +55,10 @@ func GetAllGatewayServicePlugins(
 		req := kkOps.ListPluginWithServiceRequest{
 			ControlPlaneID: cpID,
 			ServiceID:      serviceID,
-			Size:           kk.Int64(requestPageSize),
+			Size:           new(requestPageSize),
 		}
 		if offset != "" {
-			req.Offset = kk.String(offset)
+			req.Offset = new(offset)
 		}
 
 		res, err := kkClient.Plugins.ListPluginWithService(ctx, req)
@@ -96,10 +96,10 @@ func GetAllGatewayRoutePlugins(
 		req := kkOps.ListPluginWithRouteRequest{
 			ControlPlaneID: cpID,
 			RouteID:        routeID,
-			Size:           kk.Int64(requestPageSize),
+			Size:           new(requestPageSize),
 		}
 		if offset != "" {
-			req.Offset = kk.String(offset)
+			req.Offset = new(offset)
 		}
 
 		res, err := kkClient.Plugins.ListPluginWithRoute(ctx, req)
@@ -137,10 +137,10 @@ func GetAllGatewayConsumerPlugins(
 		req := kkOps.ListPluginWithConsumerRequest{
 			ControlPlaneID:              cpID,
 			ConsumerIDForNestedEntities: consumerID,
-			Size:                        kk.Int64(requestPageSize),
+			Size:                        new(requestPageSize),
 		}
 		if offset != "" {
-			req.Offset = kk.String(offset)
+			req.Offset = new(offset)
 		}
 
 		res, err := kkClient.Plugins.ListPluginWithConsumer(ctx, req)
@@ -178,10 +178,10 @@ func GetAllGatewayConsumerGroupPlugins(
 		req := kkOps.ListPluginWithConsumerGroupRequest{
 			ControlPlaneID:  cpID,
 			ConsumerGroupID: groupID,
-			Size:            kk.Int64(requestPageSize),
+			Size:            new(requestPageSize),
 		}
 		if offset != "" {
-			req.Offset = kk.String(offset)
+			req.Offset = new(offset)
 		}
 
 		res, err := kkClient.Plugins.ListPluginWithConsumerGroup(ctx, req)

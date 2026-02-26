@@ -23,8 +23,8 @@ func ExtractPageAfterCursor(next *string) string {
 		}
 	}
 
-	if idx := strings.Index(value, "page[after]="); idx >= 0 {
-		cursor := value[idx+len("page[after]="):]
+	if _, after, ok := strings.Cut(value, "page[after]="); ok {
+		cursor := after
 		if end := strings.Index(cursor, "&"); end >= 0 {
 			cursor = cursor[:end]
 		}

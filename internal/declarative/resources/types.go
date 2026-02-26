@@ -1,5 +1,7 @@
 package resources
 
+import "slices"
+
 // ResourceType represents the type of a declarative resource
 type ResourceType string
 
@@ -555,10 +557,8 @@ func (rs *ResourceSet) AddDefaultNamespace(namespace string) {
 	if rs.DefaultNamespace == "" {
 		rs.DefaultNamespace = namespace
 	}
-	for _, ns := range rs.DefaultNamespaces {
-		if ns == namespace {
-			return
-		}
+	if slices.Contains(rs.DefaultNamespaces, namespace) {
+		return
 	}
 	rs.DefaultNamespaces = append(rs.DefaultNamespaces, namespace)
 }

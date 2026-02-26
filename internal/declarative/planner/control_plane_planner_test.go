@@ -35,12 +35,12 @@ func TestControlPlanePlanner_PlanCreate(t *testing.T) {
 			{
 				CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
 					Name:        "cp-create",
-					Description: strPtr("Control Plane"),
+					Description: new("Control Plane"),
 				},
 				BaseResource: resources.BaseResource{
 					Ref: "cp-create",
 					Kongctl: &resources.KongctlMeta{
-						Namespace: strPtr("default"),
+						Namespace: new("default"),
 					}},
 			},
 		},
@@ -84,7 +84,7 @@ func TestControlPlanePlanner_PlanCreateGroupWithMembers(t *testing.T) {
 				},
 				BaseResource: resources.BaseResource{
 					Ref:     "child-cp",
-					Kongctl: &resources.KongctlMeta{Namespace: strPtr("default")},
+					Kongctl: &resources.KongctlMeta{Namespace: new("default")},
 				},
 			},
 			{
@@ -94,7 +94,7 @@ func TestControlPlanePlanner_PlanCreateGroupWithMembers(t *testing.T) {
 				},
 				BaseResource: resources.BaseResource{
 					Ref:     "group-cp",
-					Kongctl: &resources.KongctlMeta{Namespace: strPtr("default")},
+					Kongctl: &resources.KongctlMeta{Namespace: new("default")},
 				},
 				Members: []resources.ControlPlaneGroupMember{
 					{ID: "__REF__:child-cp#id"},
@@ -136,7 +136,7 @@ func TestControlPlanePlanner_PlanUpdate(t *testing.T) {
 	current := kkComps.ControlPlane{
 		ID:          "cp-1",
 		Name:        "cp-update",
-		Description: strPtr("old"),
+		Description: new("old"),
 		Labels: map[string]string{
 			labels.NamespaceKey: "default",
 		},
@@ -164,13 +164,13 @@ func TestControlPlanePlanner_PlanUpdate(t *testing.T) {
 			{
 				CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{
 					Name:        "cp-update",
-					Description: strPtr("new"),
+					Description: new("new"),
 					ProxyUrls:   []kkComps.ProxyURL{{Host: "example.com", Port: 8443, Protocol: "https"}},
 				},
 				BaseResource: resources.BaseResource{
 					Ref: "cp-update",
 					Kongctl: &resources.KongctlMeta{
-						Namespace: strPtr("default"),
+						Namespace: new("default"),
 					}},
 			},
 		},
@@ -257,7 +257,7 @@ func TestControlPlanePlanner_PlanUpdateGroupMembers(t *testing.T) {
 				},
 				BaseResource: resources.BaseResource{
 					Ref:     "child-cp",
-					Kongctl: &resources.KongctlMeta{Namespace: strPtr("default")},
+					Kongctl: &resources.KongctlMeta{Namespace: new("default")},
 				},
 			},
 			{
@@ -267,7 +267,7 @@ func TestControlPlanePlanner_PlanUpdateGroupMembers(t *testing.T) {
 				},
 				BaseResource: resources.BaseResource{
 					Ref:     "group-cp",
-					Kongctl: &resources.KongctlMeta{Namespace: strPtr("default")},
+					Kongctl: &resources.KongctlMeta{Namespace: new("default")},
 				},
 				Members: []resources.ControlPlaneGroupMember{
 					{ID: "__REF__:child-cp#id"},
@@ -368,8 +368,8 @@ func TestControlPlanePlanner_ProtectionChange(t *testing.T) {
 				BaseResource: resources.BaseResource{
 					Ref: "cp-protect",
 					Kongctl: &resources.KongctlMeta{
-						Namespace: strPtr("default"),
-						Protected: boolPtr(true),
+						Namespace: new("default"),
+						Protected: new(true),
 					}},
 			},
 		},
@@ -401,12 +401,4 @@ func newListControlPlaneResponse(data []kkComps.ControlPlane, total float64) *kk
 			},
 		},
 	}
-}
-
-func strPtr(s string) *string {
-	return &s
-}
-
-func boolPtr(b bool) *bool {
-	return &b
 }

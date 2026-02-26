@@ -15,9 +15,9 @@ func GetAllGatewayConsumerGroups(ctx context.Context, requestPageSize int64, cpI
 	offset := ""
 	for {
 		req := kkOps.ListConsumerGroupRequest{
-			Size:           kk.Int64(requestPageSize),
+			Size:           new(requestPageSize),
 			ControlPlaneID: cpID,
-			Offset:         kk.String(offset),
+			Offset:         new(offset),
 		}
 
 		res, err := kkClient.ConsumerGroups.ListConsumerGroup(ctx, req)
@@ -55,10 +55,10 @@ func GetAllGatewayConsumerGroupConsumers(
 		req := kkOps.ListConsumersForConsumerGroupRequest{
 			ControlPlaneID:  cpID,
 			ConsumerGroupID: groupID,
-			Size:            kk.Int64(requestPageSize),
+			Size:            new(requestPageSize),
 		}
 		if offset != "" {
-			req.Offset = kk.String(offset)
+			req.Offset = new(offset)
 		}
 
 		res, err := kkClient.ConsumerGroups.ListConsumersForConsumerGroup(ctx, req)

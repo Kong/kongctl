@@ -77,8 +77,8 @@ func GetAllPortals(ctx context.Context, requestPageSize int64, kkClient *kkSDK.S
 	var pageNumber int64 = 1
 	for {
 		req := kkOps.ListPortalsRequest{
-			PageSize:   kkSDK.Int64(requestPageSize),
-			PageNumber: kkSDK.Int64(pageNumber),
+			PageSize:   new(requestPageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		res, err := kkClient.Portals.ListPortals(ctx, req)
@@ -111,8 +111,10 @@ type SnippetInfo struct {
 }
 
 // Int64 is a helper to convert int64 to *int64
+//
+//go:fix inline
 func Int64(v int64) *int64 {
-	return &v
+	return new(v)
 }
 
 // GetPagesForPortal returns a list of pages for a portal with pagination

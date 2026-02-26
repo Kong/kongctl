@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
+	// kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/charmbracelet/bubbles/table"
@@ -188,11 +188,11 @@ func runListByName(name string, kkClient helpers.ControlPlaneAPI, helper cmd.Hel
 
 	for {
 		req := kkOps.ListControlPlanesRequest{
-			PageSize:   kk.Int64(requestPageSize),
-			PageNumber: kk.Int64(pageNumber),
+			PageSize:   new(requestPageSize),
+			PageNumber: new(pageNumber),
 			Filter: &kkComps.ControlPlaneFilterParameters{
 				Name: &kkComps.ControlPlaneFilterParametersName{
-					Eq: kk.String(name),
+					Eq: new(name),
 				},
 			},
 		}
@@ -231,8 +231,8 @@ func runList(kkClient helpers.ControlPlaneAPI, helper cmd.Helper,
 
 	for {
 		req := kkOps.ListControlPlanesRequest{
-			PageSize:   kk.Int64(requestPageSize),
-			PageNumber: kk.Int64(pageNumber),
+			PageSize:   new(requestPageSize),
+			PageNumber: new(pageNumber),
 		}
 
 		res, err := kkClient.ListControlPlanes(helper.GetContext(), req)

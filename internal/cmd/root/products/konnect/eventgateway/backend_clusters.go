@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	kk "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/charmbracelet/bubbles/table"
@@ -361,7 +360,7 @@ func fetchBackendClusters(
 	for {
 		req := kkOps.ListEventGatewayBackendClustersRequest{
 			GatewayID: gatewayID,
-			PageSize:  kk.Int64(requestPageSize),
+			PageSize:  new(requestPageSize),
 		}
 
 		if pageAfter != nil {
@@ -395,7 +394,7 @@ func fetchBackendClusters(
 		}
 
 		values := u.Query()
-		pageAfter = kk.String(values.Get("page[after]"))
+		pageAfter = new(values.Get("page[after]"))
 	}
 
 	return allData, nil

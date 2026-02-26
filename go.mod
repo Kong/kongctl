@@ -1,6 +1,6 @@
 module github.com/kong/kongctl
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/Kong/sdk-konnect-go v0.19.0

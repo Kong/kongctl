@@ -83,10 +83,7 @@ func ProcessInBatches[T any](items []T, batchSize int, processor BatchProcessor[
 	}
 
 	for i := 0; i < len(items); i += batchSize {
-		end := i + batchSize
-		if end > len(items) {
-			end = len(items)
-		}
+		end := min(i+batchSize, len(items))
 
 		batch := items[i:end]
 		if err := processor(batch); err != nil {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	kkSDK "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
+	// kk = Kong Konnect
 	kkCOM "github.com/Kong/sdk-konnect-go/models/components"
 	kkOPS "github.com/Kong/sdk-konnect-go/models/operations"
 )
@@ -26,11 +26,11 @@ func GetControlPlaneID(ctx context.Context, kkClient ControlPlaneAPI, cpName str
 	var pageNumber, requestPageSize int64 = 1, 1
 
 	req := kkOPS.ListControlPlanesRequest{
-		PageSize:   kkSDK.Int64(requestPageSize),
-		PageNumber: kkSDK.Int64(pageNumber),
+		PageSize:   new(requestPageSize),
+		PageNumber: new(pageNumber),
 		Filter: &kkCOM.ControlPlaneFilterParameters{
 			Name: &kkCOM.ControlPlaneFilterParametersName{
-				Eq: kkSDK.String(cpName),
+				Eq: new(cpName),
 			},
 		},
 	}

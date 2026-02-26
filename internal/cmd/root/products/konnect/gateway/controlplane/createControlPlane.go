@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
+	// kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -179,10 +179,10 @@ func (c *createControlPlaneCmd) run(helper cmd.Helper) error {
 
 	req := kkComps.CreateControlPlaneRequest{
 		Name:         name,
-		Description:  kk.String(cfg.GetString(createCpDescriptionConfigPath)),
+		Description:  new(cfg.GetString(createCpDescriptionConfigPath)),
 		ClusterType:  kkComps.CreateControlPlaneRequestClusterType(ct).ToPointer(),
 		AuthType:     at.ToPointer(),
-		CloudGateway: kk.Bool(isCGW),
+		CloudGateway: new(isCGW),
 		ProxyUrls:    proxyUrls,
 		Labels:       labels,
 	}
