@@ -50,7 +50,7 @@ dockers_v2:
       - v{{ .Version }}
       - '{{ .Version }}'
       - '{{ .Major }}.{{ .Minor }}'
-      - latest
+      - '{{ if not .Prerelease }}latest{{ end }}'
     platforms:
       - linux/amd64
       - linux/arm64
