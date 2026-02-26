@@ -4,7 +4,6 @@ test-all: lint test test-integration
 VERSION ?= $(shell (git describe --tags --exact-match 2>/dev/null || echo dev) | sed 's/^v//')
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
-GO_VERSION ?= $(shell cat .go-version 2>/dev/null | tr -d '[:space:]')
 LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(GIT_COMMIT) -X main.date=$(BUILD_DATE)
 LATEST_E2E_LINK ?= .latest-e2e
 
@@ -31,13 +30,11 @@ buld: build
 
 .PHONY: build-docker
 build-docker:
-	docker build \
-	  --build-arg GO_VERSION=$(GO_VERSION) \
-	  --build-arg TAG=$(VERSION) \
-	  --build-arg COMMIT=$(GIT_COMMIT) \
-	  --build-arg BUILD_DATE=$(BUILD_DATE) \
-	  -t kongctl:$(VERSION) \
-	  .
+	@set -euo pipefail; \
+	mkdir -p linux/amd64; \
+	trap 'rm -f linux/amd64/kongctl' 0; \
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$(LDFLAGS)" -o linux/amd64/kongctl .; \
+	docker buildx build --platform linux/amd64 --load -t kongctl:$(VERSION) .
 
 .PHONY: coverage
 coverage:
