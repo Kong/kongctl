@@ -22,7 +22,7 @@ jobs:
 
       - name: Docker metadata (GHCR)
         id: meta-ghcr
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: ghcr.io/kong/kongctl
           tags: |
@@ -34,7 +34,7 @@ jobs:
       - name: Docker metadata (Docker Hub)
         id: meta-dockerhub
         if: ${{ secrets.DOCKER_USERNAME != '' }}
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
         with:
           images: kong/kongctl
           tags: |
