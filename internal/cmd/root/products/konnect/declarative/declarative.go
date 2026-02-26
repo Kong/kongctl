@@ -629,6 +629,24 @@ func resolvePlanBaseDir(planFile string) string {
 	return abs
 }
 
+// checkStdinApprovalConflict returns an error if stdin is being used as input
+// while interactive confirmation is required (no auto-approve or dry-run).
+// planFile is the --plan flag value; filenames are the --filename flag values.
+func checkStdinApprovalConflict(planFile string, filenames []string) error {
+	usingStdin := planFile == "-" || (planFile == "" && slices.Contains(filenames, "-"))
+	if !usingStdin {
+		return nil
+	}
+	tty, err := os.Open("/dev/tty")
+	if err != nil {
+		return fmt.Errorf("cannot use stdin for input without --auto-approve flag " +
+			"(no terminal available for interactive confirmation). " +
+			"Use --auto-approve to skip confirmation when piping commands")
+	}
+	defer tty.Close()
+	return nil
+}
+
 func runDiff(command *cobra.Command, args []string) error {
 	// Silence usage for all runtime errors (command syntax is already valid at this point)
 	command.SilenceUsage = true
@@ -1081,31 +1099,12 @@ func runApply(command *cobra.Command, args []string) error {
 			"(interactive confirmation not available with structured output)", outputFormat)
 	}
 
-	// Early check for stdin usage without auto-approve
-	// Only fail if we can't access /dev/tty for interactive input
 	var usingStdinForInput bool
 	if !dryRun && !autoApprove {
-		// Check if stdin will be used for plan or configuration
-		switch planFile {
-		case "-":
-			usingStdinForInput = true
-		case "":
-			// Check if stdin will be used for configuration
-			if slices.Contains(filenames, "-") {
-				usingStdinForInput = true
-			}
+		if err := checkStdinApprovalConflict(planFile, filenames); err != nil {
+			return err
 		}
-
-		// If using stdin, ensure we can get interactive input via /dev/tty
-		if usingStdinForInput {
-			tty, err := os.Open("/dev/tty")
-			if err != nil {
-				return fmt.Errorf("cannot use stdin for input without --auto-approve flag " +
-					"(no terminal available for interactive confirmation). " +
-					"Use --auto-approve to skip confirmation when piping commands")
-			}
-			tty.Close()
-		}
+		usingStdinForInput = planFile == "-" || (planFile == "" && slices.Contains(filenames, "-"))
 	}
 
 	// Build helper
@@ -1575,27 +1574,12 @@ func runDelete(command *cobra.Command, args []string) error {
 			"(interactive confirmation not available with structured output)", outputFormat)
 	}
 
-	// Early check for stdin usage without auto-approve
 	var usingStdinForInput bool
 	if !dryRun && !autoApprove {
-		switch planFile {
-		case "-":
-			usingStdinForInput = true
-		case "":
-			if slices.Contains(filenames, "-") {
-				usingStdinForInput = true
-			}
+		if err := checkStdinApprovalConflict(planFile, filenames); err != nil {
+			return err
 		}
-
-		if usingStdinForInput {
-			tty, err := os.Open("/dev/tty")
-			if err != nil {
-				return fmt.Errorf("cannot use stdin for input without --auto-approve flag " +
-					"(no terminal available for interactive confirmation). " +
-					"Use --auto-approve to skip confirmation when piping commands")
-			}
-			tty.Close()
-		}
+		usingStdinForInput = planFile == "-" || (planFile == "" && slices.Contains(filenames, "-"))
 	}
 
 	// Build helper
@@ -1815,31 +1799,12 @@ func runSync(command *cobra.Command, args []string) error {
 			"(interactive confirmation not available with structured output)", outputFormat)
 	}
 
-	// Early check for stdin usage without auto-approve
-	// Only fail if we can't access /dev/tty for interactive input
 	var usingStdinForInput bool
 	if !dryRun && !autoApprove {
-		// Check if stdin will be used for plan or configuration
-		switch planFile {
-		case "-":
-			usingStdinForInput = true
-		case "":
-			// Check if stdin will be used for configuration
-			if slices.Contains(filenames, "-") {
-				usingStdinForInput = true
-			}
+		if err := checkStdinApprovalConflict(planFile, filenames); err != nil {
+			return err
 		}
-
-		// If using stdin, ensure we can get interactive input via /dev/tty
-		if usingStdinForInput {
-			tty, err := os.Open("/dev/tty")
-			if err != nil {
-				return fmt.Errorf("cannot use stdin for input without --auto-approve flag " +
-					"(no terminal available for interactive confirmation). " +
-					"Use --auto-approve to skip confirmation when piping commands")
-			}
-			tty.Close()
-		}
+		usingStdinForInput = planFile == "-" || (planFile == "" && slices.Contains(filenames, "-"))
 	}
 
 	// Build helper
