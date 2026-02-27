@@ -30,8 +30,29 @@ Use YAML tags in field values to load files or reference other resources.
 - `!ref`: Reference another declarative resource by `ref`.
   `resource-ref#field` is supported; the default field is `id`.
 - `!ref` is intended for string fields.
+- `string (uuid)` and `array[string(uuid)]` annotations in this document
+  describe API value types. In declarative config, prefer `!ref` and avoid
+  literal UUID values.
+- For unmanaged/external resources, prefer `_external.selector` and then
+  reference that resource by `!ref` from other fields.
+- Large text/spec fields are commonly loaded with `!file`.
 - `!file` paths are resolved relative to the config file and must remain
   within the configured base directory boundary.
+
+```yaml
+portals:
+  - ref: docs-portal
+    _external:
+      selector:
+        matchFields:
+          name: "Docs Portal"
+
+apis:
+  - ref: billing-api
+    publications:
+      - ref: billing-publication
+        portal_id: !ref docs-portal
+```
 
 ## APIs
 
@@ -50,35 +71,35 @@ apis:
    attributes: object [string]array[string]
      key:
        - value
-   spec_content: string (OpenAPI or AsyncAPI content; json or yaml)
+   spec_content: string (OpenAPI or AsyncAPI content; json or yaml) # declarative: often !file ./specs/api.yaml
    versions: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api-version
      - ref: string
        version: string
        spec: object required
-         content: string required (OpenAPI or AsyncAPI content; json or yaml)
+         content: string required (OpenAPI or AsyncAPI content; json or yaml) # declarative: often !file ./specs/api.yaml
    publications: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/publish-api-to-portal
      - ref: string
-       portal_id: string required (uuid)
+       portal_id: string required (uuid) # prefer: !ref <portal-ref>
        auto_approve_registrations: boolean
-       auth_strategy_ids: array[string(uuid)] (nullable, max 1 item)
+       auth_strategy_ids: array[string(uuid)] (nullable, max 1 item) # prefer: !ref values
        visibility: One of (public | private)
    implementations: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api-implementation
      - ref: string
        service: # oneOf variant
-         id: string required (uuid)
-         control_plane_id: string required (uuid)
+         id: string required (uuid) # prefer: !ref <gateway-service-ref>
+         control_plane_id: string required (uuid) # prefer: !ref <control-plane-ref>
        control_plane: # oneOf variant
-         control_plane_id: string required (uuid)
+         control_plane_id: string required (uuid) # prefer: !ref <control-plane-ref>
    documents: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api-document
      - ref: string
-       content: string required (markdown)
+       content: string required (markdown) # declarative: often !file ./docs/page.md
        title: string
        slug: string (pattern: ^[\w-]+$)
        status: One of (published | unpublished)
-       parent_document_id: string (uuid, nullable)
+       parent_document_id: string (uuid, nullable) # prefer: !ref <document-ref>
        children:
          - ref: string
-           content: string required (markdown)
+           content: string required (markdown) # declarative: often !file ./docs/page.md
            title: string
            slug: string (pattern: ^[\w-]+$)
            status: One of (published | unpublished)
@@ -204,7 +225,7 @@ event_gateways:
        name: string required (1-255 chars)
        description: string (max 512 chars)
        destination: object required
-         id: string (uuid) # oneOf
+         id: string (uuid) # oneOf; declarative: prefer !ref <backend-cluster-ref>
          name: string # oneOf
        authentication: array[object] required (min 1 item)
          - type: One of (anonymous | sasl_plain | sasl_scram | oauth_bearer) required
@@ -254,7 +275,7 @@ event_gateways:
              broker_host_format:
                type: One of (per_cluster_suffix | shared_suffix) # if config.type=sni
              destination:
-               id: string (uuid) # if config.type=port_mapping; oneOf
+               id: string (uuid) # if config.type=port_mapping; oneOf; declarative: prefer !ref <virtual-cluster-ref>
                name: string # if config.type=port_mapping; oneOf
              advertised_host: string # if config.type=port_mapping
              bootstrap_port: One of (none | at_start) # if config.type=port_mapping
@@ -290,7 +311,7 @@ portals:
    rbac_enabled: boolean (default: false)
    default_api_visibility: One of (public | private)
    default_page_visibility: One of (public | private)
-   default_application_auth_strategy_id: string (uuid, nullable)
+   default_application_auth_strategy_id: string (uuid, nullable) # prefer: !ref <app-auth-strategy-ref>
    auto_approve_developers: boolean (default: false)
    auto_approve_applications: boolean (default: false)
    labels: object [string]string
@@ -345,25 +366,25 @@ portals:
    pages: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/create-portal-page
      - ref: string
        slug: string required (max 512 chars)
-       content: string required (markdown)
+       content: string required (markdown) # declarative: often !file ./docs/page.md
        title: string (max 512 chars)
        visibility: One of (public | private)
        status: One of (published | unpublished)
        description: string (max 160 chars)
-       parent_page_id: string (uuid, nullable)
+       parent_page_id: string (uuid, nullable) # prefer: !ref <page-ref>
        children:
          - ref: string
            slug: string required (max 512 chars)
-           content: string required (markdown)
+           content: string required (markdown) # declarative: often !file ./docs/page.md
            title: string (max 512 chars)
            visibility: One of (public | private)
            status: One of (published | unpublished)
            description: string (max 160 chars)
-           parent_page_id: string (uuid, nullable)
+           parent_page_id: string (uuid, nullable) # prefer: !ref <page-ref>
    snippets: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/create-portal-snippet
      - ref: string
        name: string required (max 512 chars)
-       content: string required (markdown)
+       content: string required (markdown) # declarative: often !file ./docs/snippet.md
        title: string (max 512 chars)
        visibility: One of (public | private)
        status: One of (published | unpublished)
