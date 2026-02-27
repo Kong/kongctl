@@ -2,6 +2,8 @@
 
 This page covers what you need to know for managing Kong Konnect
 resources using the `kongctl` declarative configuration approach.
+For field-level resource definitions, see the
+[Declarative Resource Reference](declarative-resource-reference.md).
 
 ## Table of Contents
 
