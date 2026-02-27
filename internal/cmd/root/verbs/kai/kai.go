@@ -564,7 +564,7 @@ func deleteSession(ctx context.Context, baseURL, token, sessionID string) error 
 		return err
 	}
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	req.Header.Set("User-Agent", meta.CLIName)
+	req.Header.Set("User-Agent", meta.UserAgent())
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/kong/kongctl/internal/meta"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -84,5 +86,32 @@ func TestRequestError(t *testing.T) {
 	_, err := Request(context.Background(), client, http.MethodGet, "https://example.com", "/foo", "tok", nil, nil)
 	if err == nil || !strings.Contains(err.Error(), "boom") {
 		t.Fatalf("expected error containing 'boom', got %v", err)
+	}
+}
+
+func TestRequestSetsUserAgentHeader(t *testing.T) {
+	original := meta.CLIVersion()
+	t.Cleanup(func() {
+		meta.SetCLIVersion(original)
+	})
+	meta.SetCLIVersion("v0.5.0")
+
+	var gotUserAgent string
+	client := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		gotUserAgent = req.Header.Get("User-Agent")
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader(`{"ok":true}`)),
+		}, nil
+	})
+
+	_, err := Request(context.Background(), client, http.MethodGet, "https://example.com", "/v1/test", "", nil, nil)
+	if err != nil {
+		t.Fatalf("Request() error = %v", err)
+	}
+
+	if gotUserAgent != "kongctl/v0.5.0" {
+		t.Fatalf("User-Agent = %q, want %q", gotUserAgent, "kongctl/v0.5.0")
 	}
 }

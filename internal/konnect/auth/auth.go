@@ -21,9 +21,11 @@ import (
 
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkMetadata "github.com/Kong/sdk-konnect-go/pkg/metadata"
 
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
+	"github.com/kong/kongctl/internal/meta"
 )
 
 var (
@@ -125,6 +127,7 @@ func RequestDeviceCode(httpClient *http.Client,
 	if err != nil {
 		return DeviceCodeResponse{}, err
 	}
+	req.Header.Set("User-Agent", meta.UserAgent())
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -170,7 +173,14 @@ func RefreshAccessToken(refreshURL string, refreshToken string, logger *slog.Log
 		Jar: jar,
 	}
 
-	res, err := httpClient.Post(refreshURL, "application/json", nil)
+	req, err := http.NewRequest(http.MethodPost, refreshURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", meta.UserAgent())
+
+	res, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -235,6 +245,7 @@ func PollForToken(ctx context.Context, httpClient *http.Client,
 	if err != nil {
 		return nil, err
 	}
+	request.Header.Set("User-Agent", meta.UserAgent())
 
 	response, err := httpClient.Do(request)
 	if err != nil {
@@ -369,6 +380,8 @@ func saveAccessTokenToDisk(path string, token *AccessToken) error {
 }
 
 func GetAuthenticatedClient(baseURL string, token string, logger *slog.Logger) (*kk.SDK, error) {
+	kkMetadata.SetUserAgent(meta.UserAgent())
+
 	opts := []kk.SDKOption{
 		kk.WithServerURL(baseURL),
 		kk.WithSecurity(kkComps.Security{

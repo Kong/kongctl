@@ -76,7 +76,7 @@ func ListActiveTasks(
 	}
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	req.Header.Set("User-Agent", meta.CLIName)
+	req.Header.Set("User-Agent", meta.UserAgent())
 
 	logDebug(ctx, "kai list active tasks request",
 		slog.String("endpoint", endpoint),
@@ -183,7 +183,7 @@ func UpdateTask(
 	}
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", meta.CLIName)
+	req.Header.Set("User-Agent", meta.UserAgent())
 
 	logDebug(ctx, "kai update task request",
 		slog.String("endpoint", endpoint),
@@ -253,7 +253,7 @@ func StreamTaskStatus(
 	}
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	req.Header.Set("Accept", "text/event-stream")
-	req.Header.Set("User-Agent", meta.CLIName)
+	req.Header.Set("User-Agent", meta.UserAgent())
 
 	logDebug(ctx, "kai task status stream request",
 		slog.String("endpoint", endpoint),
@@ -392,7 +392,7 @@ func AnalyzeTaskStream(
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
-	req.Header.Set("User-Agent", meta.CLIName)
+	req.Header.Set("User-Agent", meta.UserAgent())
 
 	logDebug(ctx, "kai analyze task request",
 		slog.String("endpoint", endpoint),
