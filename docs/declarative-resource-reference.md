@@ -21,6 +21,18 @@ _defaults:
     protected: false
 ```
 
+## YAML Tags
+
+Use YAML tags in field values to load files or reference other resources.
+
+- `!file`: Load content from a file. Supports `path#extract.path` and
+  `path`/`extract` map form.
+- `!ref`: Reference another declarative resource by `ref`.
+  `resource-ref#field` is supported; the default field is `id`.
+- `!ref` is intended for string fields.
+- `!file` paths are resolved relative to the config file and must remain
+  within the configured base directory boundary.
+
 ## APIs
 
 [API Specification](https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api)
