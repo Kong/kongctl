@@ -197,10 +197,13 @@ jobs:
           persist-credentials: true
 
       - name: Export release variables
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         run: |
           set -euo pipefail
           echo "RELEASE_TAG=${{ needs.config.outputs.release_tag }}" >> "$GITHUB_ENV"
           echo "RELEASE_VERSION=${{ needs.config.outputs.release_version }}" >> "$GITHUB_ENV"
+          echo "DOCKER_USERNAME=${DOCKER_USERNAME}" >> "$GITHUB_ENV"
 
       - name: Determine build mode
         env:
@@ -276,7 +279,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Login to Docker Hub (full mode)
-        if: env.RELEASE_BUILD_MODE == 'full' && secrets.DOCKER_USERNAME != ''
+        if: env.RELEASE_BUILD_MODE == 'full' && env.DOCKER_USERNAME != ''
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
