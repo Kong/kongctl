@@ -1,7 +1,6 @@
 package meta
 
 import (
-	"fmt"
 	"strings"
 	"sync"
 )
@@ -37,5 +36,5 @@ func CLIVersion() string {
 
 // UserAgent returns the canonical User-Agent value for kongctl requests.
 func UserAgent() string {
-	return fmt.Sprintf("%s/%s", CLIName, CLIVersion())
+	return CLIName + "/" + CLIVersion()
 }
