@@ -2,8 +2,9 @@
 
 This page covers what you need to know for managing Kong Konnect
 resources using the `kongctl` declarative configuration approach.
-For field-level resource definitions, see the
-[Declarative Resource Reference](declarative-resource-reference.md).
+For field-level resource definitions (including `_id` foreign key fields
+such as `default_application_auth_strategy_id`, which should typically use
+`!ref`), see the [Declarative Resource Reference](declarative-resource-reference.md).
 
 ## Table of Contents
 

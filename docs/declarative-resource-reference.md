@@ -61,7 +61,7 @@ apis:
 
 ```yaml
 apis:
- - ref: string
+  - ref: string
    name: string required (1-255 chars)
    description: string (nullable)
    version: string (1-255 chars, nullable)
@@ -198,7 +198,7 @@ event_gateways:
  - ref: string
    name: string required (1-255 chars)
    description: string (max 512 chars)
-   min_runtime_version: string (pattern: ^\\d+\\.\\d+$)
+   min_runtime_version: string (pattern: ^\d+\.\d+$)
    labels: object [string]string
      key: value
    backend_clusters: # https://developer.konghq.com/api/konnect/event-gateway/v1/#/operations/create-event-gateway-backend-cluster
