@@ -57,6 +57,10 @@ test/                                 # Test code
 ## Build, Test, and Development Commands
 
 **CRITICAL**: CGO must be disabled for builds. Always use `make build` or set `CGO_ENABLED=0`.
+**CRITICAL**: You have been given read/write access to base the directory given from `go env` 
+              variables that determine cache and temp file writing for go lang tool chain. 
+              You should not use `/tmp` folder for go cache or tmp file writing unless writing to
+              directories provided from `go env` fail.
 
 ### Essential Commands
 
