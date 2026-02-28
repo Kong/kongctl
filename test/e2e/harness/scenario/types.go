@@ -73,6 +73,7 @@ type Command struct {
 	Assertions   []Assertion       `yaml:"assertions"`
 	ExpectFail   *ExpectedFailure  `yaml:"expectFailure"`
 	Create       *CreateSpec       `yaml:"create"`
+	Delete       *DeleteSpec       `yaml:"delete"`
 	OutputFormat string            `yaml:"outputFormat"`
 	ParseAs      string            `yaml:"parseAs"`
 	StdoutFile   string            `yaml:"stdoutFile"`
@@ -82,6 +83,13 @@ type Command struct {
 type CreateSpec struct {
 	Resource       string            `yaml:"resource"`
 	Payload        CreatePayload     `yaml:"payload"`
+	ExpectStatus   int               `yaml:"expectStatus"`
+	RecordVar      *RecordVar        `yaml:"recordVar"`
+	EndpointParams map[string]string `yaml:"endpointParams"`
+}
+
+type DeleteSpec struct {
+	Resource       string            `yaml:"resource"`
 	ExpectStatus   int               `yaml:"expectStatus"`
 	RecordVar      *RecordVar        `yaml:"recordVar"`
 	EndpointParams map[string]string `yaml:"endpointParams"`

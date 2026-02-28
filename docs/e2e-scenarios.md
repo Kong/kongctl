@@ -63,6 +63,10 @@ Schema (YAML)
         run?: ["apply", "-f", "{{ .workdir }}/portal.yaml", …],  # arbitrary kongctl args
         env?: { KEY: value },                 # command-scoped env vars (override step env)
         resetOrg?: true,                              # synthetic harness command to reset org
+        create?: { resource, payload?, expectStatus?, endpointParams? },
+          # synthetic Konnect POST
+        delete?: { resource, expectStatus?, endpointParams? },
+          # synthetic Konnect DELETE
         mask?: { dropKeys: [...] },
         retry?: { attempts, interval },
         assertions: [
@@ -133,7 +137,10 @@ Overlay Ops (Targeted Edits)
 
 Optional And Empty Fields
 
-- Omit fields that are empty or not needed. For example, if a step has no input overlays, you can omit inputOverlayDirs. If a command has no assertions, you can omit the assertions key entirely. If a command is a reset, omit run and set resetOrg: true.
+- Omit fields that are empty or not needed. For example, if a step has no
+  input overlays, you can omit inputOverlayDirs. If a command has no
+  assertions, you can omit the assertions key entirely. If a command is a
+  `resetOrg`, `create`, or `delete` synthetic command, omit `run`.
 
 Selectors and Sources
 

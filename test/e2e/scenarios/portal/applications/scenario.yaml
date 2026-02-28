@@ -237,6 +237,9 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.applicationName }}"
+        recordVar:
+          name: applicationID
+          responsePath: "[?name=='{{ .vars.applicationName }}'] | [0].id"
 
   - name: 006-verify-team-roles-empty
     skipInputs: true
@@ -288,36 +291,24 @@ steps:
     skipInputs: true
     commands:
       - name: 000-delete-registration
-        outputFormat: json
-        run:
-          - delete
-          - portal
-          - application-registrations
-          - --auto-approve
-          - --portal-name
-          - "{{ .vars.portalName }}"
-          - "{{ .vars.registrationID }}"
+        delete:
+          resource: portal-application-registration
+          expectStatus: 204
+          endpointParams:
+            portalId: "{{ .vars.portalID }}"
+            applicationId: "{{ .vars.applicationID }}"
+            registrationId: "{{ .vars.registrationID }}"
 
   - name: 009-delete-portal-application
     skipInputs: true
     commands:
       - name: 000-delete-application
-        outputFormat: json
-        run:
-          - delete
-          - portal
-          - applications
-          - --auto-approve
-          - --force
-          - --portal-name
-          - "{{ .vars.portalName }}"
-          - "{{ .vars.applicationName }}"
-        assertions:
-          - select: "@"
-            expect:
-              fields:
-                status: deleted
-                portal_id: "{{ .vars.portalID }}"
+        delete:
+          resource: portal-application
+          expectStatus: 204
+          endpointParams:
+            portalId: "{{ .vars.portalID }}"
+            applicationId: "{{ .vars.applicationID }}"
 
   - name: 010-verify-post-delete
     skipInputs: true

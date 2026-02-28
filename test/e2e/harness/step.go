@@ -44,6 +44,20 @@ type CreateResourceResult struct {
 	URL    string
 }
 
+type DeleteResourceOptions struct {
+	Slug         string
+	ExpectStatus int
+	PathParams   map[string]string
+}
+
+type DeleteResourceResult struct {
+	Status int
+	Body   []byte
+	Parsed any
+	Method string
+	URL    string
+}
+
 // NewStep initializes a new step directory under the CLI's TestDir and
 // sets the CLI to capture command artifacts under this step. Command numbering
 // is reset for readability within the step.
@@ -318,23 +332,130 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 	"team":               {Method: http.MethodPost, Path: "/v3/teams", UseGlobal: true},
 }
 
+var deleteResourceEndpoints = map[string]resourceEndpoint{
+	"portal-application-registration": {
+		Method:    http.MethodDelete,
+		Path:      "/v3/portals/{portalId}/applications/{applicationId}/registrations/{registrationId}",
+		ParamKeys: []string{"portalId", "applicationId", "registrationId"},
+	},
+	"portal_application_registration": {
+		Method:    http.MethodDelete,
+		Path:      "/v3/portals/{portalId}/applications/{applicationId}/registrations/{registrationId}",
+		ParamKeys: []string{"portalId", "applicationId", "registrationId"},
+	},
+	"portalapplicationregistration": {
+		Method:    http.MethodDelete,
+		Path:      "/v3/portals/{portalId}/applications/{applicationId}/registrations/{registrationId}",
+		ParamKeys: []string{"portalId", "applicationId", "registrationId"},
+	},
+	"portal-application": {
+		Method:    http.MethodDelete,
+		Path:      "/v3/portals/{portalId}/applications/{applicationId}",
+		ParamKeys: []string{"portalId", "applicationId"},
+	},
+	"portal_application": {
+		Method:    http.MethodDelete,
+		Path:      "/v3/portals/{portalId}/applications/{applicationId}",
+		ParamKeys: []string{"portalId", "applicationId"},
+	},
+	"portalapplication": {
+		Method:    http.MethodDelete,
+		Path:      "/v3/portals/{portalId}/applications/{applicationId}",
+		ParamKeys: []string{"portalId", "applicationId"},
+	},
+}
+
 func defaultStatusForMethod(method string) int {
 	switch method {
 	case http.MethodPost:
 		return http.StatusCreated
+	case http.MethodDelete:
+		return http.StatusNoContent
 	default:
 		return http.StatusOK
 	}
 }
 
+type resourceRequestOptions struct {
+	Slug         string
+	ExpectStatus int
+	PathParams   map[string]string
+	SlugPrefix   string
+}
+
+type resourceRequestResult struct {
+	Status int
+	Body   []byte
+	Parsed any
+	Method string
+	URL    string
+}
+
 // CreateResource issues an authenticated Konnect API call to create an unmanaged resource and
 // records artifacts under the current step similar to CLI commands.
 func (s *Step) CreateResource(resource string, body []byte, opts CreateResourceOptions) (CreateResourceResult, error) {
-	var result CreateResourceResult
+	result, err := s.requestResource(
+		resource,
+		body,
+		createResourceEndpoints,
+		resourceRequestOptions{
+			Slug:         opts.Slug,
+			ExpectStatus: opts.ExpectStatus,
+			PathParams:   opts.PathParams,
+			SlugPrefix:   "create",
+		},
+	)
+	if err != nil {
+		return CreateResourceResult{}, err
+	}
+
+	return CreateResourceResult{
+		Status: result.Status,
+		Body:   result.Body,
+		Parsed: result.Parsed,
+		Method: result.Method,
+		URL:    result.URL,
+	}, nil
+}
+
+// DeleteResource issues an authenticated Konnect API call to delete an unmanaged resource and
+// records artifacts under the current step similar to CLI commands.
+func (s *Step) DeleteResource(resource string, opts DeleteResourceOptions) (DeleteResourceResult, error) {
+	result, err := s.requestResource(
+		resource,
+		nil,
+		deleteResourceEndpoints,
+		resourceRequestOptions{
+			Slug:         opts.Slug,
+			ExpectStatus: opts.ExpectStatus,
+			PathParams:   opts.PathParams,
+			SlugPrefix:   "delete",
+		},
+	)
+	if err != nil {
+		return DeleteResourceResult{}, err
+	}
+
+	return DeleteResourceResult{
+		Status: result.Status,
+		Body:   result.Body,
+		Parsed: result.Parsed,
+		Method: result.Method,
+		URL:    result.URL,
+	}, nil
+}
+
+func (s *Step) requestResource(
+	resource string,
+	body []byte,
+	endpoints map[string]resourceEndpoint,
+	opts resourceRequestOptions,
+) (resourceRequestResult, error) {
+	var result resourceRequestResult
 	if s == nil || s.cli == nil {
 		return result, fmt.Errorf("nil step/cli")
 	}
-	endpoint, ok := createResourceEndpoints[strings.ToLower(strings.TrimSpace(resource))]
+	endpoint, ok := endpoints[strings.ToLower(strings.TrimSpace(resource))]
 	if !ok {
 		return result, fmt.Errorf("unsupported resource %q", resource)
 	}
@@ -348,7 +469,11 @@ func (s *Step) CreateResource(resource string, body []byte, opts CreateResourceO
 	}
 	slug := opts.Slug
 	if strings.TrimSpace(slug) == "" {
-		slug = fmt.Sprintf("create-%s", sanitizeName(resource))
+		slugPrefix := strings.TrimSpace(opts.SlugPrefix)
+		if slugPrefix == "" {
+			slugPrefix = strings.ToLower(endpoint.Method)
+		}
+		slug = fmt.Sprintf("%s-%s", slugPrefix, sanitizeName(resource))
 	}
 	dir, err := s.cli.allocateCommandDir(slug)
 	if err != nil {
@@ -373,7 +498,9 @@ func (s *Step) CreateResource(resource string, body []byte, opts CreateResourceO
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
+	if len(body) > 0 {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	client := &http.Client{Timeout: 30 * time.Second}
 	start := time.Now()
 	resp, err := client.Do(req)
