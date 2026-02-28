@@ -522,10 +522,11 @@ func initConfig() {
 func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 	var err error
 	buildInfo = bi
-	meta.SetCLIVersion(meta.DefaultCLIVersion)
+	version := meta.DefaultCLIVersion
 	if bi != nil {
-		meta.SetCLIVersion(bi.Version)
+		version = bi.Version
 	}
+	meta.SetCLIVersion(version)
 	cobra.EnableTraverseRunHooks = true
 	streams = s
 	defaultConfigFilePath, err = config.GetDefaultConfigFilePath()

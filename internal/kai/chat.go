@@ -212,9 +212,14 @@ func chatStream(
 		client = http.DefaultClient
 	}
 
-	endpoint, err := url.JoinPath(baseURL, chatPathSegment)
+	var (
+		endpoint string
+		err      error
+	)
 	if sessionID != "" {
 		endpoint, err = url.JoinPath(baseURL, sessionsPathSegment, sessionID, "chat")
+	} else {
+		endpoint, err = url.JoinPath(baseURL, chatPathSegment)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct chat endpoint: %w", err)
@@ -447,16 +452,16 @@ func CreateSession(ctx context.Context, client *http.Client, baseURL, token, nam
 		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, strings.TrimSpace(string(snippet)))
 	}
 
-	var meta SessionMetadata
-	if err := json.NewDecoder(resp.Body).Decode(&meta); err != nil {
+	var session SessionMetadata
+	if err := json.NewDecoder(resp.Body).Decode(&session); err != nil {
 		return nil, fmt.Errorf("failed to decode session metadata: %w", err)
 	}
 
 	logInfo(ctx, "kai session created",
-		slog.String("session_id", meta.ID),
-		slog.String("name", meta.Name))
+		slog.String("session_id", session.ID),
+		slog.String("name", session.Name))
 
-	return &meta, nil
+	return &session, nil
 }
 
 // ListSessions retrieves available sessions for the current user.
