@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util/httpheaders"
 )
 
 // ChatEvent represents a single server-sent event emitted by the Kai agent API.
@@ -235,10 +236,10 @@ func chatStream(
 		return nil, fmt.Errorf("failed to build chat request: %w", err)
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "text/event-stream")
-	req.Header.Set("User-Agent", meta.CLIName)
+	httpheaders.SetBearerAuthorization(req, token)
+	httpheaders.SetContentTypeJSON(req)
+	httpheaders.SetAcceptEventStream(req)
+	httpheaders.SetUserAgent(req, meta.UserAgent())
 
 	logDebug(ctx, "kai chat request",
 		slog.String("endpoint", endpoint),
@@ -402,9 +403,9 @@ func CreateSession(ctx context.Context, client *http.Client, baseURL, token, nam
 	if err != nil {
 		return nil, fmt.Errorf("failed to build session request: %w", err)
 	}
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", meta.CLIName)
+	httpheaders.SetBearerAuthorization(req, token)
+	httpheaders.SetContentTypeJSON(req)
+	httpheaders.SetUserAgent(req, meta.UserAgent())
 
 	logDebug(ctx, "kai create session request",
 		slog.String("endpoint", endpoint),
@@ -473,8 +474,8 @@ func ListSessions(ctx context.Context, client *http.Client, baseURL, token strin
 	if err != nil {
 		return nil, fmt.Errorf("failed to build sessions request: %w", err)
 	}
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	req.Header.Set("User-Agent", meta.CLIName)
+	httpheaders.SetBearerAuthorization(req, token)
+	httpheaders.SetUserAgent(req, meta.UserAgent())
 
 	logDebug(ctx, "kai list sessions request",
 		slog.String("endpoint", endpoint))
@@ -531,8 +532,8 @@ func GetSessionHistory(
 	if err != nil {
 		return nil, fmt.Errorf("failed to build session history request: %w", err)
 	}
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	req.Header.Set("User-Agent", meta.CLIName)
+	httpheaders.SetBearerAuthorization(req, token)
+	httpheaders.SetUserAgent(req, meta.UserAgent())
 
 	logDebug(ctx, "kai get session history request",
 		slog.String("endpoint", endpoint),

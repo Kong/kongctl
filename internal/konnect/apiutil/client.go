@@ -6,6 +6,9 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util/httpheaders"
 )
 
 // Doer abstracts the ability to execute HTTP requests.
@@ -52,9 +55,10 @@ func Request(
 	}
 
 	if token != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+		httpheaders.SetBearerAuthorization(req, token)
 	}
-	req.Header.Set("Accept", "application/json")
+	httpheaders.SetAcceptJSON(req)
+	httpheaders.SetUserAgent(req, meta.UserAgent())
 
 	for k, v := range headers {
 		req.Header.Set(k, v)

@@ -25,6 +25,7 @@ import (
 	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/theme"
+	"github.com/kong/kongctl/internal/util/httpheaders"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/mattn/go-isatty"
@@ -563,8 +564,8 @@ func deleteSession(ctx context.Context, baseURL, token, sessionID string) error 
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	req.Header.Set("User-Agent", meta.CLIName)
+	httpheaders.SetBearerAuthorization(req, token)
+	httpheaders.SetUserAgent(req, meta.UserAgent())
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
