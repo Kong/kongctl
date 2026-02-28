@@ -221,8 +221,14 @@ func Run(t *testing.T, scenarioPath string) error {
 				if len(cmd.Run) > 0 {
 					return fmt.Errorf("command %s: create commands cannot set run", cmdName)
 				}
+				if len(cmd.Exec) > 0 {
+					return fmt.Errorf("command %s: create commands cannot set exec", cmdName)
+				}
 				if cmd.ExpectFail != nil {
 					return fmt.Errorf("command %s: expectFailure not supported for create commands", cmdName)
+				}
+				if cmd.Delete != nil {
+					return fmt.Errorf("command %s: create and delete cannot both be set", cmdName)
 				}
 				retryCfg := effectiveRetry(s.Defaults.Retry, st.Retry, cmd.Retry, Retry{})
 				backoffCfg := harness.NormalizeBackoffConfig(backoffConfigFromRetry(retryCfg))
@@ -240,7 +246,7 @@ func Run(t *testing.T, scenarioPath string) error {
 					if perr != nil {
 						return fmt.Errorf("command %s build payload failed: %w", cmdName, perr)
 					}
-					pathParams, perr := prepareEndpointParams(cmd.Create, tmplCtx)
+					pathParams, perr := prepareEndpointParams(cmd.Create.EndpointParams, tmplCtx)
 					if perr != nil {
 						return fmt.Errorf("command %s build endpoint params failed: %w", cmdName, perr)
 					}
@@ -309,6 +315,115 @@ func Run(t *testing.T, scenarioPath string) error {
 					return fmt.Errorf("command %s produced unparsable output: %w", cmdName, err)
 				}
 				if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName, envOverrides); err != nil {
+					return err
+				}
+				// Check if we should stop after this command
+				if checkAndStopAfter(stepName, cmdName, stopAfterSpec, isLastCmdInStep) {
+					return nil
+				}
+				continue
+			}
+			if cmd.Delete != nil {
+				if len(cmd.Run) > 0 {
+					return fmt.Errorf("command %s: delete commands cannot set run", cmdName)
+				}
+				if len(cmd.Exec) > 0 {
+					return fmt.Errorf("command %s: delete commands cannot set exec", cmdName)
+				}
+				if cmd.ExpectFail != nil {
+					return fmt.Errorf("command %s: expectFailure not supported for delete commands", cmdName)
+				}
+				retryCfg := effectiveRetry(s.Defaults.Retry, st.Retry, cmd.Retry, Retry{})
+				backoffCfg := harness.NormalizeBackoffConfig(backoffConfigFromRetry(retryCfg))
+				attempts := backoffCfg.Attempts
+				backoff := harness.BuildBackoffSchedule(backoffCfg)
+				var (
+					lastErr error
+					result  harness.DeleteResourceResult
+				)
+				for atry := 0; atry < attempts; atry++ {
+					if strings.TrimSpace(cmd.Name) != "" {
+						cli.OverrideNextCommandSlug(cmd.Name)
+					}
+					pathParams, perr := prepareEndpointParams(cmd.Delete.EndpointParams, tmplCtx)
+					if perr != nil {
+						return fmt.Errorf("command %s build endpoint params failed: %w", cmdName, perr)
+					}
+					result, lastErr = step.DeleteResource(
+						cmd.Delete.Resource,
+						harness.DeleteResourceOptions{
+							Slug:         cmdName,
+							ExpectStatus: cmd.Delete.ExpectStatus,
+							PathParams:   pathParams,
+						},
+					)
+					if lastErr == nil {
+						if err := maybeRecordVar(&s, cmd.Delete.RecordVar, result.Parsed, step); err != nil {
+							return fmt.Errorf("command %s recordVar failed: %w", cmdName, err)
+						}
+						step.AppendCheck(
+							"PASS: deleted %s (status=%d)",
+							strings.TrimSpace(cmd.Delete.Resource),
+							result.Status,
+						)
+						break
+					}
+					if atry+1 < attempts {
+						detail := deleteFailureDetail(result, lastErr)
+						if !harness.ShouldRetry(lastErr, detail, retryCfg.Only, retryCfg.Never) {
+							break
+						}
+						delay := harness.BackoffDelay(backoff, atry)
+						harness.Warnf(
+							"command %s delete attempt %d/%d failed (%v); retrying in %s",
+							cmdName,
+							atry+1,
+							attempts,
+							lastErr,
+							delay,
+						)
+						time.Sleep(delay)
+					}
+				}
+				if lastErr != nil {
+					return fmt.Errorf("command %s delete failed: %w", cmdName, lastErr)
+				}
+				parseMode := strings.TrimSpace(cmd.ParseAs)
+				stdout := string(result.Body)
+				if err := writeStdoutFile(cmd.StdoutFile, stdout, tmplCtx, step); err != nil {
+					return fmt.Errorf("command %s stdoutFile failed: %w", cmdName, err)
+				}
+				parentData, err := parseCommandOutput(parseMode, stdout)
+				if err != nil {
+					mode := parseMode
+					if strings.TrimSpace(mode) == "" || strings.EqualFold(mode, "inherit") {
+						mode = "json"
+					}
+					snippet := stdout
+					if len(snippet) > 2048 {
+						snippet = snippet[:2048] + "…"
+					}
+					t.Errorf(
+						"failed to parse stdout (parseAs=%s) for command %s: %v\nstdout: %q",
+						mode,
+						cmdName,
+						err,
+						snippet,
+					)
+					return fmt.Errorf("command %s produced unparsable output: %w", cmdName, err)
+				}
+				if err := executeAssertions(
+					cli,
+					scenarioPath,
+					s,
+					st,
+					cmd,
+					parentData.Value(),
+					step.InputsDir,
+					stepName,
+					cmdName,
+					envOverrides,
+				); err != nil {
 					return err
 				}
 				// Check if we should stop after this command
@@ -480,12 +595,12 @@ func prepareCreatePayload(spec *CreateSpec, scenarioPath string, tmplCtx map[str
 	return body, nil
 }
 
-func prepareEndpointParams(spec *CreateSpec, tmplCtx map[string]any) (map[string]string, error) {
-	if spec == nil || len(spec.EndpointParams) == 0 {
+func prepareEndpointParams(endpointParams map[string]string, tmplCtx map[string]any) (map[string]string, error) {
+	if len(endpointParams) == 0 {
 		return nil, nil
 	}
-	resolved := make(map[string]string, len(spec.EndpointParams))
-	for key, value := range spec.EndpointParams {
+	resolved := make(map[string]string, len(endpointParams))
+	for key, value := range endpointParams {
 		b, err := renderTemplate([]byte(value), tmplCtx)
 		if err != nil {
 			return nil, fmt.Errorf("template endpoint param %s: %w", key, err)
@@ -657,6 +772,20 @@ func commandFailureDetail(res harness.Result, err error) string {
 }
 
 func createFailureDetail(res harness.CreateResourceResult, err error) string {
+	var parts []string
+	if res.Status != 0 {
+		parts = append(parts, fmt.Sprintf("status=%d", res.Status))
+	}
+	if len(res.Body) > 0 {
+		parts = append(parts, string(res.Body))
+	}
+	if err != nil {
+		parts = append(parts, err.Error())
+	}
+	return strings.Join(parts, "\n")
+}
+
+func deleteFailureDetail(res harness.DeleteResourceResult, err error) string {
 	var parts []string
 	if res.Status != 0 {
 		parts = append(parts, fmt.Sprintf("status=%d", res.Status))
