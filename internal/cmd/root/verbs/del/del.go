@@ -29,12 +29,9 @@ var (
 	deleteLong = normalizers.LongDesc(i18n.T("root.verbs.delete.deleteLong",
 		`Use delete to delete objects.
 
-When used with -f, deletes all resources defined in the declarative configuration
-files from Konnect. This is equivalent to running:
-  kongctl plan --mode delete -f <files> | kongctl sync --plan -
-
-Without -f, further sub-commands are required to determine which resource to delete.
-Output can be formatted in multiple ways to aid in further processing.`))
+Deletes all resources defined in the declarative configuration files from Konnect.
+This is equivalent to running:
+  kongctl plan --mode delete -f <files> | kongctl sync --plan -`))
 
 	deleteExamples = normalizers.Examples(i18n.T("root.verbs.delete.deleteExamples",
 		fmt.Sprintf(`
@@ -42,14 +39,6 @@ Output can be formatted in multiple ways to aid in further processing.`))
 		%[1]s delete -f config.yaml
 		%[1]s delete -f ./configs/ --recursive
 		%[1]s delete -f config.yaml --dry-run
-		# Delete a Konnect Kong Gateway control plane (Konnect-first)
-		%[1]s delete gateway control-plane <id>
-		# Delete a Konnect Kong Gateway control plane (explicit)
-		%[1]s delete konnect gateway control-plane <id>
-		# Delete a Konnect portal by ID (Konnect-first)
-		%[1]s delete portal 12345678-1234-1234-1234-123456789012
-		# Delete a Konnect portal by name
-		%[1]s delete portal my-portal
 		`, meta.CLIName)))
 )
 
@@ -122,26 +111,6 @@ Setting this value overrides tokens obtained from the login command.
 
 	// Add declarative flags from the declarative delete command
 	cmd.Flags().AddFlagSet(declDeleteCmd.Flags())
-
-	c, e := konnect.NewKonnectCmd(Verb)
-	if e != nil {
-		return nil, e
-	}
-	cmd.AddCommand(c)
-
-	// Add gateway command directly for Konnect-first pattern
-	gatewayCmd, err := NewDirectGatewayCmd()
-	if err != nil {
-		return nil, err
-	}
-	cmd.AddCommand(gatewayCmd)
-
-	// Add portal command directly for Konnect-first pattern
-	portalCmd, err := NewDirectPortalCmd()
-	if err != nil {
-		return nil, err
-	}
-	cmd.AddCommand(portalCmd)
 
 	return cmd, nil
 }
