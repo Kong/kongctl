@@ -11,6 +11,9 @@ https://developer.konghq.com/kongctl/
 This file provides repository-specific guidance for AI coding agents working
 with the kongctl codebase.
 
+For declarative resource type implementation work, use
+`planning/DECLARATIVE_RESOURCE_IMPLEMENTATION_GUIDE.md` as the primary guide.
+
 ## Repository Overview
 
 **kongctl** is a command-line interface (CLI) tool for operating Kong Konnect

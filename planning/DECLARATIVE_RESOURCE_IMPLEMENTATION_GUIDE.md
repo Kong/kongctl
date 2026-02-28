@@ -3,6 +3,30 @@
 ## PURPOSE
 Technical guide for coding agents to implement new resources in kongctl's declarative configuration engine. Details exact code locations, patterns, and requirements.
 
+Use the snippets as implementation patterns. Exact helper/function names can
+evolve, so confirm against current code before finalizing.
+
+## REFACTOR BASELINE (PRS #411 AND #414)
+
+New resource implementations should follow these refactored patterns.
+
+- Parent resources should embed `BaseResource` instead of re-implementing
+  `ref`, `kongctl`, `konnectID`, `GetRef()`, `GetKonnectID()`,
+  `SetKonnectID()`, and base name matching helpers.
+- Child resource matching should prefer shared helpers such as
+  `tryMatchByField(...)` instead of custom reflection blocks.
+- Resources with `_external` support should use
+  `tryMatchByNameWithExternal(...)` and override `IsExternal()` where needed.
+- Every resource type must be registered in `init()` via
+  `registerResourceType(...)`. Registry registration now drives resource
+  iteration and aggregation operations.
+- `ResourceSet` operations such as `ForEachResource`, `AllResourcesByType`,
+  `ResourceCount`, `IsEmpty`, and `AppendAll` are registry-driven. Avoid adding
+  new manual switch/loop aggregations for resource types.
+- Loader duplicate checking uses a running `refIndex` map across all loaded
+  files. Ensure your new resource has `GetType()` and `GetRef()` implemented and
+  is wired into `ResourceSet`.
+
 ## RESOURCE TYPES
 
 ### PARENT RESOURCES
@@ -48,6 +72,15 @@ Technical guide for coding agents to implement new resources in kongctl's declar
 - The e2e harness captures `kongctl.log` per command when debug logging is enabled (i.e., `--log-level debug` or
   `--log-level trace`), so these logs should be readable in CI artifacts.
 
+### DOCUMENTATION (REQUIRED)
+
+- Updating `docs/declarative-resource-reference.md` is a critical part of
+  adding a new resource type.
+- Add or update entries for both the parent resource and all supported child
+  resources, including field-level types and constraints.
+- Keep resource links current (`API Specification` and `Example` links), and
+  document declarative usage hints (`!ref`, `!file`) where applicable.
+
 ### PARENT RESOURCE
 
 #### 1. RESOURCE DEFINITION
@@ -58,29 +91,33 @@ Technical guide for coding agents to implement new resources in kongctl's declar
 package resources
 
 import (
+    "fmt"
+
     kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
 
+func init() {
+    registerResourceType(
+        ResourceTypeFoo,
+        func(rs *ResourceSet) *[]FooResource { return &rs.Foos },
+    )
+}
+
 // FooResource represents a Foo in declarative configuration
 type FooResource struct {
-    kkComps.CreateFooRequest `yaml:",inline" json:",inline"`  // Embed SDK type
-    Ref     string       `yaml:"ref" json:"ref"`
-    Kongctl *KongctlMeta `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
+    BaseResource
+    kkComps.CreateFooRequest `yaml:",inline" json:",inline"` // Embed SDK type
 
     // Child resources (optional, can also be root-level)
     Children []FooChildResource `yaml:"children,omitempty" json:"children,omitempty"`
 
-    // Resolved Konnect ID (not serialized)
-    konnectID string `yaml:"-" json:"-"`
+    // Optional: only for resources that support external matching
+    External *ExternalBlock `yaml:"_external,omitempty" json:"_external,omitempty"`
 }
 
 // REQUIRED: Implement Resource interface
 func (f FooResource) GetType() ResourceType {
     return ResourceTypeFoo  // Add to types.go
-}
-
-func (f FooResource) GetRef() string {
-    return f.Ref
 }
 
 // GetMoniker returns identifier for matching (name, slug, etc.)
@@ -125,36 +162,31 @@ func (f *FooResource) SetDefaults() {
     }
 }
 
-func (f FooResource) GetKonnectID() string {
-    return f.konnectID
-}
-
 // GetKonnectMonikerFilter returns filter for API lookup
 func (f FooResource) GetKonnectMonikerFilter() string {
-    return fmt.Sprintf("name[eq]=%s", f.Name)  // Adjust based on API
+    return f.BaseResource.GetKonnectMonikerFilter(f.Name)
 }
 
-// TryMatchKonnectResource matches against Konnect API response
+// TryMatchKonnectResource matches against Konnect API response.
+// Use tryMatchByNameWithExternal when resource supports _external.
 func (f *FooResource) TryMatchKonnectResource(konnectResource any) bool {
-    v := reflect.ValueOf(konnectResource)
-    if v.Kind() == reflect.Ptr {
-        v = v.Elem()
-    }
-    if v.Kind() != reflect.Struct {
-        return false
-    }
-
-    nameField := v.FieldByName("Name")
-    idField := v.FieldByName("ID")
-
-    if nameField.IsValid() && idField.IsValid() &&
-        nameField.Kind() == reflect.String && idField.Kind() == reflect.String {
-        if nameField.String() == f.Name {
-            f.konnectID = idField.String()
-            return true
+    if f.IsExternal() {
+        id, ok := tryMatchByNameWithExternal(
+            f.Name,
+            konnectResource,
+            matchOptions{sdkType: "FooResponseSchema"},
+            f.External,
+        )
+        if ok {
+            f.SetKonnectID(id)
         }
+        return ok
     }
-    return false
+    return f.TryMatchByName(
+        f.Name,
+        konnectResource,
+        matchOptions{sdkType: "FooResponseSchema"},
+    )
 }
 
 // REQUIRED FOR LABEL SUPPORT: Implement ResourceWithLabels
@@ -171,13 +203,12 @@ func (f FooResource) GetLabels() map[string]string {
 }
 
 func (f *FooResource) SetLabels(labels map[string]string) {
-    // Convert map to SDK format
-    f.Labels = make(map[string]*string)  // Or map[string]string
-    for k, v := range labels {
-        val := v
-        f.Labels[k] = &val  // If SDK uses *string
-        // OR: f.Labels[k] = v  // If SDK uses string
-    }
+    f.Labels = labels // Adjust if SDK uses map[string]*string
+}
+
+// Optional when _external is supported
+func (f *FooResource) IsExternal() bool {
+    return f.External != nil && f.External.IsExternal()
 }
 ```
 
@@ -195,6 +226,10 @@ type ResourceSet struct {
     // ... existing resources
 }
 ```
+
+**REQUIRED**: Register the resource type in `internal/declarative/resources/<resource_name>.go`
+using `registerResourceType(...)` in `init()`. If not registered, generic
+`ResourceSet` operations will not include the new type.
 
 #### 2. STATE CLIENT METHODS
 **Location**: `internal/declarative/state/client.go`
@@ -780,6 +815,13 @@ func (e *Executor) executeFooChange(ctx context.Context, change planner.PlannedC
 **Location**: `internal/declarative/resources/foo_child.go`
 
 ```go
+func init() {
+    registerResourceType(
+        ResourceTypeFooChild,
+        func(rs *ResourceSet) *[]FooChildResource { return &rs.FooChildren },
+    )
+}
+
 type FooChildResource struct {
     kkComps.CreateFooChildRequest `yaml:",inline" json:",inline"`
     Ref    string `yaml:"ref" json:"ref"`
@@ -852,23 +894,9 @@ func (f FooChildResource) GetKonnectMonikerFilter() string {
 }
 
 func (f *FooChildResource) TryMatchKonnectResource(konnectResource any) bool {
-    v := reflect.ValueOf(konnectResource)
-    if v.Kind() == reflect.Ptr {
-        v = v.Elem()
-    }
-    if v.Kind() != reflect.Struct {
-        return false
-    }
-
-    slugField := v.FieldByName("Slug")
-    idField := v.FieldByName("ID")
-
-    if slugField.IsValid() && idField.IsValid() &&
-        slugField.Kind() == reflect.String && idField.Kind() == reflect.String {
-        if slugField.String() == f.Slug {
-            f.konnectID = idField.String()
-            return true
-        }
+    if id := tryMatchByField(konnectResource, "Slug", f.Slug); id != "" {
+        f.konnectID = id
+        return true
     }
     return false
 }
@@ -1442,587 +1470,20 @@ func (a *FooCustomizationAdapter) SupportsUpdate() bool { return true }
 
 ---
 
-## IMPERATIVE GET COMMAND IMPLEMENTATION
-
-### PARENT RESOURCE GET COMMAND
-
-#### 1. GET COMMAND ENTRY POINT
-**Location**: `internal/cmd/root/verbs/get/foo.go`
-
-```go
-package get
-
-import (
-    "context"
-    "fmt"
-    "github.com/kong/kongctl/internal/cmd"
-    "github.com/kong/kongctl/internal/cmd/root/products"
-    "github.com/kong/kongctl/internal/cmd/root/products/konnect"
-    "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
-    "github.com/kong/kongctl/internal/cmd/root/products/konnect/foo"
-    "github.com/kong/kongctl/internal/cmd/root/verbs"
-    "github.com/kong/kongctl/internal/konnect/helpers"
-    "github.com/spf13/cobra"
-)
-
-func NewDirectFooCmd() (*cobra.Command, error) {
-    addFlags := func(verb verbs.VerbValue, cmd *cobra.Command) {
-        cmd.Flags().String(common.BaseURLFlagName, common.BaseURLDefault,
-            fmt.Sprintf(`Base URL for Konnect API requests.
-- Config path: [ %s ]`, common.BaseURLConfigPath))
-
-        cmd.Flags().String(common.PATFlagName, "",
-            fmt.Sprintf(`Konnect Personal Access Token (PAT).
-- Config path: [ %s ]`, common.PATConfigPath))
-
-        if verb == verbs.Get || verb == verbs.List {
-            cmd.Flags().Int(common.RequestPageSizeFlagName, common.DefaultRequestPageSize,
-                fmt.Sprintf(`Max number of results per page.
-- Config path: [ %s ]`, common.RequestPageSizeConfigPath))
-        }
-    }
-
-    preRunE := func(c *cobra.Command, args []string) error {
-        ctx := c.Context()
-        if ctx == nil {
-            ctx = context.Background()
-        }
-        ctx = context.WithValue(ctx, products.Product, konnect.Product)
-        ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, helpers.SDKAPIFactory(common.KonnectSDKFactory))
-        c.SetContext(ctx)
-
-        return bindFooFlags(c, args)
-    }
-
-    fooCmd, err := foo.NewFooCmd(Verb, addFlags, preRunE)
-    if err != nil {
-        return nil, err
-    }
-
-    fooCmd.Example = `  # List all foos
-  kongctl get foos
-  # Get a specific foo
-  kongctl get foo <id|name>
-  # List child resources
-  kongctl get foo children --foo-id <foo-id>`
-
-    return fooCmd, nil
-}
-
-func bindFooFlags(c *cobra.Command, args []string) error {
-    helper := cmd.BuildHelper(c, args)
-    cfg, err := helper.GetConfig()
-    if err != nil {
-        return err
-    }
-
-    if f := c.Flags().Lookup(common.BaseURLFlagName); f != nil {
-        if err := cfg.BindFlag(common.BaseURLConfigPath, f); err != nil {
-            return err
-        }
-    }
-
-    if f := c.Flags().Lookup(common.PATFlagName); f != nil {
-        if err := cfg.BindFlag(common.PATConfigPath, f); err != nil {
-            return err
-        }
-    }
-
-    if f := c.Flags().Lookup(common.RequestPageSizeFlagName); f != nil {
-        if err := cfg.BindFlag(common.RequestPageSizeConfigPath, f); err != nil {
-            return err
-        }
-    }
-
-    return nil
-}
-```
-
-**ADD TO**: `internal/cmd/root/verbs/get/get.go`
-```go
-func NewGetCmd() (*cobra.Command, error) {
-    // ... existing code
-
-    // Add foo command for Konnect-first pattern
-    fooCmd, err := NewDirectFooCmd()
-    if err != nil {
-        return nil, err
-    }
-    cmd.AddCommand(fooCmd)
-
-    return cmd, nil
-}
-```
-
-#### 2. RESOURCE COMMAND IMPLEMENTATION
-**Location**: `internal/cmd/root/products/konnect/foo/foo.go`
-
-```go
-package foo
-
-import (
-    "fmt"
-    "github.com/kong/kongctl/internal/cmd/root/verbs"
-    "github.com/kong/kongctl/internal/meta"
-    "github.com/kong/kongctl/internal/util/i18n"
-    "github.com/kong/kongctl/internal/util/normalizers"
-    "github.com/spf13/cobra"
-)
-
-const (
-    CommandName = "foo"
-)
-
-var (
-    fooUse   = CommandName
-    fooShort = i18n.T("root.products.konnect.foo.fooShort", "Manage Konnect Foo resources")
-    fooLong  = normalizers.LongDesc(i18n.T("root.products.konnect.foo.fooLong",
-        `The foo command allows you to work with Konnect Foo resources.`))
-    fooExample = normalizers.Examples(i18n.T("root.products.konnect.foo.fooExamples",
-        fmt.Sprintf(`
-# List all foos
-%[1]s get foos
-# Get a specific foo
-%[1]s get foo <id|name>
-# List child resources
-%[1]s get foo children --foo-id <foo-id>
-`, meta.CLIName)))
-)
-
-func NewFooCmd(
-    verb verbs.VerbValue,
-    addParentFlags func(verbs.VerbValue, *cobra.Command),
-    parentPreRun func(*cobra.Command, []string) error,
-) (*cobra.Command, error) {
-    baseCmd := cobra.Command{
-        Use:     fooUse,
-        Short:   fooShort,
-        Long:    fooLong,
-        Example: fooExample,
-        Aliases: []string{"foos", "f", "F"},
-    }
-
-    switch verb {
-    case verbs.Get:
-        return newGetFooCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
-    case verbs.List:
-        return newGetFooCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
-    default:
-        return &baseCmd, nil
-    }
-}
-```
-
-#### 3. GET COMMAND HANDLER
-**Location**: `internal/cmd/root/products/konnect/foo/getFoo.go`
-
-```go
-package foo
-
-import (
-    "context"
-    "fmt"
-    "sort"
-    "strings"
-    "time"
-
-    kk "github.com/Kong/sdk-konnect-go"
-    kkComps "github.com/Kong/sdk-konnect-go/models/components"
-    kkOps "github.com/Kong/sdk-konnect-go/models/operations"
-    "github.com/charmbracelet/bubbles/table"
-    "github.com/kong/kongctl/internal/cmd"
-    "github.com/kong/kongctl/internal/cmd/output/tableview"
-    "github.com/kong/kongctl/internal/konnect/helpers"
-    "github.com/kong/kongctl/internal/util"
-    "github.com/spf13/cobra"
-)
-
-type getFooCmd struct {
-    *cobra.Command
-}
-
-func newGetFooCmd(
-    verb verbs.VerbValue,
-    base *cobra.Command,
-    addParentFlags func(verbs.VerbValue, *cobra.Command),
-    parentPreRun func(*cobra.Command, []string) error,
-) *getFooCmd {
-    cmd := &getFooCmd{
-        Command: &cobra.Command{
-            Use:     base.Use,
-            Short:   "List or get Konnect Foos",
-            Long:    `Use the get verb with the foo command to query Konnect Foos.`,
-            Aliases: base.Aliases,
-            PreRunE: parentPreRun,
-            RunE: func(c *cobra.Command, args []string) error {
-                return runGetFoo(c, args)
-            },
-        },
-    }
-
-    if addParentFlags != nil {
-        addParentFlags(verb, cmd.Command)
-    }
-
-    // Add child resource subcommands
-    cmd.AddCommand(newGetFooChildrenCmd(verb, addParentFlags, parentPreRun))
-
-    return cmd
-}
-
-type textDisplayRecord struct {
-    ID               string
-    Name             string
-    Description      string
-    LocalCreatedTime string
-    LocalUpdatedTime string
-}
-
-func fooToDisplayRecord(f *kkComps.FooResponseSchema) textDisplayRecord {
-    const missing = "n/a"
-
-    id := missing
-    if f.ID != "" {
-        id = util.AbbreviateUUID(f.ID)
-    }
-
-    name := missing
-    if f.Name != "" {
-        name = f.Name
-    }
-
-    description := missing
-    if f.Description != nil && *f.Description != "" {
-        description = *f.Description
-    }
-
-    createdAt := f.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
-    updatedAt := f.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
-
-    return textDisplayRecord{
-        ID:               id,
-        Name:             name,
-        Description:      description,
-        LocalCreatedTime: createdAt,
-        LocalUpdatedTime: updatedAt,
-    }
-}
-
-func runGetFoo(c *cobra.Command, args []string) error {
-    helper := cmd.BuildHelper(c, args)
-
-    ctx := c.Context()
-    client, err := helpers.GetSDKAPIFactory[*kk.SDK](ctx, helper)
-    if err != nil {
-        return err
-    }
-
-    // No args: list all
-    if len(args) == 0 {
-        return listFoos(ctx, helper, client)
-    }
-
-    // One arg: get specific foo by ID or name
-    if len(args) == 1 {
-        return getFoo(ctx, helper, client, args[0])
-    }
-
-    return fmt.Errorf("too many arguments")
-}
-
-func listFoos(ctx context.Context, helper *cmd.Helper, client *kk.SDK) error {
-    pageSize := int64(100)
-    pageNumber := int64(1)
-
-    req := kkOps.ListFoosRequest{
-        PageSize:   &pageSize,
-        PageNumber: &pageNumber,
-    }
-
-    resp, err := client.Foos.ListFoos(ctx, req)
-    if err != nil {
-        return fmt.Errorf("failed to list foos: %w", err)
-    }
-
-    // Handle different output formats
-    format, err := helper.GetOutputFormat()
-    if err != nil {
-        return err
-    }
-
-    switch format {
-    case cmd.OutputFormatJSON:
-        return helper.OutputJSON(resp.ListFoosResponse.Data)
-    case cmd.OutputFormatYAML:
-        return helper.OutputYAML(resp.ListFoosResponse.Data)
-    default:
-        // Text table output
-        return outputFooTable(helper, resp.ListFoosResponse.Data)
-    }
-}
-
-// Helper function to check if string is a valid UUID
-func isUUID(s string) bool {
-    // Simple UUID format check (8-4-4-4-12 hex digits)
-    return len(s) == 36 && s[8] == '-' && s[13] == '-' && s[18] == '-' && s[23] == '-'
-}
-
-func getFoo(ctx context.Context, helper *cmd.Helper, client *kk.SDK, idOrName string) error {
-    // Try as UUID first
-    if isUUID(idOrName) {
-        resp, err := client.Foos.GetFoo(ctx, idOrName)
-        if err == nil {
-            return outputSingleFoo(helper, resp.FooResponse)
-        }
-    }
-
-    // Try as name
-    pageSize := int64(100)
-    filter := fmt.Sprintf("name[eq]=%s", idOrName)
-
-    resp, err := client.Foos.ListFoos(ctx, kkOps.ListFoosRequest{
-        PageSize: &pageSize,
-        Filter:   &filter,
-    })
-    if err != nil {
-        return fmt.Errorf("failed to find foo: %w", err)
-    }
-
-    if len(resp.ListFoosResponse.Data) == 0 {
-        return fmt.Errorf("foo not found: %s", idOrName)
-    }
-
-    if len(resp.ListFoosResponse.Data) > 1 {
-        return fmt.Errorf("multiple foos found with name: %s", idOrName)
-    }
-
-    return outputSingleFoo(helper, &resp.ListFoosResponse.Data[0])
-}
-
-func outputFooTable(helper *cmd.Helper, foos []kkComps.FooResponseSchema) error {
-    rows := make([]table.Row, 0, len(foos))
-    for _, f := range foos {
-        rec := fooToDisplayRecord(&f)
-        rows = append(rows, table.Row{
-            rec.ID,
-            rec.Name,
-            rec.Description,
-            rec.LocalCreatedTime,
-            rec.LocalUpdatedTime,
-        })
-    }
-
-    columns := []table.Column{
-        {Title: "ID", Width: 10},
-        {Title: "Name", Width: 30},
-        {Title: "Description", Width: 40},
-        {Title: "Created", Width: 20},
-        {Title: "Updated", Width: 20},
-    }
-
-    t := tableview.NewTableView(columns, rows)
-    helper.Output(t.View())
-
-    return nil
-}
-
-func outputSingleFoo(helper *cmd.Helper, foo *kkComps.FooResponseSchema) error {
-    format, err := helper.GetOutputFormat()
-    if err != nil {
-        return err
-    }
-
-    switch format {
-    case cmd.OutputFormatJSON:
-        return helper.OutputJSON(foo)
-    case cmd.OutputFormatYAML:
-        return helper.OutputYAML(foo)
-    default:
-        return outputFooDetail(helper, foo)
-    }
-}
-
-func outputFooDetail(helper *cmd.Helper, foo *kkComps.FooResponseSchema) error {
-    var output strings.Builder
-
-    output.WriteString(fmt.Sprintf("ID: %s\n", foo.ID))
-    output.WriteString(fmt.Sprintf("Name: %s\n", foo.Name))
-
-    if foo.Description != nil {
-        output.WriteString(fmt.Sprintf("Description: %s\n", *foo.Description))
-    }
-
-    output.WriteString(fmt.Sprintf("Created: %s\n",
-        foo.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")))
-    output.WriteString(fmt.Sprintf("Updated: %s\n",
-        foo.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")))
-
-    helper.Output(output.String())
-    return nil
-}
-```
-
-### CHILD RESOURCE GET COMMAND
-
-**Location**: `internal/cmd/root/products/konnect/foo/children.go`
-
-```go
-package foo
-
-import (
-    "context"
-    "fmt"
-
-    kk "github.com/Kong/sdk-konnect-go"
-    kkOps "github.com/Kong/sdk-konnect-go/models/operations"
-    "github.com/kong/kongctl/internal/cmd"
-    "github.com/spf13/cobra"
-)
-
-const (
-    fooIDFlagName   = "foo-id"
-    fooNameFlagName = "foo-name"
-)
-
-func newGetFooChildrenCmd(
-    verb verbs.VerbValue,
-    addParentFlags func(verbs.VerbValue, *cobra.Command),
-    parentPreRun func(*cobra.Command, []string) error,
-) *cobra.Command {
-    cmd := &cobra.Command{
-        Use:     "children",
-        Short:   "Manage foo children",
-        Aliases: []string{"child", "ch"},
-        PreRunE: parentPreRun,
-        RunE: func(c *cobra.Command, args []string) error {
-            return runGetFooChildren(c, args)
-        },
-    }
-
-    cmd.Flags().String(fooIDFlagName, "", "Foo ID")
-    cmd.Flags().String(fooNameFlagName, "", "Foo name")
-
-    if addParentFlags != nil {
-        addParentFlags(verb, cmd)
-    }
-
-    return cmd
-}
-
-func runGetFooChildren(c *cobra.Command, args []string) error {
-    helper := cmd.BuildHelper(c, args)
-
-    // Get foo ID (from flag or name lookup)
-    fooID, err := getFooIDFromFlags(c, helper)
-    if err != nil {
-        return err
-    }
-
-    ctx := c.Context()
-    client, err := helpers.GetSDKAPIFactory[*kk.SDK](ctx, helper)
-    if err != nil {
-        return err
-    }
-
-    // No args: list all children
-    if len(args) == 0 {
-        return listFooChildren(ctx, helper, client, fooID)
-    }
-
-    // One arg: get specific child
-    if len(args) == 1 {
-        return getFooChild(ctx, helper, client, fooID, args[0])
-    }
-
-    return fmt.Errorf("too many arguments")
-}
-
-func getFooIDFromFlags(c *cobra.Command, helper *cmd.Helper) (string, error) {
-    fooID, _ := c.Flags().GetString(fooIDFlagName)
-    if fooID != "" {
-        return fooID, nil
-    }
-
-    fooName, _ := c.Flags().GetString(fooNameFlagName)
-    if fooName == "" {
-        return "", fmt.Errorf("either --foo-id or --foo-name is required")
-    }
-
-    // Lookup foo by name
-    ctx := c.Context()
-    client, err := helpers.GetSDKAPIFactory[*kk.SDK](ctx, helper)
-    if err != nil {
-        return "", err
-    }
-
-    filter := fmt.Sprintf("name[eq]=%s", fooName)
-    resp, err := client.Foos.ListFoos(ctx, kkOps.ListFoosRequest{Filter: &filter})
-    if err != nil {
-        return "", fmt.Errorf("failed to find foo: %w", err)
-    }
-
-    if len(resp.ListFoosResponse.Data) == 0 {
-        return "", fmt.Errorf("foo not found: %s", fooName)
-    }
-
-    return resp.ListFoosResponse.Data[0].ID, nil
-}
-
-func listFooChildren(ctx context.Context, helper *cmd.Helper, client *kk.SDK, fooID string) error {
-    resp, err := client.FooChildren.ListFooChildren(ctx, fooID)
-    if err != nil {
-        return fmt.Errorf("failed to list children: %w", err)
-    }
-
-    format, err := helper.GetOutputFormat()
-    if err != nil {
-        return err
-    }
-
-    switch format {
-    case cmd.OutputFormatJSON:
-        return helper.OutputJSON(resp.Data)
-    case cmd.OutputFormatYAML:
-        return helper.OutputYAML(resp.Data)
-    default:
-        return outputFooChildrenTable(helper, resp.Data)
-    }
-}
-
-func getFooChild(ctx context.Context, helper *cmd.Helper, client *kk.SDK, fooID, childIDOrSlug string) error {
-    // Try as ID first
-    if isUUID(childIDOrSlug) {
-        resp, err := client.FooChildren.GetFooChild(ctx, fooID, childIDOrSlug)
-        if err == nil {
-            return outputSingleFooChild(helper, resp)
-        }
-    }
-
-    // List and filter by slug
-    resp, err := client.FooChildren.ListFooChildren(ctx, fooID)
-    if err != nil {
-        return err
-    }
-
-    for _, child := range resp.Data {
-        if child.Slug == childIDOrSlug {
-            return outputSingleFooChild(helper, &child)
-        }
-    }
-
-    return fmt.Errorf("child not found: %s", childIDOrSlug)
-}
-
-func outputFooChildrenTable(helper *cmd.Helper, children []kkComps.FooChild) error {
-    // Similar to parent resource table output
-    // ...
-}
-
-func outputSingleFooChild(helper *cmd.Helper, child *kkComps.FooChild) error {
-    // Similar to parent resource detail output
-    // ...
-}
-```
+## OPTIONAL: IMPERATIVE GET COMMAND IMPLEMENTATION
+
+This section is optional for declarative resource support work.
+
+- Declarative resource implementation does not require adding imperative `get`
+  commands.
+- Add imperative commands only when the scope explicitly includes CLI
+  imperative support for the new resource.
+- When imperative support is in scope, copy patterns from an existing sibling
+  resource under:
+  - `internal/cmd/root/verbs/get/`
+  - `internal/cmd/root/products/konnect/<resource>/`
+- Prefer adapting current in-repo patterns over writing new command scaffolding
+  from scratch.
 
 ---
 
@@ -2056,12 +1517,14 @@ func outputSingleFooChild(helper *cmd.Helper, child *kkComps.FooChild) error {
 - Uses YAML custom tag `!ref` to create cross-resource references
 - Format: `!ref my-resource#id` or `!ref my-resource#name`
 - The `#field` suffix is optional; defaults to `#id` if omitted
-- Processed by loader before parsing into resource structures
+- Initial tag parsing happens in the loader before strict unmarshal
 
 **Resolution Phases**:
-- **Planning time**: Resolve refs to existing resources (already in Konnect)
-- **Execution time**: Resolve refs created in same execution (new resources)
-- **Parent ID resolution**: Check References first, then Parent field
+- **Loader phase**: in-file references may resolve immediately when the target
+  value is already available in loaded declarative resources.
+- **Plan phase**: unresolved placeholders are converted into plan references.
+- **Execution phase**: plan references resolve to concrete IDs (including
+  resources created earlier in the same execution).
 
 **Example**:
 ```yaml
@@ -2070,15 +1533,16 @@ portals:
     name: My Portal
     default_application_auth_strategy_id: !ref my-auth-strategy#id
 
-auth_strategies:
+application_auth_strategies:
   - ref: my-auth-strategy
     name: My Auth Strategy
 ```
 
 **How it works**:
-1. Loader processes `!ref` tags and replaces with placeholder: `__KONGCTL_REF__my-auth-strategy#id__`
-2. Planner detects placeholders and creates Reference entries in PlannedChange
-3. Executor resolves references to actual IDs before making SDK calls
+1. Tag parsing converts `!ref` to a placeholder using prefix `__REF__:`.
+2. Loader resolves what it can locally; unresolved placeholders remain.
+3. Planner materializes unresolved placeholders into change references.
+4. Executor resolves references to actual IDs before SDK calls.
 
 ### FIELD COMPARISON
 - **Sparse updates**: Only include changed fields in update request
@@ -2129,7 +1593,7 @@ auth_strategies:
 ## COMMON MISTAKES TO AVOID
 
 1. **Forgetting to add resource to ResourceSet in types.go**
-2. **Not implementing all Resource interface methods**
+2. **Forgetting to register the resource with `registerResourceType(...)` in `init()`**
 3. **Missing label normalization in state client**
 4. **Incorrect parent ID resolution in child adapters**
 5. **Not handling protection validation in planner**
@@ -2137,7 +1601,8 @@ auth_strategies:
 7. **Not converting SDK label types (map[string]*string)**
 8. **Missing field in extractFields function**
 9. **Not tracking created resources in executor**
-10. **Forgetting to add get command to get.go**
+10. **Not updating `docs/declarative-resource-reference.md` for parent and child resources**
+11. **Assuming imperative `get` commands are required for declarative support changes**
 
 ---
 
@@ -2149,6 +1614,7 @@ After implementing new resource:
 - [ ] Resource definition in `resources/` with all interface methods
 - [ ] Resource type constant added to `types.go`
 - [ ] ResourceSet includes new resource array
+- [ ] Resource type registered via `registerResourceType(...)` in `init()`
 - [ ] State client has CRUD methods
 - [ ] State client has ListManaged method with namespace filtering
 - [ ] Planner implementation with CREATE/UPDATE/DELETE logic
@@ -2157,8 +1623,10 @@ After implementing new resource:
 - [ ] Executor adapter handles parent ID resolution (if child)
 - [ ] Executor change handler added to executeChange switch
 - [ ] Labels properly converted between SDK and internal formats
+- [ ] `docs/declarative-resource-reference.md` updated for new parent/child resources
 
 ### Imperative Get Command
+- [ ] Add only if imperative support is in scope for the change
 - [ ] Get command entry point in `verbs/get/`
 - [ ] Resource command in `products/konnect/<resource>/`
 - [ ] GET handler with list/get by ID/name
