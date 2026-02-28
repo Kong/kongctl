@@ -14,28 +14,28 @@ const (
 	BearerAuthorizationPrefix = "Bearer "
 )
 
-// SetUserAgent sets the User-Agent header on the request.
-func SetUserAgent(req *http.Request, userAgent string) {
+// setHeader is the single place that checks for a nil request before setting
+// any HTTP header. All public helpers delegate here.
+func setHeader(req *http.Request, key, value string) {
 	if req == nil {
 		return
 	}
-	req.Header.Set(HeaderUserAgent, userAgent)
+	req.Header.Set(key, value)
+}
+
+// SetUserAgent sets the User-Agent header on the request.
+func SetUserAgent(req *http.Request, userAgent string) {
+	setHeader(req, HeaderUserAgent, userAgent)
 }
 
 // SetBearerAuthorization sets an Authorization header with a Bearer token.
 func SetBearerAuthorization(req *http.Request, token string) {
-	if req == nil {
-		return
-	}
-	req.Header.Set(HeaderAuthorization, BearerAuthorizationPrefix+token)
+	setHeader(req, HeaderAuthorization, BearerAuthorizationPrefix+token)
 }
 
 // SetAccept sets the Accept header on the request.
 func SetAccept(req *http.Request, value string) {
-	if req == nil {
-		return
-	}
-	req.Header.Set(HeaderAccept, value)
+	setHeader(req, HeaderAccept, value)
 }
 
 // SetAcceptJSON sets the Accept header to application/json.
@@ -50,10 +50,7 @@ func SetAcceptEventStream(req *http.Request) {
 
 // SetContentType sets the Content-Type header on the request.
 func SetContentType(req *http.Request, value string) {
-	if req == nil {
-		return
-	}
-	req.Header.Set(HeaderContentType, value)
+	setHeader(req, HeaderContentType, value)
 }
 
 // SetContentTypeJSON sets the Content-Type header to application/json.
