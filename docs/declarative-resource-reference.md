@@ -71,12 +71,12 @@ apis:
    attributes: object [string]array[string]
      key:
        - value
-   spec_content: string (OpenAPI or AsyncAPI content; json or yaml) # declarative: often !file ./specs/api.yaml
+   spec_content: string (OpenAPI or AsyncAPI content; json or yaml) # prefer: !file ./specs/api.yaml
    versions: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api-version
      - ref: string
        version: string
        spec: object required
-         content: string required (OpenAPI or AsyncAPI content; json or yaml) # declarative: often !file ./specs/api.yaml
+         content: string required (OpenAPI or AsyncAPI content; json or yaml) # prefer: !file ./specs/api.yaml
    publications: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/publish-api-to-portal
      - ref: string
        portal_id: string required (uuid) # prefer: !ref <portal-ref>
@@ -92,14 +92,14 @@ apis:
          control_plane_id: string required (uuid) # prefer: !ref <control-plane-ref>
    documents: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api-document
      - ref: string
-       content: string required (markdown) # declarative: often !file ./docs/page.md
+       content: string required (markdown) # prefer: !file ./docs/page.md
        title: string
        slug: string (pattern: ^[\w-]+$)
        status: One of (published | unpublished)
        parent_document_id: string (uuid, nullable) # prefer: !ref <document-ref>
        children:
          - ref: string
-           content: string required (markdown) # declarative: often !file ./docs/page.md
+           content: string required (markdown) # prefer: !file ./docs/page.md
            title: string
            slug: string (pattern: ^[\w-]+$)
            status: One of (published | unpublished)
@@ -284,6 +284,7 @@ event_gateways:
 
 ## Organization
 
+[API Specification](https://developer.konghq.com/api/konnect/identity/v3/#/)
 [Example](examples/declarative/organization/teams.yaml)
 
 ```yaml
@@ -366,7 +367,7 @@ portals:
    pages: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/create-portal-page
      - ref: string
        slug: string required (max 512 chars)
-       content: string required (markdown) # declarative: often !file ./docs/page.md
+       content: string required (markdown) # prefer: !file ./docs/page.md
        title: string (max 512 chars)
        visibility: One of (public | private)
        status: One of (published | unpublished)
@@ -375,7 +376,7 @@ portals:
        children:
          - ref: string
            slug: string required (max 512 chars)
-           content: string required (markdown) # declarative: often !file ./docs/page.md
+           content: string required (markdown) # prefer: !file ./docs/page.md
            title: string (max 512 chars)
            visibility: One of (public | private)
            status: One of (published | unpublished)
@@ -384,7 +385,7 @@ portals:
    snippets: # https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/create-portal-snippet
      - ref: string
        name: string required (max 512 chars)
-       content: string required (markdown) # declarative: often !file ./docs/snippet.md
+       content: string required (markdown) # prefer: !file ./docs/snippet.md
        title: string (max 512 chars)
        visibility: One of (public | private)
        status: One of (published | unpublished)
