@@ -6,7 +6,7 @@ Technical guide for coding agents to implement new resources in kongctl's declar
 Use the snippets as implementation patterns. Exact helper/function names can
 evolve, so confirm against current code before finalizing.
 
-## REFACTOR BASELINE (PRS #411 AND #414)
+## REFACTOR BASELINE (PRs #411 AND #414)
 
 New resource implementations should follow these refactored patterns.
 
