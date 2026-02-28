@@ -26,6 +26,7 @@ import (
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util/httpheaders"
 )
 
 var (
@@ -127,7 +128,7 @@ func RequestDeviceCode(httpClient *http.Client,
 	if err != nil {
 		return DeviceCodeResponse{}, err
 	}
-	req.Header.Set("User-Agent", meta.UserAgent())
+	httpheaders.SetUserAgent(req, meta.UserAgent())
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -177,8 +178,8 @@ func RefreshAccessToken(refreshURL string, refreshToken string, logger *slog.Log
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", meta.UserAgent())
+	httpheaders.SetContentTypeJSON(req)
+	httpheaders.SetUserAgent(req, meta.UserAgent())
 
 	res, err := httpClient.Do(req)
 	if err != nil {
@@ -245,7 +246,7 @@ func PollForToken(ctx context.Context, httpClient *http.Client,
 	if err != nil {
 		return nil, err
 	}
-	request.Header.Set("User-Agent", meta.UserAgent())
+	httpheaders.SetUserAgent(request, meta.UserAgent())
 
 	response, err := httpClient.Do(request)
 	if err != nil {

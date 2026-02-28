@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util/httpheaders"
 )
 
 type TaskAction string
@@ -75,8 +76,8 @@ func ListActiveTasks(
 		return nil, fmt.Errorf("failed to build active tasks request: %w", err)
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	req.Header.Set("User-Agent", meta.UserAgent())
+	httpheaders.SetBearerAuthorization(req, token)
+	httpheaders.SetUserAgent(req, meta.UserAgent())
 
 	logDebug(ctx, "kai list active tasks request",
 		slog.String("endpoint", endpoint),
@@ -181,9 +182,9 @@ func UpdateTask(
 	if err != nil {
 		return nil, fmt.Errorf("failed to build update task request: %w", err)
 	}
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", meta.UserAgent())
+	httpheaders.SetBearerAuthorization(req, token)
+	httpheaders.SetContentTypeJSON(req)
+	httpheaders.SetUserAgent(req, meta.UserAgent())
 
 	logDebug(ctx, "kai update task request",
 		slog.String("endpoint", endpoint),
@@ -251,9 +252,9 @@ func StreamTaskStatus(
 	if err != nil {
 		return nil, fmt.Errorf("failed to build task status request: %w", err)
 	}
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	req.Header.Set("Accept", "text/event-stream")
-	req.Header.Set("User-Agent", meta.UserAgent())
+	httpheaders.SetBearerAuthorization(req, token)
+	httpheaders.SetAcceptEventStream(req)
+	httpheaders.SetUserAgent(req, meta.UserAgent())
 
 	logDebug(ctx, "kai task status stream request",
 		slog.String("endpoint", endpoint),
@@ -389,10 +390,10 @@ func AnalyzeTaskStream(
 		return nil, fmt.Errorf("failed to build analyze task request: %w", err)
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "text/event-stream")
-	req.Header.Set("User-Agent", meta.UserAgent())
+	httpheaders.SetBearerAuthorization(req, token)
+	httpheaders.SetContentTypeJSON(req)
+	httpheaders.SetAcceptEventStream(req)
+	httpheaders.SetUserAgent(req, meta.UserAgent())
 
 	logDebug(ctx, "kai analyze task request",
 		slog.String("endpoint", endpoint),

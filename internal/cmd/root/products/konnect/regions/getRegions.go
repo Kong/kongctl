@@ -13,6 +13,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util/httpheaders"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/segmentio/cli"
@@ -60,8 +61,8 @@ func fetchAvailableRegions(ctx context.Context) (*availableRegionsResponse, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", meta.UserAgent())
+	httpheaders.SetAcceptJSON(req)
+	httpheaders.SetUserAgent(req, meta.UserAgent())
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
