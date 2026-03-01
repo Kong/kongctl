@@ -43,6 +43,7 @@ type PlannedChange struct {
 	ResourceMonikers      map[string]string        `json:"resource_monikers,omitempty"`
 	Action                ActionType               `json:"action"`
 	Fields                map[string]any           `json:"fields"`
+	ChangedFields         map[string]FieldChange   `json:"changed_fields,omitempty"`
 	PostResolutionTargets []PostResolutionTarget   `json:"post_resolution_targets,omitempty"`
 	References            map[string]ReferenceInfo `json:"references,omitempty"`
 	Parent                *ParentInfo              `json:"parent,omitempty"`

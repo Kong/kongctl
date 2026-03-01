@@ -39,6 +39,7 @@ type UpdateConfig struct {
 	ResourceID      string
 	CurrentFields   map[string]any
 	DesiredFields   map[string]any
+	ChangedFields   map[string]FieldChange
 	CurrentLabels   map[string]string
 	DesiredLabels   map[string]string
 	RequiredFields  []string
@@ -147,14 +148,15 @@ func (g *GenericPlanner) PlanUpdate(_ context.Context, config UpdateConfig) (Pla
 	changeID := g.planner.nextChangeID(ActionUpdate, config.ResourceType, ref)
 
 	change := PlannedChange{
-		ID:           changeID,
-		Action:       ActionUpdate,
-		ResourceType: config.ResourceType,
-		ResourceRef:  ref,
-		ResourceID:   config.ResourceID,
-		Fields:       config.DesiredFields,
-		Namespace:    config.Namespace,
-		References:   config.References,
+		ID:            changeID,
+		Action:        ActionUpdate,
+		ResourceType:  config.ResourceType,
+		ResourceRef:   ref,
+		ResourceID:    config.ResourceID,
+		Fields:        config.DesiredFields,
+		ChangedFields: config.ChangedFields,
+		Namespace:     config.Namespace,
+		References:    config.References,
 	}
 
 	return change, nil

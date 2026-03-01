@@ -1,9 +1,11 @@
 package declarative
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -134,4 +136,52 @@ func Test_parsePlanMode(t *testing.T) {
 			assert.Equal(t, tt.expected, mode)
 		})
 	}
+}
+
+func TestDisplayTextDiff_UsesChangedFieldsForUpdateOutput(t *testing.T) {
+	plan := &planner.Plan{
+		Changes: []planner.PlannedChange{
+			{
+				ID:           "1:u:event_gateway_listener:listener-a",
+				ResourceType: planner.ResourceTypeEventGatewayListener,
+				ResourceRef:  "listener-a",
+				ResourceID:   "listener-id",
+				Action:       planner.ActionUpdate,
+				Namespace:    "default",
+				Fields: map[string]any{
+					"name":        "listener-a",
+					"description": "new description",
+					"addresses":   []string{"0.0.0.0"},
+				},
+				ChangedFields: map[string]planner.FieldChange{
+					"description": {
+						Old: "old description",
+						New: "new description",
+					},
+				},
+			},
+		},
+		ExecutionOrder: []string{"1:u:event_gateway_listener:listener-a"},
+		Summary: planner.PlanSummary{
+			TotalChanges: 1,
+			ByAction: map[planner.ActionType]int{
+				planner.ActionUpdate: 1,
+			},
+			ByResource: map[string]int{
+				planner.ResourceTypeEventGatewayListener: 1,
+			},
+		},
+	}
+
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	err := displayTextDiff(cmd, plan, false)
+	require.NoError(t, err)
+
+	output := out.String()
+	assert.Contains(t, output, `description: "old description" → "new description"`)
+	assert.NotContains(t, output, "addresses:")
+	assert.NotContains(t, output, `name: "listener-a"`)
 }

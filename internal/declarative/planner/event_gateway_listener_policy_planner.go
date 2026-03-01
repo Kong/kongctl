@@ -113,16 +113,17 @@ func (p *Planner) planListenerPolicyChangesForExistingListener(
 				"policy_id", current.ID,
 			)
 
-			needsUpdate, updateFields := p.shouldUpdateListenerPolicy(current, desiredPolicy)
+			needsUpdate, updateFields, changedFields := p.shouldUpdateListenerPolicy(current, desiredPolicy)
 			if needsUpdate {
 				p.logger.Debug("Planning listener policy UPDATE",
 					"policy_name", policyName,
 					"policy_id", current.ID,
 					"update_fields", updateFields,
+					"changed_fields", changedFields,
 				)
 				p.planListenerPolicyUpdate(
 					namespace, gatewayID, gatewayRef, listenerID, listenerRef,
-					current.ID, desiredPolicy, updateFields, plan,
+					current.ID, desiredPolicy, updateFields, changedFields, plan,
 				)
 			}
 		}
@@ -249,6 +250,7 @@ func (p *Planner) planListenerPolicyUpdate(
 	policyID string,
 	policy resources.EventGatewayListenerPolicyResource,
 	updateFields map[string]any,
+	changedFields map[string]FieldChange,
 	plan *Plan,
 ) {
 	if len(updateFields) == 0 {
@@ -256,13 +258,14 @@ func (p *Planner) planListenerPolicyUpdate(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionUpdate, ResourceTypeEventGatewayListenerPolicy, policy.Ref),
-		ResourceType: ResourceTypeEventGatewayListenerPolicy,
-		ResourceRef:  policy.Ref,
-		ResourceID:   policyID,
-		Action:       ActionUpdate,
-		Fields:       updateFields,
-		Namespace:    namespace,
+		ID:            p.nextChangeID(ActionUpdate, ResourceTypeEventGatewayListenerPolicy, policy.Ref),
+		ResourceType:  ResourceTypeEventGatewayListenerPolicy,
+		ResourceRef:   policy.Ref,
+		ResourceID:    policyID,
+		Action:        ActionUpdate,
+		Fields:        updateFields,
+		ChangedFields: changedFields,
+		Namespace:     namespace,
 		Parent: &ParentInfo{
 			Ref: listenerRef,
 			ID:  listenerID,
@@ -370,8 +373,9 @@ func (p *Planner) extractListenerPolicyLabels(
 func (p *Planner) shouldUpdateListenerPolicy(
 	current state.EventGatewayListenerPolicyInfo,
 	desired resources.EventGatewayListenerPolicyResource,
-) (bool, map[string]any) {
+) (bool, map[string]any, map[string]FieldChange) {
 	var needsUpdate bool
+	changes := make(map[string]FieldChange)
 
 	// Compare name
 	desiredName := desired.GetMoniker()
@@ -381,6 +385,10 @@ func (p *Planner) shouldUpdateListenerPolicy(
 	}
 	if currentName != desiredName {
 		needsUpdate = true
+		changes["name"] = FieldChange{
+			Old: currentName,
+			New: desiredName,
+		}
 	}
 
 	// Compare description
@@ -391,6 +399,10 @@ func (p *Planner) shouldUpdateListenerPolicy(
 	desiredDesc := p.getListenerPolicyDescription(desired)
 	if currentDesc != desiredDesc {
 		needsUpdate = true
+		changes["description"] = FieldChange{
+			Old: currentDesc,
+			New: desiredDesc,
+		}
 	}
 
 	// Compare enabled
@@ -401,6 +413,10 @@ func (p *Planner) shouldUpdateListenerPolicy(
 	desiredEnabled := p.getListenerPolicyEnabled(desired)
 	if currentEnabled != desiredEnabled {
 		needsUpdate = true
+		changes["enabled"] = FieldChange{
+			Old: currentEnabled,
+			New: desiredEnabled,
+		}
 	}
 
 	// Compare labels
@@ -408,22 +424,43 @@ func (p *Planner) shouldUpdateListenerPolicy(
 	if desiredLabels != nil {
 		if !compareMaps(current.Labels, desiredLabels) {
 			needsUpdate = true
+			changes["labels"] = FieldChange{
+				Old: current.Labels,
+				New: desiredLabels,
+			}
 		}
 	} else if len(current.Labels) > 0 {
 		needsUpdate = true
+		changes["labels"] = FieldChange{
+			Old: current.Labels,
+			New: map[string]string{},
+		}
 	}
 
 	// Compare config based on policy type
 	if p.listenerPolicyConfigNeedsUpdate(current, desired) {
 		needsUpdate = true
+		changes["config"] = FieldChange{
+			Old: current.RawConfig,
+			New: p.listenerPolicyToFields(desired)["config"],
+		}
 	}
 
 	// If any changes detected, serialize ALL fields from desired state for PUT request
 	if needsUpdate {
-		return true, p.listenerPolicyToFields(desired)
+		updateFields := p.listenerPolicyToFields(desired)
+		if current.Type != "" {
+			if desiredType, ok := updateFields["type"].(string); ok && desiredType != current.Type {
+				changes["type"] = FieldChange{
+					Old: current.Type,
+					New: desiredType,
+				}
+			}
+		}
+		return true, updateFields, changes
 	}
 
-	return false, nil
+	return false, nil, nil
 }
 
 // getListenerPolicyDescription extracts description from whichever union variant is set

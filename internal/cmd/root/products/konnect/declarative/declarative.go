@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"sort"
 	"strings"
@@ -926,22 +927,25 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 					}
 				}
 
-				// Show field changes
-				for field, value := range change.Fields {
-					if fc, ok := value.(planner.FieldChange); ok {
-						fmt.Fprintf(out, "  %s: %v → %v\n", field, fc.Old, fc.New)
-					} else if fc, ok := value.(map[string]any); ok {
-						// Handle FieldChange that was unmarshaled from JSON
-						if oldVal, hasOld := fc["old"]; hasOld {
-							if newVal, hasNew := fc["new"]; hasNew {
-								fmt.Fprintf(out, "  %s: %v → %v\n", field, oldVal, newVal)
+				if len(change.ChangedFields) > 0 {
+					displayFieldChanges(out, change.ChangedFields, "  ", fullContent)
+				} else {
+					// Backward compatibility with plans that only have raw update fields.
+					for field, value := range change.Fields {
+						if fc, ok := value.(planner.FieldChange); ok {
+							displayFieldChange(out, field, fc.Old, fc.New, "  ", fullContent)
+						} else if fc, ok := value.(map[string]any); ok {
+							// Handle FieldChange that was unmarshaled into map[string]any.
+							oldVal, hasOld := fc["old"]
+							newVal, hasNew := fc["new"]
+							if hasOld && hasNew {
+								displayFieldChange(out, field, oldVal, newVal, "  ", fullContent)
 								continue
 							}
+							displayField(out, field, value, "  ", fullContent)
+						} else {
+							displayField(out, field, value, "  ", fullContent)
 						}
-						// Fallback for other map types
-						displayField(out, field, value, "  ", fullContent)
-					} else {
-						displayField(out, field, value, "  ", fullContent)
 					}
 				}
 
@@ -997,6 +1001,71 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 	}
 
 	return nil
+}
+
+func displayFieldChanges(
+	out io.Writer,
+	changes map[string]planner.FieldChange,
+	indent string,
+	fullContent bool,
+) {
+	keys := make([]string, 0, len(changes))
+	for field := range changes {
+		keys = append(keys, field)
+	}
+	sort.Strings(keys)
+
+	for _, field := range keys {
+		fc := changes[field]
+		displayFieldChange(out, field, fc.Old, fc.New, indent, fullContent)
+	}
+}
+
+func displayFieldChange(
+	out io.Writer,
+	field string,
+	oldValue any,
+	newValue any,
+	indent string,
+	fullContent bool,
+) {
+	oldText := formatFieldValue(oldValue, fullContent)
+	newText := formatFieldValue(newValue, fullContent)
+	fmt.Fprintf(out, "%s%s: %s → %s\n", indent, field, oldText, newText)
+}
+
+func formatFieldValue(value any, fullContent bool) string {
+	const maxDisplayLength = 500
+	value = dereferenceFieldValue(value)
+
+	switch v := value.(type) {
+	case string:
+		if !fullContent && len(v) > maxDisplayLength {
+			lines := strings.Count(v, "\n") + 1
+			return fmt.Sprintf("<%d bytes, %d lines>", len(v), lines)
+		}
+		return fmt.Sprintf("%q", v)
+	case nil:
+		return "null"
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+func dereferenceFieldValue(value any) any {
+	for {
+		rv := reflect.ValueOf(value)
+		if !rv.IsValid() {
+			return nil
+		}
+		if rv.Kind() != reflect.Pointer {
+			return value
+		}
+		if rv.IsNil() {
+			return nil
+		}
+		value = rv.Elem().Interface()
+	}
 }
 
 func displayField(out io.Writer, field string, value any, indent string, fullContent bool) {

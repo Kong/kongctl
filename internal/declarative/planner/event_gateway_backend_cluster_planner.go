@@ -105,16 +105,17 @@ func (p *Planner) planBackendClusterChangesForExistingGateway(
 				return fmt.Errorf("failed to get backend cluster %s: %w", current.ID, err)
 			}
 
-			needsUpdate, updateFields := p.shouldUpdateBackendCluster(*fullCluster, desiredCluster)
+			needsUpdate, updateFields, changedFields := p.shouldUpdateBackendCluster(*fullCluster, desiredCluster)
 			if needsUpdate {
 				p.logger.Debug("Planning backend cluster UPDATE",
 					"cluster_name", desiredCluster.Name,
 					"cluster_id", current.ID,
 					"update_fields", updateFields,
+					"changed_fields", changedFields,
 				)
 				p.planBackendClusterUpdate(
 					namespace, gatewayRef, gatewayName, gatewayID,
-					current.ID, desiredCluster, updateFields, plan)
+					current.ID, desiredCluster, updateFields, changedFields, plan)
 			}
 		}
 	}
@@ -241,6 +242,7 @@ func (p *Planner) planBackendClusterUpdate(
 	clusterID string,
 	cluster resources.EventGatewayBackendClusterResource,
 	updateFields map[string]any,
+	changedFields map[string]FieldChange,
 	plan *Plan,
 ) {
 	if len(updateFields) == 0 {
@@ -248,13 +250,14 @@ func (p *Planner) planBackendClusterUpdate(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionUpdate, ResourceTypeEventGatewayBackendCluster, cluster.Ref),
-		ResourceType: ResourceTypeEventGatewayBackendCluster,
-		ResourceRef:  cluster.Ref,
-		ResourceID:   clusterID,
-		Action:       ActionUpdate,
-		Fields:       updateFields,
-		Namespace:    namespace,
+		ID:            p.nextChangeID(ActionUpdate, ResourceTypeEventGatewayBackendCluster, cluster.Ref),
+		ResourceType:  ResourceTypeEventGatewayBackendCluster,
+		ResourceRef:   cluster.Ref,
+		ResourceID:    clusterID,
+		Action:        ActionUpdate,
+		Fields:        updateFields,
+		ChangedFields: changedFields,
+		Namespace:     namespace,
 	}
 
 	change.Parent = &ParentInfo{
@@ -308,13 +311,18 @@ func (p *Planner) planBackendClusterDelete(
 func (p *Planner) shouldUpdateBackendCluster(
 	current state.EventGatewayBackendCluster,
 	desired resources.EventGatewayBackendClusterResource,
-) (bool, map[string]any) {
+) (bool, map[string]any, map[string]FieldChange) {
 	updates := make(map[string]any)
+	changes := make(map[string]FieldChange)
 	var needsUpdate bool
 
 	// Compare name
 	if current.Name != desired.Name {
 		needsUpdate = true
+		changes["name"] = FieldChange{
+			Old: current.Name,
+			New: desired.Name,
+		}
 	}
 
 	// Compare description
@@ -322,21 +330,37 @@ func (p *Planner) shouldUpdateBackendCluster(
 	desiredDesc := getString(desired.Description)
 	if currentDesc != desiredDesc {
 		needsUpdate = true
+		changes["description"] = FieldChange{
+			Old: currentDesc,
+			New: desiredDesc,
+		}
 	}
 
 	// Compare authentication
 	if !compareAuthenticationSchemes(current.Authentication, desired.Authentication) {
 		needsUpdate = true
+		changes["authentication"] = FieldChange{
+			Old: current.Authentication,
+			New: desired.Authentication,
+		}
 	}
 
 	// Compare bootstrap servers
 	if !compareStringSlices(current.BootstrapServers, desired.BootstrapServers) {
 		needsUpdate = true
+		changes["bootstrap_servers"] = FieldChange{
+			Old: current.BootstrapServers,
+			New: desired.BootstrapServers,
+		}
 	}
 
 	// Compare TLS settings
 	if !compareTLSSettings(current.TLS, desired.TLS) {
 		needsUpdate = true
+		changes["tls"] = FieldChange{
+			Old: current.TLS,
+			New: desired.TLS,
+		}
 	}
 
 	// Compare insecure flag
@@ -345,18 +369,30 @@ func (p *Planner) shouldUpdateBackendCluster(
 		desired.InsecureAllowAnonymousVirtualClusterAuth,
 	) {
 		needsUpdate = true
+		changes["insecure_allow_anonymous_virtual_cluster_auth"] = FieldChange{
+			Old: current.InsecureAllowAnonymousVirtualClusterAuth,
+			New: *desired.InsecureAllowAnonymousVirtualClusterAuth,
+		}
 	}
 
 	// Compare metadata update interval
 	if desired.MetadataUpdateIntervalSeconds != nil &&
 		!compareInt64Ptrs(current.MetadataUpdateIntervalSeconds, desired.MetadataUpdateIntervalSeconds) {
 		needsUpdate = true
+		changes["metadata_update_interval_seconds"] = FieldChange{
+			Old: current.MetadataUpdateIntervalSeconds,
+			New: *desired.MetadataUpdateIntervalSeconds,
+		}
 	}
 
 	// Compare labels (user labels only, ignore KONGCTL labels)
 	if desired.Labels != nil {
 		if !compareStringMaps(current.Labels, desired.Labels) {
 			needsUpdate = true
+			changes["labels"] = FieldChange{
+				Old: current.Labels,
+				New: desired.Labels,
+			}
 		}
 	}
 
@@ -385,7 +421,7 @@ func (p *Planner) shouldUpdateBackendCluster(
 		}
 	}
 
-	return needsUpdate, updates
+	return needsUpdate, updates, changes
 }
 
 // Helper functions for comparisons

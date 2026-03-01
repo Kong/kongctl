@@ -662,6 +662,10 @@ kongctl diff --plan plan.json
 > Note: `--mode` cannot be used with `--plan` because mode is stored in the
 > plan artifact metadata.
 
+For `UPDATE` actions, text diff shows only the fields that would be changed. 
+JSON and YAML outputs expose the same detail in each change's
+`changed_fields` object while keeping `fields` as the execution payload.
+
 ### adopt
 
 `kongctl` declarative configuration engine will only consider resources that
