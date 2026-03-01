@@ -126,7 +126,7 @@ steps:
             expect:
               fields:
                 action: UPDATE
-                fields.display_name: "{{ .vars.portalUpdatedName }}"
+                "(changed_fields.display_name.new // fields.display_name)": "{{ .vars.portalUpdatedName }}"
           - select: >-
               changes[?resource_type=='api' &&
                        resource_ref=='{{ .vars.newAPIRef }}'] | [0]
@@ -199,7 +199,7 @@ steps:
             expect:
               fields:
                 action: UPDATE
-                fields.display_name: "{{ .vars.portalUpdatedName }}"
+                "(changed_fields.display_name.new // fields.display_name)": "{{ .vars.portalUpdatedName }}"
           - select: >-
               changes[?resource_type=='api' &&
                        resource_ref=='{{ .vars.newAPIRef }}'] | [0]

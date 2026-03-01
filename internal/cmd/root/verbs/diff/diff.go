@@ -28,7 +28,10 @@ var (
 	diffExamples = normalizers.Examples(i18n.T("root.verbs.diff.diffExamples",
 		fmt.Sprintf(`  %[1]s diff -f api.yaml
   %[1]s diff -f api.yaml --mode apply
+<<<<<<< HEAD
   %[1]s diff -f api.yaml --mode delete
+=======
+>>>>>>> 63c2e7c (Fix: Added mode to declarative diff command)
   %[1]s diff --plan plan.json
   %[1]s diff -f config.yaml --output json
 
