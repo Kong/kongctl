@@ -29,7 +29,7 @@ var (
 		fmt.Sprintf(`  %[1]s diff -f api.yaml
   %[1]s diff -f api.yaml --mode apply
   %[1]s diff --plan plan.json
-  %[1]s diff -f config.yaml --format json
+  %[1]s diff -f config.yaml --output json
 
 Use "%[1]s help diff" for detailed documentation`, meta.CLIName)))
 )

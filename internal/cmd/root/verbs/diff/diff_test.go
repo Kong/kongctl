@@ -59,7 +59,7 @@ func TestDiffCmdHelpText(t *testing.T) {
 	assert.Contains(t, cmd.Short, "Show configuration", "Short should mention showing configuration")
 	assert.Contains(t, cmd.Long, "differences", "Long should mention differences")
 	assert.Contains(t, cmd.Example, "--plan", "Examples should show --plan flag usage")
-	assert.Contains(t, cmd.Example, "--format json", "Examples should show output format option")
+	assert.Contains(t, cmd.Example, "--output json", "Examples should show output format option")
 	assert.Contains(t, cmd.Example, "help diff", "Examples should mention extended help")
 }
 
