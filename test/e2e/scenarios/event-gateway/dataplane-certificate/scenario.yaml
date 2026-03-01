@@ -89,3 +89,239 @@ steps:
               fields:
                 name: default-dataplane-certificate-name
                 description: "Default Dataplane Certificate description"
+  - name: 002-plan-apply-update
+    inputOverlayDirs:
+      - overlays/001-update-fields
+    commands:
+      - name: 001-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_data_plane_certificate' && resource_ref=='{{ .vars.dataplaneCertRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                resource_ref: "{{ .vars.dataplaneCertRef }}"
+      - name: 002-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-update
+        run:
+          - get
+          - event-gateway
+          - data-plane-certificates
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.dataplaneCertName }}"
+                description: "Default Dataplane Certificate updated description"
+                certificate: "-----BEGIN CERTIFICATE-----\nMIIFkjCCA3oCCQDh23hmwAl7bTANBgkqhkiG9w0BAQsFADCBijELMAkGA1UEBhMC\nSU4xCzAJBgNVBAgMAktBMQwwCgYDVQQHDANCTFIxDzANBgNVBAoMBkFQSU9wczEP\nMA0GA1UECwwGQVBJT3BzMRYwFAYDVQQDDA1hcGlvcHN0b29saW5nMSYwJAYJKoZI\nhvcNAQkBFhdoYXJzaGEuZGl4aXRAa29uZ2hxLmNvbTAeFw0yNjAyMjcwNjUyMjFa\nFw0zNjAyMjUwNjUyMjFaMIGKMQswCQYDVQQGEwJJTjELMAkGA1UECAwCS0ExDDAK\nBgNVBAcMA0JMUjEPMA0GA1UECgwGQVBJT3BzMQ8wDQYDVQQLDAZBUElPcHMxFjAU\nBgNVBAMMDWFwaW9wc3Rvb2xpbmcxJjAkBgkqhkiG9w0BCQEWF2hhcnNoYS5kaXhp\ndEBrb25naHEuY29tMIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAtixX\nEVPRyu/PImeM1Hc4+l1J4GR709WZANOZGG0cL+SSWWK1ZIXK4EZfCYmdw4JLKZaa\nJk66ILkXnaXZ6wWAaC5wUz+IC1ReBq40maDy1ViGqDYy3nHyHN9f08/QYkj7zenr\nW5tsupHGALIGbJH0GYOqNlZl3jrrnFOFlwsWK4Uuws9oH1fRZetxUXCaTPohbWJJ\n4wjfMpbK10YfbQKydDHRqkgdd4/HRsnVIc0tl5GC6E6Gr1Srf0XlaoJ6FllUErL/\n/Uv/ONWW7w6uQjJPijEBWW/1BUeK0mFhTj3RzeqzciX9raQ8UV4Ev/aljjyi1b6w\n63IghAqCCMgwFrdCzenvXcb7Cy2eiCba4flXLx5nukFtO+L1j126kKpEm9SiJB6f\nOX2XSbxPpcjqWuMzq+525j9vZ+H3OWs8N4IIgW70aIahRVA5qHD4b/XZBHaDNWQV\nOGFW8NctbMa67SoaZ0WuChT8rdBq5ONW2WQ1gsfh9FvJfIEZoCBrmxgSPoS0cQQs\nOiQ4Q4eHK9Dz4DCHnhEflUJe+qpcaL/evFJxJsMCPSW92RRQM1yqKztg1ZYPyfQv\nAVf19UjN0JEVlL0G3fuxZJRBnF2SuNEoA5cug31C/rIx37uyMmscMbE8r6z0yWWp\njCc9d5WoH0f8rG3AeNd+1ptsw7DiAZ2L3btzwMsCAwEAATANBgkqhkiG9w0BAQsF\nAAOCAgEAY8Xtia2PTUCSoNlbENaNNYZBQxi5+UVLR5cOz5wHTyidXiYnMN77T6em\nEh76ZLZ5crHbzu7eRxt3ktaxXbO3EZGmDkjRLIjHVh8dAk8oPcJ041plBbpBs/yo\n80FtU8qVu+G3wL6mgaWhcdUmss1QUQFPKj5XHpmemhWdt1em+WRZDOX9+GyugABL\neqkFuDoyfD2Z+qPQPUaq/lJHxYk/oT7EaRFXb//402fQD1zs4bbsKkmhy0GgHPfV\nK+zuaUT2mfJJY4GEea9t/cajC4sFL1AQaF8K/5OKs7D/lF/+GAZuoCFfGnmUQjvV\nrmQQJLGOD5AfjZXIYbgq0aYrbGs4XVfZQ+MumjWgeaBYYcv/0J49kVWFD0WHPwsa\nwOYbkPqm83Bvf2bBYCoXv+9ZVNIQLcjcHdRTCvHfTw6R/khWsVOb4CPSo+lEzlaj\nlrXj6DhgBeGSfikJjZ8pnlHFXLIEv+czX0/tUjz2wCdNiaJY300Wts3tgdqw0nrb\nKvkrvnBC7Bzq++cq5OwiH76Q60AR5nVOUuv4vnHw/tHGKUC3tpCwaZGq0JreE6kf\nP3DI0rBwbCFoa1PGM4e9um/knesL0KAR1fM+SeZkuJgm58OHDlR40ZgRmbb6mVp9\ngoGQTNrFuZx5HQUzmosH3zzl/LgCNxwVw7TdiR8h9KqVqavHz38=\n-----END CERTIFICATE-----"
+  - name: 003-sync-delete
+    inputOverlayDirs:
+      - overlays/002-sync-delete
+    commands:
+      - name: 001-plan-sync-delete
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_data_plane_certificate' && resource_ref=='{{ .vars.dataplaneCertName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: "{{ .vars.dataplaneCertName }}"
+      - name: 002-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-delete
+        run:
+          - get
+          - event-gateway
+          - data-plane-certificates
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+  - name: 004-root-level-data-plane-certificate
+    inputOverlayDirs:
+      - overlays/003-root-level-declaration
+    commands:
+      - name: 001-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-root-level.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_data_plane_certificate' && resource_ref=='{{ .vars.dataplaneCertRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.dataplaneCertRef }}"
+      - name: 002-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-root-level.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-create
+        run:
+          - get
+          - event-gateway
+          - data-plane-certificates
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: default-dataplane-certificate-name
+                description: "Default root level Data Plane Certificate description"
+  - name: 005-sync-delete-root-level
+    inputOverlayDirs:
+      - overlays/004-sync-delete-root-level-declaration
+    commands:
+      - name: 001-plan-sync-delete-root-level
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete-root-level.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_data_plane_certificate' && resource_ref=='{{ .vars.dataplaneCertName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: "{{ .vars.dataplaneCertName }}"
+      - name: 002-sync-delete-root-level
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete-root-level.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-delete-root-level
+        run:
+          - get
+          - event-gateway
+          - data-plane-certificates
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+

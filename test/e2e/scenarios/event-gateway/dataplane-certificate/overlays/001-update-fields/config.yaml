@@ -1,0 +1,45 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-dataplane-cert-comprehensive-test
+
+event_gateways:
+  - ref: egw-cp-for-dataplane-cert-test-ref
+    name: egw-cp-for-dataplane-cert-test-name
+    description: "EGW CP for Dataplane Cert Test"
+    data_plane_certificates:
+    - ref: default-dataplane-certificate-ref
+      name: default-dataplane-certificate-name
+      description: "Default Dataplane Certificate updated description"
+      certificate: |-
+        -----BEGIN CERTIFICATE-----
+        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
+        -----END CERTIFICATE-----

@@ -429,3 +429,109 @@ func dataPlaneCertToRecord(cert kkComps.EventGatewayDataPlaneCertificate) dataPl
 		LocalUpdatedTime: updatedAt,
 	}
 }
+
+func dataPlaneCertDetailView(cert *kkComps.EventGatewayDataPlaneCertificate) string {
+	if cert == nil {
+		return ""
+	}
+
+	id := strings.TrimSpace(cert.ID)
+	if id == "" {
+		id = valueNA
+	}
+
+	name := valueNA
+	if cert.Name != nil && strings.TrimSpace(*cert.Name) != "" {
+		name = strings.TrimSpace(*cert.Name)
+	}
+
+	description := valueNA
+	if cert.Description != nil && strings.TrimSpace(*cert.Description) != "" {
+		description = strings.TrimSpace(*cert.Description)
+	}
+
+	// Format certificate metadata
+	var metadataStr string
+	if cert.Metadata != nil {
+		metadataStr = formatCertificateMetadata(cert.Metadata)
+	} else {
+		metadataStr = valueNA
+	}
+
+	createdAt := cert.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+	updatedAt := cert.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	fmt.Fprintf(&b, "description: %s\n", description)
+	fmt.Fprintf(&b, "metadata: %s\n", metadataStr)
+	fmt.Fprintf(&b, "created_at: %s\n", createdAt)
+	fmt.Fprintf(&b, "updated_at: %s\n", updatedAt)
+
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func formatCertificateMetadata(meta *kkComps.CertificateMetadata) string {
+	if meta == nil {
+		return valueNA
+	}
+
+	var parts []string
+
+	if meta.Subject != nil && *meta.Subject != "" {
+		parts = append(parts, fmt.Sprintf("subject=%s", *meta.Subject))
+	}
+
+	if meta.Issuer != nil && *meta.Issuer != "" {
+		parts = append(parts, fmt.Sprintf("issuer=%s", *meta.Issuer))
+	}
+
+	if meta.Expiry != nil {
+		expiryTime := time.Unix(*meta.Expiry, 0)
+		parts = append(parts, fmt.Sprintf("expiry=%s", expiryTime.Format("2006-01-02 15:04:05")))
+	}
+
+	if meta.Sha256Fingerprint != nil && *meta.Sha256Fingerprint != "" {
+		parts = append(parts, fmt.Sprintf("sha256=%s", *meta.Sha256Fingerprint))
+	}
+
+	if len(meta.DNSNames) > 0 {
+		parts = append(parts, fmt.Sprintf("dns_names=[%s]", strings.Join(meta.DNSNames, ", ")))
+	}
+
+	if len(parts) == 0 {
+		return valueNA
+	}
+
+	return strings.Join(parts, ", ")
+}
+
+func buildDataPlaneCertChildView(certs []kkComps.EventGatewayDataPlaneCertificate) tableview.ChildView {
+	tableRows := make([]table.Row, 0, len(certs))
+	for i := range certs {
+		record := dataPlaneCertToRecord(certs[i])
+		tableRows = append(tableRows, table.Row{record.ID, record.Name})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(certs) {
+			return ""
+		}
+		return dataPlaneCertDetailView(&certs[index])
+	}
+
+	return tableview.ChildView{
+		Headers:        []string{"ID", "NAME"},
+		Rows:           tableRows,
+		DetailRenderer: detailFn,
+		Title:          "Data Plane Certificates",
+		ParentType:     "data-plane-certificate",
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(certs) {
+				return nil
+			}
+			return &certs[index]
+		},
+	}
+}

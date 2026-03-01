@@ -216,3 +216,41 @@ func listenerIDsFromParent(parent any) (string, string, error) {
 		return "", "", fmt.Errorf("unexpected parent type %T", parent)
 	}
 }
+
+func loadEventGatewayDataPlaneCertificates(
+	_ context.Context,
+	helper cmd.Helper,
+	parent any,
+) (tableview.ChildView, error) {
+	gatewayID, err := eventGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	certAPI := sdk.GetEventGatewayDataPlaneCertificateAPI()
+	if certAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("event gateway data plane certificates client is not available")
+	}
+
+	certs, err := fetchDataPlaneCertificates(helper, certAPI, gatewayID, cfg, "")
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	return buildDataPlaneCertChildView(certs), nil
+}
