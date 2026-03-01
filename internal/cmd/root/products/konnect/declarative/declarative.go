@@ -312,6 +312,25 @@ for review, approval workflows, or as input to sync operations.`,
 	return cmd
 }
 
+func parsePlanMode(mode string, allowDelete bool) (planner.PlanMode, error) {
+	switch mode {
+	case string(planner.PlanModeSync):
+		return planner.PlanModeSync, nil
+	case string(planner.PlanModeApply):
+		return planner.PlanModeApply, nil
+	case string(planner.PlanModeDelete):
+		if allowDelete {
+			return planner.PlanModeDelete, nil
+		}
+		return "", fmt.Errorf("invalid mode %q: must be 'sync' or 'apply'", mode)
+	default:
+		if allowDelete {
+			return "", fmt.Errorf("invalid mode %q: must be 'sync', 'apply', or 'delete'", mode)
+		}
+		return "", fmt.Errorf("invalid mode %q: must be 'sync' or 'apply'", mode)
+	}
+}
+
 func runPlan(command *cobra.Command, args []string) error {
 	// Silence usage for all runtime errors (command syntax is already valid at this point)
 	command.SilenceUsage = true
@@ -330,17 +349,9 @@ func runPlan(command *cobra.Command, args []string) error {
 	mode, _ := command.Flags().GetString("mode")
 	outputFile, _ := command.Flags().GetString("output-file")
 
-	// Validate mode
-	var planMode planner.PlanMode
-	switch mode {
-	case "sync":
-		planMode = planner.PlanModeSync
-	case "apply":
-		planMode = planner.PlanModeApply
-	case "delete":
-		planMode = planner.PlanModeDelete
-	default:
-		return fmt.Errorf("invalid mode %q: must be 'sync', 'apply', or 'delete'", mode)
+	planMode, err := parsePlanMode(mode, true)
+	if err != nil {
+		return err
 	}
 
 	ctx = withDeclarativeHTTPLogContext(ctx, command, verbs.Plan, planMode)
@@ -651,8 +662,14 @@ func runDiff(command *cobra.Command, args []string) error {
 	// Silence usage for all runtime errors (command syntax is already valid at this point)
 	command.SilenceUsage = true
 
+	mode, _ := command.Flags().GetString("mode")
+	planMode, err := parsePlanMode(mode, false)
+	if err != nil {
+		return err
+	}
+
 	ctx := command.Context()
-	ctx = withDeclarativeHTTPLogContext(ctx, command, verbs.Diff, planner.PlanModeSync)
+	ctx = withDeclarativeHTTPLogContext(ctx, command, verbs.Diff, planMode)
 	command.SetContext(ctx)
 
 	helper := cmd.BuildHelper(command, args)
@@ -667,6 +684,9 @@ func runDiff(command *cobra.Command, args []string) error {
 	}
 
 	planFile, _ := command.Flags().GetString("plan")
+	if command.Flags().Changed("mode") && planFile != "" {
+		return fmt.Errorf("--mode cannot be used together with --plan; plan mode is read from the plan artifact")
+	}
 	if requirement.Mode != validator.NamespaceRequirementNone && planFile != "" {
 		return fmt.Errorf(
 			"--%s cannot be used together with --plan; generate the plan with namespace enforcement enabled instead",
@@ -732,7 +752,7 @@ func runDiff(command *cobra.Command, args []string) error {
 			return err
 		}
 		opts := planner.Options{
-			Mode:      planner.PlanModeSync,
+			Mode:      planMode,
 			Generator: generator,
 			Deck:      deckOpts,
 		}
@@ -1051,6 +1071,7 @@ useful for reviewing changes before synchronization.`,
 		"Process the directory used in -f, --filename recursively")
 	addBaseDirFlag(cmd)
 	cmd.Flags().String("plan", "", "Path to existing plan file to display")
+	cmd.Flags().String("mode", "sync", "Diff mode (sync|apply)")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text, json, or yaml)")
 	cmd.Flags().Bool("full-content", false, "Display full content for large fields instead of summary")
 	addRequireNamespaceFlags(cmd)

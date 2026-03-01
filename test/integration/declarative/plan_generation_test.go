@@ -654,6 +654,19 @@ func TestDiffCommand_YAMLOutput(t *testing.T) {
 	assert.True(t, outputPlan.IsEmpty())
 }
 
+func TestDiffCommand_ModeWithPlanRejected(t *testing.T) {
+	diffCmd, err := declarative.NewDeclarativeCmd("diff")
+	require.NoError(t, err)
+
+	ctx := SetupTestContext(t)
+	diffCmd.SetContext(ctx)
+	diffCmd.SetArgs([]string{"--plan", "plan.json", "--mode", "apply"})
+
+	err = diffCmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--mode cannot be used together with --plan")
+}
+
 // TODO: Fix mock injection for command-level tests (same issue as TestPlanGeneration_CreatePortal)
 // See planning/004-dec-cfg-multi-resource/test-refactoring-todo.md for detailed proposal
 func TestPlanDiffPipeline(t *testing.T) {

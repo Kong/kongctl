@@ -629,12 +629,18 @@ kongctl sync --plan plan.json
 
 ### diff
 
-Display human-readable preview of changes between current and desired state:
+Display preview of changes between current and desired state:
 
-Preview changes from configuration file:
+Preview changes in apply mode (CREATE and UPDATE only):
 
 ```shell
-kongctl diff -f config.yaml
+kongctl diff -f config.yaml --mode apply
+```
+
+Preview changes in sync mode (CREATE, UPDATE, and DELETE):
+
+```shell
+kongctl diff -f config.yaml --mode sync
 ```
 
 Preview changes from a plan artifact:
@@ -642,6 +648,9 @@ Preview changes from a plan artifact:
 ```shell
 kongctl diff --plan plan.json
 ```
+
+> Note: `--mode` cannot be used with `--plan` because mode is stored in the
+> plan artifact metadata.
 
 ### adopt
 

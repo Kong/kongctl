@@ -88,6 +88,11 @@ func TestDiffCmd_Flags(t *testing.T) {
 	assert.Equal(t, "o", outputFlag.Shorthand, "Should have -o shorthand")
 	assert.Contains(t, outputFlag.Usage, "Output format", "Usage should mention output format")
 	assert.Equal(t, "text", outputFlag.DefValue)
+
+	modeFlag := konnectCmd.Flags().Lookup("mode")
+	assert.NotNil(t, modeFlag, "Should have --mode flag")
+	assert.Contains(t, modeFlag.Usage, "sync|apply", "Usage should mention supported modes")
+	assert.Equal(t, "sync", modeFlag.DefValue)
 }
 
 func TestDiffCmd_OutputFormats(t *testing.T) {

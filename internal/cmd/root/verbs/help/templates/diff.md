@@ -18,6 +18,7 @@ kongctl diff [flags]
   - Can be specified multiple times
   - Use `-` to read from stdin
 - `--plan` (string): Use a pre-generated plan file
+- `--mode` (string): Diff mode: `sync` or `apply` (default: `sync`)
 - `-r, --recursive`: Process directories recursively
 
 ### Output Flags
@@ -204,17 +205,13 @@ Portal "developer-portal":
 
 ## Diff Modes
 
-### Apply Mode (Default)
+### Apply Mode
 
 Shows only CREATE and UPDATE operations:
 
 ```bash
-# Default behavior
-kongctl diff -f config.yaml
-
 # Explicit apply mode
-kongctl plan -f config.yaml
-kongctl diff --plan -
+kongctl diff -f config.yaml --mode apply
 ```
 
 ### Sync Mode
@@ -222,9 +219,11 @@ kongctl diff --plan -
 Shows CREATE, UPDATE, and DELETE operations:
 
 ```bash
-# Generate sync plan
-kongctl plan -f config.yaml --sync
-kongctl diff --plan -
+# Default behavior
+kongctl diff -f config.yaml
+
+# Explicit sync mode
+kongctl diff -f config.yaml --mode sync
 
 # Shows deletions
 - API "deprecated-api"
