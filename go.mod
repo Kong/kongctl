@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/Kong/sdk-konnect-go v0.19.0
 	github.com/Masterminds/sprig/v3 v3.3.0
-	github.com/ajg/form v1.6.1
+	github.com/ajg/form v1.7.0
 	github.com/alecthomas/chroma/v2 v2.23.1
 	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/bubbles v1.0.0
