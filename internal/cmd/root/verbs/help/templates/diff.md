@@ -18,13 +18,8 @@ kongctl diff [flags]
   - Can be specified multiple times
   - Use `-` to read from stdin
 - `--plan` (string): Use a pre-generated plan file
-<<<<<<< HEAD
 - `--mode` (string): Diff mode: `sync`, `apply`, or `delete` (default: `sync`)
 - `-R, --recursive`: Process directories recursively
-=======
-- `--mode` (string): Diff mode: `sync` or `apply` (default: `sync`)
-- `-r, --recursive`: Process directories recursively
->>>>>>> 63c2e7c (Fix: Added mode to declarative diff command)
 
 ### Output Flags
 

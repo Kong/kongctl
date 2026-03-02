@@ -54,78 +54,36 @@ func Test_validateDeletePlan(t *testing.T) {
 
 func Test_parsePlanMode(t *testing.T) {
 	tests := []struct {
-<<<<<<< HEAD
 		name     string
 		mode     string
 		expected planner.PlanMode
 		errMsg   string
 	}{
 		{
-			name:     "sync allowed",
+			name:     "sync mode",
 			mode:     "sync",
 			expected: planner.PlanModeSync,
 		},
 		{
-			name:     "apply allowed",
+			name:     "apply mode",
 			mode:     "apply",
 			expected: planner.PlanModeApply,
 		},
 		{
-			name:     "delete allowed",
+			name:     "delete mode",
 			mode:     "delete",
 			expected: planner.PlanModeDelete,
 		},
 		{
-			name:   "invalid rejected",
+			name:   "invalid mode",
 			mode:   "invalid",
 			errMsg: `invalid mode "invalid": must be 'sync', 'apply', or 'delete'`,
-=======
-		name        string
-		mode        string
-		allowDelete bool
-		expected    planner.PlanMode
-		errMsg      string
-	}{
-		{
-			name:        "sync allowed for diff",
-			mode:        "sync",
-			allowDelete: false,
-			expected:    planner.PlanModeSync,
-		},
-		{
-			name:        "apply allowed for diff",
-			mode:        "apply",
-			allowDelete: false,
-			expected:    planner.PlanModeApply,
-		},
-		{
-			name:        "delete rejected for diff",
-			mode:        "delete",
-			allowDelete: false,
-			errMsg:      `invalid mode "delete": must be 'sync' or 'apply'`,
-		},
-		{
-			name:        "delete allowed for plan",
-			mode:        "delete",
-			allowDelete: true,
-			expected:    planner.PlanModeDelete,
-		},
-		{
-			name:        "invalid rejected for plan",
-			mode:        "invalid",
-			allowDelete: true,
-			errMsg:      `invalid mode "invalid": must be 'sync', 'apply', or 'delete'`,
->>>>>>> 63c2e7c (Fix: Added mode to declarative diff command)
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-<<<<<<< HEAD
 			mode, err := parsePlanMode(tt.mode)
-=======
-			mode, err := parsePlanMode(tt.mode, tt.allowDelete)
->>>>>>> 63c2e7c (Fix: Added mode to declarative diff command)
 			if tt.errMsg != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errMsg)

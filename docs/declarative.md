@@ -642,15 +642,12 @@ Preview changes in sync mode (CREATE, UPDATE, and DELETE):
 
 ```shell
 kongctl diff -f config.yaml --mode sync
-<<<<<<< HEAD
 ```
 
 Preview targeted deletions in delete mode (DELETE only for matching resources):
 
 ```shell
 kongctl diff -f config.yaml --mode delete
-=======
->>>>>>> 63c2e7c (Fix: Added mode to declarative diff command)
 ```
 
 Preview changes from a plan artifact:

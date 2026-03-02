@@ -313,32 +313,16 @@ for review, approval workflows, or as input to sync operations.`,
 	return cmd
 }
 
-<<<<<<< HEAD
 func parsePlanMode(mode string) (planner.PlanMode, error) {
-=======
-func parsePlanMode(mode string, allowDelete bool) (planner.PlanMode, error) {
->>>>>>> 63c2e7c (Fix: Added mode to declarative diff command)
 	switch mode {
 	case string(planner.PlanModeSync):
 		return planner.PlanModeSync, nil
 	case string(planner.PlanModeApply):
 		return planner.PlanModeApply, nil
 	case string(planner.PlanModeDelete):
-<<<<<<< HEAD
 		return planner.PlanModeDelete, nil
 	default:
 		return "", fmt.Errorf("invalid mode %q: must be 'sync', 'apply', or 'delete'", mode)
-=======
-		if allowDelete {
-			return planner.PlanModeDelete, nil
-		}
-		return "", fmt.Errorf("invalid mode %q: must be 'sync' or 'apply'", mode)
-	default:
-		if allowDelete {
-			return "", fmt.Errorf("invalid mode %q: must be 'sync', 'apply', or 'delete'", mode)
-		}
-		return "", fmt.Errorf("invalid mode %q: must be 'sync' or 'apply'", mode)
->>>>>>> 63c2e7c (Fix: Added mode to declarative diff command)
 	}
 }
 
@@ -360,11 +344,7 @@ func runPlan(command *cobra.Command, args []string) error {
 	mode, _ := command.Flags().GetString("mode")
 	outputFile, _ := command.Flags().GetString("output-file")
 
-<<<<<<< HEAD
 	planMode, err := parsePlanMode(mode)
-=======
-	planMode, err := parsePlanMode(mode, true)
->>>>>>> 63c2e7c (Fix: Added mode to declarative diff command)
 	if err != nil {
 		return err
 	}
@@ -678,11 +658,7 @@ func runDiff(command *cobra.Command, args []string) error {
 	command.SilenceUsage = true
 
 	mode, _ := command.Flags().GetString("mode")
-<<<<<<< HEAD
 	planMode, err := parsePlanMode(mode)
-=======
-	planMode, err := parsePlanMode(mode, false)
->>>>>>> 63c2e7c (Fix: Added mode to declarative diff command)
 	if err != nil {
 		return err
 	}
@@ -1058,7 +1034,7 @@ func dereferenceFieldValue(value any) any {
 		if !rv.IsValid() {
 			return nil
 		}
-		if rv.Kind() != reflect.Pointer {
+		if rv.Kind() != reflect.Ptr {
 			return value
 		}
 		if rv.IsNil() {
@@ -1158,11 +1134,7 @@ useful for reviewing changes before synchronization.`,
 		"Process the directory used in -f, --filename recursively")
 	addBaseDirFlag(cmd)
 	cmd.Flags().String("plan", "", "Path to existing plan file to display")
-<<<<<<< HEAD
 	cmd.Flags().String("mode", "sync", "Diff mode (sync|apply|delete)")
-=======
-	cmd.Flags().String("mode", "sync", "Diff mode (sync|apply)")
->>>>>>> 63c2e7c (Fix: Added mode to declarative diff command)
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text, json, or yaml)")
 	cmd.Flags().Bool("full-content", false, "Display full content for large fields instead of summary")
 	addRequireNamespaceFlags(cmd)
