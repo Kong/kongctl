@@ -91,7 +91,7 @@ func TestDiffCmd_Flags(t *testing.T) {
 
 	modeFlag := konnectCmd.Flags().Lookup("mode")
 	assert.NotNil(t, modeFlag, "Should have --mode flag")
-	assert.Contains(t, modeFlag.Usage, "sync|apply", "Usage should mention supported modes")
+	assert.Contains(t, modeFlag.Usage, "sync|apply|delete", "Usage should mention supported modes")
 	assert.Equal(t, "sync", modeFlag.DefValue)
 }
 

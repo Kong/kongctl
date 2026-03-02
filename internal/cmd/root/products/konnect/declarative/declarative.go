@@ -312,22 +312,16 @@ for review, approval workflows, or as input to sync operations.`,
 	return cmd
 }
 
-func parsePlanMode(mode string, allowDelete bool) (planner.PlanMode, error) {
+func parsePlanMode(mode string) (planner.PlanMode, error) {
 	switch mode {
 	case string(planner.PlanModeSync):
 		return planner.PlanModeSync, nil
 	case string(planner.PlanModeApply):
 		return planner.PlanModeApply, nil
 	case string(planner.PlanModeDelete):
-		if allowDelete {
-			return planner.PlanModeDelete, nil
-		}
-		return "", fmt.Errorf("invalid mode %q: must be 'sync' or 'apply'", mode)
+		return planner.PlanModeDelete, nil
 	default:
-		if allowDelete {
-			return "", fmt.Errorf("invalid mode %q: must be 'sync', 'apply', or 'delete'", mode)
-		}
-		return "", fmt.Errorf("invalid mode %q: must be 'sync' or 'apply'", mode)
+		return "", fmt.Errorf("invalid mode %q: must be 'sync', 'apply', or 'delete'", mode)
 	}
 }
 
@@ -349,7 +343,7 @@ func runPlan(command *cobra.Command, args []string) error {
 	mode, _ := command.Flags().GetString("mode")
 	outputFile, _ := command.Flags().GetString("output-file")
 
-	planMode, err := parsePlanMode(mode, true)
+	planMode, err := parsePlanMode(mode)
 	if err != nil {
 		return err
 	}
@@ -663,7 +657,7 @@ func runDiff(command *cobra.Command, args []string) error {
 	command.SilenceUsage = true
 
 	mode, _ := command.Flags().GetString("mode")
-	planMode, err := parsePlanMode(mode, false)
+	planMode, err := parsePlanMode(mode)
 	if err != nil {
 		return err
 	}
@@ -1071,7 +1065,7 @@ useful for reviewing changes before synchronization.`,
 		"Process the directory used in -f, --filename recursively")
 	addBaseDirFlag(cmd)
 	cmd.Flags().String("plan", "", "Path to existing plan file to display")
-	cmd.Flags().String("mode", "sync", "Diff mode (sync|apply)")
+	cmd.Flags().String("mode", "sync", "Diff mode (sync|apply|delete)")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text, json, or yaml)")
 	cmd.Flags().Bool("full-content", false, "Display full content for large fields instead of summary")
 	addRequireNamespaceFlags(cmd)

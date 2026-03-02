@@ -18,7 +18,7 @@ kongctl diff [flags]
   - Can be specified multiple times
   - Use `-` to read from stdin
 - `--plan` (string): Use a pre-generated plan file
-- `--mode` (string): Diff mode: `sync` or `apply` (default: `sync`)
+- `--mode` (string): Diff mode: `sync`, `apply`, or `delete` (default: `sync`)
 - `-R, --recursive`: Process directories recursively
 
 ### Output Flags
@@ -228,6 +228,20 @@ kongctl diff -f config.yaml --mode sync
 # Shows deletions
 - API "deprecated-api"
 - Portal "old-portal"
+```
+
+### Delete Mode
+
+Shows DELETE operations for resources listed in the configuration that currently
+exist in Konnect:
+
+```bash
+# Plan targeted deletions from config refs
+kongctl diff -f config.yaml --mode delete
+
+# Example output contains only deletions
+- API "old-api"
+- Portal "legacy-portal"
 ```
 
 ## Common Use Cases
