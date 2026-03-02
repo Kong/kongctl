@@ -1845,7 +1845,7 @@ func formatDetailValue(val any) string {
 	if kind == reflect.Struct {
 		return renderStructDetail(rv.Interface())
 	}
-	return fmt.Sprint(val)
+	return fmt.Sprint(rv.Interface())
 }
 
 func renderStructDetail(data any) string {

@@ -192,7 +192,54 @@ func populateEventGatewayChildren(
 		} else if len(listeners) > 0 {
 			gateway.Listeners = listeners
 		}
+
+		if certs, err := buildEventGatewayDataPlaneCertificates(ctx, logger, client, gatewayID, gateway.Name); err != nil {
+			logWarn(logger, "failed to load event gateway data plane certificates", gatewayID, gateway.Name, err)
+		} else if len(certs) > 0 {
+			gateway.DataPlaneCertificates = certs
+		}
 	}
+}
+
+func buildEventGatewayDataPlaneCertificates(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+) ([]declresources.EventGatewayDataPlaneCertificateResource, error) {
+	certs, err := client.ListEventGatewayDataPlaneCertificates(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	if len(certs) == 0 {
+		return nil, nil
+	}
+
+	results := make([]declresources.EventGatewayDataPlaneCertificateResource, 0, len(certs))
+	for _, cert := range certs {
+		if strings.TrimSpace(cert.ID) == "" {
+			logWarn(logger, "data plane certificate missing ID", gatewayID, gatewayName, nil)
+			continue
+		}
+		if strings.TrimSpace(cert.Certificate) == "" {
+			logWarn(logger, "data plane certificate missing certificate content", gatewayID, gatewayName, nil)
+			continue
+		}
+
+		res := declresources.EventGatewayDataPlaneCertificateResource{
+			CreateEventGatewayDataPlaneCertificateRequest: kkComps.CreateEventGatewayDataPlaneCertificateRequest{
+				Certificate: cert.Certificate,
+				Name:        cert.Name,
+				Description: cert.Description,
+			},
+			Ref: cert.ID,
+		}
+
+		results = append(results, res)
+	}
+
+	return results, nil
 }
 
 func buildPortalPages(

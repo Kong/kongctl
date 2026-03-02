@@ -450,13 +450,13 @@ func dataPlaneCertDetailView(cert *kkComps.EventGatewayDataPlaneCertificate) str
 		description = strings.TrimSpace(*cert.Description)
 	}
 
-	// Format certificate metadata
-	var metadataStr string
-	if cert.Metadata != nil {
-		metadataStr = formatCertificateMetadata(cert.Metadata)
-	} else {
-		metadataStr = valueNA
+	certificate := valueNA
+	if strings.TrimSpace(cert.Certificate) != "" {
+		certificate = cert.Certificate
 	}
+
+	// Format certificate metadata
+	metadataStr := formatCertificateMetadata(cert.Metadata)
 
 	createdAt := cert.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
 	updatedAt := cert.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
@@ -465,7 +465,8 @@ func dataPlaneCertDetailView(cert *kkComps.EventGatewayDataPlaneCertificate) str
 	fmt.Fprintf(&b, "id: %s\n", id)
 	fmt.Fprintf(&b, "name: %s\n", name)
 	fmt.Fprintf(&b, "description: %s\n", description)
-	fmt.Fprintf(&b, "metadata: %s\n", metadataStr)
+	fmt.Fprintf(&b, "certificate: %s\n", certificate)
+	fmt.Fprintf(&b, "metadata:\n%s\n", metadataStr)
 	fmt.Fprintf(&b, "created_at: %s\n", createdAt)
 	fmt.Fprintf(&b, "updated_at: %s\n", updatedAt)
 
@@ -474,37 +475,57 @@ func dataPlaneCertDetailView(cert *kkComps.EventGatewayDataPlaneCertificate) str
 
 func formatCertificateMetadata(meta *kkComps.CertificateMetadata) string {
 	if meta == nil {
-		return valueNA
+		return "  " + valueNA
 	}
 
-	var parts []string
+	var lines []string
 
 	if meta.Subject != nil && *meta.Subject != "" {
-		parts = append(parts, fmt.Sprintf("subject=%s", *meta.Subject))
+		lines = append(lines, fmt.Sprintf("  subject: %s", *meta.Subject))
 	}
 
 	if meta.Issuer != nil && *meta.Issuer != "" {
-		parts = append(parts, fmt.Sprintf("issuer=%s", *meta.Issuer))
+		lines = append(lines, fmt.Sprintf("  issuer: %s", *meta.Issuer))
 	}
 
 	if meta.Expiry != nil {
 		expiryTime := time.Unix(*meta.Expiry, 0)
-		parts = append(parts, fmt.Sprintf("expiry=%s", expiryTime.Format("2006-01-02 15:04:05")))
+		lines = append(lines, fmt.Sprintf("  expiry: %s", expiryTime.Format("2006-01-02 15:04:05")))
 	}
 
 	if meta.Sha256Fingerprint != nil && *meta.Sha256Fingerprint != "" {
-		parts = append(parts, fmt.Sprintf("sha256=%s", *meta.Sha256Fingerprint))
+		lines = append(lines, fmt.Sprintf("  sha256_fingerprint: %s", *meta.Sha256Fingerprint))
+	}
+
+	if len(meta.KeyUsages) > 0 {
+		lines = append(lines, fmt.Sprintf("  key_usages: [%s]", strings.Join(meta.KeyUsages, ", ")))
 	}
 
 	if len(meta.DNSNames) > 0 {
-		parts = append(parts, fmt.Sprintf("dns_names=[%s]", strings.Join(meta.DNSNames, ", ")))
+		lines = append(lines, fmt.Sprintf("  dns_names: [%s]", strings.Join(meta.DNSNames, ", ")))
 	}
 
-	if len(parts) == 0 {
-		return valueNA
+	if len(meta.SanNames) > 0 {
+		lines = append(lines, fmt.Sprintf("  san_names: [%s]", strings.Join(meta.SanNames, ", ")))
 	}
 
-	return strings.Join(parts, ", ")
+	if len(meta.EmailAddresses) > 0 {
+		lines = append(lines, fmt.Sprintf("  email_addresses: [%s]", strings.Join(meta.EmailAddresses, ", ")))
+	}
+
+	if len(meta.IPAddresses) > 0 {
+		lines = append(lines, fmt.Sprintf("  ip_addresses: [%s]", strings.Join(meta.IPAddresses, ", ")))
+	}
+
+	if len(meta.Uris) > 0 {
+		lines = append(lines, fmt.Sprintf("  uris: [%s]", strings.Join(meta.Uris, ", ")))
+	}
+
+	if len(lines) == 0 {
+		return "  " + valueNA
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 func buildDataPlaneCertChildView(certs []kkComps.EventGatewayDataPlaneCertificate) tableview.ChildView {
