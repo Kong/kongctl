@@ -17,6 +17,7 @@ func init() {
 	}
 	tableview.RegisterChildLoader("event-gateway", "backend-clusters", loadEventGatewayBackendClusters)
 	tableview.RegisterChildLoader("event-gateway", "virtual-clusters", loadEventGatewayVirtualClusters)
+	tableview.RegisterChildLoader("event-gateway", "data-plane-certificates", loadEventGatewayDataPlaneCertificates)
 	tableview.RegisterChildLoader("event-gateway", "listeners", loadEventGatewayListeners)
 	tableview.RegisterChildLoader("listener", "policies", loadEventGatewayListenerPolicies)
 }

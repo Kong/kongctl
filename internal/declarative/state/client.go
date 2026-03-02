@@ -4324,7 +4324,7 @@ func (c *Client) ListEventGatewayDataPlaneCertificates(
 		}
 
 		values := u.Query()
-		pageAfter = kk.String(values.Get("page[after]"))
+		pageAfter = new(values.Get("page[after]"))
 	}
 
 	var certs []EventGatewayDataPlaneCertificate
