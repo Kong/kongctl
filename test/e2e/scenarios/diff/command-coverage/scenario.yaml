@@ -97,11 +97,87 @@ steps:
     inputOverlayDirs:
       - overlays/003-diff
     commands:
-      - name: 000-diff-plan
+      - name: 000-diff-apply-mode
         run:
           - diff
           - -f
           - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+          - -o
+          - json
+        assertions:
+          - select: "metadata"
+            expect:
+              fields:
+                mode: apply
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 1
+                by_action.UPDATE: 1
+          - expect:
+              fields:
+                "length(changes[?action=='DELETE'])": 0
+          - select: >-
+              changes[?resource_type=='portal' &&
+                       resource_ref=='{{ .vars.portalRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.display_name: "{{ .vars.portalUpdatedName }}"
+          - select: >-
+              changes[?resource_type=='api' &&
+                       resource_ref=='{{ .vars.newAPIRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: "{{ .vars.namespace }}"
+
+      - name: 001-diff-delete-mode
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - delete
+          - -o
+          - json
+        assertions:
+          - select: "metadata"
+            expect:
+              fields:
+                mode: delete
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - expect:
+              fields:
+                "length(changes[?action=='CREATE'])": 0
+                "length(changes[?action=='UPDATE'])": 0
+          - select: >-
+              changes[?resource_type=='portal' &&
+                       resource_ref=='{{ .vars.portalRef }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: >-
+              changes[?resource_type=='api' &&
+                       resource_ref=='{{ .vars.existingAPIName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+
+      - name: 002-diff-plan-sync-mode
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
           - -o
           - json
         stdoutFile: "{{ .workdir }}/plan.json"
@@ -139,7 +215,7 @@ steps:
                 action: DELETE
                 namespace: "{{ .vars.namespace }}"
 
-      - name: 001-diff-plan-file
+      - name: 003-diff-plan-file
         run:
           - diff
           - --plan
@@ -157,7 +233,7 @@ steps:
               fields:
                 action: CREATE
 
-      - name: 002-get-portals
+      - name: 004-get-portals
         run: ["get", "portals"]
         assertions:
           - select: "[?name=='{{ .vars.portalRef }}'] | [0]"
@@ -165,7 +241,7 @@ steps:
               fields:
                 display_name: "{{ .vars.portalName }}"
 
-      - name: 003-get-apis
+      - name: 005-get-apis
         run: ["get", "apis"]
         assertions:
           - select: "[?name=='{{ .vars.removedAPIName }}']"

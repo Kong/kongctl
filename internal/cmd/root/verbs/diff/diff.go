@@ -27,8 +27,10 @@ var (
 
 	diffExamples = normalizers.Examples(i18n.T("root.verbs.diff.diffExamples",
 		fmt.Sprintf(`  %[1]s diff -f api.yaml
+  %[1]s diff -f api.yaml --mode apply
+  %[1]s diff -f api.yaml --mode delete
   %[1]s diff --plan plan.json
-  %[1]s diff -f config.yaml --format json
+  %[1]s diff -f config.yaml --output json
 
 Use "%[1]s help diff" for detailed documentation`, meta.CLIName)))
 )
@@ -45,7 +47,7 @@ func NewDiffCmd() (*cobra.Command, error) {
 		Short:   diffShort,
 		Long:    diffLong,
 		Example: diffExamples,
-		Args: verbs.NoPositionalArgs,
+		Args:    verbs.NoPositionalArgs,
 		// Use the konnect command's RunE directly for Konnect-first pattern
 		RunE: konnectCmd.RunE,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {

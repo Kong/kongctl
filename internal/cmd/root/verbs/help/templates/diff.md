@@ -14,15 +14,16 @@ kongctl diff [flags]
 
 ### Input Flags
 
-- `-f, --file` (string): Path to configuration file or directory
+- `-f, --filename` (string): Path to configuration file or directory
   - Can be specified multiple times
   - Use `-` to read from stdin
 - `--plan` (string): Use a pre-generated plan file
-- `-r, --recursive`: Process directories recursively
+- `--mode` (string): Diff mode: `sync`, `apply`, or `delete` (default: `sync`)
+- `-R, --recursive`: Process directories recursively
 
 ### Output Flags
 
-- `--format` (string): Output format: text, json, or yaml (default: text)
+- `--output` (string): Output format: text, json, or yaml (default: text)
 - `--log-level` (string): Set logging level: trace, debug, info, warn, error
 
 ## Output Formats
@@ -134,13 +135,13 @@ kongctl plan -f config.yaml | kongctl diff --plan -
 
 ```bash
 # Get JSON output for scripts
-kongctl diff -f config.yaml --format json
+kongctl diff -f config.yaml --output json
 
 # Filter specific operations
-kongctl diff -f config.yaml --format json | jq '.changes[] | select(.operation == "UPDATE")'
+kongctl diff -f config.yaml --output json | jq '.changes[] | select(.operation == "UPDATE")'
 
 # Count changes by type
-kongctl diff -f config.yaml --format json | jq '.changes | group_by(.operation) | map({operation: .[0].operation, count: length})'
+kongctl diff -f config.yaml --output json | jq '.changes | group_by(.operation) | map({operation: .[0].operation, count: length})'
 ```
 
 ### CI/CD Integration
@@ -204,17 +205,13 @@ Portal "developer-portal":
 
 ## Diff Modes
 
-### Apply Mode (Default)
+### Apply Mode
 
 Shows only CREATE and UPDATE operations:
 
 ```bash
-# Default behavior
-kongctl diff -f config.yaml
-
 # Explicit apply mode
-kongctl plan -f config.yaml
-kongctl diff --plan -
+kongctl diff -f config.yaml --mode apply
 ```
 
 ### Sync Mode
@@ -222,13 +219,29 @@ kongctl diff --plan -
 Shows CREATE, UPDATE, and DELETE operations:
 
 ```bash
-# Generate sync plan
-kongctl plan -f config.yaml --sync
-kongctl diff --plan -
+# Default behavior
+kongctl diff -f config.yaml
+
+# Explicit sync mode
+kongctl diff -f config.yaml --mode sync
 
 # Shows deletions
 - API "deprecated-api"
 - Portal "old-portal"
+```
+
+### Delete Mode
+
+Shows DELETE operations for resources listed in the configuration that currently
+exist in Konnect:
+
+```bash
+# Plan targeted deletions from config refs
+kongctl diff -f config.yaml --mode delete
+
+# Example output contains only deletions
+- API "old-api"
+- Portal "legacy-portal"
 ```
 
 ## Common Use Cases
@@ -250,7 +263,7 @@ fi
 
 ```bash
 # Ensure no protected resources are modified
-kongctl diff -f config.yaml --format json | \
+kongctl diff -f config.yaml --output json | \
   jq '.changes[] | select(.resource_ref == "production-api")' && \
   echo "ERROR: Attempting to modify protected resource" && exit 1
 ```
@@ -287,11 +300,11 @@ Namespace: team-beta
 
 ```bash
 # Show only API changes
-kongctl diff -f config.yaml --format json | \
+kongctl diff -f config.yaml --output json | \
   jq '.changes[] | select(.resource_type == "api")'
 
 # Show only label changes
-kongctl diff -f config.yaml --format json | \
+kongctl diff -f config.yaml --output json | \
   jq '.changes[] | select(.changes.labels != null)'
 ```
 

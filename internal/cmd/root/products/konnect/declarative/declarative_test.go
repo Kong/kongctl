@@ -49,3 +49,47 @@ func Test_validateDeletePlan(t *testing.T) {
 		})
 	}
 }
+
+func Test_parsePlanMode(t *testing.T) {
+	tests := []struct {
+		name     string
+		mode     string
+		expected planner.PlanMode
+		errMsg   string
+	}{
+		{
+			name:     "sync allowed",
+			mode:     "sync",
+			expected: planner.PlanModeSync,
+		},
+		{
+			name:     "apply allowed",
+			mode:     "apply",
+			expected: planner.PlanModeApply,
+		},
+		{
+			name:     "delete allowed",
+			mode:     "delete",
+			expected: planner.PlanModeDelete,
+		},
+		{
+			name:   "invalid rejected",
+			mode:   "invalid",
+			errMsg: `invalid mode "invalid": must be 'sync', 'apply', or 'delete'`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mode, err := parsePlanMode(tt.mode)
+			if tt.errMsg != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, mode)
+		})
+	}
+}

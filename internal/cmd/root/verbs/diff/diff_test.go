@@ -59,7 +59,7 @@ func TestDiffCmdHelpText(t *testing.T) {
 	assert.Contains(t, cmd.Short, "Show configuration", "Short should mention showing configuration")
 	assert.Contains(t, cmd.Long, "differences", "Long should mention differences")
 	assert.Contains(t, cmd.Example, "--plan", "Examples should show --plan flag usage")
-	assert.Contains(t, cmd.Example, "--format json", "Examples should show output format option")
+	assert.Contains(t, cmd.Example, "--output json", "Examples should show output format option")
 	assert.Contains(t, cmd.Example, "help diff", "Examples should mention extended help")
 }
 
@@ -88,6 +88,11 @@ func TestDiffCmd_Flags(t *testing.T) {
 	assert.Equal(t, "o", outputFlag.Shorthand, "Should have -o shorthand")
 	assert.Contains(t, outputFlag.Usage, "Output format", "Usage should mention output format")
 	assert.Equal(t, "text", outputFlag.DefValue)
+
+	modeFlag := konnectCmd.Flags().Lookup("mode")
+	assert.NotNil(t, modeFlag, "Should have --mode flag")
+	assert.Contains(t, modeFlag.Usage, "sync|apply|delete", "Usage should mention supported modes")
+	assert.Equal(t, "sync", modeFlag.DefValue)
 }
 
 func TestDiffCmd_OutputFormats(t *testing.T) {
