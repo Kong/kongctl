@@ -4328,9 +4328,9 @@ func (c *Client) ListEventGatewayDataPlaneCertificates(
 	}
 
 	var certs []EventGatewayDataPlaneCertificate
-	for _, c := range allData {
+	for _, cert := range allData {
 		certs = append(certs, EventGatewayDataPlaneCertificate{
-			EventGatewayDataPlaneCertificate: c,
+			EventGatewayDataPlaneCertificate: cert,
 		})
 	}
 
