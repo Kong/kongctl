@@ -136,7 +136,7 @@ func (p *Planner) planEGWControlPlaneChanges(
 			// Handle protection changes
 			if isProtected != shouldProtect {
 				// When changing protection status, include any other field updates too
-				needsUpdate, updateFields := p.shouldUpdateEGWControlPlaneResource(current, desiredEGWCP)
+				needsUpdate, updateFields, changedFields := p.shouldUpdateEGWControlPlaneResource(current, desiredEGWCP)
 
 				// Create protection change object
 				protectionChange := &ProtectionChange{
@@ -157,11 +157,18 @@ func (p *Planner) planEGWControlPlaneChanges(
 					protectionErrors = append(protectionErrors, err)
 				} else {
 					p.planEGWControlPlaneProtectionChangeWithFields(
-						current, desiredEGWCP, isProtected, shouldProtect, updateFields, plan)
+						current,
+						desiredEGWCP,
+						isProtected,
+						shouldProtect,
+						updateFields,
+						changedFields,
+						plan,
+					)
 				}
 			} else {
 				// Check if update needed based on configuration
-				needsUpdate, updateFields := p.shouldUpdateEGWControlPlaneResource(current, desiredEGWCP)
+				needsUpdate, updateFields, changedFields := p.shouldUpdateEGWControlPlaneResource(current, desiredEGWCP)
 				if needsUpdate {
 					// Regular update - check protection
 					if err := p.validateProtection(
@@ -169,7 +176,7 @@ func (p *Planner) planEGWControlPlaneChanges(
 					); err != nil {
 						protectionErrors = append(protectionErrors, err)
 					} else {
-						p.planEGWControlPlaneUpdateWithFields(current, desiredEGWCP, updateFields, plan)
+						p.planEGWControlPlaneUpdateWithFields(current, desiredEGWCP, updateFields, changedFields, plan)
 					}
 				}
 			}
@@ -257,6 +264,7 @@ func (p *Planner) planEGWControlPlaneProtectionChangeWithFields(
 	desired resources.EventGatewayControlPlaneResource,
 	wasProtected, shouldProtect bool,
 	updateFields map[string]any,
+	changedFields map[string]FieldChange,
 	plan *Plan,
 ) {
 	// Extract namespace
@@ -310,6 +318,9 @@ func (p *Planner) planEGWControlPlaneProtectionChangeWithFields(
 	}
 
 	change.Fields = fields
+	if len(changedFields) > 0 {
+		change.ChangedFields = changedFields
+	}
 
 	plan.AddChange(change)
 }
@@ -317,31 +328,44 @@ func (p *Planner) planEGWControlPlaneProtectionChangeWithFields(
 func (p *Planner) shouldUpdateEGWControlPlaneResource(
 	current state.EventGatewayControlPlane,
 	desired resources.EventGatewayControlPlaneResource,
-) (bool, map[string]any) {
+) (bool, map[string]any, map[string]FieldChange) {
 	updates := make(map[string]any)
+	changedFields := make(map[string]FieldChange)
 
 	if desired.Name != current.Name {
 		currentName := current.Name
 		if currentName != desired.Name {
 			updates["name"] = desired.Name
+			changedFields["name"] = FieldChange{
+				Old: currentName,
+				New: desired.Name,
+			}
 		}
 	}
 
 	if desired.Description != current.Description {
 		if getString(current.Description) != getString(desired.Description) {
 			updates["description"] = getString(desired.Description)
+			changedFields["description"] = FieldChange{
+				Old: getString(current.Description),
+				New: getString(desired.Description),
+			}
 		}
 	}
 
 	if desired.Labels != nil {
 		if labels.CompareUserLabels(current.NormalizedLabels, desired.GetLabels()) {
 			updates["labels"] = desired.GetLabels()
+			changedFields["labels"] = FieldChange{
+				Old: labels.GetUserLabels(current.NormalizedLabels),
+				New: labels.GetUserLabels(desired.GetLabels()),
+			}
 		}
 	}
 
 	// Add other field comparisons
 
-	return len(updates) > 0, updates
+	return len(updates) > 0, updates, changedFields
 }
 
 func (p *Planner) planEGWControlPlaneCreate(
@@ -403,6 +427,7 @@ func (p *Planner) planEGWControlPlaneUpdateWithFields(
 	current state.EventGatewayControlPlane,
 	desired resources.EventGatewayControlPlaneResource,
 	updateFields map[string]any,
+	changedFields map[string]FieldChange,
 	plan *Plan,
 ) {
 	var protection any
@@ -427,6 +452,7 @@ func (p *Planner) planEGWControlPlaneUpdateWithFields(
 		ResourceID:     current.ID,
 		CurrentFields:  nil, // Not needed for direct update
 		DesiredFields:  updateFields,
+		ChangedFields:  changedFields,
 		RequiredFields: []string{"name"},
 		Namespace:      namespace,
 	}

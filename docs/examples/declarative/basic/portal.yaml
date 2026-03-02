@@ -4,5 +4,8 @@
 portals:
   - ref: simple-portal
     name: My Simple Portal 
-    display_name: Simple Portal ©
-    description: A simple developer portal for API documentation
+    display_name: Simple Portal
+    description: A simple
+    labels:
+      foo: blah
+      bar: ding
