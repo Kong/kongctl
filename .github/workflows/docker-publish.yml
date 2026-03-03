@@ -21,13 +21,28 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Resolve release tag
+        env:
+          TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
 
-          TAG="${{ inputs.tag }}"
+          TAG="${TAG#"${TAG%%[![:space:]]*}"}"
+          TAG="${TAG%"${TAG##*[![:space:]]}"}"
 
-          if [ -z "${TAG//[[:space:]]/}" ]; then
+          if [ -z "$TAG" ]; then
             echo "::error::Tag input cannot be empty."
+            exit 1
+          fi
+
+          case "$TAG" in
+            *$'\n'*|*$'\r'*)
+              echo "::error::Tag input must not contain newline or carriage-return characters."
+              exit 1
+              ;;
+          esac
+
+          if [ "${TAG#-}" != "$TAG" ]; then
+            echo "::error::Tag input must not start with a '-' character."
             exit 1
           fi
 
