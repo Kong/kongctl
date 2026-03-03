@@ -1,0 +1,208 @@
+# Tests for dump command --filter-name and --filter-id flags.
+# Reuses testdata from the portal-owned scenario (1 portal, 2 APIs,
+# 1 auth strategy) and verifies that filters restrict the output to
+# only matching resources.
+
+baseInputsPath: ../portal-owned/testdata
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-resources
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - -f
+          - "{{ .workdir }}/auth-strategies.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+
+  # ── filter-name: exact match on APIs ──────────────────────────
+  - name: 002-dump-filter-name-exact
+    skipInputs: true
+    commands:
+      - name: 000-dump-apis-by-name
+        run:
+          - dump
+          - declarative
+          - "--resources=apis"
+          - "--filter-name=SMS API"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          # Only the SMS API should be present
+          - name: correct-api-name
+            select: "apis[0]"
+            expect:
+              fields:
+                name: "SMS API"
+          # Voice API should not be present
+          - name: no-voice-api
+            select: "apis[?name=='Voice API'] | [0]"
+            expect:
+              fields:
+                name: null
+
+  # ── filter-name: wildcard / contains ──────────────────────────
+  - name: 003-dump-filter-name-wildcard
+    skipInputs: true
+    commands:
+      - name: 000-dump-apis-wildcard
+        run:
+          - dump
+          - declarative
+          - "--resources=apis"
+          - "--filter-name=*API*"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          # Both SMS API and Voice API should match
+          - name: sms-api-present
+            select: "apis[?name=='SMS API'] | [0]"
+            expect:
+              fields:
+                name: "SMS API"
+          - name: voice-api-present
+            select: "apis[?name=='Voice API'] | [0]"
+            expect:
+              fields:
+                name: "Voice API"
+
+  # ── filter-name with --include-child-resources ────────────────
+  - name: 004-dump-filter-name-with-children
+    skipInputs: true
+    commands:
+      - name: 000-dump-api-with-children
+        run:
+          - dump
+          - declarative
+          - "--resources=apis"
+          - "--filter-name=SMS API"
+          - --include-child-resources
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - name: correct-api-name
+            select: "apis[0]"
+            expect:
+              fields:
+                name: "SMS API"
+          # SMS API has 2 versions defined in testdata
+          - name: api-has-first-version
+            select: "apis[0].versions[0]"
+            expect:
+              fields:
+                version: "1.0.11"
+          # SMS API has 4 documents defined in testdata
+          - name: api-has-getting-started-doc
+            select: "apis[0].documents[?title=='SMS API: Getting Started'] | [0]"
+            expect:
+              fields:
+                slug: "sms-getting-started"
+
+  # ── filter-name on portals ────────────────────────────────────
+  - name: 005-dump-filter-portal-name
+    skipInputs: true
+    commands:
+      - name: 000-dump-portal-by-name
+        run:
+          - dump
+          - declarative
+          - "--resources=portals"
+          - "--filter-name=My First Portal"
+          - --include-child-resources
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - name: correct-portal-name
+            select: "portals[0]"
+            expect:
+              fields:
+                name: "My First Portal"
+                display_name: "A Getting Started Portal"
+
+  # ── filter-name across multiple resource types ────────────────
+  - name: 006-dump-filter-name-multi-resource
+    skipInputs: true
+    commands:
+      - name: 000-dump-multi-resource-filter
+        run:
+          - dump
+          - declarative
+          - "--resources=portals,apis"
+          - "--filter-name=SMS API"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          # Only the SMS API matches; no portals match "SMS API"
+          - name: sms-api-returned
+            select: "apis[0]"
+            expect:
+              fields:
+                name: "SMS API"
+          # No portals should be present since none match "SMS API"
+          # portals key is omitted (omitempty), so portals[0] resolves to nil
+          - name: no-portals-returned
+            select: "portals[0]"
+            expect:
+              fields:
+                name: null
+
+  # ── mutually exclusive flags ──────────────────────────────────
+  - name: 007-dump-filter-mutual-exclusion
+    skipInputs: true
+    commands:
+      - name: 000-both-flags-error
+        run:
+          - dump
+          - declarative
+          - "--resources=apis"
+          - "--filter-name=foo"
+          - "--filter-id=bar"
+        outputFormat: none
+        expectFailure:
+          contains: "mutually exclusive"
+
+  # ── tf-import with filter-name (smoke test) ────────────────────
+  # Verifies the command runs successfully with --filter-name.
+  # Substring assertions on raw HCL output are not supported by
+  # the scenario harness; the underlying SDK filter logic is
+  # already exercised by the declarative assertions above.
+  - name: 008-dump-tf-import-filter-name
+    skipInputs: true
+    commands:
+      - name: 000-tf-import-filtered
+        run:
+          - dump
+          - tf-import
+          - "--resources=apis"
+          - "--filter-name=SMS API"
+        outputFormat: none
+        parseAs: raw
+
+  # ── tf-import mutually exclusive flags ────────────────────────
+  - name: 009-tf-import-filter-mutual-exclusion
+    skipInputs: true
+    commands:
+      - name: 000-both-flags-error
+        run:
+          - dump
+          - tf-import
+          - "--resources=apis"
+          - "--filter-name=foo"
+          - "--filter-id=bar"
+        outputFormat: none
+        expectFailure:
+          contains: "mutually exclusive"
