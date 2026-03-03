@@ -47,6 +47,15 @@ var (
 
         # Export all organization teams
         %[1]s dump declarative --resources=organization.teams
+
+        # Filter by name (exact match)
+        %[1]s dump declarative --resources=portal --filter-name=my-dev-portal
+
+        # Filter by name (substring match using wildcards)
+        %[1]s dump declarative --resources=portal --filter-name='*dev*'
+
+        # Filter by ID
+        %[1]s dump declarative --resources=portal --filter-id=abc12345-def6-7890-abcd-ef1234567890
         `, meta.CLIName)))
 )
 

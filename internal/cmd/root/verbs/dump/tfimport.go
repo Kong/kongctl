@@ -12,6 +12,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
@@ -26,6 +27,7 @@ type tfImportOptions struct {
 	resources             []string
 	includeChildResources bool
 	outputFile            string
+	filter                filterOptions
 }
 
 var tfImportAllowedResources = map[string]struct{}{
@@ -52,6 +54,9 @@ func newTFImportCmd() *cobra.Command {
 				return err
 			}
 			opts.resources = normalized
+			if err := validateFilterOptions(opts.filter); err != nil {
+				return err
+			}
 			if err := ensureNonNegativePageSize(helper); err != nil {
 				return err
 			}
@@ -68,6 +73,14 @@ func newTFImportCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&opts.outputFile, "output-file", "",
 		"File to write the output to. If not specified, output is written to stdout.")
+
+	cmd.Flags().StringVar(&opts.filter.name, filterNameFlagName, "",
+		"Filter resources by name. Use '*' wildcards for substring matching (e.g., '*portal*').\n"+
+			"Mutually exclusive with --"+filterIDFlagName+".")
+
+	cmd.Flags().StringVar(&opts.filter.id, filterIDFlagName, "",
+		"Filter resources by ID (exact match).\n"+
+			"Mutually exclusive with --"+filterNameFlagName+".")
 
 	cmd.Flags().String(konnectCommon.BaseURLFlagName, "",
 		fmt.Sprintf(`Base URL for Konnect API requests.
@@ -162,6 +175,7 @@ func runTerraformDump(helper cmdpkg.Helper, opts tfImportOptions) error {
 				sdk.GetPortalAPI(),
 				requestPageSize,
 				opts.includeChildResources,
+				opts.filter,
 			); err != nil {
 				return err
 			}
@@ -172,6 +186,7 @@ func runTerraformDump(helper cmdpkg.Helper, opts tfImportOptions) error {
 				sdk.GetAPIAPI(),
 				requestPageSize,
 				opts.includeChildResources,
+				opts.filter,
 			); err != nil {
 				return err
 			}
@@ -181,6 +196,7 @@ func runTerraformDump(helper cmdpkg.Helper, opts tfImportOptions) error {
 				writer,
 				sdk.GetAppAuthStrategiesAPI(),
 				requestPageSize,
+				opts.filter,
 			); err != nil {
 				return err
 			}
@@ -190,6 +206,7 @@ func runTerraformDump(helper cmdpkg.Helper, opts tfImportOptions) error {
 				writer,
 				sdk.GetControlPlaneAPI(),
 				requestPageSize,
+				opts.filter,
 			); err != nil {
 				return err
 			}
@@ -300,11 +317,18 @@ func dumpPortals(
 	kkClient helpers.PortalAPI,
 	requestPageSize int64,
 	includeChildResources bool,
+	filter filterOptions,
 ) error {
 	return processPaginatedRequests(func(pageNumber int64) (bool, error) {
 		req := kkOps.ListPortalsRequest{
 			PageSize:   new(requestPageSize),
 			PageNumber: new(pageNumber),
+		}
+
+		if filter.name != "" {
+			req.Filter = &kkComps.PortalFilterParameters{Name: buildStringFieldFilter(filter.name)}
+		} else if filter.id != "" {
+			req.Filter = &kkComps.PortalFilterParameters{ID: &kkComps.UUIDFieldFilter{Eq: &filter.id}}
 		}
 
 		res, err := kkClient.ListPortals(ctx, req)
@@ -344,6 +368,7 @@ func dumpAPIs(
 	kkClient helpers.APIAPI,
 	requestPageSize int64,
 	includeChildResources bool,
+	filter filterOptions,
 ) error {
 	debugf("dumpAPIs called, includeChildResources=%v", includeChildResources)
 
@@ -356,6 +381,12 @@ func dumpAPIs(
 		req := kkOps.ListApisRequest{
 			PageSize:   new(requestPageSize),
 			PageNumber: new(pageNumber),
+		}
+
+		if filter.name != "" {
+			req.Filter = &kkComps.APIFilterParameters{Name: buildStringFieldFilter(filter.name)}
+		} else if filter.id != "" {
+			req.Filter = &kkComps.APIFilterParameters{ID: &kkComps.UUIDFieldFilter{Eq: &filter.id}}
 		}
 
 		res, err := kkClient.ListApis(ctx, req)
@@ -802,6 +833,7 @@ func dumpAppAuthStrategies(
 	writer io.Writer,
 	kkClient helpers.AppAuthStrategiesAPI,
 	requestPageSize int64,
+	filter filterOptions,
 ) error {
 	debugf("dumpAppAuthStrategies called")
 
@@ -814,6 +846,10 @@ func dumpAppAuthStrategies(
 		req := kkOps.ListAppAuthStrategiesRequest{
 			PageSize:   new(requestPageSize),
 			PageNumber: new(pageNumber),
+		}
+
+		if filter.name != "" {
+			req.Filter = &kkOps.QueryParamFilter{Name: buildStringFieldFilter(filter.name)}
 		}
 
 		res, err := kkClient.ListAppAuthStrategies(ctx, req)
@@ -829,6 +865,11 @@ func dumpAppAuthStrategies(
 		for _, strategy := range res.ListAppAuthStrategiesResponse.Data {
 			strategyID, strategyName, ok := extractResourceFields(strategy, "app-auth-strategy")
 			if !ok {
+				continue
+			}
+
+			// Client-side ID filtering (not supported server-side)
+			if filter.id != "" && strategyID != filter.id {
 				continue
 			}
 
@@ -857,6 +898,7 @@ func dumpControlPlanes(
 	writer io.Writer,
 	kkClient helpers.ControlPlaneAPI,
 	requestPageSize int64,
+	filter filterOptions,
 ) error {
 	if kkClient == nil {
 		return fmt.Errorf("control plane API client is nil")
@@ -866,6 +908,19 @@ func dumpControlPlanes(
 		req := kkOps.ListControlPlanesRequest{
 			PageSize:   new(requestPageSize),
 			PageNumber: new(pageNumber),
+		}
+
+		if filter.name != "" {
+			op, val := parseFilterName(filter.name)
+			nameFilter := &kkComps.ControlPlaneFilterParametersName{}
+			if op == "contains" {
+				nameFilter.Contains = &val
+			} else {
+				nameFilter.Eq = &val
+			}
+			req.Filter = &kkComps.ControlPlaneFilterParameters{Name: nameFilter}
+		} else if filter.id != "" {
+			req.Filter = &kkComps.ControlPlaneFilterParameters{ID: &kkComps.ID{Eq: &filter.id}}
 		}
 
 		res, err := kkClient.ListControlPlanes(ctx, req)

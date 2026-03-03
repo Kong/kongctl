@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	konnectCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/util"
@@ -142,6 +144,81 @@ func isEventGatewayResource(resource string) bool {
 	r := strings.TrimSpace(strings.ToLower(resource))
 	return strings.Contains(r, "event_gateway") ||
 		strings.Contains(r, "event-gateway")
+}
+
+const (
+	filterNameFlagName = "filter-name"
+	filterIDFlagName   = "filter-id"
+)
+
+type filterOptions struct {
+	name string
+	id   string
+}
+
+func (f filterOptions) hasFilter() bool {
+	return f.name != "" || f.id != ""
+}
+
+func validateFilterOptions(f filterOptions) error {
+	if f.name != "" && f.id != "" {
+		return &cmdpkg.ConfigurationError{
+			Err: fmt.Errorf("--%s and --%s are mutually exclusive", filterNameFlagName, filterIDFlagName),
+		}
+	}
+	return nil
+}
+
+// parseFilterName inspects the value for leading/trailing '*' wildcards.
+// If wildcards are present they are stripped and the "contains" operator
+// is returned; otherwise the "eq" operator is used for exact matching.
+func parseFilterName(value string) (op, val string) {
+	if strings.HasPrefix(value, "*") || strings.HasSuffix(value, "*") {
+		return "contains", strings.Trim(value, "*")
+	}
+	return "eq", value
+}
+
+// filterByNameOrID applies client-side name or ID filtering to a slice of
+// resources. The nameAndID function extracts the name and ID from each element.
+// For name filtering, exact or contains matching is applied based on wildcards.
+func filterByNameOrID[T any](items []T, filter filterOptions, nameAndID func(T) (string, string)) []T {
+	if !filter.hasFilter() {
+		return items
+	}
+
+	var result []T
+	for _, item := range items {
+		name, id := nameAndID(item)
+		if filter.id != "" {
+			if id == filter.id {
+				result = append(result, item)
+			}
+		} else if filter.name != "" {
+			op, val := parseFilterName(filter.name)
+			if op == "contains" {
+				if strings.Contains(name, val) {
+					result = append(result, item)
+				}
+			} else if name == val {
+				result = append(result, item)
+			}
+		}
+	}
+	return result
+}
+
+// buildStringFieldFilter creates a StringFieldFilter from a filter name value,
+// using exact match by default or contains when wildcards are present.
+func buildStringFieldFilter(name string) *kkComps.StringFieldFilter {
+	op, val := parseFilterName(name)
+	f := &kkComps.StringFieldFilter{}
+	if op == "contains" {
+		f.Contains = &val
+	} else {
+		f.Eq = &val
+	}
+	return f
 }
 
 func ensureNonNegativePageSize(helper cmdpkg.Helper) error {

@@ -7,6 +7,7 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 
 	decllabels "github.com/kong/kongctl/internal/declarative/labels"
+	declresources "github.com/kong/kongctl/internal/declarative/resources"
 	"sigs.k8s.io/yaml"
 )
 
@@ -284,4 +285,106 @@ func TestMapAuthStrategyToDeclarativeResource_OIDC(t *testing.T) {
 	if !strings.Contains(string(yamlBytes), "ref: "+strategyID) {
 		t.Fatalf("expected yaml to include ref %q, got:\n%s", strategyID, string(yamlBytes))
 	}
+}
+
+func TestValidateFilterOptions(t *testing.T) {
+	tests := []struct {
+		name    string
+		filter  filterOptions
+		wantErr bool
+	}{
+		{name: "no filter", filter: filterOptions{}, wantErr: false},
+		{name: "name only", filter: filterOptions{name: "my-portal"}, wantErr: false},
+		{name: "id only", filter: filterOptions{id: "abc-123"}, wantErr: false},
+		{name: "both set", filter: filterOptions{name: "x", id: "y"}, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateFilterOptions(tt.filter)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("validateFilterOptions() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestParseFilterName(t *testing.T) {
+	tests := []struct {
+		input  string
+		wantOp string
+		wantV  string
+	}{
+		{input: "my-portal", wantOp: "eq", wantV: "my-portal"},
+		{input: "*portal*", wantOp: "contains", wantV: "portal"},
+		{input: "*portal", wantOp: "contains", wantV: "portal"},
+		{input: "portal*", wantOp: "contains", wantV: "portal"},
+		{input: "***portal***", wantOp: "contains", wantV: "portal"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			op, val := parseFilterName(tt.input)
+			if op != tt.wantOp || val != tt.wantV {
+				t.Fatalf("parseFilterName(%q) = (%q, %q), want (%q, %q)",
+					tt.input, op, val, tt.wantOp, tt.wantV)
+			}
+		})
+	}
+}
+
+func TestFilterOptionsHasFilter(t *testing.T) {
+	if (filterOptions{}).hasFilter() {
+		t.Fatal("empty filter should return false")
+	}
+	if !(filterOptions{name: "x"}).hasFilter() {
+		t.Fatal("filter with name should return true")
+	}
+	if !(filterOptions{id: "x"}).hasFilter() {
+		t.Fatal("filter with id should return true")
+	}
+}
+
+func TestFilterByNameOrID(t *testing.T) {
+	portals := []declresources.PortalResource{
+		{BaseResource: declresources.BaseResource{Ref: "id-1"}, CreatePortal: kkComps.CreatePortal{Name: "alpha"}},
+		{BaseResource: declresources.BaseResource{Ref: "id-2"}, CreatePortal: kkComps.CreatePortal{Name: "beta"}},
+		{BaseResource: declresources.BaseResource{Ref: "id-3"}, CreatePortal: kkComps.CreatePortal{Name: "alpha-dev"}},
+	}
+	accessor := func(p declresources.PortalResource) (string, string) { return p.Name, p.Ref }
+
+	t.Run("no filter", func(t *testing.T) {
+		result := filterByNameOrID(portals, filterOptions{}, accessor)
+		if len(result) != 3 {
+			t.Fatalf("expected 3 results, got %d", len(result))
+		}
+	})
+
+	t.Run("exact name match", func(t *testing.T) {
+		result := filterByNameOrID(portals, filterOptions{name: "alpha"}, accessor)
+		if len(result) != 1 || result[0].Name != "alpha" {
+			t.Fatalf("expected [alpha], got %v", result)
+		}
+	})
+
+	t.Run("contains name match", func(t *testing.T) {
+		result := filterByNameOrID(portals, filterOptions{name: "*alpha*"}, accessor)
+		if len(result) != 2 {
+			t.Fatalf("expected 2 results for *alpha*, got %d", len(result))
+		}
+	})
+
+	t.Run("id match", func(t *testing.T) {
+		result := filterByNameOrID(portals, filterOptions{id: "id-2"}, accessor)
+		if len(result) != 1 || result[0].Name != "beta" {
+			t.Fatalf("expected [beta], got %v", result)
+		}
+	})
+
+	t.Run("no match", func(t *testing.T) {
+		result := filterByNameOrID(portals, filterOptions{name: "gamma"}, accessor)
+		if len(result) != 0 {
+			t.Fatalf("expected 0 results, got %d", len(result))
+		}
+	})
 }

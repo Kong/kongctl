@@ -30,6 +30,7 @@ type declarativeOptions struct {
 	outputFile            string
 	defaultNamespace      string
 	includeChildResources bool
+	filter                filterOptions
 }
 
 var declarativeAllowedResources = map[string]struct{}{
@@ -57,6 +58,9 @@ func newDeclarativeCmd() *cobra.Command {
 				return err
 			}
 			opts.resources = normalized
+			if err := validateFilterOptions(opts.filter); err != nil {
+				return err
+			}
 			if err := ensureNonNegativePageSize(helper); err != nil {
 				return err
 			}
@@ -77,6 +81,14 @@ func newDeclarativeCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&opts.defaultNamespace, "default-namespace", "",
 		"Default namespace to include in declarative output (_defaults.kongctl.namespace).")
+
+	cmd.Flags().StringVar(&opts.filter.name, filterNameFlagName, "",
+		"Filter resources by name. Use '*' wildcards for substring matching (e.g., '*portal*').\n"+
+			"Mutually exclusive with --"+filterIDFlagName+".")
+
+	cmd.Flags().StringVar(&opts.filter.id, filterIDFlagName, "",
+		"Filter resources by ID (exact match).\n"+
+			"Mutually exclusive with --"+filterNameFlagName+".")
 
 	cmd.Flags().String(konnectCommon.BaseURLFlagName, "",
 		fmt.Sprintf(`Base URL for Konnect API requests.
@@ -200,7 +212,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 	for _, resource := range opts.resources {
 		switch resource {
 		case "portals":
-			portals, err := collectDeclarativePortals(ctx, sdk.GetPortalAPI(), requestPageSize)
+			portals, err := collectDeclarativePortals(ctx, sdk.GetPortalAPI(), requestPageSize, opts.filter)
 			if err != nil {
 				return err
 			}
@@ -211,7 +223,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			}
 			resourceSet.Portals = append(resourceSet.Portals, portals...)
 		case "apis":
-			apis, err := collectDeclarativeAPIs(ctx, sdk.GetAPIAPI(), requestPageSize)
+			apis, err := collectDeclarativeAPIs(ctx, sdk.GetAPIAPI(), requestPageSize, opts.filter)
 			if err != nil {
 				return err
 			}
@@ -220,7 +232,9 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			}
 			resourceSet.APIs = append(resourceSet.APIs, apis...)
 		case "application_auth_strategies":
-			authStrategies, err := collectDeclarativeAuthStrategies(ctx, sdk.GetAppAuthStrategiesAPI(), requestPageSize)
+			authStrategies, err := collectDeclarativeAuthStrategies(
+				ctx, sdk.GetAppAuthStrategiesAPI(), requestPageSize, opts.filter,
+			)
 			if err != nil {
 				return err
 			}
@@ -231,6 +245,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				sdk.GetControlPlaneAPI(),
 				sdk.GetControlPlaneGroupsAPI(),
 				requestPageSize,
+				opts.filter,
 			)
 			if err != nil {
 				return err
@@ -244,6 +259,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				ctx,
 				sdk.GetEventGatewayControlPlaneAPI(),
 				requestPageSize,
+				opts.filter,
 			)
 			if err != nil {
 				return err
@@ -257,6 +273,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				ctx,
 				sdk.GetOrganizationTeamAPI(),
 				requestPageSize,
+				opts.filter,
 			)
 			if err != nil {
 				return err
@@ -314,6 +331,7 @@ func collectDeclarativePortals(
 	ctx context.Context,
 	portalAPI helpers.PortalAPI,
 	requestPageSize int64,
+	filter filterOptions,
 ) ([]declresources.PortalResource, error) {
 	if portalAPI == nil {
 		return nil, fmt.Errorf("portal API client is not configured")
@@ -325,6 +343,12 @@ func collectDeclarativePortals(
 		req := kkOps.ListPortalsRequest{
 			PageSize:   new(requestPageSize),
 			PageNumber: new(pageNumber),
+		}
+
+		if filter.name != "" {
+			req.Filter = &kkComps.PortalFilterParameters{Name: buildStringFieldFilter(filter.name)}
+		} else if filter.id != "" {
+			req.Filter = &kkComps.PortalFilterParameters{ID: &kkComps.UUIDFieldFilter{Eq: &filter.id}}
 		}
 
 		resp, err := portalAPI.ListPortals(ctx, req)
@@ -357,6 +381,7 @@ func collectDeclarativeAPIs(
 	ctx context.Context,
 	apiClient helpers.APIAPI,
 	requestPageSize int64,
+	filter filterOptions,
 ) ([]declresources.APIResource, error) {
 	if apiClient == nil {
 		return nil, fmt.Errorf("API client is not configured")
@@ -368,6 +393,12 @@ func collectDeclarativeAPIs(
 		req := kkOps.ListApisRequest{
 			PageSize:   new(requestPageSize),
 			PageNumber: new(pageNumber),
+		}
+
+		if filter.name != "" {
+			req.Filter = &kkComps.APIFilterParameters{Name: buildStringFieldFilter(filter.name)}
+		} else if filter.id != "" {
+			req.Filter = &kkComps.APIFilterParameters{ID: &kkComps.UUIDFieldFilter{Eq: &filter.id}}
 		}
 
 		resp, err := apiClient.ListApis(ctx, req)
@@ -405,6 +436,7 @@ func collectDeclarativeEventGateways(
 	ctx context.Context,
 	eventGatewayClient helpers.EGWControlPlaneAPI,
 	requestPageSize int64,
+	filter filterOptions,
 ) ([]declresources.EventGatewayControlPlaneResource, error) {
 	if eventGatewayClient == nil {
 		return nil, fmt.Errorf("event gateway client is not configured")
@@ -420,6 +452,16 @@ func collectDeclarativeEventGateways(
 
 		if pageAfter != nil {
 			req.PageAfter = pageAfter
+		}
+
+		// Event gateway filter only supports contains on name; use it for
+		// server-side narrowing when possible, then apply exact match
+		// or ID filtering client-side below.
+		if filter.name != "" {
+			_, val := parseFilterName(filter.name)
+			req.Filter = &kkComps.EventGatewayCommonFilter{
+				Name: &kkComps.StringFieldContainsFilter{Contains: val},
+			}
 		}
 
 		res, err := eventGatewayClient.ListEGWControlPlanes(ctx, req)
@@ -444,6 +486,13 @@ func collectDeclarativeEventGateways(
 		pageAfter = stringPointer(values.Get("page[after]"))
 	}
 
+	// Client-side filtering for exact name match or ID (not supported server-side)
+	if filter.hasFilter() {
+		allData = filterByNameOrID(allData, filter, func(r declresources.EventGatewayControlPlaneResource) (string, string) {
+			return r.Name, r.Ref
+		})
+	}
+
 	sort.Slice(allData, func(i, j int) bool {
 		return allData[i].Name < allData[j].Name
 	})
@@ -455,6 +504,7 @@ func collectDeclarativeOrganizationTeams(
 	ctx context.Context,
 	teamClient helpers.OrganizationTeamAPI,
 	requestPageSize int64,
+	filter filterOptions,
 ) ([]declresources.OrganizationTeamResource, error) {
 	if teamClient == nil {
 		return nil, fmt.Errorf("organization team client is not configured")
@@ -466,6 +516,17 @@ func collectDeclarativeOrganizationTeams(
 		req := kkOps.ListTeamsRequest{
 			PageSize:   new(requestPageSize),
 			PageNumber: new(pageNumber),
+		}
+
+		if filter.name != "" {
+			op, val := parseFilterName(filter.name)
+			nameFilter := &kkComps.LegacyStringFieldFilter{}
+			if op == "contains" {
+				nameFilter.Contains = &val
+			} else {
+				nameFilter.Eq = &val
+			}
+			req.Filter = &kkOps.ListTeamsQueryParamFilter{Name: nameFilter}
 		}
 
 		resp, err := teamClient.ListOrganizationTeams(ctx, req)
@@ -496,6 +557,13 @@ func collectDeclarativeOrganizationTeams(
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	// Client-side ID filtering (not supported server-side for teams)
+	if filter.id != "" {
+		results = filterByNameOrID(results, filter, func(r declresources.OrganizationTeamResource) (string, string) {
+			return r.Name, r.Ref
+		})
 	}
 
 	sort.Slice(results, func(i, j int) bool {
@@ -675,6 +743,7 @@ func collectDeclarativeAuthStrategies(
 	ctx context.Context,
 	api helpers.AppAuthStrategiesAPI,
 	requestPageSize int64,
+	filter filterOptions,
 ) ([]declresources.ApplicationAuthStrategyResource, error) {
 	if api == nil {
 		return nil, fmt.Errorf("application auth strategies API is not configured")
@@ -686,6 +755,10 @@ func collectDeclarativeAuthStrategies(
 		req := kkOps.ListAppAuthStrategiesRequest{
 			PageSize:   new(requestPageSize),
 			PageNumber: new(pageNumber),
+		}
+
+		if filter.name != "" {
+			req.Filter = &kkOps.QueryParamFilter{Name: buildStringFieldFilter(filter.name)}
 		}
 
 		resp, err := api.ListAppAuthStrategies(ctx, req)
@@ -715,6 +788,13 @@ func collectDeclarativeAuthStrategies(
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	// Client-side ID filtering (not supported server-side for auth strategies)
+	if filter.id != "" {
+		results = filterByNameOrID(results, filter, func(r declresources.ApplicationAuthStrategyResource) (string, string) {
+			return r.GetMoniker(), r.Ref
+		})
 	}
 
 	sort.Slice(results, func(i, j int) bool {
@@ -809,6 +889,7 @@ func collectDeclarativeControlPlanes(
 	api helpers.ControlPlaneAPI,
 	groupsAPI helpers.ControlPlaneGroupsAPI,
 	requestPageSize int64,
+	filter filterOptions,
 ) ([]declresources.ControlPlaneResource, error) {
 	if api == nil {
 		return nil, fmt.Errorf("control plane API is not configured")
@@ -820,6 +901,19 @@ func collectDeclarativeControlPlanes(
 		req := kkOps.ListControlPlanesRequest{
 			PageSize:   new(requestPageSize),
 			PageNumber: new(pageNumber),
+		}
+
+		if filter.name != "" {
+			op, val := parseFilterName(filter.name)
+			nameFilter := &kkComps.ControlPlaneFilterParametersName{}
+			if op == "contains" {
+				nameFilter.Contains = &val
+			} else {
+				nameFilter.Eq = &val
+			}
+			req.Filter = &kkComps.ControlPlaneFilterParameters{Name: nameFilter}
+		} else if filter.id != "" {
+			req.Filter = &kkComps.ControlPlaneFilterParameters{ID: &kkComps.ID{Eq: &filter.id}}
 		}
 
 		resp, err := api.ListControlPlanes(ctx, req)
