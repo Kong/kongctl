@@ -39,7 +39,8 @@ func registerResourceType[R any, RPtr interface {
 	*R
 	Resource
 }](rt ResourceType,
-	getSlicePtr func(*ResourceSet) *[]R) {
+	getSlicePtr func(*ResourceSet) *[]R,
+) {
 	registry[rt] = resourceOps{
 		get: func(rs *ResourceSet) []Resource {
 			return sliceToResources[R, RPtr](*getSlicePtr(rs))

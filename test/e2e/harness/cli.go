@@ -214,6 +214,7 @@ type Result struct {
 	Stderr   string
 	ExitCode int
 	Duration time.Duration
+	TimedOut bool
 }
 
 // CommandError wraps execution failures with the captured Result for richer retry diagnostics.
@@ -372,6 +373,10 @@ func (c *CLI) runCommand(
 	dur := time.Since(start)
 
 	res := Result{Stdout: stdout.String(), Stderr: stderr.String(), Duration: dur}
+	if ctx.Err() == context.DeadlineExceeded {
+		res.TimedOut = true
+		Warnf("command timed out after %s: %s", dur, strings.Join(cmd.Args, " "))
+	}
 	res.Stdout, c.pendingHTTPDumps = extractHTTPDumps(res.Stdout)
 	if err != nil {
 		if ee, ok := err.(*exec.ExitError); ok {
@@ -548,6 +553,7 @@ func (c *CLI) captureCommand(cmd *exec.Cmd, args []string, res Result, start, en
 	// Meta JSON
 	meta := struct {
 		ExitCode   int       `json:"exit_code"`
+		TimedOut   bool      `json:"timed_out"`
 		Duration   string    `json:"duration"`
 		Started    time.Time `json:"started"`
 		Finished   time.Time `json:"finished"`
@@ -557,7 +563,19 @@ func (c *CLI) captureCommand(cmd *exec.Cmd, args []string, res Result, start, en
 		ConfigDir  string    `json:"config_dir"`
 		ConfigFile string    `json:"config_file"`
 		Args       []string  `json:"args"`
-	}{res.ExitCode, res.Duration.String(), start, end, c.BinPath, cmd.Dir, c.Profile, c.ConfigDir, filepath.Join(c.ConfigDir, "kongctl", "config.yaml"), cmd.Args}
+	}{
+		res.ExitCode,
+		res.TimedOut,
+		res.Duration.String(),
+		start,
+		end,
+		c.BinPath,
+		cmd.Dir,
+		c.Profile,
+		c.ConfigDir,
+		filepath.Join(c.ConfigDir, "kongctl", "config.yaml"),
+		cmd.Args,
+	}
 	if b, err := json.MarshalIndent(meta, "", "  "); err == nil {
 		_ = os.WriteFile(filepath.Join(dir, "meta.json"), b, 0o644)
 	}

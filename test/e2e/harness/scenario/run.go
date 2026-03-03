@@ -272,9 +272,10 @@ func Run(t *testing.T, scenarioPath string) error {
 					}
 					if atry+1 < attempts {
 						detail := createFailureDetail(result, lastErr)
-						if !harness.ShouldRetry(lastErr, detail, retryCfg.Only, retryCfg.Never) {
+						if !harness.ShouldRetry(lastErr, detail, retryCfg.Only, retryCfg.Never, harness.Result{}, 0) {
 							break
 						}
+						preserveAttemptArtifacts(cli.LastCommandDir, atry)
 						delay := harness.BackoffDelay(backoff, atry)
 						harness.Warnf(
 							"command %s create attempt %d/%d failed (%v); retrying in %s",
@@ -370,9 +371,10 @@ func Run(t *testing.T, scenarioPath string) error {
 					}
 					if atry+1 < attempts {
 						detail := deleteFailureDetail(result, lastErr)
-						if !harness.ShouldRetry(lastErr, detail, retryCfg.Only, retryCfg.Never) {
+						if !harness.ShouldRetry(lastErr, detail, retryCfg.Only, retryCfg.Never, harness.Result{}, 0) {
 							break
 						}
+						preserveAttemptArtifacts(cli.LastCommandDir, atry)
 						delay := harness.BackoffDelay(backoff, atry)
 						harness.Warnf(
 							"command %s delete attempt %d/%d failed (%v); retrying in %s",
@@ -454,7 +456,7 @@ func Run(t *testing.T, scenarioPath string) error {
 				res, err = cli.RunWithEnv(context.Background(), envOverrides, args...)
 			} else {
 				retryCfg := effectiveRetry(s.Defaults.Retry, st.Retry, cmd.Retry, Retry{})
-				res, err = runCLIWithRetry(cli, cmdName, retryCfg, args, envOverrides)
+				res, err = runCLIWithRetry(cli, cmdName, retryCfg, args, envOverrides, cli.Timeout)
 			}
 			if cmd.ExpectFail != nil {
 				if err == nil {
@@ -723,6 +725,7 @@ func runCLIWithRetry(
 	retryCfg Retry,
 	args []string,
 	env map[string]string,
+	timeout time.Duration,
 ) (harness.Result, error) {
 	backoffCfg := harness.NormalizeBackoffConfig(backoffConfigFromRetry(retryCfg))
 	attempts := backoffCfg.Attempts
@@ -738,23 +741,46 @@ func runCLIWithRetry(
 		}
 
 		detail := commandFailureDetail(res, err)
-		if !harness.ShouldRetry(err, detail, retryCfg.Only, retryCfg.Never) || atry+1 >= attempts {
+		if !harness.ShouldRetry(err, detail, retryCfg.Only, retryCfg.Never, res, timeout) || atry+1 >= attempts {
 			return res, err
 		}
 
+		preserveAttemptArtifacts(cli.LastCommandDir, atry)
 		delay := harness.BackoffDelay(backoff, atry)
 		harness.Warnf(
-			"command %s attempt %d/%d failed (exit=%d): %v; retrying in %s",
+			"command %s attempt %d/%d failed (exit=%d, timed_out=%t): %v; retrying in %s",
 			cmdName,
 			atry+1,
 			attempts,
 			res.ExitCode,
+			res.TimedOut,
 			err,
 			delay,
 		)
 		time.Sleep(delay)
 	}
 	return res, err
+}
+
+// preserveAttemptArtifacts copies command artifacts into a numbered sub-directory
+// so that retry iterations do not overwrite each other's diagnostic output.
+func preserveAttemptArtifacts(cmdDir string, attempt int) {
+	if strings.TrimSpace(cmdDir) == "" {
+		return
+	}
+	dstDir := filepath.Join(cmdDir, "attempts", fmt.Sprintf("%03d", attempt))
+	if err := os.MkdirAll(dstDir, 0o755); err != nil {
+		harness.Warnf("preserveAttemptArtifacts: mkdir failed: %v", err)
+		return
+	}
+	for _, name := range []string{"meta.json", "stdout.txt", "stderr.txt", "command.txt", "kongctl.log"} {
+		src := filepath.Join(cmdDir, name)
+		data, err := os.ReadFile(src)
+		if err != nil {
+			continue // file may not exist for this command
+		}
+		_ = os.WriteFile(filepath.Join(dstDir, name), data, 0o644)
+	}
 }
 
 func commandFailureDetail(res harness.Result, err error) string {
