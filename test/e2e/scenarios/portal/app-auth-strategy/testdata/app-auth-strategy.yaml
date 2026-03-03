@@ -1,0 +1,10 @@
+application_auth_strategies:
+  - ref: key-auth-strategy-e2e
+    name: key-auth-strategy-e2e
+    display_name: E2E Key Auth Strategy
+    strategy_type: key_auth
+    configs:
+      key_auth:
+        key_names:
+          - X-API-Key
+          - Api-Key
