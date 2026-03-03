@@ -279,8 +279,8 @@ func TestPlanPortalTeams_ExternalPortalSyncSkipsDeleteWhenOmitted(t *testing.T) 
 			PortalTeamAPI: &stubExternalPortalTeamAPI{
 				listPortalTeamsFn: func() []kkComps.PortalTeamResponse {
 					return []kkComps.PortalTeamResponse{
-						{ID: stringPtr("team-a-id"), Name: stringPtr("team-a")},
-						{ID: stringPtr("team-b-id"), Name: stringPtr("team-b")},
+						{ID: new("team-a-id"), Name: new("team-a")},
+						{ID: new("team-b-id"), Name: new("team-b")},
 					}
 				},
 			},
@@ -318,8 +318,8 @@ func TestPlanPortalTeamRoles_ExternalPortalSyncSkipsDeleteWhenOmitted(t *testing
 			PortalTeamAPI: &stubExternalPortalTeamAPI{
 				listPortalTeamsFn: func() []kkComps.PortalTeamResponse {
 					return []kkComps.PortalTeamResponse{
-						{ID: stringPtr("team-a-id"), Name: stringPtr("team-a")},
-						{ID: stringPtr("team-b-id"), Name: stringPtr("team-b")},
+						{ID: new("team-a-id"), Name: new("team-a")},
+						{ID: new("team-b-id"), Name: new("team-b")},
 					}
 				},
 			},
@@ -329,20 +329,20 @@ func TestPlanPortalTeamRoles_ExternalPortalSyncSkipsDeleteWhenOmitted(t *testing
 					case "team-a-id":
 						return []kkComps.PortalAssignedRoleResponse{
 							{
-								ID:             stringPtr("role-1"),
-								RoleName:       stringPtr("viewer"),
-								EntityID:       stringPtr("api-1"),
-								EntityTypeName: stringPtr("api"),
+								ID:             new("role-1"),
+								RoleName:       new("viewer"),
+								EntityID:       new("api-1"),
+								EntityTypeName: new("api"),
 								EntityRegion:   &region,
 							},
 						}
 					case "team-b-id":
 						return []kkComps.PortalAssignedRoleResponse{
 							{
-								ID:             stringPtr("role-2"),
-								RoleName:       stringPtr("editor"),
-								EntityID:       stringPtr("api-2"),
-								EntityTypeName: stringPtr("api"),
+								ID:             new("role-2"),
+								RoleName:       new("editor"),
+								EntityID:       new("api-2"),
+								EntityTypeName: new("api"),
 								EntityRegion:   &region,
 							},
 						}
@@ -409,8 +409,4 @@ func assertNoDeleteChangeForResourceType(t *testing.T, plan *Plan, resourceType 
 			t.Fatalf("unexpected %s delete planned for external portal: %+v", resourceType, change)
 		}
 	}
-}
-
-func stringPtr(value string) *string {
-	return &value
 }

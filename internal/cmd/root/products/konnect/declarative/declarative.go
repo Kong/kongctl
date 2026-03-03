@@ -1158,7 +1158,7 @@ func dereferenceFieldValue(value any) any {
 		if !rv.IsValid() {
 			return nil
 		}
-		if rv.Kind() != reflect.Ptr {
+		if rv.Kind() != reflect.Pointer {
 			return value
 		}
 		if rv.IsNil() {

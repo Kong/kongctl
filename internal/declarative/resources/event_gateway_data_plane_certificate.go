@@ -86,7 +86,7 @@ func (e EventGatewayDataPlaneCertificateResource) GetKonnectMonikerFilter() stri
 
 func (e *EventGatewayDataPlaneCertificateResource) TryMatchKonnectResource(konnectResource any) bool {
 	v := reflect.ValueOf(konnectResource)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 	if v.Kind() != reflect.Struct {
@@ -99,7 +99,7 @@ func (e *EventGatewayDataPlaneCertificateResource) TryMatchKonnectResource(konne
 	if nameField.IsValid() && idField.IsValid() &&
 		idField.Kind() == reflect.String {
 		// Name field is a *string, so need to handle pointer
-		if nameField.Kind() == reflect.Ptr && !nameField.IsNil() {
+		if nameField.Kind() == reflect.Pointer && !nameField.IsNil() {
 			nameVal := nameField.Elem()
 			if nameVal.Kind() == reflect.String && e.Name != nil && nameVal.String() == *e.Name {
 				e.konnectID = idField.String()
