@@ -1,0 +1,70 @@
+baseInputsPath: ./testdata
+
+vars:
+  portal_name: external-sync-portal
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-bootstrap-out-of-band-portal
+    skipInputs: true
+    commands:
+      - name: 000-create-portal
+        create:
+          resource: portal
+          payload:
+            inline:
+              name: "{{ .vars.portal_name }}"
+              display_name: "External Sync Portal"
+              authentication_enabled: false
+              rbac_enabled: false
+          recordVar:
+            name: portal_id
+            responsePath: id
+
+      - name: 001-create-page-getting-started
+        create:
+          resource: portal-page
+          endpointParams:
+            portalId: "{{ .vars.portal_id }}"
+          payload:
+            inline:
+              slug: getting-started
+              title: Getting Started
+              content: "# Getting Started"
+
+      - name: 002-create-page-guides
+        create:
+          resource: portal-page
+          endpointParams:
+            portalId: "{{ .vars.portal_id }}"
+          payload:
+            inline:
+              slug: guides
+              title: Guides
+              content: "# Guides"
+
+  - name: 002-sync-external-reference
+    commands:
+      - name: 000-sync-dry-run
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-portal.yaml"
+          - --dry-run
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: plan.changes[?resource_type=='portal_page' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0

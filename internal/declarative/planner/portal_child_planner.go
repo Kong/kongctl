@@ -686,7 +686,7 @@ func (p *Planner) planPortalCustomDomainsChanges(
 	}
 
 	if desiredDomain == nil {
-		if currentDomain != nil && plan.Metadata.Mode == PlanModeSync {
+		if currentDomain != nil && plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
 			p.planPortalCustomDomainDelete(parentNamespace, portalRef, portalID, portalName, currentDomain, "", plan)
 		}
 		return nil
@@ -1311,7 +1311,7 @@ func (p *Planner) planPortalEmailConfigsChanges(
 	}
 
 	if desiredCfg == nil {
-		if currentCfg != nil && plan.Metadata.Mode == PlanModeSync {
+		if currentCfg != nil && plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
 			p.planPortalEmailConfigDelete(parentNamespace, portalRef, portalID, portalName, plan)
 		}
 		return nil
@@ -1597,7 +1597,7 @@ func (p *Planner) planPortalEmailTemplatesChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync && portalID != "" {
+	if plan.Metadata.Mode == PlanModeSync && portalID != "" && !p.isPortalExternal(portalRef) {
 		for name, tpl := range existing {
 			if _, ok := desiredByName[name]; ok {
 				continue
@@ -1941,6 +1941,12 @@ func (p *Planner) planPortalPagesChanges(
 	ctx context.Context, parentNamespace string, portalID string, portalRef string,
 	desired []resources.PortalPageResource, plan *Plan,
 ) error {
+	// Delete mode is handled at the parent portal planner level and should not
+	// perform child-level create/update/delete diffing.
+	if plan.Metadata.Mode == PlanModeDelete {
+		return nil
+	}
+
 	// Fetch existing pages for this portal
 	existingPages := make([]state.PortalPage, 0)
 	if portalID != "" {
@@ -2077,8 +2083,9 @@ func (p *Planner) planPortalPagesChanges(
 		}
 	}
 
-	// In sync mode, delete pages that exist but are not in desired state
-	if plan.Metadata.Mode == PlanModeSync {
+	// In sync mode, delete unmanaged pages only for managed portals.
+	// External portals are managed elsewhere, so we avoid destructive pruning.
+	if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
 		// Build set of desired page paths
 		desiredPaths := make(map[string]bool)
 		for _, desiredPage := range desired {
@@ -2764,7 +2771,7 @@ func (p *Planner) planPortalTeamsChanges(
 	}
 
 	// In SYNC mode: Delete teams not in desired state
-	if plan.Metadata.Mode == PlanModeSync {
+	if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
 		for _, existingTeam := range existingTeams {
 			if !desiredNames[existingTeam.Name] {
 				p.planPortalTeamDelete(parentNamespace, portalRef, portalID, existingTeam, plan)
@@ -3024,7 +3031,7 @@ func (p *Planner) planPortalTeamRolesChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync {
+	if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
 		for teamRef := range teamByRef {
 			if _, ok := rolesByTeam[teamRef]; !ok {
 				rolesByTeam[teamRef] = []resources.PortalTeamRoleResource{}
@@ -3138,7 +3145,7 @@ func (p *Planner) planPortalTeamRolesChanges(
 			)
 		}
 
-		if plan.Metadata.Mode == PlanModeSync && teamID != "" {
+		if plan.Metadata.Mode == PlanModeSync && teamID != "" && !p.isPortalExternal(portalRef) {
 			for key, existingRole := range existingRoles {
 				if !desiredKeys[key] {
 					p.planPortalTeamRoleDelete(
