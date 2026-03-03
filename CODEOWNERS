@@ -2,4 +2,8 @@
 
 * @Kong/DevRel @Kong/apiops-contributors
 
-# Add additional directory-specific reviewers later in the file
+# Security-sensitive configuration — require explicit maintainer review
+CLAUDE.md                        @Kong/DevRel
+AGENTS.md                        @Kong/DevRel
+CODEOWNERS                       @Kong/DevRel
+.github/workflows/               @Kong/DevRel

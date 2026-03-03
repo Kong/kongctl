@@ -21,10 +21,10 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Resolve release tag
+        env:
+          TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-
-          TAG="${{ inputs.tag }}"
 
           if [ -z "${TAG//[[:space:]]/}" ]; then
             echo "::error::Tag input cannot be empty."
