@@ -190,6 +190,7 @@ steps:
           - "--resources=apis"
           - "--filter-name=SMS API"
         outputFormat: none
+        parseAs: raw
 
   # ── tf-import mutually exclusive flags ────────────────────────
   - name: 009-tf-import-filter-mutual-exclusion
