@@ -31,8 +31,15 @@ jobs:
             exit 1
           fi
 
-          if printf '%s' "$TAG" | grep -Pq '[\r\n]'; then
-            echo "::error::Tag input must not contain newline or carriage-return characters."
+          case "$TAG" in
+            *$'\n'*|*$'\r'*)
+              echo "::error::Tag input must not contain newline or carriage-return characters."
+              exit 1
+              ;;
+          esac
+
+          if [ "${TAG#-}" != "$TAG" ]; then
+            echo "::error::Tag input must not start with a '-' character."
             exit 1
           fi
 
