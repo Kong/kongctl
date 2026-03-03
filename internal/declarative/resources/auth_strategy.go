@@ -234,10 +234,10 @@ func normalizeOIDCConfig(config any) any {
 
 	normalized := maps.Clone(configMap)
 	if _, ok := normalized["credential_claim"]; !ok {
-		normalized["credential_claim"] = []string{}
+		normalized["credential_claim"] = []string(nil)
 	}
 	if _, ok := normalized["auth_methods"]; !ok {
-		normalized["auth_methods"] = []string{}
+		normalized["auth_methods"] = []string(nil)
 	}
 
 	return normalized

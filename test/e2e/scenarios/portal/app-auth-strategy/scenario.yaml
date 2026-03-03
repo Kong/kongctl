@@ -1,0 +1,45 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: debug
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-key-auth-strategy
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                resource_ref=='key-auth-strategy-e2e'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                resource_ref=='key-auth-strategy-e2e'] | [0].fields
+            expect:
+              file: expect/001-plan-auth-strategy/auth-strategy-fields.json
