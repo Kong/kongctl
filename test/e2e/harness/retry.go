@@ -18,6 +18,11 @@ const (
 	DefaultRetryMaxInterval   = 10 * time.Second
 	DefaultRetryBackoffFactor = 2.0
 	DefaultRetryJitter        = 500 * time.Millisecond
+	// DefaultTimeoutRetryThreshold is the ratio of actual duration to configured
+	// timeout above which a timed-out command will not be retried. A value of 0.9
+	// means that if a command consumed >=90% of the timeout before being killed,
+	// retrying is unlikely to help and the attempt is skipped.
+	DefaultTimeoutRetryThreshold = 0.9
 )
 
 var defaultRetryablePatterns = []string{
@@ -105,7 +110,10 @@ func BackoffDelay(schedule []time.Duration, attempt int) time.Duration {
 }
 
 // ShouldRetry determines whether an error/detail warrants another attempt under the given policy.
-func ShouldRetry(err error, detail string, only, never []string) bool {
+// result and timeout are used to suppress retries when a subprocess consumed nearly the entire
+// timeout (indicating a hang rather than a transient failure). Pass a zero Result and 0 timeout
+// for non-subprocess callers (e.g. HTTP helpers in reset.go).
+func ShouldRetry(err error, detail string, only, never []string, result Result, timeout time.Duration) bool {
 	if err == nil {
 		return false
 	}
@@ -133,6 +141,15 @@ func ShouldRetry(err error, detail string, only, never []string) bool {
 			}
 		}
 		return false
+	}
+
+	// If the command timed out and consumed nearly the full timeout, retrying is
+	// unlikely to help — skip rather than waste another full timeout period.
+	if result.TimedOut && timeout > 0 {
+		ratio := float64(result.Duration) / float64(timeout)
+		if ratio >= DefaultTimeoutRetryThreshold {
+			return false
+		}
 	}
 
 	var cmdErr *CommandError

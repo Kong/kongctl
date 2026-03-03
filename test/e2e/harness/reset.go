@@ -401,7 +401,7 @@ func retryListItems(client *http.Client, url, token, endpoint string) ([]map[str
 		if err == nil {
 			return items, nil
 		}
-		if !ShouldRetry(err, err.Error(), nil, nil) || atry+1 >= attempts {
+		if !ShouldRetry(err, err.Error(), nil, nil, Result{}, 0) || atry+1 >= attempts {
 			return nil, err
 		}
 		delay := BackoffDelay(backoff, atry)
@@ -433,7 +433,7 @@ func retryDeleteOne(client *http.Client, baseURL, token, endpoint, id string) er
 		if he, ok := err.(*httpError); ok && he.status == http.StatusConflict {
 			return err
 		}
-		if !ShouldRetry(err, err.Error(), nil, nil) || atry+1 >= attempts {
+		if !ShouldRetry(err, err.Error(), nil, nil, Result{}, 0) || atry+1 >= attempts {
 			return err
 		}
 		delay := BackoffDelay(backoff, atry)
