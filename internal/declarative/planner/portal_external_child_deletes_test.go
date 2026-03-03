@@ -410,8 +410,3 @@ func assertNoDeleteChangeForResourceType(t *testing.T, plan *Plan, resourceType 
 		}
 	}
 }
-
-//go:fix inline
-func stringPtr(value string) *string {
-	return new(value)
-}

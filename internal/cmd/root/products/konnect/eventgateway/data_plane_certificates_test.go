@@ -74,6 +74,3 @@ func TestFormatCertificateMetadata(t *testing.T) {
 	meta := &kkComps.CertificateMetadata{Subject: new("CN=test")}
 	assert.Contains(t, formatCertificateMetadata(meta), "subject: CN=test")
 }
-
-//go:fix inline
-func ptr(s string) *string { return new(s) }
