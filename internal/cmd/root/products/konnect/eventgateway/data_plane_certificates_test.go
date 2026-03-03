@@ -57,7 +57,7 @@ func TestDataPlaneCertFlagValidation(t *testing.T) {
 
 func TestFindDataPlaneCertByName(t *testing.T) {
 	certs := []kkComps.EventGatewayDataPlaneCertificate{
-		{ID: "cert-1", Name: ptr("Alpha-Cert")},
+		{ID: "cert-1", Name: new("Alpha-Cert")},
 		{ID: "cert-2", Name: nil},
 	}
 
@@ -71,8 +71,9 @@ func TestFormatCertificateMetadata(t *testing.T) {
 	// Nil returns n/a
 	assert.Contains(t, formatCertificateMetadata(nil), valueNA)
 	// Populated field appears
-	meta := &kkComps.CertificateMetadata{Subject: ptr("CN=test")}
+	meta := &kkComps.CertificateMetadata{Subject: new("CN=test")}
 	assert.Contains(t, formatCertificateMetadata(meta), "subject: CN=test")
 }
 
-func ptr(s string) *string { return &s }
+//go:fix inline
+func ptr(s string) *string { return new(s) }
