@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"maps"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -135,7 +136,9 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 	case "openid_connect":
 		// Create OpenID Connect request
 		var oidcConfig kkComps.AppAuthStrategyConfigOpenIDConnect
-		if configData, ok := temp.Configs["openid-connect"]; ok {
+		if configData, ok := getConfigByKey(temp.Configs, "openid-connect", "openid_connect"); ok {
+			configData = normalizeOIDCConfig(configData)
+
 			configBytes, err := json.Marshal(configData)
 			if err != nil {
 				return fmt.Errorf("failed to marshal openid-connect config: %w", err)
@@ -160,7 +163,7 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 	case "key_auth":
 		// Create Key Auth request
 		var keyAuthConfig kkComps.AppAuthStrategyConfigKeyAuth
-		if configData, ok := temp.Configs["key-auth"]; ok {
+		if configData, ok := getConfigByKey(temp.Configs, "key-auth", "key_auth"); ok {
 			configBytes, err := json.Marshal(configData)
 			if err != nil {
 				return fmt.Errorf("failed to marshal key-auth config: %w", err)
@@ -208,4 +211,34 @@ func (a ApplicationAuthStrategyResource) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(payload)
+}
+
+// getConfigByKey returns the first matching config entry for canonical key names.
+// This allows declarative YAML to accept both underscore and hyphen variants.
+func getConfigByKey(configs map[string]any, keys ...string) (any, bool) {
+	for _, key := range keys {
+		if config, ok := configs[key]; ok {
+			return config, true
+		}
+	}
+	return nil, false
+}
+
+// normalizeOIDCConfig ensures OIDC config values are compatible with SDK validation.
+// The SDK currently requires credential_claim and auth_methods even when unset.
+func normalizeOIDCConfig(config any) any {
+	configMap, ok := config.(map[string]any)
+	if !ok {
+		return config
+	}
+
+	normalized := maps.Clone(configMap)
+	if _, ok := normalized["credential_claim"]; !ok {
+		normalized["credential_claim"] = []string{}
+	}
+	if _, ok := normalized["auth_methods"]; !ok {
+		normalized["auth_methods"] = []string{}
+	}
+
+	return normalized
 }
