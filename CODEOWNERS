@@ -3,7 +3,7 @@
 * @Kong/DevRel @Kong/apiops-contributors
 
 # Security-sensitive configuration — require explicit maintainer review
-CLAUDE.md                        @Kong/DevRel
-AGENTS.md                        @Kong/DevRel
-CODEOWNERS                       @Kong/DevRel
-.github/workflows/               @Kong/DevRel
+/CLAUDE.md                       @Kong/DevRel
+/AGENTS.md                       @Kong/DevRel
+/CODEOWNERS                      @Kong/DevRel
+/.github/workflows/              @Kong/DevRel
