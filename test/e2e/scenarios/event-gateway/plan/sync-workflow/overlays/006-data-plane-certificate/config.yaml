@@ -27,7 +27,7 @@ event_gateways:
         destination:
           id: !ref plan-sync-backend-cluster#id
         authentication:
-         - type: anonymous
+          - type: anonymous
         acl_mode: passthrough
         dns_label: vc-default
     listeners:
@@ -39,35 +39,35 @@ event_gateways:
         addresses:
           - localhost
         policies:
-        - ref: plan-sync-listener-1-policy-1-ref
-          name: plan-sync-listener-1-policy-1-name
-          type: forward_to_virtual_cluster
-          description: "Plan Sync Listener 1 Policy 1"
-          enabled: true
-          condition: "${ssl_sni} == \"example.com\""
-          labels:
-            env: staging
-            team: payments
-          config:
-            type: port_mapping
-            destination:
-              id: !ref plan-sync-virtual-cluster#id
-            advertised_host: "example.com"
+          - ref: plan-sync-listener-1-policy-1-ref
+            name: plan-sync-listener-1-policy-1-name
+            type: forward_to_virtual_cluster
+            description: "Plan Sync Listener 1 Policy 1"
+            enabled: true
+            condition: "${ssl_sni} == \"example.com\""
+            labels:
+              env: staging
+              team: payments
+            config:
+              type: port_mapping
+              destination:
+                id: !ref plan-sync-virtual-cluster#id
+              advertised_host: "example.com"
     data_plane_certificates:
-    - ref: plan-sync-dataplane-certificate-ref
-      name: plan-sync-dataplane-certificate-name
-      description: "Plan Sync Dataplane Certificate description"
-      certificate: |-
-        -----BEGIN CERTIFICATE-----
-        MIIB4TCCAYugAwIBAgIUAenxUyPjkSLCe2BQXoBMBacqgLowDQYJKoZIhvcNAQEL
-        BQAwRTELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoM
-        GEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDAeFw0yNDEwMjgyMDA3NDlaFw0zNDEw
-        MjYyMDA3NDlaMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEw
-        HwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwXDANBgkqhkiG9w0BAQEF
-        AANLADBIAkEAyzipjrbAaLO/yPg7lL1dLWzhqNdc3S4YNR7f1RG9whWhbsPE2z42
-        e6WGFf9hggP6xjG4qbU8jFVczpd1UPwGbQIDAQABo1MwUTAdBgNVHQ4EFgQUkPPB
-        ghj+iHOHAKJlC1gLbKT/ZHQwHwYDVR0jBBgwFoAUkPPBghj+iHOHAKJlC1gLbKT/
-        ZHQwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAANBALfy49GvA2ld+u+G
-        Koxa8kCt7uywoqu0hfbBfUT4HqmXPvsuhz8RinE5ltxId108vtDNlD/+bKl+N5Ub
-        qKjBs0k=
-        -----END CERTIFICATE-----
+      - ref: plan-sync-dataplane-certificate-ref
+        name: plan-sync-dataplane-certificate-name
+        description: "Plan Sync Dataplane Certificate description"
+        certificate: |-
+          -----BEGIN CERTIFICATE-----
+          MIIB4TCCAYugAwIBAgIUAenxUyPjkSLCe2BQXoBMBacqgLowDQYJKoZIhvcNAQEL
+          BQAwRTELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoM
+          GEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDAeFw0yNDEwMjgyMDA3NDlaFw0zNDEw
+          MjYyMDA3NDlaMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEw
+          HwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwXDANBgkqhkiG9w0BAQEF
+          AANLADBIAkEAyzipjrbAaLO/yPg7lL1dLWzhqNdc3S4YNR7f1RG9whWhbsPE2z42
+          e6WGFf9hggP6xjG4qbU8jFVczpd1UPwGbQIDAQABo1MwUTAdBgNVHQ4EFgQUkPPB
+          ghj+iHOHAKJlC1gLbKT/ZHQwHwYDVR0jBBgwFoAUkPPBghj+iHOHAKJlC1gLbKT/
+          ZHQwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAANBALfy49GvA2ld+u+G
+          Koxa8kCt7uywoqu0hfbBfUT4HqmXPvsuhz8RinE5ltxId108vtDNlD/+bKl+N5Ub
+          qKjBs0k=
+          -----END CERTIFICATE-----
