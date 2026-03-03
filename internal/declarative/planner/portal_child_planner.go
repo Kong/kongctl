@@ -1941,6 +1941,12 @@ func (p *Planner) planPortalPagesChanges(
 	ctx context.Context, parentNamespace string, portalID string, portalRef string,
 	desired []resources.PortalPageResource, plan *Plan,
 ) error {
+	// Delete mode is handled at the parent portal planner level and should not
+	// perform child-level create/update/delete diffing.
+	if plan.Metadata.Mode == PlanModeDelete {
+		return nil
+	}
+
 	// Fetch existing pages for this portal
 	existingPages := make([]state.PortalPage, 0)
 	if portalID != "" {
@@ -2077,8 +2083,9 @@ func (p *Planner) planPortalPagesChanges(
 		}
 	}
 
-	// In sync mode, delete pages that exist but are not in desired state
-	if plan.Metadata.Mode == PlanModeSync {
+	// In sync mode, delete unmanaged pages only for managed portals.
+	// External portals are managed elsewhere, so we avoid destructive pruning.
+	if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
 		// Build set of desired page paths
 		desiredPaths := make(map[string]bool)
 		for _, desiredPage := range desired {

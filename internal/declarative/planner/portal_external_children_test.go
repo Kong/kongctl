@@ -15,7 +15,9 @@ import (
 )
 
 // Minimal mocks for PortalPageAPI and PortalSnippetAPI
-type mockPortalPageAPI struct{}
+type mockPortalPageAPI struct {
+	listData []kkComps.PortalPageInfo
+}
 
 func (m *mockPortalPageAPI) CreatePortalPage(
 	_ context.Context,
@@ -48,11 +50,14 @@ func (m *mockPortalPageAPI) ListPortalPages(
 	_ kkOps.ListPortalPagesRequest,
 	_ ...kkOps.Option,
 ) (*kkOps.ListPortalPagesResponse, error) {
-	// Return empty list
+	data := m.listData
+	if data == nil {
+		data = []kkComps.PortalPageInfo{}
+	}
 	return &kkOps.ListPortalPagesResponse{
 		StatusCode: 200,
 		ListPortalPagesResponse: &kkComps.ListPortalPagesResponse{
-			Data: []kkComps.PortalPageInfo{},
+			Data: data,
 		},
 	}, nil
 }
@@ -209,4 +214,57 @@ func TestPlanner_ExternalPortal_PlansChildren(t *testing.T) {
 
 	assert.True(t, foundPage, "expected a portal_page create change")
 	assert.True(t, foundSnippet, "expected a portal_snippet create change")
+}
+
+func TestPlanner_ExternalPortal_SyncDoesNotDeleteExistingPages(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	mockPortalAPI := new(MockPortalAPI)
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.ListPortalsResponsePortal{
+				newListPortal("portal-123", "ext-portal", nil),
+			},
+			Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+		},
+		StatusCode: 200,
+	}, nil)
+
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI: mockPortalAPI,
+		PortalPageAPI: &mockPortalPageAPI{
+			listData: []kkComps.PortalPageInfo{
+				{ID: "page-root", Slug: "/"},
+				{ID: "page-guides", Slug: "guides"},
+			},
+		},
+	})
+
+	planner := NewPlanner(client, slog.Default())
+
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{
+			{
+				CreatePortal: kkComps.CreatePortal{Name: "ext-portal"},
+				BaseResource: resources.BaseResource{
+					Ref: "ext-portal-ref",
+				},
+				External: &resources.ExternalBlock{
+					Selector: &resources.ExternalSelector{MatchFields: map[string]string{"name": "ext-portal"}},
+				},
+			},
+		},
+	}
+
+	plan, err := planner.GeneratePlan(ctx, rs, Options{Mode: PlanModeSync})
+	assert.NoError(t, err)
+	assert.NotNil(t, plan)
+
+	for _, change := range plan.Changes {
+		if change.ResourceType == ResourceTypePortalPage && change.Action == ActionDelete {
+			t.Fatalf("unexpected portal page delete planned for external portal: %+v", change)
+		}
+	}
 }

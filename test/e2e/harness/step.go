@@ -284,8 +284,13 @@ func (re resourceEndpoint) expandPath(params map[string]string) (string, error) 
 }
 
 var createResourceEndpoints = map[string]resourceEndpoint{
-	"portal":        {Method: http.MethodPost, Path: "/v3/portals"},
-	"portals":       {Method: http.MethodPost, Path: "/v3/portals"},
+	"portal":  {Method: http.MethodPost, Path: "/v3/portals"},
+	"portals": {Method: http.MethodPost, Path: "/v3/portals"},
+	"portal-page": {
+		Method:    http.MethodPost,
+		Path:      "/v3/portals/{portalId}/pages",
+		ParamKeys: []string{"portalId"},
+	},
 	"api":           {Method: http.MethodPost, Path: "/v3/apis"},
 	"apis":          {Method: http.MethodPost, Path: "/v3/apis"},
 	"auth-strategy": {Method: http.MethodPost, Path: "/v2/application-auth-strategies"},
