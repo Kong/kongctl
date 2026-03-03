@@ -8,9 +8,11 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
@@ -54,6 +56,34 @@ const (
 	// requireAnyNamespaceConfigPath is the config path backing the any namespace flag
 	requireAnyNamespaceConfigPath = "konnect.declarative." + requireAnyNamespaceFlagName
 )
+
+const diffFieldRedactedValue = "[REDACTED]"
+
+var diffSensitiveExactFieldKeys = map[string]struct{}{
+	"access_token":        {},
+	"refresh_token":       {},
+	"id_token":            {},
+	"token":               {},
+	"api_key":             {},
+	"apikey":              {},
+	"x_api_key":           {},
+	"secret":              {},
+	"password":            {},
+	"authorization":       {},
+	"cookie":              {},
+	"credential":          {},
+	"private_key":         {},
+	"passphrase":          {},
+	"client_secret":       {},
+	"set_cookie":          {},
+	"konnectaccesstoken":  {},
+	"konnectrefreshtoken": {},
+}
+
+var diffNonSensitiveTokenFieldKeys = map[string]struct{}{
+	"token_count": {},
+	"token_type":  {},
+}
 
 func addBaseDirFlag(cmd *cobra.Command) {
 	cmd.Flags().String(baseDirFlagName, "",
@@ -902,22 +932,25 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 					}
 				}
 
-				// Show field changes
-				for field, value := range change.Fields {
-					if fc, ok := value.(planner.FieldChange); ok {
-						fmt.Fprintf(out, "  %s: %v → %v\n", field, fc.Old, fc.New)
-					} else if fc, ok := value.(map[string]any); ok {
-						// Handle FieldChange that was unmarshaled from JSON
-						if oldVal, hasOld := fc["old"]; hasOld {
-							if newVal, hasNew := fc["new"]; hasNew {
-								fmt.Fprintf(out, "  %s: %v → %v\n", field, oldVal, newVal)
+				if len(change.ChangedFields) > 0 {
+					displayFieldChanges(out, change.ChangedFields, "  ", fullContent)
+				} else {
+					// Backward compatibility with plans that only have raw update fields.
+					for field, value := range change.Fields {
+						if fc, ok := value.(planner.FieldChange); ok {
+							displayFieldChange(out, field, fc.Old, fc.New, "  ", fullContent)
+						} else if fc, ok := value.(map[string]any); ok {
+							// Handle FieldChange that was unmarshaled into map[string]any.
+							oldVal, hasOld := fc["old"]
+							newVal, hasNew := fc["new"]
+							if hasOld && hasNew {
+								displayFieldChange(out, field, oldVal, newVal, "  ", fullContent)
 								continue
 							}
+							displayField(out, field, value, "  ", fullContent)
+						} else {
+							displayField(out, field, value, "  ", fullContent)
 						}
-						// Fallback for other map types
-						displayField(out, field, value, "  ", fullContent)
-					} else {
-						displayField(out, field, value, "  ", fullContent)
 					}
 				}
 
@@ -975,7 +1008,174 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 	return nil
 }
 
+func displayFieldChanges(
+	out io.Writer,
+	changes map[string]planner.FieldChange,
+	indent string,
+	fullContent bool,
+) {
+	keys := make([]string, 0, len(changes))
+	for field := range changes {
+		keys = append(keys, field)
+	}
+	sort.Strings(keys)
+
+	for _, field := range keys {
+		fc := changes[field]
+		displayFieldChange(out, field, fc.Old, fc.New, indent, fullContent)
+	}
+}
+
+func displayFieldChange(
+	out io.Writer,
+	field string,
+	oldValue any,
+	newValue any,
+	indent string,
+	fullContent bool,
+) {
+	oldText := formatFieldValueForField(field, oldValue, fullContent)
+	newText := formatFieldValueForField(field, newValue, fullContent)
+	fmt.Fprintf(out, "%s%s: %s → %s\n", indent, field, oldText, newText)
+}
+
+func formatFieldValue(value any, fullContent bool) string {
+	const maxDisplayLength = 500
+	value = dereferenceFieldValue(value)
+
+	switch v := value.(type) {
+	case string:
+		if !fullContent && len(v) > maxDisplayLength {
+			lines := strings.Count(v, "\n") + 1
+			return fmt.Sprintf("<%d bytes, %d lines>", len(v), lines)
+		}
+		return fmt.Sprintf("%q", v)
+	case nil:
+		return "null"
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+func formatFieldValueForField(field string, value any, fullContent bool) string {
+	resolved := dereferenceFieldValue(value)
+	if isSensitiveDiffField(field) {
+		if resolved == nil {
+			return "null"
+		}
+		return diffFieldRedactedValue
+	}
+	return formatFieldValue(resolved, fullContent)
+}
+
+func isSensitiveDiffField(field string) bool {
+	normalized := normalizeFieldKey(field)
+	if normalized == "" {
+		return false
+	}
+
+	if _, ok := diffSensitiveExactFieldKeys[normalized]; ok {
+		return true
+	}
+
+	if _, ok := diffNonSensitiveTokenFieldKeys[normalized]; ok {
+		return false
+	}
+
+	if containsSegment(normalized, "secret") ||
+		containsSegment(normalized, "password") ||
+		containsSegment(normalized, "credential") ||
+		containsSegment(normalized, "passphrase") ||
+		hasSegmentPair(normalized, "private", "key") ||
+		hasSegmentPair(normalized, "api", "key") ||
+		hasSegmentPair(normalized, "client", "secret") {
+		return true
+	}
+
+	if strings.Contains(normalized, "access_token") || strings.Contains(normalized, "refresh_token") {
+		return true
+	}
+	if strings.HasSuffix(normalized, "_token") {
+		return true
+	}
+
+	return false
+}
+
+func containsSegment(normalized, segment string) bool {
+	return slices.Contains(strings.Split(normalized, "_"), segment)
+}
+
+func hasSegmentPair(normalized, first, second string) bool {
+	parts := strings.Split(normalized, "_")
+	for idx := 0; idx < len(parts)-1; idx++ {
+		if parts[idx] == first && parts[idx+1] == second {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeFieldKey(key string) string {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return ""
+	}
+
+	runes := []rune(key)
+	out := make([]rune, 0, len(runes))
+	appendUnderscore := func() {
+		if len(out) > 0 && out[len(out)-1] != '_' {
+			out = append(out, '_')
+		}
+	}
+
+	for idx, current := range runes {
+		switch {
+		case current == '_' || current == '-' || current == '.' ||
+			current == '[' || current == ']' || current == '/' || unicode.IsSpace(current):
+			appendUnderscore()
+		case unicode.IsUpper(current):
+			if idx > 0 {
+				prev := runes[idx-1]
+				nextIsLower := idx+1 < len(runes) && unicode.IsLower(runes[idx+1])
+				if unicode.IsLower(prev) || unicode.IsDigit(prev) || (unicode.IsUpper(prev) && nextIsLower) {
+					appendUnderscore()
+				}
+			}
+			out = append(out, unicode.ToLower(current))
+		default:
+			out = append(out, unicode.ToLower(current))
+		}
+	}
+
+	return strings.Trim(string(out), "_")
+}
+
+func dereferenceFieldValue(value any) any {
+	for {
+		rv := reflect.ValueOf(value)
+		if !rv.IsValid() {
+			return nil
+		}
+		if rv.Kind() != reflect.Ptr {
+			return value
+		}
+		if rv.IsNil() {
+			return nil
+		}
+		value = rv.Elem().Interface()
+	}
+}
+
 func displayField(out io.Writer, field string, value any, indent string, fullContent bool) {
+	if isSensitiveDiffField(field) {
+		if dereferenceFieldValue(value) != nil {
+			fmt.Fprintf(out, "%s%s: %s\n", indent, field, diffFieldRedactedValue)
+		}
+		return
+	}
+
 	switch v := value.(type) {
 	case string:
 		if v != "" {

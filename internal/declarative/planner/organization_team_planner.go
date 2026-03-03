@@ -124,7 +124,7 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 		// Handle protection changes
 		if currentProtected != desiredProtected {
 			// When changing protection status, include any other field updates too
-			needsUpdate, updateFields := t.shouldUpdateOrganizationTeam(current, desiredTeam)
+			needsUpdate, updateFields, changedFields := t.shouldUpdateOrganizationTeam(current, desiredTeam)
 
 			// Create protection change object
 			protectionChange := &ProtectionChange{
@@ -137,18 +137,25 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 				protectionChange, needsUpdate)
 			protectionErrors.Add(err)
 			if err == nil {
-				t.planOrganizationTeamProtectionChangeWithFields(current, desiredTeam, currentProtected,
-					desiredProtected, updateFields, plan)
+				t.planOrganizationTeamProtectionChangeWithFields(
+					current,
+					desiredTeam,
+					currentProtected,
+					desiredProtected,
+					updateFields,
+					changedFields,
+					plan,
+				)
 			}
 		} else {
 			// Check if update needed based on configuration
-			needsUpdate, updateFields := t.shouldUpdateOrganizationTeam(current, desiredTeam)
+			needsUpdate, updateFields, changedFields := t.shouldUpdateOrganizationTeam(current, desiredTeam)
 			if needsUpdate {
 				// Regular update - check protection
 				err := t.ValidateProtection("organization_team", desiredTeam.Name, currentProtected, ActionUpdate)
 				protectionErrors.Add(err)
 				if err == nil {
-					t.planOrganizationTeamUpdateWithFields(current, desiredTeam, updateFields, plan)
+					t.planOrganizationTeamUpdateWithFields(current, desiredTeam, updateFields, changedFields, plan)
 				}
 			}
 		}
@@ -273,13 +280,18 @@ func (t *OrganizationTeamPlannerImpl) planTeamCreate(team resources.Organization
 func (t *OrganizationTeamPlannerImpl) shouldUpdateOrganizationTeam(
 	current state.OrganizationTeam,
 	desired resources.OrganizationTeamResource,
-) (bool, map[string]any) {
+) (bool, map[string]any, map[string]FieldChange) {
 	updates := make(map[string]any)
+	changedFields := make(map[string]FieldChange)
 
 	if desired.Description != nil {
 		currentDesc := t.GetString(current.Description)
 		if currentDesc != *desired.Description {
 			updates["description"] = *desired.Description
+			changedFields["description"] = FieldChange{
+				Old: currentDesc,
+				New: *desired.Description,
+			}
 		}
 	}
 
@@ -293,10 +305,14 @@ func (t *OrganizationTeamPlannerImpl) shouldUpdateOrganizationTeam(
 				labelsMap[k] = v
 			}
 			updates["labels"] = labelsMap
+			changedFields["labels"] = FieldChange{
+				Old: labels.GetUserLabels(current.NormalizedLabels),
+				New: labels.GetUserLabels(desired.Labels),
+			}
 		}
 	}
 
-	return len(updates) > 0, updates
+	return len(updates) > 0, updates, changedFields
 }
 
 // planOrganizationTeamUpdateWithFields creates an UPDATE change with specific fields
@@ -304,6 +320,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamUpdateWithFields(
 	current state.OrganizationTeam,
 	desired resources.OrganizationTeamResource,
 	updateFields map[string]any,
+	changedFields map[string]FieldChange,
 	plan *Plan,
 ) {
 	// Always include name for identification
@@ -327,6 +344,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamUpdateWithFields(
 		ResourceID:     util.GetString(current.ID),
 		CurrentFields:  nil, // Not needed for direct update
 		DesiredFields:  updateFields,
+		ChangedFields:  changedFields,
 		RequiredFields: []string{"name"},
 		Namespace:      namespace,
 	}
@@ -344,14 +362,15 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamUpdateWithFields(
 
 		changeID := t.NextChangeID(ActionUpdate, "organization_team", desired.GetRef())
 		change := PlannedChange{
-			ID:           changeID,
-			ResourceType: "organization_team",
-			ResourceRef:  desired.GetRef(),
-			ResourceID:   util.GetString(current.ID),
-			Action:       ActionUpdate,
-			Fields:       fields,
-			DependsOn:    []string{},
-			Namespace:    DefaultNamespace,
+			ID:            changeID,
+			ResourceType:  "organization_team",
+			ResourceRef:   desired.GetRef(),
+			ResourceID:    util.GetString(current.ID),
+			Action:        ActionUpdate,
+			Fields:        fields,
+			ChangedFields: changedFields,
+			DependsOn:     []string{},
+			Namespace:     DefaultNamespace,
 		}
 		if labels.IsProtectedResource(current.NormalizedLabels) {
 			change.Protection = true
@@ -384,6 +403,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamProtectionChangeWithFi
 	desired resources.OrganizationTeamResource,
 	wasProtected, shouldProtect bool,
 	updateFields map[string]any,
+	changedFields map[string]FieldChange,
 	plan *Plan,
 ) {
 	// Extract namespace
@@ -434,6 +454,9 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamProtectionChangeWithFi
 	}
 
 	change.Fields = fields
+	if len(changedFields) > 0 {
+		change.ChangedFields = changedFields
+	}
 	plan.AddChange(change)
 }
 

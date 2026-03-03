@@ -43,7 +43,13 @@ func TestPlanAddChange(t *testing.T) {
 		ResourceRef:  "portal2",
 		ResourceID:   "existing-id",
 		Action:       ActionUpdate,
-		Fields:       map[string]any{"description": FieldChange{Old: "old", New: "new"}},
+		Fields:       map[string]any{"description": "new"},
+		ChangedFields: map[string]FieldChange{
+			"description": {
+				Old: "old",
+				New: "new",
+			},
+		},
 	}
 
 	plan.AddChange(change1)
@@ -171,6 +177,12 @@ func TestPlanJSONSerialization(t *testing.T) {
 			},
 		},
 		DependsOn: []string{"0-c-auth"},
+		ChangedFields: map[string]FieldChange{
+			"name": {
+				Old: "Old Portal",
+				New: "My Portal",
+			},
+		},
 	}
 
 	plan.AddChange(change)
@@ -203,6 +215,17 @@ func TestPlanJSONSerialization(t *testing.T) {
 
 	if len(decoded.ExecutionOrder) != 2 {
 		t.Errorf("Expected 2 items in execution order, got %d", len(decoded.ExecutionOrder))
+	}
+
+	changeDescription, exists := decoded.Changes[0].ChangedFields["name"]
+	if !exists {
+		t.Fatal("Expected changed_fields.name in decoded plan")
+	}
+	if changeDescription.Old != "Old Portal" {
+		t.Errorf("Expected changed_fields.name.old to be Old Portal, got %v", changeDescription.Old)
+	}
+	if changeDescription.New != "My Portal" {
+		t.Errorf("Expected changed_fields.name.new to be My Portal, got %v", changeDescription.New)
 	}
 }
 

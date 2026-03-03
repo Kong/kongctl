@@ -34,7 +34,7 @@ func TestPortalAssetNeedsUpdate_NotFound(t *testing.T) {
 	desired := makeDataURL("image/png", []byte("asset"))
 	planner := &Planner{}
 
-	needsUpdate, err := planner.portalAssetNeedsUpdate(
+	needsUpdate, currentDataURL, err := planner.portalAssetNeedsUpdate(
 		context.Background(),
 		"portal-id",
 		desired,
@@ -45,6 +45,7 @@ func TestPortalAssetNeedsUpdate_NotFound(t *testing.T) {
 
 	require.NoError(t, err)
 	require.True(t, needsUpdate)
+	require.Equal(t, "", currentDataURL)
 }
 
 func TestPortalAssetNeedsUpdate_NoChange(t *testing.T) {
@@ -54,17 +55,19 @@ func TestPortalAssetNeedsUpdate_NoChange(t *testing.T) {
 	desired := makeDataURL("image/png", payload)
 	planner := &Planner{}
 
-	needsUpdate, err := planner.portalAssetNeedsUpdate(
+	currentDataURL := makeDataURL("image/jpeg", payload)
+	needsUpdate, returnedDataURL, err := planner.portalAssetNeedsUpdate(
 		context.Background(),
 		"portal-id",
 		desired,
 		func(_ context.Context, _ string) (string, error) {
-			return makeDataURL("image/jpeg", payload), nil
+			return currentDataURL, nil
 		},
 	)
 
 	require.NoError(t, err)
 	require.False(t, needsUpdate)
+	require.Equal(t, currentDataURL, returnedDataURL)
 }
 
 func TestPortalAssetNeedsUpdate_Change(t *testing.T) {
@@ -73,15 +76,17 @@ func TestPortalAssetNeedsUpdate_Change(t *testing.T) {
 	desired := makeDataURL("image/png", []byte("asset"))
 	planner := &Planner{}
 
-	needsUpdate, err := planner.portalAssetNeedsUpdate(
+	currentDataURL := makeDataURL("image/png", []byte("different"))
+	needsUpdate, returnedDataURL, err := planner.portalAssetNeedsUpdate(
 		context.Background(),
 		"portal-id",
 		desired,
 		func(_ context.Context, _ string) (string, error) {
-			return makeDataURL("image/png", []byte("different")), nil
+			return currentDataURL, nil
 		},
 	)
 
 	require.NoError(t, err)
 	require.True(t, needsUpdate)
+	require.Equal(t, currentDataURL, returnedDataURL)
 }

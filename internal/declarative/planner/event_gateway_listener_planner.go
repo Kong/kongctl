@@ -115,16 +115,17 @@ func (p *Planner) planListenerChangesForExistingGateway(
 				return fmt.Errorf("failed to get listener %s: %w", current.ID, err)
 			}
 
-			needsUpdate, updateFields := p.shouldUpdateListener(*fullListener, desiredListener)
+			needsUpdate, updateFields, changedFields := p.shouldUpdateListener(*fullListener, desiredListener)
 			if needsUpdate {
 				p.logger.Debug("Planning listener UPDATE",
 					"listener_name", desiredListener.Name,
 					"listener_id", current.ID,
 					"update_fields", updateFields,
+					"changed_fields", changedFields,
 				)
 				p.planListenerUpdate(
 					namespace, gatewayRef, gatewayName, gatewayID,
-					current.ID, desiredListener, updateFields, plan)
+					current.ID, desiredListener, updateFields, changedFields, plan)
 			}
 
 			// Plan listener policies for this existing listener
@@ -263,6 +264,7 @@ func (p *Planner) planListenerUpdate(
 	listenerID string,
 	listener resources.EventGatewayListenerResource,
 	updateFields map[string]any,
+	changedFields map[string]FieldChange,
 	plan *Plan,
 ) {
 	if len(updateFields) == 0 {
@@ -270,13 +272,14 @@ func (p *Planner) planListenerUpdate(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionUpdate, ResourceTypeEventGatewayListener, listener.Ref),
-		ResourceType: ResourceTypeEventGatewayListener,
-		ResourceRef:  listener.Ref,
-		ResourceID:   listenerID,
-		Action:       ActionUpdate,
-		Fields:       updateFields,
-		Namespace:    namespace,
+		ID:            p.nextChangeID(ActionUpdate, ResourceTypeEventGatewayListener, listener.Ref),
+		ResourceType:  ResourceTypeEventGatewayListener,
+		ResourceRef:   listener.Ref,
+		ResourceID:    listenerID,
+		Action:        ActionUpdate,
+		Fields:        updateFields,
+		ChangedFields: changedFields,
+		Namespace:     namespace,
 		Parent: &ParentInfo{
 			Ref: gatewayRef,
 			ID:  gatewayID,
@@ -409,13 +412,18 @@ func normalizePortsToStrings(ports []any) []string {
 func (p *Planner) shouldUpdateListener(
 	current state.EventGatewayListener,
 	desired resources.EventGatewayListenerResource,
-) (bool, map[string]any) {
+) (bool, map[string]any, map[string]FieldChange) {
 	updates := make(map[string]any)
+	changes := make(map[string]FieldChange)
 	var needsUpdate bool
 
 	// Compare name
 	if current.Name != desired.Name {
 		needsUpdate = true
+		changes["name"] = FieldChange{
+			Old: current.Name,
+			New: desired.Name,
+		}
 	}
 
 	// Compare description
@@ -429,11 +437,19 @@ func (p *Planner) shouldUpdateListener(
 	}
 	if currentDesc != desiredDesc {
 		needsUpdate = true
+		changes["description"] = FieldChange{
+			Old: currentDesc,
+			New: desiredDesc,
+		}
 	}
 
 	// Compare addresses
 	if !compareStringSlices(current.Addresses, desired.Addresses) {
 		needsUpdate = true
+		changes["addresses"] = FieldChange{
+			Old: current.Addresses,
+			New: desired.Addresses,
+		}
 	}
 
 	// Compare ports - extract string values and compare
@@ -442,15 +458,27 @@ func (p *Planner) shouldUpdateListener(
 	desiredPortStrings := extractPortStrings(desired.Ports)
 	if !compareStringSlices(currentPortStrings, desiredPortStrings) {
 		needsUpdate = true
+		changes["ports"] = FieldChange{
+			Old: currentPortStrings,
+			New: desiredPortStrings,
+		}
 	}
 
 	// Compare labels
 	if desired.Labels != nil {
 		if !compareMaps(current.Labels, desired.Labels) {
 			needsUpdate = true
+			changes["labels"] = FieldChange{
+				Old: current.Labels,
+				New: desired.Labels,
+			}
 		}
 	} else if len(current.Labels) > 0 {
 		needsUpdate = true
+		changes["labels"] = FieldChange{
+			Old: current.Labels,
+			New: map[string]string{},
+		}
 	}
 
 	// If any changes detected, set ALL properties from desired state for PUT request
@@ -473,5 +501,5 @@ func (p *Planner) shouldUpdateListener(
 		}
 	}
 
-	return needsUpdate, updates
+	return needsUpdate, updates, changes
 }

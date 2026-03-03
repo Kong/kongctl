@@ -97,10 +97,12 @@ func TestShouldUpdateAPIConsidersSlugAndAttributes(t *testing.T) {
 		},
 	}
 
-	needsUpdate, updateFields := p.shouldUpdateAPI(current, desired)
+	needsUpdate, updateFields, changedFields := p.shouldUpdateAPI(current, desired)
 	assert.True(t, needsUpdate)
 	assert.Equal(t, updatedSlug, updateFields["slug"])
 	assert.Equal(t, expectedUpdatedAttrs, updateFields["attributes"])
+	assert.Equal(t, updatedSlug, changedFields["slug"].New)
+	assert.Equal(t, currentSlug, changedFields["slug"].Old)
 }
 
 func TestShouldUpdateAPIPublicationResolvesAuthStrategyRefs(t *testing.T) {
@@ -141,9 +143,10 @@ func TestShouldUpdateAPIPublicationResolvesAuthStrategyRefs(t *testing.T) {
 		PortalID: "portal-id",
 	}
 
-	needsUpdate, fields := planner.shouldUpdateAPIPublication(current, desired)
+	needsUpdate, fields, changedFields := planner.shouldUpdateAPIPublication(current, desired)
 	require.False(t, needsUpdate)
 	assert.Empty(t, fields)
+	assert.Empty(t, changedFields)
 }
 
 func TestShouldUpdateAPIPublicationIgnoresAuthStrategyWhenUnset(t *testing.T) {
@@ -161,7 +164,8 @@ func TestShouldUpdateAPIPublicationIgnoresAuthStrategyWhenUnset(t *testing.T) {
 		PortalID:       "portal-id",
 	}
 
-	needsUpdate, fields := planner.shouldUpdateAPIPublication(current, desired)
+	needsUpdate, fields, changedFields := planner.shouldUpdateAPIPublication(current, desired)
 	require.False(t, needsUpdate)
 	assert.Empty(t, fields)
+	assert.Empty(t, changedFields)
 }

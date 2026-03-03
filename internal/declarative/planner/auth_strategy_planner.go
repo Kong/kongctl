@@ -135,7 +135,7 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 			// Handle protection changes
 			if isProtected != shouldProtect {
 				// When changing protection status, include any other field updates too
-				needsUpdate, updateFields := p.shouldUpdateAuthStrategy(current, desiredStrategy)
+				needsUpdate, updateFields, changedFields := p.shouldUpdateAuthStrategy(current, desiredStrategy)
 
 				// Create protection change object
 				protectionChange := &ProtectionChange{
@@ -149,11 +149,11 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 				protectionErrors.Add(err)
 				if err == nil {
 					p.planAuthStrategyProtectionChangeWithFields(
-						current, desiredStrategy, isProtected, shouldProtect, updateFields, plan)
+						current, desiredStrategy, isProtected, shouldProtect, updateFields, changedFields, plan)
 				}
 			} else {
 				// Check if update needed based on configuration
-				needsUpdate, updateFields := p.shouldUpdateAuthStrategy(current, desiredStrategy)
+				needsUpdate, updateFields, changedFields := p.shouldUpdateAuthStrategy(current, desiredStrategy)
 				if needsUpdate {
 					// Check for strategy type change error
 					if errMsg, hasError := updateFields[FieldError].(string); hasError {
@@ -163,7 +163,7 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 						err := p.ValidateProtection("auth_strategy", name, isProtected, ActionUpdate)
 						protectionErrors.Add(err)
 						if err == nil {
-							p.planAuthStrategyUpdateWithFields(current, desiredStrategy, updateFields, plan)
+							p.planAuthStrategyUpdateWithFields(current, desiredStrategy, updateFields, changedFields, plan)
 						}
 					}
 				}
@@ -321,8 +321,9 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 	current state.ApplicationAuthStrategy,
 	desired resources.ApplicationAuthStrategyResource,
-) (bool, map[string]any) {
+) (bool, map[string]any, map[string]FieldChange) {
 	updateFields := make(map[string]any)
+	changedFields := make(map[string]FieldChange)
 
 	// First, check if strategy type is changing - this is not supported
 	var desiredStrategyType string
@@ -338,7 +339,7 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 		updateFields[FieldError] = fmt.Sprintf(
 			"changing strategy_type from %s to %s is not supported. Please delete and recreate the auth strategy",
 			current.StrategyType, desiredStrategyType)
-		return true, updateFields
+		return true, updateFields, changedFields
 	}
 
 	// Extract fields based on strategy type
@@ -362,6 +363,10 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 	if displayName != "" {
 		if current.DisplayName != displayName {
 			updateFields["display_name"] = displayName
+			changedFields["display_name"] = FieldChange{
+				Old: current.DisplayName,
+				New: displayName,
+			}
 		}
 	}
 
@@ -391,24 +396,30 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 					}
 				}
 
-				// Compare lengths first
-				if len(currentKeyNames) != len(desiredKeyNames) {
-					updateFields["configs"] = map[string]any{
+				keyNamesChanged := len(currentKeyNames) != len(desiredKeyNames)
+				if !keyNamesChanged {
+					for i, desiredName := range desiredKeyNames {
+						if i < len(currentKeyNames) && currentKeyNames[i] != desiredName {
+							keyNamesChanged = true
+							break
+						}
+					}
+				}
+
+				if keyNamesChanged {
+					newConfigs := map[string]any{
 						"key-auth": map[string]any{
 							"key_names": desiredKeyNames,
 						},
 					}
-				} else {
-					// Compare values
-					for i, desiredName := range desiredKeyNames {
-						if i < len(currentKeyNames) && currentKeyNames[i] != desiredName {
-							updateFields["configs"] = map[string]any{
-								"key-auth": map[string]any{
-									"key_names": desiredKeyNames,
-								},
-							}
-							break
-						}
+					updateFields["configs"] = newConfigs
+					changedFields["configs"] = FieldChange{
+						Old: map[string]any{
+							"key-auth": map[string]any{
+								"key_names": currentKeyNames,
+							},
+						},
+						New: newConfigs,
 					}
 				}
 			}
@@ -427,6 +438,7 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 			}
 
 			oidcUpdates := make(map[string]any)
+			oidcOldValues := make(map[string]any)
 			hasUpdates := false
 
 			// Check issuer
@@ -434,6 +446,7 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 				currentIssuer, _ := currentOIDC["issuer"].(string)
 				if currentIssuer != oidcConfig.Issuer {
 					oidcUpdates["issuer"] = oidcConfig.Issuer
+					oidcOldValues["issuer"] = currentIssuer
 					hasUpdates = true
 				}
 			}
@@ -443,6 +456,7 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 				currentClaims := extractStringSlice(currentOIDC["credential_claim"])
 				if !stringSlicesEqual(currentClaims, oidcConfig.CredentialClaim) {
 					oidcUpdates["credential_claim"] = oidcConfig.CredentialClaim
+					oidcOldValues["credential_claim"] = currentClaims
 					hasUpdates = true
 				}
 			}
@@ -452,6 +466,7 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 				currentScopes := extractStringSlice(currentOIDC["scopes"])
 				if !stringSlicesEqual(currentScopes, oidcConfig.Scopes) {
 					oidcUpdates["scopes"] = oidcConfig.Scopes
+					oidcOldValues["scopes"] = currentScopes
 					hasUpdates = true
 				}
 			}
@@ -461,13 +476,21 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 				currentMethods := extractStringSlice(currentOIDC["auth_methods"])
 				if !stringSlicesEqual(currentMethods, oidcConfig.AuthMethods) {
 					oidcUpdates["auth_methods"] = oidcConfig.AuthMethods
+					oidcOldValues["auth_methods"] = currentMethods
 					hasUpdates = true
 				}
 			}
 
 			if hasUpdates {
-				updateFields["configs"] = map[string]any{
+				newConfigs := map[string]any{
 					"openid-connect": oidcUpdates,
+				}
+				updateFields["configs"] = newConfigs
+				changedFields["configs"] = FieldChange{
+					Old: map[string]any{
+						"openid-connect": oidcOldValues,
+					},
+					New: newConfigs,
 				}
 			}
 		}
@@ -479,10 +502,14 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 		if labels.CompareUserLabels(current.NormalizedLabels, desiredLabels) {
 			// User labels differ, include all labels in update
 			updateFields["labels"] = desiredLabels
+			changedFields["labels"] = FieldChange{
+				Old: labels.GetUserLabels(current.NormalizedLabels),
+				New: labels.GetUserLabels(desiredLabels),
+			}
 		}
 	}
 
-	return len(updateFields) > 0, updateFields
+	return len(updateFields) > 0, updateFields, changedFields
 }
 
 // extractStringSlice converts any to []string
@@ -519,6 +546,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyUpdateWithFields(
 	current state.ApplicationAuthStrategy,
 	desired resources.ApplicationAuthStrategyResource,
 	updateFields map[string]any,
+	changedFields map[string]FieldChange,
 	plan *Plan,
 ) {
 	fields := make(map[string]any)
@@ -540,13 +568,14 @@ func (p *authStrategyPlannerImpl) planAuthStrategyUpdateWithFields(
 	}
 
 	change := PlannedChange{
-		ID:           p.NextChangeID(ActionUpdate, "application_auth_strategy", desired.GetRef()),
-		ResourceType: "application_auth_strategy",
-		ResourceRef:  desired.GetRef(),
-		ResourceID:   current.ID,
-		Action:       ActionUpdate,
-		Fields:       fields,
-		DependsOn:    []string{},
+		ID:            p.NextChangeID(ActionUpdate, "application_auth_strategy", desired.GetRef()),
+		ResourceType:  "application_auth_strategy",
+		ResourceRef:   desired.GetRef(),
+		ResourceID:    current.ID,
+		Action:        ActionUpdate,
+		Fields:        fields,
+		ChangedFields: changedFields,
+		DependsOn:     []string{},
 	}
 
 	// Set protection status based on current state
@@ -569,6 +598,7 @@ func (p *authStrategyPlannerImpl) planAuthStrategyProtectionChangeWithFields(
 	desired resources.ApplicationAuthStrategyResource,
 	wasProtected, shouldProtect bool,
 	updateFields map[string]any,
+	changedFields map[string]FieldChange,
 	plan *Plan,
 ) {
 	fields := make(map[string]any)
@@ -596,6 +626,9 @@ func (p *authStrategyPlannerImpl) planAuthStrategyProtectionChangeWithFields(
 			New: shouldProtect,
 		},
 		DependsOn: []string{},
+	}
+	if len(changedFields) > 0 {
+		change.ChangedFields = changedFields
 	}
 
 	// Extract namespace

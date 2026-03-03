@@ -659,6 +659,10 @@ kongctl diff --plan plan.json
 > Note: `--mode` cannot be used with `--plan` because mode is stored in the
 > plan artifact metadata.
 
+For `UPDATE` actions, text diff shows only the fields that would be
+changed. JSON and YAML outputs expose the same detail in each change's
+`changed_fields` object while keeping `fields` as the execution payload.
+
 ### adopt
 
 `kongctl` declarative configuration engine will only consider resources that
@@ -666,8 +670,9 @@ are part of the list of `kongctl.namespace` values given to it during planning
 and execution of changes. There may be cases where you want to bring an
 existing Konnect resource into configuration that was created outside of the
 configuration management process. The `adopt` command enables you to
-add the proper namespace label to an existing Konnect resources without modifying any other
-fields. Once you adopt a resource, you need to add the configuration for it
+add the proper namespace label to an existing Konnect resources without
+modifying any other fields. Once you adopt a resource, you need to add the
+configuration for it
 to your configuration set to ensure it is managed going forward.
 
 Adopt a portal by name:
@@ -684,7 +689,7 @@ kongctl adopt control-plane 22cd8a0b-72e7-4212-9099-0764f8e9c5ac \
 ```
 
 If the resource already has a `KONGCTL-namespace` label, the command fails
-without making changes. 
+without making changes.
 
 ### dump
 

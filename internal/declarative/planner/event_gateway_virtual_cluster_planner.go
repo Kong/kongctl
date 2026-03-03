@@ -101,16 +101,17 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 				return fmt.Errorf("failed to get virtual cluster %s: %w", current.ID, err)
 			}
 
-			needsUpdate, updateFields := p.shouldUpdateVirtualCluster(*fullCluster, desiredCluster)
+			needsUpdate, updateFields, changedFields := p.shouldUpdateVirtualCluster(*fullCluster, desiredCluster)
 			if needsUpdate {
 				p.logger.Debug("Planning virtual cluster UPDATE",
 					"cluster_name", desiredCluster.Name,
 					"cluster_id", current.ID,
 					"update_fields", updateFields,
+					"changed_fields", changedFields,
 				)
 				p.planVirtualClusterUpdate(
 					namespace, gatewayRef, gatewayName, gatewayID,
-					current.ID, desiredCluster, updateFields, plan)
+					current.ID, desiredCluster, updateFields, changedFields, plan)
 			}
 		}
 	}
@@ -250,6 +251,7 @@ func (p *Planner) planVirtualClusterUpdate(
 	clusterID string,
 	cluster resources.EventGatewayVirtualClusterResource,
 	updateFields map[string]any,
+	changedFields map[string]FieldChange,
 	plan *Plan,
 ) {
 	if len(updateFields) == 0 {
@@ -257,13 +259,14 @@ func (p *Planner) planVirtualClusterUpdate(
 	}
 
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionUpdate, ResourceTypeEventGatewayVirtualCluster, cluster.Ref),
-		ResourceType: ResourceTypeEventGatewayVirtualCluster,
-		ResourceRef:  cluster.Ref,
-		ResourceID:   clusterID,
-		Action:       ActionUpdate,
-		Fields:       updateFields,
-		Namespace:    namespace,
+		ID:            p.nextChangeID(ActionUpdate, ResourceTypeEventGatewayVirtualCluster, cluster.Ref),
+		ResourceType:  ResourceTypeEventGatewayVirtualCluster,
+		ResourceRef:   cluster.Ref,
+		ResourceID:    clusterID,
+		Action:        ActionUpdate,
+		Fields:        updateFields,
+		ChangedFields: changedFields,
+		Namespace:     namespace,
 		Parent: &ParentInfo{
 			Ref: gatewayRef,
 			ID:  gatewayID,
@@ -311,13 +314,18 @@ func (p *Planner) planVirtualClusterDelete(
 func (p *Planner) shouldUpdateVirtualCluster(
 	current state.EventGatewayVirtualCluster,
 	desired resources.EventGatewayVirtualClusterResource,
-) (bool, map[string]any) {
+) (bool, map[string]any, map[string]FieldChange) {
 	updates := make(map[string]any)
+	changes := make(map[string]FieldChange)
 	var needsUpdate bool
 
 	// Compare name
 	if current.Name != desired.Name {
 		needsUpdate = true
+		changes["name"] = FieldChange{
+			Old: current.Name,
+			New: desired.Name,
+		}
 	}
 
 	// Compare description
@@ -331,37 +339,65 @@ func (p *Planner) shouldUpdateVirtualCluster(
 	}
 	if currentDesc != desiredDesc {
 		needsUpdate = true
+		changes["description"] = FieldChange{
+			Old: currentDesc,
+			New: desiredDesc,
+		}
 	}
 
 	// Compare destination
 	if !compareBackendClusterReferences(current.Destination, desired.Destination) {
 		needsUpdate = true
+		changes["destination"] = FieldChange{
+			Old: current.Destination,
+			New: desired.Destination,
+		}
 	}
 
 	// Compare authentication
 	if !compareAuthentication(current.Authentication, desired.Authentication) {
 		needsUpdate = true
+		changes["authentication"] = FieldChange{
+			Old: current.Authentication,
+			New: desired.Authentication,
+		}
 	}
 
 	// Compare ACL mode
 	if current.ACLMode != desired.ACLMode {
 		needsUpdate = true
+		changes["acl_mode"] = FieldChange{
+			Old: current.ACLMode,
+			New: desired.ACLMode,
+		}
 	}
 
 	// Compare DNS label
 	if current.DNSLabel != desired.DNSLabel {
 		needsUpdate = true
+		changes["dns_label"] = FieldChange{
+			Old: current.DNSLabel,
+			New: desired.DNSLabel,
+		}
 	}
 
 	// Compare namespace
 	if !compareVirtualClusterNamespaces(current.Namespace, desired.Namespace) {
 		needsUpdate = true
+		changes["namespace"] = FieldChange{
+			Old: current.Namespace,
+			New: desired.Namespace,
+		}
 	}
 
 	// Compare labels
 	if desired.Labels != nil {
 		if !compareMaps(current.Labels, desired.Labels) {
 			needsUpdate = true
+			changes["labels"] = FieldChange{
+				Old: current.Labels,
+				New: desired.Labels,
+			}
 		}
 	}
 
@@ -387,7 +423,7 @@ func (p *Planner) shouldUpdateVirtualCluster(
 		}
 	}
 
-	return needsUpdate, updates
+	return needsUpdate, updates, changes
 }
 
 // compareBackendClusterReferences compares backend cluster references

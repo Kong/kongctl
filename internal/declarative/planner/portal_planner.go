@@ -132,7 +132,7 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 			// Handle protection changes
 			if isProtected != shouldProtect {
 				// When changing protection status, include any other field updates too
-				needsUpdate, updateFields := p.shouldUpdatePortal(current, desiredPortal)
+				needsUpdate, updateFields, changedFields := p.shouldUpdatePortal(current, desiredPortal)
 
 				// Create protection change object
 				protectionChange := &ProtectionChange{
@@ -145,17 +145,25 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 					protectionChange, needsUpdate)
 				protectionErrors.Add(err)
 				if err == nil {
-					p.planPortalProtectionChangeWithFields(current, desiredPortal, isProtected, shouldProtect, updateFields, plan)
+					p.planPortalProtectionChangeWithFields(
+						current,
+						desiredPortal,
+						isProtected,
+						shouldProtect,
+						updateFields,
+						changedFields,
+						plan,
+					)
 				}
 			} else {
 				// Check if update needed based on configuration
-				needsUpdate, updateFields := p.shouldUpdatePortal(current, desiredPortal)
+				needsUpdate, updateFields, changedFields := p.shouldUpdatePortal(current, desiredPortal)
 				if needsUpdate {
 					// Regular update - check protection
 					err := p.ValidateProtection("portal", desiredPortal.Name, isProtected, ActionUpdate)
 					protectionErrors.Add(err)
 					if err == nil {
-						p.planPortalUpdateWithFields(current, desiredPortal, updateFields, plan)
+						p.planPortalUpdateWithFields(current, desiredPortal, updateFields, changedFields, plan)
 					}
 				}
 			}
@@ -421,19 +429,28 @@ func (p *portalPlannerImpl) addAuthStrategyReference(change *PlannedChange, port
 func (p *portalPlannerImpl) shouldUpdatePortal(
 	current state.Portal,
 	desired resources.PortalResource,
-) (bool, map[string]any) {
+) (bool, map[string]any, map[string]FieldChange) {
 	updates := make(map[string]any)
+	changedFields := make(map[string]FieldChange)
 
 	// Only compare fields present in desired configuration
 	if desired.DisplayName != nil {
 		if current.DisplayName != *desired.DisplayName {
 			updates["display_name"] = *desired.DisplayName
+			changedFields["display_name"] = FieldChange{
+				Old: current.DisplayName,
+				New: *desired.DisplayName,
+			}
 		}
 	}
 	if desired.Description != nil {
 		currentDesc := p.GetString(current.Description)
 		if currentDesc != *desired.Description {
 			updates["description"] = *desired.Description
+			changedFields["description"] = FieldChange{
+				Old: currentDesc,
+				New: *desired.Description,
+			}
 		}
 	}
 
@@ -446,6 +463,10 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 			currentAuthID := p.GetString(current.DefaultApplicationAuthStrategyID)
 			if currentAuthID != desiredValue {
 				updates["default_application_auth_strategy_id"] = desiredValue
+				changedFields["default_application_auth_strategy_id"] = FieldChange{
+					Old: currentAuthID,
+					New: desiredValue,
+				}
 			}
 		}
 	}
@@ -453,24 +474,56 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 	if desired.AuthenticationEnabled != nil {
 		if curr := current.GetAuthenticationEnabled(); curr == nil || *curr != *desired.AuthenticationEnabled {
 			updates["authentication_enabled"] = *desired.AuthenticationEnabled
+			var oldValue any
+			if curr != nil {
+				oldValue = *curr
+			}
+			changedFields["authentication_enabled"] = FieldChange{
+				Old: oldValue,
+				New: *desired.AuthenticationEnabled,
+			}
 		}
 	}
 
 	if desired.RbacEnabled != nil {
 		if curr := current.GetRbacEnabled(); curr == nil || *curr != *desired.RbacEnabled {
 			updates["rbac_enabled"] = *desired.RbacEnabled
+			var oldValue any
+			if curr != nil {
+				oldValue = *curr
+			}
+			changedFields["rbac_enabled"] = FieldChange{
+				Old: oldValue,
+				New: *desired.RbacEnabled,
+			}
 		}
 	}
 
 	if desired.AutoApproveDevelopers != nil {
 		if curr := current.GetAutoApproveDevelopers(); curr == nil || *curr != *desired.AutoApproveDevelopers {
 			updates["auto_approve_developers"] = *desired.AutoApproveDevelopers
+			var oldValue any
+			if curr != nil {
+				oldValue = *curr
+			}
+			changedFields["auto_approve_developers"] = FieldChange{
+				Old: oldValue,
+				New: *desired.AutoApproveDevelopers,
+			}
 		}
 	}
 
 	if desired.AutoApproveApplications != nil {
 		if curr := current.GetAutoApproveApplications(); curr == nil || *curr != *desired.AutoApproveApplications {
 			updates["auto_approve_applications"] = *desired.AutoApproveApplications
+			var oldValue any
+			if curr != nil {
+				oldValue = *curr
+			}
+			changedFields["auto_approve_applications"] = FieldChange{
+				Old: oldValue,
+				New: *desired.AutoApproveApplications,
+			}
 		}
 	}
 
@@ -479,6 +532,10 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 		desiredVisibility := string(*desired.DefaultAPIVisibility)
 		if currentVisibility != desiredVisibility {
 			updates["default_api_visibility"] = desiredVisibility
+			changedFields["default_api_visibility"] = FieldChange{
+				Old: currentVisibility,
+				New: desiredVisibility,
+			}
 		}
 	}
 
@@ -487,6 +544,10 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 		desiredVisibility := string(*desired.DefaultPageVisibility)
 		if currentVisibility != desiredVisibility {
 			updates["default_page_visibility"] = desiredVisibility
+			changedFields["default_page_visibility"] = FieldChange{
+				Old: currentVisibility,
+				New: desiredVisibility,
+			}
 		}
 	}
 
@@ -511,10 +572,14 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 				}
 			}
 			updates["labels"] = labelsMap
+			changedFields["labels"] = FieldChange{
+				Old: labels.GetUserLabels(current.NormalizedLabels),
+				New: desiredLabels,
+			}
 		}
 	}
 
-	return len(updates) > 0, updates
+	return len(updates) > 0, updates, changedFields
 }
 
 // planPortalUpdateWithFields creates an UPDATE change with specific fields
@@ -522,6 +587,7 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 	current state.Portal,
 	desired resources.PortalResource,
 	updateFields map[string]any,
+	changedFields map[string]FieldChange,
 	plan *Plan,
 ) {
 	// Always include name for identification
@@ -545,6 +611,7 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 		ResourceID:     current.ID,
 		CurrentFields:  nil, // Not needed for direct update
 		DesiredFields:  updateFields,
+		ChangedFields:  changedFields,
 		RequiredFields: []string{"name"},
 		Namespace:      namespace,
 	}
@@ -562,14 +629,15 @@ func (p *portalPlannerImpl) planPortalUpdateWithFields(
 
 		changeID := p.NextChangeID(ActionUpdate, "portal", desired.GetRef())
 		change := PlannedChange{
-			ID:           changeID,
-			ResourceType: "portal",
-			ResourceRef:  desired.GetRef(),
-			ResourceID:   current.ID,
-			Action:       ActionUpdate,
-			Fields:       fields,
-			DependsOn:    []string{},
-			Namespace:    DefaultNamespace,
+			ID:            changeID,
+			ResourceType:  "portal",
+			ResourceRef:   desired.GetRef(),
+			ResourceID:    current.ID,
+			Action:        ActionUpdate,
+			Fields:        fields,
+			ChangedFields: changedFields,
+			DependsOn:     []string{},
+			Namespace:     DefaultNamespace,
 		}
 		if labels.IsProtectedResource(current.NormalizedLabels) {
 			change.Protection = true
@@ -602,6 +670,7 @@ func (p *portalPlannerImpl) planPortalProtectionChangeWithFields(
 	desired resources.PortalResource,
 	wasProtected, shouldProtect bool,
 	updateFields map[string]any,
+	changedFields map[string]FieldChange,
 	plan *Plan,
 ) {
 	// Extract namespace
@@ -652,6 +721,9 @@ func (p *portalPlannerImpl) planPortalProtectionChangeWithFields(
 	}
 
 	change.Fields = fields
+	if len(changedFields) > 0 {
+		change.ChangedFields = changedFields
+	}
 	plan.AddChange(change)
 }
 
@@ -867,6 +939,7 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 					desired.Name,
 					"",
 					*desired.Assets.Logo,
+					"",
 					plan,
 				)
 			}
@@ -879,6 +952,7 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 					desired.Name,
 					"",
 					*desired.Assets.Favicon,
+					"",
 					plan,
 				)
 			}
@@ -1038,7 +1112,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 	if !desired.IsExternal() && desired.Assets != nil {
 		if desired.Assets.Logo != nil && *desired.Assets.Logo != "" {
 			if !plan.HasChange(ResourceTypePortalAssetLogo, fmt.Sprintf("%s-logo", desired.Ref)) {
-				needsUpdate, err := planner.portalAssetNeedsUpdate(
+				needsUpdate, currentDataURL, err := planner.portalAssetNeedsUpdate(
 					ctx,
 					current.ID,
 					*desired.Assets.Logo,
@@ -1049,7 +1123,13 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 				}
 				if needsUpdate {
 					planner.planPortalAssetLogoUpdate(
-						parentNamespace, desired.Ref, desired.Name, current.ID, *desired.Assets.Logo, plan,
+						parentNamespace,
+						desired.Ref,
+						desired.Name,
+						current.ID,
+						*desired.Assets.Logo,
+						currentDataURL,
+						plan,
 					)
 				} else {
 					planner.logger.Debug("Skipping portal asset logo update; no changes detected",
@@ -1060,7 +1140,7 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 		}
 		if desired.Assets.Favicon != nil && *desired.Assets.Favicon != "" {
 			if !plan.HasChange(ResourceTypePortalAssetFavicon, fmt.Sprintf("%s-favicon", desired.Ref)) {
-				needsUpdate, err := planner.portalAssetNeedsUpdate(
+				needsUpdate, currentDataURL, err := planner.portalAssetNeedsUpdate(
 					ctx,
 					current.ID,
 					*desired.Assets.Favicon,
@@ -1071,7 +1151,13 @@ func (p *portalPlannerImpl) planPortalChildResourceChanges(
 				}
 				if needsUpdate {
 					planner.planPortalAssetFaviconUpdate(
-						parentNamespace, desired.Ref, desired.Name, current.ID, *desired.Assets.Favicon, plan,
+						parentNamespace,
+						desired.Ref,
+						desired.Name,
+						current.ID,
+						*desired.Assets.Favicon,
+						currentDataURL,
+						plan,
 					)
 				} else {
 					planner.logger.Debug("Skipping portal asset favicon update; no changes detected",
