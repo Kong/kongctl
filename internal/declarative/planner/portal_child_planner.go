@@ -686,7 +686,7 @@ func (p *Planner) planPortalCustomDomainsChanges(
 	}
 
 	if desiredDomain == nil {
-		if currentDomain != nil && plan.Metadata.Mode == PlanModeSync {
+		if currentDomain != nil && plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
 			p.planPortalCustomDomainDelete(parentNamespace, portalRef, portalID, portalName, currentDomain, "", plan)
 		}
 		return nil
@@ -1311,7 +1311,7 @@ func (p *Planner) planPortalEmailConfigsChanges(
 	}
 
 	if desiredCfg == nil {
-		if currentCfg != nil && plan.Metadata.Mode == PlanModeSync {
+		if currentCfg != nil && plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
 			p.planPortalEmailConfigDelete(parentNamespace, portalRef, portalID, portalName, plan)
 		}
 		return nil
@@ -1597,7 +1597,7 @@ func (p *Planner) planPortalEmailTemplatesChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync && portalID != "" {
+	if plan.Metadata.Mode == PlanModeSync && portalID != "" && !p.isPortalExternal(portalRef) {
 		for name, tpl := range existing {
 			if _, ok := desiredByName[name]; ok {
 				continue
@@ -2771,7 +2771,7 @@ func (p *Planner) planPortalTeamsChanges(
 	}
 
 	// In SYNC mode: Delete teams not in desired state
-	if plan.Metadata.Mode == PlanModeSync {
+	if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
 		for _, existingTeam := range existingTeams {
 			if !desiredNames[existingTeam.Name] {
 				p.planPortalTeamDelete(parentNamespace, portalRef, portalID, existingTeam, plan)
@@ -3031,7 +3031,7 @@ func (p *Planner) planPortalTeamRolesChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync {
+	if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
 		for teamRef := range teamByRef {
 			if _, ok := rolesByTeam[teamRef]; !ok {
 				rolesByTeam[teamRef] = []resources.PortalTeamRoleResource{}
@@ -3145,7 +3145,7 @@ func (p *Planner) planPortalTeamRolesChanges(
 			)
 		}
 
-		if plan.Metadata.Mode == PlanModeSync && teamID != "" {
+		if plan.Metadata.Mode == PlanModeSync && teamID != "" && !p.isPortalExternal(portalRef) {
 			for key, existingRole := range existingRoles {
 				if !desiredKeys[key] {
 					p.planPortalTeamRoleDelete(
