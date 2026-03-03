@@ -762,8 +762,10 @@ func runCLIWithRetry(
 	return res, err
 }
 
-// preserveAttemptArtifacts copies command artifacts into a numbered sub-directory
-// so that retry iterations do not overwrite each other's diagnostic output.
+// preserveAttemptArtifacts copies all command artifacts into a numbered
+// sub-directory so that retry iterations do not overwrite each other's
+// diagnostic output. The attempts/ subtree itself is excluded to avoid
+// recursively copying previous attempts.
 func preserveAttemptArtifacts(cmdDir string, attempt int) {
 	if strings.TrimSpace(cmdDir) == "" {
 		return
@@ -773,14 +775,41 @@ func preserveAttemptArtifacts(cmdDir string, attempt int) {
 		harness.Warnf("preserveAttemptArtifacts: mkdir failed: %v", err)
 		return
 	}
-	for _, name := range []string{"meta.json", "stdout.txt", "stderr.txt", "command.txt", "kongctl.log"} {
-		src := filepath.Join(cmdDir, name)
-		data, err := os.ReadFile(src)
+
+	// Copy all artifacts from cmdDir into dstDir, excluding the attempts/ subtree
+	// to avoid recursively copying previous attempts.
+	_ = filepath.WalkDir(cmdDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
-			continue // file may not exist for this command
+			return nil
 		}
-		_ = os.WriteFile(filepath.Join(dstDir, name), data, 0o644)
-	}
+
+		rel, err := filepath.Rel(cmdDir, path)
+		if err != nil || rel == "." {
+			return nil
+		}
+
+		// Skip the attempts/ subtree so we only copy the original command artifacts.
+		if rel == "attempts" || strings.HasPrefix(rel, "attempts"+string(os.PathSeparator)) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		dstPath := filepath.Join(dstDir, rel)
+
+		if d.IsDir() {
+			_ = os.MkdirAll(dstPath, 0o755)
+			return nil
+		}
+
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil
+		}
+		_ = os.WriteFile(dstPath, data, 0o644)
+		return nil
+	})
 }
 
 func commandFailureDetail(res harness.Result, err error) string {
