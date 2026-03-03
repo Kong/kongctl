@@ -483,3 +483,26 @@ func TestThemeCycling_IgnoredWhenSearchActive(t *testing.T) {
 	require.Equal(t, initialIndex, model.themeIndex)
 	require.Equal(t, initialPaletteName, model.palette.Name)
 }
+
+func TestFormatDetailValue_DereferencesPointers(t *testing.T) {
+	// string pointer
+	str := "hello"
+	require.Equal(t, "hello", formatDetailValue(&str))
+
+	// int pointer
+	num := 42
+	require.Equal(t, "42", formatDetailValue(&num))
+
+	// Double pointer
+	pstr := &str
+	require.Equal(t, "hello", formatDetailValue(&pstr))
+
+	// Direct values unchanged
+	require.Equal(t, "world", formatDetailValue("world"))
+	require.Equal(t, "123", formatDetailValue(123))
+
+	// Nil cases
+	require.Equal(t, "nil", formatDetailValue(nil))
+	var nilPtr *string
+	require.Equal(t, "nil", formatDetailValue(nilPtr))
+}

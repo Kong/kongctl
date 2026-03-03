@@ -1,0 +1,9 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-dataplane-cert-comprehensive-test
+
+event_gateways:
+  - ref: egw-cp-for-dataplane-cert-test-ref
+    name: egw-cp-for-dataplane-cert-test-name
+    description: "EGW CP for Dataplane Cert Test"
+event_gateway_data_plane_certificates: []

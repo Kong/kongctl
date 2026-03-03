@@ -7,33 +7,34 @@ type ResourceType string
 
 // Resource type constants
 const (
-	ResourceTypePortal                     ResourceType = "portal"
-	ResourceTypeApplicationAuthStrategy    ResourceType = "application_auth_strategy"
-	ResourceTypeControlPlane               ResourceType = "control_plane"
-	ResourceTypeAPI                        ResourceType = "api"
-	ResourceTypeAPIVersion                 ResourceType = "api_version"
-	ResourceTypeAPIPublication             ResourceType = "api_publication"
-	ResourceTypeAPIImplementation          ResourceType = "api_implementation"
-	ResourceTypeAPIDocument                ResourceType = "api_document"
-	ResourceTypeGatewayService             ResourceType = "gateway_service"
-	ResourceTypePortalCustomization        ResourceType = "portal_customization"
-	ResourceTypePortalCustomDomain         ResourceType = "portal_custom_domain"
-	ResourceTypePortalAuthSettings         ResourceType = "portal_auth_settings"
-	ResourceTypePortalPage                 ResourceType = "portal_page"
-	ResourceTypePortalSnippet              ResourceType = "portal_snippet"
-	ResourceTypePortalTeam                 ResourceType = "portal_team"
-	ResourceTypePortalTeamRole             ResourceType = "portal_team_role"
-	ResourceTypePortalAssetLogo            ResourceType = "portal_asset_logo"
-	ResourceTypePortalAssetFavicon         ResourceType = "portal_asset_favicon"
-	ResourceTypePortalEmailConfig          ResourceType = "portal_email_config"
-	ResourceTypePortalEmailTemplate        ResourceType = "portal_email_template"
-	ResourceTypeCatalogService             ResourceType = "catalog_service"
-	ResourceTypeEventGatewayControlPlane   ResourceType = "event_gateway"
-	ResourceTypeEventGatewayBackendCluster ResourceType = "event_gateway_backend_cluster"
-	ResourceTypeEventGatewayVirtualCluster ResourceType = "event_gateway_virtual_cluster"
-	ResourceTypeOrganizationTeam           ResourceType = "organization_team"
-	ResourceTypeEventGatewayListener       ResourceType = "event_gateway_listener"
-	ResourceTypeEventGatewayListenerPolicy ResourceType = "event_gateway_listener_policy"
+	ResourceTypePortal                           ResourceType = "portal"
+	ResourceTypeApplicationAuthStrategy          ResourceType = "application_auth_strategy"
+	ResourceTypeControlPlane                     ResourceType = "control_plane"
+	ResourceTypeAPI                              ResourceType = "api"
+	ResourceTypeAPIVersion                       ResourceType = "api_version"
+	ResourceTypeAPIPublication                   ResourceType = "api_publication"
+	ResourceTypeAPIImplementation                ResourceType = "api_implementation"
+	ResourceTypeAPIDocument                      ResourceType = "api_document"
+	ResourceTypeGatewayService                   ResourceType = "gateway_service"
+	ResourceTypePortalCustomization              ResourceType = "portal_customization"
+	ResourceTypePortalCustomDomain               ResourceType = "portal_custom_domain"
+	ResourceTypePortalAuthSettings               ResourceType = "portal_auth_settings"
+	ResourceTypePortalPage                       ResourceType = "portal_page"
+	ResourceTypePortalSnippet                    ResourceType = "portal_snippet"
+	ResourceTypePortalTeam                       ResourceType = "portal_team"
+	ResourceTypePortalTeamRole                   ResourceType = "portal_team_role"
+	ResourceTypePortalAssetLogo                  ResourceType = "portal_asset_logo"
+	ResourceTypePortalAssetFavicon               ResourceType = "portal_asset_favicon"
+	ResourceTypePortalEmailConfig                ResourceType = "portal_email_config"
+	ResourceTypePortalEmailTemplate              ResourceType = "portal_email_template"
+	ResourceTypeCatalogService                   ResourceType = "catalog_service"
+	ResourceTypeEventGatewayControlPlane         ResourceType = "event_gateway"
+	ResourceTypeEventGatewayBackendCluster       ResourceType = "event_gateway_backend_cluster"
+	ResourceTypeEventGatewayVirtualCluster       ResourceType = "event_gateway_virtual_cluster"
+	ResourceTypeOrganizationTeam                 ResourceType = "organization_team"
+	ResourceTypeEventGatewayListener             ResourceType = "event_gateway_listener"
+	ResourceTypeEventGatewayListenerPolicy       ResourceType = "event_gateway_listener_policy"
+	ResourceTypeEventGatewayDataPlaneCertificate ResourceType = "event_gateway_data_plane_certificate"
 )
 
 const (
@@ -81,9 +82,10 @@ type ResourceSet struct {
 	Organization *OrganizationResource `yaml:"organization,omitempty"                   json:"organization,omitempty"`
 	// Teams is populated internally from OrganizationTeams during loading
 	// It is not exposed in YAML/JSON to enforce the organization grouping format
-	OrganizationTeams            []OrganizationTeamResource           `yaml:"-" json:"-"`
-	EventGatewayListeners        []EventGatewayListenerResource       `yaml:"event_gateway_listeners,omitempty" json:"event_gateway_listeners,omitempty"`                 //nolint:lll
-	EventGatewayListenerPolicies []EventGatewayListenerPolicyResource `yaml:"event_gateway_listener_policies,omitempty" json:"event_gateway_listener_policies,omitempty"` //nolint:lll
+	OrganizationTeams                 []OrganizationTeamResource                 `yaml:"-" json:"-"`
+	EventGatewayListeners             []EventGatewayListenerResource             `yaml:"event_gateway_listeners,omitempty" json:"event_gateway_listeners,omitempty"`                             //nolint:lll
+	EventGatewayListenerPolicies      []EventGatewayListenerPolicyResource       `yaml:"event_gateway_listener_policies,omitempty" json:"event_gateway_listener_policies,omitempty"`             //nolint:lll
+	EventGatewayDataPlaneCertificates []EventGatewayDataPlaneCertificateResource `yaml:"event_gateway_data_plane_certificates,omitempty" json:"event_gateway_data_plane_certificates,omitempty"` //nolint:lll
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
 	DefaultNamespace  string   `yaml:"-"                                        json:"-"`
@@ -681,4 +683,34 @@ func (rs *ResourceSet) GetPoliciesForListener(listenerRef string) []EventGateway
 	}
 
 	return policies
+}
+
+// GetDataPlaneCertificatesForGateway returns all data plane certificates (nested + root-level)
+// for a specific event gateway
+func (rs *ResourceSet) GetDataPlaneCertificatesForGateway(
+	gatewayRef string,
+) []EventGatewayDataPlaneCertificateResource {
+	var certs []EventGatewayDataPlaneCertificateResource
+
+	// Add nested data plane certificates from the event gateway
+	for _, gateway := range rs.EventGatewayControlPlanes {
+		if gateway.Ref == gatewayRef {
+			// Add nested certificates
+			for _, cert := range gateway.DataPlaneCertificates {
+				certCopy := cert
+				certCopy.EventGateway = gatewayRef
+				certs = append(certs, certCopy)
+			}
+			break
+		}
+	}
+
+	// Add root-level data plane certificates for this gateway
+	for _, cert := range rs.EventGatewayDataPlaneCertificates {
+		if cert.EventGateway == gatewayRef {
+			certs = append(certs, cert)
+		}
+	}
+
+	return certs
 }

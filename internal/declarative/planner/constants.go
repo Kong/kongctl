@@ -70,6 +70,9 @@ const (
 	// ResourceTypeEventGatewayListenerPolicy is the resource type for event gateway listener policies
 	ResourceTypeEventGatewayListenerPolicy = "event_gateway_listener_policy"
 
+	// ResourceTypeEventGatewayDataPlaneCertificate is the resource type for event gateway data plane certificates
+	ResourceTypeEventGatewayDataPlaneCertificate = "event_gateway_data_plane_certificate"
+
 	// ResourceTypeDeck represents an internal deck execution step.
 	ResourceTypeDeck = "_deck"
 )

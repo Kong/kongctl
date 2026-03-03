@@ -51,11 +51,12 @@ type ClientConfig struct {
 	APIDocumentAPI       helpers.APIDocumentAPI
 
 	// Event Gateway APIs
-	EGWControlPlaneAPI            helpers.EGWControlPlaneAPI
-	EventGatewayBackendClusterAPI helpers.EventGatewayBackendClusterAPI
-	EventGatewayVirtualClusterAPI helpers.EventGatewayVirtualClusterAPI
-	EventGatewayListenerAPI       helpers.EventGatewayListenerAPI
-	EventGatewayListenerPolicyAPI helpers.EventGatewayListenerPolicyAPI
+	EGWControlPlaneAPI                  helpers.EGWControlPlaneAPI
+	EventGatewayBackendClusterAPI       helpers.EventGatewayBackendClusterAPI
+	EventGatewayVirtualClusterAPI       helpers.EventGatewayVirtualClusterAPI
+	EventGatewayListenerAPI             helpers.EventGatewayListenerAPI
+	EventGatewayListenerPolicyAPI       helpers.EventGatewayListenerPolicyAPI
+	EventGatewayDataPlaneCertificateAPI helpers.EventGatewayDataPlaneCertificateAPI
 
 	// Identity resources
 	OrganizationTeamAPI helpers.OrganizationTeamAPI
@@ -90,11 +91,12 @@ type Client struct {
 	apiDocumentAPI       helpers.APIDocumentAPI
 
 	// Event Gateway APIs
-	egwControlPlaneAPI            helpers.EGWControlPlaneAPI
-	eventGatewayBackendClusterAPI helpers.EventGatewayBackendClusterAPI
-	eventGatewayVirtualClusterAPI helpers.EventGatewayVirtualClusterAPI
-	eventGatewayListenerAPI       helpers.EventGatewayListenerAPI
-	eventGatewayListenerPolicyAPI helpers.EventGatewayListenerPolicyAPI
+	egwControlPlaneAPI                  helpers.EGWControlPlaneAPI
+	eventGatewayBackendClusterAPI       helpers.EventGatewayBackendClusterAPI
+	eventGatewayVirtualClusterAPI       helpers.EventGatewayVirtualClusterAPI
+	eventGatewayListenerAPI             helpers.EventGatewayListenerAPI
+	eventGatewayListenerPolicyAPI       helpers.EventGatewayListenerPolicyAPI
+	eventGatewayDataPlaneCertificateAPI helpers.EventGatewayDataPlaneCertificateAPI
 
 	// Organization resource APIs
 	organizationTeamAPI helpers.OrganizationTeamAPI
@@ -130,11 +132,12 @@ func NewClient(config ClientConfig) *Client {
 		apiDocumentAPI:       config.APIDocumentAPI,
 
 		// Event Gateway APIs
-		egwControlPlaneAPI:            config.EGWControlPlaneAPI,
-		eventGatewayBackendClusterAPI: config.EventGatewayBackendClusterAPI,
-		eventGatewayVirtualClusterAPI: config.EventGatewayVirtualClusterAPI,
-		eventGatewayListenerAPI:       config.EventGatewayListenerAPI,
-		eventGatewayListenerPolicyAPI: config.EventGatewayListenerPolicyAPI,
+		egwControlPlaneAPI:                  config.EGWControlPlaneAPI,
+		eventGatewayBackendClusterAPI:       config.EventGatewayBackendClusterAPI,
+		eventGatewayVirtualClusterAPI:       config.EventGatewayVirtualClusterAPI,
+		eventGatewayListenerAPI:             config.EventGatewayListenerAPI,
+		eventGatewayListenerPolicyAPI:       config.EventGatewayListenerPolicyAPI,
+		eventGatewayDataPlaneCertificateAPI: config.EventGatewayDataPlaneCertificateAPI,
 
 		// Identity resource APIs
 		organizationTeamAPI: config.OrganizationTeamAPI,
@@ -279,6 +282,11 @@ type OrganizationTeam struct {
 type EventGatewayListener struct {
 	kkComps.EventGatewayListener
 	NormalizedLabels map[string]string // Non-pointer labels
+}
+
+// EventGatewayDataPlaneCertificate represents a data plane certificate for internal use
+type EventGatewayDataPlaneCertificate struct {
+	kkComps.EventGatewayDataPlaneCertificate
 }
 
 // ListManagedPortals returns all KONGCTL-managed portals in the specified namespaces
@@ -4267,4 +4275,153 @@ func (c *Client) GetEventGatewayListenerPolicy(
 		EventGatewayListenerPolicy: *resp.EventGatewayListenerPolicy,
 		NormalizedLabels:           normalized,
 	}, nil
+}
+
+// Event Gateway Data Plane Certificate Methods
+
+func (c *Client) ListEventGatewayDataPlaneCertificates(
+	ctx context.Context,
+	gatewayID string,
+) ([]EventGatewayDataPlaneCertificate, error) {
+	// Validate API client is initialized
+	if err := ValidateAPIClient(c.eventGatewayDataPlaneCertificateAPI,
+		"event gateway data plane certificate API"); err != nil {
+		return nil, err
+	}
+
+	var allData []kkComps.EventGatewayDataPlaneCertificate
+	var pageAfter *string
+
+	for {
+		req := kkOps.ListEventGatewayDataPlaneCertificatesRequest{
+			GatewayID: gatewayID,
+		}
+
+		if pageAfter != nil {
+			req.PageAfter = pageAfter
+		}
+
+		res, err := c.eventGatewayDataPlaneCertificateAPI.ListEventGatewayDataPlaneCertificates(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway data plane certificates", nil)
+		}
+
+		// If response is nil, break the loop
+		if res.ListEventGatewayDataPlaneCertificatesResponse == nil {
+			return []EventGatewayDataPlaneCertificate{}, nil
+		}
+
+		allData = append(allData, res.ListEventGatewayDataPlaneCertificatesResponse.Data...)
+
+		if res.ListEventGatewayDataPlaneCertificatesResponse.Meta == nil ||
+			res.ListEventGatewayDataPlaneCertificatesResponse.Meta.Page.Next == nil {
+			break
+		}
+
+		u, err := url.Parse(*res.ListEventGatewayDataPlaneCertificatesResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway data plane certificates: invalid cursor", nil)
+		}
+
+		values := u.Query()
+		pageAfter = new(values.Get("page[after]"))
+	}
+
+	var certs []EventGatewayDataPlaneCertificate
+	for _, cert := range allData {
+		certs = append(certs, EventGatewayDataPlaneCertificate{
+			EventGatewayDataPlaneCertificate: cert,
+		})
+	}
+
+	return certs, nil
+}
+
+func (c *Client) CreateEventGatewayDataPlaneCertificate(
+	ctx context.Context,
+	gatewayID string,
+	req kkComps.CreateEventGatewayDataPlaneCertificateRequest,
+	namespace string,
+) (string, error) {
+	resp, err := c.eventGatewayDataPlaneCertificateAPI.CreateEventGatewayDataPlaneCertificate(ctx, gatewayID, req)
+	if err != nil {
+		name := ""
+		if req.Name != nil {
+			name = *req.Name
+		}
+		return "", WrapAPIError(err, "create event gateway data plane certificate", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_data_plane_certificate",
+			ResourceName: name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.EventGatewayDataPlaneCertificate,
+		"create event gateway data plane certificate"); err != nil {
+		return "", err
+	}
+
+	return resp.EventGatewayDataPlaneCertificate.ID, nil
+}
+
+func (c *Client) GetEventGatewayDataPlaneCertificate(
+	ctx context.Context,
+	gatewayID string,
+	certificateID string,
+) (*EventGatewayDataPlaneCertificate, error) {
+	resp, err := c.eventGatewayDataPlaneCertificateAPI.FetchEventGatewayDataPlaneCertificate(
+		ctx, gatewayID, certificateID)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway data plane certificate by ID", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_data_plane_certificate",
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.EventGatewayDataPlaneCertificate == nil {
+		return nil, nil
+	}
+
+	return &EventGatewayDataPlaneCertificate{
+		EventGatewayDataPlaneCertificate: *resp.EventGatewayDataPlaneCertificate,
+	}, nil
+}
+
+func (c *Client) UpdateEventGatewayDataPlaneCertificate(
+	ctx context.Context,
+	gatewayID string,
+	certificateID string,
+	req kkComps.UpdateEventGatewayDataPlaneCertificateRequest,
+	namespace string,
+) (string, error) {
+	resp, err := c.eventGatewayDataPlaneCertificateAPI.UpdateEventGatewayDataPlaneCertificate(
+		ctx, gatewayID, certificateID, req)
+	if err != nil {
+		name := ""
+		if req.Name != nil {
+			name = *req.Name
+		}
+		return "", WrapAPIError(err, "update event gateway data plane certificate", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_data_plane_certificate",
+			ResourceName: name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	return resp.EventGatewayDataPlaneCertificate.ID, nil
+}
+
+func (c *Client) DeleteEventGatewayDataPlaneCertificate(
+	ctx context.Context,
+	gatewayID string,
+	certificateID string,
+) error {
+	_, err := c.eventGatewayDataPlaneCertificateAPI.DeleteEventGatewayDataPlaneCertificate(
+		ctx, gatewayID, certificateID)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway data plane certificate", nil)
+	}
+	return nil
 }

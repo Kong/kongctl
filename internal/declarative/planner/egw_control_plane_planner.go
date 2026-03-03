@@ -221,6 +221,18 @@ func (p *Planner) planEGWControlPlaneChanges(
 				return err
 			}
 		}
+
+		// Plan data plane certificates for this gateway (whether it exists or is being created)
+		dataPlaneCerts := p.resources.GetDataPlaneCertificatesForGateway(desiredEGWCP.Ref)
+
+		if len(dataPlaneCerts) > 0 || plan.Metadata.Mode == PlanModeSync {
+			if err := p.planEventGatewayDataPlaneCertificateChanges(
+				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
+				gatewayChangeID, dataPlaneCerts, plan,
+			); err != nil {
+				return err
+			}
+		}
 	}
 
 	// Check for managed resources to delete (sync mode only)
