@@ -33,6 +33,7 @@ steps:
           payload:
             inline:
               slug: getting-started
+              title: Getting Started
               content: "# Getting Started"
 
       - name: 002-create-page-guides
@@ -43,12 +44,12 @@ steps:
           payload:
             inline:
               slug: guides
+              title: Guides
               content: "# Guides"
 
   - name: 002-sync-external-reference
     commands:
       - name: 000-sync-dry-run
-        outputFormat: disable
         run:
           - sync
           - -f
