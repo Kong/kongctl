@@ -108,7 +108,7 @@ steps:
               fields:
                 "contains(@, 'Plan: 1 to add, 2 to change, 1 to destroy')": true
                 "contains(@, 'portal \"plan-sync-portal\" will be updated')": true
-                "contains(@, 'authentication_enabled: false')": true
+                "contains(@, 'authentication_enabled: true → false')": true
                 "contains(@, 'api \"plan-sync-inventory\" will be created')": true
                 "contains(@, 'api \"plan-sync-orders\" will be updated')": true
                 "contains(@, 'api \"plan-sync-legacy\" will be deleted')": true
