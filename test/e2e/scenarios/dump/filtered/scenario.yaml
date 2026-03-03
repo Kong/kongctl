@@ -153,8 +153,9 @@ steps:
               fields:
                 name: "SMS API"
           # No portals should be present since none match "SMS API"
+          # portals key is omitted (omitempty), so portals[0] resolves to nil
           - name: no-portals-returned
-            select: "portals"
+            select: "portals[0]"
             expect:
               fields:
                 name: null
@@ -174,7 +175,11 @@ steps:
         expectFailure:
           contains: "mutually exclusive"
 
-  # ── tf-import with filter-name ────────────────────────────────
+  # ── tf-import with filter-name (smoke test) ────────────────────
+  # Verifies the command runs successfully with --filter-name.
+  # Substring assertions on raw HCL output are not supported by
+  # the scenario harness; the underlying SDK filter logic is
+  # already exercised by the declarative assertions above.
   - name: 008-dump-tf-import-filter-name
     skipInputs: true
     commands:
@@ -185,7 +190,6 @@ steps:
           - "--resources=apis"
           - "--filter-name=SMS API"
         outputFormat: none
-        parseAs: raw
 
   # ── tf-import mutually exclusive flags ────────────────────────
   - name: 009-tf-import-filter-mutual-exclusion
