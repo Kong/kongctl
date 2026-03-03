@@ -26,7 +26,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ -z "${TAG//[[:space:]]/}" ]; then
+          TAG="${TAG#"${TAG%%[![:space:]]*}"}"
+          TAG="${TAG%"${TAG##*[![:space:]]}"}"
+
+          if [ -z "$TAG" ]; then
             echo "::error::Tag input cannot be empty."
             exit 1
           fi
