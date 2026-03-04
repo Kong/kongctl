@@ -284,19 +284,26 @@ func roleResponsesToRecords(
 ) []portalTeamRoleRecord {
 	records := make([]portalTeamRoleRecord, 0, len(roles))
 	for _, role := range roles {
-		entityID := optionalPtr(role.GetEntityID())
+		entityID := optionalStringValue(role.GetEntityID())
 		if util.IsValidUUID(entityID) {
 			entityID = util.AbbreviateUUID(entityID)
 		}
 		records = append(records, portalTeamRoleRecord{
 			Team:           teamName,
 			TeamID:         teamID,
-			RoleName:       optionalPtr(role.GetRoleName()),
-			EntityTypeName: optionalPtr(role.GetEntityTypeName()),
+			RoleName:       optionalStringValue(role.GetRoleName()),
+			EntityTypeName: optionalStringValue(role.GetEntityTypeName()),
 			EntityID:       entityID,
 		})
 	}
 	return records
+}
+
+func optionalStringValue(value string) string {
+	if value == "" {
+		return valueNA
+	}
+	return value
 }
 
 func buildPortalTeamRolesChildView(records []portalTeamRoleRecord) tableview.ChildView {

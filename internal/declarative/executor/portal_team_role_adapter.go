@@ -28,7 +28,7 @@ func (p *PortalTeamRoleAdapter) MapCreateFields(
 	if !ok || roleName == "" {
 		return fmt.Errorf("role_name is required")
 	}
-	create.RoleName = &roleName
+	create.RoleName = roleName
 
 	entityID := ""
 	if execCtx != nil && execCtx.PlannedChange != nil {
@@ -46,20 +46,20 @@ func (p *PortalTeamRoleAdapter) MapCreateFields(
 	if entityID == "" {
 		return fmt.Errorf("entity_id is required")
 	}
-	create.EntityID = &entityID
+	create.EntityID = entityID
 
 	entityTypeName, ok := fields["entity_type_name"].(string)
 	if !ok || entityTypeName == "" {
 		return fmt.Errorf("entity_type_name is required")
 	}
-	create.EntityTypeName = &entityTypeName
+	create.EntityTypeName = entityTypeName
 
 	entityRegion, ok := fields["entity_region"].(string)
 	if !ok || entityRegion == "" {
 		return fmt.Errorf("entity_region is required")
 	}
 	region := kkComps.PortalAssignRoleRequestEntityRegion(entityRegion)
-	create.EntityRegion = &region
+	create.EntityRegion = region
 
 	return nil
 }
@@ -88,10 +88,10 @@ func (p *PortalTeamRoleAdapter) Create(
 		logger.LogAttrs(ctx, slog.LevelDebug, "Assigning portal team role",
 			slog.String("portal_id", portalID),
 			slog.String("team_id", teamID),
-			slog.String("role_name", ptrToString(req.RoleName)),
-			slog.String("entity_id", ptrToString(req.EntityID)),
-			slog.String("entity_type_name", ptrToString(req.EntityTypeName)),
-			slog.String("entity_region", string(getAssignEntityRegion(req.EntityRegion))),
+			slog.String("role_name", req.RoleName),
+			slog.String("entity_id", req.EntityID),
+			slog.String("entity_type_name", req.EntityTypeName),
+			slog.String("entity_region", string(req.EntityRegion)),
 		)
 	}
 
@@ -247,20 +247,4 @@ func portalTeamRoleLogger(ctx context.Context) *slog.Logger {
 	}
 	logger, _ := ctx.Value(log.LoggerKey).(*slog.Logger)
 	return logger
-}
-
-func getAssignEntityRegion(
-	value *kkComps.PortalAssignRoleRequestEntityRegion,
-) kkComps.PortalAssignRoleRequestEntityRegion {
-	if value == nil {
-		return ""
-	}
-	return *value
-}
-
-func ptrToString(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return *value
 }

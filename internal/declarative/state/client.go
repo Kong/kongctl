@@ -2196,6 +2196,15 @@ func (c *Client) GetPortalAuthSettings(
 		return nil, fmt.Errorf("no portal auth settings data in response")
 	}
 
+	if err := helpers.HydratePortalAuthSettingsOIDCConfig(
+		resp.PortalAuthenticationSettingsResponse,
+		resp.RawResponse,
+	); err != nil {
+		if logger, ok := ctx.Value(log.LoggerKey).(*slog.Logger); ok && logger != nil {
+			logger.Debug("failed to hydrate portal auth settings OIDC config from raw response", "error", err)
+		}
+	}
+
 	return resp.PortalAuthenticationSettingsResponse, nil
 }
 
@@ -3174,11 +3183,11 @@ func (c *Client) ListPortalTeamRoles(ctx context.Context, portalID string, teamI
 
 		for _, r := range resp.AssignedPortalRoleCollectionResponse.Data {
 			role := PortalTeamRole{
-				ID:             getString(r.ID),
-				RoleName:       getString(r.RoleName),
-				EntityID:       getString(r.EntityID),
-				EntityTypeName: getString(r.EntityTypeName),
-				EntityRegion:   string(getEntityRegion(r.EntityRegion)),
+				ID:             r.ID,
+				RoleName:       r.RoleName,
+				EntityID:       r.EntityID,
+				EntityTypeName: r.EntityTypeName,
+				EntityRegion:   string(r.EntityRegion),
 				TeamID:         teamID,
 				PortalID:       portalID,
 			}
@@ -3214,10 +3223,7 @@ func (c *Client) AssignPortalTeamRole(
 
 	resp, err := c.portalTeamRolesAPI.AssignRoleToPortalTeams(ctx, assignReq)
 	if err != nil {
-		roleName := ""
-		if req.RoleName != nil {
-			roleName = *req.RoleName
-		}
+		roleName := req.RoleName
 		return "", WrapAPIError(err, "assign portal team role", &ErrorWrapperOptions{
 			ResourceType: "portal_team_role",
 			ResourceName: roleName,
@@ -3230,7 +3236,7 @@ func (c *Client) AssignPortalTeamRole(
 		return "", fmt.Errorf("no response data from assign portal team role")
 	}
 
-	return getString(resp.PortalAssignedRoleResponse.ID), nil
+	return resp.PortalAssignedRoleResponse.ID, nil
 }
 
 // RemovePortalTeamRole removes an assigned role from a portal team
@@ -3745,13 +3751,6 @@ func getString(value *string) string {
 	return *value
 }
 
-func getEntityRegion(value *kkComps.EntityRegion) kkComps.EntityRegion {
-	if value == nil {
-		return ""
-	}
-	return *value
-}
-
 // shouldIncludeNamespace checks if a resource's namespace should be included based on filter
 func shouldIncludeNamespace(resourceNamespace string, namespaces []string) bool {
 	// Empty namespace list means no resources should be returned
@@ -4125,8 +4124,8 @@ func (c *Client) ListEventGatewayListenerPolicies(
 	}
 
 	req := kkOps.ListEventGatewayListenerPoliciesRequest{
-		GatewayID:              gatewayID,
-		EventGatewayListenerID: listenerID,
+		GatewayID:  gatewayID,
+		ListenerID: listenerID,
 	}
 
 	res, err := c.eventGatewayListenerPolicyAPI.ListEventGatewayListenerPolicies(ctx, req)
@@ -4179,7 +4178,7 @@ func (c *Client) CreateEventGatewayListenerPolicy(
 ) (string, error) {
 	createReq := kkOps.CreateEventGatewayListenerPolicyRequest{
 		GatewayID:                        gatewayID,
-		EventGatewayListenerID:           listenerID,
+		ListenerID:                       listenerID,
 		EventGatewayListenerPolicyCreate: req,
 	}
 
@@ -4209,7 +4208,7 @@ func (c *Client) UpdateEventGatewayListenerPolicy(
 ) (string, error) {
 	updateReq := kkOps.UpdateEventGatewayListenerPolicyRequest{
 		GatewayID:                        gatewayID,
-		EventGatewayListenerID:           listenerID,
+		ListenerID:                       listenerID,
 		PolicyID:                         policyID,
 		EventGatewayListenerPolicyUpdate: req,
 	}
@@ -4233,9 +4232,9 @@ func (c *Client) DeleteEventGatewayListenerPolicy(
 	policyID string,
 ) error {
 	deleteReq := kkOps.DeleteEventGatewayListenerPolicyRequest{
-		GatewayID:              gatewayID,
-		EventGatewayListenerID: listenerID,
-		PolicyID:               policyID,
+		GatewayID:  gatewayID,
+		ListenerID: listenerID,
+		PolicyID:   policyID,
 	}
 
 	_, err := c.eventGatewayListenerPolicyAPI.DeleteEventGatewayListenerPolicy(ctx, deleteReq)
@@ -4252,9 +4251,9 @@ func (c *Client) GetEventGatewayListenerPolicy(
 	policyID string,
 ) (*EventGatewayListenerPolicyInfo, error) {
 	req := kkOps.GetEventGatewayListenerPolicyRequest{
-		GatewayID:              gatewayID,
-		EventGatewayListenerID: listenerID,
-		PolicyID:               policyID,
+		GatewayID:  gatewayID,
+		ListenerID: listenerID,
+		PolicyID:   policyID,
 	}
 
 	resp, err := c.eventGatewayListenerPolicyAPI.GetEventGatewayListenerPolicy(ctx, req)

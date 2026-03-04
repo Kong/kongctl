@@ -329,7 +329,7 @@ func fetchListeners(
 
 		// Apply name filter if provided
 		if nameFilter != "" {
-			req.Filter = &kkComps.EventGatewayCommonFilter{
+			req.Filter = &kkComps.EventGatewayListenersFilter{
 				Name: &kkComps.StringFieldContainsFilter{
 					Contains: nameFilter,
 				},

@@ -759,7 +759,7 @@ func collectDeclarativeAuthStrategies(
 		}
 
 		if filter.name != "" {
-			req.Filter = &kkOps.QueryParamFilter{Name: buildStringFieldFilter(filter.name)}
+			req.Filter = &kkOps.ListAppAuthStrategiesQueryParamFilter{Name: buildStringFieldFilter(filter.name)}
 		}
 
 		resp, err := api.ListAppAuthStrategies(ctx, req)
