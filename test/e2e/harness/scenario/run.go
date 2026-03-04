@@ -812,7 +812,10 @@ func preserveAttemptArtifacts(cmdDir string, attempt int) {
 	})
 
 	if copyErr != nil {
-		harness.Warnf("preserveAttemptArtifacts: walk failed: %v", copyErr)
+		harness.Warnf(
+			"preserveAttemptArtifacts: walk failed (cmdDir=%q, dstDir=%q, attempt=%d): %v",
+			cmdDir, dstDir, attempt, copyErr,
+		)
 	}
 }
 
