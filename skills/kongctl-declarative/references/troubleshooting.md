@@ -1,0 +1,81 @@
+# Declarative Troubleshooting
+
+Use this file for common failures when planning, applying, syncing, deleting,
+dumping, or adopting declarative resources.
+
+## Quick Triage
+
+1. Confirm CLI and auth
+   `kongctl version`
+   `kongctl get me -o json`
+2. Validate parse and plan scope
+   `kongctl plan -f <path> --mode apply -o json`
+3. Inspect drift intent before destructive execution
+   `kongctl diff -f <path> --mode sync -o text`
+
+## Common Issues
+
+### Unknown Field Errors
+
+Symptom: parser rejects a field name.
+
+Actions:
+
+- Check field patterns in `references/resources.md`.
+- If uncertain, generate live examples with `dump declarative`.
+- Fix common typos like `lables` vs `labels`.
+- Ensure `kongctl` metadata is only on parent resources.
+
+### `!file` Resolution Errors
+
+Symptom: file not found or base-dir boundary violation.
+
+Actions:
+
+- Verify path is relative to the declarative config file.
+- Keep referenced files inside the configured base directory.
+- Set explicit boundary when needed:
+  `kongctl plan -f <path> --base-dir <root> --mode apply -o json`
+
+### Unexpected Deletes in Sync
+
+Symptom: `sync` plan includes deletes you did not expect.
+
+Actions:
+
+- Re-check with `diff --mode apply` to isolate create/update intent.
+- Restrict scope with `--require-namespace=<ns>`.
+- Use `--dry-run` before executing `sync` or `delete`.
+
+### Namespace Label and Adopt Conflicts
+
+Symptom: adopt fails or namespace ownership looks inconsistent.
+
+Actions:
+
+- Read current labels with query commands before adopting.
+- If namespace label already exists, align `_defaults.kongctl.namespace`
+  with the existing owner.
+- Use adopt only for unmanaged resources you intend to manage declaratively.
+
+### Output or Profile Confusion
+
+Symptom: output format or target account is unexpected.
+
+Actions:
+
+- Set explicit output: `-o text`, `-o json`, or `-o yaml`.
+- Set explicit profile: `--profile <name>`.
+- Inspect environment overrides:
+  `env | grep '^KONGCTL_'`
+
+### API/Auth/Network Failures
+
+Symptom: plan or execution fails with auth or transport errors.
+
+Actions:
+
+- Re-authenticate with `kongctl login` or set `KONGCTL_DEFAULT_KONNECT_PAT`.
+- Verify region/base URL configuration.
+- Re-run with diagnostics:
+  `--log-level debug` or `--log-level trace`

@@ -5,6 +5,7 @@ Claude Code currently works with individual skill symlinks.
 Current layout in this repo:
 
 - `.claude/skills/kongctl-query -> ../../skills/kongctl-query`
+- `.claude/skills/kongctl-declarative -> ../../skills/kongctl-declarative`
 
 Tracking issue:
 
