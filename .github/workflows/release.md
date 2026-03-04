@@ -287,7 +287,7 @@ jobs:
 
       - name: Run GoReleaser (full mode)
         if: env.RELEASE_BUILD_MODE == 'full'
-        uses: goreleaser/goreleaser-action@605f2f8fe33b6daa57290d335d127dada4284d40 # v6.4.0
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
           distribution: goreleaser
           version: v2.13.3

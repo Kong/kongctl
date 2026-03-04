@@ -23,7 +23,7 @@
 #
 # Build and release kongctl, then prepend agent-generated release highlights
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"909386f681df6bdc7d62bdf7ee0ef851b3d73aede8f47a3c82b08b377b962b8e","compiler_version":"v0.52.1"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"7050984c358b397cdb11f33fb6c373254916935b962732431ca6f0307563bdf5","compiler_version":"v0.52.1"}
 
 name: "Release"
 "on":
@@ -180,7 +180,7 @@ jobs:
           </system>
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF'
-          {{#runtime-import release.md}}
+          {{#runtime-import .github/workflows/release.md}}
           GH_AW_PROMPT_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
@@ -1274,7 +1274,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
       - name: Run GoReleaser (full mode)
         if: env.RELEASE_BUILD_MODE == 'full'
-        uses: goreleaser/goreleaser-action@605f2f8fe33b6daa57290d335d127dada4284d40 # 605f2f8fe33b6daa57290d335d127dada4284d40
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # e435ccd777264be153ace6237001ef4d979d3a7a
         env:
           CGO_ENABLED: "0"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
