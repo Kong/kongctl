@@ -1,0 +1,4 @@
+interface:
+  display_name: "Kongctl Query"
+  short_description: "Run read-only kongctl queries for Konnect resources"
+  default_prompt: "Use read-only kongctl commands to inspect Konnect resources and return structured output."
