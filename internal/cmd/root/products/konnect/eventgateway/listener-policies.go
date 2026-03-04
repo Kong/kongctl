@@ -426,9 +426,9 @@ func (h listenerPoliciesHandler) getSinglePolicy(
 	}
 
 	req := kkOps.GetEventGatewayListenerPolicyRequest{
-		GatewayID:              gatewayID,
-		EventGatewayListenerID: listenerID,
-		PolicyID:               policyID,
+		GatewayID:  gatewayID,
+		ListenerID: listenerID,
+		PolicyID:   policyID,
 	}
 
 	res, err := policyAPI.GetEventGatewayListenerPolicy(helper.GetContext(), req)
@@ -489,8 +489,8 @@ func fetchListenerPolicies(
 	nameFilter string,
 ) ([]kkComps.EventGatewayListenerPolicy, []listenerPolicyWithConfig, error) {
 	req := kkOps.ListEventGatewayListenerPoliciesRequest{
-		GatewayID:              gatewayID,
-		EventGatewayListenerID: listenerID,
+		GatewayID:  gatewayID,
+		ListenerID: listenerID,
 	}
 
 	// Apply name filter if provided

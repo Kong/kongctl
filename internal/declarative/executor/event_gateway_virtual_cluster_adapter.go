@@ -616,7 +616,7 @@ func buildVirtualClusterNamespace(field any) (*kkComps.VirtualClusterNamespace, 
 	}
 
 	namespace := &kkComps.VirtualClusterNamespace{
-		Mode: kkComps.Mode(mode),
+		Mode: kkComps.VirtualClusterNamespaceMode(mode),
 	}
 
 	if prefix, ok := nsMap["prefix"].(string); ok {

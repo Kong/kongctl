@@ -24,7 +24,7 @@ mod:
 
 .PHONY: build
 build: mod
-	go build -ldflags "$(LDFLAGS)" -o kongctl
+	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o kongctl
 # Kept typing this wrong
 buld: build
 

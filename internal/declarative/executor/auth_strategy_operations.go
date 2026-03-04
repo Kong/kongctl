@@ -336,7 +336,7 @@ func buildAuthStrategyConfigs(strategyType string, configs map[string]any) (*kkC
 //
 //nolint:unused // deprecated, will be removed in Phase 2 cleanup
 func buildKeyAuthConfigs(keyAuthConfig map[string]any) (*kkComps.Configs, error) {
-	keyAuth := kkComps.AppAuthStrategyConfigKeyAuth{}
+	keyAuth := kkComps.PartialAppAuthStrategyConfigKeyAuth{}
 
 	// Extract key names - handle both []string and []any
 	switch keyNames := keyAuthConfig["key_names"].(type) {

@@ -8,6 +8,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -134,6 +135,10 @@ func runGetPortalAuthSettings(c *cobra.Command, args []string) error {
 	}
 
 	settings := res.PortalAuthenticationSettingsResponse
+	if err := helpers.HydratePortalAuthSettingsOIDCConfig(settings, res.RawResponse); err != nil && logger != nil {
+		logger.Debug("failed to hydrate portal auth settings OIDC config from raw response", "error", err)
+	}
+
 	return tableview.RenderForFormat(helper,
 		false,
 		outType,

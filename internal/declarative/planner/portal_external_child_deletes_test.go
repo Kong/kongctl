@@ -329,21 +329,21 @@ func TestPlanPortalTeamRoles_ExternalPortalSyncSkipsDeleteWhenOmitted(t *testing
 					case "team-a-id":
 						return []kkComps.PortalAssignedRoleResponse{
 							{
-								ID:             new("role-1"),
-								RoleName:       new("viewer"),
-								EntityID:       new("api-1"),
-								EntityTypeName: new("api"),
-								EntityRegion:   &region,
+								ID:             "role-1",
+								RoleName:       "viewer",
+								EntityID:       "api-1",
+								EntityTypeName: "api",
+								EntityRegion:   region,
 							},
 						}
 					case "team-b-id":
 						return []kkComps.PortalAssignedRoleResponse{
 							{
-								ID:             new("role-2"),
-								RoleName:       new("editor"),
-								EntityID:       new("api-2"),
-								EntityTypeName: new("api"),
-								EntityRegion:   &region,
+								ID:             "role-2",
+								RoleName:       "editor",
+								EntityID:       "api-2",
+								EntityTypeName: "api",
+								EntityRegion:   region,
 							},
 						}
 					default:

@@ -294,7 +294,7 @@ func (a *AuthStrategyAdapter) buildUpdateConfigs(strategyType string,
 			return nil, fmt.Errorf("key-auth config missing for key_auth strategy")
 		}
 
-		keyAuth := kkComps.AppAuthStrategyConfigKeyAuth{}
+		keyAuth := kkComps.PartialAppAuthStrategyConfigKeyAuth{}
 		keyAuth.KeyNames = a.extractStringSlice(keyAuthConfig["key_names"], nil)
 
 		wrapped := kkComps.UpdateAppAuthStrategyRequestKeyAuth{KeyAuth: keyAuth}

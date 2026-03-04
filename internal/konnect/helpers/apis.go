@@ -96,7 +96,11 @@ func (a *APIAPIImpl) CreateAPI(ctx context.Context, request kkComps.CreateAPIReq
 func (a *APIAPIImpl) UpdateAPI(ctx context.Context, apiID string, request kkComps.UpdateAPIRequest,
 	opts ...kkOps.Option,
 ) (*kkOps.UpdateAPIResponse, error) {
-	return a.SDK.API.UpdateAPI(ctx, apiID, request, opts...)
+	req := kkOps.UpdateAPIRequest{
+		APIID:            apiID,
+		UpdateAPIRequest: request,
+	}
+	return a.SDK.API.UpdateAPI(ctx, req, opts...)
 }
 
 // DeleteAPI implements the APIAPI interface
