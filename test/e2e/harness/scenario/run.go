@@ -778,7 +778,7 @@ func preserveAttemptArtifacts(cmdDir string, attempt int) {
 
 	// Copy all artifacts from cmdDir into dstDir, excluding the attempts/ subtree
 	// to avoid recursively copying previous attempts.
-	copyErr := filepath.WalkDir(cmdDir, func(path string, d os.DirEntry, err error) error {
+	walkErr := filepath.WalkDir(cmdDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -811,10 +811,10 @@ func preserveAttemptArtifacts(cmdDir string, attempt int) {
 		return nil
 	})
 
-	if copyErr != nil {
+	if walkErr != nil {
 		harness.Warnf(
 			"preserveAttemptArtifacts: walk failed (cmdDir=%q, dstDir=%q, attempt=%d): %v",
-			cmdDir, dstDir, attempt, copyErr,
+			cmdDir, dstDir, attempt, walkErr,
 		)
 	}
 }
