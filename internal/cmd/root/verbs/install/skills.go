@@ -12,6 +12,7 @@ import (
 	"time"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
+	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	skillassets "github.com/kong/kongctl/skills"
@@ -20,8 +21,8 @@ import (
 )
 
 const (
-	defaultCanonicalSkillsPath = ".kongctl/skills"
-	skillsManifestFileName     = ".kongctl-skills-manifest.json"
+	localCanonicalSkillsPath = ".kongctl/skills"
+	skillsManifestFileName   = ".kongctl-skills-manifest.json"
 )
 
 // toolIntegration describes a tool-specific directory where per-skill
@@ -41,6 +42,7 @@ var toolIntegrations = []toolIntegration{
 
 type installSkillsOptions struct {
 	path   string
+	local  bool
 	dryRun bool
 }
 
@@ -80,28 +82,26 @@ type symlinkConflict struct {
 }
 
 func newInstallSkillsCmd() *cobra.Command {
-	opts := &installSkillsOptions{
-		path: defaultCanonicalSkillsPath,
-	}
+	opts := &installSkillsOptions{}
 
 	cmd := &cobra.Command{
 		Use:   "skills",
 		Short: i18n.T("root.verbs.install.skills.short", "Install kongctl agent skills"),
 		Long: i18n.T("root.verbs.install.skills.long",
-			"Install versioned kongctl skills into a local agent skills directory."),
+			"Install bundled kongctl skills and create symlinks for agent tool integration."),
 		Args: cobra.NoArgs,
 		RunE: func(command *cobra.Command, args []string) error {
 			return runInstallSkills(command, args, *opts)
 		},
 	}
 
-	cmd.Flags().StringVar(
-		&opts.path,
-		"path",
-		defaultCanonicalSkillsPath,
-		"Canonical directory for installed skill files.",
-	)
-	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Show planned writes without creating files.")
+	cmd.Flags().StringVar(&opts.path, "path", "",
+		"Custom canonical directory for installed skill files.")
+	cmd.Flags().BoolVar(&opts.local, "local", false,
+		"Install to .kongctl/skills/ in the current directory instead of the global config location.")
+	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false,
+		"Show planned writes without creating files.")
+	cmd.MarkFlagsMutuallyExclusive("path", "local")
 
 	return cmd
 }
@@ -125,7 +125,7 @@ func runInstallSkills(command *cobra.Command, args []string, opts installSkillsO
 		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to determine current directory", err)
 	}
 
-	canonicalDir, err := resolveInstallTargetDir(cwd, opts.path)
+	canonicalDir, err := resolveCanonicalDir(cwd, opts)
 	if err != nil {
 		return &cmdpkg.ConfigurationError{Err: err}
 	}
@@ -160,17 +160,33 @@ func runInstallSkills(command *cobra.Command, args []string, opts installSkillsO
 	return nil
 }
 
-func resolveInstallTargetDir(cwd, path string) (string, error) {
-	trimmed := strings.TrimSpace(path)
-	if trimmed == "" {
-		return "", fmt.Errorf("--path cannot be empty")
+// resolveCanonicalDir determines the canonical directory for skill files
+// based on flag precedence: --path > --local > XDG default.
+func resolveCanonicalDir(cwd string, opts installSkillsOptions) (string, error) {
+	if opts.path != "" {
+		trimmed := strings.TrimSpace(opts.path)
+		if trimmed == "" {
+			return "", fmt.Errorf("--path cannot be empty")
+		}
+		if filepath.IsAbs(trimmed) {
+			return filepath.Clean(trimmed), nil
+		}
+		return filepath.Clean(filepath.Join(cwd, trimmed)), nil
 	}
-
-	if filepath.IsAbs(trimmed) {
-		return filepath.Clean(trimmed), nil
+	if opts.local {
+		return filepath.Clean(filepath.Join(cwd, localCanonicalSkillsPath)), nil
 	}
+	return defaultXDGSkillsDir()
+}
 
-	return filepath.Clean(filepath.Join(cwd, trimmed)), nil
+// defaultXDGSkillsDir returns the skills directory under the kongctl config
+// path, following the same XDG_CONFIG_HOME resolution as the rest of the CLI.
+func defaultXDGSkillsDir() (string, error) {
+	configPath, err := config.GetDefaultConfigPath()
+	if err != nil {
+		return "", fmt.Errorf("cannot determine config directory: %w", err)
+	}
+	return filepath.Join(configPath, "skills"), nil
 }
 
 // planSymlinks computes the symlinks to create for each skill in each tool
@@ -444,11 +460,7 @@ func splitFrontmatter(content []byte) ([]byte, []byte, error) {
 	}
 
 	rest := text[len(opening):]
-	idx, found := strings.CutPrefix(rest, "")
-	if !found {
-		idx = rest
-	}
-	sepIdx := strings.Index(idx, separator)
+	sepIdx := strings.Index(rest, separator)
 	if sepIdx < 0 {
 		return nil, nil, fmt.Errorf("skill file missing YAML frontmatter closing delimiter")
 	}
@@ -464,86 +476,64 @@ func printSkillsInstallSummary(out io.Writer, cwd string, result skillsInstallRe
 		return nil
 	}
 
-	action := "Installed"
 	if result.DryRun {
-		action = "Planned"
-	}
-
-	relCanonical, err := filepath.Rel(cwd, result.CanonicalDir)
-	if err != nil {
-		relCanonical = result.CanonicalDir
-	}
-
-	if _, err := fmt.Fprintf(out, "%s %d kongctl skill(s) to %s\n",
-		action, len(result.SkillNames), relCanonical); err != nil {
-		return err
-	}
-
-	for _, name := range result.SkillNames {
-		if _, err := fmt.Fprintf(out, "- %s\n", name); err != nil {
+		if _, err := fmt.Fprintln(out, "Dry run, no files will be written"); err != nil {
 			return err
 		}
-	}
-
-	if _, err := fmt.Fprintf(out, "Skill metadata.version: %s\n", result.CLIVersion); err != nil {
-		return err
-	}
-
-	relManifest, err := filepath.Rel(cwd, result.ManifestPath)
-	if err != nil {
-		relManifest = result.ManifestPath
-	}
-	if _, err := fmt.Fprintf(out, "Install manifest: %s\n", relManifest); err != nil {
-		return err
+		if _, err := fmt.Fprintln(out); err != nil {
+			return err
+		}
 	}
 
 	if result.DryRun {
-		if _, err := fmt.Fprintln(out, "\nDry run only. No files were written."); err != nil {
+		if _, err := fmt.Fprintf(out, "Would install %d kongctl skills and %d coding agent symlinks:\n",
+			len(result.SkillNames), len(result.Symlinks)); err != nil {
+			return err
+		}
+	} else {
+		if _, err := fmt.Fprintf(out, "Installed %d kongctl skills and %d coding agent symlinks:\n",
+			len(result.SkillNames), len(result.Symlinks)); err != nil {
 			return err
 		}
 	}
 
-	if len(result.Symlinks) > 0 {
-		if _, err := fmt.Fprintln(out, "\nTool integrations:"); err != nil {
+	for _, f := range result.WrittenFiles {
+		if _, err := fmt.Fprintf(out, "  %s\n", relativizeOrKeep(cwd, f)); err != nil {
 			return err
 		}
-		type toolGroup struct {
-			tools  string
-			relDir string
+	}
+	for _, sl := range result.Symlinks {
+		if _, err := fmt.Fprintf(out, "  %s -> %s\n",
+			relativizeOrKeep(cwd, sl.LinkPath), relativizeOrKeep(cwd, sl.TargetPath)); err != nil {
+			return err
 		}
-		var groups []toolGroup
-		seen := map[string]bool{}
-		for _, sl := range result.Symlinks {
-			if seen[sl.Tools] {
-				continue
-			}
-			seen[sl.Tools] = true
-			dir := filepath.Dir(sl.LinkPath)
-			relDir, relErr := filepath.Rel(cwd, dir)
-			if relErr != nil {
-				relDir = dir
-			}
-			groups = append(groups, toolGroup{tools: sl.Tools, relDir: relDir})
+	}
+
+	if !result.DryRun {
+		if _, err := fmt.Fprintln(out, "\nExample agent prompts:"); err != nil {
+			return err
 		}
-		for _, g := range groups {
-			if _, err := fmt.Fprintf(out, "  %s/ (%s)\n", g.relDir, g.tools); err != nil {
+		prompts := []string{
+			`"Show me my Kong Konnect control planes"`,
+			`"Generate declarative config for a portal with two APIs from my OpenAPI specs"`,
+		}
+		for _, p := range prompts {
+			if _, err := fmt.Fprintf(out, "  %s\n", p); err != nil {
 				return err
 			}
 		}
 	}
 
-	if _, err := fmt.Fprintln(out, "\nExample agent prompts:"); err != nil {
-		return err
-	}
-	prompts := []string{
-		`"Show me my Kong Konnect control planes"`,
-		`"Generate declarative config for a portal with two APIs from my OpenAPI specs"`,
-	}
-	for _, p := range prompts {
-		if _, err := fmt.Fprintf(out, "  %s\n", p); err != nil {
-			return err
-		}
-	}
-
 	return nil
+}
+
+// relativizeOrKeep returns a relative path from cwd to target when the
+// result is a clean descent (no leading ".."). Otherwise it returns the
+// absolute target path for clarity.
+func relativizeOrKeep(cwd, target string) string {
+	rel, err := filepath.Rel(cwd, target)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return target
+	}
+	return rel
 }

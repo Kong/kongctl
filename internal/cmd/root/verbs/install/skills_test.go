@@ -74,6 +74,57 @@ func TestInstallBundledSkillsDryRunDoesNotWriteFiles(t *testing.T) {
 	assert.ErrorIs(t, err, os.ErrNotExist)
 }
 
+func TestResolveCanonicalDirLocal(t *testing.T) {
+	cwd := t.TempDir()
+	dir, err := resolveCanonicalDir(cwd, installSkillsOptions{local: true})
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(cwd, localCanonicalSkillsPath), dir)
+}
+
+func TestResolveCanonicalDirCustomPath(t *testing.T) {
+	cwd := t.TempDir()
+	dir, err := resolveCanonicalDir(cwd, installSkillsOptions{path: "custom/loc"})
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(cwd, "custom", "loc"), dir)
+}
+
+func TestResolveCanonicalDirCustomAbsPath(t *testing.T) {
+	cwd := t.TempDir()
+	absPath := filepath.Join(t.TempDir(), "abs-skills")
+	dir, err := resolveCanonicalDir(cwd, installSkillsOptions{path: absPath})
+	require.NoError(t, err)
+	assert.Equal(t, absPath, dir)
+}
+
+func TestResolveCanonicalDirDefaultUsesXDG(t *testing.T) {
+	xdgDir := filepath.Join(t.TempDir(), "xdg-config")
+	t.Setenv("XDG_CONFIG_HOME", xdgDir)
+
+	dir, err := resolveCanonicalDir(t.TempDir(), installSkillsOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(xdgDir, "kongctl", "skills"), dir)
+}
+
+func TestDefaultXDGSkillsDirRespectsEnv(t *testing.T) {
+	xdgDir := filepath.Join(t.TempDir(), "custom-xdg")
+	t.Setenv("XDG_CONFIG_HOME", xdgDir)
+
+	dir, err := defaultXDGSkillsDir()
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(xdgDir, "kongctl", "skills"), dir)
+}
+
+func TestDefaultXDGSkillsDirFallsBackToHome(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", "")
+
+	dir, err := defaultXDGSkillsDir()
+	require.NoError(t, err)
+
+	home, err := os.UserHomeDir()
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(home, ".config", "kongctl", "skills"), dir)
+}
+
 func TestPlanSymlinksSkipsCanonicalDir(t *testing.T) {
 	cwd := t.TempDir()
 	canonicalDir := filepath.Join(cwd, ".agent", "skills")
@@ -85,7 +136,6 @@ func TestPlanSymlinksSkipsCanonicalDir(t *testing.T) {
 		assert.NotContains(t, link.Tools, "codex",
 			"should skip .agent/skills/ when it matches canonical dir")
 	}
-	// Should still plan symlinks for .claude/skills/
 	var claudeLinks []plannedSymlink
 	for _, link := range planned {
 		if link.Tools == "claude code" {
@@ -122,7 +172,6 @@ func TestCheckSymlinkConflictsDetectsExistingDirectory(t *testing.T) {
 	cwd := t.TempDir()
 	canonicalDir := filepath.Join(cwd, ".kongctl", "skills")
 
-	// Create a real directory where a symlink would go.
 	conflictDir := filepath.Join(cwd, ".agent", "skills", "kongctl-query")
 	require.NoError(t, os.MkdirAll(conflictDir, 0o755))
 
@@ -143,12 +192,10 @@ func TestCheckSymlinkConflictsAllowsReinstall(t *testing.T) {
 	cwd := t.TempDir()
 	canonicalDir := filepath.Join(cwd, ".kongctl", "skills")
 
-	// Create the canonical skill directory so the symlink target exists.
 	require.NoError(t, os.MkdirAll(filepath.Join(canonicalDir, "kongctl-query"), 0o755))
 
 	planned := planSymlinks(cwd, canonicalDir, []string{"kongctl-query"})
 
-	// Simulate a previous install by creating the symlinks.
 	for _, link := range planned {
 		require.NoError(t, os.MkdirAll(filepath.Dir(link.LinkPath), 0o755))
 		require.NoError(t, os.Symlink(link.RelTarget, link.LinkPath))
@@ -162,7 +209,6 @@ func TestCreateToolSymlinksCreatesValidLinks(t *testing.T) {
 	cwd := t.TempDir()
 	canonicalDir := filepath.Join(cwd, ".kongctl", "skills")
 
-	// Create the canonical skill directory so the symlink target exists.
 	skillDir := filepath.Join(canonicalDir, "kongctl-query")
 	require.NoError(t, os.MkdirAll(skillDir, 0o755))
 	require.NoError(t, os.WriteFile(
@@ -176,7 +222,6 @@ func TestCreateToolSymlinksCreatesValidLinks(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotZero(t, info.Mode()&os.ModeSymlink, "expected symlink at %s", link.LinkPath)
 
-		// Verify the symlink resolves to a readable file.
 		content, err := os.ReadFile(filepath.Join(link.LinkPath, "SKILL.md"))
 		require.NoError(t, err)
 		assert.Equal(t, "test", string(content))
@@ -206,6 +251,13 @@ func TestIsMatchingSymlinkRelativeAndAbsolute(t *testing.T) {
 		"relative match")
 	assert.False(t, isMatchingSymlink(linkPath, "/other/path/my-skill", target),
 		"different absolute path")
+}
+
+func TestRelativizeOrKeep(t *testing.T) {
+	assert.Equal(t, ".kongctl/skills",
+		relativizeOrKeep("/project", "/project/.kongctl/skills"))
+	assert.Equal(t, "/home/user/.config/kongctl/skills",
+		relativizeOrKeep("/project", "/home/user/.config/kongctl/skills"))
 }
 
 func parseFrontmatterMap(t *testing.T, content []byte) map[string]any {

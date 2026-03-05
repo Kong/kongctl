@@ -21,7 +21,7 @@ Copy or symlink each skill directory into your tool's skills directory.
   - `ln -s ../../skills/kongctl-query .claude/skills/kongctl-query`
   - `ln -s ../../skills/kongctl-declarative .claude/skills/kongctl-declarative`
 
-### Codex or Cursor
+### Codex, Cursor, opencode
 
 - Target path: `.agent/skills/` (some setups use `.agents/skills/`)
 - Example:
