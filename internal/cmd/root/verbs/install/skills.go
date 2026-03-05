@@ -367,31 +367,17 @@ func printSkillsInstallSummary(out io.Writer, cwd string, result skillsInstallRe
 		}
 	}
 
-	if _, err := fmt.Fprintln(out, "\nKonnect authorization options:"); err != nil {
+	if _, err := fmt.Fprintln(out, "\nExample agent prompts:"); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(out, "  1. %s login\n", meta.CLIName); err != nil {
-		return err
+	prompts := []string{
+		`"Show me my Kong Konnect control planes"`,
+		`"Generate declarative config for a portal with two APIs from my OpenAPI specs"`,
 	}
-	if _, err := fmt.Fprintln(out, "  2. export KONGCTL_DEFAULT_KONNECT_PAT=<your_konnect_pat>"); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(
-		out,
-		"  3. %s get me --pat <your_konnect_pat> -o json\n",
-		meta.CLIName,
-	); err != nil {
-		return err
-	}
-
-	if _, err := fmt.Fprintln(out, "\nExample agent prompt:"); err != nil {
-		return err
-	}
-	examplePrompt := `  "Use the kongctl-query skill to list API resources in my ` +
-		`Konnect account. Run 'kongctl get apis -o json' and summarize each API ` +
-		`id, name, and updated_at."`
-	if _, err := fmt.Fprintln(out, examplePrompt); err != nil {
-		return err
+	for _, p := range prompts {
+		if _, err := fmt.Fprintf(out, "  %s\n", p); err != nil {
+			return err
+		}
 	}
 
 	return nil
