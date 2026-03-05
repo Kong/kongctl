@@ -20,9 +20,24 @@ import (
 )
 
 const (
-	defaultSkillsInstallPath = ".agent/skills"
-	skillsManifestFileName   = ".kongctl-skills-manifest.json"
+	defaultCanonicalSkillsPath = ".kongctl/skills"
+	skillsManifestFileName     = ".kongctl-skills-manifest.json"
 )
+
+// toolIntegration describes a tool-specific directory where per-skill
+// symlinks are created so that the tool can discover installed skills.
+type toolIntegration struct {
+	relPath string
+	tools   string
+}
+
+// toolIntegrations lists directories that receive symlinks to the canonical
+// skill install location. Each entry corresponds to a set of agent tools
+// that read skills from that path.
+var toolIntegrations = []toolIntegration{
+	{relPath: ".agent/skills", tools: "codex, cursor, opencode"},
+	{relPath: ".claude/skills", tools: "claude code"},
+}
 
 type installSkillsOptions struct {
 	path   string
@@ -42,17 +57,31 @@ type skillsInstallManifest struct {
 }
 
 type skillsInstallResult struct {
-	TargetDir    string
+	CanonicalDir string
 	CLIVersion   string
 	SkillNames   []string
 	WrittenFiles []string
 	ManifestPath string
+	Symlinks     []plannedSymlink
 	DryRun       bool
+}
+
+type plannedSymlink struct {
+	LinkPath   string
+	TargetPath string
+	RelTarget  string
+	SkillName  string
+	Tools      string
+}
+
+type symlinkConflict struct {
+	linkPath string
+	detail   string
 }
 
 func newInstallSkillsCmd() *cobra.Command {
 	opts := &installSkillsOptions{
-		path: defaultSkillsInstallPath,
+		path: defaultCanonicalSkillsPath,
 	}
 
 	cmd := &cobra.Command{
@@ -69,8 +98,8 @@ func newInstallSkillsCmd() *cobra.Command {
 	cmd.Flags().StringVar(
 		&opts.path,
 		"path",
-		defaultSkillsInstallPath,
-		"Destination directory for installed skills.",
+		defaultCanonicalSkillsPath,
+		"Canonical directory for installed skill files.",
 	)
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "Show planned writes without creating files.")
 
@@ -96,15 +125,33 @@ func runInstallSkills(command *cobra.Command, args []string, opts installSkillsO
 		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to determine current directory", err)
 	}
 
-	targetDir, err := resolveInstallTargetDir(cwd, opts.path)
+	canonicalDir, err := resolveInstallTargetDir(cwd, opts.path)
 	if err != nil {
 		return &cmdpkg.ConfigurationError{Err: err}
 	}
 
-	result, err := installBundledSkills(targetDir, version, opts.dryRun, time.Now().UTC())
+	_, skillNames, err := listBundledSkillAssets()
+	if err != nil {
+		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to list bundled skills", err)
+	}
+
+	planned := planSymlinks(cwd, canonicalDir, skillNames)
+
+	if !opts.dryRun {
+		if conflicts := checkSymlinkConflicts(planned); len(conflicts) > 0 {
+			return &cmdpkg.ConfigurationError{Err: formatConflictError(conflicts)}
+		}
+	}
+
+	result, err := installBundledSkills(canonicalDir, version, opts.dryRun, time.Now().UTC())
 	if err != nil {
 		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to install skills", err)
 	}
+
+	if err := createToolSymlinks(planned, opts.dryRun); err != nil {
+		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to create tool symlinks", err)
+	}
+	result.Symlinks = planned
 
 	if err := printSkillsInstallSummary(streams.Out, cwd, result); err != nil {
 		return cmdpkg.PrepareExecutionErrorWithHelper(helper, "failed to write install output", err)
@@ -126,8 +173,106 @@ func resolveInstallTargetDir(cwd, path string) (string, error) {
 	return filepath.Clean(filepath.Join(cwd, trimmed)), nil
 }
 
+// planSymlinks computes the symlinks to create for each skill in each tool
+// integration directory. If a tool directory resolves to the same path as
+// the canonical directory, it is skipped to avoid circular symlinks.
+func planSymlinks(cwd, canonicalDir string, skillNames []string) []plannedSymlink {
+	var links []plannedSymlink
+	for _, ti := range toolIntegrations {
+		toolDir := filepath.Clean(filepath.Join(cwd, ti.relPath))
+		if toolDir == filepath.Clean(canonicalDir) {
+			continue
+		}
+		for _, name := range skillNames {
+			linkPath := filepath.Join(toolDir, name)
+			targetPath := filepath.Join(canonicalDir, name)
+			relTarget, err := filepath.Rel(filepath.Dir(linkPath), targetPath)
+			if err != nil {
+				relTarget = targetPath
+			}
+			links = append(links, plannedSymlink{
+				LinkPath:   linkPath,
+				TargetPath: targetPath,
+				RelTarget:  relTarget,
+				SkillName:  name,
+				Tools:      ti.tools,
+			})
+		}
+	}
+	return links
+}
+
+// checkSymlinkConflicts inspects every planned symlink path. A path that
+// does not exist or that is already a symlink pointing to the expected
+// canonical target (re-install case) is not a conflict. Anything else is.
+func checkSymlinkConflicts(links []plannedSymlink) []symlinkConflict {
+	var conflicts []symlinkConflict
+	for _, link := range links {
+		info, err := os.Lstat(link.LinkPath)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			conflicts = append(conflicts, symlinkConflict{link.LinkPath, err.Error()})
+			continue
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			existing, readErr := os.Readlink(link.LinkPath)
+			if readErr == nil && isMatchingSymlink(link.LinkPath, existing, link.TargetPath) {
+				continue
+			}
+		}
+		conflicts = append(conflicts, symlinkConflict{
+			linkPath: link.LinkPath,
+			detail:   "path already exists and is not a kongctl-managed symlink",
+		})
+	}
+	return conflicts
+}
+
+// isMatchingSymlink returns true when existingTarget (the value read from a
+// symlink at linkPath) resolves to the same location as expectedTarget.
+func isMatchingSymlink(linkPath, existingTarget, expectedTarget string) bool {
+	if existingTarget == expectedTarget {
+		return true
+	}
+	absExisting := existingTarget
+	if !filepath.IsAbs(existingTarget) {
+		absExisting = filepath.Join(filepath.Dir(linkPath), existingTarget)
+	}
+	return filepath.Clean(absExisting) == filepath.Clean(expectedTarget)
+}
+
+func createToolSymlinks(links []plannedSymlink, dryRun bool) error {
+	if dryRun {
+		return nil
+	}
+	for _, link := range links {
+		if err := os.MkdirAll(filepath.Dir(link.LinkPath), 0o755); err != nil {
+			return fmt.Errorf("create directory for symlink %q: %w", link.LinkPath, err)
+		}
+		// Remove existing kongctl-managed symlink on re-install.
+		// Safe because the conflict check already passed.
+		_ = os.Remove(link.LinkPath)
+		if err := os.Symlink(link.RelTarget, link.LinkPath); err != nil {
+			return fmt.Errorf("create symlink %q: %w", link.LinkPath, err)
+		}
+	}
+	return nil
+}
+
+func formatConflictError(conflicts []symlinkConflict) error {
+	var b strings.Builder
+	fmt.Fprintf(&b, "cannot install: %d path conflict(s) detected\n", len(conflicts))
+	for _, c := range conflicts {
+		fmt.Fprintf(&b, "  %s: %s\n", c.linkPath, c.detail)
+	}
+	fmt.Fprint(&b, "Remove or rename the conflicting paths and re-run the install command.")
+	return fmt.Errorf("%s", b.String())
+}
+
 func installBundledSkills(
-	targetDir string,
+	canonicalDir string,
 	cliVersion string,
 	dryRun bool,
 	now time.Time,
@@ -141,15 +286,15 @@ func installBundledSkills(
 	}
 
 	result := skillsInstallResult{
-		TargetDir:  targetDir,
-		CLIVersion: cliVersion,
-		SkillNames: skillNames,
-		DryRun:     dryRun,
+		CanonicalDir: canonicalDir,
+		CLIVersion:   cliVersion,
+		SkillNames:   skillNames,
+		DryRun:       dryRun,
 	}
 
 	if !dryRun {
-		if err := os.MkdirAll(targetDir, 0o755); err != nil {
-			return skillsInstallResult{}, fmt.Errorf("create target directory: %w", err)
+		if err := os.MkdirAll(canonicalDir, 0o755); err != nil {
+			return skillsInstallResult{}, fmt.Errorf("create canonical directory: %w", err)
 		}
 	}
 
@@ -166,7 +311,7 @@ func installBundledSkills(
 			}
 		}
 
-		destPath := filepath.Join(targetDir, filepath.FromSlash(asset.RelPath))
+		destPath := filepath.Join(canonicalDir, filepath.FromSlash(asset.RelPath))
 		result.WrittenFiles = append(result.WrittenFiles, destPath)
 
 		if dryRun {
@@ -182,7 +327,7 @@ func installBundledSkills(
 		}
 	}
 
-	manifestPath := filepath.Join(targetDir, skillsManifestFileName)
+	manifestPath := filepath.Join(canonicalDir, skillsManifestFileName)
 	result.ManifestPath = manifestPath
 	result.WrittenFiles = append(result.WrittenFiles, manifestPath)
 
@@ -299,7 +444,11 @@ func splitFrontmatter(content []byte) ([]byte, []byte, error) {
 	}
 
 	rest := text[len(opening):]
-	sepIdx := strings.Index(rest, separator)
+	idx, found := strings.CutPrefix(rest, "")
+	if !found {
+		idx = rest
+	}
+	sepIdx := strings.Index(idx, separator)
 	if sepIdx < 0 {
 		return nil, nil, fmt.Errorf("skill file missing YAML frontmatter closing delimiter")
 	}
@@ -320,18 +469,18 @@ func printSkillsInstallSummary(out io.Writer, cwd string, result skillsInstallRe
 		action = "Planned"
 	}
 
-	if _, err := fmt.Fprintf(
-		out,
-		"%s %d kongctl skill(s) to %s\n",
-		action,
-		len(result.SkillNames),
-		result.TargetDir,
-	); err != nil {
+	relCanonical, err := filepath.Rel(cwd, result.CanonicalDir)
+	if err != nil {
+		relCanonical = result.CanonicalDir
+	}
+
+	if _, err := fmt.Fprintf(out, "%s %d kongctl skill(s) to %s\n",
+		action, len(result.SkillNames), relCanonical); err != nil {
 		return err
 	}
 
-	for _, skillName := range result.SkillNames {
-		if _, err := fmt.Fprintf(out, "- %s\n", skillName); err != nil {
+	for _, name := range result.SkillNames {
+		if _, err := fmt.Fprintf(out, "- %s\n", name); err != nil {
 			return err
 		}
 	}
@@ -339,7 +488,12 @@ func printSkillsInstallSummary(out io.Writer, cwd string, result skillsInstallRe
 	if _, err := fmt.Fprintf(out, "Skill metadata.version: %s\n", result.CLIVersion); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(out, "Install manifest: %s\n", result.ManifestPath); err != nil {
+
+	relManifest, err := filepath.Rel(cwd, result.ManifestPath)
+	if err != nil {
+		relManifest = result.ManifestPath
+	}
+	if _, err := fmt.Fprintf(out, "Install manifest: %s\n", relManifest); err != nil {
 		return err
 	}
 
@@ -349,21 +503,32 @@ func printSkillsInstallSummary(out io.Writer, cwd string, result skillsInstallRe
 		}
 	}
 
-	if _, err := fmt.Fprintln(out, "\nClaude Code setup (optional):"); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintln(out, "  mkdir -p .claude/skills"); err != nil {
-		return err
-	}
-	for _, skillName := range result.SkillNames {
-		relativeTarget := claudeSymlinkTarget(cwd, result.TargetDir, skillName)
-		if _, err := fmt.Fprintf(
-			out,
-			"  ln -s %s .claude/skills/%s\n",
-			relativeTarget,
-			skillName,
-		); err != nil {
+	if len(result.Symlinks) > 0 {
+		if _, err := fmt.Fprintln(out, "\nTool integrations:"); err != nil {
 			return err
+		}
+		type toolGroup struct {
+			tools  string
+			relDir string
+		}
+		var groups []toolGroup
+		seen := map[string]bool{}
+		for _, sl := range result.Symlinks {
+			if seen[sl.Tools] {
+				continue
+			}
+			seen[sl.Tools] = true
+			dir := filepath.Dir(sl.LinkPath)
+			relDir, relErr := filepath.Rel(cwd, dir)
+			if relErr != nil {
+				relDir = dir
+			}
+			groups = append(groups, toolGroup{tools: sl.Tools, relDir: relDir})
+		}
+		for _, g := range groups {
+			if _, err := fmt.Fprintf(out, "  %s/ (%s)\n", g.relDir, g.tools); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -381,16 +546,4 @@ func printSkillsInstallSummary(out io.Writer, cwd string, result skillsInstallRe
 	}
 
 	return nil
-}
-
-func claudeSymlinkTarget(cwd, targetDir, skillName string) string {
-	fromDir := filepath.Join(cwd, ".claude", "skills")
-	target := filepath.Join(targetDir, skillName)
-
-	relative, err := filepath.Rel(fromDir, target)
-	if err != nil {
-		return filepath.ToSlash(target)
-	}
-
-	return filepath.ToSlash(relative)
 }

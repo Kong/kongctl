@@ -31,18 +31,18 @@ description: test
 }
 
 func TestInstallBundledSkillsWritesVersionedSkillsAndManifest(t *testing.T) {
-	targetDir := filepath.Join(t.TempDir(), ".agent", "skills")
+	canonicalDir := filepath.Join(t.TempDir(), ".kongctl", "skills")
 	now := time.Date(2026, 3, 4, 21, 30, 0, 0, time.UTC)
 
-	result, err := installBundledSkills(targetDir, "v9.9.9", false, now)
+	result, err := installBundledSkills(canonicalDir, "v9.9.9", false, now)
 	require.NoError(t, err)
 
-	assert.Equal(t, targetDir, result.TargetDir)
+	assert.Equal(t, canonicalDir, result.CanonicalDir)
 	assert.Equal(t, "v9.9.9", result.CLIVersion)
 	assert.ElementsMatch(t, []string{"kongctl-declarative", "kongctl-query"}, result.SkillNames)
 
 	for _, skillName := range result.SkillNames {
-		skillPath := filepath.Join(targetDir, skillName, "SKILL.md")
+		skillPath := filepath.Join(canonicalDir, skillName, "SKILL.md")
 		content, err := os.ReadFile(skillPath)
 		require.NoError(t, err, "read %s", skillPath)
 
@@ -63,15 +63,149 @@ func TestInstallBundledSkillsWritesVersionedSkillsAndManifest(t *testing.T) {
 }
 
 func TestInstallBundledSkillsDryRunDoesNotWriteFiles(t *testing.T) {
-	targetDir := filepath.Join(t.TempDir(), ".agent", "skills")
-	result, err := installBundledSkills(targetDir, "v0.0.1", true, time.Now().UTC())
+	canonicalDir := filepath.Join(t.TempDir(), ".kongctl", "skills")
+	result, err := installBundledSkills(canonicalDir, "v0.0.1", true, time.Now().UTC())
 	require.NoError(t, err)
 
 	assert.True(t, result.DryRun)
 	assert.Greater(t, len(result.WrittenFiles), 0)
 
-	_, err = os.Stat(targetDir)
+	_, err = os.Stat(canonicalDir)
 	assert.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestPlanSymlinksSkipsCanonicalDir(t *testing.T) {
+	cwd := t.TempDir()
+	canonicalDir := filepath.Join(cwd, ".agent", "skills")
+	skills := []string{"kongctl-query", "kongctl-declarative"}
+
+	planned := planSymlinks(cwd, canonicalDir, skills)
+
+	for _, link := range planned {
+		assert.NotContains(t, link.Tools, "codex",
+			"should skip .agent/skills/ when it matches canonical dir")
+	}
+	// Should still plan symlinks for .claude/skills/
+	var claudeLinks []plannedSymlink
+	for _, link := range planned {
+		if link.Tools == "claude code" {
+			claudeLinks = append(claudeLinks, link)
+		}
+	}
+	assert.Len(t, claudeLinks, len(skills))
+}
+
+func TestPlanSymlinksCreatesLinksForAllToolDirs(t *testing.T) {
+	cwd := t.TempDir()
+	canonicalDir := filepath.Join(cwd, ".kongctl", "skills")
+	skills := []string{"kongctl-query"}
+
+	planned := planSymlinks(cwd, canonicalDir, skills)
+
+	assert.Len(t, planned, len(toolIntegrations))
+	for _, link := range planned {
+		assert.Equal(t, "kongctl-query", link.SkillName)
+		assert.Equal(t, filepath.Join(canonicalDir, "kongctl-query"), link.TargetPath)
+	}
+}
+
+func TestCheckSymlinkConflictsNoConflictWhenEmpty(t *testing.T) {
+	cwd := t.TempDir()
+	canonicalDir := filepath.Join(cwd, ".kongctl", "skills")
+	planned := planSymlinks(cwd, canonicalDir, []string{"kongctl-query"})
+
+	conflicts := checkSymlinkConflicts(planned)
+	assert.Empty(t, conflicts)
+}
+
+func TestCheckSymlinkConflictsDetectsExistingDirectory(t *testing.T) {
+	cwd := t.TempDir()
+	canonicalDir := filepath.Join(cwd, ".kongctl", "skills")
+
+	// Create a real directory where a symlink would go.
+	conflictDir := filepath.Join(cwd, ".agent", "skills", "kongctl-query")
+	require.NoError(t, os.MkdirAll(conflictDir, 0o755))
+
+	planned := planSymlinks(cwd, canonicalDir, []string{"kongctl-query"})
+	conflicts := checkSymlinkConflicts(planned)
+
+	assert.NotEmpty(t, conflicts)
+	found := false
+	for _, c := range conflicts {
+		if c.linkPath == conflictDir {
+			found = true
+		}
+	}
+	assert.True(t, found, "expected conflict for %s", conflictDir)
+}
+
+func TestCheckSymlinkConflictsAllowsReinstall(t *testing.T) {
+	cwd := t.TempDir()
+	canonicalDir := filepath.Join(cwd, ".kongctl", "skills")
+
+	// Create the canonical skill directory so the symlink target exists.
+	require.NoError(t, os.MkdirAll(filepath.Join(canonicalDir, "kongctl-query"), 0o755))
+
+	planned := planSymlinks(cwd, canonicalDir, []string{"kongctl-query"})
+
+	// Simulate a previous install by creating the symlinks.
+	for _, link := range planned {
+		require.NoError(t, os.MkdirAll(filepath.Dir(link.LinkPath), 0o755))
+		require.NoError(t, os.Symlink(link.RelTarget, link.LinkPath))
+	}
+
+	conflicts := checkSymlinkConflicts(planned)
+	assert.Empty(t, conflicts, "re-install should not produce conflicts")
+}
+
+func TestCreateToolSymlinksCreatesValidLinks(t *testing.T) {
+	cwd := t.TempDir()
+	canonicalDir := filepath.Join(cwd, ".kongctl", "skills")
+
+	// Create the canonical skill directory so the symlink target exists.
+	skillDir := filepath.Join(canonicalDir, "kongctl-query")
+	require.NoError(t, os.MkdirAll(skillDir, 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(skillDir, "SKILL.md"), []byte("test"), 0o600))
+
+	planned := planSymlinks(cwd, canonicalDir, []string{"kongctl-query"})
+	require.NoError(t, createToolSymlinks(planned, false))
+
+	for _, link := range planned {
+		info, err := os.Lstat(link.LinkPath)
+		require.NoError(t, err)
+		assert.NotZero(t, info.Mode()&os.ModeSymlink, "expected symlink at %s", link.LinkPath)
+
+		// Verify the symlink resolves to a readable file.
+		content, err := os.ReadFile(filepath.Join(link.LinkPath, "SKILL.md"))
+		require.NoError(t, err)
+		assert.Equal(t, "test", string(content))
+	}
+}
+
+func TestCreateToolSymlinksDryRunNoOp(t *testing.T) {
+	cwd := t.TempDir()
+	canonicalDir := filepath.Join(cwd, ".kongctl", "skills")
+	planned := planSymlinks(cwd, canonicalDir, []string{"kongctl-query"})
+
+	require.NoError(t, createToolSymlinks(planned, true))
+
+	for _, link := range planned {
+		_, err := os.Lstat(link.LinkPath)
+		assert.ErrorIs(t, err, os.ErrNotExist)
+	}
+}
+
+func TestIsMatchingSymlinkRelativeAndAbsolute(t *testing.T) {
+	linkPath := "/project/.agent/skills/my-skill"
+	target := "/project/.kongctl/skills/my-skill"
+
+	assert.True(t, isMatchingSymlink(linkPath, target, target),
+		"exact absolute match")
+	assert.True(t, isMatchingSymlink(linkPath, "../../.kongctl/skills/my-skill", target),
+		"relative match")
+	assert.False(t, isMatchingSymlink(linkPath, "/other/path/my-skill", target),
+		"different absolute path")
 }
 
 func parseFrontmatterMap(t *testing.T, content []byte) map[string]any {
