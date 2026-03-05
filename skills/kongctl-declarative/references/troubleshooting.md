@@ -7,13 +7,26 @@ dumping, or adopting declarative resources.
 
 1. Confirm CLI and auth
    `kongctl version`
-   `kongctl get me -o json`
+   `kongctl get organization -o json`
 2. Validate parse and plan scope
    `kongctl plan -f <path> --mode apply -o json`
 3. Inspect drift intent before destructive execution
    `kongctl diff -f <path> --mode sync -o text`
 
 ## Common Issues
+
+### Parse Errors with `--recursive`
+
+Symptom: `--recursive` fails with parse errors on files that are not
+kongctl declarative resources (e.g. OpenAPI specs, documentation YAML).
+
+Actions:
+
+- Only place kongctl resource files in the resources directory.
+- Keep specs, docs, and other YAML outside the resources directory.
+- If non-resource files cannot be moved, use multiple `-f` flags for
+  individual resource files instead of `--recursive`:
+  `kongctl diff -f resources/apis.yaml -f resources/portals.yaml --mode apply`
 
 ### Unknown Field Errors
 

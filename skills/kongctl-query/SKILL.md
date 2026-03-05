@@ -25,8 +25,10 @@ concise, structured results.
 - PAT tokens are sensitive credentials. Never echo, log, or commit them.
   Prefer `kongctl login` for interactive sessions.
 - Select configuration profile when needed: `--profile <name>`
-- Optionally verify identity and access when network calls are expected:
-  `kongctl get me -o json`
+- Verify authentication works: `kongctl get organization -o json`
+  This works with all token types (PAT, SPAT, browser login). If it
+  returns organization info, auth is confirmed. Do not guess or try other
+  commands to check auth.
 
 ## Config and Environment Overrides
 

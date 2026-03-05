@@ -32,6 +32,10 @@ Choose the execution approach from user intent:
   - `export KONGCTL_DEFAULT_KONNECT_PAT=<token>` — for non-interactive or CI
 - PAT tokens are sensitive credentials. Never echo, log, or commit them.
   Prefer `kongctl login` for interactive sessions.
+- Verify authentication works: `kongctl get organization -o json`
+  This works with all token types (PAT, SPAT, browser login). If it
+  returns organization info, auth is confirmed. Do not guess or try other
+  commands to check auth.
 - Verify command syntax when unsure:
   - `kongctl plan --help`
   - `kongctl dump declarative --help`
@@ -92,6 +96,13 @@ structure from live data using:
   derive fields from `!file` extraction and avoid stale duplicated literals.
 - Use existing OpenAPI file paths from the user repository. Do not require a
   `konnect/resources/specs` layout.
+- Only place kongctl declarative resource files in the resources directory.
+  Do not put OpenAPI specs, documentation, or other non-resource YAML there.
+  `--recursive` loads all YAML files in the directory tree and will fail on
+  files that are not valid kongctl declarative resources.
+- When non-resource YAML files coexist in a directory, use multiple `-f`
+  flags pointing to individual resource files instead of `--recursive`:
+  `kongctl diff -f resources/apis.yaml -f resources/portals.yaml --mode apply`
 - Keep `!file` paths within the configured base directory boundary.
 - Put `kongctl` metadata only on parent resources.
 - Use `_defaults.kongctl.namespace` for consistent file-level ownership.
@@ -204,6 +215,15 @@ apis:
         visibility: public
 ```
 
+When OpenAPI `!file` paths point outside the resources directory, set
+`--base-dir` to the project root so the paths resolve correctly:
+
+```bash
+kongctl diff -f konnect/resources --recursive --base-dir . --mode apply -o text
+```
+
+Use `--recursive` when the `-f` target is a directory.
+
 Use `references/commands.md` for validation and execution command patterns.
 
 ## Pattern: Generate API config from an OpenAPI spec
@@ -221,7 +241,8 @@ Steps:
    copying specs under the declarative resources directory.
 3. Preserve existing repo conventions when a layout already exists.
 4. Reference spec fields with `!file` extraction.
-5. Keep spec files inside the base-dir boundary or set `--base-dir`.
+5. If spec files are outside the resources directory, add `--base-dir` to
+   all `plan`/`diff`/`apply`/`sync` commands so `!file` paths resolve.
 6. Validate and execute based on requested style.
 7. In User-run mode, include where files were written and why.
 

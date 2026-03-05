@@ -233,6 +233,12 @@ Then adapt generated shape to the target repository layout and naming.
 ## Validation Loop
 
 ```bash
-kongctl plan -f <path> --mode apply -o json
-kongctl diff -f <path> --mode apply -o text
+kongctl diff -f <path> --recursive --mode apply -o text
+```
+
+When `!file` tags reference files outside the `-f` directory, add
+`--base-dir <project-root>` so paths resolve correctly:
+
+```bash
+kongctl diff -f <path> --recursive --base-dir . --mode apply -o text
 ```

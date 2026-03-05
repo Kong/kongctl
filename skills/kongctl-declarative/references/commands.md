@@ -107,6 +107,16 @@ Output behavior:
 `kongctl delete` is a convenience wrapper around declarative delete planning
 and execution.
 
+## Common Flags
+
+- `--recursive`: load all YAML files in a directory tree. Use when `-f`
+  points to a directory containing only kongctl declarative resource files.
+  Non-resource YAML (specs, docs, etc.) in the tree will cause parse errors.
+  When non-resource files coexist, use multiple `-f` flags instead:
+  `kongctl diff -f resources/apis.yaml -f resources/portals.yaml --mode apply`
+- `--base-dir <path>`: set the root for `!file` path resolution. Required
+  when `!file` tags reference files outside the `-f` directory.
+
 ## Safety Defaults
 
 - Prefer `--dry-run` for `apply`, `sync`, and `delete` before execution.

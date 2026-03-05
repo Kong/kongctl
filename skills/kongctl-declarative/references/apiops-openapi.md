@@ -53,6 +53,11 @@ When working in the `kongctl` repository, use this concrete example:
 After generating or updating API config:
 
 ```bash
-kongctl plan -f <resources-path> --recursive --mode apply -o json
 kongctl diff -f <resources-path> --recursive --mode apply -o text
+```
+
+When OpenAPI specs are outside the resources directory, add `--base-dir`:
+
+```bash
+kongctl diff -f <resources-path> --recursive --base-dir . --mode apply -o text
 ```
