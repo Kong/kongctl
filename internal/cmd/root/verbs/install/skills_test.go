@@ -74,9 +74,9 @@ func TestInstallBundledSkillsDryRunDoesNotWriteFiles(t *testing.T) {
 	assert.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestResolveCanonicalDirLocal(t *testing.T) {
+func TestResolveCanonicalDirDefault(t *testing.T) {
 	cwd := t.TempDir()
-	dir, err := resolveCanonicalDir(cwd, installSkillsOptions{local: true})
+	dir, err := resolveCanonicalDir(cwd, installSkillsOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(cwd, localCanonicalSkillsPath), dir)
 }
@@ -94,35 +94,6 @@ func TestResolveCanonicalDirCustomAbsPath(t *testing.T) {
 	dir, err := resolveCanonicalDir(cwd, installSkillsOptions{path: absPath})
 	require.NoError(t, err)
 	assert.Equal(t, absPath, dir)
-}
-
-func TestResolveCanonicalDirDefaultUsesXDG(t *testing.T) {
-	xdgDir := filepath.Join(t.TempDir(), "xdg-config")
-	t.Setenv("XDG_CONFIG_HOME", xdgDir)
-
-	dir, err := resolveCanonicalDir(t.TempDir(), installSkillsOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, filepath.Join(xdgDir, "kongctl", "skills"), dir)
-}
-
-func TestDefaultXDGSkillsDirRespectsEnv(t *testing.T) {
-	xdgDir := filepath.Join(t.TempDir(), "custom-xdg")
-	t.Setenv("XDG_CONFIG_HOME", xdgDir)
-
-	dir, err := defaultXDGSkillsDir()
-	require.NoError(t, err)
-	assert.Equal(t, filepath.Join(xdgDir, "kongctl", "skills"), dir)
-}
-
-func TestDefaultXDGSkillsDirFallsBackToHome(t *testing.T) {
-	t.Setenv("XDG_CONFIG_HOME", "")
-
-	dir, err := defaultXDGSkillsDir()
-	require.NoError(t, err)
-
-	home, err := os.UserHomeDir()
-	require.NoError(t, err)
-	assert.Equal(t, filepath.Join(home, ".config", "kongctl", "skills"), dir)
 }
 
 func TestPlanSymlinksSkipsCanonicalDir(t *testing.T) {

@@ -115,7 +115,17 @@ and execution.
   When non-resource files coexist, use multiple `-f` flags instead:
   `kongctl diff -f resources/apis.yaml -f resources/portals.yaml --mode apply`
 - `--base-dir <path>`: set the root for `!file` path resolution. Required
-  when `!file` tags reference files outside the `-f` directory.
+  when `!file` tags reference files outside the `-f` directory. Use an
+  absolute path — relative values resolve from the config file directory,
+  not cwd (e.g. `--base-dir "$(pwd)"`).
+
+## Output and Approval
+
+- Mutating commands (`apply`, `sync`, `delete`) with `-o json` or `-o yaml`
+  require `--auto-approve` or `--dry-run` because interactive confirmation
+  is not available with structured output.
+- Use `-o text` for interactive runs that prompt for confirmation.
+- Use `-o json --auto-approve` for non-interactive or scripted execution.
 
 ## Safety Defaults
 

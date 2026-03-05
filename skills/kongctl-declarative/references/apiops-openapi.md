@@ -56,8 +56,9 @@ After generating or updating API config:
 kongctl diff -f <resources-path> --recursive --mode apply -o text
 ```
 
-When OpenAPI specs are outside the resources directory, add `--base-dir`:
+When OpenAPI specs are outside the resources directory, add `--base-dir`
+with the absolute project root:
 
 ```bash
-kongctl diff -f <resources-path> --recursive --base-dir . --mode apply -o text
+kongctl diff -f <resources-path> --recursive --base-dir "$(pwd)" --mode apply -o text
 ```

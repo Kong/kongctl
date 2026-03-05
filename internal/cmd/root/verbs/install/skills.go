@@ -12,7 +12,6 @@ import (
 	"time"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
-	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	skillassets "github.com/kong/kongctl/skills"
@@ -42,7 +41,6 @@ var toolIntegrations = []toolIntegration{
 
 type installSkillsOptions struct {
 	path   string
-	local  bool
 	dryRun bool
 }
 
@@ -96,12 +94,9 @@ func newInstallSkillsCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&opts.path, "path", "",
-		"Custom canonical directory for installed skill files.")
-	cmd.Flags().BoolVar(&opts.local, "local", false,
-		"Install to .kongctl/skills/ in the current directory instead of the global config location.")
+		"Custom directory for installed skill files (default: .kongctl/skills/ in current directory).")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false,
 		"Show planned writes without creating files.")
-	cmd.MarkFlagsMutuallyExclusive("path", "local")
 
 	return cmd
 }
@@ -160,8 +155,9 @@ func runInstallSkills(command *cobra.Command, args []string, opts installSkillsO
 	return nil
 }
 
-// resolveCanonicalDir determines the canonical directory for skill files
-// based on flag precedence: --path > --local > XDG default.
+// resolveCanonicalDir determines the canonical directory for skill files.
+// When --path is set it is used (resolved relative to cwd if not absolute).
+// Otherwise the default is .kongctl/skills/ under cwd.
 func resolveCanonicalDir(cwd string, opts installSkillsOptions) (string, error) {
 	if opts.path != "" {
 		trimmed := strings.TrimSpace(opts.path)
@@ -173,20 +169,7 @@ func resolveCanonicalDir(cwd string, opts installSkillsOptions) (string, error) 
 		}
 		return filepath.Clean(filepath.Join(cwd, trimmed)), nil
 	}
-	if opts.local {
-		return filepath.Clean(filepath.Join(cwd, localCanonicalSkillsPath)), nil
-	}
-	return defaultXDGSkillsDir()
-}
-
-// defaultXDGSkillsDir returns the skills directory under the kongctl config
-// path, following the same XDG_CONFIG_HOME resolution as the rest of the CLI.
-func defaultXDGSkillsDir() (string, error) {
-	configPath, err := config.GetDefaultConfigPath()
-	if err != nil {
-		return "", fmt.Errorf("cannot determine config directory: %w", err)
-	}
-	return filepath.Join(configPath, "skills"), nil
+	return filepath.Clean(filepath.Join(cwd, localCanonicalSkillsPath)), nil
 }
 
 // planSymlinks computes the symlinks to create for each skill in each tool
@@ -497,8 +480,9 @@ func printSkillsInstallSummary(out io.Writer, cwd string, result skillsInstallRe
 		}
 	}
 
-	for _, f := range result.WrittenFiles {
-		if _, err := fmt.Fprintf(out, "  %s\n", relativizeOrKeep(cwd, f)); err != nil {
+	for _, name := range result.SkillNames {
+		skillDir := filepath.Join(result.CanonicalDir, name)
+		if _, err := fmt.Fprintf(out, "  %s\n", relativizeOrKeep(cwd, skillDir)); err != nil {
 			return err
 		}
 	}
@@ -515,7 +499,7 @@ func printSkillsInstallSummary(out io.Writer, cwd string, result skillsInstallRe
 		}
 		prompts := []string{
 			`"Show me my Kong Konnect control planes"`,
-			`"Generate declarative config for a portal with two APIs from my OpenAPI specs"`,
+			`"Help me setup declarative configuration for Kong Konnect with kongctl using my openapi spec"`,
 		}
 		for _, p := range prompts {
 			if _, err := fmt.Fprintf(out, "  %s\n", p); err != nil {

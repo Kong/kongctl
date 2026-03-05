@@ -88,6 +88,8 @@ structure from live data using:
 - Treat `delete` as destructive because it deletes input configuration
   resources.
 - Use `apply` for create/update workflows when the user asks to execute.
+- Use `-o text` for interactive mutating commands. `-o json` and `-o yaml`
+  require `--auto-approve` or `--dry-run` on `apply`, `sync`, and `delete`.
 - Use `adopt` only to bring unmanaged resources into namespace management.
 - `adopt` only adds the `KONGCTL-namespace` label to the target resource.
 - Prefer `!ref` for cross-resource IDs and `!file` for large spec or
@@ -103,7 +105,11 @@ structure from live data using:
 - When non-resource YAML files coexist in a directory, use multiple `-f`
   flags pointing to individual resource files instead of `--recursive`:
   `kongctl diff -f resources/apis.yaml -f resources/portals.yaml --mode apply`
-- Keep `!file` paths within the configured base directory boundary.
+- `!file` paths resolve relative to the YAML file they appear in, not the
+  project root. Calculate the relative path from the config file to the
+  target file (e.g. `../../openapi.yaml` from `konnect/resources/apis.yaml`).
+- `--base-dir` sets the allowed boundary for `!file` resolution but does
+  not change the resolution base. Keep `!file` targets within the boundary.
 - Put `kongctl` metadata only on parent resources.
 - Use `_defaults.kongctl.namespace` for consistent file-level ownership.
 - Do not require `docs/declarative*.md` to complete tasks.
@@ -141,9 +147,13 @@ Use this quick decision rule:
 Use this quick decision rule:
 
 - Use User-run mode when the user asks "how do I do this" or asks for commands.
-- Use Agent-run mode when the user asks the agent to run changes now.
+- Use Agent-run mode when the user asks to set up, create, or apply.
 - If intent is ambiguous, provide a safe preview command first and state that
   you can execute the mutating command on request.
+- Do not ask clarifying questions when sensible defaults can be inferred
+  from context (e.g. derive namespace from project name, include standard
+  resources like control plane + portal + API). Proceed with defaults and
+  let the user adjust afterward.
 
 ### Konnect Configuration Directory Discovery
 
@@ -216,10 +226,12 @@ apis:
 ```
 
 When OpenAPI `!file` paths point outside the resources directory, set
-`--base-dir` to the project root so the paths resolve correctly:
+`--base-dir` to the absolute project root so paths resolve correctly.
+Relative `--base-dir` values resolve from the config file directory, not
+cwd, so always use an absolute path:
 
 ```bash
-kongctl diff -f konnect/resources --recursive --base-dir . --mode apply -o text
+kongctl diff -f konnect/resources --recursive --base-dir "$(pwd)" --mode apply -o text
 ```
 
 Use `--recursive` when the `-f` target is a directory.

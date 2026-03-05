@@ -46,8 +46,8 @@ Symptom: file not found or base-dir boundary violation.
 Actions:
 
 - Verify path is relative to the declarative config file.
-- Prefer setting an explicit base directory that includes existing spec paths:
-  `kongctl plan -f <path> --base-dir <root> --mode apply -o json`
+- Set an absolute base directory that includes existing spec paths:
+  `kongctl plan -f <path> --base-dir "$(pwd)" --mode apply -o json`
 - Move spec files only when the user explicitly asks to change layout.
 
 ### Unexpected Deletes in Sync

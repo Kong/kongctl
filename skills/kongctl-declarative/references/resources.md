@@ -237,8 +237,9 @@ kongctl diff -f <path> --recursive --mode apply -o text
 ```
 
 When `!file` tags reference files outside the `-f` directory, add
-`--base-dir <project-root>` so paths resolve correctly:
+`--base-dir` with the absolute project root path. Relative `--base-dir`
+values resolve from the config file directory, not cwd:
 
 ```bash
-kongctl diff -f <path> --recursive --base-dir . --mode apply -o text
+kongctl diff -f <path> --recursive --base-dir "$(pwd)" --mode apply -o text
 ```
