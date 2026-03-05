@@ -138,13 +138,8 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 		var oidcConfig kkComps.AppAuthStrategyConfigOpenIDConnect
 		if configData, ok := getConfigByKey(temp.Configs, "openid-connect", "openid_connect"); ok {
 			configData = normalizeOIDCConfig(configData)
-
-			configBytes, err := json.Marshal(configData)
-			if err != nil {
-				return fmt.Errorf("failed to marshal openid-connect config: %w", err)
-			}
-			if err := json.Unmarshal(configBytes, &oidcConfig); err != nil {
-				return fmt.Errorf("failed to unmarshal openid-connect config: %w", err)
+			if err := remarshalConfig(configData, &oidcConfig, "openid-connect"); err != nil {
+				return err
 			}
 		}
 
@@ -164,12 +159,8 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 		// Create Key Auth request
 		var keyAuthConfig kkComps.AppAuthStrategyConfigKeyAuth
 		if configData, ok := getConfigByKey(temp.Configs, "key-auth", "key_auth"); ok {
-			configBytes, err := json.Marshal(configData)
-			if err != nil {
-				return fmt.Errorf("failed to marshal key-auth config: %w", err)
-			}
-			if err := json.Unmarshal(configBytes, &keyAuthConfig); err != nil {
-				return fmt.Errorf("failed to unmarshal key-auth config: %w", err)
+			if err := remarshalConfig(configData, &keyAuthConfig, "key-auth"); err != nil {
+				return err
 			}
 		}
 
@@ -189,6 +180,19 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("unsupported strategy_type: %s", temp.StrategyType)
 	}
 
+	return nil
+}
+
+// remarshalConfig converts config data through a JSON round-trip to populate typed structs.
+// This ensures any map[string]any config is properly converted to the target type.
+func remarshalConfig(configData any, target any, configType string) error {
+	configBytes, err := json.Marshal(configData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal %s config: %w", configType, err)
+	}
+	if err := json.Unmarshal(configBytes, target); err != nil {
+		return fmt.Errorf("failed to unmarshal %s config: %w", configType, err)
+	}
 	return nil
 }
 
