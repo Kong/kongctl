@@ -33,9 +33,9 @@ Symptom: file not found or base-dir boundary violation.
 Actions:
 
 - Verify path is relative to the declarative config file.
-- Keep referenced files inside the configured base directory.
-- Set explicit boundary when needed:
+- Prefer setting an explicit base directory that includes existing spec paths:
   `kongctl plan -f <path> --base-dir <root> --mode apply -o json`
+- Move spec files only when the user explicitly asks to change layout.
 
 ### Unexpected Deletes in Sync
 
@@ -57,6 +57,35 @@ Actions:
 - If namespace label already exists, align `_defaults.kongctl.namespace`
   with the existing owner.
 - Use adopt only for unmanaged resources you intend to manage declaratively.
+
+### Dump Output Missing KONGCTL Labels
+
+Symptom: dumped YAML does not contain `KONGCTL-namespace` labels even though
+the resource was adopted.
+
+This is expected behavior — `dump` filters out KONGCTL metadata labels by
+design. Use `--default-namespace` to add a `_defaults.kongctl` block to the
+output instead.
+
+### Dump Ref Values Are UUIDs
+
+Symptom: dumped `ref` fields contain UUIDs instead of human-friendly names.
+
+This is expected — `dump` uses the resource UUID as the default `ref`. Replace
+UUID refs with meaningful names during integration into the declarative config
+repository.
+
+### Drift After Adopt and Dump
+
+Symptom: `diff` shows unexpected changes after integrating dumped config.
+
+Actions:
+
+- Ensure adopt ran before dump so the resource is labeled.
+- Run `kongctl get <resource-type> <name> -o json` to compare live state
+  against the dumped config.
+- Check that `_defaults.kongctl.namespace` in the config matches the
+  namespace used in the adopt command.
 
 ### Output or Profile Confusion
 

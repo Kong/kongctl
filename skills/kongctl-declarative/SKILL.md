@@ -3,13 +3,13 @@ name: kongctl-declarative
 description: Use this skill to author, organize, and operate kongctl declarative
   configuration for Konnect resources. Generate new declarative manifests from
   user requests or OpenAPI specs, teach users how to manage Konnect resources
-  declaratively, and use plan/diff/apply/sync/delete/adopt workflows with
-  namespace guardrails.
+  declaratively, use plan/diff/apply/sync/delete/adopt workflows with
+  namespace guardrails, and scaffold GitHub Actions workflows for Konnect
+  APIOps CI/CD.
 license: Apache-2.0
 metadata:
   product: kongctl
   category: declarative
-  scope: declarative-config-management
 ---
 
 # kongctl declarative workflows
@@ -28,9 +28,10 @@ Choose the execution approach from user intent:
 
 - Confirm CLI is installed and runnable: `kongctl version`
 - Authenticate with one of:
-  - `export KONGCTL_DEFAULT_KONNECT_PAT=<token>`
-  - `kongctl login` # interactive browser based login flow
-- Select configuration profile when needed: `--profile <name>`
+  - `kongctl login` — preferred for interactive use (browser-based OAuth)
+  - `export KONGCTL_DEFAULT_KONNECT_PAT=<token>` — for non-interactive or CI
+- PAT tokens are sensitive credentials. Never echo, log, or commit them.
+  Prefer `kongctl login` for interactive sessions.
 - Verify command syntax when unsure:
   - `kongctl plan --help`
   - `kongctl dump declarative --help`
@@ -49,23 +50,29 @@ Choose the execution approach from user intent:
 Load only the reference file needed for the active task:
 
 - `references/commands.md`
-  - Use for command selection, plan vs inline execution, and safety flags.
+  - Use for command selection, plan based vs inline execution, and safety flags.
 - `references/resources.md`
   - Use for resource skeletons, `_defaults`, `!file`, and `!ref` patterns.
 - `references/troubleshooting.md`
   - Use for common failures and fast remediation steps.
+- `references/cicd-github-actions.md`
+  - Use for GitHub Actions workflow patterns for declarative CI/CD.
+- `references/apiops-openapi.md`
+  - Use for OpenAPI source-of-truth patterns for APIs and API versions.
 
 This skill is designed to be portable across repositories. Do not assume a
 local `docs/` directory exists.
 
 If field-level uncertainty remains after reading `references/`, discover
-structure from live data using `kongctl dump declarative`.
+structure from live data using:
+`kongctl dump declarative --resources=<resource-type>`.
 
 ## Operating Rules
 
 - Declarative execution is always plan-based in kongctl:
   - Explicit path: `plan` -> `diff --plan` -> `apply/sync --plan`
-  - Inline path: `apply -f`, `sync -f`, or `delete -f` (plan+execute inline)
+  - Inline path: `apply -f`, `sync -f`, or `delete -f` (plan+execute
+    happens in single shot)
 - Prefer instructional guidance when the user asks how to do a task:
   provide a concise command sequence and decision notes.
 - Execute commands directly when the user asks the agent to run them.
@@ -81,6 +88,10 @@ structure from live data using `kongctl dump declarative`.
 - `adopt` only adds the `KONGCTL-namespace` label to the target resource.
 - Prefer `!ref` for cross-resource IDs and `!file` for large spec or
   doc content.
+- For `apis` and `apis.versions`, treat OpenAPI files as source of truth:
+  derive fields from `!file` extraction and avoid stale duplicated literals.
+- Use existing OpenAPI file paths from the user repository. Do not require a
+  `konnect/resources/specs` layout.
 - Keep `!file` paths within the configured base directory boundary.
 - Put `kongctl` metadata only on parent resources.
 - Use `_defaults.kongctl.namespace` for consistent file-level ownership.
@@ -140,8 +151,9 @@ konnect/resources/
   control-planes.yaml
   portals.yaml
   apis.yaml
-  specs/
 ```
+
+For APIOps API modeling, load `references/apiops-openapi.md`.
 
 ## Pattern: Bootstrap control plane, portal, and APIs
 
@@ -180,31 +192,19 @@ portals:
 
 apis:
   - ref: payments-api
-    name: !file ./specs/payments-openapi.yaml#info.title
-    description: !file ./specs/payments-openapi.yaml#info.description
+    name: !file <existing-openapi-path>#info.title
+    description: !file <existing-openapi-path>#info.description
     versions:
       - ref: payments-v1
-        version: !file ./specs/payments-openapi.yaml#info.version
-        spec: !file ./specs/payments-openapi.yaml
+        version: !file <existing-openapi-path>#info.version
+        spec: !file <existing-openapi-path>
     publications:
       - ref: payments-publication
         portal_id: !ref dev-portal#id
         visibility: public
 ```
 
-Verification commands:
-
-```bash
-kongctl plan -f <konnect-resources-path> --recursive --mode apply -o json
-kongctl diff -f <konnect-resources-path> --recursive --mode apply -o text
-```
-
-Inline execution commands:
-
-```bash
-kongctl apply -f <konnect-resources-path> --recursive --dry-run -o text
-kongctl apply -f <konnect-resources-path> --recursive -o text
-```
+Use `references/commands.md` for validation and execution command patterns.
 
 ## Pattern: Generate API config from an OpenAPI spec
 
@@ -217,80 +217,121 @@ Steps:
 
 1. Choose target files under the existing resources tree, such as:
    - `<resources>/apis/<api-name>.yaml`
-   - `<resources>/specs/<api-name>/openapi.yaml`
-2. Preserve existing repo conventions when a layout already exists.
-3. Reference spec fields with `!file` extraction.
-4. Keep spec files inside the base-dir boundary or set `--base-dir`.
-5. Validate and execute based on requested style.
-6. In User-run mode, include where files were written and why.
+2. Reference existing OpenAPI spec paths in the repository. Do not require
+   copying specs under the declarative resources directory.
+3. Preserve existing repo conventions when a layout already exists.
+4. Reference spec fields with `!file` extraction.
+5. Keep spec files inside the base-dir boundary or set `--base-dir`.
+6. Validate and execute based on requested style.
+7. In User-run mode, include where files were written and why.
 
-Starter API block:
+Load `references/apiops-openapi.md` for the canonical API YAML template and
+`references/commands.md` for validation and execution commands.
 
-```yaml
-apis:
-  - ref: my-api
-    name: !file ./specs/my-api/openapi.yaml#info.title
-    description: !file ./specs/my-api/openapi.yaml#info.description
-    version: !file ./specs/my-api/openapi.yaml#info.version
-    versions:
-      - ref: my-api-v1
-        version: !file ./specs/my-api/openapi.yaml#info.version
-        spec: !file ./specs/my-api/openapi.yaml
-```
-
-Validation command:
-
-```bash
-kongctl plan -f <api-config-file-or-dir> --mode apply -o json
-```
-
-Inline execution command:
-
-```bash
-kongctl apply -f <api-config-file-or-dir> --dry-run -o text
-```
-
-## Pattern: Dump a portal and adopt it
+## Pattern: Adopt existing resources into declarative management
 
 Use for prompts like:
 
-- Dump portal `My Dev Portal` into `@path/to/new/portalfile.yaml` and adopt it
-  into declarative management.
+- Adopt portal `My Dev Portal` and start managing it declaratively.
+- I have resources in Konnect that I created in the UI. How do I bring them
+  under kongctl?
+- Dump my existing control plane into declarative config.
+
+This pattern applies to any parent resource type (portal, api, control_plane,
+etc.), not just portals.
+
+### Background
+
+Resources created outside kongctl (e.g. via the Konnect UI) do not have a
+`KONGCTL-namespace` label. The declarative engine uses this label to track
+which resources it manages and which namespace they belong to. To bring an
+existing resource under declarative management:
+
+1. **Adopt** adds the `KONGCTL-namespace` label to the live resource.
+2. **Dump** exports the live resource state as declarative YAML.
+3. **Integrate** the dumped config into the repository's declarative files.
+4. **Verify** with `diff` to confirm zero drift.
+
+Adopt must come before dump so the resource is labeled as managed before
+generating config.
+
+### Steps
+
+1. Identify the target resource name (or ID) and choose a namespace.
+2. Adopt the resource into the namespace:
+   ```bash
+   kongctl adopt <resource-type> <name-or-id> \
+     --namespace <namespace> -o json
+   ```
+   This only adds the `KONGCTL-namespace` label — it does not modify the
+   resource configuration.
+3. Dump the resource to declarative YAML:
+   ```bash
+   kongctl dump declarative \
+     --resources=<type> \
+     --filter-name "<name>" \
+     --include-child-resources \
+     --default-namespace <namespace> \
+     -o yaml \
+     --output-file <output-path>
+   ```
+4. Integrate the dumped output into existing declarative files:
+   - Replace the UUID-based `ref` values with human-friendly names.
+   - Replace hard-coded UUIDs with `!ref` where the referenced resource is
+     also managed declaratively (e.g. `portal_id: !ref dev-portal#id`).
+   - Merge into existing resource files or create new ones following the
+     repository layout conventions.
+   - Ensure `_defaults.kongctl.namespace` matches the adopt namespace.
+5. Verify zero drift:
+   ```bash
+   kongctl diff -f <resources-path> --mode apply -o text
+   ```
+   A clean diff confirms the dumped config matches live state.
+6. In User-run mode, explain that `adopt` only labels — it does not change
+   any resource fields.
+
+### Dump output behavior
+
+- `dump` sets `ref` to the resource UUID. Replace with meaningful names.
+- `dump` filters out `KONGCTL-namespace` labels from output by design.
+- `--default-namespace` adds a `_defaults.kongctl` block to the output.
+- `--include-child-resources` includes nested resources (pages, snippets,
+  versions, etc.).
+- Use `--filter-name` or `--filter-id` to scope to a specific resource.
+
+If names are ambiguous, use `--filter-id` for both adopt and dump.
+
+## Pattern: Build GitHub Actions workflow for declarative CI/CD
+
+Use for prompts like:
+
+- Create a GitHub Actions workflow that validates and syncs Konnect
+  declarative resources.
+- Add CI/CD automation that installs `kongctl` and `deck` and runs the
+  repository sync script.
 
 Steps:
 
-1. Dump the target portal config to YAML.
-2. Adopt the live portal into the same namespace.
-3. Add dumped file into the repo's declarative resource set.
-4. Run `diff` or `plan` to confirm no unexpected drift.
-5. In User-run mode, call out that `adopt` labels ownership only.
+1. Decide trigger model from user intent:
+   - Pull request validation: run plan/diff only (no mutations).
+   - Branch deploy workflow: run apply/sync or a repo wrapper script.
+2. Use standard setup actions:
+   - `actions/checkout@v4`
+   - `kong/setup-kongctl@v1`
+   - `kong/setup-deck@v1` (when deck is required)
+3. Configure authentication using repository secrets and workflow env.
+4. Restrict execution with path filters, for example `konnect/**`.
+5. Upload execution artifacts with `if: always()` for debugging and audits.
+6. In User-run mode, explain required secrets and expected script behavior.
 
-Commands:
-
-```bash
-kongctl dump declarative \
-  --resources=portal \
-  --filter-name "My Dev Portal" \
-  --include-child-resources \
-  --default-namespace <namespace> \
-  -o yaml \
-  --output-file <path/to/new/portalfile.yaml>
-
-kongctl adopt portal "My Dev Portal" --namespace <namespace> -o json
-
-kongctl diff -f <path/to/new/portalfile.yaml> --mode apply -o text
-```
-
-If names are ambiguous, use `--filter-id` for dump and adopt by ID.
+Load `references/cicd-github-actions.md` for starter workflow templates,
+trigger patterns, auth conventions, and validation workflow examples.
 
 ## Safety and Troubleshooting
 
-- If `!file` fails with boundary errors, move files under the Konnect
-  configuration directory or set `--base-dir`.
-- If validation fails for unknown fields, verify names in
-  `references/resources.md`.
-- If adoption fails because namespace already exists, align
-  `_defaults.kongctl.namespace` with the existing label.
-- If `plan` includes unexpected deletes, use `--mode apply` or tighten
-  scope with `--require-namespace`.
 - Use `--dry-run` for `apply`, `sync`, and `delete` before executing changes.
+- If `!file` fails with boundary errors, set `--base-dir` to include spec
+  paths rather than moving files.
+- If `plan` includes unexpected deletes, use `--mode apply` or tighten scope
+  with `--require-namespace`.
+- Load `references/troubleshooting.md` for detailed remediation steps.

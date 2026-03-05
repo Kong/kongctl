@@ -7,7 +7,6 @@ license: Apache-2.0
 metadata:
   product: kongctl
   category: query
-  scope: read-only
 ---
 
 # kongctl query commands
@@ -21,8 +20,10 @@ concise, structured results.
 
 - Confirm CLI is installed and runnable: `kongctl version`
 - Authenticate with one of:
-  - `export KONGCTL_DEFAULT_KONNECT_PAT=<token>` # User set token, <DEFAULT> is the config profile name
-  - `kongctl login` # Interactive browser based login, only guide the user to use this
+  - `kongctl login` — preferred for interactive use (browser-based OAuth)
+  - `export KONGCTL_DEFAULT_KONNECT_PAT=<token>` — for non-interactive or CI
+- PAT tokens are sensitive credentials. Never echo, log, or commit them.
+  Prefer `kongctl login` for interactive sessions.
 - Select configuration profile when needed: `--profile <name>`
 - Optionally verify identity and access when network calls are expected:
   `kongctl get me -o json`
@@ -30,7 +31,7 @@ concise, structured results.
 ## Config and Environment Overrides
 
 - `kongctl` flags can be defaulted by profile config and environment variables.
-- Environment variable pattern: `KONGCTL_<PROFILE>_<PATH>`.
+- Environment variable pattern: `KONGCTL_<PROFILE>_<PATH>` 
 - Example: `KONGCTL_DEFAULT_OUTPUT=yaml` sets `--output` default for the
   `default` profile.
 - For this skill, pass explicit `-o json` or `-o yaml` on query commands to
@@ -45,7 +46,8 @@ concise, structured results.
 - Prefer `get`, `list`, and `help` commands.
 - Do not run mutating commands such as `create`, `apply`, `patch`, `delete`,
   or `adopt`.
-- Hand off mutation requests to a different skill/workflow.
+- Hand off mutation requests to the `kongctl-declarative` skill for
+  plan/apply/sync/delete/adopt workflows.
 
 ## Workflow
 
@@ -170,7 +172,7 @@ kongctl get me -o json --jq '{id, email}'
 
 ## Failure Handling
 
-- If `kongctl` is missing, request installation and rerun preflight checks.
+- If `kongctl` is missing, request installation (https://developer.konghq.com/kongctl/) and rerun preflight checks.
 - If authentication fails, have user run `kongctl login` or set
   `KONGCTL_DEFAULT_KONNECT_PAT`.
 - If a command fails with `--jq is only supported with --output json or --output yaml`,

@@ -10,11 +10,11 @@ konnect/resources/
   control-planes.yaml
   portals.yaml
   apis.yaml
-  specs/
-  docs/
 ```
 
 Match existing repository conventions when a layout already exists.
+Do not require OpenAPI specs to be placed under the declarative resources
+directory.
 
 ## Top-Level Resource Keys
 
@@ -59,8 +59,8 @@ Resource-level `kongctl` values override `_defaults`.
 Examples:
 
 ```yaml
-name: !file ./specs/openapi.yaml#info.title
-description: !file ./specs/openapi.yaml#info.description
+name: !file <existing-openapi-path>#info.title
+description: !file <existing-openapi-path>#info.description
 portal_id: !ref dev-portal#id
 ```
 
@@ -156,12 +156,12 @@ Example using OpenAPI:
 ```yaml
 apis:
   - ref: payments-api
-    name: !file ./specs/payments-openapi.yaml#info.title
-    description: !file ./specs/payments-openapi.yaml#info.description
+    name: !file <existing-openapi-path>#info.title
+    description: !file <existing-openapi-path>#info.description
     versions:
       - ref: payments-v1
-        version: !file ./specs/payments-openapi.yaml#info.version
-        spec: !file ./specs/payments-openapi.yaml
+        version: !file <existing-openapi-path>#info.version
+        spec: !file <existing-openapi-path>
     publications:
       - ref: payments-pub
         portal_id: !ref dev-portal#id

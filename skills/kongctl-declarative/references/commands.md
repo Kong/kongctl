@@ -45,6 +45,59 @@ Use these intent mappings:
 9. Adopt unmanaged resource into a namespace
    `kongctl adopt <resource> <name-or-id> --namespace <namespace> -o json`
 
+## Adopt Command Detail
+
+`kongctl adopt` labels an existing Konnect resource with
+`KONGCTL-namespace: <namespace>` so the declarative engine recognizes it as
+managed. Adopt does not modify any resource fields — it only sets the label.
+
+```bash
+kongctl adopt <resource-type> <name-or-id> --namespace <namespace> -o json
+```
+
+- `<resource-type>`: parent resource type (e.g. `portal`, `api`,
+  `control-plane`)
+- `<name-or-id>`: resource name or UUID
+- `--namespace`: the declarative namespace to assign
+
+Adopt must run before dump when bringing an existing resource under
+declarative management.
+
+## Dump Command Detail
+
+`kongctl dump declarative` exports live Konnect resource state as declarative
+YAML suitable for use with `plan`, `apply`, and `sync`.
+
+```bash
+kongctl dump declarative \
+  --resources=<type> \
+  --filter-name "<name>" \
+  --include-child-resources \
+  --default-namespace <namespace> \
+  -o yaml \
+  --output-file <path>
+```
+
+Key flags:
+
+- `--resources=<type>`: resource type to dump (e.g. `portal`, `api`,
+  `control_planes`)
+- `--filter-name "<name>"`: scope to a single resource by name
+- `--filter-id "<uuid>"`: scope to a single resource by ID
+- `--include-child-resources`: include nested child resources
+- `--default-namespace <ns>`: add `_defaults.kongctl.namespace` block to
+  output
+- `--output-file <path>`: write output to a file instead of stdout
+- `-o yaml`: output format (yaml is standard for declarative config)
+
+Output behavior:
+
+- `ref` values default to the resource UUID. Replace with human-friendly
+  names during integration.
+- `KONGCTL-namespace` labels are filtered from output by design.
+- `--default-namespace` adds a `_defaults.kongctl` block rather than
+  per-resource `kongctl` metadata.
+
 ## Plan Modes
 
 - `--mode apply`: Create and update only.
