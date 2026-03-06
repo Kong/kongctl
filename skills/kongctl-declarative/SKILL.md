@@ -1,11 +1,10 @@
 ---
 name: kongctl-declarative
-description: Use this skill to author, organize, and operate kongctl declarative
-  configuration for Konnect resources. Generate new declarative manifests from
-  user requests or OpenAPI specs, teach users how to manage Konnect resources
-  declaratively, use plan/diff/apply/sync/delete/adopt workflows with
-  namespace guardrails, and scaffold GitHub Actions workflows for Konnect
-  APIOps CI/CD.
+description: Set up, initialize, and manage kongctl declarative configuration
+  for Kong Konnect. Use when the user wants to configure a repository with
+  Konnect declarative resources, create kongctl manifests (control planes,
+  portals, APIs), generate config from OpenAPI specs, run plan/diff/apply/sync
+  /delete/adopt workflows, or scaffold CI/CD pipelines for Konnect APIOps.
 license: Apache-2.0
 metadata:
   product: kongctl
@@ -368,3 +367,11 @@ trigger patterns, auth conventions, and validation workflow examples.
 - If `plan` includes unexpected deletes, use `--mode apply` or tighten scope
   with `--require-namespace`.
 - Load `references/troubleshooting.md` for detailed remediation steps.
+
+## Online Documentation
+
+If this skill's references are not sufficient, consult or direct users to:
+
+- kongctl docs: https://developer.konghq.com/kongctl/
+- Declarative guide: https://github.com/Kong/kongctl/blob/main/docs/declarative.md
+- Resource reference: https://github.com/Kong/kongctl/blob/main/docs/declarative-resource-reference.md

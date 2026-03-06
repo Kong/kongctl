@@ -1,8 +1,9 @@
 ---
 name: kongctl-query
-description: Use this skill to inspect Kong Konnect resources with read-only
-  kongctl commands. List and retrieve resource state, validate authenticated user,
-  discover commands and usage, and format outputs as text, json, or yaml.
+description: Inspect and query Kong Konnect resources with read-only kongctl
+  commands. Use when the user wants to list, get, or check Konnect resources
+  (portals, APIs, control planes), verify authentication, discover kongctl
+  commands, or format output as text, json, or yaml.
 license: Apache-2.0
 metadata:
   product: kongctl
@@ -184,3 +185,9 @@ kongctl get me -o json --jq '{id, email}'
 - If access is denied, report the exact command and resource.
 - If no resources are found, report an empty result without treating it as an
   execution error.
+
+## Online Documentation
+
+If this skill's guidance is not sufficient, consult or direct users to:
+
+- kongctl docs: https://developer.konghq.com/kongctl/

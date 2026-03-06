@@ -98,14 +98,14 @@ func TestResolveCanonicalDirCustomAbsPath(t *testing.T) {
 
 func TestPlanSymlinksSkipsCanonicalDir(t *testing.T) {
 	cwd := t.TempDir()
-	canonicalDir := filepath.Join(cwd, ".agent", "skills")
+	canonicalDir := filepath.Join(cwd, ".agents", "skills")
 	skills := []string{"kongctl-query", "kongctl-declarative"}
 
 	planned := planSymlinks(cwd, canonicalDir, skills)
 
 	for _, link := range planned {
 		assert.NotContains(t, link.Tools, "codex",
-			"should skip .agent/skills/ when it matches canonical dir")
+			"should skip .agents/skills/ when it matches canonical dir")
 	}
 	var claudeLinks []plannedSymlink
 	for _, link := range planned {
@@ -143,7 +143,7 @@ func TestCheckSymlinkConflictsDetectsExistingDirectory(t *testing.T) {
 	cwd := t.TempDir()
 	canonicalDir := filepath.Join(cwd, ".kongctl", "skills")
 
-	conflictDir := filepath.Join(cwd, ".agent", "skills", "kongctl-query")
+	conflictDir := filepath.Join(cwd, ".agents", "skills", "kongctl-query")
 	require.NoError(t, os.MkdirAll(conflictDir, 0o755))
 
 	planned := planSymlinks(cwd, canonicalDir, []string{"kongctl-query"})
@@ -213,7 +213,7 @@ func TestCreateToolSymlinksDryRunNoOp(t *testing.T) {
 }
 
 func TestIsMatchingSymlinkRelativeAndAbsolute(t *testing.T) {
-	linkPath := "/project/.agent/skills/my-skill"
+	linkPath := "/project/.agents/skills/my-skill"
 	target := "/project/.kongctl/skills/my-skill"
 
 	assert.True(t, isMatchingSymlink(linkPath, target, target),

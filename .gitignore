@@ -52,5 +52,5 @@ __pycache__/
 .github/aw/logs/
 
 # Agent tool integration dirs (created by kongctl install skills)
-.agents/skills/
-.claude/skills/
+.agents/skills/kongctl-*
+.claude/skills/kongctl-*

@@ -35,7 +35,7 @@ type toolIntegration struct {
 // skill install location. Each entry corresponds to a set of agent tools
 // that read skills from that path.
 var toolIntegrations = []toolIntegration{
-	{relPath: ".agent/skills", tools: "codex, cursor, opencode"},
+	{relPath: ".agents/skills", tools: "codex, cursor, opencode"},
 	{relPath: ".claude/skills", tools: "claude code"},
 }
 
