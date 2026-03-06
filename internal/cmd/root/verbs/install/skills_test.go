@@ -30,6 +30,18 @@ description: test
 	assert.Equal(t, "v1.2.3", metadata["version"])
 }
 
+func TestInjectSkillMetadataVersionSupportsCRLF(t *testing.T) {
+	input := []byte("---\r\nname: sample-skill\r\ndescription: test\r\n---\r\n\r\n# body\r\n")
+
+	out, err := injectSkillMetadataVersion(input, "v1.2.3")
+	require.NoError(t, err)
+
+	frontmatter := parseFrontmatterMap(t, out)
+	metadata, ok := frontmatter["metadata"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "v1.2.3", metadata["version"])
+}
+
 func TestInstallBundledSkillsWritesVersionedSkillsAndManifest(t *testing.T) {
 	canonicalDir := filepath.Join(t.TempDir(), ".kongctl", "skills")
 	now := time.Date(2026, 3, 4, 21, 30, 0, 0, time.UTC)
@@ -94,6 +106,20 @@ func TestResolveCanonicalDirCustomAbsPath(t *testing.T) {
 	dir, err := resolveCanonicalDir(cwd, installSkillsOptions{path: absPath})
 	require.NoError(t, err)
 	assert.Equal(t, absPath, dir)
+}
+
+func TestResolveDestinationPathWithinCanonicalDir(t *testing.T) {
+	canonicalDir := filepath.Join(t.TempDir(), ".kongctl", "skills")
+	destPath, err := resolveDestinationPath(canonicalDir, "kongctl-query/SKILL.md")
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(canonicalDir, "kongctl-query", "SKILL.md"), destPath)
+}
+
+func TestResolveDestinationPathRejectsTraversal(t *testing.T) {
+	canonicalDir := filepath.Join(t.TempDir(), ".kongctl", "skills")
+	_, err := resolveDestinationPath(canonicalDir, "../escape/SKILL.md")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "escapes canonical directory")
 }
 
 func TestPlanSymlinksSkipsCanonicalDir(t *testing.T) {

@@ -1,6 +1,7 @@
 package install
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -310,7 +311,10 @@ func installBundledSkills(
 			}
 		}
 
-		destPath := filepath.Join(canonicalDir, filepath.FromSlash(asset.RelPath))
+		destPath, err := resolveDestinationPath(canonicalDir, asset.RelPath)
+		if err != nil {
+			return skillsInstallResult{}, fmt.Errorf("resolve destination path for %q: %w", asset.RelPath, err)
+		}
 		result.WrittenFiles = append(result.WrittenFiles, destPath)
 
 		if dryRun {
@@ -349,6 +353,28 @@ func installBundledSkills(
 	}
 
 	return result, nil
+}
+
+func resolveDestinationPath(canonicalDir, relPath string) (string, error) {
+	cleanCanonical := filepath.Clean(canonicalDir)
+	cleanRel := filepath.Clean(filepath.FromSlash(relPath))
+	if cleanRel == "." || cleanRel == "" {
+		return "", fmt.Errorf("relative path cannot be empty")
+	}
+	if filepath.IsAbs(cleanRel) {
+		return "", fmt.Errorf("relative path must not be absolute")
+	}
+
+	destPath := filepath.Clean(filepath.Join(cleanCanonical, cleanRel))
+	relativeToCanonical, err := filepath.Rel(cleanCanonical, destPath)
+	if err != nil {
+		return "", fmt.Errorf("resolve relative path: %w", err)
+	}
+	if relativeToCanonical == ".." || strings.HasPrefix(relativeToCanonical, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("path escapes canonical directory")
+	}
+
+	return destPath, nil
 }
 
 func listBundledSkillAssets() ([]bundledSkillAsset, []string, error) {
@@ -437,7 +463,8 @@ func splitFrontmatter(content []byte) ([]byte, []byte, error) {
 	const opening = "---\n"
 	const separator = "\n---\n"
 
-	text := string(content)
+	normalized := bytes.ReplaceAll(content, []byte("\r\n"), []byte("\n"))
+	text := string(normalized)
 	if !strings.HasPrefix(text, opening) {
 		return nil, nil, fmt.Errorf("skill file missing YAML frontmatter opening delimiter")
 	}
