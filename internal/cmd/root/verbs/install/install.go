@@ -1,0 +1,54 @@
+package install
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/util/i18n"
+	"github.com/kong/kongctl/internal/util/normalizers"
+	"github.com/spf13/cobra"
+)
+
+const (
+	Verb = verbs.Install
+)
+
+var (
+	installUse = Verb.String()
+
+	installShort = i18n.T("root.verbs.install.short", "Install local kongctl integration assets")
+
+	installLong = normalizers.LongDesc(i18n.T("root.verbs.install.long",
+		`Install local assets that help coding agents work with Kong Konnect using kongctl.`))
+
+	installExamples = normalizers.Examples(i18n.T("root.verbs.install.examples",
+		fmt.Sprintf(`
+  # Install kongctl skills into the current repository
+  %[1]s install skills
+
+  # Show what would be written without changing files
+  %[1]s install skills --dry-run
+`, meta.CLIName)))
+)
+
+// NewInstallCmd builds the install verb.
+func NewInstallCmd() (*cobra.Command, error) {
+	cmd := &cobra.Command{
+		Use:     installUse,
+		Short:   installShort,
+		Long:    installLong,
+		Example: installExamples,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return cmd.Help()
+		},
+		PersistentPreRun: func(c *cobra.Command, _ []string) {
+			c.SetContext(context.WithValue(c.Context(), verbs.Verb, Verb))
+		},
+	}
+
+	cmd.AddCommand(newInstallSkillsCmd())
+
+	return cmd, nil
+}
