@@ -56,6 +56,7 @@ type ClientConfig struct {
 	EventGatewayVirtualClusterAPI       helpers.EventGatewayVirtualClusterAPI
 	EventGatewayListenerAPI             helpers.EventGatewayListenerAPI
 	EventGatewayListenerPolicyAPI       helpers.EventGatewayListenerPolicyAPI
+	EventGatewayClusterPolicyAPI        helpers.EventGatewayClusterPolicyAPI
 	EventGatewayDataPlaneCertificateAPI helpers.EventGatewayDataPlaneCertificateAPI
 
 	// Identity resources
@@ -96,6 +97,7 @@ type Client struct {
 	eventGatewayVirtualClusterAPI       helpers.EventGatewayVirtualClusterAPI
 	eventGatewayListenerAPI             helpers.EventGatewayListenerAPI
 	eventGatewayListenerPolicyAPI       helpers.EventGatewayListenerPolicyAPI
+	eventGatewayClusterPolicyAPI        helpers.EventGatewayClusterPolicyAPI
 	eventGatewayDataPlaneCertificateAPI helpers.EventGatewayDataPlaneCertificateAPI
 
 	// Organization resource APIs
@@ -137,6 +139,7 @@ func NewClient(config ClientConfig) *Client {
 		eventGatewayVirtualClusterAPI:       config.EventGatewayVirtualClusterAPI,
 		eventGatewayListenerAPI:             config.EventGatewayListenerAPI,
 		eventGatewayListenerPolicyAPI:       config.EventGatewayListenerPolicyAPI,
+		eventGatewayClusterPolicyAPI:        config.EventGatewayClusterPolicyAPI,
 		eventGatewayDataPlaneCertificateAPI: config.EventGatewayDataPlaneCertificateAPI,
 
 		// Identity resource APIs
@@ -4273,6 +4276,159 @@ func (c *Client) GetEventGatewayListenerPolicy(
 	return &EventGatewayListenerPolicyInfo{
 		EventGatewayListenerPolicy: *resp.EventGatewayListenerPolicy,
 		NormalizedLabels:           normalized,
+	}, nil
+}
+
+// ---- Event Gateway Cluster Policy operations ----
+
+// EventGatewayClusterPolicyInfo wraps an Event Gateway Cluster Policy for internal use.
+type EventGatewayClusterPolicyInfo struct {
+	kkComps.EventGatewayPolicy
+	NormalizedLabels map[string]string
+}
+
+func (c *Client) ListEventGatewayClusterPolicies(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+) ([]EventGatewayClusterPolicyInfo, error) {
+	if err := ValidateAPIClient(c.eventGatewayClusterPolicyAPI, "event gateway cluster policy API"); err != nil {
+		return nil, err
+	}
+
+	req := kkOps.ListEventGatewayVirtualClusterClusterLevelPoliciesRequest{
+		GatewayID:        gatewayID,
+		VirtualClusterID: virtualClusterID,
+	}
+
+	res, err := c.eventGatewayClusterPolicyAPI.ListEventGatewayVirtualClusterClusterLevelPolicies(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "list event gateway cluster policies", nil)
+	}
+
+	if res.ListClusterPoliciesResponse == nil {
+		return []EventGatewayClusterPolicyInfo{}, nil
+	}
+
+	var policies []EventGatewayClusterPolicyInfo
+	for _, p := range res.ListClusterPoliciesResponse {
+		normalized := p.Labels
+		if normalized == nil {
+			normalized = make(map[string]string)
+		}
+		policies = append(policies, EventGatewayClusterPolicyInfo{
+			EventGatewayPolicy: p,
+			NormalizedLabels:   normalized,
+		})
+	}
+
+	return policies, nil
+}
+
+func (c *Client) CreateEventGatewayClusterPolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	req kkComps.EventGatewayClusterPolicyModify,
+	namespace string,
+) (string, error) {
+	createReq := kkOps.CreateEventGatewayVirtualClusterClusterLevelPolicyRequest{
+		GatewayID:                       gatewayID,
+		VirtualClusterID:                virtualClusterID,
+		EventGatewayClusterPolicyModify: &req,
+	}
+
+	resp, err := c.eventGatewayClusterPolicyAPI.CreateEventGatewayVirtualClusterClusterLevelPolicy(ctx, createReq)
+	if err != nil {
+		return "", WrapAPIError(err, "create event gateway cluster policy", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_cluster_policy",
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.EventGatewayPolicy, "create event gateway cluster policy"); err != nil {
+		return "", err
+	}
+
+	return resp.EventGatewayPolicy.ID, nil
+}
+
+func (c *Client) UpdateEventGatewayClusterPolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	policyID string,
+	req kkComps.EventGatewayClusterPolicyModify,
+	namespace string,
+) (string, error) {
+	updateReq := kkOps.UpdateEventGatewayVirtualClusterClusterLevelPolicyRequest{
+		GatewayID:                       gatewayID,
+		VirtualClusterID:                virtualClusterID,
+		PolicyID:                        policyID,
+		EventGatewayClusterPolicyModify: &req,
+	}
+
+	resp, err := c.eventGatewayClusterPolicyAPI.UpdateEventGatewayVirtualClusterClusterLevelPolicy(ctx, updateReq)
+	if err != nil {
+		return "", WrapAPIError(err, "update event gateway cluster policy", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_cluster_policy",
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	return resp.EventGatewayPolicy.ID, nil
+}
+
+func (c *Client) DeleteEventGatewayClusterPolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	policyID string,
+) error {
+	deleteReq := kkOps.DeleteEventGatewayVirtualClusterClusterLevelPolicyRequest{
+		GatewayID:        gatewayID,
+		VirtualClusterID: virtualClusterID,
+		PolicyID:         policyID,
+	}
+
+	_, err := c.eventGatewayClusterPolicyAPI.DeleteEventGatewayVirtualClusterClusterLevelPolicy(ctx, deleteReq)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway cluster policy", nil)
+	}
+	return nil
+}
+
+func (c *Client) GetEventGatewayClusterPolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	policyID string,
+) (*EventGatewayClusterPolicyInfo, error) {
+	req := kkOps.GetEventGatewayVirtualClusterClusterLevelPolicyRequest{
+		GatewayID:        gatewayID,
+		VirtualClusterID: virtualClusterID,
+		PolicyID:         policyID,
+	}
+
+	resp, err := c.eventGatewayClusterPolicyAPI.GetEventGatewayVirtualClusterClusterLevelPolicy(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway cluster policy", nil)
+	}
+
+	if resp.EventGatewayPolicy == nil {
+		return nil, nil
+	}
+
+	normalized := resp.EventGatewayPolicy.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	return &EventGatewayClusterPolicyInfo{
+		EventGatewayPolicy: *resp.EventGatewayPolicy,
+		NormalizedLabels:   normalized,
 	}, nil
 }
 

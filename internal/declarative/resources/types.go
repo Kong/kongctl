@@ -35,6 +35,7 @@ const (
 	ResourceTypeEventGatewayListener             ResourceType = "event_gateway_listener"
 	ResourceTypeEventGatewayListenerPolicy       ResourceType = "event_gateway_listener_policy"
 	ResourceTypeEventGatewayDataPlaneCertificate ResourceType = "event_gateway_data_plane_certificate"
+	ResourceTypeEventGatewayClusterPolicy        ResourceType = "event_gateway_cluster_policy"
 )
 
 const (
@@ -85,6 +86,7 @@ type ResourceSet struct {
 	OrganizationTeams                 []OrganizationTeamResource                 `yaml:"-" json:"-"`
 	EventGatewayListeners             []EventGatewayListenerResource             `yaml:"event_gateway_listeners,omitempty" json:"event_gateway_listeners,omitempty"`                             //nolint:lll
 	EventGatewayListenerPolicies      []EventGatewayListenerPolicyResource       `yaml:"event_gateway_listener_policies,omitempty" json:"event_gateway_listener_policies,omitempty"`             //nolint:lll
+	EventGatewayClusterPolicies       []EventGatewayClusterPolicyResource        `yaml:"event_gateway_cluster_policies,omitempty" json:"event_gateway_cluster_policies,omitempty"`               //nolint:lll
 	EventGatewayDataPlaneCertificates []EventGatewayDataPlaneCertificateResource `yaml:"event_gateway_data_plane_certificates,omitempty" json:"event_gateway_data_plane_certificates,omitempty"` //nolint:lll
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
@@ -713,4 +715,46 @@ func (rs *ResourceSet) GetDataPlaneCertificatesForGateway(
 	}
 
 	return certs
+}
+
+// GetClusterPoliciesForVirtualCluster returns all cluster policies (nested + root-level)
+// for a specific virtual cluster
+func (rs *ResourceSet) GetClusterPoliciesForVirtualCluster(
+	virtualClusterRef string,
+) []EventGatewayClusterPolicyResource {
+	var policies []EventGatewayClusterPolicyResource
+
+	// Add nested policies from the virtual cluster
+	// Virtual clusters can be nested inside event gateways or at root level
+	for _, gateway := range rs.EventGatewayControlPlanes {
+		for _, vc := range gateway.VirtualClusters {
+			if vc.Ref == virtualClusterRef {
+				for _, policy := range vc.ClusterPolicies {
+					policyCopy := policy
+					policyCopy.VirtualCluster = virtualClusterRef
+					policies = append(policies, policyCopy)
+				}
+			}
+		}
+	}
+
+	// Check root-level virtual clusters
+	for _, vc := range rs.EventGatewayVirtualClusters {
+		if vc.Ref == virtualClusterRef {
+			for _, policy := range vc.ClusterPolicies {
+				policyCopy := policy
+				policyCopy.VirtualCluster = virtualClusterRef
+				policies = append(policies, policyCopy)
+			}
+		}
+	}
+
+	// Add root-level cluster policies for this virtual cluster
+	for _, policy := range rs.EventGatewayClusterPolicies {
+		if policy.VirtualCluster == virtualClusterRef {
+			policies = append(policies, policy)
+		}
+	}
+
+	return policies
 }

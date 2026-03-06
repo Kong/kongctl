@@ -73,6 +73,9 @@ const (
 	// ResourceTypeEventGatewayDataPlaneCertificate is the resource type for event gateway data plane certificates
 	ResourceTypeEventGatewayDataPlaneCertificate = "event_gateway_data_plane_certificate"
 
+	// ResourceTypeEventGatewayClusterPolicy is the resource type for event gateway cluster-level policies
+	ResourceTypeEventGatewayClusterPolicy = "event_gateway_cluster_policy"
+
 	// ResourceTypeDeck represents an internal deck execution step.
 	ResourceTypeDeck = "_deck"
 )

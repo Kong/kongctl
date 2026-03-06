@@ -39,8 +39,9 @@ func (p *Planner) planEventGatewayVirtualClusterChanges(
 	}
 
 	// Gateway doesn't exist: plan creates only with dependency on gateway creation
-	p.planVirtualClusterCreatesForNewGateway(namespace, gatewayRef, gatewayName, gatewayChangeID, desired, plan)
-	return nil
+	return p.planVirtualClusterCreatesForNewGateway(
+		ctx, namespace, gatewayRef, gatewayName, gatewayChangeID, desired, plan,
+	)
 }
 
 // planVirtualClusterChangesForExistingGateway handles full diff for clusters of an existing gateway
@@ -87,7 +88,21 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 				"cluster_name", desiredCluster.Name,
 				"gateway_ref", gatewayRef,
 			)
-			p.planVirtualClusterCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredCluster, []string{}, plan)
+			virtualClusterChangeID := p.planVirtualClusterCreate(
+				namespace, gatewayRef, gatewayName, gatewayID, desiredCluster, []string{}, plan,
+			)
+
+			// Plan cluster policies for this new virtual cluster (depends on virtual cluster creation)
+			clusterPolicies := p.resources.GetClusterPoliciesForVirtualCluster(desiredCluster.Ref)
+			if len(clusterPolicies) > 0 {
+				if err := p.planEventGatewayClusterPolicyChanges(
+					ctx, nil, namespace, gatewayID, gatewayRef,
+					desiredCluster.Name, "", desiredCluster.Ref,
+					virtualClusterChangeID, clusterPolicies, plan,
+				); err != nil {
+					return err
+				}
+			}
 		} else {
 			// CHECK UPDATE
 			p.logger.Debug("Checking if virtual cluster needs update",
@@ -113,6 +128,18 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 					namespace, gatewayRef, gatewayName, gatewayID,
 					current.ID, desiredCluster, updateFields, changedFields, plan)
 			}
+
+			// Plan cluster policies for this existing virtual cluster
+			clusterPolicies := p.resources.GetClusterPoliciesForVirtualCluster(desiredCluster.Ref)
+			if len(clusterPolicies) > 0 || plan.Metadata.Mode == PlanModeSync {
+				if err := p.planEventGatewayClusterPolicyChanges(
+					ctx, nil, namespace, gatewayID, gatewayRef,
+					desiredCluster.Name, current.ID, desiredCluster.Ref,
+					"", clusterPolicies, plan,
+				); err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -134,13 +161,14 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 
 // planVirtualClusterCreatesForNewGateway plans creates for clusters when the gateway doesn't exist yet
 func (p *Planner) planVirtualClusterCreatesForNewGateway(
+	ctx context.Context,
 	namespace string,
 	gatewayRef string,
 	gatewayName string,
 	gatewayChangeID string,
 	clusters []resources.EventGatewayVirtualClusterResource,
 	plan *Plan,
-) {
+) error {
 	p.logger.Debug("Planning virtual cluster creates for new gateway",
 		"gateway_ref", gatewayRef,
 		"gateway_change_id", gatewayChangeID,
@@ -154,11 +182,28 @@ func (p *Planner) planVirtualClusterCreatesForNewGateway(
 	}
 
 	for _, cluster := range clusters {
-		p.planVirtualClusterCreate(namespace, gatewayRef, gatewayName, "", cluster, dependsOn, plan)
+		virtualClusterChangeID := p.planVirtualClusterCreate(
+			namespace, gatewayRef, gatewayName, "", cluster, dependsOn, plan,
+		)
+
+		// Plan cluster policies for this new virtual cluster (depends on virtual cluster creation)
+		clusterPolicies := p.resources.GetClusterPoliciesForVirtualCluster(cluster.Ref)
+		if len(clusterPolicies) > 0 {
+			if err := p.planEventGatewayClusterPolicyChanges(
+				ctx, nil, namespace, "", gatewayRef,
+				cluster.Name, "", cluster.Ref,
+				virtualClusterChangeID, clusterPolicies, plan,
+			); err != nil {
+				return err
+			}
+		}
 	}
+
+	return nil
 }
 
 // planVirtualClusterCreate plans a CREATE change for a virtual cluster
+// Returns the change ID for use as a dependency
 func (p *Planner) planVirtualClusterCreate(
 	namespace string,
 	gatewayRef string,
@@ -167,7 +212,7 @@ func (p *Planner) planVirtualClusterCreate(
 	cluster resources.EventGatewayVirtualClusterResource,
 	dependsOn []string,
 	plan *Plan,
-) {
+) string {
 	fields := make(map[string]any)
 	fields["name"] = cluster.Name
 	if cluster.Description != nil {
@@ -240,6 +285,8 @@ func (p *Planner) planVirtualClusterCreate(
 		"gateway_ref", gatewayRef,
 	)
 	plan.AddChange(change)
+
+	return change.ID
 }
 
 // planVirtualClusterUpdate plans an UPDATE change for a virtual cluster
