@@ -1,0 +1,112 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+test:
+  enabledByEnvVar: KONGCTL_ENABLE_EVENT_GATEWAY
+
+vars:
+  egwName: egw-cp-for-vc-cluster-policy-test
+  egwRef: egw-cp-for-vc-cluster-policy-test
+  backendClusterRef: default-backend-cluster
+  backendClusterName: default-backend-cluster
+  virtualClusterRef: default-virtual-cluster-for-cluster-policy-test
+  virtualClusterName: default-virtual-cluster-name-for-cluster-policy-test
+  clusterPolicyRef: default-cluster-policy
+  clusterPolicyName: default-cluster-policy-name-for-test
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+  - name: 001-plan-apply-create
+    commands:
+      - name: 001-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 4
+          - select: >-
+              changes[?resource_type=='event_gateway' && resource_ref=='{{ .vars.egwRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.egwRef }}"
+          - select: >-
+              changes[?resource_type=='event_gateway_backend_cluster' && resource_ref=='{{ .vars.backendClusterRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.backendClusterRef }}"
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster' && resource_ref=='{{ .vars.virtualClusterRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.virtualClusterRef }}"
+          - select: >-
+              changes[?resource_type=='event_gateway_cluster_policy' && resource_ref=='{{ .vars.clusterPolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.clusterPolicyRef }}"
+      - name: 002-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+
+      - name: 003-verify-create
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - cluster-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.clusterPolicyName }}"
+                description: "Default Cluster Policy description"
+  
