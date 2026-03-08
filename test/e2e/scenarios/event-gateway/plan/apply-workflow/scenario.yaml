@@ -23,6 +23,9 @@ vars:
   listenerPolicyRef: plan-apply-listener-1-policy-1-ref
   listenerPolicyName: plan-apply-listener-1-policy-1-name
   listenerPolicyDesc: "Plan Apply Listener 1 Policy 1"
+  clusterPolicyRef: plan-apply-cluster-policy
+  clusterPolicyName: plan-apply-cluster-policy-name-for-test
+  clusterPolicyDesc: "Plan Apply Cluster Policy description"
   dataplaneCertRef: plan-apply-dataplane-certificate-ref
   dataplaneCertName: plan-apply-dataplane-certificate-name
   dataplaneCertDesc: "Plan Apply Dataplane Certificate description"
@@ -313,7 +316,7 @@ steps:
                 name: "{{ .vars.vcName }}"
                 description: "{{ .vars.vcDesc }}"
                 destination.name: "{{ .vars.bcName }}"
-                acl_mode: "passthrough"
+                acl_mode: enforce_on_gateway
                 "length(authentication)": 1
                 authentication[0].type: "sasl_scram"
 
@@ -551,3 +554,82 @@ steps:
               fields:
                 name: "{{ .vars.dataplaneCertName }}"
                 description: "{{ .vars.dataplaneCertDesc }}"
+
+  - name: 008-plan-apply-cluster-policy
+    inputOverlayDirs:
+      - overlays/007-cluster-policy
+    commands:
+      - name: 000-plan-create-cluster-policy
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-cluster-policy.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_cluster_policy' && resource_ref=='{{ .vars.clusterPolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.clusterPolicyRef }}"
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-cluster-policy.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'event_gateway_cluster_policy \"plan-apply-cluster-policy\" will be created')": true
+      - name: 002-apply-plan
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-cluster-policy.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-cluster-policy
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - cluster-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.vcName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.clusterPolicyName }}"
+                description: "{{ .vars.clusterPolicyDesc }}"
+                enabled: true

@@ -28,7 +28,7 @@ event_gateways:
           id: !ref plan-sync-backend-cluster#id
         authentication:
          - type: anonymous
-        acl_mode: passthrough
+        acl_mode: enforce_on_gateway
         dns_label: vc-default
     listeners:
       - ref: plan-sync-listener
