@@ -31,7 +31,7 @@ event_gateways:
          - type: anonymous
         acl_mode: enforce_on_gateway
         dns_label: vc-default
-event_gateway_cluster_policies:
+event_gateway_virtual_cluster_cluster_policies:
   - ref: default-cluster-policy
     name: default-cluster-policy-name-for-test
     description: Default Cluster Policy description

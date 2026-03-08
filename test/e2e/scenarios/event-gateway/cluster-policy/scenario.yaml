@@ -69,7 +69,7 @@ steps:
                 action: CREATE
                 resource_ref: "{{ .vars.virtualClusterRef }}"
           - select: >-
-              changes[?resource_type=='event_gateway_cluster_policy' && resource_ref=='{{ .vars.clusterPolicyRef }}'] | [0]
+              changes[?resource_type=='event_gateway_virtual_cluster_cluster_policy' && resource_ref=='{{ .vars.clusterPolicyRef }}'] | [0]
             expect:
               fields:
                 action: CREATE
@@ -134,7 +134,7 @@ steps:
                 total_changes: 1
                 by_action.UPDATE: 1
           - select: >-
-              changes[?resource_type=='event_gateway_cluster_policy' && resource_ref=='{{ .vars.clusterPolicyRef }}'] | [0]
+              changes[?resource_type=='event_gateway_virtual_cluster_cluster_policy' && resource_ref=='{{ .vars.clusterPolicyRef }}'] | [0]
             expect:
               fields:
                 action: UPDATE
@@ -212,7 +212,7 @@ steps:
                 total_changes: 1
                 by_action.DELETE: 1
           - select: >-
-              changes[?resource_type=='event_gateway_cluster_policy' && resource_ref=='{{ .vars.clusterPolicyName }}'] | [0]
+              changes[?resource_type=='event_gateway_virtual_cluster_cluster_policy' && resource_ref=='{{ .vars.clusterPolicyName }}'] | [0]
             expect:
               fields:
                 action: DELETE
@@ -272,7 +272,7 @@ steps:
                 total_changes: 1
                 by_action.CREATE: 1
           - select: >-
-              changes[?resource_type=='event_gateway_cluster_policy' && resource_ref=='{{ .vars.clusterPolicyRef }}'] | [0]
+              changes[?resource_type=='event_gateway_virtual_cluster_cluster_policy' && resource_ref=='{{ .vars.clusterPolicyRef }}'] | [0]
             expect:
               fields:
                 action: CREATE
@@ -340,7 +340,7 @@ steps:
                 total_changes: 1
                 by_action.DELETE: 1
           - select: >-
-              changes[?resource_type=='event_gateway_cluster_policy' && resource_ref=='{{ .vars.clusterPolicyName }}'] | [0]
+              changes[?resource_type=='event_gateway_virtual_cluster_cluster_policy' && resource_ref=='{{ .vars.clusterPolicyName }}'] | [0]
             expect:
               fields:
                 action: DELETE

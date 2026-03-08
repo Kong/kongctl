@@ -637,7 +637,7 @@ steps:
                 total_changes: 1
                 by_action.CREATE: 1
           - select: >-
-              changes[?resource_type=='event_gateway_cluster_policy' && resource_ref=='{{ .vars.clusterPolicyRef }}'] | [0]
+              changes[?resource_type=='event_gateway_virtual_cluster_cluster_policy' && resource_ref=='{{ .vars.clusterPolicyRef }}'] | [0]
             expect:
               fields:
                 action: CREATE
@@ -654,7 +654,7 @@ steps:
             expect:
               fields:
                 "contains(@, 'Plan: 1 to add')": true
-                "contains(@, 'event_gateway_cluster_policy \"plan-sync-cluster-policy\" will be created')": true
+                "contains(@, 'event_gateway_virtual_cluster_cluster_policy \"plan-sync-cluster-policy\" will be created')": true
       - name: 002-sync-plan
         outputFormat: json
         run:

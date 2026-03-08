@@ -4373,7 +4373,7 @@ func (c *Client) CreateEventGatewayClusterPolicy(
 	resp, err := c.eventGatewayClusterPolicyAPI.CreateEventGatewayVirtualClusterClusterLevelPolicy(ctx, createReq)
 	if err != nil {
 		return "", WrapAPIError(err, "create event gateway cluster policy", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_cluster_policy",
+			ResourceType: "event_gateway_virtual_cluster_cluster_policy",
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
@@ -4404,7 +4404,7 @@ func (c *Client) UpdateEventGatewayClusterPolicy(
 	resp, err := c.eventGatewayClusterPolicyAPI.UpdateEventGatewayVirtualClusterClusterLevelPolicy(ctx, updateReq)
 	if err != nil {
 		return "", WrapAPIError(err, "update event gateway cluster policy", &ErrorWrapperOptions{
-			ResourceType: "event_gateway_cluster_policy",
+			ResourceType: "event_gateway_virtual_cluster_cluster_policy",
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
