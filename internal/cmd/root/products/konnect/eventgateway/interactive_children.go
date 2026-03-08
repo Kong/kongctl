@@ -20,6 +20,7 @@ func init() {
 	tableview.RegisterChildLoader("event-gateway", "data-plane-certificates", loadEventGatewayDataPlaneCertificates)
 	tableview.RegisterChildLoader("event-gateway", "listeners", loadEventGatewayListeners)
 	tableview.RegisterChildLoader("listener", "policies", loadEventGatewayListenerPolicies)
+	tableview.RegisterChildLoader("virtual-cluster", "cluster-policies", loadEventGatewayVirtualClusterClusterPolicies)
 }
 
 func loadEventGatewayBackendClusters(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
@@ -87,7 +88,7 @@ func loadEventGatewayVirtualClusters(_ context.Context, helper cmd.Helper, paren
 		return tableview.ChildView{}, err
 	}
 
-	return buildVirtualClusterChildView(clusters), nil
+	return buildVirtualClusterChildView(clusters, gatewayID), nil
 }
 
 func eventGatewayIDFromParent(parent any) (string, error) {
@@ -213,6 +214,81 @@ func listenerIDsFromParent(parent any) (string, string, error) {
 			return "", "", fmt.Errorf("listener identifier is missing")
 		}
 		return gatewayID, listenerID, nil
+	default:
+		return "", "", fmt.Errorf("unexpected parent type %T", parent)
+	}
+}
+
+func loadEventGatewayVirtualClusterClusterPolicies(
+	_ context.Context,
+	helper cmd.Helper,
+	parent any,
+) (tableview.ChildView, error) {
+	gatewayID, virtualClusterID, err := virtualClusterIDsFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	policyAPI := sdk.GetEventGatewayClusterPolicyAPI()
+	if policyAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("event gateway cluster policy client is not available")
+	}
+
+	_, rawPolicies, err := fetchClusterPolicies(helper, policyAPI, gatewayID, virtualClusterID, cfg, "")
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	return buildClusterPolicyChildView(rawPolicies), nil
+}
+
+func virtualClusterIDsFromParent(parent any) (string, string, error) {
+	if parent == nil {
+		return "", "", fmt.Errorf("virtual cluster parent is nil")
+	}
+
+	switch p := parent.(type) {
+	case *VirtualClusterWithGateway:
+		if p.VirtualCluster == nil {
+			return "", "", fmt.Errorf("virtual cluster is nil")
+		}
+		gatewayID := strings.TrimSpace(p.EventGatewayID)
+		if gatewayID == "" {
+			return "", "", fmt.Errorf("event gateway identifier is missing from virtual cluster")
+		}
+		virtualClusterID := strings.TrimSpace(p.ID)
+		if virtualClusterID == "" {
+			return "", "", fmt.Errorf("virtual cluster identifier is missing")
+		}
+		return gatewayID, virtualClusterID, nil
+	case VirtualClusterWithGateway:
+		if p.VirtualCluster == nil {
+			return "", "", fmt.Errorf("virtual cluster is nil")
+		}
+		gatewayID := strings.TrimSpace(p.EventGatewayID)
+		if gatewayID == "" {
+			return "", "", fmt.Errorf("event gateway identifier is missing from virtual cluster")
+		}
+		virtualClusterID := strings.TrimSpace(p.ID)
+		if virtualClusterID == "" {
+			return "", "", fmt.Errorf("virtual cluster identifier is missing")
+		}
+		return gatewayID, virtualClusterID, nil
 	default:
 		return "", "", fmt.Errorf("unexpected parent type %T", parent)
 	}

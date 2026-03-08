@@ -4285,6 +4285,21 @@ func (c *Client) GetEventGatewayListenerPolicy(
 type EventGatewayClusterPolicyInfo struct {
 	kkComps.EventGatewayPolicy
 	NormalizedLabels map[string]string
+	RawConfig        map[string]any
+}
+
+// clusterPolicyRawResponse is used to parse the raw API response to get full config.
+type clusterPolicyRawResponse struct {
+	Type        string            `json:"type"`
+	Name        *string           `json:"name,omitempty"`
+	Description *string           `json:"description,omitempty"`
+	Enabled     *bool             `json:"enabled,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	ID          string            `json:"id"`
+	Config      map[string]any    `json:"config"`
+	CreatedAt   string            `json:"created_at"`
+	UpdatedAt   string            `json:"updated_at"`
+	Condition   *string           `json:"condition,omitempty"`
 }
 
 func (c *Client) ListEventGatewayClusterPolicies(
@@ -4310,6 +4325,22 @@ func (c *Client) ListEventGatewayClusterPolicies(
 		return []EventGatewayClusterPolicyInfo{}, nil
 	}
 
+	// Try to parse raw response to get full config data
+	rawConfigByID := make(map[string]map[string]any)
+	if res.RawResponse != nil && res.RawResponse.Body != nil {
+		bodyBytes, readErr := io.ReadAll(res.RawResponse.Body)
+		if readErr == nil && len(bodyBytes) > 0 {
+			var rawPolicies []clusterPolicyRawResponse
+			if jsonErr := json.Unmarshal(bodyBytes, &rawPolicies); jsonErr == nil {
+				for _, rp := range rawPolicies {
+					if rp.ID != "" && rp.Config != nil {
+						rawConfigByID[rp.ID] = rp.Config
+					}
+				}
+			}
+		}
+	}
+
 	var policies []EventGatewayClusterPolicyInfo
 	for _, p := range res.ListClusterPoliciesResponse {
 		normalized := p.Labels
@@ -4319,6 +4350,7 @@ func (c *Client) ListEventGatewayClusterPolicies(
 		policies = append(policies, EventGatewayClusterPolicyInfo{
 			EventGatewayPolicy: p,
 			NormalizedLabels:   normalized,
+			RawConfig:          rawConfigByID[p.ID],
 		})
 	}
 

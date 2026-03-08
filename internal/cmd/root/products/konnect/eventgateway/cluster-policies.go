@@ -574,3 +574,140 @@ func resolveVirtualClusterIDByName(
 
 	return match.ID, nil
 }
+
+func clusterPolicyWithConfigDetailView(policy *clusterPolicyWithConfig) string {
+	if policy == nil {
+		return ""
+	}
+
+	id := strings.TrimSpace(policy.ID)
+	if id == "" {
+		id = valueNA
+	}
+
+	policyType := strings.TrimSpace(policy.Type)
+	if policyType == "" {
+		policyType = valueNA
+	}
+
+	name := valueNA
+	if policy.Name != nil && strings.TrimSpace(*policy.Name) != "" {
+		name = strings.TrimSpace(*policy.Name)
+	}
+
+	description := valueNA
+	if policy.Description != nil && strings.TrimSpace(*policy.Description) != "" {
+		description = strings.TrimSpace(*policy.Description)
+	}
+
+	enabled := valueNA
+	if policy.Enabled != nil {
+		if *policy.Enabled {
+			enabled = "true"
+		} else {
+			enabled = "false"
+		}
+	}
+
+	labels := formatLabelPairs(policy.Labels)
+
+	parentPolicyID := valueNA
+	if policy.ParentPolicyID != nil && strings.TrimSpace(*policy.ParentPolicyID) != "" {
+		parentPolicyID = strings.TrimSpace(*policy.ParentPolicyID)
+	}
+
+	// Use the raw config map which contains actual config data
+	config := formatJSONValue(policy.Config)
+
+	createdAt := policy.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+	updatedAt := policy.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "type: %s\n", policyType)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	fmt.Fprintf(&b, "description: %s\n", description)
+	fmt.Fprintf(&b, "enabled: %s\n", enabled)
+	fmt.Fprintf(&b, "labels: %s\n", labels)
+	fmt.Fprintf(&b, "parent_policy_id: %s\n", parentPolicyID)
+	fmt.Fprintf(&b, "config: %s\n", config)
+	fmt.Fprintf(&b, "created_at: %s\n", createdAt)
+	fmt.Fprintf(&b, "updated_at: %s\n", updatedAt)
+
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func clusterPolicyWithConfigToRecord(policy clusterPolicyWithConfig) clusterPolicySummaryRecord {
+	id := policy.ID
+	if id != "" {
+		id = util.AbbreviateUUID(id)
+	} else {
+		id = valueNA
+	}
+
+	name := valueNA
+	if policy.Name != nil && *policy.Name != "" {
+		name = *policy.Name
+	}
+
+	policyType := policy.Type
+	if policyType == "" {
+		policyType = valueNA
+	}
+
+	description := valueNA
+	if policy.Description != nil && *policy.Description != "" {
+		description = *policy.Description
+	}
+
+	enabled := valueNA
+	if policy.Enabled != nil {
+		if *policy.Enabled {
+			enabled = "true"
+		} else {
+			enabled = "false"
+		}
+	}
+
+	createdAt := policy.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+	updatedAt := policy.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+
+	return clusterPolicySummaryRecord{
+		ID:               id,
+		Name:             name,
+		Type:             policyType,
+		Description:      description,
+		Enabled:          enabled,
+		LocalCreatedTime: createdAt,
+		LocalUpdatedTime: updatedAt,
+	}
+}
+
+func buildClusterPolicyChildView(policies []clusterPolicyWithConfig) tableview.ChildView {
+	tableRows := make([]table.Row, 0, len(policies))
+	for i := range policies {
+		record := clusterPolicyWithConfigToRecord(policies[i])
+		tableRows = append(tableRows, table.Row{record.ID, record.Name, record.Type})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(policies) {
+			return ""
+		}
+		return clusterPolicyWithConfigDetailView(&policies[index])
+	}
+
+	return tableview.ChildView{
+		Headers:        []string{"ID", "NAME", "TYPE"},
+		Rows:           tableRows,
+		DetailRenderer: detailFn,
+		Title:          "Cluster Policies",
+		ParentType:     "cluster-policy",
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(policies) {
+				return nil
+			}
+			return &policies[index]
+		},
+	}
+}
