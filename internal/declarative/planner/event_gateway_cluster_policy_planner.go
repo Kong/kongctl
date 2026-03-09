@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -427,6 +428,16 @@ func (p *Planner) shouldUpdateClusterPolicy(
 		}
 	}
 
+	// Compare config
+	desiredConfig := p.extractClusterPolicyConfig(desired)
+	if !compareAnyMaps(current.RawConfig, desiredConfig) {
+		needsUpdate = true
+		changes["config"] = FieldChange{
+			Old: current.RawConfig,
+			New: desiredConfig,
+		}
+	}
+
 	// If there are changes, build full update fields
 	var updateFields map[string]any
 	if needsUpdate {
@@ -458,9 +469,100 @@ func (p *Planner) getClusterPolicyEnabled(
 	return true // default is enabled
 }
 
-// // hasAnyClusterPolicyConfig checks if the desired policy has any configuration
-// func (p *Planner) hasAnyClusterPolicyConfig(
-// 	desired resources.EventGatewayClusterPolicyResource,
-// ) bool {
-// 	return desired.EventGatewayACLsPolicy != nil
-// }
+// extractClusterPolicyConfig extracts config from whichever union variant is set
+// and converts it to a map[string]any for comparison
+func (p *Planner) extractClusterPolicyConfig(
+	policy resources.EventGatewayClusterPolicyResource,
+) map[string]any {
+	if policy.EventGatewayACLsPolicy == nil {
+		return nil
+	}
+
+	// Marshal the config struct to JSON and back to map[string]any
+	data, err := json.Marshal(policy.EventGatewayACLsPolicy.Config)
+	if err != nil {
+		return nil
+	}
+
+	var config map[string]any
+	if err := json.Unmarshal(data, &config); err != nil {
+		return nil
+	}
+
+	return config
+}
+
+// compareAnyMaps compares fields present in desired against current.
+// Extra fields in current (e.g., new API defaults) are ignored to prevent
+// unnecessary updates when API adds new fields.
+func compareAnyMaps(current, desired map[string]any) bool {
+	// Both nil/empty is equal
+	currentEmpty := current == nil || len(current) == 0 || isEffectivelyEmpty(current)
+	desiredEmpty := desired == nil || len(desired) == 0 || isEffectivelyEmpty(desired)
+	if currentEmpty && desiredEmpty {
+		return true
+	}
+
+	// If desired is empty but current has values, no update needed
+	// (user hasn't specified config, keep what API has)
+	if desiredEmpty {
+		return true
+	}
+
+	// If current is empty but desired has values, update needed
+	if currentEmpty {
+		return false
+	}
+
+	// Compare only fields present in desired
+	return configFieldsMatch(current, desired)
+}
+
+// configFieldsMatch recursively checks if all fields in desired exist and match in current.
+// Extra fields in current are ignored (handles API adding new fields with defaults).
+func configFieldsMatch(current, desired map[string]any) bool {
+	for key, desiredVal := range desired {
+		currentVal, exists := current[key]
+		if !exists {
+			return false
+		}
+
+		// Recursive comparison for nested maps
+		desiredMap, desiredIsMap := desiredVal.(map[string]any)
+		currentMap, currentIsMap := currentVal.(map[string]any)
+		if desiredIsMap && currentIsMap {
+			if !configFieldsMatch(currentMap, desiredMap) {
+				return false
+			}
+			continue
+		}
+
+		// For slices, use DeepEqual (order matters for rules)
+		if !reflect.DeepEqual(currentVal, desiredVal) {
+			return false
+		}
+	}
+	return true
+}
+
+// isEffectivelyEmpty checks if a config map is effectively empty
+// (e.g., only contains empty slices or nil values)
+func isEffectivelyEmpty(m map[string]any) bool {
+	for _, v := range m {
+		switch val := v.(type) {
+		case nil:
+			continue
+		case []any:
+			if len(val) > 0 {
+				return false
+			}
+		case map[string]any:
+			if !isEffectivelyEmpty(val) {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
