@@ -497,8 +497,8 @@ func (p *Planner) extractClusterPolicyConfig(
 // unnecessary updates when API adds new fields.
 func compareAnyMaps(current, desired map[string]any) bool {
 	// Both nil/empty is equal
-	currentEmpty := current == nil || len(current) == 0 || isEffectivelyEmpty(current)
-	desiredEmpty := desired == nil || len(desired) == 0 || isEffectivelyEmpty(desired)
+	currentEmpty := len(current) == 0 || isEffectivelyEmpty(current)
+	desiredEmpty := len(desired) == 0 || isEffectivelyEmpty(desired)
 	if currentEmpty && desiredEmpty {
 		return true
 	}
