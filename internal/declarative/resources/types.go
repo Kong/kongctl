@@ -36,6 +36,7 @@ const (
 	ResourceTypeEventGatewayListenerPolicy       ResourceType = "event_gateway_listener_policy"
 	ResourceTypeEventGatewayDataPlaneCertificate ResourceType = "event_gateway_data_plane_certificate"
 	ResourceTypeEventGatewayClusterPolicy        ResourceType = "event_gateway_virtual_cluster_cluster_policy"
+	ResourceTypeEventGatewayProducePolicy        ResourceType = "event_gateway_virtual_cluster_produce_policy"
 )
 
 const (
@@ -87,6 +88,7 @@ type ResourceSet struct {
 	EventGatewayListeners             []EventGatewayListenerResource             `yaml:"event_gateway_listeners,omitempty" json:"event_gateway_listeners,omitempty"`                                               //nolint:lll
 	EventGatewayListenerPolicies      []EventGatewayListenerPolicyResource       `yaml:"event_gateway_listener_policies,omitempty" json:"event_gateway_listener_policies,omitempty"`                               //nolint:lll
 	EventGatewayClusterPolicies       []EventGatewayClusterPolicyResource        `yaml:"event_gateway_virtual_cluster_cluster_policies,omitempty" json:"event_gateway_virtual_cluster_cluster_policies,omitempty"` //nolint:lll
+	EventGatewayProducePolicies       []EventGatewayProducePolicyResource        `yaml:"event_gateway_virtual_cluster_produce_policies,omitempty" json:"event_gateway_virtual_cluster_produce_policies,omitempty"` //nolint:lll
 	EventGatewayDataPlaneCertificates []EventGatewayDataPlaneCertificateResource `yaml:"event_gateway_data_plane_certificates,omitempty" json:"event_gateway_data_plane_certificates,omitempty"`                   //nolint:lll
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions

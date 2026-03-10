@@ -109,6 +109,11 @@ func newGetEventGatewayVirtualClustersCmd(
 		cmd.AddCommand(clusterPoliciesCmd)
 	}
 
+	producePoliciesCmd := newGetEventGatewayProducePoliciesCmd(verb, addParentFlags, parentPreRun)
+	if producePoliciesCmd != nil {
+		cmd.AddCommand(producePoliciesCmd)
+	}
+
 	return cmd
 }
 

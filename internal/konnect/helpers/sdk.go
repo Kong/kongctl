@@ -51,6 +51,7 @@ type SDKAPI interface {
 	GetEventGatewayListenerAPI() EventGatewayListenerAPI
 	GetEventGatewayListenerPolicyAPI() EventGatewayListenerPolicyAPI
 	GetEventGatewayClusterPolicyAPI() EventGatewayClusterPolicyAPI
+	GetEventGatewayProducePolicyAPI() EventGatewayProducePolicyAPI
 	GetEventGatewayDataPlaneCertificateAPI() EventGatewayDataPlaneCertificateAPI
 }
 
@@ -361,6 +362,15 @@ func (k *KonnectSDK) GetEventGatewayClusterPolicyAPI() EventGatewayClusterPolicy
 	}
 
 	return &EventGatewayClusterPolicyAPIImpl{SDK: k.SDK}
+}
+
+// Returns the implementation of the EventGatewayProducePolicyAPI interface
+func (k *KonnectSDK) GetEventGatewayProducePolicyAPI() EventGatewayProducePolicyAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &EventGatewayProducePolicyAPIImpl{SDK: k.SDK}
 }
 
 func (k *KonnectSDK) GetOrganizationTeamAPI() OrganizationTeamAPI {

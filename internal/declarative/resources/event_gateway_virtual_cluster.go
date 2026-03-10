@@ -23,6 +23,7 @@ type EventGatewayVirtualClusterResource struct {
 
 	// Nested child resources
 	ClusterPolicies []EventGatewayClusterPolicyResource `yaml:"cluster_policies,omitempty" json:"cluster_policies,omitempty"` //nolint:lll
+	ProducePolicies []EventGatewayProducePolicyResource `yaml:"produce_policies,omitempty" json:"produce_policies,omitempty"` //nolint:lll
 
 	// Resolved Konnect ID (not serialized)
 	konnectID string `yaml:"-" json:"-"`
@@ -70,6 +71,18 @@ func (e EventGatewayVirtualClusterResource) Validate() error {
 		clusterPolicyRefs[cp.GetRef()] = true
 	}
 
+	// Validate produce policies
+	producePolicyRefs := make(map[string]bool)
+	for i, pp := range e.ProducePolicies {
+		if err := pp.Validate(); err != nil {
+			return fmt.Errorf("invalid produce policy %d: %w", i, err)
+		}
+		if producePolicyRefs[pp.GetRef()] {
+			return fmt.Errorf("duplicate produce policy ref: %s", pp.GetRef())
+		}
+		producePolicyRefs[pp.GetRef()] = true
+	}
+
 	return nil
 }
 
@@ -82,6 +95,11 @@ func (e *EventGatewayVirtualClusterResource) SetDefaults() {
 	// Apply defaults to cluster policies
 	for i := range e.ClusterPolicies {
 		e.ClusterPolicies[i].SetDefaults()
+	}
+
+	// Apply defaults to produce policies
+	for i := range e.ProducePolicies {
+		e.ProducePolicies[i].SetDefaults()
 	}
 }
 
@@ -124,6 +142,7 @@ func (e EventGatewayVirtualClusterResource) MarshalJSON() ([]byte, error) {
 
 		// Nested child resources
 		ClusterPolicies []EventGatewayClusterPolicyResource `json:"cluster_policies,omitempty"`
+		ProducePolicies []EventGatewayProducePolicyResource `json:"produce_policies,omitempty"`
 	}
 
 	payload := alias{
@@ -138,6 +157,7 @@ func (e EventGatewayVirtualClusterResource) MarshalJSON() ([]byte, error) {
 		DNSLabel:        e.DNSLabel,
 		Labels:          e.Labels,
 		ClusterPolicies: e.ClusterPolicies,
+		ProducePolicies: e.ProducePolicies,
 	}
 
 	return json.Marshal(payload)
@@ -164,6 +184,7 @@ func (e *EventGatewayVirtualClusterResource) UnmarshalJSON(data []byte) error {
 
 		// Nested child resources
 		ClusterPolicies []EventGatewayClusterPolicyResource `json:"cluster_policies,omitempty"`
+		ProducePolicies []EventGatewayProducePolicyResource `json:"produce_policies,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -190,6 +211,7 @@ func (e *EventGatewayVirtualClusterResource) UnmarshalJSON(data []byte) error {
 
 	// Populate nested child resources
 	e.ClusterPolicies = temp.ClusterPolicies
+	e.ProducePolicies = temp.ProducePolicies
 
 	return nil
 }
