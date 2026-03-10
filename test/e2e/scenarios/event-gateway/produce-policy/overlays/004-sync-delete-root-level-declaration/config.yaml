@@ -1,0 +1,35 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-vc-produce-policy-comprehensive-test
+
+event_gateways:
+  - ref: egw-cp-for-vc-produce-policy-test
+    name: egw-cp-for-vc-produce-policy-test
+    description: "EGW CP for Virtual Cluster Produce Policy Test"
+    backend_clusters:
+      - ref: default-backend-cluster
+        name: default-backend-cluster
+        description: "Backend Cluster for Test"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9092"
+          - "egw-backend-2.example.com:9092"
+        authentication:
+          type: anonymous
+        tls:
+          enabled: true
+          skip_verify: false
+          tls_versions:
+            - tls12
+            - tls13
+    virtual_clusters:
+      - ref: default-virtual-cluster-for-produce-policy-test
+        name: default-virtual-cluster-name-for-produce-policy-test
+        description: "Virtual Cluster for Produce Policy Test"
+        destination:
+          name: default-backend-cluster
+        authentication:
+         - type: anonymous
+        acl_mode: enforce_on_gateway
+        dns_label: vc-default
+
+# event_gateway_produce_policies removed for sync delete test
