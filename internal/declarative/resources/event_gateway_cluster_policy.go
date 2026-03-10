@@ -176,6 +176,11 @@ func (e *EventGatewayClusterPolicyResource) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	// Validate config.rules is present and has at least one element
+	if err := validateClusterPolicyConfig(data); err != nil {
+		return err
+	}
+
 	// Delegate the policy-specific fields to the SDK union type's UnmarshalJSON.
 	if err := json.Unmarshal(data, &e.EventGatewayClusterPolicyModify); err != nil {
 		return fmt.Errorf("failed to unmarshal cluster policy: %w", err)
@@ -208,6 +213,40 @@ func validateClusterPolicyTypeField(data []byte) error {
 
 	if policyTypeStr != aclsType {
 		return fmt.Errorf("cluster policy 'type' must be '%s', got '%s'", aclsType, policyTypeStr)
+	}
+
+	return nil
+}
+
+// validateClusterPolicyConfig ensures config is present and config.rules has at least one element.
+func validateClusterPolicyConfig(data []byte) error {
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	config, hasConfig := raw["config"]
+	if !hasConfig {
+		return fmt.Errorf("cluster policy requires 'config' field")
+	}
+
+	configMap, ok := config.(map[string]any)
+	if !ok {
+		return fmt.Errorf("cluster policy 'config' must be an object")
+	}
+
+	rules, hasRules := configMap["rules"]
+	if !hasRules {
+		return fmt.Errorf("cluster policy config requires 'rules' field")
+	}
+
+	rulesSlice, ok := rules.([]any)
+	if !ok {
+		return fmt.Errorf("cluster policy config 'rules' must be an array")
+	}
+
+	if len(rulesSlice) < 1 {
+		return fmt.Errorf("cluster policy config 'rules' must have at least one element")
 	}
 
 	return nil

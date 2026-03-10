@@ -373,7 +373,6 @@ func (h clusterPoliciesHandler) getSinglePolicy(
 ) error {
 	policyID := identifier
 	if !util.IsValidUUID(identifier) {
-		// Use name filter to optimize the API query
 		policies, _, err := fetchClusterPolicies(helper, policyAPI, gatewayID, virtualClusterID, cfg, identifier)
 		if err != nil {
 			return err
@@ -469,7 +468,6 @@ func fetchClusterPolicies(
 
 	// Note: The cluster policy list API doesn't support name filtering,
 	// so we fetch all and filter locally in findClusterPolicyByName
-
 	res, err := policyAPI.ListEventGatewayVirtualClusterClusterLevelPolicies(helper.GetContext(), req)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
