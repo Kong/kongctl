@@ -675,6 +675,26 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		org.Teams = nil
 	}
 
+	// Extract member resources from each organization team
+	for i := range rs.OrganizationTeams {
+		team := &rs.OrganizationTeams[i]
+		if team.Members == nil {
+			continue
+		}
+
+		for _, user := range team.Members.Users {
+			user.Team = team.Ref
+			rs.OrganizationTeamUsers = append(rs.OrganizationTeamUsers, user)
+		}
+
+		for _, sa := range team.Members.SystemAccounts {
+			sa.Team = team.Ref
+			rs.OrganizationTeamSystemAccounts = append(rs.OrganizationTeamSystemAccounts, sa)
+		}
+
+		team.Members = nil // clear after extraction to avoid double processing
+	}
+
 	for i := range rs.ControlPlanes {
 		cp := &rs.ControlPlanes[i]
 
