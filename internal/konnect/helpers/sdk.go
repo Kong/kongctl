@@ -31,6 +31,7 @@ type SDKAPI interface {
 	GetGatewayServiceAPI() GatewayServiceAPI
 	GetSystemAccountAPI() SystemAccountAPI
 	GetOrganizationTeamAPI() OrganizationTeamAPI
+	GetTeamMembershipAPI() TeamMembershipAPI
 	// Portal child resource APIs
 	GetPortalPageAPI() PortalPageAPI
 	GetPortalAuthSettingsAPI() PortalAuthSettingsAPI
@@ -351,6 +352,15 @@ func (k *KonnectSDK) GetOrganizationTeamAPI() OrganizationTeamAPI {
 	}
 
 	return &OrganizationTeamAPIImpl{SDK: k.SDK}
+}
+
+// GetTeamMembershipAPI returns the implementation of the TeamMembershipAPI interface
+func (k *KonnectSDK) GetTeamMembershipAPI() TeamMembershipAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &TeamMembershipAPIImpl{SDK: k.SDK}
 }
 
 // A function that can build an SDKAPI with a given configuration
