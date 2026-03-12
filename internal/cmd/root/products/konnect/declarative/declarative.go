@@ -2279,5 +2279,6 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 
 		// Organization APIs
 		OrganizationTeamAPI: kkClient.GetOrganizationTeamAPI(),
+		TeamMembershipAPI:   kkClient.GetTeamMembershipAPI(),
 	})
 }

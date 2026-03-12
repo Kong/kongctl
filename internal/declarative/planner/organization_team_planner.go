@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -186,6 +187,11 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 	// Fail fast if any protected resources would be modified
 	if protectionErrors.HasErrors() {
 		return protectionErrors.Error()
+	}
+
+	// Plan member changes for all desired teams
+	if err := t.planOrganizationTeamMembersChanges(ctx, namespace, desired, currentByName, plan); err != nil {
+		return err
 	}
 
 	return nil
@@ -497,4 +503,240 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamDelete(team state.Orga
 	change.Fields = map[string]any{"name": util.GetString(team.Name)}
 
 	plan.AddChange(change)
+}
+
+// planOrganizationTeamMembersChanges plans member (user and system account) changes for all desired teams.
+func (t *OrganizationTeamPlannerImpl) planOrganizationTeamMembersChanges(
+	ctx context.Context,
+	namespace string,
+	desiredTeams []resources.OrganizationTeamResource,
+	currentByName map[string]state.OrganizationTeam,
+	plan *Plan,
+) error {
+	for _, team := range desiredTeams {
+		// Resolve Konnect team ID (may be empty if team is being created in this run)
+		teamID := ""
+		if current, ok := currentByName[team.Name]; ok {
+			teamID = util.GetString(current.ID)
+		}
+
+		// If team is being created in this run, get the change ID for dependency tracking
+		teamCreateChangeID := findChangeID(plan, "organization_team", team.GetRef())
+
+		if err := t.planTeamUserMemberChanges(
+			ctx, namespace, team.GetRef(), teamID, teamCreateChangeID, plan,
+		); err != nil {
+			return err
+		}
+
+		if err := t.planTeamSystemAccountMemberChanges(
+			ctx, namespace, team.GetRef(), teamID, teamCreateChangeID, plan,
+		); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// planTeamUserMemberChanges plans CREATE/DELETE changes for user memberships within a team.
+func (t *OrganizationTeamPlannerImpl) planTeamUserMemberChanges(
+	ctx context.Context,
+	namespace string,
+	teamRef string,
+	teamID string,
+	teamChangeID string,
+	plan *Plan,
+) error {
+	desiredUsers := t.planner.resources.GetOrganizationTeamUsersByTeamRef(teamRef)
+
+	// Nothing to do if no desired users and no existing team to sync against
+	if len(desiredUsers) == 0 && teamID == "" {
+		return nil
+	}
+
+	// Fetch current team members when we have a live team ID
+	currentByID := make(map[string]string) // konnectID -> konnectID (set)
+	if teamID != "" {
+		users, err := t.GetClient().ListTeamUsers(ctx, teamID)
+		if err != nil {
+			// If team membership API is not configured, skip member planning gracefully
+			if strings.Contains(err.Error(), "team membership API") &&
+				strings.Contains(err.Error(), "not configured") {
+				return nil
+			}
+			return fmt.Errorf("failed to list users for team %s: %w", teamRef, err)
+		}
+		for _, u := range users {
+			if u.ID != nil && *u.ID != "" {
+				currentByID[*u.ID] = *u.ID
+			}
+		}
+	}
+
+	// Resolve desired user IDs and plan CREATE for any not currently in the team
+	desiredIDs := make(map[string]bool)
+	for _, desired := range desiredUsers {
+		userID, err := t.GetClient().LookupUserID(ctx, desired.ID, desired.Email, desired.Name)
+		if err != nil {
+			return fmt.Errorf("failed to resolve user identity for team %s member ref %s: %w",
+				teamRef, desired.GetRef(), err)
+		}
+
+		desiredIDs[userID] = true
+
+		if _, exists := currentByID[userID]; exists {
+			continue // already a member – no action needed
+		}
+
+		// Plan CREATE
+		var deps []string
+		if teamChangeID != "" {
+			deps = append(deps, teamChangeID)
+		}
+
+		change := PlannedChange{
+			ID:           t.NextChangeID(ActionCreate, ResourceTypeOrganizationTeamUser, desired.GetRef()),
+			ResourceType: ResourceTypeOrganizationTeamUser,
+			ResourceRef:  desired.GetRef(),
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				"user_id":    userID,
+				"user_email": desired.Email,
+				"user_name":  desired.Name,
+			},
+			DependsOn: deps,
+			Namespace: namespace,
+			References: map[string]ReferenceInfo{
+				"team_id": {Ref: teamRef, ID: teamID},
+			},
+			Parent: &ParentInfo{Ref: teamRef, ID: teamID},
+		}
+		plan.AddChange(change)
+	}
+
+	// In sync mode, plan DELETE for users currently in the team but not in desired state
+	if plan.Metadata.Mode == PlanModeSync && teamID != "" {
+		for currentID := range currentByID {
+			if !desiredIDs[currentID] {
+				change := PlannedChange{
+					ID:           t.NextChangeID(ActionDelete, ResourceTypeOrganizationTeamUser, currentID),
+					ResourceType: ResourceTypeOrganizationTeamUser,
+					ResourceRef:  currentID,
+					ResourceID:   currentID,
+					Action:       ActionDelete,
+					Fields:       map[string]any{"user_id": currentID},
+					DependsOn:    []string{},
+					Namespace:    namespace,
+					References: map[string]ReferenceInfo{
+						"team_id": {Ref: teamRef, ID: teamID},
+					},
+					Parent: &ParentInfo{Ref: teamRef, ID: teamID},
+				}
+				plan.AddChange(change)
+			}
+		}
+	}
+
+	return nil
+}
+
+// planTeamSystemAccountMemberChanges plans CREATE/DELETE changes for system account memberships within a team.
+func (t *OrganizationTeamPlannerImpl) planTeamSystemAccountMemberChanges(
+	ctx context.Context,
+	namespace string,
+	teamRef string,
+	teamID string,
+	teamChangeID string,
+	plan *Plan,
+) error {
+	desiredSAs := t.planner.resources.GetOrganizationTeamSystemAccountsByTeamRef(teamRef)
+
+	if len(desiredSAs) == 0 && teamID == "" {
+		return nil
+	}
+
+	// Fetch current system account members
+	currentByID := make(map[string]string)
+	if teamID != "" {
+		accounts, err := t.GetClient().ListTeamSystemAccounts(ctx, teamID)
+		if err != nil {
+			if strings.Contains(err.Error(), "team membership API") &&
+				strings.Contains(err.Error(), "not configured") {
+				return nil
+			}
+			return fmt.Errorf("failed to list system accounts for team %s: %w", teamRef, err)
+		}
+		for _, a := range accounts {
+			if a.ID != nil && *a.ID != "" {
+				currentByID[*a.ID] = *a.ID
+			}
+		}
+	}
+
+	// Resolve desired system account IDs and plan CREATE
+	desiredIDs := make(map[string]bool)
+	for _, desired := range desiredSAs {
+		accountID, err := t.GetClient().LookupSystemAccountID(ctx, desired.ID, desired.Name)
+		if err != nil {
+			return fmt.Errorf(
+				"failed to resolve system account identity for team %s member ref %s: %w",
+				teamRef, desired.GetRef(), err,
+			)
+		}
+
+		desiredIDs[accountID] = true
+
+		if _, exists := currentByID[accountID]; exists {
+			continue
+		}
+
+		var deps []string
+		if teamChangeID != "" {
+			deps = append(deps, teamChangeID)
+		}
+
+		change := PlannedChange{
+			ID:           t.NextChangeID(ActionCreate, ResourceTypeOrganizationTeamSystemAccount, desired.GetRef()),
+			ResourceType: ResourceTypeOrganizationTeamSystemAccount,
+			ResourceRef:  desired.GetRef(),
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				"account_id":  accountID,
+				"account_name": desired.Name,
+			},
+			DependsOn: deps,
+			Namespace: namespace,
+			References: map[string]ReferenceInfo{
+				"team_id": {Ref: teamRef, ID: teamID},
+			},
+			Parent: &ParentInfo{Ref: teamRef, ID: teamID},
+		}
+		plan.AddChange(change)
+	}
+
+	// In sync mode, plan DELETE for system accounts currently in the team but not in desired state
+	if plan.Metadata.Mode == PlanModeSync && teamID != "" {
+		for currentID := range currentByID {
+			if !desiredIDs[currentID] {
+				change := PlannedChange{
+					ID:           t.NextChangeID(ActionDelete, ResourceTypeOrganizationTeamSystemAccount, currentID),
+					ResourceType: ResourceTypeOrganizationTeamSystemAccount,
+					ResourceRef:  currentID,
+					ResourceID:   currentID,
+					Action:       ActionDelete,
+					Fields:       map[string]any{"account_id": currentID},
+					DependsOn:    []string{},
+					Namespace:    namespace,
+					References: map[string]ReferenceInfo{
+						"team_id": {Ref: teamRef, ID: teamID},
+					},
+					Parent: &ParentInfo{Ref: teamRef, ID: teamID},
+				}
+				plan.AddChange(change)
+			}
+		}
+	}
+
+	return nil
 }
