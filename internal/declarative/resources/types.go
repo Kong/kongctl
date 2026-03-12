@@ -32,6 +32,8 @@ const (
 	ResourceTypeEventGatewayBackendCluster       ResourceType = "event_gateway_backend_cluster"
 	ResourceTypeEventGatewayVirtualCluster       ResourceType = "event_gateway_virtual_cluster"
 	ResourceTypeOrganizationTeam                 ResourceType = "organization_team"
+	ResourceTypeOrganizationTeamUser             ResourceType = "organization_team_user"
+	ResourceTypeOrganizationTeamSystemAccount    ResourceType = "organization_team_system_account"
 	ResourceTypeEventGatewayListener             ResourceType = "event_gateway_listener"
 	ResourceTypeEventGatewayListenerPolicy       ResourceType = "event_gateway_listener_policy"
 	ResourceTypeEventGatewayDataPlaneCertificate ResourceType = "event_gateway_data_plane_certificate"
@@ -83,6 +85,12 @@ type ResourceSet struct {
 	// Teams is populated internally from OrganizationTeams during loading
 	// It is not exposed in YAML/JSON to enforce the organization grouping format
 	OrganizationTeams                 []OrganizationTeamResource                 `yaml:"-" json:"-"`
+	// OrganizationTeamUsers is populated internally from OrganizationTeams.Members.Users.
+	// It is not exposed in YAML/JSON to enforce the members grouping format.
+	OrganizationTeamUsers         []OrganizationTeamUserResource         `yaml:"-" json:"-"`
+	// OrganizationTeamSystemAccounts is populated internally from OrganizationTeams.Members.SystemAccounts.
+	// It is not exposed in YAML/JSON to enforce the members grouping format.
+	OrganizationTeamSystemAccounts []OrganizationTeamSystemAccountResource `yaml:"-" json:"-"`
 	EventGatewayListeners             []EventGatewayListenerResource             `yaml:"event_gateway_listeners,omitempty" json:"event_gateway_listeners,omitempty"`                             //nolint:lll
 	EventGatewayListenerPolicies      []EventGatewayListenerPolicyResource       `yaml:"event_gateway_listener_policies,omitempty" json:"event_gateway_listener_policies,omitempty"`             //nolint:lll
 	EventGatewayDataPlaneCertificates []EventGatewayDataPlaneCertificateResource `yaml:"event_gateway_data_plane_certificates,omitempty" json:"event_gateway_data_plane_certificates,omitempty"` //nolint:lll
@@ -540,6 +548,30 @@ func (rs *ResourceSet) GetOrganizationTeamsByNamespace(namespace string) []Organ
 		}
 	}
 	return filtered
+}
+
+// GetOrganizationTeamUsersByTeamRef returns all team user resources for the specified team ref
+func (rs *ResourceSet) GetOrganizationTeamUsersByTeamRef(teamRef string) []OrganizationTeamUserResource {
+	var result []OrganizationTeamUserResource
+	for _, user := range rs.OrganizationTeamUsers {
+		if user.Team == teamRef {
+			result = append(result, user)
+		}
+	}
+	return result
+}
+
+// GetOrganizationTeamSystemAccountsByTeamRef returns all team system account resources for the specified team ref
+func (rs *ResourceSet) GetOrganizationTeamSystemAccountsByTeamRef(
+	teamRef string,
+) []OrganizationTeamSystemAccountResource {
+	var result []OrganizationTeamSystemAccountResource
+	for _, sa := range rs.OrganizationTeamSystemAccounts {
+		if sa.Team == teamRef {
+			result = append(result, sa)
+		}
+	}
+	return result
 }
 
 // GetNamespace safely extracts namespace from kongctl metadata
