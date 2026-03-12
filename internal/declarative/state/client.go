@@ -60,6 +60,7 @@ type ClientConfig struct {
 
 	// Identity resources
 	OrganizationTeamAPI helpers.OrganizationTeamAPI
+	TeamMembershipAPI   helpers.TeamMembershipAPI
 }
 
 // Client wraps Konnect SDK for state management
@@ -100,6 +101,7 @@ type Client struct {
 
 	// Organization resource APIs
 	organizationTeamAPI helpers.OrganizationTeamAPI
+	teamMembershipAPI   helpers.TeamMembershipAPI
 }
 
 // NewClient creates a new state client with the provided configuration
@@ -141,6 +143,7 @@ func NewClient(config ClientConfig) *Client {
 
 		// Identity resource APIs
 		organizationTeamAPI: config.OrganizationTeamAPI,
+		teamMembershipAPI:   config.TeamMembershipAPI,
 	}
 }
 
@@ -3742,6 +3745,246 @@ func (c *Client) DeleteOrganizationTeam(ctx context.Context, teamID string) erro
 	}
 
 	return nil
+}
+
+// ListTeamUsers returns all users belonging to the given organization team.
+func (c *Client) ListTeamUsers(ctx context.Context, teamID string) ([]kkComps.User, error) {
+	if err := ValidateAPIClient(c.teamMembershipAPI, "team membership API"); err != nil {
+		return nil, err
+	}
+
+	var (
+		allUsers   []kkComps.User
+		pageNumber int64 = 1
+		pageSize   int64 = 100
+	)
+
+	for {
+		req := kkOps.ListTeamUsersRequest{
+			TeamID:     teamID,
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.teamMembershipAPI.ListTeamUsers(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list team users", &ErrorWrapperOptions{
+				ResourceType: "organization_team_user",
+				UseEnhanced:  true,
+			})
+		}
+
+		if resp.UserCollection == nil || len(resp.UserCollection.Data) == 0 {
+			break
+		}
+
+		allUsers = append(allUsers, resp.UserCollection.Data...)
+		pageNumber++
+
+		if resp.UserCollection.Meta == nil ||
+			float64(pageSize*(pageNumber-1)) >= resp.UserCollection.Meta.Page.Total {
+			break
+		}
+	}
+
+	return allUsers, nil
+}
+
+// AddUserToTeam adds a user to an organization team.
+func (c *Client) AddUserToTeam(ctx context.Context, teamID, userID string) error {
+	if err := ValidateAPIClient(c.teamMembershipAPI, "team membership API"); err != nil {
+		return err
+	}
+
+	body := &kkComps.AddUserToTeam{UserID: userID}
+	_, err := c.teamMembershipAPI.AddUserToTeam(ctx, teamID, body)
+	if err != nil {
+		return WrapAPIError(err, "add user to team", &ErrorWrapperOptions{
+			ResourceType: "organization_team_user",
+			UseEnhanced:  true,
+		})
+	}
+
+	return nil
+}
+
+// RemoveUserFromTeam removes a user from an organization team.
+func (c *Client) RemoveUserFromTeam(ctx context.Context, userID, teamID string) error {
+	if err := ValidateAPIClient(c.teamMembershipAPI, "team membership API"); err != nil {
+		return err
+	}
+
+	_, err := c.teamMembershipAPI.RemoveUserFromTeam(ctx, userID, teamID)
+	if err != nil {
+		return WrapAPIError(err, "remove user from team", &ErrorWrapperOptions{
+			ResourceType: "organization_team_user",
+			UseEnhanced:  true,
+		})
+	}
+
+	return nil
+}
+
+// ListTeamSystemAccounts returns all system accounts belonging to the given organization team.
+func (c *Client) ListTeamSystemAccounts(
+	ctx context.Context,
+	teamID string,
+) ([]kkComps.SystemAccount, error) {
+	if err := ValidateAPIClient(c.teamMembershipAPI, "team membership API"); err != nil {
+		return nil, err
+	}
+
+	var (
+		allAccounts []kkComps.SystemAccount
+		pageNumber  int64 = 1
+		pageSize    int64 = 100
+	)
+
+	for {
+		req := kkOps.GetTeamsTeamIDSystemAccountsRequest{
+			TeamID:     teamID,
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.teamMembershipAPI.ListTeamSystemAccounts(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list team system accounts", &ErrorWrapperOptions{
+				ResourceType: "organization_team_system_account",
+				UseEnhanced:  true,
+			})
+		}
+
+		if resp.SystemAccountCollection == nil || len(resp.SystemAccountCollection.Data) == 0 {
+			break
+		}
+
+		allAccounts = append(allAccounts, resp.SystemAccountCollection.Data...)
+		pageNumber++
+
+		if resp.SystemAccountCollection.Meta == nil ||
+			float64(pageSize*(pageNumber-1)) >= resp.SystemAccountCollection.Meta.Page.Total {
+			break
+		}
+	}
+
+	return allAccounts, nil
+}
+
+// AddSystemAccountToTeam adds a system account to an organization team.
+func (c *Client) AddSystemAccountToTeam(ctx context.Context, teamID, accountID string) error {
+	if err := ValidateAPIClient(c.teamMembershipAPI, "team membership API"); err != nil {
+		return err
+	}
+
+	body := &kkComps.AddSystemAccountToTeam{AccountID: &accountID}
+	_, err := c.teamMembershipAPI.AddSystemAccountToTeam(ctx, teamID, body)
+	if err != nil {
+		return WrapAPIError(err, "add system account to team", &ErrorWrapperOptions{
+			ResourceType: "organization_team_system_account",
+			UseEnhanced:  true,
+		})
+	}
+
+	return nil
+}
+
+// RemoveSystemAccountFromTeam removes a system account from an organization team.
+func (c *Client) RemoveSystemAccountFromTeam(ctx context.Context, teamID, accountID string) error {
+	if err := ValidateAPIClient(c.teamMembershipAPI, "team membership API"); err != nil {
+		return err
+	}
+
+	_, err := c.teamMembershipAPI.RemoveSystemAccountFromTeam(ctx, teamID, accountID)
+	if err != nil {
+		return WrapAPIError(err, "remove system account from team", &ErrorWrapperOptions{
+			ResourceType: "organization_team_system_account",
+			UseEnhanced:  true,
+		})
+	}
+
+	return nil
+}
+
+// LookupUserID resolves a user's Konnect UUID from id, email, or full_name.
+// If id is non-empty it is returned directly. Otherwise email is preferred over name.
+func (c *Client) LookupUserID(ctx context.Context, id, email, name string) (string, error) {
+	if err := ValidateAPIClient(c.teamMembershipAPI, "team membership API"); err != nil {
+		return "", err
+	}
+
+	if id != "" {
+		return id, nil
+	}
+
+	filter := &kkOps.ListUsersQueryParamFilter{}
+
+	switch {
+	case email != "":
+		filter.Email = &kkComps.LegacyStringFieldFilter{Eq: &email}
+	case name != "":
+		filter.FullName = &kkComps.LegacyStringFieldFilter{Eq: &name}
+	default:
+		return "", fmt.Errorf("at least one of id, email, or name is required to look up a user")
+	}
+
+	resp, err := c.teamMembershipAPI.ListUsers(ctx, kkOps.ListUsersRequest{Filter: filter})
+	if err != nil {
+		return "", WrapAPIError(err, "look up user", nil)
+	}
+
+	if resp.UserCollection == nil || len(resp.UserCollection.Data) == 0 {
+		if email != "" {
+			return "", fmt.Errorf("user with email %q not found in the organization", email)
+		}
+		return "", fmt.Errorf("user with full_name %q not found in the organization", name)
+	}
+
+	user := resp.UserCollection.Data[0]
+	if user.ID == nil || *user.ID == "" {
+		return "", fmt.Errorf("user found but has no ID")
+	}
+
+	return *user.ID, nil
+}
+
+// LookupSystemAccountID resolves a system account's Konnect UUID from id or name.
+// If id is non-empty it is returned directly.
+func (c *Client) LookupSystemAccountID(ctx context.Context, id, name string) (string, error) {
+	if err := ValidateAPIClient(c.teamMembershipAPI, "team membership API"); err != nil {
+		return "", err
+	}
+
+	if id != "" {
+		return id, nil
+	}
+
+	if name == "" {
+		return "", fmt.Errorf("at least one of id or name is required to look up a system account")
+	}
+
+	filter := &kkOps.GetSystemAccountsQueryParamFilter{
+		Name: &kkComps.LegacyStringFieldFilter{Eq: &name},
+	}
+
+	resp, err := c.teamMembershipAPI.ListSystemAccounts(
+		ctx,
+		kkOps.GetSystemAccountsRequest{Filter: filter},
+	)
+	if err != nil {
+		return "", WrapAPIError(err, "look up system account", nil)
+	}
+
+	if resp.SystemAccountCollection == nil || len(resp.SystemAccountCollection.Data) == 0 {
+		return "", fmt.Errorf("system account with name %q not found in the organization", name)
+	}
+
+	account := resp.SystemAccountCollection.Data[0]
+	if account.ID == nil || *account.ID == "" {
+		return "", fmt.Errorf("system account found but has no ID")
+	}
+
+	return *account.ID, nil
 }
 
 func getString(value *string) string {
