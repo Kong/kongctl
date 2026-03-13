@@ -19,7 +19,7 @@ require (
 	github.com/itchyny/gojq v0.12.18
 	github.com/jmespath/go-jmespath v0.4.0
 	github.com/kong/go-apiops v0.3.0
-	github.com/lrstanley/bubbletint v1.0.0
+	github.com/lrstanley/bubbletint/v2 v2.0.1
 	github.com/lucasb-eyer/go-colorful v1.3.0
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mattn/go-runewidth v0.0.20

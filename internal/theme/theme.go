@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/charmbracelet/lipgloss"
-	tint "github.com/lrstanley/bubbletint"
+	tint "github.com/lrstanley/bubbletint/v2"
 	"github.com/lucasb-eyer/go-colorful"
 )
 
