@@ -20,22 +20,22 @@ import (
 )
 
 type auditLogDestinationRecord struct {
-	ID                  string `json:"id,omitempty" yaml:"id,omitempty"`
-	Name                string `json:"name,omitempty" yaml:"name,omitempty"`
-	Endpoint            string `json:"endpoint,omitempty" yaml:"endpoint,omitempty"`
-	LogFormat           string `json:"log_format,omitempty" yaml:"log_format,omitempty"`
+	ID                  string `json:"id,omitempty"                    yaml:"id,omitempty"`
+	Name                string `json:"name,omitempty"                  yaml:"name,omitempty"`
+	Endpoint            string `json:"endpoint,omitempty"              yaml:"endpoint,omitempty"`
+	LogFormat           string `json:"log_format,omitempty"            yaml:"log_format,omitempty"`
 	SkipSSLVerification *bool  `json:"skip_ssl_verification,omitempty" yaml:"skip_ssl_verification,omitempty"`
-	CreatedAt           string `json:"created_at,omitempty" yaml:"created_at,omitempty"`
-	UpdatedAt           string `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
+	CreatedAt           string `json:"created_at,omitempty"            yaml:"created_at,omitempty"`
+	UpdatedAt           string `json:"updated_at,omitempty"            yaml:"updated_at,omitempty"`
 }
 
 type auditLogWebhookConfig struct {
-	Enabled             *bool  `json:"enabled,omitempty" yaml:"enabled,omitempty"`
-	Endpoint            string `json:"endpoint,omitempty" yaml:"endpoint,omitempty"`
-	LogFormat           string `json:"log_format,omitempty" yaml:"log_format,omitempty"`
-	SkipSSLVerification *bool  `json:"skip_ssl_verification,omitempty" yaml:"skip_ssl_verification,omitempty"`
+	Enabled             *bool  `json:"enabled,omitempty"                  yaml:"enabled,omitempty"`
+	Endpoint            string `json:"endpoint,omitempty"                 yaml:"endpoint,omitempty"`
+	LogFormat           string `json:"log_format,omitempty"               yaml:"log_format,omitempty"`
+	SkipSSLVerification *bool  `json:"skip_ssl_verification,omitempty"    yaml:"skip_ssl_verification,omitempty"`
 	DestinationID       string `json:"audit_log_destination_id,omitempty" yaml:"audit_log_destination_id,omitempty"`
-	UpdatedAt           string `json:"updated_at,omitempty" yaml:"updated_at,omitempty"`
+	UpdatedAt           string `json:"updated_at,omitempty"               yaml:"updated_at,omitempty"`
 }
 
 type getAuditLogsDestinationsCmd struct {
@@ -185,7 +185,9 @@ func (c *getAuditLogsDestinationsCmd) runE(cobraCmd *cobra.Command, args []strin
 func (c *getAuditLogDestinationCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	helper := cmd.BuildHelper(cobraCmd, args)
 	if len(helper.GetArgs()) != 1 {
-		return &cmd.ConfigurationError{Err: fmt.Errorf("the destination command requires exactly one argument: <id|name>")}
+		return &cmd.ConfigurationError{
+			Err: fmt.Errorf("the destination command requires exactly one argument: <id|name>"),
+		}
 	}
 
 	records, err := fetchAuditLogDestinations(helper)
@@ -209,7 +211,11 @@ func (c *getAuditLogWebhookCmd) runE(cobraCmd *cobra.Command, args []string) err
 
 	webhookCfg, err := fetchRegionalWebhookConfig(helper)
 	if err != nil {
-		return cmd.PrepareExecutionError("failed to retrieve regional audit-log webhook configuration", err, helper.GetCmd())
+		return cmd.PrepareExecutionError(
+			"failed to retrieve regional audit-log webhook configuration",
+			err,
+			helper.GetCmd(),
+		)
 	}
 
 	return renderAuditLogWebhookOutput(helper, webhookCfg)

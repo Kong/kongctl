@@ -10,7 +10,8 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/colorprofile"
 	"github.com/google/uuid"
 	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/cmd"
@@ -390,11 +391,15 @@ func selectSession(
 	}
 
 	model := newSelectModel(ctx, baseURL, token, streams, sessions)
-	prog := tea.NewProgram(model,
+	selectOpts := []tea.ProgramOption{
 		tea.WithInput(streams.In),
 		tea.WithOutput(streams.Out),
 		tea.WithoutSignalHandler(),
-	)
+	}
+	if iostreams.HasTrueColorEnv() {
+		selectOpts = append(selectOpts, tea.WithColorProfile(colorprofile.TrueColor))
+	}
+	prog := tea.NewProgram(model, selectOpts...)
 
 	result, err := prog.Run()
 	if err != nil {
@@ -460,7 +465,7 @@ func (m selectModel) Init() tea.Cmd { return nil }
 
 func (m selectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "enter":
 			if m.confirmDel {
@@ -514,7 +519,7 @@ func (m selectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m selectModel) View() string {
+func (m selectModel) View() tea.View {
 	var b strings.Builder
 	b.WriteString("Resume a previous session\n")
 	b.WriteString("Use ↑/↓ to move, Enter to resume, d to delete, q to cancel\n\n")
@@ -532,7 +537,7 @@ func (m selectModel) View() string {
 		b.WriteString("\nPress d again to confirm deletion, Esc to cancel\n")
 	}
 
-	return b.String()
+	return tea.NewView(b.String())
 }
 
 func collapseWhitespace(s string) string {

@@ -5,9 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/stretchr/testify/require"
 
 	cmd "github.com/kong/kongctl/internal/cmd"
@@ -83,6 +84,36 @@ func TestRender_StaticOutput(t *testing.T) {
 	require.Contains(t, output, "Alpha")
 	require.Contains(t, output, "2025-10-10 15:43:04")
 	require.Contains(t, output, "LOCAL UPDATED TIME")
+}
+
+func TestNormalizeSelectedRow_HandlesAnsiResetStyle(t *testing.T) {
+	selected := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#111111")).
+		Background(lipgloss.Color("#AABBCC"))
+
+	prefix, reset := selectionPrefix(selected)
+	require.NotEmpty(t, prefix)
+	require.Equal(t, ansi.ResetStyle, reset)
+
+	content := selected.Render("foo" + reset + "bar")
+	normalized := NormalizeSelectedRow(content, selected)
+
+	require.Contains(t, normalized, reset+prefix)
+}
+
+func TestNewDetailTableDecorator_TracksSelectedPrefix(t *testing.T) {
+	selected := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#111111")).
+		Background(lipgloss.Color("#AABBCC"))
+
+	decorator := newDetailTableDecorator(
+		[]table.Column{{Title: "FIELD", Width: 10}, {Title: "VALUE", Width: 10}},
+		theme.Current(),
+		selected,
+		true,
+	)
+
+	require.NotEmpty(t, decorator.selectedPrefix)
 }
 
 func TestFormatHeader(t *testing.T) {
@@ -419,7 +450,7 @@ func newMinimalBubbleModel(t *testing.T) *bubbleModel {
 
 func sendKey(t *testing.T, model *bubbleModel, key string) *bubbleModel {
 	t.Helper()
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(key)}
+	msg := tea.KeyPressMsg{Text: key, Code: []rune(key)[0]}
 	updated, _ := model.Update(msg)
 	bm, ok := updated.(*bubbleModel)
 	require.True(t, ok)

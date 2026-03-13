@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/table"
+	"charm.land/bubbles/v2/table"
 
 	// kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"

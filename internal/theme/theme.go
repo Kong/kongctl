@@ -3,12 +3,13 @@ package theme
 import (
 	"context"
 	"fmt"
+	"image/color"
 	"sort"
 	"strings"
 	"sync"
 
-	"github.com/charmbracelet/lipgloss"
-	tint "github.com/lrstanley/bubbletint"
+	"charm.land/lipgloss/v2"
+	tint "github.com/lrstanley/bubbletint/v2"
 	"github.com/lucasb-eyer/go-colorful"
 )
 
@@ -49,18 +50,21 @@ type Color struct {
 	Dark  string
 }
 
-// Adaptive converts the color into a lipgloss adaptive color.
-func (c Color) Adaptive() lipgloss.AdaptiveColor {
-	light, dark := strings.TrimSpace(c.Light), strings.TrimSpace(c.Dark)
-	switch {
-	case light == "" && dark == "":
-		return lipgloss.AdaptiveColor{Light: "#FFFFFF", Dark: "#000000"}
-	case light == "":
-		light = dark
-	case dark == "":
-		dark = light
+// Adaptive returns a resolved lipgloss color suitable for use
+// as a foreground, background, or border color in lipgloss v2 styles.
+// It picks the Dark variant (falling back to Light) since all current
+// palettes use identical values for both.
+func (c Color) Adaptive() color.Color {
+	dark := strings.TrimSpace(c.Dark)
+	light := strings.TrimSpace(c.Light)
+	hex := dark
+	if hex == "" {
+		hex = light
 	}
-	return lipgloss.AdaptiveColor{Light: light, Dark: dark}
+	if hex == "" {
+		hex = "#FFFFFF"
+	}
+	return lipgloss.Color(hex)
 }
 
 // Palette represents a concrete theme.
@@ -81,8 +85,8 @@ func (p Palette) Color(token Token) Color {
 	return fallbackColor(token)
 }
 
-// Adaptive returns the lipgloss adaptive color for the provided token.
-func (p Palette) Adaptive(token Token) lipgloss.AdaptiveColor {
+// Adaptive returns the resolved lipgloss color for the provided token.
+func (p Palette) Adaptive(token Token) color.Color {
 	return p.Color(token).Adaptive()
 }
 
@@ -284,7 +288,8 @@ func ensureRegistry() {
 		defaultPal = palettes[DefaultName]
 		current = defaultPal
 
-		for _, t := range tint.DefaultTints() {
+		tint.NewDefaultRegistry()
+		for _, t := range tint.Tints() {
 			registerPalette(paletteFromTint(t))
 		}
 	})
@@ -342,21 +347,28 @@ func resolveName(name string) string {
 	}
 }
 
-func paletteFromTint(t tint.Tint) Palette {
+func tintColorHex(c *tint.Color) string {
+	if c == nil {
+		return ""
+	}
+	return normalizeHex(c.Hex())
+}
+
+func paletteFromTint(t *tint.Tint) Palette {
 	if t == nil {
 		return Palette{}
 	}
 
-	fg := normalizeHex(tint.Hex(t.Fg()))
-	bg := normalizeHex(tint.Hex(t.Bg()))
-	muted := normalizeHex(tint.Hex(t.BrightBlack()))
-	accent := normalizeHex(tint.Hex(t.Cyan()))
-	accentBright := normalizeHex(tint.Hex(t.BrightBlue()))
-	success := normalizeHex(tint.Hex(t.Green()))
-	info := normalizeHex(tint.Hex(t.Blue()))
-	warning := normalizeHex(tint.Hex(t.Yellow()))
-	danger := normalizeHex(tint.Hex(t.Red()))
-	highlight := normalizeHex(tint.Hex(t.BrightWhite()))
+	fg := tintColorHex(t.Fg)
+	bg := tintColorHex(t.Bg)
+	muted := tintColorHex(t.BrightBlack)
+	accent := tintColorHex(t.Cyan)
+	accentBright := tintColorHex(t.BrightBlue)
+	success := tintColorHex(t.Green)
+	info := tintColorHex(t.Blue)
+	warning := tintColorHex(t.Yellow)
+	danger := tintColorHex(t.Red)
+	highlight := tintColorHex(t.BrightWhite)
 
 	colors := map[Token]Color{
 		ColorTextPrimary:   pairColor(fg, fg),
@@ -381,9 +393,8 @@ func paletteFromTint(t tint.Tint) Palette {
 	}
 
 	return Palette{
-		Name:        sanitizeName(t.ID()),
-		DisplayName: strings.TrimSpace(t.DisplayName()),
-		About:       strings.TrimSpace(t.About()),
+		Name:        sanitizeName(t.ID),
+		DisplayName: strings.TrimSpace(t.DisplayName),
 		Colors:      colors,
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"strings"
 )
 
 var osStreams *IOStreams
@@ -45,6 +46,16 @@ func NewTestIOStreamsOnly() *IOStreams {
 		Out:    &bytes.Buffer{},
 		ErrOut: &bytes.Buffer{},
 	}
+}
+
+// HasTrueColorEnv reports whether the COLORTERM environment variable
+// indicates TrueColor support.  The charmbracelet/colorprofile detector
+// deliberately ignores COLORTERM inside tmux, but tmux does support
+// TrueColor when configured — this helper lets callers restore the
+// behaviour of the previous termenv-based detection.
+func HasTrueColorEnv() bool {
+	ct := strings.ToLower(os.Getenv("COLORTERM"))
+	return ct == "truecolor" || ct == "24bit"
 }
 
 func NewTestIOStreams() (*IOStreams, *bytes.Buffer, *bytes.Buffer, *bytes.Buffer) {

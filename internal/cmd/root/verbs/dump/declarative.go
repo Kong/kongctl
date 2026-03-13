@@ -489,9 +489,13 @@ func collectDeclarativeEventGateways(
 
 	// Client-side filtering for exact name match or ID (not supported server-side)
 	if filter.hasFilter() {
-		allData = filterByNameOrID(allData, filter, func(r declresources.EventGatewayControlPlaneResource) (string, string) {
-			return r.Name, r.Ref
-		})
+		allData = filterByNameOrID(
+			allData,
+			filter,
+			func(r declresources.EventGatewayControlPlaneResource) (string, string) {
+				return r.Name, r.Ref
+			},
+		)
 	}
 
 	sort.Slice(allData, func(i, j int) bool {
@@ -793,9 +797,13 @@ func collectDeclarativeAuthStrategies(
 
 	// Client-side ID filtering (not supported server-side for auth strategies)
 	if filter.id != "" {
-		results = filterByNameOrID(results, filter, func(r declresources.ApplicationAuthStrategyResource) (string, string) {
-			return r.GetMoniker(), r.Ref
-		})
+		results = filterByNameOrID(
+			results,
+			filter,
+			func(r declresources.ApplicationAuthStrategyResource) (string, string) {
+				return r.GetMoniker(), r.Ref
+			},
+		)
 	}
 
 	sort.Slice(results, func(i, j int) bool {
