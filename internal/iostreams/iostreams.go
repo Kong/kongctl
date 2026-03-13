@@ -54,7 +54,7 @@ func NewTestIOStreamsOnly() *IOStreams {
 // TrueColor when configured — this helper lets callers restore the
 // behaviour of the previous termenv-based detection.
 func HasTrueColorEnv() bool {
-	ct := strings.ToLower(os.Getenv("COLORTERM"))
+	ct := strings.ToLower(strings.TrimSpace(os.Getenv("COLORTERM")))
 	return ct == "truecolor" || ct == "24bit"
 }
 

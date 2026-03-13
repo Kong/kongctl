@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"image/color"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -50,21 +51,38 @@ type Color struct {
 	Dark  string
 }
 
-// Adaptive returns a resolved lipgloss color suitable for use
-// as a foreground, background, or border color in lipgloss v2 styles.
-// It picks the Dark variant (falling back to Light) since all current
-// palettes use identical values for both.
+type adaptiveColor struct {
+	light color.Color
+	dark  color.Color
+}
+
+func (c adaptiveColor) RGBA() (uint32, uint32, uint32, uint32) {
+	if hasDarkBackground() {
+		return c.dark.RGBA()
+	}
+	return c.light.RGBA()
+}
+
+// Adaptive returns a lipgloss-compatible adaptive color that preserves
+// distinct light and dark variants when both are provided.
 func (c Color) Adaptive() color.Color {
-	dark := strings.TrimSpace(c.Dark)
 	light := strings.TrimSpace(c.Light)
-	hex := dark
-	if hex == "" {
-		hex = light
+	dark := strings.TrimSpace(c.Dark)
+	switch {
+	case light == "" && dark == "":
+		return adaptiveColor{
+			light: lipgloss.Color("#FFFFFF"),
+			dark:  lipgloss.Color("#000000"),
+		}
+	case light == "":
+		light = dark
+	case dark == "":
+		dark = light
 	}
-	if hex == "" {
-		hex = "#FFFFFF"
+	return adaptiveColor{
+		light: lipgloss.Color(light),
+		dark:  lipgloss.Color(dark),
 	}
-	return lipgloss.Color(hex)
 }
 
 // Palette represents a concrete theme.
@@ -110,6 +128,9 @@ var (
 	defaultPal           Palette
 	themeKey             contextKey
 	configuredExplicitly bool
+	hasDarkBackground    = func() bool {
+		return lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
+	}
 )
 
 // ContextWithPalette stores the palette on the context.
@@ -395,8 +416,55 @@ func paletteFromTint(t *tint.Tint) Palette {
 	return Palette{
 		Name:        sanitizeName(t.ID),
 		DisplayName: strings.TrimSpace(t.DisplayName),
+		About:       aboutFromTint(t),
 		Colors:      colors,
 	}
+}
+
+func aboutFromTint(t *tint.Tint) string {
+	if t == nil {
+		return ""
+	}
+
+	name := strings.TrimSpace(t.DisplayName)
+	if name == "" {
+		name = strings.TrimSpace(t.ID)
+	}
+	if name == "" {
+		return ""
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "Tint: %s", name)
+
+	credits := make([]string, 0, len(t.CreditSources))
+	for _, source := range t.CreditSources {
+		if source == nil {
+			continue
+		}
+
+		sourceName := strings.TrimSpace(source.Name)
+		sourceLink := strings.TrimSpace(source.Link)
+		switch {
+		case sourceName != "" && sourceLink != "":
+			credits = append(credits, fmt.Sprintf("%s (%s)", sourceName, sourceLink))
+		case sourceName != "":
+			credits = append(credits, sourceName)
+		case sourceLink != "":
+			credits = append(credits, sourceLink)
+		}
+	}
+
+	if len(credits) == 0 {
+		return b.String()
+	}
+
+	b.WriteString("\nTint credits:")
+	for _, credit := range credits {
+		fmt.Fprintf(&b, "\n  * %s", credit)
+	}
+
+	return b.String()
 }
 
 func singleColor(hex string) Color {
