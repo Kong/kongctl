@@ -91,7 +91,7 @@ func (s OrganizationTeamSystemAccountResource) GetKonnectMonikerFilter() string 
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
-func (s *OrganizationTeamSystemAccountResource) TryMatchKonnectResource(konnectResource any) bool {
+func (s *OrganizationTeamSystemAccountResource) TryMatchKonnectResource(_ any) bool {
 	return false
 }
 

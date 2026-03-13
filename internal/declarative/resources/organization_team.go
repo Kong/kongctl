@@ -17,7 +17,7 @@ func init() {
 // It is a wrapper key under a team definition and is not itself a Konnect resource.
 type TeamMembersBlock struct {
 	Users          []OrganizationTeamUserResource          `yaml:"users,omitempty"           json:"users,omitempty"`
-	SystemAccounts []OrganizationTeamSystemAccountResource `yaml:"system_accounts,omitempty" json:"system_accounts,omitempty"`
+	SystemAccounts []OrganizationTeamSystemAccountResource `yaml:"system_accounts,omitempty" json:"system_accounts,omitempty"` //nolint:lll
 }
 
 // OrganizationTeamResource represents a team in declarative configuration

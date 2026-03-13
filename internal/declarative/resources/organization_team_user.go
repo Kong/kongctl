@@ -93,7 +93,7 @@ func (u OrganizationTeamUserResource) GetKonnectMonikerFilter() string {
 }
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource by user ID
-func (u *OrganizationTeamUserResource) TryMatchKonnectResource(konnectResource any) bool {
+func (u *OrganizationTeamUserResource) TryMatchKonnectResource(_ any) bool {
 	return false
 }
 
