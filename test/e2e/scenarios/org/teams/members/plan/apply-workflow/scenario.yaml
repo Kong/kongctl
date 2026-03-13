@@ -1,0 +1,143 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: team-members-plan-apply-e2e
+  teamRef: api-platform-team
+  sa1Name: e2e-team-member-plan-sa1
+  sa2Name: e2e-team-member-plan-sa2
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - created_at
+      - updated_at
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-system-accounts
+    skipInputs: true
+    commands:
+      - name: 000-create-sa1
+        create:
+          resource: system-account
+          payload:
+            inline:
+              name: "{{ .vars.sa1Name }}"
+              description: "E2E plan team member SA 1"
+          recordVar:
+            name: sa1ID
+            responsePath: id
+
+      - name: 001-create-sa2
+        create:
+          resource: system-account
+          payload:
+            inline:
+              name: "{{ .vars.sa2Name }}"
+              description: "E2E plan team member SA 2"
+          recordVar:
+            name: sa2ID
+            responsePath: id
+
+  - name: 002-plan-apply-create
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/team-members.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: "changes[?resource_type=='organization_team' && resource_ref=='{{ .vars.teamRef }}'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "API Platform Team"
+          - select: "changes[?resource_type=='organization_team_system_account' && resource_ref=='api-platform-sa1'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.account_name: "{{ .vars.sa1Name }}"
+                fields.account_id: "{{ .vars.sa1ID }}"
+                references.team_id.ref: "{{ .vars.teamRef }}"
+          - select: "changes[?resource_type=='organization_team_system_account' && resource_ref=='api-platform-sa2'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.account_name: "{{ .vars.sa2Name }}"
+                fields.account_id: "{{ .vars.sa2ID }}"
+                references.team_id.ref: "{{ .vars.teamRef }}"
+
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 3 to add')": true
+                "contains(@, 'team \"api-platform-team\" will be created')": true
+                "contains(@, 'organization_team_system_account \"api-platform-sa1\" will be created')": true
+                "contains(@, 'organization_team_system_account \"api-platform-sa2\" will be created')": true
+
+      - name: 002-apply-plan
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+                status: success
+
+  - name: 003-plan-apply-no-changes
+    commands:
+      - name: 000-plan-no-changes
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/team-members.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0

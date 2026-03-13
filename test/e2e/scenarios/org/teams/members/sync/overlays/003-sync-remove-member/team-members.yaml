@@ -1,0 +1,17 @@
+organization:
+  teams:
+    - ref: api-platform-team
+      name: "API Platform Team"
+      description: "Team for API platform management"
+      labels:
+        department: "engineering"
+      kongctl:
+        namespace: team-members-sync-e2e
+        protected: false
+      members:
+        system_accounts:
+          - ref: api-platform-sa1
+            name: "e2e-team-member-sync-sa1"
+            # removed api-platform-sa2 and added api-platform-sa3
+          - ref: api-platform-sa3
+            name: "e2e-team-member-sync-sa3"

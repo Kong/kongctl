@@ -1,0 +1,146 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: team-members-apply-e2e
+  teamRef: api-platform-team
+  sa1Name: e2e-team-member-sa1
+  sa2Name: e2e-team-member-sa2
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-system-accounts
+    skipInputs: true
+    commands:
+      - name: 000-create-sa1
+        create:
+          resource: system-account
+          payload:
+            inline:
+              name: "{{ .vars.sa1Name }}"
+              description: "E2E team member SA 1"
+          recordVar:
+            name: sa1ID
+            responsePath: id
+
+      - name: 001-create-sa2
+        create:
+          resource: system-account
+          payload:
+            inline:
+              name: "{{ .vars.sa2Name }}"
+              description: "E2E team member SA 2"
+          recordVar:
+            name: sa2ID
+            responsePath: id
+
+  - name: 002-apply-create
+    commands:
+      - name: 000-apply-create
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/team-members.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+                status: success
+          - select: "plan.changes[?resource_type=='organization_team' && resource_ref=='{{ .vars.teamRef }}'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "API Platform Team"
+                fields.description: "Team for API platform management"
+          - select: "plan.changes[?resource_type=='organization_team_system_account' && resource_ref=='api-platform-sa1'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.account_name: "{{ .vars.sa1Name }}"
+                fields.account_id: "{{ .vars.sa1ID }}"
+                references.team_id.ref: "{{ .vars.teamRef }}"
+          - select: "plan.changes[?resource_type=='organization_team_system_account' && resource_ref=='api-platform-sa2'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.account_name: "{{ .vars.sa2Name }}"
+                fields.account_id: "{{ .vars.sa2ID }}"
+                references.team_id.ref: "{{ .vars.teamRef }}"
+
+  - name: 003-get-verify-members
+    skipInputs: true
+    commands:
+      - name: 000-get-all-members
+        run: ["get", "org", "team", "member", "--team-name", "API Platform Team"]
+        assertions:
+          - select: "[?type=='system-account' && identifier=='{{ .vars.sa1Name }}'] | [0]"
+            expect:
+              fields:
+                type: system-account
+                identifier: "{{ .vars.sa1Name }}"
+          - select: "[?type=='system-account' && identifier=='{{ .vars.sa2Name }}'] | [0]"
+            expect:
+              fields:
+                type: system-account
+                identifier: "{{ .vars.sa2Name }}"
+      - name: 001-get-sa-members
+        run: ["get", "org", "team", "member", "system-accounts", "--team-name", "API Platform Team"]
+        assertions:
+          - select: "[?name=='{{ .vars.sa1Name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.sa1Name }}"
+          - select: "[?name=='{{ .vars.sa2Name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.sa2Name }}"
+      - name: 002-get-sa-member-by-name
+        run: ["get", "org", "team", "member", "system-accounts", "--team-name", "API Platform Team", "{{ .vars.sa1Name }}"]
+        assertions:
+          - select: "[?name=='{{ .vars.sa1Name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.sa1Name }}"
+
+  - name: 004-apply-idempotent
+    commands:
+      - name: 000-apply-no-changes
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/team-members.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: summary
+            expect:
+              fields:
+                applied: 0
+                failed: 0
+                status: success

@@ -1,0 +1,16 @@
+organization:
+  teams:
+    - ref: api-platform-team
+      name: "API Platform Team"
+      description: "Team for API platform management"
+      labels:
+        department: "engineering"
+      kongctl:
+        namespace: team-members-apply-e2e
+        protected: false
+      members:
+        system_accounts:
+          - ref: api-platform-sa1
+            name: "e2e-team-member-sa1"
+          - ref: api-platform-sa2
+            name: "e2e-team-member-sa2"

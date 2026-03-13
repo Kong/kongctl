@@ -1,0 +1,151 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: team-members-plan-sync-e2e
+  teamRef: api-platform-team
+  sa1Name: e2e-team-member-ps-sa1
+  sa2Name: e2e-team-member-ps-sa2
+  sa3Name: e2e-team-member-ps-sa3
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - created_at
+      - updated_at
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-system-accounts
+    skipInputs: true
+    commands:
+      - name: 000-create-sa1
+        create:
+          resource: system-account
+          payload:
+            inline:
+              name: "{{ .vars.sa1Name }}"
+              description: "E2E plan-sync team member SA 1"
+          recordVar:
+            name: sa1ID
+            responsePath: id
+
+      - name: 001-create-sa2
+        create:
+          resource: system-account
+          payload:
+            inline:
+              name: "{{ .vars.sa2Name }}"
+              description: "E2E plan-sync team member SA 2"
+          recordVar:
+            name: sa2ID
+            responsePath: id
+
+      - name: 002-create-sa3
+        create:
+          resource: system-account
+          payload:
+            inline:
+              name: "{{ .vars.sa3Name }}"
+              description: "E2E plan-sync team member SA 3"
+          recordVar:
+            name: sa3ID
+            responsePath: id
+
+  - name: 002-bootstrap-sync-state
+    commands:
+      - name: 000-sync-initial
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/team-members.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+
+  - name: 003-plan-sync-remove-member
+    inputOverlayDirs:
+      - overlays/003-remove-member
+    commands:
+      - name: 000-plan-sync
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/team-members.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 1
+                by_action.CREATE: 1
+          - select: "changes[?resource_type=='organization_team_system_account' && action=='DELETE'] | [0]"
+            expect:
+              fields:
+                resource_ref: "{{ .vars.sa2ID }}"
+                references.team_id.ref: "{{ .vars.teamRef }}"
+          - select: "changes[?resource_type=='organization_team_system_account' && resource_ref=='api-platform-sa3'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.account_name: "{{ .vars.sa3Name }}"
+                fields.account_id: "{{ .vars.sa3ID }}"
+
+      - name: 001-apply-plan
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
+
+  - name: 004-plan-sync-no-changes
+    inputOverlayDirs:
+      - overlays/003-remove-member
+    commands:
+      - name: 000-plan-no-changes
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/team-members.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
