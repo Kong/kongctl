@@ -75,6 +75,12 @@ const (
 
 	// ResourceTypeDeck represents an internal deck execution step.
 	ResourceTypeDeck = "_deck"
+
+	// ResourceTypeOrganizationTeamUser is the resource type for organization team user memberships
+	ResourceTypeOrganizationTeamUser = "organization_team_user"
+
+	// ResourceTypeOrganizationTeamSystemAccount is the resource type for organization team system account memberships
+	ResourceTypeOrganizationTeamSystemAccount = "organization_team_system_account"
 )
 
 // Default values

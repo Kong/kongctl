@@ -78,6 +78,10 @@ type Executor struct {
 	// API implementation is not yet supported by SDK but we include adapter for completeness
 	apiImplementationExecutor *BaseCreateDeleteExecutor[kkComps.APIImplementation]
 
+	// Organization team child resource executors
+	organizationTeamUserExecutor          *BaseCreateDeleteExecutor[kkComps.AddUserToTeam]
+	organizationTeamSystemAccountExecutor *BaseCreateDeleteExecutor[kkComps.AddSystemAccountToTeam]
+
 	deckRunner     deck.Runner
 	konnectToken   string
 	konnectBaseURL string
@@ -266,6 +270,16 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 
 	e.apiImplementationExecutor = NewBaseCreateDeleteExecutor[kkComps.APIImplementation](
 		NewAPIImplementationAdapter(client),
+		dryRun,
+	)
+
+	// Initialize organization team child resource executors
+	e.organizationTeamUserExecutor = NewBaseCreateDeleteExecutor[kkComps.AddUserToTeam](
+		NewOrganizationTeamUserAdapter(client),
+		dryRun,
+	)
+	e.organizationTeamSystemAccountExecutor = NewBaseCreateDeleteExecutor[kkComps.AddSystemAccountToTeam](
+		NewOrganizationTeamSystemAccountAdapter(client),
 		dryRun,
 	)
 
@@ -730,6 +744,40 @@ func (e *Executor) resolvePortalTeamRef(
 	}
 
 	return "", fmt.Errorf("portal team not found: ref=%s, looked up by name=%s", refInfo.Ref, lookupValue)
+}
+
+// resolveOrganizationTeamRef resolves an organization team reference to its Konnect ID.
+func (e *Executor) resolveOrganizationTeamRef(
+	ctx context.Context,
+	refInfo planner.ReferenceInfo,
+) (string, error) {
+	if orgTeams, ok := e.refToID["organization_team"]; ok {
+		if id, found := orgTeams[refInfo.Ref]; found && id != "" {
+			return id, nil
+		}
+	}
+
+	lookupValue := refInfo.Ref
+	if refInfo.LookupFields != nil {
+		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
+			lookupValue = name
+		}
+	}
+
+	// Fall back to looking up in the state client
+	team, err := e.client.GetOrganizationTeamByName(ctx, lookupValue)
+	if err != nil {
+		return "", fmt.Errorf("failed to look up organization team %q: %w", lookupValue, err)
+	}
+	if team == nil {
+		return "", fmt.Errorf("organization team not found: ref=%s, lookup=%s", refInfo.Ref, lookupValue)
+	}
+
+	if team.ID == nil || *team.ID == "" {
+		return "", fmt.Errorf("organization team %q found but has no ID", lookupValue)
+	}
+
+	return *team.ID, nil
 }
 
 func (e *Executor) resolveControlPlaneRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
@@ -1782,6 +1830,36 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		return e.eventGatewayVirtualClusterExecutor.Create(ctx, *change)
 	case "organization_team":
 		return e.organizationTeamExecutor.Create(ctx, *change)
+	case planner.ResourceTypeOrganizationTeamUser:
+		if teamRef, ok := change.References["team_id"]; ok && teamRef.ID == "" {
+			teamID, err := e.resolveOrganizationTeamRef(ctx, teamRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve organization team reference: %w", err)
+			}
+			teamRef.ID = teamID
+			change.References["team_id"] = teamRef
+		}
+		if change.Parent != nil && change.Parent.ID == "" {
+			if teamRef, ok := change.References["team_id"]; ok {
+				change.Parent.ID = teamRef.ID
+			}
+		}
+		return e.organizationTeamUserExecutor.Create(ctx, *change)
+	case planner.ResourceTypeOrganizationTeamSystemAccount:
+		if teamRef, ok := change.References["team_id"]; ok && teamRef.ID == "" {
+			teamID, err := e.resolveOrganizationTeamRef(ctx, teamRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve organization team reference: %w", err)
+			}
+			teamRef.ID = teamID
+			change.References["team_id"] = teamRef
+		}
+		if change.Parent != nil && change.Parent.ID == "" {
+			if teamRef, ok := change.References["team_id"]; ok {
+				change.Parent.ID = teamRef.ID
+			}
+		}
+		return e.organizationTeamSystemAccountExecutor.Create(ctx, *change)
 
 	case planner.ResourceTypeEventGatewayListener:
 		// Resolve event gateway reference if needed
@@ -2272,6 +2350,36 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 		return e.eventGatewayDataPlaneCertificateExecutor.Delete(ctx, *change)
 	case "organization_team":
 		return e.organizationTeamExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeOrganizationTeamUser:
+		if teamRef, ok := change.References["team_id"]; ok && teamRef.ID == "" {
+			teamID, err := e.resolveOrganizationTeamRef(ctx, teamRef)
+			if err != nil {
+				return fmt.Errorf("failed to resolve organization team reference: %w", err)
+			}
+			teamRef.ID = teamID
+			change.References["team_id"] = teamRef
+		}
+		if change.Parent != nil && change.Parent.ID == "" {
+			if teamRef, ok := change.References["team_id"]; ok {
+				change.Parent.ID = teamRef.ID
+			}
+		}
+		return e.organizationTeamUserExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeOrganizationTeamSystemAccount:
+		if teamRef, ok := change.References["team_id"]; ok && teamRef.ID == "" {
+			teamID, err := e.resolveOrganizationTeamRef(ctx, teamRef)
+			if err != nil {
+				return fmt.Errorf("failed to resolve organization team reference: %w", err)
+			}
+			teamRef.ID = teamID
+			change.References["team_id"] = teamRef
+		}
+		if change.Parent != nil && change.Parent.ID == "" {
+			if teamRef, ok := change.References["team_id"]; ok {
+				change.Parent.ID = teamRef.ID
+			}
+		}
+		return e.organizationTeamSystemAccountExecutor.Delete(ctx, *change)
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)
 	}

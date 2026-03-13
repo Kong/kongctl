@@ -13,11 +13,19 @@ func init() {
 	)
 }
 
+// TeamMembersBlock groups user and system-account membership declarations for readability.
+// It is a wrapper key under a team definition and is not itself a Konnect resource.
+type TeamMembersBlock struct {
+	Users          []OrganizationTeamUserResource          `yaml:"users,omitempty"           json:"users,omitempty"`
+	SystemAccounts []OrganizationTeamSystemAccountResource `yaml:"system_accounts,omitempty" json:"system_accounts,omitempty"` //nolint:lll
+}
+
 // OrganizationTeamResource represents a team in declarative configuration
 type OrganizationTeamResource struct {
 	BaseResource
 	kkComps.CreateTeam `yaml:",inline" json:",inline"`
-	External           *ExternalBlock `yaml:"_external,omitempty" json:"_external,omitempty"`
+	Members            *TeamMembersBlock `yaml:"members,omitempty"   json:"members,omitempty"`
+	External           *ExternalBlock    `yaml:"_external,omitempty" json:"_external,omitempty"`
 }
 
 // GetReferenceFieldMappings returns the field mappings for reference validation
@@ -40,6 +48,31 @@ func (t OrganizationTeamResource) Validate() error {
 			return fmt.Errorf("invalid _external block: %w", err)
 		}
 	}
+
+	if t.Members != nil {
+		userRefs := make(map[string]bool)
+		for i, user := range t.Members.Users {
+			if err := user.Validate(); err != nil {
+				return fmt.Errorf("invalid member user %d: %w", i, err)
+			}
+			if userRefs[user.GetRef()] {
+				return fmt.Errorf("duplicate member user ref: %s", user.GetRef())
+			}
+			userRefs[user.GetRef()] = true
+		}
+
+		sysAccountRefs := make(map[string]bool)
+		for i, sa := range t.Members.SystemAccounts {
+			if err := sa.Validate(); err != nil {
+				return fmt.Errorf("invalid member system account %d: %w", i, err)
+			}
+			if sysAccountRefs[sa.GetRef()] {
+				return fmt.Errorf("duplicate member system account ref: %s", sa.GetRef())
+			}
+			sysAccountRefs[sa.GetRef()] = true
+		}
+	}
+
 	return nil
 }
 
@@ -48,6 +81,14 @@ func (t *OrganizationTeamResource) SetDefaults() {
 	// If Name is not set, use ref as default
 	if t.Name == "" {
 		t.Name = t.Ref
+	}
+	if t.Members != nil {
+		for i := range t.Members.Users {
+			t.Members.Users[i].SetDefaults()
+		}
+		for i := range t.Members.SystemAccounts {
+			t.Members.SystemAccounts[i].SetDefaults()
+		}
 	}
 }
 
