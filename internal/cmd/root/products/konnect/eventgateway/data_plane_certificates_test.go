@@ -27,8 +27,15 @@ func TestDataPlaneCertFlagValidation(t *testing.T) {
 			wantErr: "if any flags in the group [gateway-id gateway-name] are set none of the others can be",
 		},
 		{
-			name:    "both data plane certificate flags mutually exclusive",
-			args:    []string{"--gateway-id", "gw-1", "--data-plane-certificate-id", "cert-1", "--data-plane-certificate-name", "cert"},                                                                          //nolint:lll
+			name: "both data plane certificate flags mutually exclusive",
+			args: []string{
+				"--gateway-id",
+				"gw-1",
+				"--data-plane-certificate-id",
+				"cert-1",
+				"--data-plane-certificate-name",
+				"cert",
+			},
 			wantErr: "if any flags in the group [data-plane-certificate-id data-plane-certificate-name] are set none of the others can be; [data-plane-certificate-id data-plane-certificate-name] were all set", //nolint:lll
 		},
 	}

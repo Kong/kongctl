@@ -470,13 +470,13 @@ func splitFrontmatter(content []byte) ([]byte, []byte, error) {
 	}
 
 	rest := text[len(opening):]
-	sepIdx := strings.Index(rest, separator)
-	if sepIdx < 0 {
+	before, after, ok := strings.Cut(rest, separator)
+	if !ok {
 		return nil, nil, fmt.Errorf("skill file missing YAML frontmatter closing delimiter")
 	}
 
-	frontmatter := []byte(rest[:sepIdx])
-	body := []byte(rest[sepIdx+len(separator):])
+	frontmatter := []byte(before)
+	body := []byte(after)
 
 	return frontmatter, body, nil
 }

@@ -1815,7 +1815,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References["event_gateway_listener_id"] = listenerRef
 		}
 		// Resolve event gateway virtual cluster reference if needed (for forward_to_virtual_cluster policies)
-		if virtualClusterRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok && virtualClusterRef.ID == "" {
+		if virtualClusterRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok &&
+			virtualClusterRef.ID == "" {
 			gatewayID := change.References["event_gateway_id"].ID
 			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
 			if err != nil {
@@ -2104,7 +2105,8 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			change.References["event_gateway_listener_id"] = listenerRef
 		}
 		// Resolve event gateway virtual cluster reference if needed (for forward_to_virtual_cluster policies)
-		if virtualClusterRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok && virtualClusterRef.ID == "" {
+		if virtualClusterRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok &&
+			virtualClusterRef.ID == "" {
 			gatewayID := change.References["event_gateway_id"].ID
 			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
 			if err != nil {

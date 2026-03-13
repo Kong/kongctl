@@ -800,7 +800,15 @@ func (p *Planner) planPortalCustomDomainsChanges(
 	}
 
 	if currentDomain.Enabled != desiredDomain.Enabled {
-		p.planPortalCustomDomainUpdate(parentNamespace, currentDomain, *desiredDomain, portalID, portalRef, portalName, plan)
+		p.planPortalCustomDomainUpdate(
+			parentNamespace,
+			currentDomain,
+			*desiredDomain,
+			portalID,
+			portalRef,
+			portalName,
+			plan,
+		)
 	}
 
 	return nil
