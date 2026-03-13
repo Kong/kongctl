@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -556,13 +555,12 @@ func (t *OrganizationTeamPlannerImpl) planTeamUserMemberChanges(
 	}
 
 	// Fetch current team members when we have a live team ID
-	currentByID := make(map[string]string) // konnectID -> konnectID (set)
+	currentByID := make(map[string]string)
 	if teamID != "" {
 		users, err := t.GetClient().ListTeamUsers(ctx, teamID)
 		if err != nil {
 			// If team membership API is not configured, skip member planning gracefully
-			if strings.Contains(err.Error(), "team membership API") &&
-				strings.Contains(err.Error(), "not configured") {
+			if state.IsAPIClientError(err) {
 				return nil
 			}
 			return fmt.Errorf("failed to list users for team %s: %w", teamRef, err)
@@ -661,8 +659,7 @@ func (t *OrganizationTeamPlannerImpl) planTeamSystemAccountMemberChanges(
 	if teamID != "" {
 		accounts, err := t.GetClient().ListTeamSystemAccounts(ctx, teamID)
 		if err != nil {
-			if strings.Contains(err.Error(), "team membership API") &&
-				strings.Contains(err.Error(), "not configured") {
+			if state.IsAPIClientError(err) {
 				return nil
 			}
 			return fmt.Errorf("failed to list system accounts for team %s: %w", teamRef, err)
@@ -702,7 +699,7 @@ func (t *OrganizationTeamPlannerImpl) planTeamSystemAccountMemberChanges(
 			ResourceRef:  desired.GetRef(),
 			Action:       ActionCreate,
 			Fields: map[string]any{
-				"account_id":  accountID,
+				"account_id":   accountID,
 				"account_name": desired.Name,
 			},
 			DependsOn: deps,

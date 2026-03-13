@@ -52,6 +52,11 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
+	// Validate separate team member resources (extracted from nested members)
+	if err := l.validateSeparateTeamMemberResources(rs); err != nil {
+		return err
+	}
+
 	// Validate cross-resource references
 	if err := l.validateCrossReferences(rs); err != nil {
 		return err
@@ -94,6 +99,43 @@ func (l *Loader) validateOrganizationTeams(teams []resources.OrganizationTeamRes
 		}
 
 		names[team.Name] = team.GetRef()
+	}
+
+	return nil
+}
+
+// validateSeparateTeamMemberResources validates team member resources extracted from nested members blocks
+func (l *Loader) validateSeparateTeamMemberResources(rs *resources.ResourceSet) error {
+	// Validate separate team user resources
+	for i := range rs.OrganizationTeamUsers {
+		user := &rs.OrganizationTeamUsers[i]
+		if err := user.Validate(); err != nil {
+			return fmt.Errorf("invalid organization_team_user %q: %w", user.GetRef(), err)
+		}
+		for j := i + 1; j < len(rs.OrganizationTeamUsers); j++ {
+			if rs.OrganizationTeamUsers[j].GetRef() == user.GetRef() {
+				return fmt.Errorf(
+					"duplicate ref '%s' (already defined as organization_team_user)",
+					user.GetRef(),
+				)
+			}
+		}
+	}
+
+	// Validate separate team system account resources
+	for i := range rs.OrganizationTeamSystemAccounts {
+		sa := &rs.OrganizationTeamSystemAccounts[i]
+		if err := sa.Validate(); err != nil {
+			return fmt.Errorf("invalid organization_team_system_account %q: %w", sa.GetRef(), err)
+		}
+		for j := i + 1; j < len(rs.OrganizationTeamSystemAccounts); j++ {
+			if rs.OrganizationTeamSystemAccounts[j].GetRef() == sa.GetRef() {
+				return fmt.Errorf(
+					"duplicate ref '%s' (already defined as organization_team_system_account)",
+					sa.GetRef(),
+				)
+			}
+		}
 	}
 
 	return nil

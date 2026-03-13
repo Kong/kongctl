@@ -692,7 +692,7 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.OrganizationTeamSystemAccounts = append(rs.OrganizationTeamSystemAccounts, sa)
 		}
 
-		team.Members = nil // clear after extraction to avoid double processing
+		team.Members = nil
 	}
 
 	for i := range rs.ControlPlanes {
