@@ -12,6 +12,9 @@ import (
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization/team/members"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization/team/members/systemaccounts"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization/team/members/users"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -48,6 +51,12 @@ func newGetTeamCmd(
 	cmd.Flags().Bool(skipSystemTeamsFlagName, false, "Skip system teams in the output")
 
 	cmd.RunE = cmd.runE
+
+	// Wire in the members sub-command and its sub-sub-commands.
+	membersCmd := members.NewMembersCmd(verb, addParentFlags, parentPreRun)
+	membersCmd.AddCommand(users.NewUsersCmd(verb, addParentFlags, parentPreRun))
+	membersCmd.AddCommand(systemaccounts.NewSystemAccountsCmd(verb, addParentFlags, parentPreRun))
+	cmd.AddCommand(membersCmd)
 
 	return cmd
 }
