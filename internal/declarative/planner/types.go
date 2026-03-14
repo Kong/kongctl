@@ -20,6 +20,7 @@ type Plan struct {
 type PlanMode string
 
 const (
+	PlanModeCreate PlanMode = "create"
 	PlanModeSync   PlanMode = "sync"
 	PlanModeApply  PlanMode = "apply"
 	PlanModeDelete PlanMode = "delete"

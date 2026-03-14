@@ -52,6 +52,60 @@ func Test_validateDeletePlan(t *testing.T) {
 	}
 }
 
+func Test_validateCreatePlan(t *testing.T) {
+	tests := []struct {
+		name    string
+		mode    planner.PlanMode
+		changes []planner.PlannedChange
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "create mode with create changes is accepted",
+			mode: planner.PlanModeCreate,
+			changes: []planner.PlannedChange{
+				{Action: planner.ActionCreate, ResourceType: "portal", ResourceRef: "portal-a"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "apply mode is rejected",
+			mode: planner.PlanModeApply,
+			changes: []planner.PlannedChange{
+				{Action: planner.ActionCreate, ResourceType: "portal", ResourceRef: "portal-a"},
+			},
+			wantErr: true,
+			errMsg:  `create command requires a plan generated in create mode, got "apply" mode`,
+		},
+		{
+			name: "update action is rejected",
+			mode: planner.PlanModeCreate,
+			changes: []planner.PlannedChange{
+				{Action: planner.ActionUpdate, ResourceType: "portal", ResourceRef: "portal-a"},
+			},
+			wantErr: true,
+			errMsg:  `create command cannot execute UPDATE actions`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			plan := &planner.Plan{
+				Metadata: planner.PlanMetadata{Mode: tt.mode},
+				Changes:  tt.changes,
+			}
+			err := validateCreatePlan(plan)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+				return
+			}
+
+			require.NoError(t, err)
+		})
+	}
+}
+
 func Test_parsePlanMode(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -59,6 +113,11 @@ func Test_parsePlanMode(t *testing.T) {
 		expected planner.PlanMode
 		errMsg   string
 	}{
+		{
+			name:     "create mode",
+			mode:     "create",
+			expected: planner.PlanModeCreate,
+		},
 		{
 			name:     "sync mode",
 			mode:     "sync",
@@ -77,7 +136,7 @@ func Test_parsePlanMode(t *testing.T) {
 		{
 			name:   "invalid mode",
 			mode:   "invalid",
-			errMsg: `invalid mode "invalid": must be 'sync', 'apply', or 'delete'`,
+			errMsg: `invalid mode "invalid": must be 'create', 'sync', 'apply', or 'delete'`,
 		},
 	}
 

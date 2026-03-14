@@ -42,6 +42,74 @@ func (p *EGWControlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx
 		return nil
 	}
 
+	if plan.Metadata.Mode == PlanModeCreate {
+		for _, desiredEGWCP := range desired {
+			gatewayChangeID := p.planner.planEGWControlPlaneCreate(desiredEGWCP, plan)
+			namespace := plannerCtx.Namespace
+
+			backendClusters := p.resources.GetBackendClustersForGateway(desiredEGWCP.Ref)
+			if err := p.planner.planEventGatewayBackendClusterChanges(
+				ctx,
+				plannerCtx,
+				namespace,
+				desiredEGWCP.Name,
+				"",
+				desiredEGWCP.Ref,
+				gatewayChangeID,
+				backendClusters,
+				plan,
+			); err != nil {
+				return err
+			}
+
+			virtualClusters := p.resources.GetVirtualClustersForGateway(desiredEGWCP.Ref)
+			if err := p.planner.planEventGatewayVirtualClusterChanges(
+				ctx,
+				plannerCtx,
+				namespace,
+				desiredEGWCP.Name,
+				"",
+				desiredEGWCP.Ref,
+				gatewayChangeID,
+				virtualClusters,
+				plan,
+			); err != nil {
+				return err
+			}
+
+			listeners := p.resources.GetListenersForEventGateway(desiredEGWCP.Ref)
+			if err := p.planner.planEventGatewayListenerChanges(
+				ctx,
+				plannerCtx,
+				namespace,
+				desiredEGWCP.Name,
+				"",
+				desiredEGWCP.Ref,
+				gatewayChangeID,
+				listeners,
+				plan,
+			); err != nil {
+				return err
+			}
+
+			dataPlaneCerts := p.resources.GetDataPlaneCertificatesForGateway(desiredEGWCP.Ref)
+			if err := p.planner.planEventGatewayDataPlaneCertificateChanges(
+				ctx,
+				plannerCtx,
+				namespace,
+				desiredEGWCP.Name,
+				"",
+				desiredEGWCP.Ref,
+				gatewayChangeID,
+				dataPlaneCerts,
+				plan,
+			); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
 	return p.planner.planEGWControlPlaneChanges(ctx, plannerCtx, desired, plan)
 }
 

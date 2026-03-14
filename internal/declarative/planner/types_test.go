@@ -305,8 +305,13 @@ func TestPlan_ContainsDeletes(t *testing.T) {
 }
 
 func TestNewPlan_WithMode(t *testing.T) {
+	// Test create mode
+	plan := NewPlan("1.0", "test", PlanModeCreate)
+	if plan.Metadata.Mode != PlanModeCreate {
+		t.Errorf("Expected mode %s, got %s", PlanModeCreate, plan.Metadata.Mode)
+	}
 	// Test sync mode
-	plan := NewPlan("1.0", "test", PlanModeSync)
+	plan = NewPlan("1.0", "test", PlanModeSync)
 	if plan.Metadata.Mode != PlanModeSync {
 		t.Errorf("Expected mode %s, got %s", PlanModeSync, plan.Metadata.Mode)
 	}

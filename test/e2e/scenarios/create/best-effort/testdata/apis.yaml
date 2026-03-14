@@ -1,0 +1,8 @@
+_defaults:
+  kongctl:
+    namespace: create-best-effort
+
+apis:
+  - ref: best-effort-api
+    name: "Best Effort API"
+    description: "API used to validate best-effort create behavior"

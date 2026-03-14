@@ -1,0 +1,112 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  portalName: "Best Effort Portal"
+  apiName: "Best Effort API"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-seed-parents
+    commands:
+      - name: 000-apply-seed
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 001-get-publications
+        run:
+          - get
+          - api
+          - publications
+          - --api-name
+          - "{{ .vars.apiName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 002-best-effort-create
+    inputOverlayDirs:
+      - overlays/002-best-effort
+    commands:
+      - name: 000-create
+        outputFormat: json
+        run:
+          - create
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: create
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 2
+                status: partial_success
+          - select: execution.applied_changes[?resource_type=='api_publication' && resource_ref=='best-effort-publication'] | [0]
+            expect:
+              fields:
+                action: CREATE
+      - name: 001-get-publications
+        run:
+          - get
+          - api
+          - publications
+          - --api-name
+          - "{{ .vars.apiName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[0]"
+            expect:
+              fields:
+                visibility: public

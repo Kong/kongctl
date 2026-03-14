@@ -49,8 +49,8 @@ func (a *apiPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, pl
 		return err
 	}
 
-	// In delete mode, skip child resource planning (rely on cascade)
-	if plan.Metadata.Mode == PlanModeDelete {
+	// In delete and create modes, child planning is handled by the parent API planner.
+	if plan.Metadata.Mode == PlanModeDelete || plan.Metadata.Mode == PlanModeCreate {
 		return nil
 	}
 
@@ -88,6 +88,20 @@ func (p *Planner) planAPIChanges(
 	// Skip if no API resources to plan and not in sync mode
 	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
 		p.logger.Debug("Skipping API planning - no desired APIs")
+		return nil
+	}
+
+	if plan.Metadata.Mode == PlanModeCreate {
+		for _, desiredAPI := range desired {
+			apiChangeID := p.planAPICreate(desiredAPI, plan)
+
+			parentNamespace := DefaultNamespace
+			if desiredAPI.Kongctl != nil && desiredAPI.Kongctl.Namespace != nil {
+				parentNamespace = *desiredAPI.Kongctl.Namespace
+			}
+
+			p.planAPIChildResourcesCreate(parentNamespace, desiredAPI, apiChangeID, plan)
+		}
 		return nil
 	}
 
@@ -1127,6 +1141,13 @@ func (p *Planner) planAPIPublicationCreate(
 	parentNamespace string, apiRef string, apiID string, publication resources.APIPublicationResource,
 	dependsOn []string, plan *Plan,
 ) {
+	portalRef := publication.PortalID
+	if tags.IsRefPlaceholder(portalRef) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(portalRef); ok && parsedRef != "" {
+			portalRef = parsedRef
+		}
+	}
+
 	fields := make(map[string]any)
 	fields["portal_id"] = publication.PortalID
 	if publication.AuthStrategyIds != nil {
@@ -1157,7 +1178,7 @@ func (p *Planner) planAPIPublicationCreate(
 
 	// Look up portal name for reference resolution using global lookup
 	var portalName string
-	if portal := p.resources.GetPortalByRef(publication.PortalID); portal != nil {
+	if portal := p.resources.GetPortalByRef(portalRef); portal != nil {
 		portalName = portal.Name
 	}
 
@@ -1183,7 +1204,7 @@ func (p *Planner) planAPIPublicationCreate(
 	// Set portal reference
 	if publication.PortalID != "" {
 		change.References["portal_id"] = ReferenceInfo{
-			Ref: publication.PortalID,
+			Ref: portalRef,
 			LookupFields: map[string]string{
 				"name": portalName,
 			},

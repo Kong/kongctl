@@ -191,6 +191,8 @@ func (e *Executor) resolveDeckMode(plan *planner.Plan) (string, error) {
 	}
 
 	switch mode {
+	case planner.PlanModeCreate:
+		return "apply", nil
 	case planner.PlanModeApply:
 		return "apply", nil
 	case planner.PlanModeSync:
@@ -198,7 +200,7 @@ func (e *Executor) resolveDeckMode(plan *planner.Plan) (string, error) {
 	case planner.PlanModeDelete:
 		return "", fmt.Errorf("deck gateway does not support delete mode")
 	}
-	return "", fmt.Errorf("deck gateway requires apply or sync mode")
+	return "", fmt.Errorf("deck gateway requires create, apply, or sync mode")
 }
 
 func (e *Executor) resolveDeckWorkDir(fields map[string]any) (string, error) {
