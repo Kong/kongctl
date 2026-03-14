@@ -63,7 +63,11 @@ func (p *Planner) planDeckDependencies(ctx context.Context, rs *resources.Resour
 		deckFlags := cloneStringSlice(cp.Deck.Flags)
 		deckBaseDir := strings.TrimSpace(cp.DeckBaseDir())
 
-		if cpCreateID == "" && cpID != "" {
+		if opts.Mode == PlanModeCreate {
+			p.logger.Debug("Skipping deck diff in create mode",
+				slog.String("control_plane_ref", cpRef),
+			)
+		} else if cpCreateID == "" && cpID != "" {
 			changes, err := p.deckDiffHasChanges(ctx, cpRef, cpName, deckBaseDir, deckFiles, deckFlags, opts)
 			if err != nil {
 				return err
@@ -350,14 +354,14 @@ func (p *Planner) deckDiffHasChanges(
 ) (bool, error) {
 	mode := opts.Mode
 	switch mode {
-	case PlanModeApply, PlanModeSync:
+	case PlanModeApply, PlanModeCreate, PlanModeSync:
 		// valid modes for deck operations
 	case PlanModeDelete:
 		// Delete mode skips deck operations; the control plane deletion
 		// cascades removal of all core entities deck would manage.
 		return false, nil
 	default:
-		return false, fmt.Errorf("control_plane %s: deck diff requires apply or sync mode", controlPlaneRef)
+		return false, fmt.Errorf("control_plane %s: deck diff requires create, apply, or sync mode", controlPlaneRef)
 	}
 
 	if len(files) == 0 {
@@ -408,7 +412,7 @@ func (p *Planner) deckDiffHasChanges(
 		)
 	}
 
-	if mode == PlanModeApply {
+	if mode == PlanModeApply || mode == PlanModeCreate {
 		return (output.Summary.Creating + output.Summary.Updating) > 0, nil
 	}
 

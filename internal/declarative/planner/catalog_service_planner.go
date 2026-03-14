@@ -51,6 +51,13 @@ func (p *Planner) planCatalogServiceChanges(
 		slog.Int("desiredCount", len(desired)),
 		slog.String("namespace", plannerCtx.Namespace))
 
+	if plan.Metadata.Mode == PlanModeCreate {
+		for _, desiredSvc := range desired {
+			p.planCatalogServiceCreate(desiredSvc, plan)
+		}
+		return nil
+	}
+
 	currentServices, err := p.listManagedCatalogServices(ctx, []string{plannerCtx.Namespace})
 	if err != nil {
 		if state.IsAPIClientError(err) {
@@ -226,7 +233,7 @@ func (p *Planner) shouldUpdateCatalogService(
 	return len(updates) > 0, updates, changedFields
 }
 
-func (p *Planner) planCatalogServiceCreate(resource resources.CatalogServiceResource, plan *Plan) string {
+func (p *Planner) planCatalogServiceCreate(resource resources.CatalogServiceResource, plan *Plan) {
 	namespace := DefaultNamespace
 	if resource.Kongctl != nil && resource.Kongctl.Namespace != nil {
 		namespace = *resource.Kongctl.Namespace
@@ -252,13 +259,11 @@ func (p *Planner) planCatalogServiceCreate(resource resources.CatalogServiceReso
 	change, err := p.genericPlanner.PlanCreate(context.Background(), config)
 	if err != nil {
 		p.logger.Error("Failed to plan catalog service create", slog.String("error", err.Error()))
-		return ""
+		return
 	}
 
 	change.Protection = protection
 	plan.AddChange(change)
-
-	return change.ID
 }
 
 func extractCatalogServiceFields(resource resources.CatalogServiceResource) map[string]any {

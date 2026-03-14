@@ -36,6 +36,20 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 		return nil
 	}
 
+	if plan.Metadata.Mode == PlanModeCreate {
+		for _, desiredCP := range desired {
+			if desiredCP.IsExternal() {
+				p.planner.logger.Debug("Skipping external control plane in create mode",
+					"ref", desiredCP.GetRef(),
+					"name", desiredCP.Name,
+				)
+				continue
+			}
+			p.planControlPlaneCreate(desiredCP, isProtected(desiredCP), plan)
+		}
+		return nil
+	}
+
 	currentControlPlanes, err := p.planner.listManagedControlPlanes(ctx, []string{namespace})
 	if err != nil {
 		if state.IsAPIClientError(err) {

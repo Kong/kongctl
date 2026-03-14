@@ -361,6 +361,8 @@ func withExecutorChangeHTTPLogContext(ctx context.Context, change *planner.Plann
 func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, change *planner.PlannedChange,
 	plan *planner.Plan, changeIndex int,
 ) error {
+	normalizeUnresolvedReferenceIDs(change)
+
 	// Notify reporter of change start
 	if e.reporter != nil {
 		e.reporter.StartChange(*change)
@@ -453,6 +455,14 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 
 	// Record result
 	if err != nil {
+		if e.executionMode == planner.PlanModeCreate && change.Action == planner.ActionCreate {
+			slog.Warn("Create change failed; continuing with best-effort execution",
+				"change_id", change.ID,
+				"resource_type", change.ResourceType,
+				"resource_ref", change.ResourceRef,
+				"error", err.Error(),
+			)
+		}
 		execError := ExecutionError{
 			ChangeID:     change.ID,
 			ResourceType: change.ResourceType,
@@ -673,20 +683,27 @@ func (e *Executor) resolveAuthStrategyRef(ctx context.Context, refInfo planner.R
 
 // resolvePortalRef resolves a portal reference to its ID
 func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
+	lookupRef := refInfo.Ref
+	if tags.IsRefPlaceholder(lookupRef) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+			lookupRef = parsedRef
+		}
+	}
+
 	// First check if the reference already has an ID (resolved from dependency)
-	if refInfo.ID != "" {
+	if hasResolvedReferenceID(refInfo.ID) {
 		return refInfo.ID, nil
 	}
 
 	// Check if it was created in this execution
 	if portals, ok := e.refToID["portal"]; ok {
-		if id, found := portals[refInfo.Ref]; found {
+		if id, found := portals[lookupRef]; found {
 			return id, nil
 		}
 	}
 
 	// Determine the lookup value - use name from lookup fields if available
-	lookupValue := refInfo.Ref
+	lookupValue := lookupRef
 	if refInfo.LookupFields != nil {
 		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
 			lookupValue = name
@@ -750,7 +767,7 @@ func (e *Executor) resolveControlPlaneRef(ctx context.Context, refInfo planner.R
 	}
 
 	if controlPlanes, ok := e.refToID["control_plane"]; ok {
-		if id, found := controlPlanes[lookupRef]; found && id != "" && id != "[unknown]" {
+		if id, found := controlPlanes[lookupRef]; found && hasResolvedReferenceID(id) {
 			return id, nil
 		}
 	}
@@ -1366,7 +1383,7 @@ func (e *Executor) resolvePortalPageRef(
 func (e *Executor) resolveAPIDocumentRef(
 	ctx context.Context, apiID string, refInfo planner.ReferenceInfo,
 ) (string, error) {
-	if refInfo.ID != "" && refInfo.ID != "[unknown]" {
+	if hasResolvedReferenceID(refInfo.ID) {
 		return refInfo.ID, nil
 	}
 
@@ -2379,12 +2396,12 @@ func (e *Executor) getParentAPIID(ctx context.Context, change planner.PlannedCha
 	logger.Debug("Parent details",
 		slog.String("parent_ref", change.Parent.Ref),
 		slog.String("parent_id", change.Parent.ID),
-		slog.Bool("parent_id_empty", change.Parent.ID == ""),
+		slog.Bool("parent_id_empty", !hasResolvedReferenceID(change.Parent.ID)),
 		slog.Int("parent_id_length", len(change.Parent.ID)),
 	)
 
 	// Use the parent ID if it was already resolved
-	if change.Parent.ID != "" {
+	if hasResolvedReferenceID(change.Parent.ID) {
 		logger.Debug("Using resolved parent ID", slog.String("parent_id", change.Parent.ID))
 		return change.Parent.ID, nil
 	}

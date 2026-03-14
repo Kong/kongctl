@@ -194,6 +194,32 @@ func TestExecutor_resolveAuthStrategyRef_WithPlaceholder(t *testing.T) {
 	assert.Equal(t, "abc-123", id)
 }
 
+func TestNormalizeUnresolvedReferenceIDs(t *testing.T) {
+	change := &planner.PlannedChange{
+		Parent: &planner.ParentInfo{
+			Ref: "portal",
+			ID:  "[unknown]",
+		},
+		References: map[string]planner.ReferenceInfo{
+			"portal_id": {
+				Ref: "portal",
+				ID:  "[unknown]",
+			},
+			"auth_strategy_ids": {
+				IsArray:     true,
+				ResolvedIDs: []string{"resolved-id", "[unknown]", ""},
+			},
+		},
+	}
+
+	normalizeUnresolvedReferenceIDs(change)
+
+	require.NotNil(t, change.Parent)
+	assert.Empty(t, change.Parent.ID)
+	assert.Empty(t, change.References["portal_id"].ID)
+	assert.Equal(t, []string{"resolved-id", "", ""}, change.References["auth_strategy_ids"].ResolvedIDs)
+}
+
 func TestExecutor_ValidateChangePreExecution_Basic(t *testing.T) {
 	tests := []struct {
 		name          string

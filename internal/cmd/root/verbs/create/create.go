@@ -5,9 +5,12 @@ import (
 	"fmt"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
+	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -32,6 +35,10 @@ Output can be formatted in multiple ways to aid in further processing.`))
 
 	createExamples = normalizers.Examples(i18n.T("root.verbs.create.createExamples",
 		fmt.Sprintf(`
+		# Create resources defined in declarative configuration
+		%[1]s create -f config.yaml
+		# Create resources from a saved create plan
+		%[1]s create --plan create-plan.json
 		# Create a new Konnect Kong Gateway control plane (Konnect-first)
 		%[1]s create gateway control-plane <name>
 		# Create a new Konnect Kong Gateway control plane (explicit)
@@ -40,14 +47,34 @@ Output can be formatted in multiple ways to aid in further processing.`))
 )
 
 func NewCreateCmd() (*cobra.Command, error) {
+	declCreateCmd, err := declarative.NewDeclarativeCmd(Verb)
+	if err != nil {
+		return nil, err
+	}
+
 	cmd := &cobra.Command{
 		Use:     createUse,
 		Short:   createShort,
 		Long:    createLong,
 		Example: createExamples,
 		Aliases: []string{"c", "C"},
+		RunE: func(c *cobra.Command, args []string) error {
+			filenames, _ := c.Flags().GetStringSlice("filename")
+			planFile, _ := c.Flags().GetString("plan")
+			if len(filenames) > 0 || planFile != "" {
+				return declCreateCmd.RunE(c, args)
+			}
+			return c.Help()
+		},
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
-			c.SetContext(context.WithValue(c.Context(), verbs.Verb, Verb))
+			ctx := c.Context()
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			ctx = context.WithValue(ctx, verbs.Verb, Verb)
+			ctx = context.WithValue(ctx, products.Product, konnect.Product)
+			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
+			c.SetContext(ctx)
 			return bindKonnectFlags(c, args)
 		},
 	}
@@ -78,6 +105,7 @@ Setting this value overrides tokens obtained from the login command.
 		return nil, e
 	}
 
+	cmd.Flags().AddFlagSet(declCreateCmd.Flags())
 	cmd.AddCommand(c)
 
 	// Add gateway command directly for Konnect-first pattern

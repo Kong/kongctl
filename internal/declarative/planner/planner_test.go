@@ -891,6 +891,83 @@ func TestGeneratePlan_ApplyModeNoDeletes(t *testing.T) {
 	mockPortalAPI.AssertExpectations(t)
 }
 
+func TestGeneratePlan_CreateModeSkipsStateChecksAndPlansChildCreates(t *testing.T) {
+	ctx := context.Background()
+	mockPortalAPI := new(MockPortalAPI)
+	mockAPIAPI := new(MockAPIAPI)
+	mockAppAuthAPI := new(MockAppAuthStrategiesAPI)
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI:  mockPortalAPI,
+		APIAPI:     mockAPIAPI,
+		AppAuthAPI: mockAppAuthAPI,
+	})
+	planner := NewPlanner(client, slog.Default())
+
+	portalDisplayName := "Docs Portal"
+	publicVisibility := kkComps.APIPublicationVisibility("public")
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{
+			{
+				CreatePortal: kkComps.CreatePortal{
+					Name:        "docs-portal",
+					DisplayName: &portalDisplayName,
+				},
+				BaseResource: resources.BaseResource{
+					Ref: "docs-portal",
+				},
+			},
+		},
+		APIs: []resources.APIResource{
+			{
+				CreateAPIRequest: kkComps.CreateAPIRequest{
+					Name: "orders-api",
+				},
+				BaseResource: resources.BaseResource{
+					Ref: "orders-api",
+				},
+				Publications: []resources.APIPublicationResource{
+					{
+						Ref:      "orders-publication",
+						PortalID: "docs-portal",
+						APIPublication: kkComps.APIPublication{
+							Visibility: &publicVisibility,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	plan, err := planner.GeneratePlan(ctx, rs, Options{Mode: PlanModeCreate})
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+
+	assert.Equal(t, PlanModeCreate, plan.Metadata.Mode)
+	assert.Equal(t, 3, plan.Summary.TotalChanges)
+	assert.Equal(t, 3, plan.Summary.ByAction[ActionCreate])
+	assert.Equal(t, 0, plan.Summary.ByAction[ActionDelete])
+	assert.False(t, plan.ContainsDeletes())
+
+	var publicationChange *PlannedChange
+	for i := range plan.Changes {
+		change := &plan.Changes[i]
+		if change.ResourceType == "api_publication" && change.ResourceRef == "orders-publication" {
+			publicationChange = change
+			break
+		}
+	}
+
+	require.NotNil(t, publicationChange)
+	assert.Equal(t, ActionCreate, publicationChange.Action)
+	assert.Equal(t, "orders-api", publicationChange.Parent.Ref)
+	assert.Equal(t, "orders-api", publicationChange.References["api_id"].LookupFields["name"])
+	assert.Equal(t, "docs-portal", publicationChange.References["portal_id"].Ref)
+
+	mockPortalAPI.AssertNotCalled(t, "ListPortals", mock.Anything, mock.Anything)
+	mockAPIAPI.AssertNotCalled(t, "ListApis", mock.Anything, mock.Anything)
+	mockAppAuthAPI.AssertNotCalled(t, "ListAppAuthStrategies", mock.Anything, mock.Anything)
+}
+
 func TestGeneratePlan_SyncModeWithDeletes(t *testing.T) {
 	ctx := context.Background()
 	mockPortalAPI := new(MockPortalAPI)

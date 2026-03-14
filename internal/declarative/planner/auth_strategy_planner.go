@@ -38,6 +38,13 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 		return nil
 	}
 
+	if plan.Metadata.Mode == PlanModeCreate {
+		for _, desiredStrategy := range desired {
+			p.planAuthStrategyCreate(desiredStrategy, plan)
+		}
+		return nil
+	}
+
 	// Fetch current managed auth strategies from the specific namespace
 	namespaceFilter := []string{namespace}
 	currentStrategies, err := p.planner.listManagedAuthStrategies(ctx, namespaceFilter)
