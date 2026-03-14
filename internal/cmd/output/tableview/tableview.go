@@ -286,10 +286,8 @@ func stylizeDetailContent(content string, palette theme.Palette) string {
 }
 
 func shouldAccentDetail(label, value string) bool {
-	switch strings.ToLower(strings.TrimSpace(label)) {
-	case "id":
+	if strings.ToLower(strings.TrimSpace(label)) == "id" {
 		return true
-	default:
 	}
 	low := strings.ToLower(strings.TrimSpace(value))
 	if strings.Contains(low, "error") || strings.Contains(low, "failed") {
@@ -787,7 +785,7 @@ func extractStructMeta(t reflect.Type) structMeta {
 		headers: make([]string, 0, t.NumField()),
 		indices: make([]int, 0, t.NumField()),
 	}
-	for i := 0; i < t.NumField(); i++ {
+	for i := range t.NumField() {
 		field := t.Field(i)
 		if field.PkgPath != "" {
 			continue

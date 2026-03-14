@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	"image/color"
+	"maps"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -156,11 +157,8 @@ func Available() []string {
 	registryMu.RLock()
 	defer registryMu.RUnlock()
 
-	keys := make([]string, 0, len(palettes))
-	for k := range palettes {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
+	keys := slices.Collect(maps.Keys(palettes))
+	slices.Sort(keys)
 	return keys
 }
 
@@ -578,13 +576,7 @@ func darkenHex(hex string, amount float64) string {
 }
 
 func clampFloat(val, minVal, maxVal float64) float64 {
-	if val < minVal {
-		return minVal
-	}
-	if val > maxVal {
-		return maxVal
-	}
-	return val
+	return min(max(val, minVal), maxVal)
 }
 
 func relativeLuminance(c colorful.Color) float64 {
