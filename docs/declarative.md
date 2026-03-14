@@ -601,6 +601,10 @@ exist. If a parent `CREATE` fails because the resource already exists, kongctl
 continues and still attempts child creates by resolving parent references at
 execution time.
 
+When a `create` operation hits a duplicate-name conflict for a resource that
+already exists in Konnect, kongctl reports it as an existing resource and
+continues instead of treating it as a fatal execution error.
+
 Create directly from config:
 
 ```shell

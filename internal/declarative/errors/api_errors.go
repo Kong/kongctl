@@ -17,16 +17,32 @@ type APIErrorContext struct {
 	ResponseBody string
 }
 
-// IsConflictError checks if an error indicates a resource conflict (name already exists)
-func IsConflictError(err error, statusCode int) bool {
+// IsAlreadyExistsError checks if an error indicates the target resource already exists.
+func IsAlreadyExistsError(err error, statusCode int) bool {
+	if err == nil {
+		return false
+	}
+
 	if statusCode == http.StatusConflict {
 		return true
 	}
 
 	errMsg := strings.ToLower(err.Error())
 	return strings.Contains(errMsg, "already exists") ||
+		strings.Contains(errMsg, "must be unique") ||
 		strings.Contains(errMsg, "name is not unique") ||
-		strings.Contains(errMsg, "duplicate") ||
+		strings.Contains(errMsg, "\"rule\":\"unique\"") ||
+		strings.Contains(errMsg, "\"rule\": \"unique\"")
+}
+
+// IsConflictError checks if an error indicates a resource conflict (name already exists)
+func IsConflictError(err error, statusCode int) bool {
+	if IsAlreadyExistsError(err, statusCode) {
+		return true
+	}
+
+	errMsg := strings.ToLower(err.Error())
+	return strings.Contains(errMsg, "duplicate") ||
 		strings.Contains(errMsg, "conflict")
 }
 
@@ -158,6 +174,9 @@ func ExtractStatusCodeFromError(err error) int {
 		"status code: ",
 		"HTTP ",
 		"status ",
+		"\"status\":",
+		"\"status\": ",
+		"status=",
 	}
 
 	for _, pattern := range patterns {

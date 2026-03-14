@@ -446,6 +446,26 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 
 	// Record result
 	if err != nil {
+		if change.Action == planner.ActionCreate && e.executionMode == planner.PlanModeCreate {
+			if reason, ok := classifyCreateExistingError(err); ok {
+				result.ExistingCount++
+				result.ExistingChanges = append(result.ExistingChanges, ExistingChange{
+					ChangeID:     change.ID,
+					ResourceType: change.ResourceType,
+					ResourceName: resourceName,
+					ResourceRef:  change.ResourceRef,
+					Action:       string(change.Action),
+					Reason:       reason,
+				})
+
+				if e.reporter != nil {
+					e.reporter.ExistingChange(*change, reason)
+				}
+
+				return nil
+			}
+		}
+
 		if e.executionMode == planner.PlanModeCreate && change.Action == planner.ActionCreate {
 			slog.Warn("Create change failed; continuing with best-effort execution",
 				"change_id", change.ID,
