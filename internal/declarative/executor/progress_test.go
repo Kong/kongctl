@@ -204,7 +204,7 @@ func TestConsoleReporter_ExistingChange(t *testing.T) {
 	reporter.StartChange(change)
 	reporter.ExistingChange(change, existingCreateReason)
 
-	assert.Equal(t, "• [namespace: default] Creating portal: test-portal... ↷ Already exists\n", buf.String())
+	assert.Equal(t, "• [namespace: default] Creating portal: test-portal... • Already exists\n", buf.String())
 }
 
 func TestConsoleReporter_FinishExecution_Normal(t *testing.T) {

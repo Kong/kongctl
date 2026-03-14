@@ -159,7 +159,7 @@ func (r *ConsoleReporter) ExistingChange(change planner.PlannedChange, _ string)
 		stats.existingCount++
 	}
 
-	fmt.Fprintln(r.writer, "↷ Already exists")
+	fmt.Fprintln(r.writer, "• Already exists")
 }
 
 // FinishExecution is called at the end of plan execution
