@@ -190,6 +190,23 @@ func TestConsoleReporter_SkipChange(t *testing.T) {
 	assert.Equal(t, "⚠ Skipped: dry-run mode\n", buf.String())
 }
 
+func TestConsoleReporter_ExistingChange(t *testing.T) {
+	var buf bytes.Buffer
+	reporter := NewConsoleReporter(&buf)
+
+	change := planner.PlannedChange{
+		Action:       planner.ActionCreate,
+		ResourceType: "portal",
+		ResourceRef:  "test-portal",
+		Namespace:    "default",
+	}
+
+	reporter.StartChange(change)
+	reporter.ExistingChange(change, existingCreateReason)
+
+	assert.Equal(t, "• [namespace: default] Creating portal: test-portal... ↷ Already exists\n", buf.String())
+}
+
 func TestConsoleReporter_FinishExecution_Normal(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -246,6 +263,19 @@ func TestConsoleReporter_FinishExecution_Normal(t *testing.T) {
 			containsStr: []string{
 				"Complete.",
 				"Executed 1 changes.",
+			},
+		},
+		{
+			name: "execution with existing resources",
+			result: &ExecutionResult{
+				SuccessCount:  1,
+				FailureCount:  0,
+				ExistingCount: 2,
+			},
+			containsStr: []string{
+				"Complete.",
+				"Executed 1 changes.",
+				"Ignored 2 existing resources.",
 			},
 		},
 	}

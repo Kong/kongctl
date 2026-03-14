@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -19,7 +20,9 @@ type MockProgressReporter struct {
 	StartChangeCalls      []planner.PlannedChange
 	CompleteChangeCalls   []planner.PlannedChange
 	SkipChangeCalls       []planner.PlannedChange
+	ExistingChangeCalls   []planner.PlannedChange
 	SkipReasons           []string
+	ExistingReasons       []string
 }
 
 func (m *MockProgressReporter) StartExecution(plan *planner.Plan) {
@@ -40,6 +43,12 @@ func (m *MockProgressReporter) CompleteChange(change planner.PlannedChange, err 
 func (m *MockProgressReporter) SkipChange(change planner.PlannedChange, reason string) {
 	m.SkipChangeCalls = append(m.SkipChangeCalls, change)
 	m.SkipReasons = append(m.SkipReasons, reason)
+	m.Called(change, reason)
+}
+
+func (m *MockProgressReporter) ExistingChange(change planner.PlannedChange, reason string) {
+	m.ExistingChangeCalls = append(m.ExistingChangeCalls, change)
+	m.ExistingReasons = append(m.ExistingReasons, reason)
 	m.Called(change, reason)
 }
 
@@ -220,6 +229,19 @@ func TestNormalizeUnresolvedReferenceIDs(t *testing.T) {
 	assert.Equal(t, []string{"resolved-id", "", ""}, change.References["auth_strategy_ids"].ResolvedIDs)
 }
 
+func TestClassifyCreateExistingError(t *testing.T) {
+	err := errors.New(
+		`failed to create portal "My Simple Portal": {"status":400,"detail":"Invalid Parameters",` +
+			`"invalid_parameters":[{"field":"name","reason":"name: \"My Simple Portal\" already exists ` +
+			`and must be unique.","rule":"unique","source":"body"}]}`,
+	)
+
+	reason, ok := classifyCreateExistingError(err)
+
+	require.True(t, ok)
+	assert.Equal(t, existingCreateReason, reason)
+}
+
 func TestExecutor_ValidateChangePreExecution_Basic(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -296,6 +318,10 @@ func TestExecutionResult_Methods(t *testing.T) {
 
 		result.FailureCount = 1
 		assert.Equal(t, "Execution completed with errors.", result.Message())
+
+		result.FailureCount = 0
+		result.ExistingCount = 1
+		assert.Equal(t, "Execution completed successfully. Requested resources already existed.", result.Message())
 	})
 
 	// Test HasErrors() method
@@ -314,11 +340,12 @@ func TestExecutionResult_Methods(t *testing.T) {
 	// Test TotalChanges() method
 	t.Run("total changes", func(t *testing.T) {
 		result := &ExecutionResult{
-			SuccessCount: 2,
-			FailureCount: 1,
-			SkippedCount: 3,
+			SuccessCount:  2,
+			FailureCount:  1,
+			SkippedCount:  3,
+			ExistingCount: 4,
 		}
-		assert.Equal(t, 6, result.TotalChanges())
+		assert.Equal(t, 10, result.TotalChanges())
 	})
 }
 

@@ -1799,6 +1799,9 @@ func outputExecutionResult(command *cobra.Command,
 		if len(result.ChangesApplied) > 0 {
 			execution["applied_changes"] = result.ChangesApplied
 		}
+		if len(result.ExistingChanges) > 0 {
+			execution["existing_changes"] = result.ExistingChanges
+		}
 	}
 
 	// Always include errors if present
@@ -1810,6 +1813,7 @@ func outputExecutionResult(command *cobra.Command,
 	summary := map[string]any{
 		"total_changes": result.TotalChanges(),
 		"applied":       result.SuccessCount,
+		"existing":      result.ExistingCount,
 		"failed":        result.FailureCount,
 		"skipped":       result.SkippedCount,
 		"status":        "success",
@@ -1831,8 +1835,16 @@ func outputExecutionResult(command *cobra.Command,
 			summary["status"] = "partial_success"
 			summary["message"] = fmt.Sprintf("Execution partially succeeded with %d errors", result.FailureCount)
 		}
+	} else if result.SuccessCount > 0 && result.ExistingCount > 0 {
+		summary["message"] = fmt.Sprintf(
+			"Execution succeeded with %d changes; %d resources already existed",
+			result.SuccessCount,
+			result.ExistingCount,
+		)
 	} else if result.SuccessCount > 0 {
 		summary["message"] = fmt.Sprintf("Execution succeeded with %d changes", result.SuccessCount)
+	} else if result.ExistingCount > 0 {
+		summary["message"] = fmt.Sprintf("Execution succeeded. %d resources already existed.", result.ExistingCount)
 	} else if result.SkippedCount > 0 && result.DryRun {
 		summary["message"] = fmt.Sprintf("Dry-run complete. %d changes would be executed.", result.SkippedCount)
 	}

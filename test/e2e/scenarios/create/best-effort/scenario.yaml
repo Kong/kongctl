@@ -83,6 +83,7 @@ steps:
   - name: 002-create-existing
     commands:
       - name: 000-create-existing
+        outputFormat: json
         run:
           - create
           - -f
@@ -90,9 +91,28 @@ steps:
           - -f
           - "{{ .workdir }}/apis.yaml"
           - --auto-approve
-        expectFailure:
-          exitCode: 1
-          contains: "execution completed with 2 errors"
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: create
+          - select: summary
+            expect:
+              fields:
+                applied: 0
+                existing: 2
+                failed: 0
+                status: success
+          - select: execution.existing_changes[?resource_type=='portal' && resource_ref=='best-effort-portal'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                reason: resource already exists
+          - select: execution.existing_changes[?resource_type=='api' && resource_ref=='best-effort-api'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                reason: resource already exists
       - name: 001-get-apis
         run:
           - get
@@ -150,8 +170,9 @@ steps:
             expect:
               fields:
                 applied: 2
-                failed: 2
-                status: partial_success
+                existing: 2
+                failed: 0
+                status: success
           - select: execution.applied_changes[?resource_type=='api_publication' && resource_ref=='best-effort-publication'] | [0]
             expect:
               fields:
@@ -160,6 +181,16 @@ steps:
             expect:
               fields:
                 action: CREATE
+          - select: execution.existing_changes[?resource_type=='portal' && resource_ref=='best-effort-portal'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                reason: resource already exists
+          - select: execution.existing_changes[?resource_type=='api' && resource_ref=='best-effort-api'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                reason: resource already exists
       - name: 001-get-apis
         run:
           - get

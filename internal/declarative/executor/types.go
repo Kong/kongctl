@@ -7,9 +7,10 @@ import (
 // ExecutionResult represents the outcome of executing a plan
 type ExecutionResult struct {
 	// Counts
-	SuccessCount int `json:"success_count"`
-	FailureCount int `json:"failure_count"`
-	SkippedCount int `json:"skipped_count"`
+	SuccessCount  int `json:"success_count"`
+	FailureCount  int `json:"failure_count"`
+	SkippedCount  int `json:"skipped_count"`
+	ExistingCount int `json:"existing_count"`
 
 	// Errors encountered during execution
 	Errors []ExecutionError `json:"errors,omitempty"`
@@ -19,6 +20,9 @@ type ExecutionResult struct {
 
 	// Changes that were successfully applied (empty in dry-run)
 	ChangesApplied []AppliedChange `json:"changes_applied,omitempty"`
+
+	// Create-mode changes ignored because the target resource already existed
+	ExistingChanges []ExistingChange `json:"existing_changes,omitempty"`
 
 	// Validation results for dry-run mode
 	ValidationResults []ValidationResult `json:"validation_results,omitempty"`
@@ -42,6 +46,16 @@ type AppliedChange struct {
 	ResourceRef  string `json:"resource_ref"`
 	Action       string `json:"action"`
 	ResourceID   string `json:"resource_id,omitempty"` // ID of created/updated resource
+}
+
+// ExistingChange represents a create-mode change ignored because the resource already exists.
+type ExistingChange struct {
+	ChangeID     string `json:"change_id"`
+	ResourceType string `json:"resource_type"`
+	ResourceName string `json:"resource_name"`
+	ResourceRef  string `json:"resource_ref"`
+	Action       string `json:"action"`
+	Reason       string `json:"reason"`
 }
 
 // ValidationResult represents the validation outcome for a change in dry-run mode
@@ -70,6 +84,9 @@ type ProgressReporter interface {
 	// SkipChange is called when a change is skipped (e.g., in dry-run mode)
 	SkipChange(change planner.PlannedChange, reason string)
 
+	// ExistingChange is called when create mode ignores a change because the resource already exists.
+	ExistingChange(change planner.PlannedChange, reason string)
+
 	// FinishExecution is called at the end of plan execution
 	FinishExecution(result *ExecutionResult)
 }
@@ -86,6 +103,9 @@ func (r *ExecutionResult) Message() string {
 	if r.FailureCount > 0 {
 		return "Execution completed with errors."
 	}
+	if r.ExistingCount > 0 && r.SuccessCount == 0 {
+		return "Execution completed successfully. Requested resources already existed."
+	}
 	return "Execution completed successfully."
 }
 
@@ -96,5 +116,5 @@ func (r *ExecutionResult) HasErrors() bool {
 
 // TotalChanges returns the total number of changes processed
 func (r *ExecutionResult) TotalChanges() int {
-	return r.SuccessCount + r.FailureCount + r.SkippedCount
+	return r.SuccessCount + r.FailureCount + r.SkippedCount + r.ExistingCount
 }
