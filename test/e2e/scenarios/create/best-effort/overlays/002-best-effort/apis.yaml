@@ -10,3 +10,6 @@ apis:
       - ref: best-effort-publication
         portal_id: !ref best-effort-portal
         visibility: public
+  - ref: best-effort-api-extra
+    name: "Best Effort API Extra"
+    description: "Additional API created during layered best-effort create"

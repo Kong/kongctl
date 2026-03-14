@@ -23,12 +23,12 @@ steps:
     commands:
       - resetOrg: true
 
-  - name: 001-seed-parents
+  - name: 001-create-initial
     commands:
-      - name: 000-apply-seed
+      - name: 000-create-initial
         outputFormat: json
         run:
-          - apply
+          - create
           - -f
           - "{{ .workdir }}/portal.yaml"
           - -f
@@ -38,13 +38,34 @@ steps:
           - select: plan.metadata
             expect:
               fields:
-                mode: apply
+                mode: create
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
           - select: summary
             expect:
               fields:
                 applied: 2
                 failed: 0
-      - name: 001-get-publications
+                status: success
+      - name: 001-get-apis
+        run:
+          - get
+          - apis
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[?name=='Best Effort API'] | [0]"
+            expect:
+              fields:
+                name: "Best Effort API"
+      - name: 002-get-publications
         run:
           - get
           - api
@@ -59,7 +80,50 @@ steps:
               fields:
                 "length(@)": 0
 
-  - name: 002-best-effort-create
+  - name: 002-create-existing
+    commands:
+      - name: 000-create-existing
+        run:
+          - create
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "execution completed with 2 errors"
+      - name: 001-get-apis
+        run:
+          - get
+          - apis
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[?name=='Best Effort API'] | [0]"
+            expect:
+              fields:
+                name: "Best Effort API"
+      - name: 002-get-publications
+        run:
+          - get
+          - api
+          - publications
+          - --api-name
+          - "{{ .vars.apiName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 003-create-layered
     inputOverlayDirs:
       - overlays/002-best-effort
     commands:
@@ -80,19 +144,38 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 3
-                by_action.CREATE: 3
+                total_changes: 4
+                by_action.CREATE: 4
           - select: summary
             expect:
               fields:
-                applied: 1
+                applied: 2
                 failed: 2
                 status: partial_success
           - select: execution.applied_changes[?resource_type=='api_publication' && resource_ref=='best-effort-publication'] | [0]
             expect:
               fields:
                 action: CREATE
-      - name: 001-get-publications
+          - select: execution.applied_changes[?resource_type=='api' && resource_ref=='best-effort-api-extra'] | [0]
+            expect:
+              fields:
+                action: CREATE
+      - name: 001-get-apis
+        run:
+          - get
+          - apis
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 2
+          - select: "[?name=='Best Effort API Extra'] | [0]"
+            expect:
+              fields:
+                name: "Best Effort API Extra"
+      - name: 002-get-publications
         run:
           - get
           - api
