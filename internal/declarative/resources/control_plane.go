@@ -11,6 +11,7 @@ func init() {
 	registerResourceType(
 		ResourceTypeControlPlane,
 		func(rs *ResourceSet) *[]ControlPlaneResource { return &rs.ControlPlanes },
+		AutoExplain[ControlPlaneResource](),
 	)
 }
 

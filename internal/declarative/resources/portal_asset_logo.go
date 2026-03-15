@@ -9,6 +9,7 @@ func init() {
 	registerResourceType(
 		ResourceTypePortalAssetLogo,
 		func(rs *ResourceSet) *[]PortalAssetLogoResource { return &rs.PortalAssetLogos },
+		AutoExplain[PortalAssetLogoResource](),
 	)
 }
 

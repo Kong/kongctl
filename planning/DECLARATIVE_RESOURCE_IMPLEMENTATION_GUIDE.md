@@ -19,7 +19,8 @@ New resource implementations should follow these refactored patterns.
   `tryMatchByNameWithExternal(...)` and override `IsExternal()` where needed.
 - Every resource type must be registered in `init()` via
   `registerResourceType(...)`. Registry registration now drives resource
-  iteration and aggregation operations.
+  iteration and aggregation operations, including `kongctl explain` and
+  `kongctl scaffold`.
 - `ResourceSet` operations such as `ForEachResource`, `AllResourcesByType`,
   `ResourceCount`, `IsEmpty`, and `AppendAll` are registry-driven. Avoid adding
   new manual switch/loop aggregations for resource types.
@@ -81,6 +82,23 @@ New resource implementations should follow these refactored patterns.
 - Keep resource links current (`API Specification` and `Example` links), and
   document declarative usage hints (`!ref`, `!file`) where applicable.
 
+### EXPLAIN AND SCAFFOLD (REQUIRED)
+
+- Every registered resource must support `kongctl explain` and
+  `kongctl scaffold`.
+- Registration now requires explain metadata. The common case should use
+  `AutoExplain[...]`; only add a custom schema builder or extra field hints
+  when the declarative shape differs from the embedded SDK struct layout.
+- `kongctl explain` should remain aligned with the accepted declarative YAML
+  shape, including kongctl-only fields such as `ref`, `kongctl`, `_external`,
+  `_deck`, `!ref`, and `!file` behavior where applicable.
+- `kongctl scaffold` should produce a helpful YAML starter, not a minimal
+  stub. Prefer including required fields and commenting high-value optional
+  fields rather than omitting them entirely.
+- Child resources must work in both canonical and nested-path forms when the
+  declarative engine supports both, for example `api_version` and
+  `api.versions`.
+
 ### PARENT RESOURCE
 
 #### 1. RESOURCE DEFINITION
@@ -100,6 +118,7 @@ func init() {
     registerResourceType(
         ResourceTypeFoo,
         func(rs *ResourceSet) *[]FooResource { return &rs.Foos },
+        AutoExplain[FooResource](),
     )
 }
 
@@ -227,9 +246,11 @@ type ResourceSet struct {
 }
 ```
 
-**REQUIRED**: Register the resource type in `internal/declarative/resources/<resource_name>.go`
-using `registerResourceType(...)` in `init()`. If not registered, generic
-`ResourceSet` operations will not include the new type.
+**REQUIRED**: Register the resource type in
+`internal/declarative/resources/<resource_name>.go` using
+`registerResourceType(...)` in `init()`. If not registered, generic
+`ResourceSet` operations will not include the new type, and the resource will
+not participate in `kongctl explain` or `kongctl scaffold`.
 
 #### 2. STATE CLIENT METHODS
 **Location**: `internal/declarative/state/client.go`
@@ -1602,7 +1623,9 @@ application_auth_strategies:
 8. **Missing field in extractFields function**
 9. **Not tracking created resources in executor**
 10. **Not updating `docs/declarative-resource-reference.md` for parent and child resources**
-11. **Assuming imperative `get` commands are required for declarative support changes**
+11. **Forgetting explain/scaffold hints for declarative-only fields or unions**
+12. **Skipping E2E coverage for new explain/scaffold-facing behavior**
+13. **Assuming imperative `get` commands are required for declarative support changes**
 
 ---
 
@@ -1615,6 +1638,9 @@ After implementing new resource:
 - [ ] Resource type constant added to `types.go`
 - [ ] ResourceSet includes new resource array
 - [ ] Resource type registered via `registerResourceType(...)` in `init()`
+- [ ] Explain registration provided, usually via `AutoExplain[...]`
+- [ ] `kongctl explain` output reviewed for canonical and nested child paths
+- [ ] `kongctl scaffold` output reviewed for helpful commented YAML
 - [ ] State client has CRUD methods
 - [ ] State client has ListManaged method with namespace filtering
 - [ ] Planner implementation with CREATE/UPDATE/DELETE logic
@@ -1639,7 +1665,9 @@ After implementing new resource:
 - [ ] Linter passes: `make lint`
 - [ ] Tests pass: `make test`
 - [ ] Integration tests (if applicable): `make test-integration`
+- [ ] E2E scenarios added or updated under `test/e2e/scenarios/`
 - [ ] Manual testing of declarative apply/plan/diff
+- [ ] Manual testing of `explain` and `scaffold`
 - [ ] Manual testing of get commands
 
 ---

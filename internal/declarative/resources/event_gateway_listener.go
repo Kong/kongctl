@@ -12,6 +12,7 @@ func init() {
 	registerResourceType(
 		ResourceTypeEventGatewayListener,
 		func(rs *ResourceSet) *[]EventGatewayListenerResource { return &rs.EventGatewayListeners },
+		AutoExplain[EventGatewayListenerResource](),
 	)
 }
 

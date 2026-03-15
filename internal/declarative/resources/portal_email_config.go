@@ -12,6 +12,7 @@ func init() {
 	registerResourceType(
 		ResourceTypePortalEmailConfig,
 		func(rs *ResourceSet) *[]PortalEmailConfigResource { return &rs.PortalEmailConfigs },
+		AutoExplain[PortalEmailConfigResource](),
 	)
 }
 

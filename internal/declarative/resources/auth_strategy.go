@@ -13,6 +13,7 @@ func init() {
 	registerResourceType(
 		ResourceTypeApplicationAuthStrategy,
 		func(rs *ResourceSet) *[]ApplicationAuthStrategyResource { return &rs.ApplicationAuthStrategies },
+		AutoExplain[ApplicationAuthStrategyResource](),
 	)
 }
 
