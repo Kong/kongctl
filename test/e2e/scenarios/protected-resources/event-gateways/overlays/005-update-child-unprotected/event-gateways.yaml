@@ -1,3 +1,7 @@
+_defaults:
+  kongctl:
+    namespace: "egw-protection"
+
 event_gateways:
   - ref: egw-protected-top-level
     name: "My Protected Event Gateway CP"
@@ -7,11 +11,11 @@ event_gateways:
       lifecycle: "dev"
     kongctl:
       namespace: "egw-protection"
-      protected: true
+      protected: false
     backend_clusters:
       - ref: default-backend-cluster
         name: default-backend-cluster
-        description: "Protected backend cluster"
+        description: "Protected backend cluster updated after unprotect"
         bootstrap_servers:
           - "egw-backend-1.example.com:9092"
         authentication:

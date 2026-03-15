@@ -82,7 +82,7 @@ type ResourceSet struct {
 	Organization *OrganizationResource `yaml:"organization,omitempty" json:"organization,omitempty"`
 	// Teams is populated internally from OrganizationTeams during loading
 	// It is not exposed in YAML/JSON to enforce the organization grouping format
-	OrganizationTeams []OrganizationTeamResource `yaml:"-" json:"-"`
+	OrganizationTeams                 []OrganizationTeamResource                 `yaml:"-" json:"-"`
 	EventGatewayListeners             []EventGatewayListenerResource             `yaml:"event_gateway_listeners,omitempty"               json:"event_gateway_listeners,omitempty"`               //nolint:lll
 	EventGatewayListenerPolicies      []EventGatewayListenerPolicyResource       `yaml:"event_gateway_listener_policies,omitempty"       json:"event_gateway_listener_policies,omitempty"`       //nolint:lll
 	EventGatewayDataPlaneCertificates []EventGatewayDataPlaneCertificateResource `yaml:"event_gateway_data_plane_certificates,omitempty" json:"event_gateway_data_plane_certificates,omitempty"` //nolint:lll

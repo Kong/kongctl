@@ -8,6 +8,7 @@ test:
 
 vars:
   protectedEventGatewayName: "My Protected Event Gateway CP"
+  protectedBackendClusterName: "default-backend-cluster"
 
 defaults:
   mask:
@@ -23,7 +24,7 @@ steps:
     commands:
       - resetOrg: true
 
-  # Step 1: Initial sync - create protected and unprotected resources
+  # Step 1: Initial sync - create protected gateway and child backend cluster
   - name: 001-initial-sync
     commands:
       - name: 000-sync
@@ -47,6 +48,14 @@ steps:
               fields:
                 action: CREATE
 
+          # Verify protected backend cluster created
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_backend_cluster' &&
+                            resource_ref=='default-backend-cluster'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
           # Verify protection changes
           - select: "plan.summary.protection_changes"
             expect:
@@ -66,71 +75,118 @@ steps:
                 labels."KONGCTL-protected": "true"
                 labels."KONGCTL-namespace": "egw-protection"
 
-  # Step 2: Attempt to delete protected resource (should fail)
-  - name: 002-attempt-delete-protected
+      - name: 002-get-backend-clusters
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.protectedEventGatewayName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.protectedBackendClusterName }}"
+                description: "Protected backend cluster"
+
+  # Step 2: Attempt to update protected child resource (should fail)
+  - name: 002-attempt-update-protected-child
     inputOverlayDirs:
-      - overlays/002-attempt-delete
+      - overlays/002-attempt-child-update
     commands:
       - name: 000-sync-should-fail
         run:
           - sync
           - -f
-          - "{{ .workdir }}/event_gateways.yaml"
+          - "{{ .workdir }}/event-gateways.yaml"
           - --auto-approve
         expectFailure:
           exitCode: 1
           contains: "protected"
 
-      # Verify protected resource still exists
-      - name: 001-verify-protected-exists
-        run: ["get", "event-gateways", "-o", "json"]
+      - name: 001-verify-child-unchanged
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.protectedEventGatewayName }}"
+          - -o
+          - json
         assertions:
-          - select: "[?name=='{{ .vars.protectedEventGatewayName }}']"
+          - select: "[?name=='{{ .vars.protectedBackendClusterName }}']"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[?name=='{{ .vars.protectedBackendClusterName }}'] | [0]"
+            expect:
+              fields:
+                description: "Protected backend cluster"
+
+  # Step 3: Attempt to delete protected child resource (should fail)
+  - name: 003-attempt-delete-protected-child
+    inputOverlayDirs:
+      - overlays/003-attempt-child-delete
+    commands:
+      - name: 000-sync-should-fail
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/event-gateways.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "protected"
+
+      - name: 001-verify-child-still-exists
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.protectedEventGatewayName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.protectedBackendClusterName }}']"
             expect:
               fields:
                 "length(@)": 1
 
-          # Verify it still has protected label
-          - select: "[?name=='{{ .vars.protectedEventGatewayName }}'] | [0]"
-            expect:
-              fields:
-                labels."KONGCTL-protected": "true"
-
-  # Step 3: Unprotect the resource
-  - name: 003-unprotect-resource
+  # Step 4: Unprotect the parent resource
+  - name: 004-unprotect-resource
     inputOverlayDirs:
-      - overlays/003-unprotect
+      - overlays/004-unprotect
     commands:
-      - name: 000-sync-unprotect
+      - name: 000-apply-unprotect
         run:
-          - sync
+          - apply
           - -f
-          - "{{ .workdir }}/event_gateways.yaml"
+          - "{{ .workdir }}/event-gateways.yaml"
           - --auto-approve
         assertions:
-          # Should see UPDATE action for protection change
           - select: >-
               plan.changes[?resource_type=='event_gateway' &&
                             resource_ref=='egw-protected-top-level'] | [0]
             expect:
               fields:
                 action: UPDATE
-
-          # Verify execution succeeded
           - select: "summary"
             expect:
               fields:
-                applied: 1
                 failed: 0
-
-          # Verify protection changes
           - select: "plan.summary.protection_changes"
             expect:
               fields:
                 protecting: 0
                 unprotecting: 1
 
-      # Verify protected label removed
       - name: 001-verify-unprotected
         run: ["get", "event-gateways", "-o", "json"]
         assertions:
@@ -139,35 +195,107 @@ steps:
               fields:
                 labels."KONGCTL-namespace": "egw-protection"
 
-  # Step 4: Delete now-unprotected resource (should succeed)
-  - name: 004-delete-unprotected
+  # Step 5: Update child after parent is unprotected (should succeed)
+  - name: 005-update-child-unprotected
     inputOverlayDirs:
-      - overlays/004-delete-unprotected
+      - overlays/005-update-child-unprotected
     commands:
-      - name: 000-sync-delete
+      - name: 000-sync-update-child
         run:
           - sync
           - -f
-          - "{{ .workdir }}/event_gateways.yaml"
+          - "{{ .workdir }}/event-gateways.yaml"
           - --auto-approve
         assertions:
-          # Verify DELETE action planned
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_backend_cluster' &&
+                            resource_ref=='default-backend-cluster'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0
+
+      - name: 001-verify-child-updated
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.protectedEventGatewayName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.protectedBackendClusterName }}'] | [0]"
+            expect:
+              fields:
+                description: "Protected backend cluster updated after unprotect"
+
+  # Step 6: Delete child after parent is unprotected (should succeed)
+  - name: 006-delete-child-unprotected
+    inputOverlayDirs:
+      - overlays/006-delete-child-unprotected
+    commands:
+      - name: 000-sync-delete-child
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/event-gateways.yaml"
+          - --auto-approve
+        assertions:
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_backend_cluster' &&
+                            resource_ref=='default-backend-cluster'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0
+
+      - name: 001-verify-child-deleted
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.protectedEventGatewayName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+  # Step 7: Delete now-unprotected parent resource (should succeed)
+  - name: 007-delete-unprotected-parent
+    inputOverlayDirs:
+      - overlays/007-delete-unprotected
+    commands:
+      - name: 000-sync-delete-parent
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/event-gateways.yaml"
+          - --auto-approve
+        assertions:
           - select: >-
               plan.changes[?resource_type=='event_gateway' &&
                             resource_ref=='My Protected Event Gateway CP'] | [0]
             expect:
               fields:
                 action: DELETE
-
-          # Verify execution succeeded
           - select: "summary"
             expect:
               fields:
                 applied: 1
                 failed: 0
 
-      # Verify resource deleted
-      - name: 001-verify-deleted
+      - name: 001-verify-parent-deleted
         run: ["get", "event-gateways", "-o", "json"]
         assertions:
           - select: "[?name=='{{ .vars.protectedEventGatewayName }}']"

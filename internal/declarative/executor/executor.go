@@ -545,6 +545,10 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 			return fmt.Errorf("resource ID required for %s operation", change.Action)
 		}
 
+		if err := e.validateInheritedProtection(ctx, change); err != nil {
+			return err
+		}
+
 		// Skip validation for updates/deletes with ResourceID - planner already verified existence
 		// and actual operations handle protection checks
 		if change.ResourceID != "" {
