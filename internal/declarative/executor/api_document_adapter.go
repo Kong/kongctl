@@ -8,6 +8,8 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
+const unknownReferenceID = "[unknown]"
+
 // APIDocumentAdapter implements ResourceOperations for API documents
 type APIDocumentAdapter struct {
 	client *state.Client
@@ -48,7 +50,7 @@ func (a *APIDocumentAdapter) MapCreateFields(
 
 	if execCtx != nil && execCtx.PlannedChange != nil {
 		if parentRef, ok := execCtx.PlannedChange.References["parent_document_id"]; ok {
-			if parentRef.ID != "" && parentRef.ID != "[unknown]" {
+			if parentRef.ID != "" && parentRef.ID != unknownReferenceID {
 				create.ParentDocumentID = &parentRef.ID
 			}
 		}
@@ -87,7 +89,7 @@ func (a *APIDocumentAdapter) MapUpdateFields(_ context.Context, execCtx *Executi
 
 	if execCtx != nil && execCtx.PlannedChange != nil {
 		if parentRef, ok := execCtx.PlannedChange.References["parent_document_id"]; ok {
-			if parentRef.ID != "" && parentRef.ID != "[unknown]" {
+			if parentRef.ID != "" && parentRef.ID != unknownReferenceID {
 				update.ParentDocumentID = &parentRef.ID
 			}
 		}
