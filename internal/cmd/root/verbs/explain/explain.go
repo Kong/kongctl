@@ -53,7 +53,7 @@ func NewExplainCmd() (*cobra.Command, error) {
 		Long:    explainLong,
 		Example: explainExamples,
 		Args:    cobra.ExactArgs(1),
-		PersistentPreRunE: func(c *cobra.Command, args []string) error {
+		PersistentPreRunE: func(c *cobra.Command, _ []string) error {
 			c.SetContext(context.WithValue(c.Context(), verbs.Verb, Verb))
 			return nil
 		},

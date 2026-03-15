@@ -6,10 +6,12 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 )
 
 const (
 	jsonSchemaDraft202012 = "https://json-schema.org/draft/2020-12/schema"
+	explainKindObject     = "object"
 )
 
 type ExplainRegistration struct {
@@ -113,32 +115,36 @@ type ExplainField struct {
 }
 
 type JSONSchema struct {
-	Schema                 string                 `json:"$schema,omitempty"                  yaml:"$schema,omitempty"`
-	ID                     string                 `json:"$id,omitempty"                      yaml:"$id,omitempty"`
-	Title                  string                 `json:"title,omitempty"                    yaml:"title,omitempty"`
-	Description            string                 `json:"description,omitempty"              yaml:"description,omitempty"`
-	Type                   any                    `json:"type,omitempty"                     yaml:"type,omitempty"`
-	Properties             map[string]*JSONSchema `json:"properties,omitempty"               yaml:"properties,omitempty"`
-	Required               []string               `json:"required,omitempty"                 yaml:"required,omitempty"`
-	Items                  *JSONSchema            `json:"items,omitempty"                    yaml:"items,omitempty"`
-	AdditionalProperties   any                    `json:"additionalProperties,omitempty"     yaml:"additionalProperties,omitempty"`
-	OneOf                  []*JSONSchema          `json:"oneOf,omitempty"                    yaml:"oneOf,omitempty"`
-	Const                  any                    `json:"const,omitempty"                    yaml:"const,omitempty"`
-	Enum                   []any                  `json:"enum,omitempty"                     yaml:"enum,omitempty"`
-	Default                any                    `json:"default,omitempty"                  yaml:"default,omitempty"`
-	XKongctlResource       string                 `json:"x-kongctl-resource,omitempty"       yaml:"x-kongctl-resource,omitempty"`
-	XKongctlPath           string                 `json:"x-kongctl-path,omitempty"           yaml:"x-kongctl-path,omitempty"`
-	XKongctlRootKey        string                 `json:"x-kongctl-root-key,omitempty"       yaml:"x-kongctl-root-key,omitempty"`
-	XKongctlKind           string                 `json:"x-kongctl-kind,omitempty"           yaml:"x-kongctl-kind,omitempty"`
-	XKongctlRefKind        string                 `json:"x-kongctl-ref-kind,omitempty"       yaml:"x-kongctl-ref-kind,omitempty"`
-	XKongctlPreferredTag   string                 `json:"x-kongctl-preferred-tag,omitempty"  yaml:"x-kongctl-preferred-tag,omitempty"`
-	XKongctlDefaultFrom    string                 `json:"x-kongctl-default-from,omitempty"   yaml:"x-kongctl-default-from,omitempty"`
-	XKongctlNotes          []string               `json:"x-kongctl-notes,omitempty"          yaml:"x-kongctl-notes,omitempty"`
-	XKongctlSupportsRoot   *bool                  `json:"x-kongctl-supports-root,omitempty"  yaml:"x-kongctl-supports-root,omitempty"`
-	XKongctlSupportsNested *bool                  `json:"x-kongctl-supports-nested,omitempty" yaml:"x-kongctl-supports-nested,omitempty"`
+	Schema      string                 `json:"$schema,omitempty" yaml:"$schema,omitempty"`
+	ID          string                 `json:"$id,omitempty" yaml:"$id,omitempty"`
+	Title       string                 `json:"title,omitempty" yaml:"title,omitempty"`
+	Description string                 `json:"description,omitempty" yaml:"description,omitempty"`
+	Type        any                    `json:"type,omitempty" yaml:"type,omitempty"`
+	Properties  map[string]*JSONSchema `json:"properties,omitempty" yaml:"properties,omitempty"`
+	Required    []string               `json:"required,omitempty" yaml:"required,omitempty"`
+	Items       *JSONSchema            `json:"items,omitempty" yaml:"items,omitempty"`
+	Additional  any                    `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
+	OneOf       []*JSONSchema          `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
+	Const       any                    `json:"const,omitempty" yaml:"const,omitempty"`
+	Enum        []any                  `json:"enum,omitempty" yaml:"enum,omitempty"`
+	Default     any                    `json:"default,omitempty" yaml:"default,omitempty"`
+	XResource   string                 `json:"x-kongctl-resource,omitempty" yaml:"x-kongctl-resource,omitempty"`
+	XPath       string                 `json:"x-kongctl-path,omitempty" yaml:"x-kongctl-path,omitempty"`
+	XRootKey    string                 `json:"x-kongctl-root-key,omitempty" yaml:"x-kongctl-root-key,omitempty"`
+	XKind       string                 `json:"x-kongctl-kind,omitempty" yaml:"x-kongctl-kind,omitempty"`
+	XRefKind    string                 `json:"x-kongctl-ref-kind,omitempty" yaml:"x-kongctl-ref-kind,omitempty"`
+	XTag        string                 `json:"x-kongctl-preferred-tag,omitempty" yaml:"x-kongctl-preferred-tag,omitempty"`
+	XDefault    string                 `json:"x-kongctl-default-from,omitempty" yaml:"x-kongctl-default-from,omitempty"`
+	XNotes      []string               `json:"x-kongctl-notes,omitempty" yaml:"x-kongctl-notes,omitempty"`
+	XRoot       *bool                  `json:"x-kongctl-supports-root,omitempty" yaml:"x-kongctl-supports-root,omitempty"`
+	//nolint:lll // The JSON/YAML tags mirror the wire format and cannot be shortened.
+	XN          *bool                  `json:"x-kongctl-supports-nested,omitempty" yaml:"x-kongctl-supports-nested,omitempty"`
 }
 
 var (
+	explainDocCache   = make(map[ResourceType]*ExplainDoc)
+	explainDocCacheMu sync.RWMutex
+
 	recommendedFieldNames = map[string]struct{}{
 		"ref":          {},
 		"name":         {},
@@ -309,7 +315,7 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 
 		nextNode := field.Node
 		resourceTarget := false
-		if nextNode.Kind == "array" && nextNode.Items != nil && nextNode.Items.Kind == "object" {
+		if nextNode.Kind == "array" && nextNode.Items != nil && nextNode.Items.Kind == explainKindObject {
 			nextNode = nextNode.Items.clone()
 			resourceTarget = true
 		} else {
@@ -349,7 +355,11 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 }
 
 func explainDocByAlias(alias string) (*ExplainDoc, bool) {
-	for _, rt := range RegisteredTypes() {
+	types := RegisteredTypes()
+	slices.SortFunc(types, func(a, b ResourceType) int {
+		return strings.Compare(string(a), string(b))
+	})
+	for _, rt := range types {
 		doc, err := buildExplainDoc(rt)
 		if err != nil {
 			continue
@@ -372,6 +382,13 @@ func explainDocByType(rt ResourceType) (*ExplainDoc, bool) {
 }
 
 func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
+	explainDocCacheMu.RLock()
+	if doc, ok := explainDocCache[rt]; ok {
+		explainDocCacheMu.RUnlock()
+		return doc, nil
+	}
+	explainDocCacheMu.RUnlock()
+
 	ops, ok := registry[rt]
 	if !ok {
 		return nil, fmt.Errorf("resource type %q is not registered", rt)
@@ -427,6 +444,10 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 		Schema:          node,
 		nestedFields:    nestedFieldMap(childRelations),
 	}
+
+	explainDocCacheMu.Lock()
+	explainDocCache[rt] = doc
+	explainDocCacheMu.Unlock()
 
 	return doc, nil
 }
@@ -515,10 +536,9 @@ func autoExplainNode(
 	typ = derefExplainType(typ)
 	stack = append(stack, typ)
 
-	switch typ.Kind() {
-	case reflect.Struct:
+	if typ.Kind() == reflect.Struct {
 		node := &ExplainNode{
-			Kind:       "object",
+			Kind:       explainKindObject,
 			Properties: []*ExplainField{},
 			propIndex:  make(map[string]*ExplainField),
 		}
@@ -575,9 +595,9 @@ func autoExplainNode(
 		}
 
 		return node, nil
-	default:
-		return autoExplainValueNode(typ, path, hints, stack)
 	}
+
+	return autoExplainValueNode(typ, path, hints, stack)
 }
 
 func autoExplainValueNode(
@@ -638,7 +658,7 @@ func autoExplainValueNode(
 		if err != nil {
 			return nil, err
 		}
-		node.Kind = "object"
+		node.Kind = explainKindObject
 		node.Additional = child
 	case reflect.String:
 		node.Kind = "string"
@@ -651,7 +671,8 @@ func autoExplainValueNode(
 		node.Kind = "number"
 	case reflect.Interface:
 		node.Kind = "any"
-	default:
+	case reflect.Invalid, reflect.Uintptr, reflect.Complex64, reflect.Complex128, reflect.Chan, reflect.Func,
+		reflect.Pointer, reflect.UnsafePointer:
 		node.Kind = "any"
 	}
 
@@ -799,7 +820,17 @@ func RenderExplainText(subject *ExplainSubject) string {
 }
 
 func renderExplainFields(b *strings.Builder, node *ExplainNode, path string, depth int) {
-	if node == nil || node.Kind != "object" {
+	if node == nil {
+		return
+	}
+	if node.Kind == "array" {
+		renderExplainFields(b, node.Items, path+"[]", depth)
+		return
+	}
+	if node.Kind == explainKindObject && node.Additional != nil {
+		renderExplainFields(b, node.Additional, path+"{}", depth)
+	}
+	if node.Kind != explainKindObject {
 		return
 	}
 	prefix := strings.Repeat("  ", depth)
@@ -822,14 +853,14 @@ func RenderExplainSchema(subject *ExplainSubject) *JSONSchema {
 	schema.Schema = jsonSchemaDraft202012
 	schema.ID = fmt.Sprintf("kongctl://declarative/%s", strings.ReplaceAll(subject.DisplayPath, ".", "/"))
 	schema.Title = fmt.Sprintf("kongctl declarative schema: %s", subject.DisplayPath)
-	schema.XKongctlResource = subject.Doc.CanonicalAlias
-	schema.XKongctlPath = subject.DisplayPath
+	schema.XResource = subject.Doc.CanonicalAlias
+	schema.XPath = subject.DisplayPath
 	if subject.Doc.RootKey != "" {
-		schema.XKongctlRootKey = subject.Doc.RootKey
+		schema.XRootKey = subject.Doc.RootKey
 	}
-	schema.XKongctlKind = subject.Doc.Kind
-	schema.XKongctlSupportsRoot = boolPtr(subject.Doc.SupportsRoot)
-	schema.XKongctlSupportsNested = boolPtr(subject.Doc.SupportsNested)
+	schema.XKind = subject.Doc.Kind
+	schema.XRoot = boolPtr(subject.Doc.SupportsRoot)
+	schema.XN = boolPtr(subject.Doc.SupportsNested)
 	return schema
 }
 
@@ -902,7 +933,7 @@ func renderScaffoldTrail(write scaffoldWriter, trail []ExplainScaffoldNode, dept
 	}
 }
 
-func renderNestedTrail(write scaffoldWriter, trail []ExplainScaffoldNode, depth int, parent *ExplainNode) {
+func renderNestedTrail(write scaffoldWriter, trail []ExplainScaffoldNode, depth int, _ *ExplainNode) {
 	if len(trail) == 0 {
 		return
 	}
@@ -951,7 +982,13 @@ func firstScaffoldField(node *ExplainNode, omit map[string]struct{}) *ExplainFie
 	return nil
 }
 
-func renderScaffoldObject(write scaffoldWriter, node *ExplainNode, depth int, omit map[string]struct{}, skipFirst bool) {
+func renderScaffoldObject(
+	write scaffoldWriter,
+	node *ExplainNode,
+	depth int,
+	omit map[string]struct{},
+	skipFirst bool,
+) {
 	skipped := ""
 	if skipFirst {
 		if field := firstScaffoldField(node, omit); field != nil {
@@ -978,7 +1015,7 @@ func renderScaffoldField(write scaffoldWriter, depth int, field *ExplainField, o
 		commentPrefix = "# "
 	}
 
-	if field.Node.Kind == "object" && field.Node.Additional == nil && len(field.Node.OneOf) == 0 {
+	if field.Node.Kind == explainKindObject && field.Node.Additional == nil && len(field.Node.OneOf) == 0 {
 		write(indent + commentPrefix + field.Name + ":")
 		renderCommentedBlock(write, depth+1, field.Node, omit, comment)
 		return
@@ -987,7 +1024,7 @@ func renderScaffoldField(write scaffoldWriter, depth int, field *ExplainField, o
 	if field.Node.Kind == "array" {
 		write(indent + commentPrefix + field.Name + ":")
 		itemLine := scaffoldLiteral(field.Node.Items)
-		if field.Node.Items != nil && field.Node.Items.Kind == "object" {
+		if field.Node.Items != nil && field.Node.Items.Kind == explainKindObject {
 			write(strings.Repeat("  ", depth+1) + commentPrefix + "- " + firstScaffoldLine(field.Node.Items, omit))
 			renderCommentedBlock(write, depth+2, field.Node.Items, omit, comment)
 		} else {
@@ -1007,7 +1044,7 @@ func renderCommentedBlock(write scaffoldWriter, depth int, node *ExplainNode, om
 		if _, ok := omit[child.Name]; ok {
 			continue
 		}
-		renderScaffoldField(write, depth, child, omit, comment || !(child.Required || child.Recommended))
+		renderScaffoldField(write, depth, child, omit, comment || !child.Required && !child.Recommended)
 	}
 }
 
@@ -1119,14 +1156,14 @@ func (n *ExplainNode) toJSONSchema() *JSONSchema {
 	}
 
 	schema := &JSONSchema{
-		Description:          n.Description,
-		Default:              n.Default,
-		Const:                n.Const,
-		Enum:                 append([]any(nil), n.Enum...),
-		XKongctlRefKind:      n.RefKind,
-		XKongctlPreferredTag: n.PreferredTag,
-		XKongctlDefaultFrom:  n.DefaultFrom,
-		XKongctlNotes:        append([]string(nil), n.Notes...),
+		Description: n.Description,
+		Default:     n.Default,
+		Const:       n.Const,
+		Enum:        append([]any(nil), n.Enum...),
+		XRefKind:    n.RefKind,
+		XTag:        n.PreferredTag,
+		XDefault:    n.DefaultFrom,
+		XNotes:      append([]string(nil), n.Notes...),
 	}
 
 	schema.Type = schemaTypeValue(n.Kind, n.Nullable)
@@ -1134,9 +1171,9 @@ func (n *ExplainNode) toJSONSchema() *JSONSchema {
 	switch n.Kind {
 	case "object":
 		if n.Additional != nil {
-			schema.AdditionalProperties = n.Additional.toJSONSchema()
+			schema.Additional = n.Additional.toJSONSchema()
 		} else {
-			schema.AdditionalProperties = false
+			schema.Additional = false
 		}
 		if len(n.Properties) > 0 {
 			schema.Properties = make(map[string]*JSONSchema, len(n.Properties))
@@ -1340,9 +1377,6 @@ func scaffoldOmitFields(ancestors []ResourceType) []string {
 	for _, ancestor := range ancestors {
 		name := string(ancestor)
 		fields = append(fields, name)
-		if last, ok := strings.CutPrefix(name, ""); ok {
-			_ = last
-		}
 		if idx := strings.LastIndex(name, "_"); idx >= 0 {
 			fields = append(fields, name[idx+1:])
 		}
