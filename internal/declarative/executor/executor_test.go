@@ -242,6 +242,17 @@ func TestClassifyCreateExistingError(t *testing.T) {
 	assert.Equal(t, existingCreateReason, reason)
 }
 
+func TestExecutor_storeResolvedRefAliases(t *testing.T) {
+	exec := New(nil, nil, false)
+
+	exec.storeResolvedRefAliases("portal", "portal-id", "simple-portal", " My Simple Portal ", "")
+
+	require.Contains(t, exec.refToID, "portal")
+	assert.Equal(t, "portal-id", exec.refToID["portal"]["simple-portal"])
+	assert.Equal(t, "portal-id", exec.refToID["portal"]["My Simple Portal"])
+	assert.NotContains(t, exec.refToID["portal"], "")
+}
+
 func TestExecutor_ValidateChangePreExecution_Basic(t *testing.T) {
 	tests := []struct {
 		name          string

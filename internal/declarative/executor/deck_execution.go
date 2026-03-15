@@ -11,7 +11,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/deck"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/tags"
-	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/util"
 )
 
@@ -26,7 +25,7 @@ func (e *Executor) executeDeckStep(ctx context.Context, change *planner.PlannedC
 		return fmt.Errorf("deck runner not configured")
 	}
 
-	logger := deckLoggerFromContext(ctx)
+	logger := loggerFromContext(ctx)
 
 	cpRef := stringField(change.Fields, "control_plane_ref")
 	if cpRef == "" {
@@ -629,15 +628,6 @@ func logDeckRunOutput(logger *slog.Logger, controlPlaneRef string, step int, res
 		slog.Int("step", step),
 		slog.String("stderr", truncateDeckOutput(stderr, 4096)),
 	)
-}
-
-func deckLoggerFromContext(ctx context.Context) *slog.Logger {
-	if ctx != nil {
-		if logger, ok := ctx.Value(log.LoggerKey).(*slog.Logger); ok && logger != nil {
-			return logger
-		}
-	}
-	return slog.Default()
 }
 
 type deckSummary struct {
