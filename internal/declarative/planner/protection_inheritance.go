@@ -12,7 +12,7 @@ import (
 )
 
 type inheritedProtectionState struct {
-	info      ProtectionParentInfo
+	info      ProtectingParentInfo
 	protected bool
 }
 
@@ -38,7 +38,7 @@ func (p *Planner) applyInheritedProtection(ctx context.Context, plan *Plan) erro
 			continue
 		}
 
-		change.ProtectionParent = &state.info
+		change.ProtectingParent = &state.info
 
 		if state.protected && (change.Action == ActionUpdate || change.Action == ActionDelete) {
 			collector.Add(fmt.Errorf(
@@ -60,7 +60,7 @@ func (p *Planner) getInheritedProtectionState(
 	cache map[string]*inheritedProtectionState,
 	parentRef string,
 ) (*inheritedProtectionState, error) {
-	topLevel, err := p.resolveTopLevelProtectionParent(parentRef)
+	topLevel, err := p.resolveTopLevelProtectingParent(parentRef)
 	if err != nil || topLevel == nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func (p *Planner) getInheritedProtectionState(
 		return cached, nil
 	}
 
-	protected, err := p.isTopLevelParentProtected(ctx, topLevel)
+	protected, err := p.isTopLevelProtectingParentProtected(ctx, topLevel)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (p *Planner) getInheritedProtectionState(
 	return state, nil
 }
 
-func (p *Planner) resolveTopLevelProtectionParent(parentRef string) (*ProtectionParentInfo, error) {
+func (p *Planner) resolveTopLevelProtectingParent(parentRef string) (*ProtectingParentInfo, error) {
 	currentRef := parentRef
 	visited := make(map[string]struct{})
 
@@ -103,7 +103,7 @@ func (p *Planner) resolveTopLevelProtectionParent(parentRef string) (*Protection
 
 		withParent, ok := resource.(resources.ResourceWithParent)
 		if !ok {
-			return &ProtectionParentInfo{
+			return &ProtectingParentInfo{
 				ResourceType: string(resource.GetType()),
 				ResourceRef:  resource.GetRef(),
 				ResourceID:   resource.GetKonnectID(),
@@ -113,7 +113,7 @@ func (p *Planner) resolveTopLevelProtectionParent(parentRef string) (*Protection
 
 		parent := withParent.GetParentRef()
 		if parent == nil || parent.Ref == "" {
-			return &ProtectionParentInfo{
+			return &ProtectingParentInfo{
 				ResourceType: string(resource.GetType()),
 				ResourceRef:  resource.GetRef(),
 				ResourceID:   resource.GetKonnectID(),
@@ -127,7 +127,7 @@ func (p *Planner) resolveTopLevelProtectionParent(parentRef string) (*Protection
 	return nil, nil
 }
 
-func (p *Planner) isTopLevelParentProtected(ctx context.Context, info *ProtectionParentInfo) (bool, error) {
+func (p *Planner) isTopLevelProtectingParentProtected(ctx context.Context, info *ProtectingParentInfo) (bool, error) {
 	if p == nil || info == nil {
 		return false, nil
 	}
