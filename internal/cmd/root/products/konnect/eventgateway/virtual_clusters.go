@@ -103,6 +103,12 @@ func newGetEventGatewayVirtualClustersCmd(
 		addParentFlags(verb, cmd)
 	}
 
+	// Add child commands
+	clusterPoliciesCmd := newGetEventGatewayClusterPoliciesCmd(verb, addParentFlags, parentPreRun)
+	if clusterPoliciesCmd != nil {
+		cmd.AddCommand(clusterPoliciesCmd)
+	}
+
 	return cmd
 }
 
@@ -480,7 +486,14 @@ func virtualClusterToRecord(cluster kkComps.VirtualCluster) virtualClusterSummar
 	}
 }
 
-func buildVirtualClusterChildView(clusters []kkComps.VirtualCluster) tableview.ChildView {
+// VirtualClusterWithGateway wraps a virtual cluster with its parent event gateway ID
+// for navigation to child resources like cluster-policies.
+type VirtualClusterWithGateway struct {
+	*kkComps.VirtualCluster
+	EventGatewayID string
+}
+
+func buildVirtualClusterChildView(clusters []kkComps.VirtualCluster, gatewayID string) tableview.ChildView {
 	rows := make([]table.Row, 0, len(clusters))
 	for i := range clusters {
 		record := virtualClusterToRecord(clusters[i])
@@ -504,7 +517,10 @@ func buildVirtualClusterChildView(clusters []kkComps.VirtualCluster) tableview.C
 			if index < 0 || index >= len(clusters) {
 				return nil
 			}
-			return &clusters[index]
+			return &VirtualClusterWithGateway{
+				VirtualCluster: &clusters[index],
+				EventGatewayID: gatewayID,
+			}
 		},
 	}
 }

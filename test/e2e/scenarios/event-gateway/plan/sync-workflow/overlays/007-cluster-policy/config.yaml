@@ -30,6 +30,20 @@ event_gateways:
           - type: anonymous
         acl_mode: enforce_on_gateway
         dns_label: vc-default
+        cluster_policies:
+          - ref: plan-sync-cluster-policy
+            name: plan-sync-cluster-policy-name-for-test
+            description: Plan Sync Cluster Policy description
+            type: acls
+            enabled: true
+            config:
+              rules:
+                - action: "deny"
+                  operations:
+                  - name: "describe_configs"
+                  resource_names:
+                  - match: "*"
+                  resource_type: "transactional_id"
     listeners:
       - ref: plan-sync-listener
         name: plan-sync-listener

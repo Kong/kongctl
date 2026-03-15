@@ -1095,6 +1095,13 @@ func buildEventGatewayVirtualClusters(
 			Ref: cluster.ID,
 		}
 
+		// Fetch cluster policies for this virtual cluster
+		if policies, err := buildEventGatewayClusterPolicies(ctx, logger, client, gatewayID, cluster.ID); err != nil {
+			logWarn(logger, "failed to load cluster policies", cluster.ID, cluster.Name, err)
+		} else if len(policies) > 0 {
+			res.ClusterPolicies = policies
+		}
+
 		results = append(results, res)
 	}
 
@@ -1169,6 +1176,34 @@ func buildEventGatewayListenerPolicies(
 	return results, nil
 }
 
+func buildEventGatewayClusterPolicies(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	gatewayID string,
+	virtualClusterID string,
+) ([]declresources.EventGatewayClusterPolicyResource, error) {
+	policies, err := client.ListEventGatewayClusterPolicies(ctx, gatewayID, virtualClusterID)
+	if err != nil {
+		return nil, err
+	}
+	if len(policies) == 0 {
+		return nil, nil
+	}
+
+	results := make([]declresources.EventGatewayClusterPolicyResource, 0, len(policies))
+	for _, policy := range policies {
+		res, err := convertClusterPolicyToResource(policy.EventGatewayPolicy, policy.RawConfig)
+		if err != nil {
+			logWarn(logger, "failed to convert cluster policy", policy.ID, "", err)
+			continue
+		}
+		results = append(results, res)
+	}
+
+	return results, nil
+}
+
 // convertListenerPolicyToResource converts an EventGatewayListenerPolicy (response type)
 // to an EventGatewayListenerPolicyResource (which embeds the Create union type).
 // The response type has Type, Name, Description, Enabled, Labels, Config fields.
@@ -1216,6 +1251,53 @@ func convertListenerPolicyToResource(
 	return declresources.EventGatewayListenerPolicyResource{
 		EventGatewayListenerPolicyCreate: createPolicy,
 		Ref:                              policy.ID,
+	}, nil
+}
+
+// convertClusterPolicyToResource converts an EventGatewayPolicy (response type)
+// to an EventGatewayClusterPolicyResource (which embeds the Modify union type).
+// The response type has Type, Name, Description, Enabled, Labels, Config fields.
+// We use rawConfig from the raw API response because the SDK's EventGatewayPolicyConfig
+// is an empty struct that doesn't capture the actual config data.
+func convertClusterPolicyToResource(
+	policy kkComps.EventGatewayPolicy,
+	rawConfig map[string]any,
+) (declresources.EventGatewayClusterPolicyResource, error) {
+	// Build a map with policy fields plus the raw config
+	policyMap := map[string]any{
+		"type":   policy.Type,
+		"config": rawConfig,
+	}
+	if policy.Name != nil {
+		policyMap["name"] = *policy.Name
+	}
+	if policy.Description != nil {
+		policyMap["description"] = *policy.Description
+	}
+	if policy.Enabled != nil {
+		policyMap["enabled"] = *policy.Enabled
+	}
+	if policy.Labels != nil {
+		policyMap["labels"] = policy.Labels
+	}
+	if policy.Condition != nil {
+		policyMap["condition"] = *policy.Condition
+	}
+
+	// Marshal the combined map and unmarshal into the Modify type
+	data, err := json.Marshal(policyMap)
+	if err != nil {
+		return declresources.EventGatewayClusterPolicyResource{}, fmt.Errorf("failed to marshal policy: %w", err)
+	}
+
+	var modifyPolicy kkComps.EventGatewayClusterPolicyModify
+	if err := json.Unmarshal(data, &modifyPolicy); err != nil {
+		return declresources.EventGatewayClusterPolicyResource{}, fmt.Errorf("failed to unmarshal policy: %w", err)
+	}
+
+	return declresources.EventGatewayClusterPolicyResource{
+		EventGatewayClusterPolicyModify: modifyPolicy,
+		Ref:                             policy.ID,
 	}, nil
 }
 

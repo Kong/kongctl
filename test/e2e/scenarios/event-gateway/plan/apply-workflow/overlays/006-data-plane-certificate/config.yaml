@@ -29,7 +29,7 @@ event_gateways:
         authentication:
           - type: sasl_scram
             algorithm: sha512
-        acl_mode: passthrough
+        acl_mode: enforce_on_gateway
         dns_label: vc-default
     listeners:
       - ref: plan-apply-listener

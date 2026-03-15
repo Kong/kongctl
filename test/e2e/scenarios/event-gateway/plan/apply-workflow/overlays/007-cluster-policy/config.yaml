@@ -1,14 +1,14 @@
 _defaults:
   kongctl:
-    namespace: egw-plan-sync
+    namespace: egw-plan-apply
 
 event_gateways:
-  - ref: plan-sync-egw
-    name: plan-sync-egw
-    description: "Updated description for plan sync workflow"
+  - ref: plan-apply-egw
+    name: plan-apply-egw
+    description: "Updated description for plan apply workflow"
     backend_clusters:
-      - ref: plan-sync-backend-cluster
-        name: plan-sync-backend-cluster
+      - ref: plan-apply-backend-cluster
+        name: plan-apply-backend-cluster
         description: "Updated description for plan apply backend cluster"
         bootstrap_servers:
           - "egw-backend-1-updated.example.com:9092"
@@ -21,42 +21,56 @@ event_gateways:
             - tls12
             - tls13
     virtual_clusters:
-      - ref: plan-sync-virtual-cluster
-        name: plan-sync-virtual-cluster
-        description: "Virtual cluster for plan sync workflow"
+      - ref: plan-apply-virtual-cluster
+        name: plan-apply-virtual-cluster
+        description: "Virtual cluster for plan apply workflow"
         destination:
-          id: !ref plan-sync-backend-cluster#id
+          name: plan-apply-backend-cluster #id: !ref plan-apply-backend-cluster#id
         authentication:
-          - type: anonymous
+          - type: sasl_scram
+            algorithm: sha512
         acl_mode: enforce_on_gateway
         dns_label: vc-default
+        cluster_policies:
+          - ref: plan-apply-cluster-policy
+            name: plan-apply-cluster-policy-name-for-test
+            description: Plan Apply Cluster Policy description
+            type: acls
+            enabled: true
+            config:
+              rules:
+                - action: "deny"
+                  operations:
+                  - name: "describe_configs"
+                  resource_names:
+                  - match: "*"
+                  resource_type: "transactional_id"
     listeners:
-      - ref: plan-sync-listener
-        name: plan-sync-listener
-        description: "Listener for plan sync workflow"
+      - ref: plan-apply-listener
+        name: plan-apply-listener
+        description: "Listener for plan apply workflow"
         ports:
-          - 9092
+          - "9093-9095"
         addresses:
           - localhost
         policies:
-          - ref: plan-sync-listener-1-policy-1-ref
-            name: plan-sync-listener-1-policy-1-name
+          - ref: plan-apply-listener-1-policy-1-ref
+            name: plan-apply-listener-1-policy-1-name
             type: forward_to_virtual_cluster
-            description: "Plan Sync Listener 1 Policy 1"
+            description: "Plan Apply Listener 1 Policy 1"
             enabled: true
             condition: "${ssl_sni} == \"example.com\""
             labels:
               env: staging
               team: payments
             config:
-              type: port_mapping
-              destination:
-                id: !ref plan-sync-virtual-cluster#id
-              advertised_host: "example.com"
+              type: sni
+              advertised_port: 9092
+              sni_suffix: ".example.com"
     data_plane_certificates:
-      - ref: plan-sync-dataplane-certificate-ref
-        name: plan-sync-dataplane-certificate-name
-        description: "Plan Sync Dataplane Certificate description"
+      - ref: plan-apply-dataplane-certificate-ref
+        name: plan-apply-dataplane-certificate-name
+        description: "Plan Apply Dataplane Certificate description"
         certificate: |-
           -----BEGIN CERTIFICATE-----
           MIIB4TCCAYugAwIBAgIUAenxUyPjkSLCe2BQXoBMBacqgLowDQYJKoZIhvcNAQEL
