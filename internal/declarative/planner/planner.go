@@ -310,6 +310,14 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 			return nil, fmt.Errorf("failed to plan Team changes for namespace %s: %w", namespace, err)
 		}
 
+		if err := namespacePlanner.applyInheritedProtection(namespaceCtx, namespacePlan); err != nil {
+			return nil, fmt.Errorf(
+				"failed to validate inherited protection for namespace %s: %w",
+				namespace,
+				err,
+			)
+		}
+
 		// Merge namespace plan into base plan
 		basePlan.Changes = append(basePlan.Changes, namespacePlan.Changes...)
 		basePlan.Warnings = append(basePlan.Warnings, namespacePlan.Warnings...)
