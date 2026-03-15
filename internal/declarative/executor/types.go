@@ -84,7 +84,9 @@ type ProgressReporter interface {
 	// SkipChange is called when a change is skipped (e.g., in dry-run mode)
 	SkipChange(change planner.PlannedChange, reason string)
 
-	// ExistingChange is called when create mode ignores a change because the resource already exists.
+	// ExistingChange is called when create mode ignores a change because the
+	// resource already exists. This callback is terminal for that change and
+	// replaces CompleteChange.
 	ExistingChange(change planner.PlannedChange, reason string)
 
 	// FinishExecution is called at the end of plan execution
