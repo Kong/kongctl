@@ -10,6 +10,7 @@ func init() {
 	registerResourceType(
 		ResourceTypeEventGatewayControlPlane,
 		func(rs *ResourceSet) *[]EventGatewayControlPlaneResource { return &rs.EventGatewayControlPlanes },
+		AutoExplain[EventGatewayControlPlaneResource](),
 	)
 }
 

@@ -14,6 +14,7 @@ func init() {
 	registerResourceType(
 		ResourceTypeGatewayService,
 		func(rs *ResourceSet) *[]GatewayServiceResource { return &rs.GatewayServices },
+		AutoExplain[GatewayServiceResource](),
 	)
 }
 

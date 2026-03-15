@@ -13,6 +13,7 @@ func init() {
 	registerResourceType(
 		ResourceTypeAPIVersion,
 		func(rs *ResourceSet) *[]APIVersionResource { return &rs.APIVersions },
+		AutoExplain[APIVersionResource](),
 	)
 }
 

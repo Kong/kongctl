@@ -1,0 +1,58 @@
+steps:
+  - name: 001-explain-portal-json
+    skipInputs: true
+    commands:
+      - name: 000-explain-portal-json
+        run:
+          - explain
+          - portal
+        outputFormat: json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: portal"
+                "required[0]": ref
+          - select: properties.pages.items.properties.children.items
+            expect:
+              fields:
+                type: object
+                "contains(description, 'Recursive')": true
+
+  - name: 002-explain-nested-child-yaml
+    skipInputs: true
+    commands:
+      - name: 000-explain-api-versions-yaml
+        run:
+          - explain
+          - api.versions
+        outputFormat: yaml
+        parseAs: yaml
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: api.versions"
+                "required[0]": spec
+          - select: properties.version
+            expect:
+              fields:
+                "type[0]": string
+
+  - name: 003-explain-field-text
+    skipInputs: true
+    commands:
+      - name: 000-explain-publication-portal-id-text
+        run:
+          - explain
+          - api.publications.portal_id
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'RESOURCE: api_publication')": true
+                "contains(stdout, 'PATH: api.publications.portal_id')": true
+                "contains(stdout, 'ACCEPTS kongctl metadata: no')": true

@@ -15,6 +15,7 @@ type resourceOps struct {
 	append  func(dest, src *ResourceSet)
 	forEach func(rs *ResourceSet, fn func(Resource) bool) bool
 	count   func(rs *ResourceSet) int
+	explain ExplainRegistration
 }
 
 // registry maps resource types to their operations.
@@ -40,6 +41,7 @@ func registerResourceType[R any, RPtr interface {
 	Resource
 }](rt ResourceType,
 	getSlicePtr func(*ResourceSet) *[]R,
+	explain ExplainRegistration,
 ) {
 	registry[rt] = resourceOps{
 		get: func(rs *ResourceSet) []Resource {
@@ -70,6 +72,7 @@ func registerResourceType[R any, RPtr interface {
 		count: func(rs *ResourceSet) int {
 			return len(*getSlicePtr(rs))
 		},
+		explain: explain,
 	}
 }
 
