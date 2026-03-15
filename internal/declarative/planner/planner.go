@@ -135,12 +135,19 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	// Create base plan
 	basePlan := NewPlan("1.0", generator, opts.Mode)
 
-	// Pre-resolution phase: Resolve resource identities before planning
-	if err := p.resolveResourceIdentities(
-		withPlannerHTTPLogContext(ctx, opts, plannerComponentIdentityResolution, ""),
-		rs,
-	); err != nil {
-		return nil, fmt.Errorf("failed to resolve resource identities: %w", err)
+	if opts.Mode == PlanModeCreate {
+		p.logger.Debug("Skipping resource identity resolution for create mode")
+		if err := p.resolveAPIImplementationServiceReferences(rs); err != nil {
+			return nil, fmt.Errorf("failed to resolve API implementation services: %w", err)
+		}
+	} else {
+		// Pre-resolution phase: Resolve resource identities before planning
+		if err := p.resolveResourceIdentities(
+			withPlannerHTTPLogContext(ctx, opts, plannerComponentIdentityResolution, ""),
+			rs,
+		); err != nil {
+			return nil, fmt.Errorf("failed to resolve resource identities: %w", err)
+		}
 	}
 
 	// Initialize resolver with populated ResourceSet
@@ -352,10 +359,12 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 					basePlan.Changes[i].References = make(map[string]ReferenceInfo)
 				}
 				for field, ref := range refs {
-					basePlan.Changes[i].References[field] = ReferenceInfo{
-						Ref: ref.Ref,
-						ID:  ref.ID,
+					existing := basePlan.Changes[i].References[field]
+					if existing.Ref == "" {
+						existing.Ref = ref.Ref
 					}
+					existing.ID = ref.ID
+					basePlan.Changes[i].References[field] = existing
 				}
 				break
 			}

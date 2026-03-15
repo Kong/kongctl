@@ -352,6 +352,8 @@ func withExecutorChangeHTTPLogContext(ctx context.Context, change *planner.Plann
 func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, change *planner.PlannedChange,
 	plan *planner.Plan, changeIndex int,
 ) error {
+	normalizeUnresolvedReferenceIDs(change)
+
 	// Notify reporter of change start
 	if e.reporter != nil {
 		e.reporter.StartChange(*change)
@@ -419,6 +421,7 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 	// Execute the actual change
 	var err error
 	var resourceID string
+	logger := loggerFromContext(ctx)
 
 	switch change.Action {
 	case planner.ActionCreate:
@@ -444,6 +447,35 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 
 	// Record result
 	if err != nil {
+		if change.Action == planner.ActionCreate && e.executionMode == planner.PlanModeCreate {
+			if reason, ok := classifyCreateExistingError(err); ok {
+				result.ExistingCount++
+				result.ExistingChanges = append(result.ExistingChanges, ExistingChange{
+					ChangeID:     change.ID,
+					ResourceType: change.ResourceType,
+					ResourceName: resourceName,
+					ResourceRef:  change.ResourceRef,
+					Action:       string(change.Action),
+					Reason:       reason,
+				})
+				e.cacheExistingCreateReferenceID(ctx, change, resourceName)
+
+				if e.reporter != nil {
+					e.reporter.ExistingChange(*change, reason)
+				}
+
+				return nil
+			}
+		}
+
+		if e.executionMode == planner.PlanModeCreate && change.Action == planner.ActionCreate {
+			logger.Warn("Create change failed; continuing with best-effort execution",
+				"change_id", change.ID,
+				"resource_type", change.ResourceType,
+				"resource_ref", change.ResourceRef,
+				"error", err.Error(),
+			)
+		}
 		execError := ExecutionError{
 			ChangeID:     change.ID,
 			ResourceType: change.ResourceType,
@@ -470,10 +502,7 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 			e.createdResources[change.ID] = resourceID
 
 			// Also track by resource type and ref for reference resolution
-			if e.refToID[change.ResourceType] == nil {
-				e.refToID[change.ResourceType] = make(map[string]string)
-			}
-			e.refToID[change.ResourceType][change.ResourceRef] = resourceID
+			e.storeResolvedRefAliases(change.ResourceType, resourceID, change.ResourceRef)
 
 			// Propagate the created resource ID to any pending changes that reference it
 			if changeIndex+1 < len(plan.ExecutionOrder) {
@@ -500,7 +529,7 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 									// Update the reference with the created resource ID
 									refInfo.ID = resourceID
 									plan.Changes[j].References[refKey] = refInfo
-									slog.Debug("Propagated created resource ID to dependent change",
+									logger.Debug("Propagated created resource ID to dependent change",
 										"change_id", plan.Changes[j].ID,
 										"ref_key", refKey,
 										"resource_type", change.ResourceType,
@@ -620,6 +649,72 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 	return nil
 }
 
+func (e *Executor) storeResolvedRefAliases(resourceType, id string, refs ...string) {
+	if id == "" {
+		return
+	}
+
+	if e.refToID[resourceType] == nil {
+		e.refToID[resourceType] = make(map[string]string)
+	}
+
+	for _, ref := range refs {
+		ref = strings.TrimSpace(ref)
+		if ref == "" {
+			continue
+		}
+		e.refToID[resourceType][ref] = id
+	}
+}
+
+func (e *Executor) cacheExistingCreateReferenceID(
+	ctx context.Context,
+	change *planner.PlannedChange,
+	resourceName string,
+) {
+	if e.client == nil || change == nil {
+		return
+	}
+
+	ref := strings.TrimSpace(change.ResourceRef)
+	resourceName = strings.TrimSpace(resourceName)
+	if ref == "" || resourceName == "" {
+		return
+	}
+
+	refInfo := planner.ReferenceInfo{
+		Ref: ref,
+		LookupFields: map[string]string{
+			"name": resourceName,
+		},
+	}
+
+	var err error
+	switch change.ResourceType {
+	case "application_auth_strategy":
+		_, err = e.resolveAuthStrategyRef(ctx, refInfo)
+	case planner.ResourceTypePortal:
+		_, err = e.resolvePortalRef(ctx, refInfo)
+	case "control_plane":
+		_, err = e.resolveControlPlaneRef(ctx, refInfo)
+	case "api":
+		_, err = e.resolveAPIRef(ctx, refInfo)
+	case planner.ResourceTypeEventGatewayControlPlane:
+		_, err = e.resolveEventGatewayRef(ctx, refInfo)
+	default:
+		return
+	}
+
+	if err != nil {
+		loggerFromContext(ctx).Debug("Could not pre-resolve existing resource ID after duplicate create",
+			"resource_type", change.ResourceType,
+			"resource_ref", change.ResourceRef,
+			"resource_name", resourceName,
+			"error", err.Error(),
+		)
+	}
+}
+
 // resolveAuthStrategyRef resolves an auth strategy reference to its ID
 func (e *Executor) resolveAuthStrategyRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
 	lookupRef := refInfo.Ref
@@ -659,25 +754,33 @@ func (e *Executor) resolveAuthStrategyRef(ctx context.Context, refInfo planner.R
 		return "", fmt.Errorf("auth strategy not found: ref=%s, looked up by name=%s", refInfo.Ref, lookupValue)
 	}
 
+	e.storeResolvedRefAliases("application_auth_strategy", strategy.ID, refInfo.Ref, lookupRef)
 	return strategy.ID, nil
 }
 
 // resolvePortalRef resolves a portal reference to its ID
 func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
+	lookupRef := refInfo.Ref
+	if tags.IsRefPlaceholder(lookupRef) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+			lookupRef = parsedRef
+		}
+	}
+
 	// First check if the reference already has an ID (resolved from dependency)
-	if refInfo.ID != "" {
+	if hasResolvedReferenceID(refInfo.ID) {
 		return refInfo.ID, nil
 	}
 
 	// Check if it was created in this execution
 	if portals, ok := e.refToID["portal"]; ok {
-		if id, found := portals[refInfo.Ref]; found {
+		if id, found := portals[lookupRef]; found {
 			return id, nil
 		}
 	}
 
 	// Determine the lookup value - use name from lookup fields if available
-	lookupValue := refInfo.Ref
+	lookupValue := lookupRef
 	if refInfo.LookupFields != nil {
 		if name, hasName := refInfo.LookupFields["name"]; hasName && name != "" {
 			lookupValue = name
@@ -693,6 +796,7 @@ func (e *Executor) resolvePortalRef(ctx context.Context, refInfo planner.Referen
 		return "", fmt.Errorf("portal not found: ref=%s, looked up by name=%s", refInfo.Ref, lookupValue)
 	}
 
+	e.storeResolvedRefAliases("portal", portal.ID, refInfo.Ref, lookupRef)
 	return portal.ID, nil
 }
 
@@ -741,7 +845,7 @@ func (e *Executor) resolveControlPlaneRef(ctx context.Context, refInfo planner.R
 	}
 
 	if controlPlanes, ok := e.refToID["control_plane"]; ok {
-		if id, found := controlPlanes[lookupRef]; found && id != "" && id != "[unknown]" {
+		if id, found := controlPlanes[lookupRef]; found && hasResolvedReferenceID(id) {
 			return id, nil
 		}
 	}
@@ -761,6 +865,7 @@ func (e *Executor) resolveControlPlaneRef(ctx context.Context, refInfo planner.R
 		return "", fmt.Errorf("control plane not found: ref=%s, lookup=%s", refInfo.Ref, lookupValue)
 	}
 
+	e.storeResolvedRefAliases("control_plane", cp.ID, refInfo.Ref, lookupRef)
 	return cp.ID, nil
 }
 
@@ -950,10 +1055,7 @@ func (e *Executor) resolveAPIRef(ctx context.Context, refInfo planner.ReferenceI
 				"attempt", attempt+1,
 			)
 
-			// Cache this resolution
-			if apis, ok := e.refToID["api"]; ok {
-				apis[refInfo.Ref] = apiID
-			}
+			e.storeResolvedRefAliases("api", apiID, refInfo.Ref, lookupRef)
 			return apiID, nil
 		}
 		lastErr = err
@@ -1007,10 +1109,7 @@ func (e *Executor) resolveEventGatewayRef(ctx context.Context, refInfo planner.R
 		"gateway_id", gatewayID,
 	)
 
-	// Cache this resolution
-	if gateways, ok := e.refToID["event_gateway"]; ok {
-		gateways[refInfo.Ref] = gatewayID
-	}
+	e.storeResolvedRefAliases("event_gateway", gatewayID, refInfo.Ref, lookupRef)
 
 	return gatewayID, nil
 }
@@ -1357,7 +1456,7 @@ func (e *Executor) resolvePortalPageRef(
 func (e *Executor) resolveAPIDocumentRef(
 	ctx context.Context, apiID string, refInfo planner.ReferenceInfo,
 ) (string, error) {
-	if refInfo.ID != "" && refInfo.ID != "[unknown]" {
+	if hasResolvedReferenceID(refInfo.ID) {
 		return refInfo.ID, nil
 	}
 
@@ -2325,12 +2424,12 @@ func (e *Executor) getParentAPIID(ctx context.Context, change planner.PlannedCha
 	logger.Debug("Parent details",
 		slog.String("parent_ref", change.Parent.Ref),
 		slog.String("parent_id", change.Parent.ID),
-		slog.Bool("parent_id_empty", change.Parent.ID == ""),
+		slog.Bool("parent_id_empty", !hasResolvedReferenceID(change.Parent.ID)),
 		slog.Int("parent_id_length", len(change.Parent.ID)),
 	)
 
 	// Use the parent ID if it was already resolved
-	if change.Parent.ID != "" {
+	if hasResolvedReferenceID(change.Parent.ID) {
 		logger.Debug("Using resolved parent ID", slog.String("parent_id", change.Parent.ID))
 		return change.Parent.ID, nil
 	}

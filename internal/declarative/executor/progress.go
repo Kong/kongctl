@@ -20,9 +20,10 @@ type ConsoleReporter struct {
 
 // namespaceStats tracks execution statistics per namespace
 type namespaceStats struct {
-	successCount int
-	failureCount int
-	skippedCount int
+	successCount  int
+	failureCount  int
+	skippedCount  int
+	existingCount int
 }
 
 // NewConsoleReporter creates a new console reporter that writes to the provided writer
@@ -144,6 +145,23 @@ func (r *ConsoleReporter) SkipChange(change planner.PlannedChange, reason string
 	fmt.Fprintf(r.writer, "⚠ Skipped: %s\n", reason)
 }
 
+// ExistingChange is called when create mode ignores a change because the resource already exists.
+func (r *ConsoleReporter) ExistingChange(change planner.PlannedChange, _ string) {
+	if r.writer == nil {
+		return
+	}
+
+	namespace := change.Namespace
+	if namespace == "" {
+		namespace = "default"
+	}
+	if stats := r.namespaceStats[namespace]; stats != nil {
+		stats.existingCount++
+	}
+
+	fmt.Fprintln(r.writer, "• Already exists")
+}
+
 // FinishExecution is called at the end of plan execution
 func (r *ConsoleReporter) FinishExecution(result *ExecutionResult) {
 	if r.writer == nil {
@@ -164,7 +182,7 @@ func (r *ConsoleReporter) FinishExecution(result *ExecutionResult) {
 
 		for _, ns := range namespaces {
 			stats := r.namespaceStats[ns]
-			total := stats.successCount + stats.failureCount + stats.skippedCount
+			total := stats.successCount + stats.failureCount + stats.skippedCount + stats.existingCount
 			if total > 0 {
 				fmt.Fprintf(r.writer, "  %s: ", ns)
 
@@ -177,6 +195,9 @@ func (r *ConsoleReporter) FinishExecution(result *ExecutionResult) {
 				}
 				if stats.skippedCount > 0 && r.dryRun {
 					parts = append(parts, fmt.Sprintf("%d validated", stats.skippedCount))
+				}
+				if stats.existingCount > 0 {
+					parts = append(parts, fmt.Sprintf("%d already existed", stats.existingCount))
 				}
 
 				fmt.Fprintln(r.writer, strings.Join(parts, ", "))
@@ -203,6 +224,9 @@ func (r *ConsoleReporter) FinishExecution(result *ExecutionResult) {
 		fmt.Fprintln(r.writer, "Complete.")
 		if result.SuccessCount > 0 {
 			fmt.Fprintf(r.writer, "Executed %d changes.\n", result.SuccessCount)
+		}
+		if result.ExistingCount > 0 {
+			fmt.Fprintf(r.writer, "Ignored %d existing resources.\n", result.ExistingCount)
 		}
 
 		if result.FailureCount > 0 && len(result.Errors) > 0 {

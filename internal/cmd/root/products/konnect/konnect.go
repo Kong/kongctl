@@ -225,6 +225,23 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return cmd, nil
 	}
 
+	if verb == verbs.Create {
+		declCreateCmd, err := declarative.NewDeclarativeCmd(verb)
+		if err != nil {
+			return nil, err
+		}
+
+		cmd.RunE = func(c *cobra.Command, args []string) error {
+			filenames, _ := c.Flags().GetStringSlice("filename")
+			planFile, _ := c.Flags().GetString("plan")
+			if len(filenames) > 0 || planFile != "" {
+				return declCreateCmd.RunE(c, args)
+			}
+			return c.Help()
+		}
+		cmd.Flags().AddFlagSet(declCreateCmd.Flags())
+	}
+
 	// For all other verbs, build the standard command tree
 
 	c, e := gateway.NewGatewayCmd(verb, addFlags, preRunE)

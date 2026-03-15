@@ -310,6 +310,9 @@ func NewDeclarativeCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	if verb == verbs.Apply {
 		return newDeclarativeApplyCmd(), nil
 	}
+	if verb == verbs.Create {
+		return newDeclarativeCreateCmd(), nil
+	}
 	if verb == verbs.Delete {
 		return newDeclarativeDeleteCmd(), nil
 	}
@@ -336,7 +339,7 @@ for review, approval workflows, or as input to sync operations.`,
 		"Process the directory used in -f, --filename recursively")
 	addBaseDirFlag(cmd)
 	cmd.Flags().String("output-file", "", "Save plan artifact to file")
-	cmd.Flags().String("mode", "sync", "Plan generation mode (sync|apply|delete)")
+	cmd.Flags().String("mode", "sync", "Plan generation mode (create|sync|apply|delete)")
 	addRequireNamespaceFlags(cmd)
 
 	return cmd
@@ -344,6 +347,8 @@ for review, approval workflows, or as input to sync operations.`,
 
 func parsePlanMode(mode string) (planner.PlanMode, error) {
 	switch mode {
+	case string(planner.PlanModeCreate):
+		return planner.PlanModeCreate, nil
 	case string(planner.PlanModeSync):
 		return planner.PlanModeSync, nil
 	case string(planner.PlanModeApply):
@@ -351,7 +356,7 @@ func parsePlanMode(mode string) (planner.PlanMode, error) {
 	case string(planner.PlanModeDelete):
 		return planner.PlanModeDelete, nil
 	default:
-		return "", fmt.Errorf("invalid mode %q: must be 'sync', 'apply', or 'delete'", mode)
+		return "", fmt.Errorf("invalid mode %q: must be 'create', 'sync', 'apply', or 'delete'", mode)
 	}
 }
 
@@ -444,9 +449,11 @@ func runPlan(command *cobra.Command, args []string) error {
 			)
 		}
 
-		// In sync mode, empty config is valid - it means delete all managed resources
-		// In apply and delete modes, we need at least one resource
-		if planMode == planner.PlanModeApply || planMode == planner.PlanModeDelete {
+		// In sync mode, empty config is valid - it means delete all managed resources.
+		// In create, apply, and delete modes, we need at least one resource.
+		if planMode == planner.PlanModeCreate ||
+			planMode == planner.PlanModeApply ||
+			planMode == planner.PlanModeDelete {
 			return fmt.Errorf("no resources found in configuration files")
 		}
 
@@ -1265,7 +1272,7 @@ useful for reviewing changes before synchronization.`,
 		"Process the directory used in -f, --filename recursively")
 	addBaseDirFlag(cmd)
 	cmd.Flags().String("plan", "", "Path to existing plan file to display")
-	cmd.Flags().String("mode", "sync", "Diff mode (sync|apply|delete)")
+	cmd.Flags().String("mode", "sync", "Diff mode (create|sync|apply|delete)")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text, json, or yaml)")
 	cmd.Flags().Bool("full-content", false, "Display full content for large fields instead of summary")
 	addRequireNamespaceFlags(cmd)
@@ -1292,6 +1299,207 @@ and applied to other environments.`,
 	cmd.Flags().String("resources", "", "Comma-separated list of resource types to export")
 
 	return cmd
+}
+
+func runCreate(command *cobra.Command, args []string) error {
+	command.SilenceUsage = true
+
+	ctx := command.Context()
+	ctx = withDeclarativeHTTPLogContext(ctx, command, verbs.Create, planner.PlanModeCreate)
+	command.SetContext(ctx)
+
+	planFile, _ := command.Flags().GetString("plan")
+	dryRun, _ := command.Flags().GetBool("dry-run")
+	autoApprove, _ := command.Flags().GetBool("auto-approve")
+	outputFormat, _ := command.Flags().GetString("output")
+	filenames, _ := command.Flags().GetStringSlice("filename")
+
+	if !dryRun && !autoApprove && outputFormat != textOutputFormat {
+		return fmt.Errorf("cannot use %s output format without --auto-approve or --dry-run flag "+
+			"(interactive confirmation not available with structured output)", outputFormat)
+	}
+
+	var usingStdinForInput bool
+	if !dryRun && !autoApprove {
+		if err := checkStdinApprovalConflict(planFile, filenames); err != nil {
+			return err
+		}
+		usingStdinForInput = planFile == "-" || (planFile == "" && slices.Contains(filenames, "-"))
+	}
+
+	helper := cmd.BuildHelper(command, args)
+	generator := planGenerator(helper)
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return err
+	}
+
+	kkClient, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return fmt.Errorf("failed to initialize Konnect client: %w", err)
+	}
+
+	nsValidator, requirement, err := resolveNamespaceRequirement(command, cfg)
+	if err != nil {
+		return err
+	}
+
+	var plan *planner.Plan
+	if requirement.Mode != validator.NamespaceRequirementNone && planFile != "" {
+		return fmt.Errorf(
+			"--%s cannot be used together with --plan; generate the plan with namespace enforcement enabled instead",
+			requireNamespaceFlagName,
+		)
+	}
+	if planFile != "" {
+		if outputFormat == textOutputFormat {
+			if planFile == "-" {
+				fmt.Fprintf(command.OutOrStderr(), "Using plan from: stdin\n")
+			} else {
+				fmt.Fprintf(command.OutOrStderr(), "Using plan from: %s\n", planFile)
+			}
+		}
+
+		plan, err = common.LoadPlan(planFile, command.InOrStdin())
+		if err != nil {
+			return err
+		}
+	} else {
+		recursive, _ := command.Flags().GetBool("recursive")
+
+		sources, err := loader.ParseSources(filenames)
+		if err != nil {
+			return fmt.Errorf("failed to parse sources: %w", err)
+		}
+
+		ldr, err := newDeclarativeLoader(command, cfg)
+		if err != nil {
+			return err
+		}
+		resourceSet, err := ldr.LoadFromSources(sources, recursive)
+		if err != nil {
+			if len(filenames) == 0 && strings.Contains(err.Error(), "no YAML files found") {
+				return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
+			}
+			return fmt.Errorf("failed to load configuration: %w", err)
+		}
+
+		if err := nsValidator.ValidateNamespaceRequirement(resourceSet, requirement); err != nil {
+			return err
+		}
+
+		totalResources := resourceSet.ResourceCount()
+		if totalResources == 0 {
+			if len(filenames) == 0 {
+				return fmt.Errorf("no configuration files found in current directory. Use -f to specify files or directories")
+			}
+			return fmt.Errorf("no resources found in configuration files")
+		}
+
+		stateClient := createStateClient(kkClient)
+		p := planner.NewPlanner(stateClient, logger)
+		deckOpts, err := deckPlanOptions(resourceSet, cfg, logger)
+		if err != nil {
+			return err
+		}
+		opts := planner.Options{
+			Mode:      planner.PlanModeCreate,
+			Generator: generator,
+			Deck:      deckOpts,
+		}
+		plan, err = p.GeneratePlan(ctx, resourceSet, opts)
+		if err != nil {
+			return fmt.Errorf("failed to generate plan: %w", err)
+		}
+	}
+
+	ctx = context.WithValue(ctx, currentPlanKey, plan)
+	if planFile != "" {
+		ctx = context.WithValue(ctx, planFileKey, planFile)
+	}
+	command.SetContext(ctx)
+
+	if err := validateCreatePlan(plan); err != nil {
+		return err
+	}
+
+	if plan.IsEmpty() {
+		if outputFormat == textOutputFormat {
+			fmt.Fprintln(command.OutOrStderr(), "No changes needed. No creatable resources found in the input configuration.")
+			return nil
+		}
+
+		emptyResult := &executor.ExecutionResult{
+			SuccessCount:   0,
+			FailureCount:   0,
+			SkippedCount:   0,
+			DryRun:         dryRun,
+			ChangesApplied: []executor.AppliedChange{},
+		}
+		return outputExecutionResult(command, emptyResult, outputFormat)
+	}
+
+	if outputFormat == textOutputFormat {
+		common.DisplayPlanSummary(plan, command.OutOrStderr())
+
+		if !dryRun && !autoApprove {
+			inputReader := command.InOrStdin()
+			if usingStdinForInput {
+				tty, err := os.Open("/dev/tty")
+				if err != nil {
+					return fmt.Errorf("cannot open terminal for confirmation: %w", err)
+				}
+				defer tty.Close()
+				inputReader = tty
+			}
+
+			if !common.ConfirmExecution(plan, command.OutOrStdout(), command.OutOrStderr(), inputReader) {
+				return fmt.Errorf("create cancelled")
+			}
+		}
+
+		fmt.Fprintln(command.OutOrStderr())
+	}
+
+	stateClient := createStateClient(kkClient)
+
+	var reporter executor.ProgressReporter
+	if outputFormat == textOutputFormat {
+		reporter = executor.NewConsoleReporterWithOptions(command.OutOrStderr(), dryRun)
+	}
+
+	token, err := konnectcommon.GetAccessToken(cfg, logger)
+	if err != nil {
+		return err
+	}
+	baseURL, err := konnectcommon.ResolveBaseURL(cfg)
+	if err != nil {
+		return err
+	}
+
+	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
+		KonnectToken:   token,
+		KonnectBaseURL: baseURL,
+		Mode:           planner.PlanModeCreate,
+		PlanBaseDir:    resolvePlanBaseDir(planFile),
+	})
+
+	result := exec.Execute(ctx, plan)
+
+	if err := outputExecutionResult(command, result, outputFormat); err != nil {
+		return err
+	}
+
+	if result.HasErrors() && result.SuccessCount == 0 {
+		return fmt.Errorf("execution completed with %d errors", result.FailureCount)
+	}
+
+	return nil
 }
 
 func runApply(command *cobra.Command, args []string) error {
@@ -1591,6 +1799,9 @@ func outputExecutionResult(command *cobra.Command,
 		if len(result.ChangesApplied) > 0 {
 			execution["applied_changes"] = result.ChangesApplied
 		}
+		if len(result.ExistingChanges) > 0 {
+			execution["existing_changes"] = result.ExistingChanges
+		}
 	}
 
 	// Always include errors if present
@@ -1602,13 +1813,16 @@ func outputExecutionResult(command *cobra.Command,
 	summary := map[string]any{
 		"total_changes": result.TotalChanges(),
 		"applied":       result.SuccessCount,
+		"existing":      result.ExistingCount,
 		"failed":        result.FailureCount,
 		"skipped":       result.SkippedCount,
 		"status":        "success",
 	}
 
 	if result.TotalChanges() == 0 {
-		if plan != nil && plan.Metadata.Mode == planner.PlanModeDelete {
+		if plan != nil && plan.Metadata.Mode == planner.PlanModeCreate {
+			summary["message"] = "No changes needed. No creatable resources found in the input configuration."
+		} else if plan != nil && plan.Metadata.Mode == planner.PlanModeDelete {
 			summary["message"] = "No changes needed. No matching resources found to delete."
 		} else {
 			summary["message"] = "No changes needed. All resources match the desired configuration."
@@ -1621,8 +1835,16 @@ func outputExecutionResult(command *cobra.Command,
 			summary["status"] = "partial_success"
 			summary["message"] = fmt.Sprintf("Execution partially succeeded with %d errors", result.FailureCount)
 		}
+	} else if result.SuccessCount > 0 && result.ExistingCount > 0 {
+		summary["message"] = fmt.Sprintf(
+			"Execution succeeded with %d changes; %d resources already existed",
+			result.SuccessCount,
+			result.ExistingCount,
+		)
 	} else if result.SuccessCount > 0 {
 		summary["message"] = fmt.Sprintf("Execution succeeded with %d changes", result.SuccessCount)
+	} else if result.ExistingCount > 0 {
+		summary["message"] = fmt.Sprintf("Execution succeeded. %d resources already existed.", result.ExistingCount)
 	} else if result.SkippedCount > 0 && result.DryRun {
 		summary["message"] = fmt.Sprintf("Dry-run complete. %d changes would be executed.", result.SkippedCount)
 	}
@@ -1712,6 +1934,32 @@ func outputExecutionResult(command *cobra.Command,
 	}
 }
 
+func newDeclarativeCreateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "konnect",
+		Short: "Best-effort creation of declarative resources",
+		Long: `Execute a plan to create resources from declarative configuration without pre-checking current state.
+
+The create command emits CREATE operations only. It does not update existing resources,
+and it continues attempting dependent child resources even when parent CREATE requests fail.`,
+		RunE: runCreate,
+	}
+
+	cmd.Flags().StringSliceP("filename", "f", []string{},
+		"Filename or directory to files to use to create the resource (can specify multiple)")
+	cmd.Flags().BoolP("recursive", "R", false,
+		"Process the directory used in -f, --filename recursively")
+	addBaseDirFlag(cmd)
+	cmd.Flags().String("plan", "", "Path to existing create plan file")
+	cmd.Flags().Bool("dry-run", false, "Preview creates without applying")
+	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
+	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
+	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
+	addRequireNamespaceFlags(cmd)
+
+	return cmd
+}
+
 func newDeclarativeApplyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "konnect",
@@ -1738,6 +1986,30 @@ delete resources.`,
 	addRequireNamespaceFlags(cmd)
 
 	return cmd
+}
+
+func validateCreatePlan(plan *planner.Plan) error {
+	if plan.Metadata.Mode != planner.PlanModeCreate {
+		return fmt.Errorf(
+			"create command requires a plan generated in create mode, got %q mode. "+
+				"Generate a create plan with: kongctl plan --mode create -f <files>",
+			plan.Metadata.Mode,
+		)
+	}
+
+	for _, change := range plan.Changes {
+		if change.Action != planner.ActionCreate && change.Action != planner.ActionExternalTool {
+			return fmt.Errorf(
+				"create command cannot execute %s actions in create plans; found %s for %s %q",
+				change.Action,
+				change.Action,
+				change.ResourceType,
+				change.ResourceRef,
+			)
+		}
+	}
+
+	return nil
 }
 
 func newDeclarativeDeleteCmd() *cobra.Command {

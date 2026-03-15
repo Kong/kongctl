@@ -41,6 +41,23 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 		return nil
 	}
 
+	if plan.Metadata.Mode == PlanModeCreate {
+		for _, desiredPortal := range desired {
+			if desiredPortal.IsExternal() {
+				p.planner.logger.Debug("Planning child creates for external portal in create mode",
+					slog.String("ref", desiredPortal.GetRef()),
+					slog.String("name", desiredPortal.Name),
+				)
+				p.planPortalChildResourcesCreate(ctx, plannerCtx, desiredPortal, "", plan)
+				continue
+			}
+
+			portalChangeID := p.planPortalCreate(desiredPortal, plan)
+			p.planPortalChildResourcesCreate(ctx, plannerCtx, desiredPortal, portalChangeID, plan)
+		}
+		return nil
+	}
+
 	// Delete mode: plan DELETE for desired resources that exist, warn if not found
 	if plan.Metadata.Mode == PlanModeDelete {
 		return p.planPortalDeletes(ctx, plannerCtx, desired, plan)
@@ -792,12 +809,14 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			pages = append(pages, page)
 		}
 	}
-	// Note: Passing empty portalID for new portal
-	if err := planner.planPortalPagesChanges(ctx, parentNamespace, "", desired.Ref, pages, plan); err != nil {
-		// Log error but don't fail - portal creation should still proceed
-		planner.logger.Debug("Failed to plan portal pages for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if len(pages) > 0 {
+		// Note: Passing empty portalID for new portal
+		if err := planner.planPortalPagesChanges(ctx, parentNamespace, "", desired.Ref, pages, plan); err != nil {
+			// Log error but don't fail - portal creation should still proceed
+			planner.logger.Debug("Failed to plan portal pages for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	// Plan snippets
@@ -807,10 +826,12 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			snippets = append(snippets, snippet)
 		}
 	}
-	if err := planner.planPortalSnippetsChanges(ctx, parentNamespace, "", desired.Ref, snippets, plan); err != nil {
-		planner.logger.Debug("Failed to plan portal snippets for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if len(snippets) > 0 {
+		if err := planner.planPortalSnippetsChanges(ctx, parentNamespace, "", desired.Ref, snippets, plan); err != nil {
+			planner.logger.Debug("Failed to plan portal snippets for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	// Plan auth settings
@@ -820,10 +841,12 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			settings = append(settings, auth)
 		}
 	}
-	if err := planner.planPortalAuthSettingsChanges(ctx, plannerCtx, parentNamespace, settings, plan); err != nil {
-		planner.logger.Debug("Failed to plan portal auth settings for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if len(settings) > 0 {
+		if err := planner.planPortalAuthSettingsChanges(ctx, plannerCtx, parentNamespace, settings, plan); err != nil {
+			planner.logger.Debug("Failed to plan portal auth settings for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	// Plan email config
@@ -833,12 +856,14 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			emailConfigs = append(emailConfigs, cfg)
 		}
 	}
-	if err := planner.planPortalEmailConfigsChanges(
-		ctx, parentNamespace, "", desired.Ref, emailConfigs, plan,
-	); err != nil {
-		planner.logger.Debug("Failed to plan portal email config for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if len(emailConfigs) > 0 {
+		if err := planner.planPortalEmailConfigsChanges(
+			ctx, parentNamespace, "", desired.Ref, emailConfigs, plan,
+		); err != nil {
+			planner.logger.Debug("Failed to plan portal email config for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	// Plan email templates
@@ -848,12 +873,14 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			templates = append(templates, tpl)
 		}
 	}
-	if err := planner.planPortalEmailTemplatesChanges(
-		ctx, parentNamespace, "", desired.Ref, desired.Name, templates, plan,
-	); err != nil {
-		planner.logger.Debug("Failed to plan portal email templates for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if len(templates) > 0 {
+		if err := planner.planPortalEmailTemplatesChanges(
+			ctx, parentNamespace, "", desired.Ref, desired.Name, templates, plan,
+		); err != nil {
+			planner.logger.Debug("Failed to plan portal email templates for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	// Plan customization
@@ -863,10 +890,14 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			customizations = append(customizations, customization)
 		}
 	}
-	if err := planner.planPortalCustomizationsChanges(ctx, plannerCtx, parentNamespace, customizations, plan); err != nil {
-		planner.logger.Debug("Failed to plan portal customizations for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if len(customizations) > 0 {
+		if err := planner.planPortalCustomizationsChanges(
+			ctx, plannerCtx, parentNamespace, customizations, plan,
+		); err != nil {
+			planner.logger.Debug("Failed to plan portal customizations for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	// Plan teams
@@ -876,10 +907,12 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			teams = append(teams, team)
 		}
 	}
-	if err := planner.planPortalTeamsChanges(ctx, parentNamespace, "", desired.Ref, teams, plan); err != nil {
-		planner.logger.Debug("Failed to plan portal teams for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if len(teams) > 0 {
+		if err := planner.planPortalTeamsChanges(ctx, parentNamespace, "", desired.Ref, teams, plan); err != nil {
+			planner.logger.Debug("Failed to plan portal teams for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	if err := planner.planPortalTeamRolesChanges(
@@ -897,10 +930,12 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			domains = append(domains, domain)
 		}
 	}
-	if err := planner.planPortalCustomDomainsChanges(ctx, parentNamespace, "", desired.Ref, domains, plan); err != nil {
-		planner.logger.Debug("Failed to plan portal custom domains for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if len(domains) > 0 {
+		if err := planner.planPortalCustomDomainsChanges(ctx, parentNamespace, "", desired.Ref, domains, plan); err != nil {
+			planner.logger.Debug("Failed to plan portal custom domains for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	// Plan asset logo
@@ -910,10 +945,12 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			logos = append(logos, logo)
 		}
 	}
-	if err := planner.planPortalAssetLogosChanges(ctx, plannerCtx, parentNamespace, logos, plan); err != nil {
-		planner.logger.Debug("Failed to plan portal asset logos for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if len(logos) > 0 {
+		if err := planner.planPortalAssetLogosChanges(ctx, plannerCtx, parentNamespace, logos, plan); err != nil {
+			planner.logger.Debug("Failed to plan portal asset logos for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	// Plan asset favicon
@@ -923,10 +960,12 @@ func (p *portalPlannerImpl) planPortalChildResourcesCreate(
 			favicons = append(favicons, favicon)
 		}
 	}
-	if err := planner.planPortalAssetFaviconsChanges(ctx, plannerCtx, parentNamespace, favicons, plan); err != nil {
-		planner.logger.Debug("Failed to plan portal asset favicons for new portal",
-			"portal", desired.Ref,
-			"error", err.Error())
+	if len(favicons) > 0 {
+		if err := planner.planPortalAssetFaviconsChanges(ctx, plannerCtx, parentNamespace, favicons, plan); err != nil {
+			planner.logger.Debug("Failed to plan portal asset favicons for new portal",
+				"portal", desired.Ref,
+				"error", err.Error())
+		}
 	}
 
 	// Plan nested assets (from portal.Assets.Logo and portal.Assets.Favicon fields)

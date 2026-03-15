@@ -37,6 +37,23 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 		return nil
 	}
 
+	if plan.Metadata.Mode == PlanModeCreate {
+		for _, desiredTeam := range desired {
+			if desiredTeam.IsExternal() {
+				t.planner.logger.Debug(
+					"Skipping external organization team in create mode",
+					"ref",
+					desiredTeam.GetRef(),
+					"name",
+					desiredTeam.Name,
+				)
+				continue
+			}
+			t.planTeamCreate(desiredTeam, plan)
+		}
+		return nil
+	}
+
 	var currentTeams []state.OrganizationTeam
 	if namespace != resources.NamespaceExternal {
 		namespaceFilter := []string{namespace}
@@ -212,7 +229,7 @@ func extractTeamFields(resource any) map[string]any {
 }
 
 // planTeamCreate creates a CREATE change for a organization_team
-func (t *OrganizationTeamPlannerImpl) planTeamCreate(team resources.OrganizationTeamResource, plan *Plan) string {
+func (t *OrganizationTeamPlannerImpl) planTeamCreate(team resources.OrganizationTeamResource, plan *Plan) {
 	generic := t.GetGenericPlanner()
 	if generic == nil {
 		// During tests, generic planner might not be initialized
@@ -235,7 +252,7 @@ func (t *OrganizationTeamPlannerImpl) planTeamCreate(team resources.Organization
 		}
 
 		plan.AddChange(change)
-		return changeID
+		return
 	}
 
 	// Extract protection status
@@ -266,14 +283,13 @@ func (t *OrganizationTeamPlannerImpl) planTeamCreate(team resources.Organization
 	if err != nil {
 		// This shouldn't happen with valid configuration
 		t.planner.logger.Error("Failed to plan organization_team create", "error", err.Error())
-		return ""
+		return
 	}
 
 	// Set protection after creation
 	change.Protection = protection
 
 	plan.AddChange(change)
-	return change.ID
 }
 
 // shouldUpdateOrganizationTeam checks if organization_team needs update based on configured fields only

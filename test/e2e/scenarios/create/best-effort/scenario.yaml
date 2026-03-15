@@ -1,0 +1,226 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  portalName: "Best Effort Portal"
+  apiName: "Best Effort API"
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-initial
+    commands:
+      - name: 000-create-initial
+        outputFormat: json
+        run:
+          - create
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: create
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
+      - name: 001-get-apis
+        run:
+          - get
+          - apis
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[?name=='Best Effort API'] | [0]"
+            expect:
+              fields:
+                name: "Best Effort API"
+      - name: 002-get-publications
+        run:
+          - get
+          - api
+          - publications
+          - --api-name
+          - "{{ .vars.apiName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 002-create-existing
+    commands:
+      - name: 000-create-existing
+        outputFormat: json
+        run:
+          - create
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: create
+          - select: summary
+            expect:
+              fields:
+                applied: 0
+                existing: 2
+                failed: 0
+                status: success
+          - select: execution.existing_changes[?resource_type=='portal' && resource_ref=='best-effort-portal'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                reason: resource already exists
+          - select: execution.existing_changes[?resource_type=='api' && resource_ref=='best-effort-api'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                reason: resource already exists
+      - name: 001-get-apis
+        run:
+          - get
+          - apis
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[?name=='Best Effort API'] | [0]"
+            expect:
+              fields:
+                name: "Best Effort API"
+      - name: 002-get-publications
+        run:
+          - get
+          - api
+          - publications
+          - --api-name
+          - "{{ .vars.apiName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 003-create-layered
+    inputOverlayDirs:
+      - overlays/002-best-effort
+    commands:
+      - name: 000-create
+        outputFormat: json
+        run:
+          - create
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: create
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 4
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                existing: 2
+                failed: 0
+                status: success
+          - select: execution.applied_changes[?resource_type=='api_publication' && resource_ref=='best-effort-publication'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: execution.applied_changes[?resource_type=='api' && resource_ref=='best-effort-api-extra'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: execution.existing_changes[?resource_type=='portal' && resource_ref=='best-effort-portal'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                reason: resource already exists
+          - select: execution.existing_changes[?resource_type=='api' && resource_ref=='best-effort-api'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                reason: resource already exists
+      - name: 001-get-apis
+        run:
+          - get
+          - apis
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 2
+          - select: "[?name=='Best Effort API Extra'] | [0]"
+            expect:
+              fields:
+                name: "Best Effort API Extra"
+      - name: 002-get-publications
+        run:
+          - get
+          - api
+          - publications
+          - --api-name
+          - "{{ .vars.apiName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[0]"
+            expect:
+              fields:
+                visibility: public

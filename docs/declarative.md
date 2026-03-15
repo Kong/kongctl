@@ -558,8 +558,19 @@ command usage, flags and options.
 ### plan
 
 Create a plan - a JSON file containing the set of planned changes to a set of resources.
-Plans are generated with either `--mode apply` or `--mode sync` which determines
-whether resources missing from the input configuration are planned for deletion or not.
+Plans are generated with `--mode create`, `--mode apply`, `--mode sync`, or
+`--mode delete`:
+
+- `create`: plan `CREATE` actions only and skip pre-checking existing state
+- `apply`: plan `CREATE` and `UPDATE` actions without deletes
+- `sync`: plan `CREATE`, `UPDATE`, and `DELETE` actions
+- `delete`: plan `DELETE` actions only for matching managed resources
+
+Generate a create plan and output to STDOUT:
+
+```shell
+kongctl plan -f config.yaml --mode create
+```
 
 Generate an apply plan and output to STDOUT:
 
@@ -571,6 +582,45 @@ Generate a sync plan and output to STDOUT:
 
 ```shell
 kongctl plan -f config.yaml --mode sync
+```
+
+Generate a delete plan and output to STDOUT:
+
+```shell
+kongctl plan -f config.yaml --mode delete
+```
+
+### create
+
+`create` makes a best-effort attempt to create the resources in the input
+configuration without first querying Konnect to diff against current state. It
+never plans updates or deletes.
+
+This is useful for incremental bootstrapping when parent resources may already
+exist. If a parent `CREATE` fails because the resource already exists, kongctl
+continues and still attempts child creates by resolving parent references at
+execution time.
+
+When a `create` operation hits a duplicate-name conflict for a resource that
+already exists in Konnect, kongctl reports it as an existing resource and
+continues instead of treating it as a fatal execution error.
+
+Create directly from config:
+
+```shell
+kongctl create -f config.yaml
+```
+
+Create from a saved plan:
+
+```shell
+kongctl create --plan plan.json
+```
+
+Preview create actions without applying:
+
+```shell
+kongctl create -f config.yaml --dry-run
 ```
 
 ### apply
@@ -631,6 +681,12 @@ kongctl sync --plan plan.json
 ### diff
 
 Display preview of changes between current and desired state:
+
+Preview changes in create mode (CREATE only, no pre-state diff):
+
+```shell
+kongctl diff -f config.yaml --mode create
+```
 
 Preview changes in apply mode (CREATE and UPDATE only):
 

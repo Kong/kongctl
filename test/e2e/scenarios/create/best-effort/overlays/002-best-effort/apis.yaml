@@ -1,0 +1,15 @@
+_defaults:
+  kongctl:
+    namespace: create-best-effort
+
+apis:
+  - ref: best-effort-api
+    name: "Best Effort API"
+    description: "API used to validate best-effort create behavior"
+    publications:
+      - ref: best-effort-publication
+        portal_id: !ref best-effort-portal
+        visibility: public
+  - ref: best-effort-api-extra
+    name: "Best Effort API Extra"
+    description: "Additional API created during layered best-effort create"

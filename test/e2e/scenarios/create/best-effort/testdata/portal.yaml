@@ -1,0 +1,11 @@
+_defaults:
+  kongctl:
+    namespace: create-best-effort
+
+portals:
+  - ref: best-effort-portal
+    name: "Best Effort Portal"
+    display_name: "Best Effort Portal"
+    authentication_enabled: false
+    default_api_visibility: private
+    default_page_visibility: public
