@@ -72,9 +72,9 @@ func TestRenderExplainSchema_Metadata(t *testing.T) {
 
 	assert.Equal(t, "https://json-schema.org/draft/2020-12/schema", schema.Schema)
 	assert.Equal(t, "kongctl://declarative/api", schema.ID)
-	assert.Equal(t, "api", schema.XKongctlResource)
-	assert.Equal(t, "api", schema.XKongctlPath)
-	assert.Equal(t, "apis", schema.XKongctlRootKey)
+	assert.Equal(t, "api", schema.XResource)
+	assert.Equal(t, "api", schema.XPath)
+	assert.Equal(t, "apis", schema.XRootKey)
 }
 
 func TestRenderScaffoldYAML_RootResource(t *testing.T) {
