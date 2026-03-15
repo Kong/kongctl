@@ -10,6 +10,8 @@ on:
 permissions:
   contents: read
   issues: read
+checkout:
+  fetch-depth: 0
 timeout-minutes: 30
 network: defaults
 tools:
