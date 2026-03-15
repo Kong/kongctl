@@ -49,6 +49,9 @@ steps:
                 fields.labels.lifecycle: "dev"
       - name: 001-get-event-gateways
         run: ["get", "event-gateways", "-o", "json"]
+        recordVar:
+          name: egwID
+          responsePath: "[?name=='My Event Gateway CP'] | [0].id"
         assertions:
           - select: "[?name=='My Event Gateway CP'] | [0]"
             expect:
@@ -58,6 +61,28 @@ steps:
                 labels.owner: "platform"
                 labels.lifecycle: "dev"
                 labels."KONGCTL-namespace": "event-gateways-comprehensive"
+      - name: 002-get-by-name
+        run: ["get", "event-gateway", "My Event Gateway CP", "-o", "json"]
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "My Event Gateway CP"
+          - select: description
+            expect:
+              fields:
+                "@": "Initial description for My Event Gateway CP"
+      - name: 003-get-by-id
+        run: ["get", "event-gateway", "{{ .vars.egwID }}", "-o", "json"]
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "My Event Gateway CP"
+          - select: description
+            expect:
+              fields:
+                "@": "Initial description for My Event Gateway CP"
   - name: 002-apply-update
     inputOverlayDirs:
       - overlays/002-update-fields
