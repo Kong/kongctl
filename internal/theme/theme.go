@@ -3,12 +3,15 @@ package theme
 import (
 	"context"
 	"fmt"
-	"sort"
+	"image/color"
+	"maps"
+	"os"
+	"slices"
 	"strings"
 	"sync"
 
-	"github.com/charmbracelet/lipgloss"
-	tint "github.com/lrstanley/bubbletint"
+	"charm.land/lipgloss/v2"
+	tint "github.com/lrstanley/bubbletint/v2"
 	"github.com/lucasb-eyer/go-colorful"
 )
 
@@ -49,18 +52,38 @@ type Color struct {
 	Dark  string
 }
 
-// Adaptive converts the color into a lipgloss adaptive color.
-func (c Color) Adaptive() lipgloss.AdaptiveColor {
-	light, dark := strings.TrimSpace(c.Light), strings.TrimSpace(c.Dark)
+type adaptiveColor struct {
+	light color.Color
+	dark  color.Color
+}
+
+func (c adaptiveColor) RGBA() (uint32, uint32, uint32, uint32) {
+	if hasDarkBackground() {
+		return c.dark.RGBA()
+	}
+	return c.light.RGBA()
+}
+
+// Adaptive returns a lipgloss-compatible adaptive color that preserves
+// distinct light and dark variants when both are provided.
+func (c Color) Adaptive() color.Color {
+	light := strings.TrimSpace(c.Light)
+	dark := strings.TrimSpace(c.Dark)
 	switch {
 	case light == "" && dark == "":
-		return lipgloss.AdaptiveColor{Light: "#FFFFFF", Dark: "#000000"}
+		return adaptiveColor{
+			light: lipgloss.Color("#FFFFFF"),
+			dark:  lipgloss.Color("#000000"),
+		}
 	case light == "":
 		light = dark
 	case dark == "":
 		dark = light
 	}
-	return lipgloss.AdaptiveColor{Light: light, Dark: dark}
+	return adaptiveColor{
+		light: lipgloss.Color(light),
+		dark:  lipgloss.Color(dark),
+	}
 }
 
 // Palette represents a concrete theme.
@@ -81,8 +104,8 @@ func (p Palette) Color(token Token) Color {
 	return fallbackColor(token)
 }
 
-// Adaptive returns the lipgloss adaptive color for the provided token.
-func (p Palette) Adaptive(token Token) lipgloss.AdaptiveColor {
+// Adaptive returns the resolved lipgloss color for the provided token.
+func (p Palette) Adaptive(token Token) color.Color {
 	return p.Color(token).Adaptive()
 }
 
@@ -106,6 +129,9 @@ var (
 	defaultPal           Palette
 	themeKey             contextKey
 	configuredExplicitly bool
+	hasDarkBackground    = func() bool {
+		return lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
+	}
 )
 
 // ContextWithPalette stores the palette on the context.
@@ -131,11 +157,8 @@ func Available() []string {
 	registryMu.RLock()
 	defer registryMu.RUnlock()
 
-	keys := make([]string, 0, len(palettes))
-	for k := range palettes {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
+	keys := slices.Collect(maps.Keys(palettes))
+	slices.Sort(keys)
 	return keys
 }
 
@@ -284,7 +307,8 @@ func ensureRegistry() {
 		defaultPal = palettes[DefaultName]
 		current = defaultPal
 
-		for _, t := range tint.DefaultTints() {
+		tint.NewDefaultRegistry()
+		for _, t := range tint.Tints() {
 			registerPalette(paletteFromTint(t))
 		}
 	})
@@ -342,21 +366,28 @@ func resolveName(name string) string {
 	}
 }
 
-func paletteFromTint(t tint.Tint) Palette {
+func tintColorHex(c *tint.Color) string {
+	if c == nil {
+		return ""
+	}
+	return normalizeHex(c.Hex())
+}
+
+func paletteFromTint(t *tint.Tint) Palette {
 	if t == nil {
 		return Palette{}
 	}
 
-	fg := normalizeHex(tint.Hex(t.Fg()))
-	bg := normalizeHex(tint.Hex(t.Bg()))
-	muted := normalizeHex(tint.Hex(t.BrightBlack()))
-	accent := normalizeHex(tint.Hex(t.Cyan()))
-	accentBright := normalizeHex(tint.Hex(t.BrightBlue()))
-	success := normalizeHex(tint.Hex(t.Green()))
-	info := normalizeHex(tint.Hex(t.Blue()))
-	warning := normalizeHex(tint.Hex(t.Yellow()))
-	danger := normalizeHex(tint.Hex(t.Red()))
-	highlight := normalizeHex(tint.Hex(t.BrightWhite()))
+	fg := tintColorHex(t.Fg)
+	bg := tintColorHex(t.Bg)
+	muted := tintColorHex(t.BrightBlack)
+	accent := tintColorHex(t.Cyan)
+	accentBright := tintColorHex(t.BrightBlue)
+	success := tintColorHex(t.Green)
+	info := tintColorHex(t.Blue)
+	warning := tintColorHex(t.Yellow)
+	danger := tintColorHex(t.Red)
+	highlight := tintColorHex(t.BrightWhite)
 
 	colors := map[Token]Color{
 		ColorTextPrimary:   pairColor(fg, fg),
@@ -381,11 +412,57 @@ func paletteFromTint(t tint.Tint) Palette {
 	}
 
 	return Palette{
-		Name:        sanitizeName(t.ID()),
-		DisplayName: strings.TrimSpace(t.DisplayName()),
-		About:       strings.TrimSpace(t.About()),
+		Name:        sanitizeName(t.ID),
+		DisplayName: strings.TrimSpace(t.DisplayName),
+		About:       aboutFromTint(t),
 		Colors:      colors,
 	}
+}
+
+func aboutFromTint(t *tint.Tint) string {
+	if t == nil {
+		return ""
+	}
+
+	name := strings.TrimSpace(t.DisplayName)
+	if name == "" {
+		name = strings.TrimSpace(t.ID)
+	}
+	if name == "" {
+		return ""
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "Tint: %s", name)
+
+	credits := make([]string, 0, len(t.CreditSources))
+	for _, source := range t.CreditSources {
+		if source == nil {
+			continue
+		}
+
+		sourceName := strings.TrimSpace(source.Name)
+		sourceLink := strings.TrimSpace(source.Link)
+		switch {
+		case sourceName != "" && sourceLink != "":
+			credits = append(credits, fmt.Sprintf("%s (%s)", sourceName, sourceLink))
+		case sourceName != "":
+			credits = append(credits, sourceName)
+		case sourceLink != "":
+			credits = append(credits, sourceLink)
+		}
+	}
+
+	if len(credits) == 0 {
+		return b.String()
+	}
+
+	b.WriteString("\nTint credits:")
+	for _, credit := range credits {
+		fmt.Fprintf(&b, "\n  * %s", credit)
+	}
+
+	return b.String()
 }
 
 func singleColor(hex string) Color {
@@ -499,13 +576,7 @@ func darkenHex(hex string, amount float64) string {
 }
 
 func clampFloat(val, minVal, maxVal float64) float64 {
-	if val < minVal {
-		return minVal
-	}
-	if val > maxVal {
-		return maxVal
-	}
-	return val
+	return min(max(val, minVal), maxVal)
 }
 
 func relativeLuminance(c colorful.Color) float64 {

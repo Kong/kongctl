@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/table"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
@@ -41,8 +41,12 @@ var (
 
 	dataPlaneCertificatesShort = i18n.T("root.products.konnect.eventgateway.dataPlaneCertificatesShort",
 		"Manage data plane certificates for an Event Gateway")
-	dataPlaneCertificatesLong = normalizers.LongDesc(i18n.T("root.products.konnect.eventgateway.dataPlaneCertificatesLong",
-		`Use the data-plane-certificates command to list or retrieve data plane certificates for a specific Event Gateway.`))
+	dataPlaneCertificatesLong = normalizers.LongDesc(
+		i18n.T(
+			"root.products.konnect.eventgateway.dataPlaneCertificatesLong",
+			`Use the data-plane-certificates command to list or retrieve data plane certificates for a specific Event Gateway.`,
+		),
+	)
 	dataPlaneCertificatesExample = normalizers.Examples(
 		i18n.T("root.products.konnect.eventgateway.dataPlaneCertificatesExamples",
 			fmt.Sprintf(`

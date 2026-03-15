@@ -18,9 +18,9 @@ type EventGatewayControlPlaneResource struct {
 	kkComps.CreateGatewayRequest `yaml:",inline" json:",inline"`
 
 	// Nested child resources
-	BackendClusters       []EventGatewayBackendClusterResource       `yaml:"backend_clusters,omitempty" json:"backend_clusters,omitempty"`               //nolint:lll
-	VirtualClusters       []EventGatewayVirtualClusterResource       `yaml:"virtual_clusters,omitempty" json:"virtual_clusters,omitempty"`               //nolint:lll
-	Listeners             []EventGatewayListenerResource             `yaml:"listeners,omitempty"        json:"listeners,omitempty"`                      //nolint:lll
+	BackendClusters       []EventGatewayBackendClusterResource       `yaml:"backend_clusters,omitempty"        json:"backend_clusters,omitempty"`        //nolint:lll
+	VirtualClusters       []EventGatewayVirtualClusterResource       `yaml:"virtual_clusters,omitempty"        json:"virtual_clusters,omitempty"`        //nolint:lll
+	Listeners             []EventGatewayListenerResource             `yaml:"listeners,omitempty"               json:"listeners,omitempty"`               //nolint:lll
 	DataPlaneCertificates []EventGatewayDataPlaneCertificateResource `yaml:"data_plane_certificates,omitempty" json:"data_plane_certificates,omitempty"` //nolint:lll
 }
 

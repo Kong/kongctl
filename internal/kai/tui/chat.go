@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image/color"
 	"log/slog"
 	"maps"
 	"net/url"
@@ -12,11 +13,11 @@ import (
 	"strings"
 	"time"
 
-	cursor "github.com/charmbracelet/bubbles/cursor"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textarea"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/textarea"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/colorprofile"
 	"github.com/google/uuid"
 	"github.com/muesli/reflow/truncate"
 	"github.com/muesli/reflow/wordwrap"
@@ -134,16 +135,16 @@ type themeStyles struct {
 	statusStyle        lipgloss.Style
 	thinkingStyle      lipgloss.Style
 	questionStyle      lipgloss.Style
-	bannerAccent       lipgloss.AdaptiveColor
-	promptAccent       lipgloss.AdaptiveColor
-	promptPlaceholder  lipgloss.AdaptiveColor
+	bannerAccent       color.Color
+	promptAccent       color.Color
+	promptPlaceholder  color.Color
 	promptHelperStyle  lipgloss.Style
-	promptThinking     lipgloss.AdaptiveColor
-	promptSuccess      lipgloss.AdaptiveColor
-	promptError        lipgloss.AdaptiveColor
+	promptThinking     color.Color
+	promptSuccess      color.Color
+	promptError        color.Color
 	promptBorderStyle  lipgloss.Style
 	bannerHeadingStyle lipgloss.Style
-	taskBorder         lipgloss.AdaptiveColor
+	taskBorder         color.Color
 	taskStatusBarStyle lipgloss.Style
 }
 
@@ -311,11 +312,15 @@ func Run(ctx context.Context, streams *iostreams.IOStreams, opts Options) error 
 	}
 
 	m := newModel(ctx, opts)
-	program := tea.NewProgram(m,
+	chatOpts := []tea.ProgramOption{
 		tea.WithInput(streams.In),
 		tea.WithOutput(streams.Out),
 		tea.WithoutSignalHandler(),
-	)
+	}
+	if iostreams.HasTrueColorEnv() {
+		chatOpts = append(chatOpts, tea.WithColorProfile(colorprofile.TrueColor))
+	}
+	program := tea.NewProgram(m, chatOpts...)
 
 	finalModel, err := program.Run()
 
@@ -350,9 +355,8 @@ func newModel(ctx context.Context, opts Options) *model {
 	input.MaxHeight = promptMaxHeight
 	input.SetHeight(promptMinHeight)
 	input.Focus()
-	input.Cursor.SetMode(cursor.CursorStatic)
-	focusedStyle, blurredStyle := textarea.DefaultStyles()
-	resetTextareaStyle := func(style *textarea.Style) {
+	taStyles := textarea.DefaultStyles(true)
+	resetTextareaStyle := func(style *textarea.StyleState) {
 		style.Base = lipgloss.NewStyle()
 		style.CursorLine = lipgloss.NewStyle()
 		style.CursorLineNumber = lipgloss.NewStyle()
@@ -362,22 +366,22 @@ func newModel(ctx context.Context, opts Options) *model {
 		style.Placeholder = lipgloss.NewStyle().Foreground(styles.promptPlaceholder)
 		style.Prompt = lipgloss.NewStyle().Foreground(styles.promptAccent)
 	}
-	resetTextareaStyle(&focusedStyle)
-	resetTextareaStyle(&blurredStyle)
-	input.FocusedStyle = focusedStyle
-	input.BlurredStyle = blurredStyle
-	input.Cursor.Style = lipgloss.NewStyle().Foreground(styles.promptAccent)
+	resetTextareaStyle(&taStyles.Focused)
+	resetTextareaStyle(&taStyles.Blurred)
+	taStyles.Cursor = textarea.CursorStyle{Color: styles.promptAccent}
+	input.SetStyles(taStyles)
 	promptWidth := lipgloss.Width(promptSymbol)
-	input.SetPromptFunc(promptWidth, func(lineIdx int) string {
-		if lineIdx == 0 {
+	input.SetPromptFunc(promptWidth, func(info textarea.PromptInfo) string {
+		if info.LineNumber == 0 {
 			return promptSymbol
 		}
 		return strings.Repeat(" ", promptWidth)
 	})
 	input.SetWidth(defaultPromptWidth)
 
-	sp := spinner.New()
-	sp.Style = styles.thinkingStyle
+	sp := spinner.New(
+		spinner.WithStyle(styles.thinkingStyle),
+	)
 
 	m := &model{
 		ctx:                ctx,
@@ -604,8 +608,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.adjustInputHeight()
 		}
 		return m, nil
-	case tea.KeyMsg:
-		if msg.Type == tea.KeyCtrlC {
+	case tea.KeyPressMsg:
+		if msg.String() == "ctrl+c" {
 			m.stopStream()
 			return m, tea.Quit
 		}
@@ -625,12 +629,12 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.awaitingAnalysisDecision && m.analyzeStream == nil {
 			return m, m.handleAnalysisDecisionKey(msg)
 		}
-		if msg.Type == tea.KeyTab {
+		if msg.String() == "tab" {
 			if m.completeSuggestion() {
 				return m, nil
 			}
 		}
-		if msg.Type == tea.KeyEnter {
+		if msg.String() == "enter" {
 			if m.streaming || m.sessionID == "" || m.taskActionInFlight {
 				return m, nil
 			}
@@ -1059,7 +1063,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *model) View() string {
+func (m *model) View() tea.View {
 	var b strings.Builder
 
 	if banner := m.renderBanner(); banner != "" {
@@ -1153,7 +1157,7 @@ func (m *model) View() string {
 	b.WriteString(m.renderContextLine())
 	b.WriteString("\n")
 
-	return b.String()
+	return tea.NewView(b.String())
 }
 
 func (m *model) renderBanner() string {
@@ -1916,7 +1920,7 @@ func (m *model) cancelTask() tea.Cmd {
 	return nil
 }
 
-func (m *model) handleTaskDecisionKey(msg tea.KeyMsg) tea.Cmd {
+func (m *model) handleTaskDecisionKey(msg tea.KeyPressMsg) tea.Cmd {
 	key := strings.ToLower(msg.String())
 	switch key {
 	case "y", "enter", "a":
@@ -1930,7 +1934,7 @@ func (m *model) handleTaskDecisionKey(msg tea.KeyMsg) tea.Cmd {
 	}
 }
 
-func (m *model) handleAnalysisDecisionKey(msg tea.KeyMsg) tea.Cmd {
+func (m *model) handleAnalysisDecisionKey(msg tea.KeyPressMsg) tea.Cmd {
 	key := strings.ToLower(msg.String())
 	switch key {
 	case "y", "enter", "a":

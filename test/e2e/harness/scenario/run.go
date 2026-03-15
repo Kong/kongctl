@@ -778,7 +778,7 @@ func preserveAttemptArtifacts(cmdDir string, attempt int) {
 
 	// Copy all artifacts from cmdDir into dstDir, excluding the attempts/ subtree
 	// to avoid recursively copying previous attempts.
-	_ = filepath.WalkDir(cmdDir, func(path string, d os.DirEntry, err error) error {
+	walkErr := filepath.WalkDir(cmdDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -810,6 +810,13 @@ func preserveAttemptArtifacts(cmdDir string, attempt int) {
 		_ = os.WriteFile(dstPath, data, 0o644)
 		return nil
 	})
+
+	if walkErr != nil {
+		harness.Warnf(
+			"preserveAttemptArtifacts: walk failed (cmdDir=%q, dstDir=%q, attempt=%d): %v",
+			cmdDir, dstDir, attempt, walkErr,
+		)
+	}
 }
 
 func commandFailureDetail(res harness.Result, err error) string {

@@ -16,7 +16,11 @@ func HydratePortalAuthSettingsOIDCConfig(
 	settings *kkComponents.PortalAuthenticationSettingsResponse,
 	rawResponse *http.Response,
 ) error {
-	if settings == nil || settings.OidcConfig != nil || rawResponse == nil || rawResponse.Body == nil {
+	if settings == nil || rawResponse == nil || rawResponse.Body == nil {
+		return nil
+	}
+	// Only hydrate if OidcConfig is currently nil (not already populated)
+	if settings.OidcConfig != nil {
 		return nil
 	}
 

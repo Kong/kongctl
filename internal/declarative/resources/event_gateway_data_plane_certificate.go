@@ -18,8 +18,8 @@ func init() {
 }
 
 type EventGatewayDataPlaneCertificateResource struct {
-	kkComps.CreateEventGatewayDataPlaneCertificateRequest `yaml:",inline" json:",inline"`
-	Ref                                                   string `yaml:"ref" json:"ref"`
+	kkComps.CreateEventGatewayDataPlaneCertificateRequest `       yaml:",inline"                 json:",inline"`
+	Ref                                                   string `yaml:"ref"                     json:"ref"`
 	// Parent Event Gateway reference (for root-level definitions)
 	EventGateway string `yaml:"event_gateway,omitempty" json:"event_gateway,omitempty"`
 

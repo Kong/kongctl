@@ -14,18 +14,19 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/table"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-isatty"
 	"github.com/mattn/go-runewidth"
 	"golang.org/x/term"
 
 	"github.com/atotto/clipboard"
+	"github.com/charmbracelet/colorprofile"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	jqoutput "github.com/kong/kongctl/internal/cmd/output/jq"
@@ -118,10 +119,10 @@ type detailChildLoadedMsg struct {
 }
 
 func newSpinnerModel(p theme.Palette) spinner.Model {
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = p.ForegroundStyle(theme.ColorAccent)
-	return s
+	return spinner.New(
+		spinner.WithSpinner(spinner.Dot),
+		spinner.WithStyle(p.ForegroundStyle(theme.ColorAccent)),
+	)
 }
 
 func formatElapsed(d time.Duration) string {
@@ -199,9 +200,7 @@ func newStatusBoxStyle(p theme.Palette) lipgloss.Style {
 // NormalizeSelectedRow ensures that selected rows emitted by the table component
 // keep the highlight active across all columns when wrapped by another style.
 func NormalizeSelectedRow(content string, selected lipgloss.Style) string {
-	const reset = "\x1b[0m"
-
-	prefix := selectionPrefix(selected, reset)
+	prefix, reset := selectionPrefix(selected)
 	if prefix == "" || !strings.Contains(content, prefix) {
 		return content
 	}
@@ -224,18 +223,21 @@ func NormalizeSelectedRow(content string, selected lipgloss.Style) string {
 	return strings.Join(lines, "\n")
 }
 
-func selectionPrefix(style lipgloss.Style, reset string) string {
+func selectionPrefix(style lipgloss.Style) (string, string) {
 	rendered := style.Render("")
 	if rendered == "" {
-		return ""
+		return "", ""
 	}
 
-	idx := strings.LastIndex(rendered, reset)
-	if idx == -1 {
-		return ""
+	for _, reset := range []string{ansi.ResetStyle, "\x1b[0m"} {
+		idx := strings.LastIndex(rendered, reset)
+		if idx == -1 {
+			continue
+		}
+		return rendered[:idx], reset
 	}
 
-	return rendered[:idx]
+	return "", ""
 }
 
 func stylizeDetailContent(content string, palette theme.Palette) string {
@@ -284,10 +286,8 @@ func stylizeDetailContent(content string, palette theme.Palette) string {
 }
 
 func shouldAccentDetail(label, value string) bool {
-	switch strings.ToLower(strings.TrimSpace(label)) {
-	case "id":
+	if strings.ToLower(strings.TrimSpace(label)) == "id" {
 		return true
-	default:
 	}
 	low := strings.ToLower(strings.TrimSpace(value))
 	if strings.Contains(low, "error") || strings.Contains(low, "failed") {
@@ -573,9 +573,10 @@ func Render(streams *iostreams.IOStreams, data any, opts ...Option) error {
 		if targetHeight < 1 {
 			targetHeight = 1
 		}
-		dv := viewport.New(detailWidth, targetHeight)
-		dv.Width = detailWidth
-		dv.Height = targetHeight
+		dv := viewport.New(
+			viewport.WithWidth(detailWidth),
+			viewport.WithHeight(targetHeight),
+		)
 		dv.SetContent(content)
 		cfg.detailViewport = &dv
 	}
@@ -628,11 +629,14 @@ func Render(streams *iostreams.IOStreams, data any, opts ...Option) error {
 		len(tableRows),
 		headers,
 	)
-	program := tea.NewProgram(model,
+	programOpts := []tea.ProgramOption{
 		tea.WithInput(streams.In),
 		tea.WithOutput(streams.Out),
-		tea.WithAltScreen(),
-	)
+	}
+	if iostreams.HasTrueColorEnv() {
+		programOpts = append(programOpts, tea.WithColorProfile(colorprofile.TrueColor))
+	}
+	program := tea.NewProgram(model, programOpts...)
 
 	_, err = program.Run()
 	return err
@@ -781,7 +785,7 @@ func extractStructMeta(t reflect.Type) structMeta {
 		headers: make([]string, 0, t.NumField()),
 		indices: make([]int, 0, t.NumField()),
 	}
-	for i := 0; i < t.NumField(); i++ {
+	for i := range t.NumField() {
 		field := t.Field(i)
 		if field.PkgPath != "" {
 			continue
@@ -1126,8 +1130,8 @@ func newDetailTableDecorator(
 	valueStyle := palette.ForegroundStyle(theme.ColorTextPrimary)
 	accentStyle := palette.ForegroundStyle(theme.ColorAccent)
 	selectedText := palette.ForegroundStyle(theme.ColorAccentText)
+	selectedPrefix, _ := selectionPrefix(selected)
 
-	const reset = "\x1b[0m"
 	return detailTableDecorator{
 		columns:        append([]table.Column(nil), columns...),
 		cellStyles:     cellStyles,
@@ -1138,7 +1142,7 @@ func newDetailTableDecorator(
 		selectedValue:  selectedText,
 		selectedAccent: selectedText,
 		selectedStyle:  selected,
-		selectedPrefix: selectionPrefix(selected, reset),
+		selectedPrefix: selectedPrefix,
 		highlight:      highlight,
 	}
 }
@@ -2770,7 +2774,7 @@ func (m *bubbleModel) resizeDetailViews() {
 		if detail.contentViewport != nil {
 			width := m.detailViewportWidth()
 			maxHeight := m.detailViewportHeight()
-			offset := detail.contentViewport.YOffset
+			offset := detail.contentViewport.YOffset()
 			rendered := renderMarkdownContent(detail.rawContent, width)
 			targetHeight := maxHeight
 			contentHeight := lipgloss.Height(rendered)
@@ -2780,8 +2784,8 @@ func (m *bubbleModel) resizeDetailViews() {
 			if targetHeight < 1 {
 				targetHeight = 1
 			}
-			detail.contentViewport.Width = width
-			detail.contentViewport.Height = targetHeight
+			detail.contentViewport.SetWidth(width)
+			detail.contentViewport.SetHeight(targetHeight)
 			detail.contentViewport.SetContent(rendered)
 			detail.contentViewport.SetYOffset(offset)
 			continue
@@ -2990,9 +2994,10 @@ func (m *bubbleModel) presentDetailChild(detail *detailView, row int, childView 
 		if targetHeight < 1 {
 			targetHeight = 1
 		}
-		vp := viewport.New(width, targetHeight)
-		vp.Width = width
-		vp.Height = targetHeight
+		vp := viewport.New(
+			viewport.WithWidth(width),
+			viewport.WithHeight(targetHeight),
+		)
 		vp.SetContent(rendered)
 
 		return m.pushDetailView(detailView{
@@ -3504,11 +3509,11 @@ func (m *bubbleModel) scheduleSearchTimeout() tea.Cmd {
 	})
 }
 
-func (m *bubbleModel) handleSearchKey(key tea.KeyMsg) (handled bool, propagate bool, cmd tea.Cmd) {
+func (m *bubbleModel) handleSearchKey(key tea.KeyPressMsg) (handled bool, propagate bool, cmd tea.Cmd) {
 	keyStr := key.String()
 
 	if !m.searchActive {
-		if keyStr == "/" && !key.Alt && len(key.Runes) == 1 && key.Runes[0] == '/' {
+		if keyStr == "/" && !key.Mod.Contains(tea.ModAlt) && key.Text == "/" {
 			if m.activeSearchTable() == nil {
 				m.setStatus("Search is not available for this view.")
 				return true, false, nil
@@ -3539,9 +3544,9 @@ func (m *bubbleModel) handleSearchKey(key tea.KeyMsg) (handled bool, propagate b
 		return true, true, nil
 	}
 
-	if key.Type == tea.KeyRunes && len(key.Runes) > 0 && !key.Alt {
+	if key.Text != "" && !key.Mod.Contains(tea.ModAlt) {
 		appended := false
-		for _, r := range key.Runes {
+		for _, r := range key.Text {
 			if unicode.IsControl(r) {
 				continue
 			}
@@ -3556,7 +3561,7 @@ func (m *bubbleModel) handleSearchKey(key tea.KeyMsg) (handled bool, propagate b
 		return true, false, nil
 	}
 
-	if key.Type != tea.KeyRunes {
+	if key.Text == "" {
 		m.exitSearch(false)
 		return false, true, nil
 	}
@@ -3749,7 +3754,7 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 	skipKeyProcessing := false
 	searchConsumed := false
 
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		handled, propagate, searchCmd := m.handleSearchKey(keyMsg)
 		if handled {
 			if searchCmd != nil {
@@ -3819,33 +3824,22 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 			}
 		}
 		return m, tea.Batch(cmds...)
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if skipKeyProcessing {
 			break
 		}
 		if key.String() == "ctrl+w" {
 			m.useAltScreen = !m.useAltScreen
-			if m.useAltScreen {
-				cmds = append(cmds, tea.EnterAltScreen)
-			} else {
-				cmds = append(cmds, tea.ExitAltScreen)
-			}
 			tableHandled = true
 			break
 		}
 		if slices.Contains(m.quitKeys, key.String()) {
-			if m.useAltScreen {
-				cmds = append(cmds, tea.ExitAltScreen)
-				m.useAltScreen = false
-			}
+			m.useAltScreen = false
 			cmds = append(cmds, tea.Quit)
 			return m, tea.Batch(cmds...)
 		}
 		if key.String() == "esc" && !m.inDetailMode() {
-			if m.useAltScreen {
-				cmds = append(cmds, tea.ExitAltScreen)
-				m.useAltScreen = false
-			}
+			m.useAltScreen = false
 			cmds = append(cmds, tea.Quit)
 			return m, tea.Batch(cmds...)
 		}
@@ -3958,15 +3952,15 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 		content := m.previewDetailContent(index)
 		m.detail.SetContent(content)
 		contentHeight := lipgloss.Height(content)
-		if contentHeight > 0 && (m.detail.Height <= 0 || contentHeight < m.detail.Height) {
-			m.detail.Height = max(contentHeight, 1)
+		if contentHeight > 0 && (m.detail.Height() <= 0 || contentHeight < m.detail.Height()) {
+			m.detail.SetHeight(max(contentHeight, 1))
 		}
 	}
 
 	return m, tea.Batch(cmds...)
 }
 
-func (m *bubbleModel) View() string {
+func (m *bubbleModel) View() tea.View {
 	var sections []string
 
 	if m.previewRenderer != nil && !m.inDetailMode() {
@@ -4071,5 +4065,7 @@ func (m *bubbleModel) View() string {
 
 	sections = append(sections, m.renderStatusArea(widthHint))
 
-	return lipgloss.JoinVertical(lipgloss.Left, sections...)
+	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, sections...))
+	v.AltScreen = m.useAltScreen
+	return v
 }

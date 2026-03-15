@@ -1,0 +1,8 @@
+interface:
+  display_name: "Kongctl Declarative"
+  short_description: >-
+    Generate and manage kongctl declarative Konnect configurations
+  default_prompt: >-
+    Generate declarative config, teach users how to run kongctl declarative
+    workflows, and choose user-run or agent-run execution with safe
+    plan/apply/sync/delete/dump/adopt patterns.
