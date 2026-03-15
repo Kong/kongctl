@@ -14,11 +14,11 @@ import (
 )
 
 func (e *Executor) validateInheritedProtection(ctx context.Context, change planner.PlannedChange) error {
-	if e == nil || e.client == nil || change.ProtectionParent == nil {
+	if e == nil || e.client == nil || change.ProtectingParent == nil {
 		return nil
 	}
 
-	protected, err := e.isProtectionParentProtected(ctx, change.ProtectionParent)
+	protected, err := e.isProtectingParentProtected(ctx, change.ProtectingParent)
 	if err != nil {
 		return err
 	}
@@ -35,15 +35,15 @@ func (e *Executor) validateInheritedProtection(ctx context.Context, change plann
 		"resource %q (%s) is protected via parent %q (%s) and cannot be %s",
 		resourceName,
 		change.ResourceType,
-		change.ProtectionParent.ResourceName,
-		change.ProtectionParent.ResourceType,
+		change.ProtectingParent.ResourceName,
+		change.ProtectingParent.ResourceType,
 		actionToVerb(change.Action),
 	)
 }
 
-func (e *Executor) isProtectionParentProtected(
+func (e *Executor) isProtectingParentProtected(
 	ctx context.Context,
-	info *planner.ProtectionParentInfo,
+	info *planner.ProtectingParentInfo,
 ) (bool, error) {
 	if e == nil || info == nil {
 		return false, nil
