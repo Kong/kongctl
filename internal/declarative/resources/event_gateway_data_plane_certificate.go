@@ -14,6 +14,7 @@ func init() {
 		func(rs *ResourceSet) *[]EventGatewayDataPlaneCertificateResource {
 			return &rs.EventGatewayDataPlaneCertificates
 		},
+		AutoExplain[EventGatewayDataPlaneCertificateResource](),
 	)
 }
 

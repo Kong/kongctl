@@ -11,6 +11,7 @@ func init() {
 	registerResourceType(
 		ResourceTypePortalAuthSettings,
 		func(rs *ResourceSet) *[]PortalAuthSettingsResource { return &rs.PortalAuthSettings },
+		AutoExplain[PortalAuthSettingsResource](),
 	)
 }
 

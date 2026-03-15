@@ -10,6 +10,7 @@ func init() {
 	registerResourceType(
 		ResourceTypeCatalogService,
 		func(rs *ResourceSet) *[]CatalogServiceResource { return &rs.CatalogServices },
+		AutoExplain[CatalogServiceResource](),
 	)
 }
 

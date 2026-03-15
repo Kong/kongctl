@@ -18,6 +18,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs/del"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/diff"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/dump"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/explain"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/get"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/help"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/install"
@@ -30,6 +31,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs/patch"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/plan"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/ps"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/scaffold"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/sync"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/view"
 	"github.com/kong/kongctl/internal/cmd/root/version"
@@ -217,6 +219,18 @@ func addCommands() error {
 	rootCmd.AddCommand(command)
 
 	command, err = get.NewGetCmd()
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(command)
+
+	command, err = explain.NewExplainCmd()
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(command)
+
+	command, err = scaffold.NewScaffoldCmd()
 	if err != nil {
 		return err
 	}

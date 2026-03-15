@@ -10,6 +10,7 @@ func init() {
 	registerResourceType(
 		ResourceTypeAPI,
 		func(rs *ResourceSet) *[]APIResource { return &rs.APIs },
+		AutoExplain[APIResource](),
 	)
 }
 

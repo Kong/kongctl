@@ -12,6 +12,7 @@ func init() {
 	registerResourceType(
 		ResourceTypePortalTeamRole,
 		func(rs *ResourceSet) *[]PortalTeamRoleResource { return &rs.PortalTeamRoles },
+		AutoExplain[PortalTeamRoleResource](),
 	)
 }
 
