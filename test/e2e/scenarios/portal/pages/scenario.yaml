@@ -1,4 +1,4 @@
-baseInputsPath: ../../../testdata/declarative/portal/pages
+baseInputsPath: ./testdata
 
 env:
   KONGCTL_LOG_LEVEL: info
