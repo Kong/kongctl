@@ -14,6 +14,7 @@ func init() {
 	registerResourceType(
 		ResourceTypeAPIDocument,
 		func(rs *ResourceSet) *[]APIDocumentResource { return &rs.APIDocuments },
+		AutoExplain[APIDocumentResource](),
 	)
 }
 

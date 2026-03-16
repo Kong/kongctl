@@ -1,0 +1,118 @@
+steps:
+  - name: 001-explain-portal-json
+    skipInputs: true
+    commands:
+      - name: 000-explain-portal-json
+        run:
+          - explain
+          - portal
+        outputFormat: json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: portal"
+                "required[0]": ref
+          - select: properties.pages.items.properties.children.items
+            expect:
+              fields:
+                type: object
+                "contains(description, 'Recursive')": true
+
+  - name: 002-explain-nested-child-yaml
+    skipInputs: true
+    commands:
+      - name: 000-explain-api-versions-yaml
+        run:
+          - explain
+          - api.versions
+        outputFormat: yaml
+        parseAs: yaml
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                title: "kongctl declarative schema: api.versions"
+                "required[0]": spec
+          - select: properties.version
+            expect:
+              fields:
+                "type[0]": string
+
+  - name: 003-explain-field-text
+    skipInputs: true
+    commands:
+      - name: 000-explain-publication-portal-id-text
+        run:
+          - explain
+          - api.publications.portal_id
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'FIELD')": true
+                "contains(stdout, 'PATH: api.publications.portal_id')": true
+                "contains(stdout, 'OPTIONAL: false')": true
+                "contains(stdout, 'ROOT YAML PATH: api_publications[].portal_id')": true
+                "contains(stdout, 'RESOURCE')": true
+                "contains(stdout, 'RESOURCE CLASS: child')": true
+                "contains(stdout, 'ROOT KEY: api_publications[]')": true
+                "contains(stdout, 'ACCEPTS kongctl metadata: no')": true
+
+  - name: 004-explain-resource-text-summary
+    skipInputs: true
+    commands:
+      - name: 000-explain-portal-text-summary
+        run:
+          - explain
+          - portal
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'RESOURCE')": true
+                "contains(stdout, 'RESOURCE CLASS: top-level')": true
+                "contains(stdout, 'ROOT KEY: portals[]')": true
+                "contains(stdout, 'SUPPORTS NESTED DECLARATION: false')": true
+                "contains(stdout, 'CHILD RESOURCES: auth_settings, custom_domain, customization, email_config, pages, snippets, teams')": true
+                "contains(stdout, 'FIELD DETAILS: use --extended')": true
+                "contains(stdout, 'FIELDS')": false
+
+  - name: 005-explain-resource-text-extended
+    skipInputs: true
+    commands:
+      - name: 000-explain-portal-text-extended
+        run:
+          - explain
+          - portal
+          - --extended
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'FIELDS')": true
+                "contains(stdout, '- ref: string required')": true
+                "contains(stdout, 'FIELD DETAILS: use --extended')": false
+
+  - name: 006-explain-portal-pages-text-summary
+    skipInputs: true
+    commands:
+      - name: 000-explain-portal-pages-text-summary
+        run:
+          - explain
+          - portal.pages
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'RESOURCE CLASS: child')": true
+                "contains(stdout, 'ROOT KEY: portal_pages[]')": true
+                "contains(stdout, 'SUPPORTS ROOT: true')": true
+                "contains(stdout, 'SUPPORTS NESTED DECLARATION: true')": true
+                "contains(stdout, 'CHILD RESOURCES: children')": true

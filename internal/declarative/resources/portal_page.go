@@ -12,10 +12,12 @@ func init() {
 	registerResourceType(
 		ResourceTypePortalPage,
 		func(rs *ResourceSet) *[]PortalPageResource { return &rs.PortalPages },
+		AutoExplain[PortalPageResource](),
 	)
 	registerResourceType(
 		ResourceTypePortalSnippet,
 		func(rs *ResourceSet) *[]PortalSnippetResource { return &rs.PortalSnippets },
+		AutoExplain[PortalSnippetResource](),
 	)
 }
 

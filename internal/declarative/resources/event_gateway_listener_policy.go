@@ -12,6 +12,7 @@ func init() {
 	registerResourceType(
 		ResourceTypeEventGatewayListenerPolicy,
 		func(rs *ResourceSet) *[]EventGatewayListenerPolicyResource { return &rs.EventGatewayListenerPolicies },
+		AutoExplain[EventGatewayListenerPolicyResource](),
 	)
 }
 

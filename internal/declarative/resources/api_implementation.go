@@ -15,6 +15,7 @@ func init() {
 	registerResourceType(
 		ResourceTypeAPIImplementation,
 		func(rs *ResourceSet) *[]APIImplementationResource { return &rs.APIImplementations },
+		AutoExplain[APIImplementationResource](),
 	)
 }
 

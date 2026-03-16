@@ -8,6 +8,7 @@ func init() {
 	registerResourceType(
 		ResourceTypePortalAssetFavicon,
 		func(rs *ResourceSet) *[]PortalAssetFaviconResource { return &rs.PortalAssetFavicons },
+		AutoExplain[PortalAssetFaviconResource](),
 	)
 }
 

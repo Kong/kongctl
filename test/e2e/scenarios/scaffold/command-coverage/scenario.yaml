@@ -1,0 +1,62 @@
+steps:
+  - name: 001-scaffold-api-root
+    skipInputs: true
+    commands:
+      - name: 000-scaffold-api
+        run:
+          - scaffold
+          - api
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'apis:')": true
+                "contains(stdout, '- ref: my-resource')": true
+                "contains(stdout, '# versions:')": true
+                "contains(stdout, 'spec_content: !file ./specs/openapi.yaml')": true
+
+  - name: 002-scaffold-api-versions-nested
+    skipInputs: true
+    commands:
+      - name: 000-scaffold-api-versions
+        run:
+          - scaffold
+          - api.versions
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'apis:')": true
+                "contains(stdout, 'versions:')": true
+                "contains(stdout, '# kongctl:')": false
+                "contains(stdout, '# api:')": false
+
+  - name: 003-scaffold-rejects-output-flag
+    skipInputs: true
+    commands:
+      - name: 000-scaffold-api-output-json
+        run:
+          - scaffold
+          - api
+          - --output
+          - json
+        outputFormat: disable
+        expectFailure:
+          exitCode: 1
+          contains: "flags -o/--output are not supported for the scaffold command"
+
+  - name: 004-scaffold-rejects-output-parse-error
+    skipInputs: true
+    commands:
+      - name: 000-scaffold-api-output-path
+        run:
+          - scaffold
+          - api
+          - -o
+          - docs/out.yaml
+        outputFormat: disable
+        expectFailure:
+          exitCode: 1
+          contains: "flags -o/--output are not supported for the scaffold command"

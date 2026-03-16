@@ -11,6 +11,7 @@ func init() {
 	registerResourceType(
 		ResourceTypeEventGatewayVirtualCluster,
 		func(rs *ResourceSet) *[]EventGatewayVirtualClusterResource { return &rs.EventGatewayVirtualClusters },
+		AutoExplain[EventGatewayVirtualClusterResource](),
 	)
 }
 
