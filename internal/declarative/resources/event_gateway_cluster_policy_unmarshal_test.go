@@ -21,7 +21,7 @@ func TestEventGatewayClusterPolicyResource_UnmarshalJSON_ValidationErrors(t *tes
 		},
 		{
 			name:        "wrong type value",
-			input:       `{"ref":"p","type":"unknown","config":{"rules":[{"principal":"*","resource":"*","permission":"allow"}]}}`,
+			input:       `{"ref":"p","type":"unknown","config":{"rules":[{"action":"deny"}]}}`,
 			errContains: "cluster policy 'type' must be 'acls'",
 		},
 		{
