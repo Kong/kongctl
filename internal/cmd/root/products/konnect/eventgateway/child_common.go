@@ -44,6 +44,17 @@ const (
 	valueNA = "n/a"
 )
 
+// formatEnabledBool converts an optional bool pointer to a display string.
+func formatEnabledBool(enabled *bool) string {
+	if enabled == nil {
+		return valueNA
+	}
+	if *enabled {
+		return "true"
+	}
+	return "false"
+}
+
 func addEventGatewayChildFlags(cmd *cobra.Command) {
 	cmd.Flags().String(gatewayIDFlagName, "",
 		fmt.Sprintf(`The ID of the event gateway that owns the resource.

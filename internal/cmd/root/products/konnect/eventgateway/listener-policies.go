@@ -535,50 +535,52 @@ func findListenerPolicyByName(
 	return nil
 }
 
-func listenerPolicyToRecord(policy kkComps.EventGatewayListenerPolicy) listenerPolicySummaryRecord {
-	id := policy.ID
-	if id != "" {
-		id = util.AbbreviateUUID(id)
+func makeListenerPolicySummaryRecord(
+	id string,
+	name *string,
+	policyType string,
+	description *string,
+	enabled *bool,
+	createdAt, updatedAt time.Time,
+) listenerPolicySummaryRecord {
+	recordID := id
+	if recordID != "" {
+		recordID = util.AbbreviateUUID(recordID)
 	} else {
-		id = valueNA
+		recordID = valueNA
 	}
 
-	name := valueNA
-	if policy.Name != nil && *policy.Name != "" {
-		name = *policy.Name
+	recordName := valueNA
+	if name != nil && *name != "" {
+		recordName = *name
 	}
 
-	policyType := policy.Type
-	if policyType == "" {
-		policyType = valueNA
+	recordType := policyType
+	if recordType == "" {
+		recordType = valueNA
 	}
 
-	description := valueNA
-	if policy.Description != nil && *policy.Description != "" {
-		description = *policy.Description
+	recordDesc := valueNA
+	if description != nil && *description != "" {
+		recordDesc = *description
 	}
-
-	enabled := valueNA
-	if policy.Enabled != nil {
-		if *policy.Enabled {
-			enabled = "true"
-		} else {
-			enabled = "false"
-		}
-	}
-
-	createdAt := policy.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
-	updatedAt := policy.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
 
 	return listenerPolicySummaryRecord{
-		ID:               id,
-		Name:             name,
-		Type:             policyType,
-		Description:      description,
-		Enabled:          enabled,
-		LocalCreatedTime: createdAt,
-		LocalUpdatedTime: updatedAt,
+		ID:               recordID,
+		Name:             recordName,
+		Type:             recordType,
+		Description:      recordDesc,
+		Enabled:          formatEnabledBool(enabled),
+		LocalCreatedTime: createdAt.In(time.Local).Format("2006-01-02 15:04:05"),
+		LocalUpdatedTime: updatedAt.In(time.Local).Format("2006-01-02 15:04:05"),
 	}
+}
+
+func listenerPolicyToRecord(policy kkComps.EventGatewayListenerPolicy) listenerPolicySummaryRecord {
+	return makeListenerPolicySummaryRecord(
+		policy.ID, policy.Name, policy.Type, policy.Description, policy.Enabled,
+		policy.CreatedAt, policy.UpdatedAt,
+	)
 }
 
 func listenerPolicyWithConfigDetailView(policy *listenerPolicyWithConfig) string {
@@ -606,14 +608,7 @@ func listenerPolicyWithConfigDetailView(policy *listenerPolicyWithConfig) string
 		description = strings.TrimSpace(*policy.Description)
 	}
 
-	enabled := valueNA
-	if policy.Enabled != nil {
-		if *policy.Enabled {
-			enabled = "true"
-		} else {
-			enabled = "false"
-		}
-	}
+	enabled := formatEnabledBool(policy.Enabled)
 
 	labels := formatLabelPairs(policy.Labels)
 
@@ -673,49 +668,10 @@ func buildListenerPolicyChildView(policies []listenerPolicyWithConfig) tableview
 }
 
 func listenerPolicyWithConfigToRecord(policy listenerPolicyWithConfig) listenerPolicySummaryRecord {
-	id := policy.ID
-	if id != "" {
-		id = util.AbbreviateUUID(id)
-	} else {
-		id = valueNA
-	}
-
-	name := valueNA
-	if policy.Name != nil && *policy.Name != "" {
-		name = *policy.Name
-	}
-
-	policyType := policy.Type
-	if policyType == "" {
-		policyType = valueNA
-	}
-
-	description := valueNA
-	if policy.Description != nil && *policy.Description != "" {
-		description = *policy.Description
-	}
-
-	enabled := valueNA
-	if policy.Enabled != nil {
-		if *policy.Enabled {
-			enabled = "true"
-		} else {
-			enabled = "false"
-		}
-	}
-
-	createdAt := policy.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
-	updatedAt := policy.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
-
-	return listenerPolicySummaryRecord{
-		ID:               id,
-		Name:             name,
-		Type:             policyType,
-		Description:      description,
-		Enabled:          enabled,
-		LocalCreatedTime: createdAt,
-		LocalUpdatedTime: updatedAt,
-	}
+	return makeListenerPolicySummaryRecord(
+		policy.ID, policy.Name, policy.Type, policy.Description, policy.Enabled,
+		policy.CreatedAt, policy.UpdatedAt,
+	)
 }
 
 func resolveListenerIDByName(

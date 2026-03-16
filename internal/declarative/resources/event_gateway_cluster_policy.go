@@ -171,13 +171,15 @@ func (e *EventGatewayClusterPolicyResource) UnmarshalJSON(data []byte) error {
 	e.VirtualCluster = meta.VirtualCluster
 	e.EventGateway = meta.EventGateway
 
-	// Validate required type field
-	if err := validateClusterPolicyTypeField(data); err != nil {
+	// Validate required type field and config in one pass
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-
-	// Validate config.rules is present and has at least one element
-	if err := validateClusterPolicyConfig(data); err != nil {
+	if err := validateClusterPolicyType(raw); err != nil {
+		return err
+	}
+	if err := validateClusterPolicyConfigMap(raw); err != nil {
 		return err
 	}
 
@@ -189,14 +191,9 @@ func (e *EventGatewayClusterPolicyResource) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// validateClusterPolicyTypeField ensures the required type discriminator is present.
+// validateClusterPolicyType ensures the required type discriminator is present.
 // - Policy level: "type" is required (currently only "acls" is supported)
-func validateClusterPolicyTypeField(data []byte) error {
-	var raw map[string]any
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-
+func validateClusterPolicyType(raw map[string]any) error {
 	// Define allowed types from SDK constants
 	aclsType := string(kkComps.EventGatewayClusterPolicyModifyTypeAcls)
 
@@ -218,13 +215,8 @@ func validateClusterPolicyTypeField(data []byte) error {
 	return nil
 }
 
-// validateClusterPolicyConfig ensures config is present and config.rules has at least one element.
-func validateClusterPolicyConfig(data []byte) error {
-	var raw map[string]any
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-
+// validateClusterPolicyConfigMap ensures config is present and config.rules has at least one element.
+func validateClusterPolicyConfigMap(raw map[string]any) error {
 	config, hasConfig := raw["config"]
 	if !hasConfig {
 		return fmt.Errorf("cluster policy requires 'config' field")
