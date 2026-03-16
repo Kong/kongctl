@@ -103,6 +103,7 @@ func IsManagedResourceProtected(
 		resources.ResourceTypePortalEmailTemplate,
 		resources.ResourceTypeEventGatewayBackendCluster,
 		resources.ResourceTypeEventGatewayVirtualCluster,
+		resources.ResourceTypeEventGatewayClusterPolicy,
 		resources.ResourceTypeEventGatewayListener,
 		resources.ResourceTypeEventGatewayListenerPolicy,
 		resources.ResourceTypeEventGatewayDataPlaneCertificate:
