@@ -49,7 +49,7 @@ apis:
         portal_id: !ref getting-started-portal#id
         visibility: public
         auth_strategy_ids:
-          - !ref key-auth#id 
+          - !ref key-auth#id
 
   - ref: voice
     name: !file apis/voice/openapi.yaml#info.title
