@@ -1,4 +1,4 @@
-baseInputsPath: ../../../testdata/declarative/apis/nested-child-lifecycle
+baseInputsPath: testdata
 
 env:
   KONGCTL_LOG_LEVEL: info

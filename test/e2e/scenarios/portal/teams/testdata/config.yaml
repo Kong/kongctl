@@ -1,0 +1,29 @@
+_defaults:
+  kongctl:
+    namespace: portal-teams-test
+
+portals:
+  - ref: dev-portal
+    name: "Developer Portal"
+    display_name: "Developer Portal"
+    description: "Portal for testing team management"
+    authentication_enabled: false
+    rbac_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false
+    kongctl:
+      namespace: portal-teams-test
+
+    # Nested teams under portal
+    teams:
+      - ref: backend-team
+        name: "Backend Team"
+        description: "Backend developers working on APIs"
+
+      - ref: frontend-team
+        name: "Frontend Team"
+        description: "Frontend developers building UIs"
+
+      - ref: mobile-team
+        name: "Mobile Team"
+        description: "Mobile app developers"

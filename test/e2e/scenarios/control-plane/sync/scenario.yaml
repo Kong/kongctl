@@ -1,4 +1,4 @@
-baseInputsPath: ../../../testdata/declarative/control-plane/basic
+baseInputsPath: testdata
 
 steps:
   - name: 000-reset-org

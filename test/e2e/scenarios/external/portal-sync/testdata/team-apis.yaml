@@ -1,0 +1,33 @@
+# Team-owned APIs live in their own namespace, but they reference the
+# central portal defined in `external-portal.yaml`.
+_defaults:
+  kongctl:
+    namespace: team-payments
+
+apis:
+  - ref: payments-api
+    name: "payments-api"
+    description: "Team Payments API published to the central portal"
+    labels:
+      domain: payments
+
+    versions:
+      - ref: payments-api-v1
+        version: "1.0.0"
+        spec:
+          openapi: "3.0.0"
+          info:
+            title: "Payments API"
+            version: "1.0.0"
+          paths:
+            /status:
+              get:
+                summary: "Health check endpoint"
+                responses:
+                  "200":
+                    description: "API is reachable"
+
+    publications:
+      - ref: payments-publication
+        portal_id: !ref central-portal#id
+        visibility: "public"

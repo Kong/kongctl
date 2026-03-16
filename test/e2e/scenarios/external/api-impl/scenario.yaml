@@ -1,4 +1,4 @@
-baseInputsPath: ../../../testdata/declarative/external/core-entities
+baseInputsPath: testdata
 
 steps:
   - name: 000-reset-org

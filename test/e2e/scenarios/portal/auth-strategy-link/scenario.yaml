@@ -1,4 +1,4 @@
-baseInputsPath: ../../../testdata/declarative/portal/publication-auth
+baseInputsPath: testdata
 
 env:
   KONGCTL_LOG_LEVEL: debug

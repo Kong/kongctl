@@ -1,4 +1,4 @@
-baseInputsPath: ../../../testdata/declarative/require-namespace/external-only
+baseInputsPath: testdata
 
 steps:
   - name: 000-reset

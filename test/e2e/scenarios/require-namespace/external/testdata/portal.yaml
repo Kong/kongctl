@@ -1,0 +1,7 @@
+_defaults:
+  kongctl:
+    namespace: team-alpha
+
+portals:
+  - ref: managed-portal
+    name: "Managed Portal"

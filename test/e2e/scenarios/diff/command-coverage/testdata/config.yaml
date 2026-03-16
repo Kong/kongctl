@@ -1,0 +1,24 @@
+_defaults:
+  kongctl:
+    namespace: team-commerce
+
+portals:
+  - ref: commerce-portal
+    name: commerce-portal
+    display_name: "Commerce Portal"
+    description: "Developer portal for commerce APIs"
+    authentication_enabled: false
+    default_api_visibility: public
+    default_page_visibility: private
+
+apis:
+  - ref: orders-api
+    name: orders-api
+    description: "Orders API"
+    labels:
+      team: commerce
+  - ref: legacy-api
+    name: legacy-api
+    description: "Legacy API slated for removal"
+    labels:
+      team: migration

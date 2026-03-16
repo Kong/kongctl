@@ -1,4 +1,4 @@
-baseInputsPath: ../../../testdata/declarative/catalog/service
+baseInputsPath: testdata
 
 log-level: debug
 

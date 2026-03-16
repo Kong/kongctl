@@ -1,4 +1,4 @@
-baseInputsPath: ../../../testdata/declarative/event-gateways/backend-cluster
+baseInputsPath: testdata
 
 env:
   KONGCTL_LOG_LEVEL: info

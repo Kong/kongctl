@@ -1,0 +1,9 @@
+_defaults:
+  kongctl:
+    namespace: declarative-errors
+
+portals:
+  - ref: portal-base
+    name: portal-base
+    display_name: "Base Portal"
+    description: "Baseline portal used for declarative error scenarios"
