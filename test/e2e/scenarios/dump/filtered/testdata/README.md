@@ -19,8 +19,8 @@ This example creates:
 portal.yaml         # Portal definition
 apis.yaml           # API definitions
 assets/             # Portal asset files
-├── logo.svg        # Portal logo
-└── favicon.svg     # Portal favicon
+├── logo.png        # Portal logo
+└── favicon.png     # Portal favicon
 pages/              # Page content files
 ├── home.md
 ├── apis.md
@@ -53,8 +53,8 @@ Portal assets (logo and favicon) are managed using the `!file` tag to load image
 files:
 ```yaml
 assets:
-  logo: !file ./assets/logo.svg
-  favicon: !file ./assets/favicon.svg
+  logo: !file ./assets/logo.png
+  favicon: !file ./assets/favicon.png
 ```
 
 The `!file` tag automatically:
@@ -84,7 +84,7 @@ pages:
 
 ### Content Features
 - **Markdown content**: All pages use markdown with custom components
-- **File references**: Content is loaded from external files using `!File` tag
+- **File references**: Content is loaded from external files using `!file` tag
 - **Reusable snippets**: Common UI components can be referenced across pages
 
 ## Usage
