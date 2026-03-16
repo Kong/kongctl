@@ -156,7 +156,7 @@ full-width: true
   description-line-height: "clamp(24px, 3vw, 32px)"
   styles: |
     p {
-      color: var(--kui-color-text-neutral-stronger)
+      color: var(--kui-color-text-neutral-stronger);
     }
   ---
   #title
