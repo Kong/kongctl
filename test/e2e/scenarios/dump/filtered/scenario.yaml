@@ -3,7 +3,7 @@
 # 1 auth strategy) and verifies that filters restrict the output to
 # only matching resources.
 
-baseInputsPath: ../portal-owned/testdata
+baseInputsPath: testdata
 
 steps:
   - name: 000-reset-org

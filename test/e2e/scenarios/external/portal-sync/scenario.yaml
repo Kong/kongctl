@@ -1,4 +1,4 @@
-baseInputsPath: ../../../testdata/declarative/external/portal-sync
+baseInputsPath: testdata
 
 vars:
   centralPortalName: central-team-portal

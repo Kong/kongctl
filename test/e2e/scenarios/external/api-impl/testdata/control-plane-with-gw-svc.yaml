@@ -1,0 +1,14 @@
+
+control_planes:
+  - ref: e2e-cp
+    _external:
+      selector:
+        matchFields:
+          name: "e2e-cp"
+
+    gateway_services:
+      - ref: e2e-gw-svc
+        _external:
+          selector:
+            matchFields:
+              name: "e2e-gw-svc"

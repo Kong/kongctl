@@ -1,0 +1,11 @@
+_defaults:
+  kongctl:
+    namespace: ns-empty-default-b
+    protected: false
+
+portals:
+  - ref: ns-b-portal
+    name: ns-b-portal
+    display_name: "Namespace B Portal"
+    kongctl:
+      namespace: ns-empty-default-b

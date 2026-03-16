@@ -1,0 +1,17 @@
+apis:
+  - ref: api-top-level
+    name: "API Top Level"
+    description: "Initial description for API Top Level"
+    version: "1.0.0"
+    slug: "api-top-level"
+    labels:
+      owner: "platform"
+      lifecycle: "dev"
+    attributes:
+      domains:
+        - "web"
+      environments:
+        - "dev"
+    kongctl:
+      namespace: "apis-comprehensive"
+      protected: false

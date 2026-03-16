@@ -1,4 +1,4 @@
-baseInputsPath: ../../../testdata/declarative/portal/applications
+baseInputsPath: testdata
 
 log-level: debug
 

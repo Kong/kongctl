@@ -1,0 +1,17 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-bc-comprehensive-test
+
+event_gateways:
+  - ref: egw-cp-for-bc-test
+    name: egw-cp-for-bc-test
+    description: "EGW CP for Backend Cluster Test"
+    backend_clusters:
+      - ref: default-backend-cluster
+        name: default-backend-cluster
+        description: "First Backend Cluster for Test"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9092"
+          - "egw-backend-2.example.com:9092"
+        authentication:
+          type: anonymous

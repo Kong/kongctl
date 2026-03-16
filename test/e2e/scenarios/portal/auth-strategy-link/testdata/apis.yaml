@@ -1,0 +1,14 @@
+apis:
+  - ref: sms
+    name: "E2E SMS API"
+    description: "Demo API used to verify auth strategy references in publications"
+    versions:
+      - ref: sms-v1
+        version: "1.0.0"
+        spec: !file ./apis/e2e-api.yaml
+    publications:
+      - ref: sms-to-e2e-portal
+        portal_id: !ref e2e-portal#id
+        visibility: public
+        auth_strategy_ids:
+          - !ref key-auth#id

@@ -1,0 +1,85 @@
+_defaults:
+  kongctl:
+    namespace: apis-nested
+
+apis:
+  - ref: api-nested
+    name: "API Nested"
+    description: "API exercising nested child lifecycle"
+    version: "1.0.0"
+    labels:
+      owner: "platform"
+      lifecycle: "dev"
+    attributes:
+      domains:
+        - "web"
+      environments:
+        - "dev"
+    versions:
+      - ref: api-nested-v1
+        version: "1.0.0"
+        publish_status: "unpublished"
+        deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: API Nested
+              version: 1.0.0
+            paths: {}
+    publications:
+      - ref: api-nested-pub1
+        portal_id: !ref portal-nested#id
+        visibility: "private"
+        auth_strategy_ids:
+          - !ref auth-strategy-nested#id
+        auto_approve_registrations: false
+    implementations:
+      - ref: api-nested-impl1
+        implementation_url: "https://api.example.com/v1"
+        service:
+          control_plane_id: !ref control-plane-nested#id
+          id: !ref gateway-service-nested#id
+    documents:
+      - ref: api-nested-doc-root
+        title: "Root Document"
+        status: "published"
+        content: |
+          # Root Documentation
+          Welcome to the nested API docs.
+        children:
+          - ref: api-nested-doc-child
+            title: "Child Document"
+            status: "unpublished"
+            content: |
+              ## Child Section
+              Additional details.
+
+portals:
+  - ref: portal-nested
+    name: "Portal Nested"
+    display_name: "Portal Nested"
+    description: "Portal used for nested API publications"
+
+application_auth_strategies:
+  - ref: auth-strategy-nested
+    name: "auth-strategy-nested"
+    display_name: "Auth Strategy Nested"
+    strategy_type: key_auth
+    configs:
+      key_auth:
+        key_names:
+          - "x-api-key"
+
+control_planes:
+  - ref: control-plane-nested
+    _external:
+      selector:
+        matchFields:
+          name: "nested-control-plane"
+    gateway_services:
+      - ref: gateway-service-nested
+        _external:
+          selector:
+            matchFields:
+              name: "nested-gateway-service"

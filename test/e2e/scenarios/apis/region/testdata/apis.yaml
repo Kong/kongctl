@@ -1,0 +1,15 @@
+_defaults:
+  kongctl:
+    namespace: "apis-region-base"
+
+apis:
+  - ref: api-region
+    name: "Region API"
+    description: "Region-specific API fixture"
+    version: "1.0.0"
+    slug: "region-api"
+    labels:
+      owner: "e2e"
+      lifecycle: "test"
+    kongctl:
+      namespace: "apis-region-base"

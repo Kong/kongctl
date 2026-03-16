@@ -1,4 +1,4 @@
-baseInputsPath: ../../../testdata/declarative/portal/full
+baseInputsPath: testdata
 
 steps:
   - name: 000-reset-org

@@ -1,0 +1,5 @@
+control_planes:
+  - ref: e2e-cp
+    name: "kongctl-e2e-cp"
+    description: "Test Control Plane for E2E testing via kongctl"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
