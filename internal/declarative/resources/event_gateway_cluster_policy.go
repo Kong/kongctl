@@ -12,6 +12,7 @@ func init() {
 	registerResourceType(
 		ResourceTypeEventGatewayClusterPolicy,
 		func(rs *ResourceSet) *[]EventGatewayClusterPolicyResource { return &rs.EventGatewayClusterPolicies },
+		AutoExplain[EventGatewayClusterPolicyResource](),
 	)
 }
 

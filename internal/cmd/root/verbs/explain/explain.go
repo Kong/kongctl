@@ -7,6 +7,7 @@ import (
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
+	jqoutput "github.com/kong/kongctl/internal/cmd/output/jq"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/meta"
@@ -17,7 +18,8 @@ import (
 )
 
 const (
-	Verb = verbs.Explain
+	Verb             = verbs.Explain
+	extendedFlagName = "extended"
 )
 
 var (
@@ -55,10 +57,13 @@ func NewExplainCmd() (*cobra.Command, error) {
 		Args:    cobra.ExactArgs(1),
 		PersistentPreRunE: func(c *cobra.Command, _ []string) error {
 			c.SetContext(context.WithValue(c.Context(), verbs.Verb, Verb))
-			return nil
+			return bindExplainFlags(c)
 		},
 		RunE: runExplain,
 	}
+
+	jqoutput.AddFlags(cmd.PersistentFlags())
+	cmd.Flags().Bool(extendedFlagName, false, "Include extended field details in text output")
 
 	return cmd, nil
 }
@@ -70,6 +75,32 @@ func runExplain(command *cobra.Command, args []string) error {
 		return err
 	}
 
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	extended, err := command.Flags().GetBool(extendedFlagName)
+	if err != nil {
+		return err
+	}
+	if extended && outType != cmdcommon.TEXT {
+		return &cmdpkg.ConfigurationError{
+			Err: fmt.Errorf("--%s is only supported with --output text", extendedFlagName),
+		}
+	}
+
+	jqSettings, err := jqoutput.ResolveSettings(command, cfg)
+	if err != nil {
+		return err
+	}
+	if !shouldResolveExplainJQ(command, outType) {
+		jqSettings = jqoutput.Settings{}
+	}
+	if err := jqoutput.ValidateOutputFormat(outType, jqSettings); err != nil {
+		return err
+	}
+
 	subject, err := resources.ResolveExplainSubject(args[0])
 	if err != nil {
 		return err
@@ -77,14 +108,40 @@ func runExplain(command *cobra.Command, args []string) error {
 
 	switch outType {
 	case cmdcommon.TEXT:
-		_, err = fmt.Fprintln(command.OutOrStdout(), resources.RenderExplainText(subject))
+		_, err = fmt.Fprintln(command.OutOrStdout(), resources.RenderExplainText(subject, extended))
 		return err
 	case cmdcommon.JSON:
+		schema := resources.RenderExplainSchema(subject)
+		payload, handled, err := jqoutput.ApplyToRaw(
+			schema,
+			outType,
+			jqSettings,
+			command.OutOrStdout(),
+		)
+		if err != nil {
+			return err
+		}
+		if handled {
+			return nil
+		}
 		encoder := json.NewEncoder(command.OutOrStdout())
 		encoder.SetIndent("", "  ")
-		return encoder.Encode(resources.RenderExplainSchema(subject))
+		return encoder.Encode(payload)
 	case cmdcommon.YAML:
-		data, err := yaml.Marshal(resources.RenderExplainSchema(subject))
+		schema := resources.RenderExplainSchema(subject)
+		payload, handled, err := jqoutput.ApplyToRaw(
+			schema,
+			outType,
+			jqSettings,
+			command.OutOrStdout(),
+		)
+		if err != nil {
+			return err
+		}
+		if handled {
+			return nil
+		}
+		data, err := yaml.Marshal(payload)
 		if err != nil {
 			return err
 		}
@@ -93,4 +150,27 @@ func runExplain(command *cobra.Command, args []string) error {
 	default:
 		return fmt.Errorf("unsupported output format: %s", outType.String())
 	}
+}
+
+func bindExplainFlags(command *cobra.Command) error {
+	helper := cmdpkg.BuildHelper(command, nil)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+	return jqoutput.BindFlags(cfg, command.Flags())
+}
+
+func shouldResolveExplainJQ(command *cobra.Command, outType cmdcommon.OutputFormat) bool {
+	if command == nil {
+		return false
+	}
+	flags := command.Flags()
+	if flags == nil {
+		return false
+	}
+	if flags.Changed(jqoutput.FlagName) || flags.Changed(jqoutput.RawOutputFlagName) {
+		return true
+	}
+	return outType == cmdcommon.JSON || outType == cmdcommon.YAML
 }

@@ -11,7 +11,12 @@ import (
 
 const (
 	jsonSchemaDraft202012 = "https://json-schema.org/draft/2020-12/schema"
+	explainKindArray      = "array"
 	explainKindObject     = "object"
+
+	explainResourceClassTopLevel = "top-level"
+	explainResourceClassChild    = "child"
+	explainResourceClassGrouped  = "grouped"
 )
 
 type ExplainRegistration struct {
@@ -50,30 +55,33 @@ type ExplainRelation struct {
 }
 
 type ExplainDoc struct {
-	ResourceType    ResourceType      `json:"resource_type"     yaml:"resource_type"`
-	CanonicalAlias  string            `json:"canonical_alias"   yaml:"canonical_alias"`
-	Aliases         []string          `json:"aliases,omitempty" yaml:"aliases,omitempty"`
-	Kind            string            `json:"kind"              yaml:"kind"`
-	RootKey         string            `json:"root_key,omitempty" yaml:"root_key,omitempty"`
-	SupportsRoot    bool              `json:"supports_root"     yaml:"supports_root"`
-	SupportsNested  bool              `json:"supports_nested"   yaml:"supports_nested"`
-	NestedRelations []ExplainRelation `json:"nested_relations,omitempty" yaml:"nested_relations,omitempty"`
-	ParentRelations []ExplainRelation `json:"parent_relations,omitempty" yaml:"parent_relations,omitempty"`
-	SupportsKongctl bool              `json:"supports_kongctl"  yaml:"supports_kongctl"`
-	Schema          *ExplainNode      `json:"-"                 yaml:"-"`
+	ResourceType              ResourceType      `json:"resource_type"               yaml:"resource_type"`
+	CanonicalAlias            string            `json:"canonical_alias"             yaml:"canonical_alias"`
+	Aliases                   []string          `json:"aliases,omitempty"           yaml:"aliases,omitempty"`
+	ResourceClass             string            `json:"resource_class"              yaml:"resource_class"`
+	RootKey                   string            `json:"root_key,omitempty"          yaml:"root_key,omitempty"`
+	SupportsRoot              bool              `json:"supports_root"               yaml:"supports_root"`
+	SupportsNestedDeclaration bool              `json:"supports_nested_declaration" yaml:"supports_nested_declaration"`
+	NestedRelations           []ExplainRelation `json:"nested_relations,omitempty"  yaml:"nested_relations,omitempty"`
+	ParentRelations           []ExplainRelation `json:"parent_relations,omitempty"  yaml:"parent_relations,omitempty"`
+	SupportsKongctl           bool              `json:"supports_kongctl"            yaml:"supports_kongctl"`
+	Schema                    *ExplainNode      `json:"-"                           yaml:"-"`
 	nestedFields    map[string]ResourceType
 }
 
 type ExplainSubject struct {
-	Doc            *ExplainDoc
-	Node           *ExplainNode
-	DisplayPath    string
-	FieldPath      []string
-	ScaffoldSteps  []ExplainScaffoldStep
-	ScaffoldOmit   []string
-	ScaffoldTrail  []ExplainScaffoldNode
-	AncestorTypes  []ResourceType
-	ResourceTarget bool
+	Doc               *ExplainDoc
+	Node              *ExplainNode
+	DisplayPath       string
+	FieldPath         []string
+	FieldRelativePath []string
+	FieldRequired     bool
+	FieldRecommended  bool
+	ScaffoldSteps     []ExplainScaffoldStep
+	ScaffoldOmit      []string
+	ScaffoldTrail     []ExplainScaffoldNode
+	AncestorTypes     []ResourceType
+	ResourceTarget    bool
 }
 
 type ExplainScaffoldStep struct {
@@ -115,30 +123,50 @@ type ExplainField struct {
 }
 
 type JSONSchema struct {
-	Schema      string                 `json:"$schema,omitempty" yaml:"$schema,omitempty"`
-	ID          string                 `json:"$id,omitempty" yaml:"$id,omitempty"`
-	Title       string                 `json:"title,omitempty" yaml:"title,omitempty"`
-	Description string                 `json:"description,omitempty" yaml:"description,omitempty"`
-	Type        any                    `json:"type,omitempty" yaml:"type,omitempty"`
-	Properties  map[string]*JSONSchema `json:"properties,omitempty" yaml:"properties,omitempty"`
-	Required    []string               `json:"required,omitempty" yaml:"required,omitempty"`
-	Items       *JSONSchema            `json:"items,omitempty" yaml:"items,omitempty"`
-	Additional  any                    `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
-	OneOf       []*JSONSchema          `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
-	Const       any                    `json:"const,omitempty" yaml:"const,omitempty"`
-	Enum        []any                  `json:"enum,omitempty" yaml:"enum,omitempty"`
-	Default     any                    `json:"default,omitempty" yaml:"default,omitempty"`
-	XResource   string                 `json:"x-kongctl-resource,omitempty" yaml:"x-kongctl-resource,omitempty"`
-	XPath       string                 `json:"x-kongctl-path,omitempty" yaml:"x-kongctl-path,omitempty"`
-	XRootKey    string                 `json:"x-kongctl-root-key,omitempty" yaml:"x-kongctl-root-key,omitempty"`
-	XKind       string                 `json:"x-kongctl-kind,omitempty" yaml:"x-kongctl-kind,omitempty"`
-	XRefKind    string                 `json:"x-kongctl-ref-kind,omitempty" yaml:"x-kongctl-ref-kind,omitempty"`
-	XTag        string                 `json:"x-kongctl-preferred-tag,omitempty" yaml:"x-kongctl-preferred-tag,omitempty"`
-	XDefault    string                 `json:"x-kongctl-default-from,omitempty" yaml:"x-kongctl-default-from,omitempty"`
-	XNotes      []string               `json:"x-kongctl-notes,omitempty" yaml:"x-kongctl-notes,omitempty"`
-	XRoot       *bool                  `json:"x-kongctl-supports-root,omitempty" yaml:"x-kongctl-supports-root,omitempty"`
-	//nolint:lll // The JSON/YAML tags mirror the wire format and cannot be shortened.
-	XN          *bool                  `json:"x-kongctl-supports-nested,omitempty" yaml:"x-kongctl-supports-nested,omitempty"`
+	Schema      string                  `json:"$schema,omitempty" yaml:"$schema,omitempty"`
+	ID          string                  `json:"$id,omitempty" yaml:"$id,omitempty"`
+	Title       string                  `json:"title,omitempty" yaml:"title,omitempty"`
+	Description string                  `json:"description,omitempty" yaml:"description,omitempty"`
+	Type        any                     `json:"type,omitempty" yaml:"type,omitempty"`
+	Properties  map[string]*JSONSchema  `json:"properties,omitempty" yaml:"properties,omitempty"`
+	Required    []string                `json:"required,omitempty" yaml:"required,omitempty"`
+	Items       *JSONSchema             `json:"items,omitempty" yaml:"items,omitempty"`
+	Additional  any                     `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
+	OneOf       []*JSONSchema           `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
+	Const       any                     `json:"const,omitempty" yaml:"const,omitempty"`
+	Enum        []any                   `json:"enum,omitempty" yaml:"enum,omitempty"`
+	Default     any                     `json:"default,omitempty" yaml:"default,omitempty"`
+	XResource   any                     `json:"x-kongctl-resource,omitempty" yaml:"x-kongctl-resource,omitempty"`
+	XPath       string                  `json:"x-kongctl-path,omitempty" yaml:"x-kongctl-path,omitempty"`
+	XRootKey    string                  `json:"x-kongctl-root-key,omitempty" yaml:"x-kongctl-root-key,omitempty"`
+	XClass      string                  `json:"x-kongctl-resource-class,omitempty" yaml:"x-kongctl-resource-class,omitempty"` //nolint:lll
+	XRefKind    string                  `json:"x-kongctl-ref-kind,omitempty" yaml:"x-kongctl-ref-kind,omitempty"`
+	XTag        string                  `json:"x-kongctl-preferred-tag,omitempty" yaml:"x-kongctl-preferred-tag,omitempty"`
+	XDefault    string                  `json:"x-kongctl-default-from,omitempty" yaml:"x-kongctl-default-from,omitempty"`
+	XNotes      []string                `json:"x-kongctl-notes,omitempty" yaml:"x-kongctl-notes,omitempty"`
+	XSubject    *ExplainSchemaSubject   `json:"x-kongctl-subject,omitempty" yaml:"x-kongctl-subject,omitempty"`
+	XPlacement  *ExplainSchemaPlacement `json:"x-kongctl-placement,omitempty" yaml:"x-kongctl-placement,omitempty"`
+	XRoot       *bool                   `json:"x-kongctl-supports-root,omitempty" yaml:"x-kongctl-supports-root,omitempty"`
+	XNestedDecl *bool                   `json:"x-kongctl-supports-nested-declaration,omitempty" yaml:"x-kongctl-supports-nested-declaration,omitempty"` //nolint:lll
+}
+
+type ExplainSchemaSubject struct {
+	Kind        string `json:"kind" yaml:"kind"`
+	Path        string `json:"path" yaml:"path"`
+	Required    *bool  `json:"required,omitempty" yaml:"required,omitempty"`
+	Recommended *bool  `json:"recommended,omitempty" yaml:"recommended,omitempty"`
+}
+
+type ExplainSchemaPlacement struct {
+	YAMLPath        string   `json:"yaml_path,omitempty" yaml:"yaml_path,omitempty"`
+	RootYAMLPath    string   `json:"root_yaml_path,omitempty" yaml:"root_yaml_path,omitempty"`
+	NestedYAMLPath  string   `json:"nested_yaml_path,omitempty" yaml:"nested_yaml_path,omitempty"`
+	NestedYAMLPaths []string `json:"nested_yaml_paths,omitempty" yaml:"nested_yaml_paths,omitempty"`
+}
+
+type ExplainSchemaResource struct {
+	Name          string `json:"name" yaml:"name"`
+	ResourceClass string `json:"resource_class" yaml:"resource_class"`
 }
 
 var (
@@ -306,6 +334,7 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 	}
 
 	var ancestors []ResourceType
+	var relativePath []string
 	for i, segment := range segments[1:] {
 		segment = strings.TrimSpace(segment)
 		field, ok := currentNode.property(segment)
@@ -323,6 +352,10 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		}
 
 		subject.FieldPath = append(subject.FieldPath, segment)
+		relativePath = append(relativePath, segment)
+		subject.FieldRelativePath = append([]string(nil), relativePath...)
+		subject.FieldRequired = field.Required
+		subject.FieldRecommended = field.Recommended
 		currentNode = nextNode
 
 		if childType, ok := currentDoc.nestedFields[segment]; ok {
@@ -340,6 +373,8 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 				currentDoc = childDoc
 				currentNode = childDoc.Schema.clone()
 				resourceTarget = true
+				relativePath = nil
+				subject.FieldRelativePath = nil
 			}
 		}
 
@@ -418,30 +453,20 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 		nestedFields[relation.FieldName] = ResourceType(relation.ChildAlias)
 	}
 
-	kind := "parent"
-	var childProbe any
-	if reg.typ.Kind() == reflect.Struct {
-		childProbe = reflect.New(reg.typ).Interface()
-	}
-	if _, ok := childProbe.(ResourceWithParent); ok {
-		kind = "child"
-	}
-	if rootKey == "" && len(childRelations) > 0 && kind != "child" {
-		kind = "grouped"
-	}
+	resourceClass := explainResourceClass(reg.typ, rootKey, parentRelations, childRelations)
 
 	doc := &ExplainDoc{
-		ResourceType:    rt,
-		CanonicalAlias:  string(rt),
-		Aliases:         aliases,
-		Kind:            kind,
-		RootKey:         rootKey,
-		SupportsRoot:    rootKey != "",
-		SupportsNested:  len(childRelations) > 0 || len(parentRelations) > 0,
-		NestedRelations: childRelations,
-		ParentRelations: parentRelations,
-		SupportsKongctl: node.propertyExists("kongctl"),
-		Schema:          node,
+		ResourceType:              rt,
+		CanonicalAlias:            string(rt),
+		Aliases:                   aliases,
+		ResourceClass:             resourceClass,
+		RootKey:                   rootKey,
+		SupportsRoot:              rootKey != "",
+		SupportsNestedDeclaration: len(parentRelations) > 0,
+		NestedRelations:           childRelations,
+		ParentRelations:           parentRelations,
+		SupportsKongctl:           node.propertyExists("kongctl"),
+		Schema:                    node,
 		nestedFields:    nestedFieldMap(childRelations),
 	}
 
@@ -450,6 +475,31 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 	explainDocCacheMu.Unlock()
 
 	return doc, nil
+}
+
+func explainResourceClass(
+	typ reflect.Type,
+	rootKey string,
+	parentRelations []ExplainRelation,
+	childRelations []ExplainRelation,
+) string {
+	if len(parentRelations) > 0 {
+		return explainResourceClassChild
+	}
+
+	var childProbe any
+	if typ.Kind() == reflect.Struct {
+		childProbe = reflect.New(typ).Interface()
+	}
+	if _, ok := childProbe.(ResourceWithParent); ok {
+		return explainResourceClassChild
+	}
+
+	if rootKey == "" && len(childRelations) > 0 {
+		return explainResourceClassGrouped
+	}
+
+	return explainResourceClassTopLevel
 }
 
 func nestedFieldMap(relations []ExplainRelation) map[string]ResourceType {
@@ -785,45 +835,73 @@ func explainLiteralFor(node *ExplainNode, name string) string {
 	}
 }
 
-func RenderExplainText(subject *ExplainSubject) string {
+func RenderExplainText(subject *ExplainSubject, extended bool) string {
 	var b strings.Builder
-	doc := subject.Doc
 
-	fmt.Fprintf(&b, "RESOURCE: %s\n", doc.CanonicalAlias)
-	fmt.Fprintf(&b, "PATH: %s\n", subject.DisplayPath)
-	if doc.RootKey != "" {
-		fmt.Fprintf(&b, "ROOT KEY: %s[]\n", doc.RootKey)
-	}
-	fmt.Fprintf(&b, "KIND: %s\n", doc.Kind)
-	fmt.Fprintf(&b, "SUPPORTS ROOT: %t\n", doc.SupportsRoot)
-	fmt.Fprintf(&b, "SUPPORTS NESTED: %t\n", doc.SupportsNested)
-	if doc.SupportsKongctl {
-		fmt.Fprintln(&b, "ACCEPTS kongctl metadata: yes")
+	if subject.isFieldTarget() {
+		renderExplainFieldText(&b, subject)
 	} else {
-		fmt.Fprintln(&b, "ACCEPTS kongctl metadata: no")
-	}
-
-	if len(doc.NestedRelations) > 0 {
-		paths := make([]string, 0, len(doc.NestedRelations))
-		for _, relation := range doc.NestedRelations {
-			paths = append(paths, relation.ParentAlias+"."+relation.FieldName)
+		renderExplainResourceBlock(&b, subject.Doc)
+		if !extended {
+			fmt.Fprintln(&b)
+			fmt.Fprintln(&b, "FIELD DETAILS: use --extended")
+			return strings.TrimRight(b.String(), "\n")
 		}
-		slices.Sort(paths)
-		fmt.Fprintf(&b, "NESTED PATHS: %s\n", strings.Join(paths, ", "))
 	}
 
-	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, "FIELDS")
-	renderExplainFields(&b, subject.Node, "", 0)
+	if subject.Node != nil && subject.Node.Kind == explainKindObject && (!subject.isFieldTarget() || extended) {
+		fmt.Fprintln(&b)
+		fmt.Fprintln(&b, "FIELDS")
+		renderExplainFields(&b, subject.Node, "", 0)
+	}
 
 	return strings.TrimRight(b.String(), "\n")
+}
+
+func renderExplainFieldText(b *strings.Builder, subject *ExplainSubject) {
+	fmt.Fprintln(b, "FIELD")
+	fmt.Fprintf(b, "PATH: %s\n", subject.DisplayPath)
+	fmt.Fprintf(b, "TYPE: %s\n", explainTypeLabel(subject.Node))
+	fmt.Fprintf(b, "OPTIONAL: %t\n", !subject.FieldRequired)
+	if subject.FieldRecommended {
+		fmt.Fprintln(b, "RECOMMENDED: yes")
+	}
+	if subject.Node != nil && subject.Node.DefaultFrom != "" {
+		fmt.Fprintf(b, "DEFAULT FROM: %s\n", subject.Node.DefaultFrom)
+	}
+	if subject.Node != nil && subject.Node.RefKind != "" {
+		fmt.Fprintf(b, "REF TARGET: %s\n", subject.Node.RefKind)
+	}
+	if subject.Node != nil && subject.Node.PreferredTag != "" {
+		fmt.Fprintf(b, "PREFERRED TAG: %s\n", subject.Node.PreferredTag)
+	}
+
+	if placement := explainFieldPlacement(subject); placement != nil {
+		if placement.RootYAMLPath != "" || len(placement.NestedYAMLPaths) > 0 || placement.NestedYAMLPath != "" {
+			switch {
+			case placement.YAMLPath != "":
+				fmt.Fprintf(b, "ROOT YAML PATH: %s\n", placement.YAMLPath)
+			case placement.RootYAMLPath != "":
+				fmt.Fprintf(b, "ROOT YAML PATH: %s\n", placement.RootYAMLPath)
+			}
+			if placement.NestedYAMLPath != "" {
+				fmt.Fprintf(b, "NESTED YAML PATH: %s\n", placement.NestedYAMLPath)
+			}
+			for _, path := range placement.NestedYAMLPaths {
+				fmt.Fprintf(b, "NESTED YAML PATH: %s\n", path)
+			}
+		}
+	}
+
+	fmt.Fprintln(b)
+	renderExplainResourceBlock(b, subject.Doc)
 }
 
 func renderExplainFields(b *strings.Builder, node *ExplainNode, path string, depth int) {
 	if node == nil {
 		return
 	}
-	if node.Kind == "array" {
+	if node.Kind == explainKindArray {
 		renderExplainFields(b, node.Items, path+"[]", depth)
 		return
 	}
@@ -848,20 +926,165 @@ func renderExplainFields(b *strings.Builder, node *ExplainNode, path string, dep
 	}
 }
 
+func renderExplainResourceBlock(b *strings.Builder, doc *ExplainDoc) {
+	if doc == nil {
+		return
+	}
+	fmt.Fprintln(b, "RESOURCE")
+	fmt.Fprintf(b, "RESOURCE CLASS: %s\n", doc.ResourceClass)
+	if doc.RootKey != "" {
+		fmt.Fprintf(b, "ROOT KEY: %s[]\n", doc.RootKey)
+	}
+	fmt.Fprintf(b, "SUPPORTS ROOT: %t\n", doc.SupportsRoot)
+	fmt.Fprintf(b, "SUPPORTS NESTED DECLARATION: %t\n", doc.SupportsNestedDeclaration)
+	if doc.SupportsKongctl {
+		fmt.Fprintln(b, "ACCEPTS kongctl metadata: yes")
+	} else {
+		fmt.Fprintln(b, "ACCEPTS kongctl metadata: no")
+	}
+	childResources := explainChildResourceNames(doc)
+	if len(childResources) > 0 {
+		fmt.Fprintf(b, "CHILD RESOURCES: %s\n", strings.Join(childResources, ", "))
+	}
+}
+
+func explainChildResourceNames(doc *ExplainDoc) []string {
+	if doc == nil || len(doc.NestedRelations) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(doc.NestedRelations))
+	for _, relation := range doc.NestedRelations {
+		names = append(names, relation.FieldName)
+	}
+	slices.Sort(names)
+	return slices.Compact(names)
+}
+
 func RenderExplainSchema(subject *ExplainSubject) *JSONSchema {
 	schema := subject.Node.toJSONSchema()
 	schema.Schema = jsonSchemaDraft202012
 	schema.ID = fmt.Sprintf("kongctl://declarative/%s", strings.ReplaceAll(subject.DisplayPath, ".", "/"))
 	schema.Title = fmt.Sprintf("kongctl declarative schema: %s", subject.DisplayPath)
+	if subject.isFieldTarget() {
+		schema.XSubject = &ExplainSchemaSubject{
+			Kind:        "field",
+			Path:        subject.DisplayPath,
+			Required:    boolPtr(subject.FieldRequired),
+			Recommended: boolPtr(subject.FieldRecommended),
+		}
+		schema.XPlacement = explainFieldPlacement(subject)
+		schema.XResource = &ExplainSchemaResource{
+			Name:          subject.Doc.CanonicalAlias,
+			ResourceClass: subject.Doc.ResourceClass,
+		}
+		return schema
+	}
 	schema.XResource = subject.Doc.CanonicalAlias
 	schema.XPath = subject.DisplayPath
 	if subject.Doc.RootKey != "" {
 		schema.XRootKey = subject.Doc.RootKey
 	}
-	schema.XKind = subject.Doc.Kind
+	schema.XClass = subject.Doc.ResourceClass
 	schema.XRoot = boolPtr(subject.Doc.SupportsRoot)
-	schema.XN = boolPtr(subject.Doc.SupportsNested)
+	schema.XNestedDecl = boolPtr(subject.Doc.SupportsNestedDeclaration)
 	return schema
+}
+
+func explainFieldPlacement(subject *ExplainSubject) *ExplainSchemaPlacement {
+	if subject == nil || !subject.isFieldTarget() || len(subject.FieldRelativePath) == 0 {
+		return nil
+	}
+
+	requestedPath := explainPlacementPath(subject.ScaffoldSteps, subject.FieldRelativePath)
+	rootPath := explainRootFieldPath(subject.Doc, subject.FieldRelativePath)
+	nestedPaths := explainNestedFieldPaths(subject.Doc, subject.FieldRelativePath)
+
+	placement := &ExplainSchemaPlacement{}
+	if len(subject.AncestorTypes) > 0 {
+		placement.NestedYAMLPath = requestedPath
+		if rootPath != "" && rootPath != requestedPath {
+			placement.RootYAMLPath = rootPath
+		}
+		placement.NestedYAMLPaths = filterExplainPaths(nestedPaths, requestedPath)
+	} else {
+		placement.YAMLPath = requestedPath
+		placement.NestedYAMLPaths = filterExplainPaths(nestedPaths, requestedPath)
+	}
+
+	if !placement.hasAnyPath() {
+		return nil
+	}
+
+	return placement
+}
+
+func (s *ExplainSubject) isFieldTarget() bool {
+	return s != nil && !s.ResourceTarget
+}
+
+func (p *ExplainSchemaPlacement) hasAnyPath() bool {
+	return p != nil && (p.YAMLPath != "" || p.RootYAMLPath != "" || p.NestedYAMLPath != "" ||
+		len(p.NestedYAMLPaths) > 0)
+}
+
+func explainPlacementPath(steps []ExplainScaffoldStep, relativePath []string) string {
+	parts := make([]string, 0, len(steps)+len(relativePath))
+	for _, step := range steps {
+		name := step.Name
+		if step.Array {
+			name += "[]"
+		}
+		parts = append(parts, name)
+	}
+	parts = append(parts, relativePath...)
+	return strings.Join(parts, ".")
+}
+
+func explainRootFieldPath(doc *ExplainDoc, relativePath []string) string {
+	if doc == nil || !doc.SupportsRoot || doc.RootKey == "" {
+		return ""
+	}
+	parts := []string{doc.RootKey + "[]"}
+	parts = append(parts, relativePath...)
+	return strings.Join(parts, ".")
+}
+
+func explainNestedFieldPaths(doc *ExplainDoc, relativePath []string) []string {
+	if doc == nil || len(doc.ParentRelations) == 0 {
+		return nil
+	}
+	paths := make([]string, 0, len(doc.ParentRelations))
+	for _, relation := range doc.ParentRelations {
+		parts := []string{explainRelationParentPath(relation), relation.FieldName + "[]"}
+		parts = append(parts, relativePath...)
+		paths = append(paths, strings.Join(parts, "."))
+	}
+	slices.Sort(paths)
+	return slices.Compact(paths)
+}
+
+func explainRelationParentPath(relation ExplainRelation) string {
+	if relation.ParentRootKey != "" {
+		return relation.ParentRootKey + "[]"
+	}
+	return relation.ParentAlias
+}
+
+func filterExplainPaths(paths []string, current string) []string {
+	if len(paths) == 0 {
+		return nil
+	}
+	filtered := paths[:0]
+	for _, path := range paths {
+		if path == "" || path == current {
+			continue
+		}
+		filtered = append(filtered, path)
+	}
+	if len(filtered) == 0 {
+		return nil
+	}
+	return append([]string(nil), filtered...)
 }
 
 func RenderScaffoldYAML(subject *ExplainSubject) (string, error) {
