@@ -169,8 +169,6 @@ func shouldResolveExplainJQ(command *cobra.Command, outType cmdcommon.OutputForm
 	if flags == nil {
 		return false
 	}
-	if flags.Changed(jqoutput.FlagName) || flags.Changed(jqoutput.RawOutputFlagName) {
-		return true
-	}
-	return outType == cmdcommon.JSON || outType == cmdcommon.YAML
+	return flags.Changed(jqoutput.FlagName) || flags.Changed(jqoutput.RawOutputFlagName) ||
+		outType == cmdcommon.JSON || outType == cmdcommon.YAML
 }
