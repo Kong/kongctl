@@ -66,11 +66,16 @@ jobs:
       - name: Build kongctl
         run: make build-ci
 
-      - name: Upload kongctl binary
+      - name: Build E2E test binary
+        run: go test -c -tags=e2e -o e2e.test ./test/e2e
+
+      - name: Upload E2E binaries
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: e2e-kongctl-${{ github.run_id }}
-          path: ${{ github.workspace }}/kongctl
+          name: e2e-binaries-${{ github.run_id }}
+          path: |
+            ${{ github.workspace }}/kongctl
+            ${{ github.workspace }}/e2e.test
 
   e2e:
     name: E2E (${{ matrix.org_name }})
@@ -88,6 +93,7 @@ jobs:
       KONGCTL_ENABLE_EVENT_GATEWAY: "1"
       KONGCTL_E2E_MATRIX_ORG: ${{ matrix.org_name }}
       KONGCTL_E2E_BIN: ${{ github.workspace }}/kongctl
+      KONGCTL_E2E_TEST_BIN: ${{ github.workspace }}/e2e.test
       KONGCTL_E2E_KONNECT_PAT: ${{ secrets.KONGCTL_E2E_KONNECT_PAT }}
       KONGCTL_E2E_KONNECT_BASE_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_URL || 'https://us.api.konghq.com' }}
       # Reset is enabled by default in the harness; set explicitly for clarity
@@ -113,22 +119,17 @@ jobs:
       #   env:
       #     GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
 
-      - name: Setup Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
-        with:
-          go-version-file: go.mod
-
       - name: Setup deck
         uses: kong/setup-deck@c379e0f67ec1f1363247484a0c3142ae6168f811 # v1.6.0
 
-      - name: Download kongctl binary
+      - name: Download E2E binaries
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: e2e-kongctl-${{ github.run_id }}
+          name: e2e-binaries-${{ github.run_id }}
           path: ${{ github.workspace }}
 
-      - name: Make kongctl executable
-        run: chmod 0755 "${KONGCTL_E2E_BIN}"
+      - name: Make E2E binaries executable
+        run: chmod 0755 "${KONGCTL_E2E_BIN}" "${KONGCTL_E2E_TEST_BIN}"
 
       # If you later want runs to be opt-in via label, add a guard like this:
       # - name: Require opt-in label to run E2E
@@ -138,7 +139,18 @@ jobs:
 
       - name: Run E2E scenario tests (Konnect)
         run: |
-          make test-e2e-scenarios ${GOTESTFLAGS}
+          ART_DIR="${KONGCTL_E2E_ARTIFACTS_DIR}/$(date +%Y%m%d-%H%M%S)"
+          mkdir -p "${ART_DIR}"
+          export KONGCTL_E2E_ARTIFACTS_DIR="${ART_DIR}"
+
+          set +e
+          "${KONGCTL_E2E_TEST_BIN}" -test.v -test.count=1 -test.run '^Test_Scenarios$' ${GOTESTFLAGS} \
+            2>&1 | tee "${ART_DIR}/run.log"
+          code=${PIPESTATUS[0]}
+          set -e
+
+          echo "E2E artifacts: ${ART_DIR}"
+          exit "${code}"
 
       - name: Upload E2E artifacts
         if: always()
