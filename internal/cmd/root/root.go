@@ -53,7 +53,7 @@ var (
   Kong CLI is the official command line tool for Kong projects and products.
 
   Find more information at:
-   https://github.com/Kong/kongctl`))
+   https://developer.konghq.com/kongctl/`))
 
 	rootShort = i18n.T("root/rootShort", fmt.Sprintf("%s controls Kong", meta.CLIName))
 
