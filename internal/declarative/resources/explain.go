@@ -448,10 +448,6 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 
 	childRelations := explainNestedRelations(rt, reg.typ)
 	parentRelations := nestedRelationsFor(rt)
-	nestedFields := make(map[string]ResourceType)
-	for _, relation := range childRelations {
-		nestedFields[relation.FieldName] = ResourceType(relation.ChildAlias)
-	}
 
 	resourceClass := explainResourceClass(reg.typ, rootKey, parentRelations, childRelations)
 
@@ -1071,20 +1067,13 @@ func explainRelationParentPath(relation ExplainRelation) string {
 }
 
 func filterExplainPaths(paths []string, current string) []string {
-	if len(paths) == 0 {
-		return nil
-	}
-	filtered := paths[:0]
+	var filtered []string
 	for _, path := range paths {
-		if path == "" || path == current {
-			continue
+		if path != "" && path != current {
+			filtered = append(filtered, path)
 		}
-		filtered = append(filtered, path)
 	}
-	if len(filtered) == 0 {
-		return nil
-	}
-	return append([]string(nil), filtered...)
+	return filtered
 }
 
 func RenderScaffoldYAML(subject *ExplainSubject) (string, error) {
@@ -1152,11 +1141,11 @@ func renderScaffoldTrail(write scaffoldWriter, trail []ExplainScaffoldNode, dept
 		renderScaffoldObject(write, current.Node, depth+1, omit, false)
 	}
 	if len(trail) > 1 {
-		renderNestedTrail(write, trail[1:], depth+2, current.Node)
+		renderNestedTrail(write, trail[1:], depth+2)
 	}
 }
 
-func renderNestedTrail(write scaffoldWriter, trail []ExplainScaffoldNode, depth int, _ *ExplainNode) {
+func renderNestedTrail(write scaffoldWriter, trail []ExplainScaffoldNode, depth int) {
 	if len(trail) == 0 {
 		return
 	}
@@ -1175,7 +1164,7 @@ func renderNestedTrail(write scaffoldWriter, trail []ExplainScaffoldNode, depth 
 		renderScaffoldObject(write, current.Node, depth+1, omit, false)
 	}
 	if len(trail) > 1 {
-		renderNestedTrail(write, trail[1:], depth+2, current.Node)
+		renderNestedTrail(write, trail[1:], depth+2)
 	}
 }
 
@@ -1279,10 +1268,8 @@ func scaffoldLiteral(node *ExplainNode) string {
 		return node.Literal
 	}
 	switch node.Kind {
-	case "string":
-		return node.Literal
-	case "integer", "number", "boolean":
-		return node.Literal
+	case "string", "integer", "number", "boolean":
+		return ""
 	case "array":
 		if node.Items != nil {
 			return scaffoldLiteral(node.Items)

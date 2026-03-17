@@ -2,6 +2,7 @@ package scaffold
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -15,7 +16,8 @@ import (
 )
 
 const (
-	Verb = verbs.Scaffold
+	Verb                    = verbs.Scaffold
+	outputFlagUnsupportedMsg = "flags -o/--" + cmdcommon.OutputFlagName + " are not supported for the scaffold command"
 )
 
 var (
@@ -55,14 +57,10 @@ func NewScaffoldCmd() (*cobra.Command, error) {
 		RunE: runScaffold,
 	}
 
-	outputFlagMsg := fmt.Sprintf(
-		"flags -o/--%s are not supported for the scaffold command",
-		cmdcommon.OutputFlagName,
-	)
 	cmd.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
-		if strings.Contains(err.Error(), fmt.Sprintf("--%s", cmdcommon.OutputFlagName)) ||
-			strings.Contains(err.Error(), fmt.Sprintf("-%s", cmdcommon.OutputFlagShort)) {
-			return fmt.Errorf("%s", outputFlagMsg)
+		if strings.Contains(err.Error(), "--"+cmdcommon.OutputFlagName) ||
+			strings.Contains(err.Error(), "-"+cmdcommon.OutputFlagShort) {
+			return errors.New(outputFlagUnsupportedMsg)
 		}
 		return err
 	})
@@ -74,7 +72,7 @@ func runScaffold(command *cobra.Command, args []string) error {
 	command.SilenceUsage = true
 
 	if outputFlag := command.Flag(cmdcommon.OutputFlagName); outputFlag != nil && outputFlag.Changed {
-		return fmt.Errorf("flags -o/--%s are not supported for the scaffold command", cmdcommon.OutputFlagName)
+		return errors.New(outputFlagUnsupportedMsg)
 	}
 
 	subject, err := resources.ResolveExplainSubject(args[0])
