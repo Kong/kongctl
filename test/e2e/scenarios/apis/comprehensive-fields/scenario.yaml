@@ -66,6 +66,24 @@ steps:
                 labels."KONGCTL-namespace": "apis-comprehensive"
                 attributes.domains[0]: "web"
                 attributes.environments[0]: "dev"
+      - name: 002-get-api-attributes
+        run: ["get", "api", "attributes", "--api-name", "API Top Level", "-o", "json"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "domains | length(@)": 1
+                "domains[?@=='web'] | length(@)": 1
+                "environments | length(@)": 1
+                "environments[?@=='dev'] | length(@)": 1
+      - name: 003-get-api-attributes-domains
+        run: ["get", "api", "attributes", "--api-name", "API Top Level", "domains", "-o", "json"]
+        assertions:
+          - select: "domains"
+            expect:
+              fields:
+                "length(@)": 1
+                "[?@=='web'] | length(@)": 1
 
   - name: 002-apply-update
     inputOverlayDirs:
@@ -124,6 +142,15 @@ steps:
                 "attributes.environments | length(@)": 2
                 "attributes.environments[?@=='staging'] | length(@)": 1
                 "attributes.environments[?@=='prod'] | length(@)": 1
+      - name: 002-get-api-attributes-domains
+        run: ["get", "api", "attributes", "--api-name", "API Top Level", "domains", "-o", "json"]
+        assertions:
+          - select: "domains"
+            expect:
+              fields:
+                "length(@)": 2
+                "[?@=='web'] | length(@)": 1
+                "[?@=='mobile'] | length(@)": 1
 
   - name: 003-sync-delete
     inputOverlayDirs:
