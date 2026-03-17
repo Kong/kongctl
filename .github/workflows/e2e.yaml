@@ -33,8 +33,26 @@ on:
         default: false
 
 jobs:
+  e2e-harness:
+    name: E2E Harness
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: go.mod
+
+      - name: Run E2E harness tests
+        run: |
+          go test -count=1 -tags=e2e ./test/e2e/harness/...
+
   e2e:
     name: E2E (${{ matrix.org_name }})
+    needs: e2e-harness
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: ${{ matrix.org_name }}
@@ -45,6 +63,7 @@ jobs:
     env:
       KONGCTL_ENABLE_EVENT_GATEWAY: "1"
       KONGCTL_E2E_MATRIX_ORG: ${{ matrix.org_name }}
+      KONGCTL_E2E_BIN: ${{ github.workspace }}/kongctl
       KONGCTL_E2E_KONNECT_PAT: ${{ secrets.KONGCTL_E2E_KONNECT_PAT }}
       KONGCTL_E2E_KONNECT_BASE_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_URL || 'https://us.api.konghq.com' }}
       # Reset is enabled by default in the harness; set explicitly for clarity
@@ -88,9 +107,9 @@ jobs:
       - name: Build
         run: make build
 
-      - name: Run E2E tests (Konnect)
+      - name: Run E2E scenario tests (Konnect)
         run: |
-          make test-e2e ${GOTESTFLAGS}
+          make test-e2e-scenarios ${GOTESTFLAGS}
 
       - name: Upload E2E artifacts
         if: always()
