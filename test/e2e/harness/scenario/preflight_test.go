@@ -195,3 +195,36 @@ func TestSkipScenarioReason(t *testing.T) {
 		}
 	})
 }
+
+func TestScenarioRequiresPAT(t *testing.T) {
+	t.Run("default requires pat", func(t *testing.T) {
+		scenario := Scenario{}
+		if got := scenarioRequiresPAT(scenario); !got {
+			t.Fatalf("scenarioRequiresPAT(default) = %v, want true", got)
+		}
+	})
+
+	t.Run("explicit true", func(t *testing.T) {
+		requiresPAT := true
+		scenario := Scenario{
+			Test: ScenarioTest{
+				RequiresPAT: &requiresPAT,
+			},
+		}
+		if got := scenarioRequiresPAT(scenario); !got {
+			t.Fatalf("scenarioRequiresPAT(true) = %v, want true", got)
+		}
+	})
+
+	t.Run("explicit false", func(t *testing.T) {
+		requiresPAT := false
+		scenario := Scenario{
+			Test: ScenarioTest{
+				RequiresPAT: &requiresPAT,
+			},
+		}
+		if got := scenarioRequiresPAT(scenario); got {
+			t.Fatalf("scenarioRequiresPAT(false) = %v, want false", got)
+		}
+	})
+}

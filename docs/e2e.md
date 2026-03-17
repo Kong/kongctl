@@ -234,7 +234,8 @@ The harness keeps artifacts by default for local debugging and CI upload.
 The E2E GitHub Actions workflow scales wall-clock time by running one matrix
 job per Konnect org. Each job gets:
 
-- one PAT and base URL pair
+- one environment-scoped PAT
+- the shared Konnect base URL from the repository variable
 - one shard index
 - the common shard total from the matrix size
 
@@ -250,20 +251,25 @@ The org pool is defined as JSON in the repository or organization variable
 [
   {
     "org_name": "kongctl-e2e-us-1",
-    "pat_secret": "KONGCTL_E2E_KONNECT_PAT_US_1",
-    "base_url_secret": "KONGCTL_E2E_KONNECT_BASE_URL_US_1"
+    "environment_name": "kongctl-e2e-us-1"
   },
   {
     "org_name": "kongctl-e2e-us-2",
-    "pat_secret": "KONGCTL_E2E_KONNECT_PAT_US_2",
-    "base_url_secret": "KONGCTL_E2E_KONNECT_BASE_URL_US_2"
+    "environment_name": "kongctl-e2e-us-2"
   }
 ]
 ```
 
-If the variable is unset, the workflow falls back to a single-org matrix using
-the existing `KONGCTL_E2E_KONNECT_PAT` and `KONGCTL_E2E_KONNECT_BASE_URL`
-secrets.
+Each referenced GitHub Actions environment should define the secret
+`KONGCTL_E2E_KONNECT_PAT`.
+
+Set the shared Konnect API endpoint as the repository or organization variable
+`KONGCTL_E2E_KONNECT_BASE_URL`.
+
+If the org-pool variable is unset, the workflow falls back to a single-org
+matrix entry named `default`, which is useful during migration if you still
+have a `default` environment or a temporary repository-level
+`KONGCTL_E2E_KONNECT_PAT` secret in place.
 
 ### SDK Prerelease Preview Automation
 

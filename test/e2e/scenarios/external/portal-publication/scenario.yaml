@@ -39,7 +39,7 @@ steps:
           - json
         recordVar:
           name: platformPortalID
-          responsePath: "[?name=='Platform Shared Portal'] | [0].id"
+          responsePath: "[?name=='{{ .vars.platformPortalName }}'] | [0].id"
         assertions:
           - select: "[?name=='{{ .vars.platformPortalName }}'] | [0]"
             expect:
@@ -78,7 +78,7 @@ steps:
           - json
         recordVar:
           name: teamAPIID
-          responsePath: "[?name=='Test API'] | [0].id"
+          responsePath: "[?name=='{{ .vars.teamAPIName }}'] | [0].id"
         assertions:
           - select: "[?name=='{{ .vars.teamAPIName }}'] | [0]"
             expect:
