@@ -2748,7 +2748,8 @@ func (p *Planner) planPortalSnippetsChanges(
 		}
 	}
 
-	// In SYNC mode: Delete snippets not in desired state
+	// In sync mode, delete undeclared snippets only for managed portals.
+	// External portals are managed elsewhere, so we avoid destructive pruning.
 	if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
 		for _, existingSnippet := range existingSnippets {
 			if !desiredNames[existingSnippet.Name] {
