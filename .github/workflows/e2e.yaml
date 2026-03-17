@@ -50,8 +50,8 @@ jobs:
       # Reset is enabled by default in the harness; set explicitly for clarity
       KONGCTL_E2E_RESET: "1"
       KONGCTL_E2E_LOG_LEVEL: "debug"
-      # Keep debug logs in artifacts while reducing console noise
-      KONGCTL_E2E_CONSOLE_LOG_LEVEL: "warn"
+      # Keep debug logs in artifacts while surfacing live progress in CI
+      KONGCTL_E2E_CONSOLE_LOG_LEVEL: "info"
       KONGCTL_E2E_ARTIFACTS_DIR: ${{ github.workspace }}/.e2e-artifacts/${{ github.run_id }}-${{ matrix.org_name }}
       KONGCTL_E2E_SHARD_INDEX: ${{ strategy.job-index }}
       KONGCTL_E2E_SHARD_TOTAL: ${{ strategy.job-total }}
