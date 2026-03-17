@@ -1,0 +1,16 @@
+test:
+  requiresPAT: false
+
+steps:
+  - name: 000-version
+    skipInputs: true
+    commands:
+      - name: 000-version-full
+        run:
+          - version
+          - --full
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(version) > `0`": true

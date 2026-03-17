@@ -4,7 +4,8 @@ Overview
 
 - Author end-to-end tests as text-only scenarios: a base input config, step overlays, a sequence of kongctl commands per step, and simple assertions against expected files.
 - Assertions use the JSON stdout of a command (or a shorthand get) plus a selector and masking to compare against an expected file (optionally merged with small overlays).
-- This document specifies the minimal schema and includes a concrete example mirrored from the existing declarative_general_test.go.
+- This document specifies the minimal schema and includes a concrete example
+  mirrored from the scenario-first portal visibility flow.
 
 Quickstart
 
@@ -38,6 +39,9 @@ Schema (YAML)
 - log-level: optional default `kongctl` log level for every command (trace|debug|info|warn|error)
 - env: map of environment variables to pass to kongctl
 - vars: free-form variables usable in templates (e.g., for selectors or overlay files)
+- test:
+  - enabledByEnvVar: optional opt-in env gate for the scenario
+  - requiresPAT: optional boolean, defaults to true
 - defaults:
   - retry:
       attempts: int
@@ -185,7 +189,7 @@ Artifacts Per Assertion
 - select.txt: the JMESPath selector used (after templating) to derive observed.json
 - result.txt: first line pass|fail, separator, then a human-readable diff ("(no diff)" when equal)
 
-Example Scenario (Based on declarative_general_test.go)
+Example Scenario
 
 See: test/e2e/scenarios/portal/visibility/scenario.yaml
 

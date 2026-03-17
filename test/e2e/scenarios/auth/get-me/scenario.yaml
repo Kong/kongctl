@@ -1,0 +1,18 @@
+test:
+  enabledByEnvVar: KONGCTL_E2E_RUN_USER_ME
+  info: Set KONGCTL_E2E_RUN_USER_ME=1 to include the user profile smoke test.
+
+steps:
+  - name: 000-get-me
+    skipInputs: true
+    commands:
+      - name: 000-get-me
+        run:
+          - get
+          - me
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(id) > `0`": true
+                "contains(email, '@')": true

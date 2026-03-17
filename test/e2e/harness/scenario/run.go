@@ -43,7 +43,9 @@ func Run(t *testing.T, scenarioPath string) error {
 	}
 
 	harness.RequireBinary(t)
-	_ = harness.RequirePAT(t, "e2e")
+	if scenarioRequiresPAT(s) {
+		_ = harness.RequirePAT(t, "e2e")
+	}
 
 	cli, err := harness.NewCLIT(t)
 	if err != nil {
@@ -545,6 +547,13 @@ func Run(t *testing.T, scenarioPath string) error {
 	}
 
 	return nil
+}
+
+func scenarioRequiresPAT(s Scenario) bool {
+	if s.Test.RequiresPAT == nil {
+		return true
+	}
+	return *s.Test.RequiresPAT
 }
 
 func prepareCreatePayload(spec *CreateSpec, scenarioPath string, tmplCtx map[string]any) ([]byte, error) {

@@ -3,8 +3,11 @@
 package e2e
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -34,13 +37,50 @@ func Test_Scenarios(t *testing.T) {
 		t.Skip("no scenarios found")
 		return
 	}
-	// Optional filter: KONGCTL_E2E_SCENARIO exact match on scenario directory
-	filt := os.Getenv("KONGCTL_E2E_SCENARIO")
+
+	sort.Strings(scenarios)
+
+	// Optional filter: KONGCTL_E2E_SCENARIO exact match on scenario directory.
+	// When a specific scenario is selected, bypass sharding to keep local
+	// iteration predictable.
+	filt := strings.TrimSpace(os.Getenv("KONGCTL_E2E_SCENARIO"))
+	shard, err := loadScenarioShard()
+	if err != nil {
+		t.Fatalf("invalid e2e shard configuration: %v", err)
+	}
+
+	selected := make([]string, 0, len(scenarios))
 	for _, p := range scenarios {
-		p := p
 		if filt != "" && !scenarioMatches(p, filt) {
 			continue
 		}
+		selected = append(selected, p)
+	}
+
+	if filt == "" && shard.Enabled {
+		sharded := make([]string, 0, len(selected))
+		for i, p := range selected {
+			if i%shard.Total == shard.Index {
+				sharded = append(sharded, p)
+			}
+		}
+		selected = sharded
+	}
+
+	if len(selected) == 0 {
+		switch {
+		case filt != "":
+			t.Skipf("no scenarios matched filter %q", filt)
+		case shard.Enabled:
+			t.Skipf("no scenarios assigned to shard %d/%d", shard.Index, shard.Total)
+		default:
+			t.Skip("no scenarios found")
+		}
+		return
+	}
+
+	for _, p := range selected {
+		p := p
 		t.Run(p, func(t *testing.T) {
 			if err := scenario.Run(t, p); err != nil {
 				t.Fatalf("scenario failed: %v", err)
@@ -79,4 +119,45 @@ func scenarioMatches(scenarioPath, filter string) bool {
 	normFilter = strings.TrimPrefix(normFilter, "test/e2e/scenarios/")
 
 	return scenarioDir == normFilter
+}
+
+type scenarioShard struct {
+	Enabled bool
+	Index   int
+	Total   int
+}
+
+func loadScenarioShard() (scenarioShard, error) {
+	indexRaw := strings.TrimSpace(os.Getenv("KONGCTL_E2E_SHARD_INDEX"))
+	totalRaw := strings.TrimSpace(os.Getenv("KONGCTL_E2E_SHARD_TOTAL"))
+	if indexRaw == "" && totalRaw == "" {
+		return scenarioShard{}, nil
+	}
+	if indexRaw == "" || totalRaw == "" {
+		return scenarioShard{}, fmt.Errorf("both KONGCTL_E2E_SHARD_INDEX and KONGCTL_E2E_SHARD_TOTAL must be set")
+	}
+
+	index, err := strconv.Atoi(indexRaw)
+	if err != nil {
+		return scenarioShard{}, fmt.Errorf("parse KONGCTL_E2E_SHARD_INDEX: %w", err)
+	}
+	total, err := strconv.Atoi(totalRaw)
+	if err != nil {
+		return scenarioShard{}, fmt.Errorf("parse KONGCTL_E2E_SHARD_TOTAL: %w", err)
+	}
+	if total < 1 {
+		return scenarioShard{}, fmt.Errorf("KONGCTL_E2E_SHARD_TOTAL must be >= 1")
+	}
+	if index < 0 || index >= total {
+		return scenarioShard{}, fmt.Errorf(
+			"KONGCTL_E2E_SHARD_INDEX must be between 0 and %d inclusive",
+			total-1,
+		)
+	}
+
+	return scenarioShard{
+		Enabled: true,
+		Index:   index,
+		Total:   total,
+	}, nil
 }
