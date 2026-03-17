@@ -52,7 +52,7 @@ jobs:
       KONGCTL_E2E_LOG_LEVEL: "debug"
       # Keep debug logs in artifacts while reducing console noise
       KONGCTL_E2E_CONSOLE_LOG_LEVEL: "warn"
-      KONGCTL_E2E_ARTIFACTS_DIR: ${{ runner.temp }}/kongctl-e2e-${{ github.run_id }}-${{ matrix.org_name }}
+      KONGCTL_E2E_ARTIFACTS_DIR: ${{ github.workspace }}/.e2e-artifacts/${{ github.run_id }}-${{ matrix.org_name }}
       KONGCTL_E2E_SHARD_INDEX: ${{ strategy.job-index }}
       KONGCTL_E2E_SHARD_TOTAL: ${{ strategy.job-total }}
       KONGCTL_E2E_RUN_PORTAL_APPLICATIONS: ${{ github.event_name == 'workflow_dispatch' && inputs.run_portal_applications && '1' || '' }}
