@@ -94,6 +94,9 @@ steps:
                 slug: "guides"
                 visibility: "public"
                 status: "published"
+          # Record the parent page ID for hierarchy validation
+          - select: "[?slug=='guides'] | [0].id"
+            recordVar: guidesPageId
           # Child page nested inside the parent's children list
           - select: "[?slug=='guides'] | [0].children[?slug=='getting-started'] | [0]"
             expect:
@@ -102,8 +105,8 @@ steps:
                 slug: "getting-started"
                 visibility: "public"
                 status: "published"
-                # Child page must reference its parent (hierarchy validation)
-                "parent_page_id != null": true
+                # Child page must reference its actual parent (hierarchy validation)
+                parent_page_id: "{{ .vars.guidesPageId }}"
 
   - name: 002-plan-apply-update-page
     inputOverlayDirs:
