@@ -207,7 +207,7 @@ func Run(t *testing.T, scenarioPath string) error {
 						snippet,
 					)
 				}
-				if err := maybeRecordVar(&s, cmd.RecordVar, parentData.Value(), step); err != nil {
+				if err := maybeRecordVar(&s, cmd.RecordVar, parentData.Value(), tmplCtx, step); err != nil {
 					return fmt.Errorf("command %s recordVar failed: %w", cmdName, err)
 				}
 				if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName, envOverrides); err != nil {
@@ -262,7 +262,7 @@ func Run(t *testing.T, scenarioPath string) error {
 						},
 					)
 					if lastErr == nil {
-						if err := maybeRecordVar(&s, cmd.Create.RecordVar, result.Parsed, step); err != nil {
+						if err := maybeRecordVar(&s, cmd.Create.RecordVar, result.Parsed, tmplCtx, step); err != nil {
 							return fmt.Errorf("command %s recordVar failed: %w", cmdName, err)
 						}
 						step.AppendCheck(
@@ -361,7 +361,7 @@ func Run(t *testing.T, scenarioPath string) error {
 						},
 					)
 					if lastErr == nil {
-						if err := maybeRecordVar(&s, cmd.Delete.RecordVar, result.Parsed, step); err != nil {
+						if err := maybeRecordVar(&s, cmd.Delete.RecordVar, result.Parsed, tmplCtx, step); err != nil {
 							return fmt.Errorf("command %s recordVar failed: %w", cmdName, err)
 						}
 						step.AppendCheck(
@@ -532,7 +532,7 @@ func Run(t *testing.T, scenarioPath string) error {
 				return fmt.Errorf("command %s produced unparsable output: %w", cmdName, err)
 			}
 
-			if err := maybeRecordVar(&s, cmd.RecordVar, parentData.Value(), step); err != nil {
+			if err := maybeRecordVar(&s, cmd.RecordVar, parentData.Value(), tmplCtx, step); err != nil {
 				return fmt.Errorf("command %s recordVar failed: %w", cmdName, err)
 			}
 			if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName, envOverrides); err != nil {
@@ -625,7 +625,7 @@ func prepareEndpointParams(endpointParams map[string]string, tmplCtx map[string]
 	return resolved, nil
 }
 
-func maybeRecordVar(s *Scenario, spec *RecordVar, parsed any, step *harness.Step) error {
+func maybeRecordVar(s *Scenario, spec *RecordVar, parsed any, tmplCtx map[string]any, step *harness.Step) error {
 	if spec == nil {
 		return nil
 	}
@@ -635,7 +635,7 @@ func maybeRecordVar(s *Scenario, spec *RecordVar, parsed any, step *harness.Step
 	if parsed == nil {
 		return fmt.Errorf("response body missing for recordVar %q", spec.Name)
 	}
-	path := strings.TrimSpace(spec.ResponsePath)
+	path := strings.TrimSpace(renderString(spec.ResponsePath, tmplCtx))
 	if path == "" {
 		path = "id"
 	}
