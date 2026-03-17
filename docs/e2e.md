@@ -249,19 +249,13 @@ The org pool is defined as JSON in the repository or organization variable
 
 ```json
 [
-  {
-    "org_name": "kongctl-e2e-us-1",
-    "environment_name": "kongctl-e2e-us-1"
-  },
-  {
-    "org_name": "kongctl-e2e-us-2",
-    "environment_name": "kongctl-e2e-us-2"
-  }
+  { "org_name": "kongctl-e2e-us-1" },
+  { "org_name": "kongctl-e2e-us-2" }
 ]
 ```
 
-Each referenced GitHub Actions environment should define the secret
-`KONGCTL_E2E_KONNECT_PAT`.
+Each `org_name` must match a GitHub Actions environment that defines the
+secret `KONGCTL_E2E_KONNECT_PAT`.
 
 Set the shared Konnect API endpoint as the repository or organization variable
 `KONGCTL_E2E_KONNECT_BASE_URL`.
