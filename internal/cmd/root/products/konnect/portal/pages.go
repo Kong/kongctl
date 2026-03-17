@@ -401,7 +401,9 @@ func flattenPortalPages(pages []kkComps.PortalPageInfo) []kkComps.PortalPageInfo
 func findPageBySlugOrTitle(pages []kkComps.PortalPageInfo, identifier string) *kkComps.PortalPageInfo {
 	lowered := strings.ToLower(normalizePortalPageSlugValue(identifier))
 	for _, page := range pages {
-		if strings.ToLower(normalizePortalPageSlugValue(page.GetSlug())) == lowered || strings.ToLower(page.GetTitle()) == lowered {
+		pageSlug := strings.ToLower(normalizePortalPageSlugValue(page.GetSlug()))
+		pageTitle := strings.ToLower(page.GetTitle())
+		if pageSlug == lowered || pageTitle == lowered {
 			pageCopy := page
 			return &pageCopy
 		}
