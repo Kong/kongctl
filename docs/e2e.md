@@ -244,6 +244,16 @@ The workflow derives sharding directly from GitHub Actions strategy context:
 - `KONGCTL_E2E_SHARD_INDEX=${{ strategy.job-index }}`
 - `KONGCTL_E2E_SHARD_TOTAL=${{ strategy.job-total }}`
 
+Each matrix leg writes an `assigned-scenarios.txt` manifest into its artifact
+directory. A final `E2E Verify` job downloads those manifests and fails unless:
+
+- every shard index from `0` through `KONGCTL_E2E_SHARD_TOTAL-1` appears once
+- no scenario appears in more than one shard manifest
+- the combined manifest set matches the full discovered scenario list
+
+That verification step is the guardrail that keeps sharding regressions from
+silently dropping or duplicating scenario coverage.
+
 The org pool is defined as JSON in the repository or organization variable
 `KONGCTL_E2E_ORGS_JSON`. Example:
 

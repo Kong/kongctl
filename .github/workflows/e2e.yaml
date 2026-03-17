@@ -158,3 +158,99 @@ jobs:
         with:
           name: e2e-artifacts-${{ github.run_id }}-${{ matrix.org_name }}
           path: ${{ env.KONGCTL_E2E_ARTIFACTS_DIR }}
+
+  e2e-verify:
+    name: E2E Verify
+    needs:
+      - e2e
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Download workflow artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: ${{ github.workspace }}/.downloaded-artifacts
+
+      - name: Verify shard coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          expected="$(mktemp)"
+          actual="$(mktemp)"
+          indices="$(mktemp)"
+          totals="$(mktemp)"
+
+          find test/e2e/scenarios -name scenario.yaml -type f | \
+            sed 's#^test/e2e/scenarios/##' | sort > "${expected}"
+
+          mapfile -t manifests < <(find .downloaded-artifacts -name assigned-scenarios.txt -type f | sort)
+          if [ "${#manifests[@]}" -eq 0 ]; then
+            echo "::error::No shard manifests were uploaded by the matrix jobs."
+            exit 1
+          fi
+
+          : > "${actual}"
+          : > "${indices}"
+          : > "${totals}"
+
+          for manifest in "${manifests[@]}"; do
+            index="$(sed -n '1s/^shard_index=//p' "${manifest}")"
+            total="$(sed -n '2s/^shard_total=//p' "${manifest}")"
+            if [ -z "${index}" ] || [ -z "${total}" ]; then
+              echo "::error::Malformed shard manifest: ${manifest}"
+              exit 1
+            fi
+
+            printf '%s\n' "${index}" >> "${indices}"
+            printf '%s\n' "${total}" >> "${totals}"
+            tail -n +4 "${manifest}" >> "${actual}"
+          done
+
+          sort -n -u "${totals}" > "${totals}.unique"
+          if [ "$(wc -l < "${totals}.unique" | tr -d ' ')" -ne 1 ]; then
+            echo "::error::Shard manifests reported inconsistent shard totals."
+            cat "${totals}.unique"
+            exit 1
+          fi
+
+          total="$(cat "${totals}.unique")"
+          manifest_count="$(wc -l < "${indices}" | tr -d ' ')"
+          if [ "${manifest_count}" -ne "${total}" ]; then
+            echo "::error::Expected ${total} shard manifests, found ${manifest_count}."
+            exit 1
+          fi
+
+          sort -n "${indices}" > "${indices}.sorted"
+          duplicate_indices="$(uniq -d "${indices}.sorted" || true)"
+          if [ -n "${duplicate_indices}" ]; then
+            echo "::error::Duplicate shard indices detected:"
+            printf '%s\n' "${duplicate_indices}"
+            exit 1
+          fi
+
+          seq 0 "$((total - 1))" > "${indices}.expected"
+          if ! diff -u "${indices}.expected" "${indices}.sorted"; then
+            echo "::error::Shard indices were not assigned exactly once."
+            exit 1
+          fi
+
+          sort "${actual}" -o "${actual}"
+          duplicate_scenarios="$(uniq -d "${actual}" || true)"
+          if [ -n "${duplicate_scenarios}" ]; then
+            echo "::error::Scenarios were assigned to multiple shards:"
+            printf '%s\n' "${duplicate_scenarios}"
+            exit 1
+          fi
+
+          if ! diff -u "${expected}" "${actual}"; then
+            echo "::error::Scenario coverage mismatch across shard manifests."
+            exit 1
+          fi
+
+          scenario_count="$(wc -l < "${actual}" | tr -d ' ')"
+          echo "Verified ${scenario_count} scenarios across ${total} shards."
