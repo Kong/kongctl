@@ -1,0 +1,32 @@
+_defaults:
+  kongctl:
+    namespace: portal-pages-lifecycle
+
+portals:
+  - ref: pages-portal
+    name: "pages-portal"
+    display_name: "Pages Lifecycle Portal"
+    description: "Portal for testing page create, update, and sync-delete lifecycle"
+    authentication_enabled: false
+    rbac_enabled: false
+    auto_approve_developers: false
+    auto_approve_applications: false
+    default_page_visibility: "public"
+    kongctl:
+      namespace: portal-pages-lifecycle
+    pages:
+      - ref: guides-page
+        slug: "guides"
+        title: "Guides"
+        description: "Step-by-step guides for our platform"
+        visibility: "public"
+        status: "published"
+        content: !file ./pages/guides.md
+        children:
+          - ref: getting-started-page
+            slug: "getting-started"
+            title: "Getting Started"
+            description: "A quick-start guide for new users"
+            visibility: "public"
+            status: "published"
+            content: !file ./pages/getting-started.md
