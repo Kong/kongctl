@@ -180,77 +180,102 @@ jobs:
         run: |
           set -euo pipefail
 
+          summary_file="${GITHUB_STEP_SUMMARY:-}"
+          summary_rows="$(mktemp)"
           expected="$(mktemp)"
           actual="$(mktemp)"
           indices="$(mktemp)"
           totals="$(mktemp)"
+
+          fail() {
+            local message="$1"
+            echo "::error::${message}"
+            if [ -n "${summary_file}" ]; then
+              {
+                echo "## E2E Verify"
+                echo
+                echo "- Status: failed"
+                echo "- Reason: ${message}"
+              } >> "${summary_file}"
+            fi
+            exit 1
+          }
 
           find test/e2e/scenarios -name scenario.yaml -type f | \
             sed 's#^test/e2e/scenarios/##' | sort > "${expected}"
 
           mapfile -t manifests < <(find .downloaded-artifacts -name assigned-scenarios.txt -type f | sort)
           if [ "${#manifests[@]}" -eq 0 ]; then
-            echo "::error::No shard manifests were uploaded by the matrix jobs."
-            exit 1
+            fail "No shard manifests were uploaded by the matrix jobs."
           fi
 
           : > "${actual}"
           : > "${indices}"
           : > "${totals}"
+          : > "${summary_rows}"
 
           for manifest in "${manifests[@]}"; do
             index="$(sed -n '1s/^shard_index=//p' "${manifest}")"
             total="$(sed -n '2s/^shard_total=//p' "${manifest}")"
             if [ -z "${index}" ] || [ -z "${total}" ]; then
-              echo "::error::Malformed shard manifest: ${manifest}"
-              exit 1
+              fail "Malformed shard manifest: ${manifest}"
             fi
+
+            scenario_rows="$(tail -n +4 "${manifest}" | sed '/^$/d' | tee -a "${actual}" | wc -l | tr -d ' ')"
+            artifact_name="$(basename "$(dirname "$(dirname "${manifest}")")")"
+            org_name="${artifact_name#e2e-artifacts-${GITHUB_RUN_ID}-}"
 
             printf '%s\n' "${index}" >> "${indices}"
             printf '%s\n' "${total}" >> "${totals}"
-            tail -n +4 "${manifest}" >> "${actual}"
+            printf '%s\t%s\t%s\n' "${index}" "${org_name}" "${scenario_rows}" >> "${summary_rows}"
           done
 
           sort -n -u "${totals}" > "${totals}.unique"
           if [ "$(wc -l < "${totals}.unique" | tr -d ' ')" -ne 1 ]; then
-            echo "::error::Shard manifests reported inconsistent shard totals."
-            cat "${totals}.unique"
-            exit 1
+            fail "Shard manifests reported inconsistent shard totals."
           fi
 
           total="$(cat "${totals}.unique")"
           manifest_count="$(wc -l < "${indices}" | tr -d ' ')"
           if [ "${manifest_count}" -ne "${total}" ]; then
-            echo "::error::Expected ${total} shard manifests, found ${manifest_count}."
-            exit 1
+            fail "Expected ${total} shard manifests, found ${manifest_count}."
           fi
 
           sort -n "${indices}" > "${indices}.sorted"
           duplicate_indices="$(uniq -d "${indices}.sorted" || true)"
           if [ -n "${duplicate_indices}" ]; then
-            echo "::error::Duplicate shard indices detected:"
-            printf '%s\n' "${duplicate_indices}"
-            exit 1
+            fail "Duplicate shard indices detected: ${duplicate_indices}"
           fi
 
           seq 0 "$((total - 1))" > "${indices}.expected"
           if ! diff -u "${indices}.expected" "${indices}.sorted"; then
-            echo "::error::Shard indices were not assigned exactly once."
-            exit 1
+            fail "Shard indices were not assigned exactly once."
           fi
 
           sort "${actual}" -o "${actual}"
           duplicate_scenarios="$(uniq -d "${actual}" || true)"
           if [ -n "${duplicate_scenarios}" ]; then
-            echo "::error::Scenarios were assigned to multiple shards:"
-            printf '%s\n' "${duplicate_scenarios}"
-            exit 1
+            fail "Scenarios were assigned to multiple shards: ${duplicate_scenarios}"
           fi
 
           if ! diff -u "${expected}" "${actual}"; then
-            echo "::error::Scenario coverage mismatch across shard manifests."
-            exit 1
+            fail "Scenario coverage mismatch across shard manifests."
           fi
 
           scenario_count="$(wc -l < "${actual}" | tr -d ' ')"
+          if [ -n "${summary_file}" ]; then
+            {
+              echo "## E2E Verify"
+              echo
+              echo "- Status: passed"
+              echo "- Shards: ${total}"
+              echo "- Scenarios: ${scenario_count}"
+              echo
+              echo "| Shard | Org | Assigned Scenarios |"
+              echo "| --- | --- | ---: |"
+            } >> "${summary_file}"
+            while IFS=$'\t' read -r index org_name assigned_count; do
+              printf '| %s | %s | %s |\n' "${index}" "${org_name}" "${assigned_count}" >> "${summary_file}"
+            done < <(sort -n "${summary_rows}")
+          fi
           echo "Verified ${scenario_count} scenarios across ${total} shards."
