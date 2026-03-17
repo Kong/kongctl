@@ -2714,10 +2714,12 @@ func (p *Planner) planPortalSnippetsChanges(
 	}
 
 	// Process desired snippets
+	desiredNames := make(map[string]bool)
 	for _, desiredSnippet := range desired {
 		if plan.HasChange("portal_snippet", desiredSnippet.GetRef()) {
 			continue
 		}
+		desiredNames[desiredSnippet.Name] = true
 		// Check if snippet exists by name
 		if existingSnippet, exists := existingSnippets[desiredSnippet.Name]; exists {
 			// Check if UPDATE is needed - must fetch full content first
@@ -2746,7 +2748,59 @@ func (p *Planner) planPortalSnippetsChanges(
 		}
 	}
 
+	// In SYNC mode: Delete snippets not in desired state
+	if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
+		for _, existingSnippet := range existingSnippets {
+			if !desiredNames[existingSnippet.Name] {
+				p.planPortalSnippetDelete(parentNamespace, portalRef, portalID, existingSnippet, plan)
+			}
+		}
+	}
+
 	return nil
+}
+
+func (p *Planner) planPortalSnippetDelete(
+	parentNamespace string, portalRef string, portalID string, snippet state.PortalSnippet, plan *Plan,
+) {
+	change := PlannedChange{
+		ID:           p.nextChangeID(ActionDelete, ResourceTypePortalSnippet, snippet.Name),
+		ResourceType: ResourceTypePortalSnippet,
+		ResourceRef:  snippet.Name,
+		ResourceID:   snippet.ID,
+		Action:       ActionDelete,
+		Fields:       map[string]any{"name": snippet.Name},
+		Namespace:    parentNamespace,
+	}
+
+	// Store parent portal reference
+	if portalRef != "" {
+		var portalName string
+		for _, portal := range p.desiredPortals {
+			if portal.Ref == portalRef {
+				portalName = portal.Name
+				break
+			}
+		}
+
+		if portalID != "" {
+			change.Parent = &ParentInfo{
+				Ref: portalRef,
+				ID:  portalID,
+			}
+		} else {
+			change.References = map[string]ReferenceInfo{
+				"portal_id": {
+					Ref: portalRef,
+					LookupFields: map[string]string{
+						"name": portalName,
+					},
+				},
+			}
+		}
+	}
+
+	plan.AddChange(change)
 }
 
 func (p *Planner) planPortalSnippetCreate(

@@ -12,11 +12,11 @@ portals:
     snippets:
       - ref: snippet-banner
         name: snippet-banner
-        title: "Welcome Banner"
-        description: "A welcome banner shown on the portal home page."
-        visibility: "public"
-        status: "published"
-        content: !file ./snippets/banner.md
+        title: "Updated Welcome Banner"
+        description: "An updated welcome banner with new styling."
+        visibility: "private"
+        status: "unpublished"
+        content: !file ./snippets/banner-updated.md
 
       - ref: snippet-nav
         name: snippet-nav
