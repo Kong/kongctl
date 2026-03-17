@@ -44,9 +44,13 @@ func Test_Scenarios(t *testing.T) {
 	// When a specific scenario is selected, bypass sharding to keep local
 	// iteration predictable.
 	filt := strings.TrimSpace(os.Getenv("KONGCTL_E2E_SCENARIO"))
-	shard, err := loadScenarioShard()
-	if err != nil {
-		t.Fatalf("invalid e2e shard configuration: %v", err)
+	shard := scenarioShard{}
+	if filt == "" {
+		var err error
+		shard, err = loadScenarioShard()
+		if err != nil {
+			t.Fatalf("invalid e2e shard configuration: %v", err)
+		}
 	}
 
 	selected := make([]string, 0, len(scenarios))
