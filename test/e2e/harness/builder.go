@@ -137,6 +137,10 @@ func ensureRunDir() (string, error) {
 }
 
 func copyFile(src, dst string) error {
+	fi, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
 	in, err := os.Open(src)
 	if err != nil {
 		return err
@@ -150,5 +154,8 @@ func copyFile(src, dst string) error {
 	if _, err := io.Copy(out, in); err != nil {
 		return err
 	}
-	return out.Sync()
+	if err := out.Sync(); err != nil {
+		return err
+	}
+	return os.Chmod(dst, fi.Mode().Perm())
 }

@@ -1,0 +1,119 @@
+baseInputsPath: testdata
+
+vars:
+  platformPortalRef: shared-portal
+  platformPortalName: "Platform Shared Portal"
+  teamAPIRef: test-api
+  teamAPIName: "Test API"
+  teamPortalDisplayName: "Shared Portal"
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-platform-portal
+    commands:
+      - name: 000-apply-platform-portal
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/platform/portal.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+          - select: "plan.changes[?resource_type=='portal' && resource_ref=='{{ .vars.platformPortalRef }}'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                "fields.name": "{{ .vars.platformPortalName }}"
+      - name: 001-record-platform-portal-id
+        run:
+          - get
+          - portals
+          - -o
+          - json
+        recordVar:
+          name: platformPortalID
+          responsePath: "[?name=='{{ .vars.platformPortalName }}'] | [0].id"
+        assertions:
+          - select: "[?name=='{{ .vars.platformPortalName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.platformPortalName }}"
+                display_name: "{{ .vars.teamPortalDisplayName }}"
+
+  - name: 002-apply-team-api
+    commands:
+      - name: 000-apply-team-api
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/team-a/api.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+          - select: "plan.changes[?resource_type=='api' && resource_ref=='{{ .vars.teamAPIRef }}'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                "fields.name": "{{ .vars.teamAPIName }}"
+          - select: "plan.changes[?resource_type=='api_publication' && resource_ref=='test-api-publication'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                "fields.visibility": "public"
+      - name: 001-record-api-id
+        run:
+          - get
+          - apis
+          - -o
+          - json
+        recordVar:
+          name: teamAPIID
+          responsePath: "[?name=='{{ .vars.teamAPIName }}'] | [0].id"
+        assertions:
+          - select: "[?name=='{{ .vars.teamAPIName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.teamAPIName }}"
+                labels.team: team-a
+                labels.environment: test
+
+  - name: 003-verify-publication
+    skipInputs: true
+    commands:
+      - name: 000-get-publication
+        run:
+          - get
+          - api
+          - publications
+          - --api-id
+          - "{{ .vars.teamAPIID }}"
+          - "{{ .vars.platformPortalID }}"
+          - -o
+          - json
+        assertions:
+          - select: "[0]"
+            expect:
+              fields:
+                portal_id: "{{ .vars.platformPortalID }}"
+                visibility: public
+      - name: 001-verify-no-duplicate-portals
+        run:
+          - get
+          - portals
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.platformPortalName }}']"
+            expect:
+              fields:
+                "length(@)": 1

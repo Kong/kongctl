@@ -1,197 +1,295 @@
 ## E2E Test Harness
 
-This repository includes an end-to-end (E2E) testing harness for `kongctl` that builds the CLI once per test run, executes commands against real Konnect, and captures detailed artifacts for triage.
+This repository includes an end-to-end (E2E) testing harness for `kongctl`
+that builds the CLI once per test run, executes commands against real Konnect,
+and captures detailed artifacts for triage.
 
 - Default profile: `e2e`
-- Default output: JSON (tests can override)
-- Isolation: Each test uses its own `XDG_CONFIG_HOME` under a per-run artifacts directory
-- No mocks: Tests call real Konnect; they will skip if required tokens are missing
+- Default output: JSON, unless a command overrides it
+- Isolation: each test uses its own `XDG_CONFIG_HOME` under the artifacts dir
+- No mocks: tests call real Konnect and skip when required auth is missing
+- Test model: E2E coverage is scenario-first under `test/e2e/scenarios`
 
 ### Quick Start
 
-- Run all E2E tests (skips auth tests if PATs not set):
+Run the full E2E suite:
 
-```
+```bash
 make test-e2e
 ```
 
-- Run with verbose logs and a user PAT (opt-in test):
+Run only scenarios:
 
-```
-KONGCTL_E2E_LOG_LEVEL=debug KONGCTL_E2E_RUN_USER_ME=1 KONGCTL_E2E_KONNECT_PAT=$(cat ~/.konnect/your-user-pat) make test-e2e
+```bash
+make test-e2e-scenarios
 ```
 
-- Reuse a prebuilt binary instead of building during tests:
+Run a single scenario by exact scenario path:
 
+```bash
+make test-e2e-scenarios SCENARIO=portal/edit
 ```
+
+Run one shard locally:
+
+```bash
+KONGCTL_E2E_KONNECT_PAT=$(cat ~/.konnect/your-pat) \
+KONGCTL_E2E_SHARD_TOTAL=4 \
+KONGCTL_E2E_SHARD_INDEX=1 \
+make test-e2e-scenarios
+```
+
+Include the opt-in user profile smoke scenario:
+
+```bash
+KONGCTL_E2E_KONNECT_PAT=$(cat ~/.konnect/your-user-pat) \
+KONGCTL_E2E_RUN_USER_ME=1 \
+make test-e2e-scenarios
+```
+
+Reuse a prebuilt binary instead of building during tests:
+
+```bash
 make build
 KONGCTL_E2E_BIN=./kongctl make test-e2e
 ```
 
 ### Environment Variables
 
-- KONGCTL_E2E_LOG_LEVEL: Harness and CLI log level (trace|debug|info|warn|error). Default: `warn`.
-- KONGCTL_E2E_OUTPUT: Default CLI output (json|yaml|text). Default: `json`.
-- KONGCTL_E2E_CAPTURE: Per-command artifact capture. `0` disables. Default: enabled.
-- KONGCTL_E2E_JSON_STRICT: When `1`, RunJSON fails on unknown fields. Default: lenient.
-- KONGCTL_E2E_ARTIFACTS_DIR: Root folder to store artifacts for this run. Default: a temp dir.
-- KONGCTL_E2E_BIN: Path to an existing `kongctl` binary to skip building (copied into artifacts/bin when possible).
-- KONGCTL_E2E_RESET: Reset the Konnect org before tests (destructive). Defaults to enabled; set to `0`/`false` to disable.
-- KONGCTL_E2E_KONNECT_BASE_URL: Base URL for Konnect API (default `https://us.api.konghq.com`).
-- KONGCTL_E2E_SKIP_STEPS: Comma-separated glob patterns to skip scenario steps by name. Use this to skip deletion/cleanup steps and preserve test resources for manual CLI verification. Patterns are case-insensitive and support wildcards (`*` for any characters, `?` for single character). Examples: `*delete*`, `006-*,007-*,008-*`. Default: run all steps.
+Core harness settings:
 
-Authentication token:
+- `KONGCTL_E2E_LOG_LEVEL`: Harness and CLI log level
+  (`trace|debug|info|warn|error`). Default: `warn`.
+- `KONGCTL_E2E_CONSOLE_LOG_LEVEL`: Console log level while preserving richer
+  logs in artifacts. Default: same as harness log level.
+- `KONGCTL_E2E_OUTPUT`: Default CLI output (`json|yaml|text`). Default:
+  `json`.
+- `KONGCTL_E2E_CAPTURE`: Per-command artifact capture. `0` disables it.
+- `KONGCTL_E2E_JSON_STRICT`: When `1`, JSON parsing fails on unknown fields.
+  Default: lenient.
+- `KONGCTL_E2E_ARTIFACTS_DIR`: Root folder for artifacts for this run.
+  Default: a temp dir.
+- `KONGCTL_E2E_BIN`: Path to an existing `kongctl` binary to skip building.
+- `KONGCTL_E2E_RESET`: Reset the Konnect org before tests. Destructive.
+  Defaults to enabled; set to `0` or `false` to disable.
+- `KONGCTL_E2E_KONNECT_BASE_URL`: Base URL for Konnect API. Default:
+  `https://us.api.konghq.com`.
+- `KONGCTL_E2E_SKIP_STEPS`: Comma-separated glob patterns to skip scenario
+  steps by name.
+- `KONGCTL_E2E_STOP_AFTER`: Stop after a matching step or command.
 
-- KONGCTL_E2E_KONNECT_PAT: PAT used by the `e2e` profile for authenticated tests (e.g., `get me`, declarative apply).
-- Gmail automation (portal developer scenarios):
-  - `KONGCTL_E2E_GMAIL_ADDRESS`: Base Gmail inbox. The tests append `+<uuid>` automatically so the mail lands in unique sub-inboxes.
-  - `KONGCTL_E2E_GMAIL_CLIENT_ID` / `KONGCTL_E2E_GMAIL_CLIENT_SECRET` / `KONGCTL_E2E_GMAIL_REFRESH_TOKEN`: 
-     Credentials for the Gmail inbox used by portal developer E2E tests to capture verification emails. 
-     Configure these when running the portal scenarios so the test harness can poll Gmail, 
-     extract the verification link, and complete the password reset workflow automatically.
-  - `KONGCTL_E2E_GMAIL_SUBJECT` (optional): Override the Gmail subject filter; defaults to `Please confirm your email address`.
-  - `KONGCTL_E2E_AUTH_STRATEGY_ID` (optional): Override the application auth strategy ID used when creating developer applications. When unset, the CLI fetches the first available strategy via the portal API.
+Scenario selection and sharding:
 
-### Test Selection
+- `KONGCTL_E2E_SCENARIO`: Exact scenario selector. Examples:
+  `portal/edit`, `scenarios/portal/edit`, or a full `scenario.yaml` path.
+- `KONGCTL_E2E_SHARD_INDEX`: Zero-based shard index for this test process.
+- `KONGCTL_E2E_SHARD_TOTAL`: Total number of shards in the run.
+- `KONGCTL_E2E_MATRIX_ORG`: Optional diagnostic label for the current CI job.
 
-- `Test_VersionFull_JSON`: Always runs. Validates JSON output of `version --full`.
-- `Test_GetMe_JSON_UserPAT`: Opt-in. Requires both `KONGCTL_E2E_RUN_USER_ME=1` and `KONGCTL_E2E_KONNECT_PAT`.
-- `Test_Declarative_Apply_Portal_Basic_JSON`: Runs when `KONGCTL_E2E_KONNECT_PAT` is set; applies the basic portal example and verifies it via `get portals`.
+Authentication and opt-in scenarios:
 
-Run only "get me" tests:
+- `KONGCTL_E2E_KONNECT_PAT`: PAT used by the `e2e` profile for authenticated
+  scenarios. Most scenarios require this.
+- `KONGCTL_E2E_RUN_USER_ME`: Opt in to the `auth/get-me` scenario.
+- `KONGCTL_E2E_RUN_PORTAL_APPLICATIONS`: Opt in to the Gmail-backed portal
+  applications scenario.
 
+Gmail automation for portal developer scenarios:
+
+- `KONGCTL_E2E_GMAIL_ADDRESS`: Base Gmail inbox. Tests append `+<uuid>` so
+  mail lands in unique sub-inboxes.
+- `KONGCTL_E2E_GMAIL_CLIENT_ID`
+- `KONGCTL_E2E_GMAIL_CLIENT_SECRET`
+- `KONGCTL_E2E_GMAIL_REFRESH_TOKEN`
+- `KONGCTL_E2E_GMAIL_ACCESS_TOKEN`
+- `KONGCTL_E2E_GMAIL_SUBJECT` (optional): override the Gmail subject filter.
+- `KONGCTL_E2E_AUTH_STRATEGY_ID` (optional): override the auth strategy ID
+  used when creating developer applications.
+
+### Scenario Execution Model
+
+`Test_Scenarios` discovers all `scenario.yaml` files under
+`test/e2e/scenarios`, sorts them, and runs them as subtests.
+
+Most scenarios are authenticated and will skip unless
+`KONGCTL_E2E_KONNECT_PAT` is set. A scenario can opt out of that preflight
+check with:
+
+```yaml
+test:
+  requiresPAT: false
 ```
-go test -v -tags=e2e ./test/e2e -run GetMe
+
+That is how the `smoke/version` scenario runs without Konnect credentials.
+
+If both `KONGCTL_E2E_SHARD_INDEX` and `KONGCTL_E2E_SHARD_TOTAL` are set, the
+runner assigns scenarios to shards by sorted position:
+
+```text
+scenario i belongs to shard (i % shard_total)
 ```
+
+Example with 10 scenarios and 4 shards:
+
+- shard `0` runs scenarios `0, 4, 8`
+- shard `1` runs scenarios `1, 5, 9`
+- shard `2` runs scenarios `2, 6`
+- shard `3` runs scenarios `3, 7`
+
+If `KONGCTL_E2E_SCENARIO` is set, sharding is bypassed so local single-scenario
+iteration stays predictable.
 
 ### Skipping Steps
 
 Use `KONGCTL_E2E_SKIP_STEPS` to selectively skip scenario steps. This is
-particularly useful for skipping deletion/cleanup steps to preserve test
-resources for manual CLI verification and testing.
+useful for preserving resources for manual CLI verification.
 
-Skip all deletion steps to preserve resources:
+Skip all deletion steps:
 
 ```bash
 KONGCTL_E2E_SKIP_STEPS="*delete*" \
-  KONGCTL_E2E_SCENARIO=portal/applications \
-  KONGCTL_E2E_KONNECT_PAT=$(cat ~/.konnect/token) \
-  make test-e2e-scenarios
-```
-
-After the scenario runs, resources remain in Konnect for manual testing:
-
-```bash
-# Verify resources created by the scenario
-./kongctl get portal applications --portal-name "Auto Approve Portal"
-
-# Test CLI commands on preserved resources
-./kongctl delete portal applications "e2e-portal-application" \
-  --portal-name "Auto Approve Portal" --auto-approve
+KONGCTL_E2E_SCENARIO=portal/applications \
+KONGCTL_E2E_KONNECT_PAT=$(cat ~/.konnect/token) \
+make test-e2e-scenarios
 ```
 
 Skip specific numbered steps:
 
 ```bash
-# Skip steps 006, 007, and 008 (cleanup steps in portal/applications)
 KONGCTL_E2E_SKIP_STEPS="006-*,007-*,008-*" \
-  KONGCTL_E2E_SCENARIO=portal/applications \
-  make test-e2e-scenarios
+KONGCTL_E2E_SCENARIO=portal/applications \
+make test-e2e-scenarios
 ```
 
 Skip multiple pattern types:
 
 ```bash
-# Skip both reset and deletion steps
 KONGCTL_E2E_SKIP_STEPS="*reset*,*delete*,*cleanup*" \
-  make test-e2e-scenarios
+make test-e2e-scenarios
 ```
 
 ### Artifacts Layout
 
-Each test run creates a single artifacts directory (printed by the Makefile after the run and recorded in `run.log`). Example structure:
+Each test run creates a single artifacts directory. The Makefile prints the
+path at the end of the run and records logs in `run.log`.
 
-```
+```text
 <artifacts_dir>/
   bin/
-    kongctl                 # built or copied binary
-  run.log                   # harness logs (also emitted to STDERR when log level allows)
+    kongctl
+  run.log
   tests/
-    Test_VersionFull_JSON/
+    Test_Scenarios_scenarios_portal_edit_scenario_yaml/
       config/
         kongctl/
-          config.yaml       # profile config written by the harness
-      commands/
-        000-version/
-          command.txt
-          stdout.txt
-          stderr.txt
-          env.json          # sanitized environment snapshot
-          meta.json         # includes config_dir and config_file
-    Test_GetMe_JSON_UserPAT/
-      config/
-      commands/
-        000-get_me/
-          ...
-    Test_Declarative_Apply_Portal_Basic_JSON/
-      config/
+          config.yaml
       steps/
-        000-apply/
-          inputs/
-            portal.yaml     # manifest applied in this step
+        000-reset-org/
           commands/
-            000-apply/
+            000-reset-org/
               command.txt
               stdout.txt
               stderr.txt
               env.json
               meta.json
-              http-dumps/            # present when KONNECT_SDK_HTTP_DUMP_* env vars are enabled
-                request-001.txt
-                response-001.txt
-              observation.json   # type=apply_summary (execution + summary)
-            001-get_portals/
+        001-apply-initial/
+          inputs/
+            portal.yaml
+          commands/
+            000-apply-initial/
               command.txt
               stdout.txt
               stderr.txt
               env.json
               meta.json
-              observation.json   # type=list_observation (all + optional selector/target)
+              observation.json
+            001-get-portal/
+              command.txt
+              stdout.txt
+              stderr.txt
+              env.json
+              meta.json
+              observation.json
 ```
 
-The harness keeps artifacts by default for easy triage and CI upload.
+The harness keeps artifacts by default for local debugging and CI upload.
 
-### Behavior & Conventions
+### Behavior And Conventions
 
-- Build once: The binary is built (or copied from `KONGCTL_E2E_BIN`) once and reused.
-- Default JSON: Harness injects `-o json` unless you pass `--output/-o`.
-- Log level: Harness injects `--log-level <KONGCTL_E2E_LOG_LEVEL>` unless you pass one.
-- Profile config: The harness writes `<profile>:{ output:<...>, log-level:<...> }` into `config.yaml` to mirror defaults.
-- Sanitization: Token-like env vars (`PAT`, `TOKEN`, `SECRET`, `PASSWORD`) are redacted in `env.json` and logs.
-- HTTP dumps: When Konnect SDK dump env vars are enabled, stdout is preserved without the dump noise and each captured HTTP exchange is written under `<command>/http-dumps/` for later inspection.
-- Observations: One `observation.json` per command under `commands/<seq>-<slug>/`.
-  - type=apply_summary for apply commands (execution + summary)
-  - type=list_observation for read commands (includes full list and optional selector/target)
-  - Step numbering starts at 000; command numbering is per-step and also starts at 000.
+- Build once: the binary is built, or copied from `KONGCTL_E2E_BIN`, once per
+  run and reused.
+- Default JSON: the harness injects `-o json` unless the command already sets
+  an output flag.
+- Log level: the harness injects `--log-level` unless the command already sets
+  one.
+- Profile config: the harness writes `config.yaml` for the `e2e` profile.
+- Sanitization: token-like env vars are redacted in `env.json` and logs.
+- HTTP dumps: when Konnect SDK dump env vars are enabled, the harness stores
+  each exchange under the command’s `http-dumps/` directory.
+- Observations: `observation.json` is attached to captured commands for apply
+  summaries and read observations.
 
-### CI Notes (GitHub Actions)
+### CI Notes
 
-- Provide `KONGCTL_E2E_KONNECT_PAT` as a secret to enable authenticated tests.
-- Optionally set `KONGCTL_E2E_RUN_USER_ME=1` if you want to include the user-profile `get me` test.
-- Upload `<artifacts_dir>` as a workflow artifact for post-run analysis.
-- You can set `KONGCTL_E2E_ARTIFACTS_DIR=$RUNNER_TEMP/kongctl-e2e` to make artifact paths predictable.
+The E2E GitHub Actions workflow scales wall-clock time by running one matrix
+job per Konnect org. Each job gets:
 
-### SDK prerelease preview automation
+- one environment-scoped PAT
+- the shared Konnect base URL from the repository variable
+- one shard index
+- the common shard total from the matrix size
 
-- Workflow `SDK Prerelease Preview` runs daily (and on manual dispatch) to fetch the latest prerelease tag from `Kong/sdk-konnect-go`, bump `go.mod`, and execute `make build`, `make test`, and `make test-e2e`.
-- Requires repository secret `KONGCTL_E2E_KONNECT_PAT`; the run fails early if the secret is missing.
-- The workflow publishes artifacts from the harness and opens/updates a PR under `automation/sdk-preview/<tag>` when dependency changes are detected.
-- Use the **Run workflow** button to target a specific prerelease tag or to force a rerun even when a preview PR already exists.
-- Later we can add a `repository_dispatch` trigger from the SDK repository without altering downstream steps (the workflow already accepts out-of-band inputs).
+The workflow derives sharding directly from GitHub Actions strategy context:
+
+- `KONGCTL_E2E_SHARD_INDEX=${{ strategy.job-index }}`
+- `KONGCTL_E2E_SHARD_TOTAL=${{ strategy.job-total }}`
+
+Each matrix leg writes an `assigned-scenarios.txt` manifest into its artifact
+directory. A final `E2E Verify` job downloads those manifests and fails unless:
+
+- every shard index from `0` through `KONGCTL_E2E_SHARD_TOTAL-1` appears once
+- no scenario appears in more than one shard manifest
+- the combined manifest set matches the full discovered scenario list
+
+That verification step is the guardrail that keeps sharding regressions from
+silently dropping or duplicating scenario coverage.
+
+The org pool is defined as JSON in the repository or organization variable
+`KONGCTL_E2E_ORGS_JSON`. Example:
+
+```json
+[
+  { "org_name": "kongctl-e2e-us-1" },
+  { "org_name": "kongctl-e2e-us-2" }
+]
+```
+
+Each `org_name` must match a GitHub Actions environment that defines the
+secret `KONGCTL_E2E_KONNECT_PAT`.
+
+Set the shared Konnect API endpoint as the repository or organization variable
+`KONGCTL_E2E_KONNECT_BASE_URL`.
+
+If the org-pool variable is unset, the workflow falls back to a single-org
+matrix entry named `default`, which is useful during migration if you still
+have a `default` environment or a temporary repository-level
+`KONGCTL_E2E_KONNECT_PAT` secret in place.
+
+### SDK Prerelease Preview Automation
+
+- Workflow `SDK Prerelease Preview` runs daily, and on manual dispatch, to
+  fetch the latest prerelease tag from `Kong/sdk-konnect-go`, bump `go.mod`,
+  and execute `make build`, `make test`, and `make test-e2e`.
+- It requires repository secret `KONGCTL_E2E_KONNECT_PAT`.
+- The workflow publishes harness artifacts and opens or updates a PR under
+  `automation/sdk-preview/<tag>` when dependency changes are detected.
 
 ### Troubleshooting
 
-- Enable verbose logs: `KONGCTL_E2E_LOG_LEVEL=debug`.
-- Inspect `<artifacts_dir>/run.log` for created paths, command lines, and durations.
-- Check per-command `command.txt`, `stderr.txt`, and `meta.json` for the invoked command, exit codes, and context.
-- If JSON parsing fails due to extra fields, either add the fields to your test struct, or keep default lenient mode (do not set `KONGCTL_E2E_JSON_STRICT`).
+- Enable verbose logs with `KONGCTL_E2E_LOG_LEVEL=debug`.
+- Inspect `<artifacts_dir>/run.log` for created paths, command lines, and
+  durations.
+- Check per-command `command.txt`, `stderr.txt`, and `meta.json` for the exact
+  invocation and exit codes.
+- If JSON parsing fails due to extra fields, either add those fields to the
+  relevant test struct or keep the default lenient mode.

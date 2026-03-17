@@ -22,6 +22,7 @@ type ScenarioTest struct {
 	Enabled         *bool    `yaml:"enabled"`
 	EnabledByEnvVar string   `yaml:"enabledByEnvVar"`
 	RequiredEnvVars []string `yaml:"requiredEnvVars"`
+	RequiresPAT     *bool    `yaml:"requiresPAT"`
 	Info            string   `yaml:"info"`
 }
 

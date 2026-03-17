@@ -232,6 +232,7 @@ func (h portalPagesHandler) listPages(
 	if err != nil {
 		return err
 	}
+	pages = normalizePortalPageInfos(pages)
 
 	flattened := flattenPortalPages(pages)
 	records := make([]portalPageSummaryRecord, 0, len(flattened))
@@ -296,6 +297,7 @@ func (h portalPagesHandler) getSinglePage(
 		if err != nil {
 			return err
 		}
+		pages = normalizePortalPageInfos(pages)
 		flattened := flattenPortalPages(pages)
 		match := findPageBySlugOrTitle(flattened, identifier)
 		if match == nil {
@@ -319,6 +321,7 @@ func (h portalPagesHandler) getSinglePage(
 			Err: fmt.Errorf("no page returned for id %s", pageID),
 		}
 	}
+	page = normalizePortalPageDetail(page)
 
 	record := portalPageDetailToRecord(page)
 	cache := newPortalPageDetailCache()
@@ -396,14 +399,68 @@ func flattenPortalPages(pages []kkComps.PortalPageInfo) []kkComps.PortalPageInfo
 }
 
 func findPageBySlugOrTitle(pages []kkComps.PortalPageInfo, identifier string) *kkComps.PortalPageInfo {
-	lowered := strings.ToLower(identifier)
+	lowered := strings.ToLower(normalizePortalPageSlugValue(identifier))
 	for _, page := range pages {
-		if strings.ToLower(page.GetSlug()) == lowered || strings.ToLower(page.GetTitle()) == lowered {
+		pageSlug := strings.ToLower(normalizePortalPageSlugValue(page.GetSlug()))
+		pageTitle := strings.ToLower(page.GetTitle())
+		if pageSlug == lowered || pageTitle == lowered {
 			pageCopy := page
 			return &pageCopy
 		}
 	}
 	return nil
+}
+
+func normalizePortalPageInfos(pages []kkComps.PortalPageInfo) []kkComps.PortalPageInfo {
+	if len(pages) == 0 {
+		return pages
+	}
+
+	normalized := make([]kkComps.PortalPageInfo, len(pages))
+	for i, page := range pages {
+		normalized[i] = normalizePortalPageInfo(page)
+	}
+	return normalized
+}
+
+func normalizePortalPageInfo(page kkComps.PortalPageInfo) kkComps.PortalPageInfo {
+	page.Slug = normalizePortalPageSlugValue(page.Slug)
+	if len(page.Children) == 0 {
+		return page
+	}
+
+	children := make([]kkComps.PortalPageInfo, len(page.Children))
+	for i, child := range page.Children {
+		children[i] = normalizePortalPageInfo(child)
+	}
+	page.Children = children
+	return page
+}
+
+func normalizePortalPageDetail(page *kkComps.PortalPageResponse) *kkComps.PortalPageResponse {
+	if page == nil {
+		return nil
+	}
+
+	normalized := *page
+	normalized.Slug = normalizePortalPageSlugValue(page.GetSlug())
+	return &normalized
+}
+
+func normalizePortalPageSlugValue(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+	if trimmed == "/" {
+		return "/"
+	}
+
+	normalized := strings.Trim(trimmed, "/")
+	if normalized == "" {
+		return "/"
+	}
+	return normalized
 }
 
 func portalPageInfoDetail(page kkComps.PortalPageInfo, detail *portalPageDetailRecord) string {
@@ -428,7 +485,7 @@ func portalPageInfoDetail(page kkComps.PortalPageInfo, detail *portalPageDetailR
 		"children_count": strconv.Itoa(len(page.GetChildren())),
 		"created_at":     formatTime(page.GetCreatedAt()),
 		"parent_page_id": parentID,
-		"slug":           nonEmptyStringOrNA(page.GetSlug()),
+		"slug":           nonEmptyStringOrNA(normalizePortalPageSlugValue(page.GetSlug())),
 		"status":         string(page.GetStatus()),
 		"updated_at":     formatTime(page.GetUpdatedAt()),
 		"visibility":     string(page.GetVisibility()),
@@ -515,7 +572,7 @@ func portalPageSummaryToRecord(page kkComps.PortalPageInfo) portalPageSummaryRec
 	return portalPageSummaryRecord{
 		ID:               util.AbbreviateUUID(page.GetID()),
 		Title:            page.GetTitle(),
-		Slug:             page.GetSlug(),
+		Slug:             normalizePortalPageSlugValue(page.GetSlug()),
 		Visibility:       string(page.GetVisibility()),
 		Status:           string(page.GetStatus()),
 		ParentPageID:     parentID,
@@ -534,7 +591,7 @@ func portalPageDetailToRecord(page *kkComps.PortalPageResponse) portalPageDetail
 	record := portalPageDetailRecord{
 		ID:               util.AbbreviateUUID(page.GetID()),
 		Title:            page.GetTitle(),
-		Slug:             page.GetSlug(),
+		Slug:             normalizePortalPageSlugValue(page.GetSlug()),
 		Visibility:       string(page.GetVisibility()),
 		Status:           string(page.GetStatus()),
 		ParentPageID:     parentID,

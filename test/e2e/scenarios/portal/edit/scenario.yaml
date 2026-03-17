@@ -1,0 +1,97 @@
+baseInputsPath: testdata
+
+vars:
+  portalRef: e2e-portal-edit
+  portalName: "E2E Portal Edit"
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-initial
+    commands:
+      - name: 000-apply-initial
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+          - select: "plan.changes[?resource_type=='portal' && resource_ref=='{{ .vars.portalRef }}'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                "fields.description": "v1"
+      - name: 001-get-portal
+        run:
+          - get
+          - portal
+          - "{{ .vars.portalName }}"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.portalName }}"
+                description: "v1"
+      - name: 002-apply-no-op
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                total_changes: 0
+
+  - name: 002-apply-modified
+    inputOverlayDirs:
+      - overlays/002-modify
+    commands:
+      - name: 000-apply-modified
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+          - select: "plan.changes[?resource_type=='portal' && resource_ref=='{{ .vars.portalRef }}'] | [0]"
+            expect:
+              fields:
+                action: UPDATE
+                "fields.description": "v2"
+      - name: 001-get-portal
+        run:
+          - get
+          - portal
+          - "{{ .vars.portalName }}"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.portalName }}"
+                description: "v2"
+      - name: 002-apply-no-op
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                total_changes: 0

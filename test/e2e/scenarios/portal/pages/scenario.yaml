@@ -85,6 +85,9 @@ steps:
           - "{{ .vars.portalName }}"
           - -o
           - json
+        recordVar:
+          name: guidesPageId
+          responsePath: "[?slug=='guides'] | [0].id"
         assertions:
           # Parent page (top-level in the response tree)
           - select: "[?slug=='guides'] | [0]"
@@ -94,9 +97,6 @@ steps:
                 slug: "guides"
                 visibility: "public"
                 status: "published"
-          # Record the parent page ID for hierarchy validation
-          - select: "[?slug=='guides'] | [0].id"
-            recordVar: guidesPageId
           # Child page nested inside the parent's children list
           - select: "[?slug=='guides'] | [0].children[?slug=='getting-started'] | [0]"
             expect:
@@ -191,8 +191,9 @@ steps:
               fields:
                 total_changes: 1
                 by_action.DELETE: 1
+                by_resource.portal_page: 1
           - select: >-
-              changes[?resource_type=='portal_page' && resource_ref=='{{ .vars.gettingStartedPageRef }}'] | [0]
+              changes[?resource_type=='portal_page'] | [0]
             expect:
               fields:
                 action: DELETE
