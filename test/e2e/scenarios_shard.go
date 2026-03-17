@@ -72,5 +72,5 @@ func writeScenarioShardManifest(artifactsDir string, shard scenarioShard, select
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(path, []byte(b.String()), 0o644)
+	return os.WriteFile(path, []byte(b.String()), 0o600)
 }
