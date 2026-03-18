@@ -139,15 +139,59 @@ jobs:
 
       - name: Run E2E scenario tests (Konnect)
         run: |
+          set -euo pipefail
+
           ART_DIR="${KONGCTL_E2E_ARTIFACTS_DIR}/$(date +%Y%m%d-%H%M%S)"
           mkdir -p "${ART_DIR}"
           export KONGCTL_E2E_ARTIFACTS_DIR="${ART_DIR}"
 
+          extract_results() {
+            local status="$1"
+            local output_file="$2"
+
+            sed -n "s/^--- ${status}: Test_Scenarios\/\(.*\) (.*/\1/p" "${ART_DIR}/run.log" | \
+              sed 's#^test/e2e/scenarios/##' | sort > "${output_file}"
+          }
+
+          run_started_at="$(date +%s)"
           set +e
           "${KONGCTL_E2E_TEST_BIN}" -test.v -test.count=1 -test.run '^Test_Scenarios$' ${GOTESTFLAGS} \
             2>&1 | tee "${ART_DIR}/run.log"
           code=${PIPESTATUS[0]}
           set -e
+          run_finished_at="$(date +%s)"
+
+          passed_file="$(mktemp)"
+          failed_file="$(mktemp)"
+          skipped_file="$(mktemp)"
+
+          extract_results "PASS" "${passed_file}"
+          extract_results "FAIL" "${failed_file}"
+          extract_results "SKIP" "${skipped_file}"
+
+          passed_count="$(wc -l < "${passed_file}" | tr -d ' ')"
+          failed_count="$(wc -l < "${failed_file}" | tr -d ' ')"
+          skipped_count="$(wc -l < "${skipped_file}" | tr -d ' ')"
+          observed_count="$((passed_count + failed_count + skipped_count))"
+          duration_seconds="$((run_finished_at - run_started_at))"
+
+          {
+            printf 'org_name=%s\n' "${KONGCTL_E2E_MATRIX_ORG}"
+            printf 'shard_index=%s\n' "${KONGCTL_E2E_SHARD_INDEX}"
+            printf 'shard_total=%s\n' "${KONGCTL_E2E_SHARD_TOTAL}"
+            printf 'exit_code=%s\n' "${code}"
+            printf 'duration_seconds=%s\n' "${duration_seconds}"
+            printf 'passed_count=%s\n' "${passed_count}"
+            printf 'failed_count=%s\n' "${failed_count}"
+            printf 'skipped_count=%s\n' "${skipped_count}"
+            printf 'observed_count=%s\n' "${observed_count}"
+            printf '\n[passed]\n'
+            cat "${passed_file}"
+            printf '\n[failed]\n'
+            cat "${failed_file}"
+            printf '\n[skipped]\n'
+            cat "${skipped_file}"
+          } > "${ART_DIR}/scenario-results.txt"
 
           echo "E2E artifacts: ${ART_DIR}"
           exit "${code}"
@@ -182,10 +226,16 @@ jobs:
 
           summary_file="${GITHUB_STEP_SUMMARY:-}"
           summary_rows="$(mktemp)"
+          failed_rows="$(mktemp)"
           expected="$(mktemp)"
           actual="$(mktemp)"
           indices="$(mktemp)"
           totals="$(mktemp)"
+          passed_total=0
+          failed_total=0
+          skipped_total=0
+          observed_total=0
+          duration_total=0
 
           fail() {
             local message="$1"
@@ -213,8 +263,14 @@ jobs:
           : > "${indices}"
           : > "${totals}"
           : > "${summary_rows}"
+          : > "${failed_rows}"
 
           for manifest in "${manifests[@]}"; do
+            results="$(dirname "${manifest}")/scenario-results.txt"
+            if [ ! -f "${results}" ]; then
+              fail "Missing scenario results alongside ${manifest}"
+            fi
+
             index="$(sed -n '1s/^shard_index=//p' "${manifest}")"
             total="$(sed -n '2s/^shard_total=//p' "${manifest}")"
             if [ -z "${index}" ] || [ -z "${total}" ]; then
@@ -222,12 +278,43 @@ jobs:
             fi
 
             scenario_rows="$(tail -n +4 "${manifest}" | sed '/^$/d' | tee -a "${actual}" | wc -l | tr -d ' ')"
-            artifact_name="$(basename "$(dirname "$(dirname "${manifest}")")")"
-            org_name="${artifact_name#e2e-artifacts-${GITHUB_RUN_ID}-}"
+            org_name="$(sed -n 's/^org_name=//p' "${results}")"
+            if [ -z "${org_name}" ]; then
+              artifact_name="$(basename "$(dirname "$(dirname "${manifest}")")")"
+              org_name="${artifact_name#e2e-artifacts-${GITHUB_RUN_ID}-}"
+            fi
+            exit_code="$(sed -n 's/^exit_code=//p' "${results}")"
+            duration_seconds="$(sed -n 's/^duration_seconds=//p' "${results}")"
+            passed_count="$(sed -n 's/^passed_count=//p' "${results}")"
+            failed_count="$(sed -n 's/^failed_count=//p' "${results}")"
+            skipped_count="$(sed -n 's/^skipped_count=//p' "${results}")"
+            observed_count="$(sed -n 's/^observed_count=//p' "${results}")"
 
             printf '%s\n' "${index}" >> "${indices}"
             printf '%s\n' "${total}" >> "${totals}"
-            printf '%s\t%s\t%s\n' "${index}" "${org_name}" "${scenario_rows}" >> "${summary_rows}"
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+              "${index}" \
+              "${org_name}" \
+              "${scenario_rows}" \
+              "${passed_count}" \
+              "${failed_count}" \
+              "${skipped_count}" \
+              "${exit_code}" \
+              "${duration_seconds}" >> "${summary_rows}"
+
+            passed_total="$((passed_total + passed_count))"
+            failed_total="$((failed_total + failed_count))"
+            skipped_total="$((skipped_total + skipped_count))"
+            observed_total="$((observed_total + observed_count))"
+            duration_total="$((duration_total + duration_seconds))"
+
+            awk '
+              /^\[failed\]$/ { section="failed"; next }
+              /^\[/ { section=""; next }
+              section == "failed" && NF { print }
+            ' "${results}" | while IFS= read -r scenario_name; do
+              printf '%s\t%s\n' "${org_name}" "${scenario_name}" >> "${failed_rows}"
+            done
           done
 
           sort -n -u "${totals}" > "${totals}.unique"
@@ -265,17 +352,42 @@ jobs:
           scenario_count="$(wc -l < "${actual}" | tr -d ' ')"
           if [ -n "${summary_file}" ]; then
             {
-              echo "## E2E Verify"
+              echo "## E2E Results"
               echo
-              echo "- Status: passed"
+              echo "- Status: $([ "${failed_total}" -eq 0 ] && echo passed || echo failed)"
               echo "- Shards: ${total}"
-              echo "- Scenarios: ${scenario_count}"
+              echo "- Assigned scenarios: ${scenario_count}"
+              echo "- Passed: ${passed_total}"
+              echo "- Failed: ${failed_total}"
+              echo "- Skipped: ${skipped_total}"
+              echo "- Observed results: ${observed_total}"
+              echo "- Total shard runtime: ${duration_total}s"
               echo
-              echo "| Shard | Org | Assigned Scenarios |"
-              echo "| --- | --- | ---: |"
+              echo "| Shard | Org | Assigned | Passed | Failed | Skipped | Exit | Duration |"
+              echo "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |"
             } >> "${summary_file}"
-            while IFS=$'\t' read -r index org_name assigned_count; do
-              printf '| %s | %s | %s |\n' "${index}" "${org_name}" "${assigned_count}" >> "${summary_file}"
+            while IFS=$'\t' read -r index org_name assigned_count passed_count failed_count skipped_count exit_code duration_seconds; do
+              printf '| %s | %s | %s | %s | %s | %s | %s | %ss |\n' \
+                "${index}" \
+                "${org_name}" \
+                "${assigned_count}" \
+                "${passed_count}" \
+                "${failed_count}" \
+                "${skipped_count}" \
+                "${exit_code}" \
+                "${duration_seconds}" >> "${summary_file}"
             done < <(sort -n "${summary_rows}")
+            if [ "${failed_total}" -gt 0 ]; then
+              {
+                echo
+                echo "### Failed Scenarios"
+                echo
+                echo "| Org | Scenario |"
+                echo "| --- | --- |"
+              } >> "${summary_file}"
+              while IFS=$'\t' read -r org_name scenario_name; do
+                printf '| %s | %s |\n' "${org_name}" "${scenario_name}" >> "${summary_file}"
+              done < "${failed_rows}"
+            fi
           fi
           echo "Verified ${scenario_count} scenarios across ${total} shards."

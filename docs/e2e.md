@@ -254,6 +254,10 @@ directory. A final `E2E Verify` job downloads those manifests and fails unless:
 That verification step is the guardrail that keeps sharding regressions from
 silently dropping or duplicating scenario coverage.
 
+The workflow summary also includes aggregated execution results from all shard
+jobs, including assigned scenario count, pass/fail/skip totals, per-shard
+durations, exit codes, and a failed-scenarios table when applicable.
+
 The org pool is defined as JSON in the repository or organization variable
 `KONGCTL_E2E_ORGS_JSON`. Example:
 
