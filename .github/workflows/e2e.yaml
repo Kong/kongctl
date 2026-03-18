@@ -155,7 +155,7 @@ jobs:
 
           run_started_at="$(date +%s)"
           set +e
-          "${KONGCTL_E2E_TEST_BIN}" -test.v -test.count=1 -test.run '^Test_Scenarios$' ${GOTESTFLAGS} \
+          "${KONGCTL_E2E_TEST_BIN}" -test.v -test.count=1 -test.run '^Test_Scenarios$' ${GOTESTFLAGS:-} \
             2>&1 | tee "${ART_DIR}/run.log"
           code=${PIPESTATUS[0]}
           set -e
