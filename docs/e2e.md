@@ -74,6 +74,32 @@ Core harness settings:
   Defaults to enabled; set to `0` or `false` to disable.
 - `KONGCTL_E2E_KONNECT_BASE_URL`: Base URL for Konnect API. Default:
   `https://us.api.konghq.com`.
+- `KONGCTL_E2E_HTTP_TIMEOUT`: Per-request timeout for raw Konnect HTTP helpers
+  used by scenario create/delete flows. Default: `15s`.
+- `KONGCTL_E2E_HTTP_RETRY_ATTEMPTS`: Default retry attempts for raw Konnect
+  HTTP helpers. Default: `4`.
+- `KONGCTL_E2E_HTTP_RETRY_INTERVAL`: Base retry interval for raw Konnect HTTP
+  helpers. Default: `1s`.
+- `KONGCTL_E2E_HTTP_RETRY_MAX_INTERVAL`: Max retry interval for raw Konnect
+  HTTP helpers. Default: `5s`.
+- `KONGCTL_E2E_HTTP_RETRY_BACKOFF_FACTOR`: Backoff multiplier for raw Konnect
+  HTTP helpers. Default: `2`.
+- `KONGCTL_E2E_HTTP_RETRY_JITTER`: Jitter applied to raw Konnect HTTP helper
+  retries. Default: `250ms`.
+- `KONGCTL_E2E_RESET_HTTP_TIMEOUT`: Per-request timeout for destructive org
+  reset API calls. Default: `15s`.
+- `KONGCTL_E2E_RESET_TIMEOUT`: Total time budget for a single org reset before
+  the harness aborts the remaining reset steps. Default: `3m`.
+- `KONGCTL_E2E_RESET_RETRY_ATTEMPTS`: Retry attempts for reset API calls.
+  Default: `3`.
+- `KONGCTL_E2E_RESET_RETRY_INTERVAL`: Base retry interval for reset API calls.
+  Default: `1s`.
+- `KONGCTL_E2E_RESET_RETRY_MAX_INTERVAL`: Max retry interval for reset API
+  calls. Default: `5s`.
+- `KONGCTL_E2E_RESET_RETRY_BACKOFF_FACTOR`: Backoff multiplier for reset API
+  calls. Default: `2`.
+- `KONGCTL_E2E_RESET_RETRY_JITTER`: Jitter applied to reset API call retries.
+  Default: `250ms`.
 - `KONGCTL_E2E_SKIP_STEPS`: Comma-separated glob patterns to skip scenario
   steps by name.
 - `KONGCTL_E2E_STOP_AFTER`: Stop after a matching step or command.
@@ -244,6 +270,10 @@ The workflow derives sharding directly from GitHub Actions strategy context:
 - `KONGCTL_E2E_SHARD_INDEX=${{ strategy.job-index }}`
 - `KONGCTL_E2E_SHARD_TOTAL=${{ strategy.job-total }}`
 
+The workflow also exposes the HTTP timeout and retry knobs above as repository
+or organization variables of the same names, so CI can tune reset and raw HTTP
+behavior without changing Go code.
+
 Each matrix leg writes an `assigned-scenarios.txt` manifest into its artifact
 directory. A final `E2E Verify` job downloads those manifests and fails unless:
 
@@ -295,5 +325,8 @@ have a `default` environment or a temporary repository-level
   durations.
 - Check per-command `command.txt`, `stderr.txt`, and `meta.json` for the exact
   invocation and exit codes.
+- Reset and scenario raw HTTP calls use a separate backoff policy from CLI
+  subprocess retries. The harness honors `Retry-After` when Konnect returns
+  throttling responses and fails faster after repeated full request timeouts.
 - If JSON parsing fails due to extra fields, either add those fields to the
   relevant test struct or keep the default lenient mode.

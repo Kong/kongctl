@@ -1,0 +1,177 @@
+//go:build e2e
+
+package harness
+
+import (
+	"context"
+	"net/http"
+	"testing"
+	"time"
+)
+
+func TestRetryAfterDelay(t *testing.T) {
+	err := &httpError{
+		status: http.StatusTooManyRequests,
+		header: http.Header{"Retry-After": []string{"7"}},
+	}
+
+	got, ok := RetryAfterDelay(err)
+	if !ok {
+		t.Fatal("RetryAfterDelay() = not found, want found")
+	}
+	if got != 7*time.Second {
+		t.Fatalf("RetryAfterDelay() = %s, want 7s", got)
+	}
+}
+
+func TestRetryDelayForErrorPrefersRetryAfter(t *testing.T) {
+	err := &httpError{
+		status: http.StatusServiceUnavailable,
+		header: http.Header{"Retry-After": []string{"11"}},
+	}
+
+	got := RetryDelayForError(err, []time.Duration{2 * time.Second}, 0)
+	if got != 11*time.Second {
+		t.Fatalf("RetryDelayForError() = %s, want 11s", got)
+	}
+}
+
+func TestClassifyRetry(t *testing.T) {
+	tests := []struct {
+		name   string
+		err    error
+		detail string
+		want   RetryClass
+	}{
+		{
+			name:   "timeout",
+			err:    context.DeadlineExceeded,
+			detail: "context deadline exceeded",
+			want:   RetryClassTimeout,
+		},
+		{
+			name:   "throttle",
+			err:    &httpError{status: http.StatusTooManyRequests},
+			detail: "status=429",
+			want:   RetryClassThrottle,
+		},
+		{
+			name:   "network",
+			err:    &httpError{status: 0},
+			detail: "dial tcp: connection refused",
+			want:   RetryClassNetwork,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ClassifyRetry(tt.err, tt.detail)
+			if got != tt.want {
+				t.Fatalf("ClassifyRetry() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestShouldRetryHTTPAttempt(t *testing.T) {
+	timeout := 10 * time.Second
+
+	if !ShouldRetryHTTPAttempt(
+		context.DeadlineExceeded,
+		"context deadline exceeded",
+		timeout,
+		timeout,
+		nil,
+		nil,
+		0,
+	) {
+		t.Fatal("ShouldRetryHTTPAttempt() = false on first full timeout, want true")
+	}
+
+	if ShouldRetryHTTPAttempt(
+		context.DeadlineExceeded,
+		"context deadline exceeded",
+		timeout,
+		timeout,
+		nil,
+		nil,
+		1,
+	) {
+		t.Fatal("ShouldRetryHTTPAttempt() = true on repeated full timeout, want false")
+	}
+
+	if !ShouldRetryHTTPAttempt(
+		context.DeadlineExceeded,
+		"context deadline exceeded",
+		timeout,
+		5*time.Second,
+		nil,
+		nil,
+		1,
+	) {
+		t.Fatal("ShouldRetryHTTPAttempt() = false on partial timeout, want true")
+	}
+}
+
+func TestResetHTTPPolicyFromEnv(t *testing.T) {
+	t.Setenv("KONGCTL_E2E_RESET_HTTP_TIMEOUT", "12s")
+	t.Setenv("KONGCTL_E2E_RESET_TIMEOUT", "2m")
+	t.Setenv("KONGCTL_E2E_RESET_RETRY_ATTEMPTS", "4")
+	t.Setenv("KONGCTL_E2E_RESET_RETRY_INTERVAL", "2s")
+	t.Setenv("KONGCTL_E2E_RESET_RETRY_MAX_INTERVAL", "6s")
+	t.Setenv("KONGCTL_E2E_RESET_RETRY_BACKOFF_FACTOR", "3")
+	t.Setenv("KONGCTL_E2E_RESET_RETRY_JITTER", "400ms")
+
+	got := resetHTTPPolicyFromEnv()
+	if got.RequestTimeout != 12*time.Second {
+		t.Fatalf("RequestTimeout = %s, want 12s", got.RequestTimeout)
+	}
+	if got.TotalTimeout != 2*time.Minute {
+		t.Fatalf("TotalTimeout = %s, want 2m", got.TotalTimeout)
+	}
+	if got.Backoff.Attempts != 4 {
+		t.Fatalf("Attempts = %d, want 4", got.Backoff.Attempts)
+	}
+	if got.Backoff.Base != 2*time.Second {
+		t.Fatalf("Base = %s, want 2s", got.Backoff.Base)
+	}
+	if got.Backoff.Max != 6*time.Second {
+		t.Fatalf("Max = %s, want 6s", got.Backoff.Max)
+	}
+	if got.Backoff.Factor != 3 {
+		t.Fatalf("Factor = %v, want 3", got.Backoff.Factor)
+	}
+	if got.Backoff.Jitter != 400*time.Millisecond {
+		t.Fatalf("Jitter = %s, want 400ms", got.Backoff.Jitter)
+	}
+}
+
+func TestRawHTTPRetryDefaultsFromEnv(t *testing.T) {
+	t.Setenv("KONGCTL_E2E_HTTP_TIMEOUT", "13s")
+	t.Setenv("KONGCTL_E2E_HTTP_RETRY_ATTEMPTS", "5")
+	t.Setenv("KONGCTL_E2E_HTTP_RETRY_INTERVAL", "1500ms")
+	t.Setenv("KONGCTL_E2E_HTTP_RETRY_MAX_INTERVAL", "7s")
+	t.Setenv("KONGCTL_E2E_HTTP_RETRY_BACKOFF_FACTOR", "4")
+	t.Setenv("KONGCTL_E2E_HTTP_RETRY_JITTER", "300ms")
+
+	if got := HTTPRequestTimeout(); got != 13*time.Second {
+		t.Fatalf("HTTPRequestTimeout() = %s, want 13s", got)
+	}
+
+	got := RawHTTPRetryDefaults()
+	if got.Attempts != 5 {
+		t.Fatalf("Attempts = %d, want 5", got.Attempts)
+	}
+	if got.Base != 1500*time.Millisecond {
+		t.Fatalf("Base = %s, want 1500ms", got.Base)
+	}
+	if got.Max != 7*time.Second {
+		t.Fatalf("Max = %s, want 7s", got.Max)
+	}
+	if got.Factor != 4 {
+		t.Fatalf("Factor = %v, want 4", got.Factor)
+	}
+	if got.Jitter != 300*time.Millisecond {
+		t.Fatalf("Jitter = %s, want 300ms", got.Jitter)
+	}
+}
