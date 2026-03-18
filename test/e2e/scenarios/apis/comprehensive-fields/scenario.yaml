@@ -84,6 +84,14 @@ steps:
               fields:
                 "length(@)": 1
                 "[?@=='web'] | length(@)": 1
+      - name: 004-get-api-attributes-environments
+        run: ["get", "api", "attributes", "--api-name", "API Top Level", "environments", "-o", "json"]
+        assertions:
+          - select: "environments"
+            expect:
+              fields:
+                "length(@)": 1
+                "[?@=='dev'] | length(@)": 1
 
   - name: 002-apply-update
     inputOverlayDirs:
@@ -151,6 +159,15 @@ steps:
                 "length(@)": 2
                 "[?@=='web'] | length(@)": 1
                 "[?@=='mobile'] | length(@)": 1
+      - name: 003-get-api-attributes-environments
+        run: ["get", "api", "attributes", "--api-name", "API Top Level", "environments", "-o", "json"]
+        assertions:
+          - select: "environments"
+            expect:
+              fields:
+                "length(@)": 2
+                "[?@=='staging'] | length(@)": 1
+                "[?@=='prod'] | length(@)": 1
 
   - name: 003-sync-delete
     inputOverlayDirs:
