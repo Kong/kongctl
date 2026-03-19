@@ -7,11 +7,13 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/httpheaders"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -64,7 +66,7 @@ func fetchAvailableRegions(ctx context.Context) (*availableRegionsResponse, erro
 	httpheaders.SetAcceptJSON(req)
 	httpheaders.SetUserAgent(req, meta.UserAgent())
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := httpclient.NewHTTPClient(15 * time.Second).Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve Konnect regions: %w", err)
 	}

@@ -74,8 +74,27 @@ Core harness settings:
   Defaults to enabled; set to `0` or `false` to disable.
 - `KONGCTL_E2E_KONNECT_BASE_URL`: Base URL for Konnect API. Default:
   `https://us.api.konghq.com`.
+- `KONGCTL_HTTP_TCP_USER_TIMEOUT`: Linux-only `TCP_USER_TIMEOUT` applied to
+  Konnect HTTP sockets used by the `kongctl` binary itself, including
+  SDK-backed commands. The E2E workflow sets this alongside the harness-only
+  variant so both paths are covered. Default: unset.
+- `KONGCTL_HTTP_DISABLE_KEEPALIVES`: Disable keepalive reuse for Konnect HTTP
+  clients used by the `kongctl` binary. Default: `false`.
+- `KONGCTL_HTTP_RECYCLE_CONNECTIONS_ON_ERROR`: Close idle pooled Konnect HTTP
+  connections in the `kongctl` binary after a transport error so retries do
+  not immediately reuse a suspect connection. Default: `false`.
 - `KONGCTL_E2E_HTTP_TIMEOUT`: Per-request timeout for raw Konnect HTTP helpers
   used by scenario create/delete flows. Default: `15s`.
+- `KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT`: Linux-only `TCP_USER_TIMEOUT` applied
+  to raw harness HTTP sockets. Useful for CI transport debugging. Default:
+  unset.
+- `KONGCTL_E2E_HTTP_DISABLE_KEEPALIVES`: Disable raw harness HTTP keepalive
+  reuse. Useful as a debugging toggle when suspecting stale pooled
+  connections. Default: `false`.
+- `KONGCTL_E2E_HTTP_RECYCLE_CONNECTIONS_ON_ERROR`: Close idle pooled harness
+  HTTP connections after a raw HTTP error before retrying. This is the
+  closest harness-level equivalent to testing `retryablehttp`-style
+  connection recycling without changing the retry library. Default: `false`.
 - `KONGCTL_E2E_HTTP_RETRY_ATTEMPTS`: Default retry attempts for raw Konnect
   HTTP helpers. Default: `4`.
 - `KONGCTL_E2E_HTTP_RETRY_INTERVAL`: Base retry interval for raw Konnect HTTP
@@ -273,6 +292,14 @@ The workflow derives sharding directly from GitHub Actions strategy context:
 The workflow also exposes the HTTP timeout and retry knobs above as repository
 or organization variables of the same names, so CI can tune reset and raw HTTP
 behavior without changing Go code.
+
+For transport debugging, the workflow currently defaults to:
+
+- `KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT=60s`
+- `KONGCTL_E2E_HTTP_RECYCLE_CONNECTIONS_ON_ERROR=1`
+
+Override either one with a repository or organization variable if you want to
+disable or change the experiment for CI runs.
 
 Each matrix leg writes an `assigned-scenarios.txt` manifest into its artifact
 directory. A final `E2E Verify` job downloads those manifests and fails unless:

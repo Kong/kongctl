@@ -170,9 +170,7 @@ func RefreshAccessToken(refreshURL string, refreshToken string, logger *slog.Log
 		},
 	})
 
-	httpClient := &http.Client{
-		Jar: jar,
-	}
+	httpClient := httpclient.NewHTTPClientWithConfig(httpclient.ClientConfig{Jar: jar})
 
 	req, err := http.NewRequest(http.MethodPost, refreshURL, nil)
 	if err != nil {
@@ -390,11 +388,11 @@ func GetAuthenticatedClient(baseURL string, token string, logger *slog.Logger) (
 		}),
 	}
 
-	// Add logging client if logger is provided and debug or trace logging is enabled.
-	if logger != nil && logger.Enabled(context.Background(), slog.LevelDebug) {
-		loggingClient := httpclient.NewLoggingHTTPClient(logger)
-		opts = append(opts, kk.WithClient(loggingClient))
-	}
+	loggingClient := httpclient.NewLoggingHTTPClientWithClient(
+		httpclient.NewHTTPClient(httpclient.DefaultHTTPClientTimeout),
+		logger,
+	)
+	opts = append(opts, kk.WithClient(loggingClient))
 
 	return kk.New(opts...), nil
 }

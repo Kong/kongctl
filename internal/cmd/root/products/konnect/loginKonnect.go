@@ -10,6 +10,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/auth"
+	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -57,7 +58,7 @@ func (c *loginKonnectCmd) run(helper cmd.Helper) error {
 		return err
 	}
 
-	httpClient = &http.Client{Timeout: time.Second * 15}
+	httpClient = httpclient.NewHTTPClient(15 * time.Second)
 
 	cfg, err := helper.GetConfig()
 	if err != nil {

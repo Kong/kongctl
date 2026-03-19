@@ -4,6 +4,7 @@ package harness
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -174,4 +175,76 @@ func TestRawHTTPRetryDefaultsFromEnv(t *testing.T) {
 	if got.Jitter != 300*time.Millisecond {
 		t.Fatalf("Jitter = %s, want 300ms", got.Jitter)
 	}
+}
+
+func TestHTTPTransportOptionsFromEnv(t *testing.T) {
+	t.Setenv("KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT", "60s")
+	t.Setenv("KONGCTL_E2E_HTTP_DISABLE_KEEPALIVES", "true")
+	t.Setenv("KONGCTL_E2E_HTTP_RECYCLE_CONNECTIONS_ON_ERROR", "1")
+
+	got := HTTPTransportOptionsFromEnv()
+	if got.TCPUserTimeout != 60*time.Second {
+		t.Fatalf("TCPUserTimeout = %s, want 60s", got.TCPUserTimeout)
+	}
+	if !got.DisableKeepAlives {
+		t.Fatal("DisableKeepAlives = false, want true")
+	}
+	if !got.RecycleConnectionsOnError {
+		t.Fatal("RecycleConnectionsOnError = false, want true")
+	}
+}
+
+func TestNewHTTPClientWithOptions(t *testing.T) {
+	client := newHTTPClientWithOptions(9*time.Second, HTTPTransportOptions{
+		DisableKeepAlives: true,
+	})
+
+	if client.Timeout != 9*time.Second {
+		t.Fatalf("client.Timeout = %s, want 9s", client.Timeout)
+	}
+
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("client.Transport type = %T, want *http.Transport", client.Transport)
+	}
+	if !transport.DisableKeepAlives {
+		t.Fatal("transport.DisableKeepAlives = false, want true")
+	}
+}
+
+func TestMaybeRecycleHTTPConnectionsOnError(t *testing.T) {
+	transport := &idleClosingTransport{}
+	client := &http.Client{Transport: transport}
+
+	maybeRecycleHTTPConnectionsOnError(client, HTTPTransportOptions{
+		RecycleConnectionsOnError: true,
+	}, fmt.Errorf("boom"))
+
+	if transport.closed != 1 {
+		t.Fatalf("closed = %d, want 1", transport.closed)
+	}
+
+	maybeRecycleHTTPConnectionsOnError(client, HTTPTransportOptions{}, fmt.Errorf("boom"))
+	if transport.closed != 1 {
+		t.Fatalf("closed after disabled recycle = %d, want 1", transport.closed)
+	}
+
+	maybeRecycleHTTPConnectionsOnError(client, HTTPTransportOptions{
+		RecycleConnectionsOnError: true,
+	}, nil)
+	if transport.closed != 1 {
+		t.Fatalf("closed after nil error = %d, want 1", transport.closed)
+	}
+}
+
+type idleClosingTransport struct {
+	closed int
+}
+
+func (t *idleClosingTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, fmt.Errorf("unused")
+}
+
+func (t *idleClosingTransport) CloseIdleConnections() {
+	t.closed++
 }

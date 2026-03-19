@@ -75,6 +75,14 @@ func RawHTTPRetryDefaults() BackoffConfig {
 	}
 }
 
+func HTTPTransportOptionsFromEnv() HTTPTransportOptions {
+	return HTTPTransportOptions{
+		TCPUserTimeout:            durationEnv("KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT", 0),
+		DisableKeepAlives:         boolEnv("KONGCTL_E2E_HTTP_DISABLE_KEEPALIVES", false),
+		RecycleConnectionsOnError: boolEnv("KONGCTL_E2E_HTTP_RECYCLE_CONNECTIONS_ON_ERROR", false),
+	}
+}
+
 func durationEnv(name string, fallback time.Duration) time.Duration {
 	raw := strings.TrimSpace(os.Getenv(name))
 	if raw == "" {
@@ -114,11 +122,34 @@ func floatEnv(name string, fallback float64) float64 {
 	return n
 }
 
-func newHTTPClient(timeout time.Duration) *http.Client {
-	if timeout <= 0 {
-		return &http.Client{}
+func boolEnv(name string, fallback bool) bool {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return fallback
 	}
-	return &http.Client{Timeout: timeout}
+	switch strings.ToLower(raw) {
+	case "1", "true", "yes", "on", "y":
+		return true
+	case "0", "false", "no", "off", "n":
+		return false
+	default:
+		Warnf("invalid %s=%q; using %t", name, raw, fallback)
+		return fallback
+	}
+}
+
+func newHTTPClient(timeout time.Duration) *http.Client {
+	return newHTTPClientWithOptions(timeout, HTTPTransportOptionsFromEnv())
+}
+
+func newHTTPClientWithOptions(timeout time.Duration, options HTTPTransportOptions) *http.Client {
+	if timeout <= 0 {
+		return &http.Client{Transport: newHTTPTransport(options)}
+	}
+	return &http.Client{
+		Timeout:   timeout,
+		Transport: newHTTPTransport(options),
+	}
 }
 
 func sleepWithContext(ctx context.Context, delay time.Duration) error {

@@ -112,6 +112,7 @@ func deleteAll(
 	endpoint string,
 	filter filterFunc,
 	policy HTTPRetryPolicy,
+	transportOptions HTTPTransportOptions,
 ) (int, int, error) {
 	url := fmt.Sprintf("%s/%s/%s", strings.TrimRight(baseURL, "/"), apiVersion, endpoint)
 	Infof("Fetching %s for deletion...", endpoint)
@@ -131,7 +132,7 @@ func deleteAll(
 		if err := ctx.Err(); err != nil {
 			return total, deleted, err
 		}
-		items, err := retryListItems(ctx, client, url, token, endpoint, policy)
+		items, err := retryListItems(ctx, client, url, token, endpoint, policy, transportOptions)
 		if err != nil {
 			return total, deleted, err
 		}
@@ -177,7 +178,7 @@ func deleteAll(
 
 		conflicts := 0
 		for _, id := range idsToDelete {
-			if err := retryDeleteOne(ctx, client, url, token, endpoint, id, policy); err != nil {
+			if err := retryDeleteOne(ctx, client, url, token, endpoint, id, policy, transportOptions); err != nil {
 				Warnf("delete %s %s failed: %v", endpoint, id, err)
 				if he, ok := err.(*httpError); ok && he.status == http.StatusConflict {
 					conflicts++
@@ -253,7 +254,8 @@ var resetSequence = []struct {
 }
 
 func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, error) {
-	client := newHTTPClient(policy.RequestTimeout)
+	transportOptions := HTTPTransportOptionsFromEnv()
+	client := newHTTPClientWithOptions(policy.RequestTimeout, transportOptions)
 	ctx := context.Background()
 	cancel := func() {}
 	if policy.TotalTimeout > 0 {
@@ -280,7 +282,17 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, e
 		if step.UseGlobal {
 			targetURL = "https://global.api.konghq.com"
 		}
-		tot, del, err := deleteAll(ctx, client, targetURL, token, step.Version, step.Endpoint, step.Filter, policy)
+		tot, del, err := deleteAll(
+			ctx,
+			client,
+			targetURL,
+			token,
+			step.Version,
+			step.Endpoint,
+			step.Filter,
+			policy,
+			transportOptions,
+		)
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
@@ -444,6 +456,7 @@ func retryListItems(
 	token string,
 	endpoint string,
 	policy HTTPRetryPolicy,
+	transportOptions HTTPTransportOptions,
 ) ([]map[string]any, error) {
 	cfg := NormalizeBackoffConfig(policy.Backoff)
 	attempts := cfg.Attempts
@@ -463,6 +476,7 @@ func retryListItems(
 		if err == nil {
 			return items, nil
 		}
+		maybeRecycleHTTPConnectionsOnError(client, transportOptions, err)
 		detail := err.Error()
 		fullTimeout := IsTimeoutRetry(err, detail) && policy.RequestTimeout > 0 &&
 			float64(duration)/float64(policy.RequestTimeout) >= DefaultTimeoutRetryThreshold
@@ -508,6 +522,7 @@ func retryDeleteOne(
 	endpoint string,
 	id string,
 	policy HTTPRetryPolicy,
+	transportOptions HTTPTransportOptions,
 ) error {
 	cfg := NormalizeBackoffConfig(policy.Backoff)
 	attempts := cfg.Attempts
@@ -526,6 +541,7 @@ func retryDeleteOne(
 		if err == nil {
 			return nil
 		}
+		maybeRecycleHTTPConnectionsOnError(client, transportOptions, err)
 		if he, ok := err.(*httpError); ok && he.status == http.StatusConflict {
 			return err
 		}
