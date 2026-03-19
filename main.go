@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"os/signal"
 	"syscall"
 
@@ -18,22 +16,14 @@ var (
 	date    = "unknown"
 )
 
-func registerSignalHandler() context.Context {
-	ctx, cancel := context.WithCancel(context.Background())
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		defer signal.Stop(sigs)
-		sig := <-sigs
-		fmt.Println("received", sig, ", terminating...")
-		cancel()
-	}()
-	return ctx
+func registerSignalHandler() (context.Context, context.CancelFunc) {
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	return ctx, cancel
 }
 
 func main() {
-	ctx := registerSignalHandler()
+	ctx, cancel := registerSignalHandler()
+	defer cancel()
 	bi := build.Info{
 		Version: version,
 		Commit:  commit,
