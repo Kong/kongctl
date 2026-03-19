@@ -232,13 +232,14 @@ func Run(t *testing.T, scenarioPath string) error {
 				if cmd.Delete != nil {
 					return fmt.Errorf("command %s: create and delete cannot both be set", cmdName)
 				}
-				retryCfg := effectiveRetry(s.Defaults.Retry, st.Retry, cmd.Retry, Retry{})
+				retryCfg := effectiveHTTPRetry(s.Defaults.Retry, st.Retry, cmd.Retry)
 				backoffCfg := harness.NormalizeBackoffConfig(backoffConfigFromRetry(retryCfg))
 				attempts := backoffCfg.Attempts
 				backoff := harness.BuildBackoffSchedule(backoffCfg)
 				var (
-					lastErr error
-					result  harness.CreateResourceResult
+					lastErr             error
+					result              harness.CreateResourceResult
+					consecutiveTimeouts int
 				)
 				for atry := 0; atry < attempts; atry++ {
 					if strings.TrimSpace(cmd.Name) != "" {
@@ -274,16 +275,33 @@ func Run(t *testing.T, scenarioPath string) error {
 					}
 					if atry+1 < attempts {
 						detail := createFailureDetail(result, lastErr)
-						if !harness.ShouldRetry(lastErr, detail, retryCfg.Only, retryCfg.Never, harness.Result{}, 0) {
+						if !harness.ShouldRetryHTTPAttempt(
+							lastErr,
+							detail,
+							harness.HTTPRequestTimeout(),
+							result.Duration,
+							retryCfg.Only,
+							retryCfg.Never,
+							consecutiveTimeouts,
+						) {
 							break
 						}
+						if result.TimedOut &&
+							harness.HTTPRequestTimeout() > 0 &&
+							float64(result.Duration)/float64(harness.HTTPRequestTimeout()) >= harness.DefaultTimeoutRetryThreshold {
+							consecutiveTimeouts++
+						} else {
+							consecutiveTimeouts = 0
+						}
 						preserveAttemptArtifacts(cli.LastCommandDir, atry)
-						delay := harness.BackoffDelay(backoff, atry)
+						delay := harness.RetryDelayForError(lastErr, backoff, atry)
 						harness.Warnf(
-							"command %s create attempt %d/%d failed (%v); retrying in %s",
+							"command %s create attempt %d/%d failed (%s, duration=%s): %v; retrying in %s",
 							cmdName,
 							atry+1,
 							attempts,
+							harness.ClassifyRetry(lastErr, detail),
+							result.Duration.Round(time.Millisecond),
 							lastErr,
 							delay,
 						)
@@ -336,13 +354,14 @@ func Run(t *testing.T, scenarioPath string) error {
 				if cmd.ExpectFail != nil {
 					return fmt.Errorf("command %s: expectFailure not supported for delete commands", cmdName)
 				}
-				retryCfg := effectiveRetry(s.Defaults.Retry, st.Retry, cmd.Retry, Retry{})
+				retryCfg := effectiveHTTPRetry(s.Defaults.Retry, st.Retry, cmd.Retry)
 				backoffCfg := harness.NormalizeBackoffConfig(backoffConfigFromRetry(retryCfg))
 				attempts := backoffCfg.Attempts
 				backoff := harness.BuildBackoffSchedule(backoffCfg)
 				var (
-					lastErr error
-					result  harness.DeleteResourceResult
+					lastErr             error
+					result              harness.DeleteResourceResult
+					consecutiveTimeouts int
 				)
 				for atry := 0; atry < attempts; atry++ {
 					if strings.TrimSpace(cmd.Name) != "" {
@@ -373,16 +392,33 @@ func Run(t *testing.T, scenarioPath string) error {
 					}
 					if atry+1 < attempts {
 						detail := deleteFailureDetail(result, lastErr)
-						if !harness.ShouldRetry(lastErr, detail, retryCfg.Only, retryCfg.Never, harness.Result{}, 0) {
+						if !harness.ShouldRetryHTTPAttempt(
+							lastErr,
+							detail,
+							harness.HTTPRequestTimeout(),
+							result.Duration,
+							retryCfg.Only,
+							retryCfg.Never,
+							consecutiveTimeouts,
+						) {
 							break
 						}
+						if result.TimedOut &&
+							harness.HTTPRequestTimeout() > 0 &&
+							float64(result.Duration)/float64(harness.HTTPRequestTimeout()) >= harness.DefaultTimeoutRetryThreshold {
+							consecutiveTimeouts++
+						} else {
+							consecutiveTimeouts = 0
+						}
 						preserveAttemptArtifacts(cli.LastCommandDir, atry)
-						delay := harness.BackoffDelay(backoff, atry)
+						delay := harness.RetryDelayForError(lastErr, backoff, atry)
 						harness.Warnf(
-							"command %s delete attempt %d/%d failed (%v); retrying in %s",
+							"command %s delete attempt %d/%d failed (%s, duration=%s): %v; retrying in %s",
 							cmdName,
 							atry+1,
 							attempts,
+							harness.ClassifyRetry(lastErr, detail),
+							result.Duration.Round(time.Millisecond),
 							lastErr,
 							delay,
 						)
@@ -1054,6 +1090,65 @@ func effectiveRetry(d, s, c, a Retry) Retry {
 	}
 	if strings.TrimSpace(merged.Jitter) == "" {
 		merged.Jitter = harness.DefaultRetryJitter.String()
+	}
+	return merged
+}
+
+func effectiveHTTPRetry(d, s, c Retry) Retry {
+	merged := Retry{
+		Attempts:      d.Attempts,
+		Interval:      d.Interval,
+		MaxInterval:   d.MaxInterval,
+		BackoffFactor: d.BackoffFactor,
+		Jitter:        d.Jitter,
+	}
+	if d.Only != nil {
+		merged.Only = append([]string{}, d.Only...)
+	}
+	if d.Never != nil {
+		merged.Never = append([]string{}, d.Never...)
+	}
+	merge := func(src Retry) {
+		if src.Attempts != 0 {
+			merged.Attempts = src.Attempts
+		}
+		if src.Interval != "" {
+			merged.Interval = src.Interval
+		}
+		if src.MaxInterval != "" {
+			merged.MaxInterval = src.MaxInterval
+		}
+		if src.BackoffFactor != 0 {
+			merged.BackoffFactor = src.BackoffFactor
+		}
+		if src.Jitter != "" {
+			merged.Jitter = src.Jitter
+		}
+		if src.Only != nil {
+			merged.Only = append([]string{}, src.Only...)
+		}
+		if src.Never != nil {
+			merged.Never = append([]string{}, src.Never...)
+		}
+	}
+	merge(s)
+	merge(c)
+
+	defaults := harness.NormalizeBackoffConfig(harness.RawHTTPRetryDefaults())
+	if merged.Attempts < 1 {
+		merged.Attempts = defaults.Attempts
+	}
+	if strings.TrimSpace(merged.Interval) == "" {
+		merged.Interval = defaults.Base.String()
+	}
+	if strings.TrimSpace(merged.MaxInterval) == "" {
+		merged.MaxInterval = defaults.Max.String()
+	}
+	if merged.BackoffFactor <= 0 {
+		merged.BackoffFactor = defaults.Factor
+	}
+	if strings.TrimSpace(merged.Jitter) == "" {
+		merged.Jitter = defaults.Jitter.String()
 	}
 	return merged
 }

@@ -61,9 +61,8 @@ func resetOrg(stage string, capture bool) error {
 	}
 
 	Infof("Resetting Konnect org at %s", baseURL)
-	client := &http.Client{Timeout: 30 * time.Second}
-
-	result, err := executeReset(client, baseURL, token)
+	policy := resetHTTPPolicyFromEnv()
+	result, err := executeReset(baseURL, token, policy)
 	if capture {
 		status := "ok"
 		reason := ""
@@ -104,7 +103,17 @@ func skipSystemTeams(resource map[string]any) bool {
 	return true
 }
 
-func deleteAll(client *http.Client, baseURL, token, apiVersion, endpoint string, filter filterFunc) (int, int, error) {
+func deleteAll(
+	ctx context.Context,
+	client *http.Client,
+	baseURL string,
+	token string,
+	apiVersion string,
+	endpoint string,
+	filter filterFunc,
+	policy HTTPRetryPolicy,
+	transportOptions HTTPTransportOptions,
+) (int, int, error) {
 	url := fmt.Sprintf("%s/%s/%s", strings.TrimRight(baseURL, "/"), apiVersion, endpoint)
 	Infof("Fetching %s for deletion...", endpoint)
 
@@ -120,7 +129,10 @@ func deleteAll(client *http.Client, baseURL, token, apiVersion, endpoint string,
 	attempt := 0
 
 	for {
-		items, err := retryListItems(client, url, token, endpoint)
+		if err := ctx.Err(); err != nil {
+			return total, deleted, err
+		}
+		items, err := retryListItems(ctx, client, url, token, endpoint, policy, transportOptions)
 		if err != nil {
 			return total, deleted, err
 		}
@@ -166,7 +178,7 @@ func deleteAll(client *http.Client, baseURL, token, apiVersion, endpoint string,
 
 		conflicts := 0
 		for _, id := range idsToDelete {
-			if err := retryDeleteOne(client, url, token, endpoint, id); err != nil {
+			if err := retryDeleteOne(ctx, client, url, token, endpoint, id, policy, transportOptions); err != nil {
 				Warnf("delete %s %s failed: %v", endpoint, id, err)
 				if he, ok := err.(*httpError); ok && he.status == http.StatusConflict {
 					conflicts++
@@ -191,13 +203,16 @@ func deleteAll(client *http.Client, baseURL, token, apiVersion, endpoint string,
 		}
 
 		Infof("Retrying deletion of %s (%d conflicts remaining)", endpoint, conflicts)
-		time.Sleep(retryDelay)
+		if err := sleepWithContext(ctx, retryDelay); err != nil {
+			return total, deleted, err
+		}
 	}
 }
 
 type httpError struct {
 	status int
 	body   string
+	header http.Header
 }
 
 func (e *httpError) Error() string {
@@ -238,16 +253,46 @@ var resetSequence = []struct {
 	{"v1", "event-gateways", false, nil},
 }
 
-func executeReset(client *http.Client, baseURL, token string) (resetResult, error) {
+func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, error) {
+	transportOptions := HTTPTransportOptionsFromEnv()
+	client := newHTTPClientWithOptions(policy.RequestTimeout, transportOptions)
+	ctx := context.Background()
+	cancel := func() {}
+	if policy.TotalTimeout > 0 {
+		ctx, cancel = context.WithTimeout(ctx, policy.TotalTimeout)
+	}
+	defer cancel()
+
 	var result resetResult
 	var firstErr error
 
 	for _, step := range resetSequence {
+		if err := ctx.Err(); err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			result.Details = append(result.Details, resetEndpoint{
+				APIVersion: step.Version,
+				Endpoint:   step.Endpoint,
+				Error:      errorString(err),
+			})
+			break
+		}
 		targetURL := baseURL
 		if step.UseGlobal {
 			targetURL = "https://global.api.konghq.com"
 		}
-		tot, del, err := deleteAll(client, targetURL, token, step.Version, step.Endpoint, step.Filter)
+		tot, del, err := deleteAll(
+			ctx,
+			client,
+			targetURL,
+			token,
+			step.Version,
+			step.Endpoint,
+			step.Filter,
+			policy,
+			transportOptions,
+		)
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
@@ -346,7 +391,11 @@ func captureResetEvent(
 }
 
 func listItems(client *http.Client, url, token string) ([]map[string]any, error) {
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	return listItemsWithContext(context.Background(), client, url, token)
+}
+
+func listItemsWithContext(ctx context.Context, client *http.Client, url, token string) ([]map[string]any, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -360,7 +409,11 @@ func listItems(client *http.Client, url, token string) ([]map[string]any, error)
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		b, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("list failed: %s: %s", resp.Status, strings.TrimSpace(string(b)))
+		return nil, &httpError{
+			status: resp.StatusCode,
+			body:   strings.TrimSpace(string(b)),
+			header: resp.Header.Clone(),
+		}
 	}
 	var lr listResp
 	if err := json.NewDecoder(resp.Body).Decode(&lr); err != nil {
@@ -370,7 +423,11 @@ func listItems(client *http.Client, url, token string) ([]map[string]any, error)
 }
 
 func deleteOne(client *http.Client, baseURL, token, id string) error {
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodDelete, baseURL+"/"+id, nil)
+	return deleteOneWithContext(context.Background(), client, baseURL, token, id)
+}
+
+func deleteOneWithContext(ctx context.Context, client *http.Client, baseURL, token, id string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, baseURL+"/"+id, nil)
 	if err != nil {
 		return err
 	}
@@ -383,71 +440,144 @@ func deleteOne(client *http.Client, baseURL, token, id string) error {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 		b, _ := io.ReadAll(resp.Body)
-		return &httpError{status: resp.StatusCode, body: strings.TrimSpace(string(b))}
+		return &httpError{
+			status: resp.StatusCode,
+			body:   strings.TrimSpace(string(b)),
+			header: resp.Header.Clone(),
+		}
 	}
 	return nil
 }
 
-func retryListItems(client *http.Client, url, token, endpoint string) ([]map[string]any, error) {
-	cfg := NormalizeBackoffConfig(BackoffConfig{})
+func retryListItems(
+	ctx context.Context,
+	client *http.Client,
+	url string,
+	token string,
+	endpoint string,
+	policy HTTPRetryPolicy,
+	transportOptions HTTPTransportOptions,
+) ([]map[string]any, error) {
+	cfg := NormalizeBackoffConfig(policy.Backoff)
 	attempts := cfg.Attempts
 	backoff := BuildBackoffSchedule(cfg)
 	var (
-		items []map[string]any
-		err   error
+		items               []map[string]any
+		err                 error
+		consecutiveTimeouts int
 	)
 	for atry := 0; atry < attempts; atry++ {
-		items, err = listItems(client, url, token)
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		start := time.Now()
+		items, err = listItemsWithContext(ctx, client, url, token)
+		duration := time.Since(start)
 		if err == nil {
 			return items, nil
 		}
-		if !ShouldRetry(err, err.Error(), nil, nil, Result{}, 0) || atry+1 >= attempts {
+		maybeRecycleHTTPConnectionsOnError(client, transportOptions, err)
+		detail := err.Error()
+		fullTimeout := IsTimeoutRetry(err, detail) && policy.RequestTimeout > 0 &&
+			float64(duration)/float64(policy.RequestTimeout) >= DefaultTimeoutRetryThreshold
+		if !ShouldRetryHTTPAttempt(
+			err,
+			detail,
+			policy.RequestTimeout,
+			duration,
+			nil,
+			nil,
+			consecutiveTimeouts,
+		) || atry+1 >= attempts {
 			return nil, err
 		}
-		delay := BackoffDelay(backoff, atry)
+		if fullTimeout {
+			consecutiveTimeouts++
+		} else {
+			consecutiveTimeouts = 0
+		}
+		delay := RetryDelayForError(err, backoff, atry)
 		Warnf(
-			"reset: list %s attempt %d/%d failed: %v; retrying in %s",
+			"reset: list %s attempt %d/%d failed (%s, duration=%s): %v; retrying in %s",
 			endpoint,
 			atry+1,
 			attempts,
+			ClassifyRetry(err, detail),
+			duration.Round(time.Millisecond),
 			err,
 			delay,
 		)
-		if delay > 0 {
-			time.Sleep(delay)
+		if err := sleepWithContext(ctx, delay); err != nil {
+			return nil, err
 		}
 	}
 	return nil, err
 }
 
-func retryDeleteOne(client *http.Client, baseURL, token, endpoint, id string) error {
-	cfg := NormalizeBackoffConfig(BackoffConfig{})
+func retryDeleteOne(
+	ctx context.Context,
+	client *http.Client,
+	baseURL string,
+	token string,
+	endpoint string,
+	id string,
+	policy HTTPRetryPolicy,
+	transportOptions HTTPTransportOptions,
+) error {
+	cfg := NormalizeBackoffConfig(policy.Backoff)
 	attempts := cfg.Attempts
 	backoff := BuildBackoffSchedule(cfg)
-	var err error
+	var (
+		err                 error
+		consecutiveTimeouts int
+	)
 	for atry := 0; atry < attempts; atry++ {
-		err = deleteOne(client, baseURL, token, id)
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		start := time.Now()
+		err = deleteOneWithContext(ctx, client, baseURL, token, id)
+		duration := time.Since(start)
 		if err == nil {
 			return nil
 		}
+		maybeRecycleHTTPConnectionsOnError(client, transportOptions, err)
 		if he, ok := err.(*httpError); ok && he.status == http.StatusConflict {
 			return err
 		}
-		if !ShouldRetry(err, err.Error(), nil, nil, Result{}, 0) || atry+1 >= attempts {
+		detail := err.Error()
+		fullTimeout := IsTimeoutRetry(err, detail) && policy.RequestTimeout > 0 &&
+			float64(duration)/float64(policy.RequestTimeout) >= DefaultTimeoutRetryThreshold
+		if !ShouldRetryHTTPAttempt(
+			err,
+			detail,
+			policy.RequestTimeout,
+			duration,
+			nil,
+			nil,
+			consecutiveTimeouts,
+		) || atry+1 >= attempts {
 			return err
 		}
-		delay := BackoffDelay(backoff, atry)
+		if fullTimeout {
+			consecutiveTimeouts++
+		} else {
+			consecutiveTimeouts = 0
+		}
+		delay := RetryDelayForError(err, backoff, atry)
 		Warnf(
-			"reset: delete %s/%s attempt %d/%d failed: %v; retrying in %s",
+			"reset: delete %s/%s attempt %d/%d failed (%s, duration=%s): %v; retrying in %s",
 			endpoint,
 			id,
 			atry+1,
 			attempts,
+			ClassifyRetry(err, detail),
+			duration.Round(time.Millisecond),
 			err,
 			delay,
 		)
-		if delay > 0 {
-			time.Sleep(delay)
+		if err := sleepWithContext(ctx, delay); err != nil {
+			return err
 		}
 	}
 	return err

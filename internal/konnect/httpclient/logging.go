@@ -92,10 +92,8 @@ type LoggingHTTPClient struct {
 // NewLoggingHTTPClient creates a new logging HTTP client
 func NewLoggingHTTPClient(logger *slog.Logger) *LoggingHTTPClient {
 	return &LoggingHTTPClient{
-		wrapped: &http.Client{
-			Timeout: 60 * time.Second,
-		},
-		logger: logger,
+		wrapped: NewHTTPClient(DefaultHTTPClientTimeout),
+		logger:  logger,
 	}
 }
 

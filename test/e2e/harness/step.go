@@ -37,11 +37,13 @@ type CreateResourceOptions struct {
 }
 
 type CreateResourceResult struct {
-	Status int
-	Body   []byte
-	Parsed any
-	Method string
-	URL    string
+	Status   int
+	Body     []byte
+	Parsed   any
+	Method   string
+	URL      string
+	Duration time.Duration
+	TimedOut bool
 }
 
 type DeleteResourceOptions struct {
@@ -51,11 +53,13 @@ type DeleteResourceOptions struct {
 }
 
 type DeleteResourceResult struct {
-	Status int
-	Body   []byte
-	Parsed any
-	Method string
-	URL    string
+	Status   int
+	Body     []byte
+	Parsed   any
+	Method   string
+	URL      string
+	Duration time.Duration
+	TimedOut bool
 }
 
 // NewStep initializes a new step directory under the CLI's TestDir and
@@ -389,11 +393,13 @@ type resourceRequestOptions struct {
 }
 
 type resourceRequestResult struct {
-	Status int
-	Body   []byte
-	Parsed any
-	Method string
-	URL    string
+	Status   int
+	Body     []byte
+	Parsed   any
+	Method   string
+	URL      string
+	Duration time.Duration
+	TimedOut bool
 }
 
 // CreateResource issues an authenticated Konnect API call to create an unmanaged resource and
@@ -415,11 +421,13 @@ func (s *Step) CreateResource(resource string, body []byte, opts CreateResourceO
 	}
 
 	return CreateResourceResult{
-		Status: result.Status,
-		Body:   result.Body,
-		Parsed: result.Parsed,
-		Method: result.Method,
-		URL:    result.URL,
+		Status:   result.Status,
+		Body:     result.Body,
+		Parsed:   result.Parsed,
+		Method:   result.Method,
+		URL:      result.URL,
+		Duration: result.Duration,
+		TimedOut: result.TimedOut,
 	}, nil
 }
 
@@ -442,11 +450,13 @@ func (s *Step) DeleteResource(resource string, opts DeleteResourceOptions) (Dele
 	}
 
 	return DeleteResourceResult{
-		Status: result.Status,
-		Body:   result.Body,
-		Parsed: result.Parsed,
-		Method: result.Method,
-		URL:    result.URL,
+		Status:   result.Status,
+		Body:     result.Body,
+		Parsed:   result.Parsed,
+		Method:   result.Method,
+		URL:      result.URL,
+		Duration: result.Duration,
+		TimedOut: result.TimedOut,
 	}, nil
 }
 
@@ -496,6 +506,7 @@ func (s *Step) requestResource(
 	if token == "" {
 		return result, fmt.Errorf("KONGCTL_E2E_KONNECT_PAT not set")
 	}
+	timeout := HTTPRequestTimeout()
 	ctx := context.Background()
 	req, err := http.NewRequestWithContext(ctx, endpoint.Method, fullURL, bytes.NewReader(body))
 	if err != nil {
@@ -506,9 +517,15 @@ func (s *Step) requestResource(
 	if len(body) > 0 {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := newHTTPClient(timeout)
 	start := time.Now()
 	resp, err := client.Do(req)
+	result.Duration = time.Since(start)
+	errDetail := ""
+	if err != nil {
+		errDetail = err.Error()
+	}
+	result.TimedOut = IsTimeoutRetry(err, errDetail)
 	if err != nil {
 		return result, err
 	}
@@ -517,7 +534,7 @@ func (s *Step) requestResource(
 	if err != nil {
 		return result, fmt.Errorf("failed to read response body: %w", err)
 	}
-	duration := time.Since(start)
+	duration := result.Duration
 	end := time.Now()
 	result.Status = resp.StatusCode
 	result.Body = append([]byte(nil), bodyBytes...)
@@ -538,7 +555,12 @@ func (s *Step) requestResource(
 		if len(snippet) > 2048 {
 			snippet = snippet[:2048] + "…"
 		}
-		return result, fmt.Errorf("unexpected status %d (expected %d): %s", resp.StatusCode, expect, snippet)
+		return result, fmt.Errorf(
+			"unexpected status %d (expected %d): %w",
+			resp.StatusCode,
+			expect,
+			&httpError{status: resp.StatusCode, body: snippet, header: resp.Header.Clone()},
+		)
 	}
 	if dir != "" {
 		_ = os.WriteFile(
@@ -628,7 +650,7 @@ func (s *Step) GetKonnectJSON(name string, path string, out any, selector any) e
 	_ = os.WriteFile(filepath.Join(dir, "command.txt"), []byte("HTTP GET "+fullURL+"\n"), 0o644)
 
 	// Execute request
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := newHTTPClient(HTTPRequestTimeout())
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, fullURL, nil)
 	if err != nil {
 		return err
@@ -691,9 +713,13 @@ func (s *Step) GetKonnectJSON(name string, path string, out any, selector any) e
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		if decodeErr != nil {
-			return fmt.Errorf("http %d; decode error: %v", resp.StatusCode, decodeErr)
+			return fmt.Errorf(
+				"http %d; decode error: %w",
+				resp.StatusCode,
+				&httpError{status: resp.StatusCode, body: decodeErr.Error(), header: resp.Header.Clone()},
+			)
 		}
-		return fmt.Errorf("http %d", resp.StatusCode)
+		return &httpError{status: resp.StatusCode, body: string(body), header: resp.Header.Clone()}
 	}
 	if decodeErr != nil {
 		return decodeErr
@@ -777,14 +803,14 @@ func (s *Step) ResetOrgForRegions(stage string, regions []string) error {
 		return err
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	policy := resetHTTPPolicyFromEnv()
 	var (
 		summaries []map[string]any
 		firstErr  error
 	)
 
 	for _, baseURL := range baseURLs {
-		result, runErr := executeReset(client, baseURL, token)
+		result, runErr := executeReset(baseURL, token, policy)
 		details := make([]map[string]any, 0, len(result.Details))
 		for _, d := range result.Details {
 			details = append(details, map[string]any{
