@@ -224,7 +224,7 @@ jobs:
             local status="$1"
             local output_file="$2"
 
-            sed -n "s/^--- ${status}: Test_Scenarios\/\(.*\) (.*/\1/p" "${ART_DIR}/run.log" | \
+            sed -n "s/^[[:space:]]*--- ${status}: Test_Scenarios\/\(.*\) (.*/\1/p" "${ART_DIR}/run.log" | \
               sed 's#^test/e2e/scenarios/##' | sort > "${output_file}"
           }
 
