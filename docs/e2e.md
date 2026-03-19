@@ -288,6 +288,20 @@ The workflow summary also includes aggregated execution results from all shard
 jobs, including assigned scenario count, pass/fail/skip totals, per-shard
 durations, exit codes, and a failed-scenarios table when applicable.
 
+For temporary GitHub-runner network debugging, the workflow can also capture
+packet traces for Konnect endpoints:
+
+- set the `workflow_dispatch` input `capture_tcpdump=true`, or
+- set the repository or organization variable `KONGCTL_E2E_CAPTURE_TCPDUMP=1`
+
+When enabled, each matrix job records a `tcpdump/` directory in the normal E2E
+artifact bundle containing:
+
+- `konnect.pcap`: packet capture filtered to the regional Konnect host and
+  `global.api.konghq.com` on port `443`
+- `tcpdump.log`: tcpdump startup and shutdown output
+- `context.txt`: runner host, DNS resolution, interfaces, and routes
+
 The org pool is defined as JSON in the repository or organization variable
 `KONGCTL_E2E_ORGS_JSON`. Example:
 

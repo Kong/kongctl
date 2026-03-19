@@ -31,6 +31,10 @@ on:
         description: Run Gmail-backed portal applications scenario
         type: boolean
         default: false
+      capture_tcpdump:
+        description: Capture tcpdump traffic for Konnect endpoints on the runner
+        type: boolean
+        default: false
 
 jobs:
   e2e-harness:
@@ -117,6 +121,7 @@ jobs:
       KONGCTL_E2E_SHARD_INDEX: ${{ strategy.job-index }}
       KONGCTL_E2E_SHARD_TOTAL: ${{ strategy.job-total }}
       KONGCTL_E2E_RUN_PORTAL_APPLICATIONS: ${{ github.event_name == 'workflow_dispatch' && inputs.run_portal_applications && '1' || '' }}
+      KONGCTL_E2E_CAPTURE_TCPDUMP: ${{ github.event_name == 'workflow_dispatch' && inputs.capture_tcpdump && '1' || vars.KONGCTL_E2E_CAPTURE_TCPDUMP || '' }}
       KONGCTL_E2E_GMAIL_ACCESS_TOKEN: ${{ secrets.KONGCTL_E2E_GMAIL_ACCESS_TOKEN }}
       KONGCTL_E2E_GMAIL_ADDRESS: ${{ secrets.KONGCTL_E2E_GMAIL_ADDRESS }}
       KONGCTL_E2E_GMAIL_CLIENT_ID: ${{ secrets.KONGCTL_E2E_GMAIL_CLIENT_ID }}
@@ -143,6 +148,57 @@ jobs:
 
       - name: Make E2E binaries executable
         run: chmod 0755 "${KONGCTL_E2E_BIN}" "${KONGCTL_E2E_TEST_BIN}"
+
+      - name: Install tcpdump
+        if: env.KONGCTL_E2E_CAPTURE_TCPDUMP == '1'
+        run: |
+          set -euo pipefail
+          if ! command -v tcpdump >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y tcpdump
+          fi
+
+          tcpdump --version | sed -n '1p'
+
+      - name: Start tcpdump capture
+        if: env.KONGCTL_E2E_CAPTURE_TCPDUMP == '1'
+        run: |
+          set -euo pipefail
+
+          CAP_DIR="${KONGCTL_E2E_ARTIFACTS_DIR}/tcpdump"
+          mkdir -p "${CAP_DIR}"
+
+          regional_host="${KONGCTL_E2E_KONNECT_BASE_URL#http://}"
+          regional_host="${regional_host#https://}"
+          regional_host="${regional_host%%/*}"
+          filter="(tcp port 443) and (host ${regional_host} or host global.api.konghq.com)"
+
+          {
+            printf 'started_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            printf 'regional_host=%s\n' "${regional_host}"
+            printf 'filter=%s\n' "${filter}"
+            echo
+            uname -a
+            echo
+            getent hosts "${regional_host}" || true
+            getent hosts global.api.konghq.com || true
+            echo
+            ip addr || true
+            echo
+            ip route || true
+          } > "${CAP_DIR}/context.txt"
+
+          sudo tcpdump \
+            -U \
+            -i any \
+            -nn \
+            -s 0 \
+            -w "${CAP_DIR}/konnect.pcap" \
+            -Z "${USER}" \
+            "${filter}" \
+            > "${CAP_DIR}/tcpdump.log" 2>&1 &
+
+          echo "$!" > "${CAP_DIR}/tcpdump.pid"
 
       # If you later want runs to be opt-in via label, add a guard like this:
       # - name: Require opt-in label to run E2E
@@ -208,6 +264,29 @@ jobs:
 
           echo "E2E artifacts: ${ART_DIR}"
           exit "${code}"
+
+      - name: Stop tcpdump capture
+        if: always() && env.KONGCTL_E2E_CAPTURE_TCPDUMP == '1'
+        run: |
+          set +e
+
+          CAP_DIR="${KONGCTL_E2E_ARTIFACTS_DIR}/tcpdump"
+          PID_FILE="${CAP_DIR}/tcpdump.pid"
+
+          if [ -f "${PID_FILE}" ]; then
+            pid="$(cat "${PID_FILE}")"
+            sudo kill -INT "${pid}" 2>/dev/null || true
+
+            for _ in $(seq 1 10); do
+              if ! ps -p "${pid}" >/dev/null 2>&1; then
+                break
+              fi
+              sleep 1
+            done
+          fi
+
+          sudo chown -R "${USER}:${USER}" "${CAP_DIR}" 2>/dev/null || true
+          ls -lh "${CAP_DIR}" || true
 
       - name: Upload E2E artifacts
         if: always()
