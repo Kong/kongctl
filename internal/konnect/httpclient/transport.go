@@ -46,7 +46,7 @@ func TransportOptionsFromEnv() TransportOptions {
 }
 
 func NewHTTPClient(timeout time.Duration) *http.Client {
-	return NewHTTPClientWithConfig(ClientConfig{Timeout: timeout})
+	return NewHTTPClientWithConfig(ClientConfig{Timeout: timeoutFromEnv(timeout)})
 }
 
 func NewHTTPClientWithConfig(cfg ClientConfig) *http.Client {
@@ -96,6 +96,14 @@ func newHTTPTransport(options TransportOptions) http.RoundTripper {
 		base:    transport,
 		recycle: options.RecycleConnectionsOnError,
 	}
+}
+
+func timeoutFromEnv(fallback time.Duration) time.Duration {
+	return durationEnvFirst(
+		fallback,
+		"KONGCTL_HTTP_TIMEOUT",
+		"KONGCTL_E2E_HTTP_TIMEOUT",
+	)
 }
 
 func durationEnvFirst(fallback time.Duration, names ...string) time.Duration {

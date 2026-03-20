@@ -54,3 +54,20 @@ func TestNewHTTPClientWithConfig(t *testing.T) {
 	require.True(t, transport.base.DisableKeepAlives)
 	require.NotNil(t, transport.base.DialContext)
 }
+
+func TestNewHTTPClientPrefersGenericTimeoutEnv(t *testing.T) {
+	t.Setenv("KONGCTL_HTTP_TIMEOUT", "11s")
+	t.Setenv("KONGCTL_E2E_HTTP_TIMEOUT", "13s")
+
+	client := NewHTTPClient(DefaultHTTPClientTimeout)
+
+	require.Equal(t, 11*time.Second, client.Timeout)
+}
+
+func TestNewHTTPClientFallsBackToE2ETimeoutEnv(t *testing.T) {
+	t.Setenv("KONGCTL_E2E_HTTP_TIMEOUT", "13s")
+
+	client := NewHTTPClient(DefaultHTTPClientTimeout)
+
+	require.Equal(t, 13*time.Second, client.Timeout)
+}
