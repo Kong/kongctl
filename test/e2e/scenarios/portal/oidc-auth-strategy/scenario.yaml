@@ -111,13 +111,12 @@ steps:
             expect:
               fields:
                 action: UPDATE
-                "fields._strategy_type": openid_connect
 
           - select: >-
-              contains(changes[?resource_type=='application_auth_strategy' &&
-                resource_ref=='oidc-e2e'] | [0].fields.config.scopes, 'email')
+              changes[?resource_type=='application_auth_strategy' &&
+                resource_ref=='oidc-e2e'] | [0].fields
             expect:
-              value: true
+              file: expect/003-update-oidc-scope/oidc-strategy-update-fields.json
       - name: 001-apply
         outputFormat: json
         run:
