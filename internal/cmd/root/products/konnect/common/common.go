@@ -108,18 +108,18 @@ func ResolveBaseURL(cfg config.Hook) (string, error) {
 }
 
 func ResolveHTTPTimeout(cfg config.Hook) (time.Duration, error) {
-	timeout, err := resolveOptionalDuration(cfg, cmdcommon.HTTPTimeoutConfigPath)
+	timeout, set, err := resolveOptionalDuration(cfg, cmdcommon.HTTPTimeoutConfigPath)
 	if err != nil {
 		return 0, err
 	}
-	if timeout == 0 {
+	if !set {
 		return httpclient.DefaultHTTPClientTimeout, nil
 	}
 	return timeout, nil
 }
 
 func ResolveHTTPTransportOptions(cfg config.Hook) (httpclient.TransportOptions, error) {
-	tcpUserTimeout, err := resolveOptionalDuration(cfg, cmdcommon.HTTPTCPUserTimeoutConfigPath)
+	tcpUserTimeout, _, err := resolveOptionalDuration(cfg, cmdcommon.HTTPTCPUserTimeoutConfigPath)
 	if err != nil {
 		return httpclient.TransportOptions{}, err
 	}
@@ -236,18 +236,30 @@ func GetSDKFactory() helpers.SDKAPIFactory {
 	return KonnectSDKFactory
 }
 
-func resolveOptionalDuration(cfg config.Hook, configPath string) (time.Duration, error) {
+func resolveOptionalDuration(cfg config.Hook, configPath string) (time.Duration, bool, error) {
 	raw := strings.TrimSpace(cfg.GetString(configPath))
 	if raw == "" {
-		return 0, nil
+		return 0, false, nil
+	}
+	if timeoutDisabled(raw) {
+		return 0, true, nil
 	}
 
 	value, err := time.ParseDuration(raw)
-	if err != nil || value <= 0 {
-		return 0, fmt.Errorf("invalid %s value %q", configPath, raw)
+	if err != nil || value < 0 {
+		return 0, true, fmt.Errorf("invalid %s value %q", configPath, raw)
 	}
 
-	return value, nil
+	return value, true, nil
+}
+
+func timeoutDisabled(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "0", "default", "defaults", "disable", "disabled", "none", "off", "platform", "system":
+		return true
+	default:
+		return false
+	}
 }
 
 func resolveOptionalBool(cfg config.Hook, configPath string) (bool, error) {

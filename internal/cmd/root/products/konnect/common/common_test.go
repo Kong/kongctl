@@ -132,6 +132,16 @@ func TestResolveHTTPTimeout(t *testing.T) {
 		require.Equal(t, 15*time.Second, timeout)
 	})
 
+	t.Run("explicitly disabled timeout", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			cmdcommon.HTTPTimeoutConfigPath: "0s",
+		})
+
+		timeout, err := ResolveHTTPTimeout(cfg)
+		require.NoError(t, err)
+		require.Equal(t, time.Duration(0), timeout)
+	})
+
 	t.Run("invalid timeout returns error", func(t *testing.T) {
 		cfg, _ := newTestConfig(map[string]string{
 			cmdcommon.HTTPTimeoutConfigPath: "banana",
@@ -163,6 +173,16 @@ func TestResolveHTTPTransportOptions(t *testing.T) {
 		require.Equal(t, 45*time.Second, options.TCPUserTimeout)
 		require.True(t, options.DisableKeepAlives)
 		require.True(t, options.RecycleConnectionsOnError)
+	})
+
+	t.Run("explicitly disabled tcp user timeout", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			cmdcommon.HTTPTCPUserTimeoutConfigPath: "default",
+		})
+
+		options, err := ResolveHTTPTransportOptions(cfg)
+		require.NoError(t, err)
+		require.Equal(t, time.Duration(0), options.TCPUserTimeout)
 	})
 
 	t.Run("invalid duration returns error", func(t *testing.T) {

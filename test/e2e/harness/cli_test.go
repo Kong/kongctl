@@ -39,3 +39,26 @@ func TestWriteProfileConfigIncludesHTTPSettings(t *testing.T) {
 		t.Fatalf("config missing http-recycle-connections-on-error: %s", content)
 	}
 }
+
+func TestWriteProfileConfigOmitsDisabledHTTPTimeouts(t *testing.T) {
+	t.Setenv("KONGCTL_E2E_HTTP_TIMEOUT", "0s")
+	t.Setenv("KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT", "default")
+
+	cfgDir := t.TempDir()
+	if err := writeProfileConfig(cfgDir, "e2e", "json", "debug"); err != nil {
+		t.Fatalf("writeProfileConfig() error = %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(cfgDir, "kongctl", "config.yaml"))
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+
+	content := string(data)
+	if strings.Contains(content, "http-timeout:") {
+		t.Fatalf("config unexpectedly contains http-timeout: %s", content)
+	}
+	if strings.Contains(content, "http-tcp-user-timeout:") {
+		t.Fatalf("config unexpectedly contains http-tcp-user-timeout: %s", content)
+	}
+}

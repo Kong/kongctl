@@ -706,7 +706,9 @@ func writeProfileConfig(cfgDir, profile, output, logLevel string) error {
 	fmt.Fprintf(&y, "%s:\n", profile)
 	fmt.Fprintf(&y, "  output: %s\n", output)
 	fmt.Fprintf(&y, "  log-level: %s\n", logLevel)
-	fmt.Fprintf(&y, "  http-timeout: %s\n", HTTPRequestTimeout())
+	if timeout := HTTPRequestTimeout(); timeout > 0 {
+		fmt.Fprintf(&y, "  http-timeout: %s\n", timeout)
+	}
 	if options.TCPUserTimeout > 0 {
 		fmt.Fprintf(&y, "  http-tcp-user-timeout: %s\n", options.TCPUserTimeout)
 	}
