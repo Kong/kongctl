@@ -515,7 +515,7 @@ jobs:
             {
               echo "## E2E Results"
               echo
-              echo "- Status: $([ "${failed_total}" -eq 0 ] && echo passed || echo failed)"
+              echo "- Status: $([ "${failed_total}" -eq 0 ] && [ "${nonzero_exit_total}" -eq 0 ] && echo passed || echo failed)"
               echo "- Selected shard layout attempt: ${latest_attempt}"
               echo "- Shards: ${total}"
               echo "- Assigned scenarios: ${scenario_count}"
