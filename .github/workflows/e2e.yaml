@@ -51,6 +51,9 @@ jobs:
       - name: Detect whether E2E is required
         id: detect
         shell: bash
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          BASE_REF: ${{ github.base_ref || '' }}
         run: |
           set -euo pipefail
 
@@ -60,9 +63,14 @@ jobs:
             exit 0
           fi
 
-          base_branch="${{ github.event.repository.default_branch }}"
-          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
-            base_branch="${{ github.base_ref }}"
+          base_branch="${DEFAULT_BRANCH}"
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ] && [ -n "${BASE_REF}" ]; then
+            base_branch="${BASE_REF}"
+          fi
+
+          if ! git check-ref-format --branch "${base_branch}" >/dev/null 2>&1; then
+            echo "::error::Invalid base branch ref: ${base_branch}"
+            exit 1
           fi
 
           git fetch --no-tags --prune --depth=1 origin "${base_branch}"
