@@ -145,7 +145,7 @@ jobs:
       #     GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
 
       - name: Setup deck
-        uses: kong/setup-deck@c379e0f67ec1f1363247484a0c3142ae6168f811 # v1.6.0
+        uses: kong/setup-deck@6ea0a466ee5826ddb531cbe851ba8e5a77a0e041 # v1.7.1
 
       - name: Download E2E binaries
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
