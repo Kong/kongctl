@@ -8,3 +8,13 @@ event_gateways:
     kongctl:
       namespace: "egw-protection"
       protected: true
+    backend_clusters:
+      - ref: default-backend-cluster
+        name: default-backend-cluster
+        description: "Protected backend cluster"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9092"
+        authentication:
+          type: anonymous
+        tls:
+          enabled: false

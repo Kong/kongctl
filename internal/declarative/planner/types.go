@@ -47,6 +47,7 @@ type PlannedChange struct {
 	PostResolutionTargets []PostResolutionTarget   `json:"post_resolution_targets,omitempty"`
 	References            map[string]ReferenceInfo `json:"references,omitempty"`
 	Parent                *ParentInfo              `json:"parent,omitempty"`
+	ProtectingParent      *ProtectingParentInfo    `json:"protecting_parent,omitempty"`
 	Protection            any                      `json:"protection,omitempty"` // bool or ProtectionChange
 	Namespace             string                   `json:"namespace"`
 	DependsOn             []string                 `json:"depends_on,omitempty"`
@@ -80,6 +81,14 @@ type ReferenceInfo struct {
 type ParentInfo struct {
 	Ref string `json:"ref"`
 	ID  string `json:"id"` // May be "[unknown]" for parents in same plan
+}
+
+// ProtectingParentInfo identifies the top-level managed resource whose protection applies to a child change.
+type ProtectingParentInfo struct {
+	ResourceType string `json:"resource_type,omitempty"`
+	ResourceRef  string `json:"resource_ref,omitempty"`
+	ResourceID   string `json:"resource_id,omitempty"`
+	ResourceName string `json:"resource_name,omitempty"`
 }
 
 // ProtectionChange tracks protection status changes

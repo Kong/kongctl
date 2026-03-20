@@ -24,6 +24,7 @@ steps:
             - content
             - id
             - parent.id
+            - protecting_parent
             - references.api_id
             - references.parent_document_id.id
         assertions:
