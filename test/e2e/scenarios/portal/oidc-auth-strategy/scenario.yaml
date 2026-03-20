@@ -1,0 +1,174 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: debug
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-oidc-strategy
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-oidc-strategy.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/oidc-strategy.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                resource_ref=='oidc-e2e'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                resource_ref=='oidc-e2e'] | [0].fields
+            expect:
+              file: expect/001-apply-oidc-strategy/oidc-strategy-fields.json
+
+      - name: 001-apply
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-oidc-strategy.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+  - name: 002-idempotency-check
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/oidc-strategy.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-update-oidc-scope
+    inputOverlayDirs:
+      - overlays/003-update-scope
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-oidc-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/oidc-strategy.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                resource_ref=='oidc-e2e'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "fields.strategy_type": openid_connect
+
+      - name: 001-apply
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-oidc-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+  - name: 004-sync-delete
+    inputOverlayDirs:
+      - overlays/004-sync-delete
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-oidc-delete.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/oidc-strategy.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                resource_ref=='oidc-e2e'] | [0]
+            expect:
+              fields:
+                action: DELETE
+
+      - name: 001-sync
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-oidc-delete.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
