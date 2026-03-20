@@ -2038,65 +2038,127 @@ func (c *Client) ListManagedAuthStrategies(
 
 // extractAuthStrategyFromUnion extracts a normalized auth strategy from the SDK union type
 func (c *Client) extractAuthStrategyFromUnion(s kkComps.AppAuthStrategy) *ApplicationAuthStrategy {
-	var strategy ApplicationAuthStrategy
-	var labelMap map[string]string
-
-	// The SDK returns AppAuthStrategy which is a union type
-	// We need to check which type it is by checking the embedded fields
 	if s.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse != nil {
 		keyAuthResp := s.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse
-		strategy.ID = keyAuthResp.ID
-		strategy.Name = keyAuthResp.Name
-		strategy.DisplayName = keyAuthResp.DisplayName
-		strategy.StrategyType = "key_auth"
+		return normalizeKeyAuthStrategy(
+			keyAuthResp.ID,
+			keyAuthResp.Name,
+			keyAuthResp.DisplayName,
+			keyAuthResp.Labels,
+			keyAuthResp.Configs.KeyAuth.KeyNames,
+		)
+	}
 
-		// Extract configs
-		configs := make(map[string]any)
-		keyAuthConfig := make(map[string]any)
-		if keyAuthResp.Configs.KeyAuth.KeyNames != nil {
-			keyAuthConfig["key_names"] = keyAuthResp.Configs.KeyAuth.KeyNames
-		}
-		configs["key-auth"] = keyAuthConfig
-		strategy.Configs = configs
-
-		labelMap = keyAuthResp.Labels
-
-	} else if s.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse != nil {
+	if s.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse != nil {
 		oidcResp := s.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse
-		strategy.ID = oidcResp.ID
-		strategy.Name = oidcResp.Name
-		strategy.DisplayName = oidcResp.DisplayName
-		strategy.StrategyType = "openid_connect"
+		return normalizeOIDCStrategy(
+			oidcResp.ID,
+			oidcResp.Name,
+			oidcResp.DisplayName,
+			oidcResp.Labels,
+			oidcResp.Configs.OpenidConnect.Issuer,
+			oidcResp.Configs.OpenidConnect.CredentialClaim,
+			oidcResp.Configs.OpenidConnect.Scopes,
+			oidcResp.Configs.OpenidConnect.AuthMethods,
+		)
+	}
 
-		// Extract configs
-		configs := make(map[string]any)
-		oidcConfig := make(map[string]any)
-		oidcConfig["issuer"] = oidcResp.Configs.OpenidConnect.Issuer
-		if oidcResp.Configs.OpenidConnect.CredentialClaim != nil {
-			oidcConfig["credential_claim"] = oidcResp.Configs.OpenidConnect.CredentialClaim
-		}
-		if oidcResp.Configs.OpenidConnect.Scopes != nil {
-			oidcConfig["scopes"] = oidcResp.Configs.OpenidConnect.Scopes
-		}
-		if oidcResp.Configs.OpenidConnect.AuthMethods != nil {
-			oidcConfig["auth_methods"] = oidcResp.Configs.OpenidConnect.AuthMethods
-		}
-		configs["openid-connect"] = oidcConfig
-		strategy.Configs = configs
+	return nil
+}
 
-		labelMap = oidcResp.Labels
-	} else {
-		// Unknown type
+func (c *Client) extractAuthStrategyFromCreateResponse(
+	resp *kkComps.CreateAppAuthStrategyResponse,
+) *ApplicationAuthStrategy {
+	if resp == nil {
 		return nil
 	}
 
-	// Normalize labels
+	if keyAuthResp := resp.AppAuthStrategyKeyAuthResponse; keyAuthResp != nil {
+		return normalizeKeyAuthStrategy(
+			keyAuthResp.ID,
+			keyAuthResp.Name,
+			keyAuthResp.DisplayName,
+			keyAuthResp.Labels,
+			keyAuthResp.Configs.KeyAuth.KeyNames,
+		)
+	}
+
+	if oidcResp := resp.AppAuthStrategyOpenIDConnectResponse; oidcResp != nil {
+		return normalizeOIDCStrategy(
+			oidcResp.ID,
+			oidcResp.Name,
+			oidcResp.DisplayName,
+			oidcResp.Labels,
+			oidcResp.Configs.OpenidConnect.Issuer,
+			oidcResp.Configs.OpenidConnect.CredentialClaim,
+			oidcResp.Configs.OpenidConnect.Scopes,
+			oidcResp.Configs.OpenidConnect.AuthMethods,
+		)
+	}
+
+	return nil
+}
+
+func normalizeKeyAuthStrategy(
+	id, name, displayName string,
+	labelMap map[string]string,
+	keyNames []string,
+) *ApplicationAuthStrategy {
+	strategy := &ApplicationAuthStrategy{
+		ID:           id,
+		Name:         name,
+		DisplayName:  displayName,
+		StrategyType: "key_auth",
+		Configs: map[string]any{
+			"key-auth": map[string]any{},
+		},
+	}
+
+	if keyNames != nil {
+		strategy.Configs["key-auth"].(map[string]any)["key_names"] = keyNames
+	}
+
 	if labelMap == nil {
 		labelMap = make(map[string]string)
 	}
 	strategy.NormalizedLabels = labelMap
 
-	return &strategy
+	return strategy
+}
+
+func normalizeOIDCStrategy(
+	id, name, displayName string,
+	labelMap map[string]string,
+	issuer string,
+	credentialClaim, scopes, authMethods []string,
+) *ApplicationAuthStrategy {
+	oidcConfig := map[string]any{
+		"issuer": issuer,
+	}
+	if credentialClaim != nil {
+		oidcConfig["credential_claim"] = credentialClaim
+	}
+	if scopes != nil {
+		oidcConfig["scopes"] = scopes
+	}
+	if authMethods != nil {
+		oidcConfig["auth_methods"] = authMethods
+	}
+
+	if labelMap == nil {
+		labelMap = make(map[string]string)
+	}
+
+	return &ApplicationAuthStrategy{
+		ID:           id,
+		Name:         name,
+		DisplayName:  displayName,
+		StrategyType: "openid_connect",
+		Configs: map[string]any{
+			"openid-connect": oidcConfig,
+		},
+		NormalizedLabels: labelMap,
+	}
 }
 
 // GetAuthStrategyByName finds a managed auth strategy by name
@@ -2114,6 +2176,31 @@ func (c *Client) GetAuthStrategyByName(ctx context.Context, name string) (*Appli
 	}
 
 	return nil, nil // Not found
+}
+
+// GetAuthStrategyByID finds a managed auth strategy by ID.
+func (c *Client) GetAuthStrategyByID(ctx context.Context, id string) (*ApplicationAuthStrategy, error) {
+	if err := ValidateAPIClient(c.appAuthAPI, "app auth API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.appAuthAPI.GetAppAuthStrategy(ctx, id)
+	if err != nil {
+		return nil, WrapAPIError(err, "get application auth strategy by ID", &ErrorWrapperOptions{
+			ResourceType: "application_auth_strategy",
+			UseEnhanced:  true,
+		})
+	}
+	if resp == nil {
+		return nil, nil
+	}
+
+	strategy := c.extractAuthStrategyFromCreateResponse(resp.GetCreateAppAuthStrategyResponse())
+	if strategy == nil {
+		return nil, nil
+	}
+
+	return strategy, nil
 }
 
 // GetAuthStrategyByFilter finds a managed auth strategy using a filter expression
