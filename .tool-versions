@@ -1,4 +1,4 @@
 jq            1.8.1
 gh            2.83.2
-golangci-lint 2.11.1
+golangci-lint 2.11.2
 goreleaser    2.13.3
