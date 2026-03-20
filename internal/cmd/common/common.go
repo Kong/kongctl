@@ -61,6 +61,16 @@ const (
 	// related to directing logs to a file
 	LogFileFlagName   = "log-file"
 	LogFileConfigPath = LogFileFlagName
+
+	// related to profile-wide HTTP client defaults
+	HTTPTimeoutFlagName                     = "http-timeout"
+	HTTPTimeoutConfigPath                   = HTTPTimeoutFlagName
+	HTTPTCPUserTimeoutName                  = "http-tcp-user-timeout"
+	HTTPTCPUserTimeoutConfigPath            = HTTPTCPUserTimeoutName
+	HTTPDisableKeepAlivesName               = "http-disable-keepalives"
+	HTTPDisableKeepAlivesConfigPath         = HTTPDisableKeepAlivesName
+	HTTPRecycleConnectionsOnErrorName       = "http-recycle-connections-on-error"
+	HTTPRecycleConnectionsOnErrorConfigPath = HTTPRecycleConnectionsOnErrorName
 )
 
 func (of OutputFormat) String() string {

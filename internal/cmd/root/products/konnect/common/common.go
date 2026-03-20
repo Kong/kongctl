@@ -5,10 +5,13 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
+	"time"
 
+	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/auth"
 	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/meta"
 )
 
@@ -104,6 +107,40 @@ func ResolveBaseURL(cfg config.Hook) (string, error) {
 	return resolved, nil
 }
 
+func ResolveHTTPTimeout(cfg config.Hook) (time.Duration, error) {
+	timeout, err := resolveOptionalDuration(cfg, cmdcommon.HTTPTimeoutConfigPath)
+	if err != nil {
+		return 0, err
+	}
+	if timeout == 0 {
+		return httpclient.DefaultHTTPClientTimeout, nil
+	}
+	return timeout, nil
+}
+
+func ResolveHTTPTransportOptions(cfg config.Hook) (httpclient.TransportOptions, error) {
+	tcpUserTimeout, err := resolveOptionalDuration(cfg, cmdcommon.HTTPTCPUserTimeoutConfigPath)
+	if err != nil {
+		return httpclient.TransportOptions{}, err
+	}
+
+	disableKeepAlives, err := resolveOptionalBool(cfg, cmdcommon.HTTPDisableKeepAlivesConfigPath)
+	if err != nil {
+		return httpclient.TransportOptions{}, err
+	}
+
+	recycleOnError, err := resolveOptionalBool(cfg, cmdcommon.HTTPRecycleConnectionsOnErrorConfigPath)
+	if err != nil {
+		return httpclient.TransportOptions{}, err
+	}
+
+	return httpclient.TransportOptions{
+		TCPUserTimeout:            tcpUserTimeout,
+		DisableKeepAlives:         disableKeepAlives,
+		RecycleConnectionsOnError: recycleOnError,
+	}, nil
+}
+
 func GetAccessToken(cfg config.Hook, logger *slog.Logger) (string, error) {
 	pat := cfg.GetString(PATConfigPath)
 	if pat != "" {
@@ -120,7 +157,18 @@ func GetAccessToken(cfg config.Hook, logger *slog.Logger) (string, error) {
 		refreshPath = RefreshPathDefault
 	}
 	refreshURL := baseURL + refreshPath
-	tok, err := auth.LoadAccessToken(cfg, refreshURL, logger)
+
+	timeout, err := ResolveHTTPTimeout(cfg)
+	if err != nil {
+		return "", err
+	}
+
+	transportOptions, err := ResolveHTTPTransportOptions(cfg)
+	if err != nil {
+		return "", err
+	}
+
+	tok, err := auth.LoadAccessToken(cfg, refreshURL, timeout, transportOptions, logger)
 	if err != nil {
 		// Provide helpful guidance on authentication options instead of exposing
 		// internal implementation details like file paths
@@ -160,7 +208,17 @@ func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, er
 		return nil, err
 	}
 
-	sdk, err := auth.GetAuthenticatedClient(baseURL, token, logger)
+	timeout, err := ResolveHTTPTimeout(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	transportOptions, err := ResolveHTTPTransportOptions(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	sdk, err := auth.GetAuthenticatedClient(baseURL, token, timeout, transportOptions, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -176,4 +234,34 @@ func GetSDKFactory() helpers.SDKAPIFactory {
 		return helpers.DefaultSDKFactory
 	}
 	return KonnectSDKFactory
+}
+
+func resolveOptionalDuration(cfg config.Hook, configPath string) (time.Duration, error) {
+	raw := strings.TrimSpace(cfg.GetString(configPath))
+	if raw == "" {
+		return 0, nil
+	}
+
+	value, err := time.ParseDuration(raw)
+	if err != nil || value <= 0 {
+		return 0, fmt.Errorf("invalid %s value %q", configPath, raw)
+	}
+
+	return value, nil
+}
+
+func resolveOptionalBool(cfg config.Hook, configPath string) (bool, error) {
+	raw := strings.TrimSpace(cfg.GetString(configPath))
+	if raw == "" {
+		return false, nil
+	}
+
+	switch strings.ToLower(raw) {
+	case "1", "true", "yes", "on", "y":
+		return true, nil
+	case "0", "false", "no", "off", "n":
+		return false, nil
+	default:
+		return false, fmt.Errorf("invalid %s value %q", configPath, raw)
+	}
 }

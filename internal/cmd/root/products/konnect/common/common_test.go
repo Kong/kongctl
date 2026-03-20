@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"maps"
 	"testing"
+	"time"
 
+	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/konnect/httpclient"
 	configtest "github.com/kong/kongctl/test/config"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
@@ -106,6 +109,77 @@ func TestResolveBaseURL(t *testing.T) {
 			RegionConfigPath: "bad/region",
 		})
 		_, err := ResolveBaseURL(cfg)
+		require.Error(t, err)
+	})
+}
+
+func TestResolveHTTPTimeout(t *testing.T) {
+	t.Run("default fallback", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{})
+
+		timeout, err := ResolveHTTPTimeout(cfg)
+		require.NoError(t, err)
+		require.Equal(t, httpclient.DefaultHTTPClientTimeout, timeout)
+	})
+
+	t.Run("configured timeout", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			cmdcommon.HTTPTimeoutConfigPath: "15s",
+		})
+
+		timeout, err := ResolveHTTPTimeout(cfg)
+		require.NoError(t, err)
+		require.Equal(t, 15*time.Second, timeout)
+	})
+
+	t.Run("invalid timeout returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			cmdcommon.HTTPTimeoutConfigPath: "banana",
+		})
+
+		_, err := ResolveHTTPTimeout(cfg)
+		require.Error(t, err)
+	})
+}
+
+func TestResolveHTTPTransportOptions(t *testing.T) {
+	t.Run("default fallback", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{})
+
+		options, err := ResolveHTTPTransportOptions(cfg)
+		require.NoError(t, err)
+		require.Equal(t, httpclient.TransportOptions{}, options)
+	})
+
+	t.Run("configured values", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			cmdcommon.HTTPTCPUserTimeoutConfigPath:            "45s",
+			cmdcommon.HTTPDisableKeepAlivesConfigPath:         "true",
+			cmdcommon.HTTPRecycleConnectionsOnErrorConfigPath: "1",
+		})
+
+		options, err := ResolveHTTPTransportOptions(cfg)
+		require.NoError(t, err)
+		require.Equal(t, 45*time.Second, options.TCPUserTimeout)
+		require.True(t, options.DisableKeepAlives)
+		require.True(t, options.RecycleConnectionsOnError)
+	})
+
+	t.Run("invalid duration returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			cmdcommon.HTTPTCPUserTimeoutConfigPath: "banana",
+		})
+
+		_, err := ResolveHTTPTransportOptions(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("invalid bool returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{
+			cmdcommon.HTTPDisableKeepAlivesConfigPath: "banana",
+		})
+
+		_, err := ResolveHTTPTransportOptions(cfg)
 		require.Error(t, err)
 	})
 }

@@ -151,7 +151,13 @@ func RequestDeviceCode(httpClient *http.Client,
 	return deviceCodeResponse, nil
 }
 
-func RefreshAccessToken(refreshURL string, refreshToken string, logger *slog.Logger) (*AccessToken, error) {
+func RefreshAccessToken(
+	refreshURL string,
+	refreshToken string,
+	timeout time.Duration,
+	transportOptions httpclient.TransportOptions,
+	logger *slog.Logger,
+) (*AccessToken, error) {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, err
@@ -170,7 +176,11 @@ func RefreshAccessToken(refreshURL string, refreshToken string, logger *slog.Log
 		},
 	})
 
-	httpClient := httpclient.NewHTTPClientWithConfig(httpclient.ClientConfig{Jar: jar})
+	httpClient := httpclient.NewHTTPClientWithConfig(httpclient.ClientConfig{
+		Timeout:          timeout,
+		Jar:              jar,
+		TransportOptions: transportOptions,
+	})
 
 	req, err := http.NewRequest(http.MethodPost, refreshURL, nil)
 	if err != nil {
@@ -292,7 +302,13 @@ func PollForToken(ctx context.Context, httpClient *http.Client,
 // * If there is no file, return error.
 // * If it's not expired, return it.
 // * If it's expired, refresh it, then store it, then return it
-func LoadAccessToken(cfg config.Hook, refreshURL string, logger *slog.Logger) (*AccessToken, error) {
+func LoadAccessToken(
+	cfg config.Hook,
+	refreshURL string,
+	timeout time.Duration,
+	transportOptions httpclient.TransportOptions,
+	logger *slog.Logger,
+) (*AccessToken, error) {
 	profile := cfg.GetProfile()
 	cfgPath := filepath.Dir(cfg.GetPath())
 	credsPath := filepath.Join(cfgPath, getCredentialFileName(profile))
@@ -304,7 +320,7 @@ func LoadAccessToken(cfg config.Hook, refreshURL string, logger *slog.Logger) (*
 
 	if creds.IsExpired() {
 		logger.Info("Token expired, refreshing", "refresh_url", refreshURL)
-		creds, err = RefreshAccessToken(refreshURL, creds.Token.RefreshToken, logger)
+		creds, err = RefreshAccessToken(refreshURL, creds.Token.RefreshToken, timeout, transportOptions, logger)
 		if err != nil {
 			return nil, err
 		}
@@ -378,7 +394,13 @@ func saveAccessTokenToDisk(path string, token *AccessToken) error {
 	return nil
 }
 
-func GetAuthenticatedClient(baseURL string, token string, logger *slog.Logger) (*kk.SDK, error) {
+func GetAuthenticatedClient(
+	baseURL string,
+	token string,
+	timeout time.Duration,
+	transportOptions httpclient.TransportOptions,
+	logger *slog.Logger,
+) (*kk.SDK, error) {
 	kkMetadata.SetUserAgent(meta.UserAgent())
 
 	opts := []kk.SDKOption{
@@ -389,7 +411,10 @@ func GetAuthenticatedClient(baseURL string, token string, logger *slog.Logger) (
 	}
 
 	loggingClient := httpclient.NewLoggingHTTPClientWithClient(
-		httpclient.NewHTTPClient(httpclient.DefaultHTTPClientTimeout),
+		httpclient.NewHTTPClientWithConfig(httpclient.ClientConfig{
+			Timeout:          timeout,
+			TransportOptions: transportOptions,
+		}),
 		logger,
 	)
 	opts = append(opts, kk.WithClient(loggingClient))

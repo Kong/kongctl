@@ -74,32 +74,23 @@ Core harness settings:
   Defaults to enabled; set to `0` or `false` to disable.
 - `KONGCTL_E2E_KONNECT_BASE_URL`: Base URL for Konnect API. Default:
   `https://us.api.konghq.com`.
-- `KONGCTL_HTTP_TIMEOUT`: Per-request timeout for Konnect HTTP clients used
-  by the `kongctl` binary, including SDK-backed commands. The E2E workflow
-  defaults this from `KONGCTL_E2E_HTTP_TIMEOUT` when unset.
-- `KONGCTL_HTTP_TCP_USER_TIMEOUT`: Linux-only `TCP_USER_TIMEOUT` applied to
-  Konnect HTTP sockets used by the `kongctl` binary itself, including
-  SDK-backed commands. The E2E workflow sets this alongside the harness-only
-  variant so both paths are covered. Default: unset.
-- `KONGCTL_HTTP_DISABLE_KEEPALIVES`: Disable keepalive reuse for Konnect HTTP
-  clients used by the `kongctl` binary. Default: `false`.
-- `KONGCTL_HTTP_RECYCLE_CONNECTIONS_ON_ERROR`: Close idle pooled Konnect HTTP
-  connections in the `kongctl` binary after a transport error so retries do
-  not immediately reuse a suspect connection. Default: `false`.
 - `KONGCTL_E2E_HTTP_TIMEOUT`: Per-request timeout for raw Konnect HTTP helpers
-  used by scenario create/delete flows. The E2E workflow also uses this as
-  the fallback value for `KONGCTL_HTTP_TIMEOUT`, so SDK-backed CLI commands
-  share the same default. Default: `15s`.
+  used by scenario create/delete flows. The harness also writes the same
+  value into the generated `e2e.http-timeout` profile setting so
+  SDK-backed CLI commands share the same default. Default: `15s`.
 - `KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT`: Linux-only `TCP_USER_TIMEOUT` applied
-  to raw harness HTTP sockets. Useful for CI transport debugging. Default:
-  unset.
+  to raw harness HTTP sockets. The harness also writes the same value into
+  the generated `e2e.http-tcp-user-timeout` profile setting so
+  SDK-backed CLI commands use the same socket setting. Default: unset.
 - `KONGCTL_E2E_HTTP_DISABLE_KEEPALIVES`: Disable raw harness HTTP keepalive
-  reuse. Useful as a debugging toggle when suspecting stale pooled
-  connections. Default: `false`.
+  reuse. The harness also writes the same value into the generated
+  `e2e.http-disable-keepalives` profile setting so SDK-backed CLI
+  commands share the same setting. Default: `false`.
 - `KONGCTL_E2E_HTTP_RECYCLE_CONNECTIONS_ON_ERROR`: Close idle pooled harness
-  HTTP connections after a raw HTTP error before retrying. This is the
-  closest harness-level equivalent to testing `retryablehttp`-style
-  connection recycling without changing the retry library. Default: `false`.
+  HTTP connections after a raw HTTP error before retrying. The harness also
+  writes the same value into the generated
+  `e2e.http-recycle-connections-on-error` profile setting so
+  SDK-backed CLI commands share the same setting. Default: `false`.
 - `KONGCTL_E2E_HTTP_RETRY_ATTEMPTS`: Default retry attempts for raw Konnect
   HTTP helpers. Default: `4`.
 - `KONGCTL_E2E_HTTP_RETRY_INTERVAL`: Base retry interval for raw Konnect HTTP
