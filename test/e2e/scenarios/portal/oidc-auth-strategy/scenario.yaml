@@ -111,7 +111,7 @@ steps:
             expect:
               fields:
                 action: UPDATE
-                "fields.strategy_type": openid_connect
+                "fields._strategy_type": openid_connect
 
           - select: >-
               contains(changes[?resource_type=='application_auth_strategy' &&
