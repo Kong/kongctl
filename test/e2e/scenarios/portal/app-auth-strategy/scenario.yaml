@@ -9,10 +9,11 @@ steps:
     commands:
       - resetOrg: true
 
-  - name: 001-plan-key-auth-strategy
+  - name: 001-apply-create
     commands:
       - name: 000-plan
         outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
         run:
           - plan
           - -f
@@ -43,3 +44,140 @@ steps:
                 resource_ref=='key-auth-strategy-e2e'] | [0].fields
             expect:
               file: expect/001-plan-auth-strategy/auth-strategy-fields.json
+
+      - name: 001-apply
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: >-
+              execution.applied_changes[?resource_type=='application_auth_strategy' &&
+                resource_ref=='key-auth-strategy-e2e'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+  - name: 002-idempotency
+    commands:
+      - name: 000-plan
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-update-key-names
+    inputOverlayDirs:
+      - overlays/003-update-key-names
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                resource_ref=='key-auth-strategy-e2e'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                resource_ref=='key-auth-strategy-e2e'] | [0].fields
+            expect:
+              file: expect/003-update-key-names/auth-strategy-fields.json
+
+      - name: 001-apply
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+  - name: 004-sync-delete
+    inputOverlayDirs:
+      - overlays/004-sync-delete
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                resource_ref=='key-auth-strategy-e2e'] | [0]
+            expect:
+              fields:
+                action: DELETE
+
+      - name: 001-sync
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 002-verify-deleted
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
