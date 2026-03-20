@@ -49,8 +49,8 @@ func defaultResetHTTPPolicy() HTTPRetryPolicy {
 
 func resetHTTPPolicyFromEnv() HTTPRetryPolicy {
 	policy := defaultResetHTTPPolicy()
-	policy.RequestTimeout = durationEnv("KONGCTL_E2E_RESET_HTTP_TIMEOUT", policy.RequestTimeout)
-	policy.TotalTimeout = durationEnv("KONGCTL_E2E_RESET_TIMEOUT", policy.TotalTimeout)
+	policy.RequestTimeout = timeoutEnv("KONGCTL_E2E_RESET_HTTP_TIMEOUT", policy.RequestTimeout)
+	policy.TotalTimeout = timeoutEnv("KONGCTL_E2E_RESET_TIMEOUT", policy.TotalTimeout)
 	policy.Backoff = BackoffConfig{
 		Attempts: intEnv("KONGCTL_E2E_RESET_RETRY_ATTEMPTS", policy.Backoff.Attempts),
 		Base:     durationEnv("KONGCTL_E2E_RESET_RETRY_INTERVAL", policy.Backoff.Base),
@@ -62,7 +62,7 @@ func resetHTTPPolicyFromEnv() HTTPRetryPolicy {
 }
 
 func HTTPRequestTimeout() time.Duration {
-	return durationEnv("KONGCTL_E2E_HTTP_TIMEOUT", DefaultHTTPTimeout)
+	return timeoutEnv("KONGCTL_E2E_HTTP_TIMEOUT", DefaultHTTPTimeout)
 }
 
 func RawHTTPRetryDefaults() BackoffConfig {
@@ -77,10 +77,27 @@ func RawHTTPRetryDefaults() BackoffConfig {
 
 func HTTPTransportOptionsFromEnv() HTTPTransportOptions {
 	return HTTPTransportOptions{
-		TCPUserTimeout:            durationEnv("KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT", 0),
+		TCPUserTimeout:            timeoutEnv("KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT", 0),
 		DisableKeepAlives:         boolEnv("KONGCTL_E2E_HTTP_DISABLE_KEEPALIVES", false),
 		RecycleConnectionsOnError: boolEnv("KONGCTL_E2E_HTTP_RECYCLE_CONNECTIONS_ON_ERROR", false),
 	}
+}
+
+func timeoutEnv(name string, fallback time.Duration) time.Duration {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return fallback
+	}
+	if timeoutDisabled(raw) {
+		return 0
+	}
+
+	d, err := time.ParseDuration(raw)
+	if err != nil || d < 0 {
+		Warnf("invalid %s=%q; using %s", name, raw, fallback)
+		return fallback
+	}
+	return d
 }
 
 func durationEnv(name string, fallback time.Duration) time.Duration {
@@ -94,6 +111,15 @@ func durationEnv(name string, fallback time.Duration) time.Duration {
 		return fallback
 	}
 	return d
+}
+
+func timeoutDisabled(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "0", "default", "defaults", "disable", "disabled", "none", "off", "platform", "system":
+		return true
+	default:
+		return false
+	}
 }
 
 func intEnv(name string, fallback int) int {

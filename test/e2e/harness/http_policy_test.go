@@ -163,6 +163,19 @@ func TestResetHTTPPolicyFromEnv(t *testing.T) {
 	}
 }
 
+func TestResetHTTPPolicyFromEnvAllowsDisabledTimeouts(t *testing.T) {
+	t.Setenv("KONGCTL_E2E_RESET_HTTP_TIMEOUT", "0s")
+	t.Setenv("KONGCTL_E2E_RESET_TIMEOUT", "default")
+
+	got := resetHTTPPolicyFromEnv()
+	if got.RequestTimeout != 0 {
+		t.Fatalf("RequestTimeout = %s, want 0", got.RequestTimeout)
+	}
+	if got.TotalTimeout != 0 {
+		t.Fatalf("TotalTimeout = %s, want 0", got.TotalTimeout)
+	}
+}
+
 func TestRawHTTPRetryDefaultsFromEnv(t *testing.T) {
 	t.Setenv("KONGCTL_E2E_HTTP_TIMEOUT", "13s")
 	t.Setenv("KONGCTL_E2E_HTTP_RETRY_ATTEMPTS", "5")
@@ -193,6 +206,14 @@ func TestRawHTTPRetryDefaultsFromEnv(t *testing.T) {
 	}
 }
 
+func TestHTTPRequestTimeoutAllowsDisabledValue(t *testing.T) {
+	t.Setenv("KONGCTL_E2E_HTTP_TIMEOUT", "0s")
+
+	if got := HTTPRequestTimeout(); got != 0 {
+		t.Fatalf("HTTPRequestTimeout() = %s, want 0", got)
+	}
+}
+
 func TestHTTPTransportOptionsFromEnv(t *testing.T) {
 	t.Setenv("KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT", "60s")
 	t.Setenv("KONGCTL_E2E_HTTP_DISABLE_KEEPALIVES", "true")
@@ -207,6 +228,15 @@ func TestHTTPTransportOptionsFromEnv(t *testing.T) {
 	}
 	if !got.RecycleConnectionsOnError {
 		t.Fatal("RecycleConnectionsOnError = false, want true")
+	}
+}
+
+func TestHTTPTransportOptionsFromEnvAllowsDisabledTCPUserTimeout(t *testing.T) {
+	t.Setenv("KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT", "0s")
+
+	got := HTTPTransportOptionsFromEnv()
+	if got.TCPUserTimeout != 0 {
+		t.Fatalf("TCPUserTimeout = %s, want 0", got.TCPUserTimeout)
 	}
 }
 

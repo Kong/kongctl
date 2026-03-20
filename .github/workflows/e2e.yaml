@@ -102,8 +102,11 @@ jobs:
       KONGCTL_E2E_KONNECT_BASE_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_URL || 'https://us.api.konghq.com' }}
       # Reset is enabled by default in the harness; set explicitly for clarity
       KONGCTL_E2E_RESET: "1"
-      KONGCTL_E2E_HTTP_TIMEOUT: ${{ vars.KONGCTL_E2E_HTTP_TIMEOUT || '15s' }}
-      KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT: ${{ vars.KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT || '60s' }}
+      # Set HTTP timeout vars to 0s/default/off to disable kongctl/harness application-level timeouts
+      # and rely on Go transport behavior plus the workflow/job timeout.
+      KONGCTL_E2E_HTTP_TIMEOUT: ${{ vars.KONGCTL_E2E_HTTP_TIMEOUT || '0s' }}
+      # Set TCP user timeout to 0s/default/off to leave TCP_USER_TIMEOUT unset and use the platform default.
+      KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT: ${{ vars.KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT || '0s' }}
       KONGCTL_E2E_HTTP_DISABLE_KEEPALIVES: ${{ vars.KONGCTL_E2E_HTTP_DISABLE_KEEPALIVES || '' }}
       KONGCTL_E2E_HTTP_RECYCLE_CONNECTIONS_ON_ERROR: ${{ vars.KONGCTL_E2E_HTTP_RECYCLE_CONNECTIONS_ON_ERROR || '1' }}
       KONGCTL_E2E_HTTP_RETRY_ATTEMPTS: ${{ vars.KONGCTL_E2E_HTTP_RETRY_ATTEMPTS || '4' }}
@@ -111,8 +114,9 @@ jobs:
       KONGCTL_E2E_HTTP_RETRY_MAX_INTERVAL: ${{ vars.KONGCTL_E2E_HTTP_RETRY_MAX_INTERVAL || '5s' }}
       KONGCTL_E2E_HTTP_RETRY_BACKOFF_FACTOR: ${{ vars.KONGCTL_E2E_HTTP_RETRY_BACKOFF_FACTOR || '2' }}
       KONGCTL_E2E_HTTP_RETRY_JITTER: ${{ vars.KONGCTL_E2E_HTTP_RETRY_JITTER || '250ms' }}
-      KONGCTL_E2E_RESET_HTTP_TIMEOUT: ${{ vars.KONGCTL_E2E_RESET_HTTP_TIMEOUT || '15s' }}
-      KONGCTL_E2E_RESET_TIMEOUT: ${{ vars.KONGCTL_E2E_RESET_TIMEOUT || '3m' }}
+      # Set reset timeouts to 0s/default/off to disable reset deadlines and rely on the workflow/job timeout.
+      KONGCTL_E2E_RESET_HTTP_TIMEOUT: ${{ vars.KONGCTL_E2E_RESET_HTTP_TIMEOUT || '0s' }}
+      KONGCTL_E2E_RESET_TIMEOUT: ${{ vars.KONGCTL_E2E_RESET_TIMEOUT || '0s' }}
       KONGCTL_E2E_RESET_RETRY_ATTEMPTS: ${{ vars.KONGCTL_E2E_RESET_RETRY_ATTEMPTS || '3' }}
       KONGCTL_E2E_RESET_RETRY_INTERVAL: ${{ vars.KONGCTL_E2E_RESET_RETRY_INTERVAL || '1s' }}
       KONGCTL_E2E_RESET_RETRY_MAX_INTERVAL: ${{ vars.KONGCTL_E2E_RESET_RETRY_MAX_INTERVAL || '5s' }}
@@ -249,6 +253,7 @@ jobs:
 
           {
             printf 'org_name=%s\n' "${KONGCTL_E2E_MATRIX_ORG}"
+            printf 'run_attempt=%s\n' "${GITHUB_RUN_ATTEMPT}"
             printf 'shard_index=%s\n' "${KONGCTL_E2E_SHARD_INDEX}"
             printf 'shard_total=%s\n' "${KONGCTL_E2E_SHARD_TOTAL}"
             printf 'exit_code=%s\n' "${code}"
@@ -325,7 +330,10 @@ jobs:
           expected="$(mktemp)"
           actual="$(mktemp)"
           indices="$(mktemp)"
-          totals="$(mktemp)"
+          records="$(mktemp)"
+          selected_records="$(mktemp)"
+          all_totals="$(mktemp)"
+          latest_totals="$(mktemp)"
           passed_total=0
           failed_total=0
           skipped_total=0
@@ -356,7 +364,10 @@ jobs:
 
           : > "${actual}"
           : > "${indices}"
-          : > "${totals}"
+          : > "${records}"
+          : > "${selected_records}"
+          : > "${all_totals}"
+          : > "${latest_totals}"
           : > "${summary_rows}"
           : > "${failed_rows}"
 
@@ -372,11 +383,15 @@ jobs:
               fail "Malformed shard manifest: ${manifest}"
             fi
 
-            scenario_rows="$(tail -n +4 "${manifest}" | sed '/^$/d' | tee -a "${actual}" | wc -l | tr -d ' ')"
+            scenario_rows="$(tail -n +4 "${manifest}" | sed '/^$/d' | wc -l | tr -d ' ')"
             org_name="$(sed -n 's/^org_name=//p' "${results}")"
             if [ -z "${org_name}" ]; then
               artifact_name="$(basename "$(dirname "$(dirname "${manifest}")")")"
               org_name="${artifact_name#e2e-artifacts-${GITHUB_RUN_ID}-}"
+            fi
+            run_attempt="$(sed -n 's/^run_attempt=//p' "${results}")"
+            if [ -z "${run_attempt}" ]; then
+              run_attempt=1
             fi
             exit_code="$(sed -n 's/^exit_code=//p' "${results}")"
             duration_seconds="$(sed -n 's/^duration_seconds=//p' "${results}")"
@@ -385,10 +400,47 @@ jobs:
             skipped_count="$(sed -n 's/^skipped_count=//p' "${results}")"
             observed_count="$(sed -n 's/^observed_count=//p' "${results}")"
 
-            printf '%s\n' "${index}" >> "${indices}"
-            printf '%s\n' "${total}" >> "${totals}"
-            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+              "${run_attempt}" \
               "${index}" \
+              "${total}" \
+              "${org_name}" \
+              "${scenario_rows}" \
+              "${passed_count}" \
+              "${failed_count}" \
+              "${skipped_count}" \
+              "${observed_count}" \
+              "${exit_code}" \
+              "${duration_seconds}" \
+              "${manifest}" \
+              "${results}" >> "${records}"
+          done
+
+          cut -f3 "${records}" | sort -n -u > "${all_totals}"
+          latest_attempt="$(cut -f1 "${records}" | sort -n | tail -n1)"
+          awk -F'\t' -v attempt="${latest_attempt}" '$1 == attempt { print $3 }' "${records}" | \
+            sort -n -u > "${latest_totals}"
+
+          if [ "$(wc -l < "${latest_totals}" | tr -d ' ')" -ne 1 ]; then
+            fail "Latest workflow attempt ${latest_attempt} reported inconsistent shard totals."
+          fi
+
+          total="$(cat "${latest_totals}")"
+          sort -t $'\t' -k2,2n -k1,1nr "${records}" | \
+            awk -F'\t' -v total="${total}" '$3 == total && !seen[$2]++ { print }' > "${selected_records}"
+
+          while IFS=$'\t' read -r run_attempt index shard_total org_name scenario_rows \
+            passed_count failed_count skipped_count observed_count exit_code duration_seconds manifest results; do
+            if [ -z "${index}" ]; then
+              continue
+            fi
+
+            printf '%s\n' "${index}" >> "${indices}"
+            tail -n +4 "${manifest}" | sed '/^$/d' >> "${actual}"
+
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+              "${index}" \
+              "${run_attempt}" \
               "${org_name}" \
               "${scenario_rows}" \
               "${passed_count}" \
@@ -410,17 +462,16 @@ jobs:
             ' "${results}" | while IFS= read -r scenario_name; do
               printf '%s\t%s\n' "${org_name}" "${scenario_name}" >> "${failed_rows}"
             done
-          done
+          done < "${selected_records}"
 
-          sort -n -u "${totals}" > "${totals}.unique"
-          if [ "$(wc -l < "${totals}.unique" | tr -d ' ')" -ne 1 ]; then
-            fail "Shard manifests reported inconsistent shard totals."
-          fi
-
-          total="$(cat "${totals}.unique")"
           manifest_count="$(wc -l < "${indices}" | tr -d ' ')"
           if [ "${manifest_count}" -ne "${total}" ]; then
-            fail "Expected ${total} shard manifests, found ${manifest_count}."
+            if [ "$(wc -l < "${all_totals}" | tr -d ' ')" -gt 1 ]; then
+              totals_seen="$(paste -sd, "${all_totals}")"
+              fail \
+                "Latest workflow attempt ${latest_attempt} expects ${total} shards, but only found ${manifest_count} matching shard manifests. Mixed shard layouts across reruns were detected (${totals_seen}); rerun all jobs or start a new workflow run."
+            fi
+            fail "Latest workflow attempt ${latest_attempt} expects ${total} shard manifests, found ${manifest_count}."
           fi
 
           sort -n "${indices}" > "${indices}.sorted"
@@ -450,6 +501,7 @@ jobs:
               echo "## E2E Results"
               echo
               echo "- Status: $([ "${failed_total}" -eq 0 ] && echo passed || echo failed)"
+              echo "- Selected shard layout attempt: ${latest_attempt}"
               echo "- Shards: ${total}"
               echo "- Assigned scenarios: ${scenario_count}"
               echo "- Passed: ${passed_total}"
@@ -458,12 +510,13 @@ jobs:
               echo "- Observed results: ${observed_total}"
               echo "- Total shard runtime: ${duration_total}s"
               echo
-              echo "| Shard | Org | Assigned | Passed | Failed | Skipped | Exit | Duration |"
-              echo "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |"
+              echo "| Shard | Attempt | Org | Assigned | Passed | Failed | Skipped | Exit | Duration |"
+              echo "| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |"
             } >> "${summary_file}"
-            while IFS=$'\t' read -r index org_name assigned_count passed_count failed_count skipped_count exit_code duration_seconds; do
-              printf '| %s | %s | %s | %s | %s | %s | %s | %ss |\n' \
+            while IFS=$'\t' read -r index run_attempt org_name assigned_count passed_count failed_count skipped_count exit_code duration_seconds; do
+              printf '| %s | %s | %s | %s | %s | %s | %s | %s | %ss |\n' \
                 "${index}" \
+                "${run_attempt}" \
                 "${org_name}" \
                 "${assigned_count}" \
                 "${passed_count}" \
