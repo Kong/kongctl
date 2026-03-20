@@ -54,3 +54,40 @@ steps:
             expect:
              fields:
                 action: CREATE
+
+  - name: 003-get-implementations
+    skipInputs: true
+    commands:
+      - name: 000-list-implementations
+        run: ["get", "api", "implementations", "--api-name", "e2e-api", "-o", "json"]
+        recordVar:
+          name: implID
+          responsePath: "[0].id"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[0]"
+            expect:
+              fields:
+                service.control_plane_id: "{{ .vars.cp_id }}"
+                service.id: "{{ .vars.gw_svc_id }}"
+
+  - name: 004-get-implementation-by-id
+    skipInputs: true
+    commands:
+      - name: 000-get-by-id
+        run: ["get", "api", "implementations", "--api-name", "e2e-api", "{{ .vars.implID }}", "-o", "json"]
+        assertions:
+          - select: "[0]"
+            expect:
+              fields:
+                id: "{{ .vars.implID }}"
+                service.control_plane_id: "{{ .vars.cp_id }}"
+                service.id: "{{ .vars.gw_svc_id }}"
+
+  - name: 005-cleanup
+    skipInputs: true
+    commands:
+      - resetOrg: true
