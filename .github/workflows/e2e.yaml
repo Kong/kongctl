@@ -10,7 +10,11 @@ concurrency:
 on:
   pull_request:
     branches: ['**']
-    paths: &source-files
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: ['main']
+    paths:
       - go.mod
       - go.sum
       - main.go
@@ -20,11 +24,6 @@ on:
       - Makefile
       - .goreleaser.yml
       - .github/workflows/e2e.yaml
-    # If you want PR runs to be opt-in later, you can use labels:
-    # types: [opened, synchronize, labeled]
-  push:
-    branches: ['main']
-    paths: *source-files
   workflow_dispatch:
     inputs:
       run_portal_applications:
@@ -37,8 +36,63 @@ on:
         default: false
 
 jobs:
+  e2e-needed:
+    name: E2E Needed
+    runs-on: ubuntu-latest
+    outputs:
+      required: ${{ steps.detect.outputs.required }}
+    steps:
+      - name: Checkout
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Detect whether E2E is required
+        id: detect
+        shell: bash
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          BASE_REF: ${{ github.base_ref || '' }}
+        run: |
+          set -euo pipefail
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] || [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            echo "required=true" >> "${GITHUB_OUTPUT}"
+            echo "E2E required for ${GITHUB_EVENT_NAME}."
+            exit 0
+          fi
+
+          base_branch="${DEFAULT_BRANCH}"
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ] && [ -n "${BASE_REF}" ]; then
+            base_branch="${BASE_REF}"
+          fi
+
+          if ! git check-ref-format --branch "${base_branch}" >/dev/null 2>&1; then
+            echo "::error::Invalid base branch ref: ${base_branch}"
+            exit 1
+          fi
+
+          git fetch --no-tags --prune --depth=1 origin "${base_branch}"
+          changed_files="$(mktemp)"
+          git diff --name-only "origin/${base_branch}...HEAD" | tee "${changed_files}"
+
+          if grep -Eq \
+            '^(go\.mod|go\.sum|main\.go|[^/]+\.go|internal/.*|test/e2e/.*|Makefile|\.goreleaser\.yml|\.github/workflows/e2e\.yaml)$' \
+            "${changed_files}"; then
+            echo "required=true" >> "${GITHUB_OUTPUT}"
+            echo "E2E required for this change set."
+            exit 0
+          fi
+
+          echo "required=false" >> "${GITHUB_OUTPUT}"
+          echo "E2E not required for this change set."
+
   e2e-harness:
     name: E2E Harness
+    needs:
+      - e2e-needed
+    if: needs.e2e-needed.outputs.required == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -56,6 +110,9 @@ jobs:
 
   e2e-build:
     name: E2E Build
+    needs:
+      - e2e-needed
+    if: needs.e2e-needed.outputs.required == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -84,8 +141,10 @@ jobs:
   e2e:
     name: E2E (${{ matrix.org_name }})
     needs:
+      - e2e-needed
       - e2e-harness
       - e2e-build
+    if: needs.e2e-needed.outputs.required == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: ${{ matrix.org_name }}
@@ -145,7 +204,7 @@ jobs:
       #     GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
 
       - name: Setup deck
-        uses: kong/setup-deck@c379e0f67ec1f1363247484a0c3142ae6168f811 # v1.6.0
+        uses: kong/setup-deck@6ea0a466ee5826ddb531cbe851ba8e5a77a0e041 # v1.7.1
 
       - name: Download E2E binaries
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -306,8 +365,9 @@ jobs:
   e2e-verify:
     name: E2E Verify
     needs:
+      - e2e-needed
       - e2e
-    if: ${{ always() && !cancelled() }}
+    if: ${{ always() && !cancelled() && needs.e2e-needed.outputs.required == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -327,6 +387,7 @@ jobs:
           summary_file="${GITHUB_STEP_SUMMARY:-}"
           summary_rows="$(mktemp)"
           failed_rows="$(mktemp)"
+          nonzero_exit_rows="$(mktemp)"
           expected="$(mktemp)"
           actual="$(mktemp)"
           indices="$(mktemp)"
@@ -339,6 +400,7 @@ jobs:
           skipped_total=0
           observed_total=0
           duration_total=0
+          nonzero_exit_total=0
 
           fail() {
             local message="$1"
@@ -370,6 +432,7 @@ jobs:
           : > "${latest_totals}"
           : > "${summary_rows}"
           : > "${failed_rows}"
+          : > "${nonzero_exit_rows}"
 
           for manifest in "${manifests[@]}"; do
             results="$(dirname "${manifest}")/scenario-results.txt"
@@ -399,6 +462,10 @@ jobs:
             failed_count="$(sed -n 's/^failed_count=//p' "${results}")"
             skipped_count="$(sed -n 's/^skipped_count=//p' "${results}")"
             observed_count="$(sed -n 's/^observed_count=//p' "${results}")"
+            if [ -z "${exit_code}" ] || [ -z "${duration_seconds}" ] || [ -z "${passed_count}" ] || \
+              [ -z "${failed_count}" ] || [ -z "${skipped_count}" ] || [ -z "${observed_count}" ]; then
+              fail "Malformed scenario results: ${results}"
+            fi
 
             printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
               "${run_attempt}" \
@@ -454,6 +521,14 @@ jobs:
             skipped_total="$((skipped_total + skipped_count))"
             observed_total="$((observed_total + observed_count))"
             duration_total="$((duration_total + duration_seconds))"
+            if [ "${exit_code}" -ne 0 ]; then
+              nonzero_exit_total="$((nonzero_exit_total + 1))"
+              printf '%s\t%s\t%s\t%s\n' \
+                "${index}" \
+                "${run_attempt}" \
+                "${org_name}" \
+                "${exit_code}" >> "${nonzero_exit_rows}"
+            fi
 
             awk '
               /^\[failed\]$/ { section="failed"; next }
@@ -500,13 +575,14 @@ jobs:
             {
               echo "## E2E Results"
               echo
-              echo "- Status: $([ "${failed_total}" -eq 0 ] && echo passed || echo failed)"
+              echo "- Status: $([ "${failed_total}" -eq 0 ] && [ "${nonzero_exit_total}" -eq 0 ] && echo passed || echo failed)"
               echo "- Selected shard layout attempt: ${latest_attempt}"
               echo "- Shards: ${total}"
               echo "- Assigned scenarios: ${scenario_count}"
               echo "- Passed: ${passed_total}"
               echo "- Failed: ${failed_total}"
               echo "- Skipped: ${skipped_total}"
+              echo "- Shards with non-zero exit: ${nonzero_exit_total}"
               echo "- Observed results: ${observed_total}"
               echo "- Total shard runtime: ${duration_total}s"
               echo
@@ -537,5 +613,61 @@ jobs:
                 printf '| %s | %s |\n' "${org_name}" "${scenario_name}" >> "${summary_file}"
               done < "${failed_rows}"
             fi
+            if [ "${nonzero_exit_total}" -gt 0 ]; then
+              {
+                echo
+                echo "### Shards With Non-Zero Exit"
+                echo
+                echo "| Shard | Attempt | Org | Exit |"
+                echo "| --- | ---: | --- | ---: |"
+              } >> "${summary_file}"
+              while IFS=$'\t' read -r index run_attempt org_name exit_code; do
+                printf '| %s | %s | %s | %s |\n' \
+                  "${index}" \
+                  "${run_attempt}" \
+                  "${org_name}" \
+                  "${exit_code}" >> "${summary_file}"
+              done < <(sort -n "${nonzero_exit_rows}")
+            fi
+          fi
+
+          failure_reason=""
+          if [ "${failed_total}" -gt 0 ]; then
+            failure_reason="${failed_total} scenario(s) failed"
+          fi
+          if [ "${nonzero_exit_total}" -gt 0 ]; then
+            if [ -n "${failure_reason}" ]; then
+              failure_reason="${failure_reason}; "
+            fi
+            failure_reason="${failure_reason}${nonzero_exit_total} shard(s) exited non-zero"
+          fi
+          if [ -n "${failure_reason}" ]; then
+            fail "E2E verification failed: ${failure_reason}."
           fi
           echo "Verified ${scenario_count} scenarios across ${total} shards."
+
+  e2e-required:
+    name: E2E Required
+    needs:
+      - e2e-needed
+      - e2e-verify
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check requirement outcome
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ needs.e2e-needed.outputs.required }}" != "true" ]; then
+            echo "E2E not required for this change."
+            exit 0
+          fi
+
+          if [ "${{ needs.e2e-verify.result }}" != "success" ]; then
+            echo "::error::E2E required but E2E Verify concluded ${{ needs.e2e-verify.result }}."
+            exit 1
+          fi
+
+          echo "E2E required and E2E Verify succeeded."
