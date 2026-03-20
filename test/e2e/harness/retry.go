@@ -303,6 +303,14 @@ func ShouldRetryHTTPAttempt(
 	return ratio < DefaultTimeoutRetryThreshold
 }
 
+// ShouldRetryResetHTTPAttempt applies the generic retry patterns for reset HTTP
+// operations without the near-full-timeout suppression used by scenario command
+// retries. Reset has its own total timeout budget, so it should use the full
+// configured attempt count before giving up on a flaky endpoint.
+func ShouldRetryResetHTTPAttempt(err error, detail string) bool {
+	return ShouldRetry(err, detail, nil, nil, Result{}, 0)
+}
+
 func jitterDuration(max time.Duration) time.Duration {
 	if max <= 0 {
 		return 0

@@ -700,19 +700,26 @@ func writeProfileConfig(cfgDir, profile, output, logLevel string) error {
 	if err := os.MkdirAll(appDir, 0o755); err != nil {
 		return err
 	}
-	// Minimal YAML; avoid importing extra libs for this.
-	// Example:
-	// e2e:
-	//   output: json
-	//   log-level: info
-	y := []byte(fmt.Sprintf("%s:\n  output: %s\n  log-level: %s\n", profile, output, logLevel))
+	options := HTTPTransportOptionsFromEnv()
+
+	var y strings.Builder
+	fmt.Fprintf(&y, "%s:\n", profile)
+	fmt.Fprintf(&y, "  output: %s\n", output)
+	fmt.Fprintf(&y, "  log-level: %s\n", logLevel)
+	fmt.Fprintf(&y, "  http-timeout: %s\n", HTTPRequestTimeout())
+	if options.TCPUserTimeout > 0 {
+		fmt.Fprintf(&y, "  http-tcp-user-timeout: %s\n", options.TCPUserTimeout)
+	}
+	fmt.Fprintf(&y, "  http-disable-keepalives: %t\n", options.DisableKeepAlives)
+	fmt.Fprintf(&y, "  http-recycle-connections-on-error: %t\n", options.RecycleConnectionsOnError)
+
 	path := filepath.Join(appDir, "config.yaml")
 	// Best-effort write; if file exists, do not overwrite.
 	if _, err := os.Stat(path); err == nil {
 		Debugf("Config exists, not overwriting: %s", path)
 		return nil
 	}
-	if err := os.WriteFile(path, y, fs.FileMode(0o644)); err != nil {
+	if err := os.WriteFile(path, []byte(y.String()), fs.FileMode(0o644)); err != nil {
 		Warnf("Failed to write profile config: %v", err)
 		return err
 	}

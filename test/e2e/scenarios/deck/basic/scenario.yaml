@@ -182,10 +182,11 @@ steps:
             expect:
               fields:
                 mode: sync
+          # Retries can replan after deck already succeeded.
           - select: "plan.changes[?resource_type=='_deck']"
             expect:
               fields:
-                "length(@)": 1
+                "contains(`[0, 1]`, length(@))": true
           - select: "plan.changes[?resource_type=='api' && action=='DELETE']"
             expect:
               fields:
