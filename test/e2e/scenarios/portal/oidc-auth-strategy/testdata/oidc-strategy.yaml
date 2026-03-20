@@ -5,7 +5,7 @@ application_auth_strategies:
     strategy_type: openid_connect
     configs:
       openid_connect:
-        issuer: https://issuer.example.com/
+        issuer: https://issuer.example.com
         credential_claim:
           - sub
         auth_methods:

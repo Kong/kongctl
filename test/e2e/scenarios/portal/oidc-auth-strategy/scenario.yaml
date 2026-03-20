@@ -113,6 +113,11 @@ steps:
                 action: UPDATE
                 "fields.strategy_type": openid_connect
 
+          - select: >-
+              contains(changes[?resource_type=='application_auth_strategy' &&
+                resource_ref=='oidc-e2e'] | [0].fields.config.scopes, 'email')
+            expect:
+              value: true
       - name: 001-apply
         outputFormat: json
         run:
