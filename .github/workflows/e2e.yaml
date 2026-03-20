@@ -327,6 +327,7 @@ jobs:
           summary_file="${GITHUB_STEP_SUMMARY:-}"
           summary_rows="$(mktemp)"
           failed_rows="$(mktemp)"
+          nonzero_exit_rows="$(mktemp)"
           expected="$(mktemp)"
           actual="$(mktemp)"
           indices="$(mktemp)"
@@ -339,6 +340,7 @@ jobs:
           skipped_total=0
           observed_total=0
           duration_total=0
+          nonzero_exit_total=0
 
           fail() {
             local message="$1"
@@ -370,6 +372,7 @@ jobs:
           : > "${latest_totals}"
           : > "${summary_rows}"
           : > "${failed_rows}"
+          : > "${nonzero_exit_rows}"
 
           for manifest in "${manifests[@]}"; do
             results="$(dirname "${manifest}")/scenario-results.txt"
@@ -399,6 +402,10 @@ jobs:
             failed_count="$(sed -n 's/^failed_count=//p' "${results}")"
             skipped_count="$(sed -n 's/^skipped_count=//p' "${results}")"
             observed_count="$(sed -n 's/^observed_count=//p' "${results}")"
+            if [ -z "${exit_code}" ] || [ -z "${duration_seconds}" ] || [ -z "${passed_count}" ] || \
+              [ -z "${failed_count}" ] || [ -z "${skipped_count}" ] || [ -z "${observed_count}" ]; then
+              fail "Malformed scenario results: ${results}"
+            fi
 
             printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
               "${run_attempt}" \
@@ -454,6 +461,14 @@ jobs:
             skipped_total="$((skipped_total + skipped_count))"
             observed_total="$((observed_total + observed_count))"
             duration_total="$((duration_total + duration_seconds))"
+            if [ "${exit_code}" -ne 0 ]; then
+              nonzero_exit_total="$((nonzero_exit_total + 1))"
+              printf '%s\t%s\t%s\t%s\n' \
+                "${index}" \
+                "${run_attempt}" \
+                "${org_name}" \
+                "${exit_code}" >> "${nonzero_exit_rows}"
+            fi
 
             awk '
               /^\[failed\]$/ { section="failed"; next }
@@ -507,6 +522,7 @@ jobs:
               echo "- Passed: ${passed_total}"
               echo "- Failed: ${failed_total}"
               echo "- Skipped: ${skipped_total}"
+              echo "- Shards with non-zero exit: ${nonzero_exit_total}"
               echo "- Observed results: ${observed_total}"
               echo "- Total shard runtime: ${duration_total}s"
               echo
@@ -537,5 +553,35 @@ jobs:
                 printf '| %s | %s |\n' "${org_name}" "${scenario_name}" >> "${summary_file}"
               done < "${failed_rows}"
             fi
+            if [ "${nonzero_exit_total}" -gt 0 ]; then
+              {
+                echo
+                echo "### Shards With Non-Zero Exit"
+                echo
+                echo "| Shard | Attempt | Org | Exit |"
+                echo "| --- | ---: | --- | ---: |"
+              } >> "${summary_file}"
+              while IFS=$'\t' read -r index run_attempt org_name exit_code; do
+                printf '| %s | %s | %s | %s |\n' \
+                  "${index}" \
+                  "${run_attempt}" \
+                  "${org_name}" \
+                  "${exit_code}" >> "${summary_file}"
+              done < <(sort -n "${nonzero_exit_rows}")
+            fi
+          fi
+
+          failure_reason=""
+          if [ "${failed_total}" -gt 0 ]; then
+            failure_reason="${failed_total} scenario(s) failed"
+          fi
+          if [ "${nonzero_exit_total}" -gt 0 ]; then
+            if [ -n "${failure_reason}" ]; then
+              failure_reason="${failure_reason}; "
+            fi
+            failure_reason="${failure_reason}${nonzero_exit_total} shard(s) exited non-zero"
+          fi
+          if [ -n "${failure_reason}" ]; then
+            fail "E2E verification failed: ${failure_reason}."
           fi
           echo "Verified ${scenario_count} scenarios across ${total} shards."
