@@ -114,6 +114,22 @@ func TestShouldRetryHTTPAttempt(t *testing.T) {
 	}
 }
 
+func TestShouldRetryResetHTTPAttempt(t *testing.T) {
+	if !ShouldRetryResetHTTPAttempt(
+		context.DeadlineExceeded,
+		"context deadline exceeded",
+	) {
+		t.Fatal("ShouldRetryResetHTTPAttempt() = false on timeout, want true")
+	}
+
+	if !ShouldRetryResetHTTPAttempt(
+		context.DeadlineExceeded,
+		"context deadline exceeded",
+	) {
+		t.Fatal("ShouldRetryResetHTTPAttempt() = false on repeated full timeout, want true")
+	}
+}
+
 func TestResetHTTPPolicyFromEnv(t *testing.T) {
 	t.Setenv("KONGCTL_E2E_RESET_HTTP_TIMEOUT", "12s")
 	t.Setenv("KONGCTL_E2E_RESET_TIMEOUT", "2m")
@@ -234,6 +250,52 @@ func TestMaybeRecycleHTTPConnectionsOnError(t *testing.T) {
 	}, nil)
 	if transport.closed != 1 {
 		t.Fatalf("closed after nil error = %d, want 1", transport.closed)
+	}
+}
+
+func TestResetHTTPSessionRebuildsClientAfterError(t *testing.T) {
+	var (
+		clients    []*http.Client
+		transports []*idleClosingTransport
+	)
+	session := &resetHTTPSession{
+		newClient: func() *http.Client {
+			transport := &idleClosingTransport{}
+			client := &http.Client{Transport: transport}
+			clients = append(clients, client)
+			transports = append(transports, transport)
+			return client
+		},
+	}
+
+	first := session.Client()
+	if first == nil {
+		t.Fatal("session.Client() = nil, want client")
+	}
+	if again := session.Client(); again != first {
+		t.Fatal("session.Client() returned a different client without rebuild")
+	}
+
+	session.Rebuild(context.DeadlineExceeded)
+
+	if transports[0].closed != 1 {
+		t.Fatalf("transports[0].closed = %d, want 1", transports[0].closed)
+	}
+
+	second := session.Client()
+	if second == nil {
+		t.Fatal("session.Client() after rebuild = nil, want client")
+	}
+	if second == first {
+		t.Fatal("session.Client() after rebuild returned the same client, want a fresh one")
+	}
+	if len(clients) != 2 {
+		t.Fatalf("len(clients) = %d, want 2", len(clients))
+	}
+
+	session.Close()
+	if transports[1].closed != 1 {
+		t.Fatalf("transports[1].closed = %d, want 1", transports[1].closed)
 	}
 }
 

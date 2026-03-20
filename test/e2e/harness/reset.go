@@ -105,7 +105,6 @@ func skipSystemTeams(resource map[string]any) bool {
 
 func deleteAll(
 	ctx context.Context,
-	client *http.Client,
 	baseURL string,
 	token string,
 	apiVersion string,
@@ -116,6 +115,8 @@ func deleteAll(
 ) (int, int, error) {
 	url := fmt.Sprintf("%s/%s/%s", strings.TrimRight(baseURL, "/"), apiVersion, endpoint)
 	Infof("Fetching %s for deletion...", endpoint)
+	session := newResetHTTPSession(policy.RequestTimeout, transportOptions)
+	defer session.Close()
 
 	if filter == nil {
 		filter = shouldDeleteResource
@@ -132,7 +133,7 @@ func deleteAll(
 		if err := ctx.Err(); err != nil {
 			return total, deleted, err
 		}
-		items, err := retryListItems(ctx, client, url, token, endpoint, policy, transportOptions)
+		items, err := retryListItems(ctx, session, url, token, endpoint, policy)
 		if err != nil {
 			return total, deleted, err
 		}
@@ -178,7 +179,7 @@ func deleteAll(
 
 		conflicts := 0
 		for _, id := range idsToDelete {
-			if err := retryDeleteOne(ctx, client, url, token, endpoint, id, policy, transportOptions); err != nil {
+			if err := retryDeleteOne(ctx, session, url, token, endpoint, id, policy); err != nil {
 				Warnf("delete %s %s failed: %v", endpoint, id, err)
 				if he, ok := err.(*httpError); ok && he.status == http.StatusConflict {
 					conflicts++
@@ -234,6 +235,48 @@ type resetResult struct {
 	Details []resetEndpoint
 }
 
+type resetHTTPSession struct {
+	newClient func() *http.Client
+	client    *http.Client
+}
+
+func newResetHTTPSession(timeout time.Duration, options HTTPTransportOptions) *resetHTTPSession {
+	return &resetHTTPSession{
+		newClient: func() *http.Client {
+			return newHTTPClientWithOptions(timeout, options)
+		},
+	}
+}
+
+func (s *resetHTTPSession) Client() *http.Client {
+	if s == nil {
+		return nil
+	}
+	if s.client == nil {
+		s.client = s.newClient()
+	}
+	return s.client
+}
+
+func (s *resetHTTPSession) Rebuild(err error) {
+	if s == nil || s.client == nil {
+		return
+	}
+	s.client.CloseIdleConnections()
+	if err != nil {
+		Debugf("reset: rebuilt HTTP client after error: %v", err)
+	}
+	s.client = nil
+}
+
+func (s *resetHTTPSession) Close() {
+	if s == nil || s.client == nil {
+		return
+	}
+	s.client.CloseIdleConnections()
+	s.client = nil
+}
+
 var resetSequence = []struct {
 	Version  string
 	Endpoint string
@@ -255,7 +298,6 @@ var resetSequence = []struct {
 
 func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, error) {
 	transportOptions := HTTPTransportOptionsFromEnv()
-	client := newHTTPClientWithOptions(policy.RequestTimeout, transportOptions)
 	ctx := context.Background()
 	cancel := func() {}
 	if policy.TotalTimeout > 0 {
@@ -284,7 +326,6 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, e
 		}
 		tot, del, err := deleteAll(
 			ctx,
-			client,
 			targetURL,
 			token,
 			step.Version,
@@ -451,50 +492,34 @@ func deleteOneWithContext(ctx context.Context, client *http.Client, baseURL, tok
 
 func retryListItems(
 	ctx context.Context,
-	client *http.Client,
+	session *resetHTTPSession,
 	url string,
 	token string,
 	endpoint string,
 	policy HTTPRetryPolicy,
-	transportOptions HTTPTransportOptions,
 ) ([]map[string]any, error) {
 	cfg := NormalizeBackoffConfig(policy.Backoff)
 	attempts := cfg.Attempts
 	backoff := BuildBackoffSchedule(cfg)
 	var (
-		items               []map[string]any
-		err                 error
-		consecutiveTimeouts int
+		items []map[string]any
+		err   error
 	)
 	for atry := 0; atry < attempts; atry++ {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		start := time.Now()
+		client := session.Client()
 		items, err = listItemsWithContext(ctx, client, url, token)
 		duration := time.Since(start)
 		if err == nil {
 			return items, nil
 		}
-		maybeRecycleHTTPConnectionsOnError(client, transportOptions, err)
 		detail := err.Error()
-		fullTimeout := IsTimeoutRetry(err, detail) && policy.RequestTimeout > 0 &&
-			float64(duration)/float64(policy.RequestTimeout) >= DefaultTimeoutRetryThreshold
-		if !ShouldRetryHTTPAttempt(
-			err,
-			detail,
-			policy.RequestTimeout,
-			duration,
-			nil,
-			nil,
-			consecutiveTimeouts,
-		) || atry+1 >= attempts {
+		session.Rebuild(err)
+		if !ShouldRetryResetHTTPAttempt(err, detail) || atry+1 >= attempts {
 			return nil, err
-		}
-		if fullTimeout {
-			consecutiveTimeouts++
-		} else {
-			consecutiveTimeouts = 0
 		}
 		delay := RetryDelayForError(err, backoff, atry)
 		Warnf(
@@ -516,53 +541,35 @@ func retryListItems(
 
 func retryDeleteOne(
 	ctx context.Context,
-	client *http.Client,
+	session *resetHTTPSession,
 	baseURL string,
 	token string,
 	endpoint string,
 	id string,
 	policy HTTPRetryPolicy,
-	transportOptions HTTPTransportOptions,
 ) error {
 	cfg := NormalizeBackoffConfig(policy.Backoff)
 	attempts := cfg.Attempts
 	backoff := BuildBackoffSchedule(cfg)
-	var (
-		err                 error
-		consecutiveTimeouts int
-	)
+	var err error
 	for atry := 0; atry < attempts; atry++ {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 		start := time.Now()
+		client := session.Client()
 		err = deleteOneWithContext(ctx, client, baseURL, token, id)
 		duration := time.Since(start)
 		if err == nil {
 			return nil
 		}
-		maybeRecycleHTTPConnectionsOnError(client, transportOptions, err)
 		if he, ok := err.(*httpError); ok && he.status == http.StatusConflict {
 			return err
 		}
 		detail := err.Error()
-		fullTimeout := IsTimeoutRetry(err, detail) && policy.RequestTimeout > 0 &&
-			float64(duration)/float64(policy.RequestTimeout) >= DefaultTimeoutRetryThreshold
-		if !ShouldRetryHTTPAttempt(
-			err,
-			detail,
-			policy.RequestTimeout,
-			duration,
-			nil,
-			nil,
-			consecutiveTimeouts,
-		) || atry+1 >= attempts {
+		session.Rebuild(err)
+		if !ShouldRetryResetHTTPAttempt(err, detail) || atry+1 >= attempts {
 			return err
-		}
-		if fullTimeout {
-			consecutiveTimeouts++
-		} else {
-			consecutiveTimeouts = 0
 		}
 		delay := RetryDelayForError(err, backoff, atry)
 		Warnf(
