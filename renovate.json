@@ -20,6 +20,12 @@
         "github.com/charmbracelet/lipgloss"
       ],
       "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Disable minimumReleaseAge for gh-aw to allow immediate updates",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["github/gh-aw"],
+      "minimumReleaseAge": null
     }
   ]
 }
