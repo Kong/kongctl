@@ -102,8 +102,10 @@ jobs:
       KONGCTL_E2E_KONNECT_BASE_URL: ${{ vars.KONGCTL_E2E_KONNECT_BASE_URL || 'https://us.api.konghq.com' }}
       # Reset is enabled by default in the harness; set explicitly for clarity
       KONGCTL_E2E_RESET: "1"
-      # Set the timeout vars below to 0s/default/off to disable them and use client or platform defaults.
+      # Set HTTP timeout vars to 0s/default/off to disable kongctl/harness application-level timeouts
+      # and rely on Go transport behavior plus the workflow/job timeout.
       KONGCTL_E2E_HTTP_TIMEOUT: ${{ vars.KONGCTL_E2E_HTTP_TIMEOUT || '0s' }}
+      # Set TCP user timeout to 0s/default/off to leave TCP_USER_TIMEOUT unset and use the platform default.
       KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT: ${{ vars.KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT || '0s' }}
       KONGCTL_E2E_HTTP_DISABLE_KEEPALIVES: ${{ vars.KONGCTL_E2E_HTTP_DISABLE_KEEPALIVES || '' }}
       KONGCTL_E2E_HTTP_RECYCLE_CONNECTIONS_ON_ERROR: ${{ vars.KONGCTL_E2E_HTTP_RECYCLE_CONNECTIONS_ON_ERROR || '1' }}
@@ -112,6 +114,7 @@ jobs:
       KONGCTL_E2E_HTTP_RETRY_MAX_INTERVAL: ${{ vars.KONGCTL_E2E_HTTP_RETRY_MAX_INTERVAL || '5s' }}
       KONGCTL_E2E_HTTP_RETRY_BACKOFF_FACTOR: ${{ vars.KONGCTL_E2E_HTTP_RETRY_BACKOFF_FACTOR || '2' }}
       KONGCTL_E2E_HTTP_RETRY_JITTER: ${{ vars.KONGCTL_E2E_HTTP_RETRY_JITTER || '250ms' }}
+      # Set reset timeouts to 0s/default/off to disable reset deadlines and rely on the workflow/job timeout.
       KONGCTL_E2E_RESET_HTTP_TIMEOUT: ${{ vars.KONGCTL_E2E_RESET_HTTP_TIMEOUT || '0s' }}
       KONGCTL_E2E_RESET_TIMEOUT: ${{ vars.KONGCTL_E2E_RESET_TIMEOUT || '0s' }}
       KONGCTL_E2E_RESET_RETRY_ATTEMPTS: ${{ vars.KONGCTL_E2E_RESET_RETRY_ATTEMPTS || '3' }}
@@ -142,7 +145,7 @@ jobs:
       #     GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
 
       - name: Setup deck
-        uses: kong/setup-deck@173456c444ba8ff61aa9915455140a7c7c645a18 # v1.7.0
+        uses: kong/setup-deck@c379e0f67ec1f1363247484a0c3142ae6168f811 # v1.6.0
 
       - name: Download E2E binaries
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
