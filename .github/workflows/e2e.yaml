@@ -10,7 +10,11 @@ concurrency:
 on:
   pull_request:
     branches: ['**']
-    paths: &source-files
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: ['main']
+    paths:
       - go.mod
       - go.sum
       - main.go
@@ -20,11 +24,6 @@ on:
       - Makefile
       - .goreleaser.yml
       - .github/workflows/e2e.yaml
-    # If you want PR runs to be opt-in later, you can use labels:
-    # types: [opened, synchronize, labeled]
-  push:
-    branches: ['main']
-    paths: *source-files
   workflow_dispatch:
     inputs:
       run_portal_applications:
@@ -37,8 +36,55 @@ on:
         default: false
 
 jobs:
+  e2e-needed:
+    name: E2E Needed
+    runs-on: ubuntu-latest
+    outputs:
+      required: ${{ steps.detect.outputs.required }}
+    steps:
+      - name: Checkout
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Detect whether E2E is required
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] || [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            echo "required=true" >> "${GITHUB_OUTPUT}"
+            echo "E2E required for ${GITHUB_EVENT_NAME}."
+            exit 0
+          fi
+
+          base_branch="${{ github.event.repository.default_branch }}"
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            base_branch="${{ github.base_ref }}"
+          fi
+
+          git fetch --no-tags --prune --depth=1 origin "${base_branch}"
+          changed_files="$(mktemp)"
+          git diff --name-only "origin/${base_branch}...HEAD" | tee "${changed_files}"
+
+          if grep -Eq \
+            '^(go\.mod|go\.sum|main\.go|[^/]+\.go|internal/.*|test/e2e/.*|Makefile|\.goreleaser\.yml|\.github/workflows/e2e\.yaml)$' \
+            "${changed_files}"; then
+            echo "required=true" >> "${GITHUB_OUTPUT}"
+            echo "E2E required for this change set."
+            exit 0
+          fi
+
+          echo "required=false" >> "${GITHUB_OUTPUT}"
+          echo "E2E not required for this change set."
+
   e2e-harness:
     name: E2E Harness
+    needs:
+      - e2e-needed
+    if: needs.e2e-needed.outputs.required == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -56,6 +102,9 @@ jobs:
 
   e2e-build:
     name: E2E Build
+    needs:
+      - e2e-needed
+    if: needs.e2e-needed.outputs.required == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -84,8 +133,10 @@ jobs:
   e2e:
     name: E2E (${{ matrix.org_name }})
     needs:
+      - e2e-needed
       - e2e-harness
       - e2e-build
+    if: needs.e2e-needed.outputs.required == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: ${{ matrix.org_name }}
@@ -306,8 +357,9 @@ jobs:
   e2e-verify:
     name: E2E Verify
     needs:
+      - e2e-needed
       - e2e
-    if: ${{ always() && !cancelled() }}
+    if: ${{ always() && !cancelled() && needs.e2e-needed.outputs.required == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -585,3 +637,29 @@ jobs:
             fail "E2E verification failed: ${failure_reason}."
           fi
           echo "Verified ${scenario_count} scenarios across ${total} shards."
+
+  e2e-required:
+    name: E2E Required
+    needs:
+      - e2e-needed
+      - e2e-verify
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check requirement outcome
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ needs.e2e-needed.outputs.required }}" != "true" ]; then
+            echo "E2E not required for this change."
+            exit 0
+          fi
+
+          if [ "${{ needs.e2e-verify.result }}" != "success" ]; then
+            echo "::error::E2E required but E2E Verify concluded ${{ needs.e2e-verify.result }}."
+            exit 1
+          fi
+
+          echo "E2E required and E2E Verify succeeded."
