@@ -69,6 +69,7 @@ steps:
   - name: 002-idempotency
     commands:
       - name: 000-plan
+        outputFormat: disable
         run:
           - plan
           - -f
@@ -170,6 +171,7 @@ steps:
                 failed: 0
 
       - name: 002-verify-deleted
+        outputFormat: disable
         run:
           - plan
           - -f
