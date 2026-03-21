@@ -1,0 +1,152 @@
+# Org Teams Get E2E Test Scenario
+#
+# This scenario tests the kongctl CLI's ability to look up org teams by name
+# and by UUID, exercising the three distinct runtime paths in getTeam.go:
+#
+#   1. get org teams              → list all (runList)
+#   2. get org teams <uuid>       → single-resource GET (runGet)
+#   3. get org teams <name>       → filtered list by name (runListByName)
+#
+# Test flow:
+# 1. Reset org (cleans up any existing teams)
+# 2. Create 2 org teams via API (global.api.konghq.com)
+# 3. Get each team by name  (exercises runListByName path)
+# 4. Get each team by ID   (exercises runGet path)
+# 5. List all teams        (text output; both names must appear)
+# 6. List by name          (text output; only alpha name must appear)
+
+vars:
+  team_alpha_name: e2e-get-team-alpha
+  team_beta_name: e2e-get-team-beta
+  team_alpha_description: "E2E Get Test Team Alpha"
+  team_beta_description: "E2E Get Test Team Beta"
+
+steps:
+  - name: 000-reset
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-teams
+    skipInputs: true
+    commands:
+      - name: 000-create-team-alpha
+        create:
+          resource: organization_team
+          payload:
+            inline:
+              name: "{{ .vars.team_alpha_name }}"
+              description: "{{ .vars.team_alpha_description }}"
+          recordVar:
+            name: team_alpha_id
+            responsePath: id
+
+      - name: 001-create-team-beta
+        create:
+          resource: organization_team
+          payload:
+            inline:
+              name: "{{ .vars.team_beta_name }}"
+              description: "{{ .vars.team_beta_description }}"
+          recordVar:
+            name: team_beta_id
+            responsePath: id
+
+  - name: 002-get-team-by-name
+    skipInputs: true
+    commands:
+      - name: 000-get-by-name-alpha
+        run:
+          - get
+          - org
+          - teams
+          - "{{ .vars.team_alpha_name }}"
+        assertions:
+          - expect:
+              fields:
+                name: "{{ .vars.team_alpha_name }}"
+                description: "{{ .vars.team_alpha_description }}"
+                id: "{{ .vars.team_alpha_id }}"
+
+      - name: 001-get-by-name-beta
+        run:
+          - get
+          - org
+          - teams
+          - "{{ .vars.team_beta_name }}"
+        assertions:
+          - expect:
+              fields:
+                name: "{{ .vars.team_beta_name }}"
+                description: "{{ .vars.team_beta_description }}"
+                id: "{{ .vars.team_beta_id }}"
+
+  - name: 003-get-team-by-id
+    skipInputs: true
+    commands:
+      - name: 000-get-by-id-alpha
+        run:
+          - get
+          - org
+          - teams
+          - "{{ .vars.team_alpha_id }}"
+        assertions:
+          - expect:
+              fields:
+                name: "{{ .vars.team_alpha_name }}"
+                description: "{{ .vars.team_alpha_description }}"
+                id: "{{ .vars.team_alpha_id }}"
+
+      - name: 001-get-by-id-beta
+        run:
+          - get
+          - org
+          - teams
+          - "{{ .vars.team_beta_id }}"
+        assertions:
+          - expect:
+              fields:
+                name: "{{ .vars.team_beta_name }}"
+                description: "{{ .vars.team_beta_description }}"
+                id: "{{ .vars.team_beta_id }}"
+
+  - name: 004-list-teams-text
+    skipInputs: true
+    commands:
+      - name: 000-list-all-teams
+        run:
+          - list
+          - org
+          - teams
+        outputFormat: text  # List commands output formatted tables
+        parseAs: raw        # Parse as {"stdout": "..."} for text validation
+        assertions:
+          - name: alpha-in-output
+            expect:
+              fields:
+                "contains(stdout, 'e2e-get-team-alpha')": true
+          - name: beta-in-output
+            expect:
+              fields:
+                "contains(stdout, 'e2e-get-team-beta')": true
+
+  - name: 005-list-team-by-name-text
+    skipInputs: true
+    commands:
+      - name: 000-list-by-name-alpha
+        run:
+          - list
+          - org
+          - teams
+          - e2e-get-team-alpha
+        outputFormat: text  # List commands output formatted tables
+        parseAs: raw        # Parse as {"stdout": "..."} for text validation
+        assertions:
+          - name: alpha-in-output
+            expect:
+              fields:
+                "contains(stdout, 'e2e-get-team-alpha')": true
+          - name: beta-not-in-output
+            expect:
+              fields:
+                "contains(stdout, 'e2e-get-team-beta')": false
