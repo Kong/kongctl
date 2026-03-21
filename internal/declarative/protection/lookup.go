@@ -9,6 +9,22 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
+// fetchProtection calls fetch to retrieve normalized labels for the named
+// resource and returns whether the resource is protected.
+func fetchProtection(
+	resourceName, kind string,
+	fetch func() (map[string]string, error),
+) (bool, error) {
+	normalizedLabels, err := fetch()
+	if err != nil {
+		if state.IsAPIClientError(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("fetch %s %q for inherited protection: %w", kind, resourceName, err)
+	}
+	return labels.IsProtectedResource(normalizedLabels), nil
+}
+
 // IsManagedResourceProtected returns whether a top-level managed resource is
 // currently protected in Konnect.
 func IsManagedResourceProtected(
@@ -23,68 +39,61 @@ func IsManagedResourceProtected(
 
 	switch resourceType {
 	case resources.ResourceTypePortal:
-		portal, err := client.GetPortalByName(ctx, resourceName)
-		if err != nil {
-			if state.IsAPIClientError(err) {
-				return false, nil
+		return fetchProtection(resourceName, "portal", func() (map[string]string, error) {
+			r, err := client.GetPortalByName(ctx, resourceName)
+			if r == nil {
+				return nil, err
 			}
-			return false, fmt.Errorf("fetch portal %q for inherited protection: %w", resourceName, err)
-		}
-		return portal != nil && labels.IsProtectedResource(portal.NormalizedLabels), nil
+			return r.NormalizedLabels, err
+		})
 	case resources.ResourceTypeAPI:
-		api, err := client.GetAPIByName(ctx, resourceName)
-		if err != nil {
-			if state.IsAPIClientError(err) {
-				return false, nil
+		return fetchProtection(resourceName, "API", func() (map[string]string, error) {
+			r, err := client.GetAPIByName(ctx, resourceName)
+			if r == nil {
+				return nil, err
 			}
-			return false, fmt.Errorf("fetch API %q for inherited protection: %w", resourceName, err)
-		}
-		return api != nil && labels.IsProtectedResource(api.NormalizedLabels), nil
+			return r.NormalizedLabels, err
+		})
 	case resources.ResourceTypeControlPlane:
-		controlPlane, err := client.GetControlPlaneByName(ctx, resourceName)
-		if err != nil {
-			if state.IsAPIClientError(err) {
-				return false, nil
+		return fetchProtection(resourceName, "control plane", func() (map[string]string, error) {
+			r, err := client.GetControlPlaneByName(ctx, resourceName)
+			if r == nil {
+				return nil, err
 			}
-			return false, fmt.Errorf("fetch control plane %q for inherited protection: %w", resourceName, err)
-		}
-		return controlPlane != nil && labels.IsProtectedResource(controlPlane.NormalizedLabels), nil
+			return r.NormalizedLabels, err
+		})
 	case resources.ResourceTypeCatalogService:
-		service, err := client.GetCatalogServiceByName(ctx, resourceName)
-		if err != nil {
-			if state.IsAPIClientError(err) {
-				return false, nil
+		return fetchProtection(resourceName, "catalog service", func() (map[string]string, error) {
+			r, err := client.GetCatalogServiceByName(ctx, resourceName)
+			if r == nil {
+				return nil, err
 			}
-			return false, fmt.Errorf("fetch catalog service %q for inherited protection: %w", resourceName, err)
-		}
-		return service != nil && labels.IsProtectedResource(service.NormalizedLabels), nil
+			return r.NormalizedLabels, err
+		})
 	case resources.ResourceTypeApplicationAuthStrategy:
-		strategy, err := client.GetAuthStrategyByName(ctx, resourceName)
-		if err != nil {
-			if state.IsAPIClientError(err) {
-				return false, nil
+		return fetchProtection(resourceName, "auth strategy", func() (map[string]string, error) {
+			r, err := client.GetAuthStrategyByName(ctx, resourceName)
+			if r == nil {
+				return nil, err
 			}
-			return false, fmt.Errorf("fetch auth strategy %q for inherited protection: %w", resourceName, err)
-		}
-		return strategy != nil && labels.IsProtectedResource(strategy.NormalizedLabels), nil
+			return r.NormalizedLabels, err
+		})
 	case resources.ResourceTypeEventGatewayControlPlane:
-		gateway, err := client.GetEventGatewayControlPlaneByName(ctx, resourceName)
-		if err != nil {
-			if state.IsAPIClientError(err) {
-				return false, nil
+		return fetchProtection(resourceName, "event gateway", func() (map[string]string, error) {
+			r, err := client.GetEventGatewayControlPlaneByName(ctx, resourceName)
+			if r == nil {
+				return nil, err
 			}
-			return false, fmt.Errorf("fetch event gateway %q for inherited protection: %w", resourceName, err)
-		}
-		return gateway != nil && labels.IsProtectedResource(gateway.NormalizedLabels), nil
+			return r.NormalizedLabels, err
+		})
 	case resources.ResourceTypeOrganizationTeam:
-		team, err := client.GetOrganizationTeamByName(ctx, resourceName)
-		if err != nil {
-			if state.IsAPIClientError(err) {
-				return false, nil
+		return fetchProtection(resourceName, "organization team", func() (map[string]string, error) {
+			r, err := client.GetOrganizationTeamByName(ctx, resourceName)
+			if r == nil {
+				return nil, err
 			}
-			return false, fmt.Errorf("fetch organization team %q for inherited protection: %w", resourceName, err)
-		}
-		return team != nil && labels.IsProtectedResource(team.NormalizedLabels), nil
+			return r.NormalizedLabels, err
+		})
 	case resources.ResourceTypeAPIVersion,
 		resources.ResourceTypeAPIPublication,
 		resources.ResourceTypeAPIImplementation,

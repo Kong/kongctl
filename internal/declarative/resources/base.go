@@ -2,6 +2,10 @@ package resources
 
 import "fmt"
 
+// UnknownReferenceID is the sentinel value used when a resource reference or
+// name cannot be resolved.
+const UnknownReferenceID = "[unknown]"
+
 // matchOptions configures how TryMatchByName performs matching.
 type matchOptions struct {
 	// sdkType is the embedded struct name for SDK responses (e.g., "Portal", "APIResponseSchema").

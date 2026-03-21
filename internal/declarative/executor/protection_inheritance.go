@@ -27,7 +27,7 @@ func (e *Executor) validateInheritedProtection(ctx context.Context, change plann
 	}
 
 	resourceName := common.ExtractResourceName(change.Fields)
-	if resourceName == "[unknown]" && change.ResourceRef != "" && change.ResourceRef != "[unknown]" {
+	if resourceName == resources.UnknownReferenceID && change.ResourceRef != "" && change.ResourceRef != resources.UnknownReferenceID {
 		resourceName = change.ResourceRef
 	}
 

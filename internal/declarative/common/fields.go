@@ -3,6 +3,8 @@ package common
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/kong/kongctl/internal/declarative/resources"
 )
 
 // MapOptionalStringField maps a string field from source map to target pointer if present
@@ -57,7 +59,7 @@ func ExtractResourceName(fields map[string]any) string {
 	if name, ok := fields["name"].(string); ok {
 		return name
 	}
-	return "[unknown]"
+	return resources.UnknownReferenceID
 }
 
 // ExtractResourceID extracts the resource ID from fields map
