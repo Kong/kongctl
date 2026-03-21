@@ -1,0 +1,85 @@
+baseInputsPath: testdata
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-cp
+    commands:
+      - name: 000-apply-create
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.changes[?resource_type=='control_plane' && resource_ref=='e2e-get-cp'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+      - name: 001-list-to-record-id
+        run: ["get", "konnect", "gateway", "control-planes", "-o", "json"]
+        recordVar:
+          name: cpID
+          responsePath: "[?name=='kongctl-e2e-get-cp'] | [0].id"
+
+  - name: 002-list-all
+    skipInputs: true
+    commands:
+      - name: 000-list-all
+        run: ["get", "konnect", "gateway", "control-planes", "-o", "json"]
+        assertions:
+          - select: "[?name=='kongctl-e2e-get-cp'] | [0]"
+            expect:
+              fields:
+                name: "kongctl-e2e-get-cp"
+                description: "Test Control Plane for get E2E testing via kongctl"
+
+  - name: 003-get-by-name
+    skipInputs: true
+    commands:
+      - name: 000-get-by-name
+        run: ["get", "konnect", "gateway", "control-plane", "kongctl-e2e-get-cp", "-o", "json"]
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "kongctl-e2e-get-cp"
+          - select: description
+            expect:
+              fields:
+                "@": "Test Control Plane for get E2E testing via kongctl"
+          - select: config.cluster_type
+            expect:
+              fields:
+                "@": "CLUSTER_TYPE_CONTROL_PLANE"
+
+  - name: 004-get-by-id
+    skipInputs: true
+    commands:
+      - name: 000-get-by-id
+        run: ["get", "konnect", "gateway", "control-plane", "{{ .vars.cpID }}", "-o", "json"]
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "kongctl-e2e-get-cp"
+          - select: description
+            expect:
+              fields:
+                "@": "Test Control Plane for get E2E testing via kongctl"
+          - select: config.cluster_type
+            expect:
+              fields:
+                "@": "CLUSTER_TYPE_CONTROL_PLANE"
+
+  - name: 005-not-found
+    skipInputs: true
+    commands:
+      - name: 000-not-found
+        run: ["get", "konnect", "gateway", "control-plane", "nonexistent-cp-name", "-o", "json"]
+        expectFailure:
+          exitCode: 1
+          contains: "not found"
