@@ -5,10 +5,9 @@ import (
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
-
-const unknownReferenceID = "[unknown]"
 
 // APIDocumentAdapter implements ResourceOperations for API documents
 type APIDocumentAdapter struct {
@@ -50,7 +49,7 @@ func (a *APIDocumentAdapter) MapCreateFields(
 
 	if execCtx != nil && execCtx.PlannedChange != nil {
 		if parentRef, ok := execCtx.PlannedChange.References["parent_document_id"]; ok {
-			if parentRef.ID != "" && parentRef.ID != unknownReferenceID {
+			if parentRef.ID != "" && parentRef.ID != resources.UnknownReferenceID {
 				create.ParentDocumentID = &parentRef.ID
 			}
 		}
@@ -89,7 +88,7 @@ func (a *APIDocumentAdapter) MapUpdateFields(_ context.Context, execCtx *Executi
 
 	if execCtx != nil && execCtx.PlannedChange != nil {
 		if parentRef, ok := execCtx.PlannedChange.References["parent_document_id"]; ok {
-			if parentRef.ID != "" && parentRef.ID != unknownReferenceID {
+			if parentRef.ID != "" && parentRef.ID != resources.UnknownReferenceID {
 				update.ParentDocumentID = &parentRef.ID
 			}
 		}

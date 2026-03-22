@@ -103,22 +103,12 @@ func (p *Planner) resolveTopLevelProtectingParent(parentRef string) (*Protecting
 
 		withParent, ok := resource.(resources.ResourceWithParent)
 		if !ok {
-			return &ProtectingParentInfo{
-				ResourceType: string(resource.GetType()),
-				ResourceRef:  resource.GetRef(),
-				ResourceID:   resource.GetKonnectID(),
-				ResourceName: resource.GetMoniker(),
-			}, nil
+			return resourceToProtectingParentInfo(resource), nil
 		}
 
 		parent := withParent.GetParentRef()
 		if parent == nil || parent.Ref == "" {
-			return &ProtectingParentInfo{
-				ResourceType: string(resource.GetType()),
-				ResourceRef:  resource.GetRef(),
-				ResourceID:   resource.GetKonnectID(),
-				ResourceName: resource.GetMoniker(),
-			}, nil
+			return resourceToProtectingParentInfo(resource), nil
 		}
 
 		currentRef = parent.Ref
@@ -162,13 +152,22 @@ func extractInheritedProtectionResourceName(change PlannedChange) string {
 	if title, ok := change.Fields["title"].(string); ok && title != "" {
 		return title
 	}
-	if change.ResourceRef != "" && change.ResourceRef != "[unknown]" {
+	if change.ResourceRef != "" && change.ResourceRef != resources.UnknownReferenceID {
 		return change.ResourceRef
 	}
 	if change.ResourceID != "" {
 		return change.ResourceID
 	}
-	return "[unknown]"
+	return resources.UnknownReferenceID
+}
+
+func resourceToProtectingParentInfo(r resources.Resource) *ProtectingParentInfo {
+	return &ProtectingParentInfo{
+		ResourceType: string(r.GetType()),
+		ResourceRef:  r.GetRef(),
+		ResourceID:   r.GetKonnectID(),
+		ResourceName: r.GetMoniker(),
+	}
 }
 
 func actionVerb(action ActionType) string {
