@@ -73,9 +73,18 @@ jobs:
             exit 1
           fi
 
-          git fetch --no-tags --prune --depth=1 origin "${base_branch}"
+          remote_base_ref="refs/remotes/origin/${base_branch}"
+          if ! git show-ref --verify --quiet "${remote_base_ref}"; then
+            git fetch --no-tags --prune origin "refs/heads/${base_branch}:${remote_base_ref}"
+          fi
+
+          merge_base="$(git merge-base "origin/${base_branch}" HEAD)" || {
+            echo "::error::Unable to determine merge base between origin/${base_branch} and HEAD"
+            exit 1
+          }
+
           changed_files="$(mktemp)"
-          git diff --name-only "origin/${base_branch}...HEAD" | tee "${changed_files}"
+          git diff --name-only "${merge_base}" HEAD | tee "${changed_files}"
 
           if grep -Eq \
             '^(go\.mod|go\.sum|main\.go|[^/]+\.go|internal/.*|test/e2e/.*|Makefile|\.goreleaser\.yml|\.github/workflows/e2e\.yaml)$' \
@@ -659,6 +668,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          if [ "${{ needs.e2e-needed.result }}" != "success" ]; then
+            echo "::error::E2E Needed concluded ${{ needs.e2e-needed.result }}."
+            exit 1
+          fi
 
           if [ "${{ needs.e2e-needed.outputs.required }}" != "true" ]; then
             echo "E2E not required for this change."
