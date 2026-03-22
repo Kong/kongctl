@@ -14,7 +14,7 @@ require (
 	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/charmbracelet/glamour v1.0.0
 	github.com/charmbracelet/x/ansi v0.11.6
-	github.com/daveshanley/vacuum v0.24.0
+	github.com/daveshanley/vacuum v0.25.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/itchyny/gojq v0.12.18
@@ -63,7 +63,7 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
-	github.com/dop251/goja v0.0.0-20260106131823-651366fbe6e3 // indirect
+	github.com/dop251/goja v0.0.0-20260305124333-6a7976c22267 // indirect
 	github.com/dop251/goja_nodejs v0.0.0-20260212111938-1f56ff5bcf14 // indirect
 	github.com/dprotaso/go-yit v0.0.0-20220510233725-9ba8df137936 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
@@ -89,9 +89,9 @@ require (
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/oasdiff/yaml v0.0.0-20250309154309-f31be36b4037 // indirect
 	github.com/oasdiff/yaml3 v0.0.0-20250309153720-d2182401db90 // indirect
-	github.com/pb33f/doctor v0.0.48 // indirect
+	github.com/pb33f/doctor v0.0.49 // indirect
 	github.com/pb33f/jsonpath v0.8.1 // indirect
-	github.com/pb33f/libopenapi v0.34.0 // indirect
+	github.com/pb33f/libopenapi v0.34.2 // indirect
 	github.com/pb33f/libopenapi-validator v0.13.1 // indirect
 	github.com/pb33f/ordered-map/v2 v2.3.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
