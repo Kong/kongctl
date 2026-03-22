@@ -28,10 +28,6 @@ func (a *AuthStrategyAdapter) MapCreateFields(
 	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	create *kkComps.CreateAppAuthStrategyRequest,
 ) error {
-	// Extract namespace and protection from execution context
-	namespace := execCtx.Namespace
-	protection := execCtx.Protection
-
 	// Validate required fields
 	strategyType, ok := fields["strategy_type"].(string)
 	if !ok {
@@ -45,7 +41,7 @@ func (a *AuthStrategyAdapter) MapCreateFields(
 
 	// Handle labels using centralized helper
 	userLabels := labels.ExtractLabelsFromField(fields["labels"])
-	authLabels := labels.BuildCreateLabels(userLabels, namespace, protection)
+	authLabels := labels.BuildCreateLabels(userLabels, execCtx.Namespace, execCtx.Protection)
 
 	// Build the request based on strategy type
 	switch strategyType {
@@ -270,20 +266,20 @@ func (a *AuthStrategyAdapter) buildOpenIDConnectRequest(name, displayName string
 	}
 
 	// Extract issuer (required)
-	if issuer, ok := oidcConfig["issuer"].(string); ok {
-		req.Configs.OpenidConnect.Issuer = issuer
-	} else {
+	issuer, ok := oidcConfig["issuer"].(string)
+	if !ok {
 		return nil, fmt.Errorf("issuer is required for openid_connect strategy")
 	}
+	req.Configs.OpenidConnect.Issuer = issuer
 
 	// Extract credential_claim
-	req.Configs.OpenidConnect.CredentialClaim = a.extractStringSlice(oidcConfig["credential_claim"], []string{"sub"})
+	req.Configs.OpenidConnect.CredentialClaim = extractStringSlice(oidcConfig["credential_claim"], []string{"sub"})
 
 	// Extract scopes
-	req.Configs.OpenidConnect.Scopes = a.extractStringSlice(oidcConfig["scopes"], nil)
+	req.Configs.OpenidConnect.Scopes = extractStringSlice(oidcConfig["scopes"], nil)
 
 	// Extract auth methods
-	req.Configs.OpenidConnect.AuthMethods = a.extractStringSlice(oidcConfig["auth_methods"], nil)
+	req.Configs.OpenidConnect.AuthMethods = extractStringSlice(oidcConfig["auth_methods"], nil)
 
 	return req, nil
 }
@@ -300,7 +296,7 @@ func (a *AuthStrategyAdapter) buildUpdateConfigs(strategyType string,
 		}
 
 		keyAuth := kkComps.PartialAppAuthStrategyConfigKeyAuth{}
-		keyAuth.KeyNames = a.extractStringSlice(keyAuthConfig["key_names"], nil)
+		keyAuth.KeyNames = extractStringSlice(keyAuthConfig["key_names"], nil)
 
 		wrapped := kkComps.UpdateAppAuthStrategyRequestKeyAuth{KeyAuth: keyAuth}
 		configs := kkComps.CreateConfigsUpdateAppAuthStrategyRequestKeyAuth(wrapped)
@@ -321,9 +317,9 @@ func (a *AuthStrategyAdapter) buildUpdateConfigs(strategyType string,
 		}
 
 		// Extract other fields
-		oidc.CredentialClaim = a.extractStringSlice(oidcConfig["credential_claim"], nil)
-		oidc.Scopes = a.extractStringSlice(oidcConfig["scopes"], nil)
-		oidc.AuthMethods = a.extractStringSlice(oidcConfig["auth_methods"], nil)
+		oidc.CredentialClaim = extractStringSlice(oidcConfig["credential_claim"], nil)
+		oidc.Scopes = extractStringSlice(oidcConfig["scopes"], nil)
+		oidc.AuthMethods = extractStringSlice(oidcConfig["auth_methods"], nil)
 
 		wrapped := kkComps.UpdateAppAuthStrategyRequestOpenIDConnect{OpenidConnect: oidc}
 		configs := kkComps.CreateConfigsUpdateAppAuthStrategyRequestOpenIDConnect(wrapped)
@@ -335,7 +331,7 @@ func (a *AuthStrategyAdapter) buildUpdateConfigs(strategyType string,
 }
 
 // extractStringSlice extracts a string slice from various input types
-func (a *AuthStrategyAdapter) extractStringSlice(input any, defaultValue []string) []string {
+func extractStringSlice(input any, defaultValue []string) []string {
 	switch v := input.(type) {
 	case []string:
 		return v
