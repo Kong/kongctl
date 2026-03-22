@@ -1,7 +1,5 @@
 {
-  "name": "key-auth-strategy-e2e",
-  "display_name": "E2E Key Auth Strategy",
-  "strategy_type": "key_auth",
+  "_strategy_type": "key_auth",
   "configs": {
     "key-auth": {
       "key_names": [
