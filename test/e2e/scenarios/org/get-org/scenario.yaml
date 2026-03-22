@@ -1,0 +1,66 @@
+# Get Organization E2E Test Scenario
+#
+# This scenario tests the kongctl CLI's ability to retrieve the current
+# organization info using `get org` (alias: `get organization`).
+#
+# Test flow:
+# 1. Reset org
+# 2. Get org in JSON output mode — assert id, name, and state are present
+# 3. Get org in default text output mode — assert table headers appear
+# 4. Get org in YAML output mode — assert id and name are present
+
+steps:
+  - name: 000-reset
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-get-org-json
+    skipInputs: true
+    commands:
+      - name: get-org-json
+        run:
+          - get
+          - org
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(id) > `0`": true
+                "length(name) > `0`": true
+                "contains(['active','inactive','provisioned'], state)": true
+
+  - name: 002-get-org-text
+    skipInputs: true
+    commands:
+      - name: get-org-text
+        run:
+          - get
+          - org
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "contains(stdout, 'NAME')": true
+                "contains(stdout, 'STATE')": true
+
+  - name: 003-get-org-yaml
+    skipInputs: true
+    commands:
+      - name: get-org-yaml
+        run:
+          - get
+          - org
+          - -o
+          - yaml
+        parseAs: yaml
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(id) > `0`": true
+                "length(name) > `0`": true
