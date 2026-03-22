@@ -2099,6 +2099,13 @@ func (c *Client) extractAuthStrategyFromCreateResponse(
 	return nil
 }
 
+func normalizeLabelMap(m map[string]string) map[string]string {
+	if m == nil {
+		return make(map[string]string)
+	}
+	return m
+}
+
 func normalizeKeyAuthStrategy(
 	id, name, displayName string,
 	labelMap map[string]string,
@@ -2118,10 +2125,7 @@ func normalizeKeyAuthStrategy(
 		strategy.Configs["key-auth"].(map[string]any)["key_names"] = keyNames
 	}
 
-	if labelMap == nil {
-		labelMap = make(map[string]string)
-	}
-	strategy.NormalizedLabels = labelMap
+	strategy.NormalizedLabels = normalizeLabelMap(labelMap)
 
 	return strategy
 }
@@ -2145,10 +2149,6 @@ func normalizeOIDCStrategy(
 		oidcConfig["auth_methods"] = authMethods
 	}
 
-	if labelMap == nil {
-		labelMap = make(map[string]string)
-	}
-
 	return &ApplicationAuthStrategy{
 		ID:           id,
 		Name:         name,
@@ -2157,7 +2157,7 @@ func normalizeOIDCStrategy(
 		Configs: map[string]any{
 			"openid-connect": oidcConfig,
 		},
-		NormalizedLabels: labelMap,
+		NormalizedLabels: normalizeLabelMap(labelMap),
 	}
 }
 
@@ -2195,12 +2195,7 @@ func (c *Client) GetAuthStrategyByID(ctx context.Context, id string) (*Applicati
 		return nil, nil
 	}
 
-	strategy := c.extractAuthStrategyFromCreateResponse(resp.GetCreateAppAuthStrategyResponse())
-	if strategy == nil {
-		return nil, nil
-	}
-
-	return strategy, nil
+	return c.extractAuthStrategyFromCreateResponse(resp.GetCreateAppAuthStrategyResponse()), nil
 }
 
 // GetAuthStrategyByFilter finds a managed auth strategy using a filter expression
