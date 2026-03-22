@@ -45,8 +45,8 @@ steps:
           - select: "@"
             expect:
               fields:
-                "contains(stdout, 'Name')": true
-                "contains(stdout, 'State')": true
+                "contains(stdout, 'NAME')": true
+                "contains(stdout, 'STATE')": true
 
   - name: 003-get-org-yaml
     skipInputs: true
