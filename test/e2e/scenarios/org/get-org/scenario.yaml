@@ -39,6 +39,7 @@ steps:
         run:
           - get
           - org
+        outputFormat: text
         parseAs: raw
         assertions:
           - select: "@"
@@ -56,6 +57,7 @@ steps:
           - org
           - -o
           - yaml
+        parseAs: yaml
         assertions:
           - select: "@"
             expect:
