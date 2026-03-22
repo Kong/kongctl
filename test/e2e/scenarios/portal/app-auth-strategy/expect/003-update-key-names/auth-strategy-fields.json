@@ -1,0 +1,12 @@
+{
+  "_strategy_type": "key_auth",
+  "configs": {
+    "key-auth": {
+      "key_names": [
+        "X-API-Key",
+        "Api-Key",
+        "X-Custom-Key"
+      ]
+    }
+  }
+}
