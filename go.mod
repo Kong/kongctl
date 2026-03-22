@@ -11,7 +11,7 @@ require (
 	github.com/ajg/form v1.7.1
 	github.com/alecthomas/chroma/v2 v2.23.1
 	github.com/atotto/clipboard v0.1.4
-	github.com/charmbracelet/colorprofile v0.4.2
+	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/charmbracelet/glamour v1.0.0
 	github.com/charmbracelet/x/ansi v0.11.6
 	github.com/daveshanley/vacuum v0.24.0
