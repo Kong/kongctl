@@ -10,10 +10,11 @@
 # Test flow:
 # 1. Reset org (cleans up any existing teams)
 # 2. Create 2 org teams via API (global.api.konghq.com)
-# 3. Get each team by name  (exercises runListByName path)
-# 4. Get each team by ID   (exercises runGet path)
-# 5. List all teams        (text output; both names must appear)
-# 6. List by name          (text output; only alpha name must appear)
+# 3. Get all teams             (exercises runList path; JSON assertions for both teams)
+# 4. Get each team by name     (exercises runListByName path; returns JSON array)
+# 5. Get each team by ID       (exercises runGet path; returns single object)
+# 6. List all teams            (text output; both names must appear)
+# 7. List by name              (text output; only alpha name must appear)
 
 vars:
   team_alpha_name: e2e-get-team-alpha
@@ -52,9 +53,33 @@ steps:
             name: team_beta_id
             responsePath: id
 
-  - name: 002-get-team-by-name
+  - name: 002-get-all-teams
     skipInputs: true
     commands:
+      - name: 000-get-all-teams
+        run:
+          - get
+          - org
+          - teams
+        assertions:
+          - select: "[?name=='{{ .vars.team_alpha_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.team_alpha_name }}"
+                description: "{{ .vars.team_alpha_description }}"
+                id: "{{ .vars.team_alpha_id }}"
+          - select: "[?name=='{{ .vars.team_beta_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.team_beta_name }}"
+                description: "{{ .vars.team_beta_description }}"
+                id: "{{ .vars.team_beta_id }}"
+
+  - name: 003-get-team-by-name
+    skipInputs: true
+    commands:
+      # get org teams <name> calls runListByName which returns a JSON array;
+      # use select to pick the matching element before asserting scalar fields.
       - name: 000-get-by-name-alpha
         run:
           - get
@@ -62,7 +87,8 @@ steps:
           - teams
           - "{{ .vars.team_alpha_name }}"
         assertions:
-          - expect:
+          - select: "[?name=='{{ .vars.team_alpha_name }}'] | [0]"
+            expect:
               fields:
                 name: "{{ .vars.team_alpha_name }}"
                 description: "{{ .vars.team_alpha_description }}"
@@ -75,13 +101,14 @@ steps:
           - teams
           - "{{ .vars.team_beta_name }}"
         assertions:
-          - expect:
+          - select: "[?name=='{{ .vars.team_beta_name }}'] | [0]"
+            expect:
               fields:
                 name: "{{ .vars.team_beta_name }}"
                 description: "{{ .vars.team_beta_description }}"
                 id: "{{ .vars.team_beta_id }}"
 
-  - name: 003-get-team-by-id
+  - name: 004-get-team-by-id
     skipInputs: true
     commands:
       - name: 000-get-by-id-alpha
@@ -110,7 +137,7 @@ steps:
                 description: "{{ .vars.team_beta_description }}"
                 id: "{{ .vars.team_beta_id }}"
 
-  - name: 004-list-teams-text
+  - name: 005-list-teams-text
     skipInputs: true
     commands:
       - name: 000-list-all-teams
@@ -130,7 +157,7 @@ steps:
               fields:
                 "contains(stdout, 'e2e-get-team-beta')": true
 
-  - name: 005-list-team-by-name-text
+  - name: 006-list-team-by-name-text
     skipInputs: true
     commands:
       - name: 000-list-by-name-alpha
