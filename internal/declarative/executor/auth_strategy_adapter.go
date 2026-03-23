@@ -71,10 +71,6 @@ func (a *AuthStrategyAdapter) MapUpdateFields(
 	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	update *kkComps.UpdateAppAuthStrategyRequest, currentLabels map[string]string,
 ) error {
-	// Extract namespace and protection from execution context
-	namespace := execCtx.Namespace
-	protection := execCtx.Protection
-
 	// Update display name if present
 	if displayName, ok := fields["display_name"].(string); ok {
 		update.DisplayName = &displayName
@@ -90,7 +86,7 @@ func (a *AuthStrategyAdapter) MapUpdateFields(
 		}
 
 		// Build update labels with removal support
-		update.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, namespace, protection)
+		update.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, execCtx.Namespace, execCtx.Protection)
 	}
 
 	// Handle config updates if present
