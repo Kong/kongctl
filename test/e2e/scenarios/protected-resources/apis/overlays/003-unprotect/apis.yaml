@@ -1,6 +1,6 @@
 # Overlay: Set protected: false on Customer API
 # This should allow the protection label to be removed
-# Version child is kept in config so it persists for subsequent child-operation tests
+# Version child is kept with original spec so it persists unchanged
 
 _defaults:
   kongctl:
@@ -17,8 +17,14 @@ apis:
     versions:
       - ref: customer-api-v1
         version: "1.0.0"
-        publish_status: "unpublished"
         deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: Customer API
+              version: 1.0.0
+            paths: {}
 
   - ref: test-api
     name: "Test API"

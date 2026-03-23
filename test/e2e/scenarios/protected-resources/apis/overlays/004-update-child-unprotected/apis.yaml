@@ -1,4 +1,5 @@
 # Overlay: Update api_version child after parent API is unprotected
+# Changes the spec title so the planner sees a real UPDATE for the version
 # This should succeed now that the parent is no longer protected
 
 _defaults:
@@ -16,8 +17,14 @@ apis:
     versions:
       - ref: customer-api-v1
         version: "1.0.0"
-        publish_status: "published"
         deprecated: false
+        spec:
+          content: |
+            openapi: 3.0.0
+            info:
+              title: Customer API (updated while protected)
+              version: 1.0.0
+            paths: {}
 
   - ref: test-api
     name: "Test API"

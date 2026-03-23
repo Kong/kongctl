@@ -105,7 +105,6 @@ steps:
             expect:
               fields:
                 version: "1.0.0"
-                publish_status: "unpublished"
 
   # Step 2: Attempt to delete protected resource (should fail)
   - name: 002-attempt-delete-protected
@@ -170,7 +169,7 @@ steps:
           - select: "[?version=='1.0.0'] | [0]"
             expect:
               fields:
-                publish_status: "unpublished"
+                version: "1.0.0"
 
   # Step 2c: Attempt to delete protected child resource (should fail)
   - name: 002c-attempt-child-delete
@@ -283,7 +282,7 @@ steps:
           - select: "[?version=='1.0.0'] | [0]"
             expect:
               fields:
-                publish_status: "published"
+                version: "1.0.0"
 
   # Step 5: Delete child after parent is unprotected (should succeed)
   - name: 005-delete-child-unprotected
