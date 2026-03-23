@@ -24,7 +24,7 @@ steps:
     commands:
       - resetOrg: true
 
-  # Step 1: Initial sync - create protected and unprotected resources
+  # Step 1: Initial sync - create protected API (with version child) and unprotected API
   - name: 001-initial-sync
     commands:
       - name: 000-sync
@@ -44,6 +44,14 @@ steps:
           - select: >-
               plan.changes[?resource_type=='api' &&
                             resource_ref=='customer-api'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+          # Verify api_version child created
+          - select: >-
+              plan.changes[?resource_type=='api_version' &&
+                            resource_ref=='customer-api-v1'] | [0]
             expect:
               fields:
                 action: CREATE
@@ -82,6 +90,23 @@ steps:
                 name: "Test API"
                 labels."KONGCTL-namespace": "default"
 
+      # Verify api_version child exists
+      - name: 002-get-api-versions
+        run:
+          - get
+          - api
+          - versions
+          - --api-name
+          - "{{ .vars.protectedAPIName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?version=='1.0.0'] | [0]"
+            expect:
+              fields:
+                version: "1.0.0"
+                publish_status: "unpublished"
+
   # Step 2: Attempt to delete protected resource (should fail)
   - name: 002-attempt-delete-protected
     inputOverlayDirs:
@@ -112,7 +137,73 @@ steps:
               fields:
                 labels."KONGCTL-protected": "true"
 
-  # Step 3: Unprotect the resource
+  # Step 2b: Attempt to update protected child resource (should fail)
+  - name: 002b-attempt-child-update
+    inputOverlayDirs:
+      - overlays/002b-attempt-child-update
+    commands:
+      - name: 000-sync-should-fail
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "protected"
+
+      # Verify child resource is unchanged
+      - name: 001-verify-child-unchanged
+        run:
+          - get
+          - api
+          - versions
+          - --api-name
+          - "{{ .vars.protectedAPIName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?version=='1.0.0']"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[?version=='1.0.0'] | [0]"
+            expect:
+              fields:
+                publish_status: "unpublished"
+
+  # Step 2c: Attempt to delete protected child resource (should fail)
+  - name: 002c-attempt-child-delete
+    inputOverlayDirs:
+      - overlays/002c-attempt-child-delete
+    commands:
+      - name: 000-sync-should-fail
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "protected"
+
+      # Verify child resource still exists
+      - name: 001-verify-child-still-exists
+        run:
+          - get
+          - api
+          - versions
+          - --api-name
+          - "{{ .vars.protectedAPIName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?version=='1.0.0']"
+            expect:
+              fields:
+                "length(@)": 1
+
+  # Step 3: Unprotect the resource (version child is preserved in config)
   - name: 003-unprotect-resource
     inputOverlayDirs:
       - overlays/003-unprotect
@@ -155,10 +246,88 @@ steps:
               fields:
                 labels."KONGCTL-namespace": "default"
 
-  # Step 4: Delete now-unprotected resource (should succeed)
-  - name: 004-delete-unprotected
+  # Step 4: Update child after parent is unprotected (should succeed)
+  - name: 004-update-child-unprotected
     inputOverlayDirs:
-      - overlays/004-delete-unprotected
+      - overlays/004-update-child-unprotected
+    commands:
+      - name: 000-sync-update-child
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: >-
+              plan.changes[?resource_type=='api_version' &&
+                            resource_ref=='customer-api-v1'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+          - select: "summary"
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 001-verify-child-updated
+        run:
+          - get
+          - api
+          - versions
+          - --api-name
+          - "{{ .vars.protectedAPIName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?version=='1.0.0'] | [0]"
+            expect:
+              fields:
+                publish_status: "published"
+
+  # Step 5: Delete child after parent is unprotected (should succeed)
+  - name: 005-delete-child-unprotected
+    inputOverlayDirs:
+      - overlays/005-delete-child-unprotected
+    commands:
+      - name: 000-sync-delete-child
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: >-
+              plan.changes[?resource_type=='api_version' &&
+                            resource_ref=='customer-api-v1'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: "summary"
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 001-verify-child-deleted
+        run:
+          - get
+          - api
+          - versions
+          - --api-name
+          - "{{ .vars.protectedAPIName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+  # Step 6: Delete now-unprotected parent APIs (should succeed)
+  - name: 006-delete-unprotected
+    inputOverlayDirs:
+      - overlays/006-delete-unprotected
     commands:
       - name: 000-sync-delete
         run:

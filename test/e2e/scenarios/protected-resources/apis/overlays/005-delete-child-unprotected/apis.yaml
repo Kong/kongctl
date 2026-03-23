@@ -1,6 +1,6 @@
-# Overlay: Set protected: false on Customer API
-# This should allow the protection label to be removed
-# Version child is kept in config so it persists for subsequent child-operation tests
+# Overlay: Delete api_version child after parent API is unprotected
+# Sync mode with no versions listed causes DELETE plan for the child
+# This should succeed now that the parent is no longer protected
 
 _defaults:
   kongctl:
@@ -14,11 +14,6 @@ apis:
     kongctl:
       protected: false
       namespace: default
-    versions:
-      - ref: customer-api-v1
-        version: "1.0.0"
-        publish_status: "unpublished"
-        deprecated: false
 
   - ref: test-api
     name: "Test API"

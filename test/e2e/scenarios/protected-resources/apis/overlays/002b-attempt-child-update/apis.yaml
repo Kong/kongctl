@@ -1,14 +1,11 @@
-# Protected Resources Test Data
-# Tests the protected metadata flag for preventing accidental deletions
+# Overlay: Update api_version child while parent API is protected
+# This should fail because the parent API has the protected label
 
 _defaults:
   kongctl:
-    # Note: NOT setting protected in defaults
-    # We want explicit control per-resource for testing
     namespace: default
 
 apis:
-  # Protected API - cannot be deleted/modified until unprotected
   - ref: customer-api
     name: "Customer API"
     description: "Production API for customer data"
@@ -19,10 +16,9 @@ apis:
     versions:
       - ref: customer-api-v1
         version: "1.0.0"
-        publish_status: "unpublished"
+        publish_status: "published"
         deprecated: false
 
-  # Unprotected API - can be deleted without protection flag removal
   - ref: test-api
     name: "Test API"
     description: "Non-critical test API"
