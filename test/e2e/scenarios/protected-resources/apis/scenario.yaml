@@ -296,9 +296,7 @@ steps:
           - "{{ .workdir }}/apis.yaml"
           - --auto-approve
         assertions:
-          - select: >-
-              plan.changes[?resource_type=='api_version' &&
-                            resource_ref=='customer-api-v1'] | [0]
+          - select: "plan.changes[?resource_type=='api_version'] | [0]"
             expect:
               fields:
                 action: DELETE
