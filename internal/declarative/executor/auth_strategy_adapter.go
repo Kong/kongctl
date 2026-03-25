@@ -223,8 +223,8 @@ func (a *AuthStrategyAdapter) buildKeyAuthRequest(name, displayName string, labe
 	case []any:
 		names := make([]string, 0, len(keyNames))
 		for _, kn := range keyNames {
-			if name, ok := kn.(string); ok {
-				names = append(names, name)
+			if str, ok := kn.(string); ok {
+				names = append(names, str)
 			}
 		}
 		if len(names) > 0 {
@@ -295,8 +295,8 @@ func (a *AuthStrategyAdapter) buildUpdateConfigs(strategyType string,
 		keyAuth.KeyNames = extractStringSlice(keyAuthConfig["key_names"], nil)
 
 		wrapped := kkComps.UpdateAppAuthStrategyRequestKeyAuth{KeyAuth: keyAuth}
-		configs := kkComps.CreateConfigsUpdateAppAuthStrategyRequestKeyAuth(wrapped)
-		return &configs, nil
+		result := kkComps.CreateConfigsUpdateAppAuthStrategyRequestKeyAuth(wrapped)
+		return &result, nil
 
 	case "openid_connect":
 		oidcConfig, ok := configs["openid-connect"].(map[string]any)
@@ -318,8 +318,8 @@ func (a *AuthStrategyAdapter) buildUpdateConfigs(strategyType string,
 		oidc.AuthMethods = extractStringSlice(oidcConfig["auth_methods"], nil)
 
 		wrapped := kkComps.UpdateAppAuthStrategyRequestOpenIDConnect{OpenidConnect: oidc}
-		configs := kkComps.CreateConfigsUpdateAppAuthStrategyRequestOpenIDConnect(wrapped)
-		return &configs, nil
+		result := kkComps.CreateConfigsUpdateAppAuthStrategyRequestOpenIDConnect(wrapped)
+		return &result, nil
 
 	default:
 		return nil, fmt.Errorf("unsupported strategy type: %s", strategyType)
