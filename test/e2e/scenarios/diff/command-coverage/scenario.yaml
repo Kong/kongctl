@@ -278,7 +278,7 @@ steps:
                 "length(@)": 0
 
       - name: 006-get-control-planes
-        run: ["get", "control-planes"]
+        run: ["get", "gateway", "control-planes"]
         assertions:
           - select: "[?name=='{{ .vars.cpName }}'] | [0]"
             expect:
