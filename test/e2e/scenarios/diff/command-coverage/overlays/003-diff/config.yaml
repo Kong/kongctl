@@ -2,6 +2,12 @@ _defaults:
   kongctl:
     namespace: team-commerce
 
+control_planes:
+  - ref: diff-cp
+    name: "diff-coverage-cp"
+    description: "Updated description for diff test"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+
 portals:
   - ref: commerce-portal
     name: commerce-portal

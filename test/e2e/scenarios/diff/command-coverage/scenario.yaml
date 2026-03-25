@@ -11,6 +11,10 @@ vars:
   existingAPIName: orders-api
   removedAPIName: legacy-api
   newAPIRef: analytics-api
+  cpRef: diff-cp
+  cpName: "diff-coverage-cp"
+  cpDesc: "Control plane for diff coverage E2E"
+  cpUpdatedDesc: "Updated description for diff test"
 
 defaults:
   mask:
@@ -40,12 +44,12 @@ steps:
           - select: "plan.summary"
             expect:
               fields:
-                total_changes: 3
-                by_action.CREATE: 3
+                total_changes: 4
+                by_action.CREATE: 4
           - select: "summary"
             expect:
               fields:
-                applied: 3
+                applied: 4
                 failed: 0
           - select: >-
               plan.changes[?resource_type=='portal' &&
@@ -114,12 +118,19 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 2
+                total_changes: 3
                 by_action.CREATE: 1
-                by_action.UPDATE: 1
+                by_action.UPDATE: 2
           - expect:
               fields:
                 "length(changes[?action=='DELETE'])": 0
+          - select: >-
+              changes[?resource_type=='control_plane' &&
+                       resource_ref=='{{ .vars.cpRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.description.new, fields.description)": "{{ .vars.cpUpdatedDesc }}"
           - select: >-
               changes[?resource_type=='portal' &&
                        resource_ref=='{{ .vars.portalRef }}'] | [0]
@@ -152,12 +163,18 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 2
-                by_action.DELETE: 2
+                total_changes: 3
+                by_action.DELETE: 3
           - expect:
               fields:
                 "length(changes[?action=='CREATE'])": 0
                 "length(changes[?action=='UPDATE'])": 0
+          - select: >-
+              changes[?resource_type=='control_plane' &&
+                       resource_ref=='{{ .vars.cpRef }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
           - select: >-
               changes[?resource_type=='portal' &&
                        resource_ref=='{{ .vars.portalRef }}'] | [0]
@@ -189,10 +206,17 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 3
+                total_changes: 4
                 by_action.CREATE: 1
-                by_action.UPDATE: 1
+                by_action.UPDATE: 2
                 by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='control_plane' &&
+                       resource_ref=='{{ .vars.cpRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "not_null(changed_fields.description.new, fields.description)": "{{ .vars.cpUpdatedDesc }}"
           - select: >-
               changes[?resource_type=='portal' &&
                        resource_ref=='{{ .vars.portalRef }}'] | [0]
@@ -226,7 +250,7 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 3
+                total_changes: 4
           - select: >-
               changes[?resource_ref=='{{ .vars.newAPIRef }}'] | [0]
             expect:
@@ -252,3 +276,11 @@ steps:
             expect:
               fields:
                 "length(@)": 0
+
+      - name: 006-get-control-planes
+        run: ["get", "control-planes"]
+        assertions:
+          - select: "[?name=='{{ .vars.cpName }}'] | [0]"
+            expect:
+              fields:
+                description: "{{ .vars.cpDesc }}"
