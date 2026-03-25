@@ -37,6 +37,10 @@ steps:
           - "{{ .workdir }}/control-plane.yaml"
           - --auto-approve
         assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: apply
           - select: >-
               plan.changes[?resource_type=='control_plane' &&
                             resource_ref=='e2e-cp'] | [0]
@@ -62,6 +66,10 @@ steps:
             expect:
               fields:
                 "@": "e2e"
+          - select: "labels.owner"
+            expect:
+              fields:
+                "@": "kongctl-test"
 
   - name: 003-plan-idempotent
     inputOverlayDirs:
