@@ -9,8 +9,8 @@ import (
 func resolveStringField(v reflect.Value, fieldName string) string {
 	// Try direct field access first
 	field := v.FieldByName(fieldName)
-	//nolint: exhaustive
 	if field.IsValid() {
+		//nolint: exhaustive
 		switch field.Kind() {
 		case reflect.String:
 			return field.String()
