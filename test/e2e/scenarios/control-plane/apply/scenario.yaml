@@ -25,3 +25,58 @@ steps:
             expect:
               fields:
                 action: CREATE
+
+  - name: 002-apply-update
+    inputOverlayDirs:
+      - overlays/002-update-description-labels
+    commands:
+      - name: 002-000-apply-update
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: >-
+              plan.changes[?resource_type=='control_plane' &&
+                            resource_ref=='e2e-cp'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+
+      - name: 002-001-verify-fields
+        run:
+          - get
+          - konnect
+          - gateway
+          - control-plane
+          - kongctl-e2e-cp
+          - -o
+          - json
+        assertions:
+          - select: description
+            expect:
+              fields:
+                "@": "Updated description for E2E apply test"
+          - select: "labels.env"
+            expect:
+              fields:
+                "@": "e2e"
+
+  - name: 003-plan-idempotent
+    inputOverlayDirs:
+      - overlays/002-update-description-labels
+    commands:
+      - name: 003-plan
+        outputFormat: disable
+        run:
+          - plan
+          - --mode
+          - apply
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 0
