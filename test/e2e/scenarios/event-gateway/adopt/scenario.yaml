@@ -1,0 +1,133 @@
+env:
+  KONGCTL_LOG_LEVEL: info
+
+test:
+  enabledByEnvVar: KONGCTL_ENABLE_EVENT_GATEWAY
+
+vars:
+  egw1_name: adopt-e2e-egw-1
+  egw2_name: adopt-e2e-egw-2
+  namespace: egw-adopt-e2e
+
+defaults:
+  mask:
+    dropKeys:
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-egws
+    skipInputs: true
+    commands:
+      - name: create-egw1
+        create:
+          resource: event_gateway
+          payload:
+            inline:
+              name: "{{ .vars.egw1_name }}"
+              description: "Adopt E2E EGW 1 - created without namespace for adoption"
+          recordVar:
+            name: egw1_id
+            responsePath: id
+      - name: create-egw2
+        create:
+          resource: event_gateway
+          payload:
+            inline:
+              name: "{{ .vars.egw2_name }}"
+              description: "Adopt E2E EGW 2 - created without namespace for UUID-based adoption"
+          recordVar:
+            name: egw2_id
+            responsePath: id
+
+  - name: 002-adopt-by-name
+    skipInputs: true
+    commands:
+      - name: adopt-egw-by-name
+        run:
+          - adopt
+          - event-gateway
+          - "{{ .vars.egw1_name }}"
+          - --namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - expect:
+              fields:
+                resource_type: event_gateway
+                namespace: "{{ .vars.namespace }}"
+                id: "{{ .vars.egw1_id }}"
+
+  - name: 003-verify-namespace-label
+    skipInputs: true
+    commands:
+      - name: get-egw1-by-name
+        run:
+          - get
+          - event-gateway
+          - "{{ .vars.egw1_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "labels.\"KONGCTL-namespace\""
+            expect:
+              fields:
+                "@": "{{ .vars.namespace }}"
+
+  - name: 004-already-adopted-error
+    skipInputs: true
+    commands:
+      - name: adopt-egw1-again
+        run:
+          - adopt
+          - event-gateway
+          - "{{ .vars.egw1_name }}"
+          - --namespace
+          - other-ns
+        expectFailure:
+          exitCode: 1
+          contains: "already has namespace label"
+
+  - name: 005-adopt-by-uuid
+    skipInputs: true
+    commands:
+      - name: adopt-egw-by-uuid
+        run:
+          - adopt
+          - event-gateway
+          - "{{ .vars.egw2_id }}"
+          - --namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - expect:
+              fields:
+                resource_type: event_gateway
+                namespace: "{{ .vars.namespace }}"
+                id: "{{ .vars.egw2_id }}"
+
+  - name: 006-cleanup
+    inputOverlayDirs:
+      - overlays/006-cleanup
+    commands:
+      - name: sync-delete
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success

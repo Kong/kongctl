@@ -339,6 +339,9 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 	"organization_teams": {Method: http.MethodPost, Path: "/v3/teams", UseGlobal: true},
 	"organization_team":  {Method: http.MethodPost, Path: "/v3/teams", UseGlobal: true},
 	"team":               {Method: http.MethodPost, Path: "/v3/teams", UseGlobal: true},
+	"event-gateway":      {Method: http.MethodPost, Path: "/v1/event-gateways"},
+	"event_gateway":      {Method: http.MethodPost, Path: "/v1/event-gateways"},
+	"eventgateway":       {Method: http.MethodPost, Path: "/v1/event-gateways"},
 }
 
 var deleteResourceEndpoints = map[string]resourceEndpoint{
