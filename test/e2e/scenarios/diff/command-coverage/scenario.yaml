@@ -171,7 +171,7 @@ steps:
                 "length(changes[?action=='UPDATE'])": 0
           - select: >-
               changes[?resource_type=='control_plane' &&
-                       resource_ref=='{{ .vars.cpRef }}'] | [0]
+                       resource_ref=='{{ .vars.cpName }}'] | [0]
             expect:
               fields:
                 action: DELETE
