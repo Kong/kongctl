@@ -1,0 +1,115 @@
+vars:
+  auth_strategy_name: adopt-e2e-auth-strategy
+  auth_strategy_name_2: adopt-e2e-auth-strategy-uuid
+  namespace: team-auth-test
+
+steps:
+  - name: 000-reset
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create-auth-strategies
+    skipInputs: true
+    commands:
+      - name: create-auth-strategy-by-name
+        create:
+          resource: auth_strategy
+          payload:
+            inline:
+              name: "{{ .vars.auth_strategy_name }}"
+              display_name: "Adopt E2E Auth Strategy"
+              strategy_type: key_auth
+              configs:
+                key_auth:
+                  key_names:
+                    - X-API-Key
+                    - apikey
+          recordVar:
+            name: auth_strategy_id
+            responsePath: id
+      - name: create-auth-strategy-by-uuid
+        create:
+          resource: auth_strategy
+          payload:
+            inline:
+              name: "{{ .vars.auth_strategy_name_2 }}"
+              display_name: "Adopt E2E Auth Strategy UUID"
+              strategy_type: key_auth
+              configs:
+                key_auth:
+                  key_names:
+                    - X-API-Key
+          recordVar:
+            name: auth_strategy_id_2
+            responsePath: id
+
+  - name: 002-adopt-by-name
+    skipInputs: true
+    commands:
+      - name: adopt-auth-strategy-by-name
+        run:
+          - adopt
+          - auth-strategy
+          - "{{ .vars.auth_strategy_name }}"
+          - --namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+                id: "{{ .vars.auth_strategy_id }}"
+                resource_type: auth_strategy
+
+  - name: 003-dump-and-plan
+    skipInputs: true
+    commands:
+      - name: dump
+        run:
+          - dump
+          - declarative
+          - "--resources=application_auth_strategies"
+          - --default-namespace
+          - "{{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: "application_auth_strategies[?ref=='{{ .vars.auth_strategy_id }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.auth_strategy_name }}"
+          - select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+      - name: plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 004-adopt-by-uuid
+    skipInputs: true
+    commands:
+      - name: adopt-auth-strategy-by-uuid
+        run:
+          - adopt
+          - auth-strategy
+          - "{{ .vars.auth_strategy_id_2 }}"
+          - --namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+                id: "{{ .vars.auth_strategy_id_2 }}"
+                resource_type: auth_strategy
