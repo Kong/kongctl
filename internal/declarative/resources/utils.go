@@ -24,7 +24,7 @@ func resolveStringField(v reflect.Value, fieldName string) string {
 	// Field wasn't found directly, searching embedded structs
 	// including anonymous fields - structs embedded without a name
 	if v.Kind() == reflect.Struct {
-		for i := 0; i < v.NumField(); i++ {
+		for i := range v.NumField() {
 			fieldValue := v.Field(i)
 			fieldType := v.Type().Field(i)
 
