@@ -1,0 +1,140 @@
+# Tests dump declarative --resources=event_gateways including child resource
+# population, round-trip idempotency, and --filter-name filtering.
+# Reuses the EGW + backend cluster + virtual cluster config pattern from
+# event-gateway/virtual-cluster/testdata/config.yaml.
+
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+test:
+  enabledByEnvVar: KONGCTL_ENABLE_EVENT_GATEWAY
+
+vars:
+  egwName: egw-cp-for-dump-test
+  bcRef: default-backend-cluster
+  vcRef: default-virtual-cluster
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-create
+    commands:
+      - name: 000-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+
+  # Dump event_gateways with child resources and validate the output structure.
+  # The dumped YAML is written to dump.yaml for the round-trip plan command.
+  - name: 002-dump-event-gateways
+    skipInputs: true
+    commands:
+      - name: 000-dump
+        run:
+          - dump
+          - declarative
+          - "--resources=event_gateways"
+          - --include-child-resources
+          - "--default-namespace=event-gateways-dump-test"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - name: egw-present
+            select: "event_gateways[?name=='{{ .vars.egwName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.egwName }}"
+          - name: backend-cluster-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].backend_clusters[?name=='{{ .vars.bcRef }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.bcRef }}"
+          - name: virtual-cluster-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].virtual_clusters[?name=='{{ .vars.vcRef }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.vcRef }}"
+          - name: namespace-label-preserved
+            select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: event-gateways-dump-test
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  # Verify that --filter-name restricts dump output to the matching EGW only.
+  - name: 003-dump-with-filter
+    skipInputs: true
+    commands:
+      - name: 000-dump-filtered
+        run:
+          - dump
+          - declarative
+          - "--resources=event_gateways"
+          - "--filter-name={{ .vars.egwName }}"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - name: matching-egw-present
+            select: "event_gateways[?name=='{{ .vars.egwName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.egwName }}"
+          - name: only-one-egw-returned
+            select: "length(event_gateways)"
+            expect:
+              fields:
+                "@": 1
+
+  # Sync with an empty event_gateways list to delete all created resources.
+  - name: 004-sync-delete
+    inputOverlayDirs:
+      - overlays/005-sync-delete
+    commands:
+      - name: 000-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
