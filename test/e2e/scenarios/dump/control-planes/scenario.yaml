@@ -1,0 +1,129 @@
+# Tests for dump declarative --resources=control_planes with and without
+# --include-child-resources.  Verifies that gateway services are absent in
+# the dump output when child resources are not requested and populated when
+# they are.  Also exercises the round-trip idempotency and --filter-name flag.
+
+baseInputsPath: ./testdata
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-resources
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/control-plane-with-gw-svc.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+          - name: control-plane-created
+            select: >-
+              plan.changes[?resource_type=='control_plane' &&
+                            action=='CREATE'] | [0]
+            expect:
+              fields:
+                resource_ref: e2e-dump-cp
+
+  # ── dump without --include-child-resources ────────────────────
+  - name: 002-dump-no-children
+    skipInputs: true
+    commands:
+      - name: 000-dump
+        run:
+          - dump
+          - declarative
+          - "--resources=control_planes"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - name: cp-name-present
+            select: "control_planes[?name=='e2e-dump-cp'] | [0]"
+            expect:
+              fields:
+                name: "e2e-dump-cp"
+          - name: no-gateway-services
+            select: "control_planes[?name=='e2e-dump-cp'] | [0]"
+            expect:
+              fields:
+                gateway_services: null
+
+  # ── dump with --include-child-resources + round-trip idempotency ──
+  - name: 003-dump-with-children-and-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-with-children
+        run:
+          - dump
+          - declarative
+          - "--resources=control_planes"
+          - --include-child-resources
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - name: cp-name-present
+            select: "control_planes[?name=='e2e-dump-cp'] | [0]"
+            expect:
+              fields:
+                name: "e2e-dump-cp"
+                description: "E2E Dump Test Control Plane"
+          - name: gateway-services-populated
+            select: "control_planes[?name=='e2e-dump-cp'] | [0].gateway_services"
+            expect:
+              fields:
+                "length(@)": 1
+
+      - name: 001-round-trip-plan
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - name: idempotent-zero-changes
+            select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  # ── --filter-name restricts output to the named control plane ──
+  - name: 004-dump-filter-name
+    skipInputs: true
+    commands:
+      - name: 000-dump-filtered
+        run:
+          - dump
+          - declarative
+          - "--resources=control_planes"
+          - "--filter-name=e2e-dump-cp"
+          - --include-child-resources
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - name: exactly-one-cp
+            select: "control_planes"
+            expect:
+              fields:
+                "length(@)": 1
+          - name: correct-cp-name
+            select: "control_planes[0]"
+            expect:
+              fields:
+                name: "e2e-dump-cp"
