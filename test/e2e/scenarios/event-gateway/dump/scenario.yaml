@@ -46,7 +46,7 @@ steps:
                 failed: 0
 
   # Dump event_gateways with child resources and validate the output structure.
-  # The dumped YAML is written to dump.yaml for use in the round-trip step.
+  # The dumped YAML is written to dump.yaml for the round-trip plan command.
   - name: 002-dump-event-gateways
     skipInputs: true
     commands:
@@ -83,13 +83,7 @@ steps:
             expect:
               fields:
                 namespace: event-gateways-dump-test
-
-  # Re-apply the dumped YAML and verify no changes are planned (round-trip
-  # idempotency). This is the critical assertion for dump coverage.
-  - name: 003-round-trip-plan
-    skipInputs: true
-    commands:
-      - name: 000-plan-from-dump
+      - name: 001-plan-from-dump
         outputFormat: disable
         run:
           - plan
@@ -104,7 +98,7 @@ steps:
                 total_changes: 0
 
   # Verify that --filter-name restricts dump output to the matching EGW only.
-  - name: 004-dump-with-filter
+  - name: 003-dump-with-filter
     skipInputs: true
     commands:
       - name: 000-dump-filtered
@@ -128,7 +122,7 @@ steps:
                 "@": 1
 
   # Sync with an empty event_gateways list to delete all created resources.
-  - name: 005-sync-delete
+  - name: 004-sync-delete
     inputOverlayDirs:
       - overlays/005-sync-delete
     commands:
