@@ -68,3 +68,116 @@ steps:
             expect:
               fields:
                 "length(@)": 0
+
+  - name: 003-sync-with-declarative-page
+    inputOverlayDirs:
+      - overlays/002-add-page
+    commands:
+      - name: 000-sync-add-page
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-portal.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: plan.changes[?resource_type=='portal_page' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 001-get-portal-pages
+        run:
+          - get
+          - portal
+          - pages
+          - --portal-name
+          - "{{ .vars.portal_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?slug=='declarative-page'] | [0]"
+            expect:
+              fields:
+                slug: declarative-page
+                title: "Declarative Page"
+          - select: "[?slug=='getting-started'] | [0]"
+            expect:
+              fields:
+                slug: getting-started
+          - select: "[?slug=='guides'] | [0]"
+            expect:
+              fields:
+                slug: guides
+
+  - name: 004-sync-idempotency
+    inputOverlayDirs:
+      - overlays/002-add-page
+    commands:
+      - name: 000-sync-no-changes
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-portal.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-sync-remove-declarative-page
+    commands:
+      - name: 000-sync-delete-declarative-page
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-portal.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: plan.changes[?resource_type=='portal_page' && action=='DELETE'] | [0]
+            expect:
+              fields:
+                resource_ref: declarative-page
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 001-get-portal-pages-after-delete
+        run:
+          - get
+          - portal
+          - pages
+          - --portal-name
+          - "{{ .vars.portal_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?slug=='declarative-page']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?slug=='getting-started'] | [0]"
+            expect:
+              fields:
+                slug: getting-started
+          - select: "[?slug=='guides'] | [0]"
+            expect:
+              fields:
+                slug: guides
