@@ -705,6 +705,8 @@ func displayDependencies(out io.Writer, change planner.PlannedChange,
 
 // formatFieldValue formats a field value for display, truncating long strings
 func formatFieldValue(value any) string {
+	value = SanitizeDeferredEnvValue(value)
+
 	switch v := value.(type) {
 	case string:
 		if len(v) > 50 {

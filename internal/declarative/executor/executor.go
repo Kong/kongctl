@@ -366,8 +366,33 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		e.reporter.StartChange(*change)
 	}
 
-	// Extract resource name from fields
-	resourceName := getResourceName(change.Fields)
+	resourceName := change.ResourceRef
+	if resolvedName := getResourceName(change.Fields); resolvedName != "" && !tags.IsEnvPlaceholder(resolvedName) {
+		resourceName = resolvedName
+	}
+
+	if err := e.resolveDeferredEnvPlaceholders(change); err != nil {
+		execError := ExecutionError{
+			ChangeID:     change.ID,
+			ResourceType: change.ResourceType,
+			ResourceName: resourceName,
+			ResourceRef:  change.ResourceRef,
+			Action:       string(change.Action),
+			Error:        err.Error(),
+		}
+		result.Errors = append(result.Errors, execError)
+		result.FailureCount++
+
+		if e.reporter != nil {
+			e.reporter.CompleteChange(*change, err)
+		}
+
+		return err
+	}
+
+	if resolvedName := getResourceName(change.Fields); resolvedName != "" {
+		resourceName = resolvedName
+	}
 
 	// Pre-execution validation (always performed, even in dry-run)
 	if err := e.validateChangePreExecution(ctx, *change); err != nil {
@@ -497,12 +522,9 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 								refResourceType := strings.TrimSuffix(refKey, "_id")
 
 								// Extract the actual ref from __REF__ format if present
-								actualRef := refInfo.Ref
-								if strings.HasPrefix(refInfo.Ref, tags.RefPlaceholderPrefix) {
-									parsedRef, _, ok := tags.ParseRefPlaceholder(refInfo.Ref)
-									if ok {
-										actualRef = parsedRef
-									}
+								actualRef, refErr := actualRefForExecution(refInfo.Ref)
+								if refErr != nil {
+									continue
 								}
 
 								if refResourceType == change.ResourceType && actualRef == change.ResourceRef {

@@ -386,16 +386,8 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	// Reassign change IDs to match execution order
 	p.reassignChangeIDs(basePlan, executionOrder)
 
-	// Add warnings for unresolved references
-	for _, change := range basePlan.Changes {
-		for field, ref := range change.References {
-			if ref.ID == "[unknown]" {
-				basePlan.AddWarning(change.ID, fmt.Sprintf(
-					"Reference %s=%s will be resolved during execution",
-					field, ref.Ref))
-			}
-		}
-	}
+	p.addUnresolvedReferenceWarnings(basePlan, rs)
+	p.applyDeferredEnvPlaceholders(basePlan, rs)
 
 	return basePlan, nil
 }

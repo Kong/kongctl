@@ -19,6 +19,12 @@ type FileRef struct {
 	Extract string `yaml:"extract"` // Optional: path to extract value (e.g., "info.title")
 }
 
+// EnvRef represents an environment variable reference with optional value extraction.
+type EnvRef struct {
+	Var     string `yaml:"var"`     // Environment variable to read
+	Extract string `yaml:"extract"` // Optional: path to extract value from YAML/JSON content
+}
+
 // ResolvedValue represents a value that was resolved from a tag
 type ResolvedValue struct {
 	Value  any    // The resolved value

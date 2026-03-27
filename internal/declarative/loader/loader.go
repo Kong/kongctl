@@ -194,11 +194,14 @@ func (l *Loader) loadSingleFile(
 // parseYAML parses YAML content into ResourceSet
 func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*resources.ResourceSet, error) {
 	var temp temporaryParseResult
+	var placeholderTemp temporaryParseResult
 
 	content, err := io.ReadAll(r)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read content from %s: %w", sourcePath, err)
 	}
+	rawContent := content
+	hasEnvTags := strings.Contains(string(rawContent), "!env")
 
 	// Process custom tags if needed
 	registry := l.getTagRegistry()
@@ -215,16 +218,39 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	}
 
 	// Always register/update resolvers with correct base directory
-	// This ensures each file gets the correct base directory for relative paths
-	registry.Register(tags.NewFileTagResolver(baseDir, tagRootDir))
-	registry.Register(tags.NewRefTagResolver(baseDir))
+	// This ensures each file gets the correct base directory for relative paths.
+	fileResolver := tags.NewFileTagResolver(baseDir, tagRootDir)
+	refResolver := tags.NewRefTagResolver(baseDir)
+	registry.Register(fileResolver)
+	registry.Register(refResolver)
+	registry.Register(tags.NewEnvTagResolver(tags.EnvTagModeResolve))
 
 	if registry.HasResolvers() {
-		processedContent, err := registry.Process(content)
+		processedContent, err := registry.Process(rawContent)
 		if err != nil {
 			return nil, fmt.Errorf("failed to process tags in %s: %w", sourcePath, err)
 		}
 		content = processedContent
+	}
+
+	placeholderRegistry := tags.NewResolverRegistry()
+	placeholderRegistry.Register(fileResolver)
+	placeholderRegistry.Register(refResolver)
+	placeholderRegistry.Register(tags.NewEnvTagResolver(tags.EnvTagModePlaceholder))
+
+	placeholderContent, err := placeholderRegistry.Process(rawContent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to preserve !env tags in %s: %w", sourcePath, err)
+	}
+
+	if hasEnvTags {
+		if err := yaml.UnmarshalStrict(placeholderContent, &placeholderTemp); err != nil {
+			return nil, fmt.Errorf(
+				"failed to parse deferred !env tags in %s: !env currently supports string-typed fields only: %w",
+				sourcePath,
+				err,
+			)
+		}
 	}
 
 	if err := yaml.UnmarshalStrict(content, &temp); err != nil {
@@ -247,19 +273,38 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 		return nil, fmt.Errorf("failed to parse YAML in %s: %w", sourcePath, err)
 	}
 
+	if !hasEnvTags {
+		if err := yaml.UnmarshalStrict(placeholderContent, &placeholderTemp); err != nil {
+			return nil, fmt.Errorf(
+				"failed to parse deferred !env tags in %s: !env currently supports string-typed fields only: %w",
+				sourcePath,
+				err,
+			)
+		}
+	}
+
 	// Extract the clean ResourceSet
 	rs := temp.ResourceSet
+	placeholderRS := placeholderTemp.ResourceSet
 
 	// Apply file-level namespace and protected defaults
 	if err := l.applyNamespaceDefaults(&rs, temp.Defaults); err != nil {
 		return nil, fmt.Errorf("failed to apply namespace defaults: %w", err)
 	}
+	if err := l.applyNamespaceDefaults(&placeholderRS, placeholderTemp.Defaults); err != nil {
+		return nil, fmt.Errorf("failed to apply namespace defaults: %w", err)
+	}
 
 	// Extract nested child resources to root level first
 	l.extractNestedResources(&rs)
+	l.extractNestedResources(&placeholderRS)
 	// Resolve deck config paths relative to the source file.
 	if err := l.resolveDeckConfigPaths(&rs, baseDir, tagRootDir); err != nil {
 		return nil, fmt.Errorf("failed to resolve deck config paths in %s: %w", sourcePath, err)
+	}
+
+	if err := l.collectDeferredEnvSources(&rs, &placeholderRS); err != nil {
+		return nil, fmt.Errorf("failed to process deferred !env tags in %s: %w", sourcePath, err)
 	}
 
 	// Note: We don't validate here when called from loadDirectory
@@ -424,6 +469,8 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 			accumulated.AddDefaultNamespace(source.DefaultNamespace)
 		}
 	}
+
+	accumulated.MergeEnvSources(source)
 
 	return nil
 }

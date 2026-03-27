@@ -1,0 +1,435 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: yaml-env-tags
+  portalRef: env-portal
+  portalName: env-portal
+  ordersAPIRef: env-orders
+  ordersAPIName: env-orders
+  inventoryAPIRef: env-inventory
+  inventoryAPIName: env-inventory
+  deletePortalRef: env-delete-portal
+  deletePortalName: env-delete-portal
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-create
+    env:
+      KONGCTL_E2E_ENV_PORTAL_DESC: Portal description planned
+      KONGCTL_E2E_ENV_PORTAL_META: '{"display_name":"Portal Display Planned"}'
+      KONGCTL_E2E_ENV_API_DESC: Orders API description planned
+      KONGCTL_E2E_ENV_API_META: '{"owner":"planned-owner"}'
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: warnings[?contains(message, 'deferred !env values')]
+            expect:
+              fields:
+                "length(@)": 2
+          - select: >-
+              changes[?resource_type=='portal' && resource_ref=='{{ .vars.portalRef }}'] | [0]
+            expect:
+              fields:
+                "fields.description": __ENV__:KONGCTL_E2E_ENV_PORTAL_DESC
+                "fields.display_name": __ENV__:KONGCTL_E2E_ENV_PORTAL_META#display_name
+          - select: >-
+              changes[?resource_type=='api' && resource_ref=='{{ .vars.ordersAPIRef }}'] | [0]
+            expect:
+              fields:
+                "fields.description": __ENV__:KONGCTL_E2E_ENV_API_DESC
+                "fields.labels.owner": __ENV__:KONGCTL_E2E_ENV_API_META#owner
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 2 to add')": true
+                "contains(@, '[redacted from !env]')": true
+                "contains(@, 'Portal description planned')": false
+                "contains(@, '__ENV__:KONGCTL_E2E_ENV_PORTAL_DESC')": false
+      - name: 002-apply-plan
+        outputFormat: json
+        env:
+          KONGCTL_E2E_ENV_PORTAL_DESC: Portal description applied
+          KONGCTL_E2E_ENV_PORTAL_META: '{"display_name":"Portal Display Applied"}'
+          KONGCTL_E2E_ENV_API_DESC: Orders API description applied
+          KONGCTL_E2E_ENV_API_META: '{"owner":"applied-owner"}'
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 003-get-portal
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalName }}'] | [0]"
+            expect:
+              fields:
+                display_name: Portal Display Applied
+                description: Portal description applied
+      - name: 004-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.ordersAPIName }}'] | [0]"
+            expect:
+              fields:
+                description: Orders API description applied
+                labels.owner: applied-owner
+
+  - name: 002-direct-apply-update
+    env:
+      KONGCTL_E2E_ENV_PORTAL_DESC: Portal description direct apply
+      KONGCTL_E2E_ENV_PORTAL_META: '{"display_name":"Portal Display Direct Apply"}'
+      KONGCTL_E2E_ENV_API_DESC: Orders API description direct apply
+      KONGCTL_E2E_ENV_API_META: '{"owner":"direct-apply-owner"}'
+    commands:
+      - name: 000-apply-inline
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.UPDATE: 2
+          - select: >-
+              plan.changes[?resource_type=='portal' && resource_ref=='{{ .vars.portalRef }}'] | [0]
+            expect:
+              fields:
+                "changed_fields.description.new": __ENV__:KONGCTL_E2E_ENV_PORTAL_DESC
+                "changed_fields.display_name.new": __ENV__:KONGCTL_E2E_ENV_PORTAL_META#display_name
+          - select: >-
+              plan.changes[?resource_type=='api' && resource_ref=='{{ .vars.ordersAPIRef }}'] | [0]
+            expect:
+              fields:
+                "changed_fields.description.new": __ENV__:KONGCTL_E2E_ENV_API_DESC
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 001-get-portal
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalName }}'] | [0]"
+            expect:
+              fields:
+                display_name: Portal Display Direct Apply
+                description: Portal description direct apply
+      - name: 002-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.ordersAPIName }}'] | [0]"
+            expect:
+              fields:
+                description: Orders API description direct apply
+                labels.owner: direct-apply-owner
+
+  - name: 003-plan-sync-update
+    inputOverlayDirs:
+      - overlays/003-sync
+    env:
+      KONGCTL_E2E_ENV_PORTAL_DESC: Portal description sync planned
+      KONGCTL_E2E_ENV_PORTAL_META: '{"display_name":"Portal Display Sync Planned"}'
+      KONGCTL_E2E_ENV_INVENTORY_API_DESC: Inventory API description sync planned
+      KONGCTL_E2E_ENV_API_META: '{"owner":"sync-planned-owner"}'
+    commands:
+      - name: 000-plan-sync
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 1
+                by_action.UPDATE: 1
+                by_action.DELETE: 1
+          - select: warnings[?contains(message, 'deferred !env values')]
+            expect:
+              fields:
+                "length(@)": 2
+          - select: >-
+              changes[?resource_type=='portal' && resource_ref=='{{ .vars.portalRef }}'] | [0]
+            expect:
+              fields:
+                "changed_fields.description.new": __ENV__:KONGCTL_E2E_ENV_PORTAL_DESC
+                "changed_fields.display_name.new": __ENV__:KONGCTL_E2E_ENV_PORTAL_META#display_name
+          - select: >-
+              changes[?resource_type=='api' && resource_ref=='{{ .vars.inventoryAPIRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                "fields.description": __ENV__:KONGCTL_E2E_ENV_INVENTORY_API_DESC
+                "fields.labels.owner": __ENV__:KONGCTL_E2E_ENV_API_META#owner
+          - select: >-
+              changes[?resource_type=='api' && resource_ref=='{{ .vars.ordersAPIRef }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-sync.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add, 1 to change, 1 to destroy')": true
+                "contains(@, '[redacted from !env]')": true
+                "contains(@, 'Inventory API description sync planned')": false
+                "contains(@, '__ENV__:KONGCTL_E2E_ENV_INVENTORY_API_DESC')": false
+      - name: 002-sync-plan
+        outputFormat: json
+        env:
+          KONGCTL_E2E_ENV_PORTAL_DESC: Portal description sync applied
+          KONGCTL_E2E_ENV_PORTAL_META: '{"display_name":"Portal Display Sync Applied"}'
+          KONGCTL_E2E_ENV_INVENTORY_API_DESC: Inventory API description sync applied
+          KONGCTL_E2E_ENV_API_META: '{"owner":"sync-applied-owner"}'
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+      - name: 003-get-portal
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalName }}'] | [0]"
+            expect:
+              fields:
+                display_name: Portal Display Sync Applied
+                description: Portal description sync applied
+      - name: 004-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.inventoryAPIName }}'] | [0]"
+            expect:
+              fields:
+                description: Inventory API description sync applied
+                labels.owner: sync-applied-owner
+          - select: "[?name=='{{ .vars.ordersAPIName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 004-direct-sync-update
+    inputOverlayDirs:
+      - overlays/003-sync
+    env:
+      KONGCTL_E2E_ENV_PORTAL_DESC: Portal description direct sync
+      KONGCTL_E2E_ENV_PORTAL_META: '{"display_name":"Portal Display Direct Sync"}'
+      KONGCTL_E2E_ENV_INVENTORY_API_DESC: Inventory API description direct sync
+      KONGCTL_E2E_ENV_API_META: '{"owner":"direct-sync-owner"}'
+    commands:
+      - name: 000-sync-inline
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.UPDATE: 2
+          - select: >-
+              plan.changes[?resource_type=='portal' && resource_ref=='{{ .vars.portalRef }}'] | [0]
+            expect:
+              fields:
+                "changed_fields.description.new": __ENV__:KONGCTL_E2E_ENV_PORTAL_DESC
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 001-get-portal
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalName }}'] | [0]"
+            expect:
+              fields:
+                display_name: Portal Display Direct Sync
+                description: Portal description direct sync
+      - name: 002-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.inventoryAPIName }}'] | [0]"
+            expect:
+              fields:
+                description: Inventory API description direct sync
+                labels.owner: direct-sync-owner
+
+  - name: 005-direct-delete-env-identity
+    inputOverlayDirs:
+      - overlays/005-delete-target
+    env:
+      KONGCTL_E2E_ENV_DELETE_PORTAL_NAME: env-delete-portal
+      KONGCTL_E2E_ENV_DELETE_PORTAL_DISPLAY: Env Delete Portal
+      KONGCTL_E2E_ENV_DELETE_PORTAL_DESC: Portal created for inline delete coverage
+    commands:
+      - name: 000-apply-delete-target
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 001-get-delete-target
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.deletePortalName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.deletePortalName }}"
+                display_name: Env Delete Portal
+      - name: 002-delete-inline
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: 003-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.deletePortalName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 006-missing-env-error
+    inputOverlayDirs:
+      - overlays/006-missing-env
+    commands:
+      - name: 000-plan-missing-env
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: "environment variable not set: KONGCTL_E2E_ENV_MISSING"
+
+  - name: 007-non-string-field-error
+    inputOverlayDirs:
+      - overlays/007-non-string
+    env:
+      KONGCTL_E2E_ENV_BOOL: "true"
+    commands:
+      - name: 000-plan-non-string
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: "!env currently supports string-typed fields only"

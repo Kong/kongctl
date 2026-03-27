@@ -976,7 +976,10 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 			if len(change.References) > 0 {
 				fmt.Fprintln(out, "  references:")
 				for field, ref := range change.References {
-					if ref.ID == "<unknown>" {
+					if common.HasDeferredEnvReference(ref) {
+						fmt.Fprintf(out, "    %s: %s (resolved during execution)\n",
+							field, common.DeferredEnvRedactedDisplay)
+					} else if ref.ID == "<unknown>" {
 						fmt.Fprintf(out, "    %s: %s (to be resolved)\n", field, ref.Ref)
 					} else {
 						fmt.Fprintf(out, "    %s: %s → %s\n", field, ref.Ref, ref.ID)
@@ -1042,6 +1045,7 @@ func displayFieldChange(
 func formatFieldValue(value any, fullContent bool) string {
 	const maxDisplayLength = 500
 	value = dereferenceFieldValue(value)
+	value = common.SanitizeDeferredEnvValue(value)
 
 	switch v := value.(type) {
 	case string:
@@ -1059,6 +1063,7 @@ func formatFieldValue(value any, fullContent bool) string {
 
 func formatFieldValueForField(field string, value any, fullContent bool) string {
 	resolved := dereferenceFieldValue(value)
+	resolved = common.SanitizeDeferredEnvValue(resolved)
 	if isSensitiveDiffField(field) {
 		if resolved == nil {
 			return "null"
@@ -1169,6 +1174,8 @@ func dereferenceFieldValue(value any) any {
 }
 
 func displayField(out io.Writer, field string, value any, indent string, fullContent bool) {
+	value = common.SanitizeDeferredEnvValue(value)
+
 	if isSensitiveDiffField(field) {
 		if dereferenceFieldValue(value) != nil {
 			fmt.Fprintf(out, "%s%s: %s\n", indent, field, diffFieldRedactedValue)
@@ -1179,6 +1186,10 @@ func displayField(out io.Writer, field string, value any, indent string, fullCon
 	switch v := value.(type) {
 	case string:
 		if v != "" {
+			if v == common.DeferredEnvRedactedDisplay {
+				fmt.Fprintf(out, "%s%s: %q\n", indent, field, v)
+				return
+			}
 			// Check if string is large and should be summarized
 			const maxDisplayLength = 500
 			if !fullContent && len(v) > maxDisplayLength {
@@ -1213,7 +1224,7 @@ func displayField(out io.Writer, field string, value any, indent string, fullCon
 		}
 	default:
 		if v != nil {
-			fmt.Fprintf(out, "%s%s: %v\n", indent, field, v)
+			fmt.Fprintf(out, "%s%s: %v\n", indent, field, common.SanitizeDeferredEnvValue(v))
 		}
 	}
 }
