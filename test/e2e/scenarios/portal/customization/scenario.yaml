@@ -1,0 +1,150 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: debug
+
+vars:
+  namespace: portal-customization
+  portalRef: portal-customization
+  customizationRef: portal-customization-settings
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-apply-customization
+    commands:
+      - name: 000-plan-customization
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-customization.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_customization' &&
+              resource_ref=='{{ .vars.customizationRef }}'] | [0].fields
+            expect:
+              fields:
+                "theme.mode": light
+                "theme.colors.primary": "#8250FF"
+                layout: topnav
+                "length(menu.main)": 3
+                "length(menu.footer_sections)": 1
+      - name: 001-apply-customization
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-customization.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+  - name: 002-verify-no-op
+    commands:
+      - name: 000-plan-no-op
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-no-op.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-update-customization
+    inputOverlayDirs:
+      - overlays/003-update
+    commands:
+      - name: 000-plan-customization-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-customization-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_customization' &&
+              resource_ref=='{{ .vars.customizationRef }}'] | [0].fields
+            expect:
+              fields:
+                "theme.mode": dark
+                "theme.colors.primary": "#FF5733"
+                layout: sidebar
+                "length(menu.main)": 2
+                "length(menu.footer_sections)": 1
+      - name: 001-apply-customization-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-customization-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+  - name: 004-verify-after-update
+    inputOverlayDirs:
+      - overlays/003-update
+    commands:
+      - name: 000-plan-after-update-no-op
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-after-update-no-op.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0

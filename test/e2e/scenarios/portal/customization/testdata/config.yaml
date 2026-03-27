@@ -1,0 +1,43 @@
+_defaults:
+  kongctl:
+    namespace: portal-customization
+
+portals:
+  - ref: portal-customization
+    name: portal-customization
+    display_name: Portal Customization
+    description: Portal with customization managed declaratively
+    kongctl:
+      namespace: portal-customization
+    customization:
+      ref: portal-customization-settings
+      theme:
+        mode: "light"
+        colors:
+          primary: "#8250FF"
+      layout: "topnav"
+      menu:
+        main:
+          - path: "/getting-started"
+            title: "Getting Started"
+            external: false
+            visibility: "public"
+          - path: "/guides"
+            title: "Guides"
+            external: false
+            visibility: "public"
+          - path: "/apis"
+            title: "APIs"
+            external: false
+            visibility: "public"
+        footer_sections:
+          - title: "Resources"
+            items:
+              - path: "#"
+                title: "Documentation"
+                external: false
+                visibility: "public"
+              - path: "#"
+                title: "Support"
+                external: false
+                visibility: "public"
