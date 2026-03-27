@@ -979,7 +979,7 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 					if common.HasDeferredEnvReference(ref) {
 						fmt.Fprintf(out, "    %s: %s (resolved during execution)\n",
 							field, common.DeferredEnvRedactedDisplay)
-					} else if ref.ID == "<unknown>" {
+					} else if ref.ID == resources.UnknownReferenceID || ref.ID == "<unknown>" {
 						fmt.Fprintf(out, "    %s: %s (to be resolved)\n", field, ref.Ref)
 					} else {
 						fmt.Fprintf(out, "    %s: %s → %s\n", field, ref.Ref, ref.ID)

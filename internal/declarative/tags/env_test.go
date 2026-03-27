@@ -43,6 +43,15 @@ func TestEnvTagResolver_Resolve(t *testing.T) {
 			expected: "admin",
 		},
 		{
+			name: "trim scalar value and extract path",
+			mode: EnvTagModeResolve,
+			node: &yaml.Node{
+				Kind:  yaml.ScalarNode,
+				Value: " TEST_ENV_CONFIG # credentials.username ",
+			},
+			expected: "admin",
+		},
+		{
 			name: "preserve placeholder",
 			mode: EnvTagModePlaceholder,
 			node: &yaml.Node{
@@ -76,6 +85,25 @@ func TestEnvTagResolver_Resolve(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestEnvTagResolver_ResolveMapSyntaxTrimsWhitespace(t *testing.T) {
+	t.Setenv("TEST_ENV_MAP_CONFIG", "credentials:\n  username: admin\n")
+
+	node := &yaml.Node{
+		Kind: yaml.MappingNode,
+		Content: []*yaml.Node{
+			{Kind: yaml.ScalarNode, Value: "var"},
+			{Kind: yaml.ScalarNode, Value: "  TEST_ENV_MAP_CONFIG  "},
+			{Kind: yaml.ScalarNode, Value: "extract"},
+			{Kind: yaml.ScalarNode, Value: "  credentials.username  "},
+		},
+	}
+
+	resolver := NewEnvTagResolver(EnvTagModeResolve)
+	result, err := resolver.Resolve(node)
+	require.NoError(t, err)
+	assert.Equal(t, "admin", result)
 }
 
 func TestResolveEnvPlaceholder(t *testing.T) {

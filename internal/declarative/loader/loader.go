@@ -202,6 +202,11 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	}
 	rawContent := content
 	hasEnvTags := strings.Contains(string(rawContent), "!env")
+	if hasEnvTags {
+		if err := validateEnvTagStringFields(rawContent); err != nil {
+			return nil, fmt.Errorf("failed to parse deferred !env tags in %s: %w", sourcePath, err)
+		}
+	}
 
 	// Process custom tags if needed
 	registry := l.getTagRegistry()
@@ -243,44 +248,29 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 		return nil, fmt.Errorf("failed to preserve !env tags in %s: %w", sourcePath, err)
 	}
 
-	if hasEnvTags {
-		if err := yaml.UnmarshalStrict(placeholderContent, &placeholderTemp); err != nil {
+	parseErr := yaml.UnmarshalStrict(content, &temp)
+	placeholderErr := yaml.UnmarshalStrict(placeholderContent, &placeholderTemp)
+
+	if parseErr != nil {
+		if hasEnvTags && isDeferredEnvStringOnlyError(placeholderErr) {
 			return nil, fmt.Errorf(
 				"failed to parse deferred !env tags in %s: !env currently supports string-typed fields only: %w",
 				sourcePath,
-				err,
+				placeholderErr,
 			)
 		}
+		return nil, formatYAMLParseError(l, sourcePath, parseErr)
 	}
 
-	if err := yaml.UnmarshalStrict(content, &temp); err != nil {
-		// Try to provide a more helpful error message for unknown fields
-		errMsg := err.Error()
-		if strings.Contains(errMsg, "unknown field") {
-			// Extract field name from error
-			// Error format: "error unmarshaling JSON: while decoding JSON: json: unknown field \"fieldname\""
-			if match := regexp.MustCompile(`unknown field "(\w+)"`).FindStringSubmatch(errMsg); len(match) > 1 {
-				fieldName := match[1]
-				suggestion := l.suggestFieldName(fieldName)
-				if suggestion != "" {
-					return nil, fmt.Errorf("unknown field '%s' in %s. Did you mean '%s'?",
-						fieldName, sourcePath, suggestion)
-				}
-				return nil, fmt.Errorf("unknown field '%s' in %s. Please check the field name against the schema",
-					fieldName, sourcePath)
-			}
-		}
-		return nil, fmt.Errorf("failed to parse YAML in %s: %w", sourcePath, err)
-	}
-
-	if !hasEnvTags {
-		if err := yaml.UnmarshalStrict(placeholderContent, &placeholderTemp); err != nil {
+	if placeholderErr != nil {
+		if hasEnvTags && isDeferredEnvStringOnlyError(placeholderErr) {
 			return nil, fmt.Errorf(
 				"failed to parse deferred !env tags in %s: !env currently supports string-typed fields only: %w",
 				sourcePath,
-				err,
+				placeholderErr,
 			)
 		}
+		return nil, fmt.Errorf("failed to parse deferred !env tags in %s: %w", sourcePath, placeholderErr)
 	}
 
 	// Extract the clean ResourceSet
@@ -312,6 +302,39 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	// loadDirectory will validate the merged result.
 
 	return &rs, nil
+}
+
+func isDeferredEnvStringOnlyError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	msg := err.Error()
+	return strings.Contains(msg, tags.EnvPlaceholderPrefix) && strings.Contains(msg, "cannot unmarshal")
+}
+
+func formatYAMLParseError(l *Loader, sourcePath string, err error) error {
+	if err == nil {
+		return nil
+	}
+
+	// Try to provide a more helpful error message for unknown fields.
+	errMsg := err.Error()
+	if strings.Contains(errMsg, "unknown field") {
+		// Error format: "error unmarshaling JSON: while decoding JSON: json: unknown field \"fieldname\""
+		if match := regexp.MustCompile(`unknown field "(\w+)"`).FindStringSubmatch(errMsg); len(match) > 1 {
+			fieldName := match[1]
+			suggestion := l.suggestFieldName(fieldName)
+			if suggestion != "" {
+				return fmt.Errorf("unknown field '%s' in %s. Did you mean '%s'?",
+					fieldName, sourcePath, suggestion)
+			}
+			return fmt.Errorf("unknown field '%s' in %s. Please check the field name against the schema",
+				fieldName, sourcePath)
+		}
+	}
+
+	return fmt.Errorf("failed to parse YAML in %s: %w", sourcePath, err)
 }
 
 // loadSTDIN loads configuration from stdin

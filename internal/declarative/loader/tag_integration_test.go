@@ -275,6 +275,31 @@ portals:
 	assert.Contains(t, err.Error(), "!env currently supports string-typed fields only")
 }
 
+func TestLoader_EnvTagDoesNotMaskUnknownFieldErrors(t *testing.T) {
+	t.Setenv("PORTAL_DESCRIPTION", "loaded-from-env")
+
+	tmpDir, err := os.MkdirTemp("", "loader-env-unknown-field-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	mainContent := `
+portals:
+  - ref: env-portal
+    name: env-portal
+    description: !env PORTAL_DESCRIPTION
+    lables:
+      team: docs`
+
+	mainFile := filepath.Join(tmpDir, "main.yaml")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
+
+	loader := NewWithBaseDir(tmpDir)
+	_, err = loader.LoadFile(mainFile)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown field 'lables'")
+	assert.NotContains(t, err.Error(), "!env currently supports string-typed fields only")
+}
+
 func TestLoader_EnvTagIntegration_PortalCustomDomainSSLUnion(t *testing.T) {
 	t.Setenv("CUSTOM_CERT", "-----BEGIN CERTIFICATE-----\nCERT\n-----END CERTIFICATE-----")
 	t.Setenv("CUSTOM_KEY", "-----BEGIN PRIVATE KEY-----\nKEY\n-----END PRIVATE KEY-----")

@@ -66,7 +66,7 @@ func parseEnvNode(node *yaml.Node) (string, string, error) {
 		if extractPath == "" && strings.HasSuffix(node.Value, "#") {
 			return "", "", fmt.Errorf("!env tag extract path cannot be empty after #")
 		}
-		return varRef, extractPath, nil
+		return strings.TrimSpace(varRef), strings.TrimSpace(extractPath), nil
 	case yaml.MappingNode:
 		var envRef EnvRef
 		if err := node.Decode(&envRef); err != nil {
@@ -75,7 +75,7 @@ func parseEnvNode(node *yaml.Node) (string, string, error) {
 		if strings.TrimSpace(envRef.Var) == "" {
 			return "", "", fmt.Errorf("!env tag requires 'var' field")
 		}
-		return envRef.Var, envRef.Extract, nil
+		return strings.TrimSpace(envRef.Var), strings.TrimSpace(envRef.Extract), nil
 	case yaml.DocumentNode, yaml.SequenceNode, yaml.AliasNode:
 		return "", "", fmt.Errorf("!env tag must be used with a string or map, got %v", node.Kind)
 	default:
