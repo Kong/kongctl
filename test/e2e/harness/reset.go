@@ -110,6 +110,9 @@ func deleteAll(
 	apiVersion string,
 	endpoint string,
 	filter filterFunc,
+	// preDeleteFn is called for each resource ID before deletion. It is used to clean up
+	// sub-resources. Any errors must be logged inside the function; the function must not
+	// return an error (it must not block deletion of the parent resource).
 	preDeleteFn func(ctx context.Context, session *resetHTTPSession, endpointURL, token, id string),
 	policy HTTPRetryPolicy,
 	transportOptions HTTPTransportOptions,
@@ -331,7 +334,7 @@ func tryDeletePortalCustomDomain(
 	case http.StatusOK, http.StatusNoContent, http.StatusNotFound:
 		// expected: deleted or no custom domain set
 	default:
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		Warnf("pre-delete portal custom domain %s: unexpected status %d: %s", portalID, resp.StatusCode, b)
 	}
 }
