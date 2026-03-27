@@ -110,6 +110,7 @@ func deleteAll(
 	apiVersion string,
 	endpoint string,
 	filter filterFunc,
+	preDeleteFn func(ctx context.Context, session *resetHTTPSession, endpointURL, token, id string),
 	policy HTTPRetryPolicy,
 	transportOptions HTTPTransportOptions,
 ) (int, int, error) {
@@ -179,6 +180,9 @@ func deleteAll(
 
 		conflicts := 0
 		for _, id := range idsToDelete {
+			if preDeleteFn != nil {
+				preDeleteFn(ctx, session, url, token, id)
+			}
 			if err := retryDeleteOne(ctx, session, url, token, endpoint, id, policy); err != nil {
 				Warnf("delete %s %s failed: %v", endpoint, id, err)
 				if he, ok := err.(*httpError); ok && he.status == http.StatusConflict {
@@ -285,15 +289,51 @@ var resetSequence = []struct {
 	// Optional filter to exclude resources from deletion
 	// if nothing is passed default filter that skips konnect-managed resources is used
 	Filter filterFunc
+	// PreDeleteFn is called for each resource ID before deletion. It is used to clean
+	// up sub-resources that Konnect does not cascade-delete automatically. Errors are
+	// logged but do not stop the deletion.
+	PreDeleteFn func(ctx context.Context, session *resetHTTPSession, endpointURL, token, id string)
 }{
-	{"v3", "apis", false, nil},
-	{"v3", "portals", false, nil},
-	{"v3", "system-accounts", true, nil},
-	{"v3", "teams", true, skipSystemTeams},
-	{"v2", "application-auth-strategies", false, nil},
-	{"v2", "control-planes", false, nil},
-	{"v1", "catalog-services", false, nil},
-	{"v1", "event-gateways", false, nil},
+	{"v3", "apis", false, nil, nil},
+	{"v3", "portals", false, nil, tryDeletePortalCustomDomain},
+	{"v3", "system-accounts", true, nil, nil},
+	{"v3", "teams", true, skipSystemTeams, nil},
+	{"v2", "application-auth-strategies", false, nil, nil},
+	{"v2", "control-planes", false, nil, nil},
+	{"v1", "catalog-services", false, nil, nil},
+	{"v1", "event-gateways", false, nil, nil},
+}
+
+// tryDeletePortalCustomDomain attempts to delete the custom domain for a portal before
+// the portal itself is deleted. Konnect does not release the custom domain hostname
+// reservation when a portal is deleted, so this prevents 409 conflicts on subsequent
+// test runs that try to register the same hostname.
+func tryDeletePortalCustomDomain(
+	ctx context.Context,
+	session *resetHTTPSession,
+	portalsURL, token, portalID string,
+) {
+	url := strings.TrimRight(portalsURL, "/") + "/" + portalID + "/custom-domain"
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
+	if err != nil {
+		Warnf("pre-delete portal custom domain %s: build request: %v", portalID, err)
+		return
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := session.Client().Do(req)
+	if err != nil {
+		Warnf("pre-delete portal custom domain %s: %v", portalID, err)
+		return
+	}
+	defer resp.Body.Close()
+	switch resp.StatusCode {
+	case http.StatusOK, http.StatusNoContent, http.StatusNotFound:
+		// expected: deleted or no custom domain set
+	default:
+		b, _ := io.ReadAll(resp.Body)
+		Warnf("pre-delete portal custom domain %s: unexpected status %d: %s", portalID, resp.StatusCode, b)
+	}
 }
 
 func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, error) {
@@ -331,6 +371,7 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, e
 			step.Version,
 			step.Endpoint,
 			step.Filter,
+			step.PreDeleteFn,
 			policy,
 			transportOptions,
 		)
