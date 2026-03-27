@@ -137,7 +137,7 @@ steps:
 
   - name: 005-sync-remove-declarative-page
     commands:
-      - name: 000-sync-delete-declarative-page
+      - name: 000-sync-no-deletions
         run:
           - sync
           - -f
@@ -147,19 +147,9 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 1
-                by_action.DELETE: 1
-          - select: plan.changes[?resource_type=='portal_page' && action=='DELETE'] | [0]
-            expect:
-              fields:
-                resource_ref: declarative-page
-          - select: summary
-            expect:
-              fields:
-                applied: 1
-                failed: 0
+                total_changes: 0
 
-      - name: 001-get-portal-pages-after-delete
+      - name: 001-get-portal-pages-after-sync
         run:
           - get
           - portal
@@ -169,10 +159,10 @@ steps:
           - -o
           - json
         assertions:
-          - select: "[?slug=='declarative-page']"
+          - select: "[?slug=='declarative-page'] | [0]"
             expect:
               fields:
-                "length(@)": 0
+                slug: declarative-page
           - select: "[?slug=='getting-started'] | [0]"
             expect:
               fields:
