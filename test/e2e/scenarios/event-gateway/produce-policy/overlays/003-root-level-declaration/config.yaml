@@ -33,11 +33,11 @@ event_gateways:
         dns_label: vc-default
         # produce_policies declared at root level
 
-event_gateway_produce_policies:
+event_gateway_virtual_cluster_produce_policies:
   - ref: root-level-produce-policy
     name: root-level-produce-policy-name
     description: Root Level Produce Policy description
-    type: schema_validation
+    type: encrypt
     enabled: true
     virtual_cluster: default-virtual-cluster-for-produce-policy-test
     event_gateway: egw-cp-for-vc-produce-policy-test
@@ -45,15 +45,9 @@ event_gateway_produce_policies:
       env: production
       team: platform
     config:
-      schema:
-        type: json_schema
-        content: |
-          {
-            "type": "object",
-            "properties": {
-              "id": { "type": "string" },
-              "data": { "type": "object" }
-            },
-            "required": ["id"]
-          }
-      validation_mode: strict
+      failure_mode: passthrough
+      part_of_record:
+      - value
+      encryption_key:
+        type: aws
+        arn: arn:aws:kms:us-east-1:123456789012:key/abcd-1234-efgh-5678

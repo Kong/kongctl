@@ -8,6 +8,10 @@ const (
 	// Used during updates to determine which labels should be removed
 	FieldCurrentLabels = "_current_labels"
 
+	// FieldCurrentConfig contains the current config of a resource
+	// Used during updates to include existing config for merge/removal logic
+	FieldCurrentConfig = "_current_config"
+
 	// FieldStrategyType contains the current strategy type for auth strategies
 	// Used during updates since strategy type cannot be changed
 	FieldStrategyType = "_strategy_type"

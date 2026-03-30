@@ -801,3 +801,44 @@ func (rs *ResourceSet) GetClusterPoliciesForVirtualCluster(
 
 	return policies
 }
+
+// GetProducePoliciesForVirtualCluster returns all produce policies (nested + root-level)
+// for a specific virtual cluster
+func (rs *ResourceSet) GetProducePoliciesForVirtualCluster(
+	virtualClusterRef string,
+) []EventGatewayProducePolicyResource {
+	var policies []EventGatewayProducePolicyResource
+
+	// Add nested policies from the virtual cluster
+	for _, gateway := range rs.EventGatewayControlPlanes {
+		for _, vc := range gateway.VirtualClusters {
+			if vc.Ref == virtualClusterRef {
+				for _, policy := range vc.ProducePolicies {
+					policyCopy := policy
+					policyCopy.VirtualCluster = virtualClusterRef
+					policies = append(policies, policyCopy)
+				}
+			}
+		}
+	}
+
+	// Check root-level virtual clusters
+	for _, vc := range rs.EventGatewayVirtualClusters {
+		if vc.Ref == virtualClusterRef {
+			for _, policy := range vc.ProducePolicies {
+				policyCopy := policy
+				policyCopy.VirtualCluster = virtualClusterRef
+				policies = append(policies, policyCopy)
+			}
+		}
+	}
+
+	// Add root-level produce policies for this virtual cluster
+	for _, policy := range rs.EventGatewayProducePolicies {
+		if policy.VirtualCluster == virtualClusterRef {
+			policies = append(policies, policy)
+		}
+	}
+
+	return policies
+}

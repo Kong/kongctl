@@ -12,6 +12,7 @@ func init() {
 	registerResourceType(
 		ResourceTypeEventGatewayProducePolicy,
 		func(rs *ResourceSet) *[]EventGatewayProducePolicyResource { return &rs.EventGatewayProducePolicies },
+		AutoExplain[EventGatewayProducePolicyResource](),
 	)
 }
 
@@ -200,6 +201,13 @@ func (e *EventGatewayProducePolicyResource) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	// Validate config is present (variant-specific required-field validation is
+	// handled by the SDK union unmarshaler; we just check the key exists here
+	// to give users a clear error rather than an SDK-level "missing required fields").
+	if err := validateProducePolicyConfigField(data); err != nil {
+		return err
+	}
+
 	// Delegate the policy-specific fields to the SDK union type's UnmarshalJSON.
 	if err := json.Unmarshal(data, &e.EventGatewayProducePolicyCreate); err != nil {
 		return fmt.Errorf("failed to unmarshal produce policy: %w", err)
@@ -253,6 +261,27 @@ func validateProducePolicyTypeField(data []byte) error {
 			encryptType,
 			policyTypeStr,
 		)
+	}
+
+	return nil
+}
+
+// validateProducePolicyConfigField ensures the required 'config' field is present and is an object.
+// Variant-specific required sub-fields are validated by the SDK union unmarshaler; this
+// function provides a clearer user-facing error message when config is missing entirely.
+func validateProducePolicyConfigField(data []byte) error {
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	config, hasConfig := raw["config"]
+	if !hasConfig {
+		return fmt.Errorf("produce policy requires 'config' field")
+	}
+
+	if _, ok := config.(map[string]any); !ok {
+		return fmt.Errorf("produce policy 'config' must be an object")
 	}
 
 	return nil

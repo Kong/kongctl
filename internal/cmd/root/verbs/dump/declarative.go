@@ -191,8 +191,10 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			EventGatewayListenerAPI:             sdk.GetEventGatewayListenerAPI(),
 			EventGatewayListenerPolicyAPI:       sdk.GetEventGatewayListenerPolicyAPI(),
 			EventGatewayDataPlaneCertificateAPI: sdk.GetEventGatewayDataPlaneCertificateAPI(),
+			EventGatewayProducePolicyAPI:        sdk.GetEventGatewayProducePolicyAPI(),
 			EventGatewayClusterPolicyAPI:        sdk.GetEventGatewayClusterPolicyAPI(),
-			OrganizationTeamAPI:                 sdk.GetOrganizationTeamAPI(),
+
+			OrganizationTeamAPI: sdk.GetOrganizationTeamAPI(),
 		})
 	}
 

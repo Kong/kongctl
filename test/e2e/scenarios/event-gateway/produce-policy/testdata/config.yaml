@@ -41,8 +41,9 @@ event_gateways:
               env: staging
               team: payments
             config:
-              add_headers:
-                - header: x-producer-id
+              actions:
+                - op: set
+                  key: x-producer-id
                   value: "${client_id}"
-              remove_headers:
-                - x-original-header
+                - op: remove
+                  key: x-original-header

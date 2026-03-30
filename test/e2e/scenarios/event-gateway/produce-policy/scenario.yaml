@@ -69,7 +69,7 @@ steps:
                 action: CREATE
                 resource_ref: "{{ .vars.virtualClusterRef }}"
           - select: >-
-              changes[?resource_type=='event_gateway_produce_policy' && resource_ref=='{{ .vars.producePolicyRef }}'] | [0]
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='{{ .vars.producePolicyRef }}'] | [0]
             expect:
               fields:
                 action: CREATE
@@ -134,7 +134,7 @@ steps:
                 total_changes: 1
                 by_action.UPDATE: 1
           - select: >-
-              changes[?resource_type=='event_gateway_produce_policy' && resource_ref=='{{ .vars.producePolicyRef }}'] | [0]
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='{{ .vars.producePolicyRef }}'] | [0]
             expect:
               fields:
                 action: UPDATE
@@ -179,6 +179,16 @@ steps:
                 labels:
                   env: staging
                   version: v2
+                config:
+                  actions:
+                    - op: set
+                      key: x-producer-id
+                      value: "${client_id}"
+                    - op: set
+                      key: x-trace-id
+                      value: "${request_id}"
+                    - op: remove
+                      key: x-deprecated-header
                 
   - name: 003-sync-delete
     inputOverlayDirs:
@@ -204,11 +214,11 @@ steps:
                 total_changes: 1
                 by_action.DELETE: 1
           - select: >-
-              changes[?resource_type=='event_gateway_produce_policy' && resource_ref=='{{ .vars.producePolicyRef }}'] | [0]
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='{{ .vars.producePolicyName }}'] | [0]
             expect:
               fields:
                 action: DELETE
-                resource_ref: "{{ .vars.producePolicyRef }}"
+                resource_ref: "{{ .vars.producePolicyName }}"
       - name: 002-sync-delete
         outputFormat: json
         run:
@@ -264,7 +274,7 @@ steps:
                 total_changes: 1
                 by_action.CREATE: 1
           - select: >-
-              changes[?resource_type=='event_gateway_produce_policy' && resource_ref=='root-level-produce-policy'] | [0]
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='root-level-produce-policy'] | [0]
             expect:
               fields:
                 action: CREATE
@@ -303,12 +313,19 @@ steps:
             expect:
               fields:
                 name: "root-level-produce-policy-name"
-                type: schema_validation
+                type: encrypt
                 description: "Root Level Produce Policy description"
                 enabled: true
                 labels:
                   env: production
                   team: platform
+                config:
+                  failure_mode: passthrough
+                  part_of_record:
+                  - value
+                  encryption_key:
+                    type: aws
+                    arn: arn:aws:kms:us-east-1:123456789012:key/abcd-1234-efgh-5678
 
   - name: 005-root-level-sync-delete
     inputOverlayDirs:
@@ -334,11 +351,11 @@ steps:
                 total_changes: 1
                 by_action.DELETE: 1
           - select: >-
-              changes[?resource_type=='event_gateway_produce_policy' && resource_ref=='root-level-produce-policy'] | [0]
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='root-level-produce-policy-name'] | [0]
             expect:
               fields:
                 action: DELETE
-                resource_ref: "root-level-produce-policy"
+                resource_ref: "root-level-produce-policy-name"
       - name: 002-sync-delete
         outputFormat: json
         run:

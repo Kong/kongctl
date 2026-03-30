@@ -33,3 +33,4 @@ event_gateways:
         dns_label: vc-default
 
 # event_gateway_produce_policies removed for sync delete test
+event_gateway_virtual_cluster_produce_policies: []

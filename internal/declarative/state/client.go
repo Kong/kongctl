@@ -57,6 +57,7 @@ type ClientConfig struct {
 	EventGatewayListenerAPI             helpers.EventGatewayListenerAPI
 	EventGatewayListenerPolicyAPI       helpers.EventGatewayListenerPolicyAPI
 	EventGatewayClusterPolicyAPI        helpers.EventGatewayClusterPolicyAPI
+	EventGatewayProducePolicyAPI        helpers.EventGatewayProducePolicyAPI
 	EventGatewayDataPlaneCertificateAPI helpers.EventGatewayDataPlaneCertificateAPI
 
 	// Identity resources
@@ -98,6 +99,7 @@ type Client struct {
 	eventGatewayListenerAPI             helpers.EventGatewayListenerAPI
 	eventGatewayListenerPolicyAPI       helpers.EventGatewayListenerPolicyAPI
 	eventGatewayClusterPolicyAPI        helpers.EventGatewayClusterPolicyAPI
+	eventGatewayProducePolicyAPI        helpers.EventGatewayProducePolicyAPI
 	eventGatewayDataPlaneCertificateAPI helpers.EventGatewayDataPlaneCertificateAPI
 
 	// Organization resource APIs
@@ -140,6 +142,7 @@ func NewClient(config ClientConfig) *Client {
 		eventGatewayListenerAPI:             config.EventGatewayListenerAPI,
 		eventGatewayListenerPolicyAPI:       config.EventGatewayListenerPolicyAPI,
 		eventGatewayClusterPolicyAPI:        config.EventGatewayClusterPolicyAPI,
+		eventGatewayProducePolicyAPI:        config.EventGatewayProducePolicyAPI,
 		eventGatewayDataPlaneCertificateAPI: config.EventGatewayDataPlaneCertificateAPI,
 
 		// Identity resource APIs
@@ -4544,6 +4547,206 @@ func (c *Client) GetEventGatewayClusterPolicy(
 	return &EventGatewayClusterPolicyInfo{
 		EventGatewayPolicy: *resp.EventGatewayPolicy,
 		NormalizedLabels:   normalized,
+	}, nil
+}
+
+// ---- Event Gateway Virtual Cluster Produce Policy operations ----
+
+// EventGatewayVirtualClusterProducePolicyInfo wraps a Produce Policy for internal use.
+type EventGatewayVirtualClusterProducePolicyInfo struct {
+	kkComps.EventGatewayPolicy
+	RawConfig map[string]any
+}
+
+// producePolicyRawResponse is used to parse the raw API response to get full config.
+type producePolicyRawResponse struct {
+	Type   string         `json:"type"`
+	Name   *string        `json:"name,omitempty"`
+	ID     string         `json:"id"`
+	Config map[string]any `json:"config"`
+}
+
+func (c *Client) ListEventGatewayVirtualClusterProducePolicies(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+) ([]EventGatewayVirtualClusterProducePolicyInfo, error) {
+	if err := ValidateAPIClient(c.eventGatewayProducePolicyAPI, "event gateway produce policy API"); err != nil {
+		return nil, err
+	}
+
+	req := kkOps.ListEventGatewayVirtualClusterProducePoliciesRequest{
+		GatewayID:        gatewayID,
+		VirtualClusterID: virtualClusterID,
+	}
+
+	res, err := c.eventGatewayProducePolicyAPI.ListEventGatewayVirtualClusterProducePolicies(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "list event gateway virtual cluster produce policies", nil)
+	}
+
+	if res.ListProducePoliciesResponse == nil {
+		return []EventGatewayVirtualClusterProducePolicyInfo{}, nil
+	}
+
+	// Try to parse raw response to get full config data
+	rawConfigByID := make(map[string]map[string]any)
+	if res.RawResponse != nil && res.RawResponse.Body != nil {
+		bodyBytes, readErr := io.ReadAll(res.RawResponse.Body)
+		if readErr == nil && len(bodyBytes) > 0 {
+			var rawPolicies []producePolicyRawResponse
+			if jsonErr := json.Unmarshal(bodyBytes, &rawPolicies); jsonErr == nil {
+				for _, rp := range rawPolicies {
+					if rp.ID != "" && rp.Config != nil {
+						rawConfigByID[rp.ID] = rp.Config
+					}
+				}
+			}
+		}
+	}
+
+	var policies []EventGatewayVirtualClusterProducePolicyInfo
+	for _, p := range res.ListProducePoliciesResponse {
+		policies = append(policies, EventGatewayVirtualClusterProducePolicyInfo{
+			EventGatewayPolicy: p,
+			RawConfig:          rawConfigByID[p.ID],
+		})
+	}
+
+	return policies, nil
+}
+
+func (c *Client) CreateEventGatewayVirtualClusterProducePolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	req kkComps.EventGatewayProducePolicyCreate,
+	namespace string,
+) (string, error) {
+	createReq := kkOps.CreateEventGatewayVirtualClusterProducePolicyRequest{
+		GatewayID:                       gatewayID,
+		VirtualClusterID:                virtualClusterID,
+		EventGatewayProducePolicyCreate: &req,
+	}
+
+	resp, err := c.eventGatewayProducePolicyAPI.CreateEventGatewayVirtualClusterProducePolicy(ctx, createReq)
+	if err != nil {
+		name := extractProducePolicyCreateName(req)
+		return "", WrapAPIError(err, "create event gateway virtual cluster produce policy", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_virtual_cluster_produce_policy",
+			ResourceName: name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.EventGatewayPolicy, "create event gateway virtual cluster produce policy"); err != nil {
+		return "", err
+	}
+
+	return resp.EventGatewayPolicy.ID, nil
+}
+
+func (c *Client) UpdateEventGatewayVirtualClusterProducePolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	policyID string,
+	req kkComps.EventGatewayProducePolicyUpdate,
+	namespace string,
+) (string, error) {
+	updateReq := kkOps.UpdateEventGatewayVirtualClusterProducePolicyRequest{
+		GatewayID:                       gatewayID,
+		VirtualClusterID:                virtualClusterID,
+		PolicyID:                        policyID,
+		EventGatewayProducePolicyUpdate: &req,
+	}
+
+	resp, err := c.eventGatewayProducePolicyAPI.UpdateEventGatewayVirtualClusterProducePolicy(ctx, updateReq)
+	if err != nil {
+		name := extractProducePolicyUpdateName(req)
+		return "", WrapAPIError(err, "update event gateway virtual cluster produce policy", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_virtual_cluster_produce_policy",
+			ResourceName: name,
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	return resp.EventGatewayPolicy.ID, nil
+}
+
+func (c *Client) DeleteEventGatewayVirtualClusterProducePolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	policyID string,
+) error {
+	deleteReq := kkOps.DeleteEventGatewayVirtualClusterProducePolicyRequest{
+		GatewayID:        gatewayID,
+		VirtualClusterID: virtualClusterID,
+		PolicyID:         policyID,
+	}
+
+	_, err := c.eventGatewayProducePolicyAPI.DeleteEventGatewayVirtualClusterProducePolicy(ctx, deleteReq)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway virtual cluster produce policy", nil)
+	}
+	return nil
+}
+
+// extractProducePolicyCreateName extracts the policy name from the union create type.
+func extractProducePolicyCreateName(req kkComps.EventGatewayProducePolicyCreate) string {
+	if req.EventGatewayModifyHeadersPolicyCreate != nil && req.EventGatewayModifyHeadersPolicyCreate.Name != nil {
+		return *req.EventGatewayModifyHeadersPolicyCreate.Name
+	}
+	if req.EventGatewayProduceSchemaValidationPolicy != nil && req.EventGatewayProduceSchemaValidationPolicy.Name != nil {
+		return *req.EventGatewayProduceSchemaValidationPolicy.Name
+	}
+	if req.EventGatewayEncryptPolicy != nil && req.EventGatewayEncryptPolicy.Name != nil {
+		return *req.EventGatewayEncryptPolicy.Name
+	}
+	return ""
+}
+
+// extractProducePolicyUpdateName extracts the policy name from the union update type.
+func extractProducePolicyUpdateName(req kkComps.EventGatewayProducePolicyUpdate) string {
+	if req.EventGatewayModifyHeadersPolicy != nil && req.EventGatewayModifyHeadersPolicy.Name != nil {
+		return *req.EventGatewayModifyHeadersPolicy.Name
+	}
+	if req.EventGatewayProduceSchemaValidationPolicy != nil && req.EventGatewayProduceSchemaValidationPolicy.Name != nil {
+		return *req.EventGatewayProduceSchemaValidationPolicy.Name
+	}
+	if req.EventGatewayEncryptPolicy != nil && req.EventGatewayEncryptPolicy.Name != nil {
+		return *req.EventGatewayEncryptPolicy.Name
+	}
+	return ""
+}
+
+func (c *Client) GetEventGatewayVirtualClusterProducePolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	policyID string,
+) (*EventGatewayVirtualClusterProducePolicyInfo, error) {
+	req := kkOps.GetEventGatewayVirtualClusterProducePolicyRequest{
+		GatewayID:        gatewayID,
+		VirtualClusterID: virtualClusterID,
+		PolicyID:         policyID,
+	}
+
+	resp, err := c.eventGatewayProducePolicyAPI.GetEventGatewayVirtualClusterProducePolicy(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway virtual cluster produce policy", nil)
+	}
+
+	if resp.EventGatewayPolicy == nil {
+		return nil, nil
+	}
+
+	return &EventGatewayVirtualClusterProducePolicyInfo{
+		EventGatewayPolicy: *resp.EventGatewayPolicy,
+		RawConfig:          nil,
 	}, nil
 }
 

@@ -41,11 +41,12 @@ event_gateways:
               env: staging
               version: v2
             config:
-              add_headers:
-                - header: x-producer-id
-                  value: "${client_id}-updated"
-                - header: x-trace-id
+              actions:
+                - op: set
+                  key: x-producer-id
+                  value: "${client_id}"
+                - op: set
+                  key: x-trace-id
                   value: "${request_id}"
-              remove_headers:
-                - x-original-header
-                - x-deprecated-header
+                - op: remove
+                  key: x-deprecated-header
