@@ -11,7 +11,7 @@ portals:
       namespace: portal-custom-domain
     custom_domain:
       ref: portal-1-custom-domain
-      hostname: "portal1-http.kongctl-e2e.io"
+      hostname: "{{ .vars.portal1Hostname }}"
       enabled: true
       ssl:
         domain_verification_method: http
