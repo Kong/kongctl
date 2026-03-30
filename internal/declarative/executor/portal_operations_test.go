@@ -82,6 +82,11 @@ func (m *MockPortalAPI) DeletePortal(
 	return args.Get(0).(*kkOps.DeletePortalResponse), args.Error(1)
 }
 
+func (m *MockPortalAPI) ClearPortalDefaultAuthStrategyID(ctx context.Context, portalID string) error {
+	args := m.Called(ctx, portalID)
+	return args.Error(0)
+}
+
 func TestExecutor_createPortal(t *testing.T) {
 	tests := []struct {
 		name         string

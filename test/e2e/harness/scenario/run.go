@@ -288,7 +288,11 @@ func Run(t *testing.T, scenarioPath string) error {
 						}
 						if result.TimedOut &&
 							harness.HTTPRequestTimeout() > 0 &&
-							float64(result.Duration)/float64(harness.HTTPRequestTimeout()) >= harness.DefaultTimeoutRetryThreshold {
+							float64(
+								result.Duration,
+							)/float64(
+								harness.HTTPRequestTimeout(),
+							) >= harness.DefaultTimeoutRetryThreshold {
 							consecutiveTimeouts++
 						} else {
 							consecutiveTimeouts = 0
@@ -405,7 +409,11 @@ func Run(t *testing.T, scenarioPath string) error {
 						}
 						if result.TimedOut &&
 							harness.HTTPRequestTimeout() > 0 &&
-							float64(result.Duration)/float64(harness.HTTPRequestTimeout()) >= harness.DefaultTimeoutRetryThreshold {
+							float64(
+								result.Duration,
+							)/float64(
+								harness.HTTPRequestTimeout(),
+							) >= harness.DefaultTimeoutRetryThreshold {
 							consecutiveTimeouts++
 						} else {
 							consecutiveTimeouts = 0

@@ -152,7 +152,13 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 			}
 		case "default_application_auth_strategy_id":
 			if authID, ok := value.(string); ok {
-				updatePortal.DefaultApplicationAuthStrategyID = &authID
+				if authID == planner.ClearDefaultAuthStrategyID {
+					// Sentinel: caller wants to unset the field.  Handle below
+					// after the SDK struct is fully populated (we need the
+					// portal ID which is in change.ResourceID).
+				} else {
+					updatePortal.DefaultApplicationAuthStrategyID = &authID
+				}
 			}
 		case "default_api_visibility":
 			if visibility, ok := value.(string); ok {
@@ -201,6 +207,16 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 	resp, err := e.client.UpdatePortal(ctx, change.ResourceID, updatePortal, change.Namespace)
 	if err != nil {
 		return "", err
+	}
+
+	// If the plan requested clearing default_application_auth_strategy_id, send
+	// an explicit JSON null via a separate raw PATCH (the SDK's UpdatePortal
+	// struct cannot express explicit null due to omitempty).
+	if authID, ok := change.Fields["default_application_auth_strategy_id"].(string); ok &&
+		authID == planner.ClearDefaultAuthStrategyID {
+		if err := e.client.ClearPortalDefaultAuthStrategyID(ctx, change.ResourceID, change.Namespace); err != nil {
+			return "", fmt.Errorf("clear portal default auth strategy: %w", err)
+		}
 	}
 
 	return resp.ID, nil

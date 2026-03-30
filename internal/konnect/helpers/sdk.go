@@ -57,8 +57,10 @@ type SDKAPI interface {
 // This is the real implementation of the SDKAPI
 // which wraps the actual SDK implmentation
 type KonnectSDK struct {
-	SDK        *kkSDK.SDK
-	portalImpl *PortalAPIImpl
+	SDK         *kkSDK.SDK
+	BaseURL     string
+	BearerToken string
+	portalImpl  *PortalAPIImpl
 }
 
 // Returns the real implementation of the GetControlPlaneAPI
@@ -80,7 +82,9 @@ func (k *KonnectSDK) GetControlPlaneGroupsAPI() ControlPlaneGroupsAPI {
 func (k *KonnectSDK) GetPortalAPI() PortalAPI {
 	if k.portalImpl == nil && k.SDK != nil {
 		k.portalImpl = &PortalAPIImpl{
-			SDK: k.SDK,
+			SDK:         k.SDK,
+			BaseURL:     k.BaseURL,
+			BearerToken: k.BearerToken,
 		}
 	}
 	return k.portalImpl

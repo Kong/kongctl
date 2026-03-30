@@ -61,3 +61,250 @@ steps:
                 skipped: 0
                 status: "success"
                 total_changes: 0
+
+  - name: 002-verify-portal-default-auth-strategy
+    skipInputs: true
+    commands:
+      - name: 000-get-portal
+        outputFormat: json
+        run:
+          - get
+          - portal
+          - "My Simple Portal"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(default_application_auth_strategy_id)": 36
+
+  - name: 003-update-default-auth-strategy
+    inputOverlayDirs:
+      - overlays/003-update-default-auth-strategy
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - -f
+          - "{{ .workdir }}/app-auth-strategy-2.yaml"
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 1
+                by_action.UPDATE: 1
+
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                resource_ref=='apikey-app-auth-strategy-2'] | [0]
+            expect:
+              fields:
+                action: CREATE
+
+          - select: >-
+              changes[?resource_type=='portal' &&
+                resource_ref=='simple-portal'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+
+      - name: 001-apply
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+      - name: 002-get-portal
+        outputFormat: json
+        run:
+          - get
+          - portal
+          - "My Simple Portal"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(default_application_auth_strategy_id)": 36
+
+      - name: 003-re-apply-no-op
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - -f
+          - "{{ .workdir }}/app-auth-strategy-2.yaml"
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 0
+                failed: 0
+                skipped: 0
+                status: "success"
+                total_changes: 0
+
+  - name: 004-remove-default-auth-strategy
+    inputOverlayDirs:
+      - overlays/004-remove-default-auth-strategy
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-remove.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - -f
+          - "{{ .workdir }}/app-auth-strategy-2.yaml"
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+
+          - select: >-
+              changes[?resource_type=='portal' &&
+                resource_ref=='simple-portal'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+
+      - name: 001-apply
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-remove.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 002-get-portal
+        outputFormat: json
+        run:
+          - get
+          - portal
+          - "My Simple Portal"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                default_application_auth_strategy_id: null
+
+      - name: 003-re-apply-no-op
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - -f
+          - "{{ .workdir }}/app-auth-strategy-2.yaml"
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 0
+                failed: 0
+                skipped: 0
+                status: "success"
+                total_changes: 0
+
+  - name: 005-sync-delete-strategies
+    inputOverlayDirs:
+      - overlays/005-sync-delete-strategies
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - -f
+          - "{{ .workdir }}/app-auth-strategy-2.yaml"
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                resource_ref=='apikey-app-auth-strategy'] | [0]
+            expect:
+              fields:
+                action: DELETE
+
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                resource_ref=='apikey-app-auth-strategy-2'] | [0]
+            expect:
+              fields:
+                action: DELETE
+
+      - name: 001-sync
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+      - name: 002-verify-deleted
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - -f
+          - "{{ .workdir }}/app-auth-strategy-2.yaml"
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0

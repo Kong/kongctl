@@ -528,6 +528,12 @@ func (c *Client) UpdatePortal(
 	return resp.PortalResponse, nil
 }
 
+// ClearPortalDefaultAuthStrategyID sends an explicit JSON null for
+// default_application_auth_strategy_id on the portal identified by id.
+func (c *Client) ClearPortalDefaultAuthStrategyID(ctx context.Context, id string, _ string) error {
+	return c.portalAPI.ClearPortalDefaultAuthStrategyID(ctx, id)
+}
+
 // DeletePortal deletes a portal by ID
 func (c *Client) DeletePortal(ctx context.Context, id string, force bool) error {
 	_, err := c.portalAPI.DeletePortal(ctx, id, force)

@@ -86,6 +86,10 @@ func (m *mockPortalAPI) DeletePortal(
 	return nil, fmt.Errorf("DeletePortal not implemented")
 }
 
+func (m *mockPortalAPI) ClearPortalDefaultAuthStrategyID(_ context.Context, _ string) error {
+	return nil
+}
+
 func TestListManagedPortals(t *testing.T) {
 	tests := []struct {
 		name        string

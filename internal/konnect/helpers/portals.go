@@ -1,8 +1,11 @@
 package helpers
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 
 	kkSDK "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -18,11 +21,17 @@ type PortalAPI interface {
 	UpdatePortal(ctx context.Context, id string,
 		portal kkComps.UpdatePortal) (*kkOps.UpdatePortalResponse, error)
 	DeletePortal(ctx context.Context, id string, force bool) (*kkOps.DeletePortalResponse, error)
+	// ClearPortalDefaultAuthStrategyID sends an explicit null for
+	// default_application_auth_strategy_id via a raw PATCH request, because
+	// the SDK struct uses omitempty and cannot express explicit JSON null.
+	ClearPortalDefaultAuthStrategyID(ctx context.Context, portalID string) error
 }
 
 // PortalAPIImpl provides an implementation of the PortalAPI interface
 type PortalAPIImpl struct {
-	SDK *kkSDK.SDK
+	SDK         *kkSDK.SDK
+	BaseURL     string
+	BearerToken string
 }
 
 // ListPortals implements the PortalAPI interface
@@ -67,6 +76,43 @@ func (p *PortalAPIImpl) DeletePortal(
 		forceParam = &forceTrue
 	}
 	return p.SDK.Portals.DeletePortal(ctx, id, forceParam)
+}
+
+// ClearPortalDefaultAuthStrategyID sends an explicit JSON null for
+// default_application_auth_strategy_id via a raw PATCH request.
+// The SDK's UpdatePortal struct uses omitempty, so it cannot express explicit
+// JSON null. This method bypasses the SDK to send the null directly.
+func (p *PortalAPIImpl) ClearPortalDefaultAuthStrategyID(ctx context.Context, portalID string) error {
+	if p.BaseURL == "" || p.BearerToken == "" {
+		return fmt.Errorf("ClearPortalDefaultAuthStrategyID: BaseURL and BearerToken must be set on PortalAPIImpl")
+	}
+
+	type patchPayload struct {
+		DefaultApplicationAuthStrategyID *string `json:"default_application_auth_strategy_id"`
+	}
+	body, err := json.Marshal(patchPayload{DefaultApplicationAuthStrategyID: nil})
+	if err != nil {
+		return fmt.Errorf("marshal portal clear payload: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/v3/portals/%s", p.BaseURL, portalID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("build clear-auth-strategy request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+p.BearerToken)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("clear portal default auth strategy: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("clear portal default auth strategy: unexpected status %d", resp.StatusCode)
+	}
+	return nil
 }
 
 // GetAllPortals fetches all portals with pagination

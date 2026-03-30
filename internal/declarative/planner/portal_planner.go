@@ -14,6 +14,14 @@ import (
 	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
+// ClearDefaultAuthStrategyID is the sentinel value written into
+// PlannedChange.Fields["default_application_auth_strategy_id"] when the
+// desired configuration omits the field but the current portal still has it
+// set.  The executor recognises this value and sends an explicit JSON null via
+// ClearPortalDefaultAuthStrategyID instead of using the SDK's UpdatePortal
+// (which cannot express explicit null due to omitempty).
+const ClearDefaultAuthStrategyID = "$clear-default-auth-strategy"
+
 // portalPlannerImpl implements planning logic for portal resources
 type portalPlannerImpl struct {
 	*BasePlanner
@@ -467,6 +475,17 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 					Old: currentAuthID,
 					New: desiredValue,
 				}
+			}
+		}
+	} else {
+		// When the field is absent from the desired configuration but the current
+		// portal has it set, plan an UPDATE to clear it.
+		currentAuthID := p.GetString(current.DefaultApplicationAuthStrategyID)
+		if currentAuthID != "" {
+			updates["default_application_auth_strategy_id"] = ClearDefaultAuthStrategyID
+			changedFields["default_application_auth_strategy_id"] = FieldChange{
+				Old: currentAuthID,
+				New: nil,
 			}
 		}
 	}

@@ -73,6 +73,11 @@ func (p *portalAPIStub) DeletePortal(context.Context, string, bool) (*kkOps.Dele
 	return nil, nil
 }
 
+func (p *portalAPIStub) ClearPortalDefaultAuthStrategyID(context.Context, string) error {
+	p.t.Fatalf("unexpected ClearPortalDefaultAuthStrategyID call")
+	return nil
+}
+
 func TestAdoptPortalAssignsNamespaceLabel(t *testing.T) {
 	helper := new(cmd.MockHelper)
 	helper.EXPECT().GetContext().Return(context.Background())

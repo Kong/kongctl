@@ -224,7 +224,9 @@ func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, er
 	}
 
 	return &helpers.KonnectSDK{
-		SDK: sdk,
+		SDK:         sdk,
+		BaseURL:     baseURL,
+		BearerToken: token,
 	}, nil
 }
 
