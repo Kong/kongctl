@@ -130,10 +130,20 @@ var (
 	defaultPal           Palette
 	themeKey             contextKey
 	configuredExplicitly bool
+	darkBackgroundOnce   sync.Once
+	darkBackgroundCached bool
 	hasDarkBackground    = func() bool {
-		return detectDarkBackgroundFromEnv()
+		return detectDarkBackground()
 	}
 )
+
+func detectDarkBackground() bool {
+	darkBackgroundOnce.Do(func() {
+		darkBackgroundCached = detectDarkBackgroundFromEnv()
+	})
+
+	return darkBackgroundCached
+}
 
 func detectDarkBackgroundFromEnv() bool {
 	dark, ok := darkBackgroundFromColorFGBG(os.Getenv("COLORFGBG"))

@@ -1,6 +1,7 @@
 package theme
 
 import (
+	"sync"
 	"testing"
 
 	tint "github.com/lrstanley/bubbletint/v2"
@@ -96,4 +97,19 @@ func TestDetectDarkBackgroundFromEnv(t *testing.T) {
 
 	t.Setenv("COLORFGBG", "bogus")
 	require.False(t, detectDarkBackgroundFromEnv())
+}
+
+func TestDetectDarkBackgroundMemoizesEnv(t *testing.T) {
+	darkBackgroundOnce = sync.Once{}
+	darkBackgroundCached = false
+	t.Cleanup(func() {
+		darkBackgroundOnce = sync.Once{}
+		darkBackgroundCached = false
+	})
+
+	t.Setenv("COLORFGBG", "15;0")
+	require.True(t, detectDarkBackground())
+
+	t.Setenv("COLORFGBG", "0;15")
+	require.True(t, detectDarkBackground())
 }
