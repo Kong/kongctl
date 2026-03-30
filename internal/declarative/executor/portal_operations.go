@@ -153,9 +153,8 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 		case "default_application_auth_strategy_id":
 			if authID, ok := value.(string); ok {
 				if authID == planner.ClearDefaultAuthStrategyID {
-					// Sentinel: caller wants to unset the field.  Handle below
-					// after the SDK struct is fully populated (we need the
-					// portal ID which is in change.ResourceID).
+					// Sentinel: unset via explicit null PATCH after the SDK update completes.
+					// We skip setting the SDK field here; the clear call is made below.
 				} else {
 					updatePortal.DefaultApplicationAuthStrategyID = &authID
 				}
