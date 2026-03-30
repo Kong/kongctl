@@ -331,10 +331,12 @@ func (p *Planner) producePolicyToFields(policy resources.EventGatewayProducePoli
 
 // extractProducePolicyVariantLabels extracts labels from whichever union variant is set.
 func extractProducePolicyVariantLabels(policy resources.EventGatewayProducePolicyResource) map[string]string {
-	if policy.EventGatewayModifyHeadersPolicyCreate != nil && policy.EventGatewayModifyHeadersPolicyCreate.Labels != nil {
+	if policy.EventGatewayModifyHeadersPolicyCreate != nil &&
+		policy.EventGatewayModifyHeadersPolicyCreate.Labels != nil {
 		return policy.EventGatewayModifyHeadersPolicyCreate.Labels
 	}
-	if policy.EventGatewayProduceSchemaValidationPolicy != nil && policy.EventGatewayProduceSchemaValidationPolicy.Labels != nil {
+	if policy.EventGatewayProduceSchemaValidationPolicy != nil &&
+		policy.EventGatewayProduceSchemaValidationPolicy.Labels != nil {
 		return policy.EventGatewayProduceSchemaValidationPolicy.Labels
 	}
 	if policy.EventGatewayEncryptPolicy != nil && policy.EventGatewayEncryptPolicy.Labels != nil {
@@ -367,9 +369,11 @@ func (p *Planner) shouldUpdateProducePolicy(
 	}
 	desiredDesc := ""
 	// Check each known variant for description
-	if desired.EventGatewayModifyHeadersPolicyCreate != nil && desired.EventGatewayModifyHeadersPolicyCreate.Description != nil {
+	if desired.EventGatewayModifyHeadersPolicyCreate != nil &&
+		desired.EventGatewayModifyHeadersPolicyCreate.Description != nil {
 		desiredDesc = *desired.EventGatewayModifyHeadersPolicyCreate.Description
-	} else if desired.EventGatewayProduceSchemaValidationPolicy != nil && desired.EventGatewayProduceSchemaValidationPolicy.Description != nil {
+	} else if desired.EventGatewayProduceSchemaValidationPolicy != nil &&
+		desired.EventGatewayProduceSchemaValidationPolicy.Description != nil {
 		desiredDesc = *desired.EventGatewayProduceSchemaValidationPolicy.Description
 	} else if desired.EventGatewayEncryptPolicy != nil && desired.EventGatewayEncryptPolicy.Description != nil {
 		desiredDesc = *desired.EventGatewayEncryptPolicy.Description
@@ -385,9 +389,11 @@ func (p *Planner) shouldUpdateProducePolicy(
 		currentEnabled = *current.Enabled
 	}
 	desiredEnabled := true
-	if desired.EventGatewayModifyHeadersPolicyCreate != nil && desired.EventGatewayModifyHeadersPolicyCreate.Enabled != nil {
+	if desired.EventGatewayModifyHeadersPolicyCreate != nil &&
+		desired.EventGatewayModifyHeadersPolicyCreate.Enabled != nil {
 		desiredEnabled = *desired.EventGatewayModifyHeadersPolicyCreate.Enabled
-	} else if desired.EventGatewayProduceSchemaValidationPolicy != nil && desired.EventGatewayProduceSchemaValidationPolicy.Enabled != nil {
+	} else if desired.EventGatewayProduceSchemaValidationPolicy != nil &&
+		desired.EventGatewayProduceSchemaValidationPolicy.Enabled != nil {
 		desiredEnabled = *desired.EventGatewayProduceSchemaValidationPolicy.Enabled
 	} else if desired.EventGatewayEncryptPolicy != nil && desired.EventGatewayEncryptPolicy.Enabled != nil {
 		desiredEnabled = *desired.EventGatewayEncryptPolicy.Enabled

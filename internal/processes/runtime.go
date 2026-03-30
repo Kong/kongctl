@@ -13,6 +13,13 @@ import (
 	"time"
 )
 
+const (
+	defaultStopTimeout        = 15 * time.Second
+	defaultStartProbeWait     = 500 * time.Millisecond
+	defaultProbeInterval      = 100 * time.Millisecond
+	defaultStartProbeInterval = 20 * time.Millisecond
+)
+
 // Inspect evaluates whether a recorded process is still running.
 func Inspect(record Record) RuntimeState {
 	state := RuntimeState{

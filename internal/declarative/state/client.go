@@ -4640,7 +4640,9 @@ func (c *Client) CreateEventGatewayVirtualClusterProducePolicy(
 		})
 	}
 
-	if err := ValidateResponse(resp.EventGatewayPolicy, "create event gateway virtual cluster produce policy"); err != nil {
+	if err := ValidateResponse(
+		resp.EventGatewayPolicy, "create event gateway virtual cluster produce policy",
+	); err != nil {
 		return "", err
 	}
 
