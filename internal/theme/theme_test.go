@@ -60,3 +60,40 @@ func TestPaletteFromTintPreservesAbout(t *testing.T) {
 
 	require.Equal(t, "Tint: Example Theme\nTint credits:\n  * Alice (https://example.com)", p.About)
 }
+
+func TestDarkBackgroundFromColorFGBG(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		value string
+		dark  bool
+		known bool
+	}{
+		{name: "dark background", value: "15;0", dark: true, known: true},
+		{name: "light background", value: "0;15", dark: false, known: true},
+		{name: "bright black background", value: "7;8", dark: true, known: true},
+		{name: "standalone light background", value: "7", dark: false, known: true},
+		{name: "empty", value: "", dark: false, known: false},
+		{name: "invalid", value: "bogus", dark: false, known: false},
+		{name: "empty background token", value: "7;", dark: false, known: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			dark, known := darkBackgroundFromColorFGBG(tt.value)
+			require.Equal(t, tt.dark, dark)
+			require.Equal(t, tt.known, known)
+		})
+	}
+}
+
+func TestDetectDarkBackgroundFromEnv(t *testing.T) {
+	t.Setenv("COLORFGBG", "15;0")
+	require.True(t, detectDarkBackgroundFromEnv())
+
+	t.Setenv("COLORFGBG", "bogus")
+	require.False(t, detectDarkBackgroundFromEnv())
+}
