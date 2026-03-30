@@ -55,11 +55,12 @@ event_gateways:
               env: staging
               team: streaming
             config:
-              add_headers:
-                - header: x-producer-app
+              actions:
+                - op: set
+                  key: x-producer-id
                   value: "${client_id}"
-              remove_headers:
-                - x-internal-only
+                - op: remove
+                  key: x-original-header
     listeners:
       - ref: plan-apply-listener
         name: plan-apply-listener
