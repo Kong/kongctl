@@ -51,7 +51,7 @@ func (a *APIPublicationAPIImpl) PublishAPIToPortal(ctx context.Context, request 
 	}
 
 	if requiresMergedPublicationPayload(request.APIPublication) {
-		return a.publishAPIToPortalWithExplicitAuthStrategyIDs(ctx, request)
+		return a.publishAPIToPortalWithMergedPayload(ctx, request)
 	}
 
 	return a.SDK.APIPublication.PublishAPIToPortal(ctx, request, opts...)
@@ -142,7 +142,7 @@ func requiresMergedPublicationPayload(publication kkComponents.APIPublication) b
 		requiresExplicitAuthStrategyIDs(publication)
 }
 
-func marshalExplicitAPIPublicationPayload(publication kkComponents.APIPublication) ([]byte, error) {
+func marshalMergedAPIPublicationPayload(publication kkComponents.APIPublication) ([]byte, error) {
 	payload := map[string]any{}
 
 	if publication.AutoApproveRegistrations != nil {
@@ -166,7 +166,7 @@ func marshalExplicitAPIPublicationPayload(publication kkComponents.APIPublicatio
 	return json.Marshal(payload)
 }
 
-func (a *APIPublicationAPIImpl) publishAPIToPortalWithExplicitAuthStrategyIDs(
+func (a *APIPublicationAPIImpl) publishAPIToPortalWithMergedPayload(
 	ctx context.Context,
 	request kkOps.PublishAPIToPortalRequest,
 ) (*kkOps.PublishAPIToPortalResponse, error) {
@@ -198,7 +198,7 @@ func (a *APIPublicationAPIImpl) publishAPIToPortalWithExplicitAuthStrategyIDs(
 		}
 	}
 
-	payload, err := marshalExplicitAPIPublicationPayload(publication)
+	payload, err := marshalMergedAPIPublicationPayload(publication)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal API publication request: %w", err)
 	}
