@@ -10,7 +10,7 @@ import (
 )
 
 const deferredEnvWarningMessage = "" +
-	"Contains deferred !env values. Apply resolves them from the current " +
+	"Contains deferred !env values. Execution resolves them from the current " +
 	"environment, so executed values may differ from the plan."
 
 func (p *Planner) addUnresolvedReferenceWarnings(plan *Plan, rs *resources.ResourceSet) {

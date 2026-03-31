@@ -539,10 +539,19 @@ reading the requested field path.
   calculate changes.
 - Saved plan files preserve the deferred `!env` reference instead of the
   resolved plaintext value.
-- During `apply --plan`, `kongctl` resolves the environment variable again
-  and uses the current value at execution time.
-- If environment variables differ between `plan` and `apply`, the executed
-  value may differ from the value observed while planning.
+- During execution, `kongctl` performs a fresh environment lookup for each
+  deferred `!env` value instead of reusing the value observed during
+  planning.
+- When you run `apply`, `sync`, or `delete` directly from configuration
+  files, `kongctl` still plans first and then performs that second lookup
+  during execution in the same command invocation.
+- In direct `apply`, `sync`, and `delete` runs, both lookups happen within
+  the same `kongctl` process, so they will usually observe the same process
+  environment.
+- When execution uses a saved plan with `--plan`, planning and execution
+  happen in separate command invocations, so environment values may differ
+  between them and the executed value may differ from what was observed
+  while planning.
 - Human-readable plan and diff output redact `!env` values.
 
 ### Path Resolution
