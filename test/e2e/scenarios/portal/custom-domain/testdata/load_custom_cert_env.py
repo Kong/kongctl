@@ -16,7 +16,8 @@ def main() -> None:
         raise SystemExit("usage: load_custom_cert_env.py <fixture> <command> [args...]")
 
     fixture_path = sys.argv[1]
-    text = open(fixture_path, encoding="utf-8").read()
+    with open(fixture_path, encoding="utf-8") as fixture:
+        text = fixture.read()
 
     env = os.environ.copy()
     env["KONGCTL_E2E_PORTAL_CUSTOM_CERT"] = extract_field(text, "certificate")
