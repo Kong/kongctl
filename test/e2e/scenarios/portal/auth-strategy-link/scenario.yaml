@@ -190,7 +190,8 @@ steps:
           - select: "[0]"
             expect:
               fields:
-                "length(auth_strategy_ids)": 0
+                auth_strategy_ids: null
+                visibility: "private"
 
   - name: 004-idempotency-after-removal
     inputOverlayOps:

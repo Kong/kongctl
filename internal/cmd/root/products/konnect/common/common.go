@@ -218,13 +218,16 @@ func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, er
 		return nil, err
 	}
 
-	sdk, err := auth.GetAuthenticatedClient(baseURL, token, timeout, transportOptions, logger)
+	sdk, httpClient, err := auth.GetAuthenticatedClient(baseURL, token, timeout, transportOptions, logger)
 	if err != nil {
 		return nil, err
 	}
 
 	return &helpers.KonnectSDK{
-		SDK: sdk,
+		SDK:        sdk,
+		BaseURL:    baseURL,
+		Token:      token,
+		HTTPClient: httpClient,
 	}, nil
 }
 

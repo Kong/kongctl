@@ -58,6 +58,9 @@ type SDKAPI interface {
 // which wraps the actual SDK implmentation
 type KonnectSDK struct {
 	SDK        *kkSDK.SDK
+	BaseURL    string
+	Token      string
+	HTTPClient kkSDK.HTTPClient
 	portalImpl *PortalAPIImpl
 }
 
@@ -128,7 +131,12 @@ func (k *KonnectSDK) GetAPIPublicationAPI() APIPublicationAPI {
 		return nil
 	}
 
-	return &APIPublicationAPIImpl{SDK: k.SDK}
+	return &APIPublicationAPIImpl{
+		SDK:        k.SDK,
+		BaseURL:    k.BaseURL,
+		Token:      k.Token,
+		HTTPClient: k.HTTPClient,
+	}
 }
 
 // Returns the implementation of the APIImplementationAPI interface

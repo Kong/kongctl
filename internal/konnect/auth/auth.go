@@ -400,7 +400,7 @@ func GetAuthenticatedClient(
 	timeout time.Duration,
 	transportOptions httpclient.TransportOptions,
 	logger *slog.Logger,
-) (*kk.SDK, error) {
+) (*kk.SDK, kk.HTTPClient, error) {
 	kkMetadata.SetUserAgent(meta.UserAgent())
 
 	opts := []kk.SDKOption{
@@ -419,5 +419,5 @@ func GetAuthenticatedClient(
 	)
 	opts = append(opts, kk.WithClient(loggingClient))
 
-	return kk.New(opts...), nil
+	return kk.New(opts...), loggingClient, nil
 }
