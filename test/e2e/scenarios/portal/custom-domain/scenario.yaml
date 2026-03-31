@@ -122,6 +122,8 @@ steps:
           - python3
           - "{{ .repo_dir }}/test/e2e/scenarios/portal/custom-domain/testdata/load_custom_cert_env.py"
           - "{{ .bin }}"
+          - --profile
+          - e2e
           - plan
           - -f
           - "{{ .workdir }}/config.yaml"
@@ -165,6 +167,8 @@ steps:
           - python3
           - "{{ .repo_dir }}/test/e2e/scenarios/portal/custom-domain/testdata/load_custom_cert_env.py"
           - "{{ .bin }}"
+          - --profile
+          - e2e
           - apply
           - --plan
           - "{{ .workdir }}/plan-custom-cert.json"
