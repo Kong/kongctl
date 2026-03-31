@@ -7,6 +7,7 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -129,10 +130,57 @@ var (
 	defaultPal           Palette
 	themeKey             contextKey
 	configuredExplicitly bool
+	darkBackgroundOnce   sync.Once
+	darkBackgroundCached bool
 	hasDarkBackground    = func() bool {
-		return lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
+		return detectDarkBackground()
 	}
 )
+
+func detectDarkBackground() bool {
+	darkBackgroundOnce.Do(func() {
+		darkBackgroundCached = detectDarkBackgroundFromEnv()
+	})
+
+	return darkBackgroundCached
+}
+
+func detectDarkBackgroundFromEnv() bool {
+	dark, ok := darkBackgroundFromColorFGBG(os.Getenv("COLORFGBG"))
+	if ok {
+		return dark
+	}
+	return false
+}
+
+func darkBackgroundFromColorFGBG(value string) (bool, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false, false
+	}
+
+	bgText := value
+	if idx := strings.LastIndex(value, ";"); idx >= 0 {
+		bgText = strings.TrimSpace(value[idx+1:])
+		if bgText == "" {
+			return false, false
+		}
+	}
+
+	bg, err := strconv.Atoi(strings.TrimSpace(bgText))
+	if err != nil || bg < 0 {
+		return false, false
+	}
+
+	switch {
+	case bg <= 6 || bg == 8:
+		return true, true
+	case bg == 7 || (bg >= 9 && bg <= 15):
+		return false, true
+	default:
+		return false, false
+	}
+}
 
 // ContextWithPalette stores the palette on the context.
 func ContextWithPalette(ctx context.Context, p Palette) context.Context {
