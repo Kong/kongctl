@@ -137,7 +137,9 @@ func requiresExplicitAuthStrategyIDs(publication kkComponents.APIPublication) bo
 }
 
 func requiresMergedPublicationPayload(publication kkComponents.APIPublication) bool {
-	return publication.Visibility == nil || publication.AuthStrategyIds == nil || requiresExplicitAuthStrategyIDs(publication)
+	return publication.Visibility == nil ||
+		publication.AuthStrategyIds == nil ||
+		requiresExplicitAuthStrategyIDs(publication)
 }
 
 func marshalExplicitAPIPublicationPayload(publication kkComponents.APIPublication) ([]byte, error) {
