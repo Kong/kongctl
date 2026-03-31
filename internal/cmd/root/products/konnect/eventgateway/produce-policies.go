@@ -377,7 +377,6 @@ func (h producePoliciesHandler) getSinglePolicy(
 ) error {
 	policyID := identifier
 	if !util.IsValidUUID(identifier) {
-		// Use name filter to optimize the API query
 		policies, _, err := fetchProducePolicies(helper, policyAPI, gatewayID, virtualClusterID, cfg, identifier)
 		if err != nil {
 			return err

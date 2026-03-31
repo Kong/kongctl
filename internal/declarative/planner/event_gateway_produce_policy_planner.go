@@ -410,10 +410,24 @@ func (p *Planner) shouldUpdateProducePolicy(
 		changes["config"] = FieldChange{Old: current.RawConfig, New: desiredConfig}
 	}
 
+	// Labels comparison
+	desiredLabels := extractProducePolicyVariantLabels(desired)
+	if desiredLabels != nil {
+		if !compareMaps(current.Labels, desiredLabels) {
+			needsUpdate = true
+			changes["labels"] = FieldChange{Old: current.Labels, New: desiredLabels}
+		}
+	} else if len(current.Labels) > 0 {
+		needsUpdate = true
+		changes["labels"] = FieldChange{Old: current.Labels, New: map[string]string{}}
+	}
+
 	var updateFields map[string]any
 	if needsUpdate {
 		updateFields = p.producePolicyToFields(desired)
 		updateFields[FieldCurrentConfig] = current.RawConfig
+		// Include current labels to allow the executor to remove labels when needed
+		updateFields[FieldCurrentLabels] = current.Labels
 	}
 
 	return needsUpdate, updateFields, changes
