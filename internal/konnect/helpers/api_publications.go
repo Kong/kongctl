@@ -185,8 +185,12 @@ func (a *APIPublicationAPIImpl) publishAPIToPortalWithExplicitAuthStrategyIDs(
 			if publication.Visibility == nil {
 				publication.Visibility = current.Visibility
 			}
-			if publication.AuthStrategyIds == nil && current.AuthStrategyIds != nil {
-				publication.AuthStrategyIds = append([]string(nil), current.AuthStrategyIds...)
+			if publication.AuthStrategyIds == nil {
+				if current.AuthStrategyIds == nil {
+					publication.AuthStrategyIds = []string{}
+				} else {
+					publication.AuthStrategyIds = append([]string(nil), current.AuthStrategyIds...)
+				}
 			}
 			if publication.AutoApproveRegistrations == nil {
 				publication.AutoApproveRegistrations = current.AutoApproveRegistrations

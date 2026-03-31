@@ -92,6 +92,55 @@ func (c *visibilityAwareHTTPClient) Do(req *http.Request) (*http.Response, error
 	}
 }
 
+type noAuthPublicationHTTPClient struct {
+	t              *testing.T
+	putRequest     *http.Request
+	putRequestBody []byte
+}
+
+func (c *noAuthPublicationHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	c.t.Helper()
+
+	switch req.Method {
+	case http.MethodGet:
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header: http.Header{
+				"Content-Type": []string{"application/json"},
+			},
+			Body: io.NopCloser(bytes.NewReader([]byte(`{
+				"auth_strategy_ids": null,
+				"visibility": "private",
+				"created_at": "2026-03-30T00:00:00Z",
+				"updated_at": "2026-03-30T00:00:00Z"
+			}`))),
+		}, nil
+	case http.MethodPut:
+		c.putRequest = req.Clone(req.Context())
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+		c.putRequestBody = body
+
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header: http.Header{
+				"Content-Type": []string{"application/json"},
+			},
+			Body: io.NopCloser(bytes.NewReader([]byte(`{
+				"auth_strategy_ids": null,
+				"visibility": "private",
+				"created_at": "2026-03-30T00:00:00Z",
+				"updated_at": "2026-03-30T00:00:00Z"
+			}`))),
+		}, nil
+	default:
+		c.t.Fatalf("unexpected method: %s", req.Method)
+		return nil, nil
+	}
+}
+
 func TestAPIPublicationAPIImplPublishAPIToPortalIncludesEmptyAuthStrategyIDs(t *testing.T) {
 	t.Parallel()
 
@@ -248,6 +297,53 @@ func TestAPIPublicationAPIImplPublishAPIToPortalPreservesExistingAuthStrategyIDs
 	}
 	if len(authStrategyIDs) != 1 || authStrategyIDs[0] != "existing-strategy" {
 		t.Fatalf("unexpected preserved auth_strategy_ids: %v", authStrategyIDs)
+	}
+	if got := requestBody["visibility"]; got != "private" {
+		t.Fatalf("unexpected visibility: %v", got)
+	}
+}
+
+func TestAPIPublicationAPIImplPublishAPIToPortalPreservesExistingNoAuthStateWhenAuthStrategyIDsOmitted(t *testing.T) {
+	t.Parallel()
+
+	vis := kkComponents.APIPublicationVisibilityPrivate
+	client := &noAuthPublicationHTTPClient{t: t}
+	sdk := kkSDK.New(
+		kkSDK.WithServerURL("https://example.test"),
+		kkSDK.WithClient(client),
+	)
+
+	api := &APIPublicationAPIImpl{
+		SDK:        sdk,
+		BaseURL:    "https://example.test",
+		Token:      "test-token",
+		HTTPClient: client,
+	}
+
+	_, err := api.PublishAPIToPortal(context.Background(), kkOps.PublishAPIToPortalRequest{
+		APIID:    "api-123",
+		PortalID: "portal-456",
+		APIPublication: kkComponents.APIPublication{
+			Visibility: &vis,
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if client.putRequest == nil {
+		t.Fatalf("expected PUT request to be captured")
+	}
+
+	var requestBody map[string]any
+	if err := json.Unmarshal(client.putRequestBody, &requestBody); err != nil {
+		t.Fatalf("failed to decode request body: %v", err)
+	}
+
+	if authStrategyIDs, ok := requestBody["auth_strategy_ids"]; !ok {
+		t.Fatalf("expected auth_strategy_ids to be preserved, got %v", requestBody["auth_strategy_ids"])
+	} else if authStrategyIDs != nil {
+		t.Fatalf("expected auth_strategy_ids to remain null, got %v", authStrategyIDs)
 	}
 	if got := requestBody["visibility"]; got != "private" {
 		t.Fatalf("unexpected visibility: %v", got)
