@@ -148,3 +148,149 @@ steps:
             expect:
               fields:
                 visibility: "private"
+
+  - name: 003-remove-auth-strategy-from-publication
+    inputOverlayOps:
+      - file: "apis.yaml"
+        match: "apis[?ref=='sms'].publications[?ref=='sms-to-e2e-portal'] | [0]"
+        set:
+          visibility: "private"
+          auth_strategy_ids: []
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/auth-strategies.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+          - select: >-
+              plan.changes[?resource_type=='api_publication' &&
+                            resource_ref=='{{ .vars.publicationRef }}'] | [0]
+            expect:
+              fields:
+                action: "UPDATE"
+      - name: 001-get-api-publications-after-remove
+        run:
+          - get
+          - api
+          - publications
+          - --api-name
+          - "{{ .vars.apiName }}"
+        assertions:
+          - select: "[0]"
+            expect:
+              fields:
+                auth_strategy_ids: null
+                visibility: "private"
+
+  - name: 004-idempotency-after-removal
+    inputOverlayOps:
+      - file: "apis.yaml"
+        match: "apis[?ref=='sms'].publications[?ref=='sms-to-e2e-portal'] | [0]"
+        set:
+          visibility: "private"
+          auth_strategy_ids: []
+    commands:
+      - name: 000-plan-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/auth-strategies.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: "changes[?resource_type=='api_publication']"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 005-re-add-auth-strategy-to-publication
+    inputOverlayOps:
+      - file: "apis.yaml"
+        match: "apis[?ref=='sms'].publications[?ref=='sms-to-e2e-portal'] | [0]"
+        set:
+          visibility: "private"
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/auth-strategies.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+          - select: >-
+              plan.changes[?resource_type=='api_publication' &&
+                            resource_ref=='{{ .vars.publicationRef }}'] | [0]
+            expect:
+              fields:
+                action: "UPDATE"
+                "fields.auth_strategy_ids | length(@)": 1
+      - name: 001-get-api-publications-after-re-add
+        run:
+          - get
+          - api
+          - publications
+          - --api-name
+          - "{{ .vars.apiName }}"
+        assertions:
+          - select: "[0]"
+            expect:
+              fields:
+                "length(auth_strategy_ids)": 1
+
+  - name: 006-idempotency-after-re-add
+    inputOverlayOps:
+      - file: "apis.yaml"
+        match: "apis[?ref=='sms'].publications[?ref=='sms-to-e2e-portal'] | [0]"
+        set:
+          visibility: "private"
+    commands:
+      - name: 000-plan-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/auth-strategies.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: "changes[?resource_type=='api_publication']"
+            expect:
+              fields:
+                "length(@)": 0
