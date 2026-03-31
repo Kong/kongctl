@@ -407,6 +407,7 @@ steps:
       - overlays/006-missing-env
     commands:
       - name: 000-plan-missing-env
+        outputFormat: disable
         run:
           - plan
           - -f
@@ -424,6 +425,7 @@ steps:
       KONGCTL_E2E_ENV_BOOL: "true"
     commands:
       - name: 000-plan-non-string
+        outputFormat: disable
         run:
           - plan
           - -f

@@ -127,8 +127,6 @@ steps:
           - "{{ .workdir }}/config.yaml"
           - --mode
           - apply
-          - -o
-          - json
         assertions:
           - select: summary
             expect:

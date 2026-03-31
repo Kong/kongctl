@@ -38,3 +38,14 @@ func TestMaybeRecordVarTemplatesResponsePath(t *testing.T) {
 		t.Fatalf("recorded var = %v, want portal-123", got)
 	}
 }
+
+func TestRenderStringReplacesBin(t *testing.T) {
+	tmplCtx := map[string]any{
+		"bin": "/tmp/kongctl",
+	}
+
+	got := renderString("{{ .bin }} plan", tmplCtx)
+	if got != "/tmp/kongctl plan" {
+		t.Fatalf("renderString() = %q, want %q", got, "/tmp/kongctl plan")
+	}
+}
