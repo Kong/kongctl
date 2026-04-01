@@ -244,7 +244,7 @@ Do not file issues for speculative ideas, stylistic preferences, or vague
 
 7. Finalize before timeout.
    - Update cache-memory state for the chosen slice before finishing
-   - Emit `create_issue` for each approved finding, or `noop` if none qualify
+   - Emit `create-issue` for each approved finding, or `noop` if none qualify
    - Do not perform more exploratory reads after starting finalization
 
 ## Issue Requirements
