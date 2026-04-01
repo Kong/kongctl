@@ -17,11 +17,9 @@ import (
 
 	"github.com/kong/kongctl/internal/auditlogs"
 	"github.com/kong/kongctl/internal/cmd"
-	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/konnect/apiutil"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
-	"github.com/segmentio/cli"
 )
 
 const (
@@ -332,61 +330,6 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 	)
 
 	return output, nil
-}
-
-func renderCreateDestinationOutput(helper cmd.Helper, output createDestinationOutput) error {
-	outType, err := helper.GetOutputFormat()
-	if err != nil {
-		return err
-	}
-	streams := helper.GetStreams()
-
-	if outType == cmdcommon.TEXT {
-		if _, err := fmt.Fprintln(streams.Out, "Audit-log destination created"); err != nil {
-			return err
-		}
-		if output.DestinationID != "" {
-			if _, err := fmt.Fprintf(streams.Out, "  destination id: %s\n", output.DestinationID); err != nil {
-				return err
-			}
-		}
-		if _, err := fmt.Fprintf(streams.Out, "  name: %s\n", output.DestinationName); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(streams.Out, "  endpoint: %s\n", output.DestinationEndpoint); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(streams.Out, "  log format: %s\n", output.LogFormat); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(streams.Out, "  skip ssl verification: %t\n", output.SkipSSLVerification); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(
-			streams.Out,
-			"  authorization configured: %t\n",
-			output.AuthorizationConfigured,
-		); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(streams.Out, "  webhook configured: %t\n", output.WebhookConfigured); err != nil {
-			return err
-		}
-		if output.DestinationStateFile != "" {
-			if _, err := fmt.Fprintf(streams.Out, "  state file: %s\n", output.DestinationStateFile); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	printer, err := cli.Format(outType.String(), streams.Out)
-	if err != nil {
-		return err
-	}
-	defer printer.Flush()
-	printer.Print(output)
-	return nil
 }
 
 func deleteDestinationForHelper(helper cmd.Helper, destinationID string, disableWebhook bool) error {
