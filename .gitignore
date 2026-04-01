@@ -55,3 +55,5 @@ __pycache__/
 # Agent tool integration dirs (created by kongctl install skills)
 .agents/skills/kongctl-*
 .claude/skills/kongctl-*
+
+.codex
