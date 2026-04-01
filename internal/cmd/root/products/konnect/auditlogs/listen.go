@@ -80,7 +80,8 @@ func AddListenAuditLogsFlags(cmdObj *cobra.Command, options *ListenAuditLogsOpti
 		"Skip TLS certificate verification for destination delivery.")
 	cmdObj.Flags().StringVar(&options.Authorization, "authorization", options.Authorization,
 		"Value for the Authorization header Konnect includes when sending audit logs. "+
-			"The local listener validates this same value when provided.")
+			"The local listener validates this value on every incoming request.")
+	_ = cmdObj.MarkFlagRequired("authorization")
 	cmdObj.Flags().BoolVar(&options.ConfigureWebhook, "configure-webhook", options.ConfigureWebhook,
 		"Automatically bind and enable the organization webhook with the created destination.")
 	cmdObj.Flags().BoolVar(&options.Tail, "tail", options.Tail,
