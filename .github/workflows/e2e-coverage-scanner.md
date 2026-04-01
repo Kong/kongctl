@@ -156,6 +156,23 @@ and repository search over guesses.
 Do not read every scenario file or every Go file in a run. Inventory first,
 then selectively open only the files needed for the chosen slice.
 
+## Execution Discipline
+
+- Treat this workflow as having a hard 30 minute budget
+- Reserve the final 5 minutes for cache-memory updates and safe outputs
+- Choose exactly one slice before detailed reads and treat that choice as fixed
+  for the run
+- Do not inventory or compare other slices after choosing one, except for a
+  narrowly scoped verification read that is required to confirm one candidate
+  issue
+- After you have 1 validated, deduplicated, high-confidence finding, shift from
+  discovery to issue drafting
+- After you have 2 such findings, stop exploring entirely
+- If a candidate is still ambiguous after 1 focused verification pass, drop it
+  instead of continuing to dig
+- Do not spend time searching for a third issue when 1 or 2 strong issues are
+  already ready to file
+
 ## What Counts As A Good Finding
 
 Look for high-signal gaps such as:
@@ -188,6 +205,7 @@ Do not file issues for speculative ideas, stylistic preferences, or vague
    - If one slice is clearly the best fit for recent activity, process that
      slice
    - Otherwise fall back to round-robin selection using the cache-memory state
+   - Once chosen, keep the slice fixed for the rest of the run
 
 2. Inventory only the chosen slice.
    - Use command-line filtering tools to list only the scenario files and
@@ -195,6 +213,8 @@ Do not file issues for speculative ideas, stylistic preferences, or vague
    - Build a rough coverage map from filenames and targeted reads
    - Read only the most relevant `scenario.yaml`, overlay, and expectation
      files needed to verify coverage quality
+   - Do not inventory another slice unless one off-slice read is necessary to
+     verify a specific candidate finding
 
 3. Cross-check only the relevant implementation surface.
    - Use repository search and targeted file reads for the commands, resource
@@ -207,6 +227,7 @@ Do not file issues for speculative ideas, stylistic preferences, or vague
    - Confirm the gap is meaningful enough for a dedicated issue
    - Prefer gaps that a follow-on coding agent could implement in one focused
      PR
+   - If one focused verification pass does not resolve the candidate, drop it
 
 5. Deduplicate before creating anything.
    - Search open issues in this repository for similar titles and bodies
@@ -218,6 +239,13 @@ Do not file issues for speculative ideas, stylistic preferences, or vague
    - File at most 2 issues in a run
    - Prefer the highest-value, highest-confidence findings
    - It is better to file 1 strong issue than 2 weak ones
+   - Once you have 1-2 strong, deduplicated findings, stop analysis and move
+     directly to finalization
+
+7. Finalize before timeout.
+   - Update cache-memory state for the chosen slice before finishing
+   - Emit `create_issue` for each approved finding, or `noop` if none qualify
+   - Do not perform more exploratory reads after starting finalization
 
 ## Issue Requirements
 
@@ -280,3 +308,7 @@ without having to rediscover the gap from scratch.
 If you do not find any new high-confidence issues to file, call the `noop`
 safe output with a short message summarizing that you completed the scan and
 found no actionable new gaps in the selected slice.
+
+Before exiting, ensure the cache-memory state has been updated for the chosen
+slice. Do not continue exploring once you have enough information to emit safe
+outputs.
