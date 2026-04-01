@@ -30,11 +30,11 @@ var (
 	listenExamples = normalizers.Examples(i18n.T("root.verbs.listen.examples",
 		fmt.Sprintf(`
 	# Konnect-first shorthand
-	%[1]s listen --public-url https://example.ngrok.app
+	%[1]s listen --public-url https://example.ngrok.app --authorization "Bearer <token>"
 	# Resource form
-	%[1]s listen audit-logs --public-url https://example.ngrok.app
+	%[1]s listen audit-logs --public-url https://example.ngrok.app --authorization "Bearer <token>"
 	# Explicit product form
-	%[1]s listen konnect audit-logs --public-url https://example.ngrok.app
+	%[1]s listen konnect audit-logs --public-url https://example.ngrok.app --authorization "Bearer <token>"
 	`, meta.CLIName)))
 
 	tailUse = "tail"
@@ -45,11 +45,11 @@ var (
 	tailExamples = normalizers.Examples(i18n.T("root.verbs.tail.examples",
 		fmt.Sprintf(`
 	# Konnect-first shorthand
-	%[1]s tail --public-url https://example.ngrok.app
+	%[1]s tail --public-url https://example.ngrok.app --authorization "Bearer <token>"
 	# Resource form
-	%[1]s tail audit-logs --public-url https://example.ngrok.app
+	%[1]s tail audit-logs --public-url https://example.ngrok.app --authorization "Bearer <token>"
 	# Explicit product form
-	%[1]s tail konnect audit-logs --public-url https://example.ngrok.app
+	%[1]s tail konnect audit-logs --public-url https://example.ngrok.app --authorization "Bearer <token>"
 	`, meta.CLIName)))
 )
 
