@@ -132,9 +132,7 @@ var (
 	configuredExplicitly bool
 	darkBackgroundOnce   sync.Once
 	darkBackgroundCached bool
-	hasDarkBackground    = func() bool {
-		return detectDarkBackground()
-	}
+	hasDarkBackground = detectDarkBackground
 )
 
 func detectDarkBackground() bool {
@@ -147,10 +145,7 @@ func detectDarkBackground() bool {
 
 func detectDarkBackgroundFromEnv() bool {
 	dark, ok := darkBackgroundFromColorFGBG(os.Getenv("COLORFGBG"))
-	if ok {
-		return dark
-	}
-	return false
+	return ok && dark
 }
 
 func darkBackgroundFromColorFGBG(value string) (bool, bool) {
