@@ -17,13 +17,9 @@ import (
 
 	"github.com/kong/kongctl/internal/auditlogs"
 	"github.com/kong/kongctl/internal/cmd"
-	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
-	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/apiutil"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
-	"github.com/segmentio/cli"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -78,80 +74,12 @@ type createDestinationOutput struct {
 }
 
 type createDestinationCmd struct {
-	*cobra.Command
-
 	endpoint            string
 	name                string
 	logFormat           string
 	skipSSLVerification bool
 	authorization       string
 	configureWebhook    bool
-}
-
-func newCreateDestinationCmd(
-	verb verbs.VerbValue,
-	addParentFlags func(verbs.VerbValue, *cobra.Command),
-	parentPreRun func(*cobra.Command, []string) error,
-) *cobra.Command {
-	c := &createDestinationCmd{
-		logFormat:        defaultLogFormatValue,
-		configureWebhook: true,
-	}
-	cmdObj := &cobra.Command{
-		Use:   "destination",
-		Short: "Create a Konnect audit-log destination",
-		Long: `Create a Konnect audit-log destination that points to an externally reachable
-HTTP endpoint (for example, a tunnel URL that fronts your local listener).`,
-		Example: `  # Create a destination for your exposed listener
-  kongctl create audit-logs destination --endpoint https://example.ngrok.app/audit-logs
-
-  # Include delivery options
-  kongctl create audit-logs destination \
-    --endpoint https://example.ngrok.app/audit-logs \
-    --log-format cef \
-    --skip-ssl-verification \
-    --authorization "Bearer my-secret-token"`,
-		RunE: c.runE,
-	}
-
-	c.Command = cmdObj
-	c.Flags().StringVar(&c.endpoint, "endpoint", "", "Destination webhook URL.")
-	c.Flags().StringVar(&c.name, "name", "", "Destination name. Default: kongctl-<hostname>-<pid>.")
-	c.Flags().StringVar(&c.logFormat, "log-format", defaultLogFormatValue,
-		fmt.Sprintf("Audit-log payload format. Allowed: %s.", strings.Join(allowedLogFormats, "|")))
-	c.Flags().BoolVar(&c.skipSSLVerification, "skip-ssl-verification", false,
-		"Skip TLS certificate verification for destination delivery.")
-	c.Flags().StringVar(&c.authorization, "authorization", "",
-		"Value for the Authorization header Konnect includes when sending audit logs.")
-	c.Flags().BoolVar(&c.configureWebhook, "configure-webhook", true,
-		"Automatically bind and enable the organization webhook with the created destination.")
-
-	_ = c.MarkFlagRequired("endpoint")
-
-	if parentPreRun != nil {
-		c.PreRunE = parentPreRun
-	}
-	if addParentFlags != nil {
-		addParentFlags(verb, c.Command)
-	}
-
-	return c.Command
-}
-
-func (c *createDestinationCmd) runE(cmdObj *cobra.Command, args []string) error {
-	helper := cmd.BuildHelper(cmdObj, args)
-	if len(helper.GetArgs()) > 0 {
-		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("the destination command does not accept arguments"),
-		}
-	}
-
-	output, err := c.execute(helper)
-	if err != nil {
-		return err
-	}
-
-	return renderCreateDestinationOutput(helper, output)
 }
 
 func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutput, error) {
@@ -402,61 +330,6 @@ func (c *createDestinationCmd) execute(helper cmd.Helper) (createDestinationOutp
 	)
 
 	return output, nil
-}
-
-func renderCreateDestinationOutput(helper cmd.Helper, output createDestinationOutput) error {
-	outType, err := helper.GetOutputFormat()
-	if err != nil {
-		return err
-	}
-	streams := helper.GetStreams()
-
-	if outType == cmdcommon.TEXT {
-		if _, err := fmt.Fprintln(streams.Out, "Audit-log destination created"); err != nil {
-			return err
-		}
-		if output.DestinationID != "" {
-			if _, err := fmt.Fprintf(streams.Out, "  destination id: %s\n", output.DestinationID); err != nil {
-				return err
-			}
-		}
-		if _, err := fmt.Fprintf(streams.Out, "  name: %s\n", output.DestinationName); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(streams.Out, "  endpoint: %s\n", output.DestinationEndpoint); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(streams.Out, "  log format: %s\n", output.LogFormat); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(streams.Out, "  skip ssl verification: %t\n", output.SkipSSLVerification); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(
-			streams.Out,
-			"  authorization configured: %t\n",
-			output.AuthorizationConfigured,
-		); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(streams.Out, "  webhook configured: %t\n", output.WebhookConfigured); err != nil {
-			return err
-		}
-		if output.DestinationStateFile != "" {
-			if _, err := fmt.Fprintf(streams.Out, "  state file: %s\n", output.DestinationStateFile); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	printer, err := cli.Format(outType.String(), streams.Out)
-	if err != nil {
-		return err
-	}
-	defer printer.Flush()
-	printer.Print(output)
-	return nil
 }
 
 func deleteDestinationForHelper(helper cmd.Helper, destinationID string, disableWebhook bool) error {

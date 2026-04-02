@@ -20,7 +20,6 @@ import (
 	"github.com/kong/kongctl/internal/auditlogs"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
-	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -44,8 +43,6 @@ type createListenerState struct {
 }
 
 type createListenerCmd struct {
-	*cobra.Command
-
 	listenAddress         string
 	listenPath            string
 	publicURL             string
@@ -53,47 +50,6 @@ type createListenerCmd struct {
 	expectedAuthorization string
 	onStarted             func(helper cmd.Helper, state createListenerState) error
 	onRecords             func(records [][]byte) error
-}
-
-func newCreateListenerCmd(
-	verb verbs.VerbValue,
-	addParentFlags func(verbs.VerbValue, *cobra.Command),
-	parentPreRun func(*cobra.Command, []string) error,
-) *cobra.Command {
-	c := &createListenerCmd{}
-	cmdObj := &cobra.Command{
-		Use:   "listener",
-		Short: "Start a local audit-log webhook listener",
-		Long: `Start a local HTTP endpoint that accepts Konnect audit-log webhook events
-and persists each payload under the current profile in XDG config storage.`,
-		Example: `  # Start a local listener
-  kongctl create audit-logs listener
-
-  # Listen on a custom address and path
-  kongctl create audit-logs listener --listen-address 0.0.0.0:8080 --path /konnect/audit-logs`,
-		RunE: c.runE,
-	}
-
-	c.Command = cmdObj
-	c.Flags().StringVar(&c.listenAddress, "listen-address", defaultListenAddress,
-		"HTTP listen address for incoming audit-log webhooks.")
-	c.Flags().StringVar(&c.listenPath, "path", defaultListenPath,
-		"HTTP path that accepts webhook requests.")
-	c.Flags().StringVar(&c.publicURL, "public-url", "",
-		"Externally reachable base URL for this listener (used for operator guidance).")
-	c.Flags().IntVar(&c.maxBodyBytes, "max-body-bytes", defaultMaxBodyBytes,
-		"Maximum accepted request body size in bytes.")
-	c.Flags().StringVar(&c.expectedAuthorization, "authorization", "",
-		"Expected Authorization header value for incoming audit-log webhook requests.")
-
-	if parentPreRun != nil {
-		c.PreRunE = parentPreRun
-	}
-	if addParentFlags != nil {
-		addParentFlags(verb, c.Command)
-	}
-
-	return c.Command
 }
 
 func (c *createListenerCmd) runE(cmdObj *cobra.Command, args []string) error {
