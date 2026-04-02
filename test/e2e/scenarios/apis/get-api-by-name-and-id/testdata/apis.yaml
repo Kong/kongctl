@@ -1,0 +1,8 @@
+apis:
+  - ref: api-get-by-name-test
+    name: "API Get By Name Test"
+    version: "1.0.0"
+    slug: "api-get-by-name-test"
+    kongctl:
+      namespace: "apis-get-by-name-id"
+      protected: false

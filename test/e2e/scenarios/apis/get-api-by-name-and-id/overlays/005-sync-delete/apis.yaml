@@ -1,0 +1,5 @@
+_defaults:
+  kongctl:
+    namespace: "apis-get-by-name-id"
+
+apis: []
