@@ -530,6 +530,9 @@ api_documents:
 `!env` extraction parses the environment variable as YAML or JSON before
 reading the requested field path.
 
+A runnable example is available in
+[docs/examples/declarative/env/](examples/declarative/env/).
+
 ### !env Behavior
 
 - `!env` is supported on string-typed fields in this release.
