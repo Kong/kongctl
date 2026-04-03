@@ -1,0 +1,22 @@
+_defaults:
+  kongctl:
+    namespace: yaml-env-tags
+
+portals:
+  - ref: env-portal
+    name: env-portal
+    display_name: !env KONGCTL_E2E_ENV_PORTAL_META#display_name
+    description: !env KONGCTL_E2E_ENV_PORTAL_DESC
+    authentication_enabled: false
+    default_api_visibility: public
+    default_page_visibility: private
+
+apis:
+  - ref: env-orders
+    name: env-orders
+    description: !env KONGCTL_E2E_ENV_API_DESC
+    labels:
+      domain: commerce
+      owner: !env
+        var: KONGCTL_E2E_ENV_API_META
+        extract: owner

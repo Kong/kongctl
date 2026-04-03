@@ -118,7 +118,12 @@ steps:
       - name: 000-plan-custom-cert
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-custom-cert.json"
-        run:
+        exec:
+          - python3
+          - "{{ .repo_dir }}/test/e2e/scenarios/portal/custom-domain/testdata/load_custom_cert_env.py"
+          - "{{ .bin }}"
+          - --profile
+          - e2e
           - plan
           - -f
           - "{{ .workdir }}/config.yaml"
@@ -138,70 +143,45 @@ steps:
                 enabled: true
                 "ssl.domain_verification_method": custom_certificate
                 "ssl.skip_ca_check": true
-                "ssl.custom_certificate": |-
-                  -----BEGIN CERTIFICATE-----
-                  MIIDWDCCAkCgAwIBAgIUDc5KSqU2uuL7ZH1Rpnq0fhDEAycwDQYJKoZIhvcNAQEL
-                  BQAwGzEZMBcGA1UEAwwQKi5rb25nY3RsLWUyZS5pbzAeFw0yNjAzMzAxNTQ5MTda
-                  Fw0zNjAzMjcxNTQ5MTdaMBsxGTAXBgNVBAMMECoua29uZ2N0bC1lMmUuaW8wggEi
-                  MA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCtd59AeLX4q+HdIK2ebZvWkSxh
-                  bwE2Si3EUb1zDJaeXVqu63U89eZ1BQuWLRfc6uQhbIUURJrBlWMV2w1OJRLobAcE
-                  ZUfGA2zrWlHCOitx4ucYk3nYLIlBzMuwTerm/4+50rOgAvaUmo6wWhSjyT55VPgK
-                  V8sFV0NeFWSFYXIGa4yvg2KYOck68qTncm9DnvG96Oajrl2QRiEhmLVDK/sU612/
-                  2OYH7Ob8HsHCbyFbf5MphsHLwRIRXy++VrTOHmiXTociedEdtwvBTLaGUgL7HDnI
-                  jBlIV5iu5QwJd2omjiY0JYl4ZvqWmzNWhVMURxiEfrTF+BNQC6wcmmFJRc0XAgMB
-                  AAGjgZMwgZAwHQYDVR0OBBYEFM/eDBWsyHrYBWYF+oOzVYQvdGsPMB8GA1UdIwQY
-                  MBaAFM/eDBWsyHrYBWYF+oOzVYQvdGsPMBsGA1UdEQQUMBKCECoua29uZ2N0bC1l
-                  MmUuaW8wDAYDVR0TAQH/BAIwADAOBgNVHQ8BAf8EBAMCBaAwEwYDVR0lBAwwCgYI
-                  KwYBBQUHAwEwDQYJKoZIhvcNAQELBQADggEBAFLRHT3YkEhOvrDVfkHBUXC+UzhH
-                  oF0PEewPyTO1syWd3WWywVgxlEqBOUzOS7+H7TNpX5Vrhl52ztCiDYe2IeuMPYG5
-                  YPXXH517nKY0IsawmLb0TlySPXkyWa1XgtP5N/K2AjFLx6KD8IztbVlTQDLzYnbT
-                  txN/GC1SaqMUEi2BbAWNr7hVcZCzhgQGuFqhy81sRZNUMqYdCN1wb7qGmvSQsiWk
-                  4CuM3rgzLaM2etn+4rNlrb/EZzhSD+FNFH2f//s0lIMpuhD4/t4iUa5L1tPhmLxl
-                  HQ1Sf4jfC3zRA6CX0WxFHla27cu4xx4CLQZsd6BMFxv67nUPAatgI5+2C40=
-                  -----END CERTIFICATE-----
-                "ssl.custom_private_key": |-
-                  -----BEGIN PRIVATE KEY-----
-                  MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCtd59AeLX4q+Hd
-                  IK2ebZvWkSxhbwE2Si3EUb1zDJaeXVqu63U89eZ1BQuWLRfc6uQhbIUURJrBlWMV
-                  2w1OJRLobAcEZUfGA2zrWlHCOitx4ucYk3nYLIlBzMuwTerm/4+50rOgAvaUmo6w
-                  WhSjyT55VPgKV8sFV0NeFWSFYXIGa4yvg2KYOck68qTncm9DnvG96Oajrl2QRiEh
-                  mLVDK/sU612/2OYH7Ob8HsHCbyFbf5MphsHLwRIRXy++VrTOHmiXTociedEdtwvB
-                  TLaGUgL7HDnIjBlIV5iu5QwJd2omjiY0JYl4ZvqWmzNWhVMURxiEfrTF+BNQC6wc
-                  mmFJRc0XAgMBAAECggEAVXeUzU0sS2NUm4DYSjCzEZrhhPgOXtNZjVrAvwi6xTg1
-                  z+1PDEQT0iA0Pz/kfAJ3eEhhoUTUAwE5mrEc8x2tHTrskivcmyFg7uzHT60dbrVf
-                  K2quI+Z9kh/3U9xwGnRcOjAoNHSBTWKBXz5i4PfsghdtRptO+kiudpKPvm/uoF5Z
-                  fcI1nbhRITsyaXLzDbpbUUdUH6ifMnhC66LGsTI+EY/HLB4J0WZ/GN2px8i79aRw
-                  fUVQgbJNWxbgqc7NRDTJIPuN0tHKgYVr0VEEOQeT0oseI5KdKqpcyhkhqsf7OV56
-                  1APWY5Nb5zePFtKIqvgL4IEsmRSrfnjX/W34C2j0IQKBgQDU4Rf3Hx8OFut93+xY
-                  7Zp4hQzwScr+ce03UrFjiNcj0p0JQmD3pgLzejdhI/IwIWgYUciqACKQVWtwN35e
-                  kfnImXg1geqTE53Ak1SJIFNze2Y7sEgdrItjWlDy7EAli01StMcc5JrWd8wsBeEh
-                  cyN8bEZx0S4QMl9aab4TV5NdzwKBgQDQms9JqwE2JENgpWTpcQJzlIT2qRGR7ekd
-                  iEQjsn2xSOM3A5prTYk5S8vMVdikLZwRt77/n1N7db0T3GjwFKUEyroWl1mfJh4S
-                  WEBoDO5dUA4l76reV/PKO7dpdW1isOZA3tGJpYbaampzGmZj2a1QpV0+3P6ea1m4
-                  UYjvqt/2OQKBgAp/j08Amed3+eUbReycyyFmblzrRreFps0zpsvh07pQiK4MN/v+
-                  k+auAE0qGKeG/js0zVCU8R9tFv9RvUmsqUTbTLJW1dqq/PyiR2j7zyHC1CfdabEM
-                  8VLVAWj5fbBcTlPl1mv2Wix5e/gv0gp0Qyu/qzmxtzPVSB6NWHJbv0jBAoGAPg8g
-                  RfFKzfmh1dm+mLhXG11+5QbNRFW7+V41r00Fmb1uY0p+IRgTD+mduq97YPR0rsy0
-                  VMXohx0y3/q9eVca9L7+94OVVQR5A8ofdxUJwNb1LpILilQuIeb8HLKjlS29gmUH
-                  f2SwJsBr5Mxg06nJpulbQT1rvmN/cJdJHsv+DvkCgYBG8odJU8V+2u7MBSf9twjq
-                  AugD/7VMpyiIF/uPVW/Y6Q4b472Tvz7MkA0jJ/Dfo3YA7xW1jpIHO96mcNx5lryi
-                  qzDceoL4GGkTbcXtrx7FPylWcYh2AOmDBrsN9Th6H6R339K4Zy9LoL1EKMp5FuQE
-                  jqYJMuq+i9lm8ASk5SeOkA==
-                  -----END PRIVATE KEY-----
-      - name: 001-apply-custom-cert
-        outputFormat: json
+                "ssl.custom_certificate": __ENV__:KONGCTL_E2E_PORTAL_CUSTOM_CERT
+                "ssl.custom_private_key": __ENV__:KONGCTL_E2E_PORTAL_CUSTOM_KEY
+      - name: 001-diff-custom-cert-text
+        outputFormat: text
+        parseAs: raw
         run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-custom-cert.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, '[redacted from !env]')": true
+                "contains(@, '[REDACTED]')": true
+                "contains(@, 'BEGIN CERTIFICATE')": false
+                "contains(@, 'BEGIN PRIVATE KEY')": false
+                "contains(@, '__ENV__:KONGCTL_E2E_PORTAL_CUSTOM_CERT')": false
+      - name: 002-apply-custom-cert
+        outputFormat: json
+        exec:
+          - python3
+          - "{{ .repo_dir }}/test/e2e/scenarios/portal/custom-domain/testdata/load_custom_cert_env.py"
+          - "{{ .bin }}"
+          - --profile
+          - e2e
           - apply
           - --plan
           - "{{ .workdir }}/plan-custom-cert.json"
           - --auto-approve
+          - -o
+          - json
         assertions:
           - select: summary
             expect:
               fields:
                 applied: 2
                 failed: 0
-      - name: 002-get-portals-custom
+      - name: 003-get-portals-custom
         run: ["get", "portals", "-o", "json"]
         assertions:
           - select: "[?name=='{{ .vars.portal2Ref }}'] | [0]"

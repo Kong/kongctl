@@ -92,6 +92,8 @@ type ResourceSet struct {
 	// This is used by the planner to determine which namespace to check for deletions
 	DefaultNamespace  string   `yaml:"-"                                               json:"-"`
 	DefaultNamespaces []string `yaml:"-"                                               json:"-"`
+	// EnvSources tracks deferred !env placeholders by resource ref and field path.
+	EnvSources map[string]map[string]string `yaml:"-" json:"-"`
 }
 
 // NamespaceOrigin describes how a namespace value was supplied for a resource
@@ -146,6 +148,45 @@ func (rs *ResourceSet) GetResourceByRef(ref string) (Resource, bool) {
 		return true
 	})
 	return found, found != nil
+}
+
+// AddEnvSource records a deferred !env placeholder for a resource field path.
+func (rs *ResourceSet) AddEnvSource(resourceRef, fieldPath, placeholder string) {
+	if resourceRef == "" || fieldPath == "" || placeholder == "" {
+		return
+	}
+	if rs.EnvSources == nil {
+		rs.EnvSources = make(map[string]map[string]string)
+	}
+	if rs.EnvSources[resourceRef] == nil {
+		rs.EnvSources[resourceRef] = make(map[string]string)
+	}
+	rs.EnvSources[resourceRef][fieldPath] = placeholder
+}
+
+// GetEnvSources returns deferred !env placeholders for a resource ref.
+func (rs *ResourceSet) GetEnvSources(resourceRef string) map[string]string {
+	if rs == nil || rs.EnvSources == nil {
+		return nil
+	}
+	return rs.EnvSources[resourceRef]
+}
+
+// MergeEnvSources copies deferred !env placeholders from another ResourceSet.
+func (rs *ResourceSet) MergeEnvSources(other *ResourceSet) {
+	if rs == nil || other == nil || len(other.EnvSources) == 0 {
+		return
+	}
+	for resourceRef, paths := range other.EnvSources {
+		for path, placeholder := range paths {
+			rs.AddEnvSource(resourceRef, path, placeholder)
+		}
+	}
+}
+
+// HasEnvSources returns true when any deferred !env placeholders were recorded.
+func (rs *ResourceSet) HasEnvSources() bool {
+	return rs != nil && len(rs.EnvSources) > 0
 }
 
 // GetResourceTypeByRef returns the resource type for a given ref

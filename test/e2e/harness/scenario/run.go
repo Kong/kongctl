@@ -188,6 +188,9 @@ func Run(t *testing.T, scenarioPath string) error {
 				if err != nil {
 					return fmt.Errorf("command %s external execution failed: %w", cmdName, err)
 				}
+				if err := writeStdoutFile(cmd.StdoutFile, res.Stdout, tmplCtx, step); err != nil {
+					return fmt.Errorf("command %s stdoutFile failed: %w", cmdName, err)
+				}
 				parseMode := strings.TrimSpace(cmd.ParseAs)
 				parentData, err := parseCommandOutput(parseMode, res.Stdout)
 				if err != nil {
@@ -1017,6 +1020,13 @@ func renderString(s string, data any) string {
 		if m, ok := data.(map[string]any); ok {
 			if rp, ok2 := m["repo_dir"].(string); ok2 {
 				s = strings.ReplaceAll(s, "{{ .repo_dir }}", rp)
+			}
+		}
+	}
+	if strings.Contains(s, "{{ .bin }}") {
+		if m, ok := data.(map[string]any); ok {
+			if bin, ok2 := m["bin"].(string); ok2 {
+				s = strings.ReplaceAll(s, "{{ .bin }}", bin)
 			}
 		}
 	}

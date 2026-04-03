@@ -1,0 +1,12 @@
+_defaults:
+  kongctl:
+    namespace: yaml-env-tags
+
+portals:
+  - ref: env-delete-portal
+    name: !env KONGCTL_E2E_ENV_DELETE_PORTAL_NAME
+    display_name: !env KONGCTL_E2E_ENV_DELETE_PORTAL_DISPLAY
+    description: !env KONGCTL_E2E_ENV_DELETE_PORTAL_DESC
+    authentication_enabled: false
+    default_api_visibility: private
+    default_page_visibility: private

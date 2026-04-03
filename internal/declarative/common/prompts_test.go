@@ -278,6 +278,37 @@ func TestDisplayPlanSummary(t *testing.T) {
 	}
 }
 
+func TestDisplayPlanSummary_RedactsDeferredEnvValues(t *testing.T) {
+	plan := &planner.Plan{
+		Summary: planner.PlanSummary{
+			ByAction: map[planner.ActionType]int{
+				planner.ActionUpdate: 1,
+			},
+			TotalChanges: 1,
+		},
+		Changes: []planner.PlannedChange{
+			{
+				ID:           "1:u:portal:env-portal",
+				Action:       planner.ActionUpdate,
+				ResourceType: "portal",
+				ResourceRef:  "env-portal",
+				Fields: map[string]any{
+					"description": planner.FieldChange{
+						Old: "old-value",
+						New: "__ENV__:PORTAL_DESCRIPTION",
+					},
+				},
+			},
+		},
+	}
+
+	var out bytes.Buffer
+	DisplayPlanSummary(plan, &out)
+
+	assert.Contains(t, out.String(), DeferredEnvRedactedDisplay)
+	assert.NotContains(t, out.String(), "__ENV__:PORTAL_DESCRIPTION")
+}
+
 func TestDisplayPlanSummary_WithResourceMonikers(t *testing.T) {
 	plan := &planner.Plan{
 		Changes: []planner.PlannedChange{

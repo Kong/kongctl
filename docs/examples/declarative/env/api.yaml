@@ -1,0 +1,8 @@
+_defaults:
+  kongctl:
+    namespace: env-example
+
+apis:
+  - ref: env-example-api
+    name: env-example-api
+    description: !env API_DESCRIPTION

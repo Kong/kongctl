@@ -225,3 +225,113 @@ portals:
 		})
 	}
 }
+
+func TestLoader_EnvTagIntegration(t *testing.T) {
+	t.Setenv("PORTAL_DESCRIPTION", "loaded-from-env")
+
+	tmpDir, err := os.MkdirTemp("", "loader-env-test-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	mainContent := `
+portals:
+  - ref: env-portal
+    name: env-portal
+    description: !env PORTAL_DESCRIPTION`
+
+	mainFile := filepath.Join(tmpDir, "main.yaml")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
+
+	loader := NewWithBaseDir(tmpDir)
+	rs, err := loader.LoadFile(mainFile)
+	require.NoError(t, err)
+	require.NotNil(t, rs)
+	require.Len(t, rs.Portals, 1)
+	require.NotNil(t, rs.Portals[0].Description)
+
+	assert.Equal(t, "loaded-from-env", *rs.Portals[0].Description)
+	assert.Equal(t, "__ENV__:PORTAL_DESCRIPTION", rs.GetEnvSources("env-portal")["/description"])
+}
+
+func TestLoader_EnvTagStringOnlyFields(t *testing.T) {
+	t.Setenv("PORTAL_AUTH_ENABLED", "true")
+
+	tmpDir, err := os.MkdirTemp("", "loader-env-bool-test-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	mainContent := `
+portals:
+  - ref: env-portal
+    name: env-portal
+    authentication_enabled: !env PORTAL_AUTH_ENABLED`
+
+	mainFile := filepath.Join(tmpDir, "main.yaml")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
+
+	loader := NewWithBaseDir(tmpDir)
+	_, err = loader.LoadFile(mainFile)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "!env currently supports string-typed fields only")
+}
+
+func TestLoader_EnvTagDoesNotMaskUnknownFieldErrors(t *testing.T) {
+	t.Setenv("PORTAL_DESCRIPTION", "loaded-from-env")
+
+	tmpDir, err := os.MkdirTemp("", "loader-env-unknown-field-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	mainContent := `
+portals:
+  - ref: env-portal
+    name: env-portal
+    description: !env PORTAL_DESCRIPTION
+    lables:
+      team: docs`
+
+	mainFile := filepath.Join(tmpDir, "main.yaml")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
+
+	loader := NewWithBaseDir(tmpDir)
+	_, err = loader.LoadFile(mainFile)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown field 'lables'")
+	assert.NotContains(t, err.Error(), "!env currently supports string-typed fields only")
+}
+
+func TestLoader_EnvTagIntegration_PortalCustomDomainSSLUnion(t *testing.T) {
+	t.Setenv("CUSTOM_CERT", "-----BEGIN CERTIFICATE-----\nCERT\n-----END CERTIFICATE-----")
+	t.Setenv("CUSTOM_KEY", "-----BEGIN PRIVATE KEY-----\nKEY\n-----END PRIVATE KEY-----")
+
+	tmpDir, err := os.MkdirTemp("", "loader-env-portal-domain-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
+
+	mainContent := `
+portals:
+  - ref: env-portal
+    name: env-portal
+    custom_domain:
+      ref: env-portal-domain
+      hostname: env-portal.example.com
+      enabled: true
+      ssl:
+        domain_verification_method: custom_certificate
+        custom_certificate: !env CUSTOM_CERT
+        custom_private_key: !env CUSTOM_KEY
+`
+
+	mainFile := filepath.Join(tmpDir, "main.yaml")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0o600))
+
+	loader := NewWithBaseDir(tmpDir)
+	rs, err := loader.LoadFile(mainFile)
+	require.NoError(t, err)
+	require.NotNil(t, rs)
+	require.Len(t, rs.PortalCustomDomains, 1)
+
+	envSources := rs.GetEnvSources("env-portal-domain")
+	assert.Equal(t, "__ENV__:CUSTOM_CERT", envSources["/ssl/custom_certificate"])
+	assert.Equal(t, "__ENV__:CUSTOM_KEY", envSources["/ssl/custom_private_key"])
+}

@@ -7,8 +7,9 @@ import (
 
 func TestResolverRegistry_UnknownTag(t *testing.T) {
 	registry := NewResolverRegistry()
-	// Register only the !file resolver
+	// Register supported custom resolvers
 	registry.Register(NewFileTagResolver("/tmp", "/tmp"))
+	registry.Register(NewEnvTagResolver(EnvTagModePlaceholder))
 
 	tests := []struct {
 		name    string
@@ -26,9 +27,9 @@ func TestResolverRegistry_UnknownTag(t *testing.T) {
 			wantErr: "file not found", // Will fail but proves tag is recognized
 		},
 		{
-			name:    "unknown tag !env",
+			name:    "known tag !env",
 			yaml:    `value: !env HOME`,
-			wantErr: "unsupported YAML tag: !env",
+			wantErr: "",
 		},
 		{
 			name:    "built-in tag !!str",

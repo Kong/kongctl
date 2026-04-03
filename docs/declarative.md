@@ -439,10 +439,11 @@ These flags help prevent accidentally operating on unexpected namespaces, especi
 
 ## YAML Tags
 
-YAML tags are like preprocessors for YAML file data. They allow you to 
-load content from external files, reference across resources and extract specific
-values from structured data. Over time more tags may be added to support various
-functions and use cases.
+YAML tags are like preprocessors for YAML file data. They allow you to
+load content from external files, reference across resources, load values
+from environment variables, and extract specific values from structured
+data. Over time more tags may be added to support various functions and
+use cases.
 
 ### Loading File Content to YAML Fields
 
@@ -487,6 +488,74 @@ apis:
         path: ./specs/products.yaml
         extract: info.contact.email
 ```
+
+### Loading Values From Environment Variables
+
+Use `!env` to load a value from an environment variable into a string
+field:
+
+```yaml
+portals:
+  - ref: env-portal
+    name: env-portal
+    description: !env PORTAL_DESCRIPTION
+```
+
+Scalar syntax supports extraction with `#`:
+
+```yaml
+api_documents:
+  - ref: env-doc
+    api_id: petstore-api
+    title: !env DOC_METADATA#title
+    content: !env DOC_METADATA#content
+    slug: getting-started
+```
+
+Map syntax is also supported:
+
+```yaml
+api_documents:
+  - ref: env-doc
+    api_id: petstore-api
+    title: !env
+      var: DOC_METADATA
+      extract: title
+    content: !env
+      var: DOC_METADATA
+      extract: content
+    slug: getting-started
+```
+
+`!env` extraction parses the environment variable as YAML or JSON before
+reading the requested field path.
+
+A runnable example is available in
+[docs/examples/declarative/env/](examples/declarative/env/).
+
+### !env Behavior
+
+- `!env` is supported on string-typed fields in this release.
+- Unset environment variables are treated as errors.
+- Empty-but-set environment variables are allowed.
+- During planning, `kongctl` resolves the current environment value to
+  calculate changes.
+- Saved plan files preserve the deferred `!env` reference instead of the
+  resolved plaintext value.
+- During execution, `kongctl` performs a fresh environment lookup for each
+  deferred `!env` value instead of reusing the value observed during
+  planning.
+- When you run `apply`, `sync`, or `delete` directly from configuration
+  files, `kongctl` still plans first and then performs that second lookup
+  during execution in the same command invocation.
+- In direct `apply`, `sync`, and `delete` runs, both lookups happen within
+  the same `kongctl` process, so they will usually observe the same process
+  environment.
+- When execution uses a saved plan with `--plan`, planning and execution
+  happen in separate command invocations, so environment values may differ
+  between them and the executed value may differ from what was observed
+  while planning.
+- Human-readable plan and diff output redact `!env` values.
 
 ### Path Resolution
 

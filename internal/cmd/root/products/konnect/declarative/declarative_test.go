@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -225,4 +226,65 @@ func TestDisplayTextDiff_RedactsSensitiveCreateFields(t *testing.T) {
 	output := out.String()
 	assert.Contains(t, output, "custom_private_key: [REDACTED]")
 	assert.NotContains(t, output, "very-secret-private-key")
+}
+
+func TestDisplayTextDiff_RedactsDeferredEnvValues(t *testing.T) {
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+	plan.AddChange(planner.PlannedChange{
+		ID:           "1:c:portal:env-portal",
+		Action:       planner.ActionCreate,
+		ResourceType: "portal",
+		ResourceRef:  "env-portal",
+		Fields: map[string]any{
+			"name":        "env-portal",
+			"description": "__ENV__:PORTAL_DESCRIPTION",
+		},
+		References: map[string]planner.ReferenceInfo{
+			"default_application_auth_strategy_id": {
+				Ref: "__ENV__:PORTAL_AUTH_STRATEGY",
+			},
+		},
+	})
+	plan.SetExecutionOrder([]string{"1:c:portal:env-portal"})
+
+	var out bytes.Buffer
+	command := &cobra.Command{}
+	command.SetOut(&out)
+
+	err := displayTextDiff(command, plan, false)
+	require.NoError(t, err)
+
+	assert.Contains(t, out.String(), "[redacted from !env]")
+	assert.NotContains(t, out.String(), "__ENV__:PORTAL_DESCRIPTION")
+	assert.NotContains(t, out.String(), "__ENV__:PORTAL_AUTH_STRATEGY")
+}
+
+func TestDisplayTextDiff_ShowsUnknownReferencesAsPending(t *testing.T) {
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+	plan.AddChange(planner.PlannedChange{
+		ID:           "1:c:portal:env-portal",
+		Action:       planner.ActionCreate,
+		ResourceType: "portal",
+		ResourceRef:  "env-portal",
+		Fields: map[string]any{
+			"name": "env-portal",
+		},
+		References: map[string]planner.ReferenceInfo{
+			"default_application_auth_strategy_id": {
+				Ref: "basic-auth",
+				ID:  resources.UnknownReferenceID,
+			},
+		},
+	})
+	plan.SetExecutionOrder([]string{"1:c:portal:env-portal"})
+
+	var out bytes.Buffer
+	command := &cobra.Command{}
+	command.SetOut(&out)
+
+	err := displayTextDiff(command, plan, false)
+	require.NoError(t, err)
+
+	assert.Contains(t, out.String(), "default_application_auth_strategy_id: basic-auth (to be resolved)")
+	assert.NotContains(t, out.String(), "basic-auth → [unknown]")
 }
