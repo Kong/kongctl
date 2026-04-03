@@ -458,7 +458,7 @@ steps:
     inputOverlayDirs:
       - overlays/009-invalid-json
     env:
-      KONGCTL_E2E_ENV_JSON_VAR: "not-valid-json"
+      KONGCTL_E2E_ENV_JSON_VAR: "{unclosed"
     commands:
       - name: 000-plan-invalid-json
         outputFormat: disable
