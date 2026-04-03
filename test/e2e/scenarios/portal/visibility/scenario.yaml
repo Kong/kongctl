@@ -61,6 +61,28 @@ steps:
               dropKeys:
                 - api_spec_ids
 
+  - name: 001-idempotency-check
+    commands:
+      - name: 000-plan-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: "changes[?resource_type=='api_publication']"
+            expect:
+              fields:
+                "length(@)": 0
+
   - name: 002-mutate-publication-visibility
     inputOverlayOps:
       - file: "apis.yaml"

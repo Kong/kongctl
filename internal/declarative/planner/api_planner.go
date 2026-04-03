@@ -1251,7 +1251,7 @@ func (p *Planner) planAPIPublicationDelete(
 		ID:           p.nextChangeID(ActionDelete, "api_publication", compositeRef),
 		ResourceType: "api_publication",
 		ResourceRef:  compositeRef,
-		ResourceID:   fmt.Sprintf("%s:%s", apiID, portalID), // Composite ID for API publication
+		ResourceID:   portalID, // Portal ID is the identifier for API publications (API ID is in Parent)
 		Parent:       &ParentInfo{Ref: apiRef, ID: apiID},
 		Action:       ActionDelete,
 		Fields: map[string]any{
@@ -1371,16 +1371,16 @@ func (p *Planner) shouldUpdateAPIPublication(
 		}
 	}
 
-	// Compare auto approve registrations
-	desiredAutoApprove := false
+	// Compare auto approve registrations - only when explicitly specified in desired state.
+	// Nil means "not managed", consistent with how visibility and auth_strategy_ids are handled.
 	if desired.AutoApproveRegistrations != nil {
-		desiredAutoApprove = *desired.AutoApproveRegistrations
-	}
-	if current.AutoApproveRegistrations != desiredAutoApprove {
-		updates["auto_approve_registrations"] = desiredAutoApprove
-		changedFields["auto_approve_registrations"] = FieldChange{
-			Old: current.AutoApproveRegistrations,
-			New: desiredAutoApprove,
+		desiredAutoApprove := *desired.AutoApproveRegistrations
+		if current.AutoApproveRegistrations != desiredAutoApprove {
+			updates["auto_approve_registrations"] = desiredAutoApprove
+			changedFields["auto_approve_registrations"] = FieldChange{
+				Old: current.AutoApproveRegistrations,
+				New: desiredAutoApprove,
+			}
 		}
 	}
 

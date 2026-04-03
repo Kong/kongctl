@@ -35,7 +35,9 @@ func (e *Executor) resolveDeferredEnvPlaceholders(change *planner.PlannedChange)
 func resolveDeferredEnvReference(refInfo planner.ReferenceInfo) (planner.ReferenceInfo, error) {
 	if refInfo.IsArray {
 		if len(refInfo.ResolvedIDs) < len(refInfo.Refs) {
-			refInfo.ResolvedIDs = append(refInfo.ResolvedIDs, make([]string, len(refInfo.Refs)-len(refInfo.ResolvedIDs))...)
+			refInfo.ResolvedIDs = append(
+				refInfo.ResolvedIDs,
+				make([]string, len(refInfo.Refs)-len(refInfo.ResolvedIDs))...)
 		}
 
 		for i, ref := range refInfo.Refs {

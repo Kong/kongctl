@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	Verb                    = verbs.Scaffold
+	Verb                     = verbs.Scaffold
 	outputFlagUnsupportedMsg = "flags -o/--" + cmdcommon.OutputFlagName + " are not supported for the scaffold command"
 )
 

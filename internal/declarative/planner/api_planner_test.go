@@ -169,3 +169,86 @@ func TestShouldUpdateAPIPublicationIgnoresAuthStrategyWhenUnset(t *testing.T) {
 	assert.Empty(t, fields)
 	assert.Empty(t, changedFields)
 }
+
+func TestShouldUpdateAPIPublicationIgnoresAutoApproveWhenUnset(t *testing.T) {
+	t.Parallel()
+
+	// When auto_approve_registrations is not specified in desired (nil), no update should be
+	// planned even if the current value differs. This prevents perpetual updates when the
+	// server sets a non-false default for auto_approve_registrations.
+	p := &Planner{}
+
+	current := state.APIPublication{
+		AutoApproveRegistrations: true, // server has this set
+	}
+
+	desired := resources.APIPublicationResource{
+		// AutoApproveRegistrations not specified (nil)
+		APIPublication: kkComps.APIPublication{},
+		Ref:            "pub",
+		PortalID:       "portal-id",
+	}
+
+	needsUpdate, fields, changedFields := p.shouldUpdateAPIPublication(current, desired)
+	require.False(t, needsUpdate, "no update should be planned when auto_approve_registrations is not specified")
+	assert.Empty(t, fields)
+	assert.Empty(t, changedFields)
+}
+
+func TestShouldUpdateAPIPublicationTriggersUpdateForAutoApproveWhenExplicitlySpecified(t *testing.T) {
+	t.Parallel()
+
+	p := &Planner{}
+
+	autoApprove := true
+	current := state.APIPublication{
+		AutoApproveRegistrations: false,
+	}
+
+	desired := resources.APIPublicationResource{
+		APIPublication: kkComps.APIPublication{
+			AutoApproveRegistrations: &autoApprove,
+		},
+		Ref:      "pub",
+		PortalID: "portal-id",
+	}
+
+	needsUpdate, fields, changedFields := p.shouldUpdateAPIPublication(current, desired)
+	require.True(
+		t,
+		needsUpdate,
+		"update should be planned when auto_approve_registrations is explicitly set and differs",
+	)
+	assert.Equal(t, true, fields["auto_approve_registrations"])
+	assert.Equal(t, false, changedFields["auto_approve_registrations"].Old)
+	assert.Equal(t, true, changedFields["auto_approve_registrations"].New)
+}
+
+func TestShouldUpdateAPIPublicationIdempotentWithAllFieldsMatching(t *testing.T) {
+	t.Parallel()
+
+	// When current state exactly matches desired state, no update should be planned.
+	p := &Planner{}
+
+	autoApprove := false
+	visibility := kkComps.APIPublicationVisibilityPublic
+	current := state.APIPublication{
+		AutoApproveRegistrations: false,
+		Visibility:               "public",
+		AuthStrategyIDs:          nil,
+	}
+
+	desired := resources.APIPublicationResource{
+		APIPublication: kkComps.APIPublication{
+			AutoApproveRegistrations: &autoApprove,
+			Visibility:               &visibility,
+		},
+		Ref:      "pub",
+		PortalID: "portal-id",
+	}
+
+	needsUpdate, fields, changedFields := p.shouldUpdateAPIPublication(current, desired)
+	require.False(t, needsUpdate)
+	assert.Empty(t, fields)
+	assert.Empty(t, changedFields)
+}
