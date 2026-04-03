@@ -61,7 +61,7 @@ steps:
               dropKeys:
                 - api_spec_ids
 
-  - name: 001-idempotency-check
+  - name: 002-idempotency-check
     commands:
       - name: 000-plan-no-op
         outputFormat: disable
@@ -83,7 +83,7 @@ steps:
               fields:
                 "length(@)": 0
 
-  - name: 002-mutate-publication-visibility
+  - name: 003-mutate-publication-visibility
     inputOverlayOps:
       - file: "apis.yaml"
         match: "apis[?ref=='sms'].publications[?ref=='sms-api-to-getting-started'] | [0]"
