@@ -22,10 +22,13 @@
       "dependencyDashboardApproval": true
     },
     {
-      "description": "Disable minimumReleaseAge for gh-aw to allow immediate updates",
+      "description": "Batch gh-aw updates weekly after a short aging period to reduce daily churn",
       "matchManagers": ["github-actions"],
       "matchPackageNames": ["github/gh-aw"],
-      "minimumReleaseAge": null
+      "internalChecksFilter": "strict",
+      "minimumReleaseAge": "3 days",
+      "schedule": ["every weekend"],
+      "updateNotScheduled": false
     }
   ]
 }
