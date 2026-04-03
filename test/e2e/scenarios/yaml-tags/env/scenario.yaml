@@ -476,7 +476,7 @@ steps:
     inputOverlayDirs:
       - overlays/010-missing-key
     env:
-      KONGCTL_E2E_ENV_JSON_VAR: '{"display_name":"My Portal"}'
+      KONGCTL_E2E_ENV_JSON_VAR: '{"active":true}'
     commands:
       - name: 000-plan-missing-key
         outputFormat: disable
