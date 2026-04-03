@@ -1,0 +1,8 @@
+_defaults:
+  kongctl:
+    namespace: yaml-env-tags-errors
+
+portals:
+  - ref: invalid-json-portal
+    name: invalid-json-portal
+    description: !env KONGCTL_E2E_ENV_JSON_VAR#key

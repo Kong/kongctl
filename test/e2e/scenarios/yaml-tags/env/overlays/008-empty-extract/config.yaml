@@ -1,0 +1,8 @@
+_defaults:
+  kongctl:
+    namespace: yaml-env-tags-errors
+
+portals:
+  - ref: empty-extract-portal
+    name: empty-extract-portal
+    description: !env KONGCTL_E2E_ENV_SOME_VAR#

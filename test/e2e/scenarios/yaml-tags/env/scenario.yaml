@@ -435,3 +435,57 @@ steps:
         expectFailure:
           exitCode: 1
           contains: "!env currently supports string-typed fields only"
+
+  - name: 008-empty-extract-path-error
+    inputOverlayDirs:
+      - overlays/008-empty-extract
+    env:
+      KONGCTL_E2E_ENV_SOME_VAR: any-value
+    commands:
+      - name: 000-plan-empty-extract
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: "!env tag extract path cannot be empty after #"
+
+  - name: 009-invalid-json-in-env
+    inputOverlayDirs:
+      - overlays/009-invalid-json
+    env:
+      KONGCTL_E2E_ENV_JSON_VAR: "{unclosed"
+    commands:
+      - name: 000-plan-invalid-json
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: "failed to parse environment variable"
+
+  - name: 010-extract-key-not-found
+    inputOverlayDirs:
+      - overlays/010-missing-key
+    env:
+      KONGCTL_E2E_ENV_JSON_VAR: '{"active":true}'
+    commands:
+      - name: 000-plan-missing-key
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: "failed to extract"
