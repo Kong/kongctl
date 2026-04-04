@@ -112,6 +112,9 @@ func newGetEventGatewayVirtualClustersCmd(
 	producePoliciesCmd := newGetEventGatewayProducePoliciesCmd(verb, addParentFlags, parentPreRun)
 	if producePoliciesCmd != nil {
 		cmd.AddCommand(producePoliciesCmd)
+	consumePoliciesCmd := newGetEventGatewayConsumePoliciesCmd(verb, addParentFlags, parentPreRun)
+	if consumePoliciesCmd != nil {
+		cmd.AddCommand(consumePoliciesCmd)
 	}
 
 	return cmd

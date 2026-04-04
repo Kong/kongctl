@@ -115,6 +115,17 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 					return err
 				}
 			}
+			// Plan consume policies for this new virtual cluster (depends on virtual cluster creation)
+			consumePolicies := p.resources.GetConsumePoliciesForVirtualCluster(desiredCluster.Ref)
+			if len(consumePolicies) > 0 {
+				if err := p.planEventGatewayConsumePolicyChanges(
+					ctx, nil, namespace, gatewayID, gatewayRef,
+					desiredCluster.Name, "", desiredCluster.Ref,
+					virtualClusterChangeID, consumePolicies, plan,
+				); err != nil {
+					return err
+				}
+			}
 		} else {
 			// CHECK UPDATE
 			p.logger.Debug("Checking if virtual cluster needs update",
@@ -160,6 +171,17 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 					ctx, nil, namespace, gatewayID, gatewayRef,
 					desiredCluster.Name, current.ID, desiredCluster.Ref,
 					"", producePolicies, plan,
+				); err != nil {
+					return err
+				}
+			}
+			// Plan consume policies for this existing virtual cluster
+			consumePolicies := p.resources.GetConsumePoliciesForVirtualCluster(desiredCluster.Ref)
+			if len(consumePolicies) > 0 || plan.Metadata.Mode == PlanModeSync {
+				if err := p.planEventGatewayConsumePolicyChanges(
+					ctx, nil, namespace, gatewayID, gatewayRef,
+					desiredCluster.Name, current.ID, desiredCluster.Ref,
+					"", consumePolicies, plan,
 				); err != nil {
 					return err
 				}
@@ -229,6 +251,17 @@ func (p *Planner) planVirtualClusterCreatesForNewGateway(
 				ctx, nil, namespace, "", gatewayRef,
 				cluster.Name, "", cluster.Ref,
 				virtualClusterChangeID, producePolicies, plan,
+			); err != nil {
+				return err
+			}
+		}
+		// Plan consume policies for this new virtual cluster (depends on virtual cluster creation)
+		consumePolicies := p.resources.GetConsumePoliciesForVirtualCluster(cluster.Ref)
+		if len(consumePolicies) > 0 {
+			if err := p.planEventGatewayConsumePolicyChanges(
+				ctx, nil, namespace, "", gatewayRef,
+				cluster.Name, "", cluster.Ref,
+				virtualClusterChangeID, consumePolicies, plan,
 			); err != nil {
 				return err
 			}

@@ -37,6 +37,7 @@ const (
 	ResourceTypeEventGatewayDataPlaneCertificate ResourceType = "event_gateway_data_plane_certificate"
 	ResourceTypeEventGatewayClusterPolicy        ResourceType = "event_gateway_virtual_cluster_cluster_policy"
 	ResourceTypeEventGatewayProducePolicy        ResourceType = "event_gateway_virtual_cluster_produce_policy"
+	ResourceTypeEventGatewayConsumePolicy        ResourceType = "event_gateway_virtual_cluster_consume_policy"
 )
 
 const (
@@ -89,6 +90,7 @@ type ResourceSet struct {
 	EventGatewayListenerPolicies      []EventGatewayListenerPolicyResource       `yaml:"event_gateway_listener_policies,omitempty" json:"event_gateway_listener_policies,omitempty"`                               //nolint:lll
 	EventGatewayClusterPolicies       []EventGatewayClusterPolicyResource        `yaml:"event_gateway_virtual_cluster_cluster_policies,omitempty" json:"event_gateway_virtual_cluster_cluster_policies,omitempty"` //nolint:lll
 	EventGatewayProducePolicies       []EventGatewayProducePolicyResource        `yaml:"event_gateway_virtual_cluster_produce_policies,omitempty" json:"event_gateway_virtual_cluster_produce_policies,omitempty"` //nolint:lll
+	EventGatewayConsumePolicies       []EventGatewayConsumePolicyResource        `yaml:"event_gateway_virtual_cluster_consume_policies,omitempty" json:"event_gateway_virtual_cluster_consume_policies,omitempty"` //nolint:lll
 	EventGatewayDataPlaneCertificates []EventGatewayDataPlaneCertificateResource `yaml:"event_gateway_data_plane_certificates,omitempty" json:"event_gateway_data_plane_certificates,omitempty"`                   //nolint:lll
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
@@ -835,6 +837,47 @@ func (rs *ResourceSet) GetProducePoliciesForVirtualCluster(
 
 	// Add root-level produce policies for this virtual cluster
 	for _, policy := range rs.EventGatewayProducePolicies {
+		if policy.VirtualCluster == virtualClusterRef {
+			policies = append(policies, policy)
+		}
+	}
+
+	return policies
+}
+
+// GetConsumePoliciesForVirtualCluster returns all consume policies (nested + root-level)
+// for a specific virtual cluster.
+func (rs *ResourceSet) GetConsumePoliciesForVirtualCluster(
+	virtualClusterRef string,
+) []EventGatewayConsumePolicyResource {
+	var policies []EventGatewayConsumePolicyResource
+
+	// Add nested consume policies from virtual clusters inside event gateways
+	for _, gateway := range rs.EventGatewayControlPlanes {
+		for _, vc := range gateway.VirtualClusters {
+			if vc.Ref == virtualClusterRef {
+				for _, policy := range vc.ConsumePolicies {
+					policyCopy := policy
+					policyCopy.VirtualCluster = virtualClusterRef
+					policies = append(policies, policyCopy)
+				}
+			}
+		}
+	}
+
+	// Check root-level virtual clusters
+	for _, vc := range rs.EventGatewayVirtualClusters {
+		if vc.Ref == virtualClusterRef {
+			for _, policy := range vc.ConsumePolicies {
+				policyCopy := policy
+				policyCopy.VirtualCluster = virtualClusterRef
+				policies = append(policies, policyCopy)
+			}
+		}
+	}
+
+	// Add root-level consume policies for this virtual cluster
+	for _, policy := range rs.EventGatewayConsumePolicies {
 		if policy.VirtualCluster == virtualClusterRef {
 			policies = append(policies, policy)
 		}
