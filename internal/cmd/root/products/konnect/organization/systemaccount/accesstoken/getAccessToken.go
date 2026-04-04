@@ -36,6 +36,7 @@ func newGetAccessTokenCmd(
 			Short:   "List or get Konnect system account access tokens",
 			Long:    `Use the get verb with the access-token command to query system account access tokens.`,
 			Aliases: base.Aliases,
+			Args:    cobra.RangeArgs(1, 2),
 			PreRunE: parentPreRun,
 		},
 	}
@@ -133,10 +134,6 @@ func renderAccessTokenList(
 func (g *getAccessTokenCmd) runE(c *cobra.Command, args []string) error {
 	helper := cmd.BuildHelper(c, args)
 
-	if len(args) == 0 {
-		return fmt.Errorf("system account ID or name is required as the first argument")
-	}
-
 	logger, err := helper.GetLogger()
 	if err != nil {
 		return err
@@ -168,17 +165,6 @@ func (g *getAccessTokenCmd) runE(c *cobra.Command, args []string) error {
 		return err
 	}
 
-	// 1 arg: list all access tokens for the system account
-	if len(args) == 1 {
-		tokens, err := runListAccessTokens(accountID, sdk.GetSystemAccountAccessTokenAPI(), helper, cfg)
-		if err != nil {
-			return err
-		}
-
-		return renderAccessTokenList(helper, helper.GetCmd().Name(), outType, printer, tokens)
-	}
-
-	// 2 args: get specific access token
 	if len(args) == 2 {
 		token, err := runGetAccessToken(accountID, args[1], sdk.GetSystemAccountAccessTokenAPI(), helper)
 		if err != nil {
@@ -201,7 +187,12 @@ func (g *getAccessTokenCmd) runE(c *cobra.Command, args []string) error {
 		)
 	}
 
-	return fmt.Errorf("too many arguments")
+	tokens, err := runListAccessTokens(accountID, sdk.GetSystemAccountAccessTokenAPI(), helper, cfg)
+	if err != nil {
+		return err
+	}
+
+	return renderAccessTokenList(helper, helper.GetCmd().Name(), outType, printer, tokens)
 }
 
 func resolveSystemAccountID(

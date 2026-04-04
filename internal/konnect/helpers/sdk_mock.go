@@ -18,9 +18,9 @@ type MockKonnectSDK struct {
 	AppAuthStrategiesFactory  func() AppAuthStrategiesAPI
 	MeFactory                 func() MeAPI
 	GatewayServiceFactory     func() GatewayServiceAPI
-	SystemAccountFactory             func() SystemAccountAPI
-	SystemAccountAccessTokenFactory  func() SystemAccountAccessTokenAPI
-	OrganizationTeamFactory          func() OrganizationTeamAPI
+	SystemAccountFactory            func() SystemAccountAPI
+	SystemAccountAccessTokenFactory func() SystemAccountAccessTokenAPI
+	OrganizationTeamFactory         func() OrganizationTeamAPI
 	// Portal child resource factories
 	PortalPageFactory                    func() PortalPageAPI
 	PortalAuthSettingsFactory            func() PortalAuthSettingsAPI

@@ -79,14 +79,6 @@ func newCreateAccessTokenCmd(
 	return c
 }
 
-type createdTokenDisplayRecord struct {
-	ID        string
-	Name      string
-	Token     string
-	ExpiresAt string
-	CreatedAt string
-}
-
 func (cc *createAccessTokenCmd) runE(cobraCmd *cobra.Command, args []string) error {
 	helper := cmd.BuildHelper(cobraCmd, args)
 
