@@ -3,6 +3,7 @@ package systemaccount
 import (
 	"fmt"
 
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization/systemaccount/accesstoken"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -47,9 +48,34 @@ func NewSystemAccountCmd(
 
 	// Handle supported verbs
 	if verb == verbs.Get || verb == verbs.List {
-		return newGetSystemAccountCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
+		cmd := newGetSystemAccountCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command
+		if err := addAccessTokenChild(cmd, verb, addParentFlags, parentPreRun); err != nil {
+			return nil, err
+		}
+		return cmd, nil
+	}
+
+	if verb == verbs.Create || verb == verbs.Delete {
+		if err := addAccessTokenChild(&baseCmd, verb, addParentFlags, parentPreRun); err != nil {
+			return nil, err
+		}
+		return &baseCmd, nil
 	}
 
 	// Return base command for unsupported verbs
 	return &baseCmd, nil
+}
+
+func addAccessTokenChild(
+	parent *cobra.Command,
+	verb verbs.VerbValue,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) error {
+	atCmd, err := accesstoken.NewAccessTokenCmd(verb, addParentFlags, parentPreRun)
+	if err != nil {
+		return err
+	}
+	parent.AddCommand(atCmd)
+	return nil
 }
