@@ -56,9 +56,9 @@ func parseEnvNode(node *yaml.Node) (string, string, error) {
 	case yaml.ScalarNode:
 		varRef := node.Value
 		extractPath := ""
-		if idx := strings.Index(varRef, "#"); idx != -1 {
-			extractPath = varRef[idx+1:]
-			varRef = varRef[:idx]
+		if before, after, found := strings.Cut(varRef, "#"); found {
+			extractPath = after
+			varRef = before
 		}
 		if strings.TrimSpace(varRef) == "" {
 			return "", "", fmt.Errorf("!env tag requires an environment variable name")
@@ -76,8 +76,6 @@ func parseEnvNode(node *yaml.Node) (string, string, error) {
 			return "", "", fmt.Errorf("!env tag requires 'var' field")
 		}
 		return strings.TrimSpace(envRef.Var), strings.TrimSpace(envRef.Extract), nil
-	case yaml.DocumentNode, yaml.SequenceNode, yaml.AliasNode:
-		return "", "", fmt.Errorf("!env tag must be used with a string or map, got %v", node.Kind)
 	default:
 		return "", "", fmt.Errorf("!env tag must be used with a string or map, got %v", node.Kind)
 	}
@@ -129,8 +127,8 @@ func ParseEnvPlaceholder(placeholder string) (varRef, extractPath string, ok boo
 	if raw == "" {
 		return "", "", false
 	}
-	if idx := strings.Index(raw, "#"); idx != -1 {
-		return raw[:idx], raw[idx+1:], true
+	if before, after, found := strings.Cut(raw, "#"); found {
+		return before, after, true
 	}
 	return raw, "", true
 }

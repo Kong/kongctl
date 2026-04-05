@@ -206,6 +206,8 @@ func parseStructuredFieldTag(tag string) (name string, inline bool, skip bool) {
 	return name, inline, false
 }
 
+var jsonPointerEscaper = strings.NewReplacer("~", "~0", "/", "~1")
+
 func pointerPath(segments []string) string {
 	if len(segments) == 0 {
 		return ""
@@ -214,7 +216,7 @@ func pointerPath(segments []string) string {
 	var builder strings.Builder
 	for _, segment := range segments {
 		builder.WriteByte('/')
-		builder.WriteString(strings.NewReplacer("~", "~0", "/", "~1").Replace(segment))
+		builder.WriteString(jsonPointerEscaper.Replace(segment))
 	}
 	return builder.String()
 }
