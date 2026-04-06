@@ -12,7 +12,7 @@ tools:
     toolsets: [default]
 safe-outputs:
   create-issue:
-    expires: 1d
+    expires: 5d
     title-prefix: "[simplifier] "
     labels:
     - refactoring
