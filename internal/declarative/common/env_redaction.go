@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"reflect"
+	"slices"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/tags"
@@ -26,15 +27,8 @@ func SanitizeDeferredEnvValue(value any) any {
 }
 
 func HasDeferredEnvReference(ref planner.ReferenceInfo) bool {
-	if tags.IsEnvPlaceholder(ref.Ref) {
-		return true
-	}
-	for _, candidate := range ref.Refs {
-		if tags.IsEnvPlaceholder(candidate) {
-			return true
-		}
-	}
-	return false
+	return tags.IsEnvPlaceholder(ref.Ref) ||
+		slices.ContainsFunc(ref.Refs, tags.IsEnvPlaceholder)
 }
 
 func sanitizeDeferredEnvReflect(value reflect.Value) (reflect.Value, bool) {

@@ -356,6 +356,8 @@ func referenceFieldCandidates(segments []string) []string {
 	return uniqueDeferredEnvStrings(candidates)
 }
 
+var jsonPointerDecoder = strings.NewReplacer("~1", "/", "~0", "~")
+
 func decodeJSONPointer(path string) []string {
 	trimmed := strings.TrimPrefix(path, "/")
 	if trimmed == "" {
@@ -365,7 +367,7 @@ func decodeJSONPointer(path string) []string {
 	parts := strings.Split(trimmed, "/")
 	segments := make([]string, 0, len(parts))
 	for _, part := range parts {
-		segments = append(segments, strings.NewReplacer("~1", "/", "~0", "~").Replace(part))
+		segments = append(segments, jsonPointerDecoder.Replace(part))
 	}
 	return segments
 }
@@ -464,10 +466,6 @@ func assignReflectValue(target reflect.Value, value reflect.Value) bool {
 	}
 	if value.Type().ConvertibleTo(target.Type()) {
 		target.Set(value.Convert(target.Type()))
-		return true
-	}
-	if target.Kind() == reflect.Interface && value.Type().AssignableTo(target.Type()) {
-		target.Set(value)
 		return true
 	}
 	return false
