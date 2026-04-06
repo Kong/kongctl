@@ -96,15 +96,31 @@ func (p *Planner) planProducePolicyChangesForExistingVirtualCluster(
 		} else {
 			needsUpdate, updateFields, changedFields := p.shouldUpdateProducePolicy(current, desiredPolicy)
 			if needsUpdate {
-				p.logger.Debug("Planning produce policy UPDATE",
-					"policy_name", policyName,
-					"policy_id", current.ID,
-					"update_fields", updateFields,
-				)
-				p.planProducePolicyUpdate(
-					namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
-					current.ID, desiredPolicy, updateFields, changedFields, plan,
-				)
+				if _, typeChanged := changedFields["type"]; typeChanged {
+					// Type changes are not supported by the API; force DELETE + CREATE.
+					p.logger.Debug("Planning produce policy DELETE+CREATE due to type change",
+						"policy_name", policyName,
+						"policy_id", current.ID,
+					)
+					p.planProducePolicyDelete(
+						gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
+						current.ID, policyName, plan,
+					)
+					p.planProducePolicyCreate(
+						namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef, virtualClusterName,
+						desiredPolicy, []string{}, plan,
+					)
+				} else {
+					p.logger.Debug("Planning produce policy UPDATE",
+						"policy_name", policyName,
+						"policy_id", current.ID,
+						"update_fields", updateFields,
+					)
+					p.planProducePolicyUpdate(
+						namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
+						current.ID, desiredPolicy, updateFields, changedFields, plan,
+					)
+				}
 			}
 		}
 	}
@@ -352,6 +368,21 @@ func (p *Planner) shouldUpdateProducePolicy(
 	var needsUpdate bool
 	changes := make(map[string]FieldChange)
 
+	// Type comparison - type changes are not supported by the API and require a DELETE+CREATE.
+	currentType := current.Type
+	desiredType := ""
+	if desired.EventGatewayModifyHeadersPolicyCreate != nil {
+		desiredType = desired.EventGatewayModifyHeadersPolicyCreate.GetType()
+	} else if desired.EventGatewayProduceSchemaValidationPolicy != nil {
+		desiredType = desired.EventGatewayProduceSchemaValidationPolicy.GetType()
+	} else if desired.EventGatewayEncryptPolicy != nil {
+		desiredType = desired.EventGatewayEncryptPolicy.GetType()
+	}
+	if currentType != desiredType {
+		needsUpdate = true
+		changes["type"] = FieldChange{Old: currentType, New: desiredType}
+	}
+
 	desiredName := desired.GetMoniker()
 	currentName := ""
 	if current.Name != nil && *current.Name != "" {
@@ -425,7 +456,6 @@ func (p *Planner) shouldUpdateProducePolicy(
 	var updateFields map[string]any
 	if needsUpdate {
 		updateFields = p.producePolicyToFields(desired)
-		updateFields[FieldCurrentConfig] = current.RawConfig
 		// Include current labels to allow the executor to remove labels when needed
 		updateFields[FieldCurrentLabels] = current.Labels
 	}

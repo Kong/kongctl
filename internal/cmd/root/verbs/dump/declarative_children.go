@@ -1364,6 +1364,12 @@ func convertProducePolicyToResource(
 	if policy.Labels != nil {
 		policyMap["labels"] = policy.Labels
 	}
+	if policy.Condition != nil {
+		policyMap["condition"] = *policy.Condition
+	}
+	if policy.ParentPolicyID != nil {
+		policyMap["parent_policy_id"] = *policy.ParentPolicyID
+	}
 
 	data, err := json.Marshal(policyMap)
 	if err != nil {
