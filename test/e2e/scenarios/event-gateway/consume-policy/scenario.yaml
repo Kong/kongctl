@@ -310,6 +310,7 @@ steps:
                 name: "{{ .vars.consumePolicyName }}"
                 description: "{{ .vars.consumePolicyDescription }}"
                 enabled: true
+                type: decrypt
                 labels:
                   env: staging
                   team: payments

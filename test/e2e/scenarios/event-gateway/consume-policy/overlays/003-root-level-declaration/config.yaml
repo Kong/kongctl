@@ -37,13 +37,14 @@ event_gateway_virtual_cluster_consume_policies:
     description: Default Consume Policy description
     event_gateway: egw-cp-for-vc-consume-policy-test
     virtual_cluster: default-virtual-cluster-for-consume-policy-test
-    type: modify_headers
+    type: decrypt
     enabled: true
     labels:
       env: staging
       team: payments
     config:
-      actions:
-        - op: set
-          key: x-env
-          value: staging
+      failure_mode: passthrough
+      part_of_record:
+      - key
+      key_sources:
+        - type: aws
