@@ -52,7 +52,7 @@ func sanitizeDeferredEnvReflect(value reflect.Value) (reflect.Value, bool) {
 			return value, false
 		}
 		ptr := reflect.New(value.Type().Elem())
-		if !assignSanitizedReflectValue(ptr.Elem(), sanitized) {
+		if !tags.AssignReflectValue(ptr.Elem(), sanitized) {
 			return value, false
 		}
 		return ptr, true
@@ -69,7 +69,7 @@ func sanitizeDeferredEnvReflect(value reflect.Value) (reflect.Value, bool) {
 			sanitized, childChanged := sanitizeDeferredEnvReflect(iter.Value())
 			if childChanged {
 				changed = true
-				if !setSanitizedMapValue(copied, iter.Key(), sanitized) {
+				if !tags.SetMapValue(copied, iter.Key(), sanitized) {
 					return value, false
 				}
 				continue
@@ -87,7 +87,7 @@ func sanitizeDeferredEnvReflect(value reflect.Value) (reflect.Value, bool) {
 			sanitized, childChanged := sanitizeDeferredEnvReflect(value.Index(i))
 			if childChanged {
 				changed = true
-				if !assignSanitizedReflectValue(copied.Index(i), sanitized) {
+				if !tags.AssignReflectValue(copied.Index(i), sanitized) {
 					return value, false
 				}
 				continue
@@ -105,7 +105,7 @@ func sanitizeDeferredEnvReflect(value reflect.Value) (reflect.Value, bool) {
 			sanitized, childChanged := sanitizeDeferredEnvReflect(value.Index(i))
 			if childChanged {
 				changed = true
-				if !assignSanitizedReflectValue(copied.Index(i), sanitized) {
+				if !tags.AssignReflectValue(copied.Index(i), sanitized) {
 					return value, false
 				}
 				continue
@@ -137,7 +137,7 @@ func sanitizeDeferredEnvReflect(value reflect.Value) (reflect.Value, bool) {
 				continue
 			}
 			changed = true
-			if !assignSanitizedReflectValue(target, sanitized) {
+			if !tags.AssignReflectValue(target, sanitized) {
 				return value, false
 			}
 		}
@@ -150,26 +150,3 @@ func sanitizeDeferredEnvReflect(value reflect.Value) (reflect.Value, bool) {
 	}
 }
 
-func assignSanitizedReflectValue(target reflect.Value, value reflect.Value) bool {
-	if !target.CanSet() || !value.IsValid() {
-		return false
-	}
-	if value.Type().AssignableTo(target.Type()) {
-		target.Set(value)
-		return true
-	}
-	if value.Type().ConvertibleTo(target.Type()) {
-		target.Set(value.Convert(target.Type()))
-		return true
-	}
-	return false
-}
-
-func setSanitizedMapValue(target reflect.Value, key reflect.Value, value reflect.Value) bool {
-	elem := reflect.New(target.Type().Elem()).Elem()
-	if !assignSanitizedReflectValue(elem, value) {
-		return false
-	}
-	target.SetMapIndex(key, elem)
-	return true
-}

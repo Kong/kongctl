@@ -1,13 +1,17 @@
 package planner
 
 import (
+	"maps"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
+
+var jsonPointerDecoder = strings.NewReplacer("~1", "/", "~0", "~")
 
 const deferredEnvWarningMessage = "" +
 	"Contains deferred !env values. Execution resolves them from the current " +
@@ -152,7 +156,7 @@ func applyDeferredEnvPlaceholderValue(value any, segments []string, placeholder 
 			return typed, true
 		case map[string]any:
 			if isFieldChangeMap(typed) {
-				copied := cloneMap(typed)
+				copied := maps.Clone(typed)
 				copied["new"] = placeholder
 				return copied, true
 			}
@@ -175,7 +179,7 @@ func applyDeferredEnvPlaceholderValue(value any, segments []string, placeholder 
 			if !changed {
 				return value, false
 			}
-			copied := cloneMap(typed)
+			copied := maps.Clone(typed)
 			copied["new"] = updated
 			return copied, true
 		}
@@ -213,7 +217,7 @@ func applyDeferredEnvPlaceholderReflect(
 			return value, false
 		}
 		ptr := reflect.New(value.Type().Elem())
-		if !assignReflectValue(ptr.Elem(), updated) {
+		if !tags.AssignReflectValue(ptr.Elem(), updated) {
 			return value, false
 		}
 		return ptr, true
@@ -235,7 +239,7 @@ func applyDeferredEnvPlaceholderReflect(
 		for iter.Next() {
 			copied.SetMapIndex(iter.Key(), iter.Value())
 		}
-		if !setReflectMapValue(copied, key, updated) {
+		if !tags.SetMapValue(copied, key, updated) {
 			return value, false
 		}
 		return copied, true
@@ -253,7 +257,7 @@ func applyDeferredEnvPlaceholderReflect(
 		}
 		copied := reflect.MakeSlice(value.Type(), value.Len(), value.Len())
 		reflect.Copy(copied, value)
-		if !assignReflectValue(copied.Index(index), updated) {
+		if !tags.AssignReflectValue(copied.Index(index), updated) {
 			return value, false
 		}
 		return copied, true
@@ -271,7 +275,7 @@ func applyDeferredEnvPlaceholderReflect(
 		if !changed {
 			return value, false
 		}
-		if !assignReflectValue(copied.Index(index), updated) {
+		if !tags.AssignReflectValue(copied.Index(index), updated) {
 			return value, false
 		}
 		return copied, true
@@ -289,7 +293,7 @@ func applyDeferredEnvPlaceholderReflect(
 		}
 		copied := reflect.New(value.Type()).Elem()
 		copied.Set(value)
-		if !assignReflectValue(copied.Field(fieldIndex), updated) {
+		if !tags.AssignReflectValue(copied.Field(fieldIndex), updated) {
 			return value, false
 		}
 		return copied, true
@@ -355,8 +359,6 @@ func referenceFieldCandidates(segments []string) []string {
 	candidates = append(candidates, segments[0])
 	return uniqueDeferredEnvStrings(candidates)
 }
-
-var jsonPointerDecoder = strings.NewReplacer("~1", "/", "~0", "~")
 
 func decodeJSONPointer(path string) []string {
 	trimmed := strings.TrimPrefix(path, "/")
@@ -428,54 +430,18 @@ func deferredEnvStructFieldName(field reflect.StructField) (string, bool) {
 }
 
 func parsedStructFieldName(tag string) (string, bool) {
-	if tag == "-" {
+	if tag == "" || tag == "-" {
 		return "", false
 	}
-	if tag == "" {
+	name, _, _ := strings.Cut(tag, ",")
+	if name == "" {
 		return "", false
 	}
-
-	parts := strings.Split(tag, ",")
-	if len(parts) == 0 || parts[0] == "" {
-		return "", false
-	}
-	return parts[0], true
+	return name, true
 }
 
 func isFieldChangeMap(value map[string]any) bool {
 	_, hasOld := value["old"]
 	_, hasNew := value["new"]
 	return hasOld && hasNew
-}
-
-func cloneMap(value map[string]any) map[string]any {
-	copied := make(map[string]any, len(value))
-	for key, item := range value {
-		copied[key] = item
-	}
-	return copied
-}
-
-func assignReflectValue(target reflect.Value, value reflect.Value) bool {
-	if !target.CanSet() || !value.IsValid() {
-		return false
-	}
-	if value.Type().AssignableTo(target.Type()) {
-		target.Set(value)
-		return true
-	}
-	if value.Type().ConvertibleTo(target.Type()) {
-		target.Set(value.Convert(target.Type()))
-		return true
-	}
-	return false
-}
-
-func setReflectMapValue(target reflect.Value, key reflect.Value, value reflect.Value) bool {
-	elem := reflect.New(target.Type().Elem()).Elem()
-	if !assignReflectValue(elem, value) {
-		return false
-	}
-	target.SetMapIndex(key, elem)
-	return true
 }

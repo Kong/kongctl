@@ -52,19 +52,16 @@ func (r *EnvTagResolver) Resolve(node *yaml.Node) (any, error) {
 }
 
 func parseEnvNode(node *yaml.Node) (string, string, error) {
-	//nolint:exhaustive // DocumentNode, SequenceNode, and AliasNode are all unsupported and handled by default.
+	//nolint:exhaustive // DocumentNode, SequenceNode, and AliasNode are all handled by the default case.
 	switch node.Kind {
 	case yaml.ScalarNode:
-		varRef := node.Value
-		extractPath := ""
-		if before, after, found := strings.Cut(varRef, "#"); found {
-			extractPath = after
-			varRef = before
-		}
+		varRef, extractPath, hasDelim := strings.Cut(node.Value, "#")
 		if strings.TrimSpace(varRef) == "" {
 			return "", "", fmt.Errorf("!env tag requires an environment variable name")
 		}
-		if extractPath == "" && strings.HasSuffix(node.Value, "#") {
+		// strings.Cut sets extractPath="" when "#" is absent; only error when "#"
+		// was present but nothing follows it.
+		if hasDelim && strings.TrimSpace(extractPath) == "" {
 			return "", "", fmt.Errorf("!env tag extract path cannot be empty after #")
 		}
 		return strings.TrimSpace(varRef), strings.TrimSpace(extractPath), nil

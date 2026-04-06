@@ -132,7 +132,7 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 		if resolved == nil {
 			return ptr.Interface(), nil
 		}
-		if !assignResolvedReflectValue(ptr.Elem(), reflect.ValueOf(resolved)) {
+		if !tags.AssignReflectValue(ptr.Elem(), reflect.ValueOf(resolved)) {
 			return value.Interface(), nil
 		}
 		return ptr.Interface(), nil
@@ -155,7 +155,7 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 				continue
 			}
 			entryValue := reflect.ValueOf(entry)
-			if !setResolvedMapValue(resolved, iter.Key(), entryValue) {
+			if !tags.SetMapValue(resolved, iter.Key(), entryValue) {
 				resolved.SetMapIndex(iter.Key(), iter.Value())
 			}
 		}
@@ -170,7 +170,7 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 			if entry == nil {
 				continue
 			}
-			if !assignResolvedReflectValue(resolved.Index(i), reflect.ValueOf(entry)) {
+			if !tags.AssignReflectValue(resolved.Index(i), reflect.ValueOf(entry)) {
 				resolved.Index(i).Set(value.Index(i))
 			}
 		}
@@ -185,7 +185,7 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 			if entry == nil {
 				continue
 			}
-			if !assignResolvedReflectValue(resolved.Index(i), reflect.ValueOf(entry)) {
+			if !tags.AssignReflectValue(resolved.Index(i), reflect.ValueOf(entry)) {
 				resolved.Index(i).Set(value.Index(i))
 			}
 		}
@@ -215,7 +215,7 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 			if entry == nil {
 				continue
 			}
-			if !assignResolvedReflectValue(target, reflect.ValueOf(entry)) {
+			if !tags.AssignReflectValue(target, reflect.ValueOf(entry)) {
 				target.Set(field)
 			}
 		}
@@ -223,30 +223,6 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 	default:
 		return value.Interface(), nil
 	}
-}
-
-func assignResolvedReflectValue(target reflect.Value, value reflect.Value) bool {
-	if !target.CanSet() || !value.IsValid() {
-		return false
-	}
-	if value.Type().AssignableTo(target.Type()) {
-		target.Set(value)
-		return true
-	}
-	if value.Type().ConvertibleTo(target.Type()) {
-		target.Set(value.Convert(target.Type()))
-		return true
-	}
-	return false
-}
-
-func setResolvedMapValue(target reflect.Value, key reflect.Value, value reflect.Value) bool {
-	elem := reflect.New(target.Type().Elem()).Elem()
-	if !assignResolvedReflectValue(elem, value) {
-		return false
-	}
-	target.SetMapIndex(key, elem)
-	return true
 }
 
 func actualRefForExecution(ref string) (string, error) {
