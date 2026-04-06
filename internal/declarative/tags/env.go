@@ -52,6 +52,7 @@ func (r *EnvTagResolver) Resolve(node *yaml.Node) (any, error) {
 }
 
 func parseEnvNode(node *yaml.Node) (string, string, error) {
+	//nolint:exhaustive // DocumentNode, SequenceNode, and AliasNode are all unsupported and handled by default.
 	switch node.Kind {
 	case yaml.ScalarNode:
 		varRef := node.Value
