@@ -32,7 +32,7 @@ vars:
   producePolicyRef: plan-apply-produce-policy
   producePolicyName: plan-apply-produce-policy-name-for-test
   producePolicyDesc: "Plan Apply Produce Policy description"
-  consumePolicyRef: 019d62bd-e0fd-79e3-b523-9e2fcbe6284f
+  consumePolicyRef: plan-apply-consume-policy
   consumePolicyName: skip-record-policy
 
 defaults:

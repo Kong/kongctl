@@ -36,7 +36,7 @@ event_gateways:
           description: description
           enabled: true
           name: skip-record-policy
-          ref: 019d62bd-e0fd-79e3-b523-9e2fcbe6284f
+          ref: plan-apply-consume-policy
           type: skip_record
         cluster_policies:
           - ref: plan-apply-cluster-policy

@@ -16,12 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// ptr is a helper to create string pointers in tests.
-func ptr(s string) *string { return &s }
-
-// boolPtr is a helper to create bool pointers in tests.
-func boolPtr(b bool) *bool { return &b }
-
 func TestConsumePolicyFlagValidation(t *testing.T) {
 	tests := []struct {
 		name    string
