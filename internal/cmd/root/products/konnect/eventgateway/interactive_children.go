@@ -22,6 +22,7 @@ func init() {
 	tableview.RegisterChildLoader("listener", "policies", loadEventGatewayListenerPolicies)
 	tableview.RegisterChildLoader("virtual-cluster", "cluster-policies", loadEventGatewayVirtualClusterClusterPolicies)
 	tableview.RegisterChildLoader("virtual-cluster", "produce-policies", loadEventGatewayVirtualClusterProducePolicies)
+	tableview.RegisterChildLoader("virtual-cluster", "consume-policies", loadEventGatewayVirtualClusterConsumePolicies)
 }
 
 func loadEventGatewayBackendClusters(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
@@ -294,6 +295,44 @@ func loadEventGatewayVirtualClusterProducePolicies(
 	}
 
 	return buildProducePolicyChildView(rawPolicies), nil
+}
+
+func loadEventGatewayVirtualClusterConsumePolicies(
+	_ context.Context,
+	helper cmd.Helper,
+	parent any,
+) (tableview.ChildView, error) {
+	gatewayID, virtualClusterID, err := virtualClusterIDsFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	policyAPI := sdk.GetEventGatewayConsumePolicyAPI()
+	if policyAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("event gateway consume policy client is not available")
+	}
+
+	_, rawPolicies, err := fetchConsumePolicies(helper, policyAPI, gatewayID, virtualClusterID)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	return buildConsumePolicyChildView(rawPolicies), nil
 }
 
 func virtualClusterIDsFromParent(parent any) (string, string, error) {

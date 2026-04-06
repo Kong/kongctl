@@ -527,3 +527,112 @@ func consumePolicyToRecord(policy kkComps.EventGatewayPolicy) consumePolicySumma
 		LocalUpdatedTime: policy.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05"),
 	}
 }
+
+func consumePolicyWithConfigToRecord(policy consumePolicyWithConfig) consumePolicySummaryRecord {
+	id := policy.ID
+	if id != "" {
+		id = util.AbbreviateUUID(id)
+	} else {
+		id = valueNA
+	}
+
+	name := valueNA
+	if policy.Name != nil && *policy.Name != "" {
+		name = *policy.Name
+	}
+
+	policyType := policy.Type
+	if policyType == "" {
+		policyType = valueNA
+	}
+
+	desc := valueNA
+	if policy.Description != nil && *policy.Description != "" {
+		desc = *policy.Description
+	}
+
+	return consumePolicySummaryRecord{
+		ID:               id,
+		Name:             name,
+		Type:             policyType,
+		Description:      desc,
+		Enabled:          formatEnabledBool(policy.Enabled),
+		LocalCreatedTime: policy.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05"),
+		LocalUpdatedTime: policy.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05"),
+	}
+}
+
+func consumePolicyWithConfigDetailView(policy *consumePolicyWithConfig) string {
+	if policy == nil {
+		return ""
+	}
+
+	id := strings.TrimSpace(policy.ID)
+	if id == "" {
+		id = valueNA
+	}
+
+	policyType := strings.TrimSpace(policy.Type)
+	if policyType == "" {
+		policyType = valueNA
+	}
+
+	name := valueNA
+	if policy.Name != nil && strings.TrimSpace(*policy.Name) != "" {
+		name = strings.TrimSpace(*policy.Name)
+	}
+
+	description := valueNA
+	if policy.Description != nil && strings.TrimSpace(*policy.Description) != "" {
+		description = strings.TrimSpace(*policy.Description)
+	}
+
+	enabled := formatEnabledBool(policy.Enabled)
+	labels := formatLabelPairs(policy.Labels)
+	config := formatJSONValue(policy.Config)
+
+	createdAt := policy.CreatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+	updatedAt := policy.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05")
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "id: %s\n", id)
+	fmt.Fprintf(&b, "type: %s\n", policyType)
+	fmt.Fprintf(&b, "name: %s\n", name)
+	fmt.Fprintf(&b, "description: %s\n", description)
+	fmt.Fprintf(&b, "enabled: %s\n", enabled)
+	fmt.Fprintf(&b, "labels: %s\n", labels)
+	fmt.Fprintf(&b, "config: %s\n", config)
+	fmt.Fprintf(&b, "created_at: %s\n", createdAt)
+	fmt.Fprintf(&b, "updated_at: %s\n", updatedAt)
+
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func buildConsumePolicyChildView(policies []consumePolicyWithConfig) tableview.ChildView {
+	tableRows := make([]table.Row, 0, len(policies))
+	for i := range policies {
+		record := consumePolicyWithConfigToRecord(policies[i])
+		tableRows = append(tableRows, table.Row{record.ID, record.Name, record.Type})
+	}
+
+	detailFn := func(index int) string {
+		if index < 0 || index >= len(policies) {
+			return ""
+		}
+		return consumePolicyWithConfigDetailView(&policies[index])
+	}
+
+	return tableview.ChildView{
+		Headers:        []string{"ID", "NAME", "TYPE"},
+		Rows:           tableRows,
+		DetailRenderer: detailFn,
+		Title:          "Consume Policies",
+		ParentType:     "consume-policy",
+		DetailContext: func(index int) any {
+			if index < 0 || index >= len(policies) {
+				return nil
+			}
+			return &policies[index]
+		},
+	}
+}

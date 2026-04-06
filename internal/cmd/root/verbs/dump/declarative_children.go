@@ -1109,8 +1109,19 @@ func buildEventGatewayVirtualClusters(
 		// Fetch produce policies for this virtual cluster
 		if policies, err := buildEventGatewayProducePolicies(ctx, logger, client, gatewayID, cluster.ID); err != nil {
 			logWarn(logger, "failed to load produce policies", cluster.ID, cluster.Name, err)
+		}  err != nil {
+			logWarn(logger, "failed to load produce policies", cluster.ID, cluster.Name, err)
 		} else if len(policies) > 0 {
 			res.ProducePolicies = policies
+		}
+
+		// Fetch consume policies for this virtual cluster
+		if consumePolicies, err := buildEventGatewayConsumePolicies(
+			ctx, logger, client, gatewayID, cluster.ID,
+		); err != nil {
+			logWarn(logger, "failed to load consume policies", cluster.ID, cluster.Name, err)
+		} else if len(consumePolicies) > 0 {
+			res.ConsumePolicies = consumePolicies
 		}
 
 		results = append(results, res)
@@ -1383,6 +1394,76 @@ func convertProducePolicyToResource(
 
 	return declresources.EventGatewayProducePolicyResource{
 		EventGatewayProducePolicyCreate: createPolicy,
+		Ref:                             policy.ID,
+	}, nil
+}
+
+func buildEventGatewayConsumePolicies(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	gatewayID string,
+	virtualClusterID string,
+) ([]declresources.EventGatewayConsumePolicyResource, error) {
+	policies, err := client.ListEventGatewayConsumePolicies(ctx, gatewayID, virtualClusterID)
+	if err != nil {
+		return nil, err
+	}
+	if len(policies) == 0 {
+		return nil, nil
+	}
+
+	results := make([]declresources.EventGatewayConsumePolicyResource, 0, len(policies))
+	for _, policy := range policies {
+		res, err := convertConsumePolicyToResource(policy.EventGatewayPolicy, policy.RawConfig)
+		if err != nil {
+			logWarn(logger, "failed to convert consume policy", policy.ID, "", err)
+			continue
+		}
+		results = append(results, res)
+	}
+
+	return results, nil
+}
+
+// convertConsumePolicyToResource converts an EventGatewayPolicy (response type)
+// to an EventGatewayConsumePolicyResource (which embeds the Create union type).
+// We use rawConfig from the raw API response because the SDK's EventGatewayPolicyConfig
+// is an empty struct that doesn't capture the actual config data.
+func convertConsumePolicyToResource(
+	policy kkComps.EventGatewayPolicy,
+	rawConfig map[string]any,
+) (declresources.EventGatewayConsumePolicyResource, error) {
+	policyMap := map[string]any{
+		"type":   policy.Type,
+		"config": rawConfig,
+	}
+	if policy.Name != nil {
+		policyMap["name"] = *policy.Name
+	}
+	if policy.Description != nil {
+		policyMap["description"] = *policy.Description
+	}
+	if policy.Enabled != nil {
+		policyMap["enabled"] = *policy.Enabled
+	}
+	if policy.Labels != nil {
+		policyMap["labels"] = policy.Labels
+	}
+
+	data, err := json.Marshal(policyMap)
+	if err != nil {
+		return declresources.EventGatewayConsumePolicyResource{}, fmt.Errorf("failed to marshal consume policy: %w", err)
+	}
+
+	var createPolicy kkComps.EventGatewayConsumePolicyCreate
+	if err := json.Unmarshal(data, &createPolicy); err != nil {
+		return declresources.EventGatewayConsumePolicyResource{},
+			fmt.Errorf("failed to unmarshal consume policy: %w", err)
+	}
+
+	return declresources.EventGatewayConsumePolicyResource{
+		EventGatewayConsumePolicyCreate: createPolicy,
 		Ref:                             policy.ID,
 	}, nil
 }
