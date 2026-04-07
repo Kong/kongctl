@@ -402,7 +402,7 @@ func uniqueDeferredEnvStrings(values []string) []string {
 
 func deferredEnvStructField(value reflect.Value, segment string) (int, reflect.Value, bool) {
 	valueType := value.Type()
-	for i := 0; i < value.NumField(); i++ {
+	for i := range value.NumField() {
 		field := valueType.Field(i)
 		if field.PkgPath != "" {
 			continue
