@@ -1,0 +1,139 @@
+test:
+  requiresPAT: false
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+steps:
+  # Step 000: lint a valid file that passes error-level rules.
+  # The valid-config.yaml has a "name" field (satisfies must-have-name at
+  # error severity) but no "version" field (warn violation for
+  # should-have-version). With the default --fail-severity=error, the warn
+  # violation does not trigger a failure, so the command exits 0.
+  # Assertions verify fail_count is 0 and total_count reflects the one warning.
+  - name: 000-lint-valid-file
+    skipInputs: true
+    commands:
+      - name: 000-json-output
+        run:
+          - lint
+          - -f
+          - "{{ .scenario_dir }}/testdata/valid-config.yaml"
+          - -r
+          - "{{ .scenario_dir }}/testdata/ruleset.yaml"
+          - -o
+          - json
+        assertions:
+          - expect:
+              fields:
+                fail_count: 0
+                total_count: 1
+
+  # Step 001: lint an invalid file that triggers an error-level violation.
+  # The invalid-config.yaml has no "name" field, violating must-have-name
+  # (error severity). The command exits non-zero. The contains check verifies
+  # the error message in stderr references the number of violations found.
+  - name: 001-lint-invalid-file
+    skipInputs: true
+    commands:
+      - name: 000-expects-failure
+        run:
+          - lint
+          - -f
+          - "{{ .scenario_dir }}/testdata/invalid-config.yaml"
+          - -r
+          - "{{ .scenario_dir }}/testdata/ruleset.yaml"
+          - -o
+          - json
+        expectFailure:
+          exitCode: 1
+          contains: "linting violation"
+
+  # Step 002: test --fail-severity=warn threshold.
+  # The valid-config.yaml passes must-have-name (error) but fails
+  # should-have-version (warn). Lowering --fail-severity to "warn" means the
+  # warn violation now triggers a failure exit code.
+  - name: 002-lint-fail-severity-warn
+    skipInputs: true
+    commands:
+      - name: 000-warn-threshold
+        run:
+          - lint
+          - -f
+          - "{{ .scenario_dir }}/testdata/valid-config.yaml"
+          - -r
+          - "{{ .scenario_dir }}/testdata/ruleset.yaml"
+          - -F
+          - warn
+          - -o
+          - json
+        expectFailure:
+          exitCode: 1
+          contains: "linting violation"
+
+  # Step 003: test -D (display-only-failures) flag.
+  # With the default --fail-severity=error and -D, only violations at or above
+  # error severity are included in the output. The valid-config.yaml only has
+  # a warn violation (should-have-version), which is below the error threshold
+  # and therefore filtered out. The result is total_count=0 and fail_count=0,
+  # and the command exits 0.
+  - name: 003-lint-display-only-failures
+    skipInputs: true
+    commands:
+      - name: 000-display-only-flag
+        run:
+          - lint
+          - -f
+          - "{{ .scenario_dir }}/testdata/valid-config.yaml"
+          - -r
+          - "{{ .scenario_dir }}/testdata/ruleset.yaml"
+          - -D
+          - -o
+          - json
+        assertions:
+          - expect:
+              fields:
+                fail_count: 0
+                total_count: 0
+                "length(results)": 0
+
+  # Step 004: test text output format.
+  # Default output is plain text. The text formatter writes a header line
+  # "Linting Violations: N" followed by per-result lines with severity in
+  # brackets, e.g. "[error]". Verify the header text and the error severity
+  # label appear in the combined output.
+  - name: 004-lint-text-output
+    skipInputs: true
+    commands:
+      - name: 000-text-format
+        run:
+          - lint
+          - -f
+          - "{{ .scenario_dir }}/testdata/invalid-config.yaml"
+          - -r
+          - "{{ .scenario_dir }}/testdata/ruleset.yaml"
+        expectFailure:
+          exitCode: 1
+          contains: "Linting Violations"
+
+  # Step 005: test recursive directory scan (-R flag).
+  # Passing the testdata/ directory with -R causes the lint engine to collect
+  # all YAML files recursively. The invalid-config.yaml and ruleset.yaml both
+  # lack a "name" field, each triggering the must-have-name error violation.
+  # The command exits non-zero with fail_count >= 2.
+  - name: 005-lint-recursive-directory
+    skipInputs: true
+    commands:
+      - name: 000-recursive-scan
+        run:
+          - lint
+          - -f
+          - "{{ .scenario_dir }}/testdata/"
+          - -R
+          - -r
+          - "{{ .scenario_dir }}/testdata/ruleset.yaml"
+          - -o
+          - json
+        expectFailure:
+          exitCode: 1
+          contains: "linting violation"
