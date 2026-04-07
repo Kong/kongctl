@@ -630,6 +630,9 @@ func buildPortalEmailConfig(
 	if cfg == nil {
 		return nil, nil
 	}
+	if cfg.DomainName == nil && cfg.FromName == nil && cfg.FromEmail == nil && cfg.ReplyToEmail == nil {
+		return nil, nil
+	}
 
 	ref := cfg.ID
 	if strings.TrimSpace(ref) == "" {

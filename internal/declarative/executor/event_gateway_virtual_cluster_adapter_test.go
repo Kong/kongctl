@@ -53,5 +53,5 @@ func TestConvertToVirtualClusterSensitiveDataAwareAuth_ClientCertificate_Missing
 
 	_, err := convertToVirtualClusterSensitiveDataAwareAuth(auth)
 	require.Error(t, err)
-	assert.Equal(t, "Client certificate authentication data is missing", err.Error())
+	assert.Equal(t, "client certificate authentication data is missing", err.Error())
 }

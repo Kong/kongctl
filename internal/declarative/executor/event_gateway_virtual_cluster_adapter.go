@@ -691,7 +691,7 @@ func convertToVirtualClusterSensitiveDataAwareAuth(
 	case kkComps.VirtualClusterAuthenticationSchemeTypeClientCertificate:
 		if auth.VirtualClusterAuthenticationClientCertificate == nil {
 			return kkComps.VirtualClusterAuthenticationSensitiveDataAwareScheme{},
-				fmt.Errorf("Client certificate authentication data is missing")
+				fmt.Errorf("client certificate authentication data is missing")
 		}
 		return kkComps.CreateVirtualClusterAuthenticationSensitiveDataAwareSchemeClientCertificate(
 			*auth.VirtualClusterAuthenticationClientCertificate,
