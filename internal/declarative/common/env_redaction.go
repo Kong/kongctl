@@ -36,7 +36,6 @@ func sanitizeDeferredEnvReflect(value reflect.Value) (reflect.Value, bool) {
 		return reflect.Value{}, false
 	}
 
-	//nolint:exhaustive // reflect.Kind handling is intentionally partial for declarative display sanitization.
 	switch value.Kind() {
 	case reflect.Interface:
 		if value.IsNil() {
@@ -83,7 +82,7 @@ func sanitizeDeferredEnvReflect(value reflect.Value) (reflect.Value, bool) {
 	case reflect.Slice:
 		copied := reflect.MakeSlice(value.Type(), value.Len(), value.Len())
 		changed := false
-		for i := 0; i < value.Len(); i++ {
+		for i := range value.Len() {
 			sanitized, childChanged := sanitizeDeferredEnvReflect(value.Index(i))
 			if childChanged {
 				changed = true
@@ -101,7 +100,7 @@ func sanitizeDeferredEnvReflect(value reflect.Value) (reflect.Value, bool) {
 	case reflect.Array:
 		copied := reflect.New(value.Type()).Elem()
 		changed := false
-		for i := 0; i < value.Len(); i++ {
+		for i := range value.Len() {
 			sanitized, childChanged := sanitizeDeferredEnvReflect(value.Index(i))
 			if childChanged {
 				changed = true
@@ -126,7 +125,7 @@ func sanitizeDeferredEnvReflect(value reflect.Value) (reflect.Value, bool) {
 		copied := reflect.New(value.Type()).Elem()
 		copied.Set(value)
 		changed := false
-		for i := 0; i < value.NumField(); i++ {
+		for i := range value.NumField() {
 			field := value.Field(i)
 			target := copied.Field(i)
 			if !target.CanSet() {

@@ -201,7 +201,6 @@ func applyDeferredEnvPlaceholderReflect(
 		return reflect.Value{}, false
 	}
 
-	//nolint:exhaustive // reflect.Kind handling is intentionally partial for declarative plan fields.
 	switch value.Kind() {
 	case reflect.Interface:
 		if value.IsNil() {
@@ -402,7 +401,7 @@ func uniqueDeferredEnvStrings(values []string) []string {
 
 func deferredEnvStructField(value reflect.Value, segment string) (int, reflect.Value, bool) {
 	valueType := value.Type()
-	for i := 0; i < value.NumField(); i++ {
+	for i := range value.NumField() {
 		field := valueType.Field(i)
 		if field.PkgPath != "" {
 			continue
