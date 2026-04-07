@@ -626,6 +626,9 @@ func compareAuthentication(
 				desired[i].VirtualClusterAuthenticationClientCertificate == nil {
 				return false
 			}
+
+		default:
+			return false
 		}
 	}
 
