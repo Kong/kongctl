@@ -49,7 +49,7 @@ steps:
           exitCode: 1
           contains: "linting violation"
 
-  # Step 002: test --fail-severity=warn threshold.
+  # Step 002: test --fail-severity (-F) threshold.
   # The valid-config.yaml passes must-have-name (error) but fails
   # should-have-version (warn). Lowering --fail-severity to "warn" means the
   # warn violation now triggers a failure exit code.
@@ -118,9 +118,10 @@ steps:
 
   # Step 005: test recursive directory scan (-R flag).
   # Passing the testdata/ directory with -R causes the lint engine to collect
-  # all YAML files recursively. The invalid-config.yaml and ruleset.yaml both
-  # lack a "name" field, each triggering the must-have-name error violation.
-  # The command exits non-zero with fail_count >= 2.
+  # all YAML files recursively. Among those files, invalid-config.yaml (which
+  # has no "name" field) and ruleset.yaml (whose top-level key is "rules:", not
+  # "name") both trigger the must-have-name error violation. The command exits
+  # non-zero with fail_count >= 2.
   - name: 005-lint-recursive-directory
     skipInputs: true
     commands:
