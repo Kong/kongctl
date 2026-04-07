@@ -34,7 +34,6 @@ func validateEnvNode(node *yaml.Node, targetType reflect.Type, path []string) er
 		}
 		return validateEnvNode(node.Content[0], targetType, path)
 	case yaml.MappingNode:
-		//nolint:exhaustive // only struct and map kinds can contain nested declarative fields.
 		switch targetType.Kind() {
 		case reflect.Struct:
 			for i := 0; i+1 < len(node.Content); i += 2 {

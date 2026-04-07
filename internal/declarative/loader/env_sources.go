@@ -50,7 +50,6 @@ func visitResourceSetResources(rs *resources.ResourceSet, fn func(resources.Reso
 			continue
 		}
 
-		//nolint:exhaustive // only slice and pointer fields can contain resource entries in ResourceSet.
 		switch fieldValue.Kind() {
 		case reflect.Slice:
 			for j := range fieldValue.Len() {
@@ -97,7 +96,6 @@ func walkDeferredEnvPlaceholders(value reflect.Value, path []string, visit func(
 		value = value.Elem()
 	}
 
-	//nolint:exhaustive // reflect walk only needs container and string kinds for deferred env discovery.
 	switch value.Kind() {
 	case reflect.String:
 		strValue := value.String()

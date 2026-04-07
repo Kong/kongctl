@@ -113,7 +113,6 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 		return nil, nil
 	}
 
-	//nolint:exhaustive // reflect.Kind handling is intentionally partial for declarative execution values.
 	switch value.Kind() {
 	case reflect.Interface:
 		if value.IsNil() {
