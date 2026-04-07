@@ -3133,6 +3133,9 @@ func (p *Planner) planPortalTeamCreate(
 	if team.Description != nil {
 		fields["description"] = *team.Description
 	}
+	if team.CanOwnApplications != nil {
+		fields["can_own_applications"] = *team.CanOwnApplications
+	}
 
 	// Determine dependencies - depends on parent portal
 	var dependencies []string
@@ -3200,7 +3203,7 @@ func (p *Planner) shouldUpdatePortalTeam(
 	updateFields := make(map[string]any)
 	changedFields := make(map[string]FieldChange)
 
-	// Only description can be updated (name is the identifier)
+	// Name is the identifier; description and can_own_applications can be updated.
 	desiredDesc := ""
 	if desired.Description != nil {
 		desiredDesc = *desired.Description
@@ -3211,6 +3214,21 @@ func (p *Planner) shouldUpdatePortalTeam(
 		changedFields["description"] = FieldChange{
 			Old: current.Description,
 			New: desiredDesc,
+		}
+	}
+
+	if desired.CanOwnApplications != nil {
+		currentCanOwnApplications := false
+		if current.CanOwnApplications != nil {
+			currentCanOwnApplications = *current.CanOwnApplications
+		}
+
+		if current.CanOwnApplications == nil || currentCanOwnApplications != *desired.CanOwnApplications {
+			updateFields["can_own_applications"] = *desired.CanOwnApplications
+			changedFields["can_own_applications"] = FieldChange{
+				Old: current.CanOwnApplications,
+				New: *desired.CanOwnApplications,
+			}
 		}
 	}
 

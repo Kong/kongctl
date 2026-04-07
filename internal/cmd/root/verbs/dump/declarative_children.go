@@ -465,6 +465,7 @@ func buildPortalTeams(
 			desc := team.Description
 			teamRes.Description = &desc
 		}
+		teamRes.CanOwnApplications = team.CanOwnApplications
 
 		roles, err := client.ListPortalTeamRoles(ctx, portalID, team.ID)
 		if err != nil {

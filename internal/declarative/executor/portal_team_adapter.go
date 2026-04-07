@@ -36,6 +36,9 @@ func (p *PortalTeamAdapter) MapCreateFields(
 	if description, ok := fields["description"].(string); ok {
 		create.Description = &description
 	}
+	if canOwnApplications, ok := fields["can_own_applications"].(bool); ok {
+		create.CanOwnApplications = &canOwnApplications
+	}
 
 	return nil
 }
@@ -44,9 +47,12 @@ func (p *PortalTeamAdapter) MapCreateFields(
 func (p *PortalTeamAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, fields map[string]any,
 	update *kkComps.PortalUpdateTeamRequest, _ map[string]string,
 ) error {
-	// Only description can be updated (name is the identifier)
+	// Name is the identifier; description and can_own_applications can be updated.
 	if description, ok := fields["description"].(string); ok {
 		update.Description = &description
+	}
+	if canOwnApplications, ok := fields["can_own_applications"].(bool); ok {
+		update.CanOwnApplications = &canOwnApplications
 	}
 
 	return nil
