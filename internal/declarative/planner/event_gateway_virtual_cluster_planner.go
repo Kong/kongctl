@@ -619,6 +619,13 @@ func compareAuthentication(
 					}
 				}
 			}
+
+		case components.VirtualClusterAuthenticationSensitiveDataAwareSchemeTypeClientCertificate:
+			// Client certificate has no additional fields to compare
+			if current[i].VirtualClusterAuthenticationClientCertificate == nil ||
+				desired[i].VirtualClusterAuthenticationClientCertificate == nil {
+				return false
+			}
 		}
 	}
 

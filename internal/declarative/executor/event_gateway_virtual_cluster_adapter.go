@@ -682,6 +682,15 @@ func convertToVirtualClusterSensitiveDataAwareAuth(
 			*auth.VirtualClusterAuthenticationOauthBearer,
 		), nil
 
+	case kkComps.VirtualClusterAuthenticationSchemeTypeClientCertificate:
+		if auth.VirtualClusterAuthenticationClientCertificate == nil {
+			return kkComps.VirtualClusterAuthenticationSensitiveDataAwareScheme{},
+				fmt.Errorf("client certificate authentication data is missing")
+		}
+		return kkComps.CreateVirtualClusterAuthenticationSensitiveDataAwareSchemeClientCertificate(
+			*auth.VirtualClusterAuthenticationClientCertificate,
+		), nil
+
 	default:
 		return kkComps.VirtualClusterAuthenticationSensitiveDataAwareScheme{},
 			fmt.Errorf("unsupported authentication type: %s", auth.Type)

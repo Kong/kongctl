@@ -1657,17 +1657,17 @@ func (p *Planner) shouldUpdatePortalEmailConfig(
 
 	if desired.FromNameSet {
 		if desired.FromName == nil {
-			if current.FromName != "" {
+			if getString(current.FromName) != "" {
 				updateFields["from_name"] = nil
 				changedFields["from_name"] = FieldChange{
-					Old: current.FromName,
+					Old: getString(current.FromName),
 					New: nil,
 				}
 			}
-		} else if *desired.FromName != current.FromName {
+		} else if *desired.FromName != getString(current.FromName) {
 			updateFields["from_name"] = *desired.FromName
 			changedFields["from_name"] = FieldChange{
-				Old: current.FromName,
+				Old: getString(current.FromName),
 				New: *desired.FromName,
 			}
 		}
@@ -1675,17 +1675,17 @@ func (p *Planner) shouldUpdatePortalEmailConfig(
 
 	if desired.FromEmailSet {
 		if desired.FromEmail == nil {
-			if current.FromEmail != "" {
+			if getString(current.FromEmail) != "" {
 				updateFields["from_email"] = nil
 				changedFields["from_email"] = FieldChange{
-					Old: current.FromEmail,
+					Old: getString(current.FromEmail),
 					New: nil,
 				}
 			}
-		} else if *desired.FromEmail != current.FromEmail {
+		} else if *desired.FromEmail != getString(current.FromEmail) {
 			updateFields["from_email"] = *desired.FromEmail
 			changedFields["from_email"] = FieldChange{
-				Old: current.FromEmail,
+				Old: getString(current.FromEmail),
 				New: *desired.FromEmail,
 			}
 		}
@@ -1693,17 +1693,17 @@ func (p *Planner) shouldUpdatePortalEmailConfig(
 
 	if desired.ReplyToEmailSet {
 		if desired.ReplyToEmail == nil {
-			if current.ReplyToEmail != "" {
+			if getString(current.ReplyToEmail) != "" {
 				updateFields["reply_to_email"] = nil
 				changedFields["reply_to_email"] = FieldChange{
-					Old: current.ReplyToEmail,
+					Old: getString(current.ReplyToEmail),
 					New: nil,
 				}
 			}
-		} else if *desired.ReplyToEmail != current.ReplyToEmail {
+		} else if *desired.ReplyToEmail != getString(current.ReplyToEmail) {
 			updateFields["reply_to_email"] = *desired.ReplyToEmail
 			changedFields["reply_to_email"] = FieldChange{
-				Old: current.ReplyToEmail,
+				Old: getString(current.ReplyToEmail),
 				New: *desired.ReplyToEmail,
 			}
 		}

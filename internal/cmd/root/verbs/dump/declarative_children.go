@@ -640,9 +640,9 @@ func buildPortalEmailConfig(
 		Ref: ref,
 		PostPortalEmailConfig: kkComps.PostPortalEmailConfig{
 			DomainName:   cfg.DomainName,
-			FromName:     stringPointer(cfg.FromName),
-			FromEmail:    stringPointer(cfg.FromEmail),
-			ReplyToEmail: stringPointer(cfg.ReplyToEmail),
+			FromName:     cfg.FromName,
+			FromEmail:    cfg.FromEmail,
+			ReplyToEmail: cfg.ReplyToEmail,
 		},
 	}
 
