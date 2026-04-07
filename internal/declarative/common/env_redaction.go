@@ -36,7 +36,6 @@ func sanitizeDeferredEnvReflect(value reflect.Value) (reflect.Value, bool) {
 		return reflect.Value{}, false
 	}
 
-	//nolint:exhaustive // reflect.Kind handling is intentionally partial for declarative display sanitization.
 	switch value.Kind() {
 	case reflect.Interface:
 		if value.IsNil() {

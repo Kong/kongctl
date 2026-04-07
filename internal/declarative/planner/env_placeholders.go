@@ -201,7 +201,6 @@ func applyDeferredEnvPlaceholderReflect(
 		return reflect.Value{}, false
 	}
 
-	//nolint:exhaustive // reflect.Kind handling is intentionally partial for declarative plan fields.
 	switch value.Kind() {
 	case reflect.Interface:
 		if value.IsNil() {
