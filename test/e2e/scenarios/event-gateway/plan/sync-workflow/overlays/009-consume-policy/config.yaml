@@ -31,16 +31,16 @@ event_gateways:
         acl_mode: enforce_on_gateway
         dns_label: vc-default
         consume_policies:
-        - condition: ""
-          config:
-            key_validation_action: mark
-            type: json
-            value_validation_action: skip
-          description: ""
-          enabled: true
-          name: plan-sync-consume-policy-name-for-test
-          ref: plan-sync-consume-policy
-          type: schema_validation
+          - condition: ""
+            config:
+              key_validation_action: mark
+              type: json
+              value_validation_action: skip
+            description: ""
+            enabled: true
+            name: plan-sync-consume-policy-name-for-test
+            ref: plan-sync-consume-policy
+            type: schema_validation
         cluster_policies:
           - ref: plan-sync-cluster-policy
             name: plan-sync-cluster-policy-name-for-test

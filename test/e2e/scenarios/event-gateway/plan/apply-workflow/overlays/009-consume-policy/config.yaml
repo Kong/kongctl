@@ -32,12 +32,12 @@ event_gateways:
         acl_mode: enforce_on_gateway
         dns_label: vc-default
         consume_policies:
-        - condition: ""
-          description: description
-          enabled: true
-          name: skip-record-policy
-          ref: plan-apply-consume-policy
-          type: skip_record
+          - condition: ""
+            description: description
+            enabled: true
+            name: skip-record-policy
+            ref: plan-apply-consume-policy
+            type: skip_record
         cluster_policies:
           - ref: plan-apply-cluster-policy
             name: plan-apply-cluster-policy-name-for-test
