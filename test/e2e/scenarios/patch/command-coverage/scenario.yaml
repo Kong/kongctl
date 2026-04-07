@@ -1,0 +1,191 @@
+test:
+  requiresPAT: false
+
+steps:
+  # 000: Inline -s/-v flag: set a numeric field on all services
+  - name: 000-patch-inline-set-value
+    skipInputs: true
+    commands:
+      - name: 000-set-read-timeout
+        run:
+          - patch
+          - file
+          - "{{ .scenario_dir }}/testdata/input.yaml"
+          - -s
+          - "$..services[*]"
+          - -v
+          - "read_timeout:30000"
+          - --format
+          - json
+        outputFormat: disable
+        assertions:
+          - select: "services[0].read_timeout"
+            expect:
+              fields:
+                "@": 30000
+
+  # 001: Inline -s/-v flag: empty value removes a key from the document
+  - name: 001-patch-inline-remove-key
+    skipInputs: true
+    commands:
+      - name: 000-remove-format-version
+        run:
+          - patch
+          - file
+          - "{{ .scenario_dir }}/testdata/input.yaml"
+          - -s
+          - "$"
+          - -v
+          - "_format_version:"
+          - --format
+          - json
+        outputFormat: disable
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "_format_version": null
+
+  # 002: Inline -s/-v flag: JSON array value appends to an existing array
+  - name: 002-patch-inline-append-array
+    skipInputs: true
+    commands:
+      - name: 000-append-options-method
+        run:
+          - patch
+          - file
+          - "{{ .scenario_dir }}/testdata/input.yaml"
+          - -s
+          - "$..routes[*].methods"
+          - -v
+          - '["OPTIONS"]'
+          - --format
+          - json
+        outputFormat: disable
+        assertions:
+          - select: "services[0].routes[0].methods"
+            expect:
+              fields:
+                "contains(@, 'OPTIONS')": true
+                "contains(@, 'GET')": true
+                "length(@)": 2
+
+  # 003: Positional patch file applies the same mutations as inline flags
+  - name: 003-patch-file-input
+    skipInputs: true
+    commands:
+      - name: 000-apply-set-timeout-patch-file
+        run:
+          - patch
+          - file
+          - "{{ .scenario_dir }}/testdata/input.yaml"
+          - "{{ .scenario_dir }}/testdata/patches/set-timeout.yaml"
+          - --format
+          - json
+        outputFormat: disable
+        assertions:
+          - select: "services[0]"
+            expect:
+              fields:
+                read_timeout: 30000
+                write_timeout: 30000
+
+  # 004: Multiple -v flags in one invocation all apply
+  - name: 004-patch-multiple-flags
+    skipInputs: true
+    commands:
+      - name: 000-set-multiple-timeouts
+        run:
+          - patch
+          - file
+          - "{{ .scenario_dir }}/testdata/input.yaml"
+          - -s
+          - "$..services[*]"
+          - -v
+          - "read_timeout:30000"
+          - -v
+          - "write_timeout:30000"
+          - --format
+          - json
+        outputFormat: disable
+        assertions:
+          - select: "services[0]"
+            expect:
+              fields:
+                read_timeout: 30000
+                write_timeout: 30000
+
+  # 005: --output-file writes to the specified path instead of stdout;
+  #       a follow-up exec reads the file and asserts on its content.
+  - name: 005-patch-output-file
+    skipInputs: true
+    commands:
+      - name: 000-write-patched-file
+        run:
+          - patch
+          - file
+          - "{{ .scenario_dir }}/testdata/input.yaml"
+          - -s
+          - "$..services[*]"
+          - -v
+          - "read_timeout:5000"
+          - --format
+          - yaml
+          - --output-file
+          - "{{ .workdir }}/patched.yaml"
+        outputFormat: disable
+
+      - name: 001-verify-patched-file
+        exec:
+          - cat
+          - "{{ .workdir }}/patched.yaml"
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'read_timeout: 5000')": true
+                "contains(stdout, 'my-service')": true
+
+  # 006: YAML output format roundtrips correctly
+  - name: 006-patch-yaml-output
+    skipInputs: true
+    commands:
+      - name: 000-yaml-format-output
+        run:
+          - patch
+          - file
+          - "{{ .scenario_dir }}/testdata/input.yaml"
+          - -s
+          - "$..services[*]"
+          - -v
+          - "read_timeout:8000"
+          - --format
+          - yaml
+        outputFormat: disable
+        parseAs: yaml
+        assertions:
+          - select: "services[0].read_timeout"
+            expect:
+              fields:
+                "@": 8000
+
+  # 007: Error case — combining inline flags with patch files is rejected
+  - name: 007-patch-mutual-exclusion-error
+    skipInputs: true
+    commands:
+      - name: 000-inline-and-patchfile-rejected
+        run:
+          - patch
+          - file
+          - "{{ .scenario_dir }}/testdata/input.yaml"
+          - "{{ .scenario_dir }}/testdata/patches/set-timeout.yaml"
+          - -s
+          - "$"
+          - -v
+          - "foo:1"
+          - --format
+          - json
+        outputFormat: disable
+        expectFailure:
+          exitCode: 1
+          contains: "cannot combine"
