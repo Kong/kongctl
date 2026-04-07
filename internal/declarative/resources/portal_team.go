@@ -29,6 +29,34 @@ type PortalTeamResource struct {
 	konnectID string `yaml:"-" json:"-"`
 }
 
+// MarshalJSON ensures the embedded SDK request and kongctl fields are preserved when serializing.
+func (p PortalTeamResource) MarshalJSON() ([]byte, error) {
+	return json.Marshal(p.portalTeamAlias())
+}
+
+// MarshalYAML ensures YAML output mirrors the custom JSON encoding.
+func (p PortalTeamResource) MarshalYAML() (any, error) {
+	return p.portalTeamAlias(), nil
+}
+
+type portalTeamAlias struct {
+	portalCreateTeamAlias `                       json:",inline"          yaml:",inline"`
+	Ref                   string                  `json:"ref"              yaml:"ref"`
+	Portal                string                  `json:"portal,omitempty" yaml:"portal,omitempty"`
+	Roles                 []PortalTeamRoleResource `json:"roles,omitempty"  yaml:"roles,omitempty"`
+}
+
+type portalCreateTeamAlias kkComps.PortalCreateTeamRequest
+
+func (p PortalTeamResource) portalTeamAlias() portalTeamAlias {
+	return portalTeamAlias{
+		portalCreateTeamAlias: portalCreateTeamAlias(p.PortalCreateTeamRequest),
+		Ref:                   p.Ref,
+		Portal:                p.Portal,
+		Roles:                 p.Roles,
+	}
+}
+
 // GetType returns the resource type
 func (p PortalTeamResource) GetType() ResourceType {
 	return ResourceTypePortalTeam
@@ -123,12 +151,13 @@ func (p PortalTeamResource) GetParentRef() *ResourceRef {
 // UnmarshalJSON custom unmarshaling to reject kongctl metadata on child resources
 func (p *PortalTeamResource) UnmarshalJSON(data []byte) error {
 	var temp struct {
-		Ref         string                   `json:"ref"`
-		Portal      string                   `json:"portal,omitempty"`
-		Name        string                   `json:"name"`
-		Description *string                  `json:"description,omitempty"`
-		Roles       []PortalTeamRoleResource `json:"roles,omitempty"`
-		Kongctl     any                      `json:"kongctl,omitempty"`
+		Ref                string                   `json:"ref"`
+		Portal             string                   `json:"portal,omitempty"`
+		Name               string                   `json:"name"`
+		Description        *string                  `json:"description,omitempty"`
+		CanOwnApplications *bool                    `json:"can_own_applications"`
+		Roles              []PortalTeamRoleResource `json:"roles,omitempty"`
+		Kongctl            any                      `json:"kongctl,omitempty"`
 	}
 
 	if err := json.Unmarshal(data, &temp); err != nil {
@@ -143,6 +172,7 @@ func (p *PortalTeamResource) UnmarshalJSON(data []byte) error {
 	p.Portal = temp.Portal
 	p.Name = temp.Name
 	p.Description = temp.Description
+	p.CanOwnApplications = temp.CanOwnApplications
 	p.Roles = temp.Roles
 
 	return nil

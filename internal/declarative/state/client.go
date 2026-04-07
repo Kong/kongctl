@@ -3134,6 +3134,7 @@ func (c *Client) ListPortalTeams(ctx context.Context, portalID string) ([]Portal
 			if t.Description != nil {
 				team.Description = *t.Description
 			}
+			team.CanOwnApplications = t.CanOwnApplications
 
 			allTeams = append(allTeams, team)
 		}

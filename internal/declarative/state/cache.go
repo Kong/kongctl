@@ -171,9 +171,10 @@ type PortalSnippet struct {
 
 // PortalTeam represents a portal team (developer team)
 type PortalTeam struct {
-	ID          string
-	Name        string
-	Description string
+	ID                 string
+	Name               string
+	Description        string
+	CanOwnApplications *bool
 }
 
 // PortalTeamRole represents an assigned role for a portal team

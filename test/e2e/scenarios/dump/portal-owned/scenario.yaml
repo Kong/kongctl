@@ -41,6 +41,10 @@ steps:
             expect:
               fields:
                 display_name: "A Getting Started Portal"
+          - select: "portals[?name=='My First Portal'] | [0].teams[?name=='Platform Team'] | [0]"
+            expect:
+              fields:
+                name: "Platform Team"
           - select: "portals[?name=='My First Portal'] | [0].pages[?title=='Kong API'] | [0]"
             expect:
               fields:
@@ -53,6 +57,12 @@ steps:
             expect:
               fields:
                 slug: "document-apis"
+          - select: "portals[?name=='My First Portal'] | [0].teams[?name=='Platform Team'] | [0].roles[?role_name=='API Viewer'] | [0]"
+            expect:
+              fields:
+                role_name: "API Viewer"
+                entity_type_name: "Services"
+                entity_region: "us"
 
       - name: 001-plan-from-dump
         outputFormat: disable

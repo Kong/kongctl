@@ -1656,54 +1656,57 @@ func (p *Planner) shouldUpdatePortalEmailConfig(
 	}
 
 	if desired.FromNameSet {
+		currentFromName := getString(current.FromName)
 		if desired.FromName == nil {
-			if current.FromName != "" {
+			if currentFromName != "" {
 				updateFields["from_name"] = nil
 				changedFields["from_name"] = FieldChange{
-					Old: current.FromName,
+					Old: currentFromName,
 					New: nil,
 				}
 			}
-		} else if *desired.FromName != current.FromName {
+		} else if *desired.FromName != currentFromName {
 			updateFields["from_name"] = *desired.FromName
 			changedFields["from_name"] = FieldChange{
-				Old: current.FromName,
+				Old: currentFromName,
 				New: *desired.FromName,
 			}
 		}
 	}
 
 	if desired.FromEmailSet {
+		currentFromEmail := getString(current.FromEmail)
 		if desired.FromEmail == nil {
-			if current.FromEmail != "" {
+			if currentFromEmail != "" {
 				updateFields["from_email"] = nil
 				changedFields["from_email"] = FieldChange{
-					Old: current.FromEmail,
+					Old: currentFromEmail,
 					New: nil,
 				}
 			}
-		} else if *desired.FromEmail != current.FromEmail {
+		} else if *desired.FromEmail != currentFromEmail {
 			updateFields["from_email"] = *desired.FromEmail
 			changedFields["from_email"] = FieldChange{
-				Old: current.FromEmail,
+				Old: currentFromEmail,
 				New: *desired.FromEmail,
 			}
 		}
 	}
 
 	if desired.ReplyToEmailSet {
+		currentReplyToEmail := getString(current.ReplyToEmail)
 		if desired.ReplyToEmail == nil {
-			if current.ReplyToEmail != "" {
+			if currentReplyToEmail != "" {
 				updateFields["reply_to_email"] = nil
 				changedFields["reply_to_email"] = FieldChange{
-					Old: current.ReplyToEmail,
+					Old: currentReplyToEmail,
 					New: nil,
 				}
 			}
-		} else if *desired.ReplyToEmail != current.ReplyToEmail {
+		} else if *desired.ReplyToEmail != currentReplyToEmail {
 			updateFields["reply_to_email"] = *desired.ReplyToEmail
 			changedFields["reply_to_email"] = FieldChange{
-				Old: current.ReplyToEmail,
+				Old: currentReplyToEmail,
 				New: *desired.ReplyToEmail,
 			}
 		}
@@ -3130,6 +3133,9 @@ func (p *Planner) planPortalTeamCreate(
 	if team.Description != nil {
 		fields["description"] = *team.Description
 	}
+	if team.CanOwnApplications != nil {
+		fields["can_own_applications"] = *team.CanOwnApplications
+	}
 
 	// Determine dependencies - depends on parent portal
 	var dependencies []string
@@ -3197,7 +3203,7 @@ func (p *Planner) shouldUpdatePortalTeam(
 	updateFields := make(map[string]any)
 	changedFields := make(map[string]FieldChange)
 
-	// Only description can be updated (name is the identifier)
+	// Name is the identifier; description and can_own_applications can be updated.
 	desiredDesc := ""
 	if desired.Description != nil {
 		desiredDesc = *desired.Description
@@ -3208,6 +3214,21 @@ func (p *Planner) shouldUpdatePortalTeam(
 		changedFields["description"] = FieldChange{
 			Old: current.Description,
 			New: desiredDesc,
+		}
+	}
+
+	if desired.CanOwnApplications != nil {
+		currentCanOwnApplications := false
+		if current.CanOwnApplications != nil {
+			currentCanOwnApplications = *current.CanOwnApplications
+		}
+
+		if current.CanOwnApplications == nil || currentCanOwnApplications != *desired.CanOwnApplications {
+			updateFields["can_own_applications"] = *desired.CanOwnApplications
+			changedFields["can_own_applications"] = FieldChange{
+				Old: current.CanOwnApplications,
+				New: *desired.CanOwnApplications,
+			}
 		}
 	}
 

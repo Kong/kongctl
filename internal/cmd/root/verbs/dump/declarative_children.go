@@ -465,6 +465,7 @@ func buildPortalTeams(
 			desc := team.Description
 			teamRes.Description = &desc
 		}
+		teamRes.CanOwnApplications = team.CanOwnApplications
 
 		roles, err := client.ListPortalTeamRoles(ctx, portalID, team.ID)
 		if err != nil {
@@ -630,6 +631,9 @@ func buildPortalEmailConfig(
 	if cfg == nil {
 		return nil, nil
 	}
+	if cfg.DomainName == nil && cfg.FromName == nil && cfg.FromEmail == nil && cfg.ReplyToEmail == nil {
+		return nil, nil
+	}
 
 	ref := cfg.ID
 	if strings.TrimSpace(ref) == "" {
@@ -640,9 +644,9 @@ func buildPortalEmailConfig(
 		Ref: ref,
 		PostPortalEmailConfig: kkComps.PostPortalEmailConfig{
 			DomainName:   cfg.DomainName,
-			FromName:     stringPointer(cfg.FromName),
-			FromEmail:    stringPointer(cfg.FromEmail),
-			ReplyToEmail: stringPointer(cfg.ReplyToEmail),
+			FromName:     cfg.FromName,
+			FromEmail:    cfg.FromEmail,
+			ReplyToEmail: cfg.ReplyToEmail,
 		},
 	}
 
