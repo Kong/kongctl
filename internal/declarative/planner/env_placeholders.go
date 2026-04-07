@@ -3,7 +3,7 @@ package planner
 import (
 	"maps"
 	"reflect"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -52,11 +52,7 @@ func (p *Planner) applyDeferredEnvPlaceholders(plan *Plan, rs *resources.Resourc
 			continue
 		}
 
-		paths := make([]string, 0, len(envSources))
-		for path := range envSources {
-			paths = append(paths, path)
-		}
-		sort.Strings(paths)
+		paths := slices.Sorted(maps.Keys(envSources))
 
 		applied := false
 		for _, path := range paths {
@@ -402,7 +398,7 @@ func uniqueDeferredEnvStrings(values []string) []string {
 
 func deferredEnvStructField(value reflect.Value, segment string) (int, reflect.Value, bool) {
 	valueType := value.Type()
-	for i := 0; i < value.NumField(); i++ {
+	for i := range value.NumField() {
 		field := valueType.Field(i)
 		if field.PkgPath != "" {
 			continue
