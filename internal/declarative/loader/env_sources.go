@@ -43,18 +43,16 @@ func visitResourceSetResources(rs *resources.ResourceSet, fn func(resources.Reso
 	value := reflect.ValueOf(rs).Elem()
 	resourceType := reflect.TypeOf((*resources.Resource)(nil)).Elem()
 
-	for i := 0; i < value.NumField(); i++ {
+	for i := range value.NumField() {
 		fieldValue := value.Field(i)
 		fieldType := value.Type().Field(i)
-
 		if fieldType.PkgPath != "" || fieldType.Tag.Get("yaml") == "-" {
 			continue
 		}
 
-		//nolint:exhaustive // only slice and pointer fields can contain resource entries in ResourceSet.
 		switch fieldValue.Kind() {
 		case reflect.Slice:
-			for j := 0; j < fieldValue.Len(); j++ {
+			for j := range fieldValue.Len() {
 				item := fieldValue.Index(j)
 				if !item.IsValid() {
 					continue
@@ -98,7 +96,6 @@ func walkDeferredEnvPlaceholders(value reflect.Value, path []string, visit func(
 		value = value.Elem()
 	}
 
-	//nolint:exhaustive // reflect walk only needs container and string kinds for deferred env discovery.
 	switch value.Kind() {
 	case reflect.String:
 		strValue := value.String()
@@ -108,7 +105,7 @@ func walkDeferredEnvPlaceholders(value reflect.Value, path []string, visit func(
 		return nil
 	case reflect.Struct:
 		valueType := value.Type()
-		for i := 0; i < value.NumField(); i++ {
+		for i := range value.NumField() {
 			field := valueType.Field(i)
 			if field.PkgPath != "" {
 				continue
@@ -138,7 +135,7 @@ func walkDeferredEnvPlaceholders(value reflect.Value, path []string, visit func(
 		}
 		return nil
 	case reflect.Slice, reflect.Array:
-		for i := 0; i < value.Len(); i++ {
+		for i := range value.Len() {
 			if err := walkDeferredEnvPlaceholders(value.Index(i), append(path, strconv.Itoa(i)), visit); err != nil {
 				return err
 			}

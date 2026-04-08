@@ -3,7 +3,7 @@ package planner
 import (
 	"maps"
 	"reflect"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -52,11 +52,7 @@ func (p *Planner) applyDeferredEnvPlaceholders(plan *Plan, rs *resources.Resourc
 			continue
 		}
 
-		paths := make([]string, 0, len(envSources))
-		for path := range envSources {
-			paths = append(paths, path)
-		}
-		sort.Strings(paths)
+		paths := slices.Sorted(maps.Keys(envSources))
 
 		applied := false
 		for _, path := range paths {
