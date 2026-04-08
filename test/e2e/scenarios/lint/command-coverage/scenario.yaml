@@ -106,6 +106,7 @@ steps:
     skipInputs: true
     commands:
       - name: 000-text-format
+        outputFormat: text
         run:
           - lint
           - -f
