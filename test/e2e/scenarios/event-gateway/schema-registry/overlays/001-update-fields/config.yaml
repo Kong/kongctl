@@ -1,0 +1,21 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-schema-registry-test
+
+event_gateways:
+  - ref: egw-cp-for-schema-registry-test-ref
+    name: egw-cp-for-schema-registry-test-name
+    description: "EGW CP for Schema Registry Test"
+    schema_registries:
+      - ref: default-schema-registry-ref
+        name: default-schema-registry-name
+        description: "Updated Schema Registry description"
+        type: confluent
+        config:
+          schema_type: avro
+          endpoint: https://schema-registry-updated.example.com
+          timeout_seconds: 60
+          authentication:
+            type: basic
+            username: updateduser
+            password: updatedpassword
