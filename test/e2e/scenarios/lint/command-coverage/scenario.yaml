@@ -32,7 +32,7 @@ steps:
   # Step 001: lint an invalid file that triggers an error-level violation.
   # The invalid-config.yaml has no "name" field, violating must-have-name
   # (error severity). The command exits non-zero. The contains check verifies
-  # the error message in stderr references the number of violations found.
+  # the error message in stderr mentions a linting violation.
   - name: 001-lint-invalid-file
     skipInputs: true
     commands:
