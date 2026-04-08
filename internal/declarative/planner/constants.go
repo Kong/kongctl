@@ -78,8 +78,13 @@ const (
 
 	// ResourceTypeEventGatewayProducePolicy is the resource type for event gateway produce policies
 	ResourceTypeEventGatewayProducePolicy = "event_gateway_virtual_cluster_produce_policy"
+<<<<<<< HEAD
 	// ResourceTypeEventGatewayConsumePolicy is the resource type for event gateway virtual cluster consume policies
 	ResourceTypeEventGatewayConsumePolicy = "event_gateway_virtual_cluster_consume_policy"
+=======
+	// ResourceTypeEventGatewaySchemaRegistry is the resource type for event gateway schema registries
+	ResourceTypeEventGatewaySchemaRegistry = "event_gateway_schema_registry"
+>>>>>>> c52f661 (feat: bootstrap event gateway schema registry)
 
 	// ResourceTypeDeck represents an internal deck execution step.
 	ResourceTypeDeck = "_deck"

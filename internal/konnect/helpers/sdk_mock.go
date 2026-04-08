@@ -45,6 +45,7 @@ type MockKonnectSDK struct {
 	EventGatewayProducePolicyFactory        func() EventGatewayProducePolicyAPI
 	EventGatewayConsumePolicyFactory        func() EventGatewayConsumePolicyAPI
 	EventGatewayDataPlaneCertificateFactory func() EventGatewayDataPlaneCertificateAPI
+	EventGatewaySchemaRegistryFactory       func() EventGatewaySchemaRegistryAPI
 }
 
 // Returns a mock instance of the ControlPlaneAPI
@@ -328,6 +329,14 @@ func (m *MockKonnectSDK) GetEventGatewayConsumePolicyAPI() EventGatewayConsumePo
 func (m *MockKonnectSDK) GetEventGatewayDataPlaneCertificateAPI() EventGatewayDataPlaneCertificateAPI {
 	if m.EventGatewayDataPlaneCertificateFactory != nil {
 		return m.EventGatewayDataPlaneCertificateFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the EventGatewaySchemaRegistryAPI
+func (m *MockKonnectSDK) GetEventGatewaySchemaRegistryAPI() EventGatewaySchemaRegistryAPI {
+	if m.EventGatewaySchemaRegistryFactory != nil {
+		return m.EventGatewaySchemaRegistryFactory()
 	}
 	return nil
 }

@@ -60,6 +60,7 @@ type ClientConfig struct {
 	EventGatewayProducePolicyAPI        helpers.EventGatewayProducePolicyAPI
 	EventGatewayConsumePolicyAPI        helpers.EventGatewayConsumePolicyAPI
 	EventGatewayDataPlaneCertificateAPI helpers.EventGatewayDataPlaneCertificateAPI
+	EventGatewaySchemaRegistryAPI       helpers.EventGatewaySchemaRegistryAPI
 
 	// Identity resources
 	OrganizationTeamAPI helpers.OrganizationTeamAPI
@@ -103,6 +104,7 @@ type Client struct {
 	eventGatewayProducePolicyAPI        helpers.EventGatewayProducePolicyAPI
 	eventGatewayConsumePolicyAPI        helpers.EventGatewayConsumePolicyAPI
 	eventGatewayDataPlaneCertificateAPI helpers.EventGatewayDataPlaneCertificateAPI
+	eventGatewaySchemaRegistryAPI       helpers.EventGatewaySchemaRegistryAPI
 
 	// Organization resource APIs
 	organizationTeamAPI helpers.OrganizationTeamAPI
@@ -147,6 +149,7 @@ func NewClient(config ClientConfig) *Client {
 		eventGatewayProducePolicyAPI:        config.EventGatewayProducePolicyAPI,
 		eventGatewayConsumePolicyAPI:        config.EventGatewayConsumePolicyAPI,
 		eventGatewayDataPlaneCertificateAPI: config.EventGatewayDataPlaneCertificateAPI,
+		eventGatewaySchemaRegistryAPI:       config.EventGatewaySchemaRegistryAPI,
 
 		// Identity resource APIs
 		organizationTeamAPI: config.OrganizationTeamAPI,
@@ -296,6 +299,13 @@ type EventGatewayListener struct {
 // EventGatewayDataPlaneCertificate represents a data plane certificate for internal use
 type EventGatewayDataPlaneCertificate struct {
 	kkComps.EventGatewayDataPlaneCertificate
+}
+
+// EventGatewaySchemaRegistry represents a schema registry for internal use
+type EventGatewaySchemaRegistry struct {
+	kkComps.SchemaRegistry
+	NormalizedLabels map[string]string // Non-pointer labels
+	RawConfig        map[string]any    // Full config from raw API response
 }
 
 // ListManagedPortals returns all KONGCTL-managed portals in the specified namespaces
@@ -5088,6 +5098,196 @@ func (c *Client) DeleteEventGatewayDataPlaneCertificate(
 		ctx, gatewayID, certificateID)
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway data plane certificate", nil)
+	}
+	return nil
+}
+
+// ListEventGatewaySchemaRegistries returns all schema registries for a given event gateway.
+// It uses cursor-based pagination to retrieve all pages.
+func (c *Client) ListEventGatewaySchemaRegistries(
+	ctx context.Context,
+	gatewayID string,
+) ([]EventGatewaySchemaRegistry, error) {
+	if err := ValidateAPIClient(c.eventGatewaySchemaRegistryAPI, "event gateway schema registry API"); err != nil {
+		return nil, err
+	}
+
+	var allData []kkComps.SchemaRegistry
+	var rawConfigByID map[string]map[string]any
+	var pageAfter *string
+
+	for {
+		req := kkOps.ListEventGatewaySchemaRegistriesRequest{
+			GatewayID: gatewayID,
+		}
+
+		if pageAfter != nil {
+			req.PageAfter = pageAfter
+		}
+
+		res, err := c.eventGatewaySchemaRegistryAPI.ListEventGatewaySchemaRegistries(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway schema registries", nil)
+		}
+
+		if res.ListSchemaRegistriesResponse == nil {
+			return []EventGatewaySchemaRegistry{}, nil
+		}
+
+		// Try to parse raw response to get full config data (SDK config struct is opaque)
+		if rawConfigByID == nil {
+			rawConfigByID = make(map[string]map[string]any)
+		}
+		if res.RawResponse != nil && res.RawResponse.Body != nil {
+			bodyBytes, readErr := io.ReadAll(res.RawResponse.Body)
+			if readErr == nil && len(bodyBytes) > 0 {
+				var rawResp struct {
+					Data []struct {
+						ID     string         `json:"id"`
+						Config map[string]any `json:"config"`
+					} `json:"data"`
+				}
+				if jsonErr := json.Unmarshal(bodyBytes, &rawResp); jsonErr == nil {
+					for _, item := range rawResp.Data {
+						if item.ID != "" && item.Config != nil {
+							rawConfigByID[item.ID] = item.Config
+						}
+					}
+				}
+			}
+		}
+
+		allData = append(allData, res.ListSchemaRegistriesResponse.Data...)
+
+		if res.ListSchemaRegistriesResponse.Meta == nil ||
+			res.ListSchemaRegistriesResponse.Meta.Page.Next == nil {
+			break
+		}
+
+		u, err := url.Parse(*res.ListSchemaRegistriesResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway schema registries: invalid cursor", nil)
+		}
+
+		values := u.Query()
+		pageAfter = new(values.Get("page[after]"))
+	}
+
+	registries := make([]EventGatewaySchemaRegistry, 0, len(allData))
+	for _, sr := range allData {
+		normalized := sr.Labels
+		if normalized == nil {
+			normalized = make(map[string]string)
+		}
+		registries = append(registries, EventGatewaySchemaRegistry{
+			SchemaRegistry:   sr,
+			NormalizedLabels: normalized,
+			RawConfig:        rawConfigByID[sr.ID],
+		})
+	}
+
+	return registries, nil
+}
+
+// GetEventGatewaySchemaRegistryByID retrieves a single schema registry by ID.
+func (c *Client) GetEventGatewaySchemaRegistryByID(
+	ctx context.Context,
+	gatewayID string,
+	schemaRegistryID string,
+) (*EventGatewaySchemaRegistry, error) {
+	if err := ValidateAPIClient(c.eventGatewaySchemaRegistryAPI, "event gateway schema registry API"); err != nil {
+		return nil, err
+	}
+
+	resp, err := c.eventGatewaySchemaRegistryAPI.GetEventGatewaySchemaRegistry(ctx, gatewayID, schemaRegistryID)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway schema registry", nil)
+	}
+
+	if resp.SchemaRegistry == nil {
+		return nil, nil
+	}
+
+	normalized := resp.SchemaRegistry.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	return &EventGatewaySchemaRegistry{
+		SchemaRegistry:   *resp.SchemaRegistry,
+		NormalizedLabels: normalized,
+	}, nil
+}
+
+// GetEventGatewaySchemaRegistryByName looks up a schema registry by name.
+func (c *Client) GetEventGatewaySchemaRegistryByName(
+	ctx context.Context,
+	gatewayID string,
+	name string,
+) (*EventGatewaySchemaRegistry, error) {
+	registries, err := c.ListEventGatewaySchemaRegistries(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range registries {
+		if registries[i].Name == name {
+			return &registries[i], nil
+		}
+	}
+
+	return nil, nil
+}
+
+// CreateEventGatewaySchemaRegistry creates a new schema registry for an event gateway.
+func (c *Client) CreateEventGatewaySchemaRegistry(
+	ctx context.Context,
+	gatewayID string,
+	req kkComps.SchemaRegistryCreate,
+	_ string, // namespace (not applicable to schema registry, which has no management labels)
+) (string, error) {
+	resp, err := c.eventGatewaySchemaRegistryAPI.CreateEventGatewaySchemaRegistry(ctx, gatewayID, req)
+	if err != nil {
+		return "", WrapAPIError(err, "create event gateway schema registry", nil)
+	}
+
+	if err := ValidateResponse(resp.SchemaRegistry, "create event gateway schema registry"); err != nil {
+		return "", err
+	}
+
+	return resp.SchemaRegistry.ID, nil
+}
+
+// UpdateEventGatewaySchemaRegistry updates an existing schema registry.
+func (c *Client) UpdateEventGatewaySchemaRegistry(
+	ctx context.Context,
+	gatewayID string,
+	schemaRegistryID string,
+	req kkComps.SchemaRegistryUpdate,
+	_ string, // namespace
+) (string, error) {
+	resp, err := c.eventGatewaySchemaRegistryAPI.UpdateEventGatewaySchemaRegistry(
+		ctx, gatewayID, schemaRegistryID, req)
+	if err != nil {
+		return "", WrapAPIError(err, "update event gateway schema registry", nil)
+	}
+
+	if err := ValidateResponse(resp.SchemaRegistry, "update event gateway schema registry"); err != nil {
+		return "", err
+	}
+
+	return resp.SchemaRegistry.ID, nil
+}
+
+// DeleteEventGatewaySchemaRegistry deletes a schema registry by ID.
+func (c *Client) DeleteEventGatewaySchemaRegistry(
+	ctx context.Context,
+	gatewayID string,
+	schemaRegistryID string,
+) error {
+	_, err := c.eventGatewaySchemaRegistryAPI.DeleteEventGatewaySchemaRegistry(ctx, gatewayID, schemaRegistryID)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway schema registry", nil)
 	}
 	return nil
 }

@@ -41,6 +41,12 @@ const (
 	dataPlaneCertIDConfigPath   = "konnect.event-gateway.data-plane-certificate.id"
 	dataPlaneCertNameConfigPath = "konnect.event-gateway.data-plane-certificate.name"
 
+	schemaRegistryIDFlagName   = "schema-registry-id"
+	schemaRegistryNameFlagName = "schema-registry-name"
+
+	schemaRegistryIDConfigPath   = "konnect.event-gateway.schema-registry.id"
+	schemaRegistryNameConfigPath = "konnect.event-gateway.schema-registry.name"
+
 	valueNA = "n/a"
 )
 
@@ -233,6 +239,42 @@ func bindDataPlaneCertChildFlags(c *cobra.Command, args []string) error {
 
 func getDataPlaneCertIdentifiers(cfg config.Hook) (id string, name string) {
 	return cfg.GetString(dataPlaneCertIDConfigPath), cfg.GetString(dataPlaneCertNameConfigPath)
+}
+
+func addSchemaRegistryChildFlags(cmd *cobra.Command) {
+	cmd.Flags().String(schemaRegistryIDFlagName, "",
+		fmt.Sprintf(`The ID of the schema registry to retrieve.
+- Config path: [ %s ]`, schemaRegistryIDConfigPath))
+	cmd.Flags().String(schemaRegistryNameFlagName, "",
+		fmt.Sprintf(`The name of the schema registry to retrieve.
+- Config path: [ %s ]`, schemaRegistryNameConfigPath))
+	cmd.MarkFlagsMutuallyExclusive(schemaRegistryIDFlagName, schemaRegistryNameFlagName)
+}
+
+func bindSchemaRegistryChildFlags(c *cobra.Command, args []string) error {
+	helper := cmd.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if flag := c.Flags().Lookup(schemaRegistryIDFlagName); flag != nil {
+		if err := cfg.BindFlag(schemaRegistryIDConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	if flag := c.Flags().Lookup(schemaRegistryNameFlagName); flag != nil {
+		if err := cfg.BindFlag(schemaRegistryNameConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getSchemaRegistryIdentifiers(cfg config.Hook) (id string, name string) {
+	return cfg.GetString(schemaRegistryIDConfigPath), cfg.GetString(schemaRegistryNameConfigPath)
 }
 
 func resolveEventGatewayIDByName(
