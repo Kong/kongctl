@@ -100,8 +100,8 @@ steps:
   # Step 004: test text output format.
   # Default output is plain text. The text formatter writes a header line
   # "Linting Violations: N" followed by per-result lines with severity in
-  # brackets, e.g. "[error]". Verify the header text and the error severity
-  # label appear in the combined output.
+  # brackets, e.g. "[error]". Verify the header text appears in the
+  # combined output.
   - name: 004-lint-text-output
     skipInputs: true
     commands:
