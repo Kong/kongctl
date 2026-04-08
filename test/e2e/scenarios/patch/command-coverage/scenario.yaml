@@ -44,7 +44,7 @@ steps:
           - select: "@"
             expect:
               fields:
-                "_format_version": null
+                "contains(keys(@), '_format_version')": false
 
   # 002: Inline -s/-v flag: JSON array value appends to an existing array
   - name: 002-patch-inline-append-array
