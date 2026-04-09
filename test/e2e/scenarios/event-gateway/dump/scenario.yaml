@@ -15,6 +15,7 @@ vars:
   egwName: egw-cp-for-dump-test
   bcRef: default-backend-cluster
   vcRef: default-virtual-cluster
+  producePolicyName: default-produce-policy-name-for-dump-test
 
 defaults:
   mask:
@@ -42,7 +43,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 3
+                applied: 4
                 failed: 0
 
   # Dump event_gateways with child resources and validate the output structure.
@@ -78,6 +79,14 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.vcRef }}"
+          - name: produce-policy-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].virtual_clusters[?name=='{{ .vars.vcRef }}'] | [0].produce_policies[?name=='{{ .vars.producePolicyName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.producePolicyName }}"
+                type: modify_headers
+                enabled: true
           - name: namespace-label-preserved
             select: "_defaults.kongctl"
             expect:

@@ -31,3 +31,16 @@ event_gateways:
          - type: anonymous
         acl_mode: passthrough
         dns_label: vc-default
+        produce_policies:
+          - ref: default-produce-policy
+            name: default-produce-policy-name-for-dump-test
+            description: Default Produce Policy description
+            type: modify_headers
+            enabled: true
+            config:
+              actions:
+                  - op: set
+                    key: x-producer-id
+                    value: "${client_id}"
+                  - op: remove
+                    key: x-original-header
