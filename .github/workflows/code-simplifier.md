@@ -11,6 +11,8 @@ tools:
   github:
     toolsets: [default]
 safe-outputs:
+  noop:
+    report-as-issue: false
   create-issue:
     expires: 5d
     title-prefix: "[simplifier] "
@@ -74,7 +76,7 @@ For each merged PR or recent commit:
 
 ### 1.3 Determine Scope
 
-If **no files were changed in the last 24 hours**, exit gracefully without creating a PR:
+If **no files were changed in the last 24 hours**, exit gracefully without creating an issue:
 
 When this condition is met, call the `noop` safe output tool with this exact message and stop:
 
@@ -187,12 +189,14 @@ Only create an issue if:
 - ✅ You recommend actual code simplifications
 - ✅ Changes improve code quality without breaking functionality
 
-If no improvements are needed, exit gracefully:
+If no improvements are needed, call the `noop` safe output tool and stop with this exact message:
 
-```
-✅ Code analyzed from last 24 hours.
+```text
+Code analyzed from last 24 hours.
 No simplifications needed - code already meets quality standards.
 ```
+
+Do not emit plain progress text as the only final output. The `noop` safe output must be used for this no-op result as well.
 
 ### 4.2 Generate Issue
 
