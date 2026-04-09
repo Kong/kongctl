@@ -280,8 +280,13 @@ Exit gracefully without creating an issue if:
 
 Your output MUST either:
 
-1. **If no changes in last 24 hours**: Output a brief status message
-2. **If no simplifications beneficial**: Output a brief status message
+This rule applies to **all no-op outcomes in this workflow**. If there are no
+code changes to review, or if later analysis finds no meaningful
+simplification to make, emit a `noop` safe output instead of only outputting a
+brief status message.
+
+1. **If no changes in last 24 hours**: Emit `noop`
+2. **If no simplifications beneficial**: Emit `noop`
 3. **If simplifications made**: Create an issue detailing the changes
 
 Begin your code simplification analysis now.
