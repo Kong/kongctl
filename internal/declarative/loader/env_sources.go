@@ -50,6 +50,7 @@ func visitResourceSetResources(rs *resources.ResourceSet, fn func(resources.Reso
 			continue
 		}
 
+		//exhaustive:ignore
 		switch fieldValue.Kind() {
 		case reflect.Slice:
 			for j := range fieldValue.Len() {
@@ -96,6 +97,7 @@ func walkDeferredEnvPlaceholders(value reflect.Value, path []string, visit func(
 		value = value.Elem()
 	}
 
+	//exhaustive:ignore
 	switch value.Kind() {
 	case reflect.String:
 		strValue := value.String()

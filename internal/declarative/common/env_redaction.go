@@ -36,6 +36,7 @@ func sanitizeDeferredEnvReflect(value reflect.Value) (reflect.Value, bool) {
 		return reflect.Value{}, false
 	}
 
+	//exhaustive:ignore
 	switch value.Kind() {
 	case reflect.Interface:
 		if value.IsNil() {
@@ -148,4 +149,3 @@ func sanitizeDeferredEnvReflect(value reflect.Value) (reflect.Value, bool) {
 		return value, false
 	}
 }
-
