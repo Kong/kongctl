@@ -76,10 +76,14 @@ For each merged PR or recent commit:
 
 If **no files were changed in the last 24 hours**, exit gracefully without creating a PR:
 
-```
-✅ No code changes detected in the last 24 hours.
+When this condition is met, call the `noop` safe output tool with this exact message and stop:
+
+```text
+No code changes detected in the last 24 hours.
 Code simplifier has nothing to process today.
 ```
+
+Do not emit plain progress text as the only final output. The `noop` safe output must be used so this workflow records a safe-output item.
 
 If **files were changed**, proceed to Phase 2.
 
@@ -245,7 +249,8 @@ Please verify:
 
 ### 4.3 Use Safe Outputs
 
-Create the issue request using the safe-outputs tool with the generated information.
+Create the issue request by emitting `create-issue` with the generated content in
+the required format.
 
 ## Important Guidelines
 
