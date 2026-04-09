@@ -29,6 +29,9 @@ vars:
   clusterPolicyRef: plan-sync-cluster-policy
   clusterPolicyName: plan-sync-cluster-policy-name-for-test
   clusterPolicyDesc: "Plan Sync Cluster Policy description"
+  producePolicyRef: plan-sync-produce-policy
+  producePolicyName: plan-sync-produce-policy-name-for-test
+  producePolicyDesc: "Plan Sync Produce Policy description"
 
 defaults:
   mask:
@@ -691,6 +694,98 @@ steps:
                 name: "{{ .vars.clusterPolicyName }}"
                 description: "{{ .vars.clusterPolicyDesc }}"
                 type: acls
+                enabled: true
+      - name: 004-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+
+  - name: 009-plan-sync-produce-policy
+    inputOverlayDirs:
+      - overlays/008-produce-policy
+    commands:
+      - name: 000-plan-create-produce-policy
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-produce-policy.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='{{ .vars.producePolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.producePolicyRef }}"
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-produce-policy.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'event_gateway_virtual_cluster_produce_policy \"plan-sync-produce-policy\" will be created')": true
+      - name: 002-sync-plan
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-produce-policy.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-produce-policy
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.vcName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.producePolicyName }}"
+                description: "{{ .vars.producePolicyDesc }}"
+                type: modify_headers
                 enabled: true
       - name: 004-diff-no-changes
         outputFormat: text

@@ -1,0 +1,388 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+test:
+  enabledByEnvVar: KONGCTL_ENABLE_EVENT_GATEWAY
+
+vars:
+  egwName: egw-cp-for-vc-produce-policy-test
+  egwRef: egw-cp-for-vc-produce-policy-test
+  backendClusterRef: default-backend-cluster
+  backendClusterName: default-backend-cluster
+  virtualClusterRef: default-virtual-cluster-for-produce-policy-test
+  virtualClusterName: default-virtual-cluster-name-for-produce-policy-test
+  producePolicyRef: default-produce-policy
+  producePolicyName: default-produce-policy-name-for-test
+  producePolicyDescription: Default Produce Policy description
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+  - name: 001-plan-apply-create
+    commands:
+      - name: 001-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 4
+          - select: >-
+              changes[?resource_type=='event_gateway' && resource_ref=='{{ .vars.egwRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.egwRef }}"
+          - select: >-
+              changes[?resource_type=='event_gateway_backend_cluster' && resource_ref=='{{ .vars.backendClusterRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.backendClusterRef }}"
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster' && resource_ref=='{{ .vars.virtualClusterRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.virtualClusterRef }}"
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='{{ .vars.producePolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.producePolicyRef }}"
+      - name: 002-apply-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+
+      - name: 003-verify-create
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.producePolicyName }}"
+                description: "Default Produce Policy description"
+  - name: 002-plan-apply-update
+    inputOverlayDirs:
+      - overlays/001-update-fields
+    commands:
+      - name: 001-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='{{ .vars.producePolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                resource_ref: "{{ .vars.producePolicyRef }}"
+      - name: 002-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-update
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.producePolicyName }}"
+                type: modify_headers
+                description: Default Produce Policy description updated
+                enabled: false
+                labels:
+                  env: staging
+                  version: v2
+                config:
+                  actions:
+                    - op: set
+                      key: x-producer-id
+                      value: "${client_id}"
+                    - op: set
+                      key: x-trace-id
+                      value: "${request_id}"
+                    - op: remove
+                      key: x-deprecated-header
+                
+  - name: 003-sync-delete
+    inputOverlayDirs:
+      - overlays/002-sync-delete
+    commands:
+      - name: 001-plan-sync-delete
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='{{ .vars.producePolicyName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: "{{ .vars.producePolicyName }}"
+      - name: 002-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-sync-delete
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+  - name: 004-root-level-create
+    inputOverlayDirs:
+      - overlays/003-root-level-declaration
+    commands:
+      - name: 001-plan-root-level-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-root-level-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='root-level-produce-policy'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "root-level-produce-policy"
+      - name: 002-apply-root-level
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-root-level-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-root-level-create
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "root-level-produce-policy-name"
+                type: encrypt
+                description: "Root Level Produce Policy description"
+                enabled: true
+                labels:
+                  env: production
+                  team: platform
+                config:
+                  failure_mode: passthrough
+                  part_of_record:
+                  - value
+                  encryption_key:
+                    type: aws
+                    arn: arn:aws:kms:us-east-1:123456789012:key/abcd-1234-efgh-5678
+
+  - name: 005-root-level-sync-delete
+    inputOverlayDirs:
+      - overlays/004-sync-delete-root-level-declaration
+    commands:
+      - name: 001-plan-root-level-sync-delete
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-root-level-sync-delete.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='root-level-produce-policy-name'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: "root-level-produce-policy-name"
+      - name: 002-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-root-level-sync-delete.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-root-level-sync-delete
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0

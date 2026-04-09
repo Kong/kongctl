@@ -42,6 +42,7 @@ type MockKonnectSDK struct {
 	EventGatewayListenerFactory             func() EventGatewayListenerAPI
 	EventGatewayListenerPolicyFactory       func() EventGatewayListenerPolicyAPI
 	EventGatewayClusterPolicyFactory        func() EventGatewayClusterPolicyAPI
+	EventGatewayProducePolicyFactory        func() EventGatewayProducePolicyAPI
 	EventGatewayDataPlaneCertificateFactory func() EventGatewayDataPlaneCertificateAPI
 }
 
@@ -302,6 +303,14 @@ func (m *MockKonnectSDK) GetEventGatewayListenerPolicyAPI() EventGatewayListener
 func (m *MockKonnectSDK) GetEventGatewayClusterPolicyAPI() EventGatewayClusterPolicyAPI {
 	if m.EventGatewayClusterPolicyFactory != nil {
 		return m.EventGatewayClusterPolicyFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the EventGatewayProducePolicyAPI
+func (m *MockKonnectSDK) GetEventGatewayProducePolicyAPI() EventGatewayProducePolicyAPI {
+	if m.EventGatewayProducePolicyFactory != nil {
+		return m.EventGatewayProducePolicyFactory()
 	}
 	return nil
 }

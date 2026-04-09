@@ -115,7 +115,8 @@ func IsManagedResourceProtected(
 		resources.ResourceTypeEventGatewayClusterPolicy,
 		resources.ResourceTypeEventGatewayListener,
 		resources.ResourceTypeEventGatewayListenerPolicy,
-		resources.ResourceTypeEventGatewayDataPlaneCertificate:
+		resources.ResourceTypeEventGatewayDataPlaneCertificate,
+		resources.ResourceTypeEventGatewayProducePolicy:
 		return false, nil
 	}
 

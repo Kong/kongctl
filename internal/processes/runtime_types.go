@@ -1,14 +1,5 @@
 package processes
 
-import "time"
-
-const (
-	defaultStopTimeout        = 15 * time.Second
-	defaultStartProbeWait     = 500 * time.Millisecond
-	defaultProbeInterval      = 100 * time.Millisecond
-	defaultStartProbeInterval = 20 * time.Millisecond
-)
-
 // Status represents the runtime state of a detached process record.
 type Status string
 

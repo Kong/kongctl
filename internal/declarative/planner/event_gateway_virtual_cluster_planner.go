@@ -103,6 +103,18 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 					return err
 				}
 			}
+
+			// Plan produce policies for this new virtual cluster (depends on virtual cluster creation)
+			producePolicies := p.resources.GetProducePoliciesForVirtualCluster(desiredCluster.Ref)
+			if len(producePolicies) > 0 {
+				if err := p.planEventGatewayVirtualClusterProducePolicyChanges(
+					ctx, nil, namespace, gatewayID, gatewayRef,
+					desiredCluster.Name, "", desiredCluster.Ref,
+					virtualClusterChangeID, producePolicies, plan,
+				); err != nil {
+					return err
+				}
+			}
 		} else {
 			// CHECK UPDATE
 			p.logger.Debug("Checking if virtual cluster needs update",
@@ -136,6 +148,18 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 					ctx, nil, namespace, gatewayID, gatewayRef,
 					desiredCluster.Name, current.ID, desiredCluster.Ref,
 					"", clusterPolicies, plan,
+				); err != nil {
+					return err
+				}
+			}
+
+			// Plan produce policies for this existing virtual cluster
+			producePolicies := p.resources.GetProducePoliciesForVirtualCluster(desiredCluster.Ref)
+			if len(producePolicies) > 0 || plan.Metadata.Mode == PlanModeSync {
+				if err := p.planEventGatewayVirtualClusterProducePolicyChanges(
+					ctx, nil, namespace, gatewayID, gatewayRef,
+					desiredCluster.Name, current.ID, desiredCluster.Ref,
+					"", producePolicies, plan,
 				); err != nil {
 					return err
 				}
@@ -193,6 +217,18 @@ func (p *Planner) planVirtualClusterCreatesForNewGateway(
 				ctx, nil, namespace, "", gatewayRef,
 				cluster.Name, "", cluster.Ref,
 				virtualClusterChangeID, clusterPolicies, plan,
+			); err != nil {
+				return err
+			}
+		}
+
+		// Plan produce policies for this new virtual cluster (depends on virtual cluster creation)
+		producePolicies := p.resources.GetProducePoliciesForVirtualCluster(cluster.Ref)
+		if len(producePolicies) > 0 {
+			if err := p.planEventGatewayVirtualClusterProducePolicyChanges(
+				ctx, nil, namespace, "", gatewayRef,
+				cluster.Name, "", cluster.Ref,
+				virtualClusterChangeID, producePolicies, plan,
 			); err != nil {
 				return err
 			}
