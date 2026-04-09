@@ -111,6 +111,7 @@ func resolveDeferredEnvReflect(value reflect.Value) (any, error) {
 		return nil, nil
 	}
 
+	//exhaustive:ignore
 	switch value.Kind() {
 	case reflect.Interface:
 		if value.IsNil() {
