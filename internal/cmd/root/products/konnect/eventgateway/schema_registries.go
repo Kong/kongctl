@@ -1,9 +1,7 @@
 package eventgateway
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/url"
 	"strings"
 	"time"
@@ -39,11 +37,18 @@ type schemaRegistrySummaryRecord struct {
 	LocalUpdatedTime string
 }
 
-// schemaRegistryEntry wraps the SDK SchemaRegistry with raw config data from the API
-// response (the SDK Config struct is empty/opaque).
+// schemaRegistryEntry holds a schema registry with full config from the raw API
+// response. The SDK's SchemaRegistryConfig struct is opaque/empty, so we parse
+// the raw response body directly, keeping Config as map[string]any.
 type schemaRegistryEntry struct {
-	kkComps.SchemaRegistry
-	RawConfig map[string]any
+	ID          string            `json:"id"                    yaml:"id"`
+	Name        string            `json:"name"                  yaml:"name"`
+	Type        string            `json:"type"                  yaml:"type"`
+	Description *string           `json:"description,omitempty" yaml:"description,omitempty"`
+	Config      map[string]any    `json:"config"                yaml:"config"`
+	Labels      map[string]string `json:"labels,omitempty"      yaml:"labels,omitempty"`
+	CreatedAt   time.Time         `json:"created_at"            yaml:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"            yaml:"updated_at"`
 }
 
 var (
@@ -258,12 +263,6 @@ func (h schemaRegistriesHandler) listSchemaRegistries(
 		tableRows = append(tableRows, table.Row{record.ID, record.Name, record.Type})
 	}
 
-	// Extract base SDK types for JSON/YAML serialization.
-	rawRegistries := make([]kkComps.SchemaRegistry, 0, len(registries))
-	for _, sr := range registries {
-		rawRegistries = append(rawRegistries, sr.SchemaRegistry)
-	}
-
 	return tableview.RenderForFormat(
 		helper,
 		false,
@@ -271,7 +270,7 @@ func (h schemaRegistriesHandler) listSchemaRegistries(
 		printer,
 		helper.GetStreams(),
 		records,
-		rawRegistries,
+		registries,
 		"",
 		tableview.WithCustomTable([]string{"ID", "NAME", "TYPE"}, tableRows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
@@ -309,25 +308,26 @@ func (h schemaRegistriesHandler) getSingleSchemaRegistry(
 		return cmd.PrepareExecutionError("Failed to get schema registry", err, helper.GetCmd(), attrs...)
 	}
 
-	sr := res.GetSchemaRegistry()
-	if sr == nil {
+	if res.GetSchemaRegistry() == nil {
 		return &cmd.ExecutionError{
 			Msg: "Schema registry response was empty",
 			Err: fmt.Errorf("no schema registry returned for id %s", registryID),
 		}
 	}
 
-	// Parse raw response to retrieve the config (SDK Config struct is opaque).
-	entry := schemaRegistryEntry{SchemaRegistry: *sr}
-	if res.RawResponse != nil && res.RawResponse.Body != nil {
-		bodyBytes, readErr := io.ReadAll(res.RawResponse.Body)
-		if readErr == nil && len(bodyBytes) > 0 {
-			var rawResp struct {
-				Config map[string]any `json:"config"`
-			}
-			if jsonErr := json.Unmarshal(bodyBytes, &rawResp); jsonErr == nil {
-				entry.RawConfig = rawResp.Config
-			}
+	// Parse raw response to get full config (SDK SchemaRegistryConfig is opaque/empty).
+	var entry schemaRegistryEntry
+	if !parseRawPolicyResponse(helper, res, &entry) {
+		// Fallback: populate from SDK type (Config will be empty).
+		sr := res.GetSchemaRegistry()
+		entry = schemaRegistryEntry{
+			ID:          sr.ID,
+			Name:        sr.Name,
+			Type:        sr.Type,
+			Description: sr.Description,
+			Labels:      sr.Labels,
+			CreatedAt:   sr.CreatedAt,
+			UpdatedAt:   sr.UpdatedAt,
 		}
 	}
 
@@ -338,7 +338,7 @@ func (h schemaRegistriesHandler) getSingleSchemaRegistry(
 		printer,
 		helper.GetStreams(),
 		schemaRegistryToRecord(entry),
-		sr,
+		&entry,
 		"",
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
@@ -356,8 +356,7 @@ func fetchSchemaRegistries(
 		requestPageSize = int64(common.DefaultRequestPageSize)
 	}
 
-	var allData []kkComps.SchemaRegistry
-	rawConfigByID := make(map[string]map[string]any)
+	var allEntries []schemaRegistryEntry
 	var pageAfter *string
 
 	for {
@@ -390,28 +389,26 @@ func fetchSchemaRegistries(
 			break
 		}
 
-		// Parse the raw response body to extract full config (SDK Config struct is opaque).
-		if res.RawResponse != nil && res.RawResponse.Body != nil {
-			bodyBytes, readErr := io.ReadAll(res.RawResponse.Body)
-			if readErr == nil && len(bodyBytes) > 0 {
-				var rawResp struct {
-					Data []struct {
-						ID     string         `json:"id"`
-						Config map[string]any `json:"config"`
-					} `json:"data"`
-				}
-				if jsonErr := json.Unmarshal(bodyBytes, &rawResp); jsonErr == nil {
-					for _, item := range rawResp.Data {
-						if item.ID != "" && item.Config != nil {
-							rawConfigByID[item.ID] = item.Config
-						}
-					}
-				}
+		// Parse raw response to get entries with full config (SDK SchemaRegistryConfig is opaque/empty).
+		var rawPage struct {
+			Data []schemaRegistryEntry `json:"data"`
+		}
+		if parseRawPolicyResponse(helper, res, &rawPage) && len(rawPage.Data) > 0 {
+			allEntries = append(allEntries, rawPage.Data...)
+		} else {
+			// Fallback: use SDK types (Config will be empty).
+			for _, sr := range res.GetListSchemaRegistriesResponse().Data {
+				allEntries = append(allEntries, schemaRegistryEntry{
+					ID:          sr.ID,
+					Name:        sr.Name,
+					Type:        sr.Type,
+					Description: sr.Description,
+					Labels:      sr.Labels,
+					CreatedAt:   sr.CreatedAt,
+					UpdatedAt:   sr.UpdatedAt,
+				})
 			}
 		}
-
-		data := res.GetListSchemaRegistriesResponse().Data
-		allData = append(allData, data...)
 
 		if res.GetListSchemaRegistriesResponse().Meta == nil ||
 			res.GetListSchemaRegistriesResponse().Meta.Page.Next == nil {
@@ -431,15 +428,7 @@ func fetchSchemaRegistries(
 		pageAfter = new(values.Get("page[after]"))
 	}
 
-	entries := make([]schemaRegistryEntry, 0, len(allData))
-	for _, sr := range allData {
-		entries = append(entries, schemaRegistryEntry{
-			SchemaRegistry: sr,
-			RawConfig:      rawConfigByID[sr.ID],
-		})
-	}
-
-	return entries, nil
+	return allEntries, nil
 }
 
 func findSchemaRegistryByName(
@@ -526,28 +515,7 @@ func schemaRegistryDetailView(sr *schemaRegistryEntry) string {
 	fmt.Fprintf(&b, "description: %s\n", description)
 	fmt.Fprintf(&b, "created_at: %s\n", createdAt)
 	fmt.Fprintf(&b, "updated_at: %s\n", updatedAt)
-
-	if len(sr.RawConfig) > 0 {
-		fmt.Fprintf(&b, "config:\n")
-		if v, ok := sr.RawConfig["schema_type"]; ok {
-			fmt.Fprintf(&b, "  schema_type: %v\n", v)
-		}
-		if v, ok := sr.RawConfig["endpoint"]; ok {
-			fmt.Fprintf(&b, "  endpoint: %v\n", v)
-		}
-		if v, ok := sr.RawConfig["timeout_seconds"]; ok {
-			fmt.Fprintf(&b, "  timeout_seconds: %v\n", v)
-		}
-		if auth, ok := sr.RawConfig["authentication"].(map[string]any); ok {
-			fmt.Fprintf(&b, "  authentication:\n")
-			if t, ok := auth["type"]; ok {
-				fmt.Fprintf(&b, "    type: %v\n", t)
-			}
-			if u, ok := auth["username"]; ok {
-				fmt.Fprintf(&b, "    username: %v\n", u)
-			}
-		}
-	}
+	fmt.Fprintf(&b, "config:\n")
 
 	return strings.TrimRight(b.String(), "\n")
 }

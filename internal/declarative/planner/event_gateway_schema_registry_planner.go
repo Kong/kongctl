@@ -117,7 +117,7 @@ func (p *Planner) planSchemaRegistryChangesForExistingGateway(
 					"registry_name", name,
 					"registry_id", current.ID,
 				)
-				p.planSchemaRegistryDelete(gatewayRef, gatewayName, gatewayID, current.ID, name, plan)
+				p.planSchemaRegistryDelete(gatewayRef, gatewayID, current.ID, name, plan)
 			}
 		}
 	}
@@ -227,7 +227,6 @@ func (p *Planner) planSchemaRegistryUpdate(
 // planSchemaRegistryDelete plans a DELETE change for a schema registry.
 func (p *Planner) planSchemaRegistryDelete(
 	gatewayRef string,
-	gatewayName string,
 	gatewayID string,
 	registryID string,
 	registryName string,
@@ -259,7 +258,7 @@ func (p *Planner) shouldUpdateSchemaRegistry(
 	needsUpdate := false
 
 	// Only the confluent variant is currently supported.
-	conf := desired.SchemaRegistryCreate.SchemaRegistryConfluent
+	conf := desired.SchemaRegistryConfluent
 	if conf == nil {
 		return false, nil
 	}
@@ -364,7 +363,7 @@ func labelsEqual(a map[string]string, b map[string]string) bool {
 func buildSchemaRegistryFields(sr resources.EventGatewaySchemaRegistryResource) map[string]any {
 	fields := make(map[string]any)
 
-	conf := sr.SchemaRegistryCreate.SchemaRegistryConfluent
+	conf := sr.SchemaRegistryConfluent
 	if conf == nil {
 		return fields
 	}
