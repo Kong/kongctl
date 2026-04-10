@@ -2290,6 +2290,7 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		EventGatewayClusterPolicyAPI:        kkClient.GetEventGatewayClusterPolicyAPI(),
 		EventGatewayProducePolicyAPI:        kkClient.GetEventGatewayProducePolicyAPI(),
 		EventGatewayConsumePolicyAPI:        kkClient.GetEventGatewayConsumePolicyAPI(),
+		EventGatewaySchemaRegistryAPI:       kkClient.GetEventGatewaySchemaRegistryAPI(),
 		// Organization APIs
 		OrganizationTeamAPI: kkClient.GetOrganizationTeamAPI(),
 	})

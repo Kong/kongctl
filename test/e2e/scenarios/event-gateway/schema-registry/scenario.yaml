@@ -87,8 +87,8 @@ steps:
           - select: "[0]"
             expect:
               fields:
-                Name: default-schema-registry-name
-                Description: "Default Schema Registry description"
+                name: "{{ .vars.schemaRegistryName }}"
+                description: "Default Schema Registry description"
   - name: 002-plan-apply-update
     inputOverlayDirs:
       - overlays/001-update-fields
@@ -148,8 +148,8 @@ steps:
           - select: "[0]"
             expect:
               fields:
-                Name: "{{ .vars.schemaRegistryName }}"
-                Description: "Updated Schema Registry description"
+                name: "{{ .vars.schemaRegistryName }}"
+                description: "Updated Schema Registry description"
   - name: 003-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete
@@ -265,8 +265,8 @@ steps:
           - select: "[0]"
             expect:
               fields:
-                Name: default-schema-registry-name
-                Description: "Default root level Schema Registry description"
+                name: default-schema-registry-name
+                description: "Default root level Schema Registry description"
   - name: 005-sync-delete-root-level
     inputOverlayDirs:
       - overlays/004-sync-delete-root-level-declaration

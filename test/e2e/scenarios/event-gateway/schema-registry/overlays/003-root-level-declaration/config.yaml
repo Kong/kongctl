@@ -2,6 +2,11 @@ _defaults:
   kongctl:
     namespace: event-gateways-schema-registry-test
 
+event_gateways:
+  - ref: egw-cp-for-schema-registry-test-ref
+    name: egw-cp-for-schema-registry-test-name
+    description: "EGW CP for Schema Registry Test"
+
 event_gateway_schema_registries:
   - ref: default-schema-registry-ref
     event_gateway: egw-cp-for-schema-registry-test-ref
