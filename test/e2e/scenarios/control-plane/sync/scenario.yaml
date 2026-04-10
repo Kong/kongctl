@@ -41,6 +41,10 @@ steps:
             expect:
               fields:
                 mode: sync
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 2
           - select: >-
               plan.changes[?resource_type=='control_plane' &&
                             resource_ref=='e2e-cp'] | [0]
@@ -54,7 +58,7 @@ steps:
               fields:
                 action: CREATE
 
-      - name: 001-002-verify-deleted
+      - name: 001-002-verify-post-sync
         run:
           - get
           - konnect
@@ -67,16 +71,6 @@ steps:
             expect:
               fields:
                 "length(@)": 0
-
-      - name: 002-002-verify-created
-        run:
-          - get
-          - konnect
-          - gateway
-          - control-planes
-          - -o
-          - json
-        assertions:
           - select: "[?name=='kongctl-e2e-cp-2'] | [0]"
             expect:
               fields:
