@@ -1109,7 +1109,7 @@ func buildEventGatewayVirtualClusters(
 		// Fetch produce policies for this virtual cluster
 		if policies, err := buildEventGatewayProducePolicies(ctx, logger, client, gatewayID, cluster.ID); err != nil {
 			logWarn(logger, "failed to load produce policies", cluster.ID, cluster.Name, err)
-		}  err != nil {
+		} else if err != nil {
 			logWarn(logger, "failed to load produce policies", cluster.ID, cluster.Name, err)
 		} else if len(policies) > 0 {
 			res.ProducePolicies = policies

@@ -30,6 +30,22 @@ event_gateways:
           - type: anonymous
         acl_mode: enforce_on_gateway
         dns_label: vc-default
+        produce_policies:
+          - ref: plan-sync-produce-policy
+            name: plan-sync-produce-policy-name-for-test
+            description: Plan Sync Produce Policy description
+            type: modify_headers
+            enabled: true
+            labels:
+              env: staging
+              team: streaming
+            config:
+              actions:
+                - op: set
+                  key: x-producer-id
+                  value: "${client_id}"
+                - op: remove
+                  key: x-original-header
         consume_policies:
           - condition: ""
             config:

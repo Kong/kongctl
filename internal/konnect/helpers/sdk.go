@@ -367,13 +367,19 @@ func (k *KonnectSDK) GetEventGatewayClusterPolicyAPI() EventGatewayClusterPolicy
 
 // Returns the implementation of the EventGatewayProducePolicyAPI interface
 func (k *KonnectSDK) GetEventGatewayProducePolicyAPI() EventGatewayProducePolicyAPI {
+	if k.SDK == nil {
+		return nil
+	}
+
+	return &EventGatewayProducePolicyAPIImpl{SDK: k.SDK}
+}
+
 // Returns the implementation of the EventGatewayConsumePolicyAPI interface
 func (k *KonnectSDK) GetEventGatewayConsumePolicyAPI() EventGatewayConsumePolicyAPI {
 	if k.SDK == nil {
 		return nil
 	}
 
-	return &EventGatewayProducePolicyAPIImpl{SDK: k.SDK}
 	return &EventGatewayConsumePolicyAPIImpl{SDK: k.SDK}
 }
 

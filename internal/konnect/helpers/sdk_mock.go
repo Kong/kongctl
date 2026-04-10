@@ -312,6 +312,10 @@ func (m *MockKonnectSDK) GetEventGatewayClusterPolicyAPI() EventGatewayClusterPo
 func (m *MockKonnectSDK) GetEventGatewayProducePolicyAPI() EventGatewayProducePolicyAPI {
 	if m.EventGatewayProducePolicyFactory != nil {
 		return m.EventGatewayProducePolicyFactory()
+	}
+	return nil
+}
+
 // Returns a mock instance of the EventGatewayConsumePolicyAPI
 func (m *MockKonnectSDK) GetEventGatewayConsumePolicyAPI() EventGatewayConsumePolicyAPI {
 	if m.EventGatewayConsumePolicyFactory != nil {

@@ -22,8 +22,8 @@ type EventGatewayVirtualClusterResource struct {
 	EventGateway string `yaml:"event_gateway,omitempty" json:"event_gateway,omitempty"`
 
 	// Nested child resources
-	ClusterPolicies []EventGatewayClusterPolicyResource `yaml:"cluster_policies,omitempty" json:"cluster_policies,omitempty"` //nolint:lll
-	ProducePolicies []EventGatewayProducePolicyResource `yaml:"produce_policies,omitempty" json:"produce_policies,omitempty"` //nolint:lll
+	ClusterPolicies []EventGatewayClusterPolicyResource `yaml:"cluster_policies,omitempty" json:"cluster_policies,omitempty"`  //nolint:lll
+	ProducePolicies []EventGatewayProducePolicyResource `yaml:"produce_policies,omitempty" json:"produce_policies,omitempty"`  //nolint:lll
 	ConsumePolicies []EventGatewayConsumePolicyResource `yaml:"consume_policies,omitempty"  json:"consume_policies,omitempty"` //nolint:lll
 
 	// Resolved Konnect ID (not serialized)
@@ -82,6 +82,7 @@ func (e EventGatewayVirtualClusterResource) Validate() error {
 			return fmt.Errorf("duplicate produce policy ref: %s", pp.GetRef())
 		}
 		producePolicyRefs[pp.GetRef()] = true
+	}
 	// Validate consume policies
 	consumePolicyRefs := make(map[string]bool)
 	for i, cp := range e.ConsumePolicies {

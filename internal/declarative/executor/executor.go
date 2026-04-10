@@ -201,6 +201,9 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	e.eventGatewayProducePolicyExecutor = NewBaseExecutor[
 		kkComps.EventGatewayProducePolicyCreate, kkComps.EventGatewayProducePolicyUpdate](
 		NewEventGatewayProducePolicyAdapter(client),
+		client,
+		dryRun,
+	)
 	e.eventGatewayConsumePolicyExecutor = NewBaseExecutor[
 		kkComps.EventGatewayConsumePolicyCreate, kkComps.EventGatewayConsumePolicyUpdate](
 		NewEventGatewayConsumePolicyAdapter(client),
