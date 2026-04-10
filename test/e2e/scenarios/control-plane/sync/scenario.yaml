@@ -47,7 +47,7 @@ steps:
                 total_changes: 2
           - select: >-
               plan.changes[?resource_type=='control_plane' &&
-                            resource_ref=='e2e-cp'] | [0]
+                            resource_ref=='kongctl-e2e-cp'] | [0]
             expect:
               fields:
                 action: DELETE
