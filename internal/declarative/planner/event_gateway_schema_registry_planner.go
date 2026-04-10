@@ -287,11 +287,52 @@ func (p *Planner) shouldUpdateSchemaRegistry(
 		needsUpdate = true
 	}
 
-	// For the confluent type compare config fields using the SDK struct
-	// (endpoint, schema_type, timeout, labels)
-	if current.Config != nil {
-		// Can't deep-compare the opaque SchemaRegistryConfig reliably;
-		// use the full config fields from the SDK struct instead.
+	// Compare config fields using RawConfig (SDK Config struct is opaque/empty).
+	// password is write-only and is never returned by the API, so it is skipped.
+	desiredConf := conf.Config
+	currentSchemaType, _ := current.RawConfig["schema_type"].(string)
+	if currentSchemaType != string(desiredConf.SchemaType) {
+		needsUpdate = true
+	}
+
+	currentEndpoint, _ := current.RawConfig["endpoint"].(string)
+	if currentEndpoint != desiredConf.Endpoint {
+		needsUpdate = true
+	}
+
+	// JSON numbers unmarshal as float64.
+	currentTimeout := int64(10) // API default
+	if t, ok := current.RawConfig["timeout_seconds"].(float64); ok {
+		currentTimeout = int64(t)
+	}
+	desiredTimeout := int64(10)
+	if desiredConf.TimeoutSeconds != nil {
+		desiredTimeout = *desiredConf.TimeoutSeconds
+	}
+	if currentTimeout != desiredTimeout {
+		needsUpdate = true
+	}
+
+	// Compare authentication fields (skip password — write-only).
+	if desiredConf.Authentication != nil && desiredConf.Authentication.SchemaRegistryAuthenticationBasic != nil {
+		desiredAuth := desiredConf.Authentication.SchemaRegistryAuthenticationBasic
+		if currentAuth, ok := current.RawConfig["authentication"].(map[string]any); ok {
+			currentAuthType, _ := currentAuth["type"].(string)
+			if currentAuthType != desiredAuth.GetType() {
+				needsUpdate = true
+			}
+
+			currentUsername, _ := currentAuth["username"].(string)
+			if currentUsername != desiredAuth.Username {
+				needsUpdate = true
+			}
+		} else {
+			needsUpdate = true
+		}
+	} else if desiredConf.Authentication == nil {
+		if _, hasAuth := current.RawConfig["authentication"]; hasAuth {
+			needsUpdate = true
+		}
 	}
 
 	// Compare labels

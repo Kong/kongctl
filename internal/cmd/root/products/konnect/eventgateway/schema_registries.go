@@ -1,7 +1,9 @@
 package eventgateway
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"strings"
 	"time"
@@ -35,6 +37,13 @@ type schemaRegistrySummaryRecord struct {
 	Description      string
 	LocalCreatedTime string
 	LocalUpdatedTime string
+}
+
+// schemaRegistryEntry wraps the SDK SchemaRegistry with raw config data from the API
+// response (the SDK Config struct is empty/opaque).
+type schemaRegistryEntry struct {
+	kkComps.SchemaRegistry
+	RawConfig map[string]any
 }
 
 var (
@@ -249,6 +258,12 @@ func (h schemaRegistriesHandler) listSchemaRegistries(
 		tableRows = append(tableRows, table.Row{record.ID, record.Name, record.Type})
 	}
 
+	// Extract base SDK types for JSON/YAML serialization.
+	rawRegistries := make([]kkComps.SchemaRegistry, 0, len(registries))
+	for _, sr := range registries {
+		rawRegistries = append(rawRegistries, sr.SchemaRegistry)
+	}
+
 	return tableview.RenderForFormat(
 		helper,
 		false,
@@ -256,7 +271,7 @@ func (h schemaRegistriesHandler) listSchemaRegistries(
 		printer,
 		helper.GetStreams(),
 		records,
-		registries,
+		rawRegistries,
 		"",
 		tableview.WithCustomTable([]string{"ID", "NAME", "TYPE"}, tableRows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
@@ -302,13 +317,27 @@ func (h schemaRegistriesHandler) getSingleSchemaRegistry(
 		}
 	}
 
+	// Parse raw response to retrieve the config (SDK Config struct is opaque).
+	entry := schemaRegistryEntry{SchemaRegistry: *sr}
+	if res.RawResponse != nil && res.RawResponse.Body != nil {
+		bodyBytes, readErr := io.ReadAll(res.RawResponse.Body)
+		if readErr == nil && len(bodyBytes) > 0 {
+			var rawResp struct {
+				Config map[string]any `json:"config"`
+			}
+			if jsonErr := json.Unmarshal(bodyBytes, &rawResp); jsonErr == nil {
+				entry.RawConfig = rawResp.Config
+			}
+		}
+	}
+
 	return tableview.RenderForFormat(
 		helper,
 		false,
 		outType,
 		printer,
 		helper.GetStreams(),
-		schemaRegistryToRecord(*sr),
+		schemaRegistryToRecord(entry),
 		sr,
 		"",
 		tableview.WithRootLabel(helper.GetCmd().Name()),
@@ -321,13 +350,14 @@ func fetchSchemaRegistries(
 	gatewayID string,
 	cfg config.Hook,
 	nameFilter string,
-) ([]kkComps.SchemaRegistry, error) {
+) ([]schemaRegistryEntry, error) {
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
 	if requestPageSize < 1 {
 		requestPageSize = int64(common.DefaultRequestPageSize)
 	}
 
 	var allData []kkComps.SchemaRegistry
+	rawConfigByID := make(map[string]map[string]any)
 	var pageAfter *string
 
 	for {
@@ -360,6 +390,26 @@ func fetchSchemaRegistries(
 			break
 		}
 
+		// Parse the raw response body to extract full config (SDK Config struct is opaque).
+		if res.RawResponse != nil && res.RawResponse.Body != nil {
+			bodyBytes, readErr := io.ReadAll(res.RawResponse.Body)
+			if readErr == nil && len(bodyBytes) > 0 {
+				var rawResp struct {
+					Data []struct {
+						ID     string         `json:"id"`
+						Config map[string]any `json:"config"`
+					} `json:"data"`
+				}
+				if jsonErr := json.Unmarshal(bodyBytes, &rawResp); jsonErr == nil {
+					for _, item := range rawResp.Data {
+						if item.ID != "" && item.Config != nil {
+							rawConfigByID[item.ID] = item.Config
+						}
+					}
+				}
+			}
+		}
+
 		data := res.GetListSchemaRegistriesResponse().Data
 		allData = append(allData, data...)
 
@@ -381,13 +431,21 @@ func fetchSchemaRegistries(
 		pageAfter = new(values.Get("page[after]"))
 	}
 
-	return allData, nil
+	entries := make([]schemaRegistryEntry, 0, len(allData))
+	for _, sr := range allData {
+		entries = append(entries, schemaRegistryEntry{
+			SchemaRegistry: sr,
+			RawConfig:      rawConfigByID[sr.ID],
+		})
+	}
+
+	return entries, nil
 }
 
 func findSchemaRegistryByName(
-	registries []kkComps.SchemaRegistry,
+	registries []schemaRegistryEntry,
 	name string,
-) *kkComps.SchemaRegistry {
+) *schemaRegistryEntry {
 	lowered := strings.ToLower(name)
 	for i := range registries {
 		if strings.ToLower(registries[i].Name) == lowered {
@@ -397,7 +455,7 @@ func findSchemaRegistryByName(
 	return nil
 }
 
-func schemaRegistryToRecord(sr kkComps.SchemaRegistry) schemaRegistrySummaryRecord {
+func schemaRegistryToRecord(sr schemaRegistryEntry) schemaRegistrySummaryRecord {
 	id := sr.ID
 	if id != "" {
 		id = util.AbbreviateUUID(id)
@@ -433,7 +491,7 @@ func schemaRegistryToRecord(sr kkComps.SchemaRegistry) schemaRegistrySummaryReco
 	}
 }
 
-func schemaRegistryDetailView(sr *kkComps.SchemaRegistry) string {
+func schemaRegistryDetailView(sr *schemaRegistryEntry) string {
 	if sr == nil {
 		return ""
 	}
@@ -469,10 +527,32 @@ func schemaRegistryDetailView(sr *kkComps.SchemaRegistry) string {
 	fmt.Fprintf(&b, "created_at: %s\n", createdAt)
 	fmt.Fprintf(&b, "updated_at: %s\n", updatedAt)
 
+	if len(sr.RawConfig) > 0 {
+		fmt.Fprintf(&b, "config:\n")
+		if v, ok := sr.RawConfig["schema_type"]; ok {
+			fmt.Fprintf(&b, "  schema_type: %v\n", v)
+		}
+		if v, ok := sr.RawConfig["endpoint"]; ok {
+			fmt.Fprintf(&b, "  endpoint: %v\n", v)
+		}
+		if v, ok := sr.RawConfig["timeout_seconds"]; ok {
+			fmt.Fprintf(&b, "  timeout_seconds: %v\n", v)
+		}
+		if auth, ok := sr.RawConfig["authentication"].(map[string]any); ok {
+			fmt.Fprintf(&b, "  authentication:\n")
+			if t, ok := auth["type"]; ok {
+				fmt.Fprintf(&b, "    type: %v\n", t)
+			}
+			if u, ok := auth["username"]; ok {
+				fmt.Fprintf(&b, "    username: %v\n", u)
+			}
+		}
+	}
+
 	return strings.TrimRight(b.String(), "\n")
 }
 
-func buildSchemaRegistryChildView(registries []kkComps.SchemaRegistry) tableview.ChildView {
+func buildSchemaRegistryChildView(registries []schemaRegistryEntry) tableview.ChildView {
 	tableRows := make([]table.Row, 0, len(registries))
 	for i := range registries {
 		record := schemaRegistryToRecord(registries[i])
