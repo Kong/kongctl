@@ -181,6 +181,21 @@ steps:
                 description: "Virtual Cluster for Test Updated"
                 acl_mode: enforce_on_gateway
                 dns_label: vc-default-updated
+                "authentication[0].type": sasl_plain
+      - name: 004-idempotency-check
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-idempotency.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
   - name: 003-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete
