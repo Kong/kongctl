@@ -24,6 +24,8 @@ tools:
     lockdown: false
 
 safe-outputs:
+  noop:
+    report-as-issue: true
   create-discussion:
     title-prefix: "[repo-status] "
     category: "announcements"    # category slug, name, or ID (use lowercase, prefer announcement-capable)
@@ -55,3 +57,12 @@ Create an upbeat weekly status report for the repo as a GitHub Discussion.
 1. Gather recent activity from the repository
 2. Study the repository, its issues and its pull requests
 3. Create a new GitHub discussion with your findings and insights
+
+## Finalization
+
+Before finishing, emit exactly one safe output.
+
+- Prefer `create-discussion` with the weekly report.
+- If no meaningful report can be created, emit `noop` explaining why.
+- If the discussion tool is unavailable or fails, emit `missing_tool` or `noop`
+  so the workflow never finishes with no safe outputs.
