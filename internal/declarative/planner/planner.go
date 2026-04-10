@@ -69,6 +69,7 @@ type Planner struct {
 	portalPlanner                   PortalPlanner
 	controlPlanePlanner             ControlPlanePlanner
 	authStrategyPlanner             AuthStrategyPlanner
+	dcrProviderPlanner              DCRProviderPlanner
 	apiPlanner                      APIPlanner
 	catalogServicePlanner           CatalogServicePlanner
 	eventGatewayControlPlanePlanner EGWControlPlanePlanner
@@ -112,6 +113,7 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 	p.eventGatewayControlPlanePlanner = NewEGWControlPlanePlanner(base, p.resources)
 	p.controlPlanePlanner = NewControlPlanePlanner(base)
 	p.authStrategyPlanner = NewAuthStrategyPlanner(base)
+	p.dcrProviderPlanner = NewDCRProviderPlanner(base)
 	p.catalogServicePlanner = NewCatalogServicePlanner(base)
 	p.apiPlanner = NewAPIPlanner(base)
 	p.organizationTeamPlanner = NewOrganizationTeamPlanner(base)
@@ -208,6 +210,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.portalPlanner = NewPortalPlanner(base)
 		namespacePlanner.controlPlanePlanner = NewControlPlanePlanner(base)
 		namespacePlanner.authStrategyPlanner = NewAuthStrategyPlanner(base)
+		namespacePlanner.dcrProviderPlanner = NewDCRProviderPlanner(base)
 		namespacePlanner.catalogServicePlanner = NewCatalogServicePlanner(base)
 		namespacePlanner.apiPlanner = NewAPIPlanner(base)
 		namespacePlanner.eventGatewayControlPlanePlanner = NewEGWControlPlanePlanner(base, rs)
@@ -243,6 +246,14 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 		// Create planner context with namespace
 		plannerCtx := NewConfig(actualNamespace)
+
+		if err := namespacePlanner.dcrProviderPlanner.PlanChanges(
+			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.dcrProviderPlanner), ""),
+			plannerCtx,
+			namespacePlan,
+		); err != nil {
+			return nil, fmt.Errorf("failed to plan DCR provider changes for namespace %s: %w", namespace, err)
+		}
 
 		if err := namespacePlanner.authStrategyPlanner.PlanChanges(
 			withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.authStrategyPlanner), ""),

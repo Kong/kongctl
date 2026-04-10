@@ -273,6 +273,9 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 			fields["configs"] = map[string]any{
 				"openid-connect": oidcConfig,
 			}
+			if providerID := strategy.GetDCRProviderID(); providerID != "" {
+				fields[FieldDCRProviderID] = providerID
+			}
 		}
 	}
 
@@ -491,6 +494,15 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 						"openid-connect": oidcOldValues,
 					},
 					New: newConfigs,
+				}
+			}
+
+			desiredProviderID := desired.GetDCRProviderID()
+			if desiredProviderID != "" && current.DCRProviderID != desiredProviderID {
+				updateFields[FieldDCRProviderID] = desiredProviderID
+				changedFields[FieldDCRProviderID] = FieldChange{
+					Old: current.DCRProviderID,
+					New: desiredProviderID,
 				}
 			}
 		}

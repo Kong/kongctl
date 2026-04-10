@@ -28,6 +28,7 @@ type ClientConfig struct {
 	PortalAPI             helpers.PortalAPI
 	APIAPI                helpers.APIAPI
 	AppAuthAPI            helpers.AppAuthStrategiesAPI
+	DCRProviderAPI        helpers.DCRProvidersAPI
 	ControlPlaneAPI       helpers.ControlPlaneAPI
 	GatewayServiceAPI     helpers.GatewayServiceAPI
 	ControlPlaneGroupsAPI helpers.ControlPlaneGroupsAPI
@@ -70,6 +71,7 @@ type Client struct {
 	portalAPI             helpers.PortalAPI
 	apiAPI                helpers.APIAPI
 	appAuthAPI            helpers.AppAuthStrategiesAPI
+	dcrProviderAPI        helpers.DCRProvidersAPI
 	controlPlaneAPI       helpers.ControlPlaneAPI
 	gatewayServiceAPI     helpers.GatewayServiceAPI
 	controlPlaneGroupsAPI helpers.ControlPlaneGroupsAPI
@@ -113,6 +115,7 @@ func NewClient(config ClientConfig) *Client {
 		portalAPI:             config.PortalAPI,
 		apiAPI:                config.APIAPI,
 		appAuthAPI:            config.AppAuthAPI,
+		dcrProviderAPI:        config.DCRProviderAPI,
 		controlPlaneAPI:       config.ControlPlaneAPI,
 		gatewayServiceAPI:     config.GatewayServiceAPI,
 		controlPlaneGroupsAPI: config.ControlPlaneGroupsAPI,
@@ -259,8 +262,20 @@ type ApplicationAuthStrategy struct {
 	Name             string
 	DisplayName      string
 	StrategyType     string
+	DCRProviderID    string
 	Configs          map[string]any
 	NormalizedLabels map[string]string // Non-pointer labels
+}
+
+// DCRProvider represents a normalized DCR provider for internal use.
+type DCRProvider struct {
+	ID               string
+	Name             string
+	DisplayName      string
+	ProviderType     string
+	Issuer           string
+	DCRConfig        map[string]any
+	NormalizedLabels map[string]string
 }
 
 type EventGatewayControlPlane struct {
@@ -2049,6 +2064,7 @@ func (c *Client) extractAuthStrategyFromUnion(s kkComps.AppAuthStrategy) *Applic
 			keyAuthResp.DisplayName,
 			keyAuthResp.Labels,
 			keyAuthResp.Configs.KeyAuth.KeyNames,
+			idValue(keyAuthResp.DcrProvider),
 		)
 	}
 
@@ -2063,6 +2079,7 @@ func (c *Client) extractAuthStrategyFromUnion(s kkComps.AppAuthStrategy) *Applic
 			oidcResp.Configs.OpenidConnect.CredentialClaim,
 			oidcResp.Configs.OpenidConnect.Scopes,
 			oidcResp.Configs.OpenidConnect.AuthMethods,
+			idValue(oidcResp.DcrProvider),
 		)
 	}
 
@@ -2083,6 +2100,7 @@ func (c *Client) extractAuthStrategyFromCreateResponse(
 			keyAuthResp.DisplayName,
 			keyAuthResp.Labels,
 			keyAuthResp.Configs.KeyAuth.KeyNames,
+			idValue(keyAuthResp.DcrProvider),
 		)
 	}
 
@@ -2096,6 +2114,7 @@ func (c *Client) extractAuthStrategyFromCreateResponse(
 			oidcResp.Configs.OpenidConnect.CredentialClaim,
 			oidcResp.Configs.OpenidConnect.Scopes,
 			oidcResp.Configs.OpenidConnect.AuthMethods,
+			idValue(oidcResp.DcrProvider),
 		)
 	}
 
@@ -2113,12 +2132,14 @@ func normalizeKeyAuthStrategy(
 	id, name, displayName string,
 	labelMap map[string]string,
 	keyNames []string,
+	dcrProviderID string,
 ) *ApplicationAuthStrategy {
 	strategy := &ApplicationAuthStrategy{
-		ID:           id,
-		Name:         name,
-		DisplayName:  displayName,
-		StrategyType: "key_auth",
+		ID:            id,
+		Name:          name,
+		DisplayName:   displayName,
+		StrategyType:  "key_auth",
+		DCRProviderID: dcrProviderID,
 		Configs: map[string]any{
 			"key-auth": map[string]any{},
 		},
@@ -2138,6 +2159,7 @@ func normalizeOIDCStrategy(
 	labelMap map[string]string,
 	issuer string,
 	credentialClaim, scopes, authMethods []string,
+	dcrProviderID string,
 ) *ApplicationAuthStrategy {
 	oidcConfig := map[string]any{
 		"issuer": issuer,
@@ -2153,15 +2175,199 @@ func normalizeOIDCStrategy(
 	}
 
 	return &ApplicationAuthStrategy{
-		ID:           id,
-		Name:         name,
-		DisplayName:  displayName,
-		StrategyType: "openid_connect",
+		ID:            id,
+		Name:          name,
+		DisplayName:   displayName,
+		StrategyType:  "openid_connect",
+		DCRProviderID: dcrProviderID,
 		Configs: map[string]any{
 			"openid-connect": oidcConfig,
 		},
 		NormalizedLabels: normalizeLabelMap(labelMap),
 	}
+}
+
+type normalizedDCRProviderPayload struct {
+	ID           string            `json:"id"`
+	Name         string            `json:"name"`
+	DisplayName  string            `json:"display_name"`
+	ProviderType string            `json:"provider_type"`
+	Issuer       string            `json:"issuer"`
+	DCRConfig    map[string]any    `json:"dcr_config"`
+	Labels       map[string]string `json:"labels"`
+}
+
+func normalizeDCRProviderFromAny(data any) (*DCRProvider, error) {
+	payloadBytes, err := json.Marshal(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal DCR provider payload: %w", err)
+	}
+
+	var payload normalizedDCRProviderPayload
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal DCR provider payload: %w", err)
+	}
+
+	return &DCRProvider{
+		ID:               payload.ID,
+		Name:             payload.Name,
+		DisplayName:      payload.DisplayName,
+		ProviderType:     payload.ProviderType,
+		Issuer:           payload.Issuer,
+		DCRConfig:        payload.DCRConfig,
+		NormalizedLabels: normalizeLabelMap(payload.Labels),
+	}, nil
+}
+
+func idValue(v any) string {
+	if v == nil {
+		return ""
+	}
+
+	payloadBytes, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		return ""
+	}
+
+	str, _ := payload["id"].(string)
+	if str != "" {
+		return str
+	}
+	str, _ = payload["ID"].(string)
+	return str
+}
+
+// CreateDCRProvider creates a new DCR provider with management labels.
+func (c *Client) CreateDCRProvider(
+	ctx context.Context,
+	provider kkComps.CreateDcrProviderRequest,
+	_ string,
+) (*DCRProvider, error) {
+	if c.dcrProviderAPI == nil {
+		return nil, fmt.Errorf("dcr provider API client not configured")
+	}
+
+	if _, err := c.dcrProviderAPI.CreateDcrProvider(ctx, provider); err != nil {
+		return nil, fmt.Errorf("failed to create DCR provider: %w", err)
+	}
+
+	providerBytes, err := json.Marshal(provider)
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect DCR provider create request: %w", err)
+	}
+
+	var payload normalizedDCRProviderPayload
+	if err := json.Unmarshal(providerBytes, &payload); err != nil {
+		return nil, fmt.Errorf("failed to read DCR provider create request: %w", err)
+	}
+
+	created, err := c.GetDCRProviderByName(ctx, payload.Name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch DCR provider after create: %w", err)
+	}
+	if created == nil {
+		return nil, fmt.Errorf("created DCR provider not found by name: %s", payload.Name)
+	}
+
+	return created, nil
+}
+
+// ListManagedDCRProviders returns all KONGCTL-managed DCR providers in the specified namespaces.
+func (c *Client) ListManagedDCRProviders(
+	ctx context.Context, namespaces []string,
+) ([]DCRProvider, error) {
+	if err := ValidateAPIClient(c.dcrProviderAPI, "dcr provider API"); err != nil {
+		return nil, err
+	}
+
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]DCRProvider, *PageMeta, error) {
+		req := kkOps.ListDcrProvidersRequest{
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		}
+
+		resp, err := c.dcrProviderAPI.ListDcrProviders(ctx, req)
+		if err != nil {
+			return nil, nil, WrapAPIError(err, "list dcr providers", nil)
+		}
+
+		if resp.ListDcrProvidersResponse == nil {
+			return []DCRProvider{}, &PageMeta{Total: 0}, nil
+		}
+
+		var filtered []DCRProvider
+		for _, p := range resp.ListDcrProvidersResponse.Data {
+			provider, err := normalizeDCRProviderFromAny(p)
+			if err != nil {
+				return nil, nil, err
+			}
+			if labels.IsManagedResource(provider.NormalizedLabels) &&
+				shouldIncludeNamespace(provider.NormalizedLabels[labels.NamespaceKey], namespaces) {
+				filtered = append(filtered, *provider)
+			}
+		}
+
+		meta := &PageMeta{Total: resp.ListDcrProvidersResponse.Meta.Page.Total}
+		return filtered, meta, nil
+	}
+
+	return PaginateAll(ctx, lister)
+}
+
+func (c *Client) GetDCRProviderByName(ctx context.Context, name string) (*DCRProvider, error) {
+	providers, err := c.ListManagedDCRProviders(ctx, []string{"*"})
+	if err != nil {
+		return nil, err
+	}
+	for _, provider := range providers {
+		if provider.Name == name {
+			return &provider, nil
+		}
+	}
+	return nil, nil
+}
+
+func (c *Client) GetDCRProviderByID(ctx context.Context, id string) (*DCRProvider, error) {
+	providers, err := c.ListManagedDCRProviders(ctx, []string{"*"})
+	if err != nil {
+		return nil, err
+	}
+	for _, provider := range providers {
+		if provider.ID == id {
+			return &provider, nil
+		}
+	}
+	return nil, nil
+}
+
+func (c *Client) UpdateDCRProvider(
+	ctx context.Context,
+	id string,
+	provider kkComps.UpdateDcrProviderRequest,
+	_ string,
+) error {
+	if c.dcrProviderAPI == nil {
+		return fmt.Errorf("dcr provider API client not configured")
+	}
+	if _, err := c.dcrProviderAPI.UpdateDcrProvider(ctx, id, provider); err != nil {
+		return fmt.Errorf("failed to update DCR provider: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) DeleteDCRProvider(ctx context.Context, id string) error {
+	if c.dcrProviderAPI == nil {
+		return fmt.Errorf("dcr provider API client not configured")
+	}
+	if _, err := c.dcrProviderAPI.DeleteDcrProvider(ctx, id); err != nil {
+		return fmt.Errorf("failed to delete DCR provider: %w", err)
+	}
+	return nil
 }
 
 // GetAuthStrategyByName finds a managed auth strategy by name

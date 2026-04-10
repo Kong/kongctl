@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -20,6 +21,7 @@ func init() {
 // ApplicationAuthStrategyResource represents an application auth strategy in declarative configuration
 type ApplicationAuthStrategyResource struct {
 	BaseResource
+	DCRProviderID *string `yaml:"dcr_provider_id,omitempty" json:"dcr_provider_id,omitempty"`
 	kkComps.CreateAppAuthStrategyRequest `yaml:",inline" json:",inline"`
 }
 
@@ -30,7 +32,12 @@ func (a ApplicationAuthStrategyResource) GetType() ResourceType {
 
 // GetDependencies returns references to other resources this auth strategy depends on
 func (a ApplicationAuthStrategyResource) GetDependencies() []ResourceRef {
-	// Auth strategies don't depend on other resources
+	if providerID := a.GetDCRProviderID(); providerID != "" {
+		return []ResourceRef{{
+			Kind: string(ResourceTypeDCRProvider),
+			Ref:  providerID,
+		}}
+	}
 	return []ResourceRef{}
 }
 
@@ -65,7 +72,9 @@ func (a *ApplicationAuthStrategyResource) SetLabels(labels map[string]string) {
 
 // GetReferenceFieldMappings returns the field mappings for reference validation
 func (a ApplicationAuthStrategyResource) GetReferenceFieldMappings() map[string]string {
-	return map[string]string{} // No outbound references
+	return map[string]string{
+		"dcr_provider_id": string(ResourceTypeDCRProvider),
+	}
 }
 
 // Validate ensures the application auth strategy resource is valid
@@ -116,6 +125,7 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 		DisplayName  string            `json:"display_name"`
 		StrategyType string            `json:"strategy_type"`
 		Configs      map[string]any    `json:"configs"`
+		DcrProviderID *string          `json:"dcr_provider_id,omitempty"`
 		Labels       map[string]string `json:"labels,omitempty"`
 		Kongctl      *KongctlMeta      `json:"kongctl,omitempty"`
 	}
@@ -131,6 +141,7 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 	// Set our fields
 	a.Ref = temp.Ref
 	a.Kongctl = temp.Kongctl
+	a.DCRProviderID = temp.DcrProviderID
 
 	// Based on strategy_type, create the appropriate SDK union type
 	switch temp.StrategyType {
@@ -151,6 +162,7 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 			Configs: kkComps.AppAuthStrategyOpenIDConnectRequestConfigs{
 				OpenidConnect: oidcConfig,
 			},
+			DcrProviderID: temp.DcrProviderID,
 			Labels: temp.Labels,
 		}
 
@@ -214,8 +226,21 @@ func (a ApplicationAuthStrategyResource) MarshalJSON() ([]byte, error) {
 	if a.Kongctl != nil {
 		payload["kongctl"] = a.Kongctl
 	}
+	if providerID := a.GetDCRProviderID(); providerID != "" {
+		payload["dcr_provider_id"] = providerID
+	}
 
 	return json.Marshal(payload)
+}
+
+func (a ApplicationAuthStrategyResource) GetDCRProviderID() string {
+	if a.DCRProviderID != nil {
+		return strings.TrimSpace(*a.DCRProviderID)
+	}
+	if a.AppAuthStrategyOpenIDConnectRequest != nil && a.AppAuthStrategyOpenIDConnectRequest.DcrProviderID != nil {
+		return strings.TrimSpace(*a.AppAuthStrategyOpenIDConnectRequest.DcrProviderID)
+	}
+	return ""
 }
 
 // getConfigByKey returns the first matching config entry for canonical key names.

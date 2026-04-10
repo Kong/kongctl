@@ -9,6 +9,7 @@ type ResourceType string
 const (
 	ResourceTypePortal                           ResourceType = "portal"
 	ResourceTypeApplicationAuthStrategy          ResourceType = "application_auth_strategy"
+	ResourceTypeDCRProvider                      ResourceType = "dcr_provider"
 	ResourceTypeControlPlane                     ResourceType = "control_plane"
 	ResourceTypeAPI                              ResourceType = "api"
 	ResourceTypeAPIVersion                       ResourceType = "api_version"
@@ -55,6 +56,7 @@ type ResourceSet struct {
 	Portals []PortalResource `yaml:"portals,omitempty"                               json:"portals,omitempty"`
 	// ApplicationAuthStrategies contains auth strategy configurations
 	ApplicationAuthStrategies []ApplicationAuthStrategyResource `yaml:"application_auth_strategies,omitempty"           json:"application_auth_strategies,omitempty"` //nolint:lll
+	DCRProviders              []DCRProviderResource             `yaml:"dcr_providers,omitempty"                        json:"dcr_providers,omitempty"`               //nolint:lll
 	// ControlPlanes contains control plane configurations
 	ControlPlanes   []ControlPlaneResource   `yaml:"control_planes,omitempty"                        json:"control_planes,omitempty"`   //nolint:lll
 	CatalogServices []CatalogServiceResource `yaml:"catalog_services,omitempty"                      json:"catalog_services,omitempty"` //nolint:lll
@@ -252,6 +254,16 @@ func (rs *ResourceSet) GetAuthStrategyByRef(ref string) *ApplicationAuthStrategy
 	return nil
 }
 
+// GetDCRProviderByRef returns a DCR provider resource by its ref from any namespace
+func (rs *ResourceSet) GetDCRProviderByRef(ref string) *DCRProviderResource {
+	for i := range rs.DCRProviders {
+		if rs.DCRProviders[i].GetRef() == ref {
+			return &rs.DCRProviders[i]
+		}
+	}
+	return nil
+}
+
 // Namespace-filtered access methods
 
 // GetPortalsByNamespace returns all portal resources from the specified namespace
@@ -310,6 +322,17 @@ func (rs *ResourceSet) GetAuthStrategiesByNamespace(namespace string) []Applicat
 	for _, strategy := range rs.ApplicationAuthStrategies {
 		if GetNamespace(strategy.Kongctl) == namespace {
 			filtered = append(filtered, strategy)
+		}
+	}
+	return filtered
+}
+
+// GetDCRProvidersByNamespace returns all DCR provider resources from the specified namespace
+func (rs *ResourceSet) GetDCRProvidersByNamespace(namespace string) []DCRProviderResource {
+	var filtered []DCRProviderResource
+	for _, provider := range rs.DCRProviders {
+		if GetNamespace(provider.Kongctl) == namespace {
+			filtered = append(filtered, provider)
 		}
 	}
 	return filtered

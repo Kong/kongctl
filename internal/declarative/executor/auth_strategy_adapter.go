@@ -105,6 +105,10 @@ func (a *AuthStrategyAdapter) MapUpdateFields(
 		update.Configs = updateConfigs
 	}
 
+	if providerID, ok := fields[planner.FieldDCRProviderID].(string); ok && providerID != "" {
+		update.DcrProviderID = &providerID
+	}
+
 	return nil
 }
 
@@ -276,6 +280,10 @@ func (a *AuthStrategyAdapter) buildOpenIDConnectRequest(name, displayName string
 
 	// Extract auth methods
 	req.Configs.OpenidConnect.AuthMethods = extractStringSlice(oidcConfig["auth_methods"], nil)
+
+	if providerID, ok := fields[planner.FieldDCRProviderID].(string); ok && providerID != "" {
+		req.DcrProviderID = &providerID
+	}
 
 	return req, nil
 }

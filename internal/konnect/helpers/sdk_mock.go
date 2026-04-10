@@ -16,6 +16,7 @@ type MockKonnectSDK struct {
 	APIPublicationFactory     func() APIPublicationAPI
 	APIImplementationFactory  func() APIImplementationAPI
 	AppAuthStrategiesFactory  func() AppAuthStrategiesAPI
+	DCRProvidersFactory       func() DCRProvidersAPI
 	MeFactory                 func() MeAPI
 	GatewayServiceFactory     func() GatewayServiceAPI
 	SystemAccountFactory      func() SystemAccountAPI
@@ -119,6 +120,14 @@ func (m *MockKonnectSDK) GetAPIImplementationAPI() APIImplementationAPI {
 func (m *MockKonnectSDK) GetAppAuthStrategiesAPI() AppAuthStrategiesAPI {
 	if m.AppAuthStrategiesFactory != nil {
 		return m.AppAuthStrategiesFactory()
+	}
+	return nil
+}
+
+// Returns a mock instance of the DCRProvidersAPI
+func (m *MockKonnectSDK) GetDCRProvidersAPI() DCRProvidersAPI {
+	if m.DCRProvidersFactory != nil {
+		return m.DCRProvidersFactory()
 	}
 	return nil
 }

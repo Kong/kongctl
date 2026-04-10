@@ -127,7 +127,23 @@ application_auth_strategies:
        credential_claim: array[string] required (max 10 items)
        scopes: array[string] required (max 50 items)
        auth_methods: array[string] required (max 10 items)
-   dcr_provider_id: string (uuid, nullable; openid_connect only)
+   dcr_provider_id: string (uuid, nullable; openid_connect only) # prefer: !ref <dcr-provider-ref>
+   labels: object [string]string
+     key: value
+```
+
+## DCR Providers
+
+[API Specification](https://developer.konghq.com/api/konnect/application-auth-strategies/v2/#/operations/create-dcr-provider)
+
+```yaml
+dcr_providers:
+ - ref: string
+   name: string required
+   display_name: string
+   provider_type: One of (auth0 | azureAd | curity | okta | http) required
+   issuer: string (url, max 256 chars) required
+   dcr_config: object required
    labels: object [string]string
      key: value
 ```

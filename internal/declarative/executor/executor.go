@@ -39,6 +39,7 @@ type Executor struct {
 		kkComps.CreateAppAuthStrategyRequest,
 		kkComps.UpdateAppAuthStrategyRequest,
 	]
+	dcrProviderExecutor              *BaseExecutor[kkComps.CreateDcrProviderRequest, kkComps.UpdateDcrProviderRequest]
 	catalogServiceExecutor           *BaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService]
 	eventGatewayControlPlaneExecutor *BaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest]
 	organizationTeamExecutor         *BaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam]
@@ -141,6 +142,11 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	)
 	e.authStrategyExecutor = NewBaseExecutor[kkComps.CreateAppAuthStrategyRequest, kkComps.UpdateAppAuthStrategyRequest](
 		NewAuthStrategyAdapter(client),
+		client,
+		dryRun,
+	)
+	e.dcrProviderExecutor = NewBaseExecutor[kkComps.CreateDcrProviderRequest, kkComps.UpdateDcrProviderRequest](
+		NewDCRProviderAdapter(client),
 		client,
 		dryRun,
 	)
@@ -704,6 +710,36 @@ func (e *Executor) resolveAuthStrategyRef(ctx context.Context, refInfo planner.R
 	}
 
 	return strategy.ID, nil
+}
+
+func (e *Executor) resolveDCRProviderRef(ctx context.Context, refInfo planner.ReferenceInfo) (string, error) {
+	lookupRef := refInfo.Ref
+	if tags.IsRefPlaceholder(lookupRef) {
+		if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+			lookupRef = parsedRef
+		}
+	}
+
+	if providers, ok := e.refToID["dcr_provider"]; ok {
+		if id, found := providers[lookupRef]; found {
+			return id, nil
+		}
+		if lookupRef != refInfo.Ref {
+			if id, found := providers[refInfo.Ref]; found {
+				return id, nil
+			}
+		}
+	}
+
+	provider, err := e.client.GetDCRProviderByName(ctx, lookupRef)
+	if err != nil {
+		return "", fmt.Errorf("failed to get dcr provider by name: %w", err)
+	}
+	if provider == nil {
+		return "", fmt.Errorf("dcr provider not found: ref=%s, looked up by name=%s", refInfo.Ref, lookupRef)
+	}
+
+	return provider.ID, nil
 }
 
 // resolvePortalRef resolves a portal reference to its ID
@@ -1526,6 +1562,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		return e.apiExecutor.Create(ctx, *change)
 	case "catalog_service":
 		return e.catalogServiceExecutor.Create(ctx, *change)
+	case "dcr_provider":
+		return e.dcrProviderExecutor.Create(ctx, *change)
 	case "api_version":
 		// First resolve API reference if needed
 		if apiRef, ok := change.References["api_id"]; ok && apiRef.ID == "" {
@@ -1641,7 +1679,15 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		}
 		return e.apiDocumentExecutor.Create(ctx, *change)
 	case "application_auth_strategy":
-		// No references to resolve for application_auth_strategy
+		if dcrProviderRef, ok := change.References[planner.FieldDCRProviderID]; ok && dcrProviderRef.ID == "" {
+			dcrProviderID, err := e.resolveDCRProviderRef(ctx, dcrProviderRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve DCR provider reference: %w", err)
+			}
+			dcrProviderRef.ID = dcrProviderID
+			change.References[planner.FieldDCRProviderID] = dcrProviderRef
+			change.Fields[planner.FieldDCRProviderID] = dcrProviderID
+		}
 		return e.authStrategyExecutor.Create(ctx, *change)
 	case "portal_customization":
 		// Portal customization is a singleton resource - always exists, so we update instead
@@ -2027,7 +2073,18 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 		// Use Create method which handles PUT (both create and update)
 		return e.apiPublicationExecutor.Create(ctx, *change)
 	case "application_auth_strategy":
+		if dcrProviderRef, ok := change.References[planner.FieldDCRProviderID]; ok && dcrProviderRef.ID == "" {
+			dcrProviderID, err := e.resolveDCRProviderRef(ctx, dcrProviderRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve DCR provider reference: %w", err)
+			}
+			dcrProviderRef.ID = dcrProviderID
+			change.References[planner.FieldDCRProviderID] = dcrProviderRef
+			change.Fields[planner.FieldDCRProviderID] = dcrProviderID
+		}
 		return e.authStrategyExecutor.Update(ctx, *change)
+	case "dcr_provider":
+		return e.dcrProviderExecutor.Update(ctx, *change)
 	case "portal_customization":
 		portalID, err := e.resolvePortalRef(ctx, change.References["portal_id"])
 		if err != nil {
@@ -2296,8 +2353,9 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 		}
 		return e.apiDocumentExecutor.Delete(ctx, *change)
 	case "application_auth_strategy":
-		// No references to resolve for application_auth_strategy
 		return e.authStrategyExecutor.Delete(ctx, *change)
+	case "dcr_provider":
+		return e.dcrProviderExecutor.Delete(ctx, *change)
 	case "portal_custom_domain":
 		// No references to resolve for portal_custom_domain
 		return e.portalDomainExecutor.Delete(ctx, *change)

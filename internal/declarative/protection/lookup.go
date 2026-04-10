@@ -78,6 +78,14 @@ func IsManagedResourceProtected(
 			}
 			return r.NormalizedLabels, err
 		})
+	case resources.ResourceTypeDCRProvider:
+		return fetchProtection(resourceName, "DCR provider", func() (map[string]string, error) {
+			r, err := client.GetDCRProviderByName(ctx, resourceName)
+			if r == nil {
+				return nil, err
+			}
+			return r.NormalizedLabels, err
+		})
 	case resources.ResourceTypeEventGatewayControlPlane:
 		return fetchProtection(resourceName, "event gateway", func() (map[string]string, error) {
 			r, err := client.GetEventGatewayControlPlaneByName(ctx, resourceName)
