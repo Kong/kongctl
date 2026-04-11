@@ -64,3 +64,92 @@ steps:
                 "attributes.owner": ["Portal Team"]
                 "attributes.lifecycle": ["ga"]
                 "slug": "simple-api-with-attributes"
+
+  - name: 002-update-attributes
+    inputOverlayDirs:
+      - overlays/002-update-attributes
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='api' && resource_ref=='simple-api'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "fields.attributes.lifecycle": ["deprecated"]
+                "fields.attributes.owner": ["Platform Team"]
+                "fields.slug": "simple-api-deprecated"
+      - name: 001-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-get-apis
+        run:
+          - get
+          - apis
+        assertions:
+          - select: "[?name=='{{ .vars.apiName }}'] | [0]"
+            expect:
+              fields:
+                "attributes.owner": ["Platform Team"]
+                "attributes.lifecycle": ["deprecated"]
+                "slug": "simple-api-deprecated"
+
+  - name: 003-sync-remove-attributes
+    inputOverlayDirs:
+      - overlays/003-sync-remove-attributes
+    commands:
+      - name: 000-sync-remove
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+          - select: >-
+              plan.changes[?resource_type=='api' && resource_ref=='simple-api'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+      - name: 001-get-apis
+        run:
+          - get
+          - apis
+        assertions:
+          - select: "[?name=='{{ .vars.apiName }}'] | [0]"
+            expect:
+              fields:
+                "attributes.owner": null
+                "attributes.lifecycle": null
