@@ -122,6 +122,7 @@ steps:
               fields:
                 slug: sms-errors
                 status: published
+                "contains(content, 'improved error descriptions')": true
 
   - name: 003-sync-delete-document
     inputOverlayDirs:

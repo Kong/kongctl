@@ -71,17 +71,17 @@ apis:
         status: published
         content: !file apis/voice/docs/ncco.md
         children:
-        - ref: voice-errors
-          title: "Voice API: Error Handling"
-          slug: voice-errors
-          status: published
-          content: !file apis/voice/docs/errors.md
-          children:
-            - ref: voice-authentication
-              title: "Voice API: Authentication Guide"
-              slug: voice-authentication
-              status: published
-              content: !file apis/voice/docs/authentication.md
+          - ref: voice-errors
+            title: "Voice API: Error Handling"
+            slug: voice-errors
+            status: published
+            content: !file apis/voice/docs/errors.md
+            children:
+              - ref: voice-authentication
+                title: "Voice API: Authentication Guide"
+                slug: voice-authentication
+                status: published
+                content: !file apis/voice/docs/authentication.md
 
 
     publications:
