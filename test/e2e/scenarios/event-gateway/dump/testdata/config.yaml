@@ -44,3 +44,14 @@ event_gateways:
                     value: "${client_id}"
                   - op: remove
                     key: x-original-header
+        consume_policies:
+          - condition: ""
+            config:
+              key_validation_action: mark
+              type: json
+              value_validation_action: skip
+            description: ""
+            enabled: true
+            name: default-consume-policy-name-for-dump-test
+            ref: default-consume-policy
+            type: schema_validation

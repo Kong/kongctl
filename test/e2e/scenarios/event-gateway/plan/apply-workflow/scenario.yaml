@@ -32,6 +32,8 @@ vars:
   producePolicyRef: plan-apply-produce-policy
   producePolicyName: plan-apply-produce-policy-name-for-test
   producePolicyDesc: "Plan Apply Produce Policy description"
+  consumePolicyRef: plan-apply-consume-policy
+  consumePolicyName: skip-record-policy
 
 defaults:
   mask:
@@ -715,3 +717,81 @@ steps:
                 name: "{{ .vars.producePolicyName }}"
                 description: "{{ .vars.producePolicyDesc }}"
                 enabled: true
+  - name: 010-plan-apply-consume-policy
+    inputOverlayDirs:
+      - overlays/009-consume-policy
+    commands:
+      - name: 000-plan-create-consume-policy
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-consume-policy.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_consume_policy' && resource_ref=='{{ .vars.consumePolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.consumePolicyRef }}"
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-consume-policy.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'event_gateway_virtual_cluster_consume_policy \"plan-apply-consume-policy\" will be created')": true
+      - name: 002-apply-plan
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-consume-policy.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-consume-policy
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.vcName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.consumePolicyName }}"
+                type: skip_record
+                enabled: true 

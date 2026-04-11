@@ -58,6 +58,7 @@ type ClientConfig struct {
 	EventGatewayListenerPolicyAPI       helpers.EventGatewayListenerPolicyAPI
 	EventGatewayClusterPolicyAPI        helpers.EventGatewayClusterPolicyAPI
 	EventGatewayProducePolicyAPI        helpers.EventGatewayProducePolicyAPI
+	EventGatewayConsumePolicyAPI        helpers.EventGatewayConsumePolicyAPI
 	EventGatewayDataPlaneCertificateAPI helpers.EventGatewayDataPlaneCertificateAPI
 
 	// Identity resources
@@ -100,6 +101,7 @@ type Client struct {
 	eventGatewayListenerPolicyAPI       helpers.EventGatewayListenerPolicyAPI
 	eventGatewayClusterPolicyAPI        helpers.EventGatewayClusterPolicyAPI
 	eventGatewayProducePolicyAPI        helpers.EventGatewayProducePolicyAPI
+	eventGatewayConsumePolicyAPI        helpers.EventGatewayConsumePolicyAPI
 	eventGatewayDataPlaneCertificateAPI helpers.EventGatewayDataPlaneCertificateAPI
 
 	// Organization resource APIs
@@ -143,6 +145,7 @@ func NewClient(config ClientConfig) *Client {
 		eventGatewayListenerPolicyAPI:       config.EventGatewayListenerPolicyAPI,
 		eventGatewayClusterPolicyAPI:        config.EventGatewayClusterPolicyAPI,
 		eventGatewayProducePolicyAPI:        config.EventGatewayProducePolicyAPI,
+		eventGatewayConsumePolicyAPI:        config.EventGatewayConsumePolicyAPI,
 		eventGatewayDataPlaneCertificateAPI: config.EventGatewayDataPlaneCertificateAPI,
 
 		// Identity resource APIs
@@ -4749,6 +4752,194 @@ func (c *Client) GetEventGatewayVirtualClusterProducePolicy(
 	return &EventGatewayVirtualClusterProducePolicyInfo{
 		EventGatewayPolicy: *resp.EventGatewayPolicy,
 		RawConfig:          nil,
+	}, nil
+}
+
+// ---- Event Gateway Consume Policy operations ----
+
+// EventGatewayConsumePolicyInfo wraps an Event Gateway Consume Policy for internal use.
+// RawConfig contains the full config from the raw API response since the SDK's
+// EventGatewayPolicyConfig struct is empty and doesn't capture actual config data.
+type EventGatewayConsumePolicyInfo struct {
+	kkComps.EventGatewayPolicy
+	NormalizedLabels map[string]string
+	RawConfig        map[string]any
+}
+
+// consumePolicyRawResponse is used to parse the raw API response to get full config.
+type consumePolicyRawResponse struct {
+	Type           string            `json:"type"`
+	Name           *string           `json:"name,omitempty"`
+	Description    *string           `json:"description,omitempty"`
+	Enabled        *bool             `json:"enabled,omitempty"`
+	Labels         map[string]string `json:"labels,omitempty"`
+	ID             string            `json:"id"`
+	Config         map[string]any    `json:"config"`
+	CreatedAt      string            `json:"created_at"`
+	UpdatedAt      string            `json:"updated_at"`
+	ParentPolicyID *string           `json:"parent_policy_id,omitempty"`
+	Condition      *string           `json:"condition,omitempty"`
+}
+
+func (c *Client) ListEventGatewayConsumePolicies(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+) ([]EventGatewayConsumePolicyInfo, error) {
+	if err := ValidateAPIClient(c.eventGatewayConsumePolicyAPI, "event gateway consume policy API"); err != nil {
+		return nil, err
+	}
+
+	req := kkOps.ListEventGatewayVirtualClusterConsumePoliciesRequest{
+		GatewayID:        gatewayID,
+		VirtualClusterID: virtualClusterID,
+	}
+
+	res, err := c.eventGatewayConsumePolicyAPI.ListEventGatewayVirtualClusterConsumePolicies(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "list event gateway consume policies", nil)
+	}
+
+	if res.ListConsumePoliciesResponse == nil {
+		return []EventGatewayConsumePolicyInfo{}, nil
+	}
+
+	// Try to parse raw response to get full config data
+	rawConfigByID := make(map[string]map[string]any)
+	if res.RawResponse != nil && res.RawResponse.Body != nil {
+		bodyBytes, readErr := io.ReadAll(res.RawResponse.Body)
+		if readErr == nil && len(bodyBytes) > 0 {
+			var rawPolicies []consumePolicyRawResponse
+			if jsonErr := json.Unmarshal(bodyBytes, &rawPolicies); jsonErr == nil {
+				for _, rp := range rawPolicies {
+					if rp.ID != "" && rp.Config != nil {
+						rawConfigByID[rp.ID] = rp.Config
+					}
+				}
+			}
+		}
+	}
+
+	var policies []EventGatewayConsumePolicyInfo
+	for _, p := range res.ListConsumePoliciesResponse {
+		normalized := p.Labels
+		if normalized == nil {
+			normalized = make(map[string]string)
+		}
+		policies = append(policies, EventGatewayConsumePolicyInfo{
+			EventGatewayPolicy: p,
+			NormalizedLabels:   normalized,
+			RawConfig:          rawConfigByID[p.ID],
+		})
+	}
+
+	return policies, nil
+}
+
+func (c *Client) CreateEventGatewayConsumePolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	req kkComps.EventGatewayConsumePolicyCreate,
+	namespace string,
+) (string, error) {
+	createReq := kkOps.CreateEventGatewayVirtualClusterConsumePolicyRequest{
+		GatewayID:                       gatewayID,
+		VirtualClusterID:                virtualClusterID,
+		EventGatewayConsumePolicyCreate: &req,
+	}
+
+	resp, err := c.eventGatewayConsumePolicyAPI.CreateEventGatewayVirtualClusterConsumePolicy(ctx, createReq)
+	if err != nil {
+		return "", WrapAPIError(err, "create event gateway consume policy", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_virtual_cluster_consume_policy",
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.EventGatewayPolicy, "create event gateway consume policy"); err != nil {
+		return "", err
+	}
+
+	return resp.EventGatewayPolicy.ID, nil
+}
+
+func (c *Client) UpdateEventGatewayConsumePolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	policyID string,
+	req kkComps.EventGatewayConsumePolicyUpdate,
+	namespace string,
+) (string, error) {
+	updateReq := kkOps.UpdateEventGatewayVirtualClusterConsumePolicyRequest{
+		GatewayID:                       gatewayID,
+		VirtualClusterID:                virtualClusterID,
+		PolicyID:                        policyID,
+		EventGatewayConsumePolicyUpdate: &req,
+	}
+
+	resp, err := c.eventGatewayConsumePolicyAPI.UpdateEventGatewayVirtualClusterConsumePolicy(ctx, updateReq)
+	if err != nil {
+		return "", WrapAPIError(err, "update event gateway consume policy", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_virtual_cluster_consume_policy",
+			Namespace:    namespace,
+			UseEnhanced:  true,
+		})
+	}
+
+	return resp.EventGatewayPolicy.ID, nil
+}
+
+func (c *Client) DeleteEventGatewayConsumePolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	policyID string,
+) error {
+	deleteReq := kkOps.DeleteEventGatewayVirtualClusterConsumePolicyRequest{
+		GatewayID:        gatewayID,
+		VirtualClusterID: virtualClusterID,
+		PolicyID:         policyID,
+	}
+
+	_, err := c.eventGatewayConsumePolicyAPI.DeleteEventGatewayVirtualClusterConsumePolicy(ctx, deleteReq)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway consume policy", nil)
+	}
+	return nil
+}
+
+func (c *Client) GetEventGatewayConsumePolicy(
+	ctx context.Context,
+	gatewayID string,
+	virtualClusterID string,
+	policyID string,
+) (*EventGatewayConsumePolicyInfo, error) {
+	req := kkOps.GetEventGatewayVirtualClusterConsumePolicyRequest{
+		GatewayID:        gatewayID,
+		VirtualClusterID: virtualClusterID,
+		PolicyID:         policyID,
+	}
+
+	resp, err := c.eventGatewayConsumePolicyAPI.GetEventGatewayVirtualClusterConsumePolicy(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway consume policy", nil)
+	}
+
+	if resp.EventGatewayPolicy == nil {
+		return nil, nil
+	}
+
+	normalized := resp.EventGatewayPolicy.Labels
+	if normalized == nil {
+		normalized = make(map[string]string)
+	}
+
+	return &EventGatewayConsumePolicyInfo{
+		EventGatewayPolicy: *resp.EventGatewayPolicy,
+		NormalizedLabels:   normalized,
 	}, nil
 }
 

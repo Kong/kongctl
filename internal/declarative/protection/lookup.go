@@ -113,6 +113,7 @@ func IsManagedResourceProtected(
 		resources.ResourceTypeEventGatewayBackendCluster,
 		resources.ResourceTypeEventGatewayVirtualCluster,
 		resources.ResourceTypeEventGatewayClusterPolicy,
+		resources.ResourceTypeEventGatewayConsumePolicy,
 		resources.ResourceTypeEventGatewayListener,
 		resources.ResourceTypeEventGatewayListenerPolicy,
 		resources.ResourceTypeEventGatewayDataPlaneCertificate,

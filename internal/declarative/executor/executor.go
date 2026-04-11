@@ -56,6 +56,8 @@ type Executor struct {
 		kkComps.EventGatewayClusterPolicyModify, kkComps.EventGatewayClusterPolicyModify]
 	eventGatewayProducePolicyExecutor *BaseExecutor[
 		kkComps.EventGatewayProducePolicyCreate, kkComps.EventGatewayProducePolicyUpdate]
+	eventGatewayConsumePolicyExecutor *BaseExecutor[
+		kkComps.EventGatewayConsumePolicyCreate, kkComps.EventGatewayConsumePolicyUpdate]
 	eventGatewayDataPlaneCertificateExecutor *BaseExecutor[
 		kkComps.CreateEventGatewayDataPlaneCertificateRequest,
 		kkComps.UpdateEventGatewayDataPlaneCertificateRequest]
@@ -199,6 +201,12 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	e.eventGatewayProducePolicyExecutor = NewBaseExecutor[
 		kkComps.EventGatewayProducePolicyCreate, kkComps.EventGatewayProducePolicyUpdate](
 		NewEventGatewayProducePolicyAdapter(client),
+		client,
+		dryRun,
+	)
+	e.eventGatewayConsumePolicyExecutor = NewBaseExecutor[
+		kkComps.EventGatewayConsumePolicyCreate, kkComps.EventGatewayConsumePolicyUpdate](
+		NewEventGatewayConsumePolicyAdapter(client),
 		client,
 		dryRun,
 	)
@@ -1923,6 +1931,27 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References["event_gateway_virtual_cluster_id"] = virtualClusterRef
 		}
 		return e.eventGatewayProducePolicyExecutor.Create(ctx, *change)
+	case planner.ResourceTypeEventGatewayConsumePolicy:
+		// Resolve event gateway reference if needed
+		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
+			}
+			gatewayRef.ID = gatewayID
+			change.References["event_gateway_id"] = gatewayRef
+		}
+		// Resolve event gateway virtual cluster reference if needed
+		if virtualClusterRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok && virtualClusterRef.ID == "" {
+			gatewayID := change.References["event_gateway_id"].ID
+			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
+			}
+			virtualClusterRef.ID = virtualClusterID
+			change.References["event_gateway_virtual_cluster_id"] = virtualClusterRef
+		}
+		return e.eventGatewayConsumePolicyExecutor.Create(ctx, *change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
 	}
@@ -2255,6 +2284,27 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			change.References["event_gateway_virtual_cluster_id"] = virtualClusterRef
 		}
 		return e.eventGatewayProducePolicyExecutor.Update(ctx, *change)
+	case planner.ResourceTypeEventGatewayConsumePolicy:
+		// Resolve event gateway reference if needed
+		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
+			}
+			gatewayRef.ID = gatewayID
+			change.References["event_gateway_id"] = gatewayRef
+		}
+		// Resolve event gateway virtual cluster reference if needed
+		if virtualClusterRef, ok := change.References["event_gateway_virtual_cluster_id"]; ok && virtualClusterRef.ID == "" {
+			gatewayID := change.References["event_gateway_id"].ID
+			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
+			}
+			virtualClusterRef.ID = virtualClusterID
+			change.References["event_gateway_virtual_cluster_id"] = virtualClusterRef
+		}
+		return e.eventGatewayConsumePolicyExecutor.Update(ctx, *change)
 	default:
 		return "", fmt.Errorf("update operation not yet implemented for %s", change.ResourceType)
 	}
@@ -2406,6 +2456,9 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 	case planner.ResourceTypeEventGatewayProducePolicy:
 		// Both gateway ID and virtual cluster ID should be in References for delete
 		return e.eventGatewayProducePolicyExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeEventGatewayConsumePolicy:
+		// Both gateway ID and virtual cluster ID should be in References for delete
+		return e.eventGatewayConsumePolicyExecutor.Delete(ctx, *change)
 	case "organization_team":
 		return e.organizationTeamExecutor.Delete(ctx, *change)
 	default:
