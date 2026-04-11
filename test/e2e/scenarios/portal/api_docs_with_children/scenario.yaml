@@ -116,9 +116,26 @@ steps:
               fields:
                 slug: sms-authentication
                 status: unpublished
-          # Verify sms-errors still exists (content was updated)
+          # Verify sms-errors still exists
           - select: "[?slug=='sms-errors'] | [0]"
             expect:
+              fields:
+                slug: sms-errors
+                status: published
+
+      - name: 003-get-sms-errors-content-after-update
+        run:
+          - get
+          - api
+          - documents
+          - --api-name
+          - "SMS API"
+          - sms-errors
+          - -o
+          - json
+        assertions:
+          # Verify sms-errors content was actually updated
+          - expect:
               fields:
                 slug: sms-errors
                 status: published
