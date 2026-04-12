@@ -95,7 +95,7 @@ func (p *Planner) planSchemaRegistryChangesForExistingGateway(
 				"registry_id", current.ID,
 			)
 
-			needsUpdate, updateFields := p.shouldUpdateSchemaRegistry(current, desiredSR)
+			needsUpdate, updateFields, changedFields := p.shouldUpdateSchemaRegistry(current, desiredSR)
 			if needsUpdate {
 				p.logger.Debug("Planning schema registry UPDATE",
 					"registry_name", name,
@@ -103,8 +103,8 @@ func (p *Planner) planSchemaRegistryChangesForExistingGateway(
 					"update_fields", updateFields,
 				)
 				p.planSchemaRegistryUpdate(
-					namespace, gatewayRef, gatewayName, gatewayID,
-					current.ID, desiredSR, updateFields, plan)
+					namespace, gatewayRef, gatewayID,
+					current.ID, desiredSR, updateFields, changedFields, plan)
 			}
 		}
 	}
@@ -197,11 +197,11 @@ func (p *Planner) planSchemaRegistryCreate(
 func (p *Planner) planSchemaRegistryUpdate(
 	namespace string,
 	gatewayRef string,
-	gatewayName string,
 	gatewayID string,
 	registryID string,
 	sr resources.EventGatewaySchemaRegistryResource,
 	updateFields map[string]any,
+	changedFields map[string]FieldChange,
 	plan *Plan,
 ) {
 	change := PlannedChange{
@@ -216,9 +216,9 @@ func (p *Planner) planSchemaRegistryUpdate(
 			Ref: gatewayRef,
 			ID:  gatewayID,
 		},
-		ChangedFields: map[string]FieldChange{
-			"updated": {Old: gatewayName, New: ""},
-		},
+	}
+	if len(changedFields) > 0 {
+		change.ChangedFields = changedFields
 	}
 
 	plan.AddChange(change)
@@ -249,23 +249,24 @@ func (p *Planner) planSchemaRegistryDelete(
 }
 
 // shouldUpdateSchemaRegistry compares current and desired schema registry state.
-// It returns whether an update is needed and the fields to send in the PUT request.
+// It returns whether an update is needed, the fields to send in the PUT request,
+// and a map of which specific fields changed.
 func (p *Planner) shouldUpdateSchemaRegistry(
 	current state.EventGatewaySchemaRegistry,
 	desired resources.EventGatewaySchemaRegistryResource,
-) (bool, map[string]any) {
+) (bool, map[string]any, map[string]FieldChange) {
 	updates := make(map[string]any)
-	needsUpdate := false
+	changes := make(map[string]FieldChange)
 
 	// Only the confluent variant is currently supported.
 	conf := desired.SchemaRegistryConfluent
 	if conf == nil {
-		return false, nil
+		return false, nil, nil
 	}
 
 	// Compare name
 	if current.Name != conf.Name {
-		needsUpdate = true
+		changes["name"] = FieldChange{Old: current.Name, New: conf.Name}
 	}
 
 	// Compare description
@@ -278,12 +279,12 @@ func (p *Planner) shouldUpdateSchemaRegistry(
 		desiredDesc = *conf.Description
 	}
 	if currentDesc != desiredDesc {
-		needsUpdate = true
+		changes["description"] = FieldChange{Old: currentDesc, New: desiredDesc}
 	}
 
 	// Compare type (structural)
 	if current.Type != conf.GetType() {
-		needsUpdate = true
+		changes["type"] = FieldChange{Old: current.Type, New: conf.GetType()}
 	}
 
 	// Compare config fields using RawConfig (SDK Config struct is opaque/empty).
@@ -291,12 +292,12 @@ func (p *Planner) shouldUpdateSchemaRegistry(
 	desiredConf := conf.Config
 	currentSchemaType, _ := current.RawConfig["schema_type"].(string)
 	if currentSchemaType != string(desiredConf.SchemaType) {
-		needsUpdate = true
+		changes["config.schema_type"] = FieldChange{Old: currentSchemaType, New: string(desiredConf.SchemaType)}
 	}
 
 	currentEndpoint, _ := current.RawConfig["endpoint"].(string)
 	if currentEndpoint != desiredConf.Endpoint {
-		needsUpdate = true
+		changes["config.endpoint"] = FieldChange{Old: currentEndpoint, New: desiredConf.Endpoint}
 	}
 
 	// JSON numbers unmarshal as float64.
@@ -309,7 +310,7 @@ func (p *Planner) shouldUpdateSchemaRegistry(
 		desiredTimeout = *desiredConf.TimeoutSeconds
 	}
 	if currentTimeout != desiredTimeout {
-		needsUpdate = true
+		changes["config.timeout_seconds"] = FieldChange{Old: currentTimeout, New: desiredTimeout}
 	}
 
 	// Compare authentication fields (skip password — write-only).
@@ -318,32 +319,32 @@ func (p *Planner) shouldUpdateSchemaRegistry(
 		if currentAuth, ok := current.RawConfig["authentication"].(map[string]any); ok {
 			currentAuthType, _ := currentAuth["type"].(string)
 			if currentAuthType != desiredAuth.GetType() {
-				needsUpdate = true
+				changes["config.authentication.type"] = FieldChange{Old: currentAuthType, New: desiredAuth.GetType()}
 			}
 
 			currentUsername, _ := currentAuth["username"].(string)
 			if currentUsername != desiredAuth.Username {
-				needsUpdate = true
+				changes["config.authentication.username"] = FieldChange{Old: currentUsername, New: desiredAuth.Username}
 			}
 		} else {
-			needsUpdate = true
+			changes["config.authentication"] = FieldChange{Old: nil, New: desiredConf.Authentication}
 		}
 	} else if desiredConf.Authentication == nil {
 		if _, hasAuth := current.RawConfig["authentication"]; hasAuth {
-			needsUpdate = true
+			changes["config.authentication"] = FieldChange{Old: current.RawConfig["authentication"], New: nil}
 		}
 	}
 
 	// Compare labels
 	if !labelsEqual(current.NormalizedLabels, conf.Labels) {
-		needsUpdate = true
+		changes["labels"] = FieldChange{Old: current.NormalizedLabels, New: conf.Labels}
 	}
 
-	if needsUpdate {
+	if len(changes) > 0 {
 		updates = buildSchemaRegistryFields(desired)
 	}
 
-	return needsUpdate, updates
+	return len(changes) > 0, updates, changes
 }
 
 // labelsEqual returns true iff two label maps are identical.

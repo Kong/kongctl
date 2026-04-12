@@ -513,9 +513,11 @@ func schemaRegistryDetailView(sr *schemaRegistryEntry) string {
 	fmt.Fprintf(&b, "name: %s\n", name)
 	fmt.Fprintf(&b, "type: %s\n", srType)
 	fmt.Fprintf(&b, "description: %s\n", description)
+	config := formatJSONValue(sr.Config)
+
 	fmt.Fprintf(&b, "created_at: %s\n", createdAt)
 	fmt.Fprintf(&b, "updated_at: %s\n", updatedAt)
-	fmt.Fprintf(&b, "config:\n")
+	fmt.Fprintf(&b, "config: %s\n", config)
 
 	return strings.TrimRight(b.String(), "\n")
 }
