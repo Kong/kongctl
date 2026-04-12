@@ -46,7 +46,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 5
+                applied: 6
                 failed: 0
 
   # Dump event_gateways with child resources and validate the output structure.

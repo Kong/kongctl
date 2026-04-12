@@ -60,6 +60,17 @@ event_gateways:
                   value: "${client_id}"
                 - op: remove
                   key: x-original-header
+        consume_policies:
+          - condition: ""
+            config:
+              key_validation_action: mark
+              type: json
+              value_validation_action: skip
+            description: ""
+            enabled: true
+            name: plan-sync-consume-policy-name-for-test
+            ref: plan-sync-consume-policy
+            type: schema_validation
     schema_registries:
       - ref: plan-sync-schema-registry
         name: plan-sync-schema-registry-name

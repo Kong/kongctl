@@ -61,6 +61,13 @@ event_gateways:
                   value: "${client_id}"
                 - op: remove
                   key: x-original-header
+        consume_policies:
+          - condition: ""
+            description: description
+            enabled: true
+            name: skip-record-policy
+            ref: plan-apply-consume-policy
+            type: skip_record
     schema_registries:
       - ref: plan-apply-schema-registry
         name: plan-apply-schema-registry-name
