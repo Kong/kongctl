@@ -465,10 +465,10 @@ func (p *Planner) planAPIUpdateWithFields(
 
 func attributesEqual(current, desired any) bool {
 	if normalized, ok := attributes.NormalizeAPIAttributes(current); ok {
-		current = normalized
+		current = canonicalizeAttributesForCompare(normalized)
 	}
 	if normalized, ok := attributes.NormalizeAPIAttributes(desired); ok {
-		desired = normalized
+		desired = canonicalizeAttributesForCompare(normalized)
 	}
 
 	if current == nil && desired == nil {
@@ -486,6 +486,26 @@ func attributesEqual(current, desired any) bool {
 	}
 
 	return currentJSON == desiredJSON
+}
+
+func canonicalizeAttributesForCompare(attrs map[string]any) any {
+	if len(attrs) == 0 {
+		return nil
+	}
+
+	canonical := make(map[string]any, len(attrs))
+	for key, value := range attrs {
+		if value == nil {
+			continue
+		}
+		canonical[key] = value
+	}
+
+	if len(canonical) == 0 {
+		return nil
+	}
+
+	return canonical
 }
 
 // planAPIProtectionChangeWithFields creates an UPDATE for protection status with optional field updates

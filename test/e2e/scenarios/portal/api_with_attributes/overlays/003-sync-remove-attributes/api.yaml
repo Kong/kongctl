@@ -3,4 +3,6 @@ apis:
     name: "Simple API"
     description: "A minimal API"
     slug: "simple-api-deprecated"
-    attributes: {}
+    attributes:
+      owner: null
+      lifecycle: null
