@@ -119,7 +119,7 @@ steps:
 
   - name: 003-sync-null-attributes
     inputOverlayDirs:
-      - overlays/003-sync-remove-attributes
+      - overlays/003-sync-null-attributes
     commands:
       - name: 000-sync-null
         run:
@@ -160,7 +160,7 @@ steps:
 
   - name: 004-reapply-null-attributes
     inputOverlayDirs:
-      - overlays/003-sync-remove-attributes
+      - overlays/003-sync-null-attributes
     commands:
       - name: 000-plan-no-op
         outputFormat: disable
