@@ -61,6 +61,7 @@ type ClientConfig struct {
 	EventGatewayConsumePolicyAPI        helpers.EventGatewayConsumePolicyAPI
 	EventGatewayDataPlaneCertificateAPI helpers.EventGatewayDataPlaneCertificateAPI
 	EventGatewaySchemaRegistryAPI       helpers.EventGatewaySchemaRegistryAPI
+	EventGatewayStaticKeyAPI            helpers.EventGatewayStaticKeyAPI
 
 	// Identity resources
 	OrganizationTeamAPI helpers.OrganizationTeamAPI
@@ -105,6 +106,7 @@ type Client struct {
 	eventGatewayConsumePolicyAPI        helpers.EventGatewayConsumePolicyAPI
 	eventGatewayDataPlaneCertificateAPI helpers.EventGatewayDataPlaneCertificateAPI
 	eventGatewaySchemaRegistryAPI       helpers.EventGatewaySchemaRegistryAPI
+	eventGatewayStaticKeyAPI            helpers.EventGatewayStaticKeyAPI
 
 	// Organization resource APIs
 	organizationTeamAPI helpers.OrganizationTeamAPI
@@ -150,6 +152,7 @@ func NewClient(config ClientConfig) *Client {
 		eventGatewayConsumePolicyAPI:        config.EventGatewayConsumePolicyAPI,
 		eventGatewayDataPlaneCertificateAPI: config.EventGatewayDataPlaneCertificateAPI,
 		eventGatewaySchemaRegistryAPI:       config.EventGatewaySchemaRegistryAPI,
+		eventGatewayStaticKeyAPI:            config.EventGatewayStaticKeyAPI,
 
 		// Identity resource APIs
 		organizationTeamAPI: config.OrganizationTeamAPI,
@@ -5289,5 +5292,149 @@ func (c *Client) DeleteEventGatewaySchemaRegistry(
 	if err != nil {
 		return WrapAPIError(err, "delete event gateway schema registry", nil)
 	}
+	return nil
+}
+
+// EventGatewayStaticKey represents an event gateway static key for internal use.
+type EventGatewayStaticKey struct {
+	kkComps.EventGatewayStaticKey
+}
+
+// ListEventGatewayStaticKeys lists all static keys for a gateway using cursor-based pagination.
+func (c *Client) ListEventGatewayStaticKeys(
+	ctx context.Context,
+	gatewayID string,
+) ([]EventGatewayStaticKey, error) {
+	if err := ValidateAPIClient(c.eventGatewayStaticKeyAPI, "event gateway static key API"); err != nil {
+		return nil, err
+	}
+
+	var allData []kkComps.EventGatewayStaticKey
+	var pageAfter *string
+
+	for {
+		req := kkOps.ListEventGatewayStaticKeysRequest{
+			GatewayID: gatewayID,
+		}
+
+		if pageAfter != nil {
+			req.PageAfter = pageAfter
+		}
+
+		res, err := c.eventGatewayStaticKeyAPI.ListEventGatewayStaticKeys(ctx, req)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway static keys", nil)
+		}
+
+		if res.ListEventGatewayStaticKeysResponse == nil {
+			return []EventGatewayStaticKey{}, nil
+		}
+
+		allData = append(allData, res.ListEventGatewayStaticKeysResponse.Data...)
+
+		if res.ListEventGatewayStaticKeysResponse.Meta.Page.Next == nil {
+			break
+		}
+
+		u, err := url.Parse(*res.ListEventGatewayStaticKeysResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, WrapAPIError(err, "list event gateway static keys: invalid cursor", nil)
+		}
+
+		values := u.Query()
+		after := values.Get("page[after]")
+		pageAfter = &after
+	}
+
+	result := make([]EventGatewayStaticKey, 0, len(allData))
+	for _, sk := range allData {
+		result = append(result, EventGatewayStaticKey{EventGatewayStaticKey: sk})
+	}
+
+	return result, nil
+}
+
+// CreateEventGatewayStaticKey creates a new static key for an event gateway.
+func (c *Client) CreateEventGatewayStaticKey(
+	ctx context.Context,
+	gatewayID string,
+	req kkComps.EventGatewayStaticKeyCreate,
+	_ string, // namespace
+) (string, error) {
+	if err := ValidateAPIClient(c.eventGatewayStaticKeyAPI, "event gateway static key API"); err != nil {
+		return "", err
+	}
+
+	createReq := kkOps.CreateEventGatewayStaticKeyRequest{
+		GatewayID:                   gatewayID,
+		EventGatewayStaticKeyCreate: &req,
+	}
+
+	resp, err := c.eventGatewayStaticKeyAPI.CreateEventGatewayStaticKey(ctx, createReq)
+	if err != nil {
+		return "", WrapAPIError(err, "create event gateway static key", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_static_key",
+			ResourceName: req.Name,
+			UseEnhanced:  true,
+		})
+	}
+
+	if err := ValidateResponse(resp.EventGatewayStaticKey, "create event gateway static key"); err != nil {
+		return "", err
+	}
+
+	return resp.EventGatewayStaticKey.ID, nil
+}
+
+// GetEventGatewayStaticKey retrieves a static key by ID.
+func (c *Client) GetEventGatewayStaticKey(
+	ctx context.Context,
+	gatewayID string,
+	staticKeyID string,
+) (*EventGatewayStaticKey, error) {
+	if err := ValidateAPIClient(c.eventGatewayStaticKeyAPI, "event gateway static key API"); err != nil {
+		return nil, err
+	}
+
+	req := kkOps.GetEventGatewayStaticKeyRequest{
+		GatewayID:   gatewayID,
+		StaticKeyID: staticKeyID,
+	}
+
+	resp, err := c.eventGatewayStaticKeyAPI.GetEventGatewayStaticKey(ctx, req)
+	if err != nil {
+		return nil, WrapAPIError(err, "get event gateway static key", &ErrorWrapperOptions{
+			ResourceType: "event_gateway_static_key",
+			UseEnhanced:  true,
+		})
+	}
+
+	if resp.EventGatewayStaticKey == nil {
+		return nil, nil
+	}
+
+	return &EventGatewayStaticKey{EventGatewayStaticKey: *resp.EventGatewayStaticKey}, nil
+}
+
+// DeleteEventGatewayStaticKey deletes a static key by ID.
+func (c *Client) DeleteEventGatewayStaticKey(
+	ctx context.Context,
+	gatewayID string,
+	staticKeyID string,
+) error {
+	if err := ValidateAPIClient(c.eventGatewayStaticKeyAPI, "event gateway static key API"); err != nil {
+		return err
+	}
+
+	deleteReq := kkOps.DeleteEventGatewayStaticKeyRequest{
+		GatewayID:   gatewayID,
+		StaticKeyID: staticKeyID,
+	}
+
+	_, err := c.eventGatewayStaticKeyAPI.DeleteEventGatewayStaticKey(ctx, deleteReq)
+	if err != nil {
+		return WrapAPIError(err, "delete event gateway static key", nil)
+	}
+
 	return nil
 }

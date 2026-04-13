@@ -39,6 +39,7 @@ const (
 	ResourceTypeEventGatewayProducePolicy        ResourceType = "event_gateway_virtual_cluster_produce_policy"
 	ResourceTypeEventGatewayConsumePolicy        ResourceType = "event_gateway_virtual_cluster_consume_policy"
 	ResourceTypeEventGatewaySchemaRegistry       ResourceType = "event_gateway_schema_registry"
+	ResourceTypeEventGatewayStaticKey            ResourceType = "event_gateway_static_key"
 )
 
 const (
@@ -94,6 +95,7 @@ type ResourceSet struct {
 	EventGatewayConsumePolicies       []EventGatewayConsumePolicyResource        `yaml:"event_gateway_virtual_cluster_consume_policies,omitempty" json:"event_gateway_virtual_cluster_consume_policies,omitempty"` //nolint:lll
 	EventGatewayDataPlaneCertificates []EventGatewayDataPlaneCertificateResource `yaml:"event_gateway_data_plane_certificates,omitempty" json:"event_gateway_data_plane_certificates,omitempty"`                   //nolint:lll
 	EventGatewaySchemaRegistries      []EventGatewaySchemaRegistryResource       `yaml:"event_gateway_schema_registries,omitempty"       json:"event_gateway_schema_registries,omitempty"`                         //nolint:lll
+	EventGatewayStaticKeys            []EventGatewayStaticKeyResource            `yaml:"event_gateway_static_keys,omitempty"              json:"event_gateway_static_keys,omitempty"`                              //nolint:lll
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
 	DefaultNamespace  string   `yaml:"-"                                               json:"-"`
@@ -915,4 +917,33 @@ func (rs *ResourceSet) GetConsumePoliciesForVirtualCluster(
 	}
 
 	return policies
+}
+
+// GetStaticKeysForGateway returns all static keys (nested + root-level)
+// for a specific event gateway
+func (rs *ResourceSet) GetStaticKeysForGateway(
+	gatewayRef string,
+) []EventGatewayStaticKeyResource {
+	var keys []EventGatewayStaticKeyResource
+
+	// Add nested static keys from the event gateway
+	for _, gateway := range rs.EventGatewayControlPlanes {
+		if gateway.Ref == gatewayRef {
+			for _, sk := range gateway.StaticKeys {
+				skCopy := sk
+				skCopy.EventGateway = gatewayRef
+				keys = append(keys, skCopy)
+			}
+			break
+		}
+	}
+
+	// Add root-level static keys for this gateway
+	for _, sk := range rs.EventGatewayStaticKeys {
+		if sk.EventGateway == gatewayRef {
+			keys = append(keys, sk)
+		}
+	}
+
+	return keys
 }

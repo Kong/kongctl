@@ -83,6 +83,10 @@ const (
 	// ResourceTypeEventGatewaySchemaRegistry is the resource type for event gateway schema registries
 	ResourceTypeEventGatewaySchemaRegistry = "event_gateway_schema_registry"
 
+	// ResourceTypeEventGatewayStaticKey is the resource type for event gateway static keys.
+	// Static keys do not support update – changes are applied as delete + create.
+	ResourceTypeEventGatewayStaticKey = "event_gateway_static_key"
+
 	// ResourceTypeDeck represents an internal deck execution step.
 	ResourceTypeDeck = "_deck"
 )

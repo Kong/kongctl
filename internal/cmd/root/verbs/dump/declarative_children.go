@@ -204,6 +204,12 @@ func populateEventGatewayChildren(
 		} else if len(regs) > 0 {
 			gateway.SchemaRegistries = regs
 		}
+
+		if keys, err := buildEventGatewayStaticKeys(ctx, logger, client, gatewayID, gateway.Name); err != nil {
+			logWarn(logger, "failed to load event gateway static keys", gatewayID, gateway.Name, err)
+		} else if len(keys) > 0 {
+			gateway.StaticKeys = keys
+		}
 	}
 }
 
@@ -301,6 +307,45 @@ func buildEventGatewaySchemaRegistries(
 		res := declresources.EventGatewaySchemaRegistryResource{
 			SchemaRegistryCreate: createReq,
 			Ref:                  sr.ID,
+		}
+
+		results = append(results, res)
+	}
+
+	return results, nil
+}
+
+func buildEventGatewayStaticKeys(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+) ([]declresources.EventGatewayStaticKeyResource, error) {
+	keys, err := client.ListEventGatewayStaticKeys(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	if len(keys) == 0 {
+		return nil, nil
+	}
+
+	results := make([]declresources.EventGatewayStaticKeyResource, 0, len(keys))
+	for _, sk := range keys {
+		if strings.TrimSpace(sk.ID) == "" {
+			logWarn(logger, "static key missing ID", gatewayID, gatewayName, nil)
+			continue
+		}
+
+		// Value is write-only and not returned by the API; omit it from the dump.
+		res := declresources.EventGatewayStaticKeyResource{
+			EventGatewayStaticKeyCreate: kkComps.EventGatewayStaticKeyCreate{
+				Name:        sk.Name,
+				Description: sk.Description,
+				Labels:      sk.Labels,
+				// Value intentionally omitted – the API never returns it.
+			},
+			Ref: sk.ID,
 		}
 
 		results = append(results, res)

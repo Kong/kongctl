@@ -24,6 +24,7 @@ type EventGatewayControlPlaneResource struct {
 	Listeners             []EventGatewayListenerResource             `yaml:"listeners,omitempty"               json:"listeners,omitempty"`               //nolint:lll
 	DataPlaneCertificates []EventGatewayDataPlaneCertificateResource `yaml:"data_plane_certificates,omitempty" json:"data_plane_certificates,omitempty"` //nolint:lll
 	SchemaRegistries      []EventGatewaySchemaRegistryResource       `yaml:"schema_registries,omitempty"       json:"schema_registries,omitempty"`       //nolint:lll
+	StaticKeys            []EventGatewayStaticKeyResource            `yaml:"static_keys,omitempty"             json:"static_keys,omitempty"`             //nolint:lll
 }
 
 func (e EventGatewayControlPlaneResource) GetType() ResourceType {
@@ -112,6 +113,18 @@ func (e EventGatewayControlPlaneResource) Validate() error {
 		schemaRegistryRefs[sr.GetRef()] = true
 	}
 
+	// Validate static keys
+	staticKeyRefs := make(map[string]bool)
+	for i, sk := range e.StaticKeys {
+		if err := sk.Validate(); err != nil {
+			return fmt.Errorf("invalid static key %d: %w", i, err)
+		}
+		if staticKeyRefs[sk.GetRef()] {
+			return fmt.Errorf("duplicate static key ref: %s", sk.GetRef())
+		}
+		staticKeyRefs[sk.GetRef()] = true
+	}
+
 	return nil
 }
 
@@ -138,6 +151,10 @@ func (e *EventGatewayControlPlaneResource) SetDefaults() {
 
 	for i := range e.SchemaRegistries {
 		e.SchemaRegistries[i].SetDefaults()
+	}
+
+	for i := range e.StaticKeys {
+		e.StaticKeys[i].SetDefaults()
 	}
 }
 
