@@ -94,7 +94,8 @@ multiple times, but only when specifically triggered by a triage request (/triag
 
    - IMPORTANT **APPLY THE `triaged` LABEL** after completing the triage work,
      even if you don't have any other specific labels to apply
-   - DO NOT communicate directly with users
+   - Do not contact users privately or outside the issue thread. If
+     clarification is needed, ask publicly in the issue comment you add below.
 
 8. Use the `add_comment` safe-output tool to add an issue comment with your
    analysis:
@@ -115,5 +116,6 @@ multiple times, but only when specifically triggered by a triage request (/triag
    - Use collapsed-by-default sections in the GitHub markdown to keep the
      comment tidy. Collapse all sections except the short main summary at
      the top.
-   - If it would be helpful, ask the filing user for more information or
-     clarification, and tag them in the comment to get their attention.
+   - If it would be helpful, ask the filing user publicly for more
+     information or clarification in the issue comment, and tag them there
+     to get their attention.
