@@ -1,5 +1,15 @@
 baseInputsPath: testdata
 
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
 steps:
   - name: 000-reset-org
     skipInputs: true
@@ -32,9 +42,173 @@ steps:
               plan.changes[?resource_type=='api_document' &&
                             resource_ref=='sms-errors'] | [0]
             expect:
-              file: "expect/001-initial-apply/change-api-document-sms-errors.json" 
+              file: "expect/001-initial-apply/change-api-document-sms-errors.json"
           - select: >-
               plan.changes[?resource_type=='api_document' &&
                             resource_ref=='voice-authentication'] | [0]
             expect:
-              file: "expect/001-initial-apply/change-api-document-voice-authentication.json" 
+              file: "expect/001-initial-apply/change-api-document-voice-authentication.json"
+
+  - name: 002-update-document-content
+    inputOverlayDirs:
+      - overlays/002-update-document-content
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.UPDATE: 2
+          # Verify sms-authentication status change is planned
+          - select: >-
+              changes[?resource_type=='api_document' &&
+              resource_ref=='sms-authentication'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.status: unpublished
+          # Verify sms-errors content update is planned
+          - select: >-
+              changes[?resource_type=='api_document' &&
+              resource_ref=='sms-errors'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+
+      - name: 001-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+      - name: 002-get-documents-after-update
+        run:
+          - get
+          - api
+          - documents
+          - --api-name
+          - "SMS API"
+          - -o
+          - json
+        assertions:
+          # Verify sms-authentication is now unpublished
+          - select: "[?slug=='sms-authentication'] | [0]"
+            expect:
+              fields:
+                slug: sms-authentication
+                status: unpublished
+          # Verify sms-errors still exists
+          - select: "[?slug=='sms-errors'] | [0]"
+            expect:
+              fields:
+                slug: sms-errors
+                status: published
+
+      - name: 003-get-sms-errors-content-after-update
+        run:
+          - get
+          - api
+          - documents
+          - --api-name
+          - "SMS API"
+          - sms-errors
+          - -o
+          - json
+        assertions:
+          # Verify sms-errors content was actually updated
+          - expect:
+              fields:
+                slug: sms-errors
+                status: published
+                "contains(content, 'improved error descriptions')": true
+
+  - name: 003-sync-delete-document
+    inputOverlayDirs:
+      - overlays/003-sync-delete-document
+    commands:
+      - name: 000-plan-sync-delete
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          # Verify sms-errors is planned for deletion
+          - select: >-
+              changes[?resource_type=='api_document' &&
+              fields.slug=='sms-webhooks/sms-errors'] | [0]
+            expect:
+              fields:
+                action: DELETE
+
+      - name: 001-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 002-get-documents-after-sync-delete
+        run:
+          - get
+          - api
+          - documents
+          - --api-name
+          - "SMS API"
+          - -o
+          - json
+        assertions:
+          # Verify sms-errors no longer exists
+          - select: "[?slug=='sms-errors']"
+            expect:
+              fields:
+                "length(@)": 0
+          # Verify remaining documents are present
+          - select: "[?slug=='sms-getting-started'] | [0]"
+            expect:
+              fields:
+                slug: sms-getting-started
+          - select: "[?slug=='sms-authentication'] | [0]"
+            expect:
+              fields:
+                slug: sms-authentication
+          - select: "[?slug=='sms-webhooks'] | [0]"
+            expect:
+              fields:
+                slug: sms-webhooks
