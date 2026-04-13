@@ -3,6 +3,7 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -18,12 +19,17 @@ func init() {
 // DCRProviderResource represents a DCR provider in declarative configuration.
 type DCRProviderResource struct {
 	BaseResource
-	Name        string         `yaml:"name,omitempty"          json:"name,omitempty"`
-	DisplayName string         `yaml:"display_name,omitempty"  json:"display_name,omitempty"`
-	ProviderType string        `yaml:"provider_type,omitempty" json:"provider_type,omitempty"`
-	Issuer      string         `yaml:"issuer,omitempty"        json:"issuer,omitempty"`
-	DCRConfig   map[string]any `yaml:"dcr_config,omitempty"    json:"dcr_config,omitempty"`
-	Labels      map[string]string `yaml:"labels,omitempty"     json:"labels,omitempty"`
+	Name         string            `yaml:"name,omitempty"          json:"name,omitempty"`
+	DisplayName  string            `yaml:"display_name,omitempty"  json:"display_name,omitempty"`
+	ProviderType string            `yaml:"provider_type,omitempty" json:"provider_type,omitempty"`
+	Issuer       string            `yaml:"issuer,omitempty"        json:"issuer,omitempty"`
+	DCRConfig    map[string]any    `yaml:"dcr_config,omitempty"    json:"dcr_config,omitempty"`
+	Labels       map[string]string `yaml:"labels,omitempty"     json:"labels,omitempty"`
+}
+
+func NormalizeDCRProviderIssuer(issuer string) string {
+	issuer = strings.TrimSpace(issuer)
+	return strings.TrimSuffix(issuer, "/")
 }
 
 func (d DCRProviderResource) GetType() ResourceType {
@@ -84,7 +90,7 @@ func (d DCRProviderResource) ToCreatePayload() map[string]any {
 	payload := map[string]any{
 		"name":          d.Name,
 		"provider_type": d.ProviderType,
-		"issuer":        d.Issuer,
+		"issuer":        NormalizeDCRProviderIssuer(d.Issuer),
 		"dcr_config":    d.DCRConfig,
 	}
 	if d.DisplayName != "" {
@@ -102,7 +108,7 @@ func (d DCRProviderResource) ToUpdatePayload() map[string]any {
 		payload["display_name"] = d.DisplayName
 	}
 	if d.Issuer != "" {
-		payload["issuer"] = d.Issuer
+		payload["issuer"] = NormalizeDCRProviderIssuer(d.Issuer)
 	}
 	if d.DCRConfig != nil {
 		payload["dcr_config"] = d.DCRConfig

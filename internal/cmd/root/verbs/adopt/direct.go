@@ -267,6 +267,49 @@ Setting this value overrides tokens obtained from the login command.
 	return cmd, nil
 }
 
+func NewDirectDCRProviderCmd() (*cobra.Command, error) {
+	addFlags := func(_ verbs.VerbValue, cmd *cobra.Command) {
+		cmd.Flags().String(common.BaseURLFlagName, "",
+			fmt.Sprintf(`Base URL for Konnect API requests.
+- Config path: [ %s ]
+- Default   : [ %s ]`,
+				common.BaseURLConfigPath, common.BaseURLDefault))
+
+		cmd.Flags().String(common.RegionFlagName, "",
+			fmt.Sprintf(`Konnect region identifier (for example "eu"). Used to construct the base URL when --%s is not provided.
+- Config path: [ %s ]`,
+				common.BaseURLFlagName, common.RegionConfigPath),
+		)
+
+		cmd.Flags().String(common.PATFlagName, "",
+			fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI. 
+Setting this value overrides tokens obtained from the login command.
+- Config path: [ %s ]`,
+				common.PATConfigPath))
+	}
+
+	preRunE := func(c *cobra.Command, args []string) error {
+		ctx := c.Context()
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		ctx = context.WithValue(ctx, products.Product, konnect.Product)
+		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactory())
+		c.SetContext(ctx)
+		return bindKonnectFlags(c, args)
+	}
+
+	cmd, err := konnectadopt.NewDCRProviderCmd(Verb, &cobra.Command{}, addFlags, preRunE)
+	if err != nil {
+		return nil, err
+	}
+
+	cmd.Example = `  # Adopt a DCR provider by name
+  kongctl adopt dcr-provider my-dcr-provider --namespace team-alpha`
+
+	return cmd, nil
+}
+
 func bindKonnectFlags(c *cobra.Command, args []string) error {
 	helper := cmd.BuildHelper(c, args)
 	cfg, err := helper.GetConfig()

@@ -33,6 +33,7 @@ func TestNormalizeDCRProviderFromAny(t *testing.T) {
 	assert.Equal(t, "d67a4203-b1e8-4631-a626-5fe7c55efe88", provider.ID)
 	assert.Equal(t, "test-okta-dcr-provider", provider.Name)
 	assert.Equal(t, "Test Okta DCR Provider", provider.DisplayName)
+	assert.True(t, provider.DisplayNameSet)
 	assert.Equal(t, "okta", provider.ProviderType)
 	assert.Equal(t, "https://example.com", provider.Issuer)
 	assert.Equal(t, map[string]any{}, provider.DCRConfig)

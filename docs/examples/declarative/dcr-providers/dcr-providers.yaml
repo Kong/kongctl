@@ -1,0 +1,66 @@
+# DCR Providers
+# Standalone Dynamic Client Registration provider resources.
+
+_defaults:
+  kongctl:
+    namespace: dcr-providers-example
+
+dcr_providers:
+  - ref: okta-dcr
+    name: dcr-providers-example-okta
+    display_name: Okta DCR Provider
+    provider_type: okta
+    issuer: https://my-issuer.okta.com/default
+    dcr_config:
+      dcr_token: replace-with-okta-dcr-token
+    labels:
+      provider: okta
+      environment: example
+
+  - ref: http-dcr
+    name: dcr-providers-example-http
+    display_name: HTTP DCR Provider
+    provider_type: http
+    issuer: https://my-issuer-server.example.com
+    dcr_config:
+      dcr_base_url: https://my-http-dcr-server.example.com/v1/dcr
+      api_key: replace_with_http_dcr_api_key
+    labels:
+      provider: http
+      environment: example
+
+  - ref: auth0-dcr
+    name: dcr-providers-example-auth0
+    display_name: Auth0 DCR Provider
+    provider_type: auth0
+    issuer: https://my-issuer.auth0.com/api/v2/
+    dcr_config:
+      initial_client_id: auth0_initial_client_id
+      initial_client_secret: auth0_initial_client_secret
+    labels:
+      provider: auth0
+      environment: example
+
+  - ref: azure-ad-dcr
+    name: dcr-providers-example-azure-ad
+    display_name: Azure AD DCR Provider
+    provider_type: azureAd
+    issuer: https://sts.windows.net/03640e99-6c96-4817-b392-b9336037a8e2
+    dcr_config:
+      initial_client_id: azure_ad_initial_client_id
+      initial_client_secret: azure_ad_initial_client_secret
+    labels:
+      provider: azureAd
+      environment: example
+
+  - ref: curity-dcr
+    name: dcr-providers-example-curity
+    display_name: Curity DCR Provider
+    provider_type: curity
+    issuer: https://my-curity-instance.example.com/oauth/v2/oauth-anonymous/.well-known/openid-configuration
+    dcr_config:
+      initial_client_id: curity_initial_client_id
+      initial_client_secret: curity_initial_client_secret
+    labels:
+      provider: curity
+      environment: example

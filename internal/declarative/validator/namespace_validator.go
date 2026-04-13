@@ -219,6 +219,7 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 
 	totalParents := len(managedPortals) +
 		len(rs.ApplicationAuthStrategies) +
+		len(rs.DCRProviders) +
 		len(managedControlPlanes) +
 		len(rs.APIs)
 
@@ -309,6 +310,9 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 			rs.ApplicationAuthStrategies[i].Ref,
 			rs.ApplicationAuthStrategies[i].Kongctl,
 		)
+	}
+	for i := range rs.DCRProviders {
+		check(string(resources.ResourceTypeDCRProvider), rs.DCRProviders[i].Ref, rs.DCRProviders[i].Kongctl)
 	}
 	for i := range managedControlPlanes {
 		check(string(resources.ResourceTypeControlPlane), managedControlPlanes[i].Ref, managedControlPlanes[i].Kongctl)

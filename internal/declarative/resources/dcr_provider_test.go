@@ -12,7 +12,7 @@ func TestDCRProviderResourceDefaultsValidationAndPayloads(t *testing.T) {
 		BaseResource: BaseResource{Ref: "okta-dcr"},
 		DisplayName:  "Okta DCR",
 		ProviderType: "okta",
-		Issuer:       "https://issuer.example.com",
+		Issuer:       " https://issuer.example.com/ ",
 		DCRConfig: map[string]any{
 			"initial_client_id": "client-id",
 		},
@@ -46,6 +46,36 @@ func TestDCRProviderResourceDefaultsValidationAndPayloads(t *testing.T) {
 		},
 		"labels": map[string]string{"team": "platform"},
 	}, provider.ToUpdatePayload())
+}
+
+func TestNormalizeDCRProviderIssuer(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "trims spaces and trailing slash",
+			input:    " https://issuer.example.com/ ",
+			expected: "https://issuer.example.com",
+		},
+		{
+			name:     "trims trailing slash from path",
+			input:    "https://issuer.example.com/path/",
+			expected: "https://issuer.example.com/path",
+		},
+		{
+			name:     "blank becomes empty",
+			input:    "   ",
+			expected: "",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, NormalizeDCRProviderIssuer(tt.input))
+		})
+	}
 }
 
 func TestDCRProviderResourceValidateRequiresCoreFields(t *testing.T) {

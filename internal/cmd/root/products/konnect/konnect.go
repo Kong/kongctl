@@ -11,6 +11,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/auditlogs"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/authstrategy"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/dcrprovider"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/eventgateway"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway"
@@ -209,6 +210,12 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		}
 		cmd.AddCommand(authStrategyCmd)
 
+		dcrProviderCmd, err := adopt.NewDCRProviderCmd(verb, &cobra.Command{}, addFlags, preRunE)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(dcrProviderCmd)
+
 		eventGatewayCmd, err := adopt.NewEventGatewayControlPlaneCmd(verb, &cobra.Command{}, addFlags, preRunE)
 		if err != nil {
 			return nil, err
@@ -253,6 +260,13 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return nil, e
 	}
 	cmd.AddCommand(asc)
+
+	// Add DCR provider command
+	dcrpc, e := dcrprovider.NewDCRProviderCmd(verb, addFlags, preRunE)
+	if e != nil {
+		return nil, e
+	}
+	cmd.AddCommand(dcrpc)
 
 	// Add me command (read-only)
 	if verb == verbs.Get {

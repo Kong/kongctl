@@ -1773,6 +1773,11 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 		namespaceSet[ns] = true
 	}
 
+	for _, provider := range rs.DCRProviders {
+		ns := resources.GetNamespace(provider.Kongctl)
+		namespaceSet[ns] = true
+	}
+
 	for _, cp := range rs.EventGatewayControlPlanes {
 		ns := resources.GetNamespace(cp.Kongctl)
 		namespaceSet[ns] = true

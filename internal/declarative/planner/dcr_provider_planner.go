@@ -175,17 +175,19 @@ func (p *dcrProviderPlannerImpl) shouldUpdateDCRProvider(
 		return true, updateFields, changedFields
 	}
 
-	if desired.DisplayName != "" && current.DisplayName != desired.DisplayName {
+	if desired.DisplayName != "" && current.DisplayNameSet && current.DisplayName != desired.DisplayName {
 		updateFields[FieldDisplayName] = desired.DisplayName
 		changedFields[FieldDisplayName] = FieldChange{Old: current.DisplayName, New: desired.DisplayName}
 	}
 
-	if desired.Issuer != "" && current.Issuer != desired.Issuer {
-		updateFields[FieldDCRProviderIssuer] = desired.Issuer
-		changedFields[FieldDCRProviderIssuer] = FieldChange{Old: current.Issuer, New: desired.Issuer}
+	normalizedCurrentIssuer := resources.NormalizeDCRProviderIssuer(current.Issuer)
+	normalizedDesiredIssuer := resources.NormalizeDCRProviderIssuer(desired.Issuer)
+	if normalizedDesiredIssuer != "" && normalizedCurrentIssuer != normalizedDesiredIssuer {
+		updateFields[FieldDCRProviderIssuer] = normalizedDesiredIssuer
+		changedFields[FieldDCRProviderIssuer] = FieldChange{Old: current.Issuer, New: normalizedDesiredIssuer}
 	}
 
-	if desired.DCRConfig != nil && !reflect.DeepEqual(current.DCRConfig, desired.DCRConfig) {
+	if dcrProviderConfigChanged(current.ProviderType, current.DCRConfig, desired.DCRConfig) {
 		updateFields[FieldDCRProviderConfig] = desired.DCRConfig
 		changedFields[FieldDCRProviderConfig] = FieldChange{Old: current.DCRConfig, New: desired.DCRConfig}
 	}
@@ -199,6 +201,71 @@ func (p *dcrProviderPlannerImpl) shouldUpdateDCRProvider(
 	}
 
 	return len(updateFields) > 0, updateFields, changedFields
+}
+
+func dcrProviderConfigChanged(providerType string, current, desired map[string]any) bool {
+	if desired == nil {
+		return false
+	}
+
+	for _, field := range observableDCRConfigFields(providerType) {
+		desiredValue, ok := desired[field]
+		if !ok {
+			continue
+		}
+		currentValue, ok := current[field]
+		if !ok {
+			if dcrProviderMissingFieldMatchesDesiredDefault(providerType, field, desiredValue) {
+				continue
+			}
+			return true
+		}
+		if !reflect.DeepEqual(currentValue, desiredValue) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func dcrProviderMissingFieldMatchesDesiredDefault(providerType, field string, desired any) bool {
+	desiredBool, ok := desired.(bool)
+	if !ok || desiredBool {
+		return false
+	}
+
+	switch providerType {
+	case "auth0":
+		return field == "use_developer_managed_scopes"
+	case "http":
+		return field == "disable_event_hooks" ||
+			field == "disable_refresh_secret" ||
+			field == "allow_multiple_credentials"
+	default:
+		return false
+	}
+}
+
+func observableDCRConfigFields(providerType string) []string {
+	switch providerType {
+	case "auth0":
+		return []string{
+			"initial_client_id",
+			"initial_client_audience",
+			"use_developer_managed_scopes",
+		}
+	case "azureAd", "curity":
+		return []string{"initial_client_id"}
+	case "http":
+		return []string{
+			"dcr_base_url",
+			"disable_event_hooks",
+			"disable_refresh_secret",
+			"allow_multiple_credentials",
+		}
+	default:
+		return nil
+	}
 }
 
 func (p *dcrProviderPlannerImpl) planDCRProviderUpdateWithFields(
@@ -215,6 +282,7 @@ func (p *dcrProviderPlannerImpl) planDCRProviderUpdateWithFields(
 		}
 	}
 	fields[FieldName] = current.Name
+	fields[FieldDCRProviderUpdateType] = current.ProviderType
 	if _, hasLabels := updateFields[FieldLabels]; hasLabels {
 		fields[FieldCurrentLabels] = current.NormalizedLabels
 	}
@@ -248,6 +316,9 @@ func (p *dcrProviderPlannerImpl) planDCRProviderProtectionChangeWithFields(
 		maps.Copy(fields, updateFields)
 	}
 	fields[FieldName] = current.Name
+	if len(updateFields) > 0 {
+		fields[FieldDCRProviderUpdateType] = current.ProviderType
+	}
 
 	change := PlannedChange{
 		ID:           p.NextChangeID(ActionUpdate, "dcr_provider", desired.GetRef()),

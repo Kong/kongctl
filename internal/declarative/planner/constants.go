@@ -14,6 +14,10 @@ const (
 	// Used during updates since strategy type cannot be changed
 	FieldStrategyType = "_strategy_type"
 
+	// FieldDCRProviderUpdateType contains the current provider type for DCR providers
+	// Used during updates since provider type cannot be changed and update config is a union type
+	FieldDCRProviderUpdateType = "_provider_type"
+
 	// FieldDCRProviderID contains the DCR provider reference or resolved ID for OIDC auth strategies
 	FieldDCRProviderID = "dcr_provider_id"
 

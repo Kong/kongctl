@@ -1,0 +1,323 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+vars:
+  namespace: dcr-workflow
+  oktaName: e2e-dcr-okta
+  httpName: e2e-dcr-http
+  httpSyncName: e2e-dcr-http-sync
+  adoptName: e2e-dcr-adopt
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-plan-and-apply
+    commands:
+      - name: 000-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/initial.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+      - name: 001-apply-plan
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-create.json"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                by_action.CREATE: 2
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+  - name: 002-get-and-list
+    skipInputs: true
+    commands:
+      - name: 000-get-dcr-providers
+        run:
+          - get
+          - dcr-providers
+          - -o
+          - json
+        recordVar:
+          name: httpID
+          responsePath: "[?name=='{{ .vars.httpName }}'] | [0].id"
+        assertions:
+          - select: "[?name=='{{ .vars.oktaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.oktaName }}"
+                provider_type: okta
+                issuer: https://e2e-okta.example.com/oauth2/default
+          - select: "[?name=='{{ .vars.httpName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.httpName }}"
+                provider_type: http
+                issuer: https://e2e-http-issuer.example.com
+      - name: 001-list-dcr-providers
+        run:
+          - list
+          - dcr-providers
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.oktaName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.oktaName }}"
+                provider_type: okta
+          - select: "[?name=='{{ .vars.httpName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.httpName }}"
+                provider_type: http
+      - name: 002-get-dcr-provider-by-name
+        run:
+          - get
+          - dcr-provider
+          - "{{ .vars.httpName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.httpName }}"
+                provider_type: http
+                issuer: https://e2e-http-issuer.example.com
+      - name: 003-get-dcr-provider-by-id
+        run:
+          - get
+          - dcr-provider
+          - "{{ .vars.httpID }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.httpName }}"
+                provider_type: http
+
+  - name: 003-create-and-adopt
+    skipInputs: true
+    commands:
+      - name: 000-create-unmanaged-dcr-provider
+        create:
+          resource: dcr_provider
+          payload:
+            inline:
+              name: "{{ .vars.adoptName }}"
+              provider_type: okta
+              issuer: https://e2e-adopt-okta.example.com/oauth2/default
+              dcr_config:
+                dcr_token: e2e_adopt_okta_token
+          recordVar:
+            name: adoptID
+            responsePath: id
+      - name: 001-adopt-dcr-provider
+        run:
+          - adopt
+          - dcr-provider
+          - "{{ .vars.adoptName }}"
+          - --namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - expect:
+              fields:
+                resource_type: dcr_provider
+                name: "{{ .vars.adoptName }}"
+                namespace: "{{ .vars.namespace }}"
+
+  - name: 004-dump-and-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-dcr-providers
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        run:
+          - dump
+          - declarative
+          - "--resources=dcr_providers"
+          - --default-namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+          - select: "dcr_providers[?name=='{{ .vars.httpName }}'] | [0]"
+            expect:
+              fields:
+                provider_type: http
+                issuer: https://e2e-http-issuer.example.com
+          - select: "dcr_providers[?name=='{{ .vars.adoptName }}'] | [0]"
+            expect:
+              fields:
+                provider_type: okta
+                issuer: https://e2e-adopt-okta.example.com/oauth2/default
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-plan-and-sync
+    commands:
+      - name: 000-plan-sync
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/sync.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 1
+                by_action.UPDATE: 1
+                by_action.DELETE: 2
+      - name: 001-sync-plan
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync.json"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                by_action.CREATE: 1
+                by_action.UPDATE: 1
+                by_action.DELETE: 2
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+      - name: 002-get-post-sync
+        run:
+          - get
+          - dcr-providers
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.httpName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.httpName }}"
+                issuer: https://e2e-http-issuer.example.com
+                dcr_config.dcr_base_url: https://e2e-http.example.com/v2/dcr
+          - select: "[?name=='{{ .vars.httpSyncName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.httpSyncName }}"
+                provider_type: http
+          - select: "[?name=='{{ .vars.oktaName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='{{ .vars.adoptName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+      - name: 003-plan-post-sync
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/sync.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 006-delete-managed-dcr-providers
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/sync.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: 001-get-empty
+        run:
+          - get
+          - dcr-providers
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 0

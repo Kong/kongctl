@@ -61,9 +61,6 @@ func (a *DCRProviderAdapter) MapUpdateFields(
 	if issuer, ok := fields[planner.FieldDCRProviderIssuer].(string); ok {
 		payload[planner.FieldDCRProviderIssuer] = issuer
 	}
-	if dcrConfig, ok := fields[planner.FieldDCRProviderConfig]; ok {
-		payload[planner.FieldDCRProviderConfig] = dcrConfig
-	}
 
 	desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
 	if desiredLabels != nil {
@@ -79,13 +76,32 @@ func (a *DCRProviderAdapter) MapUpdateFields(
 		)
 	}
 
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal DCR provider update payload: %w", err)
+	if name, ok := payload[planner.FieldName].(string); ok && name != "" {
+		update.Name = &name
 	}
-	if err := json.Unmarshal(payloadBytes, update); err != nil {
-		return fmt.Errorf("failed to unmarshal DCR provider update payload: %w", err)
+	if displayName, ok := payload[planner.FieldDisplayName].(string); ok {
+		update.DisplayName = &displayName
 	}
+	if issuer, ok := payload[planner.FieldDCRProviderIssuer].(string); ok {
+		update.Issuer = &issuer
+	}
+	if updateLabels, ok := payload[planner.FieldLabels].(map[string]*string); ok {
+		update.Labels = updateLabels
+	}
+
+	if dcrConfig, ok := fields[planner.FieldDCRProviderConfig]; ok {
+		providerType, _ := fields[planner.FieldDCRProviderUpdateType].(string)
+		if providerType == "" {
+			return fmt.Errorf("provider type not provided for DCR config update")
+		}
+
+		config, err := buildDCRProviderUpdateConfig(providerType, dcrConfig)
+		if err != nil {
+			return fmt.Errorf("failed to build DCR provider update config: %w", err)
+		}
+		update.DcrConfig = config
+	}
+
 	return nil
 }
 
@@ -144,6 +160,69 @@ func (a *DCRProviderAdapter) RequiredFields() []string {
 
 func (a *DCRProviderAdapter) SupportsUpdate() bool {
 	return true
+}
+
+func buildDCRProviderUpdateConfig(providerType string, raw any) (*kkComps.DcrConfig, error) {
+	config, ok := raw.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("DCR config must be an object")
+	}
+
+	switch providerType {
+	case "auth0":
+		req := kkComps.UpdateDcrConfigAuth0InRequest{}
+		mapOptionalString(&req.InitialClientID, config, "initial_client_id")
+		mapOptionalString(&req.InitialClientSecret, config, "initial_client_secret")
+		mapOptionalString(&req.InitialClientAudience, config, "initial_client_audience")
+		mapOptionalBool(&req.UseDeveloperManagedScopes, config, "use_developer_managed_scopes")
+		result := kkComps.CreateDcrConfigUpdateDcrConfigAuth0InRequest(req)
+		return &result, nil
+
+	case "azureAd":
+		req := kkComps.UpdateDcrConfigAzureAdInRequest{}
+		mapOptionalString(&req.InitialClientID, config, "initial_client_id")
+		mapOptionalString(&req.InitialClientSecret, config, "initial_client_secret")
+		result := kkComps.CreateDcrConfigUpdateDcrConfigAzureAdInRequest(req)
+		return &result, nil
+
+	case "curity":
+		req := kkComps.UpdateDcrConfigCurityInRequest{}
+		mapOptionalString(&req.InitialClientID, config, "initial_client_id")
+		mapOptionalString(&req.InitialClientSecret, config, "initial_client_secret")
+		result := kkComps.CreateDcrConfigUpdateDcrConfigCurityInRequest(req)
+		return &result, nil
+
+	case "okta":
+		req := kkComps.UpdateDcrConfigOktaInRequest{}
+		mapOptionalString(&req.DcrToken, config, "dcr_token")
+		result := kkComps.CreateDcrConfigUpdateDcrConfigOktaInRequest(req)
+		return &result, nil
+
+	case "http":
+		req := kkComps.UpdateDcrConfigHTTPInRequest{}
+		mapOptionalString(&req.DcrBaseURL, config, "dcr_base_url")
+		mapOptionalString(&req.APIKey, config, "api_key")
+		mapOptionalBool(&req.DisableEventHooks, config, "disable_event_hooks")
+		mapOptionalBool(&req.DisableRefreshSecret, config, "disable_refresh_secret")
+		mapOptionalBool(&req.AllowMultipleCredentials, config, "allow_multiple_credentials")
+		result := kkComps.CreateDcrConfigUpdateDcrConfigHTTPInRequest(req)
+		return &result, nil
+
+	default:
+		return nil, fmt.Errorf("unsupported DCR provider type: %s", providerType)
+	}
+}
+
+func mapOptionalString(target **string, fields map[string]any, key string) {
+	if value, ok := fields[key].(string); ok {
+		*target = &value
+	}
+}
+
+func mapOptionalBool(target **bool, fields map[string]any, key string) {
+	if value, ok := fields[key].(bool); ok {
+		*target = &value
+	}
 }
 
 type DCRProviderResourceInfo struct {

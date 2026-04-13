@@ -272,6 +272,7 @@ type DCRProvider struct {
 	ID               string
 	Name             string
 	DisplayName      string
+	DisplayNameSet   bool
 	ProviderType     string
 	Issuer           string
 	DCRConfig        map[string]any
@@ -2190,7 +2191,7 @@ func normalizeOIDCStrategy(
 type normalizedDCRProviderPayload struct {
 	ID           string            `json:"id"`
 	Name         string            `json:"name"`
-	DisplayName  string            `json:"display_name"`
+	DisplayName  *string           `json:"display_name"`
 	ProviderType string            `json:"provider_type"`
 	Issuer       string            `json:"issuer"`
 	DCRConfig    map[string]any    `json:"dcr_config"`
@@ -2208,10 +2209,16 @@ func normalizeDCRProviderFromAny(data any) (*DCRProvider, error) {
 		return nil, fmt.Errorf("failed to unmarshal DCR provider payload: %w", err)
 	}
 
+	displayName := ""
+	if payload.DisplayName != nil {
+		displayName = *payload.DisplayName
+	}
+
 	return &DCRProvider{
 		ID:               payload.ID,
 		Name:             payload.Name,
-		DisplayName:      payload.DisplayName,
+		DisplayName:      displayName,
+		DisplayNameSet:   payload.DisplayName != nil,
 		ProviderType:     payload.ProviderType,
 		Issuer:           payload.Issuer,
 		DCRConfig:        payload.DCRConfig,
@@ -2291,17 +2298,17 @@ func (c *Client) ListManagedDCRProviders(
 			PageNumber: &pageNumber,
 		}
 
-		resp, err := c.dcrProviderAPI.ListDcrProviders(ctx, req)
+		resp, err := c.dcrProviderAPI.ListDcrProviderPayloads(ctx, req)
 		if err != nil {
 			return nil, nil, WrapAPIError(err, "list dcr providers", nil)
 		}
 
-		if resp.ListDcrProvidersResponse == nil {
+		if resp == nil {
 			return []DCRProvider{}, &PageMeta{Total: 0}, nil
 		}
 
 		var filtered []DCRProvider
-		for _, p := range resp.ListDcrProvidersResponse.Data {
+		for _, p := range resp.Data {
 			provider, err := normalizeDCRProviderFromAny(p)
 			if err != nil {
 				return nil, nil, err
@@ -2312,7 +2319,7 @@ func (c *Client) ListManagedDCRProviders(
 			}
 		}
 
-		meta := &PageMeta{Total: resp.ListDcrProvidersResponse.Meta.Page.Total}
+		meta := &PageMeta{Total: resp.Total}
 		return filtered, meta, nil
 	}
 

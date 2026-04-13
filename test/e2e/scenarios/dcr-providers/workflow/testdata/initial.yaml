@@ -1,0 +1,25 @@
+_defaults:
+  kongctl:
+    namespace: dcr-workflow
+
+dcr_providers:
+  - ref: e2e-dcr-okta
+    name: e2e-dcr-okta
+    provider_type: okta
+    issuer: https://e2e-okta.example.com/oauth2/default
+    dcr_config:
+      dcr_token: e2e_okta_token
+    labels:
+      team: platform
+      provider: okta
+
+  - ref: e2e-dcr-http
+    name: e2e-dcr-http
+    provider_type: http
+    issuer: https://e2e-http-issuer.example.com
+    dcr_config:
+      dcr_base_url: https://e2e-http.example.com/v1/dcr
+      api_key: e2e_http_api_key
+    labels:
+      team: platform
+      provider: http

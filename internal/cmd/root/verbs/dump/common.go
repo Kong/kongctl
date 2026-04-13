@@ -106,6 +106,8 @@ func mapResourceName(name string) string {
 		return "apis"
 	case "app-auth-strategies", "application_auth_strategies", "application-auth-strategies", "app_auth_strategies":
 		return "application_auth_strategies"
+	case "dcr-provider", "dcr-providers", "dcr_provider", "dcr_providers", "dcrprovider", "dcrproviders":
+		return "dcr_providers"
 	case "control-plane", "controlplane", "controlplanes", "control_planes":
 		return "control_planes"
 	case "org.team", "org.teams", "organization.team", "organization.teams":

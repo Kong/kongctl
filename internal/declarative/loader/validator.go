@@ -796,6 +796,13 @@ func (l *Loader) validateNamespaces(rs *resources.ResourceSet) error {
 		}
 	}
 
+	// DCR Providers
+	for _, provider := range rs.DCRProviders {
+		if provider.Kongctl != nil && provider.Kongctl.Namespace != nil {
+			namespaces[*provider.Kongctl.Namespace] = true
+		}
+	}
+
 	// Control Planes
 	for _, cp := range rs.ControlPlanes {
 		if cp.Kongctl != nil && cp.Kongctl.Namespace != nil {
