@@ -165,7 +165,7 @@ steps:
           # Verify sms-errors is planned for deletion
           - select: >-
               changes[?resource_type=='api_document' &&
-              resource_ref=='sms-errors'] | [0]
+              fields.slug=='sms-webhooks/sms-errors'] | [0]
             expect:
               fields:
                 action: DELETE
