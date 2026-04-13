@@ -57,7 +57,6 @@ steps:
               fields:
                 action: CREATE
                 resource_ref: "{{ .vars.staticKeyRef }}"
-
       - name: 002-apply-create
         outputFormat: json
         run:
