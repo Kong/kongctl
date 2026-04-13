@@ -151,5 +151,5 @@ steps:
           - select: "[?name=='{{ .vars.apiName }}'] | [0]"
             expect:
               fields:
-                "attributes.owner": null
-                "attributes.lifecycle": null
+                name: "Simple API"
+                slug: "simple-api-deprecated"
