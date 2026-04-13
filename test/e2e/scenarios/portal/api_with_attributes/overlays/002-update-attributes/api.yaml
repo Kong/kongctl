@@ -1,0 +1,10 @@
+apis:
+  - ref: simple-api
+    name: "Simple API"
+    description: "A minimal API"
+    attributes:
+      owner:
+        - "Platform Team"
+      lifecycle:
+        - "deprecated"
+    slug: "simple-api-deprecated"

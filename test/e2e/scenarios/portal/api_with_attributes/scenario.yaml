@@ -64,3 +64,133 @@ steps:
                 "attributes.owner": ["Portal Team"]
                 "attributes.lifecycle": ["ga"]
                 "slug": "simple-api-with-attributes"
+
+  - name: 002-update-attributes
+    inputOverlayDirs:
+      - overlays/002-update-attributes
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='api' && resource_ref=='simple-api'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "fields.attributes.lifecycle": ["deprecated"]
+                "fields.attributes.owner": ["Platform Team"]
+                "fields.slug": "simple-api-deprecated"
+      - name: 001-apply-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-get-apis
+        run:
+          - get
+          - apis
+        assertions:
+          - select: "[?name=='{{ .vars.apiName }}'] | [0]"
+            expect:
+              fields:
+                "attributes.owner": ["Platform Team"]
+                "attributes.lifecycle": ["deprecated"]
+                "slug": "simple-api-deprecated"
+
+  - name: 003-sync-null-attributes
+    inputOverlayDirs:
+      - overlays/003-sync-null-attributes
+    commands:
+      - name: 000-sync-null
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+          - select: >-
+              plan.changes[?resource_type=='api' && resource_ref=='simple-api'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.attributes.owner: null
+                fields.attributes.lifecycle: null
+      - name: 001-get-apis
+        run:
+          - get
+          - apis
+        assertions:
+          - select: "[?name=='{{ .vars.apiName }}'] | [0]"
+            expect:
+              fields:
+                name: "Simple API"
+                slug: "simple-api-deprecated"
+                attributes.owner: null
+                attributes.lifecycle: null
+
+  - name: 004-reapply-null-attributes
+    inputOverlayDirs:
+      - overlays/003-sync-null-attributes
+    commands:
+      - name: 000-plan-no-op
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-null-noop.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/api.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: "changes[?resource_type=='api' && resource_ref=='simple-api']"
+            expect:
+              fields:
+                "length(@)": 0
+      - name: 001-apply-no-op
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-null-noop.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 0
+                failed: 0
+                total_changes: 0
