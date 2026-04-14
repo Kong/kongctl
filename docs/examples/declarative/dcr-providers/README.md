@@ -10,6 +10,9 @@ isolated from other declarative resources in the same Konnect organization.
 
 - `dcr-providers.yaml` - declares standalone DCR provider resources for
   `okta`, `http`, `auth0`, `azureAd`, and `curity`
+- `oidc-auth-strategy-with-dcr-provider.yaml` - declares one Okta DCR
+  provider and one OIDC application auth strategy that references it with
+  `dcr_provider_id: !ref`
 
 ## Usage
 
@@ -23,6 +26,12 @@ Apply the configuration:
 
 ```bash
 kongctl apply -f dcr-providers.yaml --auto-approve
+```
+
+Apply the OIDC auth strategy example that references a DCR provider:
+
+```bash
+kongctl apply -f oidc-auth-strategy-with-dcr-provider.yaml --auto-approve
 ```
 
 Check the created DCR providers:
@@ -58,5 +67,6 @@ Konnect also appears to validate that the tenant UUID is a real Azure tenant,
 not just a syntactically valid UUID. Placeholder UUID values may be rejected
 even if the issuer URL format is otherwise correct.
 
-A later example can combine a DCR provider with an application auth strategy
-that references it through `dcr_provider_id`.
+The `oidc-auth-strategy-with-dcr-provider.yaml` example shows how to attach an
+OIDC application auth strategy to a DCR provider by referencing it through
+`dcr_provider_id: !ref <dcr-provider-ref>`.
