@@ -343,7 +343,7 @@ func buildEventGatewayStaticKeys(
 				Name:        sk.Name,
 				Description: sk.Description,
 				Labels:      sk.Labels,
-				// Value intentionally omitted – the API never returns it.
+				Value:       *sk.Value,
 			},
 			Ref: sk.ID,
 		}

@@ -243,13 +243,23 @@ func (p *Planner) planStaticKeyDelete(
 }
 
 // doesStaticKeyNeedChange checks whether a static key needs to be replaced.
-// The value field is write-only (API never returns it), so we compare name, description and labels.
-// Any change in description or labels triggers a replace.
-// Changes to value are not detectable (write-only), so value changes are never detected.
+// The API returns the stored value when it is a vault reference, but does not return plaintext. We compare
+// it directly against the desired value anyway.
+//
+// Any change triggers a replace (static keys do not support update).
 func (p *Planner) doesStaticKeyNeedChange(
 	current state.EventGatewayStaticKey,
 	desired resources.EventGatewayStaticKeyResource,
 ) bool {
+	// Compare value
+	currentVal := ""
+	if current.Value != nil {
+		currentVal = *current.Value
+	}
+	if currentVal != desired.Value {
+		return true
+	}
+
 	// Compare description
 	currentDesc := ""
 	if current.Description != nil {

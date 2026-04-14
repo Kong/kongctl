@@ -20,6 +20,7 @@ func init() {
 	tableview.RegisterChildLoader("event-gateway", "data-plane-certificates", loadEventGatewayDataPlaneCertificates)
 	tableview.RegisterChildLoader("event-gateway", "listeners", loadEventGatewayListeners)
 	tableview.RegisterChildLoader("event-gateway", "schema-registries", loadEventGatewaySchemaRegistries)
+	tableview.RegisterChildLoader("event-gateway", "static-keys", loadEventGatewayStaticKeys)
 	tableview.RegisterChildLoader("listener", "policies", loadEventGatewayListenerPolicies)
 	tableview.RegisterChildLoader("virtual-cluster", "cluster-policies", loadEventGatewayVirtualClusterClusterPolicies)
 	tableview.RegisterChildLoader("virtual-cluster", "produce-policies", loadEventGatewayVirtualClusterProducePolicies)
@@ -447,4 +448,42 @@ func loadEventGatewaySchemaRegistries(
 	}
 
 	return buildSchemaRegistryChildView(registries), nil
+}
+
+func loadEventGatewayStaticKeys(
+	_ context.Context,
+	helper cmd.Helper,
+	parent any,
+) (tableview.ChildView, error) {
+	gatewayID, err := eventGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	staticKeyAPI := sdk.GetEventGatewayStaticKeyAPI()
+	if staticKeyAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("event gateway static key client is not available")
+	}
+
+	keys, err := fetchStaticKeys(helper, staticKeyAPI, gatewayID, cfg, "")
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	return buildStaticKeyChildView(keys), nil
 }

@@ -69,7 +69,27 @@ steps:
               fields:
                 applied: 2
                 failed: 0
-  - name: 002-plan-apply-replace
+
+      - name: 003-verify-create
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.staticKeyName }}"
+                description: "Default Static Key description"
+  - name: 002-plan-sync-replace
     # Static keys do not support update – changing description triggers DELETE+CREATE.
     inputOverlayDirs:
       - overlays/001-update-fields
@@ -82,12 +102,12 @@ steps:
           - -f
           - "{{ .workdir }}/config.yaml"
           - --mode
-          - apply
+          - sync
         assertions:
           - select: metadata
             expect:
               fields:
-                mode: apply
+                mode: sync
           - select: summary
             expect:
               fields:
@@ -109,7 +129,7 @@ steps:
       - name: 002-apply-replace
         outputFormat: json
         run:
-          - apply
+          - sync
           - --plan
           - "{{ .workdir }}/plan-replace.json"
           - --auto-approve
@@ -119,6 +139,26 @@ steps:
               fields:
                 applied: 2
                 failed: 0
+
+      - name: 003-verify-replace
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.staticKeyName }}"
+                description: "Updated Static Key description"
   - name: 003-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete
@@ -161,6 +201,21 @@ steps:
               fields:
                 applied: 1
                 failed: 0
+
+      - name: 003-verify-delete
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
   - name: 004-root-level-declaration
     inputOverlayDirs:
       - overlays/003-root-level-declaration
@@ -203,6 +258,26 @@ steps:
               fields:
                 applied: 1
                 failed: 0
+
+      - name: 003-verify-create
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: default-static-key-name
+                description: "Default root level Static Key description"
   - name: 005-sync-delete-root-level
     inputOverlayDirs:
       - overlays/004-sync-delete-root-level-declaration
@@ -245,3 +320,18 @@ steps:
               fields:
                 applied: 1
                 failed: 0
+
+      - name: 003-verify-delete-root-level
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0

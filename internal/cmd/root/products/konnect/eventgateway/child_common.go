@@ -47,6 +47,12 @@ const (
 	schemaRegistryIDConfigPath   = "konnect.event-gateway.schema-registry.id"
 	schemaRegistryNameConfigPath = "konnect.event-gateway.schema-registry.name"
 
+	staticKeyIDFlagName   = "static-key-id"
+	staticKeyNameFlagName = "static-key-name"
+
+	staticKeyIDConfigPath   = "konnect.event-gateway.static-key.id"
+	staticKeyNameConfigPath = "konnect.event-gateway.static-key.name"
+
 	valueNA = "n/a"
 )
 
@@ -275,6 +281,42 @@ func bindSchemaRegistryChildFlags(c *cobra.Command, args []string) error {
 
 func getSchemaRegistryIdentifiers(cfg config.Hook) (id string, name string) {
 	return cfg.GetString(schemaRegistryIDConfigPath), cfg.GetString(schemaRegistryNameConfigPath)
+}
+
+func addStaticKeyChildFlags(cmd *cobra.Command) {
+	cmd.Flags().String(staticKeyIDFlagName, "",
+		fmt.Sprintf(`The ID of the static key to retrieve.
+- Config path: [ %s ]`, staticKeyIDConfigPath))
+	cmd.Flags().String(staticKeyNameFlagName, "",
+		fmt.Sprintf(`The name of the static key to retrieve.
+- Config path: [ %s ]`, staticKeyNameConfigPath))
+	cmd.MarkFlagsMutuallyExclusive(staticKeyIDFlagName, staticKeyNameFlagName)
+}
+
+func bindStaticKeyChildFlags(c *cobra.Command, args []string) error {
+	helper := cmd.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	if flag := c.Flags().Lookup(staticKeyIDFlagName); flag != nil {
+		if err := cfg.BindFlag(staticKeyIDConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	if flag := c.Flags().Lookup(staticKeyNameFlagName); flag != nil {
+		if err := cfg.BindFlag(staticKeyNameConfigPath, flag); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getStaticKeyIdentifiers(cfg config.Hook) (id string, name string) {
+	return cfg.GetString(staticKeyIDConfigPath), cfg.GetString(staticKeyNameConfigPath)
 }
 
 func resolveEventGatewayIDByName(

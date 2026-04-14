@@ -19,6 +19,8 @@ vars:
   consumePolicyName: default-consume-policy-name-for-dump-test
   schemaRegistryRef: default-schema-registry
   schemaRegistryName: default-schema-registry-name-for-dump-test
+  staticKeyRef: default-static-key
+  staticKeyName: default-static-key-name-for-dump-test
 
 defaults:
   mask:
@@ -46,7 +48,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 6
+                applied: 7
                 failed: 0
 
   # Dump event_gateways with child resources and validate the output structure.
@@ -104,6 +106,12 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.schemaRegistryName }}"
+          - name: static-key-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].static_keys[?name=='{{ .vars.staticKeyName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.staticKeyName }}"
           - name: namespace-label-preserved
             select: "_defaults.kongctl"
             expect:
@@ -116,7 +124,7 @@ steps:
           - -f
           - "{{ .workdir }}/dump.yaml"
           - --mode
-          - apply
+          - sync
         assertions:
           - select: summary
             expect:

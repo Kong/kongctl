@@ -10,4 +10,4 @@ event_gateways:
       - ref: default-static-key-ref
         name: default-static-key-name
         description: "Default Static Key description"
-        value: "my-super-secret-static-key-value"
+        value: "YXNkZmdoamthc2RmZ2hqa2FzZGZnaGprYXNkZmdoams="
