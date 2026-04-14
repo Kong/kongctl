@@ -198,6 +198,12 @@ func populateEventGatewayChildren(
 		} else if len(certs) > 0 {
 			gateway.DataPlaneCertificates = certs
 		}
+
+		if regs, err := buildEventGatewaySchemaRegistries(ctx, logger, client, gatewayID, gateway.Name); err != nil {
+			logWarn(logger, "failed to load event gateway schema registries", gatewayID, gateway.Name, err)
+		} else if len(regs) > 0 {
+			gateway.SchemaRegistries = regs
+		}
 	}
 }
 
@@ -234,6 +240,67 @@ func buildEventGatewayDataPlaneCertificates(
 				Description: cert.Description,
 			},
 			Ref: cert.ID,
+		}
+
+		results = append(results, res)
+	}
+
+	return results, nil
+}
+
+func buildEventGatewaySchemaRegistries(
+	ctx context.Context,
+	logger *slog.Logger,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+) ([]declresources.EventGatewaySchemaRegistryResource, error) {
+	registries, err := client.ListEventGatewaySchemaRegistries(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	if len(registries) == 0 {
+		return nil, nil
+	}
+
+	results := make([]declresources.EventGatewaySchemaRegistryResource, 0, len(registries))
+	for _, sr := range registries {
+		if strings.TrimSpace(sr.ID) == "" {
+			logWarn(logger, "schema registry missing ID", gatewayID, gatewayName, nil)
+			continue
+		}
+
+		// Build the create union using a JSON round-trip (same approach as cluster/listener policies)
+		// because the SDK response Config field is an opaque empty struct.
+		regMap := map[string]any{
+			"name": sr.Name,
+			"type": sr.Type,
+		}
+		if sr.Description != nil {
+			regMap["description"] = *sr.Description
+		}
+		if len(sr.Labels) > 0 {
+			regMap["labels"] = sr.Labels
+		}
+		if sr.RawConfig != nil {
+			regMap["config"] = sr.RawConfig
+		}
+
+		data, marshalErr := json.Marshal(regMap)
+		if marshalErr != nil {
+			logWarn(logger, "failed to marshal schema registry", sr.ID, gatewayName, marshalErr)
+			continue
+		}
+
+		var createReq kkComps.SchemaRegistryCreate
+		if unmarshalErr := json.Unmarshal(data, &createReq); unmarshalErr != nil {
+			logWarn(logger, "failed to unmarshal schema registry create", sr.ID, gatewayName, unmarshalErr)
+			continue
+		}
+
+		res := declresources.EventGatewaySchemaRegistryResource{
+			SchemaRegistryCreate: createReq,
+			Ref:                  sr.ID,
 		}
 
 		results = append(results, res)

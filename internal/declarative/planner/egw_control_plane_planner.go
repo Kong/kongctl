@@ -233,6 +233,18 @@ func (p *Planner) planEGWControlPlaneChanges(
 				return err
 			}
 		}
+
+		// Plan schema registries for this gateway (whether it exists or is being created)
+		schemaRegistries := p.resources.GetSchemaRegistriesForGateway(desiredEGWCP.Ref)
+
+		if len(schemaRegistries) > 0 || plan.Metadata.Mode == PlanModeSync {
+			if err := p.planEventGatewaySchemaRegistryChanges(
+				ctx, plannerCtx, namespace, desiredEGWCP.Name, gatewayID, desiredEGWCP.Ref,
+				gatewayChangeID, schemaRegistries, plan,
+			); err != nil {
+				return err
+			}
+		}
 	}
 
 	// Check for managed resources to delete (sync mode only)

@@ -38,6 +38,7 @@ const (
 	ResourceTypeEventGatewayClusterPolicy        ResourceType = "event_gateway_virtual_cluster_cluster_policy"
 	ResourceTypeEventGatewayProducePolicy        ResourceType = "event_gateway_virtual_cluster_produce_policy"
 	ResourceTypeEventGatewayConsumePolicy        ResourceType = "event_gateway_virtual_cluster_consume_policy"
+	ResourceTypeEventGatewaySchemaRegistry       ResourceType = "event_gateway_schema_registry"
 )
 
 const (
@@ -92,6 +93,7 @@ type ResourceSet struct {
 	EventGatewayProducePolicies       []EventGatewayProducePolicyResource        `yaml:"event_gateway_virtual_cluster_produce_policies,omitempty" json:"event_gateway_virtual_cluster_produce_policies,omitempty"` //nolint:lll
 	EventGatewayConsumePolicies       []EventGatewayConsumePolicyResource        `yaml:"event_gateway_virtual_cluster_consume_policies,omitempty" json:"event_gateway_virtual_cluster_consume_policies,omitempty"` //nolint:lll
 	EventGatewayDataPlaneCertificates []EventGatewayDataPlaneCertificateResource `yaml:"event_gateway_data_plane_certificates,omitempty" json:"event_gateway_data_plane_certificates,omitempty"`                   //nolint:lll
+	EventGatewaySchemaRegistries      []EventGatewaySchemaRegistryResource       `yaml:"event_gateway_schema_registries,omitempty"       json:"event_gateway_schema_registries,omitempty"`                         //nolint:lll
 	// DefaultNamespace tracks namespace from _defaults when no resources are present
 	// This is used by the planner to determine which namespace to check for deletions
 	DefaultNamespace  string   `yaml:"-"                                               json:"-"`
@@ -760,6 +762,35 @@ func (rs *ResourceSet) GetDataPlaneCertificatesForGateway(
 	}
 
 	return certs
+}
+
+// GetSchemaRegistriesForGateway returns all schema registries (nested + root-level)
+// for a specific event gateway
+func (rs *ResourceSet) GetSchemaRegistriesForGateway(
+	gatewayRef string,
+) []EventGatewaySchemaRegistryResource {
+	var regs []EventGatewaySchemaRegistryResource
+
+	// Add nested schema registries from the event gateway
+	for _, gateway := range rs.EventGatewayControlPlanes {
+		if gateway.Ref == gatewayRef {
+			for _, reg := range gateway.SchemaRegistries {
+				regCopy := reg
+				regCopy.EventGateway = gatewayRef
+				regs = append(regs, regCopy)
+			}
+			break
+		}
+	}
+
+	// Add root-level schema registries for this gateway
+	for _, reg := range rs.EventGatewaySchemaRegistries {
+		if reg.EventGateway == gatewayRef {
+			regs = append(regs, reg)
+		}
+	}
+
+	return regs
 }
 
 // GetClusterPoliciesForVirtualCluster returns all cluster policies (nested + root-level)

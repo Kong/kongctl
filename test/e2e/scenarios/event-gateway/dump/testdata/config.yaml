@@ -55,3 +55,16 @@ event_gateways:
             name: default-consume-policy-name-for-dump-test
             ref: default-consume-policy
             type: schema_validation
+    schema_registries:
+      - ref: default-schema-registry
+        name: default-schema-registry-name-for-dump-test
+        description: "Default Schema Registry description for Dump Test"
+        type: confluent
+        config:
+          schema_type: json
+          endpoint: https://schema-registry.example.com
+          timeout_seconds: 30
+          authentication:
+            type: basic
+            username: testuser
+            password: "${env[\"KAFKA_PASSWORD\"]}"

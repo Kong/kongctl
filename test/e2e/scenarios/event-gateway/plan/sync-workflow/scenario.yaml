@@ -34,6 +34,9 @@ vars:
   producePolicyDesc: "Plan Sync Produce Policy description"
   consumePolicyRef: plan-sync-consume-policy
   consumePolicyName: plan-sync-consume-policy-name-for-test
+  schemaRegistryRef: plan-sync-schema-registry
+  schemaRegistryName: plan-sync-schema-registry-name
+  schemaRegistryDesc: "Plan Sync Schema Registry description"
 
 defaults:
   mask:
@@ -891,3 +894,91 @@ steps:
             expect:
               fields:
                 "contains(@, 'No changes detected. Konnect is up to date.')": true
+  - name: 011-plan-sync-schema-registry
+    inputOverlayDirs:
+      - overlays/010-schema-registry
+    commands:
+      - name: 000-plan-create-schema-registry
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-schema-registry.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_schema_registry' && resource_ref=='{{ .vars.schemaRegistryRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.schemaRegistryRef }}"
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-schema-registry.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'event_gateway_schema_registry \"plan-sync-schema-registry\" will be created')": true
+      - name: 002-sync-plan
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-schema-registry.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-schema-registry
+        run:
+          - get
+          - event-gateway
+          - schema-registries
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.schemaRegistryName }}"
+                description: "{{ .vars.schemaRegistryDesc }}"
+                type: confluent
+      - name: 004-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+

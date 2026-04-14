@@ -34,6 +34,9 @@ vars:
   producePolicyDesc: "Plan Apply Produce Policy description"
   consumePolicyRef: plan-apply-consume-policy
   consumePolicyName: skip-record-policy
+  schemaRegistryRef: plan-apply-schema-registry
+  schemaRegistryName: plan-apply-schema-registry-name
+  schemaRegistryDesc: "Plan Apply Schema Registry description"
 
 defaults:
   mask:
@@ -794,4 +797,79 @@ steps:
               fields:
                 name: "{{ .vars.consumePolicyName }}"
                 type: skip_record
-                enabled: true 
+                enabled: true
+  - name: 011-plan-apply-schema-registry
+    inputOverlayDirs:
+      - overlays/010-schema-registry
+    commands:
+      - name: 000-plan-create-schema-registry
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-schema-registry.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_schema_registry' && resource_ref=='{{ .vars.schemaRegistryRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.schemaRegistryRef }}"
+      - name: 001-diff-plan-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-schema-registry.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 1 to add')": true
+                "contains(@, 'event_gateway_schema_registry \"plan-apply-schema-registry\" will be created')": true
+      - name: 002-apply-plan
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-schema-registry.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-schema-registry
+        run:
+          - get
+          - event-gateway
+          - schema-registries
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.schemaRegistryName }}"
+                description: "{{ .vars.schemaRegistryDesc }}"
+                type: confluent

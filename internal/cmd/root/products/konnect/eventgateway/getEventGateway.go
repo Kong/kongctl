@@ -520,6 +520,11 @@ func newGetEventGatewayControlPlaneCmd(verb verbs.VerbValue,
 		rv.AddCommand(dataPlaneCertsCmd)
 	}
 
+	schemaRegistriesCmd := newGetEventGatewaySchemaRegistriesCmd(verb, addParentFlags, parentPreRun)
+	if schemaRegistriesCmd != nil {
+		rv.AddCommand(schemaRegistriesCmd)
+	}
+
 	listenerPoliciesCmd := newGetEventGatewayListenerPoliciesCmd(verb, addParentFlags, parentPreRun)
 	if listenerPoliciesCmd != nil {
 		rv.AddCommand(listenerPoliciesCmd)

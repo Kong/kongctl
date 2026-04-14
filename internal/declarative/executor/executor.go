@@ -61,6 +61,8 @@ type Executor struct {
 	eventGatewayDataPlaneCertificateExecutor *BaseExecutor[
 		kkComps.CreateEventGatewayDataPlaneCertificateRequest,
 		kkComps.UpdateEventGatewayDataPlaneCertificateRequest]
+	eventGatewaySchemaRegistryExecutor *BaseExecutor[
+		kkComps.SchemaRegistryCreate, kkComps.SchemaRegistryUpdate]
 
 	// Portal child resource executors
 	portalCustomizationExecutor *BaseSingletonExecutor[kkComps.PortalCustomization]
@@ -215,6 +217,13 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		kkComps.CreateEventGatewayDataPlaneCertificateRequest,
 		kkComps.UpdateEventGatewayDataPlaneCertificateRequest](
 		NewEventGatewayDataPlaneCertificateAdapter(client),
+		client,
+		dryRun,
+	)
+
+	e.eventGatewaySchemaRegistryExecutor = NewBaseExecutor[
+		kkComps.SchemaRegistryCreate, kkComps.SchemaRegistryUpdate](
+		NewEventGatewaySchemaRegistryAdapter(client),
 		client,
 		dryRun,
 	)
@@ -1889,6 +1898,17 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References["event_gateway_id"] = gatewayRef
 		}
 		return e.eventGatewayDataPlaneCertificateExecutor.Create(ctx, *change)
+	case planner.ResourceTypeEventGatewaySchemaRegistry:
+		// Resolve event gateway reference if needed
+		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
+			}
+			gatewayRef.ID = gatewayID
+			change.References["event_gateway_id"] = gatewayRef
+		}
+		return e.eventGatewaySchemaRegistryExecutor.Create(ctx, *change)
 	case planner.ResourceTypeEventGatewayClusterPolicy:
 		// Resolve event gateway reference if needed
 		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
@@ -2242,6 +2262,17 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			change.References["event_gateway_id"] = gatewayRef
 		}
 		return e.eventGatewayDataPlaneCertificateExecutor.Update(ctx, *change)
+	case planner.ResourceTypeEventGatewaySchemaRegistry:
+		// Resolve event gateway reference if needed (typically should already be in Parent)
+		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
+			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
+			if err != nil {
+				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
+			}
+			gatewayRef.ID = gatewayID
+			change.References["event_gateway_id"] = gatewayRef
+		}
+		return e.eventGatewaySchemaRegistryExecutor.Update(ctx, *change)
 	case planner.ResourceTypeEventGatewayClusterPolicy:
 		// Resolve event gateway reference if needed
 		if gatewayRef, ok := change.References["event_gateway_id"]; ok && gatewayRef.ID == "" {
@@ -2450,6 +2481,9 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 	case planner.ResourceTypeEventGatewayDataPlaneCertificate:
 		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
 		return e.eventGatewayDataPlaneCertificateExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeEventGatewaySchemaRegistry:
+		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
+		return e.eventGatewaySchemaRegistryExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeEventGatewayClusterPolicy:
 		// Both gateway ID and virtual cluster ID should be in References for delete
 		return e.eventGatewayClusterPolicyExecutor.Delete(ctx, *change)

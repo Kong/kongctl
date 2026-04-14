@@ -19,6 +19,7 @@ func init() {
 	tableview.RegisterChildLoader("event-gateway", "virtual-clusters", loadEventGatewayVirtualClusters)
 	tableview.RegisterChildLoader("event-gateway", "data-plane-certificates", loadEventGatewayDataPlaneCertificates)
 	tableview.RegisterChildLoader("event-gateway", "listeners", loadEventGatewayListeners)
+	tableview.RegisterChildLoader("event-gateway", "schema-registries", loadEventGatewaySchemaRegistries)
 	tableview.RegisterChildLoader("listener", "policies", loadEventGatewayListenerPolicies)
 	tableview.RegisterChildLoader("virtual-cluster", "cluster-policies", loadEventGatewayVirtualClusterClusterPolicies)
 	tableview.RegisterChildLoader("virtual-cluster", "produce-policies", loadEventGatewayVirtualClusterProducePolicies)
@@ -408,4 +409,42 @@ func loadEventGatewayDataPlaneCertificates(
 	}
 
 	return buildDataPlaneCertChildView(certs), nil
+}
+
+func loadEventGatewaySchemaRegistries(
+	_ context.Context,
+	helper cmd.Helper,
+	parent any,
+) (tableview.ChildView, error) {
+	gatewayID, err := eventGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	registryAPI := sdk.GetEventGatewaySchemaRegistryAPI()
+	if registryAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("event gateway schema registry client is not available")
+	}
+
+	registries, err := fetchSchemaRegistries(helper, registryAPI, gatewayID, cfg, "")
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	return buildSchemaRegistryChildView(registries), nil
 }

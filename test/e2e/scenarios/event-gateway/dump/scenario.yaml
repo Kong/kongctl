@@ -17,6 +17,8 @@ vars:
   vcRef: default-virtual-cluster
   producePolicyName: default-produce-policy-name-for-dump-test
   consumePolicyName: default-consume-policy-name-for-dump-test
+  schemaRegistryRef: default-schema-registry
+  schemaRegistryName: default-schema-registry-name-for-dump-test
 
 defaults:
   mask:
@@ -44,7 +46,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 5
+                applied: 6
                 failed: 0
 
   # Dump event_gateways with child resources and validate the output structure.
@@ -96,6 +98,12 @@ steps:
                 name: "{{ .vars.consumePolicyName }}"
                 type: schema_validation
                 enabled: true
+          - name: schema-registry-present
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].schema_registries[?name=='{{ .vars.schemaRegistryName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.schemaRegistryName }}"
           - name: namespace-label-preserved
             select: "_defaults.kongctl"
             expect:

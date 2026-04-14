@@ -23,6 +23,7 @@ type EventGatewayControlPlaneResource struct {
 	VirtualClusters       []EventGatewayVirtualClusterResource       `yaml:"virtual_clusters,omitempty"        json:"virtual_clusters,omitempty"`        //nolint:lll
 	Listeners             []EventGatewayListenerResource             `yaml:"listeners,omitempty"               json:"listeners,omitempty"`               //nolint:lll
 	DataPlaneCertificates []EventGatewayDataPlaneCertificateResource `yaml:"data_plane_certificates,omitempty" json:"data_plane_certificates,omitempty"` //nolint:lll
+	SchemaRegistries      []EventGatewaySchemaRegistryResource       `yaml:"schema_registries,omitempty"       json:"schema_registries,omitempty"`       //nolint:lll
 }
 
 func (e EventGatewayControlPlaneResource) GetType() ResourceType {
@@ -99,6 +100,18 @@ func (e EventGatewayControlPlaneResource) Validate() error {
 		dataPlaneCertRefs[dpc.GetRef()] = true
 	}
 
+	// Validate schema registries
+	schemaRegistryRefs := make(map[string]bool)
+	for i, sr := range e.SchemaRegistries {
+		if err := sr.Validate(); err != nil {
+			return fmt.Errorf("invalid schema registry %d: %w", i, err)
+		}
+		if schemaRegistryRefs[sr.GetRef()] {
+			return fmt.Errorf("duplicate schema registry ref: %s", sr.GetRef())
+		}
+		schemaRegistryRefs[sr.GetRef()] = true
+	}
+
 	return nil
 }
 
@@ -121,6 +134,10 @@ func (e *EventGatewayControlPlaneResource) SetDefaults() {
 
 	for i := range e.DataPlaneCertificates {
 		e.DataPlaneCertificates[i].SetDefaults()
+	}
+
+	for i := range e.SchemaRegistries {
+		e.SchemaRegistries[i].SetDefaults()
 	}
 }
 
