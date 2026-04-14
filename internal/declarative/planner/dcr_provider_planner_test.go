@@ -34,8 +34,7 @@ func TestDCRProviderPlannerShouldUpdateDCRProvider(t *testing.T) {
 		ProviderType: "auth0",
 		Issuer:       "https://new.example.com",
 		DCRConfig: map[string]any{
-			"initial_client_id":     "new-client",
-			"initial_client_secret": "write-only-secret",
+			"initial_client_id": "new-client",
 		},
 		Labels: map[string]string{"team": "identity"},
 	}

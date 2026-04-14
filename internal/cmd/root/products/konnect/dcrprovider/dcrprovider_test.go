@@ -30,7 +30,7 @@ func TestNormalizeDCRProviderPreservesFalseActive(t *testing.T) {
 		"provider_type": "okta",
 		"issuer":        "https://example.com",
 		"dcr_config": map[string]any{
-			"client_id": "client-123",
+			"service_ref": "example-service",
 		},
 		"labels": map[string]string{
 			"env": "test",
@@ -63,8 +63,8 @@ func TestDCRProviderDetailView(t *testing.T) {
 		ProviderType: "okta",
 		Issuer:       "https://example.com",
 		DCRConfig: map[string]any{
-			"token_endpoint": "https://example.com/token",
-			"client_id":      "client-123",
+			"endpoint_url": "https://example.com/dcr",
+			"service_ref":  "example-service",
 		},
 		Labels: map[string]string{
 			"env": "test",
@@ -77,7 +77,7 @@ func TestDCRProviderDetailView(t *testing.T) {
 		"provider_type: okta",
 		"issuer: https://example.com",
 		"active: false",
-		"dcr_config: client_id, token_endpoint",
+		"dcr_config: endpoint_url, service_ref",
 		"labels: env=test",
 	} {
 		if !strings.Contains(detail, expected) {
