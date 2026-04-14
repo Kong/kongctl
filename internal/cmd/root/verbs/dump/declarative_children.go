@@ -337,13 +337,18 @@ func buildEventGatewayStaticKeys(
 			continue
 		}
 
-		// Value is write-only and not returned by the API; omit it from the dump.
+		// Include the value if the API returned it (vault/template references are echoed
+		// back verbatim; plain-text secrets are omitted by the API and sk.Value will be nil).
+		value := ""
+		if sk.Value != nil {
+			value = *sk.Value
+		}
 		res := declresources.EventGatewayStaticKeyResource{
 			EventGatewayStaticKeyCreate: kkComps.EventGatewayStaticKeyCreate{
 				Name:        sk.Name,
 				Description: sk.Description,
 				Labels:      sk.Labels,
-				Value:       *sk.Value,
+				Value:       value,
 			},
 			Ref: sk.ID,
 		}

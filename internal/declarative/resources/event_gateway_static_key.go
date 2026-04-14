@@ -58,6 +58,12 @@ func (e EventGatewayStaticKeyResource) Validate() error {
 	if err := ValidateRef(e.Ref); err != nil {
 		return fmt.Errorf("invalid static key ref: %w", err)
 	}
+	if e.Name == "" {
+		return fmt.Errorf("static key %q is missing required field: name", e.Ref)
+	}
+	if e.Value == "" {
+		return fmt.Errorf("static key %q is missing required field: value", e.Ref)
+	}
 	return nil
 }
 

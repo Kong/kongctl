@@ -5332,7 +5332,8 @@ func (c *Client) ListEventGatewayStaticKeys(
 
 		allData = append(allData, res.ListEventGatewayStaticKeysResponse.Data...)
 
-		if res.ListEventGatewayStaticKeysResponse.Meta.Page.Next == nil {
+		if res.ListEventGatewayStaticKeysResponse.Meta == nil ||
+			res.ListEventGatewayStaticKeysResponse.Meta.Page.Next == nil {
 			break
 		}
 
