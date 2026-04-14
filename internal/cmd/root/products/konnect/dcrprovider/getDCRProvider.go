@@ -256,7 +256,7 @@ func runListByIdentifier(
 		}
 	}
 
-	return nil, fmt.Errorf("DCR provider with name or ID %s not found", identifier)
+	return nil, fmt.Errorf("DCR provider with name or ID %q not found", identifier)
 }
 
 func (c *getDCRProviderCmd) validate(helper cmd.Helper) error {

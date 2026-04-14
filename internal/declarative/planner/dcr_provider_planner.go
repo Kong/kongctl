@@ -175,6 +175,9 @@ func (p *dcrProviderPlannerImpl) shouldUpdateDCRProvider(
 		return true, updateFields, changedFields
 	}
 
+	// Konnect can omit display_name from DCR provider responses even when a declarative config
+	// specified one previously. Only diff it when the field is actually observable, otherwise the
+	// planner will produce perpetual updates after create/apply.
 	if desired.DisplayName != "" && current.DisplayNameSet && current.DisplayName != desired.DisplayName {
 		updateFields[FieldDisplayName] = desired.DisplayName
 		changedFields[FieldDisplayName] = FieldChange{Old: current.DisplayName, New: desired.DisplayName}

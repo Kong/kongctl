@@ -76,9 +76,6 @@ func (a *DCRProviderAdapter) MapUpdateFields(
 		)
 	}
 
-	if name, ok := payload[planner.FieldName].(string); ok && name != "" {
-		update.Name = &name
-	}
 	if displayName, ok := payload[planner.FieldDisplayName].(string); ok {
 		update.DisplayName = &displayName
 	}
