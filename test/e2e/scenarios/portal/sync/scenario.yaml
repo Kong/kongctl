@@ -47,7 +47,89 @@ steps:
               fields:
                 version: "3.2.0"
 
-  - name: 002-delete-api
+  - name: 002-apply-preserves-publication
+    inputOverlayDirs:
+      - overlays/003-remove-sms-publication
+    commands:
+      - name: 000-apply-no-pub-changes
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: apply
+          - select: "plan.summary"
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-remove-sms-publication
+    inputOverlayDirs:
+      - overlays/003-remove-sms-publication
+    commands:
+      - name: 000-sync-remove-publication
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: sync
+          - select: "plan.changes"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: >-
+              plan.changes[?resource_type=='api_publication'
+              && action=='DELETE'] | [0]
+            expect:
+              fields:
+                resource_type: api_publication
+                action: DELETE
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 001-get-apis-sms-still-exists
+        run: ["get", "apis"]
+        assertions:
+          - select: "[?name=='SMS API'] | [0]"
+            expect:
+              fields:
+                name: "SMS API"
+          - select: "[?name=='SMS API'] | [0].portals"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 002-idempotency
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 004-delete-api
     inputOverlayDirs:
       - overlays/002-delete-api
     commands:
