@@ -473,6 +473,15 @@ All data is pre-fetched in `/tmp/gh-aw/release-data/`:
 Generate complete release notes that replace the existing release content,
 so users can quickly understand what changed and why it matters.
 
+**Important tool usage notes:**
+- All required GitHub release, PR, issue, and compare data has already been
+  pre-fetched into `/tmp/gh-aw/release-data/`.
+- Use local shell commands only to inspect those pre-fetched files and relevant
+  repository files.
+- Do NOT use `gh` CLI commands or make additional GitHub API calls from the
+  agent. The agent should operate only on the pre-fetched local data.
+- Use the `update_release` safe-output tool exactly once for the final write.
+
 The highlights should be:
 - User-impact focused, not a raw changelog dump
 - Concise and scannable in under one minute
