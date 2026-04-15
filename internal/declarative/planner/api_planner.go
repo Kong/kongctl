@@ -489,10 +489,6 @@ func attributesEqual(current, desired any) bool {
 }
 
 func canonicalizeAttributesForCompare(attrs map[string]any) any {
-	if len(attrs) == 0 {
-		return nil
-	}
-
 	canonical := make(map[string]any, len(attrs))
 	for key, value := range attrs {
 		if value == nil {
